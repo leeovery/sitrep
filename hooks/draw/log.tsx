@@ -4,8 +4,8 @@
  * A project's log names the session each line came from.
  */
 import type { LogLine } from '../../core'
-import { ago, C, clip, GLYPH } from '../look'
-import { tree, type Drawing } from './kit'
+import { ago, C, GLYPH } from '../look'
+import { drawTitle, tree, type Drawing } from './kit'
 
 /** How each kind of line is marked: a note Claude wrote, a change of status, a pick-up. */
 const MARK: Record<LogLine['kind'], { glyph: string; color: string }> = {
@@ -27,7 +27,7 @@ const detailOf = (line: LogLine) => [
 type From = { work: string; name: string }
 
 export const drawLogLine = (d: Drawing, line: LogLine, from?: From) => {
-  const { Box, Text, Button } = d.els
+  const { Box, Text } = d.els
   const key = from === undefined ? logKey(line) : `${from.work}:${logKey(line)}`
   const text = from === undefined ? line.text : `${from.name}: ${line.text}`
   const mark = MARK[line.kind]
@@ -40,12 +40,7 @@ export const drawLogLine = (d: Drawing, line: LogLine, from?: From) => {
         </Box>
         <Text color={mark.color}>{mark.glyph}</Text>
         <Box flexGrow={1} flexShrink={1}>
-          <Button
-            key={`log:${key}`}
-            plain
-            label={clip(text, d.width - 8)}
-            onPress={() => d.act.select(key)}
-          />
+          {drawTitle(d, `log:${key}`, text, d.scene.pane.selected === key, () => d.act.select(key))}
         </Box>
       </Box>
       {d.scene.pane.selected === key && (

@@ -11,7 +11,7 @@ import type { ElementTable, RenderElement, RenderSurface } from 'claude-code'
 import { answerOf, isPending, type Ask, type Parked, type ReplyFields } from '../../core'
 import type { SitrepQueued } from '../../types'
 import type { Actions } from '../actions'
-import { C, GLYPH } from '../look'
+import { C, clip, GLYPH, wrapped } from '../look'
 import { isCarried } from '../queue'
 import type { Scene } from '../scene'
 
@@ -115,6 +115,47 @@ export const marked = (
 }
 
 /** A line hanging from what it describes by a `└`, and what goes after it on the line. */
+/** What a title's line gives up to the row around it: the glyph before it and the age after. */
+const TITLE_GUTTER = 8
+
+/**
+ * An item's title as the press that opens and closes it: clipped to a line,
+ * or opened, the whole of it. A Button's label never wraps, so each line of
+ * an opened title is a Button of its own, pressing the same.
+ */
+export const drawTitle = (
+  d: Drawing,
+  key: string,
+  title: string,
+  isOpen: boolean,
+  onPress: () => void,
+) => {
+  const { Box, Button } = d.els
+  const width = d.width - TITLE_GUTTER
+  const lines = isOpen ? wrapped(title, width) : [clip(title, width)]
+
+  return (
+    <Box flexDirection="column">
+      {lines.map((line, i) => (
+        <Button key={i === 0 ? key : `${key}:${i}`} plain label={line} onPress={onPress} />
+      ))}
+    </Box>
+  )
+}
+
+/** Where an item's own record is, as an opened item shows it. */
+export const drawRef = ({ els }: Drawing, ref: string | undefined) => {
+  const { Text } = els
+
+  return (
+    ref !== undefined && (
+      <Text color={C.soft} wrap="wrap">
+        see {ref}
+      </Text>
+    )
+  )
+}
+
 export const hung = ({ els }: Drawing, key: string, text: string, after?: RenderElement) => {
   const { Box, Text } = els
 

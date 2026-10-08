@@ -3,11 +3,19 @@
  * a project's sessions or every project raised and put off, each to pick
  * up. A pick-up queues in Ready to send like any reply.
  */
-import { ago, C, clip, GLYPH } from '../look'
+import { ago, C, GLYPH } from '../look'
 import { filedAt, homeOf, parkedAt, projectName, samePlace, type ParkedAt } from '../places'
 import { queuedOn } from '../queue'
 import type { Scene } from '../scene'
-import { drawOnItsWay, drawQueued, heading, onItsWay, type Drawing } from './kit'
+import {
+  drawOnItsWay,
+  drawQueued,
+  drawRef,
+  drawTitle,
+  heading,
+  onItsWay,
+  type Drawing,
+} from './kit'
 
 const ABOUT = "What we said we'd come back to. Each stays until you pick it up and Claude has it."
 
@@ -27,7 +35,7 @@ const whereOf = (scene: Scene) => {
   }
 }
 
-/** Where to look, the session that raised it where the view spans several, and the button that picks it up. */
+/** Where to look, Claude's own record of it, the session that raised it where the view spans several, and the button that picks it up. */
 const drawOpened = (d: Drawing, { at, name, parked }: ParkedAt) => {
   const { Box, Text, Button } = d.els
 
@@ -38,6 +46,7 @@ const drawOpened = (d: Drawing, { at, name, parked }: ParkedAt) => {
           {parked.where}
         </Text>
       )}
+      {drawRef(d, parked.ref)}
       <Box flexDirection="row" columnGap={2} flexWrap="wrap">
         {d.scene.place.level !== 'session' && <Text color={C.grey}>raised in {name}</Text>}
         <Button
@@ -68,7 +77,7 @@ const drawUnder = (d: Drawing, entry: ParkedAt) => {
 }
 
 const drawItem = (d: Drawing, entry: ParkedAt) => {
-  const { Box, Text, Button } = d.els
+  const { Box, Text } = d.els
   const { at, parked } = entry
 
   return (
@@ -76,12 +85,13 @@ const drawItem = (d: Drawing, entry: ParkedAt) => {
       <Box flexDirection="row" gap={1}>
         <Text color={C.parked}>{GLYPH.parked}</Text>
         <Box flexGrow={1} flexShrink={1}>
-          <Button
-            key={`ppick:${parked.id}`}
-            plain
-            label={clip(parked.title, d.width - 8)}
-            onPress={() => d.act.select(parked.id)}
-          />
+          {drawTitle(
+            d,
+            `ppick:${parked.id}`,
+            parked.title,
+            d.scene.pane.selected === parked.id,
+            () => d.act.select(parked.id),
+          )}
         </Box>
         <Text color={C.grey}>{ago(d.scene.now, parked.at)}</Text>
       </Box>

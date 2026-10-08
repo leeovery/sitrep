@@ -73,6 +73,27 @@ export const agoWords = (now: number, at: number) => {
 export const clip = (text: string, width: number) =>
   text.length <= width ? text : `${text.slice(0, Math.max(1, width - 1))}…`
 
+const pieces = (word: string, width: number) =>
+  Array.from({ length: Math.ceil(word.length / width) }, (_, i) =>
+    word.slice(i * width, (i + 1) * width),
+  )
+
+/** Text broken into lines of at most `width`, between words where it can be; a word longer than a line is cut. */
+export const wrapped = (text: string, width: number) => {
+  const size = Math.max(1, width)
+
+  return text
+    .split(/\s+/)
+    .filter(Boolean)
+    .reduce<string[]>((lines, word) => {
+      const last = lines.at(-1)
+
+      return last !== undefined && last.length + 1 + word.length <= size
+        ? [...lines.slice(0, -1), `${last} ${word}`]
+        : [...lines, ...pieces(word, size)]
+    }, [])
+}
+
 /** A project's folder name as a title: its first letter capital. */
 export const titled = (name: string) => name.charAt(0).toUpperCase() + name.slice(1)
 

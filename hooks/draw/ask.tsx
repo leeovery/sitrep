@@ -6,11 +6,20 @@
  */
 import { VERDICTS, type Ask, type AskKind, type Verdict } from '../../core'
 import type { SitrepItemRef, SitrepQueued } from '../../types'
-import { ago, C, clip, GLYPH } from '../look'
+import { ago, C, GLYPH } from '../look'
 import { queuedOn } from '../queue'
 import { askMark, type Filed } from '../scene'
 import { drawField } from './field'
-import { canType, drawOnItsWay, drawQueued, hung, onItsWay, type Drawing } from './kit'
+import {
+  canType,
+  drawOnItsWay,
+  drawQueued,
+  drawRef,
+  drawTitle,
+  hung,
+  onItsWay,
+  type Drawing,
+} from './kit'
 
 /** A yes, by the kind of ask it answers: its button's words. A decide ask offers no yes, so its words are never drawn. */
 const YES: Record<AskKind, string> = {
@@ -123,6 +132,7 @@ const drawUnder = (d: Drawing, filed: Filed, ask: Ask) => {
           {ask.where}
         </Text>
       )}
+      {isSelected && !isClosed && drawRef(d, ask.ref)}
       {isClosed && hung(d, `sent:${ask.id}`, 'sent, and Claude has it')}
       {commented !== undefined &&
         queued === undefined &&
@@ -137,7 +147,7 @@ const drawUnder = (d: Drawing, filed: Filed, ask: Ask) => {
 }
 
 export const drawAsk = (d: Drawing, filed: Filed, ask: Ask) => {
-  const { Box, Text, Button } = d.els
+  const { Box, Text } = d.els
   const isClosed = ask.state === 'closed'
   const mark = askMark(d.scene, ask)
 
@@ -151,12 +161,9 @@ export const drawAsk = (d: Drawing, filed: Filed, ask: Ask) => {
               {ask.title}
             </Text>
           ) : (
-            <Button
-              key={`pick:${ask.id}`}
-              plain
-              label={clip(ask.title, d.width - 8)}
-              onPress={() => d.act.select(ask.id)}
-            />
+            drawTitle(d, `pick:${ask.id}`, ask.title, d.scene.pane.selected === ask.id, () =>
+              d.act.select(ask.id),
+            )
           )}
         </Box>
         <Text color={C.grey}>{ago(d.scene.now, ask.at)}</Text>

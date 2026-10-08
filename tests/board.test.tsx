@@ -263,6 +263,43 @@ test('a log line opens to what happened and where it is recorded, and closes aga
   expect(await ui.find({ type: 'Text', text: '6 files, +214 −51' })).toBeUndefined()
 })
 
+test('an opened item shows its whole title, and where its own record is; closed, the title keeps to a line', async ($, on) => {
+  const w = world($, on)
+  const title =
+    "Fold the trial's lessons into the orchestrate skill: implementers at high and xhigh, model by complexity, plan stops, parallel worktrees"
+
+  await w.begin()
+  await w.call('park', { title, ref: 'memory: orchestration-setup.md' })
+
+  const ui = await w.pane()
+
+  await ui.press({ key: 'parked' })
+
+  const [parked] = (await ui.findAll({ type: 'Button' })).filter(each =>
+    each.key?.startsWith('ppick:'),
+  )
+  const key = parked?.key ?? ''
+  const lines = async () =>
+    (await ui.findAll({ type: 'Button' }))
+      .filter(each => each.key === key || each.key?.startsWith(`${key}:`))
+      .map(each => each.text)
+
+  expect(await lines()).toHaveLength(1)
+  expect((await lines())[0]).toMatch(/…$/)
+  expect(
+    await ui.find({ type: 'Text', text: /see memory: orchestration-setup.md/ }),
+  ).toBeUndefined()
+
+  await ui.press({ key })
+  expect((await lines()).length).toBeGreaterThan(1)
+  expect((await lines()).join(' ')).toBe(title)
+  expect(await ui.find({ type: 'Text', text: /see memory: orchestration-setup.md/ })).toBeDefined()
+  expect(await ui.find({ key: `pickup:${key.slice('ppick:'.length)}` })).toBeDefined()
+
+  await ui.press({ key: `${key}:1` })
+  expect(await lines()).toHaveLength(1)
+})
+
 test('Ready to send stays at the foot of the parked view too', async ($, on) => {
   const w = world($, on)
 
