@@ -39,6 +39,9 @@ export type Slot<T> = {
   update: (change: (value: T) => T) => Promise<unknown>
 }
 
+/** How long a toast stays unless it says otherwise: long enough to read it through. */
+export const TOAST_MS = 10_000
+
 export type Host = {
   fs: {
     read: (path: string) => Promise<string>

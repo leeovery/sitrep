@@ -1,5 +1,6 @@
 import { expect, test, tier } from 'claude-code/testing'
 import { workPaths } from '../core'
+import { TOAST_MS } from '../hooks/host'
 import { C } from '../hooks/look'
 import { WATCH_MS } from '../hooks/window'
 import type { SitrepAttachment } from '../types'
@@ -14,7 +15,7 @@ const PULSE_FRAME_MS = 150
 
 const paths = workPaths(ROOT, PROJECT.key, META.id)
 
-test('a new ask from another writer pulses, toasts, chimes and opens; one there when the window attached does not', async ($, on) => {
+test('a new ask from another writer pulses, toasts for 10 seconds, chimes and opens; one there when the window attached does not', async ($, on) => {
   const w = world($, on)
   const elsewhere = w.writer(paths)
 
@@ -31,6 +32,7 @@ test('a new ask from another writer pulses, toasts, chimes and opens; one there 
 
   expect(w.sounds).toEqual([CHIME])
   expect(w.toasts).toEqual(['◆ For you: Keep the ledger forever?'])
+  expect(w.toastsMs, 'long enough to read through').toEqual([TOAST_MS])
   expect(w.state.pulse).toEqual({ asks: ['k2'], frames: 24 })
 
   const ui = await w.pane()

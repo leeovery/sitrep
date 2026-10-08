@@ -80,7 +80,7 @@ const JOIN =
 const GUIDE = [
   "sitrep is Lee's board inside Claude Code: where each piece of work stands and what waits on Lee. The chat stays primary; the board mirrors your own tracking, for Lee.",
   '- Start a piece of work when the work will run across several turns or will need Lee: a feature, a design, an investigation. Not for a quick question. Name it in plain words, as Lee would say it, with no internal codes; record its id wherever this project tracks the work.',
-  "- As it goes: set the status when what's under way changes; post an ask whenever you need something only Lee can do or decide, and say it in the chat as well; note what Lee would want to know later, never running commentary; resolve what's done.",
+  "- As it goes: set the status when what's under way changes; post an ask whenever you need something only Lee can do or decide, and say it in the chat as well (when Lee answers it in the chat, resolve the ask); note what Lee would want to know later, never running commentary; resolve what's done.",
 ].join('\n')
 
 /** What a session starts knowing of the board: how to keep it, the project's pieces of work, how to take one up, and the one this window already holds. */

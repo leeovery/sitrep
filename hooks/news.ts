@@ -14,7 +14,6 @@ const CHIME = 'sounds/ask.aiff'
 
 const PULSE_FRAME_MS = 150
 const PULSE_FRAMES = 24
-const TOAST_MS = 5_000
 
 let pulsing: Timer | undefined
 
@@ -54,7 +53,7 @@ export const announce = async (host: Host, asks: readonly Ask[]) => {
     return
   }
 
-  host.ui.toast(toastOf(asks, newest), { timeoutMs: TOAST_MS })
+  host.ui.toast(toastOf(asks, newest))
   void host.ui.play(CHIME).catch(logFailure(host, 'the chime'))
   await host.state.pane.update(pane => ({ ...pane, selected: newest.id }))
   await pulse(host, asks)

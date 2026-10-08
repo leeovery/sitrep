@@ -32,7 +32,7 @@ import { heardTurn, isBoardMessage, takeUpDelivery, wentQuiet } from './deliver'
 import { drawBand } from './draw/band'
 import { drawPane } from './draw/board'
 import { drawToolResult, drawToolRow, toolLine } from './draw/tool-row'
-import { logFailure, type Host } from './host'
+import { logFailure, TOAST_MS, type Host } from './host'
 import { BAND_KEYS, boardClosed, openBoard, PANE, pressBand, syncBoard } from './pane'
 import { receiveEvery } from './receive'
 import { heldWork, sceneOf, tickEvery } from './scene'
@@ -89,7 +89,7 @@ const hostOf = ($: EngineInterface): Host => ({
   run: (argv, cwd) => $.process.run(argv, { cwd }),
   log: text => $.ui.log(text, { to: 'debug' }),
   ui: {
-    toast: (text, options) => $.ui.toast(text, options),
+    toast: (text, options) => $.ui.toast(text, { timeoutMs: TOAST_MS, ...options }),
     open: args => $.ui.open(args),
     close: id => $.ui.close({ id }),
     panes: () => $.ui.panes(),

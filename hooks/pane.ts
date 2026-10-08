@@ -67,7 +67,7 @@ export const openBoard = async (host: Host, mode: SitrepMode, focus: Focus = {})
     // Open but undrawn, the band would say "hide board" over nothing.
     await host.ui.close(PANE)
     await markClosed(host)
-    host.ui.toast(`Claude Code didn't draw the board: ${opened.reason}`, { timeoutMs: 8_000 })
+    host.ui.toast(`Claude Code didn't draw the board: ${opened.reason}`)
 
     return
   }

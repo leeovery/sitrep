@@ -90,6 +90,8 @@ type Submitted = Pick<PromptSubmitInput, 'text' | 'context' | 'origin'>
 function display(on: On) {
   const panes = new Map<string, boolean>()
   const toasts: string[] = []
+  /** How long each toast stays, in the order shown. */
+  const toastsMs: (number | undefined)[] = []
   const sounds: string[] = []
   const commands: string[] = []
   const prompts: Submitted[] = []
@@ -124,6 +126,7 @@ function display(on: On) {
 
   on('ui.toast', ($, e) => {
     toasts.push(e.text)
+    toastsMs.push(e.timeoutMs)
 
     return { value: undefined }
   })
@@ -160,6 +163,7 @@ function display(on: On) {
   return {
     panes,
     toasts,
+    toastsMs,
     sounds,
     commands,
     prompts,

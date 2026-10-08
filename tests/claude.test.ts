@@ -131,6 +131,7 @@ test('a session starts knowing how to keep the board, its works by id, how to ta
   )
   expect(guide).toContain('Not for a quick question.')
   expect(guide).toContain('say it in the chat as well')
+  expect(guide).toContain('when Lee answers it in the chat, resolve the ask')
   expect(guide).not.toContain('sitrep pieces of work')
   expect(startText(works)).toBe(`${guide}\n${worksText(works)}\n${join}`)
   expect(startText(works, works[0])).toBe(
