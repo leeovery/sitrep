@@ -264,6 +264,25 @@ $XDG_STATE_HOME/sitrep/, else ~/.local/state/sitrep/
     sits there as plain data, its items and ids as lists. It outlives a
     reload of the mod's code, and the window takes its work up again; a new
     process (`--resume`) starts without it, and Claude joins again.
+  - Drawing lives in modules of its own (`hooks/draw`): pure functions from
+    a surface's element table and plain data to a tree, what a button does
+    handed in as actions bound to the host. JSX's `h` is global in every
+    module of the plugin, and a `Client`'s `module` is read off whichever
+    file draws it, relative to that file. A surface's table names every
+    element, one the surface lacks drawing nothing, so what a surface can
+    draw (a text area, a one-line field) is read off `e.surface`.
+  - `$.prompt.submit` while Claude is mid-turn (settled in a live run): the
+    call waits, the prompt never folded into the running turn; once that
+    turn completes, the prompt starts a turn of its own and the call
+    resolves as it starts. A hook holding the turn (`tool.call`,
+    `command.run`, or a timer one of them started, while that hook runs) is
+    refused the call, so the board submits from its send button's own
+    handler.
+  - The mod's own `prompt.submit` hook does not see a prompt the mod
+    submitted from a button's handler or a timer (live, and in the test
+    kit); from its `ui.press` hook it does. Either way the board's own
+    message takes no board-change context: its replies are the change, and
+    the rest rides in with the next prompt.
 - **the CLI**, `sitrep`: runs on Bun, reads and writes through the file system.
   For scripts and other tools: a Paper generator posting "round 3 drawn", and
   later the tmux indicator. **proposed** commands: `sitrep ask`, `sitrep note`,

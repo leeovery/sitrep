@@ -1,9 +1,10 @@
 /**
  * sitrep's values in `$.state`: the piece of work this window is attached
- * to, that work as its files fold, and the board as Claude last saw it.
+ * to, that work as its files fold, the board as Claude last saw it, and
+ * the window's own state as Lee works the board.
  *
  * The engine takes only a self-contained contract, so the board's types
- * mirror core's (core/types.ts). hooks/state.ts converts a folded work to a
+ * mirror core's (core/types.ts). hooks/board.ts converts a folded work to a
  * board and back, so the compiler holds each to the other.
  */
 
@@ -123,6 +124,39 @@ export type SitrepAttachment = {
   attachedAt: number
 }
 
+/** A reply of Lee's waiting in Ready to send: the work and item it answers, and what it says. */
+export type SitrepQueued = {
+  work: string
+  item: string
+  verdict: SitrepVerdict
+  option?: string
+  note?: string
+}
+
+/** What the board shows: a piece of work's own view, or what it parked. */
+export type SitrepView = 'session' | 'parked'
+
+/** The board full, or collapsed to the glance. */
+export type SitrepMode = 'full' | 'glance'
+
+/** The board pane as the window keeps it. */
+export type SitrepPane = {
+  /** Whether the pane is open and drawn, which the band's button follows. */
+  isOpen: boolean
+  mode: SitrepMode
+  view: SitrepView
+  /** The item (or log line) opened under its line. */
+  selected: string | null
+  /** The ask whose comment field is open. */
+  commenting: string | null
+}
+
+/** New asks pulsing, and how many frames of the pulse are left. */
+export type SitrepPulse = {
+  asks: string[]
+  frames: number
+}
+
 declare module 'claude-code' {
   interface PluginState {
     sitrep: {
@@ -131,6 +165,16 @@ declare module 'claude-code' {
       board: SitrepBoard | null
       /** `boardText` as Claude last saw it: a start, a join, a read, its own post, or a turn's context. */
       seen: string | null
+      /** Ready to send, in the order queued. */
+      queue: SitrepQueued[]
+      /** The replies of a send Claude Code has not taken yet: frozen in the queue until it does. */
+      sending: SitrepQueued[]
+      pane: SitrepPane
+      /** What has been typed in the open comment field. */
+      draft: string
+      pulse: SitrepPulse
+      /** A count moved on as time passes, so what the board draws from the time is drawn again. */
+      tick: number
     }
   }
 }

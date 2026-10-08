@@ -1,21 +1,32 @@
 /**
  * What sitrep asks of the host: its file system, clock, session and
- * environment, and the mod's values in `$.state`. Each is a call on a hook's
- * `$`, bound in register.tsx: the engine reads a hooks module's calls off its
- * source and never follows `$` across an import, so the other modules are
- * handed this in its place.
+ * environment, its display and prompt, and the mod's values in `$.state`.
+ * Each is a call on a hook's `$`, bound in register.tsx: the engine reads a
+ * hooks module's calls off its source and never follows `$` across an
+ * import, so the other modules are handed this in its place.
  *
  * Also what follows from the host: where sitrep's folder is, which project
  * the session works in, which writer this window is, and random bytes.
  */
-import type { FsEntry, ProcessRunResult, Timer } from 'claude-code'
+import type {
+  FsEntry,
+  PaneOpenArgs,
+  ProcessRunResult,
+  PromptSubmitResult,
+  Timer,
+  ToastOptions,
+  UiOpenResult,
+  UiPane,
+} from 'claude-code'
 import { projectOf, rootOf, type Project, type Random } from '../core'
-import type { SitrepAttachment, SitrepBoard } from '../types'
+import type { SitrepAttachment, SitrepBoard, SitrepPane, SitrepPulse, SitrepQueued } from '../types'
 
 /** One of the mod's values in `$.state`. */
 export type Slot<T> = {
   read: () => Promise<T>
   write: (value: T) => Promise<unknown>
+  /** Writes what `change` makes of the value as it stands, again should another write land first. */
+  update: (change: (value: T) => T) => Promise<unknown>
 }
 
 export type Host = {
@@ -28,6 +39,7 @@ export type Host = {
   }
   clock: {
     now: () => Promise<number>
+    after: (ms: number, task: () => void) => Timer
     every: (ms: number, task: () => void) => Timer
   }
   session: {
@@ -39,10 +51,29 @@ export type Host = {
   run: (argv: readonly string[], cwd: string) => Promise<ProcessRunResult>
   /** Writes a line to the debug log. */
   log: (text: string) => void
+  ui: {
+    toast: (text: string, options?: ToastOptions) => void
+    open: (pane: PaneOpenArgs) => Promise<UiOpenResult>
+    close: (id: string) => Promise<void>
+    /** The mod's own open panes, as the engine records them. */
+    panes: () => Promise<readonly UiPane[]>
+    /** Plays a sound file of the mod's, by its path in the mod's folder. */
+    play: (asset: string) => Promise<void>
+  }
+  prompt: {
+    /** Submits text as Lee's own message: the prompt that entered, or why it did not. */
+    submit: (text: string) => Promise<PromptSubmitResult>
+  }
   state: {
     attachment: Slot<SitrepAttachment | null>
     board: Slot<SitrepBoard | null>
     seen: Slot<string | null>
+    queue: Slot<SitrepQueued[]>
+    sending: Slot<SitrepQueued[]>
+    pane: Slot<SitrepPane>
+    draft: Slot<string>
+    pulse: Slot<SitrepPulse>
+    tick: Slot<number>
   }
 }
 

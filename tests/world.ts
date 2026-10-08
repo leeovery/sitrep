@@ -1,13 +1,24 @@
 /**
  * The engine beneath the mod, for its tests: a file system in memory, a
- * repository git knows, the session, the environment and the clock, and a
- * record of what the mod puts in `$.state`. Nothing touches a real folder.
+ * repository git knows, the session, the environment and the clock, the
+ * display, and a record of what the mod puts in `$.state` and submits.
+ * Nothing touches a real folder.
  */
-import type { On } from 'claude-code'
+import type { On, PluginState, PromptSubmitInput, RenderPropsOf } from 'claude-code'
 import { mock, type Engine } from 'claude-code/testing'
-import { metaText, presenceText, projectOf, workPaths, type Presence, type WorkMeta } from '../core'
-import type { SitrepAttachment, SitrepBoard } from '../types'
-import { T0, W1 } from './support'
+import {
+  metaText,
+  presenceText,
+  projectOf,
+  workPaths,
+  type Body,
+  type Presence,
+  type WorkMeta,
+  type WorkPaths,
+} from '../core'
+import { file, T0, W1, W2, type Line } from './support'
+
+type Sitrep = PluginState['sitrep']
 
 export const STATE_HOME = '/state'
 export const ROOT = `${STATE_HOME}/sitrep`
@@ -31,6 +42,33 @@ export const DASHBOARD = {
 
 export const PROMPT = { text: 'Carry on.', wait: false, origin: { kind: 'composer' as const } }
 
+/** The board pane as a fullscreen terminal docks it, and as the main screen draws it inline. */
+export const DOCKED: RenderPropsOf['Pane'] = {
+  title: 'sitrep',
+  isFocused: false,
+  bodyColumns: 56,
+  placement: 'dock',
+  scroll: { offset: 0, bodyRows: 30 },
+  view: {},
+}
+
+export const INLINE: RenderPropsOf['Pane'] = { ...DOCKED, placement: 'inline' }
+
+/** The band above the prompt, 100 columns across. */
+export const BAND: RenderPropsOf['AbovePrompt'] = {
+  hasSurvey: false,
+  isWorking: false,
+  maxRows: 6,
+  bodyColumns: 100,
+  scroll: { offset: 0, bodyRows: 6 },
+  view: {},
+}
+
+/** The surfaces that draw the board, the band and a field. */
+export const SURFACES = ['terminal', 'desktop'] as const
+
+type Surface = (typeof SURFACES)[number]
+
 /** What a test calls a tool with: its short name and its arguments. */
 type Args = { [key: string]: unknown }
 
@@ -40,30 +78,139 @@ const MISSING = (path: string) => ({ deny: `ENOENT: no such file or directory, $
 
 const isUnder = (dir: string, path: string) => path.startsWith(`${dir}/`)
 
+/** What reaches the model as a prompt: the text, what rode beside it, and whose it is. */
+type Submitted = Pick<PromptSubmitInput, 'text' | 'context' | 'origin'>
+
+/**
+ * The display beneath the mod: the panes it opens, as placed or waiting;
+ * its toasts, sounds and command; and the prompts it submits, which can be
+ * dropped or held back as a running turn holds them.
+ */
+function display(on: On) {
+  const panes = new Map<string, boolean>()
+  const toasts: string[] = []
+  const sounds: string[] = []
+  const commands: string[] = []
+  const prompts: Submitted[] = []
+  let unplaced: string | undefined
+  let dropping: string | undefined
+  let holding: { arrive: () => void; turn: Promise<void> } | undefined
+
+  on('ui.open', ($, e) => {
+    panes.set(e.id, unplaced === undefined)
+
+    return {
+      value: unplaced === undefined ? { isPlaced: true } : { isPlaced: false, reason: unplaced },
+    }
+  })
+
+  on('ui.close', ($, e) => {
+    panes.delete(e.id)
+
+    return { value: undefined }
+  })
+
+  on('ui.panes', () => ({
+    value: [...panes].map(([id, isPlaced]) => ({
+      id,
+      title: id,
+      isShown: true,
+      isFocused: false,
+      isPlaced,
+    })),
+  }))
+
+  on('ui.toast', ($, e) => {
+    toasts.push(e.text)
+
+    return { value: undefined }
+  })
+
+  on('audio.play', ($, e) => {
+    sounds.push(e.clip.asset ?? '')
+
+    return { value: undefined }
+  })
+
+  on('command.register', ($, e) => {
+    commands.push(e.name)
+
+    return { value: { command: e.name } }
+  })
+
+  on('prompt.submit', async ($, e) => {
+    if (holding !== undefined) {
+      holding.arrive()
+      await holding.turn
+    }
+
+    if (dropping !== undefined) {
+      return { drop: dropping }
+    }
+
+    prompts.push({ text: e.text, context: e.context, origin: e.origin })
+
+    return { text: e.text, context: e.context, origin: e.origin }
+  })
+
+  return {
+    panes,
+    toasts,
+    sounds,
+    commands,
+    prompts,
+    /** Panes opened from here on wait undrawn, for that reason; or, given none, are placed again. */
+    unplacePanes: (reason?: string) => {
+      unplaced = reason
+    },
+    /** Prompts from here on do not enter, for that reason; or, given none, they enter again. */
+    dropPrompts: (reason?: string) => {
+      dropping = reason
+    },
+    /**
+     * Prompts from here on wait, as behind a running turn: `arrived` once
+     * one is submitted, and `end()` ends the turn, letting it in.
+     */
+    holdPrompts: () => {
+      let end = () => {}
+      let arrive = () => {}
+      const arrived = new Promise<void>(resolve => {
+        arrive = resolve
+      })
+
+      holding = {
+        arrive: () => arrive(),
+        turn: new Promise(resolve => {
+          end = resolve
+        }),
+      }
+
+      return {
+        arrived,
+        end: () => {
+          holding = undefined
+          end()
+        },
+      }
+    },
+  }
+}
+
 export function world(engine: Engine, on: On, options: { now?: number; cwd?: string } = {}) {
   const clock = mock.clock(on, { now: options.now ?? T0 })
   const files = new Map<string, File>()
-  const state: {
-    attachment?: SitrepAttachment | null
-    board?: SitrepBoard | null
-    seen?: string | null
-  } = {}
-  const boards: (SitrepBoard | null)[] = []
+  const state: Partial<Sitrep> = {}
+  const boards: (Sitrep['board'] | null)[] = []
   const logs: string[] = []
   const registered: { name: string; isDeferred?: boolean }[] = []
+  const shown = display(on)
   let session = W1
   let cwd = options.cwd ?? REPO
-  let dropping: string | undefined
 
   mock.env(on, { XDG_STATE_HOME: STATE_HOME, HOME: '/Users/lee' })
 
   on('session.start', ($, e) => ({ cwd: e.cwd }))
   on('session.end', ($, e) => ({ sessionId: e.sessionId }))
-  on('prompt.submit', ($, e) =>
-    dropping === undefined
-      ? { text: e.text, context: e.context, origin: e.origin }
-      : { drop: dropping },
-  )
   on('session.id', () => ({ value: session }))
   on('session.cwd', () => ({ value: cwd }))
 
@@ -98,7 +245,7 @@ export function world(engine: Engine, on: On, options: { now?: number; cwd?: str
     Object.assign(state, { [e.key]: e.value })
 
     if (e.key === 'board') {
-      boards.push(e.value as SitrepBoard | null)
+      boards.push(e.value as Sitrep['board'])
     }
 
     return next(e)
@@ -169,6 +316,16 @@ export function world(engine: Engine, on: On, options: { now?: number; cwd?: str
   const beat = (id: string, presence: Presence, project = PROJECT.key) =>
     put(workPaths(ROOT, project, id).heartbeat(presence.writer), presenceText(presence))
 
+  /** Another window's file in a work: each call writes lines to it as that window does, at the time. */
+  const writer = (paths: WorkPaths, name = W2) => {
+    const lines: Line[] = []
+
+    return (...bodies: Body[]) => {
+      lines.push(...bodies.map((body): Line => [clock.now(), body]))
+      put(paths.log(name), file(...lines))
+    }
+  }
+
   /** Calls one of sitrep's tools from the main conversation, or from a subagent given its id. */
   const call = (name: string, args: Args = {}, agentId?: string) =>
     engine.tool.call({
@@ -192,10 +349,18 @@ export function world(engine: Engine, on: On, options: { now?: number; cwd?: str
     cwd = next.cwd ?? cwd
   }
 
-  /** Prompts from here on do not enter, for that reason; or, given none, they enter again. */
-  const dropPrompts = (reason?: string) => {
-    dropping = reason
-  }
+  /** The board pane drawn on a surface, as a docked pane unless told otherwise. */
+  const pane = (surface: Surface = 'terminal', props: RenderPropsOf['Pane'] = DOCKED) =>
+    engine.ui.mount({ plugin: 'sitrep', surface, component: 'Pane', requestId: 'board', props })
+
+  /** The band drawn on a surface, `columns` across. */
+  const band = (surface: Surface = 'terminal', columns = BAND.bodyColumns) =>
+    engine.ui.mount({
+      plugin: 'sitrep',
+      surface,
+      component: 'AbovePrompt',
+      props: { ...BAND, bodyColumns: columns },
+    })
 
   return {
     clock,
@@ -204,14 +369,17 @@ export function world(engine: Engine, on: On, options: { now?: number; cwd?: str
     boards,
     logs,
     registered,
+    ...shown,
     put,
     text,
     seed,
     beat,
+    writer,
     call,
     begin,
     become,
-    dropPrompts,
+    pane,
+    band,
   }
 }
 

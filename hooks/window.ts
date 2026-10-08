@@ -1,7 +1,7 @@
 /**
  * This window's hold on a piece of work: its own file, its heartbeat, and a
- * watch that keeps the work's fold current in `$.state`. A window holds at
- * most one work.
+ * watch that keeps the work's fold current in `$.state` and tells Lee of an
+ * ask that lands. A window holds at most one work.
  *
  * Whatever reads or changes the hold runs in turn (`serially`), so two tool
  * calls never write the window's file over each other, and a heartbeat never
@@ -14,6 +14,7 @@ import {
   foldWork,
   heartbeat,
   HEARTBEAT_MS,
+  isOpen,
   leave,
   presenceText,
   workPaths,
@@ -25,6 +26,7 @@ import {
 import type { SitrepAttachment } from '../types'
 import { boardOf } from './board'
 import { logFailure, rootFor, type Host } from './host'
+import { announce } from './news'
 import { createReader, type Reader } from './reader'
 
 /** How often the watch lists the work's folders for what changed. */
@@ -40,6 +42,8 @@ type Hold = {
   timers: Timer[]
   /** The board last put in `$.state`, as JSON, so a fold that changed nothing puts nothing. */
   shown?: string
+  /** Every ask the window has seen the work hold; unset until its first fold. */
+  heard?: ReadonlySet<string>
 }
 
 let current: Hold | undefined
@@ -67,6 +71,16 @@ const beat = async (host: Host, hold: Hold, presence: Presence) => {
   hold.presence = presence
 }
 
+/** Announces the open asks the work holds that the window had not seen; none at its first fold. */
+const hear = async (host: Host, hold: Hold, work: Work) => {
+  const { heard } = hold
+  const landed =
+    heard === undefined ? [] : work.asks.filter(ask => isOpen(ask) && !heard.has(ask.id))
+
+  hold.heard = new Set(work.asks.map(ask => ask.id))
+  await announce(host, landed)
+}
+
 const show = async (host: Host, hold: Hold, work: Work) => {
   const shown = boardOf(work)
   const json = JSON.stringify(shown)
@@ -74,6 +88,7 @@ const show = async (host: Host, hold: Hold, work: Work) => {
   if (json !== hold.shown) {
     await host.state.board.write(shown)
     hold.shown = json
+    await hear(host, hold, work)
   }
 }
 

@@ -32,8 +32,8 @@ import {
 } from '../core'
 import type { SitrepAttachment } from '../types'
 import { placeOf, random, type Host, type Place } from './host'
-import { isSeen, markSeen } from './seen'
-import { attachTo, attached, post, refresh, serially } from './window'
+import { markSeen, postKnown } from './seen'
+import { attachTo, attached, refresh, serially } from './window'
 
 type Fields = { readonly [key: string]: unknown }
 
@@ -111,11 +111,7 @@ const onWork =
     return work === undefined ? { deny: UNREADABLE } : answer(host, work, input)
   }
 
-/**
- * A tool that posts one line, checked from its input, to the attached work.
- * Claude knows what it posted, so the board counts as seen after it, unless
- * it had already moved on from what Claude last saw.
- */
+/** A tool that posts one line, checked from its input, to the attached work: a line Claude knows of. */
 const posting = <N extends string, B extends Body>(
   toolSpec: Spec<N>,
   check: (work: Work, input: Fields) => Checked<B>,
@@ -129,12 +125,7 @@ const posting = <N extends string, B extends Body>(
       return { deny: checked.error }
     }
 
-    const wasSeen = await isSeen(host, work)
-    const after = await post(host, [checked.value])
-
-    if (wasSeen && after !== undefined) {
-      await markSeen(host, after)
-    }
+    await postKnown(host, work, [checked.value])
 
     return { result: said(checked.value) }
   }),
@@ -354,6 +345,12 @@ const BY_NAME = new Map<string, Tool>(TOOLS.map(tool => [nameOf(tool), tool]))
 
 /** Every tool, as the model calls it. */
 export const TOOL_NAMES = TOOLS.map(nameOf)
+
+/** A tool's own name, as its spec gives it. */
+export type ToolName = (typeof TOOLS)[number]['spec']['name']
+
+/** The tool a call names, by its own name; undefined for any other tool. */
+export const toolNamed = (tool: string) => TOOLS.find(each => nameOf(each) === tool)?.spec.name
 
 export const SPECS = TOOLS.map(tool => tool.spec)
 
