@@ -83,6 +83,16 @@ export const workPaths = (root: string, project: string, id: string): WorkPaths 
 /** Whether a listed folder's name is one sitrep files under: a project key, a work id, a writer. */
 export const isSafeName = (name: string) => SAFE_NAME.test(name)
 
+/**
+ * The projects to look in, of the folders listed under `projects/`: `here`
+ * first, listed or not, then every other. A work id is looked up in this
+ * order, so the project a front end works in wins.
+ */
+export const projectKeys = (here: string, listed: readonly string[]) => [
+  here,
+  ...listed.filter(key => key !== here && isSafeName(key)),
+]
+
 /** The writer a listed file belongs to, given its folder's suffix; undefined for any other file. */
 export const writerOf = (fileName: string, suffix: string) => {
   const writer = fileName.slice(0, -suffix.length)

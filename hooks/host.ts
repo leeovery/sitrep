@@ -18,7 +18,7 @@ import type {
   UiOpenResult,
   UiPane,
 } from 'claude-code'
-import { projectOf, rootOf, type Project, type Random } from '../core'
+import { COMMON_DIR, identityOf, projectOf, rootOf, type Project, type Random } from '../core'
 import type {
   SitrepAttachment,
   SitrepBoard,
@@ -102,27 +102,20 @@ export type Place = {
   writer: string
 }
 
-/** The repository's common dir, which every worktree of it shares. */
-const COMMON_DIR = ['git', 'rev-parse', '--path-format=absolute', '--git-common-dir'] as const
-
 export const random: Random = count => crypto.getRandomValues(new Uint8Array(count))
 
 export const rootFor = async (host: Host) => rootOf(await host.env())
 
 /** What a project is known by: its repository's common dir, or outside git the folder itself. */
-const identityOf = async (host: Host, cwd: string) => {
-  const git = await host.run(COMMON_DIR, cwd).catch(() => undefined)
-  const commonDir = git?.exitCode === 0 ? git.stdout.trim() : ''
-
-  return commonDir || cwd
-}
+const identity = async (host: Host, cwd: string) =>
+  identityOf(cwd, await host.run(COMMON_DIR, cwd).catch(() => undefined))
 
 export const placeOf = async (host: Host): Promise<Place> => {
   const cwd = await host.session.cwd()
 
   return {
     root: await rootFor(host),
-    project: projectOf(await identityOf(host, cwd)),
+    project: projectOf(await identity(host, cwd)),
     cwd,
     writer: await host.session.id(),
   }

@@ -20,10 +20,11 @@ import {
   checkStart,
   checkStatus,
   metaText,
-  newItemId,
   newWorkId,
   parseMeta,
+  projectKeys,
   projectsDir,
+  withId,
   workPaths,
   worksDir,
   type Body,
@@ -96,10 +97,6 @@ const spec = <N extends string>(
   isDeferred: false,
 })
 
-/** A checked post given a fresh item id, unlike any the work uses. */
-const withId = <T>(checked: Checked<T>, work: Work): Checked<T & { id: string }> =>
-  checked.ok ? { ok: true, value: { ...checked.value, id: newItemId(random, work.ids) } } : checked
-
 /** A tool on the attached work, handed it folded as it stands. */
 const onWork =
   (answer: (host: Host, work: Work, input: Fields) => Promise<Answer>) =>
@@ -166,9 +163,7 @@ const isWorkIn = async (host: Host, root: string, project: string, id: string) =
 
 /** The project a work is filed under: this one first, then every other. */
 const homeOf = async (host: Host, { root, project }: Place, id: string) => {
-  const others = (await foldersIn(host, projectsDir(root))).filter(key => key !== project.key)
-
-  for (const key of [project.key, ...others]) {
+  for (const key of projectKeys(project.key, await foldersIn(host, projectsDir(root)))) {
     if (await isWorkIn(host, root, key, id)) {
       return key
     }
@@ -282,7 +277,7 @@ const TOOLS = [
       { kind: KIND, title: text(LINE), where: WHERE, options: OPTIONS, ref: REF },
       ['kind', 'title'],
     ),
-    (work, input) => withId(checkAsk(input), work),
+    (work, input) => withId(checkAsk(input), work, random),
     ({ id }) => `Posted ask ${id}.`,
   ),
   posting(
@@ -292,7 +287,7 @@ const TOOLS = [
       { text: text(LINE), detail: DETAIL, ref: REF },
       ['text'],
     ),
-    (work, input) => withId(checkNote(input), work),
+    (work, input) => withId(checkNote(input), work, random),
     ({ id }) => `Logged note ${id}.`,
   ),
   posting(
@@ -302,7 +297,7 @@ const TOOLS = [
       { title: text(LINE), where: WHERE, ref: REF },
       ['title'],
     ),
-    (work, input) => withId(checkPark(input), work),
+    (work, input) => withId(checkPark(input), work, random),
     ({ id }) => `Parked ${id}.`,
   ),
   posting(

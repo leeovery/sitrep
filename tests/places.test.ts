@@ -1,11 +1,14 @@
 import { expect, test } from 'claude-code/testing'
 import {
+  COMMON_DIR,
   fnv1a,
+  identityOf,
   isWorkId,
   LOG_SUFFIX,
   newItemId,
   newWorkId,
   PRESENCE_SUFFIX,
+  projectKeys,
   projectOf,
   rootOf,
   workPaths,
@@ -96,6 +99,25 @@ test('two repositories of one name are two projects, and every key is folder-saf
   expect(odd.name).toBe('Ünïcode Things & Co.')
   expect(odd.key).toMatch(/^n-code-things-co-[0-9a-f]{8}$/)
   expect(projectOf('/Users/lee/Code/!!!/.git').key).toMatch(/^project-[0-9a-f]{8}$/)
+})
+
+test("a folder's project is known by git's common dir there, else by the folder itself", () => {
+  const repo = '/Users/lee/Code/switchboard'
+
+  expect(COMMON_DIR).toEqual(['git', 'rev-parse', '--path-format=absolute', '--git-common-dir'])
+  expect(identityOf(`${repo}-wt`, { exitCode: 0, stdout: `${repo}/.git\n` })).toBe(`${repo}/.git`)
+  expect(identityOf('/Users/lee/notes', { exitCode: 128, stdout: '' })).toBe('/Users/lee/notes')
+  expect(identityOf('/Users/lee/notes', { exitCode: 0, stdout: '\n' })).toBe('/Users/lee/notes')
+  expect(identityOf('/Users/lee/notes'), 'git could not run').toBe('/Users/lee/notes')
+})
+
+test('the projects a work is looked up in: here first, listed or not, then every other folder-safe one', () => {
+  expect(projectKeys('here-1', ['other-2', 'here-1', '.DS_Store', 'more-3'])).toEqual([
+    'here-1',
+    'other-2',
+    'more-3',
+  ])
+  expect(projectKeys('here-1', [])).toEqual(['here-1'])
 })
 
 test('a work id is sr- and six characters of base32, drawn from the bytes given', () => {

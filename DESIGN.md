@@ -258,7 +258,11 @@ $XDG_STATE_HOME/sitrep/, else ~/.local/state/sitrep/
   to record, and easy to grep. Items and replies get four characters, unique
   within their work.
 - One file per writer, so there are no locks and no daemon. A mod's `$.fs` can
-  only write whole files, so each mod rewrites its own file; the CLI can append.
+  only write whole files, so each mod rewrites its own file; the CLI appends.
+  Runs of the CLI at once share its file: each run's line lands whole (tried
+  with 20 runs at once, and lines up to 200 KB), and two runs that read the
+  file together write the same count, which reading never minds: it orders by
+  time, then writer, then count, and keeps both.
 - Each line is one JSON object: the format's version, the time, the writer's
   own count, the kind, then its fields.
 
@@ -337,8 +341,53 @@ $XDG_STATE_HOME/sitrep/, else ~/.local/state/sitrep/
     reload the mod.
 - **the CLI**, `sitrep`: runs on Bun, reads and writes through the file system.
   For scripts and other tools: a Paper generator posting "round 3 drawn", and
-  later the tmux indicator. **proposed** commands: `sitrep ask`, `sitrep note`,
-  `sitrep status`, `sitrep list --json`.
+  later the tmux indicator.
+
+  ```
+  sitrep note <text> [--detail <line>]... [--ref <ref>]
+  sitrep ask <kind> <title> [--where <words>] [--option <choice>]... [--ref <ref>]
+  sitrep park <title> [--where <words>] [--ref <ref>]
+  sitrep status [--name <words>] [--summary <line>] [--now <line>]... [--next <line>]
+  sitrep board [--json]
+  sitrep list [--all] [--json]
+  ```
+
+  - It writes as the writer `cli`, appending to `<work>/cli.jsonl`. It never
+    writes a delivered mark or a heartbeat: it is never a window on the work.
+  - What it posts is checked by core as Claude's tools' posts are, and a
+    refusal prints the check's words. A post prints its item's id and nothing
+    else, so a script can keep it. A status gives only what changed, as the
+    status tool does; `--now ""` and `--next ""` clear. The last argument takes
+    every word left, so a title needs no quotes.
+  - The work is `--work sr-xxxxxx`, else `$SITREP_WORK`, looked up in the
+    project of the folder the CLI runs in (known as the mod knows it), then in
+    every other. `list` takes none: this project's current works, or with
+    `--all` every project's, ordered as All projects orders them.
+  - Exit codes: 0 done; 1 a usage error, a refused input or a failure; 2 no
+    such piece of work.
+  - `list --json` is for tools, and stable: every field is always there (a
+    list empty, any other value null where there is none), and `v` moves only
+    with a change a reader would trip on. `here` is the key of the project the
+    CLI runs in, always the first of `projects`.
+
+    ```
+    { "v": 1, "here": "switchboard-1a2b3c4d",
+      "projects": [ { "key": "switchboard-1a2b3c4d", "name": "switchboard",
+                      "open": 1, "waiting": 2, "parked": 1, "updatedAt": 1760000000000,
+                      "works": [ { "id": "sr-k3f9qa", "name": "Dashboard redesign",
+                                   "summary": "...", "now": ["..."], "next": null,
+                                   "isOpen": true, "waiting": 1, "parked": 1,
+                                   "updatedAt": 1760000000000 } ] } ] }
+    ```
+
+    `board --json` is `{ v, project: { key, name }, work, asks, parked, log }`:
+    the work as `list` gives it, its open asks, what it parked, and its latest
+    log lines.
+  - Answering an ask waits on open question 4. It would be one more command,
+    a reply into the work's inbox, which the work's window already delivers.
+  - Its logic is `cli/`, plain TypeScript beside core and tested in the test
+    kit on a file system in memory; `cli/shell` binds it to Bun, and
+    `bin/sitrep` runs that.
 
 ## Look
 
@@ -360,8 +409,14 @@ $XDG_STATE_HOME/sitrep/, else ~/.local/state/sitrep/
 
 `~/.config/kit/shared/plugins/sitrep/`, in Lee's private `kit` marketplace,
 the same as `handoff`. The marketplace is read straight from the folder, so an
-edit plus `/reload-plugins` is a change. The CLI lives in the same folder, its
-`bin/` put on the PATH by kit. If sitrep becomes a product, it moves to its own
+edit plus `/reload-plugins` is a change. The CLI lives in the same folder:
+`bin/sitrep`, an executable Bun script, the only file in `bin/`. Claude Code
+puts an enabled plugin's `bin/` on its Bash tool's PATH. **proposed:** for
+Lee's own shell, scripts and tmux, kit's `[paths]` takes the folder too
+(`kit path add --shared ~/.config/kit/shared/plugins/sitrep/bin`). The mod's
+type-check leaves `cli/shell` out; it is checked on its own
+(`tsc -p cli/shell`), against what it calls of Bun, declared there, since the
+plugin keeps no packages. If sitrep becomes a product, it moves to its own
 public repository with a marketplace file and a formula in `homebrew-tools`.
 
 ## Later
@@ -380,7 +435,8 @@ Dropped: a standalone toast plugin (Claude Code has one).
 2. Notification mechanism: `osascript`, `terminal-notifier`, or what Claude Code
    offers by then.
 3. How long before an unanswered ask counts as "left open".
-4. Whether the CLI should be able to answer asks, or only post.
+4. Whether the CLI should be able to answer asks, or only post. It only posts
+   for now.
 
 ## Build order
 

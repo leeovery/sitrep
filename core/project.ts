@@ -53,3 +53,22 @@ export const projectOf = (dir: string): Project => {
 
   return { key: `${slug(name)}-${fnv1a(path).toString(16).padStart(8, '0')}`, name }
 }
+
+/**
+ * What a front end asks git, in the folder it works in, for the project's
+ * identity: the repository's common dir, spelled the same however the
+ * folder was reached.
+ */
+export const COMMON_DIR = [
+  'git',
+  'rev-parse',
+  '--path-format=absolute',
+  '--git-common-dir',
+] as const
+
+/**
+ * What a folder's project is known by, from git's answer to `COMMON_DIR`
+ * there; outside git, or with no answer, the folder itself.
+ */
+export const identityOf = (cwd: string, git?: { exitCode: number; stdout: string }) =>
+  (git?.exitCode === 0 ? git.stdout.trim() : '') || cwd

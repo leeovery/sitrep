@@ -4,7 +4,7 @@
  * a decision. A refusal says what to fix, in words Claude can act on.
  */
 import { ASK_KINDS } from './entries'
-import { isWorkId } from './ids'
+import { isWorkId, newItemId, type Random } from './ids'
 import type { StatusFields } from './status'
 import { oneLine } from './text'
 import {
@@ -162,6 +162,14 @@ export const checkPark = (input: unknown): Checked<Omit<ParkBody, 'id'>> => {
     ? refuse('A parked item needs a title: one line.')
     : ok({ type: 'park', title, where: line(fields.where), ref: line(fields.ref) })
 }
+
+/** A checked post given a fresh item id, unlike any its work uses. */
+export const withId = <T>(
+  checked: Checked<T>,
+  work: Pick<Work, 'ids'>,
+  random: Random,
+): Checked<T & { id: string }> =>
+  checked.ok ? ok({ ...checked.value, id: newItemId(random, work.ids) }) : checked
 
 /** The item `fields.item` names on the board, or a refusal. */
 const target = (work: Work, fields: Fields): Checked<Item> => {

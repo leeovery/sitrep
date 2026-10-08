@@ -9,9 +9,23 @@ import {
   checkResolve,
   checkStart,
   checkStatus,
+  withId,
   type Checked,
 } from '../core'
-import { ask, delivered, file, fold, MIN, note, park, reply, resolve, T0, W1 } from './support'
+import {
+  ask,
+  delivered,
+  file,
+  fold,
+  MIN,
+  note,
+  park,
+  reply,
+  resolve,
+  scripted,
+  T0,
+  W1,
+} from './support'
 
 /** A board holding one of each item, and an ask Lee has commented on. */
 const WORK = fold({
@@ -188,4 +202,17 @@ test('an edit leaves an ask with the options its kind calls for', () => {
   expect(value(checkEdit(WORK, { item: 'k2', kind: 'review' }))?.changes).toEqual({
     kind: 'review',
   })
+})
+
+test('a checked post is given a fresh item id, unlike any its work uses; a refusal stays one', () => {
+  const random = scripted([20, 21, 22, 23], [1, 1, 1, 1])
+
+  expect(value(withId(checkPark({ title: 'Later' }), { ids: new Set(['mnpq']) }, random))).toEqual({
+    type: 'park',
+    title: 'Later',
+    id: '1111',
+  })
+  expect(refusal(withId(checkPark({}), WORK, random))).toBe(
+    'A parked item needs a title: one line.',
+  )
 })
