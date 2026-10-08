@@ -2,7 +2,7 @@
 
 A small window, inside Claude Code, onto where a piece of work stands and what
 it needs from Lee. Claude jots into it as it works; Lee glances at it, answers
-what waits on him, and goes back to the chat.
+what waits on them, and goes back to the chat.
 
 Written 8 October 2026 from a day of design and a working UI spike. Everything
 here was decided with Lee unless it says **proposed**.
@@ -210,6 +210,10 @@ $XDG_STATE_HOME/sitrep/, else ~/.local/state/sitrep/
 - **Project key:** the repository's folder name as a slug, then a hash of its
   git common dir (outside git, of the folder): `switchboard-1a2b3c4d`.
   Worktrees share a common dir, so they share a project.
+  The mod asks git for it in the session's working directory
+  (`git rev-parse --path-format=absolute --git-common-dir`), which spells it
+  the same however the folder was reached; outside git it takes the
+  directory itself.
 - **Work id:** `sr-` and six characters (`sr-k3f9qa`): short enough for Claude
   to record, and easy to grep. Items and replies get four characters, unique
   within their work.
@@ -252,6 +256,14 @@ $XDG_STATE_HOME/sitrep/, else ~/.local/state/sitrep/
   as waiting, what folds away). Tested on its own.
 - **the mod**: Claude Code's hooks module. Draws the board, band and glance;
   registers Claude's tools; reads and writes through `$.fs`.
+  - The engine reads a hooks module's calls on `$` off its source, and will
+    not load one that hands `$` to an import, or whose `$.state` values are
+    not consts of the file that reads them. So `hooks/register.tsx` spells
+    every call on `$`, and hands the other modules a host bound to it.
+  - `$.state` holds JSON data, which keeps no Map or Set, so the folded work
+    sits there as plain data, its items and ids as lists. It outlives a
+    reload of the mod's code, and the window takes its work up again; a new
+    process (`--resume`) starts without it, and Claude joins again.
 - **the CLI**, `sitrep`: runs on Bun, reads and writes through the file system.
   For scripts and other tools: a Paper generator posting "round 3 drawn", and
   later the tmux indicator. **proposed** commands: `sitrep ask`, `sitrep note`,

@@ -1,0 +1,374 @@
+/**
+ * Claude's tools: start or join a piece of work, then post to its board and
+ * read the board back. Only the main conversation may call them. An answer
+ * says what was done and names the item, and no more.
+ *
+ * The descriptions carry the board's wording rules, and load into every
+ * session, so they stay short.
+ */
+import type { ToolSpec } from 'claude-code'
+import {
+  ASK_KINDS,
+  boardText,
+  checkAsk,
+  checkEdit,
+  checkJoin,
+  checkNote,
+  checkPark,
+  checkReopen,
+  checkResolve,
+  checkStart,
+  checkStatus,
+  metaText,
+  newItemId,
+  newWorkId,
+  parseMeta,
+  projectsDir,
+  workPaths,
+  worksDir,
+  type Body,
+  type Checked,
+  type Work,
+} from '../core'
+import type { SitrepAttachment } from '../types'
+import { placeOf, random, type Host, type Place } from './host'
+import { isSeen, markSeen } from './seen'
+import { attachTo, attached, post, refresh, serially } from './window'
+
+type Fields = { readonly [key: string]: unknown }
+
+type Answer = { result: string } | { deny: string }
+
+/** A tool's spec, its name kept literal: once a load has laid these tools' types, `tool.call`'s matcher takes only their exact names. */
+type Spec<N extends string> = ToolSpec & { name: N }
+
+type Tool<N extends string = string> = {
+  spec: Spec<N>
+  answer: (host: Host, input: Fields) => Promise<Answer>
+}
+
+/** How the model names this plugin's tools. */
+const PREFIX = 'mcp__sitrep__'
+
+const FOR_THE_REPORT =
+  'Refused: only the main conversation writes to the sitrep board. Put this in your report instead, and the main conversation decides what reaches the board.'
+
+const NOT_ATTACHED =
+  'No piece of work is attached to this window: start one, or join one by its id, first.'
+
+const UNREADABLE =
+  "The attached piece of work's work.json is missing or torn, so its board cannot be read."
+
+const LINE =
+  'One line in plain words, starting with the verb; no internal codes such as P- or D-numbers.'
+
+const text = (description: string) => ({ type: 'string', description })
+
+const lines = (description: string) => ({ type: 'array', items: { type: 'string' }, description })
+
+const NAME = text('A few words.')
+const SUMMARY = text('One line: what the work is for.')
+const ITEM = text('The item’s id, as the board lists it.')
+const REASON = text('Why, in a few words.')
+const WHERE = text(
+  'Where Lee should look, in words: In Paper: the dashboard file, page "round 1", frames 1–6.',
+)
+const REF = text('Where your own record of it is: a file, a section, a link.')
+const KIND = {
+  type: 'string',
+  enum: ASK_KINDS,
+  description: 'review, decide (give options), try, or do.',
+}
+const OPTIONS = lines('For a decide ask: the choices, one line each.')
+const DETAIL = lines('Lines it opens to, one line each.')
+
+const spec = <N extends string>(
+  name: N,
+  description: string,
+  properties: Record<string, unknown> = {},
+  required: string[] = [],
+): Spec<N> => ({
+  name,
+  description,
+  inputSchema: { type: 'object', properties, required },
+  isDeferred: false,
+})
+
+/** A checked post given a fresh item id, unlike any the work uses. */
+const withId = <T>(checked: Checked<T>, work: Work): Checked<T & { id: string }> =>
+  checked.ok ? { ok: true, value: { ...checked.value, id: newItemId(random, work.ids) } } : checked
+
+/** A tool on the attached work, handed it folded as it stands. */
+const onWork =
+  (answer: (host: Host, work: Work, input: Fields) => Promise<Answer>) =>
+  async (host: Host, input: Fields): Promise<Answer> => {
+    if (attached() === undefined) {
+      return { deny: NOT_ATTACHED }
+    }
+
+    const work = await refresh(host)
+
+    return work === undefined ? { deny: UNREADABLE } : answer(host, work, input)
+  }
+
+/**
+ * A tool that posts one line, checked from its input, to the attached work.
+ * Claude knows what it posted, so the board counts as seen after it, unless
+ * it had already moved on from what Claude last saw.
+ */
+const posting = <N extends string, B extends Body>(
+  toolSpec: Spec<N>,
+  check: (work: Work, input: Fields) => Checked<B>,
+  said: (body: B) => string,
+): Tool<N> => ({
+  spec: toolSpec,
+  answer: onWork(async (host, work, input) => {
+    const checked = check(work, input)
+
+    if (!checked.ok) {
+      return { deny: checked.error }
+    }
+
+    const wasSeen = await isSeen(host, work)
+    const after = await post(host, [checked.value])
+
+    if (wasSeen && after !== undefined) {
+      await markSeen(host, after)
+    }
+
+    return { result: said(checked.value) }
+  }),
+})
+
+/**
+ * Attaches the window to a work, and counts its board as seen: Claude gave
+ * a work it starts all it holds, and a join answers with the board.
+ */
+const attachKnown = async (host: Host, root: string, attaching: SitrepAttachment) => {
+  const work = await attachTo(host, root, attaching)
+
+  if (work !== undefined) {
+    await markSeen(host, work)
+  }
+
+  return work
+}
+
+/** The names of the folders in `dir`; none while it is not there. */
+const foldersIn = async (host: Host, dir: string) =>
+  (await host.fs.list(dir).catch(() => []))
+    .filter(entry => entry.kind === 'dir')
+    .map(entry => entry.name)
+
+const isWorkIn = async (host: Host, root: string, project: string, id: string) => {
+  try {
+    return parseMeta(await host.fs.read(workPaths(root, project, id).meta)) !== undefined
+  } catch {
+    return false
+  }
+}
+
+/** The project a work is filed under: this one first, then every other. */
+const homeOf = async (host: Host, { root, project }: Place, id: string) => {
+  const others = (await foldersIn(host, projectsDir(root))).filter(key => key !== project.key)
+
+  for (const key of [project.key, ...others]) {
+    if (await isWorkIn(host, root, key, id)) {
+      return key
+    }
+  }
+
+  return undefined
+}
+
+const start: Tool<'start'> = {
+  spec: spec(
+    'start',
+    'Start a piece of work on the sitrep board, where Lee sees where work stands and what waits on Lee. Returns the work id: record it wherever this project tracks the work (design doc, plan, memory), so a later window can join it.',
+    { name: NAME, summary: SUMMARY },
+    ['name', 'summary'],
+  ),
+  answer: async (host, input) => {
+    const checked = checkStart(input)
+
+    if (!checked.ok) {
+      return { deny: checked.error }
+    }
+
+    const { root, project, cwd, writer } = await placeOf(host)
+    const id = newWorkId(random, new Set(await foldersIn(host, worksDir(root, project.key))))
+    const created = await host.clock.now()
+    const meta = { id, ...checked.value, project: project.name, root: cwd, created, by: writer }
+
+    await host.fs.write(workPaths(root, project.key, id).meta, metaText(meta))
+
+    await attachKnown(host, root, { project: project.key, work: id, writer, attachedAt: created })
+
+    return {
+      result: `Started ${meta.name} as ${id}. Record ${id} wherever this project tracks this work, so a later window can join it.`,
+    }
+  },
+}
+
+const join: Tool<'join'> = {
+  spec: spec(
+    'join',
+    'Join a piece of work on the sitrep board by its id: after a /clear or a resume, or from a second window. Returns the board as it stands.',
+    { work: text('The work id: sr- and six characters.') },
+    ['work'],
+  ),
+  answer: async (host, input) => {
+    const checked = checkJoin(input)
+
+    if (!checked.ok) {
+      return { deny: checked.error }
+    }
+
+    const { work: id } = checked.value
+    const place = await placeOf(host)
+    const project = await homeOf(host, place, id)
+
+    if (project === undefined) {
+      return { deny: `There is no piece of work ${id} on the board, in this project or any other.` }
+    }
+
+    const attachedAt = await host.clock.now()
+    const work = await attachKnown(host, place.root, {
+      project,
+      work: id,
+      writer: place.writer,
+      attachedAt,
+    })
+
+    if (work === undefined) {
+      return { deny: UNREADABLE }
+    }
+
+    return {
+      result: `Joined ${work.status.name} (${id}). The board as it stands:\n${boardText(work)}`,
+    }
+  },
+}
+
+const board: Tool<'board'> = {
+  spec: spec(
+    'board',
+    'Read the board back: the status, open asks, parked items and latest notes, with their ids, to check against what you know and repair.',
+  ),
+  answer: onWork(async (host, work) => {
+    await markSeen(host, work)
+
+    return { result: boardText(work) }
+  }),
+}
+
+const TOOLS = [
+  start,
+  join,
+  posting(
+    spec(
+      'status',
+      'Set where the work stands, giving only what changed. The board logs the change itself: do nothing extra for it.',
+      {
+        name: NAME,
+        summary: SUMMARY,
+        now: lines('One line per thing under way now, each starting with the verb.'),
+        next: text('What comes next, in one line; "" clears it.'),
+      },
+    ),
+    (work, input) => checkStatus(input, work.status),
+    () => 'Status set.',
+  ),
+  posting(
+    spec(
+      'ask',
+      "Post an ask: something only Lee can do or decide. Ask only when you cannot go on without Lee, or Lee's judgement changes what happens next; say it in the chat as well.",
+      { kind: KIND, title: text(LINE), where: WHERE, options: OPTIONS, ref: REF },
+      ['kind', 'title'],
+    ),
+    (work, input) => withId(checkAsk(input), work),
+    ({ id }) => `Posted ask ${id}.`,
+  ),
+  posting(
+    spec(
+      'note',
+      "Add a line to the board's log: something Lee would want to know later, not running commentary.",
+      { text: text(LINE), detail: DETAIL, ref: REF },
+      ['text'],
+    ),
+    (work, input) => withId(checkNote(input), work),
+    ({ id }) => `Logged note ${id}.`,
+  ),
+  posting(
+    spec(
+      'park',
+      'Park something raised and put off, to come back to.',
+      { title: text(LINE), where: WHERE, ref: REF },
+      ['title'],
+    ),
+    (work, input) => withId(checkPark(input), work),
+    ({ id }) => `Parked ${id}.`,
+  ),
+  posting(
+    spec(
+      'resolve',
+      'Close an item on the board, an ask, a note or a parked item, by its id.',
+      { item: ITEM, reason: REASON },
+      ['item'],
+    ),
+    checkResolve,
+    ({ item }) => `Resolved ${item}.`,
+  ),
+  posting(
+    spec('reopen', 'Reopen a closed item by its id.', { item: ITEM, reason: REASON }, ['item']),
+    checkReopen,
+    ({ item }) => `Reopened ${item}.`,
+  ),
+  posting(
+    spec(
+      'edit',
+      'Correct an item by its id, giving only the fields to change.',
+      {
+        item: ITEM,
+        kind: KIND,
+        title: text(LINE),
+        where: WHERE,
+        options: OPTIONS,
+        ref: REF,
+        text: text(LINE),
+        detail: DETAIL,
+        reason: REASON,
+      },
+      ['item'],
+    ),
+    checkEdit,
+    ({ item }) => `Edited ${item}.`,
+  ),
+  board,
+] as const
+
+const nameOf = <N extends string>(tool: Tool<N>): `${typeof PREFIX}${N}` =>
+  `${PREFIX}${tool.spec.name}`
+
+const BY_NAME = new Map<string, Tool>(TOOLS.map(tool => [nameOf(tool), tool]))
+
+/** Every tool, as the model calls it. */
+export const TOOL_NAMES = TOOLS.map(nameOf)
+
+export const SPECS = TOOLS.map(tool => tool.spec)
+
+/** Answers a call of one of the tools; a subagent's is refused. */
+export const answerCall = async (
+  host: Host,
+  call: Fields & { tool: string; agentId?: string },
+): Promise<Answer> => {
+  if (call.agentId !== undefined) {
+    return { deny: FOR_THE_REPORT }
+  }
+
+  const tool = BY_NAME.get(call.tool)
+
+  return tool === undefined
+    ? { deny: `sitrep has no tool ${call.tool}.` }
+    : serially(() => tool.answer(host, call))
+}

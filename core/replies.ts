@@ -96,7 +96,7 @@ export const answerOf = (item: Ask | Parked, reply: ReplyFields) => {
   return reply.verdict === 'choose' ? `→ ${answer}` : answer
 }
 
-/** A reply as a line of Lee's message: the item's title and the answer, no ids, since Lee sends it as his own. */
+/** A reply as a line of Lee's message: the item's title and the answer, no ids, since Lee sends it as their own. */
 export const replyLine = (item: Ask | Parked, reply: ReplyFields) =>
   item.type === 'park'
     ? `- Pick up from parked: ${item.title}${reply.note ? `. ${reply.note}` : ''}`

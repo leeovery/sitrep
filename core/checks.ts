@@ -4,6 +4,7 @@
  * a decision. A refusal says what to fix, in words Claude can act on.
  */
 import { ASK_KINDS } from './entries'
+import { isWorkId } from './ids'
 import type { StatusFields } from './status'
 import { oneLine } from './text'
 import {
@@ -78,6 +79,15 @@ export const checkStart = (input: unknown): Checked<{ name: string; summary: str
   return summary === undefined
     ? refuse('A piece of work needs a summary: one line on what it is for.')
     : ok({ name, summary })
+}
+
+/** The piece of work to join, by its id. */
+export const checkJoin = (input: unknown): Checked<{ work: string }> => {
+  const work = line(fieldsOf(input).work)
+
+  return isWorkId(work)
+    ? ok({ work })
+    : refuse('Name the piece of work by the id start gave it: sr- and six characters.')
 }
 
 /** A status: what Claude gives replaces what it names, the rest stays as `current` has it; an empty `next` clears it. */

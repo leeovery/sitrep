@@ -4,5 +4,6 @@
   "description": "A small window onto where a piece of work stands and what it needs from Lee: Claude jots status, asks, notes and parked items; Lee answers from the board.",
   "author": {
     "name": "Lee Overy"
-  }
+  },
+  "types": "./types/index.d.ts"
 }

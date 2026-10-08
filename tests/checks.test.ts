@@ -2,6 +2,7 @@ import { expect, test } from 'claude-code/testing'
 import {
   checkAsk,
   checkEdit,
+  checkJoin,
   checkNote,
   checkPark,
   checkReopen,
@@ -97,6 +98,14 @@ test('only a decide ask takes options', () => {
   expect(
     value(checkAsk({ kind: 'review', title: 'Review it', options: [] }))?.options,
   ).toBeUndefined()
+})
+
+test('a work is joined by its id, as start gave it', () => {
+  expect(value(checkJoin({ work: ' sr-k3f9qa ' }))).toEqual({ work: 'sr-k3f9qa' })
+
+  for (const work of [undefined, 'k3f9qa', 'sr-K3F9QA', 7]) {
+    expect(refusal(checkJoin({ work })), String(work)).toContain('by the id start gave it')
+  }
 })
 
 test('a status keeps what Claude leaves out, and an empty next clears it', () => {
