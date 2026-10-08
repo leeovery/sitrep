@@ -190,22 +190,57 @@ window.
   turn to end`, `○ closed: goes in when it reopens`), each ask shows
   `delivered 2m ago` or `on its way`, a toast sums it up, and the receiving
   window's band flashes `✦ 2 replies from the board`.
-- An ask's life: **open → replied → closed by Claude**. Only Claude closes an
-  ask. An ask open past a day shows its age; one left open when its work has no
-  window moves to a **left open** list in that project rather than piling up.
+- An ask's life: **open → replied → closed**. The board never closes an ask on
+  a press, only once Claude has been told: a delivered reply closes it, or
+  Claude resolves it. An ask open past a day shows its age; one left open when
+  its work has no window moves to a **left open** list in that project rather
+  than piling up.
 
 ## Storage
 
 ```
-~/.local/state/sitrep/
-  projects/<project>/works/<work id>/
-    work.json            name, summary, project root, created
-    <writer>.jsonl       one file per writer: each window, the CLI
-    inbox/<writer>.jsonl replies waiting for this work, one file per sender
+$XDG_STATE_HOME/sitrep/, else ~/.local/state/sitrep/
+  projects/<project key>/works/<work id>/
+    work.json               name, summary, project, root, created and by whom: written once, by whoever starts the work
+    <writer>.jsonl          one file per writer: each window as its session id, the CLI as `cli`
+    inbox/<sender>.jsonl    replies from other works, one file per sending writer
+    presence/<writer>.json  each attached window's heartbeat
 ```
 
+- **Project key:** the repository's folder name as a slug, then a hash of its
+  git common dir (outside git, of the folder): `switchboard-1a2b3c4d`.
+  Worktrees share a common dir, so they share a project.
+- **Work id:** `sr-` and six characters (`sr-k3f9qa`): short enough for Claude
+  to record, and easy to grep. Items and replies get four characters, unique
+  within their work.
 - One file per writer, so there are no locks and no daemon. A mod's `$.fs` can
   only write whole files, so each mod rewrites its own file; the CLI can append.
+- Each line is one JSON object: the format's version, the time, the writer's
+  own count, the kind, then its fields.
+
+  ```
+  {"v":1,"at":1760000000000,"seq":4,"type":"ask","id":"k3f9","kind":"review","title":"Review Sessions & Runway, round 1"}
+  ```
+
+  The kinds: `status`, `ask`, `note` and `park`; `resolve`, `reopen` and
+  `edit`, each naming an item; `reply`, Lee's answer to one; `delivered`,
+  naming the replies Claude has been given.
+- Reading merges every writer's lines into one order: time, then writer, then
+  count. A reader can catch a file mid-write, so a torn last line, a bad line
+  or one of a kind or version it does not know is skipped, never fatal.
+- The status shown is the latest across writers. A status change is logged by
+  the board as it reads, comparing each status with the one before; it is
+  never written down.
+- A reply counts as delivered once a writer **in its work** has written a
+  `delivered` mark naming it. For this work, the mod writes the reply and the
+  mark together, once Claude Code has taken the message. For another work, the
+  sender writes the reply into that work's inbox, and the window that submits
+  it there writes the mark to its own file. Only replies count from an inbox.
+- **Presence:** a mod can't tell that its own window died, so each attached
+  window rewrites its heartbeat (`attachedAt`, `seenAt`) every 30 seconds, and
+  a work is open while a heartbeat is under 90 seconds old. A mod can't delete
+  a file either, so a window that lets go adds `leftAt`. Of several windows on
+  one work, the one attached longest submits its inbox, so two never both do.
 - Readers list and `stat` the folder every second or two (a mod cannot watch
   files) and read only what changed.
 - `$.store` holds only per-person conveniences (last view, band preferences).

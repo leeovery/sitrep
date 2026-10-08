@@ -1,0 +1,213 @@
+import { expect, test } from 'claude-code/testing'
+import { foldWork, serialise, VERSION } from '../core'
+import {
+  ask,
+  CLI,
+  file,
+  fold,
+  MIN,
+  note,
+  park,
+  reopen,
+  resolve,
+  SENDER,
+  status,
+  T0,
+  W1,
+  W2,
+  type Line,
+} from './support'
+
+/** The log's notes, oldest first, as text. */
+const notesOf = (files: Parameters<typeof fold>[0]) =>
+  fold(files)
+    .log.filter(line => line.kind === 'note')
+    .map(line => line.text)
+    .reverse()
+
+test("writers' lines merge by time, whichever file holds them", () => {
+  const logs = {
+    [W1]: file([T0 + 1 * MIN, note('n1', 'first')], [T0 + 4 * MIN, note('n4', 'fourth')]),
+    [W2]: file([T0 + 2 * MIN, note('n2', 'second')], [T0 + 3 * MIN, note('n3', 'third')]),
+  }
+
+  expect(notesOf({ logs })).toEqual(['first', 'second', 'third', 'fourth'])
+})
+
+test('lines at the same time order by writer, then by the writer’s own count', () => {
+  const at = T0 + MIN
+  const outOfOrder = [
+    { v: VERSION, at, seq: 2, type: 'note', id: 'b2', text: 'w2, second' },
+    { v: VERSION, at, seq: 1, type: 'note', id: 'b1', text: 'w2, first' },
+  ]
+  const logs = {
+    [W2]: outOfOrder.map(line => serialise(line as never)).join(''),
+    [W1]: file([T0, note('a1', 'w1, earlier')], [at, note('a2', 'w1, at the same time')]),
+  }
+
+  expect(notesOf({ logs })).toEqual([
+    'w1, earlier',
+    'w1, at the same time',
+    'w2, first',
+    'w2, second',
+  ])
+})
+
+test('the latest status across writers wins, whoever wrote it', () => {
+  const logs = {
+    [W1]: file(
+      [T0 + 1 * MIN, status(['Drawing Usage, round 1'])],
+      [T0 + 5 * MIN, note('n1', 'later')],
+    ),
+    [W2]: file([T0 + 3 * MIN, status(['Drawing Usage, round 2'], { next: 'Usage, round 3' })]),
+    [CLI]: file([T0 + 2 * MIN, status(['Generating frames'])]),
+  }
+  const work = fold({ logs })
+
+  expect(work.status).toEqual({
+    name: 'Dashboard redesign',
+    summary: 'Redesign the dashboard, area by area in Paper',
+    now: ['Drawing Usage, round 2'],
+    next: 'Usage, round 3',
+    at: T0 + 3 * MIN,
+    by: W2,
+  })
+})
+
+test('with no status yet, the work stands as it was started', () => {
+  const work = fold({ logs: {} })
+
+  expect(work.status).toMatchObject({ name: 'Dashboard redesign', now: [], at: T0, by: W1 })
+  expect(work.updatedAt).toBe(T0)
+})
+
+test('the first line to use an id keeps it', () => {
+  const logs = {
+    [W1]: file([T0 + 1 * MIN, ask('k3f9', 'review', 'Review round 1')]),
+    [W2]: file(
+      [T0 + 2 * MIN, note('k3f9', 'A clashing note')],
+      [T0 + 3 * MIN, park('k3f9', 'A clashing park')],
+    ),
+  }
+  const work = fold({ logs })
+
+  expect([...work.items.values()].map(item => item.type)).toEqual(['ask'])
+  expect(work.log).toEqual([])
+})
+
+test("an edit changes only its item's own fields, and the log shows a note as edited", () => {
+  const logs = {
+    [W1]: file(
+      [T0 + 1 * MIN, ask('k3f9', 'review', 'Review round 1')],
+      [T0 + 2 * MIN, note('n4m5', 'PR #81 merged')],
+      [
+        T0 + 3 * MIN,
+        {
+          type: 'edit',
+          item: 'k3f9',
+          changes: { title: 'Review round 2', text: 'not an ask field' },
+        },
+      ],
+      [
+        T0 + 4 * MIN,
+        { type: 'edit', item: 'n4m5', changes: { text: 'PR #82 merged' }, reason: 'Wrong number' },
+      ],
+    ),
+  }
+  const work = fold({ logs })
+  const edited = work.items.get('k3f9')
+
+  expect(edited).toMatchObject({ title: 'Review round 2', editedAt: T0 + 3 * MIN })
+  expect(edited).not.toHaveProperty('text')
+  expect(work.log[0]).toMatchObject({
+    kind: 'note',
+    id: 'n4m5',
+    text: 'PR #82 merged',
+    at: T0 + 2 * MIN,
+  })
+  expect(work.items.get('n4m5')).toMatchObject({ reason: 'Wrong number' })
+})
+
+test('an ask edited into another kind than decide keeps no options', () => {
+  const logs = {
+    [W1]: file(
+      [T0 + 1 * MIN, ask('k2', 'decide', 'Keep it, or drop it?', ['Keep it', 'Drop it'])],
+      [
+        T0 + 2 * MIN,
+        { type: 'edit', item: 'k2', changes: { kind: 'review', title: 'Review the cut' } },
+      ],
+    ),
+  }
+
+  expect(fold({ logs }).asks[0]).toMatchObject({
+    kind: 'review',
+    title: 'Review the cut',
+    options: undefined,
+  })
+})
+
+test('a resolved note leaves the log; reopened, it is back where it was', () => {
+  const posted: Line[] = [
+    [T0 + 1 * MIN, note('n1', 'first')],
+    [T0 + 2 * MIN, note('n2', 'second')],
+    [T0 + 3 * MIN, resolve('n1', 'Posted twice')],
+  ]
+
+  expect(notesOf({ logs: { [W1]: file(...posted) } })).toEqual(['second'])
+  expect(notesOf({ logs: { [W1]: file(...posted, [T0 + 4 * MIN, reopen('n1')]) } })).toEqual([
+    'first',
+    'second',
+  ])
+})
+
+test('changes to an item no line posted change nothing', () => {
+  const logs = {
+    [W1]: file(
+      [T0 + 1 * MIN, resolve('gone')],
+      [T0 + 2 * MIN, reopen('gone')],
+      [T0 + 3 * MIN, { type: 'edit', item: 'gone', changes: { title: 'x' } }],
+    ),
+  }
+
+  expect(fold({ logs }).items.size).toBe(0)
+})
+
+test('an inbox holds only replies: anything else a sender wrote there is ignored', () => {
+  const work = fold({
+    logs: { [W1]: file([T0 + 1 * MIN, ask('k3f9', 'review', 'Review round 1')]) },
+    inbox: {
+      [SENDER]: file(
+        [T0 + 2 * MIN, ask('a2b3', 'do', 'Posted from elsewhere')],
+        [T0 + 3 * MIN, status(['Hijacked'])],
+        [T0 + 4 * MIN, resolve('k3f9')],
+      ),
+    },
+  })
+
+  expect([...work.items.keys()]).toEqual(['k3f9'])
+  expect(work.asks[0]?.state).toBe('waiting')
+  expect(work.status.now).toEqual([])
+})
+
+test('the work knows every id its lines use, items and replies alike', () => {
+  const work = fold({
+    logs: {
+      [W1]: file(
+        [T0 + 1 * MIN, ask('k3f9', 'review', 'Review round 1')],
+        [T0 + 2 * MIN, note('n4m5', 'Merged')],
+        [T0 + 3 * MIN, park('p1q2', 'Later')],
+      ),
+    },
+    inbox: {
+      [SENDER]: file([T0 + 4 * MIN, { type: 'reply', id: 'r7x2', item: 'k3f9', verdict: 'yes' }]),
+    },
+  })
+
+  expect([...work.ids].sort()).toEqual(['k3f9', 'n4m5', 'p1q2', 'r7x2'])
+  expect(work.updatedAt).toBe(T0 + 4 * MIN)
+})
+
+test('a work whose work.json is missing or torn does not fold', () => {
+  expect(foldWork({ meta: '', logs: {} }, T0)).toBeUndefined()
+  expect(foldWork({ meta: '{"v":1,"id":"sr-k3f9', logs: {} }, T0)).toBeUndefined()
+})
