@@ -517,7 +517,8 @@ Answered with Lee on 8 October 2026, for build step 5:
 
 ## The spike
 
-`~/.claude/dev-mods/fdd35b79-4db2-4bb8-83a4-0636944d64e4/board-spike/`: a
-throwaway mod with fake data modelled on Switchboard, Goosemates and five other
-projects. It settled every surface above. Its drawing code is the starting
-point for the mod; its data and `/spike` commands are not.
+A throwaway mod with fake data modelled on Switchboard, Goosemates and five
+other projects, run only in the session that designed sitrep. It settled every
+surface above, and its drawing code became `hooks/draw`. Retired on 8 October
+2026, once it was found drawing its fake data over the real board: both named
+their pane `board`, and a pane's id is not scoped to the plugin that opens it.
