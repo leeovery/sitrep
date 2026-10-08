@@ -191,6 +191,7 @@ test('parked is scoped to where the board looks: this session, its project, ever
   const w = world($, on)
 
   await neighbourhood(w)
+  await w.clock.advance(MIN)
   await w.call('park', { title: 'A tmux indicator across sessions' })
 
   const ui = await w.opened()
