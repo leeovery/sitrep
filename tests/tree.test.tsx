@@ -105,6 +105,24 @@ test('the board walks up from this session to its project and every project, and
   expect(await ui.find({ key: `pick:${asked}` })).toBeDefined()
 })
 
+test('closed and opened again, the board is home, wherever it had gone', async ($, on) => {
+  const w = world($, on)
+  const { asked } = await neighbourhood(w)
+  const ui = await w.opened()
+  const band = await w.band()
+
+  await ui.press({ key: 'tab:project' })
+  await ui.press({ key: `go:${LEDGER}` })
+  await ui.press({ key: 'pick:k3' })
+  expect(w.state.pane).toMatchObject({ place: { level: 'session', work: LEDGER }, selected: 'k3' })
+
+  await band.press({ key: 'band:board' })
+  await band.press({ key: 'band:board' })
+  expect(w.state.pane).toMatchObject({ isOpen: true, place: null, view: 'board', selected: null })
+  expect(await ui.find({ key: `pick:${asked}` })).toBeDefined()
+  expect(await ui.find({ key: 'tab:session' })).toBeDefined()
+})
+
 test('on its own path the board shows three tabs, each with what waits there', async ($, on) => {
   const w = world($, on)
 

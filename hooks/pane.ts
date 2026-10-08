@@ -42,8 +42,15 @@ const COUNTED: Readonly<Record<string, (held: SitrepAttachment) => Focus>> = {
   [BAND.parked]: () => ({ place: null, view: 'parked' }),
 }
 
+/** Where the board opens once it has been closed: home, on the board, nothing opened. */
+const HOME: Focus = { place: null, view: 'board', selected: null }
+
 const markOpen = (host: Host, isOpen: boolean) =>
   host.state.pane.update(pane => ({ ...pane, isOpen }))
+
+/** The board closed: the band's button follows, and the board forgets where it had gone. */
+const markClosed = (host: Host) =>
+  host.state.pane.update(pane => ({ ...pane, ...HOME, isOpen: false }))
 
 const isUp = async (host: Host) => (await host.ui.panes()).some(pane => pane.id === PANE)
 
@@ -59,7 +66,7 @@ export const openBoard = async (host: Host, mode: SitrepMode, focus: Focus = {})
   if (!opened.isPlaced) {
     // Open but undrawn, the band would say "hide board" over nothing.
     await host.ui.close(PANE)
-    await markOpen(host, false)
+    await markClosed(host)
     host.ui.toast(`Claude Code didn't draw the board: ${opened.reason}`, { timeoutMs: 8_000 })
 
     return
@@ -72,7 +79,7 @@ export const openBoard = async (host: Host, mode: SitrepMode, focus: Focus = {})
 const closeBoard = async (host: Host) => {
   await host.ui.close(PANE)
   // A plugin's own close never reaches its own ui.close hook, so the band hears of it here.
-  await markOpen(host, false)
+  await markClosed(host)
 }
 
 /** Shows the board, or hides it, as the engine has it rather than as the band's label says. */
@@ -82,8 +89,8 @@ const toggleBoard = async (host: Host) =>
 /** Brings the band's word on the board into line with the engine's record, after a reload. */
 export const syncBoard = async (host: Host) => markOpen(host, await isUp(host))
 
-/** The board closed by Lee: the band's button follows. */
-export const boardClosed = (host: Host) => markOpen(host, false)
+/** The board closed by Lee's ✕. */
+export const boardClosed = markClosed
 
 /** A press on one of the band's buttons: a count opens the board on what it counts. */
 export const pressBand = async (host: Host, element: string) => {
