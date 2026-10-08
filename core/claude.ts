@@ -72,3 +72,15 @@ const workLine = (work: WorkSummary) => {
 /** Pieces of work with their ids, in the order given, for Claude to join one by id. */
 export const worksText = (works: readonly WorkSummary[]) =>
   section('sitrep pieces of work', works.map(workLine))
+
+const JOIN =
+  'When Lee carries on with one of these, join it by its id with the sitrep join tool before posting to its board.'
+
+/** What a session starts knowing of the board: the project's pieces of work, how to take one up, and the one this window already holds. */
+export const startText = (works: readonly WorkSummary[], held?: WorkSummary) =>
+  [
+    worksText(works),
+    held === undefined
+      ? JOIN
+      : `This window already holds ${held.id} (${held.name}): post to its board as you go. ${JOIN}`,
+  ].join('\n')

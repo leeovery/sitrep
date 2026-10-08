@@ -1,6 +1,7 @@
 /**
  * A line of the log: its age, its mark, and what happened. A click opens
  * the detail behind it as a tree, and where Claude's own record of it is.
+ * A project's log names the session each line came from.
  */
 import type { LogLine } from '../../core'
 import { ago, C, clip, GLYPH } from '../look'
@@ -22,9 +23,13 @@ const detailOf = (line: LogLine) => [
   ...(line.ref === undefined ? [] : [`see ${line.ref}`]),
 ]
 
-export const drawLogLine = (d: Drawing, line: LogLine) => {
+/** The session a line of a project's log came from: its id, and its name. */
+type From = { work: string; name: string }
+
+export const drawLogLine = (d: Drawing, line: LogLine, from?: From) => {
   const { Box, Text, Button } = d.els
-  const key = logKey(line)
+  const key = from === undefined ? logKey(line) : `${from.work}:${logKey(line)}`
+  const text = from === undefined ? line.text : `${from.name}: ${line.text}`
   const mark = MARK[line.kind]
 
   return (
@@ -38,7 +43,7 @@ export const drawLogLine = (d: Drawing, line: LogLine) => {
           <Button
             key={`log:${key}`}
             plain
-            label={clip(line.text, d.width - 8)}
+            label={clip(text, d.width - 8)}
             onPress={() => d.act.select(key)}
           />
         </Box>

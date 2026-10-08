@@ -1,16 +1,21 @@
 import { expect, test } from 'claude-code/testing'
 import {
   allProjects,
+  brief,
+  BRIEF_LOG_LINES,
+  CURRENT_MS,
   foldWork,
+  isCurrent,
   metaText,
   projectLog,
+  projectParked,
   summarise,
   summariseProject,
   type ProjectSummary,
   type Work,
   type WorkFiles,
 } from '../core'
-import { ask, file, META, MIN, note, park, seen, status, T0, W1, W2 } from './support'
+import { ask, file, META, MIN, note, park, seen, status, T0, W1, W2, type Line } from './support'
 
 const NOW = T0 + 60 * MIN
 
@@ -59,6 +64,7 @@ test('a work in brief: what it is doing, whether a window has it, and what it ho
     id: 'sr-aaaaaa',
     name: 'Dashboard redesign',
     summary: 'Redesign the dashboard, area by area in Paper',
+    project: 'switchboard',
     now: ['Drawing Usage, round 2'],
     next: 'Usage, round 3',
     isOpen: true,
@@ -78,7 +84,9 @@ test('a project adds up its works, those with a window first, then the most rece
   })
   const older = workOf('sr-cccccc', 'switchboard', { logs: {} })
 
-  expect(summariseProject('switchboard-1a2b3c4d', [older, quiet, open])).toMatchObject({
+  expect(
+    summariseProject('switchboard-1a2b3c4d', [older, quiet, open].map(summarise)),
+  ).toMatchObject({
     key: 'switchboard-1a2b3c4d',
     name: 'switchboard',
     works: [{ id: 'sr-bbbbbb' }, { id: 'sr-aaaaaa' }, { id: 'sr-cccccc' }],
@@ -148,5 +156,59 @@ test("a project's log holds every work's lines, newest first, each naming its wo
     ['sr-bbbbbb', 'Status: now drawing'],
     ['sr-bbbbbb', 'two'],
     ['sr-aaaaaa', 'one'],
+  ])
+})
+
+test('an idle work shows for 7 days after its last update, then drops out of the views', () => {
+  const idle = summarise(
+    workOf('sr-aaaaaa', 'switchboard', { logs: { [W1]: file([NOW, note('n1', 'Drew it')]) } }),
+  )
+
+  expect(isCurrent(idle, NOW + CURRENT_MS)).toBe(true)
+  expect(isCurrent(idle, NOW + CURRENT_MS + 1)).toBe(false)
+})
+
+test('open, waiting on Lee or holding something parked, a work shows however long ago it was updated', () => {
+  const later = T0 + 30 * CURRENT_MS
+  const open = workOf('sr-aaaaaa', 'switchboard', { presence: { [W1]: seen(W1, NOW) } })
+  const waiting = workOf('sr-bbbbbb', 'switchboard', {
+    logs: { [W1]: file([T0, ask('k1', 'do', 'Run it')]) },
+  })
+  const parked = workOf('sr-cccccc', 'switchboard', {
+    logs: { [W1]: file([T0, park('p1', 'Later')]) },
+  })
+
+  for (const work of [open, waiting, parked]) {
+    expect(isCurrent(summarise(work), later), work.id).toBe(true)
+  }
+})
+
+test('a brief carries the latest log lines a view shows, and what the work has parked', () => {
+  const notes = Array.from(
+    { length: BRIEF_LOG_LINES + 2 },
+    (_, i): Line => [T0 + i * MIN, note(`n${i}`, `note ${i}`)],
+  )
+  const work = workOf('sr-aaaaaa', 'switchboard', {
+    logs: { [W1]: file(...notes, [T0, park('p1', 'Later')]) },
+  })
+  const briefed = brief(work)
+
+  expect(briefed.log).toHaveLength(BRIEF_LOG_LINES)
+  expect(briefed.log[0]?.text).toBe(`note ${BRIEF_LOG_LINES + 1}`)
+  expect(briefed.parkedItems.map(each => each.id)).toEqual(['p1'])
+  expect(briefed.parked).toBe(1)
+})
+
+test("a project's parked items, oldest first, each naming the work that parked it", () => {
+  const first = brief(
+    workOf('sr-aaaaaa', 'switchboard', { logs: { [W1]: file([T0 + 2 * MIN, park('p1', 'B')]) } }),
+  )
+  const second = brief(
+    workOf('sr-bbbbbb', 'switchboard', { logs: { [W2]: file([T0 + MIN, park('p2', 'A')]) } }),
+  )
+
+  expect(projectParked([first, second]).map(each => [each.work, each.id])).toEqual([
+    ['sr-bbbbbb', 'p2'],
+    ['sr-aaaaaa', 'p1'],
   ])
 })

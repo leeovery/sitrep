@@ -80,6 +80,9 @@ export const workPaths = (root: string, project: string, id: string): WorkPaths 
   }
 }
 
+/** Whether a listed folder's name is one sitrep files under: a project key, a work id, a writer. */
+export const isSafeName = (name: string) => SAFE_NAME.test(name)
+
 /** The writer a listed file belongs to, given its folder's suffix; undefined for any other file. */
 export const writerOf = (fileName: string, suffix: string) => {
   const writer = fileName.slice(0, -suffix.length)

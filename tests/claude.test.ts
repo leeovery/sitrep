@@ -1,5 +1,5 @@
 import { expect, test } from 'claude-code/testing'
-import { boardText, summarise, worksText } from '../core'
+import { boardText, startText, summarise, worksText } from '../core'
 import {
   ask,
   delivered,
@@ -118,4 +118,15 @@ test('the works listing gives each work its id, and says whether a window has it
     ].join('\n'),
   )
   expect(worksText([])).toBe('sitrep pieces of work:\n- none')
+})
+
+test('a session starts knowing its works by id, how to take one up, and which this window holds', () => {
+  const works = [summarise(WORK)]
+  const join =
+    'When Lee carries on with one of these, join it by its id with the sitrep join tool before posting to its board.'
+
+  expect(startText(works)).toBe(`${worksText(works)}\n${join}`)
+  expect(startText(works, works[0])).toBe(
+    `${worksText(works)}\nThis window already holds sr-k3f9qa (Dashboard redesign): post to its board as you go. ${join}`,
+  )
 })

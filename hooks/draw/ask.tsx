@@ -1,15 +1,16 @@
 /**
  * An ask in For you: its title and age, where to look, what Lee replied,
  * and, opened, its buttons. A kind is never drawn as a word: it chooses
- * the first button (DESIGN.md, "Answering an ask").
+ * the first button (DESIGN.md, "Answering an ask"). Any session's asks
+ * answer the same way; a reply names the work it goes to.
  */
 import { VERDICTS, type Ask, type AskKind, type Verdict } from '../../core'
+import type { SitrepItemRef, SitrepQueued } from '../../types'
 import { ago, C, clip, GLYPH } from '../look'
 import { queuedOn } from '../queue'
-import { askMark } from '../scene'
-import type { SitrepQueued } from '../../types'
+import { askMark, type Filed } from '../scene'
 import { drawField } from './field'
-import { canType, drawQueued, hung, type Drawing } from './kit'
+import { canType, drawOnItsWay, drawQueued, hung, onItsWay, type Drawing } from './kit'
 
 /** A yes, by the kind of ask it answers: its button's words. A decide ask offers no yes, so its words are never drawn. */
 const YES: Record<AskKind, string> = {
@@ -30,11 +31,18 @@ const COMMENT: Record<AskKind, string> = {
 const HINT =
   "Your reply waits in Ready to send. Ignore tells Claude you've seen it and won't act on it."
 
+/** The ask as the item a reply answers. */
+const refOf = (filed: Filed, ask: Ask): SitrepItemRef => ({
+  project: filed.project,
+  work: filed.work.id,
+  item: ask.id,
+})
+
 /** The buttons a verdict puts on an ask: one for each option of a decision. */
-const buttonsFor = (d: Drawing, ask: Ask, verdict: Verdict) => {
+const buttonsFor = (d: Drawing, at: SitrepItemRef, ask: Ask, verdict: Verdict) => {
   const { Button } = d.els
-  const reply = (fields: Omit<SitrepQueued, 'work' | 'item'>) =>
-    d.act.reply({ work: d.scene.work.id, item: ask.id, ...fields })
+  const reply = (fields: Omit<SitrepQueued, keyof SitrepItemRef>) =>
+    d.act.reply({ ...at, ...fields })
 
   switch (verdict) {
     case 'choose':
@@ -61,7 +69,7 @@ const buttonsFor = (d: Drawing, ask: Ask, verdict: Verdict) => {
             <Button
               key={`comment:${ask.id}`}
               label={COMMENT[ask.kind]}
-              onPress={() => d.act.comment(ask.id)}
+              onPress={() => d.act.comment(at)}
             />,
           ]
         : []
@@ -79,13 +87,13 @@ const buttonsFor = (d: Drawing, ask: Ask, verdict: Verdict) => {
   }
 }
 
-const drawButtons = (d: Drawing, ask: Ask) => {
+const drawButtons = (d: Drawing, at: SitrepItemRef, ask: Ask) => {
   const { Box, Text } = d.els
 
   return (
     <Box flexDirection="column">
       <Box flexDirection="row" columnGap={1} flexWrap="wrap">
-        {VERDICTS[ask.kind].flatMap(verdict => buttonsFor(d, ask, verdict))}
+        {VERDICTS[ask.kind].flatMap(verdict => buttonsFor(d, at, ask, verdict))}
       </Box>
       <Text color={C.grey} italic wrap="wrap">
         {HINT}
@@ -95,14 +103,18 @@ const drawButtons = (d: Drawing, ask: Ask) => {
 }
 
 /** What hangs under an ask: where to look, what Lee replied, its buttons or its field. */
-const drawUnder = (d: Drawing, ask: Ask) => {
+const drawUnder = (d: Drawing, filed: Filed, ask: Ask) => {
   const { Box, Text } = d.els
-  const { work, queue, pane } = d.scene
-  const queued = queuedOn(queue, work.id, ask.id)
+  const { queue, pane } = d.scene
+  const at = refOf(filed, ask)
+  const queued = queuedOn(queue, filed.work.id, ask.id)
+  const sent = queued === undefined ? onItsWay(ask) : undefined
   const isClosed = ask.state === 'closed'
   const isSelected = pane.selected === ask.id
-  const isCommenting = pane.commenting === ask.id && canType(d)
+  const isCommenting =
+    pane.commenting?.work === at.work && pane.commenting.item === ask.id && canType(d)
   const commented = ask.state === 'replied' ? ask.answer?.note : undefined
+  const isAnswering = queued === undefined && sent === undefined && !isCommenting
 
   return (
     <Box paddingLeft={2} flexDirection="column">
@@ -114,15 +126,17 @@ const drawUnder = (d: Drawing, ask: Ask) => {
       {isClosed && hung(d, `sent:${ask.id}`, 'sent, and Claude has it')}
       {commented !== undefined &&
         queued === undefined &&
+        sent === undefined &&
         hung(d, `replied:${ask.id}`, `you commented: “${commented}”. Claude has it.`)}
       {queued !== undefined && drawQueued(d, ask, queued)}
-      {isSelected && !isClosed && queued === undefined && !isCommenting && drawButtons(d, ask)}
-      {isCommenting && drawField(d, ask)}
+      {sent !== undefined && drawOnItsWay(d, ask, sent)}
+      {isSelected && !isClosed && isAnswering && drawButtons(d, at, ask)}
+      {isCommenting && drawField(d, at, ask)}
     </Box>
   )
 }
 
-export const drawAsk = (d: Drawing, ask: Ask) => {
+export const drawAsk = (d: Drawing, filed: Filed, ask: Ask) => {
   const { Box, Text, Button } = d.els
   const isClosed = ask.state === 'closed'
   const mark = askMark(d.scene, ask)
@@ -147,7 +161,7 @@ export const drawAsk = (d: Drawing, ask: Ask) => {
         </Box>
         <Text color={C.grey}>{ago(d.scene.now, ask.at)}</Text>
       </Box>
-      {drawUnder(d, ask)}
+      {drawUnder(d, filed, ask)}
     </Box>
   )
 }

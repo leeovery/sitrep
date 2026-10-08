@@ -1,41 +1,29 @@
 /**
- * This session's view, the board's home: the work's name and summary,
- * where it stands, what waits on Lee, and what happened.
+ * A session's view: the work's name and summary, where it stands, what
+ * waits on Lee, and what happened. This session's is the board's home;
+ * another's draws the same, its asks answered the same way.
  */
 import { agoWords, C, GLYPH, titled } from '../look'
-import { askMark, doneEarlier, forYou, isPulsing } from '../scene'
+import { askMark, doneEarlier, forYou, isPulsing, type Filed } from '../scene'
 import { drawAsk } from './ask'
-import { heading, marked, type Drawing } from './kit'
+import { context, heading, marked, type Drawing } from './kit'
 import { drawLogLine } from './log'
 
 /** How many log lines the view shows, docked and inline. */
 const LOG_LINES = { dock: 8, inline: 3 }
 
 /** The line under the tabs naming the work, and its summary under that. */
-const drawContext = (d: Drawing) => {
-  const { Box, Text } = d.els
-  const { status, project } = d.scene.work
-
-  return (
-    <Box flexDirection="column">
-      <Box flexDirection="row" gap={1}>
-        <Text bold>{status.name}</Text>
-        <Box flexGrow={1} flexShrink={1}>
-          <Text color={C.grey} wrap="truncate-end">
-            · {titled(project)}
-          </Text>
-        </Box>
-      </Box>
-      <Text color={C.soft} wrap="wrap">
-        {status.summary}
-      </Text>
-    </Box>
+const drawContext = (d: Drawing, { work }: Filed) =>
+  context(
+    d,
+    work.status.name,
+    `${titled(work.project)}${work.isOpen ? '' : ' · closed'}`,
+    work.status.summary,
   )
-}
 
-const drawStatus = (d: Drawing) => {
+const drawStatus = (d: Drawing, { work }: Filed) => {
   const { Box, Text } = d.els
-  const { now, next, at } = d.scene.work.status
+  const { now, next, at } = work.status
 
   return (
     <Box flexDirection="column">
@@ -58,29 +46,27 @@ const drawStatus = (d: Drawing) => {
   )
 }
 
-/** For you's few words: new while an ask pulses, else how many wait. */
-const forYouNote = (d: Drawing) => {
-  const { work } = d.scene
-
-  if (isPulsing(d.scene)) {
+/** For you's few words: new while one of this session's asks pulses, else how many wait. */
+const forYouNote = (d: Drawing, { work }: Filed) => {
+  if (work === d.scene.work && isPulsing(d.scene)) {
     return { note: '✦ new', color: askMark(d.scene).color }
   }
 
   return { note: work.waiting > 0 ? `${work.waiting} waiting` : 'nothing waiting', color: C.grey }
 }
 
-const drawForYou = (d: Drawing) => {
+const drawForYou = (d: Drawing, filed: Filed) => {
   const { Box, Text } = d.els
-  const asks = forYou(d.scene)
-  const earlier = doneEarlier(d.scene)
-  const { note, color } = forYouNote(d)
+  const asks = forYou(filed.work, d.scene.now)
+  const earlier = doneEarlier(filed.work, d.scene.now)
+  const { note, color } = forYouNote(d, filed)
 
   return (
     <Box flexDirection="column">
       {heading(d, 'FOR YOU', C.ask, note, color)}
       {asks.length === 0 && <Text color={C.grey}>Nothing waiting on you.</Text>}
       <Box flexDirection="column" rowGap={1}>
-        {asks.map(ask => drawAsk(d, ask))}
+        {asks.map(ask => drawAsk(d, filed, ask))}
       </Box>
       {earlier > 0 && (
         <Text color={C.grey}>
@@ -91,9 +77,9 @@ const drawForYou = (d: Drawing) => {
   )
 }
 
-const drawLog = (d: Drawing) => {
+const drawLog = (d: Drawing, { work }: Filed) => {
   const { Box, Text } = d.els
-  const lines = d.scene.work.log.slice(0, d.isDock ? LOG_LINES.dock : LOG_LINES.inline)
+  const lines = work.log.slice(0, d.isDock ? LOG_LINES.dock : LOG_LINES.inline)
 
   return (
     <Box flexDirection="column">
@@ -104,15 +90,15 @@ const drawLog = (d: Drawing) => {
   )
 }
 
-export const drawSessionView = (d: Drawing) => {
+export const drawSessionView = (d: Drawing, filed: Filed) => {
   const { Box } = d.els
 
   return (
     <Box flexDirection="column" gap={1}>
-      {drawContext(d)}
-      {drawStatus(d)}
-      {drawForYou(d)}
-      {drawLog(d)}
+      {drawContext(d, filed)}
+      {drawStatus(d, filed)}
+      {drawForYou(d, filed)}
+      {drawLog(d, filed)}
     </Box>
   )
 }

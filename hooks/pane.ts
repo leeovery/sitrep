@@ -1,6 +1,6 @@
 /**
- * The board's pane: opened full or as the glance, on a view and an item,
- * and closed again.
+ * The board's pane: opened full or as the glance, on a place, a view and an
+ * item, and closed again.
  *
  * Claude Code places a pane opened by Lee's press or command at any width
  * (docked from 110 columns in fullscreen, inline otherwise), and one opened
@@ -8,8 +8,10 @@
  * press itself, from the `ui.press` hook: an open made once the press has
  * settled counts as unasked.
  */
-import type { SitrepMode, SitrepPane } from '../types'
+import type { SitrepAttachment, SitrepMode, SitrepPane } from '../types'
+import { lookAround } from './around'
 import type { Host } from './host'
+import { projectPlace } from './places'
 
 /** The pane's id, as `$.ui.open` and its `ui.render` name it. */
 export const PANE = 'board'
@@ -23,21 +25,32 @@ const ROWS = 24
 /** The band's buttons, each a way into the board. */
 export const BAND = {
   forYou: 'band:for-you',
+  elsewhere: 'band:elsewhere',
   parked: 'band:parked',
   board: 'band:board',
 } as const
 
 export const BAND_KEYS = Object.values(BAND)
 
-/** Where the board opens: its view, and the item opened under its line. */
-export type Focus = Partial<Pick<SitrepPane, 'view' | 'selected'>>
+/** Where the board opens: where it looks, its view, and the item opened under its line. */
+export type Focus = Partial<Pick<SitrepPane, 'place' | 'view' | 'selected'>>
+
+/** Where each of the band's counts opens the board: this session, its project, or what this session parked. */
+const COUNTED: Readonly<Record<string, (held: SitrepAttachment) => Focus>> = {
+  [BAND.forYou]: () => ({ place: null, view: 'board' }),
+  [BAND.elsewhere]: held => ({ place: projectPlace(held.project), view: 'board' }),
+  [BAND.parked]: () => ({ place: null, view: 'parked' }),
+}
 
 const markOpen = (host: Host, isOpen: boolean) =>
   host.state.pane.update(pane => ({ ...pane, isOpen }))
 
 const isUp = async (host: Host) => (await host.ui.panes()).some(pane => pane.id === PANE)
 
-/** Opens the board; one Claude Code would not draw is closed again, and a toast says why. */
+/**
+ * Opens the board, and reads what it shows; one Claude Code would not draw
+ * is closed again, and a toast says why.
+ */
 export const openBoard = async (host: Host, mode: SitrepMode, focus: Focus = {}) => {
   await host.state.pane.update(pane => ({ ...pane, ...focus, mode }))
 
@@ -53,6 +66,7 @@ export const openBoard = async (host: Host, mode: SitrepMode, focus: Focus = {})
   }
 
   await markOpen(host, true)
+  await lookAround(host)
 }
 
 const closeBoard = async (host: Host) => {
@@ -71,11 +85,12 @@ export const syncBoard = async (host: Host) => markOpen(host, await isUp(host))
 /** The board closed by Lee: the band's button follows. */
 export const boardClosed = (host: Host) => markOpen(host, false)
 
-/** A press on one of the band's buttons: the count opens the board on what it counts. */
-export const pressBand = (host: Host, element: string) => {
-  if (element === BAND.board) {
-    return toggleBoard(host)
-  }
+/** A press on one of the band's buttons: a count opens the board on what it counts. */
+export const pressBand = async (host: Host, element: string) => {
+  const held = await host.state.attachment.read()
+  const focus = Object.hasOwn(COUNTED, element) ? COUNTED[element] : undefined
 
-  return openBoard(host, 'full', { view: element === BAND.parked ? 'parked' : 'session' })
+  return held === null || focus === undefined
+    ? toggleBoard(host)
+    : openBoard(host, 'full', focus(held))
 }

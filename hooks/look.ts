@@ -30,9 +30,14 @@ export const GLYPH = {
   now: '•',
   next: '◦',
   home: '⌂',
+  project: '▤',
+  every: '≡',
+  up: '←',
   branch: '├',
   last: '└',
   done: '✓',
+  /** Replies just taken in from the board. */
+  news: '✦',
 } as const
 
 /** The ◆ of a new ask, frame by frame as it pulses. */

@@ -27,7 +27,7 @@ import type { SitrepAttachment } from '../types'
 import { boardOf } from './board'
 import { logFailure, rootFor, type Host } from './host'
 import { announce } from './news'
-import { createReader, type Reader } from './reader'
+import { createReader, ownText, type Reader } from './reader'
 
 /** How often the watch lists the work's folders for what changed. */
 export const WATCH_MS = 1_500
@@ -61,10 +61,6 @@ export const serially = <T>(task: () => Promise<T>): Promise<T> => {
 
 /** The work this window holds, if any. */
 export const attached = () => current?.attachment
-
-/** The window's own file as it stands, so its count goes on; empty for a writer new to the work. */
-const ownText = async (host: Host, path: string) =>
-  (await host.fs.exists(path)) ? host.fs.read(path) : ''
 
 const beat = async (host: Host, hold: Hold, presence: Presence) => {
   await host.fs.write(hold.paths.heartbeat(hold.attachment.writer), presenceText(presence))

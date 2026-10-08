@@ -1,13 +1,14 @@
 /**
- * What every part of the board draws with, and the pieces they share: a
- * section's heading, a glyph before a line, a line hung from a tree, and a
- * reply waiting in Ready to send.
+ * What every part of the board draws with, and the pieces they share: the
+ * line naming what a view is of, a section's heading, a glyph before a
+ * line, a line hung from a tree, and a reply waiting in Ready to send or
+ * on its way.
  *
  * Drawing is pure: a surface's element table and plain data in, a tree
  * out; what a button does is the actions' (hooks/actions.ts).
  */
 import type { ElementTable, RenderElement, RenderSurface } from 'claude-code'
-import { answerOf, type Ask, type Parked } from '../../core'
+import { answerOf, type Ask, type Parked, type ReplyFields } from '../../core'
 import type { SitrepQueued } from '../../types'
 import type { Actions } from '../actions'
 import { C, GLYPH } from '../look'
@@ -43,6 +44,33 @@ const TYPING: Record<RenderSurface, 'area' | 'field' | 'none'> = {
 export const typingOn = (d: Drawing) => TYPING[d.surface]
 
 export const canType = (d: Drawing) => typingOn(d) !== 'none'
+
+/** The line under the tabs naming what the view is of, with a few words on it, and a summary under it. */
+export const context = ({ els }: Drawing, title: string, aside: string, summary?: string) => {
+  const { Box, Text } = els
+
+  return (
+    <Box flexDirection="column">
+      <Box flexDirection="row" gap={1}>
+        <Text bold>{title}</Text>
+        <Box flexGrow={1} flexShrink={1}>
+          <Text color={C.grey} wrap="truncate-end">
+            {`· ${aside}`}
+          </Text>
+        </Box>
+      </Box>
+      {summary !== undefined && (
+        <Text color={C.soft} wrap="wrap">
+          {summary}
+        </Text>
+      )}
+    </Box>
+  )
+}
+
+/** How much waits on Lee, as a view's line under the tabs says it. */
+export const waitingWords = (count: number) =>
+  count > 0 ? `${count} waiting on you` : 'nothing waiting on you'
 
 /** A section's title, a rule to the edge, and its few words at the end. */
 export const heading = (
@@ -100,6 +128,22 @@ export const hung = ({ els }: Drawing, key: string, text: string, after?: Render
         {after}
       </Box>
     </Box>
+  )
+}
+
+/** The reply an item waits on Claude with: sent from a board into its work's inbox, not delivered yet. */
+export const onItsWay = (item: Ask | Parked) =>
+  item.replies.findLast(reply => reply.delivery !== 'delivered')
+
+/** A reply sent but not delivered yet, hung under what it answers. */
+export const drawOnItsWay = (d: Drawing, item: Ask | Parked, reply: ReplyFields) => {
+  const { Text } = d.els
+
+  return hung(
+    d,
+    `onitsway:${item.id}`,
+    answerOf(item, reply),
+    <Text color={C.grey}>· on its way</Text>,
   )
 }
 

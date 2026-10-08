@@ -92,6 +92,7 @@ function display(on: On) {
   const sounds: string[] = []
   const commands: string[] = []
   const prompts: Submitted[] = []
+  const submitted: string[] = []
   let unplaced: string | undefined
   let dropping: string | undefined
   let holding: { arrive: () => void; turn: Promise<void> } | undefined
@@ -139,6 +140,8 @@ function display(on: On) {
   })
 
   on('prompt.submit', async ($, e) => {
+    submitted.push(e.text)
+
     if (holding !== undefined) {
       holding.arrive()
       await holding.turn
@@ -159,6 +162,8 @@ function display(on: On) {
     sounds,
     commands,
     prompts,
+    /** Every prompt submitted, entered or not, as it was submitted. */
+    submitted,
     /** Panes opened from here on wait undrawn, for that reason; or, given none, are placed again. */
     unplacePanes: (reason?: string) => {
       unplaced = reason
@@ -201,16 +206,21 @@ export function world(engine: Engine, on: On, options: { now?: number; cwd?: str
   const files = new Map<string, File>()
   const state: Partial<Sitrep> = {}
   const boards: (Sitrep['board'] | null)[] = []
+  /** How many times each of the mod's values was put in `$.state`. */
+  const writes: Partial<Record<keyof Sitrep, number>> = {}
   const logs: string[] = []
   const registered: { name: string; isDeferred?: boolean }[] = []
   const shown = display(on)
   let session = W1
   let cwd = options.cwd ?? REPO
+  let isRefused: ((path: string) => boolean) | undefined
 
   mock.env(on, { XDG_STATE_HOME: STATE_HOME, HOME: '/Users/lee' })
 
   on('session.start', ($, e) => ({ cwd: e.cwd }))
   on('session.end', ($, e) => ({ sessionId: e.sessionId }))
+  on('turn.start', ($, e) => ({ turnId: e.turnId }))
+  on('prompt.context', ($, e) => ({ blocks: e.blocks }))
   on('session.id', () => ({ value: session }))
   on('session.cwd', () => ({ value: cwd }))
 
@@ -243,6 +253,7 @@ export function world(engine: Engine, on: On, options: { now?: number; cwd?: str
 
   on('state.set', ($, e, next) => {
     Object.assign(state, { [e.key]: e.value })
+    writes[e.key as keyof Sitrep] = (writes[e.key as keyof Sitrep] ?? 0) + 1
 
     if (e.key === 'board') {
       boards.push(e.value as Sitrep['board'])
@@ -258,10 +269,19 @@ export function world(engine: Engine, on: On, options: { now?: number; cwd?: str
   })
 
   on('fs.write', ($, e) => {
+    if (isRefused?.(e.path)) {
+      return { deny: `EIO: i/o error, write ${e.path}` }
+    }
+
     files.set(e.path, { text: e.text, mtimeMs: clock.now() })
 
     return { value: undefined }
   })
+
+  /** Writes from here on to a path `test` picks fail, as a full disk fails them; given none, they land again. */
+  const refuseWrites = (test?: (path: string) => boolean) => {
+    isRefused = test
+  }
 
   on('fs.exists', ($, e) => ({
     value: files.has(e.path) || [...files.keys()].some(path => isUnder(e.path, path)),
@@ -326,6 +346,24 @@ export function world(engine: Engine, on: On, options: { now?: number; cwd?: str
     }
   }
 
+  /**
+   * Another piece of work, started by the window `by` names and filed under
+   * `project`: its paths, that window's lines as it writes them, and its
+   * heartbeat as of now, attached at `attachedAt`.
+   */
+  const elsewhere = (meta: WorkMeta, project = PROJECT.key, by = meta.by) => {
+    const paths = workPaths(ROOT, project, meta.id)
+
+    seed(meta, project)
+
+    return {
+      paths,
+      write: writer(paths, by),
+      beat: (attachedAt = clock.now()) =>
+        put(paths.heartbeat(by), presenceText({ writer: by, attachedAt, seenAt: clock.now() })),
+    }
+  }
+
   /** Calls one of sitrep's tools from the main conversation, or from a subagent given its id. */
   const call = (name: string, args: Args = {}, agentId?: string) =>
     engine.tool.call({
@@ -349,6 +387,18 @@ export function world(engine: Engine, on: On, options: { now?: number; cwd?: str
     cwd = next.cwd ?? cwd
   }
 
+  /** The board opened by /sitrep, as Lee opens it, then drawn docked. */
+  const opened = async () => {
+    await engine.command.run({
+      command: 'sitrep',
+      args: '',
+      origin: { kind: 'composer' },
+      presentation: { isFullscreen: true, columns: 160 },
+    })
+
+    return pane()
+  }
+
   /** The board pane drawn on a surface, as a docked pane unless told otherwise. */
   const pane = (surface: Surface = 'terminal', props: RenderPropsOf['Pane'] = DOCKED) =>
     engine.ui.mount({ plugin: 'sitrep', surface, component: 'Pane', requestId: 'board', props })
@@ -367,17 +417,21 @@ export function world(engine: Engine, on: On, options: { now?: number; cwd?: str
     files,
     state,
     boards,
+    writes,
     logs,
     registered,
     ...shown,
     put,
     text,
+    refuseWrites,
     seed,
     beat,
     writer,
+    elsewhere,
     call,
     begin,
     become,
+    opened,
     pane,
     band,
   }

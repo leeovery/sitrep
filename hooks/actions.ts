@@ -3,7 +3,15 @@
  * not wait on its work, so each act runs in its own time and writes to the
  * debug log what failed.
  */
-import type { SitrepMode, SitrepPane, SitrepQueued, SitrepView } from '../types'
+import type {
+  SitrepItemRef,
+  SitrepMode,
+  SitrepPane,
+  SitrepPlace,
+  SitrepQueued,
+  SitrepView,
+} from '../types'
+import { lookAround } from './around'
 import { send } from './deliver'
 import { logFailure, type Host } from './host'
 import { openBoard, type Focus } from './pane'
@@ -20,18 +28,20 @@ export type Actions = {
   reply: (reply: SitrepQueued) => void
   /** Takes the reply to one item out of the queue. */
   unqueue: (work: string, item: string) => void
-  /** Empties the queue of a work's replies. */
-  cancelAll: (work: string) => void
+  /** Empties the queue, but for what a send is carrying. */
+  cancelAll: () => void
   /** Opens the comment field on an ask. */
-  comment: (item: string) => void
+  comment: (at: SitrepItemRef) => void
   cancelComment: () => void
   /** What the field holds, from a surface with no text area of the mod's own. */
   type: (text: string) => void
   /** Queues the field's words as a reply; `typed`, where the field handed them over itself. */
-  save: (work: string, item: string, saved: Saved, typed?: string) => void
+  save: (at: SitrepItemRef, saved: Saved, typed?: string) => void
   send: () => void
-  /** Turns the board to a view, closing what was open in the last. */
+  /** Turns the board to a view of where it is looking, closing what was open in the last. */
   show: (view: SitrepView) => void
+  /** Takes the board somewhere else in the tree, on its view of that place. */
+  go: (place: SitrepPlace) => void
   /** Opens the board full or as the glance, on what was clicked. */
   open: (mode: SitrepMode, focus?: Focus) => void
 }
@@ -41,13 +51,18 @@ const EMPTY = 'Type something first, or cancel.'
 const changePane = (host: Host, change: (pane: SitrepPane) => Partial<SitrepPane>) =>
   host.state.pane.update(pane => ({ ...pane, ...change(pane) }))
 
+/** Queues a reply; one to another work has that work read, for Ready to send to draw it. */
 const queue = async (host: Host, reply: SitrepQueued) => {
   await host.state.queue.update(replies => queuing(replies, reply))
   await changePane(host, () => ({ commenting: null }))
+
+  if (reply.work !== attached()?.work) {
+    await lookAround(host)
+  }
 }
 
 /** The field's words as the reply: a comment needs some; a yes goes without. */
-const saveField = async (host: Host, work: string, item: string, saved: Saved, typed?: string) => {
+const saveField = async (host: Host, at: SitrepItemRef, saved: Saved, typed?: string) => {
   const note = (typed ?? (await host.state.draft.read())).trim()
 
   if (note === '' && saved === 'comment') {
@@ -56,8 +71,14 @@ const saveField = async (host: Host, work: string, item: string, saved: Saved, t
     return
   }
 
-  await queue(host, { work, item, verdict: saved, note: note === '' ? undefined : note })
+  await queue(host, { ...at, verdict: saved, note: note === '' ? undefined : note })
   await host.state.draft.write('')
+}
+
+/** The board on its view of a place, nothing opened there, and what it shows read. */
+const go = async (host: Host, place: SitrepPlace) => {
+  await changePane(host, () => ({ place, view: 'board', selected: null, commenting: null }))
+  await lookAround(host)
 }
 
 export const actionsOf = (host: Host): Actions => {
@@ -74,25 +95,27 @@ export const actionsOf = (host: Host): Actions => {
       run('taking a reply back', () =>
         host.state.queue.update(replies => unqueuing(replies, work, item)),
       ),
-    cancelAll: work =>
-      run('cancelling every reply', () =>
-        host.state.queue.update(replies => clearing(replies, work)),
-      ),
-    comment: item =>
+    cancelAll: () =>
+      run('cancelling every reply', async () => {
+        const sending = await host.state.sending.read()
+
+        await host.state.queue.update(replies => clearing(replies, sending))
+      }),
+    comment: at =>
       run('opening the comment field', async () => {
         await host.state.draft.write('')
-        await changePane(host, () => ({ commenting: item }))
+        await changePane(host, () => ({ commenting: at }))
       }),
     cancelComment: () =>
       run('closing the comment field', () => changePane(host, () => ({ commenting: null }))),
     type: text => run('keeping what was typed', () => host.state.draft.write(text)),
-    save: (work, item, saved, typed) =>
-      run('saving the comment', () => saveField(host, work, item, saved, typed)),
+    save: (at, saved, typed) => run('saving the comment', () => saveField(host, at, saved, typed)),
     send: () => run('sending', () => send(host)),
     show: view =>
       run('turning the board', () =>
         changePane(host, () => ({ view, selected: null, commenting: null })),
       ),
+    go: place => run('going elsewhere on the board', () => go(host, place)),
     open: (mode, focus) => run('opening the board', () => openBoard(host, mode, focus)),
   }
 }
@@ -118,7 +141,6 @@ export const areaKey = (item: string) => `${AREA}${item}`
 /** A post from the comment field's text area: the words kept as typed, and saved as a comment on Enter. */
 export const heardTyping = async (host: Host, element: string, data: unknown) => {
   const typing = typingOf(data)
-  const work = attached()?.work
 
   if (!element.startsWith(AREA) || typing === undefined) {
     return
@@ -126,7 +148,9 @@ export const heardTyping = async (host: Host, element: string, data: unknown) =>
 
   await host.state.draft.write(typing.text)
 
-  if (typing.isSubmit && work !== undefined) {
-    await saveField(host, work, element.slice(AREA.length), 'comment', typing.text)
+  const { commenting } = await host.state.pane.read()
+
+  if (typing.isSubmit && commenting?.item === element.slice(AREA.length)) {
+    await saveField(host, commenting, 'comment', typing.text)
   }
 }

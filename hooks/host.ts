@@ -19,7 +19,17 @@ import type {
   UiPane,
 } from 'claude-code'
 import { projectOf, rootOf, type Project, type Random } from '../core'
-import type { SitrepAttachment, SitrepBoard, SitrepPane, SitrepPulse, SitrepQueued } from '../types'
+import type {
+  SitrepAttachment,
+  SitrepBoard,
+  SitrepDelivering,
+  SitrepOther,
+  SitrepPane,
+  SitrepProject,
+  SitrepPulse,
+  SitrepQueued,
+  SitrepSent,
+} from '../types'
 
 /** One of the mod's values in `$.state`. */
 export type Slot<T> = {
@@ -68,11 +78,16 @@ export type Host = {
     attachment: Slot<SitrepAttachment | null>
     board: Slot<SitrepBoard | null>
     seen: Slot<string | null>
+    projects: Slot<SitrepProject[]>
+    others: Slot<SitrepOther[]>
     queue: Slot<SitrepQueued[]>
     sending: Slot<SitrepQueued[]>
+    sent: Slot<SitrepSent[]>
+    delivering: Slot<SitrepDelivering | null>
     pane: Slot<SitrepPane>
     draft: Slot<string>
     pulse: Slot<SitrepPulse>
+    flash: Slot<number>
     tick: Slot<number>
   }
 }

@@ -146,7 +146,13 @@ test('a comment takes typed rows and saves them; cancel backs out', async ($, on
   expect(await ui.find({ type: 'Text', text: /comment: “thinner\nbars”/ })).toBeDefined()
   expect(await ui.find({ type: 'Text', text: /READY TO SEND/ })).toBeDefined()
   expect(w.state.queue).toEqual([
-    { work: w.state.attachment?.work, item: id, verdict: 'comment', note: 'thinner\nbars' },
+    {
+      project: w.state.attachment?.project,
+      work: w.state.attachment?.work,
+      item: id,
+      verdict: 'comment',
+      note: 'thinner\nbars',
+    },
   ])
 })
 

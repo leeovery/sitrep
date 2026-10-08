@@ -1,0 +1,110 @@
+import { expect, test, tier, type Engine } from 'claude-code/testing'
+import { CURRENT_MS, parseEntries, parsePresence, type WorkMeta } from '../core'
+import { file, MIN, note, T0, W1, W2 } from './support'
+import { DASHBOARD, PROJECT, SESSION, world } from './world'
+
+tier('user')
+
+type World = ReturnType<typeof world>
+
+const DAY = 24 * 60 * MIN
+
+const NOW = T0 + DAY
+
+const meta = (id: string, name: string, by: string, created = T0): WorkMeta => ({
+  id,
+  name,
+  summary: `${name}, area by area`,
+  project: 'switchboard',
+  root: '/Users/lee/Code/switchboard',
+  created,
+  by,
+})
+
+/** A work this session held in a process before, letting go at `leftAt`, with a line of its own. */
+const heldBefore = (w: World, work: WorkMeta, leftAt: number) => {
+  const { paths } = w.elsewhere(work)
+
+  w.beat(work.id, { writer: W1, attachedAt: work.created, seenAt: leftAt, leftAt })
+  w.put(paths.log(W1), file([work.created, note('n1', `Worked on ${work.name}`)]))
+
+  return paths
+}
+
+/** The blocks the session's first message carries, as sitrep leaves them. */
+const firstMessage = async ($: Engine) => (await $.prompt.context({ blocks: [] })).blocks
+
+test('a session resumed in a new process takes up by itself the work it was last seen in', async ($, on) => {
+  const w = world($, on, { now: NOW })
+
+  heldBefore(w, meta('sr-aaaaaa', 'Lobby', W1), T0 + MIN)
+
+  const paths = heldBefore(w, meta('sr-bbbbbb', 'Dashboard redesign', W1), T0 + 5 * MIN)
+
+  w.elsewhere(meta('sr-cccccc', 'Request ledger', W2)).beat()
+  await $.session.start(SESSION)
+
+  expect(w.state.attachment).toEqual({
+    project: PROJECT.key,
+    work: 'sr-bbbbbb',
+    writer: W1,
+    attachedAt: NOW,
+  })
+  expect(parsePresence(w.text(paths.heartbeat(W1)), W1)).toEqual({
+    writer: W1,
+    attachedAt: NOW,
+    seenAt: NOW,
+  })
+
+  await w.call('note', { text: 'Drew round 2' })
+  expect(parseEntries(w.text(paths.log(W1))).map(line => line.seq)).toEqual([1, 2])
+})
+
+test('a session seen in no work of its project takes nothing up', async ($, on) => {
+  const w = world($, on, { now: NOW })
+
+  w.elsewhere(meta('sr-cccccc', 'Request ledger', W2)).beat()
+  await $.session.start(SESSION)
+
+  expect(w.state.attachment ?? null).toBeNull()
+  expect([...w.files.keys()].some(path => path.endsWith(`/presence/${W1}.json`))).toBe(false)
+})
+
+test("the session's first message lists the project's current works by id, and which this window took up", async ($, on) => {
+  const w = world($, on, { now: NOW })
+
+  heldBefore(w, meta('sr-bbbbbb', 'Dashboard redesign', W1), T0 + 5 * MIN)
+  w.elsewhere(meta('sr-cccccc', 'Request ledger', W2)).beat()
+  w.elsewhere(meta('sr-dddddd', 'An old idea', W2, NOW - CURRENT_MS - DAY))
+  await $.session.start(SESSION)
+
+  const [block, ...more] = await firstMessage($)
+
+  expect(more).toEqual([])
+  expect(block?.name).toBe('sitrep')
+  expect(block?.text).toContain('- sr-bbbbbb: Dashboard redesign.')
+  expect(block?.text).toContain('- sr-cccccc: Request ledger.')
+  expect(block?.text).not.toContain('sr-dddddd')
+  expect(block?.text).toContain('This window already holds sr-bbbbbb (Dashboard redesign)')
+  expect(block?.text).toContain('join it by its id with the sitrep join tool')
+})
+
+test('with no current works in the project, the first message carries nothing of sitrep', async ($, on) => {
+  const w = world($, on, { now: NOW })
+
+  await $.session.start(SESSION)
+  expect(await firstMessage($)).toEqual([])
+
+  w.elsewhere(meta('sr-dddddd', 'An old idea', W2, NOW - CURRENT_MS - DAY))
+  expect(await firstMessage($)).toEqual([])
+})
+
+test('a work started in this session is listed, held, at the next conversation', async ($, on) => {
+  const w = world($, on, { now: NOW })
+
+  await w.begin()
+
+  const [block] = await firstMessage($)
+
+  expect(block?.text).toContain(`(${DASHBOARD.name}): post to its board as you go.`)
+})

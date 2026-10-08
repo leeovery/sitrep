@@ -8,10 +8,14 @@
  * the work's fold stays current in `$.state` for the board to draw.
  *
  * Lee sees it on the board pane, the band above the prompt and the glance,
- * answers its asks there, and sends the replies as Lee's own message. What
- * changed on the board without Claude (another window, the CLI) rides into
- * Claude's next turn as context Lee does not see. A session that ends lets
- * go of its work.
+ * answers its asks there, and sends the replies as Lee's own message. The
+ * board also reads the works around the held one: its project's, and every
+ * project's, each a view of its own, where Lee answers other sessions' asks
+ * too; those replies go into the other work's inbox, and the window there
+ * submits them. What changed on the board without Claude (another window,
+ * the CLI) rides into Claude's next turn as context Lee does not see. A
+ * session starts knowing its project's works; one resumed in a new process
+ * takes its work up again; a session that ends lets go of its work.
  *
  * Every call on `$` is spelled here, in `hostOf`: the engine reads them off
  * this file's source, and refuses a module that hands `$` to an import.
@@ -21,31 +25,43 @@
 import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register } from 'claude-code'
 import { actionsOf, heardTyping } from './actions'
+import { lookAround, lookEvery } from './around'
 import { isBoardMessage } from './deliver'
 import { drawBand } from './draw/band'
 import { drawPane } from './draw/board'
 import { drawToolResult, drawToolRow, toolLine } from './draw/tool-row'
 import { logFailure, type Host } from './host'
 import { BAND_KEYS, boardClosed, openBoard, PANE, pressBand, syncBoard } from './pane'
+import { heardTaken, receiveEvery } from './receive'
 import { heldWork, sceneOf, tickEvery } from './scene'
 import { boardChange, markSeen } from './seen'
+import { rejoin, startListing } from './start'
 import { answerCall, SPECS, TOOL_NAMES } from './tools'
 import { letGo, resume, serially } from './window'
+
+/** The block of the session's first message that lists the project's works. */
+const LISTING = 'sitrep'
 
 const attachment = atom({ plugin: 'sitrep', key: 'attachment' } as const, null)
 const board = atom({ plugin: 'sitrep', key: 'board' } as const, null)
 const seen = atom({ plugin: 'sitrep', key: 'seen' } as const, null)
+const projects = atom({ plugin: 'sitrep', key: 'projects' } as const, [])
+const others = atom({ plugin: 'sitrep', key: 'others' } as const, [])
 const queue = atom({ plugin: 'sitrep', key: 'queue' } as const, [])
 const sending = atom({ plugin: 'sitrep', key: 'sending' } as const, [])
+const sent = atom({ plugin: 'sitrep', key: 'sent' } as const, [])
+const delivering = atom({ plugin: 'sitrep', key: 'delivering' } as const, null)
 const pane = atom({ plugin: 'sitrep', key: 'pane' } as const, {
   isOpen: false,
   mode: 'full',
-  view: 'session',
+  place: null,
+  view: 'board',
   selected: null,
   commenting: null,
 })
 const draft = atom({ plugin: 'sitrep', key: 'draft' } as const, '')
 const pulse = atom({ plugin: 'sitrep', key: 'pulse' } as const, { asks: [], frames: 0 })
+const flash = atom({ plugin: 'sitrep', key: 'flash' } as const, 0)
 const tick = atom({ plugin: 'sitrep', key: 'tick' } as const, 0)
 
 /** The host, as a hook's `$` reaches it. */
@@ -99,6 +115,16 @@ const hostOf = ($: EngineInterface): Host => ({
       write: value => update($, seen, () => value),
       update: change => update($, seen, change),
     },
+    projects: {
+      read: () => read($, projects),
+      write: value => update($, projects, () => value),
+      update: change => update($, projects, change),
+    },
+    others: {
+      read: () => read($, others),
+      write: value => update($, others, () => value),
+      update: change => update($, others, change),
+    },
     queue: {
       read: () => read($, queue),
       write: value => update($, queue, () => value),
@@ -108,6 +134,16 @@ const hostOf = ($: EngineInterface): Host => ({
       read: () => read($, sending),
       write: value => update($, sending, () => value),
       update: change => update($, sending, change),
+    },
+    sent: {
+      read: () => read($, sent),
+      write: value => update($, sent, () => value),
+      update: change => update($, sent, change),
+    },
+    delivering: {
+      read: () => read($, delivering),
+      write: value => update($, delivering, () => value),
+      update: change => update($, delivering, change),
     },
     pane: {
       read: () => read($, pane),
@@ -123,6 +159,11 @@ const hostOf = ($: EngineInterface): Host => ({
       read: () => read($, pulse),
       write: value => update($, pulse, () => value),
       update: change => update($, pulse, change),
+    },
+    flash: {
+      read: () => read($, flash),
+      write: value => update($, flash, () => value),
+      update: change => update($, flash, change),
     },
     tick: {
       read: () => read($, tick),
@@ -143,8 +184,12 @@ export const register: Register = on => {
     }
 
     await serially(() => resume(host)).catch(logFailure(host, 'taking the attached work up again'))
+    await serially(() => rejoin(host)).catch(logFailure(host, 'rejoining the last work'))
     // A send the last load made is heard of no more: its replies wait to be sent again.
     await host.state.sending.write([])
+    // Nor are its timers: what it had pulsing or flashing comes to rest.
+    await host.state.pulse.write({ asks: [], frames: 0 })
+    await host.state.flash.write(0)
     await $.command.register({
       name: 'sitrep',
       description: 'Open the sitrep board: where this piece of work stands, and what waits on you.',
@@ -152,9 +197,31 @@ export const register: Register = on => {
     })
     await syncBoard(host)
     tickEvery(host)
+    lookEvery(host)
+    receiveEvery(host)
+    await lookAround(host)
 
     return next(e)
   })
+
+  // Once per conversation: its first message lists the project's works, after
+  // any rejoin the session's start made.
+  on('prompt.context', async ($, e, next) => {
+    const listing = await serially(() => startListing(hostOf($)))
+
+    return listing === undefined
+      ? next(e)
+      : next({ ...e, blocks: [...e.blocks, { name: LISTING, text: listing }] })
+  }).catch(($, e, next) => next(e))
+
+  // An inbox delivery is heard to have gone in as its message starts its turn:
+  // before its submit resolves (settled live), and after a reload, with no
+  // submit left to resolve.
+  on('turn.start', async ($, e, next) => {
+    await heardTaken(hostOf($), e.text)
+
+    return next(e)
+  }).catch(($, e, next) => next(e))
 
   on('tool.call', { tool: TOOL_NAMES }, ($, e) => answerCall(hostOf($), e)).catch(($, e, next) =>
     next.called
@@ -189,6 +256,8 @@ export const register: Register = on => {
     const host = hostOf($)
 
     await serially(() => letGo(host)).catch(logFailure(host, 'letting go of the attached work'))
+    // An inbox delivery on its way goes with the conversation: its replies wait for the next.
+    await host.state.delivering.write(null)
 
     return next(e)
   }).catch(($, e, next) => next(e))

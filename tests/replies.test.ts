@@ -4,6 +4,7 @@ import {
   askAfter,
   boardMessage,
   deliverer,
+  deliveryOf,
   FROM_THE_BOARD,
   parseEntries,
   STALE_MS,
@@ -454,4 +455,29 @@ test('under its item, the board shows a choice after an arrow and a pick-up in i
   expect(answerOf(decide, { item: 'k2', verdict: 'choose', option: 'Forever' })).toBe('→ Forever')
   expect(answerOf(decide, { item: 'k2', verdict: 'ignore' })).toBe('ignored')
   expect(answerOf(parked, { item: 'p1', verdict: 'pickup' })).toBe('pick it up')
+})
+
+test('replies sent into an inbox are delivered once every one is marked; until then they wait on the window, or for one', () => {
+  const letters = {
+    [SENDER]: file([T0 + MIN, reply('r1', 'k1', 'yes')], [T0 + MIN, reply('r2', 'k4', 'yes')]),
+  }
+  const marked = (...ids: string[]) =>
+    fold({
+      logs: { [W1]: file(...POSTED, [T0 + 2 * MIN, delivered(...ids)]) },
+      inbox: letters,
+      presence: { [W1]: seen(W1, NOW) },
+    })
+
+  expect(deliveryOf(marked('r1', 'r2'), ['r1', 'r2'])).toBe('delivered')
+  expect(deliveryOf(marked('r1'), ['r1', 'r2'])).toBe('waiting')
+  expect(deliveryOf(marked('r1'), ['r1'])).toBe('delivered')
+  expect(deliveryOf(fold({ logs: { [W1]: file(...POSTED) }, inbox: letters }), ['r1'])).toBe(
+    'closed',
+  )
+})
+
+test('a reply the fold has not read yet is not delivered', () => {
+  const work = fold({ logs: { [W1]: file(...POSTED) }, presence: { [W1]: seen(W1, NOW) } })
+
+  expect(deliveryOf(work, ['r9'])).toBe('waiting')
 })

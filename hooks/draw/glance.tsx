@@ -1,12 +1,13 @@
 /**
  * The glance: the board collapsed to a narrow column. Its counts on one
- * row, what is under way, what waits, the last few log lines; every line
- * opens the full board on what was clicked. `⇤ expand` sits where the
- * board's `⇥ collapse` does.
+ * row, what is under way, what waits, the last few log lines, the
+ * project's sessions; every line opens the full board on what was clicked.
+ * `⇤ expand` sits where the board's `⇥ collapse` does.
  */
-import { isOpen } from '../../core'
+import { isOpen, type WorkSummary } from '../../core'
 import { ago, C, clip, counted, GLYPH } from '../look'
 import type { Focus } from '../pane'
+import { projectAt } from '../places'
 import { askMark, countMark } from '../scene'
 import { heading, type Drawing } from './kit'
 import { logKey } from './log'
@@ -29,7 +30,7 @@ const drawCounts = (d: Drawing) => {
             plain
             dimColor={work.waiting === 0}
             label={`${work.waiting}`}
-            onPress={() => d.act.open('full', { view: 'session' })}
+            onPress={() => d.act.open('full', { place: null, view: 'board' })}
           />
         </Box>
         <Box flexDirection="row" gap={1}>
@@ -39,7 +40,7 @@ const drawCounts = (d: Drawing) => {
             plain
             dimColor
             label={`${work.parked.length}`}
-            onPress={() => d.act.open('full', { view: 'parked' })}
+            onPress={() => d.act.open('full', { place: null, view: 'parked' })}
           />
         </Box>
       </Box>
@@ -57,7 +58,11 @@ const drawLine = (
   selected?: string,
 ) => {
   const { Box, Text, Button } = d.els
-  const focus: Focus = selected === undefined ? { view: 'session' } : { view: 'session', selected }
+  const focus: Focus = {
+    place: null,
+    view: 'board',
+    ...(selected === undefined ? {} : { selected }),
+  }
 
   return (
     <Box key={key} flexDirection="row" gap={1}>
@@ -124,6 +129,46 @@ const drawLately = (d: Drawing) => {
   )
 }
 
+/** A session of the project: one with a window opens its view, one without is only named. */
+const drawSession = (d: Drawing, work: WorkSummary) => {
+  const { Box, Text, Button } = d.els
+  const label = clip(work.name, d.width - 4)
+
+  return (
+    <Box key={`gsession:${work.id}`} flexDirection="row" justifyContent="space-between">
+      {work.isOpen ? (
+        <Button
+          key={`open:gsession:${work.id}`}
+          plain
+          dimColor={work.id !== d.scene.work.id}
+          label={label}
+          onPress={() =>
+            d.act.open('full', {
+              place: { level: 'session', project: d.scene.here, work: work.id },
+              view: 'board',
+            })
+          }
+        />
+      ) : (
+        <Text color={C.faint}>{label}</Text>
+      )}
+      {work.waiting > 0 && <Text color={C.ask}>{work.waiting}</Text>}
+    </Box>
+  )
+}
+
+const drawSessions = (d: Drawing) => {
+  const { Box } = d.els
+  const { works } = projectAt(d.scene, d.scene.here).summary
+
+  return (
+    <Box flexDirection="column">
+      {heading(d, 'SESSIONS', C.log, '')}
+      {works.map(work => drawSession(d, work))}
+    </Box>
+  )
+}
+
 export const drawGlance = (d: Drawing) => {
   const { Box, Button } = d.els
   const waiting = d.scene.queue.length
@@ -134,6 +179,7 @@ export const drawGlance = (d: Drawing) => {
       {drawNow(d)}
       {drawWaiting(d)}
       {drawLately(d)}
+      {drawSessions(d)}
       {waiting > 0 && (
         <Button
           key="glance:ready"

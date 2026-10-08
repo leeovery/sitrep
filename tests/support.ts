@@ -19,9 +19,11 @@ export const MIN = 60_000
 /** When the work under test was started. */
 export const T0 = 1_760_000_000_000
 
-/** The window that started the work, a second window, and the CLI. */
+/** The window that started the work, a second window, two more on other works, and the CLI. */
 export const W1 = 'b1c2d3e4-0000-4000-8000-000000000001'
 export const W2 = 'b1c2d3e4-0000-4000-8000-000000000002'
+export const W3 = 'b1c2d3e4-0000-4000-8000-000000000003'
+export const W4 = 'b1c2d3e4-0000-4000-8000-000000000004'
 export const CLI = 'cli'
 
 /** A window on another piece of work, sending replies into this one's inbox. */

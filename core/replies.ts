@@ -5,7 +5,17 @@
  * A reply changes nothing until it is delivered: the board never claims
  * Claude knows something it was not told.
  */
-import type { Ask, AskKind, AskState, Item, Parked, ReplyBody, Verdict, Work } from './types'
+import type {
+  Ask,
+  AskKind,
+  AskState,
+  Delivery,
+  Item,
+  Parked,
+  ReplyBody,
+  Verdict,
+  Work,
+} from './types'
 
 /** What a reply says, whatever it is written as. */
 export type ReplyFields = Pick<ReplyBody, 'item' | 'verdict' | 'option' | 'note'>
@@ -122,3 +132,21 @@ export const boardMessage = (work: Work, replies: readonly ReplyFields[]) => {
 /** The replies a window submits now: every one undelivered when it is the work's deliverer, else none. */
 export const toDeliver = (work: Work, writer: string) =>
   work.deliverer === writer ? work.replies.filter(reply => reply.delivery !== 'delivered') : []
+
+/**
+ * Where replies sent into a work's inbox stand, by their ids: delivered once
+ * every one is; else waiting for its window's turn to end, or, with no
+ * window open, for one to join. A reply the fold has not read yet is not
+ * delivered.
+ */
+export const deliveryOf = (work: Work, ids: readonly string[]): Delivery => {
+  const isDelivered = ids.every(id =>
+    work.replies.some(reply => reply.id === id && reply.delivery === 'delivered'),
+  )
+
+  if (isDelivered) {
+    return 'delivered'
+  }
+
+  return work.isOpen ? 'waiting' : 'closed'
+}

@@ -1,18 +1,35 @@
 /**
- * The parked view: what this work raised and put off, each to pick up.
- * A pick-up queues in Ready to send like any reply.
+ * The parked view, scoped to where the board is looking: what a session,
+ * a project's sessions or every project raised and put off, each to pick
+ * up. A pick-up queues in Ready to send like any reply.
  */
-import type { Parked } from '../../core'
 import { ago, C, clip, GLYPH } from '../look'
+import { filedAt, homeOf, parkedAt, projectName, samePlace, type ParkedAt } from '../places'
 import { queuedOn } from '../queue'
-import { drawQueued, heading, type Drawing } from './kit'
+import type { Scene } from '../scene'
+import { drawOnItsWay, drawQueued, heading, onItsWay, type Drawing } from './kit'
 
 const ABOUT = "What we said we'd come back to. Each stays until you pick it up and Claude has it."
 
-/** Where to look, and the button that picks it up. */
-const drawOpened = (d: Drawing, parked: Parked) => {
+/** Where the parked items came from, as the view's heading names it. */
+const whereOf = (scene: Scene) => {
+  const { place } = scene
+
+  switch (place.level) {
+    case 'session':
+      return samePlace(place, homeOf(scene))
+        ? 'THIS SESSION'
+        : (filedAt(scene, place.work)?.work.status.name ?? place.work).toUpperCase()
+    case 'project':
+      return projectName(scene, place.project).toUpperCase()
+    case 'all':
+      return 'ALL PROJECTS'
+  }
+}
+
+/** Where to look, the session that raised it where the view spans several, and the button that picks it up. */
+const drawOpened = (d: Drawing, { at, name, parked }: ParkedAt) => {
   const { Box, Text, Button } = d.els
-  const work = d.scene.work.id
 
   return (
     <Box flexDirection="column">
@@ -21,24 +38,41 @@ const drawOpened = (d: Drawing, parked: Parked) => {
           {parked.where}
         </Text>
       )}
-      <Box flexDirection="row">
+      <Box flexDirection="row" columnGap={2} flexWrap="wrap">
+        {d.scene.place.level !== 'session' && <Text color={C.grey}>raised in {name}</Text>}
         <Button
           key={`pickup:${parked.id}`}
           label="pick it up"
-          onPress={() => d.act.reply({ work, item: parked.id, verdict: 'pickup' })}
+          onPress={() => d.act.reply({ ...at, item: parked.id, verdict: 'pickup' })}
         />
       </Box>
     </Box>
   )
 }
 
-const drawItem = (d: Drawing, parked: Parked) => {
+/** What hangs under a parked item: the pick-up waiting to be sent, or on its way, or, opened, its button. */
+const drawUnder = (d: Drawing, entry: ParkedAt) => {
+  const { at, parked } = entry
+  const queued = queuedOn(d.scene.queue, at.work, parked.id)
+  const sent = onItsWay(parked)
+
+  if (queued !== undefined) {
+    return drawQueued(d, parked, queued)
+  }
+
+  if (sent !== undefined) {
+    return drawOnItsWay(d, parked, sent)
+  }
+
+  return d.scene.pane.selected === parked.id && drawOpened(d, entry)
+}
+
+const drawItem = (d: Drawing, entry: ParkedAt) => {
   const { Box, Text, Button } = d.els
-  const { work, queue, pane, now } = d.scene
-  const queued = queuedOn(queue, work.id, parked.id)
+  const { at, parked } = entry
 
   return (
-    <Box key={`parked:${parked.id}`} flexDirection="column">
+    <Box key={`parked:${at.work}:${parked.id}`} flexDirection="column">
       <Box flexDirection="row" gap={1}>
         <Text color={C.parked}>{GLYPH.parked}</Text>
         <Box flexGrow={1} flexShrink={1}>
@@ -49,12 +83,10 @@ const drawItem = (d: Drawing, parked: Parked) => {
             onPress={() => d.act.select(parked.id)}
           />
         </Box>
-        <Text color={C.grey}>{ago(now, parked.at)}</Text>
+        <Text color={C.grey}>{ago(d.scene.now, parked.at)}</Text>
       </Box>
       <Box paddingLeft={2} flexDirection="column">
-        {queued !== undefined
-          ? drawQueued(d, parked, queued)
-          : pane.selected === parked.id && drawOpened(d, parked)}
+        {drawUnder(d, entry)}
       </Box>
     </Box>
   )
@@ -62,7 +94,7 @@ const drawItem = (d: Drawing, parked: Parked) => {
 
 export const drawParkedView = (d: Drawing) => {
   const { Box, Text, Button } = d.els
-  const { parked } = d.scene.work
+  const parked = parkedAt(d.scene)
 
   return (
     <Box flexDirection="column" gap={1}>
@@ -71,10 +103,10 @@ export const drawParkedView = (d: Drawing) => {
         plain
         dimColor
         label="← back to the board"
-        onPress={() => d.act.show('session')}
+        onPress={() => d.act.show('board')}
       />
       <Box flexDirection="column">
-        {heading(d, 'PARKED IN THIS SESSION', C.parked, `${parked.length}`)}
+        {heading(d, `PARKED IN ${whereOf(d.scene)}`, C.parked, `${parked.length}`)}
         <Text color={C.grey} italic wrap="wrap">
           {ABOUT}
         </Text>

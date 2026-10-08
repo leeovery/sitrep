@@ -35,7 +35,14 @@ test("send delivers the replies as Lee's own message, and writes them only once 
 
   await turn.arrived
   expect(kindsIn(w, paths.log(W1))).toEqual(['ask'])
-  expect(w.state.sending).toEqual([{ work: w.state.attachment?.work, item: id, verdict: 'yes' }])
+  expect(w.state.sending).toEqual([
+    {
+      project: w.state.attachment?.project,
+      work: w.state.attachment?.work,
+      item: id,
+      verdict: 'yes',
+    },
+  ])
 
   turn.end()
   await pressed

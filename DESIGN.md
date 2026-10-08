@@ -45,15 +45,31 @@ can run across several windows. So sitrep keys everything on a work id.
 3. Any later window joins the work by id: after `/clear`, `/resume`, a fresh
    window tomorrow, or a second window on the same work. Two windows on one
    work is how sessions combine.
-4. At the start of every Claude session, sitrep lists the project's open pieces
-   of work, with their ids, in Claude's context, so "let's carry on with the
-   dashboard work" finds its id even if nothing in memory says it.
-5. A window that never starts or joins a piece of work shows nothing on the
+4. At the start of every Claude session, sitrep lists the project's current
+   pieces of work, with their ids, in Claude's context, so "let's carry on
+   with the dashboard work" finds its id even if nothing in memory says it.
+   It is a block of the conversation's first message (`prompt.context`,
+   named `sitrep`), there only when the project has works: computed once per
+   conversation, again after `/clear` or a compaction, and again for a
+   session resumed in a new process (live). It tells Claude to join the
+   matching one by id, and says which one this window already holds.
+5. A session resumed in a new process (`--resume`, `-c`) keeps its session id
+   but not `$.state`. At its start, holding nothing, the window takes up by
+   itself the work of this project it was last seen in: by its heartbeat,
+   else the latest item or status it posted. Sending into a work's inbox, or
+   having started it, is not being seen in it.
+6. A window that never starts or joins a piece of work shows nothing on the
    board. That is the best effort.
 
 A piece of work is **open** while at least one window is attached to it.
 Nothing goes in the repo: no dotfile. Worktrees of one repository are one
 project (identity: the git common dir).
+
+A work is **current**, and shows in the project view, All projects and the
+start-of-session listing, while it is open, has an ask waiting, has
+something parked, or was updated in the last 7 days. An older idle work stays
+on disk and out of the views; a project left with none drops out of All
+projects altogether.
 
 ## Claude's side
 
@@ -112,11 +128,15 @@ LOG ─────────────────────────�
   three tabs. **Anywhere else** (another session or project) the tabs give way
   to `← <one level up>` and `⌂ this session`, the familiar nested-page pattern.
 - **This session** (home, the default): name and summary, Status, For you, Log.
-- **Project**: its sessions, each with what it is doing and its waiting count;
-  the project's log.
+- **Project**: its sessions, this one first (`⌂`), each with what it is doing
+  and its waiting count; the project's log, each line naming its session.
 - **All projects**: this project first, then the busiest. Each project's open
   sessions hang off it as a tree. A project with nothing open, waiting or parked
   folds into one line at the bottom.
+- **Another session** is the same view as this one: its status, For you with
+  buttons that answer it, its log.
+- Each tab carries what waits there. All projects is read only while the board
+  looks at it, so its tab has a count only then.
 - Each view's first line sits directly under the tab rule, with no blank row.
 - Every section heading has a few words on the right: `1 waiting`,
   `what happened`, `updated 12m ago`, `2 of 3 open`.
@@ -151,9 +171,13 @@ A kind is never shown as a word. It only chooses the first button:
 Everything Lee does on the board queues here first; nothing goes one press at
 a time. The box sits at the foot of **every** view of the board while anything
 waits in it, grouped by where each reply goes (`to this session`,
-`to Request ledger`). Each reply hangs off its item with a `└`, has its own
-`✕`, and the ask shows `↺ undo`. **send to Claude** sends them; **cancel all**
-clears them.
+`to Request ledger`, a session of another project with its project's name).
+Each reply hangs off its item with a `└`, has its own `✕`, and the ask shows
+`↺ undo`. **send to Claude** sends them; **cancel all** clears them.
+
+A group sent into another work's inbox stays in the box, its replies out of
+the queue, until Claude has them all, and 10 minutes after, so
+`delivered 2m ago` can be read. A closed work's group stays until it reopens.
 
 ### The band
 
@@ -163,9 +187,10 @@ One line above the prompt, right-aligned counts only, each one a way in:
                         ◆ 1 for you   2 in other sessions   ◇ 4 parked   ▸ show board
 ```
 
-`for you` opens this session, `in other sessions` this project, `parked` the
-parked view. Below 64 columns the words drop and the counts stay. The board's
-show/hide button always matches whether it is drawn.
+`for you` opens this session, `in other sessions` (what waits in this
+project's other works) this project, `parked` the parked view. Below 64
+columns the words drop and the counts stay. The board's show/hide button
+always matches whether it is drawn.
 
 When a new ask lands: the ◆ pulses, a toast names it, and a soft chime plays.
 **To try:** a macOS notification for asks, only when Lee isn't looking at that
@@ -189,7 +214,22 @@ window.
 - The send box shows each destination's state (`✓ delivered`, `⧗ waiting for its
   turn to end`, `○ closed: goes in when it reopens`), each ask shows
   `delivered 2m ago` or `on its way`, a toast sums it up, and the receiving
-  window's band flashes `✦ 2 replies from the board`.
+  window's band flashes `✦ 2 replies from the board` for 5 seconds. In the
+  destination's own view, an ask whose reply is on its way says so and offers
+  no second answer.
+- The receiving window delivers only while it is the work's deliverer, and
+  one delivery at a time: the replies, the message and whether Claude Code has
+  taken it sit in `$.state` until the mark is written. A look meanwhile sends
+  nothing; a mark that failed to write is written at the next; a refusal
+  clears it, and the next look tries again. Claude Code taking the message is
+  heard twice, from the submit and from the turn the message starts (whose
+  text is the message's, and which starts first, settled live); the first
+  writes the mark. A reload mid-flight loses the submit but not the turn, so
+  the new load marks it as the turn starts, and never submits it again. A
+  session that ends drops its delivery; the replies wait for the next.
+- The inbox message is the board's own, as this work's is: it takes no
+  board-change context, and its mark is written as a line Claude knows of
+  (`postKnown`). The rest rides in with Lee's next prompt.
 - An ask's life: **open → replied → closed**. The board never closes an ask on
   a press, only once Claude has been told: a delivered reply closes it, or
   Claude resolves it. An ask open past a day shows its age; one left open when
@@ -246,7 +286,12 @@ $XDG_STATE_HOME/sitrep/, else ~/.local/state/sitrep/
   a file either, so a window that lets go adds `leftAt`. Of several windows on
   one work, the one attached longest submits its inbox, so two never both do.
 - Readers list and `stat` the folder every second or two (a mod cannot watch
-  files) and read only what changed.
+  files) and read only what changed. The works around the held one are read
+  every 5 seconds, each through its reader: they are glanced at, not watched.
+  With the board closed only the held work's project is read, for the band;
+  open, the project it looks at too, every project while it looks at all of
+  them, and in full the session it looks at and those replies wait for or
+  went to.
 - `$.store` holds only per-person conveniences (last view, band preferences).
 
 ## One engine, two front ends
@@ -283,6 +328,13 @@ $XDG_STATE_HOME/sitrep/, else ~/.local/state/sitrep/
     kit); from its `ui.press` hook it does. Either way the board's own
     message takes no board-change context: its replies are the change, and
     the rest rides in with the next prompt.
+  - `turn.start` carries a plugin prompt's text exactly as submitted, and
+    fires before the submit resolves (a live probe). Inbox delivery runs on
+    a timer the session's start begins, never one a tool call began, so the
+    engine never refuses it as holding the turn.
+  - A reload mid-delivery is covered by the test kit, not a live run: in
+    `claude -p` runs the plugin-dir watch never armed, so a save did not
+    reload the mod.
 - **the CLI**, `sitrep`: runs on Bun, reads and writes through the file system.
   For scripts and other tools: a Paper generator posting "round 3 drawn", and
   later the tmux indicator. **proposed** commands: `sitrep ask`, `sitrep note`,

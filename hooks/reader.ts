@@ -1,7 +1,8 @@
 /**
  * Reading a piece of work's files. A mod cannot watch files, so each read
  * lists the work's folders and reads again only a file whose size or time
- * moved since it was last read.
+ * moved since it was last read. Also the folders sitrep files works under,
+ * and a file the window writes itself, as it stands.
  */
 import type { FsEntry } from 'claude-code'
 import {
@@ -21,6 +22,14 @@ export type Reader = (host: Host, paths: WorkPaths) => Promise<WorkFiles>
 type Held = { size: number; mtimeMs: number; text: string }
 
 const listed = (host: Host, dir: string) => host.fs.list(dir).catch((): FsEntry[] => [])
+
+/** The names of the folders in `dir`; none while it is not there. */
+export const foldersIn = async (host: Host, dir: string) =>
+  (await listed(host, dir)).filter(entry => entry.kind === 'dir').map(entry => entry.name)
+
+/** A file the window writes itself, as it stands, so its count goes on; empty before its first line. */
+export const ownText = async (host: Host, path: string) =>
+  (await host.fs.exists(path)) ? host.fs.read(path) : ''
 
 /**
  * A subfolder's entries, listed only once the work's own listing shows it:

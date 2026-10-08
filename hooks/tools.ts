@@ -31,7 +31,9 @@ import {
   type Work,
 } from '../core'
 import type { SitrepAttachment } from '../types'
+import { lookAround } from './around'
 import { placeOf, random, type Host, type Place } from './host'
+import { foldersIn } from './reader'
 import { markSeen, postKnown } from './seen'
 import { attachTo, attached, refresh, serially } from './window'
 
@@ -133,23 +135,26 @@ const posting = <N extends string, B extends Body>(
 
 /**
  * Attaches the window to a work, and counts its board as seen: Claude gave
- * a work it starts all it holds, and a join answers with the board.
+ * a work it starts all it holds, and a join answers with the board. A work
+ * other than the one held brings the board home to it, and the works around
+ * it are read.
  */
 const attachKnown = async (host: Host, root: string, attaching: SitrepAttachment) => {
+  const before = attached()?.work
   const work = await attachTo(host, root, attaching)
 
   if (work !== undefined) {
     await markSeen(host, work)
   }
 
+  if (attaching.work !== before) {
+    await host.state.pane.update(pane => ({ ...pane, place: null, view: 'board', selected: null }))
+  }
+
+  await lookAround(host)
+
   return work
 }
-
-/** The names of the folders in `dir`; none while it is not there. */
-const foldersIn = async (host: Host, dir: string) =>
-  (await host.fs.list(dir).catch(() => []))
-    .filter(entry => entry.kind === 'dir')
-    .map(entry => entry.name)
 
 const isWorkIn = async (host: Host, root: string, project: string, id: string) => {
   try {
@@ -204,7 +209,7 @@ const start: Tool<'start'> = {
 const join: Tool<'join'> = {
   spec: spec(
     'join',
-    'Join a piece of work on the sitrep board by its id: after a /clear or a resume, or from a second window. Returns the board as it stands.',
+    'Join a piece of work on the sitrep board by its id: after a /clear, or from a second window. A resumed session takes its work up again by itself. Returns the board as it stands.',
     { work: text('The work id: sr- and six characters.') },
     ['work'],
   ),
