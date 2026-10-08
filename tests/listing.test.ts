@@ -1,7 +1,7 @@
 import { expect, test } from 'claude-code/testing'
 import { EXIT } from '../cli/main'
 import { projectOf, type WorkMeta } from '../core'
-import { ask, META, MIN, note, park, resolve, status, T0, W1, W2 } from './support'
+import { ask, finish, META, MIN, note, park, resolve, status, T0, W1, W2 } from './support'
 import { NOW, terminal } from './terminal'
 import { ELSEWHERE, PROJECT } from './world'
 
@@ -160,6 +160,36 @@ test('list --all: this project first, then the busiest, the idle last; one with 
       '  sr-cccccc  Old but waiting (1 waiting)',
       'goosemates',
       '  sr-eeeeee  Onboarding (2 waiting)',
+      'quiet',
+      '  sr-ffffff  Tidying',
+      '',
+    ].join('\n'),
+  )
+})
+
+test('list leaves out a finished work, whatever it holds, and a project left with none', async () => {
+  const t = everywhere()
+
+  t.seed(LOBBY, {
+    lines: [
+      [T0, ask('k3', 'do', 'Check the lobby')],
+      [T0 + MIN, finish('lee')],
+    ],
+  })
+  t.seed(GOOSE, {
+    project: ELSEWHERE.key,
+    seenAt: NOW,
+    lines: [
+      [T0, ask('k1', 'try', 'Try the flow')],
+      [T0 + MIN, finish('claude', 'Shipped')],
+    ],
+  })
+
+  expect((await t.run('list', '--all')).out).toBe(
+    [
+      'switchboard',
+      '  sr-k3f9qa  Dashboard redesign (open, 1 waiting, 1 parked)',
+      '  sr-cccccc  Old but waiting (1 waiting)',
       'quiet',
       '  sr-ffffff  Tidying',
       '',

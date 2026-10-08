@@ -25,13 +25,20 @@ export const lastSeen = (work: Work, writer: string): number | undefined => {
   return times.length === 0 ? undefined : Math.max(...times)
 }
 
-/** The id of the work `writer` was last seen in, of those given; undefined when it was seen in none. */
-export const rejoinable = (works: readonly Work[], writer: string) =>
-  works
+/**
+ * The id of the work `writer` was last seen in, of those given; undefined
+ * when it was seen in none, or that work is finished: only a join reopens
+ * one, and the conversation had moved on from any it was seen in before.
+ */
+export const rejoinable = (works: readonly Work[], writer: string) => {
+  const last = works
     .flatMap(work => {
       const at = lastSeen(work, writer)
 
-      return at === undefined ? [] : [{ id: work.id, at }]
+      return at === undefined ? [] : [{ work, at }]
     })
     .sort((a, b) => b.at - a.at)
-    .at(0)?.id
+    .at(0)?.work
+
+  return last?.finished === undefined ? last?.id : undefined
+}

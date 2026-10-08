@@ -1,6 +1,6 @@
 import { expect, test, tier } from 'claude-code/testing'
 import { parseEntries, parseMeta, parsePresence, projectOf, workPaths } from '../core'
-import { META, W1 } from './support'
+import { file, finish, META, MIN, T0, W1, W2 } from './support'
 import {
   DASHBOARD,
   ELSEWHERE,
@@ -27,6 +27,7 @@ const TOOLS = [
   'resolve',
   'reopen',
   'edit',
+  'finish',
   'board',
 ]
 
@@ -235,6 +236,65 @@ test("edit corrects an item's own fields; a field its kind has not is refused", 
   expect((await w.call('edit', { item: id, text: 'Merged the band' })).result).toBe(`Edited ${id}.`)
   expect(w.state.board?.log[0]?.text).toBe('Merged the band')
   expect((await w.call('edit', { item: id, title: 'Merged' })).deny).toContain('not title')
+})
+
+test('finish marks the attached work done with its reason, the window staying attached; a second is refused', async ($, on) => {
+  const w = world($, on)
+  const { id, paths } = await w.begin()
+
+  await w.call('ask', { kind: 'review', title: 'Review round 1' })
+
+  expect((await w.call('finish', { reason: '  Shipped in PR #82 ' })).result).toBe(
+    'Marked done. This window stays attached; joining the work again reopens it.',
+  )
+  expect(linesOf(w, paths.log(W1)).at(-1)).toMatchObject({
+    type: 'finish',
+    who: 'claude',
+    reason: 'Shipped in PR #82',
+  })
+  expect(w.state.attachment?.work).toBe(id)
+  expect(w.state.board).toMatchObject({ waiting: 0, finished: { who: 'claude', by: W1 } })
+  expect((await w.call('finish')).deny).toBe('This piece of work is already marked done.')
+})
+
+test('join reopens a finished work, saying who had marked it done and why', async ($, on) => {
+  const w = world($, on)
+  const lobby = w.elsewhere({ ...META, id: 'sr-bbbbbb', name: 'Lobby', by: W2 })
+  const themes = w.elsewhere({ ...META, id: 'sr-cccccc', name: 'Themes', by: W2 })
+
+  lobby.write({ type: 'ask', id: 'k1', kind: 'do', title: 'Run it' }, finish('lee'))
+  themes.write(finish('claude', 'Shipped'))
+  await w.clock.advance(MIN)
+  await $.session.start(SESSION)
+
+  const joined = String((await w.call('join', { work: 'sr-bbbbbb' })).result)
+
+  expect(joined).toMatch(
+    /^Joined Lobby \(sr-bbbbbb\)\. Lee had marked it done; joining it reopened it\. The board as it stands:\n/,
+  )
+  expect(linesOf(w, lobby.paths.log(W1)).map(line => line.type)).toEqual(['unfinish'])
+  expect(w.state.board).toMatchObject({ waiting: 1 })
+  expect(w.state.board?.finished).toBeUndefined()
+
+  expect(String((await w.call('join', { work: 'sr-cccccc' })).result)).toContain(
+    'Claude had marked it done (Shipped); joining it reopened it.',
+  )
+})
+
+test('a line posted to a finished work leaves it done: only a join reopens it, once', async ($, on) => {
+  const w = world($, on)
+  const lobby = w.elsewhere({ ...META, id: 'sr-bbbbbb', name: 'Lobby', by: W2 })
+
+  w.put(
+    lobby.paths.log('cli'),
+    file([T0, finish('lee')], [T0 + MIN, { type: 'note', id: 'n1', text: 'From a script' }]),
+  )
+  await w.clock.advance(2 * MIN)
+  await $.session.start(SESSION)
+  await w.call('join', { work: 'sr-bbbbbb' })
+  await w.call('join', { work: 'sr-bbbbbb' })
+
+  expect(linesOf(w, lobby.paths.log(W1)).map(line => line.type)).toEqual(['unfinish'])
 })
 
 test("board reads back the work's open items with their ids", async ($, on) => {

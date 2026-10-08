@@ -5,7 +5,7 @@
  * drawing, so a write draws it again.
  */
 import type { Timer } from 'claude-code'
-import { isOpen, type Ask, type Work } from '../core'
+import { closingReply, isOpen, type Ask, type Work } from '../core'
 import type {
   SitrepInFlight,
   SitrepPane,
@@ -112,19 +112,19 @@ export const tickEvery = (host: Host) => {
 /** Draws the scene again once `ms` have passed. */
 export const tickAfter = (host: Host, ms: number) => host.clock.after(ms, tick(host))
 
+/** An ask a reply of Lee's just closed. One Claude resolved after Lee commented was closed by Claude, and does not linger. */
 const isLingering = (ask: Ask, now: number) =>
-  ask.state === 'closed' &&
-  ask.answer !== undefined &&
-  ask.closedAt !== undefined &&
-  now - ask.closedAt < LINGER_MS
+  closingReply(ask) !== undefined && ask.closedAt !== undefined && now - ask.closedAt < LINGER_MS
 
 /** For you: the open asks, and those Lee's send just closed, the newest first. */
 export const forYou = (work: Work, now: number) =>
   work.asks.filter(ask => isOpen(ask) || isLingering(ask, now)).reverse()
 
-/** How many asks closed earlier than that, ignored ones aside. */
+/** The asks closed earlier than that, ignored ones aside, the newest closed first. */
 export const doneEarlier = (work: Work, now: number) =>
-  work.asks.filter(ask => ask.state === 'closed' && !isLingering(ask, now)).length
+  work.asks
+    .filter(ask => ask.state === 'closed' && !isLingering(ask, now))
+    .sort((a, b) => (b.closedAt ?? b.at) - (a.closedAt ?? a.at))
 
 /** Whether an ask is one of those pulsing as new; with no ask, whether any is. Only the held work's asks pulse. */
 export const isPulsing = ({ pulse, work }: Scene, ask?: Ask) =>

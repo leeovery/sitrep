@@ -6,7 +6,7 @@
  * line, a bad line or a line of a kind or version it does not know is
  * skipped, and the rest stands.
  */
-import type { AskKind, Body, Entry, Verdict } from './types'
+import type { AskKind, Body, Entry, Finisher, Verdict } from './types'
 
 /** The format's version: a line of any other is skipped. */
 export const VERSION = 1
@@ -23,6 +23,8 @@ export const ASK_KINDS: readonly AskKind[] = ['review', 'decide', 'try', 'do']
 
 const VERDICTS: readonly Verdict[] = ['yes', 'choose', 'comment', 'ignore', 'pickup']
 
+const FINISHERS: readonly Finisher[] = ['lee', 'claude']
+
 type Check = (value: unknown) => boolean
 
 const isObject = (value: unknown): value is { [key: string]: unknown } =>
@@ -34,6 +36,7 @@ const isTime: Check = value => typeof value === 'number' && Number.isFinite(valu
 const isCount: Check = value => Number.isSafeInteger(value) && (value as number) > 0
 const isAskKind: Check = value => ASK_KINDS.includes(value as AskKind)
 const isVerdict: Check = value => VERDICTS.includes(value as Verdict)
+const isFinisher: Check = value => FINISHERS.includes(value as Finisher)
 const maybe =
   (check: Check): Check =>
   value =>
@@ -79,6 +82,8 @@ const SHAPES: { [T in Body['type']]: Record<string, Check> } = {
     note: maybe(isText),
   },
   delivered: { replies: isTexts },
+  finish: { who: isFinisher, reason: maybe(isText) },
+  unfinish: {},
 }
 
 const isType = (value: unknown): value is Body['type'] =>

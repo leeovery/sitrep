@@ -1,6 +1,6 @@
 import { expect, test, tier, type Engine } from 'claude-code/testing'
 import { CURRENT_MS, parseEntries, parsePresence, startText, type WorkMeta } from '../core'
-import { file, MIN, note, T0, W1, W2 } from './support'
+import { file, finish, MIN, note, T0, W1, W2 } from './support'
 import { DASHBOARD, PROJECT, SESSION, world } from './world'
 
 tier('user')
@@ -68,6 +68,22 @@ test('a session seen in no work of its project takes nothing up', async ($, on) 
 
   expect(w.state.attachment ?? null).toBeNull()
   expect([...w.files.keys()].some(path => path.endsWith(`/presence/${W1}.json`))).toBe(false)
+})
+
+test('a session resumed in a new process never takes up by itself the work it finished, nor lists it', async ($, on) => {
+  const w = world($, on, { now: NOW })
+  const paths = heldBefore(w, meta('sr-bbbbbb', 'Dashboard redesign', W1), T0 + 5 * MIN)
+
+  w.put(
+    paths.log(W1),
+    file([T0, note('n1', 'Worked on it')], [T0 + 4 * MIN, finish('claude', 'Shipped')]),
+  )
+  await $.session.start(SESSION)
+
+  const [block] = await firstMessage($)
+
+  expect(w.state.attachment ?? null).toBeNull()
+  expect(block?.text).toBe(startText([]))
 })
 
 test("the session's first message lists the project's current works by id, and which this window took up", async ($, on) => {

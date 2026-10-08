@@ -4,7 +4,8 @@
  * first.
  *
  * A work shows while it is current: open, holding something for Lee, or
- * updated lately. An older idle one stays on disk, out of every view.
+ * updated lately, and not marked done. An older idle one, or a finished
+ * one, stays on disk, out of every view.
  */
 import { compareText } from './text'
 import type { LogLine, Parked, Work } from './types'
@@ -25,6 +26,8 @@ export type WorkSummary = {
   now: string[]
   next?: string
   isOpen: boolean
+  /** Marked done: out of every view, whatever it holds. */
+  isFinished: boolean
   waiting: number
   parked: number
   updatedAt: number
@@ -82,9 +85,10 @@ const isIdle = (project: ProjectSummary) =>
 const total = (works: readonly WorkSummary[], count: (work: WorkSummary) => number) =>
   works.reduce((sum, work) => sum + count(work), 0)
 
-/** Whether a work shows in the views: open, waiting on Lee, holding something parked, or updated within `CURRENT_MS`. */
+/** Whether a work shows in the views: not finished, and open, waiting on Lee, holding something parked, or updated within `CURRENT_MS`. */
 export const isCurrent = (work: WorkSummary, now: number) =>
-  work.isOpen || work.waiting > 0 || work.parked > 0 || now - work.updatedAt <= CURRENT_MS
+  !work.isFinished &&
+  (work.isOpen || work.waiting > 0 || work.parked > 0 || now - work.updatedAt <= CURRENT_MS)
 
 export const summarise = (work: Work): WorkSummary => ({
   id: work.id,
@@ -94,6 +98,7 @@ export const summarise = (work: Work): WorkSummary => ({
   now: work.status.now,
   next: work.status.next,
   isOpen: work.isOpen,
+  isFinished: work.finished !== undefined,
   waiting: work.waiting,
   parked: work.parked.length,
   updatedAt: work.updatedAt,

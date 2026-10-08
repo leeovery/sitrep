@@ -14,6 +14,7 @@ import {
   type Ask,
   type Body,
   type Entry,
+  type Finished,
   type Item,
   type LogLine,
   type Note,
@@ -45,6 +46,7 @@ type Fold = {
   /** Delivered marks read before the reply they name, by reply. */
   early: Map<string, number>
   ids: Set<string>
+  finished?: Finished
   /** Status and pick-up lines as derived, and notes, resolved to lines once the fold ends so edits show. */
   log: Array<LogLine | Note>
 }
@@ -265,6 +267,14 @@ const HANDLERS: { [T in Body['type']]: Handler<T> } = {
       }
     }
   },
+
+  finish: (fold, { who, reason, at, by }) => {
+    fold.finished = { at, by, who, reason }
+  },
+
+  unfinish: fold => {
+    fold.finished = undefined
+  },
 }
 
 const take = (fold: Fold, entry: Written) => {
@@ -352,7 +362,8 @@ export const foldWork = (files: WorkFiles, now: number): Work | undefined => {
     presence,
     isOpen: fold.isOpen,
     deliverer: deliverer(presence, now),
-    waiting: asks.filter(ask => ask.state === 'waiting').length,
+    waiting: fold.finished === undefined ? asks.filter(ask => ask.state === 'waiting').length : 0,
+    finished: fold.finished,
     ids: fold.ids,
     updatedAt: Math.max(meta.created, entries.at(-1)?.at ?? 0),
   }

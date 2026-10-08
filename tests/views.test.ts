@@ -15,7 +15,21 @@ import {
   type Work,
   type WorkFiles,
 } from '../core'
-import { ask, file, META, MIN, note, park, seen, status, T0, W1, W2, type Line } from './support'
+import {
+  ask,
+  file,
+  finish,
+  META,
+  MIN,
+  note,
+  park,
+  seen,
+  status,
+  T0,
+  W1,
+  W2,
+  type Line,
+} from './support'
 
 const NOW = T0 + 60 * MIN
 
@@ -68,6 +82,7 @@ test('a work in brief: what it is doing, whether a window has it, and what it ho
     now: ['Drawing Usage, round 2'],
     next: 'Usage, round 3',
     isOpen: true,
+    isFinished: false,
     waiting: 2,
     parked: 1,
     updatedAt: T0 + 4 * MIN,
@@ -181,6 +196,24 @@ test('open, waiting on Lee or holding something parked, a work shows however lon
   for (const work of [open, waiting, parked]) {
     expect(isCurrent(summarise(work), later), work.id).toBe(true)
   }
+})
+
+test('a finished work is out of the views whatever it holds, and its asks count nowhere', () => {
+  const finished = workOf('sr-aaaaaa', 'switchboard', {
+    logs: {
+      [W1]: file(
+        [NOW - MIN, ask('k1', 'do', 'Run it')],
+        [NOW - MIN, park('p1', 'Later')],
+        [NOW, finish('lee')],
+      ),
+    },
+    presence: { [W1]: seen(W1, NOW) },
+  })
+  const summary = summarise(finished)
+
+  expect(summary).toMatchObject({ isOpen: true, isFinished: true, waiting: 0, parked: 1 })
+  expect(isCurrent(summary, NOW)).toBe(false)
+  expect(summariseProject('switchboard-1a2b3c4d', [summary]).waiting).toBe(0)
 })
 
 test('a brief carries the latest log lines a view shows, and what the work has parked', () => {

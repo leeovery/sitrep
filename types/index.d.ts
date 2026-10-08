@@ -94,6 +94,14 @@ export type SitrepPresence = {
   leftAt?: number
 }
 
+/** A piece of work marked done: core's `Finished`. */
+export type SitrepFinished = {
+  at: number
+  by: string
+  who: 'lee' | 'claude'
+  reason?: string
+}
+
 /** A folded work as plain data: core's `Work`, its map of items and set of ids as lists. */
 export type SitrepBoard = {
   id: string
@@ -112,6 +120,7 @@ export type SitrepBoard = {
   isOpen: boolean
   deliverer?: string
   waiting: number
+  finished?: SitrepFinished
   ids: string[]
   updatedAt: number
 }
@@ -186,6 +195,7 @@ export type SitrepSummary = {
   now: string[]
   next?: string
   isOpen: boolean
+  isFinished: boolean
   waiting: number
   parked: number
   updatedAt: number

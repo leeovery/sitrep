@@ -239,8 +239,8 @@ export const tree = (d: Drawing, key: string, branches: readonly Branch[], colum
   )
 }
 
-/** A reply as it hangs under what it answers: its words, and what goes after them on the line. */
-const replyLine = ({ els }: Drawing, text: string, after?: RenderElement) => {
+/** Soft words hung under an item, a reply or how it closed, and what goes after them on the line. */
+export const replyLine = ({ els }: Drawing, text: string, after?: RenderElement) => {
   const { Box, Text } = els
 
   return (

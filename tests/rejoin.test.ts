@@ -4,6 +4,7 @@ import {
   ask,
   beat,
   file,
+  finish,
   fold,
   MIN,
   META,
@@ -63,4 +64,20 @@ test('a window rejoins the work it was last seen in; none, if it was seen in non
   expect(rejoinable([older, newer, other], W1)).toBe('sr-bbbbbb')
   expect(rejoinable([older, other], W1)).toBe('sr-aaaaaa')
   expect(rejoinable([other], W1)).toBeUndefined()
+})
+
+test('a window never rejoins a finished work by itself, nor an older one it had moved on from', () => {
+  const older = as(
+    'sr-aaaaaa',
+    fold({ presence: { [W1]: beat(W1, { attachedAt: T0, seenAt: T0 + MIN }) } }),
+  )
+  const finished = as(
+    'sr-bbbbbb',
+    fold({
+      logs: { [W1]: file([T0 + MIN, finish('claude')]) },
+      presence: { [W1]: beat(W1, { attachedAt: T0, seenAt: T0 + 2 * MIN }) },
+    }),
+  )
+
+  expect(rejoinable([older, finished], W1)).toBeUndefined()
 })

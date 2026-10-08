@@ -49,6 +49,7 @@ const LINES: [tool: string, input: { [key: string]: unknown }, line: string][] =
   ],
   ['note', { text: 'PR #82 merged' }, 'logged: PR #82 merged'],
   ['park', { title: 'A tmux indicator' }, '◇ parked: A tmux indicator'],
+  ['finish', { reason: 'Shipped' }, '✓ finished a piece of work'],
   ['board', {}, 'read the board back'],
 ]
 
@@ -81,6 +82,7 @@ test('a call naming an item or a work names it as the held work has it', async (
     ['edit', { item: 'zzzz', title: 'x' }, 'edited: an item'],
     ['join', { work: id }, 'joined: Dashboard redesign'],
     ['join', { work: 'sr-zzzzzz' }, 'joined a piece of work'],
+    ['finish', {}, '✓ finished: Dashboard redesign'],
   ]
 
   for (const [i, [tool, input, line]] of rows.entries()) {

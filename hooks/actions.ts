@@ -3,6 +3,7 @@
  * not wait on its work, so each act runs in its own time and writes to the
  * debug log what failed.
  */
+import { checkFinish, type Work } from '../core'
 import type {
   SitrepItemRef,
   SitrepMode,
@@ -10,13 +11,16 @@ import type {
   SitrepPlace,
   SitrepQueued,
   SitrepView,
+  SitrepWorkRef,
 } from '../types'
 import { lookAround } from './around'
 import { logFailure, type Host } from './host'
+import { writeInto } from './into'
 import { openBoard, type Focus } from './pane'
+import { projectPlace } from './places'
 import { clearing, queuing, unqueuing } from './queue'
 import { send } from './send'
-import { attached } from './window'
+import { attached, serially } from './window'
 
 /** What a saved comment field makes: a comment (an answer, on a decide), or a yes with its words. */
 type Saved = 'comment' | 'yes'
@@ -44,6 +48,8 @@ export type Actions = {
   go: (place: SitrepPlace) => void
   /** Opens the board full or as the glance, on what was clicked. */
   open: (mode: SitrepMode, focus?: Focus) => void
+  /** Marks another work done, as Lee confirmed on its view, and takes the board up off it. */
+  finish: (at: SitrepWorkRef) => void
 }
 
 const EMPTY = 'Type something first, or cancel.'
@@ -79,6 +85,21 @@ const saveField = async (host: Host, at: SitrepItemRef, saved: Saved, typed?: st
 const go = async (host: Host, place: SitrepPlace) => {
   await changePane(host, () => ({ place, view: 'board', selected: null, commenting: null }))
   await lookAround(host)
+}
+
+/** Lee's finish: a line in this window's own file in the work, none once it is done already. */
+const finishing = (work: Work) => {
+  const checked = checkFinish(work, 'lee')
+
+  return checked.ok ? [checked.value] : []
+}
+
+/** Marks a work the window does not hold done, then goes up to its project, where it no longer shows. */
+const finish = async (host: Host, at: SitrepWorkRef) => {
+  const writer = await host.session.id()
+
+  await serially(() => writeInto(host, { ...at, writer }, finishing))
+  await go(host, projectPlace(at.project))
 }
 
 export const actionsOf = (host: Host): Actions => {
@@ -117,6 +138,7 @@ export const actionsOf = (host: Host): Actions => {
       ),
     go: place => run('going elsewhere on the board', () => go(host, place)),
     open: (mode, focus) => run('opening the board', () => openBoard(host, mode, focus)),
+    finish: at => run('marking a work done', () => finish(host, at)),
   }
 }
 

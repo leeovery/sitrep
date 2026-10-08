@@ -5,7 +5,7 @@
  * session. Undelivered replies are left out: Claude has not been told them.
  */
 import { answerOf, isOpen } from './replies'
-import type { Ask, LogLine, Parked, Work } from './types'
+import type { Ask, Finished, Finisher, LogLine, Parked, Work } from './types'
 import type { WorkSummary } from './views'
 
 /** How many of the latest notes the board text lists, for Claude to correct. */
@@ -80,7 +80,7 @@ const JOIN =
 const GUIDE = [
   "sitrep is Lee's board inside Claude Code: where each piece of work stands and what waits on Lee. The chat stays primary; the board mirrors your own tracking, for Lee.",
   '- Start a piece of work when the work will run across several turns or will need Lee: a feature, a design, an investigation. Not for a quick question. Name it in plain words, as Lee would say it, with no internal codes; record its id wherever this project tracks the work.',
-  "- As it goes: set the status when what's under way changes; post an ask whenever you need something only Lee can do or decide, and say it in the chat as well (when Lee answers it in the chat, resolve the ask); note what Lee would want to know later, never running commentary; resolve what's done.",
+  "- As it goes: set the status when what's under way changes; post an ask whenever you need something only Lee can do or decide, and say it in the chat as well (when Lee answers it in the chat, resolve the ask); note what Lee would want to know later, never running commentary; resolve what's done; when the piece of work is complete, with nothing left on it, finish it.",
 ].join('\n')
 
 /** What a session starts knowing of the board: how to keep it, the project's pieces of work, how to take one up, and the one this window already holds. */
@@ -96,3 +96,9 @@ export const startText = (works: readonly WorkSummary[], held?: WorkSummary) => 
 
   return [GUIDE, worksText(works), taking].join('\n')
 }
+
+const FINISHERS: Record<Finisher, string> = { lee: 'Lee', claude: 'Claude' }
+
+/** What a join tells Claude of a finished work it reopened: who had marked it done, and why. */
+export const reopenedText = ({ who, reason }: Finished) =>
+  `${FINISHERS[who]} had marked it done${reason === undefined ? '' : ` (${reason})`}; joining it reopened it.`

@@ -86,6 +86,15 @@ export type ReplyBody = {
 
 export type DeliveredBody = { type: 'delivered'; replies: string[] }
 
+/** Who marked a piece of work done: Lee, from the board, or Claude. */
+export type Finisher = 'lee' | 'claude'
+
+/** Marks the piece of work done: Lee or Claude, with why. */
+export type FinishBody = { type: 'finish'; who: Finisher; reason?: string }
+
+/** Takes a finished piece of work up again: a window joined it. */
+export type UnfinishBody = { type: 'unfinish' }
+
 /** What one line of a writer's file says. */
 export type Body =
   | StatusBody
@@ -97,6 +106,8 @@ export type Body =
   | EditBody
   | ReplyBody
   | DeliveredBody
+  | FinishBody
+  | UnfinishBody
 
 /** A line as written: its body, stamped with the format's version, the time and the writer's own count. */
 export type Entry = Body & { v: number; at: number; seq: number }
@@ -185,6 +196,14 @@ export type LogLine = {
   id?: string
 }
 
+/** A piece of work marked done: when, by which writer, and whether Lee or Claude, with why. */
+export type Finished = {
+  at: number
+  by: string
+  who: Finisher
+  reason?: string
+}
+
 /** A window's heartbeat on a piece of work; `leftAt` once it has let go. */
 export type Presence = {
   writer: string
@@ -216,8 +235,10 @@ export type Work = {
   isOpen: boolean
   /** The window that submits inbox replies: the oldest live presence. */
   deliverer?: string
-  /** Asks waiting on Lee. */
+  /** Asks waiting on Lee; none once the work is finished. */
   waiting: number
+  /** Set once the work is marked done, until a window joins it again. */
+  finished?: Finished
   /** Every id the work's lines use, items and replies alike. */
   ids: ReadonlySet<string>
   /** The latest line's time, or when the work was started. */

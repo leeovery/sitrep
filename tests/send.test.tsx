@@ -78,7 +78,7 @@ test('the board then shows the ask closed, and folds it into what was done once 
   await w.clock.advance(LINGER_MS)
 
   expect(await ui.find({ type: 'Text', text: 'sent, and Claude has it' })).toBeUndefined()
-  expect(await ui.find({ type: 'Text', text: '✓ 1 done earlier' })).toBeDefined()
+  expect(await ui.find({ type: 'Button', text: '✓ 1 done earlier' })).toBeDefined()
   expect(await ui.find({ type: 'Text', text: 'nothing waiting' })).toBeDefined()
 })
 

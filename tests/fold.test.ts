@@ -4,6 +4,7 @@ import {
   ask,
   CLI,
   file,
+  finish,
   fold,
   MIN,
   note,
@@ -13,6 +14,7 @@ import {
   SENDER,
   status,
   T0,
+  unfinish,
   W1,
   W2,
   type Line,
@@ -210,4 +212,46 @@ test('the work knows every id its lines use, items and replies alike', () => {
 test('a work whose work.json is missing or torn does not fold', () => {
   expect(foldWork({ meta: '', logs: {} }, T0)).toBeUndefined()
   expect(foldWork({ meta: '{"v":1,"id":"sr-k3f9', logs: {} }, T0)).toBeUndefined()
+})
+
+test('a finish marks the work done, by whom and why; its waiting asks stop counting, and later lines leave it done', () => {
+  const work = fold({
+    logs: {
+      [W1]: file(
+        [T0 + 1 * MIN, ask('k3f9', 'review', 'Review round 1')],
+        [T0 + 2 * MIN, finish('claude', 'Shipped')],
+      ),
+      [CLI]: file([T0 + 3 * MIN, ask('k4a1', 'do', 'Run the apply')]),
+    },
+  })
+
+  expect(work.finished).toEqual({ at: T0 + 2 * MIN, by: W1, who: 'claude', reason: 'Shipped' })
+  expect(work.asks.map(each => each.state)).toEqual(['waiting', 'waiting'])
+  expect(work.waiting).toBe(0)
+})
+
+test('an unfinish takes a finished work up again, its waiting asks counting once more', () => {
+  const work = fold({
+    logs: {
+      [W1]: file(
+        [T0 + 1 * MIN, ask('k3f9', 'review', 'Review round 1')],
+        [T0 + 2 * MIN, finish('lee')],
+      ),
+      [W2]: file([T0 + 3 * MIN, unfinish()]),
+    },
+  })
+
+  expect(work.finished).toBeUndefined()
+  expect(work.waiting).toBe(1)
+})
+
+test('a finish in the inbox, or by a finisher the format does not know, finishes nothing', () => {
+  const work = fold({
+    logs: {
+      [W1]: `${JSON.stringify({ v: VERSION, at: T0 + MIN, seq: 1, type: 'finish', who: 'cli' })}\n`,
+    },
+    inbox: { [SENDER]: file([T0 + 2 * MIN, finish('lee')]) },
+  })
+
+  expect(work.finished).toBeUndefined()
 })

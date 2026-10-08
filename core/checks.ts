@@ -13,6 +13,8 @@ import {
   type AskKind,
   type Changes,
   type EditBody,
+  type FinishBody,
+  type Finisher,
   type Item,
   type NoteBody,
   type ParkBody,
@@ -291,3 +293,9 @@ export const checkEdit = (work: Work, input: unknown): Checked<EditBody> => {
     ? ok({ type: 'edit', item: item.value.id, changes: changes.value, reason: line(fields.reason) })
     : refuse(misfit)
 }
+
+/** Marks the piece of work done, by Lee or by Claude, with Claude's reason; refused once it is. */
+export const checkFinish = (work: Work, who: Finisher, input?: unknown): Checked<FinishBody> =>
+  work.finished === undefined
+    ? ok({ type: 'finish', who, reason: line(fieldsOf(input).reason) })
+    : refuse('This piece of work is already marked done.')

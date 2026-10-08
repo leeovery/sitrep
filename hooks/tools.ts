@@ -12,6 +12,7 @@ import {
   boardText,
   checkAsk,
   checkEdit,
+  checkFinish,
   checkJoin,
   checkNote,
   checkPark,
@@ -24,6 +25,7 @@ import {
   parseMeta,
   projectKeys,
   projectsDir,
+  reopenedText,
   withId,
   workPaths,
   worksDir,
@@ -172,6 +174,20 @@ const projectFiling = async (host: Host, { root, project }: Bearings, id: string
   return undefined
 }
 
+/** What a join writes to a finished work: it is taken up again. */
+const UNFINISH: Body = { type: 'unfinish' }
+
+/** A joined work reopened when it was finished, and what the join says of that. */
+const reopening = async (host: Host, work: Work) => {
+  if (work.finished === undefined) {
+    return { work, said: '' }
+  }
+
+  const reopened = await postKnown(host, work, [UNFINISH])
+
+  return { work: reopened ?? work, said: ` ${reopenedText(work.finished)}` }
+}
+
 const start: Tool<'start'> = {
   spec: spec(
     'start',
@@ -204,7 +220,7 @@ const start: Tool<'start'> = {
 const join: Tool<'join'> = {
   spec: spec(
     'join',
-    'Join a piece of work on the sitrep board by its id: after a /clear, or from a second window. A resumed session takes its work up again by itself. Returns the board as it stands.',
+    'Join a piece of work on the sitrep board by its id: after a /clear, or from a second window. A resumed session takes its work up again by itself. Joining a finished piece of work reopens it. Returns the board as it stands.',
     { work: text('The work id: sr- and six characters.') },
     ['work'],
   ),
@@ -235,8 +251,10 @@ const join: Tool<'join'> = {
       return { deny: UNREADABLE }
     }
 
+    const joined = await reopening(host, work)
+
     return {
-      result: `Joined ${work.status.name} (${id}). The board as it stands:\n${boardText(work)}`,
+      result: `Joined ${work.status.name} (${id}).${joined.said} The board as it stands:\n${boardText(joined.work)}`,
     }
   },
 }
@@ -334,6 +352,15 @@ const TOOLS = [
     ),
     checkEdit,
     ({ item }) => `Edited ${item}.`,
+  ),
+  posting(
+    spec(
+      'finish',
+      "Mark the attached piece of work done, when it is complete and nothing is left on it. It leaves the board's views, and its open asks stop counting.",
+      { reason: REASON },
+    ),
+    (work, input) => checkFinish(work, 'claude', input),
+    () => 'Marked done. This window stays attached; joining the work again reopens it.',
   ),
   board,
 ] as const

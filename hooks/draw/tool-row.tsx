@@ -36,11 +36,13 @@ const SAID: Record<ToolName, (input: Input, work: Work | undefined) => string> =
   resolve: (input, work) => `resolved: ${titleOf(work, input)}`,
   reopen: (input, work) => `reopened: ${titleOf(work, input)}`,
   edit: (input, work) => `edited: ${titleOf(work, input)}`,
+  finish: (_, work) =>
+    work === undefined ? '✓ finished a piece of work' : `✓ finished: ${work.status.name}`,
   board: () => 'read the board back',
 }
 
 /** The calls whose rows name what only the held work can put a name to. */
-const NAMING: ReadonlySet<ToolName> = new Set(['join', 'resolve', 'reopen', 'edit'])
+const NAMING: ReadonlySet<ToolName> = new Set(['join', 'resolve', 'reopen', 'edit', 'finish'])
 
 /**
  * A call's line, from its input and, where it names an item, the held work

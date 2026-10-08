@@ -60,6 +60,10 @@ export const isOpen = (ask: Ask) => ask.state === 'waiting' || ask.state === 're
 export const isPending = (reply: Reply) =>
   reply.delivery === 'waiting' || reply.delivery === 'closed'
 
+/** Whether a verdict closes an ask of its kind once delivered: a yes, a choice, or an answer to a decide. */
+const isClosing = (kind: AskKind, verdict: Verdict) =>
+  verdict !== 'ignore' && (verdict !== 'comment' || kind === 'decide')
+
 /**
  * Where a delivered reply leaves an ask. Ignore drops it; a comment on a
  * review, try or do leaves it with Claude to act on; a yes, a choice or an
@@ -75,8 +79,14 @@ export const askAfter = (ask: Ask, verdict: Verdict): AskState => {
     return 'ignored'
   }
 
-  return verdict === 'comment' && ask.kind !== 'decide' ? 'replied' : 'closed'
+  return isClosing(ask.kind, verdict) ? 'closed' : 'replied'
 }
+
+/** The reply that closed an ask, where Lee's answer closed it; undefined where Claude's resolve did. */
+export const closingReply = (ask: Ask) =>
+  ask.state === 'closed' && ask.answer !== undefined && isClosing(ask.kind, ask.answer.verdict)
+    ? ask.answer
+    : undefined
 
 /** Where a delivered reply leaves a parked item: a pick-up picks it up. */
 export const parkedAfter = (parked: Parked, verdict: Verdict): Parked['state'] =>

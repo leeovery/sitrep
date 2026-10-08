@@ -58,7 +58,8 @@ can run across several windows. So sitrep keys everything on a work id.
 5. A resumed conversation, holding nothing, takes up by itself the work of
    this project it was last seen in: by its heartbeat, else the latest item
    or status it posted. Sending into a work's inbox, or having started it, is
-   not being seen in it.
+   not being seen in it. A finished work is never taken up by itself, nor an
+   older one in its place: the conversation had moved on from those.
    - Resumed in a new process (`--resume`, `-c`), it keeps its session id but
      not `$.state`. The process computes the listing before its session
      starts (live), so the rejoin runs there first, for the listing to name it.
@@ -80,6 +81,12 @@ something parked, or was updated in the last 7 days. An older idle work stays
 on disk and out of the views; a project left with none drops out of All
 projects altogether.
 
+A work is **finished** once Claude or Lee marks it done, and is then never
+current, whatever it holds: a session can end with things still open
+because Lee closed the window. Its waiting asks count nowhere (tabs, band,
+projects). A line posted to it later, by the CLI or anyone, leaves it
+finished; only joining it again reopens it.
+
 ## Claude's side
 
 Tools the mod registers, schemas loaded up front. **Only the main conversation
@@ -94,6 +101,7 @@ orchestrator decides what reaches the board.
 | `note` | add a log line, with optional detail lines and a pointer |
 | `park` | park something to come back to |
 | `resolve` / `reopen` / `edit` | close, reopen or correct an item, with a reason |
+| `finish` | mark the attached work done, with a reason, once it is complete and nothing is left on it; the window stays attached, and joining it again reopens it |
 | `board` | read back the board's open items, so Claude can check and repair it |
 
 **When to start a piece of work**, in every conversation's first message
@@ -106,7 +114,8 @@ named it in internal shorthand):
   record its id wherever the project tracks the work.
 - As it goes: the status when what's under way changes, an ask whenever Lee is
   needed (said in the chat as well), a note for what Lee would want later,
-  never running commentary; resolve what's done.
+  never running commentary; resolve what's done; finish the work once it is
+  complete, with nothing left on it.
 
 Wording rules, in the tool descriptions:
 
@@ -156,7 +165,21 @@ LOG ─────────────────────────�
   sessions hang off it as a tree. A project with nothing open, waiting or parked
   folds into one line at the bottom.
 - **Another session** is the same view as this one: its status, For you with
-  buttons that answer it, its log.
+  buttons that answer it, its log. While no window has it, its foot (above
+  Ready to send) has `✓ mark this work done`, for a session Lee left with
+  things open by closing the window. It asks first, in place:
+  `Mark <name> done? Its open asks stop counting.`, `[ yes, mark it done ]`
+  `[ cancel ]`. Yes writes the finish into that work's folder, in this
+  window's own file there (nothing goes to its inbox: it is Lee's act on the
+  board, not a reply to Claude), and the board goes up a level, the work gone
+  from it. A work with a window is still being worked: Lee finishes it there
+  by telling Claude.
+- **Done earlier:** under For you, `✓ 3 done earlier` counts the asks closed
+  before now, ignored ones aside, and opens to them, the newest closed first,
+  as a selection does (closing the board puts it away). Each is faint, its
+  title on one line, and hangs how it closed and when: the reply that closed
+  it (`approved · 2h ago`, `→ Forever · 1d ago`), or
+  `resolved by Claude: <reason> · 2h ago`.
 - Each tab carries what waits there. All projects is read only while the board
   looks at it, so its tab has a count only then.
 - Each view's first line sits directly under the tab rule, with no blank row.
@@ -320,7 +343,12 @@ $XDG_STATE_HOME/sitrep/, else ~/.local/state/sitrep/
 
   The kinds: `status`, `ask`, `note` and `park`; `resolve`, `reopen` and
   `edit`, each naming an item; `reply`, Lee's answer to one; `delivered`,
-  naming the replies Claude has been given.
+  naming the replies Claude has been given; `finish`, the work marked done,
+  saying who (`lee` or `claude`) and with an optional reason; and
+  `unfinish`, a window joining it again. The work holds the latest finish,
+  when, by which writer and why, until an unfinish clears it. Who is a field
+  of its own because Lee's board and Claude's tool write as the same
+  window.
 - Reading merges every writer's lines into one order: time, then writer, then
   count. A reader can catch a file mid-write, so a torn last line, a bad line
   or one of a kind or version it does not know is skipped, never fatal.
@@ -437,7 +465,8 @@ $XDG_STATE_HOME/sitrep/, else ~/.local/state/sitrep/
   - The work is `--work sr-xxxxxx`, else `$SITREP_WORK`, looked up in the
     project of the folder the CLI runs in (known as the mod knows it), then in
     every other. `list` takes none: this project's current works, or with
-    `--all` every project's, ordered as All projects orders them.
+    `--all` every project's, ordered as All projects orders them; a finished
+    work is never among them. The CLI does not finish works.
   - Exit codes: 0 done; 1 a usage error, a refused input or a failure; 2 no
     such piece of work.
   - `list --json` is for tools, and stable: every field is always there (a

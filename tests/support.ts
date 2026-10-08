@@ -6,6 +6,7 @@ import {
   presenceText,
   type AskKind,
   type Body,
+  type Finisher,
   type Presence,
   type Random,
   type Verdict,
@@ -104,6 +105,10 @@ export const delivered = (...replies: string[]): Body => ({ type: 'delivered', r
 export const resolve = (item: string, reason?: string): Body => ({ type: 'resolve', item, reason })
 
 export const reopen = (item: string, reason?: string): Body => ({ type: 'reopen', item, reason })
+
+export const finish = (who: Finisher, reason?: string): Body => ({ type: 'finish', who, reason })
+
+export const unfinish = (): Body => ({ type: 'unfinish' })
 
 /** Random bytes from a script: each draw takes the next list of bytes, the last list repeating. */
 export const scripted = (...draws: number[][]): Random => {

@@ -15,19 +15,11 @@
  * they were, for Lee's next send or the inbox's next look.
  */
 import type { PromptOrigin, Timer } from 'claude-code'
-import {
-  append,
-  deliveredMark,
-  foldWork,
-  sentLines,
-  workPaths,
-  type Body,
-  type Work,
-} from '../core'
+import { deliveredMark, sentLines, type Body, type Work } from '../core'
 import type { SitrepInFlight, SitrepSource } from '../types'
-import { logFailure, rootFor, type Host } from './host'
+import { logFailure, type Host } from './host'
+import { writeInto } from './into'
 import { isCarried } from './queue'
-import { createReader, ownText } from './reader'
 import { LINGER_MS, tickAfter } from './scene'
 import { postKnown } from './seen'
 import { attached, refresh, serially } from './window'
@@ -152,25 +144,6 @@ const writeHeld = async (host: Host, delivery: SitrepInFlight) => {
   return work !== undefined
 }
 
-/** Writes to the end of the claiming writer's file in a work the window does not hold, the whole file at once. */
-const writeInto = async (host: Host, delivery: SitrepInFlight) => {
-  const paths = workPaths(await rootFor(host), delivery.project, delivery.work)
-  const path = paths.log(delivery.writer)
-  const [text, files, now] = await Promise.all([
-    ownText(host, path),
-    createReader()(host, paths),
-    host.clock.now(),
-  ])
-  const work = foldWork({ ...files, logs: { ...files.logs, [delivery.writer]: text } }, now)
-  const lines = work === undefined ? [] : linesOf(work, delivery)
-
-  if (lines.length > 0) {
-    await host.fs.write(path, append(text, lines, now).text)
-  }
-
-  return work !== undefined
-}
-
 /**
  * Writes a taken message down in the work it went to, then ends it; what
  * follows its source follows once, by whichever write ended it. Two loads
@@ -180,7 +153,9 @@ const writeInto = async (host: Host, delivery: SitrepInFlight) => {
  */
 const writeDown = async (host: Host, delivery: SitrepInFlight) => {
   const isThere = await serially(() =>
-    isHeld(delivery) ? writeHeld(host, delivery) : writeInto(host, delivery),
+    isHeld(delivery)
+      ? writeHeld(host, delivery)
+      : writeInto(host, delivery, work => linesOf(work, delivery)),
   )
 
   if (!isThere) {

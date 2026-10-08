@@ -1,11 +1,14 @@
 /**
  * A session's view: the work's name and summary, where it stands, what
  * waits on Lee, and what happened. This session's is the board's home;
- * another's draws the same, its asks answered the same way.
+ * another's draws the same, its asks answered the same way, and with no
+ * window on it, a way to mark it done.
  */
 import { agoWords, C, GLYPH, titled } from '../look'
-import { askMark, doneEarlier, forYou, isPulsing, type Filed } from '../scene'
+import { askMark, forYou, isPulsing, type Filed } from '../scene'
 import { drawAsk } from './ask'
+import { drawEarlier } from './earlier'
+import { drawFinish } from './finish'
 import { context, heading, marked, type Drawing } from './kit'
 import { drawLogLine } from './log'
 
@@ -58,7 +61,6 @@ const forYouNote = (d: Drawing, { work }: Filed) => {
 const drawForYou = (d: Drawing, filed: Filed) => {
   const { Box, Text } = d.els
   const asks = forYou(filed.work, d.scene.now)
-  const earlier = doneEarlier(filed.work, d.scene.now)
   const { note, color } = forYouNote(d, filed)
 
   return (
@@ -68,11 +70,7 @@ const drawForYou = (d: Drawing, filed: Filed) => {
       <Box flexDirection="column" rowGap={1}>
         {asks.map(ask => drawAsk(d, filed, ask))}
       </Box>
-      {earlier > 0 && (
-        <Text color={C.grey}>
-          {GLYPH.done} {earlier} done earlier
-        </Text>
-      )}
+      {drawEarlier(d, filed)}
     </Box>
   )
 }
@@ -99,6 +97,7 @@ export const drawSessionView = (d: Drawing, filed: Filed) => {
       {drawStatus(d, filed)}
       {drawForYou(d, filed)}
       {drawLog(d, filed)}
+      {drawFinish(d, filed)}
     </Box>
   )
 }
