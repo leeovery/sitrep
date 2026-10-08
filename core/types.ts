@@ -14,9 +14,10 @@ export type Verdict = 'yes' | 'choose' | 'comment' | 'ignore' | 'pickup'
 
 /**
  * Where a reply stands: Claude has it; it goes in when its work's window
- * ends its turn; or no window has the work, so it waits for one to join.
+ * ends its turn; no window has the work, so it waits for one to join; or
+ * its item changed under it before it went in, so it goes nowhere.
  */
-export type Delivery = 'delivered' | 'waiting' | 'closed'
+export type Delivery = 'delivered' | 'waiting' | 'closed' | 'void'
 
 export type StatusBody = {
   type: 'status'
@@ -120,6 +121,8 @@ export type Reply = {
   at: number
   delivery: Delivery
   deliveredAt?: number
+  /** When the edit that left it fitting its item no more was made. */
+  voidedAt?: number
 }
 
 /** What every posted item carries: who posted it when, and when it was last opened, closed or edited. */
@@ -204,7 +207,7 @@ export type Work = {
   /** What is still parked, oldest first. */
   parked: Parked[]
   items: ReadonlyMap<string, Item>
-  /** Every reply that fits its item, oldest first. */
+  /** Every reply that fitted its item as it was written, oldest first. */
   replies: Reply[]
   /** Newest first. */
   log: LogLine[]

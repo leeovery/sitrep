@@ -32,7 +32,14 @@ test('a new ask from another writer pulses, toasts, chimes and opens; one there 
   expect(w.sounds).toEqual([CHIME])
   expect(w.toasts).toEqual(['◆ For you: Keep the ledger forever?'])
   expect(w.state.pulse).toEqual({ asks: ['k2'], frames: 24 })
-  expect(w.state.pane?.selected).toBe('k2')
+
+  const ui = await w.pane()
+
+  expect(
+    await ui.find({ key: 'choose:k2:0' }),
+    'it opens on the board, its buttons out',
+  ).toBeDefined()
+  expect(await ui.find({ key: 'yes:k1' }), 'the ask there before stays closed').toBeUndefined()
 })
 
 test('the ◆ pulses on the band, then rests', async ($, on) => {

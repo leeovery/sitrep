@@ -22,7 +22,7 @@ import { COMMON_DIR, identityOf, projectOf, rootOf, type Project, type Random } 
 import type {
   SitrepAttachment,
   SitrepBoard,
-  SitrepDelivering,
+  SitrepInFlight,
   SitrepOther,
   SitrepPane,
   SitrepProject,
@@ -81,9 +81,8 @@ export type Host = {
     projects: Slot<SitrepProject[]>
     others: Slot<SitrepOther[]>
     queue: Slot<SitrepQueued[]>
-    sending: Slot<SitrepQueued[]>
     sent: Slot<SitrepSent[]>
-    delivering: Slot<SitrepDelivering | null>
+    inFlight: Slot<SitrepInFlight | null>
     pane: Slot<SitrepPane>
     draft: Slot<string>
     pulse: Slot<SitrepPulse>
@@ -93,7 +92,7 @@ export type Host = {
 }
 
 /** Where a window stands as it starts or joins a piece of work. */
-export type Place = {
+export type Bearings = {
   root: string
   project: Project
   /** The session's working directory, where a work it starts is started. */
@@ -110,7 +109,7 @@ export const rootFor = async (host: Host) => rootOf(await host.env())
 const identity = async (host: Host, cwd: string) =>
   identityOf(cwd, await host.run(COMMON_DIR, cwd).catch(() => undefined))
 
-export const placeOf = async (host: Host): Promise<Place> => {
+export const bearingsOf = async (host: Host): Promise<Bearings> => {
   const cwd = await host.session.cwd()
 
   return {

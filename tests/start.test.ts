@@ -21,12 +21,12 @@ const meta = (id: string, name: string, by: string, created = T0): WorkMeta => (
   by,
 })
 
-/** A work this session held in a process before, letting go at `leftAt`, with a line of its own. */
-const heldBefore = (w: World, work: WorkMeta, leftAt: number) => {
+/** A work a conversation (this session, unless told) held before, letting go at `leftAt`, with a line of its own. */
+const heldBefore = (w: World, work: WorkMeta, leftAt: number, writer = W1) => {
   const { paths } = w.elsewhere(work)
 
-  w.beat(work.id, { writer: W1, attachedAt: work.created, seenAt: leftAt, leftAt })
-  w.put(paths.log(W1), file([work.created, note('n1', `Worked on ${work.name}`)]))
+  w.beat(work.id, { writer, attachedAt: work.created, seenAt: leftAt, leftAt })
+  w.put(paths.log(writer), file([work.created, note('n1', `Worked on ${work.name}`)]))
 
   return paths
 }
@@ -107,4 +107,40 @@ test('a work started in this session is listed, held, at the next conversation',
   const [block] = await firstMessage($)
 
   expect(block?.text).toContain(`(${DASHBOARD.name}): post to its board as you go.`)
+})
+
+test('an in-process /resume takes up the work the resumed conversation was last seen in, though $.session.id() still names the last', async ($, on) => {
+  const w = world($, on, { now: NOW })
+  const paths = heldBefore(w, meta('sr-bbbbbb', 'Dashboard redesign', W2), T0 + 5 * MIN, W2)
+
+  await $.session.start(SESSION)
+  expect(w.state.attachment ?? null).toBeNull()
+
+  await $.session.end({ reason: 'resume', sessionId: W1, resume: { id: W1 } })
+  await $.classic.SessionStart({ source: 'resume', session_id: W2 })
+
+  expect(w.state.attachment).toMatchObject({ work: 'sr-bbbbbb', writer: W2 })
+  expect(parsePresence(w.text(paths.heartbeat(W2)), W2)).toMatchObject({ attachedAt: NOW })
+})
+
+test('a /clear, or any start that is not a resume, takes nothing up by its event', async ($, on) => {
+  const w = world($, on, { now: NOW })
+
+  heldBefore(w, meta('sr-bbbbbb', 'Dashboard redesign', W2), T0 + 5 * MIN, W2)
+  await $.session.start(SESSION)
+  await $.classic.SessionStart({ source: 'clear', session_id: W2 })
+  await $.classic.SessionStart({ source: 'compact', session_id: W2 })
+
+  expect(w.state.attachment ?? null).toBeNull()
+})
+
+test('a new process lists its works before its session starts: the rejoin comes first, so the listing names the work it took up', async ($, on) => {
+  const w = world($, on, { now: NOW })
+
+  heldBefore(w, meta('sr-bbbbbb', 'Dashboard redesign', W1), T0 + 5 * MIN)
+
+  const [block] = await firstMessage($)
+
+  expect(w.state.attachment).toMatchObject({ work: 'sr-bbbbbb', writer: W1 })
+  expect(block?.text).toContain('This window already holds sr-bbbbbb (Dashboard redesign)')
 })

@@ -8,11 +8,11 @@
  * out; what a button does is the actions' (hooks/actions.ts).
  */
 import type { ElementTable, RenderElement, RenderSurface } from 'claude-code'
-import { answerOf, type Ask, type Parked, type ReplyFields } from '../../core'
+import { answerOf, isPending, type Ask, type Parked, type ReplyFields } from '../../core'
 import type { SitrepQueued } from '../../types'
 import type { Actions } from '../actions'
 import { C, GLYPH } from '../look'
-import { isSending } from '../queue'
+import { isCarried } from '../queue'
 import type { Scene } from '../scene'
 
 export type Els = ElementTable
@@ -132,8 +132,7 @@ export const hung = ({ els }: Drawing, key: string, text: string, after?: Render
 }
 
 /** The reply an item waits on Claude with: sent from a board into its work's inbox, not delivered yet. */
-export const onItsWay = (item: Ask | Parked) =>
-  item.replies.findLast(reply => reply.delivery !== 'delivered')
+export const onItsWay = (item: Ask | Parked) => item.replies.findLast(isPending)
 
 /** A reply sent but not delivered yet, hung under what it answers. */
 export const drawOnItsWay = (d: Drawing, item: Ask | Parked, reply: ReplyFields) => {
@@ -150,7 +149,7 @@ export const drawOnItsWay = (d: Drawing, item: Ask | Parked, reply: ReplyFields)
 /** A reply in Ready to send, hung under what it answers: undone from there until a send carries it. */
 export const drawQueued = (d: Drawing, item: Ask | Parked, queued: SitrepQueued) => {
   const { Box, Text, Button } = d.els
-  const isOnItsWay = isSending(d.scene.sending, queued)
+  const isOnItsWay = isCarried(d.scene.inFlight, queued)
 
   return hung(
     d,

@@ -11,17 +11,21 @@ import { answerOf, deliveryOf, type Delivery, type Reply } from '../../core'
 import type { SitrepQueued, SitrepSent } from '../../types'
 import { agoWords, C, counted, GLYPH } from '../look'
 import { filedAt, workLabel } from '../places'
-import { answered, destinations, isSending, isShowing, queuedFor, sentIn } from '../queue'
+import { answered, destinations, isCarried, isShowing, queuedFor, sentIn } from '../queue'
 import type { Filed, Scene } from '../scene'
 import { hung, type Drawing } from './kit'
 
 const SENDING = '⧗ Sending. If Claude is mid-turn it goes in as soon as that turn ends.'
+
+/** A sent reply whose item changed under it before it went in. */
+const NOT_DELIVERED = '· not delivered: it changed since'
 
 /** Where a group's sent replies stand, as its line says it. */
 const STANDING: Record<Delivery, { text: string; color: string }> = {
   delivered: { text: `${GLYPH.done} delivered`, color: C.ok },
   waiting: { text: '⧗ waiting for its turn to end', color: C.grey },
   closed: { text: '○ closed: goes in when it reopens', color: C.grey },
+  void: { text: '✕ not delivered', color: C.grey },
 }
 
 /** One destination: the work, the replies waiting for it, and those sent to it Ready to send still shows. */
@@ -64,7 +68,7 @@ const drawReply = (d: Drawing, { work }: Filed, reply: SitrepQueued) => {
         <Box flexGrow={1} flexShrink={1}>
           <Text wrap="truncate-end">{item.title}</Text>
         </Box>
-        {!isSending(d.scene.sending, reply) && (
+        {!isCarried(d.scene.inFlight, reply) && (
           <Button
             key={`unready:${reply.item}`}
             plain
@@ -89,9 +93,11 @@ const drawSent = (d: Drawing, { work }: Filed, reply: Reply) => {
   }
 
   const standing =
-    reply.deliveredAt === undefined
-      ? '· on its way'
-      : `· delivered ${agoWords(d.scene.now, reply.deliveredAt)}`
+    reply.delivery === 'void'
+      ? NOT_DELIVERED
+      : reply.deliveredAt === undefined
+        ? '· on its way'
+        : `· delivered ${agoWords(d.scene.now, reply.deliveredAt)}`
 
   return (
     <Box key={`sentreply:${reply.id}`} flexDirection="column">
@@ -130,7 +136,7 @@ const drawGroup = (d: Drawing, { filed, queued, sent }: Group) => {
 const drawControls = (d: Drawing) => {
   const { Box, Text, Button } = d.els
 
-  if (d.scene.sending.length > 0) {
+  if (d.scene.inFlight?.source === 'send') {
     return (
       <Box paddingTop={1}>
         <Text color={C.grey} italic wrap="wrap">

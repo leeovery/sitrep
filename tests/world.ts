@@ -174,7 +174,9 @@ function display(on: On) {
     },
     /**
      * Prompts from here on wait, as behind a running turn: `arrived` once
-     * one is submitted, and `end()` ends the turn, letting it in.
+     * one is submitted; `end()` ends the turn, letting them in; and `lose()`
+     * lets later prompts through while those waiting never go in, nor hear
+     * back, as a prompt deleted from the queue or a load reloaded away.
      */
     holdPrompts: () => {
       let end = () => {}
@@ -195,6 +197,9 @@ function display(on: On) {
         end: () => {
           holding = undefined
           end()
+        },
+        lose: () => {
+          holding = undefined
         },
       }
     },
@@ -220,6 +225,8 @@ export function world(engine: Engine, on: On, options: { now?: number; cwd?: str
   on('session.start', ($, e) => ({ cwd: e.cwd }))
   on('session.end', ($, e) => ({ sessionId: e.sessionId }))
   on('turn.start', ($, e) => ({ turnId: e.turnId }))
+  on('turn.complete', ($, e) => ({ text: e.answer }))
+  on('classic.SessionStart', () => ({}))
   on('prompt.context', ($, e) => ({ blocks: e.blocks }))
   on('session.id', () => ({ value: session }))
   on('session.cwd', () => ({ value: cwd }))
@@ -399,6 +406,23 @@ export function world(engine: Engine, on: On, options: { now?: number; cwd?: str
     return pane()
   }
 
+  /** A turn of the main conversation starting with `text`, as the engine starts one. */
+  let turns = 0
+  const turnStarts = async (text: string) => {
+    turns += 1
+    await engine.turn.start({ text, turnId: `turn-${turns}` })
+  }
+
+  /** The main conversation's turn ending, its answer given. */
+  const turnEnds = () =>
+    engine.turn.complete({
+      answer: 'Done.',
+      durationMs: 1_000,
+      isAborted: false,
+      turnId: `turn-${turns}`,
+      reason: 'answer',
+    })
+
   /** The board pane drawn on a surface, as a docked pane unless told otherwise. */
   const pane = (surface: Surface = 'terminal', props: RenderPropsOf['Pane'] = DOCKED) =>
     engine.ui.mount({ plugin: 'sitrep', surface, component: 'Pane', requestId: 'board', props })
@@ -431,6 +455,8 @@ export function world(engine: Engine, on: On, options: { now?: number; cwd?: str
     call,
     begin,
     become,
+    turnStarts,
+    turnEnds,
     opened,
     pane,
     band,

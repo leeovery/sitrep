@@ -1,6 +1,6 @@
 import { expect, test, tier } from 'claude-code/testing'
 import { parseEntries, type WorkPaths } from '../core'
-import { FLASH_MS } from '../hooks/receive'
+import { FLASH_MS } from '../hooks/deliver'
 import { WATCH_MS } from '../hooks/window'
 import { file, MIN, reply, SENDER, W1, W2 } from './support'
 import { postedId, SESSION, world } from './world'
@@ -48,7 +48,12 @@ test("the window delivering for its work submits inbox replies as Lee's own mess
   await w.clock.advance(TAKE_IN)
   await turn.arrived
 
-  expect(w.state.delivering).toMatchObject({ replies: ['r1'], text: MESSAGE, isTaken: false })
+  expect(w.state.inFlight).toMatchObject({
+    source: 'inbox',
+    replies: [{ id: 'r1' }],
+    text: MESSAGE,
+    isTaken: false,
+  })
 
   await w.clock.advance(4 * WATCH_MS)
   expect(kindsIn(w, paths), 'no mark while Claude Code has not taken it').toEqual(['ask'])
@@ -62,7 +67,7 @@ test("the window delivering for its work submits inbox replies as Lee's own mess
   expect(lines.map(line => line.type)).toEqual(['ask', 'delivered'])
   expect(lines.at(-1)).toMatchObject({ replies: ['r1'] })
   expect(w.state.board?.asks[0]?.state).toBe('closed')
-  expect(w.state.delivering).toBeNull()
+  expect(w.state.inFlight).toBeNull()
 
   await w.clock.advance(4 * WATCH_MS)
   expect(w.prompts, 'nothing goes in twice').toHaveLength(1)
@@ -96,7 +101,7 @@ test('a refused submission leaves the replies undelivered, for the next look to 
   await w.clock.advance(TAKE_IN)
 
   expect(kindsIn(w, paths)).toEqual(['ask'])
-  expect(w.state.delivering).toBeNull()
+  expect(w.state.inFlight).toBeNull()
   expect(w.state.board?.replies).toMatchObject([{ id: 'r1', delivery: 'waiting' }])
   expect(w.logs.some(line => line.includes('not taken (the session is closing)'))).toBe(true)
 
@@ -141,7 +146,7 @@ test('a delivery a reload left on its way is never submitted again, and is marke
 
   await $.turn.start({ text: MESSAGE, turnId: 'turn-1' })
   expect(kindsIn(w, paths)).toEqual(['ask', 'delivered'])
-  expect(w.state.delivering).toBeNull()
+  expect(w.state.inFlight).toBeNull()
 
   turn.end()
   await w.clock.advance(4 * WATCH_MS)
@@ -160,7 +165,7 @@ test('a turn that starts with some other message marks nothing', async ($, on) =
   await $.turn.start({ text: 'Carry on.', turnId: 'turn-1' })
 
   expect(kindsIn(w, paths)).toEqual(['ask'])
-  expect(w.state.delivering).toMatchObject({ isTaken: false })
+  expect(w.state.inFlight).toMatchObject({ isTaken: false })
 
   turn.end()
 })
@@ -174,27 +179,89 @@ test('replies Claude Code took but whose mark could not be written are never sen
   await w.clock.advance(TAKE_IN)
 
   expect(w.prompts.map(prompt => prompt.text)).toEqual([MESSAGE])
-  expect(w.state.delivering).toMatchObject({ isTaken: true })
+  expect(w.state.inFlight).toMatchObject({ isTaken: true })
 
   w.refuseWrites()
   await w.clock.advance(4 * WATCH_MS)
 
   expect(w.prompts, 'nothing goes in twice').toHaveLength(1)
   expect(kindsIn(w, paths)).toEqual(['ask', 'delivered'])
-  expect(w.state.delivering).toBeNull()
+  expect(w.state.inFlight).toBeNull()
 })
 
-test('a delivery on its way when the session ends goes with it, its replies left for the next', async ($, on) => {
+test('inbox replies taken after Claude moved to another work mid-turn are marked in their own work, and never go in again', async ($, on) => {
   const w = world($, on)
-  const { asked, send } = await asking(w)
+  const { paths, asked, send } = await asking(w)
+  const answered = w.state.attachment?.work ?? ''
   const turn = w.holdPrompts()
 
   send(['r1', asked, 'yes'])
   await w.clock.advance(TAKE_IN)
   await turn.arrived
-  await $.session.end({ reason: 'clear', sessionId: W1, resume: { id: W1 } })
+  await w.call('start', { name: 'Themes', summary: 'The dark palette' })
+  turn.end()
+  await w.clock.advance(WATCH_MS)
 
-  expect(w.state.delivering).toBeNull()
+  expect(kindsIn(w, paths)).toEqual(['ask', 'delivered'])
+
+  await w.call('join', { work: answered })
+  await w.clock.advance(4 * WATCH_MS)
+
+  expect(w.submitted).toEqual([MESSAGE])
+  expect(w.state.board?.asks[0]?.state).toBe('closed')
+})
+
+test('the mark names only the replies the message carries: one whose item changed since goes in nowhere, and its item can be answered again', async ($, on) => {
+  const w = world($, on)
+  const { paths, asked, send } = await asking(w)
+  const other = postedId(await w.call('ask', { kind: 'review', title: 'Review the band' }))
+
+  await w.clock.advance(MIN)
+  send(['r1', asked, 'yes'], ['r2', other, 'yes'])
+  await w.clock.advance(1)
+  await w.call('edit', { item: other, kind: 'decide', options: ['Now', 'Later'] })
+  await w.clock.advance(TAKE_IN)
+
+  expect(w.prompts.map(prompt => prompt.text)).toEqual([MESSAGE])
+  expect(parseEntries(w.text(paths.log(W1))).at(-1)).toMatchObject({
+    type: 'delivered',
+    replies: ['r1'],
+  })
+  expect(w.state.board?.asks.map(each => each.state)).toEqual(['closed', 'waiting'])
+
+  const ui = await w.opened()
+
+  expect(w.state.pane?.selected, 'the ask that landed last is open').toBe(other)
+  expect(await ui.find({ key: `choose:${other}:0` })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: '· on its way' })).toBeUndefined()
+
+  await w.clock.advance(4 * WATCH_MS)
+  expect(w.submitted, 'nothing is left to go in').toEqual([MESSAGE])
+})
+
+test('a send Lee presses while inbox replies are in flight waits for them: a toast says so, and the replies stay queued', async ($, on) => {
+  const w = world($, on)
+  const { paths, asked, send } = await asking(w)
+  const own = postedId(await w.call('ask', { kind: 'do', title: 'Run the production apply' }))
+  const ui = await w.opened()
+  const turn = w.holdPrompts()
+
+  send(['r1', asked, 'yes'])
+  await w.clock.advance(TAKE_IN)
+  await turn.arrived
+  await ui.press({ key: `yes:${own}` })
+  await ui.press({ key: 'send' })
+
+  expect(w.toasts).toContain(
+    'Not sent yet: replies from another session are going in first. Your replies are still on the board.',
+  )
+  expect(w.state.queue).toMatchObject([{ item: own, verdict: 'yes' }])
+  expect(await ui.find({ key: `undo:${own}` })).toBeDefined()
 
   turn.end()
+  await w.clock.advance(WATCH_MS)
+  await ui.press({ key: 'send' })
+
+  expect(w.submitted).toEqual([MESSAGE, 'From the board:\n- Run the production apply → done'])
+  expect(kindsIn(w, paths)).toEqual(['ask', 'ask', 'delivered', 'reply', 'delivered'])
 })

@@ -7,6 +7,7 @@
 import type { Timer } from 'claude-code'
 import { isOpen, type Ask, type Work } from '../core'
 import type {
+  SitrepInFlight,
   SitrepPane,
   SitrepPlace,
   SitrepProject,
@@ -40,7 +41,8 @@ export type Scene = {
   others: ReadonlyMap<string, Filed>
   /** Ready to send: every work's replies, in the order queued. */
   queue: readonly SitrepQueued[]
-  sending: readonly SitrepQueued[]
+  /** The message on its way to Claude: a send of Lee's, its replies frozen in the queue, or the inbox's. */
+  inFlight: SitrepInFlight | null
   sent: readonly SitrepSent[]
   pane: SitrepPane
   pulse: SitrepPulse
@@ -52,14 +54,14 @@ let ticking: Timer | undefined
 
 /** The scene as it stands; undefined while no work is held. */
 export const sceneOf = async (host: Host): Promise<Scene | undefined> => {
-  const [board, held, projects, others, queue, sending, sent, pane, pulse, flash, now] =
+  const [board, held, projects, others, queue, inFlight, sent, pane, pulse, flash, now] =
     await Promise.all([
       host.state.board.read(),
       host.state.attachment.read(),
       host.state.projects.read(),
       host.state.others.read(),
       host.state.queue.read(),
-      host.state.sending.read(),
+      host.state.inFlight.read(),
       host.state.sent.read(),
       host.state.pane.read(),
       host.state.pulse.read(),
@@ -82,7 +84,7 @@ export const sceneOf = async (host: Host): Promise<Scene | undefined> => {
       others.map(({ project, board: other }) => [other.id, { project, work: workOf(other) }]),
     ),
     queue,
-    sending,
+    inFlight,
     sent,
     pane,
     pulse,

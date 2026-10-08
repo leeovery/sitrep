@@ -6,7 +6,7 @@
 import { parseEntries } from './entries'
 import { parseMeta } from './meta'
 import { deliverer, isLive, parsePresence } from './presence'
-import { askAfter, fits, isOpen, parkedAfter, pickUpLog } from './replies'
+import { askAfter, fits, isOpen, isPending, parkedAfter, pickUpLog } from './replies'
 import { statusChange } from './status'
 import { compareText } from './text'
 import {
@@ -108,6 +108,23 @@ const deliver = (fold: Fold, reply: Reply, at: number) => {
   reply.delivery = 'delivered'
   reply.deliveredAt = at
   settle(fold, reply, at)
+}
+
+/**
+ * An edit voids the replies on their way to an item that they no longer fit:
+ * a mark naming one later changes nothing, and the item can be answered again.
+ */
+const voidUnfitting = (item: Item, at: number) => {
+  if (item.type === 'note') {
+    return
+  }
+
+  for (const reply of item.replies) {
+    if (isPending(reply) && !fits(item, reply)) {
+      reply.delivery = 'void'
+      reply.voidedAt = at
+    }
+  }
 }
 
 const reopen = (item: Item, at: number) => {
@@ -215,6 +232,7 @@ const HANDLERS: { [T in Body['type']]: Handler<T> } = {
 
     item.editedAt = at
     item.reason = reason
+    voidUnfitting(item, at)
   },
 
   reply: (fold, { id, item: target, verdict, option, note, at, by }) => {
@@ -242,7 +260,7 @@ const HANDLERS: { [T in Body['type']]: Handler<T> } = {
 
       if (reply === undefined && !fold.early.has(id)) {
         fold.early.set(id, at)
-      } else if (reply !== undefined && reply.delivery !== 'delivered') {
+      } else if (reply !== undefined && isPending(reply)) {
         deliver(fold, reply, at)
       }
     }

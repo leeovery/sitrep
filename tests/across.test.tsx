@@ -180,3 +180,41 @@ test('a reply to another work whose item changed since is left in Ready to send,
   expect(w.files.has(LETTERS)).toBe(false)
   expect(w.state.queue).toMatchObject([{ work: LEDGER, item: 'k3' }])
 })
+
+test('two quick presses of send write each letter once', async ($, on) => {
+  const w = world($, on)
+  const { ui } = await threeSessions(w)
+
+  await answer(ui, LEDGER, 'k3')
+  await Promise.all([ui.press({ key: 'send' }), ui.press({ key: 'send' })])
+
+  expect(repliesIn(w, LETTERS)).toHaveLength(1)
+  expect(w.state.sent).toMatchObject([{ work: LEDGER, replies: [repliesIn(w, LETTERS)[0]?.id] }])
+  expect(w.toasts.filter(toast => toast.startsWith('Sent'))).toEqual([
+    'Sent 1 reply to Request ledger.',
+  ])
+})
+
+test('a sent reply whose item changed before it went in shows there as not delivered, offers its item again, and lingers out', async ($, on) => {
+  const w = world($, on)
+  const { ledger, ui } = await threeSessions(w)
+
+  await answer(ui, LEDGER, 'k3')
+  await ui.press({ key: 'send' })
+  await w.clock.advance(MIN)
+  ledger.write({ type: 'edit', item: 'k3', changes: { kind: 'decide', options: ['Now', 'Later'] } })
+  ledger.beat()
+  await w.clock.advance(AROUND_MS)
+
+  expect(await ui.find({ type: 'Text', text: '✕ not delivered' })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: '· not delivered: it changed since' })).toBeDefined()
+
+  await ui.press({ key: 'tab:project' })
+  await ui.press({ key: `go:${LEDGER}` })
+  await ui.press({ key: 'pick:k3' })
+  expect(await ui.find({ key: 'choose:k3:0' })).toBeDefined()
+
+  await w.clock.advance(SENT_LINGER_MS)
+  expect(await ui.find({ type: 'Text', text: 'to Request ledger' })).toBeUndefined()
+  expect(w.state.sent).toEqual([])
+})

@@ -3,14 +3,17 @@ import {
   answerOf,
   askAfter,
   boardMessage,
+  deliveredMark,
   deliverer,
   deliveryOf,
   FROM_THE_BOARD,
   parseEntries,
+  sentLines,
   STALE_MS,
   toDeliver,
   type AskKind,
   type AskState,
+  type Body,
   type Verdict,
 } from '../core'
 import {
@@ -412,7 +415,7 @@ test("Lee's message: one line per reply, in the spike's words, under From the bo
     { item: 'p1', verdict: 'pickup', note: 'Before the release' },
   ])
 
-  expect(message).toBe(
+  expect(message?.text).toBe(
     [
       FROM_THE_BOARD,
       '- Review Sessions & Runway, round 1 → approved',
@@ -427,10 +430,11 @@ test("Lee's message: one line per reply, in the spike's words, under From the bo
       '- Pick up from parked: A tmux indicator across sessions. Before the release',
     ].join('\n'),
   )
-  expect(message).not.toMatch(/\b(k[1-4]|p1|r\d)\b/)
+  expect(message?.text).not.toMatch(/\b(k[1-4]|p1|r\d)\b/)
+  expect(message?.replies).toHaveLength(10)
 })
 
-test('the message leaves out replies that fit no item, and is nothing when none fits', () => {
+test('the message leaves out replies that fit no item, and says which it carries; it is nothing when none fits', () => {
   const work = fold({ logs: { [W1]: file(...POSTED) } })
 
   expect(
@@ -444,7 +448,10 @@ test('the message leaves out replies that fit no item, and is nothing when none 
       { item: 'gone', verdict: 'yes' },
       { item: 'k1', verdict: 'yes' },
     ]),
-  ).toBe(`${FROM_THE_BOARD}\n- Review Sessions & Runway, round 1 → approved`)
+  ).toEqual({
+    text: `${FROM_THE_BOARD}\n- Review Sessions & Runway, round 1 → approved`,
+    replies: [{ item: 'k1', verdict: 'yes' }],
+  })
 })
 
 test('under its item, the board shows a choice after an arrow and a pick-up in its own words', () => {
@@ -480,4 +487,86 @@ test('a reply the fold has not read yet is not delivered', () => {
   const work = fold({ logs: { [W1]: file(...POSTED) }, presence: { [W1]: seen(W1, NOW) } })
 
   expect(deliveryOf(work, ['r9'])).toBe('waiting')
+})
+
+/** An edit making k1, the review, a decide: a yes no longer fits it. */
+const DECIDED: Body = {
+  type: 'edit',
+  item: 'k1',
+  changes: { kind: 'decide', options: ['Now', 'Later'] },
+}
+
+test('a reply on its way whose item an edit changed past fitting goes void: a mark naming it changes nothing, and the item can be answered again', () => {
+  const work = fold({
+    logs: { [W1]: file(...POSTED, [T0 + 2 * MIN, DECIDED], [T0 + 3 * MIN, delivered('r1')]) },
+    inbox: { [SENDER]: file([T0 + MIN, reply('r1', 'k1', 'yes')]) },
+    presence: { [W1]: seen(W1, NOW) },
+  })
+
+  expect(work.replies).toMatchObject([{ id: 'r1', delivery: 'void', voidedAt: T0 + 2 * MIN }])
+  expect(work.asks[0]?.state).toBe('waiting')
+  expect(work.asks[0]?.answer).toBeUndefined()
+  expect(work.waiting).toBe(4)
+  expect(toDeliver(work, W1)).toEqual([])
+  expect(deliveryOf(work, ['r1'])).toBe('void')
+})
+
+test('a void reply stays void, though its item changes back; one delivered before the edit stays delivered', () => {
+  const back: Body = { type: 'edit', item: 'k1', changes: { kind: 'review' } }
+  const voided = fold({
+    logs: { [W1]: file(...POSTED, [T0 + 2 * MIN, DECIDED], [T0 + 3 * MIN, back]) },
+    inbox: { [SENDER]: file([T0 + MIN, reply('r1', 'k1', 'yes')]) },
+    presence: { [W1]: seen(W1, NOW) },
+  })
+  const delivers = fold({
+    logs: { [W1]: file(...POSTED, [T0 + 2 * MIN, delivered('r1')], [T0 + 3 * MIN, DECIDED]) },
+    inbox: { [SENDER]: file([T0 + MIN, reply('r1', 'k1', 'yes')]) },
+  })
+
+  expect(voided.replies[0]?.delivery).toBe('void')
+  expect(toDeliver(voided, W1)).toEqual([])
+  expect(delivers.replies[0]?.delivery).toBe('delivered')
+  expect(delivers.asks[0]?.state).toBe('closed')
+})
+
+test('replies sent into an inbox are delivered once each is delivered or void; void when every one is', () => {
+  const work = fold({
+    logs: { [W1]: file(...POSTED, [T0 + 2 * MIN, DECIDED], [T0 + 3 * MIN, delivered('r2')]) },
+    inbox: {
+      [SENDER]: file([T0 + MIN, reply('r1', 'k1', 'yes')], [T0 + MIN, reply('r2', 'k4', 'yes')]),
+    },
+    presence: { [W1]: seen(W1, NOW) },
+  })
+
+  expect(deliveryOf(work, ['r1', 'r2'])).toBe('delivered')
+  expect(deliveryOf(work, ['r1'])).toBe('void')
+})
+
+test("the lines recording the work's own replies are each reply and one mark; none once their ids are written", () => {
+  const replies = [
+    { type: 'reply', id: 'r1', item: 'k1', verdict: 'yes' },
+    { type: 'reply', id: 'r2', item: 'k4', verdict: 'ignore' },
+  ] as const
+  const before = fold({ logs: { [W1]: file(...POSTED) } })
+  const after = fold({
+    logs: {
+      [W1]: file(...POSTED, ...sentLines(before, replies).map((body): Line => [T0 + MIN, body])),
+    },
+  })
+
+  expect(sentLines(before, replies)).toEqual([...replies, delivered('r1', 'r2')])
+  expect(sentLines(after, replies)).toEqual([])
+  expect(after.asks.map(each => each.state)).toEqual(['closed', 'waiting', 'waiting', 'ignored'])
+})
+
+test('the mark for inbox replies names those not marked yet, and is nothing once every one is', () => {
+  const work = fold({
+    logs: { [W1]: file(...POSTED, [T0 + 2 * MIN, delivered('r1')]) },
+    inbox: {
+      [SENDER]: file([T0 + MIN, reply('r1', 'k1', 'yes')], [T0 + MIN, reply('r2', 'k4', 'yes')]),
+    },
+  })
+
+  expect(deliveredMark(work, ['r1', 'r2'])).toEqual([delivered('r2')])
+  expect(deliveredMark(work, ['r1'])).toEqual([])
 })

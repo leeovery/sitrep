@@ -3,8 +3,7 @@
  * it did, its result drawn as nothing, so the chat stays the chat. An item
  * a call names is named by its title, where the held work has it.
  */
-import type { Work } from '../../core'
-import { oneLine } from '../../core/text'
+import { oneLine, type Work } from '../../core'
 import { toolNamed, type ToolName } from '../tools'
 import type { Els } from './kit'
 

@@ -12,10 +12,10 @@ import type {
   SitrepView,
 } from '../types'
 import { lookAround } from './around'
-import { send } from './deliver'
 import { logFailure, type Host } from './host'
 import { openBoard, type Focus } from './pane'
 import { clearing, queuing, unqueuing } from './queue'
+import { send } from './send'
 import { attached } from './window'
 
 /** What a saved comment field makes: a comment (an answer, on a decide), or a yes with its words. */
@@ -97,9 +97,9 @@ export const actionsOf = (host: Host): Actions => {
       ),
     cancelAll: () =>
       run('cancelling every reply', async () => {
-        const sending = await host.state.sending.read()
+        const inFlight = await host.state.inFlight.read()
 
-        await host.state.queue.update(replies => clearing(replies, sending))
+        await host.state.queue.update(replies => clearing(replies, inFlight))
       }),
     comment: at =>
       run('opening the comment field', async () => {

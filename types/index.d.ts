@@ -13,7 +13,7 @@ export type SitrepAskKind = 'review' | 'decide' | 'try' | 'do'
 
 export type SitrepVerdict = 'yes' | 'choose' | 'comment' | 'ignore' | 'pickup'
 
-export type SitrepDelivery = 'delivered' | 'waiting' | 'closed'
+export type SitrepDelivery = 'delivered' | 'waiting' | 'closed' | 'void'
 
 export type SitrepStatus = {
   name: string
@@ -34,6 +34,7 @@ export type SitrepReply = {
   at: number
   delivery: SitrepDelivery
   deliveredAt?: number
+  voidedAt?: number
 }
 
 export type SitrepPosted = {
@@ -144,13 +145,35 @@ export type SitrepQueued = SitrepItemRef & {
 /** Replies this window wrote into another work's inbox, by their ids: shown in Ready to send until Claude has them. */
 export type SitrepSent = SitrepWorkRef & { replies: string[] }
 
-/** Inbox replies this window submitted as Lee's message: on their way until the delivered mark is written. */
-export type SitrepDelivering = {
-  work: string
-  replies: string[]
-  /** The message, as a turn it starts carries it. */
+/** A reply as a line of a work's file: core's `ReplyBody`. */
+export type SitrepReplyBody = {
+  type: 'reply'
+  id: string
+  item: string
+  verdict: SitrepVerdict
+  option?: string
+  note?: string
+}
+
+/** Whose replies a message carries: Lee's send from this window's board, or what other works left in its inbox. */
+export type SitrepSource = 'send' | 'inbox'
+
+/**
+ * Lee's replies submitted as Lee's own message, one message at a time
+ * whatever its source: on their way until Claude Code has taken it and its
+ * lines are written into the work it went to.
+ */
+export type SitrepInFlight = SitrepWorkRef & {
+  source: SitrepSource
+  /** The window's writer as it claimed the message: whose file in the work records it. */
+  writer: string
+  /** The message, exactly as submitted: the text the turn it starts carries. */
   text: string
-  /** Whether Claude Code has taken the message, its mark still to write. */
+  /** The replies the message carries, their ids fixed as it was claimed. */
+  replies: SitrepReplyBody[]
+  /** When it was claimed, which tells this claim from a later one of the same text. */
+  claimedAt: number
+  /** Whether Claude Code has taken the message, its lines still to write. */
   isTaken: boolean
 }
 
@@ -232,12 +255,10 @@ declare module 'claude-code' {
       others: SitrepOther[]
       /** Ready to send, in the order queued. */
       queue: SitrepQueued[]
-      /** The replies of a send Claude Code has not taken yet: frozen in the queue until it does. */
-      sending: SitrepQueued[]
       /** Where replies written into other works' inboxes went, until Claude has them. */
       sent: SitrepSent[]
-      /** The inbox delivery on its way to Claude, or null. */
-      delivering: SitrepDelivering | null
+      /** The message on its way to Claude, or null. */
+      inFlight: SitrepInFlight | null
       pane: SitrepPane
       /** What has been typed in the open comment field. */
       draft: string

@@ -113,13 +113,14 @@ const scopeOf = (
   }
 }
 
-const projectKeys = async (host: Host, root: string, scope: Scope) =>
+/** The projects a look briefs: every one filed, or those the scope names. */
+const scopeKeys = async (host: Host, root: string, scope: Scope) =>
   scope.isAll ? (await foldersIn(host, projectsDir(root))).filter(isSafeName) : scope.projects
 
 /** The works a look reads, by id: every one under the scope's projects but the held one, and each it reads in full. */
 const readScope = async (host: Host, root: string, held: string, scope: Scope, now: number) => {
   const read = new Map<string, Filed>()
-  const keys = await projectKeys(host, root, scope)
+  const keys = await scopeKeys(host, root, scope)
 
   for (const project of keys) {
     for (const work of await worksIn(host, root, project, now, held)) {

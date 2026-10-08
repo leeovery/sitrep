@@ -4,9 +4,10 @@
  * work is filed under, so it waits for that work whichever one the window
  * holds, and a send knows where to write it.
  *
- * Replies a send wrote into another work's inbox have left the queue: sent,
- * not yet delivered. Ready to send shows where they went until Claude has
- * them, and a while after.
+ * The held work's replies a send carries stay in the queue, frozen, until
+ * Claude Code has taken the message. Replies a send wrote into another
+ * work's inbox have left the queue: sent, not yet delivered. Ready to send
+ * shows where they went until Claude has them, and a while after.
  */
 import {
   deliveryOf,
@@ -18,7 +19,7 @@ import {
   type ReplyBody,
   type Work,
 } from '../core'
-import type { SitrepQueued, SitrepSent, SitrepWorkRef } from '../types'
+import type { SitrepInFlight, SitrepQueued, SitrepSent, SitrepWorkRef } from '../types'
 import { random } from './host'
 
 type Queue = readonly SitrepQueued[]
@@ -39,17 +40,25 @@ export const queuing = (queue: Queue, reply: SitrepQueued) => [
 export const unqueuing = (queue: Queue, work: string, item: string) =>
   queue.filter(each => !isFor(each, work, item))
 
-/** The queue less every reply but those a send is carrying. */
-export const clearing = (queue: Queue, sending: Queue) =>
-  queue.filter(each => isSending(sending, each))
+/** Whether a queued reply is one Lee's send in flight carries: frozen until Claude Code takes it. */
+export const isCarried = (inFlight: SitrepInFlight | null, reply: SitrepQueued) =>
+  inFlight?.source === 'send' &&
+  inFlight.work === reply.work &&
+  inFlight.replies.some(each => each.item === reply.item)
+
+/** The queue less every reply but those a send in flight carries. */
+export const clearing = (queue: Queue, inFlight: SitrepInFlight | null) =>
+  queue.filter(each => isCarried(inFlight, each))
 
 /** The queue less the replies a send carried. */
 export const afterSend = (queue: Queue, replies: Queue) =>
   queue.filter(each => !replies.some(reply => isFor(each, reply.work, reply.item)))
 
-/** Whether a reply is one a send is carrying. */
-export const isSending = (sending: Queue, reply: SitrepQueued) =>
-  sending.some(each => isFor(each, reply.work, reply.item))
+/** The queue with replies taken from it put back, each whose item has had no other queued since. */
+export const restoring = (queue: Queue, replies: Queue) => [
+  ...queue,
+  ...replies.filter(reply => queuedOn(queue, reply.work, reply.item) === undefined),
+]
 
 /** The replies waiting for a work, in the order queued. */
 export const queuedFor = (queue: Queue, work: string) => queue.filter(each => each.work === work)
@@ -101,13 +110,22 @@ export const withSent = (list: readonly SitrepSent[], to: SitrepWorkRef, replies
 export const sentIn = (work: Work, sent: SitrepSent): Reply[] =>
   sent.replies.flatMap(id => work.replies.find(reply => reply.id === id) ?? [])
 
-/** Whether Ready to send still shows where these replies went: until Claude has them all, and `SENT_LINGER_MS` after. */
+/** Whether these replies have all gone where they go: to Claude, or void since their items changed. */
+const isSettled = (work: Work, sent: SitrepSent) => {
+  const delivery = deliveryOf(work, sent.replies)
+
+  return delivery === 'delivered' || delivery === 'void'
+}
+
+/** Whether Ready to send still shows where these replies went: until each is delivered or void, and `SENT_LINGER_MS` after. */
 export const isShowing = (work: Work, sent: SitrepSent, now: number) => {
-  if (deliveryOf(work, sent.replies) !== 'delivered') {
+  if (!isSettled(work, sent)) {
     return true
   }
 
-  const last = Math.max(...sentIn(work, sent).map(reply => reply.deliveredAt ?? 0))
+  const last = Math.max(
+    ...sentIn(work, sent).map(reply => reply.deliveredAt ?? reply.voidedAt ?? 0),
+  )
 
   return now - last < SENT_LINGER_MS
 }

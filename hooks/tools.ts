@@ -33,7 +33,7 @@ import {
 } from '../core'
 import type { SitrepAttachment } from '../types'
 import { lookAround } from './around'
-import { placeOf, random, type Host, type Place } from './host'
+import { bearingsOf, random, type Bearings, type Host } from './host'
 import { foldersIn } from './reader'
 import { markSeen, postKnown } from './seen'
 import { attachTo, attached, refresh, serially } from './window'
@@ -162,7 +162,7 @@ const isWorkIn = async (host: Host, root: string, project: string, id: string) =
 }
 
 /** The project a work is filed under: this one first, then every other. */
-const homeOf = async (host: Host, { root, project }: Place, id: string) => {
+const projectFiling = async (host: Host, { root, project }: Bearings, id: string) => {
   for (const key of projectKeys(project.key, await foldersIn(host, projectsDir(root)))) {
     if (await isWorkIn(host, root, key, id)) {
       return key
@@ -186,7 +186,7 @@ const start: Tool<'start'> = {
       return { deny: checked.error }
     }
 
-    const { root, project, cwd, writer } = await placeOf(host)
+    const { root, project, cwd, writer } = await bearingsOf(host)
     const id = newWorkId(random, new Set(await foldersIn(host, worksDir(root, project.key))))
     const created = await host.clock.now()
     const meta = { id, ...checked.value, project: project.name, root: cwd, created, by: writer }
@@ -216,18 +216,18 @@ const join: Tool<'join'> = {
     }
 
     const { work: id } = checked.value
-    const place = await placeOf(host)
-    const project = await homeOf(host, place, id)
+    const bearings = await bearingsOf(host)
+    const project = await projectFiling(host, bearings, id)
 
     if (project === undefined) {
       return { deny: `There is no piece of work ${id} on the board, in this project or any other.` }
     }
 
     const attachedAt = await host.clock.now()
-    const work = await attachKnown(host, place.root, {
+    const work = await attachKnown(host, bearings.root, {
       project,
       work: id,
-      writer: place.writer,
+      writer: bearings.writer,
       attachedAt,
     })
 

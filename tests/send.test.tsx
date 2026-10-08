@@ -1,9 +1,9 @@
 import { expect, test, tier } from 'claude-code/testing'
-import { parseEntries } from '../core'
+import { parseEntries, workPaths } from '../core'
 import { LINGER_MS } from '../hooks/scene'
 import { WATCH_MS } from '../hooks/window'
 import { note, W1 } from './support'
-import { postedId, PROMPT, SESSION, world } from './world'
+import { postedId, PROJECT, PROMPT, ROOT, SESSION, startedId, world } from './world'
 
 tier('user')
 
@@ -35,14 +35,13 @@ test("send delivers the replies as Lee's own message, and writes them only once 
 
   await turn.arrived
   expect(kindsIn(w, paths.log(W1))).toEqual(['ask'])
-  expect(w.state.sending).toEqual([
-    {
-      project: w.state.attachment?.project,
-      work: w.state.attachment?.work,
-      item: id,
-      verdict: 'yes',
-    },
-  ])
+  expect(w.state.inFlight).toMatchObject({
+    source: 'send',
+    project: w.state.attachment?.project,
+    work: w.state.attachment?.work,
+    replies: [{ type: 'reply', item: id, verdict: 'yes' }],
+    isTaken: false,
+  })
 
   turn.end()
   await pressed
@@ -62,7 +61,7 @@ test("send delivers the replies as Lee's own message, and writes them only once 
   expect(lines.at(-1)).toMatchObject({ replies: [replied?.type === 'reply' && replied.id] })
   expect(w.state.board?.asks[0]?.state).toBe('closed')
   expect(w.state.queue).toEqual([])
-  expect(w.state.sending).toEqual([])
+  expect(w.state.inFlight).toBeNull()
 })
 
 test('the board then shows the ask closed, and folds it into what was done once its moment passes', async ($, on) => {
@@ -203,26 +202,56 @@ test('a prompt from the board itself is left as it came, whatever changed', asyn
   expect((await $.prompt.submit(PROMPT)).context?.[0]).toContain('- n9: Merged the band')
 })
 
-test('a reload keeps Ready to send as Lee left it, and a send the last load made waits to be sent again', async ($, on) => {
+test('a reload keeps Ready to send as Lee left it', async ($, on) => {
   const w = world($, on)
-  let inFlight: unknown
-
-  // What a reload finds of a send the last load made: its replies, still marked as on their way.
-  on('state.get', { plugin: 'sitrep', key: 'sending' }, ($, e, next) => {
-    const value = inFlight
-
-    inFlight = undefined
-
-    return value === undefined ? next(e) : { value: { value, version: 1 } }
-  })
-
   const { id, ui } = await asking(w)
 
   await ui.press({ key: `yes:${id}` })
-  inFlight = w.state.queue
   await $.session.start(SESSION)
 
-  expect(w.state.sending).toEqual([])
+  expect(w.state.queue).toMatchObject([{ item: id, verdict: 'yes' }])
   expect(await ui.find({ type: 'Text', text: /READY TO SEND/ })).toBeDefined()
   expect(await ui.find({ key: 'send' })).toBeDefined()
+})
+
+test('a send taken after Claude moved to another work mid-turn is written into the work it answered, and that ask closes', async ($, on) => {
+  const w = world($, on)
+  const { paths, id, ui } = await asking(w)
+  const answered = w.state.attachment?.work ?? ''
+  const turn = w.holdPrompts()
+
+  await ui.press({ key: `yes:${id}` })
+
+  const pressed = ui.press({ key: 'send' })
+
+  await turn.arrived
+
+  const themes = startedId(await w.call('start', { name: 'Themes', summary: 'The dark palette' }))
+
+  turn.end()
+  await pressed
+
+  expect(kindsIn(w, paths.log(W1))).toEqual(['ask', 'reply', 'delivered'])
+  expect(w.files.has(workPaths(ROOT, PROJECT.key, themes).log(W1))).toBe(false)
+  expect(w.state.queue).toEqual([])
+
+  await w.call('join', { work: answered })
+  expect(w.state.board?.asks[0]?.state).toBe('closed')
+})
+
+test('two quick presses of send submit the replies once', async ($, on) => {
+  const w = world($, on)
+  const { paths, id, ui } = await asking(w)
+  const turn = w.holdPrompts()
+
+  await ui.press({ key: `yes:${id}` })
+
+  const presses = [ui.press({ key: 'send' }), ui.press({ key: 'send' })]
+
+  await turn.arrived
+  turn.end()
+  await Promise.all(presses)
+
+  expect(w.submitted).toHaveLength(1)
+  expect(kindsIn(w, paths.log(W1))).toEqual(['ask', 'reply', 'delivered'])
 })

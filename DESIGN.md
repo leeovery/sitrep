@@ -51,13 +51,21 @@ can run across several windows. So sitrep keys everything on a work id.
    It is a block of the conversation's first message (`prompt.context`,
    named `sitrep`), there only when the project has works: computed once per
    conversation, again after `/clear` or a compaction, and again for a
-   session resumed in a new process (live). It tells Claude to join the
-   matching one by id, and says which one this window already holds.
-5. A session resumed in a new process (`--resume`, `-c`) keeps its session id
-   but not `$.state`. At its start, holding nothing, the window takes up by
-   itself the work of this project it was last seen in: by its heartbeat,
-   else the latest item or status it posted. Sending into a work's inbox, or
-   having started it, is not being seen in it.
+   session resumed in a new process or by `/resume` (live). It tells Claude
+   to join the matching one by id, and says which one this window already
+   holds.
+5. A resumed conversation, holding nothing, takes up by itself the work of
+   this project it was last seen in: by its heartbeat, else the latest item
+   or status it posted. Sending into a work's inbox, or having started it, is
+   not being seen in it.
+   - Resumed in a new process (`--resume`, `-c`), it keeps its session id but
+     not `$.state`. The process computes the listing before its session
+     starts (live), so the rejoin runs there first, for the listing to name it.
+   - Resumed by `/resume` in this process, the conversation that ended lets go
+     of its work (`session.end`), and no `session.start` follows. The engine's
+     `SessionStart` with source `resume` names the resumed conversation;
+     `$.session.id()` still names the one that ended at that moment (live), so
+     the window rejoins as the event's session id.
 6. A window that never starts or joins a piece of work shows nothing on the
    board. That is the best effort.
 
@@ -178,6 +186,8 @@ Each reply hangs off its item with a `└`, has its own `✕`, and the ask shows
 A group sent into another work's inbox stays in the box, its replies out of
 the queue, until Claude has them all, and 10 minutes after, so
 `delivered 2m ago` can be read. A closed work's group stays until it reopens.
+A reply whose item changed before it went in (see Delivery) shows as
+`not delivered: it changed since`, and lingers out the same way.
 
 ### The band
 
@@ -212,24 +222,48 @@ window.
   - mid-turn: waits for the turn to end;
   - no window open: waits in the inbox, goes in when the work is joined again.
 - The send box shows each destination's state (`✓ delivered`, `⧗ waiting for its
-  turn to end`, `○ closed: goes in when it reopens`), each ask shows
+  turn to end`, `○ closed: goes in when it reopens`, `✕ not delivered` once
+  every reply went void), each ask shows
   `delivered 2m ago` or `on its way`, a toast sums it up, and the receiving
   window's band flashes `✦ 2 replies from the board` for 5 seconds. In the
   destination's own view, an ask whose reply is on its way says so and offers
   no second answer.
-- The receiving window delivers only while it is the work's deliverer, and
-  one delivery at a time: the replies, the message and whether Claude Code has
-  taken it sit in `$.state` until the mark is written. A look meanwhile sends
-  nothing; a mark that failed to write is written at the next; a refusal
-  clears it, and the next look tries again. Claude Code taking the message is
-  heard twice, from the submit and from the turn the message starts (whose
-  text is the message's, and which starts first, settled live); the first
-  writes the mark. A reload mid-flight loses the submit but not the turn, so
-  the new load marks it as the turn starts, and never submits it again. A
-  session that ends drops its delivery; the replies wait for the next.
+- The receiving window delivers only while it is the work's deliverer.
+- **One message in flight per window**, whatever its source: this work's
+  send, or the inbox. It is claimed in `$.state` before it is submitted, and
+  holds its source, the work it goes to (project and work), the writer that
+  claimed it, the text exactly as submitted, the replies it carries, when it
+  was claimed, and whether Claude Code has taken it. The replies' ids are
+  fixed at the claim: a send's are made then; the inbox's are the replies
+  whose lines the message holds, no others. While it is in flight a look
+  submits nothing, and a send says it waits for the inbox's replies.
+- **Taken** is heard from the submit resolving with no drop, or from a turn
+  starting whose text is the message's; whichever comes first marks it taken
+  and writes it down. A load that starts with a message taken but not written
+  down writes it down.
+- **Written down** in the work it went to, whatever the window holds by then:
+  through the hold when the window still holds that work as that writer, so
+  the hold's own text stays in step; else into that writer's file there, read
+  back and written whole. A send writes each reply and one delivered mark; the
+  inbox, one mark naming its replies. Writing first reads the work: lines
+  already there, or replies already marked, are not written again, so writing
+  down twice writes once. A write that fails is tried again at the next look.
+- **Refused** (a drop, or a throw): let go at once, its replies left as they
+  were; the next look, or Lee's next send, tries again.
+- **Never taken** (Lee deleted the queued prompt, or the submit was lost): let
+  go once the session has gone quiet without it, 30 seconds after a turn of
+  the main conversation (or the conversation) ended with no turn starting
+  since. A queued prompt goes in as the turn before it ends, its own turn
+  starting about 40 ms after (live), once the prompt's hooks have run; so a
+  message still unheard by then was never going in, and letting it go never
+  sends it twice. A send's replies are back in Ready to send, and a toast
+  says so; the inbox's wait for the next look.
+- A reply on its way whose item an edit changes so it no longer fits (a review
+  made a decision under Lee's yes) is **void**: no message carries it, a mark
+  naming it changes nothing, and the item can be answered again.
 - The inbox message is the board's own, as this work's is: it takes no
-  board-change context, and its mark is written as a line Claude knows of
-  (`postKnown`). The rest rides in with Lee's next prompt.
+  board-change context, and written through the hold its lines are lines
+  Claude knows of (`postKnown`). The rest rides in with Lee's next prompt.
 - An ask's life: **open → replied → closed**. The board never closes an ask on
   a press, only once Claude has been told: a delivered reply closes it, or
   Claude resolves it. An ask open past a day shows its age; one left open when
@@ -280,8 +314,9 @@ $XDG_STATE_HOME/sitrep/, else ~/.local/state/sitrep/
   the board as it reads, comparing each status with the one before; it is
   never written down.
 - A reply counts as delivered once a writer **in its work** has written a
-  `delivered` mark naming it. For this work, the mod writes the reply and the
-  mark together, once Claude Code has taken the message. For another work, the
+  `delivered` mark naming it, while it still fits its item: an edit before
+  the mark voids it. For this work, the mod writes the reply and the mark
+  together, once Claude Code has taken the message. For another work, the
   sender writes the reply into that work's inbox, and the window that submits
   it there writes the mark to its own file. Only replies count from an inbox.
 - **Presence:** a mod can't tell that its own window died, so each attached
@@ -296,7 +331,8 @@ $XDG_STATE_HOME/sitrep/, else ~/.local/state/sitrep/
   open, the project it looks at too, every project while it looks at all of
   them, and in full the session it looks at and those replies wait for or
   went to.
-- `$.store` holds only per-person conveniences (last view, band preferences).
+- The board's last view lives in the session's `$.state` only. `$.store` is
+  unused so far.
 
 ## One engine, two front ends
 
@@ -312,7 +348,9 @@ $XDG_STATE_HOME/sitrep/, else ~/.local/state/sitrep/
   - `$.state` holds JSON data, which keeps no Map or Set, so the folded work
     sits there as plain data, its items and ids as lists. It outlives a
     reload of the mod's code, and the window takes its work up again; a new
-    process (`--resume`) starts without it, and Claude joins again.
+    process (`--resume`) starts without it, and the window takes up by itself
+    the work its conversation was last seen in (item 5 under "Pieces of
+    work").
   - Drawing lives in modules of its own (`hooks/draw`): pure functions from
     a surface's element table and plain data to a tree, what a button does
     handed in as actions bound to the host. JSX's `h` is global in every
@@ -332,13 +370,36 @@ $XDG_STATE_HOME/sitrep/, else ~/.local/state/sitrep/
     kit); from its `ui.press` hook it does. Either way the board's own
     message takes no board-change context: its replies are the change, and
     the rest rides in with the next prompt.
-  - `turn.start` carries a plugin prompt's text exactly as submitted, and
-    fires before the submit resolves (a live probe). Inbox delivery runs on
-    a timer the session's start begins, never one a tool call began, so the
-    engine never refuses it as holding the turn.
-  - A reload mid-delivery is covered by the test kit, not a live run: in
-    `claude -p` runs the plugin-dir watch never armed, so a save did not
-    reload the mod.
+  - `turn.start` carries a plugin prompt's text exactly as submitted. It and
+    the submit's resolving come within a few milliseconds of each other,
+    either first (live probes). Inbox delivery runs on a timer the session's
+    start begins, never one a tool call began, so the engine never refuses it
+    as holding the turn.
+  - A reload mid-delivery, settled by live probes: a probe mod submitted a
+    prompt while Claude was mid-turn, then was reloaded mid-turn.
+    - `/reload-plugins` typed mid-turn queues and runs once the turn ends,
+      before the plugin's waiting prompt goes in. The old load's submit never
+      resolves; the prompt still goes in as its own turn, and the new load's
+      `turn.start` hears its text.
+    - A file-watch reload (`CLAUDE_CODE_PLUGIN_DIR_WATCH=1`, an edit
+      mid-turn) is held until the turn ends too. The old load's submit
+      resolves first, then the new load starts, and the reload can cut short
+      what the old load does next: a write it began after the resolve was
+      lost.
+
+    So whichever load hears the message go in writes it down, and writing it
+    down twice writes once (see Delivery). A live run with two windows
+    checked it end to end: a reply sent into another window's inbox went in
+    and was marked once; a send of this window's own reply, made while
+    Claude ran a 40-second command, with `/reload-plugins` typed during it,
+    went in after the reload and was written exactly once, closing its ask.
+  - The test kit cannot load a fresh copy of the mod: a test's reload runs
+    `session.start` again in the same module, its variables kept. Everything
+    a reload must carry over lives in `$.state`, so the tests model each
+    settled behaviour by what the old load's submit does: never resolving,
+    the new load hearing the turn start; or resolving with its writing cut
+    short, left as a message taken but not written down, which the next load
+    writes once (tests/flight.test.tsx).
 - **the CLI**, `sitrep`: runs on Bun, reads and writes through the file system.
   For scripts and other tools: a Paper generator posting "round 3 drawn", and
   later the tmux indicator.

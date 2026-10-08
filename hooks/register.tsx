@@ -8,14 +8,16 @@
  * the work's fold stays current in `$.state` for the board to draw.
  *
  * Lee sees it on the board pane, the band above the prompt and the glance,
- * answers its asks there, and sends the replies as Lee's own message. The
+ * answers its asks there, and sends the replies as Lee's own message, one
+ * message in flight at a time, written down once Claude Code takes it. The
  * board also reads the works around the held one: its project's, and every
  * project's, each a view of its own, where Lee answers other sessions' asks
  * too; those replies go into the other work's inbox, and the window there
  * submits them. What changed on the board without Claude (another window,
  * the CLI) rides into Claude's next turn as context Lee does not see. A
- * session starts knowing its project's works; one resumed in a new process
- * takes its work up again; a session that ends lets go of its work.
+ * session starts knowing its project's works; a conversation resumed, in a
+ * new process or by /resume, takes its work up again; one that ends lets go
+ * of its work.
  *
  * Every call on `$` is spelled here, in `hostOf`: the engine reads them off
  * this file's source, and refuses a module that hands `$` to an import.
@@ -26,13 +28,13 @@ import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register } from 'claude-code'
 import { actionsOf, heardTyping } from './actions'
 import { lookAround, lookEvery } from './around'
-import { isBoardMessage } from './deliver'
+import { heardTurn, isBoardMessage, takeUpDelivery, wentQuiet } from './deliver'
 import { drawBand } from './draw/band'
 import { drawPane } from './draw/board'
 import { drawToolResult, drawToolRow, toolLine } from './draw/tool-row'
 import { logFailure, type Host } from './host'
 import { BAND_KEYS, boardClosed, openBoard, PANE, pressBand, syncBoard } from './pane'
-import { heardTaken, receiveEvery } from './receive'
+import { receiveEvery } from './receive'
 import { heldWork, sceneOf, tickEvery } from './scene'
 import { boardChange, markSeen } from './seen'
 import { rejoin, startListing } from './start'
@@ -48,9 +50,8 @@ const seen = atom({ plugin: 'sitrep', key: 'seen' } as const, null)
 const projects = atom({ plugin: 'sitrep', key: 'projects' } as const, [])
 const others = atom({ plugin: 'sitrep', key: 'others' } as const, [])
 const queue = atom({ plugin: 'sitrep', key: 'queue' } as const, [])
-const sending = atom({ plugin: 'sitrep', key: 'sending' } as const, [])
 const sent = atom({ plugin: 'sitrep', key: 'sent' } as const, [])
-const delivering = atom({ plugin: 'sitrep', key: 'delivering' } as const, null)
+const inFlight = atom({ plugin: 'sitrep', key: 'inFlight' } as const, null)
 const pane = atom({ plugin: 'sitrep', key: 'pane' } as const, {
   isOpen: false,
   mode: 'full',
@@ -130,20 +131,15 @@ const hostOf = ($: EngineInterface): Host => ({
       write: value => update($, queue, () => value),
       update: change => update($, queue, change),
     },
-    sending: {
-      read: () => read($, sending),
-      write: value => update($, sending, () => value),
-      update: change => update($, sending, change),
-    },
     sent: {
       read: () => read($, sent),
       write: value => update($, sent, () => value),
       update: change => update($, sent, change),
     },
-    delivering: {
-      read: () => read($, delivering),
-      write: value => update($, delivering, () => value),
-      update: change => update($, delivering, change),
+    inFlight: {
+      read: () => read($, inFlight),
+      write: value => update($, inFlight, () => value),
+      update: change => update($, inFlight, change),
     },
     pane: {
       read: () => read($, pane),
@@ -184,12 +180,13 @@ export const register: Register = on => {
     }
 
     await serially(() => resume(host)).catch(logFailure(host, 'taking the attached work up again'))
-    await serially(() => rejoin(host)).catch(logFailure(host, 'rejoining the last work'))
-    // A send the last load made is heard of no more: its replies wait to be sent again.
-    await host.state.sending.write([])
-    // Nor are its timers: what it had pulsing or flashing comes to rest.
+    await serially(async () => rejoin(host, await host.session.id())).catch(
+      logFailure(host, 'rejoining the last work'),
+    )
+    // The last load's timers are gone: what it had pulsing or flashing comes to rest.
     await host.state.pulse.write({ asks: [], frames: 0 })
     await host.state.flash.write(0)
+    await takeUpDelivery(host).catch(logFailure(host, 'writing down the replies Claude has'))
     await $.command.register({
       name: 'sitrep',
       description: 'Open the sitrep board: where this piece of work stands, and what waits on you.',
@@ -204,21 +201,32 @@ export const register: Register = on => {
     return next(e)
   })
 
-  // Once per conversation: its first message lists the project's works, after
-  // any rejoin the session's start made.
+  // Once per conversation: its first message lists the project's works. A new
+  // process computes it before its session.start runs (live), so a resumed
+  // conversation's rejoin comes first here, for the listing to name it.
   on('prompt.context', async ($, e, next) => {
-    const listing = await serially(() => startListing(hostOf($)))
+    const host = hostOf($)
+    const listing = await serially(async () => {
+      await rejoin(host, await host.session.id()).catch(logFailure(host, 'rejoining the last work'))
+
+      return startListing(host)
+    })
 
     return listing === undefined
       ? next(e)
       : next({ ...e, blocks: [...e.blocks, { name: LISTING, text: listing }] })
   }).catch(($, e, next) => next(e))
 
-  // An inbox delivery is heard to have gone in as its message starts its turn:
-  // before its submit resolves (settled live), and after a reload, with no
-  // submit left to resolve.
   on('turn.start', async ($, e, next) => {
-    await heardTaken(hostOf($), e.text)
+    await heardTurn(hostOf($), e.text)
+
+    return next(e)
+  }).catch(($, e, next) => next(e))
+
+  on('turn.complete', async ($, e, next) => {
+    if (e.agentId === undefined) {
+      await wentQuiet(hostOf($))
+    }
 
     return next(e)
   }).catch(($, e, next) => next(e))
@@ -256,8 +264,23 @@ export const register: Register = on => {
     const host = hostOf($)
 
     await serially(() => letGo(host)).catch(logFailure(host, 'letting go of the attached work'))
-    // An inbox delivery on its way goes with the conversation: its replies wait for the next.
-    await host.state.delivering.write(null)
+    await wentQuiet(host)
+
+    return next(e)
+  }).catch(($, e, next) => next(e))
+
+  // An in-process /resume ends one conversation (session.end lets go of its
+  // work) and resumes another, for which no session.start fires. Here
+  // `$.session.id()` still names the conversation that ended (live): the
+  // resumed one is the event's.
+  on('classic.SessionStart', async ($, e, next) => {
+    if (e.source === 'resume') {
+      const host = hostOf($)
+
+      await serially(() => rejoin(host, e.session_id)).catch(
+        logFailure(host, 'rejoining the resumed work'),
+      )
+    }
 
     return next(e)
   }).catch(($, e, next) => next(e))

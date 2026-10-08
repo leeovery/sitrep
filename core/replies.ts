@@ -1,6 +1,7 @@
 /**
  * Lee's replies: which verdicts fit which item, what a delivered one does to
- * it, which window submits them, and the words Claude receives them in.
+ * it, which window submits them, the words Claude receives them in, and the
+ * lines that record them once Claude has them.
  *
  * A reply changes nothing until it is delivered: the board never claims
  * Claude knows something it was not told.
@@ -9,9 +10,12 @@ import type {
   Ask,
   AskKind,
   AskState,
+  Body,
+  DeliveredBody,
   Delivery,
   Item,
   Parked,
+  Reply,
   ReplyBody,
   Verdict,
   Work,
@@ -51,6 +55,10 @@ export const fits = (item: Item, reply: ReplyFields): item is Ask | Parked =>
   (reply.verdict !== 'comment' || Boolean(reply.note))
 
 export const isOpen = (ask: Ask) => ask.state === 'waiting' || ask.state === 'replied'
+
+/** Whether a reply is on its way: neither delivered, nor void since its item changed under it. */
+export const isPending = (reply: Reply) =>
+  reply.delivery === 'waiting' || reply.delivery === 'closed'
 
 /**
  * Where a delivered reply leaves an ask. Ignore drops it; a comment on a
@@ -118,35 +126,59 @@ export const pickUpLog = (parked: Parked, reply: ReplyFields) => ({
   detail: reply.note ? [reply.note] : [],
 })
 
-/** Lee's message carrying replies to a work's items; undefined when none fits an item the work has. */
-export const boardMessage = (work: Work, replies: readonly ReplyFields[]) => {
-  const lines = replies.flatMap(reply => {
+/** Lee's message carrying replies to a work's items, and the replies it carries: those that fit an item the work has; undefined when none does. */
+export const boardMessage = <R extends ReplyFields>(work: Work, replies: readonly R[]) => {
+  const carried = replies.flatMap(reply => {
     const item = work.items.get(reply.item)
 
-    return item !== undefined && fits(item, reply) ? [replyLine(item, reply)] : []
+    return item !== undefined && fits(item, reply) ? [{ reply, line: replyLine(item, reply) }] : []
   })
 
-  return lines.length === 0 ? undefined : [FROM_THE_BOARD, ...lines].join('\n')
+  return carried.length === 0
+    ? undefined
+    : {
+        text: [FROM_THE_BOARD, ...carried.map(({ line }) => line)].join('\n'),
+        replies: carried.map(({ reply }) => reply),
+      }
 }
 
-/** The replies a window submits now: every one undelivered when it is the work's deliverer, else none. */
+/** The replies a window submits now: every one on its way when it is the work's deliverer, else none. */
 export const toDeliver = (work: Work, writer: string) =>
-  work.deliverer === writer ? work.replies.filter(reply => reply.delivery !== 'delivered') : []
+  work.deliverer === writer ? work.replies.filter(isPending) : []
+
+const isDelivered = (work: Work, id: string) =>
+  work.replies.some(reply => reply.id === id && reply.delivery === 'delivered')
 
 /**
- * Where replies sent into a work's inbox stand, by their ids: delivered once
- * every one is; else waiting for its window's turn to end, or, with no
- * window open, for one to join. A reply the fold has not read yet is not
- * delivered.
+ * The lines recording Lee's replies to the work's own items once Claude
+ * Code has taken the message carrying them: each reply, and the mark naming
+ * them. None once their ids are written, so recording twice (a reload cut
+ * the first short) writes once.
+ */
+export const sentLines = (work: Work, replies: readonly ReplyBody[]): Body[] =>
+  replies.every(reply => work.ids.has(reply.id))
+    ? []
+    : [...replies, { type: 'delivered', replies: replies.map(reply => reply.id) }]
+
+/** The mark that Claude has these inbox replies, naming those not marked yet; none once every one is. */
+export const deliveredMark = (work: Work, ids: readonly string[]): DeliveredBody[] => {
+  const unmarked = ids.filter(id => !isDelivered(work, id))
+
+  return unmarked.length === 0 ? [] : [{ type: 'delivered', replies: unmarked }]
+}
+
+/**
+ * Where replies sent into a work's inbox stand, by their ids: waiting for
+ * its window's turn to end while any is on its way, or with no window open
+ * for one to join; else delivered, unless every one went void. A reply the
+ * fold has not read yet is on its way.
  */
 export const deliveryOf = (work: Work, ids: readonly string[]): Delivery => {
-  const isDelivered = ids.every(id =>
-    work.replies.some(reply => reply.id === id && reply.delivery === 'delivered'),
-  )
+  const sent = ids.map(id => work.replies.find(reply => reply.id === id))
 
-  if (isDelivered) {
-    return 'delivered'
+  if (sent.some(reply => reply === undefined || isPending(reply))) {
+    return work.isOpen ? 'waiting' : 'closed'
   }
 
-  return work.isOpen ? 'waiting' : 'closed'
+  return sent.some(reply => reply?.delivery === 'delivered') ? 'delivered' : 'void'
 }
