@@ -492,12 +492,18 @@ Dropped: a standalone toast plugin (Claude Code has one).
 
 ## Open questions
 
-1. How the mod tells that Lee is looking at its window, for notifications.
-2. Notification mechanism: `osascript`, `terminal-notifier`, or what Claude Code
-   offers by then.
-3. How long before an unanswered ask counts as "left open".
-4. Whether the CLI should be able to answer asks, or only post. It only posts
-   for now.
+Answered with Lee on 8 October 2026, for build step 5:
+
+1. **Whether Lee is looking at the window: no check.** It was only there to
+   spare a banner for the window that has already pulsed, toasted and chimed;
+   asks are rare, so **proposed:** a notification for every new ask.
+2. **Notifications:** `terminal-notifier` when it is already on the PATH;
+   sitrep never installs anything on someone's machine. **proposed:** without
+   it, `osascript`'s notification, which ships with macOS (clicking it opens
+   Script Editor rather than Ghostty).
+3. **Left open:** an unanswered ask whose work has had no window for 24 hours.
+4. **The CLI answering asks:** later. It only posts for now; answering would
+   be one more command, a reply into the work's inbox.
 
 ## Build order
 
