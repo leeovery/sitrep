@@ -1,5 +1,5 @@
 import { expect, test, tier, type Engine } from 'claude-code/testing'
-import { CURRENT_MS, parseEntries, parsePresence, type WorkMeta } from '../core'
+import { CURRENT_MS, parseEntries, parsePresence, startText, type WorkMeta } from '../core'
 import { file, MIN, note, T0, W1, W2 } from './support'
 import { DASHBOARD, PROJECT, SESSION, world } from './world'
 
@@ -89,14 +89,18 @@ test("the session's first message lists the project's current works by id, and w
   expect(block?.text).toContain('join it by its id with the sitrep join tool')
 })
 
-test('with no current works in the project, the first message carries nothing of sitrep', async ($, on) => {
+test('with no current works in the project, the first message carries only how to keep the board', async ($, on) => {
   const w = world($, on, { now: NOW })
 
   await $.session.start(SESSION)
-  expect(await firstMessage($)).toEqual([])
-
   w.elsewhere(meta('sr-dddddd', 'An old idea', W2, NOW - CURRENT_MS - DAY))
-  expect(await firstMessage($)).toEqual([])
+
+  const [block, ...more] = await firstMessage($)
+
+  expect(more).toEqual([])
+  expect(block?.name).toBe('sitrep')
+  expect(block?.text).toBe(startText([]))
+  expect(block?.text).not.toContain('sr-dddddd')
 })
 
 test('a work started in this session is listed, held, at the next conversation', async ($, on) => {

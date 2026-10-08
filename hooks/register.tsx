@@ -201,9 +201,10 @@ export const register: Register = on => {
     return next(e)
   })
 
-  // Once per conversation: its first message lists the project's works. A new
-  // process computes it before its session.start runs (live), so a resumed
-  // conversation's rejoin comes first here, for the listing to name it.
+  // Once per conversation: its first message says how to keep the board and
+  // lists the project's works. A new process computes it before its
+  // session.start runs (live), so a resumed conversation's rejoin comes first
+  // here, for the listing to name it.
   on('prompt.context', async ($, e, next) => {
     const host = hostOf($)
     const listing = await serially(async () => {
@@ -212,9 +213,7 @@ export const register: Register = on => {
       return startListing(host)
     })
 
-    return listing === undefined
-      ? next(e)
-      : next({ ...e, blocks: [...e.blocks, { name: LISTING, text: listing }] })
+    return next({ ...e, blocks: [...e.blocks, { name: LISTING, text: listing }] })
   }).catch(($, e, next) => next(e))
 
   on('turn.start', async ($, e, next) => {

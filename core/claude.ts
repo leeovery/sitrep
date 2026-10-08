@@ -76,11 +76,23 @@ export const worksText = (works: readonly WorkSummary[]) =>
 const JOIN =
   'When Lee carries on with one of these, join it by its id with the sitrep join tool before posting to its board.'
 
-/** What a session starts knowing of the board: the project's pieces of work, how to take one up, and the one this window already holds. */
-export const startText = (works: readonly WorkSummary[], held?: WorkSummary) =>
-  [
-    worksText(works),
+/** How Claude keeps the board: when to start a piece of work, and how much to post as it goes. */
+const GUIDE = [
+  "sitrep is Lee's board inside Claude Code: where each piece of work stands and what waits on Lee. The chat stays primary; the board mirrors your own tracking, for Lee.",
+  '- Start a piece of work when the work will run across several turns or will need Lee: a feature, a design, an investigation. Not for a quick question. Name it in plain words, as Lee would say it, with no internal codes; record its id wherever this project tracks the work.',
+  "- As it goes: set the status when what's under way changes; post an ask whenever you need something only Lee can do or decide, and say it in the chat as well; note what Lee would want to know later, never running commentary; resolve what's done.",
+].join('\n')
+
+/** What a session starts knowing of the board: how to keep it, the project's pieces of work, how to take one up, and the one this window already holds. */
+export const startText = (works: readonly WorkSummary[], held?: WorkSummary) => {
+  if (works.length === 0) {
+    return GUIDE
+  }
+
+  const taking =
     held === undefined
       ? JOIN
-      : `This window already holds ${held.id} (${held.name}): post to its board as you go. ${JOIN}`,
-  ].join('\n')
+      : `This window already holds ${held.id} (${held.name}): post to its board as you go. ${JOIN}`
+
+  return [GUIDE, worksText(works), taking].join('\n')
+}

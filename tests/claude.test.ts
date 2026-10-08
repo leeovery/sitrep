@@ -120,13 +120,20 @@ test('the works listing gives each work its id, and says whether a window has it
   expect(worksText([])).toBe('sitrep pieces of work:\n- none')
 })
 
-test('a session starts knowing its works by id, how to take one up, and which this window holds', () => {
+test('a session starts knowing how to keep the board, its works by id, how to take one up, and which this window holds', () => {
   const works = [summarise(WORK)]
+  const guide = startText([])
   const join =
     'When Lee carries on with one of these, join it by its id with the sitrep join tool before posting to its board.'
 
-  expect(startText(works)).toBe(`${worksText(works)}\n${join}`)
+  expect(guide).toContain(
+    'Start a piece of work when the work will run across several turns or will need Lee',
+  )
+  expect(guide).toContain('Not for a quick question.')
+  expect(guide).toContain('say it in the chat as well')
+  expect(guide).not.toContain('sitrep pieces of work')
+  expect(startText(works)).toBe(`${guide}\n${worksText(works)}\n${join}`)
   expect(startText(works, works[0])).toBe(
-    `${worksText(works)}\nThis window already holds sr-k3f9qa (Dashboard redesign): post to its board as you go. ${join}`,
+    `${guide}\n${worksText(works)}\nThis window already holds sr-k3f9qa (Dashboard redesign): post to its board as you go. ${join}`,
   )
 })

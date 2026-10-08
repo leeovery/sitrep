@@ -49,8 +49,9 @@ can run across several windows. So sitrep keys everything on a work id.
    pieces of work, with their ids, in Claude's context, so "let's carry on
    with the dashboard work" finds its id even if nothing in memory says it.
    It is a block of the conversation's first message (`prompt.context`,
-   named `sitrep`), there only when the project has works: computed once per
-   conversation, again after `/clear` or a compaction, and again for a
+   named `sitrep`), in every conversation: how to keep the board (below,
+   "When to start a piece of work"), then the project's works when it has
+   any. It is computed once per conversation, again after `/clear` or a compaction, and again for a
    session resumed in a new process or by `/resume` (live). It tells Claude
    to join the matching one by id, and says which one this window already
    holds.
@@ -95,7 +96,19 @@ orchestrator decides what reaches the board.
 | `resolve` / `reopen` / `edit` | close, reopen or correct an item, with a reason |
 | `board` | read back the board's open items, so Claude can check and repair it |
 
-**proposed** wording rules, in the tool descriptions:
+**When to start a piece of work**, in every conversation's first message
+(added once a session started one with nothing to go on but the tools, and
+named it in internal shorthand):
+
+- Start one when the work will run across several turns or will need Lee: a
+  feature, a design, an investigation. Not for a quick question.
+- Name it in plain words, as Lee would say it, with no internal codes, and
+  record its id wherever the project tracks the work.
+- As it goes: the status when what's under way changes, an ask whenever Lee is
+  needed (said in the chat as well), a note for what Lee would want later,
+  never running commentary; resolve what's done.
+
+Wording rules, in the tool descriptions:
 
 - Ask only when Claude cannot go on without Lee, or Lee's judgement changes what
   happens next. Say it in the chat as well.

@@ -26,7 +26,7 @@ export const rejoin = async (host: Host, writer: string) => {
   }
 }
 
-/** The project's current pieces of work as the session's first message carries them; undefined when it has none. */
+/** What the session's first message carries of sitrep: how to keep the board, and the project's current pieces of work. */
 export const startListing = async (host: Host) => {
   const { root, project } = await bearingsOf(host)
   const now = await host.clock.now()
@@ -35,10 +35,8 @@ export const startListing = async (host: Host) => {
     .filter(work => isCurrent(work, now))
   const { works } = summariseProject(project.key, current)
 
-  return works.length === 0
-    ? undefined
-    : startText(
-        works,
-        works.find(work => work.id === attached()?.work),
-      )
+  return startText(
+    works,
+    works.find(work => work.id === attached()?.work),
+  )
 }
