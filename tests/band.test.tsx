@@ -60,11 +60,11 @@ test('the band shows or hides the board, and its label follows', async ($, on) =
   const ui = await w.band()
 
   await ui.press({ key: 'band:board' })
-  expect(w.panes.get('board')).toBe(true)
+  expect(w.panes.get('sitrep')).toBe(true)
   expect(await ui.find({ key: 'band:board', text: 'hide board' })).toBeDefined()
 
   await ui.press({ key: 'band:board' })
-  expect(w.panes.has('board')).toBe(false)
+  expect(w.panes.has('sitrep')).toBe(false)
   expect(await ui.find({ key: 'band:board', text: '▸ show board' })).toBeDefined()
 })
 
@@ -79,7 +79,7 @@ test('the band is counts on the right, each opening the board on what it counts'
   expect(await ui.find({ key: 'band:parked', text: '1 parked' })).toBeDefined()
 
   await ui.press({ key: 'band:parked' })
-  expect(w.panes.get('board')).toBe(true)
+  expect(w.panes.get('sitrep')).toBe(true)
 
   const board = await w.pane()
 
@@ -110,7 +110,7 @@ test('a board Claude Code would not draw is closed again, and a toast says why',
   const ui = await w.band()
 
   await ui.press({ key: 'band:board' })
-  expect(w.panes.has('board')).toBe(false)
+  expect(w.panes.has('sitrep')).toBe(false)
   expect(w.toasts).toContain(
     "Claude Code didn't draw the board: the terminal is 90 columns wide, under 110",
   )
@@ -130,7 +130,7 @@ test('/sitrep opens the board, printing nothing', async ($, on) => {
   })
 
   expect(w.commands).toEqual(['sitrep'])
-  expect(w.panes.get('board')).toBe(true)
+  expect(w.panes.get('sitrep')).toBe(true)
   expect(output.text).toBeUndefined()
 })
 
@@ -138,7 +138,7 @@ test('after a reload, the band says what the engine has of the board', async ($,
   const w = world($, on)
 
   await w.begin()
-  w.panes.set('board', true)
+  w.panes.set('sitrep', true)
   await $.session.start(SESSION)
 
   const ui = await w.band()

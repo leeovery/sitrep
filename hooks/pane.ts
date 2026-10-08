@@ -14,7 +14,7 @@ import type { Host } from './host'
 import { projectPlace } from './places'
 
 /** The pane's id, as `$.ui.open` and its `ui.render` name it. */
-export const PANE = 'board'
+export const PANE = 'sitrep'
 
 const TITLE = 'sitrep'
 

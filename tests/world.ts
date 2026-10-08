@@ -16,6 +16,7 @@ import {
   type WorkMeta,
   type WorkPaths,
 } from '../core'
+import { PANE } from '../hooks/pane'
 import { file, T0, W1, W2, type Line } from './support'
 
 type Sitrep = PluginState['sitrep']
@@ -425,7 +426,7 @@ export function world(engine: Engine, on: On, options: { now?: number; cwd?: str
 
   /** The board pane drawn on a surface, as a docked pane unless told otherwise. */
   const pane = (surface: Surface = 'terminal', props: RenderPropsOf['Pane'] = DOCKED) =>
-    engine.ui.mount({ plugin: 'sitrep', surface, component: 'Pane', requestId: 'board', props })
+    engine.ui.mount({ plugin: 'sitrep', surface, component: 'Pane', requestId: PANE, props })
 
   /** The band drawn on a surface, `columns` across. */
   const band = (surface: Surface = 'terminal', columns = BAND.bodyColumns) =>

@@ -239,7 +239,7 @@ test("the band counts what waits in the project's other sessions, and opens the 
   expect(await band.find({ key: 'band:elsewhere', text: '1 in other sessions' })).toBeDefined()
 
   await band.press({ key: 'band:elsewhere' })
-  expect(w.panes.get('board')).toBe(true)
+  expect(w.panes.get('sitrep')).toBe(true)
 
   const board = await w.pane()
 

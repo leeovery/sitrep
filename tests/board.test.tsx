@@ -289,7 +289,7 @@ test("a surface with no text area of the mod's takes the comment in its own fiel
     plugin: 'sitrep',
     surface: 'vscode',
     component: 'Pane',
-    requestId: 'board',
+    requestId: 'sitrep',
     props: DOCKED,
   })
 
@@ -308,7 +308,7 @@ test('a surface with no field to type in offers no comment', async ($, on) => {
     plugin: 'sitrep',
     surface: 'mobile',
     component: 'Pane',
-    requestId: 'board',
+    requestId: 'sitrep',
     props: DOCKED,
   })
 
