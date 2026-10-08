@@ -120,10 +120,11 @@ Wording rules, in the tool descriptions:
   with the last), so Claude does nothing extra for it.
 
 When the board changes, its open items ride into Claude's next turn as unseen
-context, so drift is noticed. **proposed:** a `/sitrep check` command asks
-Claude to compare the board with what it knows and repair it, logging what it
-changed. **Nice to have:** when a turn ends with Claude asking Lee something
-that no ask records, send it back once to record it.
+context, so drift is noticed. A `/sitrep check` command asks Claude to
+compare the board with what it knows and repair it, logging what it changed,
+and a window that joins or takes up a work is asked the same of its open
+items (build step 5). Dropped: a turn-end check for an ask Claude forgot to
+post; the board is best effort, and in use Claude has not forgotten.
 
 ## Lee's side
 
@@ -279,9 +280,9 @@ window.
   Claude knows of (`postKnown`). The rest rides in with Lee's next prompt.
 - An ask's life: **open → replied → closed**. The board never closes an ask on
   a press, only once Claude has been told: a delivered reply closes it, or
-  Claude resolves it. An ask open past a day shows its age; one left open when
-  its work has no window moves to a **left open** list in that project rather
-  than piling up.
+  Claude resolves it. An ask open past a day shows its age. Nothing ages an
+  ask out: Claude keeps the board clean (see `/sitrep check`), and Lee may be
+  away for days and come back to the work.
 
 ## Storage
 
@@ -514,7 +515,8 @@ Answered with Lee on 8 October 2026, for build step 5:
    sitrep never installs anything on someone's machine. Without it,
    `osascript`'s notification, which ships with macOS (clicking it opens
    Script Editor rather than Ghostty).
-3. **Left open:** an unanswered ask whose work has had no window for 24 hours.
+3. **Left open: dropped.** Lee may be away for days, so no time is right; a
+   window joining a work reconciles its open items instead.
 4. **The CLI answering asks:** later. It only posts for now; answering would
    be one more command, a reply into the work's inbox.
 
@@ -526,7 +528,8 @@ Answered with Lee on 8 October 2026, for build step 5:
 3. **Across pieces of work**: the project and all-projects views, delivery
    through inboxes, the start-of-session listing.
 4. **The CLI.**
-5. **Notifications**, left open, `/sitrep check`, the turn-end safety net.
+5. **Notifications**, `/sitrep check`, and the same check when a window joins
+   or takes up a work.
 
 ## The spike
 
