@@ -35,6 +35,8 @@ export const GLYPH = {
   up: '←',
   branch: '├',
   last: '└',
+  /** A tree's line running on past a row. */
+  stem: '│',
   done: '✓',
   /** Replies just taken in from the board. */
   news: '✦',

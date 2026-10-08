@@ -8,12 +8,16 @@ import { filedAt, homeOf, parkedAt, projectName, samePlace, type ParkedAt } from
 import { queuedOn } from '../queue'
 import type { Scene } from '../scene'
 import {
+  drawMark,
   drawOnItsWay,
   drawQueued,
-  drawRef,
   drawTitle,
   heading,
   onItsWay,
+  seeRef,
+  shown,
+  titleLines,
+  tree,
   type Drawing,
 } from './kit'
 
@@ -35,33 +39,11 @@ const whereOf = (scene: Scene) => {
   }
 }
 
-/** Where to look, Claude's own record of it, the session that raised it where the view spans several, and the button that picks it up. */
-const drawOpened = (d: Drawing, { at, name, parked }: ParkedAt) => {
-  const { Box, Text, Button } = d.els
+/** The mark every parked item is drawn with. */
+const MARK = { glyph: GLYPH.parked, color: C.parked }
 
-  return (
-    <Box flexDirection="column">
-      {parked.where !== undefined && (
-        <Text color={C.soft} wrap="wrap">
-          {parked.where}
-        </Text>
-      )}
-      {drawRef(d, parked.ref)}
-      <Box flexDirection="row" columnGap={2} flexWrap="wrap">
-        {d.scene.place.level !== 'session' && <Text color={C.grey}>raised in {name}</Text>}
-        <Button
-          key={`pickup:${parked.id}`}
-          label="pick it up"
-          onPress={() => d.act.reply({ ...at, item: parked.id, verdict: 'pickup' })}
-        />
-      </Box>
-    </Box>
-  )
-}
-
-/** What hangs under a parked item: the pick-up waiting to be sent, or on its way, or, opened, its button. */
-const drawUnder = (d: Drawing, entry: ParkedAt) => {
-  const { at, parked } = entry
+/** Lee's pick-up of a parked item, as the branch it hangs on: waiting to be sent, or on its way. */
+const drawPickUp = (d: Drawing, { at, parked }: ParkedAt) => {
   const queued = queuedOn(d.scene.queue, at.work, parked.id)
   const sent = onItsWay(parked)
 
@@ -69,35 +51,42 @@ const drawUnder = (d: Drawing, entry: ParkedAt) => {
     return drawQueued(d, parked, queued)
   }
 
-  if (sent !== undefined) {
-    return drawOnItsWay(d, parked, sent)
-  }
-
-  return d.scene.pane.selected === parked.id && drawOpened(d, entry)
+  return sent === undefined ? undefined : drawOnItsWay(d, parked, sent)
 }
 
+/** A parked item: its mark and title, the tree hanging from the mark, and, opened, the button that picks it up. */
 const drawItem = (d: Drawing, entry: ParkedAt) => {
-  const { Box, Text } = d.els
-  const { at, parked } = entry
+  const { Box, Text, Button } = d.els
+  const { at, name, parked } = entry
+  const isOpen = d.scene.pane.selected === parked.id
+  const lines = titleLines(d, parked.title, isOpen)
+  const pickUp = drawPickUp(d, entry)
+  const branches = shown(
+    isOpen && parked.where,
+    isOpen && d.scene.place.level !== 'session' && { text: `raised in ${name}`, color: C.grey },
+    isOpen && seeRef(parked.ref),
+    pickUp,
+  )
 
   return (
     <Box key={`parked:${at.work}:${parked.id}`} flexDirection="column">
       <Box flexDirection="row" gap={1}>
-        <Text color={C.parked}>{GLYPH.parked}</Text>
+        {drawMark(d, MARK, lines.length, branches.length > 0)}
         <Box flexGrow={1} flexShrink={1}>
-          {drawTitle(
-            d,
-            `ppick:${parked.id}`,
-            parked.title,
-            d.scene.pane.selected === parked.id,
-            () => d.act.select(parked.id),
-          )}
+          {drawTitle(d, `ppick:${parked.id}`, lines, () => d.act.select(parked.id))}
         </Box>
         <Text color={C.grey}>{ago(d.scene.now, parked.at)}</Text>
       </Box>
-      <Box paddingLeft={2} flexDirection="column">
-        {drawUnder(d, entry)}
-      </Box>
+      {tree(d, `under:${parked.id}`, branches)}
+      {isOpen && pickUp === undefined && (
+        <Box paddingLeft={2}>
+          <Button
+            key={`pickup:${parked.id}`}
+            label="pick it up"
+            onPress={() => d.act.reply({ ...at, item: parked.id, verdict: 'pickup' })}
+          />
+        </Box>
+      )}
     </Box>
   )
 }

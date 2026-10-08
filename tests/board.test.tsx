@@ -99,7 +99,7 @@ test('a new ask opens with its buttons, by its kind: a review approves, comments
   expect(await ui.find({ key: `yes:${id}`, text: '✓ approve' })).toBeDefined()
   expect(await ui.find({ key: `comment:${id}`, text: '✎ comment' })).toBeDefined()
   expect(await ui.find({ key: `ignore:${id}`, text: '✕ ignore' })).toBeDefined()
-  expect(await ui.find({ type: 'Text', text: REVIEW.where })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: /^In Paper: the dashboard file/ })).toBeDefined()
 
   await ui.press({ key: `pick:${id}` })
   expect(await ui.find({ key: `yes:${id}` })).toBeUndefined()

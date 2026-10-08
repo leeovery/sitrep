@@ -140,7 +140,7 @@ STATUS ────────────────────────�
 ◦ next: Usage, round 3
 FOR YOU ─────────────────────────────────── 1 waiting
 ◆ Review Sessions & Runway, round 1                 2h
-  In Paper: the dashboard file, page "round 1", frames 1–6
+└ In Paper: the dashboard file, page "round 1", frames 1–6
 LOG ────────────────────────────────── what happened
 12m  • Status: now also drawing Usage, round 2
 ```

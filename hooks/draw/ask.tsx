@@ -12,12 +12,15 @@ import { askMark, type Filed } from '../scene'
 import { drawField } from './field'
 import {
   canType,
+  drawMark,
   drawOnItsWay,
   drawQueued,
-  drawRef,
   drawTitle,
-  hung,
   onItsWay,
+  seeRef,
+  shown,
+  titleLines,
+  tree,
   type Drawing,
 } from './kit'
 
@@ -111,64 +114,81 @@ const drawButtons = (d: Drawing, at: SitrepItemRef, ask: Ask) => {
   )
 }
 
-/** What hangs under an ask: where to look, what Lee replied, its buttons or its field. */
-const drawUnder = (d: Drawing, filed: Filed, ask: Ask) => {
-  const { Box, Text } = d.els
+/** Where an ask stands as drawn: the reply it waits to send, or the one on its way, and what Lee has open on it. */
+const standingOf = (d: Drawing, filed: Filed, ask: Ask) => {
   const { queue, pane } = d.scene
   const at = refOf(filed, ask)
   const queued = queuedOn(queue, filed.work.id, ask.id)
-  const sent = queued === undefined ? onItsWay(ask) : undefined
   const isClosed = ask.state === 'closed'
-  const isSelected = pane.selected === ask.id
-  const isCommenting =
-    pane.commenting?.work === at.work && pane.commenting.item === ask.id && canType(d)
-  const commented = ask.state === 'replied' ? ask.answer?.note : undefined
-  const isAnswering = queued === undefined && sent === undefined && !isCommenting
+
+  return {
+    at,
+    queued,
+    sent: queued === undefined ? onItsWay(ask) : undefined,
+    isClosed,
+    isOpen: pane.selected === ask.id && !isClosed,
+    isCommenting:
+      pane.commenting?.work === at.work && pane.commenting.item === ask.id && canType(d),
+  }
+}
+
+type Standing = ReturnType<typeof standingOf>
+
+/** What hangs from an ask's mark: where to look, Claude's own record of it, what Lee replied, and whether Claude has it. */
+const branchesOf = (d: Drawing, ask: Ask, { queued, sent, isClosed, isOpen }: Standing) => {
+  const isAnswered = queued !== undefined || sent !== undefined
+  const commented = ask.state === 'replied' && !isAnswered ? ask.answer?.note : undefined
+
+  return shown(
+    !isClosed && (isOpen || d.isDock) && ask.where,
+    isOpen && seeRef(ask.ref),
+    commented !== undefined && `you commented: “${commented}”. Claude has it.`,
+    queued !== undefined && drawQueued(d, ask, queued),
+    sent !== undefined && drawOnItsWay(d, ask, sent),
+    isClosed && 'sent, and Claude has it',
+  )
+}
+
+/** What comes after an ask's tree, at its title's column: its buttons, or the field taking a comment. */
+const drawAfter = (d: Drawing, ask: Ask, { at, queued, sent, isOpen, isCommenting }: Standing) => {
+  const { Box } = d.els
+  const isAnswering = isOpen && queued === undefined && sent === undefined && !isCommenting
 
   return (
     <Box paddingLeft={2} flexDirection="column">
-      {ask.where !== undefined && !isClosed && (isSelected || d.isDock) && (
-        <Text color={C.soft} wrap="wrap">
-          {ask.where}
-        </Text>
-      )}
-      {isSelected && !isClosed && drawRef(d, ask.ref)}
-      {isClosed && hung(d, `sent:${ask.id}`, 'sent, and Claude has it')}
-      {commented !== undefined &&
-        queued === undefined &&
-        sent === undefined &&
-        hung(d, `replied:${ask.id}`, `you commented: “${commented}”. Claude has it.`)}
-      {queued !== undefined && drawQueued(d, ask, queued)}
-      {sent !== undefined && drawOnItsWay(d, ask, sent)}
-      {isSelected && !isClosed && isAnswering && drawButtons(d, at, ask)}
+      {isAnswering && drawButtons(d, at, ask)}
       {isCommenting && drawField(d, at, ask)}
     </Box>
   )
 }
 
+/** The mark of an ask Lee's send closed. */
+const DONE = { glyph: GLYPH.done, color: C.ok }
+
 export const drawAsk = (d: Drawing, filed: Filed, ask: Ask) => {
   const { Box, Text } = d.els
-  const isClosed = ask.state === 'closed'
-  const mark = askMark(d.scene, ask)
+  const standing = standingOf(d, filed, ask)
+  const { isClosed, isOpen } = standing
+  const lines = titleLines(d, ask.title, isOpen)
+  const branches = branchesOf(d, ask, standing)
 
   return (
     <Box key={`ask:${ask.id}`} flexDirection="column">
       <Box flexDirection="row" gap={1}>
-        <Text color={isClosed ? C.ok : mark.color}>{isClosed ? GLYPH.done : mark.glyph}</Text>
+        {drawMark(d, isClosed ? DONE : askMark(d.scene, ask), lines.length, branches.length > 0)}
         <Box flexGrow={1} flexShrink={1}>
           {isClosed ? (
             <Text color={C.faint} wrap="truncate-end">
               {ask.title}
             </Text>
           ) : (
-            drawTitle(d, `pick:${ask.id}`, ask.title, d.scene.pane.selected === ask.id, () =>
-              d.act.select(ask.id),
-            )
+            drawTitle(d, `pick:${ask.id}`, lines, () => d.act.select(ask.id))
           )}
         </Box>
         <Text color={C.grey}>{ago(d.scene.now, ask.at)}</Text>
       </Box>
-      {drawUnder(d, filed, ask)}
+      {tree(d, `under:${ask.id}`, branches)}
+      {drawAfter(d, ask, standing)}
     </Box>
   )
 }
