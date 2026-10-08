@@ -511,7 +511,8 @@ Answered with Lee on 8 October 2026, for build step 5:
    spare a banner for the window that has already pulsed, toasted and chimed;
    asks are rare, so a notification for every new ask.
 2. **Notifications:** `terminal-notifier` when it is already on the PATH;
-   sitrep never installs anything on someone's machine. Without it, `osascript`'s notification, which ships with macOS (clicking it opens
+   sitrep never installs anything on someone's machine. Without it,
+   `osascript`'s notification, which ships with macOS (clicking it opens
    Script Editor rather than Ghostty).
 3. **Left open:** an unanswered ask whose work has had no window for 24 hours.
 4. **The CLI answering asks:** later. It only posts for now; answering would
