@@ -1,29 +1,21 @@
 /**
- * The board pane: where it is looking and its view there, with Ready to
- * send at the foot; one line when the window holds no work. The view is a
- * list of blocks. Docked, the list is clipped above Ready to send, which
- * never moves, and a `Client` measures each block (hooks/clip.ts); inline,
- * Ready to send follows the view.
+ * The board pane: where it is looking and its view there, under a header,
+ * with Ready to send at the foot; one line when the window holds no work.
+ * The view is a list of blocks. Docked, the header and Ready to send never
+ * move, and the list between them is clipped, a `Client` measuring each
+ * block (hooks/clip.ts); inline, the header leads the view and Ready to send
+ * follows it.
  *
- * On Lee's own path the board shows a tab for each step of it, each a row
- * of `TABS`: this session, by its glyph alone, and every project. Anywhere
- * else the tabs give way to a step back up and the way home.
+ * The header is the same two tabs everywhere, each a row of `TABS`: this
+ * session, by its name, and every project. Off home and All projects, a
+ * step back up sits under them.
  */
-import type { ElementTable, RenderElement, RenderPropsOf, RenderSurface } from 'claude-code'
+import type { ElementTable, RenderPropsOf, RenderSurface } from 'claude-code'
 import type { SitrepPlace } from '../../types'
 import type { Actions } from '../actions'
 import type { Clip } from '../clip'
-import { C, GLYPH } from '../look'
-import {
-  EVERY_PROJECT,
-  everyProject,
-  filedAt,
-  homeOf,
-  isOnPath,
-  projectName,
-  samePlace,
-  up,
-} from '../places'
+import { C, clip as clipText, GLYPH } from '../look'
+import { EVERY_PROJECT, everyProject, filedAt, homeOf, isHome, projectName, up } from '../places'
 import type { Scene } from '../scene'
 import { drawAllView } from './every'
 import type { Block, Drawing, Els } from './kit'
@@ -40,29 +32,36 @@ const READING = 'Reading the board…'
 type Tab = {
   key: string
   glyph: string
-  /** Its words after the glyph; with none, the glyph is the press. */
-  label?: string
+  /** Its words after the glyph, the press. */
+  label: (scene: Scene) => string
+  /** Whether its label is cut short to leave the other tabs their full width. */
+  isFitted?: boolean
   color: string
   count: (scene: Scene) => number
   /** Where the tab takes the board. */
   to: (scene: Scene) => SitrepPlace
+  isLit: (scene: Scene) => boolean
 }
 
 const TABS: readonly Tab[] = [
   {
     key: 'tab:session',
     glyph: GLYPH.home,
+    label: scene => scene.work.status.name,
+    isFitted: true,
     color: C.now,
     count: scene => scene.work.waiting,
     to: homeOf,
+    isLit: isHome,
   },
   {
     key: 'tab:all',
     glyph: GLYPH.every,
-    label: 'All projects',
+    label: () => 'All projects',
     color: C.parked,
     count: scene => everyProject(scene).projects.reduce((sum, project) => sum + project.waiting, 0),
     to: () => EVERY_PROJECT,
+    isLit: scene => !isHome(scene),
   },
 ]
 
@@ -77,120 +76,118 @@ const ruleUnder = (d: Drawing, key: string, cells: number, lit?: string) => {
   )
 }
 
-/** A row's ways around the board: the buttons, the cells they take, and the rule under them. */
-type Ways = { row: RenderElement; used: number; rule: RenderElement }
-
-/** A row of ways around the board over its rule, the rule running on to the edge. */
-const drawWays = (d: Drawing, { row, used, rule }: Ways) => {
-  const { Box } = d.els
-
-  return (
-    <Box flexDirection="column">
-      {row}
-      <Box flexDirection="row">
-        {rule}
-        {ruleUnder(d, 'ways:rule', Math.max(0, d.width - used))}
-      </Box>
-    </Box>
-  )
-}
-
-/** A tab's words: its glyph, its label where it has one, and its count where anything waits. */
-const wordsOf = (tab: Tab, waiting: number) => [
+/** A tab's words: its glyph, its label, and its count where anything waits. */
+const wordsOf = (tab: Tab, label: string, waiting: number) => [
   tab.glyph,
-  ...(tab.label === undefined ? [] : [tab.label]),
+  label,
   ...(waiting > 0 ? [String(waiting)] : []),
 ]
 
 /** A tab's cells: its padding each side, and its words a cell apart. */
 const tabWidth = (words: readonly string[]) => 2 + words.join(' ').length
 
-/** A tab's glyph and label: the glyph in its colour, the label the press; or, with no label, the glyph the press. */
-const drawTabName = (d: Drawing, tab: Tab, isOn: boolean) => {
-  const { Text, Button } = d.els
-  const go = () => d.act.go(tab.to(d.scene))
-  const press = (label: string) => (
-    <Button key={tab.key} plain dimColor={!isOn} label={label} onPress={go} />
-  )
+/** A tab as drawn: its label, cut short where it gives way, what waits there, whether it is lit, and its cells. */
+type LaidTab = { tab: Tab; label: string; waiting: number; isOn: boolean; cells: number }
 
-  return tab.label === undefined
-    ? [press(tab.glyph)]
-    : [
-        <Text key={`${tab.key}:glyph`} color={isOn ? tab.color : C.grey}>
-          {tab.glyph}
-        </Text>,
-        press(tab.label),
-      ]
+const layTab = (scene: Scene, tab: Tab, label = tab.label(scene)): LaidTab => {
+  const waiting = tab.count(scene)
+
+  return {
+    tab,
+    label,
+    waiting,
+    isOn: tab.isLit(scene),
+    cells: tabWidth(wordsOf(tab, label, waiting)),
+  }
 }
 
-/** The tabs, the current one lit, each with what waits there. */
+/** A fitted tab, its label cut short to the cells the other tabs leave it. */
+const fitTab = (d: Drawing, { tab, label, waiting }: LaidTab, others: number) =>
+  layTab(d.scene, tab, clipText(label, d.width - others - tabWidth(wordsOf(tab, '', waiting))))
+
+/** The tabs across the board, a fitted one taking what the others leave. */
+const layTabs = (d: Drawing): LaidTab[] => {
+  const laid = TABS.map(tab => layTab(d.scene, tab))
+  const others = laid.reduce((sum, each) => sum + (each.tab.isFitted ? 0 : each.cells), 0)
+
+  return laid.map(each => (each.tab.isFitted ? fitTab(d, each, others) : each))
+}
+
+/** The tabs, the current one lit, each with what waits there, over their rule running on to the edge. */
 const drawTabs = (d: Drawing) => {
-  const { Box, Text } = d.els
-  const { scene } = d
-  const tabs = TABS.map(tab => {
-    const waiting = tab.count(scene)
+  const { Box, Text, Button } = d.els
+  const tabs = layTabs(d)
+  const used = tabs.reduce((sum, tab) => sum + tab.cells, 0)
 
-    return {
-      tab,
-      waiting,
-      isOn: samePlace(scene.place, tab.to(scene)),
-      cells: tabWidth(wordsOf(tab, waiting)),
-    }
-  })
-
-  const row = (
-    <Box flexDirection="row">
-      {tabs.map(({ tab, waiting, isOn, cells }) => (
-        <Box
-          key={`${tab.key}:box`}
-          width={cells}
-          flexShrink={0}
-          paddingX={1}
-          flexDirection="row"
-          gap={1}
-          backgroundColor={isOn ? C.tab : undefined}
-        >
-          {drawTabName(d, tab, isOn)}
-          {waiting > 0 && <Text color={isOn ? C.ask : C.grey}>{waiting}</Text>}
-        </Box>
-      ))}
+  return (
+    <Box flexDirection="column">
+      <Box flexDirection="row">
+        {tabs.map(({ tab, label, waiting, isOn, cells }) => (
+          <Box
+            key={`${tab.key}:box`}
+            width={cells}
+            flexShrink={0}
+            paddingX={1}
+            flexDirection="row"
+            gap={1}
+            backgroundColor={isOn ? C.tab : undefined}
+          >
+            <Text color={isOn ? tab.color : C.grey}>{tab.glyph}</Text>
+            <Button
+              key={tab.key}
+              plain
+              dimColor={!isOn}
+              label={label}
+              onPress={() => d.act.go(tab.to(d.scene))}
+            />
+            {waiting > 0 && <Text color={isOn ? C.ask : C.grey}>{waiting}</Text>}
+          </Box>
+        ))}
+      </Box>
+      <Box flexDirection="row">
+        {tabs.map(({ tab, isOn, cells }) =>
+          ruleUnder(d, `${tab.key}:rule`, cells, isOn ? tab.color : undefined),
+        )}
+        {ruleUnder(d, 'tabs:rule', Math.max(0, d.width - used))}
+      </Box>
     </Box>
   )
-
-  const rule = (
-    <Box flexDirection="row">
-      {tabs.map(({ tab, isOn, cells }) =>
-        ruleUnder(d, `${tab.key}:rule`, cells, isOn ? tab.color : undefined),
-      )}
-    </Box>
-  )
-
-  return drawWays(d, { row, used: tabs.reduce((sum, tab) => sum + tab.cells, 0), rule })
 }
 
-/** The gap between the step back up and the way home. */
-const BACK_GAP = 2
+/** Where the back row goes, one level up: anywhere but home and All projects, which have none. */
+const backOf = (scene: Scene): SitrepPlace | undefined =>
+  isHome(scene) || scene.place.level === 'all' ? undefined : up(scene.place)
 
-/** Off Lee's own path: one step back up the tree, and the way home. */
-const drawBackRow = (d: Drawing) => {
-  const { Box, Button } = d.els
-  const above = up(d.scene.place)
-  const upLabel = `${GLYPH.up} ${above.level === 'project' ? projectName(d.scene, above.project) : 'All projects'}`
-  const used = upLabel.length + BACK_GAP + GLYPH.home.length
-  const row = (
-    <Box flexDirection="row" gap={BACK_GAP}>
-      <Button key="up" plain label={upLabel} onPress={() => d.act.go(above)} />
-      <Button
-        key="home"
-        plain
-        dimColor
-        label={GLYPH.home}
-        onPress={() => d.act.go(homeOf(d.scene))}
-      />
+const placeName = (scene: Scene, place: SitrepPlace) =>
+  place.level === 'project' ? projectName(scene, place.project) : 'All projects'
+
+/** The step back up, under the tab rule. */
+const drawBackRow = (d: Drawing, above: SitrepPlace) => {
+  const { Button } = d.els
+  const label = clipText(`${GLYPH.up} ${placeName(d.scene, above)}`, d.width)
+
+  return <Button key="up" plain label={label} onPress={() => d.act.go(above)} />
+}
+
+/** The tabs' row and their rule. */
+const TAB_ROWS = 2
+
+const BACK_ROWS = 1
+
+/** The rows the header takes: the tabs and their rule, and the back row while it shows. */
+const headerRows = (scene: Scene) => TAB_ROWS + (backOf(scene) === undefined ? 0 : BACK_ROWS)
+
+/** The tabs over their rule, and the step back up under it while there is one; the view's first line right under. */
+const drawHeader = (d: Drawing) => {
+  const { Box } = d.els
+  const above = backOf(d.scene)
+
+  return (
+    <Box key="header" flexDirection="column" flexShrink={0}>
+      {drawTabs(d)}
+      {above !== undefined && drawBackRow(d, above)}
     </Box>
   )
-
-  return drawWays(d, { row, used, rule: ruleUnder(d, 'back:rule', used) })
 }
 
 /** The view of where the board is looking. */
@@ -212,12 +209,6 @@ const drawPlace = (d: Drawing): Block[] => {
       return drawAllView(d)
   }
 }
-
-/** The tabs, or the back row, over the view of where the board is looking; the view's first line right under their rule. */
-const drawView = (d: Drawing): Block[] => [
-  { key: 'ways', element: isOnPath(d.scene) ? drawTabs(d) : drawBackRow(d) },
-  ...drawPlace(d),
-]
 
 type PaneProps = Pick<RenderPropsOf['Pane'], 'bodyColumns' | 'placement' | 'scroll'>
 
@@ -273,9 +264,10 @@ const drawBlock = (d: Drawing, { key, element, isSpaced }: Block, Client?: Clien
 
 /**
  * A docked board: a tree a row shorter than the window, so the engine has
- * nothing to scroll and never moves it; the list in the rows above Ready to
- * send, clipped, and shifted up by how far down it stands; Ready to send
- * under it, still. Its last row runs past the tree, and still shows.
+ * nothing to scroll and never moves it; the header, still; the list in the
+ * rows between it and Ready to send, clipped, and shifted up by how far
+ * down it stands; Ready to send under it, still. Its last row runs past the
+ * tree, and still shows.
  */
 const drawClipped = (
   d: Drawing,
@@ -287,12 +279,16 @@ const drawClipped = (
   const { Box } = d.els
   const { bodyRows } = props.scroll
   const ready = readyOf(d.scene, d.width, readyCap(bodyRows))
-  const listRows = bodyRows - (ready === undefined ? SPARE_ROWS : readyRows(ready))
+  const footRows = ready === undefined ? SPARE_ROWS : readyRows(ready)
+  const listRows = bodyRows - headerRows(d.scene) - footRows
   const list = [...blocks, { key: 'end', element: <Box height={END_ROWS} /> }]
   const top = clip({ place: d.scene.place, listRows, blocks: list })
 
   return (
     <Box flexDirection="column" height={bodyRows - SPARE_ROWS}>
+      <Box flexShrink={0} paddingX={1}>
+        {drawHeader(d)}
+      </Box>
       <Box flexDirection="column" flexShrink={0} height={listRows} overflow="hidden">
         <Box flexDirection="column" flexShrink={0} marginTop={-top} paddingX={1}>
           {list.map(block => drawBlock(d, block, Client))}
@@ -307,7 +303,7 @@ const drawClipped = (
   )
 }
 
-/** A board inline, or docked where nothing can measure it: Ready to send after the view, at the foot of a docked window the view leaves short. */
+/** A board inline, or docked where nothing can measure it: the header and the view, then Ready to send, at the foot of a docked window the view leaves short. */
 const drawFlowing = (d: Drawing, blocks: readonly Block[], props: PaneProps) => {
   const { Box } = d.els
   const ready = readyOf(d.scene, d.width)
@@ -318,6 +314,7 @@ const drawFlowing = (d: Drawing, blocks: readonly Block[], props: PaneProps) => 
       paddingX={1}
       minHeight={d.isDock ? props.scroll.bodyRows : undefined}
     >
+      {drawHeader(d)}
       {blocks.map(block => drawBlock(d, block))}
       <Box flexGrow={1} minHeight={GAP_ROWS} />
       {ready !== undefined && drawReady(d, ready)}
@@ -353,7 +350,7 @@ export const drawPane = (
     width: widthOf(props),
     isDock: props.placement === 'dock',
   }
-  const blocks = drawView(d)
+  const blocks = drawPlace(d)
 
   return d.isDock && 'Client' in els
     ? drawClipped(d, els.Client, blocks, props, clip)

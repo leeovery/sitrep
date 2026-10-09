@@ -1,10 +1,10 @@
 /**
- * The docked board's list, clipped above Ready to send (DESIGN.md, "One
- * engine, two front ends"). The board's tree is a row shorter than its
- * window, so the engine never has anything to scroll; the list sits in the
- * rows above the box, shifted up by how far down it stands, which the
- * board's own scroll and focus hooks move and `$.state` keeps for the place
- * the board looks at. Nothing else moves it: a list that has shrunk under
+ * The docked board's list, clipped between its header and Ready to send
+ * (DESIGN.md, "One engine, two front ends"). The board's tree is a row
+ * shorter than its window, so the engine never has anything to scroll; the
+ * list sits in the rows between the two, shifted up by how far down it
+ * stands, which the board's own scroll and focus hooks move and `$.state`
+ * keeps for the place the board looks at. Nothing else moves it: a list that has shrunk under
  * it only stops it short.
  *
  * Each block of the list is measured by a `Client` spanning it: the list is
@@ -151,7 +151,8 @@ const holds = (node: unknown, key: string): boolean => {
 /**
  * Brings the block holding the button the focus lands on into view, moving
  * the list the least; a block taller than the rows showing, from its top.
- * A button no block holds is Ready to send's, which always shows.
+ * A button no block holds is the header's or Ready to send's, which always
+ * show.
  */
 export const revealFocus = async (host: Host, element: string | undefined) => {
   const list = drawn

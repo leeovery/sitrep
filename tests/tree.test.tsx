@@ -82,9 +82,9 @@ test('the board walks from this session to every project, down into a project an
 
   expect(await ui.find({ key: `pick:${asked}` })).toBeDefined()
 
-  // All projects, then this project: no tab holds it, so a step back up takes the tabs' place.
+  // All projects, then this project: the tabs stay, and a step back up sits under them.
   await toProject(ui)
-  expect(await ui.find({ key: 'tab:all' })).toBeUndefined()
+  expect(await ui.find({ key: 'tab:all' })).toBeDefined()
   expect(await ui.find({ key: 'up', text: '← All projects' })).toBeDefined()
 
   // Down into another session of it, and back up to the project, then to every project.
@@ -93,7 +93,8 @@ test('the board walks from this session to every project, down into a project an
   await ui.press({ key: 'up' })
   expect(w.state.pane).toMatchObject({ place: { level: 'project', project: PROJECT.key } })
   await ui.press({ key: 'up' })
-  expect(await ui.find({ key: 'tab:all' })).toBeDefined()
+  expect(w.state.pane).toMatchObject({ place: { level: 'all' } })
+  expect(await ui.find({ key: 'up' }), 'none on All projects').toBeUndefined()
 
   // Quiet ones fold away; down into another project's session and back up twice.
   expect(await ui.find({ key: `proj:${ELSEWHERE.key}` })).toBeDefined()
@@ -106,7 +107,7 @@ test('the board walks from this session to every project, down into a project an
   expect(await ui.find({ key: 'up', text: '← All projects' })).toBeDefined()
 
   // Home, from anywhere.
-  await ui.press({ key: 'home' })
+  await ui.press({ key: 'tab:session' })
   expect(await ui.find({ key: `pick:${asked}` })).toBeDefined()
 })
 
@@ -128,7 +129,7 @@ test('closed and opened again, the board is home, wherever it had gone', async (
   expect(await ui.find({ key: 'tab:session' })).toBeDefined()
 })
 
-test('on its own path the board shows two tabs, home by its glyph alone and All projects, each with what waits there', async ($, on) => {
+test('the board shows two tabs, home by its name and All projects, each with what waits there', async ($, on) => {
   const w = world($, on)
 
   await neighbourhood(w)
@@ -137,17 +138,17 @@ test('on its own path the board shows two tabs, home by its glyph alone and All 
   const counts = async () =>
     Promise.all(['tab:session:box', 'tab:all:box'].map(async key => rowsOf(await ui.find({ key }))))
 
-  expect(await ui.find({ key: 'tab:session', text: GLYPH.home })).toBeDefined()
+  expect(await ui.find({ key: 'tab:session', text: 'Dashboard redesign' })).toBeDefined()
   expect(await ui.find({ key: 'tab:all', text: 'All projects' })).toBeDefined()
   expect(await ui.find({ key: 'tab:project' })).toBeUndefined()
   expect(await ui.find({ type: 'Button', text: /This session/ })).toBeUndefined()
   expect(await counts(), 'one waits here, three across every project').toEqual([
-    [' ⌂ 1'],
+    [' ⌂ Dashboard redesign 1'],
     [' ≡ All projects 3'],
   ])
 
   await ui.press({ key: 'tab:all' })
-  expect(await counts()).toEqual([[' ⌂ 1'], [' ≡ All projects 3']])
+  expect(await counts()).toEqual([[' ⌂ Dashboard redesign 1'], [' ≡ All projects 3']])
 })
 
 test("another session's view is the session view: its status, its asks with working buttons, its log", async ($, on) => {

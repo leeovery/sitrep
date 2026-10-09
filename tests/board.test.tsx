@@ -62,7 +62,7 @@ test(
 
     const ui = await w.pane()
 
-    expect(await ui.find({ key: 'tab:session', text: '⌂' })).toBeDefined()
+    expect(await ui.find({ key: 'tab:session', text: 'Dashboard redesign' })).toBeDefined()
     expect(await ui.find({ type: 'Text', text: 'Dashboard redesign' })).toBeDefined()
     expect(await ui.find({ type: 'Text', text: '· Switchboard' })).toBeDefined()
     expect(

@@ -56,7 +56,7 @@ const answer = async (ui: Board, work: string, item: string) => {
   await ui.press({ key: `go:${work}` })
   await ui.press({ key: `pick:${item}` })
   await ui.press({ key: `yes:${item}` })
-  await ui.press({ key: 'home' })
+  await ui.press({ key: 'tab:session' })
 }
 
 /** The replies a file holds, by id. */

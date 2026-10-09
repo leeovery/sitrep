@@ -180,8 +180,8 @@ post; the board is best effort, and in use Claude has not forgotten.
 ### The board: a tree, with this session as home
 
 ```
- ⌂ 3  ≡ All projects 8
-━━━━━─────────────────────────────────────────────────────────────
+ ⌂ Dashboard redesign 3  ≡ All projects 8
+━━━━━━━━━━━━━━━━━━━━━━━━──────────────────────────────────────────
 Dashboard redesign · Switchboard
 Redesign the dashboard, area by area in Paper
 
@@ -217,16 +217,23 @@ DONE ─────────────────────────
 show all 4
 ```
 
-- **On Lee's own path** (this session and All projects) the board shows two
-  tabs: home as `⌂` and its waiting count alone, on wide boards and narrow
-  ones alike, and `≡ All projects` with what waits across every project.
-  **Anywhere else** the tabs give way to `← <one level up>` and `⌂`, the
-  familiar nested-page pattern: `← All projects  ⌂` over a project's view,
-  this project's included, since no tab holds it; `← <its project>  ⌂` over
-  another session.
+- **The header never changes its tabs.** Every place draws the same two:
+  home, as `⌂`, this session's name and its waiting count, and
+  `≡ All projects` with what waits across every project. Home is lit at
+  home; anywhere else (All projects, a project's view, this project's
+  included, any session's but this one) All projects is lit. Home's name is
+  what it is pressed by, wide enough for a thumb, and is cut short to fit:
+  All projects keeps its full width, and the name takes what is left. With
+  no work held, the board says so, and there are no tabs.
+- **Browsing, a back row** sits under the tab rule, one level up:
+  `← All projects` over a project's view, `← <its project>` over a
+  session's. Home and All projects have none. It carries no `⌂`: the first
+  tab is always home.
 - Docked or inline, there is no row above the tabs: they are the board's
   first line. There is no collapse: the phone's board and the docked one
-  start alike.
+  start alike. Docked, the header stays still at the top while the list
+  scrolls under it, as Ready to send stays still at the foot; inline, it
+  is the board's first rows, and scrolls with it.
 - **This session** (home, the default): name and summary, For you, Status, Log,
   Parked, Done. What waits on Lee comes first.
 - **All projects**: this project first, then the busiest. Each project's open
@@ -241,8 +248,9 @@ show all 4
   has no Done.
 
   ```
-   ← All projects  ⌂
-  ──────────────────────────────────────────────────────────────────
+   ⌂ Dashboard redesign 3  ≡ All projects 8
+  ────────────────────────━━━━━━━━━━━━━━━━━━────────────────────────
+  ← All projects
   Switchboard · 2 waiting on you
 
   SESSIONS ─────────────────────────────────────────────── 2 of 3 open
@@ -298,7 +306,8 @@ show all 4
   is open, and the asks Lee's send just closed, for a moment.
 - Each tab carries what waits there: home, this session's asks; All
   projects, every project's.
-- Each view's first line sits directly under the tab rule, with no blank row.
+- Each view's first line sits directly under the header (the tab rule, or
+  the back row under it), with no blank row.
 - Every section heading has a few words on the right: `1 waiting`,
   `what happened`, `updated 12m ago`, `2 of 3 open`.
 - **Log lines open** to the detail behind them, as a tree. A project's log
@@ -452,17 +461,17 @@ the ask shows `↺ undo`. **send to Claude** sends them; **cancel all** clears
 them.
 
 **Docked**, the box stays still at the foot of the board's window, under
-the board's list, which scrolls above it; the list's last line scrolls
-clear of it. **Inline** (the phone) it sits at the end of the content. Each
-of its lines keeps to one row, cut short, so its height follows from what it
-holds. Docked it takes under half the window: a queue too long for that
-lists what fits and ends `… 3 more`, still one box. Only Lee moves the list:
-queuing a reply, sending, a new ask arriving and the board drawing again
-leave it where Lee had it, and only a list that shrank under it stops it
-short at its new end. Each place the board goes starts at its top, and so
-does the board opened again. Tab and the arrows step between buttons, and
-one below the fold brings its item into view (see "One engine, two front
-ends").
+the board's list, which scrolls between it and the header; the list's last
+line scrolls clear of it. **Inline** (the phone) it sits at the end of the
+content. Each of its lines keeps to one row, cut short, so its height
+follows from what it holds. Docked it takes under half the window: a queue
+too long for that lists what fits and ends `… 3 more`, still one box. Only
+Lee moves the list: queuing a reply, sending, a new ask arriving and the
+board drawing again leave it where Lee had it, and only a list that shrank
+under it stops it short at its new end. Each place the board goes starts
+at its top, and so does the board opened again. Tab and the arrows step
+between buttons, and one below the fold brings its item into view (see
+"One engine, two front ends").
 
 On an inline board (the phone layout) a send closes the board as soon as it
 is claimed: the message to this session claimed, or, with none, the replies
@@ -703,11 +712,15 @@ $XDG_STATE_HOME/sitrep/, else ~/.local/state/sitrep/
       engine's window never moves, and that row tells a page key (the
       window's rows) from Home and End (the tree's). The scroll hook holds
       the engine at the top (`offset: 0`).
-    - **The board.** The list sits in a box of the rows above Ready to
-      send, clipped (`overflow: "hidden"`), and shifted up by how far down
-      it stands (`marginTop`); Ready to send sits under it, still, its last
-      row past the tree's end, which paints. With nothing in Ready to send
-      the list takes the tree. How far down the list stands is kept in
+    - **The board.** The header (the tabs, their rule, and the back row
+      while it shows) sits at the tree's top, still. The list sits in a box
+      of the rows between it and Ready to send, clipped (`overflow:
+      "hidden"`), and shifted up by how far down it stands (`marginTop`);
+      Ready to send sits under it, still, its last row past the tree's end,
+      which paints. The list's rows are the window's, less the header's, and
+      less Ready to send's or, with nothing in it, the tree's spare row; the
+      header's rows follow from where the board is, as Ready to send's
+      follow from what it holds. How far down the list stands is kept in
       `$.state` with the place it was moved at, so a new place starts at its
       top, and closing the board forgets it. The scroll hook moves it: the
       wheel as it turns, a page key by the rows showing, Home and End to the
@@ -716,8 +729,8 @@ $XDG_STATE_HOME/sitrep/, else ~/.local/state/sitrep/
       clips always, docked, not only while Ready to send holds something:
       switching between the engine's window and the board's own as the
       queue filled would move what Lee is looking at.
-    - **Measuring.** The view is drawn as a list of blocks: the tabs, the
-      line under them, each section's heading, each entry of a list (an
+    - **Measuring.** The view is drawn as a list of blocks: the line under
+      the header, each section's heading, each entry of a list (an
       ask, a log line, a parked item, a closed ask, a session, a project),
       Status whole, the foot, and a blank row closing the list; the blank
       row between sections is the next block's own. Docked, a `Client`
@@ -738,11 +751,12 @@ $XDG_STATE_HOME/sitrep/, else ~/.local/state/sitrep/
       with nothing for the engine to scroll, an arrow has no rows to move.
       The focus hook brings the block holding the button the focus lands
       on into view, moving the least, from its top where it is taller than
-      the rows showing; Ready to send's own always show. Text with no
-      button in it is reached by the wheel and the page keys.
-    - **Dock only.** Inline, the board flows as it always has, Ready to send
-      after the view, and the engine scrolls it; so does a dock on a
-      surface that draws no `Client`.
+      the rows showing; the header's own and Ready to send's always show,
+      and never move the list. Text with no button in it is reached by the
+      wheel and the page keys.
+    - **Dock only.** Inline, the board flows as it always has, the header
+      first and Ready to send after the view, and the engine scrolls it; so
+      does a dock on a surface that draws no `Client`.
   - `$.prompt.submit` while Claude is mid-turn (settled in a live run): the
     call waits, the prompt never folded into the running turn; once that
     turn completes, the prompt starts a turn of its own and the call
@@ -877,8 +891,8 @@ $XDG_STATE_HOME/sitrep/, else ~/.local/state/sitrep/
   come after its tree, at its title's column.
 - Breathing room: a column each side, a blank row after an opened ask's
   buttons, between projects in All projects, and between sections; none
-  between the entries of a list (log, For you, done, parked), nor between
-  the tabs and the first line under them.
+  between the entries of a list (log, For you, done, parked), nor in the
+  header or between it and the first line under it.
 - No indents left floating: anything hanging off an item hangs from a `└`.
 
 ## Where it lives

@@ -1,7 +1,7 @@
 /**
  * The board as a tree, with this session as home: a session sits in its
- * project, and every project under All projects. Lee's own path (this
- * session, every project) is the tabs; anywhere else is a step back up.
+ * project, and every project under All projects. Home and All projects are
+ * the tabs; anywhere else is also a step back up.
  * Also what each place shows: its works, its asks, its log, what it parked.
  */
 import {
@@ -52,9 +52,8 @@ export const samePlace = (a: SitrepPlace, b: SitrepPlace) =>
 export const up = (place: SitrepPlace): SitrepPlace =>
   place.level === 'session' ? projectPlace(place.project) : EVERY_PROJECT
 
-/** Lee's own path, the tabs: this session and every project. */
-export const isOnPath = (scene: Scene) =>
-  [homeOf(scene), EVERY_PROJECT].some(tab => samePlace(scene.place, tab))
+/** Whether the board is home, on this session. */
+export const isHome = (scene: Scene) => samePlace(scene.place, homeOf(scene))
 
 /** A work the board can draw in full: the held one, or another it read. */
 export const filedAt = (scene: Scene, work: string): Filed | undefined =>

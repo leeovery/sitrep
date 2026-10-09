@@ -129,8 +129,11 @@ const spanOf = (blocks: Measured, key: string) => {
   return { from: sum(blocks.slice(0, at)), to: sum(blocks.slice(0, at + 1)) }
 }
 
-/** The rows of the list showing above Ready to send, as drawn. */
+/** The rows of the list showing between the header and Ready to send, as drawn. */
 const listRows = async (ui: Pane) => Number((await clipping(ui)).clip?.height)
+
+/** The rows the header draws: the tabs, their rule, and the back row while it shows. */
+const headerRows = async (ui: Pane) => rowsOf(await ui.find({ key: 'header' })).length
 
 /** The rows Ready to send draws: each of its lines, as tests/drawn lays them out, and its border. */
 const drawnRows = async (ui: Pane) => rowsOf(await ui.find({ key: 'ready' })).length + BORDER
@@ -150,7 +153,7 @@ const isWrapping = (text: Drawn) =>
 const expectHeightKept = async (ui: Pane, scene: string, bodyRows = BODY_ROWS) => {
   const ready = await ui.find({ key: 'ready' })
 
-  expect(bodyRows - (await listRows(ui)), scene).toBe(await drawnRows(ui))
+  expect(bodyRows - (await headerRows(ui)) - (await listRows(ui)), scene).toBe(await drawnRows(ui))
   expect(textsIn(ready ?? {}).filter(isWrapping), scene).toEqual([])
 }
 
@@ -191,7 +194,7 @@ const focused = (element: string) =>
     origin: { kind: 'person' },
   }) as never
 
-test('docked, the tree is a row short of the window; the list is clipped above Ready to send, which sits under it', async ($, on) => {
+test('docked, the tree is a row short of the window; the list is clipped between the header and Ready to send, which sit still', async ($, on) => {
   const w = world($, on)
   const {
     ids: [id = ''],
@@ -201,19 +204,42 @@ test('docked, the tree is a row short of the window; the list is clipped above R
   await approve(ui, id)
 
   const { tree, clip, list } = await clipping(ui)
-  const [, foot] = ((await ui.findAll({ type: 'Box' }))[0]?.children ?? []) as Drawn[]
+  const [head, , foot] = ((await ui.findAll({ type: 'Box' }))[0]?.children ?? []) as Drawn[]
+  const lit = '━'.repeat(' ⌂ Dashboard redesign 1 '.length)
 
   expect(tree?.height).toBe(BODY_ROWS - 1)
-  expect(clip).toMatchObject({ height: BODY_ROWS - (await drawnRows(ui)), overflow: 'hidden' })
+  expect(rowsOf(head as never), 'the header, over the list').toEqual([
+    '  ⌂ Dashboard redesign 1  ≡ All projects 1',
+    ` ${lit}${'─'.repeat(DOCKED.bodyColumns - 2 - lit.length)}`,
+  ])
+  expect(clip).toMatchObject({
+    height: BODY_ROWS - 2 - (await drawnRows(ui)),
+    overflow: 'hidden',
+  })
   expect(list?.marginTop, 'at its top').toBe(-0)
   expect(rowsOf(foot as never)[0], 'Ready to send, under the list').toMatch(/READY TO SEND/)
 
   await ui.press({ key: 'cancel-all' })
 
   expect(await ui.find({ key: 'ready' })).toBeUndefined()
-  expect((await clipping(ui)).clip?.height, 'with nothing in it, the list takes the tree').toBe(
-    BODY_ROWS - 1,
-  )
+  expect(
+    (await clipping(ui)).clip?.height,
+    'with nothing in it, the list takes the tree under the header',
+  ).toBe(BODY_ROWS - 1 - 2)
+})
+
+test('docked, the back row is a header row too: the list is a row shorter under it', async ($, on) => {
+  const w = world($, on)
+  const { ui } = await asking(w, 1)
+
+  await toProject(ui)
+
+  const [head] = ((await ui.findAll({ type: 'Box' }))[0]?.children ?? []) as Drawn[]
+
+  expect(rowsOf(head as never)[2]).toBe(' ← All projects')
+  expect(await headerRows(ui)).toBe(3)
+  expect(await listRows(ui)).toBe(BODY_ROWS - 1 - 3)
+  expect(await ui.find({ type: 'Client', key: 'measure:header' })).toBeUndefined()
 })
 
 test('docked, each block of the list is measured by a Client spanning it, keyed by the block', async ($, on) => {
@@ -223,8 +249,7 @@ test('docked, each block of the list is measured by a Client spanning it, keyed 
   const keys = clients.map(client => client.key)
 
   expect(new Set(keys).size).toBe(keys.length)
-  expect(keys.slice(0, 4), 'the newest ask first').toEqual([
-    'measure:ways',
+  expect(keys.slice(0, 3), 'the header unmeasured, the newest ask first').toEqual([
     'measure:context',
     'measure:foryou',
     `measure:ask:${w.state.attachment?.work}:${ids.at(-1)}`,
@@ -360,7 +385,7 @@ test('topShowing: the least move that shows the rows whole; rows more than show,
   expect(topShowing(40, 70, 0, 20), 'taller than the rows showing').toBe(40)
 })
 
-test('Tab onto a button below the fold brings its block into view, moving the least; one above, to its top', async ($, on) => {
+test("Tab onto a button below the fold brings its block into view, moving the least; one above, to its top; the header's never move it", async ($, on) => {
   const w = world($, on)
 
   beneath(on)
@@ -385,14 +410,39 @@ test('Tab onto a button below the fold brings its block into view, moving the le
   expect(await topOf(ui)).toBe(below.to - showing)
 
   await $.ui.focus(focused(`pick:${last}`))
-  expect(await topOf(ui)).toBe(spanOf(blocks, `ask:${w.state.attachment?.work}:${last}`).from)
 
+  const above = spanOf(blocks, `ask:${w.state.attachment?.work}:${last}`).from
+
+  expect(above).toBeGreaterThan(0)
+  expect(await topOf(ui)).toBe(above)
+
+  for (const element of ['tab:session', 'tab:all', 'send']) {
+    await $.ui.focus(focused(element))
+    expect(await topOf(ui), `${element}: the header's and Ready to send's always show`).toBe(above)
+  }
+})
+
+test('docked, a header button never moves the list: the lit tab pressed, the back row and All projects reached', async ($, on) => {
+  const w = world($, on)
+
+  beneath(on)
+  w.elsewhere(LEDGER).write(yesAsk('k3', 'Review the ledger schema'))
+
+  const { ui } = await long(w, () => w.opened())
+
+  await measure(ui, () => 10)
+  await $.ui.scroll(scrolled({ by: 5, ...WHEEL }))
+  await $.ui.focus(focused('tab:session'))
+  await ui.press({ key: 'tab:session' })
+  expect(await topOf(ui), 'home, pressed at home').toBe(5)
+
+  await toProject(ui)
+  await measure(ui, () => 10)
+  await $.ui.scroll(scrolled({ by: 4, ...WHEEL }))
+  await $.ui.focus(focused('up'))
+  expect(await topOf(ui), 'the back row, reached').toBe(4)
   await $.ui.focus(focused('tab:all'))
-  expect(await topOf(ui), 'the tabs').toBe(0)
-
-  await $.ui.scroll(scrolled({ by: 7, ...WHEEL }))
-  await $.ui.focus(focused('send'))
-  expect(await topOf(ui), "Ready to send's own always show").toBe(7)
+  expect(await topOf(ui), 'the lit All projects, reached').toBe(4)
 })
 
 test('a new place starts at its top: All projects, a project, another session and home again; the board closed forgets it', async ($, on) => {
@@ -423,7 +473,7 @@ test('a new place starts at its top: All projects, a project, another session an
   expect(await topOf(ui), 'another session').toBe(0)
 
   await down()
-  await ui.press({ key: 'home' })
+  await ui.press({ key: 'tab:session' })
   expect(await topOf(ui), 'home').toBe(0)
 
   await down()
@@ -555,7 +605,7 @@ test('replies sent into another work keep the box as tall as it draws, where the
   await ui.press({ key: `go:${LEDGER.id}` })
   await ui.press({ key: 'pick:k3' })
   await ui.press({ key: 'yes:k3' })
-  await ui.press({ key: 'home' })
+  await ui.press({ key: 'tab:session' })
   await ui.press({ key: 'send' })
 
   expect(await ui.find({ type: 'Text', text: '⧗ waiting for its turn to end' })).toBeDefined()

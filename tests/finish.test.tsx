@@ -169,10 +169,10 @@ test('a work Claude finished counts nothing in its own window: the band and the 
   const ui = await w.opened(WIDE)
 
   expect(await band.find({ key: 'band:for-you', text: '1 for you' })).toBeDefined()
-  expect(rowsOf(await ui.find({ key: 'tab:session:box' }))).toEqual([' ⌂ 1'])
+  expect(rowsOf(await ui.find({ key: 'tab:session:box' }))).toEqual([' ⌂ Dashboard redesign 1'])
 
   await w.call('finish', { reason: 'Shipped' })
 
   expect(await band.find({ key: 'band:for-you', text: '0 for you' })).toBeDefined()
-  expect(rowsOf(await ui.find({ key: 'tab:session:box' }))).toEqual([' ⌂'])
+  expect(rowsOf(await ui.find({ key: 'tab:session:box' }))).toEqual([' ⌂ Dashboard redesign'])
 })
