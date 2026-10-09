@@ -1,8 +1,9 @@
 /**
  * What every part of the board draws with, and the pieces they share: the
  * line naming what a view is of, a section's heading, a glyph before a
- * line, an item's title and mark with its tree hanging from the mark, a
- * line hung from a `└`, and a reply waiting in Ready to send or on its way.
+ * line, an item's title and mark with its tree hanging from the mark, the
+ * row every list's entries share, a line hung from a `└`, and a reply
+ * waiting in Ready to send or on its way.
  *
  * Drawing is pure: a surface's element table and plain data in, a tree
  * out; what a button does is the actions' (hooks/actions.ts).
@@ -18,7 +19,7 @@ import {
 } from '../../core'
 import type { SitrepQueued } from '../../types'
 import type { Actions } from '../actions'
-import { C, clip, GLYPH, wrapped } from '../look'
+import { ago, C, clip, GLYPH, wrapped } from '../look'
 import { isCarried } from '../queue'
 import type { Scene } from '../scene'
 
@@ -96,7 +97,7 @@ export const heading = (
   noteColor: string = C.grey,
 ) => {
   const { Box, Text } = els
-  const fill = Math.max(2, width - label.length - note.length - 3)
+  const fill = Math.max(2, width - label.length - note.length - 2)
 
   return (
     <Box flexDirection="row" gap={1}>
@@ -254,8 +255,52 @@ export const tree = (d: Drawing, key: string, branches: readonly Branch[], colum
   )
 }
 
+/** An entry of a list (a log line, a parked item, a closed ask), as its row draws it. */
+export type Row = {
+  /** The row's own key; its tree's are made from it. */
+  key: string
+  mark: Mark
+  title: string
+  /** When it happened, as the age on the right says. */
+  at: number
+  isOpen: boolean
+  /** The title's press: its key, and what it does. */
+  press: { key: string; onPress: () => void }
+  branches: readonly Branch[]
+  /** What comes after the tree, under the title. */
+  after?: RenderElement | false
+}
+
+/**
+ * The row every list draws its entries with: the mark, the title as the
+ * press that opens it, clipped to a line until it is opened, and the age on
+ * the right; the tree hanging from the mark, a stem beside the title's
+ * further lines.
+ */
+export const drawRow = (
+  d: Drawing,
+  { key, mark, title, at, isOpen, press, branches, after }: Row,
+) => {
+  const { Box, Text } = d.els
+  const lines = titleLines(d, title, isOpen)
+
+  return (
+    <Box key={key} flexDirection="column">
+      <Box flexDirection="row" gap={1}>
+        {drawMark(d, mark, lines.length, branches.length > 0)}
+        <Box flexGrow={1} flexShrink={1}>
+          {drawTitle(d, press.key, lines, press.onPress)}
+        </Box>
+        <Text color={C.grey}>{ago(d.scene.now, at)}</Text>
+      </Box>
+      {tree(d, `tree:${key}`, branches)}
+      {after}
+    </Box>
+  )
+}
+
 /** Soft words hung under an item, a reply or how it closed, and what goes after them on the line. */
-export const replyLine = ({ els }: Drawing, text: string, after?: RenderElement) => {
+const replyLine = ({ els }: Drawing, text: string, after?: RenderElement) => {
   const { Box, Text } = els
 
   return (

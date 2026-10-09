@@ -178,22 +178,32 @@ post; the board is best effort, and in use Claude has not forgotten.
 ```
                                                          ⇥ collapse
 
- ⌂ This session 1  ▤ Switchboard 3  ≡ All projects 7     ◇ 2 parked
+ ⌂ This session 2  ▤ Switchboard 3  ≡ All projects 7     ◇ 2 parked
 ━━━━━━━━━━━━━━━━━━────────────────────────────────────────────────
 Dashboard redesign · Switchboard
 Redesign the dashboard, area by area in Paper
-FOR YOU ──────────────────────────────────────────────── 1 waiting
+
+FOR YOU ──────────────────────────────────────────────── 2 waiting
 ◆ Review Sessions & Runway, round 1                             2h
 └ In Paper: the dashboard file, page "round 1", frames 1–6
+
+◆ Choose how long the ledger keeps requests                     3h
+
 STATUS ─────────────────────────────────────────── updated 12m ago
 • Waiting on your review of Sessions & Runway, round 1
 • Drawing Usage, round 2
 ◦ next: Usage, round 3
+
 LOG ──────────────────────────────────────────────── what happened
-12m  • Status: now also drawing Usage, round 2
-DONE ──────────────────────────────────────────────────── 1 closed
-✓ Review the dashboard's Overview, round 2
-└ approved · 1d ago
+• Status: now also drawing Usage, round 2                      12m
+• PR #82 merged                                                 1h
+◇ Picked up from parked: A tmux indicator                       2h
+
+DONE ──────────────────────────────────────────────────── 4 closed
+✓ Review the dashboard's Overview, round 2                      1d
+✓ Grant Ghostty notification permission                         1d
+✓ Run the production apply                                      2d
+show all 4
 ```
 
 - **On Lee's own path** (this session, its project, all projects) the board shows
@@ -228,16 +238,20 @@ DONE ─────────────────────────
   now, ignored ones aside (`4 closed`), and it lists the latest 3, the newest
   closed first. With more, `show all 4` opens it to every one and then reads
   `show fewer`, as a selection does (closing the board puts it away). Each is
-  faint, its title on one line, and hangs how it closed and when: the reply
-  that closed it (`approved · 2h ago`, `→ Forever · 1d ago`), or
-  `resolved by Claude: <reason> · 2h ago`. For you holds only what is open,
-  and the asks Lee's send just closed, for a moment.
+  a list's row: a green `✓`, its title, and how long ago it closed. Opened,
+  as any item opens, it shows its whole title and hangs how it closed: the
+  reply that closed it (`approved`, `→ Forever`), or
+  `resolved by Claude: <reason>`. One opened past the latest 3 keeps DONE
+  open to every one, and `show fewer` closes both. For you holds only what
+  is open, and the asks Lee's send just closed, for a moment.
 - Each tab carries what waits there. All projects is read only while the board
   looks at it, so its tab has a count only then.
 - Each view's first line sits directly under the tab rule, with no blank row.
 - Every section heading has a few words on the right: `1 waiting`,
   `what happened`, `updated 12m ago`, `2 of 3 open`.
-- **Log lines open** to the detail behind them, as a tree.
+- **Log lines open** to the detail behind them, as a tree. A project's log
+  names each line's session before its text (`Request ledger: Wrote the
+  schema`).
 - **Parked** is a view of the board, scoped to where the board is looking,
   opened from the count at the end of the tabs' row.
 - **Collapse** turns the board into the glance: counts on one row, what is under
@@ -642,14 +656,23 @@ $XDG_STATE_HOME/sitrep/, else ~/.local/state/sitrep/
 - **White:** anything clickable, and the main content.
 - **Soft:** lines describing the item above them (a summary, what a session is
   doing, a reply, a log detail).
-- **Grey:** ages, counts, heading notes. **Faint:** closed things.
+- **Grey:** ages, counts, heading notes. **Faint:** closed things (a closed
+  session, an ask Lee's send just closed), but not DONE's asks: each is a
+  row to open, its `✓` green and its title white.
 - **Colour:** glyphs, headings and amber waiting counts only; and, in the
   ask's amber, the `needs:` line of an ask that needs something back, since
   it is a request of Lee's, not a description.
 - Glyphs: `◆` ask, `◇` parked, `•` under way, `◦` next, `└ ├` trees, `⌂` home.
   No glyph that reads as "expand" unless it expands.
-- Breathing room: a column each side, a blank row between asks and between
-  sections, none between the tabs and the first line under them.
+- **One row for every list.** A log line, a parked item and a closed ask
+  are drawn alike: the mark, the title (white, and the press that opens it)
+  on one line, clipped, and the age on the right, in grey. Opened, the
+  title shows in full, a `│` beside its further lines, and the detail hangs
+  from the mark as a tree. An ask's row is its own: it carries buttons.
+- Breathing room: a column each side, a blank row between asks, between
+  projects in All projects, and between sections; none between the entries
+  of a list (log, done, parked), nor between the tabs and the first line
+  under them.
 - No indents left floating: anything hanging off an item hangs from a `└`.
 
 ## Where it lives

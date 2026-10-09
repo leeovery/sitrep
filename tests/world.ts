@@ -58,6 +58,9 @@ export const DOCKED: RenderPropsOf['Pane'] = {
   view: {},
 }
 
+/** The cells the docked board draws a row across, inside the column it keeps free each side. */
+export const ACROSS = DOCKED.bodyColumns - 2
+
 export const INLINE: RenderPropsOf['Pane'] = { ...DOCKED, placement: 'inline' }
 
 /** The board docked beside a 150-column terminal, as it measured live: room for every tab's full label, counts and all, beside the parked count. */

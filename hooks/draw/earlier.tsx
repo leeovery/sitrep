@@ -1,18 +1,20 @@
 /**
  * A session's DONE, at the foot of its view: the asks closed earlier, the
- * newest closed first, each hung with how it closed and when. It shows the
- * latest few, and a press opens it to every one.
+ * newest closed first, each opening to how it closed. It shows the latest
+ * few, and a press opens it to every one.
  */
 import { answerOf, closingReply, type Ask } from '../../core'
-import { agoWords, C, GLYPH } from '../look'
+import { C, GLYPH } from '../look'
 import { doneEarlier, type Filed } from '../scene'
-import { drawMark, heading, replyLine, tree, type Drawing } from './kit'
+import { drawRow, heading, type Drawing } from './kit'
 
 /** How many closed asks DONE shows until it is opened to them all. */
 const LATEST = 3
 
-/** The mark of an ask that closed a while ago. */
-const CLOSED = { glyph: GLYPH.done, color: C.faint }
+const MARK = { glyph: GLYPH.done, color: C.ok }
+
+/** What a closed ask is opened by, apart from the ask itself, which For you opens. */
+const doneKey = (ask: Ask) => `done:${ask.id}`
 
 /** How an ask closed: the reply of Lee's that closed it, or Claude's resolve, with why. */
 const howClosed = (ask: Ask) => {
@@ -26,29 +28,33 @@ const howClosed = (ask: Ask) => {
 }
 
 const drawClosed = (d: Drawing, ask: Ask) => {
-  const { Box, Text } = d.els
-  const age = <Text color={C.grey}>{`· ${agoWords(d.scene.now, ask.closedAt ?? ask.at)}`}</Text>
+  const key = doneKey(ask)
+  const isOpen = d.scene.pane.selected === key
 
-  return (
-    <Box key={`closed:${ask.id}`} flexDirection="column">
-      <Box flexDirection="row" gap={1}>
-        {drawMark(d, CLOSED, 1, true)}
-        <Box flexGrow={1} flexShrink={1}>
-          <Text color={C.faint} wrap="truncate-end">
-            {ask.title}
-          </Text>
-        </Box>
-      </Box>
-      {tree(d, `how:${ask.id}`, [replyLine(d, howClosed(ask), age)])}
-    </Box>
-  )
+  return drawRow(d, {
+    key: `closed:${ask.id}`,
+    mark: MARK,
+    title: ask.title,
+    at: ask.closedAt ?? ask.at,
+    isOpen,
+    press: { key, onPress: () => d.act.select(key) },
+    branches: isOpen ? [howClosed(ask)] : [],
+  })
 }
+
+/**
+ * What has DONE opened to every one, if anything: its own toggle, or an
+ * ask past the latest few, opened there, which must not fold away under
+ * the press that opened it.
+ */
+const openedToAllBy = (asks: readonly Ask[], toggle: string, selected: string | null) =>
+  [toggle, ...asks.slice(LATEST).map(doneKey)].find(key => key === selected)
 
 export const drawDone = (d: Drawing, { work }: Filed) => {
   const { Box, Button } = d.els
   const asks = doneEarlier(work, d.scene.now)
   const key = `earlier:${work.id}`
-  const isAll = d.scene.pane.selected === key
+  const allBy = openedToAllBy(asks, key, d.scene.pane.selected)
 
   if (asks.length === 0) {
     return null
@@ -57,17 +63,15 @@ export const drawDone = (d: Drawing, { work }: Filed) => {
   return (
     <Box flexDirection="column">
       {heading(d, 'DONE', C.ok, `${asks.length} closed`)}
-      <Box flexDirection="column" rowGap={1}>
-        {(isAll ? asks : asks.slice(0, LATEST)).map(ask => drawClosed(d, ask))}
-        {asks.length > LATEST && (
-          <Button
-            key={key}
-            plain
-            label={isAll ? 'show fewer' : `show all ${asks.length}`}
-            onPress={() => d.act.select(key)}
-          />
-        )}
-      </Box>
+      {(allBy === undefined ? asks.slice(0, LATEST) : asks).map(ask => drawClosed(d, ask))}
+      {asks.length > LATEST && (
+        <Button
+          key={key}
+          plain
+          label={allBy === undefined ? `show all ${asks.length}` : 'show fewer'}
+          onPress={() => d.act.select(allBy ?? key)}
+        />
+      )}
     </Box>
   )
 }

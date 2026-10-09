@@ -3,21 +3,18 @@
  * a project's sessions or every project raised and put off, each to pick
  * up. A pick-up queues in Ready to send like any reply.
  */
-import { ago, C, GLYPH } from '../look'
+import { C, GLYPH } from '../look'
 import { filedAt, homeOf, parkedAt, projectName, samePlace, type ParkedAt } from '../places'
 import { queuedOn } from '../queue'
 import type { Scene } from '../scene'
 import {
-  drawMark,
   drawOnItsWay,
   drawQueued,
-  drawTitle,
+  drawRow,
   heading,
   onItsWay,
   seeRef,
   shown,
-  titleLines,
-  tree,
   type Drawing,
 } from './kit'
 
@@ -54,41 +51,36 @@ const drawPickUp = (d: Drawing, { at, parked }: ParkedAt) => {
   return sent === undefined ? undefined : drawOnItsWay(d, parked, sent)
 }
 
-/** A parked item: its mark and title, the tree hanging from the mark, and, opened, the button that picks it up. */
+/** A parked item: its row, and, opened, the button that picks it up under its tree. */
 const drawItem = (d: Drawing, entry: ParkedAt) => {
-  const { Box, Text, Button } = d.els
+  const { Box, Button } = d.els
   const { at, name, parked } = entry
   const isOpen = d.scene.pane.selected === parked.id
-  const lines = titleLines(d, parked.title, isOpen)
   const pickUp = drawPickUp(d, entry)
-  const branches = shown(
-    isOpen && parked.where,
-    isOpen && d.scene.place.level !== 'session' && { text: `raised in ${name}`, color: C.grey },
-    isOpen && seeRef(parked.ref),
-    pickUp,
-  )
 
-  return (
-    <Box key={`parked:${at.work}:${parked.id}`} flexDirection="column">
-      <Box flexDirection="row" gap={1}>
-        {drawMark(d, MARK, lines.length, branches.length > 0)}
-        <Box flexGrow={1} flexShrink={1}>
-          {drawTitle(d, `ppick:${parked.id}`, lines, () => d.act.select(parked.id))}
-        </Box>
-        <Text color={C.grey}>{ago(d.scene.now, parked.at)}</Text>
+  return drawRow(d, {
+    key: `parked:${at.work}:${parked.id}`,
+    mark: MARK,
+    title: parked.title,
+    at: parked.at,
+    isOpen,
+    press: { key: `ppick:${parked.id}`, onPress: () => d.act.select(parked.id) },
+    branches: shown(
+      isOpen && parked.where,
+      isOpen && d.scene.place.level !== 'session' && { text: `raised in ${name}`, color: C.grey },
+      isOpen && seeRef(parked.ref),
+      pickUp,
+    ),
+    after: isOpen && pickUp === undefined && (
+      <Box paddingLeft={2}>
+        <Button
+          key={`pickup:${parked.id}`}
+          label="pick it up"
+          onPress={() => d.act.reply({ ...at, item: parked.id, verdict: 'pickup' })}
+        />
       </Box>
-      {tree(d, `under:${parked.id}`, branches)}
-      {isOpen && pickUp === undefined && (
-        <Box paddingLeft={2}>
-          <Button
-            key={`pickup:${parked.id}`}
-            label="pick it up"
-            onPress={() => d.act.reply({ ...at, item: parked.id, verdict: 'pickup' })}
-          />
-        </Box>
-      )}
-    </Box>
-  )
+    ),
+  })
 }
 
 export const drawParkedView = (d: Drawing) => {
@@ -110,7 +102,7 @@ export const drawParkedView = (d: Drawing) => {
           {ABOUT}
         </Text>
       </Box>
-      <Box flexDirection="column" rowGap={1}>
+      <Box flexDirection="column">
         {parked.length === 0 && <Text color={C.grey}>Nothing parked.</Text>}
         {parked.map(each => drawItem(d, each))}
       </Box>

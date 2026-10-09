@@ -1,6 +1,6 @@
 import { expect, test, tier } from 'claude-code/testing'
 import { rowsOf } from './drawn'
-import { postedId, world } from './world'
+import { ACROSS, postedId, world } from './world'
 
 tier('user')
 
@@ -23,7 +23,7 @@ const DECIDE = {
 const rows = async (ui: Awaited<ReturnType<World['pane']>>, key: string) =>
   rowsOf(await ui.find({ key }))
 
-test('an opened log line whose text wraps runs a stem down from its mark to the tree; closed, or on one line, it has none', async ($, on) => {
+test('a log line is its mark, its text and its age at the right edge; opened, a stem runs down from the mark to its tree', async ($, on) => {
   const w = world($, on)
 
   await w.begin()
@@ -36,23 +36,24 @@ test('an opened log line whose text wraps runs a stem down from its mark to the 
   )
   const short = postedId(await w.call('note', { text: 'PR #82 merged' }))
   const ui = await w.pane()
+  const across = async (key: string) => rowsOf(await ui.find({ key }), ACROSS)
 
-  expect(await rows(ui, `line:${long}`)).toEqual([
-    'now  • Now also drawing Usage, round 2, and the brie…',
+  expect(await across(`line:${long}`)).toEqual([
+    '• Now also drawing Usage, round 2, and the brie…   now',
   ])
 
   await ui.press({ key: `log:${long}` })
-  expect(await rows(ui, `line:${long}`)).toEqual([
-    'now  • Now also drawing Usage, round 2, and the brief',
-    '     │ beside it',
-    '     ├ Added: Drawing Usage, round 2',
-    '     └ Next: Usage, round 3',
+  expect(await across(`line:${long}`)).toEqual([
+    '• Now also drawing Usage, round 2, and the brief   now',
+    '│ beside it',
+    '├ Added: Drawing Usage, round 2',
+    '└ Next: Usage, round 3',
   ])
 
   await ui.press({ key: `log:${short}` })
-  expect(await rows(ui, `line:${short}`)).toEqual([
-    'now  • PR #82 merged',
-    '     └ nothing more was recorded',
+  expect(await across(`line:${short}`)).toEqual([
+    '• PR #82 merged                                    now',
+    '└ nothing more was recorded',
   ])
 })
 
