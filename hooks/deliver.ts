@@ -206,10 +206,15 @@ const refusalOf = async (host: Host, text: string) => {
 
 /**
  * Claims the window's one message in flight and submits it, waiting out
- * any turn of Claude's it waits behind. Gives back the message already in
- * flight, when one is, and then submits nothing.
+ * any turn of Claude's it waits behind. `claimed` runs once it is claimed,
+ * before it is submitted, so it never waits on Claude Code taking it. Gives
+ * back the message already in flight, when one is, and then submits nothing.
  */
-export const deliver = async (host: Host, outgoing: Outgoing) => {
+export const deliver = async (
+  host: Host,
+  outgoing: Outgoing,
+  claimed: () => Promise<void> = async () => {},
+) => {
   const delivery: SitrepInFlight = {
     ...outgoing,
     claimedAt: await host.clock.now(),
@@ -226,6 +231,8 @@ export const deliver = async (host: Host, outgoing: Outgoing) => {
   if (ahead !== undefined) {
     return ahead
   }
+
+  await claimed().catch(logFailure(host, 'what follows a claimed send'))
 
   const refusal = await refusalOf(host, delivery.text)
 

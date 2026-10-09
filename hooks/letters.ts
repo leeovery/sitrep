@@ -95,12 +95,12 @@ const sendTo = async (
 const toastOf = (went: readonly Went[]) =>
   `Sent ${went.map(({ name, count }) => `${counted(count, 'reply', 'replies')} to ${name}`).join(' and ')}.`
 
-/** Sends Ready to send's replies to works other than the held one, each into its work's inbox. */
+/** Sends Ready to send's replies to works other than the held one, each into its work's inbox; whether any went. */
 export const sendLetters = async (host: Host) => {
   const held = attached()
 
   if (held === undefined) {
-    return
+    return false
   }
 
   const queue = await host.state.queue.read()
@@ -118,4 +118,6 @@ export const sendLetters = async (host: Host) => {
     host.ui.toast(toastOf(went))
     await lookAround(host)
   }
+
+  return went.length > 0
 }

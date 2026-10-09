@@ -29,12 +29,15 @@ const heldNow = (host: Host) =>
     return work === undefined || held === undefined ? undefined : { work, held }
   })
 
-/** Sends the held work's replies in Ready to send that still fit their items. */
-const sendHere = async (host: Host) => {
+/**
+ * Sends the held work's replies in Ready to send that still fit their
+ * items, `claimed` running once their message is claimed; whether it was.
+ */
+const sendHere = async (host: Host, claimed: () => Promise<void>) => {
   const here = await heldNow(host)
 
   if (here === undefined) {
-    return
+    return false
   }
 
   const { work, held } = here
@@ -46,25 +49,40 @@ const sendHere = async (host: Host) => {
       host.ui.toast(CHANGED)
     }
 
-    return
+    return false
   }
 
-  const ahead = await deliver(host, {
-    source: 'send',
-    project: held.project,
-    work: work.id,
-    writer: held.writer,
-    text: message.text,
-    replies: replyBodies(work, message.replies),
-  })
+  const ahead = await deliver(
+    host,
+    {
+      source: 'send',
+      project: held.project,
+      work: work.id,
+      writer: held.writer,
+      text: message.text,
+      replies: replyBodies(work, message.replies),
+    },
+    claimed,
+  )
 
   if (ahead?.source === 'inbox') {
     host.ui.toast(BEHIND)
   }
+
+  return ahead === undefined
 }
 
-/** Sends everything in Ready to send that still fits its item: other works' into their inboxes, then the held work's. */
-export const send = async (host: Host) => {
-  await sendLetters(host)
-  await sendHere(host)
+/**
+ * Sends everything in Ready to send that still fits its item: other works'
+ * into their inboxes, then the held work's. `claimed` runs once, as soon as
+ * any of it has gone: the held work's message claimed, else the letters
+ * written; never once nothing went.
+ */
+export const send = async (host: Host, claimed: () => Promise<void>) => {
+  const isLettered = await sendLetters(host)
+  const isClaimed = await sendHere(host, claimed)
+
+  if (isLettered && !isClaimed) {
+    await claimed()
+  }
 }

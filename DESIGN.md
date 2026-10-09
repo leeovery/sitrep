@@ -176,54 +176,70 @@ post; the board is best effort, and in use Claude has not forgotten.
 ### The board: a tree, with this session as home
 
 ```
- ⌂ This session 1  ▤ Switchboard 3  ≡ All projects 7
-━━━━━━━━━━━━━━━━━━──────────────────────────────────────
+                                                         ⇥ collapse
+
+ ⌂ This session 1  ▤ Switchboard 3  ≡ All projects 7     ◇ 2 parked
+━━━━━━━━━━━━━━━━━━────────────────────────────────────────────────
 Dashboard redesign · Switchboard
 Redesign the dashboard, area by area in Paper
-STATUS ────────────────────────────── updated 12m ago
+FOR YOU ──────────────────────────────────────────────── 1 waiting
+◆ Review Sessions & Runway, round 1                             2h
+└ In Paper: the dashboard file, page "round 1", frames 1–6
+STATUS ─────────────────────────────────────────── updated 12m ago
 • Waiting on your review of Sessions & Runway, round 1
 • Drawing Usage, round 2
 ◦ next: Usage, round 3
-FOR YOU ─────────────────────────────────── 1 waiting
-◆ Review Sessions & Runway, round 1                 2h
-└ In Paper: the dashboard file, page "round 1", frames 1–6
-LOG ────────────────────────────────── what happened
+LOG ──────────────────────────────────────────────── what happened
 12m  • Status: now also drawing Usage, round 2
+DONE ──────────────────────────────────────────────────── 1 closed
+✓ Review the dashboard's Overview, round 2
+└ approved · 1d ago
 ```
 
 - **On Lee's own path** (this session, its project, all projects) the board shows
   three tabs. **Anywhere else** (another session or project) the tabs give way
   to `← <one level up>` and `⌂ this session`, the familiar nested-page pattern.
-- **This session** (home, the default): name and summary, Status, For you, Log.
+- Either row ends in `◇ 2 parked`, right-aligned: what was parked where the
+  board looks, and the way into it. Where it will not fit beside the tabs'
+  full labels it drops the word first (`◇ 2`); on a board too narrow even
+  for that, the tabs take their short labels too.
+- **Docked**, the row above the tabs holds only `⇥ collapse`, top right.
+  **Inline** there is no row above the tabs: they are the board's first line.
+- **This session** (home, the default): name and summary, For you, Status, Log,
+  Done. What waits on Lee comes first.
 - **Project**: the held work's project, named as it is (`SitRep` stays
   `SitRep`): its sessions, this one first (`⌂`), each with what it is doing
   and its waiting count; the project's log, each line naming its session.
 - **All projects**: this project first, then the busiest. Each project's open
   sessions hang off it as a tree. A project with nothing open, waiting or parked
   folds into one line at the bottom.
-- **Another session** is the same view as this one: its status, For you with
-  buttons that answer it, its log. While no window has it, its foot (above
-  Ready to send) has `✓ mark this work done`, for a session Lee left with
-  things open by closing the window. It asks first, in place:
+- **Another session** is the same view as this one, in the same order: For
+  you with buttons that answer it, its status, its log, its done. While no
+  window has it, its foot (above Ready to send) has `✓ mark this work done`,
+  for a session Lee left with things open by closing the window. It asks first, in place:
   `Mark <name> done? Its open asks stop counting.`, `[ yes, mark it done ]`
   `[ cancel ]`. Yes writes the finish into that work's folder, in this
   window's own file there (nothing goes to its inbox: it is Lee's act on the
   board, not a reply to Claude), and the board goes up a level, the work gone
   from it. A work with a window is still being worked: Lee finishes it there
   by telling Claude.
-- **Done earlier:** under For you, `✓ 3 done earlier` counts the asks closed
-  before now, ignored ones aside, and opens to them, the newest closed first,
-  as a selection does (closing the board puts it away). Each is faint, its
-  title on one line, and hangs how it closed and when: the reply that closed
-  it (`approved · 2h ago`, `→ Forever · 1d ago`), or
-  `resolved by Claude: <reason> · 2h ago`.
+- **Done:** a section of its own at the foot of a session's view, under Log,
+  drawn once an ask has closed. Its heading counts the asks closed before
+  now, ignored ones aside (`4 closed`), and it lists the latest 3, the newest
+  closed first. With more, `show all 4` opens it to every one and then reads
+  `show fewer`, as a selection does (closing the board puts it away). Each is
+  faint, its title on one line, and hangs how it closed and when: the reply
+  that closed it (`approved · 2h ago`, `→ Forever · 1d ago`), or
+  `resolved by Claude: <reason> · 2h ago`. For you holds only what is open,
+  and the asks Lee's send just closed, for a moment.
 - Each tab carries what waits there. All projects is read only while the board
   looks at it, so its tab has a count only then.
 - Each view's first line sits directly under the tab rule, with no blank row.
 - Every section heading has a few words on the right: `1 waiting`,
   `what happened`, `updated 12m ago`, `2 of 3 open`.
 - **Log lines open** to the detail behind them, as a tree.
-- **Parked** is a view of the board, scoped to where the board is looking.
+- **Parked** is a view of the board, scoped to where the board is looking,
+  opened from the count at the end of the tabs' row.
 - **Collapse** turns the board into the glance: counts on one row, what is under
   way, what waits, the last few log lines, the project's sessions; every line
   opens the full board on what was clicked. `⇥ collapse` and `⇤ expand` sit in
@@ -256,6 +272,14 @@ waits in it, grouped by where each reply goes (`to this session`,
 `to Request ledger`, a session of another project with its project's name).
 Each reply hangs off its item with a `└`, has its own `✕`, and the ask shows
 `↺ undo`. **send to Claude** sends them; **cancel all** clears them.
+
+On an inline board (the phone layout) a send closes the board as soon as it
+is claimed: the message to this session claimed, or, with none, the replies
+written into other works' inboxes. It never waits for Claude Code to take
+the message, which can take minutes while Claude is mid-turn. A send that
+Claude Code refuses still toasts and leaves its replies queued, and the
+board, opened again, shows them; a send that sent nothing leaves the board
+open. A docked board stays open.
 
 A group sent into another work's inbox stays in the box, its replies out of
 the queue, until Claude has them all, and 10 minutes after, so

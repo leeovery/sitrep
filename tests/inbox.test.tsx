@@ -3,7 +3,7 @@ import { parseEntries, type WorkPaths } from '../core'
 import { FLASH_MS } from '../hooks/deliver'
 import { WATCH_MS } from '../hooks/window'
 import { file, MIN, reply, SENDER, W1, W2 } from './support'
-import { postedId, PROJECT, SESSION, world } from './world'
+import { INLINE, postedId, PROJECT, SESSION, world } from './world'
 
 tier('user')
 
@@ -264,4 +264,27 @@ test('a send Lee presses while inbox replies are in flight waits for them: a toa
 
   expect(w.submitted).toEqual([MESSAGE, 'From the board:\n- Run the production apply → done'])
   expect(kindsIn(w, paths)).toEqual(['ask', 'ask', 'delivered', 'reply', 'delivered'])
+})
+
+test('an inline board whose send waits behind inbox replies stays open: nothing of it went', async ($, on) => {
+  const w = world($, on)
+  const { asked, send } = await asking(w)
+  const own = postedId(await w.call('ask', { kind: 'do', title: 'Run the production apply' }))
+
+  const ui = await w.opened(INLINE)
+  const turn = w.holdPrompts()
+
+  send(['r1', asked, 'yes'])
+  await w.clock.advance(TAKE_IN)
+  await turn.arrived
+  await ui.press({ key: `yes:${own}` })
+  await ui.press({ key: 'send' })
+
+  expect(w.toasts).toContain(
+    'Not sent yet: replies from another session are going in first. Your replies are still on the board.',
+  )
+  expect(w.panes.get('sitrep')).toBe(true)
+  expect(w.state.pane?.isOpen).toBe(true)
+
+  turn.end()
 })

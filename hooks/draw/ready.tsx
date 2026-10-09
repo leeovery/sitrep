@@ -148,7 +148,12 @@ const drawControls = (d: Drawing) => {
 
   return (
     <Box flexDirection="row" columnGap={1} paddingTop={1}>
-      <Button key="send" variant="primary" label="send to Claude" onPress={() => d.act.send()} />
+      <Button
+        key="send"
+        variant="primary"
+        label="send to Claude"
+        onPress={() => d.act.send(d.isDock)}
+      />
       <Button key="cancel-all" dimColor label="cancel all" onPress={() => d.act.cancelAll()} />
     </Box>
   )

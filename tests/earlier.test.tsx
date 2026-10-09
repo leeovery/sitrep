@@ -52,22 +52,22 @@ async function closedAsks(w: World) {
   return { id, ui: await w.opened() }
 }
 
-test('done earlier counts the closed asks, ignored ones aside, and opens to them, the newest closed first', async ($, on) => {
+/** The closed asks DONE lists, by key, in the order drawn. */
+const listed = async (ui: Awaited<ReturnType<World['opened']>>) =>
+  (await ui.findAll({ type: 'Box' }))
+    .map(each => each.key ?? '')
+    .filter(key => key.startsWith('closed:'))
+
+test('DONE counts the closed asks, ignored ones aside, the newest closed first, each hung with how it closed', async ($, on) => {
   const w = world($, on, { now: NOW })
   const { id, ui } = await closedAsks(w)
-  const button = await ui.find({ key: `earlier:${id}` })
-  const listed = async () =>
-    (await ui.findAll({ type: 'Box' }))
-      .map(each => each.key ?? '')
-      .filter(key => key.startsWith('closed:'))
 
-  expect(button?.type).toBe('Button')
-  expect(button?.props).toMatchObject({ label: '✓ 4 done earlier', plain: true })
-  expect(await listed()).toEqual([])
+  expect(await ui.find({ type: 'Text', text: '4 closed' })).toBeDefined()
+  expect(await listed(ui)).toEqual(['closed:a4', 'closed:a3', 'closed:a2'])
 
   await ui.press({ key: `earlier:${id}` })
 
-  expect(await listed()).toEqual(['closed:a4', 'closed:a3', 'closed:a2', 'closed:a1'])
+  expect(await listed(ui)).toEqual(['closed:a4', 'closed:a3', 'closed:a2', 'closed:a1'])
   expect(rowsOf(await ui.find({ key: 'closed:a4' }))).toEqual([
     '✓ Review round 2',
     '└ resolved by Claude · 1h ago',
@@ -84,15 +84,74 @@ test('done earlier counts the closed asks, ignored ones aside, and opens to them
     '✓ Review round 1',
     '└ approved · 4h ago',
   ])
+})
+
+test('DONE shows the latest 3; show all opens it to every one, and show fewer closes it again', async ($, on) => {
+  const w = world($, on, { now: NOW })
+  const { id, ui } = await closedAsks(w)
+  const toggle = async () => (await ui.find({ key: `earlier:${id}` }))?.props
+
+  expect(await toggle()).toMatchObject({ label: 'show all 4', plain: true })
+  expect(await listed(ui)).toHaveLength(3)
 
   await ui.press({ key: `earlier:${id}` })
+  expect(await toggle()).toMatchObject({ label: 'show fewer' })
+  expect(await listed(ui)).toHaveLength(4)
 
-  expect(await listed()).toEqual([])
+  await ui.press({ key: `earlier:${id}` })
+  expect(await toggle()).toMatchObject({ label: 'show all 4' })
+  expect(await listed(ui)).toHaveLength(3)
+})
+
+test('DONE is a section of its own at the foot of the view, its heading green, drawn only once an ask has closed', async ($, on) => {
+  const w = world($, on, { now: NOW })
+  const { id, paths } = await w.begin()
+  const ui = await w.opened()
+  const heading = async () => ui.find({ type: 'Text', text: 'DONE' })
+
+  w.put(paths.log(W2), file(...after(0, ask('a1', 'review', 'Review round 1'))))
+  await w.clock.advance(WATCH_MS)
+  expect(await heading()).toBeUndefined()
+
+  w.put(
+    paths.log(W2),
+    file(
+      ...after(0, ask('a1', 'review', 'Review round 1')),
+      ...after(1, reply('r1', 'a1', 'yes'), delivered('r1')),
+    ),
+  )
+  await w.clock.advance(WATCH_MS)
+
+  const rows = rowsOf(await ui.find({ type: 'Box' }))
+
+  expect((await heading())?.props).toMatchObject({ color: C.ok, bold: true })
+  expect(await ui.find({ type: 'Text', text: '1 closed' })).toBeDefined()
+  expect(
+    await ui.find({ key: `earlier:${id}` }),
+    'no more than 3, so nothing to show all',
+  ).toBeUndefined()
+  expect(rows.slice(-3), 'under LOG, the last of the view').toEqual([
+    expect.stringMatching(/^ DONE ─+ 1 closed$/),
+    ' ✓ Review round 1',
+    ' └ approved · 4h ago',
+  ])
+})
+
+test('For you holds only what is open: no line of what was done earlier', async ($, on) => {
+  const w = world($, on, { now: NOW })
+  const { ui } = await closedAsks(w)
+  const texts = [
+    ...(await ui.findAll({ type: 'Text' })),
+    ...(await ui.findAll({ type: 'Button' })),
+  ].map(each => each.text)
+
+  expect(texts.filter(text => /done earlier/.test(text))).toEqual([])
+  expect(await ui.find({ type: 'Text', text: 'Nothing waiting on you.' })).toBeDefined()
 })
 
 test('each closed ask is drawn faint, mark and title, its age grey, a long title kept to one line', async ($, on) => {
   const w = world($, on, { now: NOW })
-  const { id, paths } = await w.begin()
+  const { paths } = await w.begin()
   const title =
     'Review the whole of the dashboard redesign, every area of it, against the brief and the notes'
 
@@ -106,9 +165,6 @@ test('each closed ask is drawn faint, mark and title, its age grey, a long title
   await w.clock.advance(WATCH_MS)
 
   const ui = await w.opened()
-
-  await ui.press({ key: `earlier:${id}` })
-
   const [mark, shown] = (await ui.findAll({ type: 'Text' })).filter(
     each => each.text === '✓' || each.text === title,
   )
@@ -134,9 +190,9 @@ test('closing the board resets the history, as any selection', async ($, on) => 
   expect(await ui.find({ key: 'closed:a1' })).toBeUndefined()
 })
 
-test("an ask Lee commented on and Claude then resolved goes straight to done earlier, never lingering as Lee's send", async ($, on) => {
+test("an ask Lee commented on and Claude then resolved goes straight to DONE, never lingering as Lee's send", async ($, on) => {
   const w = world($, on, { now: T0 + 2 * MIN })
-  const { id, paths } = await w.begin()
+  const { paths } = await w.begin()
 
   w.put(
     paths.log(W2),
@@ -153,5 +209,5 @@ test("an ask Lee commented on and Claude then resolved goes straight to done ear
 
   expect(await ui.find({ key: 'pick:a1' })).toBeUndefined()
   expect(await ui.find({ key: 'sent:a1' })).toBeUndefined()
-  expect(await ui.find({ key: `earlier:${id}`, text: /1 done earlier/ })).toBeDefined()
+  expect(await ui.find({ key: 'closed:a1' })).toBeDefined()
 })

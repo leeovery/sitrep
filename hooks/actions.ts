@@ -16,7 +16,7 @@ import type {
 import { lookAround } from './around'
 import { logFailure, type Host } from './host'
 import { writeInto } from './into'
-import { openBoard, type Focus } from './pane'
+import { closeBoard, openBoard, type Focus } from './pane'
 import { projectPlace } from './places'
 import { clearing, queuing, unqueuing } from './queue'
 import { send } from './send'
@@ -41,7 +41,8 @@ export type Actions = {
   type: (text: string) => void
   /** Queues the field's words as a reply; `typed`, where the field handed them over itself. */
   save: (at: SitrepItemRef, saved: Saved, typed?: string) => void
-  send: () => void
+  /** Sends Ready to send; a board drawn inline closes once the send is claimed, as on a phone. */
+  send: (isDock: boolean) => void
   /** Turns the board to a view of where it is looking, closing what was open in the last. */
   show: (view: SitrepView) => void
   /** Takes the board somewhere else in the tree, on its view of that place. */
@@ -131,7 +132,14 @@ export const actionsOf = (host: Host): Actions => {
       run('closing the comment field', () => changePane(host, () => ({ commenting: null }))),
     type: text => run('keeping what was typed', () => host.state.draft.write(text)),
     save: (at, saved, typed) => run('saving the comment', () => saveField(host, at, saved, typed)),
-    send: () => run('sending', () => send(host)),
+    send: isDock =>
+      run('sending', () =>
+        send(host, async () => {
+          if (!isDock) {
+            await closeBoard(host)
+          }
+        }),
+      ),
     show: view =>
       run('turning the board', () =>
         changePane(host, () => ({ view, selected: null, commenting: null })),

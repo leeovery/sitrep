@@ -3,7 +3,7 @@ import { parseEntries, workPaths } from '../core'
 import { LINGER_MS } from '../hooks/scene'
 import { WATCH_MS } from '../hooks/window'
 import { note, W1 } from './support'
-import { postedId, PROJECT, PROMPT, ROOT, SESSION, startedId, world } from './world'
+import { INLINE, postedId, PROJECT, PROMPT, ROOT, SESSION, startedId, world } from './world'
 
 tier('user')
 
@@ -78,7 +78,7 @@ test('the board then shows the ask closed, and folds it into what was done once 
   await w.clock.advance(LINGER_MS)
 
   expect(await ui.find({ type: 'Text', text: 'sent, and Claude has it' })).toBeUndefined()
-  expect(await ui.find({ type: 'Button', text: '✓ 1 done earlier' })).toBeDefined()
+  expect(await ui.find({ key: `closed:${id}` }), 'in DONE').toBeDefined()
   expect(await ui.find({ type: 'Text', text: 'nothing waiting' })).toBeDefined()
 })
 
@@ -256,4 +256,71 @@ test('two quick presses of send submit the replies once', async ($, on) => {
 
   expect(w.submitted).toHaveLength(1)
   expect(kindsIn(w, paths.log(W1))).toEqual(['ask', 'reply', 'delivered'])
+})
+
+/** A work begun with one review asked, the board opened by /sitrep and drawn inline, as on a phone. */
+async function askingInline(w: World) {
+  const { paths } = await w.begin()
+  const id = postedId(await w.call('ask', REVIEW))
+
+  return { paths, id, ui: await w.opened(INLINE) }
+}
+
+test('send closes an inline board once the send is claimed, not waiting for Claude Code to take it', async ($, on) => {
+  const w = world($, on)
+  const { paths, id, ui } = await askingInline(w)
+  const turn = w.holdPrompts()
+
+  await ui.press({ key: `yes:${id}` })
+
+  const pressed = ui.press({ key: 'send' })
+
+  await turn.arrived
+  expect(w.state.inFlight).toMatchObject({ source: 'send', isTaken: false })
+  expect(w.panes.has('sitrep')).toBe(false)
+  expect(w.state.pane).toMatchObject({ isOpen: false, selected: null })
+
+  turn.end()
+  await pressed
+
+  expect(kindsIn(w, paths.log(W1))).toEqual(['ask', 'reply', 'delivered'])
+  expect(w.state.queue).toEqual([])
+})
+
+test('send leaves a docked board open', async ($, on) => {
+  const w = world($, on)
+  const { paths } = await w.begin()
+  const id = postedId(await w.call('ask', REVIEW))
+  const ui = await w.opened()
+
+  await ui.press({ key: `yes:${id}` })
+  await ui.press({ key: 'send' })
+
+  expect(kindsIn(w, paths.log(W1))).toEqual(['ask', 'reply', 'delivered'])
+  expect(w.panes.get('sitrep')).toBe(true)
+  expect(w.state.pane?.isOpen).toBe(true)
+})
+
+test('a send refused from an inline board still closes it; the toast says why, and opened again it shows the replies queued', async ($, on) => {
+  const w = world($, on)
+  const { paths, id, ui } = await askingInline(w)
+
+  w.dropPrompts('the session is closing')
+  await ui.press({ key: `yes:${id}` })
+  await ui.press({ key: 'send' })
+
+  expect(w.panes.has('sitrep')).toBe(false)
+  expect(w.toasts).toContain(
+    'Not sent: the session is closing. Your replies are still on the board.',
+  )
+  expect(kindsIn(w, paths.log(W1))).toEqual(['ask'])
+  expect(w.state.queue).toMatchObject([{ item: id, verdict: 'yes' }])
+
+  await ui.unmount()
+
+  const again = await w.opened()
+
+  expect(await again.find({ type: 'Text', text: /READY TO SEND/ })).toBeDefined()
+  expect(await again.find({ type: 'Text', text: '· not sent yet' })).toBeDefined()
+  expect(await again.find({ key: 'send' })).toBeDefined()
 })

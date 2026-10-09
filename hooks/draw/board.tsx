@@ -4,9 +4,10 @@
  *
  * On Lee's own path up the tree the board shows a tab for each step of it,
  * each a row of `TABS`: this session, its project, every project. Anywhere
- * else the tabs give way to a step back up and the way home.
+ * else the tabs give way to a step back up and the way home. Either row
+ * ends in the way to what was parked where the board looks.
  */
-import type { RenderPropsOf, RenderSurface } from 'claude-code'
+import type { RenderElement, RenderPropsOf, RenderSurface } from 'claude-code'
 import type { SitrepPlace } from '../../types'
 import type { Actions } from '../actions'
 import { C, clip, GLYPH } from '../look'
@@ -85,10 +86,35 @@ const TABS: readonly Tab[] = [
   },
 ]
 
+/** The least room kept between a row's ways around the board and the parked count ending it. */
+const PARKED_GAP = 1
+
+/** The parked count's label with `room` cells left on its row: in full, or only the count where the word will not fit. */
+const parkedLabel = (scene: Scene, room: number) => {
+  const count = `${GLYPH.parked} ${parkedAt(scene).length}`
+  const full = `${count} parked`
+
+  return room >= PARKED_GAP + full.length ? full : count
+}
+
+/** A row of ways around the board, `used` cells across, the parked count right-aligned at its end. */
+const withParked = (d: Drawing, ways: RenderElement, used: number, label: string) => {
+  const { Box, Button } = d.els
+
+  return (
+    <Box flexDirection="row">
+      {ways}
+      <Box width={Math.max(PARKED_GAP, d.width - used - label.length)} flexShrink={0} />
+      <Button key="parked" plain dimColor label={label} onPress={() => d.act.show('parked')} />
+    </Box>
+  )
+}
+
 /** A tab's cells: its padding, glyph and label, and its count where it has one. */
 const tabWidth = (count: number, label: string) =>
   4 + label.length + (count > 0 ? 1 + String(count).length : 0)
 
+/** The tabs, their full labels giving way to short ones where those and the parked count will not fit. */
 const drawTabs = (d: Drawing) => {
   const { Box, Text, Button } = d.els
   const { scene } = d
@@ -97,8 +123,9 @@ const drawTabs = (d: Drawing) => {
     isOn: samePlace(scene.place, tab.to(scene)),
     waiting: tab.count(scene),
   }))
-  const isNarrow =
-    tabs.reduce((sum, tab) => sum + tabWidth(tab.waiting, tab.label(scene)), 0) > d.width
+  const room = d.width - tabs.reduce((sum, tab) => sum + tabWidth(tab.waiting, tab.label(scene)), 0)
+  const parked = parkedLabel(scene, room)
+  const isNarrow = room < PARKED_GAP + parked.length
   const labelled = tabs.map(tab => {
     const text = isNarrow ? clip(tab.short(scene), 10) : tab.label(scene)
 
@@ -106,31 +133,35 @@ const drawTabs = (d: Drawing) => {
   })
   const used = labelled.reduce((sum, tab) => sum + tab.cells, 0)
 
+  const ways = (
+    <Box flexDirection="row">
+      {labelled.map(tab => (
+        <Box
+          key={`${tab.key}:box`}
+          width={tab.cells}
+          flexShrink={0}
+          paddingX={1}
+          flexDirection="row"
+          gap={1}
+          backgroundColor={tab.isOn ? C.tab : undefined}
+        >
+          <Text color={tab.isOn ? tab.color : C.grey}>{tab.glyph}</Text>
+          <Button
+            key={tab.key}
+            plain
+            dimColor={!tab.isOn}
+            label={tab.text}
+            onPress={() => d.act.go(tab.to(scene))}
+          />
+          {tab.waiting > 0 && <Text color={tab.isOn ? C.ask : C.grey}>{tab.waiting}</Text>}
+        </Box>
+      ))}
+    </Box>
+  )
+
   return (
     <Box flexDirection="column">
-      <Box flexDirection="row">
-        {labelled.map(tab => (
-          <Box
-            key={`${tab.key}:box`}
-            width={tab.cells}
-            flexShrink={0}
-            paddingX={1}
-            flexDirection="row"
-            gap={1}
-            backgroundColor={tab.isOn ? C.tab : undefined}
-          >
-            <Text color={tab.isOn ? tab.color : C.grey}>{tab.glyph}</Text>
-            <Button
-              key={tab.key}
-              plain
-              dimColor={!tab.isOn}
-              label={tab.text}
-              onPress={() => d.act.go(tab.to(scene))}
-            />
-            {tab.waiting > 0 && <Text color={tab.isOn ? C.ask : C.grey}>{tab.waiting}</Text>}
-          </Box>
-        ))}
-      </Box>
+      {withParked(d, ways, used, parked)}
       <Box flexDirection="row">
         {labelled.map(tab => (
           <Text key={`${tab.key}:rule`} color={tab.isOn ? tab.color : C.rule}>
@@ -143,51 +174,55 @@ const drawTabs = (d: Drawing) => {
   )
 }
 
-/** Off Lee's own path: one step back up the tree, and the way home. */
+/** The gap between the step back up and the way home. */
+const BACK_GAP = 2
+
+const HOME_LABEL = `${GLYPH.home} this session`
+
+/** Off Lee's own path: one step back up the tree and the way home, the parked count where the tabs keep it. */
 const drawBackRow = (d: Drawing) => {
   const { Box, Text, Button } = d.els
   const above = up(d.scene.place)
-  const label = above.level === 'project' ? projectName(d.scene, above.project) : 'All projects'
+  const upLabel = `${GLYPH.up} ${above.level === 'project' ? projectName(d.scene, above.project) : 'All projects'}`
+  const used = upLabel.length + BACK_GAP + HOME_LABEL.length
+  const ways = (
+    <Box flexDirection="row" gap={BACK_GAP}>
+      <Button key="up" plain label={upLabel} onPress={() => d.act.go(above)} />
+      <Button
+        key="home"
+        plain
+        dimColor
+        label={HOME_LABEL}
+        onPress={() => d.act.go(homeOf(d.scene))}
+      />
+    </Box>
+  )
 
   return (
     <Box flexDirection="column">
-      <Box flexDirection="row" justifyContent="space-between">
-        <Button key="up" plain label={`${GLYPH.up} ${label}`} onPress={() => d.act.go(above)} />
-        <Button
-          key="home"
-          plain
-          dimColor
-          label={`${GLYPH.home} this session`}
-          onPress={() => d.act.go(homeOf(d.scene))}
-        />
-      </Box>
+      {withParked(d, ways, used, parkedLabel(d.scene, d.width - used))}
       <Text color={C.rule}>{'─'.repeat(d.width)}</Text>
     </Box>
   )
 }
 
-/** What sits above the tabs: the way to what was parked here, and, docked, the collapse. */
+/** What sits above the tabs on a docked board: the collapse, at its top right. Inline, nothing. */
 const drawToolbar = (d: Drawing) => {
   const { Box, Button } = d.els
 
+  if (!d.isDock) {
+    return null
+  }
+
   return (
-    <Box flexDirection="row" justifyContent="space-between">
+    <Box flexDirection="row" justifyContent="flex-end">
       <Button
-        key="parked"
+        key="collapse"
         plain
         dimColor
-        label={`${GLYPH.parked} ${parkedAt(d.scene).length} parked`}
-        onPress={() => d.act.show('parked')}
+        label="⇥ collapse"
+        onPress={() => d.act.open('glance')}
       />
-      {d.isDock && (
-        <Button
-          key="collapse"
-          plain
-          dimColor
-          label="⇥ collapse"
-          onPress={() => d.act.open('glance')}
-        />
-      )}
     </Box>
   )
 }

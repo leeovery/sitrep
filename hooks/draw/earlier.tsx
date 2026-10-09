@@ -1,12 +1,15 @@
 /**
- * For you's history: how many asks closed earlier, as the press that opens
- * the list of them, the newest closed first, each hung with how it closed
- * and when.
+ * A session's DONE, at the foot of its view: the asks closed earlier, the
+ * newest closed first, each hung with how it closed and when. It shows the
+ * latest few, and a press opens it to every one.
  */
 import { answerOf, closingReply, type Ask } from '../../core'
 import { agoWords, C, GLYPH } from '../look'
 import { doneEarlier, type Filed } from '../scene'
-import { drawMark, replyLine, tree, type Drawing } from './kit'
+import { drawMark, heading, replyLine, tree, type Drawing } from './kit'
+
+/** How many closed asks DONE shows until it is opened to them all. */
+const LATEST = 3
 
 /** The mark of an ask that closed a while ago. */
 const CLOSED = { glyph: GLYPH.done, color: C.faint }
@@ -41,24 +44,30 @@ const drawClosed = (d: Drawing, ask: Ask) => {
   )
 }
 
-export const drawEarlier = (d: Drawing, { work }: Filed) => {
+export const drawDone = (d: Drawing, { work }: Filed) => {
   const { Box, Button } = d.els
   const asks = doneEarlier(work, d.scene.now)
   const key = `earlier:${work.id}`
+  const isAll = d.scene.pane.selected === key
 
   if (asks.length === 0) {
     return null
   }
 
   return (
-    <Box flexDirection="column" rowGap={1}>
-      <Button
-        key={key}
-        plain
-        label={`${GLYPH.done} ${asks.length} done earlier`}
-        onPress={() => d.act.select(key)}
-      />
-      {d.scene.pane.selected === key && asks.map(ask => drawClosed(d, ask))}
+    <Box flexDirection="column">
+      {heading(d, 'DONE', C.ok, `${asks.length} closed`)}
+      <Box flexDirection="column" rowGap={1}>
+        {(isAll ? asks : asks.slice(0, LATEST)).map(ask => drawClosed(d, ask))}
+        {asks.length > LATEST && (
+          <Button
+            key={key}
+            plain
+            label={isAll ? 'show fewer' : `show all ${asks.length}`}
+            onPress={() => d.act.select(key)}
+          />
+        )}
+      </Box>
     </Box>
   )
 }

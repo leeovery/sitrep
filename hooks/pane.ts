@@ -76,7 +76,8 @@ export const openBoard = async (host: Host, mode: SitrepMode, focus: Focus = {})
   await lookAround(host)
 }
 
-const closeBoard = async (host: Host) => {
+/** Closes the board: by the band's button, or once an inline board's send is claimed. */
+export const closeBoard = async (host: Host) => {
   await host.ui.close(PANE)
   // A plugin's own close never reaches its own ui.close hook, so the band hears of it here.
   await markClosed(host)

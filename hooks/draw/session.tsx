@@ -1,13 +1,13 @@
 /**
- * A session's view: the work's name and summary, where it stands, what
- * waits on Lee, and what happened. This session's is the board's home;
+ * A session's view: the work's name and summary, what waits on Lee, where
+ * it stands, what happened, and the asks done with. This session's is the board's home;
  * another's draws the same, its asks answered the same way, and with no
  * window on it, a way to mark it done.
  */
 import { agoWords, C, GLYPH } from '../look'
 import { askMark, forYou, isPulsing, type Filed } from '../scene'
 import { drawAsk } from './ask'
-import { drawEarlier } from './earlier'
+import { drawDone } from './earlier'
 import { drawFinish } from './finish'
 import { context, heading, marked, type Drawing } from './kit'
 import { drawLogLine } from './log'
@@ -70,7 +70,6 @@ const drawForYou = (d: Drawing, filed: Filed) => {
       <Box flexDirection="column" rowGap={1}>
         {asks.map(ask => drawAsk(d, filed, ask))}
       </Box>
-      {drawEarlier(d, filed)}
     </Box>
   )
 }
@@ -94,9 +93,10 @@ export const drawSessionView = (d: Drawing, filed: Filed) => {
   return (
     <Box flexDirection="column" gap={1}>
       {drawContext(d, filed)}
-      {drawStatus(d, filed)}
       {drawForYou(d, filed)}
+      {drawStatus(d, filed)}
       {drawLog(d, filed)}
+      {drawDone(d, filed)}
       {drawFinish(d, filed)}
     </Box>
   )

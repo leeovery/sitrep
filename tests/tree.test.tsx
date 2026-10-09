@@ -2,7 +2,7 @@ import { expect, test, tier } from 'claude-code/testing'
 import { CURRENT_MS, type WorkMeta } from '../core'
 import { AROUND_MS } from '../hooks/around'
 import { ask, MIN, note, park, status, T0, W2, W3, W4 } from './support'
-import { ELSEWHERE, postedId, PROJECT, world } from './world'
+import { ELSEWHERE, postedId, PROJECT, WIDE, world } from './world'
 
 tier('user')
 
@@ -128,7 +128,7 @@ test('on its own path the board shows three tabs, each with what waits there', a
 
   await neighbourhood(w)
 
-  const ui = await w.opened()
+  const ui = await w.opened(WIDE)
 
   expect(await ui.find({ key: 'tab:session', text: 'This session' })).toBeDefined()
   expect(await ui.find({ key: 'tab:project', text: 'Switchboard' })).toBeDefined()
@@ -153,6 +153,12 @@ test("another session's view is the session view: its status, its asks with work
   await ui.press({ key: `go:${LEDGER}` })
   expect(await ui.find({ type: 'Text', text: 'Request ledger' })).toBeDefined()
   expect(await ui.find({ type: 'Text', text: 'Drawing the ledger schema' })).toBeDefined()
+  expect(
+    (await ui.findAll({ type: 'Text' }))
+      .map(each => each.text)
+      .filter(text => ['Request ledger', 'FOR YOU', 'STATUS', 'LOG'].includes(text)),
+    'the same order as this session’s',
+  ).toEqual(['Request ledger', 'FOR YOU', 'STATUS', 'LOG'])
   expect(await ui.find({ key: 'log:n3', text: 'Wrote the schema' })).toBeDefined()
 
   await ui.press({ key: 'pick:k3' })
@@ -212,7 +218,7 @@ test('parked is scoped to where the board looks: this session, its project, ever
   await w.clock.advance(MIN)
   await w.call('park', { title: 'A tmux indicator across sessions' })
 
-  const ui = await w.opened()
+  const ui = await w.opened(WIDE)
   const parkedHere = async () =>
     (await ui.findAll({ type: 'Button' }))
       .filter(each => each.key?.startsWith('ppick:'))

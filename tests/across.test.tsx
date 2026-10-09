@@ -3,9 +3,12 @@ import { parseEntries, workPaths, type WorkMeta } from '../core'
 import { AROUND_MS } from '../hooks/around'
 import { SENT_LINGER_MS } from '../hooks/queue'
 import { ask, delivered, file, MIN, reply, T0, W1, W2, W3 } from './support'
-import { postedId, PROJECT, ROOT, world } from './world'
+import { INLINE, postedId, PROJECT, ROOT, world } from './world'
 
 tier('user')
+
+/** For a test that runs the clock through many of the watch's looks: past the default 5s on a loaded machine. */
+const SLOW = { timeoutMs: 20_000 }
 
 type World = ReturnType<typeof world>
 type Board = Awaited<ReturnType<World['opened']>>
@@ -108,6 +111,23 @@ test("send writes another work's replies into its inbox as this window's letters
   ).toEqual(['ask', 'reply', 'delivered'])
 })
 
+test('a send of replies to other works only closes an inline board, once they are in their inboxes', async ($, on) => {
+  const w = world($, on)
+  const { ui } = await threeSessions(w)
+
+  await answer(ui, LEDGER, 'k3')
+  await ui.unmount()
+
+  const inline = await w.pane('terminal', INLINE)
+
+  await inline.press({ key: 'send' })
+
+  expect(repliesIn(w, LETTERS)).toMatchObject([{ item: 'k3', verdict: 'yes' }])
+  expect(w.prompts).toEqual([])
+  expect(w.panes.has('sitrep')).toBe(false)
+  expect(w.state.pane?.isOpen).toBe(false)
+})
+
 test('a letter after a reload adds to the inbox file as it stands, its count going on', async ($, on) => {
   const w = world($, on)
   const { ui } = await threeSessions(w)
@@ -124,36 +144,40 @@ test('a letter after a reload adds to the inbox file as it stands, its count goi
   ])
 })
 
-test('each destination says where its replies stand, and each reply whether Claude has it', async ($, on) => {
-  const w = world($, on)
-  const { ledger, ui } = await threeSessions(w)
+test(
+  'each destination says where its replies stand, and each reply whether Claude has it',
+  SLOW,
+  async ($, on) => {
+    const w = world($, on)
+    const { ledger, ui } = await threeSessions(w)
 
-  await answer(ui, LEDGER, 'k3')
-  await answer(ui, THEMES, 'k4')
-  await ui.press({ key: 'send' })
+    await answer(ui, LEDGER, 'k3')
+    await answer(ui, THEMES, 'k4')
+    await ui.press({ key: 'send' })
 
-  expect(w.toasts).toContain('Sent 1 reply to Request ledger and 1 reply to Themes.')
-  expect(await ui.find({ type: 'Text', text: '⧗ waiting for its turn to end' })).toBeDefined()
-  expect(await ui.find({ type: 'Text', text: '○ closed: goes in when it reopens' })).toBeDefined()
-  expect(await ui.findAll({ type: 'Text', text: '· on its way' })).toHaveLength(2)
-  expect(await ui.find({ key: 'send' }), 'nothing waits to be sent').toBeUndefined()
+    expect(w.toasts).toContain('Sent 1 reply to Request ledger and 1 reply to Themes.')
+    expect(await ui.find({ type: 'Text', text: '⧗ waiting for its turn to end' })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: '○ closed: goes in when it reopens' })).toBeDefined()
+    expect(await ui.findAll({ type: 'Text', text: '· on its way' })).toHaveLength(2)
+    expect(await ui.find({ key: 'send' }), 'nothing waits to be sent').toBeUndefined()
 
-  const [letter] = repliesIn(w, LETTERS)
+    const [letter] = repliesIn(w, LETTERS)
 
-  ledger.write(delivered(letter?.id ?? ''))
-  ledger.beat()
-  await w.clock.advance(AROUND_MS)
-  expect(await ui.find({ type: 'Text', text: '✓ delivered' })).toBeDefined()
-  expect(await ui.find({ type: 'Text', text: '· delivered just now' })).toBeDefined()
+    ledger.write(delivered(letter?.id ?? ''))
+    ledger.beat()
+    await w.clock.advance(AROUND_MS)
+    expect(await ui.find({ type: 'Text', text: '✓ delivered' })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: '· delivered just now' })).toBeDefined()
 
-  await w.clock.advance(2 * MIN)
-  expect(await ui.find({ type: 'Text', text: '· delivered 2m ago' })).toBeDefined()
+    await w.clock.advance(2 * MIN)
+    expect(await ui.find({ type: 'Text', text: '· delivered 2m ago' })).toBeDefined()
 
-  await w.clock.advance(SENT_LINGER_MS)
-  expect(await ui.find({ type: 'Text', text: 'to Request ledger' })).toBeUndefined()
-  expect(await ui.find({ type: 'Text', text: 'to Themes' })).toBeDefined()
-  expect(w.state.sent?.map(each => each.work)).toEqual([THEMES])
-})
+    await w.clock.advance(SENT_LINGER_MS)
+    expect(await ui.find({ type: 'Text', text: 'to Request ledger' })).toBeUndefined()
+    expect(await ui.find({ type: 'Text', text: 'to Themes' })).toBeDefined()
+    expect(w.state.sent?.map(each => each.work)).toEqual([THEMES])
+  },
+)
 
 test("the destination's own view shows the ask's reply on its way, and offers no second answer", async ($, on) => {
   const w = world($, on)
@@ -195,26 +219,34 @@ test('two quick presses of send write each letter once', async ($, on) => {
   ])
 })
 
-test('a sent reply whose item changed before it went in shows there as not delivered, offers its item again, and lingers out', async ($, on) => {
-  const w = world($, on)
-  const { ledger, ui } = await threeSessions(w)
+test(
+  'a sent reply whose item changed before it went in shows there as not delivered, offers its item again, and lingers out',
+  SLOW,
+  async ($, on) => {
+    const w = world($, on)
+    const { ledger, ui } = await threeSessions(w)
 
-  await answer(ui, LEDGER, 'k3')
-  await ui.press({ key: 'send' })
-  await w.clock.advance(MIN)
-  ledger.write({ type: 'edit', item: 'k3', changes: { kind: 'decide', options: ['Now', 'Later'] } })
-  ledger.beat()
-  await w.clock.advance(AROUND_MS)
+    await answer(ui, LEDGER, 'k3')
+    await ui.press({ key: 'send' })
+    await w.clock.advance(MIN)
+    ledger.write({
+      type: 'edit',
+      item: 'k3',
+      changes: { kind: 'decide', options: ['Now', 'Later'] },
+    })
+    ledger.beat()
+    await w.clock.advance(AROUND_MS)
 
-  expect(await ui.find({ type: 'Text', text: '✕ not delivered' })).toBeDefined()
-  expect(await ui.find({ type: 'Text', text: '· not delivered: it changed since' })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: '✕ not delivered' })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: '· not delivered: it changed since' })).toBeDefined()
 
-  await ui.press({ key: 'tab:project' })
-  await ui.press({ key: `go:${LEDGER}` })
-  await ui.press({ key: 'pick:k3' })
-  expect(await ui.find({ key: 'choose:k3:0' })).toBeDefined()
+    await ui.press({ key: 'tab:project' })
+    await ui.press({ key: `go:${LEDGER}` })
+    await ui.press({ key: 'pick:k3' })
+    expect(await ui.find({ key: 'choose:k3:0' })).toBeDefined()
 
-  await w.clock.advance(SENT_LINGER_MS)
-  expect(await ui.find({ type: 'Text', text: 'to Request ledger' })).toBeUndefined()
-  expect(w.state.sent).toEqual([])
-})
+    await w.clock.advance(SENT_LINGER_MS)
+    expect(await ui.find({ type: 'Text', text: 'to Request ledger' })).toBeUndefined()
+    expect(w.state.sent).toEqual([])
+  },
+)

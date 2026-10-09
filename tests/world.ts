@@ -60,6 +60,9 @@ export const DOCKED: RenderPropsOf['Pane'] = {
 
 export const INLINE: RenderPropsOf['Pane'] = { ...DOCKED, placement: 'inline' }
 
+/** The board docked beside a 150-column terminal, as it measured live: room for every tab's full label, counts and all, beside the parked count. */
+export const WIDE: RenderPropsOf['Pane'] = { ...DOCKED, bodyColumns: 67 }
+
 /** The band above the prompt, 100 columns across. */
 export const BAND: RenderPropsOf['AbovePrompt'] = {
   hasSurvey: false,
@@ -393,8 +396,8 @@ export function world(engine: Engine, on: On, options: { now?: number; cwd?: str
     cwd = next.cwd ?? cwd
   }
 
-  /** The board opened by /sitrep, as Lee opens it, then drawn docked. */
-  const opened = async () => {
+  /** The board opened by /sitrep, as Lee opens it, then drawn docked unless told otherwise. */
+  const opened = async (props: RenderPropsOf['Pane'] = DOCKED) => {
     await engine.command.run({
       command: 'sitrep',
       args: '',
@@ -402,7 +405,7 @@ export function world(engine: Engine, on: On, options: { now?: number; cwd?: str
       presentation: { isFullscreen: true, columns: 160 },
     })
 
-    return pane()
+    return pane('terminal', props)
   }
 
   /** A turn of the main conversation starting with `text`, as the engine starts one. */

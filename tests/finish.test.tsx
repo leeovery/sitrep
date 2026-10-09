@@ -1,8 +1,9 @@
+import type { RenderPropsOf } from 'claude-code'
 import { expect, test, tier } from 'claude-code/testing'
 import { parseEntries, workPaths, type WorkMeta } from '../core'
 import { rowsOf } from './drawn'
 import { ask, file, finish, MIN, note, T0, W1, W2, W3, W4 } from './support'
-import { ELSEWHERE, PROJECT, ROOT, world } from './world'
+import { ELSEWHERE, PROJECT, ROOT, WIDE, world } from './world'
 
 tier('user')
 
@@ -31,9 +32,9 @@ const MINE = workPaths(ROOT, PROJECT.key, THEMES).log(W1)
  * This session with an ask, beside three others of its project, each with
  * an ask: the ledger, open in another window; Themes, with no window; and
  * the lobby, already marked done. Goosemates' one work is done too, its ask
- * still open. A minute on, Lee opens the board.
+ * still open. A minute on, Lee opens the board, drawn as `props` say.
  */
-async function around(w: World) {
+async function around(w: World, props?: RenderPropsOf['Pane']) {
   const ledger = w.elsewhere(meta(LEDGER, 'Request ledger', W2))
 
   ledger.write(ask('k3', 'review', 'Review the ledger schema'))
@@ -50,7 +51,7 @@ async function around(w: World) {
   await w.clock.advance(MIN)
   ledger.beat()
 
-  return { id, ui: await w.opened() }
+  return { id, ui: await w.opened(props) }
 }
 
 /** The keys of the drawn buttons that start with `prefix`, in the order drawn. */
@@ -67,7 +68,7 @@ const visit = async (ui: Board, work: string) => {
 
 test('a finished work drops out of the project and All projects, and its asks count nowhere', async ($, on) => {
   const w = world($, on)
-  const { id, ui } = await around(w)
+  const { id, ui } = await around(w, WIDE)
   const band = await w.band()
 
   expect(await band.find({ key: 'band:elsewhere', text: '2 in other sessions' })).toBeDefined()
@@ -159,7 +160,7 @@ test('a work Claude finished counts nothing in its own window: the band and the 
   await w.call('ask', { kind: 'review', title: 'Review round 1' })
 
   const band = await w.band()
-  const ui = await w.opened()
+  const ui = await w.opened(WIDE)
 
   expect(await band.find({ key: 'band:for-you', text: '1 for you' })).toBeDefined()
   expect(rowsOf(await ui.find({ key: 'tab:session:box' }))).toEqual([' ⌂ This session 1'])

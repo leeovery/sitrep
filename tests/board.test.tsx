@@ -3,6 +3,9 @@ import { INLINE, DOCKED, postedId, SESSION, SURFACES, world } from './world'
 
 tier('user')
 
+/** For a test that runs the clock through many of the watch's looks: past the default 5s on a loaded machine. */
+const SLOW = { timeoutMs: 20_000 }
+
 type World = ReturnType<typeof world>
 
 const REVIEW = {
@@ -49,26 +52,54 @@ test('with no work held, the board says so in a line and says how Claude starts 
   expect(await ui.find({ key: 'parked' })).toBeUndefined()
 })
 
-test("this session's view: the name and summary, what is under way and next, each heading's few words", async ($, on) => {
+test(
+  "this session's view: the name and summary, what is under way and next, each heading's few words",
+  SLOW,
+  async ($, on) => {
+    const w = world($, on)
+
+    await w.begin()
+    await w.call('status', { now: ['Drawing Usage, round 2'], next: 'Usage, round 3' })
+    await w.clock.advance(12 * 60_000)
+
+    const ui = await w.pane()
+
+    expect(await ui.find({ key: 'tab:session', text: 'This session' })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: 'Dashboard redesign' })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: '· Switchboard' })).toBeDefined()
+    expect(
+      await ui.find({ type: 'Text', text: 'Redesign the dashboard, area by area' }),
+    ).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: 'Drawing Usage, round 2' })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: 'next: Usage, round 3' })).toBeDefined()
+
+    for (const note of ['updated 12m ago', 'nothing waiting', 'what happened']) {
+      expect(await ui.find({ type: 'Text', text: note }), note).toBeDefined()
+    }
+  },
+)
+
+/** The view's own line and section headings, in the order drawn. */
+const SECTIONS = new Set(['Dashboard redesign', 'FOR YOU', 'STATUS', 'LOG', 'DONE'])
+
+test("this session's view runs its name and summary, then FOR YOU, STATUS, LOG and DONE, docked and inline", async ($, on) => {
   const w = world($, on)
 
   await w.begin()
-  await w.call('status', { now: ['Drawing Usage, round 2'], next: 'Usage, round 3' })
-  await w.clock.advance(12 * 60_000)
 
-  const ui = await w.pane()
+  const done = await asked(w, { kind: 'do', title: 'Run the production apply' })
 
-  expect(await ui.find({ key: 'tab:session', text: 'This session' })).toBeDefined()
-  expect(await ui.find({ type: 'Text', text: 'Dashboard redesign' })).toBeDefined()
-  expect(await ui.find({ type: 'Text', text: '· Switchboard' })).toBeDefined()
-  expect(
-    await ui.find({ type: 'Text', text: 'Redesign the dashboard, area by area' }),
-  ).toBeDefined()
-  expect(await ui.find({ type: 'Text', text: 'Drawing Usage, round 2' })).toBeDefined()
-  expect(await ui.find({ type: 'Text', text: 'next: Usage, round 3' })).toBeDefined()
+  await w.call('resolve', { item: done, reason: 'Ran it in the chat' })
+  await asked(w)
 
-  for (const note of ['updated 12m ago', 'nothing waiting', 'what happened']) {
-    expect(await ui.find({ type: 'Text', text: note }), note).toBeDefined()
+  for (const props of [DOCKED, INLINE]) {
+    const ui = await w.pane('terminal', props)
+    const order = (await ui.findAll({ type: 'Text' }))
+      .map(each => each.text)
+      .filter(text => SECTIONS.has(text))
+
+    expect(order, props.placement).toEqual([...SECTIONS])
+    await ui.unmount()
   }
 })
 
