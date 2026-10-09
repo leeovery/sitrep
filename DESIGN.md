@@ -345,6 +345,18 @@ waits in it, grouped by where each reply goes (`to this session`,
 Each reply hangs off its item with a `└`, has its own `✕`, and the ask shows
 `↺ undo`. **send to Claude** sends them; **cancel all** clears them.
 
+**Docked**, the box stays at the foot of the board's window as the board
+scrolls, drawn over the rows there on the tab's `#292e42`, and the board's
+last line scrolls clear of it. **Inline** (the phone) it sits at the end of
+the content. Each of its lines keeps to one row, cut short, so its height
+follows from what it holds. Docked it takes under half the window: a queue
+too long for that lists what fits and ends `… 3 more`, still one box. While
+a field is open the box keeps to the end of the content instead, so it
+never covers what Lee is typing, and floats again once the field closes.
+Opening the board, queuing a reply and sending leave the window where Lee
+had it; Tab onto a button the box covers brings that button to the
+window's middle.
+
 On an inline board (the phone layout) a send closes the board as soon as it
 is claimed: the message to this session claimed, or, with none, the replies
 written into other works' inboxes. It never waits for Claude Code to take
@@ -551,6 +563,26 @@ $XDG_STATE_HOME/sitrep/, else ~/.local/state/sitrep/
     file draws it, relative to that file. A surface's table names every
     element, one the surface lacks drawing nothing, so what a surface can
     draw (a text area, a one-line field) is read off `e.surface`.
+  - A box floating over the foot of a docked pane, Ready to send's (settled
+    by a probe and a live run, 2.1.295): the engine scrolls the whole tree,
+    and the box is drawn `position: "absolute"` at `offset + bodyRows`
+    less its own rows, placed again on every drawing from `e.props.scroll`,
+    since every scroll asks the render hook again. Rows as tall as the box
+    close the tree, and the tree is never shorter than `offset + bodyRows`:
+    one shrinking under a scrolled window has the engine pull the window up
+    without asking, leaving the box mid-pane. Only the box's rows are
+    counted, never the board's. The engine counts the rows under the box as
+    showing, so the scroll hook turns a page key into a step of the rows
+    above it, and the focus hook brings the button the focus lands on to the
+    window's middle (`$.ui.scroll`, `block: 'center'`), then draws again:
+    the engine keeps the focus in view by moving the window itself, unasked,
+    and a reveal that then finds nothing to move draws nothing. Both hooks
+    read the window as last drawn from a module variable, since a render
+    hook cannot write `$.state`. A click gives a `Client` (the field's text
+    area) the keys without raising `ui.focus`, so no hook hears it. An
+    absolute box spanning the whole window blocks clicks on what shows
+    through it. The test kit has no `$.ui.scroll`: the reveal is checked
+    live.
   - `$.prompt.submit` while Claude is mid-turn (settled in a live run): the
     call waits, the prompt never folded into the running turn; once that
     turn completes, the prompt starts a turn of its own and the call

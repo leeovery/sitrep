@@ -6,14 +6,20 @@
  * Replies sent into another work's inbox stay in their group until Claude
  * has them, and a while after: the group says where they stand there, and
  * each reply whether it is on its way or when it was delivered.
+ *
+ * Each of the box's lines takes one row, cut short rather than wrapped, so
+ * its height follows from what it lists (`readyRows`): a docked board floats
+ * it over the foot of its window by that height. Given fewer rows than it
+ * needs, it lists what fits and says how many more it holds.
  */
-import { answerOf, deliveryOf, type Delivery, type Reply } from '../../core'
-import type { SitrepQueued, SitrepSent } from '../../types'
-import { agoWords, C, counted, GLYPH } from '../look'
+import type { RenderElement } from 'claude-code'
+import { answerOf, deliveryOf, type Ask, type Delivery, type Parked, type Reply } from '../../core'
+import type { SitrepQueued } from '../../types'
+import { agoWords, C, counted, GLYPH, wrapped } from '../look'
 import { filedAt, workLabel } from '../places'
 import { answered, destinations, isCarried, isShowing, queuedFor, sentIn } from '../queue'
 import type { Filed, Scene } from '../scene'
-import { hung, type Drawing } from './kit'
+import type { Drawing } from './kit'
 
 const SENDING = '⧗ Sending. If Claude is mid-turn it goes in as soon as that turn ends.'
 
@@ -28,15 +34,72 @@ const STANDING: Record<Delivery, { text: string; color: string }> = {
   void: { text: '✕ not delivered', color: C.grey },
 }
 
-/** One destination: the work, the replies waiting for it, and those sent to it Ready to send still shows. */
-type Group = { filed: Filed; queued: SitrepQueued[]; sent?: SitrepSent }
+/** The keys of the box's own buttons. */
+const SEND = 'send'
+const CANCEL_ALL = 'cancel-all'
+const UNREADY = 'unready:'
+
+/** Whether a button is one of the box's own. */
+export const isReadyKey = (key: string) =>
+  key === SEND || key === CANCEL_ALL || key.startsWith(UNREADY)
+
+/** The rows the box takes besides its lines: its border, top and bottom. */
+const BORDER_ROWS = 2
+/** The heading: the box's name and how many replies wait. */
+const HEAD_ROWS = 1
+/** The blank row above each group, and above send and cancel all or the line saying a send is on its way. */
+const GAP_ROWS = 1
+/** A group's rows before its replies: the blank row, and the line saying where they go. */
+const GROUP_ROWS = GAP_ROWS + 1
+/** A reply's rows: what it answers, and the answer hung under it. */
+const REPLY_ROWS = 2
+/** The line counting the replies left off for room. */
+const MORE_ROWS = 1
+/** The cells across the box keeps from its lines: its border and its padding, each side. */
+const BOX_SIDES = 4
+
+/** A reply waiting for a send, and the item it answers. */
+type Queued = { item: Ask | Parked; queued: SitrepQueued }
+
+/** A reply sent into its work's inbox, and the item it answers. */
+type Sent = { item: Ask | Parked; sent: Reply }
+
+type Listed = Queued | Sent
+
+/** One destination: the work, where the replies sent to it stand there, and the replies listed for it. */
+type Group = { filed: Filed; standing?: Delivery; listed: Listed[] }
+
+/** Ready to send as the box draws it. */
+export type Ready = {
+  groups: readonly Group[]
+  /** How many replies wait for a send, any left off for room among them. */
+  waiting: number
+  /** How many replies are left off for room. */
+  more: number
+  /** While a send is on its way, the line saying so, as the rows it takes; else none. */
+  sending: readonly string[]
+}
+
+const queuedIn = ({ work }: Filed, queue: readonly SitrepQueued[]): Queued[] =>
+  queuedFor(queue, work.id).flatMap(queued => {
+    const item = answered(work, queued)
+
+    return item === undefined ? [] : [{ item, queued }]
+  })
+
+const sentTo = ({ work }: Filed, replies: readonly Reply[]): Sent[] =>
+  replies.flatMap(sent => {
+    const item = work.items.get(sent.item)
+
+    return item === undefined || item.type === 'note' ? [] : [{ item, sent }]
+  })
 
 /** Each destination, this session first, then as first queued, then those only sent to. */
 const groupsOf = (scene: Scene): Group[] => {
   const held = scene.work.id
   const queued = [...queuedFor(scene.queue, held), ...scene.queue]
 
-  return destinations([...queued, ...scene.sent]).flatMap(({ work }) => {
+  return destinations([...queued, ...scene.sent]).flatMap(({ work }): Group[] => {
     const filed = filedAt(scene, work)
     const sent = scene.sent.find(each => each.work === work)
 
@@ -44,140 +107,241 @@ const groupsOf = (scene: Scene): Group[] => {
       return []
     }
 
-    const group: Group = {
-      filed,
-      queued: queuedFor(scene.queue, work).filter(reply => answered(filed.work, reply)),
-      sent: sent !== undefined && isShowing(filed.work, sent, scene.now) ? sent : undefined,
+    const waiting = queuedIn(filed, scene.queue)
+
+    if (sent === undefined || !isShowing(filed.work, sent, scene.now)) {
+      return waiting.length > 0 ? [{ filed, listed: waiting }] : []
     }
 
-    return group.queued.length > 0 || group.sent !== undefined ? [group] : []
+    return [
+      {
+        filed,
+        standing: deliveryOf(filed.work, sent.replies),
+        listed: [...waiting, ...sentTo(filed, sentIn(filed.work, sent))],
+      },
+    ]
   })
 }
 
-const drawReply = (d: Drawing, { work }: Filed, reply: SitrepQueued) => {
-  const { Box, Text, Button } = d.els
-  const item = answered(work, reply)
+const listedIn = (groups: readonly Group[]) =>
+  groups.reduce((sum, group) => sum + group.listed.length, 0)
 
-  if (item === undefined) {
-    return null
+const groupRows = (groups: readonly Group[]) =>
+  groups.length * GROUP_ROWS + listedIn(groups) * REPLY_ROWS
+
+const controlsRows = ({ waiting, sending }: Ready) => {
+  if (waiting === 0) {
+    return 0
   }
 
+  return GAP_ROWS + (sending.length > 0 ? sending.length : 1)
+}
+
+/** The rows the box takes: each of its lines one, and its border. */
+export const readyRows = (ready: Ready) =>
+  BORDER_ROWS +
+  HEAD_ROWS +
+  groupRows(ready.groups) +
+  (ready.more > 0 ? MORE_ROWS : 0) +
+  controlsRows(ready)
+
+/**
+ * The groups that fit in `room` rows: all of them, or those up to the first
+ * that will not fit whole, it cut short, with a row kept for the count of
+ * what was left off. A group listing replies shows with one of them at least.
+ */
+const fitted = (groups: readonly Group[], room: number) => {
+  if (groupRows(groups) <= room) {
+    return groups
+  }
+
+  const kept: Group[] = []
+  let left = room - MORE_ROWS
+
+  for (const group of groups) {
+    const fits = Math.min(group.listed.length, Math.floor((left - GROUP_ROWS) / REPLY_ROWS))
+
+    if (fits < Math.min(1, group.listed.length)) {
+      break
+    }
+
+    kept.push({ ...group, listed: group.listed.slice(0, fits) })
+    left -= GROUP_ROWS + fits * REPLY_ROWS
+
+    if (fits < group.listed.length) {
+      break
+    }
+  }
+
+  return kept
+}
+
+/**
+ * Ready to send as it draws `width` cells across in at most `rows` rows,
+ * however few: its heading and buttons always show. Undefined while
+ * nothing waits in it or is on its way.
+ */
+export const readyOf = (scene: Scene, width: number, rows = Infinity): Ready | undefined => {
+  const groups = groupsOf(scene)
+
+  if (groups.length === 0) {
+    return undefined
+  }
+
+  const frame: Ready = {
+    groups: [],
+    waiting: groups.reduce(
+      (sum, group) => sum + group.listed.filter(listed => 'queued' in listed).length,
+      0,
+    ),
+    more: 0,
+    sending: scene.inFlight?.source === 'send' ? wrapped(SENDING, width - BOX_SIDES) : [],
+  }
+  const kept = fitted(groups, rows - readyRows(frame))
+
+  return { ...frame, groups: kept, more: listedIn(groups) - listedIn(kept) }
+}
+
+/** A line of the box, cut short at the edge. */
+const line = ({ els }: Drawing, text: string, color?: string) => {
+  const { Text } = els
+
   return (
-    <Box key={`ready:${reply.work}:${reply.item}`} flexDirection="column">
+    <Text color={color} wrap="truncate-end">
+      {text}
+    </Text>
+  )
+}
+
+/** An answer as one line: a note of several lines runs on in it. */
+const oneLine = (text: string) => text.replace(/\s*\n\s*/g, ' ')
+
+/** The answer hung from its reply's title by a `└`, on one row, and what goes after it there. */
+const drawAnswer = (d: Drawing, key: string, text: string, after?: RenderElement) => {
+  const { Box, Text } = d.els
+
+  return (
+    <Box key={key} flexDirection="row" gap={1}>
+      <Text color={C.rule}>{GLYPH.last}</Text>
+      <Box flexGrow={1} flexShrink={1}>
+        {line(d, oneLine(text), C.soft)}
+      </Box>
+      {after}
+    </Box>
+  )
+}
+
+const drawQueued = (d: Drawing, { item, queued }: Queued) => {
+  const { Box, Button } = d.els
+
+  return (
+    <Box key={`ready:${queued.work}:${queued.item}`} flexDirection="column">
       <Box flexDirection="row" gap={1}>
         <Box flexGrow={1} flexShrink={1}>
-          <Text wrap="truncate-end">{item.title}</Text>
+          {line(d, item.title)}
         </Box>
-        {!isCarried(d.scene.inFlight, reply) && (
+        {!isCarried(d.scene.inFlight, queued) && (
           <Button
-            key={`unready:${reply.item}`}
+            key={`${UNREADY}${queued.item}`}
             plain
             dimColor
             label="✕"
-            onPress={() => d.act.unqueue(reply.work, reply.item)}
+            onPress={() => d.act.unqueue(queued.work, queued.item)}
           />
         )}
       </Box>
-      {hung(d, `readyanswer:${reply.item}`, answerOf(item, reply))}
+      {drawAnswer(d, `readyanswer:${queued.item}`, answerOf(item, queued))}
     </Box>
   )
 }
 
 /** A reply sent into the work's inbox: what it answers, and whether Claude has it yet. */
-const drawSent = (d: Drawing, { work }: Filed, reply: Reply) => {
-  const { Box, Text } = d.els
-  const item = work.items.get(reply.item)
-
-  if (item === undefined || item.type === 'note') {
-    return null
-  }
-
+const drawSent = (d: Drawing, { item, sent }: Sent) => {
+  const { Box } = d.els
   const standing =
-    reply.delivery === 'void'
+    sent.delivery === 'void'
       ? NOT_DELIVERED
-      : reply.deliveredAt === undefined
+      : sent.deliveredAt === undefined
         ? '· on its way'
-        : `· delivered ${agoWords(d.scene.now, reply.deliveredAt)}`
+        : `· delivered ${agoWords(d.scene.now, sent.deliveredAt)}`
 
   return (
-    <Box key={`sentreply:${reply.id}`} flexDirection="column">
-      <Text wrap="truncate-end">{item.title}</Text>
-      {hung(
-        d,
-        `sentanswer:${reply.id}`,
-        answerOf(item, reply),
-        <Text color={C.grey}>{standing}</Text>,
-      )}
+    <Box key={`sentreply:${sent.id}`} flexDirection="column">
+      {line(d, item.title)}
+      {drawAnswer(d, `sentanswer:${sent.id}`, answerOf(item, sent), line(d, standing, C.grey))}
     </Box>
   )
 }
 
-const drawGroup = (d: Drawing, { filed, queued, sent }: Group) => {
-  const { Box, Text } = d.els
+const drawGroup = (d: Drawing, { filed, standing, listed }: Group) => {
+  const { Box } = d.els
   const label = filed.work === d.scene.work ? 'to this session' : `to ${workLabel(d.scene, filed)}`
-  const standing = sent === undefined ? undefined : STANDING[deliveryOf(filed.work, sent.replies)]
+  const stands = standing === undefined ? undefined : STANDING[standing]
 
   return (
-    <Box key={`group:${filed.work.id}`} flexDirection="column" paddingTop={1}>
+    <Box key={`group:${filed.work.id}`} flexDirection="column" paddingTop={GAP_ROWS}>
       <Box flexDirection="row" gap={1}>
         <Box flexGrow={1} flexShrink={1}>
-          <Text color={C.grey} wrap="truncate-end">
-            {label}
-          </Text>
+          {line(d, label, C.grey)}
         </Box>
-        {standing !== undefined && <Text color={standing.color}>{standing.text}</Text>}
+        {stands !== undefined && line(d, stands.text, stands.color)}
       </Box>
-      {queued.map(reply => drawReply(d, filed, reply))}
-      {sent !== undefined && sentIn(filed.work, sent).map(reply => drawSent(d, filed, reply))}
+      {listed.map(each => ('queued' in each ? drawQueued(d, each) : drawSent(d, each)))}
     </Box>
   )
 }
 
-const drawControls = (d: Drawing) => {
+const drawControls = (d: Drawing, { sending }: Ready) => {
   const { Box, Text, Button } = d.els
 
-  if (d.scene.inFlight?.source === 'send') {
+  if (sending.length > 0) {
     return (
-      <Box paddingTop={1}>
-        <Text color={C.grey} italic wrap="wrap">
-          {SENDING}
-        </Text>
+      <Box flexDirection="column" paddingTop={GAP_ROWS}>
+        {sending.map((row, i) => (
+          <Text key={`sending:${i}`} color={C.grey} italic wrap="truncate-end">
+            {row}
+          </Text>
+        ))}
       </Box>
     )
   }
 
   return (
-    <Box flexDirection="row" columnGap={1} paddingTop={1}>
+    <Box flexDirection="row" columnGap={1} paddingTop={GAP_ROWS}>
       <Button
-        key="send"
+        key={SEND}
         variant="primary"
         label="send to Claude"
         onPress={() => d.act.send(d.isDock)}
       />
-      <Button key="cancel-all" dimColor label="cancel all" onPress={() => d.act.cancelAll()} />
+      <Button key={CANCEL_ALL} dimColor label="cancel all" onPress={() => d.act.cancelAll()} />
     </Box>
   )
 }
 
-export const drawReady = (d: Drawing) => {
+/** The box, `readyRows(ready)` rows tall; floating over the board, it paints `backgroundColor` over what is beneath. */
+export const drawReady = (d: Drawing, ready: Ready, backgroundColor?: string) => {
   const { Box, Text } = d.els
-  const groups = groupsOf(d.scene)
-  const waiting = groups.reduce((sum, group) => sum + group.queued.length, 0)
-
-  if (groups.length === 0) {
-    return null
-  }
+  const { groups, waiting, more } = ready
 
   return (
-    <Box flexDirection="column" borderStyle="round" borderColor={C.ok} paddingX={1}>
+    <Box
+      key="ready"
+      flexDirection="column"
+      borderStyle="round"
+      borderColor={C.ok}
+      paddingX={1}
+      backgroundColor={backgroundColor}
+    >
       <Box flexDirection="row" justifyContent="space-between">
-        <Text color={C.ok} bold>
+        <Text color={C.ok} bold wrap="truncate-end">
           READY TO SEND
         </Text>
-        <Text color={C.grey}>{waiting > 0 ? counted(waiting, 'reply', 'replies') : 'sent'}</Text>
+        {line(d, waiting > 0 ? counted(waiting, 'reply', 'replies') : 'sent', C.grey)}
       </Box>
       {groups.map(group => drawGroup(d, group))}
-      {waiting > 0 && drawControls(d)}
+      {more > 0 && line(d, `… ${more} more`, C.grey)}
+      {waiting > 0 && drawControls(d, ready)}
     </Box>
   )
 }

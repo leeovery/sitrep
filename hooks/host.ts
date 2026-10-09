@@ -16,6 +16,7 @@ import type {
   ToastOptions,
   UiOpenResult,
   UiPane,
+  UiScrollResult,
 } from 'claude-code'
 import { rootOf, type Random } from '../core'
 import type {
@@ -67,6 +68,10 @@ export type Host = {
     close: (id: string) => Promise<void>
     /** The mod's own open panes, as the engine records them. */
     panes: () => Promise<readonly UiPane[]>
+    /** Scrolls a pane's window to bring one of its elements, by key, to its middle. */
+    reveal: (pane: string, key: string) => Promise<UiScrollResult>
+    /** Draws the mod's panes and band again, reading where each window stands now. */
+    redraw: () => void
     /** Plays a sound file of the mod's, by its path in the mod's folder. */
     play: (asset: string) => Promise<void>
   }

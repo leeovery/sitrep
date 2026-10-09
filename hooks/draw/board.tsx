@@ -1,13 +1,15 @@
 /**
  * The board pane: where it is looking and its view there, or the glance,
  * with Ready to send at the foot; one line when the window holds no work.
+ * Docked, Ready to send floats over the foot of the window as the board
+ * scrolls; inline, it follows the view.
  *
  * On Lee's own path up the tree the board shows a tab for each step of it,
  * each a row of `TABS`: this session, its project, every project. Anywhere
  * else the tabs give way to a step back up and the way home. Either row
  * ends in the way to what was parked where the board looks.
  */
-import type { RenderElement, RenderPropsOf, RenderSurface } from 'claude-code'
+import type { RenderElement, RenderPropsOf, RenderSurface, SiteScroll } from 'claude-code'
 import type { SitrepPlace } from '../../types'
 import type { Actions } from '../actions'
 import { C, clip, GLYPH } from '../look'
@@ -31,7 +33,7 @@ import { drawGlance } from './glance'
 import type { Drawing, Els } from './kit'
 import { drawParkedView } from './parked'
 import { drawProjectView } from './project'
-import { drawReady } from './ready'
+import { drawReady, readyOf, readyRows, type Ready } from './ready'
 import { drawSessionView } from './session'
 
 const NO_WORK =
@@ -262,6 +264,63 @@ const drawBoardView = (d: Drawing) => {
 
 type PaneProps = Pick<RenderPropsOf['Pane'], 'bodyColumns' | 'placement' | 'scroll'>
 
+/** The cells across the board's lines: the body, less the column kept free each side. */
+const widthOf = (props: PaneProps) => props.bodyColumns - 2
+
+/** The most rows of a docked board's window Ready to send floats over: under half, so a button the focus brings to the middle shows above it. */
+const readyCap = (bodyRows: number) => Math.floor((bodyRows - 1) / 2)
+
+/** The blank row between the board's last line and Ready to send. */
+const READY_GAP = 1
+
+/**
+ * Whether Ready to send floats: on a docked board, not the glance, while
+ * no field is open. A click gives the field's text area the keys without
+ * raising `ui.focus`, so nothing would bring one the box covered clear of
+ * it: while a field is open, the box keeps to the foot of the view.
+ */
+const floats = (props: PaneProps, scene: Scene) =>
+  props.placement === 'dock' && scene.pane.mode !== 'glance' && scene.pane.commenting === null
+
+/** Ready to send as a docked board floats it; undefined where it does not float, or with nothing in it. */
+const floatingOf = (props: PaneProps, scene: Scene | undefined): Ready | undefined =>
+  scene !== undefined && floats(props, scene)
+    ? readyOf(scene, widthOf(props), readyCap(props.scroll.bodyRows))
+    : undefined
+
+/** The rows at the foot of the board's window Ready to send floats over; none where it does not float. */
+export const floatingRows = (props: PaneProps, scene: Scene | undefined) => {
+  const floating = floatingOf(props, scene)
+
+  return floating === undefined ? 0 : readyRows(floating)
+}
+
+/**
+ * A docked board, Ready to send floating over the foot of its window: the
+ * engine scrolls the whole tree, and every drawing places the box again
+ * from where the window stands. Rows as tall as the box close the tree, so
+ * its last line scrolls clear of it. The tree is never shorter than the
+ * window as it stands: one shrinking under a scrolled window would have the
+ * engine pull the window up without drawing again, leaving the box mid-pane.
+ */
+const drawFloating = (d: Drawing, view: RenderElement, ready: Ready, scroll: SiteScroll) => {
+  const { Box } = d.els
+  const rows = readyRows(ready)
+  const foot = scroll.offset + scroll.bodyRows
+
+  return (
+    <Box flexDirection="column" minHeight={foot}>
+      <Box flexDirection="column" paddingX={1}>
+        {view}
+      </Box>
+      <Box height={READY_GAP + rows} flexShrink={0} />
+      <Box position="absolute" top={foot - rows} left={0} right={0} paddingX={1}>
+        {drawReady(d, ready, C.tab)}
+      </Box>
+    </Box>
+  )
+}
+
 export const drawPane = (
   els: Els,
   surface: RenderSurface,
@@ -286,7 +345,7 @@ export const drawPane = (
     surface,
     act,
     scene,
-    width: props.bodyColumns - 2,
+    width: widthOf(props),
     isDock: props.placement === 'dock',
   }
 
@@ -294,16 +353,24 @@ export const drawPane = (
     return drawGlance(d)
   }
 
+  const view = scene.pane.view === 'parked' ? drawParkedView(d) : drawBoardView(d)
+  const floating = floatingOf(props, scene)
+
+  if (floating !== undefined) {
+    return drawFloating(d, view, floating, props.scroll)
+  }
+
+  const ready = readyOf(scene, d.width)
+
   return (
     <Box
       flexDirection="column"
       paddingX={1}
       minHeight={d.isDock ? props.scroll.bodyRows : undefined}
     >
-      {scene.pane.view === 'parked' ? drawParkedView(d) : drawBoardView(d)}
-      {/* Ready to send keeps to the foot of a docked board, however short the view. */}
+      {view}
       <Box flexGrow={1} minHeight={1} />
-      {drawReady(d)}
+      {ready !== undefined && drawReady(d, ready)}
     </Box>
   )
 }

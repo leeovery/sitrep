@@ -30,8 +30,9 @@ import { actionsOf, heardTyping, PASTED_HERE, tookPaste } from './actions'
 import { lookAround, lookEvery } from './around'
 import { heardTurn, isBoardMessage, takeUpDelivery, wentQuiet } from './deliver'
 import { drawBand } from './draw/band'
-import { drawPane } from './draw/board'
+import { drawPane, floatingRows } from './draw/board'
 import { drawToolResult, drawToolRow, toolLine } from './draw/tool-row'
+import { drewBoard, followFocus, movedTo } from './float'
 import { logFailure, TOAST_MS, type Host } from './host'
 import { BAND_KEYS, boardClosed, openBoard, PANE, pressBand, syncBoard } from './pane'
 import { receiveEvery } from './receive'
@@ -92,6 +93,8 @@ const hostOf = ($: EngineInterface): Host => ({
     open: args => $.ui.open(args),
     close: id => $.ui.close({ id }),
     panes: () => $.ui.panes(),
+    reveal: (pane, key) => $.ui.scroll({ to: { key }, in: pane, block: 'center' }),
+    redraw: () => $.ui.invalidate('ui.render'),
     play: asset => $.audio.play({ asset }),
   },
   prompt: {
@@ -324,9 +327,29 @@ export const register: Register = on => {
 
   on('ui.render', { component: 'Pane', requestId: PANE }, async ($, e) => {
     const host = hostOf($)
+    const scene = await sceneOf(host)
 
-    return drawPane($.ui.resolve(e), e.surface, actionsOf(host), e.props, await sceneOf(host))
+    drewBoard(e.props.scroll, floatingRows(e.props, scene))
+
+    return drawPane($.ui.resolve(e), e.surface, actionsOf(host), e.props, scene)
   })
+
+  // Docked, Ready to send floats over the foot of the board's window, which
+  // the engine scrolls as though nothing covered it: a page key moves by the
+  // rows above the box, and the focus is brought clear of it.
+  on('ui.scroll', { requestId: PANE }, ($, e, next) => next({ ...e, offset: movedTo(e) })).catch(
+    ($, e, next) => next(e),
+  )
+
+  on('ui.focus', { requestId: PANE }, async ($, e, next) => {
+    const moved = await next(e)
+
+    if (moved.deny === undefined) {
+      await followFocus(hostOf($), e.element)
+    }
+
+    return moved
+  }).catch(($, e, next) => next(e))
 
   // A refused or interrupted call keeps the engine's own row, so what went wrong shows.
   on('ui.render', { component: 'ToolUse', props: { tool: TOOL_NAMES } }, async ($, e, next) => {
