@@ -11,6 +11,25 @@ export type StatusFields = Pick<Status, 'name' | 'summary' | 'now' | 'next'>
 /** A status change as the log shows it: a headline, and the detail it opens to. */
 export type StatusChange = { text: string; detail: string[] }
 
+/** What each detail line of a status change opens with: what the line says changed. */
+const STATUS_LABELS = {
+  added: 'Added:',
+  gone: 'No longer:',
+  kept: 'Still there:',
+  next: 'Next:',
+  name: 'Name:',
+  summary: 'Summary:',
+} as const
+
+const labelled = (label: string) => (text: string) => `${label} ${text}`
+
+/** A status change's detail line as the label it opens with and the text after it; undefined for a line no label opens. */
+export const labelOf = (line: string) => {
+  const label = Object.values(STATUS_LABELS).find(each => line.startsWith(`${each} `))
+
+  return label === undefined ? undefined : { label, text: line.slice(label.length + 1) }
+}
+
 const more = (count: number) => (count > 0 ? ` (and ${count} more)` : '')
 
 // Claude's now-lines open with a verb (the status tool's wording rule), so a
@@ -69,12 +88,12 @@ export const statusChange = (
   return {
     text: `Status: ${headline}`,
     detail: [
-      ...added.map(line => `Added: ${line}`),
-      ...gone.map(line => `No longer: ${line}`),
-      ...(isNowChanged ? kept.map(line => `Still there: ${line}`) : []),
-      ...(before.next === after.next ? [] : [`Next: ${after.next ?? 'none'}`]),
-      ...(before.name === after.name ? [] : [`Name: ${after.name}`]),
-      ...(before.summary === after.summary ? [] : [`Summary: ${after.summary}`]),
+      ...added.map(labelled(STATUS_LABELS.added)),
+      ...gone.map(labelled(STATUS_LABELS.gone)),
+      ...(isNowChanged ? kept.map(labelled(STATUS_LABELS.kept)) : []),
+      ...(before.next === after.next ? [] : [labelled(STATUS_LABELS.next)(after.next ?? 'none')]),
+      ...(before.name === after.name ? [] : [labelled(STATUS_LABELS.name)(after.name)]),
+      ...(before.summary === after.summary ? [] : [labelled(STATUS_LABELS.summary)(after.summary)]),
     ],
   }
 }

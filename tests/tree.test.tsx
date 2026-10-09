@@ -1,6 +1,7 @@
 import { expect, test, tier } from 'claude-code/testing'
 import { CURRENT_MS, type WorkMeta } from '../core'
 import { AROUND_MS } from '../hooks/around'
+import { C, GLYPH } from '../hooks/look'
 import { ask, MIN, note, park, status, T0, W2, W3, W4 } from './support'
 import { ELSEWHERE, postedId, PROJECT, WIDE, world } from './world'
 
@@ -297,21 +298,22 @@ test("a new ask in another session reaches the band's count at the slower pace, 
   ).toEqual([PROJECT.key])
 })
 
-test('the glance lists the project’s sessions, an open one opening its view', async ($, on) => {
+test("the project view's sessions and All projects' trees hang from faint glyphs", async ($, on) => {
   const w = world($, on)
 
   await neighbourhood(w)
 
-  const ui = await w.opened()
+  const ui = await w.opened(WIDE)
+  const colours = async (text: string) => [
+    ...new Set((await ui.findAll({ type: 'Text', text })).map(each => each.props.color)),
+  ]
 
-  await ui.press({ key: 'collapse' })
-  expect(await ui.find({ type: 'Text', text: 'SESSIONS' })).toBeDefined()
-  expect(await ui.find({ type: 'Text', text: 'Themes' })).toMatchObject({ type: 'Text' })
+  await ui.press({ key: 'tab:project' })
+  expect(await colours(GLYPH.last)).toEqual([C.faint])
 
-  await ui.press({ key: `open:gsession:${LEDGER}` })
-  expect(w.state.pane?.mode).toBe('full')
-  expect(await ui.find({ key: 'pick:k3' })).toBeDefined()
-  expect(await ui.find({ key: 'up', text: /← Switchboard/ })).toBeDefined()
+  await ui.press({ key: 'tab:all' })
+  expect(await colours(GLYPH.branch)).toEqual([C.faint])
+  expect(await colours(GLYPH.last)).toEqual([C.faint])
 })
 
 test('what the works around hold is put in $.state only when a look finds it changed', async ($, on) => {

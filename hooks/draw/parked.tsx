@@ -1,7 +1,9 @@
 /**
  * The parked view, scoped to where the board is looking: what a session,
  * a project's sessions or every project raised and put off, each to pick
- * up. A pick-up queues in Ready to send like any reply.
+ * up. A pick-up queues in Ready to send like any reply. It sits under the
+ * tabs, or the back row, as the board's views do, its first line the way
+ * back to the board.
  */
 import { C, GLYPH } from '../look'
 import { filedAt, homeOf, parkedAt, projectName, samePlace, type ParkedAt } from '../places'
@@ -68,7 +70,7 @@ const drawItem = (d: Drawing, entry: ParkedAt) => {
     branches: shown(
       isOpen && parked.where,
       isOpen && d.scene.place.level !== 'session' && { text: `raised in ${name}`, color: C.grey },
-      isOpen && seeRef(parked.ref),
+      isOpen && seeRef(parked.ref, MARK.color),
       pickUp,
     ),
     after: isOpen && pickUp === undefined && (
@@ -89,14 +91,14 @@ export const drawParkedView = (d: Drawing) => {
 
   return (
     <Box flexDirection="column" gap={1}>
-      <Button
-        key="back"
-        plain
-        dimColor
-        label="← back to the board"
-        onPress={() => d.act.show('board')}
-      />
       <Box flexDirection="column">
+        <Button
+          key="back"
+          plain
+          dimColor
+          label="← back to the board"
+          onPress={() => d.act.show('board')}
+        />
         {heading(d, `PARKED IN ${whereOf(d.scene)}`, C.parked, `${parked.length}`)}
         <Text color={C.grey} italic wrap="wrap">
           {ABOUT}

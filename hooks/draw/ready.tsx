@@ -222,7 +222,7 @@ const drawAnswer = (d: Drawing, key: string, text: string, after?: RenderElement
 
   return (
     <Box key={key} flexDirection="row" gap={1}>
-      <Text color={C.rule}>{GLYPH.last}</Text>
+      <Text color={C.faint}>{GLYPH.last}</Text>
       <Box flexGrow={1} flexShrink={1}>
         {line(d, oneLine(text), C.soft)}
       </Box>

@@ -14,13 +14,10 @@ import { expect, test, tier } from 'claude-code/testing'
 import { parseEntries, type WorkPaths } from '../core'
 import { QUIET_MS } from '../hooks/deliver'
 import { WATCH_MS } from '../hooks/window'
-import { file, MIN, reply, SENDER, W1 } from './support'
+import { file, MIN, reply, SENDER, SLOW, W1 } from './support'
 import { postedId, PROJECT, SESSION, startedId, world } from './world'
 
 tier('user')
-
-/** For a test that runs the clock through many of the watch's looks: past the default 5s on a loaded machine. */
-const SLOW = { timeoutMs: 20_000 }
 
 type World = ReturnType<typeof world>
 
@@ -82,27 +79,31 @@ const longAfter = async (w: World) => {
 }
 
 for (const source of ['send', 'inbox'] as const) {
-  test(`${source}: after a /reload-plugins mid-turn the last submit never resolves; the turn its message starts writes it down once, and it never goes in again`, async ($, on) => {
-    const w = world($, on)
-    const { paths, submit } = await replying[source](w)
-    const turn = w.holdPrompts()
+  test(
+    `${source}: after a /reload-plugins mid-turn the last submit never resolves; the turn its message starts writes it down once, and it never goes in again`,
+    SLOW,
+    async ($, on) => {
+      const w = world($, on)
+      const { paths, submit } = await replying[source](w)
+      const turn = w.holdPrompts()
 
-    submit()
-    await turn.arrived
-    turn.lose()
-    await $.session.start(SESSION)
-    await w.clock.advance(4 * WATCH_MS)
+      submit()
+      await turn.arrived
+      turn.lose()
+      await $.session.start(SESSION)
+      await w.clock.advance(4 * WATCH_MS)
 
-    expect(kindsIn(w, paths)).toEqual(['ask'])
-    expect(w.state.inFlight).toMatchObject({ source, text: MESSAGE, isTaken: false })
+      expect(kindsIn(w, paths)).toEqual(['ask'])
+      expect(w.state.inFlight).toMatchObject({ source, text: MESSAGE, isTaken: false })
 
-    await w.turnStarts(MESSAGE)
-    expectWrittenOnce(w, paths, source)
+      await w.turnStarts(MESSAGE)
+      expectWrittenOnce(w, paths, source)
 
-    await longAfter(w)
-    expect(w.submitted).toEqual([MESSAGE])
-    expectWrittenOnce(w, paths, source)
-  })
+      await longAfter(w)
+      expect(w.submitted).toEqual([MESSAGE])
+      expectWrittenOnce(w, paths, source)
+    },
+  )
 
   test(`${source}: after a file-watch reload the last submit resolved and its writing was cut short; the next load writes it down once`, async ($, on) => {
     const w = world($, on)

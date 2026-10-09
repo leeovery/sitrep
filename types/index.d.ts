@@ -238,14 +238,10 @@ export type SitrepPlace =
 /** What the board shows where it is looking: its view of the place, or what the place parked. */
 export type SitrepView = 'board' | 'parked'
 
-/** The board full, or collapsed to the glance. */
-export type SitrepMode = 'full' | 'glance'
-
 /** The board pane as the window keeps it. */
 export type SitrepPane = {
   /** Whether the pane is open and drawn, which the band's button follows. */
   isOpen: boolean
-  mode: SitrepMode
   /** Null at home: this session. */
   place: SitrepPlace | null
   view: SitrepView

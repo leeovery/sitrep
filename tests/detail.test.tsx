@@ -1,10 +1,14 @@
 import { expect, test, tier } from 'claude-code/testing'
+import { C, GLYPH } from '../hooks/look'
 import { rowsOf } from './drawn'
+import { MIN } from './support'
 import { ACROSS, postedId, world } from './world'
 
 tier('user')
 
 type World = ReturnType<typeof world>
+
+type Board = Awaited<ReturnType<World['pane']>>
 
 const FOLD =
   "Fold the trial's lessons into the orchestrate skill: implementers at high and xhigh, model by complexity, plan stops, parallel worktrees"
@@ -22,6 +26,36 @@ const DECIDE = {
 /** The rows the element keyed `key` is drawn on, as the docked board draws it. */
 const rows = async (ui: Awaited<ReturnType<World['pane']>>, key: string) =>
   rowsOf(await ui.find({ key }))
+
+/** A line of a tree as drawn: the colour of its text, and of the label it opens with where it has one. */
+const lineOn = async (ui: Board, line: string) => {
+  const found = await ui.find({ type: 'Text', text: line })
+  const [first] = found?.children ?? []
+  const label =
+    typeof first === 'object' && first !== null
+      ? (first as { props: { color?: string }; children: unknown[] })
+      : undefined
+
+  return {
+    color: found?.props.color,
+    label:
+      label === undefined ? undefined : { text: label.children.join(''), color: label.props.color },
+  }
+}
+
+/** Each tree glyph, and every colour the board draws it in. */
+const glyphColours = async (ui: Board) =>
+  Object.fromEntries(
+    await Promise.all(
+      [GLYPH.branch, GLYPH.last, GLYPH.stem].map(async text => [
+        text,
+        [...new Set((await ui.findAll({ type: 'Text', text })).map(each => each.props.color))],
+      ]),
+    ),
+  )
+
+/** Each tree glyph drawn, and only ever faint. */
+const ALL_FAINT = { [GLYPH.branch]: [C.faint], [GLYPH.last]: [C.faint], [GLYPH.stem]: [C.faint] }
 
 test('a log line is its mark, its text and its age at the right edge; opened, a stem runs down from the mark to its tree', async ($, on) => {
   const w = world($, on)
@@ -201,4 +235,109 @@ test('a branch whose text wraps keeps the tree unbroken: a stem beside it under 
     '└ see docs/dashboard.md, under "Sessions & Runway",',
     '  the first round of three',
   ])
+})
+
+test('an opened status change opens each detail line with its label in the status teal, the text after it soft', async ($, on) => {
+  const w = world($, on)
+
+  await w.begin()
+  await w.call('status', { now: ['Reviewing round 1', 'Drawing Usage'], next: 'Usage, round 2' })
+  await w.clock.advance(MIN)
+  await w.call('status', {
+    now: ['Drawing Usage', 'Drawing Runway'],
+    next: 'Runway, round 2',
+    name: 'Dashboard, round 2',
+    summary: 'The second round of the dashboard',
+  })
+
+  const ui = await w.pane()
+  const [latest] = (await ui.findAll({ type: 'Button' })).filter(each =>
+    each.key?.startsWith('log:status-'),
+  )
+
+  await ui.press({ key: latest?.key ?? 'no status line' })
+
+  for (const [label, text] of [
+    ['Added:', 'Drawing Runway'],
+    ['No longer:', 'Reviewing round 1'],
+    ['Still there:', 'Drawing Usage'],
+    ['Next:', 'Runway, round 2'],
+    ['Name:', 'Dashboard, round 2'],
+    ['Summary:', 'The second round of the dashboard'],
+  ]) {
+    expect(await lineOn(ui, `${label} ${text}`), label).toEqual({
+      color: C.soft,
+      label: { text: label, color: C.now },
+    })
+  }
+})
+
+test("a note's detail lines are Claude's own words, unlabelled and soft, whatever they open with; its see is labelled in the note's blue", async ($, on) => {
+  const w = world($, on)
+
+  await w.begin()
+
+  const id = postedId(
+    await w.call('note', {
+      text: 'Wrote the schema',
+      detail: ['Added: the ledger table', '6 files, +214 −51'],
+      ref: 'docs/ledger.md',
+    }),
+  )
+  const ui = await w.pane()
+
+  await ui.press({ key: `log:${id}` })
+  expect(await lineOn(ui, 'Added: the ledger table')).toEqual({ color: C.soft, label: undefined })
+  expect(await lineOn(ui, '6 files, +214 −51')).toEqual({ color: C.soft, label: undefined })
+  expect(await lineOn(ui, 'see docs/ledger.md')).toEqual({
+    color: C.soft,
+    label: { text: 'see', color: C.log },
+  })
+})
+
+test("an opened ask's see is labelled in the ask's amber, a parked item's in its purple", async ($, on) => {
+  const w = world($, on)
+
+  await w.begin()
+
+  const ask = postedId(
+    await w.call('ask', { kind: 'review', title: 'Review round 1', ref: 'docs/dashboard.md' }),
+  )
+  const parked = postedId(
+    await w.call('park', { title: 'A tmux indicator', ref: 'memory: tmux.md' }),
+  )
+  const ui = await w.pane()
+
+  expect(await lineOn(ui, 'see docs/dashboard.md')).toEqual({
+    color: C.soft,
+    label: { text: 'see', color: C.ask },
+  })
+
+  await ui.press({ key: 'parked' })
+  await ui.press({ key: `ppick:${parked}` })
+  expect(await lineOn(ui, 'see memory: tmux.md')).toEqual({
+    color: C.soft,
+    label: { text: 'see', color: C.parked },
+  })
+})
+
+test("every tree's glyphs are drawn faint: a log line's, an ask's, Ready to send's, a parked item's, and the stem beside a title", async ($, on) => {
+  const w = world($, on)
+
+  await w.begin()
+
+  const note = postedId(await w.call('note', { text: FOLD, detail: ['6 files', '+214 −51'] }))
+  const ask = postedId(await w.call('ask', DECIDE))
+  const parked = postedId(
+    await w.call('park', { title: FOLD, where: 'In DESIGN.md', ref: 'memory: tmux.md' }),
+  )
+  const ui = await w.pane()
+
+  await ui.press({ key: `choose:${ask}:1` })
+  await ui.press({ key: `log:${note}` })
+  expect(await glyphColours(ui)).toEqual(ALL_FAINT)
+
+  await ui.press({ key: 'parked' })
+  await ui.press({ key: `ppick:${parked}` })
+  expect(await glyphColours(ui)).toEqual(ALL_FAINT)
 })

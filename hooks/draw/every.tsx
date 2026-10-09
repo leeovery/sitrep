@@ -67,7 +67,7 @@ const drawProject = (d: Drawing, project: ProjectSummary) => {
       </Box>
       {branches.map((branch, i) => (
         <Box key={`alltree:${project.key}:${i}`} flexDirection="row" gap={1}>
-          <Text color={C.rule}>{i === branches.length - 1 ? GLYPH.last : GLYPH.branch}</Text>
+          <Text color={C.faint}>{i === branches.length - 1 ? GLYPH.last : GLYPH.branch}</Text>
           <Box flexGrow={1} flexShrink={1}>
             {branch}
           </Box>

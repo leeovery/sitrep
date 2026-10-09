@@ -18,10 +18,12 @@ export const C = {
   soft: '#a9b1d6',
   /** Ages, counts and heading notes. */
   grey: '#7a82ab',
-  /** Closed things. */
+  /** Closed things, and every tree's glyphs. */
   faint: '#565f89',
   rule: '#3b4261',
   tab: '#292e42',
+  /** The pane's own background, measured live (no theme key names it): what floats over the board blanks the rows beneath without looking any different from it. */
+  pane: '#262626',
 } as const
 
 export const GLYPH = {

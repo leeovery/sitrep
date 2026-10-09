@@ -32,7 +32,7 @@ here was decided with Lee unless it says **proposed**.
 | **note** | A line in the log: something that happened that Lee may want to know. Not counted. |
 | **parked** | Something raised and put off, to circle back to. Not counted, not dismissable. |
 | **reply** | Lee's answer to an ask, or a pick-up of a parked item, waiting in Ready to send. |
-| **board** | The pane. **band** is the line above the prompt. **glance** is the board collapsed to a narrow column. |
+| **board** | The pane. **band** is the line above the prompt. |
 
 ## Pieces of work, not Claude sessions
 
@@ -176,8 +176,6 @@ post; the board is best effort, and in use Claude has not forgotten.
 ### The board: a tree, with this session as home
 
 ```
-                                                         ⇥ collapse
-
  ⌂ This session 2  ▤ Switchboard 3  ≡ All projects 7     ◇ 2 parked
 ━━━━━━━━━━━━━━━━━━────────────────────────────────────────────────
 Dashboard redesign · Switchboard
@@ -213,8 +211,9 @@ show all 4
   board looks, and the way into it. Where it will not fit beside the tabs'
   full labels it drops the word first (`◇ 2`); on a board too narrow even
   for that, the tabs take their short labels too.
-- **Docked**, the row above the tabs holds only `⇥ collapse`, top right.
-  **Inline** there is no row above the tabs: they are the board's first line.
+- Docked or inline, there is no row above the tabs: they are the board's
+  first line. There is no collapse: the phone's board and the docked one
+  start alike.
 - **This session** (home, the default): name and summary, For you, Status, Log,
   Done. What waits on Lee comes first.
 - **Project**: the held work's project, named as it is (`SitRep` stays
@@ -251,13 +250,23 @@ show all 4
   `what happened`, `updated 12m ago`, `2 of 3 open`.
 - **Log lines open** to the detail behind them, as a tree. A project's log
   names each line's session before its text (`Request ledger: Wrote the
-  schema`).
+  schema`). A status change's detail lines open with their labels (`Added:`,
+  `No longer:`, `Still there:`, `Next:`, `Name:`, `Summary:`), and any
+  item's pointer with `see`, each label in its item's colour, the text after
+  it soft. A note's own detail lines, as Claude wrote them, carry no label.
 - **Parked** is a view of the board, scoped to where the board is looking,
-  opened from the count at the end of the tabs' row.
-- **Collapse** turns the board into the glance: counts on one row, what is under
-  way, what waits, the last few log lines, the project's sessions; every line
-  opens the full board on what was clicked. `⇥ collapse` and `⇤ expand` sit in
-  the same top-right spot.
+  opened from the count at the end of the tabs' row. It keeps the row it
+  was opened from, the tabs or the back row, its count lit as a tab is,
+  highlight and all in the rule beneath, and no tab lit. Its first line is
+  `← back to the board`; the lit count goes back too. A tab, or a step up or
+  home, keeps the parked view, of the place it goes to.
+
+  ```
+   ⌂ This session 1  ▤ SitRep  ≡ All projects          ◇ 3 parked
+  ────────────────────────────────────────────────────━━━━━━━━━━━
+  ← back to the board
+  PARKED IN THIS SESSION ────────────────────────────────────── 3
+  ```
 
 ### Answering an ask
 
@@ -346,9 +355,10 @@ Each reply hangs off its item with a `└`, has its own `✕`, and the ask shows
 `↺ undo`. **send to Claude** sends them; **cancel all** clears them.
 
 **Docked**, the box stays at the foot of the board's window as the board
-scrolls, drawn over the rows there on the tab's `#292e42`, and the board's
-last line scrolls clear of it. **Inline** (the phone) it sits at the end of
-the content. Each of its lines keeps to one row, cut short, so its height
+scrolls, drawn over the rows there on the pane's own background, `#262626`
+(measured live; no theme key names it), so it blanks them without looking
+any different from the board, and the board's last line scrolls clear of
+it. **Inline** (the phone) it sits at the end of the content. Each of its lines keeps to one row, cut short, so its height
 follows from what it holds. Docked it takes under half the window: a queue
 too long for that lists what fits and ends `… 3 more`, still one box. While
 a field is open the box keeps to the end of the content instead, so it
@@ -544,7 +554,7 @@ $XDG_STATE_HOME/sitrep/, else ~/.local/state/sitrep/
 - **core**: a plain TypeScript module, no file system, no Node: the folder's
   format, the event shapes, the rules (what a reply does to an ask, what counts
   as waiting, what folds away). Tested on its own.
-- **the mod**: Claude Code's hooks module. Draws the board, band and glance;
+- **the mod**: Claude Code's hooks module. Draws the board and the band;
   registers Claude's tools; reads and writes through `$.fs`.
   - The engine reads a hooks module's calls on `$` off its source, and will
     not load one that hands `$` to an import, or whose `$.state` values are
@@ -684,16 +694,19 @@ $XDG_STATE_HOME/sitrep/, else ~/.local/state/sitrep/
 
 - Palette (Tokyo Night): ask `#e0af68`, new-ask pulse `#ff9e64`, log `#7aa2f7`,
   parked `#bb9af7`, ok `#9ece6a`, now `#73daca`, soft `#a9b1d6`,
-  grey `#7a82ab`, faint `#565f89`, rules `#3b4261`, tab `#292e42`.
+  grey `#7a82ab`, faint `#565f89`, rules `#3b4261`, tab `#292e42`; the pane's
+  own background, measured live, `#262626`.
 - **White:** anything clickable, and the main content.
 - **Soft:** lines describing the item above them (a summary, what a session is
   doing, a reply, a log detail).
 - **Grey:** ages, counts, heading notes. **Faint:** closed things (a closed
   session, an ask Lee's send just closed), but not DONE's asks: each is a
-  row to open, its `✓` green and its title white.
-- **Colour:** glyphs, headings and amber waiting counts only; and, in the
-  ask's amber, the `needs:` line of an ask that needs something back, since
-  it is a request of Lee's, not a description.
+  row to open, its `✓` green and its title white; and every tree's `│ ├ └`.
+  Section headings' rules and the tabs' rule are the rule colour.
+- **Colour:** glyphs, headings and amber waiting counts only; in the ask's
+  amber, the `needs:` line of an ask that needs something back, since it is
+  a request of Lee's, not a description; and a tree line's label (`Added:`,
+  `see`), in its item's colour.
 - Glyphs: `◆` ask, `◇` parked, `•` under way, `◦` next, `└ ├` trees, `⌂` home.
   No glyph that reads as "expand" unless it expands.
 - **One row for every list.** A log line, a parked item and a closed ask

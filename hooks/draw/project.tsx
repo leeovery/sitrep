@@ -45,7 +45,7 @@ const drawSession = (d: Drawing, project: string, work: WorkSummary) => {
         )}
       </Box>
       <Box flexDirection="row" gap={1}>
-        <Text color={C.rule}>{GLYPH.last}</Text>
+        <Text color={C.faint}>{GLYPH.last}</Text>
         <Box flexGrow={1} flexShrink={1}>
           <Text color={work.isOpen ? C.soft : C.faint} wrap="truncate-end">
             {doingOf(work)}

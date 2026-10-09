@@ -1,6 +1,5 @@
 /**
- * The board's pane: opened full or as the glance, on a place, a view and an
- * item, and closed again.
+ * The board's pane: opened on a place, a view and an item, and closed again.
  *
  * Claude Code places a pane opened by Lee's press or command at any width
  * (docked from 110 columns in fullscreen, inline otherwise), and one opened
@@ -8,7 +7,7 @@
  * press itself, from the `ui.press` hook: an open made once the press has
  * settled counts as unasked.
  */
-import type { SitrepAttachment, SitrepMode, SitrepPane } from '../types'
+import type { SitrepAttachment, SitrepPane } from '../types'
 import { lookAround } from './around'
 import type { Host } from './host'
 import { projectPlace } from './places'
@@ -18,8 +17,8 @@ export const PANE = 'sitrep'
 
 const TITLE = 'sitrep'
 
-/** The columns asked for, full and as the glance, and the rows inline. */
-const COLUMNS: Record<SitrepMode, number> = { full: 62, glance: 28 }
+/** The columns asked for, and the rows inline. */
+const COLUMNS = 62
 const ROWS = 24
 
 /** The band's buttons, each a way into the board. */
@@ -58,10 +57,10 @@ const isUp = async (host: Host) => (await host.ui.panes()).some(pane => pane.id 
  * Opens the board, and reads what it shows; one Claude Code would not draw
  * is closed again, and a toast says why.
  */
-export const openBoard = async (host: Host, mode: SitrepMode, focus: Focus = {}) => {
-  await host.state.pane.update(pane => ({ ...pane, ...focus, mode }))
+export const openBoard = async (host: Host, focus: Focus = {}) => {
+  await host.state.pane.update(pane => ({ ...pane, ...focus }))
 
-  const opened = await host.ui.open({ id: PANE, title: TITLE, columns: COLUMNS[mode], rows: ROWS })
+  const opened = await host.ui.open({ id: PANE, title: TITLE, columns: COLUMNS, rows: ROWS })
 
   if (!opened.isPlaced) {
     // Open but undrawn, the band would say "hide board" over nothing.
@@ -84,8 +83,7 @@ export const closeBoard = async (host: Host) => {
 }
 
 /** Shows the board, or hides it, as the engine has it rather than as the band's label says. */
-const toggleBoard = async (host: Host) =>
-  (await isUp(host)) ? closeBoard(host) : openBoard(host, 'full')
+const toggleBoard = async (host: Host) => ((await isUp(host)) ? closeBoard(host) : openBoard(host))
 
 /** Brings the band's word on the board into line with the engine's record, after a reload. */
 export const syncBoard = async (host: Host) => markOpen(host, await isUp(host))
@@ -98,7 +96,5 @@ export const pressBand = async (host: Host, element: string) => {
   const held = await host.state.attachment.read()
   const focus = Object.hasOwn(COUNTED, element) ? COUNTED[element] : undefined
 
-  return held === null || focus === undefined
-    ? toggleBoard(host)
-    : openBoard(host, 'full', focus(held))
+  return held === null || focus === undefined ? toggleBoard(host) : openBoard(host, focus(held))
 }

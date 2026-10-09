@@ -6,13 +6,12 @@ import type { Host } from '../hooks/host'
 import { C } from '../hooks/look'
 import { PANE } from '../hooks/pane'
 import { rowsOf } from './drawn'
-import { ask, MIN, T0, W2 } from './support'
+import { ask, MIN, SLOW, T0, W2 } from './support'
 import { DOCKED, INLINE, postedId, world } from './world'
 
 tier('user')
 
 /** For a test that posts and answers many asks: past the default 5s on a loaded machine. */
-const SLOW = { timeoutMs: 20_000 }
 
 type World = ReturnType<typeof world>
 type Pane = Awaited<ReturnType<World['pane']>>
@@ -125,7 +124,7 @@ test('Ready to send floats over the foot of a docked board wherever the engine h
     expect(spacer?.props?.height, `the last line clears it, offset ${offset}`).toBe(rows + 1)
   }
 
-  expect((await ui.find({ key: 'ready' }))?.props.backgroundColor).toBe(C.tab)
+  expect((await ui.find({ key: 'ready' }))?.props.backgroundColor).toBe(C.pane)
 })
 
 test(

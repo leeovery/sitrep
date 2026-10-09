@@ -179,7 +179,7 @@ export const drawMark = (
     <Box flexDirection="column">
       <Text color={color}>{glyph}</Text>
       {Array.from({ length: stems }, (_, i) => (
-        <Text key={`stem:${i}`} color={C.rule}>
+        <Text key={`stem:${i}`} color={C.faint}>
           {GLYPH.stem}
         </Text>
       ))}
@@ -187,14 +187,18 @@ export const drawMark = (
   )
 }
 
-/** Where an item's own record is, as an opened item's tree points to it. */
-export const seeRef = (ref: string | undefined) => ref !== undefined && `see ${ref}`
-
 /** A line on a tree in a colour of its own, rather than soft. */
 export type Tinted = { text: string; color: string }
 
-/** A branch of an item's tree: soft text, a line in a colour of its own, or a node drawn as it is. */
-export type Branch = string | Tinted | RenderElement
+/** A line on a tree opening with a label in a colour of its own, the text after it soft. */
+export type Labelled = { label: string; text: string; color: string }
+
+/** A branch of an item's tree: soft text, a line in a colour of its own, a labelled line, or a node drawn as it is. */
+export type Branch = string | Tinted | Labelled | RenderElement
+
+/** Where an item's own record is, as an opened item's tree points to it, labelled in the item's colour. */
+export const seeRef = (ref: string | undefined, color: string): Labelled | false =>
+  ref !== undefined && { label: 'see', text: ref, color }
 
 /** The branches a tree is shown with: those given, less any not shown in their place. */
 export const shown = (...each: readonly (Branch | false | undefined)[]) =>
@@ -202,6 +206,9 @@ export const shown = (...each: readonly (Branch | false | undefined)[]) =>
 
 const isNode = (branch: Branch): branch is RenderElement =>
   typeof branch !== 'string' && 'type' in branch
+
+const isLabelled = (branch: Branch): branch is Labelled =>
+  typeof branch !== 'string' && 'label' in branch
 
 const tinted = (branch: string | Tinted): Tinted =>
   typeof branch === 'string' ? { text: branch, color: C.soft } : branch
@@ -217,12 +224,30 @@ const glyphOf = (isLast: boolean, row: number) => {
   return row === 0 ? first : after
 }
 
-/** A branch's rows: a node on one, or its text on as many as it takes. */
-const rowsOfBranch = ({ els }: Drawing, branch: Branch, width: number): RenderElement[] => {
+/** A labelled line's rows: the label in its colour on the first, the text soft after it and on as many rows as it takes. */
+const labelledRows = ({ els }: Drawing, { label, text, color }: Labelled, width: number) => {
   const { Text } = els
+  const [first = label, ...rest] = textRows(`${label} ${text}`, width)
+
+  return [
+    <Text color={C.soft}>
+      <Text color={color}>{label}</Text>
+      {first.slice(label.length)}
+    </Text>,
+    ...rest.map(line => <Text color={C.soft}>{line}</Text>),
+  ]
+}
+
+/** A branch's rows: a node on one, or its text on as many as it takes. */
+const rowsOfBranch = (d: Drawing, branch: Branch, width: number): RenderElement[] => {
+  const { Text } = d.els
 
   if (isNode(branch)) {
     return [branch]
+  }
+
+  if (isLabelled(branch)) {
+    return labelledRows(d, branch, width)
   }
 
   const { text, color } = tinted(branch)
@@ -244,7 +269,7 @@ export const tree = (d: Drawing, key: string, branches: readonly Branch[], colum
       {branches.flatMap((branch, i) =>
         rowsOfBranch(d, branch, width).map((row, j) => (
           <Box key={`${key}:${i}:${j}`} flexDirection="row" gap={1}>
-            <Text color={C.rule}>{glyphOf(i === branches.length - 1, j)}</Text>
+            <Text color={C.faint}>{glyphOf(i === branches.length - 1, j)}</Text>
             <Box flexGrow={1} flexShrink={1}>
               {row}
             </Box>
@@ -319,7 +344,7 @@ export const hung = (d: Drawing, key: string, text: string, after?: RenderElemen
 
   return (
     <Box key={key} flexDirection="row" gap={1}>
-      <Text color={C.rule}>{GLYPH.last}</Text>
+      <Text color={C.faint}>{GLYPH.last}</Text>
       {replyLine(d, text, after)}
     </Box>
   )

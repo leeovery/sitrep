@@ -2,13 +2,10 @@ import { expect, test, tier } from 'claude-code/testing'
 import { parseEntries, workPaths, type WorkMeta } from '../core'
 import { AROUND_MS } from '../hooks/around'
 import { SENT_LINGER_MS } from '../hooks/queue'
-import { ask, delivered, file, MIN, reply, T0, W1, W2, W3 } from './support'
+import { ask, delivered, file, MIN, reply, SLOW, T0, W1, W2, W3 } from './support'
 import { INLINE, postedId, PROJECT, ROOT, world } from './world'
 
 tier('user')
-
-/** For a test that runs the clock through many of the watch's looks: past the default 5s on a loaded machine. */
-const SLOW = { timeoutMs: 20_000 }
 
 type World = ReturnType<typeof world>
 type Board = Awaited<ReturnType<World['opened']>>

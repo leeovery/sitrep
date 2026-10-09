@@ -1,5 +1,5 @@
 /**
- * What the board, the band and the glance are drawn from, as plain data:
+ * What the board and the band are drawn from, as plain data:
  * the held work, the works around it as last read, the window's own state,
  * and the time. Read inside a render hook, each read subscribes the
  * drawing, so a write draws it again.

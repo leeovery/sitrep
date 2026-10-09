@@ -2,7 +2,7 @@ import type { RenderPropsOf } from 'claude-code'
 import { expect, test, tier } from 'claude-code/testing'
 import { parseEntries, workPaths, type WorkMeta } from '../core'
 import { rowsOf } from './drawn'
-import { ask, file, finish, MIN, note, T0, W1, W2, W3, W4 } from './support'
+import { ask, file, finish, MIN, note, SLOW, T0, W1, W2, W3, W4 } from './support'
 import { ELSEWHERE, PROJECT, ROOT, WIDE, world } from './world'
 
 tier('user')
@@ -66,26 +66,30 @@ const visit = async (ui: Board, work: string) => {
   await ui.press({ key: `go:${work}` })
 }
 
-test('a finished work drops out of the project and All projects, and its asks count nowhere', async ($, on) => {
-  const w = world($, on)
-  const { id, ui } = await around(w, WIDE)
-  const band = await w.band()
+test(
+  'a finished work drops out of the project and All projects, and its asks count nowhere',
+  SLOW,
+  async ($, on) => {
+    const w = world($, on)
+    const { id, ui } = await around(w, WIDE)
+    const band = await w.band()
 
-  expect(await band.find({ key: 'band:elsewhere', text: '2 in other sessions' })).toBeDefined()
-  expect(await ui.find({ key: 'tab:session', text: 'This session' })).toBeDefined()
+    expect(await band.find({ key: 'band:elsewhere', text: '2 in other sessions' })).toBeDefined()
+    expect(await ui.find({ key: 'tab:session', text: 'This session' })).toBeDefined()
 
-  await ui.press({ key: 'tab:project' })
-  expect(await keysOf(ui, 'go:')).toEqual([`go:${id}`, `go:${LEDGER}`, `go:${THEMES}`])
-  expect(await ui.find({ type: 'Text', text: '3 waiting on you' })).toBeDefined()
+    await ui.press({ key: 'tab:project' })
+    expect(await keysOf(ui, 'go:')).toEqual([`go:${id}`, `go:${LEDGER}`, `go:${THEMES}`])
+    expect(await ui.find({ type: 'Text', text: '3 waiting on you' })).toBeDefined()
 
-  await ui.press({ key: 'tab:all' })
-  expect(await keysOf(ui, 'proj:')).toEqual([`proj:${PROJECT.key}`])
-  expect(await ui.find({ type: 'Text', text: '3 waiting on you' })).toBeDefined()
-  expect(
-    await ui.find({ type: 'Text', text: '3' }),
-    'the All projects tab counts three',
-  ).toBeDefined()
-})
+    await ui.press({ key: 'tab:all' })
+    expect(await keysOf(ui, 'proj:')).toEqual([`proj:${PROJECT.key}`])
+    expect(await ui.find({ type: 'Text', text: '3 waiting on you' })).toBeDefined()
+    expect(
+      await ui.find({ type: 'Text', text: '3' }),
+      'the All projects tab counts three',
+    ).toBeDefined()
+  },
+)
 
 test("the button to mark a work done is drawn only in another session's view with no window", async ($, on) => {
   const w = world($, on)

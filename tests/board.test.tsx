@@ -1,10 +1,8 @@
 import { expect, test, tier } from 'claude-code/testing'
 import { INLINE, DOCKED, postedId, SESSION, SURFACES, world } from './world'
+import { SLOW } from './support'
 
 tier('user')
-
-/** For a test that runs the clock through many of the watch's looks: past the default 5s on a loaded machine. */
-const SLOW = { timeoutMs: 20_000 }
 
 type World = ReturnType<typeof world>
 

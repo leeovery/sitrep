@@ -2,7 +2,7 @@ import type { Args } from 'claude-code'
 import { expect, test, tier } from 'claude-code/testing'
 import type { WorkMeta } from '../core'
 import { rowsOf } from './drawn'
-import { ask, MIN, T0, W2 } from './support'
+import { ask, MIN, SLOW, T0, W2 } from './support'
 import { ELSEWHERE, postedId, world } from './world'
 
 tier('user')
@@ -48,26 +48,30 @@ const PARKED = ['A tmux indicator', 'Thumbnails in the picker', 'Export the ledg
   title => ({ title }),
 )
 
-test('a session lists its log and its closed asks with no blank row between their entries', async ($, on) => {
-  const w = world($, on)
+test(
+  'a session lists its log and its closed asks with no blank row between their entries',
+  SLOW,
+  async ($, on) => {
+    const w = world($, on)
 
-  await w.begin()
-  await posted(w, 'note', ...NOTES)
+    await w.begin()
+    await posted(w, 'note', ...NOTES)
 
-  for (const id of await posted(w, 'ask', ...reviews('Review round 1', 'Review round 2'))) {
-    await w.call('resolve', { item: id, reason: 'Done in the chat' })
-    await w.clock.advance(MIN)
-  }
+    for (const id of await posted(w, 'ask', ...reviews('Review round 1', 'Review round 2'))) {
+      await w.call('resolve', { item: id, reason: 'Done in the chat' })
+      await w.clock.advance(MIN)
+    }
 
-  const rows = await boardRows(await w.opened())
+    const rows = await boardRows(await w.opened())
 
-  expect(listedUnder(rows, 'LOG')).toEqual([
-    ' • The schema is drawn 5m',
-    ' • PR #82 merged 6m',
-    ' • PR #81 merged 7m',
-  ])
-  expect(listedUnder(rows, 'DONE')).toEqual([' ✓ Review round 2 1m', ' ✓ Review round 1 2m'])
-})
+    expect(listedUnder(rows, 'LOG')).toEqual([
+      ' • The schema is drawn 5m',
+      ' • PR #82 merged 6m',
+      ' • PR #81 merged 7m',
+    ])
+    expect(listedUnder(rows, 'DONE')).toEqual([' ✓ Review round 2 1m', ' ✓ Review round 1 2m'])
+  },
+)
 
 test('the parked view lists its items with no blank row between them, for a session and for its project', async ($, on) => {
   const w = world($, on)

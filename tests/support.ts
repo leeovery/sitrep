@@ -17,6 +17,9 @@ import {
 
 export const MIN = 60_000
 
+/** For a test that runs the clock through many of the watch's looks: past the default 5s on a loaded machine. */
+export const SLOW = { timeoutMs: 20_000 }
+
 /** When the work under test was started. */
 export const T0 = 1_760_000_000_000
 

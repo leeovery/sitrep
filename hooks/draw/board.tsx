@@ -1,13 +1,14 @@
 /**
- * The board pane: where it is looking and its view there, or the glance,
- * with Ready to send at the foot; one line when the window holds no work.
- * Docked, Ready to send floats over the foot of the window as the board
- * scrolls; inline, it follows the view.
+ * The board pane: where it is looking and its view there, or what was
+ * parked there, with Ready to send at the foot; one line when the window
+ * holds no work. Docked, Ready to send floats over the foot of the window
+ * as the board scrolls; inline, it follows the view.
  *
  * On Lee's own path up the tree the board shows a tab for each step of it,
  * each a row of `TABS`: this session, its project, every project. Anywhere
  * else the tabs give way to a step back up and the way home. Either row
- * ends in the way to what was parked where the board looks.
+ * ends in the way to what was parked where the board looks, lit as a tab
+ * is while that is open.
  */
 import type { RenderElement, RenderPropsOf, RenderSurface, SiteScroll } from 'claude-code'
 import type { SitrepPlace } from '../../types'
@@ -29,7 +30,6 @@ import {
 } from '../places'
 import type { Scene } from '../scene'
 import { drawAllView } from './every'
-import { drawGlance } from './glance'
 import type { Drawing, Els } from './kit'
 import { drawParkedView } from './parked'
 import { drawProjectView } from './project'
@@ -88,7 +88,7 @@ const TABS: readonly Tab[] = [
   },
 ]
 
-/** The least room kept between a row's ways around the board and the parked count ending it. */
+/** The least room kept between a row's ways around the board and the parked count ending it: the count's own first cell, lit with it. */
 const PARKED_GAP = 1
 
 /** The parked count's label with `room` cells left on its row: in full, or only the count where the word will not fit. */
@@ -99,15 +99,57 @@ const parkedLabel = (scene: Scene, room: number) => {
   return room >= PARKED_GAP + full.length ? full : count
 }
 
-/** A row of ways around the board, `used` cells across, the parked count right-aligned at its end. */
-const withParked = (d: Drawing, ways: RenderElement, used: number, label: string) => {
-  const { Box, Button } = d.els
+/** The rule under a way around the board, `cells` across: heavy, in its colour, under the one that is current. */
+const ruleUnder = (d: Drawing, key: string, cells: number, lit?: string) => {
+  const { Text } = d.els
 
   return (
-    <Box flexDirection="row">
-      {ways}
-      <Box width={Math.max(PARKED_GAP, d.width - used - label.length)} flexShrink={0} />
-      <Button key="parked" plain dimColor label={label} onPress={() => d.act.show('parked')} />
+    <Text key={key} color={lit ?? C.rule}>
+      {(lit === undefined ? '─' : '━').repeat(cells)}
+    </Text>
+  )
+}
+
+/** A row's ways around the board: the buttons, the cells they take, and the rule under them. */
+type Ways = { row: RenderElement; used: number; rule: RenderElement }
+
+/**
+ * A row of ways around the board and the rule under it, the parked count
+ * right-aligned at its end: lit as a tab is while the parked view is open,
+ * where pressing it goes back to the board.
+ */
+const withParked = (d: Drawing, { row, used, rule }: Ways, label: string) => {
+  const { Box, Button } = d.els
+  const isOn = d.scene.pane.view === 'parked'
+  const cells = PARKED_GAP + label.length
+  const gap = Math.max(0, d.width - used - cells)
+
+  return (
+    <Box flexDirection="column">
+      <Box flexDirection="row">
+        {row}
+        <Box width={gap} flexShrink={0} />
+        <Box
+          key="parked:box"
+          width={cells}
+          flexShrink={0}
+          paddingLeft={PARKED_GAP}
+          backgroundColor={isOn ? C.tab : undefined}
+        >
+          <Button
+            key="parked"
+            plain
+            dimColor={!isOn}
+            label={label}
+            onPress={() => d.act.show(isOn ? 'board' : 'parked')}
+          />
+        </Box>
+      </Box>
+      <Box flexDirection="row">
+        {rule}
+        {ruleUnder(d, 'gap:rule', gap)}
+        {ruleUnder(d, 'parked:rule', cells, isOn ? C.parked : undefined)}
+      </Box>
     </Box>
   )
 }
@@ -116,13 +158,13 @@ const withParked = (d: Drawing, ways: RenderElement, used: number, label: string
 const tabWidth = (count: number, label: string) =>
   4 + label.length + (count > 0 ? 1 + String(count).length : 0)
 
-/** The tabs, their full labels giving way to short ones where those and the parked count will not fit. */
+/** The tabs, their full labels giving way to short ones where those and the parked count will not fit; none is current while the parked view is. */
 const drawTabs = (d: Drawing) => {
   const { Box, Text, Button } = d.els
   const { scene } = d
   const tabs = TABS.map(tab => ({
     ...tab,
-    isOn: samePlace(scene.place, tab.to(scene)),
+    isOn: scene.pane.view === 'board' && samePlace(scene.place, tab.to(scene)),
     waiting: tab.count(scene),
   }))
   const room = d.width - tabs.reduce((sum, tab) => sum + tabWidth(tab.waiting, tab.label(scene)), 0)
@@ -135,7 +177,7 @@ const drawTabs = (d: Drawing) => {
   })
   const used = labelled.reduce((sum, tab) => sum + tab.cells, 0)
 
-  const ways = (
+  const row = (
     <Box flexDirection="row">
       {labelled.map(tab => (
         <Box
@@ -161,19 +203,15 @@ const drawTabs = (d: Drawing) => {
     </Box>
   )
 
-  return (
-    <Box flexDirection="column">
-      {withParked(d, ways, used, parked)}
-      <Box flexDirection="row">
-        {labelled.map(tab => (
-          <Text key={`${tab.key}:rule`} color={tab.isOn ? tab.color : C.rule}>
-            {(tab.isOn ? '━' : '─').repeat(tab.cells)}
-          </Text>
-        ))}
-        <Text color={C.rule}>{'─'.repeat(Math.max(0, d.width - used))}</Text>
-      </Box>
+  const rule = (
+    <Box flexDirection="row">
+      {labelled.map(tab =>
+        ruleUnder(d, `${tab.key}:rule`, tab.cells, tab.isOn ? tab.color : undefined),
+      )}
     </Box>
   )
+
+  return withParked(d, { row, used, rule }, parked)
 }
 
 /** The gap between the step back up and the way home. */
@@ -183,11 +221,11 @@ const HOME_LABEL = `${GLYPH.home} this session`
 
 /** Off Lee's own path: one step back up the tree and the way home, the parked count where the tabs keep it. */
 const drawBackRow = (d: Drawing) => {
-  const { Box, Text, Button } = d.els
+  const { Box, Button } = d.els
   const above = up(d.scene.place)
   const upLabel = `${GLYPH.up} ${above.level === 'project' ? projectName(d.scene, above.project) : 'All projects'}`
   const used = upLabel.length + BACK_GAP + HOME_LABEL.length
-  const ways = (
+  const row = (
     <Box flexDirection="row" gap={BACK_GAP}>
       <Button key="up" plain label={upLabel} onPress={() => d.act.go(above)} />
       <Button
@@ -200,33 +238,9 @@ const drawBackRow = (d: Drawing) => {
     </Box>
   )
 
-  return (
-    <Box flexDirection="column">
-      {withParked(d, ways, used, parkedLabel(d.scene, d.width - used))}
-      <Text color={C.rule}>{'─'.repeat(d.width)}</Text>
-    </Box>
-  )
-}
+  const rule = ruleUnder(d, 'back:rule', used)
 
-/** What sits above the tabs on a docked board: the collapse, at its top right. Inline, nothing. */
-const drawToolbar = (d: Drawing) => {
-  const { Box, Button } = d.els
-
-  if (!d.isDock) {
-    return null
-  }
-
-  return (
-    <Box flexDirection="row" justifyContent="flex-end">
-      <Button
-        key="collapse"
-        plain
-        dimColor
-        label="⇥ collapse"
-        onPress={() => d.act.open('glance')}
-      />
-    </Box>
-  )
+  return withParked(d, { row, used, rule }, parkedLabel(d.scene, d.width - used))
 }
 
 /** The view of where the board is looking. */
@@ -247,17 +261,14 @@ const drawPlace = (d: Drawing) => {
   }
 }
 
-const drawBoardView = (d: Drawing) => {
+/** The tabs, or the back row, over the view of where the board is looking or what was parked there; the view's first line right under their rule. */
+const drawView = (d: Drawing) => {
   const { Box } = d.els
 
   return (
-    <Box flexDirection="column" gap={1}>
-      {drawToolbar(d)}
-      {/* The view's first line sits right under the tabs' rule, with no blank row between. */}
-      <Box flexDirection="column">
-        {isOnPath(d.scene) ? drawTabs(d) : drawBackRow(d)}
-        {drawPlace(d)}
-      </Box>
+    <Box flexDirection="column">
+      {isOnPath(d.scene) ? drawTabs(d) : drawBackRow(d)}
+      {d.scene.pane.view === 'parked' ? drawParkedView(d) : drawPlace(d)}
     </Box>
   )
 }
@@ -274,13 +285,13 @@ const readyCap = (bodyRows: number) => Math.floor((bodyRows - 1) / 2)
 const READY_GAP = 1
 
 /**
- * Whether Ready to send floats: on a docked board, not the glance, while
- * no field is open. A click gives the field's text area the keys without
- * raising `ui.focus`, so nothing would bring one the box covered clear of
- * it: while a field is open, the box keeps to the foot of the view.
+ * Whether Ready to send floats: on a docked board, while no field is open.
+ * A click gives the field's text area the keys without raising `ui.focus`,
+ * so nothing would bring one the box covered clear of it: while a field is
+ * open, the box keeps to the foot of the view.
  */
 const floats = (props: PaneProps, scene: Scene) =>
-  props.placement === 'dock' && scene.pane.mode !== 'glance' && scene.pane.commenting === null
+  props.placement === 'dock' && scene.pane.commenting === null
 
 /** Ready to send as a docked board floats it; undefined where it does not float, or with nothing in it. */
 const floatingOf = (props: PaneProps, scene: Scene | undefined): Ready | undefined =>
@@ -315,7 +326,7 @@ const drawFloating = (d: Drawing, view: RenderElement, ready: Ready, scroll: Sit
       </Box>
       <Box height={READY_GAP + rows} flexShrink={0} />
       <Box position="absolute" top={foot - rows} left={0} right={0} paddingX={1}>
-        {drawReady(d, ready, C.tab)}
+        {drawReady(d, ready, C.pane)}
       </Box>
     </Box>
   )
@@ -349,11 +360,7 @@ export const drawPane = (
     isDock: props.placement === 'dock',
   }
 
-  if (scene.pane.mode === 'glance') {
-    return drawGlance(d)
-  }
-
-  const view = scene.pane.view === 'parked' ? drawParkedView(d) : drawBoardView(d)
+  const view = drawView(d)
   const floating = floatingOf(props, scene)
 
   if (floating !== undefined) {

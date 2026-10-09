@@ -7,10 +7,10 @@
  * in the work's folder, keeps a heartbeat there, and watches the folder, so
  * the work's fold stays current in `$.state` for the board to draw.
  *
- * Lee sees it on the board pane, the band above the prompt and the glance,
- * answers its asks there, and sends the replies as Lee's own message, one
- * message in flight at a time, written down once Claude Code takes it. The
- * board also reads the works around the held one: its project's, and every
+ * Lee sees it on the board pane and the band above the prompt, answers its
+ * asks there, and sends the replies as Lee's own message, one message in
+ * flight at a time, written down once Claude Code takes it. The board also
+ * reads the works around the held one: its project's, and every
  * project's, each a view of its own, where Lee answers other sessions' asks
  * too; those replies go into the other work's inbox, and the window there
  * submits them. What changed on the board without Claude (another window,
@@ -55,7 +55,6 @@ const sent = atom({ plugin: 'sitrep', key: 'sent' } as const, [])
 const inFlight = atom({ plugin: 'sitrep', key: 'inFlight' } as const, null)
 const pane = atom({ plugin: 'sitrep', key: 'pane' } as const, {
   isOpen: false,
-  mode: 'full',
   place: null,
   view: 'board',
   selected: null,
@@ -294,7 +293,7 @@ export const register: Register = on => {
   }).catch(($, e, next) => next(e))
 
   on('command.run', { command: 'sitrep' }, async $ => {
-    await openBoard(hostOf($), 'full')
+    await openBoard(hostOf($))
 
     return {}
   }).catch(() => ({ text: 'The sitrep board could not open.' }))

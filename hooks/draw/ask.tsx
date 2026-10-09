@@ -23,6 +23,7 @@ import {
   tree,
   YES,
   type Drawing,
+  type Mark,
 } from './kit'
 
 /** The comment button, by kind: on a decide, a comment is the answer. */
@@ -141,8 +142,13 @@ const standingOf = (d: Drawing, filed: Filed, ask: Ask) => {
 
 type Standing = ReturnType<typeof standingOf>
 
-/** What hangs from an ask's mark: what it needs back, where to look, Claude's own record of it, what Lee replied, and whether Claude has it. */
-const branchesOf = (d: Drawing, ask: Ask, { queued, sent, isClosed, isOpen }: Standing) => {
+/** What hangs from an ask's mark: what it needs back, where to look, Claude's own record of it in the mark's colour, what Lee replied, and whether Claude has it. */
+const branchesOf = (
+  d: Drawing,
+  ask: Ask,
+  mark: Mark,
+  { queued, sent, isClosed, isOpen }: Standing,
+) => {
   const isAnswered = queued !== undefined || sent !== undefined
   const commented = ask.state === 'replied' && !isAnswered ? ask.answer?.note : undefined
   const isDetailed = !isClosed && (isOpen || d.isDock)
@@ -150,7 +156,7 @@ const branchesOf = (d: Drawing, ask: Ask, { queued, sent, isClosed, isOpen }: St
   return shown(
     isDetailed && ask.needs !== undefined && { text: `needs: ${ask.needs}`, color: C.ask },
     isDetailed && ask.where,
-    isOpen && seeRef(ask.ref),
+    isOpen && seeRef(ask.ref, mark.color),
     commented !== undefined && `you commented: “${commented}”. Claude has it.`,
     queued !== undefined && drawQueued(d, ask, queued),
     sent !== undefined && drawOnItsWay(d, ask, sent),
@@ -179,12 +185,13 @@ export const drawAsk = (d: Drawing, filed: Filed, ask: Ask) => {
   const standing = standingOf(d, filed, ask)
   const { isClosed, isOpen } = standing
   const lines = titleLines(d, ask.title, isOpen)
-  const branches = branchesOf(d, ask, standing)
+  const mark = isClosed ? DONE : askMark(d.scene, ask)
+  const branches = branchesOf(d, ask, mark, standing)
 
   return (
     <Box key={`ask:${ask.id}`} flexDirection="column">
       <Box flexDirection="row" gap={1}>
-        {drawMark(d, isClosed ? DONE : askMark(d.scene, ask), lines.length, branches.length > 0)}
+        {drawMark(d, mark, lines.length, branches.length > 0)}
         <Box flexGrow={1} flexShrink={1}>
           {isClosed ? (
             <Text color={C.faint} wrap="truncate-end">

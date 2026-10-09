@@ -3,9 +3,9 @@
  * the detail behind it as a tree, and where Claude's own record of it is.
  * A project's log names the session each line came from.
  */
-import type { LogLine } from '../../core'
+import { labelOf, type LogLine } from '../../core'
 import { C, GLYPH } from '../look'
-import { drawRow, seeRef, shown, type Drawing, type Mark } from './kit'
+import { drawRow, seeRef, shown, type Branch, type Drawing, type Mark } from './kit'
 
 /** How each kind of line is marked: a note Claude wrote, a change of status, a pick-up. */
 const MARK: Record<LogLine['kind'], Mark> = {
@@ -17,9 +17,19 @@ const MARK: Record<LogLine['kind'], Mark> = {
 /** What a log line is opened by: a note's id; a line the board derived, its kind and time. */
 export const logKey = (line: LogLine) => line.id ?? `${line.kind}-${line.at}`
 
+/** A line of a log line's detail as its branch: a status change's opens with its label, in the line's colour; any other is soft. */
+const branchOf = (line: LogLine, text: string): Branch => {
+  const labelled = line.kind === 'status' ? labelOf(text) : undefined
+
+  return labelled === undefined ? text : { ...labelled, color: MARK[line.kind].color }
+}
+
 /** What a line opens to: its detail, then the pointer to Claude's own record; or that there is none. */
 const detailOf = (line: LogLine) => {
-  const detail = shown(...line.detail, seeRef(line.ref))
+  const detail = shown(
+    ...line.detail.map(text => branchOf(line, text)),
+    seeRef(line.ref, MARK[line.kind].color),
+  )
 
   return detail.length > 0 ? detail : [{ text: 'nothing more was recorded', color: C.grey }]
 }
