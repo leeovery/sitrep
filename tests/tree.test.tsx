@@ -2,8 +2,9 @@ import { expect, test, tier } from 'claude-code/testing'
 import { CURRENT_MS, type WorkMeta } from '../core'
 import { AROUND_MS } from '../hooks/around'
 import { C, GLYPH } from '../hooks/look'
+import { rowsOf } from './drawn'
 import { choiceAsk, MIN, note, park, status, T0, W2, W3, W4, yesAsk } from './support'
-import { ELSEWHERE, postedId, PROJECT, WIDE, world } from './world'
+import { ELSEWHERE, postedId, PROJECT, toProject, WIDE, world } from './world'
 
 tier('user')
 
@@ -74,32 +75,35 @@ const keysOf = async (ui: Awaited<ReturnType<World['pane']>>, prefix: string) =>
     .map(each => each.key ?? '')
     .filter(key => key.startsWith(prefix))
 
-test('the board walks up from this session to its project and every project, and back down', async ($, on) => {
+test('the board walks from this session to every project, down into a project and its sessions, and back up', async ($, on) => {
   const w = world($, on)
   const { asked } = await neighbourhood(w)
   const ui = await w.opened()
 
   expect(await ui.find({ key: `pick:${asked}` })).toBeDefined()
 
-  // Up to the project: its sessions; down into another one, where the tabs give way to a step back.
-  await ui.press({ key: 'tab:project' })
-  await ui.press({ key: `go:${LEDGER}` })
-  expect(await ui.find({ key: 'pick:k3' })).toBeDefined()
-  expect(await ui.find({ key: 'tab:session' })).toBeUndefined()
-  expect(await ui.find({ key: 'up', text: /← Switchboard/ })).toBeDefined()
-  await ui.press({ key: 'up' })
-  expect(await ui.find({ key: 'tab:project' })).toBeDefined()
+  // All projects, then this project: no tab holds it, so a step back up takes the tabs' place.
+  await toProject(ui)
+  expect(await ui.find({ key: 'tab:all' })).toBeUndefined()
+  expect(await ui.find({ key: 'up', text: '← All projects' })).toBeDefined()
 
-  // Up to every project; quiet ones fold away; down into another project's session and back up twice.
-  await ui.press({ key: 'tab:all' })
+  // Down into another session of it, and back up to the project, then to every project.
+  await ui.press({ key: `go:${LEDGER}` })
+  expect(await ui.find({ key: 'up', text: '← Switchboard' })).toBeDefined()
+  await ui.press({ key: 'up' })
+  expect(w.state.pane).toMatchObject({ place: { level: 'project', project: PROJECT.key } })
+  await ui.press({ key: 'up' })
+  expect(await ui.find({ key: 'tab:all' })).toBeDefined()
+
+  // Quiet ones fold away; down into another project's session and back up twice.
   expect(await ui.find({ key: `proj:${ELSEWHERE.key}` })).toBeDefined()
   expect(await ui.find({ key: `proj:${PIGEON.key}` })).toBeUndefined()
   expect(await ui.find({ key: `proj:${PORTAL.key}` })).toBeDefined()
   await ui.press({ key: `go:${ORDERS}` })
   expect(await ui.find({ key: 'pick:k5' })).toBeDefined()
-  expect(await ui.find({ key: 'up', text: /← Goosemates/ })).toBeDefined()
+  expect(await ui.find({ key: 'up', text: '← Goosemates' })).toBeDefined()
   await ui.press({ key: 'up' })
-  expect(await ui.find({ key: 'up', text: /← All projects/ })).toBeDefined()
+  expect(await ui.find({ key: 'up', text: '← All projects' })).toBeDefined()
 
   // Home, from anywhere.
   await ui.press({ key: 'home' })
@@ -112,35 +116,38 @@ test('closed and opened again, the board is home, wherever it had gone', async (
   const ui = await w.opened()
   const band = await w.band()
 
-  await ui.press({ key: 'tab:project' })
+  await toProject(ui)
   await ui.press({ key: `go:${LEDGER}` })
   await ui.press({ key: 'pick:k3' })
   expect(w.state.pane).toMatchObject({ place: { level: 'session', work: LEDGER }, selected: 'k3' })
 
   await band.press({ key: 'band:board' })
   await band.press({ key: 'band:board' })
-  expect(w.state.pane).toMatchObject({ isOpen: true, place: null, view: 'board', selected: null })
+  expect(w.state.pane).toMatchObject({ isOpen: true, place: null, selected: null })
   expect(await ui.find({ key: `pick:${asked}` })).toBeDefined()
   expect(await ui.find({ key: 'tab:session' })).toBeDefined()
 })
 
-test('on its own path the board shows three tabs, each with what waits there', async ($, on) => {
+test('on its own path the board shows two tabs, home by its glyph alone and All projects, each with what waits there', async ($, on) => {
   const w = world($, on)
 
   await neighbourhood(w)
 
   const ui = await w.opened(WIDE)
+  const counts = async () =>
+    Promise.all(['tab:session:box', 'tab:all:box'].map(async key => rowsOf(await ui.find({ key }))))
 
-  expect(await ui.find({ key: 'tab:session', text: 'This session' })).toBeDefined()
-  expect(await ui.find({ key: 'tab:project', text: 'Switchboard' })).toBeDefined()
+  expect(await ui.find({ key: 'tab:session', text: GLYPH.home })).toBeDefined()
   expect(await ui.find({ key: 'tab:all', text: 'All projects' })).toBeDefined()
-  expect(await ui.find({ type: 'Text', text: '2' }), 'two wait in this project').toBeDefined()
+  expect(await ui.find({ key: 'tab:project' })).toBeUndefined()
+  expect(await ui.find({ type: 'Button', text: /This session/ })).toBeUndefined()
+  expect(await counts(), 'one waits here, three across every project').toEqual([
+    [' ⌂ 1'],
+    [' ≡ All projects 3'],
+  ])
 
   await ui.press({ key: 'tab:all' })
-  expect(
-    await ui.find({ type: 'Text', text: '3' }),
-    'three wait across every project',
-  ).toBeDefined()
+  expect(await counts()).toEqual([[' ⌂ 1'], [' ≡ All projects 3']])
 })
 
 test("another session's view is the session view: its status, its asks with working buttons, its log", async ($, on) => {
@@ -150,17 +157,25 @@ test("another session's view is the session view: its status, its asks with work
 
   const ui = await w.opened()
 
-  await ui.press({ key: 'tab:project' })
+  await toProject(ui)
   await ui.press({ key: `go:${LEDGER}` })
   expect(await ui.find({ type: 'Text', text: 'Request ledger' })).toBeDefined()
   expect(await ui.find({ type: 'Text', text: 'Drawing the ledger schema' })).toBeDefined()
   expect(
     (await ui.findAll({ type: 'Text' }))
       .map(each => each.text)
-      .filter(text => ['Request ledger', 'FOR YOU', 'STATUS', 'LOG'].includes(text)),
+      .filter(text => ['Request ledger', 'FOR YOU', 'STATUS', 'LOG', 'PARKED'].includes(text)),
     'the same order as this session’s',
-  ).toEqual(['Request ledger', 'FOR YOU', 'STATUS', 'LOG'])
+  ).toEqual(['Request ledger', 'FOR YOU', 'STATUS', 'LOG', 'PARKED'])
   expect(await ui.find({ key: 'log:n3', text: 'Wrote the schema' })).toBeDefined()
+  expect(await ui.find({ key: 'ppick:p2', text: 'Export the ledger as CSV' })).toBeDefined()
+
+  await ui.press({ key: 'ppick:p2' })
+  await ui.press({ key: 'pickup:p2' })
+  expect(w.state.queue).toEqual([
+    { project: PROJECT.key, work: LEDGER, item: 'p2', verdict: 'pickup' },
+  ])
+  await ui.press({ key: 'undo:p2' })
 
   await ui.press({ key: 'pick:k3' })
   await ui.press({ key: 'choose:k3:1' })
@@ -175,7 +190,7 @@ test("the project view lists its sessions, this one first, each with what it doe
   const { id } = await neighbourhood(w)
   const ui = await w.opened()
 
-  await ui.press({ key: 'tab:project' })
+  await toProject(ui)
 
   expect(await keysOf(ui, 'go:')).toEqual([`go:${id}`, `go:${LEDGER}`, `go:${THEMES}`])
   expect(await ui.find({ type: 'Text', text: '2 of 3 open' })).toBeDefined()
@@ -212,48 +227,85 @@ test('All projects: this project first, then the busiest; the quiet fold into on
   expect(await ui.find({ type: 'Text', text: /Dusty/ })).toBeUndefined()
 })
 
-test('parked is scoped to where the board looks: this session, its project, every project', async ($, on) => {
+test("the project view's FOR YOU holds every session's asks, the newest first, each naming its session and answered from there", async ($, on) => {
+  const w = world($, on)
+  const { asked } = await neighbourhood(w)
+  const ui = await w.opened(WIDE)
+  const rows = async () => rowsOf(await ui.find({ type: 'Box' }), WIDE.bodyColumns)
+
+  await toProject(ui)
+  expect(
+    (await ui.findAll({ type: 'Button' }))
+      .filter(each => each.key?.startsWith('pick:'))
+      .map(each => [each.key, each.text]),
+  ).toEqual([
+    [`pick:${asked}`, 'Dashboard redesign: Review Sessions & Runway, round 1'],
+    ['pick:k3', 'Request ledger: Keep the ledger 400 days, or forever?'],
+  ])
+  expect(await ui.find({ type: 'Text', text: '2 waiting' })).toBeDefined()
+
+  const listed = await rows()
+  const at = listed.findIndex(row => row.startsWith(' FOR YOU'))
+
+  expect(listed.slice(at + 1, at + 3), 'no blank row between asks').toEqual([
+    expect.stringMatching(/^ ◆ Dashboard redesign: Review Sessions & Runway, round 1 +now$/),
+    expect.stringMatching(/^ ◆ Request ledger: Keep the ledger 400 days, or forever\? +now$/),
+  ])
+
+  await ui.press({ key: 'pick:k3' })
+  await ui.press({ key: 'choose:k3:1' })
+  expect(w.state.queue).toEqual([
+    { project: PROJECT.key, work: LEDGER, item: 'k3', verdict: 'choose', option: 'Forever' },
+  ])
+  expect(await ui.find({ type: 'Text', text: '→ Forever' })).toBeDefined()
+  expect(w.state.pane).toMatchObject({ place: { level: 'project', project: PROJECT.key } })
+})
+
+test("the project view's PARKED holds every session's parked items, the oldest first, each naming its session; there is no DONE", async ($, on) => {
   const w = world($, on)
 
   await neighbourhood(w)
   await w.clock.advance(MIN)
-  await w.call('park', { title: 'A tmux indicator across sessions' })
+
+  const tmux = postedId(await w.call('park', { title: 'A tmux indicator across sessions' }))
+  const done = postedId(await w.call('ask', { wants: 'yes', yes: 'Done', title: 'Run the apply' }))
+
+  await w.call('resolve', { item: done, reason: 'Ran it in the chat' })
 
   const ui = await w.opened(WIDE)
-  const parkedHere = async () =>
+  const headings = async () =>
+    (await ui.findAll({ type: 'Text' }))
+      .map(each => each.text)
+      .filter(text => ['SESSIONS', 'FOR YOU', 'LOG', 'PARKED', 'DONE'].includes(text))
+
+  expect(await ui.find({ type: 'Text', text: 'DONE' }), 'this session has its DONE').toBeDefined()
+
+  await toProject(ui)
+  expect(await headings()).toEqual(['SESSIONS', 'FOR YOU', 'LOG', 'PARKED'])
+  expect(await ui.find({ type: 'Text', text: '2 to come back to' })).toBeDefined()
+  expect(
     (await ui.findAll({ type: 'Button' }))
       .filter(each => each.key?.startsWith('ppick:'))
-      .map(each => each.text)
-
-  await ui.press({ key: 'parked' })
-  expect(await ui.find({ type: 'Text', text: 'PARKED IN THIS SESSION' })).toBeDefined()
-  expect(await parkedHere()).toEqual(['A tmux indicator across sessions'])
-
-  await ui.press({ key: 'back' })
-  await ui.press({ key: 'tab:project' })
-  expect(await ui.find({ key: 'parked', text: '◇ 2 parked' })).toBeDefined()
-  await ui.press({ key: 'parked' })
-  expect(await ui.find({ type: 'Text', text: 'PARKED IN SWITCHBOARD' })).toBeDefined()
-  expect(await parkedHere()).toEqual([
-    'Export the ledger as CSV',
-    'A tmux indicator across sessions',
+      .map(each => [each.key, each.text]),
+  ).toEqual([
+    ['ppick:p2', 'Request ledger: Export the ledger as CSV'],
+    [`ppick:${tmux}`, 'Dashboard redesign: A tmux indicator across sessions'],
   ])
 
   await ui.press({ key: 'ppick:p2' })
-  expect(await ui.find({ type: 'Text', text: 'raised in Request ledger' })).toBeDefined()
   await ui.press({ key: 'pickup:p2' })
   expect(w.state.queue).toEqual([
     { project: PROJECT.key, work: LEDGER, item: 'p2', verdict: 'pickup' },
   ])
 
-  await ui.press({ key: 'back' })
-  await ui.press({ key: 'tab:all' })
-  await ui.press({ key: 'parked' })
-  expect(await ui.find({ type: 'Text', text: 'PARKED IN ALL PROJECTS' })).toBeDefined()
-  expect(await parkedHere()).toHaveLength(3)
+  await ui.press({ key: 'up' })
+  expect(
+    await ui.find({ type: 'Text', text: 'PARKED' }),
+    'All projects is the tree alone',
+  ).toBeUndefined()
 })
 
-test("the band counts what waits in the project's other sessions, and opens the project view on it", async ($, on) => {
+test('the band counts what waits in every other work, in every project, and opens All projects on it', async ($, on) => {
   const w = world($, on)
 
   await neighbourhood(w)
@@ -261,26 +313,32 @@ test("the band counts what waits in the project's other sessions, and opens the 
   const band = await w.band()
 
   expect(await band.find({ key: 'band:for-you', text: '1 for you' })).toBeDefined()
-  expect(await band.find({ key: 'band:elsewhere', text: '1 in other sessions' })).toBeDefined()
+  expect(
+    await band.find({ key: 'band:elsewhere', text: '2 elsewhere' }),
+    "the ledger's ask and Goosemates'",
+  ).toBeDefined()
 
   await band.press({ key: 'band:elsewhere' })
   expect(w.panes.get('sitrep')).toBe(true)
+  expect(w.state.pane).toMatchObject({ place: { level: 'all' } })
 
   const board = await w.pane()
 
-  expect(await board.find({ key: `go:${LEDGER}` })).toBeDefined()
-  expect(await board.find({ key: 'tab:project' })).toMatchObject({ props: { dimColor: false } })
+  expect(await board.find({ key: `proj:${ELSEWHERE.key}` })).toBeDefined()
+  expect(await board.find({ key: 'tab:all' })).toMatchObject({ props: { dimColor: false } })
 
   const narrow = await w.band('terminal', 50)
 
-  expect(await narrow.find({ key: 'band:elsewhere', text: '+1' })).toBeDefined()
+  expect(await narrow.find({ key: 'band:elsewhere', text: '+2' })).toBeDefined()
 })
 
-test("a new ask in another session reaches the band's count at the slower pace, the board closed", async ($, on) => {
+test("a new ask in another work, in this project or another, reaches the band's count at the slower pace, the board closed", async ($, on) => {
   const w = world($, on)
   const ledger = w.elsewhere(meta(LEDGER, 'Request ledger', 'switchboard', W2))
+  const orders = w.elsewhere(meta(ORDERS, 'Standing orders', 'goosemates', W4), ELSEWHERE.key)
 
   ledger.beat()
+  orders.beat()
   await w.begin()
 
   const band = await w.band()
@@ -288,14 +346,16 @@ test("a new ask in another session reaches the band's count at the slower pace, 
   expect(await band.find({ key: 'band:elsewhere' })).toBeUndefined()
 
   ledger.write(yesAsk('k3', 'Run the ledger migration', 'Done'))
+  orders.write(yesAsk('k5', 'Review the standing orders'))
   ledger.beat()
+  orders.beat()
   await w.clock.advance(AROUND_MS)
-  expect(await band.find({ key: 'band:elsewhere', text: '1 in other sessions' })).toBeDefined()
+  expect(await band.find({ key: 'band:elsewhere', text: '2 elsewhere' })).toBeDefined()
   expect(w.state.others, 'nothing is read in full with the board closed').toEqual([])
   expect(
-    w.state.projects?.map(project => project.key),
-    'only this project is read with the board closed',
-  ).toEqual([PROJECT.key])
+    w.state.projects?.map(project => project.key).sort(),
+    'every project is read, the board closed',
+  ).toEqual([ELSEWHERE.key, PROJECT.key])
 })
 
 test("the project view's sessions and All projects' trees hang from faint glyphs", async ($, on) => {
@@ -308,10 +368,10 @@ test("the project view's sessions and All projects' trees hang from faint glyphs
     ...new Set((await ui.findAll({ type: 'Text', text })).map(each => each.props.color)),
   ]
 
-  await ui.press({ key: 'tab:project' })
+  await toProject(ui)
   expect(await colours(GLYPH.last)).toEqual([C.faint])
 
-  await ui.press({ key: 'tab:all' })
+  await ui.press({ key: 'up' })
   expect(await colours(GLYPH.branch)).toEqual([C.faint])
   expect(await colours(GLYPH.last)).toEqual([C.faint])
 })

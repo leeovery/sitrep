@@ -1,6 +1,6 @@
 /**
  * What the board's views show, as data: a piece of work in brief, a project
- * with its works, its log and what it parked, and every project, the busiest
+ * with its works, its asks, its log and what it parked, and every project, the busiest
  * first; and every project as the start of a session and the CLI list them,
  * those around the folder first.
  *
@@ -9,8 +9,9 @@
  * one, stays on disk, out of every view.
  */
 import { nearestFirst, type Project } from './project'
+import { isOpen } from './replies'
 import { compareText } from './text'
-import type { LogLine, Parked, Work } from './types'
+import type { Ask, LogLine, Parked, Work } from './types'
 
 /** How long an idle work (no window, nothing waiting or parked) stays in the views after its last update. */
 export const CURRENT_MS = 7 * 24 * 60 * 60_000
@@ -35,12 +36,14 @@ export type WorkSummary = {
   updatedAt: number
 }
 
-/** A piece of work as views beyond its own draw it: in brief, with its latest log lines and what it parked. */
+/** A piece of work as views beyond its own draw it: in brief, with its open asks, its latest log lines and what it parked. */
 export type WorkBrief = WorkSummary & {
   /** Newest first. */
   log: LogLine[]
   /** Oldest first. */
   parkedItems: Parked[]
+  /** The asks still open, oldest first. */
+  asks: Ask[]
 }
 
 export type ProjectSummary = {
@@ -112,6 +115,7 @@ export const brief = (work: Work): WorkBrief => ({
   ...summarise(work),
   log: work.log.slice(0, BRIEF_LOG_LINES),
   parkedItems: work.parked,
+  asks: work.asks.filter(isOpen),
 })
 
 /** A project from its works, named as its most recently updated work names it. */

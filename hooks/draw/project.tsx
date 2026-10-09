@@ -1,13 +1,16 @@
 /**
  * A project's view: its sessions, this one first, each with what it is
- * doing and what waits on Lee there; and the project's log, each line
- * naming its session. A session opens its own view.
+ * doing and what waits on Lee there; every session's asks, answered from
+ * here; the project's log; and what its sessions put off. Each ask, log
+ * line and parked item names its session. A session opens its own view.
  */
 import type { WorkSummary } from '../../core'
 import { C, clip, GLYPH } from '../look'
-import { hereFirst, projectAt } from '../places'
+import { askedIn, hereFirst, parkedIn, projectAt } from '../places'
+import { drawForYou } from './ask'
 import { context, heading, waitingWords, type Drawing } from './kit'
 import { drawLogLine } from './log'
+import { drawParked } from './parked'
 
 /** How many log lines the view shows, docked and inline. */
 const LOG_LINES = { dock: 6, inline: 3 }
@@ -72,6 +75,11 @@ export const drawProjectView = (d: Drawing, key: string) => {
           {sessions.map(work => drawSession(d, key, work))}
         </Box>
       </Box>
+      {drawForYou(d, askedIn(d.scene, key), {
+        waiting: summary.waiting,
+        isHome: key === d.scene.here,
+        isNamed: true,
+      })}
       <Box flexDirection="column">
         {heading(d, 'LOG', C.log, 'what happened')}
         {lines.length === 0 && <Text color={C.grey}>Nothing yet.</Text>}
@@ -79,6 +87,7 @@ export const drawProjectView = (d: Drawing, key: string) => {
           drawLogLine(d, line, { work: line.work, name: names.get(line.work) ?? line.work }),
         )}
       </Box>
+      {drawParked(d, parkedIn(d.scene, key), true)}
     </Box>
   )
 }

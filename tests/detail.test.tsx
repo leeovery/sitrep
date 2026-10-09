@@ -91,7 +91,7 @@ test('a log line is its mark, its text and its age at the right edge; opened, a 
   ])
 })
 
-test('an opened parked item hangs where, the session that raised it and its record from its mark, its button under the tree', async ($, on) => {
+test('an opened parked item hangs where and its record from its mark, its button under the tree', async ($, on) => {
   const w = world($, on)
 
   await w.begin()
@@ -105,8 +105,6 @@ test('an opened parked item hangs where, the session that raised it and its reco
   )
   const ui = await w.opened()
 
-  await ui.press({ key: 'tab:project' })
-  await ui.press({ key: 'parked' })
   await ui.press({ key: `ppick:${id}` })
   const drawn = await rows(ui, `parked:${w.state.attachment?.work}:${id}`)
 
@@ -115,7 +113,6 @@ test('an opened parked item hangs where, the session that raised it and its reco
     '│ skill: implementers at high and xhigh, model',
     '│ by complexity, plan stops, parallel worktrees',
     '├ In DESIGN.md, Later',
-    '├ raised in Dashboard redesign',
     '└ see memory: orchestration-setup.md',
     '  [ pick it up ]',
   ])
@@ -129,7 +126,6 @@ test('a parked item with nothing to hang shows no stem beside its title, only it
   const id = postedId(await w.call('park', { title: FOLD }))
   const ui = await w.pane()
 
-  await ui.press({ key: 'parked' })
   await ui.press({ key: `ppick:${id}` })
   const drawn = await rows(ui, `parked:${w.state.attachment?.work}:${id}`)
 
@@ -149,7 +145,6 @@ test("a pick-up waiting to be sent is the parked item's last branch, and takes t
   const id = postedId(await w.call('park', { title: 'A tmux indicator', where: 'In DESIGN.md' }))
   const ui = await w.pane()
 
-  await ui.press({ key: 'parked' })
   await ui.press({ key: `ppick:${id}` })
   await ui.press({ key: `pickup:${id}` })
   expect((await rows(ui, `parked:${w.state.attachment?.work}:${id}`)).slice(1)).toEqual([
@@ -320,7 +315,6 @@ test("an opened ask's see is labelled in the ask's amber, a parked item's in its
     label: { text: 'see', color: C.ask },
   })
 
-  await ui.press({ key: 'parked' })
   await ui.press({ key: `ppick:${parked}` })
   expect(await lineOn(ui, 'see memory: tmux.md')).toEqual({
     color: C.soft,
@@ -344,7 +338,6 @@ test("every tree's glyphs are drawn faint: a log line's, an ask's, Ready to send
   await ui.press({ key: `log:${note}` })
   expect(await glyphColours(ui)).toEqual(ALL_FAINT)
 
-  await ui.press({ key: 'parked' })
   await ui.press({ key: `ppick:${parked}` })
   expect(await glyphColours(ui)).toEqual(ALL_FAINT)
 })

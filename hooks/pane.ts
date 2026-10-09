@@ -1,5 +1,5 @@
 /**
- * The board's pane: opened on a place, a view and an item, and closed again.
+ * The board's pane: opened on a place and an item, and closed again.
  *
  * Claude Code places a pane opened by Lee's press or command at any width
  * (docked from 110 columns in fullscreen, inline otherwise), and one opened
@@ -7,11 +7,11 @@
  * press itself, from the `ui.press` hook: an open made once the press has
  * settled counts as unasked.
  */
-import type { SitrepAttachment, SitrepPane } from '../types'
+import type { SitrepPane } from '../types'
 import { endAnswering } from './answering'
 import { lookAround } from './around'
 import type { Host } from './host'
-import { projectPlace } from './places'
+import { EVERY_PROJECT } from './places'
 
 /** The pane's id, as `$.ui.open` and its `ui.render` name it. */
 export const PANE = 'sitrep'
@@ -26,25 +26,23 @@ const ROWS = 24
 export const BAND = {
   forYou: 'band:for-you',
   elsewhere: 'band:elsewhere',
-  parked: 'band:parked',
   board: 'band:board',
   cancelAnswer: 'band:cancel-answer',
 } as const
 
 export const BAND_KEYS = Object.values(BAND)
 
-/** Where the board opens: where it looks, its view, and the item opened under its line. */
-export type Focus = Partial<Pick<SitrepPane, 'place' | 'view' | 'selected'>>
+/** Where the board opens: where it looks, and the item opened under its line. */
+export type Focus = Partial<Pick<SitrepPane, 'place' | 'selected'>>
 
-/** Where each of the band's counts opens the board: this session, its project, or what this session parked. */
-const COUNTED: Readonly<Record<string, (held: SitrepAttachment) => Focus>> = {
-  [BAND.forYou]: () => ({ place: null, view: 'board' }),
-  [BAND.elsewhere]: held => ({ place: projectPlace(held.project), view: 'board' }),
-  [BAND.parked]: () => ({ place: null, view: 'parked' }),
+/** Where each of the band's counts opens the board: this session, or every project. */
+const COUNTED: Readonly<Record<string, Focus>> = {
+  [BAND.forYou]: { place: null },
+  [BAND.elsewhere]: { place: EVERY_PROJECT },
 }
 
-/** Where the board opens once it has been closed: home, on the board, nothing opened. */
-const HOME: Focus = { place: null, view: 'board', selected: null }
+/** Where the board opens once it has been closed: home, nothing opened. */
+const HOME: Focus = { place: null, selected: null }
 
 const markOpen = (host: Host, isOpen: boolean) =>
   host.state.pane.update(pane => ({ ...pane, isOpen }))
@@ -102,5 +100,5 @@ export const pressBand = async (host: Host, element: string) => {
   const held = await host.state.attachment.read()
   const focus = Object.hasOwn(COUNTED, element) ? COUNTED[element] : undefined
 
-  return held === null || focus === undefined ? toggleBoard(host) : openBoard(host, focus(held))
+  return held === null || focus === undefined ? toggleBoard(host) : openBoard(host, focus)
 }

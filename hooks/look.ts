@@ -32,7 +32,6 @@ export const GLYPH = {
   now: '•',
   next: '◦',
   home: '⌂',
-  project: '▤',
   every: '≡',
   up: '←',
   branch: '├',

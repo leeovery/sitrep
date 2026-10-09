@@ -3,7 +3,7 @@ import { expect, test, tier } from 'claude-code/testing'
 import type { WorkMeta } from '../core'
 import { rowsOf } from './drawn'
 import { MIN, SLOW, T0, W2, yesAsk } from './support'
-import { ELSEWHERE, postedId, world } from './world'
+import { ELSEWHERE, postedId, toProject, world } from './world'
 
 tier('user')
 
@@ -80,27 +80,26 @@ test(
   },
 )
 
-test('the parked view lists its items with no blank row between them, for a session and for its project', async ($, on) => {
+test('PARKED lists its items with no blank row between them, in a session and in its project, each naming its session there', async ($, on) => {
   const w = world($, on)
 
   await w.begin()
   await posted(w, 'park', ...PARKED)
 
   const ui = await w.pane()
-  const items = async () => runFrom(await boardRows(ui), /^ ◇ /)
-  const drawn = [
+
+  expect(listedUnder(await boardRows(ui), 'PARKED')).toEqual([
     ' ◇ A tmux indicator 3m',
     ' ◇ Thumbnails in the picker 2m',
     ' ◇ Export the ledger as CSV 1m',
-  ]
+  ])
 
-  await ui.press({ key: 'parked' })
-  expect(await items()).toEqual(drawn)
-
-  await ui.press({ key: 'back' })
-  await ui.press({ key: 'tab:project' })
-  await ui.press({ key: 'parked' })
-  expect(await items()).toEqual(drawn)
+  await toProject(ui)
+  expect(listedUnder(await boardRows(ui), 'PARKED')).toEqual([
+    ' ◇ Dashboard redesign: A tmux indicator 3m',
+    ' ◇ Dashboard redesign: Thumbnails in the picker 2m',
+    ' ◇ Dashboard redesign: Export the ledger as CSV 1m',
+  ])
 })
 
 test('the project view lists its log with no blank row between the lines, each naming its session', async ($, on) => {
@@ -111,7 +110,7 @@ test('the project view lists its log with no blank row between the lines, each n
 
   const ui = await w.pane()
 
-  await ui.press({ key: 'tab:project' })
+  await toProject(ui)
   expect(listedUnder(await boardRows(ui), 'LOG')).toEqual([
     ' • Dashboard redesign: The schema is drawn 1m',
     ' • Dashboard redesign: PR #82 merged 2m',

@@ -58,7 +58,6 @@ const inFlight = atom({ plugin: 'sitrep', key: 'inFlight' } as const, null)
 const pane = atom({ plugin: 'sitrep', key: 'pane' } as const, {
   isOpen: false,
   place: null,
-  view: 'board',
   selected: null,
 })
 const answering = atom({ plugin: 'sitrep', key: 'answering' } as const, null)

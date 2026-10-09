@@ -145,7 +145,6 @@ test('a pick-up from parked is sent like any reply, and the log says what was pi
   const id = postedId(await w.call('park', { title: 'A tmux indicator across sessions' }))
   const ui = await w.pane()
 
-  await ui.press({ key: 'parked' })
   await ui.press({ key: `ppick:${id}` })
   await ui.press({ key: `pickup:${id}` })
   await ui.press({ key: 'send' })
@@ -154,7 +153,7 @@ test('a pick-up from parked is sent like any reply, and the log says what was pi
     'From the board:\n- Pick up from parked: A tmux indicator across sessions',
   )
   expect(kindsIn(w, paths.log(W1))).toEqual(['park', 'reply', 'delivered'])
-  expect(await ui.find({ type: 'Text', text: /Nothing parked/ })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: 'PARKED' }), 'nothing is parked now').toBeUndefined()
   expect(w.state.board?.log[0]?.text).toBe(
     'Picked up from parked: A tmux indicator across sessions',
   )

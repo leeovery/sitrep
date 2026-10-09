@@ -7,7 +7,7 @@ import { C } from '../hooks/look'
 import { PANE } from '../hooks/pane'
 import { rowsOf } from './drawn'
 import { MIN, SLOW, T0, W2, yesAsk } from './support'
-import { DOCKED, INLINE, postedId, world } from './world'
+import { DOCKED, INLINE, postedId, toProject, world } from './world'
 
 tier('user')
 
@@ -186,7 +186,7 @@ test('replies sent into another work keep the box as tall as it draws, where the
 
   const ui = await w.opened()
 
-  await ui.press({ key: 'tab:project' })
+  await toProject(ui)
   await ui.press({ key: `go:${LEDGER.id}` })
   await ui.press({ key: 'pick:k3' })
   await ui.press({ key: 'yes:k3' })

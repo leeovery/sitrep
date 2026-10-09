@@ -1,10 +1,9 @@
 /**
  * The pieces of work around the held one, read at a slower pace than its
- * watch. The held work's project is always read, so the band can count what
- * waits in its other sessions. While the board is open, so is the project
- * it looks at, every project while it looks at all of them, and in full each
- * other work it draws: the session it looks at, and those Lee's replies wait
- * for or went to.
+ * watch. Every project is read, the board open or not, so the band can count
+ * what waits on Lee in every other work, and the board's views draw from what
+ * was last read. In full, each other work the board draws: the session it
+ * looks at, and those Lee's replies wait for or went to.
  *
  * Whatever the board shows, the work of the ask Lee is answering in the
  * prompt is read in full too, so the answering mode ends once that ask can
@@ -41,13 +40,6 @@ import type { Filed } from './scene'
  * and a third of the watch's pace keeps reading every project cheap.
  */
 export const AROUND_MS = 5_000
-
-/** What a look reads: the projects whose works it briefs, every one or those named, and the other works it reads in full. */
-type Scope = {
-  isAll: boolean
-  projects: readonly string[]
-  full: readonly SitrepWorkRef[]
-}
 
 /** Each work's reader, by its folder. */
 const readers = new Map<string, Reader>()
@@ -92,38 +84,27 @@ type Around = {
   answering: SitrepAnswering | null
 }
 
-const scopeOf = (held: SitrepAttachment, pane: SitrepPane, around: Around): Scope => {
-  const { place } = pane
+/** The other works a look reads in full: those the board draws, while it is open, and the one Lee is answering in the prompt. */
+const fullOf = (held: SitrepAttachment, pane: SitrepPane, around: Around) => {
   const answered = around.answering === null ? [] : [around.answering]
-  const others = (refs: readonly SitrepWorkRef[]) =>
-    destinations(refs).filter(each => each.work !== held.work)
+  const { place } = pane
+  const drawn = pane.isOpen
+    ? [...(place?.level === 'session' ? [place] : []), ...around.queue, ...around.sent]
+    : []
 
-  if (!pane.isOpen) {
-    return { isAll: false, projects: [held.project], full: others(answered) }
-  }
-
-  const looked = place?.level === 'session' ? [place] : []
-
-  return {
-    isAll: place?.level === 'all',
-    projects: [
-      ...new Set([
-        held.project,
-        ...(place === null || place.level === 'all' ? [] : [place.project]),
-      ]),
-    ],
-    full: others([...looked, ...around.queue, ...around.sent, ...answered]),
-  }
+  return destinations([...drawn, ...answered]).filter(each => each.work !== held.work)
 }
 
-/** The projects a look briefs: every one filed, or those the scope names. */
-const scopeKeys = async (host: Host, root: string, scope: Scope) =>
-  scope.isAll ? projectKeys(host, root) : scope.projects
-
-/** The works a look reads, by id: every one under the scope's projects but the held one, and each it reads in full. */
-const readScope = async (host: Host, root: string, held: string, scope: Scope, now: number) => {
+/** The works a look reads, by id: every one filed but the held one, and each other it reads in full. */
+const readAround = async (
+  host: Host,
+  root: string,
+  held: string,
+  full: readonly SitrepWorkRef[],
+  now: number,
+) => {
   const read = new Map<string, Filed>()
-  const keys = await scopeKeys(host, root, scope)
+  const keys = await projectKeys(host, root)
 
   for (const project of keys) {
     for (const work of await worksIn(host, root, project, now, held)) {
@@ -131,7 +112,7 @@ const readScope = async (host: Host, root: string, held: string, scope: Scope, n
     }
   }
 
-  for (const at of scope.full.filter(each => !read.has(each.work))) {
+  for (const at of full.filter(each => !read.has(each.work))) {
     const work = await foldAt(host, root, at, now)
 
     if (work !== undefined) {
@@ -158,8 +139,11 @@ const projectsOf = (
     return works.length > 0 || key === held.project ? [{ key, works }] : []
   })
 
-const othersOf = (scope: Scope, read: ReadonlyMap<string, Filed>): SitrepOther[] =>
-  scope.full.flatMap(at => {
+const othersOf = (
+  full: readonly SitrepWorkRef[],
+  read: ReadonlyMap<string, Filed>,
+): SitrepOther[] =>
+  full.flatMap(at => {
     const filed = read.get(at.work)
 
     return filed === undefined ? [] : [{ project: filed.project, board: boardOf(filed.work) }]
@@ -219,11 +203,11 @@ const look = async (host: Host) => {
     rootFor(host),
     host.clock.now(),
   ])
-  const scope = scopeOf(held, pane, { queue, sent, answering })
-  const { keys, read } = await readScope(host, root, held.work, scope, now)
+  const full = fullOf(held, pane, { queue, sent, answering })
+  const { keys, read } = await readAround(host, root, held.work, full, now)
 
   await put(host.state.projects, 'projects', projectsOf(held, keys, read, now))
-  await put(host.state.others, 'others', othersOf(scope, read))
+  await put(host.state.others, 'others', othersOf(full, read))
   await settleSent(host, read, now)
   await settleAnswering(host)
   prune(root, read)

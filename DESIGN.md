@@ -99,8 +99,8 @@ discussed. So `start` names its project, as Lee would say it and cased
 - Else a new project is made of the name.
 - A directory given is recorded for a project that has none. One that has
   its own keeps it, and the answer says so: the `project` tool changes it.
-- The folder a session started in decides nothing: not the board's project
-  tab (the held work's project), not what the first message lists (every
+- The folder a session started in decides nothing: not the board's own
+  project (the held work's), not what the first message lists (every
   current work), not where a join or a resumed conversation looks (every
   project). It only orders: projects whose directory holds it come first.
   A work still records it, as `root`: where the work was started.
@@ -180,8 +180,8 @@ post; the board is best effort, and in use Claude has not forgotten.
 ### The board: a tree, with this session as home
 
 ```
- ⌂ This session 3  ▤ Switchboard 4  ≡ All projects 8     ◇ 2 parked
-━━━━━━━━━━━━━━━━━━────────────────────────────────────────────────
+ ⌂ 3  ≡ All projects 8
+━━━━━─────────────────────────────────────────────────────────────
 Dashboard redesign · Switchboard
 Redesign the dashboard, area by area in Paper
 
@@ -206,6 +206,10 @@ LOG ─────────────────────────�
 • PR #82 merged                                                 1h
 ◇ Picked up from parked: A tmux indicator                       2h
 
+PARKED ──────────────────────────────────────── 2 to come back to
+◇ Paper thumbnails inline in Ghostty                            1d
+◇ A Space-aware notes window                                    2d
+
 DONE ──────────────────────────────────────────────────── 4 closed
 ✓ Review the dashboard's Overview, round 2                      1d
 ✓ Grant Ghostty notification permission                         1d
@@ -213,28 +217,57 @@ DONE ─────────────────────────
 show all 4
 ```
 
-- **On Lee's own path** (this session, its project, all projects) the board shows
-  three tabs. **Anywhere else** (another session or project) the tabs give way
-  to `← <one level up>` and `⌂ this session`, the familiar nested-page pattern.
-- Either row ends in `◇ 2 parked`, right-aligned: what was parked where the
-  board looks, and the way into it. Where it will not fit beside the tabs'
-  full labels it drops the word first (`◇ 2`); on a board too narrow even
-  for that, the tabs take their short labels too.
+- **On Lee's own path** (this session and All projects) the board shows two
+  tabs: home as `⌂` and its waiting count alone, on wide boards and narrow
+  ones alike, and `≡ All projects` with what waits across every project.
+  **Anywhere else** the tabs give way to `← <one level up>` and `⌂`, the
+  familiar nested-page pattern: `← All projects  ⌂` over a project's view,
+  this project's included, since no tab holds it; `← <its project>  ⌂` over
+  another session.
 - Docked or inline, there is no row above the tabs: they are the board's
   first line. There is no collapse: the phone's board and the docked one
   start alike.
 - **This session** (home, the default): name and summary, For you, Status, Log,
-  Done. What waits on Lee comes first.
-- **Project**: the held work's project, named as it is (`SitRep` stays
-  `SitRep`): its sessions, this one first (`⌂`), each with what it is doing
-  and its waiting count; the project's log, each line naming its session.
+  Parked, Done. What waits on Lee comes first.
 - **All projects**: this project first, then the busiest. Each project's open
   sessions hang off it as a tree. A project with nothing open, waiting or parked
-  folds into one line at the bottom.
+  folds into one line at the bottom. A project opens its view.
+- **A project**, reached from All projects, named as it is (`SitRep` stays
+  `SitRep`): its sessions, this one first (`⌂`), each with what it is doing
+  and its waiting count; For you, every current session's asks, the newest
+  first, each naming its session (`Request ledger: Keep the ledger…`) and
+  answered right there as in a session's view; the project's log; and
+  Parked, every session's parked items, each naming its session. A project
+  has no Done.
+
+  ```
+   ← All projects  ⌂
+  ──────────────────────────────────────────────────────────────────
+  Switchboard · 2 waiting on you
+
+  SESSIONS ─────────────────────────────────────────────── 2 of 3 open
+  Dashboard redesign ⌂                                      1 waiting
+  └ Drawing Usage, round 2
+  Request ledger                                            1 waiting
+  └ Drawing the ledger schema
+
+  FOR YOU ──────────────────────────────────────────────── 2 waiting
+  ◆ Dashboard redesign: Review Sessions & Runway, round 1        2h
+  ◆ Request ledger: Keep the ledger 400 days, or forever?        3h
+
+  LOG ──────────────────────────────────────────────── what happened
+  • Request ledger: Wrote the schema                             1h
+
+  PARKED ─────────────────────────────────────── 2 to come back to
+  ◇ Request ledger: Export the ledger as CSV                     1d
+  ◇ Dashboard redesign: A tmux indicator                         2d
+  ```
+
 - **Another session** is the same view as this one, in the same order: For
-  you with buttons that answer it, its status, its log, its done. While no
-  window has it, its foot (above Ready to send) has `✓ mark this work done`,
-  for a session Lee left with things open by closing the window. It asks first, in place:
+  you with buttons that answer it, its status, its log, its parked, its
+  done. While no window has it, its foot (above Ready to send) has
+  `✓ mark this work done`, for a session Lee left with things open by
+  closing the window. It asks first, in place:
   `Mark <name> done? Its open asks stop counting.`, `[ yes, mark it done ]`
   `[ cancel ]`. Yes writes the finish into that work's folder, in this
   window's own file there (nothing goes to its inbox: it is Lee's act on the
@@ -252,7 +285,7 @@ show all 4
   after them, so the next ask does not run into them. There is no blank row
   between asks otherwise. An ask Lee's send just closed keeps the same row
   for a moment: a green `✓`, its title faint, `sent, and Claude has it`.
-- **Done:** a section of its own at the foot of a session's view, under Log,
+- **Done:** a section of its own at the foot of a session's view, under Parked,
   drawn once an ask has closed. Its heading counts the asks closed before
   now, ignored ones aside (`4 closed`), and it lists the latest 3, the newest
   closed first. With more, `show all 4` opens it to every one and then reads
@@ -263,8 +296,8 @@ show all 4
   `resolved by Claude: <reason>`. One opened past the latest 3 keeps DONE
   open to every one, and `show fewer` closes both. For you holds only what
   is open, and the asks Lee's send just closed, for a moment.
-- Each tab carries what waits there. All projects is read only while the board
-  looks at it, so its tab has a count only then.
+- Each tab carries what waits there: home, this session's asks; All
+  projects, every project's.
 - Each view's first line sits directly under the tab rule, with no blank row.
 - Every section heading has a few words on the right: `1 waiting`,
   `what happened`, `updated 12m ago`, `2 of 3 open`.
@@ -274,19 +307,15 @@ show all 4
   `No longer:`, `Still there:`, `Next:`, `Name:`, `Summary:`), and any
   item's pointer with `see`, each label in its item's colour, the text after
   it soft. A note's own detail lines, as Claude wrote them, carry no label.
-- **Parked** is a view of the board, scoped to where the board is looking,
-  opened from the count at the end of the tabs' row. It keeps the row it
-  was opened from, the tabs or the back row, its count lit as a tab is,
-  highlight and all in the rule beneath, and no tab lit. Its first line is
-  `← back to the board`; the lit count goes back too. A tab, or a step up or
-  home, keeps the parked view, of the place it goes to.
-
-  ```
-   ⌂ This session 1  ▤ SitRep  ≡ All projects          ◇ 3 parked
-  ────────────────────────────────────────────────────━━━━━━━━━━━
-  ← back to the board
-  PARKED IN THIS SESSION ────────────────────────────────────── 3
-  ```
+- **Parked:** a section of every session's view, under Log, and of every
+  project's, drawn only while something is parked there, its heading
+  counting it (`2 to come back to`). A session's lists only its own items,
+  a project's every session's, each naming its session; the oldest first.
+  Each is a list's row: a purple `◇`, its title, and its age. Opened, its
+  tree hangs from the mark: where to look, its `see`, and the pick-up once
+  one waits or is on its way; `pick it up` sits under the tree until then,
+  and queues in Ready to send like any reply. It is never counted: not on a
+  tab, nor on the band.
 
 ### Answering an ask
 
@@ -452,12 +481,12 @@ A reply whose item changed before it went in (see Delivery) shows as
 One line above the prompt, right-aligned counts only, each one a way in:
 
 ```
-                        ◆ 1 for you   2 in other sessions   ◇ 4 parked   ▸ show board
+                                         ◆ 1 for you   2 elsewhere   ▸ show board
 ```
 
-`for you` opens this session, `in other sessions` (what waits in this
-project's other works) this project, `parked` the parked view. Below 64
-columns the words drop and the counts stay. The board's show/hide button
+`for you` opens this session; `elsewhere`, what waits on Lee in every other
+current work, in every project, opens All projects. Below 64 columns the
+words drop and the counts stay (`+2`). The board's show/hide button
 always matches whether it is drawn. While Lee answers an ask in the prompt,
 the band says that instead, and only that, with `cancel` (see "Answering an
 ask").
@@ -630,10 +659,12 @@ $XDG_STATE_HOME/sitrep/, else ~/.local/state/sitrep/
   files) and read only what changed; each work's read lists its project's
   folder too, so a rename shows on every board within a look. The works
   around the held one are read every 5 seconds, each through its reader:
-  they are glanced at, not watched. With the board closed only the held
-  work's project is read, for the band; open, the project it looks at too,
-  every project while it looks at all of them, and in full the session it
-  looks at and those replies wait for or went to.
+  they are glanced at, not watched. Every project is read, the board open
+  or closed, for the band's `elsewhere` and the All projects tab: each look
+  lists every work's folders and reads again only a file that changed. With
+  the board open, the session it looks at and those replies wait for or
+  went to are read in full too, and so is the work of the ask Lee is
+  answering in the prompt, open or not.
 - The board's last view lives in the session's `$.state` only. `$.store` is
   unused so far.
 

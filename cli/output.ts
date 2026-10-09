@@ -8,7 +8,6 @@
  */
 import {
   brief,
-  isOpen,
   isSameName,
   listedProjects,
   projectAround,
@@ -138,13 +137,13 @@ const logJson = (line: LogLine) => ({
 
 /** `board --json`: the work in brief, as `list` gives it, with its open asks, what it parked and its latest log lines. */
 export const boardJson = (project: string, work: Work) => {
-  const { log, parkedItems, ...summary } = brief(work)
+  const { log, parkedItems, asks, ...summary } = brief(work)
 
   return json({
     v: OUTPUT.board,
     project: { key: project, name: work.project },
     work: workJson(summary),
-    asks: work.asks.filter(isOpen).map(askJson),
+    asks: asks.map(askJson),
     parked: parkedItems.map(parkedJson),
     log: log.map(logJson),
   })

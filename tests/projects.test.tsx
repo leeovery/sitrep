@@ -41,14 +41,19 @@ const projectKeys = (w: World) =>
     return key === undefined ? [] : [key]
   })
 
-/** The board's project tab, as the board draws it. */
-const projectTab = async (w: World) => {
+/** The board's own project, as All projects names it first. */
+const boardProject = async (w: World) => {
   const ui = await w.pane()
-  const tab = await ui.find({ key: 'tab:project' })
+
+  await ui.press({ key: 'tab:all' })
+
+  const [first] = (await ui.findAll({ type: 'Button' })).filter(each =>
+    each.key?.startsWith('proj:'),
+  )
 
   await ui.unmount()
 
-  return tab?.text
+  return first?.text
 }
 
 /** The session's first message's sitrep block. */
@@ -133,7 +138,7 @@ test('a project folder with no project.json is named as its works recorded it, a
   expect(String(answer.result)).toContain(', in the existing project Code. Record ')
   expect(w.state.attachment?.project).toBe(LEGACY)
   expect(projectKeys(w), 'nothing written to name it').toEqual([])
-  expect(await projectTab(w)).toBe('Code')
+  expect(await boardProject(w)).toBe('Code')
 })
 
 test('a project.json written into a folder from before relabels it, moving nothing', async ($, on) => {
@@ -146,7 +151,7 @@ test('a project.json written into a folder from before relabels it, moving nothi
   await w.call('join', { work: 'sr-wdsqvn' })
 
   expect(w.state.board?.project).toBe('SitRep')
-  expect(await projectTab(w)).toBe('SitRep')
+  expect(await boardProject(w)).toBe('SitRep')
 
   await w.call('start', { ...BOARD, name: 'Lobby', project: 'Sitrep' })
 
@@ -160,7 +165,7 @@ test('a project.json written into a folder from before relabels it, moving nothi
   expect(w.state.attachment?.project).toBe('code')
 })
 
-test("the board's project tab is the held work's project, whatever folder the session started in", async ($, on) => {
+test("the board's own project is the held work's, whatever folder the session started in", async ($, on) => {
   const w = world($, on)
 
   w.project(PROJECT.key, { name: PROJECT.name, directory: REPO, created: T0, by: W2 })
@@ -168,11 +173,11 @@ test("the board's project tab is the held work's project, whatever folder the se
   await $.session.start(SESSION)
   await w.call('start', BOARD)
 
-  expect(await projectTab(w)).toBe('SitRep')
+  expect(await boardProject(w)).toBe('SitRep')
 
   await w.call('join', { work: 'sr-v1pwm9' })
 
-  expect(await projectTab(w)).toBe('Switchboard')
+  expect(await boardProject(w)).toBe('Switchboard')
 })
 
 test('the project tool renames the held work’s project and sets where it lives, the work staying where it is filed', async ($, on) => {
@@ -189,7 +194,7 @@ test('the project tool renames the held work’s project and sets where it lives
   )
   expect(fileIn(w, 'sitrep')).toEqual({ name: 'SitRep', created: T0, by: W1 })
   expect(w.state.board?.project).toBe('SitRep')
-  expect(await projectTab(w)).toBe('SitRep')
+  expect(await boardProject(w)).toBe('SitRep')
 
   expect((await w.call('project', { directory: SITREP_HOME })).result).toBe(
     `SitRep lives in ${SITREP_HOME}.`,
@@ -235,7 +240,7 @@ test('the project tool gives a folder from before projects were named its first 
   )
   expect(fileIn(w, LEGACY)).toEqual({ name: 'SitRep', created: T0 + MIN, by: W1 })
   expect(w.state.attachment?.project).toBe(LEGACY)
-  expect(await projectTab(w)).toBe('SitRep')
+  expect(await boardProject(w)).toBe('SitRep')
 })
 
 /** Three projects with current works: SitRep and Switchboard each living somewhere, and Goosemates from before. */

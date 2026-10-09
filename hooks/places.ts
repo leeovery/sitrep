@@ -1,8 +1,8 @@
 /**
  * The board as a tree, with this session as home: a session sits in its
- * project, and every project under All projects. Lee's own path up it (this
- * session, its project, every project) is the tabs; anywhere else is a step
- * back up. Also what each place shows: its works, its log, what it parked.
+ * project, and every project under All projects. Lee's own path (this
+ * session, every project) is the tabs; anywhere else is a step back up.
+ * Also what each place shows: its works, its asks, its log, what it parked.
  */
 import {
   allProjects,
@@ -10,15 +10,19 @@ import {
   projectLog,
   projectParked,
   summariseProject,
+  type Ask,
   type Parked,
   type WorkBrief,
 } from '../core'
 import type { SitrepPlace, SitrepWorkRef } from '../types'
-import type { Filed, Scene } from './scene'
+import { forYou, type Filed, type Scene } from './scene'
 
 export const EVERY_PROJECT: SitrepPlace = { level: 'all' }
 
-/** Something parked where the board is looking, the work that parked it, and that work's name. */
+/** An ask a view lists, the work it is on, and that work's name. */
+export type AskedAt = { at: SitrepWorkRef; name: string; ask: Ask }
+
+/** Something a view lists as parked, the work that parked it, and that work's name. */
 export type ParkedAt = { at: SitrepWorkRef; name: string; parked: Parked }
 
 /** This session: the held work, the board's home. */
@@ -48,23 +52,9 @@ export const samePlace = (a: SitrepPlace, b: SitrepPlace) =>
 export const up = (place: SitrepPlace): SitrepPlace =>
   place.level === 'session' ? projectPlace(place.project) : EVERY_PROJECT
 
-/** Lee's own path up the tree: this session, its project, every project. */
+/** Lee's own path, the tabs: this session and every project. */
 export const isOnPath = (scene: Scene) =>
-  [homeOf(scene), projectPlace(scene.here), EVERY_PROJECT].some(home =>
-    samePlace(scene.place, home),
-  )
-
-/** Whether something of a work's belongs where the board is looking. */
-export const inPlace = (place: SitrepPlace, at: SitrepWorkRef) => {
-  switch (place.level) {
-    case 'session':
-      return at.work === place.work
-    case 'project':
-      return at.project === place.project
-    case 'all':
-      return true
-  }
-}
+  [homeOf(scene), EVERY_PROJECT].some(tab => samePlace(scene.place, tab))
 
 /** A work the board can draw in full: the held one, or another it read. */
 export const filedAt = (scene: Scene, work: string): Filed | undefined =>
@@ -104,17 +94,43 @@ export const everyProject = (scene: Scene) =>
     scene.here,
   )
 
-/** Whether every project has been read: only while the board looks at all of them. */
-export const isAllRead = (scene: Scene) => scene.pane.isOpen && scene.place.level === 'all'
-
-/** How many asks wait in the held work's project's other sessions. */
+/** How many asks wait on Lee in every other work, in every project. */
 export const waitingElsewhere = (scene: Scene) =>
-  (scene.projects.find(project => project.key === scene.here)?.works ?? []).reduce(
-    (sum, work) => sum + work.waiting,
-    0,
-  )
+  scene.projects.flatMap(project => project.works).reduce((sum, work) => sum + work.waiting, 0)
 
-const parkedIn = (scene: Scene, key: string): ParkedAt[] => {
+const refOf = ({ project, work }: Filed): SitrepWorkRef => ({ project, work: work.id })
+
+/** A session's For you: its open asks, and those Lee's send just closed, the newest first. */
+export const askedOf = (scene: Scene, filed: Filed): AskedAt[] =>
+  forYou(filed.work, scene.now).map(ask => ({
+    at: refOf(filed),
+    name: filed.work.status.name,
+    ask,
+  }))
+
+/** A work's asks as its project's For you lists them: as its own view does where the board has it in full, else its open asks. */
+const briefAsked = (scene: Scene, key: string, work: WorkBrief): AskedAt[] => {
+  const filed = filedAt(scene, work.id)
+
+  return filed === undefined
+    ? [...work.asks]
+        .reverse()
+        .map(ask => ({ at: { project: key, work: work.id }, name: work.name, ask }))
+    : askedOf(scene, filed)
+}
+
+/** A project's For you: every current session's asks, the newest first. */
+export const askedIn = (scene: Scene, key: string): AskedAt[] =>
+  briefsIn(scene, key)
+    .flatMap(work => briefAsked(scene, key, work))
+    .sort((a, b) => b.ask.at - a.ask.at)
+
+/** What a session has parked, oldest first. */
+export const parkedOf = (filed: Filed): ParkedAt[] =>
+  filed.work.parked.map(parked => ({ at: refOf(filed), name: filed.work.status.name, parked }))
+
+/** What a project's sessions have parked, oldest first. */
+export const parkedIn = (scene: Scene, key: string): ParkedAt[] => {
   const works = briefsIn(scene, key)
   const names = new Map(works.map(work => [work.id, work.name]))
 
@@ -124,13 +140,6 @@ const parkedIn = (scene: Scene, key: string): ParkedAt[] => {
     parked,
   }))
 }
-
-/** What was parked where the board is looking, oldest first. */
-export const parkedAt = (scene: Scene): ParkedAt[] =>
-  keysRead(scene)
-    .flatMap(key => parkedIn(scene, key))
-    .filter(each => inPlace(scene.place, each.at))
-    .sort((a, b) => a.parked.at - b.parked.at)
 
 /** A work's name, with its project's where the board's own project is another. */
 export const workLabel = (scene: Scene, filed: Filed) =>

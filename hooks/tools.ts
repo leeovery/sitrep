@@ -168,7 +168,7 @@ const attachKnown = async (host: Host, root: string, attaching: SitrepAttachment
   }
 
   if (attaching.work !== before) {
-    await host.state.pane.update(pane => ({ ...pane, place: null, view: 'board', selected: null }))
+    await host.state.pane.update(pane => ({ ...pane, place: null, selected: null }))
   }
 
   await lookAround(host)

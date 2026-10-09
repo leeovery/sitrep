@@ -4,7 +4,7 @@
  * the mod puts in `$.state` and submits. Nothing touches a real folder.
  */
 import type { On, PluginState, PromptSubmitInput, RenderPropsOf } from 'claude-code'
-import { mock, type Engine } from 'claude-code/testing'
+import { mock, type Engine, type Mounted } from 'claude-code/testing'
 import {
   metaText,
   presenceText,
@@ -63,7 +63,7 @@ export const ACROSS = DOCKED.bodyColumns - 2
 
 export const INLINE: RenderPropsOf['Pane'] = { ...DOCKED, placement: 'inline' }
 
-/** The board docked beside a 150-column terminal, as it measured live: room for every tab's full label, counts and all, beside the parked count. */
+/** The board docked beside a 150-column terminal, as it measured live: room for every tab's full label, counts and all. */
 export const WIDE: RenderPropsOf['Pane'] = { ...DOCKED, bodyColumns: 67 }
 
 /** The band above the prompt, 100 columns across. */
@@ -480,6 +480,12 @@ export function world(engine: Engine, on: On, options: { now?: number; cwd?: str
     pane,
     band,
   }
+}
+
+/** The board on a project's view, reached as Lee reaches it from the tabs: All projects, then the project. */
+export const toProject = async (ui: Pick<Mounted, 'press'>, key = PROJECT.key) => {
+  await ui.press({ key: 'tab:all' })
+  await ui.press({ key: `proj:${key}` })
 }
 
 /** The work id a start's answer names. */

@@ -9,7 +9,6 @@ import type {
   SitrepPane,
   SitrepPlace,
   SitrepQueued,
-  SitrepView,
   SitrepWorkRef,
 } from '../types'
 import { beginAnswering } from './answering'
@@ -35,9 +34,7 @@ export type Actions = {
   answer: (answering: SitrepAnswering, text?: string) => void
   /** Sends Ready to send; a board drawn inline closes once the send is claimed, as on a phone. */
   send: (isDock: boolean) => void
-  /** Turns the board to a view of where it is looking, closing what was open in the last. */
-  show: (view: SitrepView) => void
-  /** Takes the board somewhere else in the tree, keeping its view: of the place, or of what was parked there. */
+  /** Takes the board somewhere else in the tree. */
   go: (place: SitrepPlace) => void
   /** Marks another work done, as Lee confirmed on its view, and takes the board up off it. */
   finish: (at: SitrepWorkRef) => void
@@ -55,7 +52,7 @@ const queue = async (host: Host, reply: SitrepQueued) => {
   }
 }
 
-/** The board on a place, its view kept, nothing opened there, and what it shows read. */
+/** The board on a place, nothing opened there, and what it shows read. */
 const go = async (host: Host, place: SitrepPlace) => {
   await changePane(host, () => ({ place, selected: null }))
   await lookAround(host)
@@ -106,8 +103,6 @@ export const actionsOf = (host: Host): Actions => {
           }
         }),
       ),
-    show: view =>
-      run('turning the board', () => changePane(host, () => ({ view, selected: null }))),
     go: place => run('going elsewhere on the board', () => go(host, place)),
     finish: at => run('marking a work done', () => finish(host, at)),
   }

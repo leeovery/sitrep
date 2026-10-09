@@ -16,12 +16,15 @@ import {
   type WorkFiles,
 } from '../core'
 import {
+  delivered,
   file,
   finish,
   META,
   MIN,
   note,
   park,
+  reply,
+  resolve,
   seen,
   status,
   T0,
@@ -230,6 +233,26 @@ test('a brief carries the latest log lines a view shows, and what the work has p
   expect(briefed.log[0]?.text).toBe(`note ${BRIEF_LOG_LINES + 1}`)
   expect(briefed.parkedItems.map(each => each.id)).toEqual(['p1'])
   expect(briefed.parked).toBe(1)
+})
+
+test('a brief carries the asks still open, a replied one among them, and none closed', () => {
+  const work = workOf('sr-aaaaaa', 'switchboard', {
+    logs: {
+      [W1]: file(
+        [T0, yesAsk('k1', 'Review round 1')],
+        [T0 + MIN, yesAsk('k2', 'Review round 2')],
+        [T0 + 2 * MIN, yesAsk('k3', 'Review round 3')],
+        [T0 + 3 * MIN, resolve('k1', 'Done in the chat')],
+        [T0 + 4 * MIN, reply('r1', 'k2', 'comment', { note: 'thinner bars' })],
+        [T0 + 4 * MIN, delivered('r1')],
+      ),
+    },
+  })
+
+  expect(brief(work).asks.map(ask => [ask.id, ask.state])).toEqual([
+    ['k2', 'replied'],
+    ['k3', 'waiting'],
+  ])
 })
 
 test("a project's parked items, oldest first, each naming the work that parked it", () => {

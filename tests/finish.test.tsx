@@ -3,7 +3,7 @@ import { expect, test, tier } from 'claude-code/testing'
 import { parseEntries, workPaths, type WorkMeta } from '../core'
 import { rowsOf } from './drawn'
 import { file, finish, MIN, note, SLOW, T0, W1, W2, W3, W4, yesAsk } from './support'
-import { ELSEWHERE, PROJECT, ROOT, WIDE, world } from './world'
+import { ELSEWHERE, PROJECT, ROOT, toProject, WIDE, world } from './world'
 
 tier('user')
 
@@ -65,7 +65,7 @@ const keysOf = async (ui: Board, prefix: string) =>
 
 /** Lee goes from this session to another of its project. */
 const visit = async (ui: Board, work: string) => {
-  await ui.press({ key: 'tab:project' })
+  await toProject(ui)
   await ui.press({ key: `go:${work}` })
 }
 
@@ -77,14 +77,13 @@ test(
     const { id, ui } = await around(w, WIDE)
     const band = await w.band()
 
-    expect(await band.find({ key: 'band:elsewhere', text: '2 in other sessions' })).toBeDefined()
-    expect(await ui.find({ key: 'tab:session', text: 'This session' })).toBeDefined()
+    expect(await band.find({ key: 'band:elsewhere', text: '2 elsewhere' })).toBeDefined()
 
-    await ui.press({ key: 'tab:project' })
+    await toProject(ui)
     expect(await keysOf(ui, 'go:')).toEqual([`go:${id}`, `go:${LEDGER}`, `go:${THEMES}`])
     expect(await ui.find({ type: 'Text', text: '3 waiting on you' })).toBeDefined()
 
-    await ui.press({ key: 'tab:all' })
+    await ui.press({ key: 'up' })
     expect(await keysOf(ui, 'proj:')).toEqual([`proj:${PROJECT.key}`])
     expect(await ui.find({ type: 'Text', text: '3 waiting on you' })).toBeDefined()
     expect(
@@ -170,10 +169,10 @@ test('a work Claude finished counts nothing in its own window: the band and the 
   const ui = await w.opened(WIDE)
 
   expect(await band.find({ key: 'band:for-you', text: '1 for you' })).toBeDefined()
-  expect(rowsOf(await ui.find({ key: 'tab:session:box' }))).toEqual([' ⌂ This session 1'])
+  expect(rowsOf(await ui.find({ key: 'tab:session:box' }))).toEqual([' ⌂ 1'])
 
   await w.call('finish', { reason: 'Shipped' })
 
   expect(await band.find({ key: 'band:for-you', text: '0 for you' })).toBeDefined()
-  expect(rowsOf(await ui.find({ key: 'tab:session:box' }))).toEqual([' ⌂ This session'])
+  expect(rowsOf(await ui.find({ key: 'tab:session:box' }))).toEqual([' ⌂'])
 })

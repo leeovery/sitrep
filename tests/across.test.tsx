@@ -3,7 +3,7 @@ import { parseEntries, workPaths, type WorkMeta } from '../core'
 import { AROUND_MS } from '../hooks/around'
 import { SENT_LINGER_MS } from '../hooks/queue'
 import { delivered, file, MIN, reply, SLOW, T0, W1, W2, W3, yesAsk } from './support'
-import { INLINE, postedId, PROJECT, ROOT, world } from './world'
+import { INLINE, postedId, PROJECT, ROOT, toProject, world } from './world'
 
 tier('user')
 
@@ -52,7 +52,7 @@ async function threeSessions(w: World) {
 
 /** Lee answers another session's ask from its view, then goes home. */
 const answer = async (ui: Board, work: string, item: string) => {
-  await ui.press({ key: 'tab:project' })
+  await toProject(ui)
   await ui.press({ key: `go:${work}` })
   await ui.press({ key: `pick:${item}` })
   await ui.press({ key: `yes:${item}` })
@@ -78,9 +78,9 @@ test('Ready to send groups the replies by where each goes, this session first, a
   expect(groups).toEqual(['to this session', 'to Request ledger'])
   expect(await ui.find({ type: 'Text', text: '2 replies' })).toBeDefined()
 
-  for (const tab of ['tab:project', 'tab:all']) {
-    await ui.press({ key: tab })
-    expect(await ui.find({ type: 'Text', text: /READY TO SEND/ }), tab).toBeDefined()
+  for (const way of ['tab:all', `proj:${PROJECT.key}`]) {
+    await ui.press({ key: way })
+    expect(await ui.find({ type: 'Text', text: /READY TO SEND/ }), way).toBeDefined()
   }
 })
 
@@ -182,7 +182,7 @@ test("the destination's own view shows the ask's reply on its way, and offers no
 
   await answer(ui, LEDGER, 'k3')
   await ui.press({ key: 'send' })
-  await ui.press({ key: 'tab:project' })
+  await toProject(ui)
   await ui.press({ key: `go:${LEDGER}` })
   await ui.press({ key: 'pick:k3' })
 
@@ -241,7 +241,7 @@ test(
     expect(await ui.find({ type: 'Text', text: '✕ not delivered' })).toBeDefined()
     expect(await ui.find({ type: 'Text', text: '· not delivered: it changed since' })).toBeDefined()
 
-    await ui.press({ key: 'tab:project' })
+    await toProject(ui)
     await ui.press({ key: `go:${LEDGER}` })
     await ui.press({ key: 'pick:k3' })
     expect(await ui.find({ key: 'choose:k3:0' })).toBeDefined()

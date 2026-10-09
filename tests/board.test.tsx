@@ -48,7 +48,6 @@ test('with no work held, the board says so in a line and says how Claude starts 
   expect(
     await ui.find({ type: 'Text', text: /no piece of work.*start one on the sitrep board/ }),
   ).toBeDefined()
-  expect(await ui.find({ key: 'parked' })).toBeUndefined()
 })
 
 test(
@@ -63,7 +62,7 @@ test(
 
     const ui = await w.pane()
 
-    expect(await ui.find({ key: 'tab:session', text: 'This session' })).toBeDefined()
+    expect(await ui.find({ key: 'tab:session', text: '⌂' })).toBeDefined()
     expect(await ui.find({ type: 'Text', text: 'Dashboard redesign' })).toBeDefined()
     expect(await ui.find({ type: 'Text', text: '· Switchboard' })).toBeDefined()
     expect(
@@ -79,12 +78,13 @@ test(
 )
 
 /** The view's own line and section headings, in the order drawn. */
-const SECTIONS = new Set(['Dashboard redesign', 'FOR YOU', 'STATUS', 'LOG', 'DONE'])
+const SECTIONS = new Set(['Dashboard redesign', 'FOR YOU', 'STATUS', 'LOG', 'PARKED', 'DONE'])
 
-test("this session's view runs its name and summary, then FOR YOU, STATUS, LOG and DONE, docked and inline", async ($, on) => {
+test("this session's view runs its name and summary, then FOR YOU, STATUS, LOG, PARKED and DONE, docked and inline", async ($, on) => {
   const w = world($, on)
 
   await w.begin()
+  await w.call('park', { title: 'A tmux indicator across sessions' })
 
   const done = await asked(w, { wants: 'yes', yes: 'Done', title: 'Run the production apply' })
 
@@ -98,22 +98,6 @@ test("this session's view runs its name and summary, then FOR YOU, STATUS, LOG a
       .filter(text => SECTIONS.has(text))
 
     expect(order, props.placement).toEqual([...SECTIONS])
-    await ui.unmount()
-  }
-})
-
-test('parked turns the board, and back', async ($, on) => {
-  const w = world($, on)
-
-  await w.begin()
-
-  for (const surface of SURFACES) {
-    const ui = await w.pane(surface)
-
-    await ui.press({ key: 'parked' })
-    expect(await ui.find({ type: 'Text', text: /Nothing parked/ })).toBeDefined()
-    await ui.press({ key: 'back' })
-    expect(await ui.find({ type: 'Text', text: /Nothing waiting on you/ })).toBeDefined()
     await ui.unmount()
   }
 })
@@ -228,9 +212,6 @@ test('an opened item shows its whole title, and where its own record is; closed,
   await w.call('park', { title, ref: 'memory: orchestration-setup.md' })
 
   const ui = await w.pane()
-
-  await ui.press({ key: 'parked' })
-
   const [parked] = (await ui.findAll({ type: 'Button' })).filter(each =>
     each.key?.startsWith('ppick:'),
   )
@@ -256,7 +237,7 @@ test('an opened item shows its whole title, and where its own record is; closed,
   expect(await lines()).toHaveLength(1)
 })
 
-test('Ready to send stays at the foot of the parked view too', async ($, on) => {
+test("a pick-up from this session's PARKED waits in Ready to send", async ($, on) => {
   const w = world($, on)
 
   await w.begin()
@@ -264,7 +245,6 @@ test('Ready to send stays at the foot of the parked view too', async ($, on) => 
   const id = postedId(await w.call('park', { title: 'A tmux indicator across sessions' }))
   const ui = await w.pane()
 
-  await ui.press({ key: 'parked' })
   await ui.press({ key: `ppick:${id}` })
   await ui.press({ key: `pickup:${id}` })
   expect(await ui.find({ type: 'Text', text: 'pick it up' })).toBeDefined()

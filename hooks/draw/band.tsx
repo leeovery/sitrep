@@ -55,7 +55,6 @@ const drawCounts = (els: Els, width: number, scene: Scene) => {
   const isNarrow = width < NARROW
   const waiting = work.waiting
   const elsewhere = waitingElsewhere(scene)
-  const parked = work.parked.length
   const mark = countMark(scene)
 
   return (
@@ -83,21 +82,9 @@ const drawCounts = (els: Els, width: number, scene: Scene) => {
           key={BAND.elsewhere}
           plain
           dimColor
-          label={isNarrow ? `+${elsewhere}` : `${elsewhere} in other sessions`}
+          label={isNarrow ? `+${elsewhere}` : `${elsewhere} elsewhere`}
           onPress={answeredByTheHook}
         />
-      )}
-      {parked > 0 && (
-        <Box flexDirection="row" gap={1}>
-          <Text color={C.parked}>{GLYPH.parked}</Text>
-          <Button
-            key={BAND.parked}
-            plain
-            dimColor
-            label={isNarrow ? `${parked}` : `${parked} parked`}
-            onPress={answeredByTheHook}
-          />
-        </Box>
       )}
       <Button
         key={BAND.board}

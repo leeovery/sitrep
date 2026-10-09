@@ -68,7 +68,7 @@ test('the band shows or hides the board, and its label follows', async ($, on) =
   expect(await ui.find({ key: 'band:board', text: '▸ show board' })).toBeDefined()
 })
 
-test('the band is counts on the right, each opening the board on what it counts', async ($, on) => {
+test('the band is counts on the right, each opening the board on what it counts, and never counts what was parked', async ($, on) => {
   const w = world($, on)
 
   await busy(w)
@@ -76,17 +76,17 @@ test('the band is counts on the right, each opening the board on what it counts'
   const ui = await w.band()
   expect(await ui.drawn()).toMatchObject({ props: { justifyContent: 'flex-end' } })
   expect(await ui.find({ key: 'band:for-you', text: '1 for you' })).toBeDefined()
-  expect(await ui.find({ key: 'band:parked', text: '1 parked' })).toBeDefined()
+  expect(await ui.find({ key: 'band:parked' })).toBeUndefined()
+  expect(await ui.find({ type: 'Text', text: '◇' })).toBeUndefined()
+  expect(await ui.find({ text: /parked/ })).toBeUndefined()
 
-  await ui.press({ key: 'band:parked' })
+  await ui.press({ key: 'band:for-you' })
   expect(w.panes.get('sitrep')).toBe(true)
 
   const board = await w.pane()
 
-  expect(await board.find({ type: 'Text', text: 'PARKED IN THIS SESSION' })).toBeDefined()
-
-  await ui.press({ key: 'band:for-you' })
   expect(await board.find({ type: 'Text', text: 'FOR YOU' })).toBeDefined()
+  expect(w.state.pane).toMatchObject({ place: null })
 })
 
 test('below 64 columns the words drop and the counts stay', async ($, on) => {
@@ -97,7 +97,7 @@ test('below 64 columns the words drop and the counts stay', async ($, on) => {
   const ui = await w.band('terminal', 50)
 
   expect(await ui.find({ key: 'band:for-you', text: '1' })).toBeDefined()
-  expect(await ui.find({ key: 'band:parked', text: '1' })).toBeDefined()
+  expect(await ui.find({ key: 'band:parked' })).toBeUndefined()
   expect(await ui.find({ key: 'band:board', text: '▸ show board' })).toBeDefined()
 })
 

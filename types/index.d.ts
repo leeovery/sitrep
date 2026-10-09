@@ -217,6 +217,7 @@ export type SitrepSummary = {
 export type SitrepBrief = SitrepSummary & {
   log: SitrepLogLine[]
   parkedItems: SitrepParked[]
+  asks: SitrepAsk[]
 }
 
 /** A project as last read: its key, and its current works other than the held one, in brief. */
@@ -237,16 +238,12 @@ export type SitrepPlace =
   | { level: 'project'; project: string }
   | { level: 'all' }
 
-/** What the board shows where it is looking: its view of the place, or what the place parked. */
-export type SitrepView = 'board' | 'parked'
-
 /** The board pane as the window keeps it. */
 export type SitrepPane = {
   /** Whether the pane is open and drawn, which the band's button follows. */
   isOpen: boolean
   /** Null at home: this session. */
   place: SitrepPlace | null
-  view: SitrepView
   /** The item (or log line) opened under its line. */
   selected: string | null
 }
@@ -265,7 +262,7 @@ declare module 'claude-code' {
       board: SitrepBoard | null
       /** `boardText` as Claude last saw it: a start, a join, a read, its own post, or a turn's context. */
       seen: string | null
-      /** The projects last read: the held work's, and while the board is open those it looks at. */
+      /** Every project holding a current work, and the held work's, as last read. */
       projects: SitrepProject[]
       /** The other works the board draws in full: the session it looks at, and those replies wait for or went to. */
       others: SitrepOther[]
