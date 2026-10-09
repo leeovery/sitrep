@@ -29,13 +29,25 @@ const withExtras = (head: string, extras: Record<string, string | undefined>) =>
     ...Object.entries(extras).flatMap(([label, value]) => (value ? [`${label}: ${value}`] : [])),
   ].join('; ')
 
+/** What an ask wants back, as Claude reads it: a yes in its button's words, a choice, or words. */
+const wantsWords = (ask: Ask) => {
+  switch (ask.wants) {
+    case 'yes':
+      return `a yes (${ask.yes ?? 'yes'})`
+    case 'choice':
+      return 'a choice'
+    case 'words':
+      return 'words'
+  }
+}
+
 const askLine = (ask: Ask) => {
   const standing =
     ask.state === 'replied' && ask.answer !== undefined
       ? `${STANDING.replied} (${answerOf(ask, ask.answer)})`
       : STANDING.waiting
 
-  return `${ask.id} ${ask.kind}, ${standing}: ${withExtras(ask.title, {
+  return `${ask.id} wants ${wantsWords(ask)}, ${standing}: ${withExtras(ask.title, {
     options: ask.options?.join(' | '),
     needs: ask.needs,
     where: ask.where,

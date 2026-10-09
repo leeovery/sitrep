@@ -6,7 +6,8 @@
  * line, a bad line or a line of a kind or version it does not know is
  * skipped, and the rest stands.
  */
-import type { AskKind, Body, Entry, Finisher, Verdict } from './types'
+import { ASK_KINDS, WANTS } from './shapes'
+import type { AskKind, Body, Entry, Finisher, Verdict, Wants } from './types'
 
 /** The format's version: a line of any other is skipped. */
 export const VERSION = 1
@@ -18,10 +19,7 @@ export type Appended = {
   text: string
 }
 
-/** Every kind of ask, as Claude names one. */
-export const ASK_KINDS: readonly AskKind[] = ['review', 'decide', 'try', 'do']
-
-const VERDICTS: readonly Verdict[] = ['yes', 'choose', 'comment', 'ignore', 'pickup']
+const VERDICTS: readonly Verdict[] = ['yes', 'choose', 'answer', 'comment', 'ignore', 'pickup']
 
 const FINISHERS: readonly Finisher[] = ['lee', 'claude']
 
@@ -34,6 +32,7 @@ const isText: Check = value => typeof value === 'string'
 const isTexts: Check = value => Array.isArray(value) && value.every(isText)
 const isTime: Check = value => typeof value === 'number' && Number.isFinite(value)
 const isCount: Check = value => Number.isSafeInteger(value) && (value as number) > 0
+const isWants: Check = value => WANTS.includes(value as Wants)
 const isAskKind: Check = value => ASK_KINDS.includes(value as AskKind)
 const isVerdict: Check = value => VERDICTS.includes(value as Verdict)
 const isFinisher: Check = value => FINISHERS.includes(value as Finisher)
@@ -44,6 +43,8 @@ const maybe =
 
 /** What an edit may carry; it carries at least one of them. */
 const CHANGES: Record<string, Check> = {
+  wants: maybe(isWants),
+  yes: maybe(isText),
   kind: maybe(isAskKind),
   title: maybe(isText),
   where: maybe(isText),
@@ -64,7 +65,9 @@ const SHAPES: { [T in Body['type']]: Record<string, Check> } = {
   status: { name: isText, summary: isText, now: isTexts, next: maybe(isText) },
   ask: {
     id: isText,
-    kind: isAskKind,
+    wants: maybe(isWants),
+    yes: maybe(isText),
+    kind: maybe(isAskKind),
     title: isText,
     where: maybe(isText),
     options: maybe(isTexts),
@@ -86,6 +89,11 @@ const SHAPES: { [T in Body['type']]: Record<string, Check> } = {
   delivered: { replies: isTexts },
   finish: { who: isFinisher, reason: maybe(isText) },
   unfinish: {},
+}
+
+/** What a kind of line needs beyond its fields one by one: an ask says what it wants back, or, written before asks did, its kind. */
+const WHOLE: Partial<Record<Body['type'], (raw: { [key: string]: unknown }) => boolean>> = {
+  ask: raw => raw.wants !== undefined || raw.kind !== undefined,
 }
 
 const isType = (value: unknown): value is Body['type'] =>
@@ -113,7 +121,7 @@ const decode = (line: string): Entry | undefined => {
 
   const fields = Object.entries(SHAPES[raw.type])
 
-  if (!fields.every(([key, check]) => check(raw[key]))) {
+  if (!fields.every(([key, check]) => check(raw[key])) || WHOLE[raw.type]?.(raw) === false) {
     return undefined
   }
 

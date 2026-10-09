@@ -67,9 +67,7 @@ const drawForYou = (d: Drawing, filed: Filed) => {
     <Box flexDirection="column">
       {heading(d, 'FOR YOU', C.ask, note, color)}
       {asks.length === 0 && <Text color={C.grey}>Nothing waiting on you.</Text>}
-      <Box flexDirection="column" rowGap={1}>
-        {asks.map(ask => drawAsk(d, filed, ask))}
-      </Box>
+      {asks.map((ask, i) => drawAsk(d, filed, ask, i === asks.length - 1))}
     </Box>
   )
 }

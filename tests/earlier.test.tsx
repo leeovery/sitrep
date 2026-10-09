@@ -3,7 +3,18 @@ import type { Body } from '../core'
 import { C } from '../hooks/look'
 import { WATCH_MS } from '../hooks/window'
 import { rowsOf } from './drawn'
-import { ask, delivered, file, MIN, reply, resolve, T0, W2, type Line } from './support'
+import {
+  choiceAsk,
+  delivered,
+  file,
+  MIN,
+  reply,
+  resolve,
+  T0,
+  W2,
+  yesAsk,
+  type Line,
+} from './support'
 import { ACROSS, DOCKED, world } from './world'
 
 tier('user')
@@ -33,11 +44,11 @@ async function closedAsks(w: World) {
     file(
       ...after(
         0,
-        ask('a1', 'review', 'Review round 1'),
-        ask('a2', 'decide', 'Keep the ledger 400 days, or forever?', ['400 days', 'Forever']),
-        ask('a3', 'do', 'Run the apply'),
-        ask('a4', 'review', 'Review round 2'),
-        ask('a5', 'try', 'Try the flow'),
+        yesAsk('a1', 'Review round 1'),
+        choiceAsk('a2', 'Keep the ledger 400 days, or forever?', ['400 days', 'Forever']),
+        yesAsk('a3', 'Run the apply', 'Done'),
+        yesAsk('a4', 'Review round 2'),
+        yesAsk('a5', 'Try the flow', 'It works'),
       ),
       ...after(1, reply('r1', 'a1', 'yes'), delivered('r1')),
       ...after(2, reply('r2', 'a2', 'choose', { option: 'Forever' }), delivered('r2')),
@@ -97,7 +108,7 @@ test('a closed ask opens to how it closed, one branch from its tick with no age 
   expect(await opened('a2')).toEqual(['└ → Forever'])
 
   await ui.press({ key: `earlier:${id}` })
-  expect(await opened('a1')).toEqual(['└ approved'])
+  expect(await opened('a1')).toEqual(['└ → Approve'])
 })
 
 test('DONE shows the latest 3; show all opens it to every one, and show fewer closes it again', async ($, on) => {
@@ -123,14 +134,14 @@ test('DONE is a section of its own at the foot of the view, its heading green, d
   const ui = await w.opened()
   const heading = async () => ui.find({ type: 'Text', text: 'DONE' })
 
-  w.put(paths.log(W2), file(...after(0, ask('a1', 'review', 'Review round 1'))))
+  w.put(paths.log(W2), file(...after(0, yesAsk('a1', 'Review round 1'))))
   await w.clock.advance(WATCH_MS)
   expect(await heading()).toBeUndefined()
 
   w.put(
     paths.log(W2),
     file(
-      ...after(0, ask('a1', 'review', 'Review round 1')),
+      ...after(0, yesAsk('a1', 'Review round 1')),
       ...after(1, reply('r1', 'a1', 'yes'), delivered('r1')),
     ),
   )
@@ -170,10 +181,7 @@ test('each closed ask is a green tick and a white title, its age grey; a long ti
 
   w.put(
     paths.log(W2),
-    file(
-      ...after(0, ask('a1', 'review', title)),
-      ...after(4, reply('r1', 'a1', 'yes'), delivered('r1')),
-    ),
+    file(...after(0, yesAsk('a1', title)), ...after(4, reply('r1', 'a1', 'yes'), delivered('r1'))),
   )
   await w.clock.advance(WATCH_MS)
 
@@ -194,9 +202,9 @@ test('each closed ask is a green tick and a white title, its age grey; a long ti
     '✓ Review the whole of the dashboard redesign,       1h',
     '│ every area of it, against the brief and the',
     '│ notes',
-    '└ approved',
+    '└ → Approve',
   ])
-  expect((await ui.find({ type: 'Text', text: 'approved' }))?.props.color).toBe(C.soft)
+  expect((await ui.find({ type: 'Text', text: '→ Approve' }))?.props.color).toBe(C.soft)
 })
 
 test('closing the board resets the history, as any selection', async ($, on) => {
@@ -245,7 +253,7 @@ test('a closed ask opened past the latest 3 keeps DONE open to every one, and sh
   await ui.press({ key: 'done:a1' })
   expect(await listed(ui)).toHaveLength(4)
   expect(await toggle()).toBe('show fewer')
-  expect(await ui.find({ type: 'Text', text: 'approved' })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: '→ Approve' })).toBeDefined()
 
   await ui.press({ key: `earlier:${id}` })
   expect(w.state.pane?.selected).toBeNull()
@@ -263,7 +271,7 @@ test("an ask Lee commented on and Claude then resolved goes straight to DONE, ne
   w.put(
     paths.log(W2),
     file(
-      [T0, ask('a1', 'review', 'Review round 1')],
+      [T0, yesAsk('a1', 'Review round 1')],
       [T0 + MIN, reply('r1', 'a1', 'comment', { note: 'Tighten the gaps' })],
       [T0 + MIN, delivered('r1')],
       [T0 + 2 * MIN - 1_000, resolve('a1', 'Tightened them')],

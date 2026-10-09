@@ -2,7 +2,7 @@ import { expect, test, tier } from 'claude-code/testing'
 import { parseEntries, workPaths, type WorkMeta } from '../core'
 import { AROUND_MS } from '../hooks/around'
 import { SENT_LINGER_MS } from '../hooks/queue'
-import { ask, delivered, file, MIN, reply, SLOW, T0, W1, W2, W3 } from './support'
+import { delivered, file, MIN, reply, SLOW, T0, W1, W2, W3, yesAsk } from './support'
 import { INLINE, postedId, PROJECT, ROOT, world } from './world'
 
 tier('user')
@@ -13,7 +13,7 @@ type Board = Awaited<ReturnType<World['opened']>>
 const LEDGER = 'sr-1edger'
 const THEMES = 'sr-themes'
 
-const REVIEW = { kind: 'review', title: 'Review Sessions & Runway, round 1' }
+const REVIEW = { wants: 'yes', yes: 'Approve', title: 'Review Sessions & Runway, round 1' }
 
 const meta = (id: string, name: string, by: string): WorkMeta => ({
   id,
@@ -38,8 +38,8 @@ async function threeSessions(w: World) {
   const ledger = w.elsewhere(meta(LEDGER, 'Request ledger', W2))
   const themes = w.elsewhere(meta(THEMES, 'Themes', W3))
 
-  ledger.write(ask('k3', 'review', 'Review the ledger schema'))
-  themes.write(ask('k4', 'do', 'Pick the dark palette'))
+  ledger.write(yesAsk('k3', 'Review the ledger schema'))
+  themes.write(yesAsk('k4', 'Pick the dark palette', 'Done'))
 
   const { paths } = await w.begin()
   const asked = postedId(await w.call('ask', REVIEW))
@@ -100,7 +100,7 @@ test("send writes another work's replies into its inbox as this window's letters
   expect(w.state.sent).toEqual([{ project: PROJECT.key, work: LEDGER, replies: [letter?.id] }])
   expect(w.toasts).toContain('Sent 1 reply to Request ledger.')
   expect(w.prompts.map(prompt => prompt.text)).toEqual([
-    'From the board:\n- Review Sessions & Runway, round 1 → approved',
+    'From the board:\n- Review Sessions & Runway, round 1 → Approve',
   ])
   expect(
     parseEntries(w.text(paths.log(W1))).map(line => line.type),
@@ -195,7 +195,11 @@ test('a reply to another work whose item changed since is left in Ready to send,
   const { ledger, ui } = await threeSessions(w)
 
   await answer(ui, LEDGER, 'k3')
-  ledger.write({ type: 'edit', item: 'k3', changes: { kind: 'decide', options: ['Now', 'Later'] } })
+  ledger.write({
+    type: 'edit',
+    item: 'k3',
+    changes: { wants: 'choice', options: ['Now', 'Later'] },
+  })
   await ui.press({ key: 'send' })
 
   expect(w.files.has(LETTERS)).toBe(false)
@@ -229,7 +233,7 @@ test(
     ledger.write({
       type: 'edit',
       item: 'k3',
-      changes: { kind: 'decide', options: ['Now', 'Later'] },
+      changes: { wants: 'choice', options: ['Now', 'Later'] },
     })
     ledger.beat()
     await w.clock.advance(AROUND_MS)

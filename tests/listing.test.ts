@@ -1,7 +1,21 @@
 import { expect, test } from 'claude-code/testing'
 import { EXIT } from '../cli/main'
 import type { WorkMeta } from '../core'
-import { ask, finish, META, MIN, note, park, resolve, status, T0, W1, W2 } from './support'
+import {
+  choiceAsk,
+  finish,
+  META,
+  MIN,
+  note,
+  park,
+  resolve,
+  status,
+  T0,
+  W1,
+  W2,
+  wordsAsk,
+  yesAsk,
+} from './support'
 import { NOW, terminal } from './terminal'
 import { ELSEWHERE, HOME, PROJECT, REPO } from './world'
 
@@ -46,12 +60,12 @@ const busyHere = (cwd = REPO) => {
     seenAt: NOW,
     lines: [
       [T0, status(['Drawing Usage'], { next: 'Usage, round 3' })],
-      [T0, ask('k1', 'review', 'Review round 1')],
+      [T0, yesAsk('k1', 'Review round 1')],
       [T0, park('p1', 'A tmux indicator')],
     ],
   })
   t.seed(LOBBY)
-  t.seed(OLD_WAITING, { lines: [[OLD_WAITING.created, ask('k2', 'do', 'Run the apply')]] })
+  t.seed(OLD_WAITING, { lines: [[OLD_WAITING.created, yesAsk('k2', 'Run the apply', 'Done')]] })
   t.seed(OLD)
 
   return t
@@ -64,8 +78,8 @@ const everywhere = (cwd = REPO) => {
   t.seed(GOOSE, {
     project: ELSEWHERE.key,
     lines: [
-      [T0, ask('k1', 'decide', 'Email or Apple?', ['Email', 'Apple'])],
-      [T0, ask('k2', 'try', 'Try the flow')],
+      [T0, choiceAsk('k1', 'Email or Apple?', ['Email', 'Apple'])],
+      [T0, yesAsk('k2', 'Try the flow', 'It works')],
     ],
   })
   t.seed(QUIETLY, { project: QUIET.key })
@@ -226,7 +240,7 @@ test('list leaves out a finished work, whatever it holds, and a project left wit
 
   t.seed(LOBBY, {
     lines: [
-      [T0, ask('k3', 'do', 'Check the lobby')],
+      [T0, yesAsk('k3', 'Check the lobby', 'Done')],
       [T0 + MIN, finish('lee')],
     ],
   })
@@ -234,7 +248,7 @@ test('list leaves out a finished work, whatever it holds, and a project left wit
     project: ELSEWHERE.key,
     seenAt: NOW,
     lines: [
-      [T0, ask('k1', 'try', 'Try the flow')],
+      [T0, yesAsk('k1', 'Try the flow', 'It works')],
       [T0 + MIN, finish('claude', 'Shipped')],
     ],
   })
@@ -284,8 +298,9 @@ test('board --json: the work as list gives it, its open asks, what it parked and
     seenAt: NOW,
     lines: [
       [T0, status(['Drawing Usage'], { next: 'Usage, round 3' })],
-      [T0 + 1, ask('k1', 'review', 'Review round 1')],
-      [T0 + 1, ask('k2', 'do', 'Run the apply')],
+      [T0 + 1, yesAsk('k1', 'Review round 1')],
+      [T0 + 1, yesAsk('k2', 'Run the apply', 'Done')],
+      [T0 + 1, wordsAsk('k3', 'Run sitrep list', "the command's output")],
       [T0 + 2, park('p1', 'A tmux indicator')],
       [T0 + 3, note('n1', 'Merged', ['PR #82'])],
       [T0 + 4, resolve('k2')],
@@ -296,7 +311,7 @@ test('board --json: the work as list gives it, its open asks, what it parked and
 
   expect(exit).toBe(EXIT.done)
   expect(JSON.parse(out)).toEqual({
-    v: 1,
+    v: 2,
     project: { key: PROJECT.key, name: 'Switchboard' },
     work: {
       id: META.id,
@@ -305,17 +320,31 @@ test('board --json: the work as list gives it, its open asks, what it parked and
       now: ['Drawing Usage'],
       next: 'Usage, round 3',
       isOpen: true,
-      waiting: 1,
+      waiting: 2,
       parked: 1,
       updatedAt: T0 + 4,
     },
     asks: [
       {
         id: 'k1',
-        kind: 'review',
+        wants: 'yes',
+        yes: 'Approve',
         title: 'Review round 1',
         where: null,
         options: [],
+        needs: null,
+        ref: null,
+        state: 'waiting',
+        at: T0 + 1,
+      },
+      {
+        id: 'k3',
+        wants: 'words',
+        yes: null,
+        title: 'Run sitrep list',
+        where: null,
+        options: [],
+        needs: "the command's output",
         ref: null,
         state: 'waiting',
         at: T0 + 1,

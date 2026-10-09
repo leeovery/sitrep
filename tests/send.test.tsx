@@ -9,7 +9,7 @@ tier('user')
 
 type World = ReturnType<typeof world>
 
-const REVIEW = { kind: 'review', title: 'Review Sessions & Runway, round 1' }
+const REVIEW = { wants: 'yes', yes: 'Approve', title: 'Review Sessions & Runway, round 1' }
 
 const FROM_THE_BOARD = { kind: 'plugin', name: 'sitrep', asUser: true }
 
@@ -51,7 +51,7 @@ test("send delivers the replies as Lee's own message, and writes them only once 
 
   expect(w.prompts).toEqual([
     {
-      text: 'From the board:\n- Review Sessions & Runway, round 1 → approved',
+      text: 'From the board:\n- Review Sessions & Runway, round 1 → Approve',
       origin: FROM_THE_BOARD,
       context: undefined,
     },
@@ -125,8 +125,7 @@ test('a comment on a review leaves the ask open, replied, for Claude to act on',
   const { id, ui } = await asking(w)
 
   await ui.press({ key: `comment:${id}` })
-  await ui.key({ key: 'thinner bars', in: `area:${id}` })
-  await ui.press({ key: `save:${id}` })
+  await $.prompt.submit({ text: 'thinner bars', wait: false, origin: { kind: 'composer' } })
   await ui.press({ key: 'send' })
 
   expect(w.prompts.at(-1)?.text).toBe(

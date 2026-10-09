@@ -1,7 +1,7 @@
 import { expect, test } from 'claude-code/testing'
 import { foldWork, serialise, VERSION } from '../core'
 import {
-  ask,
+  choiceAsk,
   CLI,
   file,
   finish,
@@ -17,6 +17,7 @@ import {
   unfinish,
   W1,
   W2,
+  yesAsk,
   type Line,
 } from './support'
 
@@ -85,7 +86,7 @@ test('with no status yet, the work stands as it was started', () => {
 
 test('the first line to use an id keeps it', () => {
   const logs = {
-    [W1]: file([T0 + 1 * MIN, ask('k3f9', 'review', 'Review round 1')]),
+    [W1]: file([T0 + 1 * MIN, yesAsk('k3f9', 'Review round 1')]),
     [W2]: file(
       [T0 + 2 * MIN, note('k3f9', 'A clashing note')],
       [T0 + 3 * MIN, park('k3f9', 'A clashing park')],
@@ -100,7 +101,7 @@ test('the first line to use an id keeps it', () => {
 test("an edit changes only its item's own fields, and the log shows a note as edited", () => {
   const logs = {
     [W1]: file(
-      [T0 + 1 * MIN, ask('k3f9', 'review', 'Review round 1')],
+      [T0 + 1 * MIN, yesAsk('k3f9', 'Review round 1')],
       [T0 + 2 * MIN, note('n4m5', 'PR #81 merged')],
       [
         T0 + 3 * MIN,
@@ -130,19 +131,24 @@ test("an edit changes only its item's own fields, and the log shows a note as ed
   expect(work.items.get('n4m5')).toMatchObject({ reason: 'Wrong number' })
 })
 
-test('an ask edited into another kind than decide keeps no options', () => {
+test('an ask edited to want something other than a choice keeps no options', () => {
   const logs = {
     [W1]: file(
-      [T0 + 1 * MIN, ask('k2', 'decide', 'Keep it, or drop it?', ['Keep it', 'Drop it'])],
+      [T0 + 1 * MIN, choiceAsk('k2', 'Keep it, or drop it?', ['Keep it', 'Drop it'])],
       [
         T0 + 2 * MIN,
-        { type: 'edit', item: 'k2', changes: { kind: 'review', title: 'Review the cut' } },
+        {
+          type: 'edit',
+          item: 'k2',
+          changes: { wants: 'yes', yes: 'Approve', title: 'Review the cut' },
+        },
       ],
     ),
   }
 
   expect(fold({ logs }).asks[0]).toMatchObject({
-    kind: 'review',
+    wants: 'yes',
+    yes: 'Approve',
     title: 'Review the cut',
     options: undefined,
   })
@@ -176,10 +182,10 @@ test('changes to an item no line posted change nothing', () => {
 
 test('an inbox holds only replies: anything else a sender wrote there is ignored', () => {
   const work = fold({
-    logs: { [W1]: file([T0 + 1 * MIN, ask('k3f9', 'review', 'Review round 1')]) },
+    logs: { [W1]: file([T0 + 1 * MIN, yesAsk('k3f9', 'Review round 1')]) },
     inbox: {
       [SENDER]: file(
-        [T0 + 2 * MIN, ask('a2b3', 'do', 'Posted from elsewhere')],
+        [T0 + 2 * MIN, yesAsk('a2b3', 'Posted from elsewhere', 'Done')],
         [T0 + 3 * MIN, status(['Hijacked'])],
         [T0 + 4 * MIN, resolve('k3f9')],
       ),
@@ -195,7 +201,7 @@ test('the work knows every id its lines use, items and replies alike', () => {
   const work = fold({
     logs: {
       [W1]: file(
-        [T0 + 1 * MIN, ask('k3f9', 'review', 'Review round 1')],
+        [T0 + 1 * MIN, yesAsk('k3f9', 'Review round 1')],
         [T0 + 2 * MIN, note('n4m5', 'Merged')],
         [T0 + 3 * MIN, park('p1q2', 'Later')],
       ),
@@ -218,10 +224,10 @@ test('a finish marks the work done, by whom and why; its waiting asks stop count
   const work = fold({
     logs: {
       [W1]: file(
-        [T0 + 1 * MIN, ask('k3f9', 'review', 'Review round 1')],
+        [T0 + 1 * MIN, yesAsk('k3f9', 'Review round 1')],
         [T0 + 2 * MIN, finish('claude', 'Shipped')],
       ),
-      [CLI]: file([T0 + 3 * MIN, ask('k4a1', 'do', 'Run the apply')]),
+      [CLI]: file([T0 + 3 * MIN, yesAsk('k4a1', 'Run the apply', 'Done')]),
     },
   })
 
@@ -233,10 +239,7 @@ test('a finish marks the work done, by whom and why; its waiting asks stop count
 test('an unfinish takes a finished work up again, its waiting asks counting once more', () => {
   const work = fold({
     logs: {
-      [W1]: file(
-        [T0 + 1 * MIN, ask('k3f9', 'review', 'Review round 1')],
-        [T0 + 2 * MIN, finish('lee')],
-      ),
+      [W1]: file([T0 + 1 * MIN, yesAsk('k3f9', 'Review round 1')], [T0 + 2 * MIN, finish('lee')]),
       [W2]: file([T0 + 3 * MIN, unfinish()]),
     },
   })

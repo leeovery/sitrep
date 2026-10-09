@@ -6,7 +6,7 @@ import type { Host } from '../hooks/host'
 import { C } from '../hooks/look'
 import { PANE } from '../hooks/pane'
 import { rowsOf } from './drawn'
-import { ask, MIN, SLOW, T0, W2 } from './support'
+import { MIN, SLOW, T0, W2, yesAsk } from './support'
 import { DOCKED, INLINE, postedId, world } from './world'
 
 tier('user')
@@ -35,7 +35,9 @@ const asking = async (w: World, count: number, props = DOCKED) => {
   const ids: string[] = []
 
   for (let n = 1; n <= count; n += 1) {
-    ids.push(postedId(await w.call('ask', { kind: 'review', title: `Review round ${n}` })))
+    ids.push(
+      postedId(await w.call('ask', { wants: 'yes', yes: 'Approve', title: `Review round ${n}` })),
+    )
   }
 
   return { ids, ui: await w.pane('terminal', props) }
@@ -143,13 +145,11 @@ test(
     await approve(ui, second)
     await ui.press({ key: `pick:${third}` })
     await ui.press({ key: `comment:${third}` })
-    await ui.key({
-      key: 'a comment long enough to run past the edge of the box',
-      in: `area:${third}`,
+    await $.prompt.submit({
+      text: 'a comment long enough to run past the edge of the box\nand a second line',
+      wait: false,
+      origin: { kind: 'composer' },
     })
-    await ui.key({ key: 'return', shift: true, in: `area:${third}` })
-    await ui.key({ key: 'and a second line', in: `area:${third}` })
-    await ui.press({ key: `save:${third}` })
     await expectHeightKept(ui, 'three replies, a comment of two lines among them')
 
     const turn = w.holdPrompts()
@@ -178,7 +178,7 @@ test('replies sent into another work keep the box as tall as it draws, where the
   const w = world($, on)
   const ledger = w.elsewhere(LEDGER)
 
-  ledger.write(ask('k3', 'review', 'Review the ledger schema'))
+  ledger.write(yesAsk('k3', 'Review the ledger schema'))
 
   await w.begin()
   await w.clock.advance(MIN)
@@ -257,7 +257,7 @@ test(
   },
 )
 
-test('while a field is open, Ready to send keeps to the foot of the view rather than float over it', async ($, on) => {
+test('while Lee answers an ask in the prompt, Ready to send still floats', async ($, on) => {
   const w = world($, on)
   const {
     ids: [first = '', second = ''],
@@ -265,14 +265,9 @@ test('while a field is open, Ready to send keeps to the foot of the view rather 
   } = await asking(w, 2)
 
   await approve(ui, first)
-  expect(await floating(ui)).toBeDefined()
-
   await ui.press({ key: `pick:${second}` })
   await ui.press({ key: `comment:${second}` })
-  expect(await floating(ui)).toBeUndefined()
-  expect(await ui.find({ key: 'ready' })).toBeDefined()
-
-  await ui.press({ key: `cancel:${second}` })
+  expect(w.state.answering).toMatchObject({ item: second })
   expect(await floating(ui)).toBeDefined()
 })
 
@@ -344,7 +339,9 @@ test('opening the board, queuing a reply and sending never scroll it', async ($,
 
   await w.begin()
 
-  const id = postedId(await w.call('ask', { kind: 'review', title: 'Review round 1' }))
+  const id = postedId(
+    await w.call('ask', { wants: 'yes', yes: 'Approve', title: 'Review round 1' }),
+  )
   const ui = await w.opened()
 
   await approve(ui, id)

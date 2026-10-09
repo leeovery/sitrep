@@ -16,7 +16,6 @@ import {
   type WorkFiles,
 } from '../core'
 import {
-  ask,
   file,
   finish,
   META,
@@ -28,6 +27,7 @@ import {
   T0,
   W1,
   W2,
+  yesAsk,
   type Line,
 } from './support'
 
@@ -66,8 +66,8 @@ test('a work in brief: what it is doing, whether a window has it, and what it ho
     logs: {
       [W1]: file(
         [T0 + MIN, status(['Drawing Usage, round 2'], { next: 'Usage, round 3' })],
-        [T0 + 2 * MIN, ask('k1', 'review', 'Review round 1')],
-        [T0 + 3 * MIN, ask('k2', 'do', 'Run the apply')],
+        [T0 + 2 * MIN, yesAsk('k1', 'Review round 1')],
+        [T0 + 3 * MIN, yesAsk('k2', 'Run the apply', 'Done')],
         [T0 + 4 * MIN, park('p1', 'Later')],
       ),
     },
@@ -91,7 +91,7 @@ test('a work in brief: what it is doing, whether a window has it, and what it ho
 
 test('a project adds up its works, those with a window first, then the most recently updated', () => {
   const quiet = workOf('sr-aaaaaa', 'switchboard', {
-    logs: { [W1]: file([T0 + 50 * MIN, ask('k1', 'try', 'Try it')]) },
+    logs: { [W1]: file([T0 + 50 * MIN, yesAsk('k1', 'Try it', 'It works')]) },
   })
   const open = workOf('sr-bbbbbb', 'switchboard', {
     logs: { [W2]: file([T0 + 10 * MIN, park('p1', 'Later')]) },
@@ -187,7 +187,7 @@ test('open, waiting on Lee or holding something parked, a work shows however lon
   const later = T0 + 30 * CURRENT_MS
   const open = workOf('sr-aaaaaa', 'switchboard', { presence: { [W1]: seen(W1, NOW) } })
   const waiting = workOf('sr-bbbbbb', 'switchboard', {
-    logs: { [W1]: file([T0, ask('k1', 'do', 'Run it')]) },
+    logs: { [W1]: file([T0, yesAsk('k1', 'Run it', 'Done')]) },
   })
   const parked = workOf('sr-cccccc', 'switchboard', {
     logs: { [W1]: file([T0, park('p1', 'Later')]) },
@@ -202,7 +202,7 @@ test('a finished work is out of the views whatever it holds, and its asks count 
   const finished = workOf('sr-aaaaaa', 'switchboard', {
     logs: {
       [W1]: file(
-        [NOW - MIN, ask('k1', 'do', 'Run it')],
+        [NOW - MIN, yesAsk('k1', 'Run it', 'Done')],
         [NOW - MIN, park('p1', 'Later')],
         [NOW, finish('lee')],
       ),

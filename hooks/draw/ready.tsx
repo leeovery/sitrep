@@ -13,13 +13,20 @@
  * needs, it lists what fits and says how many more it holds.
  */
 import type { RenderElement } from 'claude-code'
-import { answerOf, deliveryOf, type Ask, type Delivery, type Parked, type Reply } from '../../core'
+import {
+  deliveryOf,
+  type Ask,
+  type Delivery,
+  type Parked,
+  type Reply,
+  type ReplyFields,
+} from '../../core'
 import type { SitrepQueued } from '../../types'
 import { agoWords, C, counted, GLYPH, wrapped } from '../look'
 import { filedAt, workLabel } from '../places'
 import { answered, destinations, isCarried, isShowing, queuedFor, sentIn } from '../queue'
 import type { Filed, Scene } from '../scene'
-import type { Drawing } from './kit'
+import { drawReplyRow, drawRewrite, type Drawing } from './kit'
 
 const SENDING = '⧗ Sending. If Claude is mid-turn it goes in as soon as that turn ends.'
 
@@ -213,20 +220,20 @@ const line = ({ els }: Drawing, text: string, color?: string) => {
   )
 }
 
-/** An answer as one line: a note of several lines runs on in it. */
-const oneLine = (text: string) => text.replace(/\s*\n\s*/g, ' ')
-
 /** The answer hung from its reply's title by a `└`, on one row, and what goes after it there. */
-const drawAnswer = (d: Drawing, key: string, text: string, after?: RenderElement) => {
+const drawAnswer = (
+  d: Drawing,
+  key: string,
+  item: Ask | Parked,
+  reply: ReplyFields,
+  after?: RenderElement,
+) => {
   const { Box, Text } = d.els
 
   return (
     <Box key={key} flexDirection="row" gap={1}>
       <Text color={C.faint}>{GLYPH.last}</Text>
-      <Box flexGrow={1} flexShrink={1}>
-        {line(d, oneLine(text), C.soft)}
-      </Box>
-      {after}
+      {drawReplyRow(d, item, reply, after)}
     </Box>
   )
 }
@@ -250,7 +257,15 @@ const drawQueued = (d: Drawing, { item, queued }: Queued) => {
           />
         )}
       </Box>
-      {drawAnswer(d, `readyanswer:${queued.item}`, answerOf(item, queued))}
+      {drawAnswer(
+        d,
+        `readyanswer:${queued.item}`,
+        item,
+        queued,
+        isCarried(d.scene.inFlight, queued)
+          ? undefined
+          : drawRewrite(d, `readyrewrite:${queued.item}`, item, queued),
+      )}
     </Box>
   )
 }
@@ -268,7 +283,7 @@ const drawSent = (d: Drawing, { item, sent }: Sent) => {
   return (
     <Box key={`sentreply:${sent.id}`} flexDirection="column">
       {line(d, item.title)}
-      {drawAnswer(d, `sentanswer:${sent.id}`, answerOf(item, sent), line(d, standing, C.grey))}
+      {drawAnswer(d, `sentanswer:${sent.id}`, item, sent, line(d, standing, C.grey))}
     </Box>
   )
 }

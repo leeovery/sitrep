@@ -44,7 +44,7 @@ const LINES: [tool: string, input: { [key: string]: unknown }, line: string][] =
   ['status', { now: ['Drawing Usage'] }, '• status set'],
   [
     'ask',
-    { kind: 'review', title: 'Review Sessions & Runway, round 1' },
+    { wants: 'yes', yes: 'Approve', title: 'Review Sessions & Runway, round 1' },
     '◆ asked: Review Sessions & Runway, round 1',
   ],
   ['note', { text: 'PR #82 merged' }, 'logged: PR #82 merged'],
@@ -81,7 +81,9 @@ test('a call naming an item or a work names it as the held work has it', async (
   engineRows(on)
 
   const { id } = await w.begin()
-  const asked = postedId(await w.call('ask', { kind: 'review', title: 'Review round 1' }))
+  const asked = postedId(
+    await w.call('ask', { wants: 'yes', yes: 'Approve', title: 'Review round 1' }),
+  )
 
   const rows: [tool: string, input: { [key: string]: unknown }, line: string][] = [
     ['resolve', { item: asked }, 'resolved: Review round 1'],
@@ -114,7 +116,7 @@ test("a call's result draws nothing, on every surface", async ($, on) => {
 test('a refused or interrupted call keeps the engine row', async ($, on) => {
   engineRows(on)
 
-  const ask = row('ask', { kind: 'review', title: 'Review round 1' })
+  const ask = row('ask', { wants: 'yes', yes: 'Approve', title: 'Review round 1' })
 
   for (const [requestId, change] of [
     ['toolu_2', { isErrored: true }],

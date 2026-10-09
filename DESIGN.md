@@ -127,13 +127,13 @@ orchestrator decides what reaches the board.
 |---|---|
 | `start` / `join` | begin a piece of work (name, summary, its project's name, and its directory once known) and get its id; or join one by id, in whichever project it is filed |
 | `status` | set the name, summary, the list of what is under way, and what is next |
-| `ask` | post an ask: kind (review, decide, try, do), title, where to look, options for a decision, and what Lee's answer must carry back (`needs`), given when it must carry something, like a command's output |
+| `ask` | post an ask: what it wants back (`wants`: a yes, a choice or words), its title, and where to look; a yes's button (`yes`: the verb Lee gives, `Go`, `Approve`, `It works`), a choice's `options`, or what a words ask's words are (`needs`: "the command's output"), each only on its own shape |
 | `note` | add a log line, with optional detail lines and a pointer |
 | `park` | park something to come back to |
-| `resolve` / `reopen` / `edit` | close, reopen or correct an item, with a reason; an edit's empty `needs` clears it |
+| `resolve` / `reopen` / `edit` | close, reopen or correct an item, with a reason. An edit may change what an ask wants, its `yes`, `options` and `needs`, under the checks `ask` makes; an empty `needs` clears it |
 | `finish` | mark the attached work done, with a reason, once it is complete and nothing is left on it; the window stays attached, and joining it again reopens it |
 | `project` | rename the attached work's project, or say where it lives, or both; a name another project has is refused. It never moves a work to another project |
-| `board` | read back the board's open items, what each ask needs back among them, so Claude can check and repair it |
+| `board` | read back the board's open items, what each ask wants back among them (`k1 wants a yes (Go)`), so Claude can check and repair it |
 
 **When to start a piece of work**, in every conversation's first message
 (added once a session started one with nothing to go on but the tools, and
@@ -157,6 +157,10 @@ Wording rules, in the tool descriptions:
 
 - Ask only when Claude cannot go on without Lee, or Lee's judgement changes what
   happens next. Say it in the chat as well.
+- Choose the shape by what Lee gives back: a yes for a go, an approval, "it
+  works" or "done"; a choice for one of options; words when Lee must write
+  something back. A yes's button is the verb Lee is giving, a word or two
+  (`Go` for "Give the go for stage 3", never a stock `done`).
 - One line, plain words, starting with the verb. No internal codes (no P-numbers,
   no D-numbers). "Where" says where to look in words: "In Paper: the dashboard
   file, page "round 1", frames 1–6".
@@ -176,15 +180,20 @@ post; the board is best effort, and in use Claude has not forgotten.
 ### The board: a tree, with this session as home
 
 ```
- ⌂ This session 2  ▤ Switchboard 3  ≡ All projects 7     ◇ 2 parked
+ ⌂ This session 3  ▤ Switchboard 4  ≡ All projects 8     ◇ 2 parked
 ━━━━━━━━━━━━━━━━━━────────────────────────────────────────────────
 Dashboard redesign · Switchboard
 Redesign the dashboard, area by area in Paper
 
-FOR YOU ──────────────────────────────────────────────── 2 waiting
+FOR YOU ──────────────────────────────────────────────── 3 waiting
 ◆ Review Sessions & Runway, round 1                             2h
 └ In Paper: the dashboard file, page "round 1", frames 1–6
+  [ ✓ Approve ] [ ✎ comment ] [ ✕ ignore ]
+  Your reply waits in Ready to send. Ignore tells Claude you've
+  seen it and won't act on it.
 
+◆ Give the go for stage 3                                       3h
+└ → Go · not sent yet ↺ undo ✎ comment
 ◆ Choose how long the ledger keeps requests                     3h
 
 STATUS ─────────────────────────────────────────── updated 12m ago
@@ -232,6 +241,17 @@ show all 4
   board, not a reply to Claude), and the board goes up a level, the work gone
   from it. A work with a window is still being worked: Lee finishes it there
   by telling Claude.
+- **For you:** each ask is a list's row (see Look): its mark, its title in
+  white clipped to one line, its age on the right, and no `where`, docked or
+  inline. A reply waiting on it, or on its way, still hangs from it as its
+  one branch, as a pick-up hangs from a parked row, so what waits to be sent
+  shows at a glance. A new ask arrives opened. Opened, an ask shows its whole
+  title and its tree from the mark: what a words ask's words are (`needs:`)
+  first, then where to look, its `see`, and the reply or
+  `answering in the prompt…`; then its buttons and the hint, with a blank row
+  after them, so the next ask does not run into them. There is no blank row
+  between asks otherwise. An ask Lee's send just closed keeps the same row
+  for a moment: a green `✓`, its title faint, `sent, and Claude has it`.
 - **Done:** a section of its own at the foot of a session's view, under Log,
   drawn once an ask has closed. Its heading counts the asks closed before
   now, ignored ones aside (`4 closed`), and it lists the latest 3, the newest
@@ -239,7 +259,7 @@ show all 4
   `show fewer`, as a selection does (closing the board puts it away). Each is
   a list's row: a green `✓`, its title, and how long ago it closed. Opened,
   as any item opens, it shows its whole title and hangs how it closed: the
-  reply that closed it (`approved`, `→ Forever`), or
+  reply that closed it (`→ Approve`, `→ Forever`), or
   `resolved by Claude: <reason>`. One opened past the latest 3 keeps DONE
   open to every one, and `show fewer` closes both. For you holds only what
   is open, and the asks Lee's send just closed, for a moment.
@@ -270,80 +290,125 @@ show all 4
 
 ### Answering an ask
 
-A kind is never shown as a word. It only chooses the first button:
+An ask wants one of three things back, and that chooses its buttons. No
+shape is ever shown as a word:
 
-| Kind | Buttons |
+| Claude asks for | Buttons |
 |---|---|
-| review | ✓ approve · ✎ comment · ✕ ignore |
-| decide | one button per option · ✎ answer · ✕ ignore |
-| try | ✓ it works · ✎ comment · ✕ ignore |
-| do | ✓ done · ✎ comment · ✕ ignore |
+| **a yes**: a go, an approval, "it works", "done" | `✓ <its yes>` · `✎ comment` · `✕ ignore` |
+| **a choice** | one button per option · `✎ comment` · `✕ ignore` |
+| **words**: an answer, a command's output, feedback | `✎ Answer` · `✕ ignore` |
 
-- Comment opens a multi-row field that grows as you type (drawn by the mod;
-  Claude Code's own field is one line). Enter saves, shift+Enter is a new line.
-  A review also gets **✓ approve + comment**.
+- **The yes is in Claude's words.** Claude gives the button's label as the
+  verb Lee is giving: `✓ Go` on "Give the go for stage 3", `✓ Approve`,
+  `✓ It works`, `✓ Ship it`. A word or two, 20 characters at most.
+- **What the words are.** A words ask may say what its words must be, in a
+  few words, as `needs`: "the command's output", "which frames you'd
+  change". It hangs first from the ask's mark, in the ask's colour, as
+  `needs: the command's output`, while the ask is opened. Only a words ask
+  takes it.
 - **Ignore** tells Claude Lee has seen it and won't act on it.
-- **What an ask needs back.** Claude can say what the answer must carry,
-  in a few words: "the command's output", "which frames you'd change".
-  Any kind of ask takes it, as `needs`. It hangs first from the ask's mark, in
-  the ask's colour, as `needs: the command's output`, wherever the ask's
-  where shows (opened, or docked).
-  - On such an ask there is no bare yes. ✓ keeps its words (`✓ approve`,
-    `✓ it works`, `✓ done`) but opens the multi-row field, titled with what
-    is needed (`the command's output:`) and saved by a button of the same
-    words; on a decide, each option opens it so. Saving queues the yes or
-    the choice with the words as its note, shown under the ask as any note
-    is. An empty save is refused, as an empty comment is, and so is an empty
-    **✓ approve + comment** on a review that needs something.
-  - Comment, answer and ignore are as on any ask.
-  - **A paste gets into the field from the prompt box.** A paste never
-    reaches the field, even with the field focused: it lands in Claude
-    Code's prompt box, which holds one of more than 3 lines (or one long
-    line) folded as `[Pasted text #1 +3 lines]` and hands a plugin only
-    that placeholder. Only the submitted prompt has the text, each paste
-    wrapped `<pasted_content id="…">…</pasted_content id="…">` (live, 2.1.295;
-    undocumented). So the field says `Paste into the prompt and press
-    Enter there: it comes here, not to Claude.`
-    - Enter at the prompt goes into the field, never to Claude, only when
-      three things all hold: a field is open on the board, the prompt is
-      nothing but pasted content (no word typed around it), and nothing is
-      attached. The paste is unwrapped and put under what the field holds,
-      the prompt dropped, its reason the transcript's one line (`Pasted
-      into the field. Enter there saves it.`),
-      and the box emptied once the drop settles, since the engine puts a
-      dropped prompt back. Anything else goes to Claude as ever, field open
-      or not; should the engine's wrapping change, nothing matches and the
-      paste goes to Claude too.
-    - **⤓ take what's in the prompt** takes a short paste the box left as
-      text, under what the field holds, and empties the box. An empty box
-      says `Paste into the prompt first.`; a folded paste is left there,
-      with `Press Enter in the prompt to send the paste here.`
-    - The phone over mosh is the terminal, and gets all of this. Claude's
-      remote app (the `mobile` surface) draws no field.
-  - A surface with no field to type in (the phone) still shows what is
-    needed, and its buttons answer as if nothing were: the ask can be
-    answered there, and Lee says the rest in the chat.
-  - A yes or a choice fits its ask with or without a note, whatever the ask
-    needs, in core for every front end: the phone answers bare, and an edit
-    that gives an ask its `needs` voids no yes already on its way.
-- **What Claude reads.** A reply's line names what its note is:
-  `- Run the export → done, with the command's output: “v1.2.3”`, or
-  `with a comment` where the ask needs nothing. A note of one line is
-  quoted on the reply's line. A note of several lines (pasted output) goes
-  under it, fenced and indented, each line as typed, the fence longer than
-  any run of backticks inside; so does any note of several lines, a
-  comment's or a pick-up's alike.
+- **What a reply does once Claude has it:** a yes, a choice or an answer
+  closes the ask; ignore drops it; a comment leaves it open, replied, for
+  Claude to act on.
 
-  ````
-  - Run the export → done, with the command's output:
-    ```
-    exported 42 rows
-    done in 3s
-    ```
-  ````
-- What a reply does once Claude has it: a yes or a choice or an answer closes
-  the ask; ignore drops it; a comment on a review, try or do leaves it open
-  for Claude to act on.
+**Lee writes in Claude Code's own prompt box**, where a paste works, and the
+words still wait in Ready to send with everything else, sent in one go.
+
+1. `✎ Answer` (a words ask) or `✎ comment` (a yes or a choice) puts the
+   window in **answering** mode for that ask, held in `$.state`
+   (`answering`: the ask, whether it is an answer or a comment, and its
+   title). Only with the prompt empty: a draft there is refused with
+   `The prompt has a draft in it: send or clear it first, then answer.`,
+   since its Enter would answer with that draft.
+   - A plugin cannot give the keyboard to the prompt box: `$.ui.focus` moves
+     only a site's own focus ring, while that site holds the keys. A press on
+     the board leaves the keys with the board, so Lee presses Escape once to
+     reach the prompt.
+   - The ask hangs `answering in the prompt…`, and its buttons give way.
+2. **The band says only that**, in place of its counts, the whole time:
+
+   ```
+   ✎ Your next Enter answers "Run sitrep list…"  ↓                         cancel
+   ```
+
+   (`comments on` for a comment). `cancel` ends it, in one press. Escape at
+   an empty prompt cannot: it edits nothing, so `prompt.edit` never hears it
+   (a probe, 2.1.295, heard typing, pastes and Backspace, never Escape).
+3. **The next Enter is taken.** The `prompt.submit` hook takes Lee's own
+   prompt (origin `composer`, or the Remote Control `bridge` that Claude's
+   app sends through), drops it so nothing reaches Claude, its reason the
+   transcript's one line (`Your answer waits in Ready to send.`), and empties
+   the box once the drop settles, since the engine puts a dropped prompt
+   back. The text becomes:
+   - on a words ask, its `answer`;
+   - a comment, on an ask with a yes or a choice already queued, that
+     reply's note (`→ Go, with a comment: “…”`); else a `comment` of its own.
+
+   A paste arrives in the submitted prompt wrapped
+   `<pasted_content id="…">…</pasted_content id="…">` (live, 2.1.295;
+   undocumented): it is unwrapped onto lines of its own, the words typed
+   around it kept in place. An empty Enter, or one with something attached,
+   is not taken: a toast says why, the prompt stays in the box, and the mode
+   stands.
+4. **Queued, the reply shows on one row**, under the ask and in Ready to
+   send: its words clipped to a line, `+3 lines` when there are more, then,
+   under the ask, `· not sent yet ↺ undo ✎ edit`. `✎ edit` enters the mode
+   again for that reply, the prompt filled with its words (still only from
+   an empty prompt), and the next Enter replaces them. A bare yes or choice
+   offers `✎ comment` there instead, which adds its note.
+5. **One send carries everything**, as ever.
+
+**The mode is safe to be in:**
+
+- **One Enter only.** It ends with the prompt it takes, and never takes a
+  second.
+- **Always shown.** The band shows it the whole time it stands, and it
+  stands exactly while the next Enter would be taken. Once its ask can take
+  the reply no longer (closed, its work done, a reply already on its way, a
+  send carrying the reply its comment would join) the band is back to its
+  counts, the next Enter goes to Claude, and the next look ends the mode, so
+  the ask, reopened, does not take it up again. Its work is read at every
+  look, the board open or not, for that.
+- **Easy out.** Cancel is one press.
+- **Typed messages are safe.** A prompt Lee sends while not answering goes
+  to Claude as ever, and so does one not of Lee's own (a background task's)
+  while answering.
+- **It ends** with its ask, as above; when the window takes up another work
+  or lets go of its own, the session's end among them. A reload keeps it, in
+  `$.state`, and the band still shows it.
+
+**Surfaces.** The terminal's prompt is read, filled and heard, so it gets
+all of this; the phone over mosh is the terminal. Claude's app (the
+`mobile` surface) sends its prompt through the Remote Control bridge, which
+the hook hears (so the engine's types say; not yet tried live), but the mod
+cannot reach its box: `✎ Answer` and `✎ comment` work there, and
+`✎ edit` is not offered. Desktop and VS Code send theirs some way not yet
+seen, so they offer nothing to write: a words ask is only ignored there, and
+Lee says the rest in the chat.
+
+**What Claude reads.** A reply's line gives an answer under what its words
+are (`- Run the export → the command's output: “v1.2.3”`, `answer:` where the
+ask said nothing), a yes in its own words (`→ Go`), a choice as its option,
+and a note as `with a comment`. A note of one line is quoted on the reply's
+line. Words of several lines (pasted output) go under it, fenced and
+indented, each line as typed, the fence longer than any run of backticks
+inside; so does any note of several lines, a comment's or a pick-up's alike.
+
+````
+- Run the export → the command's output:
+  ```
+  exported 42 rows
+  done in 3s
+  ```
+````
+
+**Asks written before they said what they want back** read as the shape
+their kind maps to (see Storage): a review as a yes in `Approve`, a try in
+`It works`, a do in `Done`, a decide as a choice, and any that needed
+something back as words. The replies written to them keep the meaning they
+had: a yes or a choice still closes one now read as words, and a decide's
+comment is still its answer, closing it, so its button reads `✎ answer`.
 
 ### Ready to send
 
@@ -351,19 +416,20 @@ Everything Lee does on the board queues here first; nothing goes one press at
 a time. The box sits at the foot of **every** view of the board while anything
 waits in it, grouped by where each reply goes (`to this session`,
 `to Request ledger`, a session of another project with its project's name).
-Each reply hangs off its item with a `└`, has its own `✕`, and the ask shows
-`↺ undo`. **send to Claude** sends them; **cancel all** clears them.
+Each reply hangs off its item with a `└`, on one row: its words clipped to a
+line, `+3 lines` where there are more, and `✎ edit` to write them again in
+the prompt (`✎ comment` on a bare yes or choice). Each has its own `✕`, and
+the ask shows `↺ undo`. **send to Claude** sends them; **cancel all** clears
+them.
 
 **Docked**, the box stays at the foot of the board's window as the board
 scrolls, drawn over the rows there on the pane's own background, `#262626`
 (measured live; no theme key names it), so it blanks them without looking
 any different from the board, and the board's last line scrolls clear of
-it. **Inline** (the phone) it sits at the end of the content. Each of its lines keeps to one row, cut short, so its height
-follows from what it holds. Docked it takes under half the window: a queue
-too long for that lists what fits and ends `… 3 more`, still one box. While
-a field is open the box keeps to the end of the content instead, so it
-never covers what Lee is typing, and floats again once the field closes.
-Opening the board, queuing a reply and sending leave the window where Lee
+it. **Inline** (the phone) it sits at the end of the content. Each of its
+lines keeps to one row, cut short, so its height follows from what it holds.
+Docked it takes under half the window: a queue too long for that lists what
+fits and ends `… 3 more`, still one box. Opening the board, queuing a reply and sending leave the window where Lee
 had it; Tab onto a button the box covers brings that button to the
 window's middle.
 
@@ -392,7 +458,9 @@ One line above the prompt, right-aligned counts only, each one a way in:
 `for you` opens this session, `in other sessions` (what waits in this
 project's other works) this project, `parked` the parked view. Below 64
 columns the words drop and the counts stay. The board's show/hide button
-always matches whether it is drawn.
+always matches whether it is drawn. While Lee answers an ask in the prompt,
+the band says that instead, and only that, with `cancel` (see "Answering an
+ask").
 
 When a new ask lands: the ◆ pulses, a toast names it, and a soft chime plays.
 **To try:** a macOS notification for asks, only when Lee isn't looking at that
@@ -450,8 +518,8 @@ window.
   message still unheard by then was never going in, and letting it go never
   sends it twice. A send's replies are back in Ready to send, and a toast
   says so; the inbox's wait for the next look.
-- A reply on its way whose item an edit changes so it no longer fits (a review
-  made a decision under Lee's yes) is **void**: no message carries it, a mark
+- A reply on its way whose item an edit changes so it no longer fits (an ask
+  wanting a yes made to want a choice under Lee's yes) is **void**: no message carries it, a mark
   naming it changes nothing, and the item can be answered again.
 - The inbox message is the board's own, as this work's is: it takes no
   board-change context, and written through the hold its lines are lines
@@ -505,13 +573,33 @@ $XDG_STATE_HOME/sitrep/, else ~/.local/state/sitrep/
   own count, the kind, then its fields.
 
   ```
-  {"v":1,"at":1760000000000,"seq":4,"type":"ask","id":"k3f9","kind":"review","title":"Review Sessions & Runway, round 1"}
+  {"v":1,"at":1760000000000,"seq":4,"type":"ask","id":"k3f9","wants":"yes","yes":"Go","title":"Give the go for stage 3"}
   ```
 
-  An ask's line holds its `kind` and `title`, and `where`, `options`,
-  `needs` and `ref` where it has them. An edit's changes name the fields
+  An ask's line holds what it `wants` back (`yes`, `choice` or `words`) and
+  its `title`; a yes ask its button's words, as `yes`; a choice its
+  `options`; a words ask, where it says, what its words are, as `needs`; and
+  `where` and `ref` where it has them. An edit's changes name the fields
   they set; an empty `needs` clears it, where any other empty field is
-  refused.
+  refused. An edit leaves an ask holding only what its shape takes: one
+  made to want a choice drops its `yes`, one made to want a yes its
+  `options` and `needs`. A reply's verdict is `yes`, `choose` (with its
+  `option`), `answer` (a words ask's words, as its `note`), `comment`,
+  `ignore` or `pickup`; a yes or a choice may carry a comment as its note.
+  The format's version stays 1: a new reader reads every old line, and an
+  old reader skips an ask line it cannot read, as it skips any.
+
+  **Asks written before they said what they want back** have a `kind` in
+  place of `wants` (`review`, `decide`, `try` or `do`), and some a `needs`.
+  They still read, by the shape their kind maps to: one with `needs` wants
+  words; else a decide wants a choice, and a review, a try or a do a yes in
+  `Approve`, `It works` or `Done`. The ask keeps its kind as read, so the
+  replies written to it then keep their meaning: it still takes the verdicts
+  its kind took (a yes or a choice on one now read as words), and a decide's
+  comment, its answer then, still closes it. An old edit naming a `kind`, or
+  changing `needs`, reshapes such an ask by the same map. An edit written now
+  to one of them names what it `wants`, which it then wants from that edit
+  on, its kind gone.
 
   The kinds: `status`, `ask`, `note` and `park`; `resolve`, `reopen` and
   `edit`, each naming an item; `reply`, Lee's answer to one; `delivered`,
@@ -569,10 +657,9 @@ $XDG_STATE_HOME/sitrep/, else ~/.local/state/sitrep/
   - Drawing lives in modules of its own (`hooks/draw`): pure functions from
     a surface's element table and plain data to a tree, what a button does
     handed in as actions bound to the host. JSX's `h` is global in every
-    module of the plugin, and a `Client`'s `module` is read off whichever
-    file draws it, relative to that file. A surface's table names every
-    element, one the surface lacks drawing nothing, so what a surface can
-    draw (a text area, a one-line field) is read off `e.surface`.
+    module of the plugin. What a surface can do beyond drawing (whether Lee
+    can write back from it in a prompt the mod hears, and whether the mod
+    can fill that prompt) is read off `e.surface`.
   - A box floating over the foot of a docked pane, Ready to send's (settled
     by a probe and a live run, 2.1.295): the engine scrolls the whole tree,
     and the box is drawn `position: "absolute"` at `offset + bodyRows`
@@ -588,10 +675,8 @@ $XDG_STATE_HOME/sitrep/, else ~/.local/state/sitrep/
     the engine keeps the focus in view by moving the window itself, unasked,
     and a reveal that then finds nothing to move draws nothing. Both hooks
     read the window as last drawn from a module variable, since a render
-    hook cannot write `$.state`. A click gives a `Client` (the field's text
-    area) the keys without raising `ui.focus`, so no hook hears it. An
-    absolute box spanning the whole window blocks clicks on what shows
-    through it. The test kit has no `$.ui.scroll`: the reveal is checked
+    hook cannot write `$.state`. An absolute box spanning the whole window
+    blocks clicks on what shows through it. The test kit has no `$.ui.scroll`: the reveal is checked
     live.
   - `$.prompt.submit` while Claude is mid-turn (settled in a live run): the
     call waits, the prompt never folded into the running turn; once that
@@ -605,6 +690,14 @@ $XDG_STATE_HOME/sitrep/, else ~/.local/state/sitrep/
     kit); from its `ui.press` hook it does. Either way the board's own
     message takes no board-change context: its replies are the change, and
     the rest rides in with the next prompt.
+  - The same hook takes Lee's next Enter while Lee answers an ask in the
+    prompt (see "Answering an ask"), before anything rides in with it, so a
+    prompt it takes reaches nothing. A prompt it drops comes back to the box
+    over a clear made while the hook runs (live), so the box is cleared
+    100 ms after. The keyboard is the person's: a plugin moves only its own
+    site's focus ring (`$.ui.focus`), so it cannot hand the keys to the
+    prompt; and `prompt.edit` hears only what edits the box, never Escape at
+    an empty one (a probe, 2.1.295).
   - `turn.start` carries a plugin prompt's text exactly as submitted. It and
     the submit's resolving come within a few milliseconds of each other,
     either first (live probes). Inbox delivery runs on a timer the session's
@@ -641,7 +734,7 @@ $XDG_STATE_HOME/sitrep/, else ~/.local/state/sitrep/
 
   ```
   sitrep note <text> [--detail <line>]... [--ref <ref>]
-  sitrep ask <kind> <title> [--where <words>] [--needs <words>] [--option <choice>]... [--ref <ref>]
+  sitrep ask <title> --wants yes|choice|words [--yes <label>] [--option <choice>]... [--needs <words>] [--where <words>] [--ref <ref>]
   sitrep park <title> [--where <words>] [--ref <ref>]
   sitrep status [--name <words>] [--summary <line>] [--now <line>]... [--next <line>]
   sitrep board [--json]
@@ -652,7 +745,9 @@ $XDG_STATE_HOME/sitrep/, else ~/.local/state/sitrep/
     writes a delivered mark or a heartbeat: it is never a window on the work.
   - What it posts is checked by core as Claude's tools' posts are, and a
     refusal prints the check's words. A post prints its item's id and nothing
-    else, so a script can keep it. A status gives only what changed, as the
+    else, so a script can keep it. An ask says what it wants back with
+    `--wants`, as the ask tool does, and its `--yes`, `--option`s or
+    `--needs` with it. A status gives only what changed, as the
     status tool does; `--now ""` and `--next ""` clear. The last argument takes
     every word left, so a title needs no quotes.
   - The work is `--work sr-xxxxxx`, else `$SITREP_WORK`, looked up in every
@@ -683,7 +778,8 @@ $XDG_STATE_HOME/sitrep/, else ~/.local/state/sitrep/
 
     `board --json` is `{ v, project: { key, name }, work, asks, parked, log }`:
     the work as `list` gives it, its open asks, what it parked, and its latest
-    log lines.
+    log lines. Its `v` is 2 since its asks say what they want back (`wants`,
+    `yes`, `needs`) in place of their kind; `list`'s stays 1.
   - Answering an ask waits on open question 4. It would be one more command,
     a reply into the work's inbox, which the work's window already delivers.
   - Its logic is `cli/`, plain TypeScript beside core and tested in the test
@@ -704,20 +800,21 @@ $XDG_STATE_HOME/sitrep/, else ~/.local/state/sitrep/
   row to open, its `✓` green and its title white; and every tree's `│ ├ └`.
   Section headings' rules and the tabs' rule are the rule colour.
 - **Colour:** glyphs, headings and amber waiting counts only; in the ask's
-  amber, the `needs:` line of an ask that needs something back, since it is
-  a request of Lee's, not a description; and a tree line's label (`Added:`,
+  amber, the `needs:` line of a words ask, since it is a request of Lee's,
+  not a description; and a tree line's label (`Added:`,
   `see`), in its item's colour.
 - Glyphs: `◆` ask, `◇` parked, `•` under way, `◦` next, `└ ├` trees, `⌂` home.
   No glyph that reads as "expand" unless it expands.
-- **One row for every list.** A log line, a parked item and a closed ask
-  are drawn alike: the mark, the title (white, and the press that opens it)
-  on one line, clipped, and the age on the right, in grey. Opened, the
-  title shows in full, a `│` beside its further lines, and the detail hangs
-  from the mark as a tree. An ask's row is its own: it carries buttons.
-- Breathing room: a column each side, a blank row between asks, between
-  projects in All projects, and between sections; none between the entries
-  of a list (log, done, parked), nor between the tabs and the first line
-  under them.
+- **One row for every list.** A log line, a parked item, an ask in For you
+  and a closed ask are drawn alike: the mark, the title (white, and the
+  press that opens it) on one line, clipped, and the age on the right, in
+  grey. Opened, the title shows in full, a `│` beside its further lines, and
+  the detail hangs from the mark as a tree; an opened ask's buttons and hint
+  come after its tree, at its title's column.
+- Breathing room: a column each side, a blank row after an opened ask's
+  buttons, between projects in All projects, and between sections; none
+  between the entries of a list (log, For you, done, parked), nor between
+  the tabs and the first line under them.
 - No indents left floating: anything hanging off an item hangs from a `└`.
 
 ## Where it lives

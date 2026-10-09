@@ -13,10 +13,11 @@ import {
   type Checked,
 } from '../core'
 import {
-  ask,
+  choiceAsk,
   delivered,
   file,
   fold,
+  kindAsk,
   MIN,
   note,
   park,
@@ -25,18 +26,23 @@ import {
   scripted,
   T0,
   W1,
+  wordsAsk,
+  yesAsk,
 } from './support'
 
-/** A board holding one of each item, and an ask Lee has commented on. */
+/** A board holding one of each item, an ask Lee has commented on, and two asks read from their kinds. */
 const WORK = fold({
   logs: {
     [W1]: file(
-      [T0, ask('k1', 'review', 'Review round 1')],
-      [T0, ask('k2', 'decide', 'Keep it, or drop it?', ['Keep it', 'Drop it'])],
-      [T0, ask('k3', 'try', 'Try it on the iPad')],
+      [T0, yesAsk('k1', 'Review round 1')],
+      [T0, choiceAsk('k2', 'Keep it, or drop it?', ['Keep it', 'Drop it'])],
+      [T0, yesAsk('k3', 'Try it on the iPad', 'It works')],
       [T0, note('n1', 'Merged')],
       [T0, park('p1', 'Later')],
-      [T0, ask('k9', 'do', 'Run the apply')],
+      [T0, yesAsk('k9', 'Run the apply', 'Done')],
+      [T0, wordsAsk('k4', 'Run the export', "the command's output")],
+      [T0, kindAsk('o1', 'do', 'Run the export', { needs: "the command's output" })],
+      [T0, kindAsk('o2', 'review', 'Review round 1')],
       [T0 + MIN, resolve('k9')],
       [T0 + MIN, reply('r1', 'k3', 'comment', { note: 'It fails' })],
       [T0 + MIN, delivered('r1')],
@@ -58,7 +64,8 @@ test('what Claude posts is trimmed and kept to one line', () => {
   expect(
     value(
       checkAsk({
-        kind: 'review',
+        wants: 'yes',
+        yes: ' Ship\n it ',
         title: '  Review\n Sessions &   Runway ',
         where: '\tIn Paper:\n page 1 ',
         ref: ' ',
@@ -66,7 +73,8 @@ test('what Claude posts is trimmed and kept to one line', () => {
     ),
   ).toEqual({
     type: 'ask',
-    kind: 'review',
+    wants: 'yes',
+    yes: 'Ship it',
     title: 'Review Sessions & Runway',
     where: 'In Paper: page 1',
   })
@@ -80,38 +88,80 @@ test('what Claude posts is trimmed and kept to one line', () => {
 })
 
 test('an item with no words where its title or text goes is refused', () => {
-  expect(refusal(checkAsk({ kind: 'review', title: ' \n ' }))).toContain('needs a title')
-  expect(refusal(checkAsk({ kind: 'review' }))).toContain('needs a title')
+  expect(refusal(checkAsk({ wants: 'words', title: ' \n ' }))).toContain('needs a title')
+  expect(refusal(checkAsk({ wants: 'words' }))).toContain('needs a title')
   expect(refusal(checkNote({ text: '' }))).toContain('needs its text')
   expect(refusal(checkPark({ title: 42 }))).toContain('needs a title')
   expect(refusal(checkStart({ name: 'Dashboard', summary: ' ' }))).toContain('needs a summary')
   expect(refusal(checkStart({ summary: 'Area by area' }))).toContain('needs a name')
 })
 
-test('an ask of no known kind is refused, naming the kinds', () => {
-  expect(refusal(checkAsk({ kind: 'approve', title: 'Approve it' }))).toBe(
-    "An ask's kind is one of review, decide, try, do.",
+test('an ask says what it wants back, one of three shapes; anything else, a kind among them, is refused', () => {
+  for (const wants of [undefined, 'approve', 'review', 'decide']) {
+    expect(refusal(checkAsk({ wants, title: 'Approve it' })), String(wants)).toBe(
+      "An ask's wants is one of yes, choice, words: a yes, one of its options, or words.",
+    )
+  }
+})
+
+test("a yes ask needs its button's words, a word or two, and no other ask takes them", () => {
+  expect(refusal(checkAsk({ wants: 'yes', title: 'Give the go' }))).toContain(
+    "A yes ask needs yes: its button's words",
+  )
+  expect(refusal(checkAsk({ wants: 'yes', yes: ' \n ', title: 'Give the go' }))).toContain(
+    'A yes ask needs yes',
+  )
+  expect(
+    refusal(checkAsk({ wants: 'yes', yes: 'Go ahead and merge it all', title: 'Give the go' })),
+  ).toBe("A yes button's words are a word or two, 20 characters at most, such as Go or Ship it.")
+  expect(value(checkAsk({ wants: 'yes', yes: 'It works', title: 'Try it' }))?.yes).toBe('It works')
+  expect(refusal(checkAsk({ wants: 'choice', yes: 'Go', title: 'Keep it?' }))).toBe(
+    'Only a yes ask takes yes.',
+  )
+  expect(refusal(checkAsk({ wants: 'words', yes: 'Go', title: 'Run it' }))).toBe(
+    'Only a yes ask takes yes.',
   )
 })
 
-test('a decide ask needs at least two options, each one line, none repeated', () => {
-  expect(refusal(checkAsk({ kind: 'decide', title: 'Keep it?' }))).toContain('at least 2 options')
+test('a choice ask needs at least two options, each one line, none repeated', () => {
+  expect(refusal(checkAsk({ wants: 'choice', title: 'Keep it?' }))).toContain('at least 2 options')
   expect(
-    refusal(checkAsk({ kind: 'decide', title: 'Keep it?', options: ['Keep it', ' Keep it '] })),
+    refusal(checkAsk({ wants: 'choice', title: 'Keep it?', options: ['Keep it', ' Keep it '] })),
   ).toContain('at least 2 options')
   expect(
-    value(checkAsk({ kind: 'decide', title: 'Keep it?', options: [' Keep\nit ', 'Drop it', ''] }))
+    value(checkAsk({ wants: 'choice', title: 'Keep it?', options: [' Keep\nit ', 'Drop it', ''] }))
       ?.options,
   ).toEqual(['Keep it', 'Drop it'])
 })
 
-test('only a decide ask takes options', () => {
-  expect(refusal(checkAsk({ kind: 'review', title: 'Review it', options: ['Yes', 'No'] }))).toBe(
-    'Only a decide ask takes options.',
+test('only a choice ask takes options', () => {
+  expect(
+    refusal(checkAsk({ wants: 'yes', yes: 'Go', title: 'Review it', options: ['Yes', 'No'] })),
+  ).toBe('Only a choice ask takes options.')
+  expect(refusal(checkAsk({ wants: 'words', title: 'Run it', options: ['Yes', 'No'] }))).toBe(
+    'Only a choice ask takes options.',
   )
   expect(
-    value(checkAsk({ kind: 'review', title: 'Review it', options: [] }))?.options,
+    value(checkAsk({ wants: 'yes', yes: 'Go', title: 'Review it', options: [] }))?.options,
   ).toBeUndefined()
+})
+
+test('a words ask may say what its words are, on one line; no other ask takes needs', () => {
+  expect(
+    value(checkAsk({ wants: 'words', title: 'Run the export', needs: " the command's\n output " })),
+  ).toEqual({ type: 'ask', wants: 'words', title: 'Run the export', needs: "the command's output" })
+  expect(value(checkAsk({ wants: 'words', title: 'Say how it went' }))?.needs).toBeUndefined()
+  expect(value(checkAsk({ wants: 'words', title: 'Run it', needs: ' \n ' }))?.needs).toBeUndefined()
+
+  for (const ask of [
+    { wants: 'yes', yes: 'Done', title: 'Run it' },
+    { wants: 'choice', title: 'Keep it?', options: ['Keep it', 'Drop it'] },
+  ]) {
+    expect(refusal(checkAsk({ ...ask, needs: 'the output' })), ask.wants).toBe(
+      'Only a words ask takes needs: what its words are.',
+    )
+    expect(value(checkAsk({ ...ask, needs: ' ' }))?.needs, ask.wants).toBeUndefined()
+  }
 })
 
 test('a work is joined by its id, as start gave it', () => {
@@ -184,23 +234,61 @@ test("an edit changes only the fields of its item's type, each put right", () =>
   expect(refusal(checkEdit(WORK, { item: 'k1', title: ' ' }))).toContain('cannot leave title empty')
 })
 
-test('an edit leaves an ask with the options its kind calls for', () => {
-  expect(refusal(checkEdit(WORK, { item: 'k1', kind: 'decide' }))).toContain('at least 2 options')
+test('an edit leaves an ask holding what its shape takes', () => {
+  expect(refusal(checkEdit(WORK, { item: 'k1', wants: 'choice' }))).toContain('at least 2 options')
   expect(
-    value(checkEdit(WORK, { item: 'k1', kind: 'decide', options: ['Ship it', 'Hold it'] }))
+    value(checkEdit(WORK, { item: 'k1', wants: 'choice', options: ['Ship it', 'Hold it'] }))
       ?.changes,
-  ).toEqual({
-    kind: 'decide',
-    options: ['Ship it', 'Hold it'],
-  })
+  ).toEqual({ wants: 'choice', options: ['Ship it', 'Hold it'] })
   expect(refusal(checkEdit(WORK, { item: 'k2', options: ['Keep it'] }))).toContain(
     'at least 2 options',
   )
   expect(refusal(checkEdit(WORK, { item: 'k1', options: ['Ship it', 'Hold it'] }))).toBe(
-    'Only a decide ask takes options.',
+    'Only a choice ask takes options.',
   )
-  expect(value(checkEdit(WORK, { item: 'k2', kind: 'review' }))?.changes).toEqual({
-    kind: 'review',
+  expect(refusal(checkEdit(WORK, { item: 'k2', wants: 'yes' }))).toContain('A yes ask needs yes')
+  expect(value(checkEdit(WORK, { item: 'k2', wants: 'yes', yes: 'Keep it' }))?.changes).toEqual({
+    wants: 'yes',
+    yes: 'Keep it',
+  })
+  expect(value(checkEdit(WORK, { item: 'k1', yes: 'Ship it' }))?.changes).toEqual({
+    yes: 'Ship it',
+  })
+  expect(refusal(checkEdit(WORK, { item: 'k2', yes: 'Keep it' }))).toBe('Only a yes ask takes yes.')
+  expect(value(checkEdit(WORK, { item: 'k1', wants: 'words' }))?.changes).toEqual({
+    wants: 'words',
+  })
+})
+
+test('an edit gives a words ask what its words are, an empty one clearing it; no other shape takes it', () => {
+  expect(
+    value(checkEdit(WORK, { item: 'k1', wants: 'words', needs: ' which\nframes ' }))?.changes,
+  ).toEqual({ wants: 'words', needs: 'which frames' })
+  expect(refusal(checkEdit(WORK, { item: 'k1', needs: 'which frames' }))).toBe(
+    'Only a words ask takes needs: what its words are.',
+  )
+  expect(value(checkEdit(WORK, { item: 'k4', needs: ' ' }))?.changes).toEqual({ needs: '' })
+  expect(value(checkEdit(WORK, { item: 'k4', needs: 'the exit code' }))?.changes).toEqual({
+    needs: 'the exit code',
+  })
+  expect(refusal(checkEdit(WORK, { item: 'k4', needs: 42 }))).toContain('cannot leave needs')
+  expect(refusal(checkEdit(WORK, { item: 'p1', needs: 'which frames' }))).toBe(
+    'An edit to a parked item changes title, where, ref; not needs.',
+  )
+})
+
+test('an edit to an ask read from its kind says what the ask wants, so it reads by its shape from then on', () => {
+  expect(value(checkEdit(WORK, { item: 'o1', title: 'Run the export again' }))?.changes).toEqual({
+    wants: 'words',
+    title: 'Run the export again',
+  })
+  expect(value(checkEdit(WORK, { item: 'o1', needs: '' }))?.changes).toEqual({
+    wants: 'words',
+    needs: '',
+  })
+  expect(value(checkEdit(WORK, { item: 'o2', title: 'Review round 2' }))?.changes).toEqual({
+    wants: 'yes',
+    title: 'Review round 2',
   })
 })
 

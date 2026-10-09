@@ -1,7 +1,7 @@
 /**
  * A drawing read back as the rows of text it takes, for tests that assert
  * columns: a Box lays its children out in a row or a column, with its gaps,
- * padding and width; a Text is its words, a Button its label. Nothing wraps.
+ * padding (blank rows above and below it too) and width; a Text is its words, a Button its label. Nothing wraps.
  * Given the cells across, a row hands what it has spare to its first child
  * that grows, so what comes after sits at the right edge; given none,
  * nothing grows, and a row is as wide as what is on it. Its ends are trimmed.
@@ -67,7 +67,11 @@ const rowsOfBox = ({ props = {}, children = [] }: Drawn, cells?: number): string
     : sideBySide(shown, gap, inside)
   const left = ' '.repeat(indent)
 
-  return [...Array<string>(numberOf(props.paddingTop)).fill(''), ...laid.map(row => left + row)]
+  return [
+    ...Array<string>(numberOf(props.paddingTop)).fill(''),
+    ...laid.map(row => left + row),
+    ...Array<string>(numberOf(props.paddingBottom)).fill(''),
+  ]
 }
 
 const rowsOfElement = (element: Drawn, cells?: number): string[] => {

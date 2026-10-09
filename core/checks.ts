@@ -1,17 +1,18 @@
 /**
  * What Claude posts, checked and put right before it is written: each text
- * trimmed to one line, nothing empty where something is needed, options for
- * a decision. A refusal says what to fix, in words Claude can act on.
+ * trimmed to one line, nothing empty where something is needed, and an ask
+ * holding what its shape takes: a yes its button's words, a choice its
+ * options, words what they are. A refusal says what to fix, in words Claude
+ * can act on.
  */
-import { ASK_KINDS } from './entries'
 import { isWorkId, newItemId, type Random } from './ids'
 import { directoryOf, isNameable } from './project'
+import { WANTS } from './shapes'
 import type { StatusFields } from './status'
 import { oneLine } from './text'
 import {
   EDITABLE,
   type AskBody,
-  type AskKind,
   type Changes,
   type EditBody,
   type FinishBody,
@@ -22,6 +23,7 @@ import {
   type ReopenBody,
   type ResolveBody,
   type StatusBody,
+  type Wants,
   type Work,
 } from './types'
 
@@ -29,8 +31,11 @@ export type Checked<T> = { ok: true; value: T } | { ok: false; error: string }
 
 type Fields = { [key: string]: unknown }
 
-/** The fewest options a decision offers. */
+/** The fewest options a choice offers. */
 const LEAST_OPTIONS = 2
+
+/** The most characters a yes button's words take: a word or two, the verb Lee gives. */
+const YES_MOST = 20
 
 const STATUS_FIELDS = ['name', 'summary', 'now', 'next'] as const
 
@@ -57,7 +62,7 @@ const lines = (value: unknown) => {
   return [...new Set(list.map(oneLine).filter(Boolean))]
 }
 
-const isAskKind = (value: unknown): value is AskKind => ASK_KINDS.includes(value as AskKind)
+const isWants = (value: unknown): value is Wants => WANTS.includes(value as Wants)
 
 /** A project's name: one line, with a letter or a digit to match it by; undefined when not. */
 const projectNameOf = (value: unknown) => {
@@ -79,16 +84,36 @@ const directoryIn = (value: unknown): Checked<string | undefined> => {
     : refuse("A project's directory is an absolute path: where the project lives.")
 }
 
-/** Why these options will not do for an ask of this kind: a decide ask needs them, no other takes them. */
-const misfitOf = (kind: AskKind, options: readonly string[]) => {
-  if (kind === 'decide') {
-    return options.length >= LEAST_OPTIONS
-      ? undefined
-      : `A decide ask needs at least ${LEAST_OPTIONS} options.`
-  }
+/** An ask's shape as it would stand: what it wants back, and what goes with that. */
+type Shape = { wants: Wants; yes?: string; options: readonly string[]; needs?: string }
 
-  return options.length === 0 ? undefined : 'Only a decide ask takes options.'
-}
+/** What a shape must hold, each rule broken where it says, with what to fix. */
+const SHAPE_RULES: readonly [breaks: (shape: Shape) => boolean, error: string][] = [
+  [
+    ({ wants, yes }) => wants === 'yes' && yes === undefined,
+    "A yes ask needs yes: its button's words, the verb Lee gives, such as Go, Approve or It works.",
+  ],
+  [({ wants, yes }) => wants !== 'yes' && yes !== undefined, 'Only a yes ask takes yes.'],
+  [
+    ({ yes }) => (yes?.length ?? 0) > YES_MOST,
+    `A yes button's words are a word or two, ${YES_MOST} characters at most, such as Go or Ship it.`,
+  ],
+  [
+    ({ wants, options }) => wants === 'choice' && options.length < LEAST_OPTIONS,
+    `A choice ask needs at least ${LEAST_OPTIONS} options.`,
+  ],
+  [
+    ({ wants, options }) => wants !== 'choice' && options.length > 0,
+    'Only a choice ask takes options.',
+  ],
+  [
+    ({ wants, needs }) => wants !== 'words' && needs !== undefined,
+    'Only a words ask takes needs: what its words are.',
+  ],
+]
+
+/** Why a shape will not do; undefined when it will. */
+const misfitOf = (shape: Shape) => SHAPE_RULES.find(([breaks]) => breaks(shape))?.[1]
 
 /** A piece of work to start: its name and summary, and its project's name and directory. */
 export type StartFields = { name: string; summary: string; project: string; directory?: string }
@@ -177,16 +202,23 @@ export const checkAsk = (input: unknown): Checked<Omit<AskBody, 'id'>> => {
   const fields = fieldsOf(input)
   const title = line(fields.title)
 
-  if (!isAskKind(fields.kind)) {
-    return refuse(`An ask's kind is one of ${ASK_KINDS.join(', ')}.`)
+  if (!isWants(fields.wants)) {
+    return refuse(
+      `An ask's wants is one of ${WANTS.join(', ')}: a yes, one of its options, or words.`,
+    )
   }
 
   if (title === undefined) {
     return refuse('An ask needs a title: one line, starting with the verb.')
   }
 
-  const options = lines(fields.options) ?? []
-  const misfit = misfitOf(fields.kind, options)
+  const shape = {
+    wants: fields.wants,
+    yes: line(fields.yes),
+    options: lines(fields.options) ?? [],
+    needs: line(fields.needs),
+  }
+  const misfit = misfitOf(shape)
 
   if (misfit !== undefined) {
     return refuse(misfit)
@@ -194,11 +226,12 @@ export const checkAsk = (input: unknown): Checked<Omit<AskBody, 'id'>> => {
 
   return ok({
     type: 'ask',
-    kind: fields.kind,
+    wants: shape.wants,
+    yes: shape.yes,
     title,
     where: line(fields.where),
-    options: options.length === 0 ? undefined : options,
-    needs: line(fields.needs),
+    options: shape.options.length === 0 ? undefined : shape.options,
+    needs: shape.needs,
     ref: line(fields.ref),
   })
 }
@@ -283,7 +316,8 @@ const clearable = (value: unknown) => (typeof value === 'string' ? oneLine(value
 
 /** How each field an edit changes is read: undefined when what was given will not do. */
 const READERS: { [K in keyof Changes]-?: (value: unknown) => Changes[K] | undefined } = {
-  kind: value => (isAskKind(value) ? value : undefined),
+  wants: value => (isWants(value) ? value : undefined),
+  yes: line,
   title: line,
   where: line,
   options: lines,
@@ -322,17 +356,29 @@ const changesFor = (item: Item, fields: Fields): Checked<Changes> => {
   return ok(changes)
 }
 
-/** Why an ask, once edited, would not have the options its kind calls for; undefined when it would. */
+/** What an edit leaves of a field: what it gives, an empty one clearing it, else what the ask had, where its shape keeps it. */
+const kept = <T>(given: T | undefined, had: T | undefined, isKept: boolean) =>
+  given === undefined ? (isKept ? had : undefined) : given || undefined
+
+/** Why an ask, once edited, would not hold what its shape takes; undefined when it would. */
 const editedMisfit = (item: Item, changes: Changes) => {
   if (item.type !== 'ask') {
     return undefined
   }
 
-  const kind = changes.kind ?? item.kind
-  const kept = kind === 'decide' ? (item.options ?? []) : []
+  const wants = changes.wants ?? item.wants
 
-  return misfitOf(kind, changes.options ?? kept)
+  return misfitOf({
+    wants,
+    yes: kept(changes.yes, item.yes, wants === 'yes'),
+    options: kept(changes.options, item.options, wants === 'choice') ?? [],
+    needs: kept(changes.needs, item.needs, wants === 'words'),
+  })
 }
+
+/** An edit's changes as written: one to an ask still read from its kind says what it wants back, so it reads by its shape from then on. */
+const written = (item: Item, changes: Changes): Changes =>
+  item.type === 'ask' && item.kind !== undefined ? { wants: item.wants, ...changes } : changes
 
 export const checkEdit = (work: Work, input: unknown): Checked<EditBody> => {
   const fields = fieldsOf(input)
@@ -351,7 +397,12 @@ export const checkEdit = (work: Work, input: unknown): Checked<EditBody> => {
   const misfit = editedMisfit(item.value, changes.value)
 
   return misfit === undefined
-    ? ok({ type: 'edit', item: item.value.id, changes: changes.value, reason: line(fields.reason) })
+    ? ok({
+        type: 'edit',
+        item: item.value.id,
+        changes: written(item.value, changes.value),
+        reason: line(fields.reason),
+      })
     : refuse(misfit)
 }
 

@@ -33,7 +33,7 @@ test('what Claude posted itself never rides in: it knows it', async ($, on) => {
   const w = world($, on)
 
   await begun(w)
-  await w.call('ask', { kind: 'review', title: 'Review round 1' })
+  await w.call('ask', { wants: 'yes', yes: 'Approve', title: 'Review round 1' })
   await w.call('status', { now: ['Drawing round 2'] })
 
   expect((await $.prompt.submit(PROMPT)).context).toBeUndefined()

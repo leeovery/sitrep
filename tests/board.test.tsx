@@ -7,13 +7,14 @@ tier('user')
 type World = ReturnType<typeof world>
 
 const REVIEW = {
-  kind: 'review',
+  wants: 'yes',
+  yes: 'Approve',
   title: 'Review Sessions & Runway, round 1',
   where: 'In Paper: the dashboard file, page "round 1", frames 1–6',
 }
 
 const DECIDE = {
-  kind: 'decide',
+  wants: 'choice',
   title: 'Keep the ledger 400 days, or forever?',
   options: ['400 days', 'Forever'],
 }
@@ -85,7 +86,7 @@ test("this session's view runs its name and summary, then FOR YOU, STATUS, LOG a
 
   await w.begin()
 
-  const done = await asked(w, { kind: 'do', title: 'Run the production apply' })
+  const done = await asked(w, { wants: 'yes', yes: 'Done', title: 'Run the production apply' })
 
   await w.call('resolve', { item: done, reason: 'Ran it in the chat' })
   await asked(w)
@@ -117,7 +118,7 @@ test('parked turns the board, and back', async ($, on) => {
   }
 })
 
-test('a new ask opens with its buttons, by its kind: a review approves, comments and ignores', async ($, on) => {
+test('a new ask opens with its buttons, by what it wants: a yes in its own words, a comment and an ignore', async ($, on) => {
   const w = world($, on)
 
   await w.begin()
@@ -125,7 +126,7 @@ test('a new ask opens with its buttons, by its kind: a review approves, comments
   const id = await asked(w)
   const ui = await w.pane()
 
-  expect(await ui.find({ key: `yes:${id}`, text: '✓ approve' })).toBeDefined()
+  expect(await ui.find({ key: `yes:${id}`, text: '✓ Approve' })).toBeDefined()
   expect(await ui.find({ key: `comment:${id}`, text: '✎ comment' })).toBeDefined()
   expect(await ui.find({ key: `ignore:${id}`, text: '✕ ignore' })).toBeDefined()
   expect(await ui.find({ type: 'Text', text: /^In Paper: the dashboard file/ })).toBeDefined()
@@ -134,7 +135,7 @@ test('a new ask opens with its buttons, by its kind: a review approves, comments
   expect(await ui.find({ key: `yes:${id}` })).toBeUndefined()
 })
 
-test('a decide offers its choices and an answer, never an approve', async ($, on) => {
+test('a choice offers its options and a comment, never a yes', async ($, on) => {
   const w = world($, on)
 
   await w.begin()
@@ -143,83 +144,9 @@ test('a decide offers its choices and an answer, never an approve', async ($, on
   const ui = await w.pane()
 
   expect(await ui.find({ key: `yes:${id}` })).toBeUndefined()
-  expect(await ui.find({ key: `comment:${id}`, text: /answer/ })).toBeDefined()
+  expect(await ui.find({ key: `comment:${id}`, text: '✎ comment' })).toBeDefined()
   await ui.press({ key: `choose:${id}:0` })
   expect(await ui.find({ type: 'Text', text: /→ 400 days/ })).toBeDefined()
-})
-
-test('a comment takes typed rows and saves them; cancel backs out', async ($, on) => {
-  const w = world($, on)
-
-  await w.begin()
-
-  const id = await asked(w)
-  const ui = await w.pane()
-
-  await ui.press({ key: `comment:${id}` })
-  expect(await ui.find({ type: 'Text', text: /^Comment$/ })).toBeDefined()
-  await ui.press({ key: `cancel:${id}` })
-  expect(await ui.find({ type: 'Text', text: /^Comment$/ })).toBeUndefined()
-  expect(await ui.find({ key: `yes:${id}` })).toBeDefined()
-
-  await ui.press({ key: `comment:${id}` })
-
-  for (const key of ['t', 'h', 'i', 'n', 'n', 'e', 'r']) {
-    await ui.key({ key, in: `area:${id}` })
-  }
-
-  await ui.key({ key: 'return', shift: true, in: `area:${id}` })
-  await ui.key({ key: 'bars', in: `area:${id}` })
-  await ui.press({ key: `save:${id}` })
-
-  expect(await ui.find({ type: 'Text', text: /comment: “thinner\nbars”/ })).toBeDefined()
-  expect(await ui.find({ type: 'Text', text: /READY TO SEND/ })).toBeDefined()
-  expect(w.state.queue).toEqual([
-    {
-      project: w.state.attachment?.project,
-      work: w.state.attachment?.work,
-      item: id,
-      verdict: 'comment',
-      note: 'thinner\nbars',
-    },
-  ])
-})
-
-test('Enter in the field saves the comment; an empty one is refused', async ($, on) => {
-  const w = world($, on)
-
-  await w.begin()
-
-  const id = await asked(w)
-  const ui = await w.pane()
-
-  await ui.press({ key: `comment:${id}` })
-  await ui.press({ key: `save:${id}` })
-  expect(w.toasts).toContain('Type something first, or cancel.')
-
-  await ui.key({ key: 'ok', in: `area:${id}` })
-  await ui.key({ key: 'return', in: `area:${id}` })
-  expect(await ui.find({ type: 'Text', text: /comment: “ok”/ })).toBeDefined()
-})
-
-test('a review takes its approve with the comment; a try or a do does not', async ($, on) => {
-  const w = world($, on)
-
-  await w.begin()
-
-  const review = await asked(w)
-  const ui = await w.pane()
-
-  await ui.press({ key: `comment:${review}` })
-  await ui.key({ key: 'nice', in: `area:${review}` })
-  await ui.press({ key: `savewith:${review}` })
-  expect(await ui.find({ type: 'Text', text: /approved, with a comment: “nice”/ })).toBeDefined()
-
-  const tried = await asked(w, { kind: 'try', title: 'Try signing in on the iPad' })
-
-  await ui.press({ key: `comment:${tried}` })
-  expect(await ui.find({ type: 'Text', text: 'How did it go?' })).toBeDefined()
-  expect(await ui.find({ key: `savewith:${tried}` })).toBeUndefined()
 })
 
 test('a reply waits under its ask, not sent yet, until it is undone', async ($, on) => {
@@ -231,7 +158,7 @@ test('a reply waits under its ask, not sent yet, until it is undone', async ($, 
   const ui = await w.pane()
 
   await ui.press({ key: `yes:${id}` })
-  expect(await ui.find({ type: 'Text', text: 'approved' })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: '→ Approve' })).toBeDefined()
   expect(await ui.find({ type: 'Text', text: '· not sent yet' })).toBeDefined()
   expect(await ui.find({ key: `yes:${id}` })).toBeUndefined()
 
@@ -246,7 +173,7 @@ test('each reply in Ready to send can go on its own, or all at once', async ($, 
   await w.begin()
 
   const first = await asked(w)
-  const second = await asked(w, { kind: 'do', title: 'Run the production apply' })
+  const second = await asked(w, { wants: 'yes', yes: 'Done', title: 'Run the production apply' })
   const ui = await w.pane()
 
   await ui.press({ key: `ignore:${second}` })
@@ -343,41 +270,4 @@ test('Ready to send stays at the foot of the parked view too', async ($, on) => 
   expect(await ui.find({ type: 'Text', text: 'pick it up' })).toBeDefined()
   expect(await ui.find({ type: 'Text', text: /READY TO SEND/ })).toBeDefined()
   expect(await ui.find({ key: 'send' })).toBeDefined()
-})
-
-test("a surface with no text area of the mod's takes the comment in its own field", async ($, on) => {
-  const w = world($, on)
-
-  await w.begin()
-
-  const id = await asked(w)
-  const ui = await $.ui.mount({
-    plugin: 'sitrep',
-    surface: 'vscode',
-    component: 'Pane',
-    requestId: 'sitrep',
-    props: DOCKED,
-  })
-
-  await ui.press({ key: `comment:${id}` })
-  await ui.input({ key: `field:${id}`, text: 'thinner bars' })
-  expect(await ui.find({ type: 'Text', text: /comment: “thinner bars”/ })).toBeDefined()
-})
-
-test('a surface with no field to type in offers no comment', async ($, on) => {
-  const w = world($, on)
-
-  await w.begin()
-
-  const id = await asked(w)
-  const ui = await $.ui.mount({
-    plugin: 'sitrep',
-    surface: 'mobile',
-    component: 'Pane',
-    requestId: 'sitrep',
-    props: DOCKED,
-  })
-
-  expect(await ui.find({ key: `yes:${id}` })).toBeDefined()
-  expect(await ui.find({ key: `comment:${id}` })).toBeUndefined()
 })

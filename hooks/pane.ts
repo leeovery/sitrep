@@ -8,6 +8,7 @@
  * settled counts as unasked.
  */
 import type { SitrepAttachment, SitrepPane } from '../types'
+import { endAnswering } from './answering'
 import { lookAround } from './around'
 import type { Host } from './host'
 import { projectPlace } from './places'
@@ -21,12 +22,13 @@ const TITLE = 'sitrep'
 const COLUMNS = 62
 const ROWS = 24
 
-/** The band's buttons, each a way into the board. */
+/** The band's buttons: each a way into the board, or, while Lee answers an ask in the prompt, the way out of that. */
 export const BAND = {
   forYou: 'band:for-you',
   elsewhere: 'band:elsewhere',
   parked: 'band:parked',
   board: 'band:board',
+  cancelAnswer: 'band:cancel-answer',
 } as const
 
 export const BAND_KEYS = Object.values(BAND)
@@ -93,6 +95,10 @@ export const boardClosed = markClosed
 
 /** A press on one of the band's buttons: a count opens the board on what it counts. */
 export const pressBand = async (host: Host, element: string) => {
+  if (element === BAND.cancelAnswer) {
+    return endAnswering(host)
+  }
+
   const held = await host.state.attachment.read()
   const focus = Object.hasOwn(COUNTED, element) ? COUNTED[element] : undefined
 

@@ -24,6 +24,7 @@ import {
   type WorkPaths,
 } from '../core'
 import type { SitrepAttachment } from '../types'
+import { endAnswering, settleAnswering } from './answering'
 import { boardOf } from './board'
 import { logFailure, rootFor, type Host } from './host'
 import { announce } from './news'
@@ -85,6 +86,7 @@ const show = async (host: Host, hold: Hold, work: Work) => {
     await host.state.board.write(shown)
     hold.shown = json
     await hear(host, hold, work)
+    await settleAnswering(host)
   }
 }
 
@@ -131,10 +133,11 @@ const timersFor = (host: Host, hold: Hold) => {
   ]
 }
 
-/** Puts nothing in `$.state` for drawing: no work is held. */
+/** Puts nothing in `$.state` for drawing: no work is held, and no ask of one is being answered. */
 const forget = async (host: Host) => {
   await host.state.attachment.write(null)
   await host.state.board.write(null)
+  await endAnswering(host)
 }
 
 /** Lets go of the held work: the heartbeat says so, and the beat and the watch stop. */

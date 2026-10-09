@@ -17,7 +17,7 @@ const FOLD =
 const TITLED = /^◇ Fold the trial's lessons into the orchestrate +now$/
 
 const DECIDE = {
-  kind: 'decide',
+  wants: 'choice',
   title: 'Keep the ledger 400 days, or forever?',
   where: 'In Paper: page round 1',
   options: ['400 days', 'Forever'],
@@ -165,7 +165,8 @@ test("an opened ask hangs where and its record from its mark; its buttons and hi
 
   const id = postedId(
     await w.call('ask', {
-      kind: 'review',
+      wants: 'yes',
+      yes: 'Approve',
       title: 'Review Sessions & Runway, round 1',
       where: 'In Paper: page round 1',
       ref: 'docs/dashboard.md',
@@ -176,7 +177,7 @@ test("an opened ask hangs where and its record from its mark; its buttons and hi
   expect((await rows(ui, `ask:${id}`)).slice(1, 5)).toEqual([
     '├ In Paper: page round 1',
     '└ see docs/dashboard.md',
-    '  [ ✓ approve ] [ ✎ comment ] [ ✕ ignore ]',
+    '  [ ✓ Approve ] [ ✎ comment ] [ ✕ ignore ]',
     "  Your reply waits in Ready to send. Ignore tells Claude you've seen it and won't act on it.",
   ])
 })
@@ -193,7 +194,7 @@ test("a reply waiting to be sent is the ask's last branch", async ($, on) => {
   expect(await rows(ui, `ask:${id}`)).toEqual([
     '◆ Keep the ledger 400 days, or forever? now',
     '├ In Paper: page round 1',
-    '└ → Forever · not sent yet ↺ undo',
+    '└ → Forever · not sent yet ↺ undo ✎ comment',
   ])
 })
 
@@ -221,7 +222,8 @@ test('a branch whose text wraps keeps the tree unbroken: a stem beside it under 
 
   const id = postedId(
     await w.call('ask', {
-      kind: 'review',
+      wants: 'yes',
+      yes: 'Approve',
       title: 'Review Sessions & Runway, round 1',
       where: 'In Paper: the dashboard file, page "round 1", frames 1–6, beside the brief',
       ref: 'docs/dashboard.md, under "Sessions & Runway", the first round of three',
@@ -301,7 +303,12 @@ test("an opened ask's see is labelled in the ask's amber, a parked item's in its
   await w.begin()
 
   const ask = postedId(
-    await w.call('ask', { kind: 'review', title: 'Review round 1', ref: 'docs/dashboard.md' }),
+    await w.call('ask', {
+      wants: 'yes',
+      yes: 'Approve',
+      title: 'Review round 1',
+      ref: 'docs/dashboard.md',
+    }),
   )
   const parked = postedId(
     await w.call('park', { title: 'A tmux indicator', ref: 'memory: tmux.md' }),

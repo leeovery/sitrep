@@ -1,7 +1,7 @@
 import { expect, test } from 'claude-code/testing'
 import { boardText, onBoardText, startText, summarise, summariseProject } from '../core'
 import {
-  ask,
+  choiceAsk,
   delivered,
   file,
   fold,
@@ -15,6 +15,7 @@ import {
   status,
   T0,
   W1,
+  yesAsk,
   type Line,
 } from './support'
 
@@ -35,17 +36,18 @@ const WORK = fold(
           {
             type: 'ask',
             id: 'k1',
-            kind: 'review',
+            wants: 'yes',
+            yes: 'Approve',
             title: 'Review round 1',
             where: 'In Paper: page "round 1"',
           },
         ],
         [
           T0 + 2 * MIN,
-          ask('k2', 'decide', 'Keep the ledger 400 days, or forever?', ['400 days', 'Forever']),
+          choiceAsk('k2', 'Keep the ledger 400 days, or forever?', ['400 days', 'Forever']),
         ],
-        [T0 + 2 * MIN, ask('k3', 'try', 'Try it on the iPad')],
-        [T0 + 2 * MIN, ask('k4', 'do', 'Run the apply')],
+        [T0 + 2 * MIN, yesAsk('k3', 'Try it on the iPad', 'It works')],
+        [T0 + 2 * MIN, yesAsk('k4', 'Run the apply', 'Done')],
         [T0 + 3 * MIN, reply('r1', 'k3', 'comment', { note: 'It fails after the code' })],
         [T0 + 3 * MIN, delivered('r1')],
         [T0 + 4 * MIN, resolve('k4')],
@@ -69,9 +71,9 @@ test("the board text lists the work's open items by id, for Claude to check and 
       '- Drawing Usage, round 2',
       'Next: Usage, round 3',
       'Open asks:',
-      '- k1 review, waiting on Lee: Review round 1; where: In Paper: page "round 1"',
-      '- k2 decide, waiting on Lee: Keep the ledger 400 days, or forever?; options: 400 days | Forever',
-      '- k3 try, Lee replied, yours to act on (comment: “It fails after the code”): Try it on the iPad',
+      '- k1 wants a yes (Approve), waiting on Lee: Review round 1; where: In Paper: page "round 1"',
+      '- k2 wants a choice, waiting on Lee: Keep the ledger 400 days, or forever?; options: 400 days | Forever',
+      '- k3 wants a yes (It works), Lee replied, yours to act on (comment: “It fails after the code”): Try it on the iPad',
       'Parked:',
       '- p1: A tmux indicator',
       'Latest notes:',
@@ -108,7 +110,7 @@ test('an empty board says so in every section', () => {
 })
 
 test('the board listing gives each work a line: its project, its id, its name and what waits on Lee', () => {
-  const closed = fold({ logs: { [W1]: file([T0, ask('k1', 'do', 'Run it')]) } })
+  const closed = fold({ logs: { [W1]: file([T0, yesAsk('k1', 'Run it', 'Done')]) } })
   const ledger = { ...summarise(closed), id: 'sr-1edger', name: 'Request ledger', waiting: 0 }
   const switchboard = summariseProject('switchboard', [summarise(WORK), ledger])
   const sitrep = {

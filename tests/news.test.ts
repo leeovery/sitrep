@@ -4,7 +4,7 @@ import { TOAST_MS } from '../hooks/host'
 import { C } from '../hooks/look'
 import { WATCH_MS } from '../hooks/window'
 import type { SitrepAttachment } from '../types'
-import { ask, META, T0, W1 } from './support'
+import { choiceAsk, META, T0, W1, yesAsk } from './support'
 import { postedId, PROJECT, ROOT, SESSION, world } from './world'
 
 tier('user')
@@ -20,14 +20,14 @@ test('a new ask from another writer pulses, toasts for 10 seconds, chimes and op
   const elsewhere = w.writer(paths)
 
   w.seed(META)
-  elsewhere(ask('k1', 'review', 'Review round 1'))
+  elsewhere(yesAsk('k1', 'Review round 1'))
   await $.session.start(SESSION)
   await w.call('join', { work: META.id })
 
   expect(w.sounds).toEqual([])
   expect(w.toasts).toEqual([])
 
-  elsewhere(ask('k2', 'decide', 'Keep the ledger forever?', ['Yes', 'No']))
+  elsewhere(choiceAsk('k2', 'Keep the ledger forever?', ['Yes', 'No']))
   await w.clock.advance(WATCH_MS)
 
   expect(w.sounds).toEqual([CHIME])
@@ -48,7 +48,7 @@ test('the ◆ pulses on the band, then rests', async ($, on) => {
   const w = world($, on)
 
   await w.begin()
-  await w.call('ask', { kind: 'review', title: 'Review round 1' })
+  await w.call('ask', { wants: 'yes', yes: 'Approve', title: 'Review round 1' })
 
   const band = await w.band()
 
@@ -65,7 +65,9 @@ test("Claude's own ask is new to the window too", async ($, on) => {
 
   await w.begin()
 
-  const id = postedId(await w.call('ask', { kind: 'do', title: 'Run the production apply' }))
+  const id = postedId(
+    await w.call('ask', { wants: 'yes', yes: 'Done', title: 'Run the production apply' }),
+  )
 
   expect(w.sounds).toEqual([CHIME])
   expect(w.toasts).toEqual(['◆ For you: Run the production apply'])
@@ -77,7 +79,7 @@ test('asks landing together make one toast and one chime', async ($, on) => {
   const { paths: begun } = await w.begin()
   const elsewhere = w.writer(begun)
 
-  elsewhere(ask('k1', 'review', 'Review round 1'), ask('k2', 'try', 'Try it at 80 columns'))
+  elsewhere(yesAsk('k1', 'Review round 1'), yesAsk('k2', 'Try it at 80 columns', 'It works'))
   await w.clock.advance(WATCH_MS)
 
   expect(w.sounds).toEqual([CHIME])
@@ -102,13 +104,13 @@ test('after a reload, the asks already there make no chime; the next one does', 
   })
 
   w.seed(META)
-  elsewhere(ask('k1', 'review', 'Review round 1'))
+  elsewhere(yesAsk('k1', 'Review round 1'))
   await $.session.start(SESSION)
 
   expect(w.state.board?.asks.map(each => each.id)).toEqual(['k1'])
   expect(w.sounds).toEqual([])
 
-  elsewhere(ask('k2', 'review', 'Review round 2'))
+  elsewhere(yesAsk('k2', 'Review round 2'))
   await w.clock.advance(WATCH_MS)
 
   expect(w.sounds).toEqual([CHIME])
@@ -119,7 +121,7 @@ test('an ask closed before the window first saw it is no news', async ($, on) =>
   const { paths: begun } = await w.begin()
   const elsewhere = w.writer(begun)
 
-  elsewhere(ask('k1', 'review', 'Review round 1'), { type: 'resolve', item: 'k1' })
+  elsewhere(yesAsk('k1', 'Review round 1'), { type: 'resolve', item: 'k1' })
   await w.clock.advance(WATCH_MS)
 
   expect(w.sounds).toEqual([])

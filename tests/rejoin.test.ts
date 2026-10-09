@@ -1,7 +1,6 @@
 import { expect, test } from 'claude-code/testing'
 import { lastSeen, rejoinable, type Work } from '../core'
 import {
-  ask,
   beat,
   file,
   finish,
@@ -15,6 +14,7 @@ import {
   T0,
   W1,
   W2,
+  yesAsk,
 } from './support'
 
 /** The work under test under another id. */
@@ -35,7 +35,7 @@ test('a window is last seen in a work by its heartbeat, as it let go or last bea
 test('with no heartbeat, by the latest item or status it posted; starting a work or sending to its inbox is not being in it', () => {
   const work = fold({
     logs: {
-      [W1]: file([T0 + MIN, ask('k1', 'do', 'Run it')], [T0 + 3 * MIN, status(['Drawing'])]),
+      [W1]: file([T0 + MIN, yesAsk('k1', 'Run it', 'Done')], [T0 + 3 * MIN, status(['Drawing'])]),
       [W2]: file([T0 + 2 * MIN, note('n1', 'Noted')]),
     },
     inbox: { [SENDER]: file([T0 + 4 * MIN, reply('r1', 'k1', 'yes')]) },

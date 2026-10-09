@@ -9,9 +9,11 @@
  * board and back, so the compiler holds each to the other.
  */
 
+export type SitrepWants = 'yes' | 'choice' | 'words'
+
 export type SitrepAskKind = 'review' | 'decide' | 'try' | 'do'
 
-export type SitrepVerdict = 'yes' | 'choose' | 'comment' | 'ignore' | 'pickup'
+export type SitrepVerdict = 'yes' | 'choose' | 'answer' | 'comment' | 'ignore' | 'pickup'
 
 export type SitrepDelivery = 'delivered' | 'waiting' | 'closed' | 'void'
 
@@ -50,7 +52,9 @@ export type SitrepPosted = {
 
 export type SitrepAsk = SitrepPosted & {
   type: 'ask'
-  kind: SitrepAskKind
+  wants: SitrepWants
+  yes?: string
+  kind?: SitrepAskKind
   title: string
   where?: string
   options?: string[]
@@ -152,14 +156,12 @@ export type SitrepQueued = SitrepItemRef & {
   note?: string
 }
 
-/** A yes or a choice held open while Lee types what its ask needs back: the words go with it as its note. */
-export type SitrepAnswer = { verdict: 'yes' } | { verdict: 'choose'; option: string }
-
-/** What the board put in a field itself, and how many times it has: the field takes it up, in place of its own, once each time. */
-export type SitrepFilled = { text: string; times: number }
-
-/** The field open on an ask: for a comment, or, holding an answer, for what the ask needs back with it. */
-export type SitrepField = SitrepItemRef & { answer?: SitrepAnswer; filled?: SitrepFilled }
+/**
+ * An ask Lee is answering in the prompt box: the next Enter there queues
+ * what was written as its answer, or as a comment, and nothing goes to
+ * Claude. The ask's title, for the band to name it wherever the ask is.
+ */
+export type SitrepAnswering = SitrepItemRef & { as: 'answer' | 'comment'; title: string }
 
 /** Replies this window wrote into another work's inbox, by their ids: shown in Ready to send until Claude has them. */
 export type SitrepSent = SitrepWorkRef & { replies: string[] }
@@ -247,8 +249,6 @@ export type SitrepPane = {
   view: SitrepView
   /** The item (or log line) opened under its line. */
   selected: string | null
-  /** The field open on an ask. */
-  commenting: SitrepField | null
 }
 
 /** New asks pulsing, and how many frames of the pulse are left. */
@@ -276,8 +276,8 @@ declare module 'claude-code' {
       /** The message on its way to Claude, or null. */
       inFlight: SitrepInFlight | null
       pane: SitrepPane
-      /** What has been typed in the open comment field. */
-      draft: string
+      /** The ask the next Enter in the prompt box answers, or null. */
+      answering: SitrepAnswering | null
       pulse: SitrepPulse
       /** How many replies from the board the band is flashing as just taken in; 0 for none. */
       flash: number

@@ -20,7 +20,7 @@ async function busy(w: World) {
   await w.begin()
 
   return {
-    ask: postedId(await w.call('ask', { kind: 'review', title: 'Review round 1' })),
+    ask: postedId(await w.call('ask', { wants: 'yes', yes: 'Approve', title: 'Review round 1' })),
     parked: postedId(await w.call('park', { title: 'A tmux indicator' })),
   }
 }

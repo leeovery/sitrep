@@ -23,9 +23,9 @@ type World = ReturnType<typeof world>
 
 type Source = 'send' | 'inbox'
 
-const REVIEW = { kind: 'review', title: 'Review Sessions & Runway, round 1' }
+const REVIEW = { wants: 'yes', yes: 'Approve', title: 'Review Sessions & Runway, round 1' }
 
-const MESSAGE = 'From the board:\n- Review Sessions & Runway, round 1 → approved'
+const MESSAGE = 'From the board:\n- Review Sessions & Runway, round 1 → Approve'
 
 /** What the window's own file holds once the message is written down, by its source. */
 const WRITTEN: Record<Source, string[]> = {

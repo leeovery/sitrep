@@ -2,7 +2,7 @@ import type { RenderPropsOf } from 'claude-code'
 import { expect, test, tier } from 'claude-code/testing'
 import { parseEntries, workPaths, type WorkMeta } from '../core'
 import { rowsOf } from './drawn'
-import { ask, file, finish, MIN, note, SLOW, T0, W1, W2, W3, W4 } from './support'
+import { file, finish, MIN, note, SLOW, T0, W1, W2, W3, W4, yesAsk } from './support'
 import { ELSEWHERE, PROJECT, ROOT, WIDE, world } from './world'
 
 tier('user')
@@ -37,17 +37,20 @@ const MINE = workPaths(ROOT, PROJECT.key, THEMES).log(W1)
 async function around(w: World, props?: RenderPropsOf['Pane']) {
   const ledger = w.elsewhere(meta(LEDGER, 'Request ledger', W2))
 
-  ledger.write(ask('k3', 'review', 'Review the ledger schema'))
-  w.elsewhere(meta(THEMES, 'Themes', W3)).write(ask('k4', 'do', 'Pick the dark palette'))
-  w.elsewhere(meta(LOBBY, 'Lobby', W3)).write(ask('k5', 'do', 'Check the lobby'), finish('lee'))
+  ledger.write(yesAsk('k3', 'Review the ledger schema'))
+  w.elsewhere(meta(THEMES, 'Themes', W3)).write(yesAsk('k4', 'Pick the dark palette', 'Done'))
+  w.elsewhere(meta(LOBBY, 'Lobby', W3)).write(
+    yesAsk('k5', 'Check the lobby', 'Done'),
+    finish('lee'),
+  )
   w.elsewhere(meta(ORDERS, 'Standing orders', W4, 'goosemates'), ELSEWHERE.key).write(
-    ask('k6', 'review', 'Review the standing orders'),
+    yesAsk('k6', 'Review the standing orders'),
     finish('claude', 'Shipped'),
   )
 
   const { id } = await w.begin()
 
-  await w.call('ask', { kind: 'review', title: 'Review Sessions & Runway, round 1' })
+  await w.call('ask', { wants: 'yes', yes: 'Approve', title: 'Review Sessions & Runway, round 1' })
   await w.clock.advance(MIN)
   ledger.beat()
 
@@ -161,7 +164,7 @@ test('a work Claude finished counts nothing in its own window: the band and the 
   const w = world($, on)
 
   await w.begin()
-  await w.call('ask', { kind: 'review', title: 'Review round 1' })
+  await w.call('ask', { wants: 'yes', yes: 'Approve', title: 'Review round 1' })
 
   const band = await w.band()
   const ui = await w.opened(WIDE)

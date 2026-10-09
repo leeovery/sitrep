@@ -2,24 +2,17 @@
  * What every part of the board draws with, and the pieces they share: the
  * line naming what a view is of, a section's heading, a glyph before a
  * line, an item's title and mark with its tree hanging from the mark, the
- * row every list's entries share, a line hung from a `└`, and a reply
- * waiting in Ready to send or on its way.
+ * row every list's entries share, and a reply on one row, waiting in Ready
+ * to send or on its way.
  *
  * Drawing is pure: a surface's element table and plain data in, a tree
  * out; what a button does is the actions' (hooks/actions.ts).
  */
 import type { ElementTable, RenderElement, RenderSurface } from 'claude-code'
-import {
-  answerOf,
-  isPending,
-  type Ask,
-  type AskKind,
-  type Parked,
-  type ReplyFields,
-} from '../../core'
-import type { SitrepQueued } from '../../types'
+import { answerOf, isPending, moreLines, type Ask, type Parked, type ReplyFields } from '../../core'
+import type { SitrepAnswering, SitrepItemRef, SitrepQueued } from '../../types'
 import type { Actions } from '../actions'
-import { ago, C, clip, GLYPH, wrapped } from '../look'
+import { ago, C, clip, counted, GLYPH, wrapped } from '../look'
 import { isCarried } from '../queue'
 import type { Scene } from '../scene'
 
@@ -38,28 +31,24 @@ export type Drawing = {
 }
 
 /**
- * How Lee types on each surface: in the mod's own text area, in the
- * surface's one-line field, or not at all. Read off the surface, since its
- * element table names every element, one it lacks drawing nothing.
+ * How Lee writes back to an ask from a surface: in the terminal's prompt
+ * box, which the mod reads and fills and whose Enter it hears; in Claude's
+ * app, whose Enter it hears (the Remote Control bridge) but whose box it
+ * cannot reach; or not at all, where how a prompt arrives is unproven
+ * (Desktop, VS Code).
  */
-const TYPING: Record<RenderSurface, 'area' | 'field' | 'none'> = {
-  terminal: 'area',
-  desktop: 'area',
-  vscode: 'field',
-  mobile: 'none',
+const WRITING: Record<RenderSurface, 'box' | 'enter' | 'none'> = {
+  terminal: 'box',
+  mobile: 'enter',
+  desktop: 'none',
+  vscode: 'none',
 }
 
-export const typingOn = (d: Drawing) => TYPING[d.surface]
+/** Whether Lee can write an answer or a comment from the surface. */
+export const canWrite = (d: Drawing) => WRITING[d.surface] !== 'none'
 
-export const canType = (d: Drawing) => typingOn(d) !== 'none'
-
-/** A yes, by the kind of ask it answers: its button's words, on the ask and on the field taking what it needs back. A decide ask offers no yes, so its words are never drawn. */
-export const YES: Record<AskKind, string> = {
-  review: '✓ approve',
-  decide: '✓ approve',
-  try: '✓ it works',
-  do: '✓ done',
-}
+/** Whether the surface's prompt box can be filled with words already queued, to write them again. */
+export const canRewrite = (d: Drawing) => WRITING[d.surface] === 'box'
 
 /** The line under the tabs naming what the view is of, with a few words on it, and a summary under it. */
 export const context = ({ els }: Drawing, title: string, aside: string, summary?: string) => {
@@ -280,7 +269,7 @@ export const tree = (d: Drawing, key: string, branches: readonly Branch[], colum
   )
 }
 
-/** An entry of a list (a log line, a parked item, a closed ask), as its row draws it. */
+/** An entry of a list (a log line, a parked item, an ask), as its row draws it. */
 export type Row = {
   /** The row's own key; its tree's are made from it. */
   key: string
@@ -289,11 +278,24 @@ export type Row = {
   /** When it happened, as the age on the right says. */
   at: number
   isOpen: boolean
-  /** The title's press: its key, and what it does. */
-  press: { key: string; onPress: () => void }
+  /** The title's press: its key, and what it does. None for a row closed for good, its title faint. */
+  press?: { key: string; onPress: () => void }
   branches: readonly Branch[]
   /** What comes after the tree, under the title. */
   after?: RenderElement | false
+}
+
+/** A row's title: the press that opens it, or, with none, faint text. */
+const drawRowTitle = (d: Drawing, lines: readonly string[], press: Row['press']) => {
+  const { Text } = d.els
+
+  return press === undefined ? (
+    <Text color={C.faint} wrap="truncate-end">
+      {lines.join(' ')}
+    </Text>
+  ) : (
+    drawTitle(d, press.key, lines, press.onPress)
+  )
 }
 
 /**
@@ -314,7 +316,7 @@ export const drawRow = (
       <Box flexDirection="row" gap={1}>
         {drawMark(d, mark, lines.length, branches.length > 0)}
         <Box flexGrow={1} flexShrink={1}>
-          {drawTitle(d, press.key, lines, press.onPress)}
+          {drawRowTitle(d, lines, press)}
         </Box>
         <Text color={C.grey}>{ago(d.scene.now, at)}</Text>
       </Box>
@@ -324,50 +326,98 @@ export const drawRow = (
   )
 }
 
-/** Soft words hung under an item, a reply or how it closed, and what goes after them on the line. */
-const replyLine = ({ els }: Drawing, text: string, after?: RenderElement) => {
-  const { Box, Text } = els
-
-  return (
-    <Box flexGrow={1} flexShrink={1} flexDirection="row" columnGap={1} flexWrap="wrap">
-      <Text color={C.soft} wrap="wrap">
-        {text}
-      </Text>
-      {after}
-    </Box>
-  )
-}
-
-/** A line hanging from what it describes by a `└`, and what goes after it on the line. */
-export const hung = (d: Drawing, key: string, text: string, after?: RenderElement) => {
-  const { Box, Text } = d.els
-
-  return (
-    <Box key={key} flexDirection="row" gap={1}>
-      <Text color={C.faint}>{GLYPH.last}</Text>
-      {replyLine(d, text, after)}
-    </Box>
-  )
-}
-
 /** The reply an item waits on Claude with: sent from a board into its work's inbox, not delivered yet. */
 export const onItsWay = (item: Ask | Parked) => item.replies.findLast(isPending)
+
+/**
+ * A reply on one row, as the board shows it under its item and in Ready to
+ * send: its words cut short at the edge, how many lines they run to past
+ * the first, and what goes after them, kept whole.
+ */
+export const drawReplyRow = (
+  { els }: Drawing,
+  item: Ask | Parked,
+  reply: ReplyFields,
+  after?: RenderElement | false,
+) => {
+  const { Box, Text } = els
+  const more = moreLines(reply)
+
+  return (
+    <Box flexGrow={1} flexShrink={1} flexDirection="row" columnGap={1}>
+      <Box flexShrink={1}>
+        <Text color={C.soft} wrap="truncate-end">
+          {answerOf(item, reply)}
+        </Text>
+      </Box>
+      {more > 0 && (
+        <Box flexShrink={0}>
+          <Text color={C.grey} wrap="truncate-end">
+            {`+${counted(more, 'line', 'lines')}`}
+          </Text>
+        </Box>
+      )}
+      {after !== undefined && after !== false && <Box flexShrink={0}>{after}</Box>}
+    </Box>
+  )
+}
 
 /** A reply sent but not delivered yet, as a branch under what it answers. */
 export const drawOnItsWay = (d: Drawing, item: Ask | Parked, reply: ReplyFields) => {
   const { Text } = d.els
 
-  return replyLine(d, answerOf(item, reply), <Text color={C.grey}>· on its way</Text>)
+  return drawReplyRow(d, item, reply, <Text color={C.grey}>· on its way</Text>)
 }
 
-/** A reply in Ready to send, as a branch under what it answers: undone from there until a send carries it. */
+/** Answering an ask in the prompt box: with its answer, or with a comment on it. */
+export const answeringOf = (
+  at: SitrepItemRef,
+  ask: Ask,
+  as: SitrepAnswering['as'],
+): SitrepAnswering => ({ project: at.project, work: at.work, item: at.item, as, title: ask.title })
+
+/**
+ * The way to write a queued reply's words in the prompt box, under `key`: a
+ * bare yes's or choice's comment; or, where the box can be filled with
+ * them, the words of an answer, a comment, or a yes's or choice's comment,
+ * written again. None for an ignore or a pick-up.
+ */
+export const drawRewrite = (d: Drawing, key: string, item: Ask | Parked, queued: SitrepQueued) => {
+  const { Button } = d.els
+  const words = queued.note
+  const as = queued.verdict === 'answer' ? 'answer' : 'comment'
+
+  if (item.type === 'park' || queued.verdict === 'ignore') {
+    return undefined
+  }
+
+  if (words === undefined ? !canWrite(d) : !canRewrite(d)) {
+    return undefined
+  }
+
+  return (
+    <Button
+      key={key}
+      plain
+      dimColor
+      label={words === undefined ? '✎ comment' : '✎ edit'}
+      onPress={() => d.act.answer(answeringOf(queued, item, as), words)}
+    />
+  )
+}
+
+/**
+ * A reply in Ready to send, as a branch under what it answers: undone from
+ * there until a send carries it, its words written again from there.
+ */
 export const drawQueued = (d: Drawing, item: Ask | Parked, queued: SitrepQueued) => {
   const { Box, Text, Button } = d.els
   const isOnItsWay = isCarried(d.scene.inFlight, queued)
 
-  return replyLine(
+  return drawReplyRow(
     d,
-    answerOf(item, queued),
+    item,
+    queued,
     <Box flexDirection="row" columnGap={1}>
       <Text color={C.grey}>{isOnItsWay ? '· on its way' : '· not sent yet'}</Text>
       {!isOnItsWay && (
@@ -379,6 +429,7 @@ export const drawQueued = (d: Drawing, item: Ask | Parked, queued: SitrepQueued)
           onPress={() => d.act.unqueue(queued.work, queued.item)}
         />
       )}
+      {!isOnItsWay && drawRewrite(d, `rewrite:${item.id}`, item, queued)}
     </Box>,
   )
 }

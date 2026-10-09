@@ -7,6 +7,7 @@
 import type { Timer } from 'claude-code'
 import { closingReply, isOpen, type Ask, type Work } from '../core'
 import type {
+  SitrepAnswering,
   SitrepInFlight,
   SitrepPane,
   SitrepPlace,
@@ -45,6 +46,8 @@ export type Scene = {
   inFlight: SitrepInFlight | null
   sent: readonly SitrepSent[]
   pane: SitrepPane
+  /** The ask Lee is answering in the prompt box, as `$.state` holds it: whether it still stands is `answeringIn`'s to say. */
+  answering: SitrepAnswering | null
   pulse: SitrepPulse
   flash: number
   now: number
@@ -54,7 +57,7 @@ let ticking: Timer | undefined
 
 /** The scene as it stands; undefined while no work is held. */
 export const sceneOf = async (host: Host): Promise<Scene | undefined> => {
-  const [board, held, projects, others, queue, inFlight, sent, pane, pulse, flash, now] =
+  const [board, held, projects, others, queue, inFlight, sent, pane, answering, pulse, flash, now] =
     await Promise.all([
       host.state.board.read(),
       host.state.attachment.read(),
@@ -64,6 +67,7 @@ export const sceneOf = async (host: Host): Promise<Scene | undefined> => {
       host.state.inFlight.read(),
       host.state.sent.read(),
       host.state.pane.read(),
+      host.state.answering.read(),
       host.state.pulse.read(),
       host.state.flash.read(),
       host.clock.now(),
@@ -87,6 +91,7 @@ export const sceneOf = async (host: Host): Promise<Scene | undefined> => {
     inFlight,
     sent,
     pane,
+    answering,
     pulse,
     flash,
     now,

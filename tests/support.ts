@@ -79,13 +79,40 @@ export const status = (
   next: extra.next,
 })
 
-export const ask = (id: string, kind: AskKind, title: string, options?: string[]): Body => ({
+/** An ask wanting a yes, its button's words `yes`. */
+export const yesAsk = (id: string, title: string, yes = 'Approve'): Body => ({
   type: 'ask',
   id,
-  kind,
+  wants: 'yes',
+  yes,
+  title,
+})
+
+/** An ask wanting one of `options`. */
+export const choiceAsk = (id: string, title: string, options: string[]): Body => ({
+  type: 'ask',
+  id,
+  wants: 'choice',
   title,
   options,
 })
+
+/** An ask wanting words, which `needs` says what they are. */
+export const wordsAsk = (id: string, title: string, needs?: string): Body => ({
+  type: 'ask',
+  id,
+  wants: 'words',
+  title,
+  needs,
+})
+
+/** An ask's line as written before asks said what they want back: by its kind. */
+export const kindAsk = (
+  id: string,
+  kind: AskKind,
+  title: string,
+  extra: { options?: string[]; needs?: string } = {},
+): Body => ({ type: 'ask', id, kind, title, ...extra })
 
 export const note = (id: string, text: string, detail?: string[]): Body => ({
   type: 'note',

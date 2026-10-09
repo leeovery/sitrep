@@ -2,7 +2,7 @@ import type { Args } from 'claude-code'
 import { expect, test, tier } from 'claude-code/testing'
 import type { WorkMeta } from '../core'
 import { rowsOf } from './drawn'
-import { ask, MIN, SLOW, T0, W2 } from './support'
+import { MIN, SLOW, T0, W2, yesAsk } from './support'
 import { ELSEWHERE, postedId, world } from './world'
 
 tier('user')
@@ -40,7 +40,14 @@ async function posted(w: World, tool: string, ...each: Args[]) {
 
 const notes = (...texts: string[]) => texts.map(text => ({ text }))
 
-const reviews = (...titles: string[]) => titles.map(title => ({ kind: 'review', title }))
+/** Asks for Lee's approval, each saying where to look. */
+const reviews = (...titles: string[]) =>
+  titles.map(title => ({
+    wants: 'yes',
+    yes: 'Approve',
+    title,
+    where: `In Paper: page ${title.slice(-7)}`,
+  }))
 
 const NOTES = notes('PR #81 merged', 'PR #82 merged', 'The schema is drawn')
 
@@ -112,7 +119,56 @@ test('the project view lists its log with no blank row between the lines, each n
   ])
 })
 
-test('For you keeps a blank row between its asks', async ($, on) => {
+test('For you lists its asks as rows with no blank row between them, each its mark, title and age, no where', async ($, on) => {
+  const w = world($, on)
+
+  await w.begin()
+
+  const [, , newest] = await posted(
+    w,
+    'ask',
+    ...reviews('Review round 1', 'Review round 2', 'Review round 3'),
+  )
+  const ui = await w.pane()
+
+  await ui.press({ key: `pick:${newest}` })
+
+  const rows = await boardRows(ui)
+  const at = rows.findIndex(row => row.startsWith(' FOR YOU'))
+
+  expect(rows.slice(at + 1, at + 5)).toEqual([
+    ' ◆ Review round 3 1m',
+    ' ◆ Review round 2 2m',
+    ' ◆ Review round 1 3m',
+    '',
+  ])
+})
+
+test('a reply waiting on a closed ask, or on its way, still hangs from it, as a pick-up from a parked row', async ($, on) => {
+  const w = world($, on)
+
+  await w.begin()
+
+  const [older, newer] = await posted(w, 'ask', ...reviews('Review round 1', 'Review round 2'))
+  const ui = await w.pane()
+
+  await ui.press({ key: `yes:${newer}` })
+  await ui.press({ key: `pick:${older}` })
+  await ui.press({ key: `ignore:${older}` })
+  await ui.press({ key: `pick:${older}` })
+
+  const rows = await boardRows(ui)
+  const at = rows.findIndex(row => row.startsWith(' FOR YOU'))
+
+  expect(rows.slice(at + 1, at + 5)).toEqual([
+    ' ◆ Review round 2 1m',
+    ' └ → Approve · not sent yet ↺ undo ✎ comment',
+    ' ◆ Review round 1 2m',
+    ' └ ignored · not sent yet ↺ undo',
+  ])
+})
+
+test('an opened ask has a blank row after its buttons and hint, so the next ask does not run into them', async ($, on) => {
   const w = world($, on)
 
   await w.begin()
@@ -121,8 +177,14 @@ test('For you keeps a blank row between its asks', async ($, on) => {
   const rows = await boardRows(await w.pane())
   const at = (title: string) => rows.findIndex(row => row.includes(title))
 
-  expect(at('Review round 1')).toBeGreaterThan(at('Review round 2'))
-  expect(rows[at('Review round 1') - 1], 'the row above the older ask').toBe('')
+  expect(rows.slice(at('Review round 2'), at('Review round 1') + 1)).toEqual([
+    ' ◆ Review round 2 1m',
+    ' └ In Paper: page round 2',
+    '   [ ✓ Approve ] [ ✎ comment ] [ ✕ ignore ]',
+    "   Your reply waits in Ready to send. Ignore tells Claude you've seen it and won't act on it.",
+    '',
+    ' ◆ Review round 1 2m',
+  ])
 })
 
 /** A work open in another window, in another project. */
@@ -140,7 +202,7 @@ test('All projects keeps a blank row between its projects', async ($, on) => {
   const w = world($, on)
   const orders = w.elsewhere(ORDERS, ELSEWHERE.key)
 
-  orders.write(ask('k5', 'review', 'Review the standing orders'))
+  orders.write(yesAsk('k5', 'Review the standing orders'))
   orders.beat()
   await w.begin()
 

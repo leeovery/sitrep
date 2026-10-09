@@ -21,7 +21,16 @@ test("what the CLI posts, the mod's watch folds: its note in the log, its ask wa
   const w = world($, on)
   const { cli } = await begun(w)
   const noted = await cli('note', 'Round 3 drawn', '--detail', 'Frames 1–6')
-  const asked = await cli('ask', 'review', 'Review round 3', '--where', 'In Paper: page "round 3"')
+  const asked = await cli(
+    'ask',
+    'Review round 3',
+    '--wants',
+    'yes',
+    '--yes',
+    'Approve',
+    '--where',
+    'In Paper: page "round 3"',
+  )
 
   expect([noted.exit, asked.exit]).toEqual([EXIT.done, EXIT.done])
 

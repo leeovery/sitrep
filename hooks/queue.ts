@@ -30,11 +30,11 @@ export const SENT_LINGER_MS = 10 * 60_000
 const isFor = (reply: SitrepQueued, work: string, item: string) =>
   reply.work === work && reply.item === item
 
-/** The queue with `reply` at its end, in place of any reply its item had. */
-export const queuing = (queue: Queue, reply: SitrepQueued) => [
-  ...queue.filter(each => !isFor(each, reply.work, reply.item)),
-  reply,
-]
+/** The queue with `reply` in place of any reply its item had, else at its end. */
+export const queuing = (queue: Queue, reply: SitrepQueued) =>
+  queue.some(each => isFor(each, reply.work, reply.item))
+    ? queue.map(each => (isFor(each, reply.work, reply.item) ? reply : each))
+    : [...queue, reply]
 
 /** The queue less the reply to one item. */
 export const unqueuing = (queue: Queue, work: string, item: string) =>

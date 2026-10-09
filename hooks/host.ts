@@ -20,6 +20,7 @@ import type {
 } from 'claude-code'
 import { rootOf, type Random } from '../core'
 import type {
+  SitrepAnswering,
   SitrepAttachment,
   SitrepBoard,
   SitrepInFlight,
@@ -80,6 +81,8 @@ export type Host = {
     submit: (text: string) => Promise<PromptSubmitResult>
     /** What Lee's prompt box holds: the draft, a paste in it whole. */
     read: () => Promise<string>
+    /** Puts text in Lee's prompt box, over what it held. */
+    fill: (text: string) => Promise<unknown>
     /** Empties Lee's prompt box. */
     clear: () => Promise<unknown>
   }
@@ -93,7 +96,7 @@ export type Host = {
     sent: Slot<SitrepSent[]>
     inFlight: Slot<SitrepInFlight | null>
     pane: Slot<SitrepPane>
-    draft: Slot<string>
+    answering: Slot<SitrepAnswering | null>
     pulse: Slot<SitrepPulse>
     flash: Slot<number>
     tick: Slot<number>

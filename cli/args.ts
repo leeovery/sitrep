@@ -12,9 +12,10 @@ export type Arg = { field: string; about: string }
 
 /**
  * A flag: the field a check reads it as, and its form: one value, a value
- * each time it is given (a list), or a switch, there or not.
+ * each time it is given (a list), or a switch, there or not. One the check
+ * needs is `isNeeded`, for the help to say so.
  */
-export type Flag = { field: string; about: string } & (
+export type Flag = { field: string; about: string; isNeeded?: true } & (
   | { form: 'switch' }
   | { form: 'one' | 'many'; value: string }
 )

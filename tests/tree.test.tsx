@@ -2,7 +2,7 @@ import { expect, test, tier } from 'claude-code/testing'
 import { CURRENT_MS, type WorkMeta } from '../core'
 import { AROUND_MS } from '../hooks/around'
 import { C, GLYPH } from '../hooks/look'
-import { ask, MIN, note, park, status, T0, W2, W3, W4 } from './support'
+import { choiceAsk, MIN, note, park, status, T0, W2, W3, W4, yesAsk } from './support'
 import { ELSEWHERE, postedId, PROJECT, WIDE, world } from './world'
 
 tier('user')
@@ -15,7 +15,7 @@ const PORTAL = { key: 'portal-1a2b3c4d', name: 'Portal' }
 const PIGEON = { key: 'pigeon', name: 'Pigeon' }
 const DUSTY = { key: 'dusty', name: 'Dusty' }
 
-const REVIEW = { kind: 'review', title: 'Review Sessions & Runway, round 1' }
+const REVIEW = { wants: 'yes', yes: 'Approve', title: 'Review Sessions & Runway, round 1' }
 
 const LEDGER = 'sr-1edger'
 const THEMES = 'sr-themes'
@@ -49,13 +49,13 @@ async function neighbourhood(w: World) {
       name: 'Request ledger',
       summary: 'Request ledger, area by area',
     }),
-    ask('k3', 'decide', 'Keep the ledger 400 days, or forever?', ['400 days', 'Forever']),
+    choiceAsk('k3', 'Keep the ledger 400 days, or forever?', ['400 days', 'Forever']),
     park('p2', 'Export the ledger as CSV'),
     note('n3', 'Wrote the schema'),
   )
   ledger.beat()
   w.elsewhere(meta(THEMES, 'Themes', 'switchboard', W3, DAY))
-  orders.write(ask('k5', 'review', 'Review the standing orders'))
+  orders.write(yesAsk('k5', 'Review the standing orders'))
   orders.beat()
   w.elsewhere(meta('sr-p0rta1', 'Agent-aware Portal', 'portal', W3, 3 * DAY), PORTAL.key).write(
     park('p1', 'Thumbnails in the picker'),
@@ -287,7 +287,7 @@ test("a new ask in another session reaches the band's count at the slower pace, 
 
   expect(await band.find({ key: 'band:elsewhere' })).toBeUndefined()
 
-  ledger.write(ask('k3', 'do', 'Run the ledger migration'))
+  ledger.write(yesAsk('k3', 'Run the ledger migration', 'Done'))
   ledger.beat()
   await w.clock.advance(AROUND_MS)
   expect(await band.find({ key: 'band:elsewhere', text: '1 in other sessions' })).toBeDefined()

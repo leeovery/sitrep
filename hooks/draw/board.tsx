@@ -284,18 +284,9 @@ const readyCap = (bodyRows: number) => Math.floor((bodyRows - 1) / 2)
 /** The blank row between the board's last line and Ready to send. */
 const READY_GAP = 1
 
-/**
- * Whether Ready to send floats: on a docked board, while no field is open.
- * A click gives the field's text area the keys without raising `ui.focus`,
- * so nothing would bring one the box covered clear of it: while a field is
- * open, the box keeps to the foot of the view.
- */
-const floats = (props: PaneProps, scene: Scene) =>
-  props.placement === 'dock' && scene.pane.commenting === null
-
 /** Ready to send as a docked board floats it; undefined where it does not float, or with nothing in it. */
 const floatingOf = (props: PaneProps, scene: Scene | undefined): Ready | undefined =>
-  scene !== undefined && floats(props, scene)
+  scene !== undefined && props.placement === 'dock'
     ? readyOf(scene, widthOf(props), readyCap(props.scroll.bodyRows))
     : undefined
 

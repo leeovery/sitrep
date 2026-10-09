@@ -1,51 +1,70 @@
 import { expect, test, tier } from 'claude-code/testing'
-import { CLEAR_AFTER_DROP_MS, PASTED_HERE } from '../hooks/actions'
+import { workPaths } from '../core'
+import { CLEAR_AFTER_DROP_MS, DRAFT, NOT_TAKEN, TAKEN } from '../hooks/answering'
 import { C } from '../hooks/look'
+import { WATCH_MS } from '../hooks/window'
 import { rowsOf } from './drawn'
-import { DOCKED, INLINE, postedId, world } from './world'
+import { kindAsk, SLOW, W1 } from './support'
+import { DOCKED, postedId, PROJECT, ROOT, SESSION, world } from './world'
 
 tier('user')
 
 type World = ReturnType<typeof world>
 
-type Ui = Awaited<ReturnType<World['pane']>>
+type Engine = Parameters<typeof world>[0]
 
 const OUTPUT = "the command's output"
 
-/** What an empty save toasts. */
-const EMPTY = 'Type something first, or cancel.'
+const GO = { wants: 'yes', yes: 'Go', title: 'Give the go for stage 3' }
 
-const EXPORT = {
-  kind: 'do',
-  title: 'Run the export',
-  where: 'In the terminal: bun run export',
+const FRAMES = {
+  wants: 'choice',
+  title: 'Ship round 2, or redraw?',
+  options: ['Ship it', 'Redraw'],
+}
+
+const LIST = {
+  wants: 'words',
+  title: 'Run sitrep list in a shell and paste what it prints',
+  where: 'Any terminal: type sitrep list',
   needs: OUTPUT,
 }
 
-const FRAMES = {
-  kind: 'decide',
-  title: 'Ship round 2, or redraw?',
-  options: ['Ship it', 'Redraw'],
-  needs: 'which frames you would change',
-}
+const FOUR_LINES =
+  'Switchboard\n  sr-k3f9qa  Dashboard redesign (open, 1 waiting)\nSitRep\n  sr-wdsqvn  sitrep'
 
-/** Claude posts an ask, and the board opens it, as it does a new one: its id. */
-const asked = async (w: World, ask: { [key: string]: unknown } = EXPORT) =>
+/** A paste as the engine wraps it in the prompt Lee submits, the line breaks around it with it (live, 2.1.295). */
+const pasted = (text: string, id = '08fd') =>
+  `\n\n<pasted_content id="${id}">\n${text}\n</pasted_content id="${id}">\n`
+
+/** Claude posts an ask, which the board opens as it does a new one: its id. */
+const asked = async (w: World, ask: { [key: string]: unknown }) =>
   postedId(await w.call('ask', ask))
 
-/** Types into the open field's text area, a line break between each line given. */
-const typeLines = async (ui: Ui, id: string, ...lines: string[]) => {
-  for (const [i, line] of lines.entries()) {
-    if (i > 0) {
-      await ui.key({ key: 'return', shift: true, in: `area:${id}` })
-    }
+/** Lee pressing Enter at the prompt with `text` in it, the box holding what it showed. */
+const entered = (
+  w: World,
+  engine: Engine,
+  text: string,
+  extra: {
+    attachments?: readonly { type: 'image' }[]
+    origin?: { kind: 'composer' | 'bridge' | 'task-notification' }
+  } = {},
+) => {
+  w.box.text = text.includes('<pasted_content') ? '[Pasted text #1 +3 lines]' : text
 
-    await ui.key({ key: line, in: `area:${id}` })
-  }
+  return engine.prompt.submit({ text, wait: false, origin: { kind: 'composer' }, ...extra })
 }
 
-/** The board docked on a surface the world's own panes leave out. */
-const paneOn = <S extends 'vscode' | 'mobile'>(engine: Parameters<typeof world>[0], surface: S) =>
+/** Where a reply to an ask of the held work goes. */
+const at = (w: World, item: string) => ({
+  project: w.state.attachment?.project,
+  work: w.state.attachment?.work,
+  item,
+})
+
+/** The board on a surface the world's own panes leave out. */
+const paneOn = (engine: Engine, surface: 'vscode' | 'mobile') =>
   engine.ui.mount({
     plugin: 'sitrep',
     surface,
@@ -54,114 +73,39 @@ const paneOn = <S extends 'vscode' | 'mobile'>(engine: Parameters<typeof world>[
     props: DOCKED,
   })
 
-/** Where a reply to the ask goes: the held work. */
-const at = (w: World, item: string) => ({
-  project: w.state.attachment?.project,
-  work: w.state.attachment?.work,
-  item,
-})
+/** The band's one line, as drawn 100 columns across. */
+const bandRow = async (w: World) => {
+  const band = await w.band()
 
-test('an ask that needs something back hangs it first from its mark, in the colour of an ask', async ($, on) => {
+  return { band, rows: rowsOf(await band.find({ type: 'Box' }), 100) }
+}
+
+/** The board, opened by /sitrep, on the words ask, answering it. */
+const answering = async (w: World) => {
+  await w.begin()
+
+  const id = await asked(w, LIST)
+  const ui = await w.opened()
+
+  await ui.press({ key: `answer:${id}` })
+
+  return { id, ui }
+}
+
+test('an ask wanting a yes offers its yes in its own words, a comment and an ignore', async ($, on) => {
   const w = world($, on)
 
   await w.begin()
 
-  const id = await asked(w)
+  const id = await asked(w, GO)
   const ui = await w.pane()
 
-  expect(rowsOf(await ui.find({ key: `under:${id}:0:0` }))).toEqual([`├ needs: ${OUTPUT}`])
-  expect(rowsOf(await ui.find({ key: `under:${id}:1:0` }))).toEqual([
-    '└ In the terminal: bun run export',
-  ])
-  expect((await ui.find({ type: 'Text', text: `needs: ${OUTPUT}` }))?.props.color).toBe(C.ask)
+  expect(rowsOf(await ui.find({ key: `ask:${id}` }))[1]).toBe(
+    '  [ ✓ Go ] [ ✎ comment ] [ ✕ ignore ]',
+  )
 })
 
-test('inline, what an ask needs shows as its where does: only while the ask is opened', async ($, on) => {
-  const w = world($, on)
-
-  await w.begin()
-
-  const id = await asked(w)
-  const ui = await w.pane('terminal', INLINE)
-
-  expect(await ui.find({ type: 'Text', text: `needs: ${OUTPUT}` })).toBeDefined()
-
-  await ui.press({ key: `pick:${id}` })
-  expect(await ui.find({ type: 'Text', text: `needs: ${OUTPUT}` })).toBeUndefined()
-  expect(await ui.find({ type: 'Text', text: EXPORT.where })).toBeUndefined()
-})
-
-test('the yes of a review, a try or a do that needs something back keeps its words and opens the field for it', async ($, on) => {
-  const w = world($, on)
-
-  await w.begin()
-
-  const ui = await w.pane()
-
-  for (const [kind, label] of [
-    ['review', '✓ approve'],
-    ['try', '✓ it works'],
-    ['do', '✓ done'],
-  ]) {
-    const id = await asked(w, { kind, title: `A ${kind}`, needs: OUTPUT })
-
-    expect(await ui.find({ key: `yes:${id}`, text: label }), kind).toBeDefined()
-    await ui.press({ key: `yes:${id}` })
-    expect(await ui.find({ type: 'Text', text: `${OUTPUT}:` }), kind).toBeDefined()
-    expect(await ui.find({ key: `save:${id}`, text: label }), kind).toBeDefined()
-    expect(await ui.find({ key: `savewith:${id}` }), kind).toBeUndefined()
-    expect(await ui.find({ key: `area:${id}` }), kind).toBeDefined()
-    expect(await ui.find({ type: 'Text', text: /READY TO SEND/ }), kind).toBeUndefined()
-
-    await ui.press({ key: `cancel:${id}` })
-  }
-})
-
-test('saving the field queues the yes with what was typed as its note, shown under the ask', async ($, on) => {
-  const w = world($, on)
-
-  await w.begin()
-
-  const id = await asked(w)
-  const ui = await w.pane()
-
-  await ui.press({ key: `yes:${id}` })
-  await typeLines(ui, id, 'v1.2.3', 'exported 42 rows', 'done in 3s')
-  await ui.press({ key: `save:${id}` })
-
-  expect(w.state.queue).toEqual([
-    { ...at(w, id), verdict: 'yes', note: 'v1.2.3\nexported 42 rows\ndone in 3s' },
-  ])
-  expect(
-    await ui.find({
-      type: 'Text',
-      text: `done, with ${OUTPUT}: “v1.2.3\nexported 42 rows\ndone in 3s”`,
-    }),
-  ).toBeDefined()
-  expect(await ui.find({ key: `area:${id}` })).toBeUndefined()
-})
-
-test('Enter in the field saves the yes too; an empty save is refused, by the button or by Enter', async ($, on) => {
-  const w = world($, on)
-
-  await w.begin()
-
-  const id = await asked(w)
-  const ui = await w.pane()
-
-  await ui.press({ key: `yes:${id}` })
-  await ui.press({ key: `save:${id}` })
-  await ui.key({ key: 'return', in: `area:${id}` })
-  expect(w.toasts.filter(toast => toast === EMPTY)).toHaveLength(2)
-  expect(await ui.find({ type: 'Text', text: /READY TO SEND/ })).toBeUndefined()
-  expect(await ui.find({ type: 'Text', text: `${OUTPUT}:` })).toBeDefined()
-
-  await ui.key({ key: 'v1.2.3', in: `area:${id}` })
-  await ui.key({ key: 'return', in: `area:${id}` })
-  expect(w.state.queue).toEqual([{ ...at(w, id), verdict: 'yes', note: 'v1.2.3' }])
-})
-
-test('each option of a decide that needs something back opens the field, and saving queues that choice with the note', async ($, on) => {
+test('an ask wanting a choice offers each option, a comment and an ignore', async ($, on) => {
   const w = world($, on)
 
   await w.begin()
@@ -169,273 +113,456 @@ test('each option of a decide that needs something back opens the field, and sav
   const id = await asked(w, FRAMES)
   const ui = await w.pane()
 
-  await ui.press({ key: `choose:${id}:1` })
-  expect(await ui.find({ type: 'Text', text: 'which frames you would change:' })).toBeDefined()
-  expect(await ui.find({ key: `save:${id}`, text: 'Redraw' })).toBeDefined()
-  expect(await ui.find({ type: 'Text', text: /READY TO SEND/ })).toBeUndefined()
+  expect(rowsOf(await ui.find({ key: `ask:${id}` }))[1]).toBe(
+    '  [ Ship it ] [ Redraw ] [ ✎ comment ] [ ✕ ignore ]',
+  )
+})
 
-  await typeLines(ui, id, 'Frames 2 and 5')
-  await ui.press({ key: `save:${id}` })
-  expect(w.state.queue).toEqual([
-    { ...at(w, id), verdict: 'choose', option: 'Redraw', note: 'Frames 2 and 5' },
+test('an ask wanting words offers an answer and an ignore, and hangs what its words are first, in amber', async ($, on) => {
+  const w = world($, on)
+
+  await w.begin()
+
+  const id = await asked(w, LIST)
+  const ui = await w.pane()
+
+  expect(rowsOf(await ui.find({ key: `ask:${id}` })).slice(0, 5)).toEqual([
+    '◆ Run sitrep list in a shell and paste what it now',
+    '│ prints',
+    `├ needs: ${OUTPUT}`,
+    '└ Any terminal: type sitrep list',
+    '  [ ✎ Answer ] [ ✕ ignore ]',
   ])
-  expect(
-    await ui.find({
-      type: 'Text',
-      text: '→ Redraw, with which frames you would change: “Frames 2 and 5”',
-    }),
-  ).toBeDefined()
+  expect((await ui.find({ type: 'Text', text: `needs: ${OUTPUT}` }))?.props.color).toBe(C.ask)
 })
 
-test('comment and ignore on an ask that needs something back work as on any other', async ($, on) => {
+test("an ask written by its kind into a work's file draws as the shape it maps to", async ($, on) => {
   const w = world($, on)
+  const { paths } = await w.begin()
 
-  await w.begin()
+  w.writer(paths)(
+    kindAsk('o1', 'review', 'Review round 1'),
+    kindAsk('o2', 'do', 'Run the export', { needs: OUTPUT }),
+  )
+  await w.clock.advance(WATCH_MS)
 
-  const id = await asked(w)
   const ui = await w.pane()
 
-  expect(await ui.find({ key: `comment:${id}`, text: '✎ comment' })).toBeDefined()
-  await ui.press({ key: `comment:${id}` })
-  expect(await ui.find({ type: 'Text', text: /^Comment$/ })).toBeDefined()
-  expect(await ui.find({ key: `save:${id}`, text: 'save comment' })).toBeDefined()
-
-  await ui.key({ key: 'Not until Monday', in: `area:${id}` })
-  await ui.press({ key: `save:${id}` })
-  expect(w.state.queue).toEqual([{ ...at(w, id), verdict: 'comment', note: 'Not until Monday' }])
-
-  await ui.press({ key: `undo:${id}` })
-  await ui.press({ key: `ignore:${id}` })
-  expect(w.state.queue).toEqual([{ ...at(w, id), verdict: 'ignore' }])
-})
-
-test("a review's approve with its comment needs words when the review needs something back", async ($, on) => {
-  const w = world($, on)
-
-  await w.begin()
-
-  const id = await asked(w, { kind: 'review', title: 'Review round 2', needs: 'which frames' })
-  const ui = await w.pane()
-
-  await ui.press({ key: `comment:${id}` })
-  await ui.press({ key: `savewith:${id}` })
-  expect(w.toasts).toContain(EMPTY)
-  expect(await ui.find({ type: 'Text', text: /READY TO SEND/ })).toBeUndefined()
-
-  await ui.key({ key: 'Frame 3', in: `area:${id}` })
-  await ui.press({ key: `savewith:${id}` })
-  expect(w.state.queue).toEqual([{ ...at(w, id), verdict: 'yes', note: 'Frame 3' }])
-})
-
-test("a surface with no text area of the mod's takes what is needed in its own field", async ($, on) => {
-  const w = world($, on)
-
-  await w.begin()
-
-  const id = await asked(w)
-  const ui = await paneOn($, 'vscode')
-
-  await ui.press({ key: `yes:${id}` })
-  expect(await ui.find({ type: 'Text', text: `${OUTPUT}:` })).toBeDefined()
-
-  await ui.input({ key: `field:${id}`, text: 'v1.2.3' })
-  expect(w.state.queue).toEqual([{ ...at(w, id), verdict: 'yes', note: 'v1.2.3' }])
-})
-
-test('a surface with no field to type in shows what is needed, and its answers queue as they would without', async ($, on) => {
-  const w = world($, on)
-
-  await w.begin()
-
-  const id = await asked(w)
-  const ui = await paneOn($, 'mobile')
-
+  expect(await ui.find({ key: 'answer:o2', text: '✎ Answer' })).toBeDefined()
+  expect(await ui.find({ key: 'yes:o2' })).toBeUndefined()
   expect(await ui.find({ type: 'Text', text: `needs: ${OUTPUT}` })).toBeDefined()
-  await ui.press({ key: `yes:${id}` })
-
-  const decide = await asked(w, FRAMES)
-
-  await ui.press({ key: `choose:${decide}:0` })
-  expect(w.state.queue).toEqual([
-    { ...at(w, id), verdict: 'yes' },
-    { ...at(w, decide), verdict: 'choose', option: 'Ship it' },
-  ])
-  expect(await ui.find({ type: 'Text', text: `${OUTPUT}:` })).toBeUndefined()
+  await ui.press({ key: 'pick:o1' })
+  expect(await ui.find({ key: 'yes:o1', text: '✓ Approve' })).toBeDefined()
+  expect(await ui.find({ key: 'comment:o1', text: '✎ comment' })).toBeDefined()
 })
 
-test('the send gives Claude what was needed under its answer, pasted lines fenced and kept', async ($, on) => {
+test('✎ Answer has the next Enter in the prompt answer the ask: it says so under the ask, its buttons gone', async ($, on) => {
+  const w = world($, on)
+  const { id, ui } = await answering(w)
+
+  expect(w.state.answering).toEqual({ ...at(w, id), as: 'answer', title: LIST.title })
+  expect(rowsOf(await ui.find({ key: `ask:${id}` })).slice(2)).toEqual([
+    `├ needs: ${OUTPUT}`,
+    '├ Any terminal: type sitrep list',
+    '└ answering in the prompt…',
+  ])
+  expect(await ui.find({ key: `answer:${id}` })).toBeUndefined()
+})
+
+test('✎ comment has the next Enter comment on the ask', async ($, on) => {
   const w = world($, on)
 
   await w.begin()
 
-  const id = await asked(w)
+  const id = await asked(w, GO)
+  const ui = await w.pane()
+
+  await ui.press({ key: `comment:${id}` })
+  expect(w.state.answering).toEqual({ ...at(w, id), as: 'comment', title: GO.title })
+})
+
+test('with a draft in the prompt, ✎ is refused, and the draft is left as it is', async ($, on) => {
+  const w = world($, on)
+
+  await w.begin()
+
+  const id = await asked(w, LIST)
+  const ui = await w.pane()
+
+  w.box.text = 'half a thought'
+  await ui.press({ key: `answer:${id}` })
+  expect(w.toasts).toContain(DRAFT)
+  expect(w.state.answering ?? null).toBeNull()
+  expect(w.box.text).toBe('half a thought')
+})
+
+test('while answering, the band says only what the next Enter does, pointing at the prompt, and cancel', async ($, on) => {
+  const w = world($, on)
+
+  await answering(w)
+
+  const { band, rows } = await bandRow(w)
+  const says = `✎ Your next Enter answers "${LIST.title}"  ↓`
+
+  expect(rows).toEqual([`${says.padEnd(100 - 'cancel'.length)}cancel`])
+  expect(await band.find({ key: 'band:for-you' })).toBeUndefined()
+  expect(await band.find({ key: 'band:board' })).toBeUndefined()
+})
+
+test('the band clips a long title to keep cancel on its line', async ($, on) => {
+  const w = world($, on)
+
+  await w.begin()
+
+  const id = await asked(w, { wants: 'words', title: 'Run sitrep list '.repeat(8).trim() })
+  const ui = await w.pane()
+
+  await ui.press({ key: `answer:${id}` })
+
+  const { rows } = await bandRow(w)
+
+  expect(rows).toHaveLength(1)
+  expect(rows[0]).toMatch(/^✎ Your next Enter answers "Run sitrep list .*…" {2}↓ +cancel$/)
+  expect([...(rows[0] ?? '')].length).toBeLessThanOrEqual(100)
+})
+
+test('cancel on the band ends it in one press: the counts are back, and the next Enter goes to Claude', async ($, on) => {
+  const w = world($, on)
+  const { id, ui } = await answering(w)
+  const { band } = await bandRow(w)
+
+  await band.press({ key: 'band:cancel-answer' })
+  expect(w.state.answering).toBeNull()
+  expect(await band.find({ key: 'band:for-you' })).toBeDefined()
+  expect(await ui.find({ key: `answer:${id}` })).toBeDefined()
+  expect((await entered(w, $, 'Carry on.')).drop).toBeUndefined()
+  expect(w.prompts.map(each => each.text)).toEqual(['Carry on.'])
+})
+
+test('the next Enter is taken as the answer: queued in Ready to send, nothing to Claude, the box emptied', async ($, on) => {
+  const w = world($, on)
+  const { id, ui } = await answering(w)
+
+  expect(await entered(w, $, 'v1.2.3')).toEqual({ drop: TAKEN.answer })
+  expect(w.prompts).toEqual([])
+  expect(w.toasts).not.toContain(TAKEN.answer)
+  expect(w.state.queue).toEqual([{ ...at(w, id), verdict: 'answer', note: 'v1.2.3' }])
+  expect(w.state.answering).toBeNull()
+  expect(w.box.text).toBe('v1.2.3')
+  await w.clock.advance(CLEAR_AFTER_DROP_MS)
+  expect(w.box.text).toBe('')
+  expect(await ui.find({ type: 'Text', text: /READY TO SEND/ })).toBeDefined()
+})
+
+test('a paste is taken unwrapped, the words typed around it in their place', async ($, on) => {
+  const w = world($, on)
+  const { id } = await answering(w)
+
+  expect(await entered(w, $, `Ran it:${pasted(FOUR_LINES)}Looks right?`)).toEqual({
+    drop: TAKEN.answer,
+  })
+  expect(w.state.queue).toEqual([
+    { ...at(w, id), verdict: 'answer', note: `Ran it:\n${FOUR_LINES}\nLooks right?` },
+  ])
+  await w.clock.advance(CLEAR_AFTER_DROP_MS)
+  expect(w.box.text).toBe('')
+})
+
+test('an empty Enter, or one with something attached, is not taken: a toast, the prompt kept, the mode still on', async ($, on) => {
+  const w = world($, on)
+  const { id } = await answering(w)
+
+  expect(await entered(w, $, '  \n ')).toEqual({ drop: NOT_TAKEN })
+  expect(await entered(w, $, 'See the screenshot', { attachments: [{ type: 'image' }] })).toEqual({
+    drop: NOT_TAKEN,
+  })
+  await w.clock.advance(CLEAR_AFTER_DROP_MS)
+  expect(w.box.text).toBe('See the screenshot')
+  expect(w.toasts).toContain('Write your answer in the prompt first, or cancel it on the band.')
+  expect(w.toasts).toContain(
+    'An answer is words alone: take the attachment out, or cancel answering on the band.',
+  )
+  expect(w.prompts).toEqual([])
+  expect(w.state.queue ?? []).toEqual([])
+  expect(w.state.answering).toMatchObject({ item: id })
+})
+
+test('one Enter only: the prompt after the answer goes to Claude as ever', async ($, on) => {
+  const w = world($, on)
+
+  await answering(w)
+  await entered(w, $, 'v1.2.3')
+  expect((await entered(w, $, 'Carry on.')).drop).toBeUndefined()
+  expect(w.prompts.map(each => each.text)).toEqual(['Carry on.'])
+  expect(w.state.queue).toHaveLength(1)
+})
+
+test("a prompt that is not Lee's own, a background task's, goes to Claude while answering, and the mode stands", async ($, on) => {
+  const w = world($, on)
+  const { id } = await answering(w)
+
+  expect(
+    (await entered(w, $, 'Task done.', { origin: { kind: 'task-notification' } })).drop,
+  ).toBeUndefined()
+  expect(w.prompts.map(each => each.text)).toEqual(['Task done.'])
+  expect(w.state.answering).toMatchObject({ item: id })
+})
+
+test('a comment on an ask whose yes is queued goes with the yes, as its note', async ($, on) => {
+  const w = world($, on)
+
+  await w.begin()
+
+  const id = await asked(w, GO)
   const ui = await w.pane()
 
   await ui.press({ key: `yes:${id}` })
-  await ui.key({ key: 'v1.2.3\n\n  exported 42 rows', in: `area:${id}` })
-  await ui.press({ key: `save:${id}` })
+  expect(rowsOf(await ui.find({ key: `ask:${id}` })).at(-1)).toBe(
+    '└ → Go · not sent yet ↺ undo ✎ comment',
+  )
+  await ui.press({ key: `rewrite:${id}` })
+  expect(w.state.answering).toMatchObject({ item: id, as: 'comment' })
+  expect(rowsOf(await ui.find({ key: `ask:${id}` })).slice(-2)).toEqual([
+    '├ → Go · not sent yet ↺ undo ✎ comment',
+    '└ answering in the prompt…',
+  ])
+  expect(await entered(w, $, 'After the copy pass')).toEqual({ drop: TAKEN.comment })
+  expect(w.state.queue).toEqual([{ ...at(w, id), verdict: 'yes', note: 'After the copy pass' }])
+  expect(rowsOf(await ui.find({ key: `ask:${id}` })).at(-1)).toBe(
+    '└ → Go, with a comment: “After the copy pass” · not sent yet ↺ undo ✎ edit',
+  )
+})
+
+test('a comment on an ask with nothing queued is queued as a comment', async ($, on) => {
+  const w = world($, on)
+
+  await w.begin()
+
+  const id = await asked(w, FRAMES)
+  const ui = await w.pane()
+
+  await ui.press({ key: `comment:${id}` })
+  await entered(w, $, 'Frames 2 and 5 need another pass')
+  expect(w.state.queue).toEqual([
+    { ...at(w, id), verdict: 'comment', note: 'Frames 2 and 5 need another pass' },
+  ])
+})
+
+test('a queued reply of several lines shows its first, how many more, then not sent yet, undo and edit', async ($, on) => {
+  const w = world($, on)
+  const { id, ui } = await answering(w)
+
+  await entered(w, $, pasted(FOUR_LINES))
+  expect(rowsOf(await ui.find({ key: `ask:${id}` })).at(-1)).toBe(
+    '└ “Switchboard” +3 lines · not sent yet ↺ undo ✎ edit',
+  )
+  expect(rowsOf(await ui.find({ key: `readyanswer:${id}` }))).toEqual([
+    '└ “Switchboard” +3 lines ✎ edit',
+  ])
+})
+
+test('✎ edit fills the prompt with the queued words, and the next Enter replaces them', async ($, on) => {
+  const w = world($, on)
+  const { id, ui } = await answering(w)
+
+  await entered(w, $, 'v1.2.3')
+  await w.clock.advance(CLEAR_AFTER_DROP_MS)
+  await ui.press({ key: `rewrite:${id}` })
+  expect(w.box.text).toBe('v1.2.3')
+  expect(w.state.answering).toMatchObject({ item: id, as: 'answer' })
+  expect(await entered(w, $, 'v1.2.4')).toEqual({ drop: TAKEN.answer })
+  expect(w.state.queue).toEqual([{ ...at(w, id), verdict: 'answer', note: 'v1.2.4' }])
+})
+
+test('✎ edit from Ready to send does the same, and is refused while the prompt holds a draft', async ($, on) => {
+  const w = world($, on)
+  const { id, ui } = await answering(w)
+
+  await entered(w, $, 'v1.2.3')
+  await w.clock.advance(CLEAR_AFTER_DROP_MS)
+  w.box.text = 'something else'
+  await ui.press({ key: `readyrewrite:${id}` })
+  expect(w.toasts).toContain(DRAFT)
+  expect(w.state.answering).toBeNull()
+
+  w.box.text = ''
+  await ui.press({ key: `readyrewrite:${id}` })
+  expect(w.box.text).toBe('v1.2.3')
+  expect(w.state.answering).toMatchObject({ item: id, as: 'answer' })
+})
+
+test('one send carries the yes with its comment, the choice and the answer, in one message', async ($, on) => {
+  const w = world($, on)
+
+  await w.begin()
+
+  const go = await asked(w, GO)
+  const frames = await asked(w, FRAMES)
+  const list = await asked(w, LIST)
+  const ui = await w.pane()
+
+  await ui.press({ key: `pick:${go}` })
+  await ui.press({ key: `yes:${go}` })
+  await ui.press({ key: `rewrite:${go}` })
+  await entered(w, $, 'After the copy pass')
+  await w.clock.advance(CLEAR_AFTER_DROP_MS)
+  await ui.press({ key: `pick:${frames}` })
+  await ui.press({ key: `choose:${frames}:1` })
+  await ui.press({ key: `pick:${list}` })
+  await ui.press({ key: `answer:${list}` })
+  await entered(w, $, `Ran it:${pasted(FOUR_LINES)}`)
+  await w.clock.advance(CLEAR_AFTER_DROP_MS)
   await ui.press({ key: 'send' })
 
-  expect(w.prompts.at(-1)?.text).toBe(
+  expect(w.prompts.map(each => each.text)).toEqual([
     [
       'From the board:',
-      `- Run the export → done, with ${OUTPUT}:`,
+      '- Give the go for stage 3 → Go, with a comment: “After the copy pass”',
+      '- Ship round 2, or redraw? → Redraw',
+      `- ${LIST.title} → ${OUTPUT}:`,
       '  ```',
-      '  v1.2.3',
-      '  ',
-      '    exported 42 rows',
+      '  Ran it:',
+      '  Switchboard',
+      '    sr-k3f9qa  Dashboard redesign (open, 1 waiting)',
+      '  SitRep',
+      '    sr-wdsqvn  sitrep',
       '  ```',
     ].join('\n'),
-  )
-  expect(w.state.board?.asks[0]?.state).toBe('closed')
+  ])
+  expect(w.state.board?.asks.map(each => each.state)).toEqual(['closed', 'closed', 'closed'])
 })
 
-const FOUR_LINES = 'exported 42 rows to out.csv\n  skipped 3 duplicates\ndone in 1.8s\nexit 0'
+test(
+  'the mode ends once its ask closes: the band shows the counts, and the next Enter goes to Claude',
+  SLOW,
+  async ($, on) => {
+    const w = world($, on)
+    const { id } = await answering(w)
 
-/** A paste as the engine wraps it in the prompt Lee submits (live, 2.1.295). */
-const pasted = (text: string, id = '08fd') =>
-  `\n\n<pasted_content id="${id}">\n${text}\n</pasted_content id="${id}">\n`
+    await w.call('resolve', { item: id, reason: 'Ran it myself' })
+    expect(w.state.answering).toBeNull()
 
-/** Lee pressing Enter at the prompt, with the box holding `text`. */
-const entered = (
-  w: World,
-  engine: Parameters<typeof world>[0],
-  text: string,
-  extra: {
-    attachments?: readonly { type: 'image' }[]
-    origin?: { kind: 'composer' | 'bridge' }
-  } = {},
-) => {
-  w.box.text = '[Pasted text #1 +3 lines]'
+    const { band } = await bandRow(w)
 
-  return engine.prompt.submit({ text, wait: false, origin: { kind: 'composer' }, ...extra })
-}
+    expect(await band.find({ key: 'band:for-you' })).toBeDefined()
+    expect((await entered(w, $, 'Carry on.')).drop).toBeUndefined()
+    expect(w.prompts).toHaveLength(1)
+  },
+)
 
-/** The board opened by /sitrep on an ask that needs something back, its field open for the yes. */
-const fieldOpen = async (w: World) => {
+test(
+  'the mode ends once its ask closes in another window, and does not come back when it reopens',
+  SLOW,
+  async ($, on) => {
+    const w = world($, on)
+    const { id } = await answering(w)
+    const paths = workPaths(ROOT, PROJECT.key, w.state.attachment?.work ?? '')
+    const other = w.writer(paths)
+
+    other({ type: 'resolve', item: id })
+    await w.clock.advance(WATCH_MS)
+    expect(w.state.answering).toBeNull()
+
+    other({ type: 'reopen', item: id })
+    await w.clock.advance(WATCH_MS)
+    expect(w.state.answering).toBeNull()
+  },
+)
+
+test('a send carrying the reply its comment would go with ends the mode: the band shows the counts, and the next Enter goes to Claude', async ($, on) => {
+  const w = world($, on)
+
   await w.begin()
 
-  const id = await asked(w)
-  const ui = await w.opened()
+  const id = await asked(w, GO)
+  const ui = await w.pane()
 
   await ui.press({ key: `yes:${id}` })
+  await ui.press({ key: `rewrite:${id}` })
 
-  return { id, ui }
-}
+  const held = w.holdPrompts()
 
-test('a paste alone, entered at the prompt while a field is open, goes into the field under what it holds, not to Claude', async ($, on) => {
-  const w = world($, on)
-  const { id, ui } = await fieldOpen(w)
+  await ui.press({ key: 'send' })
+  await held.arrived
 
-  await ui.key({ key: 'Ran it:', in: `area:${id}` })
+  const { band } = await bandRow(w)
 
-  expect(await entered(w, $, pasted(FOUR_LINES))).toEqual({ drop: PASTED_HERE })
-  expect(w.prompts).toEqual([])
-  expect(w.toasts, 'the drop says it once, in the transcript').not.toContain(PASTED_HERE)
-  expect(w.box.text).toBe('[Pasted text #1 +3 lines]')
-  await w.clock.advance(CLEAR_AFTER_DROP_MS)
-  expect(w.box.text).toBe('')
-  expect((await ui.find({ key: `area:${id}` }))?.props.props).toMatchObject({
-    filled: { text: `Ran it:\n${FOUR_LINES}`, times: 1 },
-  })
+  expect(await band.find({ key: 'band:for-you' })).toBeDefined()
 
-  await ui.press({ key: `save:${id}` })
-  expect(w.state.queue).toEqual([{ ...at(w, id), verdict: 'yes', note: `Ran it:\n${FOUR_LINES}` }])
+  const typed = entered(w, $, 'Carry on.')
+
+  held.end()
+  expect((await typed).drop).toBeUndefined()
+  expect(w.prompts.map(each => each.text)).toEqual([
+    'From the board:\n- Give the go for stage 3 → Go',
+    'Carry on.',
+  ])
+  expect(w.state.answering).toBeNull()
 })
 
-test('two pastes and nothing else go into the field together, a line apart', async ($, on) => {
+test('the mode ends when the window takes up another work, or the session ends', async ($, on) => {
   const w = world($, on)
-  const { id, ui } = await fieldOpen(w)
+  const { ui } = await answering(w)
 
-  await entered(w, $, `${pasted('first', 'a1')}\n${pasted('second', 'b2')}`)
-  await ui.press({ key: `save:${id}` })
-  expect(w.state.queue).toEqual([{ ...at(w, id), verdict: 'yes', note: 'first\nsecond' }])
+  await w.call('start', { name: 'Another', summary: 'Another one', project: PROJECT.name })
+  expect(w.state.answering).toBeNull()
+
+  const id = await asked(w, LIST)
+
+  await ui.press({ key: `answer:${id}` })
+  expect(w.state.answering).toMatchObject({ item: id })
+  await $.session.end({ reason: 'clear', sessionId: W1, resume: { id: W1 } })
+  expect(w.state.answering).toBeNull()
 })
 
-test('while a field is open, a typed message, words around a paste, an attachment or a prompt from elsewhere go to Claude', async ($, on) => {
+test('a reload keeps the mode: the band still shows it, and the next Enter is still the answer', async ($, on) => {
   const w = world($, on)
-  const { ui } = await fieldOpen(w)
+  const { id } = await answering(w)
 
-  for (const [text, extra] of [
-    ['Carry on.', {}],
-    [`Look at this:${pasted(FOUR_LINES)}`, {}],
-    [`${pasted(FOUR_LINES)}what now?`, {}],
-    [pasted(FOUR_LINES), { attachments: [{ type: 'image' as const }] }],
-    [pasted(FOUR_LINES), { origin: { kind: 'bridge' as const } }],
-    ['<pasted_content id="a1">\nhalf a tag\n</pasted_content id="b2">', {}],
-  ] as const) {
-    expect((await entered(w, $, text, extra)).drop, text).toBeUndefined()
-  }
+  await $.session.start(SESSION)
 
-  expect(w.prompts).toHaveLength(6)
-  await w.clock.advance(CLEAR_AFTER_DROP_MS)
-  expect(w.box.text).toBe('[Pasted text #1 +3 lines]')
-  expect(w.toasts).not.toContain(PASTED_HERE)
-  expect(await ui.find({ type: 'Text', text: `${OUTPUT}:` })).toBeDefined()
+  const { rows } = await bandRow(w)
+
+  expect(rows[0]).toMatch(/^✎ Your next Enter answers/)
+  expect(await entered(w, $, 'v1.2.3')).toEqual({ drop: TAKEN.answer })
+  expect(w.state.queue).toEqual([{ ...at(w, id), verdict: 'answer', note: 'v1.2.3' }])
 })
 
-test('with no field open, a paste goes to Claude', async ($, on) => {
+test("in Claude's app, ✎ answers too, the app's Enter taken as the answer; its box out of reach, nothing offers to edit", async ($, on) => {
   const w = world($, on)
 
   await w.begin()
-  await asked(w)
-  await w.opened()
-  expect((await entered(w, $, pasted(FOUR_LINES))).drop).toBeUndefined()
-  expect(w.prompts).toHaveLength(1)
-})
 
-test('with the board closed on an open field, a paste goes to Claude', async ($, on) => {
-  const w = world($, on)
-  const { id } = await fieldOpen(w)
+  const id = await asked(w, LIST)
+  const ui = await paneOn($, 'mobile')
 
-  await (await w.band()).press({ key: 'band:board' })
-  expect(w.state.pane?.commenting?.item).toBe(id)
-  expect(w.state.pane?.isOpen).toBe(false)
-  expect((await entered(w, $, pasted(FOUR_LINES))).drop).toBeUndefined()
-  expect(w.prompts).toHaveLength(1)
-})
-
-test('the take button takes a paste the prompt box holds as text, under what the field holds, and empties the box', async ($, on) => {
-  const w = world($, on)
-  const { id, ui } = await fieldOpen(w)
-
-  await ui.key({ key: 'Ran it:', in: `area:${id}` })
-  w.box.text = 'v1.2.3\nexit 0'
-  await ui.press({ key: `take:${id}` })
-  expect(w.box.text).toBe('')
-  expect((await ui.find({ key: `area:${id}` }))?.props.props).toMatchObject({
-    filled: { text: 'Ran it:\nv1.2.3\nexit 0', times: 1 },
+  await ui.press({ key: `answer:${id}` })
+  expect(await entered(w, $, 'v1.2.3', { origin: { kind: 'bridge' } })).toEqual({
+    drop: TAKEN.answer,
   })
+  expect(w.state.queue).toEqual([{ ...at(w, id), verdict: 'answer', note: 'v1.2.3' }])
+  expect(await ui.find({ key: `rewrite:${id}` })).toBeUndefined()
 
-  await ui.press({ key: `save:${id}` })
-  expect(w.state.queue).toEqual([{ ...at(w, id), verdict: 'yes', note: 'Ran it:\nv1.2.3\nexit 0' }])
+  const go = await asked(w, GO)
+
+  await ui.press({ key: `yes:${go}` })
+  expect(await ui.find({ key: `rewrite:${go}`, text: '✎ comment' })).toBeDefined()
 })
 
-test('the take button refuses an empty box, and a paste the box folded away, which Enter sends instead', async ($, on) => {
+test('VS Code, whose prompts arrive some way unproven, offers nothing to write: words asks only ignore there', async ($, on) => {
   const w = world($, on)
-  const { id, ui } = await fieldOpen(w)
 
-  await ui.press({ key: `take:${id}` })
-  expect(w.toasts).toContain('Paste into the prompt first.')
+  await w.begin()
 
-  w.box.text = 'see [Pasted text #2 +7 lines]'
-  await ui.press({ key: `take:${id}` })
-  expect(w.toasts).toContain('Press Enter in the prompt to send the paste here.')
-  expect(w.box.text).toBe('see [Pasted text #2 +7 lines]')
+  const id = await asked(w, LIST)
+  const go = await asked(w, GO)
+  const ui = await paneOn($, 'vscode')
 
-  await ui.press({ key: `save:${id}` })
-  expect(await ui.find({ type: 'Text', text: /READY TO SEND/ })).toBeUndefined()
-})
-
-test('the field says how a paste gets in', async ($, on) => {
-  const w = world($, on)
-  const { ui } = await fieldOpen(w)
-
-  expect(
-    await ui.find({
-      type: 'Text',
-      text: 'Paste into the prompt and press Enter there: it comes here, not to Claude.',
-    }),
-  ).toBeDefined()
-  expect(await ui.find({ type: 'Button', text: "⤓ take what's in the prompt" })).toBeDefined()
+  await ui.press({ key: `pick:${id}` })
+  expect(await ui.find({ key: `answer:${id}` })).toBeUndefined()
+  expect(await ui.find({ key: `ignore:${id}` })).toBeDefined()
+  await ui.press({ key: `pick:${go}` })
+  expect(await ui.find({ key: `comment:${go}` })).toBeUndefined()
+  await ui.press({ key: `yes:${go}` })
+  expect(await ui.find({ key: `rewrite:${go}` })).toBeUndefined()
 })

@@ -22,8 +22,8 @@ import {
   type WorkSummary,
 } from '../core'
 
-/** The JSON's version. */
-const OUTPUT = 1
+/** The JSON's version, by command: `board`'s moved to 2 as its asks came to say what they want back, in place of their kind. */
+const OUTPUT = { list: 1, board: 2 } as const
 
 /** What `list` gives: the project the CLI runs in, if it runs in one, and the projects listed. */
 export type Listing = { here?: Project; projects: ProjectSummary[] }
@@ -103,14 +103,16 @@ const projectJson = (project: ProjectSummary) => ({
 
 /** `list --json`: the project the CLI runs in, by its key, else null, and the projects as `listing` gives them. */
 export const listJson = ({ here, projects }: Listing) =>
-  json({ v: OUTPUT, here: here?.key ?? null, projects: projects.map(projectJson) })
+  json({ v: OUTPUT.list, here: here?.key ?? null, projects: projects.map(projectJson) })
 
 const askJson = (ask: Ask) => ({
   id: ask.id,
-  kind: ask.kind,
+  wants: ask.wants,
+  yes: ask.wants === 'yes' ? (ask.yes ?? null) : null,
   title: ask.title,
   where: ask.where ?? null,
   options: ask.options ?? [],
+  needs: ask.needs ?? null,
   ref: ask.ref ?? null,
   state: ask.state,
   at: ask.at,
@@ -139,7 +141,7 @@ export const boardJson = (project: string, work: Work) => {
   const { log, parkedItems, ...summary } = brief(work)
 
   return json({
-    v: OUTPUT,
+    v: OUTPUT.board,
     project: { key: project, name: work.project },
     work: workJson(summary),
     asks: work.asks.filter(isOpen).map(askJson),

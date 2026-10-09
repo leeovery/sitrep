@@ -11,8 +11,11 @@ const GAP = 2
 const flagWord = (name: string, flag: Flag) =>
   flag.form === 'switch' ? `--${name}` : `--${name} ${flag.value}`
 
-const flagUsage = ([name, flag]: [string, Flag]) =>
-  `[${flagWord(name, flag)}]${flag.form === 'many' ? '...' : ''}`
+const flagUsage = ([name, flag]: [string, Flag]) => {
+  const word = flagWord(name, flag)
+
+  return `${flag.isNeeded ? word : `[${word}]`}${flag.form === 'many' ? '...' : ''}`
+}
 
 /** A command's usage line; in the brief, without the flag every command on a work takes. */
 const usageOf = ({ name, grammar }: Command, isBrief = false) =>

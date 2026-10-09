@@ -3,8 +3,12 @@
  * each a way into the board, and the board's own show or hide. Below 64
  * columns the words drop and the counts stay. For a few seconds after the
  * window takes in replies sent from another work's board, it says so.
+ *
+ * While Lee answers an ask in the prompt, the band says only that, the
+ * whole time, with the way out of it: the next Enter answers that ask.
  */
-import { C, counted, GLYPH } from '../look'
+import { answeringIn, type Answering } from '../answering'
+import { C, clip, counted, GLYPH } from '../look'
 import { BAND } from '../pane'
 import { waitingElsewhere } from '../places'
 import { countMark, type Scene } from '../scene'
@@ -16,7 +20,36 @@ const NARROW = 64
 /** Every press on the band is answered by the `ui.press` hook, inside the press itself. */
 const answeredByTheHook = () => undefined
 
-export const drawBand = (els: Els, width: number, scene: Scene) => {
+/** What the next Enter does, by what Lee is writing. */
+const NEXT_ENTER = { answer: 'answers', comment: 'comments on' } as const
+
+const CANCEL = 'cancel'
+
+/** The cells the answering line keeps beside the ask's title: its words around it, the arrow down to the prompt, the gap, and cancel. */
+const answeringCells = (verb: string) =>
+  `✎ Your next Enter ${verb} ""  ↓`.length + 2 + CANCEL.length
+
+/** While Lee answers an ask in the prompt: what the next Enter does, pointing down at the prompt, and cancel at the right. */
+const drawAnswering = (els: Els, width: number, { answering }: Answering) => {
+  const { Box, Text, Button } = els
+  const verb = NEXT_ENTER[answering.as]
+  const title = clip(answering.title, Math.max(8, width - answeringCells(verb)))
+
+  return (
+    <Box flexDirection="row" columnGap={2} width={width}>
+      <Box flexGrow={1} flexShrink={1}>
+        <Text wrap="truncate-end">
+          <Text color={C.ask}>✎</Text>
+          {` Your next Enter ${verb} "${title}"  ↓`}
+        </Text>
+      </Box>
+      <Button key={BAND.cancelAnswer} plain label={CANCEL} onPress={answeredByTheHook} />
+    </Box>
+  )
+}
+
+/** The counts, each a way into the board, and the board's own show or hide. */
+const drawCounts = (els: Els, width: number, scene: Scene) => {
   const { Box, Text, Button } = els
   const { work, pane, flash } = scene
   const isNarrow = width < NARROW
@@ -75,4 +108,12 @@ export const drawBand = (els: Els, width: number, scene: Scene) => {
       />
     </Box>
   )
+}
+
+export const drawBand = (els: Els, width: number, scene: Scene) => {
+  const answering = answeringIn(scene)
+
+  return answering === undefined
+    ? drawCounts(els, width, scene)
+    : drawAnswering(els, width, answering)
 }

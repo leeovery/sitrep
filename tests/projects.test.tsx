@@ -7,7 +7,7 @@ import {
   type ProjectFile,
   type WorkMeta,
 } from '../core'
-import { ask, META, MIN, note, T0, W1, W2, W3 } from './support'
+import { META, MIN, note, T0, W1, W2, W3, yesAsk } from './support'
 import { DASHBOARD, HOME, PROJECT, REPO, ROOT, SESSION, startedId, world } from './world'
 
 tier('user')
@@ -246,8 +246,8 @@ const threeProjects = (w: World) => {
   w.project('sitrep', sitrep)
   w.project(PROJECT.key, switchboard)
   w.elsewhere(meta('sr-wdsqvn', 'sitrep', 'SitRep'), 'sitrep').write(
-    ask('k1', 'review', 'Review the plan'),
-    ask('k2', 'do', 'Try the board'),
+    yesAsk('k1', 'Review the plan'),
+    yesAsk('k2', 'Try the board', 'Done'),
   )
   w.elsewhere(meta('sr-v1pwm9', 'Milestone 7 stage 1', 'Switchboard', W3)).beat()
   w.elsewhere(meta('sr-eeeeee', 'Onboarding', 'goosemates'), 'goosemates-1a2b3c4d').write(

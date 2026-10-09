@@ -8,7 +8,8 @@
  * the work's fold stays current in `$.state` for the board to draw.
  *
  * Lee sees it on the board pane and the band above the prompt, answers its
- * asks there, and sends the replies as Lee's own message, one message in
+ * asks there, writing words in the prompt box itself, which the board takes
+ * as the answer, and sends the replies as Lee's own message, one message in
  * flight at a time, written down once Claude Code takes it. The board also
  * reads the works around the held one: its project's, and every
  * project's, each a view of its own, where Lee answers other sessions' asks
@@ -26,7 +27,8 @@
  */
 import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register } from 'claude-code'
-import { actionsOf, heardTyping, PASTED_HERE, tookPaste } from './actions'
+import { actionsOf } from './actions'
+import { captured } from './answering'
 import { lookAround, lookEvery } from './around'
 import { heardTurn, isBoardMessage, takeUpDelivery, wentQuiet } from './deliver'
 import { drawBand } from './draw/band'
@@ -58,9 +60,8 @@ const pane = atom({ plugin: 'sitrep', key: 'pane' } as const, {
   place: null,
   view: 'board',
   selected: null,
-  commenting: null,
 })
-const draft = atom({ plugin: 'sitrep', key: 'draft' } as const, '')
+const answering = atom({ plugin: 'sitrep', key: 'answering' } as const, null)
 const pulse = atom({ plugin: 'sitrep', key: 'pulse' } as const, { asks: [], frames: 0 })
 const flash = atom({ plugin: 'sitrep', key: 'flash' } as const, 0)
 const tick = atom({ plugin: 'sitrep', key: 'tick' } as const, 0)
@@ -99,6 +100,7 @@ const hostOf = ($: EngineInterface): Host => ({
   prompt: {
     submit: text => $.prompt.submit({ text, asUser: true }),
     read: async () => (await $.prompt.read()).text,
+    fill: text => $.prompt.fill({ text, mode: 'replace' }),
     clear: () => $.prompt.fill({ text: '', mode: 'replace' }),
   },
   // Each slot spelled out: validate reads every atom's reads and writes off this
@@ -149,10 +151,10 @@ const hostOf = ($: EngineInterface): Host => ({
       write: value => update($, pane, () => value),
       update: change => update($, pane, change),
     },
-    draft: {
-      read: () => read($, draft),
-      write: value => update($, draft, () => value),
-      update: change => update($, draft, change),
+    answering: {
+      read: () => read($, answering),
+      write: value => update($, answering, () => value),
+      update: change => update($, answering, change),
     },
     pulse: {
       read: () => read($, pulse),
@@ -247,9 +249,11 @@ export const register: Register = on => {
     }
 
     const host = hostOf($)
+    // A prompt taken as an ask's answer goes no further, so it takes no board context either.
+    const taken = await captured(host, e)
 
-    if (await tookPaste(host, e)) {
-      return { drop: PASTED_HERE }
+    if (taken !== undefined) {
+      return { drop: taken }
     }
 
     const change = await serially(() => boardChange(host))
@@ -311,12 +315,6 @@ export const register: Register = on => {
 
     return closed
   }).catch(($, e, next) => next(e))
-
-  on('ui.message', async ($, e, next) => {
-    await heardTyping(hostOf($), e.element, e.data)
-
-    return next(e)
-  })
 
   on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {
     const scene = e.props.hasSurvey ? undefined : await sceneOf(hostOf($))

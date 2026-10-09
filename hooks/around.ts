@@ -6,6 +6,10 @@
  * other work it draws: the session it looks at, and those Lee's replies wait
  * for or went to.
  *
+ * Whatever the board shows, the work of the ask Lee is answering in the
+ * prompt is read in full too, so the answering mode ends once that ask can
+ * no longer take the answer.
+ *
  * Each work is read through a reader of its own, so only a file that changed
  * is read again. What drawing needs goes in `$.state` as plain data, put
  * only when it changed; the held work itself stays the watch's.
@@ -13,6 +17,7 @@
 import type { Timer } from 'claude-code'
 import { brief, foldWork, isCurrent, isWorkId, workPaths, worksDir } from '../core'
 import type {
+  SitrepAnswering,
   SitrepAttachment,
   SitrepOther,
   SitrepPane,
@@ -21,6 +26,7 @@ import type {
   SitrepSent,
   SitrepWorkRef,
 } from '../types'
+import { settleAnswering } from './answering'
 import { boardOf } from './board'
 import { logFailure, rootFor, type Host, type Slot } from './host'
 import { projectKeys } from './projects'
@@ -79,16 +85,21 @@ export const worksIn = async (
   return works.filter(work => work !== undefined)
 }
 
-const scopeOf = (
-  held: SitrepAttachment,
-  pane: SitrepPane,
-  queue: readonly SitrepQueued[],
-  sent: readonly SitrepSent[],
-): Scope => {
+/** What the window has to do with other works: replies waiting for them or sent to them, and the ask Lee is answering in the prompt. */
+type Around = {
+  queue: readonly SitrepQueued[]
+  sent: readonly SitrepSent[]
+  answering: SitrepAnswering | null
+}
+
+const scopeOf = (held: SitrepAttachment, pane: SitrepPane, around: Around): Scope => {
   const { place } = pane
+  const answered = around.answering === null ? [] : [around.answering]
+  const others = (refs: readonly SitrepWorkRef[]) =>
+    destinations(refs).filter(each => each.work !== held.work)
 
   if (!pane.isOpen) {
-    return { isAll: false, projects: [held.project], full: [] }
+    return { isAll: false, projects: [held.project], full: others(answered) }
   }
 
   const looked = place?.level === 'session' ? [place] : []
@@ -101,7 +112,7 @@ const scopeOf = (
         ...(place === null || place.level === 'all' ? [] : [place.project]),
       ]),
     ],
-    full: destinations([...looked, ...queue, ...sent]).filter(each => each.work !== held.work),
+    full: others([...looked, ...around.queue, ...around.sent, ...answered]),
   }
 }
 
@@ -200,19 +211,21 @@ const look = async (host: Host) => {
     return
   }
 
-  const [pane, queue, sent, root, now] = await Promise.all([
+  const [pane, queue, sent, answering, root, now] = await Promise.all([
     host.state.pane.read(),
     host.state.queue.read(),
     host.state.sent.read(),
+    host.state.answering.read(),
     rootFor(host),
     host.clock.now(),
   ])
-  const scope = scopeOf(held, pane, queue, sent)
+  const scope = scopeOf(held, pane, { queue, sent, answering })
   const { keys, read } = await readScope(host, root, held.work, scope, now)
 
   await put(host.state.projects, 'projects', projectsOf(held, keys, read, now))
   await put(host.state.others, 'others', othersOf(scope, read))
   await settleSent(host, read, now)
+  await settleAnswering(host)
   prune(root, read)
 }
 

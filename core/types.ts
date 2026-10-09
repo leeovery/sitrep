@@ -3,14 +3,21 @@
  * what a piece of work folds to once every writer's lines are read together.
  */
 
-/** What an ask wants of Lee. It chooses the ask's first button and is never shown as a word. */
+/**
+ * What an ask wants back from Lee: a yes (a go, an approval, "it works"),
+ * one of its options, or words (an answer, a command's output). It chooses
+ * the ask's buttons and is never shown as a word.
+ */
+export type Wants = 'yes' | 'choice' | 'words'
+
+/** What an ask said it was before asks said what they want back: lines written so still read, each as the shape it maps to. */
 export type AskKind = 'review' | 'decide' | 'try' | 'do'
 
 /**
- * Lee's answer: a yes (approve, it works, done), an option, a comment (an
- * answer, on a decide), an ignore, or a pick-up of a parked item.
+ * Lee's answer: a yes, an option, words answering an ask that wants them,
+ * a comment, an ignore, or a pick-up of a parked item.
  */
-export type Verdict = 'yes' | 'choose' | 'comment' | 'ignore' | 'pickup'
+export type Verdict = 'yes' | 'choose' | 'answer' | 'comment' | 'ignore' | 'pickup'
 
 /**
  * Where a reply stands: Claude has it; it goes in when its work's window
@@ -30,14 +37,20 @@ export type StatusBody = {
 export type AskBody = {
   type: 'ask'
   id: string
-  kind: AskKind
+  wants: Wants
+  /** A yes ask's button: the verb Lee gives, in Claude's words ("Go", "Approve"). */
+  yes?: string
   title: string
   where?: string
+  /** A choice ask's options. */
   options?: string[]
-  /** What Lee's answer must carry back, in Claude's words: "the command's output". */
+  /** What the words of a words ask are, in Claude's words: "the command's output". */
   needs?: string
   ref?: string
 }
+
+/** An ask's line as written before asks said what they want back: by its kind. */
+export type KindAskBody = Omit<AskBody, 'wants' | 'yes'> & { kind: AskKind }
 
 export type NoteBody = {
   type: 'note'
@@ -57,7 +70,8 @@ export type ParkBody = {
 
 /** The fields an edit may change; which of them apply depends on the item's type. */
 export type Changes = {
-  kind?: AskKind
+  wants?: Wants
+  yes?: string
   title?: string
   where?: string
   options?: string[]
@@ -70,14 +84,20 @@ export type Changes = {
 
 /** The fields an edit changes, by the type of item. */
 export const EDITABLE: Record<Item['type'], readonly (keyof Changes)[]> = {
-  ask: ['kind', 'title', 'where', 'options', 'needs', 'ref'],
+  ask: ['wants', 'yes', 'title', 'where', 'options', 'needs', 'ref'],
   note: ['text', 'detail', 'ref'],
   park: ['title', 'where', 'ref'],
 }
 
 export type ResolveBody = { type: 'resolve'; item: string; reason?: string }
 export type ReopenBody = { type: 'reopen'; item: string; reason?: string }
-export type EditBody = { type: 'edit'; item: string; changes: Changes; reason?: string }
+/** An edit's changes as a line holds them: one written before asks said what they want back may change an ask's kind. */
+export type EditBody = {
+  type: 'edit'
+  item: string
+  changes: Changes & { kind?: AskKind }
+  reason?: string
+}
 
 export type ReplyBody = {
   type: 'reply'
@@ -103,6 +123,7 @@ export type UnfinishBody = { type: 'unfinish' }
 export type Body =
   | StatusBody
   | AskBody
+  | KindAskBody
   | NoteBody
   | ParkBody
   | ResolveBody
@@ -160,7 +181,11 @@ export type AskState = 'waiting' | 'replied' | 'closed' | 'ignored'
 
 export type Ask = Posted & {
   type: 'ask'
-  kind: AskKind
+  wants: Wants
+  /** The yes button's words; on an ask read from its kind, the words its yes was given in. */
+  yes?: string
+  /** The kind of an ask read from it, as its line or an edit written before asks said what they want back gave it: its replies keep the meaning they had. */
+  kind?: AskKind
   title: string
   where?: string
   options?: string[]

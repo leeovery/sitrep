@@ -17,11 +17,12 @@ import {
   type Verdict,
 } from '../core'
 import {
-  ask,
   beat,
+  choiceAsk,
   delivered,
   file,
   fold,
+  kindAsk,
   MIN,
   park,
   reopen,
@@ -32,21 +33,27 @@ import {
   T0,
   W1,
   W2,
+  wordsAsk,
+  yesAsk,
   type Line,
 } from './support'
 
 /** When the folds below look: an hour in. */
 const NOW = T0 + 60 * MIN
 
-const REVIEW = ask('k1', 'review', 'Review Sessions & Runway, round 1')
-const DECIDE = ask('k2', 'decide', 'Keep the ledger 400 days, or forever?', ['400 days', 'Forever'])
-const TRY = ask('k3', 'try', 'Try signing in on the iPad')
-const DO = ask('k4', 'do', 'Run the production apply')
+const REVIEW = yesAsk('k1', 'Review Sessions & Runway, round 1', 'Approve')
+const DECIDE = choiceAsk('k2', 'Keep the ledger 400 days, or forever?', ['400 days', 'Forever'])
+const TRY = yesAsk('k3', 'Try signing in on the iPad', 'It works')
+const DO = yesAsk('k4', 'Run the production apply', 'Done')
 const PARKED = park('p1', 'A tmux indicator across sessions')
 
 const POSTED: Line[] = [REVIEW, DECIDE, TRY, DO, PARKED].map(body => [T0, body])
 
-const IDS: Record<AskKind, string> = { review: 'k1', decide: 'k2', try: 'k3', do: 'k4' }
+/** An ask wanting words, and one wanting a yes, for the shapes' own rules. */
+const WORDS = wordsAsk('k5', 'Run sitrep list and paste what it prints', "the command's output")
+const GO = yesAsk('k6', 'Give the go for stage 3', 'Go')
+
+const SHAPED: Line[] = [WORDS, GO, DECIDE].map(body => [T0, body])
 
 /** A reply in this window's own file, delivered with it, as the mod writes one after Claude takes it. */
 const sent = (at: number, id: string, item: string, verdict: Verdict, extra = {}): Line[] => [
@@ -54,8 +61,63 @@ const sent = (at: number, id: string, item: string, verdict: Verdict, extra = {}
   [at, delivered(id)],
 ]
 
-/** Every kind of ask, and the replies it takes, with where each leaves it once delivered. */
-const EFFECTS: Array<[AskKind, Verdict, { option?: string; note?: string }, AskState]> = [
+/** Every shape of ask, by an ask of it, and the replies it takes, with where each leaves it once delivered. */
+const EFFECTS: Array<[string, Verdict, { option?: string; note?: string }, AskState]> = [
+  ['k6', 'yes', {}, 'closed'],
+  ['k6', 'yes', { note: 'After the copy pass' }, 'closed'],
+  ['k6', 'comment', { note: 'Hold it until Monday' }, 'replied'],
+  ['k6', 'ignore', {}, 'ignored'],
+  ['k2', 'choose', { option: 'Forever' }, 'closed'],
+  ['k2', 'choose', { option: 'Forever', note: 'Storage is cheap' }, 'closed'],
+  ['k2', 'comment', { note: 'Two years, then archive' }, 'replied'],
+  ['k2', 'ignore', {}, 'ignored'],
+  ['k5', 'answer', { note: 'exported 42 rows' }, 'closed'],
+  ['k5', 'ignore', {}, 'ignored'],
+]
+
+const SHAPES: Record<string, string> = { k2: 'choice', k5: 'words', k6: 'yes' }
+
+for (const [id, verdict, extra, after] of EFFECTS) {
+  const how = `${verdict}${extra.note === undefined ? '' : ' with words'}`
+
+  test(`a delivered ${how} on an ask wanting ${SHAPES[id]} leaves it ${after}`, () => {
+    const work = fold({
+      logs: { [W1]: file(...SHAPED, ...sent(T0 + MIN, 'r1', id, verdict, extra)) },
+    })
+    const answered = work.asks.find(each => each.id === id)
+
+    expect(answered?.state).toBe(after)
+    expect(answered?.answer?.id).toBe('r1')
+    expect(answered?.closedAt).toBe(after === 'replied' ? undefined : T0 + MIN)
+    expect(work.waiting).toBe(2)
+  })
+}
+
+/** Asks as written before asks said what they want back, by their kinds, one needing something back. */
+const KINDS: Record<AskKind, Body> = {
+  review: kindAsk('o1', 'review', 'Review Sessions & Runway, round 1'),
+  decide: kindAsk('o2', 'decide', 'Keep the ledger 400 days, or forever?', {
+    options: ['400 days', 'Forever'],
+  }),
+  try: kindAsk('o3', 'try', 'Try signing in on the iPad'),
+  do: kindAsk('o4', 'do', 'Run the production apply'),
+}
+const NEEDING = kindAsk('o5', 'do', 'Run the export', { needs: "the command's output" })
+
+const OLD: Line[] = [...Object.values(KINDS), NEEDING].map(body => [T0, body])
+
+const OLD_IDS: Record<AskKind | 'needs', string> = {
+  review: 'o1',
+  decide: 'o2',
+  try: 'o3',
+  do: 'o4',
+  needs: 'o5',
+}
+
+/** Every kind of ask once written, and the replies written to it then, with where each still leaves it once delivered. */
+const OLD_EFFECTS: Array<
+  [AskKind | 'needs', Verdict, { option?: string; note?: string }, AskState]
+> = [
   ['review', 'yes', {}, 'closed'],
   ['review', 'yes', { note: 'Tighten the gutters' }, 'closed'],
   ['try', 'yes', {}, 'closed'],
@@ -70,23 +132,103 @@ const EFFECTS: Array<[AskKind, Verdict, { option?: string; note?: string }, AskS
   ['decide', 'ignore', {}, 'ignored'],
   ['try', 'ignore', {}, 'ignored'],
   ['do', 'ignore', {}, 'ignored'],
+  ['needs', 'yes', { note: 'v1.2.3' }, 'closed'],
+  ['needs', 'yes', {}, 'closed'],
+  ['needs', 'comment', { note: 'Not until Monday' }, 'replied'],
+  ['needs', 'answer', { note: 'v1.2.3' }, 'closed'],
+  ['needs', 'ignore', {}, 'ignored'],
 ]
 
-for (const [kind, verdict, extra, after] of EFFECTS) {
+for (const [kind, verdict, extra, after] of OLD_EFFECTS) {
   const how = `${verdict}${extra.note === undefined ? '' : ' with a note'}`
 
-  test(`a delivered ${how} on a ${kind} ask leaves it ${after}`, () => {
+  const written = kind === 'needs' ? 'do needing something back' : kind
+
+  test(`a delivered ${how} on an ask written as a ${written} still leaves it ${after}`, () => {
     const work = fold({
-      logs: { [W1]: file(...POSTED, ...sent(T0 + MIN, 'r1', IDS[kind], verdict, extra)) },
+      logs: { [W1]: file(...OLD, ...sent(T0 + MIN, 'r1', OLD_IDS[kind], verdict, extra)) },
     })
-    const answered = work.asks.find(each => each.id === IDS[kind])
+    const answered = work.asks.find(each => each.id === OLD_IDS[kind])
 
     expect(answered?.state).toBe(after)
     expect(answered?.answer?.id).toBe('r1')
-    expect(answered?.closedAt).toBe(after === 'replied' ? undefined : T0 + MIN)
-    expect(work.waiting).toBe(3)
+    expect(work.waiting).toBe(4)
   })
 }
+
+test('an ask written by its kind reads as the shape its kind maps to, any needing something back as words', () => {
+  const work = fold({ logs: { [W1]: file(...OLD) } })
+
+  expect(
+    work.asks.map(({ id, wants, yes, options, needs }) => [id, wants, yes, options, needs]),
+  ).toEqual([
+    ['o1', 'yes', 'Approve', undefined, undefined],
+    ['o2', 'choice', undefined, ['400 days', 'Forever'], undefined],
+    ['o3', 'yes', 'It works', undefined, undefined],
+    ['o4', 'yes', 'Done', undefined, undefined],
+    ['o5', 'words', 'Done', undefined, "the command's output"],
+  ])
+})
+
+test("old replies read in their ask's words; a decide's comment is still its answer", () => {
+  const work = fold({ logs: { [W1]: file(...OLD) } })
+  const message = boardMessage(work, [
+    { item: 'o1', verdict: 'yes' },
+    { item: 'o3', verdict: 'yes', note: 'On the iPad mini too' },
+    { item: 'o2', verdict: 'comment', note: 'Two years, then archive' },
+    { item: 'o5', verdict: 'yes', note: 'v1.2.3' },
+  ])
+
+  expect(message?.text).toBe(
+    [
+      FROM_THE_BOARD,
+      '- Review Sessions & Runway, round 1 → Approve',
+      '- Try signing in on the iPad → It works, with a comment: “On the iPad mini too”',
+      '- Keep the ledger 400 days, or forever? → answer: “Two years, then archive”',
+      "- Run the export → Done, with the command's output: “v1.2.3”",
+    ].join('\n'),
+  )
+})
+
+test("an old edit changing an ask's kind, or what it needs back, reshapes it by the kind", () => {
+  const work = fold({
+    logs: {
+      [W1]: file(
+        ...OLD,
+        [T0 + MIN, { type: 'edit', item: 'o1', changes: { kind: 'do', needs: 'the exit code' } }],
+        [T0 + MIN, { type: 'edit', item: 'o5', changes: { needs: '' } }],
+        [T0 + MIN, { type: 'edit', item: 'o3', changes: { kind: 'decide', options: ['A', 'B'] } }],
+      ),
+    },
+  })
+
+  expect(
+    work.asks.map(({ id, wants, yes, options, needs }) => [id, wants, yes, options, needs]),
+  ).toEqual([
+    ['o1', 'words', 'Done', undefined, 'the exit code'],
+    ['o2', 'choice', undefined, ['400 days', 'Forever'], undefined],
+    ['o3', 'choice', undefined, ['A', 'B'], undefined],
+    ['o4', 'yes', 'Done', undefined, undefined],
+    ['o5', 'yes', 'Done', undefined, undefined],
+  ])
+})
+
+test('an edit saying what an old ask wants reads it by that shape from then on, its kind gone', () => {
+  const work = fold({
+    logs: {
+      [W1]: file(
+        ...OLD,
+        [T0 + MIN, { type: 'edit', item: 'o5', changes: { wants: 'words', needs: '' } }],
+        [T0 + MIN, { type: 'edit', item: 'o2', changes: { wants: 'choice', title: 'Keep it?' } }],
+        ...sent(T0 + 2 * MIN, 'r1', 'o2', 'comment', { note: 'Two years' }),
+      ),
+    },
+  })
+
+  expect(work.items.get('o5')).toMatchObject({ wants: 'words', kind: undefined, yes: undefined })
+  expect(work.items.get('o5')).not.toHaveProperty('needs', expect.anything())
+  expect(work.items.get('o2')).toMatchObject({ wants: 'choice', kind: undefined, state: 'replied' })
+})
 
 test('a delivered pick-up marks a parked item picked up, and it leaves the parked list', () => {
   const work = fold({ logs: { [W1]: file(...POSTED, ...sent(T0 + MIN, 'r1', 'p1', 'pickup')) } })
@@ -209,7 +351,9 @@ test('only a writer in the work can mark a reply delivered: a mark in an inbox i
 
 for (const [why, body] of [
   ['a pick-up on an ask', reply('r1', 'k1', 'pickup')],
-  ['a yes on a decide ask', reply('r1', 'k2', 'yes')],
+  ['a yes on a choice ask', reply('r1', 'k2', 'yes')],
+  ['a choice on a yes ask', reply('r1', 'k1', 'choose', { option: '400 days' })],
+  ['an answer on a yes ask', reply('r1', 'k1', 'answer', { note: 'Approved' })],
   ['a choice with no option', reply('r1', 'k2', 'choose')],
   ['a comment with no words', reply('r1', 'k1', 'comment', { note: '' })],
   ['an ignore on a parked item', reply('r1', 'p1', 'ignore')],
@@ -418,12 +562,12 @@ test("Lee's message: one line per reply, in the spike's words, under From the bo
   expect(message?.text).toBe(
     [
       FROM_THE_BOARD,
-      '- Review Sessions & Runway, round 1 → approved',
-      '- Review Sessions & Runway, round 1 → approved, with a comment: “Tighten the gutters”',
-      '- Try signing in on the iPad → it works',
-      '- Run the production apply → done',
+      '- Review Sessions & Runway, round 1 → Approve',
+      '- Review Sessions & Runway, round 1 → Approve, with a comment: “Tighten the gutters”',
+      '- Try signing in on the iPad → It works',
+      '- Run the production apply → Done',
       '- Keep the ledger 400 days, or forever? → Forever',
-      '- Keep the ledger 400 days, or forever? → answer: “Two years, then archive”',
+      '- Keep the ledger 400 days, or forever? → comment: “Two years, then archive”',
       '- Review Sessions & Runway, round 1 → comment: “The runway bar is too tall”',
       '- Run the production apply → ignored',
       '- Pick up from parked: A tmux indicator across sessions',
@@ -449,18 +593,19 @@ test('the message leaves out replies that fit no item, and says which it carries
       { item: 'k1', verdict: 'yes' },
     ]),
   ).toEqual({
-    text: `${FROM_THE_BOARD}\n- Review Sessions & Runway, round 1 → approved`,
+    text: `${FROM_THE_BOARD}\n- Review Sessions & Runway, round 1 → Approve`,
     replies: [{ item: 'k1', verdict: 'yes' }],
   })
 })
 
-test('under its item, the board shows a choice after an arrow and a pick-up in its own words', () => {
+test("under its item, the board shows a yes in its button's words and a choice after an arrow, and a pick-up in its own words", () => {
   const work = fold({ logs: { [W1]: file(...POSTED) } })
-  const decide = work.asks[1]!
+  const [review, decide] = work.asks
   const parked = work.parked[0]!
 
-  expect(answerOf(decide, { item: 'k2', verdict: 'choose', option: 'Forever' })).toBe('→ Forever')
-  expect(answerOf(decide, { item: 'k2', verdict: 'ignore' })).toBe('ignored')
+  expect(answerOf(review!, { item: 'k1', verdict: 'yes' })).toBe('→ Approve')
+  expect(answerOf(decide!, { item: 'k2', verdict: 'choose', option: 'Forever' })).toBe('→ Forever')
+  expect(answerOf(decide!, { item: 'k2', verdict: 'ignore' })).toBe('ignored')
   expect(answerOf(parked, { item: 'p1', verdict: 'pickup' })).toBe('pick it up')
 })
 
@@ -489,11 +634,11 @@ test('a reply the fold has not read yet is not delivered', () => {
   expect(deliveryOf(work, ['r9'])).toBe('waiting')
 })
 
-/** An edit making k1, the review, a decide: a yes no longer fits it. */
+/** An edit making k1, the review, a choice: a yes no longer fits it. */
 const DECIDED: Body = {
   type: 'edit',
   item: 'k1',
-  changes: { kind: 'decide', options: ['Now', 'Later'] },
+  changes: { wants: 'choice', options: ['Now', 'Later'] },
 }
 
 test('a reply on its way whose item an edit changed past fitting goes void: a mark naming it changes nothing, and the item can be answered again', () => {
@@ -512,7 +657,7 @@ test('a reply on its way whose item an edit changed past fitting goes void: a ma
 })
 
 test('a void reply stays void, though its item changes back; one delivered before the edit stays delivered', () => {
-  const back: Body = { type: 'edit', item: 'k1', changes: { kind: 'review' } }
+  const back: Body = { type: 'edit', item: 'k1', changes: { wants: 'yes', yes: 'Approve' } }
   const voided = fold({
     logs: { [W1]: file(...POSTED, [T0 + 2 * MIN, DECIDED], [T0 + 3 * MIN, back]) },
     inbox: { [SENDER]: file([T0 + MIN, reply('r1', 'k1', 'yes')]) },

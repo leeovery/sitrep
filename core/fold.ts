@@ -8,15 +8,19 @@ import { parseMeta } from './meta'
 import { deliverer, isLive, parsePresence } from './presence'
 import { parseProject, projectName } from './project'
 import { askAfter, fits, isOpen, isPending, parkedAfter, pickUpLog } from './replies'
+import { kindShape } from './shapes'
 import { statusChange } from './status'
 import { compareText } from './text'
 import {
   EDITABLE,
   type Ask,
+  type AskBody,
   type Body,
+  type EditBody,
   type Entry,
   type Finished,
   type Item,
+  type KindAskBody,
   type LogLine,
   type Note,
   type Parked,
@@ -132,6 +136,39 @@ const voidUnfitting = (item: Item, at: number) => {
   }
 }
 
+/** What an ask's line says it wants back: as it says, or, written by its kind, as the kind maps to. */
+const wantsOf = (body: AskBody | KindAskBody): Pick<Ask, 'wants' | 'yes' | 'kind'> =>
+  'wants' in body
+    ? { wants: body.wants, yes: body.yes }
+    : { kind: body.kind, ...kindShape(body.kind, body.needs) }
+
+/**
+ * An ask holding only what its shape takes: a yes its label, a choice its
+ * options, words what they are. One read from its kind takes its shape from
+ * the kind and what it needs back, as they stand, and keeps its yes's words.
+ */
+const fitShape = (ask: Ask) => {
+  if (ask.kind !== undefined) {
+    Object.assign(ask, kindShape(ask.kind, ask.needs))
+  }
+
+  ask.yes = ask.wants === 'yes' || ask.kind !== undefined ? ask.yes : undefined
+  ask.options = ask.wants === 'choice' ? ask.options : undefined
+  // An edit's empty `needs` clears it.
+  ask.needs = ask.wants === 'words' ? ask.needs || undefined : undefined
+}
+
+/** An edit to an ask: one saying what it wants back reads it so from then on; one written before asks did may change its kind. */
+const reshape = (ask: Ask, { wants, kind }: EditBody['changes']) => {
+  if (wants !== undefined) {
+    ask.kind = undefined
+  } else if (kind !== undefined) {
+    ask.kind = kind
+  }
+
+  fitShape(ask)
+}
+
 const reopen = (item: Item, at: number) => {
   item.openedAt = at
   item.closedAt = undefined
@@ -159,11 +196,12 @@ const HANDLERS: { [T in Body['type']]: Handler<T> } = {
     fold.status = status
   },
 
-  ask: (fold, { id, kind, title, where, options, needs, ref, at, by }) => {
-    post(fold, {
+  ask: (fold, entry) => {
+    const { id, title, where, options, needs, ref, at, by } = entry
+    const ask: Ask = {
       type: 'ask',
       id,
-      kind,
+      ...wantsOf(entry),
       title,
       where,
       options,
@@ -174,7 +212,10 @@ const HANDLERS: { [T in Body['type']]: Handler<T> } = {
       openedAt: at,
       state: 'waiting',
       replies: [],
-    })
+    }
+
+    fitShape(ask)
+    post(fold, ask)
   },
 
   note: (fold, { id, text, detail, ref, at, by }) => {
@@ -233,9 +274,7 @@ const HANDLERS: { [T in Body['type']]: Handler<T> } = {
     }
 
     if (item.type === 'ask') {
-      item.options = item.kind === 'decide' ? item.options : undefined
-      // An edit's empty `needs` clears it.
-      item.needs = item.needs || undefined
+      reshape(item, changes)
     }
 
     item.editedAt = at

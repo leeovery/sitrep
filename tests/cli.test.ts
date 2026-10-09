@@ -1,7 +1,7 @@
 import { expect, test } from 'claude-code/testing'
 import { EXIT, main, WRITER } from '../cli/main'
 import { boardText, foldWork, parseEntries, serialise, VERSION, type WorkPaths } from '../core'
-import { ask, file, META, MIN, note, status, T0, W1 } from './support'
+import { file, META, MIN, note, status, T0, W1, yesAsk } from './support'
 import { ENV, FIRST_ID, NEXT_ID, NOW, terminal } from './terminal'
 import { ELSEWHERE } from './world'
 
@@ -69,10 +69,24 @@ test('a note prints its id and nothing more, and appends one line to the CLI’s
 
 test("the CLI's note is in the log as the mod folds it, and its ask counts as waiting", async () => {
   const t = terminal()
-  const paths = t.seed(META, { lines: [[T0, ask('k1', 'review', 'Review round 1')]] })
+  const paths = t.seed(META, { lines: [[T0, yesAsk('k1', 'Review round 1')]] })
 
   await t.run('note', 'Round', '3', 'drawn', ...WORK)
-  await t.run('ask', 'try', 'Try', 'it', 'on', 'the', 'iPad', '--where', 'On the iPad', ...WORK)
+  await t.run(
+    'ask',
+    'Try',
+    'it',
+    'on',
+    'the',
+    'iPad',
+    '--wants',
+    'yes',
+    '--yes',
+    'It works',
+    '--where',
+    'On the iPad',
+    ...WORK,
+  )
 
   const work = folded(t, paths)
 
@@ -80,19 +94,20 @@ test("the CLI's note is in the log as the mod folds it, and its ask counts as wa
     ['note', FIRST_ID, 'Round 3 drawn', WRITER],
   ])
   expect(work.waiting).toBe(2)
-  expect(work.asks.map(each => [each.id, each.kind, each.title, each.where, each.by])).toEqual([
-    ['k1', 'review', 'Review round 1', undefined, W1],
-    [NEXT_ID, 'try', 'Try it on the iPad', 'On the iPad', WRITER],
+  expect(work.asks.map(each => [each.id, each.yes, each.title, each.where, each.by])).toEqual([
+    ['k1', 'Approve', 'Review round 1', undefined, W1],
+    [NEXT_ID, 'It works', 'Try it on the iPad', 'On the iPad', WRITER],
   ])
 })
 
-test('a decide ask takes its options, one --option each', async () => {
+test('a choice ask takes its options, one --option each', async () => {
   const t = terminal()
   const paths = t.seed(META)
   const run = await t.run(
     'ask',
-    'decide',
     'Keep the sidebar, or drop it?',
+    '--wants',
+    'choice',
     '--option',
     'Keep it',
     '--option',
@@ -104,33 +119,40 @@ test('a decide ask takes its options, one --option each', async () => {
 
   expect(run.out).toBe(`${FIRST_ID}\n`)
   expect(folded(t, paths).asks.at(0)).toMatchObject({
-    kind: 'decide',
+    wants: 'choice',
     options: ['Keep it', 'Drop it'],
     ref: 'DESIGN.md',
     state: 'waiting',
   })
 })
 
-test("an ask takes what Lee's answer must carry back with --needs, kept on its line; an empty one is absent", async () => {
+test('a yes ask takes its button with --yes; a words ask what its words are with --needs, an empty one absent', async () => {
   const t = terminal()
   const paths = t.seed(META)
   const run = await t.run(
     'ask',
-    'do',
     'Run the export',
+    '--wants',
+    'words',
     '--needs',
     "the command's\n output",
     ...WORK,
   )
 
-  await t.run('ask', 'do', 'Run the apply', '--needs', ' ', ...WORK)
+  await t.run('ask', 'Run the apply', '--wants', 'words', '--needs', ' ', ...WORK)
+  await t.run('ask', 'Give the go for stage 3', '--wants', 'yes', '--yes', 'Go', ...WORK)
 
   expect(run).toEqual({ exit: EXIT.done, out: `${FIRST_ID}\n`, err: '' })
   expect(cliLines(t, paths).map(line => line.type === 'ask' && line.needs)).toEqual([
     "the command's output",
     undefined,
+    undefined,
   ])
-  expect(folded(t, paths).asks.map(each => each.needs)).toEqual(["the command's output", undefined])
+  expect(folded(t, paths).asks.map(each => [each.wants, each.yes, each.needs])).toEqual([
+    ['words', undefined, "the command's output"],
+    ['words', undefined, undefined],
+    ['yes', 'Go', undefined],
+  ])
 })
 
 test("an input core's checks refuse ends as refused, with the check's words, and writes nothing", async () => {
@@ -145,16 +167,25 @@ test("an input core's checks refuse ends as refused, with the check's words, and
     return run.err
   }
 
-  expect(await refused('ask', 'decide', 'Keep it?', '--option', 'Keep it')).toBe(
-    'sitrep: A decide ask needs at least 2 options.\n',
+  expect(await refused('ask', 'Keep it?', '--wants', 'choice', '--option', 'Keep it')).toBe(
+    'sitrep: A choice ask needs at least 2 options.\n',
   )
-  expect(await refused('ask', 'review', 'Review it', '--option', 'Yes')).toBe(
-    'sitrep: Only a decide ask takes options.\n',
+  expect(
+    await refused('ask', 'Review it', '--wants', 'yes', '--yes', 'Go', '--option', 'Yes'),
+  ).toBe('sitrep: Only a choice ask takes options.\n')
+  expect(await refused('ask', 'Review it', '--wants', 'yes')).toContain(
+    "sitrep: A yes ask needs yes: its button's words",
   )
-  expect(await refused('ask', 'approve', 'Approve it')).toBe(
-    "sitrep: An ask's kind is one of review, decide, try, do.\n",
+  expect(await refused('ask', 'Run it', '--wants', 'yes', '--yes', 'Go', '--needs', 'x')).toBe(
+    'sitrep: Only a words ask takes needs: what its words are.\n',
   )
-  expect(await refused('ask', 'review')).toBe(
+  expect(await refused('ask', 'Approve it')).toBe(
+    "sitrep: An ask's wants is one of yes, choice, words: a yes, one of its options, or words.\n",
+  )
+  expect(await refused('ask', 'review', 'Approve it')).toBe(
+    "sitrep: An ask's wants is one of yes, choice, words: a yes, one of its options, or words.\n",
+  )
+  expect(await refused('ask', '--wants', 'words')).toBe(
     'sitrep: An ask needs a title: one line, starting with the verb.\n',
   )
   expect(await refused('note', ' ')).toBe('sitrep: A note needs its text: one line.\n')
@@ -253,7 +284,7 @@ test('two runs at once, each reading the file before either wrote, both land, wi
   const held = t.holdAppends(2)
   const runs = Promise.all([
     main(['note', 'Round 3 drawn', ...WORK], t.io),
-    main(['ask', 'review', 'Review round 3', ...WORK], t.io),
+    main(['ask', 'Review round 3', '--wants', 'yes', '--yes', 'Approve', ...WORK], t.io),
   ])
 
   await held.arrived
@@ -346,7 +377,7 @@ test('board prints the board as Claude’s board tool reads it', async () => {
   const paths = t.seed(META, {
     lines: [
       [T0, status(['Drawing Usage'])],
-      [T0, ask('k1', 'review', 'Review round 1')],
+      [T0, yesAsk('k1', 'Review round 1')],
     ],
   })
   const run = await t.run('board', ...WORK)
@@ -361,7 +392,7 @@ test('help: every command in brief, how a work is named, the exit codes, and ans
 
   expect([exit, err]).toEqual([EXIT.done, ''])
   expect(out).toContain(
-    '  sitrep ask <kind> <title> [--where <words>] [--needs <words>] [--option <choice>]... [--ref <ref>]\n',
+    '  sitrep ask <title> --wants yes|choice|words [--yes <label>] [--option <choice>]... [--needs <words>] [--where <words>] [--ref <ref>]\n',
   )
   expect(out).toContain('  sitrep list [--project <name>] [--json]\n')
   expect(out).toContain('--work sr-xxxxxx, else $SITREP_WORK')

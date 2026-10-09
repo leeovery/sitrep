@@ -16,7 +16,7 @@ import {
 } from '../core'
 import { META, T0, W1 } from './support'
 
-/** One line of every kind, as the format writes it. */
+/** One line of every kind, as the format writes it, and the ask and edit lines written before asks said what they want back. */
 const EVERY_KIND: Body[] = [
   {
     type: 'status',
@@ -28,7 +28,7 @@ const EVERY_KIND: Body[] = [
   {
     type: 'ask',
     id: 'k3f9',
-    kind: 'decide',
+    wants: 'choice',
     title: 'Keep the ledger 400 days, or forever?',
     where: 'docs/design.md',
     options: ['400 days', 'Forever'],
@@ -64,6 +64,28 @@ const EVERY_KIND: Body[] = [
     note: 'Storage is cheap',
   },
   { type: 'delivered', replies: ['r7x2'] },
+  { type: 'ask', id: 'g0g0', wants: 'yes', yes: 'Go', title: 'Give the go for stage 3' },
+  {
+    type: 'ask',
+    id: 'w0rd',
+    wants: 'words',
+    title: 'Run sitrep list and paste what it prints',
+    needs: "the command's output",
+  },
+  {
+    type: 'edit',
+    item: 'g0g0',
+    changes: { wants: 'choice', options: ['Now', 'After the review'] },
+  },
+  { type: 'reply', id: 'r8y3', item: 'w0rd', verdict: 'answer', note: 'exported 42 rows' },
+  {
+    type: 'ask',
+    id: '01d0',
+    kind: 'do',
+    title: 'Run the export',
+    needs: "the command's output",
+  },
+  { type: 'edit', item: '01d0', changes: { kind: 'review' } },
 ]
 
 const entry = (at: number, seq: number, body: Body): Entry => ({ v: VERSION, at, seq, ...body })
@@ -97,6 +119,14 @@ for (const [why, line] of [
   [
     'posting an ask of no known kind',
     `{"v":1,"at":${T0},"seq":1,"type":"ask","id":"k1","kind":"vote","title":"x"}`,
+  ],
+  [
+    'posting an ask wanting nothing it knows',
+    `{"v":1,"at":${T0},"seq":1,"type":"ask","id":"k1","wants":"vote","title":"x"}`,
+  ],
+  [
+    'posting an ask that says neither what it wants nor its kind',
+    `{"v":1,"at":${T0},"seq":1,"type":"ask","id":"k1","title":"x"}`,
   ],
   [
     'replying with no known verdict',

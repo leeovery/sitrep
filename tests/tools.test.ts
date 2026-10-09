@@ -169,27 +169,43 @@ test('status sets what changed, keeps the rest, and the board logs the change it
   expect((await w.call('status', {})).deny).toContain('at least one of')
 })
 
-test('ask posts an ask with a fresh id; a decide ask with too few options is refused', async ($, on) => {
+test('ask posts an ask with a fresh id; a choice ask with too few options is refused', async ($, on) => {
   const w = world($, on)
   const { paths } = await w.begin()
   const options = ['Keep it', 'Drop it']
-  const answer = await w.call('ask', { kind: 'decide', title: 'Keep the band?', options })
+  const answer = await w.call('ask', { wants: 'choice', title: 'Keep the band?', options })
   const id = postedId(answer)
 
   expect(answer.result).toBe(`Posted ask ${id}.`)
-  expect(w.state.board?.asks).toMatchObject([{ id, kind: 'decide', options, state: 'waiting' }])
+  expect(w.state.board?.asks).toMatchObject([{ id, wants: 'choice', options, state: 'waiting' }])
   expect(w.state.board?.waiting).toBe(1)
   expect(linesOf(w, paths.log(W1)).at(-1)).toMatchObject({ type: 'ask', id, seq: 1 })
-  expect((await w.call('ask', { kind: 'decide', title: 'Keep it?' })).deny).toBe(
-    'A decide ask needs at least 2 options.',
+  expect((await w.call('ask', { wants: 'choice', title: 'Keep it?' })).deny).toBe(
+    'A choice ask needs at least 2 options.',
   )
 })
 
-test("ask takes what Lee's answer must carry back, and edit changes it or clears it with an empty one", async ($, on) => {
+test("ask posts a yes in its button's words; one wanting a yes with none, or wanting no shape, is refused", async ($, on) => {
+  const w = world($, on)
+
+  await w.begin()
+
+  const id = postedId(await w.call('ask', { wants: 'yes', yes: 'Go', title: 'Give the go' }))
+
+  expect(w.state.board?.asks).toMatchObject([{ id, wants: 'yes', yes: 'Go' }])
+  expect((await w.call('ask', { wants: 'yes', title: 'Give the go' })).deny).toContain(
+    "A yes ask needs yes: its button's words",
+  )
+  expect((await w.call('ask', { kind: 'review', title: 'Review it' })).deny).toBe(
+    "An ask's wants is one of yes, choice, words: a yes, one of its options, or words.",
+  )
+})
+
+test('ask takes what the words of a words ask are, and edit changes them or clears them with an empty one', async ($, on) => {
   const w = world($, on)
   const { paths } = await w.begin()
   const id = postedId(
-    await w.call('ask', { kind: 'do', title: 'Run the export', needs: "the command's output" }),
+    await w.call('ask', { wants: 'words', title: 'Run the export', needs: "the command's output" }),
   )
   const needs = () => w.state.board?.asks[0]?.needs
 
@@ -199,15 +215,41 @@ test("ask takes what Lee's answer must carry back, and edit changes it or clears
   expect(needs()).toBe('the exit code')
   expect((await w.call('edit', { item: id, needs: '' })).result).toBe(`Edited ${id}.`)
   expect(needs()).toBeUndefined()
+  expect(
+    (await w.call('ask', { wants: 'yes', yes: 'Done', title: 'Run it', needs: 'x' })).deny,
+  ).toBe('Only a words ask takes needs: what its words are.')
 })
 
-test('the ask and edit tools take needs, and the ask says when to give it', () => {
+test('edit changes what an ask wants back under the same checks: to a yes with its words, to a choice with its options', async ($, on) => {
+  const w = world($, on)
+
+  await w.begin()
+
+  const id = postedId(await w.call('ask', { wants: 'words', title: 'Pick the next stage' }))
+
+  expect((await w.call('edit', { item: id, wants: 'yes' })).deny).toContain('A yes ask needs yes')
+  expect((await w.call('edit', { item: id, wants: 'choice' })).deny).toBe(
+    'A choice ask needs at least 2 options.',
+  )
+  await w.call('edit', { item: id, wants: 'choice', options: ['Stage 3', 'Stage 4'] })
+  expect(w.state.board?.asks[0]).toMatchObject({ wants: 'choice', options: ['Stage 3', 'Stage 4'] })
+  await w.call('edit', { item: id, wants: 'yes', yes: 'Go' })
+  expect(w.state.board?.asks[0]).toMatchObject({ wants: 'yes', yes: 'Go' })
+  expect(w.state.board?.asks[0]?.options).toBeUndefined()
+})
+
+test('the ask and edit tools take wants, yes, options and needs; the ask says how to choose a shape and word its yes', () => {
   const [ask, edit] = ['ask', 'edit'].map(name => SPECS.find(spec => spec.name === name))
 
-  expect(ask?.inputSchema?.properties).toHaveProperty('needs')
-  expect(edit?.inputSchema?.properties).toHaveProperty('needs')
+  for (const field of ['wants', 'yes', 'options', 'needs']) {
+    expect(ask?.inputSchema?.properties, field).toHaveProperty(field)
+    expect(edit?.inputSchema?.properties, field).toHaveProperty(field)
+  }
+
+  expect(ask?.inputSchema?.required).toEqual(['wants', 'title'])
+  expect(ask?.inputSchema?.properties).not.toHaveProperty('kind')
   expect(ask?.description).toContain(
-    "Give needs when the answer must carry something, like a command's output.",
+    'Want a yes when Lee gives a go, an approval, or word that it works or is done, its button the verb Lee gives (Go, Approve, Done)',
   )
 })
 
@@ -242,7 +284,9 @@ test('resolve closes an item, reopen opens it again; each refuses where the item
 
   await w.begin()
 
-  const id = postedId(await w.call('ask', { kind: 'review', title: 'Review round 1' }))
+  const id = postedId(
+    await w.call('ask', { wants: 'yes', yes: 'Approve', title: 'Review round 1' }),
+  )
 
   expect((await w.call('reopen', { item: id })).deny).toBe(`${id} is already open.`)
   expect((await w.call('resolve', { item: id, reason: 'Approved in the chat' })).result).toBe(
@@ -273,7 +317,7 @@ test('finish marks the attached work done with its reason, the window staying at
   const w = world($, on)
   const { id, paths } = await w.begin()
 
-  await w.call('ask', { kind: 'review', title: 'Review round 1' })
+  await w.call('ask', { wants: 'yes', yes: 'Approve', title: 'Review round 1' })
 
   expect((await w.call('finish', { reason: '  Shipped in PR #82 ' })).result).toBe(
     'Marked done. This window stays attached; joining the work again reopens it.',
@@ -293,7 +337,7 @@ test('join reopens a finished work, saying who had marked it done and why', asyn
   const lobby = w.elsewhere({ ...META, id: 'sr-bbbbbb', name: 'Lobby', by: W2 })
   const themes = w.elsewhere({ ...META, id: 'sr-cccccc', name: 'Themes', by: W2 })
 
-  lobby.write({ type: 'ask', id: 'k1', kind: 'do', title: 'Run it' }, finish('lee'))
+  lobby.write({ type: 'ask', id: 'k1', wants: 'yes', yes: 'Done', title: 'Run it' }, finish('lee'))
   themes.write(finish('claude', 'Shipped'))
   await w.clock.advance(MIN)
   await $.session.start(SESSION)
@@ -331,11 +375,13 @@ test('a line posted to a finished work leaves it done: only a join reopens it, o
 test("board reads back the work's open items with their ids", async ($, on) => {
   const w = world($, on)
   const { id } = await w.begin()
-  const ask = postedId(await w.call('ask', { kind: 'review', title: 'Review round 1' }))
+  const ask = postedId(
+    await w.call('ask', { wants: 'yes', yes: 'Approve', title: 'Review round 1' }),
+  )
   const read = String((await w.call('board')).result)
 
   expect(read).toContain(`sitrep board: Dashboard redesign (${id})`)
-  expect(read).toContain(`- ${ask} review, waiting on Lee: Review round 1`)
+  expect(read).toContain(`- ${ask} wants a yes (Approve), waiting on Lee: Review round 1`)
 })
 
 test('every tool but start and join refuses while no work is attached, saying to start or join one', async ($, on) => {
@@ -344,9 +390,10 @@ test('every tool but start and join refuses while no work is attached, saying to
   await $.session.start(SESSION)
 
   for (const tool of TOOLS.slice(2)) {
-    expect((await w.call(tool, { item: 'k1', text: 'x', title: 'x', kind: 'do' })).deny, tool).toBe(
-      'No piece of work is attached to this window: start one, or join one by its id, first.',
-    )
+    expect(
+      (await w.call(tool, { item: 'k1', text: 'x', title: 'x', wants: 'yes', yes: 'Done' })).deny,
+      tool,
+    ).toBe('No piece of work is attached to this window: start one, or join one by its id, first.')
   }
 })
 
@@ -358,7 +405,11 @@ test("a subagent's call is refused, telling it to put the item in its report", a
   const before = new Map(w.files)
 
   for (const tool of TOOLS) {
-    const answer = await w.call(tool, { ...DASHBOARD, kind: 'do', title: 'Run it' }, 'a1')
+    const answer = await w.call(
+      tool,
+      { ...DASHBOARD, wants: 'yes', yes: 'Done', title: 'Run it' },
+      'a1',
+    )
 
     expect(answer.deny, tool).toContain('Put this in your report instead')
   }

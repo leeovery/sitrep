@@ -1,26 +1,31 @@
 import { expect, test } from 'claude-code/testing'
-import { holdsFolded, pastedOnly } from '../hooks/paste'
+import { unwrapPastes } from '../hooks/paste'
 
-/** A paste as the engine wraps it in a submitted prompt (live, 2.1.295). */
+/** A paste as the engine wraps it in a submitted prompt, the line breaks around it with it (live, 2.1.295). */
 const pasted = (text: string, id = '08fd') =>
-  `<pasted_content id="${id}">\n${text}\n</pasted_content id="${id}">`
+  `\n\n<pasted_content id="${id}">\n${text}\n</pasted_content id="${id}">\n`
 
-test('a prompt of nothing but pastes gives their text, every line as pasted, the pastes a line apart', () => {
-  expect(pastedOnly(`\n\n${pasted('a\n  b\n\nc')}\n`)).toBe('a\n  b\n\nc')
-  expect(pastedOnly(`${pasted('one', 'a1')}\n\n${pasted('two', 'b2')}`)).toBe('one\ntwo')
+test('a prompt of nothing but a paste gives its text, every line as pasted', () => {
+  expect(unwrapPastes(pasted('a\n  b\n\nc'))).toBe('a\n  b\n\nc')
 })
 
-test('a prompt with anything besides its pastes, or none, or tags that do not close as they open, gives nothing', () => {
-  expect(pastedOnly('Carry on.')).toBeUndefined()
-  expect(pastedOnly('  \n ')).toBeUndefined()
-  expect(pastedOnly(`Look: ${pasted('a')}`)).toBeUndefined()
-  expect(pastedOnly(`${pasted('a')} ok?`)).toBeUndefined()
-  expect(pastedOnly('<pasted_content id="a1">\na\n</pasted_content id="b2">')).toBeUndefined()
-  expect(pastedOnly('<pasted_content>\na\n</pasted_content>')).toBeUndefined()
+test('the words typed around a paste stay in their place, the paste on lines of its own', () => {
+  expect(unwrapPastes(`Ran it:${pasted('exported 42 rows\nexit 0')}`)).toBe(
+    'Ran it:\nexported 42 rows\nexit 0',
+  )
+  expect(unwrapPastes(`${pasted('exported 42 rows')}what now?`)).toBe('exported 42 rows\nwhat now?')
+  expect(unwrapPastes(`First:${pasted('one', 'a1')}then:${pasted('two', 'b2')}done`)).toBe(
+    'First:\none\nthen:\ntwo\ndone',
+  )
 })
 
-test('the prompt box holds a paste folded away by its placeholder', () => {
-  expect(holdsFolded('[Pasted text #1 +3 lines]')).toBe(true)
-  expect(holdsFolded('see [Pasted text #12]')).toBe(true)
-  expect(holdsFolded('v1.2.3\nexit 0')).toBe(false)
+test('a prompt with no paste, or tags that do not close as they open, is as it came', () => {
+  expect(unwrapPastes('Carry on.')).toBe('Carry on.')
+
+  for (const prompt of [
+    '<pasted_content id="a1">\na\n</pasted_content id="b2">',
+    '<pasted_content>\na\n</pasted_content>',
+  ]) {
+    expect(unwrapPastes(prompt)).toBe(prompt)
+  }
 })

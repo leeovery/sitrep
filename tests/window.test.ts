@@ -3,7 +3,20 @@ import { HEARTBEAT_MS, metaText, parseEntries, parsePresence, workPaths } from '
 import { boardOf, workOf } from '../hooks/board'
 import { WATCH_MS } from '../hooks/window'
 import type { SitrepAttachment } from '../types'
-import { ask, file, fold, META, note, reply, SENDER, status, T0, W1, W2 } from './support'
+import {
+  choiceAsk,
+  file,
+  fold,
+  META,
+  note,
+  reply,
+  SENDER,
+  status,
+  T0,
+  W1,
+  W2,
+  yesAsk,
+} from './support'
 import { DASHBOARD, PROJECT, ROOT, SESSION, postedId, world } from './world'
 
 tier('user')
@@ -14,7 +27,9 @@ const CLEARED = { reason: 'clear' as const, sessionId: W1, resume: { id: W1 } }
 test('a work started in one window and joined by a second writer is one work to both', async ($, on) => {
   const w = world($, on)
   const { id, paths } = await w.begin()
-  const asked = postedId(await w.call('ask', { kind: 'review', title: 'Review round 1' }))
+  const asked = postedId(
+    await w.call('ask', { wants: 'yes', yes: 'Approve', title: 'Review round 1' }),
+  )
 
   await $.session.end(CLEARED)
   w.become({ session: W2 })
@@ -23,7 +38,7 @@ test('a work started in one window and joined by a second writer is one work to 
   const joined = String((await w.call('join', { work: id })).result)
   const noted = postedId(await w.call('note', { text: 'Drew round 2' }))
 
-  expect(joined).toContain(`- ${asked} review, waiting on Lee: Review round 1`)
+  expect(joined).toContain(`- ${asked} wants a yes (Approve), waiting on Lee: Review round 1`)
   expect(parseEntries(w.text(paths.log(W1))).map(line => line.type)).toEqual(['ask'])
   expect(parseEntries(w.text(paths.log(W2))).map(line => line.type)).toEqual(['note'])
   expect(w.state.board?.asks.map(item => item.id)).toEqual([asked])
@@ -63,7 +78,7 @@ test('after a reload, the window takes up the work $.state names, reads its file
   }
   const before = file(
     [T0, status(['Drawing round 1'])],
-    [T0, ask('k1', 'review', 'Review round 1')],
+    [T0, yesAsk('k1', 'Review round 1')],
     [T0, note('n1', 'Drew round 1')],
   )
   let isReloaded = false
@@ -154,7 +169,7 @@ test('the watch folds a line another writer added, and puts the board in $.state
 
   expect(w.boards.length, 'nothing changed, so nothing is put').toBe(written)
 
-  w.put(paths.log(W2), file([w.clock.now(), ask('k9', 'try', 'Try it on the iPad')]))
+  w.put(paths.log(W2), file([w.clock.now(), yesAsk('k9', 'Try it on the iPad', 'It works')]))
   await w.clock.advance(WATCH_MS)
 
   expect(w.boards.length).toBe(written + 1)
@@ -169,7 +184,9 @@ test('the watch folds a line another writer added, and puts the board in $.state
 test("the watch reads another window's heartbeat and the letters in the inbox too", async ($, on) => {
   const w = world($, on)
   const { id, paths } = await w.begin()
-  const asked = postedId(await w.call('ask', { kind: 'review', title: 'Review round 1' }))
+  const asked = postedId(
+    await w.call('ask', { wants: 'yes', yes: 'Approve', title: 'Review round 1' }),
+  )
 
   await w.clock.advance(WATCH_MS)
   w.beat(id, { writer: W2, attachedAt: w.clock.now(), seenAt: w.clock.now() })
@@ -195,7 +212,7 @@ test('the board in $.state is plain data, and rebuilds into the work core folds'
   const work = fold({
     logs: {
       [W1]: file(
-        [T0, ask('k1', 'decide', 'Keep it?', ['Keep it', 'Drop it'])],
+        [T0, choiceAsk('k1', 'Keep it?', ['Keep it', 'Drop it'])],
         [T0, note('n1', 'Drew round 1')],
       ),
     },

@@ -9,12 +9,12 @@
  * inbox rather than the CLI's own file, for the work's window to deliver.
  */
 import {
-  ASK_KINDS,
   boardText,
   checkAsk,
   checkNote,
   checkPark,
   checkStatus,
+  WANTS,
   withId,
   type Body,
   type Checked,
@@ -110,24 +110,34 @@ const ask: WorkCommand = {
   name: 'ask',
   about: 'Post an ask: something only Lee can do or decide. Prints its id.',
   grammar: {
-    args: [
-      { field: 'kind', about: ASK_KINDS.join(', ') },
-      { field: 'title', about: LINE },
-    ],
+    args: [{ field: 'title', about: LINE }],
     flags: {
-      ...WHERE,
-      needs: {
-        field: 'needs',
+      wants: {
+        field: 'wants',
         form: 'one',
-        value: '<words>',
-        about: "what Lee's answer must carry back, such as the command's output",
+        value: WANTS.join('|'),
+        about: 'what you want back from Lee: a yes, one of the options, or words',
+        isNeeded: true,
+      },
+      yes: {
+        field: 'yes',
+        form: 'one',
+        value: '<label>',
+        about: "a yes ask's button: the verb Lee gives, such as Go or Approve",
       },
       option: {
         field: 'options',
         form: 'many',
         value: '<choice>',
-        about: "a decide ask's choice; one each, two at least",
+        about: "a choice ask's option; one each, two at least",
       },
+      needs: {
+        field: 'needs',
+        form: 'one',
+        value: '<words>',
+        about: "what a words ask's words are, such as the command's output",
+      },
+      ...WHERE,
       ...REF,
       ...WORK,
     },

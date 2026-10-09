@@ -8,7 +8,6 @@
  */
 import type { ToolSpec } from 'claude-code'
 import {
-  ASK_KINDS,
   boardText,
   checkAsk,
   checkEdit,
@@ -26,6 +25,7 @@ import {
   projectNamed,
   reopenedText,
   withId,
+  WANTS,
   workPaths,
   type Body,
   type Checked,
@@ -91,14 +91,18 @@ const WHERE = text(
   'Where Lee should look, in words: In Paper: the dashboard file, page "round 1", frames 1–6.',
 )
 const REF = text('Where your own record of it is: a file, a section, a link.')
-const KIND = {
+const WANTS_BACK = {
   type: 'string',
-  enum: ASK_KINDS,
-  description: 'review, decide (give options), try, or do.',
+  enum: WANTS,
+  description:
+    'What you want back from Lee: yes, for a go, an approval, it works or done (give yes); choice, for one of options (give options); words, for an answer, a command output or feedback (needs may say what).',
 }
-const OPTIONS = lines('For a decide ask: the choices, one line each.')
+const YES = text(
+  "For wants yes: the button's words, the verb Lee is giving, a word or two: Go, Approve, It works, Done, Ship it.",
+)
+const OPTIONS = lines('For wants choice: the choices, one line each; two at least.')
 const NEEDS = text(
-  "What Lee's answer must carry back, in a few words, such as the command's output.",
+  "For wants words: what the words are, in a few words, such as the command's output.",
 )
 const DETAIL = lines('Lines it opens to, one line each.')
 
@@ -334,9 +338,17 @@ const TOOLS = [
   posting(
     spec(
       'ask',
-      "Post an ask: something only Lee can do or decide. Ask only when you cannot go on without Lee, or Lee's judgement changes what happens next; say it in the chat as well. Give needs when the answer must carry something, like a command's output. Lee's answer arrives as a message from the board: a yes, a choice or an answer closes the ask by itself; a comment leaves it open for you to act on, then resolve. If Lee answers in the chat instead, resolve the ask yourself, saying so in the reason.",
-      { kind: KIND, title: text(LINE), where: WHERE, options: OPTIONS, needs: NEEDS, ref: REF },
-      ['kind', 'title'],
+      "Post an ask: something only Lee can do or decide. Ask only when you cannot go on without Lee, or Lee's judgement changes what happens next; say it in the chat as well. Want a yes when Lee gives a go, an approval, or word that it works or is done, its button the verb Lee gives (Go, Approve, Done); a choice when Lee picks one of options; words when Lee must write something back, such as a command's output (needs says what). Lee's answer arrives as a message from the board: a yes, a choice or an answer closes the ask by itself; a comment leaves it open for you to act on, then resolve. If Lee answers in the chat instead, resolve the ask yourself, saying so in the reason.",
+      {
+        wants: WANTS_BACK,
+        yes: YES,
+        title: text(LINE),
+        where: WHERE,
+        options: OPTIONS,
+        needs: NEEDS,
+        ref: REF,
+      },
+      ['wants', 'title'],
     ),
     (work, input) => withId(checkAsk(input), work, random),
     ({ id }) => `Posted ask ${id}.`,
@@ -379,10 +391,11 @@ const TOOLS = [
   posting(
     spec(
       'edit',
-      'Correct an item by its id, giving only the fields to change.',
+      'Correct an item by its id, giving only the fields to change. An ask changed to want a yes needs yes; to want a choice, options.',
       {
         item: ITEM,
-        kind: KIND,
+        wants: WANTS_BACK,
+        yes: YES,
         title: text(LINE),
         where: WHERE,
         options: OPTIONS,

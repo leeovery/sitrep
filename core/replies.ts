@@ -18,28 +18,43 @@ import type {
   Reply,
   ReplyBody,
   Verdict,
+  Wants,
   Work,
 } from './types'
 
 /** What a reply says, whatever it is written as. */
 export type ReplyFields = Pick<ReplyBody, 'item' | 'verdict' | 'option' | 'note'>
 
-/** The verdicts each item takes, as its buttons offer them. */
-export const VERDICTS: Record<AskKind | 'park', readonly Verdict[]> = {
-  review: ['yes', 'comment', 'ignore'],
-  decide: ['choose', 'comment', 'ignore'],
-  try: ['yes', 'comment', 'ignore'],
-  do: ['yes', 'comment', 'ignore'],
+/** The verdicts each item takes, as its buttons offer them: by what an ask wants back. */
+export const VERDICTS: Record<Wants | 'park', readonly Verdict[]> = {
+  yes: ['yes', 'comment', 'ignore'],
+  choice: ['choose', 'comment', 'ignore'],
+  words: ['answer', 'ignore'],
   park: ['pickup'],
 }
 
-/** What a yes says, by the kind of ask it answers: its button's word. A decide ask offers no yes, so its word is never read. */
-const YES: Record<AskKind, string> = {
-  review: 'approved',
-  decide: 'approved',
-  try: 'it works',
-  do: 'done',
+/** The verdicts an ask of a kind took, which replies written to it then keep: a decide's a choice's, the rest a yes's. */
+const kindVerdicts = (kind: AskKind) => VERDICTS[kind === 'decide' ? 'choice' : 'yes']
+
+/** The verdicts an item takes: an ask its shape's, and, read from its kind, the kind's too. */
+const takenBy = (item: Ask | Parked) => {
+  if (item.type === 'park') {
+    return VERDICTS.park
+  }
+
+  return item.kind === undefined
+    ? VERDICTS[item.wants]
+    : [...VERDICTS[item.wants], ...kindVerdicts(item.kind)]
 }
+
+/** Whether an item takes a verdict at all, whatever goes with it. */
+export const takes = (item: Ask | Parked, verdict: Verdict) => takenBy(item).includes(verdict)
+
+/** The verdicts that carry words of Lee's, and fit only with some. */
+const WORDED: readonly Verdict[] = ['answer', 'comment']
+
+/** The verdicts that close an ask once delivered. */
+const CLOSING: readonly Verdict[] = ['yes', 'choose', 'answer']
 
 /** A pick-up, in the board's words. */
 const PICK_UP = 'pick it up'
@@ -49,15 +64,14 @@ export const FROM_THE_BOARD = 'From the board:'
 
 /**
  * Whether a reply fits its item: a verdict the item offers, with the option
- * or comment that verdict needs. A yes or a choice fits without a note even
- * on an ask that needs one: a surface with no field to type in answers it
- * bare, and an edit giving an ask its `needs` voids no yes Lee gave.
+ * or the words that verdict needs. A yes or a choice fits with a comment as
+ * its note, or without one.
  */
 export const fits = (item: Item, reply: ReplyFields): item is Ask | Parked =>
   item.type !== 'note' &&
-  VERDICTS[item.type === 'ask' ? item.kind : 'park'].includes(reply.verdict) &&
+  takes(item, reply.verdict) &&
   (reply.verdict !== 'choose' || Boolean(reply.option)) &&
-  (reply.verdict !== 'comment' || Boolean(reply.note))
+  (!WORDED.includes(reply.verdict) || Boolean(reply.note))
 
 export const isOpen = (ask: Ask) => ask.state === 'waiting' || ask.state === 'replied'
 
@@ -65,15 +79,18 @@ export const isOpen = (ask: Ask) => ask.state === 'waiting' || ask.state === 're
 export const isPending = (reply: Reply) =>
   reply.delivery === 'waiting' || reply.delivery === 'closed'
 
-/** Whether a verdict closes an ask of its kind once delivered: a yes, a choice, or an answer to a decide. */
-const isClosing = (kind: AskKind, verdict: Verdict) =>
-  verdict !== 'ignore' && (verdict !== 'comment' || kind === 'decide')
+/**
+ * Whether a verdict closes an ask once delivered: a yes, a choice or an
+ * answer. A comment closes only an ask read from its kind as a decide,
+ * whose comment was its answer.
+ */
+export const isClosing = (ask: Ask, verdict: Verdict) =>
+  CLOSING.includes(verdict) || (verdict === 'comment' && ask.kind === 'decide')
 
 /**
- * Where a delivered reply leaves an ask. Ignore drops it; a comment on a
- * review, try or do leaves it with Claude to act on; a yes, a choice or an
- * answer closes it. An ask already closed stays as it is: only Claude
- * reopens one.
+ * Where a delivered reply leaves an ask. Ignore drops it; a comment leaves
+ * it with Claude to act on; a yes, a choice or an answer closes it. An ask
+ * already closed stays as it is: only Claude reopens one.
  */
 export const askAfter = (ask: Ask, verdict: Verdict): AskState => {
   if (!isOpen(ask)) {
@@ -84,12 +101,12 @@ export const askAfter = (ask: Ask, verdict: Verdict): AskState => {
     return 'ignored'
   }
 
-  return isClosing(ask.kind, verdict) ? 'closed' : 'replied'
+  return isClosing(ask, verdict) ? 'closed' : 'replied'
 }
 
 /** The reply that closed an ask, where Lee's answer closed it; undefined where Claude's resolve did. */
 export const closingReply = (ask: Ask) =>
-  ask.state === 'closed' && ask.answer !== undefined && isClosing(ask.kind, ask.answer.verdict)
+  ask.state === 'closed' && ask.answer !== undefined && isClosing(ask, ask.answer.verdict)
     ? ask.answer
     : undefined
 
@@ -99,11 +116,18 @@ export const parkedAfter = (parked: Parked, verdict: Verdict): Parked['state'] =
 
 const quoted = (note: string) => `“${note}”`
 
+/** A note's first line: all of it the board shows on its one row. */
+const firstLine = (note: string) => note.split('\n', 1)[0] ?? ''
+
+/** How many lines a reply's words run to past their first: what the board's one row of them leaves out. */
+export const moreLines = ({ note }: Pick<ReplyFields, 'note'>) =>
+  note === undefined ? 0 : note.split('\n').length - 1
+
 /** A note as it follows the words leading into it: on their line, or on the lines under them. */
 type Quote = (note: string) => string
 
-/** A note as the board shows it: quoted after its lead, a line break in it breaking the row there. */
-const onTheBoard: Quote = note => ` ${quoted(note)}`
+/** A note as the board shows it, on one row: its first line, quoted after its lead. */
+const onTheBoard: Quote = note => ` ${quoted(firstLine(note))}`
 
 /** Backticks enough to fence a note: more than any run of them in it, so none of its lines closes the fence. */
 const fenceFor = (note: string) =>
@@ -127,7 +151,7 @@ const IN_MESSAGE = inMessage(quoted)
 /** A pick-up's note, said after its title as it is rather than quoted. */
 const PICK_UP_NOTE = inMessage(note => note)
 
-/** A note with a yes or a choice: what the ask needs back, where it says, else a comment. */
+/** A note with a yes or a choice: a comment, or, on an ask read from its kind, what it needed back. */
 const withNote = (ask: Ask, note: string | undefined, quote: Quote) =>
   note === undefined || note === '' ? '' : `, with ${ask.needs ?? 'a comment'}:${quote(note)}`
 
@@ -135,11 +159,13 @@ const withNote = (ask: Ask, note: string | undefined, quote: Quote) =>
 const words = (ask: Ask, { verdict, option, note }: ReplyFields, quote: Quote): string => {
   switch (verdict) {
     case 'yes':
-      return `${YES[ask.kind]}${withNote(ask, note, quote)}`
+      return `${ask.yes ?? 'yes'}${withNote(ask, note, quote)}`
     case 'choose':
       return `${option ?? ''}${withNote(ask, note, quote)}`
+    case 'answer':
+      return `${ask.needs ?? 'answer'}:${quote(note ?? '')}`
     case 'comment':
-      return `${ask.kind === 'decide' ? 'answer' : 'comment'}:${quote(note ?? '')}`
+      return `${isClosing(ask, verdict) ? 'answer' : 'comment'}:${quote(note ?? '')}`
     case 'ignore':
       return 'ignored'
     case 'pickup':
@@ -147,15 +173,26 @@ const words = (ask: Ask, { verdict, option, note }: ReplyFields, quote: Quote): 
   }
 }
 
-/** A reply in a few words, as the board shows it under its item: a choice after an arrow. */
+/** The verdicts the board shows after an arrow: what Lee gave, in the ask's own words. */
+const ARROWED: readonly Verdict[] = ['yes', 'choose']
+
+/**
+ * A reply in a few words on one row, as the board shows it under its item:
+ * a yes in its label's words and a choice after an arrow, an answer as its
+ * words, each note by its first line.
+ */
 export const answerOf = (item: Ask | Parked, reply: ReplyFields) => {
   if (item.type === 'park') {
     return PICK_UP
   }
 
+  if (reply.verdict === 'answer') {
+    return quoted(firstLine(reply.note ?? ''))
+  }
+
   const answer = words(item, reply, onTheBoard)
 
-  return reply.verdict === 'choose' ? `→ ${answer}` : answer
+  return ARROWED.includes(reply.verdict) ? `→ ${answer}` : answer
 }
 
 /** A reply as Lee's message carries it: the item's title and the answer on a line, a note of several lines under it; no ids, since Lee sends it as their own. */
