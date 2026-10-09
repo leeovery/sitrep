@@ -1,6 +1,6 @@
 /**
  * What the CLI asks of the world: its file system, the environment and the
- * folder it runs in, git, the clock, random bytes, and somewhere to print.
+ * folder it runs in, the clock, random bytes, and somewhere to print.
  * cli/shell binds it to Bun; a test binds it to memory.
  *
  * The file system appends and never rewrites: the CLI's file may be written
@@ -24,10 +24,8 @@ export type Io = {
     append: (path: string, text: string) => Promise<void>
   }
   env: Env
-  /** The folder the CLI runs in. */
+  /** The folder the CLI runs in: which projects `list` gives first. */
   cwd: string
-  /** Runs a command by its argument vector in `cwd`; rejects when it cannot run at all. */
-  run: (argv: readonly string[], cwd: string) => Promise<{ exitCode: number; stdout: string }>
   now: () => number
   random: Random
   /** Writes to standard output, as given. */

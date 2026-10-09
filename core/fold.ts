@@ -6,6 +6,7 @@
 import { parseEntries } from './entries'
 import { parseMeta } from './meta'
 import { deliverer, isLive, parsePresence } from './presence'
+import { parseProject, projectName } from './project'
 import { askAfter, fits, isOpen, isPending, parkedAfter, pickUpLog } from './replies'
 import { statusChange } from './status'
 import { compareText } from './text'
@@ -27,6 +28,8 @@ import {
 /** A work's files as read: work.json's text, and every other file's text by the writer its name gives. */
 export type WorkFiles = {
   meta: string
+  /** The project's project.json, which names the project; a folder from before projects were named has none. */
+  project?: string
   /** `<writer>.jsonl`, by writer. */
   logs: Readonly<Record<string, string>>
   /** `inbox/<sender>.jsonl`, by sender. */
@@ -349,7 +352,7 @@ export const foldWork = (files: WorkFiles, now: number): Work | undefined => {
 
   return {
     id: meta.id,
-    project: meta.project,
+    project: projectName(parseProject(files.project ?? ''), meta.project),
     root: meta.root,
     created: meta.created,
     by: meta.by,

@@ -78,7 +78,7 @@ test('a work in brief: what it is doing, whether a window has it, and what it ho
     id: 'sr-aaaaaa',
     name: 'Dashboard redesign',
     summary: 'Redesign the dashboard, area by area in Paper',
-    project: 'switchboard',
+    project: 'Switchboard',
     now: ['Drawing Usage, round 2'],
     next: 'Usage, round 3',
     isOpen: true,
@@ -103,7 +103,7 @@ test('a project adds up its works, those with a window first, then the most rece
     summariseProject('switchboard-1a2b3c4d', [older, quiet, open].map(summarise)),
   ).toMatchObject({
     key: 'switchboard-1a2b3c4d',
-    name: 'switchboard',
+    name: 'Switchboard',
     works: [{ id: 'sr-bbbbbb' }, { id: 'sr-aaaaaa' }, { id: 'sr-cccccc' }],
     open: 1,
     waiting: 1,

@@ -6,13 +6,12 @@
  * rewriting it, and writes no delivered marks or heartbeats: it is never a
  * window on the work.
  */
-import { append, checkJoin, type Body, type Checked } from '../core'
+import { append, checkJoin, rootOf, type Body, type Checked } from '../core'
 import { parseWords, wantsHelp, type Fields } from './args'
 import { commandNamed, type Command, type ProjectsCommand, type WorkCommand } from './commands'
-import { findWork, placeOf, readProjects } from './files'
+import { findWork, readProjects } from './files'
 import { commandHelp, HELP } from './help'
 import type { Env, Io } from './io'
-import { listed } from './output'
 
 /** How a run ends: done; a usage error, a refused input or a failure; or no such piece of work. */
 export const EXIT = { done: 0, refused: 1, noWork: 2 } as const
@@ -82,13 +81,13 @@ const onWork = async (io: Io, command: WorkCommand, input: Fields) => {
   }
 
   const now = io.now()
-  const found = await findWork(io, await placeOf(io), id.value, now)
+  const found = await findWork(io, rootOf(io.env), id.value, now)
 
   if (found === undefined) {
     return fail(
       io,
       EXIT.noWork,
-      `There is no piece of work ${id.value} on the board, in this project or any other.`,
+      `There is no piece of work ${id.value} on the board, in any project.`,
     )
   }
 
@@ -105,11 +104,14 @@ const onWork = async (io: Io, command: WorkCommand, input: Fields) => {
 }
 
 const onProjects = async (io: Io, command: ProjectsCommand, input: Fields) => {
-  const place = await placeOf(io)
   const now = io.now()
-  const read = await readProjects(io, place, input.all === true, now)
+  const acted = command.act(await readProjects(io, rootOf(io.env), now), io.cwd, now, input)
 
-  print(io, command.act(listed(read, place.here, now), place.here, input))
+  if (!acted.ok) {
+    return fail(io, EXIT.refused, acted.error)
+  }
+
+  print(io, acted.value)
 
   return EXIT.done
 }

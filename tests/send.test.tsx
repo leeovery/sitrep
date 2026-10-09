@@ -226,7 +226,9 @@ test('a send taken after Claude moved to another work mid-turn is written into t
 
   await turn.arrived
 
-  const themes = startedId(await w.call('start', { name: 'Themes', summary: 'The dark palette' }))
+  const themes = startedId(
+    await w.call('start', { name: 'Themes', summary: 'The dark palette', project: PROJECT.name }),
+  )
 
   turn.end()
   await pressed

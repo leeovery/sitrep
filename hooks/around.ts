@@ -11,16 +11,7 @@
  * only when it changed; the held work itself stays the watch's.
  */
 import type { Timer } from 'claude-code'
-import {
-  brief,
-  foldWork,
-  isCurrent,
-  isSafeName,
-  isWorkId,
-  projectsDir,
-  workPaths,
-  worksDir,
-} from '../core'
+import { brief, foldWork, isCurrent, isWorkId, workPaths, worksDir } from '../core'
 import type {
   SitrepAttachment,
   SitrepOther,
@@ -32,6 +23,7 @@ import type {
 } from '../types'
 import { boardOf } from './board'
 import { logFailure, rootFor, type Host, type Slot } from './host'
+import { projectKeys } from './projects'
 import { destinations, isShowing } from './queue'
 import { createReader, foldersIn, type Reader } from './reader'
 import type { Filed } from './scene'
@@ -115,7 +107,7 @@ const scopeOf = (
 
 /** The projects a look briefs: every one filed, or those the scope names. */
 const scopeKeys = async (host: Host, root: string, scope: Scope) =>
-  scope.isAll ? (await foldersIn(host, projectsDir(root))).filter(isSafeName) : scope.projects
+  scope.isAll ? projectKeys(host, root) : scope.projects
 
 /** The works a look reads, by id: every one under the scope's projects but the held one, and each it reads in full. */
 const readScope = async (host: Host, root: string, held: string, scope: Scope, now: number) => {

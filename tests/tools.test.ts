@@ -1,10 +1,16 @@
 import { expect, test, tier } from 'claude-code/testing'
-import { parseEntries, parseMeta, parsePresence, projectOf, workPaths } from '../core'
+import {
+  parseEntries,
+  parseMeta,
+  parsePresence,
+  parseProject,
+  projectPaths,
+  workPaths,
+} from '../core'
 import { file, finish, META, MIN, T0, W1, W2 } from './support'
 import {
   DASHBOARD,
   ELSEWHERE,
-  LOOSE,
   PROJECT,
   REPO,
   ROOT,
@@ -12,7 +18,6 @@ import {
   startedId,
   postedId,
   world,
-  WORKTREE,
 } from './world'
 
 tier('user')
@@ -28,6 +33,7 @@ const TOOLS = [
   'reopen',
   'edit',
   'finish',
+  'project',
   'board',
 ]
 
@@ -42,7 +48,7 @@ test('a session start registers every tool, each schema loaded up front', async 
   expect(w.registered).toEqual(TOOLS.map(name => ({ name, isDeferred: false })))
 })
 
-test("start files the work under the session's project, attaches the window and says to record the id", async ($, on) => {
+test('start files the work under the project it names, attaches the window and says to record the id', async ($, on) => {
   const w = world($, on)
 
   await $.session.start(SESSION)
@@ -52,12 +58,14 @@ test("start files the work under the session's project, attaches the window and 
   const paths = workPaths(ROOT, PROJECT.key, id)
 
   expect(answer.result).toBe(
-    `Started Dashboard redesign as ${id}. Record ${id} wherever this project tracks this work, so a later window can join it.`,
+    `Started Dashboard redesign as ${id}, in a new project, Switchboard. Record ${id} wherever the project tracks this work, so a later window can join it.`,
   )
+  expect(parseProject(w.text(projectPaths(ROOT, PROJECT.key).file))?.name).toBe('Switchboard')
   expect(parseMeta(w.text(paths.meta))).toEqual({
     id,
-    ...DASHBOARD,
-    project: 'switchboard',
+    name: DASHBOARD.name,
+    summary: DASHBOARD.summary,
+    project: 'Switchboard',
     root: REPO,
     created: w.clock.now(),
     by: W1,
@@ -72,39 +80,31 @@ test("start files the work under the session's project, attaches the window and 
   expect(w.state.board?.status.name).toBe('Dashboard redesign')
 })
 
-test("a worktree's work is filed under its repository's project; outside git, under the folder's", async ($, on) => {
+test('start refuses a work with no name, no summary or no project, and writes nothing', async ($, on) => {
   const w = world($, on)
-
-  await $.session.start(SESSION)
-  w.become({ cwd: WORKTREE })
-
-  const inWorktree = startedId(await w.call('start', DASHBOARD))
-
-  expect(parseMeta(w.text(workPaths(ROOT, PROJECT.key, inWorktree).meta))?.root).toBe(WORKTREE)
-
-  w.become({ cwd: LOOSE })
-
-  const loose = startedId(await w.call('start', DASHBOARD))
-
-  expect(w.files.has(workPaths(ROOT, projectOf(LOOSE).key, loose).meta)).toBe(true)
-})
-
-test('start refuses a work with no name or no summary, and writes nothing', async ($, on) => {
-  const w = world($, on)
+  const noProject =
+    'A piece of work needs its project: its name as Lee would say it, such as SitRep or Switchboard.'
 
   await $.session.start(SESSION)
 
-  expect((await w.call('start', { name: 'Dashboard' })).deny).toBe(
+  expect((await w.call('start', { name: 'Dashboard', project: 'SitRep' })).deny).toBe(
     'A piece of work needs a summary: one line on what it is for.',
   )
   expect((await w.call('start', { summary: 'Area by area' })).deny).toContain('needs a name')
+  expect((await w.call('start', { name: 'Dashboard', summary: 'Area by area' })).deny).toBe(
+    noProject,
+  )
+  expect((await w.call('start', { ...DASHBOARD, project: ' -!- ' })).deny).toBe(noProject)
+  expect((await w.call('start', { ...DASHBOARD, directory: 'Code/sitrep' })).deny).toBe(
+    "A project's directory is an absolute path: where the project lives.",
+  )
   expect(w.files.size).toBe(0)
 })
 
-test('join attaches to a work by its id, looking in this project first, then in every other', async ($, on) => {
+test('join attaches to a work by its id, in whichever project it is filed', async ($, on) => {
   const w = world($, on)
   const here = { ...META, id: 'sr-aaaaaa', by: 'cli' }
-  const there = { ...META, id: 'sr-bbbbbb', name: 'Lobby', by: 'cli' }
+  const there = { ...META, id: 'sr-bbbbbb', name: 'Lobby', project: 'goosemates', by: 'cli' }
 
   w.seed(here)
   w.seed(there, ELSEWHERE.key)
@@ -129,7 +129,7 @@ test('join refuses an id of the wrong shape, or one no project holds', async ($,
 
   expect((await w.call('join', { work: 'dashboard' })).deny).toContain('by the id start gave it')
   expect((await w.call('join', { work: 'sr-zzzzzz' })).deny).toBe(
-    'There is no piece of work sr-zzzzzz on the board, in this project or any other.',
+    'There is no piece of work sr-zzzzzz on the board, in any project.',
   )
   expect(w.state.attachment).toBeUndefined()
 })
@@ -158,7 +158,11 @@ test('status sets what changed, keeps the rest, and the board logs the change it
   const { paths } = await w.begin()
 
   expect((await w.call('status', { now: ['Drawing Usage, round 2'] })).result).toBe('Status set.')
-  expect(w.state.board?.status).toMatchObject({ ...DASHBOARD, now: ['Drawing Usage, round 2'] })
+  expect(w.state.board?.status).toMatchObject({
+    name: DASHBOARD.name,
+    summary: DASHBOARD.summary,
+    now: ['Drawing Usage, round 2'],
+  })
   expect(w.state.board?.log[0]?.text).toBe('Status: now drawing Usage, round 2')
   expect(linesOf(w, paths.log(W1)).map(line => line.type)).toEqual(['status'])
   expect((await w.call('status', {})).deny).toContain('at least one of')

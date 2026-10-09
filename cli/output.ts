@@ -7,17 +7,17 @@
  * moves only with a change a reader would trip on.
  */
 import {
-  allProjects,
   brief,
-  isCurrent,
   isOpen,
-  summarise,
-  summariseProject,
+  isSameName,
+  listedProjects,
+  projectAround,
   type Ask,
   type LogLine,
   type Parked,
   type Project,
   type ProjectSummary,
+  type ProjectWorks,
   type Work,
   type WorkSummary,
 } from '../core'
@@ -25,31 +25,34 @@ import {
 /** The JSON's version. */
 const OUTPUT = 1
 
-/** A project's works, as read. */
-export type ProjectRead = { key: string; works: readonly Work[] }
+/** What `list` gives: the project the CLI runs in, if it runs in one, and the projects listed. */
+export type Listing = { here?: Project; projects: ProjectSummary[] }
 
 const json = (value: unknown) => JSON.stringify(value, null, 2)
 
 /**
- * The projects as `list` gives them, each with its current works: `here`
- * first, named as its folder is, then the busiest, and those with nothing
- * open, waiting or parked last. A project with no current works is left
- * out, but never `here`.
+ * The projects as `list` gives them, every one or those `named` names,
+ * each with its current works, as the start of a session lists them: those
+ * whose directory holds the folder the CLI runs in first. `here` is the
+ * nearest of those. A project with no current works is left out, but never
+ * `here`, nor one named.
  */
-export const listed = (read: readonly ProjectRead[], here: Project, now: number) => {
-  const summaries = read.flatMap(({ key, works }) => {
-    const current = works.map(summarise).filter(work => isCurrent(work, now))
-    const summary = summariseProject(key, current)
+export const listing = (
+  read: readonly ProjectWorks[],
+  cwd: string,
+  now: number,
+  named?: string,
+): Listing => {
+  const here = projectAround(
+    read.map(({ project }) => project),
+    cwd,
+  )
+  const chosen =
+    named === undefined ? read : read.filter(({ project }) => isSameName(project.name, named))
+  const kept = named === undefined ? [here] : chosen.map(({ project }) => project)
+  const keys = kept.flatMap(project => (project === undefined ? [] : [project.key]))
 
-    if (key === here.key) {
-      return [{ ...summary, name: here.name }]
-    }
-
-    return current.length === 0 ? [] : [summary]
-  })
-  const { projects, folded } = allProjects(summaries, here.key)
-
-  return [...projects, ...folded]
+  return { here, projects: listedProjects(chosen, cwd, now, keys) }
 }
 
 /** What a work holds that `list` tells: whether a window has it, and what waits and is parked. */
@@ -72,7 +75,9 @@ const projectLines = (project: ProjectSummary) => [
 
 /** Each project's name, then its works, a line each: the id, the name, and what it holds. */
 export const listText = (projects: readonly ProjectSummary[]) =>
-  projects.flatMap(projectLines).join('\n')
+  projects.length === 0
+    ? 'No current pieces of work on the board.'
+    : projects.flatMap(projectLines).join('\n')
 
 const workJson = (work: WorkSummary) => ({
   id: work.id,
@@ -96,9 +101,9 @@ const projectJson = (project: ProjectSummary) => ({
   works: project.works.map(workJson),
 })
 
-/** `list --json`: the project the CLI runs in, by its key, and the projects as `listed` gives them. */
-export const listJson = (projects: readonly ProjectSummary[], here: Project) =>
-  json({ v: OUTPUT, here: here.key, projects: projects.map(projectJson) })
+/** `list --json`: the project the CLI runs in, by its key, else null, and the projects as `listing` gives them. */
+export const listJson = ({ here, projects }: Listing) =>
+  json({ v: OUTPUT, here: here?.key ?? null, projects: projects.map(projectJson) })
 
 const askJson = (ask: Ask) => ({
   id: ask.id,

@@ -1,14 +1,14 @@
 import { expect, test } from 'claude-code/testing'
 import { EXIT } from '../cli/main'
-import { projectOf, type WorkMeta } from '../core'
+import type { WorkMeta } from '../core'
 import { ask, finish, META, MIN, note, park, resolve, status, T0, W1, W2 } from './support'
 import { NOW, terminal } from './terminal'
-import { ELSEWHERE, PROJECT } from './world'
+import { ELSEWHERE, HOME, PROJECT, REPO } from './world'
 
 const DAY = 24 * 60 * MIN
 
-const QUIET = projectOf('/Users/lee/Code/quiet/.git')
-const STALE = projectOf('/Users/lee/Code/stale/.git')
+const QUIET = { key: 'quiet', name: 'Quiet' }
+const STALE = { key: 'stale', name: 'Stale' }
 
 const LOBBY: WorkMeta = { ...META, id: 'sr-bbbbbb', name: 'Lobby', summary: 'The lobby screen' }
 
@@ -36,9 +36,11 @@ const QUIETLY: WorkMeta = { ...GOOSE, id: 'sr-ffffff', name: 'Tidying', project:
 
 const STALE_WORK: WorkMeta = { ...OLD, id: 'sr-gggggg', project: 'stale' }
 
-/** This project: an open work holding an ask and something parked, an idle one, and two from last week. */
-const busyHere = () => {
-  const t = terminal()
+/** Switchboard, living where the CLI runs: an open work holding an ask and something parked, an idle one, and two from last week. */
+const busyHere = (cwd = REPO) => {
+  const t = terminal({ cwd })
+
+  t.project(PROJECT.key, { name: PROJECT.name, directory: REPO, created: T0, by: W1 })
 
   t.seed(META, {
     seenAt: NOW,
@@ -55,9 +57,9 @@ const busyHere = () => {
   return t
 }
 
-/** Every project: this one, one with asks waiting, one idle, and one with only an old work. */
-const everywhere = () => {
-  const t = busyHere()
+/** Every project: Switchboard, one with asks waiting, one idle, and one with only an old work. */
+const everywhere = (cwd = REPO) => {
+  const t = busyHere(cwd)
 
   t.seed(GOOSE, {
     project: ELSEWHERE.key,
@@ -72,11 +74,11 @@ const everywhere = () => {
   return t
 }
 
-test("list: this project's current works, an open one first, each with its id and what it holds", async () => {
+test("list: each project's current works, an open one first, each with its id and what it holds", async () => {
   expect(await busyHere().run('list')).toEqual({
     exit: EXIT.done,
     out: [
-      'switchboard',
+      'Switchboard',
       '  sr-k3f9qa  Dashboard redesign (open, 1 waiting, 1 parked)',
       '  sr-bbbbbb  Lobby',
       '  sr-cccccc  Old but waiting (1 waiting)',
@@ -96,7 +98,7 @@ test('list --json: the project the CLI runs in, and each project with its curren
     projects: [
       {
         key: PROJECT.key,
-        name: 'switchboard',
+        name: 'Switchboard',
         open: 1,
         waiting: 2,
         parked: 1,
@@ -141,29 +143,81 @@ test('list --json: the project the CLI runs in, and each project with its curren
   })
 })
 
-test('list --all: this project first, then the busiest, the idle last; one with no current work is left out', async () => {
+test('list: every project, the one the CLI runs in first, then the busiest, the idle last; one with no current work is left out', async () => {
   const t = everywhere()
-  const { out } = await t.run('list', '--all', '--json')
+  const { out } = await t.run('list', '--json')
   const projects = JSON.parse(out).projects as { key: string; name: string; works: unknown[] }[]
 
   expect(projects.map(project => [project.name, project.works.length])).toEqual([
-    ['switchboard', 3],
-    ['goosemates', 1],
-    ['quiet', 1],
+    ['Switchboard', 3],
+    ['Goosemates', 1],
+    ['Quiet', 1],
   ])
   expect(projects.map(project => project.key)).toEqual([PROJECT.key, ELSEWHERE.key, QUIET.key])
-  expect((await t.run('list', '--all')).out).toBe(
+  expect((await t.run('list')).out).toBe(
     [
-      'switchboard',
+      'Switchboard',
       '  sr-k3f9qa  Dashboard redesign (open, 1 waiting, 1 parked)',
       '  sr-bbbbbb  Lobby',
       '  sr-cccccc  Old but waiting (1 waiting)',
-      'goosemates',
+      'Goosemates',
       '  sr-eeeeee  Onboarding (2 waiting)',
-      'quiet',
+      'Quiet',
       '  sr-ffffff  Tidying',
       '',
     ].join('\n'),
+  )
+})
+
+test('here is the nearest project whose directory holds the folder the CLI runs in, listed first; else null', async () => {
+  const quietHome = '/Users/lee/Code/quiet'
+  const t = everywhere(`${quietHome}/docs`)
+
+  t.project(QUIET.key, { name: 'Quiet', directory: quietHome, created: T0, by: W1 })
+  t.project('code', { name: 'Code', directory: '/Users/lee/Code', created: T0, by: W1 })
+
+  const listed = JSON.parse((await t.run('list', '--json')).out)
+
+  expect(listed.here).toBe(QUIET.key)
+  expect(listed.projects.map((project: { key: string }) => project.key)).toEqual([
+    QUIET.key,
+    PROJECT.key,
+    ELSEWHERE.key,
+  ])
+  expect(JSON.parse((await everywhere(HOME).run('list', '--json')).out).here).toBeNull()
+})
+
+test('list --project gives only that project, its name matched as start matches it', async () => {
+  const t = everywhere(HOME)
+
+  expect((await t.run('list', '--project', 'goose mates')).out).toBe(
+    ['Goosemates', '  sr-eeeeee  Onboarding (2 waiting)', ''].join('\n'),
+  )
+  expect(JSON.parse((await t.run('list', '--project=STALE', '--json')).out)).toEqual({
+    v: 1,
+    here: null,
+    projects: [
+      {
+        key: STALE.key,
+        name: 'Stale',
+        open: 0,
+        waiting: 0,
+        parked: 0,
+        updatedAt: 0,
+        works: [],
+      },
+    ],
+  })
+  expect(await t.run('list', '--project', 'Portal')).toEqual({
+    exit: EXIT.refused,
+    out: '',
+    err: 'sitrep: There is no project named Portal.\n',
+  })
+})
+
+test('list takes no --all: every project is listed already', async () => {
+  expect((await terminal().run('list', '--all')).err).toBe(
+    'sitrep: There is no --all. sitrep list --help says more.\n',
   )
 })
 
@@ -185,26 +239,35 @@ test('list leaves out a finished work, whatever it holds, and a project left wit
     ],
   })
 
-  expect((await t.run('list', '--all')).out).toBe(
+  expect((await t.run('list')).out).toBe(
     [
-      'switchboard',
+      'Switchboard',
       '  sr-k3f9qa  Dashboard redesign (open, 1 waiting, 1 parked)',
       '  sr-cccccc  Old but waiting (1 waiting)',
-      'quiet',
+      'Quiet',
       '  sr-ffffff  Tidying',
       '',
     ].join('\n'),
   )
 })
 
-test('list names this project even with nothing current in it', async () => {
+test('list names the project the CLI runs in even with nothing current in it, and says when nothing is on the board', async () => {
   const t = terminal()
 
-  expect((await t.run('list')).out).toBe('switchboard\n  no current pieces of work\n')
+  expect((await t.run('list')).out).toBe('No current pieces of work on the board.\n')
+  expect(JSON.parse((await t.run('list', '--json')).out)).toEqual({
+    v: 1,
+    here: null,
+    projects: [],
+  })
+
+  t.project(PROJECT.key, { name: PROJECT.name, directory: REPO, created: T0, by: W1 })
+
+  expect((await t.run('list')).out).toBe('Switchboard\n  no current pieces of work\n')
   expect(JSON.parse((await t.run('list', '--json')).out).projects).toEqual([
     {
       key: PROJECT.key,
-      name: 'switchboard',
+      name: 'Switchboard',
       open: 0,
       waiting: 0,
       parked: 0,
@@ -234,7 +297,7 @@ test('board --json: the work as list gives it, its open asks, what it parked and
   expect(exit).toBe(EXIT.done)
   expect(JSON.parse(out)).toEqual({
     v: 1,
-    project: { key: PROJECT.key, name: 'switchboard' },
+    project: { key: PROJECT.key, name: 'Switchboard' },
     work: {
       id: META.id,
       name: META.name,

@@ -96,9 +96,6 @@ export const wrapped = (text: string, width: number) => {
     }, [])
 }
 
-/** A project's folder name as a title: its first letter capital. */
-export const titled = (name: string) => name.charAt(0).toUpperCase() + name.slice(1)
-
 /** A count and its noun, singular or plural. */
 export const counted = (count: number, one: string, many: string) =>
   `${count} ${count === 1 ? one : many}`

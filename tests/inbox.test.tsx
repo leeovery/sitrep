@@ -3,7 +3,7 @@ import { parseEntries, type WorkPaths } from '../core'
 import { FLASH_MS } from '../hooks/deliver'
 import { WATCH_MS } from '../hooks/window'
 import { file, MIN, reply, SENDER, W1, W2 } from './support'
-import { postedId, SESSION, world } from './world'
+import { postedId, PROJECT, SESSION, world } from './world'
 
 tier('user')
 
@@ -198,7 +198,7 @@ test('inbox replies taken after Claude moved to another work mid-turn are marked
   send(['r1', asked, 'yes'])
   await w.clock.advance(TAKE_IN)
   await turn.arrived
-  await w.call('start', { name: 'Themes', summary: 'The dark palette' })
+  await w.call('start', { name: 'Themes', summary: 'The dark palette', project: PROJECT.name })
   turn.end()
   await w.clock.advance(WATCH_MS)
 

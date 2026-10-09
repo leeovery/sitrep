@@ -1,17 +1,9 @@
 import { expect, test } from 'claude-code/testing'
 import { EXIT, main, WRITER } from '../cli/main'
-import {
-  boardText,
-  COMMON_DIR,
-  foldWork,
-  parseEntries,
-  serialise,
-  VERSION,
-  type WorkPaths,
-} from '../core'
+import { boardText, foldWork, parseEntries, serialise, VERSION, type WorkPaths } from '../core'
 import { ask, file, META, MIN, note, status, T0, W1 } from './support'
 import { ENV, FIRST_ID, NEXT_ID, NOW, terminal } from './terminal'
-import { ELSEWHERE, LOOSE, PROJECT, WORKTREE } from './world'
+import { ELSEWHERE } from './world'
 
 type Terminal = ReturnType<typeof terminal>
 
@@ -304,7 +296,7 @@ test('an id filed in no project is no such work, and ends as such', async () => 
   expect(await t.run('note', 'Hello', '--work', 'sr-zzzzzz')).toEqual({
     exit: EXIT.noWork,
     out: '',
-    err: 'sitrep: There is no piece of work sr-zzzzzz on the board, in this project or any other.\n',
+    err: 'sitrep: There is no piece of work sr-zzzzzz on the board, in any project.\n',
   })
 })
 
@@ -317,31 +309,14 @@ test('a work whose work.json is torn is no such work', async () => {
   expect((await t.run('board', ...WORK)).exit).toBe(EXIT.noWork)
 })
 
-test('a work is looked up in this project first, then every other', async () => {
-  const t = terminal()
+test('a work is found in whichever project files it, whatever folder the CLI runs in', async () => {
+  const t = terminal({ cwd: '/Users/lee' })
   const there = t.seed(LOBBY, { project: ELSEWHERE.key })
+
+  t.seed(META)
 
   expect((await t.run('note', 'Found it over there', '--work', LOBBY.id)).exit).toBe(EXIT.done)
   expect(folded(t, there).log.map(line => line.text)).toEqual(['Found it over there'])
-
-  const here = t.seed(LOBBY)
-
-  await t.run('note', 'Here wins', '--work', LOBBY.id)
-
-  expect(folded(t, here).log.map(line => line.text)).toEqual(['Here wins'])
-  expect(folded(t, there).log.map(line => line.text)).toEqual(['Found it over there'])
-})
-
-test('the project is known as the mod knows it: by git’s common dir, else the folder itself', async () => {
-  const fromWorktree = terminal({ cwd: WORKTREE })
-  const loose = terminal({ cwd: LOOSE })
-
-  await fromWorktree.run('list', '--json')
-  await loose.run('list', '--json')
-
-  expect(fromWorktree.ran).toEqual([{ argv: COMMON_DIR, cwd: WORKTREE }])
-  expect(JSON.parse((await fromWorktree.run('list', '--json')).out).here).toBe(PROJECT.key)
-  expect(JSON.parse((await loose.run('list', '--json')).out).projects[0].name).toBe('notes')
 })
 
 test('board prints the board as Claude’s board tool reads it', async () => {
@@ -366,7 +341,7 @@ test('help: every command in brief, how a work is named, the exit codes, and ans
   expect(out).toContain(
     '  sitrep ask <kind> <title> [--where <words>] [--option <choice>]... [--ref <ref>]\n',
   )
-  expect(out).toContain('  sitrep list [--all] [--json]\n')
+  expect(out).toContain('  sitrep list [--project <name>] [--json]\n')
   expect(out).toContain('--work sr-xxxxxx, else $SITREP_WORK')
   expect(out).toContain('2 no such piece of work')
   expect(out).toContain('Answering an ask from here: not yet.')

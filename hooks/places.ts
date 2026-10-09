@@ -14,7 +14,6 @@ import {
   type WorkBrief,
 } from '../core'
 import type { SitrepPlace, SitrepWorkRef } from '../types'
-import { titled } from './look'
 import type { Filed, Scene } from './scene'
 
 export const EVERY_PROJECT: SitrepPlace = { level: 'all' }
@@ -96,7 +95,7 @@ export const projectAt = (scene: Scene, key: string) => {
 }
 
 /** A project's name, as its works name it. */
-export const projectName = (scene: Scene, key: string) => titled(projectAt(scene, key).summary.name)
+export const projectName = (scene: Scene, key: string) => projectAt(scene, key).summary.name
 
 /** Every project read, ordered and folded as All projects shows them. */
 export const everyProject = (scene: Scene) =>
@@ -137,4 +136,4 @@ export const parkedAt = (scene: Scene): ParkedAt[] =>
 export const workLabel = (scene: Scene, filed: Filed) =>
   filed.project === scene.here
     ? filed.work.status.name
-    : `${filed.work.status.name} · ${titled(filed.work.project)}`
+    : `${filed.work.status.name} · ${filed.work.project}`

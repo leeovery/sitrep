@@ -1,12 +1,14 @@
 /**
  * What the board's views show, as data: a piece of work in brief, a project
  * with its works, its log and what it parked, and every project, the busiest
- * first.
+ * first; and every project as the start of a session and the CLI list them,
+ * those around the folder first.
  *
  * A work shows while it is current: open, holding something for Lee, or
  * updated lately, and not marked done. An older idle one, or a finished
  * one, stays on disk, out of every view.
  */
+import { nearestFirst, type Project } from './project'
 import { compareText } from './text'
 import type { LogLine, Parked, Work } from './types'
 
@@ -44,6 +46,8 @@ export type WorkBrief = WorkSummary & {
 export type ProjectSummary = {
   key: string
   name: string
+  /** Where the project lives, where that is known. */
+  directory?: string
   /** Those with a window first, then the most recently updated. */
   works: WorkSummary[]
   /** How many works have a window. */
@@ -137,6 +141,35 @@ export const allProjects = (projects: readonly ProjectSummary[], here?: string):
     ],
     folded: others.filter(isIdle).sort((a, b) => byRecency(a, b) || compareText(a.name, b.name)),
   }
+}
+
+/** A project as a front end reads it, and its works in brief. */
+export type ProjectWorks = { project: Project; works: readonly WorkSummary[] }
+
+/**
+ * The projects as the start of a session and the CLI list them, each with
+ * its current works: those whose directory holds the folder first, the
+ * nearest first, then the busiest, and those with nothing open, waiting or
+ * parked last. A project with no current works is left out, but never one
+ * `kept` names.
+ */
+export const listedProjects = (
+  read: readonly ProjectWorks[],
+  folder: string,
+  now: number,
+  kept: readonly string[] = [],
+): ProjectSummary[] => {
+  const summaries = read.flatMap(({ project, works }) => {
+    const current = works.filter(work => isCurrent(work, now))
+    const { name, directory } = project
+
+    return current.length > 0 || kept.includes(project.key)
+      ? [{ ...summariseProject(project.key, current), name, directory }]
+      : []
+  })
+  const { projects, folded } = allProjects(summaries)
+
+  return nearestFirst([...projects, ...folded], folder)
 }
 
 /** A project's log: every work's lines, newest first. */

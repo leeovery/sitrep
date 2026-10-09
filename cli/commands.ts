@@ -18,13 +18,12 @@ import {
   withId,
   type Body,
   type Checked,
-  type Project,
-  type ProjectSummary,
+  type ProjectWorks,
   type Random,
   type Work,
 } from '../core'
 import type { Fields, Flag, Grammar } from './args'
-import { boardJson, listJson, listText } from './output'
+import { boardJson, listing, listJson, listText } from './output'
 
 /** A piece of work, and the key of the project it is filed under. */
 export type Filed = { project: string; work: Work }
@@ -39,10 +38,10 @@ export type WorkCommand = About & {
   act: (filed: Filed, input: Fields, random: Random) => Checked<Outcome>
 }
 
-/** A command on the projects: this one's, or with `--all` every one's, in the order All projects shows them. */
+/** A command on the projects: every one read, with its works, from the folder the CLI runs in, at `now`. */
 export type ProjectsCommand = About & {
   on: 'projects'
-  act: (projects: readonly ProjectSummary[], here: Project, input: Fields) => string
+  act: (read: readonly ProjectWorks[], cwd: string, now: number, input: Fields) => Checked<string>
 }
 
 export type Command = WorkCommand | ProjectsCommand
@@ -177,17 +176,31 @@ const board: WorkCommand = {
 
 const list: ProjectsCommand = {
   name: 'list',
-  about: "List this project's current pieces of work, with their ids and what waits on Lee.",
+  about:
+    "List every project's current pieces of work, with their ids and what waits on Lee: first the projects living around the folder it runs in.",
   grammar: {
     args: [],
     flags: {
-      all: { field: 'all', form: 'switch', about: "every project's, this one first" },
+      project: {
+        field: 'project',
+        form: 'one',
+        value: '<name>',
+        about: "only that project's, its name matched as start matches it",
+      },
       ...JSON_OUT,
     },
   },
   on: 'projects',
-  act: (projects, here, input) =>
-    input.json === true ? listJson(projects, here) : listText(projects),
+  act: (read, cwd, now, input) => {
+    const named = typeof input.project === 'string' ? input.project : undefined
+    const listed = listing(read, cwd, now, named)
+
+    if (named !== undefined && listed.projects.length === 0) {
+      return { ok: false, error: `There is no project named ${named}.` }
+    }
+
+    return { ok: true, value: input.json === true ? listJson(listed) : listText(listed.projects) }
+  },
 }
 
 /** Every command, in the order the help lists them. */

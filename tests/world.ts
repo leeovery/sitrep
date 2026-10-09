@@ -1,18 +1,20 @@
 /**
- * The engine beneath the mod, for its tests: a file system in memory, a
- * repository git knows, the session, the environment and the clock, the
- * display, and a record of what the mod puts in `$.state` and submits.
- * Nothing touches a real folder.
+ * The engine beneath the mod, for its tests: a file system in memory, the
+ * session, the environment and the clock, the display, and a record of what
+ * the mod puts in `$.state` and submits. Nothing touches a real folder.
  */
 import type { On, PluginState, PromptSubmitInput, RenderPropsOf } from 'claude-code'
 import { mock, type Engine } from 'claude-code/testing'
 import {
   metaText,
   presenceText,
-  projectOf,
+  projectPaths,
+  projectText,
   workPaths,
   type Body,
   type Presence,
+  type Project,
+  type ProjectFile,
   type WorkMeta,
   type WorkPaths,
 } from '../core'
@@ -24,21 +26,24 @@ type Sitrep = PluginState['sitrep']
 export const STATE_HOME = '/state'
 export const ROOT = `${STATE_HOME}/sitrep`
 
-/** The repository the session works in, a worktree of it, and a folder outside git. */
+/** The folder the session starts in: Switchboard's repository, though that decides nothing. */
 export const REPO = '/Users/lee/Code/switchboard'
-export const WORKTREE = '/Users/lee/Code/switchboard-wt'
-export const LOOSE = '/Users/lee/notes'
 
-export const PROJECT = projectOf(`${REPO}/.git`)
+/** Lee's home folder, which a session may start in to talk of any project. */
+export const HOME = '/Users/lee'
+
+/** The project the works under test are on: named so by Claude as it starts one, its key the name's slug. */
+export const PROJECT: Project = { key: 'switchboard', name: 'Switchboard' }
 
 /** Another project, with a work of its own. */
-export const ELSEWHERE = projectOf('/Users/lee/Code/goosemates/.git')
+export const ELSEWHERE: Project = { key: 'goosemates', name: 'Goosemates' }
 
 export const SESSION = { cwd: REPO, surface: 'terminal' as const, isInteractive: true }
 
 export const DASHBOARD = {
   name: 'Dashboard redesign',
   summary: 'Redesign the dashboard, area by area',
+  project: PROJECT.name,
 }
 
 export const PROMPT = { text: 'Carry on.', wait: false, origin: { kind: 'composer' as const } }
@@ -225,7 +230,7 @@ export function world(engine: Engine, on: On, options: { now?: number; cwd?: str
   let cwd = options.cwd ?? REPO
   let isRefused: ((path: string) => boolean) | undefined
 
-  mock.env(on, { XDG_STATE_HOME: STATE_HOME, HOME: '/Users/lee' })
+  mock.env(on, { XDG_STATE_HOME: STATE_HOME, HOME })
 
   on('session.start', ($, e) => ({ cwd: e.cwd }))
   on('session.end', ($, e) => ({ sessionId: e.sessionId }))
@@ -246,21 +251,6 @@ export function world(engine: Engine, on: On, options: { now?: number; cwd?: str
     logs.push(e.text)
 
     return { value: undefined }
-  })
-
-  on('process.run', ($, e) => {
-    const where = e.init?.cwd ?? cwd
-    const isRepo = where === REPO || where === WORKTREE
-
-    return {
-      value: {
-        exitCode: isRepo ? 0 : 128,
-        stdout: isRepo ? `${REPO}/.git\n` : '',
-        stderr: isRepo ? '' : 'fatal: not a git repository',
-        isStdoutTruncated: false,
-        isStderrTruncated: false,
-      },
-    }
   })
 
   on('state.set', ($, e, next) => {
@@ -343,6 +333,10 @@ export function world(engine: Engine, on: On, options: { now?: number; cwd?: str
   /** A work started by another window, filed under `project`. */
   const seed = (meta: WorkMeta, project = PROJECT.key) =>
     put(workPaths(ROOT, project, meta.id).meta, metaText(meta))
+
+  /** A project's file, as a start or the project tool writes it. */
+  const project = (key: string, file: ProjectFile) =>
+    put(projectPaths(ROOT, key).file, projectText(file))
 
   /** Another window's heartbeat on a work. */
   const beat = (id: string, presence: Presence, project = PROJECT.key) =>
@@ -454,6 +448,7 @@ export function world(engine: Engine, on: On, options: { now?: number; cwd?: str
     text,
     refuseWrites,
     seed,
+    project,
     beat,
     writer,
     elsewhere,

@@ -60,7 +60,7 @@ test('a session resumed in a new process takes up by itself the work it was last
   expect(parseEntries(w.text(paths.log(W1))).map(line => line.seq)).toEqual([1, 2])
 })
 
-test('a session seen in no work of its project takes nothing up', async ($, on) => {
+test('a session seen in no work takes nothing up', async ($, on) => {
   const w = world($, on, { now: NOW })
 
   w.elsewhere(meta('sr-cccccc', 'Request ledger', W2)).beat()
@@ -86,7 +86,7 @@ test('a session resumed in a new process never takes up by itself the work it fi
   expect(block?.text).toBe(startText([]))
 })
 
-test("the session's first message lists the project's current works by id, and which this window took up", async ($, on) => {
+test("the session's first message lists the current works by project and id, and which this window took up", async ($, on) => {
   const w = world($, on, { now: NOW })
 
   heldBefore(w, meta('sr-bbbbbb', 'Dashboard redesign', W1), T0 + 5 * MIN)
@@ -98,14 +98,14 @@ test("the session's first message lists the project's current works by id, and w
 
   expect(more).toEqual([])
   expect(block?.name).toBe('sitrep')
-  expect(block?.text).toContain('- sr-bbbbbb: Dashboard redesign.')
-  expect(block?.text).toContain('- sr-cccccc: Request ledger.')
+  expect(block?.text).toContain('- Switchboard: sr-bbbbbb "Dashboard redesign"')
+  expect(block?.text).toContain('- Switchboard: sr-cccccc "Request ledger"')
   expect(block?.text).not.toContain('sr-dddddd')
   expect(block?.text).toContain('This window already holds sr-bbbbbb (Dashboard redesign)')
   expect(block?.text).toContain('join it by its id with the sitrep join tool')
 })
 
-test('with no current works in the project, the first message carries only how to keep the board', async ($, on) => {
+test('with no current works on the board, the first message carries only how to keep the board', async ($, on) => {
   const w = world($, on, { now: NOW })
 
   await $.session.start(SESSION)

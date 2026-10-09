@@ -4,7 +4,7 @@
  * naming its session. A session opens its own view.
  */
 import type { WorkSummary } from '../../core'
-import { C, clip, GLYPH, titled } from '../look'
+import { C, clip, GLYPH } from '../look'
 import { hereFirst, projectAt } from '../places'
 import { context, heading, waitingWords, type Drawing } from './kit'
 import { drawLogLine } from './log'
@@ -65,7 +65,7 @@ export const drawProjectView = (d: Drawing, key: string) => {
 
   return (
     <Box flexDirection="column" gap={1}>
-      {context(d, titled(summary.name), waitingWords(summary.waiting))}
+      {context(d, summary.name, waitingWords(summary.waiting))}
       <Box flexDirection="column">
         {heading(d, 'SESSIONS', C.log, `${summary.open} of ${sessions.length} open`)}
         <Box flexDirection="column" rowGap={1}>

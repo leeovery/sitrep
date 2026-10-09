@@ -5,7 +5,7 @@ export type WorkMeta = {
   id: string
   name: string
   summary: string
-  /** The project's name, for views that span projects. */
+  /** The project's name as the work was started in it; the project's own file names it since. */
   project: string
   /** Where the work was started. */
   root: string

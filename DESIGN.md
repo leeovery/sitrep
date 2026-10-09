@@ -26,6 +26,7 @@ here was decided with Lee unless it says **proposed**.
 |---|---|
 | **piece of work** | What Lee calls a "session": one line of work, whatever Claude windows it spans. The UI says *session*; underneath it is a work id. |
 | **work id** | The board's internal id for a piece of work. Never shown in the UI. |
+| **project** | What a piece of work is on, named by Claude as Lee would say it (`SitRep`, `Switchboard`), and where it lives once known. Never the folder a session started in. |
 | **status** | Where a piece of work stands: its name, a one-line summary, what is under way now (one line each), and what comes next. |
 | **ask** | Something only Lee can do or decide, posted by Claude. Counted on the band. |
 | **note** | A line in the log: something that happened that Lee may want to know. Not counted. |
@@ -38,28 +39,38 @@ here was decided with Lee unless it says **proposed**.
 A Claude session id changes on `/clear` and `/resume`, and one piece of work
 can run across several windows. So sitrep keys everything on a work id.
 
-1. Claude starts a piece of work on the board with a name and a summary, and
-   gets back a work id.
+1. Claude starts a piece of work on the board with a name, a summary and its
+   project (below), and gets back a work id.
 2. Claude records the id in its own tracking for that work (design doc, plan,
    memory: wherever that project keeps things).
 3. Any later window joins the work by id: after `/clear`, `/resume`, a fresh
    window tomorrow, or a second window on the same work. Two windows on one
    work is how sessions combine.
-4. At the start of every Claude session, sitrep lists the project's current
-   pieces of work, with their ids, in Claude's context, so "let's carry on
+4. At the start of every Claude session, sitrep lists every current piece of
+   work, with its project and id, in Claude's context, so "let's carry on
    with the dashboard work" finds its id even if nothing in memory says it.
    It is a block of the conversation's first message (`prompt.context`,
    named `sitrep`), in every conversation: how to keep the board (below,
-   "When to start a piece of work"), then the project's works when it has
-   any. It is computed once per conversation, again after `/clear` or a compaction, and again for a
-   session resumed in a new process or by `/resume` (live). It tells Claude
-   to join the matching one by id, and says which one this window already
-   holds.
-5. A resumed conversation, holding nothing, takes up by itself the work of
-   this project it was last seen in: by its heartbeat, else the latest item
-   or status it posted. Sending into a work's inbox, or having started it, is
-   not being seen in it. A finished work is never taken up by itself, nor an
-   older one in its place: the conversation had moved on from those.
+   "When to start a piece of work"), then the works when there are any, a
+   line each, project by project:
+
+   ```
+   On the board:
+   - SitRep: sr-wdsqvn "sitrep", 2 waiting on Lee
+   - Switchboard: sr-v1pwm9 "Milestone 7 stage 1"
+   ```
+
+   The projects whose directory holds the session's folder come first, the
+   nearest first, then the busiest, as All projects orders them. It is
+   computed once per conversation, again after `/clear` or a compaction, and
+   again for a session resumed in a new process or by `/resume` (live). It
+   tells Claude to join the matching one by id, and says which one this
+   window already holds.
+5. A resumed conversation, holding nothing, takes up by itself the work it
+   was last seen in, in whichever project: by its heartbeat, else the latest
+   item or status it posted. Sending into a work's inbox, or having started
+   it, is not being seen in it. A finished work is never taken up by itself,
+   nor an older one in its place: the conversation had moved on from those.
    - Resumed in a new process (`--resume`, `-c`), it keeps its session id but
      not `$.state`. The process computes the listing before its session
      starts (live), so the rejoin runs there first, for the listing to name it.
@@ -72,8 +83,27 @@ can run across several windows. So sitrep keys everything on a work id.
    board. That is the best effort.
 
 A piece of work is **open** while at least one window is attached to it.
-Nothing goes in the repo: no dotfile. Worktrees of one repository are one
-project (identity: the git common dir).
+Nothing goes in the repo: no dotfile.
+
+**Projects are named by Claude, never taken from a folder.** Lee may start
+Claude in their home folder and talk about sitrep, and a brand new project
+may have no folder or repository yet; what matters is the project being
+discussed. So `start` names its project, as Lee would say it and cased
+(`SitRep`, never `sitrep-1a2b`), and may say where it lives:
+
+- A project on the board whose name matches takes the work, matched
+  ignoring case, spaces and punctuation (`Sitrep` and `Sit Rep` are
+  SitRep's); the project keeps its own name, and the answer says which
+  project the work went into. A name alone is a project: there are no
+  project codes.
+- Else a new project is made of the name.
+- A directory given is recorded for a project that has none. One that has
+  its own keeps it, and the answer says so: the `project` tool changes it.
+- The folder a session started in decides nothing: not the board's project
+  tab (the held work's project), not what the first message lists (every
+  current work), not where a join or a resumed conversation looks (every
+  project). It only orders: projects whose directory holds it come first.
+  A work still records it, as `root`: where the work was started.
 
 A work is **current**, and shows in the project view, All projects and the
 start-of-session listing, while it is open, has an ask waiting, has
@@ -95,13 +125,14 @@ orchestrator decides what reaches the board.
 
 | Tool | Does |
 |---|---|
-| `start` / `join` | begin a piece of work (name, summary) and get its id; or join one by id |
+| `start` / `join` | begin a piece of work (name, summary, its project's name, and its directory once known) and get its id; or join one by id, in whichever project it is filed |
 | `status` | set the name, summary, the list of what is under way, and what is next |
 | `ask` | post an ask: kind (review, decide, try, do), title, where to look, options for a decision |
 | `note` | add a log line, with optional detail lines and a pointer |
 | `park` | park something to come back to |
 | `resolve` / `reopen` / `edit` | close, reopen or correct an item, with a reason |
 | `finish` | mark the attached work done, with a reason, once it is complete and nothing is left on it; the window stays attached, and joining it again reopens it |
+| `project` | rename the attached work's project, or say where it lives, or both; a name another project has is refused. It never moves a work to another project |
 | `board` | read back the board's open items, so Claude can check and repair it |
 
 **When to start a piece of work**, in every conversation's first message
@@ -112,6 +143,11 @@ named it in internal shorthand):
   feature, a design, an investigation. Not for a quick question.
 - Name it in plain words, as Lee would say it, with no internal codes, and
   record its id wherever the project tracks the work.
+- Touch the board only once it is clear which project the work is on: the
+  project being discussed, whatever folder the session started in. When Lee
+  carries on with a work on the board, join it; otherwise start one, naming
+  its project as Lee would say it, by the name it has on the board when it
+  is one there, with the project's directory once known.
 - As it goes: the status when what's under way changes, an ask whenever Lee is
   needed (said in the chat as well), a note for what Lee would want later,
   never running commentary; resolve what's done; finish the work once it is
@@ -159,7 +195,8 @@ LOG ─────────────────────────�
   three tabs. **Anywhere else** (another session or project) the tabs give way
   to `← <one level up>` and `⌂ this session`, the familiar nested-page pattern.
 - **This session** (home, the default): name and summary, Status, For you, Log.
-- **Project**: its sessions, this one first (`⌂`), each with what it is doing
+- **Project**: the held work's project, named as it is (`SitRep` stays
+  `SitRep`): its sessions, this one first (`⌂`), each with what it is doing
   and its waiting count; the project's log, each line naming its session.
 - **All projects**: this project first, then the busiest. Each project's open
   sessions hang off it as a tree. A project with nothing open, waiting or parked
@@ -311,20 +348,32 @@ window.
 
 ```
 $XDG_STATE_HOME/sitrep/, else ~/.local/state/sitrep/
-  projects/<project key>/works/<work id>/
-    work.json               name, summary, project, root, created and by whom: written once, by whoever starts the work
-    <writer>.jsonl          one file per writer: each window as its session id, the CLI as `cli`
-    inbox/<sender>.jsonl    replies from other works, one file per sending writer
-    presence/<writer>.json  each attached window's heartbeat
+  projects/<project key>/
+    project.json              name, directory, created and by whom: the project's own
+    works/<work id>/
+      work.json               name, summary, project, root, created and by whom: written once, by whoever starts the work
+      <writer>.jsonl          one file per writer: each window as its session id, the CLI as `cli`
+      inbox/<sender>.jsonl    replies from other works, one file per sending writer
+      presence/<writer>.json  each attached window's heartbeat
 ```
 
-- **Project key:** the repository's folder name as a slug, then a hash of its
-  git common dir (outside git, of the folder): `switchboard-1a2b3c4d`.
-  Worktrees share a common dir, so they share a project.
-  The mod asks git for it in the session's working directory
-  (`git rev-parse --path-format=absolute --git-common-dir`), which spells it
-  the same however the folder was reached; outside git it takes the
-  directory itself.
+- **Project key:** a new project's name as a slug, accents dropped
+  (`sitrep`), numbered on (`sitrep-2`) where a folder already has it. The
+  key is only where its files are; the name in `project.json` is what
+  matches and shows.
+- **`project.json`:** `{ v, name, directory?, created, by }`. A start writes
+  it as it makes the project, and the `project` tool as it renames it or
+  gives it a directory; a start giving a directory to a project with none
+  writes it too. It breaks the one-file-per-writer rule below: whichever
+  writer makes the change rewrites it whole, and the last write wins. That
+  is fine for a file rewritten only that rarely, by Claude, at Lee's word.
+- **Folders from before projects were named** keep their keys
+  (`code-84dbac88`, `switchboard-7a75d7ba`, from the folder a session
+  started in): nothing moves. Without a `project.json`, such a project is
+  named as its works' `work.json` recorded it, its first letter a capital
+  (`Code`). Matching and showing read `project.json` first, so writing one
+  there (the `project` tool does, from a window holding one of its works)
+  relabels the project in place.
 - **Work id:** `sr-` and six characters (`sr-k3f9qa`): short enough for Claude
   to record, and easy to grep. Items and replies get four characters, unique
   within their work.
@@ -367,12 +416,13 @@ $XDG_STATE_HOME/sitrep/, else ~/.local/state/sitrep/
   a file either, so a window that lets go adds `leftAt`. Of several windows on
   one work, the one attached longest submits its inbox, so two never both do.
 - Readers list and `stat` the folder every second or two (a mod cannot watch
-  files) and read only what changed. The works around the held one are read
-  every 5 seconds, each through its reader: they are glanced at, not watched.
-  With the board closed only the held work's project is read, for the band;
-  open, the project it looks at too, every project while it looks at all of
-  them, and in full the session it looks at and those replies wait for or
-  went to.
+  files) and read only what changed; each work's read lists its project's
+  folder too, so a rename shows on every board within a look. The works
+  around the held one are read every 5 seconds, each through its reader:
+  they are glanced at, not watched. With the board closed only the held
+  work's project is read, for the band; open, the project it looks at too,
+  every project while it looks at all of them, and in full the session it
+  looks at and those replies wait for or went to.
 - The board's last view lives in the session's `$.state` only. `$.store` is
   unused so far.
 
@@ -452,7 +502,7 @@ $XDG_STATE_HOME/sitrep/, else ~/.local/state/sitrep/
   sitrep park <title> [--where <words>] [--ref <ref>]
   sitrep status [--name <words>] [--summary <line>] [--now <line>]... [--next <line>]
   sitrep board [--json]
-  sitrep list [--all] [--json]
+  sitrep list [--project <name>] [--json]
   ```
 
   - It writes as the writer `cli`, appending to `<work>/cli.jsonl`. It never
@@ -462,21 +512,25 @@ $XDG_STATE_HOME/sitrep/, else ~/.local/state/sitrep/
     else, so a script can keep it. A status gives only what changed, as the
     status tool does; `--now ""` and `--next ""` clear. The last argument takes
     every word left, so a title needs no quotes.
-  - The work is `--work sr-xxxxxx`, else `$SITREP_WORK`, looked up in the
-    project of the folder the CLI runs in (known as the mod knows it), then in
-    every other. `list` takes none: this project's current works, or with
-    `--all` every project's, ordered as All projects orders them; a finished
-    work is never among them. The CLI does not finish works.
+  - The work is `--work sr-xxxxxx`, else `$SITREP_WORK`, looked up in every
+    project. `list` takes none: every project's current works, grouped, in
+    the order the first message lists them (those whose directory holds the
+    folder the CLI runs in first); a finished work is never among them.
+    `--project <name>` gives only that project's, matched as `start` matches
+    it, and a name no project has is refused. `--all` is gone: every
+    project is listed already. The CLI does not finish works.
   - Exit codes: 0 done; 1 a usage error, a refused input or a failure; 2 no
     such piece of work.
   - `list --json` is for tools, and stable: every field is always there (a
     list empty, any other value null where there is none), and `v` moves only
-    with a change a reader would trip on. `here` is the key of the project the
-    CLI runs in, always the first of `projects`.
+    with a change a reader would trip on. `here` is the key of the project
+    the CLI runs in: the nearest whose directory holds its folder, else null.
+    It is listed even with no current works, the first of `projects` unless
+    `--project` leaves it out.
 
     ```
-    { "v": 1, "here": "switchboard-1a2b3c4d",
-      "projects": [ { "key": "switchboard-1a2b3c4d", "name": "switchboard",
+    { "v": 1, "here": "switchboard",
+      "projects": [ { "key": "switchboard", "name": "Switchboard",
                       "open": 1, "waiting": 2, "parked": 1, "updatedAt": 1760000000000,
                       "works": [ { "id": "sr-k3f9qa", "name": "Dashboard redesign",
                                    "summary": "...", "now": ["..."], "next": null,

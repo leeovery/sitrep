@@ -22,6 +22,18 @@ const titleOf = (work: Work | undefined, input: Input) => {
   return item.type === 'note' ? item.text : item.title
 }
 
+/** What a project call changed: its name, where it lives, or both. */
+const projectSaid = (input: Input) => {
+  const name = text(input.name)
+  const directory = text(input.directory)
+  const said = [
+    ...(name === '' ? [] : [`project renamed: ${name}`]),
+    ...(directory === '' ? [] : [`project lives in ${directory}`]),
+  ]
+
+  return said.length === 0 ? 'set the project' : said.join(' · ')
+}
+
 /** What each call did, in Lee's words. */
 const SAID: Record<ToolName, (input: Input, work: Work | undefined) => string> = {
   start: input => `started: ${text(input.name)}`,
@@ -38,6 +50,7 @@ const SAID: Record<ToolName, (input: Input, work: Work | undefined) => string> =
   edit: (input, work) => `edited: ${titleOf(work, input)}`,
   finish: (_, work) =>
     work === undefined ? '✓ finished a piece of work' : `✓ finished: ${work.status.name}`,
+  project: projectSaid,
   board: () => 'read the board back',
 }
 

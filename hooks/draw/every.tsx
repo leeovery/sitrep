@@ -4,7 +4,7 @@
  * parked fold into one line at the bottom.
  */
 import type { ProjectSummary, WorkSummary } from '../../core'
-import { C, counted, GLYPH, titled } from '../look'
+import { C, counted, GLYPH } from '../look'
 import { everyProject, hereFirst, projectPlace } from '../places'
 import { context, heading, waitingWords, type Drawing } from './kit'
 
@@ -59,7 +59,7 @@ const drawProject = (d: Drawing, project: ProjectSummary) => {
           <Button
             key={`proj:${project.key}`}
             plain
-            label={titled(project.name)}
+            label={project.name}
             onPress={() => d.act.go(projectPlace(project.key))}
           />
         </Box>
@@ -79,7 +79,7 @@ const drawProject = (d: Drawing, project: ProjectSummary) => {
 
 /** The quiet projects in one line. */
 const foldedLine = (folded: readonly ProjectSummary[]) =>
-  `${folded.length} more, with nothing going on: ${folded.map(project => titled(project.name)).join(', ')}`
+  `${folded.length} more, with nothing going on: ${folded.map(project => project.name).join(', ')}`
 
 export const drawAllView = (d: Drawing) => {
   const { Box, Text } = d.els

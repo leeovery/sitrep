@@ -4,7 +4,7 @@
  * another's draws the same, its asks answered the same way, and with no
  * window on it, a way to mark it done.
  */
-import { agoWords, C, GLYPH, titled } from '../look'
+import { agoWords, C, GLYPH } from '../look'
 import { askMark, forYou, isPulsing, type Filed } from '../scene'
 import { drawAsk } from './ask'
 import { drawEarlier } from './earlier'
@@ -20,7 +20,7 @@ const drawContext = (d: Drawing, { work }: Filed) =>
   context(
     d,
     work.status.name,
-    `${titled(work.project)}${work.isOpen ? '' : ' · closed'}`,
+    `${work.project}${work.isOpen ? '' : ' · closed'}`,
     work.status.summary,
   )
 

@@ -215,7 +215,7 @@ export type Presence = {
 /** A piece of work as it stands, every writer's lines read together. */
 export type Work = {
   id: string
-  /** The project's name. */
+  /** The project's name, as its file has it, else as the work recorded it, first letter a capital. */
   project: string
   root: string
   created: number

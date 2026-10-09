@@ -5,20 +5,19 @@
  * hooks module's calls off its source and never follows `$` across an
  * import, so the other modules are handed this in its place.
  *
- * Also what follows from the host: where sitrep's folder is, which project
- * the session works in, which writer this window is, and random bytes.
+ * Also what follows from the host: where sitrep's folder is, the folder the
+ * session started in, which writer this window is, and random bytes.
  */
 import type {
   FsEntry,
   PaneOpenArgs,
-  ProcessRunResult,
   PromptSubmitResult,
   Timer,
   ToastOptions,
   UiOpenResult,
   UiPane,
 } from 'claude-code'
-import { COMMON_DIR, identityOf, projectOf, rootOf, type Project, type Random } from '../core'
+import { rootOf, type Random } from '../core'
 import type {
   SitrepAttachment,
   SitrepBoard,
@@ -60,8 +59,6 @@ export type Host = {
     cwd: () => Promise<string>
   }
   env: () => Promise<{ XDG_STATE_HOME?: string; HOME?: string }>
-  /** Runs a command by its argument vector, in `cwd`. */
-  run: (argv: readonly string[], cwd: string) => Promise<ProcessRunResult>
   /** Writes a line to the debug log. */
   log: (text: string) => void
   ui: {
@@ -97,8 +94,7 @@ export type Host = {
 /** Where a window stands as it starts or joins a piece of work. */
 export type Bearings = {
   root: string
-  project: Project
-  /** The session's working directory, where a work it starts is started. */
+  /** The session's working directory: where a work it starts was started, and which projects it lists first. */
   cwd: string
   /** The session's id: the window's own file and heartbeat in a work. */
   writer: string
@@ -108,20 +104,11 @@ export const random: Random = count => crypto.getRandomValues(new Uint8Array(cou
 
 export const rootFor = async (host: Host) => rootOf(await host.env())
 
-/** What a project is known by: its repository's common dir, or outside git the folder itself. */
-const identity = async (host: Host, cwd: string) =>
-  identityOf(cwd, await host.run(COMMON_DIR, cwd).catch(() => undefined))
-
-export const bearingsOf = async (host: Host): Promise<Bearings> => {
-  const cwd = await host.session.cwd()
-
-  return {
-    root: await rootFor(host),
-    project: projectOf(await identity(host, cwd)),
-    cwd,
-    writer: await host.session.id(),
-  }
-}
+export const bearingsOf = async (host: Host): Promise<Bearings> => ({
+  root: await rootFor(host),
+  cwd: await host.session.cwd(),
+  writer: await host.session.id(),
+})
 
 /** Writes to the debug log what failed where nothing waits on it, as a timer's work. */
 export const logFailure = (host: Host, what: string) => (error: unknown) =>

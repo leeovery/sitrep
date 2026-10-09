@@ -1,7 +1,7 @@
 /**
  * Claude's tools: start or join a piece of work, then post to its board and
- * read the board back. Only the main conversation may call them. An answer
- * says what was done and names the item, and no more.
+ * read the board back, and name its project. Only the main conversation may
+ * call them. An answer says what was done and names the item, and no more.
  *
  * The descriptions carry the board's wording rules, and load into every
  * session, so they stay short.
@@ -16,27 +16,33 @@ import {
   checkJoin,
   checkNote,
   checkPark,
+  checkProject,
   checkReopen,
   checkResolve,
   checkStart,
   checkStatus,
   metaText,
   newWorkId,
-  parseMeta,
-  projectKeys,
-  projectsDir,
+  projectNamed,
   reopenedText,
   withId,
   workPaths,
-  worksDir,
   type Body,
   type Checked,
+  type Project,
   type Work,
 } from '../core'
 import type { SitrepAttachment } from '../types'
 import { lookAround } from './around'
-import { bearingsOf, random, type Bearings, type Host } from './host'
-import { foldersIn } from './reader'
+import { bearingsOf, random, type Host } from './host'
+import {
+  changeProject,
+  filingFor,
+  projectFiling,
+  projectKeys,
+  readProjects,
+  workIdsIn,
+} from './projects'
 import { markSeen, postKnown } from './seen'
 import { attachTo, attached, refresh, serially } from './window'
 
@@ -73,6 +79,12 @@ const lines = (description: string) => ({ type: 'array', items: { type: 'string'
 
 const NAME = text('A few words.')
 const SUMMARY = text('One line: what the work is for.')
+const PROJECT = text(
+  "The project's name as Lee would say it, cased: SitRep, Switchboard; never a slug. A project on the board by the name it has there.",
+)
+const DIRECTORY = text(
+  'Where the project lives, as an absolute path, once you know it: not the folder this session started in.',
+)
 const ITEM = text('The item’s id, as the board lists it.')
 const REASON = text('Why, in a few words.')
 const WHERE = text(
@@ -99,17 +111,19 @@ const spec = <N extends string>(
   isDeferred: false,
 })
 
-/** A tool on the attached work, handed it folded as it stands. */
+/** A tool on the attached work, handed it folded as it stands, and where the window holds it. */
 const onWork =
-  (answer: (host: Host, work: Work, input: Fields) => Promise<Answer>) =>
+  (answer: (host: Host, work: Work, input: Fields, held: SitrepAttachment) => Promise<Answer>) =>
   async (host: Host, input: Fields): Promise<Answer> => {
-    if (attached() === undefined) {
+    const held = attached()
+
+    if (held === undefined) {
       return { deny: NOT_ATTACHED }
     }
 
     const work = await refresh(host)
 
-    return work === undefined ? { deny: UNREADABLE } : answer(host, work, input)
+    return work === undefined ? { deny: UNREADABLE } : answer(host, work, input, held)
   }
 
 /** A tool that posts one line, checked from its input, to the attached work: a line Claude knows of. */
@@ -155,25 +169,6 @@ const attachKnown = async (host: Host, root: string, attaching: SitrepAttachment
   return work
 }
 
-const isWorkIn = async (host: Host, root: string, project: string, id: string) => {
-  try {
-    return parseMeta(await host.fs.read(workPaths(root, project, id).meta)) !== undefined
-  } catch {
-    return false
-  }
-}
-
-/** The project a work is filed under: this one first, then every other. */
-const projectFiling = async (host: Host, { root, project }: Bearings, id: string) => {
-  for (const key of projectKeys(project.key, await foldersIn(host, projectsDir(root)))) {
-    if (await isWorkIn(host, root, key, id)) {
-      return key
-    }
-  }
-
-  return undefined
-}
-
 /** What a join writes to a finished work: it is taken up again. */
 const UNFINISH: Body = { type: 'unfinish' }
 
@@ -191,9 +186,9 @@ const reopening = async (host: Host, work: Work) => {
 const start: Tool<'start'> = {
   spec: spec(
     'start',
-    'Start a piece of work on the sitrep board, where Lee sees where work stands and what waits on Lee. Returns the work id: record it wherever this project tracks the work (design doc, plan, memory), so a later window can join it.',
-    { name: NAME, summary: SUMMARY },
-    ['name', 'summary'],
+    'Start a piece of work on the sitrep board, where Lee sees where work stands and what waits on Lee, in the project it is on: the one being discussed, not the folder this session started in. A project on the board whose name matches, case, spaces and punctuation aside, takes it; else a new project is made. Returns the work id: record it wherever the project tracks the work (design doc, plan, memory), so a later window can join it.',
+    { name: NAME, summary: SUMMARY, project: PROJECT, directory: DIRECTORY },
+    ['name', 'summary', 'project'],
   ),
   answer: async (host, input) => {
     const checked = checkStart(input)
@@ -202,17 +197,21 @@ const start: Tool<'start'> = {
       return { deny: checked.error }
     }
 
-    const { root, project, cwd, writer } = await bearingsOf(host)
-    const id = newWorkId(random, new Set(await foldersIn(host, worksDir(root, project.key))))
+    const { project: name, directory, ...work } = checked.value
+    const { root, cwd, writer } = await bearingsOf(host)
     const created = await host.clock.now()
-    const meta = { id, ...checked.value, project: project.name, root: cwd, created, by: writer }
+    const keys = await projectKeys(host, root)
+    const filing = await filingFor(host, root, keys, { name, directory, created, by: writer })
+    const { key } = filing.project
+    const id = newWorkId(random, await workIdsIn(host, root, keys))
+    const meta = { id, ...work, project: filing.project.name, root: cwd, created, by: writer }
 
-    await host.fs.write(workPaths(root, project.key, id).meta, metaText(meta))
+    await host.fs.write(workPaths(root, key, id).meta, metaText(meta))
 
-    await attachKnown(host, root, { project: project.key, work: id, writer, attachedAt: created })
+    await attachKnown(host, root, { project: key, work: id, writer, attachedAt: created })
 
     return {
-      result: `Started ${meta.name} as ${id}. Record ${id} wherever this project tracks this work, so a later window can join it.`,
+      result: `Started ${meta.name} as ${id}, ${filing.said}. Record ${id} wherever the project tracks this work, so a later window can join it.`,
     }
   },
 }
@@ -232,20 +231,15 @@ const join: Tool<'join'> = {
     }
 
     const { work: id } = checked.value
-    const bearings = await bearingsOf(host)
-    const project = await projectFiling(host, bearings, id)
+    const { root, writer } = await bearingsOf(host)
+    const project = await projectFiling(host, root, id)
 
     if (project === undefined) {
-      return { deny: `There is no piece of work ${id} on the board, in this project or any other.` }
+      return { deny: `There is no piece of work ${id} on the board, in any project.` }
     }
 
     const attachedAt = await host.clock.now()
-    const work = await attachKnown(host, bearings.root, {
-      project,
-      work: id,
-      writer: bearings.writer,
-      attachedAt,
-    })
+    const work = await attachKnown(host, root, { project, work: id, writer, attachedAt })
 
     if (work === undefined) {
       return { deny: UNREADABLE }
@@ -257,6 +251,52 @@ const join: Tool<'join'> = {
       result: `Joined ${work.status.name} (${id}).${joined.said} The board as it stands:\n${boardText(joined.work)}`,
     }
   },
+}
+
+/** What the project tool says it changed. */
+const changedText = (before: Project, after: Project) =>
+  [
+    ...(after.name === before.name ? [] : [`Renamed the project ${before.name} to ${after.name}.`]),
+    ...(after.directory === before.directory ? [] : [`${after.name} lives in ${after.directory}.`]),
+  ].join(' ') || `${after.name} was already so.`
+
+const project: Tool<'project'> = {
+  spec: spec(
+    'project',
+    "Rename the attached piece of work's project, or say where the project lives, or both. It never moves a piece of work to another project.",
+    { name: PROJECT, directory: DIRECTORY },
+  ),
+  answer: onWork(async (host, work, input, held) => {
+    const checked = checkProject(input)
+
+    if (!checked.ok) {
+      return { deny: checked.error }
+    }
+
+    const { root, writer } = await bearingsOf(host)
+    const projects = await readProjects(host, root, await projectKeys(host, root))
+    const before = projects.find(each => each.key === held.project) ?? {
+      key: held.project,
+      name: work.project,
+    }
+    const { name } = checked.value
+    const others = projects.filter(each => each.key !== held.project)
+    const other = name === undefined ? undefined : projectNamed(others, name)
+
+    if (other !== undefined) {
+      return {
+        deny: `Another project is already named ${other.name}. This renames the attached work's project; it moves no work to another.`,
+      }
+    }
+
+    const writing = { created: await host.clock.now(), by: writer }
+    const after = await changeProject(host, root, before, checked.value, writing)
+
+    await refresh(host)
+    await lookAround(host)
+
+    return { result: changedText(before, after) }
+  }),
 }
 
 const board: Tool<'board'> = {
@@ -362,6 +402,7 @@ const TOOLS = [
     (work, input) => checkFinish(work, 'claude', input),
     () => 'Marked done. This window stays attached; joining the work again reopens it.',
   ),
+  project,
   board,
 ] as const
 

@@ -1,0 +1,155 @@
+/**
+ * The projects on the board, as the mod reads them: every folder under
+ * `projects/`, named by its project.json, else, for a folder from before
+ * projects were named, as a work of its recorded it. Also which project
+ * files a work, and the project a start files its work under. A project's
+ * file is written only as a project is made, renamed or given a directory.
+ */
+import {
+  isSafeName,
+  isWorkId,
+  newProjectKey,
+  parseMeta,
+  parseProject,
+  projectFrom,
+  projectNamed,
+  projectPaths,
+  projectsDir,
+  projectText,
+  workPaths,
+  worksDir,
+  type Project,
+  type ProjectChange,
+  type ProjectFile,
+} from '../core'
+import type { Host } from './host'
+import { foldersIn, textAt } from './reader'
+
+/** Who first writes a project's file, and when. */
+type Writing = Pick<ProjectFile, 'created' | 'by'>
+
+/** The project a start files its work under, and what its answer says of it. */
+export type Filing = { project: Project; said: string }
+
+/** The key of every project folder. */
+export const projectKeys = async (host: Host, root: string) =>
+  (await foldersIn(host, projectsDir(root))).filter(isSafeName)
+
+/** A project's file; undefined while it has none, or it is torn. */
+const fileOf = async (host: Host, root: string, key: string) =>
+  parseProject((await textAt(host, projectPaths(root, key).file)) ?? '')
+
+const metaOf = async (host: Host, root: string, key: string, id: string) =>
+  parseMeta((await textAt(host, workPaths(root, key, id).meta)) ?? '')
+
+/** The project's name as the first of its works that reads recorded it. */
+const recordedName = async (host: Host, root: string, key: string) => {
+  for (const id of (await foldersIn(host, worksDir(root, key))).filter(isWorkId)) {
+    const meta = await metaOf(host, root, key, id)
+
+    if (meta !== undefined) {
+      return meta.project
+    }
+  }
+
+  return undefined
+}
+
+/** A project as its folder has it; undefined for a folder with no file and no work. */
+export const readProject = async (host: Host, root: string, key: string) => {
+  const file = await fileOf(host, root, key)
+  const recorded = file === undefined ? await recordedName(host, root, key) : undefined
+
+  return projectFrom(key, file, recorded)
+}
+
+/** The projects these folders hold. */
+export const readProjects = async (host: Host, root: string, keys: readonly string[]) =>
+  (await Promise.all(keys.map(key => readProject(host, root, key)))).filter(
+    project => project !== undefined,
+  )
+
+/** The project a work is filed under, whichever it is; undefined when none files it. */
+export const projectFiling = async (host: Host, root: string, id: string) => {
+  for (const key of await projectKeys(host, root)) {
+    if ((await metaOf(host, root, key, id)) !== undefined) {
+      return key
+    }
+  }
+
+  return undefined
+}
+
+/** Every work id filed, in any project: a new one is unlike them all, as join looks in every project. */
+export const workIdsIn = async (host: Host, root: string, keys: readonly string[]) =>
+  new Set((await Promise.all(keys.map(key => foldersIn(host, worksDir(root, key))))).flat())
+
+const writeProject = (host: Host, root: string, key: string, file: ProjectFile) =>
+  host.fs.write(projectPaths(root, key).file, projectText(file))
+
+/**
+ * Writes a project's file with the change made, and gives the project as it
+ * now stands. A folder from before projects were named gets its first file,
+ * written as `writing` says.
+ */
+export const changeProject = async (
+  host: Host,
+  root: string,
+  project: Project,
+  change: ProjectChange,
+  writing: Writing,
+): Promise<Project> => {
+  const { name, directory, created, by } = (await fileOf(host, root, project.key)) ?? {
+    ...project,
+    ...writing,
+  }
+  const changed = {
+    name: change.name ?? name,
+    directory: change.directory ?? directory,
+    created,
+    by,
+  }
+
+  await writeProject(host, root, project.key, changed)
+
+  return { key: project.key, name: changed.name, directory: changed.directory }
+}
+
+/** What a start says of an existing project whose directory is another than the one given. */
+const livesElsewhere = (project: Project, directory?: string) =>
+  directory === undefined || project.directory === directory
+    ? ''
+    : `, which lives in ${project.directory}; the project tool changes that`
+
+/**
+ * The project a start names, of those these folders hold: the one whose
+ * name matches, given the directory where it has none; else a new one, its
+ * key its name's slug.
+ */
+export const filingFor = async (
+  host: Host,
+  root: string,
+  keys: readonly string[],
+  wanted: ProjectFile,
+): Promise<Filing> => {
+  const { name, directory, ...writing } = wanted
+  const existing = projectNamed(await readProjects(host, root, keys), name)
+
+  if (existing === undefined) {
+    const key = newProjectKey(name, new Set(keys))
+
+    await writeProject(host, root, key, wanted)
+
+    return { project: { key, name, directory }, said: `in a new project, ${name}` }
+  }
+
+  const project =
+    directory !== undefined && existing.directory === undefined
+      ? await changeProject(host, root, existing, { directory }, writing)
+      : existing
+
+  return {
+    project,
+    said: `in the existing project ${project.name}${livesElsewhere(project, directory)}`,
+  }
+}

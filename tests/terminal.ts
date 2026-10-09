@@ -1,21 +1,29 @@
 /**
  * The CLI's world, for its tests: a file system in memory (the mod's test
- * world's own, when a test shares it), the folder the CLI runs in and the
- * repository git knows there, the environment, the clock, random bytes,
- * and what it prints. Nothing touches a real folder.
+ * world's own, when a test shares it), the folder the CLI runs in, the
+ * environment, the clock, random bytes, and what it prints. Nothing touches
+ * a real folder.
  */
 import type { Env, Io, Listed } from '../cli/io'
 import { main } from '../cli/main'
-import { metaText, workPaths, type Random, type WorkMeta } from '../core'
+import {
+  metaText,
+  projectPaths,
+  projectText,
+  workPaths,
+  type ProjectFile,
+  type Random,
+  type WorkMeta,
+} from '../core'
 import { file, MIN, scripted, seen, T0, type Line } from './support'
-import { PROJECT, REPO, ROOT, STATE_HOME, WORKTREE } from './world'
+import { HOME, PROJECT, REPO, ROOT, STATE_HOME } from './world'
 
 type File = { text: string; mtimeMs: number }
 
 /** How a run ended, and what it printed to standard output and error. */
 export type Run = { exit: number; out: string; err: string }
 
-export const ENV: Env = { XDG_STATE_HOME: STATE_HOME, HOME: '/Users/lee' }
+export const ENV: Env = { XDG_STATE_HOME: STATE_HOME, HOME }
 
 /** When a run happens, unless a test says otherwise: a minute after the work under test was started. */
 export const NOW = T0 + MIN
@@ -23,8 +31,6 @@ export const NOW = T0 + MIN
 /** The item ids a terminal's runs draw, unless a test says otherwise: this, then the next ever after. */
 export const FIRST_ID = '1234'
 export const NEXT_ID = '5678'
-
-const isRepo = (cwd: string) => cwd === REPO || cwd === WORKTREE
 
 /** The files and folders directly in `dir`, as the files under it imply them. */
 const entriesIn = (files: ReadonlyMap<string, File>, dir: string): Listed[] => {
@@ -52,8 +58,6 @@ type Options = {
 export function terminal(options: Options = {}) {
   const files = options.files ?? new Map<string, File>()
   const now = options.now ?? (() => NOW)
-  /** Every command the CLI ran, and where. */
-  const ran: { argv: readonly string[]; cwd: string }[] = []
   let printed = { out: '', err: '' }
   let gate: (() => Promise<void>) | undefined
 
@@ -76,11 +80,6 @@ export function terminal(options: Options = {}) {
     },
     env: options.env ?? ENV,
     cwd: options.cwd ?? REPO,
-    run: async (argv, cwd) => {
-      ran.push({ argv, cwd })
-
-      return isRepo(cwd) ? { exitCode: 0, stdout: `${REPO}/.git\n` } : { exitCode: 128, stdout: '' }
-    },
     now,
     random: options.random ?? scripted([1, 2, 3, 4], [5, 6, 7, 8]),
     out: text => {
@@ -136,6 +135,10 @@ export function terminal(options: Options = {}) {
     return paths
   }
 
+  /** A project's file, as a start or the project tool writes it. */
+  const project = (key: string, held: ProjectFile) =>
+    files.set(projectPaths(ROOT, key).file, { text: projectText(held), mtimeMs: held.created })
+
   /**
    * Appends from here on wait until `count` of them do, as runs at once
    * that each read the file before either wrote; `release()` lets them in.
@@ -170,5 +173,5 @@ export function terminal(options: Options = {}) {
     }
   }
 
-  return { files, io, ran, run, text, seed, holdAppends }
+  return { files, io, run, text, seed, project, holdAppends }
 }

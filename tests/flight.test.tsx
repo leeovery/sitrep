@@ -15,7 +15,7 @@ import { parseEntries, type WorkPaths } from '../core'
 import { QUIET_MS } from '../hooks/deliver'
 import { WATCH_MS } from '../hooks/window'
 import { file, MIN, reply, SENDER, W1 } from './support'
-import { postedId, SESSION, startedId, world } from './world'
+import { postedId, PROJECT, SESSION, startedId, world } from './world'
 
 tier('user')
 
@@ -237,7 +237,11 @@ test('a message whose writing a reload cut short is written into its own work, t
   await w.clock.advance(WATCH_MS)
   w.refuseWrites()
 
-  const themes = await w.call('start', { name: 'Themes', summary: 'The dark palette' })
+  const themes = await w.call('start', {
+    name: 'Themes',
+    summary: 'The dark palette',
+    project: PROJECT.name,
+  })
 
   await $.session.start(SESSION)
 

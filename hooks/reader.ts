@@ -1,7 +1,8 @@
 /**
- * Reading a piece of work's files. A mod cannot watch files, so each read
- * lists the work's folders and reads again only a file whose size or time
- * moved since it was last read. Also the folders sitrep files works under,
+ * Reading a piece of work's files, and its project's. A mod cannot watch
+ * files, so each read lists the work's folders and its project's, and reads
+ * again only a file whose size or time moved since it was last read. Also
+ * the folders sitrep files works under, a file's text where it is there,
  * and a file the window writes itself, as it stands.
  */
 import type { FsEntry } from 'claude-code'
@@ -9,6 +10,7 @@ import {
   LOG_SUFFIX,
   META_FILE,
   PRESENCE_SUFFIX,
+  PROJECT_FILE,
   writerOf,
   type WorkFiles,
   type WorkPaths,
@@ -23,9 +25,16 @@ type Held = { size: number; mtimeMs: number; text: string }
 
 const listed = (host: Host, dir: string) => host.fs.list(dir).catch((): FsEntry[] => [])
 
+const fileNamed = (entries: readonly FsEntry[], name: string) =>
+  entries.find(entry => entry.kind === 'file' && entry.name === name)
+
 /** The names of the folders in `dir`; none while it is not there. */
 export const foldersIn = async (host: Host, dir: string) =>
   (await listed(host, dir)).filter(entry => entry.kind === 'dir').map(entry => entry.name)
+
+/** A file's text; undefined while it is not there, or cannot be read. */
+export const textAt = (host: Host, path: string) =>
+  host.fs.read(path).catch((): string | undefined => undefined)
 
 /** A file the window writes itself, as it stands, so its count goes on; empty before its first line. */
 export const ownText = async (host: Host, path: string) =>
@@ -77,14 +86,19 @@ export const createReader = (): Reader => {
   }
 
   return async (host, paths) => {
-    const top = await listed(host, paths.dir)
+    const [top, upper] = await Promise.all([
+      listed(host, paths.dir),
+      listed(host, paths.project.dir),
+    ])
     const [inbox = [], presence = []] = await Promise.all(
       [paths.inbox, paths.presence].map(path => listedIn(host, paths.dir, top, path)),
     )
-    const meta = top.find(entry => entry.kind === 'file' && entry.name === META_FILE)
+    const meta = fileNamed(top, META_FILE)
+    const project = fileNamed(upper, PROJECT_FILE)
 
     return {
       meta: meta === undefined ? '' : await textOf(host, paths.meta, meta),
+      project: project === undefined ? undefined : await textOf(host, paths.project.file, project),
       logs: await byWriter(host, paths.dir, top, LOG_SUFFIX),
       inbox: await byWriter(host, paths.inbox, inbox, LOG_SUFFIX),
       presence: await byWriter(host, paths.presence, presence, PRESENCE_SUFFIX),

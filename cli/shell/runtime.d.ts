@@ -10,10 +10,6 @@ declare const Bun: {
   readonly argv: readonly string[]
   readonly env: Readonly<Record<string, string | undefined>>
   file(path: string): { text(): Promise<string> }
-  spawnSync(
-    argv: string[],
-    options: { cwd: string; stdout: 'pipe'; stderr: 'ignore' },
-  ): { exitCode: number | null; stdout: { toString(): string } }
 }
 
 declare const process: {

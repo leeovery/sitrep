@@ -5,6 +5,7 @@
  */
 import { ASK_KINDS } from './entries'
 import { isWorkId, newItemId, type Random } from './ids'
+import { directoryOf, isNameable } from './project'
 import type { StatusFields } from './status'
 import { oneLine } from './text'
 import {
@@ -58,6 +59,26 @@ const lines = (value: unknown) => {
 
 const isAskKind = (value: unknown): value is AskKind => ASK_KINDS.includes(value as AskKind)
 
+/** A project's name: one line, with a letter or a digit to match it by; undefined when not. */
+const projectNameOf = (value: unknown) => {
+  const name = line(value)
+
+  return name !== undefined && isNameable(name) ? name : undefined
+}
+
+/** A project's directory as given: none, or an absolute path, the slashes after it dropped. */
+const directoryIn = (value: unknown): Checked<string | undefined> => {
+  const path = typeof value === 'string' ? value.trim() : value
+
+  if (path === undefined || path === '') {
+    return ok(undefined)
+  }
+
+  return typeof path === 'string' && path.startsWith('/')
+    ? ok(directoryOf(path))
+    : refuse("A project's directory is an absolute path: where the project lives.")
+}
+
 /** Why these options will not do for an ask of this kind: a decide ask needs them, no other takes them. */
 const misfitOf = (kind: AskKind, options: readonly string[]) => {
   if (kind === 'decide') {
@@ -69,18 +90,53 @@ const misfitOf = (kind: AskKind, options: readonly string[]) => {
   return options.length === 0 ? undefined : 'Only a decide ask takes options.'
 }
 
-export const checkStart = (input: unknown): Checked<{ name: string; summary: string }> => {
+/** A piece of work to start: its name and summary, and its project's name and directory. */
+export type StartFields = { name: string; summary: string; project: string; directory?: string }
+
+/** What the project tool changes of a project: its name, its directory, or both. */
+export type ProjectChange = { name?: string; directory?: string }
+
+export const checkStart = (input: unknown): Checked<StartFields> => {
   const fields = fieldsOf(input)
   const name = line(fields.name)
   const summary = line(fields.summary)
+  const project = projectNameOf(fields.project)
+  const directory = directoryIn(fields.directory)
 
   if (name === undefined) {
     return refuse('A piece of work needs a name: a few words.')
   }
 
-  return summary === undefined
-    ? refuse('A piece of work needs a summary: one line on what it is for.')
-    : ok({ name, summary })
+  if (summary === undefined) {
+    return refuse('A piece of work needs a summary: one line on what it is for.')
+  }
+
+  if (project === undefined) {
+    return refuse(
+      'A piece of work needs its project: its name as Lee would say it, such as SitRep or Switchboard.',
+    )
+  }
+
+  return directory.ok ? ok({ name, summary, project, directory: directory.value }) : directory
+}
+
+/** A project renamed, given a directory, or both. */
+export const checkProject = (input: unknown): Checked<ProjectChange> => {
+  const fields = fieldsOf(input)
+  const name = projectNameOf(fields.name)
+  const directory = directoryIn(fields.directory)
+
+  if (fields.name !== undefined && name === undefined) {
+    return refuse("A project's name is one line, as Lee would say it, with a letter or a digit.")
+  }
+
+  if (!directory.ok) {
+    return directory
+  }
+
+  return name === undefined && directory.value === undefined
+    ? refuse('Give the project a new name, a directory, or both.')
+    : ok({ name, directory: directory.value })
 }
 
 /** The piece of work to join, by its id. */

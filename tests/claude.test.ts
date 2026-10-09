@@ -1,5 +1,5 @@
 import { expect, test } from 'claude-code/testing'
-import { boardText, startText, summarise, worksText } from '../core'
+import { boardText, onBoardText, startText, summarise, summariseProject } from '../core'
 import {
   ask,
   delivered,
@@ -107,24 +107,28 @@ test('an empty board says so in every section', () => {
   )
 })
 
-test('the works listing gives each work its id, and says whether a window has it and what waits', () => {
+test('the board listing gives each work a line: its project, its id, its name and what waits on Lee', () => {
   const closed = fold({ logs: { [W1]: file([T0, ask('k1', 'do', 'Run it')]) } })
+  const ledger = { ...summarise(closed), id: 'sr-1edger', name: 'Request ledger', waiting: 0 }
+  const switchboard = summariseProject('switchboard', [summarise(WORK), ledger])
+  const sitrep = {
+    ...summariseProject('sitrep', [{ ...ledger, id: 'sr-wdsqvn', name: 'sitrep' }]),
+    name: 'SitRep',
+  }
 
-  expect(worksText([summarise(WORK), { ...summarise(closed), id: 'sr-zzzzzz' }])).toBe(
+  expect(onBoardText([sitrep, switchboard])).toBe(
     [
-      'sitrep pieces of work:',
-      '- sr-k3f9qa: Dashboard redesign. Redesign the dashboard, area by area in Paper (open in a window; 2 waiting on Lee)',
-      '- sr-zzzzzz: Dashboard redesign. Redesign the dashboard, area by area in Paper (no window has it open; 1 waiting on Lee)',
+      'On the board:',
+      '- SitRep: sr-wdsqvn "sitrep"',
+      '- Switchboard: sr-k3f9qa "Dashboard redesign", 2 waiting on Lee',
+      '- Switchboard: sr-1edger "Request ledger"',
     ].join('\n'),
   )
-  expect(worksText([])).toBe('sitrep pieces of work:\n- none')
 })
 
-test('a session starts knowing how to keep the board, its works by id, how to take one up, and which this window holds', () => {
-  const works = [summarise(WORK)]
+test('a session starts knowing how to keep the board, every work on it by project, and which this window holds', () => {
+  const projects = [summariseProject('switchboard', [summarise(WORK)])]
   const guide = startText([])
-  const join =
-    'When Lee carries on with one of these, join it by its id with the sitrep join tool before posting to its board.'
 
   expect(guide).toContain(
     'Start a piece of work when the work will run across several turns or will need Lee',
@@ -132,9 +136,21 @@ test('a session starts knowing how to keep the board, its works by id, how to ta
   expect(guide).toContain('Not for a quick question.')
   expect(guide).toContain('say it in the chat as well')
   expect(guide).toContain('when Lee answers it in the chat, resolve the ask')
-  expect(guide).not.toContain('sitrep pieces of work')
-  expect(startText(works)).toBe(`${guide}\n${worksText(works)}\n${join}`)
-  expect(startText(works, works[0])).toBe(
-    `${guide}\n${worksText(works)}\nThis window already holds sr-k3f9qa (Dashboard redesign): post to its board as you go. ${join}`,
+  expect(guide).toContain(
+    'Touch the board only once it is clear which project the work is on: the project being discussed, whatever folder this session started in.',
+  )
+  expect(guide).toContain(
+    'When Lee carries on with a piece of work on the board, join it by its id with the sitrep join tool.',
+  )
+  expect(guide).toContain(
+    "Otherwise start one, naming its project as Lee would say it (SitRep, Switchboard), by the name it has on the board when it is one there, and giving the project's directory once you know it.",
+  )
+  expect(guide).not.toContain('On the board')
+  expect(startText([summariseProject('quiet', [])]), 'a project with no works lists nothing').toBe(
+    guide,
+  )
+  expect(startText(projects)).toBe(`${guide}\n${onBoardText(projects)}`)
+  expect(startText(projects, summarise(WORK))).toBe(
+    `${guide}\n${onBoardText(projects)}\nThis window already holds sr-k3f9qa (Dashboard redesign): post to its board as you go.`,
   )
 })

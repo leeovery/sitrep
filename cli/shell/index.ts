@@ -1,7 +1,7 @@
 /**
  * The CLI bound to Bun: the file system, the environment and the folder it
- * runs in, git, the clock, random bytes, standard output and error, and the
- * exit code. bin/sitrep runs it.
+ * runs in, the clock, random bytes, standard output and error, and the exit
+ * code. bin/sitrep runs it.
  */
 import { appendFile, readdir } from 'node:fs/promises'
 import type { Io, Listed } from '../io'
@@ -31,12 +31,6 @@ const list = async (dir: string): Promise<Listed[]> => {
   }
 }
 
-const run = async (argv: readonly string[], cwd: string) => {
-  const ran = Bun.spawnSync([...argv], { cwd, stdout: 'pipe', stderr: 'ignore' })
-
-  return { exitCode: ran.exitCode ?? 1, stdout: ran.stdout.toString() }
-}
-
 const io: Io = {
   fs: {
     read: path => Bun.file(path).text(),
@@ -45,7 +39,6 @@ const io: Io = {
   },
   env: Bun.env,
   cwd: process.cwd(),
-  run,
   now: () => Date.now(),
   random: count => crypto.getRandomValues(new Uint8Array(count)),
   out: text => void process.stdout.write(text),

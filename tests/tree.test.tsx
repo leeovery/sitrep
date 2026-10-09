@@ -1,5 +1,5 @@
 import { expect, test, tier } from 'claude-code/testing'
-import { CURRENT_MS, projectOf, type WorkMeta } from '../core'
+import { CURRENT_MS, type WorkMeta } from '../core'
 import { AROUND_MS } from '../hooks/around'
 import { ask, MIN, note, park, status, T0, W2, W3, W4 } from './support'
 import { ELSEWHERE, postedId, PROJECT, world } from './world'
@@ -10,9 +10,9 @@ type World = ReturnType<typeof world>
 
 const DAY = 24 * 60 * MIN
 
-const PORTAL = projectOf('/Users/lee/Code/portal/.git')
-const PIGEON = projectOf('/Users/lee/Code/pigeon/.git')
-const DUSTY = projectOf('/Users/lee/Code/dusty/.git')
+const PORTAL = { key: 'portal-1a2b3c4d', name: 'Portal' }
+const PIGEON = { key: 'pigeon', name: 'Pigeon' }
+const DUSTY = { key: 'dusty', name: 'Dusty' }
 
 const REVIEW = { kind: 'review', title: 'Review Sessions & Runway, round 1' }
 

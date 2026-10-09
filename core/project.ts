@@ -1,74 +1,150 @@
 /**
- * A project's identity. A git repository is one project however many
- * worktrees it has, so it is known by its common dir; a folder outside git
- * is known by its own path.
+ * A project: what Claude names it as it starts a piece of work, the name as
+ * Lee would say it, and where it lives. Its file, `project.json` in its
+ * folder, is rewritten only as the project is made, renamed or given a
+ * directory. A folder from before projects were named has none: it is named
+ * as its works recorded it, its first letter a capital.
+ *
+ * Two names are one project's when their letters and digits match, case
+ * aside: `Sitrep` and `Sit Rep` are SitRep's.
  */
+import { VERSION } from './entries'
 
-export type Project = {
-  /** Folder-safe and collision-resistant: the name's slug and a hash of the path. */
-  key: string
-  /** The repository's folder name. */
+/** A project's file: its name and directory, and when and by whom it was first written. */
+export type ProjectFile = {
   name: string
+  /** Where the project lives: an absolute path. */
+  directory?: string
+  created: number
+  by: string
 }
 
-const FNV_OFFSET = 0x811c9dc5
-const FNV_PRIME = 0x01000193
+/** A project as the front ends know it: its folder's key, its name, and where it lives. */
+export type Project = {
+  /** The project's folder: a new project's name as a slug. */
+  key: string
+  name: string
+  directory?: string
+}
 
-/** The longest slug a key keeps; the hash after it does the telling apart. */
+/** The longest slug a new key keeps. */
 const SLUG_LENGTH = 32
 
-/** The slug for a name with no letters or digits in it. */
+/** The slug for a name with no letters or digits that a folder name keeps. */
 const NAMELESS = 'project'
 
-/** FNV-1a, 32 bits, over the text's UTF-8 bytes. */
-export const fnv1a = (text: string) => {
-  let hash = FNV_OFFSET
-
-  for (const byte of new TextEncoder().encode(text)) {
-    hash = Math.imul(hash ^ byte, FNV_PRIME) >>> 0
-  }
-
-  return hash
-}
-
+/** A name as a folder-safe slug, its accents dropped from the letters they sit on. */
 const slug = (name: string) =>
   name
+    .normalize('NFKD')
+    .replace(/\p{M}+/gu, '')
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, '-')
     .slice(0, SLUG_LENGTH)
     .replace(/^-+|-+$/g, '') || NAMELESS
 
-/** The repository's folder: the common dir's parent, or a bare repository's own folder less `.git`. */
-const nameOf = (path: string) => {
-  const parts = path.split('/')
-  const last = parts.at(-1) ?? ''
+/** What a name is matched by: its letters and digits, accents kept, case aside. */
+const matchOf = (name: string) =>
+  name
+    .normalize('NFC')
+    .toLowerCase()
+    .replace(/[^\p{L}\p{M}\p{N}]+/gu, '')
 
-  return last === '.git' ? (parts.at(-2) ?? '') : last.replace(/\.git$/, '')
+/** Whether a name has anything to match by: a letter or a digit. */
+export const isNameable = (name: string) => matchOf(name) !== ''
+
+/** Whether two names name one project. */
+export const isSameName = (a: string, b: string) => matchOf(a) === matchOf(b)
+
+/** The project of those given that a name names; undefined for none. */
+export const projectNamed = <T extends Pick<Project, 'name'>>(
+  projects: readonly T[],
+  name: string,
+) => projects.find(project => isSameName(project.name, name))
+
+/** A new project's key: its name as a slug, numbered on where a folder already has it. */
+export const newProjectKey = (name: string, taken: ReadonlySet<string>) => {
+  const base = slug(name)
+
+  for (let count = 2, key = base; ; key = `${base}-${count++}`) {
+    if (!taken.has(key)) {
+      return key
+    }
+  }
 }
 
-/** The project a git common dir (or, outside git, a folder) belongs to. The path is absolute. */
-export const projectOf = (dir: string): Project => {
-  const path = dir.replace(/\/+$/, '') || '/'
-  const name = nameOf(path) || path
+/** A name as a folder from before projects were named shows it: its first letter a capital. */
+const capitalised = (name: string) => name.charAt(0).toUpperCase() + name.slice(1)
 
-  return { key: `${slug(name)}-${fnv1a(path).toString(16).padStart(8, '0')}`, name }
+/** A project's name: its file's, else the name its works recorded, first letter a capital. */
+export const projectName = (file: ProjectFile | undefined, recorded: string) =>
+  file?.name ?? capitalised(recorded)
+
+/**
+ * A project as its folder has it: its file's name and directory, else the
+ * name its works recorded, first letter a capital; undefined when neither
+ * says (a folder with no file and no work).
+ */
+export const projectFrom = (
+  key: string,
+  file: ProjectFile | undefined,
+  named: string | undefined,
+): Project | undefined => {
+  if (file !== undefined) {
+    return { key, name: file.name, directory: file.directory }
+  }
+
+  return named === undefined ? undefined : { key, name: capitalised(named) }
 }
 
-/**
- * What a front end asks git, in the folder it works in, for the project's
- * identity: the repository's common dir, spelled the same however the
- * folder was reached.
- */
-export const COMMON_DIR = [
-  'git',
-  'rev-parse',
-  '--path-format=absolute',
-  '--git-common-dir',
-] as const
+export const projectText = (file: ProjectFile) => `${JSON.stringify({ v: VERSION, ...file })}\n`
 
-/**
- * What a folder's project is known by, from git's answer to `COMMON_DIR`
- * there; outside git, or with no answer, the folder itself.
- */
-export const identityOf = (cwd: string, git?: { exitCode: number; stdout: string }) =>
-  (git?.exitCode === 0 ? git.stdout.trim() : '') || cwd
+/** A project's file; undefined when it is torn, bad or of another version. */
+export const parseProject = (text: string): ProjectFile | undefined => {
+  let raw: { [key: string]: unknown }
+
+  try {
+    raw = JSON.parse(text) ?? {}
+  } catch {
+    return undefined
+  }
+
+  const { v, name, directory, created, by } = raw
+  const isWhole =
+    v === VERSION &&
+    typeof name === 'string' &&
+    (directory === undefined || typeof directory === 'string') &&
+    typeof created === 'number' &&
+    typeof by === 'string'
+
+  return isWhole ? { name, directory, created, by } : undefined
+}
+
+/** A path without the slashes after it; `/` stays itself. */
+export const directoryOf = (path: string) => path.replace(/\/+$/, '') || '/'
+
+/** Whether a directory holds a folder: is it, or is above it. */
+const holds = (directory: string, folder: string) =>
+  folder === directory || folder.startsWith(directory === '/' ? '/' : `${directory}/`)
+
+/** How near a project lives to a folder: its directory's length when it holds the folder, else -1. */
+const nearness = (project: Pick<Project, 'directory'>, folder: string) =>
+  project.directory !== undefined && holds(project.directory, directoryOf(folder))
+    ? project.directory.length
+    : -1
+
+/** Projects in the order given, but those whose directory holds the folder first, the nearest first. */
+export const nearestFirst = <T extends Pick<Project, 'directory'>>(
+  projects: readonly T[],
+  folder: string,
+) => [...projects].sort((a, b) => nearness(b, folder) - nearness(a, folder))
+
+/** The project a folder is in: the nearest whose directory holds it; undefined for none. */
+export const projectAround = <T extends Pick<Project, 'directory'>>(
+  projects: readonly T[],
+  folder: string,
+) => {
+  const nearest = nearestFirst(projects, folder).at(0)
+
+  return nearest !== undefined && nearness(nearest, folder) >= 0 ? nearest : undefined
+}

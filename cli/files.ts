@@ -1,44 +1,41 @@
 /**
- * Reading sitrep's folder, as the CLI does at each run: where the folder is
- * and which project the CLI runs in, a piece of work found by its id, and
- * the works filed under each project.
+ * Reading sitrep's folder, as the CLI does at each run: a piece of work
+ * found by its id in whichever project files it, and every project with
+ * the works filed under it.
  */
 import {
-  COMMON_DIR,
   foldWork,
-  identityOf,
+  isSafeName,
   isWorkId,
   LOG_SUFFIX,
+  parseProject,
   PRESENCE_SUFFIX,
-  projectKeys,
-  projectOf,
+  projectFrom,
+  projectPaths,
   projectsDir,
-  rootOf,
+  summarise,
   workPaths,
   worksDir,
   writerOf,
-  type Project,
+  type ProjectWorks,
   type Work,
   type WorkFiles,
   type WorkPaths,
 } from '../core'
 import type { Io } from './io'
-import type { ProjectRead } from './output'
-
-/** Where the CLI stands: sitrep's folder, and the project of the folder it runs in. */
-export type Place = { root: string; here: Project }
 
 /** A piece of work as found: the project it is filed under, its paths and files, and the work they fold to. */
 export type Found = { project: string; paths: WorkPaths; files: WorkFiles; work: Work }
 
-/** The project is known as the mod knows it: by git's common dir, else the folder itself. */
-export const placeOf = async (io: Io): Promise<Place> => ({
-  root: rootOf(io.env),
-  here: projectOf(identityOf(io.cwd, await io.run(COMMON_DIR, io.cwd).catch(() => undefined))),
-})
-
 const foldersIn = async (io: Io, dir: string) =>
   (await io.fs.list(dir)).filter(entry => entry.kind === 'dir').map(entry => entry.name)
+
+/** The key of every project folder. */
+const projectKeys = async (io: Io, root: string) =>
+  (await foldersIn(io, projectsDir(root))).filter(isSafeName)
+
+/** A file's text; undefined while it is not there. */
+const textAt = (io: Io, path: string) => io.fs.read(path).catch((): string | undefined => undefined)
 
 /** The texts of a folder's files with the suffix, by the writer each is named for. */
 const byWriter = async (io: Io, dir: string, suffix: string) => {
@@ -53,29 +50,27 @@ const byWriter = async (io: Io, dir: string, suffix: string) => {
   )
 }
 
-/** A piece of work's files as they stand; work.json's text is empty while it is not there. */
+/** A piece of work's files as they stand, and its project's; work.json's text is empty while it is not there. */
 export const readWork = async (io: Io, paths: WorkPaths): Promise<WorkFiles> => {
-  const [meta, logs, inbox, presence] = await Promise.all([
-    io.fs.read(paths.meta).catch(() => ''),
+  const [meta = '', project, logs, inbox, presence] = await Promise.all([
+    textAt(io, paths.meta),
+    textAt(io, paths.project.file),
     byWriter(io, paths.dir, LOG_SUFFIX),
     byWriter(io, paths.inbox, LOG_SUFFIX),
     byWriter(io, paths.presence, PRESENCE_SUFFIX),
   ])
 
-  return { meta, logs, inbox, presence }
+  return { meta, project, logs, inbox, presence }
 }
 
-/**
- * A piece of work by its id, as it stands at `now`: looked up in this
- * project first, then every other; undefined when none files it.
- */
+/** A piece of work by its id, as it stands at `now`, in whichever project files it; undefined when none does. */
 export const findWork = async (
   io: Io,
-  { root, here }: Place,
+  root: string,
   id: string,
   now: number,
 ): Promise<Found | undefined> => {
-  for (const project of projectKeys(here.key, await foldersIn(io, projectsDir(root)))) {
+  for (const project of await projectKeys(io, root)) {
     const paths = workPaths(root, project, id)
     const files = await readWork(io, paths)
     const work = foldWork(files, now)
@@ -98,14 +93,25 @@ const worksIn = async (io: Io, root: string, project: string, now: number) => {
   return works.filter(work => work !== undefined)
 }
 
-/** This project's works, or with `isAll` every project's, this one first. */
-export const readProjects = async (
+/** A project and its works in brief; undefined for a folder with no file and no work. */
+const readProject = async (
   io: Io,
-  { root, here }: Place,
-  isAll: boolean,
+  root: string,
+  key: string,
   now: number,
-): Promise<ProjectRead[]> => {
-  const keys = isAll ? projectKeys(here.key, await foldersIn(io, projectsDir(root))) : [here.key]
+): Promise<ProjectWorks | undefined> => {
+  const file = parseProject((await textAt(io, projectPaths(root, key).file)) ?? '')
+  const works = await worksIn(io, root, key, now)
+  const project = projectFrom(key, file, works.at(0)?.project)
 
-  return Promise.all(keys.map(async key => ({ key, works: await worksIn(io, root, key, now) })))
+  return project === undefined ? undefined : { project, works: works.map(summarise) }
+}
+
+/** Every project, with its works in brief as they stand at `now`. */
+export const readProjects = async (io: Io, root: string, now: number) => {
+  const read = await Promise.all(
+    (await projectKeys(io, root)).map(key => readProject(io, root, key, now)),
+  )
+
+  return read.filter(each => each !== undefined)
 }

@@ -2,11 +2,13 @@
  * Where sitrep's files live. Core names the paths; the front ends read and
  * write them.
  *
- *   <root>/projects/<project key>/works/<work id>/
- *     work.json               the work as it was started
- *     <writer>.jsonl          one file per writer
- *     inbox/<sender>.jsonl    replies sent from other works, one file per sender
- *     presence/<writer>.json  each attached window's heartbeat
+ *   <root>/projects/<project key>/
+ *     project.json              the project's name and directory
+ *     works/<work id>/
+ *       work.json               the work as it was started
+ *       <writer>.jsonl          one file per writer
+ *       inbox/<sender>.jsonl    replies sent from other works, one file per sender
+ *       presence/<writer>.json  each attached window's heartbeat
  */
 
 /** The folder under the state home. */
@@ -15,6 +17,7 @@ const FOLDER = 'sitrep'
 /** The state home when `XDG_STATE_HOME` names none, under `HOME`. */
 const STATE_HOME = '.local/state'
 
+export const PROJECT_FILE = 'project.json'
 export const META_FILE = 'work.json'
 export const LOG_SUFFIX = '.jsonl'
 export const PRESENCE_SUFFIX = '.json'
@@ -22,8 +25,13 @@ export const PRESENCE_SUFFIX = '.json'
 /** What a project key, work id or writer may be, so none of them can climb out of its folder. */
 const SAFE_NAME = /^[A-Za-z0-9_-]+$/
 
+/** A project's folder, and its file there. */
+export type ProjectPaths = { dir: string; file: string }
+
 export type WorkPaths = {
   dir: string
+  /** The project the work is filed under. */
+  project: ProjectPaths
   meta: string
   inbox: string
   presence: string
@@ -61,8 +69,14 @@ export const rootOf = (env: { XDG_STATE_HOME?: string; HOME?: string }) => {
 
 export const projectsDir = (root: string) => `${root}/projects`
 
+export const projectPaths = (root: string, project: string): ProjectPaths => {
+  const dir = `${projectsDir(root)}/${safe(project)}`
+
+  return { dir, file: `${dir}/${PROJECT_FILE}` }
+}
+
 export const worksDir = (root: string, project: string) =>
-  `${projectsDir(root)}/${safe(project)}/works`
+  `${projectPaths(root, project).dir}/works`
 
 export const workPaths = (root: string, project: string, id: string): WorkPaths => {
   const dir = `${worksDir(root, project)}/${safe(id)}`
@@ -71,6 +85,7 @@ export const workPaths = (root: string, project: string, id: string): WorkPaths 
 
   return {
     dir,
+    project: projectPaths(root, project),
     meta: `${dir}/${META_FILE}`,
     inbox,
     presence,
@@ -82,16 +97,6 @@ export const workPaths = (root: string, project: string, id: string): WorkPaths 
 
 /** Whether a listed folder's name is one sitrep files under: a project key, a work id, a writer. */
 export const isSafeName = (name: string) => SAFE_NAME.test(name)
-
-/**
- * The projects to look in, of the folders listed under `projects/`: `here`
- * first, listed or not, then every other. A work id is looked up in this
- * order, so the project a front end works in wins.
- */
-export const projectKeys = (here: string, listed: readonly string[]) => [
-  here,
-  ...listed.filter(key => key !== here && isSafeName(key)),
-]
 
 /** The writer a listed file belongs to, given its folder's suffix; undefined for any other file. */
 export const writerOf = (fileName: string, suffix: string) => {

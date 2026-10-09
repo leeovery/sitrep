@@ -50,6 +50,13 @@ const LINES: [tool: string, input: { [key: string]: unknown }, line: string][] =
   ['note', { text: 'PR #82 merged' }, 'logged: PR #82 merged'],
   ['park', { title: 'A tmux indicator' }, '◇ parked: A tmux indicator'],
   ['finish', { reason: 'Shipped' }, '✓ finished a piece of work'],
+  ['project', { name: 'SitRep' }, 'project renamed: SitRep'],
+  ['project', { directory: '/Users/lee/sitrep' }, 'project lives in /Users/lee/sitrep'],
+  [
+    'project',
+    { name: 'SitRep', directory: '/Users/lee/sitrep' },
+    'project renamed: SitRep · project lives in /Users/lee/sitrep',
+  ],
   ['board', {}, 'read the board back'],
 ]
 

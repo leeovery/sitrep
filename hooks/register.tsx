@@ -86,7 +86,6 @@ const hostOf = ($: EngineInterface): Host => ({
     XDG_STATE_HOME: await $.env.get('XDG_STATE_HOME'),
     HOME: await $.env.get('HOME'),
   }),
-  run: (argv, cwd) => $.process.run(argv, { cwd }),
   log: text => $.ui.log(text, { to: 'debug' }),
   ui: {
     toast: (text, options) => $.ui.toast(text, { timeoutMs: TOAST_MS, ...options }),
