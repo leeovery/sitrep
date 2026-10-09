@@ -8,7 +8,14 @@
  * out; what a button does is the actions' (hooks/actions.ts).
  */
 import type { ElementTable, RenderElement, RenderSurface } from 'claude-code'
-import { answerOf, isPending, type Ask, type Parked, type ReplyFields } from '../../core'
+import {
+  answerOf,
+  isPending,
+  type Ask,
+  type AskKind,
+  type Parked,
+  type ReplyFields,
+} from '../../core'
 import type { SitrepQueued } from '../../types'
 import type { Actions } from '../actions'
 import { C, clip, GLYPH, wrapped } from '../look'
@@ -44,6 +51,14 @@ const TYPING: Record<RenderSurface, 'area' | 'field' | 'none'> = {
 export const typingOn = (d: Drawing) => TYPING[d.surface]
 
 export const canType = (d: Drawing) => typingOn(d) !== 'none'
+
+/** A yes, by the kind of ask it answers: its button's words, on the ask and on the field taking what it needs back. A decide ask offers no yes, so its words are never drawn. */
+export const YES: Record<AskKind, string> = {
+  review: '✓ approve',
+  decide: '✓ approve',
+  try: '✓ it works',
+  do: '✓ done',
+}
 
 /** The line under the tabs naming what the view is of, with a few words on it, and a summary under it. */
 export const context = ({ els }: Drawing, title: string, aside: string, summary?: string) => {

@@ -5,7 +5,7 @@
  * answer the same way; a reply names the work it goes to.
  */
 import { VERDICTS, type Ask, type AskKind, type Verdict } from '../../core'
-import type { SitrepItemRef, SitrepQueued } from '../../types'
+import type { SitrepAnswer, SitrepItemRef, SitrepQueued } from '../../types'
 import { ago, C, GLYPH } from '../look'
 import { queuedOn } from '../queue'
 import { askMark, type Filed } from '../scene'
@@ -21,16 +21,9 @@ import {
   shown,
   titleLines,
   tree,
+  YES,
   type Drawing,
 } from './kit'
-
-/** A yes, by the kind of ask it answers: its button's words. A decide ask offers no yes, so its words are never drawn. */
-const YES: Record<AskKind, string> = {
-  review: '✓ approve',
-  decide: '✓ approve',
-  try: '✓ it works',
-  do: '✓ done',
-}
 
 /** The comment button, by kind: on a decide, a comment is the answer. */
 const COMMENT: Record<AskKind, string> = {
@@ -50,11 +43,17 @@ const refOf = (filed: Filed, ask: Ask): SitrepItemRef => ({
   item: ask.id,
 })
 
-/** The buttons a verdict puts on an ask: one for each option of a decision. */
+/**
+ * The buttons a verdict puts on an ask: one for each option of a decision.
+ * A yes or a choice on an ask that needs something back opens the field for
+ * it, where Lee can type; elsewhere it queues as it would without.
+ */
 const buttonsFor = (d: Drawing, at: SitrepItemRef, ask: Ask, verdict: Verdict) => {
   const { Button } = d.els
   const reply = (fields: Omit<SitrepQueued, keyof SitrepItemRef>) =>
     d.act.reply({ ...at, ...fields })
+  const answer = (given: SitrepAnswer) =>
+    ask.needs !== undefined && canType(d) ? d.act.comment({ ...at, answer: given }) : reply(given)
 
   switch (verdict) {
     case 'choose':
@@ -63,7 +62,7 @@ const buttonsFor = (d: Drawing, at: SitrepItemRef, ask: Ask, verdict: Verdict) =
           key={`choose:${ask.id}:${i}`}
           variant={i === 0 ? 'primary' : undefined}
           label={option}
-          onPress={() => reply({ verdict, option })}
+          onPress={() => answer({ verdict: 'choose', option })}
         />
       ))
     case 'yes':
@@ -72,7 +71,7 @@ const buttonsFor = (d: Drawing, at: SitrepItemRef, ask: Ask, verdict: Verdict) =
           key={`yes:${ask.id}`}
           variant="primary"
           label={YES[ask.kind]}
-          onPress={() => reply({ verdict })}
+          onPress={() => answer({ verdict: 'yes' })}
         />,
       ]
     case 'comment':
@@ -114,6 +113,15 @@ const drawButtons = (d: Drawing, at: SitrepItemRef, ask: Ask) => {
   )
 }
 
+/** The field open on this ask, where Lee can type in it; one for what the ask needs back only while it needs something. */
+const fieldOn = (d: Drawing, at: SitrepItemRef, ask: Ask) => {
+  const field = d.scene.pane.commenting
+  const isOnAsk = field?.work === at.work && field.item === ask.id
+  const isStanding = field?.answer === undefined || ask.needs !== undefined
+
+  return isOnAsk && isStanding && canType(d) ? field : undefined
+}
+
 /** Where an ask stands as drawn: the reply it waits to send, or the one on its way, and what Lee has open on it. */
 const standingOf = (d: Drawing, filed: Filed, ask: Ask) => {
   const { queue, pane } = d.scene
@@ -127,20 +135,21 @@ const standingOf = (d: Drawing, filed: Filed, ask: Ask) => {
     sent: queued === undefined ? onItsWay(ask) : undefined,
     isClosed,
     isOpen: pane.selected === ask.id && !isClosed,
-    isCommenting:
-      pane.commenting?.work === at.work && pane.commenting.item === ask.id && canType(d),
+    field: fieldOn(d, at, ask),
   }
 }
 
 type Standing = ReturnType<typeof standingOf>
 
-/** What hangs from an ask's mark: where to look, Claude's own record of it, what Lee replied, and whether Claude has it. */
+/** What hangs from an ask's mark: what it needs back, where to look, Claude's own record of it, what Lee replied, and whether Claude has it. */
 const branchesOf = (d: Drawing, ask: Ask, { queued, sent, isClosed, isOpen }: Standing) => {
   const isAnswered = queued !== undefined || sent !== undefined
   const commented = ask.state === 'replied' && !isAnswered ? ask.answer?.note : undefined
+  const isDetailed = !isClosed && (isOpen || d.isDock)
 
   return shown(
-    !isClosed && (isOpen || d.isDock) && ask.where,
+    isDetailed && ask.needs !== undefined && { text: `needs: ${ask.needs}`, color: C.ask },
+    isDetailed && ask.where,
     isOpen && seeRef(ask.ref),
     commented !== undefined && `you commented: “${commented}”. Claude has it.`,
     queued !== undefined && drawQueued(d, ask, queued),
@@ -149,15 +158,15 @@ const branchesOf = (d: Drawing, ask: Ask, { queued, sent, isClosed, isOpen }: St
   )
 }
 
-/** What comes after an ask's tree, at its title's column: its buttons, or the field taking a comment. */
-const drawAfter = (d: Drawing, ask: Ask, { at, queued, sent, isOpen, isCommenting }: Standing) => {
+/** What comes after an ask's tree, at its title's column: its buttons, or the field taking Lee's words. */
+const drawAfter = (d: Drawing, ask: Ask, { at, queued, sent, isOpen, field }: Standing) => {
   const { Box } = d.els
-  const isAnswering = isOpen && queued === undefined && sent === undefined && !isCommenting
+  const isAnswering = isOpen && queued === undefined && sent === undefined && field === undefined
 
   return (
     <Box paddingLeft={2} flexDirection="column">
       {isAnswering && drawButtons(d, at, ask)}
-      {isCommenting && drawField(d, at, ask)}
+      {field !== undefined && drawField(d, field, ask)}
     </Box>
   )
 }

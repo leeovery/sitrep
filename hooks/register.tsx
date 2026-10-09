@@ -26,7 +26,7 @@
  */
 import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register } from 'claude-code'
-import { actionsOf, heardTyping } from './actions'
+import { actionsOf, heardTyping, PASTED_HERE, tookPaste } from './actions'
 import { lookAround, lookEvery } from './around'
 import { heardTurn, isBoardMessage, takeUpDelivery, wentQuiet } from './deliver'
 import { drawBand } from './draw/band'
@@ -96,6 +96,8 @@ const hostOf = ($: EngineInterface): Host => ({
   },
   prompt: {
     submit: text => $.prompt.submit({ text, asUser: true }),
+    read: async () => (await $.prompt.read()).text,
+    clear: () => $.prompt.fill({ text: '', mode: 'replace' }),
   },
   // Each slot spelled out: validate reads every atom's reads and writes off this
   // file, and refused them passed through a shared helper.
@@ -243,6 +245,11 @@ export const register: Register = on => {
     }
 
     const host = hostOf($)
+
+    if (await tookPaste(host, e)) {
+      return { drop: PASTED_HERE }
+    }
+
     const change = await serially(() => boardChange(host))
 
     if (change === undefined) {

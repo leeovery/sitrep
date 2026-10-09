@@ -127,13 +127,13 @@ orchestrator decides what reaches the board.
 |---|---|
 | `start` / `join` | begin a piece of work (name, summary, its project's name, and its directory once known) and get its id; or join one by id, in whichever project it is filed |
 | `status` | set the name, summary, the list of what is under way, and what is next |
-| `ask` | post an ask: kind (review, decide, try, do), title, where to look, options for a decision |
+| `ask` | post an ask: kind (review, decide, try, do), title, where to look, options for a decision, and what Lee's answer must carry back (`needs`), given when it must carry something, like a command's output |
 | `note` | add a log line, with optional detail lines and a pointer |
 | `park` | park something to come back to |
-| `resolve` / `reopen` / `edit` | close, reopen or correct an item, with a reason |
+| `resolve` / `reopen` / `edit` | close, reopen or correct an item, with a reason; an edit's empty `needs` clears it |
 | `finish` | mark the attached work done, with a reason, once it is complete and nothing is left on it; the window stays attached, and joining it again reopens it |
 | `project` | rename the attached work's project, or say where it lives, or both; a name another project has is refused. It never moves a work to another project |
-| `board` | read back the board's open items, so Claude can check and repair it |
+| `board` | read back the board's open items, what each ask needs back among them, so Claude can check and repair it |
 
 **When to start a piece of work**, in every conversation's first message
 (added once a session started one with nothing to go on but the tools, and
@@ -260,6 +260,64 @@ A kind is never shown as a word. It only chooses the first button:
   Claude Code's own field is one line). Enter saves, shift+Enter is a new line.
   A review also gets **✓ approve + comment**.
 - **Ignore** tells Claude Lee has seen it and won't act on it.
+- **What an ask needs back.** Claude can say what the answer must carry,
+  in a few words: "the command's output", "which frames you'd change".
+  Any kind of ask takes it, as `needs`. It hangs first from the ask's mark, in
+  the ask's colour, as `needs: the command's output`, wherever the ask's
+  where shows (opened, or docked).
+  - On such an ask there is no bare yes. ✓ keeps its words (`✓ approve`,
+    `✓ it works`, `✓ done`) but opens the multi-row field, titled with what
+    is needed (`the command's output:`) and saved by a button of the same
+    words; on a decide, each option opens it so. Saving queues the yes or
+    the choice with the words as its note, shown under the ask as any note
+    is. An empty save is refused, as an empty comment is, and so is an empty
+    **✓ approve + comment** on a review that needs something.
+  - Comment, answer and ignore are as on any ask.
+  - **A paste gets into the field from the prompt box.** A paste never
+    reaches the field, even with the field focused: it lands in Claude
+    Code's prompt box, which holds one of more than 3 lines (or one long
+    line) folded as `[Pasted text #1 +3 lines]` and hands a plugin only
+    that placeholder. Only the submitted prompt has the text, each paste
+    wrapped `<pasted_content id="…">…</pasted_content id="…">` (live, 2.1.295;
+    undocumented). So the field says `Paste into the prompt and press
+    Enter there: it comes here, not to Claude.`
+    - Enter at the prompt goes into the field, never to Claude, only when
+      three things all hold: a field is open on the board, the prompt is
+      nothing but pasted content (no word typed around it), and nothing is
+      attached. The paste is unwrapped and put under what the field holds,
+      the prompt dropped, its reason the transcript's one line (`Pasted
+      into the field. Enter there saves it.`),
+      and the box emptied once the drop settles, since the engine puts a
+      dropped prompt back. Anything else goes to Claude as ever, field open
+      or not; should the engine's wrapping change, nothing matches and the
+      paste goes to Claude too.
+    - **⤓ take what's in the prompt** takes a short paste the box left as
+      text, under what the field holds, and empties the box. An empty box
+      says `Paste into the prompt first.`; a folded paste is left there,
+      with `Press Enter in the prompt to send the paste here.`
+    - The phone over mosh is the terminal, and gets all of this. Claude's
+      remote app (the `mobile` surface) draws no field.
+  - A surface with no field to type in (the phone) still shows what is
+    needed, and its buttons answer as if nothing were: the ask can be
+    answered there, and Lee says the rest in the chat.
+  - A yes or a choice fits its ask with or without a note, whatever the ask
+    needs, in core for every front end: the phone answers bare, and an edit
+    that gives an ask its `needs` voids no yes already on its way.
+- **What Claude reads.** A reply's line names what its note is:
+  `- Run the export → done, with the command's output: “v1.2.3”`, or
+  `with a comment` where the ask needs nothing. A note of one line is
+  quoted on the reply's line. A note of several lines (pasted output) goes
+  under it, fenced and indented, each line as typed, the fence longer than
+  any run of backticks inside; so does any note of several lines, a
+  comment's or a pick-up's alike.
+
+  ````
+  - Run the export → done, with the command's output:
+    ```
+    exported 42 rows
+    done in 3s
+    ```
+  ````
 - What a reply does once Claude has it: a yes or a choice or an answer closes
   the ask; ignore drops it; a comment on a review, try or do leaves it open
   for Claude to act on.
@@ -414,6 +472,11 @@ $XDG_STATE_HOME/sitrep/, else ~/.local/state/sitrep/
   {"v":1,"at":1760000000000,"seq":4,"type":"ask","id":"k3f9","kind":"review","title":"Review Sessions & Runway, round 1"}
   ```
 
+  An ask's line holds its `kind` and `title`, and `where`, `options`,
+  `needs` and `ref` where it has them. An edit's changes name the fields
+  they set; an empty `needs` clears it, where any other empty field is
+  refused.
+
   The kinds: `status`, `ask`, `note` and `park`; `resolve`, `reopen` and
   `edit`, each naming an item; `reply`, Lee's answer to one; `delivered`,
   naming the replies Claude has been given; `finish`, the work marked done,
@@ -522,7 +585,7 @@ $XDG_STATE_HOME/sitrep/, else ~/.local/state/sitrep/
 
   ```
   sitrep note <text> [--detail <line>]... [--ref <ref>]
-  sitrep ask <kind> <title> [--where <words>] [--option <choice>]... [--ref <ref>]
+  sitrep ask <kind> <title> [--where <words>] [--needs <words>] [--option <choice>]... [--ref <ref>]
   sitrep park <title> [--where <words>] [--ref <ref>]
   sitrep status [--name <words>] [--summary <line>] [--now <line>]... [--next <line>]
   sitrep board [--json]
@@ -580,7 +643,9 @@ $XDG_STATE_HOME/sitrep/, else ~/.local/state/sitrep/
 - **Soft:** lines describing the item above them (a summary, what a session is
   doing, a reply, a log detail).
 - **Grey:** ages, counts, heading notes. **Faint:** closed things.
-- **Colour:** glyphs, headings and amber waiting counts only.
+- **Colour:** glyphs, headings and amber waiting counts only; and, in the
+  ask's amber, the `needs:` line of an ask that needs something back, since
+  it is a request of Lee's, not a description.
 - Glyphs: `◆` ask, `◇` parked, `•` under way, `◦` next, `└ ├` trees, `⌂` home.
   No glyph that reads as "expand" unless it expands.
 - Breathing room: a column each side, a blank row between asks and between

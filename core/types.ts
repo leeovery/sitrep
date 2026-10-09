@@ -34,6 +34,8 @@ export type AskBody = {
   title: string
   where?: string
   options?: string[]
+  /** What Lee's answer must carry back, in Claude's words: "the command's output". */
+  needs?: string
   ref?: string
 }
 
@@ -59,6 +61,8 @@ export type Changes = {
   title?: string
   where?: string
   options?: string[]
+  /** `''` clears it. */
+  needs?: string
   ref?: string
   text?: string
   detail?: string[]
@@ -66,7 +70,7 @@ export type Changes = {
 
 /** The fields an edit changes, by the type of item. */
 export const EDITABLE: Record<Item['type'], readonly (keyof Changes)[]> = {
-  ask: ['kind', 'title', 'where', 'options', 'ref'],
+  ask: ['kind', 'title', 'where', 'options', 'needs', 'ref'],
   note: ['text', 'detail', 'ref'],
   park: ['title', 'where', 'ref'],
 }
@@ -160,6 +164,7 @@ export type Ask = Posted & {
   title: string
   where?: string
   options?: string[]
+  needs?: string
   state: AskState
   /** The delivered reply that last moved it, since it was opened or reopened. */
   answer?: Reply

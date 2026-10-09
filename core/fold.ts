@@ -159,7 +159,7 @@ const HANDLERS: { [T in Body['type']]: Handler<T> } = {
     fold.status = status
   },
 
-  ask: (fold, { id, kind, title, where, options, ref, at, by }) => {
+  ask: (fold, { id, kind, title, where, options, needs, ref, at, by }) => {
     post(fold, {
       type: 'ask',
       id,
@@ -167,6 +167,7 @@ const HANDLERS: { [T in Body['type']]: Handler<T> } = {
       title,
       where,
       options,
+      needs,
       ref,
       by,
       at,
@@ -231,8 +232,10 @@ const HANDLERS: { [T in Body['type']]: Handler<T> } = {
       }
     }
 
-    if (item.type === 'ask' && item.kind !== 'decide') {
-      item.options = undefined
+    if (item.type === 'ask') {
+      item.options = item.kind === 'decide' ? item.options : undefined
+      // An edit's empty `needs` clears it.
+      item.needs = item.needs || undefined
     }
 
     item.editedAt = at

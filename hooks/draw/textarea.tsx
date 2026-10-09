@@ -2,13 +2,16 @@
  * A text field a few rows tall that grows as it fills: Claude Code's own
  * Input is one line. A click focuses it; it posts its text to the hooks
  * module on every change, with `isSubmit` when Enter saves. Shift+Enter (or
- * ctrl+J) starts a new line.
+ * ctrl+J) starts a new line. What the board puts in it itself (`filled`) it
+ * takes up once, the cursor at its end.
  */
 import type { ClientKeyEvent, ClientModule } from 'claude-code'
+import type { SitrepFilled } from '../../types'
 
-type Props = { placeholder: string; minRows: number }
+type Props = { placeholder: string; minRows: number; filled: SitrepFilled | null }
 
-type State = { text: string; cursor: number; isFocused: boolean }
+/** `times`: how many of the board's fills it has taken up. */
+type State = { text: string; cursor: number; isFocused: boolean; times: number }
 
 /** A row as [start, end) into the text. */
 type Row = [start: number, end: number]
@@ -77,7 +80,13 @@ const locate = (rows: readonly Row[], cursor: number, width: number) => {
 const TextArea: ClientModule<Props, State> = (props, surface) => {
   const { Box, Text } = surface.elements
   const width = Math.max(10, surface.columns || 40)
-  let current: State = surface.state ?? { text: '', cursor: 0, isFocused: false }
+  let current: State = surface.state ?? { text: '', cursor: 0, isFocused: false, times: 0 }
+  const filled = props.filled ?? { text: '', times: 0 }
+
+  if (filled.times !== current.times) {
+    current = { ...current, text: filled.text, cursor: filled.text.length, times: filled.times }
+    surface.setState(current)
+  }
 
   const apply = (next: State, isSubmit = false) => {
     current = next
@@ -89,6 +98,7 @@ const TextArea: ClientModule<Props, State> = (props, surface) => {
     const { text, cursor } = current
 
     apply({
+      ...current,
       text: text.slice(0, cursor) + piece + text.slice(cursor),
       cursor: cursor + piece.length,
       isFocused: true,
@@ -133,6 +143,7 @@ const TextArea: ClientModule<Props, State> = (props, surface) => {
 
       if (cursor > 0) {
         apply({
+          ...current,
           text: text.slice(0, cursor - 1) + text.slice(cursor),
           cursor: cursor - 1,
           isFocused: true,

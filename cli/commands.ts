@@ -116,6 +116,12 @@ const ask: WorkCommand = {
     ],
     flags: {
       ...WHERE,
+      needs: {
+        field: 'needs',
+        form: 'one',
+        value: '<words>',
+        about: "what Lee's answer must carry back, such as the command's output",
+      },
       option: {
         field: 'options',
         form: 'many',

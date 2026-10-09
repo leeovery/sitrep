@@ -73,6 +73,10 @@ export type Host = {
   prompt: {
     /** Submits text as Lee's own message: the prompt that entered, or why it did not. */
     submit: (text: string) => Promise<PromptSubmitResult>
+    /** What Lee's prompt box holds: the draft, a paste in it whole. */
+    read: () => Promise<string>
+    /** Empties Lee's prompt box. */
+    clear: () => Promise<unknown>
   }
   state: {
     attachment: Slot<SitrepAttachment | null>

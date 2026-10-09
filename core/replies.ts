@@ -47,7 +47,12 @@ const PICK_UP = 'pick it up'
 /** What opens Lee's message carrying replies. */
 export const FROM_THE_BOARD = 'From the board:'
 
-/** Whether a reply fits its item: a verdict the item offers, with the option or comment that verdict needs. */
+/**
+ * Whether a reply fits its item: a verdict the item offers, with the option
+ * or comment that verdict needs. A yes or a choice fits without a note even
+ * on an ask that needs one: a surface with no field to type in answers it
+ * bare, and an edit giving an ask its `needs` voids no yes Lee gave.
+ */
 export const fits = (item: Item, reply: ReplyFields): item is Ask | Parked =>
   item.type !== 'note' &&
   VERDICTS[item.type === 'ask' ? item.kind : 'park'].includes(reply.verdict) &&
@@ -94,18 +99,47 @@ export const parkedAfter = (parked: Parked, verdict: Verdict): Parked['state'] =
 
 const quoted = (note: string) => `“${note}”`
 
-const withComment = (note: string | undefined) =>
-  note === undefined || note === '' ? '' : `, with a comment: ${quoted(note)}`
+/** A note as it follows the words leading into it: on their line, or on the lines under them. */
+type Quote = (note: string) => string
 
-/** A reply to an ask in a few words, bare of any arrow. */
-const words = (kind: AskKind, { verdict, option, note }: ReplyFields): string => {
+/** A note as the board shows it: quoted after its lead, a line break in it breaking the row there. */
+const onTheBoard: Quote = note => ` ${quoted(note)}`
+
+/** Backticks enough to fence a note: more than any run of them in it, so none of its lines closes the fence. */
+const fenceFor = (note: string) =>
+  '`'.repeat(Math.max(3, ...(note.match(/`+/g) ?? []).map(run => run.length + 1)))
+
+/** A note of several lines, fenced and indented to sit under its reply's line, every line as typed. */
+const fenced = (note: string) => {
+  const fence = fenceFor(note)
+
+  return [fence, ...note.split('\n'), fence].map(line => `  ${line}`).join('\n')
+}
+
+/** A note as Lee's message carries it: one line as `inLine` puts it on its lead's line; several fenced under it. */
+const inMessage =
+  (inLine: (note: string) => string): Quote =>
+  note =>
+    note.includes('\n') ? `\n${fenced(note)}` : ` ${inLine(note)}`
+
+const IN_MESSAGE = inMessage(quoted)
+
+/** A pick-up's note, said after its title as it is rather than quoted. */
+const PICK_UP_NOTE = inMessage(note => note)
+
+/** A note with a yes or a choice: what the ask needs back, where it says, else a comment. */
+const withNote = (ask: Ask, note: string | undefined, quote: Quote) =>
+  note === undefined || note === '' ? '' : `, with ${ask.needs ?? 'a comment'}:${quote(note)}`
+
+/** A reply to an ask in a few words, bare of any arrow, its note put as `quote` puts it. */
+const words = (ask: Ask, { verdict, option, note }: ReplyFields, quote: Quote): string => {
   switch (verdict) {
     case 'yes':
-      return `${YES[kind]}${withComment(note)}`
+      return `${YES[ask.kind]}${withNote(ask, note, quote)}`
     case 'choose':
-      return `${option ?? ''}${withComment(note)}`
+      return `${option ?? ''}${withNote(ask, note, quote)}`
     case 'comment':
-      return `${kind === 'decide' ? 'answer' : 'comment'}: ${quoted(note ?? '')}`
+      return `${ask.kind === 'decide' ? 'answer' : 'comment'}:${quote(note ?? '')}`
     case 'ignore':
       return 'ignored'
     case 'pickup':
@@ -119,16 +153,16 @@ export const answerOf = (item: Ask | Parked, reply: ReplyFields) => {
     return PICK_UP
   }
 
-  const answer = words(item.kind, reply)
+  const answer = words(item, reply, onTheBoard)
 
   return reply.verdict === 'choose' ? `→ ${answer}` : answer
 }
 
-/** A reply as a line of Lee's message: the item's title and the answer, no ids, since Lee sends it as their own. */
+/** A reply as Lee's message carries it: the item's title and the answer on a line, a note of several lines under it; no ids, since Lee sends it as their own. */
 export const replyLine = (item: Ask | Parked, reply: ReplyFields) =>
   item.type === 'park'
-    ? `- Pick up from parked: ${item.title}${reply.note ? `. ${reply.note}` : ''}`
-    : `- ${item.title} → ${words(item.kind, reply)}`
+    ? `- Pick up from parked: ${item.title}${reply.note ? `.${PICK_UP_NOTE(reply.note)}` : ''}`
+    : `- ${item.title} → ${words(item, reply, IN_MESSAGE)}`
 
 /** The log line a delivered pick-up earns: what was picked up, and Lee's note with it. */
 export const pickUpLog = (parked: Parked, reply: ReplyFields) => ({

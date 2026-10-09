@@ -37,6 +37,7 @@ const askLine = (ask: Ask) => {
 
   return `${ask.id} ${ask.kind}, ${standing}: ${withExtras(ask.title, {
     options: ask.options?.join(' | '),
+    needs: ask.needs,
     where: ask.where,
     ref: ask.ref,
   })}`

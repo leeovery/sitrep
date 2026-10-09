@@ -151,6 +151,17 @@ function display(on: On) {
     return { value: { command: e.name } }
   })
 
+  /** Lee's prompt box: the draft as typed or pasted. */
+  const box = { text: '' }
+
+  on('prompt.read', () => ({ value: { text: box.text, cursor: box.text.length } }))
+
+  on('prompt.fill', ($, e) => {
+    box.text = e.mode === 'append' ? box.text + e.text : e.text
+
+    return { isFilled: true }
+  })
+
   on('prompt.submit', async ($, e) => {
     submitted.push(e.text)
 
@@ -169,6 +180,8 @@ function display(on: On) {
   })
 
   return {
+    /** Lee's prompt box, which a test types or pastes into. */
+    box,
     panes,
     toasts,
     toastsMs,

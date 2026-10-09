@@ -19,6 +19,9 @@ import { postedId, PROJECT, SESSION, startedId, world } from './world'
 
 tier('user')
 
+/** For a test that runs the clock through many of the watch's looks: past the default 5s on a loaded machine. */
+const SLOW = { timeoutMs: 20_000 }
+
 type World = ReturnType<typeof world>
 
 type Source = 'send' | 'inbox'
@@ -148,30 +151,34 @@ for (const source of ['send', 'inbox'] as const) {
     expectWrittenOnce(w, paths, source)
   })
 
-  test(`${source}: a message that never goes in is let go once the session has been quiet a while, and no sooner`, async ($, on) => {
-    const w = world($, on)
-    const { paths, submit } = await replying[source](w)
-    const turn = w.holdPrompts()
+  test(
+    `${source}: a message that never goes in is let go once the session has been quiet a while, and no sooner`,
+    SLOW,
+    async ($, on) => {
+      const w = world($, on)
+      const { paths, submit } = await replying[source](w)
+      const turn = w.holdPrompts()
 
-    submit()
-    await turn.arrived
-    turn.lose()
-    await w.turnEnds()
-    await w.clock.advance(QUIET_MS - 1)
-    expect(w.state.inFlight).toMatchObject({ isTaken: false })
+      submit()
+      await turn.arrived
+      turn.lose()
+      await w.turnEnds()
+      await w.clock.advance(QUIET_MS - 1)
+      expect(w.state.inFlight).toMatchObject({ isTaken: false })
 
-    await w.turnStarts('Carry on.')
-    await w.clock.advance(QUIET_MS)
-    expect(w.state.inFlight, 'a turn started: it could still carry the message').toMatchObject({
-      isTaken: false,
-    })
+      await w.turnStarts('Carry on.')
+      await w.clock.advance(QUIET_MS)
+      expect(w.state.inFlight, 'a turn started: it could still carry the message').toMatchObject({
+        isTaken: false,
+      })
 
-    await w.turnEnds()
-    await w.clock.advance(QUIET_MS)
-    expect(w.state.inFlight).toBeNull()
-    expect(kindsIn(w, paths)).toEqual(['ask'])
-    expect(w.state.board?.asks[0]?.state).toBe('waiting')
-  })
+      await w.turnEnds()
+      await w.clock.advance(QUIET_MS)
+      expect(w.state.inFlight).toBeNull()
+      expect(kindsIn(w, paths)).toEqual(['ask'])
+      expect(w.state.board?.asks[0]?.state).toBe('waiting')
+    },
+  )
 
   test(`${source}: a message in flight as the conversation ends is written into its work if it goes in after, though the window holds none`, async ($, on) => {
     const w = world($, on)

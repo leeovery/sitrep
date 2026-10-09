@@ -198,6 +198,7 @@ export const checkAsk = (input: unknown): Checked<Omit<AskBody, 'id'>> => {
     title,
     where: line(fields.where),
     options: options.length === 0 ? undefined : options,
+    needs: line(fields.needs),
     ref: line(fields.ref),
   })
 }
@@ -277,12 +278,16 @@ export const checkResolve = (work: Work, input: unknown): Checked<ResolveBody> =
 export const checkReopen = (work: Work, input: unknown): Checked<ReopenBody> =>
   closeOrOpen('reopen', work, input)
 
+/** A text as one line, empty where it comes to nothing: what an edit clears a field with. */
+const clearable = (value: unknown) => (typeof value === 'string' ? oneLine(value) : undefined)
+
 /** How each field an edit changes is read: undefined when what was given will not do. */
 const READERS: { [K in keyof Changes]-?: (value: unknown) => Changes[K] | undefined } = {
   kind: value => (isAskKind(value) ? value : undefined),
   title: line,
   where: line,
   options: lines,
+  needs: clearable,
   ref: line,
   text: line,
   detail: lines,

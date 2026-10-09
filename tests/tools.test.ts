@@ -7,6 +7,7 @@ import {
   projectPaths,
   workPaths,
 } from '../core'
+import { SPECS } from '../hooks/tools'
 import { file, finish, META, MIN, T0, W1, W2 } from './support'
 import {
   DASHBOARD,
@@ -181,6 +182,32 @@ test('ask posts an ask with a fresh id; a decide ask with too few options is ref
   expect(linesOf(w, paths.log(W1)).at(-1)).toMatchObject({ type: 'ask', id, seq: 1 })
   expect((await w.call('ask', { kind: 'decide', title: 'Keep it?' })).deny).toBe(
     'A decide ask needs at least 2 options.',
+  )
+})
+
+test("ask takes what Lee's answer must carry back, and edit changes it or clears it with an empty one", async ($, on) => {
+  const w = world($, on)
+  const { paths } = await w.begin()
+  const id = postedId(
+    await w.call('ask', { kind: 'do', title: 'Run the export', needs: "the command's output" }),
+  )
+  const needs = () => w.state.board?.asks[0]?.needs
+
+  expect(linesOf(w, paths.log(W1)).at(-1)).toMatchObject({ needs: "the command's output" })
+  expect(needs()).toBe("the command's output")
+  expect((await w.call('edit', { item: id, needs: 'the exit code' })).result).toBe(`Edited ${id}.`)
+  expect(needs()).toBe('the exit code')
+  expect((await w.call('edit', { item: id, needs: '' })).result).toBe(`Edited ${id}.`)
+  expect(needs()).toBeUndefined()
+})
+
+test('the ask and edit tools take needs, and the ask says when to give it', () => {
+  const [ask, edit] = ['ask', 'edit'].map(name => SPECS.find(spec => spec.name === name))
+
+  expect(ask?.inputSchema?.properties).toHaveProperty('needs')
+  expect(edit?.inputSchema?.properties).toHaveProperty('needs')
+  expect(ask?.description).toContain(
+    "Give needs when the answer must carry something, like a command's output.",
   )
 })
 

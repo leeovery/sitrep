@@ -111,6 +111,28 @@ test('a decide ask takes its options, one --option each', async () => {
   })
 })
 
+test("an ask takes what Lee's answer must carry back with --needs, kept on its line; an empty one is absent", async () => {
+  const t = terminal()
+  const paths = t.seed(META)
+  const run = await t.run(
+    'ask',
+    'do',
+    'Run the export',
+    '--needs',
+    "the command's\n output",
+    ...WORK,
+  )
+
+  await t.run('ask', 'do', 'Run the apply', '--needs', ' ', ...WORK)
+
+  expect(run).toEqual({ exit: EXIT.done, out: `${FIRST_ID}\n`, err: '' })
+  expect(cliLines(t, paths).map(line => line.type === 'ask' && line.needs)).toEqual([
+    "the command's output",
+    undefined,
+  ])
+  expect(folded(t, paths).asks.map(each => each.needs)).toEqual(["the command's output", undefined])
+})
+
 test("an input core's checks refuse ends as refused, with the check's words, and writes nothing", async () => {
   const t = terminal()
   const paths = t.seed(META)
@@ -339,7 +361,7 @@ test('help: every command in brief, how a work is named, the exit codes, and ans
 
   expect([exit, err]).toEqual([EXIT.done, ''])
   expect(out).toContain(
-    '  sitrep ask <kind> <title> [--where <words>] [--option <choice>]... [--ref <ref>]\n',
+    '  sitrep ask <kind> <title> [--where <words>] [--needs <words>] [--option <choice>]... [--ref <ref>]\n',
   )
   expect(out).toContain('  sitrep list [--project <name>] [--json]\n')
   expect(out).toContain('--work sr-xxxxxx, else $SITREP_WORK')

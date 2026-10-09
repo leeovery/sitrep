@@ -54,6 +54,7 @@ export type SitrepAsk = SitrepPosted & {
   title: string
   where?: string
   options?: string[]
+  needs?: string
   state: 'waiting' | 'replied' | 'closed' | 'ignored'
   answer?: SitrepReply
   replies: SitrepReply[]
@@ -151,6 +152,15 @@ export type SitrepQueued = SitrepItemRef & {
   note?: string
 }
 
+/** A yes or a choice held open while Lee types what its ask needs back: the words go with it as its note. */
+export type SitrepAnswer = { verdict: 'yes' } | { verdict: 'choose'; option: string }
+
+/** What the board put in a field itself, and how many times it has: the field takes it up, in place of its own, once each time. */
+export type SitrepFilled = { text: string; times: number }
+
+/** The field open on an ask: for a comment, or, holding an answer, for what the ask needs back with it. */
+export type SitrepField = SitrepItemRef & { answer?: SitrepAnswer; filled?: SitrepFilled }
+
 /** Replies this window wrote into another work's inbox, by their ids: shown in Ready to send until Claude has them. */
 export type SitrepSent = SitrepWorkRef & { replies: string[] }
 
@@ -241,8 +251,8 @@ export type SitrepPane = {
   view: SitrepView
   /** The item (or log line) opened under its line. */
   selected: string | null
-  /** The ask whose comment field is open. */
-  commenting: SitrepItemRef | null
+  /** The field open on an ask. */
+  commenting: SitrepField | null
 }
 
 /** New asks pulsing, and how many frames of the pulse are left. */
