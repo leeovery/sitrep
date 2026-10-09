@@ -14,6 +14,7 @@ import {
   onItsWay,
   seeRef,
   shown,
+  type Block,
   type Drawing,
 } from './kit'
 
@@ -32,6 +33,9 @@ const drawPickUp = (d: Drawing, { at, parked }: ParkedAt) => {
   return sent === undefined ? undefined : drawOnItsWay(d, parked, sent)
 }
 
+/** A parked item's row, by its work as well, since a project's view lists every session's. */
+const rowKey = ({ at, parked }: ParkedAt) => `parked:${at.work}:${parked.id}`
+
 /** A parked item: its row, its title after its session's name where the list names them, and, opened, the button that picks it up under its tree. */
 const drawItem = (d: Drawing, entry: ParkedAt, isNamed: boolean) => {
   const { Box, Button } = d.els
@@ -40,7 +44,7 @@ const drawItem = (d: Drawing, entry: ParkedAt, isNamed: boolean) => {
   const pickUp = drawPickUp(d, entry)
 
   return drawRow(d, {
-    key: `parked:${at.work}:${parked.id}`,
+    key: rowKey(entry),
     mark: MARK,
     title: isNamed ? `${name}: ${parked.title}` : parked.title,
     at: parked.at,
@@ -59,17 +63,14 @@ const drawItem = (d: Drawing, entry: ParkedAt, isNamed: boolean) => {
   })
 }
 
-export const drawParked = (d: Drawing, parked: readonly ParkedAt[], isNamed: boolean) => {
-  const { Box } = d.els
-
-  if (parked.length === 0) {
-    return null
-  }
-
-  return (
-    <Box flexDirection="column">
-      {heading(d, 'PARKED', C.parked, `${parked.length} to come back to`)}
-      {parked.map(each => drawItem(d, each, isNamed))}
-    </Box>
-  )
-}
+/** PARKED's heading, then each item; none while nothing is parked. */
+export const drawParked = (d: Drawing, parked: readonly ParkedAt[], isNamed: boolean): Block[] =>
+  parked.length === 0
+    ? []
+    : [
+        {
+          key: 'parked',
+          element: heading(d, 'PARKED', C.parked, `${parked.length} to come back to`),
+        },
+        ...parked.map(each => ({ key: rowKey(each), element: drawItem(d, each, isNamed) })),
+      ]

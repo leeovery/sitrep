@@ -1,11 +1,21 @@
 /**
- * A line of the log: its mark, what happened, and its age. A click opens
- * the detail behind it as a tree, and where Claude's own record of it is.
- * A project's log names the session each line came from.
+ * The log: its heading, then a line for each thing that happened, its
+ * mark, what happened, and its age. A click opens the detail behind it as
+ * a tree, and where Claude's own record of it is. A project's log names
+ * the session each line came from.
  */
 import { labelOf, type LogLine } from '../../core'
 import { C, GLYPH } from '../look'
-import { drawRow, seeRef, shown, type Branch, type Drawing, type Mark } from './kit'
+import {
+  drawRow,
+  heading,
+  seeRef,
+  shown,
+  type Block,
+  type Branch,
+  type Drawing,
+  type Mark,
+} from './kit'
 
 /** How each kind of line is marked: a note Claude wrote, a change of status, a pick-up. */
 const MARK: Record<LogLine['kind'], Mark> = {
@@ -37,17 +47,43 @@ const detailOf = (line: LogLine) => {
 /** The session a line of a project's log came from: its id, and its name. */
 type From = { work: string; name: string }
 
-export const drawLogLine = (d: Drawing, line: LogLine, from?: From) => {
+/** A line as a log lists it: in a project's, with the session it came from. */
+export type Logged = { line: LogLine; from?: From }
+
+/** A line of the log, as a block of its own. */
+const drawLogLine = (d: Drawing, { line, from }: Logged): Block => {
   const key = from === undefined ? logKey(line) : `${from.work}:${logKey(line)}`
   const isOpen = d.scene.pane.selected === key
+  const row = `line:${key}`
 
-  return drawRow(d, {
-    key: `line:${key}`,
-    mark: MARK[line.kind],
-    title: from === undefined ? line.text : `${from.name}: ${line.text}`,
-    at: line.at,
-    isOpen,
-    press: { key: `log:${key}`, onPress: () => d.act.select(key) },
-    branches: isOpen ? detailOf(line) : [],
-  })
+  return {
+    key: row,
+    element: drawRow(d, {
+      key: row,
+      mark: MARK[line.kind],
+      title: from === undefined ? line.text : `${from.name}: ${line.text}`,
+      at: line.at,
+      isOpen,
+      press: { key: `log:${key}`, onPress: () => d.act.select(key) },
+      branches: isOpen ? detailOf(line) : [],
+    }),
+  }
+}
+
+/** LOG's heading, then each line it lists. */
+export const drawLog = (d: Drawing, lines: readonly Logged[]): Block[] => {
+  const { Box, Text } = d.els
+
+  return [
+    {
+      key: 'log',
+      element: (
+        <Box flexDirection="column">
+          {heading(d, 'LOG', C.log, 'what happened')}
+          {lines.length === 0 && <Text color={C.grey}>Nothing yet.</Text>}
+        </Box>
+      ),
+    },
+    ...lines.map(logged => drawLogLine(d, logged)),
+  ]
 }

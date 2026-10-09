@@ -248,6 +248,12 @@ export type SitrepPane = {
   selected: string | null
 }
 
+/** How far down the docked board's list stands: the place it was moved at, and the list's first row showing there. */
+export type SitrepScroll = {
+  place: SitrepPlace
+  top: number
+}
+
 /** New asks pulsing, and how many frames of the pulse are left. */
 export type SitrepPulse = {
   asks: string[]
@@ -273,6 +279,8 @@ declare module 'claude-code' {
       /** The message on its way to Claude, or null. */
       inFlight: SitrepInFlight | null
       pane: SitrepPane
+      /** How far down the docked board's list stands, or null at its top. */
+      scroll: SitrepScroll | null
       /** The ask the next Enter in the prompt box answers, or null. */
       answering: SitrepAnswering | null
       pulse: SitrepPulse

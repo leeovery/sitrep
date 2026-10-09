@@ -8,8 +8,8 @@ import type { WorkSummary } from '../../core'
 import { C, clip, GLYPH } from '../look'
 import { askedIn, hereFirst, parkedIn, projectAt } from '../places'
 import { drawForYou } from './ask'
-import { context, heading, waitingWords, type Drawing } from './kit'
-import { drawLogLine } from './log'
+import { context, heading, spaced, waitingWords, type Block, type Drawing } from './kit'
+import { drawLog } from './log'
 import { drawParked } from './parked'
 
 /** How many log lines the view shows, docked and inline. */
@@ -59,35 +59,35 @@ const drawSession = (d: Drawing, project: string, work: WorkSummary) => {
   )
 }
 
-export const drawProjectView = (d: Drawing, key: string) => {
-  const { Box, Text } = d.els
+/** SESSIONS' heading, then each session, a blank row between each and the next. */
+const drawSessions = (d: Drawing, key: string, sessions: readonly WorkSummary[], open: number) => [
+  { key: 'sessions', element: heading(d, 'SESSIONS', C.log, `${open} of ${sessions.length} open`) },
+  ...spaced(
+    ...sessions.map(work => [{ key: `sess:${work.id}`, element: drawSession(d, key, work) }]),
+  ),
+]
+
+/** The view's sections, a blank row between each and the next. */
+export const drawProjectView = (d: Drawing, key: string): Block[] => {
   const { summary, log, works } = projectAt(d.scene, key)
-  const sessions = hereFirst(d.scene, summary.works)
   const names = new Map(works.map(work => [work.id, work.name]))
   const lines = log.slice(0, d.isDock ? LOG_LINES.dock : LOG_LINES.inline)
 
-  return (
-    <Box flexDirection="column" gap={1}>
-      {context(d, summary.name, waitingWords(summary.waiting))}
-      <Box flexDirection="column">
-        {heading(d, 'SESSIONS', C.log, `${summary.open} of ${sessions.length} open`)}
-        <Box flexDirection="column" rowGap={1}>
-          {sessions.map(work => drawSession(d, key, work))}
-        </Box>
-      </Box>
-      {drawForYou(d, askedIn(d.scene, key), {
-        waiting: summary.waiting,
-        isHome: key === d.scene.here,
-        isNamed: true,
-      })}
-      <Box flexDirection="column">
-        {heading(d, 'LOG', C.log, 'what happened')}
-        {lines.length === 0 && <Text color={C.grey}>Nothing yet.</Text>}
-        {lines.map(line =>
-          drawLogLine(d, line, { work: line.work, name: names.get(line.work) ?? line.work }),
-        )}
-      </Box>
-      {drawParked(d, parkedIn(d.scene, key), true)}
-    </Box>
+  return spaced(
+    [{ key: 'context', element: context(d, summary.name, waitingWords(summary.waiting)) }],
+    drawSessions(d, key, hereFirst(d.scene, summary.works), summary.open),
+    drawForYou(d, askedIn(d.scene, key), {
+      waiting: summary.waiting,
+      isHome: key === d.scene.here,
+      isNamed: true,
+    }),
+    drawLog(
+      d,
+      lines.map(line => ({
+        line,
+        from: { work: line.work, name: names.get(line.work) ?? line.work },
+      })),
+    ),
+    drawParked(d, parkedIn(d.scene, key), true),
   )
 }

@@ -6,7 +6,7 @@
 import type { ProjectSummary, WorkSummary } from '../../core'
 import { C, counted, GLYPH } from '../look'
 import { everyProject, hereFirst, projectPlace } from '../places'
-import { context, heading, waitingWords, type Drawing } from './kit'
+import { context, heading, spaced, waitingWords, type Block, type Drawing } from './kit'
 
 const total = (projects: readonly ProjectSummary[], count: (project: ProjectSummary) => number) =>
   projects.reduce((sum, project) => sum + count(project), 0)
@@ -81,25 +81,49 @@ const drawProject = (d: Drawing, project: ProjectSummary) => {
 const foldedLine = (folded: readonly ProjectSummary[]) =>
   `${folded.length} more, with nothing going on: ${folded.map(project => project.name).join(', ')}`
 
-export const drawAllView = (d: Drawing) => {
-  const { Box, Text } = d.els
-  const { projects, folded } = everyProject(d.scene)
+/** PROJECTS' heading, then each project, a blank row between each and the next. */
+const drawProjects = (d: Drawing, projects: readonly ProjectSummary[]): Block[] => {
   const open = total(projects, project => project.open)
 
-  return (
-    <Box flexDirection="column" gap={1}>
-      {context(d, 'All projects', waitingWords(total(projects, project => project.waiting)))}
-      <Box flexDirection="column">
-        {heading(d, 'PROJECTS', C.parked, `${counted(open, 'session', 'sessions')} open`)}
-        <Box flexDirection="column" rowGap={1}>
-          {projects.map(project => drawProject(d, project))}
-        </Box>
-      </Box>
-      {folded.length > 0 && (
-        <Text color={C.faint} wrap="wrap">
-          {foldedLine(folded)}
-        </Text>
-      )}
-    </Box>
+  return [
+    {
+      key: 'projects',
+      element: heading(d, 'PROJECTS', C.parked, `${counted(open, 'session', 'sessions')} open`),
+    },
+    ...spaced(
+      ...projects.map(project => [
+        { key: `allproj:${project.key}`, element: drawProject(d, project) },
+      ]),
+    ),
+  ]
+}
+
+/** The quiet projects' line; none while every project has something going on. */
+const drawFolded = (d: Drawing, folded: readonly ProjectSummary[]): Block[] => {
+  const { Text } = d.els
+
+  return folded.length === 0
+    ? []
+    : [
+        {
+          key: 'folded',
+          element: (
+            <Text color={C.faint} wrap="wrap">
+              {foldedLine(folded)}
+            </Text>
+          ),
+        },
+      ]
+}
+
+/** The view's sections, a blank row between each and the next. */
+export const drawAllView = (d: Drawing): Block[] => {
+  const { projects, folded } = everyProject(d.scene)
+  const waiting = waitingWords(total(projects, project => project.waiting))
+
+  return spaced(
+    [{ key: 'context', element: context(d, 'All projects', waiting) }],
+    drawProjects(d, projects),
+    drawFolded(d, folded),
   )
 }

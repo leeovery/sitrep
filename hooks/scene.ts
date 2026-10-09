@@ -14,6 +14,7 @@ import type {
   SitrepProject,
   SitrepPulse,
   SitrepQueued,
+  SitrepScroll,
   SitrepSent,
 } from '../types'
 import { workOf } from './board'
@@ -46,6 +47,8 @@ export type Scene = {
   inFlight: SitrepInFlight | null
   sent: readonly SitrepSent[]
   pane: SitrepPane
+  /** How far down the docked board's list stands, at the place it was moved at. */
+  scroll: SitrepScroll | null
   /** The ask Lee is answering in the prompt box, as `$.state` holds it: whether it still stands is `answeringIn`'s to say. */
   answering: SitrepAnswering | null
   pulse: SitrepPulse
@@ -57,23 +60,37 @@ let ticking: Timer | undefined
 
 /** The scene as it stands; undefined while no work is held. */
 export const sceneOf = async (host: Host): Promise<Scene | undefined> => {
-  const [board, held, projects, others, queue, inFlight, sent, pane, answering, pulse, flash, now] =
-    await Promise.all([
-      host.state.board.read(),
-      host.state.attachment.read(),
-      host.state.projects.read(),
-      host.state.others.read(),
-      host.state.queue.read(),
-      host.state.inFlight.read(),
-      host.state.sent.read(),
-      host.state.pane.read(),
-      host.state.answering.read(),
-      host.state.pulse.read(),
-      host.state.flash.read(),
-      host.clock.now(),
-      // Read only so the drawing is subscribed to it: a tick draws the scene again.
-      host.state.tick.read(),
-    ])
+  const [
+    board,
+    held,
+    projects,
+    others,
+    queue,
+    inFlight,
+    sent,
+    pane,
+    scroll,
+    answering,
+    pulse,
+    flash,
+    now,
+  ] = await Promise.all([
+    host.state.board.read(),
+    host.state.attachment.read(),
+    host.state.projects.read(),
+    host.state.others.read(),
+    host.state.queue.read(),
+    host.state.inFlight.read(),
+    host.state.sent.read(),
+    host.state.pane.read(),
+    host.state.scroll.read(),
+    host.state.answering.read(),
+    host.state.pulse.read(),
+    host.state.flash.read(),
+    host.clock.now(),
+    // Read only so the drawing is subscribed to it: a tick draws the scene again.
+    host.state.tick.read(),
+  ])
 
   if (board === null || held === null) {
     return undefined
@@ -91,6 +108,7 @@ export const sceneOf = async (host: Host): Promise<Scene | undefined> => {
     inFlight,
     sent,
     pane,
+    scroll,
     answering,
     pulse,
     flash,

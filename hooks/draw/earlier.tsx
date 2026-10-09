@@ -6,7 +6,7 @@
 import { answerOf, closingReply, type Ask } from '../../core'
 import { C, GLYPH } from '../look'
 import { doneEarlier, type Filed } from '../scene'
-import { drawRow, heading, type Drawing } from './kit'
+import { drawRow, heading, type Block, type Drawing } from './kit'
 
 /** How many closed asks DONE shows until it is opened to them all. */
 const LATEST = 3
@@ -27,19 +27,24 @@ const howClosed = (ask: Ask) => {
   return ask.reason === undefined ? 'resolved by Claude' : `resolved by Claude: ${ask.reason}`
 }
 
-const drawClosed = (d: Drawing, ask: Ask) => {
+/** A closed ask's row, as a block of its own. */
+const drawClosed = (d: Drawing, ask: Ask): Block => {
   const key = doneKey(ask)
   const isOpen = d.scene.pane.selected === key
+  const row = `closed:${ask.id}`
 
-  return drawRow(d, {
-    key: `closed:${ask.id}`,
-    mark: MARK,
-    title: ask.title,
-    at: ask.closedAt ?? ask.at,
-    isOpen,
-    press: { key, onPress: () => d.act.select(key) },
-    branches: isOpen ? [howClosed(ask)] : [],
-  })
+  return {
+    key: row,
+    element: drawRow(d, {
+      key: row,
+      mark: MARK,
+      title: ask.title,
+      at: ask.closedAt ?? ask.at,
+      isOpen,
+      press: { key, onPress: () => d.act.select(key) },
+      branches: isOpen ? [howClosed(ask)] : [],
+    }),
+  }
 }
 
 /**
@@ -50,28 +55,36 @@ const drawClosed = (d: Drawing, ask: Ask) => {
 const openedToAllBy = (asks: readonly Ask[], toggle: string, selected: string | null) =>
   [toggle, ...asks.slice(LATEST).map(doneKey)].find(key => key === selected)
 
-export const drawDone = (d: Drawing, { work }: Filed) => {
-  const { Box, Button } = d.els
+/** The press opening DONE to every closed ask, or folding it back to the latest; none with no more than those. */
+const drawToggle = (d: Drawing, asks: readonly Ask[], key: string, allBy: string | undefined) => {
+  const { Button } = d.els
+  const label = allBy === undefined ? `show all ${asks.length}` : 'show fewer'
+
+  return asks.length > LATEST
+    ? [
+        {
+          key,
+          element: (
+            <Button key={key} plain label={label} onPress={() => d.act.select(allBy ?? key)} />
+          ),
+        },
+      ]
+    : []
+}
+
+/** DONE's heading, the closed asks it shows, and its toggle; none while no ask has closed. */
+export const drawDone = (d: Drawing, { work }: Filed): Block[] => {
   const asks = doneEarlier(work, d.scene.now)
   const key = `earlier:${work.id}`
   const allBy = openedToAllBy(asks, key, d.scene.pane.selected)
 
   if (asks.length === 0) {
-    return null
+    return []
   }
 
-  return (
-    <Box flexDirection="column">
-      {heading(d, 'DONE', C.ok, `${asks.length} closed`)}
-      {(allBy === undefined ? asks.slice(0, LATEST) : asks).map(ask => drawClosed(d, ask))}
-      {asks.length > LATEST && (
-        <Button
-          key={key}
-          plain
-          label={allBy === undefined ? `show all ${asks.length}` : 'show fewer'}
-          onPress={() => d.act.select(allBy ?? key)}
-        />
-      )}
-    </Box>
-  )
+  return [
+    { key: 'done', element: heading(d, 'DONE', C.ok, `${asks.length} closed`) },
+    ...(allBy === undefined ? asks.slice(0, LATEST) : asks).map(ask => drawClosed(d, ask)),
+    ...drawToggle(d, asks, key, allBy),
+  ]
 }

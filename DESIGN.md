@@ -451,16 +451,18 @@ the prompt (`✎ comment` on a bare yes or choice). Each has its own `✕`, and
 the ask shows `↺ undo`. **send to Claude** sends them; **cancel all** clears
 them.
 
-**Docked**, the box stays at the foot of the board's window as the board
-scrolls, drawn over the rows there on the pane's own background, `#262626`
-(measured live; no theme key names it), so it blanks them without looking
-any different from the board, and the board's last line scrolls clear of
-it. **Inline** (the phone) it sits at the end of the content. Each of its
-lines keeps to one row, cut short, so its height follows from what it holds.
-Docked it takes under half the window: a queue too long for that lists what
-fits and ends `… 3 more`, still one box. Opening the board, queuing a reply and sending leave the window where Lee
-had it; Tab onto a button the box covers brings that button to the
-window's middle.
+**Docked**, the box stays still at the foot of the board's window, under
+the board's list, which scrolls above it; the list's last line scrolls
+clear of it. **Inline** (the phone) it sits at the end of the content. Each
+of its lines keeps to one row, cut short, so its height follows from what it
+holds. Docked it takes under half the window: a queue too long for that
+lists what fits and ends `… 3 more`, still one box. Only Lee moves the list:
+queuing a reply, sending, a new ask arriving and the board drawing again
+leave it where Lee had it, and only a list that shrank under it stops it
+short at its new end. Each place the board goes starts at its top, and so
+does the board opened again. Tab and the arrows step between buttons, and
+one below the fold brings its item into view (see "One engine, two front
+ends").
 
 On an inline board (the phone layout) a send closes the board as soon as it
 is claimed: the message to this session claimed, or, with none, the replies
@@ -691,24 +693,56 @@ $XDG_STATE_HOME/sitrep/, else ~/.local/state/sitrep/
     module of the plugin. What a surface can do beyond drawing (whether Lee
     can write back from it in a prompt the mod hears, and whether the mod
     can fill that prompt) is read off `e.surface`.
-  - A box floating over the foot of a docked pane, Ready to send's (settled
-    by a probe and a live run, 2.1.295): the engine scrolls the whole tree,
-    and the box is drawn `position: "absolute"` at `offset + bodyRows`
-    less its own rows, placed again on every drawing from `e.props.scroll`,
-    since every scroll asks the render hook again. Rows as tall as the box
-    close the tree, and the tree is never shorter than `offset + bodyRows`:
-    one shrinking under a scrolled window has the engine pull the window up
-    without asking, leaving the box mid-pane. Only the box's rows are
-    counted, never the board's. The engine counts the rows under the box as
-    showing, so the scroll hook turns a page key into a step of the rows
-    above it, and the focus hook brings the button the focus lands on to the
-    window's middle (`$.ui.scroll`, `block: 'center'`), then draws again:
-    the engine keeps the focus in view by moving the window itself, unasked,
-    and a reveal that then finds nothing to move draws nothing. Both hooks
-    read the window as last drawn from a module variable, since a render
-    hook cannot write `$.state`. An absolute box spanning the whole window
-    blocks clicks on what shows through it. The test kit has no `$.ui.scroll`: the reveal is checked
-    live.
+  - Docked, the board scrolls its own list, clipped above Ready to send
+    (settled by a probe and a live run, 2.1.295). A box floated over the
+    foot of a tree the engine scrolls, placed again on every drawing,
+    flickers by design: the engine paints the scrolled frame before the
+    drawing that puts the box back (26 of 195 frames, live). So the engine
+    is given nothing to scroll.
+    - **The engine.** The tree is a row shorter than the window, so the
+      engine's window never moves, and that row tells a page key (the
+      window's rows) from Home and End (the tree's). The scroll hook holds
+      the engine at the top (`offset: 0`).
+    - **The board.** The list sits in a box of the rows above Ready to
+      send, clipped (`overflow: "hidden"`), and shifted up by how far down
+      it stands (`marginTop`); Ready to send sits under it, still, its last
+      row past the tree's end, which paints. With nothing in Ready to send
+      the list takes the tree. How far down the list stands is kept in
+      `$.state` with the place it was moved at, so a new place starts at its
+      top, and closing the board forgets it. The scroll hook moves it: the
+      wheel as it turns, a page key by the rows showing, Home and End to the
+      ends, stopped at either. Nothing else does: the drawing only stops it
+      short at the end of a list that shrank, or of a window that grew. It
+      clips always, docked, not only while Ready to send holds something:
+      switching between the engine's window and the board's own as the
+      queue filled would move what Lee is looking at.
+    - **Measuring.** The view is drawn as a list of blocks: the tabs, the
+      line under them, each section's heading, each entry of a list (an
+      ask, a log line, a parked item, a closed ask, a session, a project),
+      Status whole, the foot, and a blank row closing the list; the blank
+      row between sections is the next block's own. Docked, a `Client`
+      spans each block down the column the board keeps free beside its
+      lines (`hooks/draw/measure.tsx`), drawing nothing, and posts the rows
+      the block takes whenever they change. It is keyed by its block, a
+      work's item by its work too, since a project's view lists every
+      session's. The list is as tall as its blocks, and a block sits as far
+      down as those above it; one not measured yet counts a row. Each
+      measures once as it is laid out, and again as it grows or the width
+      changes (about 140 posts over a long live run). The rows and the list
+      as last drawn are kept in a module, since a render hook cannot write
+      `$.state`; a reload disposes the `Client`s, and new ones post again
+      (live). The test kit lays a `Client` out but never hands the plugin
+      what it posts, so its tests post each block's rows as its `Client`
+      would.
+    - **The focus.** Tab, Shift-Tab and the arrows all step between buttons:
+      with nothing for the engine to scroll, an arrow has no rows to move.
+      The focus hook brings the block holding the button the focus lands
+      on into view, moving the least, from its top where it is taller than
+      the rows showing; Ready to send's own always show. Text with no
+      button in it is reached by the wheel and the page keys.
+    - **Dock only.** Inline, the board flows as it always has, Ready to send
+      after the view, and the engine scrolls it; so does a dock on a
+      surface that draws no `Client`.
   - `$.prompt.submit` while Claude is mid-turn (settled in a live run): the
     call waits, the prompt never folded into the running turn; once that
     turn completes, the prompt starts a turn of its own and the call
@@ -821,8 +855,7 @@ $XDG_STATE_HOME/sitrep/, else ~/.local/state/sitrep/
 
 - Palette (Tokyo Night): ask `#e0af68`, new-ask pulse `#ff9e64`, log `#7aa2f7`,
   parked `#bb9af7`, ok `#9ece6a`, now `#73daca`, soft `#a9b1d6`,
-  grey `#7a82ab`, faint `#565f89`, rules `#3b4261`, tab `#292e42`; the pane's
-  own background, measured live, `#262626`.
+  grey `#7a82ab`, faint `#565f89`, rules `#3b4261`, tab `#292e42`.
 - **White:** anything clickable, and the main content.
 - **Soft:** lines describing the item above them (a summary, what a session is
   doing, a reply, a log detail).

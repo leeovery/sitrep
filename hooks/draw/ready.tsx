@@ -8,9 +8,9 @@
  * each reply whether it is on its way or when it was delivered.
  *
  * Each of the box's lines takes one row, cut short rather than wrapped, so
- * its height follows from what it lists (`readyRows`): a docked board floats
- * it over the foot of its window by that height. Given fewer rows than it
- * needs, it lists what fits and says how many more it holds.
+ * its height follows from what it lists (`readyRows`): a docked board keeps
+ * that many rows of its window for it, under its list. Given fewer rows
+ * than it needs, it lists what fits and says how many more it holds.
  */
 import type { RenderElement } from 'claude-code'
 import {
@@ -45,10 +45,6 @@ const STANDING: Record<Delivery, { text: string; color: string }> = {
 const SEND = 'send'
 const CANCEL_ALL = 'cancel-all'
 const UNREADY = 'unready:'
-
-/** Whether a button is one of the box's own. */
-export const isReadyKey = (key: string) =>
-  key === SEND || key === CANCEL_ALL || key.startsWith(UNREADY)
 
 /** The rows the box takes besides its lines: its border, top and bottom. */
 const BORDER_ROWS = 2
@@ -334,20 +330,13 @@ const drawControls = (d: Drawing, { sending }: Ready) => {
   )
 }
 
-/** The box, `readyRows(ready)` rows tall; floating over the board, it paints `backgroundColor` over what is beneath. */
-export const drawReady = (d: Drawing, ready: Ready, backgroundColor?: string) => {
+/** The box, `readyRows(ready)` rows tall. */
+export const drawReady = (d: Drawing, ready: Ready) => {
   const { Box, Text } = d.els
   const { groups, waiting, more } = ready
 
   return (
-    <Box
-      key="ready"
-      flexDirection="column"
-      borderStyle="round"
-      borderColor={C.ok}
-      paddingX={1}
-      backgroundColor={backgroundColor}
-    >
+    <Box key="ready" flexDirection="column" borderStyle="round" borderColor={C.ok} paddingX={1}>
       <Box flexDirection="row" justifyContent="space-between">
         <Text color={C.ok} bold wrap="truncate-end">
           READY TO SEND

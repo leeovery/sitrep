@@ -26,6 +26,7 @@ import {
   onItsWay,
   seeRef,
   shown,
+  type Block,
   type Drawing,
 } from './kit'
 
@@ -205,15 +206,24 @@ const noteOf = (d: Drawing, { waiting, isHome }: ForYou) => {
   return { note: waiting > 0 ? `${waiting} waiting` : 'nothing waiting', color: C.grey }
 }
 
-export const drawForYou = (d: Drawing, asked: readonly AskedAt[], listing: ForYou) => {
+/** For you's heading, then each ask, keyed by its work as well, since a project's view lists every session's. */
+export const drawForYou = (d: Drawing, asked: readonly AskedAt[], listing: ForYou): Block[] => {
   const { Box, Text } = d.els
   const { note, color } = noteOf(d, listing)
 
-  return (
-    <Box flexDirection="column">
-      {heading(d, 'FOR YOU', C.ask, note, color)}
-      {asked.length === 0 && <Text color={C.grey}>Nothing waiting on you.</Text>}
-      {asked.map((each, i) => drawAsk(d, each, i === asked.length - 1, listing.isNamed))}
-    </Box>
-  )
+  return [
+    {
+      key: 'foryou',
+      element: (
+        <Box flexDirection="column">
+          {heading(d, 'FOR YOU', C.ask, note, color)}
+          {asked.length === 0 && <Text color={C.grey}>Nothing waiting on you.</Text>}
+        </Box>
+      ),
+    },
+    ...asked.map((each, i) => ({
+      key: `ask:${each.at.work}:${each.ask.id}`,
+      element: drawAsk(d, each, i === asked.length - 1, listing.isNamed),
+    })),
+  ]
 }

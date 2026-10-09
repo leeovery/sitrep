@@ -47,9 +47,11 @@ const HOME: Focus = { place: null, selected: null }
 const markOpen = (host: Host, isOpen: boolean) =>
   host.state.pane.update(pane => ({ ...pane, isOpen }))
 
-/** The board closed: the band's button follows, and the board forgets where it had gone. */
-const markClosed = (host: Host) =>
-  host.state.pane.update(pane => ({ ...pane, ...HOME, isOpen: false }))
+/** The board closed: the band's button follows, and the board forgets where it had gone and how far down. */
+const markClosed = async (host: Host) => {
+  await host.state.pane.update(pane => ({ ...pane, ...HOME, isOpen: false }))
+  await host.state.scroll.write(null)
+}
 
 const isUp = async (host: Host) => (await host.ui.panes()).some(pane => pane.id === PANE)
 

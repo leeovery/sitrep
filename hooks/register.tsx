@@ -30,11 +30,11 @@ import type { EngineInterface, Register } from 'claude-code'
 import { actionsOf } from './actions'
 import { captured } from './answering'
 import { lookAround, lookEvery } from './around'
+import { clipOf, heardRows, revealFocus, scrollList } from './clip'
 import { heardTurn, isBoardMessage, takeUpDelivery, wentQuiet } from './deliver'
 import { drawBand } from './draw/band'
-import { drawPane, floatingRows } from './draw/board'
+import { drawPane } from './draw/board'
 import { drawToolResult, drawToolRow, toolLine } from './draw/tool-row'
-import { drewBoard, followFocus, movedTo } from './float'
 import { logFailure, TOAST_MS, type Host } from './host'
 import { BAND_KEYS, boardClosed, openBoard, PANE, pressBand, syncBoard } from './pane'
 import { receiveEvery } from './receive'
@@ -60,6 +60,7 @@ const pane = atom({ plugin: 'sitrep', key: 'pane' } as const, {
   place: null,
   selected: null,
 })
+const scroll = atom({ plugin: 'sitrep', key: 'scroll' } as const, null)
 const answering = atom({ plugin: 'sitrep', key: 'answering' } as const, null)
 const pulse = atom({ plugin: 'sitrep', key: 'pulse' } as const, { asks: [], frames: 0 })
 const flash = atom({ plugin: 'sitrep', key: 'flash' } as const, 0)
@@ -92,7 +93,6 @@ const hostOf = ($: EngineInterface): Host => ({
     open: args => $.ui.open(args),
     close: id => $.ui.close({ id }),
     panes: () => $.ui.panes(),
-    reveal: (pane, key) => $.ui.scroll({ to: { key }, in: pane, block: 'center' }),
     redraw: () => $.ui.invalidate('ui.render'),
     play: asset => $.audio.play({ asset }),
   },
@@ -149,6 +149,11 @@ const hostOf = ($: EngineInterface): Host => ({
       read: () => read($, pane),
       write: value => update($, pane, () => value),
       update: change => update($, pane, change),
+    },
+    scroll: {
+      read: () => read($, scroll),
+      write: value => update($, scroll, () => value),
+      update: change => update($, scroll, change),
     },
     answering: {
       read: () => read($, answering),
@@ -325,26 +330,33 @@ export const register: Register = on => {
     const host = hostOf($)
     const scene = await sceneOf(host)
 
-    drewBoard(e.props.scroll, floatingRows(e.props, scene))
-
-    return drawPane($.ui.resolve(e), e.surface, actionsOf(host), e.props, scene)
+    return drawPane(
+      $.ui.resolve(e),
+      e.surface,
+      actionsOf(host),
+      e.props,
+      scene,
+      clipOf(scene?.scroll ?? null),
+    )
   })
 
-  // Docked, Ready to send floats over the foot of the board's window, which
-  // the engine scrolls as though nothing covered it: a page key moves by the
-  // rows above the box, and the focus is brought clear of it.
-  on('ui.scroll', { requestId: PANE }, ($, e, next) => next({ ...e, offset: movedTo(e) })).catch(
-    ($, e, next) => next(e),
-  )
+  // Docked, the board moves its own list, clipped above Ready to send, and
+  // holds the engine's window at the top, where there is nothing to scroll.
+  on('ui.scroll', { requestId: PANE }, async ($, e, next) =>
+    (await scrollList(hostOf($), e)) ? next({ ...e, offset: 0 }) : next(e),
+  ).catch(($, e, next) => next(e))
 
   on('ui.focus', { requestId: PANE }, async ($, e, next) => {
-    const moved = await next(e)
+    await revealFocus(hostOf($), e.element)
 
-    if (moved.deny === undefined) {
-      await followFocus(hostOf($), e.element)
-    }
+    return next(e)
+  }).catch(($, e, next) => next(e))
 
-    return moved
+  // Each block of a docked board's list posts the rows it takes, from the Client measuring it.
+  on('ui.message', { requestId: PANE }, ($, e, next) => {
+    heardRows(hostOf($), e.data)
+
+    return next(e)
   }).catch(($, e, next) => next(e))
 
   // A refused or interrupted call keeps the engine's own row, so what went wrong shows.

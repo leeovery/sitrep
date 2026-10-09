@@ -31,6 +31,28 @@ export type Drawing = {
 }
 
 /**
+ * A piece of the board's list, one under another: a section's heading, an
+ * entry of a list, a section with no buttons in it. The docked board
+ * measures each, to know how tall the list is and where each piece sits in
+ * it (DESIGN.md, "One engine, two front ends").
+ */
+export type Block = {
+  /** Unique across the board, and kept from one drawing to the next. */
+  key: string
+  element: RenderElement
+  /** Whether a blank row comes before it. */
+  isSpaced?: boolean
+}
+
+/** The blocks of several parts of the board, a blank row before each part but the first; a part with no blocks takes no row. */
+export const spaced = (...parts: readonly (readonly Block[])[]): Block[] =>
+  parts
+    .filter(part => part.length > 0)
+    .flatMap((part, i) =>
+      part.map((block, j) => (i > 0 && j === 0 ? { ...block, isSpaced: true } : block)),
+    )
+
+/**
  * How Lee writes back to an ask from a surface: in the terminal's prompt
  * box, which the mod reads and fills and whose Enter it hears; in Claude's
  * app, whose Enter it hears (the Remote Control bridge) but whose box it

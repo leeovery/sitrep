@@ -1,16 +1,18 @@
 /**
  * The board pane: where it is looking and its view there, with Ready to
- * send at the foot; one line when the window holds no work. Docked, Ready
- * to send floats over the foot of the window as the board scrolls; inline,
- * it follows the view.
+ * send at the foot; one line when the window holds no work. The view is a
+ * list of blocks. Docked, the list is clipped above Ready to send, which
+ * never moves, and a `Client` measures each block (hooks/clip.ts); inline,
+ * Ready to send follows the view.
  *
  * On Lee's own path the board shows a tab for each step of it, each a row
  * of `TABS`: this session, by its glyph alone, and every project. Anywhere
  * else the tabs give way to a step back up and the way home.
  */
-import type { RenderElement, RenderPropsOf, RenderSurface, SiteScroll } from 'claude-code'
+import type { ElementTable, RenderElement, RenderPropsOf, RenderSurface } from 'claude-code'
 import type { SitrepPlace } from '../../types'
 import type { Actions } from '../actions'
+import type { Clip } from '../clip'
 import { C, GLYPH } from '../look'
 import {
   EVERY_PROJECT,
@@ -24,9 +26,9 @@ import {
 } from '../places'
 import type { Scene } from '../scene'
 import { drawAllView } from './every'
-import type { Drawing, Els } from './kit'
+import type { Block, Drawing, Els } from './kit'
 import { drawProjectView } from './project'
-import { drawReady, readyOf, readyRows, type Ready } from './ready'
+import { drawReady, readyOf, readyRows } from './ready'
 import { drawSessionView } from './session'
 
 const NO_WORK =
@@ -192,7 +194,7 @@ const drawBackRow = (d: Drawing) => {
 }
 
 /** The view of where the board is looking. */
-const drawPlace = (d: Drawing) => {
+const drawPlace = (d: Drawing): Block[] => {
   const { Text } = d.els
   const { place } = d.scene
 
@@ -200,7 +202,9 @@ const drawPlace = (d: Drawing) => {
     case 'session': {
       const filed = filedAt(d.scene, place.work)
 
-      return filed === undefined ? <Text color={C.grey}>{READING}</Text> : drawSessionView(d, filed)
+      return filed === undefined
+        ? [{ key: 'reading', element: <Text color={C.grey}>{READING}</Text> }]
+        : drawSessionView(d, filed)
     }
     case 'project':
       return drawProjectView(d, place.project)
@@ -210,63 +214,113 @@ const drawPlace = (d: Drawing) => {
 }
 
 /** The tabs, or the back row, over the view of where the board is looking; the view's first line right under their rule. */
-const drawView = (d: Drawing) => {
-  const { Box } = d.els
-
-  return (
-    <Box flexDirection="column">
-      {isOnPath(d.scene) ? drawTabs(d) : drawBackRow(d)}
-      {drawPlace(d)}
-    </Box>
-  )
-}
+const drawView = (d: Drawing): Block[] => [
+  { key: 'ways', element: isOnPath(d.scene) ? drawTabs(d) : drawBackRow(d) },
+  ...drawPlace(d),
+]
 
 type PaneProps = Pick<RenderPropsOf['Pane'], 'bodyColumns' | 'placement' | 'scroll'>
 
 /** The cells across the board's lines: the body, less the column kept free each side. */
 const widthOf = (props: PaneProps) => props.bodyColumns - 2
 
-/** The most rows of a docked board's window Ready to send floats over: under half, so a button the focus brings to the middle shows above it. */
+/** The blank row between parts of the board, and between the view and Ready to send inline. */
+const GAP_ROWS = 1
+
+/** The rows a docked board's tree is short of its window: the engine has nothing to scroll. */
+const SPARE_ROWS = 1
+
+/** The blank row closing a docked board's list, so its last line never meets Ready to send. */
+const END_ROWS = 1
+
+/** The most rows of a docked board's window Ready to send takes: under half, so the list keeps the most of it. */
 const readyCap = (bodyRows: number) => Math.floor((bodyRows - 1) / 2)
 
-/** The blank row between the board's last line and Ready to send. */
-const READY_GAP = 1
+type ClientTag = ElementTable<'terminal'>['Client']
 
-/** Ready to send as a docked board floats it; undefined where it does not float, or with nothing in it. */
-const floatingOf = (props: PaneProps, scene: Scene | undefined): Ready | undefined =>
-  scene !== undefined && props.placement === 'dock'
-    ? readyOf(scene, widthOf(props), readyCap(props.scroll.bodyRows))
-    : undefined
+/**
+ * A block of the list, a blank row before it where it says, and what
+ * measures it where the list is clipped. The tag is named `Client`: the
+ * engine finds the module it draws by that tag in this file's source, and
+ * misses it under any other name (checked with `claude plugin validate`).
+ */
+const drawBlock = (d: Drawing, { key, element, isSpaced }: Block, Client?: ClientTag) => {
+  const { Box } = d.els
 
-/** The rows at the foot of the board's window Ready to send floats over; none where it does not float. */
-export const floatingRows = (props: PaneProps, scene: Scene | undefined) => {
-  const floating = floatingOf(props, scene)
-
-  return floating === undefined ? 0 : readyRows(floating)
+  return (
+    <Box
+      key={`block:${key}`}
+      flexDirection="column"
+      flexShrink={0}
+      paddingTop={isSpaced ? GAP_ROWS : undefined}
+    >
+      {element}
+      {Client !== undefined && (
+        // In the column the board keeps free beside its lines, where it covers nothing to press.
+        <Box position="absolute" top={0} bottom={0} left={-1} width={1}>
+          <Client
+            key={`measure:${key}`}
+            module="./measure.tsx"
+            width={1}
+            height="100%"
+            props={{ id: key }}
+          />
+        </Box>
+      )}
+    </Box>
+  )
 }
 
 /**
- * A docked board, Ready to send floating over the foot of its window: the
- * engine scrolls the whole tree, and every drawing places the box again
- * from where the window stands. Rows as tall as the box close the tree, so
- * its last line scrolls clear of it. The tree is never shorter than the
- * window as it stands: one shrinking under a scrolled window would have the
- * engine pull the window up without drawing again, leaving the box mid-pane.
+ * A docked board: a tree a row shorter than the window, so the engine has
+ * nothing to scroll and never moves it; the list in the rows above Ready to
+ * send, clipped, and shifted up by how far down it stands; Ready to send
+ * under it, still. Its last row runs past the tree, and still shows.
  */
-const drawFloating = (d: Drawing, view: RenderElement, ready: Ready, scroll: SiteScroll) => {
+const drawClipped = (
+  d: Drawing,
+  Client: ClientTag,
+  blocks: readonly Block[],
+  props: PaneProps,
+  clip: Clip,
+) => {
   const { Box } = d.els
-  const rows = readyRows(ready)
-  const foot = scroll.offset + scroll.bodyRows
+  const { bodyRows } = props.scroll
+  const ready = readyOf(d.scene, d.width, readyCap(bodyRows))
+  const listRows = bodyRows - (ready === undefined ? SPARE_ROWS : readyRows(ready))
+  const list = [...blocks, { key: 'end', element: <Box height={END_ROWS} /> }]
+  const top = clip({ place: d.scene.place, listRows, blocks: list })
 
   return (
-    <Box flexDirection="column" minHeight={foot}>
-      <Box flexDirection="column" paddingX={1}>
-        {view}
+    <Box flexDirection="column" height={bodyRows - SPARE_ROWS}>
+      <Box flexDirection="column" flexShrink={0} height={listRows} overflow="hidden">
+        <Box flexDirection="column" flexShrink={0} marginTop={-top} paddingX={1}>
+          {list.map(block => drawBlock(d, block, Client))}
+        </Box>
       </Box>
-      <Box height={READY_GAP + rows} flexShrink={0} />
-      <Box position="absolute" top={foot - rows} left={0} right={0} paddingX={1}>
-        {drawReady(d, ready, C.pane)}
-      </Box>
+      {ready !== undefined && (
+        <Box flexShrink={0} paddingX={1}>
+          {drawReady(d, ready)}
+        </Box>
+      )}
+    </Box>
+  )
+}
+
+/** A board inline, or docked where nothing can measure it: Ready to send after the view, at the foot of a docked window the view leaves short. */
+const drawFlowing = (d: Drawing, blocks: readonly Block[], props: PaneProps) => {
+  const { Box } = d.els
+  const ready = readyOf(d.scene, d.width)
+
+  return (
+    <Box
+      flexDirection="column"
+      paddingX={1}
+      minHeight={d.isDock ? props.scroll.bodyRows : undefined}
+    >
+      {blocks.map(block => drawBlock(d, block))}
+      <Box flexGrow={1} minHeight={GAP_ROWS} />
+      {ready !== undefined && drawReady(d, ready)}
     </Box>
   )
 }
@@ -277,6 +331,7 @@ export const drawPane = (
   act: Actions,
   props: PaneProps,
   scene: Scene | undefined,
+  clip: Clip,
 ) => {
   const { Box, Text } = els
 
@@ -298,25 +353,9 @@ export const drawPane = (
     width: widthOf(props),
     isDock: props.placement === 'dock',
   }
+  const blocks = drawView(d)
 
-  const view = drawView(d)
-  const floating = floatingOf(props, scene)
-
-  if (floating !== undefined) {
-    return drawFloating(d, view, floating, props.scroll)
-  }
-
-  const ready = readyOf(scene, d.width)
-
-  return (
-    <Box
-      flexDirection="column"
-      paddingX={1}
-      minHeight={d.isDock ? props.scroll.bodyRows : undefined}
-    >
-      {view}
-      <Box flexGrow={1} minHeight={1} />
-      {ready !== undefined && drawReady(d, ready)}
-    </Box>
-  )
+  return d.isDock && 'Client' in els
+    ? drawClipped(d, els.Client, blocks, props, clip)
+    : drawFlowing(d, blocks, props)
 }

@@ -4,7 +4,7 @@
  * still being worked, and Lee finishes it there by telling Claude.
  */
 import type { Filed } from '../scene'
-import type { Drawing } from './kit'
+import type { Block, Drawing } from './kit'
 
 const LABEL = '✓ mark this work done'
 
@@ -12,14 +12,10 @@ const LABEL = '✓ mark this work done'
 const canFinish = (d: Drawing, { work }: Filed) =>
   work.id !== d.scene.work.id && !work.isOpen && work.finished === undefined
 
-export const drawFinish = (d: Drawing, filed: Filed) => {
+/** The press, or, once pressed, the question in its place. */
+const drawPress = (d: Drawing, { work, project }: Filed) => {
   const { Box, Text, Button } = d.els
-  const { work, project } = filed
   const key = `finish:${work.id}`
-
-  if (!canFinish(d, filed)) {
-    return null
-  }
 
   if (d.scene.pane.selected !== key) {
     return <Button key={key} plain label={LABEL} onPress={() => d.act.select(key)} />
@@ -45,3 +41,7 @@ export const drawFinish = (d: Drawing, filed: Filed) => {
     </Box>
   )
 }
+
+/** The foot, as a block of its own; none where Lee cannot mark the work done. */
+export const drawFinish = (d: Drawing, filed: Filed): Block[] =>
+  canFinish(d, filed) ? [{ key: 'finish', element: drawPress(d, filed) }] : []
