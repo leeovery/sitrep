@@ -71,13 +71,15 @@ export type Host = {
     panes: () => Promise<readonly UiPane[]>
     /** Draws the mod's panes and band again, from what has changed outside `$.state`. */
     redraw: () => void
+    /** Puts the engine's window over the board at the board's top. */
+    toTop: () => Promise<unknown>
     /** Plays a sound file of the mod's, by its path in the mod's folder. */
     play: (asset: string) => Promise<void>
   }
   prompt: {
     /** Submits text as Lee's own message: the prompt that entered, or why it did not. */
     submit: (text: string) => Promise<PromptSubmitResult>
-    /** What Lee's prompt box holds: the draft, a paste in it whole. */
+    /** What Lee's prompt box holds, as typed: a long paste in it is its placeholder (`[Pasted text #1 +4 lines]`, live), its text only in the prompt submitted (hooks/paste.ts). */
     read: () => Promise<string>
     /** Puts text in Lee's prompt box, over what it held. */
     fill: (text: string) => Promise<unknown>

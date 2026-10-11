@@ -110,13 +110,13 @@ test('a new ask opens with its buttons, by what it wants: a yes in its own words
   const id = await asked(w)
   const ui = await w.pane()
 
-  expect(await ui.find({ key: `yes:${id}`, text: '✓ Approve' })).toBeDefined()
-  expect(await ui.find({ key: `comment:${id}`, text: '✎ comment' })).toBeDefined()
-  expect(await ui.find({ key: `ignore:${id}`, text: '✕ ignore' })).toBeDefined()
+  expect(await ui.find({ key: `yes:${w.item(id)}`, text: '✓ Approve' })).toBeDefined()
+  expect(await ui.find({ key: `comment:${w.item(id)}`, text: '✎ comment' })).toBeDefined()
+  expect(await ui.find({ key: `ignore:${w.item(id)}`, text: '✕ ignore' })).toBeDefined()
   expect(await ui.find({ type: 'Text', text: /^In Paper: the dashboard file/ })).toBeDefined()
 
-  await ui.press({ key: `pick:${id}` })
-  expect(await ui.find({ key: `yes:${id}` })).toBeUndefined()
+  await ui.press({ key: `pick:${w.item(id)}` })
+  expect(await ui.find({ key: `yes:${w.item(id)}` })).toBeUndefined()
 })
 
 test('a choice offers its options and a comment, never a yes', async ($, on) => {
@@ -127,9 +127,9 @@ test('a choice offers its options and a comment, never a yes', async ($, on) => 
   const id = await asked(w, DECIDE)
   const ui = await w.pane()
 
-  expect(await ui.find({ key: `yes:${id}` })).toBeUndefined()
-  expect(await ui.find({ key: `comment:${id}`, text: '✎ comment' })).toBeDefined()
-  await ui.press({ key: `choose:${id}:0` })
+  expect(await ui.find({ key: `yes:${w.item(id)}` })).toBeUndefined()
+  expect(await ui.find({ key: `comment:${w.item(id)}`, text: '✎ comment' })).toBeDefined()
+  await ui.press({ key: `choose:${w.item(id)}:0` })
   expect(await ui.find({ type: 'Text', text: /→ 400 days/ })).toBeDefined()
 })
 
@@ -141,14 +141,14 @@ test('a reply waits under its ask, not sent yet, until it is undone', async ($, 
   const id = await asked(w)
   const ui = await w.pane()
 
-  await ui.press({ key: `yes:${id}` })
+  await ui.press({ key: `yes:${w.item(id)}` })
   expect(await ui.find({ type: 'Text', text: '→ Approve' })).toBeDefined()
   expect(await ui.find({ type: 'Text', text: '· not sent yet' })).toBeDefined()
-  expect(await ui.find({ key: `yes:${id}` })).toBeUndefined()
+  expect(await ui.find({ key: `yes:${w.item(id)}` })).toBeUndefined()
 
-  await ui.press({ key: `undo:${id}` })
+  await ui.press({ key: `undo:${w.item(id)}` })
   expect(await ui.find({ type: 'Text', text: /READY TO SEND/ })).toBeUndefined()
-  expect(await ui.find({ key: `yes:${id}` })).toBeDefined()
+  expect(await ui.find({ key: `yes:${w.item(id)}` })).toBeDefined()
 })
 
 test('each reply in Ready to send can go on its own, or all at once', async ($, on) => {
@@ -160,17 +160,17 @@ test('each reply in Ready to send can go on its own, or all at once', async ($, 
   const second = await asked(w, { wants: 'yes', yes: 'Done', title: 'Run the production apply' })
   const ui = await w.pane()
 
-  await ui.press({ key: `ignore:${second}` })
-  await ui.press({ key: `pick:${first}` })
-  await ui.press({ key: `yes:${first}` })
+  await ui.press({ key: `ignore:${w.item(second)}` })
+  await ui.press({ key: `pick:${w.item(first)}` })
+  await ui.press({ key: `yes:${w.item(first)}` })
   expect(await ui.find({ type: 'Text', text: '2 replies' })).toBeDefined()
   expect(await ui.find({ type: 'Text', text: 'to this session' })).toBeDefined()
 
-  await ui.press({ key: `unready:${second}` })
+  await ui.press({ key: `unready:${w.item(second)}` })
   expect(await ui.find({ type: 'Text', text: '1 reply' })).toBeDefined()
 
-  await ui.press({ key: `pick:${second}` })
-  expect(await ui.find({ key: `ignore:${second}` })).toBeDefined()
+  await ui.press({ key: `pick:${w.item(second)}` })
+  expect(await ui.find({ key: `ignore:${w.item(second)}` })).toBeDefined()
 
   await ui.press({ key: 'cancel-all' })
   expect(await ui.find({ type: 'Text', text: /READY TO SEND/ })).toBeUndefined()
@@ -193,13 +193,13 @@ test('a log line opens to what happened and where it is recorded, and closes aga
   expect(await ui.find({ type: 'Text', text: /^LOG$/ })).toBeDefined()
   expect(await ui.find({ type: 'Text', text: '6 files, +214 −51' })).toBeUndefined()
 
-  await ui.press({ key: `log:${id}` })
+  await ui.press({ key: `log:${w.item(id)}` })
   expect(await ui.find({ type: 'Text', text: '6 files, +214 −51' })).toBeDefined()
   expect(
     await ui.find({ type: 'Text', text: 'see github.com/leeovery/switchboard/pull/82' }),
   ).toBeDefined()
 
-  await ui.press({ key: `log:${id}` })
+  await ui.press({ key: `log:${w.item(id)}` })
   expect(await ui.find({ type: 'Text', text: '6 files, +214 −51' })).toBeUndefined()
 })
 
@@ -245,8 +245,8 @@ test("a pick-up from this session's PARKED waits in Ready to send", async ($, on
   const id = postedId(await w.call('park', { title: 'A tmux indicator across sessions' }))
   const ui = await w.pane()
 
-  await ui.press({ key: `ppick:${id}` })
-  await ui.press({ key: `pickup:${id}` })
+  await ui.press({ key: `ppick:${w.item(id)}` })
+  await ui.press({ key: `pickup:${w.item(id)}` })
   expect(await ui.find({ type: 'Text', text: 'pick it up' })).toBeDefined()
   expect(await ui.find({ type: 'Text', text: /READY TO SEND/ })).toBeDefined()
   expect(await ui.find({ key: 'send' })).toBeDefined()

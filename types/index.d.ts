@@ -161,7 +161,14 @@ export type SitrepQueued = SitrepItemRef & {
  * what was written as its answer, or as a comment, and nothing goes to
  * Claude. The ask's title, for the band to name it wherever the ask is.
  */
-export type SitrepAnswering = SitrepItemRef & { as: 'answer' | 'comment'; title: string }
+export type SitrepAnswering = SitrepItemRef & {
+  as: 'answer' | 'comment'
+  title: string
+  /** Where Lee began it, and the only surface whose Enter it takes: the terminal's prompt, or Claude's app's. */
+  surface: 'terminal' | 'mobile'
+  /** The words the mode put in the prompt box to be written again, if any. */
+  filled?: string
+}
 
 /** Replies this window wrote into another work's inbox, by their ids: shown in Ready to send until Claude has them. */
 export type SitrepSent = SitrepWorkRef & { replies: string[] }

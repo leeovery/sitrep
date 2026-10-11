@@ -3,6 +3,7 @@ import {
   answerOf,
   askAfter,
   boardMessage,
+  checkEdit,
   deliveredMark,
   deliverer,
   deliveryOf,
@@ -228,6 +229,34 @@ test('an edit saying what an old ask wants reads it by that shape from then on, 
   expect(work.items.get('o5')).toMatchObject({ wants: 'words', kind: undefined, yes: undefined })
   expect(work.items.get('o5')).not.toHaveProperty('needs', expect.anything())
   expect(work.items.get('o2')).toMatchObject({ wants: 'choice', kind: undefined, state: 'replied' })
+})
+
+test("a comment on its way to an old decide still closes it once delivered, though Claude edited the ask's title meanwhile", () => {
+  const pending: Line[] = [
+    ...OLD,
+    [T0 + MIN, reply('r1', 'o2', 'comment', { note: 'Two years, then archive' })],
+  ]
+  const checked = checkEdit(fold({ logs: { [W1]: file(...pending) } }), {
+    item: 'o2',
+    title: 'Keep the ledger two years, or forever?',
+  })
+
+  if (!checked.ok) {
+    throw new Error(checked.error)
+  }
+
+  const work = fold({
+    logs: {
+      [W1]: file(...pending, [T0 + 2 * MIN, checked.value], [T0 + 3 * MIN, delivered('r1')]),
+    },
+  })
+
+  expect(work.items.get('o2')).toMatchObject({
+    kind: 'decide',
+    title: 'Keep the ledger two years, or forever?',
+    state: 'closed',
+    answer: { id: 'r1', delivery: 'delivered' },
+  })
 })
 
 test('a delivered pick-up marks a parked item picked up, and it leaves the parked list', () => {

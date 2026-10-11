@@ -75,21 +75,30 @@ test('DONE counts the closed asks, ignored ones aside, the newest closed first, 
   const across = async (key: string) => rowsOf(await ui.find({ key }), ACROSS)
 
   expect(await ui.find({ type: 'Text', text: '4 closed' })).toBeDefined()
-  expect(await listed(ui)).toEqual(['closed:a4', 'closed:a3', 'closed:a2'])
+  expect(await listed(ui)).toEqual([
+    `closed:${w.item('a4')}`,
+    `closed:${w.item('a3')}`,
+    `closed:${w.item('a2')}`,
+  ])
 
   await ui.press({ key: `earlier:${id}` })
 
-  expect(await listed(ui)).toEqual(['closed:a4', 'closed:a3', 'closed:a2', 'closed:a1'])
-  expect(await across('closed:a4')).toEqual([
+  expect(await listed(ui)).toEqual([
+    `closed:${w.item('a4')}`,
+    `closed:${w.item('a3')}`,
+    `closed:${w.item('a2')}`,
+    `closed:${w.item('a1')}`,
+  ])
+  expect(await across(`closed:${w.item('a4')}`)).toEqual([
     '✓ Review round 2                                    1h',
   ])
-  expect(await across('closed:a3')).toEqual([
+  expect(await across(`closed:${w.item('a3')}`)).toEqual([
     '✓ Run the apply                                     2h',
   ])
-  expect(await across('closed:a2')).toEqual([
+  expect(await across(`closed:${w.item('a2')}`)).toEqual([
     '✓ Keep the ledger 400 days, or forever?             3h',
   ])
-  expect(await across('closed:a1')).toEqual([
+  expect(await across(`closed:${w.item('a1')}`)).toEqual([
     '✓ Review round 1                                    4h',
   ])
 })
@@ -98,9 +107,9 @@ test('a closed ask opens to how it closed, one branch from its tick with no age 
   const w = world($, on, { now: NOW })
   const { id, ui } = await closedAsks(w)
   const opened = async (ask: string) => {
-    await ui.press({ key: `done:${ask}` })
+    await ui.press({ key: `done:${w.item(ask)}` })
 
-    return rowsOf(await ui.find({ key: `closed:${ask}` }), ACROSS).slice(1)
+    return rowsOf(await ui.find({ key: `closed:${w.item(ask)}` }), ACROSS).slice(1)
   }
 
   expect(await opened('a4')).toEqual(['└ resolved by Claude'])
@@ -186,8 +195,8 @@ test('each closed ask is a green tick and a white title, its age grey; a long ti
   await w.clock.advance(WATCH_MS)
 
   const ui = await w.opened()
-  const press = async () => (await ui.find({ key: 'done:a1' }))?.props
-  const drawn = async () => rowsOf(await ui.find({ key: 'closed:a1' }), ACROSS)
+  const press = async () => (await ui.find({ key: `done:${w.item('a1')}` }))?.props
+  const drawn = async () => rowsOf(await ui.find({ key: `closed:${w.item('a1')}` }), ACROSS)
 
   expect((await ui.find({ type: 'Text', text: '✓' }))?.props.color).toBe(C.ok)
   expect(await press()).toMatchObject({ plain: true, label: expect.stringMatching(/…$/) })
@@ -197,7 +206,7 @@ test('each closed ask is a green tick and a white title, its age grey; a long ti
     '✓ Review the whole of the dashboard redesign, e…    1h',
   ])
 
-  await ui.press({ key: 'done:a1' })
+  await ui.press({ key: `done:${w.item('a1')}` })
   expect(await drawn()).toEqual([
     '✓ Review the whole of the dashboard redesign,       1h',
     '│ every area of it, against the brief and the',
@@ -219,7 +228,7 @@ test('closing the board resets the history, as any selection', async ($, on) => 
   await band.press({ key: 'band:board' })
 
   expect(w.state.pane?.selected).toBeNull()
-  expect(await ui.find({ key: 'closed:a1' })).toBeUndefined()
+  expect(await ui.find({ key: `closed:${w.item('a1')}` })).toBeUndefined()
 })
 
 test('a closed ask opens and closes by its own key, as any item, and closing the board closes it', async ($, on) => {
@@ -228,15 +237,15 @@ test('a closed ask opens and closes by its own key, as any item, and closing the
   const band = await w.band()
   const branch = async () => ui.find({ type: 'Text', text: 'resolved by Claude' })
 
-  await ui.press({ key: 'done:a4' })
-  expect(w.state.pane?.selected).toBe('done:a4')
+  await ui.press({ key: `done:${w.item('a4')}` })
+  expect(w.state.pane?.selected).toBe(`done:${w.item('a4')}`)
   expect(await branch()).toBeDefined()
 
-  await ui.press({ key: 'done:a4' })
+  await ui.press({ key: `done:${w.item('a4')}` })
   expect(w.state.pane?.selected).toBeNull()
   expect(await branch()).toBeUndefined()
 
-  await ui.press({ key: 'done:a4' })
+  await ui.press({ key: `done:${w.item('a4')}` })
   await band.press({ key: 'band:board' })
   await band.press({ key: 'band:board' })
 
@@ -250,7 +259,7 @@ test('a closed ask opened past the latest 3 keeps DONE open to every one, and sh
   const toggle = async () => (await ui.find({ key: `earlier:${id}` }))?.props.label
 
   await ui.press({ key: `earlier:${id}` })
-  await ui.press({ key: 'done:a1' })
+  await ui.press({ key: `done:${w.item('a1')}` })
   expect(await listed(ui)).toHaveLength(4)
   expect(await toggle()).toBe('show fewer')
   expect(await ui.find({ type: 'Text', text: '→ Approve' })).toBeDefined()
@@ -260,7 +269,7 @@ test('a closed ask opened past the latest 3 keeps DONE open to every one, and sh
   expect(await listed(ui)).toHaveLength(3)
   expect(await toggle()).toBe('show all 4')
 
-  await ui.press({ key: 'done:a4' })
+  await ui.press({ key: `done:${w.item('a4')}` })
   expect(await listed(ui), 'one of the latest 3 opens with DONE as it was').toHaveLength(3)
 })
 
@@ -281,7 +290,7 @@ test("an ask Lee commented on and Claude then resolved goes straight to DONE, ne
 
   const ui = await w.opened()
 
-  expect(await ui.find({ key: 'pick:a1' })).toBeUndefined()
+  expect(await ui.find({ key: `pick:${w.item('a1')}` })).toBeUndefined()
   expect(await ui.find({ key: 'sent:a1' })).toBeUndefined()
-  expect(await ui.find({ key: 'closed:a1' })).toBeDefined()
+  expect(await ui.find({ key: `closed:${w.item('a1')}` })).toBeDefined()
 })

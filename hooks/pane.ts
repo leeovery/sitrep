@@ -10,6 +10,7 @@
 import type { SitrepPane } from '../types'
 import { endAnswering } from './answering'
 import { lookAround } from './around'
+import { fromTheTop } from './clip'
 import type { Host } from './host'
 import { EVERY_PROJECT } from './places'
 
@@ -93,6 +94,12 @@ export const syncBoard = async (host: Host) => markOpen(host, await isUp(host))
 /** The board closed by Lee's ✕. */
 export const boardClosed = markClosed
 
+/** Opens the board on what a count counts, at its top there, though the board was showing it already. */
+const openOnCount = async (host: Host, focus: Focus) => {
+  await openBoard(host, focus)
+  await fromTheTop(host)
+}
+
 /** A press on one of the band's buttons: a count opens the board on what it counts. */
 export const pressBand = async (host: Host, element: string) => {
   if (element === BAND.cancelAnswer) {
@@ -102,5 +109,5 @@ export const pressBand = async (host: Host, element: string) => {
   const held = await host.state.attachment.read()
   const focus = Object.hasOwn(COUNTED, element) ? COUNTED[element] : undefined
 
-  return held === null || focus === undefined ? toggleBoard(host) : openBoard(host, focus)
+  return held === null || focus === undefined ? toggleBoard(host) : openOnCount(host, focus)
 }

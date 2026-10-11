@@ -19,6 +19,7 @@ import {
   type WorkPaths,
 } from '../core'
 import { PANE } from '../hooks/pane'
+import { itemKey } from '../hooks/places'
 import { file, T0, W1, W2, type Line } from './support'
 
 type Sitrep = PluginState['sitrep']
@@ -76,7 +77,7 @@ export const BAND: RenderPropsOf['AbovePrompt'] = {
   view: {},
 }
 
-/** The surfaces that draw the board, the band and a field. */
+/** The surfaces the tests draw the board and the band on. */
 export const SURFACES = ['terminal', 'desktop'] as const
 
 type Surface = (typeof SURFACES)[number]
@@ -248,6 +249,7 @@ export function world(engine: Engine, on: On, options: { now?: number; cwd?: str
   let session = W1
   let cwd = options.cwd ?? REPO
   let isRefused: ((path: string) => boolean) | undefined
+  let isUnread = false
 
   mock.env(on, { XDG_STATE_HOME: STATE_HOME, HOME })
 
@@ -272,7 +274,9 @@ export function world(engine: Engine, on: On, options: { now?: number; cwd?: str
     return { value: undefined }
   })
 
-  on('state.set', ($, e, next) => {
+  on('state.set', ($, input, next) => {
+    const e = isUnread && input.key === 'others' ? { ...input, value: [] } : input
+
     Object.assign(state, { [e.key]: e.value })
     writes[e.key as keyof Sitrep] = (writes[e.key as keyof Sitrep] ?? 0) + 1
 
@@ -298,6 +302,11 @@ export function world(engine: Engine, on: On, options: { now?: number; cwd?: str
 
     return { value: undefined }
   })
+
+  /** The other works the board reads in full, from here on, never land in `$.state`: as before the look reading one has, only their briefs are there. */
+  const leaveUnread = () => {
+    isUnread = true
+  }
 
   /** Writes from here on to a path `test` picks fail, as a full disk fails them; given none, they land again. */
   const refuseWrites = (test?: (path: string) => boolean) => {
@@ -445,6 +454,9 @@ export function world(engine: Engine, on: On, options: { now?: number; cwd?: str
   const pane = (surface: Surface = 'terminal', props: RenderPropsOf['Pane'] = DOCKED) =>
     engine.ui.mount({ plugin: 'sitrep', surface, component: 'Pane', requestId: PANE, props })
 
+  /** An item's address on the board, as its buttons are keyed (`pick:<address>`): in the held work, unless another is named. */
+  const item = (id: string, work = state.attachment?.work ?? '') => itemKey(work, id)
+
   /** The band drawn on a surface, `columns` across. */
   const band = (surface: Surface = 'terminal', columns = BAND.bodyColumns) =>
     engine.ui.mount({
@@ -466,6 +478,7 @@ export function world(engine: Engine, on: On, options: { now?: number; cwd?: str
     put,
     text,
     refuseWrites,
+    leaveUnread,
     seed,
     project,
     beat,
@@ -479,6 +492,7 @@ export function world(engine: Engine, on: On, options: { now?: number; cwd?: str
     opened,
     pane,
     band,
+    item,
   }
 }
 

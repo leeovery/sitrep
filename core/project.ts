@@ -9,6 +9,7 @@
  * aside: `Sitrep` and `Sit Rep` are SitRep's.
  */
 import { VERSION } from './entries'
+import type { WorkMeta } from './meta'
 
 /** A project's file: its name and directory, and when and by whom it was first written. */
 export type ProjectFile = {
@@ -75,6 +76,13 @@ export const newProjectKey = (name: string, taken: ReadonlySet<string>) => {
 
 /** A name as a folder from before projects were named shows it: its first letter a capital. */
 const capitalised = (name: string) => name.charAt(0).toUpperCase() + name.slice(1)
+
+/**
+ * The name a folder from before projects were named goes by, as its works
+ * recorded it: the first of them whose work.json reads, in the order listed.
+ */
+export const recordedName = (metas: readonly (Pick<WorkMeta, 'project'> | undefined)[]) =>
+  metas.find(meta => meta !== undefined)?.project
 
 /** A project's name: its file's, else the name its works recorded, first letter a capital. */
 export const projectName = (file: ProjectFile | undefined, recorded: string) =>

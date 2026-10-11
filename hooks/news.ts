@@ -8,6 +8,7 @@ import type { Timer } from 'claude-code'
 import type { Ask } from '../core'
 import { logFailure, type Host } from './host'
 import { GLYPH } from './look'
+import { itemKey } from './places'
 
 /** The chime: macOS's Glass. */
 const CHIME = 'sounds/ask.aiff'
@@ -45,8 +46,8 @@ const pulse = async (host: Host, asks: readonly Ask[]) => {
   pulsing = timer
 }
 
-/** Tells Lee of asks that just landed, oldest first. */
-export const announce = async (host: Host, asks: readonly Ask[]) => {
+/** Tells Lee of asks that just landed in a work, oldest first. */
+export const announce = async (host: Host, work: string, asks: readonly Ask[]) => {
   const newest = asks.at(-1)
 
   if (newest === undefined) {
@@ -55,6 +56,6 @@ export const announce = async (host: Host, asks: readonly Ask[]) => {
 
   host.ui.toast(toastOf(asks, newest))
   void host.ui.play(CHIME).catch(logFailure(host, 'the chime'))
-  await host.state.pane.update(pane => ({ ...pane, selected: newest.id }))
+  await host.state.pane.update(pane => ({ ...pane, selected: itemKey(work, newest.id) }))
   await pulse(host, asks)
 }

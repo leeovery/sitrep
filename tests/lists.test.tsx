@@ -123,14 +123,14 @@ test('For you lists its asks as rows with no blank row between them, each its ma
 
   await w.begin()
 
-  const [, , newest] = await posted(
+  const [, , newest = ''] = await posted(
     w,
     'ask',
     ...reviews('Review round 1', 'Review round 2', 'Review round 3'),
   )
   const ui = await w.pane()
 
-  await ui.press({ key: `pick:${newest}` })
+  await ui.press({ key: `pick:${w.item(newest)}` })
 
   const rows = await boardRows(ui)
   const at = rows.findIndex(row => row.startsWith(' FOR YOU'))
@@ -143,28 +143,49 @@ test('For you lists its asks as rows with no blank row between them, each its ma
   ])
 })
 
-test('a reply waiting on a closed ask, or on its way, still hangs from it, as a pick-up from a parked row', async ($, on) => {
+test('a reply waiting on an ask not opened, or on its way, still hangs from it, as a pick-up from a parked row', async ($, on) => {
   const w = world($, on)
 
   await w.begin()
 
-  const [older, newer] = await posted(w, 'ask', ...reviews('Review round 1', 'Review round 2'))
+  const [older = '', newer = ''] = await posted(
+    w,
+    'ask',
+    ...reviews('Review round 1', 'Review round 2'),
+  )
   const ui = await w.pane()
+  const forYou = async () => {
+    const rows = await boardRows(ui)
+    const at = rows.findIndex(row => row.startsWith(' FOR YOU'))
 
-  await ui.press({ key: `yes:${newer}` })
-  await ui.press({ key: `pick:${older}` })
-  await ui.press({ key: `ignore:${older}` })
-  await ui.press({ key: `pick:${older}` })
+    return rows.slice(at + 1, at + 5)
+  }
 
-  const rows = await boardRows(ui)
-  const at = rows.findIndex(row => row.startsWith(' FOR YOU'))
+  await ui.press({ key: `yes:${w.item(newer)}` })
+  await ui.press({ key: `pick:${w.item(older)}` })
+  await ui.press({ key: `ignore:${w.item(older)}` })
+  await ui.press({ key: `pick:${w.item(older)}` })
 
-  expect(rows.slice(at + 1, at + 5)).toEqual([
+  expect(await forYou(), 'waiting to be sent').toEqual([
     ' ◆ Review round 2 1m',
     ' └ → Approve · not sent yet ↺ undo ✎ comment',
     ' ◆ Review round 1 2m',
     ' └ ignored · not sent yet ↺ undo',
   ])
+
+  const turn = w.holdPrompts()
+  const pressed = ui.press({ key: 'send' })
+
+  await turn.arrived
+  expect(await forYou(), 'on its way').toEqual([
+    ' ◆ Review round 2 1m',
+    ' └ → Approve · on its way',
+    ' ◆ Review round 1 2m',
+    ' └ ignored · on its way',
+  ])
+
+  turn.end()
+  await pressed
 })
 
 test('an opened ask has a blank row after its buttons and hint, so the next ask does not run into them', async ($, on) => {

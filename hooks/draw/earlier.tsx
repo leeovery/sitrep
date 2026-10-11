@@ -5,6 +5,7 @@
  */
 import { answerOf, closingReply, type Ask } from '../../core'
 import { C, GLYPH } from '../look'
+import { itemKey } from '../places'
 import { doneEarlier, type Filed } from '../scene'
 import { drawRow, heading, type Block, type Drawing } from './kit'
 
@@ -14,7 +15,7 @@ const LATEST = 3
 const MARK = { glyph: GLYPH.done, color: C.ok }
 
 /** What a closed ask is opened by, apart from the ask itself, which For you opens. */
-const doneKey = (ask: Ask) => `done:${ask.id}`
+const doneKey = (work: string, ask: Ask) => `done:${itemKey(work, ask.id)}`
 
 /** How an ask closed: the reply of Lee's that closed it, or Claude's resolve, with why. */
 const howClosed = (ask: Ask) => {
@@ -28,10 +29,10 @@ const howClosed = (ask: Ask) => {
 }
 
 /** A closed ask's row, as a block of its own. */
-const drawClosed = (d: Drawing, ask: Ask): Block => {
-  const key = doneKey(ask)
+const drawClosed = (d: Drawing, work: string, ask: Ask): Block => {
+  const key = doneKey(work, ask)
   const isOpen = d.scene.pane.selected === key
-  const row = `closed:${ask.id}`
+  const row = `closed:${itemKey(work, ask.id)}`
 
   return {
     key: row,
@@ -52,8 +53,12 @@ const drawClosed = (d: Drawing, ask: Ask): Block => {
  * ask past the latest few, opened there, which must not fold away under
  * the press that opened it.
  */
-const openedToAllBy = (asks: readonly Ask[], toggle: string, selected: string | null) =>
-  [toggle, ...asks.slice(LATEST).map(doneKey)].find(key => key === selected)
+const openedToAllBy = (
+  work: string,
+  asks: readonly Ask[],
+  toggle: string,
+  selected: string | null,
+) => [toggle, ...asks.slice(LATEST).map(ask => doneKey(work, ask))].find(key => key === selected)
 
 /** The press opening DONE to every closed ask, or folding it back to the latest; none with no more than those. */
 const drawToggle = (d: Drawing, asks: readonly Ask[], key: string, allBy: string | undefined) => {
@@ -76,7 +81,7 @@ const drawToggle = (d: Drawing, asks: readonly Ask[], key: string, allBy: string
 export const drawDone = (d: Drawing, { work }: Filed): Block[] => {
   const asks = doneEarlier(work, d.scene.now)
   const key = `earlier:${work.id}`
-  const allBy = openedToAllBy(asks, key, d.scene.pane.selected)
+  const allBy = openedToAllBy(work.id, asks, key, d.scene.pane.selected)
 
   if (asks.length === 0) {
     return []
@@ -84,7 +89,7 @@ export const drawDone = (d: Drawing, { work }: Filed): Block[] => {
 
   return [
     { key: 'done', element: heading(d, 'DONE', C.ok, `${asks.length} closed`) },
-    ...(allBy === undefined ? asks.slice(0, LATEST) : asks).map(ask => drawClosed(d, ask)),
+    ...(allBy === undefined ? asks.slice(0, LATEST) : asks).map(ask => drawClosed(d, work.id, ask)),
     ...drawToggle(d, asks, key, allBy),
   ]
 }

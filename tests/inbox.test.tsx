@@ -239,8 +239,8 @@ test('the mark names only the replies the message carries: one whose item change
 
   const ui = await w.opened()
 
-  expect(w.state.pane?.selected, 'the ask that landed last is open').toBe(other)
-  expect(await ui.find({ key: `choose:${other}:0` })).toBeDefined()
+  expect(w.state.pane?.selected, 'the ask that landed last is open').toBe(w.item(other))
+  expect(await ui.find({ key: `choose:${w.item(other)}:0` })).toBeDefined()
   expect(await ui.find({ type: 'Text', text: '· on its way' })).toBeUndefined()
 
   await w.clock.advance(4 * WATCH_MS)
@@ -259,14 +259,14 @@ test('a send Lee presses while inbox replies are in flight waits for them: a toa
   send(['r1', asked, 'yes'])
   await w.clock.advance(TAKE_IN)
   await turn.arrived
-  await ui.press({ key: `yes:${own}` })
+  await ui.press({ key: `yes:${w.item(own)}` })
   await ui.press({ key: 'send' })
 
   expect(w.toasts).toContain(
     'Not sent yet: replies from another session are going in first. Your replies are still on the board.',
   )
   expect(w.state.queue).toMatchObject([{ item: own, verdict: 'yes' }])
-  expect(await ui.find({ key: `undo:${own}` })).toBeDefined()
+  expect(await ui.find({ key: `undo:${w.item(own)}` })).toBeDefined()
 
   turn.end()
   await w.clock.advance(WATCH_MS)
@@ -289,7 +289,7 @@ test('an inline board whose send waits behind inbox replies stays open: nothing 
   send(['r1', asked, 'yes'])
   await w.clock.advance(TAKE_IN)
   await turn.arrived
-  await ui.press({ key: `yes:${own}` })
+  await ui.press({ key: `yes:${w.item(own)}` })
   await ui.press({ key: 'send' })
 
   expect(w.toasts).toContain(

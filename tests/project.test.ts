@@ -13,6 +13,7 @@ import {
   projectName,
   projectNamed,
   projectText,
+  recordedName,
   type Project,
   type ProjectFile,
 } from '../core'
@@ -86,6 +87,11 @@ test('a folder from before projects were named is named as its works recorded it
     directory: SITREP.directory,
   })
   expect(projectFrom('empty', undefined, undefined)).toBeUndefined()
+})
+
+test('such a folder goes by the name the first of its works to read recorded, in the order listed', () => {
+  expect(recordedName([undefined, { project: 'code' }, { project: 'other' }])).toBe('code')
+  expect(recordedName([undefined])).toBeUndefined()
 })
 
 test("a work folds with its project's name as the project's file has it, else as it recorded it", () => {

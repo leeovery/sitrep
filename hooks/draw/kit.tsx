@@ -13,6 +13,7 @@ import { answerOf, isPending, moreLines, type Ask, type Parked, type ReplyFields
 import type { SitrepAnswering, SitrepItemRef, SitrepQueued } from '../../types'
 import type { Actions } from '../actions'
 import { ago, C, clip, counted, GLYPH, wrapped } from '../look'
+import { itemKey } from '../places'
 import { isCarried } from '../queue'
 import type { Scene } from '../scene'
 
@@ -52,6 +53,9 @@ export const spaced = (...parts: readonly (readonly Block[])[]): Block[] =>
       part.map((block, j) => (i > 0 && j === 0 ? { ...block, isSpaced: true } : block)),
     )
 
+/** Where Lee writes back from: the surface the answering mode is begun on, and whether the mod can fill its prompt box. */
+type Writing = { surface: SitrepAnswering['surface']; canFill: boolean }
+
 /**
  * How Lee writes back to an ask from a surface: in the terminal's prompt
  * box, which the mod reads and fills and whose Enter it hears; in Claude's
@@ -59,18 +63,13 @@ export const spaced = (...parts: readonly (readonly Block[])[]): Block[] =>
  * cannot reach; or not at all, where how a prompt arrives is unproven
  * (Desktop, VS Code).
  */
-const WRITING: Record<RenderSurface, 'box' | 'enter' | 'none'> = {
-  terminal: 'box',
-  mobile: 'enter',
-  desktop: 'none',
-  vscode: 'none',
+const WRITING: Partial<Record<RenderSurface, Writing>> = {
+  terminal: { surface: 'terminal', canFill: true },
+  mobile: { surface: 'mobile', canFill: false },
 }
 
-/** Whether Lee can write an answer or a comment from the surface. */
-export const canWrite = (d: Drawing) => WRITING[d.surface] !== 'none'
-
 /** Whether the surface's prompt box can be filled with words already queued, to write them again. */
-export const canRewrite = (d: Drawing) => WRITING[d.surface] === 'box'
+const canRewrite = (d: Drawing) => WRITING[d.surface]?.canFill === true
 
 /** The line under the tabs naming what the view is of, with a few words on it, and a summary under it. */
 export const context = ({ els }: Drawing, title: string, aside: string, summary?: string) => {
@@ -391,12 +390,26 @@ export const drawOnItsWay = (d: Drawing, item: Ask | Parked, reply: ReplyFields)
   return drawReplyRow(d, item, reply, <Text color={C.grey}>· on its way</Text>)
 }
 
-/** Answering an ask in the prompt box: with its answer, or with a comment on it. */
+/** Answering an ask in the prompt box, with its answer or a comment on it, from the surface drawn on; none where Lee cannot write back. */
 export const answeringOf = (
+  d: Drawing,
   at: SitrepItemRef,
-  ask: Ask,
+  ask: Pick<Ask, 'title'>,
   as: SitrepAnswering['as'],
-): SitrepAnswering => ({ project: at.project, work: at.work, item: at.item, as, title: ask.title })
+): SitrepAnswering | undefined => {
+  const writing = WRITING[d.surface]
+
+  return writing === undefined
+    ? undefined
+    : {
+        project: at.project,
+        work: at.work,
+        item: at.item,
+        as,
+        title: ask.title,
+        surface: writing.surface,
+      }
+}
 
 /**
  * The way to write a queued reply's words in the prompt box, under `key`: a
@@ -407,13 +420,13 @@ export const answeringOf = (
 export const drawRewrite = (d: Drawing, key: string, item: Ask | Parked, queued: SitrepQueued) => {
   const { Button } = d.els
   const words = queued.note
-  const as = queued.verdict === 'answer' ? 'answer' : 'comment'
+  const answering = answeringOf(d, queued, item, queued.verdict === 'answer' ? 'answer' : 'comment')
 
-  if (item.type === 'park' || queued.verdict === 'ignore') {
+  if (item.type === 'park' || queued.verdict === 'ignore' || answering === undefined) {
     return undefined
   }
 
-  if (words === undefined ? !canWrite(d) : !canRewrite(d)) {
+  if (words !== undefined && !canRewrite(d)) {
     return undefined
   }
 
@@ -423,7 +436,7 @@ export const drawRewrite = (d: Drawing, key: string, item: Ask | Parked, queued:
       plain
       dimColor
       label={words === undefined ? '✎ comment' : '✎ edit'}
-      onPress={() => d.act.answer(answeringOf(queued, item, as), words)}
+      onPress={() => d.act.answer(answering, words)}
     />
   )
 }
@@ -435,6 +448,7 @@ export const drawRewrite = (d: Drawing, key: string, item: Ask | Parked, queued:
 export const drawQueued = (d: Drawing, item: Ask | Parked, queued: SitrepQueued) => {
   const { Box, Text, Button } = d.els
   const isOnItsWay = isCarried(d.scene.inFlight, queued)
+  const key = itemKey(queued.work, queued.item)
 
   return drawReplyRow(
     d,
@@ -444,14 +458,14 @@ export const drawQueued = (d: Drawing, item: Ask | Parked, queued: SitrepQueued)
       <Text color={C.grey}>{isOnItsWay ? '· on its way' : '· not sent yet'}</Text>
       {!isOnItsWay && (
         <Button
-          key={`undo:${item.id}`}
+          key={`undo:${key}`}
           plain
           dimColor
           label="↺ undo"
           onPress={() => d.act.unqueue(queued.work, queued.item)}
         />
       )}
-      {!isOnItsWay && drawRewrite(d, `rewrite:${item.id}`, item, queued)}
+      {!isOnItsWay && drawRewrite(d, `rewrite:${key}`, item, queued)}
     </Box>,
   )
 }

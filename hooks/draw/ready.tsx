@@ -23,7 +23,7 @@ import {
 } from '../../core'
 import type { SitrepQueued } from '../../types'
 import { agoWords, C, counted, GLYPH, wrapped } from '../look'
-import { filedAt, workLabel } from '../places'
+import { filedAt, itemKey, workLabel } from '../places'
 import { answered, destinations, isCarried, isShowing, queuedFor, sentIn } from '../queue'
 import type { Filed, Scene } from '../scene'
 import { drawReplyRow, drawRewrite, type Drawing } from './kit'
@@ -234,18 +234,20 @@ const drawAnswer = (
   )
 }
 
-const drawQueued = (d: Drawing, { item, queued }: Queued) => {
+/** A reply waiting for a send, as the box lists it: what it answers, its ✕, and the answer under it. */
+const drawQueuedEntry = (d: Drawing, { item, queued }: Queued) => {
   const { Box, Button } = d.els
+  const key = itemKey(queued.work, queued.item)
 
   return (
-    <Box key={`ready:${queued.work}:${queued.item}`} flexDirection="column">
+    <Box key={`ready:${key}`} flexDirection="column">
       <Box flexDirection="row" gap={1}>
         <Box flexGrow={1} flexShrink={1}>
           {line(d, item.title)}
         </Box>
         {!isCarried(d.scene.inFlight, queued) && (
           <Button
-            key={`${UNREADY}${queued.item}`}
+            key={`${UNREADY}${key}`}
             plain
             dimColor
             label="✕"
@@ -255,19 +257,19 @@ const drawQueued = (d: Drawing, { item, queued }: Queued) => {
       </Box>
       {drawAnswer(
         d,
-        `readyanswer:${queued.item}`,
+        `readyanswer:${key}`,
         item,
         queued,
         isCarried(d.scene.inFlight, queued)
           ? undefined
-          : drawRewrite(d, `readyrewrite:${queued.item}`, item, queued),
+          : drawRewrite(d, `readyrewrite:${key}`, item, queued),
       )}
     </Box>
   )
 }
 
-/** A reply sent into the work's inbox: what it answers, and whether Claude has it yet. */
-const drawSent = (d: Drawing, { item, sent }: Sent) => {
+/** A reply sent into the work's inbox, as the box lists it: what it answers, and whether Claude has it yet. */
+const drawSentEntry = (d: Drawing, { item, sent }: Sent) => {
   const { Box } = d.els
   const standing =
     sent.delivery === 'void'
@@ -297,7 +299,7 @@ const drawGroup = (d: Drawing, { filed, standing, listed }: Group) => {
         </Box>
         {stands !== undefined && line(d, stands.text, stands.color)}
       </Box>
-      {listed.map(each => ('queued' in each ? drawQueued(d, each) : drawSent(d, each)))}
+      {listed.map(each => ('queued' in each ? drawQueuedEntry(d, each) : drawSentEntry(d, each)))}
     </Box>
   )
 }

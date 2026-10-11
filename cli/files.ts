@@ -8,11 +8,13 @@ import {
   isSafeName,
   isWorkId,
   LOG_SUFFIX,
+  parseMeta,
   parseProject,
   PRESENCE_SUFFIX,
   projectFrom,
   projectPaths,
   projectsDir,
+  recordedName,
   summarise,
   workPaths,
   worksDir,
@@ -83,17 +85,15 @@ export const findWork = async (
   return undefined
 }
 
-/** A project's works as they stand at `now`; one whose work.json is missing or torn is left out. */
-const worksIn = async (io: Io, root: string, project: string, now: number) => {
-  const ids = (await foldersIn(io, worksDir(root, project))).filter(isWorkId)
-  const works = await Promise.all(
-    ids.map(async id => foldWork(await readWork(io, workPaths(root, project, id)), now)),
+/** The files of each work filed under a project, in the order listed. */
+const filesIn = async (io: Io, root: string, project: string) =>
+  Promise.all(
+    (await foldersIn(io, worksDir(root, project)))
+      .filter(isWorkId)
+      .map(id => readWork(io, workPaths(root, project, id))),
   )
 
-  return works.filter(work => work !== undefined)
-}
-
-/** A project and its works in brief; undefined for a folder with no file and no work. */
+/** A project and its works in brief, but those whose work.json is missing or torn; undefined for a folder with no file and no work. */
 const readProject = async (
   io: Io,
   root: string,
@@ -101,8 +101,9 @@ const readProject = async (
   now: number,
 ): Promise<ProjectWorks | undefined> => {
   const file = parseProject((await textAt(io, projectPaths(root, key).file)) ?? '')
-  const works = await worksIn(io, root, key, now)
-  const project = projectFrom(key, file, works.at(0)?.project)
+  const files = await filesIn(io, root, key)
+  const works = files.map(each => foldWork(each, now)).filter(work => work !== undefined)
+  const project = projectFrom(key, file, recordedName(files.map(each => parseMeta(each.meta))))
 
   return project === undefined ? undefined : { project, works: works.map(summarise) }
 }

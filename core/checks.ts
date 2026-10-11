@@ -376,9 +376,20 @@ const editedMisfit = (item: Item, changes: Changes) => {
   })
 }
 
-/** An edit's changes as written: one to an ask still read from its kind says what it wants back, so it reads by its shape from then on. */
+/** The fields of an ask's shape: what it wants back, and what goes with that. */
+const SHAPE_FIELDS: readonly (keyof Changes)[] = ['wants', 'yes', 'options', 'needs']
+
+/**
+ * An edit's changes as written. One changing the shape of an ask still read
+ * from its kind says what it wants back, so it reads by its shape from then
+ * on; any other keeps the kind, so the replies written to it keep their meaning.
+ */
 const written = (item: Item, changes: Changes): Changes =>
-  item.type === 'ask' && item.kind !== undefined ? { wants: item.wants, ...changes } : changes
+  item.type === 'ask' &&
+  item.kind !== undefined &&
+  SHAPE_FIELDS.some(key => changes[key] !== undefined)
+    ? { wants: item.wants, ...changes }
+    : changes
 
 export const checkEdit = (work: Work, input: unknown): Checked<EditBody> => {
   const fields = fieldsOf(input)

@@ -4,10 +4,12 @@
  * columns the words drop and the counts stay. For a few seconds after the
  * window takes in replies sent from another work's board, it says so.
  *
- * While Lee answers an ask in the prompt, the band says only that, the
- * whole time, with the way out of it: the next Enter answers that ask.
+ * While Lee answers an ask in the prompt, the band on the surface Lee
+ * began on says only that, the whole time, with the way out of it: the next
+ * Enter answers that ask, or comments on it.
  */
-import { answeringIn, type Answering } from '../answering'
+import type { RenderSurface } from 'claude-code'
+import { answeringIn, writtenAs, type Answering } from '../answering'
 import { C, clip, counted, GLYPH } from '../look'
 import { BAND } from '../pane'
 import { waitingElsewhere } from '../places'
@@ -20,7 +22,7 @@ const NARROW = 64
 /** Every press on the band is answered by the `ui.press` hook, inside the press itself. */
 const answeredByTheHook = () => undefined
 
-/** What the next Enter does, by what Lee is writing. */
+/** What the next Enter does, by what Lee is writing: an answer where it closes the ask. */
 const NEXT_ENTER = { answer: 'answers', comment: 'comments on' } as const
 
 const CANCEL = 'cancel'
@@ -30,10 +32,10 @@ const answeringCells = (verb: string) =>
   `✎ Your next Enter ${verb} ""  ↓`.length + 2 + CANCEL.length
 
 /** While Lee answers an ask in the prompt: what the next Enter does, pointing down at the prompt, and cancel at the right. */
-const drawAnswering = (els: Els, width: number, { answering }: Answering) => {
+const drawAnswering = (els: Els, width: number, standing: Answering, scene: Scene) => {
   const { Box, Text, Button } = els
-  const verb = NEXT_ENTER[answering.as]
-  const title = clip(answering.title, Math.max(8, width - answeringCells(verb)))
+  const verb = NEXT_ENTER[writtenAs(standing, scene.queue)]
+  const title = clip(standing.answering.title, Math.max(8, width - answeringCells(verb)))
 
   return (
     <Box flexDirection="row" columnGap={2} width={width}>
@@ -97,10 +99,10 @@ const drawCounts = (els: Els, width: number, scene: Scene) => {
   )
 }
 
-export const drawBand = (els: Els, width: number, scene: Scene) => {
-  const answering = answeringIn(scene)
+export const drawBand = (els: Els, surface: RenderSurface, width: number, scene: Scene) => {
+  const standing = answeringIn(scene, surface)
 
-  return answering === undefined
+  return standing === undefined
     ? drawCounts(els, width, scene)
-    : drawAnswering(els, width, answering)
+    : drawAnswering(els, width, standing, scene)
 }

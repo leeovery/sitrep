@@ -25,6 +25,14 @@ export type AskedAt = { at: SitrepWorkRef; name: string; ask: Ask }
 /** Something a view lists as parked, the work that parked it, and that work's name. */
 export type ParkedAt = { at: SitrepWorkRef; name: string; parked: Parked }
 
+/**
+ * An item's address on the board, wherever it shows: its work's id, then its
+ * own, since a project's view and Ready to send list several works' items,
+ * and two works' items may share an id. What opens it, and its buttons' keys
+ * (`pick:<work>:<item>`), are made from it.
+ */
+export const itemKey = (work: string, item: string) => `${work}:${item}`
+
 /** This session: the held work, the board's home. */
 export const homeOf = ({ here, work }: Pick<Scene, 'here' | 'work'>): SitrepPlace => ({
   level: 'session',
@@ -59,6 +67,10 @@ export const isHome = (scene: Scene) => samePlace(scene.place, homeOf(scene))
 export const filedAt = (scene: Scene, work: string): Filed | undefined =>
   work === scene.work.id ? { project: scene.here, work: scene.work } : scene.others.get(work)
 
+/** Another work as its project's views read it, in brief: its open asks among what it holds. */
+export const briefOf = (scene: Scene, work: string): WorkBrief | undefined =>
+  scene.projects.flatMap(project => project.works).find(brief => brief.id === work)
+
 /** Works in the order given, but the held one first. */
 export const hereFirst = <T extends { id: string }>(scene: Scene, works: readonly T[]) => [
   ...works.filter(work => work.id === scene.work.id),
@@ -83,8 +95,8 @@ export const projectAt = (scene: Scene, key: string) => {
   return { summary: summariseProject(key, works), log: projectLog(works), works }
 }
 
-/** A project's name, as its works name it. */
-export const projectName = (scene: Scene, key: string) => projectAt(scene, key).summary.name
+/** The name the board gives a project, as its works read now name it. */
+export const projectLabel = (scene: Scene, key: string) => projectAt(scene, key).summary.name
 
 /** Every project read, ordered and folded as All projects shows them. */
 export const everyProject = (scene: Scene) =>

@@ -16,6 +16,7 @@ import {
   projectPaths,
   projectsDir,
   projectText,
+  recordedName,
   workPaths,
   worksDir,
   type Project,
@@ -42,23 +43,18 @@ const fileOf = async (host: Host, root: string, key: string) =>
 const metaOf = async (host: Host, root: string, key: string, id: string) =>
   parseMeta((await textAt(host, workPaths(root, key, id).meta)) ?? '')
 
-/** The project's name as the first of its works that reads recorded it. */
-const recordedName = async (host: Host, root: string, key: string) => {
-  for (const id of (await foldersIn(host, worksDir(root, key))).filter(isWorkId)) {
-    const meta = await metaOf(host, root, key, id)
-
-    if (meta !== undefined) {
-      return meta.project
-    }
-  }
-
-  return undefined
-}
+/** The work.json of each work filed under a project, in the order listed; undefined for one that does not read. */
+const metasIn = async (host: Host, root: string, key: string) =>
+  Promise.all(
+    (await foldersIn(host, worksDir(root, key)))
+      .filter(isWorkId)
+      .map(id => metaOf(host, root, key, id)),
+  )
 
 /** A project as its folder has it; undefined for a folder with no file and no work. */
 export const readProject = async (host: Host, root: string, key: string) => {
   const file = await fileOf(host, root, key)
-  const recorded = file === undefined ? await recordedName(host, root, key) : undefined
+  const recorded = file === undefined ? recordedName(await metasIn(host, root, key)) : undefined
 
   return projectFrom(key, file, recorded)
 }

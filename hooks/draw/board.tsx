@@ -15,7 +15,7 @@ import type { SitrepPlace } from '../../types'
 import type { Actions } from '../actions'
 import type { Clip } from '../clip'
 import { C, clip as clipText, GLYPH } from '../look'
-import { EVERY_PROJECT, everyProject, filedAt, homeOf, isHome, projectName, up } from '../places'
+import { EVERY_PROJECT, everyProject, filedAt, homeOf, isHome, projectLabel, up } from '../places'
 import type { Scene } from '../scene'
 import { drawAllView } from './every'
 import type { Block, Drawing, Els } from './kit'
@@ -159,7 +159,7 @@ const backOf = (scene: Scene): SitrepPlace | undefined =>
   isHome(scene) || scene.place.level === 'all' ? undefined : up(scene.place)
 
 const placeName = (scene: Scene, place: SitrepPlace) =>
-  place.level === 'project' ? projectName(scene, place.project) : 'All projects'
+  place.level === 'project' ? projectLabel(scene, place.project) : 'All projects'
 
 /** The step back up, under the tab rule. */
 const drawBackRow = (d: Drawing, above: SitrepPlace) => {

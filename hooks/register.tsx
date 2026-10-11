@@ -28,7 +28,7 @@
 import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register } from 'claude-code'
 import { actionsOf } from './actions'
-import { captured } from './answering'
+import { captured, heardSurvey } from './answering'
 import { lookAround, lookEvery } from './around'
 import { clipOf, heardRows, revealFocus, scrollList } from './clip'
 import { heardTurn, isBoardMessage, takeUpDelivery, wentQuiet } from './deliver'
@@ -94,6 +94,7 @@ const hostOf = ($: EngineInterface): Host => ({
     close: id => $.ui.close({ id }),
     panes: () => $.ui.panes(),
     redraw: () => $.ui.invalidate('ui.render'),
+    toTop: () => $.ui.scroll({ in: PANE, to: 'start' }),
     play: asset => $.audio.play({ asset }),
   },
   prompt: {
@@ -321,9 +322,13 @@ export const register: Register = on => {
   }).catch(($, e, next) => next(e))
 
   on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {
+    heardSurvey(e.surface, e.props.hasSurvey)
+
     const scene = e.props.hasSurvey ? undefined : await sceneOf(hostOf($))
 
-    return scene === undefined ? next(e) : drawBand($.ui.resolve(e), e.props.bodyColumns, scene)
+    return scene === undefined
+      ? next(e)
+      : drawBand($.ui.resolve(e), e.surface, e.props.bodyColumns, scene)
   })
 
   on('ui.render', { component: 'Pane', requestId: PANE }, async ($, e) => {
@@ -347,7 +352,7 @@ export const register: Register = on => {
   ).catch(($, e, next) => next(e))
 
   on('ui.focus', { requestId: PANE }, async ($, e, next) => {
-    await revealFocus(hostOf($), e.element)
+    await revealFocus(hostOf($), e)
 
     return next(e)
   }).catch(($, e, next) => next(e))

@@ -4,7 +4,7 @@
  * pick-up queues in Ready to send like any reply.
  */
 import { C, GLYPH } from '../look'
-import type { ParkedAt } from '../places'
+import { itemKey, type ParkedAt } from '../places'
 import { queuedOn } from '../queue'
 import {
   drawOnItsWay,
@@ -33,28 +33,29 @@ const drawPickUp = (d: Drawing, { at, parked }: ParkedAt) => {
   return sent === undefined ? undefined : drawOnItsWay(d, parked, sent)
 }
 
-/** A parked item's row, by its work as well, since a project's view lists every session's. */
-const rowKey = ({ at, parked }: ParkedAt) => `parked:${at.work}:${parked.id}`
+/** A parked item's address, since a project's view lists every session's. */
+const keyOf = ({ at, parked }: ParkedAt) => itemKey(at.work, parked.id)
 
 /** A parked item: its row, its title after its session's name where the list names them, and, opened, the button that picks it up under its tree. */
 const drawItem = (d: Drawing, entry: ParkedAt, isNamed: boolean) => {
   const { Box, Button } = d.els
   const { at, name, parked } = entry
-  const isOpen = d.scene.pane.selected === parked.id
+  const key = keyOf(entry)
+  const isOpen = d.scene.pane.selected === key
   const pickUp = drawPickUp(d, entry)
 
   return drawRow(d, {
-    key: rowKey(entry),
+    key: `parked:${key}`,
     mark: MARK,
     title: isNamed ? `${name}: ${parked.title}` : parked.title,
     at: parked.at,
     isOpen,
-    press: { key: `ppick:${parked.id}`, onPress: () => d.act.select(parked.id) },
+    press: { key: `ppick:${key}`, onPress: () => d.act.select(key) },
     branches: shown(isOpen && parked.where, isOpen && seeRef(parked.ref, MARK.color), pickUp),
     after: isOpen && pickUp === undefined && (
       <Box paddingLeft={2}>
         <Button
-          key={`pickup:${parked.id}`}
+          key={`pickup:${key}`}
           label="pick it up"
           onPress={() => d.act.reply({ ...at, item: parked.id, verdict: 'pickup' })}
         />
@@ -72,5 +73,8 @@ export const drawParked = (d: Drawing, parked: readonly ParkedAt[], isNamed: boo
           key: 'parked',
           element: heading(d, 'PARKED', C.parked, `${parked.length} to come back to`),
         },
-        ...parked.map(each => ({ key: rowKey(each), element: drawItem(d, each, isNamed) })),
+        ...parked.map(each => ({
+          key: `parked:${keyOf(each)}`,
+          element: drawItem(d, each, isNamed),
+        })),
       ]

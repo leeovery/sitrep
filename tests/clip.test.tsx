@@ -1,4 +1,12 @@
-import type { ClientSurface, JsonValue, On, RenderPropsOf, UiScrollInput } from 'claude-code'
+import type {
+  ClientSurface,
+  JsonValue,
+  On,
+  RenderPropsOf,
+  UiFocusInput,
+  UiFocusOrigin,
+  UiScrollInput,
+} from 'claude-code'
 import { expect, test, tier } from 'claude-code/testing'
 import type { WorkMeta } from '../core'
 import { stepOf, topShowing } from '../hooks/clip'
@@ -75,13 +83,13 @@ const long = async (w: World, open: () => Promise<Pane> = () => w.pane()) => {
   return { ids, ui: await open() }
 }
 
-/** Lee approves an ask, opening it first where it is not open. */
-const approve = async (ui: Pane, id: string) => {
-  if ((await ui.find({ key: `yes:${id}` })) === undefined) {
-    await ui.press({ key: `pick:${id}` })
+/** Lee approves an ask, by its address, opening it first where it is not open. */
+const approve = async (ui: Pane, item: string) => {
+  if ((await ui.find({ key: `yes:${item}` })) === undefined) {
+    await ui.press({ key: `pick:${item}` })
   }
 
-  await ui.press({ key: `yes:${id}` })
+  await ui.press({ key: `yes:${item}` })
 }
 
 const boxes = async (ui: Pane) => (await ui.findAll({ type: 'Box' })).map(box => box.props)
@@ -184,15 +192,15 @@ const scrolled = (
 
 const WHEEL = { pointer: { column: 10, row: 12 } }
 
-/** Lee's Tab, or an arrow, onto one of the board's buttons. */
-const focused = (element: string) =>
+/** The focus moved onto one of the board's buttons: by Lee's Tab or an arrow, unless a plugin moved it. */
+const focused = (element: string, origin: UiFocusOrigin = { kind: 'person' }) =>
   ({
     component: 'Pane',
     requestId: PANE,
     plugin: 'sitrep',
     element,
-    origin: { kind: 'person' },
-  }) as never
+    origin,
+  }) satisfies UiFocusInput as never
 
 test('docked, the tree is a row short of the window; the list is clipped between the header and Ready to send, which sit still', async ($, on) => {
   const w = world($, on)
@@ -201,7 +209,7 @@ test('docked, the tree is a row short of the window; the list is clipped between
     ui,
   } = await asking(w, 1)
 
-  await approve(ui, id)
+  await approve(ui, w.item(id))
 
   const { tree, clip, list } = await clipping(ui)
   const [head, , foot] = ((await ui.findAll({ type: 'Box' }))[0]?.children ?? []) as Drawn[]
@@ -252,7 +260,7 @@ test('docked, each block of the list is measured by a Client spanning it, keyed 
   expect(keys.slice(0, 3), 'the header unmeasured, the newest ask first').toEqual([
     'measure:context',
     'measure:foryou',
-    `measure:ask:${w.state.attachment?.work}:${ids.at(-1)}`,
+    `measure:ask:${w.item(ids.at(-1) ?? '')}`,
   ])
   expect(keys.at(-1)).toBe('measure:end')
   expect(clients[0]?.props).toMatchObject({
@@ -344,7 +352,7 @@ test('a page key moves by the rows showing above Ready to send; Home and End go 
     ui,
   } = await long(w)
 
-  await approve(ui, id)
+  await approve(ui, w.item(id))
 
   const blocks = await measure(ui)
   const showing = await listRows(ui)
@@ -394,7 +402,7 @@ test("Tab onto a button below the fold brings its block into view, moving the le
     ui,
   } = await long(w)
 
-  await approve(ui, first)
+  await approve(ui, w.item(first))
 
   const parked = String(
     (await ui.findAll({ type: 'Button' })).findLast(button => button.key?.startsWith('ppick:'))
@@ -402,16 +410,16 @@ test("Tab onto a button below the fold brings its block into view, moving the le
   ).slice('ppick:'.length)
   const blocks = await measure(ui)
   const showing = await listRows(ui)
-  const below = spanOf(blocks, `parked:${w.state.attachment?.work}:${parked}`)
+  const below = spanOf(blocks, `parked:${parked}`)
 
   expect(below.to).toBeGreaterThan(showing)
 
   await $.ui.focus(focused(`ppick:${parked}`))
   expect(await topOf(ui)).toBe(below.to - showing)
 
-  await $.ui.focus(focused(`pick:${last}`))
+  await $.ui.focus(focused(`pick:${w.item(last)}`))
 
-  const above = spanOf(blocks, `ask:${w.state.attachment?.work}:${last}`).from
+  const above = spanOf(blocks, `ask:${w.item(last)}`).from
 
   expect(above).toBeGreaterThan(0)
   expect(await topOf(ui)).toBe(above)
@@ -422,7 +430,43 @@ test("Tab onto a button below the fold brings its block into view, moving the le
   }
 })
 
-test('docked, a header button never moves the list: the lit tab pressed, the back row and All projects reached', async ($, on) => {
+test("only Lee's own focus moves bring a button into view: a plugin's never moves the list", async ($, on) => {
+  const w = world($, on)
+
+  beneath(on)
+  const { ui } = await long(w)
+  const parked = String(
+    (await ui.findAll({ type: 'Button' })).findLast(button => button.key?.startsWith('ppick:'))
+      ?.key,
+  )
+
+  await measure(ui)
+  await $.ui.focus(focused(parked, { kind: 'plugin', name: 'sitrep' }))
+  expect(await topOf(ui), "a plugin's").toBe(0)
+
+  await $.ui.focus(focused(parked))
+  expect(await topOf(ui), "Lee's").toBeGreaterThan(0)
+})
+
+test('a click on a button whose item starts above the fold leaves the list where it is', async ($, on) => {
+  const w = world($, on)
+
+  beneath(on)
+  const {
+    ids: [, , , last = ''],
+    ui,
+  } = await long(w)
+  const blocks = await measure(ui, () => 10)
+  const opened = spanOf(blocks, `ask:${w.item(last)}`)
+
+  await $.ui.scroll(scrolled({ by: opened.from + 4, ...WHEEL }))
+  expect(await ui.find({ key: `ignore:${w.item(last)}` }), 'its button drawn').toBeDefined()
+
+  await ui.press({ key: `ignore:${w.item(last)}` })
+  expect(await topOf(ui)).toBe(opened.from + 4)
+})
+
+test('docked, a header button the focus reaches never moves the list: the lit tab, the back row, the lit All projects', async ($, on) => {
   const w = world($, on)
 
   beneath(on)
@@ -433,8 +477,7 @@ test('docked, a header button never moves the list: the lit tab pressed, the bac
   await measure(ui, () => 10)
   await $.ui.scroll(scrolled({ by: 5, ...WHEEL }))
   await $.ui.focus(focused('tab:session'))
-  await ui.press({ key: 'tab:session' })
-  expect(await topOf(ui), 'home, pressed at home').toBe(5)
+  expect(await topOf(ui), 'the lit tab, reached').toBe(5)
 
   await toProject(ui)
   await measure(ui, () => 10)
@@ -445,44 +488,72 @@ test('docked, a header button never moves the list: the lit tab pressed, the bac
   expect(await topOf(ui), 'the lit All projects, reached').toBe(4)
 })
 
-test('a new place starts at its top: All projects, a project, another session and home again; the board closed forgets it', async ($, on) => {
-  const w = world($, on)
+test(
+  'each place starts at its top, every time: by a tab, the back row, a session or a project, a band count though it lands where the board is; an item opened keeps it',
+  SLOW,
+  async ($, on) => {
+    const w = world($, on)
 
-  beneath(on)
-  w.elsewhere(LEDGER).write(yesAsk('k3', 'Review the ledger schema'))
+    beneath(on)
+    w.elsewhere(LEDGER).write(yesAsk('k3', 'Review the ledger schema'))
 
-  const { ids, ui } = await long(w, () => w.opened())
-  // Blocks tall enough that every view, All projects' few among them, runs past the window.
-  const down = async () => {
-    await measure(ui, () => 10)
-    await $.ui.scroll(scrolled({ by: 5, ...WHEEL }))
-    expect(await topOf(ui)).toBe(5)
-  }
+    const { ids, ui } = await long(w, () => w.opened())
+    const band = await w.band()
+    // Blocks tall enough that every view, All projects' few among them, runs past the window.
+    const down = async () => {
+      await measure(ui, () => 10)
+      await $.ui.scroll(scrolled({ by: 5, ...WHEEL }))
+      expect(await topOf(ui)).toBe(5)
+    }
+    /** How far down the list stands once its blocks have posted their rows, as their Clients do as it draws. */
+    const settled = async () => {
+      await measure(ui, () => 10)
 
-  await down()
-  await ui.press({ key: 'tab:all' })
-  expect(await topOf(ui), 'All projects').toBe(0)
+      return topOf(ui)
+    }
 
-  await down()
-  await ui.press({ key: `proj:${PROJECT.key}` })
-  expect(await topOf(ui), 'the project').toBe(0)
+    await down()
+    await ui.press({ key: 'tab:all' })
+    expect(await settled(), 'All projects').toBe(0)
+    await ui.press({ key: 'tab:session' })
+    expect(await settled(), 'home again, not where it was left').toBe(0)
 
-  await down()
-  await ui.press({ key: `go:${LEDGER.id}` })
-  expect(await ui.find({ key: 'pick:k3' }), 'the other session drawn').toBeDefined()
-  expect(await topOf(ui), 'another session').toBe(0)
+    await down()
+    await ui.press({ key: 'tab:session' })
+    expect(await settled(), 'home, its tab pressed there').toBe(0)
 
-  await down()
-  await ui.press({ key: 'tab:session' })
-  expect(await topOf(ui), 'home').toBe(0)
+    await ui.press({ key: 'tab:all' })
+    await down()
+    await ui.press({ key: `proj:${PROJECT.key}` })
+    expect(await settled(), 'the project').toBe(0)
 
-  await down()
-  await ui.press({ key: `pick:${ids[0]}` })
-  expect(await topOf(ui), 'an item opened in place keeps it').toBe(5)
+    await down()
+    await ui.press({ key: `go:${LEDGER.id}` })
+    expect(await ui.find({ key: `pick:${LEDGER.id}:k3` }), 'the other session drawn').toBeDefined()
+    expect(await settled(), 'another session').toBe(0)
+    await ui.press({ key: 'up' })
+    expect(await settled(), 'the project again, by the back row').toBe(0)
 
-  await (await w.band()).press({ key: 'band:board' })
-  expect(w.state.scroll, 'closed').toBeNull()
-})
+    await ui.press({ key: 'tab:all' })
+    await down()
+    await ui.press({ key: 'tab:session' })
+    await band.press({ key: 'band:elsewhere' })
+    expect(await settled(), 'All projects again, by its count on the band').toBe(0)
+
+    await ui.press({ key: 'tab:session' })
+    await down()
+    await band.press({ key: 'band:for-you' })
+    expect(w.state.pane?.place ?? null, 'home already').toBeNull()
+    expect(await settled(), 'home, by its count on the band, though the board was home').toBe(0)
+
+    await down()
+    await ui.press({ key: `pick:${w.item(ids[0] ?? '')}` })
+    expect(await settled(), 'an item opened in place keeps it').toBe(5)
+
+    await band.press({ key: 'band:board' })
+    expect(w.state.scroll, 'closed').toBeNull()
+  },
+)
 
 test(
   'queuing a reply, sending, a new ask arriving and the watch drawing again leave the list where Lee had it',
@@ -501,11 +572,11 @@ test(
 
     const kept = w.state.scroll
 
-    await approve(ui, first)
+    await approve(ui, w.item(first))
     expect(await topOf(ui), 'queued').toBe(6)
 
-    await ui.press({ key: `pick:${second}` })
-    await ui.press({ key: `ignore:${second}` })
+    await ui.press({ key: `pick:${w.item(second)}` })
+    await ui.press({ key: `ignore:${w.item(second)}` })
     await ui.press({ key: 'send' })
     expect(await topOf(ui), 'sent').toBe(6)
 
@@ -539,7 +610,7 @@ test("inline, nothing is clipped or measured: Ready to send follows the view, an
     ui,
   } = await asking(w, 1, INLINE)
 
-  await approve(ui, id)
+  await approve(ui, w.item(id))
 
   const [root] = await boxes(ui)
 
@@ -564,12 +635,12 @@ test(
       ui,
     } = await asking(w, 3)
 
-    await approve(ui, first)
+    await approve(ui, w.item(first))
     await expectHeightKept(ui, 'one reply')
 
-    await approve(ui, second)
-    await ui.press({ key: `pick:${third}` })
-    await ui.press({ key: `comment:${third}` })
+    await approve(ui, w.item(second))
+    await ui.press({ key: `pick:${w.item(third)}` })
+    await ui.press({ key: `comment:${w.item(third)}` })
     await $.prompt.submit({
       text: 'a comment long enough to run past the edge of the box\nand a second line',
       wait: false,
@@ -603,8 +674,8 @@ test('replies sent into another work keep the box as tall as it draws, where the
 
   await toProject(ui)
   await ui.press({ key: `go:${LEDGER.id}` })
-  await ui.press({ key: 'pick:k3' })
-  await ui.press({ key: 'yes:k3' })
+  await ui.press({ key: `pick:${LEDGER.id}:k3` })
+  await ui.press({ key: `yes:${LEDGER.id}:k3` })
   await ui.press({ key: 'tab:session' })
   await ui.press({ key: 'send' })
 
@@ -613,7 +684,7 @@ test('replies sent into another work keep the box as tall as it draws, where the
   await expectHeightKept(ui, 'sent, on its way')
 })
 
-test("a project's view keys each ask's block by its work too, so two works' asks of one id never share a Client", async ($, on) => {
+test("a project's view keys each ask by its work too, so two works' asks of one id never share a Client, a selection or a button", async ($, on) => {
   const w = world($, on)
   const ledger = w.elsewhere(LEDGER)
 
@@ -626,14 +697,40 @@ test("a project's view keys each ask's block by its work too, so two works' asks
   ledger.beat()
 
   const ui = await w.opened()
+  const here = w.item('k3')
+  const there = w.item('k3', LEDGER.id)
 
   await toProject(ui)
 
   const keys = (await ui.findAll({ type: 'Client' })).map(client => client.key)
 
-  expect(keys).toContain(`measure:ask:${LEDGER.id}:k3`)
-  expect(keys).toContain(`measure:ask:${w.state.attachment?.work}:k3`)
+  expect(keys).toContain(`measure:ask:${there}`)
+  expect(keys).toContain(`measure:ask:${here}`)
   expect(new Set(keys).size).toBe(keys.length)
+
+  await ui.press({ key: `pick:${here}` })
+  expect(await ui.find({ key: `yes:${here}` }), 'this session’s opened').toBeDefined()
+  expect(await ui.find({ key: `yes:${there}` }), 'the ledger’s left closed').toBeUndefined()
+
+  await ui.press({ key: `yes:${here}` })
+  await ui.press({ key: `pick:${there}` })
+  expect(await ui.find({ key: `yes:${here}` }), 'only one opened at a time').toBeUndefined()
+  await ui.press({ key: `yes:${there}` })
+  expect(w.state.queue).toEqual([
+    { project: PROJECT.key, work: w.state.attachment?.work, item: 'k3', verdict: 'yes' },
+    { project: PROJECT.key, work: LEDGER.id, item: 'k3', verdict: 'yes' },
+  ])
+
+  await ui.press({ key: `undo:${there}` })
+  expect(w.state.queue, 'the ledger’s undone, this session’s kept').toEqual([
+    { project: PROJECT.key, work: w.state.attachment?.work, item: 'k3', verdict: 'yes' },
+  ])
+
+  await ui.press({ key: `yes:${there}` })
+  await ui.press({ key: `unready:${here}` })
+  expect(w.state.queue, 'out of Ready to send: this session’s, the ledger’s kept').toEqual([
+    { project: PROJECT.key, work: LEDGER.id, item: 'k3', verdict: 'yes' },
+  ])
 })
 
 test(
@@ -644,7 +741,7 @@ test(
     const { ids, ui } = await asking(w, 6)
 
     for (const id of ids) {
-      await approve(ui, id)
+      await approve(ui, w.item(id))
     }
 
     const listed = async () =>

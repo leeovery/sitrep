@@ -277,19 +277,24 @@ test('an edit gives a words ask what its words are, an empty one clearing it; no
   )
 })
 
-test('an edit to an ask read from its kind says what the ask wants, so it reads by its shape from then on', () => {
-  expect(value(checkEdit(WORK, { item: 'o1', title: 'Run the export again' }))?.changes).toEqual({
-    wants: 'words',
-    title: 'Run the export again',
-  })
+test('an edit changing the shape of an ask read from its kind says what the ask wants, so it reads by its shape from then on', () => {
   expect(value(checkEdit(WORK, { item: 'o1', needs: '' }))?.changes).toEqual({
     wants: 'words',
     needs: '',
   })
-  expect(value(checkEdit(WORK, { item: 'o2', title: 'Review round 2' }))?.changes).toEqual({
+  expect(value(checkEdit(WORK, { item: 'o2', yes: 'Ship it' }))?.changes).toEqual({
     wants: 'yes',
-    title: 'Review round 2',
+    yes: 'Ship it',
   })
+})
+
+test('an edit leaving the shape of an ask read from its kind as it is keeps the kind', () => {
+  expect(value(checkEdit(WORK, { item: 'o1', title: 'Run the export again' }))?.changes).toEqual({
+    title: 'Run the export again',
+  })
+  expect(
+    value(checkEdit(WORK, { item: 'o2', where: 'In Paper', ref: 'docs/plan.md' }))?.changes,
+  ).toEqual({ where: 'In Paper', ref: 'docs/plan.md' })
 })
 
 test('a checked post is given a fresh item id, unlike any its work uses; a refusal stays one', () => {

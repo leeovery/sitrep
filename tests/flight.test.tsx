@@ -49,7 +49,7 @@ const replying: Record<Source, (w: World) => Promise<{ paths: WorkPaths; submit:
     const ui = await w.pane()
 
     await w.clock.advance(MIN)
-    await ui.press({ key: `yes:${id}` })
+    await ui.press({ key: `yes:${w.item(id)}` })
 
     return { paths, submit: () => void ui.press({ key: 'send' }) }
   },
@@ -207,7 +207,7 @@ test("send: let go, Lee's replies are back in Ready to send, and a toast says wh
   const ui = await w.pane()
   const turn = w.holdPrompts()
 
-  await ui.press({ key: `yes:${id}` })
+  await ui.press({ key: `yes:${w.item(id)}` })
   void ui.press({ key: 'send' })
   await turn.arrived
   turn.lose()

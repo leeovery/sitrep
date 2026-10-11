@@ -83,10 +83,7 @@ export const drawProjectView = (d: Drawing, key: string): Block[] => {
     }),
     drawLog(
       d,
-      lines.map(line => ({
-        line,
-        from: { work: line.work, name: names.get(line.work) ?? line.work },
-      })),
+      lines.map(line => ({ line, work: line.work, name: names.get(line.work) ?? line.work })),
     ),
     drawParked(d, parkedIn(d.scene, key), true),
   )

@@ -10,15 +10,14 @@
  * names the work it goes to.
  */
 import { isClosing, VERDICTS, type Ask, type Verdict } from '../../core'
-import type { SitrepItemRef, SitrepQueued } from '../../types'
+import type { SitrepAnswering, SitrepItemRef, SitrepQueued } from '../../types'
 import { answeringIn } from '../answering'
 import { C, GLYPH } from '../look'
-import type { AskedAt } from '../places'
+import { itemKey, type AskedAt } from '../places'
 import { queuedOn } from '../queue'
 import { askMark, isPulsing } from '../scene'
 import {
   answeringOf,
-  canWrite,
   drawOnItsWay,
   drawQueued,
   drawRow,
@@ -44,9 +43,25 @@ const refOf = ({ at, ask }: AskedAt): SitrepItemRef => ({ ...at, item: ask.id })
 /** The comment button's words: an answer's, on an ask read from its kind as a decide, where a comment closes it. */
 const commentLabel = (ask: Ask) => (isClosing(ask, 'comment') ? '✎ answer' : '✎ comment')
 
-/** The buttons a verdict puts on an ask: one for each option of a choice; none to write with on a surface Lee cannot write back from. */
+/** The button that has the next Enter in the prompt write an ask's answer, or a comment on it; none on a surface Lee cannot write back from. */
+const drawWrite = (
+  d: Drawing,
+  key: string,
+  label: string,
+  answering: SitrepAnswering | undefined,
+  variant?: 'primary',
+) => {
+  const { Button } = d.els
+
+  return answering === undefined
+    ? []
+    : [<Button key={key} variant={variant} label={label} onPress={() => d.act.answer(answering)} />]
+}
+
+/** The buttons a verdict puts on an ask, each keyed by the ask's address: one for each option of a choice. */
 const buttonsFor = (d: Drawing, at: SitrepItemRef, ask: Ask, verdict: Verdict) => {
   const { Button } = d.els
+  const key = itemKey(at.work, ask.id)
   const reply = (fields: Omit<SitrepQueued, keyof SitrepItemRef>) =>
     d.act.reply({ ...at, ...fields })
 
@@ -54,7 +69,7 @@ const buttonsFor = (d: Drawing, at: SitrepItemRef, ask: Ask, verdict: Verdict) =
     case 'yes':
       return [
         <Button
-          key={`yes:${ask.id}`}
+          key={`yes:${key}`}
           variant="primary"
           label={`✓ ${ask.yes ?? 'yes'}`}
           onPress={() => reply({ verdict })}
@@ -63,37 +78,20 @@ const buttonsFor = (d: Drawing, at: SitrepItemRef, ask: Ask, verdict: Verdict) =
     case 'choose':
       return (ask.options ?? []).map((option, i) => (
         <Button
-          key={`choose:${ask.id}:${i}`}
+          key={`choose:${key}:${i}`}
           variant={i === 0 ? 'primary' : undefined}
           label={option}
           onPress={() => reply({ verdict, option })}
         />
       ))
     case 'answer':
-      return canWrite(d)
-        ? [
-            <Button
-              key={`answer:${ask.id}`}
-              variant="primary"
-              label="✎ Answer"
-              onPress={() => d.act.answer(answeringOf(at, ask, 'answer'))}
-            />,
-          ]
-        : []
+      return drawWrite(d, `answer:${key}`, '✎ Answer', answeringOf(d, at, ask, 'answer'), 'primary')
     case 'comment':
-      return canWrite(d)
-        ? [
-            <Button
-              key={`comment:${ask.id}`}
-              label={commentLabel(ask)}
-              onPress={() => d.act.answer(answeringOf(at, ask, 'comment'))}
-            />,
-          ]
-        : []
+      return drawWrite(d, `comment:${key}`, commentLabel(ask), answeringOf(d, at, ask, 'comment'))
     case 'ignore':
       return [
         <Button
-          key={`ignore:${ask.id}`}
+          key={`ignore:${key}`}
           dimColor
           label="✕ ignore"
           onPress={() => reply({ verdict })}
@@ -108,17 +106,19 @@ const buttonsFor = (d: Drawing, at: SitrepItemRef, ask: Ask, verdict: Verdict) =
 const standingOf = (d: Drawing, asked: AskedAt) => {
   const { ask } = asked
   const at = refOf(asked)
+  const key = itemKey(at.work, ask.id)
   const queued = queuedOn(d.scene.queue, at.work, ask.id)
-  const answering = answeringIn(d.scene)?.answering
+  const answering = answeringIn(d.scene, d.surface)?.answering
   const isClosed = ask.state === 'closed'
 
   return {
     at,
+    key,
     queued,
     sent: queued === undefined ? onItsWay(ask) : undefined,
     isAnswering: answering?.work === at.work && answering.item === at.item,
     isClosed,
-    isOpen: d.scene.pane.selected === ask.id && !isClosed,
+    isOpen: d.scene.pane.selected === key && !isClosed,
   }
 }
 
@@ -178,17 +178,17 @@ const drawButtons = (d: Drawing, ask: Ask, { at }: Standing, isLast: boolean) =>
 const drawAsk = (d: Drawing, asked: AskedAt, isLast: boolean, isNamed: boolean) => {
   const { ask, name } = asked
   const standing = standingOf(d, asked)
-  const { queued, sent, isAnswering, isClosed, isOpen } = standing
+  const { key, queued, sent, isAnswering, isClosed, isOpen } = standing
   const mark = isClosed ? DONE : askMark(d.scene, ask)
   const isAnswerable = isOpen && queued === undefined && sent === undefined && !isAnswering
 
   return drawRow(d, {
-    key: `ask:${ask.id}`,
+    key: `ask:${key}`,
     mark,
     title: isNamed ? `${name}: ${ask.title}` : ask.title,
     at: ask.at,
     isOpen,
-    press: isClosed ? undefined : { key: `pick:${ask.id}`, onPress: () => d.act.select(ask.id) },
+    press: isClosed ? undefined : { key: `pick:${key}`, onPress: () => d.act.select(key) },
     branches: branchesOf(d, ask, mark.color, standing),
     after: isAnswerable && drawButtons(d, ask, standing, isLast),
   })
@@ -206,7 +206,7 @@ const noteOf = (d: Drawing, { waiting, isHome }: ForYou) => {
   return { note: waiting > 0 ? `${waiting} waiting` : 'nothing waiting', color: C.grey }
 }
 
-/** For you's heading, then each ask, keyed by its work as well, since a project's view lists every session's. */
+/** For you's heading, then each ask, keyed by its address, since a project's view lists every session's. */
 export const drawForYou = (d: Drawing, asked: readonly AskedAt[], listing: ForYou): Block[] => {
   const { Box, Text } = d.els
   const { note, color } = noteOf(d, listing)
@@ -222,7 +222,7 @@ export const drawForYou = (d: Drawing, asked: readonly AskedAt[], listing: ForYo
       ),
     },
     ...asked.map((each, i) => ({
-      key: `ask:${each.at.work}:${each.ask.id}`,
+      key: `ask:${itemKey(each.at.work, each.ask.id)}`,
       element: drawAsk(d, each, i === asked.length - 1, listing.isNamed),
     })),
   ]

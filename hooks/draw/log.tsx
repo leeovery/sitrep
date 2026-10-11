@@ -6,6 +6,7 @@
  */
 import { labelOf, type LogLine } from '../../core'
 import { C, GLYPH } from '../look'
+import { itemKey } from '../places'
 import {
   drawRow,
   heading,
@@ -44,15 +45,12 @@ const detailOf = (line: LogLine) => {
   return detail.length > 0 ? detail : [{ text: 'nothing more was recorded', color: C.grey }]
 }
 
-/** The session a line of a project's log came from: its id, and its name. */
-type From = { work: string; name: string }
-
-/** A line as a log lists it: in a project's, with the session it came from. */
-export type Logged = { line: LogLine; from?: From }
+/** A line as a log lists it: the work it came from, and in a project's, that session's name. */
+export type Logged = { line: LogLine; work: string; name?: string }
 
 /** A line of the log, as a block of its own. */
-const drawLogLine = (d: Drawing, { line, from }: Logged): Block => {
-  const key = from === undefined ? logKey(line) : `${from.work}:${logKey(line)}`
+const drawLogLine = (d: Drawing, { line, work, name }: Logged): Block => {
+  const key = itemKey(work, logKey(line))
   const isOpen = d.scene.pane.selected === key
   const row = `line:${key}`
 
@@ -61,7 +59,7 @@ const drawLogLine = (d: Drawing, { line, from }: Logged): Block => {
     element: drawRow(d, {
       key: row,
       mark: MARK[line.kind],
-      title: from === undefined ? line.text : `${from.name}: ${line.text}`,
+      title: name === undefined ? line.text : `${name}: ${line.text}`,
       at: line.at,
       isOpen,
       press: { key: `log:${key}`, onPress: () => d.act.select(key) },

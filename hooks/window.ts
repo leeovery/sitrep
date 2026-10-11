@@ -75,7 +75,7 @@ const hear = async (host: Host, hold: Hold, work: Work) => {
     heard === undefined ? [] : work.asks.filter(ask => isOpen(ask) && !heard.has(ask.id))
 
   hold.heard = new Set(work.asks.map(ask => ask.id))
-  await announce(host, landed)
+  await announce(host, work.id, landed)
 }
 
 const show = async (host: Host, hold: Hold, work: Work) => {

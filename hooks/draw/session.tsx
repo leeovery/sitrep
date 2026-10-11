@@ -63,7 +63,9 @@ export const drawSessionView = (d: Drawing, filed: Filed): Block[] =>
     [{ key: 'status', element: drawStatus(d, filed) }],
     drawLog(
       d,
-      filed.work.log.slice(0, d.isDock ? LOG_LINES.dock : LOG_LINES.inline).map(line => ({ line })),
+      filed.work.log
+        .slice(0, d.isDock ? LOG_LINES.dock : LOG_LINES.inline)
+        .map(line => ({ line, work: filed.work.id })),
     ),
     drawParked(d, parkedOf(filed), false),
     drawDone(d, filed),

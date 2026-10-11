@@ -4,8 +4,9 @@
  * shorter than its window, so the engine never has anything to scroll; the
  * list sits in the rows between the two, shifted up by how far down it
  * stands, which the board's own scroll and focus hooks move and `$.state`
- * keeps for the place the board looks at. Nothing else moves it: a list that has shrunk under
- * it only stops it short.
+ * keeps for the place the board looks at. Every way to a place puts it at
+ * the top there. Nothing else moves it: a list that has shrunk under it
+ * only stops it short.
  *
  * Each block of the list is measured by a `Client` spanning it: the list is
  * as tall as its blocks, and a block sits as far down as those above it.
@@ -13,10 +14,10 @@
  * cannot write `$.state`; and the rows each block was measured at, which
  * the `Client`s post again after a reload.
  */
-import type { UiScrollInput } from 'claude-code'
+import type { UiFocusInput, UiScrollInput } from 'claude-code'
 import type { SitrepPlace, SitrepScroll } from '../types'
 import type { Block } from './draw/kit'
-import type { Host } from './host'
+import { logFailure, type Host } from './host'
 import { samePlace } from './places'
 
 /** The docked board's list as drawn: where the board looks, how many of the list's rows show, and its blocks in order. */
@@ -70,6 +71,19 @@ export const clipOf = (kept: SitrepScroll | null): Clip => {
     keepOnly(list.blocks)
 
     return clampTop(keptAt(kept, list.place), furthest(list))
+  }
+}
+
+/**
+ * Puts the board at the top of the place it goes to, wherever it was there
+ * before: docked, its own list; where the engine scrolls the board (inline,
+ * or a dock nothing measures), the engine's window.
+ */
+export const fromTheTop = async (host: Host) => {
+  await host.state.scroll.write(null)
+
+  if (drawn === undefined) {
+    await host.ui.toTop().catch(logFailure(host, 'putting the board at its top'))
   }
 }
 
@@ -149,15 +163,20 @@ const holds = (node: unknown, key: string): boolean => {
 }
 
 /**
- * Brings the block holding the button the focus lands on into view, moving
- * the list the least; a block taller than the rows showing, from its top.
- * A button no block holds is the header's or Ready to send's, which always
- * show.
+ * Brings the block holding the button Lee's focus lands on (by Tab,
+ * Shift-Tab or an arrow) into view, moving the list the least; a block
+ * taller than the rows showing, from its top. A button no block holds is
+ * the header's or Ready to send's, which always show. A plugin's move of
+ * the focus never moves the list, and nor does a click: the engine raises
+ * it as a press, the focus left where it was (live, 2.1.295).
  */
-export const revealFocus = async (host: Host, element: string | undefined) => {
+export const revealFocus = async (
+  host: Host,
+  { element, origin }: Pick<UiFocusInput, 'element' | 'origin'>,
+) => {
   const list = drawn
   const at =
-    list === undefined || element === undefined
+    list === undefined || element === undefined || origin.kind !== 'person'
       ? -1
       : list.blocks.findIndex(block => holds(block.element, element))
 

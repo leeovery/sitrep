@@ -29,7 +29,7 @@ test("send delivers the replies as Lee's own message, and writes them only once 
   const { paths, id, ui } = await asking(w)
   const turn = w.holdPrompts()
 
-  await ui.press({ key: `yes:${id}` })
+  await ui.press({ key: `yes:${w.item(id)}` })
 
   const pressed = ui.press({ key: 'send' })
 
@@ -68,17 +68,17 @@ test('the board then shows the ask closed, and folds it into what was done once 
   const w = world($, on)
   const { id, ui } = await asking(w)
 
-  await ui.press({ key: `yes:${id}` })
+  await ui.press({ key: `yes:${w.item(id)}` })
   await ui.press({ key: 'send' })
 
   expect(await ui.find({ type: 'Text', text: /READY TO SEND/ })).toBeUndefined()
   expect(await ui.find({ type: 'Text', text: 'sent, and Claude has it' })).toBeDefined()
-  expect(await ui.find({ key: `pick:${id}` })).toBeUndefined()
+  expect(await ui.find({ key: `pick:${w.item(id)}` })).toBeUndefined()
 
   await w.clock.advance(LINGER_MS)
 
   expect(await ui.find({ type: 'Text', text: 'sent, and Claude has it' })).toBeUndefined()
-  expect(await ui.find({ key: `closed:${id}` }), 'in DONE').toBeDefined()
+  expect(await ui.find({ key: `closed:${w.item(id)}` }), 'in DONE').toBeDefined()
   expect(await ui.find({ type: 'Text', text: 'nothing waiting' })).toBeDefined()
 })
 
@@ -87,7 +87,7 @@ test('while a send waits for its turn, its replies are on their way and cannot b
   const { id, ui } = await asking(w)
   const turn = w.holdPrompts()
 
-  await ui.press({ key: `yes:${id}` })
+  await ui.press({ key: `yes:${w.item(id)}` })
 
   const pressed = ui.press({ key: 'send' })
 
@@ -95,8 +95,8 @@ test('while a send waits for its turn, its replies are on their way and cannot b
 
   expect(await ui.find({ type: 'Text', text: /⧗ Sending/ })).toBeDefined()
   expect(await ui.find({ type: 'Text', text: '· on its way' })).toBeDefined()
-  expect(await ui.find({ key: `undo:${id}` })).toBeUndefined()
-  expect(await ui.find({ key: `unready:${id}` })).toBeUndefined()
+  expect(await ui.find({ key: `undo:${w.item(id)}` })).toBeUndefined()
+  expect(await ui.find({ key: `unready:${w.item(id)}` })).toBeUndefined()
   expect(await ui.find({ key: 'send' })).toBeUndefined()
 
   turn.end()
@@ -108,7 +108,7 @@ test('a send Claude Code refuses leaves every reply on the board, and a toast sa
   const { paths, id, ui } = await asking(w)
 
   w.dropPrompts('the session is closing')
-  await ui.press({ key: `yes:${id}` })
+  await ui.press({ key: `yes:${w.item(id)}` })
   await ui.press({ key: 'send' })
 
   expect(kindsIn(w, paths.log(W1))).toEqual(['ask'])
@@ -124,7 +124,7 @@ test('a comment on a review leaves the ask open, replied, for Claude to act on',
   const w = world($, on)
   const { id, ui } = await asking(w)
 
-  await ui.press({ key: `comment:${id}` })
+  await ui.press({ key: `comment:${w.item(id)}` })
   await $.prompt.submit({ text: 'thinner bars', wait: false, origin: { kind: 'composer' } })
   await ui.press({ key: 'send' })
 
@@ -136,7 +136,7 @@ test('a comment on a review leaves the ask open, replied, for Claude to act on',
   expect(
     await ui.find({ type: 'Text', text: 'you commented: “thinner bars”. Claude has it.' }),
   ).toBeDefined()
-  expect(await ui.find({ key: `pick:${id}` })).toBeDefined()
+  expect(await ui.find({ key: `pick:${w.item(id)}` })).toBeDefined()
 })
 
 test('a pick-up from parked is sent like any reply, and the log says what was picked up', async ($, on) => {
@@ -145,8 +145,8 @@ test('a pick-up from parked is sent like any reply, and the log says what was pi
   const id = postedId(await w.call('park', { title: 'A tmux indicator across sessions' }))
   const ui = await w.pane()
 
-  await ui.press({ key: `ppick:${id}` })
-  await ui.press({ key: `pickup:${id}` })
+  await ui.press({ key: `ppick:${w.item(id)}` })
+  await ui.press({ key: `pickup:${w.item(id)}` })
   await ui.press({ key: 'send' })
 
   expect(w.prompts.at(-1)?.text).toBe(
@@ -166,7 +166,7 @@ test("the board's own message carries no board context; a change it did not carr
 
   elsewhere(note('n9', 'Merged the band'))
   await w.clock.advance(WATCH_MS)
-  await ui.press({ key: `yes:${id}` })
+  await ui.press({ key: `yes:${w.item(id)}` })
   await ui.press({ key: 'send' })
 
   expect(w.prompts.at(-1)?.context).toBeUndefined()
@@ -181,7 +181,7 @@ test('with nothing else changed, what a send told Claude never rides in again', 
   const w = world($, on)
   const { id, ui } = await asking(w)
 
-  await ui.press({ key: `yes:${id}` })
+  await ui.press({ key: `yes:${w.item(id)}` })
   await ui.press({ key: 'send' })
 
   expect((await $.prompt.submit(PROMPT)).context).toBeUndefined()
@@ -204,7 +204,7 @@ test('a reload keeps Ready to send as Lee left it', async ($, on) => {
   const w = world($, on)
   const { id, ui } = await asking(w)
 
-  await ui.press({ key: `yes:${id}` })
+  await ui.press({ key: `yes:${w.item(id)}` })
   await $.session.start(SESSION)
 
   expect(w.state.queue).toMatchObject([{ item: id, verdict: 'yes' }])
@@ -218,7 +218,7 @@ test('a send taken after Claude moved to another work mid-turn is written into t
   const answered = w.state.attachment?.work ?? ''
   const turn = w.holdPrompts()
 
-  await ui.press({ key: `yes:${id}` })
+  await ui.press({ key: `yes:${w.item(id)}` })
 
   const pressed = ui.press({ key: 'send' })
 
@@ -244,7 +244,7 @@ test('two quick presses of send submit the replies once', async ($, on) => {
   const { paths, id, ui } = await asking(w)
   const turn = w.holdPrompts()
 
-  await ui.press({ key: `yes:${id}` })
+  await ui.press({ key: `yes:${w.item(id)}` })
 
   const presses = [ui.press({ key: 'send' }), ui.press({ key: 'send' })]
 
@@ -269,7 +269,7 @@ test('send closes an inline board once the send is claimed, not waiting for Clau
   const { paths, id, ui } = await askingInline(w)
   const turn = w.holdPrompts()
 
-  await ui.press({ key: `yes:${id}` })
+  await ui.press({ key: `yes:${w.item(id)}` })
 
   const pressed = ui.press({ key: 'send' })
 
@@ -291,7 +291,7 @@ test('send leaves a docked board open', async ($, on) => {
   const id = postedId(await w.call('ask', REVIEW))
   const ui = await w.opened()
 
-  await ui.press({ key: `yes:${id}` })
+  await ui.press({ key: `yes:${w.item(id)}` })
   await ui.press({ key: 'send' })
 
   expect(kindsIn(w, paths.log(W1))).toEqual(['ask', 'reply', 'delivered'])
@@ -304,7 +304,7 @@ test('a send refused from an inline board still closes it; the toast says why, a
   const { paths, id, ui } = await askingInline(w)
 
   w.dropPrompts('the session is closing')
-  await ui.press({ key: `yes:${id}` })
+  await ui.press({ key: `yes:${w.item(id)}` })
   await ui.press({ key: 'send' })
 
   expect(w.panes.has('sitrep')).toBe(false)

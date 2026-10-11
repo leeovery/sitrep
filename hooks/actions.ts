@@ -11,8 +11,9 @@ import type {
   SitrepQueued,
   SitrepWorkRef,
 } from '../types'
-import { beginAnswering } from './answering'
+import { beginAnswering, settleAnswering } from './answering'
 import { lookAround } from './around'
+import { fromTheTop } from './clip'
 import { logFailure, type Host } from './host'
 import { writeInto } from './into'
 import { closeBoard } from './pane'
@@ -34,7 +35,7 @@ export type Actions = {
   answer: (answering: SitrepAnswering, text?: string) => void
   /** Sends Ready to send; a board drawn inline closes once the send is claimed, as on a phone. */
   send: (isDock: boolean) => void
-  /** Takes the board somewhere else in the tree. */
+  /** Takes the board somewhere in the tree, at its top there: elsewhere, or where it already is. */
   go: (place: SitrepPlace) => void
   /** Marks another work done, as Lee confirmed on its view, and takes the board up off it. */
   finish: (at: SitrepWorkRef) => void
@@ -43,18 +44,33 @@ export type Actions = {
 const changePane = (host: Host, change: (pane: SitrepPane) => Partial<SitrepPane>) =>
   host.state.pane.update(pane => ({ ...pane, ...change(pane) }))
 
-/** Queues a reply; one to another work has that work read, for Ready to send to draw it. */
-const queue = async (host: Host, reply: SitrepQueued) => {
-  await host.state.queue.update(replies => queuing(replies, reply))
-
-  if (reply.work !== attached()?.work) {
+/** Has another work read in full, for the board to draw what Lee did to it; the held one is the watch's. */
+const readIfElsewhere = async (host: Host, { work }: SitrepWorkRef) => {
+  if (work !== attached()?.work) {
     await lookAround(host)
   }
 }
 
-/** The board on a place, nothing opened there, and what it shows read. */
+/** Queues a reply; one to another work has that work read, for Ready to send to draw it. */
+const queue = async (host: Host, reply: SitrepQueued) => {
+  await host.state.queue.update(replies => queuing(replies, reply))
+  await readIfElsewhere(host, reply)
+}
+
+/**
+ * Has the next Enter answer an ask, the mode standing from the press on the
+ * ask as drawn; one of another work's has that work read in full, so the
+ * mode is checked against all of it, not only its project's briefs.
+ */
+const answer = async (host: Host, answering: SitrepAnswering, text?: string) => {
+  await beginAnswering(host, answering, text)
+  await readIfElsewhere(host, answering)
+}
+
+/** The board on a place, nothing opened there, at its top, and what it shows read. */
 const go = async (host: Host, place: SitrepPlace) => {
   await changePane(host, () => ({ place, selected: null }))
+  await fromTheTop(host)
   await lookAround(host)
 }
 
@@ -94,10 +110,13 @@ export const actionsOf = (host: Host): Actions => {
         await host.state.queue.update(replies => clearing(replies, inFlight))
       }),
     answer: (answering, text) =>
-      run('answering in the prompt', () => beginAnswering(host, answering, text)),
+      run('answering in the prompt', () => answer(host, answering, text)),
     send: isDock =>
       run('sending', () =>
         send(host, async () => {
+          // A send carrying the reply the mode would write ends it now, before its Enter.
+          await settleAnswering(host)
+
           if (!isDock) {
             await closeBoard(host)
           }

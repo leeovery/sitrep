@@ -80,7 +80,7 @@ test('the board walks from this session to every project, down into a project an
   const { asked } = await neighbourhood(w)
   const ui = await w.opened()
 
-  expect(await ui.find({ key: `pick:${asked}` })).toBeDefined()
+  expect(await ui.find({ key: `pick:${w.item(asked)}` })).toBeDefined()
 
   // All projects, then this project: the tabs stay, and a step back up sits under them.
   await toProject(ui)
@@ -101,14 +101,14 @@ test('the board walks from this session to every project, down into a project an
   expect(await ui.find({ key: `proj:${PIGEON.key}` })).toBeUndefined()
   expect(await ui.find({ key: `proj:${PORTAL.key}` })).toBeDefined()
   await ui.press({ key: `go:${ORDERS}` })
-  expect(await ui.find({ key: 'pick:k5' })).toBeDefined()
+  expect(await ui.find({ key: `pick:${ORDERS}:k5` })).toBeDefined()
   expect(await ui.find({ key: 'up', text: '← Goosemates' })).toBeDefined()
   await ui.press({ key: 'up' })
   expect(await ui.find({ key: 'up', text: '← All projects' })).toBeDefined()
 
   // Home, from anywhere.
   await ui.press({ key: 'tab:session' })
-  expect(await ui.find({ key: `pick:${asked}` })).toBeDefined()
+  expect(await ui.find({ key: `pick:${w.item(asked)}` })).toBeDefined()
 })
 
 test('closed and opened again, the board is home, wherever it had gone', async ($, on) => {
@@ -119,13 +119,16 @@ test('closed and opened again, the board is home, wherever it had gone', async (
 
   await toProject(ui)
   await ui.press({ key: `go:${LEDGER}` })
-  await ui.press({ key: 'pick:k3' })
-  expect(w.state.pane).toMatchObject({ place: { level: 'session', work: LEDGER }, selected: 'k3' })
+  await ui.press({ key: `pick:${LEDGER}:k3` })
+  expect(w.state.pane).toMatchObject({
+    place: { level: 'session', work: LEDGER },
+    selected: `${LEDGER}:k3`,
+  })
 
   await band.press({ key: 'band:board' })
   await band.press({ key: 'band:board' })
   expect(w.state.pane).toMatchObject({ isOpen: true, place: null, selected: null })
-  expect(await ui.find({ key: `pick:${asked}` })).toBeDefined()
+  expect(await ui.find({ key: `pick:${w.item(asked)}` })).toBeDefined()
   expect(await ui.find({ key: 'tab:session' })).toBeDefined()
 })
 
@@ -168,18 +171,20 @@ test("another session's view is the session view: its status, its asks with work
       .filter(text => ['Request ledger', 'FOR YOU', 'STATUS', 'LOG', 'PARKED'].includes(text)),
     'the same order as this session’s',
   ).toEqual(['Request ledger', 'FOR YOU', 'STATUS', 'LOG', 'PARKED'])
-  expect(await ui.find({ key: 'log:n3', text: 'Wrote the schema' })).toBeDefined()
-  expect(await ui.find({ key: 'ppick:p2', text: 'Export the ledger as CSV' })).toBeDefined()
+  expect(await ui.find({ key: `log:${LEDGER}:n3`, text: 'Wrote the schema' })).toBeDefined()
+  expect(
+    await ui.find({ key: `ppick:${LEDGER}:p2`, text: 'Export the ledger as CSV' }),
+  ).toBeDefined()
 
-  await ui.press({ key: 'ppick:p2' })
-  await ui.press({ key: 'pickup:p2' })
+  await ui.press({ key: `ppick:${LEDGER}:p2` })
+  await ui.press({ key: `pickup:${LEDGER}:p2` })
   expect(w.state.queue).toEqual([
     { project: PROJECT.key, work: LEDGER, item: 'p2', verdict: 'pickup' },
   ])
-  await ui.press({ key: 'undo:p2' })
+  await ui.press({ key: `undo:${LEDGER}:p2` })
 
-  await ui.press({ key: 'pick:k3' })
-  await ui.press({ key: 'choose:k3:1' })
+  await ui.press({ key: `pick:${LEDGER}:k3` })
+  await ui.press({ key: `choose:${LEDGER}:k3:1` })
   expect(await ui.find({ type: 'Text', text: '→ Forever' })).toBeDefined()
   expect(w.state.queue).toEqual([
     { project: PROJECT.key, work: LEDGER, item: 'k3', verdict: 'choose', option: 'Forever' },
@@ -240,8 +245,8 @@ test("the project view's FOR YOU holds every session's asks, the newest first, e
       .filter(each => each.key?.startsWith('pick:'))
       .map(each => [each.key, each.text]),
   ).toEqual([
-    [`pick:${asked}`, 'Dashboard redesign: Review Sessions & Runway, round 1'],
-    ['pick:k3', 'Request ledger: Keep the ledger 400 days, or forever?'],
+    [`pick:${w.item(asked)}`, 'Dashboard redesign: Review Sessions & Runway, round 1'],
+    [`pick:${LEDGER}:k3`, 'Request ledger: Keep the ledger 400 days, or forever?'],
   ])
   expect(await ui.find({ type: 'Text', text: '2 waiting' })).toBeDefined()
 
@@ -253,8 +258,8 @@ test("the project view's FOR YOU holds every session's asks, the newest first, e
     expect.stringMatching(/^ ◆ Request ledger: Keep the ledger 400 days, or forever\? +now$/),
   ])
 
-  await ui.press({ key: 'pick:k3' })
-  await ui.press({ key: 'choose:k3:1' })
+  await ui.press({ key: `pick:${LEDGER}:k3` })
+  await ui.press({ key: `choose:${LEDGER}:k3:1` })
   expect(w.state.queue).toEqual([
     { project: PROJECT.key, work: LEDGER, item: 'k3', verdict: 'choose', option: 'Forever' },
   ])
@@ -289,12 +294,12 @@ test("the project view's PARKED holds every session's parked items, the oldest f
       .filter(each => each.key?.startsWith('ppick:'))
       .map(each => [each.key, each.text]),
   ).toEqual([
-    ['ppick:p2', 'Request ledger: Export the ledger as CSV'],
-    [`ppick:${tmux}`, 'Dashboard redesign: A tmux indicator across sessions'],
+    [`ppick:${LEDGER}:p2`, 'Request ledger: Export the ledger as CSV'],
+    [`ppick:${w.item(tmux)}`, 'Dashboard redesign: A tmux indicator across sessions'],
   ])
 
-  await ui.press({ key: 'ppick:p2' })
-  await ui.press({ key: 'pickup:p2' })
+  await ui.press({ key: `ppick:${LEDGER}:p2` })
+  await ui.press({ key: `pickup:${LEDGER}:p2` })
   expect(w.state.queue).toEqual([
     { project: PROJECT.key, work: LEDGER, item: 'p2', verdict: 'pickup' },
   ])

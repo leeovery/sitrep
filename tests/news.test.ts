@@ -38,10 +38,13 @@ test('a new ask from another writer pulses, toasts for 10 seconds, chimes and op
   const ui = await w.pane()
 
   expect(
-    await ui.find({ key: 'choose:k2:0' }),
+    await ui.find({ key: `choose:${w.item('k2')}:0` }),
     'it opens on the board, its buttons out',
   ).toBeDefined()
-  expect(await ui.find({ key: 'yes:k1' }), 'the ask there before stays closed').toBeUndefined()
+  expect(
+    await ui.find({ key: `yes:${w.item('k1')}` }),
+    'the ask there before stays closed',
+  ).toBeUndefined()
 })
 
 test('the ◆ pulses on the band, then rests', async ($, on) => {
@@ -71,7 +74,7 @@ test("Claude's own ask is new to the window too", async ($, on) => {
 
   expect(w.sounds).toEqual([CHIME])
   expect(w.toasts).toEqual(['◆ For you: Run the production apply'])
-  expect(w.state.pane?.selected).toBe(id)
+  expect(w.state.pane?.selected).toBe(w.item(id))
 })
 
 test('asks landing together make one toast and one chime', async ($, on) => {

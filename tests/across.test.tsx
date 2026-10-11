@@ -54,8 +54,8 @@ async function threeSessions(w: World) {
 const answer = async (ui: Board, work: string, item: string) => {
   await toProject(ui)
   await ui.press({ key: `go:${work}` })
-  await ui.press({ key: `pick:${item}` })
-  await ui.press({ key: `yes:${item}` })
+  await ui.press({ key: `pick:${work}:${item}` })
+  await ui.press({ key: `yes:${work}:${item}` })
   await ui.press({ key: 'tab:session' })
 }
 
@@ -68,8 +68,8 @@ test('Ready to send groups the replies by where each goes, this session first, a
   const { asked, ui } = await threeSessions(w)
 
   await answer(ui, LEDGER, 'k3')
-  await ui.press({ key: `pick:${asked}` })
-  await ui.press({ key: `yes:${asked}` })
+  await ui.press({ key: `pick:${w.item(asked)}` })
+  await ui.press({ key: `yes:${w.item(asked)}` })
 
   const groups = (await ui.findAll({ type: 'Text' }))
     .map(each => each.text)
@@ -89,8 +89,8 @@ test("send writes another work's replies into its inbox as this window's letters
   const { asked, paths, ui } = await threeSessions(w)
 
   await answer(ui, LEDGER, 'k3')
-  await ui.press({ key: `pick:${asked}` })
-  await ui.press({ key: `yes:${asked}` })
+  await ui.press({ key: `pick:${w.item(asked)}` })
+  await ui.press({ key: `yes:${w.item(asked)}` })
   await ui.press({ key: 'send' })
 
   const [letter] = repliesIn(w, LETTERS)
@@ -184,10 +184,10 @@ test("the destination's own view shows the ask's reply on its way, and offers no
   await ui.press({ key: 'send' })
   await toProject(ui)
   await ui.press({ key: `go:${LEDGER}` })
-  await ui.press({ key: 'pick:k3' })
+  await ui.press({ key: `pick:${LEDGER}:k3` })
 
   expect(await ui.find({ type: 'Text', text: '· on its way' })).toBeDefined()
-  expect(await ui.find({ key: 'yes:k3' })).toBeUndefined()
+  expect(await ui.find({ key: `yes:${LEDGER}:k3` })).toBeUndefined()
 })
 
 test('a reply to another work whose item changed since is left in Ready to send, unsent', async ($, on) => {
@@ -243,8 +243,8 @@ test(
 
     await toProject(ui)
     await ui.press({ key: `go:${LEDGER}` })
-    await ui.press({ key: 'pick:k3' })
-    expect(await ui.find({ key: 'choose:k3:0' })).toBeDefined()
+    await ui.press({ key: `pick:${LEDGER}:k3` })
+    expect(await ui.find({ key: `choose:${LEDGER}:k3:0` })).toBeDefined()
 
     await w.clock.advance(SENT_LINGER_MS)
     expect(await ui.find({ type: 'Text', text: 'to Request ledger' })).toBeUndefined()

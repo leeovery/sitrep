@@ -288,7 +288,8 @@ show all 4
   one branch, as a pick-up hangs from a parked row, so what waits to be sent
   shows at a glance. A new ask arrives opened. Opened, an ask shows its whole
   title and its tree from the mark: what a words ask's words are (`needs:`)
-  first, then where to look, its `see`, and the reply or
+  first, then where to look, its `see`, Lee's comment once Claude has it and
+  the ask stays open (`you commented: “…”. Claude has it.`), and the reply or
   `answering in the prompt…`; then its buttons and the hint, with a blank row
   after them, so the next ask does not run into them. There is no blank row
   between asks otherwise. An ask Lee's send just closed keeps the same row
@@ -355,10 +356,18 @@ words still wait in Ready to send with everything else, sent in one go.
 
 1. `✎ Answer` (a words ask) or `✎ comment` (a yes or a choice) puts the
    window in **answering** mode for that ask, held in `$.state`
-   (`answering`: the ask, whether it is an answer or a comment, and its
-   title). Only with the prompt empty: a draft there is refused with
+   (`answering`: the ask, whether it is an answer or a comment, its title,
+   the surface it was begun on, and any words it put in the prompt). Only
+   with the prompt empty: a draft there is refused with
    `The prompt has a draft in it: send or clear it first, then answer.`,
-   since its Enter would answer with that draft.
+   since its Enter would answer with that draft. Words the mode itself put
+   there are no draft: they give way to the new mode's.
+   - The mode stands from the press, for an ask the board draws anywhere,
+     and is checked against what the board draws: another session's ask in
+     a project's For you is drawn from that work's brief, and the mode
+     stands on the brief, while the press has the board read that work in
+     full at once. A mode whose ask's work the board has not read is
+     neither shown nor ended.
    - A plugin cannot give the keyboard to the prompt box: `$.ui.focus` moves
      only a site's own focus ring, while that site holds the keys. A press on
      the board leaves the keys with the board, so Lee presses Escape once to
@@ -370,15 +379,22 @@ words still wait in Ready to send with everything else, sent in one go.
    ✎ Your next Enter answers "Run sitrep list…"  ↓                         cancel
    ```
 
-   (`comments on` for a comment). `cancel` ends it, in one press. Escape at
+   (`comments on` for a comment; a comment that closes its ask, as one on
+   an old decide does, is an answer, and says `answers`). It shows on the
+   band of the surface the mode was begun on, and only there. `cancel`
+   ends it, in one press. Escape at
    an empty prompt cannot: it edits nothing, so `prompt.edit` never hears it
    (a probe, 2.1.295, heard typing, pastes and Backspace, never Escape).
 3. **The next Enter is taken.** The `prompt.submit` hook takes Lee's own
-   prompt (origin `composer`, or the Remote Control `bridge` that Claude's
-   app sends through), drops it so nothing reaches Claude, its reason the
-   transcript's one line (`Your answer waits in Ready to send.`), and empties
-   the box once the drop settles, since the engine puts a dropped prompt
-   back. The text becomes:
+   prompt from the surface the mode was begun on (origin `composer` at the
+   terminal, the Remote Control `bridge` that Claude's app sends through),
+   drops it so nothing reaches Claude, its reason the transcript's one line
+   (`Your answer waits in Ready to send.`, or `Your comment waits…` for a
+   comment that leaves the ask open), and empties the box once the drop
+   settles, since the engine puts a dropped prompt back. A prompt from the
+   other surface goes to Claude, the mode standing; so does one while a
+   survey holds the band in its place, which hides the mode there: it is
+   shown, and takes the next Enter, once the band is back. The text becomes:
    - on a words ask, its `answer`;
    - a comment, on an ask with a yes or a choice already queued, that
      reply's note (`→ Go, with a comment: “…”`); else a `comment` of its own.
@@ -401,8 +417,9 @@ words still wait in Ready to send with everything else, sent in one go.
 
 - **One Enter only.** It ends with the prompt it takes, and never takes a
   second.
-- **Always shown.** The band shows it the whole time it stands, and it
-  stands exactly while the next Enter would be taken. Once its ask can take
+- **Always shown.** The band shows it the whole time it stands, on the
+  surface it was begun on, and it stands exactly while the next Enter there
+  would be taken. Once its ask can take
   the reply no longer (closed, its work done, a reply already on its way, a
   send carrying the reply its comment would join) the band is back to its
   counts, the next Enter goes to Claude, and the next look ends the mode, so
@@ -412,9 +429,16 @@ words still wait in Ready to send with everything else, sent in one go.
 - **Typed messages are safe.** A prompt Lee sends while not answering goes
   to Claude as ever, and so does one not of Lee's own (a background task's)
   while answering.
-- **It ends** with its ask, as above; when the window takes up another work
-  or lets go of its own, the session's end among them. A reload keeps it, in
+- **It ends** with its ask, as above, a send carrying its reply ending it
+  as the send is claimed; when the window takes up another work or lets go
+  of its own, the session's end among them. A reload keeps it, in
   `$.state`, and the band still shows it.
+- **It leaves nothing behind.** Ended without taking an Enter (cancel, its
+  ask closing, its work done, a send carrying its reply, another ✎, the
+  window letting go), the mode takes back the words it put in the prompt
+  for `✎ edit`: still just those, the box is emptied, so no Enter sends the
+  board's words to Claude; changed since, they are left as Lee has them,
+  and a toast says so.
 
 **Surfaces.** The terminal's prompt is read, filled and heard, so it gets
 all of this; the phone over mosh is the terminal. Claude's app (the
@@ -446,7 +470,10 @@ their kind maps to (see Storage): a review as a yes in `Approve`, a try in
 `It works`, a do in `Done`, a decide as a choice, and any that needed
 something back as words. The replies written to them keep the meaning they
 had: a yes or a choice still closes one now read as words, and a decide's
-comment is still its answer, closing it, so its button reads `✎ answer`.
+comment is still its answer, closing it, so its button reads `✎ answer`,
+the band `answers`, and the transcript `Your answer waits…`. An edit that
+leaves such an ask's shape as it is keeps its kind (see Storage), so the
+replies queued for it, or on their way, keep their meaning.
 
 ### Ready to send
 
@@ -468,10 +495,13 @@ follows from what it holds. Docked it takes under half the window: a queue
 too long for that lists what fits and ends `… 3 more`, still one box. Only
 Lee moves the list: queuing a reply, sending, a new ask arriving and the
 board drawing again leave it where Lee had it, and only a list that shrank
-under it stops it short at its new end. Each place the board goes starts
-at its top, and so does the board opened again. Tab and the arrows step
-between buttons, and one below the fold brings its item into view (see
-"One engine, two front ends").
+under it stops it short at its new end. Each place starts at its top,
+every time the board goes there: by a tab, the back row, a session's or a
+project's row, or a band count, even one landing on the place already
+showing; and so does the board opened again. Opening or closing an item
+leaves the list where it is. Tab and the arrows step between buttons, and
+one below the fold brings its item into view; a click never moves the list
+(see "One engine, two front ends").
 
 On an inline board (the phone layout) a send closes the board as soon as it
 is claimed: the message to this session claimed, or, with none, the replies
@@ -638,8 +668,10 @@ $XDG_STATE_HOME/sitrep/, else ~/.local/state/sitrep/
   its kind took (a yes or a choice on one now read as words), and a decide's
   comment, its answer then, still closes it. An old edit naming a `kind`, or
   changing `needs`, reshapes such an ask by the same map. An edit written now
-  to one of them names what it `wants`, which it then wants from that edit
-  on, its kind gone.
+  that changes one of them's shape (its `yes`, `options` or `needs`) names
+  what it `wants`, which it then wants from that edit on, its kind gone; one
+  changing only its title, `where` or `ref` keeps its kind, so the replies
+  queued for it or in an inbox keep the meaning they had.
 
   The kinds: `status`, `ask`, `note` and `park`; `resolve`, `reopen` and
   `edit`, each naming an item; `reply`, Lee's answer to one; `delivered`,
@@ -675,7 +707,8 @@ $XDG_STATE_HOME/sitrep/, else ~/.local/state/sitrep/
   lists every work's folders and reads again only a file that changed. With
   the board open, the session it looks at and those replies wait for or
   went to are read in full too, and so is the work of the ask Lee is
-  answering in the prompt, open or not.
+  answering in the prompt, open or not, read at once as the press begins
+  answering it.
 - The board's last view lives in the session's `$.state` only. `$.store` is
   unused so far.
 
@@ -701,7 +734,11 @@ $XDG_STATE_HOME/sitrep/, else ~/.local/state/sitrep/
     handed in as actions bound to the host. JSX's `h` is global in every
     module of the plugin. What a surface can do beyond drawing (whether Lee
     can write back from it in a prompt the mod hears, and whether the mod
-    can fill that prompt) is read off `e.surface`.
+    can fill that prompt) is read off `e.surface`. An item's address is its
+    work's id then its own (`sr-k3f9qa:k3f9`): what opens it, and every
+    button of its, keyed by it (`pick:sr-k3f9qa:k3f9`), since a project's
+    view and Ready to send list several works' items, and two works' items
+    may share an id.
   - Docked, the board scrolls its own list, clipped above Ready to send
     (settled by a probe and a live run, 2.1.295). A box floated over the
     foot of a tree the engine scrolls, placed again on every drawing,
@@ -721,8 +758,9 @@ $XDG_STATE_HOME/sitrep/, else ~/.local/state/sitrep/
       less Ready to send's or, with nothing in it, the tree's spare row; the
       header's rows follow from where the board is, as Ready to send's
       follow from what it holds. How far down the list stands is kept in
-      `$.state` with the place it was moved at, so a new place starts at its
-      top, and closing the board forgets it. The scroll hook moves it: the
+      `$.state` with the place it was moved at; every way to a place
+      forgets it, so the place starts at its top though Lee had been down
+      it before, and closing the board forgets it. The scroll hook moves it: the
       wheel as it turns, a page key by the rows showing, Home and End to the
       ends, stopped at either. Nothing else does: the drawing only stops it
       short at the end of a list that shrank, or of a window that grew. It
@@ -737,8 +775,7 @@ $XDG_STATE_HOME/sitrep/, else ~/.local/state/sitrep/
       spans each block down the column the board keeps free beside its
       lines (`hooks/draw/measure.tsx`), drawing nothing, and posts the rows
       the block takes whenever they change. It is keyed by its block, a
-      work's item by its work too, since a project's view lists every
-      session's. The list is as tall as its blocks, and a block sits as far
+      work's item by its address. The list is as tall as its blocks, and a block sits as far
       down as those above it; one not measured yet counts a row. Each
       measures once as it is laid out, and again as it grows or the width
       changes (about 140 posts over a long live run). The rows and the list
@@ -749,14 +786,22 @@ $XDG_STATE_HOME/sitrep/, else ~/.local/state/sitrep/
       would.
     - **The focus.** Tab, Shift-Tab and the arrows all step between buttons:
       with nothing for the engine to scroll, an arrow has no rows to move.
-      The focus hook brings the block holding the button the focus lands
-      on into view, moving the least, from its top where it is taller than
-      the rows showing; the header's own and Ready to send's always show,
-      and never move the list. Text with no button in it is reached by the
-      wheel and the page keys.
+      The focus hook brings the block holding the button Lee's focus lands
+      on (origin `person`) into view, moving the least, from its top where
+      it is taller than the rows showing; the header's own and Ready to
+      send's always show, and never move the list. A plugin's focus move
+      never moves it. A click on a button is a press, the focus left where
+      it was (live, 2.1.295), so it never moves the list either; the
+      engine's types count a click among the person's focus moves, which
+      `ui.focus` cannot tell from Tab, so an engine that raised one would
+      reveal the clicked button's item. Text with no button in it is
+      reached by the wheel and the page keys.
     - **Dock only.** Inline, the board flows as it always has, the header
       first and Ready to send after the view, and the engine scrolls it; so
-      does a dock on a surface that draws no `Client`.
+      does a dock on a surface that draws no `Client`. There, every way to
+      a place puts the engine's window at its top (`$.ui.scroll`, to its
+      `start`; live, 2.1.295). The test kit has no implementation of a
+      mod's `$.ui.scroll`, so that is checked live only.
   - `$.prompt.submit` while Claude is mid-turn (settled in a live run): the
     call waits, the prompt never folded into the running turn; once that
     turn completes, the prompt starts a turn of its own and the call
