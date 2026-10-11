@@ -800,9 +800,10 @@ $XDG_STATE_HOME/sitrep/, else ~/.local/state/sitrep/
       changes (about 140 posts over a long live run). The rows and the list
       as last drawn are kept in a module, since a render hook cannot write
       `$.state`; a reload disposes the `Client`s, and new ones post again
-      (live). The test kit lays a `Client` out but never hands the plugin
-      what it posts, so its tests post each block's rows as its `Client`
-      would.
+      (live). The test kit lays a `Client` out with no rows, so a measuring
+      `Client`, which waits for rows, never posts there: its tests post each
+      block's rows as its `Client` would. A `Client` that posts as it draws
+      (the board's placement) does reach the plugin under the kit.
     - **The focus.** Tab, Shift-Tab and the arrows all step between buttons:
       with nothing for the engine to scroll, an arrow has no rows to move.
       The focus hook brings the block holding the button Lee's focus lands

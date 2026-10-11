@@ -119,8 +119,8 @@ const measuring = async (ui: Pane) =>
 
 /**
  * Each block of the list, in order, posting the rows it takes as its
- * `Client` does once laid out: the kit lays a `Client` out but never hands
- * the plugin what it posts. The blocks' keys and rows, in order.
+ * `Client` does once laid out: the kit lays a `Client` out with no rows,
+ * so a measuring one never posts there. The blocks' keys and rows, in order.
  */
 const measure = async (ui: Pane, rows: (key: string) => number = () => ROWS) => {
   const blocks = (await measuring(ui)).map(client => ({
