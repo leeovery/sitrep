@@ -1,7 +1,8 @@
 /**
  * The band: one line above the prompt, counts alone, kept to the right,
  * each a way into the board, and the board's own show or hide. Below 64
- * columns the words drop and the counts stay. Where the board said it sits
+ * columns the words drop and the counts stay, and the answering line says
+ * Enter alone, to leave the title room. Where the board said it sits
  * inline the hide is a bracketed `✕ close`, wide enough to tap where the
  * frame's own ✕ is one cell. For a few seconds after the window takes in
  * replies sent from another work's board, it says so.
@@ -19,7 +20,7 @@ import { waitingElsewhere } from '../places'
 import { countMark, type Scene } from '../scene'
 import type { Els } from './kit'
 
-/** Narrower than this, the band keeps its counts and drops their words. */
+/** Narrower than this, the band keeps its counts and drops their words, and the answering line its "Your next". */
 const NARROW = 64
 
 /** Every press on the band is answered by the `ui.press` hook, inside the press itself. */
@@ -42,22 +43,26 @@ const boardButton = (pane: SitrepPane, surface: RenderSurface) => {
   return placementOn(pane, surface) === 'inline' ? CLOSE : HIDE_BOARD
 }
 
+/** What the answering line says acts: the next Enter, or, narrow, Enter alone. */
+const enterOf = (width: number) => (width < NARROW ? 'Enter' : 'Your next Enter')
+
 /** The cells the answering line keeps beside the item's title: its words around it, the arrow down to the prompt, the gap, and cancel. */
-const answeringCells = (verb: string) =>
-  `✎ Your next Enter ${verb} ""  ↓`.length + 2 + CANCEL.length
+const answeringCells = (enter: string, verb: string) =>
+  `✎ ${enter} ${verb} ""  ↓`.length + 2 + CANCEL.length
 
 /** While Lee writes to an item in the prompt: what the next Enter does, pointing down at the prompt, and cancel at the right. */
 const drawAnswering = (els: Els, width: number, standing: Answering, scene: Scene) => {
   const { Box, Text, Button } = els
+  const enter = enterOf(width)
   const verb = NEXT_ENTER[writtenAs(standing, scene.queue)]
-  const title = clip(standing.answering.title, Math.max(8, width - answeringCells(verb)))
+  const title = clip(standing.answering.title, Math.max(8, width - answeringCells(enter, verb)))
 
   return (
     <Box flexDirection="row" columnGap={2} width={width}>
       <Box flexGrow={1} flexShrink={1}>
         <Text wrap="truncate-end">
           <Text color={C.ask}>✎</Text>
-          {` Your next Enter ${verb} "${title}"  ↓`}
+          {` ${enter} ${verb} "${title}"  ↓`}
         </Text>
       </Box>
       <Button key={BAND.cancelAnswer} plain label={CANCEL} onPress={answeredByTheHook} />
