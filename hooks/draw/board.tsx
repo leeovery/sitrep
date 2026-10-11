@@ -7,14 +7,15 @@
  * follows it.
  *
  * The header is the same two tabs everywhere, each a row of `TABS`: this
- * session, by its name, and every project, over a blank row. Off home and
- * All projects, the way back up sits at the end of the view's title line.
+ * session, by its name, and every project, over a blank row; inline, the
+ * board's own close ends their row. Off home and All projects, the way back
+ * up sits at the end of the view's title line.
  */
 import type { ElementTable, RenderPropsOf, RenderSurface } from 'claude-code'
 import type { SitrepPlace, SitrepPlacement } from '../../types'
 import type { Actions } from '../actions'
 import type { Clip } from '../clip'
-import { C, clip as clipText, GLYPH } from '../look'
+import { C, clip as clipText, CLOSE, GLYPH } from '../look'
 import { EVERY_PROJECT, everyProject, filedAt, homeOf, isHome, projectLabel, up } from '../places'
 import type { Scene } from '../scene'
 import { drawAllView } from './every'
@@ -101,19 +102,39 @@ const layTab = (scene: Scene, tab: Tab, label = tab.label(scene)): LaidTab => {
   }
 }
 
-/** A fitted tab, its label cut short to the cells the other tabs leave it. */
+/** The cells the board's close takes at the end of the tab row: inline only. */
+const closeCells = (d: Drawing) => (d.isDock ? 0 : `[ ${CLOSE.label} ]`.length)
+
+/** A fitted tab, its label cut short to the cells the rest of the row leaves it. */
 const fitTab = (d: Drawing, { tab, label, waiting }: LaidTab, others: number) =>
   layTab(d.scene, tab, clipText(label, d.width - others - tabWidth(wordsOf(tab, '', waiting))))
 
-/** The tabs across the board, a fitted one taking what the others leave. */
+/** The tabs across the board, a fitted one taking what the others and the close leave. */
 const layTabs = (d: Drawing): LaidTab[] => {
   const laid = TABS.map(tab => layTab(d.scene, tab))
-  const others = laid.reduce((sum, each) => sum + (each.tab.isFitted ? 0 : each.cells), 0)
+  const others = laid.reduce(
+    (sum, each) => sum + (each.tab.isFitted ? 0 : each.cells),
+    closeCells(d),
+  )
 
   return laid.map(each => (each.tab.isFitted ? fitTab(d, each, others) : each))
 }
 
-/** The tabs, the current one lit, each with what waits there, over their rule running on to the edge. */
+/** Inline, the board's own close at the right end of the tab row, wide enough to tap: on the phone the band, and its close, is not shown while the board is. */
+const drawClose = (d: Drawing) => {
+  if (d.isDock) {
+    return undefined
+  }
+
+  const { Box, Button } = d.els
+
+  return [
+    <Box key="tabs:spare" flexGrow={1} />,
+    <Button key="tabs:close" {...CLOSE} onPress={() => d.act.close()} />,
+  ]
+}
+
+/** The tabs, the current one lit, each with what waits there, then inline the close, over their rule running on to the edge. */
 const drawTabs = (d: Drawing) => {
   const { Box, Text, Button } = d.els
   const tabs = layTabs(d)
@@ -143,6 +164,7 @@ const drawTabs = (d: Drawing) => {
             {waiting > 0 && <Text color={isOn ? C.ask : C.grey}>{waiting}</Text>}
           </Box>
         ))}
+        {drawClose(d)}
       </Box>
       <Box flexDirection="row">
         {tabs.map(({ tab, isOn, cells }) =>

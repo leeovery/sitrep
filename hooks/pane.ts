@@ -78,7 +78,7 @@ export const openBoard = async (host: Host, focus: Focus = {}) => {
   await lookAround(host)
 }
 
-/** Closes the board: by the band's button, or once an inline board's send is claimed. */
+/** Closes the board: by the band's button, by an inline board's own close, or once an inline board's send is claimed. */
 export const closeBoard = async (host: Host) => {
   await host.ui.close(PANE)
   // A plugin's own close never reaches its own ui.close hook, so the band hears of it here.

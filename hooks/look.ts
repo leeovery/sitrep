@@ -41,6 +41,9 @@ export const GLYPH = {
   news: '✦',
 } as const
 
+/** The board's close where its frame's ✕ is one cell: not plain, so bracketed, a target wide enough to tap. */
+export const CLOSE = { label: '✕ close' } as const
+
 /** The ◆ of a new ask, frame by frame as it pulses. */
 const PULSE = ['◆', '◈', '◇', '◈']
 

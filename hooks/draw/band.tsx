@@ -2,7 +2,7 @@
  * The band: one line above the prompt, counts alone, kept to the right,
  * each a way into the board, and the board's own show or hide. Below 64
  * columns the words drop and the counts stay. Where the board said it sits
- * inline (the phone layout) the hide is a bracketed `✕ close`, wide enough
+ * inline the hide is a bracketed `✕ close`, wide enough
  * to tap where the frame's own ✕ is one cell. For a few seconds after the
  * window takes in replies sent from another work's board, it says so.
  *
@@ -13,7 +13,7 @@
 import type { RenderSurface } from 'claude-code'
 import type { SitrepPane } from '../../types'
 import { answeringIn, writtenAs, type Answering } from '../answering'
-import { C, clip, counted, GLYPH } from '../look'
+import { C, clip, CLOSE, counted, GLYPH } from '../look'
 import { BAND, placementOn } from '../pane'
 import { waitingElsewhere } from '../places'
 import { countMark, type Scene } from '../scene'
@@ -33,16 +33,13 @@ const CANCEL = 'cancel'
 const SHOW_BOARD = { plain: true, label: '▸ show board' } as const
 const HIDE_BOARD = { plain: true, dimColor: true, label: 'hide board' } as const
 
-/** Not plain, so bracketed: a target wide enough to tap. */
-const CLOSE_BOARD = { label: '✕ close' } as const
-
 /** The board's own button: show while it is closed; open, close where the board said it sits inline, and hide anywhere else. */
 const boardButton = (pane: SitrepPane, surface: RenderSurface) => {
   if (!pane.isOpen) {
     return SHOW_BOARD
   }
 
-  return placementOn(pane, surface) === 'inline' ? CLOSE_BOARD : HIDE_BOARD
+  return placementOn(pane, surface) === 'inline' ? CLOSE : HIDE_BOARD
 }
 
 /** The cells the answering line keeps beside the ask's title: its words around it, the arrow down to the prompt, the gap, and cancel. */

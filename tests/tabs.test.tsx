@@ -134,7 +134,9 @@ test('two tabs: home as its glyph, its name and its count, All projects and its 
     const [tabs, rule] = await header(ui)
     const lit = '━'.repeat(' ⌂ Dashboard redesign 1 '.length)
 
-    expect(tabs, props.placement).toBe('  ⌂ Dashboard redesign 1  ≡ All projects 2')
+    expect(tabs, props.placement).toBe(
+      `  ⌂ Dashboard redesign 1  ≡ All projects 2${props.placement === 'inline' ? ' [ ✕ close ]' : ''}`,
+    )
     expect(rule).toBe(` ${lit}${'─'.repeat(props.bodyColumns - 2 - lit.length)}`)
     expect((await ui.find({ key: 'tab:session' }))?.props.dimColor).toBe(false)
     expect((await ui.find({ key: 'tab:all' }))?.props.dimColor).toBe(true)
@@ -208,6 +210,63 @@ test("on a narrow board the first tab's name is cut short, and All projects keep
   expect((await header(ui))[0], 'wide, the whole name').toMatch(
     /^ {2}⌂ Redesign the dashboard, area by area 1 {2}≡ All projects 1$/,
   )
+})
+
+test("inline, at phone width and wider, the tab row ends with the board's own wide close, the name cut to leave it room, the rule lined up under the tabs; pressing it closes the board", async ($, on) => {
+  const w = world($, on)
+
+  await asksAround(w)
+
+  const band = await w.band()
+  const all = ' ≡ All projects 2 '.length
+  const close = '[ ✕ close ]'
+
+  for (const [props, name] of [
+    [{ ...INLINE, bodyColumns: 46 }, 'Dashboar…'],
+    [{ ...WIDE, placement: 'inline' as const }, 'Dashboard redesign'],
+  ] as const) {
+    const ui = await w.opened(props)
+    const width = props.bodyColumns - 2
+    const first = ` ⌂ ${name} 1 `.length
+    const spare = ' '.repeat(width - first - all - close.length)
+    const rest = '─'.repeat(width - first - all)
+    const at = `${props.bodyColumns}`
+
+    for (const [way, rule] of [
+      ['tab:session', ` ${'━'.repeat(first)}${'─'.repeat(all)}${rest}`],
+      ['tab:all', ` ${'─'.repeat(first)}${'━'.repeat(all)}${rest}`],
+    ] as const) {
+      await ui.press({ key: way })
+
+      const [tabs, under] = await rows(ui, props.bodyColumns)
+
+      expect(tabs, `${at}, ${way}`).toBe(`  ⌂ ${name} 1  ≡ All projects 2${spare} ${close}`)
+      expect(under, `${at}, ${way}: the close over plain rule`).toBe(rule)
+      expect([...(tabs ?? '')].length, 'one row, to the edge').toBe(props.bodyColumns - 1)
+    }
+
+    expect(await band.find({ key: 'band:board', text: '✕ close' }), at).toBeDefined()
+    await ui.press({ key: 'tabs:close' })
+    expect(w.panes.has('sitrep'), at).toBe(false)
+    expect(await band.find({ key: 'band:board', text: '▸ show board' }), at).toBeDefined()
+    await ui.unmount()
+  }
+})
+
+test('docked, the tabs have no close', async ($, on) => {
+  const w = world($, on)
+
+  await asksAround(w)
+
+  for (const props of [WIDE, { ...WIDE, bodyColumns: 46 }]) {
+    const ui = await w.opened(props)
+
+    expect(await ui.find({ key: 'tabs:close' }), `${props.bodyColumns}`).toBeUndefined()
+    expect((await rows(ui, props.bodyColumns))[0], `${props.bodyColumns}`).toMatch(
+      /≡ All projects 2$/,
+    )
+    await ui.unmount()
+  }
 })
 
 test('the first tab goes home from every place', async ($, on) => {

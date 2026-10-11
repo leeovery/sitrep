@@ -39,6 +39,8 @@ export type Actions = {
   send: (isDock: boolean) => void
   /** Takes the board somewhere in the tree, at its top there: elsewhere, or where it already is. */
   go: (place: SitrepPlace) => void
+  /** Closes the board, by its own close where it sits inline. */
+  close: () => void
   /** Marks another work done, as Lee confirmed on its view, and takes the board up off it. */
   finish: (at: SitrepWorkRef) => void
 }
@@ -142,6 +144,7 @@ export const actionsOf = (host: Host): Actions => {
         }),
       ),
     go: place => run('going elsewhere on the board', () => go(host, place)),
+    close: () => run('closing the board', () => closeBoard(host)),
     finish: at => run('marking a work done', () => finish(host, at)),
   }
 }

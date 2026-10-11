@@ -226,6 +226,11 @@ show all 4
   what it is pressed by, wide enough for a thumb, and is cut short to fit:
   All projects keeps its full width, and the name takes what is left. With
   no work held, the board says so, and there are no tabs.
+- **Inline, the tab row ends with a wide close**, `[ ✕ close ]` at its
+  right end, over plain rule: on the phone the band is not shown while the
+  board is (they share the row above the prompt, and the board takes it),
+  and the frame's ✕ is one cell. Its width comes out of the name's, so the
+  row stays one line. Docked, there is none.
 - **Browsing, the way back** sits at the right end of the view's title
   line, one level up: `← All projects` over a project's view,
   `← <its project>` over a session's. Home and All projects have none. It
@@ -239,7 +244,7 @@ show all 4
   docked one start alike. Docked, the header stays still at the top while
   the list scrolls under it, as Ready to send stays still at the foot (the
   way back, on the list's first line, scrolls with it); inline, it is the
-  board's first rows, and scrolls with it.
+  board's first rows, and scrolls with it, its close too.
 - **This session** (home, the default): name and summary, For you, Status, Log,
   Parked, Done. What waits on Lee comes first.
 - **All projects**: this project first, then the busiest. Each project's open
@@ -535,9 +540,10 @@ One line above the prompt, right-aligned counts only, each one a way in:
 `for you` opens this session; `elsewhere`, what waits on Lee in every other
 current work, in every project, opens All projects. Below 64 columns the
 words drop and the counts stay (`+2`). The board's show/hide button
-always matches whether it is drawn. On the phone layout, where the board
-sits inline and its frame's ✕ is one cell, the open board's button is a wide
-`[ ✕ close ]` instead, its words kept at any width. Where the board sits is
+always matches whether it is drawn. Where the board sits inline and its
+frame's ✕ is one cell, the open board's button is a wide `[ ✕ close ]`
+instead, its words kept at any width; on the phone, where the band is not
+shown while the board is, the board's tabs end with the same close. Where the board sits is
 where Claude Code seated it, which only the board's drawing knows: never
 guessed from widths, since beside a docked board the band's columns are the
 transcript's. A `Client` in the board's header (`hooks/draw/placement.tsx`)
