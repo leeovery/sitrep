@@ -539,8 +539,7 @@ One line above the prompt, right-aligned counts only, each one a way in:
 
 `for you` opens this session; `elsewhere`, what waits on Lee in every other
 current work, in every project, opens All projects. Below 64 columns the
-words drop and the counts stay (`+2`), and a blank row above the band parts it
-from the conversation, the answering line too. The board's show/hide button
+words drop and the counts stay (`+2`). The board's show/hide button
 always matches whether it is drawn. Where the board sits inline and its
 frame's ✕ is one cell, the open board's button is a wide `[ ✕ close ]`
 instead, its words kept at any width; on the phone, where the band is not

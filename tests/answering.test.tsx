@@ -245,19 +245,6 @@ test('the band clips a long title to keep cancel on its line', async ($, on) => 
   expect([...(rows[0] ?? '')].length).toBeLessThanOrEqual(100)
 })
 
-test('below 64 columns the answering line has the blank row above it too', async ($, on) => {
-  const w = world($, on)
-
-  await answering(w)
-
-  const band = await w.band('terminal', 50)
-  const rows = rowsOf(await band.find({ type: 'Box' }), 50)
-
-  expect(rows).toHaveLength(2)
-  expect(rows[0]).toBe('')
-  expect(rows[1]).toMatch(/^✎ Your next Enter answers ".*" {2}↓ +cancel$/)
-})
-
 test('cancel on the band ends it in one press: the counts are back, and the next Enter goes to Claude', async ($, on) => {
   const w = world($, on)
   const { id, ui } = await answering(w)
