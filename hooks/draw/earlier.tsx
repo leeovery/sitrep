@@ -48,9 +48,14 @@ const drawClosed = (d: Drawing, work: string, ask: Ask): Block => {
   }
 }
 
-/** The press opening DONE to every closed ask, or folding it back to the latest, in grey; none with no more than those. */
+/**
+ * The press opening DONE to every closed ask, or folding it back to the
+ * latest, dim; none with no more than those. Dim rather than a grey Text
+ * child: Claude Code 2.1.294 refuses a Button with a label and children,
+ * and the refusal blanks the whole board (seen live).
+ */
 const drawToggle = (d: Drawing, work: string, asks: readonly Ask[], isInFull: boolean) => {
-  const { Button, Text } = d.els
+  const { Button } = d.els
   const key = `earlier:${work}`
   const label = isInFull ? 'show fewer' : `show all ${asks.length}`
   const hidden = asks.slice(LATEST).map(ask => doneKey(work, ask))
@@ -60,9 +65,13 @@ const drawToggle = (d: Drawing, work: string, asks: readonly Ask[], isInFull: bo
         {
           key,
           element: (
-            <Button key={key} plain label={label} onPress={() => d.act.toggleDone(work, hidden)}>
-              <Text color={C.grey}>{label}</Text>
-            </Button>
+            <Button
+              key={key}
+              plain
+              dimColor
+              label={label}
+              onPress={() => d.act.toggleDone(work, hidden)}
+            />
           ),
         },
       ]

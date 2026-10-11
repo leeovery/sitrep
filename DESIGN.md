@@ -303,7 +303,7 @@ show all 4
 - **Done:** a section of its own at the foot of a session's view, under Parked,
   drawn once an ask has closed. Its heading counts the asks closed before
   now, ignored ones aside (`4 closed`), and it lists the latest 3, the newest
-  closed first. With more, `show all 4`, in grey, opens it to every one and
+  closed first. With more, `show all 4`, dim, opens it to every one and
   then reads `show fewer`. That toggle alone opens and folds it: opening or
   closing an item, in DONE or anywhere on the board, never changes how many
   it shows; closing the board folds it. Each is a list's row: a green `✓`,
@@ -932,7 +932,9 @@ $XDG_STATE_HOME/sitrep/, else ~/.local/state/sitrep/
 - **Soft:** lines describing the item above them (a summary, what a session is
   doing, a reply, a log detail), and the line a section with nothing in it
   shows (`Nothing yet.`).
-- **Grey:** ages, counts, heading notes, and DONE's toggle, a quieter press. **Faint:** closed things (a closed
+- **Grey:** ages, counts, heading notes. DONE's toggle is a quieter press, drawn dim (a
+  Button's own `dimColor`: Claude Code 2.1.294 refuses a Button with a
+  label and a coloured child, and blanks the board). **Faint:** closed things (a closed
   session, an ask Lee's send just closed), but not DONE's asks: each is a
   row to open, its `✓` green and its title white; and every tree's `│ ├ └`.
   Section headings' rules and the tabs' rule are the rule colour.

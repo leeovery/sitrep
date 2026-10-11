@@ -120,18 +120,17 @@ test('a closed ask opens to how it closed, one branch from its tick with no age 
   expect(await opened('a1')).toEqual(['└ → Approve'])
 })
 
-test('DONE shows the latest 3; show all opens it to every one, and show fewer closes it again, the toggle grey', async ($, on) => {
+test('DONE shows the latest 3; show all opens it to every one, and show fewer closes it again, the toggle dim', async ($, on) => {
   const w = world($, on, { now: NOW })
   const { id, ui } = await closedAsks(w)
   const toggle = async () => (await ui.find({ key: `earlier:${id}` }))?.props
 
-  expect(await toggle()).toMatchObject({ label: 'show all 4', plain: true })
-  expect((await ui.find({ type: 'Text', text: 'show all 4' }))?.props.color).toBe(C.grey)
+  expect(await toggle()).toMatchObject({ label: 'show all 4', plain: true, dimColor: true })
+  expect(await ui.find({ type: 'Text', text: 'show all 4' })).toBeUndefined()
   expect(await listed(ui)).toHaveLength(3)
 
   await ui.press({ key: `earlier:${id}` })
-  expect(await toggle()).toMatchObject({ label: 'show fewer' })
-  expect((await ui.find({ type: 'Text', text: 'show fewer' }))?.props.color).toBe(C.grey)
+  expect(await toggle()).toMatchObject({ label: 'show fewer', dimColor: true })
   expect(await listed(ui)).toHaveLength(4)
 
   await ui.press({ key: `earlier:${id}` })
