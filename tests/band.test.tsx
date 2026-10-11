@@ -115,6 +115,21 @@ test('below 64 columns the words drop and the counts stay', async ($, on) => {
   expect(await ui.find({ key: 'band:board', text: '▸ show board' })).toBeDefined()
 })
 
+test('below 64 columns a blank row sits above the band, and from 64 none does', async ($, on) => {
+  const w = world($, on)
+
+  await busy(w)
+
+  const narrow = await w.band('terminal', 63)
+
+  expect(rowsOf(await narrow.find({ type: 'Box' }), 63)).toEqual(['', '◆ 1  ▸ show board'])
+  await narrow.unmount()
+
+  const wide = await w.band('terminal', 64)
+
+  expect(rowsOf(await wide.find({ type: 'Box' }), 64)).toHaveLength(1)
+})
+
 test('a board Claude Code would not draw is closed again, and a toast says why', async ($, on) => {
   const w = world($, on)
 

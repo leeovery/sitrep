@@ -1,7 +1,8 @@
 /**
  * The band: one line above the prompt, counts alone, kept to the right,
  * each a way into the board, and the board's own show or hide. Below 64
- * columns the words drop and the counts stay. Where the board said it sits
+ * columns the words drop, the counts stay, and a blank row sits above the
+ * band, to part it from the conversation. Where the board said it sits
  * inline the hide is a bracketed `✕ close`, wide enough to tap where the
  * frame's own ✕ is one cell. For a few seconds after the window takes in
  * replies sent from another work's board, it says so.
@@ -19,8 +20,11 @@ import { waitingElsewhere } from '../places'
 import { countMark, type Scene } from '../scene'
 import type { Els } from './kit'
 
-/** Narrower than this, the band keeps its counts and drops their words. */
+/** Narrower than this, the band keeps its counts and drops their words, and has a blank row above it. */
 const NARROW = 64
+
+/** The blank rows above the band: one where it is narrow. */
+const roomAbove = (width: number) => (width < NARROW ? 1 : 0)
 
 /** Every press on the band is answered by the `ui.press` hook, inside the press itself. */
 const answeredByTheHook = () => undefined
@@ -53,7 +57,7 @@ const drawAnswering = (els: Els, width: number, standing: Answering, scene: Scen
   const title = clip(standing.answering.title, Math.max(8, width - answeringCells(verb)))
 
   return (
-    <Box flexDirection="row" columnGap={2} width={width}>
+    <Box flexDirection="row" columnGap={2} width={width} paddingTop={roomAbove(width)}>
       <Box flexGrow={1} flexShrink={1}>
         <Text wrap="truncate-end">
           <Text color={C.ask}>✎</Text>
@@ -75,7 +79,13 @@ const drawCounts = (els: Els, surface: RenderSurface, width: number, scene: Scen
   const mark = countMark(scene)
 
   return (
-    <Box flexDirection="row" justifyContent="flex-end" columnGap={2} width={width}>
+    <Box
+      flexDirection="row"
+      justifyContent="flex-end"
+      columnGap={2}
+      width={width}
+      paddingTop={roomAbove(width)}
+    >
       {flash > 0 && (
         <Box flexDirection="row" gap={1}>
           <Text color={C.ok}>{GLYPH.news}</Text>
