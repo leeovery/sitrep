@@ -33,7 +33,7 @@ export type Actions = {
   unqueue: (work: string, item: string) => void
   /** Empties the queue, but for what a send is carrying. */
   cancelAll: () => void
-  /** Has the next Enter in the prompt box answer an ask, or comment on it; `text` fills the box first, to edit the words already queued. */
+  /** Has the next Enter in the prompt box answer an ask, comment on it, or pick a parked item up with a comment; `text` fills the box first, to edit the words already queued. */
   answer: (answering: SitrepAnswering, text?: string) => void
   /** Sends Ready to send; a board drawn inline closes once the send is claimed, as on a phone. */
   send: (isDock: boolean) => void
@@ -77,9 +77,9 @@ const queue = async (host: Host, reply: SitrepQueued) => {
 }
 
 /**
- * Has the next Enter answer an ask, the mode standing from the press on the
- * ask as drawn; one of another work's has that work read in full, so the
- * mode is checked against all of it, not only its project's briefs.
+ * Has the next Enter write to an item, the mode standing from the press on
+ * the item as drawn; one of another work's has that work read in full, so
+ * the mode is checked against all of it, not only its project's briefs.
  */
 const answer = async (host: Host, answering: SitrepAnswering, text?: string) => {
   await beginAnswering(host, answering, text)

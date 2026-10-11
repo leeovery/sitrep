@@ -23,7 +23,7 @@ const TITLE = 'sitrep'
 const COLUMNS = 62
 const ROWS = 24
 
-/** The band's buttons: each a way into the board, or, while Lee answers an ask in the prompt, the way out of that. */
+/** The band's buttons: each a way into the board, or, while Lee answers in the prompt, the way out of that. */
 export const BAND = {
   forYou: 'band:for-you',
   elsewhere: 'band:elsewhere',

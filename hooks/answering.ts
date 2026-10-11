@@ -1,22 +1,24 @@
 /**
- * Answering an ask in Lee's own prompt box (DESIGN.md, "Answering an ask").
- * ✎ on the board puts the window in the mode for that ask, and the next
- * Enter at the prompt is taken as its answer, or as a comment on it: queued
- * in Ready to send with everything else, and nothing of it goes to Claude.
+ * Writing to an item in Lee's own prompt box (DESIGN.md, "Answering an
+ * ask"). ✎ on the board puts the window in the mode for an ask or a parked
+ * item, and the next Enter at the prompt is taken as the ask's answer, a
+ * comment on it, or the note of the parked item's pick-up: queued in Ready
+ * to send with everything else, and nothing of it goes to Claude.
  *
  * The mode is one-shot, and is the surface's it began on: only an Enter
  * there is taken, and only there does it show. It stands exactly while the
- * next Enter would be taken: while its ask, as the board reads it, in full
+ * next Enter would be taken: while its item, as the board reads it, in full
  * or in its project's briefs, can still take the reply. Once it cannot
- * (closed, answered from elsewhere, its work done, a send carrying its
- * reply) the next Enter goes to Claude as ever, and the mode ends. An ask
- * whose work the board has not read yet leaves it standing, unshown.
+ * (closed or picked up, answered from elsewhere, its work done, a send
+ * carrying its reply) the next Enter goes to Claude as ever, and the mode
+ * ends. An item whose work the board has not read yet leaves it standing,
+ * unshown.
  *
  * Ended with nothing taken, the mode takes back the words it put in the
  * prompt box, so none of the board's words go to Claude unasked.
  */
 import type { PromptOrigin, PromptSubmitInput, RenderSurface } from 'claude-code'
-import { isClosing, isOpen, isPending, takes, type Ask, type Verdict } from '../core'
+import { isClosing, isOpen, isPending, takes, type Ask, type Parked, type Verdict } from '../core'
 import type { SitrepAnswering, SitrepQueued } from '../types'
 import { logFailure, type Host } from './host'
 import { unwrapPastes } from './paste'
@@ -24,14 +26,18 @@ import { briefOf, filedAt } from './places'
 import { isCarried, queuedOn, queuing } from './queue'
 import { sceneOf, type Scene } from './scene'
 
-/** The mode as it stands: what it answers, and the ask. */
-export type Answering = { answering: SitrepAnswering; ask: Ask }
+/** The mode as it stands: what it writes, and the item it writes to. */
+export type Answering = { answering: SitrepAnswering; item: Ask | Parked }
 
-/** The mode as the board reads its ask: standing, or over once the ask can take the reply no longer. */
+/** The mode as the board reads its item: standing, or over once the item can take the reply no longer. */
 type Standing = Answering | 'over'
 
 /** What the next Enter queues, by what the mode was entered for. */
-const VERDICT: Record<SitrepAnswering['as'], Verdict> = { answer: 'answer', comment: 'comment' }
+const VERDICT: Record<SitrepAnswering['as'], Verdict> = {
+  answer: 'answer',
+  comment: 'comment',
+  pickup: 'pickup',
+}
 
 /** Where each of Lee's own prompts comes from: Enter at the terminal's prompt, or in Claude's app, through the Remote Control bridge. */
 const SURFACE_OF: Partial<Record<PromptOrigin['kind'], SitrepAnswering['surface']>> = {
@@ -45,6 +51,7 @@ export const DRAFT = 'The prompt has a draft in it: send or clear it first, then
 export const TAKEN: Record<SitrepAnswering['as'], string> = {
   answer: 'Your answer waits in Ready to send.',
   comment: 'Your comment waits in Ready to send.',
+  pickup: 'Your pick-up waits in Ready to send.',
 }
 
 /** Why a prompt the mode could not take went no further: back in the box, for Lee to put right. */
@@ -74,7 +81,7 @@ export const heardSurvey = (surface: RenderSurface, isHeld: boolean) => {
   }
 }
 
-/** The mode's ask as the board reads it: in a work it has in full, else in its project's briefs, which list only open asks; undefined while it has read neither. */
+/** The mode's item as the board reads it: in a work it has in full, else in its project's briefs, which list only open asks and what is still parked; undefined while it has read neither. */
 const seenIn = (scene: Scene, { work, item }: SitrepAnswering) => {
   const filed = filedAt(scene, work)
 
@@ -82,7 +89,7 @@ const seenIn = (scene: Scene, { work, item }: SitrepAnswering) => {
     const found = filed.work.items.get(item)
 
     return {
-      ask: found?.type === 'ask' ? found : undefined,
+      item: found?.type === 'note' ? undefined : found,
       isFinished: filed.work.finished !== undefined,
     }
   }
@@ -91,22 +98,29 @@ const seenIn = (scene: Scene, { work, item }: SitrepAnswering) => {
 
   return brief === undefined
     ? undefined
-    : { ask: brief.asks.find(ask => ask.id === item), isFinished: brief.isFinished }
+    : {
+        item: [...brief.asks, ...brief.parkedItems].find(each => each.id === item),
+        isFinished: brief.isFinished,
+      }
 }
 
-/** Whether the ask can take the reply: open, nothing of Lee's on its way to it, and of a shape that takes it. */
-const canTake = (scene: Scene, { work, as }: SitrepAnswering, ask: Ask) => {
-  const queued = queuedOn(scene.queue, work, ask.id)
+/** Whether an item is still open to replies: an ask while open, a parked item until it is picked up. */
+const isStillOpen = (item: Ask | Parked) =>
+  item.type === 'ask' ? isOpen(item) : item.state === 'parked'
+
+/** Whether the item can take the reply: still open, nothing of Lee's on its way to it, and of a shape that takes it. */
+const canTake = (scene: Scene, { work, as }: SitrepAnswering, item: Ask | Parked) => {
+  const queued = queuedOn(scene.queue, work, item.id)
 
   return (
-    isOpen(ask) &&
-    !ask.replies.some(isPending) &&
+    isStillOpen(item) &&
+    !item.replies.some(isPending) &&
     (queued === undefined || !isCarried(scene.inFlight, queued)) &&
-    takes(ask, VERDICT[as])
+    takes(item, VERDICT[as])
   )
 }
 
-/** Where the mode stands: over once its ask, or the ask's work, is done with; undefined while the window is not answering, or the board has not read the ask's work yet. */
+/** Where the mode stands: over once its item, or the item's work, is done with; undefined while the window is not answering, or the board has not read the item's work yet. */
 const standingIn = (scene: Scene): Standing | undefined => {
   const { answering } = scene
   const seen = answering === null ? undefined : seenIn(scene, answering)
@@ -115,8 +129,8 @@ const standingIn = (scene: Scene): Standing | undefined => {
     return undefined
   }
 
-  return seen.ask !== undefined && !seen.isFinished && canTake(scene, answering, seen.ask)
-    ? { answering, ask: seen.ask }
+  return seen.item !== undefined && !seen.isFinished && canTake(scene, answering, seen.item)
+    ? { answering, item: seen.item }
     : 'over'
 }
 
@@ -138,7 +152,7 @@ const carrierOf = ({ work, item, as }: SitrepAnswering, queue: readonly SitrepQu
     : undefined
 }
 
-/** What a reply of the mode's queues as: an answer; a comment, as the note of a yes or a choice queued on the ask, else on its own. */
+/** What a reply of the mode's queues as: an answer; a comment, as the note of a yes or a choice queued on the ask, else on its own; a pick-up, its note the words. */
 const replyOf = (
   answering: SitrepAnswering,
   queue: readonly SitrepQueued[],
@@ -155,16 +169,18 @@ const replyOf = (
 /**
  * What the mode has Lee write, as the board words it, by what the reply
  * does: an answer where it closes the ask, as a comment on an ask read from
- * its kind as a decide does; a comment where the ask stays open, or the
- * words go with a yes or a choice.
+ * its kind as a decide does; else what it was entered for: a comment where
+ * the ask stays open, or the words go with a yes or a choice; a pick-up.
  */
 export const writtenAs = (
-  { answering, ask }: Answering,
+  { answering, item }: Answering,
   queue: readonly SitrepQueued[],
 ): SitrepAnswering['as'] =>
-  carrierOf(answering, queue) === undefined && isClosing(ask, VERDICT[answering.as])
+  item.type === 'ask' &&
+  carrierOf(answering, queue) === undefined &&
+  isClosing(item, VERDICT[answering.as])
     ? 'answer'
-    : 'comment'
+    : answering.as
 
 /** Lets the mode go, whatever it put in the prompt left there. */
 const forget = (host: Host) => host.state.answering.write(null)
@@ -193,10 +209,10 @@ export const endAnswering = async (host: Host) => {
 }
 
 /**
- * Puts the window in the mode for an ask, filling the prompt box with
+ * Puts the window in the mode for an item, filling the prompt box with
  * `text` to edit a reply already queued. A box holding a draft is refused:
- * its Enter would answer the ask with that draft. Words the mode itself put
- * there are no draft: they give way to the new mode's.
+ * its Enter would reply to the item with that draft. Words the mode itself
+ * put there are no draft: they give way to the new mode's.
  */
 export const beginAnswering = async (host: Host, answering: SitrepAnswering, text?: string) => {
   const [box, was] = await Promise.all([host.prompt.read(), host.state.answering.read()])
@@ -217,7 +233,7 @@ export const beginAnswering = async (host: Host, answering: SitrepAnswering, tex
   await host.state.answering.write(text === undefined ? answering : { ...answering, filled: text })
 }
 
-/** Ends the mode once the board reads that its ask can take the reply no longer, so its ask, opened again later, does not take it back up. */
+/** Ends the mode once the board reads that its item can take the reply no longer, so its item, opened again later, does not take it back up. */
 export const settleAnswering = async (host: Host) => {
   if ((await host.state.answering.read()) === null) {
     return
@@ -237,7 +253,7 @@ const wordsOf = (text: string) =>
     .trimEnd()
 
 /**
- * Lee's prompt, taken as the answer the mode waits for, and why it went no
+ * Lee's prompt, taken as the words the mode waits for, and why it went no
  * further, for the transcript; undefined where it goes to Claude as ever:
  * a prompt not of Lee's own, one from a surface the mode is not shown on,
  * or one while a survey holds the band there. One with nothing in it, or

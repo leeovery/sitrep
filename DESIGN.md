@@ -335,9 +335,11 @@ show all 4
   a project's every session's, each naming its session; the oldest first.
   Each is a list's row: a purple `◇`, its title, and its age. Opened, its
   tree hangs from the mark: where to look, its `see`, and the pick-up once
-  one waits or is on its way; `pick it up` sits under the tree until then,
-  and queues in Ready to send like any reply. It is never counted: not on a
-  tab, nor on the band.
+  one waits or is on its way; `pick it up` and `✎ with a comment` sit under
+  the tree until then. The pick-up queues in Ready to send like any reply;
+  its comment is written in the prompt as an ask's is, and goes with it as
+  its note (see "Answering an ask"). It is never counted: not on a tab, nor
+  on the band.
 
 ### Answering an ask
 
@@ -367,10 +369,12 @@ shape is ever shown as a word:
 words still wait in Ready to send with everything else, sent in one go.
 
 1. `✎ Answer` (a words ask) or `✎ comment` (a yes or a choice) puts the
-   window in **answering** mode for that ask, held in `$.state`
-   (`answering`: the ask, whether it is an answer or a comment, its title,
-   the surface it was begun on, and any words it put in the prompt). Only
-   with the prompt empty: a draft there is refused with
+   window in **answering** mode for that ask; `✎ with a comment` puts it in
+   the mode for a parked item's pick-up, all that follows holding for it as
+   for an ask. It is held in `$.state` (`answering`: the item, whether it
+   is an answer, a comment or a pick-up, its title, the surface it was
+   begun on, and any words it put in the prompt). Only with the prompt
+   empty: a draft there is refused with
    `The prompt has a draft in it: send or clear it first, then answer.`,
    since its Enter would answer with that draft. Words the mode itself put
    there are no draft: they give way to the new mode's.
@@ -384,17 +388,17 @@ words still wait in Ready to send with everything else, sent in one go.
      only a site's own focus ring, while that site holds the keys. A press on
      the board leaves the keys with the board, so Lee presses Escape once to
      reach the prompt.
-   - The ask hangs `answering in the prompt…`, and its buttons give way.
+   - The item hangs `answering in the prompt…`, and its buttons give way.
 2. **The band says only that**, in place of its counts, the whole time:
 
    ```
    ✎ Your next Enter answers "Run sitrep list…"  ↓                         cancel
    ```
 
-   (`comments on` for a comment; a comment that closes its ask, as one on
-   an old decide does, is an answer, and says `answers`). It shows on the
-   band of the surface the mode was begun on, and only there. `cancel`
-   ends it, in one press. Escape at
+   (`comments on` for a comment, `picks up` for a pick-up; a comment that
+   closes its ask, as one on an old decide does, is an answer, and says
+   `answers`). It shows on the band of the surface the mode was begun on,
+   and only there. `cancel` ends it, in one press. Escape at
    an empty prompt cannot: it edits nothing, so `prompt.edit` never hears it
    (a probe, 2.1.295, heard typing, pastes and Backspace, never Escape).
 3. **The next Enter is taken.** The `prompt.submit` hook takes Lee's own
@@ -402,14 +406,16 @@ words still wait in Ready to send with everything else, sent in one go.
    terminal, the Remote Control `bridge` that Claude's app sends through),
    drops it so nothing reaches Claude, its reason the transcript's one line
    (`Your answer waits in Ready to send.`, or `Your comment waits…` for a
-   comment that leaves the ask open), and empties the box once the drop
-   settles, since the engine puts a dropped prompt back. A prompt from the
+   comment that leaves the ask open, `Your pick-up waits…` for a pick-up),
+   and empties the box once the drop settles, since the engine puts a
+   dropped prompt back. A prompt from the
    other surface goes to Claude, the mode standing; so does one while a
    survey holds the band in its place, which hides the mode there: it is
    shown, and takes the next Enter, once the band is back. The text becomes:
    - on a words ask, its `answer`;
    - a comment, on an ask with a yes or a choice already queued, that
-     reply's note (`→ Go, with a comment: “…”`); else a `comment` of its own.
+     reply's note (`→ Go, with a comment: “…”`); else a `comment` of its own;
+   - on a parked item, its `pickup`'s note (`pick it up, with a comment: “…”`).
 
    A paste arrives in the submitted prompt wrapped
    `<pasted_content id="…">…</pasted_content id="…">` (live, 2.1.295;
@@ -422,7 +428,8 @@ words still wait in Ready to send with everything else, sent in one go.
    under the ask, `· not sent yet ↺ undo ✎ edit`. `✎ edit` enters the mode
    again for that reply, the prompt filled with its words (still only from
    an empty prompt), and the next Enter replaces them. A bare yes or choice
-   offers `✎ comment` there instead, which adds its note.
+   offers `✎ comment` there instead, which adds its note; a bare pick-up,
+   neither.
 5. **One send carries everything**, as ever.
 
 **The mode is safe to be in:**
@@ -431,9 +438,9 @@ words still wait in Ready to send with everything else, sent in one go.
   second.
 - **Always shown.** The band shows it the whole time it stands, on the
   surface it was begun on, and it stands exactly while the next Enter there
-  would be taken. Once its ask can take
-  the reply no longer (closed, its work done, a reply already on its way, a
-  send carrying the reply its comment would join) the band is back to its
+  would be taken. Once its ask can take the reply no longer (closed, or a
+  parked item picked up, its work done, a reply already on its way, a send
+  carrying the reply its comment would join) the band is back to its
   counts, the next Enter goes to Claude, and the next look ends the mode, so
   the ask, reopened, does not take it up again. Its work is read at every
   look, the board open or not, for that.
@@ -456,10 +463,10 @@ words still wait in Ready to send with everything else, sent in one go.
 all of this; the phone over mosh is the terminal. Claude's app (the
 `mobile` surface) sends its prompt through the Remote Control bridge, which
 the hook hears (so the engine's types say; not yet tried live), but the mod
-cannot reach its box: `✎ Answer` and `✎ comment` work there, and
-`✎ edit` is not offered. Desktop and VS Code send theirs some way not yet
-seen, so they offer nothing to write: a words ask is only ignored there, and
-Lee says the rest in the chat.
+cannot reach its box: `✎ Answer`, `✎ comment` and `✎ with a comment` work
+there, and `✎ edit` is not offered. Desktop and VS Code send theirs some way
+not yet seen, so they offer nothing to write: a words ask is only ignored
+there, a parked item only picked up, and Lee says the rest in the chat.
 
 **What Claude reads.** A reply's line gives an answer under what its words
 are (`- Run the export → the command's output: “v1.2.3”`, `answer:` where the
@@ -728,7 +735,7 @@ $XDG_STATE_HOME/sitrep/, else ~/.local/state/sitrep/
   or closed, for the band's `elsewhere` and the All projects tab: each look
   lists every work's folders and reads again only a file that changed. With
   the board open, the session it looks at and those replies wait for or
-  went to are read in full too, and so is the work of the ask Lee is
+  went to are read in full too, and so is the work of the item Lee is
   answering in the prompt, open or not, read at once as the press begins
   answering it.
 - The board's last view lives in the session's `$.state` only: where it

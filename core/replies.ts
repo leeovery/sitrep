@@ -151,17 +151,17 @@ const IN_MESSAGE = inMessage(quoted)
 /** A pick-up's note, said after its title as it is rather than quoted. */
 const PICK_UP_NOTE = inMessage(note => note)
 
-/** A note with a yes or a choice: a comment, or, on an ask read from its kind, what it needed back. */
-const withNote = (ask: Ask, note: string | undefined, quote: Quote) =>
-  note === undefined || note === '' ? '' : `, with ${ask.needs ?? 'a comment'}:${quote(note)}`
+/** A note with a yes, a choice or a pick-up: a comment, or, on an ask read from its kind, what it needed back. */
+const withNote = (note: string | undefined, quote: Quote, needs?: string) =>
+  note === undefined || note === '' ? '' : `, with ${needs ?? 'a comment'}:${quote(note)}`
 
 /** A reply to an ask in a few words, bare of any arrow, its note put as `quote` puts it. */
 const words = (ask: Ask, { verdict, option, note }: ReplyFields, quote: Quote): string => {
   switch (verdict) {
     case 'yes':
-      return `${ask.yes ?? 'yes'}${withNote(ask, note, quote)}`
+      return `${ask.yes ?? 'yes'}${withNote(note, quote, ask.needs)}`
     case 'choose':
-      return `${option ?? ''}${withNote(ask, note, quote)}`
+      return `${option ?? ''}${withNote(note, quote, ask.needs)}`
     case 'answer':
       return `${ask.needs ?? 'answer'}:${quote(note ?? '')}`
     case 'comment':
@@ -179,11 +179,11 @@ const ARROWED: readonly Verdict[] = ['yes', 'choose']
 /**
  * A reply in a few words on one row, as the board shows it under its item:
  * a yes in its label's words and a choice after an arrow, an answer as its
- * words, each note by its first line.
+ * words, each note, a pick-up's too, by its first line.
  */
 export const answerOf = (item: Ask | Parked, reply: ReplyFields) => {
   if (item.type === 'park') {
-    return PICK_UP
+    return `${PICK_UP}${withNote(reply.note, onTheBoard)}`
   }
 
   if (reply.verdict === 'answer') {

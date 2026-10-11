@@ -2,16 +2,25 @@
  * What every part of the board draws with, and the pieces they share: the
  * line naming what a view is of, a section's heading, a glyph before a
  * line, an item's title and mark with its tree hanging from the mark, the
- * row every list's entries share, and a reply on one row, waiting in Ready
- * to send or on its way.
+ * row every list's entries share, a reply on one row, waiting in Ready to
+ * send or on its way, and the ways to write one in the prompt box.
  *
  * Drawing is pure: a surface's element table and plain data in, a tree
  * out; what a button does is the actions' (hooks/actions.ts).
  */
 import type { ElementTable, RenderElement, RenderSurface } from 'claude-code'
-import { answerOf, isPending, moreLines, type Ask, type Parked, type ReplyFields } from '../../core'
+import {
+  answerOf,
+  isPending,
+  moreLines,
+  type Ask,
+  type Parked,
+  type ReplyFields,
+  type Verdict,
+} from '../../core'
 import type { SitrepAnswering, SitrepItemRef, SitrepPlace, SitrepQueued } from '../../types'
 import type { Actions } from '../actions'
+import { answeringIn } from '../answering'
 import { ago, C, clip, counted, GLYPH, wrapped } from '../look'
 import { itemKey } from '../places'
 import { isCarried } from '../queue'
@@ -62,7 +71,7 @@ export const spaced = (...parts: readonly (readonly Block[])[]): Block[] =>
 type Writing = { surface: SitrepAnswering['surface']; canFill: boolean }
 
 /**
- * How Lee writes back to an ask from a surface: in the terminal's prompt
+ * How Lee writes back to an item from a surface: in the terminal's prompt
  * box, which the mod reads and fills and whose Enter it hears; in Claude's
  * app, whose Enter it hears (the Remote Control bridge) but whose box it
  * cannot reach; or not at all, where how a prompt arrives is unproven
@@ -437,11 +446,11 @@ export const drawOnItsWay = (d: Drawing, item: Ask | Parked, reply: ReplyFields)
   return drawReplyRow(d, item, reply, <Text color={C.grey}>· on its way</Text>)
 }
 
-/** Answering an ask in the prompt box, with its answer or a comment on it, from the surface drawn on; none where Lee cannot write back. */
+/** Writing to an item in the prompt box, from the surface drawn on: an ask's answer or a comment on it, or a pick-up's note; none where Lee cannot write back. */
 export const answeringOf = (
   d: Drawing,
   at: SitrepItemRef,
-  ask: Pick<Ask, 'title'>,
+  item: Pick<Ask | Parked, 'title'>,
   as: SitrepAnswering['as'],
 ): SitrepAnswering | undefined => {
   const writing = WRITING[d.surface]
@@ -453,27 +462,60 @@ export const answeringOf = (
         work: at.work,
         item: at.item,
         as,
-        title: ask.title,
+        title: item.title,
         surface: writing.surface,
       }
+}
+
+/** What an item Lee is writing to in the prompt box hangs, in place of its buttons. */
+export const ANSWERING = 'answering in the prompt…'
+
+/** Whether Lee is answering the item in the prompt box, as the surface drawn on shows the mode. */
+export const isBeingAnswered = (d: Drawing, at: SitrepItemRef) => {
+  const answering = answeringIn(d.scene, d.surface)?.answering
+
+  return answering?.work === at.work && answering.item === at.item
+}
+
+/** The button that has the next Enter in the prompt write to an item; none on a surface Lee cannot write back from. */
+export const drawWrite = (
+  d: Drawing,
+  key: string,
+  label: string,
+  answering: SitrepAnswering | undefined,
+  variant?: 'primary',
+) => {
+  const { Button } = d.els
+
+  return answering === undefined
+    ? []
+    : [<Button key={key} variant={variant} label={label} onPress={() => d.act.answer(answering)} />]
+}
+
+/** What a queued reply's words are written again as: an answer, a pick-up's note, else a comment, alone or with a yes or a choice; nothing for an ignore. */
+const REWRITTEN_AS: Record<Verdict, SitrepAnswering['as'] | undefined> = {
+  yes: 'comment',
+  choose: 'comment',
+  answer: 'answer',
+  comment: 'comment',
+  ignore: undefined,
+  pickup: 'pickup',
 }
 
 /**
  * The way to write a queued reply's words in the prompt box, under `key`: a
  * bare yes's or choice's comment; or, where the box can be filled with
- * them, the words of an answer, a comment, or a yes's or choice's comment,
- * written again. None for an ignore or a pick-up.
+ * them, the words of an answer, a comment, a yes's or choice's comment, or
+ * a pick-up's note, written again. None for an ignore or a bare pick-up.
  */
 export const drawRewrite = (d: Drawing, key: string, item: Ask | Parked, queued: SitrepQueued) => {
   const { Button } = d.els
   const words = queued.note
-  const answering = answeringOf(d, queued, item, queued.verdict === 'answer' ? 'answer' : 'comment')
+  const as = REWRITTEN_AS[queued.verdict]
+  const answering = as === undefined ? undefined : answeringOf(d, queued, item, as)
+  const isOffered = words === undefined ? as === 'comment' : canRewrite(d)
 
-  if (item.type === 'park' || queued.verdict === 'ignore' || answering === undefined) {
-    return undefined
-  }
-
-  if (words !== undefined && !canRewrite(d)) {
+  if (answering === undefined || !isOffered) {
     return undefined
   }
 

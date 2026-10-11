@@ -133,7 +133,7 @@ const timersFor = (host: Host, hold: Hold) => {
   ]
 }
 
-/** Puts nothing in `$.state` for drawing: no work is held, and no ask of one is being answered. */
+/** Puts nothing in `$.state` for drawing: no work is held, and nothing of one is being answered. */
 const forget = async (host: Host) => {
   await host.state.attachment.write(null)
   await host.state.board.write(null)

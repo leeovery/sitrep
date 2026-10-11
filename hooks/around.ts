@@ -5,9 +5,9 @@
  * was last read. In full, each other work the board draws: the session it
  * looks at, and those Lee's replies wait for or went to.
  *
- * Whatever the board shows, the work of the ask Lee is answering in the
- * prompt is read in full too, so the answering mode ends once that ask can
- * no longer take the answer.
+ * Whatever the board shows, the work of the item Lee is answering in the
+ * prompt is read in full too, so the answering mode ends once that item can
+ * no longer take the reply.
  *
  * Each work is read through a reader of its own, so only a file that changed
  * is read again. What drawing needs goes in `$.state` as plain data, put
@@ -77,7 +77,7 @@ export const worksIn = async (
   return works.filter(work => work !== undefined)
 }
 
-/** What the window has to do with other works: replies waiting for them or sent to them, and the ask Lee is answering in the prompt. */
+/** What the window has to do with other works: replies waiting for them or sent to them, and the item Lee is answering in the prompt. */
 type Around = {
   queue: readonly SitrepQueued[]
   sent: readonly SitrepSent[]

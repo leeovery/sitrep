@@ -270,7 +270,7 @@ export const register: Register = on => {
     }
 
     const host = hostOf($)
-    // A prompt taken as an ask's answer goes no further, so it takes no board context either.
+    // A prompt the answering mode takes goes no further, so it takes no board context either.
     const taken = await captured(host, e)
 
     if (taken !== undefined) {

@@ -49,7 +49,7 @@ export type Scene = {
   pane: SitrepPane
   /** How far down the docked board's list stands, at the place it was moved at. */
   scroll: SitrepScroll | null
-  /** The ask Lee is answering in the prompt box, as `$.state` holds it: whether it still stands is `answeringIn`'s to say. */
+  /** The item Lee is answering in the prompt box, as `$.state` holds it: whether it still stands is `answeringIn`'s to say. */
   answering: SitrepAnswering | null
   pulse: SitrepPulse
   flash: number

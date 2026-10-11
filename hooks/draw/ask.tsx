@@ -10,19 +10,21 @@
  * names the work it goes to.
  */
 import { isClosing, VERDICTS, type Ask, type Verdict } from '../../core'
-import type { SitrepAnswering, SitrepItemRef, SitrepQueued } from '../../types'
-import { answeringIn } from '../answering'
+import type { SitrepItemRef, SitrepQueued } from '../../types'
 import { C, GLYPH } from '../look'
 import { itemKey, type AskedAt } from '../places'
 import { queuedOn } from '../queue'
 import { askMark, isPulsing } from '../scene'
 import {
+  ANSWERING,
   answeringOf,
   drawOnItsWay,
   drawQueued,
   drawRow,
+  drawWrite,
   emptyLine,
   heading,
+  isBeingAnswered,
   onItsWay,
   seeRef,
   shown,
@@ -33,8 +35,6 @@ import {
 const HINT =
   "Your reply waits in Ready to send. Ignore tells Claude you've seen it and won't act on it."
 
-const ANSWERING = 'answering in the prompt…'
-
 /** The mark of an ask Lee's send closed. */
 const DONE = { glyph: GLYPH.done, color: C.ok }
 
@@ -43,21 +43,6 @@ const refOf = ({ at, ask }: AskedAt): SitrepItemRef => ({ ...at, item: ask.id })
 
 /** The comment button's words: an answer's, on an ask read from its kind as a decide, where a comment closes it. */
 const commentLabel = (ask: Ask) => (isClosing(ask, 'comment') ? '✎ answer' : '✎ comment')
-
-/** The button that has the next Enter in the prompt write an ask's answer, or a comment on it; none on a surface Lee cannot write back from. */
-const drawWrite = (
-  d: Drawing,
-  key: string,
-  label: string,
-  answering: SitrepAnswering | undefined,
-  variant?: 'primary',
-) => {
-  const { Button } = d.els
-
-  return answering === undefined
-    ? []
-    : [<Button key={key} variant={variant} label={label} onPress={() => d.act.answer(answering)} />]
-}
 
 /** The buttons a verdict puts on an ask, each keyed by the ask's address: one for each option of a choice. */
 const buttonsFor = (d: Drawing, at: SitrepItemRef, ask: Ask, verdict: Verdict) => {
@@ -109,7 +94,6 @@ const standingOf = (d: Drawing, asked: AskedAt) => {
   const at = refOf(asked)
   const key = itemKey(at.work, ask.id)
   const queued = queuedOn(d.scene.queue, at.work, ask.id)
-  const answering = answeringIn(d.scene, d.surface)?.answering
   const isClosed = ask.state === 'closed'
 
   return {
@@ -117,7 +101,7 @@ const standingOf = (d: Drawing, asked: AskedAt) => {
     key,
     queued,
     sent: queued === undefined ? onItsWay(ask) : undefined,
-    isAnswering: answering?.work === at.work && answering.item === at.item,
+    isAnswering: isBeingAnswered(d, at),
     isClosed,
     isOpen: d.scene.pane.selected === key && !isClosed,
   }

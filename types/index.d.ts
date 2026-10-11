@@ -157,12 +157,14 @@ export type SitrepQueued = SitrepItemRef & {
 }
 
 /**
- * An ask Lee is answering in the prompt box: the next Enter there queues
- * what was written as its answer, or as a comment, and nothing goes to
- * Claude. The ask's title, for the band to name it wherever the ask is.
+ * An item Lee is writing to in the prompt box: the next Enter there queues
+ * what was written as an ask's answer or a comment on it, or as the note of
+ * a parked item's pick-up, and nothing goes to Claude. The item's title, for
+ * the band to name it wherever the item is.
  */
 export type SitrepAnswering = SitrepItemRef & {
-  as: 'answer' | 'comment'
+  /** What the words are: an ask's answer or a comment on it, or a pick-up's note. An older load's value is one of the first two. */
+  as: 'answer' | 'comment' | 'pickup'
   title: string
   /** Where Lee began it, and the only surface whose Enter it takes: the terminal's prompt, or Claude's app's. */
   surface: 'terminal' | 'mobile'
@@ -301,7 +303,7 @@ declare module 'claude-code' {
       pane: SitrepPane
       /** How far down the docked board's list stands, or null at its top. */
       scroll: SitrepScroll | null
-      /** The ask the next Enter in the prompt box answers, or null. */
+      /** The item the next Enter in the prompt box writes to, or null. */
       answering: SitrepAnswering | null
       pulse: SitrepPulse
       /** How many replies from the board the band is flashing as just taken in; 0 for none. */

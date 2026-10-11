@@ -6,9 +6,9 @@
  * frame's own ✕ is one cell. For a few seconds after the window takes in
  * replies sent from another work's board, it says so.
  *
- * While Lee answers an ask in the prompt, the band on the surface Lee
+ * While Lee writes to an item in the prompt, the band on the surface Lee
  * began on says only that, the whole time, with the way out of it: the next
- * Enter answers that ask, or comments on it.
+ * Enter answers that ask, comments on it, or picks up that parked item.
  */
 import type { RenderSurface } from 'claude-code'
 import type { SitrepPane } from '../../types'
@@ -26,7 +26,7 @@ const NARROW = 64
 const answeredByTheHook = () => undefined
 
 /** What the next Enter does, by what Lee is writing: an answer where it closes the ask. */
-const NEXT_ENTER = { answer: 'answers', comment: 'comments on' } as const
+const NEXT_ENTER = { answer: 'answers', comment: 'comments on', pickup: 'picks up' } as const
 
 const CANCEL = 'cancel'
 
@@ -42,11 +42,11 @@ const boardButton = (pane: SitrepPane, surface: RenderSurface) => {
   return placementOn(pane, surface) === 'inline' ? CLOSE : HIDE_BOARD
 }
 
-/** The cells the answering line keeps beside the ask's title: its words around it, the arrow down to the prompt, the gap, and cancel. */
+/** The cells the answering line keeps beside the item's title: its words around it, the arrow down to the prompt, the gap, and cancel. */
 const answeringCells = (verb: string) =>
   `✎ Your next Enter ${verb} ""  ↓`.length + 2 + CANCEL.length
 
-/** While Lee answers an ask in the prompt: what the next Enter does, pointing down at the prompt, and cancel at the right. */
+/** While Lee writes to an item in the prompt: what the next Enter does, pointing down at the prompt, and cancel at the right. */
 const drawAnswering = (els: Els, width: number, standing: Answering, scene: Scene) => {
   const { Box, Text, Button } = els
   const verb = NEXT_ENTER[writtenAs(standing, scene.queue)]

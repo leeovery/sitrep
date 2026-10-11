@@ -149,7 +149,7 @@ test("a title's hover group is named by its press key, or, where the key is too 
   }
 })
 
-test('an opened parked item hangs where and its record from its mark, its button under the tree', async ($, on) => {
+test('an opened parked item hangs where and its record from its mark, its buttons under the tree', async ($, on) => {
   const w = world($, on)
 
   await w.begin()
@@ -172,11 +172,11 @@ test('an opened parked item hangs where and its record from its mark, its button
     '│ by complexity, plan stops, parallel worktrees',
     '├ In DESIGN.md, Later',
     '└ see memory: orchestration-setup.md',
-    '  [ pick it up ]',
+    '  [ pick it up ] [ ✎ with a comment ]',
   ])
 })
 
-test('a parked item with nothing to hang shows no stem beside its title, only its button', async ($, on) => {
+test('a parked item with nothing to hang shows no stem beside its title, only its buttons', async ($, on) => {
   const w = world($, on)
 
   await w.begin()
@@ -191,7 +191,7 @@ test('a parked item with nothing to hang shows no stem beside its title, only it
   expect(drawn.slice(1)).toEqual([
     '  skill: implementers at high and xhigh, model',
     '  by complexity, plan stops, parallel worktrees',
-    '  [ pick it up ]',
+    '  [ pick it up ] [ ✎ with a comment ]',
   ])
 })
 

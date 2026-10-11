@@ -1,10 +1,24 @@
 import { expect, test, tier } from 'claude-code/testing'
 import { workPaths, type WorkMeta } from '../core'
 import { CLEAR_AFTER_DROP_MS, DRAFT, LEFT, NOT_TAKEN, TAKEN } from '../hooks/answering'
+import { AROUND_MS } from '../hooks/around'
 import { C } from '../hooks/look'
 import { WATCH_MS } from '../hooks/window'
 import { rowsOf } from './drawn'
-import { kindAsk, MIN, SLOW, T0, W1, W2, wordsAsk, yesAsk } from './support'
+import {
+  delivered,
+  finish,
+  kindAsk,
+  MIN,
+  park,
+  reply,
+  SLOW,
+  T0,
+  W1,
+  W2,
+  wordsAsk,
+  yesAsk,
+} from './support'
 import { BAND, DOCKED, postedId, PROJECT, ROOT, SESSION, toProject, world } from './world'
 
 tier('user')
@@ -801,4 +815,236 @@ test('a comment that closes an old decide is an answer everywhere: its button, t
     /^✎ Your next Enter comments on /,
   )
   expect(await entered(w, $, 'Storage is cheap')).toEqual({ drop: TAKEN.comment })
+})
+
+const TMUX = 'A tmux indicator'
+
+/** The board, opened by /sitrep, on a parked item, opened. */
+const onParked = async (w: World) => {
+  const { paths } = await w.begin()
+  const id = postedId(await w.call('park', { title: TMUX }))
+  const ui = await w.opened()
+
+  await ui.press({ key: `ppick:${w.item(id)}` })
+
+  return { id, ui, paths }
+}
+
+/** The board on a parked item, ✎ with a comment pressed: the next Enter picks it up. */
+const pickingUp = async (w: World) => {
+  const parked = await onParked(w)
+
+  await parked.ui.press({ key: `comment:${w.item(parked.id)}` })
+
+  return parked
+}
+
+/** The rows a parked item is drawn on. */
+const parkedRows = async (ui: Awaited<ReturnType<World['pane']>>, key: string) =>
+  rowsOf(await ui.find({ key: `parked:${key}` }))
+
+test('an opened parked item offers pick it up and ✎ with a comment; neither once a pick-up is queued', async ($, on) => {
+  const w = world($, on)
+  const { id, ui } = await onParked(w)
+
+  expect((await parkedRows(ui, w.item(id))).at(-1)).toBe('  [ pick it up ] [ ✎ with a comment ]')
+  await ui.press({ key: `pickup:${w.item(id)}` })
+  expect(await parkedRows(ui, w.item(id))).toEqual([
+    expect.stringMatching(/^◇ A tmux indicator/),
+    '└ pick it up · not sent yet ↺ undo',
+  ])
+  expect(await ui.find({ key: `pickup:${w.item(id)}` })).toBeUndefined()
+  expect(await ui.find({ key: `comment:${w.item(id)}` })).toBeUndefined()
+})
+
+test('✎ with a comment has the next Enter pick the parked item up: it says so under the item, its buttons gone, and the band names it', async ($, on) => {
+  const w = world($, on)
+  const { id, ui } = await pickingUp(w)
+
+  expect(w.state.answering).toEqual({
+    ...at(w, id),
+    as: 'pickup',
+    title: TMUX,
+    surface: 'terminal',
+  })
+  expect((await parkedRows(ui, w.item(id))).slice(1)).toEqual(['└ answering in the prompt…'])
+  expect(await ui.find({ key: `pickup:${w.item(id)}` })).toBeUndefined()
+
+  const { rows } = await bandRow(w)
+  const says = `✎ Your next Enter picks up "${TMUX}"  ↓`
+
+  expect(rows).toEqual([`${says.padEnd(100 - 'cancel'.length)}cancel`])
+})
+
+test('the next Enter is taken as the pick-up, its words the note: queued in Ready to send, nothing to Claude, the box emptied', async ($, on) => {
+  const w = world($, on)
+  const { id, ui } = await pickingUp(w)
+
+  expect(await entered(w, $, 'Before the release')).toEqual({
+    drop: 'Your pick-up waits in Ready to send.',
+  })
+  expect(w.prompts).toEqual([])
+  expect(w.state.queue).toEqual([{ ...at(w, id), verdict: 'pickup', note: 'Before the release' }])
+  expect(w.state.answering).toBeNull()
+  await w.clock.advance(CLEAR_AFTER_DROP_MS)
+  expect(w.box.text).toBe('')
+  expect(await ui.find({ type: 'Text', text: /READY TO SEND/ })).toBeDefined()
+})
+
+test('a send carries the pick-up with its note, and the pick-up, delivered, logs the note', async ($, on) => {
+  const w = world($, on)
+  const { ui } = await pickingUp(w)
+
+  await entered(w, $, 'Before the release')
+  await w.clock.advance(CLEAR_AFTER_DROP_MS)
+  await ui.press({ key: 'send' })
+
+  expect(w.prompts.map(each => each.text)).toEqual([
+    `From the board:\n- Pick up from parked: ${TMUX}. Before the release`,
+  ])
+  expect(w.state.board?.log[0]).toMatchObject({
+    kind: 'pickup',
+    text: `Picked up from parked: ${TMUX}`,
+    detail: ['Before the release'],
+  })
+})
+
+test('cancel ends picking up in one press: the buttons and the counts are back, and the next Enter goes to Claude', async ($, on) => {
+  const w = world($, on)
+  const { id, ui } = await pickingUp(w)
+  const { band } = await bandRow(w)
+
+  await band.press({ key: 'band:cancel-answer' })
+  expect(w.state.answering).toBeNull()
+  expect(await band.find({ key: 'band:for-you' })).toBeDefined()
+  expect(await ui.find({ key: `comment:${w.item(id)}` })).toBeDefined()
+  expect((await entered(w, $, 'Carry on.')).drop).toBeUndefined()
+  expect(w.prompts.map(each => each.text)).toEqual(['Carry on.'])
+})
+
+test('a reload keeps picking up: the band still names it, and the next Enter is still the pick-up', async ($, on) => {
+  const w = world($, on)
+  const { id } = await pickingUp(w)
+
+  await $.session.start(SESSION)
+  expect((await bandRow(w)).rows[0]).toMatch(/^✎ Your next Enter picks up "A tmux indicator"/)
+  expect(await entered(w, $, 'Before the release')).toEqual({ drop: TAKEN.pickup })
+  expect(w.state.queue).toEqual([{ ...at(w, id), verdict: 'pickup', note: 'Before the release' }])
+})
+
+test(
+  'picking up ends once the parked item is picked up from elsewhere: the counts are back, and the next Enter goes to Claude',
+  SLOW,
+  async ($, on) => {
+    const w = world($, on)
+    const { id, paths } = await pickingUp(w)
+
+    w.writer(paths)(reply('r9', id, 'pickup'), delivered('r9'))
+    await w.clock.advance(WATCH_MS)
+    expect(w.state.answering).toBeNull()
+    expect(await (await w.band()).find({ key: 'band:for-you' })).toBeDefined()
+    expect((await entered(w, $, 'Carry on.')).drop).toBeUndefined()
+    expect(w.prompts.map(each => each.text)).toEqual(['Carry on.'])
+  },
+)
+
+/** The ledger's parked item. */
+const EXPORT = 'Export the ledger as CSV'
+
+/** The board on the project's view, the ledger's parked item drawn there from its brief, opened, and ✎ with a comment pressed: the ledger. */
+const onLedgersParked = async (w: World, isUnread = false) => {
+  const ledger = w.elsewhere(LEDGER)
+
+  ledger.write(park('p3', EXPORT))
+
+  if (isUnread) {
+    w.leaveUnread()
+  }
+
+  await w.begin()
+  await w.clock.advance(MIN)
+  ledger.beat()
+
+  const ui = await w.opened()
+  const there = w.item('p3', LEDGER.id)
+
+  await toProject(ui)
+  await ui.press({ key: `ppick:${there}` })
+  await ui.press({ key: `comment:${there}` })
+
+  return ledger
+}
+
+test("picking up another session's parked item from the project's view stands from the press, and its Enter is taken", async ($, on) => {
+  const w = world($, on)
+
+  await onLedgersParked(w, true)
+  expect(w.state.others, 'the ledger not read in full').toEqual([])
+  expect((await bandRow(w)).rows[0]).toMatch(`✎ Your next Enter picks up "${EXPORT}"`)
+  expect(await entered(w, $, 'With the totals')).toEqual({ drop: TAKEN.pickup })
+  expect(w.state.queue).toEqual([
+    {
+      project: PROJECT.key,
+      work: LEDGER.id,
+      item: 'p3',
+      verdict: 'pickup',
+      note: 'With the totals',
+    },
+  ])
+  expect(w.prompts).toEqual([])
+})
+
+test("picking up another session's parked item ends once its work is done", SLOW, async ($, on) => {
+  const w = world($, on)
+  const ledger = await onLedgersParked(w)
+
+  expect(w.state.answering).toMatchObject({ work: LEDGER.id, item: 'p3', as: 'pickup' })
+  ledger.write(finish('claude', 'Shipped'))
+  await w.clock.advance(AROUND_MS)
+  expect(w.state.answering).toBeNull()
+  expect((await entered(w, $, 'Carry on.')).drop).toBeUndefined()
+})
+
+test('a queued pick-up with a note shows it, how many lines more, undo and ✎ edit; edit fills the prompt, and the next Enter replaces the note', async ($, on) => {
+  const w = world($, on)
+  const { id, ui } = await pickingUp(w)
+
+  await entered(w, $, pasted(FOUR_LINES))
+  await w.clock.advance(CLEAR_AFTER_DROP_MS)
+  expect((await parkedRows(ui, w.item(id))).at(-1)).toBe(
+    '└ pick it up, with a comment: “Switchboard” +3 lines · not sent yet ↺ undo ✎ edit',
+  )
+  expect(rowsOf(await ui.find({ key: `readyanswer:${w.item(id)}` }))).toEqual([
+    '└ pick it up, with a comment: “Switchboard” +3 lines ✎ edit',
+  ])
+
+  await ui.press({ key: `rewrite:${w.item(id)}` })
+  expect(w.box.text).toBe(FOUR_LINES)
+  expect(w.state.answering).toMatchObject({ item: id, as: 'pickup' })
+  expect((await bandRow(w)).rows[0]).toMatch(/^✎ Your next Enter picks up /)
+  expect(await entered(w, $, 'Before the release')).toEqual({ drop: TAKEN.pickup })
+  expect(w.state.queue).toEqual([{ ...at(w, id), verdict: 'pickup', note: 'Before the release' }])
+})
+
+test("in Claude's app ✎ with a comment picks up too, nothing offering to edit it; VS Code offers only the pick-up", async ($, on) => {
+  const w = world($, on)
+
+  await w.begin()
+
+  const id = postedId(await w.call('park', { title: TMUX }))
+  const app = await paneOn($, 'mobile')
+
+  await app.press({ key: `ppick:${w.item(id)}` })
+  await app.press({ key: `comment:${w.item(id)}` })
+  expect(await entered(w, $, 'Before the release', { origin: { kind: 'bridge' } })).toEqual({
+    drop: TAKEN.pickup,
+  })
+  expect(await app.find({ key: `rewrite:${w.item(id)}` })).toBeUndefined()
+
+  await app.press({ key: `unready:${w.item(id)}` })
+
+  const vscode = await paneOn($, 'vscode')
+
+  expect(await vscode.find({ key: `pickup:${w.item(id)}` })).toBeDefined()
+  expect(await vscode.find({ key: `comment:${w.item(id)}` })).toBeUndefined()
 })

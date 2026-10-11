@@ -627,7 +627,7 @@ test('the message leaves out replies that fit no item, and says which it carries
   })
 })
 
-test("under its item, the board shows a yes in its button's words and a choice after an arrow, and a pick-up in its own words", () => {
+test("under its item, the board shows a yes in its button's words and a choice after an arrow, and a pick-up in its own words, a note by its first line", () => {
   const work = fold({ logs: { [W1]: file(...POSTED) } })
   const [review, decide] = work.asks
   const parked = work.parked[0]!
@@ -636,6 +636,9 @@ test("under its item, the board shows a yes in its button's words and a choice a
   expect(answerOf(decide!, { item: 'k2', verdict: 'choose', option: 'Forever' })).toBe('→ Forever')
   expect(answerOf(decide!, { item: 'k2', verdict: 'ignore' })).toBe('ignored')
   expect(answerOf(parked, { item: 'p1', verdict: 'pickup' })).toBe('pick it up')
+  expect(
+    answerOf(parked, { item: 'p1', verdict: 'pickup', note: 'Before the release\nwith the band' }),
+  ).toBe('pick it up, with a comment: “Before the release”')
 })
 
 test('replies sent into an inbox are delivered once every one is marked; until then they wait on the window, or for one', () => {
