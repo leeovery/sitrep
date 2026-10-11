@@ -7,9 +7,9 @@
  * follows it.
  *
  * The header is the same two tabs everywhere, each a row of `TABS`: this
- * session, by its name, and every project, over a blank row; inline, the
- * board's own close ends their row. Off home and All projects, the way back
- * up sits at the end of the view's title line.
+ * session, by its name, and every project; inline, the board's own close
+ * ends their row. Under their rule, off home and All projects, the way back
+ * up sits at the left of a row that is otherwise blank.
  */
 import type { ElementTable, RenderPropsOf, RenderSurface } from 'claude-code'
 import type { SitrepPlace, SitrepPlacement } from '../../types'
@@ -196,8 +196,11 @@ const GAP_ROWS = 1
 /** The tabs' row and their rule. */
 const TAB_ROWS = 2
 
-/** The rows the header takes, the same everywhere: the tabs, their rule, and a blank row. */
-const HEADER_ROWS = TAB_ROWS + GAP_ROWS
+/** The way back's row under the tab rule, blank where there is none. */
+const BACK_ROWS = 1
+
+/** The rows the header takes, the same everywhere: the tabs, their rule, and the way back's row. */
+const HEADER_ROWS = TAB_ROWS + BACK_ROWS
 
 /**
  * What tells the band where Claude Code seated the board
@@ -220,13 +223,27 @@ const drawPlacement = (d: Drawing, placement: SitrepPlacement) => {
   )
 }
 
-/** The tabs over their rule, a blank row under it. */
+/** The way back up, dim, at the left of its row, cut short to the board's width. */
+const drawBack = (d: Drawing, back: Back) => {
+  const { Button } = d.els
+  const label = clipText(back.label, d.width)
+
+  return <Button key="up" plain dimColor label={label} onPress={() => d.act.go(back.to)} />
+}
+
+/** The tabs over their rule, and under it the way back up, or a blank row where there is none. */
 const drawHeader = (d: Drawing, placement: SitrepPlacement) => {
   const { Box } = d.els
 
   return (
-    <Box key="header" flexDirection="column" flexShrink={0} paddingBottom={GAP_ROWS}>
+    <Box
+      key="header"
+      flexDirection="column"
+      flexShrink={0}
+      paddingBottom={d.back === undefined ? BACK_ROWS : undefined}
+    >
       {drawTabs(d)}
+      {d.back !== undefined && drawBack(d, d.back)}
       {drawPlacement(d, placement)}
     </Box>
   )

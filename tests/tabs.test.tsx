@@ -57,16 +57,16 @@ const onLedger = async (ui: Board) => {
 /** The tab row and the rule under it, as drawn. */
 const header = async (ui: Board) => (await rows(ui)).slice(0, 2)
 
-/** The blank row under the tab rule, then the view's title line, `cells` across. */
+/** The way back's row under the tab rule, then the view's title line, `cells` across. */
 const underRule = async (ui: Board, cells = WIDE.bodyColumns) => {
-  const [, , blank, title] = await rows(ui, cells)
+  const [, , back, title] = await rows(ui, cells)
 
-  return { blank, title }
+  return { back, title }
 }
 
-/** A view's title line `cells` across: its title and aside, and the way back at the right edge where there is one. */
-const titleLine = (title: string, back = '', cells = WIDE.bodyColumns) =>
-  ` ${title}${' '.repeat(cells - 2 - title.length - back.length)}${back}`.trimEnd()
+/** The rows the header draws, `cells` across. */
+const headerRows = async (ui: Board, cells: number) =>
+  rowsOf(await ui.find({ key: 'header' }), cells).length
 
 /** The board's first row: the home tab, its glyph and this session's name, then All projects. */
 const HOME_FIRST = /^ {2}⌂ Dashboard redesign {2}≡ All projects/
@@ -286,7 +286,7 @@ test('the first tab goes home from every place', async ($, on) => {
   }
 })
 
-test("a blank row under the tab rule, then the view's title line, the way back one level up at its right end; home and All projects have none; docked and inline", async ($, on) => {
+test("under the tab rule, the way back one level up, dim, at the left of its row, then the view's title line; home and All projects leave that row blank; docked and inline", async ($, on) => {
   const w = world($, on)
 
   await asksAround(w)
@@ -299,10 +299,14 @@ test("a blank row under the tab rule, then the view's title line, the way back o
 
       await ui.press({ key: 'tab:session' })
       await reach(ui)
-      expect(await underRule(ui), scene).toEqual({ blank: '', title: titleLine(title, back) })
-      expect(await ui.find({ key: 'up', text: back }), scene).toEqual(
-        back === undefined ? undefined : expect.anything(),
+      expect(await underRule(ui), scene).toEqual({
+        back: back === undefined ? '' : ` ${back}`,
+        title: ` ${title}`,
+      })
+      expect((await ui.find({ key: 'up', text: back }))?.props.dimColor, scene).toBe(
+        back === undefined ? undefined : true,
       )
+      expect(await headerRows(ui, props.bodyColumns), `${scene}: the header's rows`).toBe(3)
       expect(await ui.find({ key: 'home' }), `${scene}: no ⌂ beside it`).toBeUndefined()
     }
 
@@ -350,7 +354,7 @@ const NARROW = [
   { ...WIDE, bodyColumns: 60 },
 ] as const
 
-test('a long title cuts its aside first, then itself, at phone width and docked: the way back stays whole at the right edge, the line one row', async ($, on) => {
+test('a long title cuts its aside first, then itself, at phone width and docked, to the whole line: the way back, on the row above, takes none of it', async ($, on) => {
   const w = world($, on)
   const named = (id: string, name: string) => {
     const work = w.elsewhere({ ...LEDGER_META, id, name })
@@ -359,41 +363,49 @@ test('a long title cuts its aside first, then itself, at phone width and docked:
     work.beat()
   }
 
-  named('sr-r0nd22', 'Request ledger, round 2')
-  named('sr-w1d3rr', 'Request ledger, area by area, with its exports and retention')
+  named('sr-r0nd22', 'Request ledger, round 2 of the exports')
+  named('sr-w1d3rr', 'Request ledger, area by area, with its exports and its retention')
   await w.begin()
 
   const expected = {
-    46: ['Request ledger, round 2 · Swi…', 'Request ledger, area by area,…'],
-    60: ['Request ledger, round 2 · Switchboard', 'Request ledger, area by area, with its expo…'],
+    46: [
+      'Request ledger, round 2 of the exports · Sw…',
+      'Request ledger, area by area, with its expo…',
+    ],
+    60: [
+      'Request ledger, round 2 of the exports · Switchboard',
+      'Request ledger, area by area, with its exports and its re…',
+    ],
   }
 
   for (const props of NARROW) {
     const ui = await w.opened(props)
 
     for (const [i, id] of ['sr-r0nd22', 'sr-w1d3rr'].entries()) {
+      const scene = `${props.bodyColumns}: ${id}`
+      const shown = expected[props.bodyColumns][i] ?? ''
+
       await toProject(ui)
       await ui.press({ key: `go:${id}` })
-
-      const { title } = await underRule(ui, props.bodyColumns)
-
-      expect(title, `${props.bodyColumns}: ${id}`).toBe(
-        titleLine(expected[props.bodyColumns][i] ?? '', '← Switchboard', props.bodyColumns),
+      expect(await underRule(ui, props.bodyColumns), scene).toEqual({
+        back: ' ← Switchboard',
+        title: ` ${shown}`,
+      })
+      expect([...shown].length, `${scene}: no further than the edge`).toBeLessThanOrEqual(
+        props.bodyColumns - 2,
       )
-      expect([...(title ?? '')].length, 'to the edge, and no further').toBe(props.bodyColumns - 1)
-      expect(await ui.find({ key: 'up', text: '← Switchboard' }), 'whole').toBeDefined()
     }
 
     await ui.unmount()
   }
 })
 
-test('a way back longer than half the line is cut short to half, so the title keeps the rest', async ($, on) => {
+test('a way back longer than the line is cut short at its edge, and the title line keeps its whole width', async ($, on) => {
   const w = world($, on)
   const portal = 'portal'
 
   w.project(portal, {
-    name: 'The Customer Portal Rebuild Programme',
+    name: 'The Customer Portal Rebuild Programme, phase two of the three',
     directory: '/Users/lee/Code/portal',
     created: T0,
     by: W4,
@@ -402,8 +414,14 @@ test('a way back longer than half the line is cut short to half, so the title ke
   await w.begin()
 
   const expected = {
-    46: ' Standing orders · Th… ← The Customer Portal…',
-    60: ' Standing orders · The Custo… ← The Customer Portal Rebuil…',
+    46: {
+      back: ' ← The Customer Portal Rebuild Programme, ph…',
+      title: ' Standing orders · The Customer Portal Rebui…',
+    },
+    60: {
+      back: ' ← The Customer Portal Rebuild Programme, phase two of the…',
+      title: ' Standing orders · The Customer Portal Rebuild Programme, …',
+    },
   }
 
   for (const props of NARROW) {
@@ -411,7 +429,9 @@ test('a way back longer than half the line is cut short to half, so the title ke
 
     await toProject(ui, portal)
     await ui.press({ key: `go:${GOOSEMATES}` })
-    expect((await underRule(ui, props.bodyColumns)).title).toBe(expected[props.bodyColumns])
+    expect(await underRule(ui, props.bodyColumns), `${props.bodyColumns}`).toEqual(
+      expected[props.bodyColumns],
+    )
     await ui.unmount()
   }
 })
@@ -429,9 +449,10 @@ test('docked, as inline, the tabs are the first row of the board: there is no co
 
   await onLedger(ui)
   expect((await rows(ui))[0]).toMatch(HOME_FIRST)
-  expect((await underRule(ui)).title).toBe(
-    titleLine('Request ledger · Switchboard', '← Switchboard'),
-  )
+  expect(await underRule(ui)).toEqual({
+    back: ' ← Switchboard',
+    title: ' Request ledger · Switchboard',
+  })
 })
 
 test('a pane saved as the glance by an older load opens as the board', async ($, on) => {
@@ -493,7 +514,7 @@ test('a pane saved on the parked page by an older load opens as the board', asyn
   expect(await ui.find({ type: 'Button', text: /back to the board/ })).toBeUndefined()
 })
 
-test('inline, nothing sits above the tabs, and the header flows with the view: its first rows, a blank row, then the view', async ($, on) => {
+test('inline, nothing sits above the tabs, and the header flows with the view: its first rows, the way back, then the view', async ($, on) => {
   const w = world($, on)
 
   await parkedAround(w)
@@ -506,12 +527,12 @@ test('inline, nothing sits above the tabs, and the header flows with the view: i
 
   await onLedger(ui)
 
-  const [tabs, , blank, view] = await rows(ui, INLINE.bodyColumns)
+  const [tabs, , back, view] = await rows(ui, INLINE.bodyColumns)
   const [board] = await ui.findAll({ type: 'Box' })
 
   expect(tabs).toMatch(HOME_FIRST)
-  expect(blank).toBe('')
-  expect(view).toBe(titleLine('Request ledger · Switchboard', '← Switchboard', INLINE.bodyColumns))
+  expect(back).toBe(' ← Switchboard')
+  expect(view).toBe(' Request ledger · Switchboard')
   expect(board?.props.height, 'not held to the window').toBeUndefined()
   expect((await ui.findAll({ type: 'Box' })).some(box => box.props.overflow === 'hidden')).toBe(
     false,

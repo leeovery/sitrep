@@ -231,20 +231,20 @@ show all 4
   board is (they share the row above the prompt, and the board takes it),
   and the frame's ✕ is one cell. Its width comes out of the name's, so the
   row stays one line. Docked, there is none.
-- **Browsing, the way back** sits at the right end of the view's title
-  line, one level up: `← All projects` over a project's view,
-  `← <its project>` over a session's. Home and All projects have none. It
-  carries no `⌂`: the first tab is always home. It keeps its width: the
-  title line's grey aside is cut first, then its title, with an ellipsis,
-  so the line stays one row; only a way back longer than half the line is
-  cut short itself, so the title always keeps some of it.
-- The header is the tabs, their rule and a blank row under it, the same in
-  every view. Docked or inline, there is no row above the tabs: they are
-  the board's first line. There is no collapse: the phone's board and the
-  docked one start alike. Docked, the header stays still at the top while
-  the list scrolls under it, as Ready to send stays still at the foot (the
-  way back, on the list's first line, scrolls with it); inline, it is the
-  board's first rows, and scrolls with it, its close too.
+- **Browsing, the way back** sits in the row under the tab rule, at its
+  left, one level up: `← All projects` over a project's view,
+  `← <its project>` over a session's, a plain press drawn dim, cut short
+  at the board's edge. Home and All projects have none, and the row is
+  blank. It carries no `⌂`: the first tab is always home.
+- The header is the tabs, their rule and the way back's row, the same
+  height in every view. Docked or inline, there is no row above the tabs:
+  they are the board's first line. There is no collapse: the phone's board
+  and the docked one start alike. Docked, the header stays still at the
+  top while the list scrolls under it, its way back too, as Ready to send
+  stays still at the foot; inline, it is the board's first rows, and
+  scrolls with it, its close too.
+- A view's title line takes the whole width: its grey aside is cut first,
+  then its title, with an ellipsis, so the line stays one row.
 - **This session** (home, the default): name and summary, For you, Status, Log,
   Parked, Done. What waits on Lee comes first.
 - **All projects**: this project first, then the busiest. Each project's open
@@ -261,8 +261,8 @@ show all 4
   ```
    ⌂ Dashboard redesign 3  ≡ All projects 8
   ────────────────────────━━━━━━━━━━━━━━━━━━────────────────────────
-
-  Switchboard · 2 waiting on you                      ← All projects
+  ← All projects
+  Switchboard · 2 waiting on you
 
   SESSIONS ─────────────────────────────────────────────── 2 of 3 open
   Dashboard redesign ⌂                                      1 waiting
@@ -320,7 +320,7 @@ show all 4
   moment.
 - Each tab carries what waits there: home, this session's asks; All
   projects, every project's.
-- Each view's first line sits under the header's blank row.
+- Each view's first line sits under the way back's row.
 - Every section heading has a few words on the right: `1 waiting`,
   `what happened`, `updated 12m ago`, `2 of 3 open`.
 - **Log lines open** to the detail behind them, as a tree. A project's log
@@ -774,11 +774,11 @@ $XDG_STATE_HOME/sitrep/, else ~/.local/state/sitrep/
       engine's window never moves, and that row tells a page key (the
       window's rows) from Home and End (the tree's). The scroll hook holds
       the engine at the top (`offset: 0`).
-    - **The board.** The header (the tabs, their rule, and a blank row)
-      sits at the tree's top, still. The list sits in a box of the rows
-      between it and Ready to send, clipped (`overflow:
-      "hidden"`), and shifted up by how far down it stands (`marginTop`);
-      Ready to send sits under it, still, its last row past the tree's end,
+    - **The board.** The header (the tabs, their rule, and the way back's
+      row) sits at the tree's top, still. The list sits in a box of the
+      rows between it and Ready to send, clipped (`overflow: "hidden"`),
+      and shifted up by how far down it stands (`marginTop`); Ready to
+      send sits under it, still, its last row past the tree's end,
       which paints. The list's rows are the window's, less the header's, and
       less Ready to send's or, with nothing in it, the tree's spare row; the
       header's rows are the same everywhere, and Ready to send's follow
@@ -966,10 +966,11 @@ $XDG_STATE_HOME/sitrep/, else ~/.local/state/sitrep/
   line (a Button's label never wraps), all of them one hover group, a
   `hover` scope made from its press key, so the whole title lights
   whichever line the pointer is on.
-- Breathing room: a column each side, a blank row under the tab rule,
-  after an opened ask's buttons, between projects in All projects, and
-  between sections; none between the entries of a list (log, For you,
-  done, parked), nor between the tabs and their rule.
+- Breathing room: a column each side, a blank row under the tab rule
+  where there is no way back, after an opened ask's buttons, between
+  projects in All projects, and between sections; none between the
+  entries of a list (log, For you, done, parked), nor between the tabs and
+  their rule.
 - No indents left floating: anything hanging off an item hangs from a `└`.
 
 ## Where it lives

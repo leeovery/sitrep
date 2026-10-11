@@ -82,7 +82,7 @@ test('the board walks from this session to every project, down into a project an
 
   expect(await ui.find({ key: `pick:${w.item(asked)}` })).toBeDefined()
 
-  // All projects, then this project: the tabs stay, and the way back sits on its title line.
+  // All projects, then this project: the tabs stay, and the way back sits under them.
   await toProject(ui)
   expect(await ui.find({ key: 'tab:all' })).toBeDefined()
   expect(await ui.find({ key: 'up', text: '← All projects' })).toBeDefined()

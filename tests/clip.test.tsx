@@ -27,7 +27,7 @@ const BODY_ROWS = DOCKED.scroll.bodyRows
 /** The rows Ready to send takes besides its lines: its border. */
 const BORDER = 2
 
-/** The rows the header takes in every view: the tabs, their rule, and a blank row. */
+/** The rows the header takes in every view: the tabs, their rule, and the way back's row. */
 const HEADER = 3
 
 /** The rows each block is measured at, unless a test says otherwise. */
@@ -149,7 +149,7 @@ const spanOf = (blocks: Measured, key: string) => {
 /** The rows of the list showing between the header and Ready to send, as drawn. */
 const listRows = async (ui: Pane) => Number((await clipping(ui)).clip?.height)
 
-/** The rows the header draws: the tabs, their rule, and the blank row under it. */
+/** The rows the header draws: the tabs, their rule, and the way back's row under it. */
 const headerRows = async (ui: Pane) => rowsOf(await ui.find({ key: 'header' })).length
 
 /** The rows Ready to send draws: each of its lines, as tests/drawn lays them out, and its border. */
@@ -247,7 +247,7 @@ test('docked, the tree is a row short of the window; the list is clipped between
 })
 
 test(
-  "docked, the header is the same in every view; the way back is in the list's first block, and every view's list holds Ready to send still and reaches its end",
+  "docked, the header is the same in every view, the way back in its last row; every view's list holds Ready to send still and reaches its end",
   SLOW,
   async ($, on) => {
     const w = world($, on)
@@ -282,15 +282,15 @@ test(
       const [row, rule, ...rest] = rowsOf(await ui.find({ key: 'header' }))
 
       tabs ??= row
-      expect([row, rest], `${name}: the tabs as at home, then the rule and a blank row`).toEqual([
+      expect([row, rest], `${name}: the tabs as at home, then the rule and the way back`).toEqual([
         tabs,
-        [''],
+        [back ?? ''],
       ])
       expect(rule, name).toMatch(/^[━─]+$/)
       expect(
-        rowsOf(await ui.find({ key: 'block:context' }))[0]?.match(/← .*$/)?.[0],
-        `${name}: the way back at the end of the first block's line`,
-      ).toBe(back)
+        rowsOf(await ui.find({ key: 'block:context' })).join('\n'),
+        `${name}: none on the title line`,
+      ).not.toContain('←')
       await expectHeightKept(ui, name)
 
       await $.ui.scroll(scrolled({ by: 500, ...WHEEL }))
@@ -550,7 +550,7 @@ test('a click on a button whose item starts above the fold leaves the list where
   expect(await topOf(ui)).toBe(opened.from + 4)
 })
 
-test("docked, a header button the focus reaches never moves the list: the lit tab, the lit All projects; the way back, the list's first block's, brings it to its top", async ($, on) => {
+test('docked, a header button the focus reaches never moves the list: the lit tab, the lit All projects, the way back', async ($, on) => {
   const w = world($, on)
 
   beneath(on)
@@ -569,7 +569,7 @@ test("docked, a header button the focus reaches never moves the list: the lit ta
   await $.ui.focus(focused('tab:all'))
   expect(await topOf(ui), 'the lit All projects, reached').toBe(4)
   await $.ui.focus(focused('up'))
-  expect(await topOf(ui), 'the way back, reached').toBe(0)
+  expect(await topOf(ui), 'the way back, reached').toBe(4)
 })
 
 test(
