@@ -2,9 +2,9 @@
  * The band: one line above the prompt, counts alone, kept to the right,
  * each a way into the board, and the board's own show or hide. Below 64
  * columns the words drop and the counts stay. Where the board said it sits
- * inline the hide is a bracketed `✕ close`, wide enough
- * to tap where the frame's own ✕ is one cell. For a few seconds after the
- * window takes in replies sent from another work's board, it says so.
+ * inline the hide is a bracketed `✕ close`, wide enough to tap where the
+ * frame's own ✕ is one cell. For a few seconds after the window takes in
+ * replies sent from another work's board, it says so.
  *
  * While Lee answers an ask in the prompt, the band on the surface Lee
  * began on says only that, the whole time, with the way out of it: the next
