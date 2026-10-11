@@ -20,6 +20,7 @@ import {
   checkResolve,
   checkStart,
   checkStatus,
+  itemTitle,
   metaText,
   newWorkId,
   projectNamed,
@@ -48,7 +49,8 @@ import { attachTo, attached, refresh, serially } from './window'
 
 type Fields = { readonly [key: string]: unknown }
 
-type Answer = { result: string } | { deny: string }
+/** A tool's answer, and the name the call's row gives what it named, where it names one. */
+type Answer = { result: string; names?: string } | { deny: string }
 
 /** A tool's spec, its name kept literal: once a load has laid these tools' types, `tool.call`'s matcher takes only their exact names. */
 type Spec<N extends string> = ToolSpec & { name: N }
@@ -133,11 +135,16 @@ const onWork =
     return work === undefined ? { deny: UNREADABLE } : answer(host, work, input, held)
   }
 
-/** A tool that posts one line, checked from its input, to the attached work: a line Claude knows of. */
+/**
+ * A tool that posts one line, checked from its input, to the attached work:
+ * a line Claude knows of. `names` names what the line is about, in the work
+ * as it stands after it.
+ */
 const posting = <N extends string, B extends Body>(
   toolSpec: Spec<N>,
   check: (work: Work, input: Fields) => Checked<B>,
   said: (body: B) => string,
+  names: (work: Work, body: B) => string | undefined = () => undefined,
 ): Tool<N> => ({
   spec: toolSpec,
   answer: onWork(async (host, work, input) => {
@@ -147,11 +154,17 @@ const posting = <N extends string, B extends Body>(
       return { deny: checked.error }
     }
 
-    await postKnown(host, work, [checked.value])
+    const after = await postKnown(host, work, [checked.value])
 
-    return { result: said(checked.value) }
+    return {
+      result: said(checked.value),
+      names: after === undefined ? undefined : names(after, checked.value),
+    }
   }),
 })
+
+/** The title of the item a line is about, as a work has it. */
+const itemNamed = (work: Work, { item }: { item: string }) => itemTitle(work, item)
 
 /**
  * Attaches the window to a work, and counts its board as seen: Claude gave
@@ -256,6 +269,7 @@ const join: Tool<'join'> = {
 
     return {
       result: `Joined ${work.status.name} (${id}).${joined.said} The board as it stands:\n${boardText(joined.work)}`,
+      names: joined.work.status.name,
     }
   },
 }
@@ -382,11 +396,13 @@ const TOOLS = [
     ),
     checkResolve,
     ({ item }) => `Resolved ${item}.`,
+    itemNamed,
   ),
   posting(
     spec('reopen', 'Reopen a closed item by its id.', { item: ITEM, reason: REASON }, ['item']),
     checkReopen,
     ({ item }) => `Reopened ${item}.`,
+    itemNamed,
   ),
   posting(
     spec(
@@ -409,6 +425,7 @@ const TOOLS = [
     ),
     checkEdit,
     ({ item }) => `Edited ${item}.`,
+    itemNamed,
   ),
   posting(
     spec(
@@ -418,6 +435,7 @@ const TOOLS = [
     ),
     (work, input) => checkFinish(work, 'claude', input),
     () => 'Marked done. This window stays attached; joining the work again reopens it.',
+    work => work.status.name,
   ),
   project,
   board,
@@ -439,11 +457,35 @@ export const toolNamed = (tool: string) => TOOLS.find(each => nameOf(each) === t
 
 export const SPECS = TOOLS.map(tool => tool.spec)
 
+/** The latest calls whose names are kept: `$.state` lasts the session, and an older row falls back to the held work. */
+export const NAMES_KEPT = 300
+
+/** Keeps the name a call's row gives what it named, so the row keeps it as the window moves on. */
+const keepName = (host: Host, call: string, name: string) =>
+  host.state.named.update(named => [...named, { call, name }].slice(-NAMES_KEPT))
+
+/** The name a call's row gives what it named, as kept when the call was answered; undefined with none kept. */
+export const nameKept = async (host: Host, call: string) =>
+  (await host.state.named.read()).find(each => each.call === call)?.name
+
+/** A tool's answer as the model reads it, the name its row gives kept first. */
+const answered = async (host: Host, call: string, answer: Answer) => {
+  if ('deny' in answer) {
+    return answer
+  }
+
+  if (answer.names !== undefined) {
+    await keepName(host, call, answer.names)
+  }
+
+  return { result: answer.result }
+}
+
 /** Answers a call of one of the tools; a subagent's is refused. */
 export const answerCall = async (
   host: Host,
-  call: Fields & { tool: string; agentId?: string },
-): Promise<Answer> => {
+  call: Fields & { tool: string; tool_use_id: string; agentId?: string },
+): Promise<{ result: string } | { deny: string }> => {
   if (call.agentId !== undefined) {
     return { deny: FOR_THE_REPORT }
   }
@@ -452,5 +494,5 @@ export const answerCall = async (
 
   return tool === undefined
     ? { deny: `sitrep has no tool ${call.tool}.` }
-    : serially(() => tool.answer(host, call))
+    : serially(async () => answered(host, call.tool_use_id, await tool.answer(host, call)))
 }

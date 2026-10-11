@@ -49,7 +49,7 @@ import { receiveEvery } from './receive'
 import { heldWork, sceneOf, tickEvery } from './scene'
 import { boardChange, markSeen } from './seen'
 import { rejoin, startListing } from './start'
-import { answerCall, SPECS, TOOL_NAMES } from './tools'
+import { answerCall, nameKept, SPECS, TOOL_NAMES } from './tools'
 import { letGo, resume, serially } from './window'
 
 /** The block of the session's first message that lists the project's works. */
@@ -75,6 +75,7 @@ const answering = atom({ plugin: 'sitrep', key: 'answering' } as const, null)
 const pulse = atom({ plugin: 'sitrep', key: 'pulse' } as const, { asks: [], frames: 0 })
 const flash = atom({ plugin: 'sitrep', key: 'flash' } as const, 0)
 const tick = atom({ plugin: 'sitrep', key: 'tick' } as const, 0)
+const named = atom({ plugin: 'sitrep', key: 'named' } as const, [])
 
 /** The host, as a hook's `$` reaches it. */
 const hostOf = ($: EngineInterface): Host => ({
@@ -185,6 +186,11 @@ const hostOf = ($: EngineInterface): Host => ({
       read: () => read($, tick),
       write: value => update($, tick, () => value),
       update: change => update($, tick, change),
+    },
+    named: {
+      read: () => read($, named),
+      write: value => update($, named, () => value),
+      update: change => update($, named, change),
     },
   },
 })
@@ -380,10 +386,14 @@ export const register: Register = on => {
 
   // A refused or interrupted call keeps the engine's own row, so what went wrong shows.
   on('ui.render', { component: 'ToolUse', props: { tool: TOOL_NAMES } }, async ($, e, next) => {
+    const host = hostOf($)
     const line =
       e.props.isErrored || e.props.isInterrupted
         ? undefined
-        : await toolLine(e.props.tool, e.props.input, () => heldWork(hostOf($)))
+        : await toolLine(e.props.tool, e.props.input, {
+            kept: () => nameKept(host, e.props.tool_use_id),
+            held: () => heldWork(host),
+          })
 
     return line === undefined ? next(e) : drawToolRow($.ui.resolve(e), line)
   })

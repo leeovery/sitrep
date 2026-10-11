@@ -23,6 +23,7 @@ import type {
   SitrepAttachment,
   SitrepBoard,
   SitrepInFlight,
+  SitrepNamed,
   SitrepOther,
   SitrepPane,
   SitrepProject,
@@ -101,6 +102,7 @@ export type Host = {
     pulse: Slot<SitrepPulse>
     flash: Slot<number>
     tick: Slot<number>
+    named: Slot<SitrepNamed[]>
   }
 }
 

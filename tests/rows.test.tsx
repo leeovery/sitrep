@@ -1,8 +1,15 @@
 import type { On } from 'claude-code'
-import { expect, test, tier } from 'claude-code/testing'
-import { postedId, world } from './world'
+import { expect, test, tier, type Engine } from 'claude-code/testing'
+import { NAMES_KEPT } from '../hooks/tools'
+import { SLOW } from './support'
+import { postedId, PROJECT, startedId, world } from './world'
 
 tier('user')
+
+type World = ReturnType<typeof world>
+
+/** Another piece of work Claude starts in the session, which the window then holds. */
+const USAGE = { name: 'Usage page', summary: 'Draw the usage page', project: PROJECT.name }
 
 const SURFACES = ['terminal', 'desktop', 'vscode', 'mobile'] as const
 
@@ -29,6 +36,35 @@ const result = (tool: string, isErrored = false) => ({
   requestId: 'toolu_1',
   props: { tool_use_id: 'toolu_1', tool, output: 'Posted ask k3f9.', isErrored },
 })
+
+/** Calls a naming tool: the id the engine gave the call, read off the name kept for its row. */
+const keeping = async (w: World, tool: string, input: { [key: string]: unknown }) => {
+  await w.call(tool, input)
+
+  const kept = w.state.named?.at(-1)
+
+  if (kept === undefined) {
+    throw new Error(`${tool} kept no name`)
+  }
+
+  return kept.call
+}
+
+/** The line a call's row draws, found by its text; undefined where the row draws another. */
+const drawnLine = async (
+  $: Engine,
+  call: string,
+  tool: string,
+  input: { [key: string]: unknown },
+  line: string,
+) => {
+  const ui = await $.ui.mount({ ...row(tool, input, call), surface: 'terminal' })
+  const drawn = await ui.find({ type: 'Text', text: line })
+
+  await ui.unmount()
+
+  return drawn
+}
 
 /** The engine's own drawing of any row, beneath the mod. */
 function engineRows(on: On) {
@@ -75,7 +111,7 @@ test("each of Claude's sitrep calls is one dim line saying what it did, on every
   }
 })
 
-test('a call naming an item or a work names it as the held work has it', async ($, on) => {
+test('a call naming an item or a work, with no name kept, names it as the held work has it', async ($, on) => {
   const w = world($, on)
 
   engineRows(on)
@@ -100,6 +136,100 @@ test('a call naming an item or a work names it as the held work has it', async (
     expect(await ui.find({ type: 'Text', text: line }), tool).toBeDefined()
     await ui.unmount()
   }
+})
+
+test("a resolve, reopen or edit row keeps its item's title after Claude joins another work", async ($, on) => {
+  const w = world($, on)
+
+  engineRows(on)
+  await w.begin()
+
+  const asked = postedId(
+    await w.call('ask', { wants: 'yes', yes: 'Approve', title: 'Review round 1' }),
+  )
+  const rows: [tool: string, input: { [key: string]: unknown }, line: string][] = [
+    ['resolve', { item: asked }, 'resolved: Review round 1'],
+    ['reopen', { item: asked }, 'reopened: Review round 1'],
+    ['edit', { item: asked, where: 'In Paper' }, 'edited: Review round 1'],
+  ]
+  const kept = []
+
+  for (const [tool, input, line] of rows) {
+    kept.push({ call: await keeping(w, tool, input), tool, input, line })
+  }
+
+  const other = startedId(await w.call('start', USAGE))
+
+  await w.call('join', { work: other })
+
+  for (const { call, tool, input, line } of kept) {
+    expect(await drawnLine($, call, tool, input, line), tool).toBeDefined()
+  }
+})
+
+test("an edit's row names the item's title as the edit left it", async ($, on) => {
+  const w = world($, on)
+
+  engineRows(on)
+  await w.begin()
+
+  const asked = postedId(
+    await w.call('ask', { wants: 'yes', yes: 'Approve', title: 'Review round 1' }),
+  )
+  const input = { item: asked, title: 'Review round 2' }
+  const edited = await keeping(w, 'edit', input)
+
+  await w.call('edit', { item: asked, title: 'Review round 3' })
+
+  expect(await drawnLine($, edited, 'edit', input, 'edited: Review round 2')).toBeDefined()
+})
+
+test("a join row and a finish row keep the work's name after a later join", async ($, on) => {
+  const w = world($, on)
+
+  engineRows(on)
+
+  const { id } = await w.begin()
+  const other = startedId(await w.call('start', USAGE))
+  const joined = await keeping(w, 'join', { work: id })
+  const finished = await keeping(w, 'finish', { reason: 'Shipped' })
+
+  await w.call('join', { work: other })
+
+  expect(
+    await drawnLine($, joined, 'join', { work: id }, 'joined: Dashboard redesign'),
+  ).toBeDefined()
+  expect(
+    await drawnLine($, finished, 'finish', { reason: 'Shipped' }, '✓ finished: Dashboard redesign'),
+  ).toBeDefined()
+})
+
+test('a refused call keeps no name', async ($, on) => {
+  const w = world($, on)
+
+  await w.begin()
+  await w.call('resolve', { item: 'zzzz' })
+  await w.call('join', { work: 'sr-zzzzzz' })
+
+  expect(w.state.named ?? []).toEqual([])
+})
+
+test('only the latest calls keep their names, the oldest let go', SLOW, async ($, on) => {
+  const w = world($, on)
+
+  await w.begin()
+
+  const asked = postedId(
+    await w.call('ask', { wants: 'yes', yes: 'Approve', title: 'Review round 1' }),
+  )
+  const first = await keeping(w, 'resolve', { item: asked })
+
+  for (let i = 0; i < NAMES_KEPT; i += 1) {
+    await w.call(i % 2 === 0 ? 'reopen' : 'resolve', { item: asked })
+  }
+
+  expect(w.state.named).toHaveLength(NAMES_KEPT)
+  expect(w.state.named?.some(each => each.call === first)).toBe(false)
 })
 
 test("a call's result draws nothing, on every surface", async ($, on) => {

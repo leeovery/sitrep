@@ -1,8 +1,8 @@
 /**
  * sitrep's values in `$.state`: the piece of work this window is attached
  * to, that work as its files fold, the board as Claude last saw it, the
- * works around it as the board draws them, and the window's own state as
- * Lee works the board.
+ * works around it as the board draws them, the window's own state as Lee
+ * works the board, and what Claude's calls named as they were answered.
  *
  * The engine takes only a self-contained contract, so the board's types
  * mirror core's (core/types.ts). hooks/board.ts converts a folded work to a
@@ -274,6 +274,12 @@ export type SitrepPulse = {
   frames: number
 }
 
+/** What a call's row names, as the call was answered: the call's id, and the item's title or the work's name. */
+export type SitrepNamed = {
+  call: string
+  name: string
+}
+
 declare module 'claude-code' {
   interface PluginState {
     sitrep: {
@@ -300,6 +306,8 @@ declare module 'claude-code' {
       pulse: SitrepPulse
       /** How many replies from the board the band is flashing as just taken in; 0 for none. */
       flash: number
+      /** What the latest naming calls' rows name, the latest last. */
+      named: SitrepNamed[]
       /** A count moved on as time passes, so what the board draws from the time is drawn again. */
       tick: number
     }

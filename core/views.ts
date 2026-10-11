@@ -97,6 +97,17 @@ export const isCurrent = (work: WorkSummary, now: number) =>
   !work.isFinished &&
   (work.isOpen || work.waiting > 0 || work.parked > 0 || now - work.updatedAt <= CURRENT_MS)
 
+/** The title of a work's item, by its id, as the views show it (a note's is its text); undefined where the work has none. */
+export const itemTitle = (work: Work, id: string) => {
+  const item = work.items.get(id)
+
+  if (item === undefined) {
+    return undefined
+  }
+
+  return item.type === 'note' ? item.text : item.title
+}
+
 export const summarise = (work: Work): WorkSummary => ({
   id: work.id,
   name: work.status.name,
