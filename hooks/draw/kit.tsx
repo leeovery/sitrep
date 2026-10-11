@@ -120,6 +120,13 @@ export const heading = (
   )
 }
 
+/** The line a section with nothing in it shows under its heading, soft as a line describing it. */
+export const emptyLine = ({ els }: Drawing, words: string) => {
+  const { Text } = els
+
+  return <Text color={C.soft}>{words}</Text>
+}
+
 /** A glyph and the line it marks, the line wrapping beside it. */
 export const marked = (
   { els }: Drawing,
@@ -150,10 +157,24 @@ export const titleLines = (d: Drawing, title: string, isOpen: boolean) => {
   return isOpen ? wrapped(title, width) : [clip(title, width)]
 }
 
+/** The most characters the engine takes in a hover group's name. */
+const SCOPE_CHARS = 64
+
+/** A short fingerprint of text: FNV-1a over its code points, in base 36. */
+const fingerprint = (text: string) =>
+  Array.from(text, ch => ch.codePointAt(0) ?? 0)
+    .reduce((hash, point) => Math.imul(hash ^ point, 0x01000193) >>> 0, 0x811c9dc5)
+    .toString(36)
+
+/** The hover group of the title a press key opens: the key itself where the engine takes it as a name, else its fingerprint. */
+export const hoverScope = (key: string) =>
+  key.length <= SCOPE_CHARS && !/\p{Cc}/u.test(key) ? key : `#${fingerprint(key)}`
+
 /**
  * An item's title as the press that opens and closes it. A Button's label
  * never wraps, so each line of an opened title is a Button of its own,
- * pressing the same.
+ * pressing the same, and all of them one hover group, so the whole title
+ * lights whichever line the pointer is on.
  */
 export const drawTitle = (
   { els }: Drawing,
@@ -162,11 +183,18 @@ export const drawTitle = (
   onPress: () => void,
 ) => {
   const { Box, Button } = els
+  const hover = { scope: hoverScope(key), inverse: true }
 
   return (
     <Box flexDirection="column">
       {lines.map((line, i) => (
-        <Button key={i === 0 ? key : `${key}:${i}`} plain label={line} onPress={onPress} />
+        <Button
+          key={i === 0 ? key : `${key}:${i}`}
+          plain
+          label={line}
+          hover={hover}
+          onPress={onPress}
+        />
       ))}
     </Box>
   )

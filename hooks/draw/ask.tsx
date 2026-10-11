@@ -21,6 +21,7 @@ import {
   drawOnItsWay,
   drawQueued,
   drawRow,
+  emptyLine,
   heading,
   onItsWay,
   seeRef,
@@ -208,7 +209,7 @@ const noteOf = (d: Drawing, { waiting, isHome }: ForYou) => {
 
 /** For you's heading, then each ask, keyed by its address, since a project's view lists every session's. */
 export const drawForYou = (d: Drawing, asked: readonly AskedAt[], listing: ForYou): Block[] => {
-  const { Box, Text } = d.els
+  const { Box } = d.els
   const { note, color } = noteOf(d, listing)
 
   return [
@@ -217,7 +218,7 @@ export const drawForYou = (d: Drawing, asked: readonly AskedAt[], listing: ForYo
       element: (
         <Box flexDirection="column">
           {heading(d, 'FOR YOU', C.ask, note, color)}
-          {asked.length === 0 && <Text color={C.grey}>Nothing waiting on you.</Text>}
+          {asked.length === 0 && emptyLine(d, 'Nothing waiting on you.')}
         </Box>
       ),
     },

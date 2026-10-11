@@ -59,6 +59,7 @@ const pane = atom({ plugin: 'sitrep', key: 'pane' } as const, {
   isOpen: false,
   place: null,
   selected: null,
+  doneInFull: null,
 })
 const scroll = atom({ plugin: 'sitrep', key: 'scroll' } as const, null)
 const answering = atom({ plugin: 'sitrep', key: 'answering' } as const, null)

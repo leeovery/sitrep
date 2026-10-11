@@ -1,4 +1,5 @@
 import { expect, test, tier } from 'claude-code/testing'
+import { hoverScope } from '../hooks/draw/kit'
 import { C, GLYPH } from '../hooks/look'
 import { rowsOf } from './drawn'
 import { MIN } from './support'
@@ -54,6 +55,23 @@ const glyphColours = async (ui: Board) =>
     ),
   )
 
+type Hover = { scope?: string; inverse?: boolean }
+
+type Drawn = { type?: string; props?: { key?: unknown }; hover?: Hover; children?: unknown[] }
+
+/** The hover of every Button in a drawn tree whose key opens with `prefix`, in document order: what `find` leaves out. */
+const hoversIn = (node: unknown, prefix: string): (Hover | undefined)[] => {
+  const { type, props, hover, children = [] } = node as Drawn
+  const own = type === 'Button' && String(props?.key).startsWith(prefix) ? [hover] : []
+
+  return [
+    ...own,
+    ...children.flatMap(child =>
+      typeof child === 'object' && child !== null ? hoversIn(child, prefix) : [],
+    ),
+  ]
+}
+
 /** Each tree glyph drawn, and only ever faint. */
 const ALL_FAINT = { [GLYPH.branch]: [C.faint], [GLYPH.last]: [C.faint], [GLYPH.stem]: [C.faint] }
 
@@ -89,6 +107,46 @@ test('a log line is its mark, its text and its age at the right edge; opened, a 
     '• PR #82 merged                                    now',
     '└ nothing more was recorded',
   ])
+  expect(await lineOn(ui, 'nothing more was recorded'), 'a detail line, soft').toEqual({
+    color: C.soft,
+    label: undefined,
+  })
+})
+
+test("an opened title's lines light as one: each line's press in one hover group, inverted, and another title in its own", async ($, on) => {
+  const w = world($, on)
+
+  await w.begin()
+
+  const fold = postedId(await w.call('park', { title: FOLD }))
+  const other = postedId(await w.call('park', { title: 'A tmux indicator' }))
+  const ui = await w.pane()
+  const hovers = async (id: string) => hoversIn(await ui.drawn(), `ppick:${w.item(id)}`)
+
+  await ui.press({ key: `ppick:${w.item(fold)}` })
+
+  const scope = hoverScope(`ppick:${w.item(fold)}`)
+  const otherScope = hoverScope(`ppick:${w.item(other)}`)
+
+  expect(await hovers(fold), 'its three lines, one group').toEqual(
+    Array(3).fill({ scope, inverse: true }),
+  )
+  expect(await hovers(other)).toEqual([{ scope: otherScope, inverse: true }])
+  expect(otherScope).not.toBe(scope)
+})
+
+test("a title's hover group is named by its press key, or, where the key is too long or holds a control character, by a fingerprint of it within 64 characters", () => {
+  const long = (end: string) => `pick:sr-k3f9qa:${'x'.repeat(80)}${end}`
+  const scopes = [long('a'), long('b'), 'pick:sr-k3f9qa:k3f9\n'].map(hoverScope)
+
+  expect(hoverScope('pick:sr-k3f9qa:k3f9')).toBe('pick:sr-k3f9qa:k3f9')
+  expect([...new Set(scopes)]).toHaveLength(3)
+
+  for (const scope of scopes) {
+    expect(scope.length).toBeGreaterThan(0)
+    expect(scope.length).toBeLessThanOrEqual(64)
+    expect(scope).not.toMatch(/\p{Cc}/u)
+  }
 })
 
 test('an opened parked item hangs where and its record from its mark, its button under the tree', async ($, on) => {

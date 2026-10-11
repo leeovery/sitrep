@@ -50,8 +50,8 @@ const COUNTED: Readonly<Record<string, Focus>> = {
   [BAND.elsewhere]: { place: EVERY_PROJECT },
 }
 
-/** Where the board opens once it has been closed: home, nothing opened. */
-const HOME: Focus = { place: null, selected: null }
+/** Where the board opens once it has been closed: home, nothing opened, every DONE showing its latest. */
+const HOME: Partial<SitrepPane> = { place: null, selected: null, doneInFull: null }
 
 const markOpen = (host: Host, isOpen: boolean) =>
   host.state.pane.update(pane => ({ ...pane, isOpen }))

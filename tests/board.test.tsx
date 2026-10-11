@@ -1,5 +1,6 @@
 import { expect, test, tier } from 'claude-code/testing'
-import { INLINE, DOCKED, postedId, SESSION, SURFACES, world } from './world'
+import { C } from '../hooks/look'
+import { INLINE, DOCKED, postedId, SESSION, SURFACES, toProject, world } from './world'
 import { SLOW } from './support'
 
 tier('user')
@@ -36,6 +37,26 @@ test('an empty board says nothing waits on you, docked and inline, on each surfa
       await ui.unmount()
     }
   }
+})
+
+test("an empty section's line is soft, a grey lighter than its heading's few words, in a session's view and a project's", async ($, on) => {
+  const w = world($, on)
+
+  await w.begin()
+
+  const ui = await w.pane()
+  const colourOf = async (text: string) => (await ui.find({ type: 'Text', text }))?.props.color
+
+  for (const line of ['Nothing waiting on you.', 'Nothing under way yet.', 'Nothing yet.']) {
+    expect(await colourOf(line), line).toBe(C.soft)
+  }
+
+  for (const note of ['nothing waiting', 'what happened']) {
+    expect(await colourOf(note), note).toBe(C.grey)
+  }
+
+  await toProject(ui)
+  expect(await colourOf('Nothing waiting on you.'), 'the project view').toBe(C.soft)
 })
 
 test('with no work held, the board says so in a line and says how Claude starts one', async ($, on) => {

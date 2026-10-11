@@ -253,6 +253,8 @@ export type SitrepPane = {
   place: SitrepPlace | null
   /** The item (or log line) opened under its line. */
   selected: string | null
+  /** The work whose DONE shows every closed ask, not only the latest; null for none. A pane an older load saved lacks it, and is read as none. */
+  doneInFull: string | null
 }
 
 /** How far down the docked board's list stands: the place it was moved at, and the list's first row showing there. */

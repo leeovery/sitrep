@@ -48,29 +48,21 @@ const drawClosed = (d: Drawing, work: string, ask: Ask): Block => {
   }
 }
 
-/**
- * What has DONE opened to every one, if anything: its own toggle, or an
- * ask past the latest few, opened there, which must not fold away under
- * the press that opened it.
- */
-const openedToAllBy = (
-  work: string,
-  asks: readonly Ask[],
-  toggle: string,
-  selected: string | null,
-) => [toggle, ...asks.slice(LATEST).map(ask => doneKey(work, ask))].find(key => key === selected)
-
-/** The press opening DONE to every closed ask, or folding it back to the latest; none with no more than those. */
-const drawToggle = (d: Drawing, asks: readonly Ask[], key: string, allBy: string | undefined) => {
-  const { Button } = d.els
-  const label = allBy === undefined ? `show all ${asks.length}` : 'show fewer'
+/** The press opening DONE to every closed ask, or folding it back to the latest, in grey; none with no more than those. */
+const drawToggle = (d: Drawing, work: string, asks: readonly Ask[], isInFull: boolean) => {
+  const { Button, Text } = d.els
+  const key = `earlier:${work}`
+  const label = isInFull ? 'show fewer' : `show all ${asks.length}`
+  const hidden = asks.slice(LATEST).map(ask => doneKey(work, ask))
 
   return asks.length > LATEST
     ? [
         {
           key,
           element: (
-            <Button key={key} plain label={label} onPress={() => d.act.select(allBy ?? key)} />
+            <Button key={key} plain label={label} onPress={() => d.act.toggleDone(work, hidden)}>
+              <Text color={C.grey}>{label}</Text>
+            </Button>
           ),
         },
       ]
@@ -80,8 +72,7 @@ const drawToggle = (d: Drawing, asks: readonly Ask[], key: string, allBy: string
 /** DONE's heading, the closed asks it shows, and its toggle; none while no ask has closed. */
 export const drawDone = (d: Drawing, { work }: Filed): Block[] => {
   const asks = doneEarlier(work, d.scene.now)
-  const key = `earlier:${work.id}`
-  const allBy = openedToAllBy(work.id, asks, key, d.scene.pane.selected)
+  const isInFull = d.scene.pane.doneInFull === work.id
 
   if (asks.length === 0) {
     return []
@@ -89,7 +80,7 @@ export const drawDone = (d: Drawing, { work }: Filed): Block[] => {
 
   return [
     { key: 'done', element: heading(d, 'DONE', C.ok, `${asks.length} closed`) },
-    ...(allBy === undefined ? asks.slice(0, LATEST) : asks).map(ask => drawClosed(d, work.id, ask)),
-    ...drawToggle(d, asks, key, allBy),
+    ...(isInFull ? asks : asks.slice(0, LATEST)).map(ask => drawClosed(d, work.id, ask)),
+    ...drawToggle(d, work.id, asks, isInFull),
   ]
 }

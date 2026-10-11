@@ -297,14 +297,16 @@ show all 4
 - **Done:** a section of its own at the foot of a session's view, under Parked,
   drawn once an ask has closed. Its heading counts the asks closed before
   now, ignored ones aside (`4 closed`), and it lists the latest 3, the newest
-  closed first. With more, `show all 4` opens it to every one and then reads
-  `show fewer`, as a selection does (closing the board puts it away). Each is
-  a list's row: a green `✓`, its title, and how long ago it closed. Opened,
-  as any item opens, it shows its whole title and hangs how it closed: the
-  reply that closed it (`→ Approve`, `→ Forever`), or
-  `resolved by Claude: <reason>`. One opened past the latest 3 keeps DONE
-  open to every one, and `show fewer` closes both. For you holds only what
-  is open, and the asks Lee's send just closed, for a moment.
+  closed first. With more, `show all 4`, in grey, opens it to every one and
+  then reads `show fewer`. That toggle alone opens and folds it: opening or
+  closing an item, in DONE or anywhere on the board, never changes how many
+  it shows; closing the board folds it. Each is a list's row: a green `✓`,
+  its title, and how long ago it closed. Opened, as any item opens, it
+  shows its whole title and hangs how it closed: the reply that closed it
+  (`→ Approve`, `→ Forever`), or `resolved by Claude: <reason>`. Folding
+  DONE closes an ask opened past the latest 3, no longer shown. For you
+  holds only what is open, and the asks Lee's send just closed, for a
+  moment.
 - Each tab carries what waits there: home, this session's asks; All
   projects, every project's.
 - Each view's first line sits directly under the header (the tab rule, or
@@ -713,8 +715,10 @@ $XDG_STATE_HOME/sitrep/, else ~/.local/state/sitrep/
   went to are read in full too, and so is the work of the ask Lee is
   answering in the prompt, open or not, read at once as the press begins
   answering it.
-- The board's last view lives in the session's `$.state` only. `$.store` is
-  unused so far.
+- The board's last view lives in the session's `$.state` only: where it
+  looks, the item opened there, and, apart from that, the work whose DONE
+  shows every closed ask; a pane an older load saved, without it, reads as
+  none. `$.store` is unused so far.
 
 ## One engine, two front ends
 
@@ -921,8 +925,9 @@ $XDG_STATE_HOME/sitrep/, else ~/.local/state/sitrep/
   grey `#7a82ab`, faint `#565f89`, rules `#3b4261`, tab `#292e42`.
 - **White:** anything clickable, and the main content.
 - **Soft:** lines describing the item above them (a summary, what a session is
-  doing, a reply, a log detail).
-- **Grey:** ages, counts, heading notes. **Faint:** closed things (a closed
+  doing, a reply, a log detail), and the line a section with nothing in it
+  shows (`Nothing yet.`).
+- **Grey:** ages, counts, heading notes, and DONE's toggle, a quieter press. **Faint:** closed things (a closed
   session, an ask Lee's send just closed), but not DONE's asks: each is a
   row to open, its `✓` green and its title white; and every tree's `│ ├ └`.
   Section headings' rules and the tabs' rule are the rule colour.
@@ -937,7 +942,10 @@ $XDG_STATE_HOME/sitrep/, else ~/.local/state/sitrep/
   press that opens it) on one line, clipped, and the age on the right, in
   grey. Opened, the title shows in full, a `│` beside its further lines, and
   the detail hangs from the mark as a tree; an opened ask's buttons and hint
-  come after its tree, at its title's column.
+  come after its tree, at its title's column. A wrapped title is a press per
+  line (a Button's label never wraps), all of them one hover group, a
+  `hover` scope made from its press key, so the whole title lights
+  whichever line the pointer is on.
 - Breathing room: a column each side, a blank row after an opened ask's
   buttons, between projects in All projects, and between sections; none
   between the entries of a list (log, For you, done, parked), nor in the

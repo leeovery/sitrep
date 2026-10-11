@@ -25,6 +25,8 @@ import { attached, serially } from './window'
 export type Actions = {
   /** Opens an item, or a log line, under its line; or closes it again. */
   select: (id: string) => void
+  /** Opens a work's DONE to every closed ask, or folds it back to the latest, closing an opened ask among `hidden`, those it then no longer shows. */
+  toggleDone: (work: string, hidden: readonly string[]) => void
   /** Queues Lee's reply to an item, in place of any it had. */
   reply: (reply: SitrepQueued) => void
   /** Takes the reply to one item out of the queue. */
@@ -43,6 +45,21 @@ export type Actions = {
 
 const changePane = (host: Host, change: (pane: SitrepPane) => Partial<SitrepPane>) =>
   host.state.pane.update(pane => ({ ...pane, ...change(pane) }))
+
+/** A work's DONE shown in full, or folded back to the latest, an opened ask it stops showing closed with it. */
+const doneToggled = (
+  pane: SitrepPane,
+  work: string,
+  hidden: readonly string[],
+): Partial<SitrepPane> => {
+  if (pane.doneInFull !== work) {
+    return { doneInFull: work }
+  }
+
+  const isHidden = pane.selected !== null && hidden.includes(pane.selected)
+
+  return { doneInFull: null, selected: isHidden ? null : pane.selected }
+}
 
 /** Has another work read in full, for the board to draw what Lee did to it; the held one is the watch's. */
 const readIfElsewhere = async (host: Host, { work }: SitrepWorkRef) => {
@@ -98,6 +115,8 @@ export const actionsOf = (host: Host): Actions => {
       run('opening an item', () =>
         changePane(host, pane => ({ selected: pane.selected === id ? null : id })),
       ),
+    toggleDone: (work, hidden) =>
+      run('showing what was done', () => changePane(host, pane => doneToggled(pane, work, hidden))),
     reply: reply => run('queuing a reply', () => queue(host, reply)),
     unqueue: (work, item) =>
       run('taking a reply back', () =>

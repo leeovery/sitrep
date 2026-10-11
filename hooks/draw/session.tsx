@@ -10,7 +10,7 @@ import type { Filed } from '../scene'
 import { drawForYou } from './ask'
 import { drawDone } from './earlier'
 import { drawFinish } from './finish'
-import { context, heading, marked, spaced, type Block, type Drawing } from './kit'
+import { context, emptyLine, heading, marked, spaced, type Block, type Drawing } from './kit'
 import { drawLog } from './log'
 import { drawParked } from './parked'
 
@@ -33,7 +33,7 @@ const drawStatus = (d: Drawing, { work }: Filed) => {
   return (
     <Box flexDirection="column">
       {heading(d, 'STATUS', C.now, `updated ${agoWords(d.scene.now, at)}`)}
-      {now.length === 0 && next === undefined && <Text color={C.grey}>Nothing under way yet.</Text>}
+      {now.length === 0 && next === undefined && emptyLine(d, 'Nothing under way yet.')}
       {now.map((line, i) =>
         marked(d, `now:${i}`, GLYPH.now, C.now, <Text wrap="wrap">{line}</Text>),
       )}

@@ -9,6 +9,7 @@ import { C, GLYPH } from '../look'
 import { itemKey } from '../places'
 import {
   drawRow,
+  emptyLine,
   heading,
   seeRef,
   shown,
@@ -42,7 +43,7 @@ const detailOf = (line: LogLine) => {
     seeRef(line.ref, MARK[line.kind].color),
   )
 
-  return detail.length > 0 ? detail : [{ text: 'nothing more was recorded', color: C.grey }]
+  return detail.length > 0 ? detail : ['nothing more was recorded']
 }
 
 /** A line as a log lists it: the work it came from, and in a project's, that session's name. */
@@ -70,7 +71,7 @@ const drawLogLine = (d: Drawing, { line, work, name }: Logged): Block => {
 
 /** LOG's heading, then each line it lists. */
 export const drawLog = (d: Drawing, lines: readonly Logged[]): Block[] => {
-  const { Box, Text } = d.els
+  const { Box } = d.els
 
   return [
     {
@@ -78,7 +79,7 @@ export const drawLog = (d: Drawing, lines: readonly Logged[]): Block[] => {
       element: (
         <Box flexDirection="column">
           {heading(d, 'LOG', C.log, 'what happened')}
-          {lines.length === 0 && <Text color={C.grey}>Nothing yet.</Text>}
+          {lines.length === 0 && emptyLine(d, 'Nothing yet.')}
         </Box>
       ),
     },

@@ -15,7 +15,7 @@ import {
   yesAsk,
   type Line,
 } from './support'
-import { ACROSS, DOCKED, world } from './world'
+import { ACROSS, DOCKED, postedId, world } from './world'
 
 tier('user')
 
@@ -120,16 +120,18 @@ test('a closed ask opens to how it closed, one branch from its tick with no age 
   expect(await opened('a1')).toEqual(['└ → Approve'])
 })
 
-test('DONE shows the latest 3; show all opens it to every one, and show fewer closes it again', async ($, on) => {
+test('DONE shows the latest 3; show all opens it to every one, and show fewer closes it again, the toggle grey', async ($, on) => {
   const w = world($, on, { now: NOW })
   const { id, ui } = await closedAsks(w)
   const toggle = async () => (await ui.find({ key: `earlier:${id}` }))?.props
 
   expect(await toggle()).toMatchObject({ label: 'show all 4', plain: true })
+  expect((await ui.find({ type: 'Text', text: 'show all 4' }))?.props.color).toBe(C.grey)
   expect(await listed(ui)).toHaveLength(3)
 
   await ui.press({ key: `earlier:${id}` })
   expect(await toggle()).toMatchObject({ label: 'show fewer' })
+  expect((await ui.find({ type: 'Text', text: 'show fewer' }))?.props.color).toBe(C.grey)
   expect(await listed(ui)).toHaveLength(4)
 
   await ui.press({ key: `earlier:${id}` })
@@ -216,19 +218,40 @@ test('each closed ask is a green tick and a white title, its age grey; a long ti
   expect((await ui.find({ type: 'Text', text: '→ Approve' }))?.props.color).toBe(C.soft)
 })
 
-test('closing the board resets the history, as any selection', async ($, on) => {
+test('closing the board folds DONE back to the latest 3', async ($, on) => {
   const w = world($, on, { now: NOW })
   const { id, ui } = await closedAsks(w)
   const band = await w.band()
 
   await ui.press({ key: `earlier:${id}` })
-  expect(w.state.pane?.selected).toBe(`earlier:${id}`)
+  expect(w.state.pane?.doneInFull).toBe(id)
+  expect(await listed(ui)).toHaveLength(4)
 
   await band.press({ key: 'band:board' })
   await band.press({ key: 'band:board' })
 
-  expect(w.state.pane?.selected).toBeNull()
+  expect(w.state.pane?.doneInFull).toBeNull()
+  expect(await listed(ui)).toHaveLength(3)
   expect(await ui.find({ key: `closed:${w.item('a1')}` })).toBeUndefined()
+})
+
+test('DONE shown in full stays so while items open and close, in DONE or elsewhere on the board; only its toggle folds it', async ($, on) => {
+  const w = world($, on, { now: NOW })
+  const { id, ui } = await closedAsks(w)
+  const note = postedId(await w.call('note', { text: 'PR #82 merged' }))
+  const toggle = async () => (await ui.find({ key: `earlier:${id}` }))?.props.label
+
+  await ui.press({ key: `earlier:${id}` })
+
+  for (const press of [`done:${w.item('a4')}`, `done:${w.item('a4')}`, `log:${w.item(note)}`]) {
+    await ui.press({ key: press })
+    expect(await listed(ui), press).toHaveLength(4)
+    expect(await toggle(), press).toBe('show fewer')
+  }
+
+  await ui.press({ key: `earlier:${id}` })
+  expect(await listed(ui)).toHaveLength(3)
+  expect(await toggle()).toBe('show all 4')
 })
 
 test('a closed ask opens and closes by its own key, as any item, and closing the board closes it', async ($, on) => {
@@ -253,24 +276,49 @@ test('a closed ask opens and closes by its own key, as any item, and closing the
   expect(await branch()).toBeUndefined()
 })
 
-test('a closed ask opened past the latest 3 keeps DONE open to every one, and show fewer closes both', async ($, on) => {
+test('folding DONE back closes an opened ask it no longer shows; one it still shows stays open', async ($, on) => {
   const w = world($, on, { now: NOW })
   const { id, ui } = await closedAsks(w)
-  const toggle = async () => (await ui.find({ key: `earlier:${id}` }))?.props.label
 
   await ui.press({ key: `earlier:${id}` })
   await ui.press({ key: `done:${w.item('a1')}` })
   expect(await listed(ui)).toHaveLength(4)
-  expect(await toggle()).toBe('show fewer')
   expect(await ui.find({ type: 'Text', text: '→ Approve' })).toBeDefined()
 
   await ui.press({ key: `earlier:${id}` })
   expect(w.state.pane?.selected).toBeNull()
   expect(await listed(ui)).toHaveLength(3)
-  expect(await toggle()).toBe('show all 4')
 
+  await ui.press({ key: `earlier:${id}` })
   await ui.press({ key: `done:${w.item('a4')}` })
-  expect(await listed(ui), 'one of the latest 3 opens with DONE as it was').toHaveLength(3)
+  await ui.press({ key: `earlier:${id}` })
+  expect(w.state.pane?.selected).toBe(`done:${w.item('a4')}`)
+  expect(await listed(ui)).toHaveLength(3)
+  expect(await ui.find({ type: 'Text', text: 'resolved by Claude' })).toBeDefined()
+})
+
+test('a pane an older load saved, knowing nothing of DONE shown in full, shows DONE folded', async ($, on) => {
+  const w = world($, on, { now: NOW })
+  const saved = { isOpen: false, place: null, selected: null }
+  let isWritten = false
+
+  // What an older load left in $.state, read until this load first writes the pane over it.
+  on('state.get', { plugin: 'sitrep', key: 'pane' }, ($, e, next) =>
+    isWritten ? next(e) : { value: { value: saved, version: 0 } },
+  )
+  on('state.set', { plugin: 'sitrep', key: 'pane' }, ($, e, next) => {
+    isWritten = true
+
+    return next(e)
+  })
+
+  const { id, ui } = await closedAsks(w)
+
+  expect(await listed(ui)).toHaveLength(3)
+  expect((await ui.find({ key: `earlier:${id}` }))?.props.label).toBe('show all 4')
+
+  await ui.press({ key: `earlier:${id}` })
+  expect(await listed(ui)).toHaveLength(4)
 })
 
 test("an ask Lee commented on and Claude then resolved goes straight to DONE, never lingering as Lee's send", async ($, on) => {
