@@ -3,7 +3,15 @@
  * session, the environment and the clock, the display, and a record of what
  * the mod puts in `$.state` and submits. Nothing touches a real folder.
  */
-import type { On, PluginState, PromptSubmitInput, RenderPropsOf, RenderViewport } from 'claude-code'
+import type {
+  ElementTable,
+  On,
+  PluginState,
+  PromptSubmitInput,
+  RenderElement,
+  RenderPropsOf,
+  RenderViewport,
+} from 'claude-code'
 import { mock, type Engine, type Mounted } from 'claude-code/testing'
 import {
   metaText,
@@ -77,6 +85,9 @@ export const BAND: RenderPropsOf['AbovePrompt'] = {
   view: {},
 }
 
+/** A drawing above the prompt that stands beneath the band. */
+type Beneath = (els: ElementTable, props: RenderPropsOf['AbovePrompt']) => RenderElement
+
 /** The surfaces the tests draw the board and the band on. */
 export const SURFACES = ['terminal', 'desktop'] as const
 
@@ -143,6 +154,13 @@ function display(on: On) {
     return { value: undefined }
   })
 
+  /** What draws above the prompt beneath the mod: Claude Code, which draws nothing there outside a survey, unless a test stands another drawing there. */
+  let beneathBand: Beneath | undefined
+
+  on('ui.render', { component: 'AbovePrompt' }, ($, e) =>
+    beneathBand === undefined ? { type: 'engine', ref: 0 } : beneathBand($.ui.resolve(e), e.props),
+  )
+
   on('audio.play', ($, e) => {
     sounds.push(e.clip.asset ?? '')
 
@@ -186,6 +204,10 @@ function display(on: On) {
   return {
     /** Lee's prompt box, which a test types or pastes into. */
     box,
+    /** From here on, `draw` stands beneath the band: another plugin drawing above the prompt, or Claude Code itself. */
+    drawBeneath: (draw: Beneath) => {
+      beneathBand = draw
+    },
     panes,
     toasts,
     toastsMs,

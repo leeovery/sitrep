@@ -563,6 +563,16 @@ said, or on a surface whose board draws no `Client`, it is `hide board`.
 While Lee answers an ask in the prompt, the band says that instead, and only
 that, with `cancel` (see "Answering an ask").
 
+The band shares the area above the prompt. What another plugin draws there,
+such as the workflow-gates mod's gate rows, stays, stacked above the band,
+so the band keeps the row on the prompt, which the answering line's `↓` points
+at. The plugins beneath are given `maxRows` less the band's one row, so a
+gate sized to what it is given still fits whole beside it. A plugin
+loaded outside sitrep that stacks itself above what is beneath it lands in
+the same order. With nothing else drawn there, the band is the whole tree,
+as before (11 October 2026: until then the band dropped everything beneath
+it once it had a work to show).
+
 When a new ask lands: the ◆ pulses, a toast names it, and a soft chime plays.
 Dropped for now (11 October 2026): a macOS notification for asks.
 

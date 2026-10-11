@@ -32,7 +32,7 @@ import { captured, heardSurvey } from './answering'
 import { lookAround, lookEvery } from './around'
 import { clipOf, heardRows, revealFocus, scrollList } from './clip'
 import { heardTurn, isBoardMessage, takeUpDelivery, wentQuiet } from './deliver'
-import { drawBand } from './draw/band'
+import { BAND_ROWS, drawBand } from './draw/band'
 import { drawPane } from './draw/board'
 import { drawToolResult, drawToolRow, toolLine } from './draw/tool-row'
 import { logFailure, TOAST_MS, type Host } from './host'
@@ -342,9 +342,16 @@ export const register: Register = on => {
 
     const scene = e.props.hasSurvey ? undefined : await sceneOf(hostOf($))
 
-    return scene === undefined
-      ? next(e)
-      : drawBand($.ui.resolve(e), e.surface, e.props.bodyColumns, scene)
+    if (scene === undefined) {
+      return next(e)
+    }
+
+    const beneath = await next({
+      ...e,
+      props: { ...e.props, maxRows: e.props.maxRows - BAND_ROWS },
+    })
+
+    return drawBand($.ui.resolve(e), e.surface, e.props.bodyColumns, scene, beneath)
   })
 
   on('ui.render', { component: 'Pane', requestId: PANE }, async ($, e) => {

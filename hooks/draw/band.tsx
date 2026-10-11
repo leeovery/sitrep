@@ -10,8 +10,12 @@
  * While Lee writes to an item in the prompt, the band on the surface Lee
  * began on says only that, the whole time, with the way out of it: the next
  * Enter answers that ask, comments on it, or picks up that parked item.
+ *
+ * What another plugin draws above the prompt stays, stacked above the band in
+ * the rows the band leaves it, so the band keeps the row on the prompt that
+ * the answering line's ↓ points at.
  */
-import type { RenderSurface } from 'claude-code'
+import type { RenderElement, RenderSurface } from 'claude-code'
 import type { SitrepPane } from '../../types'
 import { answeringIn, writtenAs, type Answering } from '../answering'
 import { C, clip, CLOSE, counted, GLYPH } from '../look'
@@ -19,6 +23,9 @@ import { BAND, placementOn } from '../pane'
 import { waitingElsewhere } from '../places'
 import { countMark, type Scene } from '../scene'
 import type { Els } from './kit'
+
+/** The band's own rows: one line. */
+export const BAND_ROWS = 1
 
 /** Narrower than this, the band keeps its counts and drops their words, and the answering line its "Your next". */
 const NARROW = 64
@@ -113,10 +120,27 @@ const drawCounts = (els: Els, surface: RenderSurface, width: number, scene: Scen
   )
 }
 
-export const drawBand = (els: Els, surface: RenderSurface, width: number, scene: Scene) => {
+export const drawBand = (
+  els: Els,
+  surface: RenderSurface,
+  width: number,
+  scene: Scene,
+  beneath: RenderElement,
+) => {
+  const { Box } = els
   const standing = answeringIn(scene, surface)
+  const band =
+    standing === undefined
+      ? drawCounts(els, surface, width, scene)
+      : drawAnswering(els, width, standing, scene)
 
-  return standing === undefined
-    ? drawCounts(els, surface, width, scene)
-    : drawAnswering(els, width, standing, scene)
+  // Claude Code draws nothing here outside a survey, so its own drawing is left out.
+  return beneath.type === 'engine' ? (
+    band
+  ) : (
+    <Box flexDirection="column">
+      {beneath}
+      {band}
+    </Box>
+  )
 }

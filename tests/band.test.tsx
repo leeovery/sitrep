@@ -1,22 +1,29 @@
-import type { ClientSurface, JsonValue, On, RenderPropsOf, RenderViewport } from 'claude-code'
+import type { ClientSurface, JsonValue, RenderPropsOf, RenderViewport } from 'claude-code'
 import { expect, test, tier, type Mounted } from 'claude-code/testing'
 import Placement from '../hooks/draw/placement'
 import type { SitrepPlacement } from '../types'
 import { rowsOf } from './drawn'
-import { DOCKED, INLINE, postedId, SESSION, SURFACES, world } from './world'
+import { BAND, DOCKED, INLINE, postedId, SESSION, SURFACES, world } from './world'
 
 tier('user')
 
 type World = ReturnType<typeof world>
 type Surface = (typeof SURFACES)[number]
 
-/** What the engine draws above the prompt with no plugin drawing there. */
-function engineBand(on: On) {
-  on('ui.render', { component: 'AbovePrompt' }, ($, e) => {
-    const { Text } = $.ui.resolve(e)
+/** What the engine draws above the prompt with no plugin drawing there, as if it drew a line of its own. */
+const engineBand = (w: World) => w.drawBeneath(({ Text }) => <Text>the engine band</Text>)
 
-    return <Text>the engine band</Text>
+/** Another plugin's row above the prompt, drawn beneath sitrep's band; it keeps the rows it was given. */
+function gateBand(w: World) {
+  const given: number[] = []
+
+  w.drawBeneath(({ Text }, props) => {
+    given.push(props.maxRows)
+
+    return <Text>a gate row</Text>
   })
+
+  return given
 }
 
 /** The board drawn on a surface as Claude Code seated it there: its placement `Client` posts that as it draws. */
@@ -57,13 +64,32 @@ test('the band counts what waits on Lee and offers the board, on each surface', 
 test('with no work held, the band draws nothing of its own', async ($, on) => {
   const w = world($, on)
 
-  engineBand(on)
+  engineBand(w)
   await $.session.start(SESSION)
 
   const ui = await w.band()
 
   expect(await ui.find({ text: 'the engine band' })).toBeDefined()
   expect(await ui.find({ key: 'band:board' })).toBeUndefined()
+})
+
+test('what another plugin draws above the prompt stays, above the band, in the rows the band leaves it', async ($, on) => {
+  const w = world($, on)
+  const given = gateBand(w)
+
+  await w.begin()
+
+  for (const surface of SURFACES) {
+    const ui = await w.band(surface)
+    const rows = rowsOf(await ui.find({ type: 'Box' }))
+
+    expect(rows[0]).toBe('a gate row')
+    expect(rows.at(-1)).toContain('▸ show board')
+    expect(await ui.find({ key: 'band:for-you', text: '0 for you' })).toBeDefined()
+    await ui.unmount()
+  }
+
+  expect(new Set(given)).toEqual(new Set([BAND.maxRows - 1]))
 })
 
 test('the band shows or hides the board, and its label follows', async ($, on) => {
