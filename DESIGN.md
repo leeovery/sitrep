@@ -528,7 +528,11 @@ One line above the prompt, right-aligned counts only, each one a way in:
 `for you` opens this session; `elsewhere`, what waits on Lee in every other
 current work, in every project, opens All projects. Below 64 columns the
 words drop and the counts stay (`+2`). The board's show/hide button
-always matches whether it is drawn. While Lee answers an ask in the prompt,
+always matches whether it is drawn. On the phone layout, where the board
+sits inline and its frame's ✕ is one cell, the open board's button is a wide
+`[ ✕ close ]` instead, its words kept at any width. The band reads where the
+board sits off the screen's size, by Claude Code's own rule: a pane docks only
+under fullscreen, from 110 columns. While Lee answers an ask in the prompt,
 the band says that instead, and only that, with `cancel` (see "Answering an
 ask").
 

@@ -7,6 +7,7 @@
  * press itself, from the `ui.press` hook: an open made once the press has
  * settled counts as unasked.
  */
+import type { RenderViewport } from 'claude-code'
 import type { SitrepPane } from '../types'
 import { endAnswering } from './answering'
 import { lookAround } from './around'
@@ -23,6 +24,9 @@ const TITLE = 'sitrep'
 const COLUMNS = 62
 const ROWS = 24
 
+/** Claude Code's own dock rule: only the fullscreen layout docks a pane, and only from this many columns. */
+const DOCKS_FROM = 110
+
 /** The band's buttons: each a way into the board, or, while Lee answers an ask in the prompt, the way out of that. */
 export const BAND = {
   forYou: 'band:for-you',
@@ -32,6 +36,10 @@ export const BAND = {
 } as const
 
 export const BAND_KEYS = Object.values(BAND)
+
+/** Whether the board sits inline above the prompt (the phone layout) on what the surface measured; unmeasured, it is taken as docked. */
+export const sitsInline = (viewport: RenderViewport | undefined) =>
+  viewport !== undefined && !(viewport.isFullscreen === true && viewport.columns >= DOCKS_FROM)
 
 /** Where the board opens: where it looks, and the item opened under its line. */
 export type Focus = Partial<Pick<SitrepPane, 'place' | 'selected'>>

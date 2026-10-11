@@ -328,7 +328,7 @@ export const register: Register = on => {
 
     return scene === undefined
       ? next(e)
-      : drawBand($.ui.resolve(e), e.surface, e.props.bodyColumns, scene)
+      : drawBand($.ui.resolve(e), e.surface, e.props.bodyColumns, e.viewport, scene)
   })
 
   on('ui.render', { component: 'Pane', requestId: PANE }, async ($, e) => {

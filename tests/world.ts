@@ -3,7 +3,7 @@
  * session, the environment and the clock, the display, and a record of what
  * the mod puts in `$.state` and submits. Nothing touches a real folder.
  */
-import type { On, PluginState, PromptSubmitInput, RenderPropsOf } from 'claude-code'
+import type { On, PluginState, PromptSubmitInput, RenderPropsOf, RenderViewport } from 'claude-code'
 import { mock, type Engine, type Mounted } from 'claude-code/testing'
 import {
   metaText,
@@ -457,13 +457,18 @@ export function world(engine: Engine, on: On, options: { now?: number; cwd?: str
   /** An item's address on the board, as its buttons are keyed (`pick:<address>`): in the held work, unless another is named. */
   const item = (id: string, work = state.attachment?.work ?? '') => itemKey(work, id)
 
-  /** The band drawn on a surface, `columns` across. */
-  const band = (surface: Surface = 'terminal', columns = BAND.bodyColumns) =>
+  /** The band drawn on a surface, `columns` across, on a screen that measured as `viewport` where given. */
+  const band = (
+    surface: Surface = 'terminal',
+    columns = BAND.bodyColumns,
+    viewport?: RenderViewport,
+  ) =>
     engine.ui.mount({
       plugin: 'sitrep',
       surface,
       component: 'AbovePrompt',
       props: { ...BAND, bodyColumns: columns },
+      viewport,
     })
 
   return {
