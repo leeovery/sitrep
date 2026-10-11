@@ -11,7 +11,7 @@
  * All projects, the way back up sits at the end of the view's title line.
  */
 import type { ElementTable, RenderPropsOf, RenderSurface } from 'claude-code'
-import type { SitrepPlace } from '../../types'
+import type { SitrepPlace, SitrepPlacement } from '../../types'
 import type { Actions } from '../actions'
 import type { Clip } from '../clip'
 import { C, clip as clipText, GLYPH } from '../look'
@@ -177,13 +177,35 @@ const TAB_ROWS = 2
 /** The rows the header takes, the same everywhere: the tabs, their rule, and a blank row. */
 const HEADER_ROWS = TAB_ROWS + GAP_ROWS
 
+/**
+ * What tells the band where Claude Code seated the board
+ * (hooks/draw/placement.tsx), in a cell of the column the board keeps free
+ * beside the tabs, where it takes no room and covers nothing to press; none
+ * where the surface draws no `Client`. Named `Client` for the engine to find
+ * it, as in `drawBlock`.
+ */
+const drawPlacement = (d: Drawing, placement: SitrepPlacement) => {
+  if (!('Client' in d.els)) {
+    return undefined
+  }
+
+  const { Box, Client } = d.els
+
+  return (
+    <Box key="placement:box" position="absolute" top={0} left={-1} width={1} height={1}>
+      <Client key="placement" module="./placement.tsx" width={1} height={1} props={{ placement }} />
+    </Box>
+  )
+}
+
 /** The tabs over their rule, a blank row under it. */
-const drawHeader = (d: Drawing) => {
+const drawHeader = (d: Drawing, placement: SitrepPlacement) => {
   const { Box } = d.els
 
   return (
     <Box key="header" flexDirection="column" flexShrink={0} paddingBottom={GAP_ROWS}>
       {drawTabs(d)}
+      {drawPlacement(d, placement)}
     </Box>
   )
 }
@@ -282,7 +304,7 @@ const drawClipped = (
   return (
     <Box flexDirection="column" height={bodyRows - SPARE_ROWS}>
       <Box flexShrink={0} paddingX={1}>
-        {drawHeader(d)}
+        {drawHeader(d, props.placement)}
       </Box>
       <Box flexDirection="column" flexShrink={0} height={listRows} overflow="hidden">
         <Box flexDirection="column" flexShrink={0} marginTop={-top} paddingX={1}>
@@ -309,7 +331,7 @@ const drawFlowing = (d: Drawing, blocks: readonly Block[], props: PaneProps) => 
       paddingX={1}
       minHeight={d.isDock ? props.scroll.bodyRows : undefined}
     >
-      {drawHeader(d)}
+      {drawHeader(d, props.placement)}
       {blocks.map(block => drawBlock(d, block))}
       <Box flexGrow={1} minHeight={GAP_ROWS} />
       {ready !== undefined && drawReady(d, ready)}

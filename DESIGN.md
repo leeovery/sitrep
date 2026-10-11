@@ -537,11 +537,16 @@ current work, in every project, opens All projects. Below 64 columns the
 words drop and the counts stay (`+2`). The board's show/hide button
 always matches whether it is drawn. On the phone layout, where the board
 sits inline and its frame's ✕ is one cell, the open board's button is a wide
-`[ ✕ close ]` instead, its words kept at any width. The band reads where the
-board sits off the screen's size, by Claude Code's own rule: a pane docks only
-under fullscreen, from 110 columns. While Lee answers an ask in the prompt,
-the band says that instead, and only that, with `cancel` (see "Answering an
-ask").
+`[ ✕ close ]` instead, its words kept at any width. Where the board sits is
+where Claude Code seated it, which only the board's drawing knows: never
+guessed from widths, since beside a docked board the band's columns are the
+transcript's. A `Client` in the board's header (`hooks/draw/placement.tsx`)
+posts the placement it was drawn with on its surface as it changes, and the
+window keeps the last one each surface said, across closes, so a board
+opened again gets the right button from its first frame. Docked, not yet
+said, or on a surface whose board draws no `Client`, it is `hide board`.
+While Lee answers an ask in the prompt, the band says that instead, and only
+that, with `cancel` (see "Answering an ask").
 
 When a new ask lands: the ◆ pulses, a toast names it, and a soft chime plays.
 **To try:** a macOS notification for asks, only when Lee isn't looking at that
@@ -722,8 +727,9 @@ $XDG_STATE_HOME/sitrep/, else ~/.local/state/sitrep/
   answering it.
 - The board's last view lives in the session's `$.state` only: where it
   looks, the item opened there, and, apart from that, the work whose DONE
-  shows every closed ask; a pane an older load saved, without it, reads as
-  none. `$.store` is unused so far.
+  shows every closed ask, and where Claude Code last seated the board on
+  each surface, kept when it closes (see "The band"); a pane an older load
+  saved, without either, reads as none. `$.store` is unused so far.
 
 ## One engine, two front ends
 

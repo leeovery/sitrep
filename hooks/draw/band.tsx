@@ -1,19 +1,20 @@
 /**
  * The band: one line above the prompt, counts alone, kept to the right,
  * each a way into the board, and the board's own show or hide. Below 64
- * columns the words drop and the counts stay. On an inline board (the phone
- * layout) the hide is a bracketed `✕ close`, wide enough to tap where the
- * frame's own ✕ is one cell. For a few seconds after the window takes in
- * replies sent from another work's board, it says so.
+ * columns the words drop and the counts stay. Where the board said it sits
+ * inline (the phone layout) the hide is a bracketed `✕ close`, wide enough
+ * to tap where the frame's own ✕ is one cell. For a few seconds after the
+ * window takes in replies sent from another work's board, it says so.
  *
  * While Lee answers an ask in the prompt, the band on the surface Lee
  * began on says only that, the whole time, with the way out of it: the next
  * Enter answers that ask, or comments on it.
  */
-import type { RenderSurface, RenderViewport } from 'claude-code'
+import type { RenderSurface } from 'claude-code'
+import type { SitrepPane } from '../../types'
 import { answeringIn, writtenAs, type Answering } from '../answering'
 import { C, clip, counted, GLYPH } from '../look'
-import { BAND, sitsInline } from '../pane'
+import { BAND, placementOn } from '../pane'
 import { waitingElsewhere } from '../places'
 import { countMark, type Scene } from '../scene'
 import type { Els } from './kit'
@@ -35,13 +36,13 @@ const HIDE_BOARD = { plain: true, dimColor: true, label: 'hide board' } as const
 /** Not plain, so bracketed: a target wide enough to tap. */
 const CLOSE_BOARD = { label: '✕ close' } as const
 
-/** The board's own button: show while it is closed; open, hide where it docks and close where it sits inline. */
-const boardButton = (isOpen: boolean, viewport: RenderViewport | undefined) => {
-  if (!isOpen) {
+/** The board's own button: show while it is closed; open, close where the board said it sits inline, and hide anywhere else. */
+const boardButton = (pane: SitrepPane, surface: RenderSurface) => {
+  if (!pane.isOpen) {
     return SHOW_BOARD
   }
 
-  return sitsInline(viewport) ? CLOSE_BOARD : HIDE_BOARD
+  return placementOn(pane, surface) === 'inline' ? CLOSE_BOARD : HIDE_BOARD
 }
 
 /** The cells the answering line keeps beside the ask's title: its words around it, the arrow down to the prompt, the gap, and cancel. */
@@ -68,12 +69,7 @@ const drawAnswering = (els: Els, width: number, standing: Answering, scene: Scen
 }
 
 /** The counts, each a way into the board, and the board's own show or hide. */
-const drawCounts = (
-  els: Els,
-  width: number,
-  viewport: RenderViewport | undefined,
-  scene: Scene,
-) => {
+const drawCounts = (els: Els, surface: RenderSurface, width: number, scene: Scene) => {
   const { Box, Text, Button } = els
   const { work, pane, flash } = scene
   const isNarrow = width < NARROW
@@ -110,25 +106,15 @@ const drawCounts = (
           onPress={answeredByTheHook}
         />
       )}
-      <Button
-        key={BAND.board}
-        {...boardButton(pane.isOpen, viewport)}
-        onPress={answeredByTheHook}
-      />
+      <Button key={BAND.board} {...boardButton(pane, surface)} onPress={answeredByTheHook} />
     </Box>
   )
 }
 
-export const drawBand = (
-  els: Els,
-  surface: RenderSurface,
-  width: number,
-  viewport: RenderViewport | undefined,
-  scene: Scene,
-) => {
+export const drawBand = (els: Els, surface: RenderSurface, width: number, scene: Scene) => {
   const standing = answeringIn(scene, surface)
 
   return standing === undefined
-    ? drawCounts(els, width, viewport, scene)
+    ? drawCounts(els, surface, width, scene)
     : drawAnswering(els, width, standing, scene)
 }

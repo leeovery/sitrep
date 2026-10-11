@@ -111,13 +111,19 @@ const clipping = async (ui: Pane) => {
 /** How far down the list stands, as drawn. */
 const topOf = async (ui: Pane) => 0 - Number((await clipping(ui)).list?.marginTop)
 
+/** The Clients measuring the list's blocks, in order: not the header's, which says where the board sits. */
+const measuring = async (ui: Pane) =>
+  (await ui.findAll({ type: 'Client' })).filter(
+    client => client.props.module === 'hooks/draw/measure.tsx',
+  )
+
 /**
  * Each block of the list, in order, posting the rows it takes as its
  * `Client` does once laid out: the kit lays a `Client` out but never hands
  * the plugin what it posts. The blocks' keys and rows, in order.
  */
 const measure = async (ui: Pane, rows: (key: string) => number = () => ROWS) => {
-  const blocks = (await ui.findAll({ type: 'Client' })).map(client => ({
+  const blocks = (await measuring(ui)).map(client => ({
     client: String(client.key),
     key: String((client.props.props as { id: string }).id),
   }))
@@ -301,7 +307,7 @@ test(
 test('docked, each block of the list is measured by a Client spanning it, keyed by the block', async ($, on) => {
   const w = world($, on)
   const { ids, ui } = await long(w)
-  const clients = await ui.findAll({ type: 'Client' })
+  const clients = await measuring(ui)
   const keys = clients.map(client => client.key)
 
   expect(new Set(keys).size).toBe(keys.length)
@@ -316,6 +322,36 @@ test('docked, each block of the list is measured by a Client spanning it, keyed 
     width: 1,
     height: '100%',
   })
+})
+
+test("the header's placement Client takes a cell of the column kept free beside the tabs, and no rows, docked and inline", async ($, on) => {
+  const w = world($, on)
+
+  await w.begin()
+
+  for (const props of [DOCKED, INLINE]) {
+    const ui = await w.pane('terminal', props)
+
+    expect((await ui.find({ key: 'placement:box' }))?.props, props.placement).toMatchObject({
+      position: 'absolute',
+      top: 0,
+      left: -1,
+      width: 1,
+      height: 1,
+    })
+    expect((await ui.find({ type: 'Client', key: 'placement' }))?.props).toMatchObject({
+      module: 'hooks/draw/placement.tsx',
+      width: 1,
+      height: 1,
+      props: { placement: props.placement },
+    })
+    expect(await ui.drawn({ in: 'placement' }), 'drawing nothing').toMatchObject({
+      type: 'Box',
+      props: { width: 1 },
+    })
+    expect(await headerRows(ui), props.placement).toBe(HEADER)
+    await ui.unmount()
+  }
 })
 
 /** The measuring module as a surface calls it, laid out at `rows`: what it posts, its state kept from call to call. */
@@ -665,7 +701,7 @@ test("inline, nothing is clipped or measured: Ready to send follows the view, an
   expect(root?.height).toBeUndefined()
   expect(root?.minHeight).toBeUndefined()
   expect((await clipping(ui)).clip).toBeUndefined()
-  expect(await ui.findAll({ type: 'Client' })).toEqual([])
+  expect(await measuring(ui)).toEqual([])
   expect(await ui.find({ key: 'ready' })).toBeDefined()
 
   await $.ui.scroll(scrolled({ by: 3, offset: 3, ...WHEEL }))

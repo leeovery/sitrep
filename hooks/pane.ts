@@ -7,8 +7,7 @@
  * press itself, from the `ui.press` hook: an open made once the press has
  * settled counts as unasked.
  */
-import type { RenderViewport } from 'claude-code'
-import type { SitrepPane } from '../types'
+import type { SitrepPane, SitrepPlacement } from '../types'
 import { endAnswering } from './answering'
 import { lookAround } from './around'
 import { fromTheTop } from './clip'
@@ -24,9 +23,6 @@ const TITLE = 'sitrep'
 const COLUMNS = 62
 const ROWS = 24
 
-/** Claude Code's own dock rule: only the fullscreen layout docks a pane, and only from this many columns. */
-const DOCKS_FROM = 110
-
 /** The band's buttons: each a way into the board, or, while Lee answers an ask in the prompt, the way out of that. */
 export const BAND = {
   forYou: 'band:for-you',
@@ -36,10 +32,6 @@ export const BAND = {
 } as const
 
 export const BAND_KEYS = Object.values(BAND)
-
-/** Whether the board sits inline above the prompt (the phone layout) on what the surface measured; unmeasured, it is taken as docked. */
-export const sitsInline = (viewport: RenderViewport | undefined) =>
-  viewport !== undefined && !(viewport.isFullscreen === true && viewport.columns >= DOCKS_FROM)
 
 /** Where the board opens: where it looks, and the item opened under its line. */
 export type Focus = Partial<Pick<SitrepPane, 'place' | 'selected'>>
@@ -118,4 +110,24 @@ export const pressBand = async (host: Host, element: string) => {
   const focus = Object.hasOwn(COUNTED, element) ? COUNTED[element] : undefined
 
   return held === null || focus === undefined ? toggleBoard(host) : openOnCount(host, focus)
+}
+
+/** Where the board was last seated on a surface, as the board drawn there said; unsaid there, or on a pane an older load saved, none. */
+export const placementOn = (pane: SitrepPane, surface: string) => pane.placement?.[surface]
+
+const isPlacement = (value: unknown): value is SitrepPlacement =>
+  value === 'dock' || value === 'inline'
+
+/** Keeps where the board's `Client` on a surface says it is seated, written only as it changes, so the band draws again then. */
+export const heardPlacement = async (host: Host, surface: string, data: unknown) => {
+  const { placement } = (data ?? {}) as { placement?: unknown }
+
+  if (!isPlacement(placement) || placementOn(await host.state.pane.read(), surface) === placement) {
+    return
+  }
+
+  await host.state.pane.update(pane => ({
+    ...pane,
+    placement: { ...pane.placement, [surface]: placement },
+  }))
 }

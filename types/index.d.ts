@@ -245,6 +245,9 @@ export type SitrepPlace =
   | { level: 'project'; project: string }
   | { level: 'all' }
 
+/** Where Claude Code seated the board: docked beside the transcript, or inline above the prompt. */
+export type SitrepPlacement = 'dock' | 'inline'
+
 /** The board pane as the window keeps it. */
 export type SitrepPane = {
   /** Whether the pane is open and drawn, which the band's button follows. */
@@ -255,6 +258,8 @@ export type SitrepPane = {
   selected: string | null
   /** The work whose DONE shows every closed ask, not only the latest; null for none. A pane an older load saved lacks it, and is read as none. */
   doneInFull: string | null
+  /** Where Claude Code last seated the board on each surface, as the board drawn there said; kept across closes. A surface whose board never said is missing, as is the whole from a pane an older load saved. */
+  placement: Partial<Record<string, SitrepPlacement>>
 }
 
 /** How far down the docked board's list stands: the place it was moved at, and the list's first row showing there. */

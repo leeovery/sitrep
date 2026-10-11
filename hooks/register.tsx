@@ -36,7 +36,15 @@ import { drawBand } from './draw/band'
 import { drawPane } from './draw/board'
 import { drawToolResult, drawToolRow, toolLine } from './draw/tool-row'
 import { logFailure, TOAST_MS, type Host } from './host'
-import { BAND_KEYS, boardClosed, openBoard, PANE, pressBand, syncBoard } from './pane'
+import {
+  BAND_KEYS,
+  boardClosed,
+  heardPlacement,
+  openBoard,
+  PANE,
+  pressBand,
+  syncBoard,
+} from './pane'
 import { receiveEvery } from './receive'
 import { heldWork, sceneOf, tickEvery } from './scene'
 import { boardChange, markSeen } from './seen'
@@ -60,6 +68,7 @@ const pane = atom({ plugin: 'sitrep', key: 'pane' } as const, {
   place: null,
   selected: null,
   doneInFull: null,
+  placement: {},
 })
 const scroll = atom({ plugin: 'sitrep', key: 'scroll' } as const, null)
 const answering = atom({ plugin: 'sitrep', key: 'answering' } as const, null)
@@ -329,7 +338,7 @@ export const register: Register = on => {
 
     return scene === undefined
       ? next(e)
-      : drawBand($.ui.resolve(e), e.surface, e.props.bodyColumns, e.viewport, scene)
+      : drawBand($.ui.resolve(e), e.surface, e.props.bodyColumns, scene)
   })
 
   on('ui.render', { component: 'Pane', requestId: PANE }, async ($, e) => {
@@ -358,9 +367,13 @@ export const register: Register = on => {
     return next(e)
   }).catch(($, e, next) => next(e))
 
-  // Each block of a docked board's list posts the rows it takes, from the Client measuring it.
-  on('ui.message', { requestId: PANE }, ($, e, next) => {
-    heardRows(hostOf($), e.data)
+  // The board's Clients post: each block of a docked board's list the rows it takes, and the
+  // header where Claude Code seated the board.
+  on('ui.message', { requestId: PANE }, async ($, e, next) => {
+    const host = hostOf($)
+
+    heardRows(host, e.data)
+    await heardPlacement(host, e.surface, e.data)
 
     return next(e)
   }).catch(($, e, next) => next(e))
