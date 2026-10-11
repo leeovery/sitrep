@@ -268,7 +268,7 @@ const join: Tool<'join'> = {
     const joined = await reopening(host, work)
 
     return {
-      result: `Joined ${work.status.name} (${id}).${joined.said} The board as it stands:\n${boardText(joined.work)}`,
+      result: `Joined ${work.status.name} (${id}).${joined.said} Correct anything on it that is stale against what you know. The board as it stands:\n${boardText(joined.work)}`,
       names: joined.work.status.name,
     }
   },

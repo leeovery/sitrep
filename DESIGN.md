@@ -169,11 +169,12 @@ Wording rules, in the tool descriptions:
   with the last), so Claude does nothing extra for it.
 
 When the board changes, its open items ride into Claude's next turn as unseen
-context, so drift is noticed. A `/sitrep check` command asks Claude to
-compare the board with what it knows and repair it, logging what it changed,
-and a window that joins or takes up a work is asked the same of its open
-items (build step 5). Dropped: a turn-end check for an ask Claude forgot to
-post; the board is best effort, and in use Claude has not forgotten.
+context, so drift is noticed. A join answers with the whole board, and asks
+Claude to correct anything on it that is stale against what it knows.
+Dropped: a `/sitrep check` command, since the `board` tool already reads the
+board back to repair it and Lee can ask for that in the chat; and a turn-end
+check for an ask Claude forgot to post. The board is best effort, and in use
+Claude has not drifted or forgotten.
 
 ## Lee's side
 
@@ -562,8 +563,7 @@ While Lee answers an ask in the prompt, the band says that instead, and only
 that, with `cancel` (see "Answering an ask").
 
 When a new ask lands: the ◆ pulses, a toast names it, and a soft chime plays.
-**To try:** a macOS notification for asks, only when Lee isn't looking at that
-window.
+Dropped for now (11 October 2026): a macOS notification for asks.
 
 ## Delivery
 
@@ -626,7 +626,7 @@ window.
 - An ask's life: **open → replied → closed**. The board never closes an ask on
   a press, only once Claude has been told: a delivered reply closes it, or
   Claude resolves it. An ask open past a day shows its age. Nothing ages an
-  ask out: Claude keeps the board clean (see `/sitrep check`), and Lee may be
+  ask out: Claude keeps the board clean, and Lee may be
   away for days and come back to the work.
 
 ## Storage
@@ -1006,7 +1006,8 @@ Dropped: a standalone toast plugin (Claude Code has one).
 
 ## Open questions
 
-Answered with Lee on 8 October 2026, for build step 5:
+Answered with Lee on 8 October 2026, for build step 5, which Lee then dropped
+on 11 October 2026 (see "Build order"):
 
 1. **Whether Lee is looking at the window: no check.** It was only there to
    spare a banner for the window that has already pulsed, toasted and chimed;
@@ -1028,8 +1029,11 @@ Answered with Lee on 8 October 2026, for build step 5:
 3. **Across pieces of work**: the project and all-projects views, delivery
    through inboxes, the start-of-session listing.
 4. **The CLI.**
-5. **Notifications**, `/sitrep check`, and the same check when a window joins
-   or takes up a work.
+5. **Dropped** (11 October 2026): notifications, `/sitrep check`, and a
+   reconcile when a window joins a work. Notifications aren't wanted for now;
+   `/sitrep check` adds nothing over the `board` tool; a join already answers
+   with the whole board, and asks Claude to correct what is stale. The build
+   is finished.
 
 ## The spike
 

@@ -113,7 +113,9 @@ test('join attaches to a work by its id, in whichever project it is filed', asyn
 
   const joined = await w.call('join', { work: 'sr-bbbbbb' })
 
-  expect(String(joined.result)).toMatch(/^Joined Lobby \(sr-bbbbbb\)\. The board as it stands:\n/)
+  expect(String(joined.result)).toMatch(
+    /^Joined Lobby \(sr-bbbbbb\)\. Correct anything on it that is stale against what you know\. The board as it stands:\n/,
+  )
   expect(String(joined.result)).toContain('sitrep board: Lobby (sr-bbbbbb)')
   expect(w.state.attachment).toMatchObject({ project: ELSEWHERE.key, work: 'sr-bbbbbb' })
   expect(w.files.has(workPaths(ROOT, ELSEWHERE.key, 'sr-bbbbbb').heartbeat(W1))).toBe(true)
@@ -345,7 +347,7 @@ test('join reopens a finished work, saying who had marked it done and why', asyn
   const joined = String((await w.call('join', { work: 'sr-bbbbbb' })).result)
 
   expect(joined).toMatch(
-    /^Joined Lobby \(sr-bbbbbb\)\. Lee had marked it done; joining it reopened it\. The board as it stands:\n/,
+    /^Joined Lobby \(sr-bbbbbb\)\. Lee had marked it done; joining it reopened it\. Correct anything on it that is stale against what you know\. The board as it stands:\n/,
   )
   expect(linesOf(w, lobby.paths.log(W1)).map(line => line.type)).toEqual(['unfinish'])
   expect(w.state.board).toMatchObject({ waiting: 1 })
