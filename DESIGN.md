@@ -1003,7 +1003,9 @@ to a work's Ghostty window (likely through Portal, which Lee wants to make
 agent-aware); **Paper thumbnails** inline in Ghostty; a "re:" tag on Lee's
 transcript rows that came from the board.
 
-Dropped: a standalone toast plugin (Claude Code has one).
+Dropped: a standalone toast plugin (Claude Code has one), and a line in the
+new-ask toast saying the band opens it: Lee knows it does, and on the phone
+the toast is better short.
 
 ## Open questions
 
