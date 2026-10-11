@@ -7,8 +7,8 @@
  * follows it.
  *
  * The header is the same two tabs everywhere, each a row of `TABS`: this
- * session, by its name, and every project. Off home and All projects, a
- * step back up sits under them.
+ * session, by its name, and every project, over a blank row. Off home and
+ * All projects, the way back up sits at the end of the view's title line.
  */
 import type { ElementTable, RenderPropsOf, RenderSurface } from 'claude-code'
 import type { SitrepPlace } from '../../types'
@@ -18,7 +18,7 @@ import { C, clip as clipText, GLYPH } from '../look'
 import { EVERY_PROJECT, everyProject, filedAt, homeOf, isHome, projectLabel, up } from '../places'
 import type { Scene } from '../scene'
 import { drawAllView } from './every'
-import type { Block, Drawing, Els } from './kit'
+import type { Back, Block, Drawing, Els } from './kit'
 import { drawProjectView } from './project'
 import { drawReady, readyOf, readyRows } from './ready'
 import { drawSessionView } from './session'
@@ -154,38 +154,36 @@ const drawTabs = (d: Drawing) => {
   )
 }
 
-/** Where the back row goes, one level up: anywhere but home and All projects, which have none. */
-const backOf = (scene: Scene): SitrepPlace | undefined =>
-  isHome(scene) || scene.place.level === 'all' ? undefined : up(scene.place)
-
 const placeName = (scene: Scene, place: SitrepPlace) =>
   place.level === 'project' ? projectLabel(scene, place.project) : 'All projects'
 
-/** The step back up, under the tab rule. */
-const drawBackRow = (d: Drawing, above: SitrepPlace) => {
-  const { Button } = d.els
-  const label = clipText(`${GLYPH.up} ${placeName(d.scene, above)}`, d.width)
+/** The way back, one level up: anywhere but home and All projects, which have none. */
+const backOf = (scene: Scene): Back | undefined => {
+  if (isHome(scene) || scene.place.level === 'all') {
+    return undefined
+  }
 
-  return <Button key="up" plain label={label} onPress={() => d.act.go(above)} />
+  const above = up(scene.place)
+
+  return { label: `${GLYPH.up} ${placeName(scene, above)}`, to: above }
 }
+
+/** The blank row between parts of the board, and between the view and Ready to send inline. */
+const GAP_ROWS = 1
 
 /** The tabs' row and their rule. */
 const TAB_ROWS = 2
 
-const BACK_ROWS = 1
+/** The rows the header takes, the same everywhere: the tabs, their rule, and a blank row. */
+const HEADER_ROWS = TAB_ROWS + GAP_ROWS
 
-/** The rows the header takes: the tabs and their rule, and the back row while it shows. */
-const headerRows = (scene: Scene) => TAB_ROWS + (backOf(scene) === undefined ? 0 : BACK_ROWS)
-
-/** The tabs over their rule, and the step back up under it while there is one; the view's first line right under. */
+/** The tabs over their rule, a blank row under it. */
 const drawHeader = (d: Drawing) => {
   const { Box } = d.els
-  const above = backOf(d.scene)
 
   return (
-    <Box key="header" flexDirection="column" flexShrink={0}>
+    <Box key="header" flexDirection="column" flexShrink={0} paddingBottom={GAP_ROWS}>
       {drawTabs(d)}
-      {above !== undefined && drawBackRow(d, above)}
     </Box>
   )
 }
@@ -214,9 +212,6 @@ type PaneProps = Pick<RenderPropsOf['Pane'], 'bodyColumns' | 'placement' | 'scro
 
 /** The cells across the board's lines: the body, less the column kept free each side. */
 const widthOf = (props: PaneProps) => props.bodyColumns - 2
-
-/** The blank row between parts of the board, and between the view and Ready to send inline. */
-const GAP_ROWS = 1
 
 /** The rows a docked board's tree is short of its window: the engine has nothing to scroll. */
 const SPARE_ROWS = 1
@@ -280,7 +275,7 @@ const drawClipped = (
   const { bodyRows } = props.scroll
   const ready = readyOf(d.scene, d.width, readyCap(bodyRows))
   const footRows = ready === undefined ? SPARE_ROWS : readyRows(ready)
-  const listRows = bodyRows - headerRows(d.scene) - footRows
+  const listRows = bodyRows - HEADER_ROWS - footRows
   const list = [...blocks, { key: 'end', element: <Box height={END_ROWS} /> }]
   const top = clip({ place: d.scene.place, listRows, blocks: list })
 
@@ -349,6 +344,7 @@ export const drawPane = (
     scene,
     width: widthOf(props),
     isDock: props.placement === 'dock',
+    back: backOf(scene),
   }
   const blocks = drawPlace(d)
 

@@ -182,6 +182,7 @@ post; the board is best effort, and in use Claude has not forgotten.
 ```
  ⌂ Dashboard redesign 3  ≡ All projects 8
 ━━━━━━━━━━━━━━━━━━━━━━━━──────────────────────────────────────────
+
 Dashboard redesign · Switchboard
 Redesign the dashboard, area by area in Paper
 
@@ -225,15 +226,20 @@ show all 4
   what it is pressed by, wide enough for a thumb, and is cut short to fit:
   All projects keeps its full width, and the name takes what is left. With
   no work held, the board says so, and there are no tabs.
-- **Browsing, a back row** sits under the tab rule, one level up:
-  `← All projects` over a project's view, `← <its project>` over a
-  session's. Home and All projects have none. It carries no `⌂`: the first
-  tab is always home.
-- Docked or inline, there is no row above the tabs: they are the board's
-  first line. There is no collapse: the phone's board and the docked one
-  start alike. Docked, the header stays still at the top while the list
-  scrolls under it, as Ready to send stays still at the foot; inline, it
-  is the board's first rows, and scrolls with it.
+- **Browsing, the way back** sits at the right end of the view's title
+  line, one level up: `← All projects` over a project's view,
+  `← <its project>` over a session's. Home and All projects have none. It
+  carries no `⌂`: the first tab is always home. It keeps its width: the
+  title line's grey aside is cut first, then its title, with an ellipsis,
+  so the line stays one row; only a way back longer than half the line is
+  cut short itself, so the title always keeps some of it.
+- The header is the tabs, their rule and a blank row under it, the same in
+  every view. Docked or inline, there is no row above the tabs: they are
+  the board's first line. There is no collapse: the phone's board and the
+  docked one start alike. Docked, the header stays still at the top while
+  the list scrolls under it, as Ready to send stays still at the foot (the
+  way back, on the list's first line, scrolls with it); inline, it is the
+  board's first rows, and scrolls with it.
 - **This session** (home, the default): name and summary, For you, Status, Log,
   Parked, Done. What waits on Lee comes first.
 - **All projects**: this project first, then the busiest. Each project's open
@@ -250,8 +256,8 @@ show all 4
   ```
    ⌂ Dashboard redesign 3  ≡ All projects 8
   ────────────────────────━━━━━━━━━━━━━━━━━━────────────────────────
-  ← All projects
-  Switchboard · 2 waiting on you
+
+  Switchboard · 2 waiting on you                      ← All projects
 
   SESSIONS ─────────────────────────────────────────────── 2 of 3 open
   Dashboard redesign ⌂                                      1 waiting
@@ -309,8 +315,7 @@ show all 4
   moment.
 - Each tab carries what waits there: home, this session's asks; All
   projects, every project's.
-- Each view's first line sits directly under the header (the tab rule, or
-  the back row under it), with no blank row.
+- Each view's first line sits under the header's blank row.
 - Every section heading has a few words on the right: `1 waiting`,
   `what happened`, `updated 12m ago`, `2 of 3 open`.
 - **Log lines open** to the detail behind them, as a tree. A project's log
@@ -498,7 +503,7 @@ too long for that lists what fits and ends `… 3 more`, still one box. Only
 Lee moves the list: queuing a reply, sending, a new ask arriving and the
 board drawing again leave it where Lee had it, and only a list that shrank
 under it stops it short at its new end. Each place starts at its top,
-every time the board goes there: by a tab, the back row, a session's or a
+every time the board goes there: by a tab, the way back, a session's or a
 project's row, or a band count, even one landing on the place already
 showing; and so does the board opened again. Opening or closing an item
 leaves the list where it is. Tab and the arrows step between buttons, and
@@ -757,15 +762,15 @@ $XDG_STATE_HOME/sitrep/, else ~/.local/state/sitrep/
       engine's window never moves, and that row tells a page key (the
       window's rows) from Home and End (the tree's). The scroll hook holds
       the engine at the top (`offset: 0`).
-    - **The board.** The header (the tabs, their rule, and the back row
-      while it shows) sits at the tree's top, still. The list sits in a box
-      of the rows between it and Ready to send, clipped (`overflow:
+    - **The board.** The header (the tabs, their rule, and a blank row)
+      sits at the tree's top, still. The list sits in a box of the rows
+      between it and Ready to send, clipped (`overflow:
       "hidden"`), and shifted up by how far down it stands (`marginTop`);
       Ready to send sits under it, still, its last row past the tree's end,
       which paints. The list's rows are the window's, less the header's, and
       less Ready to send's or, with nothing in it, the tree's spare row; the
-      header's rows follow from where the board is, as Ready to send's
-      follow from what it holds. How far down the list stands is kept in
+      header's rows are the same everywhere, and Ready to send's follow
+      from what it holds. How far down the list stands is kept in
       `$.state` with the place it was moved at; every way to a place
       forgets it, so the place starts at its top though Lee had been down
       it before, and closing the board forgets it. The scroll hook moves it: the
@@ -946,10 +951,10 @@ $XDG_STATE_HOME/sitrep/, else ~/.local/state/sitrep/
   line (a Button's label never wraps), all of them one hover group, a
   `hover` scope made from its press key, so the whole title lights
   whichever line the pointer is on.
-- Breathing room: a column each side, a blank row after an opened ask's
-  buttons, between projects in All projects, and between sections; none
-  between the entries of a list (log, For you, done, parked), nor in the
-  header or between it and the first line under it.
+- Breathing room: a column each side, a blank row under the tab rule,
+  after an opened ask's buttons, between projects in All projects, and
+  between sections; none between the entries of a list (log, For you,
+  done, parked), nor between the tabs and their rule.
 - No indents left floating: anything hanging off an item hangs from a `└`.
 
 ## Where it lives

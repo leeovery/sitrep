@@ -10,7 +10,7 @@
  */
 import type { ElementTable, RenderElement, RenderSurface } from 'claude-code'
 import { answerOf, isPending, moreLines, type Ask, type Parked, type ReplyFields } from '../../core'
-import type { SitrepAnswering, SitrepItemRef, SitrepQueued } from '../../types'
+import type { SitrepAnswering, SitrepItemRef, SitrepPlace, SitrepQueued } from '../../types'
 import type { Actions } from '../actions'
 import { ago, C, clip, counted, GLYPH, wrapped } from '../look'
 import { itemKey } from '../places'
@@ -18,6 +18,9 @@ import { isCarried } from '../queue'
 import type { Scene } from '../scene'
 
 export type Els = ElementTable
+
+/** The way back up a level: its words, and where it goes. */
+export type Back = { label: string; to: SitrepPlace }
 
 /** What a part of the board is drawn with: the surface's elements, what its buttons do, what it shows, and its room. */
 export type Drawing = {
@@ -29,6 +32,8 @@ export type Drawing = {
   width: number
   /** Docked beside the transcript, rather than inline above the prompt. */
   isDock: boolean
+  /** The way back up, at the end of the view's title line; none at home and on All projects. */
+  back?: Back
 }
 
 /**
@@ -71,19 +76,49 @@ const WRITING: Partial<Record<RenderSurface, Writing>> = {
 /** Whether the surface's prompt box can be filled with words already queued, to write them again. */
 const canRewrite = (d: Drawing) => WRITING[d.surface]?.canFill === true
 
-/** The line under the tabs naming what the view is of, with a few words on it, and a summary under it. */
-export const context = ({ els }: Drawing, title: string, aside: string, summary?: string) => {
-  const { Box, Text } = els
+/** The most of the title line the way back takes, so the title always keeps some of it. */
+const BACK_SHARE = 0.5
+
+/** The fewest cells the aside shows in: its `· ` and something of its words. */
+const ASIDE_LEAST = 4
+
+/** The way back as the title line draws it, cut short past its share of the line. */
+const wayBack = ({ back, width }: Drawing): Back | undefined =>
+  back && { ...back, label: clip(back.label, Math.floor(width * BACK_SHARE)) }
+
+/** A title and its aside cut to `room`: the aside first, in what the title leaves, and none where too little is left. */
+const fitTitle = (room: number, title: string, aside: string) => {
+  const name = clip(title, room)
+  const left = room - name.length - 1
+
+  return { name, aside: left < ASIDE_LEAST ? undefined : clip(`· ${aside}`, left) }
+}
+
+/** The line under the tabs naming what the view is of, with a few words on it and the way back at its end, and a summary under it. */
+export const context = (d: Drawing, title: string, aside: string, summary?: string) => {
+  const { Box, Text, Button } = d.els
+  const back = wayBack(d)
+  const room = back === undefined ? d.width : d.width - back.label.length - 1
+  const line = fitTitle(room, title, aside)
 
   return (
     <Box flexDirection="column">
       <Box flexDirection="row" gap={1}>
-        <Text bold>{title}</Text>
-        <Box flexGrow={1} flexShrink={1}>
-          <Text color={C.grey} wrap="truncate-end">
-            {`· ${aside}`}
+        <Box flexGrow={1} flexShrink={1} flexDirection="row" gap={1}>
+          <Text bold wrap="truncate-end">
+            {line.name}
           </Text>
+          {line.aside !== undefined && (
+            <Text color={C.grey} wrap="truncate-end">
+              {line.aside}
+            </Text>
+          )}
         </Box>
+        {back !== undefined && (
+          <Box flexShrink={0}>
+            <Button key="up" plain label={back.label} onPress={() => d.act.go(back.to)} />
+          </Box>
+        )}
       </Box>
       {summary !== undefined && (
         <Text color={C.soft} wrap="wrap">

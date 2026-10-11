@@ -2,8 +2,8 @@ import { expect, test, tier } from 'claude-code/testing'
 import type { WorkMeta } from '../core'
 import { C } from '../hooks/look'
 import { rowsOf } from './drawn'
-import { park, T0, W2, W4, yesAsk } from './support'
-import { ELSEWHERE, INLINE, PROJECT, toProject, WIDE, world } from './world'
+import { note, park, T0, W2, W4, yesAsk } from './support'
+import { ELSEWHERE, INLINE, PROJECT, SESSION, toProject, WIDE, world } from './world'
 
 tier('user')
 
@@ -35,8 +35,8 @@ const GOOSEMATES_META: WorkMeta = {
   by: W4,
 }
 
-/** The pane's rows as drawn, each with the column kept free on its left. */
-const rows = async (ui: Board) => rowsOf(await ui.find({ type: 'Box' }))
+/** The pane's rows as drawn, `cells` across where given, each with the column kept free on its left. */
+const rows = async (ui: Board, cells?: number) => rowsOf(await ui.find({ type: 'Box' }), cells)
 
 /** This session with one thing parked, and another session of its project with two. */
 async function parkedAround(w: World) {
@@ -57,23 +57,46 @@ const onLedger = async (ui: Board) => {
 /** The tab row and the rule under it, as drawn. */
 const header = async (ui: Board) => (await rows(ui)).slice(0, 2)
 
-/** The row under the tab rule: the back row where there is one, else the view's first line. */
-const underRule = async (ui: Board) => (await rows(ui))[2]
+/** The blank row under the tab rule, then the view's title line, `cells` across. */
+const underRule = async (ui: Board, cells = WIDE.bodyColumns) => {
+  const [, , blank, title] = await rows(ui, cells)
+
+  return { blank, title }
+}
+
+/** A view's title line `cells` across: its title and aside, and the way back at the right edge where there is one. */
+const titleLine = (title: string, back = '', cells = WIDE.bodyColumns) =>
+  ` ${title}${' '.repeat(cells - 2 - title.length - back.length)}${back}`.trimEnd()
 
 /** The board's first row: the home tab, its glyph and this session's name, then All projects. */
 const HOME_FIRST = /^ {2}⌂ Dashboard redesign {2}≡ All projects/
 
-/** A place the board goes, reached from home as Lee reaches it, and its back row; none at home and on All projects. */
-type Place = { name: string; reach: (ui: Board) => Promise<unknown>; back?: string }
+/** A place the board goes, reached from home as Lee reaches it, its title line, and its way back; none at home and on All projects. */
+type Place = { name: string; reach: (ui: Board) => Promise<unknown>; title: string; back?: string }
 
 const PLACES: readonly Place[] = [
-  { name: 'home', reach: async () => undefined },
-  { name: 'All projects', reach: ui => ui.press({ key: 'tab:all' }) },
-  { name: "this project's view", reach: ui => toProject(ui), back: '← All projects' },
-  { name: "another session's view", reach: onLedger, back: '← Switchboard' },
+  { name: 'home', reach: async () => undefined, title: 'Dashboard redesign · Switchboard' },
+  {
+    name: 'All projects',
+    reach: ui => ui.press({ key: 'tab:all' }),
+    title: 'All projects · 2 waiting on you',
+  },
+  {
+    name: "this project's view",
+    reach: ui => toProject(ui),
+    title: 'Switchboard · 2 waiting on you',
+    back: '← All projects',
+  },
+  {
+    name: "another session's view",
+    reach: onLedger,
+    title: 'Request ledger · Switchboard',
+    back: '← Switchboard',
+  },
   {
     name: "another project's view",
     reach: ui => toProject(ui, ELSEWHERE.key),
+    title: 'Goosemates · nothing waiting on you',
     back: '← All projects',
   },
   {
@@ -82,6 +105,7 @@ const PLACES: readonly Place[] = [
       await toProject(ui, ELSEWHERE.key)
       await ui.press({ key: `go:${GOOSEMATES}` })
     },
+    title: 'Standing orders · Goosemates',
     back: '← Goosemates',
   },
 ]
@@ -203,26 +227,42 @@ test('the first tab goes home from every place', async ($, on) => {
   }
 })
 
-test('the back row sits under the tab rule one level up, in every view but home and All projects', async ($, on) => {
+test("a blank row under the tab rule, then the view's title line, the way back one level up at its right end; home and All projects have none; docked and inline", async ($, on) => {
   const w = world($, on)
 
   await asksAround(w)
 
-  const ui = await w.opened(WIDE)
+  for (const props of [WIDE, { ...WIDE, placement: 'inline' as const }]) {
+    const ui = await w.opened(props)
 
-  for (const { name, reach, back } of PLACES) {
-    await ui.press({ key: 'tab:session' })
-    await reach(ui)
+    for (const { name, reach, title, back } of PLACES) {
+      const scene = `${props.placement}, ${name}`
 
-    if (back === undefined) {
-      expect(await ui.find({ key: 'up' }), name).toBeUndefined()
-      expect(await underRule(ui), `${name}: its first line under the rule`).not.toMatch(/←/)
-    } else {
-      expect(await underRule(ui), name).toBe(` ${back}`)
-      expect(await ui.find({ key: 'up', text: back }), name).toBeDefined()
+      await ui.press({ key: 'tab:session' })
+      await reach(ui)
+      expect(await underRule(ui), scene).toEqual({ blank: '', title: titleLine(title, back) })
+      expect(await ui.find({ key: 'up', text: back }), scene).toEqual(
+        back === undefined ? undefined : expect.anything(),
+      )
+      expect(await ui.find({ key: 'home' }), `${scene}: no ⌂ beside it`).toBeUndefined()
     }
 
-    expect(await ui.find({ key: 'home' }), `${name}: no ⌂ beside it`).toBeUndefined()
+    await ui.unmount()
+  }
+})
+
+test('with no work held, the board is its one line: no tabs, and no blank row under them', async ($, on) => {
+  const w = world($, on)
+
+  await $.session.start(SESSION)
+
+  for (const props of [WIDE, INLINE]) {
+    const ui = await w.pane('terminal', props)
+
+    expect(await rows(ui), props.placement).toEqual([
+      expect.stringMatching(/^ This window holds no piece of work\./),
+    ])
+    await ui.unmount()
   }
 })
 
@@ -245,6 +285,78 @@ test('back goes one level up: a session to its project, a project to All project
   expect(placeOf(w)).toEqual({ level: 'project', project: PROJECT.key })
 })
 
+/** Phone width, as Blink draws the board inline, and a docked board's. */
+const NARROW = [
+  { ...INLINE, bodyColumns: 46 },
+  { ...WIDE, bodyColumns: 60 },
+] as const
+
+test('a long title cuts its aside first, then itself, at phone width and docked: the way back stays whole at the right edge, the line one row', async ($, on) => {
+  const w = world($, on)
+  const named = (id: string, name: string) => {
+    const work = w.elsewhere({ ...LEDGER_META, id, name })
+
+    work.write(note('n1', 'Began'))
+    work.beat()
+  }
+
+  named('sr-r0nd22', 'Request ledger, round 2')
+  named('sr-w1d3rr', 'Request ledger, area by area, with its exports and retention')
+  await w.begin()
+
+  const expected = {
+    46: ['Request ledger, round 2 · Swi…', 'Request ledger, area by area,…'],
+    60: ['Request ledger, round 2 · Switchboard', 'Request ledger, area by area, with its expo…'],
+  }
+
+  for (const props of NARROW) {
+    const ui = await w.opened(props)
+
+    for (const [i, id] of ['sr-r0nd22', 'sr-w1d3rr'].entries()) {
+      await toProject(ui)
+      await ui.press({ key: `go:${id}` })
+
+      const { title } = await underRule(ui, props.bodyColumns)
+
+      expect(title, `${props.bodyColumns}: ${id}`).toBe(
+        titleLine(expected[props.bodyColumns][i] ?? '', '← Switchboard', props.bodyColumns),
+      )
+      expect([...(title ?? '')].length, 'to the edge, and no further').toBe(props.bodyColumns - 1)
+      expect(await ui.find({ key: 'up', text: '← Switchboard' }), 'whole').toBeDefined()
+    }
+
+    await ui.unmount()
+  }
+})
+
+test('a way back longer than half the line is cut short to half, so the title keeps the rest', async ($, on) => {
+  const w = world($, on)
+  const portal = 'portal'
+
+  w.project(portal, {
+    name: 'The Customer Portal Rebuild Programme',
+    directory: '/Users/lee/Code/portal',
+    created: T0,
+    by: W4,
+  })
+  w.elsewhere({ ...GOOSEMATES_META, project: portal }, portal).beat()
+  await w.begin()
+
+  const expected = {
+    46: ' Standing orders · Th… ← The Customer Portal…',
+    60: ' Standing orders · The Custo… ← The Customer Portal Rebuil…',
+  }
+
+  for (const props of NARROW) {
+    const ui = await w.opened(props)
+
+    await toProject(ui, portal)
+    await ui.press({ key: `go:${GOOSEMATES}` })
+    expect((await underRule(ui, props.bodyColumns)).title).toBe(expected[props.bodyColumns])
+    await ui.unmount()
+  }
+})
+
 test('docked, as inline, the tabs are the first row of the board: there is no collapse or expand', async ($, on) => {
   const w = world($, on)
 
@@ -258,7 +370,9 @@ test('docked, as inline, the tabs are the first row of the board: there is no co
 
   await onLedger(ui)
   expect((await rows(ui))[0]).toMatch(HOME_FIRST)
-  expect(await underRule(ui)).toBe(' ← Switchboard')
+  expect((await underRule(ui)).title).toBe(
+    titleLine('Request ledger · Switchboard', '← Switchboard'),
+  )
 })
 
 test('a pane saved as the glance by an older load opens as the board', async ($, on) => {
@@ -320,7 +434,7 @@ test('a pane saved on the parked page by an older load opens as the board', asyn
   expect(await ui.find({ type: 'Button', text: /back to the board/ })).toBeUndefined()
 })
 
-test('inline, nothing sits above the tabs, and the header flows with the view: its first rows, the view right under', async ($, on) => {
+test('inline, nothing sits above the tabs, and the header flows with the view: its first rows, a blank row, then the view', async ($, on) => {
   const w = world($, on)
 
   await parkedAround(w)
@@ -333,12 +447,12 @@ test('inline, nothing sits above the tabs, and the header flows with the view: i
 
   await onLedger(ui)
 
-  const [tabs, , back, view] = await rows(ui)
+  const [tabs, , blank, view] = await rows(ui, INLINE.bodyColumns)
   const [board] = await ui.findAll({ type: 'Box' })
 
   expect(tabs).toMatch(HOME_FIRST)
-  expect(back).toBe(' ← Switchboard')
-  expect(view).toMatch(/^ Request ledger/)
+  expect(blank).toBe('')
+  expect(view).toBe(titleLine('Request ledger · Switchboard', '← Switchboard', INLINE.bodyColumns))
   expect(board?.props.height, 'not held to the window').toBeUndefined()
   expect((await ui.findAll({ type: 'Box' })).some(box => box.props.overflow === 'hidden')).toBe(
     false,
