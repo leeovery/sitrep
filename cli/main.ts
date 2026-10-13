@@ -1,6 +1,7 @@
 /**
- * The CLI, from its words to its exit code: the words read, then the files,
- * then core's rules, then a line appended and the answer printed.
+ * The CLI, from its words to its exit code: the words read, then the files
+ * and, where a command needs it, the screen, then the command's rules, then
+ * a line appended or a window brought forward, and the answer printed.
  *
  * It writes as the writer `cli`, appending to `<work>/cli.jsonl` and never
  * rewriting it, and writes no delivered marks or heartbeats: it is never a
@@ -8,10 +9,18 @@
  */
 import { append, checkJoin, rootOf, type Body, type Checked } from '../core'
 import { parseWords, wantsHelp, type Fields } from './args'
-import { commandNamed, type Command, type ProjectsCommand, type WorkCommand } from './commands'
-import { findWork, readProjects } from './files'
+import {
+  commandNamed,
+  type Command,
+  type ProjectsCommand,
+  type WindowCommand,
+  type WorkCommand,
+} from './commands'
+import { findWork, readProjects, type Found } from './files'
 import { commandHelp, HELP } from './help'
 import type { Env, Io } from './io'
+import { jump, worksOnScreen } from './jump'
+import { windowsOf } from './screen'
 
 /** How a run ends: done; a usage error, a refused input or a failure; or no such piece of work. */
 export const EXIT = { done: 0, refused: 1, noWork: 2 } as const
@@ -73,22 +82,39 @@ const post = async (io: Io, path: string, text: string, bodies: readonly Body[],
   }
 }
 
-const onWork = async (io: Io, command: WorkCommand, input: Fields) => {
+/** The piece of work the words name, as it stands at `now`; else how the run ends, told. */
+const namedWork = async (io: Io, input: Fields, now: number): Promise<Found | Exit> => {
   const id = workIdOf(input, io.env)
 
   if (!id.ok) {
     return fail(io, EXIT.refused, id.error)
   }
 
-  const now = io.now()
   const found = await findWork(io, rootOf(io.env), id.value, now)
 
-  if (found === undefined) {
-    return fail(
-      io,
-      EXIT.noWork,
-      `There is no piece of work ${id.value} on the board, in any project.`,
-    )
+  return (
+    found ??
+    fail(io, EXIT.noWork, `There is no piece of work ${id.value} on the board, in any project.`)
+  )
+}
+
+/** A command's answer printed, or its refusal told. */
+const told = (io: Io, acted: Checked<string>) => {
+  if (!acted.ok) {
+    return fail(io, EXIT.refused, acted.error)
+  }
+
+  print(io, acted.value)
+
+  return EXIT.done
+}
+
+const onWork = async (io: Io, command: WorkCommand, input: Fields) => {
+  const now = io.now()
+  const found = await namedWork(io, input, now)
+
+  if (typeof found === 'number') {
+    return found
   }
 
   const acted = command.act(found, input, io.random)
@@ -105,15 +131,19 @@ const onWork = async (io: Io, command: WorkCommand, input: Fields) => {
 
 const onProjects = async (io: Io, command: ProjectsCommand, input: Fields) => {
   const now = io.now()
-  const acted = command.act(await readProjects(io, rootOf(io.env), now), io.cwd, now, input)
+  const { projects, windows } = await readProjects(io, rootOf(io.env), now)
+  const onScreen = command.looks(input) ? await worksOnScreen(io, windows) : new Set<string>()
 
-  if (!acted.ok) {
-    return fail(io, EXIT.refused, acted.error)
-  }
+  return told(io, command.act({ read: projects, cwd: io.cwd, now, onScreen }, input))
+}
 
-  print(io, acted.value)
+const onWindow = async (io: Io, command: WindowCommand, input: Fields) => {
+  const now = io.now()
+  const found = await namedWork(io, input, now)
 
-  return EXIT.done
+  return typeof found === 'number'
+    ? found
+    : told(io, command.act(found, await jump(io, windowsOf(found.work, now))))
 }
 
 /** A command on the rest of its words: its help, or its run once they read. */
@@ -128,9 +158,14 @@ const runCommand = async (io: Io, command: Command, words: readonly string[]) =>
     return fail(io, EXIT.refused, `${input.error} sitrep ${command.name} --help says more.`)
   }
 
-  return command.on === 'work'
-    ? onWork(io, command, input.value)
-    : onProjects(io, command, input.value)
+  switch (command.on) {
+    case 'work':
+      return onWork(io, command, input.value)
+    case 'projects':
+      return onProjects(io, command, input.value)
+    case 'window':
+      return onWindow(io, command, input.value)
+  }
 }
 
 const answer = async (io: Io, words: readonly string[]): Promise<Exit> => {

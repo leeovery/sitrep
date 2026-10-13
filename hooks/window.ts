@@ -29,6 +29,7 @@ import { boardOf } from './board'
 import { logFailure, rootFor, type Host } from './host'
 import { announce } from './news'
 import { createReader, ownText, type Reader } from './reader'
+import { whereNow } from './where'
 
 /** How often the watch lists the work's folders for what changed. */
 export const WATCH_MS = 1_500
@@ -163,8 +164,8 @@ export const letGo = async (host: Host) => {
 
 /**
  * Holds the work `attaching` names, letting go of any other first: reads the
- * window's own file back, writes its heartbeat, starts the beat and the
- * watch, and folds the work.
+ * window's own file back, works out where the window is, writes its
+ * heartbeat, starts the beat and the watch, and folds the work.
  */
 export const attachTo = async (host: Host, root: string, attaching: SitrepAttachment) => {
   const { project, work, writer, attachedAt } = attaching
@@ -173,7 +174,7 @@ export const attachTo = async (host: Host, root: string, attaching: SitrepAttach
     attachment: attaching,
     paths,
     text: await ownText(host, paths.log(writer)),
-    presence: attach(writer, attachedAt),
+    presence: attach(writer, attachedAt, await whereNow(host)),
     read: createReader(),
     timers: [],
   }

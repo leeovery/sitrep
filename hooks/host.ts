@@ -1,6 +1,7 @@
 /**
  * What sitrep asks of the host: its file system, clock, session and
- * environment, its display and prompt, and the mod's values in `$.state`.
+ * environment, the terminal it runs in, its display and prompt, and the
+ * mod's values in `$.state`.
  * Each is a call on a hook's `$`, bound in register.tsx: the engine reads a
  * hooks module's calls off its source and never follows `$` across an
  * import, so the other modules are handed this in its place.
@@ -11,13 +12,14 @@
 import type {
   FsEntry,
   PaneOpenArgs,
+  ProcessRunResult,
   PromptSubmitResult,
   Timer,
   ToastOptions,
   UiOpenResult,
   UiPane,
 } from 'claude-code'
-import { rootOf, type Random } from '../core'
+import { rootOf, type Random, type WhereEnv } from '../core'
 import type {
   SitrepAnswering,
   SitrepAttachment,
@@ -62,6 +64,12 @@ export type Host = {
     cwd: () => Promise<string>
   }
   env: () => Promise<{ XDG_STATE_HOME?: string; HOME?: string }>
+  /** What tells where this window is: read only as it attaches. */
+  terminal: {
+    env: () => Promise<WhereEnv>
+    /** Walks up from a shell Claude Code starts to the first process with a terminal: the tty name it printed (`ttys043`), if any, and how it exited. */
+    tty: () => Promise<Pick<ProcessRunResult, 'exitCode' | 'stdout' | 'stderr'>>
+  }
   /** Writes a line to the debug log. */
   log: (text: string) => void
   ui: {

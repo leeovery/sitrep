@@ -6,10 +6,25 @@
 
 type BunEntry = { name: string; isFile(): boolean; isDirectory(): boolean }
 
+type BunChild = {
+  readonly stdout: ReadableStream<Uint8Array>
+  readonly stderr: ReadableStream<Uint8Array>
+  readonly exited: Promise<number>
+  /** Null until it has exited. */
+  readonly exitCode: number | null
+  kill(): void
+}
+
+type FileHandle = { writeFile(text: string): Promise<void>; close(): Promise<void> }
+
 declare const Bun: {
   readonly argv: readonly string[]
   readonly env: Readonly<Record<string, string | undefined>>
   file(path: string): { text(): Promise<string> }
+  spawn(
+    command: readonly string[],
+    options: { stdin: 'ignore'; stdout: 'pipe'; stderr: 'pipe' },
+  ): BunChild
 }
 
 declare const process: {
@@ -19,7 +34,12 @@ declare const process: {
   stderr: { write(text: string): boolean }
 }
 
+declare module 'node:fs' {
+  export const constants: { readonly O_WRONLY: number; readonly O_NOCTTY: number }
+}
+
 declare module 'node:fs/promises' {
   export function readdir(path: string, options: { withFileTypes: true }): Promise<BunEntry[]>
   export function appendFile(path: string, text: string): Promise<void>
+  export function open(path: string, flags: number): Promise<FileHandle>
 }

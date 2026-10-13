@@ -1,7 +1,7 @@
 import { expect, test, tier, type Engine } from 'claude-code/testing'
 import { CURRENT_MS, parseEntries, parsePresence, startText, type WorkMeta } from '../core'
 import { file, finish, MIN, note, T0, W1, W2 } from './support'
-import { DASHBOARD, PROJECT, SESSION, world } from './world'
+import { DASHBOARD, PROJECT, SESSION, WHERE, world } from './world'
 
 tier('user')
 
@@ -54,6 +54,7 @@ test('a session resumed in a new process takes up by itself the work it was last
     writer: W1,
     attachedAt: NOW,
     seenAt: NOW,
+    where: WHERE,
   })
 
   await w.call('note', { text: 'Drew round 2' })

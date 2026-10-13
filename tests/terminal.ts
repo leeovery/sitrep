@@ -1,11 +1,14 @@
 /**
  * The CLI's world, for its tests: a file system in memory (the mod's test
  * world's own, when a test shares it), the folder the CLI runs in, the
- * environment, the clock, random bytes, and what it prints. Nothing touches
- * a real folder.
+ * environment, the clock, random bytes, what it prints, and a fake tmux,
+ * `ps` and Ghostty behind the programs it runs and the devices it writes
+ * to. Nothing touches a real folder, terminal or window.
  */
-import type { Env, Io, Listed } from '../cli/io'
+import { FIND_AND_FOCUS, LIST } from '../cli/ghostty'
+import type { Env, Io, Listed, Ran } from '../cli/io'
 import { main } from '../cli/main'
+import { CLIENTS, PANES, PS } from '../cli/screen'
 import {
   metaText,
   projectPaths,
@@ -13,9 +16,11 @@ import {
   workPaths,
   type ProjectFile,
   type Random,
+  type Where,
   type WorkMeta,
+  type WorkPaths,
 } from '../core'
-import { file, MIN, scripted, seen, T0, type Line } from './support'
+import { beat, file, MIN, scripted, T0, type Line } from './support'
 import { HOME, PROJECT, REPO, ROOT, STATE_HOME } from './world'
 
 type File = { text: string; mtimeMs: number }
@@ -31,6 +36,67 @@ export const NOW = T0 + MIN
 /** The item ids a terminal's runs draw, unless a test says otherwise: this, then the next ever after. */
 export const FIRST_ID = '1234'
 export const NEXT_ID = '5678'
+
+/** A tmux client, as the fake tmux holds it: its device, the tmux window it shows, and the commands of its process's ancestors, its parent's first. */
+export type FakeClient = { tty: string; window: string; from: readonly string[] }
+
+/** A tmux server: each pane with its tmux window, a pane once for each session the window is in, and its clients. */
+export type FakeServer = { panes: [pane: string, window: string][]; clients: FakeClient[] }
+
+/**
+ * A Ghostty terminal: its id, the device it is on, and the working directory
+ * it reports. One `isLate` takes a report only once the next Ghostty program
+ * has answered, as a terminal slower than the find would.
+ */
+export type FakeTerminal = { id: string; device: string; directory: string; isLate?: boolean }
+
+/** The tmux server's socket a window runs under, unless a test says otherwise. */
+export const SOCKET = '/private/tmp/tmux-501/default'
+
+/** Ghostty's own program, as `ps` gives it. */
+export const GHOSTTY_APP = '/Applications/Ghostty.app/Contents/MacOS/ghostty'
+
+/** A Ghostty window of this Mac on `tty`, showing tmux's `window`: `tmux < zsh < login < ghostty`. */
+export const ghosttyClient = (tty: string, window: string): FakeClient => ({
+  tty,
+  window,
+  from: ['-zsh', '/usr/bin/login', GHOSTTY_APP, '/sbin/launchd'],
+})
+
+/** Lee's phone or iPad showing tmux's `window`: `tmux < zsh < mosh-server`. */
+export const phoneClient = (tty: string, window: string): FakeClient => ({
+  tty,
+  window,
+  from: ['-zsh', '/opt/homebrew/bin/mosh-server', '/sbin/launchd'],
+})
+
+/** A Ghostty on another Mac showing tmux's `window` over ssh: it gives xterm-ghostty, but descends from sshd. */
+export const sshClient = (tty: string, window: string): FakeClient => ({
+  tty,
+  window,
+  from: ['-zsh', '/usr/libexec/sshd-session', '/usr/sbin/sshd', '/sbin/launchd'],
+})
+
+/** A report written to a device, as the fake reads one back: OSC 7, its host `localhost`, its path percent-encoded. */
+const REPORT = /^\x1b\]7;file:\/\/localhost(\/[^\x07]*)\x07$/
+
+/** Processes in every snapshot, whatever the clients: one a command with spaces. */
+const OTHER_PROCESSES = [
+  '    1     0 /sbin/launchd',
+  ' 4168     1 /Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+]
+
+const printed = (lines: readonly string[]): Ran => ({
+  exitCode: 0,
+  stdout: `${lines.join('\n')}\n`,
+  stderr: '',
+})
+
+const isWords = (words: readonly string[], expected: readonly string[]) =>
+  words.join('\0') === expected.join('\0')
+
+const processLine = (pid: number, parent: number, command: string) =>
+  `${String(pid).padStart(5)} ${String(parent).padStart(5)} ${command}`
 
 /** The files and folders directly in `dir`, as the files under it imply them. */
 const entriesIn = (files: ReadonlyMap<string, File>, dir: string): Listed[] => {
@@ -53,11 +119,205 @@ type Options = {
   env?: Env
   now?: () => number
   random?: Random
+  /** tmux's servers, by socket; a socket missing has none running. */
+  tmux?: Record<string, FakeServer>
+  /** Ghostty's terminals; with none given, Ghostty is not running. */
+  ghostty?: FakeTerminal[]
+  /** What osascript says as it fails its run of this count, from 1, as when macOS refuses it control of Ghostty; undefined while it runs. */
+  refused?: (run: number) => string | undefined
+  /** What changes Ghostty's terminals during each listing, the first's first, between its read of the ids and of the directories. */
+  changes?: ((terminals: FakeTerminal[]) => void)[]
+  /** Programs not on PATH. */
+  missing?: string[]
+  /** Programs that never answer: a run with a limit is killed at it. */
+  slow?: string[]
+  /** Devices gone, a write to which fails as a closed pty's does. */
+  closed?: string[]
+}
+
+/**
+ * tmux, `ps` and Ghostty as the CLI's programs find them: what each run
+ * prints, what is written to each device, and which terminals are focused.
+ * A report written to a device sets the directory of the terminal on it,
+ * and of no other.
+ */
+function screen(options: Options) {
+  const terminals = options.ghostty?.map(each => ({ ...each }))
+  const late = new Map<FakeTerminal, string>()
+  const clients = Object.values(options.tmux ?? {}).flatMap(server => server.clients)
+  /** Every program run, by its words. */
+  const ran: string[][] = []
+  /** Every program run, by its name, with the time it was given. */
+  const limits: { name: string; limitMs?: number }[] = []
+  /** Every write to a device, in order. */
+  const written: { device: string; text: string }[] = []
+  /** The id of every terminal focused, in order. */
+  const focused: string[] = []
+
+  const pidOf = (client: FakeClient) => 1000 + clients.indexOf(client)
+
+  /** Late terminals take the reports they were given. */
+  const settle = () => {
+    for (const [terminal, directory] of late) {
+      terminal.directory = directory
+    }
+
+    late.clear()
+  }
+
+  const tmux = (socket: string, words: readonly string[]): Ran => {
+    const server = options.tmux?.[socket]
+
+    if (server === undefined) {
+      return {
+        exitCode: 1,
+        stdout: '',
+        stderr: `error connecting to ${socket} (No such file or directory)\n`,
+      }
+    }
+
+    if (isWords(words, PANES)) {
+      return printed(server.panes.map(([pane, window]) => `${pane}\t${window}`))
+    }
+
+    if (isWords(words, CLIENTS)) {
+      return printed(server.clients.map(each => `${each.tty}\t${pidOf(each)}\t${each.window}`))
+    }
+
+    throw new Error(`the fake tmux knows no ${words.join(' ')}`)
+  }
+
+  /** Every client's process and its ancestors, each ancestor's id its place in the chain past the client's. */
+  const ps = (words: readonly string[]): Ran => {
+    if (!isWords(words, PS.slice(1))) {
+      throw new Error(`the fake ps knows no ${words.join(' ')}`)
+    }
+
+    return printed([
+      ...OTHER_PROCESSES,
+      ...clients.flatMap(client => {
+        const chain = [pidOf(client), ...client.from.map((_, i) => pidOf(client) * 10 + i)]
+
+        return ['tmux', ...client.from].map((command, i) =>
+          processLine(chain[i] ?? 0, chain[i + 1] ?? 0, command),
+        )
+      }),
+    ])
+  }
+
+  /** The program as it runs: the ids, then the directories, then the ids again, a change of the run's between the first two. */
+  const list = (): string[] => {
+    const held = terminals ?? []
+    const change = options.changes?.[ran.filter(words => words[2] === LIST).length - 1]
+    const ids = held.map(each => each.id)
+
+    change?.(held)
+
+    const places = held.map(each => each.directory)
+    const rows = places.length === ids.length ? ids.map((id, i) => `${id}\t${places[i]}`) : []
+
+    return [held.map(each => each.id).join('\t'), ...rows]
+  }
+
+  const find = (marker: string | undefined) => {
+    const found = terminals?.find(each => each.directory === marker)
+
+    if (found !== undefined) {
+      focused.push(found.id)
+    }
+
+    return found === undefined ? [] : [found.id]
+  }
+
+  const osascript = (program: string | undefined, args: readonly string[]): Ran => {
+    const refusal = options.refused?.(ran.filter(([name]) => name === 'osascript').length)
+
+    if (refusal !== undefined) {
+      return { exitCode: 1, stdout: '', stderr: `${refusal}\n` }
+    }
+
+    if (terminals === undefined) {
+      return printed([])
+    }
+
+    if (program !== LIST && program !== FIND_AND_FOCUS) {
+      throw new Error('the fake Ghostty knows no such program')
+    }
+
+    const answer = printed(program === LIST ? list() : find(args.at(0)))
+
+    settle()
+
+    return answer
+  }
+
+  const run = async ([name = '', ...words]: readonly string[], limitMs?: number): Promise<Ran> => {
+    ran.push([name, ...words])
+    limits.push({ name, limitMs })
+
+    if (options.missing?.includes(name)) {
+      throw new Error(`Executable not found in $PATH: "${name}"`)
+    }
+
+    if (options.slow?.includes(name)) {
+      throw new Error(
+        limitMs === undefined
+          ? `${name} would hang this test`
+          : `${name} did not end within ${limitMs}ms`,
+      )
+    }
+
+    if (name === 'tmux' && words[0] === '-S') {
+      return tmux(words[1] ?? '', words.slice(2))
+    }
+
+    if (name === 'ps') {
+      return ps(words)
+    }
+
+    if (name === 'osascript' && words[0] === '-e') {
+      return osascript(words[1], words.slice(2))
+    }
+
+    throw new Error(`Executable not found in $PATH: "${name}"`)
+  }
+
+  const writeTo = async (device: string, text: string) => {
+    const path = REPORT.exec(text)?.[1]
+
+    if (path === undefined) {
+      throw new Error(`a write to ${device} that is not a working directory report`)
+    }
+
+    if (options.closed?.includes(device)) {
+      throw new Error(`ENXIO: no such device or address, open '${device}'`)
+    }
+
+    written.push({ device, text })
+
+    for (const terminal of (terminals ?? []).filter(each => each.device === device)) {
+      if (terminal.isLate === true) {
+        late.set(terminal, decodeURIComponent(path))
+      } else {
+        terminal.directory = decodeURIComponent(path)
+      }
+    }
+  }
+
+  /** Each terminal's id and directory once every report has landed. */
+  const directories = () => {
+    settle()
+
+    return Object.fromEntries((terminals ?? []).map(each => [each.id, each.directory]))
+  }
+
+  return { run, writeTo, ran, limits, written, focused, directories }
 }
 
 export function terminal(options: Options = {}) {
   const files = options.files ?? new Map<string, File>()
   const now = options.now ?? (() => NOW)
+  const shown = screen(options)
   let printed = { out: '', err: '' }
   let gate: (() => Promise<void>) | undefined
 
@@ -88,6 +348,8 @@ export function terminal(options: Options = {}) {
     err: text => {
       printed.err += text
     },
+    run: shown.run,
+    writeTo: shown.writeTo,
   }
 
   /** Runs the CLI on these words: how it ended, and what it printed. */
@@ -110,10 +372,17 @@ export function terminal(options: Options = {}) {
     return held.text
   }
 
+  /** A window's heartbeat on a work: attached at `at`, seen then, and `where` it is. */
+  const window = (paths: WorkPaths, writer: string, at: number, where?: Where) =>
+    files.set(paths.heartbeat(writer), {
+      text: beat(writer, { attachedAt: at, seenAt: at, where }),
+      mtimeMs: at,
+    })
+
   /**
    * A piece of work as the mod leaves it, filed under `project`: its
    * work.json, the lines its window wrote, and, given `seenAt`, that
-   * window's heartbeat.
+   * window's heartbeat, saying `where` it is.
    */
   const seed = (
     meta: WorkMeta,
@@ -121,7 +390,8 @@ export function terminal(options: Options = {}) {
       project = PROJECT.key,
       lines = [],
       seenAt,
-    }: { project?: string; lines?: Line[]; seenAt?: number } = {},
+      where,
+    }: { project?: string; lines?: Line[]; seenAt?: number; where?: Where } = {},
   ) => {
     const paths = workPaths(ROOT, project, meta.id)
 
@@ -129,7 +399,7 @@ export function terminal(options: Options = {}) {
     files.set(paths.log(meta.by), { text: file(...lines), mtimeMs: meta.created })
 
     if (seenAt !== undefined) {
-      files.set(paths.heartbeat(meta.by), { text: seen(meta.by, seenAt), mtimeMs: seenAt })
+      window(paths, meta.by, seenAt, where)
     }
 
     return paths
@@ -173,5 +443,5 @@ export function terminal(options: Options = {}) {
     }
   }
 
-  return { files, io, run, text, seed, project, holdAppends }
+  return { files, io, run, text, seed, window, project, holdAppends, screen: shown }
 }

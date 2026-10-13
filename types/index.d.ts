@@ -92,11 +92,19 @@ export type SitrepLogLine = {
   id?: string
 }
 
+/** Where a window is: core's `Where`. */
+export type SitrepWhere = {
+  device?: string
+  terminal?: string
+  tmux?: { socket: string; pane: string }
+}
+
 export type SitrepPresence = {
   writer: string
   attachedAt: number
   seenAt: number
   leftAt?: number
+  where?: SitrepWhere
 }
 
 /** A piece of work marked done: core's `Finished`. */

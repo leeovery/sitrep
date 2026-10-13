@@ -25,7 +25,8 @@ const FINISHERS: readonly Finisher[] = ['lee', 'claude']
 
 type Check = (value: unknown) => boolean
 
-const isObject = (value: unknown): value is { [key: string]: unknown } =>
+/** Whether a value read from JSON is an object of keys: not null, and not a list. */
+export const isObject = (value: unknown): value is { [key: string]: unknown } =>
   typeof value === 'object' && value !== null && !Array.isArray(value)
 
 const isText: Check = value => typeof value === 'string'

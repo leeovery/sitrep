@@ -1,8 +1,9 @@
 /**
  * The CLI's commands: the words each takes, and what each makes of a piece
- * of work or of the projects. A command on a piece of work hands back the
- * lines it posts, as the CLI's own, and what to print: a post's item id, so
- * a script can keep it.
+ * of work, of the projects, or of a jump to a work's window. A command on a
+ * piece of work hands back the lines it posts, as the CLI's own, and what to
+ * print: a post's item id, so a script can keep it. Each is pure: what it
+ * needs of the screen is looked at, and the jump made, before it acts.
  *
  * Answering an ask is not one of them yet (DESIGN's open question 4). It
  * would be a command on a piece of work whose reply goes into the work's
@@ -23,6 +24,7 @@ import {
   type Work,
 } from '../core'
 import type { Fields, Flag, Grammar } from './args'
+import type { Jumped } from './jump'
 import { boardJson, listing, listJson, listText } from './output'
 
 /** A piece of work, and the key of the project it is filed under. */
@@ -38,13 +40,28 @@ export type WorkCommand = About & {
   act: (filed: Filed, input: Fields, random: Random) => Checked<Outcome>
 }
 
-/** A command on the projects: every one read, with its works, from the folder the CLI runs in, at `now`. */
-export type ProjectsCommand = About & {
-  on: 'projects'
-  act: (read: readonly ProjectWorks[], cwd: string, now: number, input: Fields) => Checked<string>
+/** What a command on the projects is given: every one read, with its works, from the folder the CLI runs in, at `now`, and the ids of the works on screen. */
+export type Projects = {
+  read: readonly ProjectWorks[]
+  cwd: string
+  now: number
+  onScreen: ReadonlySet<string>
 }
 
-export type Command = WorkCommand | ProjectsCommand
+export type ProjectsCommand = About & {
+  on: 'projects'
+  /** Whether it tells which works are on screen: only then is tmux asked, and `onScreen` filled. */
+  looks: (input: Fields) => boolean
+  act: (projects: Projects, input: Fields) => Checked<string>
+}
+
+/** A command on a piece of work's window: what the jump to it came to, in words. */
+export type WindowCommand = About & {
+  on: 'window'
+  act: (filed: Filed, jumped: Jumped) => Checked<string>
+}
+
+export type Command = WorkCommand | ProjectsCommand | WindowCommand
 
 /** The flag naming the piece of work, which every command on one takes. */
 export const WORK_FLAG = 'work'
@@ -207,7 +224,8 @@ const list: ProjectsCommand = {
     },
   },
   on: 'projects',
-  act: (read, cwd, now, input) => {
+  looks: input => input.json === true,
+  act: ({ read, cwd, now, onScreen }, input) => {
     const named = typeof input.project === 'string' ? input.project : undefined
     const listed = listing(read, cwd, now, named)
 
@@ -215,11 +233,42 @@ const list: ProjectsCommand = {
       return { ok: false, error: `There is no project named ${named}.` }
     }
 
-    return { ok: true, value: input.json === true ? listJson(listed) : listText(listed.projects) }
+    return {
+      ok: true,
+      value: input.json === true ? listJson(listed, onScreen) : listText(listed.projects),
+    }
   },
 }
 
+/** Things in plain words: `a`, `a and b`, `a, b and c`. */
+const inWords = (things: readonly string[]) =>
+  things.length < 2 ? things.join('') : `${things.slice(0, -1).join(', ')} and ${things.at(-1)}`
+
+/** Why a jump brought no window forward, in words, the work named. */
+const unjumped = (name: string, jumped: Exclude<Jumped, { is: 'focused' }>) => {
+  switch (jumped.is) {
+    case 'off screen':
+      return `${name} is not on screen: no Ghostty window shows it.`
+    case 'unknown':
+      return `Could not tell whether ${name} is on screen: ${inWords(jumped.unanswered)} gave no answer.`
+    case 'unanswered':
+      return `${name} shows on ${inWords(jumped.devices)}, but no Ghostty window there answered.`
+  }
+}
+
+const jump: WindowCommand = {
+  name: 'jump',
+  about:
+    'Bring the Ghostty window showing the piece of work to the front, on whatever Space it is. Prints nothing.',
+  grammar: { args: [], flags: { ...WORK } },
+  on: 'window',
+  act: ({ work }, jumped) =>
+    jumped.is === 'focused'
+      ? { ok: true, value: '' }
+      : { ok: false, error: unjumped(work.status.name, jumped) },
+}
+
 /** Every command, in the order the help lists them. */
-export const COMMANDS: readonly Command[] = [note, ask, park, status, board, list]
+export const COMMANDS: readonly Command[] = [note, ask, park, status, board, list, jump]
 
 export const commandNamed = (name: string) => COMMANDS.find(command => command.name === name)

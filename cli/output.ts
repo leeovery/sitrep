@@ -90,19 +90,27 @@ const workJson = (work: WorkSummary) => ({
   updatedAt: work.updatedAt,
 })
 
-const projectJson = (project: ProjectSummary) => ({
+const projectJson = (project: ProjectSummary, onScreen: ReadonlySet<string>) => ({
   key: project.key,
   name: project.name,
   open: project.open,
   waiting: project.waiting,
   parked: project.parked,
   updatedAt: project.updatedAt,
-  works: project.works.map(workJson),
+  works: project.works.map(work => ({ ...workJson(work), onScreen: onScreen.has(work.id) })),
 })
 
-/** `list --json`: the project the CLI runs in, by its key, else null, and the projects as `listing` gives them. */
-export const listJson = ({ here, projects }: Listing) =>
-  json({ v: OUTPUT.list, here: here?.key ?? null, projects: projects.map(projectJson) })
+/**
+ * `list --json`: the project the CLI runs in, by its key, else null, and the
+ * projects as `listing` gives them, each work saying whether a Ghostty
+ * window shows it.
+ */
+export const listJson = ({ here, projects }: Listing, onScreen: ReadonlySet<string>) =>
+  json({
+    v: OUTPUT.list,
+    here: here?.key ?? null,
+    projects: projects.map(project => projectJson(project, onScreen)),
+  })
 
 const askJson = (ask: Ask) => ({
   id: ask.id,

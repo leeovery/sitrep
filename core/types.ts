@@ -234,12 +234,23 @@ export type Finished = {
   reason?: string
 }
 
-/** A window's heartbeat on a piece of work; `leftAt` once it has let go. */
+/** Where a window is: the terminal device Claude Code is on, the terminal program, and its tmux pane when it runs in tmux. */
+export type Where = {
+  /** `/dev/ttys043` */
+  device?: string
+  /** `$TERM_PROGRAM` as given: `ghostty`, `tmux`, `iTerm.app`. */
+  terminal?: string
+  /** The tmux server's socket (`/private/tmp/tmux-501/default`) and the pane (`%148`). */
+  tmux?: { socket: string; pane: string }
+}
+
+/** A window's heartbeat on a piece of work; `leftAt` once it has let go, and `where` the window is, as far as it is known. */
 export type Presence = {
   writer: string
   attachedAt: number
   seenAt: number
   leftAt?: number
+  where?: Where
 }
 
 /** A piece of work as it stands, every writer's lines read together. */

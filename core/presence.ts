@@ -5,7 +5,8 @@
  * either, so a window that lets go says so in its heartbeat.
  */
 import { compareText } from './text'
-import type { Presence } from './types'
+import type { Presence, Where } from './types'
+import { parseWhere } from './where'
 
 /** How often an attached window rewrites its heartbeat. */
 export const HEARTBEAT_MS = 30_000
@@ -16,10 +17,12 @@ export const STALE_MS = 3 * HEARTBEAT_MS
 const isTime = (value: unknown): value is number =>
   typeof value === 'number' && Number.isFinite(value)
 
-export const attach = (writer: string, at: number): Presence => ({
+/** A window's first heartbeat on a piece of work, and where the window is when that is known. */
+export const attach = (writer: string, at: number, where?: Where): Presence => ({
   writer,
   attachedAt: at,
   seenAt: at,
+  where,
 })
 
 export const heartbeat = (presence: Presence, at: number): Presence => ({ ...presence, seenAt: at })
@@ -28,9 +31,13 @@ export const leave = (presence: Presence, at: number): Presence => ({ ...presenc
 
 export const presenceText = (presence: Presence) => `${JSON.stringify(presence)}\n`
 
-/** A heartbeat file's presence, its writer named by the file; undefined when the file is torn or bad. */
+/**
+ * A heartbeat file's presence, its writer named by the file; undefined when
+ * the file is torn or bad. A bad `where`, or a bad field of it, is dropped
+ * and the presence kept.
+ */
 export const parsePresence = (text: string, writer: string): Presence | undefined => {
-  let raw: { attachedAt?: unknown; seenAt?: unknown; leftAt?: unknown }
+  let raw: { attachedAt?: unknown; seenAt?: unknown; leftAt?: unknown; where?: unknown }
 
   try {
     raw = JSON.parse(text) ?? {}
@@ -38,13 +45,13 @@ export const parsePresence = (text: string, writer: string): Presence | undefine
     return undefined
   }
 
-  const { attachedAt, seenAt, leftAt } = raw
+  const { attachedAt, seenAt, leftAt, where } = raw
 
   if (!isTime(attachedAt) || !isTime(seenAt) || !(leftAt === undefined || isTime(leftAt))) {
     return undefined
   }
 
-  return { writer, attachedAt, seenAt, leftAt }
+  return { writer, attachedAt, seenAt, leftAt, where: parseWhere(where) }
 }
 
 export const isLive = (presence: Presence, now: number) =>

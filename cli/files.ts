@@ -20,11 +20,13 @@ import {
   worksDir,
   writerOf,
   type ProjectWorks,
+  type Where,
   type Work,
   type WorkFiles,
   type WorkPaths,
 } from '../core'
 import type { Io } from './io'
+import { windowsOf } from './screen'
 
 /** A piece of work as found: the project it is filed under, its paths and files, and the work they fold to. */
 export type Found = { project: string; paths: WorkPaths; files: WorkFiles; work: Work }
@@ -93,26 +95,32 @@ const filesIn = async (io: Io, root: string, project: string) =>
       .map(id => readWork(io, workPaths(root, project, id))),
   )
 
-/** A project and its works in brief, but those whose work.json is missing or torn; undefined for a folder with no file and no work. */
-const readProject = async (
-  io: Io,
-  root: string,
-  key: string,
-  now: number,
-): Promise<ProjectWorks | undefined> => {
+/** A project and its works, but those whose work.json is missing or torn; undefined for a folder with no file and no work. */
+const readProject = async (io: Io, root: string, key: string, now: number) => {
   const file = parseProject((await textAt(io, projectPaths(root, key).file)) ?? '')
   const files = await filesIn(io, root, key)
   const works = files.map(each => foldWork(each, now)).filter(work => work !== undefined)
   const project = projectFrom(key, file, recordedName(files.map(each => parseMeta(each.meta))))
 
-  return project === undefined ? undefined : { project, works: works.map(summarise) }
+  return project === undefined ? undefined : { project, works }
 }
 
-/** Every project, with its works in brief as they stand at `now`. */
-export const readProjects = async (io: Io, root: string, now: number) => {
-  const read = await Promise.all(
-    (await projectKeys(io, root)).map(key => readProject(io, root, key, now)),
-  )
+/** What `readProjects` gives: every project with its works in brief, and the windows each work is in, by its id. */
+export type ProjectsRead = {
+  projects: ProjectWorks[]
+  windows: ReadonlyMap<string, readonly Where[]>
+}
 
-  return read.filter(each => each !== undefined)
+/** Every project, with its works in brief as they stand at `now`, and the windows each work is in. */
+export const readProjects = async (io: Io, root: string, now: number): Promise<ProjectsRead> => {
+  const read = (
+    await Promise.all((await projectKeys(io, root)).map(key => readProject(io, root, key, now)))
+  ).filter(each => each !== undefined)
+
+  return {
+    projects: read.map(({ project, works }) => ({ project, works: works.map(summarise) })),
+    windows: new Map(
+      read.flatMap(({ works }) => works.map(work => [work.id, windowsOf(work, now)] as const)),
+    ),
+  }
 }

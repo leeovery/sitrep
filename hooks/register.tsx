@@ -50,6 +50,7 @@ import { heldWork, sceneOf, tickEvery } from './scene'
 import { boardChange, markSeen } from './seen'
 import { rejoin, startListing } from './start'
 import { answerCall, nameKept, SPECS, TOOL_NAMES } from './tools'
+import { TTY_WALK, TTY_WALK_MS } from './where'
 import { letGo, resume, serially } from './window'
 
 /** The block of the session's first message that lists the project's works. */
@@ -98,6 +99,18 @@ const hostOf = ($: EngineInterface): Host => ({
     XDG_STATE_HOME: await $.env.get('XDG_STATE_HOME'),
     HOME: await $.env.get('HOME'),
   }),
+  terminal: {
+    env: async () => {
+      const [TMUX, TMUX_PANE, TERM_PROGRAM] = await Promise.all([
+        $.env.get('TMUX'),
+        $.env.get('TMUX_PANE'),
+        $.env.get('TERM_PROGRAM'),
+      ])
+
+      return { TMUX, TMUX_PANE, TERM_PROGRAM }
+    },
+    tty: () => $.process.run(['/bin/sh', '-c', TTY_WALK], { timeoutMs: TTY_WALK_MS }),
+  },
   log: text => $.ui.log(text, { to: 'debug' }),
   ui: {
     toast: (text, options) => $.ui.toast(text, { timeoutMs: TOAST_MS, ...options }),

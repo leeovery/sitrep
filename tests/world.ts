@@ -23,6 +23,7 @@ import {
   type Presence,
   type Project,
   type ProjectFile,
+  type Where,
   type WorkMeta,
   type WorkPaths,
 } from '../core'
@@ -40,6 +41,15 @@ export const REPO = '/Users/lee/Code/switchboard'
 
 /** Lee's home folder, which a session may start in to talk of any project. */
 export const HOME = '/Users/lee'
+
+/** The terminal Claude Code is on, as the walk up its processes prints it. */
+export const TTY = 'ttys001'
+
+/** Where the world's window is unless told otherwise: a Ghostty window outside tmux. */
+export const WHERE: Where = { device: `/dev/${TTY}`, terminal: 'ghostty' }
+
+/** What the walk up Claude Code's processes for its terminal gives: what it printed and how it exited, or why it could not run. */
+export type Walk = { stdout: string; exitCode?: number } | { refused: string }
 
 /** The project the works under test are on: named so by Claude as it starts one, its key the name's slug. */
 export const PROJECT: Project = { key: 'switchboard', name: 'Switchboard' }
@@ -258,7 +268,14 @@ function display(on: On) {
   }
 }
 
-export function world(engine: Engine, on: On, options: { now?: number; cwd?: string } = {}) {
+/**
+ * Knobs on the world: when it starts, the folder the session starts in, and
+ * the environment beyond sitrep's own folders (a Ghostty window outside tmux
+ * unless told otherwise).
+ */
+type Options = { now?: number; cwd?: string; env?: Readonly<Record<string, string>> }
+
+export function world(engine: Engine, on: On, options: Options = {}) {
   const clock = mock.clock(on, { now: options.now ?? T0 })
   const files = new Map<string, File>()
   const state: Partial<Sitrep> = {}
@@ -273,7 +290,31 @@ export function world(engine: Engine, on: On, options: { now?: number; cwd?: str
   let isRefused: ((path: string) => boolean) | undefined
   let isUnread = false
 
-  mock.env(on, { XDG_STATE_HOME: STATE_HOME, HOME })
+  /** The commands the mod ran, each as its argument vector. */
+  const runs: (readonly string[])[] = []
+  let walk: Walk = { stdout: `${TTY}\n` }
+
+  mock.env(on, {
+    XDG_STATE_HOME: STATE_HOME,
+    HOME,
+    ...(options.env ?? { TERM_PROGRAM: 'ghostty' }),
+  })
+
+  on('process.run', ($, e) => {
+    runs.push(e.argv)
+
+    return 'refused' in walk
+      ? { deny: walk.refused }
+      : {
+          value: {
+            exitCode: walk.exitCode ?? 0,
+            stdout: walk.stdout,
+            stderr: '',
+            isStdoutTruncated: false,
+            isStderrTruncated: false,
+          },
+        }
+  })
 
   on('session.start', ($, e) => ({ cwd: e.cwd }))
   on('session.end', ($, e) => ({ sessionId: e.sessionId }))
@@ -324,6 +365,11 @@ export function world(engine: Engine, on: On, options: { now?: number; cwd?: str
 
     return { value: undefined }
   })
+
+  /** The walk for the terminal gives `next` from here on. */
+  const walkGives = (next: Walk) => {
+    walk = next
+  }
 
   /** The other works the board reads in full, from here on, never land in `$.state`: as before the look reading one has, only their briefs are there. */
   const leaveUnread = () => {
@@ -500,11 +546,13 @@ export function world(engine: Engine, on: On, options: { now?: number; cwd?: str
     boards,
     writes,
     logs,
+    runs,
     registered,
     ...shown,
     put,
     text,
     refuseWrites,
+    walkGives,
     leaveUnread,
     seed,
     project,

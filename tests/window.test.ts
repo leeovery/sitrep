@@ -1,6 +1,7 @@
 import { expect, test, tier } from 'claude-code/testing'
 import { HEARTBEAT_MS, metaText, parseEntries, parsePresence, workPaths } from '../core'
 import { boardOf, workOf } from '../hooks/board'
+import { TTY_WALK } from '../hooks/where'
 import { WATCH_MS } from '../hooks/window'
 import type { SitrepAttachment } from '../types'
 import {
@@ -17,9 +18,23 @@ import {
   W2,
   yesAsk,
 } from './support'
-import { DASHBOARD, PROJECT, ROOT, SESSION, postedId, world } from './world'
+import {
+  DASHBOARD,
+  PROJECT,
+  ROOT,
+  SESSION,
+  startedId,
+  TTY,
+  WHERE,
+  postedId,
+  world,
+  type Walk,
+} from './world'
 
 tier('user')
+
+/** The tmux server's socket, as `$TMUX` starts. */
+const SOCKET = '/private/tmp/tmux-501/default'
 
 /** A /clear: the conversation ends, and the window goes on under another session id. */
 const CLEARED = { reason: 'clear' as const, sessionId: W1, resume: { id: W1 } }
@@ -107,6 +122,7 @@ test('after a reload, the window takes up the work $.state names, reads its file
     writer: W1,
     attachedAt: T0,
     seenAt: T0 + 60_000,
+    where: WHERE,
   })
   expect(w.state.board?.asks.map(item => item.id)).toEqual(['k1'])
 })
@@ -144,11 +160,11 @@ test('the heartbeat is rewritten every 30 seconds while attached, and says when 
   const { paths } = await w.begin()
   const beat = () => parsePresence(w.text(paths.heartbeat(W1)), W1)
 
-  expect(beat()).toEqual({ writer: W1, attachedAt: T0, seenAt: T0 })
+  expect(beat()).toEqual({ writer: W1, attachedAt: T0, seenAt: T0, where: WHERE })
 
   await w.clock.advance(HEARTBEAT_MS)
 
-  expect(beat()).toEqual({ writer: W1, attachedAt: T0, seenAt: T0 + HEARTBEAT_MS })
+  expect(beat()).toEqual({ writer: W1, attachedAt: T0, seenAt: T0 + HEARTBEAT_MS, where: WHERE })
 
   await w.clock.advance(10_000)
   await $.session.end(CLEARED)
@@ -158,6 +174,111 @@ test('the heartbeat is rewritten every 30 seconds while attached, and says when 
   await w.clock.advance(3 * HEARTBEAT_MS)
 
   expect(beat()?.seenAt).toBe(T0 + HEARTBEAT_MS)
+})
+
+test('attaching in tmux records the device, the terminal and the pane in the heartbeat, and every later beat keeps them', async ($, on) => {
+  const w = world($, on, {
+    env: { TMUX: `${SOCKET},30249,129`, TMUX_PANE: '%148', TERM_PROGRAM: 'tmux' },
+  })
+  const { paths } = await w.begin()
+  const where = () => parsePresence(w.text(paths.heartbeat(W1)), W1)?.where
+  const inTmux = { device: `/dev/${TTY}`, terminal: 'tmux', tmux: { socket: SOCKET, pane: '%148' } }
+
+  expect(where()).toEqual(inTmux)
+
+  await w.clock.advance(HEARTBEAT_MS)
+
+  expect(where()).toEqual(inTmux)
+
+  await $.session.end(CLEARED)
+
+  expect(where()).toEqual(inTmux)
+  expect(w.runs, 'the walk ran once, as the window attached').toEqual([['/bin/sh', '-c', TTY_WALK]])
+})
+
+test('outside tmux, the heartbeat holds the device and the terminal, and no tmux', async ($, on) => {
+  const w = world($, on)
+  const { paths } = await w.begin()
+  const presence = JSON.parse(w.text(paths.heartbeat(W1)))
+
+  expect(presence.where).toEqual({ device: `/dev/${TTY}`, terminal: 'ghostty' })
+  expect(presence.where).not.toHaveProperty('tmux')
+})
+
+test('a walk that finds no device leaves it out, says so in the debug log, and the window attaches and beats all the same', async ($, on) => {
+  const w = world($, on)
+  const walks: Walk[] = [
+    { refused: 'timed out after 2000 ms' },
+    { stdout: '', exitCode: 1 },
+    { stdout: '??\n' },
+    { stdout: '' },
+  ]
+
+  await $.session.start(SESSION)
+
+  for (const walk of walks) {
+    w.walkGives(walk)
+
+    const id = startedId(await w.call('start', DASHBOARD))
+    const paths = workPaths(ROOT, PROJECT.key, id)
+    const beat = () => parsePresence(w.text(paths.heartbeat(W1)), W1)
+
+    expect(w.state.attachment?.work, JSON.stringify(walk)).toBe(id)
+    expect(beat()?.where, JSON.stringify(walk)).toEqual({ terminal: 'ghostty' })
+    expect(w.logs.at(-1), JSON.stringify(walk)).toContain(
+      'sitrep: finding the terminal device failed',
+    )
+
+    await w.clock.advance(HEARTBEAT_MS)
+
+    expect(beat()?.seenAt, JSON.stringify(walk)).toBe(w.clock.now())
+  }
+
+  expect(w.logs).toHaveLength(walks.length)
+})
+
+/** The window starts a piece of work of its own and attaches to it: the work's heartbeat as it reads, a reader called later. */
+const startAnother = async (w: ReturnType<typeof world>, name: string) => {
+  const id = startedId(await w.call('start', { ...DASHBOARD, name }))
+  const heartbeat = workPaths(ROOT, PROJECT.key, id).heartbeat(W1)
+
+  return { id, beat: () => parsePresence(w.text(heartbeat), W1) }
+}
+
+test('the walk runs once a load: later attaches take where the first found, and their heartbeats carry it', async ($, on) => {
+  const w = world($, on)
+
+  await $.session.start(SESSION)
+
+  const first = await startAnother(w, 'Lobby')
+  const second = await startAnother(w, 'Request ledger')
+
+  await w.call('join', { work: first.id })
+  await w.clock.advance(HEARTBEAT_MS)
+
+  expect(w.runs).toHaveLength(1)
+  expect(first.beat()?.where).toEqual(WHERE)
+  expect(second.beat()?.where).toEqual(WHERE)
+  expect(first.beat()?.seenAt).toBe(w.clock.now())
+})
+
+test('a walk that found no device is tried again at the next attach, until one finds it', async ($, on) => {
+  const w = world($, on)
+
+  await $.session.start(SESSION)
+  w.walkGives({ refused: 'timed out after 2000 ms' })
+
+  const failed = await startAnother(w, 'Lobby')
+
+  w.walkGives({ stdout: `${TTY}\n` })
+
+  const found = await startAnother(w, 'Request ledger')
+  const after = await startAnother(w, 'Release notes')
+
+  expect(failed.beat()?.where).toEqual({ terminal: 'ghostty' })
+  expect(found.beat()?.where).toEqual(WHERE)
+  expect(after.beat()?.where).toEqual(WHERE)
+  expect(w.runs, 'the third attach walked no more').toHaveLength(2)
 })
 
 test('the watch folds a line another writer added, and puts the board in $.state only when it changed', async ($, on) => {
