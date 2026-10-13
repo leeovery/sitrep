@@ -574,7 +574,8 @@ as before (11 October 2026: until then the band dropped everything beneath
 it once it had a work to show).
 
 When a new ask lands: the ◆ pulses, a toast names it, and a soft chime plays.
-Dropped for now (11 October 2026): a macOS notification for asks.
+Dropped for now (11 October 2026): a macOS notification for asks. Back on
+13 October 2026, from the menu bar app (see "The menu bar").
 
 ## Delivery
 
@@ -738,6 +739,10 @@ $XDG_STATE_HOME/sitrep/, else ~/.local/state/sitrep/
   a work is open while a heartbeat is under 90 seconds old. A mod can't delete
   a file either, so a window that lets go adds `leftAt`. Of several windows on
   one work, the one attached longest submits its inbox, so two never both do.
+  A heartbeat also says `where` its window is, as far as that is known (see
+  "The menu bar"): `device`, `terminal`, and `tmux` with its `socket` and
+  `pane`. It is read field by field, a bad one dropped, and a heartbeat is
+  never lost over it; one written before it reads as ever.
 - Readers list and `stat` the folder every second or two (a mod cannot watch
   files) and read only what changed; each work's read lists its project's
   folder too, so a rename shows on every board within a look. The works
@@ -907,6 +912,7 @@ $XDG_STATE_HOME/sitrep/, else ~/.local/state/sitrep/
   sitrep status [--name <words>] [--summary <line>] [--now <line>]... [--next <line>]
   sitrep board [--json]
   sitrep list [--project <name>] [--json]
+  sitrep jump
   ```
 
   - It writes as the writer `cli`, appending to `<work>/cli.jsonl`. It never
@@ -941,13 +947,23 @@ $XDG_STATE_HOME/sitrep/, else ~/.local/state/sitrep/
                       "works": [ { "id": "sr-k3f9qa", "name": "Dashboard redesign",
                                    "summary": "...", "now": ["..."], "next": null,
                                    "isOpen": true, "waiting": 1, "parked": 1,
-                                   "updatedAt": 1760000000000 } ] } ] }
+                                   "updatedAt": 1760000000000, "onScreen": true } ] } ] }
     ```
+
+    `onScreen` says whether a Ghostty window shows the work (see "The
+    menu bar"). Only `--json` works it out, from tmux, asked twice per
+    socket however many works there are; it knocks on nothing. Plain `list`
+    runs no program.
 
     `board --json` is `{ v, project: { key, name }, work, asks, parked, log }`:
     the work as `list` gives it, its open asks, what it parked, and its latest
     log lines. Its `v` is 2 since its asks say what they want back (`wants`,
     `yes`, `needs`) in place of their kind; `list`'s stays 1.
+  - `jump` brings the Ghostty window showing the work to the front, on
+    whatever Space it is (see "The menu bar"), and prints nothing. A work no
+    Ghostty window shows is refused (`Dashboard redesign is not on screen: no
+    Ghostty window shows it.`), as is one whose devices no Ghostty terminal
+    answered.
   - Answering an ask waits on open question 4. It would be one more command,
     a reply into the work's inbox, which the work's window already delivers.
   - Its logic is `cli/`, plain TypeScript beside core and tested in the test
@@ -1005,13 +1021,161 @@ type-check leaves `cli/shell` out; it is checked on its own
 plugin keeps no packages. If sitrep becomes a product, it moves to its own
 public repository with a marketplace file and a formula in `homebrew-tools`.
 
+**Moving out of kit**, decided with Lee on 13 October 2026, once this
+design and stages 1 and 2 have merged in kit (kit-config #1 and #2), so the
+move carries them. With the CLI, the mod and soon an app, sitrep is a
+product, and kit's job is setting up Lee's Macs. The plan:
+
+1. Split sitrep's history out of kit into its own repository,
+   `leeovery/sitrep`, private for now, every commit kept.
+2. The repository is the plugin and a one-plugin marketplace of its own
+   (`.claude-plugin/marketplace.json` at its root), as revdiff is: on this
+   Mac a folder marketplace on the clone, so an edit plus `/reload-plugins`
+   is still a change; elsewhere the GitHub marketplace, updated with
+   `claude plugin update`. The plugin becomes `sitrep@sitrep`.
+3. kit drops sitrep from its own marketplace, and its setup adds the new
+   marketplace and turns the plugin on.
+4. The CLI ships as one compiled binary (`bun build --compile`) from a
+   release, by a formula in `homebrew-tools`, as Portal and Switchboard do:
+   on Lee's shell's PATH, and where the app finds it. That comes with
+   stage 3; the `[paths]` proposal above falls away.
+5. The board's folder (`~/.local/state/sitrep`) stays where it is: only
+   where the code lives changes.
+
+## The menu bar
+
+Decided with Lee on 13 October 2026, on the board as `sr-aw3bgs`. One place
+on the Mac, on every Space, for what waits on Lee across every project, and
+a click that takes Lee to the window a session is in.
+
+- **A native menu bar app** (SwiftUI). Its icon carries what waits on Lee. A
+  new ask posts a macOS banner, silent: the window's own chime already plays,
+  so Lee hears it once.
+- **The panel:** projects, their sessions, and what waits on Lee in each; a
+  project opens to more of its view. Answering stays in the session: the
+  panel shows, and takes Lee there.
+- **Clicking** a session, an ask or a banner takes Lee to the Ghostty window
+  showing that session, on whatever Space it is. A session no window shows
+  offers no jump: the app never opens a window (until stage 5).
+- **The app holds no sitrep logic.** It watches the state folder, and asks
+  the CLI for the board and for the jump.
+- **tmux and Ghostty stay at the edge.** Only the jump knows them; core, the
+  board and the app never do. Portal is not involved.
+
+### The jump
+
+1. Each Claude window records, in its heartbeat, the terminal device it is
+   on, the terminal program (`$TERM_PROGRAM`), and its tmux socket and pane
+   when it runs in tmux, worked out once as it attaches. A process Claude
+   Code starts has no terminal of its own (`ps` gives `??`, live), so the
+   mod runs a small shell walk up the processes from there to the first
+   with one, which is Claude Code's. A walk that finds none leaves the
+   device out and says so in the debug log; the window attaches all the
+   same.
+2. A click finds the devices showing the work, its windows the one attached
+   longest first. Without tmux it is Claude's own, when its terminal is
+   Ghostty. With tmux it is each client tmux lists whose current window is
+   the pane's window (`list-panes` and `list-clients`, reads; nothing in
+   tmux changes; grouped and linked sessions need nothing more, since a
+   window keeps its id in each) and whose process descends from this Mac's
+   Ghostty, each device once. One `ps` snapshot settles it: a Ghostty
+   window's client runs `tmux < zsh < login < ghostty`, a phone's or iPad's
+   `tmux < zsh < mosh-server`, one over ssh from another Mac `sshd` (all
+   checked live, 13 October; the terminal's name, `xterm-ghostty`, would
+   count the ssh one too). tmux and `ps` each get 2 seconds; one that
+   cannot start, fails or does not answer shows nothing, so `list --json`
+   never fails or hangs over them. On screen means the client's current
+   window is Claude's (tmux's window ids, read from both lists): a session
+   of several windows, or a grouped one, whose client shows another window
+   does not count, and nothing in tmux is changed to make it. Lee's
+   sessions are one window each, so for him every attached Ghostty window
+   counts. A jump that could not tell, tmux or `ps` giving no answer in
+   time, says so rather than calling the work off screen.
+3. sitrep finds the Ghostty window on a device by a knock. Ghostty's
+   AppleScript gives each terminal a UUID, a title and a working directory,
+   but no device or pid, and Lee's `title = " "` blanks every title. So
+   sitrep reads every terminal's working directory, writes a working
+   directory report (OSC 7) naming a fresh marker to the device, and asks
+   which terminal now reports the marker. Nothing is drawn; the titles stay
+   blank and the window buttons stay. The one exception: the knock shares
+   the device with tmux, so one landing between two writes of a tmux redraw
+   that split an escape sequence would leave a stray fragment on screen
+   until tmux next redraws. It needs both at once, and is accepted. Settled
+   live:
+   - The report's host is `localhost`: Ghostty ignores one with none.
+   - Ghostty percent-decodes the path, so every path written is encoded.
+   - The old directory is written back however the find ends, `$HOME` for a
+     terminal that reported none, or another jump's marker. A terminal that
+     took the marker after the find gave up is put back too, as far as
+     listing again can tell.
+   - The listing reads ids, directories, then ids again, and is read again
+     (three tries at most) while terminals open or close under it, so no
+     directory is paired with the wrong terminal.
+   - A device is opened for writing without being made, so a device that is
+     gone fails; it answers nothing, and the next device is knocked on.
+   - Each program first checks Ghostty is running: telling it anything
+     would launch it.
+   - Each question to Ghostty waits at most 5 seconds. With the screen
+     locked, Ghostty still answers a trivial question at once but nothing
+     about its terminals, and AppleScript's own limit is two minutes
+     (found live, 13 October). The jump then refuses in plain words; the
+     listing comes before any knock, so a locked screen leaves nothing on a
+     marker.
+   - Each device is knocked on in turn until one answers.
+   - No UUID is kept: a jump knocks every time, which costs well under a
+     second, and being on screen needs no knock (tmux and `where` say it).
+4. sitrep focuses that terminal (Ghostty's `focus`). With macOS's "switch to
+   a Space with open windows" on, macOS goes to its Space. Tried live: from
+   Space 9 to the Fumi window on Space 12, then back to Space 1. It needs no
+   Accessibility permission and no window manager.
+
+Why tmux comes in at all: walking up the processes never reaches the window.
+Claude's chain is `launchd → tmux server → zsh → claude`, the window's is
+`Ghostty → login → zsh → tmux attach`, and the two meet only inside tmux,
+which is what lets a session outlive a crash and be picked up from the phone.
+Ruled out: an environment variable (Ghostty gives a shell no window id),
+AppleScript (no device or pid on a terminal), the window server and
+Accessibility (nothing ties a window to its device), recording the front
+window as each shell starts (a race, and blind to windows already open), and
+tmux passing the knock through from Claude's own pane (a tmux setting, and it
+reaches a window only while that pane is on show).
+
+### Stages
+
+1. **Each window records where it is**: its device, and its tmux socket and
+   pane. Built 13 October 2026.
+2. **`sitrep jump --work <id>`** in the CLI, the whole jump, runnable from a
+   shell; and `list --json` says whether each work is on screen, so the
+   panel knows what to offer. Built 13 October 2026, reviewed at xhigh,
+   and run live twice with Lee watching: Finder in front, to the Fumi
+   window on its Space and back, about half a second a jump, every
+   directory as it was. Stages 1 and 2 land together; then a
+   `/reload-plugins` in each window, and a jump to a real work, check them
+   end to end (the live runs used a throwaway work on real tmux panes).
+3. **The app**: the icon, the banner, the panel, the jump. It is a `.app`
+   of its own (SwiftUI, no Dock icon): a menu bar item lives only as long
+   as the process that owns it, and macOS sends banners only from an app.
+   Its source sits beside the CLI it calls, and the CLI installs it. Two
+   things to carry over from stage 2: an app started from the Finder has
+   only `/usr/bin:/bin:/usr/sbin:/sbin` on its `PATH`, with no tmux, so it
+   runs the CLI with Lee's; and its first jump asks macOS for leave to
+   control Ghostty. It runs one jump at a time: two knocking on one
+   terminal at once can leave it reporting `$HOME`, as the later one takes
+   the earlier one's marker for a directory it cannot know.
+4. **Attention beyond asks.** The mod hears a permission prompt
+   (`classic.Notification`) and a turn ending (`turn.complete`), and the
+   heartbeat carries it. A session blocked on a permission prompt gets a
+   banner; "your turn" shows quietly, with none.
+5. **Opening what isn't on screen**: a new Ghostty window attached to a
+   session running with no window, as `code-OQWkFt · sitrep` and
+   `portal-rex` were on 13 October.
+
 ## Later
 
 Parked: an **agents** view (subagents, observed from engine events, grouped by
-what they're for); a **tmux indicator** reading the shared folder; **jumping**
-to a work's Ghostty window (likely through Portal, which Lee wants to make
-agent-aware); **Paper thumbnails** inline in Ghostty; a "re:" tag on Lee's
-transcript rows that came from the board.
+what they're for); a **tmux indicator** reading the shared folder; **Paper
+thumbnails** inline in Ghostty; a "re:" tag on Lee's transcript rows that
+came from the board. Jumping to a work's window is now "The menu bar".
 
 Dropped: a standalone toast plugin (Claude Code has one), and a line in the
 new-ask toast saying the band opens it: Lee knows it does, and on the phone
@@ -1047,6 +1211,8 @@ on 11 October 2026 (see "Build order"):
    `/sitrep check` adds nothing over the `board` tool; a join already answers
    with the whole board, and asks Claude to correct what is stale. The build
    is finished.
+6. **The menu bar** (13 October 2026), in stages of its own: see "The menu
+   bar".
 
 ## The spike
 
