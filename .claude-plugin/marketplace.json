@@ -1,0 +1,14 @@
+{
+  "name": "sitrep",
+  "description": "sitrep, a board of where each piece of work stands and what waits on Lee, as a marketplace of one.",
+  "owner": {
+    "name": "Lee Overy"
+  },
+  "plugins": [
+    {
+      "name": "sitrep",
+      "source": "./",
+      "description": "/sitrep: opens a board of where a piece of work stands and what waits on Lee; Claude jots status, asks, notes and parked items as it works; Lee answers there and sends the replies as their own message."
+    }
+  ]
+}

@@ -1,0 +1,2 @@
+# The engine's types, which git leaves out: the type-check needs them
+.claude-plugin/types/

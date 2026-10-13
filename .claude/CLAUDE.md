@@ -1,0 +1,30 @@
+# CLAUDE.md
+
+sitrep is Lee's board inside Claude Code: a mod (`hooks/`), a pure core
+(`core/`) and a CLI (`cli/`). `DESIGN.md` is the design and the record of
+what was decided and proven live; read the sections a change touches first.
+
+## This clone is the live plugin
+
+On Lee's Mac, Claude Code reads the `sitrep` marketplace straight from this
+folder, so whatever the checkout holds is what every Claude window runs at
+its next `/reload-plugins`. Keep the checkout on `main`, and work in a
+worktree.
+
+## Gates
+
+```bash
+claude plugin test .     # every test, the mod's and the CLI's
+bunx tsc -p .            # the mod, the core and the CLI
+bunx tsc -p cli/shell    # the CLI's binding to Bun, on its own
+```
+
+The type-checks need the engine's types in `.claude-plugin/types/`, which
+git leaves out; `.worktreeinclude` copies them into a worktree.
+
+## Live tests
+
+A live run of the CLI points `XDG_STATE_HOME` at a folder of its own and
+seeds its own works there, so it never writes to the real board in
+`~/.local/state/sitrep`. A jump moves Lee's screen: run one only with Lee's
+go.

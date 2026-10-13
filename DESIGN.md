@@ -1009,38 +1009,36 @@ $XDG_STATE_HOME/sitrep/, else ~/.local/state/sitrep/
 
 ## Where it lives
 
-`~/.config/kit/shared/plugins/sitrep/`, in Lee's private `kit` marketplace,
-the same as `handoff`. The marketplace is read straight from the folder, so an
-edit plus `/reload-plugins` is a change. The CLI lives in the same folder:
-`bin/sitrep`, an executable Bun script, the only file in `bin/`. Claude Code
-puts an enabled plugin's `bin/` on its Bash tool's PATH. **proposed:** for
-Lee's own shell, scripts and tmux, kit's `[paths]` takes the folder too
-(`kit path add --shared ~/.config/kit/shared/plugins/sitrep/bin`). The mod's
+Its own private repository, `leeovery/sitrep`. It began in kit, Lee's Mac
+setup, at `shared/plugins/sitrep/` in kit's own marketplace, and moved out on
+13 October 2026, its history split out with every commit kept, once this
+design and stages 1 and 2 had merged there (kit-config #1 and #2). With the
+CLI, the mod and soon an app, sitrep is a product, and kit's job is setting
+up Lee's Macs. The board's folder (`~/.local/state/sitrep`) stayed where it
+was: only where the code lives changed.
+
+The repository is the plugin and a one-plugin marketplace of its own
+(`.claude-plugin/marketplace.json` at its root, its source `./`), as revdiff
+is; the plugin is `sitrep@sitrep`. On this Mac the marketplace is the clone,
+`~/Code/sitrep`, read straight from the folder, so an edit plus
+`/reload-plugins` is a change, and the clone's checkout is the code every
+window runs: work happens in a worktree. Elsewhere it is the GitHub
+marketplace, updated with `claude plugin update`. kit's `[manual]` step says
+how a new Mac sets it up.
+
+The CLI is `bin/sitrep`, an executable Bun script, the only file in `bin/`.
+Claude Code puts an enabled plugin's `bin/` on its Bash tool's PATH; for
+Lee's own shell, scripts and tmux, kit's `[paths]` takes the folder
+(`~/Code/sitrep/bin`). With stage 3 the CLI ships instead as one compiled
+binary (`bun build --compile`) from a release, by a formula in
+`homebrew-tools`, as Portal and Switchboard do: on Lee's shell's PATH, and
+where the app finds it.
+
+The engine's types sit in `.claude-plugin/types/`, kept out of git by their
+own `.gitignore`; `.worktreeinclude` copies them into a worktree. The mod's
 type-check leaves `cli/shell` out; it is checked on its own
 (`tsc -p cli/shell`), against what it calls of Bun, declared there, since the
-plugin keeps no packages. If sitrep becomes a product, it moves to its own
-public repository with a marketplace file and a formula in `homebrew-tools`.
-
-**Moving out of kit**, decided with Lee on 13 October 2026, once this
-design and stages 1 and 2 have merged in kit (kit-config #1 and #2), so the
-move carries them. With the CLI, the mod and soon an app, sitrep is a
-product, and kit's job is setting up Lee's Macs. The plan:
-
-1. Split sitrep's history out of kit into its own repository,
-   `leeovery/sitrep`, private for now, every commit kept.
-2. The repository is the plugin and a one-plugin marketplace of its own
-   (`.claude-plugin/marketplace.json` at its root), as revdiff is: on this
-   Mac a folder marketplace on the clone, so an edit plus `/reload-plugins`
-   is still a change; elsewhere the GitHub marketplace, updated with
-   `claude plugin update`. The plugin becomes `sitrep@sitrep`.
-3. kit drops sitrep from its own marketplace, and its setup adds the new
-   marketplace and turns the plugin on.
-4. The CLI ships as one compiled binary (`bun build --compile`) from a
-   release, by a formula in `homebrew-tools`, as Portal and Switchboard do:
-   on Lee's shell's PATH, and where the app finds it. That comes with
-   stage 3; the `[paths]` proposal above falls away.
-5. The board's folder (`~/.local/state/sitrep`) stays where it is: only
-   where the code lives changes.
+plugin keeps no packages.
 
 ## The menu bar
 
