@@ -1228,7 +1228,10 @@ a click that takes Lee to the window a session is in.
    Ghostty is running, so `open` never launches it, and it has a visible
    window, so the reopen event `open` sends never makes a new one. A look
    stays two runs of lsappinfo: `lsappinfo info -only bundleid front`
-   prints nothing.
+   prints nothing. Run live with `open`: the window sat unfocused for
+   100–200ms at most, as Lee saw it, and the CLI ended at 0.83 seconds,
+   the watch stopping at the hand-back. The hand-back itself is macOS's,
+   and nothing a jump can call stops it.
 
    **What a jump costs**, measured live on 14 October 2026 with 24 Ghostty
    terminals open. Before: about 0.6s. tmux's two lists took 10ms, beside
@@ -1238,10 +1241,12 @@ a click that takes Lee to the window a session is in.
    answer (counting its terminals takes 154ms, a focus 200–350ms), so the
    time is Ghostty's, not the programs' starts; `lsappinfo front` takes
    11ms. After, run live the same day: a jump to a remembered terminal
-   takes 265–360ms, tmux and `ps` then one focus. Expected, until a live
-   run measures it: a first jump costs the longer of `ps` and the listing,
-   then the find and focus. With another app in front, the CLI then stays
-   up to 1.5 seconds more, watching, the window already forward.
+   takes 265–360ms, tmux and `ps` then one focus. A first jump costs the
+   longer of `ps` and the listing, then the find and focus, about half a
+   second; one run live, from Finder and with the first `activate`, ended
+   at 1.8 seconds, its watch included, the window forward long before. With another app in
+   front, the CLI stays up to 1.5 seconds more, watching, the window
+   already forward.
 
 Why tmux comes in at all: walking up the processes never reaches the window.
 Claude's chain is `launchd → tmux server → zsh → claude`, the window's is
