@@ -1,15 +1,18 @@
 /**
  * What the CLI does on screen, through Io: asks tmux which of its clients
  * show which sessions, and `ps` which processes those clients descend from,
- * and brings a piece of work's Ghostty window to the front, found by a
- * knock. Nothing in tmux changes, and no terminal is left reporting the
- * knock's marker.
+ * and brings a piece of work's Ghostty window to the front, and keeps it
+ * there: the terminal remembered for its device focused by its id, else
+ * found by a knock and remembered. Nothing in tmux changes, and no terminal
+ * is left reporting the knock's marker.
  */
 import type { Where } from '../core'
+import { frontmost, keepInFront } from './front'
 import {
   ANSWER_SECONDS,
   directoryAfter,
   FIND_AND_FOCUS,
+  FOCUS,
   isTimedOut,
   LIST,
   markerOf,
@@ -18,6 +21,8 @@ import {
   type Terminal,
 } from './ghostty'
 import type { Io } from './io'
+import { look } from './look'
+import { readRemembered, remember, type Remembered } from './remembered'
 import {
   CLIENTS,
   devicesShowing,
@@ -46,18 +51,12 @@ export type Jumped =
 const FOCUSED: Jumped = { is: 'focused' }
 const OFF_SCREEN: Jumped = { is: 'off screen' }
 
-/** How long tmux and `ps` may take to answer, so a listing never hangs on them. */
-export const LOOK_MS = 2_000
-
 /** How many times Ghostty's terminals are listed while they keep changing as they are read. */
 const LIST_TRIES = 3
 
 const NO_ANSWER = `Ghostty did not answer within ${ANSWER_SECONDS} seconds: most likely the screen is locked, or macOS is asking whether sitrep may control Ghostty.`
 
 const UNSETTLED = "Ghostty's windows kept opening or closing as they were listed. Try again."
-
-/** How a program ran; undefined when it could not start, or did not end in time. */
-const look = (io: Io, command: readonly string[]) => io.run(command, LOOK_MS).catch(() => undefined)
 
 /**
  * A tmux server's panes and clients, and whether tmux answered. It answers
@@ -171,12 +170,12 @@ const putBackMarked = async (
 }
 
 /**
- * Knocks on the device and focuses the Ghostty terminal that answers;
- * whether one did. A device that will not take the knock, a closed one
- * (EIO, ENXIO), answers nothing and has nothing to put back. A terminal
- * taking the marker is put back whatever comes of the find: one that took
- * it after the find gave up, and one that took it before the find failed,
- * as far as listing again can tell.
+ * Knocks on the device and focuses the Ghostty terminal that answers; its
+ * id, or undefined when none did. A device that will not take the knock, a
+ * closed one (EIO, ENXIO), answers nothing and has nothing to put back. A
+ * terminal taking the marker is put back whatever comes of the find: one
+ * that took it after the find gave up, and one that took it before the find
+ * failed, as far as listing again can tell.
  */
 const knock = async (io: Io, device: string, before: readonly Terminal[]) => {
   const marker = markerOf(io.random)
@@ -186,7 +185,7 @@ const knock = async (io: Io, device: string, before: readonly Terminal[]) => {
   )
 
   if (!isWritten) {
-    return false
+    return undefined
   }
 
   const found = await ghostty(io, FIND_AND_FOCUS, marker).catch(async (error: unknown) => {
@@ -202,16 +201,106 @@ const knock = async (io: Io, device: string, before: readonly Terminal[]) => {
       : putBack(io, device, before, focused),
   )
 
-  return focused !== ''
+  return focused === '' ? undefined : focused
+}
+
+/**
+ * Focuses the terminal remembered for a device, by its id; whether it did.
+ * Ghostty not answering in time is thrown in plain words, as for every
+ * question to it; no terminal having the id, or any other failure, is a
+ * miss, for a knock to settle.
+ */
+const focusRemembered = async (io: Io, id: string) => {
+  const ran = await io.run(['osascript', '-e', FOCUS, id]).catch(() => undefined)
+
+  if (ran !== undefined && ran.exitCode !== 0 && isTimedOut(ran.stderr)) {
+    throw new Error(NO_ANSWER)
+  }
+
+  return ran?.exitCode === 0 && ran.stdout.trim() === id
+}
+
+/** Ghostty's terminals, listed at the first call only: every knock of a jump goes by the one listing. */
+const listingOnce = (io: Io) => {
+  let listed: Promise<Terminal[]> | undefined
+
+  return () => {
+    listed = listed ?? terminals(io)
+
+    return listed
+  }
+}
+
+type Listing = ReturnType<typeof listingOnce>
+
+/**
+ * Focuses the terminal on a device: the one remembered for it, else the one
+ * a knock finds, remembered from then on; undefined when none answers. Off
+ * screen when Ghostty has no terminal to knock on.
+ */
+const focusOn = async (
+  io: Io,
+  device: string,
+  remembered: string | undefined,
+  listing: Listing,
+): Promise<Jumped | undefined> => {
+  if (remembered !== undefined && (await focusRemembered(io, remembered))) {
+    return FOCUSED
+  }
+
+  const before = await listing()
+
+  if (before.length === 0) {
+    return OFF_SCREEN
+  }
+
+  const found = await knock(io, device, before)
+
+  if (found === undefined) {
+    return undefined
+  }
+
+  await bestEffort(remember(io, device, found))
+
+  return FOCUSED
+}
+
+/**
+ * Focuses the terminal on the first of the devices that has one. Ghostty's
+ * terminals are listed only once a device needs a knock, so a jump that
+ * ends without one asks Ghostty nothing it need not.
+ */
+const focusFirst = async (
+  io: Io,
+  devices: readonly string[],
+  remembered: Remembered,
+): Promise<Jumped> => {
+  const listing = listingOnce(io)
+
+  for (const device of devices) {
+    const jumped = await focusOn(io, device, remembered.get(device), listing)
+
+    if (jumped !== undefined) {
+      return jumped
+    }
+  }
+
+  return { is: 'unanswered', devices }
 }
 
 /**
  * Brings the first of the windows a Ghostty window shows to the front, on
- * whatever Space it is: each device showing them knocked on in turn, until
- * a terminal answers.
+ * whatever Space it is, and keeps it there. Which app is in front is read
+ * beside tmux and `ps`, which outlast it, and settled before any focus, so
+ * it is never Ghostty brought forward by the jump itself.
  */
 export const jump = async (io: Io, windows: readonly Where[]): Promise<Jumped> => {
-  const screen = await readScreen(io, windows)
+  const front = frontmost(io)
+  const [screen, remembered, before] = await Promise.all([
+    readScreen(io, windows),
+    readRemembered(io),
+    front(),
+  ])
   const devices = devicesShowing(windows, screen)
 
   if (devices.length === 0) {
@@ -220,17 +309,11 @@ export const jump = async (io: Io, windows: readonly Where[]): Promise<Jumped> =
       : OFF_SCREEN
   }
 
-  const before = await terminals(io)
+  const jumped = await focusFirst(io, devices, remembered)
 
-  if (before.length === 0) {
-    return OFF_SCREEN
+  if (jumped.is === 'focused') {
+    await keepInFront(io, front, before)
   }
 
-  for (const device of devices) {
-    if (await knock(io, device, before)) {
-      return FOCUSED
-    }
-  }
-
-  return { is: 'unanswered', devices }
+  return jumped
 }

@@ -1,8 +1,9 @@
 /**
  * What the CLI asks of the world: its file system, the environment and the
- * folder it runs in, the clock, random bytes, somewhere to print, and, for
- * the jump, programs to run and terminal devices to write to. cli/shell
- * binds it to Bun; a test binds it to memory, with a fake tmux and Ghostty.
+ * folder it runs in, the clock and waiting on it, random bytes, somewhere to
+ * print, and, for the jump, programs to run and terminal devices to write
+ * to. cli/shell binds it to Bun; a test binds it to memory, with a fake
+ * tmux and Ghostty.
  *
  * The file system appends and never rewrites: the CLI's file may be written
  * by another run of it at the same moment, and an append keeps both runs'
@@ -31,6 +32,8 @@ export type Io = {
   /** The folder the CLI runs in: which projects `list` gives first. */
   cwd: string
   now: () => number
+  /** Resolves once `ms` milliseconds have passed: the pause between the jump's looks at which app is in front. */
+  wait: (ms: number) => Promise<void>
   random: Random
   /** Writes to standard output, as given. */
   out: (text: string) => void

@@ -18,13 +18,16 @@ public enum JumpAnswer: Sendable, Equatable {
 public struct SitRepCLI: Sendable {
     /// `list --json` answers in about 0.15s, and never hangs over tmux or `ps`.
     static let listLimit: TimeInterval = 10
-    /// Only a backstop for a CLI that hangs, above the longest a jump can
-    /// take (cli/jump.ts, cli/ghostty.ts): tmux and `ps` 2s; Ghostty's
-    /// terminals listed up to three times, 5s each; then, for each device
-    /// knocked on, the find (about 1s of looking, or 5s for a question that
-    /// goes unanswered) and the put-back's listing again, 15s at most. About
-    /// 17s plus 21s a device: 59s over two devices, 101s over four.
-    static let jumpLimit: TimeInterval = 120
+    /// Only a backstop for a CLI that hangs, well above any realistic jump
+    /// (cli/jump.ts, cli/ghostty.ts, cli/front.ts): one takes under a second
+    /// as Ghostty answers, and one Ghostty does not answer at all, as with
+    /// the screen locked, is refused at its first question, after 5s. No
+    /// true ceiling: the 5s hold for each question to Ghostty, an Apple
+    /// Event, and a program sends several (a listing three a try, a focus
+    /// two, a find some 40), so a Ghostty answering every question only just
+    /// inside its 5s could keep a jump going past this, and the app would
+    /// then report that the jump did not answer.
+    static let jumpLimit: TimeInterval = 180
 
     private static let logger = Logger(sitrep: "cli")
 

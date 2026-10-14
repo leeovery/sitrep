@@ -1,5 +1,5 @@
 import { expect, test } from 'claude-code/testing'
-import { LOOK_MS } from '../cli/jump'
+import { LOOK_MS } from '../cli/look'
 import { EXIT } from '../cli/main'
 import { PS } from '../cli/screen'
 import type { Where, WorkMeta } from '../core'

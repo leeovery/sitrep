@@ -2,10 +2,11 @@
  * Ghostty, as the jump drives it. Its AppleScript gives each terminal an id
  * and a working directory, but no device, so the terminal on a device is
  * found by a knock: a working directory report (OSC 7) naming a marker,
- * written to the device, makes its terminal report the marker.
+ * written to the device, makes its terminal report the marker. A terminal
+ * found once is focused by its id after.
  *
- * Two fixed programs, run by osascript with their values as arguments and
- * never spliced into the text.
+ * Fixed programs, run by osascript with their values as arguments and never
+ * spliced into the text.
  */
 import type { Random } from '../core'
 
@@ -16,9 +17,10 @@ export type Terminal = { id: string; directory: string }
 const UNLESS_RUNNING = 'if application "Ghostty" is not running then return ""'
 
 /**
- * How long each question to Ghostty may wait. With the screen locked,
- * Ghostty answers nothing about its terminals, and AppleScript's own limit
- * is two minutes.
+ * How long each question to Ghostty, each Apple Event a program sends, may
+ * wait: `with timeout` holds for each event, not for the program. With the
+ * screen locked, Ghostty answers nothing about its terminals, and
+ * AppleScript's own limit is two minutes.
  */
 export const ANSWER_SECONDS = 5
 
@@ -80,6 +82,27 @@ export const FIND_AND_FOCUS = [
     'end if',
     'delay 0.05',
     'end repeat',
+  ),
+  'return ""',
+  'end run',
+].join('\n')
+
+/**
+ * Given a terminal's id, focuses that terminal and prints its id; prints
+ * nothing when no terminal has it. Looked up before it is focused, so a
+ * terminal gone is never taken for one focused, whatever `focus` makes of
+ * it; the lookup adds about 15ms to the focus (14 October 2026).
+ */
+export const FOCUS = [
+  'on run argv',
+  'set wanted to item 1 of argv',
+  UNLESS_RUNNING,
+  ...askGhostty(
+    'set found to (terminals whose id is wanted)',
+    'if found is not {} then',
+    'focus item 1 of found',
+    'return wanted',
+    'end if',
   ),
   'return ""',
   'end run',

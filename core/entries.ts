@@ -29,6 +29,10 @@ type Check = (value: unknown) => boolean
 export const isObject = (value: unknown): value is { [key: string]: unknown } =>
   typeof value === 'object' && value !== null && !Array.isArray(value)
 
+/** Whether a value read from JSON is text with something in it. */
+export const isFilled = (value: unknown): value is string =>
+  typeof value === 'string' && value !== ''
+
 const isText: Check = value => typeof value === 'string'
 const isTexts: Check = value => Array.isArray(value) && value.every(isText)
 const isTime: Check = value => typeof value === 'number' && Number.isFinite(value)
@@ -148,16 +152,21 @@ export const parseEntries = (text: string): Entry[] =>
 export const serialise = (entry: Entry) => `${JSON.stringify(entry)}\n`
 
 /**
+ * What goes before lines appended to a file's text: a newline ending a last
+ * line left torn mid-write, so the torn line stays the only casualty;
+ * nothing after a whole one.
+ */
+export const tornLineEnd = (text: string) => (text !== '' && !text.endsWith('\n') ? '\n' : '')
+
+/**
  * Stamps bodies as the writer's next entries and says what the file becomes:
  * `added` for a writer that appends, `text` for one that writes the whole file.
- * A file left torn mid-line is ended first, so the torn line stays the only
- * casualty.
+ * A file left torn mid-line is ended first.
  */
 export const append = (text: string, bodies: readonly Body[], at: number): Appended => {
   const last = parseEntries(text).reduce((most, entry) => Math.max(most, entry.seq), 0)
   const entries = bodies.map((body, i): Entry => ({ v: VERSION, at, seq: last + i + 1, ...body }))
-  const isTorn = text !== '' && !text.endsWith('\n')
-  const added = `${isTorn ? '\n' : ''}${entries.map(serialise).join('')}`
+  const added = `${tornLineEnd(text)}${entries.map(serialise).join('')}`
 
   return { entries, added, text: text + added }
 }

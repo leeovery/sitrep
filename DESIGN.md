@@ -652,6 +652,7 @@ $XDG_STATE_HOME/sitrep/, else ~/.local/state/sitrep/
       <writer>.jsonl          one file per writer: each window as its session id, the CLI as `cli`
       inbox/<sender>.jsonl    replies from other works, one file per sending writer
       presence/<writer>.json  each attached window's heartbeat
+  ghostty-terminals.jsonl     each device's Ghostty terminal, as the jump last found it (see "The jump")
 ```
 
 - **Project key:** a new project's name as a slug, accents dropped
@@ -1153,19 +1154,117 @@ a click that takes Lee to the window a session is in.
      gone fails; it answers nothing, and the next device is knocked on.
    - Each program first checks Ghostty is running: telling it anything
      would launch it.
-   - Each question to Ghostty waits at most 5 seconds. With the screen
-     locked, Ghostty still answers a trivial question at once but nothing
+   - Each question to Ghostty, each Apple Event a program sends, waits at
+     most 5 seconds: AppleScript's `with timeout` holds for each event, not
+     for the program around them. With the screen locked, Ghostty still answers a trivial question at once but nothing
      about its terminals, and AppleScript's own limit is two minutes
      (found live, 13 October). The jump then refuses in plain words; the
-     listing comes before any knock, so a locked screen leaves nothing on a
-     marker.
-   - Each device is knocked on in turn until one answers.
-   - No UUID is kept: a jump knocks every time, which costs well under a
-     second, and being on screen needs no knock (tmux and `where` say it).
+     listing, or the focus of a remembered terminal, comes before any
+     knock, so a locked screen leaves nothing on a marker.
+   - Each device is tried in turn until one answers: first the terminal
+     remembered for it, then a knock.
+
+   **Each device's terminal is remembered** (14 October 2026), so a jump
+   after the first neither lists nor knocks. A knock that answers adds a
+   line naming the device and the terminal's UUID to
+   `ghostty-terminals.jsonl` in sitrep's folder, beside `projects/`, which
+   is all the mod and the CLI ever list there, so nothing reading the board
+   meets it. The CLI's files are only appended to, so the last line for a
+   device wins, and a torn or broken line is skipped. A later jump focuses
+   that terminal by its UUID, within the same 5 seconds, looking it up
+   first (`terminals whose id is`, about 15ms more), so a terminal gone is
+   never taken for one focused, whatever Ghostty's `focus` makes of a UUID
+   it does not know. Why it is safe: a Ghostty terminal keeps its device
+   for its life, so a UUID that still names a terminal names the one on
+   that device; a device taken by a new terminal means the old one is
+   gone, so its UUID finds nothing, and the knock runs and remembers the
+   new one. Any failure but a timeout falls back to the knock in the same
+   way; a timeout refuses, as for any question to Ghostty. The one gap,
+   accepted: a surface Ghostty keeps open after its shell exits ("wait
+   after command") while its device goes to a new terminal. It is rare,
+   and Lee's Ghostty closes a surface as its shell exits. `ps` stays all
+   the same: a device must still be a Ghostty window's.
+
+   The listing a knock needs runs only once a device needs a knock, after
+   tmux and `ps` have answered, and once for every device knocked on. A
+   jump that focuses a remembered terminal, finds the work off screen, or
+   cannot tell, asks Ghostty for no listing. First built to start the
+   listing beside `ps` when no device that might show the work had a
+   terminal remembered, it was dropped in review the same day: a jump
+   ending off screen or unknown left that osascript running, keeping the
+   CLI up for as long as 5 seconds, and it could raise macOS's prompt for
+   leave to control Ghostty on a jump that needed nothing from it. It
+   saved about 65ms, only on a first jump, which a remembered terminal
+   makes rare.
 4. sitrep focuses that terminal (Ghostty's `focus`). With macOS's "switch to
    a Space with open windows" on, macOS goes to its Space. Tried live: from
    Space 9 to the Fumi window on Space 12, then back to Space 1. It needs no
    Accessibility permission and no window manager.
+
+   **The front kept** (14 October 2026). With another app in front as the
+   jump begins (Lee clicked the desktop, so Finder), and the target's
+   Space last showing that app in front, macOS hands the front back to it
+   once its slide ends. Logged live, from the jump's end: at about 0.2s
+   Ghostty is in front, its front window's focused terminal still the old
+   one, the Space sliding; at about 0.5s Finder is in front again, Ghostty's
+   focused terminal now the target. With Ghostty already in front as the
+   jump began, it never happened (two tries, the focus held for 3
+   seconds). So the jump reads which app is in front as it begins, beside
+   tmux and `ps`, which outlast it, and before any focus, so it never reads
+   Ghostty brought forward by the jump itself: `lsappinfo front`, then the
+   bundle id of the app it names, each within 2 seconds. An ASN names one
+   app for its whole life, so each one's bundle id is kept for the jump,
+   and a look after the first runs only `lsappinfo front` unless a new app
+   has come to the front (review, 14 October 2026). With Ghostty there,
+   nothing more. Otherwise, once the
+   terminal is focused, it looks every 50ms for up to a second, twice the
+   half second at which the hand-back came in all three logged: at the
+   first look finding another app in front after Ghostty, it brings
+   Ghostty forward, once, and stops. Ghostty never in front by the end is
+   no hand-back, and nothing is brought forward: the focus may have shown
+   nothing, Ghostty hidden or its window minimised, and bringing it forward
+   then could make it open a new window (below). A second, and no longer:
+   a jump that sees no hand-back keeps the app waiting that long, and a
+   switch Lee makes himself within it would be undone. It was 1.5 seconds,
+   and brought Ghostty forward when it never came forward too, until the
+   review the same day. Bringing Ghostty forward is enough, since its
+   focused terminal is the target by then; focusing again after the
+   hand-back held, live. Nothing in the watch fails the jump, and
+   lsappinfo giving no answer as the jump begins means no watch.
+
+   It brings Ghostty forward with `open -b com.mitchellh.ghostty`, within
+   2 seconds. First built with osascript telling Ghostty to `activate`, it
+   was run live the same day: a jump to Space 6 with Finder in front still
+   landed unfocused, the window taking focus about half a second later.
+   The watch saw the hand-back within about 75ms; the `activate` took
+   202–354ms, where `open` takes 68–98ms, going through LaunchServices with
+   no Apple Event, so it needs no leave to control Ghostty either. `open`
+   is safe here because it runs only on a hand-back, Ghostty seen in front
+   after the focus and then another app: Ghostty is running, so `open`
+   never launches it, and its window was just in front, so the reopen
+   event `open` sends never makes a new one. With no window showing, that
+   event can make Ghostty open one, which is why Ghostty never coming
+   forward brings nothing. `lsappinfo info -only bundleid front` prints
+   nothing, so a new app's bundle id takes a second run. Run live with
+   `open`: the window sat unfocused for 100–200ms at most, as Lee saw it, and the CLI ended at 0.83 seconds,
+   the watch stopping at the hand-back. The hand-back itself is macOS's,
+   and nothing a jump can call stops it.
+
+   **What a jump costs**, measured live on 14 October 2026 with 24 Ghostty
+   terminals open. Before: about 0.6s. tmux's two lists took 10ms, beside
+   `ps` at 75ms; then the listing 230–640ms, the knock's write 1ms, the
+   find and focus 210–315ms, and the put-back 1ms. osascript's own start
+   is about 70ms (`get frontmost` takes 69ms), and Ghostty is slow to
+   answer (counting its terminals takes 154ms, a focus 200–350ms), so the
+   time is Ghostty's, not the programs' starts; `lsappinfo front` takes
+   11ms. After, run live the same day: a jump to a remembered terminal
+   takes 265–360ms, tmux and `ps` then one focus. A first jump costs what
+   every jump did before, tmux and `ps`, then the listing, then the find
+   and focus, about 0.6s, now that the listing waits for `ps`; one run
+   live, from Finder, with the first `activate` and the 1.5-second watch,
+   ended at 1.8 seconds, the window forward long before. With another app
+   in front, the CLI stays up to a second more, watching, the window
+   already forward.
 
 Why tmux comes in at all: walking up the processes never reaches the window.
 Claude's chain is `launchd → tmux server → zsh → claude`, the window's is
@@ -1226,8 +1325,8 @@ reaches a window only while that pane is on show).
    macOS's slide to another Space. Found on the way, for both kinds of
    window: when the last thing Lee clicked on the target Space was the
    desktop, the jump can land on that Space with Finder still in front, as
-   macOS seems to hand focus back once its slide ends; it is a race, and
-   parked, with making the jump faster. What building it settled:
+   macOS seems to hand focus back once its slide ends; it is a race, taken
+   up the same day with making the jump faster ("The jump", steps 3 and 4). What building it settled:
    - **A Swift package in `app/`**, no Xcode project: the executable
      `SitRep`, and a library beside it holding what can be tested without a
      screen. macOS 14 and later, Swift 6.
@@ -1258,11 +1357,17 @@ reaches a window only while that pane is on show).
      asks the shell again at the next run, so a shell slow as Lee logs in
      costs one run, not every run until a restart. Every child gets that
      PATH and otherwise the app's own environment, and a time limit, only
-     a backstop for a CLI that hangs: 10 seconds for `list --json`, and 120
-     for a jump, above the longest one can take, about 17 seconds plus 21 a
-     device knocked on (59 over two devices, 101 over four): tmux and `ps`
-     2 seconds, Ghostty's terminals listed up to three times at 5 seconds
-     each, and for each device the find and the put-back's listing again.
+     a backstop for a CLI that hangs: 10 seconds for `list --json`, and 180
+     for a jump, well above any realistic one. A jump takes under a second
+     as Ghostty answers, and one Ghostty does not answer at all, as with
+     the screen locked, is refused at its first question, after 5 seconds.
+     It is no true ceiling: the 5 seconds hold for each question to Ghostty,
+     each Apple Event, and a program sends several (a listing three a try,
+     a focus two, a find some 40), so a Ghostty answering every question
+     only just inside its 5 seconds could keep a jump going past 180, and
+     the app would then report that the jump did not answer. Raised from
+     120 when the jump began remembering terminals and watching the front,
+     14 October 2026.
    - **The main checkout's path stamped in.** `app/build` writes the folder
      of the repository's main checkout, the live plugin, into the app's
      Info.plist (`SitRepPlugin`), even when it builds in a worktree; the
