@@ -29,6 +29,10 @@ type Check = (value: unknown) => boolean
 export const isObject = (value: unknown): value is { [key: string]: unknown } =>
   typeof value === 'object' && value !== null && !Array.isArray(value)
 
+/** Whether a value read from JSON is text with something in it. */
+export const isFilled = (value: unknown): value is string =>
+  typeof value === 'string' && value !== ''
+
 const isText: Check = value => typeof value === 'string'
 const isTexts: Check = value => Array.isArray(value) && value.every(isText)
 const isTime: Check = value => typeof value === 'number' && Number.isFinite(value)

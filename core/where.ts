@@ -4,13 +4,11 @@
  * Read from the raw facts the mod gathers, and leniently, field by field: a
  * heartbeat is never lost over where its window is.
  */
-import { isObject } from './entries'
+import { isFilled, isObject } from './entries'
 import type { Where } from './types'
 
 /** The environment variables a window's whereabouts are read from. */
 export type WhereEnv = { TMUX?: string; TMUX_PANE?: string; TERM_PROGRAM?: string }
-
-const isFilled = (value: unknown): value is string => typeof value === 'string' && value !== ''
 
 /** A terminal device, `/dev/ttys043`: only a tty, since the jump writes to it. */
 const isDevice = (value: unknown): value is string =>

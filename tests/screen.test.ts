@@ -1,6 +1,9 @@
 import { expect, test } from 'claude-code/testing'
+import { GHOSTTY_BUNDLE, parseBundle } from '../cli/front'
 import { directoryAfter, MARKER_FOLDER, markerOf, parseListing, reportText } from '../cli/ghostty'
+import { parseRemembered, rememberedText } from '../cli/remembered'
 import {
+  devicesMaybeShowing,
   devicesShowing,
   ghosttyClients,
   parseClients,
@@ -191,6 +194,18 @@ test('a window outside tmux shows on its own device in Ghostty, and nowhere in a
   expect(devicesShowing([{ terminal: 'ghostty' }], SCREEN)).toEqual([])
 })
 
+test("before ps answers, every client on a window's pane's tmux window may show it, the phone's and the one over ssh too; a window outside tmux, as ever", () => {
+  expect(devicesMaybeShowing([IN_TMUX], SCREEN.servers)).toEqual([
+    '/dev/ttys067',
+    '/dev/ttys000',
+    '/dev/ttys080',
+    '/dev/ttys055',
+  ])
+  expect(
+    devicesMaybeShowing([IN_GHOSTTY, { ...IN_GHOSTTY, terminal: 'iTerm.app' }], new Map()),
+  ).toEqual(['/dev/ttys041'])
+})
+
 test("several windows show on each one's devices, the first window's first", () => {
   expect(devicesShowing([IN_GHOSTTY, IN_TMUX], SCREEN)).toEqual([
     '/dev/ttys041',
@@ -269,4 +284,51 @@ test("Ghostty's listing reads as its terminals, one reporting no directory kept 
 test("a listing whose ids read last differ from its pairs' is no listing: a terminal opened or closed as it read", () => {
   expect(parseListing('31C806B1\tNEW\n31C806B1\t/Users/lee\nA1C829FD\t/tmp\n')).toBeUndefined()
   expect(parseListing('31C806B1\tA1C829FD\n\n'), 'the counts differed, so no pairs').toBeUndefined()
+})
+
+test("each device's remembered terminal reads from its file, the last line for a device winning", () => {
+  const text = [
+    rememberedText('/dev/ttys000', 'OLD-TERMINAL'),
+    rememberedText('/dev/ttys041', 'KIT-TERMINAL'),
+    rememberedText('/dev/ttys000', 'NEW-TERMINAL'),
+  ].join('')
+
+  expect(parseRemembered(text)).toEqual(
+    new Map([
+      ['/dev/ttys000', 'NEW-TERMINAL'],
+      ['/dev/ttys041', 'KIT-TERMINAL'],
+    ]),
+  )
+  expect(rememberedText('/dev/ttys000', 'NEW-TERMINAL')).toBe(
+    '{"device":"/dev/ttys000","terminal":"NEW-TERMINAL"}\n',
+  )
+})
+
+test('a remembered line torn, broken or not a pair is skipped, and the lines around it stand', () => {
+  const text = [
+    'not json\n',
+    '[1,2]\n',
+    '"/dev/ttys000"\n',
+    rememberedText('/dev/ttys000', 'GOOD-TERMINAL'),
+    '{"device":"/dev/ttys000"}\n',
+    '{"device":"/dev/ttys000","terminal":""}\n',
+    '{"device":"/dev/ttys000","terminal":7}\n',
+    '{"device":"","terminal":"NO-DEVICE"}\n',
+    rememberedText('/dev/ttys041', 'KIT-TERMINAL'),
+    '{"device":"/dev/ttys000","termi',
+  ].join('')
+
+  expect(parseRemembered(text)).toEqual(
+    new Map([
+      ['/dev/ttys000', 'GOOD-TERMINAL'],
+      ['/dev/ttys041', 'KIT-TERMINAL'],
+    ]),
+  )
+  expect(parseRemembered('')).toEqual(new Map())
+})
+
+test("lsappinfo's bundle id line reads as the id; an app gone, or nothing, as none", () => {
+  expect(parseBundle('"CFBundleIdentifier"="com.mitchellh.ghostty"\n')).toBe(GHOSTTY_BUNDLE)
+  expect(parseBundle('"CFBundleIdentifier"=[ NULL ] \n')).toBeUndefined()
+  expect(parseBundle('')).toBeUndefined()
 })

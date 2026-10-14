@@ -1,11 +1,13 @@
 /**
  * The CLI's world, for its tests: a file system in memory (the mod's test
  * world's own, when a test shares it), the folder the CLI runs in, the
- * environment, the clock, random bytes, what it prints, and a fake tmux,
- * `ps` and Ghostty behind the programs it runs and the devices it writes
- * to. Nothing touches a real folder, terminal or window.
+ * environment, the clock, which only waiting moves, random bytes, what it
+ * prints, and a fake tmux, `ps`, lsappinfo and Ghostty behind the programs
+ * it runs and the devices it writes to. Nothing touches a real folder,
+ * terminal or window.
  */
-import { FIND_AND_FOCUS, LIST } from '../cli/ghostty'
+import { FRONT, GHOSTTY_BUNDLE } from '../cli/front'
+import { ACTIVATE, FIND_AND_FOCUS, FOCUS, LIST } from '../cli/ghostty'
 import type { Env, Io, Listed, Ran } from '../cli/io'
 import { main } from '../cli/main'
 import { CLIENTS, PANES, PS } from '../cli/screen'
@@ -133,13 +135,37 @@ type Options = {
   slow?: string[]
   /** Devices gone, a write to which fails as a closed pty's does. */
   closed?: string[]
+  /**
+   * The bundle id of the app in front at each of lsappinfo's looks, the
+   * first's first and the last's ever after: Ghostty's unless a test says
+   * otherwise. An empty one is a look lsappinfo gives no ASN for.
+   */
+  front?: readonly string[]
+}
+
+/** What lsappinfo says of an ASN it knows no app by. */
+const NO_BUNDLE = '"CFBundleIdentifier"=[ NULL ] '
+
+/** The ASN lsappinfo gives the app at this place among those it has named. */
+const asnAt = (place: number) => `ASN:0x0-0x${(place + 1).toString(16)}:`
+
+const ASN = /^ASN:0x0-0x([0-9a-f]+):$/
+
+/** A promise, and what settles it. */
+const latch = () => {
+  let open = () => {}
+  const opened = new Promise<void>(resolve => {
+    open = resolve
+  })
+
+  return { opened, open }
 }
 
 /**
- * tmux, `ps` and Ghostty as the CLI's programs find them: what each run
- * prints, what is written to each device, and which terminals are focused.
- * A report written to a device sets the directory of the terminal on it,
- * and of no other.
+ * tmux, `ps`, lsappinfo and Ghostty as the CLI's programs find them: what
+ * each run prints, what is written to each device, and which terminals are
+ * focused. A report written to a device sets the directory of the terminal
+ * on it, and of no other.
  */
 function screen(options: Options) {
   const terminals = options.ghostty?.map(each => ({ ...each }))
@@ -153,6 +179,10 @@ function screen(options: Options) {
   const written: { device: string; text: string }[] = []
   /** The id of every terminal focused, in order. */
   const focused: string[] = []
+  /** The apps lsappinfo has named, each one's ASN its place here. */
+  const apps: string[] = []
+  /** Programs whose runs wait, by name, until the test lets them answer. */
+  const holds = new Map<string, { arrive: () => void; released: Promise<void> }>()
 
   const pidOf = (client: FakeClient) => 1000 + clients.indexOf(client)
 
@@ -219,6 +249,49 @@ function screen(options: Options) {
     return [held.map(each => each.id).join('\t'), ...rows]
   }
 
+  /** The app in front at this look, by its ASN. */
+  const front = () => {
+    const looks = ran.filter(words => isWords(words, FRONT)).length
+    const bundles = options.front ?? [GHOSTTY_BUNDLE]
+    const bundle = bundles[Math.min(looks, bundles.length) - 1] ?? ''
+
+    if (bundle === '') {
+      return printed([])
+    }
+
+    if (!apps.includes(bundle)) {
+      apps.push(bundle)
+    }
+
+    return printed([asnAt(apps.indexOf(bundle))])
+  }
+
+  const lsappinfo = (words: readonly string[]): Ran => {
+    if (isWords(words, FRONT.slice(1))) {
+      return front()
+    }
+
+    if (!isWords(words.slice(0, -1), ['info', '-only', 'bundleid'])) {
+      throw new Error(`the fake lsappinfo knows no ${words.join(' ')}`)
+    }
+
+    const place = ASN.exec(words.at(-1) ?? '')?.[1]
+    const bundle = place === undefined ? undefined : apps[Number.parseInt(place, 16) - 1]
+
+    return printed([bundle === undefined ? NO_BUNDLE : `"CFBundleIdentifier"="${bundle}"`])
+  }
+
+  /** The terminal with the id focused, its id printed; nothing for an id no terminal has. */
+  const focus = (id: string | undefined) => {
+    const found = terminals?.find(each => each.id === id)
+
+    if (found !== undefined) {
+      focused.push(found.id)
+    }
+
+    return found === undefined ? [] : [found.id]
+  }
+
   const find = (marker: string | undefined) => {
     const found = terminals?.find(each => each.directory === marker)
 
@@ -227,6 +300,22 @@ function screen(options: Options) {
     }
 
     return found === undefined ? [] : [found.id]
+  }
+
+  /** What Ghostty prints for each program, given its argument. */
+  const answerTo = (program: string | undefined, arg: string | undefined) => {
+    switch (program) {
+      case LIST:
+        return list()
+      case FIND_AND_FOCUS:
+        return find(arg)
+      case FOCUS:
+        return focus(arg)
+      case ACTIVATE:
+        return []
+      default:
+        throw new Error('the fake Ghostty knows no such program')
+    }
   }
 
   const osascript = (program: string | undefined, args: readonly string[]): Ran => {
@@ -240,11 +329,7 @@ function screen(options: Options) {
       return printed([])
     }
 
-    if (program !== LIST && program !== FIND_AND_FOCUS) {
-      throw new Error('the fake Ghostty knows no such program')
-    }
-
-    const answer = printed(program === LIST ? list() : find(args.at(0)))
+    const answer = printed(answerTo(program, args.at(0)))
 
     settle()
 
@@ -254,6 +339,13 @@ function screen(options: Options) {
   const run = async ([name = '', ...words]: readonly string[], limitMs?: number): Promise<Ran> => {
     ran.push([name, ...words])
     limits.push({ name, limitMs })
+
+    const held = holds.get(name)
+
+    if (held !== undefined) {
+      held.arrive()
+      await held.released
+    }
 
     if (options.missing?.includes(name)) {
       throw new Error(`Executable not found in $PATH: "${name}"`)
@@ -273,6 +365,10 @@ function screen(options: Options) {
 
     if (name === 'ps') {
       return ps(words)
+    }
+
+    if (name === 'lsappinfo') {
+      return lsappinfo(words)
     }
 
     if (name === 'osascript' && words[0] === '-e') {
@@ -311,12 +407,31 @@ function screen(options: Options) {
     return Object.fromEntries((terminals ?? []).map(each => [each.id, each.directory]))
   }
 
-  return { run, writeTo, ran, limits, written, focused, directories }
+  /** Runs of the program from here on wait until `release()`; `arrived` once one has begun. */
+  const hold = (name: string) => {
+    const arrival = latch()
+    const release = latch()
+
+    holds.set(name, { arrive: arrival.open, released: release.opened })
+
+    return {
+      arrived: arrival.opened,
+      release: () => {
+        holds.delete(name)
+        release.open()
+      },
+    }
+  }
+
+  return { run, writeTo, ran, limits, written, focused, directories, hold }
 }
 
 export function terminal(options: Options = {}) {
   const files = options.files ?? new Map<string, File>()
-  const now = options.now ?? (() => NOW)
+  const clock = options.now ?? (() => NOW)
+  /** Every wait, in order. */
+  const waits: number[] = []
+  const now = () => clock() + waits.reduce((sum, ms) => sum + ms, 0)
   const shown = screen(options)
   let printed = { out: '', err: '' }
   let gate: (() => Promise<void>) | undefined
@@ -341,6 +456,9 @@ export function terminal(options: Options = {}) {
     env: options.env ?? ENV,
     cwd: options.cwd ?? REPO,
     now,
+    wait: async ms => {
+      waits.push(ms)
+    },
     random: options.random ?? scripted([1, 2, 3, 4], [5, 6, 7, 8]),
     out: text => {
       printed.out += text
@@ -414,34 +532,28 @@ export function terminal(options: Options = {}) {
    * that each read the file before either wrote; `release()` lets them in.
    */
   const holdAppends = (count: number) => {
-    let arrive = () => {}
-    let open = () => {}
-    const arrived = new Promise<void>(resolve => {
-      arrive = resolve
-    })
-    const opened = new Promise<void>(resolve => {
-      open = resolve
-    })
+    const arrival = latch()
+    const release = latch()
     let held = 0
 
     gate = async () => {
       held += 1
 
       if (held === count) {
-        arrive()
+        arrival.open()
       }
 
-      await opened
+      await release.opened
     }
 
     return {
-      arrived,
+      arrived: arrival.opened,
       release: () => {
         gate = undefined
-        open()
+        release.open()
       },
     }
   }
 
-  return { files, io, run, text, seed, window, project, holdAppends, screen: shown }
+  return { files, io, run, text, seed, window, project, holdAppends, waits, screen: shown }
 }

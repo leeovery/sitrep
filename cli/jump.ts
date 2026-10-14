@@ -1,15 +1,18 @@
 /**
  * What the CLI does on screen, through Io: asks tmux which of its clients
  * show which sessions, and `ps` which processes those clients descend from,
- * and brings a piece of work's Ghostty window to the front, found by a
- * knock. Nothing in tmux changes, and no terminal is left reporting the
- * knock's marker.
+ * and brings a piece of work's Ghostty window to the front, and keeps it
+ * there: the terminal remembered for its device focused by its id, else
+ * found by a knock and remembered. Nothing in tmux changes, and no terminal
+ * is left reporting the knock's marker.
  */
 import type { Where } from '../core'
+import { frontmost, keepInFront } from './front'
 import {
   ANSWER_SECONDS,
   directoryAfter,
   FIND_AND_FOCUS,
+  FOCUS,
   isTimedOut,
   LIST,
   markerOf,
@@ -17,9 +20,12 @@ import {
   reportText,
   type Terminal,
 } from './ghostty'
-import type { Io } from './io'
+import type { Io, Ran } from './io'
+import { look } from './look'
+import { readRemembered, remember, type Remembered } from './remembered'
 import {
   CLIENTS,
+  devicesMaybeShowing,
   devicesShowing,
   ghosttyClients,
   PANES,
@@ -30,6 +36,7 @@ import {
   socketsOf,
   type Processes,
   type Screen,
+  type Servers,
 } from './screen'
 
 /**
@@ -46,18 +53,12 @@ export type Jumped =
 const FOCUSED: Jumped = { is: 'focused' }
 const OFF_SCREEN: Jumped = { is: 'off screen' }
 
-/** How long tmux and `ps` may take to answer, so a listing never hangs on them. */
-export const LOOK_MS = 2_000
-
 /** How many times Ghostty's terminals are listed while they keep changing as they are read. */
 const LIST_TRIES = 3
 
 const NO_ANSWER = `Ghostty did not answer within ${ANSWER_SECONDS} seconds: most likely the screen is locked, or macOS is asking whether sitrep may control Ghostty.`
 
 const UNSETTLED = "Ghostty's windows kept opening or closing as they were listed. Try again."
-
-/** How a program ran; undefined when it could not start, or did not end in time. */
-const look = (io: Io, command: readonly string[]) => io.run(command, LOOK_MS).catch(() => undefined)
 
 /**
  * A tmux server's panes and clients, and whether tmux answered. It answers
@@ -81,19 +82,26 @@ const readServer = async (io: Io, socket: string) => {
     : { isAnswered: true }
 }
 
+/** Each socket's server, tmux asked twice for each. */
+const readServers = (io: Io, sockets: readonly string[]) =>
+  Promise.all(sockets.map(async socket => [socket, await readServer(io, socket)] as const))
+
+type ServersRead = Awaited<ReturnType<typeof readServers>>
+
+/** `ps`'s snapshot, taken only when a window runs in tmux. */
+const snapshotFor = (io: Io, sockets: readonly string[]) =>
+  sockets.length === 0 ? Promise.resolve(undefined) : look(io, PS)
+
+const serversOf = (read: ServersRead): Servers =>
+  new Map(read.map(([socket, { server }]) => [socket, server]))
+
 /**
- * What tells which devices show the windows: tmux asked twice for each
- * socket they run under, and `ps` once beside it, its snapshot used only
- * when a server has clients. Nothing that fails here fails the run: what
- * gives no answer shows nothing, and is named.
+ * What tells which devices show the windows: tmux's servers, and `ps`'s
+ * snapshot, used only when a server has clients. Nothing that fails here
+ * fails the run: what gives no answer shows nothing, and is named.
  */
-const readScreen = async (io: Io, windows: readonly Where[]): Promise<Screen> => {
-  const sockets = socketsOf(windows)
-  const [read, snapshot] = await Promise.all([
-    Promise.all(sockets.map(async socket => [socket, await readServer(io, socket)] as const)),
-    sockets.length === 0 ? undefined : look(io, PS),
-  ])
-  const servers = new Map(read.map(([socket, { server }]) => [socket, server]))
+const screenOf = (read: ServersRead, snapshot: Ran | undefined): Screen => {
+  const servers = serversOf(read)
   const hasClients = [...servers.values()].some(server => (server?.clients.length ?? 0) > 0)
   const isSnapshot = snapshot?.exitCode === 0
   const processes: Processes =
@@ -107,6 +115,14 @@ const readScreen = async (io: Io, windows: readonly Where[]): Promise<Screen> =>
       ...(hasClients && !isSnapshot ? ['ps'] : []),
     ],
   }
+}
+
+/** The screen as tmux, asked twice for each socket the windows run under, and `ps` beside it, give it. */
+const readScreen = async (io: Io, windows: readonly Where[]) => {
+  const sockets = socketsOf(windows)
+  const [read, snapshot] = await Promise.all([readServers(io, sockets), snapshotFor(io, sockets)])
+
+  return screenOf(read, snapshot)
 }
 
 /** The ids of the works a Ghostty window shows, from the windows each is in; nothing is knocked on. */
@@ -171,12 +187,12 @@ const putBackMarked = async (
 }
 
 /**
- * Knocks on the device and focuses the Ghostty terminal that answers;
- * whether one did. A device that will not take the knock, a closed one
- * (EIO, ENXIO), answers nothing and has nothing to put back. A terminal
- * taking the marker is put back whatever comes of the find: one that took
- * it after the find gave up, and one that took it before the find failed,
- * as far as listing again can tell.
+ * Knocks on the device and focuses the Ghostty terminal that answers; its
+ * id, or undefined when none did. A device that will not take the knock, a
+ * closed one (EIO, ENXIO), answers nothing and has nothing to put back. A
+ * terminal taking the marker is put back whatever comes of the find: one
+ * that took it after the find gave up, and one that took it before the find
+ * failed, as far as listing again can tell.
  */
 const knock = async (io: Io, device: string, before: readonly Terminal[]) => {
   const marker = markerOf(io.random)
@@ -186,7 +202,7 @@ const knock = async (io: Io, device: string, before: readonly Terminal[]) => {
   )
 
   if (!isWritten) {
-    return false
+    return undefined
   }
 
   const found = await ghostty(io, FIND_AND_FOCUS, marker).catch(async (error: unknown) => {
@@ -202,16 +218,93 @@ const knock = async (io: Io, device: string, before: readonly Terminal[]) => {
       : putBack(io, device, before, focused),
   )
 
-  return focused !== ''
+  return focused === '' ? undefined : focused
 }
 
 /**
- * Brings the first of the windows a Ghostty window shows to the front, on
- * whatever Space it is: each device showing them knocked on in turn, until
- * a terminal answers.
+ * Focuses the terminal remembered for a device, by its id; whether it did.
+ * Ghostty not answering in time is thrown in plain words, as for every
+ * question to it; no terminal having the id, or any other failure, is a
+ * miss, for a knock to settle.
  */
-export const jump = async (io: Io, windows: readonly Where[]): Promise<Jumped> => {
-  const screen = await readScreen(io, windows)
+const focusRemembered = async (io: Io, id: string) => {
+  const ran = await io.run(['osascript', '-e', FOCUS, id]).catch(() => undefined)
+
+  if (ran !== undefined && ran.exitCode !== 0 && isTimedOut(ran.stderr)) {
+    throw new Error(NO_ANSWER)
+  }
+
+  return ran?.exitCode === 0 && ran.stdout.trim() === id
+}
+
+/** Ghostty's terminals, listed at the first call only: every knock of a jump goes by the one listing. */
+const listingOnce = (io: Io) => {
+  let listed: Promise<Terminal[]> | undefined
+
+  return () => {
+    listed = listed ?? terminals(io)
+
+    return listed
+  }
+}
+
+type Listing = ReturnType<typeof listingOnce>
+
+/**
+ * Focuses the terminal on a device: the one remembered for it, else the one
+ * a knock finds, remembered from then on; undefined when none answers. Off
+ * screen when Ghostty has no terminal to knock on.
+ */
+const focusOn = async (
+  io: Io,
+  device: string,
+  remembered: string | undefined,
+  listing: Listing,
+): Promise<Jumped | undefined> => {
+  if (remembered !== undefined && (await focusRemembered(io, remembered))) {
+    return FOCUSED
+  }
+
+  const before = await listing()
+
+  if (before.length === 0) {
+    return OFF_SCREEN
+  }
+
+  const found = await knock(io, device, before)
+
+  if (found === undefined) {
+    return undefined
+  }
+
+  await bestEffort(remember(io, device, found))
+
+  return FOCUSED
+}
+
+/** Whether a jump is all but sure to knock, before `ps` answers: some device may show its windows, and none of those has a terminal remembered. */
+const isKnockSure = (devices: readonly string[], remembered: Remembered) =>
+  devices.length > 0 && devices.every(device => !remembered.has(device))
+
+/**
+ * Finds the devices showing the windows, and focuses the terminal on the
+ * first of them that has one. Ghostty's terminals are listed only for a
+ * knock: alongside `ps` when a knock is all but sure, else at the first
+ * device that needs one.
+ */
+const reach = async (io: Io, windows: readonly Where[]): Promise<Jumped> => {
+  const sockets = socketsOf(windows)
+  const servers = readServers(io, sockets)
+  const snapshot = snapshotFor(io, sockets)
+  const [read, remembered] = await Promise.all([servers, readRemembered(io)])
+  const listing = listingOnce(io)
+
+  if (isKnockSure(devicesMaybeShowing(windows, serversOf(read)), remembered)) {
+    // A knock that waits on the listing tells its failure; a jump that needs none lets it go.
+    void listing().catch(() => undefined)
+  }
+
+  const screen = screenOf(read, await snapshot)
   const devices = devicesShowing(windows, screen)
 
   if (devices.length === 0) {
@@ -220,17 +313,29 @@ export const jump = async (io: Io, windows: readonly Where[]): Promise<Jumped> =
       : OFF_SCREEN
   }
 
-  const before = await terminals(io)
-
-  if (before.length === 0) {
-    return OFF_SCREEN
-  }
-
   for (const device of devices) {
-    if (await knock(io, device, before)) {
-      return FOCUSED
+    const jumped = await focusOn(io, device, remembered.get(device), listing)
+
+    if (jumped !== undefined) {
+      return jumped
     }
   }
 
   return { is: 'unanswered', devices }
+}
+
+/**
+ * Brings the first of the windows a Ghostty window shows to the front, on
+ * whatever Space it is, and keeps it there; which app was in front is read
+ * as it begins, alongside tmux.
+ */
+export const jump = async (io: Io, windows: readonly Where[]): Promise<Jumped> => {
+  const front = frontmost(io)
+  const jumped = await reach(io, windows)
+
+  if (jumped.is === 'focused') {
+    await keepInFront(io, await front)
+  }
+
+  return jumped
 }

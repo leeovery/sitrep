@@ -1,7 +1,8 @@
 /**
  * The CLI bound to Bun: the file system, the environment and the folder it
- * runs in, the clock, random bytes, standard output and error, programs and
- * terminal devices, and the exit code. bin/sitrep runs it.
+ * runs in, the clock and waiting on it, random bytes, standard output and
+ * error, programs and terminal devices, and the exit code. bin/sitrep runs
+ * it.
  */
 import { constants } from 'node:fs'
 import { appendFile, open, readdir } from 'node:fs/promises'
@@ -82,6 +83,7 @@ const io: Io = {
   env: Bun.env,
   cwd: process.cwd(),
   now: () => Date.now(),
+  wait: ms => new Promise(resolve => setTimeout(resolve, ms)),
   random: count => crypto.getRandomValues(new Uint8Array(count)),
   out: text => void process.stdout.write(text),
   err: text => void process.stderr.write(text),

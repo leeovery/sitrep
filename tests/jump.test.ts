@@ -1,7 +1,9 @@
 import { expect, test } from 'claude-code/testing'
-import { ANSWER_SECONDS, FIND_AND_FOCUS, LIST, reportText } from '../cli/ghostty'
-import { LOOK_MS } from '../cli/jump'
+import { bundleWords, FRONT, GHOSTTY_BUNDLE, LOOK_EVERY_MS, WATCH_MS } from '../cli/front'
+import { ACTIVATE, ANSWER_SECONDS, FIND_AND_FOCUS, FOCUS, LIST, reportText } from '../cli/ghostty'
+import { LOOK_MS } from '../cli/look'
 import { EXIT } from '../cli/main'
+import { REMEMBERED_FILE, rememberedText } from '../cli/remembered'
 import { CLIENTS, PANES, PS } from '../cli/screen'
 import type { Where } from '../core'
 import { META, MIN, T0, W2 } from './support'
@@ -16,7 +18,7 @@ import {
   type FakeServer,
   type FakeTerminal,
 } from './terminal'
-import { HOME } from './world'
+import { HOME, ROOT } from './world'
 
 /** The tmux window holding Claude's pane, another of its session, and one of another session. */
 const CLAUDES = '@45'
@@ -92,25 +94,29 @@ test("jump focuses the Ghostty window on the work's tmux session, prints nothing
   expect(t.screen.written.at(-1)?.text).toBe(reportText(ODD_FOLDER))
 })
 
-test('jump asks tmux only to list and ps for one snapshot, each within the time limit, then Ghostty to list and to find', async () => {
+/** The programs a jump ran by that name, in order. */
+const runsOf = (t: ReturnType<typeof terminal>, name: string) =>
+  t.screen.ran.filter(([each]) => each === name)
+
+test('jump asks tmux only to list and ps for one snapshot, and lsappinfo which app is in front, each within the time limit; then Ghostty to list and to find', async () => {
   const t = oneWindow(IN_TMUX)
 
   await t.run('jump', ...WORK)
 
-  expect(t.screen.ran).toEqual([
+  expect(t.screen.ran.filter(([name]) => name !== 'lsappinfo')).toEqual([
     ['tmux', '-S', SOCKET, ...PANES],
     ['tmux', '-S', SOCKET, ...CLIENTS],
     PS,
     ['osascript', '-e', LIST],
     ['osascript', '-e', FIND_AND_FOCUS, MARKER],
   ])
-  expect(t.screen.limits.map(each => each.limitMs)).toEqual([
-    LOOK_MS,
-    LOOK_MS,
-    LOOK_MS,
-    undefined,
-    undefined,
-  ])
+  expect(runsOf(t, 'lsappinfo')).toEqual([FRONT, bundleWords('ASN:0x0-0x1:')])
+  expect(
+    t.screen.limits.filter(each => each.name !== 'osascript').map(each => each.limitMs),
+  ).toEqual([LOOK_MS, LOOK_MS, LOOK_MS, LOOK_MS, LOOK_MS])
+  expect(
+    t.screen.limits.filter(each => each.name === 'osascript').map(each => each.limitMs),
+  ).toEqual([undefined, undefined])
 })
 
 test('jump outside tmux knocks on the window’s own device, asking tmux and ps nothing', async () => {
@@ -119,7 +125,10 @@ test('jump outside tmux knocks on the window’s own device, asking tmux and ps 
   expect((await t.run('jump', ...WORK)).exit).toBe(EXIT.done)
   expect(t.screen.focused).toEqual(['KIT-TERMINAL'])
   expect(t.screen.directories()).toEqual(DIRECTORIES)
-  expect(t.screen.ran.map(([name]) => name)).toEqual(['osascript', 'osascript'])
+  expect(t.screen.ran.filter(([name]) => name !== 'lsappinfo').map(([name]) => name)).toEqual([
+    'osascript',
+    'osascript',
+  ])
 })
 
 test('with no client on the work’s tmux server, the snapshot goes unused: ps failing then is no matter', async () => {
@@ -459,7 +468,7 @@ test('Ghostty not answering the find in time is refused in plain words, and the 
 })
 
 test('each Ghostty program asks Ghostty within the time limit, its running checked first', () => {
-  for (const program of [LIST, FIND_AND_FOCUS]) {
+  for (const program of [LIST, FIND_AND_FOCUS, FOCUS, ACTIVATE]) {
     const lines = program.split('\n')
     const at = (line: string) => lines.indexOf(line)
 
@@ -557,4 +566,327 @@ test("jump's help says what it does, and the help lists it", async () => {
     ].join('\n'),
   )
   expect((await t.run('--help')).out).toContain('  sitrep jump\n')
+})
+
+/** Where a jump remembers each device's Ghostty terminal. */
+const REMEMBERED = `${ROOT}/${REMEMBERED_FILE}`
+
+/** The work's one window, in tmux, with these lines in the remembered file. */
+const rememberedAs = (lines: string[], options?: Parameters<typeof terminal>[0]) => {
+  const t = oneWindow(IN_TMUX, options)
+
+  t.files.set(REMEMBERED, { text: lines.join(''), mtimeMs: NOW })
+
+  return t
+}
+
+const FOCUSED_RUN = { exit: EXIT.done, out: '', err: '' }
+
+test("a knock that answers remembers the device's terminal, and the next jump focuses it by its id: tmux and ps asked, nothing listed, nothing written", async () => {
+  const t = oneWindow(IN_TMUX)
+
+  expect(await t.run('jump', ...WORK)).toEqual(FOCUSED_RUN)
+  expect(t.text(REMEMBERED)).toBe(rememberedText(WINDOW, 'SWITCHBOARD-TERMINAL'))
+
+  const first = t.screen.ran.length
+  const written = t.screen.written.length
+
+  expect(await t.run('jump', ...WORK)).toEqual(FOCUSED_RUN)
+  expect(t.screen.ran.slice(first).filter(([name]) => name !== 'lsappinfo')).toEqual([
+    ['tmux', '-S', SOCKET, ...PANES],
+    ['tmux', '-S', SOCKET, ...CLIENTS],
+    PS,
+    ['osascript', '-e', FOCUS, 'SWITCHBOARD-TERMINAL'],
+  ])
+  expect(t.screen.written).toHaveLength(written)
+  expect(t.screen.focused).toEqual(['SWITCHBOARD-TERMINAL', 'SWITCHBOARD-TERMINAL'])
+  expect(t.text(REMEMBERED), 'a terminal focused by its id is not written again').toBe(
+    rememberedText(WINDOW, 'SWITCHBOARD-TERMINAL'),
+  )
+})
+
+test("a remembered terminal gone falls back to the knock, which remembers the device's new terminal and puts its directory back", async () => {
+  const t = rememberedAs([rememberedText(WINDOW, 'CLOSED-TERMINAL')])
+
+  expect(await t.run('jump', ...WORK)).toEqual(FOCUSED_RUN)
+  expect(runsOf(t, 'osascript')).toEqual([
+    ['osascript', '-e', FOCUS, 'CLOSED-TERMINAL'],
+    ['osascript', '-e', LIST],
+    ['osascript', '-e', FIND_AND_FOCUS, MARKER],
+  ])
+  expect(t.screen.focused).toEqual(['SWITCHBOARD-TERMINAL'])
+  expect(t.screen.directories()).toEqual(DIRECTORIES)
+  expect(t.text(REMEMBERED)).toBe(
+    rememberedText(WINDOW, 'CLOSED-TERMINAL') + rememberedText(WINDOW, 'SWITCHBOARD-TERMINAL'),
+  )
+})
+
+test("a remembered terminal's focus failing any way but a timeout falls back to the knock", async () => {
+  const t = rememberedAs([rememberedText(WINDOW, 'SWITCHBOARD-TERMINAL')], {
+    tmux: SHOWN,
+    ghostty: TERMINALS,
+    refused: run => (run === 1 ? REFUSAL : undefined),
+  })
+
+  expect(await t.run('jump', ...WORK)).toEqual(FOCUSED_RUN)
+  expect(runsOf(t, 'osascript').map(words => words[2])).toEqual([FOCUS, LIST, FIND_AND_FOCUS])
+  expect(t.screen.focused).toEqual(['SWITCHBOARD-TERMINAL'])
+  expect(t.screen.directories()).toEqual(DIRECTORIES)
+})
+
+test('Ghostty not answering for a remembered terminal in time is refused in plain words, with nothing listed, written or focused', async () => {
+  const t = rememberedAs([rememberedText(WINDOW, 'SWITCHBOARD-TERMINAL')], {
+    tmux: SHOWN,
+    ghostty: TERMINALS,
+    refused: () => TIMED_OUT,
+  })
+
+  expect(await t.run('jump', ...WORK)).toEqual({ exit: EXIT.refused, out: '', err: NO_ANSWER })
+  expect(runsOf(t, 'osascript')).toEqual([['osascript', '-e', FOCUS, 'SWITCHBOARD-TERMINAL']])
+  expect(t.screen.written).toEqual([])
+  expect(t.screen.focused).toEqual([])
+})
+
+test('the last line for a device wins, and a torn or broken line never stops a jump', async () => {
+  const t = rememberedAs([
+    'not json\n',
+    rememberedText(WINDOW, 'CLOSED-TERMINAL'),
+    rememberedText('/dev/ttys041', 'KIT-TERMINAL'),
+    rememberedText(WINDOW, 'SWITCHBOARD-TERMINAL'),
+    `{"device":"${WINDOW}","terminal":7}\n`,
+    `{"device":"${WINDOW}","termi`,
+  ])
+
+  expect(await t.run('jump', ...WORK)).toEqual(FOCUSED_RUN)
+  expect(runsOf(t, 'osascript')).toEqual([['osascript', '-e', FOCUS, 'SWITCHBOARD-TERMINAL']])
+  expect(t.screen.written).toEqual([])
+})
+
+test('a device whose remembered terminal is gone, and whose knock nothing answers, is passed over for the next device’s remembered terminal', async () => {
+  const SILENT = '/dev/ttys099'
+  const t = rememberedAs(
+    [rememberedText(SILENT, 'CLOSED-TERMINAL'), rememberedText(WINDOW, 'SWITCHBOARD-TERMINAL')],
+    {
+      tmux: serverShowing(ghosttyClient(SILENT, CLAUDES), ghosttyClient(WINDOW, CLAUDES)),
+      ghostty: TERMINALS,
+    },
+  )
+
+  expect(await t.run('jump', ...WORK)).toEqual(FOCUSED_RUN)
+  expect(runsOf(t, 'osascript')).toEqual([
+    ['osascript', '-e', FOCUS, 'CLOSED-TERMINAL'],
+    ['osascript', '-e', LIST],
+    ['osascript', '-e', FIND_AND_FOCUS, MARKER],
+    ['osascript', '-e', LIST],
+    ['osascript', '-e', FOCUS, 'SWITCHBOARD-TERMINAL'],
+  ])
+  expect(t.screen.focused).toEqual(['SWITCHBOARD-TERMINAL'])
+  expect(t.screen.directories()).toEqual(DIRECTORIES)
+})
+
+test('a remembered terminal with Ghostty not running is off screen, nothing written', async () => {
+  const t = rememberedAs([rememberedText(WINDOW, 'SWITCHBOARD-TERMINAL')], { tmux: SHOWN })
+
+  expect(await t.run('jump', ...WORK)).toEqual({ exit: EXIT.refused, out: '', err: OFF_SCREEN })
+  expect(t.screen.written).toEqual([])
+})
+
+test('what the jump remembers sits beside the projects, and list never takes it for one', async () => {
+  const t = oneWindow(IN_TMUX)
+  const listed = await t.run('list')
+  const listedJson = await t.run('list', '--json')
+
+  await t.run('jump', ...WORK)
+
+  expect(t.files.has(REMEMBERED)).toBe(true)
+  expect(await t.run('list')).toEqual(listed)
+  expect(await t.run('list', '--json')).toEqual(listedJson)
+})
+
+test("a jump sure to knock lists Ghostty's terminals while ps is still answering", async () => {
+  const t = oneWindow(IN_TMUX)
+  const ps = t.screen.hold('ps')
+  const listing = t.screen.hold('osascript')
+  const jumped = t.run('jump', ...WORK)
+
+  await ps.arrived
+  await listing.arrived
+
+  expect(runsOf(t, 'osascript')).toEqual([['osascript', '-e', LIST]])
+
+  ps.release()
+  listing.release()
+
+  expect(await jumped).toEqual(FOCUSED_RUN)
+  expect(runsOf(t, 'osascript').filter(words => words[2] === LIST)).toHaveLength(1)
+})
+
+test('a jump whose work no Ghostty window shows lists nothing in Ghostty', async () => {
+  const cases: [string, ReturnType<typeof terminal>][] = [
+    [
+      'a window not saying where it is',
+      (() => {
+        const t = terminal({ tmux: SHOWN, ghostty: TERMINALS })
+
+        t.seed(META, { seenAt: NOW })
+
+        return t
+      })(),
+    ],
+    [
+      'a detached session',
+      oneWindow(IN_TMUX, {
+        tmux: serverShowing(ghosttyClient('/dev/ttys041', KIT)),
+        ghostty: TERMINALS,
+      }),
+    ],
+    ['tmux gone', oneWindow(IN_TMUX, { tmux: {}, ghostty: TERMINALS })],
+    [
+      'a window in another terminal',
+      oneWindow({ ...IN_GHOSTTY, terminal: 'iTerm.app' }, { ghostty: TERMINALS }),
+    ],
+  ]
+
+  for (const [why, t] of cases) {
+    expect((await t.run('jump', ...WORK)).err, why).toBe(OFF_SCREEN)
+    expect(runsOf(t, 'osascript'), why).toEqual([])
+  }
+})
+
+const FINDER = 'com.apple.finder'
+
+/** How many times the watch looks when nothing ends it early. */
+const LOOKS = WATCH_MS / LOOK_EVERY_MS
+
+/** A jump with Finder in front as it begins, and the app in front at each look after as given. */
+const fromFinder = async (front: string[], options: Parameters<typeof terminal>[0] = {}) => {
+  const t = oneWindow(IN_TMUX, { tmux: SHOWN, ghostty: TERMINALS, front, ...options })
+
+  return { t, run: await t.run('jump', ...WORK) }
+}
+
+const isFront = (words: readonly string[]) => words.join(' ') === FRONT.join(' ')
+
+const activations = (t: ReturnType<typeof terminal>) =>
+  t.screen.ran.filter(words => words[2] === ACTIVATE)
+
+test('with Ghostty in front as the jump begins, nothing watches the front after it', async () => {
+  const t = oneWindow(IN_TMUX)
+
+  expect(await t.run('jump', ...WORK)).toEqual(FOCUSED_RUN)
+  expect(t.screen.ran.filter(isFront)).toHaveLength(1)
+  expect(t.waits).toEqual([])
+  expect(activations(t)).toEqual([])
+})
+
+test('which app is in front is read as the jump begins, before tmux answers', async () => {
+  const t = oneWindow(IN_TMUX)
+  const tmux = t.screen.hold('tmux')
+  const jumped = t.run('jump', ...WORK)
+
+  await tmux.arrived
+
+  expect(t.screen.ran.filter(isFront)).toHaveLength(1)
+
+  tmux.release()
+
+  expect(await jumped).toEqual(FOCUSED_RUN)
+})
+
+test('another app taking the front back after Ghostty came forward brings Ghostty forward once, at that look', async () => {
+  const { t, run } = await fromFinder([FINDER, FINDER, GHOSTTY_BUNDLE, GHOSTTY_BUNDLE, FINDER])
+
+  expect(run).toEqual(FOCUSED_RUN)
+  expect(
+    t.screen.ran.filter(isFront),
+    'the look as the jump began, and four after the focus',
+  ).toHaveLength(5)
+  expect(t.waits).toEqual([LOOK_EVERY_MS, LOOK_EVERY_MS, LOOK_EVERY_MS, LOOK_EVERY_MS])
+  expect(activations(t)).toHaveLength(1)
+  expect(t.screen.ran.at(-1)).toEqual(['osascript', '-e', ACTIVATE])
+  expect(t.screen.focused).toEqual(['SWITCHBOARD-TERMINAL'])
+})
+
+test('Ghostty never coming forward is brought forward once, as the watch ends', async () => {
+  const { t, run } = await fromFinder([FINDER])
+
+  expect(run).toEqual(FOCUSED_RUN)
+  expect(t.screen.ran.filter(isFront)).toHaveLength(1 + LOOKS)
+  expect(t.waits.reduce((sum, ms) => sum + ms, 0)).toBe(WATCH_MS)
+  expect(activations(t)).toHaveLength(1)
+  expect(t.screen.ran.at(-1)).toEqual(['osascript', '-e', ACTIVATE])
+})
+
+test('Ghostty coming forward and keeping the front needs nothing more', async () => {
+  const { t, run } = await fromFinder([FINDER, FINDER, GHOSTTY_BUNDLE])
+
+  expect(run).toEqual(FOCUSED_RUN)
+  expect(t.screen.ran.filter(isFront)).toHaveLength(1 + LOOKS)
+  expect(activations(t)).toEqual([])
+})
+
+test('Ghostty is brought forward never more than once, however often the front is taken back', async () => {
+  const { t } = await fromFinder([
+    FINDER,
+    GHOSTTY_BUNDLE,
+    FINDER,
+    GHOSTTY_BUNDLE,
+    FINDER,
+    GHOSTTY_BUNDLE,
+    FINDER,
+  ])
+
+  expect(activations(t)).toHaveLength(1)
+  expect(t.screen.ran.filter(isFront), 'no look after it').toHaveLength(3)
+})
+
+test('a look lsappinfo gives no answer to is no hand-back', async () => {
+  const { t } = await fromFinder([FINDER, GHOSTTY_BUNDLE, '', '', FINDER])
+
+  expect(activations(t)).toHaveLength(1)
+  expect(t.screen.ran.filter(isFront)).toHaveLength(5)
+})
+
+test('lsappinfo or osascript failing never fails the jump: nothing watches when lsappinfo cannot tell, and a failed bringing forward is let go', async () => {
+  const cases: [string, Parameters<typeof terminal>[0]][] = [
+    ['lsappinfo not on PATH', { missing: ['lsappinfo'] }],
+    ['lsappinfo not answering', { slow: ['lsappinfo'] }],
+    ['no ASN for the front', { front: [''] }],
+  ]
+
+  for (const [why, options] of cases) {
+    const t = oneWindow(IN_TMUX, { tmux: SHOWN, ghostty: TERMINALS, ...options })
+
+    expect(await t.run('jump', ...WORK), why).toEqual(FOCUSED_RUN)
+    expect(t.waits, why).toEqual([])
+    expect(activations(t), why).toEqual([])
+  }
+
+  const { t, run } = await fromFinder([FINDER], {
+    refused: count => (count === 3 ? REFUSAL : undefined),
+  })
+
+  expect(run).toEqual(FOCUSED_RUN)
+  expect(activations(t)).toHaveLength(1)
+})
+
+test('a jump that brings no window forward watches nothing', async () => {
+  const offScreen = oneWindow(IN_TMUX, {
+    tmux: serverShowing(ghosttyClient('/dev/ttys041', KIT)),
+    ghostty: TERMINALS,
+    front: [FINDER],
+  })
+  const unanswered = oneWindow(IN_TMUX, {
+    tmux: serverShowing(ghosttyClient('/dev/ttys099', CLAUDES)),
+    ghostty: TERMINALS,
+    front: [FINDER],
+  })
+
+  expect((await offScreen.run('jump', ...WORK)).exit).toBe(EXIT.refused)
+  expect((await unanswered.run('jump', ...WORK)).exit).toBe(EXIT.refused)
+
+  for (const t of [offScreen, unanswered]) {
+    expect(t.waits).toEqual([])
+    expect(activations(t)).toEqual([])
+  }
 })

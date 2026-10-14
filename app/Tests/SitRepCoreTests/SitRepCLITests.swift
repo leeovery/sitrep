@@ -133,7 +133,7 @@ struct SitRepCLITests {
 
         #expect(await cli.jump(to: "sr-047c7y") == .jumped)
         #expect(programs.all.map(\.arguments) == [["jump", "--work", "sr-047c7y"]])
-        #expect(programs.all.map(\.limit) == [120])
+        #expect(programs.all.map(\.limit) == [180])
     }
 
     @Test(arguments: [
@@ -150,7 +150,7 @@ struct SitRepCLITests {
     @Test func aJumpThatNeverEndsSaysSo() async {
         let (cli, _) = Self.cli { program in throw RunError.timedOut(program.limit) }
 
-        #expect(await cli.jump(to: "sr-047c7y") == .refused("sitrep jump did not answer within 120 seconds."))
+        #expect(await cli.jump(to: "sr-047c7y") == .refused("sitrep jump did not answer within 180 seconds."))
     }
 }
 

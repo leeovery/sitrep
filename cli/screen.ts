@@ -118,14 +118,13 @@ const isFromGhostty = (pid: number, processes: Processes) => {
   return false
 }
 
+/** The processes of every client of the servers. */
+const clientProcesses = (servers: Servers) =>
+  [...servers.values()].flatMap(server => server?.clients ?? []).map(client => client.pid)
+
 /** The processes of the servers' clients that descend from Ghostty, each client's ancestry walked once. */
 export const ghosttyClients = (servers: Servers, processes: Processes): ReadonlySet<number> =>
-  new Set(
-    [...servers.values()]
-      .flatMap(server => server?.clients ?? [])
-      .map(client => client.pid)
-      .filter(pid => isFromGhostty(pid, processes)),
-  )
+  new Set(clientProcesses(servers).filter(pid => isFromGhostty(pid, processes)))
 
 /** The windows a piece of work is in as it stands at `now`: where each live presence is, the deliverer's first. */
 export const windowsOf = (work: Work, now: number): Where[] =>
@@ -157,3 +156,7 @@ const devicesOf = (where: Where, { servers, ghostty }: Screen): string[] => {
 export const devicesShowing = (windows: readonly Where[], screen: Screen) => [
   ...new Set(windows.flatMap(where => devicesOf(where, screen))),
 ]
+
+/** The devices that may show the windows before `ps` says which tmux clients are Ghostty's: each client taken for one. */
+export const devicesMaybeShowing = (windows: readonly Where[], servers: Servers) =>
+  devicesShowing(windows, { servers, ghostty: new Set(clientProcesses(servers)), unanswered: [] })

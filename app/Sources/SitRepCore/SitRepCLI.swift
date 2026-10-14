@@ -19,12 +19,14 @@ public struct SitRepCLI: Sendable {
     /// `list --json` answers in about 0.15s, and never hangs over tmux or `ps`.
     static let listLimit: TimeInterval = 10
     /// Only a backstop for a CLI that hangs, above the longest a jump can
-    /// take (cli/jump.ts, cli/ghostty.ts): tmux and `ps` 2s; Ghostty's
-    /// terminals listed up to three times, 5s each; then, for each device
-    /// knocked on, the find (about 1s of looking, or 5s for a question that
-    /// goes unanswered) and the put-back's listing again, 15s at most. About
-    /// 17s plus 21s a device: 59s over two devices, 101s over four.
-    static let jumpLimit: TimeInterval = 120
+    /// take (cli/jump.ts, cli/ghostty.ts, cli/front.ts): tmux and `ps` 2s;
+    /// Ghostty's terminals listed up to three times, 5s each; then, for each
+    /// device, its remembered terminal's focus (5s), the find (about 1s of
+    /// looking, or 5s for a question that goes unanswered) and the
+    /// put-back's listing again, 15s at most; then the watch on the front,
+    /// about 10s at worst. About 27s plus 26s a device: 80s over two
+    /// devices, 131s over four, 157s over five.
+    static let jumpLimit: TimeInterval = 180
 
     private static let logger = Logger(sitrep: "cli")
 
