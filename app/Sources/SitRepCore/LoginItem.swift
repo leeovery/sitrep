@@ -10,19 +10,20 @@ public struct LoginItem: Equatable {
         case openSettings
     }
 
-    public let isOn: Bool
-    public let needsApproval: Bool
     public let choice: Choice
 
     public init(_ status: SMAppService.Status) {
-        isOn = status == .enabled
-        needsApproval = status == .requiresApproval
         choice = switch status {
         case .enabled: .unregister
         case .requiresApproval: .openSettings
         default: .register
         }
     }
+
+    /// Whether it starts at login: only then does choosing it stop that.
+    public var isOn: Bool { choice == .unregister }
+
+    public var needsApproval: Bool { choice == .openSettings }
 
     public var title: String {
         needsApproval ? "Start at login (approve in System Settings)" : "Start at login"

@@ -1,20 +1,35 @@
 import Foundation
 import os
 
+/// A PATH, and where it came from: Lee's login shell, or the fallback when the shell gave none.
+public enum FoundPath: Sendable, Equatable {
+    case shell(String)
+    case fallback(String)
+
+    public var path: String {
+        switch self {
+        case let .shell(path), let .fallback(path):
+            path
+        }
+    }
+}
+
 /// The PATH Lee's own shell has. An app started from the Finder or at login
-/// has only the system's, with no Bun or tmux, so it asks Lee's login shell
-/// once; interactive as well, since `claude` is on only an interactive
-/// shell's PATH.
+/// has only the system's, with no Bun or tmux, so it asks Lee's login shell;
+/// interactive as well, since `claude` is on only an interactive shell's
+/// PATH.
 public enum LoginPath {
     static let start = "<sitrep-path>"
     static let end = "</sitrep-path>"
 
-    /// What a child gets when the shell gives no PATH: Homebrew's places, then the system's.
-    public static let fallback = "/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
-
     static let limit: TimeInterval = 10
 
     private static let logger = Logger(sitrep: "path")
+
+    /// What a child gets when the shell gives no PATH: Homebrew's places, Bun's own, then the system's.
+    static func fallback(home: String) -> String {
+        "/opt/homebrew/bin:/usr/local/bin:\(home)/.bun/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+    }
 
     /// The shell, asked to print its PATH between markers, since a shell's
     /// start-up files (Oh My Zsh) may print around it.
@@ -44,9 +59,18 @@ public enum LoginPath {
     /// Lee's login shell's PATH, else the fallback, each logged.
     public static func find(
         shell: String? = userShell(),
+        home: String = NSHomeDirectory(),
         environment: [String: String] = ProcessInfo.processInfo.environment,
         run: Runner = runProgram
-    ) async -> String {
+    ) async -> FoundPath {
+        let fallingBack = { (why: String) -> FoundPath in
+            let path = fallback(home: home)
+
+            logger.error("No PATH from the login shell (\(why, privacy: .public)): falling back to \(path, privacy: .public)")
+
+            return .fallback(path)
+        }
+
         guard let shell else {
             return fallingBack("the user record names no shell")
         }
@@ -60,7 +84,7 @@ public enum LoginPath {
 
             logger.info("PATH from \(shell, privacy: .public): \(path, privacy: .public)")
 
-            return path
+            return .shell(path)
         } catch {
             return fallingBack("\(shell) \(error)")
         }
@@ -76,10 +100,31 @@ public enum LoginPath {
 
         return path.isEmpty ? nil : path
     }
+}
 
-    private static func fallingBack(_ why: String) -> String {
-        logger.error("No PATH from the login shell (\(why, privacy: .public)): falling back to \(fallback, privacy: .public)")
+/// Lee's PATH for the CLI's runs. The shell's is asked for once and kept;
+/// a fallback serves one run, and the shell is asked again at the next, so
+/// a shell slow as Lee logs in costs no more than that run. Runs at once
+/// share one asking.
+public actor ShellPath {
+    private let find: @Sendable () async -> FoundPath
+    private var asking: Task<FoundPath, Never>?
 
-        return fallback
+    public init(find: @escaping @Sendable () async -> FoundPath = { await LoginPath.find() }) {
+        self.find = find
+    }
+
+    public func path() async -> String {
+        let asking = self.asking ?? Task { await find() }
+
+        self.asking = asking
+
+        let found = await asking.value
+
+        if case .fallback = found, self.asking == asking {
+            self.asking = nil
+        }
+
+        return found.path
     }
 }

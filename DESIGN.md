@@ -1253,11 +1253,16 @@ reaches a window only while that pane is on show).
      Lee's user record, as a login and interactive shell, for its PATH
      printed between markers, since Oh My Zsh prints around it; about 0.3s.
      Interactive, as step 2 needs `claude`, which only an interactive
-     shell's PATH has. With no answer it falls back to Homebrew's folders
-     and the system's, and logs it. Every child gets that PATH and
-     otherwise the app's own environment, and a time limit: 10 seconds for
-     `list --json`, 30 for a jump, whose questions to Ghostty wait up to 5
-     seconds each.
+     shell's PATH has. The shell's answer is kept. With none it falls back
+     to Homebrew's folders, `~/.bun/bin` and the system's, logs it, and
+     asks the shell again at the next run, so a shell slow as Lee logs in
+     costs one run, not every run until a restart. Every child gets that
+     PATH and otherwise the app's own environment, and a time limit, only
+     a backstop for a CLI that hangs: 10 seconds for `list --json`, and 120
+     for a jump, above the longest one can take, about 17 seconds plus 21 a
+     device knocked on (59 over two devices, 101 over four): tmux and `ps`
+     2 seconds, Ghostty's terminals listed up to three times at 5 seconds
+     each, and for each device the find and the put-back's listing again.
    - **The main checkout's path stamped in.** `app/build` writes the folder
      of the repository's main checkout, the live plugin, into the app's
      Info.plist (`SitRepPlugin`), even when it builds in a worktree; the

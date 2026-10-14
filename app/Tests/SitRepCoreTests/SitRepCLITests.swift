@@ -10,7 +10,7 @@ struct SitRepCLITests {
     /// The CLI with every run answered as given, the programs it ran kept.
     private static func cli(_ answer: @escaping @Sendable (Program) throws -> Ran) -> (SitRepCLI, Asked) {
         let programs = Asked()
-        let cli = SitRepCLI(plugin: plugin, path: path, environment: ["HOME": "/Users/lee", "PATH": "/usr/bin:/bin"]) { program in
+        let cli = SitRepCLI(plugin: plugin, path: { path }, environment: ["HOME": "/Users/lee", "PATH": "/usr/bin:/bin"]) { program in
             programs.add(program)
 
             return try answer(program)
@@ -66,6 +66,44 @@ struct SitRepCLITests {
         #expect(await cli.list() == .failed("env: bun: No such file or directory"))
     }
 
+    @Test func ofAManyLinedFailureTheCLIsOwnLineIsGiven() async {
+        let stderr = """
+        (node:4242) Warning: something Bun said first
+        sitrep: There is no piece of work sr-zzzzzz on the board, in any project.
+            at main (/Users/lee/Code/sitrep/cli/main.ts:190:12)
+        """
+        let (cli, _) = Self.cli(Self.exited(2, stderr: stderr))
+
+        #expect(await cli.list() == .failed("There is no piece of work sr-zzzzzz on the board, in any project."))
+    }
+
+    @Test func ofAManyLinedFailureNotTheCLIsTheFirstLineWithAnythingOnItIsGiven() async {
+        let stderr = """
+
+          error: Cannot find module "../cli/shell" from "/Users/lee/Code/sitrep/bin/sitrep"
+            at resolve (native:1:1)
+            at /Users/lee/Code/sitrep/bin/sitrep:2:1
+        """
+        let (cli, _) = Self.cli(Self.exited(1, stderr: stderr))
+
+        #expect(await cli.list() == .failed(#"error: Cannot find module "../cli/shell" from "/Users/lee/Code/sitrep/bin/sitrep""#))
+    }
+
+    @Test func thePathIsAskedForAtEachRun() async {
+        let paths = OSAllocatedUnfairLock(initialState: ["/usr/bin:/bin", Self.path])
+        let programs = Asked()
+        let cli = SitRepCLI(plugin: Self.plugin, path: { paths.withLock { $0.removeFirst() } }, environment: [:]) { program in
+            programs.add(program)
+
+            return Ran(status: 0, stdout: listedEmpty, stderr: "")
+        }
+
+        _ = await cli.list()
+        _ = await cli.list()
+
+        #expect(programs.all.map { $0.environment["PATH"] } == ["/usr/bin:/bin", Self.path])
+    }
+
     @Test func aListOfAnotherVersionSaysSo() async {
         let (cli, _) = Self.cli(Self.exited(0, stdout: #"{"v": 2, "projects": []}"#))
 
@@ -90,12 +128,12 @@ struct SitRepCLITests {
         #expect(await cli.list() == .failed("sitrep list could not start: no such file."))
     }
 
-    @Test func jumpRunsTheCLIOnTheWorkWithTimeForGhosttysQuestions() async {
+    @Test func jumpRunsTheCLIOnTheWorkWithTimeForItsLongestJump() async {
         let (cli, programs) = Self.cli(Self.exited(0))
 
         #expect(await cli.jump(to: "sr-047c7y") == .jumped)
         #expect(programs.all.map(\.arguments) == [["jump", "--work", "sr-047c7y"]])
-        #expect(programs.all.map(\.limit) == [30])
+        #expect(programs.all.map(\.limit) == [120])
     }
 
     @Test(arguments: [
@@ -112,7 +150,7 @@ struct SitRepCLITests {
     @Test func aJumpThatNeverEndsSaysSo() async {
         let (cli, _) = Self.cli { program in throw RunError.timedOut(program.limit) }
 
-        #expect(await cli.jump(to: "sr-047c7y") == .refused("sitrep jump did not answer within 30 seconds."))
+        #expect(await cli.jump(to: "sr-047c7y") == .refused("sitrep jump did not answer within 120 seconds."))
     }
 }
 

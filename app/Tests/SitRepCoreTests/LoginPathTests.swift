@@ -1,9 +1,12 @@
 import Foundation
+import os
 @testable import SitRepCore
 import Testing
 
 struct LoginPathTests {
     private static let path = "/Users/lee/.bun/bin:/opt/homebrew/bin:/usr/bin:/bin"
+    private static let home = "/Users/lee"
+    private static let fallback = "/opt/homebrew/bin:/usr/local/bin:/Users/lee/.bun/bin:/usr/bin:/bin:/usr/sbin:/sbin"
 
     @Test func thePathIsWhatLiesBetweenTheMarkers() {
         #expect(LoginPath.parse("<sitrep-path>\(Self.path)</sitrep-path>") == Self.path)
@@ -47,40 +50,79 @@ struct LoginPathTests {
     }
 
     @Test func theShellsPathIsFound() async {
-        let found = await LoginPath.find(shell: "/bin/zsh", environment: [:]) { _ in
+        let found = await LoginPath.find(shell: "/bin/zsh", home: Self.home, environment: [:]) { _ in
             Ran(status: 0, stdout: "<sitrep-path>\(Self.path)</sitrep-path>", stderr: "")
         }
 
-        #expect(found == Self.path)
+        #expect(found == .shell(Self.path))
     }
 
     @Test func noShellFallsBack() async {
-        let found = await LoginPath.find(shell: nil, environment: [:]) { _ in
+        let found = await LoginPath.find(shell: nil, home: Self.home, environment: [:]) { _ in
             Issue.record("no shell to run")
 
             return Ran(status: 0, stdout: "", stderr: "")
         }
 
-        #expect(found == LoginPath.fallback)
+        #expect(found == .fallback(Self.fallback))
     }
 
     @Test func aShellGivingNoPathFallsBack() async {
-        let found = await LoginPath.find(shell: "/bin/zsh", environment: [:]) { _ in
+        let found = await LoginPath.find(shell: "/bin/zsh", home: Self.home, environment: [:]) { _ in
             Ran(status: 1, stdout: "zsh: command not found: printf", stderr: "")
         }
 
-        #expect(found == LoginPath.fallback)
+        #expect(found == .fallback(Self.fallback))
     }
 
     @Test func aShellThatDoesNotAnswerFallsBack() async {
-        let found = await LoginPath.find(shell: "/bin/zsh", environment: [:]) { program in
+        let found = await LoginPath.find(shell: "/bin/zsh", home: Self.home, environment: [:]) { program in
             throw RunError.timedOut(program.limit)
         }
 
-        #expect(found == LoginPath.fallback)
+        #expect(found == .fallback(Self.fallback))
     }
 
-    @Test func theFallbackPutsHomebrewBeforeTheSystem() {
-        #expect(LoginPath.fallback == "/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin")
+    @Test func theFallbackPutsHomebrewThenBunBeforeTheSystem() {
+        #expect(LoginPath.fallback(home: Self.home) == Self.fallback)
+    }
+}
+
+struct ShellPathTests {
+    /// A shell answering in turn as given, counting how often it is asked.
+    private final class Shell: Sendable {
+        private let answers: OSAllocatedUnfairLock<[FoundPath]>
+        private let count = OSAllocatedUnfairLock(initialState: 0)
+
+        init(_ answers: FoundPath...) {
+            self.answers = OSAllocatedUnfairLock(initialState: answers)
+        }
+
+        var asked: Int { count.withLock { $0 } }
+
+        func answer() -> FoundPath {
+            count.withLock { $0 += 1 }
+
+            return answers.withLock { $0.removeFirst() }
+        }
+    }
+
+    @Test func theShellsPathIsAskedForOnceAndKept() async {
+        let shell = Shell(.shell("/lee/bin"))
+        let path = ShellPath { shell.answer() }
+
+        #expect(await path.path() == "/lee/bin")
+        #expect(await path.path() == "/lee/bin")
+        #expect(shell.asked == 1)
+    }
+
+    @Test func aFallbackServesOneRunAndTheShellIsAskedAgainAtTheNext() async {
+        let shell = Shell(.fallback("/usr/bin:/bin"), .shell("/lee/bin"))
+        let path = ShellPath { shell.answer() }
+
+        #expect(await path.path() == "/usr/bin:/bin")
+        #expect(await path.path() == "/lee/bin")
+        #expect(await path.path() == "/lee/bin")
+        #expect(shell.asked == 2)
     }
 }

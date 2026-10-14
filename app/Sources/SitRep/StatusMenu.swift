@@ -127,9 +127,11 @@ final class StatusMenu: NSObject, NSMenuDelegate {
             Task { await banners.post(.refused("SitRep could not change starting at login", error.localizedDescription)) }
         }
 
-        loginLog.info("Login item now: \(service.status.words, privacy: .public)")
+        let status = service.status
 
-        if service.status == .requiresApproval {
+        loginLog.info("Login item now: \(status.words, privacy: .public)")
+
+        if status == .requiresApproval {
             SMAppService.openSystemSettingsLoginItems()
         }
     }

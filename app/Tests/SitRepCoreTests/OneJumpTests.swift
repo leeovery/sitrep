@@ -5,10 +5,7 @@ import Testing
 struct OneJumpTests {
     @Test func aJumpRunsWhenNoneIs() async {
         let oneJump = OneJump()
-        var jumped = false
-
-        #expect(await oneJump.run { jumped = true })
-        #expect(jumped)
+        #expect(await oneJump.run { JumpAnswer.jumped } == .jumped)
         #expect(!oneJump.isRunning)
     }
 
@@ -25,11 +22,11 @@ struct OneJumpTests {
 
         for await _ in started { break }
         #expect(oneJump.isRunning)
-        #expect(!(await oneJump.run { Issue.record("a second jump ran beside the first") }))
+        #expect(await oneJump.run { Issue.record("a second jump ran beside the first") } == nil)
 
         finish.yield()
-        #expect(await first.value)
+        #expect(await first.value != nil)
         #expect(!oneJump.isRunning)
-        #expect(await oneJump.run {})
+        #expect(await oneJump.run { JumpAnswer.refused("Fumi is not on screen.") } == .refused("Fumi is not on screen."))
     }
 }

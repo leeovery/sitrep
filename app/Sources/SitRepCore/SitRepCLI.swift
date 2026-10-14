@@ -18,24 +18,31 @@ public enum JumpAnswer: Sendable, Equatable {
 public struct SitRepCLI: Sendable {
     /// `list --json` answers in about 0.15s, and never hangs over tmux or `ps`.
     static let listLimit: TimeInterval = 10
-    /// Each question a jump asks Ghostty waits at most 5s, and it may ask several.
-    static let jumpLimit: TimeInterval = 30
+    /// Only a backstop for a CLI that hangs, above the longest a jump can
+    /// take (cli/jump.ts, cli/ghostty.ts): tmux and `ps` 2s; Ghostty's
+    /// terminals listed up to three times, 5s each; then, for each device
+    /// knocked on, the find (about 1s of looking, or 5s for a question that
+    /// goes unanswered) and the put-back's listing again, 15s at most. About
+    /// 17s plus 21s a device: 59s over two devices, 101s over four.
+    static let jumpLimit: TimeInterval = 120
 
     private static let logger = Logger(sitrep: "cli")
 
     let executable: URL
+    let path: @Sendable () async -> String
     let environment: [String: String]
     let run: Runner
 
-    /// Every child gets Lee's PATH, and otherwise the app's own environment.
+    /// Every child gets Lee's PATH, as it stands at each run, and otherwise the app's own environment.
     public init(
         plugin: URL,
-        path: String,
+        path: @escaping @Sendable () async -> String,
         environment: [String: String] = ProcessInfo.processInfo.environment,
         run: @escaping Runner = runProgram
     ) {
         executable = plugin.appending(path: "bin/sitrep")
-        self.environment = environment.merging(["PATH": path]) { _, given in given }
+        self.path = path
+        self.environment = environment
         self.run = run
     }
 
@@ -63,6 +70,7 @@ public struct SitRepCLI: Sendable {
 
     /// The CLI run on the words given; a run that exits other than 0 is a failure, as one that never ends is.
     private func sitrep(_ words: [String], limit: TimeInterval) async -> Ended {
+        let environment = environment.merging(["PATH": await path()]) { _, lees in lees }
         let program = Program(executable: executable, arguments: words, environment: environment, limit: limit)
         let clock = ContinuousClock()
         let started = clock.now
@@ -94,7 +102,7 @@ enum Unanswered: Error {
     case exited(Ran)
     case unrun(RunError)
 
-    /// Why, in words: the CLI's own when it gave some, which it prints to
+    /// Why, in a line: the CLI's own when it gave some, which it prints to
     /// stderr as `sitrep: <words>`.
     func complaint(of command: String) -> String {
         switch self {
@@ -120,10 +128,13 @@ private extension Ended {
 private extension Ran {
     static let prefix = "sitrep: "
 
+    /// The first line of stderr the CLI wrote as its own, its prefix
+    /// dropped; else the first with anything on it, such as the head of a
+    /// Bun stack trace. One line, as it fits a menu item or a banner.
     var complaint: String? {
-        let said = stderr.trimmingCharacters(in: .whitespacesAndNewlines)
-        let words = said.hasPrefix(Self.prefix) ? String(said.dropFirst(Self.prefix.count)) : said
+        let lines = stderr.split(whereSeparator: \.isNewline).map { $0.trimmingCharacters(in: .whitespaces) }
+        let own = lines.compactMap { $0.hasPrefix(Self.prefix) ? String($0.dropFirst(Self.prefix.count)) : nil }
 
-        return words.isEmpty ? nil : words
+        return (own + lines).first { !$0.isEmpty }
     }
 }

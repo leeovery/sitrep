@@ -7,16 +7,15 @@ public final class OneJump {
 
     public init() {}
 
-    /// Runs the jump unless one is running already; whether it ran.
-    public func run(_ jump: () async -> Void) async -> Bool {
+    /// Runs the jump unless one is running already: what it came to, or nil when refused.
+    public func run<Jumped>(_ jump: () async -> Jumped) async -> Jumped? {
         guard !isRunning else {
-            return false
+            return nil
         }
 
         isRunning = true
         defer { isRunning = false }
-        await jump()
 
-        return true
+        return await jump()
     }
 }

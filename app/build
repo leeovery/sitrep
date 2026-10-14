@@ -24,8 +24,11 @@ plugin=$(dirname "$(git -C "$repo" rev-parse --path-format=absolute --git-common
 swift build -c release --package-path "$app"
 binaries=$(swift build -c release --package-path "$app" --show-bin-path)
 
-bundle="$app/.build/SitRep.app"
-rm -rf "$bundle"
+# Put together outside the repository and gone once installed: a second
+# signed copy left about could be the one macOS launches by its bundle id.
+work=$(mktemp -d)
+trap 'rm -rf "$work"' EXIT
+bundle="$work/SitRep.app"
 mkdir -p "$bundle/Contents/MacOS"
 cp "$binaries/SitRep" "$bundle/Contents/MacOS/SitRep"
 info="$bundle/Contents/Info.plist"
