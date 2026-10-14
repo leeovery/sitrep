@@ -1028,8 +1028,9 @@ how a new Mac sets it up.
 
 The CLI is `bin/sitrep`, an executable Bun script, the only file in `bin/`.
 Claude Code puts an enabled plugin's `bin/` on its Bash tool's PATH; for
-Lee's own shell, scripts and tmux, kit's `[paths]` takes the folder
-(`~/Code/sitrep/bin`). With stage 3 the CLI ships instead as one compiled
+Lee's own shell, scripts and tmux, a link in `~/.local/bin`, already on the
+PATH, points at it (kit's manual step makes it on a new Mac): no project's
+folder goes on the PATH. With stage 3 the CLI ships instead as one compiled
 binary (`bun build --compile`) from a release, by a formula in
 `homebrew-tools`, as Portal and Switchboard do: on Lee's shell's PATH, and
 where the app finds it.
