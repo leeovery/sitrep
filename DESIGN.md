@@ -1250,9 +1250,13 @@ reaches a window only while that pane is on show).
      app runs that folder's `bin/sitrep`. Step 2 replaces it with the copy
      the app installs.
    - **A plain menu**, until the panel is designed: the works on screen, a
-     jump each, listed afresh by `list --json` each time the menu opens; a
-     test banner; starting at login; quitting. A failed jump shows the
-     CLI's words as a banner. The menu bar item is AppKit's `NSStatusItem`,
+     jump each; a test banner; starting at login; quitting. The works are
+     listed by `list --json` as the app starts and again each time the menu
+     opens, which shows the last listing at once and redraws only when the
+     fresh one differs, so nothing flashes; a work just gone from the
+     screen may show for the tenth of a second the listing takes, and
+     choosing it gets the CLI's refusal. A failed jump shows the CLI's words
+     as a banner. The menu bar item is AppKit's `NSStatusItem`,
      not SwiftUI's `MenuBarExtra`, whose menu style says nothing as the
      menu opens; the panel can still be SwiftUI inside it.
 4. **Releases**, once sitrep is stable: a release is its version, in

@@ -3,9 +3,10 @@ import os
 import ServiceManagement
 import SitRepCore
 
-/// The menu bar item and its plain menu: the works on screen, read afresh
-/// each time the menu opens, then the test banner, starting at login, and
-/// quitting.
+/// The menu bar item and its plain menu: the works on screen, then the test
+/// banner, starting at login, and quitting. The works are listed as the app
+/// starts and again each time the menu opens, which shows the last listing
+/// at once and redraws only when the fresh one differs.
 ///
 /// An NSStatusItem rather than SwiftUI's MenuBarExtra: a menu-style
 /// MenuBarExtra tells nothing as its menu opens, and NSMenuDelegate does.
@@ -20,10 +21,9 @@ final class StatusMenu: NSObject, NSMenuDelegate {
     private let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
     private let menu = NSMenu()
     private let loginItem = NSMenuItem(title: "", action: #selector(toggleLogin), keyEquivalent: "")
-    /// The menu items of the works section, which every opening replaces.
+    /// The menu items of the works section, which a changed listing replaces.
     private var shown: [NSMenuItem] = []
-    /// Which opening a listing answers, so one landing late never overwrites a newer one.
-    private var opening = 0
+    private var last = LastListing()
 
     init(works: Works, banners: Banners) {
         self.works = works
@@ -31,7 +31,6 @@ final class StatusMenu: NSObject, NSMenuDelegate {
         super.init()
 
         item.button?.image = NSImage(systemSymbolName: "square.stack.3d.up", accessibilityDescription: "SitRep")
-        menu.autoenablesItems = false
         menu.delegate = self
         loginItem.target = self
         menu.items = [
@@ -42,27 +41,33 @@ final class StatusMenu: NSObject, NSMenuDelegate {
             action("Quit SitRep", #selector(quit)),
         ]
         item.menu = menu
+        showWorks(items(for: last.answer))
+        refresh()
     }
 
-    /// The works are listed off the main thread, so the menu opens at once
-    /// and takes them in, as it stays open, once they come.
     func menuWillOpen(_ menu: NSMenu) {
-        opening += 1
-        let answering = opening
-
-        showWorks([line(Self.looking)])
         showLoginItem()
+        refresh()
+    }
+
+    /// Lists the works off the main thread; a changed answer is taken in
+    /// even while the menu stays open.
+    private func refresh() {
+        let listing = last.ask()
+
         Task {
             let listed = await works.list()
 
-            if answering == opening {
+            if last.take(listed, for: listing) {
                 showWorks(items(for: listed))
             }
         }
     }
 
-    private func items(for listed: ListAnswer) -> [NSMenuItem] {
+    private func items(for listed: ListAnswer?) -> [NSMenuItem] {
         switch listed {
+        case nil:
+            return [line(Self.looking)]
         case let .failed(why):
             return [line(why)]
         case let .works(onScreen) where onScreen.isEmpty:
@@ -76,7 +81,6 @@ final class StatusMenu: NSObject, NSMenuDelegate {
         let jump = action(work.label, #selector(jump(_:)))
 
         jump.representedObject = work.id
-        jump.isEnabled = !works.isJumping
 
         return jump
     }
@@ -142,11 +146,15 @@ final class StatusMenu: NSObject, NSMenuDelegate {
         return item
     }
 
+    /// A line to read, with no action: the menu shows it disabled.
     private func line(_ text: String) -> NSMenuItem {
-        let item = NSMenuItem(title: text, action: nil, keyEquivalent: "")
+        NSMenuItem(title: text, action: nil, keyEquivalent: "")
+    }
+}
 
-        item.isEnabled = false
-
-        return item
+/// Asked as the menu opens, so the works' items show disabled while a jump runs, however long ago they were drawn.
+extension StatusMenu: NSMenuItemValidation {
+    func validateMenuItem(_ item: NSMenuItem) -> Bool {
+        item.action != #selector(jump(_:)) || !works.isJumping
     }
 }
