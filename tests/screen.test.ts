@@ -3,7 +3,6 @@ import { GHOSTTY_BUNDLE, parseBundle } from '../cli/front'
 import { directoryAfter, MARKER_FOLDER, markerOf, parseListing, reportText } from '../cli/ghostty'
 import { parseRemembered, rememberedText } from '../cli/remembered'
 import {
-  devicesMaybeShowing,
   devicesShowing,
   ghosttyClients,
   parseClients,
@@ -192,18 +191,6 @@ test('a window outside tmux shows on its own device in Ghostty, and nowhere in a
   expect(devicesShowing([IN_GHOSTTY], SCREEN)).toEqual(['/dev/ttys041'])
   expect(devicesShowing([{ ...IN_GHOSTTY, terminal: 'iTerm.app' }], SCREEN)).toEqual([])
   expect(devicesShowing([{ terminal: 'ghostty' }], SCREEN)).toEqual([])
-})
-
-test("before ps answers, every client on a window's pane's tmux window may show it, the phone's and the one over ssh too; a window outside tmux, as ever", () => {
-  expect(devicesMaybeShowing([IN_TMUX], SCREEN.servers)).toEqual([
-    '/dev/ttys067',
-    '/dev/ttys000',
-    '/dev/ttys080',
-    '/dev/ttys055',
-  ])
-  expect(
-    devicesMaybeShowing([IN_GHOSTTY, { ...IN_GHOSTTY, terminal: 'iTerm.app' }], new Map()),
-  ).toEqual(['/dev/ttys041'])
 })
 
 test("several windows show on each one's devices, the first window's first", () => {

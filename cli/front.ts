@@ -23,17 +23,23 @@ export const bundleWords = (asn: string) => ['lsappinfo', 'info', '-only', 'bund
 /** How often the watch looks: often enough to see the hand-back within a few tenths of its landing, as a look is two runs of lsappinfo at about 11ms each. */
 export const LOOK_EVERY_MS = 50
 
-/** How long the watch lasts: three times the half second after the jump at which the hand-back came. */
-export const WATCH_MS = 1_500
+/**
+ * How long the watch lasts: twice the half second after the jump's end at
+ * which the hand-back came, in all three logged (14 October 2026). No
+ * longer, since a jump that sees no hand-back keeps the app waiting this
+ * long, and a switch Lee makes himself within it would be undone.
+ */
+export const WATCH_MS = 1_000
 
 /**
  * Brings Ghostty forward through LaunchServices, sending it no Apple Event,
  * so it needs no leave to control Ghostty: 68–98ms, where osascript's
  * `activate` took 202–354ms, long enough for the window to sit unfocused
  * for half a second after the hand-back (14 October 2026). Safe because it
- * runs only after a focus succeeded: Ghostty is running, so `open` never
- * launches it, and it has a visible window, so the reopen event `open`
- * sends never makes a new one.
+ * runs only on a hand-back, Ghostty seen in front after the focus and then
+ * another app: Ghostty is running, so `open` never launches it, and its
+ * window was just in front, so the reopen event `open` sends never makes a
+ * new one.
  */
 export const BRING_FORWARD = ['open', '-b', GHOSTTY_BUNDLE]
 
@@ -60,12 +66,13 @@ export const frontmost = async (io: Io) => {
 }
 
 /**
- * Watches the front after a jump's focus: whether Ghostty needs bringing
- * forward again, another app having taken the front from it, or Ghostty
- * never having come forward. A look lsappinfo gives no answer to changes
- * nothing.
+ * Watches the front after a jump's focus: whether another app took it back
+ * from Ghostty, seen in front first. Ghostty never in front is no hand-back:
+ * the focus may have shown nothing, Ghostty hidden or its window minimised,
+ * and `open` could then make it a new window. A look lsappinfo gives no
+ * answer to changes nothing.
  */
-const isFrontLost = async (io: Io) => {
+const isHandedBack = async (io: Io) => {
   const until = io.now() + WATCH_MS
   let isForward = false
 
@@ -81,17 +88,17 @@ const isFrontLost = async (io: Io) => {
     isForward = isForward || front === GHOSTTY_BUNDLE
   }
 
-  return !isForward
+  return false
 }
 
 /**
- * After a jump's focus, brings Ghostty forward once more should it lose the
- * front, when another app was in front as the jump began. Nothing when
- * Ghostty was, or lsappinfo could not tell; nothing that fails here fails
- * the jump.
+ * After a jump's focus, brings Ghostty forward once more should another app
+ * take the front back from it, when another app was in front as the jump
+ * began. Nothing when Ghostty was, or lsappinfo could not tell; nothing
+ * that fails here fails the jump.
  */
 export const keepInFront = async (io: Io, before: string | undefined) => {
-  if (before === undefined || before === GHOSTTY_BUNDLE || !(await isFrontLost(io))) {
+  if (before === undefined || before === GHOSTTY_BUNDLE || !(await isHandedBack(io))) {
     return
   }
 

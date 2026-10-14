@@ -20,12 +20,11 @@ import {
   reportText,
   type Terminal,
 } from './ghostty'
-import type { Io, Ran } from './io'
+import type { Io } from './io'
 import { look } from './look'
-import { readRemembered, remember, type Remembered } from './remembered'
+import { readRemembered, remember } from './remembered'
 import {
   CLIENTS,
-  devicesMaybeShowing,
   devicesShowing,
   ghosttyClients,
   PANES,
@@ -36,7 +35,6 @@ import {
   socketsOf,
   type Processes,
   type Screen,
-  type Servers,
 } from './screen'
 
 /**
@@ -82,26 +80,19 @@ const readServer = async (io: Io, socket: string) => {
     : { isAnswered: true }
 }
 
-/** Each socket's server, tmux asked twice for each. */
-const readServers = (io: Io, sockets: readonly string[]) =>
-  Promise.all(sockets.map(async socket => [socket, await readServer(io, socket)] as const))
-
-type ServersRead = Awaited<ReturnType<typeof readServers>>
-
-/** `ps`'s snapshot, taken only when a window runs in tmux. */
-const snapshotFor = (io: Io, sockets: readonly string[]) =>
-  sockets.length === 0 ? Promise.resolve(undefined) : look(io, PS)
-
-const serversOf = (read: ServersRead): Servers =>
-  new Map(read.map(([socket, { server }]) => [socket, server]))
-
 /**
- * What tells which devices show the windows: tmux's servers, and `ps`'s
- * snapshot, used only when a server has clients. Nothing that fails here
- * fails the run: what gives no answer shows nothing, and is named.
+ * What tells which devices show the windows: tmux asked twice for each
+ * socket they run under, and `ps` once beside it, its snapshot used only
+ * when a server has clients. Nothing that fails here fails the run: what
+ * gives no answer shows nothing, and is named.
  */
-const screenOf = (read: ServersRead, snapshot: Ran | undefined): Screen => {
-  const servers = serversOf(read)
+const readScreen = async (io: Io, windows: readonly Where[]): Promise<Screen> => {
+  const sockets = socketsOf(windows)
+  const [read, snapshot] = await Promise.all([
+    Promise.all(sockets.map(async socket => [socket, await readServer(io, socket)] as const)),
+    sockets.length === 0 ? undefined : look(io, PS),
+  ])
+  const servers = new Map(read.map(([socket, { server }]) => [socket, server]))
   const hasClients = [...servers.values()].some(server => (server?.clients.length ?? 0) > 0)
   const isSnapshot = snapshot?.exitCode === 0
   const processes: Processes =
@@ -115,14 +106,6 @@ const screenOf = (read: ServersRead, snapshot: Ran | undefined): Screen => {
       ...(hasClients && !isSnapshot ? ['ps'] : []),
     ],
   }
-}
-
-/** The screen as tmux, asked twice for each socket the windows run under, and `ps` beside it, give it. */
-const readScreen = async (io: Io, windows: readonly Where[]) => {
-  const sockets = socketsOf(windows)
-  const [read, snapshot] = await Promise.all([readServers(io, sockets), snapshotFor(io, sockets)])
-
-  return screenOf(read, snapshot)
 }
 
 /** The ids of the works a Ghostty window shows, from the windows each is in; nothing is knocked on. */
@@ -282,29 +265,15 @@ const focusOn = async (
   return FOCUSED
 }
 
-/** Whether a jump is all but sure to knock, before `ps` answers: some device may show its windows, and none of those has a terminal remembered. */
-const isKnockSure = (devices: readonly string[], remembered: Remembered) =>
-  devices.length > 0 && devices.every(device => !remembered.has(device))
-
 /**
  * Finds the devices showing the windows, and focuses the terminal on the
- * first of them that has one. Ghostty's terminals are listed only for a
- * knock: alongside `ps` when a knock is all but sure, else at the first
- * device that needs one.
+ * first of them that has one. Ghostty's terminals are listed only once a
+ * device needs a knock, so a jump that ends without one asks Ghostty
+ * nothing it need not.
  */
 const reach = async (io: Io, windows: readonly Where[]): Promise<Jumped> => {
-  const sockets = socketsOf(windows)
-  const servers = readServers(io, sockets)
-  const snapshot = snapshotFor(io, sockets)
-  const [read, remembered] = await Promise.all([servers, readRemembered(io)])
+  const [screen, remembered] = await Promise.all([readScreen(io, windows), readRemembered(io)])
   const listing = listingOnce(io)
-
-  if (isKnockSure(devicesMaybeShowing(windows, serversOf(read)), remembered)) {
-    // A knock that waits on the listing tells its failure; a jump that needs none lets it go.
-    void listing().catch(() => undefined)
-  }
-
-  const screen = screenOf(read, await snapshot)
   const devices = devicesShowing(windows, screen)
 
   if (devices.length === 0) {

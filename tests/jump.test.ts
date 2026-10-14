@@ -628,6 +628,24 @@ test("a remembered terminal gone falls back to the knock, which remembers the de
   )
 })
 
+test('a knock after a last line left torn ends that line first, so the new terminal is remembered and the torn line is the only one lost', async () => {
+  const TORN = `{"device":"${WINDOW}","termi`
+  const t = rememberedAs([rememberedText('/dev/ttys041', 'KIT-TERMINAL'), TORN])
+
+  expect(await t.run('jump', ...WORK)).toEqual(FOCUSED_RUN)
+  expect(t.text(REMEMBERED)).toBe(
+    `${rememberedText('/dev/ttys041', 'KIT-TERMINAL')}${TORN}\n${rememberedText(WINDOW, 'SWITCHBOARD-TERMINAL')}`,
+  )
+
+  const first = t.screen.ran.length
+
+  expect(await t.run('jump', ...WORK)).toEqual(FOCUSED_RUN)
+  expect(
+    t.screen.ran.slice(first).filter(([name]) => name === 'osascript'),
+    'the next jump focuses it by its id',
+  ).toEqual([['osascript', '-e', FOCUS, 'SWITCHBOARD-TERMINAL']])
+})
+
 test("a remembered terminal's focus failing any way but a timeout falls back to the knock", async () => {
   const t = rememberedAs([rememberedText(WINDOW, 'SWITCHBOARD-TERMINAL')], {
     tmux: SHOWN,
@@ -710,25 +728,30 @@ test('what the jump remembers sits beside the projects, and list never takes it 
   expect(await t.run('list', '--json')).toEqual(listedJson)
 })
 
-test("a jump sure to knock lists Ghostty's terminals while ps is still answering", async () => {
+/** Lets every promise settle that can while a program is held: the fakes answer at once, so a hundred turns are ample. */
+const settled = async () => {
+  for (let turn = 0; turn < 100; turn += 1) {
+    await Promise.resolve()
+  }
+}
+
+test("Ghostty's terminals are listed only once the screen is read: nothing is asked of Ghostty while ps is still answering", async () => {
   const t = oneWindow(IN_TMUX)
   const ps = t.screen.hold('ps')
-  const listing = t.screen.hold('osascript')
   const jumped = t.run('jump', ...WORK)
 
   await ps.arrived
-  await listing.arrived
+  await settled()
 
-  expect(runsOf(t, 'osascript')).toEqual([['osascript', '-e', LIST]])
+  expect(runsOf(t, 'osascript')).toEqual([])
 
   ps.release()
-  listing.release()
 
   expect(await jumped).toEqual(FOCUSED_RUN)
-  expect(runsOf(t, 'osascript').filter(words => words[2] === LIST)).toHaveLength(1)
+  expect(runsOf(t, 'osascript').map(words => words[2])).toEqual([LIST, FIND_AND_FOCUS])
 })
 
-test('a jump whose work no Ghostty window shows lists nothing in Ghostty', async () => {
+test('a jump whose work no Ghostty window shows, or that cannot tell, asks Ghostty nothing', async () => {
   const cases: [string, ReturnType<typeof terminal>][] = [
     [
       'a window not saying where it is',
@@ -747,7 +770,19 @@ test('a jump whose work no Ghostty window shows lists nothing in Ghostty', async
         ghostty: TERMINALS,
       }),
     ],
+    [
+      'a session only the phone shows',
+      oneWindow(IN_TMUX, { tmux: serverShowing(phoneClient(PHONE, CLAUDES)), ghostty: TERMINALS }),
+    ],
+    [
+      'a session only a Ghostty on another Mac shows, over ssh',
+      oneWindow(IN_TMUX, {
+        tmux: serverShowing(sshClient('/dev/ttys080', CLAUDES)),
+        ghostty: TERMINALS,
+      }),
+    ],
     ['tmux gone', oneWindow(IN_TMUX, { tmux: {}, ghostty: TERMINALS })],
+    ['ps not answering', oneWindow(IN_TMUX, { tmux: SHOWN, ghostty: TERMINALS, slow: ['ps'] })],
     [
       'a window in another terminal',
       oneWindow({ ...IN_GHOSTTY, terminal: 'iTerm.app' }, { ghostty: TERMINALS }),
@@ -755,7 +790,7 @@ test('a jump whose work no Ghostty window shows lists nothing in Ghostty', async
   ]
 
   for (const [why, t] of cases) {
-    expect((await t.run('jump', ...WORK)).err, why).toBe(OFF_SCREEN)
+    expect((await t.run('jump', ...WORK)).exit, why).toBe(EXIT.refused)
     expect(runsOf(t, 'osascript'), why).toEqual([])
   }
 })
@@ -800,7 +835,7 @@ test('which app is in front is read as the jump begins, before tmux answers', as
   expect(await jumped).toEqual(FOCUSED_RUN)
 })
 
-test('another app taking the front back after Ghostty came forward brings Ghostty forward once, at that look', async () => {
+test('another app taking the front back after Ghostty came forward brings Ghostty forward once, at that look, by `open` within the time limit', async () => {
   const { t, run } = await fromFinder([FINDER, FINDER, GHOSTTY_BUNDLE, GHOSTTY_BUNDLE, FINDER])
 
   expect(run).toEqual(FOCUSED_RUN)
@@ -811,19 +846,18 @@ test('another app taking the front back after Ghostty came forward brings Ghostt
   expect(t.waits).toEqual([LOOK_EVERY_MS, LOOK_EVERY_MS, LOOK_EVERY_MS, LOOK_EVERY_MS])
   expect(broughtForward(t)).toHaveLength(1)
   expect(t.screen.ran.at(-1)).toEqual(BRING_FORWARD)
+  expect(t.screen.limits.at(-1)).toEqual({ name: 'open', limitMs: LOOK_MS })
+  expect(BRING_FORWARD).toEqual(['open', '-b', GHOSTTY_BUNDLE])
   expect(t.screen.focused).toEqual(['SWITCHBOARD-TERMINAL'])
 })
 
-test('Ghostty never coming forward is brought forward once, as the watch ends, by `open` within the time limit', async () => {
+test('Ghostty never coming forward is never brought forward: the watch runs its whole second, and `open` could make a window', async () => {
   const { t, run } = await fromFinder([FINDER])
 
   expect(run).toEqual(FOCUSED_RUN)
   expect(t.screen.ran.filter(isFront)).toHaveLength(1 + LOOKS)
   expect(t.waits.reduce((sum, ms) => sum + ms, 0)).toBe(WATCH_MS)
-  expect(broughtForward(t)).toHaveLength(1)
-  expect(t.screen.ran.at(-1)).toEqual(BRING_FORWARD)
-  expect(t.screen.limits.at(-1)).toEqual({ name: 'open', limitMs: LOOK_MS })
-  expect(BRING_FORWARD).toEqual(['open', '-b', GHOSTTY_BUNDLE])
+  expect(broughtForward(t)).toEqual([])
 })
 
 test('Ghostty coming forward and keeping the front needs nothing more', async () => {
@@ -872,7 +906,7 @@ test('lsappinfo or open failing never fails the jump: nothing watches when lsapp
   }
 
   for (const options of [{ missing: ['open'] }, { slow: ['open'] }]) {
-    const { t, run } = await fromFinder([FINDER], options)
+    const { t, run } = await fromFinder([FINDER, GHOSTTY_BUNDLE, FINDER], options)
 
     expect(run, JSON.stringify(options)).toEqual(FOCUSED_RUN)
     expect(broughtForward(t), JSON.stringify(options)).toHaveLength(1)

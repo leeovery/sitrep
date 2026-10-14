@@ -23,9 +23,10 @@ public struct SitRepCLI: Sendable {
     /// Ghostty's terminals listed up to three times, 5s each; then, for each
     /// device, its remembered terminal's focus (5s), the find (about 1s of
     /// looking, or 5s for a question that goes unanswered) and the
-    /// put-back's listing again, 15s at most; then the watch on the front,
-    /// about 8s at worst. About 25s plus 26s a device: 77s over two
-    /// devices, 129s over four, 155s over five.
+    /// put-back's listing again, 15s at most, 25s a device; then the watch
+    /// on the front, 7s at worst: its 1s, a look stuck for 4s (two runs of
+    /// lsappinfo, 2s each) and `open`, 2s. About 24s plus 25s a device: 74s
+    /// over two devices, 124s over four, 149s over five.
     static let jumpLimit: TimeInterval = 180
 
     private static let logger = Logger(sitrep: "cli")

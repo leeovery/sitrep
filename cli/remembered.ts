@@ -9,7 +9,7 @@
  * system only appends, so each knock that answers adds a line, and the last
  * line for a device wins.
  */
-import { isFilled, isObject, rootOf } from '../core'
+import { isFilled, isObject, rootOf, tornLineEnd } from '../core'
 import type { Io } from './io'
 
 /** Each device's terminal id, by its device. */
@@ -53,6 +53,10 @@ export const parseRemembered = (text: string): Remembered =>
 export const readRemembered = async (io: Io): Promise<Remembered> =>
   parseRemembered(await io.fs.read(rememberedPath(io)).catch(() => ''))
 
-/** Adds the terminal a knock found on the device. */
-export const remember = (io: Io, device: string, terminal: string) =>
-  io.fs.append(rememberedPath(io), rememberedText(device, terminal))
+/** Adds the terminal a knock found on the device, ending first a last line left torn, as core's append does. */
+export const remember = async (io: Io, device: string, terminal: string) => {
+  const path = rememberedPath(io)
+  const text = await io.fs.read(path).catch(() => '')
+
+  await io.fs.append(path, `${tornLineEnd(text)}${rememberedText(device, terminal)}`)
+}
