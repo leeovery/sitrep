@@ -1199,21 +1199,35 @@ reaches a window only while that pane is on show).
    banner, the leave to control Ghostty, and starting at login; then its
    first start installing the plugin, and its relaunch refreshing it
    (Installing and updating, under "Where it lives"); then the panel,
-   designed in Paper. A jump outside tmux is tested but not yet run live:
-   one live run, on a Ghostty window with no tmux. Two
-   things to carry over from stage 2: an app started from the Finder has
+   designed in Paper. A jump outside tmux, tested since stage 2, was first
+   run live from the bare app (below). Two things to carry over from stage 2: an app started from the Finder has
    only `/usr/bin:/bin:/usr/sbin:/sbin` on its `PATH`, with no tmux, so it
    runs the CLI with Lee's; and its first jump asks macOS for leave to
    control Ghostty. It runs one jump at a time: two knocking on one
    terminal at once can leave it reporting `$HOME`, as the later one takes
    the earlier one's marker for a directory it cannot know.
 
-   The bare app was built on 14 October 2026. Its five live proofs are
-   still to run with Lee, and none is proven yet: a silent banner, whose
-   click jumps to the work it names; the first jump bringing macOS's prompt
-   to control Ghostty, naming SitRep, though it is the CLI, run as the
-   app's child, that asks; a rebuild keeping that leave; starting at login;
-   and a jump to a Ghostty window without tmux. What building it settled:
+   The bare app was built on 14 October 2026, and proved live with Lee the
+   same day:
+   - **A silent banner**, once Lee allowed SitRep's notifications (macOS
+     asks in a notification of its own, easily missed in Notification
+     Center), and clicking it jumped to the work it named.
+   - **The leave to control Ghostty is SitRep's**, though it is the CLI, run
+     as the app's child, that asks: macOS's record names
+     `com.leeovery.sitrep` controlling `com.mitchellh.ghostty`, granted at
+     the first jump.
+   - **A rebuild kept that leave:** no prompt after one.
+   - **Starting at login:** macOS said the login item was added, and Login
+     Items lists SitRep.
+   - **A jump to a Ghostty window without tmux**, on another Space, reached
+     it.
+
+   A jump from the menu takes about 0.45 seconds, the CLI's own time, before
+   macOS's slide to another Space. Found on the way, for both kinds of
+   window: when the last thing Lee clicked on the target Space was the
+   desktop, the jump can land on that Space with Finder still in front, as
+   macOS seems to hand focus back once its slide ends; it is a race, and
+   parked, with making the jump faster. What building it settled:
    - **A Swift package in `app/`**, no Xcode project: the executable
      `SitRep`, and a library beside it holding what can be tested without a
      screen. macOS 14 and later, Swift 6.
