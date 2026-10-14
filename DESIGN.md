@@ -1020,8 +1020,10 @@ was: only where the code lives changed.
 
 The repository holds the plugin, a one-plugin marketplace of its own
 (`.claude-plugin/marketplace.json` at its root, its source `./`, as revdiff
-is; the plugin is `sitrep@sitrep`), and from stage 3 the app. One version
-and one release cover them all.
+is; the plugin is `sitrep@sitrep`), and from stage 3 the app, whose source
+is `app/` (14 October 2026). One version and one release cover them all.
+The whole repository is the plugin, so a plugin installed from GitHub
+carries `app/` too; it is small, and accepted.
 
 **Installing and updating**, decided with Lee on 14 October 2026: app first.
 
@@ -1051,9 +1053,9 @@ and one release cover them all.
 **Until the first release** (stage 4): this Mac reads the plugin from the
 clone, `~/Code/sitrep`, as a folder marketplace, so an edit plus
 `/reload-plugins` is a change, and the clone's checkout is the code every
-window runs: work happens in a worktree. The app is built locally. kit's
-`[manual]` step installs the plugin from the GitHub marketplace on any other
-Mac until the cask exists.
+window runs: work happens in a worktree. The app is built locally, by
+`app/build` (stage 3). kit's `[manual]` step installs the plugin from the
+GitHub marketplace on any other Mac until the cask exists.
 
 **Versions side by side.** Neither the app nor a mod can reload a Claude
 window (the engine's types offer no way): each window takes a new plugin up
@@ -1205,6 +1207,54 @@ reaches a window only while that pane is on show).
    control Ghostty. It runs one jump at a time: two knocking on one
    terminal at once can leave it reporting `$HOME`, as the later one takes
    the earlier one's marker for a directory it cannot know.
+
+   The bare app was built on 14 October 2026. Its five live proofs are
+   still to run with Lee, and none is proven yet: a silent banner, whose
+   click jumps to the work it names; the first jump bringing macOS's prompt
+   to control Ghostty, naming SitRep, though it is the CLI, run as the
+   app's child, that asks; a rebuild keeping that leave; starting at login;
+   and a jump to a Ghostty window without tmux. What building it settled:
+   - **A Swift package in `app/`**, no Xcode project: the executable
+     `SitRep`, and a library beside it holding what can be tested without a
+     screen. macOS 14 and later, Swift 6.
+   - **`app/build`** builds it, makes `SitRep.app`, signs it, installs it to
+     `~/Applications/SitRep.app`, replacing what is there, and starts it.
+     Always that place: the login item and macOS's permissions remember an
+     app by where it is. It stops a running SitRep with a signal, since
+     asking it to quit by an Apple Event would itself want leave to control
+     it.
+   - **Signed with "SitRep Local"**, a certificate `app/make-certificate`
+     makes once per Mac and trusts for code signing. macOS ties the leave to
+     control Ghostty to the app's signature, and an ad hoc signature changes
+     with every build, so each rebuild would ask again; this one stays put,
+     its designated requirement the bundle id and the certificate. A
+     Developer ID replaces it at stage 4, which asks once more.
+   - **`com.leeovery.sitrep`**, named SitRep, with no Dock icon.
+   - **Its version is the plugin's**, read from `plugin.json` as it builds:
+     one version covers both.
+   - **Hardened runtime, with the apple-events entitlement**, already:
+     notarising at stage 4 needs it, so the leave to control Ghostty is
+     proven as a release will ask for it.
+   - **Lee's login shell's PATH.** As it starts, the app asks the shell in
+     Lee's user record, as a login and interactive shell, for its PATH
+     printed between markers, since Oh My Zsh prints around it; about 0.3s.
+     Interactive, as step 2 needs `claude`, which only an interactive
+     shell's PATH has. With no answer it falls back to Homebrew's folders
+     and the system's, and logs it. Every child gets that PATH and
+     otherwise the app's own environment, and a time limit: 10 seconds for
+     `list --json`, 30 for a jump, whose questions to Ghostty wait up to 5
+     seconds each.
+   - **The main checkout's path stamped in.** `app/build` writes the folder
+     of the repository's main checkout, the live plugin, into the app's
+     Info.plist (`SitRepPlugin`), even when it builds in a worktree; the
+     app runs that folder's `bin/sitrep`. Step 2 replaces it with the copy
+     the app installs.
+   - **A plain menu**, until the panel is designed: the works on screen, a
+     jump each, listed afresh by `list --json` each time the menu opens; a
+     test banner; starting at login; quitting. A failed jump shows the
+     CLI's words as a banner. The menu bar item is AppKit's `NSStatusItem`,
+     not SwiftUI's `MenuBarExtra`, whose menu style says nothing as the
+     menu opens; the panel can still be SwiftUI inside it.
 4. **Releases**, once sitrep is stable: a release is its version, in
    `plugin.json`, the marketplace entry and the app, and a tag
    (`claude plugin tag`); a GitHub Action on a macOS runner builds the app
