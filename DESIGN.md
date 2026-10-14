@@ -1210,12 +1210,25 @@ a click that takes Lee to the window a session is in.
    within 2 seconds. With Ghostty there, nothing more. Otherwise, once the
    terminal is focused, it looks every 50ms for up to 1.5 seconds, three
    times the hand-back's half second: at the first look finding another
-   app in front after Ghostty, it tells Ghostty to `activate`, once, and
-   stops; Ghostty never in front by the end, it does so then. Bringing
-   Ghostty forward is enough, since its focused terminal is the target by
-   then; focusing again after the hand-back held, live. Nothing in the
-   watch fails the jump, and lsappinfo giving no answer as the jump begins
-   means no watch.
+   app in front after Ghostty, it brings Ghostty forward, once, and stops;
+   Ghostty never in front by the end, it does so then. Bringing Ghostty
+   forward is enough, since its focused terminal is the target by then;
+   focusing again after the hand-back held, live. Nothing in the watch
+   fails the jump, and lsappinfo giving no answer as the jump begins means
+   no watch.
+
+   It brings Ghostty forward with `open -b com.mitchellh.ghostty`, within
+   2 seconds. First built with osascript telling Ghostty to `activate`, it
+   was run live the same day: a jump to Space 6 with Finder in front still
+   landed unfocused, the window taking focus about half a second later.
+   The watch saw the hand-back within about 75ms; the `activate` took
+   202–354ms, where `open` takes 68–98ms, going through LaunchServices with
+   no Apple Event, so it needs no leave to control Ghostty either. `open`
+   is safe here because the watch runs only after a focus succeeded:
+   Ghostty is running, so `open` never launches it, and it has a visible
+   window, so the reopen event `open` sends never makes a new one. A look
+   stays two runs of lsappinfo: `lsappinfo info -only bundleid front`
+   prints nothing.
 
    **What a jump costs**, measured live on 14 October 2026 with 24 Ghostty
    terminals open. Before: about 0.6s. tmux's two lists took 10ms, beside
@@ -1224,11 +1237,11 @@ a click that takes Lee to the window a session is in.
    is about 70ms (`get frontmost` takes 69ms), and Ghostty is slow to
    answer (counting its terminals takes 154ms, a focus 200–350ms), so the
    time is Ghostty's, not the programs' starts; `lsappinfo front` takes
-   11ms. Expected after, until a live run measures it: a jump to a
-   remembered terminal costs tmux and `ps`, about 85ms, and one focus,
-   200–350ms; a first jump, the longer of `ps` and the listing, then the
-   find and focus. With another app in front, the CLI then stays up to 1.5
-   seconds more, watching, the window already forward.
+   11ms. After, run live the same day: a jump to a remembered terminal
+   takes 265–360ms, tmux and `ps` then one focus. Expected, until a live
+   run measures it: a first jump costs the longer of `ps` and the listing,
+   then the find and focus. With another app in front, the CLI then stays
+   up to 1.5 seconds more, watching, the window already forward.
 
 Why tmux comes in at all: walking up the processes never reaches the window.
 Claude's chain is `launchd → tmux server → zsh → claude`, the window's is
@@ -1322,8 +1335,8 @@ reaches a window only while that pane is on show).
      costs one run, not every run until a restart. Every child gets that
      PATH and otherwise the app's own environment, and a time limit, only
      a backstop for a CLI that hangs: 10 seconds for `list --json`, and 180
-     for a jump, above the longest one can take, about 27 seconds plus 26 a
-     device (80 over two devices, 131 over four): tmux and `ps` 2 seconds,
+     for a jump, above the longest one can take, about 25 seconds plus 26 a
+     device (77 over two devices, 129 over four): tmux and `ps` 2 seconds,
      Ghostty's terminals listed up to three times at 5 seconds each; for
      each device its remembered terminal's focus, the find and the
      put-back's listing again; then the watch on the front (The jump, step

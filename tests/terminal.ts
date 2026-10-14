@@ -2,12 +2,12 @@
  * The CLI's world, for its tests: a file system in memory (the mod's test
  * world's own, when a test shares it), the folder the CLI runs in, the
  * environment, the clock, which only waiting moves, random bytes, what it
- * prints, and a fake tmux, `ps`, lsappinfo and Ghostty behind the programs
- * it runs and the devices it writes to. Nothing touches a real folder,
- * terminal or window.
+ * prints, and a fake tmux, `ps`, lsappinfo, `open` and Ghostty behind the
+ * programs it runs and the devices it writes to. Nothing touches a real
+ * folder, terminal or window.
  */
-import { FRONT, GHOSTTY_BUNDLE } from '../cli/front'
-import { ACTIVATE, FIND_AND_FOCUS, FOCUS, LIST } from '../cli/ghostty'
+import { BRING_FORWARD, FRONT, GHOSTTY_BUNDLE } from '../cli/front'
+import { FIND_AND_FOCUS, FOCUS, LIST } from '../cli/ghostty'
 import type { Env, Io, Listed, Ran } from '../cli/io'
 import { main } from '../cli/main'
 import { CLIENTS, PANES, PS } from '../cli/screen'
@@ -162,10 +162,10 @@ const latch = () => {
 }
 
 /**
- * tmux, `ps`, lsappinfo and Ghostty as the CLI's programs find them: what
- * each run prints, what is written to each device, and which terminals are
- * focused. A report written to a device sets the directory of the terminal
- * on it, and of no other.
+ * tmux, `ps`, lsappinfo, `open` and Ghostty as the CLI's programs find
+ * them: what each run prints, what is written to each device, and which
+ * terminals are focused. A report written to a device sets the directory of
+ * the terminal on it, and of no other.
  */
 function screen(options: Options) {
   const terminals = options.ghostty?.map(each => ({ ...each }))
@@ -281,6 +281,15 @@ function screen(options: Options) {
     return printed([bundle === undefined ? NO_BUNDLE : `"CFBundleIdentifier"="${bundle}"`])
   }
 
+  /** `open -b`, bringing Ghostty forward, the one app the CLI ever opens. */
+  const open = (words: readonly string[]): Ran => {
+    if (!isWords(words, BRING_FORWARD.slice(1))) {
+      throw new Error(`the fake open knows no ${words.join(' ')}`)
+    }
+
+    return printed([])
+  }
+
   /** The terminal with the id focused, its id printed; nothing for an id no terminal has. */
   const focus = (id: string | undefined) => {
     const found = terminals?.find(each => each.id === id)
@@ -311,8 +320,6 @@ function screen(options: Options) {
         return find(arg)
       case FOCUS:
         return focus(arg)
-      case ACTIVATE:
-        return []
       default:
         throw new Error('the fake Ghostty knows no such program')
     }
@@ -369,6 +376,10 @@ function screen(options: Options) {
 
     if (name === 'lsappinfo') {
       return lsappinfo(words)
+    }
+
+    if (name === 'open') {
+      return open(words)
     }
 
     if (name === 'osascript' && words[0] === '-e') {

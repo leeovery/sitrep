@@ -1,6 +1,13 @@
 import { expect, test } from 'claude-code/testing'
-import { bundleWords, FRONT, GHOSTTY_BUNDLE, LOOK_EVERY_MS, WATCH_MS } from '../cli/front'
-import { ACTIVATE, ANSWER_SECONDS, FIND_AND_FOCUS, FOCUS, LIST, reportText } from '../cli/ghostty'
+import {
+  BRING_FORWARD,
+  bundleWords,
+  FRONT,
+  GHOSTTY_BUNDLE,
+  LOOK_EVERY_MS,
+  WATCH_MS,
+} from '../cli/front'
+import { ANSWER_SECONDS, FIND_AND_FOCUS, FOCUS, LIST, reportText } from '../cli/ghostty'
 import { LOOK_MS } from '../cli/look'
 import { EXIT } from '../cli/main'
 import { REMEMBERED_FILE, rememberedText } from '../cli/remembered'
@@ -468,7 +475,7 @@ test('Ghostty not answering the find in time is refused in plain words, and the 
 })
 
 test('each Ghostty program asks Ghostty within the time limit, its running checked first', () => {
-  for (const program of [LIST, FIND_AND_FOCUS, FOCUS, ACTIVATE]) {
+  for (const program of [LIST, FIND_AND_FOCUS, FOCUS]) {
     const lines = program.split('\n')
     const at = (line: string) => lines.indexOf(line)
 
@@ -767,8 +774,8 @@ const fromFinder = async (front: string[], options: Parameters<typeof terminal>[
 
 const isFront = (words: readonly string[]) => words.join(' ') === FRONT.join(' ')
 
-const activations = (t: ReturnType<typeof terminal>) =>
-  t.screen.ran.filter(words => words[2] === ACTIVATE)
+const broughtForward = (t: ReturnType<typeof terminal>) =>
+  t.screen.ran.filter(words => words.join(' ') === BRING_FORWARD.join(' '))
 
 test('with Ghostty in front as the jump begins, nothing watches the front after it', async () => {
   const t = oneWindow(IN_TMUX)
@@ -776,7 +783,7 @@ test('with Ghostty in front as the jump begins, nothing watches the front after 
   expect(await t.run('jump', ...WORK)).toEqual(FOCUSED_RUN)
   expect(t.screen.ran.filter(isFront)).toHaveLength(1)
   expect(t.waits).toEqual([])
-  expect(activations(t)).toEqual([])
+  expect(broughtForward(t)).toEqual([])
 })
 
 test('which app is in front is read as the jump begins, before tmux answers', async () => {
@@ -802,19 +809,21 @@ test('another app taking the front back after Ghostty came forward brings Ghostt
     'the look as the jump began, and four after the focus',
   ).toHaveLength(5)
   expect(t.waits).toEqual([LOOK_EVERY_MS, LOOK_EVERY_MS, LOOK_EVERY_MS, LOOK_EVERY_MS])
-  expect(activations(t)).toHaveLength(1)
-  expect(t.screen.ran.at(-1)).toEqual(['osascript', '-e', ACTIVATE])
+  expect(broughtForward(t)).toHaveLength(1)
+  expect(t.screen.ran.at(-1)).toEqual(BRING_FORWARD)
   expect(t.screen.focused).toEqual(['SWITCHBOARD-TERMINAL'])
 })
 
-test('Ghostty never coming forward is brought forward once, as the watch ends', async () => {
+test('Ghostty never coming forward is brought forward once, as the watch ends, by `open` within the time limit', async () => {
   const { t, run } = await fromFinder([FINDER])
 
   expect(run).toEqual(FOCUSED_RUN)
   expect(t.screen.ran.filter(isFront)).toHaveLength(1 + LOOKS)
   expect(t.waits.reduce((sum, ms) => sum + ms, 0)).toBe(WATCH_MS)
-  expect(activations(t)).toHaveLength(1)
-  expect(t.screen.ran.at(-1)).toEqual(['osascript', '-e', ACTIVATE])
+  expect(broughtForward(t)).toHaveLength(1)
+  expect(t.screen.ran.at(-1)).toEqual(BRING_FORWARD)
+  expect(t.screen.limits.at(-1)).toEqual({ name: 'open', limitMs: LOOK_MS })
+  expect(BRING_FORWARD).toEqual(['open', '-b', GHOSTTY_BUNDLE])
 })
 
 test('Ghostty coming forward and keeping the front needs nothing more', async () => {
@@ -822,7 +831,7 @@ test('Ghostty coming forward and keeping the front needs nothing more', async ()
 
   expect(run).toEqual(FOCUSED_RUN)
   expect(t.screen.ran.filter(isFront)).toHaveLength(1 + LOOKS)
-  expect(activations(t)).toEqual([])
+  expect(broughtForward(t)).toEqual([])
 })
 
 test('Ghostty is brought forward never more than once, however often the front is taken back', async () => {
@@ -836,18 +845,18 @@ test('Ghostty is brought forward never more than once, however often the front i
     FINDER,
   ])
 
-  expect(activations(t)).toHaveLength(1)
+  expect(broughtForward(t)).toHaveLength(1)
   expect(t.screen.ran.filter(isFront), 'no look after it').toHaveLength(3)
 })
 
 test('a look lsappinfo gives no answer to is no hand-back', async () => {
   const { t } = await fromFinder([FINDER, GHOSTTY_BUNDLE, '', '', FINDER])
 
-  expect(activations(t)).toHaveLength(1)
+  expect(broughtForward(t)).toHaveLength(1)
   expect(t.screen.ran.filter(isFront)).toHaveLength(5)
 })
 
-test('lsappinfo or osascript failing never fails the jump: nothing watches when lsappinfo cannot tell, and a failed bringing forward is let go', async () => {
+test('lsappinfo or open failing never fails the jump: nothing watches when lsappinfo cannot tell, and a failed bringing forward is let go', async () => {
   const cases: [string, Parameters<typeof terminal>[0]][] = [
     ['lsappinfo not on PATH', { missing: ['lsappinfo'] }],
     ['lsappinfo not answering', { slow: ['lsappinfo'] }],
@@ -859,15 +868,15 @@ test('lsappinfo or osascript failing never fails the jump: nothing watches when 
 
     expect(await t.run('jump', ...WORK), why).toEqual(FOCUSED_RUN)
     expect(t.waits, why).toEqual([])
-    expect(activations(t), why).toEqual([])
+    expect(broughtForward(t), why).toEqual([])
   }
 
-  const { t, run } = await fromFinder([FINDER], {
-    refused: count => (count === 3 ? REFUSAL : undefined),
-  })
+  for (const options of [{ missing: ['open'] }, { slow: ['open'] }]) {
+    const { t, run } = await fromFinder([FINDER], options)
 
-  expect(run).toEqual(FOCUSED_RUN)
-  expect(activations(t)).toHaveLength(1)
+    expect(run, JSON.stringify(options)).toEqual(FOCUSED_RUN)
+    expect(broughtForward(t), JSON.stringify(options)).toHaveLength(1)
+  }
 })
 
 test('a jump that brings no window forward watches nothing', async () => {
@@ -887,6 +896,6 @@ test('a jump that brings no window forward watches nothing', async () => {
 
   for (const t of [offScreen, unanswered]) {
     expect(t.waits).toEqual([])
-    expect(activations(t)).toEqual([])
+    expect(broughtForward(t)).toEqual([])
   }
 })

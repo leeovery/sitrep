@@ -107,9 +107,6 @@ export const FOCUS = [
   'end run',
 ].join('\n')
 
-/** Brings Ghostty to the front, its focused terminal as it is. */
-export const ACTIVATE = ['on run', UNLESS_RUNNING, ...askGhostty('activate'), 'end run'].join('\n')
-
 const MARKER_BYTES = 8
 
 /** The folder every knock's marker is in. */

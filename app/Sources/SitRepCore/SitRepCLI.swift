@@ -24,8 +24,8 @@ public struct SitRepCLI: Sendable {
     /// device, its remembered terminal's focus (5s), the find (about 1s of
     /// looking, or 5s for a question that goes unanswered) and the
     /// put-back's listing again, 15s at most; then the watch on the front,
-    /// about 10s at worst. About 27s plus 26s a device: 80s over two
-    /// devices, 131s over four, 157s over five.
+    /// about 8s at worst. About 25s plus 26s a device: 77s over two
+    /// devices, 129s over four, 155s over five.
     static let jumpLimit: TimeInterval = 180
 
     private static let logger = Logger(sitrep: "cli")

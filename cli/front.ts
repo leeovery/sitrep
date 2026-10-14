@@ -8,11 +8,10 @@
  * there. With Ghostty in front as the jump began, it never happened (all
  * seen live, 14 October 2026).
  */
-import { ACTIVATE } from './ghostty'
 import type { Io } from './io'
 import { look } from './look'
 
-/** Ghostty's bundle id, by which lsappinfo names it. */
+/** Ghostty's bundle id, by which lsappinfo names it and `open` finds it. */
 export const GHOSTTY_BUNDLE = 'com.mitchellh.ghostty'
 
 /** lsappinfo's words for the app in front, which it names by its ASN (`ASN:0x0-0x76076:`). */
@@ -26,6 +25,17 @@ export const LOOK_EVERY_MS = 50
 
 /** How long the watch lasts: three times the half second after the jump at which the hand-back came. */
 export const WATCH_MS = 1_500
+
+/**
+ * Brings Ghostty forward through LaunchServices, sending it no Apple Event,
+ * so it needs no leave to control Ghostty: 68–98ms, where osascript's
+ * `activate` took 202–354ms, long enough for the window to sit unfocused
+ * for half a second after the hand-back (14 October 2026). Safe because it
+ * runs only after a focus succeeded: Ghostty is running, so `open` never
+ * launches it, and it has a visible window, so the reopen event `open`
+ * sends never makes a new one.
+ */
+export const BRING_FORWARD = ['open', '-b', GHOSTTY_BUNDLE]
 
 /** lsappinfo's line for a bundle id, `"CFBundleIdentifier"="com.mitchellh.ghostty"`; `[ NULL ]` in place of the id for an app gone. */
 const BUNDLE_LINE = /"CFBundleIdentifier"="([^"]+)"/
@@ -85,5 +95,5 @@ export const keepInFront = async (io: Io, before: string | undefined) => {
     return
   }
 
-  await io.run(['osascript', '-e', ACTIVATE]).catch(() => undefined)
+  await look(io, BRING_FORWARD)
 }
