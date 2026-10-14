@@ -1018,40 +1018,59 @@ CLI, the mod and soon an app, sitrep is a product, and kit's job is setting
 up Lee's Macs. The board's folder (`~/.local/state/sitrep`) stayed where it
 was: only where the code lives changed.
 
-The repository is the plugin and a one-plugin marketplace of its own
-(`.claude-plugin/marketplace.json` at its root, its source `./`), as revdiff
-is; the plugin is `sitrep@sitrep`. Every other Mac installs it from the
-GitHub marketplace (kit's `[manual]` step): `claude plugin marketplace add
-leeovery/sitrep`, then `claude plugin install sitrep@sitrep`. On this Mac,
-for now, the marketplace is the clone, `~/Code/sitrep`, read straight from
-the folder, so an edit plus `/reload-plugins` is a change, and the clone's
-checkout is the code every window runs: work happens in a worktree. Once
-sitrep is stable this Mac installs from GitHub too (stage 4).
+The repository holds the plugin, a one-plugin marketplace of its own
+(`.claude-plugin/marketplace.json` at its root, its source `./`, as revdiff
+is; the plugin is `sitrep@sitrep`), and from stage 3 the app. One version
+and one release cover them all.
+
+**Installing and updating**, decided with Lee on 14 October 2026: app first.
+
+- **On a Mac, sitrep is the app**, from a Homebrew cask in `homebrew-tools`,
+  and from nowhere else (no download of its own), so every install updates
+  the same way: `brew upgrade`.
+- **The app installs the Claude plugin.** On its first start, once it has
+  asked for what macOS must grant it (banners, leave to control Ghostty,
+  starting at login), it copies the plugin it carries to
+  `~/Library/Application Support/sitrep/`, outside its own bundle, since
+  anything written into a signed app breaks its signature; then registers
+  that folder as the `sitrep` marketplace and installs `sitrep@sitrep`,
+  through `claude plugin`. It finds `claude` where its installers put it,
+  or by asking Lee's login shell: an app sees almost no PATH.
+- **After `brew upgrade`** the app finds its newer self on disk, relaunches,
+  and refreshes that copy of the plugin. One command updates both, and
+  their versions never part.
+- **Everyone else** (Linux, Windows, no menu bar wanted) installs the plugin
+  alone from the GitHub marketplace: `claude plugin marketplace add
+  leeovery/sitrep`, then `claude plugin install sitrep@sitrep`.
+- **Ruled out:** the plugin first, its mod building the app whenever the
+  plugin's version moved on (a Claude mod compiling a Mac app, and Xcode's
+  tools wanted on every Mac); Sparkle, since `brew upgrade` already updates
+  a cask; the Mac App Store, whose sandbox forbids running another program
+  (even tmux's queries), controlling Ghostty, and writing Claude's settings.
+
+**Until the first release** (stage 4): this Mac reads the plugin from the
+clone, `~/Code/sitrep`, as a folder marketplace, so an edit plus
+`/reload-plugins` is a change, and the clone's checkout is the code every
+window runs: work happens in a worktree. The app is built locally. kit's
+`[manual]` step installs the plugin from the GitHub marketplace on any other
+Mac until the cask exists.
+
+**Versions side by side.** Neither the app nor a mod can reload a Claude
+window (the engine's types offer no way): each window takes a new plugin up
+at its next `/reload-plugins` or restart, and runs the code it loaded until
+then. So every release keeps the board's folder readable and writable by
+the release before it: a new field is optional, and nothing is renamed or
+given a new meaning. Stage 1 was the first such: windows not yet reloaded
+wrote no `where`, and read as off screen. Each window's heartbeat says which
+version it runs, so the app can show which windows to reload.
 
 The CLI is `bin/sitrep`, an executable Bun script, the only file in `bin/`.
-Claude Code puts an enabled plugin's `bin/` on its Bash tool's PATH, and
-nothing outside Claude calls the CLI, so nothing puts it on Lee's shell's:
-no project's folder goes on kit's `[paths]` (Lee, 14 October 2026). The app
-carries a compiled copy of its own (stage 3).
-
-**Updates.** Claude Code updates the plugin, not sitrep: `claude plugin
-update sitrep@sitrep` fetches a release, and each window takes it up at its
-next `/reload-plugins` or restart, which a mod cannot do for it (the
-engine's types offer no way). Until then a window runs the code it loaded,
-so two versions run side by side as a matter of course. So:
-
-- Every release keeps the board's folder readable and writable by the
-  release before it: a new field is optional, and nothing is renamed or
-  given a new meaning. Stage 1 was the first such: windows not yet reloaded
-  wrote no `where`, and read as off screen.
-- The app follows the newest version any window runs. A window whose plugin
-  is newer than the installed app rebuilds it, swaps it in and relaunches
-  it, one window at a time (a lock in the board's folder); a window on an
-  older version never rebuilds it backwards.
-- A window behind the app says so on its band: sitrep 0.4 is installed,
-  `/reload-plugins` to use it.
-- Both of those ship with the first updater, as an older window runs only
-  what it loaded.
+Claude Code puts an enabled plugin's `bin/` on its Bash tool's PATH, and the
+app calls the copy of the plugin it installed, so nothing puts the CLI on
+Lee's shell's PATH: no project's folder goes on kit's `[paths]` (Lee, 14
+October 2026). The copy the app carries has it compiled
+(`bun build --compile`), so a Mac with the app needs no Bun; the plugin alone
+from GitHub runs it on Bun.
 
 The engine's types sit in `.claude-plugin/types/`, kept out of git by their
 own `.gitignore`; `.worktreeinclude` copies them into a worktree. The mod's
@@ -1170,20 +1189,16 @@ reaches a window only while that pane is on show).
    after a `/reload-plugins`, a jump on real works went from Finder to the
    Fumi window's Space and back, half a second each way, every directory
    as it was (13 October 2026).
-3. **The app**: the icon, the banner, the panel, the jump. It is a `.app`
-   of its own (SwiftUI, no Dock icon): a menu bar item lives only as long
-   as the process that owns it, and macOS sends banners only from an app.
-   Its source sits in the repository beside the CLI, and it carries a
-   compiled copy of the CLI (`bun build --compile`), so it needs nothing of
-   sitrep's on any PATH. `sitrep app install` builds it with Xcode's
-   command line tools, signs it ad hoc and puts it in `~/Applications`,
-   starting at login: built on the Mac, it is never quarantined, so it
-   needs no notarising. That first install is Lee's, so an app never
-   appears uninvited; after it the mod keeps it current (Updates, under
-   "Where it lives"). Without the command line tools the board says what
-   to run (`xcode-select --install`), and the rest of sitrep works on.
-   First a bare app, to prove a banner from an app signed ad hoc, the
-   leave to control Ghostty, and starting at login. Two
+3. **The app**: the icon, the banner, the panel, the jump, and installing
+   the plugin. It is a `.app` of its own (SwiftUI, no Dock icon): a menu
+   bar item lives only as long as the process that owns it, and macOS
+   sends banners only from an app. Its source sits in the repository
+   beside the plugin. In order: a bare app, built locally, to prove a
+   banner, the leave to control Ghostty, and starting at login; then its
+   first start installing the plugin, and its relaunch refreshing it
+   (Installing and updating, under "Where it lives"); then the panel,
+   designed in Paper. A jump outside tmux is tested but not yet run live:
+   one live run, on a Ghostty window with no tmux. Two
    things to carry over from stage 2: an app started from the Finder has
    only `/usr/bin:/bin:/usr/sbin:/sbin` on its `PATH`, with no tmux, so it
    runs the CLI with Lee's; and its first jump asks macOS for leave to
@@ -1191,16 +1206,17 @@ reaches a window only while that pane is on show).
    terminal at once can leave it reporting `$HOME`, as the later one takes
    the earlier one's marker for a directory it cannot know.
 4. **Releases**, once sitrep is stable: a release is its version, in
-   `plugin.json` and the marketplace entry, a tag (`claude plugin tag`)
-   and a push. This Mac then installs from the GitHub marketplace like any
-   other, the clone stops being live, and a script in the repository
-   points the `sitrep` marketplace at the clone for a live test and back.
-   To settle then: whether `claude plugin update` follows `main` or the
-   tags, and whether Claude Code refreshes the marketplace by itself.
-   Going public adds a release built by a GitHub Action on a macOS runner:
-   the app signed with a Developer ID and notarised, and the plugin's CLI
-   compiled, so no one needs Bun or Xcode's tools; the mod downloads the
-   app instead of building it, the one step of the updater that changes.
+   `plugin.json`, the marketplace entry and the app, and a tag
+   (`claude plugin tag`); a GitHub Action on a macOS runner builds the app
+   with the plugin inside it, its CLI compiled, and updates the cask in
+   `homebrew-tools`. Lee's Macs then install the cask like anyone, kit's
+   `[manual]` step gives way to the cask, and the clone stops being live:
+   a script in the repository points the `sitrep` marketplace at the clone
+   for a live test, and back. Going public needs the app signed with a
+   Developer ID and notarised, since Homebrew quarantines what a cask
+   downloads, as macOS does any download. To settle then: whether
+   `claude plugin update` follows `main` or the tags, for the plugin alone
+   from GitHub.
 5. **Attention beyond asks.** The mod hears a permission prompt
    (`classic.Notification`) and a turn ending (`turn.complete`), and the
    heartbeat carries it. A session blocked on a permission prompt gets a
