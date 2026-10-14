@@ -22,7 +22,7 @@ import {
 } from './ghostty'
 import type { Io } from './io'
 import { look } from './look'
-import { readRemembered, remember } from './remembered'
+import { readRemembered, remember, type Remembered } from './remembered'
 import {
   CLIENTS,
   devicesShowing,
@@ -266,21 +266,16 @@ const focusOn = async (
 }
 
 /**
- * Finds the devices showing the windows, and focuses the terminal on the
- * first of them that has one. Ghostty's terminals are listed only once a
- * device needs a knock, so a jump that ends without one asks Ghostty
- * nothing it need not.
+ * Focuses the terminal on the first of the devices that has one. Ghostty's
+ * terminals are listed only once a device needs a knock, so a jump that
+ * ends without one asks Ghostty nothing it need not.
  */
-const reach = async (io: Io, windows: readonly Where[]): Promise<Jumped> => {
-  const [screen, remembered] = await Promise.all([readScreen(io, windows), readRemembered(io)])
+const focusFirst = async (
+  io: Io,
+  devices: readonly string[],
+  remembered: Remembered,
+): Promise<Jumped> => {
   const listing = listingOnce(io)
-  const devices = devicesShowing(windows, screen)
-
-  if (devices.length === 0) {
-    return screen.unanswered.length > 0
-      ? { is: 'unknown', unanswered: screen.unanswered }
-      : OFF_SCREEN
-  }
 
   for (const device of devices) {
     const jumped = await focusOn(io, device, remembered.get(device), listing)
@@ -295,15 +290,29 @@ const reach = async (io: Io, windows: readonly Where[]): Promise<Jumped> => {
 
 /**
  * Brings the first of the windows a Ghostty window shows to the front, on
- * whatever Space it is, and keeps it there; which app was in front is read
- * as it begins, alongside tmux.
+ * whatever Space it is, and keeps it there. Which app is in front is read
+ * beside tmux and `ps`, which outlast it, and settled before any focus, so
+ * it is never Ghostty brought forward by the jump itself.
  */
 export const jump = async (io: Io, windows: readonly Where[]): Promise<Jumped> => {
   const front = frontmost(io)
-  const jumped = await reach(io, windows)
+  const [screen, remembered, before] = await Promise.all([
+    readScreen(io, windows),
+    readRemembered(io),
+    front(),
+  ])
+  const devices = devicesShowing(windows, screen)
+
+  if (devices.length === 0) {
+    return screen.unanswered.length > 0
+      ? { is: 'unknown', unanswered: screen.unanswered }
+      : OFF_SCREEN
+  }
+
+  const jumped = await focusFirst(io, devices, remembered)
 
   if (jumped.is === 'focused') {
-    await keepInFront(io, await front)
+    await keepInFront(io, front, before)
   }
 
   return jumped

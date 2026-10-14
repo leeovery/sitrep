@@ -1154,8 +1154,9 @@ a click that takes Lee to the window a session is in.
      gone fails; it answers nothing, and the next device is knocked on.
    - Each program first checks Ghostty is running: telling it anything
      would launch it.
-   - Each question to Ghostty waits at most 5 seconds. With the screen
-     locked, Ghostty still answers a trivial question at once but nothing
+   - Each question to Ghostty, each Apple Event a program sends, waits at
+     most 5 seconds: AppleScript's `with timeout` holds for each event, not
+     for the program around them. With the screen locked, Ghostty still answers a trivial question at once but nothing
      about its terminals, and AppleScript's own limit is two minutes
      (found live, 13 October). The jump then refuses in plain words; the
      listing, or the focus of a remembered terminal, comes before any
@@ -1209,8 +1210,13 @@ a click that takes Lee to the window a session is in.
    focused terminal now the target. With Ghostty already in front as the
    jump began, it never happened (two tries, the focus held for 3
    seconds). So the jump reads which app is in front as it begins, beside
-   tmux: `lsappinfo front`, then the bundle id of the app it names, each
-   within 2 seconds. With Ghostty there, nothing more. Otherwise, once the
+   tmux and `ps`, which outlast it, and before any focus, so it never reads
+   Ghostty brought forward by the jump itself: `lsappinfo front`, then the
+   bundle id of the app it names, each within 2 seconds. An ASN names one
+   app for its whole life, so each one's bundle id is kept for the jump,
+   and a look after the first runs only `lsappinfo front` unless a new app
+   has come to the front (review, 14 October 2026). With Ghostty there,
+   nothing more. Otherwise, once the
    terminal is focused, it looks every 50ms for up to a second, twice the
    half second at which the hand-back came in all three logged: at the
    first look finding another app in front after Ghostty, it brings
@@ -1238,9 +1244,9 @@ a click that takes Lee to the window a session is in.
    never launches it, and its window was just in front, so the reopen
    event `open` sends never makes a new one. With no window showing, that
    event can make Ghostty open one, which is why Ghostty never coming
-   forward brings nothing. A look stays two runs of lsappinfo: `lsappinfo
-   info -only bundleid front` prints nothing. Run live with `open`: the window sat unfocused for
-   100–200ms at most, as Lee saw it, and the CLI ended at 0.83 seconds,
+   forward brings nothing. `lsappinfo info -only bundleid front` prints
+   nothing, so a new app's bundle id takes a second run. Run live with
+   `open`: the window sat unfocused for 100–200ms at most, as Lee saw it, and the CLI ended at 0.83 seconds,
    the watch stopping at the hand-back. The hand-back itself is macOS's,
    and nothing a jump can call stops it.
 
@@ -1352,14 +1358,16 @@ reaches a window only while that pane is on show).
      costs one run, not every run until a restart. Every child gets that
      PATH and otherwise the app's own environment, and a time limit, only
      a backstop for a CLI that hangs: 10 seconds for `list --json`, and 180
-     for a jump, above the longest one can take, about 24 seconds plus 25 a
-     device (74 over two devices, 124 over four): tmux and `ps` 2 seconds,
-     Ghostty's terminals listed up to three times at 5 seconds each; for
-     each device its remembered terminal's focus 5, the find 5 and the
-     put-back's listing again 15; then the watch on the front, 7 at most:
-     its second, a look stuck for 4 (two runs of lsappinfo at 2 each), and
-     `open` 2 (The jump, step 4). Raised from 120 when the jump began
-     remembering terminals and watching the front, 14 October 2026.
+     for a jump, well above any realistic one. A jump takes under a second
+     as Ghostty answers, and one Ghostty does not answer at all, as with
+     the screen locked, is refused at its first question, after 5 seconds.
+     It is no true ceiling: the 5 seconds hold for each question to Ghostty,
+     each Apple Event, and a program sends several (a listing three a try,
+     a focus two, a find some 40), so a Ghostty answering every question
+     only just inside its 5 seconds could keep a jump going past 180, and
+     the app would then report that the jump did not answer. Raised from
+     120 when the jump began remembering terminals and watching the front,
+     14 October 2026.
    - **The main checkout's path stamped in.** `app/build` writes the folder
      of the repository's main checkout, the live plugin, into the app's
      Info.plist (`SitRepPlugin`), even when it builds in a worktree; the

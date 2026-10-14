@@ -20,7 +20,7 @@ export const FRONT = ['lsappinfo', 'front']
 /** lsappinfo's words for the bundle id of the app an ASN names. */
 export const bundleWords = (asn: string) => ['lsappinfo', 'info', '-only', 'bundleid', asn]
 
-/** How often the watch looks: often enough to see the hand-back within a few tenths of its landing, as a look is two runs of lsappinfo at about 11ms each. */
+/** How often the watch looks: often enough to see the hand-back within a few tenths of its landing, as a look is a run or two of lsappinfo at about 11ms each. */
 export const LOOK_EVERY_MS = 50
 
 /**
@@ -56,13 +56,32 @@ const printed = async (io: Io, command: readonly string[]) => {
   return ran?.exitCode === 0 ? ran.stdout.trim() : undefined
 }
 
-/** The bundle id of the app in front; undefined when lsappinfo cannot tell. */
-export const frontmost = async (io: Io) => {
-  const asn = await printed(io, FRONT)
+/** A look at the app in front: its bundle id, or undefined when lsappinfo cannot tell. */
+export type Front = () => Promise<string | undefined>
 
-  return asn === undefined || asn === ''
-    ? undefined
-    : parseBundle((await printed(io, bundleWords(asn))) ?? '')
+/**
+ * Looks at the app in front, one jump's worth: each look runs `lsappinfo
+ * front`, and asks an app's bundle id only for an ASN not seen before, as
+ * an ASN names one app for its whole life.
+ */
+export const frontmost = (io: Io): Front => {
+  const bundles = new Map<string, string>()
+
+  const bundleOf = async (asn: string) => {
+    const bundle = bundles.get(asn) ?? parseBundle((await printed(io, bundleWords(asn))) ?? '')
+
+    if (bundle !== undefined) {
+      bundles.set(asn, bundle)
+    }
+
+    return bundle
+  }
+
+  return async () => {
+    const asn = await printed(io, FRONT)
+
+    return asn === undefined || asn === '' ? undefined : bundleOf(asn)
+  }
 }
 
 /**
@@ -72,14 +91,14 @@ export const frontmost = async (io: Io) => {
  * and `open` could then make it a new window. A look lsappinfo gives no
  * answer to changes nothing.
  */
-const isHandedBack = async (io: Io) => {
+const isHandedBack = async (io: Io, look: Front) => {
   const until = io.now() + WATCH_MS
   let isForward = false
 
   while (io.now() < until) {
     await io.wait(LOOK_EVERY_MS)
 
-    const front = await frontmost(io)
+    const front = await look()
 
     if (isForward && front !== undefined && front !== GHOSTTY_BUNDLE) {
       return true
@@ -93,12 +112,12 @@ const isHandedBack = async (io: Io) => {
 
 /**
  * After a jump's focus, brings Ghostty forward once more should another app
- * take the front back from it, when another app was in front as the jump
- * began. Nothing when Ghostty was, or lsappinfo could not tell; nothing
- * that fails here fails the jump.
+ * take the front back from it, when another app, `before`, was in front as
+ * the jump began. Nothing when Ghostty was, or lsappinfo could not tell;
+ * nothing that fails here fails the jump.
  */
-export const keepInFront = async (io: Io, before: string | undefined) => {
-  if (before === undefined || before === GHOSTTY_BUNDLE || !(await isHandedBack(io))) {
+export const keepInFront = async (io: Io, front: Front, before: string | undefined) => {
+  if (before === undefined || before === GHOSTTY_BUNDLE || !(await isHandedBack(io, front))) {
     return
   }
 

@@ -17,9 +17,10 @@ export type Terminal = { id: string; directory: string }
 const UNLESS_RUNNING = 'if application "Ghostty" is not running then return ""'
 
 /**
- * How long each question to Ghostty may wait. With the screen locked,
- * Ghostty answers nothing about its terminals, and AppleScript's own limit
- * is two minutes.
+ * How long each question to Ghostty, each Apple Event a program sends, may
+ * wait: `with timeout` holds for each event, not for the program. With the
+ * screen locked, Ghostty answers nothing about its terminals, and
+ * AppleScript's own limit is two minutes.
  */
 export const ANSWER_SECONDS = 5
 

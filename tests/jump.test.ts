@@ -835,6 +835,23 @@ test('which app is in front is read as the jump begins, before tmux answers', as
   expect(await jumped).toEqual(FOCUSED_RUN)
 })
 
+test('the focus waits for the read of which app is in front, however slow lsappinfo is, so the jump never reads its own focus', async () => {
+  const t = oneWindow(IN_TMUX, { tmux: SHOWN, ghostty: TERMINALS, front: [FINDER] })
+  const lsappinfo = t.screen.hold('lsappinfo')
+  const jumped = t.run('jump', ...WORK)
+
+  await lsappinfo.arrived
+  await settled()
+
+  expect(t.screen.ran.filter(([name]) => name === 'tmux' || name === 'ps')).toHaveLength(3)
+  expect(runsOf(t, 'osascript'), 'nothing listed or focused yet').toEqual([])
+
+  lsappinfo.release()
+
+  expect(await jumped).toEqual(FOCUSED_RUN)
+  expect(t.waits.length, 'the watch ran: Finder was in front').toBeGreaterThan(0)
+})
+
 test('another app taking the front back after Ghostty came forward brings Ghostty forward once, at that look, by `open` within the time limit', async () => {
   const { t, run } = await fromFinder([FINDER, FINDER, GHOSTTY_BUNDLE, GHOSTTY_BUNDLE, FINDER])
 
@@ -881,6 +898,15 @@ test('Ghostty is brought forward never more than once, however often the front i
 
   expect(broughtForward(t)).toHaveLength(1)
   expect(t.screen.ran.filter(isFront), 'no look after it').toHaveLength(3)
+})
+
+test("each app's bundle id is asked once a jump, an ASN naming one app for its life: a look is one run of lsappinfo after that", async () => {
+  const { t } = await fromFinder([FINDER, FINDER, GHOSTTY_BUNDLE, GHOSTTY_BUNDLE, FINDER])
+  const infos = runsOf(t, 'lsappinfo').filter(words => !isFront(words))
+
+  expect(t.screen.ran.filter(isFront)).toHaveLength(5)
+  expect(infos).toEqual([bundleWords('ASN:0x0-0x1:'), bundleWords('ASN:0x0-0x2:')])
+  expect(broughtForward(t)).toHaveLength(1)
 })
 
 test('a look lsappinfo gives no answer to is no hand-back', async () => {
