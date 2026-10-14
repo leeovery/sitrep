@@ -1,8 +1,9 @@
 # CLAUDE.md
 
 sitrep is Lee's board inside Claude Code: a mod (`hooks/`), a pure core
-(`core/`) and a CLI (`cli/`). `DESIGN.md` is the design and the record of
-what was decided and proven live; read the sections a change touches first.
+(`core/`), a CLI (`cli/`), and SitRep, the Mac menu bar app (`app/`).
+`DESIGN.md` is the design and the record of what was decided and proven
+live; read the sections a change touches first.
 
 ## This clone is the live plugin
 
@@ -14,13 +15,23 @@ worktree.
 ## Gates
 
 ```bash
-claude plugin test .     # every test, the mod's and the CLI's
-bunx tsc -p .            # the mod, the core and the CLI
-bunx tsc -p cli/shell    # the CLI's binding to Bun, on its own
+claude plugin test .              # every test, the mod's and the CLI's
+bunx tsc -p .                     # the mod, the core and the CLI
+bunx tsc -p cli/shell             # the CLI's binding to Bun, on its own
+swift build --package-path app    # the app
+swift test --package-path app     # the app's tests
 ```
 
 The type-checks need the engine's types in `.claude-plugin/types/`, which
 git leaves out; `.worktreeinclude` copies them into a worktree.
+
+## The app
+
+`app/` is a Swift package, no Xcode project: the menu bar app, which runs
+the plugin's CLI for the board and the jump. `app/build` builds it, signs it
+as "SitRep Local", installs it to `~/Applications/SitRep.app` and starts it,
+replacing the one running. `app/make-certificate` makes that signing
+identity, once per Mac.
 
 ## Live tests
 

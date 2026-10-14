@@ -1,2 +1,6 @@
 # Finder's
 .DS_Store
+
+# SwiftPM's, for the app
+app/.build/
+app/.swiftpm/

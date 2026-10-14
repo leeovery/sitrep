@@ -1,0 +1,53 @@
+#!/bin/bash
+# Builds SitRep, signs it as SitRep Local, installs it to ~/Applications and
+# starts it, replacing the one running. The login item and macOS's
+# permissions remember the app by where it is, so it is always installed to
+# the same place.
+set -euo pipefail
+
+identity="SitRep Local"
+installed="$HOME/Applications/SitRep.app"
+app=$(cd "$(dirname "$0")" && pwd)
+repo=$(dirname "$app")
+
+if ! security find-identity -v -p codesigning | grep -q "\"$identity\""; then
+  echo "No \"$identity\" signing identity: run app/make-certificate once on this Mac." >&2
+  exit 1
+fi
+
+# One version covers the plugin and the app.
+version=$(plutil -extract version raw -o - "$repo/.claude-plugin/plugin.json")
+# The app runs the main checkout's plugin, the live one, even when built in a
+# worktree; until the app carries a copy of its own.
+plugin=$(dirname "$(git -C "$repo" rev-parse --path-format=absolute --git-common-dir)")
+
+swift build -c release --package-path "$app"
+binaries=$(swift build -c release --package-path "$app" --show-bin-path)
+
+# Put together outside the repository and gone once installed: a second
+# signed copy left about could be the one macOS launches by its bundle id.
+work=$(mktemp -d)
+trap 'rm -rf "$work"' EXIT
+bundle="$work/SitRep.app"
+mkdir -p "$bundle/Contents/MacOS"
+cp "$binaries/SitRep" "$bundle/Contents/MacOS/SitRep"
+info="$bundle/Contents/Info.plist"
+cp "$app/Info.plist" "$info"
+plutil -insert CFBundleShortVersionString -string "$version" "$info"
+plutil -insert CFBundleVersion -string "$version" "$info"
+plutil -insert SitRepPlugin -string "$plugin" "$info"
+
+codesign --force --options runtime --entitlements "$app/SitRep.entitlements" -s "$identity" "$bundle"
+
+# Stopped by a signal: asking it to quit by an Apple Event would itself want
+# leave to control SitRep.
+if pkill -x SitRep; then
+  while pgrep -x SitRep > /dev/null; do sleep 0.1; done
+fi
+
+mkdir -p "$(dirname "$installed")"
+rm -rf "$installed"
+ditto "$bundle" "$installed"
+open "$installed"
+
+echo "SitRep $version installed to $installed, running the plugin at $plugin"

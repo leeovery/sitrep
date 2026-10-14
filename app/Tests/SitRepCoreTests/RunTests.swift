@@ -1,0 +1,84 @@
+import Foundation
+@testable import SitRepCore
+import Testing
+
+struct RunTests {
+    private static func sh(_ script: String, environment: [String: String] = [:], limit: TimeInterval = 5) -> Program {
+        Program(executable: URL(fileURLWithPath: "/bin/sh"), arguments: ["-c", script], environment: environment, limit: limit)
+    }
+
+    /// How long a run took, and what it came to.
+    private static func timed(_ program: Program) async -> (Result<Ran, any Error>, Duration) {
+        let clock = ContinuousClock()
+        let started = clock.now
+        let ended: Result<Ran, any Error>
+
+        do {
+            ended = .success(try await runProgram(program))
+        } catch {
+            ended = .failure(error)
+        }
+
+        return (ended, clock.now - started)
+    }
+
+    @Test func aRunGivesTheExitStatusAndBothOutputs() async throws {
+        let ran = try await runProgram(Self.sh("echo out; echo err >&2; exit 3"))
+
+        #expect(ran == Ran(status: 3, stdout: "out\n", stderr: "err\n"))
+    }
+
+    @Test func theProgramGetsOnlyTheEnvironmentGiven() async throws {
+        let ran = try await runProgram(Self.sh(#"printf '%s|%s' "$PATH" "${HOME-unset}""#, environment: ["PATH": "/lee/bin"]))
+
+        #expect(ran.stdout == "/lee/bin|unset")
+    }
+
+    @Test func stdinIsEmpty() async throws {
+        let ran = try await runProgram(Self.sh("cat; echo read"))
+
+        #expect(ran.stdout == "read\n")
+    }
+
+    @Test func outputLargerThanAPipeHoldsIsReadWhole() async throws {
+        let ran = try await runProgram(Self.sh("head -c 200000 /dev/zero | tr '\\0' x"))
+
+        #expect(ran.stdout.count == 200_000)
+    }
+
+    @Test func aProgramThatCannotStartIsUnstartable() async {
+        let missing = Program(executable: URL(fileURLWithPath: "/no/such/sitrep"), arguments: [], environment: [:], limit: 5)
+
+        await #expect {
+            try await runProgram(missing)
+        } throws: { error in
+            if case .unstartable = error as? RunError { true } else { false }
+        }
+    }
+
+    @Test func aProgramOutlivingItsLimitIsKilledAndTimedOut() async {
+        let (ended, took) = await Self.timed(Self.sh("sleep 10", limit: 0.3))
+
+        #expect(throws: RunError.timedOut(0.3)) { try ended.get() }
+        #expect(took < .seconds(3))
+    }
+
+    /// An interactive shell ignores SIGTERM, so the kill must be one it cannot ignore.
+    @Test func aProgramIgnoringTermIsKilledAllTheSame() async {
+        let (ended, took) = await Self.timed(Self.sh("trap '' TERM; while :; do sleep 1; done", limit: 0.3))
+
+        #expect(throws: RunError.timedOut(0.3)) { try ended.get() }
+        #expect(took < .seconds(3))
+    }
+
+    @Test func aChildLeftHoldingTheOutputOpenIsNotWaitedOn() async throws {
+        let (ended, took) = await Self.timed(Self.sh("echo done; sleep 10 &", limit: 20))
+
+        #expect(try ended.get() == Ran(status: 0, stdout: "done\n", stderr: ""))
+        #expect(took < .seconds(3))
+    }
+
+    @Test func timingOutIsToldInWords() {
+        #expect(RunError.timedOut(30).description == "did not answer within 30 seconds")
+    }
+}
