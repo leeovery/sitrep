@@ -172,15 +172,6 @@ public final class Meniscus {
         }
     }
 
-    /// A click on the lip opens the panel at once, as the dwell would; a panel already out it leaves as it is.
-    public func clickLip() {
-        guard !isLive else {
-            return
-        }
-
-        open()
-    }
-
     /// A click on one of `items`: one that jumps drains the panel, as a jump does.
     public func clickRow(_ index: Int) {
         guard isLive, case let .session(session) = items[index], session.jumps else {

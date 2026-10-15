@@ -73,7 +73,8 @@ public struct Frame {
     /// pointer moves or Lee acts.
     public let isMoving: Bool
 
-    /// Whether a click here is the panel's (on the black, or on the lip's hit area); anywhere else it passes through.
+    /// Whether a click here lands on the black, or the lip's hit area, rather than on what is beneath: only a row
+    /// does anything with it, and anywhere else it passes through.
     public func hits(_ point: CGPoint) -> Bool {
         outline.contains(point) || inRect(Vec(point.x, point.y), hitRect)
     }

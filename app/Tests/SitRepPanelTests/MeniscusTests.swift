@@ -100,7 +100,7 @@ struct MeniscusTests {
 
     @Test func theRowsLandFromTheTopTwentyFiveMillisecondsApart() {
         var lab = Lab()
-        lab.model.clickLip()
+        lab.model.open()
         let opened = lab.model.t
 
         lab.wait(300)
@@ -237,48 +237,6 @@ struct MeniscusTests {
         #expect(!closed)
     }
 
-    @Test func aClickOnTheLipOfAClosedPanelOpensItAtOnceAndItClosesAsThePointerLeaves() {
-        var lab = Lab()
-
-        lab.model.clickLip()
-
-        #expect(lab.phase == .opening)
-        lab.wait(600)
-        #expect(lab.phase == .open)
-
-        lab.pointer = CGPoint(x: 200, y: lab.lipY)
-        lab.wait(100)
-        let left = lab.move(to: CGPoint(x: 450, y: lab.lipY), speed: 0.05) { $0.phase != .open }
-        #expect(left)
-        let settled = lab.settle()
-        #expect(settled)
-        #expect(lab.phase == .closed)
-        #expect(abs(lab.shape.w - 7) < 0.01)
-    }
-
-    @Test func aClickOnTheLipOfAnOpenPanelChangesNothing() {
-        var clicked = Self.openAndGone(), left = Self.openAndGone()
-
-        clicked.model.clickLip()
-
-        for _ in 0 ..< 60 {
-            clicked.step()
-            left.step()
-            #expect(clicked.phase == left.phase)
-            #expect(clicked.frame.outline.boundingBoxOfPath == left.frame.outline.boundingBoxOfPath)
-        }
-        #expect(clicked.phase == .closed || clicked.phase == .closing)
-    }
-
-    /// The panel open, and the pointer gone to another screen: the grace runs.
-    private static func openAndGone() -> Lab {
-        var lab = Lab()
-        lab.openByTouch()
-        lab.pointer = nil
-        lab.step()
-        return lab
-    }
-
     @Test func aClickElsewhereClosesTheOpenPanelAtOnce() {
         var lab = Lab()
         lab.openByTouch()
@@ -377,7 +335,7 @@ struct MeniscusTests {
     @Test func theSwellsAfterTheFirstStopOnceThePanelOpens() {
         var lab = Lab(needsLee: true)
         lab.model.newAsk()
-        lab.model.clickLip()
+        lab.model.open()
 
         var flashes: Set<Double> = []
         lab.wait(1500) { lab in

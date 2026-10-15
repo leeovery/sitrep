@@ -147,9 +147,7 @@ final class PanelController: NSObject {
             return
         }
 
-        if frame.hitRect.contains(point) {
-            act { $0.clickLip() }
-        } else if let row = row(at: point) {
+        if let row = row(at: point) {
             act { $0.clickRow(row) }
         }
     }
