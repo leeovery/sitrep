@@ -1083,16 +1083,21 @@ plugin keeps no packages.
 
 ## The menu bar
 
-Decided with Lee on 13 October 2026, on the board as `sr-aw3bgs`. One place
-on the Mac, on every Space, for what waits on Lee across every project, and
-a click that takes Lee to the window a session is in.
+Decided with Lee on 13 October 2026, on the board as `sr-aw3bgs`, its
+surface redrawn as the side panel on 14 and 15 October 2026. One place on
+the Mac, on every Space, for what waits on Lee across every project, and a
+click that takes Lee to the window a session is in.
 
-- **A native menu bar app** (SwiftUI). Its icon carries what waits on Lee. A
-  new ask posts a macOS banner, silent: the window's own chime already plays,
-  so Lee hears it once.
-- **The panel:** projects, their sessions, and what waits on Lee in each; a
-  project opens to more of its view. Answering stays in the session: the
-  panel shows, and takes Lee there.
+- **A native Mac app**, with no Dock icon. Its surface is **the side
+  panel**: a lip at the edge of the screen that opens into Lee's sessions
+  (below). It replaces the menu bar's list, first planned as projects
+  opening to their sessions.
+- **The menu bar item stays, slimmed** to settings and quitting, with the
+  plain list of works on screen kept as a fallback.
+- **Banners for a new ask**, silent, since the window's own chime already
+  plays and Lee hears it once. They are off by default once the lip exists,
+  since the lip swells and lights for a new ask, and a setting turns them on.
+- **Answering stays in the session:** the panel shows, and takes Lee there.
 - **Clicking** a session, an ask or a banner takes Lee to the Ghostty window
   showing that session, on whatever Space it is. A session no window shows
   offers no jump: the app never opens a window (until stage 6).
@@ -1100,6 +1105,168 @@ a click that takes Lee to the window a session is in.
   the CLI for the board and for the jump.
 - **tmux and Ghostty stay at the edge.** Only the jump knows them; core, the
   board and the app never do. Portal is not involved.
+
+### The side panel
+
+Lee's idea, 14 October 2026: a floating island at the side of the screen,
+opening like a liquid, as iOS 27's Siri does. It was designed with Lee over
+14 and 15 October:
+- the form in Paper (the file "SitRep · side panel", rounds 1 and 2);
+- the feel in an animated prototype in the browser, tuned over eleven
+  rounds;
+- published at https://claude.ai/artifact/NVh9MJwABf5Kmqtzvy5Uoh, whose
+  Meniscus tab is the design.
+
+**The lip.** At rest, a black lip flared into the display's black bezel,
+7 points deep and 76 long, its ends S-curves. While something needs Lee,
+it is 15 × 124, with the light inside. It opens into a black panel:
+- 372 deep;
+- front corners of radius 24, and flares of 18 into the bezel;
+- kept 40 from the top and bottom of the screen's visible frame.
+
+It sits on the left edge by default, at Lee's asking. On this Mac the left
+edge of the main display is a hard edge: the built-in display sits to its
+right. A drag moves it along the edge, and past the middle to the other
+edge; never to the bottom. The form is Paper's round 1 "Bezel". The light's
+place, a strip in the lip, is round 2's "Strip".
+
+**The light: Live**, in Claude Code's orange, #E9643D. It is a crisp bar
+2.5 × 36 in the lip:
+- a tight halo, clipped to the lip;
+- two warmer spots swaying slowly along it, on about 8 and 11 seconds;
+- a breath on 2.4 seconds, carried in colour with opacity 0.86–1, so it
+  stays orange at the trough.
+
+A new ask brightens it briefly. It shows only whether anything needs Lee,
+never how many asks, and dims out while the panel is out. Every needs-you
+mark is that orange: the light, the rows' dots, a new ask's wash.
+
+Six steps were tried, from a bloom to a glow inside the material. A bloom
+looked blurred from across the room. Lee wanted "the crisp edges on the
+black background", with a little happening inside: subtle, and narrower.
+
+**The rows**, in this order:
+1. needs you, oldest first;
+2. your turn;
+3. working;
+4. quiet;
+5. not on screen.
+
+Each says what it is, with its project and work beneath. A click jumps: the
+row presses in and spins for up to 450ms, the panel drains, and a caption
+says where it jumped. ⏎ jumps from the row under the pointer. A new ask
+makes the lip over-swell once and the light flash, and its row gets an
+orange wash for 2 seconds.
+
+**The feel: Meniscus.** The edge is the surface of a liquid.
+- **Approach.** The field reaches 49 from the edge (140 × Pull) and 220
+  along it either side of the lip's centre. Within it, the lip draws a
+  tongue toward the cursor:
+  - pulled as 1/(distance + 10);
+  - its tip follows the cursor along the edge, up to 40 from home;
+  - its base never slides.
+
+  It snaps open when the gap closes to Reach, once the tongue has caught
+  up and the cursor isn't sliding past along the edge. Touching the lip
+  opens it after 150ms, or at once when fast. The panel pours out from the
+  point of contact, and the rows land 25ms apart.
+- **Open.** The edge bows toward a cursor near it from inside, anywhere on
+  the outline.
+- **Leave.** The edge holds the cursor: a tongue with its tip just past the
+  pointer, narrowing as it stretches. It holds round the corners and along
+  the top and bottom too. It breaks after hanging 60ms at Hold, or when the
+  pointer gets 6 ahead of it. A fast leave flings the edge out after the
+  cursor, up to about 14, before it lets go.
+- **Release.**
+  - The bulge springs back to its line, then through it into a dent: about
+    8 deep when slow and 3.6 on a flick, its inward travel fitted to 85ms
+    and 50ms.
+  - It comes out to a slight convex and rings on.
+  - The panel starts to collapse Push of the way, in time, from the line to
+    the deepest dent, kicked by the bulge's speed.
+  - The collapse eases in, so the ring shows on the panel, and the ring
+    carries on into the lip.
+- **Home.**
+  - The lip's two ends are springs of their own: the end nearer the exit
+    leads, and the far end follows 36ms later.
+  - The lip arrives past home, away from the exit (up to 12), swings back
+    and settles.
+  - The landing dips about 3 under the lip's depth, lengthens about 6.7,
+    swings and settles (Land).
+- **Leaving back over the lip** has a grace of 300ms, down to 60ms when
+  fast. Esc or a click elsewhere closes it at once. A click on the lip pins
+  it open.
+- **Reduced motion:** no pull toward the cursor; the shape cross-fades.
+
+**Lee's settings**, from round 11 ("I think this is working"):
+`{"bounce":0.90,"pull":0.35,"hold":35,"reach":10,"push":20,"land":1.11,"close":1.81,"edge":"left","light":"live"}`.
+
+Each is a dial in the prototype:
+
+| Dial | What it sets |
+|---|---|
+| Bounce | Scales every spring's damping: at 0 ×1.4, at 0.5 as listed, at 1 ×0.7, capped at 1 |
+| Pull | The field, the tongue's reach and the cling |
+| Hold | How far the edge stretches before it breaks |
+| Reach | The gap at which the lip snaps open |
+| Push | When the collapse starts |
+| Land | The landing's dip |
+| Close | The collapse's speed |
+
+The app has the same dials, and the same Copy settings, so Lee tunes it on
+the display itself and the values pass between the two.
+
+The springs, after Bounce, as SwiftUI's
+`.spring(response:dampingFraction:)`:
+
+| Spring | Value |
+|---|---|
+| attract | 0.20·0.57 |
+| relax | 0.45·0.42 |
+| home | 0.60·0.61 |
+| pour h | 0.40·0.57 |
+| pour w | 0.34·0.55 |
+| cling | 0.24·0.55 |
+| cling y | 0.16·0.65 |
+| tongue | 0.08·0.61 |
+| return | 0.30·0.29 |
+| ring | 0.17·0.29 |
+| release | 0.30·0.38 |
+| drain | 0.60·0.95 (its speed ×1.81 from Close) |
+| land | 0.19·0.24 |
+| rebound | 0.20·0.42 |
+| ask | 0.42·0.38 |
+
+From Pull: a field of 49, a tongue of 7.7, a cling of 2.1. The feel changes
+only from Lee's notes.
+
+**Ruled out.** Five feels were built:
+- **Pour:** precise springs that never overshoot; too basic.
+- **Gel:** Liquid Glass's gel. Too subtle at speed, and the background
+  seemed to arrive after the text.
+- **Jelly:** a membrane that ripples. Too subtle at speed.
+- **Drop:** a drop that leaves the bezel and floats as an island. Lee:
+  "It feels weird something creating a drop horizontally." It is parked for
+  a panel at the top of the screen.
+
+Of the lights, Neon and Ember were not quite right, and the bloom was too
+blurred.
+
+**The window**, from the research into edge and notch apps:
+- an `NSPanel` subclass, borderless and non-activating;
+- at level `.mainMenu + 3`, on every Space and over full-screen apps
+  (`.canJoinAllSpaces`, `.fullScreenAuxiliary`, `.stationary`,
+  `.ignoresCycle`);
+- clicks pass through it except over the shape;
+- a global mouse monitor hears the approach.
+
+The shape is one path rebuilt every frame from the springs. As in the
+prototype, they are integrated semi-implicitly in substeps of at most 4ms,
+with their velocity kept when a target changes.
+
+**Later.** Answering a yes or a choice from the panel, through the work's
+inbox. A permission prompt would need a hook that holds Claude Code's
+prompt open.
 
 ### The jump
 
@@ -1290,15 +1457,24 @@ reaches a window only while that pane is on show).
    after a `/reload-plugins`, a jump on real works went from Finder to the
    Fumi window's Space and back, half a second each way, every directory
    as it was (13 October 2026).
-3. **The app**: the icon, the banner, the panel, the jump, and installing
-   the plugin. It is a `.app` of its own (SwiftUI, no Dock icon): a menu
-   bar item lives only as long as the process that owns it, and macOS
+3. **The app**: the menu bar item, the banner, the side panel, the jump,
+   and installing the plugin. It is a `.app` of its own (no Dock icon): a
+   menu bar item lives only as long as the process that owns it, and macOS
    sends banners only from an app. Its source sits in the repository
-   beside the plugin. In order: a bare app, built locally, to prove a
-   banner, the leave to control Ghostty, and starting at login; then its
-   first start installing the plugin, and its relaunch refreshing it
-   (Installing and updating, under "Where it lives"); then the panel,
-   designed in Paper. A jump outside tmux, tested since stage 2, was first
+   beside the plugin. In order:
+   1. a bare app, built locally, to prove a banner, the leave to control
+      Ghostty, and starting at login;
+   2. the side panel, taken before the install on 15 October 2026 ("The
+      side panel"):
+      - first a spike, with the window, the lip, the light and the feel,
+        over fixed sample rows, for Lee to feel on the display;
+      - then wiring it to the board;
+      - then slimming the menu to settings and quitting, with its list kept
+        as a fallback, and banners off by default;
+   3. its first start installing the plugin, and its relaunch refreshing it
+      (Installing and updating, under "Where it lives").
+
+   A jump outside tmux, tested since stage 2, was first
    run live from the bare app (below). Two things to carry over from stage 2: an app started from the Finder has
    only `/usr/bin:/bin:/usr/sbin:/sbin` on its `PATH`, with no tmux, so it
    runs the CLI with Lee's; and its first jump asks macOS for leave to
@@ -1373,8 +1549,9 @@ reaches a window only while that pane is on show).
      Info.plist (`SitRepPlugin`), even when it builds in a worktree; the
      app runs that folder's `bin/sitrep`. Step 2 replaces it with the copy
      the app installs.
-   - **A plain menu**, until the panel is designed: the works on screen, a
-     jump each; a test banner; starting at login; quitting. The works are
+   - **A plain menu**, until the side panel is built, and then slimmed as
+     its fallback: the works on screen, a jump each; a test banner;
+     starting at login; quitting. The works are
      listed by `list --json` as the app starts and again each time the menu
      opens, which shows the last listing at once and redraws only when the
      fresh one differs, so nothing flashes; a work just gone from the
@@ -1382,7 +1559,7 @@ reaches a window only while that pane is on show).
      choosing it gets the CLI's refusal. A failed jump shows the CLI's words
      as a banner. The menu bar item is AppKit's `NSStatusItem`,
      not SwiftUI's `MenuBarExtra`, whose menu style says nothing as the
-     menu opens; the panel can still be SwiftUI inside it.
+     menu opens.
 4. **Releases**, once sitrep is stable: a release is its version, in
    `plugin.json`, the marketplace entry and the app, and a tag
    (`claude plugin tag`); a GitHub Action on a macOS runner builds the app
