@@ -27,9 +27,9 @@ public struct Stage: Equatable, Sendable {
         bandBottom - bandTop >= h ? clamp(y, bandTop + h / 2, bandBottom - h / 2) : height / 2
     }
 
-    /// The lip's home, kept where even its swell fits inside the band.
+    /// The lip's home, kept where even its deepest swell fits inside the band.
     func clampLipY(_ y: Double) -> Double {
-        let half = LipShape.swell.h / 2
+        let half = LipShape.deepestSwell.h / 2
         return clamp(y, bandTop + half, max(bandTop + half, bandBottom - half))
     }
 }

@@ -3,7 +3,7 @@ import Foundation
 import Testing
 
 struct SettingsTests {
-    private static let lees = #"{"bounce":0.90,"pull":0.35,"hold":35,"reach":10,"push":20,"land":1.11,"close":1.81,"edge":"left","light":"live"}"#
+    private static let lees = #"{"bounce":0.90,"pull":0.35,"hold":35,"reach":10,"push":20,"land":1.11,"close":1.81,"swell":22,"edge":"left","light":"live"}"#
 
     @Test func theDefaultsAreLeesRoundElevenSettingsPrintedAsTheCopySettingsJSON() {
         #expect(Settings().json == Self.lees)
@@ -22,7 +22,7 @@ struct SettingsTests {
         settings.close = 0.5
         settings.edge = .right
 
-        #expect(settings.json == #"{"bounce":0.50,"pull":1.00,"hold":8,"reach":10,"push":100,"land":1.11,"close":0.50,"edge":"right","light":"live"}"#)
+        #expect(settings.json == #"{"bounce":0.50,"pull":1.00,"hold":8,"reach":10,"push":100,"land":1.11,"close":0.50,"swell":22,"edge":"right","light":"live"}"#)
     }
 
     @Test func aKeyMissingOrUnreadableKeepsItsDefault() throws {
@@ -34,7 +34,7 @@ struct SettingsTests {
     }
 
     @Test func eachDialGoesOntoItsSlidersRangeAndStep() throws {
-        let read = try Settings(json: #"{"bounce":1.7,"pull":0.344,"hold":34.5,"reach":2,"push":-5,"land":0.006,"close":0.123}"#)
+        let read = try Settings(json: #"{"bounce":1.7,"pull":0.344,"hold":34.5,"reach":2,"push":-5,"land":0.006,"close":0.123,"swell":40}"#)
 
         #expect(read.bounce == 1)
         #expect(read.pull == 0.34)
@@ -43,6 +43,7 @@ struct SettingsTests {
         #expect(read.push == 0)
         #expect(read.land == 0.01)
         #expect(read.close == 0.5)
+        #expect(read.swell == 30)
     }
 
     @Test func theSettingsRoundTripThroughCodable() throws {
@@ -66,13 +67,14 @@ struct SettingsTests {
             "push 0.0...100.0 by 1.0",
             "land 0.0...2.0 by 0.01",
             "close 0.5...2.0 by 0.01",
+            "swell 15.0...30.0 by 1.0",
         ])
     }
 
     @Test func eachDialShowsAsItsSlidersLabelDoes() {
         let settings = Settings()
 
-        #expect(Dial.allCases.map { $0.show(settings[$0]) } == ["0.90", "0.35×", "35px", "10px", "20%", "1.11×", "1.81×"])
+        #expect(Dial.allCases.map { $0.show(settings[$0]) } == ["0.90", "0.35×", "35px", "10px", "20%", "1.11×", "1.81×", "22px"])
     }
 
     @Test func atLeesSettingsTheDerivedSpringsAndReachesAreTheReadmesTable() {
@@ -90,7 +92,7 @@ struct SettingsTests {
     }
 
     @Test func eachDialIsNamedAsThePrototypesSliderIs() {
-        #expect(Dial.allCases.map(\.name) == ["Bounce", "Pull", "Hold", "Reach", "Push", "Land", "Close"])
+        #expect(Dial.allCases.map(\.name) == ["Bounce", "Pull", "Hold", "Reach", "Push", "Land", "Close", "Swell"])
     }
 
     @Test(arguments: [(0.0, 1.4), (0.5, 1.0), (1.0, 0.7)])

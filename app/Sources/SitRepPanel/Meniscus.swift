@@ -305,10 +305,10 @@ public final class Meniscus {
     }
 
     /// A new ask: the swell runs as one underdamped spring. The lip is kicked outward, so it over-swells to about
-    /// SWELL, falls back a little past NEEDS, and settles: one quiver.
+    /// the Swell dial's depth, falls back a little past NEEDS, and settles: one quiver.
     func swellLip() {
         let p = settings.sp(.ask), omega = 2 * Double.pi / (p.response * 1000)
-        let needs = LipShape.needs, swell = LipShape.swell
+        let needs = LipShape.needs, swell = LipShape(settings.swell)
         let keys: [(WritableKeyPath<Springs, Spring>, Double, Double)] = [
             (\.w, needs.w, swell.w), (\.h, needs.h, swell.h), (\.r, needs.r, swell.r), (\.f, needs.f, swell.f),
         ]

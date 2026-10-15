@@ -18,7 +18,9 @@ struct LipShape: Equatable {
         f = e * 3 / 7
     }
 
-    static let rest = LipShape(7), needs = LipShape(15), swell = LipShape(19)
+    static let rest = LipShape(7), needs = LipShape(15)
+    /// The deepest a new ask can swell it, on the Swell dial.
+    static let deepestSwell = LipShape(Dial.swell.range.upperBound)
 }
 
 /// A cubic Bézier; a line is one too.

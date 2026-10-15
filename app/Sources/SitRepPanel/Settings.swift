@@ -1,6 +1,7 @@
 import Foundation
 
-/// The panel's settings: the prototype's seven dials, its edge and its light, defaulting to Lee's (round 11).
+/// The panel's settings: the prototype's seven dials and the swell, its edge and its light, defaulting to Lee's
+/// (round 11, and the swell from his first feel of the app).
 public struct Settings: Equatable, Sendable {
     public enum Edge: String, Codable, Sendable {
         case left, right
@@ -18,6 +19,8 @@ public struct Settings: Equatable, Sendable {
     public var push = 20.0
     public var land = 1.11
     public var close = 1.81
+    /// How deep a new ask over-swells the lip, from its 15.
+    public var swell = 22.0
     public var edge = Edge.left
     public var light = Light.live
 
@@ -33,6 +36,7 @@ public struct Settings: Equatable, Sendable {
             case .push: push
             case .land: land
             case .close: close
+            case .swell: swell
             }
         }
         set {
@@ -44,12 +48,13 @@ public struct Settings: Equatable, Sendable {
             case .push: push = newValue
             case .land: land = newValue
             case .close: close = newValue
+            case .swell: swell = newValue
             }
         }
     }
 
     /// The settings as the prototype's Copy settings prints them, so they paste either way:
-    /// `{"bounce":0.90,"pull":0.35,"hold":35,"reach":10,"push":20,"land":1.11,"close":1.81,"edge":"left","light":"live"}`.
+    /// `{"bounce":0.90,"pull":0.35,"hold":35,"reach":10,"push":20,"land":1.11,"close":1.81,"swell":22,"edge":"left","light":"live"}`.
     public var json: String {
         let dials = Dial.allCases.map { "\"\($0.rawValue)\":\($0.json(self[$0]))" }
         let rest = ["\"edge\":\"\(edge.rawValue)\"", "\"light\":\"\(light.rawValue)\""]
@@ -88,9 +93,9 @@ public struct Settings: Equatable, Sendable {
     }
 }
 
-/// One of the prototype's dials (its `DIALS`), with its slider's range and step.
+/// One of the prototype's dials (its `DIALS`), or the swell, with its slider's range and step.
 public enum Dial: String, CaseIterable, Sendable {
-    case bounce, pull, hold, reach, push, land, close
+    case bounce, pull, hold, reach, push, land, close, swell
 
     public var range: ClosedRange<Double> {
         switch self {
@@ -101,13 +106,14 @@ public enum Dial: String, CaseIterable, Sendable {
         case .push: 0 ... 100
         case .land: 0 ... 2
         case .close: 0.5 ... 2
+        case .swell: 15 ... 30
         }
     }
 
     public var step: Double {
         switch self {
         case .bounce, .pull, .land, .close: 0.01
-        case .hold, .reach, .push: 1
+        case .hold, .reach, .push, .swell: 1
         }
     }
 
@@ -117,7 +123,7 @@ public enum Dial: String, CaseIterable, Sendable {
         switch self {
         case .bounce: ""
         case .pull, .land, .close: "×"
-        case .hold, .reach: "px"
+        case .hold, .reach, .swell: "px"
         case .push: "%"
         }
     }
@@ -140,7 +146,7 @@ public enum Dial: String, CaseIterable, Sendable {
 
 extension Settings: Codable {
     private enum CodingKeys: String, CodingKey {
-        case bounce, pull, hold, reach, push, land, close, edge, light
+        case bounce, pull, hold, reach, push, land, close, swell, edge, light
     }
 
     /// As the prototype loads them: a key missing or unreadable keeps its default, and each dial goes onto its

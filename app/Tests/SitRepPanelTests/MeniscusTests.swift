@@ -30,10 +30,10 @@ struct MeniscusTests {
         #expect(lab.frame.light.level == 1)
     }
 
-    @Test func theLipsHomeKeepsItsSwellInsideTheBand() {
+    @Test func theLipsHomeKeepsItsDeepestSwellInsideTheBand() {
         let stage = Stage(height: 982, visibleTop: 24, visibleBottom: 982, lipY: 30)
 
-        #expect(stage.clampLipY(30) == 24 + 40 + 74)
+        #expect(stage.clampLipY(30) == 24 + 40 + 107)
     }
 
     @Test func aClickOnTheBlackOrTheLipsHitAreaIsThePanelsAndAnywhereElsePassesThrough() {
@@ -326,8 +326,8 @@ struct MeniscusTests {
             return false
         }
 
-        #expect(abs(widest - 19) < 1)
-        #expect(abs(longest - 148) < 6)
+        #expect(abs(widest - 22) < 1)
+        #expect(abs(longest - 166) < 6)
         #expect(lab.frame.light.lastAsk == asked)
         let settled = lab.settle()
         #expect(settled)
