@@ -1,3 +1,5 @@
+import CoreGraphics
+
 /// A session on the panel: one of the prototype's sample sessions, for now.
 public struct Session: Equatable, Sendable {
     /// Where it stands, in the order the panel lists them (the prototype's `ORDER`).
@@ -18,6 +20,13 @@ public struct Session: Equatable, Sendable {
 
     /// A click on it jumps to it, unless no window shows it.
     public var jumps: Bool { kind != .off }
+
+    /// Its age as the row shows it (the prototype's `age`): now, then whole minutes, hours or days.
+    public var ageText: String {
+        let minutes = Int((age / Self.minute).rounded(.down))
+        let hours = minutes / 60
+        return minutes < 1 ? "now" : minutes < 60 ? "\(minutes)m" : hours < 24 ? "\(hours)h" : "\(hours / 24)d"
+    }
 
     private static let minute = 60_000.0, hour = 60 * minute, day = 24 * hour
 
@@ -57,6 +66,14 @@ public enum Item: Equatable, Sendable {
         }.map(\.element)
     }()
 
+    /// The session it shows; nil for the divider.
+    public var session: Session? {
+        if case let .session(session) = self {
+            return session
+        }
+        return nil
+    }
+
     /// Its place in `ORDER`: the divider sits between needs and turn.
     private var order: Double {
         switch self {
@@ -72,6 +89,22 @@ public enum Item: Equatable, Sendable {
         case .session: 59
         case .divider: 9
         }
+    }
+
+    /// The gap below a row, inside its item.
+    public static let rowGap = 4.0
+}
+
+/// The panel's head: how many sessions need Lee, and how many there are.
+public struct Head: Equatable, Sendable {
+    public let title: String
+    public let count: String
+
+    public init(_ items: [Item]) {
+        let sessions = items.compactMap(\.session)
+        let needs = sessions.filter { $0.kind == .needs }.count
+        title = needs == 0 ? "All clear" : "\(needs) need\(needs == 1 ? "s" : "") you"
+        count = "\(sessions.count) sessions"
     }
 }
 
@@ -89,8 +122,34 @@ public struct Content: Equatable, Sendable {
     /// As the prototype's CSS lays it out: the head's 16 line and the 10 below it, and each item's `cssHeight`.
     public static let css = Content(headHeight: 26, itemHeights: Item.samples.map(\.cssHeight))
 
-    static let paddingTop = 18.0, paddingBottom = 14.0
+    static let paddingTop = 18.0, paddingBottom = 14.0, paddingSide = 14.0
 
     /// The whole of it, padding and all, before the panel's height caps it.
     var height: Double { Self.paddingTop + headHeight + itemHeights.reduce(0, +) + Self.paddingBottom }
+
+    /// The head's box, in the content's own frame: inside the scroll's padding, the panel's depth less its sides.
+    public var headFrame: CGRect {
+        CGRect(x: Self.paddingSide, y: Self.paddingTop, width: Self.width, height: headHeight)
+    }
+
+    /// Each item's box, in the content's own frame, under the head and the items before it.
+    public func itemFrame(_ index: Int) -> CGRect {
+        let above = itemHeights[..<index].reduce(0, +)
+        return CGRect(x: Self.paddingSide, y: headFrame.maxY + above, width: Self.width, height: itemHeights[index])
+    }
+
+    /// The session whose row holds a point in the content's own frame: never the divider, nor the gap below a row.
+    public func row(at point: CGPoint, of items: [Item]) -> Int? {
+        items.indices.first { i in
+            guard items[i].session != nil else {
+                return false
+            }
+
+            var row = itemFrame(i)
+            row.size.height -= Item.rowGap
+            return row.contains(point)
+        }
+    }
+
+    private static let width = Tuning.panelDepth - 2 * paddingSide
 }

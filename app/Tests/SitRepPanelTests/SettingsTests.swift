@@ -82,6 +82,17 @@ struct SettingsTests {
             + "land 0.19·0.24, rebound 0.20·0.42, ask 0.42·0.38 · from Pull: field 49px, tongue 7.7px, cling 2.1px")
     }
 
+    @Test func copySettingsCopiesAHeaderTheJSONAndWhatItMakesAsThePrototypeDoes() {
+        var settings = Settings()
+        settings.pull = 1
+
+        #expect(settings.copied == "SitRep · Meniscus settings\n\(settings.json)\n\(settings.derived)")
+    }
+
+    @Test func eachDialIsNamedAsThePrototypesSliderIs() {
+        #expect(Dial.allCases.map(\.name) == ["Bounce", "Pull", "Hold", "Reach", "Push", "Land", "Close"])
+    }
+
     @Test(arguments: [(0.0, 1.4), (0.5, 1.0), (1.0, 0.7)])
     func bounceScalesEveryDampingFraction(bounce: Double, scale: Double) {
         var settings = Settings()

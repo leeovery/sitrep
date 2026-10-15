@@ -4,9 +4,10 @@ import ServiceManagement
 import SitRepCore
 
 /// The menu bar item and its plain menu: the works on screen, then the test
-/// banner, starting at login, and quitting. The works are listed as the app
-/// starts and again each time the menu opens, which shows the last listing
-/// at once and redraws only when the fresh one differs.
+/// banner, starting at login, the side panel's spike, and quitting. The
+/// works are listed as the app starts and again each time the menu opens,
+/// which shows the last listing at once and redraws only when the fresh one
+/// differs.
 ///
 /// An NSStatusItem rather than SwiftUI's MenuBarExtra: a menu-style
 /// MenuBarExtra tells nothing as its menu opens, and NSMenuDelegate does.
@@ -17,6 +18,8 @@ final class StatusMenu: NSObject, NSMenuDelegate {
 
     private let works: Works
     private let banners: Banners
+    /// Kept here: its items hold it, their target, only weakly.
+    private let panelMenu: PanelMenu
     private let loginLog = Logger(sitrep: "login")
     private let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
     private let menu = NSMenu()
@@ -25,9 +28,10 @@ final class StatusMenu: NSObject, NSMenuDelegate {
     private var shown: [NSMenuItem] = []
     private var last = LastListing()
 
-    init(works: Works, banners: Banners) {
+    init(works: Works, banners: Banners, panelMenu: PanelMenu) {
         self.works = works
         self.banners = banners
+        self.panelMenu = panelMenu
         super.init()
 
         item.button?.image = NSImage(systemSymbolName: "square.stack.3d.up", accessibilityDescription: "SitRep")
@@ -37,6 +41,8 @@ final class StatusMenu: NSObject, NSMenuDelegate {
             .separator(),
             action("Send a test banner", #selector(sendTestBanner)),
             loginItem,
+            .separator(),
+        ] + panelMenu.items + [
             .separator(),
             action("Quit SitRep", #selector(quit)),
         ]

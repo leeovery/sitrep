@@ -78,6 +78,24 @@ public struct Frame {
         outline.contains(point) || inRect(Vec(point.x, point.y), hitRect)
     }
 
+    /// Whether the view should keep frames coming: while anything moves, while the pointer is near the edge by the
+    /// lip (within the attraction's field from it, and a margin, and its reach along it), or while it is over the
+    /// open panel. Otherwise frames can stop until the pointer comes near or Lee acts.
+    public func wantsFrames(pointer: CGPoint?, field: Double) -> Bool {
+        guard !isMoving else {
+            return true
+        }
+        guard let pointer else {
+            return false
+        }
+
+        let nearLip = pointer.x <= field + Self.nearMargin && abs(pointer.y - light.centre.y) <= Tuning.fieldY
+        return nearLip || panel != nil && outline.contains(pointer)
+    }
+
+    /// How far past the field a pointer still counts as near the edge.
+    static let nearMargin = 24.0
+
     /// The panel's content and how much of it shows.
     public struct Panel {
         /// The content's own frame: the panel's depth (372) wide from the edge, its top on its own spring.

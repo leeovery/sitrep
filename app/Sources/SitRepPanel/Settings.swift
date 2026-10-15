@@ -81,6 +81,11 @@ public struct Settings: Equatable, Sendable {
         return "springs, response·damping after Bounce ×\(fixed(bounceScale, 2)): \(springs.joined(separator: ", "))"
             + " · from Pull: field \(Int(field.rounded()))px, tongue \(fixed(tongueReach, 1))px, cling \(fixed(clingReach, 1))px"
     }
+
+    /// What Copy settings puts on the pasteboard, as the prototype's does: a header, the JSON, and what it makes.
+    public var copied: String {
+        "SitRep · Meniscus settings\n\(json)\n\(derived)"
+    }
 }
 
 /// One of the prototype's dials (its `DIALS`), with its slider's range and step.
@@ -117,13 +122,16 @@ public enum Dial: String, CaseIterable, Sendable {
         }
     }
 
+    /// The slider's name: Bounce, Pull.
+    public var name: String { rawValue.capitalized }
+
     /// The value as the slider's label shows it: 0.90, 0.35×, 35px, 20%.
     public func show(_ value: Double) -> String { json(value) + unit }
 
     func json(_ value: Double) -> String { fixed(value, decimals) }
 
     /// The value as the slider takes it: clamped to its range and onto its step, the nearest step up on a tie.
-    func stepped(_ value: Double) -> Double {
+    public func stepped(_ value: Double) -> Double {
         let steps = ((clamp(value, range.lowerBound, range.upperBound) - range.lowerBound) / step).rounded()
         let scale = pow(10, Double(decimals))
         return ((range.lowerBound + steps * step) * scale).rounded() / scale
