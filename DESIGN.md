@@ -1154,7 +1154,7 @@ black background", with a little happening inside: subtle, and narrower.
 
 Each says what it is, with its project and work beneath. A click jumps: the
 row presses in and spins for up to 450ms, the panel drains, and a caption
-says where it jumped. ⏎ jumps from the row under the pointer. A new ask
+says where it jumped. A new ask
 makes the lip over-swell twice, to 25 deep, about 450ms apart, as each
 comes back through its 15. The light flashes with each, and the new row
 gets an orange wash for 2 seconds. Lee set the swell on the display
@@ -1197,8 +1197,15 @@ little too quiet, and he thought it might look nice twice.
   - The landing dips about 3 under the lip's depth, lengthens about 6.7,
     swings and settles (Land).
 - **Leaving back over the lip** has a grace of 300ms, down to 60ms when
-  fast. Esc or a click elsewhere closes it at once. A click on the lip pins
-  it open.
+  fast. A click elsewhere closes it at once, and a click on the lip opens
+  it at once.
+- **It never takes the keyboard.** A click on it leaves Lee's typing where
+  it was, in Ghostty, so there is no Esc and no ⏎: moving away closes it.
+  There is no pin either. Lee, 15 October 2026, on the display:
+  - hovering opens the panel before the lip can be clicked, so a pin on
+    the lip was out of reach;
+  - a click on the panel took his typing from Ghostty;
+  - the panel "protrudes into the screen too much to be pinned".
 - **Reduced motion:** no pull toward the cursor; the shape cross-fades.
 
 **Lee's settings**, from round 11 ("I think this is working"), with the
@@ -1271,9 +1278,19 @@ The shape is one path rebuilt every frame from the springs. As in the
 prototype, they are integrated semi-implicitly in substeps of at most 4ms,
 with their velocity kept when a target changes.
 
-**Later.** Answering a yes or a choice from the panel, through the work's
-inbox. A permission prompt would need a hook that holds Claude Code's
-prompt open.
+**Later.**
+- **Answering from the panel.** A yes or a choice would go through the
+  work's inbox. A permission prompt would need a hook that holds Claude
+  Code's prompt open.
+- **The pinned form** (Lee, 15 October 2026). A subtle pin control on the
+  panel, perhaps in a corner, turns it into a narrow strip:
+  - full height, below the menu bar (or behind it) down to the screen's
+    corner;
+  - holding the sessions as small icons;
+  - staying there.
+
+  It is to be spiked like the panel was: in the browser first, then in
+  Swift.
 
 ### The jump
 
