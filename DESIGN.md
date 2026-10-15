@@ -1197,8 +1197,8 @@ little too quiet, and he thought it might look nice twice.
   - The landing dips about 3 under the lip's depth, lengthens about 6.7,
     swings and settles (Land).
 - **Leaving back over the lip** has a grace of 300ms, down to 60ms when
-  fast. A click elsewhere closes it at once, and a click on the lip opens
-  it at once.
+  fast. A click elsewhere closes it at once. The lip takes no click: it
+  opens on hover alone.
 - **It never takes the keyboard.** A click on it leaves Lee's typing where
   it was, in Ghostty, so there is no Esc and no ⏎: moving away closes it.
   There is no pin either. Lee, 15 October 2026, on the display:
