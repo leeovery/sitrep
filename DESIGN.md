@@ -1155,8 +1155,11 @@ black background", with a little happening inside: subtle, and narrower.
 Each says what it is, with its project and work beneath. A click jumps: the
 row presses in and spins for up to 450ms, the panel drains, and a caption
 says where it jumped. ⏎ jumps from the row under the pointer. A new ask
-makes the lip over-swell once and the light flash, and its row gets an
-orange wash for 2 seconds.
+makes the lip over-swell twice, to 25 deep, about 450ms apart, as each
+comes back through its 15. The light flashes with each, and the new row
+gets an orange wash for 2 seconds. Lee set the swell on the display
+(15 October 2026). The prototype swells once, to 19, which he found a
+little too quiet, and he thought it might look nice twice.
 
 **The feel: Meniscus.** The edge is the surface of a liquid.
 - **Approach.** The field reaches 49 from the edge (140 × Pull) and 220
@@ -1198,10 +1201,11 @@ orange wash for 2 seconds.
   it open.
 - **Reduced motion:** no pull toward the cursor; the shape cross-fades.
 
-**Lee's settings**, from round 11 ("I think this is working"):
-`{"bounce":0.90,"pull":0.35,"hold":35,"reach":10,"push":20,"land":1.11,"close":1.81,"edge":"left","light":"live"}`.
+**Lee's settings**, from round 11 ("I think this is working"), with the
+swell from the app:
+`{"bounce":0.90,"pull":0.35,"hold":35,"reach":10,"push":20,"land":1.11,"close":1.81,"swell":25,"swells":2,"edge":"left","light":"live"}`.
 
-Each is a dial in the prototype:
+Each is a dial, the first seven in the prototype too:
 
 | Dial | What it sets |
 |---|---|
@@ -1212,9 +1216,12 @@ Each is a dial in the prototype:
 | Push | When the collapse starts |
 | Land | The landing's dip |
 | Close | The collapse's speed |
+| Swell | How deep a new ask swells the lip, from 15 to 30 |
+| Swells | How many times, from 1 to 3 |
 
-The app has the same dials, and the same Copy settings, so Lee tunes it on
-the display itself and the values pass between the two.
+The app has these dials and the same Copy settings, so Lee tunes it on the
+display itself. The values pass between the app and the prototype, which
+keeps its defaults for the two it lacks.
 
 The springs, after Bounce, as SwiftUI's
 `.spring(response:dampingFraction:)`:
