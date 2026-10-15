@@ -26,10 +26,7 @@ extension Springs {
 }
 
 extension Meniscus {
-    func open(pin: Bool) {
-        if pin {
-            pinned = true
-        }
+    func open() {
         cancel(.dwell, .grace)
         guard !isLive else {
             return
@@ -74,7 +71,7 @@ extension Meniscus {
         case pop
         /// It went back over a flare and the grace ran out.
         case grace
-        /// Esc, a click off it, or a click on a row.
+        /// A click off it, or on a row.
         case dismissed
     }
 
@@ -82,7 +79,6 @@ extension Meniscus {
     /// the faster it left. Anything else drains as the prototype's Pour does.
     func close(_ reason: CloseReason = .dismissed) {
         cancel(.dwell, .grace)
-        pinned = false
         // a pointer left sitting on the lip doesn't reopen it until it leaves, nor one left within the attraction's reach
         armed = false
         attract.armed = false
@@ -223,7 +219,7 @@ extension Meniscus {
 
         sn.burst = true
         cancel(.closeBurst)
-        guard sn.closes, phase == .closing else {
+        guard phase == .closing else {
             return
         }
 
@@ -289,7 +285,7 @@ extension Meniscus {
     /// Left back over a flare into the bezel (or with the cling off): the grace, shorter the faster the pointer went.
     /// Leaving through any other part of the edge never comes here while it clings: the stretch is the grace.
     func maybeClose(_ speed: Double) {
-        guard phase == .open, !pinned, !cling.attached, !pointerInside() else {
+        guard phase == .open, !cling.attached, !pointerInside() else {
             return
         }
 

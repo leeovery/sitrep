@@ -22,7 +22,6 @@ public final class Meniscus {
     var S: Springs
     /// While open, the shape's height follows the content.
     var follow = false
-    var pinned = false
     /// The pointer this frame and at the last contact check.
     var sp: Vec?
     var prevSp: Vec?
@@ -173,10 +172,13 @@ public final class Meniscus {
         }
     }
 
-    /// A click on the lip: it opens the panel and pins it, or pins the panel already out.
+    /// A click on the lip opens the panel at once, as the dwell would; a panel already out it leaves as it is.
     public func clickLip() {
-        cancel(.dwell)
-        open(pin: true)
+        guard !isLive else {
+            return
+        }
+
+        open()
     }
 
     /// A click on one of `items`: one that jumps drains the panel, as a jump does.
@@ -190,13 +192,6 @@ public final class Meniscus {
 
     /// A click anywhere off the panel and the lip closes it at once.
     public func clickElsewhere() {
-        if isLive {
-            close()
-        }
-    }
-
-    /// Esc closes it at once.
-    public func escape() {
         if isLive {
             close()
         }

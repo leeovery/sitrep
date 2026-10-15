@@ -41,7 +41,6 @@ final class PanelController: NSObject {
         super.init()
 
         view.onClick = { [unowned self] point in click(at: point) }
-        view.onEscape = { [unowned self] in act { $0.escape() } }
         dials.onChange = { [unowned self] settings in
             model.settings = settings
             wake()
@@ -100,9 +99,6 @@ final class PanelController: NSObject {
         view.show(frame, hover: pointer.flatMap(row))
         drawLight(at: time)
         window.ignoresMouseEvents = !(pointer.map(frame.hits) ?? false)
-        if !isOut {
-            window.giveBackKeys()
-        }
         pace(pointer)
     }
 

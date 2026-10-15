@@ -22,8 +22,6 @@ struct Ripple {
 final class Snap {
     /// How fast the pointer went away from the edge.
     let speed: Double
-    /// Whether the panel closes after it: a pinned one stays.
-    let closes: Bool
     /// How far the tongue had stretched, against Hold, smoothed.
     let q: Double
     /// Where the pointer left (exitE).
@@ -52,9 +50,8 @@ final class Snap {
     var peakT: Double?
     var burst = false
 
-    init(speed: Double, closes: Bool, q: Double, e: Double, t0: Double, x: Double, v: Double, ret: SpringParams, flung: Bool) {
+    init(speed: Double, q: Double, e: Double, t0: Double, x: Double, v: Double, ret: SpringParams, flung: Bool) {
         self.speed = speed
-        self.closes = closes
         self.q = q
         self.e = e
         self.t0 = t0
@@ -112,9 +109,8 @@ extension Meniscus {
         let q = sp.map { Vec($0.x, $0.y - O.top) }
         let near = q.map { nearestOn(O, $0) }
         if let near, near.inside {
-            // inside again, it holds the pointer afresh, and catches a pinned panel's ring
+            // inside, the edge holds the pointer afresh
             cling = Cling(attached: true)
-            snap = nil
         } else if cling.attached {
             holdOrBreak(O, q, near)
         }
@@ -232,7 +228,7 @@ extension Meniscus {
         rp.response = lerp(Tuning.returnFast, rp.response, q)
         S.ba.springTo(0, rp)
         let flung = fling(away: away, along: along, rp)
-        let sn = Snap(speed: away, closes: !pinned, q: q, e: exitE(letGoY, g), t0: t, x: S.ba.x, v: S.ba.v, ret: rp, flung: flung)
+        let sn = Snap(speed: away, q: q, e: exitE(letGoY, g), t0: t, x: S.ba.x, v: S.ba.v, ret: rp, flung: flung)
         snap = sn
         // a return too damped to cross still lets go
         later(.closeBurst, 2.2 * rp.response * 1000) { m in
@@ -241,9 +237,7 @@ extension Meniscus {
                 m.burst()
             }
         }
-        if sn.closes {
-            close(.pop)
-        }
+        close(.pop)
     }
 
     /// Thrown out after the cursor: a fling past what the tongue would swing out to by itself on its return spring.

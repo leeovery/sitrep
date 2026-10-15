@@ -237,35 +237,46 @@ struct MeniscusTests {
         #expect(!closed)
     }
 
-    @Test func aPinnedPanelStaysOpenWhenThePointerLeavesAndEscClosesIt() {
-        var lab = Lab(pointer: CGPoint(x: 3, y: 491))
+    @Test func aClickOnTheLipOfAClosedPanelOpensItAtOnceAndItClosesAsThePointerLeaves() {
+        var lab = Lab()
+
         lab.model.clickLip()
+
+        #expect(lab.phase == .opening)
         lab.wait(600)
         #expect(lab.phase == .open)
 
-        lab.move(to: CGPoint(x: 200, y: lab.lipY), speed: 0.3)
-        lab.move(to: CGPoint(x: 450, y: lab.lipY), speed: 0.05)
-        lab.pointer = nil
-        let closed = lab.wait(1500) { $0.phase != .open }
-        #expect(!closed)
-
-        lab.model.escape()
-        #expect(lab.phase == .closing)
+        lab.pointer = CGPoint(x: 200, y: lab.lipY)
+        lab.wait(100)
+        let left = lab.move(to: CGPoint(x: 450, y: lab.lipY), speed: 0.05) { $0.phase != .open }
+        #expect(left)
         let settled = lab.settle()
         #expect(settled)
         #expect(lab.phase == .closed)
         #expect(abs(lab.shape.w - 7) < 0.01)
     }
 
-    @Test func aClickOnTheLipOfAnOpenPanelPinsIt() {
+    @Test func aClickOnTheLipOfAnOpenPanelChangesNothing() {
+        var clicked = Self.openAndGone(), left = Self.openAndGone()
+
+        clicked.model.clickLip()
+
+        for _ in 0 ..< 60 {
+            clicked.step()
+            left.step()
+            #expect(clicked.phase == left.phase)
+            #expect(clicked.frame.outline.boundingBoxOfPath == left.frame.outline.boundingBoxOfPath)
+        }
+        #expect(clicked.phase == .closed || clicked.phase == .closing)
+    }
+
+    /// The panel open, and the pointer gone to another screen: the grace runs.
+    private static func openAndGone() -> Lab {
         var lab = Lab()
         lab.openByTouch()
-
-        lab.model.clickLip()
         lab.pointer = nil
-
-        let closed = lab.wait(1000) { $0.phase != .open }
-        #expect(!closed)
+        lab.step()
+        return lab
     }
 
     @Test func aClickElsewhereClosesTheOpenPanelAtOnce() {
@@ -302,7 +313,7 @@ struct MeniscusTests {
         var lab = Lab()
         lab.openByTouch()
 
-        lab.model.escape()
+        lab.model.clickElsewhere()
         let settled = lab.settle()
         #expect(settled)
         #expect(lab.phase == .closed)

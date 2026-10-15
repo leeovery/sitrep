@@ -192,7 +192,7 @@ extension Meniscus {
         let tongue = settings.sp(.tongue)
         S.ba.springTo(max(S.ba.x, attract.dx - max(0, S.w.x) + Tuning.grip), tongue)
         S.by.springTo(sp.y, tongue)
-        open(pin: false)
+        open()
     }
 
     /// Contact with the lip opens it: after the dwell, or at once if the pointer arrives fast.
@@ -224,11 +224,11 @@ extension Meniscus {
 
         cancel(.grace)
         if approachSpeed() > Tuning.fast {
-            open(pin: false)
+            open()
             return
         }
 
         // leaving first cancels it: a pass doesn't open
-        later(.dwell, 150) { $0.open(pin: false) }
+        later(.dwell, 150) { $0.open() }
     }
 }
