@@ -314,8 +314,10 @@ struct MeniscusTests {
         #expect(reopened)
     }
 
-    @Test func aNewAskSwellsTheLipPastNeedsAndItSettlesBack() {
-        var lab = Lab(needsLee: true)
+    @Test func aNewAskSwellsTheLipToTheSwellDialsDepthAndItSettlesBack() {
+        var settings = Settings()
+        settings.swells = 1
+        var lab = Lab(settings: settings, needsLee: true)
         lab.model.newAsk()
         let asked = lab.model.t
 
@@ -326,13 +328,55 @@ struct MeniscusTests {
             return false
         }
 
-        #expect(abs(widest - 22) < 1)
-        #expect(abs(longest - 166) < 6)
+        #expect(abs(widest - 25) < 1)
+        #expect(abs(longest - 184) < 8)
         #expect(lab.frame.light.lastAsk == asked)
         let settled = lab.settle()
         #expect(settled)
         #expect(abs(lab.shape.w - 15) < 0.01)
         #expect(abs(lab.shape.h - 124) < 0.01)
+    }
+
+    @Test(arguments: [1, 2, 3])
+    func aNewAskSwellsTheLipAsManyTimesAsTheSwellsDialSaysFlashingTheLightWithEach(swells: Int) {
+        var settings = Settings()
+        settings.swells = Double(swells)
+        var lab = Lab(settings: settings, needsLee: true)
+        lab.model.newAsk()
+
+        var peaks = 0, flashes: Set<Double> = [], swollen = false
+        lab.wait(2500) { lab in
+            if lab.shape.w > 20, !swollen {
+                peaks += 1
+            }
+            swollen = lab.shape.w > 20
+            if let ask = lab.frame.light.lastAsk {
+                flashes.insert(ask)
+            }
+            return false
+        }
+
+        #expect(peaks == swells)
+        #expect(flashes.count == swells)
+        let settled = lab.settle()
+        #expect(settled)
+        #expect(abs(lab.shape.w - 15) < 0.01)
+    }
+
+    @Test func theSwellsAfterTheFirstStopOnceThePanelOpens() {
+        var lab = Lab(needsLee: true)
+        lab.model.newAsk()
+        lab.model.clickLip()
+
+        var flashes: Set<Double> = []
+        lab.wait(1500) { lab in
+            if let ask = lab.frame.light.lastAsk {
+                flashes.insert(ask)
+            }
+            return false
+        }
+
+        #expect(flashes.count == 1)
     }
 
     @Test func somethingComingToNeedLeeIsANewAskAndItsAnswerTakesTheLipBackToRest() {

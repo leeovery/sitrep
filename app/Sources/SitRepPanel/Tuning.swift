@@ -121,4 +121,7 @@ enum Tuning {
     static let lipGive = 4.0
     /// The head lands this long into the pour, then a row every 25ms.
     static let rowsAt = 160.0
+    /// A new ask's swells come this far apart (ms): about one swing of the ask spring, so each starts as the last
+    /// comes back up through NEEDS.
+    static let swellGap = 450.0
 }

@@ -144,13 +144,32 @@ public final class Meniscus {
         S.y.snap(lipY)
     }
 
-    /// A new ask: the light flashes, and a closed lip over-swells once. Something needs Lee from here.
+    /// A new ask: the light flashes, and a closed lip over-swells, as many times as the Swells dial says, the light
+    /// flashing again with each. Something needs Lee from here.
     public func newAsk() {
         needs = true
         flash = t
         S.light.to(1, 160)
         if phase == .closed {
             swellLip()
+            swellAgain(Int(settings.swells) - 1)
+        }
+    }
+
+    /// The swells after the first, each `swellGap` after the last, while the lip stays closed and something needs Lee.
+    private func swellAgain(_ left: Int) {
+        guard left > 0 else {
+            return
+        }
+
+        later(.swell, Tuning.swellGap) { model in
+            guard model.phase == .closed, model.needs else {
+                return
+            }
+
+            model.flash = model.t
+            model.swellLip()
+            model.swellAgain(left - 1)
         }
     }
 
@@ -328,7 +347,7 @@ struct SimTimer {
 }
 
 enum TimerName: String {
-    case dwell, grace
+    case dwell, grace, swell
     case openW = "open:w", openDone = "open:done"
     case closeW = "close:w", closeH = "close:h", closeVis = "close:vis", closeDone = "close:done"
     case closeFar = "close:far", closeBurst = "close:burst", closePush = "close:push"
