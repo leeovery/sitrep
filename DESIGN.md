@@ -1282,15 +1282,45 @@ black background", with a little happening inside: subtle, and narrower.
 Lee, away ones included, and every session a window holds, working or your
 turn (see "A session's state"). An away session with nothing waiting stays
 off it, for the SitRep window to show. In this order:
-1. needs you, oldest first;
+1. needs you, oldest first, with away ones last, oldest first among them;
 2. your turn, newest first;
-3. working.
+3. working, longest running first.
 
 Rows keep their places while the panel is open: a changed row moves only
-once it closes. A click on an away row does nothing until the SitRep window
-exists; then it opens the session there. This replaces the first list,
+once it closes. A click on an away row does nothing; it is there, but there
+is no window to jump to. What a click on it opens is decided later: for
+Lee, a new Ghostty window attached to the session's tmux session, where
+there is one (Lee, 16 October 2026, in place of "until the SitRep window
+exists; then it opens the session there"). This replaces the first list,
 needs you, your turn, working, quiet and not on screen: quiet was your
 turn, and not on screen is a fact about where a window is, for the jump.
+
+**How each row reads**, drawn in Paper's "Panel rows" (surfaces round 1,
+16 October 2026; Lee: "everything looks great"). A mark, two lines, and a
+time on the right; one line each, cut short with an ellipsis:
+- **an ask**: an orange dot; its title, then its project and session; how
+  long it has waited. Its window may still be working: needs you wins, so
+  nothing else shows;
+- **a permission prompt**: "Allow Bash", then the command in Geist Mono;
+- **a question**: the question itself, and "+2" when there are several;
+- **away, with an ask**: the dot stays orange and the words dim. Under the
+  pointer it doesn't lift, and its second line says "No window holds it.
+  Carry it on in Claude.";
+- **your turn**: an open white ring, so its shape differs from the dot, not
+  only its colour; the board's "now", still and white; how long it has
+  waited;
+- **working**: a turning arc, and a slow grey-to-white shimmer along the
+  line, as Claude Code's own; while a tool runs, the line is the tool (the
+  verb shimmers, a path stays still in mono), else the board's "now"; how
+  long the turn has run. It is greyer than the rest: it needs nothing.
+
+The shimmer stays neutral. Orange is for needs you only: the dot, the wash
+and a new row's "now". Lee had suggested working titles shimmer white or
+grey to orange, then left it to Claude; it can change after a test. One hairline
+sits under the needs-you rows; the rest tell apart by their marks. A row
+under the pointer lifts to #141416, with no ⏎ hint, since the panel never
+takes the keyboard. With nothing waiting, the head reads "All clear", the
+hairline goes, and the notch rests with no light.
 
 Each says what it is, with its project and session beneath. A click jumps: the
 row presses in and spins for up to 450ms, the panel drains, and a caption
