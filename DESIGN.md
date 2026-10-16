@@ -1466,6 +1466,44 @@ itself is never pinned (above, "It never takes the keyboard"). It is not
 for later (16 October 2026): it is designed in Paper and built, spiked like
 the panel was, in the browser first, then in Swift.
 
+**The design**, drawn in Paper's "The strip" (surfaces round 2, 16 October
+2026; Lee: "I really like it"). The movement, the hover and the animation
+are felt in a spike before they are settled.
+- **The form.** The bezel, grown: 36pt of the same black, from under the
+  menu bar to the screen's bottom, its top end curving into the bezel as the
+  notch's ends do. It sits on the notch's edge, left by default, and stays.
+  Settings chooses it in place of the notch.
+- **A mark per session**, in the panel's order and for the same sessions. A
+  mark is the project's two letters in a 24pt ring, and the ring carries the
+  state, so the strip reads without a hover:
+  - **needs you**: orange, with the panel dot's glow, the letters white; the
+    strip doesn't say which kind;
+  - **just arrived**: washed orange inside the ring, its glow brighter, for
+    two seconds, and the ring flashes twice, as the notch swells twice;
+  - **away, with an ask**: orange, the letters dim;
+  - **your turn**: white;
+  - **working**: a grey track with a pale arc turning round it, the letters
+    grey.
+
+  One hairline sits under needs you, as in the panel. The letters are the
+  project's capitals where it has two (SitRep SR, DocMan DM), else its first
+  two (Switchboard Sw, agntc ag); two sessions of one project share them.
+- **Under the pointer** a mark pours its panel row out of the strip as a
+  tab, the material flaring at both ends. A click jumps, as in the panel. An
+  away mark's tab says "No window holds it. Carry it on in Claude." and
+  takes no click.
+- **Moving.** The strip never shuts, so the panel's "a changed row moves only
+  once it closes" becomes: a new needs you moves in at once, the marks below
+  sliding down to make room; any other change shows in place, and the marks
+  re-sort a second after the pointer leaves the strip.
+- **Too many.** About 25 marks fit at full height. Past that, the last place
+  is a count ("+3"), and under the pointer it pours out the rest as one tab.
+  Needs you never folds: it is at the top.
+- **Open, for the spike:** macOS lets no app reserve screen space as the Dock
+  does, so a window filling the screen goes under the strip's 36pt. Claude's
+  proposal: windows go under it, and the strip steps aside while an app is
+  full screen.
+
 ### The jump
 
 **Terminal drivers**, decided with Lee on 16 October 2026. The jump stays
