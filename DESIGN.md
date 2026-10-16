@@ -163,9 +163,11 @@ notch and its panel").
 - **finished**: off the panel.
 
 Working, your turn and the stops on a permission prompt or a question come
-from the window's events, which the mod does not record yet (stage 5, under
-"The menu bar"). Until then, only the asks and away are real. The colours
-stay few; the look is played with later, in Paper.
+from the window's events, which the mod does not record yet: stage 5, under
+"The menu bar", records them, and is in this build (16 October 2026). Until
+it is built, only the asks and away are real. Only a stop the events show
+needs Lee: a turn that ends on a question in plain text is your turn. The
+colours stay few; the look is played with later, in Paper.
 
 ## Claude's side
 
@@ -777,7 +779,11 @@ $XDG_STATE_HOME/sitrep/, else ~/.local/state/sitrep/
   window.
 - Reading merges every writer's lines into one order: time, then writer, then
   count. A reader can catch a file mid-write, so a torn last line, a bad line
-  or one of a kind or version it does not know is skipped, never fatal.
+  or one of a kind or version it does not know is skipped, never fatal. A
+  line of an older version is upgraded to today's shape as it is read, by
+  core's upgrader for that version, so nothing past the reader knows an old
+  shape (16 October 2026; see "Versions side by side", under "Where it
+  lives").
 - The status shown is the latest across writers. A status change is logged by
   the board as it reads, comparing each status with the one before; it is
   never written down.
@@ -815,6 +821,21 @@ $XDG_STATE_HOME/sitrep/, else ~/.local/state/sitrep/
   without either, reads as none. `$.store` is unused so far.
 
 ## One engine, two front ends
+
+The shape stays, decided again with Lee on 16 October 2026, when Lee
+stepped back to design SitRep properly before the app is built for real.
+Core holds the logic, and the mod and the CLI are its front ends. The folder
+is the state, with no database, no server and no background service. The
+SitRep app reads the board through the CLI.
+
+Every later front end sits on the same core:
+- `sitrep mcp`, for other agents to post to the board;
+- `sitrep serve`, for a phone or a website.
+
+Once a remote surface exists, the SitRep app hosts serving: it runs
+`sitrep serve` itself, once Lee turns it on, and the folder stays the
+truth. There is still no background service. None of it is built now. Lee:
+"we might do a phone app, we might not"; the architecture allows it.
 
 - **core**: a plain TypeScript module, no file system, no Node: the folder's
   format, the event shapes, the rules (what a reply does to an ask, what counts
@@ -1019,6 +1040,20 @@ $XDG_STATE_HOME/sitrep/, else ~/.local/state/sitrep/
     Ghostty window shows is refused (`Dashboard redesign is not on screen: no
     Ghostty window shows it.`), as is one whose devices no Ghostty terminal
     answered.
+  - `watch` is designed (16 October 2026) and not built yet. It is how the
+    SitRep app hears the board: one per Mac, which the app starts as its
+    child, so it stops with the app, and the app starts it again if it
+    exits: no daemon. It watches the one folder that holds every project and
+    session, `~/.local/state/sitrep/` (see Storage), and reads only what
+    changed.
+    - It prints a versioned JSON line for each change: the panel's view, and
+      what is new (a new ask, a new permission prompt or question).
+    - Presence expiry and what is new are core's, worked out in `watch`: a
+      heartbeat going stale changes no file, so `watch` notices it itself,
+      and the notch's swell is decided in core, not in the app.
+    - Claude windows don't watch: each mod writes its own files there and
+      polls for its pane, as under Storage.
+    - `sitrep serve`, later, builds on the same loop.
   - Answering an ask waits on open question 4. It would be one more command,
     a reply into the session's inbox, which its window already delivers.
   - Its logic is `cli/`, plain TypeScript beside core and tested in the test
@@ -1081,10 +1116,12 @@ The whole repository is the plugin, so a plugin installed from GitHub
 carries `app/` too; it is small, and accepted.
 
 **Installing and updating**, decided with Lee on 14 October 2026: app first.
+How the app updates changed on 16 October 2026 (Sparkle, below).
 
 - **On a Mac, sitrep is the app**, from a Homebrew cask in `homebrew-tools`,
   and from nowhere else (no download of its own), so every install updates
-  the same way: `brew upgrade`.
+  the same way. That way was `brew upgrade` until 16 October 2026; now the
+  app updates itself.
 - **The app installs the Claude plugin.** On its first start, once it has
   asked for what macOS must grant it (notifications, leave to control Ghostty,
   starting at login), it copies the plugin it carries to
@@ -1093,17 +1130,32 @@ carries `app/` too; it is small, and accepted.
   that folder as the `sitrep` marketplace and installs `sitrep@sitrep`,
   through `claude plugin`. It finds `claude` where its installers put it,
   or by asking Lee's login shell: an app sees almost no PATH.
-- **After `brew upgrade`** the app finds its newer self on disk, relaunches,
-  and refreshes that copy of the plugin. One command updates both, and
-  their versions never part.
+- **The app updates itself, with Sparkle** (16 October 2026). Its feed is
+  published with each GitHub release. The cask stays the way to install,
+  marked `auto_updates true`, so brew leaves updates to the app: one
+  updater. Sparkle was ruled out on 14 October, since `brew upgrade` already
+  updates a cask. That was reversed because `brew upgrade` reaches only
+  those who run it, where an app that updates itself reaches everyone, and
+  knows when the plugin changed.
+- **After an update** the app refreshes its copy of the plugin, so one
+  update moves both, and their versions never part. Windows on the old mod
+  show as needing `/reload-plugins` (see "Versions side by side"). First
+  planned for `brew upgrade`, the app finding its newer self on disk and
+  relaunching.
+- **Built at the first public release**, which waits for a Developer ID
+  (stage 4); Lee will get one before going public. It must be testable
+  locally first: a feed served from this Mac, and two builds signed with
+  the "SitRep Local" certificate. Until then, this Mac builds the app from
+  the clone (below).
 - **Everyone else** (Linux, Windows, no menu bar wanted) installs the plugin
   alone from the GitHub marketplace: `claude plugin marketplace add
   leeovery/sitrep`, then `claude plugin install sitrep@sitrep`.
 - **Ruled out:** the plugin first, its mod building the app whenever the
   plugin's version moved on (a Claude mod compiling a Mac app, and Xcode's
-  tools wanted on every Mac); Sparkle, since `brew upgrade` already updates
-  a cask; the Mac App Store, whose sandbox forbids running another program
-  (even tmux's queries), controlling Ghostty, and writing Claude's settings.
+  tools wanted on every Mac); the Mac App Store, whose sandbox forbids
+  running another program (even tmux's queries), controlling Ghostty, and
+  writing Claude's settings. Sparkle was ruled out here too, and taken back
+  on 16 October 2026 (above).
 
 **Until the first release** (stage 4): this Mac reads the plugin from the
 clone, `~/Code/sitrep`, as a folder marketplace, so an edit plus
@@ -1115,11 +1167,32 @@ GitHub marketplace on any other Mac until the cask exists.
 **Versions side by side.** Neither the app nor a mod can reload a Claude
 window (the engine's types offer no way): each window takes a new plugin up
 at its next `/reload-plugins` or restart, and runs the code it loaded until
-then. So every release keeps the board's folder readable and writable by
-the release before it: a new field is optional, and nothing is renamed or
-given a new meaning. Stage 1 was the first such: windows not yet reloaded
-wrote no `where`, and read as off screen. Each window's heartbeat says which
-version it runs, so the app can show which windows to reload.
+then. So two releases often share the board's folder, each window writing
+as its own does. Stage 1 was the first such: windows not yet reloaded wrote
+no `where`, and read as off screen.
+
+How, decided with Lee on 16 October 2026: lines are upgraded as they are
+read.
+- Each line keeps its `v`. Core holds one upgrader per past version, and
+  every reader upgrades an old line to today's shape as it reads it, so the
+  rest of the code knows only the current shape.
+- Writers write the current version.
+- A window not yet reloaded skips lines newer than it knows. Its
+  heartbeat's version lets the app show which windows to reload.
+- The build's renames on disk (`works/`, `work.json`) are the first use:
+  readers read the old names and the new, writers write only the new, and
+  the old files move once no window runs an old version. A window not yet
+  reloaded reads only the old names, so it sees nothing written under the
+  new ones until it reloads, as with newer lines.
+- The CLI's JSON stays as it is, its `v` and its stable fields (see "One
+  engine, two front ends"): the app carries its own CLI, so the two never
+  drift. Pinned versions, a client saying the version it speaks and being
+  answered in it, belong to `sitrep serve` when it is built.
+
+This replaces the rule written on 14 October 2026: a new field is optional,
+and nothing is renamed or given a new meaning. That rule froze the folder's
+names for good, where the build renames them (see "Words"), and Lee wants
+anything built so far free to change for something better.
 
 The CLI is `bin/sitrep`, an executable Bun script, the only file in `bin/`.
 Claude Code puts an enabled plugin's `bin/` on its Bash tool's PATH, and the
@@ -1156,8 +1229,13 @@ that takes Lee to the window a session is in.
 - **Clicking** a session, an ask or a macOS notification takes Lee to the
   Ghostty window showing that session, on whatever Space it is. A session no
   window shows offers no jump: the app never opens a window (until stage 6).
-- **The app holds no sitrep logic.** It watches the state folder, and asks
-  the CLI for the board and for the jump.
+- **The app holds no sitrep logic.** It runs one `sitrep watch` as its
+  child, which tells it the board as it changes, and each jump is a one-off
+  call to the CLI (see "One engine, two front ends"). First written (13
+  October 2026) as the app watching the state folder and asking the CLI
+  for the board; changed on 16 October 2026 so that presence expiry and
+  what is new, which decides the notch's swell, are worked out in core, not
+  in the app. Once a remote surface exists, the app also hosts serving.
 - **tmux and Ghostty stay at the edge.** Only the jump knows them; core, the
   pane and the app never do. Portal is not involved.
 
@@ -1359,6 +1437,27 @@ for later (16 October 2026): it is designed in Paper and built, spiked like
 the panel was, in the browser first, then in Swift.
 
 ### The jump
+
+**Terminal drivers**, decided with Lee on 16 October 2026. The jump stays
+in the CLI, in TypeScript, in two layers:
+- **a driver per terminal app**, Ghostty first: it recognises its windows
+  from the heartbeat's `where`, finds the window showing a session, and
+  brings it forward;
+- **one tmux layer**, shared by every driver: which terminal shows a pane,
+  and selecting the pane's tmux window. So tmux or not works for any
+  terminal. Selecting is new: today's jump changes nothing in tmux (step 2),
+  so a pane whose window no client shows offers no jump; the tmux layer
+  will select that window in a client attached to its tmux session.
+
+A driver declares what it can do: bring a window forward, which every
+driver must; select a tab or a split; and later, show a session's state, in
+a tab's title or by OSC 7501. A terminal with no driver still has its
+sessions shown, and a click on one brings that terminal app forward.
+
+This build does Ghostty only: the steps below, Ghostty's driver and the
+tmux layer under it. Other terminals, and Ghostty's tabs and splits, stay
+parked, and the shape allows them. A jump made in Swift, in the app, stays
+parked too.
 
 1. Each Claude window records, in its heartbeat, the terminal device it is
    on, the terminal program (`$TERM_PROGRAM`), and its tmux socket and pane
@@ -1654,21 +1753,41 @@ reaches a window only while that pane is on show).
 4. **Releases**, once sitrep is stable: a release is its version, in
    `plugin.json`, the marketplace entry and the app, and a tag
    (`claude plugin tag`); a GitHub Action on a macOS runner builds the app
-   with the plugin inside it, its CLI compiled, and updates the cask in
-   `homebrew-tools`. Lee's Macs then install the cask like anyone, kit's
-   `[manual]` step gives way to the cask, and the clone stops being live:
-   a script in the repository points the `sitrep` marketplace at the clone
-   for a live test, and back. Going public needs the app signed with a
-   Developer ID and notarised, since Homebrew quarantines what a cask
-   downloads, as macOS does any download. To settle then: whether
+   with the plugin inside it, its CLI compiled, publishes the app's update
+   feed, and updates the cask in `homebrew-tools` (Sparkle, under
+   "Installing and updating"). Lee's Macs then install the cask like
+   anyone, kit's `[manual]` step gives way to the cask, and the clone stops
+   being live: a script in the repository points the `sitrep` marketplace
+   at the clone for a live test, and back. Going public needs the app
+   signed with a Developer ID and notarised, since Homebrew quarantines
+   what a cask downloads, as macOS does any download. To settle then: whether
    `claude plugin update` follows `main` or the tags, for the plugin alone
    from GitHub.
-5. **Attention beyond asks.** The mod hears a permission prompt
-   (`classic.Notification`) and a turn ending (`turn.complete`), and the
-   heartbeat carries it. These give a session's working, your turn and its
-   stops on a permission prompt or a question (see "A session's state"). A
-   session blocked on a permission prompt gets a macOS notification; "your
-   turn" shows quietly, with none.
+5. **Attention beyond asks**, in this build (decided with Lee on 16 October
+   2026). The mod hears what its window is doing, and the heartbeat carries
+   it. These give a session's working, your turn and its stops on a
+   permission prompt or a question (see "A session's state"):
+   - a turn starts: working;
+   - `tool.check` gives its verdict "ask", so the permission prompt shows:
+     needs you, the row saying what it asks (`Allow Bash: gh pr create`);
+   - Claude asks a question (AskUserQuestion): needs you;
+   - the prompt or the question answered and the tool run (`tool.call`'s
+     `next` resolving): working;
+   - the turn ends, or Lee stops it: your turn.
+
+   The mod writes each change into the window's heartbeat at once, not on
+   the 30-second beat, so readers hear it within their poll of a second or
+   two. A permission prompt or a question arrives like a new ask: the notch
+   swells twice, the light flashes, and the row gets its orange wash. Only
+   deterministic stops need Lee: a turn ending with a question in plain
+   text is your turn, and shows quietly.
+
+   A macOS notification comes only if Lee turns them on. First written (13
+   October 2026) as a macOS notification for every session blocked on a
+   permission prompt, heard from `classic.Notification`, with the turn's
+   end from `turn.complete`. Corrected on 16 October 2026, since macOS
+   notifications are off by default once the notch exists, and the notch
+   swells and lights for a stop as for a new ask.
 6. **Opening what isn't on screen**: a new Ghostty window attached to a
    tmux session running with no window, as `code-OQWkFt · sitrep` and
    `portal-rex` were on 13 October.
