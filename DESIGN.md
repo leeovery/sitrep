@@ -1251,7 +1251,8 @@ opening like a liquid, as iOS 27's Siri does. It was designed with Lee over
 - the feel in an animated prototype in the browser, tuned over eleven
   rounds;
 - published at https://claude.ai/artifact/NVh9MJwABf5Kmqtzvy5Uoh, whose
-  Meniscus tab is the design.
+  Meniscus tab is the design, and whose Card tab is the alternative (see
+  "The alternative: Card").
 
 **The notch.** At rest, a black notch flared into the display's black bezel,
 7 points deep and 76 long, its ends S-curves. While something needs Lee,
@@ -1426,6 +1427,68 @@ The springs, after Bounce, as SwiftUI's
 
 From Pull: a field of 49, a tongue of 7.7, a cling of 2.1. The feel changes
 only from Lee's notes.
+
+**The alternative: Card** (17 October 2026). Lee wanted a second notch, an
+alternative to Meniscus and never its replacement. A setting could choose
+between them; whether the card ships is open. It is drawn in Paper's "The
+card notch", and its feel is the prototype's Card tab, tuned in two rounds.
+- **The shape.** The mound's sizes and light: 7 × 76 at rest, 15 × 124
+  while something needs Lee, 372 deep open. It meets the edge square, with
+  no flares or S-curves, and rounds only its two outer corners: 6 at rest,
+  10 at 15 deep, growing to the panel's 24 by 60 deep.
+- **Approach.** No tongue. Within the same field, 49 from the edge and 220
+  along it, the notch eases straight out toward the pointer by up to Nudge,
+  the full amount within 90 of its centre and at the moment of touch.
+  Touching it opens it after 150ms, or at once when fast.
+- **Open.** It slides straight out at the notch's length, like a card from
+  an ATM. Lag into the slide, it starts growing along the edge, up and down
+  alike from its centre, to the panel's length. Lee: "it slides out and
+  then just after a moment starts to increase in height and width as well".
+  The rows land 25ms apart once the depth is within 12 of its stop and the
+  length within 4.
+- **Its length** is its rows', up to the screen's visible frame less 40 at
+  each end. Past that the rows scroll inside it. As rows come and go while
+  it is open, the length follows them.
+- **Close.** No cling. After the grace, 300ms or 60 when fast, the rows
+  fade over 60ms. The length starts back 50ms in, and the depth Lag after
+  it. Both are critically damped, so the card eases into the slot without
+  a bounce. The light comes back over the depth's last 30.
+- **A new ask** pushes the closed notch out to Swell, Swells times, 450ms
+  apart; it never grows longer. The light flashes with each push.
+- **Reduced motion:** no nudge; the shape cross-fades.
+
+The first round offered two lengths. In one, the card rested as long as the
+panel, growing and shrinking with its rows, and slid straight out. In the
+other, it rested at the notch's length, slid out, and only then grew along
+the edge. Lee turned down the growing notch and chose the notch's length,
+with the two moves overlapping.
+
+**Lee's settings** for it, from round 2:
+`{"bounce":0.70,"nudge":8,"slide":0.93,"lag":30,"close":0.88,"swell":25,"swells":2,"edge":"left","light":"live"}`.
+At these it reaches 372 at about 100ms, 12 past, and is still by about
+230ms, the rows starting at 125ms. Closing, it is seated by about 350ms.
+
+| Dial | What it sets |
+|---|---|
+| Bounce | As Meniscus's |
+| Nudge | How far the notch eases out toward the pointer, up to 10 |
+| Slide | The opening springs' speed, and Lag with them |
+| Lag | How far into the slide the length starts, and into the shrink the depth starts home |
+| Close | The closing springs' speed, and the 50ms and Lag with them |
+| Swell | How far a new ask pushes the notch, from 15 to 30 |
+| Swells | How many times, from 1 to 3 |
+
+Its springs, after Bounce, Slide and Close:
+
+| Spring | Value |
+|---|---|
+| slide (the depth out) | 0.19·0.70 |
+| length (along the edge) | 0.17·0.75 |
+| follow (the length after its rows, and back to rest) | 0.24·0.79 |
+| shrink (the length back) | 0.14·1.00 |
+| home (the depth back) | 0.16·1.00 |
+| nudge | 0.25·0.79 |
+| ask | 0.32·0.53 |
 
 **Ruled out.** Five feels were built:
 - **Pour:** precise springs that never overshoot; too basic.
