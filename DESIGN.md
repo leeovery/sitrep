@@ -1386,7 +1386,7 @@ little too quiet, and Lee thought it might look nice twice.
 swell from the app:
 `{"bounce":0.90,"pull":0.35,"hold":35,"reach":10,"push":20,"land":1.11,"close":1.81,"swell":25,"swells":2,"edge":"left","light":"live"}`.
 
-Each is a dial, the first seven in the prototype too:
+What each sets; the first seven are the prototype's dials, the last two the spike's:
 
 | Dial | What it sets |
 |---|---|
@@ -1400,9 +1400,13 @@ Each is a dial, the first seven in the prototype too:
 | Swell | How deep a new ask swells the notch, from 15 to 30 |
 | Swells | How many times, from 1 to 3 |
 
-The app has these dials and the same Copy settings, so Lee tunes it on the
-display itself. The values pass between the app and the prototype, which
-keeps its defaults for the two it lacks.
+**The app ships these values fixed**, with no dials and no Settings for how
+it moves (Lee, 17 October 2026: "we have locked them in now and ship by my
+taste"). The dials are for tuning, in the prototype and the spike. A change
+after a release is a change to the values in the code, tuned in the
+prototype first. This replaces the plan of 15 October, the app carrying the
+dials and Copy settings so Lee could tune it on the display. The card's
+values ship fixed the same way.
 
 The springs, after Bounce, as SwiftUI's
 `.spring(response:dampingFraction:)`:
