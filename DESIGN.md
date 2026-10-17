@@ -1670,8 +1670,7 @@ asked for the sessions back, and approved the redraw as it stands.
   - **Show**: Notch, Strip or Nothing, inline, the one in use ticked, so
     pinning the strip takes one click. With Nothing, the menu and the
     SitRep window carry the board, and the icon keeps its dot;
-  - **Settings… ⌘,**, which takes the test banner and starting at login
-    (round 5); **Check for Updates…**, with Sparkle, from the first public
+  - **Settings… ⌘,** (see "Settings"); **Check for Updates…**, with Sparkle, from the first public
     release; **Quit SitRep ⌘Q**.
 - **An away session** is disabled, with no window to jump to: its dot stays
   orange and its words dim, as in the panel. **Past twelve rows** the list
@@ -1696,6 +1695,46 @@ asked for the sessions back, and approved the redraw as it stands.
 This replaces the 13 October plan, a menu slimmed to Settings and quitting
 with the plain list of sessions kept as a fallback, and round 4's first
 drawing, which left the sessions to the SitRep window.
+
+### Settings
+
+The Settings window, drawn in Paper's "Settings" (surfaces round 5, 17
+October 2026; Lee: "nice", once the dials for how the notch moves were taken
+out). Lee asked for macOS 26's Liquid Glass, modern and led by content, with
+Spaceman's preferences as a reference only.
+- **The window** is macOS 26's: a glass sidebar floating inside it, the
+  traffic lights on it, its header the menu's own (SitRep's icon, name and
+  version), and three panes, At the edge, Notifications and General. ⌘,
+  opens the last pane used. SwiftUI's grouped Form throughout: segmented
+  controls, pop-ups and switches in the system accent. Orange stays for
+  needs you, so it appears only inside the pictures.
+- **Each pane opens on what it is about**, drawn, before its rows:
+  - **At the edge**: Show, as three pictures of the screen's edge: the
+    notch and its light, the strip and its rings, or only the menu bar's
+    dot. The chosen one is ringed and live; it is the menu's Show. Then
+    **Where**, for the notch and the strip alike: Edge, Left or Right ("or
+    drag it across the middle"), and Display, the main one unless another
+    is chosen. Then **The notch**: Style, Meniscus or Card. A section that
+    no longer applies fades out rather than greying; with Nothing, one line
+    says the menu and the SitRep window carry the board.
+  - **Notifications**: the banner a new ask sends, its title, its project
+    and session, silent, a click jumping to it. Then Notify me of a new
+    ask, off by default, its line saying the notch swells and lights
+    instead; Send, for a test notification; and macOS's own answer
+    ("Allowed, as banners"), with Change ↗ leaving for System Settings.
+  - **General**: the Claude plugin SitRep installs, its version and the
+    windows running it; when some run an old one, how many need
+    `/reload-plugins`, as the menu says, and Show lists them, a click
+    jumping to each. Then Open at login; Update automatically and Check
+    Now, from the first public release (until then the row is not there);
+    and What macOS lets it do: Jump to a session's window, the leave to
+    control Ghostty, with Change ↗.
+- **How the notch moves is not a setting.** It ships fixed (see "The app
+  ships these values fixed", under "The notch and its panel"). A first
+  drawing had a Feel pane with the prototype's dials; Lee took it out.
+- **Borrowed**, from Lee's saved references: Dockset's native controls in a
+  styled frame, a live picture leading each step, and leaves named by what
+  they give; One's ↗ on what leaves the app.
 
 ### The jump
 
