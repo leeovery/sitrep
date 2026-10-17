@@ -1687,10 +1687,12 @@ asked for the sessions back, and approved the redraw as it stands.
     sessions stay as the board last read them, their heading saying when
     ("4 need you · as of 12:04"). The notch, the strip and the window keep
     the last board too, marked as stale.
-- **The icon** is a placeholder until round 6: a template glyph, white on a
-  dark menu bar and black on a light one. Its one state is a small orange
-  dot while anything needs Lee, since the notch is on one display and the
-  menu bar on every one. The header's icon carries no dot.
+- **The icon** in the menu bar is the light's glyph (see "The icon"): white
+  on a dark menu bar and black on a light one, its bar lit orange while
+  anything needs Lee, since the notch is on one display and the menu bar on
+  every one. The header carries SitRep's app icon, which never changes.
+  Round 4 drew a placeholder, a screen with a bar at its edge and a dot for
+  needs you; round 6 replaced it.
 
 This replaces the 13 October plan, a menu slimmed to Settings and quitting
 with the plain list of sessions kept as a fallback, and round 4's first
@@ -1735,6 +1737,39 @@ Spaceman's preferences as a reference only.
 - **Borrowed**, from Lee's saved references: Dockset's native controls in a
   styled frame, a live picture leading each step, and leaves named by what
   they give; One's ↗ on what leaves the app.
+
+### The icon
+
+SitRep's app icon and its menu bar glyph, drawn in Paper's "Icon and logo"
+(surfaces round 6, 17 October 2026). Three marks were drawn: the edge, the
+notch's light alone, and the band's ◆. Lee picked the edge for the icon and
+the light's glyph for the menu bar.
+- **The app icon is the edge:** the icon's own left edge is the screen's,
+  a black bezel down it, and the notch pours from it with its light on, as
+  the notch looks when something waits. The rest is a dark desktop. It is
+  the one mark no other app could have, and it shows Lee the thing on the
+  screen's edge.
+  - **Drawn as macOS 26 draws icons**: a continuous-corner body, built in
+    Icon Composer from three layers, the desktop, the bezel and notch, and
+    the light, in Liquid Glass. macOS makes the dark, clear and tinted icons
+    from them; in clear and tinted the light turns white or takes the tint,
+    the only places it gives up its orange.
+  - **The light is a picture, not a state.** It is always on in the icon,
+    and the icon never changes; the menu bar glyph says needs you.
+  - **Where it is seen**, with no Dock icon: the banner a new ask sends, the
+    menu's and Settings' header at 30, Finder, Login Items and Spotlight. It
+    holds down to 38; by 16 the light is a pixel.
+- **The menu bar glyph is the light**, in its housing: a rounded outline 13
+  points tall in an 18-point box, a 1.3-point line, as SF Symbols' regular.
+  - **At rest** it is a template image, its thin bar unlit, so macOS draws
+    it in the menu bar's ink on any wallpaper.
+  - **While anything needs Lee**, SitRep swaps in a second image whose bar
+    is lit orange. The glyph itself is the state, with no dot beside it.
+- **The name is set, not drawn:** SitRep in the system's semibold, as the
+  menu and Settings set it. There is no wordmark; the README pairs the icon
+  and the name.
+
+The boards for rounds 4 and 5 still show round 4's placeholder.
 
 ### The jump
 
