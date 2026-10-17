@@ -1226,6 +1226,8 @@ that takes Lee to the window a session is in.
   the notch exists, since the notch swells and lights for a new ask, and a
   setting turns them on.
 - **Answering stays in Claude Code:** the panel shows, and takes Lee there.
+  Only the SitRep window answers, and only an ask that wants a yes or a
+  choice (17 October 2026).
 - **Clicking** a session, an ask or a macOS notification takes Lee to the
   Ghostty window showing that session, on whatever Space it is. A session no
   window shows offers no jump: the app never opens a window (until stage 6).
@@ -1503,6 +1505,83 @@ are felt in a spike before they are settled.
   does, so a window filling the screen goes under the strip's 36pt. Claude's
   proposal: windows go under it, and the strip steps aside while an app is
   full screen.
+
+### The SitRep window
+
+The bigger window, showing the whole board and updating as it changes (Lee,
+16 October 2026). An away session with nothing waiting, which the panel and
+the strip leave off, shows here. Drawn in Paper's "The SitRep window"
+(surfaces round 3, 17 October 2026; Lee: "I like it", taking it as it
+stands).
+- **Two columns**, in a window of about 1100 × 720, all of it the panel's
+  black:
+  - **the board** down the left: every project with a session open, its
+    sessions under it. A project sits where its first session would sit in
+    the panel, so the oldest need comes first, then away, then your turn,
+    then working; its sessions keep that order. This replaces the pane's
+    "the busiest" for the window, so every surface sorts by one rule. A
+    project's name carries what waits there, in orange. Projects with
+    nothing open fold into one line at the foot ("6 quiet projects"). The
+    head says how many need Lee and how many sessions there are, or "All
+    clear".
+  - **the session** Lee picks, on the right: the pane's session view at
+    window size. Its project's name sits above it, and a press opens the
+    project. Then its name and summary; what its window is doing now, the
+    panel row's second line; then Asks, Status, Notes, Parked and Resolved,
+    in the pane's order, the last four in two columns so a session fits
+    without scrolling.
+- **A session row is a small panel row:** the same marks in the same lanes,
+  its name on one line, the panel row's time. An away session with nothing
+  waiting has a faint dot and a faint name.
+- **A project**, opened from its name, is the pane's project view: its open
+  sessions, each with what it is doing and what waits there; every session's
+  asks, the newest first; their notes; and their parked items, the oldest
+  first. Each line names its session. There is no Resolved. An ask there is
+  one line, and opens in place into its card.
+- **It opens on** the oldest session that needs Lee; with none, on the one
+  picked last. There is one window: opening it again brings it forward.
+  Where it opens from is round 4's, the menu bar item and its menu.
+- **Answering.** A session's asks show opened, as cards with their buttons:
+  - **a yes** is a white pill in Claude's words, the brightest thing in the
+    window; **a choice** is one outlined pill per option. Both are answered
+    here;
+  - **the answer waits 2 seconds**, a line draining under it, with Escape to
+    undo (borrowed from One, in Lee's dex). Then it goes into the session's
+    inbox, as the pane's replies to another session do (see "Delivery"). The
+    card says "on its way", then "sent, and Claude has it", then moves to
+    Resolved. The board never closes an ask on the press alone;
+  - **a comment, a words ask and a permission prompt** need Claude Code's
+    prompt, so their buttons read "Comment in Claude ↗" or "Answer in Claude
+    ↗" and jump to the session's window. Proposed, and new: that jump also
+    puts the window in answering mode for the ask, its band saying "Your
+    next Enter answers…". The mod cannot hear that from the app today;
+  - **ignore** is quiet grey text.
+- **A permission prompt or a question** is the window's state, not an ask.
+  It takes the state line's place, washed orange as the panel row that
+  brought it, and says the tool and what it would run.
+- **The jump** is "Open in Ghostty ↗", at the session's top right, shown
+  only while a window holds the session. ↗ marks anything that leaves SitRep.
+- **Away**, a session no window holds:
+  - there is no jump, and the state line says "No window holds it. Carry it
+    on in Claude.";
+  - its yes and choice asks can still be answered: the answer waits in its
+    inbox and goes in when a window takes the session up again. A comment or
+    words wait for that window;
+  - its foot has "✓ Finish this session", which asks first, in place, as the
+    pane's does.
+- **One colour.** Orange is for needs you only: the dots, the counts,
+  "2 waiting". Parked and resolved stay grey, not the pane's purple and
+  green.
+- **Live.**
+  - A new needs you moves in at once, the rows below sliding down, and is
+    washed orange for two seconds.
+  - Any other change shows in place, and the list re-sorts a second after
+    the pointer leaves it, as on the strip.
+  - The session open on the right never shifts while Lee reads it: an ask
+    closed meanwhile keeps its place, faint and without buttons, saying how
+    it closed, until another session is picked.
+  - The window never comes forward or takes focus by itself; the notch or
+    the strip tells Lee.
 
 ### The jump
 
