@@ -1,10 +1,10 @@
 import AppKit
 import SitRepPanel
 
-/// The side panel on the screen with the menu bar: it owns the model, feeds it a frame per display refresh with the
-/// pointer and the time, and draws what each gives back. Frames run only while the model moves, or the pointer is
-/// near the lip or over the open panel; mouse monitors wake them. While idle it costs nothing, but for the light,
-/// which breathes on a slow refresh of its own while something needs Lee.
+/// The side panel on the screen with the menu bar: it owns the notch, in the style Lee chose, feeds it a frame per
+/// display refresh with the pointer and the time, and draws what each gives back. Frames run only while the model
+/// moves, or the pointer is near the lip or over the open panel; mouse monitors wake them. While idle it costs
+/// nothing, but for the light, which breathes on a slow refresh of its own while something needs Lee.
 @MainActor
 final class PanelController: NSObject {
     /// Whether anything needs Lee: for the spike, a toggle in the menu.
@@ -13,7 +13,7 @@ final class PanelController: NSObject {
     }
 
     private let dials: PanelDials
-    private let model: Meniscus
+    private var notch: PanelNotch
     /// The content's layout, which the view draws and a click finds its row in.
     private let content: Content
     private let view: PanelView
@@ -31,18 +31,21 @@ final class PanelController: NSObject {
         self.dials = dials
         edge = Self.screenEdge()
 
-        let input = Input(time: Self.now, pointer: edge.stagePoint(NSEvent.mouseLocation), needsLee: true, stage: edge.stage)
+        let input = Input(
+            time: Self.now, pointer: edge.stagePoint(NSEvent.mouseLocation), needsLee: true, stage: edge.stage,
+            reducesMotion: Self.reducesMotion
+        )
 
-        model = Meniscus(settings: dials.settings, input)
-        frame = model.frame(input)
+        notch = PanelNotch(dials, input)
+        frame = notch.model.frame(input)
         content = input.content
-        view = PanelView(items: model.items, content: content)
+        view = PanelView(items: notch.model.items, content: content)
         window = SidePanel(frame: edge.window, view: view)
         super.init()
 
         view.onClick = { [unowned self] point in click(at: point) }
-        dials.onChange = { [unowned self] settings in
-            model.settings = settings
+        dials.onChange = { [unowned self] in
+            notch.retune(dials)
             wake()
         }
         window.orderFrontRegardless()
@@ -62,6 +65,10 @@ final class PanelController: NSObject {
     }
 
     private static var now: Double { CACurrentMediaTime() * 1000 }
+
+    private static var reducesMotion: Bool { NSWorkspace.shared.accessibilityDisplayShouldReduceMotion }
+
+    private var model: any Notch { notch.model }
 
     /// The screen with the menu bar, which the panel lives on.
     private static func screenEdge() -> ScreenEdge {
@@ -93,13 +100,29 @@ final class PanelController: NSObject {
     /// One frame: the model moved on to this time with the pointer where it is, drawn, and the clocks paced.
     private func step(at time: Double) {
         let pointer = edge.stagePoint(NSEvent.mouseLocation)
+        let input = Input(
+            time: time, pointer: pointer, needsLee: needsLee, stage: edge.stage, reducesMotion: Self.reducesMotion
+        )
 
-        frame = model.frame(Input(time: time, pointer: pointer, needsLee: needsLee, stage: edge.stage))
+        frame = model.frame(input)
+        if dials.style != notch.style {
+            restyle(input)
+        }
         asks.take(lastAsk: frame.light.lastAsk, simTime: frame.time, at: time)
         view.show(frame, hover: pointer.flatMap(row))
         drawLight(at: time)
         window.ignoresMouseEvents = !(pointer.map(frame.hits) ?? false)
         pace(pointer)
+    }
+
+    /// Lee chose the other notch: an open panel closes first, and the notch changes once it is at rest.
+    private func restyle(_ input: Input) {
+        if isOut {
+            model.clickElsewhere()
+        } else if model.phase == .closed, !frame.isMoving {
+            notch = PanelNotch(dials, input)
+            frame = model.frame(input)
+        }
     }
 
     private func drawLight(at time: Double) {
@@ -108,7 +131,7 @@ final class PanelController: NSObject {
 
     /// Frames run while the model wants them; otherwise only the light's slow refresh, and only while it is lit.
     private func pace(_ pointer: CGPoint?) {
-        let running = frame.wantsFrames(pointer: pointer, field: model.settings.field)
+        let running = frame.wantsFrames(pointer: pointer, field: model.field)
 
         link?.isPaused = !running
         lightLink?.isPaused = running || frame.light.level <= 0.001
@@ -126,7 +149,7 @@ final class PanelController: NSObject {
     private var isOut: Bool { model.phase == .open || model.phase == .opening }
 
     /// Lee's action on the model, then frames to show it.
-    private func act(_ action: (Meniscus) -> Void) {
+    private func act(_ action: (any Notch) -> Void) {
         action(model)
         wake()
     }
@@ -177,7 +200,7 @@ final class PanelController: NSObject {
     private func heard(clickElsewhere: Bool) {
         if clickElsewhere, isOut {
             act { $0.clickElsewhere() }
-        } else if frame.wantsFrames(pointer: edge.stagePoint(NSEvent.mouseLocation), field: model.settings.field) {
+        } else if frame.wantsFrames(pointer: edge.stagePoint(NSEvent.mouseLocation), field: model.field) {
             wake()
         }
     }

@@ -31,6 +31,92 @@ func crosses(_ a: Vec, _ b: Vec, _ r: CGRect) -> Bool {
     return stride(from: 1, to: n, by: 1).contains { i in inRect(lerp(a, b, Double(i) / Double(n)), r) }
 }
 
+/// The notch's hit area: the live notch and a little, reaching past the edge; only a sliver once the panel is out.
+func hitArea(w: Double, h: Double, cy: Double, live: Bool) -> CGRect {
+    let reach = live ? 4 : max(12, w + Tuning.hitPad)
+    let into = 8.0, hh = h + 8
+    return CGRect(x: -into, y: cy - hh / 2, width: reach + into, height: hh)
+}
+
+/// The pointer's recent samples, on the view's clock, for its speed.
+struct Trail {
+    private var samples: [Sample] = []
+
+    mutating func add(_ p: Vec, at now: Double) {
+        samples.append(Sample(p: p, t: now))
+        while samples.count > 2, now - samples[0].t > 150 {
+            samples.removeFirst()
+        }
+    }
+
+    /// The pointer has moved in the last 60ms: its trail still gives it a speed.
+    func isFresh(at now: Double) -> Bool { samples.last.map { now - $0.t <= 60 } ?? false }
+
+    /// The pointer's velocity over the last 50ms or so, points per ms; nothing for a pointer at rest.
+    func velocity(at now: Double) -> Vec {
+        guard samples.count >= 2, isFresh(at: now), let a = samples.last else {
+            return Vec(0, 0)
+        }
+
+        // the oldest sample within the window: a pause before it doesn't stretch it
+        var b: Sample?
+        for i in stride(from: samples.count - 2, through: 0, by: -1) {
+            if a.t - samples[i].t > 70 {
+                break
+            }
+            b = samples[i]
+            if a.t - samples[i].t >= 50 {
+                break
+            }
+        }
+        // the first move after a pause: its travel happened within about one event's interval, not the pause
+        let dt = b.map { a.t - $0.t } ?? 16
+        let from = b ?? samples[samples.count - 2]
+        guard dt >= 8 else {
+            return Vec(0, 0)
+        }
+
+        return (a.p - from.p) / dt
+    }
+}
+
+/// The pointer touching the notch's hit area, which opens it.
+struct Contact {
+    enum Change {
+        /// It came onto the notch, and is armed: fast, toward the edge, it opens at once.
+        case touched(fast: Bool)
+        case left
+    }
+
+    var touching = false
+    /// A pointer left sitting on the notch as it closes doesn't open it again until it leaves.
+    var armed = true
+    /// The pointer at the last check.
+    private var prev: Vec?
+
+    /// The pointer this frame against the hit area, with its speed toward the edge: what changed.
+    mutating func update(_ p: Vec?, _ hit: CGRect, approach: Double) -> Change? {
+        let q = prev
+        prev = p
+        let fast = approach > Tuning.fast
+        var c = p.map { inRect($0, hit) } ?? false
+        if !c, fast, let p, let q, crosses(q, p, hit) {
+            c = true
+        }
+        guard c else {
+            armed = true
+            defer { touching = false }
+            return touching ? .left : nil
+        }
+        guard !touching else {
+            return nil
+        }
+
+        touching = true
+        return armed ? .touched(fast: fast) : nil
+    }
+}
+
 extension Meniscus {
     /// The pointer since the last frame, as the prototype's pointer events give it: a move adds to its trail, and
     /// entering or leaving the lip or the panel, as they were last drawn, cancels the grace or may start it. A still
@@ -42,7 +128,7 @@ extension Meniscus {
 
         sp = p
         if let p {
-            trackPointer(p)
+            trail.add(p, at: now)
         }
         let over = hoverOf(p)
         guard over != hover else {
@@ -58,67 +144,6 @@ extension Meniscus {
             cancel(.grace)
         }
     }
-
-    func trackPointer(_ p: Vec) {
-        trail.append(Sample(p: p, t: now))
-        while trail.count > 2, now - trail[0].t > 150 {
-            trail.removeFirst()
-        }
-    }
-
-    /// The lip's hit area lies over the panel's content, which counts only while the panel is live.
-    func hoverOf(_ p: Vec?) -> Hover? {
-        guard let p else {
-            return nil
-        }
-
-        if let lastHit, inRect(p, lastHit) {
-            return .lip
-        }
-        if isLive, let lastPanel, lastPanel.contains(CGPoint(p)) {
-            return .panel
-        }
-        return nil
-    }
-
-    /// The pointer's real whereabouts, against the lip and the panel as last drawn.
-    func pointerInside() -> Bool { hoverOf(sp) != nil }
-
-    /// The pointer has moved in the last 60ms: its trail still gives it a speed.
-    var trailIsFresh: Bool { trail.last.map { now - $0.t <= 60 } ?? false }
-
-    /// The pointer's velocity over the last 50ms or so of the view's clock, points per ms; nothing for a pointer at rest.
-    func trailVelocity() -> Vec {
-        guard trail.count >= 2, trailIsFresh, let a = trail.last else {
-            return Vec(0, 0)
-        }
-
-        // the oldest sample within the window: a pause before it doesn't stretch it
-        var b: Sample?
-        for i in stride(from: trail.count - 2, through: 0, by: -1) {
-            if a.t - trail[i].t > 70 {
-                break
-            }
-            b = trail[i]
-            if a.t - trail[i].t >= 50 {
-                break
-            }
-        }
-        // the first move after a pause: its travel happened within about one event's interval, not the pause
-        let dt = b.map { a.t - $0.t } ?? 16
-        let from = b ?? trail[trail.count - 2]
-        guard dt >= 8 else {
-            return Vec(0, 0)
-        }
-
-        return (a.p - from.p) / dt
-    }
-
-    /// The pointer's speed toward the edge (below 0: away from it).
-    func approachSpeed() -> Double { -trailVelocity().x }
-
-    /// The pointer's speed in any direction.
-    func pointerSpeed() -> Double { trailVelocity().length }
 
     /// How hard the closed lip is pulled toward the pointer, and where its tongue aims. The pull goes as
     /// 1/(distance + `attractD0`), so it grows sharply as the gap closes; it reaches the cap at a distance of the cap
@@ -197,38 +222,19 @@ extension Meniscus {
 
     /// Contact with the lip opens it: after the dwell, or at once if the pointer arrives fast.
     func updateContact(_ g: Geometry) {
-        let p = sp, q = prevSp
-        prevSp = p
-        let r = hitRect(g)
-        var c = p.map { inRect($0, r) } ?? false
-        if !c, let p, let q, crosses(q, p, r), approachSpeed() > Tuning.fast {
-            c = true
-        }
-        guard c else {
-            armed = true
-            if contact {
-                contact = false
-                cancel(.dwell)
+        switch contact.update(sp, hitRect(g), approach: approachSpeed()) {
+        case .left:
+            cancel(.dwell)
+        case let .touched(fast) where phase == .closed || phase == .closing:
+            cancel(.grace)
+            if fast {
+                open()
+            } else {
+                // leaving first cancels it: a pass doesn't open
+                later(.dwell, Tuning.dwell) { $0.open() }
             }
-            return
+        case .touched, nil:
+            break
         }
-
-        guard !contact else {
-            return
-        }
-
-        contact = true
-        guard armed, phase == .closed || phase == .closing else {
-            return
-        }
-
-        cancel(.grace)
-        if approachSpeed() > Tuning.fast {
-            open()
-            return
-        }
-
-        // leaving first cancels it: a pass doesn't open
-        later(.dwell, 150) { $0.open() }
     }
 }

@@ -84,6 +84,24 @@ struct SpringTests {
         #expect(spring.x > at)
     }
 
+    @Test(arguments: [18.0, 25, 30])
+    func aSpringKickedToAPeakPeaksThere(peak: Double) {
+        var spring = Spring(15)
+        spring.springTo(15, SpringParams(response: 0.32, damping: 0.53))
+        spring.v = spring.kick(toPeak: peak)
+
+        let path = Self.run(&spring, for: 1000, step: 1)
+
+        #expect(abs(path.max()! - peak) < 1e-3)
+    }
+
+    @Test func aSpringAlreadyAtThePeakIsNotKicked() {
+        var spring = Spring(25)
+        spring.v = 0.5
+
+        #expect(spring.kick(toPeak: 20) == 0.5)
+    }
+
     @Test func aStepOfNoTimeLeavesItWhereItIs() {
         var spring = Spring(10)
         spring.springTo(100, SpringParams(response: 0.3, damping: 0.5))

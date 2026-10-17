@@ -5,7 +5,7 @@ import Foundation
 /// pour, the edge holding the pointer as it leaves, the release, the collapse and the landing. The view feeds it a
 /// frame at a time and draws what each gives back. It works in the edge's own coordinates, so it never knows which
 /// edge it is on: the view mirrors it for the right.
-public final class Meniscus {
+public final class Meniscus: Notch {
     public var settings: Settings
     public internal(set) var phase = Phase.closed
     /// The panel's list, in the order each frame paints it.
@@ -22,13 +22,11 @@ public final class Meniscus {
     var S: Springs
     /// While open, the shape's height follows the content.
     var follow = false
-    /// The pointer this frame and at the last contact check.
+    /// The pointer this frame.
     var sp: Vec?
-    var prevSp: Vec?
     /// Where the pointer last was along the edge, while on this screen.
     var lastStageY: Double?
-    /// Recent pointer samples, for its speed.
-    var trail: [Sample] = []
+    var trail = Trail()
     /// What the pointer was over at its last move.
     var hover: Hover?
     var snap: Snap?
@@ -43,14 +41,12 @@ public final class Meniscus {
     /// How fast the pointer left, for a grace that ends in a drain.
     var leaveSpeed = 0.0
     var attract = Attract()
-    var contact = false
-    var armed = true
+    var contact = Contact()
     var cling = Cling()
     var reveal = Reveal.none
     /// The sim time of the last new ask.
     var flash: Double?
-    var timers: [SimTimer] = []
-    var timerSerial = 0
+    var timers = SimTimers<Meniscus, TimerName>()
     /// The collapse started inside this frame, this long before its end: its springs step only that long.
     var lag: Double?
     /// The lip's hit area and the panel's content as last drawn, which the pointer's moves are hit-tested against.
@@ -68,6 +64,13 @@ public final class Meniscus {
     }
 
     var isLive: Bool { phase == .open || phase == .opening }
+
+    public var field: Double { settings.field }
+
+    let rowsAt = Tuning.rowsAt
+
+    /// The port has no reduced motion yet.
+    let reducesMotion = false
 
     var lipTarget: LipShape { needs ? .needs : .rest }
 
@@ -197,40 +200,6 @@ public final class Meniscus {
         }
     }
 
-    func later(_ name: TimerName, _ ms: Double, _ fn: @escaping (Meniscus) -> Void) {
-        timerSerial += 1
-        let timer = SimTimer(name: name, at: t + ms, serial: timerSerial, fn: fn)
-        if let i = timers.firstIndex(where: { $0.name == name }) {
-            timers[i] = timer
-        } else {
-            timers.append(timer)
-        }
-    }
-
-    func cancel(_ names: TimerName...) {
-        timers.removeAll { names.contains($0.name) }
-    }
-
-    func cancelPrefix(_ prefix: String) {
-        timers.removeAll { $0.name.rawValue.hasPrefix(prefix) }
-    }
-
-    /// Runs the timers due, soonest first: one an earlier one cancelled or set again doesn't run.
-    func runTimers() {
-        let due = timers.enumerated()
-            .filter { $0.element.at <= t }
-            .sorted { ($0.element.at, $0.offset) < ($1.element.at, $1.offset) }
-            .map(\.element)
-        for timer in due {
-            guard let i = timers.firstIndex(where: { $0.serial == timer.serial }) else {
-                continue
-            }
-
-            timers.remove(at: i)
-            timer.fn(self)
-        }
-    }
-
     /// The live geometry, from the springs.
     func geometry() -> Geometry {
         var h = max(0, S.h.x)
@@ -324,14 +293,6 @@ public final class Meniscus {
     }
 }
 
-/// A timer on the sim clock, by the prototype's name for it.
-struct SimTimer {
-    let name: TimerName
-    let at: Double
-    let serial: Int
-    let fn: (Meniscus) -> Void
-}
-
 enum TimerName: String {
     case dwell, grace, swell
     case openW = "open:w", openDone = "open:done"
@@ -339,7 +300,4 @@ enum TimerName: String {
     case closeFar = "close:far", closeBurst = "close:burst", closePush = "close:push"
 }
 
-/// The rows landing as the panel opens, or fading as it closes, since a time on the sim clock.
-enum Reveal {
-    case none, rowsIn(Double), rowsOut(Double)
-}
+extension Meniscus: NotchModel {}

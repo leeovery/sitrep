@@ -29,6 +29,10 @@ enum Tuning {
     static let captureV = 0.15
     /// Toward the edge over the last 50ms, this fast: touching the lip opens it at once.
     static let fast = 1.2
+    /// ... else after this long on it.
+    static let dwell = 150.0
+    /// The hit area reaches this far past the notch's front.
+    static let hitPad = 4.0
     /// The open front edge bows toward a pointer this close to it, ...
     static let clingNear = 40.0
     /// ... by up to this, × Pull.

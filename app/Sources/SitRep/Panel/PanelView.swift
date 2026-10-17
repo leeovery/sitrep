@@ -2,14 +2,16 @@ import AppKit
 import SitRepPanel
 
 /// The panel's one view: the black shape, the light in the lip, and the content over them, as layers in the
-/// stage's own coordinates (y down from the screen's top). A frame changes the shape's path, the light and the
-/// content's clip and paint; nothing animates implicitly. Clicks on it go to the controller.
+/// stage's own coordinates (y down from the screen's top); under reduced motion, the shape it cross-fades from. A
+/// frame changes the shape's path, the light and the content's clip and paint; nothing animates implicitly. Clicks
+/// on it go to the controller.
 @MainActor
 final class PanelView: NSView {
     /// A click, in screen coordinates.
     var onClick: (CGPoint) -> Void = { _ in }
 
     private let shape = CAShapeLayer()
+    private let fading = CAShapeLayer()
     private let light = LightLayer()
     private let content: PanelContent
 
@@ -20,7 +22,10 @@ final class PanelView: NSView {
         let root = CALayer()
 
         root.isGeometryFlipped = true
+        fading.fillColor = PanelStyle.black
+        fading.isHidden = true
         shape.fillColor = PanelStyle.black
+        root.addSublayer(fading)
         root.addSublayer(shape)
         root.addSublayer(light)
         root.addSublayer(content.layer)
@@ -61,6 +66,10 @@ final class PanelView: NSView {
         CATransaction.begin()
         CATransaction.setDisableActions(true)
         shape.path = frame.outline
+        shape.opacity = Float(frame.outlineAlpha)
+        fading.isHidden = frame.fading == nil
+        fading.path = frame.fading?.outline
+        fading.opacity = Float(frame.fading?.alpha ?? 0)
         content.show(frame.panel, hover: hover)
         CATransaction.commit()
     }

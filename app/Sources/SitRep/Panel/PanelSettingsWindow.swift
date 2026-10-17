@@ -22,26 +22,52 @@ final class PanelSettingsWindow {
     }
 }
 
-/// A slider for each of the prototype's dials, what they make beneath, and its Copy settings and Reset.
+/// Which notch, and the dials of the one chosen.
 private struct PanelSettingsView: View {
     @Bindable var dials: PanelDials
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Picker("Style", selection: $dials.style) {
+                ForEach(NotchStyle.allCases, id: \.self) { style in
+                    Text(style.name).tag(style)
+                }
+            }
+            .pickerStyle(.segmented)
+
+            switch dials.style {
+            case .meniscus:
+                DialsView(settings: $dials.settings, reset: dials.reset)
+            case .card:
+                DialsView(settings: $dials.card, reset: dials.reset)
+            }
+        }
+        .padding(20)
+        .frame(width: 440)
+    }
+}
+
+/// A slider for each of a prototype's dials, what they make beneath, and its Copy settings and Reset.
+private struct DialsView<Tuned: PanelSettings>: View {
+    @Binding var settings: Tuned
+    let reset: () -> Void
     @State private var copied = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             Grid(alignment: .leading, verticalSpacing: 6) {
-                ForEach(Dial.allCases, id: \.self) { dial in
+                ForEach(Tuned.Dial.allCases, id: \.self) { dial in
                     GridRow {
                         Text(dial.name)
                         Slider(value: value(of: dial), in: dial.range, step: dial.step)
-                        Text(dial.show(dials.settings[dial]))
+                        Text(dial.show(settings[dial]))
                             .monospacedDigit()
                             .gridColumnAlignment(.trailing)
                     }
                 }
             }
 
-            Text(dials.settings.derived)
+            Text(settings.derived)
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .textSelection(.enabled)
@@ -49,24 +75,22 @@ private struct PanelSettingsView: View {
 
             HStack {
                 Button(copied ? "Copied" : "Copy settings", action: copy)
-                Button("Reset", action: dials.reset)
+                Button("Reset", action: reset)
             }
         }
-        .padding(20)
-        .frame(width: 440)
     }
 
     /// A dial's value, put onto its step as it moves, so the JSON prints it as the prototype's slider would.
-    private func value(of dial: Dial) -> Binding<Double> {
+    private func value(of dial: Tuned.Dial) -> Binding<Double> {
         Binding(
-            get: { dials.settings[dial] },
-            set: { dials.settings[dial] = dial.stepped($0) }
+            get: { settings[dial] },
+            set: { settings[dial] = dial.stepped($0) }
         )
     }
 
     private func copy() {
         NSPasteboard.general.clearContents()
-        NSPasteboard.general.setString(dials.settings.copied, forType: .string)
+        NSPasteboard.general.setString(settings.copied, forType: .string)
         copied = true
 
         Task {

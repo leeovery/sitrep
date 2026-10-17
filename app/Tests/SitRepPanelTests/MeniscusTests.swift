@@ -229,7 +229,7 @@ struct MeniscusTests {
         lab.openByTouch()
         let top = lab.lipY - 258
         lab.move(to: CGPoint(x: 3, y: top + 27), speed: 0.3)
-        lab.move(to: CGPoint(x: 3, y: top - 20), speed: 0.3) { $0.model.timers.contains { $0.name == .grace } }
+        lab.move(to: CGPoint(x: 3, y: top - 20), speed: 0.3) { $0.model.timers.has(.grace) }
 
         lab.move(to: CGPoint(x: 100, y: lab.lipY), speed: 2)
 
@@ -377,7 +377,7 @@ extension Lab {
     mutating func leaveOverTheTopFlare(to target: CGPoint, speed: Double) -> Double {
         var gracedAt: Double?
         move(to: target, speed: speed) { lab in
-            gracedAt = lab.model.timers.contains { $0.name == .grace } ? gracedAt ?? lab.now : nil
+            gracedAt = lab.model.timers.has(.grace) ? gracedAt ?? lab.now : nil
             return gracedAt != nil
         }
         wait(1000) { $0.phase != .open }

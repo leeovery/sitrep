@@ -28,9 +28,11 @@ public struct Stage: Equatable, Sendable {
     }
 
     /// The lip's home, kept where even its deepest swell fits inside the band.
-    func clampLipY(_ y: Double) -> Double {
-        let half = LipShape.deepestSwell.h / 2
-        return clamp(y, bandTop + half, max(bandTop + half, bandBottom - half))
+    func clampLipY(_ y: Double) -> Double { keep(y, half: LipShape.deepestSwell.h / 2) }
+
+    /// A place along the edge, kept where this much either side of it fits inside the band.
+    func keep(_ y: Double, half: Double) -> Double {
+        clamp(y, bandTop + half, max(bandTop + half, bandBottom - half))
     }
 }
 
@@ -45,13 +47,19 @@ public struct Input {
     public var needsLee: Bool
     public var stage: Stage
     public var content: Content
+    /// Whether the Mac asks for reduced motion: the card then cross-fades rather than springs.
+    public var reducesMotion: Bool
 
-    public init(time: Double, pointer: CGPoint?, needsLee: Bool, stage: Stage, content: Content = .css) {
+    public init(
+        time: Double, pointer: CGPoint?, needsLee: Bool, stage: Stage, content: Content = .css,
+        reducesMotion: Bool = false
+    ) {
         self.time = time
         self.pointer = pointer
         self.needsLee = needsLee
         self.stage = stage
         self.content = content
+        self.reducesMotion = reducesMotion
     }
 }
 
@@ -63,6 +71,10 @@ public struct Frame {
     public let phase: Phase
     /// The black, lip or panel: one closed path, starting and ending a little past the screen's edge.
     public let outline: CGPath
+    /// How opaque it is: below 1 only while it cross-fades in under reduced motion, ...
+    public let outlineAlpha: Double
+    /// ... from the outline it was, fading out.
+    public let fading: Fading?
     /// The panel's content, while it is out.
     public let panel: Panel?
     public let light: Light
@@ -72,6 +84,21 @@ public struct Frame {
     /// Whether anything can still change with the pointer held still: when it is false, frames can stop until the
     /// pointer moves or Lee acts.
     public let isMoving: Bool
+
+    init(
+        time: Double, phase: Phase, outline: CGPath, outlineAlpha: Double = 1, fading: Fading? = nil, panel: Panel?,
+        light: Light, hitRect: CGRect, isMoving: Bool
+    ) {
+        self.time = time
+        self.phase = phase
+        self.outline = outline
+        self.outlineAlpha = outlineAlpha
+        self.fading = fading
+        self.panel = panel
+        self.light = light
+        self.hitRect = hitRect
+        self.isMoving = isMoving
+    }
 
     /// Whether a click here lands on the black, or the lip's hit area, rather than on what is beneath: only a row
     /// does anything with it, and anywhere else it passes through.
@@ -133,6 +160,12 @@ public struct Frame {
         public let rise: Double
     }
 
+    /// An outline fading out, and how opaque it still is.
+    public struct Fading {
+        public let outline: CGPath
+        public let alpha: Double
+    }
+
     /// The light in the lip.
     public struct Light {
         /// The Live light's bar, its long side along the edge.
@@ -165,11 +198,7 @@ extension Meniscus {
     /// The hit area: the live lip plus a little, reaching past the edge; only a sliver once the panel is out.
     func hitRect(_ g: Geometry) -> CGRect {
         let lip = lipTarget, closed = phase == .closed
-        let reach = isLive ? 4 : max(12, (closed ? g.w : lip.w) + 4)
-        let into = 8.0
-        let h = (closed ? g.h : lip.h) + 8
-        let cy = closed ? g.cy : S.y.x
-        return CGRect(x: -into, y: cy - h / 2, width: reach + into, height: h)
+        return hitArea(w: closed ? g.w : lip.w, h: closed ? g.h : lip.h, cy: closed ? g.cy : S.y.x, live: isLive)
     }
 
     /// The content, clipped to the black's body; nil while closed.
@@ -199,43 +228,6 @@ extension Meniscus {
         )
     }
 
-    /// The head and each item as they land or fade.
-    func renderRows() -> (head: Frame.Paint, items: [Frame.Paint]) {
-        (paint(revealAlpha(0)), revealOrder.map { paint(revealAlpha($0)) })
-    }
-
-    /// Each item's place in the order the rows land, after the head's 0: a divider lands with the row after it.
-    var revealOrder: [Int] {
-        var k = 0
-        return items.map { item in
-            if item != .divider {
-                k += 1
-            }
-            return item == .divider ? k + 1 : k
-        }
-    }
-
-    /// Rows land from the top, 25ms apart: the head at `rowsAt`, then each row; each fades and rises in 90ms. Closing,
-    /// they fade in 60ms.
-    func revealAlpha(_ i: Int) -> Double {
-        switch reveal {
-        case let .rowsIn(t0):
-            easeOut(clamp((t - t0 - Tuning.rowsAt - 25 * Double(i)) / 90, 0, 1))
-        case let .rowsOut(t0):
-            1 - clamp((t - t0) / 60, 0, 1)
-        case .none:
-            0
-        }
-    }
-
-    func paint(_ a: Double) -> Frame.Paint {
-        guard case .rowsIn = reveal, a < 1 else {
-            return Frame.Paint(alpha: a, rise: 0)
-        }
-
-        return Frame.Paint(alpha: a, rise: (1 - a) * 4)
-    }
-
     /// The light: on the lip's centre line, halfway into its depth at the base. Its level is only whether anything
     /// needs Lee, and the dimming while the panel is out.
     func renderLight(_ g: Geometry) -> Frame.Light {
@@ -256,20 +248,5 @@ extension Meniscus {
             || snap != nil || ends != nil || landing != nil || ringing || cling.hang != nil
             || isRevealing
             || attract.dx.isFinite && trailIsFresh
-    }
-
-    private var isRevealing: Bool {
-        guard phase != .closed else {
-            return false
-        }
-
-        switch reveal {
-        case .rowsIn:
-            return revealAlpha(revealOrder.max() ?? 0) < 1
-        case .rowsOut:
-            return revealAlpha(0) > 0
-        case .none:
-            return false
-        }
     }
 }

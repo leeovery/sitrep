@@ -15,7 +15,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         let panel = PanelController(dials: panelDials)
-        let panelMenu = PanelMenu(panel: panel, settings: PanelSettingsWindow(dials: panelDials))
+        let panelMenu = PanelMenu(panel: panel, dials: panelDials, settings: PanelSettingsWindow(dials: panelDials))
 
         menu = StatusMenu(works: works, banners: banners, panelMenu: panelMenu)
         self.panel = panel

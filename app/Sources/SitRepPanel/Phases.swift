@@ -80,7 +80,7 @@ extension Meniscus {
     func close(_ reason: CloseReason = .dismissed) {
         cancel(.dwell, .grace)
         // a pointer left sitting on the lip doesn't reopen it until it leaves, nor one left within the attraction's reach
-        armed = false
+        contact.armed = false
         attract.armed = false
         guard isLive else {
             return

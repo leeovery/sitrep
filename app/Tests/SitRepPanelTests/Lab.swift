@@ -5,22 +5,35 @@ import CoreGraphics
 /// centred on the screen.
 let screen = Stage(height: 982, visibleTop: 24, visibleBottom: 982, lipY: 491)
 
-/// The model driven as the view will drive it: a frame every 1/60s, the pointer moved along a path between them.
-/// A scenario reads as the pointer's path, and what the model did on it.
-struct Lab {
-    static let frameMS = 1000.0 / 60
+typealias Lab = NotchLab<Meniscus>
+typealias CardLab = NotchLab<Card>
 
-    let model: Meniscus
+/// A notch driven as the view will drive it: a frame every 1/60s, the pointer moved along a path between them.
+/// A scenario reads as the pointer's path, and what the model did on it.
+struct NotchLab<Model: NotchModel> {
+    static var frameMS: Double { 1000.0 / 60 }
+
+    let model: Model
     var now = 1000.0
     var pointer: CGPoint?
     var needsLee: Bool
+    var content: Content
+    var reducesMotion: Bool
     private(set) var frame: Frame
 
-    init(settings: Settings = Settings(), needsLee: Bool = false, pointer: CGPoint? = nil) {
+    init(
+        needsLee: Bool, pointer: CGPoint?, content: Content = .css, reducesMotion: Bool = false,
+        _ make: (Input) -> Model
+    ) {
         self.needsLee = needsLee
         self.pointer = pointer
-        let input = Input(time: now, pointer: pointer, needsLee: needsLee, stage: screen)
-        model = Meniscus(settings: settings, input)
+        self.content = content
+        self.reducesMotion = reducesMotion
+        let input = Input(
+            time: now, pointer: pointer, needsLee: needsLee, stage: screen, content: content,
+            reducesMotion: reducesMotion
+        )
+        model = make(input)
         frame = model.frame(input)
     }
 
@@ -28,17 +41,22 @@ struct Lab {
 
     var phase: Phase { model.phase }
 
-    /// The lip or panel as drawn this frame.
-    var shape: Geometry { model.geometry() }
-
     mutating func step() {
-        now += Self.frameMS
-        frame = model.frame(Input(time: now, pointer: pointer, needsLee: needsLee, stage: screen))
+        step(at: now + Self.frameMS)
+    }
+
+    /// One frame at this time on the view's clock.
+    mutating func step(at time: Double) {
+        now = time
+        frame = model.frame(Input(
+            time: now, pointer: pointer, needsLee: needsLee, stage: screen, content: content,
+            reducesMotion: reducesMotion
+        ))
     }
 
     /// Frames with the pointer where it is, for up to this long or until the condition holds: whether it did.
     @discardableResult
-    mutating func wait(_ ms: Double, until done: (Lab) -> Bool = { _ in false }) -> Bool {
+    mutating func wait(_ ms: Double, until done: (Self) -> Bool = { _ in false }) -> Bool {
         let end = now + ms
         while now < end {
             step()
@@ -52,7 +70,7 @@ struct Lab {
     /// The pointer straight to a point at this speed in points per ms, a frame at a time, until it is there or the
     /// condition holds: whether it did.
     @discardableResult
-    mutating func move(to target: CGPoint, speed: Double, until done: (Lab) -> Bool = { _ in false }) -> Bool {
+    mutating func move(to target: CGPoint, speed: Double, until done: (Self) -> Bool = { _ in false }) -> Bool {
         let from = pointer ?? target
         let length = hypot(target.x - from.x, target.y - from.y)
         let frames = max(1, Int((length / (speed * Self.frameMS)).rounded(.up)))
@@ -73,9 +91,32 @@ struct Lab {
         wait(ms) { !$0.frame.isMoving }
     }
 
-    /// The pointer set down on the lip, as from another screen, and held there until the panel is open.
+    /// The pointer set down on the notch, as from another screen, and held there until the panel is open.
     mutating func openByTouch() {
         pointer = CGPoint(x: 3, y: lipY)
         wait(1000) { $0.phase == .open }
     }
+}
+
+extension NotchLab where Model == Meniscus {
+    init(settings: Settings = Settings(), needsLee: Bool = false, pointer: CGPoint? = nil) {
+        self.init(needsLee: needsLee, pointer: pointer) { Meniscus(settings: settings, $0) }
+    }
+
+    /// The lip or panel as drawn this frame.
+    var shape: Geometry { model.geometry() }
+}
+
+extension NotchLab where Model == Card {
+    init(
+        settings: CardSettings = CardSettings(), needsLee: Bool = false, pointer: CGPoint? = nil,
+        content: Content = .css, reducesMotion: Bool = false
+    ) {
+        self.init(needsLee: needsLee, pointer: pointer, content: content, reducesMotion: reducesMotion) {
+            Card(settings: settings, $0)
+        }
+    }
+
+    /// The card as drawn this frame.
+    var shape: CardGeometry { model.geometry() }
 }

@@ -9,6 +9,16 @@ public struct SpringParams: Equatable, Sendable {
         self.response = response
         self.damping = damping
     }
+
+    /// After Bounce, its damping scaled and capped at 1, and as fast as a speed dial makes it.
+    func after(bounce scale: Double, speed: Double = 1) -> SpringParams {
+        SpringParams(response: response / speed, damping: min(1, damping * scale))
+    }
+}
+
+/// What Bounce does to every spring's damping: at 0 ×1.4, at 0.5 as listed, at 1 ×0.7.
+func dampingScale(bounce: Double) -> Double {
+    bounce <= 0.5 ? lerp(1.4, 1, bounce / 0.5) : lerp(1, 0.7, (bounce - 0.5) / 0.5)
 }
 
 /// The prototype's springs (its `SPRINGS`), in its order; Bounce scales every one's damping.
@@ -61,15 +71,10 @@ public enum SpringKind: CaseIterable, Sendable {
 
 extension Settings {
     /// Bounce: 0 scales every dampingFraction ×1.4 (capped at 1), 0.5 leaves it as listed, 1 scales it ×0.7.
-    public var bounceScale: Double {
-        bounce <= 0.5 ? lerp(1.4, 1, bounce / 0.5) : lerp(1, 0.7, (bounce - 0.5) / 0.5)
-    }
+    public var bounceScale: Double { dampingScale(bounce: bounce) }
 
     /// A spring after Bounce (the prototype's `SP`).
-    public func sp(_ kind: SpringKind) -> SpringParams {
-        let listed = kind.listed
-        return SpringParams(response: listed.response, damping: min(1, listed.damping * bounceScale))
-    }
+    public func sp(_ kind: SpringKind) -> SpringParams { kind.listed.after(bounce: bounceScale) }
 }
 
 /// The peak of an underdamped spring's answer to a kick v0 is about v0/ω · peakShare(ζ).
@@ -135,6 +140,37 @@ struct Spring {
         omega = src.omega
         k = src.k
         c = src.c
+    }
+
+    /// The outward speed that takes it, on its own spring, to a peak of x, found by bisection on a look-ahead of it
+    /// (the prototype's `kickTo`); its own speed when it is there already.
+    func kick(toPeak x: Double) -> Double {
+        guard self.x < x else {
+            return v
+        }
+
+        func peak(_ v: Double) -> Double {
+            var look = self
+            look.v = v
+            var top = look.x, ms = 0
+            while ms < 1000, look.v >= 0 {
+                look.step(1)
+                top = max(top, look.x)
+                ms += 1
+            }
+            return top
+        }
+
+        var lo = 0.0, hi = 10.0
+        for _ in 0 ..< 32 {
+            let v = (lo + hi) / 2
+            if peak(v) > x {
+                hi = v
+            } else {
+                lo = v
+            }
+        }
+        return lo
     }
 
     /// The prototype's `stepSpring`.
