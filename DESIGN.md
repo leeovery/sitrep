@@ -1219,8 +1219,9 @@ that takes Lee to the window a session is in.
   black shape at the edge of the screen that opens into a panel of Lee's
   sessions, or **the strip** in its place (below). It replaces the menu
   bar's list, first planned as projects opening to their sessions.
-- **The menu bar item stays, slimmed** to Settings and quitting, with the
-  plain list of sessions on screen kept as a fallback.
+- **The menu bar item stays**, as a native menu: the panel's sessions with a
+  click to each, what shows at the screen's edge, the SitRep window,
+  Settings and quitting (17 October 2026; see "The menu bar item").
 - **macOS notifications for a new ask**, silent, since the window's own
   chime already plays and Lee hears it once. They are off by default once
   the notch exists, since the notch swells and lights for a new ask, and a
@@ -1540,7 +1541,7 @@ stands).
   one line, and opens in place into its card.
 - **It opens on** the oldest session that needs Lee; with none, on the one
   picked last. There is one window: opening it again brings it forward.
-  Where it opens from is round 4's, the menu bar item and its menu.
+  The menu opens it (see "The menu bar item").
 - **Answering.** A session's asks show opened, as cards with their buttons:
   - **a yes** is a white pill in Claude's words, the brightest thing in the
     window; **a choice** is one outlined pill per option. Both are answered
@@ -1582,6 +1583,52 @@ stands).
     it closed, until another session is picked.
   - The window never comes forward or takes focus by itself; the notch or
     the strip tells Lee.
+
+### The menu bar item
+
+The item in the menu bar and its native menu, drawn in Paper's "The menu
+bar item" (surfaces round 4, 17 October 2026). A first drawing kept the
+menu to the SitRep window, Settings and Quit. Lee, with Spaceman's menu
+beside it (a header, its spaces with a click to each, quick settings),
+asked for the sessions back, and approved the redraw as it stands.
+- **The menu, top to bottom:**
+  - **a header**: SitRep's icon, its name and its version, not a command;
+  - **the panel's sessions**, in its order and with its marks (see "The
+    rows"), under a heading in the panel head's words, "4 need you" or "All
+    clear". Each is a native item with a subtitle (macOS 14.4): what it is,
+    then its project and session, and its time on the right as the item's
+    badge. A separator sits where the panel's hairline is. A click jumps;
+  - **Open SitRep Window**, after the list, for what the list leaves out:
+    away sessions with nothing waiting, notes, parked and resolved;
+  - **Show**: Notch, Strip or Nothing, inline, the one in use ticked, so
+    pinning the strip takes one click. With Nothing, the menu and the
+    SitRep window carry the board, and the icon keeps its dot;
+  - **Settings… ⌘,**, which takes the test banner and starting at login
+    (round 5); **Check for Updates…**, with Sparkle, from the first public
+    release; **Quit SitRep ⌘Q**.
+- **An away session** is disabled, with no window to jump to: its dot stays
+  orange and its words dim, as in the panel. **Past twelve rows** the list
+  ends with "4 more…", which opens the SitRep window.
+- **One lane on the left** holds the marks, the tick and an SF Symbol for
+  each command, as macOS 26's own menus carry icons. The tick is drawn as
+  the item's image, so the menu has no state column.
+- **It speaks up first** when something is wrong, under the header:
+  - windows on an old sitrep, which haven't run `/reload-plugins` (their
+    heartbeat's version says so), listed under "Needs /reload-plugins", a
+    click jumping to each. The heading goes once every window is current;
+  - "SitRep can't read the board", with the reason in plain words, when
+    `sitrep watch` stops or the CLI fails, as today's menu says. The
+    sessions stay as the board last read them, their heading saying when
+    ("4 need you · as of 12:04"). The notch, the strip and the window keep
+    the last board too, marked as stale.
+- **The icon** is a placeholder until round 6: a template glyph, white on a
+  dark menu bar and black on a light one. Its one state is a small orange
+  dot while anything needs Lee, since the notch is on one display and the
+  menu bar on every one. The header's icon carries no dot.
+
+This replaces the 13 October plan, a menu slimmed to Settings and quitting
+with the plain list of sessions kept as a fallback, and round 4's first
+drawing, which left the sessions to the SitRep window.
 
 ### The jump
 
