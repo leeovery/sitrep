@@ -1542,10 +1542,12 @@ the panel was, in the browser first, then in Swift.
 **The design**, drawn in Paper's "The strip" (surfaces round 2, 16 October
 2026; Lee: "I really like it"). The movement, the hover and the animation
 were settled in the browser spike (below, "How the strip moves").
-- **The form.** The bezel, grown: 36pt of the same black, from under the
-  menu bar to the screen's bottom, its top end curving into the bezel as the
-  notch's ends do. It sits on the notch's edge, left by default, and stays.
-  Settings chooses it in place of the notch.
+- **The form.** The bezel, grown: 36pt of the same black down the screen's
+  edge, both its ends curving back into the bezel as the notch's ends do:
+  the top under the menu bar, the bottom 26pt above the screen's bottom. It
+  reads as a very tall notch with content rather than a strip fitted to the
+  bottom (Lee, 18 October 2026). It sits on the notch's edge, left by
+  default, and stays. Settings chooses it in place of the notch.
 - **A mark per session**, in the panel's order and for the same sessions. A
   mark is the project's two letters in a 24pt ring, and the ring carries the
   state, so the strip reads without a hover:
@@ -1572,13 +1574,19 @@ were settled in the browser spike (below, "How the strip moves").
   once it closes" becomes: a new needs you moves in at once, the marks below
   sliding down to make room; any other change shows in place, and the marks
   re-sort a second after the pointer leaves the strip.
-- **Too many.** About 25 marks fit at full height. Past that, the last place
-  is a count ("+3"), and under the pointer it pours out the rest as one tab.
-  Needs you never folds: it is at the top.
-- **Open, for the Swift spike:** macOS lets no app reserve screen space as
-  the Dock does, so a window filling the screen goes under the strip's 36pt.
-  Claude's proposal: windows go under it, and the strip steps aside while an
-  app is full screen.
+- **Too many.** About 30 marks fit at full height (32 on a 1117pt screen,
+  27 on a 982pt one). Past that, the last place is a count ("+3"), and under
+  the pointer it pours out the rest as one tab. Needs you never folds: it is
+  at the top.
+- **Windows and full screen:** macOS lets no app reserve screen space as the
+  Dock does, so a window filling the screen goes under the strip's 36pt; the
+  strip is on every ordinary Space and steps aside while an app is full
+  screen, its window left off full-screen Spaces. In the Swift spike, which
+  Lee felt on the display ("I think it's good"); he hasn't said how a window
+  under the 36pt reads.
+- **Material:** Black, the bezel's, or Glass, macOS 26's Liquid Glass, for
+  the strip and its tabs alike, as one shape (Lee, 18 October 2026: "I like
+  the glass and the black, actually"). See Settings.
 
 **How the strip moves**, felt in the browser spike (18 October 2026, the
 prototype's Strip tab; Lee kept its defaults):
@@ -1595,13 +1603,23 @@ prototype's Strip tab; Lee kept its defaults):
 - **Leaving:** a grace of 300ms, a fifth of that when fast. The words go in
   60ms and the black 30ms later, drawing back into the strip through a dent
   of at most 3pt. A click elsewhere draws it back at once.
-- **The top end's curve never meets a tab.** The first mark's tab would
-  reach into it, so while that tab is out the curve draws up, on a spring of
-  its own, into a 3pt fillet under the menu bar, leaving straight edge for
-  the tab's flare, and springs back to its S as the tab goes. Lee chose this
-  ("Give way") over a fixed rounded corner and over the first tab hanging
-  below its ring. Moving every mark down to clear the curve looked worse
-  (Lee), and so did the tab running into the curve as one shape.
+- **The strip's ends never change; a tab fits into them** ("Fit"). The S at
+  the top, its tight curve under the menu bar and its bump, is the same in
+  every frame, whatever a tab does, and so is the bottom's. The marks start
+  12pt lower than the board has them, to make room, and the first mark's tab
+  meets the S's lower curve in a fillet: a circle touching both, 10pt where
+  it fits, never leaving the S above where it has turned 70° (6.5pt at the
+  first mark), so the S reads whole above it. A tab lower than the S's end
+  flares into the straight edge as usual. The last marks keep the same room
+  clear of the bottom's S, and their tabs and the count's fit into it the
+  same way. Lee: "fit is the one! the others are no good", over:
+  - the curve drawing up into a fillet under the menu bar ("Give way"),
+    which on the display read as a sharp corner against the see-through
+    menu bar;
+  - the corner rising to meet the tab ("Rise"), which lost the S's bump;
+  - a fixed rounded corner, and the first tab hanging below its ring;
+  - every mark 26pt lower ("looks worse for it"), and the tab running into
+    the curve as one shape.
 - **Marks moving** slide to their places. A new needs you grows into its
   place once the mark below has slid 45% of its step, its ring flashing
   twice, 450ms apart. A tab out while marks slide stays with its mark, then
@@ -1609,10 +1627,16 @@ prototype's Strip tab; Lee kept its defaults):
   the pointer leaves.
 - **Reduced motion:** no springs and no reach; a tab's shape fades in and
   out, and marks snap to their places and fade in.
+- **In glass**, Liquid Glass has two thicknesses and picks one from a
+  shape's size: the strip alone is thin, the strip with a tab out thick, and
+  a shape rebuilt every frame switches at once. Lee: "it needs to be a
+  little more graded rather than instant". So the strip and its tabs are
+  drawn as thick glass, and a thin glass of the strip alone fades out over
+  it as the tab pours, coming back as it draws in.
 
 They ship fixed, as the notch's do (above, "The app ships these values
 fixed"). Lee's settings:
-`{"bounce":0.50,"dwell":120,"reach":3,"pour":1.00,"glide":1.00,"fade":160,"close":1.00,"give":1.00,"grace":300,"settle":1000,"slide":1.00,"swells":2,"between":"glide","during":"keep","top":"give","edge":"left"}`.
+`{"bounce":0.50,"dwell":120,"reach":3,"pour":1.00,"glide":1.00,"fade":160,"close":1.00,"room":12,"grace":300,"settle":1000,"slide":1.00,"swells":2,"edge":"left"}`.
 The springs, after Bounce, as SwiftUI's `.spring(response:dampingFraction:)`:
 
 | Spring | Value |
@@ -1623,7 +1647,6 @@ The springs, after Bounce, as SwiftUI's `.spring(response:dampingFraction:)`:
 | glide | 0.24·0.82 |
 | width | 0.24·0.86 |
 | draw | 0.22·0.80 |
-| give | 0.18·0.90 |
 | slide | 0.36·0.80 |
 | arrive | 0.30·0.55 |
 | press | 0.10·0.70 |
@@ -1770,9 +1793,14 @@ Spaceman's preferences as a reference only.
     dot. The chosen one is ringed and live; it is the menu's Show. Then
     **Where**, for the notch and the strip alike: Edge, Left or Right ("or
     drag it across the middle"), and Display, the main one unless another
-    is chosen. Then **The notch**: Style, Meniscus or Card. A section that
-    no longer applies fades out rather than greying; with Nothing, one line
-    says the menu and the SitRep window carry the board.
+    is chosen. Then **The notch**: Style, Meniscus or Card. Then **Look**:
+    Material, Black or Glass, for the notch and the strip alike, from
+    macOS 26 (before it, Black and no row); and Reduce motion, off, its line
+    saying SitRep follows the Mac's own setting either way (Lee, 18 October
+    2026: "One thing we might want to ship... is the ability to reduce
+    motion"). A section that no longer applies fades out rather than
+    greying; with Nothing, one line says the menu and the SitRep window
+    carry the board.
   - **Notifications**: the banner a new ask sends, its title, its project
     and session, silent, a click jumping to it. Then Notify me of a new
     ask, off by default, its line saying the notch swells and lights
