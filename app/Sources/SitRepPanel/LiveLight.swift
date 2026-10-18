@@ -15,13 +15,13 @@ public struct LiveLight: Equatable, Sendable {
             b = Double(hex & 0xFF)
         }
 
-        init(r: Double, g: Double, b: Double) {
+        public init(r: Double, g: Double, b: Double) {
             self.r = r
             self.g = g
             self.b = b
         }
 
-        func mix(_ other: RGB, _ k: Double) -> RGB {
+        public func mix(_ other: RGB, _ k: Double) -> RGB {
             RGB(r: lerp(r, other.r, k), g: lerp(g, other.g, k), b: lerp(b, other.b, k))
         }
     }

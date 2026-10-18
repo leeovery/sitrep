@@ -22,24 +22,36 @@ final class PanelSettingsWindow {
     }
 }
 
-/// Which notch, and the dials of the one chosen.
+/// Which form shows, which notch, and the dials of the one shown.
 private struct PanelSettingsView: View {
     @Bindable var dials: PanelDials
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Picker("Style", selection: $dials.style) {
-                ForEach(NotchStyle.allCases, id: \.self) { style in
-                    Text(style.name).tag(style)
+            Picker("Show", selection: $dials.show) {
+                ForEach(PanelForm.allCases, id: \.self) { form in
+                    Text(form.name).tag(form)
                 }
             }
             .pickerStyle(.segmented)
 
-            switch dials.style {
-            case .meniscus:
-                DialsView(settings: $dials.settings, reset: dials.reset)
-            case .card:
-                DialsView(settings: $dials.card, reset: dials.reset)
+            switch dials.show {
+            case .notch:
+                Picker("Style", selection: $dials.style) {
+                    ForEach(NotchStyle.allCases, id: \.self) { style in
+                        Text(style.name).tag(style)
+                    }
+                }
+                .pickerStyle(.segmented)
+
+                switch dials.style {
+                case .meniscus:
+                    DialsView(settings: $dials.settings, reset: dials.reset)
+                case .card:
+                    DialsView(settings: $dials.card, reset: dials.reset)
+                }
+            case .strip:
+                DialsView(settings: $dials.strip, reset: dials.reset)
             }
         }
         .padding(20)

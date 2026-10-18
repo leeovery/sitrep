@@ -1,7 +1,7 @@
 import Foundation
 
 /// The card's settings: its prototype's seven dials, its edge and its light, defaulting to Lee's (round 2).
-public struct CardSettings: PanelSettings {
+public struct CardSettings: NotchSettings {
     public var bounce = 0.70
     /// How far the notch eases out toward a pointer near it.
     public var nudge = 8.0

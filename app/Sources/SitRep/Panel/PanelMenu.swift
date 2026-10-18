@@ -1,65 +1,74 @@
 import AppKit
 
-/// The spike's section of the menu bar's menu: Lee's dials, which notch, whether anything needs him, and a new ask to
-/// watch land.
+/// The spike's section of the menu bar's menu: Lee's dials, which form shows and which notch, whether anything needs
+/// him, and a new ask to watch land.
 @MainActor
 final class PanelMenu: NSObject {
-    private let panel: PanelController
+    private let panels: SidePanels
     private let dials: PanelDials
     private let settings: PanelSettingsWindow
     private let needsItem = NSMenuItem(title: "Something needs you", action: #selector(toggleNeeds), keyEquivalent: "")
 
-    init(panel: PanelController, dials: PanelDials, settings: PanelSettingsWindow) {
-        self.panel = panel
+    init(panels: SidePanels, dials: PanelDials, settings: PanelSettingsWindow) {
+        self.panels = panels
         self.dials = dials
         self.settings = settings
         super.init()
 
         needsItem.target = self
-        needsItem.state = panel.needsLee ? .on : .off
+        needsItem.state = panels.needsLee ? .on : .off
     }
 
     private(set) lazy var items: [NSMenuItem] = [
         action("Panel settings…", #selector(showSettings)),
-        styleItem,
+        choices("Show", PanelForm.allCases, \.name, #selector(chooseForm(_:))),
+        choices("Style", NotchStyle.allCases, \.name, #selector(chooseStyle(_:))),
         needsItem,
         action("Simulate a new ask", #selector(simulateAsk)),
     ]
 
-    /// Meniscus or Card, ticked as the menu opens, since the settings window can choose too.
-    private lazy var styleItem: NSMenuItem = {
-        let item = NSMenuItem(title: "Style", action: nil, keyEquivalent: "")
+    /// A submenu of choices, ticked as the menu opens, since the settings window can choose too.
+    private func choices<Choice>(
+        _ title: String, _ all: [Choice], _ name: KeyPath<Choice, String>, _ selector: Selector
+    ) -> NSMenuItem {
+        let item = NSMenuItem(title: title, action: nil, keyEquivalent: "")
         let menu = NSMenu()
 
-        menu.items = NotchStyle.allCases.map { style in
-            let choice = action(style.name, #selector(chooseStyle(_:)))
+        menu.items = all.map { choice in
+            let option = action(choice[keyPath: name], selector)
 
-            choice.representedObject = style.rawValue
+            option.representedObject = choice
 
-            return choice
+            return option
         }
         item.submenu = menu
 
         return item
-    }()
+    }
 
     @objc private func showSettings() {
         settings.show()
     }
 
+    @objc private func chooseForm(_ sender: NSMenuItem) {
+        if let form = sender.representedObject as? PanelForm {
+            dials.show = form
+        }
+    }
+
     @objc private func chooseStyle(_ sender: NSMenuItem) {
-        if let style = Self.style(of: sender) {
+        if let style = sender.representedObject as? NotchStyle {
             dials.style = style
         }
     }
 
     @objc private func toggleNeeds() {
-        panel.needsLee.toggle()
-        needsItem.state = panel.needsLee ? .on : .off
+        panels.needsLee.toggle()
+        needsItem.state = panels.needsLee ? .on : .off
     }
 
     @objc private func simulateAsk() {
-        panel.newAsk()
+        panels.newAsk()
         needsItem.state = .on
     }
 
@@ -70,16 +79,18 @@ final class PanelMenu: NSObject {
 
         return item
     }
-
-    private static func style(of item: NSMenuItem) -> NotchStyle? {
-        (item.representedObject as? String).flatMap(NotchStyle.init)
-    }
 }
 
 extension PanelMenu: NSMenuItemValidation {
+    /// The form shown and the notch chosen are ticked.
     func validateMenuItem(_ item: NSMenuItem) -> Bool {
-        if let style = Self.style(of: item) {
+        switch item.representedObject {
+        case let form as PanelForm:
+            item.state = form == dials.show ? .on : .off
+        case let style as NotchStyle:
             item.state = style == dials.style ? .on : .off
+        default:
+            break
         }
 
         return true

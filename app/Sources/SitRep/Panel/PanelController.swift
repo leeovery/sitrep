@@ -29,11 +29,11 @@ final class PanelController: NSObject {
 
     init(dials: PanelDials) {
         self.dials = dials
-        edge = Self.screenEdge()
+        edge = Display.edge
 
         let input = Input(
-            time: Self.now, pointer: edge.stagePoint(NSEvent.mouseLocation), needsLee: true, stage: edge.stage,
-            reducesMotion: Self.reducesMotion
+            time: Display.now, pointer: edge.stagePoint(NSEvent.mouseLocation), needsLee: true, stage: edge.stage,
+            reducesMotion: Display.reducesMotion
         )
 
         notch = PanelNotch(dials, input)
@@ -44,15 +44,35 @@ final class PanelController: NSObject {
         super.init()
 
         view.onClick = { [unowned self] point in click(at: point) }
-        dials.onChange = { [unowned self] in
-            notch.retune(dials)
-            wake()
-        }
-        window.orderFrontRegardless()
         link = startLink(#selector(tick))
         lightLink = startLink(#selector(tickLight), rate: Self.lightRate)
         listen()
-        step(at: Self.now)
+        step(at: Display.now)
+    }
+
+    /// Whether the notch is on the display, Lee having chosen it over the strip: hidden, it draws nothing and hears
+    /// nothing, and its news waits for it.
+    var isShown = false {
+        didSet {
+            guard isShown != oldValue else {
+                return
+            }
+
+            if isShown {
+                window.orderFrontRegardless()
+                wake()
+            } else {
+                window.orderOut(nil)
+                link?.isPaused = true
+                lightLink?.isPaused = true
+            }
+        }
+    }
+
+    /// The dials changed: the notch takes its settings at once.
+    func retune() {
+        notch.retune(dials)
+        wake()
     }
 
     /// A new ask, as the menu simulates one: the lip swells and the light flashes. Coming to need Lee is one already.
@@ -64,18 +84,7 @@ final class PanelController: NSObject {
         }
     }
 
-    private static var now: Double { CACurrentMediaTime() * 1000 }
-
-    private static var reducesMotion: Bool { NSWorkspace.shared.accessibilityDisplayShouldReduceMotion }
-
     private var model: any Notch { notch.model }
-
-    /// The screen with the menu bar, which the panel lives on.
-    private static func screenEdge() -> ScreenEdge {
-        let screen = NSScreen.screens.first
-
-        return ScreenEdge(frame: screen?.frame ?? .zero, visible: screen?.visibleFrame ?? .zero)
-    }
 
     private func startLink(_ selector: Selector, rate: CAFrameRateRange? = nil) -> CADisplayLink {
         let link = view.displayLink(target: self, selector: selector)
@@ -101,7 +110,7 @@ final class PanelController: NSObject {
     private func step(at time: Double) {
         let pointer = edge.stagePoint(NSEvent.mouseLocation)
         let input = Input(
-            time: time, pointer: pointer, needsLee: needsLee, stage: edge.stage, reducesMotion: Self.reducesMotion
+            time: time, pointer: pointer, needsLee: needsLee, stage: edge.stage, reducesMotion: Display.reducesMotion
         )
 
         frame = model.frame(input)
@@ -130,20 +139,21 @@ final class PanelController: NSObject {
     }
 
     /// Frames run while the model wants them; otherwise only the light's slow refresh, and only while it is lit.
+    /// Hidden, none.
     private func pace(_ pointer: CGPoint?) {
-        let running = frame.wantsFrames(pointer: pointer, field: model.field)
+        let running = isShown && frame.wantsFrames(pointer: pointer, field: model.field)
 
         link?.isPaused = !running
-        lightLink?.isPaused = running || frame.light.level <= 0.001
+        lightLink?.isPaused = running || !isShown || frame.light.level <= 0.001
     }
 
     /// Starts the frames again, with a frame at once, so what changed shows on this refresh.
     private func wake() {
-        guard link?.isPaused == true else {
+        guard isShown, link?.isPaused == true else {
             return
         }
 
-        step(at: Self.now)
+        step(at: Display.now)
     }
 
     private var isOut: Bool { model.phase == .open || model.phase == .opening }
@@ -198,6 +208,10 @@ final class PanelController: NSObject {
     }
 
     private func heard(clickElsewhere: Bool) {
+        guard isShown else {
+            return
+        }
+
         if clickElsewhere, isOut {
             act { $0.clickElsewhere() }
         } else if frame.wantsFrames(pointer: edge.stagePoint(NSEvent.mouseLocation), field: model.field) {
@@ -206,7 +220,7 @@ final class PanelController: NSObject {
     }
 
     @objc private func screensChanged() {
-        edge = Self.screenEdge()
+        edge = Display.edge
         window.setFrame(edge.window, display: true)
         wake()
     }

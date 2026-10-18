@@ -95,8 +95,8 @@ final class PanelContent {
         hovered = row
     }
 
-    /// The clip: a rectangle with its front corners rounded.
-    private static func clipPath(_ rect: CGRect, top: CGFloat, bottom: CGFloat) -> CGPath {
+    /// The clip: a rectangle with its front corners rounded; the strip's tabs are clipped so too.
+    static func clipPath(_ rect: CGRect, top: CGFloat, bottom: CGFloat) -> CGPath {
         let path = CGMutablePath()
 
         path.move(to: CGPoint(x: rect.minX, y: rect.minY))

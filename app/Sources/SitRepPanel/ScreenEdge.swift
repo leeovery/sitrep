@@ -39,6 +39,17 @@ public struct ScreenEdge: Equatable, Sendable {
         CGRect(x: frame.minX, y: frame.minY, width: Self.depth, height: frame.height)
     }
 
+    /// The screen as the strip sees it: the menu bar the difference between its top and the visible frame's.
+    public var stripStage: StripStage {
+        StripStage(width: frame.width, height: frame.height, menu: frame.maxY - visible.maxY)
+    }
+
+    /// The strip's window: against the edge, from under the menu bar to the screen's bottom, as deep as its tabs reach.
+    /// Its flipped content is the stage from under the menu bar.
+    public var stripWindow: CGRect {
+        CGRect(x: frame.minX, y: frame.minY, width: Strip.depth, height: visible.maxY - frame.minY)
+    }
+
     /// How far into the screen the black can reach: the panel, its front's give, and the edge stretched after the
     /// pointer as far as any setting lets it (Hold's most, or the cling's at Pull's most), overshooting as its
     /// springs do at the least damping Bounce gives them; and a few points spare for the curve drawn through the

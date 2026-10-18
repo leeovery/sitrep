@@ -20,17 +20,7 @@ public protocol Notch: AnyObject {
 
 /// What the two notches share, as their prototypes share it: the sim clock and its timers, the pointer's trail, what
 /// the pointer is over, and the rows landing and fading.
-protocol NotchModel: Notch {
-    associatedtype TimerName: RawRepresentable & Equatable where TimerName.RawValue == String
-
-    /// The sim clock, ms.
-    var t: Double { get }
-    /// The view's clock at the latest frame, ms: the pointer's trail runs on it.
-    var now: Double { get }
-    var timers: SimTimers<Self, TimerName> { get set }
-    /// The pointer this frame.
-    var sp: Vec? { get }
-    var trail: Trail { get }
+protocol NotchModel: Notch, SimModel {
     /// The notch's home along the edge, its centre.
     var lipY: Double { get }
     var isLive: Bool { get }
@@ -44,35 +34,8 @@ protocol NotchModel: Notch {
 }
 
 extension NotchModel {
-    func later(_ name: TimerName, _ ms: Double, _ fn: @escaping (Self) -> Void) {
-        timers.set(name, at: t + ms, fn)
-    }
-
-    func cancel(_ names: TimerName...) {
-        timers.cancel(names)
-    }
-
-    func cancelPrefix(_ prefix: String) {
-        timers.cancel(prefix: prefix)
-    }
-
-    /// Runs the timers due, soonest first: one an earlier one cancelled or set again doesn't run.
-    func runTimers() {
-        for timer in timers.due(by: t) where timers.take(timer) {
-            timer.fn(self)
-        }
-    }
-
-    /// The pointer has moved in the last 60ms: its trail still gives it a speed.
-    var trailIsFresh: Bool { trail.isFresh(at: now) }
-
-    func trailVelocity() -> Vec { trail.velocity(at: now) }
-
     /// The pointer's speed toward the edge (below 0: away from it).
     func approachSpeed() -> Double { -trailVelocity().x }
-
-    /// The pointer's speed in any direction.
-    func pointerSpeed() -> Double { trailVelocity().length }
 
     /// The notch's hit area lies over the panel's content, which counts only while the panel is live.
     func hoverOf(_ p: Vec?) -> Hover? {

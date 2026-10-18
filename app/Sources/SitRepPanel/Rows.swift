@@ -21,9 +21,12 @@ public struct Session: Equatable, Sendable {
     /// A click on it jumps to it, unless no window shows it.
     public var jumps: Bool { kind != .off }
 
-    /// Its age as the row shows it (the prototype's `age`): now, then whole minutes, hours or days.
-    public var ageText: String {
-        let minutes = Int((age / Self.minute).rounded(.down))
+    /// Its age as the row shows it.
+    public var ageText: String { Self.ageText(age) }
+
+    /// An age as a row shows it (the prototype's `age`): now, then whole minutes, hours or days.
+    public static func ageText(_ age: Double) -> String {
+        let minutes = Int((age / minute).rounded(.down))
         let hours = minutes / 60
         return minutes < 1 ? "now" : minutes < 60 ? "\(minutes)m" : hours < 24 ? "\(hours)h" : "\(hours / 24)d"
     }

@@ -139,18 +139,7 @@ public struct Frame {
 
         /// Whether a point is on the content as shown: inside the clip, and inside the rounding of its front corners.
         public func contains(_ point: CGPoint) -> Bool {
-            guard inRect(Vec(point.x, point.y), clip) else {
-                return false
-            }
-
-            let front = clip.maxX
-            if point.y < clip.minY + topRadius, point.x > front - topRadius {
-                return hypot(point.x - (front - topRadius), point.y - (clip.minY + topRadius)) <= topRadius
-            }
-            if point.y > clip.maxY - bottomRadius, point.x > front - bottomRadius {
-                return hypot(point.x - (front - bottomRadius), point.y - (clip.maxY - bottomRadius)) <= bottomRadius
-            }
-            return true
+            frontRounded(clip, top: topRadius, bottom: bottomRadius, contains: point)
         }
     }
 
@@ -178,6 +167,22 @@ public struct Frame {
         /// The sim time of the last new ask, which flashes it.
         public let lastAsk: Double?
     }
+}
+
+/// Whether a point is inside a rectangle whose two front corners, away from the screen's edge, are rounded.
+func frontRounded(_ rect: CGRect, top: Double, bottom: Double, contains point: CGPoint) -> Bool {
+    guard inRect(Vec(point.x, point.y), rect) else {
+        return false
+    }
+
+    let front = rect.maxX
+    if point.y < rect.minY + top, point.x > front - top {
+        return hypot(point.x - (front - top), point.y - (rect.minY + top)) <= top
+    }
+    if point.y > rect.maxY - bottom, point.x > front - bottom {
+        return hypot(point.x - (front - bottom), point.y - (rect.maxY - bottom)) <= bottom
+    }
+    return true
 }
 
 extension Meniscus {

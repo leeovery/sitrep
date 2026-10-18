@@ -1,3 +1,47 @@
+/// What every one of the panel's models shares, as their prototypes share it: the sim clock and its timers, and the
+/// pointer's trail.
+protocol SimModel: AnyObject {
+    associatedtype TimerName: RawRepresentable & Equatable where TimerName.RawValue == String
+
+    /// The sim clock, ms.
+    var t: Double { get }
+    /// The view's clock at the latest frame, ms: the pointer's trail runs on it.
+    var now: Double { get }
+    var timers: SimTimers<Self, TimerName> { get set }
+    /// The pointer this frame.
+    var sp: Vec? { get }
+    var trail: Trail { get }
+}
+
+extension SimModel {
+    func later(_ name: TimerName, _ ms: Double, _ fn: @escaping (Self) -> Void) {
+        timers.set(name, at: t + ms, fn)
+    }
+
+    func cancel(_ names: TimerName...) {
+        timers.cancel(names)
+    }
+
+    func cancelPrefix(_ prefix: String) {
+        timers.cancel(prefix: prefix)
+    }
+
+    /// Runs the timers due, soonest first: one an earlier one cancelled or set again doesn't run.
+    func runTimers() {
+        for timer in timers.due(by: t) where timers.take(timer) {
+            timer.fn(self)
+        }
+    }
+
+    /// The pointer has moved in the last 60ms: its trail still gives it a speed.
+    var trailIsFresh: Bool { trail.isFresh(at: now) }
+
+    func trailVelocity() -> Vec { trail.velocity(at: now) }
+
+    /// The pointer's speed in any direction.
+    func pointerSpeed() -> Double { trailVelocity().length }
+}
+
 /// A model's timers on its sim clock, by the prototype's names for them: one set again under its name replaces it.
 struct SimTimers<Owner: AnyObject, Name: RawRepresentable & Equatable> where Name.RawValue == String {
     struct Timer {

@@ -17,6 +17,10 @@ enum PanelStyle {
     static let track = srgb(0x2C2C31)
     static let shim = srgb(0x9A9AA1)
     static let orange = color(LiveLight.orange)
+    /// The strip's (strip.html's `--p-` colours beyond the panel's): a ring pressed in, a grey, and a working arc.
+    static let press = srgb(0x1C1C20)
+    static let grey = srgb(0x8E8E95)
+    static let arc = srgb(0xC9C9CF)
 
     static let title = NSFont.systemFont(ofSize: 14, weight: .medium)
     static let needsTitle = NSFont.systemFont(ofSize: 14, weight: .semibold)
@@ -25,6 +29,10 @@ enum PanelStyle {
     static let age = NSFont.monospacedDigitSystemFont(ofSize: 12, weight: .regular)
     static let headTitle = NSFont.systemFont(ofSize: 13, weight: .semibold)
     static let headCount = NSFont.systemFont(ofSize: 12)
+    /// A mark's letters, and the count's rows.
+    static let letters = NSFont.systemFont(ofSize: 9.5, weight: .semibold)
+    static let rowTitle = NSFont.systemFont(ofSize: 13, weight: .medium)
+    static let rowSub = NSFont.systemFont(ofSize: 11)
 
     /// The prototype's letter-spacing of -0.01em, as a kern in points.
     static func tightKern(_ font: NSFont) -> CGFloat { -0.01 * font.pointSize }

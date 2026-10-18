@@ -1,20 +1,41 @@
 import Foundation
 
-/// A notch's settings as its prototype's dials set them and its Copy settings prints them, so they paste either way.
+/// A panel's settings as its prototype's dials and switches set them and its Copy settings prints them, so they paste
+/// either way.
 public protocol PanelSettings: Codable, Equatable, Sendable {
     associatedtype Dial: PanelDial
 
-    /// The notch's name, as its Copy settings' header gives it.
+    /// The form's name, as its Copy settings' header gives it.
     static var name: String { get }
 
     /// Lee's.
     init()
 
     subscript(dial: Dial) -> Double { get set }
-    var edge: Settings.Edge { get set }
-    var light: Settings.Light { get set }
+    /// The switches after the dials, by their JSON names, in the order the JSON prints them.
+    var switches: KeyValuePairs<String, String> { get }
+    /// A switch as the JSON gives it: a value it doesn't take leaves it as it was.
+    mutating func set(switch name: String, to value: String)
     /// What the settings make, as the prototype's Copy settings prints it under the JSON.
     var derived: String { get }
+}
+
+/// A notch's settings: after its dials, its edge and its light.
+public protocol NotchSettings: PanelSettings {
+    var edge: Settings.Edge { get set }
+    var light: Settings.Light { get set }
+}
+
+extension NotchSettings {
+    public var switches: KeyValuePairs<String, String> { ["edge": edge.rawValue, "light": light.rawValue] }
+
+    public mutating func set(switch name: String, to value: String) {
+        switch name {
+        case "edge": edge = Settings.Edge(rawValue: value) ?? edge
+        case "light": light = Settings.Light(rawValue: value) ?? light
+        default: break
+        }
+    }
 }
 
 /// One of a prototype's dials: its slider's range and step, its name, and its value as the slider's label and the
@@ -41,10 +62,10 @@ extension PanelDial {
 }
 
 extension PanelSettings {
-    /// The settings as the prototype's Copy settings prints them: each dial, then the edge and the light.
+    /// The settings as the prototype's Copy settings prints them: each dial, then each switch.
     public var json: String {
         let dials = Dial.allCases.map { "\"\($0.rawValue)\":\($0.json(self[$0]))" }
-        let rest = ["\"edge\":\"\(edge.rawValue)\"", "\"light\":\"\(light.rawValue)\""]
+        let rest = switches.map { "\"\($0.key)\":\"\($0.value)\"" }
         return "{\((dials + rest).joined(separator: ","))}"
     }
 
@@ -70,8 +91,11 @@ extension PanelSettings {
             }
         }
 
-        edge = (try? given.decodeIfPresent(Settings.Edge.self, forKey: Key("edge"))) ?? edge
-        light = (try? given.decodeIfPresent(Settings.Light.self, forKey: Key("light"))) ?? light
+        for name in switches.map(\.key) {
+            if let value = try? given.decodeIfPresent(String.self, forKey: Key(name)) {
+                set(switch: name, to: value)
+            }
+        }
     }
 }
 
@@ -96,7 +120,7 @@ private struct Key: CodingKey {
 
 /// The panel's settings: the prototype's seven dials and a new ask's swell, its edge and its light, defaulting to
 /// Lee's (round 11, and the swell from his first feel of the app).
-public struct Settings: PanelSettings {
+public struct Settings: NotchSettings {
     public enum Edge: String, Codable, Sendable {
         case left, right
     }
