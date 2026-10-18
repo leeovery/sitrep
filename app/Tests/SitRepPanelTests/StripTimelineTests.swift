@@ -13,10 +13,10 @@ struct StripTimelineTests {
         expectPlays(StripRecorded.hover)
     }
 
-    /// The pointer resting on SitRep's, the first mark: the top end's curve draws up out of its tab's way, and
-    /// springs back as it goes.
-    @Test func theTopEndGivesWayToTheFirstMarksTabAndComesBackAsThePrototypes() {
-        expectPlays(StripRecorded.give)
+    /// The pointer resting on SitRep's, the first mark: its tab's top fits into the top end's S as it pours, and
+    /// leaves it again as it draws back, the S never moving.
+    @Test func theFirstMarksTabFitsIntoTheTopEndAsThePrototypes() {
+        expectPlays(StripRecorded.fit)
     }
 
     @Test func aNewNeedsYouSlidesInAndArrivesWhenThePrototypesDoes() {
@@ -53,6 +53,32 @@ struct StripTimelineTests {
 
         expectMatches(played, StripRecorded.many)
         #expect(lab.model.display == StripRecorded.manyOrder)
+    }
+
+    /// Eight new asks, sixteen marks, all that fit: the last, Turnstile's, on the last place, its tab's bottom fitting
+    /// into the bottom end's S.
+    @Test func theLastMarksTabFitsIntoTheBottomEndAsThePrototypes() {
+        var lab = StripLab()
+
+        let played = lab.play(
+            StripRecorded.last, marks: ["s4", "s8", "s9", "s16"],
+            [(0, { lab in StripLab.asks.forEach(lab.model.newAsk) })]
+        )
+
+        expectMatches(played, StripRecorded.last)
+    }
+
+    /// Too many: the last mark over the count, its tab short of the bottom end, then on to the count's, as tall as
+    /// the strip holds, fitting into both ends.
+    @Test func theCountsTabFitsIntoBothEndsAsThePrototypes() {
+        var lab = StripLab()
+
+        let played = lab.play(
+            StripRecorded.bottom, marks: ["s6", "s9"],
+            [(0, { $0.model.add(StripLab.tooMany) })]
+        )
+
+        expectMatches(played, StripRecorded.bottom)
     }
 
     @Test func theNewMarkGrowsOnceTheMarkBelowHasSlid45PercentOfItsStep() {

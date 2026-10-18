@@ -110,7 +110,6 @@ struct StripLab {
 /// A frame as the model played it, in the recording's terms.
 struct StripPlayed {
     let t: Double
-    let give: Double
     let hair: StripRecorded.Mark
     let jumping: String?
     let tabs: [StripRecorded.Tab]
@@ -120,7 +119,6 @@ struct StripPlayed {
     init(_ lab: StripLab, marks ids: [String]) {
         let model = lab.model
         t = lab.now
-        give = model.give.x
         hair = StripRecorded.Mark(y: model.hair.x, sc: 1, op: model.hairOp.x)
         jumping = switch model.jumping {
         case let .tab(_, id): "tab \(id)"
@@ -128,19 +126,22 @@ struct StripPlayed {
         case nil: nil
         }
         tabs = zip(model.tabs, lab.frame.tabs).map { tab, shown in
-            StripRecorded.Tab(
+            let g = model.tabGeometry(tab), fit = g.w > 0.01 ? model.tabFit(g) : nil
+            return StripRecorded.Tab(
                 key: tab.key.name, phase: tab.phase, w: tab.w.x, h: tab.h.x, y: tab.y.x, press: tab.press.x,
-                alpha: tab.alpha.x, words: shown.words.map { StripRecorded.Words(key: $0.content.key, alpha: $0.alpha) }
+                alpha: tab.alpha.x, words: shown.words.map { StripRecorded.Words(key: $0.content.key, alpha: $0.alpha) },
+                top: fit.map { .init($0.top, y: model.stage.menu + $0.top.y) },
+                bottom: fit.map { .init($0.bottom, y: model.bottomEnd - $0.bottom.y) }
             )
         }
         marks = ids.map(lab.mark)
         more = model.more.map { StripRecorded.Mark(y: $0.y.x, sc: $0.sc.x, op: $0.op.x) }
     }
 
-    /// The same strip as the prototype's: the springs to the recording's six decimals, the words' opacity to the
-    /// browser's three.
+    /// The same strip as the prototype's: the springs and the fillets to the recording's six decimals, the words'
+    /// opacity to the browser's three.
     func matches(_ r: StripRecorded) -> Bool {
-        close(give, r.give) && same(hair, r.hair) && jumping == r.jumping
+        same(hair, r.hair) && jumping == r.jumping
             && tabs.count == r.tabs.count && zip(tabs, r.tabs).allSatisfy(same)
             && marks.count == r.marks.count && zip(marks, r.marks).allSatisfy(same)
             && same(more, r.more)
@@ -154,7 +155,19 @@ struct StripPlayed {
         let markGaps = zip(marks, r.marks).flatMap { a, b in
             a.flatMap { a in b.map { b in [a.y - b.y, a.sc - b.sc, a.op - b.op] } } ?? []
         }
-        return ([give - r.give, hair.y - r.hair.y, hair.op - r.hair.op] + tabGaps + markGaps).map(abs).max() ?? 0
+        return ([hair.y - r.hair.y, hair.op - r.hair.op] + tabGaps + markGaps).map(abs).max() ?? 0
+    }
+
+    /// The worst gap between the two over the tabs' fillets: where each leaves the edge, its radius and its angle.
+    func fitError(against r: StripRecorded) -> Double {
+        zip(tabs, r.tabs).flatMap { a, b in [(a.top, b.top), (a.bottom, b.bottom)] }.flatMap { a, b in
+            a.flatMap { a in b.map { b in [a.x - b.x, a.y - b.y, a.rho - b.rho, a.phi - b.phi].map(abs) } } ?? []
+        }.max() ?? 0
+    }
+
+    /// The worst gap in the words' opacity.
+    func wordsError(against r: StripRecorded) -> Double {
+        zip(tabs, r.tabs).flatMap { zip($0.words, $1.words).map { abs($0.alpha - $1.alpha) } }.max() ?? 0
     }
 
     private func close(_ a: Double, _ b: Double) -> Bool { abs(a - b) < 1e-6 }
@@ -172,6 +185,22 @@ struct StripPlayed {
             && close(a.press, b.press) && close(a.alpha, b.alpha)
             && a.words.map(\.key) == b.words.map(\.key)
             && zip(a.words, b.words).allSatisfy { abs($0.alpha - $1.alpha) < 6e-4 }
+            && same(a.top, b.top) && same(a.bottom, b.bottom)
+    }
+
+    private func same(_ a: StripRecorded.End?, _ b: StripRecorded.End?) -> Bool {
+        guard let a, let b else {
+            return a == nil && b == nil
+        }
+
+        return a.on == b.on && close(a.x, b.x) && close(a.y, b.y) && close(a.rho, b.rho) && close(a.phi, b.phi)
+    }
+}
+
+extension StripRecorded.End {
+    /// A fillet as the model fits it, on the screen at this height.
+    init(_ fit: StripFit, y: Double) {
+        self.init(x: fit.x, y: y, rho: fit.rho, phi: fit.phi * 180 / .pi, on: fit.onS ? .s : .edge)
     }
 }
 
@@ -211,7 +240,24 @@ extension StripLab {
     ]
 
     /// The prototype's first new ask.
-    static let ask = StripSession(id: "s9", project: "Mint", kind: .needs, title: "Choose the diff budget", sub: "Mint · Token-aware diff sizing", since: 0)
+    static var ask: StripSession { asks[0] }
+
+    /// The prototype's new asks (its `ASKS`), round its five again to eight.
+    static let asks = (0 ..< 8).map { i in
+        let ask = fiveAsks[i % fiveAsks.count]
+        return StripSession(
+            id: "s\(9 + i)", project: ask.project, kind: .needs, title: ask.title, code: ask.code, more: ask.more,
+            sub: ask.sub, since: 0
+        )
+    }
+
+    private static let fiveAsks: [(project: String, title: String, code: String?, more: Int?, sub: String)] = [
+        ("Mint", "Choose the diff budget", nil, nil, "Mint · Token-aware diff sizing"),
+        ("Fabric", "Allow Bash ", "aws sso login --profile dev", nil, "Fabric · Atlas overload from llm-manager"),
+        ("Switchboard", "Give the go for stage 3", nil, nil, "Switchboard · Milestone 7 stages 4 to 14"),
+        ("Aircon", "Which unit is the bedroom?", nil, 2, "Aircon · Aircon local control"),
+        ("Agentic Workflows", "Approve the reshaped review workflow", nil, nil, "Agentic Workflows · Reshape the workflows"),
+    ]
 
     /// The prototype's Ask answered, on its sessions: the oldest needs you a window holds, SitRep's, starts working.
     static var answered: StripSession {

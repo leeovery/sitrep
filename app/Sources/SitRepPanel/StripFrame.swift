@@ -144,7 +144,7 @@ extension Strip {
             time: t, strip: stripPath(geometries), tabs: shown, fading: fading, marks: renderMarks(),
             hairline: StripFrame.Hairline(x: StripTuning.width / 2, y: hair.x, alpha: clamp(hairOp.x, 0, 1)),
             isMoving: isMoving, isOver: over || hot != nil,
-            column: CGRect(x: 0, y: stage.menu, width: StripTuning.width + 0.5, height: stage.height - stage.menu)
+            column: CGRect(x: 0, y: stage.menu, width: StripTuning.width + 0.5, height: bottomEnd - stage.menu)
         )
     }
 
@@ -255,7 +255,7 @@ extension Strip {
         let all: [StripMark] = marks + [more].compactMap(\.self)
         let markSprings: [Spring] = all.flatMap { [$0.y, $0.sc, $0.op] }
         let tabSprings: [Spring] = tabs.flatMap { [$0.w, $0.h, $0.y, $0.press, $0.alpha] }
-        let springing = ([give, hair, hairOp] + markSprings + tabSprings).contains { !$0.isAtRest }
+        let springing = ([hair, hairOp] + markSprings + tabSprings).contains { !$0.isAtRest }
         let washing = marks.contains { m in
             t - m.arrived < StripTuning.washHold + StripTuning.washFade || m.gap != nil
         }

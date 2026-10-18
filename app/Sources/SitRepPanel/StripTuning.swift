@@ -8,7 +8,7 @@ enum StripTuning {
 
     /// A mark's ring, and the step from one to the next.
     static let mark = 24.0, pitch = 30.0
-    static let padTop = 2.0, padBottom = 8.0
+    static let padTop = 2.0
     /// The last needs you to the hairline, and the hairline to the next mark.
     static let hair = 21.5
     /// The pointer is on a mark within this of its centre, the hairline's gap included.
@@ -19,23 +19,22 @@ enum StripTuning {
     /// ... flared into the strip at both ends, its two front corners round.
     static let flare = 10.0, corner = 16.0
     static let tabMin = 240.0, tabMax = 360.0, tabSlack = 16.0
-    /// A tab's body keeps this far from the screen's bottom.
-    static let keep = 4.0
+    /// The first mark's open tab's top under the menu bar, at Room 0: 16.
+    static let tabTop = topEnd + padTop + mark / 2 - tabHeight / 2
+    /// A tab's edge meets the S's lower curve in a fillet of up to the flare's, that never leaves the S higher than
+    /// where it has turned this, so its tight curve and its bump read whole above it; with too little room the fillet
+    /// tightens, to this at the least.
+    static let fitKeep = 70 * Double.pi / 180, fitMin = 2.0
     /// Drawn back past the edge, the strip dents by a few points at most.
     static let dentGive = 3.0
 
     /// The count's tab: a row each for the rest.
     static let rowHeight = 43.0, rowGap = 2.0, rowsPad = 8.0
 
-    /// A tab, a reach or a dent starts at least this far down the straight edge from where the top end ends, so the
-    /// two never meet.
-    static let spare = 3.0
-    /// Give way: the top end drawn up into a fillet this tight under the menu bar.
-    static let giveMin = 3.0
-    /// Drawn up as far as this, the top end's S only gets shallower; further, it narrows too.
-    static let giveSquash = 14.0
+    /// The bottom end, the top's S mirrored, leaves the screen's edge this far over the screen's bottom.
+    static let bottomEnd = 26.0
     /// The top end's S, as drawn in Paper: two cubics in the strip's own frame, x out from the screen's edge at a
-    /// 36pt strip, y down from the menu bar.
+    /// 36pt strip, y down from the menu bar; the bottom end is it mirrored.
     static let sCurve: [Vec] = [Vec(0, 0), Vec(0, 6), Vec(4, 9), Vec(12, 11), Vec(26, 14), Vec(36, 18), Vec(36, 28)]
 
     /// A click on a mark presses its ring in to this.

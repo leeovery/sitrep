@@ -52,8 +52,7 @@ extension Strip {
     /// last place. Needs you never folds.
     func computeLayout() -> StripLayout {
         let ids = display
-        let y0 = stage.menu + StripTuning.topEnd + StripTuning.padTop + StripTuning.mark / 2
-        let maxY = stage.height - StripTuning.padBottom - StripTuning.mark / 2
+        let y0 = firstY, maxY = lastY
         var ys: [Double] = [], y = y0, hair: Double?
         for (i, id) in ids.enumerated() {
             if i > 0, needsSlot.contains(ids[i - 1]), !needsSlot.contains(id) {
@@ -77,6 +76,19 @@ extension Strip {
         return StripLayout(
             places: places(keep), more: (ys[keep], ids.count - keep), rest: Array(ids[keep...]), hair: hair
         )
+    }
+
+    /// Room changed: any tab goes, the marks slide to their new places, and the next hover opens under the new shape.
+    func relayoutShape() {
+        tabs.forEach(removeTab)
+        cancel(.dwell, .grace, .jumpGo)
+        if case let .mark(key) = jumping {
+            mark(key)?.sc.snap(1)
+        }
+        jumping = nil
+        hot = nil
+        freeze = false
+        relayout()
     }
 
     /// Lays the marks out again: they slide to their places, and fold into the count or out of it.

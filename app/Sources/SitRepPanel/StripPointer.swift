@@ -70,7 +70,7 @@ extension Strip {
     }
 
     func inStrip(_ p: Vec) -> Bool {
-        p.x <= StripTuning.width + 0.5 && p.y >= stage.menu && p.y <= stage.height
+        p.x <= StripTuning.width + 0.5 && p.y >= stage.menu && p.y <= bottomEnd
     }
 
     func inTab(_ p: Vec, _ tab: StripTab) -> Bool {

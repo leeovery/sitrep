@@ -1,8 +1,9 @@
 import Foundation
 
 /// The strip's settings: its prototype's twelve dials and its edge, defaulting to Lee's, who kept the prototype's
-/// (18 October 2026). Its three other switches are his choices, fixed: between marks a tab glides, while marks slide
-/// it keeps with its mark, and at the top the curve gives way.
+/// (18 October 2026). Its shape and its tabs' ways are his choices, fixed: the ends are the board's S, at the top
+/// and mirrored at the bottom, never changing, a tab fitting into them; between marks a tab glides; while marks slide
+/// it keeps with its mark.
 public struct StripSettings: PanelSettings {
     public var bounce = 0.50
     /// How long the pointer rests on a mark before the first tab pours out.
@@ -15,8 +16,9 @@ public struct StripSettings: PanelSettings {
     /// How long the words take to cross as a tab glides.
     public var fade = 160.0
     public var close = 1.00
-    /// How fast the top end's curve draws up out of the first mark's tab's way, and back.
-    public var give = 1.00
+    /// How much further the first mark sits under the top end's S, and the last over the bottom end's, every mark
+    /// moving with it, so a tab's edge meets the S under its bump with room for its fillet.
+    public var room = 12.0
     /// How long a tab waits after the pointer leaves, down to a fifth of it on a fast leave.
     public var grace = 300.0
     /// How long after the pointer leaves the strip the marks re-sort.
@@ -37,7 +39,7 @@ public struct StripSettings: PanelSettings {
     }
 
     public var switches: KeyValuePairs<String, String> {
-        ["between": "glide", "during": "keep", "top": "give", "edge": edge.rawValue]
+        ["edge": edge.rawValue]
     }
 
     public mutating func set(switch name: String, to value: String) {
@@ -55,7 +57,6 @@ public struct StripSettings: PanelSettings {
         case .glide, .width: glide
         case .draw: close
         case .slide, .arrive: slide
-        case .give: give
         case .press: 1.0
         }
         return kind.listed.after(bounce: bounceScale, speed: speed)
@@ -68,7 +69,7 @@ public struct StripSettings: PanelSettings {
             let p = sp(kind)
             return "\(kind) \(fixed(p.response, 2))·\(fixed(p.damping, 2))"
         }
-        let speeds = [("Pour", pour), ("Glide", glide), ("Close", close), ("Give", give), ("Slide", slide)]
+        let speeds = [("Pour", pour), ("Glide", glide), ("Close", close), ("Slide", slide)]
             .map { "\($0) \(fixed($1, 2))×" }
 
         return "springs, response·damping after Bounce ×\(fixed(bounceScale, 2)), \(speeds.joined(separator: ", ")): "
@@ -78,7 +79,7 @@ public struct StripSettings: PanelSettings {
 
 /// One of the strip prototype's dials (its `DIALS`), with its slider's range and step.
 public enum StripDial: String, PanelDial {
-    case bounce, dwell, reach, pour, glide, fade, close, give, grace, settle, slide, swells
+    case bounce, dwell, reach, pour, glide, fade, close, room, grace, settle, slide, swells
 
     fileprivate var key: WritableKeyPath<StripSettings, Double> {
         switch self {
@@ -89,7 +90,7 @@ public enum StripDial: String, PanelDial {
         case .glide: \.glide
         case .fade: \.fade
         case .close: \.close
-        case .give: \.give
+        case .room: \.room
         case .grace: \.grace
         case .settle: \.settle
         case .slide: \.slide
@@ -102,7 +103,8 @@ public enum StripDial: String, PanelDial {
         case .bounce: 0 ... 1
         case .dwell: 0 ... 400
         case .reach: 0 ... 8
-        case .pour, .glide, .close, .give, .slide: 0.5 ... 2
+        case .pour, .glide, .close, .slide: 0.5 ... 2
+        case .room: 0 ... 20
         case .fade: 40 ... 400
         case .grace: 0 ... 800
         case .settle: 0 ... 3000
@@ -112,21 +114,22 @@ public enum StripDial: String, PanelDial {
 
     public var step: Double {
         switch self {
-        case .bounce, .pour, .glide, .close, .give, .slide: 0.01
+        case .bounce, .pour, .glide, .close, .slide: 0.01
         case .dwell, .fade, .grace: 10
+        case .room: 1
         case .reach: 0.5
         case .settle: 50
         case .swells: 1
         }
     }
 
-    /// The value as the slider's label shows it: 0.50, 120ms, 3px, 2.5px, 1.00×, 2×.
+    /// The value as the slider's label shows it: 0.50, 120ms, 3px, 2.5px, 12px, 1.00×, 2×.
     public func show(_ value: Double) -> String {
         switch self {
         case .bounce: json(value)
         case .dwell, .fade, .grace, .settle: json(value) + "ms"
-        case .reach: (value.rounded() == value ? json(value) : fixed(value, 1)) + "px"
-        case .pour, .glide, .close, .give, .slide, .swells: json(value) + "×"
+        case .reach, .room: (value.rounded() == value ? json(value) : fixed(value, 1)) + "px"
+        case .pour, .glide, .close, .slide, .swells: json(value) + "×"
         }
     }
 
@@ -134,8 +137,8 @@ public enum StripDial: String, PanelDial {
     /// does, 3 or 2.5.
     public func json(_ value: Double) -> String {
         switch self {
-        case .bounce, .pour, .glide, .close, .give, .slide: fixed(value, 2)
-        case .dwell, .reach, .fade, .grace, .settle, .swells:
+        case .bounce, .pour, .glide, .close, .slide: fixed(value, 2)
+        case .dwell, .reach, .room, .fade, .grace, .settle, .swells:
             value.rounded() == value ? String(Int(value)) : String(value)
         }
     }
@@ -143,7 +146,7 @@ public enum StripDial: String, PanelDial {
 
 /// The strip prototype's springs (its `SPRINGS`), in its order.
 public enum StripSpring: CaseIterable, Sendable {
-    case reach, pour, grow, glide, width, draw, slide, arrive, press, give
+    case reach, pour, grow, glide, width, draw, slide, arrive, press
 
     /// As listed, before Bounce and the speed dials.
     var listed: SpringParams {
@@ -166,15 +169,13 @@ public enum StripSpring: CaseIterable, Sendable {
         case .arrive: SpringParams(response: 0.30, damping: 0.55)
         // a click pressing the tab, or the ring, in
         case .press: SpringParams(response: 0.10, damping: 0.70)
-        // the top end's curve drawing up, and back
-        case .give: SpringParams(response: 0.18, damping: 0.90)
         }
     }
 }
 
 extension StripSettings: Codable {
     private enum CodingKeys: String, CodingKey {
-        case bounce, dwell, reach, pour, glide, fade, close, give, grace, settle, slide, swells, edge
+        case bounce, dwell, reach, pour, glide, fade, close, room, grace, settle, slide, swells, edge
     }
 
     public init(from decoder: any Decoder) throws {

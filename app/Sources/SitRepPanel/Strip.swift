@@ -6,7 +6,14 @@ import Foundation
 /// pouring its panel row out of the strip as a tab. The view feeds it a frame at a time and draws what each gives
 /// back, as it does a notch. Its coordinates are the edge's own: x into the screen from its edge, y down from its top.
 public final class Strip {
-    public var settings: StripSettings
+    /// Room changes the strip's shape at once: any tab goes, and the marks slide to their new places.
+    public var settings: StripSettings {
+        didSet {
+            if settings.room != oldValue.room {
+                relayoutShape()
+            }
+        }
+    }
     /// Every session on the strip, in the order they came.
     public private(set) var sessions: [StripSession]
 
@@ -45,8 +52,6 @@ public final class Strip {
     var freeze = false
     var jumping: Jumping?
 
-    /// Give way: how deep under the menu bar the top end reaches, 28 at rest.
-    var give = Spring(StripTuning.topEnd)
     /// The hairline under needs you, and how much of it shows.
     var hair = Spring(0)
     var hairOp = Spring(0)
@@ -78,8 +83,7 @@ public final class Strip {
         t += dt
         runTimers()
         updateHover()
-        aimGive()
-        for key in [\Strip.give, \.hair, \.hairOp] {
+        for key in [\Strip.hair, \.hairOp] {
             self[keyPath: key].step(dt)
         }
         for mark in marks + [more].compactMap(\.self) {
@@ -89,7 +93,6 @@ public final class Strip {
             tab.step(dt)
         }
         stepTabs()
-        holdGive()
         return render()
     }
 

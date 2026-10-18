@@ -16,9 +16,9 @@ struct StripTests {
 
         let ys = lab.model.layout.places.map(\.y)
 
-        #expect(ys == [68, 98, 128, 158, 201, 231, 261, 291])
-        #expect(lab.model.layout.hair == 179.5)
-        #expect(lab.frame.hairline.y == 179.5 && lab.frame.hairline.alpha == 1)
+        #expect(ys == [80, 110, 140, 170, 213, 243, 273, 303])
+        #expect(lab.model.layout.hair == 191.5)
+        #expect(lab.frame.hairline.y == 191.5 && lab.frame.hairline.alpha == 1)
         #expect(lab.frame.marks.allSatisfy { $0.centre.x == 18 && $0.scale == 1 && $0.alpha == 1 })
     }
 
@@ -39,19 +39,19 @@ struct StripTests {
     }
 
     @Test func thePointerCrossingTheStripWithinTheDwellOpensNothing() {
-        var lab = StripLab(pointer: CGPoint(x: 200, y: 201))
+        var lab = StripLab(pointer: CGPoint(x: 200, y: 213))
         lab.settle()
 
-        lab.pointer = CGPoint(x: 18, y: 201)
+        lab.pointer = CGPoint(x: 18, y: 213)
         lab.wait(100)
-        lab.pointer = CGPoint(x: 200, y: 201)
+        lab.pointer = CGPoint(x: 200, y: 213)
         lab.settle()
 
         #expect(lab.model.tabs.isEmpty)
     }
 
     @Test func restingOnAMarkTheEdgeReaches3TowardItThenAfter120msItsRowPoursOut() {
-        var lab = StripLab(pointer: CGPoint(x: 18, y: 201))
+        var lab = StripLab(pointer: CGPoint(x: 18, y: 213))
 
         lab.wait(110)
         #expect(lab.live?.phase == .reach)
@@ -69,10 +69,10 @@ struct StripTests {
         let tab = lab.frame.tabs[0], drawn = tab.outline.boundingBoxOfPath
         #expect(abs(drawn.minX - 35) < 1e-9)
         #expect(abs(drawn.maxX - (36 + 321)) < 1e-2)
-        #expect(abs(drawn.minY - (201 - 26 - 10)) < 1e-2)
-        #expect(abs(drawn.maxY - (201 + 26 + 10)) < 1e-2)
+        #expect(abs(drawn.minY - (213 - 26 - 10)) < 1e-2)
+        #expect(abs(drawn.maxY - (213 + 26 + 10)) < 1e-2)
         #expect(tab.radius == 16)
-        #expect(abs(tab.clip.width - 321) < 1e-2 && abs(tab.clip.minY - 175) < 1e-2 && abs(tab.clip.height - 52) < 1e-2)
+        #expect(abs(tab.clip.width - 321) < 1e-2 && abs(tab.clip.minY - 187) < 1e-2 && abs(tab.clip.height - 52) < 1e-2)
     }
 
     @Test(arguments: [(100.0, 240.0), (300, 316), (400, 360)])
@@ -85,7 +85,7 @@ struct StripTests {
     }
 
     @Test func pouringTheWordsComeInFrom55PercentOfTheDepthTo95() {
-        var lab = StripLab(pointer: CGPoint(x: 18, y: 201))
+        var lab = StripLab(pointer: CGPoint(x: 18, y: 213))
         var seen: [(depth: Double, alpha: Double)] = []
 
         lab.wait(600) { lab in
@@ -110,7 +110,7 @@ struct StripTests {
 
         #expect(lab.live === tab)
         #expect(tab.key == .session("s6"))
-        #expect(tab.y.target == 231)
+        #expect(tab.y.target == 243)
         #expect(lab.model.tabs.count == 1)
     }
 
@@ -159,34 +159,6 @@ struct StripTests {
         #expect(lab.model.tabs.isEmpty)
     }
 
-    @Test func whileTheFirstMarksTabIsOutTheTopEndDrawsUpIntoAThreePointFilletAndComesBackAfter() {
-        var lab = StripLab()
-
-        lab.open("s1")
-
-        #expect(lab.model.topEndDepth == 3)
-        let top = lab.model.topEndPoints()
-        #expect(top.first == Vec(36 + 3, 0) && top.last == Vec(36, 3))
-        let tab = lab.frame.tabs[0].outline.boundingBoxOfPath
-        #expect(tab.minY >= 26 + 3 + 3 - 1e-9)
-
-        lab.pointer = CGPoint(x: 600, y: 400)
-        lab.model.clickElsewhere()
-        lab.settle()
-        lab.step()
-
-        #expect(lab.model.topEndDepth == 28)
-        #expect(lab.model.topEndPoints() == StripTuning.sCurve)
-    }
-
-    @Test func aTabOfAnotherMarkLeavesTheTopEndAsItIs() {
-        var lab = StripLab()
-
-        lab.open("s3")
-
-        #expect(lab.model.topEndDepth == 28)
-    }
-
     @Test func aNewNeedsYouMovesInAtOnceEvenUnderThePointerAfterTheNeedsYouAWindowHolds() {
         var lab = StripLab(pointer: CGPoint(x: 18, y: 600))
         lab.settle()
@@ -195,11 +167,11 @@ struct StripTests {
         lab.settle()
 
         #expect(lab.model.display == ["s1", "s2", "s3", "s9", "s4", "s5", "s6", "s7", "s8"])
-        #expect(lab.model.layout.places.map(\.y) == [68, 98, 128, 158, 188, 231, 261, 291, 321])
+        #expect(lab.model.layout.places.map(\.y) == [80, 110, 140, 170, 200, 243, 273, 303, 333])
     }
 
     @Test func aNewAwayAskMovesInAfterTheAwayOnes() {
-        var lab = StripLab()
+        let lab = StripLab()
         var away = StripLab.ask
         away.away = true
 
@@ -239,7 +211,7 @@ struct StripTests {
         lab.wait(1500)
         #expect(lab.model.display.first == "s1")
 
-        lab.pointer = CGPoint(x: 600, y: 231)
+        lab.pointer = CGPoint(x: 600, y: 243)
         lab.step()
         let left = lab.model.t
         lab.wait(2000) { $0.model.display.first != "s1" }
@@ -263,7 +235,7 @@ struct StripTests {
 
         #expect(tab.key == .session("s6"))
         #expect(apart < 1e-9)
-        #expect(abs(mark.y.x - 261) < 0.5)
+        #expect(abs(mark.y.x - 273) < 0.5)
         lab.step()
         #expect(tab.key == .session("s5"))
     }
@@ -277,8 +249,8 @@ struct StripTests {
             return
         }
         #expect(session.line2 == "No window holds it. Carry it on in Claude.")
-        lab.model.click(at: CGPoint(x: lab.frame.tabs[0].clip.midX, y: 158))
-        lab.model.click(at: CGPoint(x: 18, y: 158))
+        lab.model.click(at: CGPoint(x: lab.frame.tabs[0].clip.midX, y: 170))
+        lab.model.click(at: CGPoint(x: 18, y: 170))
         lab.step()
 
         #expect(lab.model.jumping == nil)
@@ -286,7 +258,7 @@ struct StripTests {
     }
 
     @Test func aClickOnAMarkBeforeItsTabIsOutPressesTheRingIn450msThenNoTabWhileThePointerStays() {
-        var lab = StripLab(pointer: CGPoint(x: 18, y: 231))
+        var lab = StripLab(pointer: CGPoint(x: 18, y: 243))
         lab.wait(50)
 
         lab.model.click(at: lab.pointer!)
@@ -309,7 +281,7 @@ struct StripTests {
         var lab = StripLab()
         lab.open("s7")
 
-        lab.model.click(at: CGPoint(x: 100, y: 261))
+        lab.model.click(at: CGPoint(x: 100, y: 273))
         lab.wait(200)
 
         #expect(lab.frame.tabs[0].words.last!.isPressed)
@@ -325,8 +297,8 @@ struct StripTests {
         lab.settle()
 
         let count = lab.frame.marks.last!
-        #expect(count.look == .count && count.text == "+13")
-        #expect(count.centre.y == 591)
+        #expect(count.look == .count && count.text == "+15")
+        #expect(count.centre.y == 543)
         #expect(lab.model.layout.places.prefix(4).map(\.id) == ["s1", "s2", "s3", "s4"])
     }
 
@@ -335,7 +307,7 @@ struct StripTests {
         lab.model.add(StripLab.tooMany)
         lab.settle()
 
-        lab.pointer = CGPoint(x: 18, y: 591)
+        lab.pointer = CGPoint(x: 18, y: 543)
         lab.step()
         lab.model.click(at: lab.pointer!)
         lab.step()
@@ -351,7 +323,7 @@ struct StripTests {
     }
 
     @Test func underReducedMotionThereIsNoReachTheMarksSnapAndATabFadesIn() {
-        var lab = StripLab(pointer: CGPoint(x: 18, y: 201), reducesMotion: true)
+        var lab = StripLab(pointer: CGPoint(x: 18, y: 213), reducesMotion: true)
 
         lab.wait(100)
         #expect(lab.live!.w.x == 0)
@@ -363,10 +335,10 @@ struct StripTests {
         lab.settle()
         #expect(abs(lab.live!.alpha.x - 1) < 1e-2)
 
-        lab.pointer = CGPoint(x: 600, y: 201)
+        lab.pointer = CGPoint(x: 600, y: 213)
         lab.model.newAsk(StripLab.ask)
         lab.step()
-        #expect(lab.model.mark(.session("s5"))!.y.x == 231)
+        #expect(lab.model.mark(.session("s5"))!.y.x == 243)
     }
 
     @Test func aClickPassesThroughButOnTheStripAndAnOpenTab() {
@@ -374,12 +346,12 @@ struct StripTests {
 
         #expect(lab.frame.hits(CGPoint(x: 10, y: 400)))
         #expect(!lab.frame.hits(CGPoint(x: 10, y: 20)))
-        #expect(!lab.frame.hits(CGPoint(x: 100, y: 201)))
+        #expect(!lab.frame.hits(CGPoint(x: 100, y: 213)))
 
         lab.open("s5")
 
-        #expect(lab.frame.hits(CGPoint(x: 100, y: 201)))
-        #expect(!lab.frame.hits(CGPoint(x: 400, y: 201)))
+        #expect(lab.frame.hits(CGPoint(x: 100, y: 213)))
+        #expect(!lab.frame.hits(CGPoint(x: 400, y: 213)))
     }
 
     @Test func framesStopWithThePointerAwayAndRunWhileItIsOnTheStripAndForAFrameAfter() {

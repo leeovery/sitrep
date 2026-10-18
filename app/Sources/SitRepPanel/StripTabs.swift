@@ -100,7 +100,7 @@ extension Strip {
     var tabMax: Double { max(StripTuning.tabMin, min(StripTuning.tabMax, stage.width - StripTuning.width - 48)) }
 
     /// The tallest a tab's body may be: the count's, at its tallest, scrolls.
-    var maxBody: Double { stage.height - minCy(0, topClear(tightest: true)) - StripTuning.keep }
+    var maxBody: Double { botClear - minCy(0, topClear) }
 
     /// A tab's words: its panel row, or for the count, the rest as rows.
     func buildWords(_ key: MarkKey) -> StripWords {
