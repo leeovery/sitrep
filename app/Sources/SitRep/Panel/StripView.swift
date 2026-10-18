@@ -1,15 +1,11 @@
 import AppKit
 import SitRepPanel
 
-/// The strip's one view: its black, each tab's black and words, the hairline and the marks, as layers in the stage's
+/// The strip in black: its black, each tab's black and words, the hairline and the marks, as layers in the stage's
 /// own coordinates (y down from the screen's top), shifted up by the menu bar the window starts under. A frame changes
-/// paths, places, opacities and clips; a tab's words and a mark's letters are laid out once. Clicks on it go to the
-/// controller.
+/// paths, places, opacities and clips; a tab's words and a mark's letters are laid out once.
 @MainActor
-final class StripView: NSView {
-    /// A click, in screen coordinates.
-    var onClick: (CGPoint) -> Void = { _ in }
-
+final class StripView: NSView, StripDrawing {
     private let stage = CALayer()
     private let fading = CAShapeLayer()
     private let strip = CAShapeLayer()
@@ -50,17 +46,6 @@ final class StripView: NSView {
     }
 
     override var isFlipped: Bool { true }
-
-    /// A click on the strip acts, though its window is never key and SitRep never active.
-    override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
-
-    override func mouseDown(with event: NSEvent) {
-        guard let window else {
-            return
-        }
-
-        onClick(window.convertPoint(toScreen: event.locationInWindow))
-    }
 
     override func viewDidMoveToWindow() {
         super.viewDidMoveToWindow()

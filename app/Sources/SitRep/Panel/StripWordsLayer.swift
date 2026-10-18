@@ -17,9 +17,7 @@ final class StripWordsLayer {
     private var pressed = false
     private var hovered: String?
 
-    private static let pad = (left: 12.0, right: 14.0), gap = 10.0, ageMin = 18.0
-    private static let titleLine = 18.0, subLine = 16.0, lines = 3.0
-    private static let row = (side: 6.0, top: 5.0, title: 17.0, sub: 14.0, gap: 2.0)
+    private static let pad = StripRowLayout.pad, gap = StripRowLayout.gap, ageMin = 18.0
 
     init(_ words: StripFrame.Words, now: Double) {
         let size = words.frame.size
@@ -71,30 +69,25 @@ final class StripWordsLayer {
     // MARK: A session's row
 
     private func lay(_ session: StripSession, in size: CGSize, now: Double) {
-        let ageWidth = Self.ageWidth(session, at: now)
-        let laneX = size.width - Self.pad.right - ageWidth
-        let textWidth = laneX - Self.gap - Self.pad.left
-        let top = (size.height - 1 - (Self.titleLine + Self.lines + Self.subLine)) / 2
-        let titleBox = CGRect(x: Self.pad.left, y: top, width: textWidth, height: Self.titleLine)
-        let subBox = CGRect(x: Self.pad.left, y: titleBox.maxY + Self.lines, width: textWidth, height: Self.subLine)
+        let at = StripRowLayout(session, in: size, now: now)
 
         if session.kind == .working {
             let shimmer = Shimmer(
-                grey: Self.title(session, PanelStyle.shim), lit: Self.title(session, PanelStyle.ink), in: titleBox
+                grey: Self.title(session, PanelStyle.shim), lit: Self.title(session, PanelStyle.ink), in: at.title
             )
             shimmer.band.add(shimmer.sweep, forKey: "sweep")
             content.addSublayer(shimmer.layer)
         } else {
-            content.addSublayer(TextLine(Self.title(session), in: titleBox))
+            content.addSublayer(TextLine(Self.title(session), in: at.title))
         }
-        content.addSublayer(TextLine(Self.sub(session), in: subBox))
+        content.addSublayer(TextLine(Self.sub(session), in: at.sub))
 
-        age.frame = CGRect(x: laneX, y: 8, width: ageWidth, height: Self.titleLine)
+        age.frame = at.age
         age.addSublayer(TextLine(
             Self.ageText(session, at: now), in: CGRect(origin: .zero, size: age.frame.size), alignment: .right
         ))
         content.addSublayer(age)
-        lay(spinner: CGRect(x: laneX + ageWidth - 11, y: 8 + 3.5, width: 11, height: 11))
+        lay(spinner: at.spinner)
     }
 
     /// The age's spinner while a click jumps: an 11pt ring in the track's grey, its top quarter in ink, turning once a
@@ -129,19 +122,12 @@ final class StripWordsLayer {
     // MARK: The count's rows
 
     private func lay(_ sessions: [StripSession], width: Double) {
-        let r = Self.row, inner = width - Self.pad.left - Self.pad.right
-        let height = StripFrame.Words.rowHeight, pitch = height + StripFrame.Words.rowGap
         for (i, session) in sessions.enumerated() {
-            let box = CALayer()
-            box.frame = CGRect(
-                x: Self.pad.left - r.side, y: StripFrame.Words.rowsPad + Double(i) * pitch, width: inner + 2 * r.side,
-                height: height
-            )
+            let at = StripRowsLayout(i, width: width), box = CALayer()
+            box.frame = at.box
             box.cornerRadius = 10
-            let title = CGRect(x: r.side, y: r.top, width: inner, height: r.title)
-            let sub = CGRect(x: r.side, y: title.maxY + r.gap, width: inner, height: r.sub)
-            box.addSublayer(TextLine(Self.rowTitle(session), in: title))
-            box.addSublayer(TextLine(Self.rowSub(session), in: sub))
+            box.addSublayer(TextLine(Self.rowTitle(session), in: at.title))
+            box.addSublayer(TextLine(Self.rowSub(session), in: at.sub))
             content.addSublayer(box)
             rows[session.id] = box
         }
@@ -197,7 +183,7 @@ final class StripWordsLayer {
         TextLine.text(Session.ageText(now - s.since), PanelStyle.age, PanelStyle.ink3)
     }
 
-    private static func ageWidth(_ s: StripSession, at now: Double) -> Double {
+    static func ageWidth(_ s: StripSession, at now: Double) -> Double {
         max(ageMin, width(ageText(s, at: now)))
     }
 

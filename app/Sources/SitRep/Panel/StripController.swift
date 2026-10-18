@@ -9,7 +9,7 @@ import SitRepPanel
 final class StripController: NSObject {
     private let dials: PanelDials
     private let model: Strip
-    private let view = StripView()
+    private let view = StripSurface()
     private let window: SidePanel
     private var edge: ScreenEdge
     private var frame: StripFrame
@@ -32,6 +32,7 @@ final class StripController: NSObject {
         window = SidePanel(frame: edge.stripWindow, view: view, overFullScreen: false)
         super.init()
 
+        view.material = dials.material
         view.place(menu: edge.stripStage.menu, height: edge.stripStage.height)
         view.onClick = { [unowned self] point in click(at: point) }
         link = view.displayLink(target: self, selector: #selector(tick))
@@ -58,9 +59,10 @@ final class StripController: NSObject {
         }
     }
 
-    /// The dials changed: the strip takes its settings at once.
+    /// The dials changed: the strip takes its settings and its material at once.
     func retune() {
         model.settings = dials.strip
+        view.material = dials.material
         wake()
     }
 

@@ -8,7 +8,7 @@ import SitRepPanel
 @MainActor
 @Observable
 final class PanelDials {
-    private static let showKey = "panelShow", styleKey = "panelStyle"
+    private static let showKey = "panelShow", styleKey = "panelStyle", materialKey = "panelStripMaterial"
     private static let meniscusKey = "panelSettings", cardKey = "panelCardSettings", stripKey = "panelStripSettings"
 
     var show: PanelForm {
@@ -21,6 +21,14 @@ final class PanelDials {
     var style: NotchStyle {
         didSet {
             defaults.set(style.rawValue, forKey: Self.styleKey)
+            onChange()
+        }
+    }
+
+    /// What the strip and its tabs are made of, as chosen; `StripMaterial.drawn` is what the Mac can draw of it.
+    var material: StripMaterial {
+        didSet {
+            defaults.set(material.rawValue, forKey: Self.materialKey)
             onChange()
         }
     }
@@ -56,6 +64,7 @@ final class PanelDials {
         self.defaults = defaults
         show = defaults.string(forKey: Self.showKey).flatMap(PanelForm.init) ?? .notch
         style = defaults.string(forKey: Self.styleKey).flatMap(NotchStyle.init) ?? .meniscus
+        material = defaults.string(forKey: Self.materialKey).flatMap(StripMaterial.init) ?? .black
         settings = Self.load(Self.meniscusKey, from: defaults)
         card = Self.load(Self.cardKey, from: defaults)
         strip = Self.load(Self.stripKey, from: defaults)
@@ -80,6 +89,25 @@ final class PanelDials {
     private static func load<S: PanelSettings>(_ key: String, from defaults: UserDefaults) -> S {
         defaults.string(forKey: key).flatMap { try? S(json: $0) } ?? S()
     }
+}
+
+/// What the strip and its tabs are made of: the bezel's black grown out of it, or, from macOS 26, Liquid Glass.
+enum StripMaterial: String, CaseIterable {
+    case black, glass
+
+    /// As the menu and the settings window name it.
+    var name: String { rawValue.capitalized }
+
+    /// Whether the Mac offers a choice: glass needs macOS 26, so before it there is only black.
+    static var isOffered: Bool {
+        if #available(macOS 26, *) {
+            return true
+        }
+        return false
+    }
+
+    /// The material as drawn: the one chosen where the Mac offers it, else black.
+    var drawn: Self { Self.isOffered ? self : .black }
 }
 
 /// Which form the panel takes on the display: the notch and its panel, or the strip in its place.
