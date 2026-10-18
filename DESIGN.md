@@ -1433,9 +1433,12 @@ From Pull: a field of 49, a tongue of 7.7, a cling of 2.1. The feel changes
 only from Lee's notes.
 
 **The alternative: Card** (17 October 2026). Lee wanted a second notch, an
-alternative to Meniscus and never its replacement. A setting could choose
-between them; whether the card ships is open. It is drawn in Paper's "The
-card notch", and its feel is the prototype's Card tab, tuned in two rounds.
+alternative to Meniscus and never its replacement. It ships beside it,
+Settings' Style choosing between them, Meniscus the default (Lee, 18 October
+2026, having felt both in the spike on the display: "They both look good. I
+would use Meniscus, but I think we should ship both"). It is drawn in
+Paper's "The card notch", and its feel is the prototype's Card tab, tuned in
+two rounds.
 - **The shape.** The mound's sizes and light: 7 × 76 at rest, 15 × 124
   while something needs Lee, 372 deep open. It meets the edge square, with
   no flares or S-curves, and rounds only its two outer corners: 6 at rest,
@@ -1538,7 +1541,7 @@ the panel was, in the browser first, then in Swift.
 
 **The design**, drawn in Paper's "The strip" (surfaces round 2, 16 October
 2026; Lee: "I really like it"). The movement, the hover and the animation
-are felt in a spike before they are settled.
+were settled in the browser spike (below, "How the strip moves").
 - **The form.** The bezel, grown: 36pt of the same black, from under the
   menu bar to the screen's bottom, its top end curving into the bezel as the
   notch's ends do. It sits on the notch's edge, left by default, and stays.
@@ -1559,9 +1562,12 @@ are felt in a spike before they are settled.
   project's capitals where it has two (SitRep SR, DocMan DM), else its first
   two (Switchboard Sw, agntc ag); two sessions of one project share them.
 - **Under the pointer** a mark pours its panel row out of the strip as a
-  tab, the material flaring at both ends. A click jumps, as in the panel. An
-  away mark's tab says "No window holds it. Carry it on in Claude." and
-  takes no click.
+  tab, the material flaring at both ends. A click jumps, as in the panel,
+  on the tab or on the mark itself (Lee, 18 October 2026: "I can hover to
+  see the card but shouldn't have to click the expanded card"); with no tab
+  out yet, the ring presses in and its own arc turns. An away mark's tab
+  says "No window holds it. Carry it on in Claude." and neither it nor the
+  mark takes a click. A click on the count opens its tab.
 - **Moving.** The strip never shuts, so the panel's "a changed row moves only
   once it closes" becomes: a new needs you moves in at once, the marks below
   sliding down to make room; any other change shows in place, and the marks
@@ -1569,10 +1575,58 @@ are felt in a spike before they are settled.
 - **Too many.** About 25 marks fit at full height. Past that, the last place
   is a count ("+3"), and under the pointer it pours out the rest as one tab.
   Needs you never folds: it is at the top.
-- **Open, for the spike:** macOS lets no app reserve screen space as the Dock
-  does, so a window filling the screen goes under the strip's 36pt. Claude's
-  proposal: windows go under it, and the strip steps aside while an app is
-  full screen.
+- **Open, for the Swift spike:** macOS lets no app reserve screen space as
+  the Dock does, so a window filling the screen goes under the strip's 36pt.
+  Claude's proposal: windows go under it, and the strip steps aside while an
+  app is full screen.
+
+**How the strip moves**, felt in the browser spike (18 October 2026, the
+prototype's Strip tab; Lee kept its defaults):
+- **The first tab** pours once the pointer has rested 120ms on a mark, the
+  strip's edge bowing 3pt toward it meanwhile, so a pointer crossing the
+  strip opens nothing. Once a tab is out, the other marks take no wait.
+- **Pouring,** the tab's depth springs out to its row's width as its body
+  grows from the ring's 24 to 52; the words fade in from 55% to 95% of the
+  depth. The tab is 52 deep, flared 10 into the strip at both ends, its
+  front corners 16, as wide as its row needs, from 240 to 360.
+- **Along the strip** the one tab glides to the next mark, its place and
+  width springing, its words crossing in 160ms the way the pointer went.
+  Lee chose this over each mark pouring its own tab.
+- **Leaving:** a grace of 300ms, a fifth of that when fast. The words go in
+  60ms and the black 30ms later, drawing back into the strip through a dent
+  of at most 3pt. A click elsewhere draws it back at once.
+- **The top end's curve never meets a tab.** The first mark's tab would
+  reach into it, so while that tab is out the curve draws up, on a spring of
+  its own, into a 3pt fillet under the menu bar, leaving straight edge for
+  the tab's flare, and springs back to its S as the tab goes. Lee chose this
+  ("Give way") over a fixed rounded corner and over the first tab hanging
+  below its ring. Moving every mark down to clear the curve looked worse
+  (Lee), and so did the tab running into the curve as one shape.
+- **Marks moving** slide to their places. A new needs you grows into its
+  place once the mark below has slid 45% of its step, its ring flashing
+  twice, 450ms apart. A tab out while marks slide stays with its mark, then
+  glides to whatever is under the pointer. The re-sort waits a second after
+  the pointer leaves.
+- **Reduced motion:** no springs and no reach; a tab's shape fades in and
+  out, and marks snap to their places and fade in.
+
+They ship fixed, as the notch's do (above, "The app ships these values
+fixed"). Lee's settings:
+`{"bounce":0.50,"dwell":120,"reach":3,"pour":1.00,"glide":1.00,"fade":160,"close":1.00,"give":1.00,"grace":300,"settle":1000,"slide":1.00,"swells":2,"between":"glide","during":"keep","top":"give","edge":"left"}`.
+The springs, after Bounce, as SwiftUI's `.spring(response:dampingFraction:)`:
+
+| Spring | Value |
+|---|---|
+| reach | 0.20·0.70 |
+| pour | 0.26·0.72 |
+| grow | 0.22·0.80 |
+| glide | 0.24·0.82 |
+| width | 0.24·0.86 |
+| draw | 0.22·0.80 |
+| give | 0.18·0.90 |
+| slide | 0.36·0.80 |
+| arrive | 0.30·0.55 |
+| press | 0.10·0.70 |
 
 ### The SitRep window
 
