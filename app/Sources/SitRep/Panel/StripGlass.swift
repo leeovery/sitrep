@@ -58,28 +58,20 @@ struct StripGlass: View {
     var body: some View {
         if let frame = scene.frame {
             ZStack(alignment: .topLeading) {
-                ForEach(Self.fading(frame), id: \.id) { piece in
-                    Color.clear
-                        .frame(width: Strip.depth, height: scene.height)
-                        .glassEffect(.regular, in: Outline(path: Path(piece.outline)))
-                        .opacity(piece.alpha)
+                StripGlassBody(frame: frame, height: scene.height)
+                Rectangle()
+                    .fill(.separator)
+                    .frame(width: 16, height: 1)
+                    .position(x: frame.hairline.x, y: frame.hairline.y)
+                    .opacity(frame.hairline.alpha)
+                ForEach(frame.marks, id: \.key) { mark in
+                    GlassMark(mark: mark).position(mark.centre)
                 }
-                ZStack(alignment: .topLeading) {
-                    Rectangle()
-                        .fill(.separator)
-                        .frame(width: 16, height: 1)
-                        .position(x: frame.hairline.x, y: frame.hairline.y)
-                        .opacity(frame.hairline.alpha)
-                    ForEach(frame.marks, id: \.key) { mark in
-                        GlassMark(mark: mark).position(mark.centre)
-                    }
-                    ForEach(frame.tabs, id: \.id) { tab in
-                        GlassTab(tab: tab, hoverRow: tab.isLive ? scene.hoverRow : nil)
-                    }
+                ForEach(frame.tabs, id: \.id) { tab in
+                    GlassTab(tab: tab, hoverRow: tab.isLive ? scene.hoverRow : nil)
                 }
-                .frame(width: Strip.depth, height: scene.height, alignment: .topLeading)
-                .glassEffect(.regular, in: Outline(path: Self.outline(frame)))
             }
+            .frame(width: Strip.depth, height: scene.height, alignment: .topLeading)
             .offset(y: -scene.menu)
             // the window is shorter than the stage by the menu bar: the stage hangs from its top, not centred in it
             .frame(minWidth: 0, maxWidth: .infinity, minHeight: 0, maxHeight: .infinity, alignment: .topLeading)
@@ -87,16 +79,69 @@ struct StripGlass: View {
             .allowsHitTesting(false)
         }
     }
+}
 
-    /// The strip and every tab that shows whole, as one outline: drawn the same way round, they make one shape where
-    /// they meet.
-    private static func outline(_ frame: StripFrame) -> Path {
-        let path = CGMutablePath()
-        path.addPath(frame.strip)
-        for tab in frame.tabs where tab.alpha >= Self.whole {
-            path.addPath(tab.outline)
+/// The glass itself. At rest the strip is thin glass, as Liquid Glass draws a shape so narrow; with a tab out the
+/// strip and the tab are one shape, wide enough to be thick, which the system would switch to at once. So the tab is
+/// thick from the first, and over the strip the thin fades out as the thick comes in with the pour, and back with the
+/// draw-back.
+@available(macOS 26, *)
+private struct StripGlassBody: View {
+    let frame: StripFrame
+    let height: Double
+
+    var body: some View {
+        let tabs = frame.tabs.filter { $0.alpha >= Self.whole }
+        let pour = Self.pour(tabs)
+        let strip = Path(frame.strip), tabsOutline = Self.outline(tabs.map(\.outline))
+        let poured = Self.outline([frame.strip] + tabs.map(\.outline)).cgPath
+        ZStack(alignment: .topLeading) {
+            ForEach(Self.fading(frame), id: \.id) { piece in
+                glass(Path(piece.outline)).opacity(piece.alpha)
+            }
+            // 1 - p² against p keeps the strip's look going one way, where two straight fades lighten it midway; the
+            // thin's shadow is kept off the tabs, which would show it through them (both measured)
+            glass(strip)
+                .mask(alignment: .topLeading) { Self.except(tabsOutline, by: 0) }
+                .opacity(1 - pour * pour)
+            if !tabs.isEmpty {
+                glass(GlassThickness.thick(poured, width: Strip.depth))
+                    .mask(alignment: .topLeading) {
+                        ZStack(alignment: .topLeading) {
+                            Self.except(strip, by: pour)
+                            Outline(path: tabsOutline)
+                        }
+                    }
+            }
         }
+    }
+
+    /// Glass in an outline in the stage's coordinates.
+    private func glass(_ outline: Path) -> some View {
+        Color.clear
+            .frame(width: Strip.depth, height: height)
+            .glassEffect(.regular, in: Outline(path: outline))
+    }
+
+    /// Outlines as one: drawn the same way round, they make one shape where they meet.
+    private static func outline(_ outlines: [CGPath]) -> Path {
+        let path = CGMutablePath()
+        outlines.forEach { path.addPath($0) }
         return Path(path)
+    }
+
+    /// A mask showing everything but an outline, which it shows only so much of.
+    private static func except(_ outline: Path, by shown: Double) -> some View {
+        ZStack(alignment: .topLeading) {
+            Rectangle()
+            Outline(path: outline).opacity(1 - shown).blendMode(.destinationOut)
+        }
+        .compositingGroup()
+    }
+
+    /// How far the furthest tab out has poured, 0 to 1: its body's depth over its words'.
+    private static func pour(_ tabs: [StripFrame.Tab]) -> Double {
+        tabs.filter { $0.box.width > 0 }.map { min(1, $0.clip.width / $0.box.width) }.max() ?? 0
     }
 
     /// Under reduced motion, what fades: a tab coming or going, and the old black cross-fading from where a tab was;
@@ -108,13 +153,6 @@ struct StripGlass: View {
     }
 
     private static let whole = 0.999
-}
-
-/// A path as a shape: it fills where it is, whatever the frame.
-private struct Outline: Shape {
-    let path: Path
-
-    func path(in _: CGRect) -> Path { path }
 }
 
 /// A rectangle with its two front corners rounded, as a tab's words are clipped.
@@ -141,8 +179,8 @@ private struct GlassMark: View {
             Circle().fill(fill)
             if mark.look == .working || mark.isJumping {
                 Spinner(
-                    track: mark.isJumping ? nil : AnyShapeStyle(.quaternary), arc: arc, period: mark.isJumping ? 0.9 : 1.2,
-                    line: Self.line
+                    track: mark.isJumping ? nil : AnyShapeStyle(.quaternary), arc: arc,
+                    period: mark.isJumping ? 0.9 : 1.2, line: Self.line
                 )
                 .id(mark.isJumping)
             }
@@ -325,7 +363,7 @@ private struct GlassRows: View {
                 let at = StripRowsLayout(i, width: width)
                 ZStack(alignment: .topLeading) {
                     RoundedRectangle(cornerRadius: 10)
-                        .fill(lit == session.id ? AnyShapeStyle(.primary.opacity(pressed ? 0.14 : 0.08)) : AnyShapeStyle(.clear))
+                        .fill(.primary.opacity(lit == session.id ? (pressed ? 0.14 : 0.08) : 0))
                     Glass.rowTitle(session).placed(in: at.title)
                     Text(session.sub).font(.system(size: 11)).foregroundStyle(.secondary).placed(in: at.sub)
                 }
