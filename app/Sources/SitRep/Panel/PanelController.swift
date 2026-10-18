@@ -16,7 +16,7 @@ final class PanelController: NSObject {
     private var notch: PanelNotch
     /// The content's layout, which the view draws and a click finds its row in.
     private let content: Content
-    private let view: PanelView
+    private let view: NotchSurface
     private let window: SidePanel
     private var edge: ScreenEdge
     private var frame: Frame
@@ -39,10 +39,11 @@ final class PanelController: NSObject {
         notch = PanelNotch(dials, input)
         frame = notch.model.frame(input)
         content = input.content
-        view = PanelView(items: notch.model.items, content: content)
+        view = NotchSurface(items: notch.model.items, content: content)
         window = SidePanel(frame: edge.window, view: view)
         super.init()
 
+        view.material = dials.material
         view.onClick = { [unowned self] point in click(at: point) }
         link = startLink(#selector(tick))
         lightLink = startLink(#selector(tickLight), rate: Self.lightRate)
@@ -69,9 +70,10 @@ final class PanelController: NSObject {
         }
     }
 
-    /// The dials changed: the notch takes its settings at once.
+    /// The dials changed: the notch takes its settings and its material at once.
     func retune() {
         notch.retune(dials)
+        view.material = dials.material
         wake()
     }
 

@@ -1,6 +1,6 @@
 import AppKit
 
-/// The spike's section of the menu bar's menu: Lee's dials, which form shows, what the strip is made of and which
+/// The spike's section of the menu bar's menu: Lee's dials, which form shows, what it is made of and which
 /// notch, whether anything needs him, and a new ask to watch land.
 @MainActor
 final class PanelMenu: NSObject {
@@ -28,9 +28,13 @@ final class PanelMenu: NSObject {
         action("Simulate a new ask", #selector(simulateAsk)),
     ]
 
-    /// The strip's material, offered only where the Mac has glass.
+    /// What the form shown is made of, offered only where the Mac has glass.
     private var materials: [NSMenuItem] {
-        StripMaterial.isOffered ? [choices("Material", StripMaterial.allCases, \.name, #selector(chooseMaterial(_:)))] : []
+        guard PanelMaterial.isOffered else {
+            return []
+        }
+
+        return [choices("Material", PanelMaterial.allCases, \.name, #selector(chooseMaterial(_:)))]
     }
 
     /// A submenu of choices, ticked as the menu opens, since the settings window can choose too.
@@ -63,7 +67,7 @@ final class PanelMenu: NSObject {
     }
 
     @objc private func chooseMaterial(_ sender: NSMenuItem) {
-        if let material = sender.representedObject as? StripMaterial {
+        if let material = sender.representedObject as? PanelMaterial {
             dials.material = material
         }
     }
@@ -94,12 +98,12 @@ final class PanelMenu: NSObject {
 }
 
 extension PanelMenu: NSMenuItemValidation {
-    /// The form shown, the strip's material and the notch chosen are ticked.
+    /// The form shown, its material and the notch chosen are ticked.
     func validateMenuItem(_ item: NSMenuItem) -> Bool {
         switch item.representedObject {
         case let form as PanelForm:
             item.state = form == dials.show ? .on : .off
-        case let material as StripMaterial:
+        case let material as PanelMaterial:
             item.state = material == dials.material ? .on : .off
         case let style as NotchStyle:
             item.state = style == dials.style ? .on : .off

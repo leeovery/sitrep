@@ -117,7 +117,7 @@ final class PanelContent {
     /// The head: how many need Lee at the left, how many sessions at the right, on one baseline.
     private static func head(_ head: Head, in box: CGRect) -> CALayer {
         let layer = CALayer()
-        let line = 16.0, inset = (left: 10.0, right: 8.0)
+        let line = HeadLayout.line, inset = HeadLayout.inset
         let font = PanelStyle.headTitle
         let title = TextLine.text(head.title, font, PanelStyle.ink, kern: PanelStyle.tightKern(font))
         let count = TextLine.text(head.count, PanelStyle.headCount, PanelStyle.ink3)
@@ -133,11 +133,11 @@ final class PanelContent {
         return layer
     }
 
-    /// The rule between what needs Lee and the rest: a point high, inset as a row's text is.
+    /// The rule between what needs Lee and the rest.
     private static func divider(width: CGFloat) -> CALayer {
         let rule = CALayer()
 
-        rule.frame = CGRect(x: 10, y: 2, width: width - 20, height: 1)
+        rule.frame = DividerLayout.rule(width: width)
         rule.backgroundColor = PanelStyle.rule
 
         return rule

@@ -13,29 +13,17 @@ final class SessionRow {
     /// The row's own motion, running only while the panel shows it.
     private var motions: [(layer: CALayer, animation: CAAnimation)] = []
 
-    private static let pad = (top: 10.0, side: 10.0), gap = 10.0
-    private static let markBox = CGSize(width: 12, height: 18), ageWidth = 36.0
-    private static let titleLine = 18.0, subLine = 16.0
-
     init(_ session: Session, size: CGSize) {
+        let at = SessionRowLayout(size: size)
+
         jumps = session.jumps
         layer.frame = CGRect(origin: .zero, size: size)
-        layer.cornerRadius = 14
-
-        let textX = Self.pad.side + Self.markBox.width + Self.gap
-        let textWidth = size.width - textX - Self.gap - Self.ageWidth - Self.pad.side
-        let titleBox = CGRect(x: textX, y: Self.pad.top, width: textWidth, height: Self.titleLine)
-        let subBox = CGRect(x: textX, y: titleBox.maxY, width: textWidth, height: Self.subLine)
-        let ageBox = CGRect(
-            x: size.width - Self.pad.side - Self.ageWidth, y: Self.pad.top, width: Self.ageWidth, height: Self.titleLine
-        )
-        let markCentre = CGPoint(x: Self.pad.side + Self.markBox.width / 2, y: Self.pad.top + Self.markBox.height / 2)
-
-        layer.addSublayer(mark(session.kind, at: markCentre))
-        layer.addSublayer(title(session, in: titleBox))
-        layer.addSublayer(TextLine(TextLine.text(session.sub, PanelStyle.sub, PanelStyle.ink2), in: subBox))
+        layer.cornerRadius = SessionRowLayout.radius
+        layer.addSublayer(mark(session.kind, at: at.mark))
+        layer.addSublayer(title(session, in: at.title))
+        layer.addSublayer(TextLine(TextLine.text(session.sub, PanelStyle.sub, PanelStyle.ink2), in: at.sub))
         layer.addSublayer(TextLine(
-            TextLine.text(session.ageText, PanelStyle.age, PanelStyle.ink3), in: ageBox, alignment: .right
+            TextLine.text(session.ageText, PanelStyle.age, PanelStyle.ink3), in: at.age, alignment: .right
         ))
     }
 

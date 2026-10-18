@@ -37,6 +37,21 @@ final class LightLayer: CALayer {
         fatalError("init(coder:) is not used")
     }
 
+    /// The light as the frame places it, in these colours, round the lip's outline: hidden while it is out.
+    func show(_ placed: Frame.Light, outline: CGPath, colours: LiveLight) {
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        isHidden = placed.level <= 0.001
+        if !isHidden {
+            var toLight = CGAffineTransform(translationX: -placed.centre.x, y: -placed.centre.y)
+
+            position = placed.centre
+            look = Look(colours: colours, level: placed.level, outline: outline.copy(using: &toLight) ?? outline)
+            setNeedsDisplay()
+        }
+        CATransaction.commit()
+    }
+
     override func draw(in context: CGContext) {
         guard let look, look.level > 0.001 else {
             return

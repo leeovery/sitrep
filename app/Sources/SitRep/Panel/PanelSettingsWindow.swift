@@ -22,7 +22,7 @@ final class PanelSettingsWindow {
     }
 }
 
-/// Which form shows, which notch or what the strip is made of, and the dials of the one shown.
+/// Which form shows and what it is made of, which notch, and the dials of the one shown.
 private struct PanelSettingsView: View {
     @Bindable var dials: PanelDials
 
@@ -34,6 +34,14 @@ private struct PanelSettingsView: View {
                 }
             }
             .pickerStyle(.segmented)
+            if PanelMaterial.isOffered {
+                Picker("Material", selection: $dials.material) {
+                    ForEach(PanelMaterial.allCases, id: \.self) { material in
+                        Text(material.name).tag(material)
+                    }
+                }
+                .pickerStyle(.segmented)
+            }
 
             switch dials.show {
             case .notch:
@@ -51,14 +59,6 @@ private struct PanelSettingsView: View {
                     DialsView(settings: $dials.card, reset: dials.reset)
                 }
             case .strip:
-                if StripMaterial.isOffered {
-                    Picker("Material", selection: $dials.material) {
-                        ForEach(StripMaterial.allCases, id: \.self) { material in
-                            Text(material.name).tag(material)
-                        }
-                    }
-                    .pickerStyle(.segmented)
-                }
                 DialsView(settings: $dials.strip, reset: dials.reset)
             }
         }

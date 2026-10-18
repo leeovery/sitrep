@@ -155,14 +155,6 @@ private struct StripGlassBody: View {
     private static let whole = 0.999
 }
 
-/// A rectangle with its two front corners rounded, as a tab's words are clipped.
-private struct FrontRounded: Shape {
-    let rect: CGRect
-    let radius: Double
-
-    func path(in _: CGRect) -> Path { Path(PanelContent.clipPath(rect, top: radius, bottom: radius)) }
-}
-
 // MARK: The marks
 
 /// A mark on glass: its letters in the glass's label colours, the ring in its state's colour, needs you orange with
@@ -187,7 +179,7 @@ private struct GlassMark: View {
             if let ring {
                 Circle()
                     .strokeBorder(ring, lineWidth: Self.line + 1.1 * mark.flash)
-                    .shadow(color: Glass.orange.opacity(glow), radius: (9 + 3 * mark.wash + 7 * mark.flash) / 2)
+                    .shadow(color: GlassInk.orange.opacity(glow), radius: (9 + 3 * mark.wash + 7 * mark.flash) / 2)
             }
             Text(mark.text)
                 .font(.system(size: 9.5, weight: .semibold))
@@ -205,7 +197,7 @@ private struct GlassMark: View {
 
     private var fill: AnyShapeStyle {
         if mark.wash > 0 {
-            return AnyShapeStyle(Glass.orange.opacity(0.2 * mark.wash))
+            return AnyShapeStyle(GlassInk.orange.opacity(0.2 * mark.wash))
         }
         if mark.isJumping {
             return AnyShapeStyle(.primary.opacity(0.14))
@@ -234,7 +226,7 @@ private struct GlassMark: View {
             return AnyShapeStyle(.secondary)
         }
 
-        return mark.look == .needs ? AnyShapeStyle(Glass.orange) : mark.look == .turn
+        return mark.look == .needs ? AnyShapeStyle(GlassInk.orange) : mark.look == .turn
             ? AnyShapeStyle(.primary) : AnyShapeStyle(.secondary)
     }
 
@@ -243,35 +235,6 @@ private struct GlassMark: View {
         case .needs, .turn: AnyShapeStyle(.primary)
         case .away: AnyShapeStyle(.tertiary)
         case .working, .count: AnyShapeStyle(.secondary)
-        }
-    }
-}
-
-/// An arc turning round a track, once in a period: a working mark's, a jumping one's, a jumping row's age.
-@available(macOS 26, *)
-private struct Spinner: View {
-    let track: AnyShapeStyle?
-    let arc: AnyShapeStyle
-    let period: Double
-    let line: Double
-    @State private var turned = false
-
-    var body: some View {
-        ZStack {
-            if let track {
-                Circle().inset(by: line / 2).stroke(track, lineWidth: line)
-            }
-            Circle()
-                .inset(by: line / 2)
-                .trim(from: 0, to: 0.25)
-                .stroke(arc, style: StrokeStyle(lineWidth: line, lineCap: .round))
-                .rotationEffect(.degrees(-90))
-        }
-        .rotationEffect(.degrees(turned ? 360 : 0))
-        .onAppear {
-            withAnimation(.linear(duration: period).repeatForever(autoreverses: false)) {
-                turned = true
-            }
         }
     }
 }
@@ -303,7 +266,9 @@ private struct GlassTab: View {
             }
         }
         .frame(width: box.width, height: box.height, alignment: .topLeading)
-        .clipShape(FrontRounded(rect: tab.clip.offsetBy(dx: -box.minX, dy: -box.minY), radius: tab.radius))
+        .clipShape(FrontRounded(
+            rect: tab.clip.offsetBy(dx: -box.minX, dy: -box.minY), top: tab.radius, bottom: tab.radius
+        ))
         .opacity(tab.alpha)
         .position(x: box.midX, y: box.midY)
     }
@@ -376,44 +341,10 @@ private struct GlassRows: View {
     }
 }
 
-/// A working title on glass: in the secondary label colour, with the primary sweeping along it every 2.5s, as the
-/// black's shimmer does.
-@available(macOS 26, *)
-private struct Shimmering: View {
-    let text: Text
-    let width: Double
-    @State private var swept = false
-
-    var body: some View {
-        text.foregroundStyle(.secondary)
-            .overlay(alignment: .leading) {
-                text.foregroundStyle(.primary)
-                    .mask(alignment: .leading) {
-                        LinearGradient(
-                            stops: [
-                                .init(color: .clear, location: 0), .init(color: .clear, location: 0.36),
-                                .init(color: .black, location: 0.5), .init(color: .clear, location: 0.64),
-                                .init(color: .clear, location: 1),
-                            ],
-                            startPoint: .leading, endPoint: .trailing
-                        )
-                        .frame(width: 3 * width)
-                        .offset(x: swept ? 0 : -2 * width)
-                    }
-            }
-            .onAppear {
-                withAnimation(.linear(duration: 2.5).repeatForever(autoreverses: false)) {
-                    swept = true
-                }
-            }
-    }
-}
-
 // MARK: The words, on glass
 
 @available(macOS 26, *)
 private enum Glass {
-    static let orange = Color(cgColor: PanelStyle.color(LiveLight.orange))
 
     /// A new mark's ring, flashing from the orange toward its brightest.
     static func flashing(_ flash: Double) -> Color {
@@ -441,15 +372,5 @@ private enum Glass {
             text = text + Text(code).font(.system(size: 13, weight: .medium, design: .monospaced))
         }
         return text.foregroundStyle(s.kind == .turn ? AnyShapeStyle(.primary) : AnyShapeStyle(.secondary))
-    }
-}
-
-extension View {
-    /// Set on one line in a box, cut short at its end.
-    fileprivate func placed(in box: CGRect, alignment: Alignment = .leading) -> some View {
-        lineLimit(1)
-            .truncationMode(.tail)
-            .frame(width: box.width, height: box.height, alignment: alignment)
-            .offset(x: box.minX, y: box.minY)
     }
 }

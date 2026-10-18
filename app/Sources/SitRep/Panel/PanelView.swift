@@ -1,15 +1,11 @@
 import AppKit
 import SitRepPanel
 
-/// The panel's one view: the black shape, the light in the lip, and the content over them, as layers in the
-/// stage's own coordinates (y down from the screen's top); under reduced motion, the shape it cross-fades from. A
-/// frame changes the shape's path, the light and the content's clip and paint; nothing animates implicitly. Clicks
-/// on it go to the controller.
+/// The notch in black: the black shape, the light in the lip, and the content over them, as layers in the stage's own
+/// coordinates (y down from the screen's top); under reduced motion, the shape it cross-fades from. A frame changes
+/// the shape's path, the light and the content's clip and paint; nothing animates implicitly.
 @MainActor
-final class PanelView: NSView {
-    /// A click, in screen coordinates.
-    var onClick: (CGPoint) -> Void = { _ in }
-
+final class PanelView: NSView, NotchDrawing {
     private let shape = CAShapeLayer()
     private let fading = CAShapeLayer()
     private let light = LightLayer()
@@ -40,17 +36,6 @@ final class PanelView: NSView {
 
     override var isFlipped: Bool { true }
 
-    /// A click on the panel acts, though its window is never key and SitRep never active.
-    override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
-
-    override func mouseDown(with event: NSEvent) {
-        guard let window else {
-            return
-        }
-
-        onClick(window.convertPoint(toScreen: event.locationInWindow))
-    }
-
     override func viewDidMoveToWindow() {
         super.viewDidMoveToWindow()
         rescale(layer)
@@ -74,21 +59,8 @@ final class PanelView: NSView {
         CATransaction.commit()
     }
 
-    /// The light as the frame places it, in these colours.
     func showLight(_ placed: Frame.Light, outline: CGPath, colours: LiveLight) {
-        CATransaction.begin()
-        CATransaction.setDisableActions(true)
-        light.isHidden = placed.level <= 0.001
-        if !light.isHidden {
-            var toLight = CGAffineTransform(translationX: -placed.centre.x, y: -placed.centre.y)
-
-            light.position = placed.centre
-            light.look = LightLayer.Look(
-                colours: colours, level: placed.level, outline: outline.copy(using: &toLight) ?? outline
-            )
-            light.setNeedsDisplay()
-        }
-        CATransaction.commit()
+        light.show(placed, outline: outline, colours: colours)
     }
 
     /// Every layer drawn at the screen's pixel density, so the text and the light stay crisp on Retina.

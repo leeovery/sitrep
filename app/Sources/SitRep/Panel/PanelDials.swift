@@ -8,7 +8,7 @@ import SitRepPanel
 @MainActor
 @Observable
 final class PanelDials {
-    private static let showKey = "panelShow", styleKey = "panelStyle", materialKey = "panelStripMaterial"
+    private static let showKey = "panelShow", styleKey = "panelStyle", materialKey = "panelPanelMaterial"
     private static let meniscusKey = "panelSettings", cardKey = "panelCardSettings", stripKey = "panelStripSettings"
 
     var show: PanelForm {
@@ -25,8 +25,9 @@ final class PanelDials {
         }
     }
 
-    /// What the strip and its tabs are made of, as chosen; `StripMaterial.drawn` is what the Mac can draw of it.
-    var material: StripMaterial {
+    /// What the notch or the strip is made of, whichever shows, as chosen; `PanelMaterial.drawn` is what the Mac can
+    /// draw of it.
+    var material: PanelMaterial {
         didSet {
             defaults.set(material.rawValue, forKey: Self.materialKey)
             onChange()
@@ -64,7 +65,7 @@ final class PanelDials {
         self.defaults = defaults
         show = defaults.string(forKey: Self.showKey).flatMap(PanelForm.init) ?? .notch
         style = defaults.string(forKey: Self.styleKey).flatMap(NotchStyle.init) ?? .meniscus
-        material = defaults.string(forKey: Self.materialKey).flatMap(StripMaterial.init) ?? .black
+        material = defaults.string(forKey: Self.materialKey).flatMap(PanelMaterial.init) ?? .black
         settings = Self.load(Self.meniscusKey, from: defaults)
         card = Self.load(Self.cardKey, from: defaults)
         strip = Self.load(Self.stripKey, from: defaults)
@@ -91,8 +92,8 @@ final class PanelDials {
     }
 }
 
-/// What the strip and its tabs are made of: the bezel's black grown out of it, or, from macOS 26, Liquid Glass.
-enum StripMaterial: String, CaseIterable {
+/// What the notch and the strip are made of: the bezel's black grown out of it, or, from macOS 26, Liquid Glass.
+enum PanelMaterial: String, CaseIterable {
     case black, glass
 
     /// As the menu and the settings window name it.
