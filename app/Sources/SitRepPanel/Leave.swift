@@ -93,11 +93,11 @@ extension Meniscus {
     /// out, wherever it leaves: a tongue stretches after it with its tip just past the pointer, on a spring quick
     /// enough to keep up with a slow leave, and follows it round a corner. It breaks when it has stretched to Hold and
     /// hung there a beat, or when the pointer gets `outrun` ahead of its tip: a fast leave outruns it almost at once.
-    /// Only a pointer going back over a flare into the bezel gets the grace.
+    /// Only a pointer going back over a flare into the bezel gets the grace. Under reduced motion it never clings.
     func updateCling(_ g: Geometry) {
-        guard phase == .open, settings.pull > 0 else {
+        guard phase == .open, !reducesMotion, settings.pull > 0 else {
             if phase == .open, S.ba.target != 0 {
-                S.ba.to(0, 120)
+                to(\.ba, 0, 120)
             }
             cling.attached = false
             cling.hang = nil
@@ -186,8 +186,8 @@ extension Meniscus {
         if abs(S.ba.x) < 0.1, abs(S.ba.v) < 0.01 {
             S.by.snap(u)
         }
-        S.ba.springTo(a, settings.sp(tongue ? .tongue : .cling))
-        S.by.springTo(u, settings.sp(tongue ? .tongue : .clingY))
+        springTo(\.ba, a, settings.sp(tongue ? .tongue : .cling))
+        springTo(\.by, u, settings.sp(tongue ? .tongue : .clingY))
     }
 
     /// Where the pointer left, against home: 0 at home, ±1 at the front run's end on that side and anything past it
@@ -216,7 +216,7 @@ extension Meniscus {
         cling.out = nil
         guard route == .edge else {
             cling.ripple = Ripple(t0: t, sigma0: bumpOf().sigma)
-            S.ba.springTo(0, settings.sp(.letGo))
+            springTo(\.ba, 0, settings.sp(.letGo))
             maybeClose(speed)
             return
         }
@@ -226,7 +226,7 @@ extension Meniscus {
         let q = smooth(clamp(stretch / settings.hold, 0, 1))
         var rp = settings.sp(.ret)
         rp.response = lerp(Tuning.returnFast, rp.response, q)
-        S.ba.springTo(0, rp)
+        springTo(\.ba, 0, rp)
         let flung = fling(away: away, along: along, rp)
         let sn = Snap(speed: away, q: q, e: exitE(letGoY, g), t0: t, x: S.ba.x, v: S.ba.v, ret: rp, flung: flung)
         snap = sn
@@ -246,15 +246,15 @@ extension Meniscus {
         let omega = 2 * Double.pi / (rp.response * 1000)
         let fling = min(settings.hold, Tuning.fling * settings.pull * tanh(away / Tuning.flingV))
         let want = max(Tuning.ringMin, fling), out = S.ba.x + max(0, S.ba.v) / omega * peakShare(rp.damping)
-        guard out < want else {
+        guard !reducesMotion, out < want else {
             return false
         }
 
         let fo = SpringParams(response: Tuning.flingOut, damping: rp.damping), wo = 2 * Double.pi / (Tuning.flingOut * 1000)
-        S.ba.springTo(0, fo)
+        springTo(\.ba, 0, fo)
         S.ba.v = (want - S.ba.x) * wo / peakShare(fo.damping)
         if abs(along) > 0.05 {
-            S.by.to(S.by.x + Tuning.flingAlong * along * 40, 90)
+            to(\.by, S.by.x + Tuning.flingAlong * along * 40, 90)
             S.by.v = Tuning.flingAlong * along
         }
         return true
@@ -272,7 +272,7 @@ extension Meniscus {
         // flung out to its peak: from here it returns
         if sn.flying, v <= 0 {
             sn.flying = false
-            S.ba.springTo(0, sn.ret)
+            springTo(\.ba, 0, sn.ret)
         }
         if sn.x > 0, x <= 0 {
             sn.ins += 1
@@ -288,7 +288,7 @@ extension Meniscus {
             // from its deepest the ring takes it back out
             if sn.inward, let ring = sn.ring {
                 sn.inward = false
-                S.ba.springTo(0, ring)
+                springTo(\.ba, 0, ring)
             }
             spreadRipple()
         }
@@ -313,7 +313,7 @@ extension Meniscus {
         sn.ring = rp
         let wr = 2 * Double.pi / (lerp(Tuning.dentRefFast, Tuning.dentRef, sn.q) * 1000)
         let inward = dentSpring(sn.vCross, sn.vCross / wr * peakShare(rp.damping), lerp(Tuning.dentInFast, Tuning.dentIn, sn.q))
-        S.ba.springTo(0, inward ?? rp)
+        springTo(\.ba, 0, inward ?? rp)
         sn.inward = inward != nil
         cling.ripple = Ripple(t0: nil, sigma0: Tuning.ringSigma)
         // when the dent will be deepest, from its spring alone; the collapse starts Push of that time after the line,

@@ -2,13 +2,14 @@ import Foundation
 import Observation
 import SitRepPanel
 
-/// Lee's dials for the panel's feel: which form shows, the notch or the strip, which notch, and each one's settings,
-/// which the running panel takes at once. They are kept in the user defaults, the settings as their prototype's JSON,
+/// Lee's dials for the panel's feel: which form shows, the notch or the strip, which notch, whether to reduce motion,
+/// and each one's settings, which the running panel takes at once. They are kept in the user defaults, the settings as their prototype's JSON,
 /// so they survive a restart and paste either way.
 @MainActor
 @Observable
 final class PanelDials {
     private static let showKey = "panelShow", styleKey = "panelStyle", materialKey = "panelPanelMaterial"
+    private static let reduceMotionKey = "panelReduceMotion"
     private static let meniscusKey = "panelSettings", cardKey = "panelCardSettings", stripKey = "panelStripSettings"
 
     var show: PanelForm {
@@ -30,6 +31,14 @@ final class PanelDials {
     var material: PanelMaterial {
         didSet {
             defaults.set(material.rawValue, forKey: Self.materialKey)
+            onChange()
+        }
+    }
+
+    /// Reduced motion for SitRep alone, whatever the Mac's setting; off, the Mac's applies.
+    var reduceMotion: Bool {
+        didSet {
+            defaults.set(reduceMotion, forKey: Self.reduceMotionKey)
             onChange()
         }
     }
@@ -66,6 +75,7 @@ final class PanelDials {
         show = defaults.string(forKey: Self.showKey).flatMap(PanelForm.init) ?? .notch
         style = defaults.string(forKey: Self.styleKey).flatMap(NotchStyle.init) ?? .meniscus
         material = defaults.string(forKey: Self.materialKey).flatMap(PanelMaterial.init) ?? .black
+        reduceMotion = defaults.bool(forKey: Self.reduceMotionKey)
         settings = Self.load(Self.meniscusKey, from: defaults)
         card = Self.load(Self.cardKey, from: defaults)
         strip = Self.load(Self.stripKey, from: defaults)

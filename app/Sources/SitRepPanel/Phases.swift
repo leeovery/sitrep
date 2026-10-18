@@ -38,26 +38,43 @@ extension Meniscus {
         landing = nil
         endsOff()
         ringOff()
-        S.lw.to(0, 80)
+        to(\.lw, 0, 80)
         phase = .opening
         reveal = .rowsIn(t)
         S.ct.snap(finalTop(panelTargetH))
-        S.ct.to(S.ct.x, 170)
+        to(\.ct, S.ct.x, 170)
+        // under reduced motion no tongue, and the shape cross-fades to the panel's
+        guard !reducesMotion else {
+            follow = true
+            snapReach()
+            setShape(w: Tuning.panelDepth, h: panelTargetH, r: Tuning.panelR, f: Tuning.panelF)
+            to(\.vis, 0, 100)
+            later(.openDone, 180) { $0.opened() }
+            return
+        }
 
         // The pour starts where the lip touched the pointer: the reach is the anticipation, so no separate swell.
         // Height leads; the centre migrates home on the same spring as it grows; width answers 30ms behind and its
         // front edge runs a few points past. The rows land from the top once the shape is mostly out (revealAlpha).
-        S.vis.to(0, 90)
+        to(\.vis, 0, 90)
         follow = true
         springShape(h: panelTargetH, settings.sp(.pourH))
-        S.ay.springTo(0, settings.sp(.pourH))
+        springTo(\.ay, 0, settings.sp(.pourH))
         later(.openW, 30) { m in
             // the width pours out past the tongue as the tongue goes back into it: its tip leads the pour
             let pourW = m.settings.sp(.pourW)
             m.springShape(w: Tuning.panelDepth, r: Tuning.panelR, f: Tuning.panelF, pourW)
-            m.S.ba.springTo(0, pourW)
+            m.springTo(\.ba, 0, pourW)
         }
         later(.openDone, 400) { $0.opened() }
+    }
+
+    /// The attraction put away at once: no tongue, the lip at its own place.
+    private func snapReach() {
+        S.ay.snap(0)
+        S.ba.snap(0)
+        S.by.snap(lipY)
+        cling.ripple = nil
     }
 
     func opened() {
@@ -76,7 +93,8 @@ extension Meniscus {
     }
 
     /// A pop or a grace collapses straight home on springs, the end nearer where the pointer left leading, quicker
-    /// the faster it left. Anything else drains as the prototype's Pour does.
+    /// the faster it left. Anything else drains as the prototype's Pour does. Under reduced motion, any close
+    /// cross-fades to the lip.
     func close(_ reason: CloseReason = .dismissed) {
         cancel(.dwell, .grace)
         // a pointer left sitting on the lip doesn't reopen it until it leaves, nor one left within the attraction's reach
@@ -93,24 +111,31 @@ extension Meniscus {
         phase = .closing
         // after a pop the panel holds still, rows and all, while the tongue rings: in, out, and as it comes in again,
         // what is left of the ring goes into the panel and the collapse starts (burst)
-        guard reason != .pop else {
+        guard reason != .pop || reducesMotion else {
             return
         }
 
         reveal = .rowsOut(t)
+        if reducesMotion {
+            let l = lipTarget
+            setShape(w: l.w, h: l.h, r: l.r, f: l.f)
+            to(\.vis, 1, 120)
+            later(.closeDone, 160) { $0.closed() }
+            return
+        }
         if reason == .grace {
             drain(leaveSpeed, kick: 0, exit)
             return
         }
 
-        S.ba.to(0, 100)
+        to(\.ba, 0, 100)
         // the rows fade first (60ms), then the shape drains: width leads now, height follows
         later(.closeW, 50) { m in
             let l = m.lipTarget
             m.setShape(w: l.w, r: l.r, f: l.f, 140)
         }
         later(.closeH, 75) { $0.setShape(h: $0.lipTarget.h, 140) }
-        later(.closeVis, 150) { $0.S.vis.to(1, 140) }
+        later(.closeVis, 150) { $0.to(\.vis, 1, 140) }
         later(.closeDone, 230) { $0.closed() }
     }
 
@@ -128,7 +153,7 @@ extension Meniscus {
         endsOn(e, resp * Tuning.endsShare, min(1, Tuning.endsDamping * settings.bounceScale))
         landing = l.w
         // the light comes on as it lands, or by then
-        later(.closeVis, resp * 900) { $0.S.vis.to(1, 140) }
+        later(.closeVis, resp * 900) { $0.to(\.vis, 1, 140) }
         later(.closeDone, resp * 1000) { $0.closed() }
     }
 
@@ -148,11 +173,11 @@ extension Meniscus {
         S.rb.snap(0)
         S.et.v = S.ay.v - S.h.v / 2
         S.eb.v = S.ay.v + S.h.v / 2
-        S[keyPath: near.key].springTo(home(near), SpringParams(response: resp * (1 - Tuning.endLead * ae), damping: damping))
+        springTo(near.key, home(near), SpringParams(response: resp * (1 - Tuning.endLead * ae), damping: damping))
         S[keyPath: near.key].v += (near == .bottom ? -1 : 1) * Tuning.endKick * ae
-        let farGo = { (m: Meniscus) in m.S[keyPath: far.key].springTo(farHome, SpringParams(response: resp, damping: damping)) }
-        if Tuning.endDelay * ae >= 4 {
-            S[keyPath: far.key].to(S[keyPath: far.key].x, 60)
+        let farGo = { (m: Meniscus) in m.springTo(far.key, farHome, SpringParams(response: resp, damping: damping)) }
+        if Tuning.endDelay * ae >= 4, !reducesMotion {
+            to(far.key, S[keyPath: far.key].x, 60)
             later(.closeFar, Tuning.endDelay * ae, farGo)
         } else {
             farGo(self)
@@ -169,8 +194,8 @@ extension Meniscus {
 
         for end in [End.top, .bottom] where !E.landed.contains(end) && abs(S[keyPath: end.key].x - home(end)) <= Tuning.endLand {
             E.landed.insert(end)
-            S[keyPath: end.key].to(home(end), 160)
-            if end == E.near, E.rebound > 0.05 {
+            to(end.key, home(end), 160)
+            if end == E.near, E.rebound > 0.05, !reducesMotion {
                 rebound(E, from: S[keyPath: end.key], home(end))
             }
         }
@@ -188,7 +213,7 @@ extension Meniscus {
         // lip still goes the rebound past home
         let z = min(0.99, p.damping), q = (1 - z * z).squareRoot(), tp = atan2(q, z) / (omega * q)
         let d0 = s.x - T, w = s.omega, dp = (d0 + (s.v + w * d0) * tp) * exp(-w * tp)
-        S.rb.springTo(0, p)
+        springTo(\.rb, 0, p)
         S.rb.v = dir * (E.rebound + max(0, -dir * dp)) * omega / peakShare(p.damping)
     }
 
@@ -237,13 +262,17 @@ extension Meniscus {
     /// The collapse lands: near the lip's depth the width comes the rest of the way on a critically damped spring,
     /// quick enough not to pass the lip's depth, and the landing's wobble takes over the part of its speed that
     /// carries on: under the lip's depth, back out past it, a little under again, settled. The total speed carries
-    /// across, so nothing jumps.
+    /// across, so nothing jumps. Under reduced motion there is no landing.
     func land() {
         guard let target = landing else {
             return
         }
 
         landing = nil
+        guard !reducesMotion else {
+            return
+        }
+
         let p = settings.sp(.land), omega = 2 * Double.pi / (p.response * 1000), dip = Tuning.landDip * settings.land
         let vw = dip > 0.01 ? -dip * omega / peakShare(p.damping) : 0
         let va = S.w.v - vw, wa = max(2 * Double.pi / 90, 1.2 * max(0, -va) / max(1, S.w.x - target))
@@ -253,10 +282,10 @@ extension Meniscus {
         S.w.c = 2 * wa
         S.w.v = va
         if dip > 0.01 {
-            S.lw.springTo(0, p)
+            springTo(\.lw, 0, p)
             S.lw.v += vw
         }
-        S.vis.to(1, 140)
+        to(\.vis, 1, 140)
     }
 
     /// Closed: the attraction takes the lip from here, sliding it home on the home spring.

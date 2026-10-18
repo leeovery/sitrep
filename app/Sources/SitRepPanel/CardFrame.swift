@@ -11,14 +11,9 @@ extension Card {
             lastPanel = panel
         }
         lastOutline = outline
-        if let fade, t - fade.t0 >= 160 {
-            self.fade = nil
-        }
+        let (alpha, fading) = fadeOutlines()
         return Frame(
-            time: t, phase: phase, outline: outline,
-            outlineAlpha: fade.map { clamp((t - $0.t0) / 100, 0, 1) } ?? 1,
-            fading: fade.map { Frame.Fading(outline: $0.outline, alpha: 1 - clamp((t - $0.t0) / 160, 0, 1)) },
-            panel: panel,
+            time: t, phase: phase, outline: outline, outlineAlpha: alpha, fading: fading, panel: panel,
             light: Frame.Light(
                 centre: CGPoint(x: g.w / 2, y: g.cy),
                 level: clamp(S.light.x, 0, 1) * clamp(S.vis.x, 0, 1),

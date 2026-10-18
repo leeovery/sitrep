@@ -22,7 +22,7 @@ final class PanelSettingsWindow {
     }
 }
 
-/// Which form shows and what it is made of, which notch, and the dials of the one shown.
+/// Which form shows and what it is made of, whether to reduce motion, which notch, and the dials of the one shown.
 private struct PanelSettingsView: View {
     @Bindable var dials: PanelDials
 
@@ -41,6 +41,10 @@ private struct PanelSettingsView: View {
                     }
                 }
                 .pickerStyle(.segmented)
+            }
+            Toggle(isOn: $dials.reduceMotion) {
+                Text("Reduce motion")
+                Text("For SitRep alone. Off, it follows the Mac's.")
             }
 
             switch dials.show {

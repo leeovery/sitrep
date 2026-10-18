@@ -99,8 +99,8 @@ struct NotchLab<Model: NotchModel> {
 }
 
 extension NotchLab where Model == Meniscus {
-    init(settings: Settings = Settings(), needsLee: Bool = false, pointer: CGPoint? = nil) {
-        self.init(needsLee: needsLee, pointer: pointer) { Meniscus(settings: settings, $0) }
+    init(settings: Settings = Settings(), needsLee: Bool = false, pointer: CGPoint? = nil, reducesMotion: Bool = false) {
+        self.init(needsLee: needsLee, pointer: pointer, reducesMotion: reducesMotion) { Meniscus(settings: settings, $0) }
     }
 
     /// The lip or panel as drawn this frame.

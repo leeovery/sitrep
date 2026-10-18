@@ -90,7 +90,7 @@ public struct StripInput {
     /// The pointer in stage coordinates; nil while it is on another screen.
     public var pointer: CGPoint?
     public var stage: StripStage
-    /// Whether the Mac asks for reduced motion: then nothing springs, and shapes cross-fade.
+    /// Whether to reduce motion, as the Mac or SitRep asks: then nothing springs, and shapes cross-fade.
     public var reducesMotion: Bool
 
     public init(time: Double, pointer: CGPoint?, stage: StripStage, reducesMotion: Bool = false) {

@@ -173,20 +173,6 @@ public final class Card: Notch {
         }
     }
 
-    /// A spring to a target in a duration, critically damped; under reduced motion never longer than 140ms.
-    func to(_ key: WritableKeyPath<CardSprings, Spring>, _ target: Double, _ dur: Double) {
-        S[keyPath: key].to(target, reducesMotion ? min(dur, 140) : dur)
-    }
-
-    /// The same on an underdamped spring; under reduced motion, critically damped in 120ms.
-    func springTo(_ key: WritableKeyPath<CardSprings, Spring>, _ target: Double, _ p: SpringParams) {
-        if reducesMotion {
-            to(key, target, 120)
-        } else {
-            S[keyPath: key].springTo(target, p)
-        }
-    }
-
     /// Straight to a shape: on critically damped springs, or under reduced motion a cross-fade to it.
     func setShape(w: Double? = nil, h: Double? = nil, _ dur: Double = 120) {
         let targets = [(\CardSprings.w, w), (\.h, h)].compactMap { key, target in target.map { (key, $0) } }
@@ -194,18 +180,7 @@ public final class Card: Notch {
             return targets.forEach { to($0, $1, dur) }
         }
 
-        if fade.map({ t - $0.t0 > 1 }) ?? true {
-            crossfade()
-        }
-        for (key, target) in targets {
-            S[keyPath: key].snap(target)
-            S[keyPath: key].to(target, 120)
-        }
-    }
-
-    /// From the outline as last drawn: the new one fades in over 100ms, the old out over 160.
-    func crossfade() {
-        fade = (lastOutline ?? CGMutablePath(), t)
+        crossfade(to: targets)
     }
 }
 

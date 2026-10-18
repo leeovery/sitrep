@@ -22,7 +22,7 @@ final class StripController: NSObject {
         edge = Display.edge
         let input = StripInput(
             time: Display.now, pointer: edge.stagePoint(NSEvent.mouseLocation), stage: edge.stripStage,
-            reducesMotion: Display.reducesMotion
+            reducesMotion: Display.reducesMotion(dials)
         )
         model = Strip(
             settings: dials.strip, sessions: StripSession.samples(at: StripWordsLayer.now),
@@ -100,7 +100,7 @@ final class StripController: NSObject {
     private func step(at time: Double) {
         let pointer = edge.stagePoint(NSEvent.mouseLocation)
         frame = model.frame(StripInput(
-            time: time, pointer: pointer, stage: edge.stripStage, reducesMotion: Display.reducesMotion
+            time: time, pointer: pointer, stage: edge.stripStage, reducesMotion: Display.reducesMotion(dials)
         ))
         view.show(frame, hoverRow: pointer.flatMap(countRow))
         window.ignoresMouseEvents = !(pointer.map(frame.hits) ?? false)

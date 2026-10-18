@@ -47,7 +47,7 @@ public struct Input {
     public var needsLee: Bool
     public var stage: Stage
     public var content: Content
-    /// Whether the Mac asks for reduced motion: the card then cross-fades rather than springs.
+    /// Whether to reduce motion, as the Mac or SitRep asks: then nothing springs, and shapes cross-fade.
     public var reducesMotion: Bool
 
     public init(
@@ -190,12 +190,15 @@ extension Meniscus {
         let moved = g.bump.map { displaced(g, outlineOf(g), $0, ringAt: ringAt) }
         let hit = hitRect(g)
         let panel = renderPanel(g, dentAt: moved?.centre)
+        let outline = shapePath(g, moved?.points)
         lastHit = hit
         if let panel {
             lastPanel = panel
         }
+        lastOutline = outline
+        let (alpha, fading) = fadeOutlines()
         return Frame(
-            time: t, phase: phase, outline: shapePath(g, moved?.points), panel: panel,
+            time: t, phase: phase, outline: outline, outlineAlpha: alpha, fading: fading, panel: panel,
             light: renderLight(g), hitRect: hit, isMoving: isMoving
         )
     }
@@ -244,14 +247,14 @@ extension Meniscus {
     }
 
     /// Anything still moving, or able to move with the pointer held still: a spring not at rest, a timer pending, a
-    /// leave still playing out, a tongue hanging at Hold, rows landing or fading, or the pointer in the attraction's
-    /// field with its trail still fresh, where a snap waits on the trail going still. A pointer parked in the field
-    /// changes nothing once its trail has gone still.
+    /// leave still playing out, a tongue hanging at Hold, rows landing or fading, a cross-fade, or the pointer in the
+    /// attraction's field with its trail still fresh, where a snap waits on the trail going still. A pointer parked in
+    /// the field changes nothing once its trail has gone still.
     var isMoving: Bool {
         Springs.all.contains { !S[keyPath: $0].isAtRest }
             || !timers.isEmpty
             || snap != nil || ends != nil || landing != nil || ringing || cling.hang != nil
-            || isRevealing
+            || isRevealing || fade != nil
             || attract.dx.isFinite && trailIsFresh
     }
 }

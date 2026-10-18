@@ -1,13 +1,16 @@
 import AppKit
 
 /// The spike's section of the menu bar's menu: Lee's dials, which form shows, what it is made of and which
-/// notch, whether anything needs him, and a new ask to watch land.
+/// notch, whether to reduce motion, whether anything needs him, and a new ask to watch land.
 @MainActor
 final class PanelMenu: NSObject {
     private let panels: SidePanels
     private let dials: PanelDials
     private let settings: PanelSettingsWindow
     private let needsItem = NSMenuItem(title: "Something needs you", action: #selector(toggleNeeds), keyEquivalent: "")
+    private let reduceMotionItem = NSMenuItem(
+        title: "Reduce motion", action: #selector(toggleReduceMotion), keyEquivalent: ""
+    )
 
     init(panels: SidePanels, dials: PanelDials, settings: PanelSettingsWindow) {
         self.panels = panels
@@ -16,6 +19,7 @@ final class PanelMenu: NSObject {
         super.init()
 
         needsItem.target = self
+        reduceMotionItem.target = self
         needsItem.state = panels.needsLee ? .on : .off
     }
 
@@ -24,6 +28,7 @@ final class PanelMenu: NSObject {
         choices("Show", PanelForm.allCases, \.name, #selector(chooseForm(_:))),
     ] + materials + [
         choices("Style", NotchStyle.allCases, \.name, #selector(chooseStyle(_:))),
+        reduceMotionItem,
         needsItem,
         action("Simulate a new ask", #selector(simulateAsk)),
     ]
@@ -78,6 +83,10 @@ final class PanelMenu: NSObject {
         }
     }
 
+    @objc private func toggleReduceMotion() {
+        dials.reduceMotion.toggle()
+    }
+
     @objc private func toggleNeeds() {
         panels.needsLee.toggle()
         needsItem.state = panels.needsLee ? .on : .off
@@ -98,8 +107,11 @@ final class PanelMenu: NSObject {
 }
 
 extension PanelMenu: NSMenuItemValidation {
-    /// The form shown, its material and the notch chosen are ticked.
+    /// The form shown, its material, the notch chosen and SitRep's own Reduce motion are ticked.
     func validateMenuItem(_ item: NSMenuItem) -> Bool {
+        if item === reduceMotionItem {
+            item.state = dials.reduceMotion ? .on : .off
+        }
         switch item.representedObject {
         case let form as PanelForm:
             item.state = form == dials.show ? .on : .off

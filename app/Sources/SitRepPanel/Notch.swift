@@ -19,8 +19,12 @@ public protocol Notch: AnyObject {
 }
 
 /// What the two notches share, as their prototypes share it: the sim clock and its timers, the pointer's trail, what
-/// the pointer is over, and the rows landing and fading.
+/// the pointer is over, the rows landing and fading, and reduced motion.
 protocol NotchModel: Notch, SimModel {
+    associatedtype SpringSet
+
+    /// Every spring the notch is made of, by its prototype's names (its `S`).
+    var S: SpringSet { get set }
     /// The notch's home along the edge, its centre.
     var lipY: Double { get }
     var isLive: Bool { get }
@@ -31,6 +35,51 @@ protocol NotchModel: Notch, SimModel {
     /// The head lands this long after the rows are let in.
     var rowsAt: Double { get }
     var reducesMotion: Bool { get }
+    /// Under reduced motion, the outline cross-fading out, and since when.
+    var fade: (outline: CGPath, t0: Double)? { get set }
+    /// The outline as last drawn, which a cross-fade fades out.
+    var lastOutline: CGPath? { get }
+}
+
+/// Reduced motion, as both prototypes have it: nothing springs, a move takes 140ms at most, and a change of shape
+/// cross-fades.
+extension NotchModel {
+    /// A spring to a target in a duration, critically damped; under reduced motion never longer than 140ms.
+    func to(_ key: WritableKeyPath<SpringSet, Spring>, _ target: Double, _ dur: Double) {
+        S[keyPath: key].to(target, reducesMotion ? min(dur, 140) : dur)
+    }
+
+    /// The same on an underdamped spring; under reduced motion, critically damped in 120ms.
+    func springTo(_ key: WritableKeyPath<SpringSet, Spring>, _ target: Double, _ p: SpringParams) {
+        if reducesMotion {
+            to(key, target, 120)
+        } else {
+            S[keyPath: key].springTo(target, p)
+        }
+    }
+
+    /// Straight to a shape, under reduced motion: its springs there at once, and the outline last drawn fading out as
+    /// the new one fades in, unless a cross-fade began this moment.
+    func crossfade(to targets: [(WritableKeyPath<SpringSet, Spring>, Double)]) {
+        if fade.map({ t - $0.t0 > 1 }) ?? true {
+            fade = (lastOutline ?? CGMutablePath(), t)
+        }
+        for (key, target) in targets {
+            S[keyPath: key].snap(target)
+            S[keyPath: key].to(target, 120)
+        }
+    }
+
+    /// The cross-fade this frame: the new outline fading in over 100ms, the old one out over 160, and then done.
+    func fadeOutlines() -> (alpha: Double, fading: Frame.Fading?) {
+        if let fade, t - fade.t0 >= 160 {
+            self.fade = nil
+        }
+        return (
+            fade.map { clamp((t - $0.t0) / 100, 0, 1) } ?? 1,
+            fade.map { Frame.Fading(outline: $0.outline, alpha: 1 - clamp((t - $0.t0) / 160, 0, 1)) }
+        )
+    }
 }
 
 extension NotchModel {

@@ -14,5 +14,8 @@ enum Display {
     /// The display's clock, ms.
     static var now: Double { CACurrentMediaTime() * 1000 }
 
-    static var reducesMotion: Bool { NSWorkspace.shared.accessibilityDisplayShouldReduceMotion }
+    /// Whether to reduce motion: SitRep's own switch on, or the Mac's.
+    static func reducesMotion(_ dials: PanelDials) -> Bool {
+        dials.reduceMotion || NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
+    }
 }

@@ -18,6 +18,7 @@ public final class Meniscus: Notch {
     var stage: Stage
     var content: Content
     var needs: Bool
+    var reducesMotion: Bool
     var lipY: Double
     var S: Springs
     /// While open, the shape's height follows the content.
@@ -52,12 +53,16 @@ public final class Meniscus: Notch {
     /// The lip's hit area and the panel's content as last drawn, which the pointer's moves are hit-tested against.
     var lastHit: CGRect?
     var lastPanel: Frame.Panel?
+    /// Under reduced motion, the outline cross-fading out, and since when.
+    var fade: (outline: CGPath, t0: Double)?
+    var lastOutline: CGPath?
 
     public init(settings: Settings = Settings(), _ input: Input) {
         self.settings = settings
         stage = input.stage
         content = input.content
         needs = input.needsLee
+        reducesMotion = input.reducesMotion
         now = input.time
         lipY = input.stage.clampLipY(input.stage.lipY)
         S = Springs(lip: needs ? .needs : .rest, lipY: lipY, light: needs ? 1 : 0)
@@ -68,9 +73,6 @@ public final class Meniscus: Notch {
     public var field: Double { settings.field }
 
     let rowsAt = Tuning.rowsAt
-
-    /// The port has no reduced motion yet.
-    let reducesMotion = false
 
     var lipTarget: LipShape { needs ? .needs : .rest }
 
@@ -123,8 +125,9 @@ public final class Meniscus: Notch {
     }
 
     /// What happened since the last frame, before the sim clock moves on: the screen, the content, what needs Lee,
-    /// and the pointer.
+    /// whether to reduce motion, and the pointer.
     private func take(_ input: Input) {
+        reducesMotion = input.reducesMotion
         if input.stage != stage {
             stage = input.stage
             measure()
@@ -151,7 +154,7 @@ public final class Meniscus: Notch {
     public func newAsk() {
         needs = true
         flash = t
-        S.light.to(1, 160)
+        to(\.light, 1, 160)
         if phase == .closed {
             swellLip()
             swellAgain(Int(settings.swells) - 1)
@@ -193,7 +196,7 @@ public final class Meniscus: Notch {
 
     private func answerAll() {
         needs = false
-        S.light.to(0, 450)
+        to(\.light, 0, 450)
         if phase == .closed {
             let rest = LipShape.rest
             setShape(w: rest.w, h: rest.h, r: rest.r, f: rest.f, 450)
@@ -261,17 +264,24 @@ public final class Meniscus: Notch {
         }
     }
 
-    func setShape(w: Double? = nil, h: Double? = nil, r: Double? = nil, f: Double? = nil, _ dur: Double) {
-        for (key, target) in shapeTargets(w, h, r, f) {
-            S[keyPath: key].to(target, dur)
+    /// Straight to a shape: on critically damped springs, or under reduced motion a cross-fade to it.
+    func setShape(w: Double? = nil, h: Double? = nil, r: Double? = nil, f: Double? = nil, _ dur: Double = 120) {
+        let targets = shapeTargets(w, h, r, f)
+        guard reducesMotion else {
+            return targets.forEach { to($0, $1, dur) }
         }
+
+        crossfade(to: targets)
     }
 
-    /// The same, on underdamped springs.
+    /// The same, on underdamped springs; under reduced motion a cross-fade too.
     func springShape(w: Double? = nil, h: Double? = nil, r: Double? = nil, f: Double? = nil, _ p: SpringParams) {
-        for (key, target) in shapeTargets(w, h, r, f) {
-            S[keyPath: key].springTo(target, p)
+        let targets = shapeTargets(w, h, r, f)
+        guard reducesMotion else {
+            return targets.forEach { springTo($0, $1, p) }
         }
+
+        crossfade(to: targets)
     }
 
     private func shapeTargets(_ w: Double?, _ h: Double?, _ r: Double?, _ f: Double?) -> [(WritableKeyPath<Springs, Spring>, Double)] {
@@ -279,15 +289,21 @@ public final class Meniscus: Notch {
     }
 
     /// A new ask: the swell runs as one underdamped spring. The lip is kicked outward, so it over-swells to about
-    /// the Swell dial's depth, falls back a little past NEEDS, and settles: one quiver.
+    /// the Swell dial's depth, falls back a little past NEEDS, and settles: one quiver. Under reduced motion it
+    /// cross-fades to NEEDS.
     func swellLip() {
+        let needs = LipShape.needs
+        guard !reducesMotion else {
+            return setShape(w: needs.w, h: needs.h, r: needs.r, f: needs.f)
+        }
+
         let p = settings.sp(.ask), omega = 2 * Double.pi / (p.response * 1000)
-        let needs = LipShape.needs, swell = LipShape(settings.swell)
+        let swell = LipShape(settings.swell)
         let keys: [(WritableKeyPath<Springs, Spring>, Double, Double)] = [
             (\.w, needs.w, swell.w), (\.h, needs.h, swell.h), (\.r, needs.r, swell.r), (\.f, needs.f, swell.f),
         ]
         for (key, home, over) in keys {
-            S[keyPath: key].springTo(home, p)
+            springTo(key, home, p)
             S[keyPath: key].v = max(S[keyPath: key].v, 0) + (over - home) * omega / peakShare(p.damping)
         }
     }

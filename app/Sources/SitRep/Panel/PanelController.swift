@@ -33,7 +33,7 @@ final class PanelController: NSObject {
 
         let input = Input(
             time: Display.now, pointer: edge.stagePoint(NSEvent.mouseLocation), needsLee: true, stage: edge.stage,
-            reducesMotion: Display.reducesMotion
+            reducesMotion: Display.reducesMotion(dials)
         )
 
         notch = PanelNotch(dials, input)
@@ -112,7 +112,8 @@ final class PanelController: NSObject {
     private func step(at time: Double) {
         let pointer = edge.stagePoint(NSEvent.mouseLocation)
         let input = Input(
-            time: time, pointer: pointer, needsLee: needsLee, stage: edge.stage, reducesMotion: Display.reducesMotion
+            time: time, pointer: pointer, needsLee: needsLee, stage: edge.stage,
+            reducesMotion: Display.reducesMotion(dials)
         )
 
         frame = model.frame(input)

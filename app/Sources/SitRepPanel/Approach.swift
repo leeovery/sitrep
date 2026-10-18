@@ -148,9 +148,10 @@ extension Meniscus {
     /// How hard the closed lip is pulled toward the pointer, and where its tongue aims. The pull goes as
     /// 1/(distance + `attractD0`), so it grows sharply as the gap closes; it reaches the cap at a distance of the cap
     /// plus Reach, where the tongue would touch the pointer's reach and snap. The tongue never reaches past the pointer.
+    /// Under reduced motion there is none: only touching the lip opens it.
     func attraction() -> (reach: Double, ty: Double, dx: Double) {
         let none = (reach: 0.0, ty: lipY, dx: Double.infinity)
-        guard let p = sp, phase == .closed, settings.pull > 0 else {
+        guard let p = sp, !reducesMotion, phase == .closed, settings.pull > 0 else {
             return none
         }
 
@@ -189,12 +190,12 @@ extension Meniscus {
         let p = settings.sp(live ? .attract : .relax)
         // a leave's ring plays out on its own spring
         if !ringing {
-            S.ba.springTo(A.reach, p)
+            springTo(\.ba, A.reach, p)
             // its aim along the edge follows without overshoot: a pointer passing by stays a steady lag ahead of it
-            S.by.springTo(A.ty, live ? SpringParams(response: p.response, damping: 1) : p)
+            springTo(\.by, A.ty, live ? SpringParams(response: p.response, damping: 1) : p)
         }
         // the base stays home: only the tongue reaches
-        S.ay.springTo(0, settings.sp(.home))
+        springTo(\.ay, 0, settings.sp(.home))
         // the gap from the tongue's tip to the pointer, as drawn; below Reach it can't hold back
         guard live, let sp else {
             attract.gap = .infinity
@@ -215,8 +216,8 @@ extension Meniscus {
     /// The tongue can't hold back: its tip jumps to the pointer and the pour starts from there.
     func snapOpen(_ sp: Vec) {
         let tongue = settings.sp(.tongue)
-        S.ba.springTo(max(S.ba.x, attract.dx - max(0, S.w.x) + Tuning.grip), tongue)
-        S.by.springTo(sp.y, tongue)
+        springTo(\.ba, max(S.ba.x, attract.dx - max(0, S.w.x) + Tuning.grip), tongue)
+        springTo(\.by, sp.y, tongue)
         open()
     }
 
