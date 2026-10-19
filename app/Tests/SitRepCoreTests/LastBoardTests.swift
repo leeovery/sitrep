@@ -1,14 +1,25 @@
+import Foundation
 @testable import SitRepCore
 import Testing
 
 struct LastBoardTests {
-    /// The last board after hearing each of what is given in turn.
+    private static let noon = Date(timeIntervalSince1970: 1_792_445_600)
+
+    /// The last board after hearing each of what is given in turn, a minute apart from noon, in one run.
     private static func after(_ heard: Heard...) -> LastBoard {
         var last = LastBoard()
 
-        heard.forEach { _ = last.hear($0) }
+        last.begin()
+
+        for (minute, said) in heard.enumerated() {
+            _ = last.hear(said, at: noon.addingTimeInterval(Double(minute) * 60))
+        }
 
         return last
+    }
+
+    private static func failed(_ stderr: String) -> Stale? {
+        after(.exited(.status(1), stderr: stderr)).stale
     }
 
     @Test func nothingIsKeptUntilALineIsHeardSoTheViewsSayTheyAreLooking() {
@@ -16,6 +27,7 @@ struct LastBoardTests {
 
         #expect(last.board == nil)
         #expect(last.stale == nil)
+        #expect(last.staleSince == nil)
     }
 
     @Test func aLineHeardIsTheBoard() throws {
@@ -31,11 +43,12 @@ struct LastBoardTests {
         #expect(last.board == (try Board.read(watchedEmpty)))
     }
 
-    @Test func aLineThatDoesNotReadIsSkippedTheBoardKeptAndStaleSayingWhy() throws {
+    @Test func aLineThatDoesNotReadIsSkippedTheBoardKeptAndStaleSinceItCame() throws {
         let last = Self.after(.line(watched), .line("sitrep watch, in words"))
 
         #expect(last.board == (try Board.read(watched)))
         #expect(last.stale == .unread(.shape))
+        #expect(last.staleSince == Self.noon.addingTimeInterval(60))
         #expect(last.stale?.description == "sitrep watch gave output this SitRep cannot read.")
     }
 
@@ -51,33 +64,66 @@ struct LastBoardTests {
 
         #expect(last.board == (try Board.read(watchedEmpty)))
         #expect(last.stale == nil)
+        #expect(last.staleSince == nil)
     }
 
-    @Test func watchEndingKeepsTheBoardStaleWithTheLastLineOfItsOwnItSaid() throws {
-        let stderr = """
-        sitrep: a first complaint
-        sitrep: EACCES: permission denied, scandir '/Users/lee/.local/state/sitrep'
-            at look (/Users/lee/Code/sitrep/cli/watch.ts:80:3)
-        """
-        let last = Self.after(.line(watched), .exited(status: 1, stderr: stderr))
+    @Test func watchEndingKeepsTheBoardStaleSinceItEndedSayingWhatEndedIt() throws {
+        let stderr = "sitrep: EACCES: permission denied, scandir '/Users/lee/.local/state/sitrep'\n"
+        let last = Self.after(.line(watched), .exited(.status(1), stderr: stderr))
 
         #expect(last.board == (try Board.read(watched)))
-        #expect(last.stale == .exited(status: 1, said: "EACCES: permission denied, scandir '/Users/lee/.local/state/sitrep'"))
-        #expect(last.stale?.description == "EACCES: permission denied, scandir '/Users/lee/.local/state/sitrep'")
+        #expect(last.stale == .exited(.status(1), said: "EACCES: permission denied, scandir '/Users/lee/.local/state/sitrep'"))
+        #expect(last.staleSince == Self.noon.addingTimeInterval(60))
+        #expect(last.stale?.description == "EACCES: permission denied, scandir '/Users/lee/.local/state/sitrep'.")
     }
 
-    @Test func watchEndingSayingNothingOfItsOwnGivesItsLastLine() {
+    @Test func theBoardIsStaleSinceItFirstWentStale() {
+        let last = Self.after(.line(watched), .line("{"), .exited(.status(1), stderr: ""))
+
+        #expect(last.stale == .exited(.status(1), said: nil))
+        #expect(last.staleSince == Self.noon.addingTimeInterval(60))
+    }
+
+    @Test func aCrashIsToldByItsErrorNotBunsTrailer() {
         let stderr = """
-        error: Cannot find module "../cli/shell" from "/Users/lee/Code/sitrep/bin/sitrep"
-            at /Users/lee/Code/sitrep/bin/sitrep:2:1
+        error: Cannot find module '../cli/shell' from '/Users/lee/Code/sitrep/bin/sitrep'
+
+        Bun v1.4.2 (macOS arm64)
 
         """
 
-        #expect(Self.after(.exited(status: 1, stderr: stderr)).stale?.description == "at /Users/lee/Code/sitrep/bin/sitrep:2:1")
+        #expect(Self.failed(stderr)?.description == "error: Cannot find module '../cli/shell' from '/Users/lee/Code/sitrep/bin/sitrep'.")
     }
 
-    @Test func watchEndingSayingNothingGivesItsStatus() {
-        #expect(Self.after(.exited(status: 0, stderr: " \n")).stale?.description == "sitrep watch ended with status 0.")
+    @Test func aCrashAfterALineOfTheCLIsOwnIsToldByTheCrash() {
+        let stderr = """
+        sitrep: a folder would not list for a look
+        1 | const f = () => {
+        2 |   throw new TypeError("boom")
+                        ^
+        TypeError: boom
+              at f (/Users/lee/Code/sitrep/cli/watch.ts:2:13)
+              at /Users/lee/Code/sitrep/cli/watch.ts:4:1
+
+        Bun v1.4.2 (macOS arm64)
+
+        """
+
+        #expect(Self.failed(stderr)?.description == "TypeError: boom.")
+    }
+
+    @Test(arguments: [
+        (Exit.status(0), "sitrep watch ended."),
+        (.status(1), "sitrep watch ended with status 1."),
+        (.signal(9), "sitrep watch was stopped (signal 9)."),
+    ])
+    func watchEndingSayingNothingSaysHowItEnded(exit: Exit, words: String) {
+        #expect(Self.after(.exited(exit, stderr: " \n")).stale?.description == words)
+    }
+
+    @Test func wordsEndingInTheirOwnPunctuationAreGivenAsTheyAre() {
+        #expect(Self.failed("sitrep: There is no session sr-zzzzzz on the board, in any project.\n")?.description
+            == "There is no session sr-zzzzzz on the board, in any project.")
     }
 
     @Test func watchThatCannotStartSaysSo() {
@@ -89,11 +135,31 @@ struct LastBoardTests {
         let changes = [
             Heard.line(watched),
             .line(watched),
-            .exited(status: 1, stderr: ""),
-            .exited(status: 1, stderr: ""),
+            .exited(.status(1), stderr: ""),
+            .exited(.status(1), stderr: ""),
             .line(watched),
-        ].map { last.hear($0) }
+        ].map { last.hear($0, at: Self.noon) }
 
         #expect(changes == [true, false, true, false, true])
+    }
+
+    @Test func onlyARunsFirstBoardAfterAnotherRunIsResumed() {
+        var last = LastBoard()
+        var resumed: [Bool] = []
+
+        func hear(_ heard: Heard) {
+            _ = last.hear(heard, at: Self.noon)
+            resumed.append(last.isResumed)
+        }
+
+        last.begin()
+        hear(.line(watchedEmpty))
+        hear(.line(watched))
+        last.begin()
+        hear(.line("{"))
+        hear(.line(watchedEmpty))
+        hear(.exited(.status(1), stderr: ""))
+
+        #expect(resumed == [false, false, false, true, false])
     }
 }

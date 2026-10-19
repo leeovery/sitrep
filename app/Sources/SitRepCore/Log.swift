@@ -5,4 +5,7 @@ extension Logger {
     public init(sitrep category: String) {
         self.init(subsystem: "com.leeovery.sitrep", category: category)
     }
+
+    /// What the app hears of `sitrep watch`.
+    static let watch = Logger(sitrep: "watch")
 }

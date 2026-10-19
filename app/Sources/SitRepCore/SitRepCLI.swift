@@ -138,5 +138,5 @@ private extension Ended {
 }
 
 private extension Ran {
-    var complaint: String? { Said(stderr).first }
+    var complaint: String? { Said(stderr).reason }
 }

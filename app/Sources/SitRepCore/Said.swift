@@ -1,24 +1,30 @@
 import Foundation
 
-/// What the CLI wrote to stderr, as a line fits a menu item or a banner: its
-/// own, which it prints as `sitrep: <words>`, its prefix dropped; else any
-/// line with anything on it, such as the head of a Bun stack trace.
+/// What the CLI wrote to stderr as it ended, in a line, as fits a menu item
+/// or a banner: what ended it. That is the last line that says anything,
+/// its `sitrep: ` dropped where it is the CLI's own: the CLI's own line when
+/// it ended on its own error, else the error's own line when it crashed
+/// (`error: Cannot find module …`, `TypeError: …`), even after a line of
+/// its own. Never Bun's version trailer, a stack frame, the source Bun
+/// quotes above an error, or a blank line.
 struct Said {
     private static let prefix = "sitrep: "
 
-    private let own: [String]
-    private let any: [String]
+    let reason: String?
 
     init(_ stderr: String) {
-        any = stderr.split(whereSeparator: \.isNewline)
+        reason = stderr.split(whereSeparator: \.isNewline)
             .map { $0.trimmingCharacters(in: .whitespaces) }
-            .filter { !$0.isEmpty }
-        own = any.compactMap { $0.hasPrefix(Self.prefix) ? String($0.dropFirst(Self.prefix.count)) : nil }
+            .last { !Self.isNoise($0) }
+            .map { $0.hasPrefix(Self.prefix) ? String($0.dropFirst(Self.prefix.count)) : $0 }
     }
 
-    /// What a run that ended at once said: the first line of its own, else the first of any.
-    var first: String? { own.first ?? any.first }
-
-    /// What a run that lived a while said as it ended: the last line of its own, else the last of any.
-    var last: String? { own.last ?? any.last }
+    /// `Bun v1.4.2 (macOS arm64)`, `at f (/path:2:13)`, `2 |   throw …`, `^`.
+    private static func isNoise(_ line: String) -> Bool {
+        line.isEmpty
+            || line.hasPrefix("at ")
+            || line.contains(/^Bun v\d/)
+            || line.contains(/^\d+ \|/)
+            || line.allSatisfy { $0 == "^" }
+    }
 }
