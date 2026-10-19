@@ -484,6 +484,7 @@ export function terminal(options: Options = {}) {
         return held.text
       },
       list: async dir => entriesIn(files, folders, dir),
+      modifiedAt: async path => files.get(path)?.mtimeMs,
       append: async (path, text) => {
         await gate?.()
         files.set(path, { text: (files.get(path)?.text ?? '') + text, mtimeMs: now() })

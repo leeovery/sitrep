@@ -9,7 +9,7 @@
  * window on the session. Before a command reads the board, the old layout
  * is moved into today's, once no window still writes it.
  */
-import { append, checkJoin, rootOf, type Body, type Checked } from '../core'
+import { addition, checkJoin, rootOf, stamp, type Body, type Checked } from '../core'
 import { parseWords, wantsHelp, type Fields } from './args'
 import {
   commandNamed,
@@ -18,7 +18,7 @@ import {
   type WindowCommand,
   type SessionCommand,
 } from './commands'
-import { findSession, readProjects, type Found } from './files'
+import { findSession, readProjects, textAt, type Found } from './files'
 import { commandHelp, HELP } from './help'
 import type { Env, Io } from './io'
 import { jump, sessionsOnScreen } from './jump'
@@ -81,10 +81,14 @@ const sessionIdOf = (input: Fields, env: Env): Checked<string> => {
   return checked.ok ? { ok: true, value: checked.value.session } : checked
 }
 
-/** Appends the lines to a writer's file after the text it holds; never a rewrite, so runs at once both land. */
-const post = async (io: Io, path: string, text: string, bodies: readonly Body[], now: number) => {
+/**
+ * Appends the lines to a writer's file, their count going on from `held`,
+ * its lines under both layouts; never a rewrite, so runs at once both land.
+ * A torn last line is ended in the file appended to, as it stands.
+ */
+const post = async (io: Io, path: string, held: string, bodies: readonly Body[], now: number) => {
   if (bodies.length > 0) {
-    await io.fs.append(path, append(text, bodies, now).added)
+    await io.fs.append(path, addition((await textAt(io, path)) ?? '', stamp(held, bodies, now)))
   }
 }
 

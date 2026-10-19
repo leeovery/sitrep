@@ -2,10 +2,12 @@
  * Reading a session's files, and its project's. A mod cannot watch files,
  * so each read lists the session's folders and its project's, and reads
  * again only a file whose size or time moved since it was last read. A
- * session is read under today's layout and the old alike, as one (core's
- * layouts.ts). Also the folders sitrep files projects and sessions under, a
- * file's text where it is there, and a file the window writes itself, as it
- * stands.
+ * session is read under today's layout and the old alike, as one, the old
+ * first (core's layouts.ts), its project's folder listed anew for each: the
+ * CLI moving the old layout makes today's folder as it goes. A file listed
+ * and gone by its read, as the move leaves it, is not there. Also the
+ * folders sitrep files projects and sessions under, a file's text where it
+ * is there, and a file the window writes itself, as it stands.
  */
 import type { FsEntry } from 'claude-code'
 import {
@@ -16,6 +18,7 @@ import {
   oldSessionsDir,
   PRESENCE_SUFFIX,
   projectPaths,
+  readOldFirst,
   sessionsDir,
   writerOf,
   type FolderFiles,
@@ -80,12 +83,11 @@ const folderListed = async (
 /** The sessions a project files, under today's layout or the old, each once. */
 export const sessionsFiled = async (host: Host, root: string, key: string) => {
   const { dir } = projectPaths(root, key)
-  const upper = await listed(host, dir)
-  const namesIn = async (path: string) => folderNames(await listedIn(host, dir, upper, path))
-  const [now, old] = await Promise.all([
-    namesIn(sessionsDir(root, key)),
-    namesIn(oldSessionsDir(root, key)),
-  ])
+  const { now, old } = await readOldFirst(
+    sessionsDir(root, key),
+    oldSessionsDir(root, key),
+    async path => folderNames(await listedIn(host, dir, await listed(host, dir), path)),
+  )
 
   return filedIds(now, old)
 }
@@ -94,8 +96,26 @@ export const sessionsFiled = async (host: Host, root: string, key: string) => {
 export const textAt = (host: Host, path: string) =>
   host.fs.read(path).catch((): string | undefined => undefined)
 
-const ownFile = async (host: Host, path: string) =>
-  (await host.fs.exists(path)) ? host.fs.read(path) : ''
+/**
+ * A file the window writes itself, as it stands; empty while it is not
+ * there, and once gone by its read. One there that cannot be read rejects:
+ * the window's next write, of the whole file, would lose its lines.
+ */
+const ownFile = async (host: Host, path: string) => {
+  if (!(await host.fs.exists(path))) {
+    return ''
+  }
+
+  try {
+    return await host.fs.read(path)
+  } catch (error) {
+    if (await host.fs.exists(path)) {
+      throw error
+    }
+
+    return ''
+  }
+}
 
 /**
  * A file the window writes itself, the one `fileOf` names in a session's
@@ -108,10 +128,9 @@ export const ownText = async (
   paths: SessionPaths,
   fileOf: (folder: SessionFolder) => string,
 ) => {
-  const [now, old] = await Promise.all([
-    ownFile(host, fileOf(paths)),
-    ownFile(host, fileOf(paths.old)),
-  ])
+  const { now, old } = await readOldFirst(fileOf(paths), fileOf(paths.old), path =>
+    ownFile(host, path),
+  )
 
   return mergedText(now, old)
 }
@@ -119,6 +138,7 @@ export const ownText = async (
 export const createReader = (): Reader => {
   const held = new Map<string, Held>()
 
+  /** A listed file's text, read again only once it changed; undefined once it is gone. */
   const textOf = async (host: Host, path: string, { size, mtimeMs }: FsEntry) => {
     const last = held.get(path)
 
@@ -126,9 +146,11 @@ export const createReader = (): Reader => {
       return last.text
     }
 
-    const text = await host.fs.read(path)
+    const text = await textAt(host, path)
 
-    held.set(path, { size, mtimeMs, text })
+    if (text !== undefined) {
+      held.set(path, { size, mtimeMs, text })
+    }
 
     return text
   }
@@ -140,14 +162,15 @@ export const createReader = (): Reader => {
 
       return writer === undefined ? [] : [{ writer, entry }]
     })
+    const texts = await Promise.all(
+      files.map(async ({ writer, entry }) => ({
+        writer,
+        text: await textOf(host, `${dir}/${entry.name}`, entry),
+      })),
+    )
 
     return Object.fromEntries(
-      await Promise.all(
-        files.map(async ({ writer, entry }) => [
-          writer,
-          await textOf(host, `${dir}/${entry.name}`, entry),
-        ]),
-      ),
+      texts.flatMap(({ writer, text }) => (text === undefined ? [] : [[writer, text]])),
     )
   }
 
@@ -163,22 +186,31 @@ export const createReader = (): Reader => {
     const meta = entryAt(top, folder.dir, folder.meta, 'file')
 
     return {
-      meta: meta === undefined ? '' : await textOf(host, folder.meta, meta),
+      meta: (meta === undefined ? undefined : await textOf(host, folder.meta, meta)) ?? '',
       logs: await byWriter(host, folder.dir, top, LOG_SUFFIX),
       inbox: await byWriter(host, folder.inbox, inbox, LOG_SUFFIX),
       presence: await byWriter(host, folder.presence, presence, PRESENCE_SUFFIX),
     }
   }
 
-  return async (host, paths) => {
+  /** A session's files under one layout, and its project's folder as listed for them. */
+  const layoutRead = async (host: Host, paths: SessionPaths, folder: SessionFolder) => {
     const upper = await listed(host, paths.project.dir)
-    const read = async (folder: SessionFolder) =>
-      filesIn(host, folder, await folderListed(host, paths, upper, folder))
-    const [now, old] = await Promise.all([read(paths), read(paths.old)])
-    const project = entryAt(upper, paths.project.dir, paths.project.file, 'file')
 
     return {
-      ...mergedFiles(now, old),
+      upper,
+      files: await filesIn(host, folder, await folderListed(host, paths, upper, folder)),
+    }
+  }
+
+  return async (host, paths) => {
+    const { now, old } = await readOldFirst(paths, paths.old, folder =>
+      layoutRead(host, paths, folder),
+    )
+    const project = entryAt(now.upper, paths.project.dir, paths.project.file, 'file')
+
+    return {
+      ...mergedFiles(now.files, old.files),
       project: project === undefined ? undefined : await textOf(host, paths.project.file, project),
     }
   }

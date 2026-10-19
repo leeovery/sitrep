@@ -1,27 +1,28 @@
 /**
  * The old layout moved into today's, as a run of the CLI starts: every
  * session folder under a project's `works/` into `sessions/`, its work.json
- * becoming session.json, once no window runs a version that still writes
- * the old layout. Only the CLI moves it: a mod's `$.fs` can neither delete
- * nor rename.
+ * becoming session.json, once no window that may still write the old layout
+ * keeps it waiting (core's `isMoveHeld`). Only the CLI moves it: a mod's
+ * `$.fs` can neither delete nor rename.
  *
  * Readers read both layouts as one (core's layouts.ts), so every state
  * partway through reads the same board, and two runs moving at once are
  * harmless: a file another run moved first is left so. With nothing to
- * move, a run lists each project's folder and no more.
+ * move, a run lists `projects/` and each project's folder and no more.
  */
 import {
-  heldAt,
-  isOnOldVersion,
+  contentsAt,
+  isMoveHeld,
   isSessionId,
   movedTo,
   moving,
   oldSessionsDir,
   projectPaths,
+  readOldFirst,
   sessionPaths,
   type SessionPaths,
 } from '../core'
-import { foldersIn, heartbeatsIn, projectKeys, sessionIdsIn, textAt } from './files'
+import { foldersIn, heartbeatsIn, projectKeys, sessionsFiled, textAt } from './files'
 import type { Io } from './io'
 
 /** Whether a project still files sessions under the old layout: its folder of them is there. */
@@ -34,21 +35,32 @@ const filesOld = async (io: Io, root: string, key: string) => {
   )
 }
 
-/** Whether a window on the board, under either layout, runs a version that still writes the old one. */
-const isOldVersionRunning = async (io: Io, root: string, keys: readonly string[], now: number) => {
-  const beats = await Promise.all(
-    keys.map(async key =>
-      Promise.all(
-        (await sessionIdsIn(io, root, key)).map(async id => {
-          const paths = sessionPaths(root, key, id)
+/** A session's heartbeats under both layouts, as core's `isMoveHeld` weighs them. */
+const sessionBeats = async (io: Io, paths: SessionPaths) => {
+  const { now, old } = await readOldFirst(paths, paths.old, folder => heartbeatsIn(io, folder))
 
-          return [...(await heartbeatsIn(io, paths)), ...(await heartbeatsIn(io, paths.old))]
-        }),
+  return { beats: [...old.beats, ...now.beats], unread: [...old.unread, ...now.unread] }
+}
+
+/** Whether the heartbeats on the board, under either layout, keep the move waiting (core's `isMoveHeld`). */
+const isHeld = async (io: Io, root: string, keys: readonly string[], now: number) => {
+  const read = (
+    await Promise.all(
+      keys.map(async key =>
+        Promise.all(
+          (await sessionsFiled(io, root, key)).map(id =>
+            sessionBeats(io, sessionPaths(root, key, id)),
+          ),
+        ),
       ),
-    ),
-  )
+    )
+  ).flat()
 
-  return beats.flat(2).some(beat => isOnOldVersion(beat, now))
+  return isMoveHeld(
+    read.flatMap(each => each.beats),
+    read.flatMap(each => each.unread),
+    now,
+  )
 }
 
 /**
@@ -63,13 +75,13 @@ const moveFile = async (
   isAgain = false,
 ): Promise<void> => {
   const to = movedTo(paths, from)
-  const [old, now] = await Promise.all([textAt(io, from), textAt(io, to)])
+  const { old, now } = await readOldFirst(to, from, path => textAt(io, path))
 
   if (old === undefined) {
     return
   }
 
-  const step = moving(heldAt(paths.old, from), old, now)
+  const step = moving(contentsAt(paths.old, from), old, now)
   const renameIn = async () => {
     if (!(await io.fs.moveIn(from, to)) && !isAgain) {
       await moveFile(io, paths, from, true)
@@ -113,14 +125,14 @@ const moveSession = async (io: Io, paths: SessionPaths) => {
   }
 }
 
-/** Moves every session filed under the old layout into today's, unless a window still runs a version writing it. */
+/** Moves every session filed under the old layout into today's, unless the board's heartbeats keep it waiting. */
 export const moveOldLayout = async (io: Io, root: string, now: number) => {
   const keys = await projectKeys(io, root)
   const filing = (
     await Promise.all(keys.map(async key => ((await filesOld(io, root, key)) ? [key] : [])))
   ).flat()
 
-  if (filing.length === 0 || (await isOldVersionRunning(io, root, keys, now))) {
+  if (filing.length === 0 || (await isHeld(io, root, keys, now))) {
     return
   }
 

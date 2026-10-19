@@ -3,7 +3,7 @@ import { parseEntries, type SessionPaths } from '../core'
 import { FLASH_MS } from '../hooks/deliver'
 import { WATCH_MS } from '../hooks/window'
 import { file, MIN, reply, SENDER, W1, W2 } from './support'
-import { INLINE, postedId, PROJECT, CONVERSATION, world } from './world'
+import { INLINE, PLUGIN_VERSION, postedId, PROJECT, CONVERSATION, world } from './world'
 
 tier('user')
 
@@ -94,6 +94,37 @@ test("a window that is not its session's deliverer submits nothing", async ($, o
   expect(w.state.board?.deliverer).toBe(W2)
   expect(w.prompts).toEqual([])
   expect(kindsIn(w, paths)).toEqual(['ask'])
+})
+
+test('while a window on an old version is live on the session, this one submits nothing: the letters wait until that window reloads or leaves', async ($, on) => {
+  const w = world($, on)
+  const { paths, asked, send } = await asking(w)
+  const attachedAt = w.clock.now()
+  const old = (version?: string) =>
+    w.beat(w.state.attachment?.session ?? '', {
+      writer: W2,
+      attachedAt,
+      seenAt: w.clock.now(),
+      version,
+    })
+
+  old()
+  send(['r1', asked, 'yes'])
+
+  for (let look = 0; look < 4; look++) {
+    await w.clock.advance(WATCH_MS)
+    old()
+  }
+
+  expect(w.state.board?.deliverer).toBe(W2)
+  expect(w.prompts).toEqual([])
+  expect(kindsIn(w, paths)).toEqual(['ask'])
+
+  old(PLUGIN_VERSION)
+  await w.clock.advance(TAKE_IN)
+
+  expect(w.state.board?.deliverer, 'reloaded: the window attached longest').toBe(W1)
+  expect(w.prompts.map(prompt => prompt.text)).toEqual([MESSAGE])
 })
 
 test('a refused submission leaves the replies undelivered, for the next look to try again', async ($, on) => {

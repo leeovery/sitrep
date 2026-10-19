@@ -2,7 +2,8 @@
  * A session's folder under today's layout and the old, read as one. Windows
  * not yet reloaded write the old layout while the rest write today's, and the
  * CLI moves the old into today's once none does, so a reader reads both, and
- * every state partway through the move reads the same board:
+ * every state partway through the move reads the same board, the old read
+ * first (`readOldFirst`):
  * - a project's sessions are both layouts' folders, each once;
  * - a session's meta is today's where that reads, else the old;
  * - a writer's lines, or a sender's, are every line of its file under
@@ -22,6 +23,19 @@ export type FolderFiles = Omit<SessionFiles, 'project'>
 
 /** Files by their writer, as a folder's listing gives them. */
 type ByWriter = Readonly<Record<string, string>>
+
+/**
+ * Reads under both layouts, the old first and then today's, never at once.
+ * Each step of the move puts a file under today's name before its old name
+ * loses it (a link before the unlink, an append before the remove), so a
+ * read of the old then of today's never misses a file moved between the
+ * two, where reads at once might find it under neither.
+ */
+export const readOldFirst = async <F, T>(now: F, old: F, read: (each: F) => Promise<T>) => {
+  const before = await read(old)
+
+  return { old: before, now: await read(now) }
+}
 
 /** The sessions a project files, as both layouts' folders list them: today's first, each once. */
 export const filedIds = (now: readonly string[], old: readonly string[]) => [
@@ -77,10 +91,10 @@ export const mergedFiles = (now: FolderFiles, old: FolderFiles): FolderFiles => 
 })
 
 /** What a file of a session's folder holds, as the move treats it: its meta, a writer's or a sender's lines, a heartbeat, or something else. */
-export type Held = 'meta' | 'lines' | 'beat' | 'other'
+export type Contents = 'meta' | 'lines' | 'beat' | 'other'
 
 /** What a file at `path` in a session's folder holds, by its folder and name. */
-export const heldAt = (folder: SessionFolder, path: string): Held => {
+export const contentsAt = (folder: SessionFolder, path: string): Contents => {
   const slash = path.lastIndexOf('/')
   const dir = path.slice(0, slash)
   const name = path.slice(slash + 1)
@@ -114,12 +128,12 @@ export type Moving =
   | { to: 'drop' }
   | { to: 'leave' }
 
-export const moving = (held: Held, old: string, now: string | undefined): Moving => {
+export const moving = (contents: Contents, old: string, now: string | undefined): Moving => {
   if (now === undefined) {
     return { to: 'rename' }
   }
 
-  switch (held) {
+  switch (contents) {
     case 'lines':
       return { to: 'append', text: linesLacking(now, old) }
     case 'beat':

@@ -5,7 +5,7 @@
  * it.
  */
 import { constants } from 'node:fs'
-import { appendFile, link, mkdir, open, readdir, rmdir, unlink } from 'node:fs/promises'
+import { appendFile, link, mkdir, open, readdir, rmdir, stat, unlink } from 'node:fs/promises'
 import type { Io, Listed, Ran } from '../io'
 import { main } from '../main'
 
@@ -30,6 +30,16 @@ const allowing =
   }
 
 const folderOf = (path: string) => path.slice(0, path.lastIndexOf('/'))
+
+const modifiedAt = async (path: string) => {
+  try {
+    return (await stat(path)).mtimeMs
+  } catch (error) {
+    allowing(ABSENT)(error)
+
+    return undefined
+  }
+}
 
 const append = async (path: string, text: string) => {
   await mkdir(folderOf(path), { recursive: true })
@@ -122,6 +132,7 @@ const io: Io = {
   fs: {
     read: path => Bun.file(path).text(),
     list,
+    modifiedAt,
     append,
     moveIn,
     remove: path => unlink(path).catch(allowing(ABSENT)),

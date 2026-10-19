@@ -17,6 +17,7 @@ import {
   projectPaths,
   projectsDir,
   projectText,
+  readOldFirst,
   recordedName,
   sessionPaths,
   type Project,
@@ -45,8 +46,9 @@ const metaAt = async (host: Host, path: string) => parseMeta((await textAt(host,
 /** A session's meta: its session.json where that reads, else its work.json under the old layout. */
 const metaOf = async (host: Host, root: string, key: string, id: string) => {
   const paths = sessionPaths(root, key, id)
+  const { now, old } = await readOldFirst(paths.meta, paths.old.meta, path => metaAt(host, path))
 
-  return (await metaAt(host, paths.meta)) ?? metaAt(host, paths.old.meta)
+  return now ?? old
 }
 
 /** The meta of each session filed under a project, in the order listed; undefined for one that does not read. */

@@ -27,6 +27,8 @@ export type Io = {
     read: (path: string) => Promise<string>
     /** A folder's files and folders; none while it is not there. */
     list: (dir: string) => Promise<Listed[]>
+    /** When a file was last written; undefined while it is not there. */
+    modifiedAt: (path: string) => Promise<number | undefined>
     /** Adds the text to the end of the file, making the file and its folder if need be. */
     append: (path: string, text: string) => Promise<void>
     /**

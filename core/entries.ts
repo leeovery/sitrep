@@ -17,10 +17,9 @@ const UPGRADES: readonly Upgrade[] = []
 /** The format's version: a line of a later one is skipped. */
 export const VERSION = versionOf(UPGRADES)
 
-/** What appending bodies to a file makes: the stamped entries, the text to append, the whole file after. */
+/** What appending bodies to a file makes: the stamped entries and the whole file after. */
 export type Appended = {
   entries: Entry[]
-  added: string
   text: string
 }
 
@@ -169,15 +168,20 @@ export const serialise = (entry: Entry) => `${JSON.stringify(entry)}\n`
  */
 export const tornLineEnd = (text: string) => (text !== '' && !text.endsWith('\n') ? '\n' : '')
 
-/**
- * Stamps bodies as the writer's next entries and says what the file becomes:
- * `added` for a writer that appends, `text` for one that writes the whole file.
- * A file left torn mid-line is ended first.
- */
-export const append = (text: string, bodies: readonly Body[], at: number): Appended => {
+/** Stamps bodies as the writer's next entries, its count going on from the highest `text` holds. */
+export const stamp = (text: string, bodies: readonly Body[], at: number): Entry[] => {
   const last = parseEntries(text).reduce((most, entry) => Math.max(most, entry.seq), 0)
-  const entries = bodies.map((body, i): Entry => ({ v: VERSION, at, seq: last + i + 1, ...body }))
-  const added = `${tornLineEnd(text)}${entries.map(serialise).join('')}`
 
-  return { entries, added, text: text + added }
+  return bodies.map((body, i): Entry => ({ v: VERSION, at, seq: last + i + 1, ...body }))
+}
+
+/** What adds entries to the end of a file whose text is `file`: a newline ending a torn last line first. */
+export const addition = (file: string, entries: readonly Entry[]) =>
+  `${tornLineEnd(file)}${entries.map(serialise).join('')}`
+
+/** Stamps bodies as the writer's next entries and says what the file becomes, a torn last line ended first. */
+export const append = (text: string, bodies: readonly Body[], at: number): Appended => {
+  const entries = stamp(text, bodies, at)
+
+  return { entries, text: text + addition(text, entries) }
 }

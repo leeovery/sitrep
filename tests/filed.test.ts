@@ -83,6 +83,78 @@ test('after a reload into this version, the window takes up its session filed un
   expect(w.state.board?.log.map(line => line.text)).toEqual(['Drew round 2', 'Drew round 1'])
 })
 
+test("a look the CLI's move lands in, between its reads of the two layouts, still reads every line: the old layout first, then today's", async ($, on) => {
+  const w = world($, on)
+  const ledger = w.seedOld(LEDGER)
+  const write = w.writer(ledger.old)
+
+  write(yesAsk('k3', 'Review the ledger schema'))
+  w.put(ledger.old.heartbeat(W2), seen(W2, T0))
+  await w.begin()
+  await w.call('join', { session: LEDGER.id })
+  await w.clock.advance(MIN)
+  write(note('n4', 'Wrote this as the move began'))
+  w.after('list', ledger.old.presence, () => w.moveOld(ledger))
+  await w.clock.advance(WATCH_MS)
+
+  expect(underWorks(w), 'the move landed').toEqual([])
+  expect(w.state.board?.asks.map(ask => ask.id)).toEqual(['k3'])
+  expect(w.state.board?.log.map(line => line.id)).toEqual(['n4'])
+  expect(w.logs, 'no look failed').toEqual([])
+})
+
+test("a session in a project filing under works/ alone, read as the CLI moves it, still reads every line: the project's folder is listed anew for today's layout", async ($, on) => {
+  const w = world($, on)
+  const themes = w.seedOld({ ...META, id: 'sr-themes', name: 'Themes', by: W3 }, ELSEWHERE.key)
+  const write = w.writer(themes.old, W3)
+
+  write(yesAsk('k4', 'Pick the dark palette'))
+  w.put(themes.old.heartbeat(W3), seen(W3, T0))
+  await w.begin()
+  await w.clock.advance(AROUND_MS)
+  write(note('n5', 'Wrote this as the move began'))
+  w.after('list', themes.old.presence, () => w.moveOld(themes))
+  await w.clock.advance(AROUND_MS)
+
+  const briefed = w.state.projects?.find(project => project.key === ELSEWHERE.key)?.sessions[0]
+
+  expect(underWorks(w), 'the move landed').toEqual([])
+  expect(briefed?.log.map(line => line.id)).toEqual(['n5'])
+  expect(w.logs, 'no look failed').toEqual([])
+})
+
+test('joining a session as the CLI moves it, between the reads of its meta under the two layouts, finds it', async ($, on) => {
+  const w = world($, on)
+  const ledger = w.seedOld(LEDGER)
+
+  w.put(ledger.old.log(W2), file([T0, yesAsk('k3', 'Review the ledger schema')]))
+  await w.begin()
+  w.after('read', ledger.meta, () => w.moveOld(ledger))
+
+  const joined = String((await w.call('join', { session: LEDGER.id })).result)
+
+  expect(underWorks(w), 'the move landed').toEqual([])
+  expect(joined).toContain('Review the ledger schema')
+  expect(w.state.attachment?.session).toBe(LEDGER.id)
+})
+
+test("a window's own file the CLI moves between the window's look for it and its read is read under today's name: its next write carries every line", async ($, on) => {
+  const w = world($, on, { now: T0 + MIN })
+  const paths = w.seedOld(META)
+  const before = file([T0, yesAsk('k1', 'Review round 1')], [T0, note('n1', 'Drew round 1')])
+
+  reloading(on, { project: PROJECT.key, session: META.id, writer: W1, attachedAt: T0 })
+  w.put(paths.old.log(W1), before)
+  w.after('exists', paths.old.log(W1), () => w.moveOld(paths))
+  await $.session.start(CONVERSATION)
+  await w.call('note', { text: 'Drew round 2' })
+
+  expect(underWorks(w), 'the move landed').toEqual([])
+  expect(w.text(paths.log(W1)).startsWith(before)).toBe(true)
+  expect(parseEntries(w.text(paths.log(W1))).map(line => line.seq)).toEqual([1, 2, 3])
+  expect(w.logs).toEqual([])
+})
+
 test('a window that slept through the move and wrote its file under works/ again still reads whole: every line of both, each once, and its later heartbeat', async ($, on) => {
   const w = world($, on)
   const ledger = w.seedOld(LEDGER)

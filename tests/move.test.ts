@@ -4,9 +4,10 @@ import { EXIT, main, WRITER } from '../cli/main'
 import {
   foldSession,
   metaText,
+  movedTo,
+  OLD_WINDOW_MS,
   parseEntries,
   sessionPaths,
-  STALE_MS,
   type SessionMeta,
   type SessionPaths,
 } from '../core'
@@ -37,6 +38,11 @@ const LOBBY: SessionMeta = { ...META, id: 'sr-bbbbbb', name: 'Lobby', by: W2 }
 /** The version a window on this release says in its heartbeat. */
 const RUNNING = '0.1.0'
 
+const DAY = 24 * 60 * MIN
+
+/** When a window on an old version was last seen, long enough before the run that the move no longer waits on it. */
+const LONG_GONE = NOW - OLD_WINDOW_MS - DAY
+
 const L1: Line = [T0, yesAsk('k1', 'Review round 1')]
 const L2: Line = [T0 + MIN, note('n2', 'Drew round 2')]
 const L3: Line = [T0 + 2 * MIN, note('n3', 'Woke and wrote this')]
@@ -60,9 +66,16 @@ const filedUnder = (t: Terminal, layout: 'sessions' | 'works') =>
 const snapshot = (t: Terminal) =>
   Object.fromEntries([...t.files].map(([path, held]) => [path, held.text]))
 
-/** A session filed under the old layout, its window seen 10 minutes before the run: gone, and on an old version. */
+/** A session filed under the old layout, its window, on an old version, last seen eight days before the run. */
 const seedOld = (t: Terminal, meta = META, lines: Line[] = [L1], project = PROJECT.key) =>
-  t.seed(meta, { project, isOld: true, lines, seenAt: NOW - 10 * MIN })
+  t.seed(meta, { project, isOld: true, lines, seenAt: LONG_GONE })
+
+/** Every file of a session's old folder moved into today's at once, as another run moves them. */
+const moveAll = async (t: Terminal, paths: SessionPaths) => {
+  for (const path of [...t.files.keys()].filter(each => each.startsWith(`${paths.old.dir}/`))) {
+    await t.io.fs.moveIn(path, movedTo(paths, path))
+  }
+}
 
 test('the CLI reads a session filed under works/ as one under sessions/, while a window on an old version keeps it there', async () => {
   const t = terminal()
@@ -93,6 +106,46 @@ test('meanwhile the CLI appends under sessions/ alone, its count going on from i
     'Round 3 drawn',
     'Drew round 2',
   ])
+})
+
+test('a torn last line of the file the CLI appends to is ended first, though its lines under both layouts end whole', async () => {
+  const t = terminal()
+  const paths = t.seed(META, { isOld: true, lines: [L1], seenAt: NOW })
+  const torn = `${file(L3)}{"v":1,"at":${T0},"seq":2,"ty`
+
+  t.files.set(paths.old.log(WRITER), { text: file(L1, L2), mtimeMs: T0 })
+  t.files.set(paths.log(WRITER), { text: torn, mtimeMs: T0 })
+
+  expect((await t.run('note', 'Round 3 drawn', ...SESSION)).exit).toBe(EXIT.done)
+  expect(t.text(paths.log(WRITER)).startsWith(`${torn}\n`)).toBe(true)
+  expect(parseEntries(t.text(paths.log(WRITER))).map(line => [line.seq, line.type])).toEqual([
+    [1, 'note'],
+    [3, 'note'],
+  ])
+})
+
+test("a session read as another run moves it, between the reads of the two layouts, reads whole: the old layout first, then today's", async () => {
+  const t = terminal()
+  const paths = t.seed(META, { isOld: true, lines: [L1, L2] })
+  const { list } = t.io.fs
+  let isMoved = false
+
+  t.io.fs.list = async dir => {
+    const listed = await list(dir)
+
+    if (dir === paths.old.dir && !isMoved) {
+      isMoved = true
+      await moveAll(t, paths)
+    }
+
+    return listed
+  }
+
+  const session = await folded(t, paths)
+
+  expect(filedUnder(t, 'works'), 'the move landed').toEqual([])
+  expect(session.asks.map(ask => ask.id)).toEqual(['k1'])
+  expect(session.log.map(line => line.id)).toEqual(['n2'])
 })
 
 test('a run moves every session filed under works/ into sessions/, each file renamed in, work.json as session.json, and the emptied folders removed', async () => {
@@ -128,41 +181,58 @@ test('a run moves every session filed under works/ into sessions/, each file ren
   ).toEqual(['sessions'])
 })
 
-test('a live heartbeat saying no version, anywhere on the board, keeps the old layout where it is', async () => {
-  for (const where of ['under works/', 'under sessions/, in another project'] as const) {
-    const t = terminal()
-    const paths = seedOld(t)
+test('a heartbeat saying no version seen within the week, anywhere on the board, keeps the old layout where it is, as does one torn as it was rewritten', async () => {
+  const cases = {
+    'live, under works/': (t: Terminal, paths: SessionPaths) => t.window(paths.old, W2, NOW),
+    'live, under sessions/, in another project': (t: Terminal) =>
+      t.seed(LOBBY, { project: ELSEWHERE.key, seenAt: NOW }),
+    'its Mac asleep six days': (t: Terminal, paths: SessionPaths) =>
+      t.window(paths.old, W2, NOW - 6 * DAY),
+    'torn, written a minute before': (t: Terminal, paths: SessionPaths) =>
+      t.files.set(paths.old.heartbeat(W2), { text: '{"attachedAt":', mtimeMs: NOW - MIN }),
+  }
 
-    if (where === 'under works/') {
-      t.window(paths.old, W2, NOW)
-    } else {
-      t.seed(LOBBY, { project: ELSEWHERE.key, seenAt: NOW })
-    }
+  for (const [why, add] of Object.entries(cases)) {
+    const t = terminal()
+
+    add(t, seedOld(t))
 
     const before = snapshot(t)
 
-    expect((await t.run('list')).exit, where).toBe(EXIT.done)
-    expect(snapshot(t), where).toEqual(before)
+    expect((await t.run('list')).exit, why).toBe(EXIT.done)
+    expect(snapshot(t), why).toEqual(before)
   }
 })
 
-test('a stale heartbeat saying no version, one that let go, or a live one saying its version does not keep it', async () => {
+test('a heartbeat saying no version seen over a week before, one that let go, one saying its version, or one torn over a week before does not keep it', async () => {
   const beats = {
-    stale: beat(W2, { attachedAt: T0, seenAt: NOW - STALE_MS - 1 }),
-    'let go': beat(W2, { attachedAt: T0, seenAt: NOW, leftAt: NOW }),
-    'saying its version': beat(W2, { attachedAt: T0, seenAt: NOW, version: RUNNING }),
-  }
+    'seen over a week before': [beat(W2, { attachedAt: T0, seenAt: NOW - OLD_WINDOW_MS - 1 }), T0],
+    'let go': [beat(W2, { attachedAt: T0, seenAt: NOW, leftAt: NOW }), T0],
+    'saying its version': [beat(W2, { attachedAt: T0, seenAt: NOW, version: RUNNING }), T0],
+    'torn over a week before': ['{"attachedAt":', NOW - OLD_WINDOW_MS - 1],
+  } as const
 
-  for (const [why, text] of Object.entries(beats)) {
+  for (const [why, [text, mtimeMs]] of Object.entries(beats)) {
     const t = terminal()
     const paths = seedOld(t)
 
-    t.files.set(paths.old.heartbeat(W2), { text, mtimeMs: T0 })
+    t.files.set(paths.old.heartbeat(W2), { text, mtimeMs })
     await t.run('list')
 
     expect(filedUnder(t, 'works'), why).toEqual([])
     expect(t.text(paths.heartbeat(W2)), why).toBe(text)
   }
+})
+
+test("a window's later heartbeat saying its version, as after its reload, frees the move from its earlier one saying none", async () => {
+  const t = terminal()
+  const paths = seedOld(t)
+
+  t.window(paths.old, W2, NOW - 10 * MIN)
+  t.window(paths, W2, NOW, undefined, RUNNING)
+  await t.run('list')
+
+  expect(filedUnder(t, 'works')).toEqual([])
 })
 
 test("a file under both layouts is merged into today's: the old lines it lacks appended, a work.json beside session.json dropped, the later heartbeat kept", async () => {
@@ -171,11 +241,13 @@ test("a file under both layouts is merged into today's: the old lines it lacks a
   const moved = file(L1, L2)
   const now = metaText({ ...META, name: 'As moved' })
   const earlier = seen(W2, NOW - 20 * MIN)
+  const running = (writer: string, at: number) =>
+    beat(writer, { attachedAt: at, seenAt: at, version: RUNNING })
 
   t.files.set(paths.meta, { text: now, mtimeMs: T0 })
   t.files.set(paths.log(W1), { text: moved, mtimeMs: T0 })
-  t.files.set(paths.heartbeat(W1), { text: seen(W1, NOW - 30 * MIN), mtimeMs: T0 })
-  t.files.set(paths.heartbeat(W2), { text: seen(W2, NOW - 5 * MIN), mtimeMs: T0 })
+  t.files.set(paths.heartbeat(W1), { text: running(W1, LONG_GONE - DAY), mtimeMs: T0 })
+  t.files.set(paths.heartbeat(W2), { text: running(W2, NOW - 5 * MIN), mtimeMs: T0 })
   t.files.set(paths.old.heartbeat(W2), { text: earlier, mtimeMs: T0 })
 
   const before = snapshot(t)

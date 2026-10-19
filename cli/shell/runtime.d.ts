@@ -46,4 +46,5 @@ declare module 'node:fs/promises' {
   export function link(existing: string, made: string): Promise<void>
   export function unlink(path: string): Promise<void>
   export function rmdir(path: string): Promise<void>
+  export function stat(path: string): Promise<{ mtimeMs: number }>
 }

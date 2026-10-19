@@ -244,19 +244,42 @@ for (const [why, manifest] of [
 
     const { paths } = await w.begin()
     const beat = () => parsePresence(w.text(paths.heartbeat(W1)), W1)
+    const failed = expect.stringContaining("sitrep: reading the plugin's version failed")
 
     expect(beat()?.version).toBeUndefined()
     expect(JSON.parse(w.text(paths.heartbeat(W1)))).not.toHaveProperty('version')
-    expect(w.logs).toEqual([expect.stringContaining("sitrep: reading the plugin's version failed")])
+    expect(w.logs, 'as the mod loads, then as the window attaches').toEqual([failed, failed])
 
     await w.clock.advance(HEARTBEAT_MS)
 
     expect(beat()?.seenAt).toBe(w.clock.now())
-    expect(w.logs, 'read once a load').toHaveLength(1)
+    expect(w.logs, 'read again at the beat').toEqual([failed, failed, failed])
   })
 }
 
-test("another window's heartbeat saying no version, as one on an older version writes it, reads as ever", async ($, on) => {
+test('a manifest that failed is read again at the next beat, and once it reads, the version is kept for the load', async ($, on) => {
+  const w = world($, on)
+
+  w.manifestGives()
+
+  const { paths } = await w.begin()
+  const version = () => parsePresence(w.text(paths.heartbeat(W1)), W1)?.version
+
+  w.manifestGives(manifestOf('0.4.2'))
+  await w.clock.advance(HEARTBEAT_MS)
+
+  expect(version()).toBe('0.4.2')
+
+  const read = w.logs.length
+
+  w.manifestGives()
+  await w.clock.advance(HEARTBEAT_MS)
+
+  expect(version()).toBe('0.4.2')
+  expect(w.logs, 'no read once it read').toHaveLength(read)
+})
+
+test("another window's heartbeat saying no version, as one on an older version writes it, reads as ever, and that window delivers while it is live", async ($, on) => {
   const w = world($, on)
   const { id } = await w.begin()
 
@@ -267,7 +290,7 @@ test("another window's heartbeat saying no version, as one on an older version w
     [W1, PLUGIN_VERSION],
     [W2, undefined],
   ])
-  expect(w.state.board?.deliverer).toBe(W1)
+  expect(w.state.board?.deliverer).toBe(W2)
 })
 
 test('outside tmux, the heartbeat holds the device and the terminal, and no tmux', async ($, on) => {

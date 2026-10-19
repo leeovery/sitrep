@@ -2,7 +2,7 @@
  * Reading sitrep's folder, as the CLI does at each run: a session
  * found by its id in whichever project files it, and every project with
  * the sessions filed under it. A session is read under today's layout and
- * the old alike, as one (core's layouts.ts).
+ * the old alike, as one, the old first (core's layouts.ts).
  */
 import {
   filedIds,
@@ -19,6 +19,7 @@ import {
   projectFrom,
   projectPaths,
   projectsDir,
+  readOldFirst,
   recordedName,
   summarise,
   sessionPaths,
@@ -47,11 +48,12 @@ export const projectKeys = async (io: Io, root: string) =>
   (await foldersIn(io, projectsDir(root))).filter(isSafeName)
 
 /** The sessions a project files, under today's layout or the old, each once. */
-export const sessionIdsIn = async (io: Io, root: string, project: string) => {
-  const [now, old] = await Promise.all([
-    foldersIn(io, sessionsDir(root, project)),
-    foldersIn(io, oldSessionsDir(root, project)),
-  ])
+export const sessionsFiled = async (io: Io, root: string, project: string) => {
+  const { now, old } = await readOldFirst(
+    sessionsDir(root, project),
+    oldSessionsDir(root, project),
+    dir => foldersIn(io, dir),
+  )
 
   return filedIds(now, old).filter(isSessionId)
 }
@@ -76,11 +78,22 @@ const byWriter = async (io: Io, dir: string, suffix: string) => {
   )
 }
 
-/** The heartbeats of a session's folder under one layout, as they read. */
-export const heartbeatsIn = async (io: Io, folder: SessionFolder): Promise<Presence[]> =>
-  Object.entries(await byWriter(io, folder.presence, PRESENCE_SUFFIX)).flatMap(
-    ([writer, text]) => parsePresence(text, writer) ?? [],
+/** A session folder's heartbeats under one layout: those that read, and when each that does not was written. */
+export const heartbeatsIn = async (io: Io, folder: SessionFolder) => {
+  const read = Object.entries(await byWriter(io, folder.presence, PRESENCE_SUFFIX)).map(
+    ([writer, text]) => ({ writer, beat: parsePresence(text, writer) }),
   )
+  const unread = await Promise.all(
+    read
+      .filter(({ beat }) => beat === undefined)
+      .map(({ writer }) => io.fs.modifiedAt(folder.heartbeat(writer))),
+  )
+
+  return {
+    beats: read.flatMap(({ beat }): Presence[] => (beat === undefined ? [] : [beat])),
+    unread: unread.filter(at => at !== undefined),
+  }
+}
 
 const filesIn = async (io: Io, folder: SessionFolder): Promise<FolderFiles> => {
   const [meta = '', logs, inbox, presence] = await Promise.all([
@@ -95,9 +108,8 @@ const filesIn = async (io: Io, folder: SessionFolder): Promise<FolderFiles> => {
 
 /** A session's files as they stand under either layout, as one, and its project's; the meta's text is empty while neither has one. */
 export const readSession = async (io: Io, paths: SessionPaths): Promise<SessionFiles> => {
-  const [now, old, project] = await Promise.all([
-    filesIn(io, paths),
-    filesIn(io, paths.old),
+  const [{ now, old }, project] = await Promise.all([
+    readOldFirst(paths, paths.old, folder => filesIn(io, folder)),
     textAt(io, paths.project.file),
   ])
 
@@ -127,7 +139,7 @@ export const findSession = async (
 /** The files of each session filed under a project, in the order listed. */
 const sessionFilesIn = async (io: Io, root: string, project: string) =>
   Promise.all(
-    (await sessionIdsIn(io, root, project)).map(id =>
+    (await sessionsFiled(io, root, project)).map(id =>
       readSession(io, sessionPaths(root, project, id)),
     ),
   )

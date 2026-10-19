@@ -746,16 +746,27 @@ $XDG_STATE_HOME/sitrep/, else ~/.local/state/sitrep/
   line of both, a line in both, byte for byte, once; of a window's two
   heartbeats, the one seen later. Never today's file alone: a window not
   reloaded that sleeps through the move wakes still writing its whole file
-  under the old name. Writers write `sessions/` alone. A window's own file
-  and its letters are built from what it had under both, so its first write
-  carries every line; the CLI appends under `sessions/`, its count going on
-  from its file under both, and carries nothing across, since reading reads
-  both and the move merges what is left. A window not yet reloaded reads
-  only `works/`, and sees nothing written under `sessions/` until it
-  reloads, as with newer lines.
+  under the old name. Every read of the two goes through one place, which
+  reads the old layout first, then today's, never both at once: each step of
+  the move puts a file under its new name before the old name loses it, so
+  a file the move takes between the two reads is found under the new, where
+  reads at once could miss it under both; and a project's folder is listed
+  anew for today's layout, which the move makes as it goes. A file listed,
+  or found there, and gone by its read is not there. Writers write
+  `sessions/` alone. A window's own file and its letters are built from what
+  it had under both, so its first write carries every line; the CLI appends
+  under `sessions/`, its count going on from its file under both and a torn
+  last line of the file it appends to ended first, and carries nothing
+  across, since reading reads both and the move merges what is left.
 - **The move** is the CLI's, as each command starts: a mod's `$.fs` can
-  neither delete nor rename. It waits while any live heartbeat on the board
-  says no `version` (below), a window still writing the old layout. Then
+  neither delete nor rename. It waits while any window on the board, by its
+  latest heartbeat under either layout, says no `version` (below), has not
+  let go, and was seen within a week (`OLD_WINDOW_MS`): such a window still
+  writes the old layout, and a Mac may sleep for days with one open, which
+  wakes writing it still. A window's later heartbeat saying its version, as
+  after its reload, stands for its earlier ones. A heartbeat file that does
+  not read, as one torn mid-rewrite, keeps it waiting a week from when it
+  was written. Then
   each old session's files go into `sessions/`: one `sessions/` lacks is
   linked in and its old name unlinked, so it never lands over a file a
   writer makes there that moment; a writer's or sender's file under both
@@ -767,7 +778,8 @@ $XDG_STATE_HOME/sitrep/, else ~/.local/state/sitrep/
   and two runs moving at once are harmless: a file another moved first is
   left so, and a line both append reads once. A move that fails is told on
   stderr and the command runs on; the next run moves what is left. With
-  nothing to move it costs a listing of each project's folder. Tried live
+  nothing to move it costs a listing of `projects/` and of each project's
+  folder. Tried live
   over a state folder of its own (19 October 2026): an old session read and
   posted to while a versionless window was live, its CLI line under
   `sessions/` counting on from the one under `works/`; moved by the next run
@@ -775,6 +787,14 @@ $XDG_STATE_HOME/sitrep/, else ~/.local/state/sitrep/
   `session.json`; run again, nothing changed; and three runs at once
   over six old sessions left nothing under `works/`, a line two runs both
   appended read once.
+- **What the changeover still costs.** A window not yet reloaded reads only
+  `works/`, and sees nothing written under `sessions/` until it reloads, as
+  with newer lines. While one is live on a session it delivers that
+  session's inbox, by its own count, since it sees no heartbeat under
+  `sessions/`, and the windows on today's version wait, so two never both
+  submit: letters under `sessions/inbox`, which it cannot see, wait until it
+  reloads or leaves. And the old layout stays up to a week after the last
+  such window was seen, unless it let go.
 - One file per writer, so there are no locks and no daemon. A mod's `$.fs` can
   only write whole files, so each mod rewrites its own file; the CLI appends.
   Runs of the CLI at once share its file: each run's line lands whole (tried
@@ -853,7 +873,8 @@ $XDG_STATE_HOME/sitrep/, else ~/.local/state/sitrep/
   a session is open while a heartbeat is under 90 seconds old. A mod can't
   delete a file either, so a window that lets go adds `leftAt`. Of several
   windows on one session, the one attached longest submits its inbox, so two
-  never both do. A heartbeat also says `where` its window is, as far as that
+  never both do; while a live window on a release that says no `version` is
+  on it, the longest attached of those, and the rest wait (see "Storage"). A heartbeat also says `where` its window is, as far as that
   is known (see "The menu bar"): `device`, `terminal`, and `tmux` with its
   `socket` and `pane`. It is read field by field, a bad one dropped, and a
   heartbeat is never lost over it; one written before it reads as ever.
@@ -862,10 +883,12 @@ $XDG_STATE_HOME/sitrep/, else ~/.local/state/sitrep/
   the plugin's folder, read once as the mod loads and kept for the load,
   since the clone is the live plugin and the manifest on disk may by then
   be a newer checkout's than the code the window runs. A manifest that
-  cannot be read leaves it out, in the debug log, and the heartbeat beats on.
-  It is read as `where` is, field by field; a live heartbeat with none is a
+  cannot be read leaves it out, in the debug log, and the heartbeat beats
+  on; it is read again at the next beat, until it reads. It is read as
+  `where` is, field by field; a heartbeat with none, not let go, is a
   window on a release from before heartbeats said it, which still writes
-  the old layout, and keeps the move waiting. Nothing shows it yet: the
+  the old layout: it keeps the move waiting, and while live delivers its
+  session's inbox (see "Storage"). Nothing shows it yet: the
   menu will list the windows to reload. Its state, with what the row shows
   of it (stage 5, under "The menu bar"), comes next, rewritten at once as
   the state changes.

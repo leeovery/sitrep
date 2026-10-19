@@ -2,7 +2,7 @@ import { expect, test } from 'claude-code/testing'
 import {
   filedIds,
   foldSession,
-  heldAt,
+  contentsAt,
   laterBeat,
   linesLacking,
   mergedFiles,
@@ -136,13 +136,13 @@ test("a sender's letters under both layouts read as every line of both, as a wri
 test("what a file of a session's folder holds, by where it sits and its name", () => {
   const { old } = sessionPaths(ROOT, 'switchboard', META.id)
 
-  expect(heldAt(old, old.meta)).toBe('meta')
-  expect(heldAt(old, old.log(W1))).toBe('lines')
-  expect(heldAt(old, old.letters(SENDER))).toBe('lines')
-  expect(heldAt(old, old.heartbeat(W1))).toBe('beat')
-  expect(heldAt(old, `${old.dir}/.DS_Store`)).toBe('other')
-  expect(heldAt(old, `${old.presence}/${W1}.jsonl`)).toBe('other')
-  expect(heldAt(old, `${old.inbox}/${SENDER}.json`)).toBe('other')
+  expect(contentsAt(old, old.meta)).toBe('meta')
+  expect(contentsAt(old, old.log(W1))).toBe('lines')
+  expect(contentsAt(old, old.letters(SENDER))).toBe('lines')
+  expect(contentsAt(old, old.heartbeat(W1))).toBe('beat')
+  expect(contentsAt(old, `${old.dir}/.DS_Store`)).toBe('other')
+  expect(contentsAt(old, `${old.presence}/${W1}.jsonl`)).toBe('other')
+  expect(contentsAt(old, `${old.inbox}/${SENDER}.json`)).toBe('other')
 })
 
 test("moving, a file today's folder lacks is renamed in, whatever it holds", () => {
