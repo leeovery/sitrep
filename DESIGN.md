@@ -2281,6 +2281,10 @@ reaches a window only while that pane is on show).
         and Claude's tools, work to session, the pane's ASKS, NOTES and
         RESOLVED, and "finish this session"; in the CLI, `--work` to
         `--session`.
+
+      Built 19 October 2026 (PR #7), each part reviewed twice and the
+      folder's rules once more after their fixes; the move, the reads in
+      their order and the changeover's costs are under "Storage".
    4. **The live feed**, in the plugin, two PRs:
       - **each window's state in its heartbeat**, written at once: stage 5
         below, brought forward, since the rows and the rings need it. With
