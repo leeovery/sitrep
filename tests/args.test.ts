@@ -96,6 +96,14 @@ test('a command of flags only refuses any other word', () => {
   expect(value(parseWords(FLAGS_ONLY, ['--json']))).toEqual({ json: true })
 })
 
+test('a command taking no words at all refuses any, as taking nothing', () => {
+  const none: Grammar = { args: [], flags: {} }
+
+  expect(refusal(parseWords(none, ['now']))).toBe('It takes nothing, not "now".')
+  expect(refusal(parseWords(none, ['--json']))).toBe('There is no --json.')
+  expect(value(parseWords(none, []))).toEqual({})
+})
+
 test('help is asked for by --help or -h among the flags, never after --', () => {
   expect(wantsHelp(['review', '--help'])).toBe(true)
   expect(wantsHelp(['-h'])).toBe(true)

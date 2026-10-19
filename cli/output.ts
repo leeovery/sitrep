@@ -1,12 +1,14 @@
 /**
  * What the CLI prints of the projects and of a session: lines to
- * read, or JSON for tools such as the tmux indicator.
+ * read, or JSON for tools such as the tmux indicator; and the lines of
+ * `watch`, the board as every surface shows it, for the SitRep app.
  *
  * The JSON is stable: every field is always there, a list empty and any
  * other value null where there is none, and `v`, the output's version,
  * moves only with a change a reader would trip on. So its fields keep the
  * names they had before a piece of work was called a session: `list`'s
- * projects hold `works`, and `board` gives its session as `work`.
+ * projects hold `works`, and `board` gives its session as `work`. `watch`,
+ * newer than the words, says sessions.
  */
 import {
   brief,
@@ -14,17 +16,25 @@ import {
   listedProjects,
   projectAround,
   type Ask,
+  type Feed,
+  type FeedProject,
+  type FeedSession,
+  type FeedWindow,
   type LogLine,
   type Parked,
   type Project,
   type ProjectSummary,
   type ProjectSessions,
+  type Row,
+  type RowLine,
   type Session,
   type SessionSummary,
+  type WindowState,
+  type Where,
 } from '../core'
 
 /** The JSON's version, by command: `board`'s moved to 2 as its asks came to say what they want back, in place of their kind. */
-const OUTPUT = { list: 1, board: 2 } as const
+const OUTPUT = { list: 1, board: 2, watch: 1 } as const
 
 /** What `list` gives: the project the CLI runs in, if it runs in one, and the projects listed. */
 export type Listing = { here?: Project; projects: ProjectSummary[] }
@@ -163,3 +173,105 @@ export const boardJson = (project: string, session: Session) => {
     log: log.map(logJson),
   })
 }
+
+const lineJson = (line: RowLine) => ({
+  lead: line.lead,
+  mono: line.mono ?? null,
+  more: line.more ?? null,
+})
+
+const rowJson = (row: Row) => ({
+  key: row.key,
+  is: row.is,
+  isAway: row.isAway,
+  session: row.session,
+  project: row.project,
+  letters: row.letters,
+  ask: row.ask ?? null,
+  writer: row.writer ?? null,
+  first: lineJson(row.first),
+  second: row.second,
+  since: row.since,
+})
+
+const feedSessionJson = (session: FeedSession) => ({
+  ...sessionJson(session),
+  state: session.state,
+  since: session.since,
+  asks: session.asks.map(askJson),
+})
+
+const feedProjectJson = (project: FeedProject) => ({
+  key: project.key,
+  name: project.name,
+  directory: project.directory ?? null,
+  open: project.open,
+  waiting: project.waiting,
+  parked: project.parked,
+  updatedAt: project.updatedAt,
+  sessions: project.sessions.map(feedSessionJson),
+})
+
+const whereJson = (where: Where | undefined) =>
+  where === undefined
+    ? null
+    : {
+        device: where.device ?? null,
+        terminal: where.terminal ?? null,
+        tmux:
+          where.tmux === undefined ? null : { socket: where.tmux.socket, pane: where.tmux.pane },
+      }
+
+const stateJson = (state: WindowState | undefined) =>
+  state === undefined
+    ? null
+    : {
+        is: state.is,
+        since: state.since,
+        tool:
+          state.tool === undefined
+            ? null
+            : { name: state.tool.name, subject: state.tool.subject ?? null },
+        question:
+          state.question === undefined
+            ? null
+            : { text: state.question.text, count: state.question.count },
+      }
+
+const windowJson = (window: FeedWindow) => ({
+  writer: window.writer,
+  session: window.session,
+  name: window.name,
+  project: window.project,
+  version: window.version ?? null,
+  needsReload: window.needsReload,
+  where: whereJson(window.where),
+  state: stateJson(window.state),
+  attachedAt: window.attachedAt,
+})
+
+/** The board a watch line shows: all of it but the line's own time, what is new and what changed. */
+const feedFields = (feed: Feed, version: string | undefined) => ({
+  version: version ?? null,
+  head: { needYou: feed.head.needYou, sessions: feed.head.sessions },
+  rows: feed.rows.map(rowJson),
+  projects: feed.projects.map(feedProjectJson),
+  windows: feed.windows.map(windowJson),
+})
+
+/** What tells one watch line from the last, its own time aside: the board it shows, as text. `version` is the CLI's own. */
+export const feedText = (feed: Feed, version: string | undefined) =>
+  JSON.stringify(feedFields(feed, version))
+
+/**
+ * A line of `watch`, on one line: the board at `at`, the keys of the rows
+ * new since the last line, and the ids of the sessions whose `board --json`
+ * has changed since then.
+ */
+export const watchLine = (
+  feed: Feed,
+  version: string | undefined,
+  at: number,
+  news: readonly string[],
+  changed: readonly string[],
+) => JSON.stringify({ v: OUTPUT.watch, at, ...feedFields(feed, version), new: news, changed })
