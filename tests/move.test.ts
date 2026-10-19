@@ -181,15 +181,27 @@ test('a run moves every session filed under works/ into sessions/, each file ren
   ).toEqual(['sessions'])
 })
 
-test('a heartbeat saying no version seen within the week, anywhere on the board, keeps the old layout where it is, as does one torn as it was rewritten', async () => {
+test('a heartbeat saying no version seen within the week, anywhere on the board, keeps the old layout where it is, as does one written within it that does not read', async () => {
+  const torn = { text: '{"attachedAt":', mtimeMs: NOW - MIN }
   const cases = {
     'live, under works/': (t: Terminal, paths: SessionPaths) => t.window(paths.old, W2, NOW),
     'live, under sessions/, in another project': (t: Terminal) =>
       t.seed(LOBBY, { project: ELSEWHERE.key, seenAt: NOW }),
     'its Mac asleep six days': (t: Terminal, paths: SessionPaths) =>
       t.window(paths.old, W2, NOW - 6 * DAY),
-    'torn, written a minute before': (t: Terminal, paths: SessionPaths) =>
-      t.files.set(paths.old.heartbeat(W2), { text: '{"attachedAt":', mtimeMs: NOW - MIN }),
+    'torn under works/, written a minute before': (t: Terminal, paths: SessionPaths) =>
+      t.files.set(paths.old.heartbeat(W2), torn),
+    'torn under sessions/, written a minute before': (t: Terminal, paths: SessionPaths) =>
+      t.files.set(paths.heartbeat(W2), torn),
+    'there, written a minute before, but not to be read': (t: Terminal, paths: SessionPaths) => {
+      const { read } = t.io.fs
+
+      t.window(paths, W2, NOW - MIN, undefined, RUNNING)
+      t.io.fs.read = async path =>
+        path === paths.heartbeat(W2)
+          ? Promise.reject(new Error(`EACCES: permission denied, open '${path}'`))
+          : read(path)
+    },
   }
 
   for (const [why, add] of Object.entries(cases)) {
@@ -260,6 +272,51 @@ test("a file under both layouts is merged into today's: the old lines it lacks a
   expect(t.text(paths.heartbeat(W2)), "today's, seen later").toBe(before[paths.heartbeat(W2)])
   expect(filedUnder(t, 'works')).toEqual([])
   expect((await folded(t, paths)).log.map(line => line.id)).toEqual(['n3', 'n2'])
+})
+
+test("a heartbeat two runs both replace is never lost, though one run's whole move lands between the other's look and its replace", async () => {
+  const t = terminal()
+  const paths = seedOld(t)
+  const before = snapshot(t)
+
+  t.files.set(paths.heartbeat(W1), {
+    text: beat(W1, { attachedAt: T0, seenAt: LONG_GONE - DAY, version: RUNNING }),
+    mtimeMs: T0,
+  })
+
+  const { fs } = t.io
+  const beats = [paths.old.heartbeat(W1), paths.heartbeat(W1)]
+  let paused = () => {}
+  let release = () => {}
+  const isPaused = new Promise<void>(resolve => {
+    paused = resolve
+  })
+  const isReleased = new Promise<void>(resolve => {
+    release = resolve
+  })
+  /** A step of the second run on the heartbeat, made only once the first run's move is done. */
+  const later =
+    <A extends string[], R>(step: (...args: A) => Promise<R>) =>
+    async (...args: A) => {
+      if (args.some(arg => beats.includes(arg))) {
+        paused()
+        await isReleased
+      }
+
+      return step(...args)
+    }
+  const second = main(['list'], {
+    ...t.io,
+    fs: { ...fs, remove: later(fs.remove), moveIn: later(fs.moveIn), replace: later(fs.replace) },
+  })
+
+  await isPaused
+  expect(await main(['list'], t.io)).toBe(EXIT.done)
+  release()
+  expect(await second).toBe(EXIT.done)
+
+  expect(t.text(paths.heartbeat(W1))).toBe(before[paths.old.heartbeat(W1)])
+  expect(filedUnder(t, 'works')).toEqual([])
 })
 
 test("a line another run appends under today's name as the move renames the old file in is never lost: the old one's lines are appended after it", async () => {
@@ -355,6 +412,31 @@ test('a move that fails is told, and the command runs on, its line landing as ev
     err: 'sitrep: moving the old layout failed: EACCES: permission denied\n',
   })
   expect(parseEntries(t.text(paths.log(WRITER))).map(line => line.type)).toEqual(['note'])
+})
+
+test('what is left under works/ that the move cannot act on, a Finder file or a folder that is no session, has a run read no heartbeat beyond what its command reads', async () => {
+  const t = terminal()
+  const lobby = t.seed(LOBBY, { project: ELSEWHERE.key, seenAt: NOW })
+  const paths = sessionPaths(ROOT, PROJECT.key, META.id)
+  const left = [
+    `${paths.old.sessions}/.DS_Store`,
+    `${paths.old.sessions}/sr-cccccc/.DS_Store`,
+    `${paths.old.sessions}/drafts/notes.txt`,
+  ]
+  const read: string[] = []
+  const { read: reading } = t.io.fs
+
+  t.seed(META)
+  left.forEach(path => t.files.set(path, { text: 'left', mtimeMs: T0 }))
+  t.io.fs.read = async path => {
+    read.push(path)
+
+    return reading(path)
+  }
+
+  expect((await t.run('note', 'Round 3 drawn', ...SESSION)).exit).toBe(EXIT.done)
+  expect(read).not.toContain(lobby.heartbeat(W2))
+  expect(filedUnder(t, 'works')).toEqual(left.sort())
 })
 
 test('with nothing filed under works/, a run reads no heartbeat beyond what its command reads', async () => {

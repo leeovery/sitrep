@@ -84,8 +84,8 @@ const folderListed = async (
 export const sessionsFiled = async (host: Host, root: string, key: string) => {
   const { dir } = projectPaths(root, key)
   const { now, old } = await readOldFirst(
-    sessionsDir(root, key),
     oldSessionsDir(root, key),
+    sessionsDir(root, key),
     async path => folderNames(await listedIn(host, dir, await listed(host, dir), path)),
   )
 
@@ -128,7 +128,7 @@ export const ownText = async (
   paths: SessionPaths,
   fileOf: (folder: SessionFolder) => string,
 ) => {
-  const { now, old } = await readOldFirst(fileOf(paths), fileOf(paths.old), path =>
+  const { now, old } = await readOldFirst(fileOf(paths.old), fileOf(paths), path =>
     ownFile(host, path),
   )
 
@@ -204,7 +204,7 @@ export const createReader = (): Reader => {
   }
 
   return async (host, paths) => {
-    const { now, old } = await readOldFirst(paths, paths.old, folder =>
+    const { now, old } = await readOldFirst(paths.old, paths, folder =>
       layoutRead(host, paths, folder),
     )
     const project = entryAt(now.upper, paths.project.dir, paths.project.file, 'file')

@@ -5,7 +5,17 @@
  * it.
  */
 import { constants } from 'node:fs'
-import { appendFile, link, mkdir, open, readdir, rmdir, stat, unlink } from 'node:fs/promises'
+import {
+  appendFile,
+  link,
+  mkdir,
+  open,
+  readdir,
+  rename,
+  rmdir,
+  stat,
+  unlink,
+} from 'node:fs/promises'
 import type { Io, Listed, Ran } from '../io'
 import { main } from '../main'
 
@@ -135,6 +145,7 @@ const io: Io = {
     modifiedAt,
     append,
     moveIn,
+    replace: (from, to) => rename(from, to).catch(allowing(ABSENT)),
     remove: path => unlink(path).catch(allowing(ABSENT)),
     removeFolder: dir => rmdir(dir).catch(allowing([...ABSENT, ...NOT_EMPTY])),
   },

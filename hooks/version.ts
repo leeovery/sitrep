@@ -10,10 +10,10 @@ import { logFailure, type Host } from './host'
 export const MANIFEST = '.claude-plugin/plugin.json'
 
 /**
- * The version, once it read, kept for the load: a reload loads this module
- * afresh, with the manifest it brought.
+ * The version, read once a load and kept, whether or not it read: a reload
+ * loads this module afresh, with the manifest it brought.
  */
-let loaded: string | undefined
+let loaded: Promise<string | undefined> | undefined
 
 const versionIn = (text: string) => {
   const manifest: unknown = JSON.parse(text)
@@ -26,14 +26,15 @@ const versionIn = (text: string) => {
 }
 
 /**
- * The version this window runs; undefined when the manifest does not give
- * one, which the debug log says, and read again at the next need (the next
- * heartbeat). Read as the mod loads (session.start asks first): the clone is
- * the live plugin, so a manifest read later may be a newer checkout's than
- * the code this load runs.
+ * The version this window runs, read once, as the mod loads (session.start
+ * asks first): the clone is the live plugin, so a manifest read later may be
+ * a newer checkout's than the code this load runs. Undefined when the
+ * manifest does not give one, which the debug log says once; the window
+ * then reads as one on an old version, holding the move and delivering
+ * first, which is safe, and rare.
  */
-export const versionNow = async (host: Host) => {
-  loaded ??= await host.plugin
+export const versionNow = (host: Host) => {
+  loaded ??= host.plugin
     .manifest()
     .then(versionIn)
     .catch((error: unknown) => {

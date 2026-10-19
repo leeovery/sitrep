@@ -1,6 +1,6 @@
 import type { On } from 'claude-code'
 import { expect, test, tier } from 'claude-code/testing'
-import { parseEntries, presenceText, type SessionMeta } from '../core'
+import { parseEntries, presenceText, type SessionMeta, type SessionPaths } from '../core'
 import { AROUND_MS } from '../hooks/around'
 import { WATCH_MS } from '../hooks/window'
 import type { SitrepAttachment } from '../types'
@@ -123,7 +123,7 @@ test("a session in a project filing under works/ alone, read as the CLI moves it
   expect(w.logs, 'no look failed').toEqual([])
 })
 
-test('joining a session as the CLI moves it, between the reads of its meta under the two layouts, finds it', async ($, on) => {
+test("joining a session the CLI moves just after its meta was looked for under today's name finds it: the old name is read first", async ($, on) => {
   const w = world($, on)
   const ledger = w.seedOld(LEDGER)
 
@@ -138,22 +138,33 @@ test('joining a session as the CLI moves it, between the reads of its meta under
   expect(w.state.attachment?.session).toBe(LEDGER.id)
 })
 
-test("a window's own file the CLI moves between the window's look for it and its read is read under today's name: its next write carries every line", async ($, on) => {
-  const w = world($, on, { now: T0 + MIN })
-  const paths = w.seedOld(META)
-  const before = file([T0, yesAsk('k1', 'Review round 1')], [T0, note('n1', 'Drew round 1')])
+for (const [when, looked] of [
+  [
+    "between its look for it under the old name and its read is read under today's name",
+    (paths: SessionPaths) => paths.old.log(W1),
+  ],
+  [
+    "as it looks for it under today's name reads whole, the old layout read first and through",
+    (paths: SessionPaths) => paths.log(W1),
+  ],
+] as const) {
+  test(`a window's own file the CLI moves ${when}: its next write carries every line`, async ($, on) => {
+    const w = world($, on, { now: T0 + MIN })
+    const paths = w.seedOld(META)
+    const before = file([T0, yesAsk('k1', 'Review round 1')], [T0, note('n1', 'Drew round 1')])
 
-  reloading(on, { project: PROJECT.key, session: META.id, writer: W1, attachedAt: T0 })
-  w.put(paths.old.log(W1), before)
-  w.after('exists', paths.old.log(W1), () => w.moveOld(paths))
-  await $.session.start(CONVERSATION)
-  await w.call('note', { text: 'Drew round 2' })
+    reloading(on, { project: PROJECT.key, session: META.id, writer: W1, attachedAt: T0 })
+    w.put(paths.old.log(W1), before)
+    w.after('exists', looked(paths), () => w.moveOld(paths))
+    await $.session.start(CONVERSATION)
+    await w.call('note', { text: 'Drew round 2' })
 
-  expect(underWorks(w), 'the move landed').toEqual([])
-  expect(w.text(paths.log(W1)).startsWith(before)).toBe(true)
-  expect(parseEntries(w.text(paths.log(W1))).map(line => line.seq)).toEqual([1, 2, 3])
-  expect(w.logs).toEqual([])
-})
+    expect(underWorks(w), 'the move landed').toEqual([])
+    expect(w.text(paths.log(W1)).startsWith(before)).toBe(true)
+    expect(parseEntries(w.text(paths.log(W1))).map(line => line.seq)).toEqual([1, 2, 3])
+    expect(w.logs).toEqual([])
+  })
+}
 
 test('a window that slept through the move and wrote its file under works/ again still reads whole: every line of both, each once, and its later heartbeat', async ($, on) => {
   const w = world($, on)

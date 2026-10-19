@@ -8,8 +8,9 @@
  * The file system appends and never rewrites: the CLI's file may be written
  * by another run of it at the same moment, and an append keeps both runs'
  * lines whole. It moves and removes files only to bring the old layout into
- * today's, and never over another file, so a writer's file landing at the
- * same moment is never lost.
+ * today's, and never over another file but one the old stands in for, a
+ * heartbeat seen earlier or a session.json that does not read, so a
+ * writer's file landing at the same moment is never lost.
  */
 import type { Random } from '../core'
 
@@ -37,6 +38,11 @@ export type Io = {
      * already gone, as another run moving it at once leaves it.
      */
     moveIn: (from: string, to: string) => Promise<boolean>
+    /**
+     * Moves a file to `to` in one step, over the file there. One already
+     * gone, as another run moving it at once leaves it, is fine.
+     */
+    replace: (from: string, to: string) => Promise<void>
     /** Removes a file; one already gone is fine. */
     remove: (path: string) => Promise<void>
     /** Removes a folder once it is empty; one that is not, or is gone, is left. */

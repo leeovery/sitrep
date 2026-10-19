@@ -7,8 +7,10 @@
  *
  * Readers read both layouts as one (core's layouts.ts), so every state
  * partway through reads the same board, and two runs moving at once are
- * harmless: a file another run moved first is left so. With nothing to
- * move, a run lists `projects/` and each project's folder and no more.
+ * harmless: a file another run moved first is left so. There is something
+ * to move while an old session folder holds a file the move acts on: a
+ * meta, lines or a heartbeat. With none, a run lists `projects/`, each
+ * project's `works/` and what is left in it, and no more.
  */
 import {
   contentsAt,
@@ -17,27 +19,56 @@ import {
   movedTo,
   moving,
   oldSessionsDir,
-  projectPaths,
   readOldFirst,
   sessionPaths,
   type SessionPaths,
 } from '../core'
 import { foldersIn, heartbeatsIn, projectKeys, sessionsFiled, textAt } from './files'
-import type { Io } from './io'
+import type { Io, Listed } from './io'
 
-/** Whether a project still files sessions under the old layout: its folder of them is there. */
-const filesOld = async (io: Io, root: string, key: string) => {
-  const { dir } = projectPaths(root, key)
-  const old = oldSessionsDir(root, key)
+/** A session folder under the old layout, filed under the project `key`, and every file in it, its inbox's and presence's among them. */
+type OldSession = { key: string; paths: SessionPaths; files: string[] }
 
-  return (await io.fs.list(dir)).some(
-    entry => entry.kind === 'dir' && `${dir}/${entry.name}` === old,
+const filesOf = (dir: string, entries: readonly Listed[]) =>
+  entries.filter(entry => entry.kind === 'file').map(entry => `${dir}/${entry.name}`)
+
+/** Every file of a session's old folder, its inbox and presence listed where it shows them. */
+const oldFilesOf = async (io: Io, paths: SessionPaths) => {
+  const { dir, inbox, presence } = paths.old
+  const top = await io.fs.list(dir)
+  const isShown = (folder: string) =>
+    top.some(entry => entry.kind === 'dir' && `${dir}/${entry.name}` === folder)
+  const below = await Promise.all(
+    [inbox, presence]
+      .filter(isShown)
+      .map(async folder => filesOf(folder, await io.fs.list(folder))),
+  )
+
+  return [...filesOf(dir, top), ...below.flat()]
+}
+
+/**
+ * The sessions a project files under the old layout that hold a file the
+ * move acts on (a meta, lines, a heartbeat): anything else left there, as a
+ * Finder file, or a folder that is no session, is nothing to move.
+ */
+const toMove = async (io: Io, root: string, key: string): Promise<OldSession[]> => {
+  const sessions = await Promise.all(
+    (await foldersIn(io, oldSessionsDir(root, key))).filter(isSessionId).map(async id => {
+      const paths = sessionPaths(root, key, id)
+
+      return { key, paths, files: await oldFilesOf(io, paths) }
+    }),
+  )
+
+  return sessions.filter(({ paths, files }) =>
+    files.some(path => contentsAt(paths.old, path) !== 'other'),
   )
 }
 
 /** A session's heartbeats under both layouts, as core's `isMoveHeld` weighs them. */
 const sessionBeats = async (io: Io, paths: SessionPaths) => {
-  const { now, old } = await readOldFirst(paths, paths.old, folder => heartbeatsIn(io, folder))
+  const { now, old } = await readOldFirst(paths.old, paths, folder => heartbeatsIn(io, folder))
 
   return { beats: [...old.beats, ...now.beats], unread: [...old.unread, ...now.unread] }
 }
@@ -75,7 +106,7 @@ const moveFile = async (
   isAgain = false,
 ): Promise<void> => {
   const to = movedTo(paths, from)
-  const { old, now } = await readOldFirst(to, from, path => textAt(io, path))
+  const { old, now } = await readOldFirst(from, to, path => textAt(io, path))
 
   if (old === undefined) {
     return
@@ -90,9 +121,7 @@ const moveFile = async (
 
   switch (step.to) {
     case 'replace':
-      await io.fs.remove(to)
-
-      return renameIn()
+      return io.fs.replace(from, to)
     case 'rename':
       return renameIn()
     case 'append':
@@ -109,18 +138,12 @@ const moveFile = async (
 }
 
 /** Moves a session's old folder into today's, file by file, then removes the old folders it emptied. */
-const moveSession = async (io: Io, paths: SessionPaths) => {
-  const { dir, inbox, presence } = paths.old
-
-  for (const folder of [dir, inbox, presence]) {
-    for (const entry of await io.fs.list(folder)) {
-      if (entry.kind === 'file') {
-        await moveFile(io, paths, `${folder}/${entry.name}`)
-      }
-    }
+const moveSession = async (io: Io, { paths, files }: OldSession) => {
+  for (const file of files) {
+    await moveFile(io, paths, file)
   }
 
-  for (const folder of [inbox, presence, dir]) {
+  for (const folder of [paths.old.inbox, paths.old.presence, paths.old.dir]) {
     await io.fs.removeFolder(folder)
   }
 }
@@ -128,19 +151,17 @@ const moveSession = async (io: Io, paths: SessionPaths) => {
 /** Moves every session filed under the old layout into today's, unless the board's heartbeats keep it waiting. */
 export const moveOldLayout = async (io: Io, root: string, now: number) => {
   const keys = await projectKeys(io, root)
-  const filing = (
-    await Promise.all(keys.map(async key => ((await filesOld(io, root, key)) ? [key] : [])))
-  ).flat()
+  const sessions = (await Promise.all(keys.map(key => toMove(io, root, key)))).flat()
 
-  if (filing.length === 0 || (await isHeld(io, root, keys, now))) {
+  if (sessions.length === 0 || (await isHeld(io, root, keys, now))) {
     return
   }
 
-  for (const key of filing) {
-    for (const id of (await foldersIn(io, oldSessionsDir(root, key))).filter(isSessionId)) {
-      await moveSession(io, sessionPaths(root, key, id))
-    }
+  for (const session of sessions) {
+    await moveSession(io, session)
+  }
 
+  for (const key of new Set(sessions.map(session => session.key))) {
     await io.fs.removeFolder(oldSessionsDir(root, key))
   }
 }

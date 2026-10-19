@@ -54,9 +54,11 @@ tools; on the pane, ASKS, NOTES, RESOLVED and "finish this session"; on
 disk, `sessions/` and `session.json`, the old `works/` and `work.json` read
 beside them until the CLI moves them (see "Storage"). Claude Code's own
 session is a conversation or a window there, so "session" means only the
-board's. One old name is left, the spike's `lip`, renamed when the edge is
-built; this document writes it as it is until then. The CLI's JSON keeps
-its names (`works`, `work`), as "Versions side by side" has it.
+board's. The old words are left in two places until what holds them is
+rebuilt: the spike's `lip`, renamed when the edge is built, and written here
+as it is until then; and the app's Swift identifiers, until the edge and the
+menu rebuild the app, later in stage 3. The CLI's JSON keeps its names
+(`works`, `work`), as "Versions side by side" has it.
 
 ## Sessions outlive their windows
 
@@ -748,8 +750,8 @@ $XDG_STATE_HOME/sitrep/, else ~/.local/state/sitrep/
   reloaded that sleeps through the move wakes still writing its whole file
   under the old name. Every read of the two goes through one place, which
   reads the old layout first, then today's, never both at once: each step of
-  the move puts a file under its new name before the old name loses it, so
-  a file the move takes between the two reads is found under the new, where
+  the move puts a file under its new name before the old name loses it, so a
+  file the move takes between the two reads is found under the new, where
   reads at once could miss it under both; and a project's folder is listed
   anew for today's layout, which the move makes as it goes. A file listed,
   or found there, and gone by its read is not there. Writers write
@@ -759,33 +761,38 @@ $XDG_STATE_HOME/sitrep/, else ~/.local/state/sitrep/
   last line of the file it appends to ended first, and carries nothing
   across, since reading reads both and the move merges what is left.
 - **The move** is the CLI's, as each command starts: a mod's `$.fs` can
-  neither delete nor rename. It waits while any window on the board, by its
-  latest heartbeat under either layout, says no `version` (below), has not
-  let go, and was seen within a week (`OLD_WINDOW_MS`): such a window still
-  writes the old layout, and a Mac may sleep for days with one open, which
-  wakes writing it still. A window's later heartbeat saying its version, as
-  after its reload, stands for its earlier ones. A heartbeat file that does
-  not read, as one torn mid-rewrite, keeps it waiting a week from when it
-  was written. Then
-  each old session's files go into `sessions/`: one `sessions/` lacks is
-  linked in and its old name unlinked, so it never lands over a file a
-  writer makes there that moment; a writer's or sender's file under both
-  is merged, the lines today's lacks appended, never rewritten whole, so a
-  run appending then keeps its line; a `work.json` beside a `session.json`
-  is dropped, and of two heartbeats the later stays. A file it does not
-  know, under both, stays where it is. Emptied folders go, `works/` last.
-  As readers read both, every state partway through reads the same board,
-  and two runs moving at once are harmless: a file another moved first is
-  left so, and a line both append reads once. A move that fails is told on
-  stderr and the command runs on; the next run moves what is left. With
-  nothing to move it costs a listing of `projects/` and of each project's
-  folder. Tried live
-  over a state folder of its own (19 October 2026): an old session read and
+  neither delete nor rename. There is something to move while an old session
+  folder holds a file the move acts on, a meta, lines or a heartbeat;
+  anything else left under `works/`, as a Finder file or a folder that is no
+  session, is not, and costs only its listing. It waits while any window on
+  the board, by its latest heartbeat under either layout, says no `version`
+  (below), has not let go, and was seen within a week (`OLD_WINDOW_MS`):
+  such a window still writes the old layout, and a Mac may sleep for days
+  with one open, which wakes writing it still. A window's later heartbeat
+  saying its version, as after its reload, stands for its earlier ones. A
+  heartbeat file there that does not read, torn mid-rewrite or not to be
+  read at all, keeps it waiting a week from when it was written. Then each
+  old session's files go into `sessions/`: one `sessions/` lacks is linked
+  in and its old name unlinked, so it never lands over a file a writer makes
+  there that moment; a writer's or sender's file under both is merged, the
+  lines today's lacks appended, never rewritten whole, so a run appending
+  then keeps its line; a heartbeat seen later than today's replaces it in
+  one step, a rename, so two runs replacing it at once never lose it, and
+  one seen as late is dropped; a `work.json` beside a `session.json` that
+  reads is dropped, and replaces one that does not, as readers read it then.
+  A file it does not know, under both, stays where it is. Emptied folders
+  go, `works/` last. As readers read both, every state partway through reads
+  the same board, and two runs moving at once are harmless: a file another
+  moved first is left so, and a line both append reads once. A move that
+  fails is told on stderr and the command runs on; the next run moves what
+  is left. With nothing to move it costs a listing of `projects/`, of each
+  project's `works/`, and of each session folder left there. Tried live over
+  a state folder of its own (19 October 2026): an old session read and
   posted to while a versionless window was live, its CLI line under
   `sessions/` counting on from the one under `works/`; moved by the next run
   once that window said its version, `cli.jsonl` merged, `work.json` now
-  `session.json`; run again, nothing changed; and three runs at once
-  over six old sessions left nothing under `works/`, a line two runs both
+  `session.json`; run again, nothing changed; and three runs at once over
+  six old sessions left nothing under `works/`, a line two runs both
   appended read once.
 - **What the changeover still costs.** A window not yet reloaded reads only
   `works/`, and sees nothing written under `sessions/` until it reloads, as
@@ -793,8 +800,15 @@ $XDG_STATE_HOME/sitrep/, else ~/.local/state/sitrep/
   session's inbox, by its own count, since it sees no heartbeat under
   `sessions/`, and the windows on today's version wait, so two never both
   submit: letters under `sessions/inbox`, which it cannot see, wait until it
-  reloads or leaves. And the old layout stays up to a week after the last
-  such window was seen, unless it let go.
+  reloads or leaves. One that comes live on a session after a window on
+  today's version delivered the letters in its inbox under `works/` submits
+  them again: it cannot see the marks that window wrote under `sessions/`.
+  One holding no session writes no heartbeat, so the move cannot wait for
+  it; should it later join a session already moved, it finds nothing of it,
+  and cannot hold it until it reloads. One that wakes after the week, its
+  `work.json` moved, reads its session as gone, and holds delivery there,
+  its heartbeat live again, until it reloads or leaves. And the old layout
+  stays up to a week after the last such window was seen, unless it let go.
 - One file per writer, so there are no locks and no daemon. A mod's `$.fs` can
   only write whole files, so each mod rewrites its own file; the CLI appends.
   Runs of the CLI at once share its file: each run's line lands whole (tried
@@ -869,29 +883,31 @@ $XDG_STATE_HOME/sitrep/, else ~/.local/state/sitrep/
   submits it there writes the mark to its own file. Only replies count from an
   inbox.
 - **Presence:** a mod can't tell that its own window died, so each attached
-  window rewrites its heartbeat (`attachedAt`, `seenAt`) every 30 seconds, and
-  a session is open while a heartbeat is under 90 seconds old. A mod can't
-  delete a file either, so a window that lets go adds `leftAt`. Of several
-  windows on one session, the one attached longest submits its inbox, so two
-  never both do; while a live window on a release that says no `version` is
-  on it, the longest attached of those, and the rest wait (see "Storage"). A heartbeat also says `where` its window is, as far as that
-  is known (see "The menu bar"): `device`, `terminal`, and `tmux` with its
+  window rewrites its heartbeat (`attachedAt`, `seenAt`) every 30 seconds,
+  and a session is open while a heartbeat is under 90 seconds old. A mod
+  can't delete a file either, so a window that lets go adds `leftAt`. Of
+  several windows on one session, the one attached longest submits its
+  inbox, so two never both do; while a live window on a release that says no
+  `version` is on it, the longest attached of those, and the rest wait (see
+  "Storage"). A heartbeat also says `where` its window is, as far as that is
+  known (see "The menu bar"): `device`, `terminal`, and `tmux` with its
   `socket` and `pane`. It is read field by field, a bad one dropped, and a
-  heartbeat is never lost over it; one written before it reads as ever.
-  It also says the sitrep `version` its window runs (19 October 2026): the
-  `version` in the plugin's manifest, `.claude-plugin/plugin.json` under
-  the plugin's folder, read once as the mod loads and kept for the load,
-  since the clone is the live plugin and the manifest on disk may by then
-  be a newer checkout's than the code the window runs. A manifest that
-  cannot be read leaves it out, in the debug log, and the heartbeat beats
-  on; it is read again at the next beat, until it reads. It is read as
-  `where` is, field by field; a heartbeat with none, not let go, is a
-  window on a release from before heartbeats said it, which still writes
-  the old layout: it keeps the move waiting, and while live delivers its
-  session's inbox (see "Storage"). Nothing shows it yet: the
-  menu will list the windows to reload. Its state, with what the row shows
-  of it (stage 5, under "The menu bar"), comes next, rewritten at once as
-  the state changes.
+  heartbeat is never lost over it; one written before it reads as ever. It
+  also says the sitrep `version` its window runs (19 October 2026): the
+  `version` in the plugin's manifest, `.claude-plugin/plugin.json` under the
+  plugin's folder, read once as the mod loads and kept for the load, a
+  failure too, since the clone is the live plugin and the manifest on disk
+  may by then be a newer checkout's than the code the window runs. A
+  manifest that cannot be read leaves it out, says so once in the debug log,
+  and the heartbeat beats on; that window then reads as one on an old
+  release, holding the move and delivering first, which is safe, and rare.
+  It is read as `where` is, field by field; a heartbeat with none, not let
+  go, is a window on a release from before heartbeats said it, which still
+  writes the old layout: it keeps the move waiting, and while live delivers
+  its session's inbox (see "Storage"). Nothing shows it yet: the menu will
+  list the windows to reload. Its state, with what the row shows of it
+  (stage 5, under "The menu bar"), comes next, rewritten at once as the
+  state changes.
 - Readers list and `stat` the folder every second or two (a mod cannot watch
   files) and read only what changed; each session's read lists its project's
   folder too, so a rename shows on every pane within a look. The sessions

@@ -31,7 +31,7 @@ type ByWriter = Readonly<Record<string, string>>
  * read of the old then of today's never misses a file moved between the
  * two, where reads at once might find it under neither.
  */
-export const readOldFirst = async <F, T>(now: F, old: F, read: (each: F) => Promise<T>) => {
+export const readOldFirst = async <F, T>(old: F, now: F, read: (each: F) => Promise<T>) => {
   const before = await read(old)
 
   return { old: before, now: await read(now) }
@@ -117,8 +117,10 @@ export const contentsAt = (folder: SessionFolder, path: string): Contents => {
  * - lines `append`ed to today's file where it has one: those it lacks,
  *   never the whole file rewritten, so a run appending to it at once keeps
  *   its line; the old then dropped;
- * - a heartbeat seen later than today's `replace`s it;
- * - `drop`ped where today's stands for it: a meta, a heartbeat seen as late;
+ * - a heartbeat seen later than today's `replace`s it, as does a meta
+ *   where today's does not read, as readers read the old one then;
+ * - `drop`ped where today's stands for it: a meta that reads, a heartbeat
+ *   seen as late;
  * - anything else under both `leave`s the old where it is.
  */
 export type Moving =
@@ -139,7 +141,7 @@ export const moving = (contents: Contents, old: string, now: string | undefined)
     case 'beat':
       return { to: laterBeat(now, old) === now ? 'drop' : 'replace' }
     case 'meta':
-      return { to: 'drop' }
+      return { to: parseMeta(now) === undefined ? 'replace' : 'drop' }
     case 'other':
       return { to: 'leave' }
   }

@@ -45,6 +45,7 @@ declare module 'node:fs/promises' {
   export function mkdir(path: string, options: { recursive: true }): Promise<string | undefined>
   export function link(existing: string, made: string): Promise<void>
   export function unlink(path: string): Promise<void>
+  export function rename(from: string, to: string): Promise<void>
   export function rmdir(path: string): Promise<void>
   export function stat(path: string): Promise<{ mtimeMs: number }>
 }

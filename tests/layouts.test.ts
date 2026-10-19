@@ -159,8 +159,12 @@ test("moving, lines under both append what today's file lacks, and never rewrite
   expect(moving('lines', file(L1), file(L1, L2))).toEqual({ to: 'append', text: '' })
 })
 
-test("moving, a work.json beside a session.json is dropped: today's stands", () => {
-  expect(moving('meta', metaText(META), metaText(META))).toEqual({ to: 'drop' })
+test("moving, a work.json beside a session.json that reads is dropped: today's stands; beside one that does not, it replaces it, as readers read it", () => {
+  const now = metaText({ ...META, name: 'As started now' })
+
+  expect(moving('meta', metaText(META), now)).toEqual({ to: 'drop' })
+  expect(moving('meta', metaText(META), now.slice(0, 20)), 'torn').toEqual({ to: 'replace' })
+  expect(moving('meta', metaText(META), ''), 'empty').toEqual({ to: 'replace' })
 })
 
 test("moving, a heartbeat seen later than today's replaces it; one seen as late or earlier is dropped", () => {

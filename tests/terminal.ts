@@ -505,6 +505,14 @@ export function terminal(options: Options = {}) {
 
         return true
       },
+      replace: async (from, to) => {
+        const held = files.get(from)
+
+        if (held !== undefined) {
+          files.set(to, held)
+          unfile(from)
+        }
+      },
       remove: async path => unfile(path),
       removeFolder: async dir => {
         if (![...files.keys(), ...folders].some(path => isUnder(dir, path))) {

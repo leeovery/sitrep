@@ -50,8 +50,8 @@ export const projectKeys = async (io: Io, root: string) =>
 /** The sessions a project files, under today's layout or the old, each once. */
 export const sessionsFiled = async (io: Io, root: string, project: string) => {
   const { now, old } = await readOldFirst(
-    sessionsDir(root, project),
     oldSessionsDir(root, project),
+    sessionsDir(root, project),
     dir => foldersIn(io, dir),
   )
 
@@ -62,31 +62,41 @@ export const sessionsFiled = async (io: Io, root: string, project: string) => {
 export const textAt = (io: Io, path: string) =>
   io.fs.read(path).catch((): string | undefined => undefined)
 
-/** The texts of a folder's files with the suffix, by the writer each is named for; a file gone by its read, as a run moving it at once leaves it, is not there. */
-const byWriter = async (io: Io, dir: string, suffix: string) => {
+/** The texts of a folder's files with the suffix, as listed, by the writer each is named for; undefined for one that does not read. */
+const readBy = async (io: Io, dir: string, suffix: string) => {
   const files = (await io.fs.list(dir)).flatMap(entry => {
     const writer = entry.kind === 'file' ? writerOf(entry.name, suffix) : undefined
 
     return writer === undefined ? [] : [{ writer, path: `${dir}/${entry.name}` }]
   })
-  const read = await Promise.all(
-    files.map(async ({ writer, path }) => ({ writer, text: await textAt(io, path) })),
-  )
 
-  return Object.fromEntries(
-    read.flatMap(({ writer, text }) => (text === undefined ? [] : [[writer, text]])),
+  return Promise.all(
+    files.map(async ({ writer, path }) => ({ writer, path, text: await textAt(io, path) })),
   )
 }
 
-/** A session folder's heartbeats under one layout: those that read, and when each that does not was written. */
+/** The texts of a folder's files with the suffix, by the writer each is named for; a file gone by its read, as a run moving it at once leaves it, is not there. */
+const byWriter = async (io: Io, dir: string, suffix: string) =>
+  Object.fromEntries(
+    (await readBy(io, dir, suffix)).flatMap(({ writer, text }) =>
+      text === undefined ? [] : [[writer, text]],
+    ),
+  )
+
+/**
+ * A session folder's heartbeats under one layout: those that read, and when
+ * each that does not was written, as one torn mid-rewrite or one there that
+ * cannot be read; one gone by its read is not there.
+ */
 export const heartbeatsIn = async (io: Io, folder: SessionFolder) => {
-  const read = Object.entries(await byWriter(io, folder.presence, PRESENCE_SUFFIX)).map(
-    ([writer, text]) => ({ writer, beat: parsePresence(text, writer) }),
+  const read = (await readBy(io, folder.presence, PRESENCE_SUFFIX)).map(
+    ({ writer, path, text }) => ({
+      path,
+      beat: text === undefined ? undefined : parsePresence(text, writer),
+    }),
   )
   const unread = await Promise.all(
-    read
-      .filter(({ beat }) => beat === undefined)
-      .map(({ writer }) => io.fs.modifiedAt(folder.heartbeat(writer))),
+    read.filter(({ beat }) => beat === undefined).map(({ path }) => io.fs.modifiedAt(path)),
   )
 
   return {
@@ -109,7 +119,7 @@ const filesIn = async (io: Io, folder: SessionFolder): Promise<FolderFiles> => {
 /** A session's files as they stand under either layout, as one, and its project's; the meta's text is empty while neither has one. */
 export const readSession = async (io: Io, paths: SessionPaths): Promise<SessionFiles> => {
   const [{ now, old }, project] = await Promise.all([
-    readOldFirst(paths, paths.old, folder => filesIn(io, folder)),
+    readOldFirst(paths.old, paths, folder => filesIn(io, folder)),
     textAt(io, paths.project.file),
   ])
 

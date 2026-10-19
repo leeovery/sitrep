@@ -70,10 +70,6 @@ const beat = async (host: Host, hold: Hold, presence: Presence) => {
   hold.presence = presence
 }
 
-/** The window's presence, with the version it runs once the manifest reads: one that failed is read again at each beat. */
-const versioned = async (host: Host, presence: Presence): Promise<Presence> =>
-  presence.version === undefined ? { ...presence, version: await versionNow(host) } : presence
-
 /** Announces the open asks the session holds that the window had not seen; none at its first fold. */
 const hear = async (host: Host, hold: Hold, session: Session) => {
   const { heard } = hold
@@ -129,7 +125,7 @@ const timersFor = (host: Host, hold: Hold) => {
     host.clock.every(
       HEARTBEAT_MS,
       whileHeld('the heartbeat', async () =>
-        beat(host, hold, heartbeat(await versioned(host, hold.presence), await host.clock.now())),
+        beat(host, hold, heartbeat(hold.presence, await host.clock.now())),
       ),
     ),
     host.clock.every(
