@@ -9,8 +9,8 @@ struct ScreenEdgeTests {
     )
     static let builtIn = CGRect(x: 2560, y: -581, width: 1728, height: 1117)
 
-    @Test func theStageIsTheScreensHeightWithItsVisibleFrameFromTheTopAndTheLipAtItsMiddle() {
-        #expect(Self.studio.stage == Stage(height: 1440, visibleTop: 30, visibleBottom: 1354, lipY: 720))
+    @Test func theStageIsTheScreensHeightWithItsVisibleFrameFromTheTopAndTheLip042OfTheWayDown() {
+        #expect(Self.studio.stage == Stage(height: 1440, visibleTop: 30, visibleBottom: 1354, lipY: 1440 * 0.42))
     }
 
     @Test func thePointerHeldAgainstTheLeftEdgeIsAtZero() {

@@ -70,7 +70,7 @@ enum StripTuning {
     static let hairExtra = 2 * hair - pitch
 
     /// Length, Grows: the strip centres where the notch sits on the edge, this share of the way down.
-    static let notchAt = 0.42
+    static let notchAt = Tuning.lipAt
     /// With nothing running it draws back into the notch at rest, meniscus.html's lip: this deep and this long, each
     /// end its S-curve (0,0) (0,17) (7,13) (7,29), split in two as the strip's S is drawn, so one morphs into the other
     /// point for point.

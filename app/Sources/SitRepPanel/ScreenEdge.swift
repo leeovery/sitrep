@@ -14,11 +14,11 @@ public struct ScreenEdge: Equatable, Sendable {
         self.visible = visible
     }
 
-    /// The screen as the model sees it, the lip's home at its vertical middle.
+    /// The screen as the model sees it, the lip's home a little above its middle.
     public var stage: Stage {
         Stage(
             height: frame.height, visibleTop: frame.maxY - visible.maxY, visibleBottom: frame.maxY - visible.minY,
-            lipY: frame.height / 2
+            lipY: frame.height * Tuning.lipAt
         )
     }
 

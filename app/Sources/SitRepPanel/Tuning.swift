@@ -2,6 +2,8 @@
 /// name close to its own, so the port can be read beside it. Lengths are points (the prototype's px), times ms,
 /// speeds points per ms. `BEZEL` has no counterpart: the model works from the screen's edge itself.
 enum Tuning {
+    /// The lip's home on the edge, this share of the way down the screen (meniscus.html's and card.html's).
+    static let lipAt = 0.42
     /// The panel keeps this far inside the screen's visible frame, top and bottom.
     static let margin = 40.0
     static let panelDepth = 372.0, panelR = 24.0, panelF = 18.0
