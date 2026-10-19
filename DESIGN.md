@@ -2127,18 +2127,55 @@ reaches a window only while that pane is on show).
    panel, the jump, and installing the plugin. It is a `.app` of its own (no
    Dock icon): a menu bar item lives only as long as the process that owns it,
    and macOS sends notifications only from an app. Its source sits in the
-   repository beside the plugin. In order:
-   1. a bare app, built locally, to prove a macOS notification, the leave to
-      control Ghostty, and starting at login;
-   2. the notch and its panel, taken before the install on 15 October 2026
-      ("The notch and its panel"):
-      - first a spike, with the window, the notch, the light and the feel,
-        over fixed sample rows, for Lee to feel on the display;
-      - then wiring it to the board;
-      - then slimming the menu to Settings and quitting, with its list kept
-        as a fallback, and macOS notifications off by default;
-   3. its first start installing the plugin, and its relaunch refreshing it
-      (Installing and updating, under "Where it lives").
+   repository beside the plugin. In order, rewritten on 19 October 2026 once
+   every surface was designed and the spikes felt (Lee: "get this thing
+   built now"):
+   1. **A bare app**, built locally, proving a macOS notification, the leave
+      to control Ghostty, and starting at login. Built 14 October 2026
+      (below).
+   2. **The spikes**, felt on the display over sample data (PR #5): the
+      notch, Meniscus and the card; the strip; Material, Reduce motion, and
+      nothing over full screen. The SitRep window has none: it is an
+      ordinary window, its design taken as it stands, and its hard part,
+      answering, is plumbing a spike over sample data would not test. PR #5
+      closes unmerged once the build has taken its model.
+   3. **The live feed**, in the plugin, two PRs:
+      - each window's state in its heartbeat, written at once: stage 5
+        below, brought forward, since the rows and the rings need working,
+        your turn and the stops;
+      - `sitrep watch` (under "One engine, two front ends"): the panel's view
+        as a JSON line for each change, what is new and presence expiry
+        worked out in core.
+
+      The clone is the live plugin, so each ends with a live run on Lee's
+      windows.
+   4. **The edge, for real**, in the app, two PRs:
+      - **the notch and its panel** over `sitrep watch`: Meniscus and the
+        card, the rows, a click jumping, the swell for what `watch` says is
+        new, Material, Reduce motion, nothing over full screen. It is the
+        spike's model, its recorded tests kept and the code brought to the
+        build's bar, the spike's scaffolding left behind (the Simulate items,
+        the sample rows, the Max menu). The panel closing as the pointer
+        leaves gets a test of its own: on the spike it once stayed open;
+      - **the strip** over the same feed: Grows and Full, Max, the two
+        counts, a click jumping.
+   5. **The menu bar item and Settings**, one PR: the native menu (see "The
+      menu bar item"), the Settings window's three panes with Max as a
+      slider, macOS notifications off by default with the switch to turn
+      them on, and the icon.
+   6. **The SitRep window**, two PRs:
+      - in the CLI, answering a yes or a choice into the session's inbox,
+        which its window delivers, and finishing an away session, each with
+        what the window shows of it ("on its way", "sent, and Claude has
+        it"). This settles open question 4;
+      - the window (see "The SitRep window"). Its "Answer in Claude ↗" jumps
+        without answering mode, which waits on the mod hearing the app.
+   7. **Installing the plugin**: the app's first start installs it, and its
+      relaunch refreshes it (Installing and updating, under "Where it
+      lives").
+
+   Each PR lands on main before the next starts, or stacks on it while it
+   waits; each step ends with Lee trying it live.
 
    A jump outside tmux, tested since stage 2, was first
    run live from the bare app (below). Two things to carry over from stage 2: an app started from the Finder has
@@ -2241,8 +2278,9 @@ reaches a window only while that pane is on show).
    `claude plugin update` follows `main` or the tags, for the plugin alone
    from GitHub.
 5. **Attention beyond asks**, in this build (decided with Lee on 16 October
-   2026). The mod hears what its window is doing, and the heartbeat carries
-   it. These give a session's working, your turn and its stops on a
+   2026), built as stage 3's third step, since the rows and the strip's
+   rings need it. The mod hears what its window is doing, and the heartbeat
+   carries it. These give a session's working, your turn and its stops on a
    permission prompt or a question (see "A session's state"):
    - a turn starts: working;
    - `tool.check` gives its verdict "ask", so the permission prompt shows:
