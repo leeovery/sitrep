@@ -22,6 +22,9 @@ public struct EdgeSettings: Codable, Equatable, Sendable {
 
     public var show = Show.notch
     public var edge = Edge.left
+    /// How far down the screen the notch sits, from 0 at its top to 1 at its bottom: a little above the middle until
+    /// Lee drags it.
+    public var along = Tuning.notchAt
     /// The display it shows on, by the id the app gives it; nil for the main display.
     public var display: String?
     public var style = NotchStyle.meniscus
@@ -42,6 +45,7 @@ public struct EdgeSettings: Codable, Equatable, Sendable {
 
         show = given.value(.show, or: defaults.show)
         edge = given.value(.edge, or: defaults.edge)
+        along = clamp(given.value(.along, or: defaults.along), 0, 1)
         display = given.value(.display, or: defaults.display)
         style = given.value(.style, or: defaults.style)
         length = given.value(.length, or: defaults.length)

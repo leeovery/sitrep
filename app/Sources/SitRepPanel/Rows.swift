@@ -15,8 +15,8 @@ public struct Session: Equatable, Sendable {
     public var title: String
     /// Set in code type after the title, as in an ask to allow a command.
     public var code: String?
-    /// How many more questions the ask holds: "+2".
-    public var more: Int?
+    /// How many more questions it holds, as core words it: "+2".
+    public var more: String?
     /// Its project and session.
     public var sub: String
     /// When it came to stand where it does, ms on the wall clock.
@@ -24,7 +24,7 @@ public struct Session: Equatable, Sendable {
 
     public init(
         id: String, project: String, kind: Kind, away: Bool = false, title: String, code: String? = nil,
-        more: Int? = nil, sub: String, since: Double
+        more: String? = nil, sub: String, since: Double
     ) {
         self.id = id
         self.project = project
@@ -84,11 +84,11 @@ public enum Item: Equatable, Sendable {
     case session(Session)
     case divider
 
-    /// The panel's list of these sessions: in the panel's order, the hairline under needs you when anything follows.
+    /// The panel's list of these sessions, in the order given, which is core's: the hairline under the needs you that
+    /// lead it, when anything follows them.
     public static func list(_ sessions: [Session]) -> [Item] {
-        let sorted = Session.sorted(sessions)
-        let needs = sorted.prefix { $0.kind == .needs }.count
-        var items = sorted.map(Item.session)
+        let needs = sessions.prefix { $0.kind == .needs }.count
+        var items = sessions.map(Item.session)
         if needs > 0, needs < items.count {
             items.insert(.divider, at: needs)
         }
@@ -107,16 +107,22 @@ public enum Item: Equatable, Sendable {
     public static let rowGap = 4.0
 }
 
-/// The panel's head: how many sessions need Lee, and how many there are.
+/// The panel's head: how many rows need Lee at the left, and how many sessions there are at the right, as core counts
+/// them.
 public struct Head: Equatable, Sendable {
     public let title: String
     public let count: String
 
-    public init(_ items: [Item]) {
-        let sessions = items.compactMap(\.session)
-        let needs = sessions.filter { $0.kind == .needs }.count
-        title = needs == 0 ? "All clear" : "\(needs) need\(needs == 1 ? "s" : "") you"
-        count = "\(sessions.count) sessions"
+    public init(title: String, count: String) {
+        self.title = title
+        self.count = count
+    }
+
+    public init(needYou: Int, sessions: Int) {
+        self.init(
+            title: needYou == 0 ? "All clear" : "\(needYou) need\(needYou == 1 ? "s" : "") you",
+            count: "\(sessions) session\(sessions == 1 ? "" : "s")"
+        )
     }
 }
 
@@ -147,8 +153,25 @@ public struct Content: Equatable, Sendable {
 
     static let paddingTop = 18.0, paddingBottom = 14.0, paddingSide = 14.0
 
-    /// The whole of it, padding and all, before the panel's height caps it.
-    var height: Double { Self.paddingTop + headHeight + entries.map(\.height).reduce(0, +) + Self.paddingBottom }
+    /// The panel's list laid out as its rows are drawn: the head's 16 line and the 10 below it; a row, 10 + 34 of text
+    /// + 11, and the gap below it; the divider's 1 between 2 and 6.
+    public init(laying items: [Item]) {
+        self.init(
+            headHeight: Self.headHeight,
+            entries: items.map { Entry($0, height: $0.session == nil ? Self.dividerHeight : Self.rowHeight) }
+        )
+    }
+
+    static let headHeight = 26.0, rowHeight = 55 + Item.rowGap, dividerHeight = 9.0
+
+    /// The whole of it, padding and all, before the panel's height caps it: past that, the rows scroll.
+    public var height: Double { Self.paddingTop + headHeight + entries.map(\.height).reduce(0, +) + Self.paddingBottom }
+
+    /// How far down it is scrolled after a scroll of this many points down, in a panel showing this much of it: from
+    /// its top to where its last row shows at the panel's foot.
+    public func scrolled(_ offset: Double, by delta: Double, showing shown: Double) -> Double {
+        clamp(offset + delta, 0, max(0, height - shown))
+    }
 
     /// The head's box, in the content's own frame: inside the scroll's padding, the panel's depth less its sides.
     public var headFrame: CGRect {

@@ -8,14 +8,21 @@ public protocol Notch: AnyObject {
     var items: [Item] { get }
     /// How far from the edge a pointer by the notch counts as near it, for `Frame.wantsFrames`.
     var field: Double { get }
+    /// The notch's home along the edge, its centre: the stage's, kept inside the band.
+    var notchY: Double { get }
 
     func frame(_ input: Input) -> Frame
     /// A new ask: the notch swells and the light flashes. Something needs Lee from here.
     func newAsk()
+    /// Something needs Lee with nothing new, as on the first board: the notch goes to its size and the light comes
+    /// on, with no swell and no flash.
+    func needsLeeQuietly()
     /// A click on one of `items`: one that jumps closes the panel, as a jump does.
     func clickRow(_ index: Int)
     /// A click anywhere off the panel and the notch closes it at once.
     func clickElsewhere()
+    /// A drag carries the notch: the panel closes, and the notch doesn't open under the pointer until it leaves.
+    func carry()
 }
 
 /// What the two notches share, as their prototypes share it: the sim clock and its timers, the pointer's trail, what
@@ -25,8 +32,6 @@ protocol NotchModel: Notch, SimModel {
 
     /// Every spring the notch is made of, by its prototype's names (its `S`).
     var S: SpringSet { get set }
-    /// The notch's home along the edge, its centre.
-    var notchY: Double { get }
     var isLive: Bool { get }
     /// The notch's hit area and the panel's content as last drawn, which the pointer is hit-tested against.
     var lastHit: CGRect? { get }

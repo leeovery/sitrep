@@ -10,9 +10,11 @@ let package = Package(
     targets: [
         .target(name: "SitRepCore"),
         .target(name: "SitRepPanel"),
-        .executableTarget(name: "SitRep", dependencies: ["SitRepCore"]),
+        .target(name: "SitRepEdge", dependencies: ["SitRepCore", "SitRepPanel"]),
+        .executableTarget(name: "SitRep", dependencies: ["SitRepCore", "SitRepPanel", "SitRepEdge"]),
         .testTarget(name: "SitRepCoreTests", dependencies: ["SitRepCore"]),
         .testTarget(name: "SitRepPanelTests", dependencies: ["SitRepPanel"]),
+        .testTarget(name: "SitRepEdgeTests", dependencies: ["SitRepEdge", "SitRepCore", "SitRepPanel"]),
     ],
     swiftLanguageModes: [.v6]
 )

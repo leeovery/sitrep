@@ -15,7 +15,7 @@ public final class Card: Notch {
     var content: Content
     var needs: Bool
     var reducesMotion: Bool
-    var notchY: Double
+    public internal(set) var notchY: Double
     var S: CardSprings
     var sp: Vec?
     var trail = Trail()
@@ -163,6 +163,19 @@ public final class Card: Notch {
         S.w.v = S.w.kick(toPeak: feel.swell)
     }
 
+    /// The way back from `answerAll`; a push under way is left to play out.
+    public func needsLeeQuietly() {
+        guard !needs else {
+            return
+        }
+
+        needs = true
+        to(\.light, 1, 160)
+        if phase == .closed {
+            setShape(w: resting.w, h: resting.h, 450)
+        }
+    }
+
     private func answerAll() {
         needs = false
         cancelPrefix(CardTimer.swellPrefix)
@@ -186,6 +199,10 @@ public final class Card: Notch {
         if isLive {
             close()
         }
+    }
+
+    public func carry() {
+        close()
     }
 
     /// Straight to a shape: on critically damped springs, or under reduced motion a cross-fade to it.

@@ -289,11 +289,11 @@ extension StripLab {
         )
     }
 
-    private static let fiveAsks: [(project: String, title: String, code: String?, more: Int?, sub: String, then: String)] = [
+    private static let fiveAsks: [(project: String, title: String, code: String?, more: String?, sub: String, then: String)] = [
         ("Mint", "Choose the diff budget", nil, nil, "Mint · Token-aware diff sizing", "Sizing the diffs"),
         ("Fabric", "Allow Bash ", "aws sso login --profile dev", nil, "Fabric · Atlas overload from llm-manager", "Signing in to the dev account"),
         ("Switchboard", "Give the go for stage 3", nil, nil, "Switchboard · Milestone 7 stages 4 to 14", "Running stage 3"),
-        ("Aircon", "Which unit is the bedroom?", nil, 2, "Aircon · Aircon local control", "Naming the units"),
+        ("Aircon", "Which unit is the bedroom?", nil, "+2", "Aircon · Aircon local control", "Naming the units"),
         ("Agentic Workflows", "Approve the reshaped review workflow", nil, nil, "Agentic Workflows · Reshape the workflows", "Reshaping the workflows"),
     ]
 
@@ -361,6 +361,6 @@ extension StripLab {
 
     /// A row's two lines as the prototype sets them: the title, its command and its "+2"; the line under it.
     private static func lines(_ s: Session) -> String {
-        "\(s.title)\(s.code ?? "")\(s.more.map { "+\($0)" } ?? "")|\(s.line2)"
+        "\(s.title)\(s.code ?? "")\(s.more ?? "")|\(s.line2)"
     }
 }

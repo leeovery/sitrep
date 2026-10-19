@@ -17,7 +17,7 @@ public final class Meniscus: Notch {
     var content: Content
     var needs: Bool
     var reducesMotion: Bool
-    var notchY: Double
+    public internal(set) var notchY: Double
     var S: MeniscusSprings
     /// While open, the shape's height follows the content.
     var follow = false
@@ -208,6 +208,24 @@ public final class Meniscus: Notch {
     public func clickElsewhere() {
         if isLive {
             close()
+        }
+    }
+
+    public func carry() {
+        close()
+    }
+
+    /// The way back from `answerAll`; a swell under way is left to play out.
+    public func needsLeeQuietly() {
+        guard !needs else {
+            return
+        }
+
+        needs = true
+        to(\.light, 1, 160)
+        if phase == .closed {
+            let needs = NotchShape.needs
+            setShape(w: needs.w, h: needs.h, r: needs.r, f: needs.f, 450)
         }
     }
 

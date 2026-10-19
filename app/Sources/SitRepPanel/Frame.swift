@@ -118,6 +118,13 @@ public struct Frame {
         return nearNotch || panel != nil && outline.contains(pointer)
     }
 
+    /// Whether a move of the pointer should start frames again once they have stopped: while the panel is out, every
+    /// move, since only the model can tell that the pointer has left it (rows going from under a still pointer, under
+    /// reduced motion, leave the panel out and wanting no frames); else a move near enough to want them.
+    public func wakes(pointer: CGPoint?, field: Double) -> Bool {
+        phase != .closed || wantsFrames(pointer: pointer, field: field)
+    }
+
     /// How far past the field a pointer still counts as near the edge.
     static let nearMargin = 24.0
 
@@ -137,6 +144,16 @@ public struct Frame {
         /// Whether a point is on the content as shown: inside the clip, and inside the rounding of its front corners.
         public func contains(_ point: CGPoint) -> Bool {
             frontRounded(clip, top: topRadius, bottom: bottomRadius, contains: point)
+        }
+
+        /// Where the content is drawn in the window, through the edge's mirror (`ScreenEdge.mirror`).
+        public func drawn(_ mirror: CGAffineTransform) -> CGRect { frame.applying(mirror) }
+
+        /// A point on the stage in the content's own frame, as drawn through the edge's mirror and scrolled this far:
+        /// the content reads left to right on either edge.
+        public func contentPoint(_ point: CGPoint, mirror: CGAffineTransform, scroll: Double) -> CGPoint {
+            let drawn = drawn(mirror), at = point.applying(mirror)
+            return CGPoint(x: at.x - drawn.minX, y: at.y - drawn.minY + scroll)
         }
     }
 
