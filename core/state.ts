@@ -141,9 +141,9 @@ export const digestsOf = (input: unknown): Digests =>
   )
 
 /**
- * Whether a dialog is for a candidate: the same tool; the same loop, where
- * the request says which (the window's own says none, and then any loop
- * fits); and the arguments equal on every one both carry, at least one, or
+ * Whether a dialog is for a candidate: the same tool; the same loop, a
+ * request saying no subagent being the window's own and taking only its own
+ * calls; and the arguments equal on every one both carry, at least one, or
  * both carry none. Not equal as wholes: the check and the request may each
  * carry an argument the other lacks (Bash's `description`, `timeout`).
  */
@@ -153,7 +153,7 @@ const isFor = (request: PermissionRequest, input: Digests, asked: Asked) => {
 
   return (
     asked.tool === request.tool &&
-    (request.agentId === undefined || asked.agentId === request.agentId) &&
+    asked.agentId === request.agentId &&
     (shared.length > 0 ? shared.every(key => asked.input[key] === input[key]) : isEmpty)
   )
 }
@@ -231,21 +231,22 @@ export const toolEnded = (activity: Activity, call: string): Activity => ({
   stops: activity.stops.filter(stop => stop.call !== call),
 })
 
-const stopped = ({ at, ...stop }: Stop): WindowState =>
+const stopped = (stop: Stop, since: number): WindowState =>
   stop.is === 'permission'
-    ? { is: 'permission', since: at, tool: stop.tool }
-    : {
-        is: 'question',
-        since: at,
-        ...(stop.question === undefined ? {} : { question: stop.question }),
-      }
+    ? { is: 'permission', since, tool: stop.tool }
+    : { is: 'question', since, ...(stop.question === undefined ? {} : { question: stop.question }) }
 
-/** The state a window's activity puts it in; `attachedAt` is when it attached, its your turn's start before any turn. */
+/**
+ * The state a window's activity puts it in; `attachedAt` is when it
+ * attached, its your turn's start before any turn, and the time of anything
+ * heard before the clock first answered, which has none of its own.
+ */
 export const stateOf = (activity: Activity, attachedAt: number): WindowState => {
+  const sinceOf = (at: number | undefined) => (isTime(at) ? at : attachedAt)
   const [stop] = activity.stops
 
   if (stop !== undefined) {
-    return stopped(stop)
+    return stopped(stop, sinceOf(stop.at))
   }
 
   if (activity.turnAt !== undefined) {
@@ -253,12 +254,12 @@ export const stateOf = (activity: Activity, attachedAt: number): WindowState => 
 
     return {
       is: 'working',
-      since: activity.turnAt,
+      since: sinceOf(activity.turnAt),
       ...(running === undefined ? {} : { tool: running.tool }),
     }
   }
 
-  return { is: 'yourTurn', since: activity.endedAt ?? attachedAt }
+  return { is: 'yourTurn', since: sinceOf(activity.endedAt) }
 }
 
 const KINDS: readonly StateKind[] = ['working', 'permission', 'question', 'yourTurn']
@@ -274,6 +275,73 @@ const parseQuestion = (raw: unknown): QuestionShown | undefined =>
   isObject(raw) && isFilled(raw.text) && isCount(raw.count)
     ? { text: raw.text, count: raw.count }
     : undefined
+
+const listOf = <T>(raw: unknown, parse: (each: unknown) => T | undefined): T[] =>
+  Array.isArray(raw) ? raw.flatMap(each => parse(each) ?? []) : []
+
+const isAgent = (raw: unknown): raw is string | undefined => raw === undefined || isFilled(raw)
+
+const parseRunning = (raw: unknown): Running | undefined => {
+  if (!isObject(raw) || !isFilled(raw.call)) {
+    return undefined
+  }
+
+  const tool = parseTool(raw.tool)
+
+  return tool === undefined ? undefined : { call: raw.call, tool }
+}
+
+const parseDigests = (raw: unknown): Digests | undefined =>
+  isObject(raw) && Object.values(raw).every(digest => isFilled(digest))
+    ? (raw as Digests)
+    : undefined
+
+const parseAsked = (raw: unknown): Asked | undefined => {
+  if (!isObject(raw) || !isFilled(raw.call) || !isFilled(raw.tool) || !isAgent(raw.agentId)) {
+    return undefined
+  }
+
+  const input = parseDigests(raw.input)
+
+  return input === undefined
+    ? undefined
+    : { call: raw.call, tool: raw.tool, input, agentId: raw.agentId }
+}
+
+const parseStop = (raw: unknown): Stop | undefined => {
+  if (!isObject(raw) || !isFilled(raw.call) || !isTime(raw.at) || !isAgent(raw.agentId)) {
+    return undefined
+  }
+
+  const { call, at, agentId } = raw
+  const tool = parseTool(raw.tool)
+  const question = parseQuestion(raw.question)
+
+  if (raw.is === 'permission') {
+    return tool === undefined ? undefined : { call, at, agentId, is: 'permission', tool }
+  }
+
+  return raw.is === 'question'
+    ? { call, at, agentId, is: 'question', ...(question === undefined ? {} : { question }) }
+    : undefined
+}
+
+/**
+ * What a window heard, as an earlier load kept it in `$.state`, read field
+ * by field: that load may have kept another shape. A time or a list that
+ * does not read is as QUIET has it, and an entry that does not read is
+ * dropped, the rest kept.
+ */
+export const parseActivity = (raw: unknown): Activity =>
+  isObject(raw)
+    ? {
+        ...(isTime(raw.turnAt) ? { turnAt: raw.turnAt } : {}),
+        ...(isTime(raw.endedAt) ? { endedAt: raw.endedAt } : {}),
+        tools: listOf(raw.tools, parseRunning),
+        asked: listOf(raw.asked, parseAsked),
+        stops: listOf(raw.stops, parseStop),
+      }
+    : QUIET
 
 /**
  * A heartbeat's state, read field by field: undefined without a state it

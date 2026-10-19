@@ -13,9 +13,11 @@
  *
  * Every hook here only observes. It hands the event on as it came, and a
  * failure to record what it heard is logged, never thrown into the turn, the
- * tool or the permission prompt. A change lands in memory at once; nothing
- * waits on its writes, and a tool call waits on nothing of the host's,
- * save a question's start on the clock, to stamp its stop.
+ * tool or the permission prompt. A change lands in memory at once and
+ * nothing waits on its writes. A tool call waits on the host only for the
+ * one read of `$.state` that loads what an earlier load heard, before the
+ * first change of a load, and for the clock at a question's start, to stamp
+ * its stop; a turn's start and end and a dialog wait on the clock for theirs.
  *
  * Each stop begun or ended is written to the debug log, with its tool and
  * how it was matched, so a live try can tell the dialog from the verdict.

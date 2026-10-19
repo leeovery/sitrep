@@ -280,6 +280,8 @@ export type Presence = {
   version?: string
   /** What the window is doing; none from a window on a version before heartbeats said it, nor from one that let go. */
   state?: WindowState
+  /** When the load of the mod that wrote it began, so a load a reload superseded writes no heartbeat over a newer one's; none where the clock failed, or before heartbeats said it. */
+  loadedAt?: number
 }
 
 /** A session as it stands, every writer's lines read together. */

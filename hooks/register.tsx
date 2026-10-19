@@ -30,7 +30,6 @@
  */
 import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register } from 'claude-code'
-import { QUIET } from '../core'
 import { actionsOf } from './actions'
 import { captured, heardSurvey } from './answering'
 import { lookAround, lookEvery } from './around'
@@ -49,6 +48,7 @@ import { BAND_ROWS, drawBand } from './draw/band'
 import { drawPane } from './draw/board'
 import { drawToolResult, drawToolRow, toolLine } from './draw/tool-row'
 import { logFailure, TOAST_MS, type Host } from './host'
+import { loadedNow } from './load'
 import { fromOlder } from './older'
 import {
   BAND_KEYS,
@@ -92,7 +92,6 @@ const pulse = atom({ plugin: 'sitrep', key: 'pulse' } as const, { asks: [], fram
 const flash = atom({ plugin: 'sitrep', key: 'flash' } as const, 0)
 const tick = atom({ plugin: 'sitrep', key: 'tick' } as const, 0)
 const named = atom({ plugin: 'sitrep', key: 'named' } as const, [])
-const activity = atom({ plugin: 'sitrep', key: 'activity' } as const, QUIET)
 
 /** The host, as a hook's `$` reaches it. */
 const hostOf = ($: EngineInterface): Host => ({
@@ -226,9 +225,9 @@ const hostOf = ($: EngineInterface): Host => ({
       update: change => update($, named, change),
     },
     activity: {
-      read: () => read($, activity),
-      write: value => update($, activity, () => value),
-      update: change => update($, activity, change),
+      get: () => $.state.get({ plugin: 'sitrep', key: 'activity' }),
+      set: (value, version) =>
+        $.state.set({ plugin: 'sitrep', key: 'activity' }, value, { ifVersion: version }),
     },
   },
 })
@@ -239,6 +238,7 @@ export const register: Register = on => {
   on('session.start', async ($, e, next) => {
     const host = hostOf($)
 
+    await loadedNow(host)
     await versionNow(host)
 
     for (const spec of SPECS) {

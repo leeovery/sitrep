@@ -7,6 +7,7 @@ import {
   heartbeat,
   jsonOf,
   leave,
+  parseActivity,
   parsePresence,
   permissionShown,
   presenceText,
@@ -178,7 +179,7 @@ test("the dialog shown for a call put to Lee is a permission prompt since then, 
     const shown = during(
       activity => toolStarted(activity, call, T0 + 1_000),
       activity => toolAsked(activity, call),
-      activity => permissionShown(activity, dialogFor('gh pr create'), T0 + 5_000),
+      activity => permissionShown(activity, { ...dialogFor('gh pr create'), agentId }, T0 + 5_000),
     )
 
     expect(stateOf(shown, T0), String(agentId)).toEqual(PERMISSION)
@@ -204,22 +205,38 @@ test('a dialog is matched to the call by its tool and an equal input, whatever o
   expect(shown.asked.map(each => each.call)).toEqual(['t1'])
 })
 
-test("of two calls put to Lee with one tool and one input, the dialog is the older one's, then the other's; one saying its loop is that loop's", () => {
+test("of two calls put to Lee in one loop with one tool and one input, the dialog is the older one's, then the other's", () => {
   const asked = during(
     activity => toolAsked(activity, bash('t1', 'gh pr create')),
-    activity => toolAsked(activity, bash('t2', 'gh pr create', 'agent-1')),
+    activity => toolAsked(activity, bash('t2', 'gh pr create')),
   )
   const first = permissionShown(asked, dialogFor('gh pr create'), T0 + 5_000)
   const second = permissionShown(first, dialogFor('gh pr create'), T0 + 6_000)
-  const theAgents = permissionShown(
-    asked,
-    { ...dialogFor('gh pr create'), agentId: 'agent-1' },
-    T0 + 5_000,
-  )
 
   expect(first.stops.map(stop => stop.call)).toEqual(['t1'])
   expect(second.stops.map(stop => stop.call)).toEqual(['t1', 't2'])
-  expect(theAgents.stops).toMatchObject([{ call: 't2', agentId: 'agent-1' }])
+})
+
+test("a dialog is its own loop's: one saying no subagent takes only the window's own call, one saying a subagent only that subagent's", () => {
+  const asked = during(
+    activity => toolAsked(activity, bash('t1', 'gh pr create', 'agent-1')),
+    activity => toolAsked(activity, bash('t2', 'gh pr create')),
+    activity => toolAsked(activity, bash('t3', 'gh pr create', 'agent-2')),
+  )
+  const stopped = (agentId?: string) =>
+    permissionShown(asked, { ...dialogFor('gh pr create'), agentId }, T0 + 5_000).stops
+
+  expect(stopped()).toMatchObject([{ call: 't2', agentId: undefined }])
+  expect(stopped('agent-1')).toMatchObject([{ call: 't1', agentId: 'agent-1' }])
+  expect(stopped('agent-2')).toMatchObject([{ call: 't3', agentId: 'agent-2' }])
+  expect(
+    permissionShown(
+      during(activity => toolAsked(activity, bash('t1', 'gh pr create', 'agent-1'))),
+      dialogFor('gh pr create'),
+      T0 + 5_000,
+    ).stops,
+    "the window's own dialog takes no subagent's call",
+  ).toEqual([])
 })
 
 test('a dialog is for a call whose input carries arguments it lacks, and the reverse: only the arguments both carry are compared', () => {
@@ -303,7 +320,8 @@ test("a question is a question since it was asked, its own or a subagent's; its 
     const asked = during(
       activity => toolStarted(activity, call, T0 + 3_000),
       activity => toolAsked(activity, call),
-      activity => permissionShown(activity, { tool: call.tool, input: call.input }, T0 + 3_001),
+      activity =>
+        permissionShown(activity, { tool: call.tool, input: call.input, agentId }, T0 + 3_001),
     )
 
     expect(stateOf(asked, T0), String(agentId)).toEqual({
@@ -354,7 +372,8 @@ test("the window's turn starting or ending clears its own tools, candidates and 
     activity => toolAsked(activity, bash('t2', 'gh pr create', 'agent-1')),
     activity => toolAsked(activity, bash('t3', 'git push')),
     activity => toolAsked(activity, bash('t4', 'ls', 'agent-1')),
-    activity => permissionShown(activity, dialogFor('gh pr create'), T0 + 2_000),
+    activity =>
+      permissionShown(activity, { ...dialogFor('gh pr create'), agentId: 'agent-1' }, T0 + 2_000),
     activity => toolStarted(activity, question('q1'), T0 + 3_000),
   )
   const ended = turnEnded(busy, T0 + 9_000)
@@ -373,7 +392,8 @@ test("the window's turn starting or ending clears its own tools, candidates and 
 test("a subagent's turn ending clears what it left, though its calls were never heard to end, and nothing of another loop's", () => {
   const busy = during(
     activity => toolAsked(activity, bash('t1', 'gh pr create', 'agent-1')),
-    activity => permissionShown(activity, dialogFor('gh pr create'), T0 + 2_000),
+    activity =>
+      permissionShown(activity, { ...dialogFor('gh pr create'), agentId: 'agent-1' }, T0 + 2_000),
     activity => toolAsked(activity, bash('t2', 'ls', 'agent-1')),
     activity => toolAsked(activity, bash('t3', 'git push', 'agent-2')),
     activity => toolStarted(activity, question('q1'), T0 + 3_000),
@@ -452,4 +472,79 @@ test('a bad tool or question of a state is dropped, the state kept, and keys it 
   ]) {
     expect(stateRead({ ...asked, question: bad }), JSON.stringify(bad)).toEqual(asked)
   }
+})
+
+test('what the window heard reads back from $.state as it was kept', () => {
+  const busy = during(
+    activity => toolStarted(activity, bash('t1', 'bun test'), T0 + 1_000),
+    activity => toolAsked(activity, bash('t2', 'gh pr create', 'agent-1')),
+    activity => toolAsked(activity, bash('t3', 'git push')),
+    activity => permissionShown(activity, dialogFor('git push'), T0 + 2_000),
+    activity => toolStarted(activity, question('q1'), T0 + 3_000),
+  )
+  const ended = turnEnded(busy, T0 + 9_000)
+
+  for (const activity of [QUIET, busy, ended]) {
+    expect(parseActivity(JSON.parse(JSON.stringify(activity)))).toEqual(activity)
+  }
+})
+
+test("what an earlier load kept in another shape reads field by field: a field that does not read is QUIET's, an entry that does not is dropped", () => {
+  for (const raw of [undefined, null, 'busy', 7, []]) {
+    expect(parseActivity(raw), JSON.stringify(raw)).toEqual(QUIET)
+  }
+
+  const running = { call: 't1', tool: { name: 'Bash', subject: 'bun test' } }
+
+  expect(parseActivity({ turnAt: T0, tools: [running] }), 'no candidates nor stops').toEqual({
+    turnAt: T0,
+    tools: [running],
+    asked: [],
+    stops: [],
+  })
+  expect(parseActivity({ turnAt: null, endedAt: '1', tools: {}, asked: 'x', stops: 3 })).toEqual(
+    QUIET,
+  )
+
+  const asked = { call: 't2', tool: 'Bash', input: { command: digestOf('"ls"') } }
+  const stop = { call: 't3', at: T0, is: 'question', question: { text: 'Left?', count: 1 } }
+
+  expect(
+    parseActivity({
+      tools: [running, { call: 't9' }, { tool: { name: 'Bash' } }, 'Bash'],
+      asked: [
+        asked,
+        { ...asked, input: { command: 'ls', check: 7 } },
+        { ...asked, input: 'ls' },
+        { ...asked, agentId: 5 },
+        { tool: 'Bash', input: {} },
+      ],
+      stops: [
+        stop,
+        { ...stop, at: null },
+        { ...stop, is: 'asleep' },
+        { call: 't4', at: T0, is: 'permission' },
+        { call: 't5', at: T0, is: 'permission', tool: { name: 'Bash' }, agentId: 'agent-1' },
+      ],
+    }),
+  ).toEqual({
+    tools: [running],
+    asked: [asked],
+    stops: [
+      stop,
+      { call: 't5', at: T0, is: 'permission', tool: { name: 'Bash' }, agentId: 'agent-1' },
+    ],
+  })
+})
+
+test('a time heard before the clock first answered, which has none, reads as when the window attached', () => {
+  const unstamped = toolStarted(QUIET, question('q1'), -Infinity)
+
+  expect(stateOf(unstamped, T0)).toEqual({
+    is: 'question',
+    since: T0,
+    question: { text: 'Left or right?', count: 2 },
+  })
+  expect(stateOf(turnStarted(QUIET, -Infinity), T0)).toEqual({ is: 'working', since: T0 })
+  expect(stateOf(turnEnded(QUIET, -Infinity), T0)).toEqual({ is: 'yourTurn', since: T0 })
 })

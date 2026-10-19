@@ -450,7 +450,11 @@ export function world(engine: Engine, on: On, options: Options = {}) {
     }
 
     if (call.verdict === 'ask' && call.isShown) {
-      await engine.classic.PermissionRequest({ tool_name: tool, tool_input: args })
+      await engine.classic.PermissionRequest({
+        tool_name: tool,
+        tool_input: args,
+        ...(agentId === undefined ? {} : { agent_id: agentId }),
+      })
     }
 
     return (await call.ending) as never

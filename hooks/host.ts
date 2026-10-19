@@ -44,6 +44,14 @@ export type Slot<T> = {
   update: (change: (value: T) => T) => Promise<unknown>
 }
 
+/** One of the mod's values in `$.state`, read with the version it stands at, and written only while it stands at the version given. */
+export type Versioned<T> = {
+  /** The value, undefined never written, and its version, 0 then. */
+  get: () => Promise<{ value: T | undefined; version: number }>
+  /** Writes `value` while the value stands at `version`: whether it did, and the version it stands at. */
+  set: (value: T, version: number) => Promise<{ isSet: boolean; version: number }>
+}
+
 /** How long a toast stays unless it says otherwise: long enough to read it through. */
 export const TOAST_MS = 10_000
 
@@ -117,7 +125,7 @@ export type Host = {
     flash: Slot<number>
     tick: Slot<number>
     named: Slot<SitrepNamed[]>
-    activity: Slot<SitrepActivity>
+    activity: Versioned<SitrepActivity>
   }
 }
 

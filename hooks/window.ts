@@ -6,7 +6,9 @@
  * Whatever reads or changes the hold runs in turn (`serially`), so two tool
  * calls never write the window's file over each other, and a heartbeat never
  * lands after the window let go. The heartbeat says what the window is
- * doing as it attaches, and again whenever that changes (doing.ts).
+ * doing as it attaches, and again whenever that changes (doing.ts), and
+ * which load wrote it: a load finding a later one's there writes it no more
+ * (load.ts).
  */
 import type { Timer } from 'claude-code'
 import {
@@ -17,6 +19,7 @@ import {
   HEARTBEAT_MS,
   isOpen,
   leave,
+  parsePresence,
   presenceText,
   sessionPaths,
   stateOf,
@@ -30,6 +33,7 @@ import { activityNow } from './activity'
 import { endAnswering, settleAnswering } from './answering'
 import { boardOf } from './board'
 import { logFailure, rootFor, type Host } from './host'
+import { isLater, isSuperseded, loadedNow, supersede } from './load'
 import { announce } from './news'
 import { createReader, ownText, type Reader } from './reader'
 import { versionNow } from './version'
@@ -68,8 +72,30 @@ export const serially = <T>(task: () => Promise<T>): Promise<T> => {
 /** The session this window holds, if any. */
 export const attached = () => current?.attachment
 
+/** Whether the heartbeat at `path` was written by a later load than `presence`'s: the file read live, as `$.state` in a long dispatch is not. */
+const isOutrun = async (host: Host, path: string, presence: Presence) => {
+  const there = isSuperseded()
+    ? undefined
+    : await host.fs.read(path).then(
+        text => parsePresence(text, presence.writer),
+        () => undefined,
+      )
+
+  if (isLater(there?.loadedAt, presence.loadedAt)) {
+    supersede(host, "the window's heartbeat")
+  }
+
+  return isSuperseded()
+}
+
 const beat = async (host: Host, hold: Hold, presence: Presence) => {
-  await host.fs.write(hold.paths.heartbeat(hold.attachment.writer), presenceText(presence))
+  const path = hold.paths.heartbeat(hold.attachment.writer)
+
+  if (await isOutrun(host, path, presence)) {
+    return
+  }
+
+  await host.fs.write(path, presenceText(presence))
   hold.presence = presence
 }
 
@@ -210,16 +236,17 @@ export const letGo = async (host: Host) => {
 export const attachTo = async (host: Host, root: string, attaching: SitrepAttachment) => {
   const { project, session, writer, attachedAt } = attaching
   const paths = sessionPaths(root, project, session)
-  const [where, version, state] = await Promise.all([
+  const [where, version, state, loadedAt] = await Promise.all([
     whereNow(host),
     versionNow(host),
     stateNow(host, attachedAt),
+    loadedNow(host),
   ])
   const hold: Hold = {
     attachment: attaching,
     paths,
     text: await ownText(host, paths, folder => folder.log(writer)),
-    presence: attach(writer, attachedAt, { where, version, state }),
+    presence: attach(writer, attachedAt, { where, version, state, loadedAt }),
     read: createReader(),
     timers: [],
   }

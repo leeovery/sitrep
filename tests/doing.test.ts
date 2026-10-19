@@ -645,6 +645,31 @@ test('after a reload mid-turn, the window says the state $.state kept, and goes 
   expect(stateIn(w, paths)).toEqual({ is: 'yourTurn', since: T0 + 60_000 })
 })
 
+test('what an earlier load kept in another shape is read field by field, and the window goes on from what reads', async ($, on) => {
+  const w = world($, on, { now: T0 + 60_000 })
+  const paths = heldBefore(w)
+  const older = { turnAt: T0 + 10_000, tools: [{ call: 'toolu_kept', tool: { name: 'Bash' } }] }
+
+  keptInState(on, { attachment: ATTACHED, activity: older as SitrepActivity })
+  await $.session.start(CONVERSATION)
+
+  expect(stateIn(w, paths)).toEqual({ is: 'working', since: T0 + 10_000, tool: { name: 'Bash' } })
+
+  const pr = w.calls('Bash', PR_CREATE, { verdict: 'ask', isShown: true })
+
+  await later(w)
+
+  expect(stateIn(w, paths)?.is).toBe('permission')
+
+  pr.finish('ok')
+  await pr.done
+  await w.turnEnds()
+  await later(w)
+
+  expect(stateIn(w, paths)).toEqual({ is: 'yourTurn', since: T0 + 60_000 + STATE_MS })
+  expect(w.logs.filter(line => line.includes('failed'))).toEqual([])
+})
+
 test('a new process starts with nothing heard: your turn since it attached, until its next event', async ($, on) => {
   const w = world($, on, { now: T0 + 60_000 })
   const paths = heldBefore(w)

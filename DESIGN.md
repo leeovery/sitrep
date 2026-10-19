@@ -203,17 +203,21 @@ and swallowed, never breaking a turn, a tool or a permission prompt.
     answer on as it came.
   - The event says the tool, its input and, for a subagent, its
     `agent_id`, never the call, so it goes to the oldest candidate it is
-    for: the same tool; the same loop, where it says one (the main loop
-    says none, and then any loop's will do); and the arguments equal on
-    every one both carry, at least one, or both carrying none. Not equal as
-    wholes: the check reads a call's arguments as the permission decision
-    does, and either side may carry one the other lacks (Bash's
+    for: the same tool; the same loop, strictly, a request with no
+    `agent_id` being the main loop's (the engine's types say it is absent
+    there) and taking only the main loop's calls; and the arguments equal
+    on every one both carry, at least one, or both carrying none. Not
+    equal as wholes: the check reads a call's arguments as the permission
+    decision does, and either side may carry one the other lacks (Bash's
     `description`, `timeout`). Each argument is compared as a digest of
     its JSON, its objects' keys in order (core's `jsonOf` and `digestOf`,
     53 bits), so a candidate stays small, a Write's whole file a few
-    characters. A request no candidate fits is logged and ignored. Two
-    calls alike in tool, loop and the arguments both carry, which the
-    classifier judged apart, can still cross; scoping by loop narrows it.
+    characters. A request no candidate fits is logged and ignored.
+  - Within one loop, two calls alike in tool and the arguments both carry,
+    which the classifier judged apart, can still cross: the dialog shown
+    for the later one stops the older, which the classifier settled. The
+    cost: that stop ends when the older call settles, perhaps with the
+    dialog still open, and the window reads working while it waits on Lee.
   - A plan's approval (ExitPlanMode) takes the same rule, and shows as its
     tool's permission prompt until the rows design it.
 - **Claude asks a question** (a call of AskUserQuestion, from its start,
@@ -241,10 +245,14 @@ and swallowed, never breaking a turn, a tool or a permission prompt.
   conversation's turn ended.
 - **Nothing in a call's way.** A change lands in the mod's memory at once;
   its write to `$.state` and the heartbeat's rewrite follow in order, and
-  nothing waits on them. A call's end needs no time, and its start waits on
-  the clock only for a question, whose stop it stamps; a clock that fails
-  leaves the last time it gave. A rewrite waits its turn on the window's
-  queue, so it may follow a sitrep tool's own work there.
+  nothing waits on them. A call waits on the host only for the one
+  `$.state` read that loads what an earlier load heard, before the first
+  change of a load, and on the clock only at a question's start, whose stop
+  it stamps; its end needs no time. A turn's start and end and a dialog
+  wait on the clock for their times. A clock that fails leaves the last
+  time it gave, and anything heard before it ever answered reads as since
+  the attach. A rewrite waits its turn on the window's queue, so it may
+  follow a sitrep tool's own work there.
 - **Subagents.** A subagent's events carry its `agentId`, the main loop's
   none. Its run raises no `turn.start`, and its `turn.complete` is not the
   window's, so its turns neither start nor end the window's; and its tools do
@@ -1032,6 +1040,24 @@ $XDG_STATE_HOME/sitrep/, else ~/.local/state/sitrep/
   - A window holding no session writes no heartbeat but goes on hearing,
     so attaching mid-turn writes the state as it stands. A window that lets
     go says no state.
+  - The mod's own boards leave it out: the board in `$.state` and the
+    boards around it keep each presence without its `state`, which nothing
+    the mod draws reads, so a neighbour working rewrites no board, redraws
+    no pane and announces nothing (the board Claude is told it has seen
+    holds no presence at all). Core's parse still reads it, for `sitrep
+    watch`.
+  - Each load of the mod stamps its heartbeat with `loadedAt`, when it
+    loaded (session.start, its first hook, reads the clock once), and reads
+    the heartbeat file before rewriting it: once the file carries a later
+    load's stamp, it writes neither the heartbeat nor `$.state` again, and
+    says so once in the debug log. A call in flight across
+    `/reload-plugins` may settle in the load it began in, whose memory is
+    stale by then; the engine's types say a reload cancels the old load's
+    pending waits, not that its other continuations never resume, so the
+    fence stays. The file is read live, as `$.state` inside a long dispatch
+    is not. A stale load's read and a newer load's write may still cross
+    once, and the newer load's next rewrite, at its next change or beat,
+    puts it right.
   - What the window has heard (its turn, the tools it runs, the calls put to Lee
     with their tool, loop and arguments' digests, and the stops, each with its
     loop) is kept in `$.state` (`activity`), so a `/reload-plugins` keeps it,
@@ -1041,6 +1067,13 @@ $XDG_STATE_HOME/sitrep/, else ~/.local/state/sitrep/
     would read what stood as the call began and miss a prompt raised meanwhile
     (found in the test kit). A new process starts with nothing heard: your turn
     since the attach, until its next event.
+  - It is read field by field, as a heartbeat is, since an earlier load may
+    have kept another shape: a time or a list that does not read is as
+    nothing heard has it, and an entry that does not read is dropped.
+  - Each write carries the load's `loadedAt` and is made only on the version
+    the load last saw (`ifVersion`). A miss is another load's write: an
+    earlier load's is read and written over; a later load's means this one
+    is stale, and it writes neither `$.state` nor the heartbeat again.
 - Readers list and `stat` the folder every second or two (a mod cannot watch
   files) and read only what changed; each session's read lists its project's
   folder too, so a rename shows on every pane within a look. The sessions
@@ -2482,7 +2515,11 @@ reaches a window only while that pane is on show).
      and ended as its call settled;
    - the same in auto mode, for a call the classifier hands to Lee;
    - a call the classifier approves showing working throughout, with no
-     stop in the log.
+     stop in the log;
+   - a `/reload-plugins` while a call runs: the heartbeat's `loadedAt`
+     moves on, and if the old load's call settles after it, the log says
+     once that a later load wrote over it, and the state stays the new
+     load's.
 
    A jump outside tmux, tested since stage 2, was first
    run live from the bare app (below). Two things to carry over from stage 2: an app started from the Finder has

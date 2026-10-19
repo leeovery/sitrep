@@ -21,9 +21,11 @@ const stoppedClock = () => {
     },
     state: {
       activity: {
-        read: async () => ({ ...QUIET, turnAt: T0 }),
-        write: async (value: Activity) => {
+        get: async () => ({ value: { ...QUIET, turnAt: T0 }, version: 1 }),
+        set: async (value: Activity) => {
           written.push(value)
+
+          return { isSet: true, version: written.length + 1 }
         },
       },
     },
@@ -55,5 +57,8 @@ test('a call starts and ends though the clock fails throughout: its end needs no
   expect(ranWith?.tools.map(running => running.call)).toEqual(['toolu_1'])
   expect(await activityNow(host)).toEqual({ ...QUIET, turnAt: T0 })
   expect(written.at(-1), 'and so it is kept').toEqual({ ...QUIET, turnAt: T0 })
-  expect(logs.every(line => line.startsWith('sitrep: reading the clock failed'))).toBe(true)
+  expect(
+    logs.every(line => /^sitrep: (reading the clock|stamping this load) failed/.test(line)),
+    logs.join('\n'),
+  ).toBe(true)
 })

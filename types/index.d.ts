@@ -124,6 +124,7 @@ export type SitrepPresence = {
   where?: SitrepWhere
   version?: string
   state?: SitrepWindowState
+  loadedAt?: number
 }
 
 /** A call waiting on Lee: core's `Stop`. */
@@ -131,8 +132,9 @@ export type SitrepStop = { call: string; at: number; agentId?: string } & (
   { is: 'permission'; tool: SitrepToolShown } | { is: 'question'; question?: SitrepQuestionShown }
 )
 
-/** What this window has heard of its own doing, its heartbeat's state worked out from it: core's `Activity`. */
+/** What this window has heard of its own doing, its heartbeat's state worked out from it: core's `Activity`, with when the load that kept it began. */
 export type SitrepActivity = {
+  loadedAt?: number
   turnAt?: number
   endedAt?: number
   tools: { call: string; tool: SitrepToolShown }[]
