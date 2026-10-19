@@ -803,6 +803,9 @@ $XDG_STATE_HOME/sitrep/, else ~/.local/state/sitrep/
   is known (see "The menu bar"): `device`, `terminal`, and `tmux` with its
   `socket` and `pane`. It is read field by field, a bad one dropped, and a
   heartbeat is never lost over it; one written before it reads as ever.
+  From stage 3 it also says its window's sitrep version, and its state with
+  what the row shows of it (stage 5, under "The menu bar"), rewritten at
+  once as the state changes.
 - Readers list and `stat` the folder every second or two (a mod cannot watch
   files) and read only what changed; each session's read lists its project's
   folder too, so a rename shows on every pane within a look. The sessions
@@ -1046,8 +1049,13 @@ truth. There is still no background service. None of it is built now. Lee:
     exits: no daemon. It watches the one folder that holds every project and
     session, `~/.local/state/sitrep/` (see Storage), and reads only what
     changed.
-    - It prints a versioned JSON line for each change: the panel's view, and
-      what is new (a new ask, a new permission prompt or question).
+    - It prints a versioned JSON line for each change: the board as every
+      surface shows it, and what is new (a new ask, a new permission prompt
+      or question). That is each project and its sessions, away ones too;
+      each session's state, its row's two lines and time, and its open asks;
+      and each window with its version and `where`. The SitRep window reads
+      the session it shows in full (`board --json`, its notes, parked and
+      resolved too) whenever a line says that session changed.
     - Presence expiry and what is new are core's, worked out in `watch`: a
       heartbeat going stale changes no file, so `watch` notices it itself,
       and the notch's swell is decided in core, not in the app.
@@ -1261,9 +1269,15 @@ it is 15 × 124, with the light inside. It opens into a black panel:
 - front corners of radius 24, and flares of 18 into the bezel;
 - kept 40 from the top and bottom of the screen's visible frame.
 
-It sits on the left edge by default, at Lee's asking. On this Mac the left
-edge of the main display is a hard edge: the built-in display sits to its
-right. A drag moves it along the edge, and past the middle to the other
+In Glass (Settings' Look; Black by default), Meniscus and the card are
+thick Liquid Glass from rest, the light drawn over the glass and the rows in
+the system's label colours.
+
+It sits on the left edge by default, at Lee's asking, 0.42 of the way down
+the screen, a little above the middle, as the prototypes have it and where
+the strip centres at Grows. On this Mac the left edge of the main display is
+a hard edge: the built-in display sits to its right. A drag moves it along
+the edge, and past the middle to the other
 edge; never to the bottom. The form is Paper's round 1 "Bezel". The light's
 place, a bar in the notch, is round 2's "Strip".
 
@@ -1472,8 +1486,8 @@ with the two moves overlapping.
 
 **Lee's settings** for it, from round 2:
 `{"bounce":0.70,"nudge":8,"slide":0.93,"lag":30,"close":0.88,"swell":25,"swells":2,"edge":"left","light":"live"}`.
-At these it reaches 372 at about 100ms, 12 past, and is still by about
-230ms, the rows starting at 125ms. Closing, it is seated by about 350ms.
+At these it reaches 372 at about 110ms, 12 past, and is still by about
+240ms, the rows starting at 125ms. Closing, it is seated by about 350ms.
 
 | Dial | What it sets |
 |---|---|
@@ -1598,7 +1612,9 @@ were settled in the browser spike (below, "How the strip moves").
   them the last place is the grey count ("+3"). Under the pointer each
   count pours out what it holds as one tab of rows, which scroll on a short
   strip. A new ask landing in the orange count flashes its ring twice and
-  washes it, as a new mark's, and the marks showing never move. Lee: "It
+  washes it, as a new mark's, and the marks showing never move. An ask
+  answered out of the count changes its row in place; at the re-sort the
+  count shrinks, or goes and the last folded mark takes its place. Lee: "It
   works."
 - **Windows and full screen:** macOS lets no app reserve screen space as the
   Dock does, so a window filling the screen goes under the strip's 36pt; Lee
@@ -1676,7 +1692,8 @@ prototype's Strip tab; Lee kept its defaults):
   leading the marks out as it grows (the marks' slide 1.25× quicker) and
   following them in as it shrinks (1.25× slower). With nothing running for
   120ms, its outline morphs into the notch's at rest point for point, each
-  end's S into the lip's. A press dragged along the edge carries it.
+  end's S into the notch's at rest. A press dragged along the edge carries
+  it.
 - **Reduced motion:** no springs and no reach; a tab's shape fades in and
   out, and marks snap to their places and fade in.
 - **In glass**, Liquid Glass has two thicknesses and picks one from a
@@ -1804,7 +1821,8 @@ asked for the sessions back, and approved the redraw as it stands.
     away sessions with nothing waiting, notes, parked and resolved;
   - **Show**: Notch, Strip or Nothing, inline, the one in use ticked, so
     pinning the strip takes one click. With Nothing, the menu and the
-    SitRep window carry the board, and the icon keeps its dot;
+    SitRep window carry the board, and the glyph still lights for needs
+    you;
   - **Settings… ⌘,** (see "Settings"); **Check for Updates…**, with Sparkle, from the first public
     release; **Quit SitRep ⌘Q**.
 - **An away session** is disabled, with no window to jump to: its dot stays
@@ -1848,20 +1866,20 @@ Spaceman's preferences as a reference only.
 - **Each pane opens on what it is about**, drawn, before its rows:
   - **At the edge**: Show, as three pictures of the screen's edge: the
     notch and its light, the strip and its rings, or only the menu bar's
-    dot. The chosen one is ringed and live; it is the menu's Show. Then
+    glyph. The chosen one is ringed and live; it is the menu's Show. Then
     **Where**, for the notch and the strip alike: Edge, Left or Right ("or
     drag it across the middle"), and Display, the main one unless another
     is chosen. Then **The notch**: Style, Meniscus or Card. Then **The
     strip**: Length, Grows or Full, and for Grows, Max, a slider whose right
     end is Full. Then **Look**:
-    Material, Black or Glass, for the notch and the strip alike, from
-    macOS 26 (before it, Black and no row); and Reduce motion, off, its line
-    saying SitRep follows the Mac's own setting either way (Lee, 18 October
-    2026: "One thing we might want to ship... is the ability to reduce
-    motion"). A section that no longer applies fades out rather than
+    Material, Black or Glass, for the notch and the strip alike, Black by
+    default, from macOS 26 (before it, Black and no row); and Reduce
+    motion, off, its line saying SitRep follows the Mac's own setting either
+    way (Lee, 18 October 2026: "One thing we might want to ship... is the
+    ability to reduce motion"). A section that no longer applies fades out rather than
     greying; with Nothing, one line says the menu and the SitRep window
     carry the board.
-  - **Notifications**: the banner a new ask sends, its title, its project
+  - **Notifications**: the notification a new ask sends, its title, its project
     and session, silent, a click jumping to it. Then Notify me of a new
     ask, off by default, its line saying the notch swells and lights
     instead; Send, for a test notification; and macOS's own answer
@@ -1898,9 +1916,9 @@ the light's glyph for the menu bar.
     the only places it gives up its orange.
   - **The light is a picture, not a state.** It is always on in the icon,
     and the icon never changes; the menu bar glyph says needs you.
-  - **Where it is seen**, with no Dock icon: the banner a new ask sends, the
-    menu's and Settings' header at 30, Finder, Login Items and Spotlight. It
-    holds down to 38; by 16 the light is a pixel.
+  - **Where it is seen**, with no Dock icon: the notification a new ask
+    sends, the menu's and Settings' header at 30, Finder, Login Items and
+    Spotlight. It holds down to 38; by 16 the light is a pixel.
 - **The menu bar glyph is the light**, in its housing: a rounded outline 13
   points tall in an 18-point box, a 1.3-point line, as SF Symbols' regular.
   - **At rest** it is a template image, its thin bar unlit, so macOS draws
@@ -1944,8 +1962,10 @@ parked too.
    with one, which is Claude Code's. A walk that finds none leaves the
    device out and says so in the debug log; the window attaches all the
    same.
-2. A click finds the devices showing the session, its windows the one attached
-   longest first. Without tmux it is Claude's own, when its terminal is
+2. A click finds the devices showing the session, its windows the one that
+   needs Lee first, else the one active last (see "Two windows are two
+   sessions"; the code still puts the one delivering its inbox first, until
+   stage 3's jump step). Without tmux it is Claude's own, when its terminal is
    Ghostty. With tmux it is each client tmux lists whose current window is
    the pane's window (`list-panes` and `list-clients`, reads; nothing in
    tmux changes; grouped and linked tmux sessions need nothing more, since a
@@ -2123,8 +2143,10 @@ reaches a window only while that pane is on show).
    after a `/reload-plugins`, a jump on real sessions went from Finder to the
    Fumi window's Space and back, half a second each way, every directory
    as it was (13 October 2026).
-3. **The app**: the menu bar item, the macOS notification, the notch and its
-   panel, the jump, and installing the plugin. It is a `.app` of its own (no
+3. **The app**, and what the plugin gives it: the words and the versions,
+   the live feed, the jump's drivers, the notch and its panel, the strip,
+   the menu bar item, the macOS notification, Settings, the SitRep window,
+   and installing the plugin. It is a `.app` of its own (no
    Dock icon): a menu bar item lives only as long as the process that owns it,
    and macOS sends notifications only from an app. Its source sits in the
    repository beside the plugin. In order, rewritten on 19 October 2026 once
@@ -2139,43 +2161,73 @@ reaches a window only while that pane is on show).
       ordinary window, its design taken as it stands, and its hard part,
       answering, is plumbing a spike over sample data would not test. PR #5
       closes unmerged once the build has taken its model.
-   3. **The live feed**, in the plugin, two PRs:
-      - each window's state in its heartbeat, written at once: stage 5
-        below, brought forward, since the rows and the rings need working,
-        your turn and the stops;
-      - `sitrep watch` (under "One engine, two front ends"): the panel's view
-        as a JSON line for each change, what is new and presence expiry
-        worked out in core.
+   3. **The words and the versions**, in the plugin (see "Words" and
+      "Versions side by side"):
+      - core's upgraders, one per past version, every line keeping its `v`;
+      - the heartbeat saying its window's version, so the menu can list the
+        windows to reload;
+      - the renames: on disk, `works/` to `sessions/` and `work.json` to
+        `session.json`, read under both names and written under the new,
+        the old files moved once no window runs an old version; in the mod
+        and Claude's tools, work to session, the pane's ASKS, NOTES and
+        RESOLVED, and "finish this session"; in the CLI, `--work` to
+        `--session`.
+   4. **The live feed**, in the plugin, two PRs:
+      - **each window's state in its heartbeat**, written at once: stage 5
+        below, brought forward, since the rows and the rings need it. With
+        the state, what the row shows of it: the tool running and its path;
+        the permission prompt's tool and command; the question, and how
+        many there are; when the turn began or ended;
+      - **`sitrep watch`** (under "One engine, two front ends"), with what
+        is new and presence expiry worked out in core.
 
-      The clone is the live plugin, so each ends with a live run on Lee's
-      windows.
-   4. **The edge, for real**, in the app, two PRs:
-      - **the notch and its panel** over `sitrep watch`: Meniscus and the
-        card, the rows, a click jumping, the swell for what `watch` says is
-        new, Material, Reduce motion, nothing over full screen. It is the
-        spike's model, its recorded tests kept and the code brought to the
-        build's bar, the spike's scaffolding left behind (the Simulate items,
-        the sample rows, the Max menu). The panel closing as the pointer
-        leaves gets a test of its own: on the spike it once stayed open;
-      - **the strip** over the same feed: Grows and Full, Max, the two
-        counts, a click jumping.
-   5. **The menu bar item and Settings**, one PR: the native menu (see "The
+      The clone is the live plugin: each is proven by the CLI run live over
+      a state folder of its own, and reaches Lee's windows as it merges, at
+      their next `/reload-plugins`.
+   5. **The jump's two layers**, in the CLI (see "The jump"):
+      - a driver per terminal, Ghostty's from today's jump;
+      - one tmux layer under every driver, which also selects the pane's
+        tmux window, so a pane no client shows still has a jump;
+      - a terminal with no driver brought forward as an app;
+      - of two windows on one session, the jump goes to the one that needs
+        Lee, else the one active last.
+   6. **The edge, for real**, in the app, two PRs. Each takes the spike's
+      model with its recorded tests, the code brought to the build's bar,
+      the spike's scaffolding left behind (the Simulate items, the sample
+      rows, the Max menu).
+      - **The notch and its panel** over `sitrep watch`:
+        - Meniscus and the card, and the rows, scrolling past the panel's
+          length;
+        - a click jumping, and the swell for what `watch` says is new;
+        - the left or right edge on the chosen display, and the drag along
+          it and across;
+        - Material, Reduce motion, and nothing over full screen;
+        - the last board kept, marked stale, when `watch` stops.
+
+        The panel closing as the pointer leaves gets a test of its own: on
+        the spike it once stayed open.
+      - **The strip** over the same feed: Grows and Full, Max, the two
+        counts and their tabs' scrolling rows, a click jumping, the drag,
+        either edge.
+   7. **The menu bar item and Settings**, one PR: the native menu (see "The
       menu bar item"), the Settings window's three panes with Max as a
       slider, macOS notifications off by default with the switch to turn
       them on, and the icon.
-   6. **The SitRep window**, two PRs:
+   8. **The SitRep window**, two PRs:
       - in the CLI, answering a yes or a choice into the session's inbox,
         which its window delivers, and finishing an away session, each with
         what the window shows of it ("on its way", "sent, and Claude has
         it"). This settles open question 4;
       - the window (see "The SitRep window"). Its "Answer in Claude ↗" jumps
         without answering mode, which waits on the mod hearing the app.
-   7. **Installing the plugin**: the app's first start installs it, and its
+   9. **Installing the plugin**: the app's first start installs it, and its
       relaunch refreshes it (Installing and updating, under "Where it
       lives").
 
-   Each PR lands on main before the next starts, or stacks on it while it
-   waits; each step ends with Lee trying it live.
+   The build runs through to the end without stopping (Lee, 19 October
+   2026): a PR per phase, or a stack where a phase needs several, each
+   reviewed and merged to main as it passes, with no live try between them.
+   Lee tries the whole once it is done.
 
    A jump outside tmux, tested since stage 2, was first
    run live from the bare app (below). Two things to carry over from stage 2: an app started from the Finder has
@@ -2253,8 +2305,9 @@ reaches a window only while that pane is on show).
      Info.plist (`SitRepPlugin`), even when it builds in a worktree; the
      app runs that folder's `bin/sitrep`. Step 2 replaces it with the copy
      the app installs.
-   - **A plain menu**, until the notch and its panel are built, and then
-     slimmed as its fallback: the sessions on screen, a jump each; a test
+   - **A plain menu**, until the notch and its panel are built (replaced by
+     "The menu bar item", 17 October 2026, rather than slimmed as first
+     planned): the sessions on screen, a jump each; a test
      notification; starting at login; quitting. The sessions are
      listed by `list --json` as the app starts and again each time the menu
      opens, which shows the last listing at once and redraws only when the
@@ -2278,10 +2331,13 @@ reaches a window only while that pane is on show).
    `claude plugin update` follows `main` or the tags, for the plugin alone
    from GitHub.
 5. **Attention beyond asks**, in this build (decided with Lee on 16 October
-   2026), built as stage 3's third step, since the rows and the strip's
-   rings need it. The mod hears what its window is doing, and the heartbeat
-   carries it. These give a session's working, your turn and its stops on a
-   permission prompt or a question (see "A session's state"):
+   2026), built as stage 3's fourth step, the live feed, since the rows
+   and the strip's rings need it. The mod hears what its window is doing,
+   and the heartbeat carries it, with what the row shows of it (the tool
+   running and its path; the permission prompt's tool and command; the
+   question, and how many there are; when the turn began or ended). These
+   give a session's working, your turn and its stops on a permission prompt
+   or a question (see "A session's state"):
    - a turn starts: working;
    - `tool.check` gives its verdict "ask", so the permission prompt shows:
      needs you, the row saying what it asks (`Allow Bash: gh pr create`);
@@ -2311,7 +2367,9 @@ reaches a window only while that pane is on show).
 
 Parked: an **agents** view (subagents, observed from engine events, grouped by
 what they're for); a **tmux indicator** reading the shared folder; **Paper
-thumbnails** inline in Ghostty; a "re:" tag on Lee's transcript rows that
+thumbnails** inline in Ghostty; a **shy notch**, pulling away as the
+cursor nears before giving up and pouring open (Lee, 16 October 2026); a
+"re:" tag on Lee's transcript rows that
 came from the board. Jumping to a session's window is now "The menu bar".
 
 Dropped: a standalone toast plugin (Claude Code has one), and a line in the
