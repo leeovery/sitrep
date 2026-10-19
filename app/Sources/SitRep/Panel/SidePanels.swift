@@ -2,12 +2,14 @@ import AppKit
 import SitRepPanel
 
 /// The panel on the display in the form Lee chose to show, the notch or the strip; the other waits hidden. Both take
-/// the menu's news, so whichever he chooses shows it, and the dials and the Mac's Reduce motion as they change.
+/// the menu's news, so whichever he chooses shows it, and the dials and the Mac's Reduce motion as they change. While
+/// a full-screen app has the display, neither shows.
 @MainActor
 final class SidePanels {
     private let dials: PanelDials
     private let notch: PanelController
     private let strip: StripController
+    private let fullScreen = FullScreenWatch()
     private var reduceMotion: (any NSObjectProtocol)?
 
     init(dials: PanelDials) {
@@ -15,6 +17,7 @@ final class SidePanels {
         notch = PanelController(dials: dials)
         strip = StripController(dials: dials)
         dials.onChange = { [unowned self] in retune() }
+        fullScreen.onChange = { [unowned self] in show() }
         reduceMotion = NSWorkspace.shared.notificationCenter.addObserver(
             forName: NSWorkspace.accessibilityDisplayOptionsDidChangeNotification, object: nil, queue: .main
         ) { [weak self] _ in
@@ -57,7 +60,9 @@ final class SidePanels {
     }
 
     private func show() {
-        notch.isShown = dials.show == .notch
-        strip.isShown = dials.show == .strip
+        let shows = !fullScreen.hasDisplay
+
+        notch.isShown = shows && dials.show == .notch
+        strip.isShown = shows && dials.show == .strip
     }
 }

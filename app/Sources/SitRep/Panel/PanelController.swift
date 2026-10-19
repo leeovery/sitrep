@@ -51,8 +51,8 @@ final class PanelController: NSObject {
         step(at: Display.now)
     }
 
-    /// Whether the notch is on the display, Lee having chosen it over the strip: hidden, it draws nothing and hears
-    /// nothing, and its news waits for it.
+    /// Whether the notch is on the display, Lee having chosen it over the strip and no full-screen app having the
+    /// display: hidden, it draws nothing and hears nothing, and its news waits for it.
     var isShown = false {
         didSet {
             guard isShown != oldValue else {

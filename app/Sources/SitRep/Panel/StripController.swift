@@ -30,7 +30,7 @@ final class StripController: NSObject {
             measure: StripWordsLayer.measure, input
         )
         frame = model.frame(input)
-        window = SidePanel(frame: edge.stripWindow, view: view, overFullScreen: false)
+        window = SidePanel(frame: edge.stripWindow, view: view)
         super.init()
 
         view.material = dials.material
@@ -44,8 +44,8 @@ final class StripController: NSObject {
         listen()
     }
 
-    /// Whether the strip is on the display, Lee having chosen it over the notch: hidden, it draws nothing and hears
-    /// nothing, and its news waits for it.
+    /// Whether the strip is on the display, Lee having chosen it over the notch and no full-screen app having the
+    /// display: hidden, it draws nothing and hears nothing, and its news waits for it.
     var isShown = false {
         didSet {
             guard isShown != oldValue else {
