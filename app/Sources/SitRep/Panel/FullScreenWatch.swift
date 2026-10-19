@@ -1,19 +1,23 @@
 import AppKit
+import os
+import SitRepCore
 import SitRepPanel
 
-/// Whether a full-screen app has the panel's display, read off the Mac whenever it may have changed: a display's
-/// Space changing, another app coming to the front or quitting, the screens changing. Nothing polls, so at rest it
-/// costs nothing. It reads only what needs no permission: the system's presentation options, which the app in front
-/// puts into effect, and the apps' windows on the screen by their number, owner and bounds.
+/// Whether a full-screen app has the panel's display, read off the window list whenever it may have changed: a
+/// display's Space changing, another app coming to the front or quitting, the screens changing. Nothing polls, so at
+/// rest it costs nothing. It reads only what needs no Screen Recording: the windows' owners, layers and bounds.
 @MainActor
 final class FullScreenWatch {
     var onChange: (() -> Void)?
-    private(set) var fullScreen = FullScreen()
+    private(set) var hasDisplay = false
+    /// Whether it has looked yet: the first look is logged too, to show it is watching.
+    private var looked = false
     private var observers: [any NSObjectProtocol] = []
     private var settled: Task<Void, Never>?
+    private let logger = Logger(sitrep: "fullscreen")
 
-    /// How long after a change to look again: a window going into full screen or out of it is still moving when its
-    /// Space changes.
+    /// How long after a change to look again: going into full screen, the backdrop is still sliding onto the display
+    /// when its Space changes.
     private static let transition: Duration = .seconds(1)
 
     init() {
@@ -36,8 +40,6 @@ final class FullScreenWatch {
         look()
     }
 
-    var hasDisplay: Bool { fullScreen.hasDisplay }
-
     private func changed() {
         look()
         settled?.cancel()
@@ -52,42 +54,45 @@ final class FullScreenWatch {
     }
 
     private func look() {
-        let had = hasDisplay
-
-        fullScreen.take(front: Self.front, windows: Self.windows, on: Display.edge)
-        if hasDisplay != had {
-            onChange?()
+        guard let display = Self.display else {
+            return
         }
+
+        let list = CGWindowListCopyWindowInfo([.optionOnScreenOnly], kCGNullWindowID) as? [[String: Any]] ?? []
+        let isFullScreen = FullScreen.backdrop(on: display, in: list) != nil
+
+        guard isFullScreen != hasDisplay || !looked else {
+            return
+        }
+
+        looked = true
+        hasDisplay = isFullScreen
+        log(display, list)
+        onChange?()
     }
 
-    private static var front: FrontApp? {
-        let options = NSApplication.shared.currentSystemPresentationOptions
+    /// What it saw, each time it changes its mind: `log show --predicate 'category == "fullscreen"'`. At notice, not
+    /// info, as the Mac keeps info only in memory, where `log show` afterwards won't find it.
+    private func log(_ display: CGRect, _ list: [[String: Any]]) {
+        let shown = hasDisplay ? "hidden" : "shown", at = Self.describe(display)
+        let docks = list.compactMap(ListedWindow.init).filter { $0.owner == "Dock" }
+            .map { "layer \($0.layer) at \(Self.describe($0.bounds))" }.joined(separator: "; ")
+        let seen = docks.isEmpty ? "none" : docks
 
-        return NSWorkspace.shared.frontmostApplication.map {
-            FrontApp(id: $0.processIdentifier, isFullScreen: !options.isDisjoint(with: [.fullScreen, .hideMenuBar]))
-        }
+        logger.notice("""
+        Display \(at, privacy: .public): the panel \(shown, privacy: .public); \
+        the Dock's windows: \(seen, privacy: .public)
+        """)
     }
 
-    /// The apps' windows on the screen, front to back, in screen coordinates: the window list's run down from the
-    /// main screen's top.
-    private static var windows: [AppWindow] {
-        let list = CGWindowListCopyWindowInfo([.optionOnScreenOnly, .excludeDesktopElements], kCGNullWindowID)
-        let top = NSScreen.screens.first?.frame.maxY ?? 0
+    private static func describe(_ rect: CGRect) -> String {
+        "\(Int(rect.minX)),\(Int(rect.minY)) \(Int(rect.width))x\(Int(rect.height))"
+    }
 
-        return (list as? [[String: Any]] ?? []).compactMap { info in
-            guard info[kCGWindowLayer as String] as? Int == 0,
-                  let number = info[kCGWindowNumber as String] as? Int,
-                  let app = info[kCGWindowOwnerPID as String] as? Int32,
-                  let bounds = info[kCGWindowBounds as String] as? NSDictionary,
-                  let frame = CGRect(dictionaryRepresentation: bounds)
-            else {
-                return nil
-            }
+    /// The panel's display in the window list's coordinates.
+    private static var display: CGRect? {
+        let number = NSScreen.screens.first?.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")]
 
-            return AppWindow(
-                number: number, app: app,
-                frame: CGRect(x: frame.minX, y: top - frame.maxY, width: frame.width, height: frame.height)
-            )
-        }
+        return (number as? CGDirectDisplayID).map(CGDisplayBounds)
     }
 }

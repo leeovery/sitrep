@@ -2,120 +2,84 @@ import CoreGraphics
 @testable import SitRepPanel
 import Testing
 
-/// On Lee's screens, the Studio Display with the menu bar and its Dock, and the built-in with its notch and no Dock.
+/// Lee's screens in the window list's coordinates, the Studio Display the main one and the built-in to its right, and
+/// the windows as the list gave them while Paper went full screen on the Studio Display and out again.
 struct FullScreenTests {
-    static let studio = ScreenEdgeTests.studio
-    static let builtIn = ScreenEdge(
-        frame: ScreenEdgeTests.builtIn, visible: CGRect(x: 2560, y: -581, width: 1728, height: 1084)
-    )
+    static let studio = CGRect(x: 0, y: 0, width: 2560, height: 1440)
+    static let builtIn = CGRect(x: 2560, y: 904, width: 1728, height: 1117)
 
-    static let plex: Int32 = 301, ghostty: Int32 = 302
-
-    /// Plex full screen on the Studio Display, the menu bar's place and all, and the window maximised there: up to
-    /// the menu bar, down to the Dock.
-    static let onStudio = AppWindow(number: 1, app: plex, frame: CGRect(x: 0, y: 0, width: 2560, height: 1440))
-    static let maximised = AppWindow(number: 1, app: plex, frame: CGRect(x: 0, y: 86, width: 2560, height: 1324))
-    /// Plex full screen on the built-in, under the notch: where a window maximised there is too.
-    static let underTheNotch = AppWindow(
-        number: 2, app: plex, frame: CGRect(x: 2560, y: -581, width: 1728, height: 1084)
-    )
-    static let terminal = AppWindow(number: 3, app: ghostty, frame: CGRect(x: 2766, y: -581, width: 1522, height: 900))
-
-    static let plexFullScreen = FrontApp(id: plex, isFullScreen: true)
-    static let plexWindowed = FrontApp(id: plex, isFullScreen: false)
-    static let ghosttyInFront = FrontApp(id: ghostty, isFullScreen: false)
-
-    private func taking(_ front: FrontApp?, _ windows: [AppWindow], on edge: ScreenEdge = studio) -> FullScreen {
-        var fullScreen = FullScreen()
-        fullScreen.take(front: front, windows: windows, on: edge)
-        return fullScreen
+    static func entry(_ owner: String, _ layer: Int, _ bounds: CGRect, name: String = "") -> [String: Any] {
+        [
+            kCGWindowOwnerName as String: owner,
+            kCGWindowLayer as String: layer,
+            kCGWindowBounds as String: [
+                "X": bounds.minX, "Y": bounds.minY, "Width": bounds.width, "Height": bounds.height,
+            ],
+            kCGWindowName as String: name,
+        ]
     }
 
-    @Test func aFullScreenAppHasThePanelsDisplay() {
-        let fullScreen = taking(Self.plexFullScreen, [Self.onStudio])
-
-        #expect(fullScreen.hasDisplay)
-        #expect(fullScreen.window == Self.onStudio)
+    static func backdrop(_ display: CGRect) -> [String: Any] {
+        entry("Dock", -2_147_483_622, display, name: "Fullscreen Backdrop")
     }
 
-    @Test func aMaximisedWindowLeavesThePanelOnItsDisplay() {
-        #expect(!taking(Self.plexWindowed, [Self.maximised]).hasDisplay)
+    static func wallpaper(_ display: CGRect) -> [String: Any] {
+        entry("Dock", -2_147_483_624, display, name: "Wallpaper-D90D47CC")
     }
 
-    /// The size can't tell them apart under the notch; the app saying it is full screen does.
-    @Test func underTheNotchAMaximisedWindowIsFullScreensSizeAndStillLeavesThePanel() {
-        #expect(!taking(Self.plexWindowed, [Self.underTheNotch], on: Self.builtIn).hasDisplay)
-        #expect(taking(Self.plexFullScreen, [Self.underTheNotch], on: Self.builtIn).hasDisplay)
+    static var paper: [String: Any] { entry("Paper", 0, studio) }
+    static var menubar: [String: Any] {
+        entry("Window Server", 24, CGRect(x: 0, y: 0, width: 2560, height: 30), name: "Menubar")
     }
 
-    /// An app saying it has the screen with no window filling the display, its sheet or a window it has elsewhere.
-    @Test func aFullScreenAppsWindowThatDoesNotFillTheDisplayLeavesThePanel() {
-        let sheet = AppWindow(number: 4, app: Self.plex, frame: CGRect(x: 980, y: 520, width: 600, height: 400))
+    @Test func theDocksBackdropCoveringTheDisplaySaysAFullScreenAppHasIt() {
+        let list = [Self.paper, Self.backdrop(Self.studio), Self.wallpaper(Self.studio), Self.wallpaper(Self.builtIn)]
 
-        #expect(!taking(Self.plexFullScreen, [sheet]).hasDisplay)
+        #expect(FullScreen.backdrop(on: Self.studio, in: list)?.bounds == Self.studio)
     }
 
-    @Test func eachOfSplitViewsWindowsFillsTheDisplay() {
-        let left = AppWindow(number: 5, app: Self.plex, frame: CGRect(x: 0, y: 0, width: 1278, height: 1440))
-        let right = AppWindow(number: 6, app: Self.ghostty, frame: CGRect(x: 1282, y: 0, width: 1278, height: 1440))
+    @Test func theBuiltInsOwnBackdropLeavesThePanelOnTheStudioDisplay() {
+        let list = [Self.menubar, Self.backdrop(Self.builtIn), Self.wallpaper(Self.studio)]
 
-        #expect(taking(Self.plexFullScreen, [left, right]).hasDisplay)
-        #expect(taking(FrontApp(id: Self.ghostty, isFullScreen: true), [left, right]).hasDisplay)
+        #expect(FullScreen.backdrop(on: Self.studio, in: list) == nil)
+        #expect(FullScreen.backdrop(on: Self.builtIn, in: list) != nil)
     }
 
-    @Test func aFullScreenAppOnTheOtherDisplayLeavesThePanelWhereItIs() {
-        #expect(!taking(Self.plexFullScreen, [Self.underTheNotch]).hasDisplay)
-        #expect(!taking(Self.plexFullScreen, [Self.onStudio], on: Self.builtIn).hasDisplay)
+    @Test func theWallpaperAloneIsNoFullScreen() {
+        #expect(FullScreen.backdrop(on: Self.studio, in: [Self.menubar, Self.wallpaper(Self.studio)]) == nil)
     }
 
-    @Test func anotherAppComingToTheFrontOnTheOtherDisplayLeavesTheDisplayToTheFullScreenApp() {
-        var fullScreen = taking(Self.plexFullScreen, [Self.onStudio])
+    /// A Space swipe: for a moment the Dock has a window over the whole display, at the apps' layer.
+    @Test func aSpaceSwipesDockWindowIsNoFullScreen() {
+        let swipe = Self.entry("Dock", 0, Self.studio)
 
-        fullScreen.take(front: Self.ghosttyInFront, windows: [Self.terminal, Self.onStudio], on: Self.studio)
-        #expect(fullScreen.hasDisplay)
-
-        fullScreen.take(front: nil, windows: [Self.terminal, Self.onStudio], on: Self.studio)
-        #expect(fullScreen.hasDisplay)
+        #expect(FullScreen.backdrop(on: Self.studio, in: [swipe, Self.wallpaper(Self.studio)]) == nil)
     }
 
-    @Test func theDisplaysSpaceChangingAwayFromTheFullScreenAppBringsThePanelBack() {
-        var fullScreen = taking(Self.plexFullScreen, [Self.onStudio])
-
-        fullScreen.take(front: Self.ghosttyInFront, windows: [Self.terminal], on: Self.studio)
-
-        #expect(!fullScreen.hasDisplay)
+    @Test func withNoDockWindowsAtAllNothingIsFullScreen() {
+        #expect(FullScreen.backdrop(on: Self.studio, in: [Self.paper, Self.menubar]) == nil)
     }
 
-    @Test func theAppLeavingFullScreenBringsThePanelBackThoughItsWindowStaysTheSameSize() {
-        var fullScreen = taking(Self.plexFullScreen, [Self.underTheNotch], on: Self.builtIn)
+    /// Going in, the backdrop slides onto the display; until it covers it, the display isn't yet the app's.
+    @Test func aBackdropStillSlidingOntoTheDisplayIsNotYetFullScreen() {
+        let sliding = Self.backdrop(CGRect(x: 864, y: 0, width: 2560, height: 1440))
 
-        fullScreen.take(front: Self.plexWindowed, windows: [Self.underTheNotch], on: Self.builtIn)
-
-        #expect(!fullScreen.hasDisplay)
+        #expect(FullScreen.backdrop(on: Self.studio, in: [sliding]) == nil)
     }
 
-    @Test func theFullScreenAppQuittingBringsThePanelBack() {
-        var fullScreen = taking(Self.plexFullScreen, [Self.onStudio])
+    @Test func onlyTheDocksBackdropCounts() {
+        let other = Self.entry("CleanShot X", -2_147_483_622, Self.studio)
 
-        fullScreen.take(front: nil, windows: [], on: Self.studio)
-
-        #expect(!fullScreen.hasDisplay)
+        #expect(FullScreen.backdrop(on: Self.studio, in: [other]) == nil)
     }
 
-    @Test func theWindowMovingOnTheScreenIsNoLongerTheFullScreenOne() {
-        var fullScreen = taking(Self.plexFullScreen, [Self.onStudio])
+    @Test func anEntryMissingItsOwnerLayerOrBoundsIsPassedOver() {
+        let full = Self.backdrop(Self.studio)
+        let partial = [kCGWindowOwnerName, kCGWindowLayer, kCGWindowBounds].map { key in
+            full.filter { $0.key != key as String }
+        }
 
-        fullScreen.take(front: Self.ghosttyInFront, windows: [Self.maximised], on: Self.studio)
-
-        #expect(!fullScreen.hasDisplay)
-    }
-
-    @Test func backOnTheFullScreenAppsSpaceThePanelStepsAsideAgain() {
-        var fullScreen = taking(Self.plexFullScreen, [Self.onStudio])
-        fullScreen.take(front: Self.ghosttyInFront, windows: [Self.terminal], on: Self.studio)
-
-        fullScreen.take(front: Self.plexFullScreen, windows: [Self.onStudio], on: Self.studio)
-
-        #expect(fullScreen.hasDisplay)
+        #expect(partial.allSatisfy { ListedWindow($0) == nil })
+        #expect(ListedWindow(full) == ListedWindow(owner: "Dock", layer: -2_147_483_622, bounds: Self.studio))
     }
 }

@@ -1,62 +1,57 @@
 import CoreGraphics
 
-/// A window an app has on the screen, as the window list has it, in screen coordinates.
-public struct AppWindow: Equatable, Sendable {
-    public let number: Int
-    public let app: Int32
-    public let frame: CGRect
+/// A window as the window list has it, by what it gives without Screen Recording: the app that owns it, its layer and
+/// its bounds, in the list's coordinates, y down from the main display's top.
+public struct ListedWindow: Equatable, Sendable {
+    public let owner: String
+    public let layer: Int
+    public let bounds: CGRect
 
-    public init(number: Int, app: Int32, frame: CGRect) {
-        self.number = number
-        self.app = app
-        self.frame = frame
+    public init(owner: String, layer: Int, bounds: CGRect) {
+        self.owner = owner
+        self.layer = layer
+        self.bounds = bounds
     }
-}
 
-/// The app in front, and whether it says it has the screen: full screen, or the menu bar hidden.
-public struct FrontApp: Equatable, Sendable {
-    public let id: Int32
-    public let isFullScreen: Bool
-
-    public init(id: Int32, isFullScreen: Bool) {
-        self.id = id
-        self.isFullScreen = isFullScreen
-    }
-}
-
-/// Whether a full-screen app has the panel's display, which the panel then leaves to it: nothing goes over a
-/// full-screen window (Lee). The app in front says whether it is full screen, which a window's size can't: on a
-/// display with a notch, a full-screen window sits under it, exactly where a maximised one does. Its window filling
-/// the panel's display says the display is the one it has; and while that window stands on the screen as it was, the
-/// display is still its, whichever app comes to the front, until its own app, in front, says it is full screen no
-/// longer.
-public struct FullScreen: Equatable, Sendable {
-    /// The full-screen window that has the panel's display.
-    public private(set) var window: AppWindow?
-
-    public init() {}
-
-    public var hasDisplay: Bool { window != nil }
-
-    /// What the Mac shows now: the app in front, and the apps' windows on the screen.
-    public mutating func take(front: FrontApp?, windows: [AppWindow], on edge: ScreenEdge) {
-        if let front, front.isFullScreen,
-           let filling = windows.first(where: { $0.app == front.id && edge.isFilled(by: $0.frame) })
-        {
-            window = filling
-        } else if let held = window, !windows.contains(held) || front == FrontApp(id: held.app, isFullScreen: false) {
-            window = nil
+    /// A window from its entry in `CGWindowListCopyWindowInfo`; nil for an entry missing any of the three.
+    public init?(_ info: [String: Any]) {
+        guard let owner = info[kCGWindowOwnerName as String] as? String,
+              let layer = info[kCGWindowLayer as String] as? Int,
+              let bounds = info[kCGWindowBounds as String].flatMap(Self.rect)
+        else {
+            return nil
         }
+
+        self.init(owner: owner, layer: layer, bounds: bounds)
+    }
+
+    private static func rect(_ bounds: Any) -> CGRect? {
+        guard let bounds = bounds as? [String: Any] else {
+            return nil
+        }
+
+        return CGRect(dictionaryRepresentation: bounds as CFDictionary)
     }
 }
 
-extension ScreenEdge {
-    /// Whether a window fills the screen as a full-screen one does: within its sides, from its bottom to the menu
-    /// bar's place or higher. Split View's two windows each fill it.
-    func isFilled(by window: CGRect) -> Bool {
-        let slack = 1.0
+/// Whether a full-screen app has a display, which the panel then leaves to it: nothing goes over a full-screen window
+/// (Lee). While a display's Space is a full-screen app's, the Dock keeps a backdrop behind it covering that display,
+/// and only then, whichever app is in front.
+public enum FullScreen {
+    /// The backdrop's layer, read off macOS 26 on Lee's Mac. Should it ever stop matching, no display is found full
+    /// screen, and the panel shows over full-screen apps, as it did before.
+    static let backdropLayer = -2_147_483_622
 
-        return window.minX >= frame.minX - slack && window.maxX <= frame.maxX + slack
-            && window.minY <= frame.minY + slack && window.maxY >= visible.maxY - slack
+    /// The Dock's backdrop covering the display, in the window list's coordinates, among the windows on the screen.
+    public static func backdrop(on display: CGRect, in windows: [ListedWindow]) -> ListedWindow? {
+        let slack = 1.0
+        let covered = display.insetBy(dx: slack, dy: slack)
+
+        return windows.first { $0.owner == "Dock" && $0.layer == backdropLayer && $0.bounds.contains(covered) }
+    }
+
+    /// The same, from the window list's entries as `CGWindowListCopyWindowInfo` gives them.
+    public static func backdrop(on display: CGRect, in list: [[String: Any]]) -> ListedWindow? {
+        backdrop(on: display, in: list.compactMap(ListedWindow.init))
     }
 }
