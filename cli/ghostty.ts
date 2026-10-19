@@ -317,8 +317,8 @@ const focusOn = async (
 }
 
 /**
- * Brings forward the terminal on a device, and keeps Ghostty in front. The
- * remembered terminals are read, and Ghostty's terminals listed, at most once
+ * Brings forward the terminal on a device, and keeps Ghostty in front; a
+ * window whose device is not known has none to knock on. The remembered terminals are read, and Ghostty's terminals listed, at most once
  * a jump: the listing only once a device needs a knock, so a jump that ends
  * without one asks Ghostty nothing it need not.
  */
@@ -326,7 +326,11 @@ const start = (io: Io, front: FrontAtStart) => {
   const remembered = once<Remembered>(() => readRemembered(io))
   const listing = once(() => terminals(io))
 
-  return async (device: string) => {
+  return async (device: string | undefined) => {
+    if (device === undefined) {
+      return undefined
+    }
+
     const brought = await focusOn(io, device, (await remembered()).get(device), listing)
 
     if (brought === 'forward') {

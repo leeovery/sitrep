@@ -14,7 +14,7 @@
  * app.
  */
 import { isLive, type Presence, type Session, type Where } from '../core'
-import { appOfCommand, appOfProgram } from './apps'
+import { appOfCommand, appOfProgram, isDriver } from './apps'
 import type { App } from './driver'
 import type { Io } from './io'
 import { look } from './look'
@@ -38,8 +38,12 @@ export type Screen = {
   unanswered: readonly string[]
 }
 
-/** Where a jump can bring a window forward: the terminal app, the device of its window there, and the select that makes that window show the pane first, where tmux must make one. */
-export type Place = { app: App; device: string; select?: Select }
+/**
+ * Where a jump can bring a window forward: the terminal app, the device of
+ * its window there, which only an app with no driver may lack, and the
+ * select that makes that window show the pane first, where tmux must make one.
+ */
+export type Place = { app: App; device?: string; select?: Select }
 
 /** Every process with its parent and command, one line each. */
 export const PS = ['ps', '-A', '-o', 'pid=,ppid=,comm=']
@@ -133,13 +137,17 @@ export const readScreen = async (io: Io, windows: readonly Where[]): Promise<Scr
 /**
  * Where one window can be brought forward: in tmux, the clients in a
  * terminal app that show its pane, or could be made to; outside it, its own
- * device, in the app its `$TERM_PROGRAM` names.
+ * device, in the app its `$TERM_PROGRAM` names. A driver needs the device to
+ * find the window; an app with no driver is brought forward whole, so needs
+ * none.
  */
 const placesOf = (where: Where, { servers, apps }: Screen): Place[] => {
   if (where.tmux === undefined) {
     const app = appOfProgram(where.terminal)
 
-    return app === undefined || where.device === undefined ? [] : [{ app, device: where.device }]
+    return app === undefined || (where.device === undefined && isDriver(app))
+      ? []
+      : [{ app, device: where.device }]
   }
 
   const { socket, pane } = where.tmux
@@ -162,25 +170,45 @@ const placesOf = (where: Where, { servers, apps }: Screen): Place[] => {
   }))
 }
 
+/** What tells places apart: the device, else, for an app with no driver, the app. */
+const placeKey = (place: Place) => place.device ?? place.app
+
 /** Where any of the windows can be brought forward, each device once, the first window's first. */
 export const placesShowing = (windows: readonly Where[], screen: Screen): Place[] => {
   const places = windows.flatMap(where => placesOf(where, screen))
 
-  return places.filter((place, i) => places.findIndex(each => each.device === place.device) === i)
+  return places.filter(
+    (place, i) => places.findIndex(each => placeKey(each) === placeKey(place)) === i,
+  )
 }
 
 /** A window stopped on Lee: at a permission prompt or a question. */
 const needsLee = (presence: Presence) =>
   presence.state?.is === 'permission' || presence.state?.is === 'question'
 
-/** When a window was last active: its state's start; else, saying none, as one before any turn does, its attach. */
-const activeAt = (presence: Presence) => presence.state?.since ?? presence.attachedAt
+/**
+ * How a window ranks for a jump: stopped on Lee first; then working, as it is
+ * active now, however long ago its turn began; then the rest, on its turn,
+ * or saying no state.
+ */
+const rankOf = (presence: Presence) => {
+  if (needsLee(presence)) {
+    return 0
+  }
 
-/** The window that needs Lee first, else the one active last, then the one attached last. */
+  return presence.state?.is === 'working' ? 1 : 2
+}
+
+/** When a window's state began; else, saying none, as one before any turn does, its attach. */
+const sinceOf = (presence: Presence) => presence.state?.since ?? presence.attachedAt
+
+/**
+ * The window that needs Lee first, then one working, then the rest; within
+ * each, the latest to begin its state (the later stop, the turn Lee started
+ * last, the later end of a turn), then the one attached last.
+ */
 const byJump = (a: Presence, b: Presence) =>
-  Number(needsLee(b)) - Number(needsLee(a)) ||
-  activeAt(b) - activeAt(a) ||
-  b.attachedAt - a.attachedAt
+  rankOf(a) - rankOf(b) || sinceOf(b) - sinceOf(a) || b.attachedAt - a.attachedAt
 
 /** The windows a session is in as it stands at `now`: where each live presence is, in the order a jump tries them. */
 export const windowsOf = (session: Session, now: number): Where[] =>

@@ -227,6 +227,10 @@ test('a terminal app with no driver is told by its `$TERM_PROGRAM` in the table,
   }
 
   expect(appOfCommand('/Foo.app/Contents/MacOS/foo')?.name).toBe('Foo')
+  expect(
+    appOfCommand('/Users/lee/Library/Application Support/iTerm2/iTermServer-3.5.4')?.name,
+    "iTerm2's server, outside its bundle",
+  ).toBe('iTerm2')
 
   for (const command of ['-zsh', '/usr/bin/login', '/opt/homebrew/bin/mosh-server', 'tmux']) {
     expect(appOfCommand(command), command).toBeUndefined()
@@ -326,7 +330,7 @@ test('a window in tmux shows nowhere when its pane, or its server, is gone', () 
   ).toEqual([])
 })
 
-test('a window outside tmux shows on its own device, in Ghostty or an app its `$TERM_PROGRAM` names; nowhere in another terminal or without a device', () => {
+test('a window outside tmux shows on its own device, in Ghostty or an app its `$TERM_PROGRAM` names, which needs no device; nowhere in another terminal, nor in Ghostty without a device', () => {
   expect(seen(placesShowing([IN_GHOSTTY], SCREEN))).toEqual([
     ['/dev/ttys041', 'Ghostty', undefined],
   ])
@@ -335,6 +339,16 @@ test('a window outside tmux shows on its own device, in Ghostty or an app its `$
   ])
   expect(placesShowing([{ ...IN_GHOSTTY, terminal: 'Unknown' }], SCREEN)).toEqual([])
   expect(placesShowing([{ terminal: 'ghostty' }], SCREEN)).toEqual([])
+  expect(seen(placesShowing([{ terminal: 'iTerm.app' }], SCREEN))).toEqual([
+    [undefined, 'iTerm2', undefined],
+  ])
+  expect(
+    seen(placesShowing([{ terminal: 'iTerm.app' }, { terminal: 'Apple_Terminal' }], SCREEN)),
+    'two apps without a device are two places',
+  ).toEqual([
+    [undefined, 'iTerm2', undefined],
+    [undefined, 'Terminal', undefined],
+  ])
 })
 
 test("several windows show on each one's devices, the first window's first", () => {
@@ -408,7 +422,7 @@ test("a session's windows are its live presences' whereabouts; a window gone, st
   expect(windowsOf(session, now)).toEqual([IN_GHOSTTY, IN_TMUX])
 })
 
-test("a session's windows go the one stopped on Lee first, at a permission prompt or a question, then by the latest state's start, then the latest attach", () => {
+test("a session's windows go the one stopped on Lee first, at a permission prompt or a question, then those working, then the rest; within each, the latest state's start, then the latest attach", () => {
   const at = (is: WindowState['is'], since: number): WindowState => ({ is, since })
 
   expect(
@@ -424,14 +438,23 @@ test("a session's windows go the one stopped on Lee first, at a permission promp
     ),
   ).toEqual(['b', 'a'])
   expect(
-    windowsAt(['a', T0, at('working', T0 + 20_000)], ['b', T0, at('yourTurn', T0 + 40_000)]),
+    windowsAt(['a', T0, at('yourTurn', T0 + 50_000)], ['b', T0, at('working', T0 + 10_000)]),
+    'working, however long ago its turn began',
+  ).toEqual(['b', 'a'])
+  expect(
+    windowsAt(['a', T0, at('working', T0 + 20_000)], ['b', T0, at('working', T0 + 40_000)]),
+    'of two working, the turn begun last',
+  ).toEqual(['b', 'a'])
+  expect(
+    windowsAt(['a', T0, at('yourTurn', T0 + 20_000)], ['b', T0, at('yourTurn', T0 + 40_000)]),
   ).toEqual(['b', 'a'])
   expect(
     windowsAt(
-      ['a', T0 + 10_000, at('working', T0 + 40_000)],
-      ['b', T0, at('working', T0 + 40_000)],
+      ['a', T0, at('yourTurn', T0 + 40_000)],
+      ['b', T0 + 10_000, at('yourTurn', T0 + 40_000)],
     ),
-  ).toEqual(['a', 'b'])
+    'the same start, so the later attach',
+  ).toEqual(['b', 'a'])
   expect(
     windowsAt(
       ['a', T0, at('question', T0 + 20_000)],
@@ -441,9 +464,13 @@ test("a session's windows go the one stopped on Lee first, at a permission promp
     'of two stopped on Lee, the later stop',
   ).toEqual(['b', 'a', 'c'])
   expect(
-    windowsAt(['a', T0 + 30_000], ['b', T0, at('working', T0 + 20_000)]),
-    "a window saying no state goes by its attach, as a state's start before any turn is",
-  ).toEqual(['a', 'b'])
+    windowsAt(['a', T0, at('yourTurn', T0 + 20_000)], ['b', T0 + 30_000]),
+    "a window saying no state goes by its attach, as a state's start before any turn is, among those on their turn",
+  ).toEqual(['b', 'a'])
+  expect(
+    windowsAt(['a', T0 + 30_000], ['b', T0, at('working', T0 + 5_000)]),
+    'and below one working',
+  ).toEqual(['b', 'a'])
 })
 
 test('a report names its path at localhost, every character but / percent-encoded', () => {

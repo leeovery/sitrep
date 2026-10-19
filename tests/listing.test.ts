@@ -224,7 +224,7 @@ const onScreenOf = (out: string) => {
   )
 }
 
-test('list --json says whether a Ghostty window of this Mac shows each session, asking tmux twice a socket and ps once however many sessions, and knocking on nothing', async () => {
+test('list --json says whether a jump can reach each session, a Ghostty window of this Mac showing it, asking tmux twice a socket and ps once however many sessions, and knocking on nothing', async () => {
   const t = onScreens()
   const { exit, out } = await t.run('list', '--json')
 

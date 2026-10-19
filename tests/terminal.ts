@@ -192,6 +192,8 @@ type Options = {
    * otherwise. An empty one is a look lsappinfo gives no ASN for.
    */
   front?: readonly string[]
+  /** The bundle ids of the apps running, as lsappinfo finds them: none unless a test says otherwise. */
+  running?: readonly string[]
 }
 
 /** What lsappinfo says of an ASN it knows no app by. */
@@ -366,6 +368,12 @@ function screen(options: Options) {
   const lsappinfo = (words: readonly string[]): Ran => {
     if (isWords(words, FRONT.slice(1))) {
       return front()
+    }
+
+    const found = /^bundleid=(.+)$/.exec(words[0] === 'find' ? (words[1] ?? '') : '')?.[1]
+
+    if (found !== undefined) {
+      return printed([options.running?.includes(found) === true ? asnAt(99) : ''])
     }
 
     if (!isWords(words.slice(0, -1), ['info', '-only', 'bundleid'])) {

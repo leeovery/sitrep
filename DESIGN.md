@@ -2236,29 +2236,29 @@ shape allows them. A jump made in Swift, in the app, stays parked too.
    with one, which is Claude Code's. A walk that finds none leaves the
    device out and says so in the debug log; the window attaches all the
    same.
-2. A click finds the places that can show the session, each a terminal app
-   of this Mac and the device of its window, the session's windows in turn:
-   the one that needs Lee first, else the one active last (below). Without
-   tmux it is Claude's own device, when its `$TERM_PROGRAM` names an app
-   sitrep knows. With tmux it is each client tmux lists whose current window
-   is the pane's window and which descends from a terminal app of this Mac,
-   each device once; where no such client shows it, each such client
-   attached to a tmux session holding the pane's window, which a select
+2. A click finds the places that can show the session, each a terminal app of
+   this Mac and the device of its window, the session's windows in turn: the
+   one that needs Lee first, else the one active last (below). Without tmux it
+   is Claude's own device, when its `$TERM_PROGRAM` names an app sitrep knows;
+   an app with no driver is brought forward whole, so a window in one counts
+   without knowing its device. With tmux it is each client tmux lists whose
+   current window is the pane's window and which descends from a terminal app
+   of this Mac, each device once; where no such client shows it, each such
+   client attached to a tmux session holding the pane's window, which a select
    will make show it (below). `list-panes -a` gives each pane's window and
    tmux session, a pane once for each session its window is in, and
-   `list-clients` each client's current window and session, all by tmux's
-   ids; a window keeps its id in every session. One `ps` snapshot settles
-   each client's app, the nearest app among its ancestors: a Ghostty
-   window's client runs `tmux < zsh < login < ghostty`, a phone's or iPad's
-   `tmux < zsh < mosh-server`, one over ssh from another Mac `sshd` (all
-   checked live, 13 October; the terminal's name, `xterm-ghostty`, would
-   count the ssh one too), and neither of the last two descends from an app.
-   tmux and `ps` each get 2 seconds; one that cannot start, fails or does
-   not answer shows nothing, so `list --json` never fails or hangs over
-   them. Lee's tmux sessions are one window each, so for Lee every attached
-   Ghostty window shows its pane already. A jump that could not tell, tmux
-   or `ps` giving no answer in time, says so rather than calling the session
-   off screen.
+   `list-clients` each client's current window and session, all by tmux's ids;
+   a window keeps its id in every session. One `ps` snapshot settles each
+   client's app, the nearest app among its ancestors: a Ghostty window's
+   client runs `tmux < zsh < login < ghostty`, a phone's or iPad's `tmux < zsh
+   < mosh-server`, one over ssh from another Mac `sshd` (all checked live, 13
+   October; the terminal's name, `xterm-ghostty`, would count the ssh one
+   too), and neither of the last two descends from an app. tmux and `ps` each
+   get 2 seconds; one that cannot start, fails or does not answer shows
+   nothing, so `list --json` never fails or hangs over them. Lee's tmux
+   sessions are one window each, so for Lee every attached Ghostty window
+   shows its pane already. A jump that could not tell, tmux or `ps` giving no
+   answer in time, says so rather than calling the session off screen.
 
    `list --json`'s `onScreen` says whether a jump can reach the session: a
    place shows it, or a select would make one show it. Its name and `v` stay
@@ -2286,50 +2286,84 @@ shape allows them. A jump made in Swift, in the app, stays parked too.
    for it is stage 6.
 
    The select runs only in a jump, after tmux, `ps` and the front are read
-   and before the app is asked anything, within the 2 seconds tmux's reads
-   have. One that fails or does not answer refuses the jump in plain words,
-   before anything is knocked on or focused: `Dashboard redesign is in a
-   tmux window no terminal shows, and tmux would not select it: can't find
-   window: @45`, or `… and tmux gave no answer when asked to select it.` A
-   window selected for a device whose terminal then does not answer stays
-   selected, and the next place is tried.
+   and before the place's app is asked anything, within the 2 seconds
+   tmux's reads have, and once a jump however many places need it, so one
+   that hangs costs its 2 seconds once. Nothing selected is put back: a
+   select made for a device whose terminal then does not answer, or in a
+   jump that is refused in the end, leaves that tmux session on the pane's
+   window, which is where Lee was going.
+
+   **A place that fails gives way to the next** (19 October 2026, from
+   review): a select tmux does not make, a window that does not answer, an
+   app with no window open, or one that cannot be asked (Ghostty not
+   answering in time, or macOS refusing sitrep control of it), and the next
+   place is tried, another client, the next window, another app. An app
+   with no window open, or that cannot be asked, is passed over at its
+   places after, so a Ghostty not answering costs its 5 seconds once. Only
+   once no place is left is the jump refused, in the words of what stopped
+   the first place, the one most wanted: `Dashboard redesign is in a tmux
+   window no terminal shows, and tmux would not select it: can't find
+   window: @45`, or `… and tmux gave no answer when asked to select it.`;
+   Ghostty's own words for a Ghostty that cannot be asked; off screen for
+   an app with no window open; and, for a window that did not answer, every
+   device whose window did not. So a session in one Ghostty window is
+   refused exactly as before.
 
    **A terminal with no driver** (19 October 2026) is brought forward as an
    app, by `open` within 2 seconds, and nothing more: no knock, no watch of
-   the front, no select beyond the tmux layer's. Outside tmux it is told by
-   its `$TERM_PROGRAM`, from a table, and opened by its bundle id (`open -b`):
+   the front, no select beyond the tmux layer's. It is never launched:
+   `open` launches an app that is not running, so it runs only for one
+   running. Outside tmux the app is told by its `$TERM_PROGRAM`, from a
+   table, which a program started from another terminal's shell inherits
+   (an IDE started from Terminal), so it is opened by its bundle id (`open
+   -b`) only once `lsappinfo find bundleid=<id>` names it running, within
+   the same 2 seconds; it prints the app's ASN, or an empty line for none
+   (live, 19 October 2026). Not running, its place does not answer.
 
    | `$TERM_PROGRAM` | App | Bundle id |
    |---|---|---|
    | `Apple_Terminal` | Terminal | `com.apple.Terminal` |
    | `iTerm.app` | iTerm2 | `com.googlecode.iterm2` |
    | `WezTerm` | WezTerm | `com.github.wez.wezterm` |
-   | `WarpTerminal` | Warp | `dev.warp.Warp-Stable` |
+   | `WarpTerminal` | Warp | `dev.warp.Warp-Stable`, else `dev.warp.Warp-Preview`, whichever runs |
 
    Only Terminal's is checked on this Mac, which has no other. kitty and
    Alacritty set no `$TERM_PROGRAM` of their own, so outside tmux they are
-   not told; VS Code's, `vscode`, is Cursor's too, and would bring forward,
-   or launch, the wrong app. Under tmux, which sets its own, the app is the
-   bundle the client's nearest app ancestor runs inside, the outermost
+   not told; VS Code's, `vscode`, is Cursor's too, and would bring forward
+   the wrong app. A window in one needs no device: the app comes forward
+   whole. Under tmux, which sets its own, the app is the bundle the
+   client's nearest app ancestor runs inside, the outermost
    (`/Applications/Visual Studio Code.app` for its helper's shells), opened
-   by its path (`open -a`); a driver's program among the ancestors, the
-   nearer, is that driver's. `open` launches an app that is not running, and
-   sends one that is the reopen event, which makes an app with no window
-   open one; neither happens here, as a live window of the session is in
-   the app. An app that does not come forward is passed over for the next
-   place, as a Ghostty device that does not answer is, and the refusal names
-   the apps tried (`… but no Terminal or Ghostty window there answered.`).
+   by its path (`open -a`) with no question to lsappinfo, as its program
+   is running, among the client's ancestors in `ps`; a driver's program
+   among the ancestors, the nearer, is that driver's. One helper outside
+   its bundle is known: iTerm2's shells, since 3.4, run under
+   `~/Library/Application Support/iTerm2/iTermServer-<version>`, which is
+   iTerm2's, and, as it outlives iTerm2 quitting, is opened by iTerm2's
+   bundle id once found running (unchecked on this Mac, which has no
+   iTerm2). `open` sends a running app the reopen event, which makes one
+   with no window open one; that does not happen here, as a live window of
+   the session is in the app. An app that does not come forward is passed
+   over for the next place, as a Ghostty device that does not answer is,
+   and the refusal names the apps tried (`… but no Terminal or Ghostty
+   window there answered.`, or, with no device, `… shows in iTerm2, which
+   did not come forward.`).
 
    **Of two windows on one session** the jump goes to the one that needs
    Lee, its heartbeat's state a permission prompt or a question, else the
-   one active last: the latest `state.since`, then the latest `attachedAt`
-   (19 October 2026; see "Two windows are two sessions"). A window saying no
-   state, as one on a release from before heartbeats said it, goes by its
-   attach, which is what a state's start is before any turn. Each window's
-   places are tried before the next window's, so one that needs Lee where
-   no terminal shows it gives way to the other. The jump no longer goes by
-   the window that delivers the session's inbox, which keeps its own rule,
-   the one attached longest.
+   one active last (19 October 2026; see "Two windows are two sessions"). A
+   working window is active now, however long ago its turn began, since
+   `state.since` is its turn's start: one working since 9:00 is more active
+   than one whose turn ended at 10:00. So the order is: needs Lee; then
+   working; then the rest, on their turn or saying no state; within each,
+   the latest `state.since` (the later stop, the turn Lee started last, the
+   later end of a turn), then the latest `attachedAt`. A window saying no
+   state, as one on a release from before heartbeats said it, goes with
+   those on their turn, by its attach, which is what a state's start is
+   before any turn. Each window's places are tried before the next window's,
+   so one that needs Lee where no terminal shows it gives way to the other.
+   The jump no longer goes by the window that delivers the session's inbox,
+   which keeps its own rule, the one attached longest.
 3. Ghostty's driver finds the Ghostty window on a device by a knock. Ghostty's
    AppleScript gives each terminal a UUID, a title and a working directory,
    but no device or pid, and Lee's `title = " "` blanks every title. So
@@ -2545,13 +2579,15 @@ reaches a window only while that pane is on show).
       - of two windows on one session, the jump goes to the one that needs
         Lee, else the one active last.
 
-      Built 19 October 2026, in the test world, never with a real jump:
-      Ghostty's driver is the jump as it was, moved whole, its tests
-      unchanged but for those the new rules change (a tmux session showing
-      another of its windows is now selected, not off screen; a window in
-      iTerm2 is brought forward, not off screen; the deliverer is no longer
-      tried first). The select's form was checked on a private tmux server;
-      the rest waits on Lee's live try.
+      Built 19 October 2026, in the test world, never with a real jump, and
+      revised after two reviews the same day (a failing place gives way to the
+      next, an app is never launched, a working window counts as active now,
+      iTerm2's server is iTerm2's): Ghostty's driver is the jump as it was,
+      moved whole, its tests unchanged but for those the new rules change (a
+      tmux session showing another of its windows is now selected, not off
+      screen; a window in iTerm2 is brought forward, not off screen; the
+      deliverer is no longer tried first). The select's form was checked on a
+      private tmux server; the rest waits on Lee's live try.
    6. **The edge, for real**, in the app, two PRs. Each takes the spike's
       model with its recorded tests, the code brought to the build's bar,
       the spike's scaffolding left behind (the Simulate items, the sample
@@ -2605,7 +2641,7 @@ reaches a window only while that pane is on show).
      the pane's window, and that Ghostty window comes forward showing it;
    - a jump to a session two windows hold, one stopped on a permission
      prompt: the jump goes to that one; and with neither stopped, to the one
-     active last.
+     working, else the one whose turn ended last.
 
    A jump outside tmux, tested since stage 2, was first
    run live from the bare app (below). Two things to carry over from stage 2: an app started from the Finder has

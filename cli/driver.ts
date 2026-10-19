@@ -13,12 +13,12 @@ import type { Io } from './io'
  * What bringing forward the window on a device came to: brought forward;
  * `none open`, the app having no window at all, so no device of its will
  * answer; or undefined, nothing on the device answering, for the next to be
- * tried.
+ * tried. An app that cannot ask throws, in plain words.
  */
 export type Brought = 'forward' | 'none open' | undefined
 
-/** Brings forward the window on a device, for one jump. */
-export type Bring = (device: string) => Promise<Brought>
+/** Brings forward the window on a device, for one jump; a driver finds none on a device not known, and an app with no driver needs none. */
+export type Bring = (device: string | undefined) => Promise<Brought>
 
 /** The front as a jump began: a look at it, and which app was in front then, by its bundle id; undefined when lsappinfo could not tell. */
 export type FrontAtStart = { look: Front; before: string | undefined }

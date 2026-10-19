@@ -19,14 +19,17 @@ public struct SitRepCLI: Sendable {
     /// `list --json` answers in about 0.15s, and never hangs over tmux or `ps`.
     static let listLimit: TimeInterval = 10
     /// Only a backstop for a CLI that hangs, well above any realistic jump
-    /// (cli/jump.ts, cli/ghostty.ts, cli/front.ts): one takes under a second
-    /// as Ghostty answers, and one Ghostty does not answer at all, as with
-    /// the screen locked, is refused at its first question, after 5s. No
-    /// true ceiling: the 5s hold for each question to Ghostty, an Apple
-    /// Event, and a program sends several (a listing three a try, a focus
-    /// two, a find some 40), so a Ghostty answering every question only just
-    /// inside its 5s could keep a jump going past this, and the app would
-    /// then report that the jump did not answer.
+    /// (cli/jump.ts, cli/ghostty.ts, cli/front.ts, cli/tmux.ts, cli/apps.ts):
+    /// one takes under a second as Ghostty answers, and one Ghostty does not
+    /// answer at all, as with the screen locked, is refused at its first
+    /// question, after 5s. No true ceiling: the 5s hold for each question to
+    /// Ghostty, an Apple Event, and a program sends several (a listing three
+    /// a try, a focus two, a find some 40), so a Ghostty answering every
+    /// question only just inside its 5s could keep a jump going past this,
+    /// and the app would then report that the jump did not answer. Each place
+    /// a jump tries adds at most 2s for tmux's select (made once a jump), 2s
+    /// for each lsappinfo look that an app is running, and 2s for its `open`:
+    /// a few places at most, far under this.
     static let jumpLimit: TimeInterval = 180
 
     private static let logger = Logger(sitrep: "cli")

@@ -263,7 +263,9 @@ const unjumped = (name: string, jumped: Exclude<Jumped, { is: 'focused' }>) => {
     case 'unknown':
       return `Could not tell whether ${name} is on screen: ${inWords(jumped.unanswered)} gave no answer.`
     case 'unanswered':
-      return `${name} shows on ${inWords(jumped.devices)}, but no ${inWords(jumped.apps, 'or')} window there answered.`
+      return jumped.devices.length === 0
+        ? `${name} shows in ${inWords(jumped.apps)}, which did not come forward.`
+        : `${name} shows on ${inWords(jumped.devices)}, but no ${inWords(jumped.apps, 'or')} window there answered.`
     case 'unselected':
       return `${name} is in a tmux window no terminal shows, and ${whyUnselected(jumped.said)}`
   }

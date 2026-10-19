@@ -1,4 +1,5 @@
 import { expect, test } from 'claude-code/testing'
+import { findWords } from '../cli/apps'
 import {
   BRING_FORWARD,
   bundleWords,
@@ -1069,33 +1070,70 @@ test("a Ghostty window on the pane's window shows it, so no other is made to by 
 
 const openRuns = (t: ReturnType<typeof terminal>) => runsOf(t, 'open')
 
-test('a window outside tmux in a terminal app with no driver is brought forward as an app, by its bundle id within the time limit, and nothing more', async () => {
-  const cases: [string, string][] = [
-    ['iTerm.app', 'com.googlecode.iterm2'],
-    ['Apple_Terminal', 'com.apple.Terminal'],
-    ['WezTerm', 'com.github.wez.wezterm'],
-    ['WarpTerminal', 'dev.warp.Warp-Stable'],
+/** lsappinfo's runs finding whether an app is running. */
+const finds = (t: ReturnType<typeof terminal>) =>
+  runsOf(t, 'lsappinfo').filter(words => words[1] === 'find')
+
+test('a window outside tmux in a terminal app with no driver is brought forward as an app, by its bundle id within the time limit once lsappinfo finds it running, and nothing more', async () => {
+  const cases: [string, string, string[]][] = [
+    ['iTerm.app', 'com.googlecode.iterm2', ['com.googlecode.iterm2']],
+    ['Apple_Terminal', 'com.apple.Terminal', ['com.apple.Terminal']],
+    ['WezTerm', 'com.github.wez.wezterm', ['com.github.wez.wezterm']],
+    ['WarpTerminal', 'dev.warp.Warp-Stable', ['dev.warp.Warp-Stable']],
+    ['WarpTerminal', 'dev.warp.Warp-Preview', ['dev.warp.Warp-Stable', 'dev.warp.Warp-Preview']],
   ]
 
-  for (const [program, bundle] of cases) {
+  for (const [program, bundle, found] of cases) {
+    const why = `${program} as ${bundle}`
     const t = oneWindow(
       { ...IN_GHOSTTY, terminal: program },
-      { ghostty: TERMINALS, front: ['com.apple.finder'] },
+      { ghostty: TERMINALS, front: ['com.apple.finder'], running: [bundle] },
     )
 
-    expect(await t.run('jump', ...SESSION), program).toEqual(FOCUSED_RUN)
-    expect(openRuns(t), program).toEqual([['open', '-b', bundle]])
+    expect(await t.run('jump', ...SESSION), why).toEqual(FOCUSED_RUN)
+    expect(finds(t), why).toEqual(found.map(findWords))
+    expect(openRuns(t), why).toEqual([['open', '-b', bundle]])
     expect(
-      t.screen.limits.filter(each => each.name === 'open'),
-      program,
-    ).toEqual([{ name: 'open', limitMs: LOOK_MS }])
+      t.screen.limits.filter(each => each.name === 'open' || each.name === 'lsappinfo'),
+      why,
+    ).toEqual(
+      ['lsappinfo', 'lsappinfo', ...found.map(() => 'lsappinfo'), 'open'].map(name => ({
+        name,
+        limitMs: LOOK_MS,
+      })),
+    )
     expect(
       t.screen.ran.filter(([name]) => name !== 'lsappinfo' && name !== 'open'),
-      `${program}: no tmux, ps or Ghostty`,
+      `${why}: no tmux, ps or Ghostty`,
     ).toEqual([])
-    expect(t.screen.written, program).toEqual([])
-    expect(t.waits, `${program}: no watch of the front`).toEqual([])
+    expect(t.screen.written, why).toEqual([])
+    expect(t.waits, `${why}: no watch of the front`).toEqual([])
   }
+})
+
+test('an app with no driver that is not running is never opened, which might launch it: its place does not answer', async () => {
+  const t = oneWindow({ ...IN_GHOSTTY, terminal: 'iTerm.app' }, { ghostty: TERMINALS })
+
+  expect(await t.run('jump', ...SESSION)).toEqual({
+    exit: EXIT.refused,
+    out: '',
+    err: `sitrep: ${META.name} shows on ${IN_GHOSTTY.device}, but no iTerm2 window there answered.\n`,
+  })
+  expect(finds(t)).toEqual([findWords('com.googlecode.iterm2')])
+  expect(openRuns(t)).toEqual([])
+})
+
+test('a window outside tmux in an app with no driver needs no device: the app is brought forward whole', async () => {
+  const running = oneWindow({ terminal: 'iTerm.app' }, { running: ['com.googlecode.iterm2'] })
+  const stopped = oneWindow({ terminal: 'iTerm.app' })
+
+  expect(await running.run('jump', ...SESSION)).toEqual(FOCUSED_RUN)
+  expect(openRuns(running)).toEqual([['open', '-b', 'com.googlecode.iterm2']])
+  expect(await stopped.run('jump', ...SESSION)).toEqual({
+    exit: EXIT.refused,
+    out: '',
+    err: `sitrep: ${META.name} shows in iTerm2, which did not come forward.\n`,
+  })
 })
 
 test('a tmux client in a terminal app with no driver is brought forward as the app it descends from, by its path; and after a select, where it shows another window', async () => {
@@ -1191,30 +1229,48 @@ test('of two windows on one session, the jump goes to the one stopped on Lee, at
   }
 })
 
-test('of two windows on one session, else, the jump goes to the one active last: by its state’s start, then by its attach', async () => {
+test('of two windows on one session, else, the jump goes to one working, then by the latest state’s start, then by the latest attach', async () => {
   const cases: [string, Attached, Attached, string][] = [
     [
-      'the later start, though attached first',
+      'working, though its turn began before the other’s ended',
+      { at: T0 + 30_000, state: stateOf('yourTurn', T0 + 50_000) },
+      { at: T0, state: stateOf('working', T0 + 10_000) },
+      SECONDS,
+    ],
+    [
+      'both working, the turn begun last',
+      { at: T0 + 30_000, state: stateOf('working', T0 + 20_000) },
+      { at: T0, state: stateOf('working', T0 + 40_000) },
+      SECONDS,
+    ],
+    [
+      'both on their turn, the later end',
       { at: T0 + 30_000, state: stateOf('yourTurn', T0 + 40_000) },
-      { at: T0, state: stateOf('working', T0 + 50_000) },
+      { at: T0, state: stateOf('yourTurn', T0 + 50_000) },
       SECONDS,
     ],
     [
       'the same start, so the later attach',
+      { at: T0, state: stateOf('yourTurn', T0 + 40_000) },
       { at: T0 + 30_000, state: stateOf('yourTurn', T0 + 40_000) },
-      { at: T0, state: stateOf('working', T0 + 40_000) },
-      FIRSTS,
+      SECONDS,
     ],
     [
       'both stopped on Lee, so the later stop',
-      { at: T0, state: stateOf('question', T0 + 50_000) },
-      { at: T0 + 30_000, state: stateOf('permission', T0 + 40_000) },
-      FIRSTS,
+      { at: T0 + 30_000, state: stateOf('question', T0 + 30_000) },
+      { at: T0, state: stateOf('permission', T0 + 40_000) },
+      SECONDS,
     ],
     [
-      'one saying no state, as from a version before heartbeats said it: its attach stands for its start',
+      'one saying no state, as from a version before heartbeats said it: its attach stands for its start, among those on their turn',
+      { at: T0, state: stateOf('yourTurn', T0 + 20_000) },
       { at: T0 + 30_000 },
-      { at: T0, state: stateOf('working', T0 + 20_000) },
+      SECONDS,
+    ],
+    [
+      'one saying no state, below one working',
+      { at: T0, state: stateOf('working', T0 + 5_000) },
+      { at: T0 + 30_000 },
       FIRSTS,
     ],
   ]
@@ -1243,4 +1299,148 @@ test('the window that needs Lee, where no terminal shows it, gives way to the ot
 
   expect(await t.run('jump', ...SESSION)).toEqual(FOCUSED_RUN)
   expect(t.screen.focused).toEqual([FIRSTS])
+})
+
+test("a tmux client under iTerm2's server, outside its bundle, is iTerm2's, brought forward by its bundle id once found running", async () => {
+  const t = oneWindow(IN_TMUX, {
+    tmux: serverShowing(
+      appClient(WINDOW, CLAUDES, '/Users/lee/Library/Application Support/iTerm2/iTermServer-3.5.4'),
+    ),
+    ghostty: TERMINALS,
+    running: ['com.googlecode.iterm2'],
+  })
+
+  expect(await t.run('jump', ...SESSION)).toEqual(FOCUSED_RUN)
+  expect(finds(t)).toEqual([findWords('com.googlecode.iterm2')])
+  expect(openRuns(t)).toEqual([['open', '-b', 'com.googlecode.iterm2']])
+})
+
+test('a tmux client in an app found by its path in ps is running, so lsappinfo is not asked', async () => {
+  const t = oneWindow(IN_TMUX, {
+    tmux: serverShowing(appClient(WINDOW, CLAUDES, TERMINAL_APP)),
+    ghostty: TERMINALS,
+  })
+
+  expect(await t.run('jump', ...SESSION)).toEqual(FOCUSED_RUN)
+  expect(finds(t)).toEqual([])
+})
+
+/** The session's two windows: the first stopped on Lee in tmux, on a window no Ghostty window shows; the second in its own window outside tmux, on the device given. */
+const stoppedBeside = (device: string | undefined, options: Parameters<typeof terminal>[0]) => {
+  const t = terminal({
+    tmux: {
+      [SOCKET]: {
+        panes: [
+          [PANE, CLAUDES, CLAUDES_SESSION],
+          ['%149', BESIDE, CLAUDES_SESSION],
+        ],
+        clients: [{ ...ghosttyClient(WINDOW, BESIDE), session: CLAUDES_SESSION }],
+      },
+    },
+    ghostty: TERMINALS,
+    ...options,
+  })
+  const paths = t.seed(META)
+
+  t.window(paths, META.by, T0, IN_TMUX, undefined, stateOf('permission', T0 + 10_000))
+  t.window(paths, W2, T0, { ...IN_GHOSTTY, device }, undefined, stateOf('yourTurn', T0))
+
+  return t
+}
+
+test('a select tmux does not make gives way to the next place, the next window’s, which is brought forward', async () => {
+  const t = stoppedBeside(IN_GHOSTTY.device, { select: { said: "can't find window: @45" } })
+
+  expect(await t.run('jump', ...SESSION)).toEqual(FOCUSED_RUN)
+  expect(selectsOf(t)).toEqual([selecting(CLAUDES_SESSION)])
+  expect(t.screen.focused).toEqual(['KIT-TERMINAL'])
+})
+
+test('with no place left, the jump is refused in the words of what stopped the most wanted: its select, though a later window did not answer', async () => {
+  const t = stoppedBeside('/dev/ttys099', { select: 'slow' })
+
+  expect(await t.run('jump', ...SESSION)).toEqual({
+    exit: EXIT.refused,
+    out: '',
+    err: `sitrep: ${META.name} is in a tmux window no terminal shows, and tmux gave no answer when asked to select it.\n`,
+  })
+  expect(
+    runsOf(t, 'osascript').map(words => words[2]),
+    'the later window was tried',
+  ).toEqual([LIST, FIND_AND_FOCUS, LIST])
+})
+
+test('a select two places need is asked of tmux once: one that hangs costs its time once', async () => {
+  const t = oneWindow(IN_TMUX, {
+    tmux: {
+      [SOCKET]: {
+        panes: [
+          [PANE, CLAUDES, CLAUDES_SESSION],
+          ['%149', BESIDE, CLAUDES_SESSION],
+        ],
+        clients: [
+          { ...ghosttyClient(WINDOW, BESIDE), session: CLAUDES_SESSION },
+          { ...appClient('/dev/ttys030', BESIDE, TERMINAL_APP), session: CLAUDES_SESSION },
+        ],
+      },
+    },
+    ghostty: TERMINALS,
+    select: 'slow',
+  })
+
+  expect((await t.run('jump', ...SESSION)).exit).toBe(EXIT.refused)
+  expect(selectsOf(t)).toEqual([selecting(CLAUDES_SESSION)])
+  expect(openRuns(t)).toEqual([])
+})
+
+/** Claude's tmux window shown by two Ghostty windows, then a Terminal window, with Ghostty as given. */
+const ghosttyThenTerminal = (options: Parameters<typeof terminal>[0]) =>
+  oneWindow(IN_TMUX, {
+    tmux: serverShowing(
+      ghosttyClient(WINDOW, CLAUDES),
+      ghosttyClient('/dev/ttys031', CLAUDES),
+      appClient('/dev/ttys030', CLAUDES, TERMINAL_APP),
+    ),
+    ...options,
+  })
+
+test('Ghostty with no window open, or not answering, is passed over at its places after, and the next app brought forward', async () => {
+  const cases: [string, Parameters<typeof terminal>[0], string[]][] = [
+    ['no window open', { ghostty: [] }, [LIST]],
+    ['not answering', { ghostty: TERMINALS, refused: () => TIMED_OUT }, [LIST]],
+  ]
+
+  for (const [why, options, asked] of cases) {
+    const t = ghosttyThenTerminal(options)
+
+    expect(await t.run('jump', ...SESSION), why).toEqual(FOCUSED_RUN)
+    expect(
+      runsOf(t, 'osascript').map(words => words[2]),
+      `${why}: Ghostty asked once`,
+    ).toEqual(asked)
+    expect(openRuns(t), why).toEqual([
+      ['open', '-a', '/System/Applications/Utilities/Terminal.app'],
+    ])
+  }
+})
+
+test('Ghostty with no window open, or not answering, at the most wanted place, is what the jump is refused for, once no place is left', async () => {
+  const offScreen = ghosttyThenTerminal({ ghostty: [], missing: ['open'] })
+  const unanswering = ghosttyThenTerminal({
+    ghostty: TERMINALS,
+    refused: () => TIMED_OUT,
+    missing: ['open'],
+  })
+
+  expect(await offScreen.run('jump', ...SESSION)).toEqual({
+    exit: EXIT.refused,
+    out: '',
+    err: OFF_SCREEN,
+  })
+  expect(await unanswering.run('jump', ...SESSION)).toEqual({
+    exit: EXIT.refused,
+    out: '',
+    err: NO_ANSWER,
+  })
+  expect(openRuns(unanswering), 'Terminal was tried').toHaveLength(1)
 })
