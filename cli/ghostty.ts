@@ -1,14 +1,19 @@
 /**
- * Ghostty, as the jump drives it. Its AppleScript gives each terminal an id
- * and a working directory, but no device, so the terminal on a device is
- * found by a knock: a working directory report (OSC 7) naming a marker,
- * written to the device, makes its terminal report the marker. A terminal
- * found once is focused by its id after.
+ * Ghostty's driver. Its AppleScript gives each terminal an id and a working
+ * directory, but no device, so the terminal on a device is found by a knock:
+ * a working directory report (OSC 7) naming a marker, written to the device,
+ * makes its terminal report the marker. A terminal found once is remembered
+ * for its device and focused by its id after, and Ghostty is kept in front.
+ * No terminal is left reporting the knock's marker.
  *
  * Fixed programs, run by osascript with their values as arguments and never
  * spliced into the text.
  */
 import type { Random } from '../core'
+import type { Brought, Driver, FrontAtStart } from './driver'
+import { keepInFront } from './front'
+import type { Io } from './io'
+import { readRemembered, remember, type Remembered } from './remembered'
 
 /** A Ghostty terminal: its id, and the working directory it reports, empty when it reports none. */
 export type Terminal = { id: string; directory: string }
@@ -156,4 +161,187 @@ export const parseListing = (output: string): Terminal[] | undefined => {
   )
     ? terminals
     : undefined
+}
+
+/** How many times Ghostty's terminals are listed while they keep changing as they are read. */
+const LIST_TRIES = 3
+
+const NO_ANSWER = `Ghostty did not answer within ${ANSWER_SECONDS} seconds: most likely the screen is locked, or macOS is asking whether sitrep may control Ghostty.`
+
+const UNSETTLED = "Ghostty's windows kept opening or closing as they were listed. Try again."
+
+/** What a Ghostty program prints. Ghostty not answering in time is thrown in plain words; any other failure, such as macOS refusing control of Ghostty, in osascript's. */
+const ghostty = async (io: Io, program: string, ...args: string[]) => {
+  const ran = await io.run(['osascript', '-e', program, ...args])
+
+  if (ran.exitCode !== 0) {
+    throw new Error(isTimedOut(ran.stderr) ? NO_ANSWER : `osascript: ${ran.stderr.trim()}`)
+  }
+
+  return ran.stdout
+}
+
+/** Ghostty's terminals, listed again while they change as they are read, a few times at most. */
+const terminals = async (io: Io) => {
+  for (let tries = 0; tries < LIST_TRIES; tries++) {
+    const listed = parseListing(await ghostty(io, LIST))
+
+    if (listed !== undefined) {
+      return listed
+    }
+  }
+
+  throw new Error(UNSETTLED)
+}
+
+/** Writes back the directory a terminal reported before the knock. */
+const putBack = (io: Io, device: string, before: readonly Terminal[], id: string) =>
+  io.writeTo(
+    device,
+    reportText(directoryAfter(before.find(each => each.id === id)?.directory, io.env.HOME ?? '/')),
+  )
+
+/** Waits on what must not stop the jump, whatever comes of it. */
+const bestEffort = (session: Promise<unknown>) =>
+  session.then(
+    () => undefined,
+    () => undefined,
+  )
+
+/** Lists the terminals once more, and puts back any now reporting the marker. */
+const putBackMarked = async (
+  io: Io,
+  device: string,
+  before: readonly Terminal[],
+  marker: string,
+) => {
+  const marked = (await terminals(io)).find(each => each.directory === marker)
+
+  if (marked !== undefined) {
+    await putBack(io, device, before, marked.id)
+  }
+}
+
+/**
+ * Knocks on the device and focuses the Ghostty terminal that answers; its
+ * id, or undefined when none did. A device that will not take the knock, a
+ * closed one (EIO, ENXIO), answers nothing and has nothing to put back. A
+ * terminal taking the marker is put back whatever comes of the find: one
+ * that took it after the find gave up, and one that took it before the find
+ * failed, as far as listing again can tell.
+ */
+const knock = async (io: Io, device: string, before: readonly Terminal[]) => {
+  const marker = markerOf(io.random)
+  const isWritten = await io.writeTo(device, reportText(marker)).then(
+    () => true,
+    () => false,
+  )
+
+  if (!isWritten) {
+    return undefined
+  }
+
+  const found = await ghostty(io, FIND_AND_FOCUS, marker).catch(async (error: unknown) => {
+    await bestEffort(putBackMarked(io, device, before, marker))
+
+    throw error
+  })
+  const focused = found.trim()
+
+  await bestEffort(
+    focused === ''
+      ? putBackMarked(io, device, before, marker)
+      : putBack(io, device, before, focused),
+  )
+
+  return focused === '' ? undefined : focused
+}
+
+/**
+ * Focuses the terminal remembered for a device, by its id; whether it did.
+ * Ghostty not answering in time is thrown in plain words, as for every
+ * question to it; no terminal having the id, or any other failure, is a
+ * miss, for a knock to settle.
+ */
+const focusRemembered = async (io: Io, id: string) => {
+  const ran = await io.run(['osascript', '-e', FOCUS, id]).catch(() => undefined)
+
+  if (ran !== undefined && ran.exitCode !== 0 && isTimedOut(ran.stderr)) {
+    throw new Error(NO_ANSWER)
+  }
+
+  return ran?.exitCode === 0 && ran.stdout.trim() === id
+}
+
+/** What is asked at the first call only, and shared by every call after. */
+const once = <T>(ask: () => Promise<T>) => {
+  let asked: Promise<T> | undefined
+
+  return () => {
+    asked = asked ?? ask()
+
+    return asked
+  }
+}
+
+/**
+ * Focuses the terminal on a device: the one remembered for it, else the one
+ * a knock finds, remembered from then on; undefined when none answers. None
+ * open when Ghostty has no terminal to knock on.
+ */
+const focusOn = async (
+  io: Io,
+  device: string,
+  remembered: string | undefined,
+  listing: () => Promise<Terminal[]>,
+): Promise<Brought> => {
+  if (remembered !== undefined && (await focusRemembered(io, remembered))) {
+    return 'forward'
+  }
+
+  const before = await listing()
+
+  if (before.length === 0) {
+    return 'none open'
+  }
+
+  const found = await knock(io, device, before)
+
+  if (found === undefined) {
+    return undefined
+  }
+
+  await bestEffort(remember(io, device, found))
+
+  return 'forward'
+}
+
+/**
+ * Brings forward the terminal on a device, and keeps Ghostty in front. The
+ * remembered terminals are read, and Ghostty's terminals listed, at most once
+ * a jump: the listing only once a device needs a knock, so a jump that ends
+ * without one asks Ghostty nothing it need not.
+ */
+const start = (io: Io, front: FrontAtStart) => {
+  const remembered = once<Remembered>(() => readRemembered(io))
+  const listing = once(() => terminals(io))
+
+  return async (device: string) => {
+    const brought = await focusOn(io, device, (await remembered()).get(device), listing)
+
+    if (brought === 'forward') {
+      await keepInFront(io, front.look, front.before)
+    }
+
+    return brought
+  }
+}
+
+/** Ghostty's driver: it brings a window forward, and declares nothing more yet. */
+export const GHOSTTY: Driver = {
+  name: 'Ghostty',
+  program: 'ghostty',
+  executable: 'ghostty',
+  can: [],
+  start,
 }

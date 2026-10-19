@@ -292,6 +292,43 @@ test('list --json asks tmux and ps nothing when no window runs in tmux', async (
   expect(t.screen.ran).toEqual([])
 })
 
+test('list --json counts a session on screen where a jump can reach it: a pane whose window tmux would select for a Ghostty window, or a window in a terminal app with no driver; and selects and opens nothing', async () => {
+  const t = terminal({
+    tmux: {
+      [SOCKET]: {
+        panes: [
+          ['%1', '@1', '$1'],
+          ['%2', '@2', '$1'],
+          ['%3', '@3', '$3'],
+        ],
+        clients: [{ ...ghosttyClient('/dev/ttys000', '@2'), session: '$1' }],
+      },
+    },
+  })
+
+  t.seed(META, { seenAt: NOW, where: inTmux(SOCKET, '%1') })
+  t.seed(LOBBY, { seenAt: NOW, where: inTmux(SOCKET, '%3') })
+  t.seed(OLD_WAITING, { seenAt: NOW, where: { device: '/dev/ttys021', terminal: 'Unknown' } })
+  t.seed(QUIETLY, {
+    project: QUIET.key,
+    seenAt: NOW,
+    where: { device: '/dev/ttys020', terminal: 'iTerm.app' },
+  })
+
+  const { exit, out } = await t.run('list', '--json')
+
+  expect(exit).toBe(EXIT.done)
+  expect(JSON.parse(out).v).toBe(1)
+  expect(onScreenOf(out)).toEqual({
+    [META.id]: true,
+    [LOBBY.id]: false,
+    [OLD_WAITING.id]: false,
+    [QUIETLY.id]: true,
+  })
+  expect(t.screen.ran.filter(([name]) => name !== 'tmux')).toEqual([PS])
+  expect(t.screen.ran.filter(words => words.includes('select-window'))).toEqual([])
+})
+
 test('plain list runs no program at all, whatever windows its sessions are in', async () => {
   const t = onScreens()
 

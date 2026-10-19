@@ -1303,20 +1303,20 @@ truth. There is still no background service. None of it is built now. Lee:
                                    "updatedAt": 1760000000000, "onScreen": true } ] } ] }
     ```
 
-    `onScreen` says whether a Ghostty window shows the session (see "The
-    menu bar"). Only `--json` works it out, from tmux, asked twice per
-    socket however many sessions there are; it knocks on nothing. Plain `list`
-    runs no program.
+    `onScreen` says whether a jump can reach the session (see "The jump",
+    step 2). Only `--json` works it out, from tmux, asked twice per socket
+    however many sessions there are; it selects and knocks on nothing. Plain
+    `list` runs no program.
 
     `board --json` is `{ v, project: { key, name }, work, asks, parked, log }`:
     the session as `list` gives it, its open asks, what it parked, and its latest
     log lines. Its `v` is 2 since its asks say what they want back (`wants`,
     `yes`, `needs`) in place of their kind; `list`'s stays 1.
-  - `jump` brings the Ghostty window showing the session to the front, on
-    whatever Space it is (see "The menu bar"), and prints nothing. A session no
-    Ghostty window shows is refused (`Dashboard redesign is not on screen: no
-    Ghostty window shows it.`), as is one whose devices no Ghostty terminal
-    answered.
+  - `jump` brings the terminal window showing the session to the front, on
+    whatever Space it is (see "The jump"), and prints nothing. A session no
+    jump can reach is refused (`Dashboard redesign is not on screen: no
+    terminal window on this Mac shows it.`), as is one whose devices no
+    terminal answered, or whose pane's window tmux would not select.
   - `watch` is designed (16 October 2026) and not built yet. It is how the
     SitRep app hears the board: one per Mac, which the app starts as its
     child, so it stops with the app, and the app starts it again if it
@@ -2208,26 +2208,25 @@ The boards for rounds 4 and 5 still show round 4's placeholder.
 
 ### The jump
 
-**Terminal drivers**, decided with Lee on 16 October 2026. The jump stays
-in the CLI, in TypeScript, in two layers:
-- **a driver per terminal app**, Ghostty first: it recognises its windows
-  from the heartbeat's `where`, finds the window showing a session, and
-  brings it forward;
-- **one tmux layer**, shared by every driver: which terminal shows a pane,
-  and selecting the pane's tmux window. So tmux or not works for any
-  terminal. Selecting is new: today's jump changes nothing in tmux (step 2),
-  so a pane whose window no client shows offers no jump; the tmux layer
-  will select that window in a client attached to its tmux session.
+**Terminal drivers**, decided with Lee on 16 October 2026 and built on 19
+October 2026 (stage 3, step 5). The jump stays in the CLI, in TypeScript,
+in two layers:
+- **a driver per terminal app**, Ghostty's the one built (`cli/ghostty.ts`:
+  steps 3 and 4, every behaviour as it was): it recognises its windows, by
+  the `$TERM_PROGRAM` in the heartbeat's `where` outside tmux and by its
+  program among the tmux client's ancestors under it, finds the window on a
+  device, and brings it forward;
+- **one tmux layer**, shared by every driver (`cli/tmux.ts`): which clients
+  show a pane, and selecting the pane's tmux window where none does (step
+  2). So tmux or not works for any terminal.
 
-A driver declares what it can do: bring a window forward, which every
-driver must; select a tab or a split; and later, show a session's state, in
-a tab's title or by OSC 7501. A terminal with no driver still has its
-sessions shown, and a click on one brings that terminal app forward.
-
-This build does Ghostty only: the steps below, Ghostty's driver and the
-tmux layer under it. Other terminals, and Ghostty's tabs and splits, stay
-parked, and the shape allows them. A jump made in Swift, in the app, stays
-parked too.
+A driver declares what it can do beyond bringing a window forward, which
+every driver must: select a tab or a split, and show a session's state, in a
+tab's title or by OSC 7501. They are declared in the driver's shape and
+built for none: Ghostty's declares none yet. A terminal with no driver still
+has its sessions shown, and a click on one brings that terminal app forward
+(step 2). Other drivers, and Ghostty's tabs and splits, stay parked, and the
+shape allows them. A jump made in Swift, in the app, stays parked too.
 
 1. Each Claude window records, in its heartbeat, the terminal device it is
    on, the terminal program (`$TERM_PROGRAM`), and its tmux socket and pane
@@ -2237,28 +2236,101 @@ parked too.
    with one, which is Claude Code's. A walk that finds none leaves the
    device out and says so in the debug log; the window attaches all the
    same.
-2. A click finds the devices showing the session, its windows the one that
-   needs Lee first, else the one active last (see "Two windows are two
-   sessions"; the code still puts the one delivering its inbox first, until
-   stage 3's jump step). Without tmux it is Claude's own, when its terminal is
-   Ghostty. With tmux it is each client tmux lists whose current window is
-   the pane's window (`list-panes` and `list-clients`, reads; nothing in
-   tmux changes; grouped and linked tmux sessions need nothing more, since a
-   window keeps its id in each) and whose process descends from this Mac's
-   Ghostty, each device once. One `ps` snapshot settles it: a Ghostty
+2. A click finds the places that can show the session, each a terminal app
+   of this Mac and the device of its window, the session's windows in turn:
+   the one that needs Lee first, else the one active last (below). Without
+   tmux it is Claude's own device, when its `$TERM_PROGRAM` names an app
+   sitrep knows. With tmux it is each client tmux lists whose current window
+   is the pane's window and which descends from a terminal app of this Mac,
+   each device once; where no such client shows it, each such client
+   attached to a tmux session holding the pane's window, which a select
+   will make show it (below). `list-panes -a` gives each pane's window and
+   tmux session, a pane once for each session its window is in, and
+   `list-clients` each client's current window and session, all by tmux's
+   ids; a window keeps its id in every session. One `ps` snapshot settles
+   each client's app, the nearest app among its ancestors: a Ghostty
    window's client runs `tmux < zsh < login < ghostty`, a phone's or iPad's
    `tmux < zsh < mosh-server`, one over ssh from another Mac `sshd` (all
    checked live, 13 October; the terminal's name, `xterm-ghostty`, would
-   count the ssh one too). tmux and `ps` each get 2 seconds; one that
-   cannot start, fails or does not answer shows nothing, so `list --json`
-   never fails or hangs over them. On screen means the client's current
-   window is Claude's (tmux's window ids, read from both lists): a tmux
-   session of several windows, or a grouped one, whose client shows another
-   window does not count, and nothing in tmux is changed to make it. Lee's
-   tmux sessions are one window each, so for Lee every attached Ghostty
-   window counts. A jump that could not tell, tmux or `ps` giving no answer
-   in time, says so rather than calling the session off screen.
-3. sitrep finds the Ghostty window on a device by a knock. Ghostty's
+   count the ssh one too), and neither of the last two descends from an app.
+   tmux and `ps` each get 2 seconds; one that cannot start, fails or does
+   not answer shows nothing, so `list --json` never fails or hangs over
+   them. Lee's tmux sessions are one window each, so for Lee every attached
+   Ghostty window shows its pane already. A jump that could not tell, tmux
+   or `ps` giving no answer in time, says so rather than calling the session
+   off screen.
+
+   `list --json`'s `onScreen` says whether a jump can reach the session: a
+   place shows it, or a select would make one show it. Its name and `v` stay
+   as they were before the select (19 October 2026), so a reader that took
+   `true` to mean a jump can reach it reads it as before. `list` selects
+   nothing, and knocks on nothing.
+
+   **Selecting the pane's window** (19 October 2026). Where no client a jump
+   can reach has the pane's tmux window current, the tmux layer makes it
+   current in the tmux session that client is attached to, so it shows the
+   pane, and the client's app brings its window forward:
+   `tmux -S <socket> select-window -t <session>:<window>`, by tmux's ids
+   (`$3:@45`). Ids, as tmux matches a name by its start or as a pattern, and
+   an id never changes; the session named, as a window alone goes to
+   whichever of its sessions tmux picks. So grouped and linked sessions need
+   nothing more: the select is made in the client's own session, and the
+   others of its group, or the other sessions the window is linked into,
+   keep their current window. Checked on a private tmux 3.7c server the same
+   day: a select in one session of a group left the other's current window
+   as it was, a linked window was made current in the session it was linked
+   into, and a session not holding the window answered `can't find window:
+   @1`, exiting 1. The phone showing the pane does not stop a select: it is
+   no client a jump can reach. A pane whose window no reachable client's
+   session holds has nothing selected, and is off screen: opening a window
+   for it is stage 6.
+
+   The select runs only in a jump, after tmux, `ps` and the front are read
+   and before the app is asked anything, within the 2 seconds tmux's reads
+   have. One that fails or does not answer refuses the jump in plain words,
+   before anything is knocked on or focused: `Dashboard redesign is in a
+   tmux window no terminal shows, and tmux would not select it: can't find
+   window: @45`, or `… and tmux gave no answer when asked to select it.` A
+   window selected for a device whose terminal then does not answer stays
+   selected, and the next place is tried.
+
+   **A terminal with no driver** (19 October 2026) is brought forward as an
+   app, by `open` within 2 seconds, and nothing more: no knock, no watch of
+   the front, no select beyond the tmux layer's. Outside tmux it is told by
+   its `$TERM_PROGRAM`, from a table, and opened by its bundle id (`open -b`):
+
+   | `$TERM_PROGRAM` | App | Bundle id |
+   |---|---|---|
+   | `Apple_Terminal` | Terminal | `com.apple.Terminal` |
+   | `iTerm.app` | iTerm2 | `com.googlecode.iterm2` |
+   | `WezTerm` | WezTerm | `com.github.wez.wezterm` |
+   | `WarpTerminal` | Warp | `dev.warp.Warp-Stable` |
+
+   Only Terminal's is checked on this Mac, which has no other. kitty and
+   Alacritty set no `$TERM_PROGRAM` of their own, so outside tmux they are
+   not told; VS Code's, `vscode`, is Cursor's too, and would bring forward,
+   or launch, the wrong app. Under tmux, which sets its own, the app is the
+   bundle the client's nearest app ancestor runs inside, the outermost
+   (`/Applications/Visual Studio Code.app` for its helper's shells), opened
+   by its path (`open -a`); a driver's program among the ancestors, the
+   nearer, is that driver's. `open` launches an app that is not running, and
+   sends one that is the reopen event, which makes an app with no window
+   open one; neither happens here, as a live window of the session is in
+   the app. An app that does not come forward is passed over for the next
+   place, as a Ghostty device that does not answer is, and the refusal names
+   the apps tried (`… but no Terminal or Ghostty window there answered.`).
+
+   **Of two windows on one session** the jump goes to the one that needs
+   Lee, its heartbeat's state a permission prompt or a question, else the
+   one active last: the latest `state.since`, then the latest `attachedAt`
+   (19 October 2026; see "Two windows are two sessions"). A window saying no
+   state, as one on a release from before heartbeats said it, goes by its
+   attach, which is what a state's start is before any turn. Each window's
+   places are tried before the next window's, so one that needs Lee where
+   no terminal shows it gives way to the other. The jump no longer goes by
+   the window that delivers the session's inbox, which keeps its own rule,
+   the one attached longest.
+3. Ghostty's driver finds the Ghostty window on a device by a knock. Ghostty's
    AppleScript gives each terminal a UUID, a title and a working directory,
    but no device or pid, and Lee's `title = " "` blanks every title. So
    sitrep reads every terminal's working directory, writes a working
@@ -2472,6 +2544,14 @@ reaches a window only while that pane is on show).
       - a terminal with no driver brought forward as an app;
       - of two windows on one session, the jump goes to the one that needs
         Lee, else the one active last.
+
+      Built 19 October 2026, in the test world, never with a real jump:
+      Ghostty's driver is the jump as it was, moved whole, its tests
+      unchanged but for those the new rules change (a tmux session showing
+      another of its windows is now selected, not off screen; a window in
+      iTerm2 is brought forward, not off screen; the deliverer is no longer
+      tried first). The select's form was checked on a private tmux server;
+      the rest waits on Lee's live try.
    6. **The edge, for real**, in the app, two PRs. Each takes the spike's
       model with its recorded tests, the code brought to the build's bar,
       the spike's scaffolding left behind (the Simulate items, the sample
@@ -2519,7 +2599,13 @@ reaches a window only while that pane is on show).
    - a `/reload-plugins` while a call runs: the heartbeat's `loadedAt`
      moves on, and if the old load's call settles after it, the log says
      once that a later load wrote over it, and the state stays the new
-     load's.
+     load's;
+   - a jump to a session whose pane's tmux window no terminal shows, its
+     tmux session's Ghostty window on another of its windows: tmux selects
+     the pane's window, and that Ghostty window comes forward showing it;
+   - a jump to a session two windows hold, one stopped on a permission
+     prompt: the jump goes to that one; and with neither stopped, to the one
+     active last.
 
    A jump outside tmux, tested since stage 2, was first
    run live from the bare app (below). Two things to carry over from stage 2: an app started from the Finder has

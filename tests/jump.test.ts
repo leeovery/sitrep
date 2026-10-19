@@ -11,10 +11,12 @@ import { ANSWER_SECONDS, FIND_AND_FOCUS, FOCUS, LIST, reportText } from '../cli/
 import { LOOK_MS } from '../cli/look'
 import { EXIT } from '../cli/main'
 import { REMEMBERED_FILE, rememberedText } from '../cli/remembered'
-import { CLIENTS, PANES, PS } from '../cli/screen'
-import type { Where } from '../core'
+import { PS } from '../cli/screen'
+import { CLIENTS, PANES, selectWords } from '../cli/tmux'
+import type { Where, WindowState } from '../core'
 import { META, MIN, T0, W2 } from './support'
 import {
+  appClient,
   ENV,
   ghosttyClient,
   NOW,
@@ -22,6 +24,7 @@ import {
   SOCKET,
   sshClient,
   terminal,
+  TERMINAL_APP,
   type FakeServer,
   type FakeTerminal,
 } from './terminal'
@@ -71,7 +74,7 @@ const serverShowing = (...clients: FakeServer['clients']): Record<string, FakeSe
 
 const SHOWN = serverShowing(ghosttyClient('/dev/ttys041', KIT), ghosttyClient(WINDOW, CLAUDES))
 
-const OFF_SCREEN = `sitrep: ${META.name} is not on screen: no Ghostty window shows it.\n`
+const OFF_SCREEN = `sitrep: ${META.name} is not on screen: no terminal window on this Mac shows it.\n`
 
 const SESSION = ['--session', META.id]
 
@@ -144,30 +147,6 @@ test('with no client on the session’s tmux server, the snapshot goes unused: p
   expect(await t.run('jump', ...SESSION)).toEqual({ exit: EXIT.refused, out: '', err: OFF_SCREEN })
 })
 
-test("a grouped session's Ghostty window counts only while it shows the pane's tmux window", async () => {
-  const grouped = (window: string) =>
-    oneWindow(IN_TMUX, {
-      tmux: {
-        [SOCKET]: {
-          panes: [
-            [PANE, CLAUDES],
-            ['%149', BESIDE],
-            [PANE, CLAUDES],
-            ['%149', BESIDE],
-          ],
-          clients: [ghosttyClient(WINDOW, window)],
-        },
-      },
-      ghostty: TERMINALS,
-    })
-  const elsewhere = grouped(BESIDE)
-  const there = grouped(CLAUDES)
-
-  expect((await elsewhere.run('jump', ...SESSION)).err).toBe(OFF_SCREEN)
-  expect((await there.run('jump', ...SESSION)).exit).toBe(EXIT.done)
-  expect(there.screen.focused).toEqual(['SWITCHBOARD-TERMINAL'])
-})
-
 test('a tmux session the phone and a Ghostty window both show goes to the Ghostty window, and nothing is written to the phone', async () => {
   const t = oneWindow(IN_TMUX, {
     tmux: serverShowing(phoneClient(PHONE, CLAUDES), ghosttyClient(WINDOW, CLAUDES)),
@@ -202,21 +181,6 @@ test('a session no Ghostty window shows is not on screen: nothing is written and
       })(),
     ],
     [
-      "a tmux session of several windows, Claude's not the one showing",
-      oneWindow(IN_TMUX, {
-        tmux: {
-          [SOCKET]: {
-            panes: [
-              [PANE, CLAUDES],
-              ['%149', BESIDE],
-            ],
-            clients: [ghosttyClient(WINDOW, BESIDE)],
-          },
-        },
-        ghostty: TERMINALS,
-      }),
-    ],
-    [
       'a detached tmux session',
       oneWindow(IN_TMUX, {
         tmux: serverShowing(ghosttyClient('/dev/ttys041', KIT)),
@@ -238,8 +202,8 @@ test('a session no Ghostty window shows is not on screen: nothing is written and
     ['Ghostty not running', oneWindow(IN_TMUX, { tmux: SHOWN })],
     ['Ghostty with no window open', oneWindow(IN_GHOSTTY, { ghostty: [] })],
     [
-      'a window in another terminal',
-      oneWindow({ ...IN_GHOSTTY, terminal: 'iTerm.app' }, { ghostty: TERMINALS }),
+      'a window in a terminal app unknown to sitrep',
+      oneWindow({ ...IN_GHOSTTY, terminal: 'Unknown' }, { ghostty: TERMINALS }),
     ],
   ]
 
@@ -383,26 +347,6 @@ test('a listing that never settles fails in plain words, with nothing written or
   expect(t.screen.ran.filter(words => words[2] === LIST)).toHaveLength(3)
   expect(t.screen.written).toEqual([])
   expect(t.screen.focused).toEqual([])
-})
-
-test('the deliverer’s window is tried first, and another window when the deliverer’s is not on screen', async () => {
-  const twoWindows = (tmux: Record<string, FakeServer>) => {
-    const t = terminal({ tmux, ghostty: TERMINALS })
-    const paths = t.seed(META, { seenAt: T0 + 30_000, where: IN_GHOSTTY })
-
-    t.window(paths, W2, T0, IN_TMUX)
-
-    return t
-  }
-  const both = twoWindows(SHOWN)
-  const deliverersDetached = twoWindows(serverShowing())
-
-  expect((await both.run('jump', ...SESSION)).exit).toBe(EXIT.done)
-  expect(both.screen.focused, 'the deliverer, attached first, though listed second').toEqual([
-    'SWITCHBOARD-TERMINAL',
-  ])
-  expect((await deliverersDetached.run('jump', ...SESSION)).exit).toBe(EXIT.done)
-  expect(deliverersDetached.screen.focused).toEqual(['KIT-TERMINAL'])
 })
 
 const REFUSAL = '0:42: execution error: Not authorized to send Apple events to Ghostty. (-1743)'
@@ -566,7 +510,7 @@ test("jump's help says what it does, and the help lists it", async () => {
     [
       'Usage: sitrep jump [--session <id>]',
       '',
-      'Bring the Ghostty window showing the session to the front, on whatever Space it is. Prints nothing.',
+      'Bring the terminal window showing the session to the front, on whatever Space it is. Prints nothing.',
       '',
       '  --session <id>  the session: sr- and six characters; else $SITREP_SESSION',
       '',
@@ -784,8 +728,8 @@ test('a jump whose session no Ghostty window shows, or that cannot tell, asks Gh
     ['tmux gone', oneWindow(IN_TMUX, { tmux: {}, ghostty: TERMINALS })],
     ['ps not answering', oneWindow(IN_TMUX, { tmux: SHOWN, ghostty: TERMINALS, slow: ['ps'] })],
     [
-      'a window in another terminal',
-      oneWindow({ ...IN_GHOSTTY, terminal: 'iTerm.app' }, { ghostty: TERMINALS }),
+      'a window in a terminal app unknown to sitrep',
+      oneWindow({ ...IN_GHOSTTY, terminal: 'Unknown' }, { ghostty: TERMINALS }),
     ],
   ]
 
@@ -958,4 +902,345 @@ test('a jump that brings no window forward watches nothing', async () => {
     expect(t.waits).toEqual([])
     expect(broughtForward(t)).toEqual([])
   }
+})
+
+/** The tmux sessions of the selecting tests: Claude's own, and another. */
+const CLAUDES_SESSION = '$7'
+const OTHER_SESSION = '$8'
+
+/** The runs of tmux selecting a window. */
+const selectsOf = (t: ReturnType<typeof terminal>) =>
+  runsOf(t, 'tmux').filter(words => words.includes('select-window'))
+
+/** The select that makes Claude's tmux window current in the session. */
+const selecting = (session: string) => selectWords({ socket: SOCKET, session, window: CLAUDES })
+
+/** The time limit each run of tmux was given. */
+const tmuxLimits = (t: ReturnType<typeof terminal>) =>
+  t.screen.limits.filter(each => each.name === 'tmux').map(each => each.limitMs)
+
+/** Claude's tmux session of two windows, its Ghostty window on the other, with tmux and Ghostty otherwise as given. */
+const beside = (options: Parameters<typeof terminal>[0] = {}) =>
+  oneWindow(IN_TMUX, {
+    tmux: {
+      [SOCKET]: {
+        panes: [
+          [PANE, CLAUDES, CLAUDES_SESSION],
+          ['%149', BESIDE, CLAUDES_SESSION],
+        ],
+        clients: [{ ...ghosttyClient(WINDOW, BESIDE), session: CLAUDES_SESSION }],
+      },
+    },
+    ghostty: TERMINALS,
+    ...options,
+  })
+
+test("a pane whose tmux window no client shows is shown by tmux selecting it in the session holding it, within tmux's time limit, and that session's Ghostty window is then knocked on", async () => {
+  const t = beside()
+
+  expect(await t.run('jump', ...SESSION)).toEqual(FOCUSED_RUN)
+  expect(t.screen.ran.filter(([name]) => name !== 'lsappinfo')).toEqual([
+    ['tmux', '-S', SOCKET, ...PANES],
+    ['tmux', '-S', SOCKET, ...CLIENTS],
+    PS,
+    ['tmux', '-S', SOCKET, 'select-window', '-t', `${CLAUDES_SESSION}:${CLAUDES}`],
+    ['osascript', '-e', LIST],
+    ['osascript', '-e', FIND_AND_FOCUS, MARKER],
+  ])
+  expect(tmuxLimits(t)).toEqual([LOOK_MS, LOOK_MS, LOOK_MS])
+  expect(t.screen.focused).toEqual(['SWITCHBOARD-TERMINAL'])
+  expect(t.screen.directories()).toEqual(DIRECTORIES)
+})
+
+test("a grouped session's Ghostty window on another window has the pane's window selected in its own session, never in the group's other, which the phone shows", async () => {
+  const grouped = (window: string) =>
+    oneWindow(IN_TMUX, {
+      tmux: {
+        [SOCKET]: {
+          panes: [
+            [PANE, CLAUDES, CLAUDES_SESSION],
+            ['%149', BESIDE, CLAUDES_SESSION],
+            [PANE, CLAUDES, OTHER_SESSION],
+            ['%149', BESIDE, OTHER_SESSION],
+          ],
+          clients: [
+            { ...phoneClient(PHONE, CLAUDES), session: CLAUDES_SESSION },
+            { ...ghosttyClient(WINDOW, window), session: OTHER_SESSION },
+          ],
+        },
+      },
+      ghostty: TERMINALS,
+    })
+  const elsewhere = grouped(BESIDE)
+  const there = grouped(CLAUDES)
+
+  expect(await elsewhere.run('jump', ...SESSION)).toEqual(FOCUSED_RUN)
+  expect(selectsOf(elsewhere)).toEqual([selecting(OTHER_SESSION)])
+  expect(elsewhere.screen.focused).toEqual(['SWITCHBOARD-TERMINAL'])
+  expect(await there.run('jump', ...SESSION)).toEqual(FOCUSED_RUN)
+  expect(selectsOf(there), 'shown already, so nothing is selected').toEqual([])
+  expect(there.screen.focused).toEqual(['SWITCHBOARD-TERMINAL'])
+})
+
+test("a window linked into another session has the pane's window selected in that session, whose Ghostty window shows another", async () => {
+  const t = oneWindow(IN_TMUX, {
+    tmux: {
+      [SOCKET]: {
+        panes: [
+          [PANE, CLAUDES, CLAUDES_SESSION],
+          [PANE, CLAUDES, OTHER_SESSION],
+          ['%54', KIT, OTHER_SESSION],
+        ],
+        clients: [{ ...ghosttyClient(WINDOW, KIT), session: OTHER_SESSION }],
+      },
+    },
+    ghostty: TERMINALS,
+  })
+
+  expect(await t.run('jump', ...SESSION)).toEqual(FOCUSED_RUN)
+  expect(selectsOf(t)).toEqual([selecting(OTHER_SESSION)])
+  expect(t.screen.focused).toEqual(['SWITCHBOARD-TERMINAL'])
+})
+
+test('a client attached to a session not holding the pane’s window has nothing selected: off screen', async () => {
+  const t = oneWindow(IN_TMUX, {
+    tmux: {
+      [SOCKET]: {
+        panes: [
+          [PANE, CLAUDES, CLAUDES_SESSION],
+          ['%54', KIT, OTHER_SESSION],
+        ],
+        clients: [{ ...ghosttyClient(WINDOW, KIT), session: OTHER_SESSION }],
+      },
+    },
+    ghostty: TERMINALS,
+  })
+
+  expect(await t.run('jump', ...SESSION)).toEqual({ exit: EXIT.refused, out: '', err: OFF_SCREEN })
+  expect(selectsOf(t)).toEqual([])
+})
+
+test('a select tmux refuses, or does not answer in time, refuses the jump in plain words, with nothing written or focused', async () => {
+  const cases: [Parameters<typeof terminal>[0], string][] = [
+    [
+      { select: { said: "can't find window: @45" } },
+      "tmux would not select it: can't find window: @45",
+    ],
+    [{ select: { said: '' } }, 'tmux would not select it.'],
+    [{ select: 'slow' }, 'tmux gave no answer when asked to select it.'],
+  ]
+
+  for (const [options, why] of cases) {
+    const t = beside(options)
+
+    expect(await t.run('jump', ...SESSION), why).toEqual({
+      exit: EXIT.refused,
+      out: '',
+      err: `sitrep: ${META.name} is in a tmux window no terminal shows, and ${why}\n`,
+    })
+    expect(tmuxLimits(t), why).toEqual([LOOK_MS, LOOK_MS, LOOK_MS])
+    expect(runsOf(t, 'osascript'), why).toEqual([])
+    expect(t.screen.written, why).toEqual([])
+    expect(t.screen.focused, why).toEqual([])
+  }
+})
+
+test("a Ghostty window on the pane's window shows it, so no other is made to by a select", async () => {
+  const t = oneWindow(IN_TMUX, {
+    tmux: {
+      [SOCKET]: {
+        panes: [
+          [PANE, CLAUDES, CLAUDES_SESSION],
+          ['%149', BESIDE, CLAUDES_SESSION],
+        ],
+        clients: [
+          { ...ghosttyClient('/dev/ttys041', BESIDE), session: CLAUDES_SESSION },
+          { ...ghosttyClient(WINDOW, CLAUDES), session: CLAUDES_SESSION },
+        ],
+      },
+    },
+    ghostty: TERMINALS,
+  })
+
+  expect(await t.run('jump', ...SESSION)).toEqual(FOCUSED_RUN)
+  expect(selectsOf(t)).toEqual([])
+  expect(t.screen.focused).toEqual(['SWITCHBOARD-TERMINAL'])
+})
+
+const openRuns = (t: ReturnType<typeof terminal>) => runsOf(t, 'open')
+
+test('a window outside tmux in a terminal app with no driver is brought forward as an app, by its bundle id within the time limit, and nothing more', async () => {
+  const cases: [string, string][] = [
+    ['iTerm.app', 'com.googlecode.iterm2'],
+    ['Apple_Terminal', 'com.apple.Terminal'],
+    ['WezTerm', 'com.github.wez.wezterm'],
+    ['WarpTerminal', 'dev.warp.Warp-Stable'],
+  ]
+
+  for (const [program, bundle] of cases) {
+    const t = oneWindow(
+      { ...IN_GHOSTTY, terminal: program },
+      { ghostty: TERMINALS, front: ['com.apple.finder'] },
+    )
+
+    expect(await t.run('jump', ...SESSION), program).toEqual(FOCUSED_RUN)
+    expect(openRuns(t), program).toEqual([['open', '-b', bundle]])
+    expect(
+      t.screen.limits.filter(each => each.name === 'open'),
+      program,
+    ).toEqual([{ name: 'open', limitMs: LOOK_MS }])
+    expect(
+      t.screen.ran.filter(([name]) => name !== 'lsappinfo' && name !== 'open'),
+      `${program}: no tmux, ps or Ghostty`,
+    ).toEqual([])
+    expect(t.screen.written, program).toEqual([])
+    expect(t.waits, `${program}: no watch of the front`).toEqual([])
+  }
+})
+
+test('a tmux client in a terminal app with no driver is brought forward as the app it descends from, by its path; and after a select, where it shows another window', async () => {
+  const shown = oneWindow(IN_TMUX, {
+    tmux: serverShowing(appClient(WINDOW, CLAUDES, TERMINAL_APP)),
+    ghostty: TERMINALS,
+  })
+  const elsewhere = oneWindow(IN_TMUX, {
+    tmux: {
+      [SOCKET]: {
+        panes: [
+          [PANE, CLAUDES, CLAUDES_SESSION],
+          ['%149', BESIDE, CLAUDES_SESSION],
+        ],
+        clients: [{ ...appClient(WINDOW, BESIDE, TERMINAL_APP), session: CLAUDES_SESSION }],
+      },
+    },
+    ghostty: TERMINALS,
+  })
+  const opening = ['open', '-a', '/System/Applications/Utilities/Terminal.app']
+
+  for (const t of [shown, elsewhere]) {
+    expect(await t.run('jump', ...SESSION)).toEqual(FOCUSED_RUN)
+    expect(openRuns(t)).toEqual([opening])
+    expect(runsOf(t, 'osascript')).toEqual([])
+    expect(t.screen.written).toEqual([])
+  }
+
+  expect(selectsOf(shown)).toEqual([])
+  expect(
+    elsewhere.screen.ran.filter(words => words[0] === 'open' || words.includes('select-window')),
+    'the select first',
+  ).toEqual([selecting(CLAUDES_SESSION), opening])
+})
+
+test('an app with no driver that does not come forward is passed over for the next place, and the failure names each app tried', async () => {
+  const t = oneWindow(IN_TMUX, {
+    tmux: serverShowing(
+      appClient('/dev/ttys099', CLAUDES, TERMINAL_APP),
+      ghosttyClient('/dev/ttys098', CLAUDES),
+    ),
+    ghostty: TERMINALS,
+    missing: ['open'],
+  })
+
+  expect(await t.run('jump', ...SESSION)).toEqual({
+    exit: EXIT.refused,
+    out: '',
+    err: `sitrep: ${META.name} shows on /dev/ttys099 and /dev/ttys098, but no Terminal or Ghostty window there answered.\n`,
+  })
+  expect(openRuns(t)).toHaveLength(1)
+  expect(runsOf(t, 'osascript').map(words => words[2])).toEqual([LIST, FIND_AND_FOCUS, LIST])
+})
+
+/** A window's state since `since`. */
+const stateOf = (is: WindowState['is'], since: number): WindowState => ({ is, since })
+
+/** A window of the session: when it attached, and the state its heartbeat says, if any. */
+type Attached = { at: number; state?: WindowState }
+
+/**
+ * The session's two windows, each attached and in the state given: the
+ * first in a Ghostty window of its own, the second in tmux, on the window a
+ * Ghostty window shows unless the servers given say otherwise.
+ */
+const twoWindows = (
+  first: Attached,
+  second: Attached,
+  tmux: Record<string, FakeServer> = SHOWN,
+) => {
+  const t = terminal({ tmux, ghostty: TERMINALS })
+  const paths = t.seed(META)
+
+  t.window(paths, META.by, first.at, IN_GHOSTTY, undefined, first.state)
+  t.window(paths, W2, second.at, IN_TMUX, undefined, second.state)
+
+  return t
+}
+
+/** The Ghostty terminals of the first window and of the second. */
+const FIRSTS = 'KIT-TERMINAL'
+const SECONDS = 'SWITCHBOARD-TERMINAL'
+
+test('of two windows on one session, the jump goes to the one stopped on Lee, at a permission prompt or a question, however active the other', async () => {
+  for (const is of ['permission', 'question'] as const) {
+    const t = twoWindows(
+      { at: T0 + 30_000, state: stateOf('working', T0 + 50_000) },
+      { at: T0, state: stateOf(is, T0 + 10_000) },
+    )
+
+    expect(await t.run('jump', ...SESSION), is).toEqual(FOCUSED_RUN)
+    expect(t.screen.focused, is).toEqual([SECONDS])
+  }
+})
+
+test('of two windows on one session, else, the jump goes to the one active last: by its state’s start, then by its attach', async () => {
+  const cases: [string, Attached, Attached, string][] = [
+    [
+      'the later start, though attached first',
+      { at: T0 + 30_000, state: stateOf('yourTurn', T0 + 40_000) },
+      { at: T0, state: stateOf('working', T0 + 50_000) },
+      SECONDS,
+    ],
+    [
+      'the same start, so the later attach',
+      { at: T0 + 30_000, state: stateOf('yourTurn', T0 + 40_000) },
+      { at: T0, state: stateOf('working', T0 + 40_000) },
+      FIRSTS,
+    ],
+    [
+      'both stopped on Lee, so the later stop',
+      { at: T0, state: stateOf('question', T0 + 50_000) },
+      { at: T0 + 30_000, state: stateOf('permission', T0 + 40_000) },
+      FIRSTS,
+    ],
+    [
+      'one saying no state, as from a version before heartbeats said it: its attach stands for its start',
+      { at: T0 + 30_000 },
+      { at: T0, state: stateOf('working', T0 + 20_000) },
+      FIRSTS,
+    ],
+  ]
+
+  for (const [why, first, second, focused] of cases) {
+    const t = twoWindows(first, second)
+
+    expect(await t.run('jump', ...SESSION), why).toEqual(FOCUSED_RUN)
+    expect(t.screen.focused, why).toEqual([focused])
+  }
+})
+
+test('the inbox’s deliverer, attached first, is not what the jump goes by', async () => {
+  const t = twoWindows({ at: T0 + 30_000 }, { at: T0 })
+
+  expect(await t.run('jump', ...SESSION)).toEqual(FOCUSED_RUN)
+  expect(t.screen.focused, 'the window attached last, not the deliverer').toEqual([FIRSTS])
+})
+
+test('the window that needs Lee, where no terminal shows it, gives way to the other', async () => {
+  const t = twoWindows(
+    { at: T0, state: stateOf('working', T0 + 50_000) },
+    { at: T0 + 30_000, state: stateOf('permission', T0 + 40_000) },
+    serverShowing(ghosttyClient('/dev/ttys041', KIT)),
+  )
+
+  expect(await t.run('jump', ...SESSION)).toEqual(FOCUSED_RUN)
+  expect(t.screen.focused).toEqual([FIRSTS])
 })

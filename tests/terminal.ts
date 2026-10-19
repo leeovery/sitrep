@@ -6,11 +6,12 @@
  * programs it runs and the devices it writes to. Nothing touches a real
  * folder, terminal or window.
  */
-import { BRING_FORWARD, FRONT, GHOSTTY_BUNDLE } from '../cli/front'
+import { FRONT, GHOSTTY_BUNDLE } from '../cli/front'
 import { FIND_AND_FOCUS, FOCUS, LIST } from '../cli/ghostty'
 import type { Env, Io, Listed, Ran } from '../cli/io'
 import { main } from '../cli/main'
-import { CLIENTS, PANES, PS } from '../cli/screen'
+import { PS } from '../cli/screen'
+import { CLIENTS, PANES } from '../cli/tmux'
 import {
   metaText,
   projectPaths,
@@ -21,6 +22,7 @@ import {
   type Where,
   type SessionFolder,
   type SessionMeta,
+  type WindowState,
 } from '../core'
 import { beat, file, MIN, scripted, T0, type Line } from './support'
 import { HOME, PROJECT, REPO, ROOT, STATE_HOME } from './world'
@@ -39,11 +41,32 @@ export const NOW = T0 + MIN
 export const FIRST_ID = '1234'
 export const NEXT_ID = '5678'
 
-/** A tmux client, as the fake tmux holds it: its device, the tmux window it shows, and the commands of its process's ancestors, its parent's first. */
-export type FakeClient = { tty: string; window: string; from: readonly string[] }
+/**
+ * A tmux client, as the fake tmux holds it: its device, the tmux window it
+ * shows, the commands of its process's ancestors, its parent's first, and
+ * the tmux session it is attached to, unless a test says otherwise the one
+ * named for its window, as each of Lee's tmux sessions has one window.
+ */
+export type FakeClient = { tty: string; window: string; from: readonly string[]; session?: string }
 
-/** A tmux server: each pane with its tmux window, a pane once for each session the window is in, and its clients. */
-export type FakeServer = { panes: [pane: string, window: string][]; clients: FakeClient[] }
+/**
+ * A tmux server: each pane with its tmux window and tmux session, a pane
+ * once for each session the window is in, the session the one named for its
+ * window unless a test says otherwise; and its clients.
+ */
+export type FakeServer = {
+  panes: [pane: string, window: string, session?: string][]
+  clients: FakeClient[]
+}
+
+/** The tmux session named for a tmux window: `$45` for `@45`. */
+const sessionFor = (window: string) => `$${window.slice(1)}`
+
+/** A tmux server as the fake holds it while it runs: each pane in its session, and each client attached to its own, a select changing the window it shows. */
+type HeldServer = {
+  panes: { pane: string; window: string; session: string }[]
+  clients: Required<FakeClient>[]
+}
 
 /**
  * A Ghostty terminal: its id, the device it is on, and the working directory
@@ -77,6 +100,16 @@ export const sshClient = (tty: string, window: string): FakeClient => ({
   tty,
   window,
   from: ['-zsh', '/usr/libexec/sshd-session', '/usr/sbin/sshd', '/sbin/launchd'],
+})
+
+/** Terminal's own program, as `ps` gives it: an app with no driver. */
+export const TERMINAL_APP = '/System/Applications/Utilities/Terminal.app/Contents/MacOS/Terminal'
+
+/** A window of another terminal app on `tty`, showing tmux's `window`: `tmux < zsh < login < the app's program`. */
+export const appClient = (tty: string, window: string, program: string): FakeClient => ({
+  tty,
+  window,
+  from: ['-zsh', '/usr/bin/login', program, '/sbin/launchd'],
 })
 
 /** A report written to a device, as the fake reads one back: OSC 7, its host `localhost`, its path percent-encoded. */
@@ -149,6 +182,8 @@ type Options = {
   missing?: string[]
   /** Programs that never answer: a run with a limit is killed at it. */
   slow?: string[]
+  /** How tmux answers a select: in these words, as it refuses one, or never, as a select that hangs; done, unless a test says otherwise. */
+  select?: { said: string } | 'slow'
   /** Devices gone, a write to which fails as a closed pty's does. */
   closed?: string[]
   /**
@@ -186,7 +221,24 @@ const latch = () => {
 function screen(options: Options) {
   const terminals = options.ghostty?.map(each => ({ ...each }))
   const late = new Map<FakeTerminal, string>()
-  const clients = Object.values(options.tmux ?? {}).flatMap(server => server.clients)
+  /** tmux's servers as they stand, a select changing which window a client shows. */
+  const servers = new Map<string, HeldServer>(
+    Object.entries(options.tmux ?? {}).map(([socket, server]) => [
+      socket,
+      {
+        panes: server.panes.map(([pane, window, session = sessionFor(window)]) => ({
+          pane,
+          window,
+          session,
+        })),
+        clients: server.clients.map(client => ({
+          ...client,
+          session: client.session ?? sessionFor(client.window),
+        })),
+      },
+    ]),
+  )
+  const clients = [...servers.values()].flatMap(server => server.clients)
   /** Every program run, by its words. */
   const ran: string[][] = []
   /** Every program run, by its name, with the time it was given. */
@@ -200,7 +252,7 @@ function screen(options: Options) {
   /** Programs whose runs wait, by name, until the test lets them answer. */
   const holds = new Map<string, { arrive: () => void; released: Promise<void> }>()
 
-  const pidOf = (client: FakeClient) => 1000 + clients.indexOf(client)
+  const pidOf = (client: Required<FakeClient>) => 1000 + clients.indexOf(client)
 
   /** Late terminals take the reports they were given. */
   const settle = () => {
@@ -211,8 +263,31 @@ function screen(options: Options) {
     late.clear()
   }
 
-  const tmux = (socket: string, words: readonly string[]): Ran => {
-    const server = options.tmux?.[socket]
+  /** Makes the window current in the session, for every client attached to it; refused for a session not holding it. */
+  const select = (server: HeldServer, words: readonly string[], limitMs?: number): Ran => {
+    const [session, window] = (words[2] ?? '').split(':')
+
+    if (options.select === 'slow') {
+      throw new Error(`tmux did not end within ${limitMs}ms`)
+    }
+
+    if (options.select !== undefined) {
+      return { exitCode: 1, stdout: '', stderr: `${options.select.said}\n` }
+    }
+
+    if (!server.panes.some(each => each.window === window && each.session === session)) {
+      return { exitCode: 1, stdout: '', stderr: `can't find window: ${window}\n` }
+    }
+
+    for (const client of server.clients.filter(each => each.session === session)) {
+      client.window = window ?? ''
+    }
+
+    return printed([])
+  }
+
+  const tmux = (socket: string, words: readonly string[], limitMs?: number): Ran => {
+    const server = servers.get(socket)
 
     if (server === undefined) {
       return {
@@ -223,11 +298,17 @@ function screen(options: Options) {
     }
 
     if (isWords(words, PANES)) {
-      return printed(server.panes.map(([pane, window]) => `${pane}\t${window}`))
+      return printed(server.panes.map(each => `${each.pane}\t${each.window}\t${each.session}`))
     }
 
     if (isWords(words, CLIENTS)) {
-      return printed(server.clients.map(each => `${each.tty}\t${pidOf(each)}\t${each.window}`))
+      return printed(
+        server.clients.map(each => `${each.tty}\t${pidOf(each)}\t${each.window}\t${each.session}`),
+      )
+    }
+
+    if (words[0] === 'select-window' && words[1] === '-t' && words.length === 3) {
+      return select(server, words, limitMs)
     }
 
     throw new Error(`the fake tmux knows no ${words.join(' ')}`)
@@ -297,9 +378,9 @@ function screen(options: Options) {
     return printed([bundle === undefined ? NO_BUNDLE : `"CFBundleIdentifier"="${bundle}"`])
   }
 
-  /** `open -b`, bringing Ghostty forward, the one app the CLI ever opens. */
+  /** `open`, bringing an app forward by its bundle id (`-b`) or its path (`-a`). */
   const open = (words: readonly string[]): Ran => {
-    if (!isWords(words, BRING_FORWARD.slice(1))) {
+    if (words.length !== 2 || !['-b', '-a'].includes(words[0] ?? '')) {
       throw new Error(`the fake open knows no ${words.join(' ')}`)
     }
 
@@ -383,7 +464,7 @@ function screen(options: Options) {
     }
 
     if (name === 'tmux' && words[0] === '-S') {
-      return tmux(words[1] ?? '', words.slice(2))
+      return tmux(words[1] ?? '', words.slice(2), limitMs)
     }
 
     if (name === 'ps') {
@@ -560,7 +641,7 @@ export function terminal(options: Options = {}) {
   /**
    * A window's heartbeat on a session, in its folder under either layout:
    * attached at `at`, seen then, `where` it is, and saying the `version` it
-   * runs, if any.
+   * runs and its `state`, if any.
    */
   const window = (
     folder: SessionFolder,
@@ -568,9 +649,10 @@ export function terminal(options: Options = {}) {
     at: number,
     where?: Where,
     version?: string,
+    state?: WindowState,
   ) =>
     files.set(folder.heartbeat(writer), {
-      text: beat(writer, { attachedAt: at, seenAt: at, where, version }),
+      text: beat(writer, { attachedAt: at, seenAt: at, where, version, state }),
       mtimeMs: at,
     })
 
