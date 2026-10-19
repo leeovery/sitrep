@@ -1,22 +1,13 @@
 /**
  * The CLI bound to Bun: the file system, the environment and the folder it
- * runs in, the clock and waiting on it, random bytes, standard output and
- * error, programs and terminal devices, and the exit code. bin/sitrep runs
- * it.
+ * runs in, the clocks and waiting on them, random bytes, standard output and
+ * error and when the run is to end, the plugin's manifest, programs and
+ * terminal devices, and the exit code. bin/sitrep runs it.
  */
-import { constants } from 'node:fs'
-import {
-  appendFile,
-  link,
-  mkdir,
-  open,
-  readdir,
-  rename,
-  rmdir,
-  stat,
-  unlink,
-} from 'node:fs/promises'
-import type { Io, Listed, Ran } from '../io'
+import { constants, readdirSync, readFileSync, statSync } from 'node:fs'
+import { appendFile, link, mkdir, open, rename, rmdir, unlink } from 'node:fs/promises'
+import { endOf, type Signals } from '../ending'
+import type { Io, Listed, Ran, Waiting } from '../io'
 import { main } from '../main'
 
 /** Errors a listing means "not there" by: the folder is missing, or is a file. */
@@ -24,6 +15,12 @@ const ABSENT = ['ENOENT', 'ENOTDIR']
 
 /** Errors a folder's removal leaves it by: it holds something (macOS says ENOTEMPTY, POSIX allows EEXIST). */
 const NOT_EMPTY = ['ENOTEMPTY', 'EEXIST']
+
+/** The plugin's manifest, from this file's folder, `cli/shell`. */
+const MANIFEST = `${import.meta.dir}/../../.claude-plugin/plugin.json`
+
+/** The program that started the run, as the CLI loads: before anything could miss it going. */
+const PARENT = process.ppid
 
 const hasCode = (error: unknown, codes: readonly string[]) =>
   typeof error === 'object' && error !== null && codes.includes(String(Reflect.get(error, 'code')))
@@ -41,9 +38,18 @@ const allowing =
 
 const folderOf = (path: string) => path.slice(0, path.lastIndexOf('/'))
 
-const modifiedAt = async (path: string) => {
+/*
+ * A listing, a stat and a read are made at once, not through a promise's
+ * round trip to a thread: `watch` looks every second, a look is mostly
+ * these, and each costs about a tenth (measured on Bun 1.4: a stat 2µs of
+ * CPU in place of 26, a listing 17 in place of 46).
+ */
+
+const statOf = async (path: string) => {
   try {
-    return (await stat(path)).mtimeMs
+    const found = statSync(path, { throwIfNoEntry: false })
+
+    return found === undefined ? undefined : { size: found.size, mtimeMs: found.mtimeMs }
   } catch (error) {
     allowing(ABSENT)(error)
 
@@ -81,7 +87,7 @@ const moveIn = async (from: string, to: string) => {
 
 const list = async (dir: string): Promise<Listed[]> => {
   try {
-    return (await readdir(dir, { withFileTypes: true })).flatMap((entry): Listed[] => {
+    return readdirSync(dir, { withFileTypes: true }).flatMap((entry): Listed[] => {
       if (entry.isDirectory()) {
         return [{ name: entry.name, kind: 'dir' }]
       }
@@ -138,11 +144,39 @@ const writeTo = async (device: string, text: string) => {
   }
 }
 
+const wait = (ms: number): Waiting => {
+  let timer: ReturnType<typeof setTimeout> | undefined
+  const waited = new Promise<void>(resolve => {
+    timer = setTimeout(resolve, ms)
+  })
+
+  return Object.assign(waited, { cancel: () => clearTimeout(timer) })
+}
+
+const signals: Signals = {
+  parent: () => process.ppid,
+  onTerm: heard => {
+    process.on('SIGTERM', heard)
+
+    return () => process.off('SIGTERM', heard)
+  },
+  onOutputFailed: heard => {
+    process.stdout.on('error', heard)
+
+    return () => process.stdout.off('error', heard)
+  },
+  every: (ms, tick) => {
+    const timer = setInterval(tick, ms)
+
+    return () => clearInterval(timer)
+  },
+}
+
 const io: Io = {
   fs: {
-    read: path => Bun.file(path).text(),
+    read: async path => readFileSync(path, 'utf8'),
     list,
-    modifiedAt,
+    stat: statOf,
     append,
     moveIn,
     replace: (from, to) => rename(from, to).catch(allowing(ABSENT)),
@@ -152,10 +186,13 @@ const io: Io = {
   env: Bun.env,
   cwd: process.cwd(),
   now: () => Date.now(),
-  wait: ms => new Promise(resolve => setTimeout(resolve, ms)),
+  uptime: () => performance.now(),
+  wait,
   random: count => crypto.getRandomValues(new Uint8Array(count)),
   out: text => void process.stdout.write(text),
   err: text => void process.stderr.write(text),
+  ending: () => endOf(signals, PARENT),
+  manifest: MANIFEST,
   run,
   writeTo,
 }

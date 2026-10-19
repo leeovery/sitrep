@@ -38,6 +38,12 @@ const SUBJECTS: ReadonlyMap<string, string> = new Map([
   ['Skill', 'skill'],
 ])
 
+/** The arguments that name a file. */
+const PATHS: ReadonlySet<string> = new Set(['file_path', 'notebook_path', 'filePath'])
+
+/** Whether a tool's subject is the path of the file it acts on. */
+export const isPathSubject = (name: string) => PATHS.has(SUBJECTS.get(name) ?? '')
+
 /** Text as one line, cut to SHOWN_LENGTH characters with an ellipsis where it was cut; empty for anything but text. */
 const shown = (value: unknown) => {
   const characters = Array.from(typeof value === 'string' ? oneLine(value) : '')

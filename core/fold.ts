@@ -5,6 +5,7 @@
  */
 import { parseEntries } from './entries'
 import { parseMeta } from './meta'
+import { unpaused, type Pause } from './pauses'
 import { deliverer, isLive, parsePresence } from './presence'
 import { parseProject, projectName } from './project'
 import { askAfter, fits, isOpen, isPending, parkedAfter, pickUpLog } from './replies'
@@ -355,8 +356,12 @@ const logOf = (fold: Fold) =>
     })
     .reverse()
 
-const presenceOf = (files: Readonly<Record<string, string>>) =>
-  byName(files).flatMap(([writer, text]) => parsePresence(text, writer) ?? [])
+const presenceOf = (files: Readonly<Record<string, string>>, pauses: readonly Pause[]) =>
+  byName(files).flatMap(([writer, text]) => {
+    const beat = parsePresence(text, writer)
+
+    return beat === undefined ? [] : [unpaused(beat, pauses)]
+  })
 
 const isAsk = (item: Item): item is Ask => item.type === 'ask'
 const isParked = (item: Item): item is Parked => item.type === 'park' && item.state === 'parked'
@@ -364,16 +369,22 @@ const isParked = (item: Item): item is Parked => item.type === 'park' && item.st
 /**
  * A session as it stands at `now`; undefined when its session.json is
  * missing or bad. Only replies count from the inbox: a sender may answer
- * this session's items, never post to it.
+ * this session's items, never post to it. No heartbeat ages through
+ * `pauses`, the time a reader that looks on and on was not running
+ * (pauses.ts).
  */
-export const foldSession = (files: SessionFiles, now: number): Session | undefined => {
+export const foldSession = (
+  files: SessionFiles,
+  now: number,
+  pauses: readonly Pause[] = [],
+): Session | undefined => {
   const meta = parseMeta(files.meta)
 
   if (meta === undefined) {
     return undefined
   }
 
-  const presence = presenceOf(files.presence ?? {})
+  const presence = presenceOf(files.presence ?? {}, pauses)
   const fold: Fold = {
     isOpen: presence.some(each => isLive(each, now)),
     status: { name: meta.name, summary: meta.summary, now: [], at: meta.created, by: meta.by },
