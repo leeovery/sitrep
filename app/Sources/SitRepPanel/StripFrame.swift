@@ -110,8 +110,10 @@ public struct StripFrame {
         public let centre: CGPoint
         public let scale: Double
         public let alpha: Double
-        /// Under the pointer, or its tab out: the ring lifts.
+        /// Under the pointer, or its tab out: the ring lifts, ...
         public let isLifted: Bool
+        /// ... this far, 0 to 1, easing in over 110ms and back out as it is left: the views draw it as it is.
+        public let lift: Double
         /// A click on it jumping: the ring presses in and its own arc turns.
         public let isJumping: Bool
         /// Just arrived: how washed orange inside the ring, and how bright the ring flashes, 0 to 1.
@@ -227,9 +229,14 @@ extension Strip {
         _ m: StripMark, _ text: String, _ look: StripFrame.Mark.Look, lifted: Bool, wash: Double, flash: Double
     ) -> StripFrame.Mark {
         let isJumping = if case let .mark(key) = jumping { key == m.key } else { false }
+        let lift = lifted ? 1.0 : 0
+        if m.lift.target != lift {
+            to(&m.lift, lift, StripTuning.liftFade)
+        }
         return StripFrame.Mark(
             key: m.key, text: text, look: look, centre: CGPoint(x: StripTuning.width / 2, y: m.y.x), scale: m.sc.x,
-            alpha: clamp(m.op.x, 0, 1), isLifted: lifted, isJumping: isJumping, wash: wash, flash: flash
+            alpha: clamp(m.op.x, 0, 1), isLifted: lifted, lift: clamp(m.lift.x, 0, 1), isJumping: isJumping,
+            wash: wash, flash: flash
         )
     }
 
@@ -253,7 +260,7 @@ extension Strip {
     /// arrived or waiting to grow, a cross-fade, or marks sliding under a tab that keeps with them.
     var isMoving: Bool {
         let all: [StripMark] = marks + [more].compactMap(\.self)
-        let markSprings: [Spring] = all.flatMap { [$0.y, $0.sc, $0.op] }
+        let markSprings: [Spring] = all.flatMap { [$0.y, $0.sc, $0.op, $0.lift] }
         let tabSprings: [Spring] = tabs.flatMap { [$0.w, $0.h, $0.y, $0.press, $0.alpha] }
         let springing = ([hair, hairOp] + markSprings + tabSprings).contains { !$0.isAtRest }
         let washing = marks.contains { m in

@@ -50,6 +50,44 @@ struct StripTests {
         #expect(lab.model.tabs.isEmpty)
     }
 
+    /// The pointer coming onto a mark, resting through the reach, the dwell and the pour, moving out onto its tab and
+    /// off: the ring lifts once, easing in over 110ms, stays lifted while the mark or its tab has the pointer, and
+    /// eases back once, never flickering in between; a needs you and a working mark alike.
+    @Test(arguments: ["s1", "s7"])
+    func aMarksRingLiftsOnceUnderThePointerAndSettlesBackOnceAfter(_ id: String) {
+        var lab = StripLab(pointer: CGPoint(x: 300, y: 600))
+        lab.settle()
+        let y = lab.model.yOf(.session(id))
+        var seen: [(t: Double, lifted: Bool, lift: Double)] = []
+        func frames(_ n: Int, moving dx: Double = 0) {
+            for _ in 0 ..< n {
+                lab.pointer?.x += dx
+                lab.step()
+                let mark = lab.frame.marks.first { $0.key == .session(id) }!
+                seen.append((lab.model.t, mark.isLifted, mark.lift))
+            }
+        }
+
+        lab.pointer = CGPoint(x: 120, y: y)
+        frames(27, moving: -4)
+        frames(30)
+        frames(30, moving: 4)
+        lab.pointer = nil
+        frames(120)
+
+        let on = seen.firstIndex { $0.lifted }!, off = seen.lastIndex { $0.lifted }! + 1
+        #expect(seen[on ..< off].allSatisfy { $0.lifted })
+        #expect(!seen[..<on].contains { $0.lifted || $0.lift > 0 })
+        #expect(seen[off...].allSatisfy { !$0.lifted })
+        let rising = seen[on ..< off].map(\.lift), falling = seen[(off - 1)...].map(\.lift)
+        #expect(zip(rising, rising.dropFirst()).allSatisfy { $0 <= $1 })
+        #expect(zip(falling, falling.dropFirst()).allSatisfy { $0 >= $1 })
+        #expect(seen[on + 1].lift > 0 && seen[on + 1].lift < 0.5)
+        let full = seen[on...].first { $0.lift > 0.9 }!
+        #expect(full.t - seen[on].t <= StripTuning.liftFade)
+        #expect(rising.last! > 0.999 && falling.last! < 0.001)
+    }
+
     @Test func restingOnAMarkTheEdgeReaches3TowardItThenAfter120msItsRowPoursOut() {
         var lab = StripLab(pointer: CGPoint(x: 18, y: 213))
 

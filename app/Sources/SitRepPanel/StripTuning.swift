@@ -27,6 +27,8 @@ enum StripTuning {
     static let fitKeep = 70 * Double.pi / 180, fitMin = 2.0
     /// Drawn back past the edge, the strip dents by a few points at most.
     static let dentGive = 3.0
+    /// A mark's ring lifts under the pointer, and settles back, over this long (the prototype's transition).
+    static let liftFade = 110.0
 
     /// The count's tab: a row each for the rest.
     static let rowHeight = 43.0, rowGap = 2.0, rowsPad = 8.0

@@ -39,43 +39,46 @@ enum GlassInk {
 }
 
 /// An arc turning round a track, once in a period: a working mark's or row's, a jumping one's, a jumping row's age.
+/// Its angle is the clock's, so no update of the views around it, animated or not, can restart it.
 @available(macOS 26, *)
 struct Spinner: View {
     let track: AnyShapeStyle?
     let arc: AnyShapeStyle
     let period: Double
     let line: Double
-    @State private var turned = false
 
     var body: some View {
-        ZStack {
-            if let track {
-                Circle().inset(by: line / 2).stroke(track, lineWidth: line)
+        TimelineView(.animation) { context in
+            ZStack {
+                if let track {
+                    Circle().inset(by: line / 2).stroke(track, lineWidth: line)
+                }
+                Circle()
+                    .inset(by: line / 2)
+                    .trim(from: 0, to: 0.25)
+                    .stroke(arc, style: StrokeStyle(lineWidth: line, lineCap: .round))
+                    .rotationEffect(.degrees(-90))
             }
-            Circle()
-                .inset(by: line / 2)
-                .trim(from: 0, to: 0.25)
-                .stroke(arc, style: StrokeStyle(lineWidth: line, lineCap: .round))
-                .rotationEffect(.degrees(-90))
-        }
-        .rotationEffect(.degrees(turned ? 360 : 0))
-        .onAppear {
-            withAnimation(.linear(duration: period).repeatForever(autoreverses: false)) {
-                turned = true
-            }
+            .rotationEffect(.degrees(360 * cycle(context.date, period)))
         }
     }
 }
 
 /// A working title on glass: in the secondary label colour, with the primary sweeping along it every 2.5s, as the
-/// black's shimmer does.
+/// black's shimmer does, by the clock, as the spinner turns.
 @available(macOS 26, *)
 struct Shimmering: View {
     let text: Text
     let width: Double
-    @State private var swept = false
 
     var body: some View {
+        TimelineView(.animation) { context in
+            swept(at: cycle(context.date, 2.5))
+        }
+    }
+
+    /// The sweep this far through, 0 to 1.
+    private func swept(at phase: Double) -> some View {
         text.foregroundStyle(.secondary)
             .overlay(alignment: .leading) {
                 text.foregroundStyle(.primary)
@@ -89,15 +92,15 @@ struct Shimmering: View {
                             startPoint: .leading, endPoint: .trailing
                         )
                         .frame(width: 3 * width)
-                        .offset(x: swept ? 0 : -2 * width)
+                        .offset(x: -2 * width * (1 - phase))
                     }
             }
-            .onAppear {
-                withAnimation(.linear(duration: 2.5).repeatForever(autoreverses: false)) {
-                    swept = true
-                }
-            }
     }
+}
+
+/// How far through its period the clock is, 0 to 1.
+private func cycle(_ date: Date, _ period: Double) -> Double {
+    (date.timeIntervalSinceReferenceDate / period).truncatingRemainder(dividingBy: 1)
 }
 
 extension View {

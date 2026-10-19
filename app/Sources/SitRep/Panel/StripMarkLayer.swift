@@ -4,7 +4,8 @@ import SitRepPanel
 /// One mark on the strip, drawn as the prototype's `.mk`: the project's letters in a 24pt ring whose colour carries
 /// the state, a glow outside it while it needs Lee, the working arc turning round it, lifted under the pointer, and
 /// pressed in with its arc turning while a click on it jumps. Just arrived, it is washed orange and its ring flashes,
-/// a frame at a time; any other change of look eases over 240ms, as the prototype's transitions do.
+/// and its lift eases as the model eases it, a frame at a time; any other change of look eases over 240ms, as the
+/// prototype's transitions do.
 @MainActor
 final class StripMarkLayer {
     let layer = CALayer()
@@ -50,11 +51,11 @@ final class StripMarkLayer {
         layer.addSublayer(spinner)
     }
 
-    /// What the mark looks like, short of its place and its arrival.
+    /// What the mark looks like, short of its place, its lift and its arrival.
     private struct Look: Equatable {
         let kind: StripFrame.Mark.Look
         let text: String
-        let lifted, jumping: Bool
+        let jumping: Bool
     }
 
     func show(_ mark: StripFrame.Mark) {
@@ -62,15 +63,19 @@ final class StripMarkLayer {
         layer.transform = CATransform3DMakeScale(mark.scale, mark.scale, 1)
         layer.opacity = Float(mark.alpha)
 
-        let look = Look(kind: mark.look, text: mark.text, lifted: mark.isLifted, jumping: mark.isJumping)
+        let look = Look(kind: mark.look, text: mark.text, jumping: mark.isJumping)
         if look != self.look {
             restyle(look, eased: self.look != nil)
         }
         if mark.wash > 0 || mark.flash > 0 {
-            arrive(wash: mark.wash, flash: mark.flash)
-        } else if glow.shadowRadius != Self.blur / 2 || ring.borderWidth != Self.line {
+            return arrive(wash: mark.wash, flash: mark.flash)
+        }
+
+        if glow.shadowRadius != Self.blur / 2 || ring.borderWidth != Self.line {
             restyle(look, eased: false)
         }
+        // the lift as the frame has it, eased by the model: set with no animation of its own, nothing restarts it
+        ring.backgroundColor = look.jumping ? PanelStyle.press : PanelStyle.hover.copy(alpha: mark.lift)
     }
 
     private func restyle(_ look: Look, eased: Bool) {
@@ -80,7 +85,6 @@ final class StripMarkLayer {
         CATransaction.setAnimationDuration(0.24)
         ring.borderWidth = Self.line
         ring.borderColor = look.jumping ? PanelStyle.track : Self.ringColour(kind)
-        ring.backgroundColor = look.jumping ? PanelStyle.press : look.lifted ? PanelStyle.hover : nil
         let glows = !look.jumping && (kind == .needs || kind == .away)
         glow.shadowPath = CGPath(ellipseIn: glow.bounds, transform: nil)
         glow.shadowRadius = Self.blur / 2

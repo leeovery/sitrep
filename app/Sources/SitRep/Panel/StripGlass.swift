@@ -128,7 +128,7 @@ private struct StripGlassBody: View {
 
 /// A mark on glass: its letters in the glass's label colours, the ring in its state's colour, needs you orange with
 /// its glow, your turn the label colour so it reads on light glass as on dark; working, the arc turning round a faint
-/// track.
+/// track. Drawn as each frame has it, lift and all, with no animation of its own for a frame's update to restart.
 @available(macOS 26, *)
 private struct GlassMark: View {
     let mark: StripFrame.Mark
@@ -143,7 +143,6 @@ private struct GlassMark: View {
                     track: mark.isJumping ? nil : AnyShapeStyle(.quaternary), arc: arc,
                     period: mark.isJumping ? 0.9 : 1.2, line: Self.line
                 )
-                .id(mark.isJumping)
             }
             if let ring {
                 Circle()
@@ -158,8 +157,6 @@ private struct GlassMark: View {
         .frame(width: Self.size, height: Self.size)
         .scaleEffect(mark.scale)
         .opacity(mark.alpha)
-        .animation(.easeOut(duration: 0.24), value: mark.look)
-        .animation(.easeOut(duration: 0.11), value: mark.isLifted)
     }
 
     private var isNeeds: Bool { mark.look == .needs || mark.look == .away }
@@ -171,7 +168,7 @@ private struct GlassMark: View {
         if mark.isJumping {
             return AnyShapeStyle(.primary.opacity(0.14))
         }
-        return mark.isLifted ? AnyShapeStyle(.primary.opacity(0.08)) : AnyShapeStyle(.clear)
+        return AnyShapeStyle(.primary.opacity(0.08 * mark.lift))
     }
 
     private var ring: AnyShapeStyle? {

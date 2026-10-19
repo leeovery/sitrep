@@ -10,6 +10,8 @@ final class StripMark {
     var y = Spring(0)
     var sc = Spring(1)
     var op: Spring
+    /// How far its ring has lifted under the pointer, 0 to 1.
+    var lift = Spring(0)
     /// Not yet placed: its first place it takes at once.
     var fresh = true
     /// Gone into the count.
@@ -31,6 +33,7 @@ final class StripMark {
         y.step(dt)
         sc.step(dt)
         op.step(dt)
+        lift.step(dt)
     }
 }
 
