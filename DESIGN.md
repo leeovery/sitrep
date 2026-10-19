@@ -1607,21 +1607,30 @@ were settled in the browser spike (below, "How the strip moves").
   be hidden. Nothing should go over the top of a full screen window"): while
   a full-screen app has the panel's display, the panel is off the screen,
   and it comes back as the display leaves it. A maximised window doesn't
-  count, and each display is judged on its own. Leaving the window off
-  full-screen Spaces wasn't enough: a non-activating panel on every Space
-  still showed over Plex full screen. So the app asks:
-  - whether the app in front is full screen, from the system's presentation
-    options; a maximised window never says so;
-  - whether its window fills the panel's display, from the window list's
-    bounds, which need no permission.
+  count, and each display is judged on its own. How SitRep tells, as the
+  spike found:
+  - **Leaving the window off full-screen Spaces wasn't enough.** A
+    non-activating panel on every Space still showed over Plex full screen.
+  - **Bounds alone can't tell the two apart.** Under the built-in display's
+    notch, a maximised window has a full-screen one's bounds.
+  - **The system's presentation options**, read for the app in front,
+    didn't catch Paper full screen.
+  - **What works, from the window list:** a display is full screen while
+    the Dock's full-screen backdrop covers it. The backdrop is a window
+    owned by the Dock, at layer −2147483622 on macOS 26, read by owner,
+    layer and bounds, so it needs no Screen Recording. A probe once a
+    second while Lee put Paper full screen showed it there for exactly that
+    long; meanwhile the display's menu bar and wallpaper windows were gone.
+    If a later macOS changes it, the panel only shows over full screen
+    again.
+  - **When SitRep looks:** on each change of Space, of the app in front and
+    of the screens, and once more a second later, as the backdrop slides
+    in. Nothing polls.
 
-  Bounds alone can't tell the two apart: under the built-in display's notch
-  a maximised window has a full-screen one's. SitRep asks again on each
-  change of Space, of the app in front and of the screens, and once more a
-  second later, as the window is still moving; nothing polls. The private
-  SkyLight call yabai uses reads each display's Space type directly. It was
-  left out, as nothing guarantees it across macOS releases. In the Swift
-  spike, not yet felt.
+  The private SkyLight call yabai uses would read each display's Space type
+  directly. It was left out, as nothing guarantees it across macOS
+  releases. In the Swift spike; Lee, putting Paper full screen and back:
+  "It works".
 - **Material:** Black, the bezel's, or Glass, macOS 26's Liquid Glass, for
   the strip and its tabs alike, as one shape (Lee, 18 October 2026: "I like
   the glass and the black, actually"). See Settings.
