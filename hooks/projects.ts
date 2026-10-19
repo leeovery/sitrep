@@ -19,13 +19,12 @@ import {
   projectText,
   recordedName,
   sessionPaths,
-  sessionsDir,
   type Project,
   type ProjectChange,
   type ProjectFile,
 } from '../core'
 import type { Host } from './host'
-import { foldersIn, textAt } from './reader'
+import { foldersIn, sessionsFiled, textAt } from './reader'
 
 /** Who first writes a project's file, and when. */
 type Writing = Pick<ProjectFile, 'created' | 'by'>
@@ -41,13 +40,19 @@ export const projectKeys = async (host: Host, root: string) =>
 const fileOf = async (host: Host, root: string, key: string) =>
   parseProject((await textAt(host, projectPaths(root, key).file)) ?? '')
 
-const metaOf = async (host: Host, root: string, key: string, id: string) =>
-  parseMeta((await textAt(host, sessionPaths(root, key, id).meta)) ?? '')
+const metaAt = async (host: Host, path: string) => parseMeta((await textAt(host, path)) ?? '')
 
-/** The work.json of each session filed under a project, in the order listed; undefined for one that does not read. */
+/** A session's meta: its session.json where that reads, else its work.json under the old layout. */
+const metaOf = async (host: Host, root: string, key: string, id: string) => {
+  const paths = sessionPaths(root, key, id)
+
+  return (await metaAt(host, paths.meta)) ?? metaAt(host, paths.old.meta)
+}
+
+/** The meta of each session filed under a project, in the order listed; undefined for one that does not read. */
 const metasIn = async (host: Host, root: string, key: string) =>
   Promise.all(
-    (await foldersIn(host, sessionsDir(root, key)))
+    (await sessionsFiled(host, root, key))
       .filter(isSessionId)
       .map(id => metaOf(host, root, key, id)),
   )
@@ -77,9 +82,9 @@ export const projectFiling = async (host: Host, root: string, id: string) => {
   return undefined
 }
 
-/** Every session id filed, in any project: a new one is unlike them all, as join looks in every project. */
+/** Every session id filed, in any project and under either layout: a new one is unlike them all, as join looks in every project. */
 export const sessionIdsIn = async (host: Host, root: string, keys: readonly string[]) =>
-  new Set((await Promise.all(keys.map(key => foldersIn(host, sessionsDir(root, key))))).flat())
+  new Set((await Promise.all(keys.map(key => sessionsFiled(host, root, key)))).flat())
 
 const writeProject = (host: Host, root: string, key: string, file: ProjectFile) =>
   host.fs.write(projectPaths(root, key).file, projectText(file))

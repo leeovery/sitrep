@@ -42,4 +42,8 @@ declare module 'node:fs/promises' {
   export function readdir(path: string, options: { withFileTypes: true }): Promise<BunEntry[]>
   export function appendFile(path: string, text: string): Promise<void>
   export function open(path: string, flags: number): Promise<FileHandle>
+  export function mkdir(path: string, options: { recursive: true }): Promise<string | undefined>
+  export function link(existing: string, made: string): Promise<void>
+  export function unlink(path: string): Promise<void>
+  export function rmdir(path: string): Promise<void>
 }

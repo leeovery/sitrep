@@ -215,7 +215,7 @@ test('the session knows every id its lines use, items and replies alike', () => 
   expect(session.updatedAt).toBe(T0 + 4 * MIN)
 })
 
-test('a session whose work.json is missing or torn does not fold', () => {
+test('a session whose session.json is missing or torn does not fold', () => {
   expect(foldSession({ meta: '', logs: {} }, T0)).toBeUndefined()
   expect(foldSession({ meta: '{"v":1,"id":"sr-k3f9', logs: {} }, T0)).toBeUndefined()
 })

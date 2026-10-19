@@ -29,6 +29,7 @@ import { boardOf } from './board'
 import { logFailure, rootFor, type Host } from './host'
 import { announce } from './news'
 import { createReader, ownText, type Reader } from './reader'
+import { versionNow } from './version'
 import { whereNow } from './where'
 
 /** How often the watch lists the session's folders for what changed. */
@@ -93,7 +94,7 @@ const show = async (host: Host, hold: Hold, session: Session) => {
 
 /**
  * The held session folded as it stands, put in `$.state` when it changed.
- * Undefined with no session held, or with its work.json missing or torn.
+ * Undefined with no session held, or with its session.json missing or torn.
  */
 export const refresh = async (host: Host): Promise<Session | undefined> => {
   const hold = current
@@ -164,17 +165,19 @@ export const letGo = async (host: Host) => {
 
 /**
  * Holds the session `attaching` names, letting go of any other first: reads
- * the window's own file back, works out where the window is, writes its
- * heartbeat, starts the beat and the watch, and folds the session.
+ * the window's own file back, under either layout, works out where the
+ * window is, writes its heartbeat, saying the version it runs, starts the
+ * beat and the watch, and folds the session.
  */
 export const attachTo = async (host: Host, root: string, attaching: SitrepAttachment) => {
   const { project, session, writer, attachedAt } = attaching
   const paths = sessionPaths(root, project, session)
+  const [where, version] = await Promise.all([whereNow(host), versionNow(host)])
   const hold: Hold = {
     attachment: attaching,
     paths,
-    text: await ownText(host, paths.log(writer)),
-    presence: attach(writer, attachedAt, await whereNow(host)),
+    text: await ownText(host, paths, folder => folder.log(writer)),
+    presence: attach(writer, attachedAt, { where, version }),
     read: createReader(),
     timers: [],
   }
@@ -210,7 +213,7 @@ export const resume = async (host: Host) => {
   await attachTo(host, await rootFor(host), kept)
 }
 
-/** Writes lines to the end of the window's own file, the whole file at once, and folds the session again. */
+/** Writes lines to the end of the window's own file, the whole file at once under today's layout, and folds the session again. */
 export const post = async (host: Host, bodies: readonly Body[]) => {
   const hold = current
 

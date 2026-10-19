@@ -1,11 +1,12 @@
 /**
  * Lee's replies to other sessions, written into each session's inbox as
  * this window's letters: `inbox/<writer>.jsonl`, the window its single
- * writer, rewriting the whole file as it adds to it. Written, a reply has
+ * writer, rewriting the whole file under today's layout as it adds to it,
+ * from its letters there under either. Written, a reply has
  * left the queue: sent, not yet delivered, until the window delivering for
  * that session marks it. Ready to send shows where each went meanwhile.
  */
-import { append, sessionPaths, type ReplyBody, type Session } from '../core'
+import { append, sessionPaths, type ReplyBody, type Session, type SessionPaths } from '../core'
 import type { SitrepAttachment, SitrepQueued, SitrepSessionRef } from '../types'
 import { foldAt, lookAround } from './around'
 import { rootFor, type Host } from './host'
@@ -28,9 +29,15 @@ type Went = { name: string; count: number }
 /** The window's letters as it last wrote them, by path; one not written since a reload is read back. */
 const texts = new Map<string, string>()
 
-const write = async (host: Host, path: string, bodies: readonly ReplyBody[]) => {
+const write = async (
+  host: Host,
+  paths: SessionPaths,
+  writer: string,
+  bodies: readonly ReplyBody[],
+) => {
+  const path = paths.letters(writer)
   const { text } = append(
-    texts.get(path) ?? (await ownText(host, path)),
+    texts.get(path) ?? (await ownText(host, paths, folder => folder.letters(writer))),
     bodies,
     await host.clock.now(),
   )
@@ -74,7 +81,7 @@ const sendTo = async (
   const bodies = replyBodies(session, replies)
 
   try {
-    await write(host, sessionPaths(root, to.project, to.session).letters(held.writer), bodies)
+    await write(host, sessionPaths(root, to.project, to.session), held.writer, bodies)
   } catch (error) {
     await host.state.queue.update(waiting => restoring(waiting, replies))
 

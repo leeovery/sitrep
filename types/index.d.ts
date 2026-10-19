@@ -105,6 +105,7 @@ export type SitrepPresence = {
   seenAt: number
   leftAt?: number
   where?: SitrepWhere
+  version?: string
 }
 
 /** A finished session: core's `Finished`. */

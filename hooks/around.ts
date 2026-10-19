@@ -15,7 +15,7 @@
  * watch's.
  */
 import type { Timer } from 'claude-code'
-import { brief, foldSession, isCurrent, isSessionId, sessionPaths, sessionsDir } from '../core'
+import { brief, foldSession, isCurrent, isSessionId, sessionPaths } from '../core'
 import type {
   SitrepAnswering,
   SitrepAttachment,
@@ -31,7 +31,7 @@ import { boardOf } from './board'
 import { logFailure, rootFor, type Host, type Slot } from './host'
 import { projectKeys } from './projects'
 import { destinations, isShowing } from './queue'
-import { createReader, foldersIn, type Reader } from './reader'
+import { createReader, sessionsFiled, type Reader } from './reader'
 import type { Filed } from './scene'
 
 /**
@@ -52,7 +52,7 @@ let looking: Promise<unknown> = Promise.resolve()
 
 let timer: Timer | undefined
 
-/** A session as its files stand at `now`; undefined when its work.json is missing or torn. */
+/** A session as its files stand at `now`; undefined when its session.json is missing or torn. */
 export const foldAt = async (host: Host, root: string, at: SitrepSessionRef, now: number) => {
   const paths = sessionPaths(root, at.project, at.session)
   const read = readers.get(paths.dir) ?? createReader()
@@ -70,7 +70,7 @@ export const sessionsIn = async (
   now: number,
   except?: string,
 ) => {
-  const ids = (await foldersIn(host, sessionsDir(root, project))).filter(
+  const ids = (await sessionsFiled(host, root, project)).filter(
     id => isSessionId(id) && id !== except,
   )
   const sessions = await Promise.all(

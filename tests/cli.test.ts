@@ -360,7 +360,7 @@ test('an id filed in no project is no such session, and ends as such', async () 
   })
 })
 
-test('a session whose work.json is torn is no such session', async () => {
+test('a session whose session.json is torn is no such session', async () => {
   const t = terminal()
   const paths = t.seed(META)
 

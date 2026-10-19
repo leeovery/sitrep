@@ -70,6 +70,11 @@ export type Host = {
     /** Walks up from a shell Claude Code starts to the first process with a terminal: the tty name it printed (`ttys043`), if any, and how it exited. */
     tty: () => Promise<Pick<ProcessRunResult, 'exitCode' | 'stdout' | 'stderr'>>
   }
+  /** The plugin as the engine loaded it. */
+  plugin: {
+    /** Its manifest's text, as it stands on disk. */
+    manifest: () => Promise<string>
+  }
   /** Writes a line to the debug log. */
   log: (text: string) => void
   ui: {

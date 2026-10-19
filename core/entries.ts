@@ -4,13 +4,18 @@
  *
  * A reader can catch a file mid-write, so parsing never throws: a torn last
  * line, a bad line or a line of a kind or version it does not know is
- * skipped, and the rest stands.
+ * skipped, and the rest stands. A line of a past version is read in today's
+ * shape (see versions.ts).
  */
 import { ASK_KINDS, WANTS } from './shapes'
 import type { AskKind, Body, Entry, Finisher, Verdict, Wants } from './types'
+import { upgraded, versionOf, type Raw, type Upgrade } from './versions'
 
-/** The format's version: a line of any other is skipped. */
-export const VERSION = 1
+/** How a line of each past version is brought to the next: none yet, the format being at its first. */
+const UPGRADES: readonly Upgrade[] = []
+
+/** The format's version: a line of a later one is skipped. */
+export const VERSION = versionOf(UPGRADES)
 
 /** What appending bodies to a file makes: the stamped entries, the text to append, the whole file after. */
 export type Appended = {
@@ -28,6 +33,23 @@ type Check = (value: unknown) => boolean
 /** Whether a value read from JSON is an object of keys: not null, and not a list. */
 export const isObject = (value: unknown): value is { [key: string]: unknown } =>
   typeof value === 'object' && value !== null && !Array.isArray(value)
+
+/**
+ * A JSON object's text in today's shape, through its format's upgrades;
+ * undefined when it is torn, not an object, or of a version this reader
+ * does not know.
+ */
+export const parseVersioned = (text: string, upgrades: readonly Upgrade[]): Raw | undefined => {
+  let raw: unknown
+
+  try {
+    raw = JSON.parse(text)
+  } catch {
+    return undefined
+  }
+
+  return isObject(raw) ? upgraded(raw, upgrades) : undefined
+}
 
 /** Whether a value read from JSON is text with something in it. */
 export const isFilled = (value: unknown): value is string =>
@@ -97,30 +119,18 @@ const SHAPES: { [T in Body['type']]: Record<string, Check> } = {
 }
 
 /** What a kind of line needs beyond its fields one by one: an ask says what it wants back, or, written before asks did, its kind. */
-const WHOLE: Partial<Record<Body['type'], (raw: { [key: string]: unknown }) => boolean>> = {
+const WHOLE: Partial<Record<Body['type'], (raw: Raw) => boolean>> = {
   ask: raw => raw.wants !== undefined || raw.kind !== undefined,
 }
 
 const isType = (value: unknown): value is Body['type'] =>
   typeof value === 'string' && Object.hasOwn(SHAPES, value)
 
-/** A line's entry, or undefined for a line that is torn, bad, or of a kind or version this reader does not know. */
+/** A line's entry in today's shape, or undefined for a line that is torn, bad, or of a kind or version this reader does not know. */
 const decode = (line: string): Entry | undefined => {
-  let raw: unknown
+  const raw = parseVersioned(line, UPGRADES)
 
-  try {
-    raw = JSON.parse(line)
-  } catch {
-    return undefined
-  }
-
-  if (
-    !isObject(raw) ||
-    raw.v !== VERSION ||
-    !isTime(raw.at) ||
-    !isCount(raw.seq) ||
-    !isType(raw.type)
-  ) {
+  if (raw === undefined || !isTime(raw.at) || !isCount(raw.seq) || !isType(raw.type)) {
     return undefined
   }
 
@@ -130,7 +140,7 @@ const decode = (line: string): Entry | undefined => {
     return undefined
   }
 
-  const entry: { [key: string]: unknown } = { v: raw.v, at: raw.at, seq: raw.seq, type: raw.type }
+  const entry: Raw = { v: raw.v, at: raw.at, seq: raw.seq, type: raw.type }
 
   for (const [key] of fields) {
     if (raw[key] !== undefined) {
@@ -141,12 +151,13 @@ const decode = (line: string): Entry | undefined => {
   return entry as Entry
 }
 
-/** Every entry a file's text holds, in file order. */
+/**
+ * Every entry a file's text holds, in file order. A line it holds twice,
+ * byte for byte, is one entry: two runs of the CLI moving the old layout at
+ * once may both append it (see layouts.ts).
+ */
 export const parseEntries = (text: string): Entry[] =>
-  text
-    .split('\n')
-    .map(decode)
-    .filter(entry => entry !== undefined)
+  [...new Set(text.split('\n'))].map(decode).filter(entry => entry !== undefined)
 
 /** An entry as one line of its file, newline included. */
 export const serialise = (entry: Entry) => `${JSON.stringify(entry)}\n`

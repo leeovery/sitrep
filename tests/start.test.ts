@@ -1,7 +1,7 @@
 import { expect, test, tier, type Engine } from 'claude-code/testing'
 import { CURRENT_MS, parseEntries, parsePresence, startText, type SessionMeta } from '../core'
 import { file, finish, MIN, note, T0, W1, W2 } from './support'
-import { DASHBOARD, PROJECT, CONVERSATION, WHERE, world } from './world'
+import { DASHBOARD, PROJECT, CONVERSATION, PLUGIN_VERSION, WHERE, world } from './world'
 
 tier('user')
 
@@ -55,6 +55,7 @@ test('a conversation resumed in a new process takes up by itself the session it 
     attachedAt: NOW,
     seenAt: NOW,
     where: WHERE,
+    version: PLUGIN_VERSION,
   })
 
   await w.call('note', { text: 'Drew round 2' })

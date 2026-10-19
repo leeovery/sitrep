@@ -228,10 +228,10 @@ test("a session's windows are its live presences' whereabouts, the deliverer's f
   const session = fold(
     {
       presence: {
-        [W1]: presenceText(attach(W1, T0 + 30_000, IN_GHOSTTY)),
-        [W2]: presenceText(attach(W2, T0, IN_TMUX)),
-        gone: presenceText(leave(attach('gone', T0, IN_GHOSTTY), T0 + 40_000)),
-        stale: presenceText(attach('stale', T0 - 10 * MIN, IN_GHOSTTY)),
+        [W1]: presenceText(attach(W1, T0 + 30_000, { where: IN_GHOSTTY })),
+        [W2]: presenceText(attach(W2, T0, { where: IN_TMUX })),
+        gone: presenceText(leave(attach('gone', T0, { where: IN_GHOSTTY }), T0 + 40_000)),
+        stale: presenceText(attach('stale', T0 - 10 * MIN, { where: IN_GHOSTTY })),
         unsaid: presenceText(attach('unsaid', T0 + 50_000)),
       },
     },

@@ -1,5 +1,12 @@
 import { expect, test, tier } from 'claude-code/testing'
-import { HEARTBEAT_MS, metaText, parseEntries, parsePresence, sessionPaths } from '../core'
+import {
+  HEARTBEAT_MS,
+  metaText,
+  parseEntries,
+  parsePresence,
+  sessionPaths,
+  type SessionPaths,
+} from '../core'
 import { boardOf, sessionOf } from '../hooks/board'
 import { TTY_WALK } from '../hooks/where'
 import { WATCH_MS } from '../hooks/window'
@@ -20,6 +27,8 @@ import {
 } from './support'
 import {
   DASHBOARD,
+  manifestOf,
+  PLUGIN_VERSION,
   PROJECT,
   ROOT,
   CONVERSATION,
@@ -123,6 +132,7 @@ test('after a reload, the window takes up the session $.state names, reads its f
     attachedAt: T0,
     seenAt: T0 + 60_000,
     where: WHERE,
+    version: PLUGIN_VERSION,
   })
   expect(w.state.board?.asks.map(item => item.id)).toEqual(['k1'])
 })
@@ -159,12 +169,19 @@ test('the heartbeat is rewritten every 30 seconds while attached, and says when 
   const w = world($, on)
   const { paths } = await w.begin()
   const beat = () => parsePresence(w.text(paths.heartbeat(W1)), W1)
+  const seenAt = (at: number) => ({
+    writer: W1,
+    attachedAt: T0,
+    seenAt: at,
+    where: WHERE,
+    version: PLUGIN_VERSION,
+  })
 
-  expect(beat()).toEqual({ writer: W1, attachedAt: T0, seenAt: T0, where: WHERE })
+  expect(beat()).toEqual(seenAt(T0))
 
   await w.clock.advance(HEARTBEAT_MS)
 
-  expect(beat()).toEqual({ writer: W1, attachedAt: T0, seenAt: T0 + HEARTBEAT_MS, where: WHERE })
+  expect(beat()).toEqual(seenAt(T0 + HEARTBEAT_MS))
 
   await w.clock.advance(10_000)
   await $.session.end(CLEARED)
@@ -194,6 +211,63 @@ test('attaching in tmux records the device, the terminal and the pane in the hea
 
   expect(where()).toEqual(inTmux)
   expect(w.runs, 'the walk ran once, as the window attached').toEqual([['/bin/sh', '-c', TTY_WALK]])
+})
+
+test("every heartbeat says the version the plugin's manifest gave as the mod loaded, though the manifest changes after", async ($, on) => {
+  const w = world($, on)
+
+  w.manifestGives(manifestOf('0.4.2'))
+
+  const { paths } = await w.begin()
+  const version = (at: SessionPaths) => parsePresence(w.text(at.heartbeat(W1)), W1)?.version
+
+  w.manifestGives(manifestOf('0.5.0'))
+  await w.clock.advance(HEARTBEAT_MS)
+
+  const later = startedId(await w.call('start', { ...DASHBOARD, name: 'Lobby' }))
+
+  expect(version(paths)).toBe('0.4.2')
+  expect(version(sessionPaths(ROOT, PROJECT.key, later))).toBe('0.4.2')
+  expect(w.logs).toEqual([])
+})
+
+for (const [why, manifest] of [
+  ['cannot be read', undefined],
+  ['is torn', '{"name":"sitrep","vers'],
+  ['gives no version', manifestOf(undefined)],
+  ['gives a version that is not text', manifestOf(1)],
+] as const) {
+  test(`a manifest that ${why} leaves the version out, says so in the debug log, and the window beats all the same`, async ($, on) => {
+    const w = world($, on)
+
+    w.manifestGives(manifest)
+
+    const { paths } = await w.begin()
+    const beat = () => parsePresence(w.text(paths.heartbeat(W1)), W1)
+
+    expect(beat()?.version).toBeUndefined()
+    expect(JSON.parse(w.text(paths.heartbeat(W1)))).not.toHaveProperty('version')
+    expect(w.logs).toEqual([expect.stringContaining("sitrep: reading the plugin's version failed")])
+
+    await w.clock.advance(HEARTBEAT_MS)
+
+    expect(beat()?.seenAt).toBe(w.clock.now())
+    expect(w.logs, 'read once a load').toHaveLength(1)
+  })
+}
+
+test("another window's heartbeat saying no version, as one on an older version writes it, reads as ever", async ($, on) => {
+  const w = world($, on)
+  const { id } = await w.begin()
+
+  w.beat(id, { writer: W2, attachedAt: w.clock.now(), seenAt: w.clock.now() })
+  await w.clock.advance(WATCH_MS)
+
+  expect(w.state.board?.presence.map(each => [each.writer, each.version])).toEqual([
+    [W1, PLUGIN_VERSION],
+    [W2, undefined],
+  ])
+  expect(w.state.board?.deliverer).toBe(W1)
 })
 
 test('outside tmux, the heartbeat holds the device and the terminal, and no tmux', async ($, on) => {

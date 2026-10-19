@@ -8,8 +8,9 @@
  * Two names are one project's when their letters and digits match, case
  * aside: `Sitrep` and `Sit Rep` are SitRep's.
  */
-import { VERSION } from './entries'
+import { parseVersioned } from './entries'
 import type { SessionMeta } from './meta'
+import { versionOf, type Upgrade } from './versions'
 
 /** A project's file: its name and directory, and when and by whom it was first written. */
 export type ProjectFile = {
@@ -27,6 +28,9 @@ export type Project = {
   name: string
   directory?: string
 }
+
+/** How a project.json of each past version is brought to the next: none yet. */
+const UPGRADES: readonly Upgrade[] = []
 
 /** The longest slug a new key keeps. */
 const SLUG_LENGTH = 32
@@ -79,7 +83,7 @@ const capitalised = (name: string) => name.charAt(0).toUpperCase() + name.slice(
 
 /**
  * The name a folder from before projects were named goes by, as its sessions
- * recorded it: the first of them whose work.json reads, in the order listed.
+ * recorded it: the first of them whose session.json reads, in the order listed.
  */
 export const recordedName = (metas: readonly (Pick<SessionMeta, 'project'> | undefined)[]) =>
   metas.find(meta => meta !== undefined)?.project
@@ -105,21 +109,13 @@ export const projectFrom = (
   return named === undefined ? undefined : { key, name: capitalised(named) }
 }
 
-export const projectText = (file: ProjectFile) => `${JSON.stringify({ v: VERSION, ...file })}\n`
+export const projectText = (file: ProjectFile) =>
+  `${JSON.stringify({ v: versionOf(UPGRADES), ...file })}\n`
 
-/** A project's file; undefined when it is torn, bad or of another version. */
+/** A project's file, in today's shape; undefined when it is torn, bad or of a later version. */
 export const parseProject = (text: string): ProjectFile | undefined => {
-  let raw: { [key: string]: unknown }
-
-  try {
-    raw = JSON.parse(text) ?? {}
-  } catch {
-    return undefined
-  }
-
-  const { v, name, directory, created, by } = raw
+  const { name, directory, created, by } = parseVersioned(text, UPGRADES) ?? {}
   const isWhole =
-    v === VERSION &&
     typeof name === 'string' &&
     (directory === undefined || typeof directory === 'string') &&
     typeof created === 'number' &&

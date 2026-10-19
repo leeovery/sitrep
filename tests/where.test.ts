@@ -24,7 +24,7 @@ const fileWith = (where: unknown) =>
   JSON.stringify({ writer: W1, attachedAt: T0, seenAt: T0, where })
 
 test('a heartbeat reads back with where its window is, through every beat and the leaving', () => {
-  const left = leave(heartbeat(attach(W1, T0, IN_TMUX), T0 + 30_000), T0 + 40_000)
+  const left = leave(heartbeat(attach(W1, T0, { where: IN_TMUX }), T0 + 30_000), T0 + 40_000)
 
   expect(left.where).toEqual(IN_TMUX)
   expect(parsePresence(presenceText(left), W1)).toEqual(left)
@@ -39,7 +39,9 @@ test('a heartbeat written before windows said where they are reads as it always 
 
 test('with nothing known of where a window is, its heartbeat has no where at all', () => {
   expect(whereOf({})).toBeUndefined()
-  expect(JSON.parse(presenceText(attach(W1, T0, whereOf({}))))).not.toHaveProperty('where')
+  expect(JSON.parse(presenceText(attach(W1, T0, { where: whereOf({}) })))).not.toHaveProperty(
+    'where',
+  )
 })
 
 test('a bad where is dropped and the heartbeat kept', () => {

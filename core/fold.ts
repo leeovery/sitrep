@@ -29,7 +29,7 @@ import {
   type Session,
 } from './types'
 
-/** A session's files as read: work.json's text, and every other file's text by the writer its name gives. */
+/** A session's files as read: its session.json's text, and every other file's text by the writer its name gives. */
 export type SessionFiles = {
   meta: string
   /** The project's project.json, which names the project; a folder from before projects were named has none. */
@@ -362,7 +362,7 @@ const isAsk = (item: Item): item is Ask => item.type === 'ask'
 const isParked = (item: Item): item is Parked => item.type === 'park' && item.state === 'parked'
 
 /**
- * A session as it stands at `now`; undefined when its work.json is
+ * A session as it stands at `now`; undefined when its session.json is
  * missing or bad. Only replies count from the inbox: a sender may answer
  * this session's items, never post to it.
  */

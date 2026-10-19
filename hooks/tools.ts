@@ -70,7 +70,7 @@ const NOT_ATTACHED =
   'No session is attached to this window: start one, or join one by its id, first.'
 
 const UNREADABLE =
-  "The attached session's work.json is missing or torn, so its board cannot be read."
+  "The attached session's session.json is missing or torn, so its board cannot be read."
 
 const LINE =
   'One line in plain words, starting with the verb; no internal codes such as P- or D-numbers.'

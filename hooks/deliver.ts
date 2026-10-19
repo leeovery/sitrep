@@ -160,7 +160,7 @@ const writeDown = async (host: Host, delivery: SitrepInFlight) => {
   )
 
   if (!isThere) {
-    host.log(`sitrep: Claude has replies to ${delivery.session}, whose work.json is gone`)
+    host.log(`sitrep: Claude has replies to ${delivery.session}, whose session.json is gone`)
   }
 
   if (await endIf(host, current => isClaim(current, delivery))) {

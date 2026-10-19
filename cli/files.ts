@@ -1,14 +1,19 @@
 /**
  * Reading sitrep's folder, as the CLI does at each run: a session
  * found by its id in whichever project files it, and every project with
- * the sessions filed under it.
+ * the sessions filed under it. A session is read under today's layout and
+ * the old alike, as one (core's layouts.ts).
  */
 import {
+  filedIds,
   foldSession,
   isSafeName,
   isSessionId,
   LOG_SUFFIX,
+  mergedFiles,
+  oldSessionsDir,
   parseMeta,
+  parsePresence,
   parseProject,
   PRESENCE_SUFFIX,
   projectFrom,
@@ -19,10 +24,13 @@ import {
   sessionPaths,
   sessionsDir,
   writerOf,
+  type FolderFiles,
+  type Presence,
   type ProjectSessions,
   type Where,
   type Session,
   type SessionFiles,
+  type SessionFolder,
   type SessionPaths,
 } from '../core'
 import type { Io } from './io'
@@ -31,40 +39,69 @@ import { windowsOf } from './screen'
 /** A session as found: the project it is filed under, its paths and files, and the session they fold to. */
 export type Found = { project: string; paths: SessionPaths; files: SessionFiles; session: Session }
 
-const foldersIn = async (io: Io, dir: string) =>
+export const foldersIn = async (io: Io, dir: string) =>
   (await io.fs.list(dir)).filter(entry => entry.kind === 'dir').map(entry => entry.name)
 
 /** The key of every project folder. */
-const projectKeys = async (io: Io, root: string) =>
+export const projectKeys = async (io: Io, root: string) =>
   (await foldersIn(io, projectsDir(root))).filter(isSafeName)
 
-/** A file's text; undefined while it is not there. */
-const textAt = (io: Io, path: string) => io.fs.read(path).catch((): string | undefined => undefined)
+/** The sessions a project files, under today's layout or the old, each once. */
+export const sessionIdsIn = async (io: Io, root: string, project: string) => {
+  const [now, old] = await Promise.all([
+    foldersIn(io, sessionsDir(root, project)),
+    foldersIn(io, oldSessionsDir(root, project)),
+  ])
 
-/** The texts of a folder's files with the suffix, by the writer each is named for. */
+  return filedIds(now, old).filter(isSessionId)
+}
+
+/** A file's text; undefined while it is not there. */
+export const textAt = (io: Io, path: string) =>
+  io.fs.read(path).catch((): string | undefined => undefined)
+
+/** The texts of a folder's files with the suffix, by the writer each is named for; a file gone by its read, as a run moving it at once leaves it, is not there. */
 const byWriter = async (io: Io, dir: string, suffix: string) => {
   const files = (await io.fs.list(dir)).flatMap(entry => {
     const writer = entry.kind === 'file' ? writerOf(entry.name, suffix) : undefined
 
     return writer === undefined ? [] : [{ writer, path: `${dir}/${entry.name}` }]
   })
+  const read = await Promise.all(
+    files.map(async ({ writer, path }) => ({ writer, text: await textAt(io, path) })),
+  )
 
   return Object.fromEntries(
-    await Promise.all(files.map(async ({ writer, path }) => [writer, await io.fs.read(path)])),
+    read.flatMap(({ writer, text }) => (text === undefined ? [] : [[writer, text]])),
   )
 }
 
-/** A session's files as they stand, and its project's; work.json's text is empty while it is not there. */
-export const readSession = async (io: Io, paths: SessionPaths): Promise<SessionFiles> => {
-  const [meta = '', project, logs, inbox, presence] = await Promise.all([
-    textAt(io, paths.meta),
-    textAt(io, paths.project.file),
-    byWriter(io, paths.dir, LOG_SUFFIX),
-    byWriter(io, paths.inbox, LOG_SUFFIX),
-    byWriter(io, paths.presence, PRESENCE_SUFFIX),
+/** The heartbeats of a session's folder under one layout, as they read. */
+export const heartbeatsIn = async (io: Io, folder: SessionFolder): Promise<Presence[]> =>
+  Object.entries(await byWriter(io, folder.presence, PRESENCE_SUFFIX)).flatMap(
+    ([writer, text]) => parsePresence(text, writer) ?? [],
+  )
+
+const filesIn = async (io: Io, folder: SessionFolder): Promise<FolderFiles> => {
+  const [meta = '', logs, inbox, presence] = await Promise.all([
+    textAt(io, folder.meta),
+    byWriter(io, folder.dir, LOG_SUFFIX),
+    byWriter(io, folder.inbox, LOG_SUFFIX),
+    byWriter(io, folder.presence, PRESENCE_SUFFIX),
   ])
 
-  return { meta, project, logs, inbox, presence }
+  return { meta, logs, inbox, presence }
+}
+
+/** A session's files as they stand under either layout, as one, and its project's; the meta's text is empty while neither has one. */
+export const readSession = async (io: Io, paths: SessionPaths): Promise<SessionFiles> => {
+  const [now, old, project] = await Promise.all([
+    filesIn(io, paths),
+    filesIn(io, paths.old),
+    textAt(io, paths.project.file),
+  ])
+
+  return { ...mergedFiles(now, old), project }
 }
 
 /** A session by its id, as it stands at `now`, in whichever project files it; undefined when none does. */
@@ -88,17 +125,17 @@ export const findSession = async (
 }
 
 /** The files of each session filed under a project, in the order listed. */
-const filesIn = async (io: Io, root: string, project: string) =>
+const sessionFilesIn = async (io: Io, root: string, project: string) =>
   Promise.all(
-    (await foldersIn(io, sessionsDir(root, project)))
-      .filter(isSessionId)
-      .map(id => readSession(io, sessionPaths(root, project, id))),
+    (await sessionIdsIn(io, root, project)).map(id =>
+      readSession(io, sessionPaths(root, project, id)),
+    ),
   )
 
-/** A project and its sessions, but those whose work.json is missing or torn; undefined for a folder with no file and no session. */
+/** A project and its sessions, but those whose session.json is missing or torn; undefined for a folder with no file and no session. */
 const readProject = async (io: Io, root: string, key: string, now: number) => {
   const file = parseProject((await textAt(io, projectPaths(root, key).file)) ?? '')
-  const files = await filesIn(io, root, key)
+  const files = await sessionFilesIn(io, root, key)
   const sessions = files
     .map(each => foldSession(each, now))
     .filter(session => session !== undefined)

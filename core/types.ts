@@ -251,6 +251,8 @@ export type Presence = {
   seenAt: number
   leftAt?: number
   where?: Where
+  /** The sitrep version the window runs, as its plugin's manifest gives it; none from a window on a version before heartbeats said it. */
+  version?: string
 }
 
 /** A session as it stands, every writer's lines read together. */

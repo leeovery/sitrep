@@ -30,6 +30,7 @@ import {
 } from '../core'
 import { PANE } from '../hooks/pane'
 import { itemKey } from '../hooks/places'
+import { MANIFEST } from '../hooks/version'
 import { file, T0, W1, W2, type Line } from './support'
 
 type Sitrep = PluginState['sitrep']
@@ -42,6 +43,13 @@ export const REPO = '/Users/lee/Code/switchboard'
 
 /** Lee's home folder, which a window may start in to talk of any project. */
 export const HOME = '/Users/lee'
+
+/** The sitrep version the plugin's manifest gives, unless a test says otherwise. */
+export const PLUGIN_VERSION = '0.1.0'
+
+/** The plugin's manifest, giving `version`. */
+export const manifestOf = (version: unknown) =>
+  `${JSON.stringify({ name: 'sitrep', version, description: 'A small window onto a session' })}\n`
 
 /** The terminal Claude Code is on, as the walk up its processes prints it. */
 export const TTY = 'ttys001'
@@ -284,12 +292,16 @@ export function world(engine: Engine, on: On, options: Options = {}) {
   /** How many times each of the mod's values was put in `$.state`. */
   const writes: Partial<Record<keyof Sitrep, number>> = {}
   const logs: string[] = []
+  /** Every folder the mod listed that was not there: each a line in the engine's debug log. */
+  const unlisted: string[] = []
   const registered: { name: string; isDeferred?: boolean }[] = []
   const shown = display(on)
   let conversation = W1
   let cwd = options.cwd ?? REPO
   let isRefused: ((path: string) => boolean) | undefined
   let isUnread = false
+  /** The plugin's manifest; none, as one that cannot be read. */
+  let manifest: string | undefined = manifestOf(PLUGIN_VERSION)
 
   /** The commands the mod ran, each as its argument vector. */
   const runs: (readonly string[])[] = []
@@ -351,10 +363,14 @@ export function world(engine: Engine, on: On, options: Options = {}) {
     return next(e)
   })
 
-  on('fs.read', ($, e) => {
-    const file = files.get(e.path)
+  /** What a read finds: the plugin's manifest in the plugin's own folder, wherever the test loads it from; else the file held there. */
+  const textAt = (path: string) =>
+    path.endsWith(`/${MANIFEST}`) ? manifest : files.get(path)?.text
 
-    return file === undefined ? MISSING(e.path) : { value: file.text }
+  on('fs.read', ($, e) => {
+    const text = textAt(e.path)
+
+    return text === undefined ? MISSING(e.path) : { value: text }
   })
 
   on('fs.write', ($, e) => {
@@ -370,6 +386,11 @@ export function world(engine: Engine, on: On, options: Options = {}) {
   /** The walk for the terminal gives `next` from here on. */
   const walkGives = (next: Walk) => {
     walk = next
+  }
+
+  /** The plugin's manifest from here on is `text`; given none, it cannot be read. */
+  const manifestGives = (text?: string) => {
+    manifest = text
   }
 
   /** The other sessions the board reads in full, from here on, never land in `$.state`: as before the look reading one has, only their briefs are there. */
@@ -390,6 +411,8 @@ export function world(engine: Engine, on: On, options: Options = {}) {
     const under = [...files.entries()].filter(([path]) => isUnder(e.path, path))
 
     if (under.length === 0) {
+      unlisted.push(e.path)
+
       return MISSING(e.path)
     }
 
@@ -430,6 +453,15 @@ export function world(engine: Engine, on: On, options: Options = {}) {
   /** A session started by another window, filed under `project`. */
   const seed = (meta: SessionMeta, project = PROJECT.key) =>
     put(sessionPaths(ROOT, project, meta.id).meta, metaText(meta))
+
+  /** A session started by a window on a version that filed it under the old layout, `works/<id>/work.json`: its paths. */
+  const seedOld = (meta: SessionMeta, project = PROJECT.key) => {
+    const paths = sessionPaths(ROOT, project, meta.id)
+
+    put(paths.old.meta, metaText(meta))
+
+    return paths
+  }
 
   /** A project's file, as a start or the project tool writes it. */
   const project = (key: string, file: ProjectFile) =>
@@ -547,6 +579,7 @@ export function world(engine: Engine, on: On, options: Options = {}) {
     boards,
     writes,
     logs,
+    unlisted,
     runs,
     registered,
     ...shown,
@@ -554,8 +587,10 @@ export function world(engine: Engine, on: On, options: Options = {}) {
     text,
     refuseWrites,
     walkGives,
+    manifestGives,
     leaveUnread,
     seed,
+    seedOld,
     project,
     beat,
     writer,

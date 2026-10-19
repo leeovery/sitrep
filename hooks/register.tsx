@@ -52,6 +52,7 @@ import { heldSession, sceneOf, tickEvery } from './scene'
 import { boardChange, markSeen } from './seen'
 import { rejoin, startListing } from './start'
 import { answerCall, nameKept, SPECS, TOOL_NAMES } from './tools'
+import { MANIFEST, versionNow } from './version'
 import { TTY_WALK, TTY_WALK_MS } from './where'
 import { letGo, resume, serially } from './window'
 
@@ -112,6 +113,9 @@ const hostOf = ($: EngineInterface): Host => ({
       return { TMUX, TMUX_PANE, TERM_PROGRAM }
     },
     tty: () => $.process.run(['/bin/sh', '-c', TTY_WALK], { timeoutMs: TTY_WALK_MS }),
+  },
+  plugin: {
+    manifest: () => $.fs.read(`${$.plugin.root}/${MANIFEST}`),
   },
   log: text => $.ui.log(text, { to: 'debug' }),
   ui: {
@@ -216,6 +220,8 @@ export const register: Register = on => {
   // the session the window held, and the board as Lee left it.
   on('session.start', async ($, e, next) => {
     const host = hostOf($)
+
+    await versionNow(host)
 
     for (const spec of SPECS) {
       await $.tool.register(spec)

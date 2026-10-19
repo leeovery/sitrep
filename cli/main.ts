@@ -3,9 +3,11 @@
  * and, where a command needs it, the screen, then the command's rules, then
  * a line appended or a window brought forward, and the answer printed.
  *
- * It writes as the writer `cli`, appending to `<session>/cli.jsonl` and never
- * rewriting it, and writes no delivered marks or heartbeats: it is never a
- * window on the session.
+ * It writes as the writer `cli`, appending to `<session>/cli.jsonl` under
+ * today's layout and never rewriting it, its count going on from its file
+ * under either, and writes no delivered marks or heartbeats: it is never a
+ * window on the session. Before a command reads the board, the old layout
+ * is moved into today's, once no window still writes it.
  */
 import { append, checkJoin, rootOf, type Body, type Checked } from '../core'
 import { parseWords, wantsHelp, type Fields } from './args'
@@ -20,6 +22,7 @@ import { findSession, readProjects, type Found } from './files'
 import { commandHelp, HELP } from './help'
 import type { Env, Io } from './io'
 import { jump, sessionsOnScreen } from './jump'
+import { moveOldLayout } from './move'
 import { windowsOf } from './screen'
 
 /** How a run ends: done; a usage error, a refused input or a failure; or no such session. */
@@ -40,6 +43,8 @@ const fail = (io: Io, exit: Exit, error: string) => {
 
   return exit
 }
+
+const messageOf = (error: unknown) => (error instanceof Error ? error.message : String(error))
 
 const print = (io: Io, text: string) => {
   if (text !== '') {
@@ -147,6 +152,19 @@ const onWindow = async (io: Io, command: WindowCommand, input: Fields) => {
     : told(io, command.act(found, await jump(io, windowsOf(found.session, now))))
 }
 
+/**
+ * Moves the old layout into today's before a command reads the board. A
+ * move that fails is told, and the command runs on: readers read both
+ * layouts, and the next run moves what is left.
+ */
+const moveFirst = async (io: Io) => {
+  const root = rootOf(io.env)
+
+  await moveOldLayout(io, root, io.now()).catch((error: unknown) => {
+    io.err(`sitrep: moving the old layout failed: ${messageOf(error)}\n`)
+  })
+}
+
 /** A command on the rest of its words: its help, or its run once they read. */
 const runCommand = async (io: Io, command: Command, words: readonly string[]) => {
   if (wantsHelp(words)) {
@@ -158,6 +176,8 @@ const runCommand = async (io: Io, command: Command, words: readonly string[]) =>
   if (!input.ok) {
     return fail(io, EXIT.refused, `${input.error} sitrep ${command.name} --help says more.`)
   }
+
+  await moveFirst(io)
 
   switch (command.on) {
     case 'session':
@@ -192,6 +212,6 @@ export const main = async (words: readonly string[], io: Io): Promise<Exit> => {
   try {
     return await answer(io, words)
   } catch (error) {
-    return fail(io, EXIT.refused, error instanceof Error ? error.message : String(error))
+    return fail(io, EXIT.refused, messageOf(error))
   }
 }

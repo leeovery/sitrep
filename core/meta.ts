@@ -1,5 +1,6 @@
-/** A session's work.json: what it was started as, written once by whoever started it. */
-import { VERSION } from './entries'
+/** A session's session.json: what it was started as, written once by whoever started it. */
+import { parseVersioned } from './entries'
+import { versionOf, type Upgrade } from './versions'
 
 export type SessionMeta = {
   id: string
@@ -13,24 +14,19 @@ export type SessionMeta = {
   by: string
 }
 
+/** How a session.json of each past version is brought to the next: none yet. */
+const UPGRADES: readonly Upgrade[] = []
+
 const TEXTS = ['id', 'name', 'summary', 'project', 'root', 'by'] as const
 
-export const metaText = (meta: SessionMeta) => `${JSON.stringify({ v: VERSION, ...meta })}\n`
+export const metaText = (meta: SessionMeta) =>
+  `${JSON.stringify({ v: versionOf(UPGRADES), ...meta })}\n`
 
-/** work.json's meta; undefined when the file is torn, bad or of another version. */
+/** session.json's meta, in today's shape; undefined when the file is torn, bad or of a later version. */
 export const parseMeta = (text: string): SessionMeta | undefined => {
-  let raw: { [key: string]: unknown }
-
-  try {
-    raw = JSON.parse(text) ?? {}
-  } catch {
-    return undefined
-  }
-
+  const raw = parseVersioned(text, UPGRADES) ?? {}
   const isWhole =
-    raw.v === VERSION &&
-    typeof raw.created === 'number' &&
-    TEXTS.every(key => typeof raw[key] === 'string')
+    typeof raw.created === 'number' && TEXTS.every(key => typeof raw[key] === 'string')
 
   if (!isWhole) {
     return undefined
