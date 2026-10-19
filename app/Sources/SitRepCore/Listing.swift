@@ -1,6 +1,6 @@
 import Foundation
 
-/// A piece of work a Ghostty window shows, which a jump can reach.
+/// A piece of work a jump can reach: a terminal window shows it, or tmux can make one show it.
 public struct OnScreen: Sendable, Equatable, Identifiable {
     public let id: String
     public let project: String

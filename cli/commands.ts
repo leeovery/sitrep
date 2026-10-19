@@ -240,26 +240,41 @@ const list: ProjectsCommand = {
   },
 }
 
-/** Things in plain words: `a`, `a and b`, `a, b and c`. */
-const inWords = (things: readonly string[]) =>
-  things.length < 2 ? things.join('') : `${things.slice(0, -1).join(', ')} and ${things.at(-1)}`
+/** Things in plain words: `a`, `a and b`, `a, b and c`; or `a or b`, given `or`. */
+const inWords = (things: readonly string[], conjunction = 'and') =>
+  things.length < 2
+    ? things.join('')
+    : `${things.slice(0, -1).join(', ')} ${conjunction} ${things.at(-1)}`
+
+/** Why tmux did not select a pane's window, in words: in tmux's, where it said any. */
+const whyUnselected = (said: string | undefined) => {
+  if (said === undefined) {
+    return 'tmux gave no answer when asked to select it.'
+  }
+
+  return said === '' ? 'tmux would not select it.' : `tmux would not select it: ${said}`
+}
 
 /** Why a jump brought no window forward, in words, the session named. */
 const unjumped = (name: string, jumped: Exclude<Jumped, { is: 'focused' }>) => {
   switch (jumped.is) {
     case 'off screen':
-      return `${name} is not on screen: no Ghostty window shows it.`
+      return `${name} is not on screen: no terminal window on this Mac shows it.`
     case 'unknown':
       return `Could not tell whether ${name} is on screen: ${inWords(jumped.unanswered)} gave no answer.`
     case 'unanswered':
-      return `${name} shows on ${inWords(jumped.devices)}, but no Ghostty window there answered.`
+      return jumped.devices.length === 0
+        ? `${name} shows in ${inWords(jumped.apps)}, which did not come forward.`
+        : `${name} shows on ${inWords(jumped.devices)}, but no ${inWords(jumped.apps, 'or')} window there answered.`
+    case 'unselected':
+      return `${name} is in a tmux window no terminal shows, and ${whyUnselected(jumped.said)}`
   }
 }
 
 const jump: WindowCommand = {
   name: 'jump',
   about:
-    'Bring the Ghostty window showing the session to the front, on whatever Space it is. Prints nothing.',
+    'Bring the terminal window showing the session to the front, on whatever Space it is. Prints nothing.',
   grammar: { args: [], flags: { ...SESSION } },
   on: 'window',
   act: ({ session }, jumped) =>

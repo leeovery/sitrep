@@ -109,8 +109,8 @@ const projectJson = (project: ProjectSummary, onScreen: ReadonlySet<string>) => 
 
 /**
  * `list --json`: the project the CLI runs in, by its key, else null, and the
- * projects as `listing` gives them, each session saying whether a Ghostty
- * window shows it.
+ * projects as `listing` gives them, each session saying whether a jump can
+ * reach it.
  */
 export const listJson = ({ here, projects }: Listing, onScreen: ReadonlySet<string>) =>
   json({
