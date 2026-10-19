@@ -317,15 +317,34 @@ struct StripGrowsTests {
         #expect(lab.model.layout.places.count == 4 && lab.model.layout.more?.n == 4)
     }
 
-    /// On the recording's screen, 626 tall, Max's slider runs to 16 marks, Full; a Room of 0 holds more.
+    /// On the recording's screen, 626 tall, Max's slider runs to 16 marks, Full, hairline or not; a Room of 0 holds
+    /// more.
     @Test func maxsSliderRunsToAsManyMarksAsTheScreenHolds() {
         var roomless = StripFeel.lees
         roomless.room = 0
         let taller = StripInput(time: 0, pointer: nil, stage: StripStage(width: 1512, height: 982, menu: 37))
+        let model = StripLab().model
 
-        #expect(StripLab().model.longest == StripLab.longest)
-        #expect(StripLab(feel: roomless).model.longest == 17)
-        #expect(Strip(length: .grows, maxLength: .full, sessions: [], measure: StripLab.measure, taller).longest == 28)
+        #expect(model.fullPlaces(hairline: false) == StripLab.longest)
+        #expect(model.fullPlaces(hairline: true) == StripLab.longest)
+        #expect(StripLab(feel: roomless).model.fullPlaces(hairline: false) == 17)
+        let strip = Strip(length: .grows, maxLength: .full, sessions: [], measure: StripLab.measure, taller)
+        #expect(strip.fullPlaces(hairline: false) == 28)
+    }
+
+    /// On a screen where the hairline costs the full strip a place, Max's slider runs to what holds with it: its top is
+    /// Full, and the step below is one place fewer.
+    @Test(arguments: [(1.0, 15), (0.9, 14), (0.0, 5)])
+    func withTheHairlineMaxsSliderRunsToWhatHoldsWithIt(_ share: Double, _ places: Int) {
+        let stage = StripStage(width: 1076, height: 615, menu: 26)
+        let input = StripInput(time: 0, pointer: nil, stage: stage)
+        let strip = Strip(
+            length: .grows, maxLength: StripMax(share: share), sessions: Self.sessions(asks: 9, others: 9),
+            measure: StripLab.measure, input
+        )
+
+        #expect(strip.fullPlaces(hairline: false) == 16 && strip.fullPlaces(hairline: true) == 15)
+        #expect(strip.allot(asks: 9, others: 9).places == places)
     }
 
     /// Asks numbered a0, a1 and so on, oldest first, and working sessions w0, w1.

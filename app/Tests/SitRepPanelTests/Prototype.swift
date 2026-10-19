@@ -16,6 +16,7 @@ extension Item {
         .session(Session(id: "s4", project: "SitRep", kind: .working, title: "Drawing the side panel in Paper", sub: "SitRep · Menu bar and jump to session", since: -12 * minute)),
         .session(Session(id: "s5", project: "DocMan", kind: .working, title: "Running the exception reporting tests", sub: "DocMan · Fix inverted exception reporting", since: -3 * minute)),
         .session(Session(id: "s6", project: "Goosemates", kind: .turn, title: "Waiting for the next round of feedback", sub: "Goosemates · Settle the older open questions", since: -3 * hour)),
+        // last, past the hairline, where the recordings have it, not where `Item.list` puts an away ask
         .session(Session(id: "s7", project: "Kit", kind: .needs, away: true, title: "The bootstrap", sub: "Kit · no window shows it", since: -2 * day)),
     ]
 }

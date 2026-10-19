@@ -76,18 +76,14 @@ struct StripLayout {
 }
 
 extension Strip {
-    /// The strip's places: what the full height holds (the hairline taking 13pt more when it is there), or Max, in
-    /// Grows, if fewer; never under two. Needs you gets them first, but for one for your turn and working when there
-    /// are any. Past its room, its first marks and, in its last place, its own count of the rest, newest and away ones
+    /// The strip's places: what the full height holds, or Max, in Grows, if fewer, Max's slider running from five to
+    /// what it holds; never under two. Needs you gets them first, but for one for your turn and working when there are
+    /// any. Past its room, its first marks and, in its last place, its own count of the rest, newest and away ones
     /// last; then your turn and working, past theirs, their marks and the grey count in the last place.
     func allot(asks: Int, others: Int) -> StripAllotment {
-        let y0 = stage.menu + endPad, maxY = bottomEnd - endPad
-        let hair = asks > 0 && others > 0 ? StripTuning.hairExtra : 0
-        var places = 1
-        while y0 + Double(places) * StripTuning.pitch + hair <= maxY {
-            places += 1
-        }
-        if length == .grows, let most = maxLength.places(longest: longest) {
+        let full = fullPlaces(hairline: asks > 0 && others > 0)
+        var places = full
+        if length == .grows, let most = maxLength.places(longest: full) {
             places = min(places, most)
         }
         places = Swift.max(2, places)
@@ -506,7 +502,7 @@ extension Strip {
     /// Just arrived: its ring flashes Swells times, 450ms apart.
     func arrive(_ m: StripMark) {
         m.arrived = t
-        m.flashes = (0 ..< Int(feel.swells)).map { t + Double($0) * StripTuning.flashGap }
+        m.flashes = (0 ..< Swift.max(0, feel.swells)).map { t + Double($0) * StripTuning.flashGap }
     }
 
     /// A new mark waiting grows once the strip is out of the notch at rest, or once the mark below has slid `growAt`

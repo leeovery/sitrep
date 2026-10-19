@@ -218,6 +218,18 @@ struct StripTests {
         #expect(lab.model.display.prefix(5) == ["s1", "s2", "s3", "s4", "s9"])
     }
 
+    @Test func noSwellsAtAllLeaveANewMarksRingUnflashed() {
+        var feel = StripFeel.lees
+        feel.swells = -1
+        var lab = StripLab(feel: feel)
+
+        lab.model.newAsk(StripLab.ask)
+        lab.wait(1000)
+
+        #expect(lab.model.mark(.session("s9"))!.flashes.isEmpty)
+        #expect(lab.frame.marks.first { $0.key == .session("s9") }!.flash == 0)
+    }
+
     @Test func aNewMarksRingFlashesTwice450msApartAndItIsWashedForTwoSeconds() {
         var lab = StripLab()
         lab.model.newAsk(StripLab.ask)

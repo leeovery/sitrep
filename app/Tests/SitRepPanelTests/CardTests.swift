@@ -253,6 +253,30 @@ struct CardTests {
         #expect(lab.phase == .closing)
     }
 
+    @Test(arguments: [-1, 8, 99])
+    func aClickOutsideTheRowsDoesNothing(_ index: Int) {
+        var lab = CardLab()
+        lab.openByTouch()
+
+        lab.model.clickRow(index)
+
+        #expect(lab.phase == .open)
+    }
+
+    @Test func noSwellsAtAllPushNothingAndTheNotchSettlesAtNeedsYou() {
+        var feel = CardFeel.lees
+        feel.swells = -1
+        var lab = CardLab(feel: feel)
+
+        lab.needsLee = true
+        lab.wait(1000)
+
+        #expect(lab.frame.light.lastAsk == nil)
+        let settled = lab.settle()
+        #expect(settled)
+        #expect(abs(lab.shape.w - 15) < 0.01 && abs(lab.shape.h - 124) < 0.01)
+    }
+
     @Test func aPointerLeftOnTheNotchAsThePanelClosesDoesNotReopenItUntilItLeaves() {
         var lab = CardLab()
         lab.openByTouch()

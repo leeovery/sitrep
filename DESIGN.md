@@ -2607,6 +2607,23 @@ reaches a window only while that pane is on show).
       - **The strip** over the same feed: Grows and Full, Max, the two
         counts and their tabs' scrolling rows, a click jumping, the drag,
         either edge.
+
+      The model came over first, on its own (19 October 2026): every
+      recorded test passing frame for frame, no number of the feel
+      changed. With the dials gone, what the spike worked out from their
+      furthest settings is worked out from Lee's, on purpose:
+      - the window's depth from the screen's edge: 422 for the notch, from
+        Hold's 35 at Bounce 0.90, where the spike's 434 came from Hold's 44
+        at Bounce 1; and 414 for the strip, where the spike's was 458;
+      - the notch's home along the edge, kept where its deepest swell fits
+        inside the band: Swell's 25, 92 either side, where the spike kept
+        the Swell dial's 30, 107 either side.
+
+      What Lee sets is one value the app saves, read leniently; Max is kept
+      as how far along its slider it is, never in marks, and its top is
+      Full, with or without the hairline. One fix came with it: a shape
+      springing a little past the band's length stays on the band's middle,
+      where the spike jumped to the screen's.
    7. **The menu bar item and Settings**, one PR: the native menu (see "The
       menu bar item"), the Settings window's three panes with Max as a
       slider, macOS notifications off by default with the switch to turn

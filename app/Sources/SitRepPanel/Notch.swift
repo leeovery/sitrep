@@ -104,6 +104,11 @@ extension NotchModel {
     /// The pointer's real whereabouts, against the notch and the panel as last drawn.
     func pointerInside() -> Bool { hoverOf(sp) != nil }
 
+    /// Whether a click on this item jumps: it is a session's row, and a window holds it.
+    func rowJumps(_ index: Int) -> Bool {
+        items.indices.contains(index) && items[index].session?.jumps == true
+    }
+
     /// Each item's place in the order the rows land, after the head's 0: a divider lands with the row after it.
     var revealOrder: [Int] {
         var k = 0
