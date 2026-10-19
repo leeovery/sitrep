@@ -35,7 +35,7 @@ import { captured, heardSurvey } from './answering'
 import { lookAround, lookEvery } from './around'
 import { clipOf, heardRows, revealFocus, scrollList } from './clip'
 import { heardTurn, isBoardMessage, takeUpDelivery, wentQuiet } from './deliver'
-import { heardCheck, heardTurnEnd, heardTurnStart, throughCall } from './doing'
+import { heardCheck, heardRequest, heardTurnEnd, heardTurnStart, throughCall } from './doing'
 import { BAND_ROWS, drawBand } from './draw/band'
 import { drawPane } from './draw/board'
 import { drawToolResult, drawToolRow, toolLine } from './draw/tool-row'
@@ -83,7 +83,11 @@ const pulse = atom({ plugin: 'sitrep', key: 'pulse' } as const, { asks: [], fram
 const flash = atom({ plugin: 'sitrep', key: 'flash' } as const, 0)
 const tick = atom({ plugin: 'sitrep', key: 'tick' } as const, 0)
 const named = atom({ plugin: 'sitrep', key: 'named' } as const, [])
-const activity = atom({ plugin: 'sitrep', key: 'activity' } as const, { tools: [], stops: [] })
+const activity = atom({ plugin: 'sitrep', key: 'activity' } as const, {
+  tools: [],
+  asked: [],
+  stops: [],
+})
 
 /** The host, as a hook's `$` reaches it. */
 const hostOf = ($: EngineInterface): Host => ({
@@ -312,6 +316,17 @@ export const register: Register = on => {
     await heardCheck(hostOf($), e, verdict.decision)
 
     return verdict
+  }).catch(($, e, next) => next(e))
+
+  // Claude Code about to show Lee a permission dialog, unless the settings
+  // hooks beneath answer it: in auto mode, only for a call the classifier
+  // hands to Lee.
+  on('classic.PermissionRequest', async ($, e, next) => {
+    const answer = await next(e)
+
+    await heardRequest(hostOf($), e, answer)
+
+    return answer
   }).catch(($, e, next) => next(e))
 
   on('tool.call', { tool: TOOL_NAMES }, ($, e) => answerCall(hostOf($), e)).catch(($, e, next) =>

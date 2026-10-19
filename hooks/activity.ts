@@ -35,14 +35,20 @@ export const activityNow = async (host: Host) => {
   return known ?? QUIET
 }
 
-/** Changes what the window has heard, at once here, then in `$.state`; rejects when `$.state` refuses the write. */
+/**
+ * Changes what the window has heard, at once here, then in `$.state`: what
+ * it was, what it is, and the write, which rejects when `$.state` refuses
+ * it.
+ */
 export const changeActivity = async (host: Host, change: (activity: Activity) => Activity) => {
   await load(host)
 
-  const changed = change(known ?? QUIET)
-  const written = writes.then(() => host.state.activity.write(changed))
+  const before = known ?? QUIET
+  const after = change(before)
+  const written = writes.then(() => host.state.activity.write(after))
 
-  known = changed
+  known = after
   writes = written.catch(() => undefined)
-  await written
+
+  return { before, after, written }
 }

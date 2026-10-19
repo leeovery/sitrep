@@ -5,6 +5,7 @@
  * folder.
  */
 import type {
+  ClassicResultOf,
   ElementTable,
   On,
   PluginState,
@@ -419,8 +420,15 @@ export function world(engine: Engine, on: On, options: Options = {}) {
     return { value: undefined }
   })
 
-  /** The built-in tools' calls the engine runs beneath the mod, by the tool and its arguments: a verdict to check them by, if any, and their ending. */
-  const beneath = new Map<string, { verdict?: Verdict; ending: Promise<Ending> }>()
+  /**
+   * The built-in tools' calls the engine runs beneath the mod, by the tool
+   * and its arguments: a verdict to check them by, if any, whether an "ask"
+   * shows Lee its dialog, and their ending.
+   */
+  const beneath = new Map<
+    string,
+    { verdict?: Verdict; isShown: boolean; ending: Promise<Ending> }
+  >()
 
   const callKey = (tool: string, args: Args) => JSON.stringify({ tool, ...args })
 
@@ -441,8 +449,22 @@ export function world(engine: Engine, on: On, options: Options = {}) {
       await engine.tool.check({ tool, input: args, tool_use_id, agentId })
     }
 
+    if (call.verdict === 'ask' && call.isShown) {
+      await engine.classic.PermissionRequest({ tool_name: tool, tool_input: args })
+    }
+
     return (await call.ending) as never
   })
+
+  /** What the settings hooks beneath answer a permission request: nothing, so the dialog shows, unless a test says otherwise. */
+  let requestAnswer: ClassicResultOf['classic.PermissionRequest'] = {}
+
+  on('classic.PermissionRequest', () => requestAnswer)
+
+  /** The settings hooks beneath answer every permission request from here on with `answer`, as one that allows or denies in the dialog's place. */
+  const answerRequests = (answer: ClassicResultOf['classic.PermissionRequest']) => {
+    requestAnswer = answer
+  }
 
   on('tool.check', ($, e) => ({
     decision: beneath.get(callKey(e.tool, e.input as Args))?.verdict ?? 'allow',
@@ -590,20 +612,25 @@ export function world(engine: Engine, on: On, options: Options = {}) {
 
   /**
    * A built-in tool called from the main conversation, or from a subagent
-   * given its id: checked first where given a verdict, then running until
-   * the test finishes or refuses it.
+   * given its id: checked first where given a verdict, its dialog shown to
+   * Lee where an "ask" `isShown` (in auto mode, where the classifier hands
+   * it to Lee), then running until the test finishes or refuses it.
    */
   const calls = (
     tool: string,
     args: Args = {},
-    options: { verdict?: Verdict; agentId?: string } = {},
+    options: { verdict?: Verdict; isShown?: boolean; agentId?: string } = {},
   ): Calling => {
     let end: (ending: Ending) => void = () => {}
     const ending = new Promise<Ending>(resolve => {
       end = resolve
     })
 
-    beneath.set(callKey(tool, args), { verdict: options.verdict, ending })
+    beneath.set(callKey(tool, args), {
+      verdict: options.verdict,
+      isShown: options.isShown ?? false,
+      ending,
+    })
 
     return {
       done: engine.tool.call({
@@ -710,6 +737,7 @@ export function world(engine: Engine, on: On, options: Options = {}) {
     elsewhere,
     call,
     calls,
+    answerRequests,
     begin,
     become,
     turnStarts,

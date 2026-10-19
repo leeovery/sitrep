@@ -119,14 +119,14 @@ test('of several tools running at once, working carries the latest started, then
   await first.done
 })
 
-test('a check putting the call to Lee is a permission prompt with its tool and subject, since it showed; once answered and run, working again', async ($, on) => {
+test('the dialog shown for a call put to Lee is a permission prompt with its tool and subject, since it showed; once answered and run, working again', async ($, on) => {
   const w = world($, on)
   const { paths } = await w.begin()
 
   await w.turnStarts('Open the PR.')
   await w.clock.advance(3_000)
 
-  const pr = w.calls('Bash', PR_CREATE, { verdict: 'ask' })
+  const pr = w.calls('Bash', PR_CREATE, { verdict: 'ask', isShown: true })
 
   await later(w)
 
@@ -161,6 +161,123 @@ for (const verdict of ['allow', 'deny'] as const) {
   })
 }
 
+test("a check that puts the call to the mode's decider stops nothing, as when auto mode's classifier approves it: working throughout, never a prompt", async ($, on) => {
+  const w = world($, on)
+  const { paths } = await w.begin()
+
+  await w.turnStarts('Run the tests.')
+
+  const bash = w.calls('Bash', BUN_TEST, { verdict: 'ask' })
+  const said = new Set<string | undefined>()
+
+  for (const step of [1, 2, 3]) {
+    await w.clock.advance(STATE_MS * step)
+    said.add(stateIn(w, paths)?.is)
+  }
+
+  bash.finish()
+  await bash.done
+  await later(w)
+
+  expect([...said]).toEqual(['working'])
+  expect(stateIn(w, paths)).toEqual({ is: 'working', since: T0 })
+  expect(w.logs.filter(line => line.startsWith('sitrep: stop '))).toEqual([])
+})
+
+test('of two calls put to Lee with one tool, the dialog stops the window on the one whose input it is for', async ($, on) => {
+  const w = world($, on)
+  const { paths } = await w.begin()
+
+  await w.turnStarts('Ship it.')
+
+  const push = w.calls('Bash', { command: 'git push' }, { verdict: 'ask' })
+  const pr = w.calls('Bash', PR_CREATE, { verdict: 'ask', isShown: true })
+
+  await later(w)
+
+  expect(stateIn(w, paths)?.tool).toEqual({ name: 'Bash', subject: 'gh pr create --fill' })
+
+  pr.finish()
+  push.finish()
+  await Promise.all([pr.done, push.done])
+})
+
+test('a dialog matching no call put to Lee is logged and stops nothing', async ($, on) => {
+  const w = world($, on)
+  const { paths } = await w.begin()
+
+  await w.turnStarts('Carry on.')
+
+  const answer = await $.classic.PermissionRequest({
+    tool_name: 'Bash',
+    tool_input: { command: 'rm -rf build' },
+  })
+
+  await later(w)
+
+  expect(answer).toEqual({})
+  expect(stateIn(w, paths)).toEqual({ is: 'working', since: T0 })
+  expect(w.logs).toEqual([
+    'sitrep: a permission dialog for Bash matched no call put to Lee: no stop',
+  ])
+})
+
+test('a permission request a settings hook beneath answers shows no dialog, so it stops nothing, and its answer goes on as it came', async ($, on) => {
+  const w = world($, on)
+  const { paths } = await w.begin()
+  const allowed = { decision: { behavior: 'allow' as const } }
+
+  w.answerRequests(allowed)
+  await w.turnStarts('Open the PR.')
+
+  const pr = w.calls('Bash', PR_CREATE, { verdict: 'ask', isShown: true })
+
+  await later(w)
+
+  expect(stateIn(w, paths)?.is).toBe('working')
+  expect(await $.classic.PermissionRequest({ tool_name: 'Bash', tool_input: PR_CREATE })).toEqual(
+    allowed,
+  )
+
+  pr.finish()
+  await pr.done
+})
+
+test('each stop begun and ended goes to the debug log, with its tool and how it was matched', async ($, on) => {
+  const w = world($, on)
+
+  await w.begin()
+  await w.turnStarts('Open the PR.')
+
+  const pr = w.calls('Bash', PR_CREATE, { verdict: 'ask', isShown: true })
+
+  await later(w)
+  pr.finish()
+  await pr.done
+
+  const asked = w.calls('AskUserQuestion', QUESTIONS)
+
+  await later(w)
+  await w.turnEnds()
+  asked.finish()
+  await asked.done
+
+  expect(w.logs).toEqual([
+    expect.stringMatching(
+      /^sitrep: stop begun, call \S+: a permission prompt for Bash: gh pr create --fill; its dialog shown, matched by tool and input to the oldest call put to Lee$/,
+    ),
+    expect.stringMatching(
+      /^sitrep: stop ended, call \S+: a permission prompt for Bash: gh pr create --fill; its call settled$/,
+    ),
+    expect.stringMatching(
+      /^sitrep: stop begun, call \S+: a question: Which edge should the notch sit on\?; its call started$/,
+    ),
+    expect.stringMatching(
+      /^sitrep: stop ended, call \S+: a question: Which edge should the notch sit on\?; the turn ended$/,
+    ),
+  ])
+})
+
 test('a query of the check, which is no call, puts nothing to Lee', async ($, on) => {
   const w = world($, on)
   const { paths } = await w.begin()
@@ -178,7 +295,7 @@ test('a refused permission prompt ends the stop as an answered one does', async 
 
   await w.turnStarts('Open the PR.')
 
-  const pr = w.calls('Bash', PR_CREATE, { verdict: 'ask' })
+  const pr = w.calls('Bash', PR_CREATE, { verdict: 'ask', isShown: true })
 
   await later(w)
   pr.refuse('Lee said no.')
@@ -232,7 +349,7 @@ test('Lee stopping the turn at a permission prompt is your turn since then, and 
 
   await w.turnStarts('Open the PR.')
 
-  const pr = w.calls('Bash', PR_CREATE, { verdict: 'ask' })
+  const pr = w.calls('Bash', PR_CREATE, { verdict: 'ask', isShown: true })
 
   await w.clock.advance(6_000)
   await w.turnEnds({ isAborted: true })
@@ -276,7 +393,7 @@ test("a subagent's permission prompt and its question stop the window on Lee, an
 
   await w.clock.advance(1_000)
 
-  const pr = w.calls('Bash', PR_CREATE, { verdict: 'ask', agentId: AGENT })
+  const pr = w.calls('Bash', PR_CREATE, { verdict: 'ask', isShown: true, agentId: AGENT })
 
   await later(w)
 
@@ -315,11 +432,15 @@ test('of two calls waiting on Lee, the older shows, then the other once it is an
 
   await w.turnStarts('Carry on.')
 
-  const pr = w.calls('Bash', PR_CREATE, { verdict: 'ask' })
+  const pr = w.calls('Bash', PR_CREATE, { verdict: 'ask', isShown: true })
 
   await w.clock.advance(STATE_MS)
 
-  const push = w.calls('Bash', { command: 'git push' }, { verdict: 'ask', agentId: AGENT })
+  const push = w.calls(
+    'Bash',
+    { command: 'git push' },
+    { verdict: 'ask', isShown: true, agentId: AGENT },
+  )
 
   await later(w)
 
@@ -506,6 +627,7 @@ test('after a reload mid-turn, the window says the state $.state kept, and goes 
     activity: {
       turnAt: T0 + 10_000,
       tools: [{ call: 'toolu_kept', tool: { name: 'Bash', subject: 'bun test' } }],
+      asked: [],
       stops: [],
     },
   })
@@ -552,7 +674,7 @@ test('a failure keeping the state in $.state is logged, the turn, the call and i
   await later(w)
 
   const started = await $.turn.start({ text: 'Open the PR.', turnId: 'turn-9' })
-  const pr = w.calls('Bash', PR_CREATE, { verdict: 'ask' })
+  const pr = w.calls('Bash', PR_CREATE, { verdict: 'ask', isShown: true })
 
   await later(w)
 
@@ -571,7 +693,11 @@ test('a failure keeping the state in $.state is logged, the turn, the call and i
   expect(checked.decision).toBe('ask')
   expect(w.logs.length).toBeGreaterThan(0)
   expect(
-    w.logs.filter(line => !line.startsWith("sitrep: recording the window's state failed")),
+    w.logs.filter(
+      line =>
+        !line.startsWith("sitrep: recording the window's state failed") &&
+        !line.startsWith('sitrep: stop '),
+    ),
   ).toEqual([])
 })
 

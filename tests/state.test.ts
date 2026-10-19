@@ -2,8 +2,10 @@ import { expect, test } from 'claude-code/testing'
 import {
   attach,
   heartbeat,
+  jsonOf,
   leave,
   parsePresence,
+  permissionShown,
   presenceText,
   QUIET,
   questionShown,
@@ -149,25 +151,98 @@ test("a subagent's tool does not show", () => {
   expect(inside).toEqual(turnStarted(T0))
 })
 
-test("a call put to Lee is a permission prompt since then, its own or a subagent's, and its end ends it", () => {
+/** A permission dialog about to show for Bash running `command`. */
+const dialogFor = (command: string) => ({ tool: 'Bash', input: { command } })
+
+test("a check that puts a call to the mode's decider stops nothing: the classifier may settle it", () => {
+  const call = bash('t1', 'gh pr create')
+  const asked = during(
+    activity => toolStarted(activity, call, T0 + 1_000),
+    activity => toolAsked(activity, call),
+  )
+
+  expect(stateOf(asked, T0)).toEqual({
+    is: 'working',
+    since: T0,
+    tool: { name: 'Bash', subject: 'gh pr create' },
+  })
+  expect(asked.stops).toEqual([])
+})
+
+test("the dialog shown for a call put to Lee is a permission prompt since then, its own or a subagent's, and its end ends it", () => {
   for (const agentId of [undefined, 'agent-1']) {
     const call = bash('t1', 'gh pr create', agentId)
-    const asked = during(
+    const shown = during(
       activity => toolStarted(activity, call, T0 + 1_000),
-      activity => toolAsked(activity, call, T0 + 5_000),
+      activity => toolAsked(activity, call),
+      activity => permissionShown(activity, dialogFor('gh pr create'), T0 + 5_000),
     )
 
-    expect(stateOf(asked, T0), String(agentId)).toEqual(PERMISSION)
-    expect(stateOf(toolEnded(asked, 't1'), T0).is, String(agentId)).toBe('working')
+    expect(stateOf(shown, T0), String(agentId)).toEqual(PERMISSION)
+    expect(shown.asked, String(agentId)).toEqual([])
+    expect(stateOf(toolEnded(shown, 't1'), T0).is, String(agentId)).toBe('working')
   }
 })
 
-test("a question is a question since it was asked, its own or a subagent's; its check putting it to Lee leaves it a question", () => {
+test('a dialog is matched to the call by its tool and an equal input, whatever order its keys come in', () => {
+  const push = { id: 't1', tool: 'Bash', input: { command: 'git push', description: 'Push' } }
+  const pr = { id: 't2', tool: 'Bash', input: { command: 'gh pr create', description: 'PR' } }
+  const asked = during(
+    activity => toolAsked(activity, push),
+    activity => toolAsked(activity, pr),
+  )
+  const shown = permissionShown(
+    asked,
+    { tool: 'Bash', input: { description: 'PR', command: 'gh pr create' } },
+    T0 + 5_000,
+  )
+
+  expect(shown.stops.map(stop => stop.call)).toEqual(['t2'])
+  expect(shown.asked.map(each => each.call)).toEqual(['t1'])
+})
+
+test("of two calls put to Lee with one tool and one input, the dialog is the older one's, then the other's", () => {
+  const asked = during(
+    activity => toolAsked(activity, bash('t1', 'gh pr create')),
+    activity => toolAsked(activity, bash('t2', 'gh pr create', 'agent-1')),
+  )
+  const first = permissionShown(asked, dialogFor('gh pr create'), T0 + 5_000)
+  const second = permissionShown(first, dialogFor('gh pr create'), T0 + 6_000)
+
+  expect(first.stops.map(stop => stop.call)).toEqual(['t1'])
+  expect(second.stops.map(stop => stop.call)).toEqual(['t1', 't2'])
+})
+
+test('a dialog matching no call put to Lee stops nothing: not one of another tool or input, nor one never asked', () => {
+  const asked = during(activity => toolAsked(activity, bash('t1', 'gh pr create')))
+
+  for (const request of [
+    dialogFor('gh pr merge'),
+    { tool: 'Write', input: { command: 'gh pr create' } },
+    { tool: 'Bash', input: { command: 'gh pr create', run_in_background: true } },
+  ]) {
+    expect(permissionShown(asked, request, T0 + 5_000), JSON.stringify(request)).toEqual(asked)
+  }
+
+  expect(permissionShown(turnStarted(T0), dialogFor('ls'), T0 + 1)).toEqual(turnStarted(T0))
+})
+
+test("as JSON, inputs are equal whatever their keys' order and with a key left undefined; lists keep their order", () => {
+  expect(jsonOf({ b: 1, a: { d: [1, 2], c: null } })).toBe(
+    jsonOf({ a: { c: null, d: [1, 2] }, b: 1 }),
+  )
+  expect(jsonOf({ a: 1, b: undefined })).toBe(jsonOf({ a: 1 }))
+  expect(jsonOf([1, 2])).not.toBe(jsonOf([2, 1]))
+  expect(jsonOf(undefined)).toBe('')
+})
+
+test("a question is a question since it was asked, its own or a subagent's; its check and a dialog for it leave it a question", () => {
   for (const agentId of [undefined, 'agent-1']) {
     const call = question('q1', agentId)
     const asked = during(
       activity => toolStarted(activity, call, T0 + 3_000),
-      activity => toolAsked(activity, call, T0 + 3_001),
+      activity => toolAsked(activity, call),
+      activity => permissionShown(activity, { tool: call.tool, input: call.input }, T0 + 3_001),
     )
 
     expect(stateOf(asked, T0), String(agentId)).toEqual({
@@ -175,6 +250,7 @@ test("a question is a question since it was asked, its own or a subagent's; its 
       since: T0 + 3_000,
       question: { text: 'Left or right?', count: 2 },
     })
+    expect(asked.stops, String(agentId)).toHaveLength(1)
     expect(stateOf(toolEnded(asked, 'q1'), T0), String(agentId)).toEqual({
       is: 'working',
       since: T0,
@@ -192,7 +268,8 @@ test('a question with nothing to show is a question all the same', () => {
 
 test('of several calls waiting on Lee, the oldest shows', () => {
   const both = during(
-    activity => toolAsked(activity, bash('t1', 'gh pr create'), T0 + 5_000),
+    activity => toolAsked(activity, bash('t1', 'gh pr create')),
+    activity => permissionShown(activity, dialogFor('gh pr create'), T0 + 5_000),
     activity => toolStarted(activity, question('q1'), T0 + 6_000),
   )
 
@@ -200,18 +277,31 @@ test('of several calls waiting on Lee, the oldest shows', () => {
   expect(stateOf(toolEnded(both, 't1'), T0).is).toBe('question')
 })
 
-test("a turn's start or end clears every tool and every call waiting on Lee, whatever was running", () => {
+test('a call that settles before its dialog shows is no longer a candidate', () => {
+  const settled = during(
+    activity => toolAsked(activity, bash('t1', 'gh pr create')),
+    activity => toolEnded(activity, 't1'),
+  )
+
+  expect(settled.asked).toEqual([])
+  expect(permissionShown(settled, dialogFor('gh pr create'), T0 + 5_000).stops).toEqual([])
+})
+
+test("a turn's start or end clears every tool, every call put to Lee and every call waiting on Lee, whatever was running", () => {
   const busy = during(
     activity => toolStarted(activity, bash('t1', 'bun test'), T0 + 1_000),
-    activity => toolAsked(activity, bash('t2', 'gh pr create', 'agent-1'), T0 + 2_000),
+    activity => toolAsked(activity, bash('t2', 'gh pr create', 'agent-1')),
+    activity => toolAsked(activity, bash('t3', 'git push')),
+    activity => permissionShown(activity, dialogFor('gh pr create'), T0 + 2_000),
   )
   const ended = turnEnded(T0 + 9_000)
   const next = turnStarted(T0 + 10_000)
 
   expect(stateOf(busy, T0).is).toBe('permission')
-  expect(ended).toEqual({ endedAt: T0 + 9_000, tools: [], stops: [] })
+  expect(busy.asked).toHaveLength(1)
+  expect(ended).toEqual({ endedAt: T0 + 9_000, tools: [], asked: [], stops: [] })
   expect(stateOf(ended, T0)).toEqual({ is: 'yourTurn', since: T0 + 9_000 })
-  expect(next).toEqual({ turnAt: T0 + 10_000, tools: [], stops: [] })
+  expect(next).toEqual({ turnAt: T0 + 10_000, tools: [], asked: [], stops: [] })
   expect(stateOf(next, T0)).toEqual({ is: 'working', since: T0 + 10_000 })
 })
 

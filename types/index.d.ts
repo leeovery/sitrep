@@ -136,6 +136,7 @@ export type SitrepActivity = {
   turnAt?: number
   endedAt?: number
   tools: { call: string; tool: SitrepToolShown }[]
+  asked: { call: string; tool: string; input: string }[]
   stops: SitrepStop[]
 }
 
@@ -352,7 +353,7 @@ declare module 'claude-code' {
       named: SitrepNamed[]
       /** A count moved on as time passes, so what the board draws from the time is drawn again. */
       tick: number
-      /** What this window has heard of its own doing, held or not: its turn, the tools it runs, and what waits on Lee. */
+      /** What this window has heard of its own doing, held or not: its turn, the tools it runs, the calls put to Lee, and what waits on Lee. */
       activity: SitrepActivity
     }
   }
