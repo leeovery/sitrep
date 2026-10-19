@@ -47,18 +47,20 @@ export const HELP = [
   'sitrep <command> --help says more.',
 ].join('\n')
 
-/** One command's help: its usage, what it does, and each of its words. */
-export const commandHelp = (command: Command) =>
-  [
+/** One command's help: its usage, what it does, and each of its words, where it takes any. */
+export const commandHelp = (command: Command) => {
+  const words = [
+    ...command.grammar.args.map((arg): [string, string] => [`<${arg.field}>`, arg.about]),
+    ...Object.entries(command.grammar.flags).map(([name, flag]): [string, string] => [
+      flagWord(name, flag),
+      flag.about,
+    ]),
+  ]
+
+  return [
     `Usage: ${usageOf(command)}`,
     '',
     command.about,
-    '',
-    ...table([
-      ...command.grammar.args.map((arg): [string, string] => [`<${arg.field}>`, arg.about]),
-      ...Object.entries(command.grammar.flags).map(([name, flag]): [string, string] => [
-        flagWord(name, flag),
-        flag.about,
-      ]),
-    ]),
+    ...(words.length === 0 ? [] : ['', ...table(words)]),
   ].join('\n')
+}

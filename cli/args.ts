@@ -16,8 +16,7 @@ export type Arg = { field: string; about: string }
  * needs is `isNeeded`, for the help to say so.
  */
 export type Flag = { field: string; about: string; isNeeded?: true } & (
-  | { form: 'switch' }
-  | { form: 'one' | 'many'; value: string }
+  { form: 'switch' } | { form: 'one' | 'many'; value: string }
 )
 
 export type Grammar = {
@@ -101,7 +100,9 @@ const placed = (grammar: Grammar, words: readonly string[], fields: Fields): Che
   const { args } = grammar
 
   if (args.length === 0 && words.length > 0) {
-    return { ok: false, error: `It takes flags only, not "${words.join(' ')}".` }
+    const takes = Object.keys(grammar.flags).length === 0 ? 'nothing' : 'flags only'
+
+    return { ok: false, error: `It takes ${takes}, not "${words.join(' ')}".` }
   }
 
   args.forEach((arg, i) => {

@@ -7,7 +7,8 @@
  * today's layout and never rewriting it, its count going on from its file
  * under either, and writes no delivered marks or heartbeats: it is never a
  * window on the session. Before a command reads the board, the old layout
- * is moved into today's, once no window still writes it.
+ * is moved into today's, once no window still writes it. `watch` runs on,
+ * printing the board as it changes, until it is to end.
  */
 import { addition, checkJoin, rootOf, stamp, type Body, type Checked } from '../core'
 import { parseWords, wantsHelp, type Fields } from './args'
@@ -24,6 +25,7 @@ import type { Env, Io } from './io'
 import { jump, sessionsOnScreen } from './jump'
 import { moveOldLayout } from './move'
 import { windowsOf } from './screen'
+import { watch } from './watch'
 
 /** How a run ends: done; a usage error, a refused input or a failure; or no such session. */
 export const EXIT = { done: 0, refused: 1, noSession: 2 } as const
@@ -190,6 +192,10 @@ const runCommand = async (io: Io, command: Command, words: readonly string[]) =>
       return onProjects(io, command, input.value)
     case 'window':
       return onWindow(io, command, input.value)
+    case 'feed':
+      await watch(io, () => moveFirst(io))
+
+      return EXIT.done
   }
 }
 
