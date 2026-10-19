@@ -6,7 +6,7 @@ public struct Program: Sendable, Equatable {
     public let executable: URL
     public let arguments: [String]
     public let environment: [String: String]
-    /// How long it may run before it is killed.
+    /// How long it may run before it is killed: `.infinity` for one watched, which runs for the app's life.
     public let limit: TimeInterval
 
     public init(executable: URL, arguments: [String], environment: [String: String], limit: TimeInterval) {

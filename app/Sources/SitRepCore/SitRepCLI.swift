@@ -76,8 +76,7 @@ public struct SitRepCLI: Sendable {
 
     /// The CLI run on the words given; a run that exits other than 0 is a failure, as one that never ends is.
     private func sitrep(_ words: [String], limit: TimeInterval) async -> Ended {
-        let environment = environment.merging(["PATH": await path()]) { _, lees in lees }
-        let program = Program(executable: executable, arguments: words, environment: environment, limit: limit)
+        let program = await self.program(words, limit: limit)
         let clock = ContinuousClock()
         let started = clock.now
         let ended: Ended
@@ -97,6 +96,13 @@ public struct SitRepCLI: Sendable {
         Self.logger.info("sitrep \(words.joined(separator: " "), privacy: .public): \(ended.logged, privacy: .public), in \(took, privacy: .public)")
 
         return ended
+    }
+
+    /// The CLI on the words given, with Lee's PATH as it stands now.
+    func program(_ words: [String], limit: TimeInterval) async -> Program {
+        let environment = environment.merging(["PATH": await path()]) { _, lees in lees }
+
+        return Program(executable: executable, arguments: words, environment: environment, limit: limit)
     }
 }
 
@@ -132,15 +138,5 @@ private extension Ended {
 }
 
 private extension Ran {
-    static let prefix = "sitrep: "
-
-    /// The first line of stderr the CLI wrote as its own, its prefix
-    /// dropped; else the first with anything on it, such as the head of a
-    /// Bun stack trace. One line, as it fits a menu item or a banner.
-    var complaint: String? {
-        let lines = stderr.split(whereSeparator: \.isNewline).map { $0.trimmingCharacters(in: .whitespaces) }
-        let own = lines.compactMap { $0.hasPrefix(Self.prefix) ? String($0.dropFirst(Self.prefix.count)) : nil }
-
-        return (own + lines).first { !$0.isEmpty }
-    }
+    var complaint: String? { Said(stderr).first }
 }
