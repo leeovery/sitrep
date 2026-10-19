@@ -1,8 +1,8 @@
 /**
  * The board as a tree, with this session as home: a session sits in its
  * project, and every project under All projects. Home and All projects are
- * the tabs; anywhere else is also a step back up.
- * Also what each place shows: its works, its asks, its log, what it parked.
+ * the tabs; anywhere else is also a step back up. Also what each place
+ * shows: its sessions, its asks, its notes, what it parked.
  */
 import {
   allProjects,
@@ -12,32 +12,32 @@ import {
   summariseProject,
   type Ask,
   type Parked,
-  type WorkBrief,
+  type SessionBrief,
 } from '../core'
-import type { SitrepPlace, SitrepWorkRef } from '../types'
-import { forYou, type Filed, type Scene } from './scene'
+import type { SitrepPlace, SitrepSessionRef } from '../types'
+import { shownAsks, type Filed, type Scene } from './scene'
 
 export const EVERY_PROJECT: SitrepPlace = { level: 'all' }
 
-/** An ask a view lists, the work it is on, and that work's name. */
-export type AskedAt = { at: SitrepWorkRef; name: string; ask: Ask }
+/** An ask a view lists, the session it is on, and that session's name. */
+export type AskedAt = { at: SitrepSessionRef; name: string; ask: Ask }
 
-/** Something a view lists as parked, the work that parked it, and that work's name. */
-export type ParkedAt = { at: SitrepWorkRef; name: string; parked: Parked }
+/** Something a view lists as parked, the session that parked it, and that session's name. */
+export type ParkedAt = { at: SitrepSessionRef; name: string; parked: Parked }
 
 /**
- * An item's address on the board, wherever it shows: its work's id, then its
- * own, since a project's view and Ready to send list several works' items,
- * and two works' items may share an id. What opens it, and its buttons' keys
- * (`pick:<work>:<item>`), are made from it.
+ * An item's address on the board, wherever it shows: its session's id, then
+ * its own, since a project's view and Ready to send list several sessions'
+ * items, and two sessions' items may share an id. What opens it, and its
+ * buttons' keys (`pick:<session>:<item>`), are made from it.
  */
-export const itemKey = (work: string, item: string) => `${work}:${item}`
+export const itemKey = (session: string, item: string) => `${session}:${item}`
 
-/** This session: the held work, the board's home. */
-export const homeOf = ({ here, work }: Pick<Scene, 'here' | 'work'>): SitrepPlace => ({
+/** This session: the held session, the board's home. */
+export const homeOf = ({ here, session }: Pick<Scene, 'here' | 'session'>): SitrepPlace => ({
   level: 'session',
   project: here,
-  work: work.id,
+  session: session.id,
 })
 
 export const projectPlace = (project: string): SitrepPlace => ({ level: 'project', project })
@@ -45,7 +45,7 @@ export const projectPlace = (project: string): SitrepPlace => ({ level: 'project
 const keyOf = (place: SitrepPlace) => {
   switch (place.level) {
     case 'session':
-      return place.work
+      return place.session
     case 'project':
       return place.project
     case 'all':
@@ -63,39 +63,41 @@ export const up = (place: SitrepPlace): SitrepPlace =>
 /** Whether the board is home, on this session. */
 export const isHome = (scene: Scene) => samePlace(scene.place, homeOf(scene))
 
-/** A work the board can draw in full: the held one, or another it read. */
-export const filedAt = (scene: Scene, work: string): Filed | undefined =>
-  work === scene.work.id ? { project: scene.here, work: scene.work } : scene.others.get(work)
+/** A session the board can draw in full: the held one, or another it read. */
+export const filedAt = (scene: Scene, session: string): Filed | undefined =>
+  session === scene.session.id
+    ? { project: scene.here, session: scene.session }
+    : scene.others.get(session)
 
-/** Another work as its project's views read it, in brief: its open asks among what it holds. */
-export const briefOf = (scene: Scene, work: string): WorkBrief | undefined =>
-  scene.projects.flatMap(project => project.works).find(brief => brief.id === work)
+/** Another session as its project's views read it, in brief: its open asks among what it holds. */
+export const briefOf = (scene: Scene, session: string): SessionBrief | undefined =>
+  scene.projects.flatMap(project => project.sessions).find(brief => brief.id === session)
 
-/** Works in the order given, but the held one first. */
-export const hereFirst = <T extends { id: string }>(scene: Scene, works: readonly T[]) => [
-  ...works.filter(work => work.id === scene.work.id),
-  ...works.filter(work => work.id !== scene.work.id),
+/** Sessions in the order given, but the held one first. */
+export const hereFirst = <T extends { id: string }>(scene: Scene, sessions: readonly T[]) => [
+  ...sessions.filter(session => session.id === scene.session.id),
+  ...sessions.filter(session => session.id !== scene.session.id),
 ]
 
-/** The projects read: the held work's first. */
+/** The projects read: the held session's first. */
 const keysRead = (scene: Scene) => [
   ...new Set([scene.here, ...scene.projects.map(project => project.key)]),
 ]
 
-/** A project's current works in brief, the held one among them where it is filed. */
-const briefsIn = (scene: Scene, key: string): WorkBrief[] => [
-  ...(key === scene.here ? [brief(scene.work)] : []),
-  ...(scene.projects.find(project => project.key === key)?.works ?? []),
+/** A project's current sessions in brief, the held one among them where it is filed. */
+const briefsIn = (scene: Scene, key: string): SessionBrief[] => [
+  ...(key === scene.here ? [brief(scene.session)] : []),
+  ...(scene.projects.find(project => project.key === key)?.sessions ?? []),
 ]
 
-/** A project as its view draws it: its works in brief, its log, what it parked. */
+/** A project as its view draws it: its sessions in brief, its notes, what it parked. */
 export const projectAt = (scene: Scene, key: string) => {
-  const works = briefsIn(scene, key)
+  const sessions = briefsIn(scene, key)
 
-  return { summary: summariseProject(key, works), log: projectLog(works), works }
+  return { summary: summariseProject(key, sessions), log: projectLog(sessions), sessions }
 }
 
-/** The name the board gives a project, as its works read now name it. */
+/** The name the board gives a project, as its sessions read now name it. */
 export const projectLabel = (scene: Scene, key: string) => projectAt(scene, key).summary.name
 
 /** Every project read, ordered and folded as All projects shows them. */
@@ -105,55 +107,61 @@ export const everyProject = (scene: Scene) =>
     scene.here,
   )
 
-/** How many asks wait on Lee in every other work, in every project. */
+/** How many asks wait on Lee in every other session, in every project. */
 export const waitingElsewhere = (scene: Scene) =>
-  scene.projects.flatMap(project => project.works).reduce((sum, work) => sum + work.waiting, 0)
+  scene.projects
+    .flatMap(project => project.sessions)
+    .reduce((sum, session) => sum + session.waiting, 0)
 
-const refOf = ({ project, work }: Filed): SitrepWorkRef => ({ project, work: work.id })
+const refOf = ({ project, session }: Filed): SitrepSessionRef => ({ project, session: session.id })
 
-/** A session's For you: its open asks, and those Lee's send just closed, the newest first. */
+/** A session's Asks: its open asks, and those Lee's send just closed, the newest first. */
 export const askedOf = (scene: Scene, filed: Filed): AskedAt[] =>
-  forYou(filed.work, scene.now).map(ask => ({
+  shownAsks(filed.session, scene.now).map(ask => ({
     at: refOf(filed),
-    name: filed.work.status.name,
+    name: filed.session.status.name,
     ask,
   }))
 
-/** A work's asks as its project's For you lists them: as its own view does where the board has it in full, else its open asks. */
-const briefAsked = (scene: Scene, key: string, work: WorkBrief): AskedAt[] => {
-  const filed = filedAt(scene, work.id)
+/** A session's asks as its project's Asks lists them: as its own view does where the board has it in full, else its open asks. */
+const briefAsked = (scene: Scene, key: string, session: SessionBrief): AskedAt[] => {
+  const filed = filedAt(scene, session.id)
 
   return filed === undefined
-    ? [...work.asks]
+    ? [...session.asks]
         .reverse()
-        .map(ask => ({ at: { project: key, work: work.id }, name: work.name, ask }))
+        .map(ask => ({ at: { project: key, session: session.id }, name: session.name, ask }))
     : askedOf(scene, filed)
 }
 
-/** A project's For you: every current session's asks, the newest first. */
+/** A project's Asks: every current session's asks, the newest first. */
 export const askedIn = (scene: Scene, key: string): AskedAt[] =>
   briefsIn(scene, key)
-    .flatMap(work => briefAsked(scene, key, work))
+    .flatMap(session => briefAsked(scene, key, session))
     .sort((a, b) => b.ask.at - a.ask.at)
 
 /** What a session has parked, oldest first. */
 export const parkedOf = (filed: Filed): ParkedAt[] =>
-  filed.work.parked.map(parked => ({ at: refOf(filed), name: filed.work.status.name, parked }))
+  filed.session.parked.map(parked => ({
+    at: refOf(filed),
+    name: filed.session.status.name,
+    parked,
+  }))
 
 /** What a project's sessions have parked, oldest first. */
 export const parkedIn = (scene: Scene, key: string): ParkedAt[] => {
-  const works = briefsIn(scene, key)
-  const names = new Map(works.map(work => [work.id, work.name]))
+  const sessions = briefsIn(scene, key)
+  const names = new Map(sessions.map(session => [session.id, session.name]))
 
-  return projectParked(works).map(({ work, ...parked }) => ({
-    at: { project: key, work },
-    name: names.get(work) ?? work,
+  return projectParked(sessions).map(({ session, ...parked }) => ({
+    at: { project: key, session },
+    name: names.get(session) ?? session,
     parked,
   }))
 }
 
-/** A work's name, with its project's where the board's own project is another. */
-export const workLabel = (scene: Scene, filed: Filed) =>
+/** A session's name, with its project's where the board's own project is another. */
+export const sessionLabel = (scene: Scene, filed: Filed) =>
   filed.project === scene.here
-    ? filed.work.status.name
-    : `${filed.work.status.name} · ${filed.work.project}`
+    ? filed.session.status.name
+    : `${filed.session.status.name} · ${filed.session.project}`

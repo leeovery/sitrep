@@ -1,5 +1,6 @@
 import { expect, test } from 'claude-code/testing'
 import {
+  addition,
   append,
   attach,
   heartbeat,
@@ -10,6 +11,7 @@ import {
   parsePresence,
   presenceText,
   serialise,
+  stamp,
   VERSION,
   type Body,
   type Entry,
@@ -141,6 +143,17 @@ for (const [why, line] of [
   })
 }
 
+test('a line a file holds twice, byte for byte, reads once; the same line at another time is its own', () => {
+  const once = entry(T0, 1, EVERY_KIND[2]!)
+  const later = { ...once, at: T0 + 1 }
+
+  expect(parseEntries(`${serialise(once)}${serialise(once)}`)).toEqual([once])
+  expect(parseEntries(`${serialise(once)}${serialise(later)}${serialise(once)}`)).toEqual([
+    once,
+    later,
+  ])
+})
+
 test('fields a line has beyond its kind are dropped', () => {
   const [read] = parseEntries(
     `{"v":1,"at":${T0},"seq":1,"type":"park","id":"p1","title":"Later","colour":"red"}\n`,
@@ -149,7 +162,7 @@ test('fields a line has beyond its kind are dropped', () => {
   expect(read).toStrictEqual(entry(T0, 1, { type: 'park', id: 'p1', title: 'Later' }))
 })
 
-test("appending stamps the writer's next counts and gives both the addition and the whole file", () => {
+test("appending stamps the writer's next counts and gives the whole file", () => {
   const first = append('', [EVERY_KIND[1]!], T0)
   const next = append(first.text, [EVERY_KIND[7]!, EVERY_KIND[8]!], T0 + 5)
 
@@ -158,7 +171,7 @@ test("appending stamps the writer's next counts and gives both the addition and 
     [2, T0 + 5],
     [3, T0 + 5],
   ])
-  expect(next.text).toBe(first.text + next.added)
+  expect(next.text.startsWith(first.text)).toBe(true)
   expect(parseEntries(next.text)).toEqual([...first.entries, ...next.entries])
 })
 
@@ -167,9 +180,18 @@ test('appending to a file left torn ends the torn line first, so only it is lost
   const torn = `${whole}{"v":1,"at":${T0},"seq":2,"ty`
   const next = append(torn, [EVERY_KIND[2]!], T0 + 1)
 
-  expect(next.added.startsWith('\n')).toBe(true)
+  expect(next.text.startsWith(`${torn}\n`)).toBe(true)
   expect(parseEntries(next.text).map(each => each.type)).toEqual(['ask', 'note'])
   expect(next.entries[0]?.seq).toBe(2)
+})
+
+test('an addition ends a torn line of the file it goes on, whatever text its count went on from', () => {
+  const whole = append('', [EVERY_KIND[1]!], T0).text
+  const torn = `${whole}{"v":1,"at":${T0},"seq":2,"ty`
+  const entries = stamp(whole, [EVERY_KIND[2]!], T0 + 1)
+
+  expect(addition(torn, entries)).toBe(`\n${serialise(entries[0]!)}`)
+  expect(addition(whole, stamp(torn, [EVERY_KIND[2]!], T0 + 1))).toBe(serialise(entries[0]!))
 })
 
 test('the count continues from the highest a file holds, whatever its order', () => {
@@ -178,7 +200,7 @@ test('the count continues from the highest a file holds, whatever its order', ()
   expect(append(text, [EVERY_KIND[8]!], T0).entries[0]?.seq).toBe(8)
 })
 
-test('work.json reads back as written, and a torn or other-version one reads as nothing', () => {
+test('session.json reads back as written, and a torn or later-version one reads as nothing', () => {
   const text = metaText(META)
 
   expect(parseMeta(text)).toEqual(META)

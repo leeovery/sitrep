@@ -36,6 +36,6 @@ identity, once per Mac.
 ## Live tests
 
 A live run of the CLI points `XDG_STATE_HOME` at a folder of its own and
-seeds its own works there, so it never writes to the real board in
+seeds its own sessions there, so it never writes to the real board in
 `~/.local/state/sitrep`. A jump moves Lee's screen: run one only with Lee's
 go.

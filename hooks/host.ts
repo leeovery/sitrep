@@ -1,5 +1,5 @@
 /**
- * What sitrep asks of the host: its file system, clock, session and
+ * What sitrep asks of the host: its file system, clock, conversation and
  * environment, the terminal it runs in, its display and prompt, and the
  * mod's values in `$.state`.
  * Each is a call on a hook's `$`, bound in register.tsx: the engine reads a
@@ -7,7 +7,7 @@
  * import, so the other modules are handed this in its place.
  *
  * Also what follows from the host: where sitrep's folder is, the folder the
- * session started in, which writer this window is, and random bytes.
+ * window started in, which writer this window is, and random bytes.
  */
 import type {
   FsEntry,
@@ -59,7 +59,7 @@ export type Host = {
     after: (ms: number, task: () => void) => Timer
     every: (ms: number, task: () => void) => Timer
   }
-  session: {
+  conversation: {
     id: () => Promise<string>
     cwd: () => Promise<string>
   }
@@ -69,6 +69,11 @@ export type Host = {
     env: () => Promise<WhereEnv>
     /** Walks up from a shell Claude Code starts to the first process with a terminal: the tty name it printed (`ttys043`), if any, and how it exited. */
     tty: () => Promise<Pick<ProcessRunResult, 'exitCode' | 'stdout' | 'stderr'>>
+  }
+  /** The plugin as the engine loaded it. */
+  plugin: {
+    /** Its manifest's text, as it stands on disk. */
+    manifest: () => Promise<string>
   }
   /** Writes a line to the debug log. */
   log: (text: string) => void
@@ -114,12 +119,12 @@ export type Host = {
   }
 }
 
-/** Where a window stands as it starts or joins a piece of work. */
+/** Where a window stands as it starts or joins a session. */
 export type Bearings = {
   root: string
-  /** The session's working directory: where a work it starts was started, and which projects it lists first. */
+  /** The window's working directory: where a session it starts was started, and which projects it lists first. */
   cwd: string
-  /** The session's id: the window's own file and heartbeat in a work. */
+  /** Claude Code's session id: the window's own file and heartbeat in a session. */
   writer: string
 }
 
@@ -129,8 +134,8 @@ export const rootFor = async (host: Host) => rootOf(await host.env())
 
 export const bearingsOf = async (host: Host): Promise<Bearings> => ({
   root: await rootFor(host),
-  cwd: await host.session.cwd(),
-  writer: await host.session.id(),
+  cwd: await host.conversation.cwd(),
+  writer: await host.conversation.id(),
 })
 
 /** Writes to the debug log what failed where nothing waits on it, as a timer's work. */

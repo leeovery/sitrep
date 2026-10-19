@@ -3,27 +3,30 @@
  * and, where a command needs it, the screen, then the command's rules, then
  * a line appended or a window brought forward, and the answer printed.
  *
- * It writes as the writer `cli`, appending to `<work>/cli.jsonl` and never
- * rewriting it, and writes no delivered marks or heartbeats: it is never a
- * window on the work.
+ * It writes as the writer `cli`, appending to `<session>/cli.jsonl` under
+ * today's layout and never rewriting it, its count going on from its file
+ * under either, and writes no delivered marks or heartbeats: it is never a
+ * window on the session. Before a command reads the board, the old layout
+ * is moved into today's, once no window still writes it.
  */
-import { append, checkJoin, rootOf, type Body, type Checked } from '../core'
+import { addition, checkJoin, rootOf, stamp, type Body, type Checked } from '../core'
 import { parseWords, wantsHelp, type Fields } from './args'
 import {
   commandNamed,
   type Command,
   type ProjectsCommand,
   type WindowCommand,
-  type WorkCommand,
+  type SessionCommand,
 } from './commands'
-import { findWork, readProjects, type Found } from './files'
+import { findSession, readProjects, textAt, type Found } from './files'
 import { commandHelp, HELP } from './help'
 import type { Env, Io } from './io'
-import { jump, worksOnScreen } from './jump'
+import { jump, sessionsOnScreen } from './jump'
+import { moveOldLayout } from './move'
 import { windowsOf } from './screen'
 
-/** How a run ends: done; a usage error, a refused input or a failure; or no such piece of work. */
-export const EXIT = { done: 0, refused: 1, noWork: 2 } as const
+/** How a run ends: done; a usage error, a refused input or a failure; or no such session. */
+export const EXIT = { done: 0, refused: 1, noSession: 2 } as const
 
 export type Exit = (typeof EXIT)[keyof typeof EXIT]
 
@@ -32,13 +35,16 @@ export const WRITER = 'cli'
 
 const HELP_WORDS = ['help', '--help', '-h']
 
-const NAME_THE_WORK = 'Name the piece of work: --work sr-xxxxxx, or SITREP_WORK in the environment.'
+const NAME_THE_SESSION =
+  'Name the session: --session sr-xxxxxx, or SITREP_SESSION in the environment.'
 
 const fail = (io: Io, exit: Exit, error: string) => {
   io.err(`sitrep: ${error}\n`)
 
   return exit
 }
+
+const messageOf = (error: unknown) => (error instanceof Error ? error.message : String(error))
 
 const print = (io: Io, text: string) => {
   if (text !== '') {
@@ -62,39 +68,43 @@ const help = (io: Io, name?: string) => {
   return EXIT.done
 }
 
-/** The work a command names: `--work`, else `SITREP_WORK`, checked as join checks it. */
-const workIdOf = (input: Fields, env: Env): Checked<string> => {
-  const given = input.work ?? (env.SITREP_WORK || undefined)
+/** The session a command names: `--session`, else `SITREP_SESSION`, checked as join checks it. */
+const sessionIdOf = (input: Fields, env: Env): Checked<string> => {
+  const given = input.session ?? (env.SITREP_SESSION || undefined)
 
   if (given === undefined) {
-    return { ok: false, error: NAME_THE_WORK }
+    return { ok: false, error: NAME_THE_SESSION }
   }
 
-  const checked = checkJoin({ work: given })
+  const checked = checkJoin({ session: given })
 
-  return checked.ok ? { ok: true, value: checked.value.work } : checked
+  return checked.ok ? { ok: true, value: checked.value.session } : checked
 }
 
-/** Appends the lines to a writer's file after the text it holds; never a rewrite, so runs at once both land. */
-const post = async (io: Io, path: string, text: string, bodies: readonly Body[], now: number) => {
+/**
+ * Appends the lines to a writer's file, their count going on from `held`,
+ * its lines under both layouts; never a rewrite, so runs at once both land.
+ * A torn last line is ended in the file appended to, as it stands.
+ */
+const post = async (io: Io, path: string, held: string, bodies: readonly Body[], now: number) => {
   if (bodies.length > 0) {
-    await io.fs.append(path, append(text, bodies, now).added)
+    await io.fs.append(path, addition((await textAt(io, path)) ?? '', stamp(held, bodies, now)))
   }
 }
 
-/** The piece of work the words name, as it stands at `now`; else how the run ends, told. */
-const namedWork = async (io: Io, input: Fields, now: number): Promise<Found | Exit> => {
-  const id = workIdOf(input, io.env)
+/** The session the words name, as it stands at `now`; else how the run ends, told. */
+const namedSession = async (io: Io, input: Fields, now: number): Promise<Found | Exit> => {
+  const id = sessionIdOf(input, io.env)
 
   if (!id.ok) {
     return fail(io, EXIT.refused, id.error)
   }
 
-  const found = await findWork(io, rootOf(io.env), id.value, now)
+  const found = await findSession(io, rootOf(io.env), id.value, now)
 
   return (
     found ??
-    fail(io, EXIT.noWork, `There is no piece of work ${id.value} on the board, in any project.`)
+    fail(io, EXIT.noSession, `There is no session ${id.value} on the board, in any project.`)
   )
 }
 
@@ -109,9 +119,9 @@ const told = (io: Io, acted: Checked<string>) => {
   return EXIT.done
 }
 
-const onWork = async (io: Io, command: WorkCommand, input: Fields) => {
+const onSession = async (io: Io, command: SessionCommand, input: Fields) => {
   const now = io.now()
-  const found = await namedWork(io, input, now)
+  const found = await namedSession(io, input, now)
 
   if (typeof found === 'number') {
     return found
@@ -132,18 +142,31 @@ const onWork = async (io: Io, command: WorkCommand, input: Fields) => {
 const onProjects = async (io: Io, command: ProjectsCommand, input: Fields) => {
   const now = io.now()
   const { projects, windows } = await readProjects(io, rootOf(io.env), now)
-  const onScreen = command.looks(input) ? await worksOnScreen(io, windows) : new Set<string>()
+  const onScreen = command.looks(input) ? await sessionsOnScreen(io, windows) : new Set<string>()
 
   return told(io, command.act({ read: projects, cwd: io.cwd, now, onScreen }, input))
 }
 
 const onWindow = async (io: Io, command: WindowCommand, input: Fields) => {
   const now = io.now()
-  const found = await namedWork(io, input, now)
+  const found = await namedSession(io, input, now)
 
   return typeof found === 'number'
     ? found
-    : told(io, command.act(found, await jump(io, windowsOf(found.work, now))))
+    : told(io, command.act(found, await jump(io, windowsOf(found.session, now))))
+}
+
+/**
+ * Moves the old layout into today's before a command reads the board. A
+ * move that fails is told, and the command runs on: readers read both
+ * layouts, and the next run moves what is left.
+ */
+const moveFirst = async (io: Io) => {
+  const root = rootOf(io.env)
+
+  await moveOldLayout(io, root, io.now()).catch((error: unknown) => {
+    io.err(`sitrep: moving the old layout failed: ${messageOf(error)}\n`)
+  })
 }
 
 /** A command on the rest of its words: its help, or its run once they read. */
@@ -158,9 +181,11 @@ const runCommand = async (io: Io, command: Command, words: readonly string[]) =>
     return fail(io, EXIT.refused, `${input.error} sitrep ${command.name} --help says more.`)
   }
 
+  await moveFirst(io)
+
   switch (command.on) {
-    case 'work':
-      return onWork(io, command, input.value)
+    case 'session':
+      return onSession(io, command, input.value)
     case 'projects':
       return onProjects(io, command, input.value)
     case 'window':
@@ -191,6 +216,6 @@ export const main = async (words: readonly string[], io: Io): Promise<Exit> => {
   try {
     return await answer(io, words)
   } catch (error) {
-    return fail(io, EXIT.refused, error instanceof Error ? error.message : String(error))
+    return fail(io, EXIT.refused, messageOf(error))
   }
 }

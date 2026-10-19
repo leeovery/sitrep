@@ -30,7 +30,7 @@ const MARK = { glyph: GLYPH.parked, color: C.parked }
 
 /** Lee's pick-up of a parked item, as the branch it hangs on: waiting to be sent, or on its way. */
 const drawPickUp = (d: Drawing, { at, parked }: ParkedAt) => {
-  const queued = queuedOn(d.scene.queue, at.work, parked.id)
+  const queued = queuedOn(d.scene.queue, at.session, parked.id)
   const sent = onItsWay(parked)
 
   if (queued !== undefined) {
@@ -41,7 +41,7 @@ const drawPickUp = (d: Drawing, { at, parked }: ParkedAt) => {
 }
 
 /** A parked item's address, since a project's view lists every session's. */
-const keyOf = ({ at, parked }: ParkedAt) => itemKey(at.work, parked.id)
+const keyOf = ({ at, parked }: ParkedAt) => itemKey(at.session, parked.id)
 
 /** The parked item as the item a pick-up answers. */
 const refOf = ({ at, parked }: ParkedAt): SitrepItemRef => ({ ...at, item: parked.id })

@@ -1,14 +1,14 @@
 /**
- * A session's view: the work's name and summary, what waits on Lee, where
+ * A session's view: the session's name and summary, what waits on Lee, where
  * it stands, what happened, what it put off, and the asks done with. This
  * session's is the board's home; another's draws the same, its asks
- * answered the same way, and with no window on it, a way to mark it done.
+ * answered the same way, and with no window on it, a way to finish it.
  */
 import { agoWords, C, GLYPH } from '../look'
 import { askedOf, parkedOf } from '../places'
 import type { Filed } from '../scene'
-import { drawForYou } from './ask'
-import { drawDone } from './earlier'
+import { drawAsks } from './ask'
+import { drawResolved } from './earlier'
 import { drawFinish } from './finish'
 import { context, emptyLine, heading, marked, spaced, type Block, type Drawing } from './kit'
 import { drawLog } from './log'
@@ -17,18 +17,18 @@ import { drawParked } from './parked'
 /** How many log lines the view shows, docked and inline. */
 const LOG_LINES = { dock: 8, inline: 3 }
 
-/** The line under the tabs naming the work, and its summary under that. */
-const drawContext = (d: Drawing, { work }: Filed) =>
+/** The line under the tabs naming the session, and its summary under that. */
+const drawContext = (d: Drawing, { session }: Filed) =>
   context(
     d,
-    work.status.name,
-    `${work.project}${work.isOpen ? '' : ' · closed'}`,
-    work.status.summary,
+    session.status.name,
+    `${session.project}${session.isOpen ? '' : ' · closed'}`,
+    session.status.summary,
   )
 
-const drawStatus = (d: Drawing, { work }: Filed) => {
+const drawStatus = (d: Drawing, { session }: Filed) => {
   const { Box, Text } = d.els
-  const { now, next, at } = work.status
+  const { now, next, at } = session.status
 
   return (
     <Box flexDirection="column">
@@ -55,19 +55,19 @@ const drawStatus = (d: Drawing, { work }: Filed) => {
 export const drawSessionView = (d: Drawing, filed: Filed): Block[] =>
   spaced(
     [{ key: 'context', element: drawContext(d, filed) }],
-    drawForYou(d, askedOf(d.scene, filed), {
-      waiting: filed.work.waiting,
-      isHome: filed.work === d.scene.work,
+    drawAsks(d, askedOf(d.scene, filed), {
+      waiting: filed.session.waiting,
+      isHome: filed.session === d.scene.session,
       isNamed: false,
     }),
     [{ key: 'status', element: drawStatus(d, filed) }],
     drawLog(
       d,
-      filed.work.log
+      filed.session.log
         .slice(0, d.isDock ? LOG_LINES.dock : LOG_LINES.inline)
-        .map(line => ({ line, work: filed.work.id })),
+        .map(line => ({ line, session: filed.session.id })),
     ),
     drawParked(d, parkedOf(filed), false),
-    drawDone(d, filed),
+    drawResolved(d, filed),
     drawFinish(d, filed),
   )

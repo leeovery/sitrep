@@ -1,21 +1,23 @@
 /**
- * A session's DONE, at the foot of its view: the asks closed earlier, the
+ * A session's RESOLVED, at the foot of its view: the asks closed earlier, the
  * newest closed first, each opening to how it closed. It shows the latest
  * few, and a press opens it to every one.
  */
 import { answerOf, closingReply, type Ask } from '../../core'
 import { C, GLYPH } from '../look'
 import { itemKey } from '../places'
-import { doneEarlier, type Filed } from '../scene'
+import { resolvedEarlier, type Filed } from '../scene'
 import { drawRow, heading, type Block, type Drawing } from './kit'
 
-/** How many closed asks DONE shows until it is opened to them all. */
+/** How many closed asks RESOLVED shows until it is opened to them all. */
 const LATEST = 3
 
 const MARK = { glyph: GLYPH.done, color: C.ok }
 
-/** What a closed ask is opened by, apart from the ask itself, which For you opens. */
-const doneKey = (work: string, ask: Ask) => `done:${itemKey(work, ask.id)}`
+/** What a closed ask is opened by, apart from the ask itself, which Asks opens: this, then its address. */
+export const RESOLVED_KEY = 'resolved:'
+
+const resolvedKey = (session: string, ask: Ask) => `${RESOLVED_KEY}${itemKey(session, ask.id)}`
 
 /** How an ask closed: the reply of Lee's that closed it, or Claude's resolve, with why. */
 const howClosed = (ask: Ask) => {
@@ -29,10 +31,10 @@ const howClosed = (ask: Ask) => {
 }
 
 /** A closed ask's row, as a block of its own. */
-const drawClosed = (d: Drawing, work: string, ask: Ask): Block => {
-  const key = doneKey(work, ask)
+const drawClosed = (d: Drawing, session: string, ask: Ask): Block => {
+  const key = resolvedKey(session, ask)
   const isOpen = d.scene.pane.selected === key
-  const row = `closed:${itemKey(work, ask.id)}`
+  const row = `closed:${itemKey(session, ask.id)}`
 
   return {
     key: row,
@@ -49,16 +51,16 @@ const drawClosed = (d: Drawing, work: string, ask: Ask): Block => {
 }
 
 /**
- * The press opening DONE to every closed ask, or folding it back to the
+ * The press opening RESOLVED to every closed ask, or folding it back to the
  * latest, dim; none with no more than those. Dim rather than a grey Text
  * child: Claude Code 2.1.294 refuses a Button with a label and children,
  * and the refusal blanks the whole board (seen live).
  */
-const drawToggle = (d: Drawing, work: string, asks: readonly Ask[], isInFull: boolean) => {
+const drawToggle = (d: Drawing, session: string, asks: readonly Ask[], isInFull: boolean) => {
   const { Button } = d.els
-  const key = `earlier:${work}`
+  const key = `earlier:${session}`
   const label = isInFull ? 'show fewer' : `show all ${asks.length}`
-  const hidden = asks.slice(LATEST).map(ask => doneKey(work, ask))
+  const hidden = asks.slice(LATEST).map(ask => resolvedKey(session, ask))
 
   return asks.length > LATEST
     ? [
@@ -70,7 +72,7 @@ const drawToggle = (d: Drawing, work: string, asks: readonly Ask[], isInFull: bo
               plain
               dimColor
               label={label}
-              onPress={() => d.act.toggleDone(work, hidden)}
+              onPress={() => d.act.toggleResolved(session, hidden)}
             />
           ),
         },
@@ -78,18 +80,18 @@ const drawToggle = (d: Drawing, work: string, asks: readonly Ask[], isInFull: bo
     : []
 }
 
-/** DONE's heading, the closed asks it shows, and its toggle; none while no ask has closed. */
-export const drawDone = (d: Drawing, { work }: Filed): Block[] => {
-  const asks = doneEarlier(work, d.scene.now)
-  const isInFull = d.scene.pane.doneInFull === work.id
+/** RESOLVED's heading, the closed asks it shows, and its toggle; none while no ask has closed. */
+export const drawResolved = (d: Drawing, { session }: Filed): Block[] => {
+  const asks = resolvedEarlier(session, d.scene.now)
+  const isInFull = d.scene.pane.resolvedInFull === session.id
 
   if (asks.length === 0) {
     return []
   }
 
   return [
-    { key: 'done', element: heading(d, 'DONE', C.ok, `${asks.length} closed`) },
-    ...(isInFull ? asks : asks.slice(0, LATEST)).map(ask => drawClosed(d, work.id, ask)),
-    ...drawToggle(d, work.id, asks, isInFull),
+    { key: 'resolved', element: heading(d, 'RESOLVED', C.ok, `${asks.length} resolved`) },
+    ...(isInFull ? asks : asks.slice(0, LATEST)).map(ask => drawClosed(d, session.id, ask)),
+    ...drawToggle(d, session.id, asks, isInFull),
   ]
 }

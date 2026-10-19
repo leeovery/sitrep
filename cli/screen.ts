@@ -1,12 +1,12 @@
 /**
- * Which terminal devices show a piece of work, from where its windows are,
+ * Which terminal devices show a session, from where its windows are,
  * what tmux says of its servers, and which processes descend from which. A
  * window in tmux shows in every Ghostty window of this Mac whose tmux client
  * is on the tmux window holding its pane; one outside tmux, in its own, when
  * that is Ghostty's.
  *
- * A client's current tmux window, not its session, is what it shows: a
- * session of several windows shows one at a time, and sessions grouped or
+ * A client's current tmux window, not its tmux session, is what it shows:
+ * a tmux session of several windows shows one at a time, and those grouped or
  * sharing a linked window each show their own current one (live).
  *
  * A tmux client is a Ghostty window's when Ghostty's own program is among
@@ -14,7 +14,7 @@
  * cannot tell: Lee's phone and iPad attach through mosh-server, and a
  * Ghostty on another Mac, attached over ssh, gives `xterm-ghostty` too.
  */
-import { isLive, type Where, type Work } from '../core'
+import { isLive, type Where, type Session } from '../core'
 
 /** A tmux client: the device it is on, its process, and the tmux window it shows. */
 export type Client = { device: string; pid: number; window: string }
@@ -68,7 +68,7 @@ const rows = (output: string, count: number) =>
       : [[...fields.slice(0, count - 1), fields.slice(count - 1).join('\t')]]
   })
 
-/** `list-panes -a` as each pane's tmux window. A window in several sessions lists its panes once for each, all the same window. */
+/** `list-panes -a` as each pane's tmux window. A tmux window in several tmux sessions lists its panes once for each, all the same window. */
 export const parsePanes = (output: string): ReadonlyMap<string, string> =>
   new Map(rows(output, 2).map(([pane = '', window = '']) => [pane, window]))
 
@@ -127,11 +127,11 @@ export const ghosttyClients = (servers: Servers, processes: Processes): Readonly
       .filter(pid => isFromGhostty(pid, processes)),
   )
 
-/** The windows a piece of work is in as it stands at `now`: where each live presence is, the deliverer's first. */
-export const windowsOf = (work: Work, now: number): Where[] =>
-  work.presence
+/** The windows a session is in as it stands at `now`: where each live presence is, the deliverer's first. */
+export const windowsOf = (session: Session, now: number): Where[] =>
+  session.presence
     .filter(each => isLive(each, now))
-    .sort((a, b) => Number(b.writer === work.deliverer) - Number(a.writer === work.deliverer))
+    .sort((a, b) => Number(b.writer === session.deliverer) - Number(a.writer === session.deliverer))
     .flatMap(each => (each.where === undefined ? [] : [each.where]))
 
 /** The tmux sockets the windows run under, each once. */

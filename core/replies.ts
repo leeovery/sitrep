@@ -19,7 +19,7 @@ import type {
   ReplyBody,
   Verdict,
   Wants,
-  Work,
+  Session,
 } from './types'
 
 /** What a reply says, whatever it is written as. */
@@ -207,10 +207,10 @@ export const pickUpLog = (parked: Parked, reply: ReplyFields) => ({
   detail: reply.note ? [reply.note] : [],
 })
 
-/** Lee's message carrying replies to a work's items, and the replies it carries: those that fit an item the work has; undefined when none does. */
-export const boardMessage = <R extends ReplyFields>(work: Work, replies: readonly R[]) => {
+/** Lee's message carrying replies to a session's items, and the replies it carries: those that fit an item the session has; undefined when none does. */
+export const boardMessage = <R extends ReplyFields>(session: Session, replies: readonly R[]) => {
   const carried = replies.flatMap(reply => {
-    const item = work.items.get(reply.item)
+    const item = session.items.get(reply.item)
 
     return item !== undefined && fits(item, reply) ? [{ reply, line: replyLine(item, reply) }] : []
   })
@@ -223,42 +223,42 @@ export const boardMessage = <R extends ReplyFields>(work: Work, replies: readonl
       }
 }
 
-/** The replies a window submits now: every one on its way when it is the work's deliverer, else none. */
-export const toDeliver = (work: Work, writer: string) =>
-  work.deliverer === writer ? work.replies.filter(isPending) : []
+/** The replies a window submits now: every one on its way when it is the session's deliverer, else none. */
+export const toDeliver = (session: Session, writer: string) =>
+  session.deliverer === writer ? session.replies.filter(isPending) : []
 
-const isDelivered = (work: Work, id: string) =>
-  work.replies.some(reply => reply.id === id && reply.delivery === 'delivered')
+const isDelivered = (session: Session, id: string) =>
+  session.replies.some(reply => reply.id === id && reply.delivery === 'delivered')
 
 /**
- * The lines recording Lee's replies to the work's own items once Claude
+ * The lines recording Lee's replies to the session's own items once Claude
  * Code has taken the message carrying them: each reply, and the mark naming
  * them. None once their ids are written, so recording twice (a reload cut
  * the first short) writes once.
  */
-export const sentLines = (work: Work, replies: readonly ReplyBody[]): Body[] =>
-  replies.every(reply => work.ids.has(reply.id))
+export const sentLines = (session: Session, replies: readonly ReplyBody[]): Body[] =>
+  replies.every(reply => session.ids.has(reply.id))
     ? []
     : [...replies, { type: 'delivered', replies: replies.map(reply => reply.id) }]
 
 /** The mark that Claude has these inbox replies, naming those not marked yet; none once every one is. */
-export const deliveredMark = (work: Work, ids: readonly string[]): DeliveredBody[] => {
-  const unmarked = ids.filter(id => !isDelivered(work, id))
+export const deliveredMark = (session: Session, ids: readonly string[]): DeliveredBody[] => {
+  const unmarked = ids.filter(id => !isDelivered(session, id))
 
   return unmarked.length === 0 ? [] : [{ type: 'delivered', replies: unmarked }]
 }
 
 /**
- * Where replies sent into a work's inbox stand, by their ids: waiting for
+ * Where replies sent into a session's inbox stand, by their ids: waiting for
  * its window's turn to end while any is on its way, or with no window open
  * for one to join; else delivered, unless every one went void. A reply the
  * fold has not read yet is on its way.
  */
-export const deliveryOf = (work: Work, ids: readonly string[]): Delivery => {
-  const sent = ids.map(id => work.replies.find(reply => reply.id === id))
+export const deliveryOf = (session: Session, ids: readonly string[]): Delivery => {
+  const sent = ids.map(id => session.replies.find(reply => reply.id === id))
 
   if (sent.some(reply => reply === undefined || isPending(reply))) {
-    return work.isOpen ? 'waiting' : 'closed'
+    return session.isOpen ? 'waiting' : 'closed'
   }
 
   return sent.some(reply => reply?.delivery === 'delivered') ? 'delivered' : 'void'

@@ -3,26 +3,26 @@ import {
   parseMeta,
   parseProject,
   projectPaths,
-  workPaths,
+  sessionPaths,
   type ProjectFile,
-  type WorkMeta,
+  type SessionMeta,
 } from '../core'
 import { META, MIN, note, T0, W1, W2, W3, yesAsk } from './support'
-import { DASHBOARD, HOME, PROJECT, REPO, ROOT, SESSION, startedId, world } from './world'
+import { DASHBOARD, HOME, PROJECT, REPO, ROOT, CONVERSATION, startedId, world } from './world'
 
 tier('user')
 
 type World = ReturnType<typeof world>
 
-/** Where SitRep lives: not where any session here starts. */
+/** Where SitRep lives: not where any window here starts. */
 const SITREP_HOME = '/Users/lee/.config/kit/shared/plugins/sitrep'
 
-/** A project folder from before projects were named, keyed from the folder a session started in. */
+/** A project folder from before projects were named, keyed from the folder a window started in. */
 const LEGACY = 'code-84dbac88'
 
 const BOARD = { name: 'sitrep', summary: "Lee's board inside Claude Code", project: 'SitRep' }
 
-const meta = (id: string, name: string, project: string, by = W2): WorkMeta => ({
+const meta = (id: string, name: string, project: string, by = W2): SessionMeta => ({
   ...META,
   id,
   name,
@@ -56,15 +56,15 @@ const boardProject = async (w: World) => {
   return first?.text
 }
 
-/** The session's first message's sitrep block. */
+/** The conversation's first message's sitrep block. */
 const firstMessage = async ($: Engine) =>
   (await $.prompt.context({ blocks: [] })).blocks.find(block => block.name === 'sitrep')?.text
 
-test('start makes a new project of the name given, keyed by its slug, whatever folder the session started in', async ($, on) => {
+test('start makes a new project of the name given, keyed by its slug, whatever folder the window started in', async ($, on) => {
   const w = world($, on)
 
   w.become({ cwd: HOME })
-  await $.session.start(SESSION)
+  await $.session.start(CONVERSATION)
 
   const answer = await w.call('start', BOARD)
   const id = startedId(answer)
@@ -73,22 +73,22 @@ test('start makes a new project of the name given, keyed by its slug, whatever f
     `Started sitrep as ${id}, in a new project, SitRep. Record ${id} wherever the project tracks this work, so a later window can join it.`,
   )
   expect(fileIn(w, 'sitrep')).toEqual({ name: 'SitRep', created: T0, by: W1 })
-  expect(parseMeta(w.text(workPaths(ROOT, 'sitrep', id).meta))).toMatchObject({
+  expect(parseMeta(w.text(sessionPaths(ROOT, 'sitrep', id).meta))).toMatchObject({
     project: 'SitRep',
     root: HOME,
   })
-  expect(w.state.attachment).toMatchObject({ project: 'sitrep', work: id })
+  expect(w.state.attachment).toMatchObject({ project: 'sitrep', session: id })
   expect(w.state.board?.project).toBe('SitRep')
 })
 
-test('start puts the work in the project its name matches, case, spaces and punctuation aside, and the project keeps its name', async ($, on) => {
+test('start puts the session in the project its name matches, case, spaces and punctuation aside, and the project keeps its name', async ($, on) => {
   const w = world($, on)
 
-  await $.session.start(SESSION)
+  await $.session.start(CONVERSATION)
   await w.call('start', BOARD)
 
   for (const name of ['sitrep', 'Sit Rep', ' SIT-REP! ']) {
-    const answer = await w.call('start', { ...BOARD, name: `Work on ${name}`, project: name })
+    const answer = await w.call('start', { ...BOARD, name: `Session on ${name}`, project: name })
 
     expect(String(answer.result), name).toContain(', in the existing project SitRep. Record ')
     expect(w.state.attachment?.project, name).toBe('sitrep')
@@ -102,7 +102,7 @@ test('start puts the work in the project its name matches, case, spaces and punc
 test("a directory given is the project's: a new one keeps it, one with none takes it, and one with its own keeps that", async ($, on) => {
   const w = world($, on)
 
-  await $.session.start(SESSION)
+  await $.session.start(CONVERSATION)
   await w.call('start', { ...BOARD, directory: `${SITREP_HOME}/` })
   await w.call('start', DASHBOARD)
 
@@ -127,11 +127,11 @@ test("a directory given is the project's: a new one keeps it, one with none take
   expect(fileIn(w, 'sitrep')?.directory).toBe(SITREP_HOME)
 })
 
-test('a project folder with no project.json is named as its works recorded it, and a start by that name goes into it', async ($, on) => {
+test('a project folder with no project.json is named as its sessions recorded it, and a start by that name goes into it', async ($, on) => {
   const w = world($, on)
 
   w.elsewhere(meta('sr-wdsqvn', 'sitrep', 'code'), LEGACY)
-  await $.session.start(SESSION)
+  await $.session.start(CONVERSATION)
 
   const answer = await w.call('start', { ...BOARD, name: 'Lobby', project: 'Code' })
 
@@ -147,8 +147,8 @@ test('a project.json written into a folder from before relabels it, moving nothi
   const before = [...w.files.keys()]
 
   w.project(LEGACY, { name: 'SitRep', directory: SITREP_HOME, created: T0, by: W2 })
-  await $.session.start(SESSION)
-  await w.call('join', { work: 'sr-wdsqvn' })
+  await $.session.start(CONVERSATION)
+  await w.call('join', { session: 'sr-wdsqvn' })
 
   expect(w.state.board?.project).toBe('SitRep')
   expect(await boardProject(w)).toBe('SitRep')
@@ -165,25 +165,25 @@ test('a project.json written into a folder from before relabels it, moving nothi
   expect(w.state.attachment?.project).toBe('code')
 })
 
-test("the board's own project is the held work's, whatever folder the session started in", async ($, on) => {
+test("the board's own project is the held session's, whatever folder the window started in", async ($, on) => {
   const w = world($, on)
 
   w.project(PROJECT.key, { name: PROJECT.name, directory: REPO, created: T0, by: W2 })
   w.elsewhere(meta('sr-v1pwm9', 'Milestone 7 stage 1', 'Switchboard')).beat()
-  await $.session.start(SESSION)
+  await $.session.start(CONVERSATION)
   await w.call('start', BOARD)
 
   expect(await boardProject(w)).toBe('SitRep')
 
-  await w.call('join', { work: 'sr-v1pwm9' })
+  await w.call('join', { session: 'sr-v1pwm9' })
 
   expect(await boardProject(w)).toBe('Switchboard')
 })
 
-test('the project tool renames the held work’s project and sets where it lives, the work staying where it is filed', async ($, on) => {
+test('the project tool renames the held session’s project and sets where it lives, the session staying where it is filed', async ($, on) => {
   const w = world($, on)
 
-  await $.session.start(SESSION)
+  await $.session.start(CONVERSATION)
 
   const id = startedId(await w.call('start', { ...BOARD, project: 'Sitrep' }))
 
@@ -205,8 +205,8 @@ test('the project tool renames the held work’s project and sets where it lives
     created: T0,
     by: W1,
   })
-  expect(w.state.attachment).toMatchObject({ project: 'sitrep', work: id })
-  expect(w.files.has(workPaths(ROOT, 'sitrep', id).meta)).toBe(true)
+  expect(w.state.attachment).toMatchObject({ project: 'sitrep', session: id })
+  expect(w.files.has(sessionPaths(ROOT, 'sitrep', id).meta)).toBe(true)
 })
 
 test('the project tool never takes the name of another project, nor changes nothing', async ($, on) => {
@@ -216,7 +216,7 @@ test('the project tool never takes the name of another project, nor changes noth
   await w.call('start', BOARD)
 
   expect((await w.call('project', { name: 'switch board' })).deny).toBe(
-    "Another project is already named Switchboard. This renames the attached work's project; it moves no work to another.",
+    "Another project is already named Switchboard. This renames the attached session's project; it moves no session to another.",
   )
   expect((await w.call('project', {})).deny).toBe(
     'Give the project a new name, a directory, or both.',
@@ -232,8 +232,8 @@ test('the project tool gives a folder from before projects were named its first 
 
   w.elsewhere(meta('sr-wdsqvn', 'sitrep', 'code'), LEGACY)
   await w.clock.advance(MIN)
-  await $.session.start(SESSION)
-  await w.call('join', { work: 'sr-wdsqvn' })
+  await $.session.start(CONVERSATION)
+  await w.call('join', { session: 'sr-wdsqvn' })
 
   expect((await w.call('project', { name: 'SitRep' })).result).toBe(
     'Renamed the project Code to SitRep.',
@@ -243,7 +243,7 @@ test('the project tool gives a folder from before projects were named its first 
   expect(await boardProject(w)).toBe('SitRep')
 })
 
-/** Three projects with current works: SitRep and Switchboard each living somewhere, and Goosemates from before. */
+/** Three projects with current sessions: SitRep and Switchboard each living somewhere, and Goosemates from before. */
 const threeProjects = (w: World) => {
   const sitrep: ProjectFile = { name: 'SitRep', directory: SITREP_HOME, created: T0, by: W2 }
   const switchboard: ProjectFile = { name: 'Switchboard', directory: REPO, created: T0, by: W3 }
@@ -264,7 +264,7 @@ const SITREP_LINE = '- SitRep: sr-wdsqvn "sitrep", 2 waiting on Lee'
 const SWITCHBOARD_LINE = '- Switchboard: sr-v1pwm9 "Milestone 7 stage 1"'
 const GOOSEMATES_LINE = '- Goosemates: sr-eeeeee "Onboarding"'
 
-test("the first message lists every project's current works, those living around the session's folder first", async ($, on) => {
+test("the first message lists every project's current sessions, those living around the window's folder first", async ($, on) => {
   const w = world($, on)
 
   threeProjects(w)
@@ -281,7 +281,7 @@ test("the first message lists every project's current works, those living around
   )
 })
 
-test('a session resumed in any folder takes up the work it was last seen in, whichever project files it', async ($, on) => {
+test('a conversation resumed in any folder takes up the session it was last seen in, whichever project files it', async ($, on) => {
   const w = world($, on, { now: T0 + 10 * MIN })
 
   threeProjects(w)
@@ -295,6 +295,6 @@ test('a session resumed in any folder takes up the work it was last seen in, whi
 
   const listing = await firstMessage($)
 
-  expect(w.state.attachment).toMatchObject({ project: 'goosemates-1a2b3c4d', work: 'sr-eeeeee' })
+  expect(w.state.attachment).toMatchObject({ project: 'goosemates-1a2b3c4d', session: 'sr-eeeeee' })
   expect(listing).toContain('This window already holds sr-eeeeee (Onboarding)')
 })

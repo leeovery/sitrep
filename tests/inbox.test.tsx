@@ -1,9 +1,9 @@
 import { expect, test, tier } from 'claude-code/testing'
-import { parseEntries, type WorkPaths } from '../core'
+import { parseEntries, type SessionPaths } from '../core'
 import { FLASH_MS } from '../hooks/deliver'
 import { WATCH_MS } from '../hooks/window'
 import { file, MIN, reply, SENDER, W1, W2 } from './support'
-import { INLINE, postedId, PROJECT, SESSION, world } from './world'
+import { INLINE, PLUGIN_VERSION, postedId, PROJECT, CONVERSATION, world } from './world'
 
 tier('user')
 
@@ -16,7 +16,7 @@ const MESSAGE = 'From the board:\n- Review Sessions & Runway, round 1 → Approv
 /** As long as the watch takes to fold a letter, and the next look to take it in. */
 const TAKE_IN = 2 * WATCH_MS
 
-/** This session with an ask, a minute on; and another work's window, sending replies into its inbox. */
+/** This session with an ask, a minute on; and another session's window, sending replies into its inbox. */
 async function asking(w: World) {
   const { paths } = await w.begin()
   const asked = postedId(
@@ -29,7 +29,7 @@ async function asking(w: World) {
 
   await w.clock.advance(MIN)
 
-  /** Another work's window writes its letters, as it does: the whole file, each line at the time. */
+  /** Another session's window writes its letters, as it does: the whole file, each line at the time. */
   const lines: Parameters<typeof file> = []
   const send = (...replies: Parameters<typeof reply>[]) => {
     lines.push(...replies.map((each): (typeof lines)[number] => [w.clock.now(), reply(...each)]))
@@ -40,10 +40,10 @@ async function asking(w: World) {
 }
 
 /** The kinds of line the window's own file holds, in order. */
-const kindsIn = (w: World, paths: WorkPaths) =>
+const kindsIn = (w: World, paths: SessionPaths) =>
   parseEntries(w.text(paths.log(W1))).map(line => line.type)
 
-test("the window delivering for its work submits inbox replies as Lee's own message, once, and marks them once taken", async ($, on) => {
+test("the window delivering for its session submits inbox replies as Lee's own message, once, and marks them once taken", async ($, on) => {
   const w = world($, on)
   const { paths, asked, send } = await asking(w)
   const turn = w.holdPrompts()
@@ -77,11 +77,11 @@ test("the window delivering for its work submits inbox replies as Lee's own mess
   expect(w.prompts, 'nothing goes in twice').toHaveLength(1)
 })
 
-test("a window that is not its work's deliverer submits nothing", async ($, on) => {
+test("a window that is not its session's deliverer submits nothing", async ($, on) => {
   const w = world($, on)
   const { paths, asked, send } = await asking(w)
   const longer = () =>
-    w.beat(w.state.attachment?.work ?? '', { writer: W2, attachedAt: 0, seenAt: w.clock.now() })
+    w.beat(w.state.attachment?.session ?? '', { writer: W2, attachedAt: 0, seenAt: w.clock.now() })
 
   longer()
   send(['r1', asked, 'yes'])
@@ -94,6 +94,37 @@ test("a window that is not its work's deliverer submits nothing", async ($, on) 
   expect(w.state.board?.deliverer).toBe(W2)
   expect(w.prompts).toEqual([])
   expect(kindsIn(w, paths)).toEqual(['ask'])
+})
+
+test('while a window on an old version is live on the session, this one submits nothing: the letters wait until that window reloads or leaves', async ($, on) => {
+  const w = world($, on)
+  const { paths, asked, send } = await asking(w)
+  const attachedAt = w.clock.now()
+  const old = (version?: string) =>
+    w.beat(w.state.attachment?.session ?? '', {
+      writer: W2,
+      attachedAt,
+      seenAt: w.clock.now(),
+      version,
+    })
+
+  old()
+  send(['r1', asked, 'yes'])
+
+  for (let look = 0; look < 4; look++) {
+    await w.clock.advance(WATCH_MS)
+    old()
+  }
+
+  expect(w.state.board?.deliverer).toBe(W2)
+  expect(w.prompts).toEqual([])
+  expect(kindsIn(w, paths)).toEqual(['ask'])
+
+  old(PLUGIN_VERSION)
+  await w.clock.advance(TAKE_IN)
+
+  expect(w.state.board?.deliverer, 'reloaded: the window attached longest').toBe(W1)
+  expect(w.prompts.map(prompt => prompt.text)).toEqual([MESSAGE])
 })
 
 test('a refused submission leaves the replies undelivered, for the next look to try again', async ($, on) => {
@@ -145,7 +176,7 @@ test('a delivery a reload left on its way is never submitted again, and is marke
   await turn.arrived
 
   // The reload: the load that submitted is gone, and with it any word of its submit.
-  await $.session.start(SESSION)
+  await $.session.start(CONVERSATION)
   await w.clock.advance(4 * WATCH_MS)
   expect(w.submitted).toEqual([MESSAGE])
   expect(kindsIn(w, paths)).toEqual(['ask'])
@@ -195,10 +226,10 @@ test('replies Claude Code took but whose mark could not be written are never sen
   expect(w.state.inFlight).toBeNull()
 })
 
-test('inbox replies taken after Claude moved to another work mid-turn are marked in their own work, and never go in again', async ($, on) => {
+test('inbox replies taken after Claude moved to another session mid-turn are marked in their own session, and never go in again', async ($, on) => {
   const w = world($, on)
   const { paths, asked, send } = await asking(w)
-  const answered = w.state.attachment?.work ?? ''
+  const answered = w.state.attachment?.session ?? ''
   const turn = w.holdPrompts()
 
   send(['r1', asked, 'yes'])
@@ -210,7 +241,7 @@ test('inbox replies taken after Claude moved to another work mid-turn are marked
 
   expect(kindsIn(w, paths)).toEqual(['ask', 'delivered'])
 
-  await w.call('join', { work: answered })
+  await w.call('join', { session: answered })
   await w.clock.advance(4 * WATCH_MS)
 
   expect(w.submitted).toEqual([MESSAGE])

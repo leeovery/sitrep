@@ -10,12 +10,12 @@ public struct Banner: Equatable, Sendable {
         switch listed {
         case let .works(works):
             guard let first = works.first else {
-                return Banner(title: "SitRep", subtitle: nil, body: "A test banner. No work is on screen, so it jumps nowhere.", work: nil)
+                return Banner(title: "SitRep", subtitle: nil, body: "A test banner. No session is on screen, so it jumps nowhere.", work: nil)
             }
 
-            return Banner(title: first.name, subtitle: first.project, body: "A test banner. Click it to jump to this work.", work: first.id)
+            return Banner(title: first.name, subtitle: first.project, body: "A test banner. Click it to jump to this session.", work: first.id)
         case let .failed(why):
-            return Banner(title: "SitRep", subtitle: nil, body: "A test banner, with no work to jump to: \(why)", work: nil)
+            return Banner(title: "SitRep", subtitle: nil, body: "A test banner, with no session to jump to: \(why)", work: nil)
         }
     }
 

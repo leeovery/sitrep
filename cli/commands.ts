@@ -1,13 +1,13 @@
 /**
- * The CLI's commands: the words each takes, and what each makes of a piece
- * of work, of the projects, or of a jump to a work's window. A command on a
- * piece of work hands back the lines it posts, as the CLI's own, and what to
+ * The CLI's commands: the words each takes, and what each makes of a
+ * session, of the projects, or of a jump to a session's window. A command
+ * on a session hands back the lines it posts, as the CLI's own, and what to
  * print: a post's item id, so a script can keep it. Each is pure: what it
  * needs of the screen is looked at, and the jump made, before it acts.
  *
  * Answering an ask is not one of them yet (DESIGN's open question 4). It
- * would be a command on a piece of work whose reply goes into the work's
- * inbox rather than the CLI's own file, for the work's window to deliver.
+ * would be a command on a session whose reply goes into the session's
+ * inbox rather than the CLI's own file, for the session's window to deliver.
  */
 import {
   boardText,
@@ -19,30 +19,30 @@ import {
   withId,
   type Body,
   type Checked,
-  type ProjectWorks,
+  type ProjectSessions,
   type Random,
-  type Work,
+  type Session,
 } from '../core'
 import type { Fields, Flag, Grammar } from './args'
 import type { Jumped } from './jump'
 import { boardJson, listing, listJson, listText } from './output'
 
-/** A piece of work, and the key of the project it is filed under. */
-export type Filed = { project: string; work: Work }
+/** A session, and the key of the project it is filed under. */
+export type Filed = { project: string; session: Session }
 
-/** What a command on a piece of work comes to: the lines it posts, and what it prints. */
+/** What a command on a session comes to: the lines it posts, and what it prints. */
 export type Outcome = { post: Body[]; print: string }
 
 type About = { name: string; about: string; grammar: Grammar }
 
-export type WorkCommand = About & {
-  on: 'work'
+export type SessionCommand = About & {
+  on: 'session'
   act: (filed: Filed, input: Fields, random: Random) => Checked<Outcome>
 }
 
-/** What a command on the projects is given: every one read, with its works, from the folder the CLI runs in, at `now`, and the ids of the works on screen. */
+/** What a command on the projects is given: every one read, with its sessions, from the folder the CLI runs in, at `now`, and the ids of the sessions on screen. */
 export type Projects = {
-  read: readonly ProjectWorks[]
+  read: readonly ProjectSessions[]
   cwd: string
   now: number
   onScreen: ReadonlySet<string>
@@ -50,28 +50,28 @@ export type Projects = {
 
 export type ProjectsCommand = About & {
   on: 'projects'
-  /** Whether it tells which works are on screen: only then is tmux asked, and `onScreen` filled. */
+  /** Whether it tells which sessions are on screen: only then is tmux asked, and `onScreen` filled. */
   looks: (input: Fields) => boolean
   act: (projects: Projects, input: Fields) => Checked<string>
 }
 
-/** A command on a piece of work's window: what the jump to it came to, in words. */
+/** A command on a session's window: what the jump to it came to, in words. */
 export type WindowCommand = About & {
   on: 'window'
   act: (filed: Filed, jumped: Jumped) => Checked<string>
 }
 
-export type Command = WorkCommand | ProjectsCommand | WindowCommand
+export type Command = SessionCommand | ProjectsCommand | WindowCommand
 
-/** The flag naming the piece of work, which every command on one takes. */
-export const WORK_FLAG = 'work'
+/** The flag naming the session, which every command on one takes. */
+export const SESSION_FLAG = 'session'
 
-const WORK: Record<string, Flag> = {
-  [WORK_FLAG]: {
-    field: 'work',
+const SESSION: Record<string, Flag> = {
+  [SESSION_FLAG]: {
+    field: 'session',
     form: 'one',
     value: '<id>',
-    about: 'the piece of work: sr- and six characters; else $SITREP_WORK',
+    about: 'the session: sr- and six characters; else $SITREP_SESSION',
   },
 }
 
@@ -103,7 +103,7 @@ const posted = <B extends Body>(
 
 const idOf = (body: { id: string }) => body.id
 
-const note: WorkCommand = {
+const note: SessionCommand = {
   name: 'note',
   about: "Add a line to the board's log: something Lee would want to know later. Prints its id.",
   grammar: {
@@ -116,14 +116,14 @@ const note: WorkCommand = {
         about: 'a line it opens to; one each',
       },
       ...REF,
-      ...WORK,
+      ...SESSION,
     },
   },
-  on: 'work',
-  act: ({ work }, input, random) => posted(withId(checkNote(input), work, random), idOf),
+  on: 'session',
+  act: ({ session }, input, random) => posted(withId(checkNote(input), session, random), idOf),
 }
 
-const ask: WorkCommand = {
+const ask: SessionCommand = {
   name: 'ask',
   about: 'Post an ask: something only Lee can do or decide. Prints its id.',
   grammar: {
@@ -156,29 +156,29 @@ const ask: WorkCommand = {
       },
       ...WHERE,
       ...REF,
-      ...WORK,
+      ...SESSION,
     },
   },
-  on: 'work',
-  act: ({ work }, input, random) => posted(withId(checkAsk(input), work, random), idOf),
+  on: 'session',
+  act: ({ session }, input, random) => posted(withId(checkAsk(input), session, random), idOf),
 }
 
-const park: WorkCommand = {
+const park: SessionCommand = {
   name: 'park',
   about: 'Park something raised and put off, to come back to. Prints its id.',
-  grammar: { args: [{ field: 'title', about: LINE }], flags: { ...WHERE, ...REF, ...WORK } },
-  on: 'work',
-  act: ({ work }, input, random) => posted(withId(checkPark(input), work, random), idOf),
+  grammar: { args: [{ field: 'title', about: LINE }], flags: { ...WHERE, ...REF, ...SESSION } },
+  on: 'session',
+  act: ({ session }, input, random) => posted(withId(checkPark(input), session, random), idOf),
 }
 
-const status: WorkCommand = {
+const status: SessionCommand = {
   name: 'status',
-  about: 'Set where the work stands, giving only what changed. Prints nothing.',
+  about: 'Set where the session stands, giving only what changed. Prints nothing.',
   grammar: {
     args: [],
     flags: {
       name: { field: 'name', form: 'one', value: '<words>', about: 'its name, in a few words' },
-      summary: { field: 'summary', form: 'one', value: '<line>', about: 'what the work is for' },
+      summary: { field: 'summary', form: 'one', value: '<line>', about: 'what the session is for' },
       now: {
         field: 'now',
         form: 'many',
@@ -186,23 +186,23 @@ const status: WorkCommand = {
         about: 'what is under way, one each: the whole list; "" for nothing',
       },
       next: { field: 'next', form: 'one', value: '<line>', about: 'what comes next; "" clears it' },
-      ...WORK,
+      ...SESSION,
     },
   },
-  on: 'work',
-  act: ({ work }, input) => posted(checkStatus(input, work.status), () => ''),
+  on: 'session',
+  act: ({ session }, input) => posted(checkStatus(input, session.status), () => ''),
 }
 
-const board: WorkCommand = {
+const board: SessionCommand = {
   name: 'board',
   about: 'Print the board: its status, open asks, parked items and latest notes, with their ids.',
-  grammar: { args: [], flags: { ...JSON_OUT, ...WORK } },
-  on: 'work',
-  act: ({ project, work }, input) => ({
+  grammar: { args: [], flags: { ...JSON_OUT, ...SESSION } },
+  on: 'session',
+  act: ({ project, session }, input) => ({
     ok: true,
     value: {
       post: [],
-      print: input.json === true ? boardJson(project, work) : boardText(work),
+      print: input.json === true ? boardJson(project, session) : boardText(session),
     },
   }),
 }
@@ -210,7 +210,7 @@ const board: WorkCommand = {
 const list: ProjectsCommand = {
   name: 'list',
   about:
-    "List every project's current pieces of work, with their ids and what waits on Lee: first the projects living around the folder it runs in.",
+    "List every project's current sessions, with their ids and what waits on Lee: first the projects living around the folder it runs in.",
   grammar: {
     args: [],
     flags: {
@@ -244,7 +244,7 @@ const list: ProjectsCommand = {
 const inWords = (things: readonly string[]) =>
   things.length < 2 ? things.join('') : `${things.slice(0, -1).join(', ')} and ${things.at(-1)}`
 
-/** Why a jump brought no window forward, in words, the work named. */
+/** Why a jump brought no window forward, in words, the session named. */
 const unjumped = (name: string, jumped: Exclude<Jumped, { is: 'focused' }>) => {
   switch (jumped.is) {
     case 'off screen':
@@ -259,13 +259,13 @@ const unjumped = (name: string, jumped: Exclude<Jumped, { is: 'focused' }>) => {
 const jump: WindowCommand = {
   name: 'jump',
   about:
-    'Bring the Ghostty window showing the piece of work to the front, on whatever Space it is. Prints nothing.',
-  grammar: { args: [], flags: { ...WORK } },
+    'Bring the Ghostty window showing the session to the front, on whatever Space it is. Prints nothing.',
+  grammar: { args: [], flags: { ...SESSION } },
   on: 'window',
-  act: ({ work }, jumped) =>
+  act: ({ session }, jumped) =>
     jumped.is === 'focused'
       ? { ok: true, value: '' }
-      : { ok: false, error: unjumped(work.status.name, jumped) },
+      : { ok: false, error: unjumped(session.status.name, jumped) },
 }
 
 /** Every command, in the order the help lists them. */

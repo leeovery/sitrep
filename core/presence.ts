@@ -1,11 +1,13 @@
 /**
- * Which windows have a piece of work open. A mod cannot tell that its own
- * window died, so each attached window rewrites a heartbeat, and a work is
+ * Which windows have a session open. A mod cannot tell that its own
+ * window died, so each attached window rewrites a heartbeat, and a session is
  * open while at least one heartbeat is fresh. A mod cannot delete a file
- * either, so a window that lets go says so in its heartbeat.
+ * either, so a window that lets go says so in its heartbeat. A heartbeat
+ * also says where its window is and the sitrep version it runs.
  */
+import { isFilled } from './entries'
 import { compareText } from './text'
-import type { Presence, Where } from './types'
+import type { Presence } from './types'
 import { parseWhere } from './where'
 
 /** How often an attached window rewrites its heartbeat. */
@@ -17,13 +19,12 @@ export const STALE_MS = 3 * HEARTBEAT_MS
 const isTime = (value: unknown): value is number =>
   typeof value === 'number' && Number.isFinite(value)
 
-/** A window's first heartbeat on a piece of work, and where the window is when that is known. */
-export const attach = (writer: string, at: number, where?: Where): Presence => ({
-  writer,
-  attachedAt: at,
-  seenAt: at,
-  where,
-})
+/** A window's first heartbeat on a session, with where the window is and the version it runs, as far as they are known. */
+export const attach = (
+  writer: string,
+  at: number,
+  known: Pick<Presence, 'where' | 'version'> = {},
+): Presence => ({ writer, attachedAt: at, seenAt: at, ...known })
 
 export const heartbeat = (presence: Presence, at: number): Presence => ({ ...presence, seenAt: at })
 
@@ -33,11 +34,17 @@ export const presenceText = (presence: Presence) => `${JSON.stringify(presence)}
 
 /**
  * A heartbeat file's presence, its writer named by the file; undefined when
- * the file is torn or bad. A bad `where`, or a bad field of it, is dropped
- * and the presence kept.
+ * the file is torn or bad. A bad `where`, or a bad field of it, or a bad
+ * `version`, is dropped and the presence kept.
  */
 export const parsePresence = (text: string, writer: string): Presence | undefined => {
-  let raw: { attachedAt?: unknown; seenAt?: unknown; leftAt?: unknown; where?: unknown }
+  let raw: {
+    attachedAt?: unknown
+    seenAt?: unknown
+    leftAt?: unknown
+    where?: unknown
+    version?: unknown
+  }
 
   try {
     raw = JSON.parse(text) ?? {}
@@ -45,24 +52,77 @@ export const parsePresence = (text: string, writer: string): Presence | undefine
     return undefined
   }
 
-  const { attachedAt, seenAt, leftAt, where } = raw
+  const { attachedAt, seenAt, leftAt, where, version } = raw
 
   if (!isTime(attachedAt) || !isTime(seenAt) || !(leftAt === undefined || isTime(leftAt))) {
     return undefined
   }
 
-  return { writer, attachedAt, seenAt, leftAt, where: parseWhere(where) }
+  return {
+    writer,
+    attachedAt,
+    seenAt,
+    leftAt,
+    where: parseWhere(where),
+    version: isFilled(version) ? version : undefined,
+  }
 }
 
 export const isLive = (presence: Presence, now: number) =>
   presence.leftAt === undefined && now - presence.seenAt <= STALE_MS
 
 /**
- * The window that submits a work's inbox replies: the one attached longest,
- * so two windows on one work never both submit. Undefined with none attached.
+ * Whether a heartbeat is a window's on a version from before heartbeats said
+ * theirs: it says none. Such a window reads and writes the old layout alone.
  */
-export const deliverer = (presence: readonly Presence[], now: number) =>
-  presence
-    .filter(each => isLive(each, now))
+export const isOldVersion = (presence: Presence) => presence.version === undefined
+
+/**
+ * How long a window on an old version keeps the move of the old layout
+ * waiting since it was last seen, unless it let go: a Mac may sleep for
+ * days with it open, and it wakes still reading the old layout alone.
+ */
+export const OLD_WINDOW_MS = 7 * 24 * 60 * 60_000
+
+/**
+ * Whether the board's heartbeats keep the move of the old layout waiting: a
+ * window whose latest heartbeat anywhere on the board is on an old version,
+ * has not let go, and was seen within OLD_WINDOW_MS; or a heartbeat file
+ * that does not read, as one torn mid-rewrite, written within it
+ * (`unread`, each such file's time). A window's later heartbeat saying its
+ * version, as after a reload, stands for those before it.
+ */
+export const isMoveHeld = (beats: readonly Presence[], unread: readonly number[], now: number) => {
+  const isRecent = (at: number) => now - at <= OLD_WINDOW_MS
+  const latest = new Map<string, Presence>()
+
+  for (const beat of beats) {
+    if (beat.seenAt > (latest.get(beat.writer)?.seenAt ?? -Infinity)) {
+      latest.set(beat.writer, beat)
+    }
+  }
+
+  return (
+    unread.some(isRecent) ||
+    [...latest.values()].some(
+      beat => isOldVersion(beat) && beat.leftAt === undefined && isRecent(beat.seenAt),
+    )
+  )
+}
+
+/**
+ * The window that submits a session's inbox replies: the one attached
+ * longest, so two windows on one session never both submit. While a window
+ * on an old version is live on it, the longest attached of those: one sees
+ * no heartbeat under today's layout, so it delivers by its own count, and
+ * the rest wait, and with them the letters under today's layout, which it
+ * cannot see, until it reloads or leaves. Undefined with none attached.
+ */
+export const deliverer = (presence: readonly Presence[], now: number) => {
+  const live = presence.filter(each => isLive(each, now))
+  const old = live.filter(isOldVersion)
+
+  return (old.length > 0 ? old : live)
     .sort((a, b) => a.attachedAt - b.attachedAt || compareText(a.writer, b.writer))
     .at(0)?.writer
+}

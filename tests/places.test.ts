@@ -1,15 +1,18 @@
 import { expect, test } from 'claude-code/testing'
 import {
-  isWorkId,
+  isSessionId,
   LOG_SUFFIX,
+  movedTo,
   newItemId,
-  newWorkId,
+  newSessionId,
+  oldSessionsDir,
   PRESENCE_SUFFIX,
   projectPaths,
   rootOf,
-  workPaths,
-  worksDir,
+  sessionPaths,
+  sessionsDir,
   writerOf,
+  type SessionFolder,
 } from '../core'
 import { scripted, W1 } from './support'
 
@@ -29,58 +32,84 @@ test('an empty or relative XDG_STATE_HOME is ignored, as the XDG spec has it', (
   expect(() => rootOf({})).toThrow('needs HOME or XDG_STATE_HOME')
 })
 
-test("a work's files sit in its folder: work.json, one file per writer, the inbox and the heartbeats", () => {
-  const paths = workPaths(ROOT, 'switchboard-1a2b3c4d', 'sr-k3f9qa')
-  const project = `${ROOT}/projects/switchboard-1a2b3c4d`
-  const dir = `${project}/works/sr-k3f9qa`
+/** A session's folder's paths, its meta named `meta`. */
+const folderAt = (sessions: string, meta: string) => {
+  const dir = `${sessions}/sr-k3f9qa`
 
-  expect(worksDir(ROOT, 'switchboard-1a2b3c4d')).toBe(`${project}/works`)
+  return {
+    places: [sessions, dir, `${dir}/${meta}`, `${dir}/inbox`, `${dir}/presence`],
+    files: [`${dir}/${W1}.jsonl`, `${dir}/inbox/cli.jsonl`, `${dir}/presence/${W1}.json`],
+  }
+}
+
+const placesOf = (folder: SessionFolder) => ({
+  places: [folder.sessions, folder.dir, folder.meta, folder.inbox, folder.presence],
+  files: [folder.log(W1), folder.letters('cli'), folder.heartbeat(W1)],
+})
+
+test("a session's files sit in its folder under sessions/: session.json, one file per writer, the inbox and the heartbeats", () => {
+  const paths = sessionPaths(ROOT, 'switchboard-1a2b3c4d', 'sr-k3f9qa')
+  const project = `${ROOT}/projects/switchboard-1a2b3c4d`
+
+  expect(sessionsDir(ROOT, 'switchboard-1a2b3c4d')).toBe(`${project}/sessions`)
   expect(paths.project).toEqual(projectPaths(ROOT, 'switchboard-1a2b3c4d'))
   expect(paths.project).toEqual({ dir: project, file: `${project}/project.json` })
-  expect([paths.dir, paths.meta, paths.inbox, paths.presence]).toEqual([
-    dir,
-    `${dir}/work.json`,
-    `${dir}/inbox`,
-    `${dir}/presence`,
-  ])
-  expect([paths.log(W1), paths.letters('cli'), paths.heartbeat(W1)]).toEqual([
-    `${dir}/${W1}.jsonl`,
-    `${dir}/inbox/cli.jsonl`,
-    `${dir}/presence/${W1}.json`,
-  ])
+  expect(placesOf(paths)).toEqual(folderAt(`${project}/sessions`, 'session.json'))
+})
+
+test('under the old layout, the same files sat under works/, the meta as work.json', () => {
+  const paths = sessionPaths(ROOT, 'switchboard-1a2b3c4d', 'sr-k3f9qa')
+  const project = `${ROOT}/projects/switchboard-1a2b3c4d`
+
+  expect(oldSessionsDir(ROOT, 'switchboard-1a2b3c4d')).toBe(`${project}/works`)
+  expect(placesOf(paths.old)).toEqual(folderAt(`${project}/works`, 'work.json'))
+})
+
+test("a file of a session's old folder moves to the same place in today's, its work.json as session.json", () => {
+  const paths = sessionPaths(ROOT, 'switchboard', 'sr-k3f9qa')
+
+  expect(movedTo(paths, paths.old.meta)).toBe(paths.meta)
+  expect(movedTo(paths, paths.old.log(W1))).toBe(paths.log(W1))
+  expect(movedTo(paths, paths.old.letters('cli'))).toBe(paths.letters('cli'))
+  expect(movedTo(paths, paths.old.heartbeat(W1))).toBe(paths.heartbeat(W1))
+  expect(movedTo(paths, `${paths.old.dir}/.DS_Store`)).toBe(`${paths.dir}/.DS_Store`)
 })
 
 test('a name that could climb out of its folder is refused', () => {
-  expect(() => workPaths(ROOT, 'switchboard', '../../etc')).toThrow('Not a name sitrep files under')
+  expect(() => sessionPaths(ROOT, 'switchboard', '../../etc')).toThrow(
+    'Not a name sitrep files under',
+  )
   expect(() => projectPaths(ROOT, '..')).toThrow('Not a name sitrep files under')
-  expect(() => workPaths(ROOT, 'switchboard', 'sr-k3f9qa').log('a/b')).toThrow()
-  expect(() => worksDir(ROOT, '')).toThrow()
+  expect(() => sessionPaths(ROOT, 'switchboard', 'sr-k3f9qa').log('a/b')).toThrow()
+  expect(() => sessionsDir(ROOT, '')).toThrow()
+  expect(() => oldSessionsDir(ROOT, '..')).toThrow()
 })
 
 test("a listed file gives its writer by its folder's suffix; any other file gives none", () => {
   expect(writerOf(`${W1}.jsonl`, LOG_SUFFIX)).toBe(W1)
   expect(writerOf('cli.jsonl', LOG_SUFFIX)).toBe('cli')
+  expect(writerOf('session.json', LOG_SUFFIX)).toBeUndefined()
   expect(writerOf('work.json', LOG_SUFFIX)).toBeUndefined()
   expect(writerOf(`${W1}.json`, PRESENCE_SUFFIX)).toBe(W1)
   expect(writerOf('.jsonl', LOG_SUFFIX)).toBeUndefined()
   expect(writerOf('.DS_Store', LOG_SUFFIX)).toBeUndefined()
 })
 
-test('a work id is sr- and six characters of base32, drawn from the bytes given', () => {
-  const id = newWorkId(scripted(K3F9QA), new Set())
+test('a session id is sr- and six characters of base32, drawn from the bytes given', () => {
+  const id = newSessionId(scripted(K3F9QA), new Set())
 
   expect(id).toBe('sr-k3f9qa')
-  expect(isWorkId(id)).toBe(true)
-  expect(newWorkId(scripted(K3F9QA.map(byte => byte + 32)), new Set())).toBe('sr-k3f9qa')
+  expect(isSessionId(id)).toBe(true)
+  expect(newSessionId(scripted(K3F9QA.map(byte => byte + 32)), new Set())).toBe('sr-k3f9qa')
 })
 
 test('an id already taken is drawn again', () => {
-  const id = newWorkId(scripted(K3F9QA, [0, 1, 2, 3, 4, 5]), new Set(['sr-k3f9qa']))
+  const id = newSessionId(scripted(K3F9QA, [0, 1, 2, 3, 4, 5]), new Set(['sr-k3f9qa']))
 
   expect(id).toBe('sr-012345')
 })
 
-test('an item id is four characters, unlike any id the work already uses', () => {
+test('an item id is four characters, unlike any id the session already uses', () => {
   expect(newItemId(scripted([19, 3, 15, 9], [1, 1, 1, 1]), new Set(['k3f9']))).toBe('1111')
 })
 
@@ -88,8 +117,8 @@ test('where every draw at one length is taken, the id grows a character rather t
   expect(newItemId(scripted([0]), new Set(['0000']))).toBe('00000')
 })
 
-test('only an id of the right shape is a work id', () => {
+test('only an id of the right shape is a session id', () => {
   for (const notId of ['k3f9qa', 'sr-k3f9', 'sr-K3F9QA', 'sr-k3f9qi', '../sr-k3f9qa', 7]) {
-    expect(isWorkId(notId), String(notId)).toBe(false)
+    expect(isSessionId(notId), String(notId)).toBe(false)
   }
 })

@@ -2,7 +2,7 @@ import { expect, test } from 'claude-code/testing'
 import { LOOK_MS } from '../cli/look'
 import { EXIT } from '../cli/main'
 import { PS } from '../cli/screen'
-import type { Where, WorkMeta } from '../core'
+import type { Where, SessionMeta } from '../core'
 import {
   choiceAsk,
   finish,
@@ -26,9 +26,9 @@ const DAY = 24 * 60 * MIN
 const QUIET = { key: 'quiet', name: 'Quiet' }
 const STALE = { key: 'stale', name: 'Stale' }
 
-const LOBBY: WorkMeta = { ...META, id: 'sr-bbbbbb', name: 'Lobby', summary: 'The lobby screen' }
+const LOBBY: SessionMeta = { ...META, id: 'sr-bbbbbb', name: 'Lobby', summary: 'The lobby screen' }
 
-const OLD_WAITING: WorkMeta = {
+const OLD_WAITING: SessionMeta = {
   ...META,
   id: 'sr-cccccc',
   name: 'Old but waiting',
@@ -36,9 +36,9 @@ const OLD_WAITING: WorkMeta = {
   created: T0 - 8 * DAY,
 }
 
-const OLD: WorkMeta = { ...OLD_WAITING, id: 'sr-dddddd', name: 'Old and idle' }
+const OLD: SessionMeta = { ...OLD_WAITING, id: 'sr-dddddd', name: 'Old and idle' }
 
-const GOOSE: WorkMeta = {
+const GOOSE: SessionMeta = {
   ...META,
   id: 'sr-eeeeee',
   name: 'Onboarding',
@@ -48,11 +48,11 @@ const GOOSE: WorkMeta = {
   by: W2,
 }
 
-const QUIETLY: WorkMeta = { ...GOOSE, id: 'sr-ffffff', name: 'Tidying', project: 'quiet' }
+const QUIETLY: SessionMeta = { ...GOOSE, id: 'sr-ffffff', name: 'Tidying', project: 'quiet' }
 
-const STALE_WORK: WorkMeta = { ...OLD, id: 'sr-gggggg', project: 'stale' }
+const STALE_SESSION: SessionMeta = { ...OLD, id: 'sr-gggggg', project: 'stale' }
 
-/** Switchboard, living where the CLI runs: an open work holding an ask and something parked, an idle one, and two from last week. */
+/** Switchboard, living where the CLI runs: an open session holding an ask and something parked, an idle one, and two from last week. */
 const busyHere = (cwd = REPO) => {
   const t = terminal({ cwd })
 
@@ -73,7 +73,7 @@ const busyHere = (cwd = REPO) => {
   return t
 }
 
-/** Every project: Switchboard, one with asks waiting, one idle, and one with only an old work. */
+/** Every project: Switchboard, one with asks waiting, one idle, and one with only an old session. */
 const everywhere = (cwd = REPO) => {
   const t = busyHere(cwd)
 
@@ -85,12 +85,12 @@ const everywhere = (cwd = REPO) => {
     ],
   })
   t.seed(QUIETLY, { project: QUIET.key })
-  t.seed(STALE_WORK, { project: STALE.key })
+  t.seed(STALE_SESSION, { project: STALE.key })
 
   return t
 }
 
-test("list: each project's current works, an open one first, each with its id and what it holds", async () => {
+test("list: each project's current sessions, an open one first, each with its id and what it holds", async () => {
   expect(await busyHere().run('list')).toEqual({
     exit: EXIT.done,
     out: [
@@ -104,7 +104,7 @@ test("list: each project's current works, an open one first, each with its id an
   })
 })
 
-test('list --json: the project the CLI runs in, and each project with its current works', async () => {
+test('list --json: the project the CLI runs in, and each project with its current sessions', async () => {
   const { exit, out } = await busyHere().run('list', '--json')
 
   expect(exit).toBe(EXIT.done)
@@ -162,7 +162,7 @@ test('list --json: the project the CLI runs in, and each project with its curren
   })
 })
 
-const WORK_SOCKET = '/private/tmp/tmux-501/work'
+const SESSION_SOCKET = '/private/tmp/tmux-501/session'
 const GONE_SOCKET = '/private/tmp/tmux-501/gone'
 
 const inTmux = (socket: string, pane: string): Where => ({
@@ -172,8 +172,8 @@ const inTmux = (socket: string, pane: string): Where => ({
 })
 
 /**
- * Works each with a live window: in tmux on two servers and a third gone,
- * their sessions shown by a Ghostty window, by the phone alone, or by a
+ * Sessions each with a live window: in tmux on two servers and a third gone,
+ * their tmux sessions shown by a Ghostty window, by the phone alone, or by a
  * Ghostty on another Mac over ssh; and one in a Ghostty window of its own.
  */
 const onScreens = (options: Parameters<typeof terminal>[0] = {}) => {
@@ -191,7 +191,7 @@ const onScreens = (options: Parameters<typeof terminal>[0] = {}) => {
           sshClient('/dev/ttys080', '@3'),
         ],
       },
-      [WORK_SOCKET]: {
+      [SESSION_SOCKET]: {
         panes: [['%9', '@9']],
         clients: [ghosttyClient('/dev/ttys010', '@9')],
       },
@@ -202,27 +202,29 @@ const onScreens = (options: Parameters<typeof terminal>[0] = {}) => {
   t.seed(META, { seenAt: NOW, where: inTmux(SOCKET, '%1') })
   t.seed(LOBBY, { seenAt: NOW, where: inTmux(SOCKET, '%2') })
   t.seed(OLD_WAITING, { seenAt: NOW, where: inTmux(SOCKET, '%3') })
-  t.seed(GOOSE, { project: ELSEWHERE.key, seenAt: NOW, where: inTmux(WORK_SOCKET, '%9') })
+  t.seed(GOOSE, { project: ELSEWHERE.key, seenAt: NOW, where: inTmux(SESSION_SOCKET, '%9') })
   t.seed(QUIETLY, {
     project: QUIET.key,
     seenAt: NOW,
     where: { device: '/dev/ttys020', terminal: 'ghostty' },
   })
-  t.seed(STALE_WORK, { project: STALE.key, seenAt: NOW, where: inTmux(GONE_SOCKET, '%1') })
+  t.seed(STALE_SESSION, { project: STALE.key, seenAt: NOW, where: inTmux(GONE_SOCKET, '%1') })
 
   return t
 }
 
-/** Whether each listed work is on screen, by its id. */
+/** Whether each listed session is on screen, by its id. */
 const onScreenOf = (out: string) => {
   const listed = JSON.parse(out) as { projects: { works: { id: string; onScreen: boolean }[] }[] }
 
   return Object.fromEntries(
-    listed.projects.flatMap(project => project.works.map(work => [work.id, work.onScreen])),
+    listed.projects.flatMap(project =>
+      project.works.map(session => [session.id, session.onScreen]),
+    ),
   )
 }
 
-test('list --json says whether a Ghostty window of this Mac shows each work, asking tmux twice a socket and ps once however many works, and knocking on nothing', async () => {
+test('list --json says whether a Ghostty window of this Mac shows each session, asking tmux twice a socket and ps once however many sessions, and knocking on nothing', async () => {
   const t = onScreens()
   const { exit, out } = await t.run('list', '--json')
 
@@ -233,7 +235,7 @@ test('list --json says whether a Ghostty window of this Mac shows each work, ask
     [OLD_WAITING.id]: false,
     [GOOSE.id]: true,
     [QUIETLY.id]: true,
-    [STALE_WORK.id]: false,
+    [STALE_SESSION.id]: false,
   })
   const tmuxRuns = t.screen.ran.filter(([name]) => name === 'tmux')
 
@@ -242,15 +244,15 @@ test('list --json says whether a Ghostty window of this Mac shows each work, ask
     ['tmux', SOCKET, 'list-panes'],
     ['tmux', GONE_SOCKET, 'list-clients'],
     ['tmux', GONE_SOCKET, 'list-panes'],
-    ['tmux', WORK_SOCKET, 'list-clients'],
-    ['tmux', WORK_SOCKET, 'list-panes'],
+    ['tmux', SESSION_SOCKET, 'list-clients'],
+    ['tmux', SESSION_SOCKET, 'list-panes'],
   ])
   expect(t.screen.ran.filter(([name]) => name !== 'tmux')).toEqual([PS])
   expect(t.screen.written).toEqual([])
   expect(t.screen.focused).toEqual([])
 })
 
-test('list --json still lists, every work in tmux off screen, when tmux or ps is not on PATH or does not answer', async () => {
+test('list --json still lists, every session in tmux off screen, when tmux or ps is not on PATH or does not answer', async () => {
   for (const options of [
     { missing: ['tmux'] },
     { slow: ['tmux'] },
@@ -268,7 +270,7 @@ test('list --json still lists, every work in tmux off screen, when tmux or ps is
       [OLD_WAITING.id]: false,
       [GOOSE.id]: false,
       [QUIETLY.id]: true,
-      [STALE_WORK.id]: false,
+      [STALE_SESSION.id]: false,
     })
     expect(
       t.screen.limits.every(each => each.limitMs === LOOK_MS),
@@ -290,14 +292,14 @@ test('list --json asks tmux and ps nothing when no window runs in tmux', async (
   expect(t.screen.ran).toEqual([])
 })
 
-test('plain list runs no program at all, whatever windows its works are in', async () => {
+test('plain list runs no program at all, whatever windows its sessions are in', async () => {
   const t = onScreens()
 
   expect((await t.run('list')).exit).toBe(EXIT.done)
   expect(t.screen.ran).toEqual([])
 })
 
-test('list: every project, the one the CLI runs in first, then the busiest, the idle last; one with no current work is left out', async () => {
+test('list: every project, the one the CLI runs in first, then the busiest, the idle last; one with no current session is left out', async () => {
   const t = everywhere()
   const { out } = await t.run('list', '--json')
   const projects = JSON.parse(out).projects as { key: string; name: string; works: unknown[] }[]
@@ -375,7 +377,7 @@ test('list takes no --all: every project is listed already', async () => {
   )
 })
 
-test('list leaves out a finished work, whatever it holds, and a project left with none', async () => {
+test('list leaves out a finished session, whatever it holds, and a project left with none', async () => {
   const t = everywhere()
 
   t.seed(LOBBY, {
@@ -408,7 +410,7 @@ test('list leaves out a finished work, whatever it holds, and a project left wit
 test('list names the project the CLI runs in even with nothing current in it, and says when nothing is on the board', async () => {
   const t = terminal()
 
-  expect((await t.run('list')).out).toBe('No current pieces of work on the board.\n')
+  expect((await t.run('list')).out).toBe('No current sessions on the board.\n')
   expect(JSON.parse((await t.run('list', '--json')).out)).toEqual({
     v: 1,
     here: null,
@@ -417,7 +419,7 @@ test('list names the project the CLI runs in even with nothing current in it, an
 
   t.project(PROJECT.key, { name: PROJECT.name, directory: REPO, created: T0, by: W1 })
 
-  expect((await t.run('list')).out).toBe('Switchboard\n  no current pieces of work\n')
+  expect((await t.run('list')).out).toBe('Switchboard\n  no current sessions\n')
   expect(JSON.parse((await t.run('list', '--json')).out).projects).toEqual([
     {
       key: PROJECT.key,
@@ -431,7 +433,7 @@ test('list names the project the CLI runs in even with nothing current in it, an
   ])
 })
 
-test('board --json: the work as list gives it, its open asks, what it parked and its latest log lines', async () => {
+test('board --json: the session as list gives it, its open asks, what it parked and its latest log lines', async () => {
   const t = terminal()
 
   t.seed(META, {
@@ -447,7 +449,7 @@ test('board --json: the work as list gives it, its open asks, what it parked and
     ],
   })
 
-  const { exit, out } = await t.run('board', '--json', '--work', META.id)
+  const { exit, out } = await t.run('board', '--json', '--session', META.id)
 
   expect(exit).toBe(EXIT.done)
   expect(JSON.parse(out)).toEqual({

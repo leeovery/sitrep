@@ -1,6 +1,6 @@
 import { expect, test, tier } from 'claude-code/testing'
 import { C } from '../hooks/look'
-import { INLINE, DOCKED, postedId, SESSION, SURFACES, toProject, world } from './world'
+import { INLINE, DOCKED, postedId, CONVERSATION, SURFACES, toProject, world } from './world'
 import { SLOW } from './support'
 
 tier('user')
@@ -59,15 +59,15 @@ test("an empty section's line is soft, a grey lighter than its heading's few wor
   expect(await colourOf('Nothing waiting on you.'), 'the project view').toBe(C.soft)
 })
 
-test('with no work held, the board says so in a line and says how Claude starts one', async ($, on) => {
+test('with no session held, the board says so in a line and says how Claude starts one', async ($, on) => {
   const w = world($, on)
 
-  await $.session.start(SESSION)
+  await $.session.start(CONVERSATION)
 
   const ui = await w.pane()
 
   expect(
-    await ui.find({ type: 'Text', text: /no piece of work.*start one on the sitrep board/ }),
+    await ui.find({ type: 'Text', text: /no session.*start one on the sitrep board/ }),
   ).toBeDefined()
 })
 
@@ -99,9 +99,9 @@ test(
 )
 
 /** The view's own line and section headings, in the order drawn. */
-const SECTIONS = new Set(['Dashboard redesign', 'FOR YOU', 'STATUS', 'LOG', 'PARKED', 'DONE'])
+const SECTIONS = new Set(['Dashboard redesign', 'ASKS', 'STATUS', 'NOTES', 'PARKED', 'RESOLVED'])
 
-test("this session's view runs its name and summary, then FOR YOU, STATUS, LOG, PARKED and DONE, docked and inline", async ($, on) => {
+test("this session's view runs its name and summary, then ASKS, STATUS, NOTES, PARKED and RESOLVED, docked and inline", async ($, on) => {
   const w = world($, on)
 
   await w.begin()
@@ -211,7 +211,7 @@ test('a log line opens to what happened and where it is recorded, and closes aga
   )
   const ui = await w.pane()
 
-  expect(await ui.find({ type: 'Text', text: /^LOG$/ })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: /^NOTES$/ })).toBeDefined()
   expect(await ui.find({ type: 'Text', text: '6 files, +214 −51' })).toBeUndefined()
 
   await ui.press({ key: `log:${w.item(id)}` })

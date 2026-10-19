@@ -1,7 +1,7 @@
 /**
- * The log: its heading, then a line for each thing that happened, its
- * mark, what happened, and its age. A click opens the detail behind it as
- * a tree, and where Claude's own record of it is. A project's log names
+ * NOTES: its heading, then a line for each thing that happened, its mark,
+ * what happened, and its age. A click opens the detail behind it as a
+ * tree, and where Claude's own record of it is. A project's NOTES names
  * the session each line came from.
  */
 import { labelOf, type LogLine } from '../../core'
@@ -46,12 +46,12 @@ const detailOf = (line: LogLine) => {
   return detail.length > 0 ? detail : ['nothing more was recorded']
 }
 
-/** A line as a log lists it: the work it came from, and in a project's, that session's name. */
-export type Logged = { line: LogLine; work: string; name?: string }
+/** A line as a log lists it: the session it came from, and in a project's, that session's name. */
+export type Logged = { line: LogLine; session: string; name?: string }
 
 /** A line of the log, as a block of its own. */
-const drawLogLine = (d: Drawing, { line, work, name }: Logged): Block => {
-  const key = itemKey(work, logKey(line))
+const drawLogLine = (d: Drawing, { line, session, name }: Logged): Block => {
+  const key = itemKey(session, logKey(line))
   const isOpen = d.scene.pane.selected === key
   const row = `line:${key}`
 
@@ -69,7 +69,7 @@ const drawLogLine = (d: Drawing, { line, work, name }: Logged): Block => {
   }
 }
 
-/** LOG's heading, then each line it lists. */
+/** NOTES' heading, then each line it lists. */
 export const drawLog = (d: Drawing, lines: readonly Logged[]): Block[] => {
   const { Box } = d.els
 
@@ -78,7 +78,7 @@ export const drawLog = (d: Drawing, lines: readonly Logged[]): Block[] => {
       key: 'log',
       element: (
         <Box flexDirection="column">
-          {heading(d, 'LOG', C.log, 'what happened')}
+          {heading(d, 'NOTES', C.log, 'what happened')}
           {lines.length === 0 && emptyLine(d, 'Nothing yet.')}
         </Box>
       ),

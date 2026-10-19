@@ -5,15 +5,79 @@
  * it.
  */
 import { constants } from 'node:fs'
-import { appendFile, open, readdir } from 'node:fs/promises'
+import {
+  appendFile,
+  link,
+  mkdir,
+  open,
+  readdir,
+  rename,
+  rmdir,
+  stat,
+  unlink,
+} from 'node:fs/promises'
 import type { Io, Listed, Ran } from '../io'
 import { main } from '../main'
 
 /** Errors a listing means "not there" by: the folder is missing, or is a file. */
 const ABSENT = ['ENOENT', 'ENOTDIR']
 
-const isAbsent = (error: unknown) =>
-  typeof error === 'object' && error !== null && ABSENT.includes(String(Reflect.get(error, 'code')))
+/** Errors a folder's removal leaves it by: it holds something (macOS says ENOTEMPTY, POSIX allows EEXIST). */
+const NOT_EMPTY = ['ENOTEMPTY', 'EEXIST']
+
+const hasCode = (error: unknown, codes: readonly string[]) =>
+  typeof error === 'object' && error !== null && codes.includes(String(Reflect.get(error, 'code')))
+
+const isAbsent = (error: unknown) => hasCode(error, ABSENT)
+
+/** Lets an error with one of the codes pass, as one that leaves things as wanted; throws any other. */
+const allowing =
+  (codes: readonly string[]) =>
+  (error: unknown): void => {
+    if (!hasCode(error, codes)) {
+      throw error
+    }
+  }
+
+const folderOf = (path: string) => path.slice(0, path.lastIndexOf('/'))
+
+const modifiedAt = async (path: string) => {
+  try {
+    return (await stat(path)).mtimeMs
+  } catch (error) {
+    allowing(ABSENT)(error)
+
+    return undefined
+  }
+}
+
+const append = async (path: string, text: string) => {
+  await mkdir(folderOf(path), { recursive: true })
+  await appendFile(path, text)
+}
+
+/** A hard link, then the old name unlinked: unlike a rename, a link never lands over a file. */
+const moveIn = async (from: string, to: string) => {
+  await mkdir(folderOf(to), { recursive: true })
+
+  try {
+    await link(from, to)
+  } catch (error) {
+    if (isAbsent(error)) {
+      return true
+    }
+
+    if (hasCode(error, ['EEXIST'])) {
+      return false
+    }
+
+    throw error
+  }
+
+  await unlink(from).catch(allowing(ABSENT))
+
+  return true
+}
 
 const list = async (dir: string): Promise<Listed[]> => {
   try {
@@ -78,7 +142,12 @@ const io: Io = {
   fs: {
     read: path => Bun.file(path).text(),
     list,
-    append: (path, text) => appendFile(path, text),
+    modifiedAt,
+    append,
+    moveIn,
+    replace: (from, to) => rename(from, to).catch(allowing(ABSENT)),
+    remove: path => unlink(path).catch(allowing(ABSENT)),
+    removeFolder: dir => rmdir(dir).catch(allowing([...ABSENT, ...NOT_EMPTY])),
   },
   env: Bun.env,
   cwd: process.cwd(),

@@ -1,58 +1,144 @@
 /**
- * Reading a piece of work's files, and its project's. A mod cannot watch
- * files, so each read lists the work's folders and its project's, and reads
- * again only a file whose size or time moved since it was last read. Also
- * the folders sitrep files works under, a file's text where it is there,
- * and a file the window writes itself, as it stands.
+ * Reading a session's files, and its project's. A mod cannot watch files,
+ * so each read lists the session's folders and its project's, and reads
+ * again only a file whose size or time moved since it was last read. A
+ * session is read under today's layout and the old alike, as one, the old
+ * first (core's layouts.ts), its project's folder listed anew for each: the
+ * CLI moving the old layout makes today's folder as it goes. A file listed
+ * and gone by its read, as the move leaves it, is not there. Also the
+ * folders sitrep files projects and sessions under, a file's text where it
+ * is there, and a file the window writes itself, as it stands.
  */
 import type { FsEntry } from 'claude-code'
 import {
+  filedIds,
   LOG_SUFFIX,
-  META_FILE,
+  mergedFiles,
+  mergedText,
+  oldSessionsDir,
   PRESENCE_SUFFIX,
-  PROJECT_FILE,
+  projectPaths,
+  readOldFirst,
+  sessionsDir,
   writerOf,
-  type WorkFiles,
-  type WorkPaths,
+  type FolderFiles,
+  type SessionFiles,
+  type SessionFolder,
+  type SessionPaths,
 } from '../core'
 import type { Host } from './host'
 
-/** A work's files as they stand, each read again only once it changed. */
-export type Reader = (host: Host, paths: WorkPaths) => Promise<WorkFiles>
+/** A session's files as they stand, each read again only once it changed. */
+export type Reader = (host: Host, paths: SessionPaths) => Promise<SessionFiles>
 
 /** A file's text, and the size and time it had when read. */
 type Held = { size: number; mtimeMs: number; text: string }
 
 const listed = (host: Host, dir: string) => host.fs.list(dir).catch((): FsEntry[] => [])
 
-const fileNamed = (entries: readonly FsEntry[], name: string) =>
-  entries.find(entry => entry.kind === 'file' && entry.name === name)
+/** The entry `entries`, the listing of `dir`, has for `path`, of the kind given. */
+const entryAt = (entries: readonly FsEntry[], dir: string, path: string, kind: FsEntry['kind']) =>
+  entries.find(entry => entry.kind === kind && `${dir}/${entry.name}` === path)
+
+const folderNames = (entries: readonly FsEntry[]) =>
+  entries.filter(entry => entry.kind === 'dir').map(entry => entry.name)
 
 /** The names of the folders in `dir`; none while it is not there. */
-export const foldersIn = async (host: Host, dir: string) =>
-  (await listed(host, dir)).filter(entry => entry.kind === 'dir').map(entry => entry.name)
+export const foldersIn = async (host: Host, dir: string) => folderNames(await listed(host, dir))
+
+/**
+ * A folder's entries, listed only once `top`, the listing of the folder
+ * `dir` it sits in, shows it: an inbox is not there before its first
+ * letter, a project may file under one layout alone, and a listing that
+ * fails is a line in the debug log at every look.
+ */
+const listedIn = (host: Host, dir: string, top: readonly FsEntry[], path: string) =>
+  entryAt(top, dir, path, 'dir') === undefined ? [] : listed(host, path)
+
+/**
+ * A session's folder under one layout, as listed, `upper` the listing of
+ * its project's folder: nothing where the project files nothing under that
+ * layout. A project filing under both has the folder listed only once its
+ * layout's folder of sessions shows it, so a session filed under one is no
+ * failed listing under the other.
+ */
+const folderListed = async (
+  host: Host,
+  paths: SessionPaths,
+  upper: readonly FsEntry[],
+  folder: SessionFolder,
+) => {
+  const isFiled = (each: SessionFolder) =>
+    entryAt(upper, paths.project.dir, each.sessions, 'dir') !== undefined
+
+  if (!isFiled(folder)) {
+    return []
+  }
+
+  return isFiled(paths) && isFiled(paths.old)
+    ? listedIn(host, folder.sessions, await listed(host, folder.sessions), folder.dir)
+    : listed(host, folder.dir)
+}
+
+/** The sessions a project files, under today's layout or the old, each once. */
+export const sessionsFiled = async (host: Host, root: string, key: string) => {
+  const { dir } = projectPaths(root, key)
+  const { now, old } = await readOldFirst(
+    oldSessionsDir(root, key),
+    sessionsDir(root, key),
+    async path => folderNames(await listedIn(host, dir, await listed(host, dir), path)),
+  )
+
+  return filedIds(now, old)
+}
 
 /** A file's text; undefined while it is not there, or cannot be read. */
 export const textAt = (host: Host, path: string) =>
   host.fs.read(path).catch((): string | undefined => undefined)
 
-/** A file the window writes itself, as it stands, so its count goes on; empty before its first line. */
-export const ownText = async (host: Host, path: string) =>
-  (await host.fs.exists(path)) ? host.fs.read(path) : ''
+/**
+ * A file the window writes itself, as it stands; empty while it is not
+ * there, and once gone by its read. One there that cannot be read rejects:
+ * the window's next write, of the whole file, would lose its lines.
+ */
+const ownFile = async (host: Host, path: string) => {
+  if (!(await host.fs.exists(path))) {
+    return ''
+  }
+
+  try {
+    return await host.fs.read(path)
+  } catch (error) {
+    if (await host.fs.exists(path)) {
+      throw error
+    }
+
+    return ''
+  }
+}
 
 /**
- * A subfolder's entries, listed only once the work's own listing shows it:
- * an inbox is not there before its first letter, and a listing that fails
- * is a line in the debug log at every look.
+ * A file the window writes itself, the one `fileOf` names in a session's
+ * folder, as it stands under today's layout and the old as one, so its count
+ * goes on and its next write, under today's, carries every line it had;
+ * empty before its first line.
  */
-const listedIn = (host: Host, dir: string, top: readonly FsEntry[], path: string) =>
-  top.some(entry => entry.kind === 'dir' && `${dir}/${entry.name}` === path)
-    ? listed(host, path)
-    : []
+export const ownText = async (
+  host: Host,
+  paths: SessionPaths,
+  fileOf: (folder: SessionFolder) => string,
+) => {
+  const { now, old } = await readOldFirst(fileOf(paths.old), fileOf(paths), path =>
+    ownFile(host, path),
+  )
+
+  return mergedText(now, old)
+}
 
 export const createReader = (): Reader => {
   const held = new Map<string, Held>()
 
+  /** A listed file's text, read again only once it changed; undefined once it is gone. */
   const textOf = async (host: Host, path: string, { size, mtimeMs }: FsEntry) => {
     const last = held.get(path)
 
@@ -60,9 +146,11 @@ export const createReader = (): Reader => {
       return last.text
     }
 
-    const text = await host.fs.read(path)
+    const text = await textAt(host, path)
 
-    held.set(path, { size, mtimeMs, text })
+    if (text !== undefined) {
+      held.set(path, { size, mtimeMs, text })
+    }
 
     return text
   }
@@ -74,34 +162,56 @@ export const createReader = (): Reader => {
 
       return writer === undefined ? [] : [{ writer, entry }]
     })
+    const texts = await Promise.all(
+      files.map(async ({ writer, entry }) => ({
+        writer,
+        text: await textOf(host, `${dir}/${entry.name}`, entry),
+      })),
+    )
 
     return Object.fromEntries(
-      await Promise.all(
-        files.map(async ({ writer, entry }) => [
-          writer,
-          await textOf(host, `${dir}/${entry.name}`, entry),
-        ]),
-      ),
+      texts.flatMap(({ writer, text }) => (text === undefined ? [] : [[writer, text]])),
     )
   }
 
-  return async (host, paths) => {
-    const [top, upper] = await Promise.all([
-      listed(host, paths.dir),
-      listed(host, paths.project.dir),
-    ])
+  /** A session's files under one layout, `top` its folder's listing. */
+  const filesIn = async (
+    host: Host,
+    folder: SessionFolder,
+    top: readonly FsEntry[],
+  ): Promise<FolderFiles> => {
     const [inbox = [], presence = []] = await Promise.all(
-      [paths.inbox, paths.presence].map(path => listedIn(host, paths.dir, top, path)),
+      [folder.inbox, folder.presence].map(path => listedIn(host, folder.dir, top, path)),
     )
-    const meta = fileNamed(top, META_FILE)
-    const project = fileNamed(upper, PROJECT_FILE)
+    const meta = entryAt(top, folder.dir, folder.meta, 'file')
 
     return {
-      meta: meta === undefined ? '' : await textOf(host, paths.meta, meta),
+      meta: (meta === undefined ? undefined : await textOf(host, folder.meta, meta)) ?? '',
+      logs: await byWriter(host, folder.dir, top, LOG_SUFFIX),
+      inbox: await byWriter(host, folder.inbox, inbox, LOG_SUFFIX),
+      presence: await byWriter(host, folder.presence, presence, PRESENCE_SUFFIX),
+    }
+  }
+
+  /** A session's files under one layout, and its project's folder as listed for them. */
+  const layoutRead = async (host: Host, paths: SessionPaths, folder: SessionFolder) => {
+    const upper = await listed(host, paths.project.dir)
+
+    return {
+      upper,
+      files: await filesIn(host, folder, await folderListed(host, paths, upper, folder)),
+    }
+  }
+
+  return async (host, paths) => {
+    const { now, old } = await readOldFirst(paths.old, paths, folder =>
+      layoutRead(host, paths, folder),
+    )
+    const project = entryAt(now.upper, paths.project.dir, paths.project.file, 'file')
+
+    return {
+      ...mergedFiles(now.files, old.files),
       project: project === undefined ? undefined : await textOf(host, paths.project.file, project),
-      logs: await byWriter(host, paths.dir, top, LOG_SUFFIX),
-      inbox: await byWriter(host, paths.inbox, inbox, LOG_SUFFIX),
-      presence: await byWriter(host, paths.presence, presence, PRESENCE_SUFFIX),
     }
   }
 }

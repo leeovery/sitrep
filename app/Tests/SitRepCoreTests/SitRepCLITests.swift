@@ -69,12 +69,12 @@ struct SitRepCLITests {
     @Test func ofAManyLinedFailureTheCLIsOwnLineIsGiven() async {
         let stderr = """
         (node:4242) Warning: something Bun said first
-        sitrep: There is no piece of work sr-zzzzzz on the board, in any project.
+        sitrep: There is no session sr-zzzzzz on the board, in any project.
             at main (/Users/lee/Code/sitrep/cli/main.ts:190:12)
         """
         let (cli, _) = Self.cli(Self.exited(2, stderr: stderr))
 
-        #expect(await cli.list() == .failed("There is no piece of work sr-zzzzzz on the board, in any project."))
+        #expect(await cli.list() == .failed("There is no session sr-zzzzzz on the board, in any project."))
     }
 
     @Test func ofAManyLinedFailureNotTheCLIsTheFirstLineWithAnythingOnItIsGiven() async {
@@ -132,14 +132,14 @@ struct SitRepCLITests {
         let (cli, programs) = Self.cli(Self.exited(0))
 
         #expect(await cli.jump(to: "sr-047c7y") == .jumped)
-        #expect(programs.all.map(\.arguments) == [["jump", "--work", "sr-047c7y"]])
+        #expect(programs.all.map(\.arguments) == [["jump", "--session", "sr-047c7y"]])
         #expect(programs.all.map(\.limit) == [180])
     }
 
     @Test(arguments: [
         (1, "Fumi is not on screen: no Ghostty window shows it."),
         (1, "Ghostty did not answer within 5 seconds: most likely the screen is locked, or macOS is asking whether sitrep may control Ghostty."),
-        (2, "There is no piece of work sr-zzzzzz on the board, in any project."),
+        (2, "There is no session sr-zzzzzz on the board, in any project."),
     ] as [(Int32, String)])
     func aJumpRefusedGivesTheCLIsWords(status: Int32, words: String) async {
         let (cli, _) = Self.cli(Self.exited(status, stderr: "sitrep: \(words)\n"))

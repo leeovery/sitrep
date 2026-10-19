@@ -1,26 +1,26 @@
 /**
- * What the board's views show, as data: a piece of work in brief, a project
- * with its works, its asks, its log and what it parked, and every project, the busiest
- * first; and every project as the start of a session and the CLI list them,
- * those around the folder first.
+ * What the board's views show, as data: a session in brief, a project with
+ * its sessions, its asks, its log and what it parked, and every project,
+ * the busiest first; and every project as the start of a conversation and
+ * the CLI list them, those around the folder first.
  *
- * A work shows while it is current: open, holding something for Lee, or
- * updated lately, and not marked done. An older idle one, or a finished
+ * A session shows while it is current: open, holding something for Lee, or
+ * updated lately, and not finished. An older idle one, or a finished
  * one, stays on disk, out of every view.
  */
 import { nearestFirst, type Project } from './project'
 import { isOpen } from './replies'
 import { compareText } from './text'
-import type { Ask, LogLine, Parked, Work } from './types'
+import type { Ask, LogLine, Parked, Session } from './types'
 
-/** How long an idle work (no window, nothing waiting or parked) stays in the views after its last update. */
+/** How long an idle session (no window, nothing waiting or parked) stays in the views after its last update. */
 export const CURRENT_MS = 7 * 24 * 60 * 60_000
 
 /** How many of its latest log lines a brief carries: as many as any view of the board shows. */
 export const BRIEF_LOG_LINES = 8
 
-/** A piece of work in brief: what it is doing, and what it holds for Lee. */
-export type WorkSummary = {
+/** A session in brief: what it is doing, and what it holds for Lee. */
+export type SessionSummary = {
   id: string
   name: string
   summary: string
@@ -29,15 +29,15 @@ export type WorkSummary = {
   now: string[]
   next?: string
   isOpen: boolean
-  /** Marked done: out of every view, whatever it holds. */
+  /** Finished: out of every view, whatever it holds. */
   isFinished: boolean
   waiting: number
   parked: number
   updatedAt: number
 }
 
-/** A piece of work as views beyond its own draw it: in brief, with its open asks, its latest log lines and what it parked. */
-export type WorkBrief = WorkSummary & {
+/** A session as views beyond its own draw it: in brief, with its open asks, its latest log lines and what it parked. */
+export type SessionBrief = SessionSummary & {
   /** Newest first. */
   log: LogLine[]
   /** Oldest first. */
@@ -52,8 +52,8 @@ export type ProjectSummary = {
   /** Where the project lives, where that is known. */
   directory?: string
   /** Those with a window first, then the most recently updated. */
-  works: WorkSummary[]
-  /** How many works have a window. */
+  sessions: SessionSummary[]
+  /** How many sessions have a window. */
   open: number
   waiting: number
   parked: number
@@ -66,17 +66,17 @@ export type AllProjects = {
   folded: ProjectSummary[]
 }
 
-/** A line of a project's log, and the work it came from. */
-export type ProjectLogLine = LogLine & { work: string }
+/** A line of a project's log, and the session it came from. */
+export type ProjectLogLine = LogLine & { session: string }
 
-/** A parked item of a project's, and the work that parked it. */
-export type ProjectParked = Parked & { work: string }
+/** A parked item of a project's, and the session that parked it. */
+export type ProjectParked = Parked & { session: string }
 
 type Dated = { updatedAt: number }
 
 const byRecency = (a: Dated, b: Dated) => b.updatedAt - a.updatedAt
 
-const openFirst = (a: WorkSummary, b: WorkSummary) =>
+const openFirst = (a: SessionSummary, b: SessionSummary) =>
   Number(b.isOpen) - Number(a.isOpen) || byRecency(a, b) || compareText(a.id, b.id)
 
 const busiest = (a: ProjectSummary, b: ProjectSummary) =>
@@ -89,17 +89,20 @@ const busiest = (a: ProjectSummary, b: ProjectSummary) =>
 const isIdle = (project: ProjectSummary) =>
   project.open === 0 && project.waiting === 0 && project.parked === 0
 
-const total = (works: readonly WorkSummary[], count: (work: WorkSummary) => number) =>
-  works.reduce((sum, work) => sum + count(work), 0)
+const total = (sessions: readonly SessionSummary[], count: (session: SessionSummary) => number) =>
+  sessions.reduce((sum, session) => sum + count(session), 0)
 
-/** Whether a work shows in the views: not finished, and open, waiting on Lee, holding something parked, or updated within `CURRENT_MS`. */
-export const isCurrent = (work: WorkSummary, now: number) =>
-  !work.isFinished &&
-  (work.isOpen || work.waiting > 0 || work.parked > 0 || now - work.updatedAt <= CURRENT_MS)
+/** Whether a session shows in the views: not finished, and open, waiting on Lee, holding something parked, or updated within `CURRENT_MS`. */
+export const isCurrent = (session: SessionSummary, now: number) =>
+  !session.isFinished &&
+  (session.isOpen ||
+    session.waiting > 0 ||
+    session.parked > 0 ||
+    now - session.updatedAt <= CURRENT_MS)
 
-/** The title of a work's item, by its id, as the views show it (a note's is its text); undefined where the work has none. */
-export const itemTitle = (work: Work, id: string) => {
-  const item = work.items.get(id)
+/** The title of a session's item, by its id, as the views show it (a note's is its text); undefined where the session has none. */
+export const itemTitle = (session: Session, id: string) => {
+  const item = session.items.get(id)
 
   if (item === undefined) {
     return undefined
@@ -108,39 +111,42 @@ export const itemTitle = (work: Work, id: string) => {
   return item.type === 'note' ? item.text : item.title
 }
 
-export const summarise = (work: Work): WorkSummary => ({
-  id: work.id,
-  name: work.status.name,
-  summary: work.status.summary,
-  project: work.project,
-  now: work.status.now,
-  next: work.status.next,
-  isOpen: work.isOpen,
-  isFinished: work.finished !== undefined,
-  waiting: work.waiting,
-  parked: work.parked.length,
-  updatedAt: work.updatedAt,
+export const summarise = (session: Session): SessionSummary => ({
+  id: session.id,
+  name: session.status.name,
+  summary: session.status.summary,
+  project: session.project,
+  now: session.status.now,
+  next: session.status.next,
+  isOpen: session.isOpen,
+  isFinished: session.finished !== undefined,
+  waiting: session.waiting,
+  parked: session.parked.length,
+  updatedAt: session.updatedAt,
 })
 
-export const brief = (work: Work): WorkBrief => ({
-  ...summarise(work),
-  log: work.log.slice(0, BRIEF_LOG_LINES),
-  parkedItems: work.parked,
-  asks: work.asks.filter(isOpen),
+export const brief = (session: Session): SessionBrief => ({
+  ...summarise(session),
+  log: session.log.slice(0, BRIEF_LOG_LINES),
+  parkedItems: session.parked,
+  asks: session.asks.filter(isOpen),
 })
 
-/** A project from its works, named as its most recently updated work names it. */
-export const summariseProject = (key: string, works: readonly WorkSummary[]): ProjectSummary => {
-  const summaries = [...works].sort(openFirst)
-  const latest = [...works].sort(byRecency).at(0)
+/** A project from its sessions, named as its most recently updated session names it. */
+export const summariseProject = (
+  key: string,
+  sessions: readonly SessionSummary[],
+): ProjectSummary => {
+  const summaries = [...sessions].sort(openFirst)
+  const latest = [...sessions].sort(byRecency).at(0)
 
   return {
     key,
     name: latest?.project ?? key,
-    works: summaries,
-    open: summaries.filter(work => work.isOpen).length,
-    waiting: total(summaries, work => work.waiting),
-    parked: total(summaries, work => work.parked),
+    sessions: summaries,
+    open: summaries.filter(session => session.isOpen).length,
+    waiting: total(summaries, session => session.waiting),
+    parked: total(summaries, session => session.parked),
     updatedAt: latest?.updatedAt ?? 0,
   }
 }
@@ -158,24 +164,24 @@ export const allProjects = (projects: readonly ProjectSummary[], here?: string):
   }
 }
 
-/** A project as a front end reads it, and its works in brief. */
-export type ProjectWorks = { project: Project; works: readonly WorkSummary[] }
+/** A project as a front end reads it, and its sessions in brief. */
+export type ProjectSessions = { project: Project; sessions: readonly SessionSummary[] }
 
 /**
- * The projects as the start of a session and the CLI list them, each with
- * its current works: those whose directory holds the folder first, the
- * nearest first, then the busiest, and those with nothing open, waiting or
- * parked last. A project with no current works is left out, but never one
- * `kept` names.
+ * The projects as the start of a conversation and the CLI list them, each
+ * with its current sessions: those whose directory holds the folder first,
+ * the nearest first, then the busiest, and those with nothing open, waiting
+ * or parked last. A project with no current sessions is left out, but never
+ * one `kept` names.
  */
 export const listedProjects = (
-  read: readonly ProjectWorks[],
+  read: readonly ProjectSessions[],
   folder: string,
   now: number,
   kept: readonly string[] = [],
 ): ProjectSummary[] => {
-  const summaries = read.flatMap(({ project, works }) => {
-    const current = works.filter(work => isCurrent(work, now))
+  const summaries = read.flatMap(({ project, sessions }) => {
+    const current = sessions.filter(session => isCurrent(session, now))
     const { name, directory } = project
 
     return current.length > 0 || kept.includes(project.key)
@@ -187,14 +193,14 @@ export const listedProjects = (
   return nearestFirst([...projects, ...folded], folder)
 }
 
-/** A project's log: every work's lines, newest first. */
-export const projectLog = (works: readonly Pick<Work, 'id' | 'log'>[]): ProjectLogLine[] =>
-  works
-    .flatMap(work => work.log.map(line => ({ ...line, work: work.id })))
-    .sort((a, b) => b.at - a.at || compareText(a.work, b.work))
+/** A project's log: every session's lines, newest first. */
+export const projectLog = (sessions: readonly Pick<Session, 'id' | 'log'>[]): ProjectLogLine[] =>
+  sessions
+    .flatMap(session => session.log.map(line => ({ ...line, session: session.id })))
+    .sort((a, b) => b.at - a.at || compareText(a.session, b.session))
 
-/** What a project's works have parked, oldest first. */
-export const projectParked = (works: readonly WorkBrief[]): ProjectParked[] =>
-  works
-    .flatMap(work => work.parkedItems.map(parked => ({ ...parked, work: work.id })))
-    .sort((a, b) => a.at - b.at || compareText(a.work, b.work))
+/** What a project's sessions have parked, oldest first. */
+export const projectParked = (sessions: readonly SessionBrief[]): ProjectParked[] =>
+  sessions
+    .flatMap(session => session.parkedItems.map(parked => ({ ...parked, session: session.id })))
+    .sort((a, b) => a.at - b.at || compareText(a.session, b.session))

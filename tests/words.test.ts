@@ -38,7 +38,7 @@ const FRAMES = choiceAsk('k4', 'Ship round 2, or redraw?', ['Ship it', 'Redraw']
 const OLD = kindAsk('k5', 'do', 'Run the apply', { needs: OUTPUT })
 const PARKED = park('p1', 'A tmux indicator')
 
-const WORK = fold({
+const SESSION = fold({
   logs: {
     [W1]: file(
       ...[EXPORT, FEEDBACK, GO, FRAMES, OLD, PARKED].map((body): [number, Body] => [T0, body]),
@@ -48,9 +48,9 @@ const WORK = fold({
 
 const PASTED = 'v1.2.3\n\n  exported 42 rows'
 
-const askOf = (id: string) => WORK.items.get(id) as Ask
+const askOf = (id: string) => SESSION.items.get(id) as Ask
 
-const messageOf = (...replies: ReplyFields[]) => boardMessage(WORK, replies)?.text
+const messageOf = (...replies: ReplyFields[]) => boardMessage(SESSION, replies)?.text
 
 test('a words ask keeps what its words are as it folds; an edit changes it, and an empty one clears it', () => {
   const edit = (at: number, needs: string): [number, Body] => [
@@ -69,7 +69,7 @@ test('a words ask keeps what its words are as it folds; an edit changes it, and 
 })
 
 test('an ask edited away from words keeps no needs; one edited to words takes them', () => {
-  const work = fold({
+  const session = fold({
     logs: {
       [W1]: file(
         [T0, EXPORT],
@@ -80,8 +80,12 @@ test('an ask edited away from words keeps no needs; one edited to words takes th
     },
   })
 
-  expect(work.items.get('k1')).toMatchObject({ wants: 'yes', yes: 'Done', needs: undefined })
-  expect(work.items.get('k3')).toMatchObject({ wants: 'words', yes: undefined, needs: 'the plan' })
+  expect(session.items.get('k1')).toMatchObject({ wants: 'yes', yes: 'Done', needs: undefined })
+  expect(session.items.get('k3')).toMatchObject({
+    wants: 'words',
+    yes: undefined,
+    needs: 'the plan',
+  })
 })
 
 test('a words ask takes an answer with words, or an ignore; nothing else', () => {
@@ -102,7 +106,7 @@ test('a yes or a choice fits with a comment as its note, or without one', () => 
 })
 
 test('an edit making a yes ask want words voids the yes on its way; an edit to what the words are voids no answer', () => {
-  const work = fold({
+  const session = fold({
     logs: {
       [W1]: file(
         [T0, GO],
@@ -120,7 +124,7 @@ test('an edit making a yes ask want words voids the yes on its way; an edit to w
     presence: { [W1]: seen(W1, NOW) },
   })
 
-  expect(work.replies).toMatchObject([
+  expect(session.replies).toMatchObject([
     { id: 'r1', delivery: 'void' },
     { id: 'r2', delivery: 'waiting' },
   ])
@@ -217,7 +221,7 @@ test('under its ask, the board shows an answer as its words, and any note by its
 })
 
 test('the board text tells Claude what each open ask wants back, a yes by its words, and what words it needs', () => {
-  expect(boardText(WORK)).toContain(
+  expect(boardText(SESSION)).toContain(
     [
       `- k1 wants words, waiting on Lee: Run the export; needs: ${OUTPUT}`,
       '- k2 wants words, waiting on Lee: Say how round 2 reads',

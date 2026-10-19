@@ -63,7 +63,7 @@ public struct SitRepCLI: Sendable {
     }
 
     public func jump(to work: String) async -> JumpAnswer {
-        switch await sitrep(["jump", "--work", work], limit: Self.jumpLimit) {
+        switch await sitrep(["jump", "--session", work], limit: Self.jumpLimit) {
         case .success:
             .jumped
         case let .failure(unanswered):

@@ -9,12 +9,12 @@ tier('user')
 
 type World = ReturnType<typeof world>
 
-/** A work the mod started, and the CLI run on the mod's own files, at the mod's own time. */
+/** A session the mod started, and the CLI run on the mod's own files, at the mod's own time. */
 async function begun(w: World) {
   const { id, paths } = await w.begin()
   const t = terminal({ files: w.files, now: () => w.clock.now() })
 
-  return { id, paths, cli: (...words: string[]) => t.run(...words, '--work', id) }
+  return { id, paths, cli: (...words: string[]) => t.run(...words, '--session', id) }
 }
 
 test("what the CLI posts, the mod's watch folds: its note in the log, its ask waiting and counted on the band", async ($, on) => {
@@ -52,7 +52,7 @@ test("what the CLI posts, the mod's watch folds: its note in the log, its ask wa
 
   const band = await w.band()
 
-  expect(await band.find({ key: 'band:for-you', text: '1 for you' })).toBeDefined()
+  expect(await band.find({ key: 'band:asks', text: '1 ask' })).toBeDefined()
   expect(w.logs, 'no look failed').toEqual([])
 })
 

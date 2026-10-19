@@ -1,6 +1,6 @@
 import type { RenderPropsOf } from 'claude-code'
 import { expect, test, tier } from 'claude-code/testing'
-import { parseEntries, workPaths, type WorkMeta } from '../core'
+import { parseEntries, sessionPaths, type SessionMeta } from '../core'
 import { rowsOf } from './drawn'
 import { file, finish, MIN, note, SLOW, T0, W1, W2, W3, W4, yesAsk } from './support'
 import { ELSEWHERE, PROJECT, ROOT, toProject, WIDE, world } from './world'
@@ -15,7 +15,7 @@ const THEMES = 'sr-themes'
 const LOBBY = 'sr-10bbyy'
 const ORDERS = 'sr-0rders'
 
-const meta = (id: string, name: string, by: string, project = 'switchboard'): WorkMeta => ({
+const meta = (id: string, name: string, by: string, project = 'switchboard'): SessionMeta => ({
   id,
   name,
   summary: `${name}, area by area`,
@@ -25,14 +25,14 @@ const meta = (id: string, name: string, by: string, project = 'switchboard'): Wo
   by,
 })
 
-/** Themes' file this window writes, as Lee marks it done from its view. */
-const MINE = workPaths(ROOT, PROJECT.key, THEMES).log(W1)
+/** Themes' file this window writes, as Lee finishes it from its view. */
+const MINE = sessionPaths(ROOT, PROJECT.key, THEMES).log(W1)
 
 /**
  * This session with an ask, beside three others of its project, each with
  * an ask: the ledger, open in another window; Themes, with no window; and
- * the lobby, already marked done. Goosemates' one work is done too, its ask
- * still open. A minute on, Lee opens the board, drawn as `props` say.
+ * the lobby, already finished. Goosemates' one session is finished too, its
+ * ask still open. A minute on, Lee opens the board, drawn as `props` say.
  */
 async function around(w: World, props?: RenderPropsOf['Pane']) {
   const ledger = w.elsewhere(meta(LEDGER, 'Request ledger', W2))
@@ -64,13 +64,13 @@ const keysOf = async (ui: Board, prefix: string) =>
     .filter(key => key.startsWith(prefix))
 
 /** Lee goes from this session to another of its project. */
-const visit = async (ui: Board, work: string) => {
+const visit = async (ui: Board, session: string) => {
   await toProject(ui)
-  await ui.press({ key: `go:${work}` })
+  await ui.press({ key: `go:${session}` })
 }
 
 test(
-  'a finished work drops out of the project and All projects, and its asks count nowhere',
+  'a finished session drops out of the project and All projects, and its asks count nowhere',
   SLOW,
   async ($, on) => {
     const w = world($, on)
@@ -93,7 +93,7 @@ test(
   },
 )
 
-test("the button to mark a work done is drawn only in another session's view with no window", async ($, on) => {
+test("the button to finish a session is drawn only in another session's view with no window", async ($, on) => {
   const w = world($, on)
   const { ui } = await around(w)
 
@@ -107,7 +107,7 @@ test("the button to mark a work done is drawn only in another session's view wit
 
   const button = await ui.find({ key: `finish:${THEMES}` })
 
-  expect(button?.props).toMatchObject({ label: '✓ mark this work done', plain: true })
+  expect(button?.props).toMatchObject({ label: '✓ finish this session', plain: true })
   expect(button?.props.dimColor).toBeUndefined()
 
   const buttons = await keysOf(ui, '')
@@ -115,7 +115,7 @@ test("the button to mark a work done is drawn only in another session's view wit
   expect(buttons.at(-1), 'at the foot of the view').toBe(`finish:${THEMES}`)
 })
 
-test('marking a work done asks first; cancel writes nothing', async ($, on) => {
+test('finishing a session asks first; cancel writes nothing', async ($, on) => {
   const w = world($, on)
   const { ui } = await around(w)
 
@@ -123,9 +123,9 @@ test('marking a work done asks first; cancel writes nothing', async ($, on) => {
   await ui.press({ key: `finish:${THEMES}` })
 
   expect(
-    await ui.find({ type: 'Text', text: 'Mark Themes done? Its open asks stop counting.' }),
+    await ui.find({ type: 'Text', text: 'Finish Themes? Its open asks stop counting.' }),
   ).toBeDefined()
-  expect(await ui.find({ key: `finish-yes:${THEMES}`, text: 'yes, mark it done' })).toBeDefined()
+  expect(await ui.find({ key: `finish-yes:${THEMES}`, text: 'yes, finish it' })).toBeDefined()
   expect(await ui.find({ key: `finish:${THEMES}` })).toBeUndefined()
 
   await ui.press({ key: `finish-no:${THEMES}` })
@@ -133,16 +133,16 @@ test('marking a work done asks first; cancel writes nothing', async ($, on) => {
   expect(await ui.find({ key: `finish:${THEMES}` })).toBeDefined()
   expect(await ui.find({ key: `finish-yes:${THEMES}` })).toBeUndefined()
   expect(w.files.has(MINE)).toBe(false)
-  expect(w.state.pane).toMatchObject({ place: { level: 'session', work: THEMES } })
+  expect(w.state.pane).toMatchObject({ place: { level: 'session', session: THEMES } })
 })
 
-test("yes writes the finish into the work's folder as this window's writer, and the board goes up to where it is gone", async ($, on) => {
+test("yes writes the finish into the session's folder as this window's writer, and the board goes up to where it is gone", async ($, on) => {
   const w = world($, on)
 
   w.put(MINE, file([T0, note('n1', 'Looked in on the palette')]))
 
   const { id, ui } = await around(w)
-  const inbox = workPaths(ROOT, PROJECT.key, THEMES).letters(W1)
+  const inbox = sessionPaths(ROOT, PROJECT.key, THEMES).letters(W1)
 
   await visit(ui, THEMES)
   await ui.press({ key: `finish:${THEMES}` })
@@ -159,7 +159,7 @@ test("yes writes the finish into the work's folder as this window's writer, and 
   expect(await ui.find({ type: 'Text', text: '2 waiting on you' })).toBeDefined()
 })
 
-test('a work Claude finished counts nothing in its own window: the band and the tab say none waits', async ($, on) => {
+test('a session Claude finished counts nothing in its own window: the band and the tab say none waits', async ($, on) => {
   const w = world($, on)
 
   await w.begin()
@@ -168,11 +168,11 @@ test('a work Claude finished counts nothing in its own window: the band and the 
   const band = await w.band()
   const ui = await w.opened(WIDE)
 
-  expect(await band.find({ key: 'band:for-you', text: '1 for you' })).toBeDefined()
+  expect(await band.find({ key: 'band:asks', text: '1 ask' })).toBeDefined()
   expect(rowsOf(await ui.find({ key: 'tab:session:box' }))).toEqual([' ⌂ Dashboard redesign 1'])
 
   await w.call('finish', { reason: 'Shipped' })
 
-  expect(await band.find({ key: 'band:for-you', text: '0 for you' })).toBeDefined()
+  expect(await band.find({ key: 'band:asks', text: '0 asks' })).toBeDefined()
   expect(rowsOf(await ui.find({ key: 'tab:session:box' }))).toEqual([' ⌂ Dashboard redesign'])
 })

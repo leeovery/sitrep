@@ -15,12 +15,12 @@ import {
   metaText,
   projectPaths,
   projectText,
-  workPaths,
+  sessionPaths,
   type ProjectFile,
   type Random,
   type Where,
-  type WorkMeta,
-  type WorkPaths,
+  type SessionFolder,
+  type SessionMeta,
 } from '../core'
 import { beat, file, MIN, scripted, T0, type Line } from './support'
 import { HOME, PROJECT, REPO, ROOT, STATE_HOME } from './world'
@@ -32,7 +32,7 @@ export type Run = { exit: number; out: string; err: string }
 
 export const ENV: Env = { XDG_STATE_HOME: STATE_HOME, HOME }
 
-/** When a run happens, unless a test says otherwise: a minute after the work under test was started. */
+/** When a run happens, unless a test says otherwise: a minute after the session under test was started. */
 export const NOW = T0 + MIN
 
 /** The item ids a terminal's runs draw, unless a test says otherwise: this, then the next ever after. */
@@ -100,19 +100,35 @@ const isWords = (words: readonly string[], expected: readonly string[]) =>
 const processLine = (pid: number, parent: number, command: string) =>
   `${String(pid).padStart(5)} ${String(parent).padStart(5)} ${command}`
 
-/** The files and folders directly in `dir`, as the files under it imply them. */
-const entriesIn = (files: ReadonlyMap<string, File>, dir: string): Listed[] => {
+const isUnder = (dir: string, path: string) => path.startsWith(`${dir}/`)
+
+/** The files and folders directly in `dir`: as the files under it imply them, and the folders standing empty. */
+const entriesIn = (
+  files: ReadonlyMap<string, File>,
+  folders: ReadonlySet<string>,
+  dir: string,
+): Listed[] => {
   const entries = new Map<string, Listed['kind']>()
+  const under = (path: string) => path.slice(dir.length + 1).split('/')
 
-  for (const path of files.keys()) {
-    if (path.startsWith(`${dir}/`)) {
-      const [name = '', ...deeper] = path.slice(dir.length + 1).split('/')
+  for (const path of [...files.keys()].filter(each => isUnder(dir, each))) {
+    const [name = '', ...deeper] = under(path)
 
-      entries.set(name, deeper.length > 0 ? 'dir' : 'file')
-    }
+    entries.set(name, deeper.length > 0 ? 'dir' : 'file')
+  }
+
+  for (const folder of [...folders].filter(each => isUnder(dir, each))) {
+    entries.set(under(folder)[0] ?? '', 'dir')
   }
 
   return [...entries].map(([name, kind]) => ({ name, kind }))
+}
+
+/** Every folder a path sits in, the outermost first. */
+const foldersAbove = (path: string) => {
+  const parts = path.split('/').slice(1, -1)
+
+  return parts.map((_, i) => `/${parts.slice(0, i + 1).join('/')}`)
 }
 
 type Options = {
@@ -444,8 +460,17 @@ export function terminal(options: Options = {}) {
   const waits: number[] = []
   const now = () => clock() + waits.reduce((sum, ms) => sum + ms, 0)
   const shown = screen(options)
+  /** Folders standing with no file in them: a real one outlives its last file until it is removed. */
+  const folders = new Set<string>()
   let printed = { out: '', err: '' }
   let gate: (() => Promise<void>) | undefined
+
+  /** A file gone from `path`, its folders standing after it. */
+  const unfile = (path: string) => {
+    if (files.delete(path)) {
+      foldersAbove(path).forEach(folder => folders.add(folder))
+    }
+  }
 
   const io: Io = {
     fs: {
@@ -458,10 +483,41 @@ export function terminal(options: Options = {}) {
 
         return held.text
       },
-      list: async dir => entriesIn(files, dir),
+      list: async dir => entriesIn(files, folders, dir),
+      modifiedAt: async path => files.get(path)?.mtimeMs,
       append: async (path, text) => {
         await gate?.()
         files.set(path, { text: (files.get(path)?.text ?? '') + text, mtimeMs: now() })
+      },
+      moveIn: async (from, to) => {
+        const held = files.get(from)
+
+        if (held === undefined) {
+          return true
+        }
+
+        if (files.has(to)) {
+          return false
+        }
+
+        files.set(to, held)
+        unfile(from)
+
+        return true
+      },
+      replace: async (from, to) => {
+        const held = files.get(from)
+
+        if (held !== undefined) {
+          files.set(to, held)
+          unfile(from)
+        }
+      },
+      remove: async path => unfile(path),
+      removeFolder: async dir => {
+        if (![...files.keys(), ...folders].some(path => isUnder(dir, path))) {
+          folders.delete(dir)
+        }
       },
     },
     env: options.env ?? ENV,
@@ -501,34 +557,55 @@ export function terminal(options: Options = {}) {
     return held.text
   }
 
-  /** A window's heartbeat on a work: attached at `at`, seen then, and `where` it is. */
-  const window = (paths: WorkPaths, writer: string, at: number, where?: Where) =>
-    files.set(paths.heartbeat(writer), {
-      text: beat(writer, { attachedAt: at, seenAt: at, where }),
+  /**
+   * A window's heartbeat on a session, in its folder under either layout:
+   * attached at `at`, seen then, `where` it is, and saying the `version` it
+   * runs, if any.
+   */
+  const window = (
+    folder: SessionFolder,
+    writer: string,
+    at: number,
+    where?: Where,
+    version?: string,
+  ) =>
+    files.set(folder.heartbeat(writer), {
+      text: beat(writer, { attachedAt: at, seenAt: at, where, version }),
       mtimeMs: at,
     })
 
   /**
-   * A piece of work as the mod leaves it, filed under `project`: its
-   * work.json, the lines its window wrote, and, given `seenAt`, that
-   * window's heartbeat, saying `where` it is.
+   * A session as the mod leaves it, filed under `project`, in today's
+   * layout or, `isOld`, the old: its meta, the lines its window wrote, and,
+   * given `seenAt`, that window's heartbeat, saying `where` it is and the
+   * `version` it runs.
    */
   const seed = (
-    meta: WorkMeta,
+    meta: SessionMeta,
     {
       project = PROJECT.key,
       lines = [],
       seenAt,
       where,
-    }: { project?: string; lines?: Line[]; seenAt?: number; where?: Where } = {},
+      version,
+      isOld = false,
+    }: {
+      project?: string
+      lines?: Line[]
+      seenAt?: number
+      where?: Where
+      version?: string
+      isOld?: boolean
+    } = {},
   ) => {
-    const paths = workPaths(ROOT, project, meta.id)
+    const paths = sessionPaths(ROOT, project, meta.id)
+    const folder = isOld ? paths.old : paths
 
-    files.set(paths.meta, { text: metaText(meta), mtimeMs: meta.created })
-    files.set(paths.log(meta.by), { text: file(...lines), mtimeMs: meta.created })
+    files.set(folder.meta, { text: metaText(meta), mtimeMs: meta.created })
+    files.set(folder.log(meta.by), { text: file(...lines), mtimeMs: meta.created })
 
     if (seenAt !== undefined) {
-      window(paths, meta.by, seenAt, where)
+      window(folder, meta.by, seenAt, where, version)
     }
 
     return paths
@@ -566,5 +643,17 @@ export function terminal(options: Options = {}) {
     }
   }
 
-  return { files, io, run, text, seed, window, project, holdAppends, waits, screen: shown }
+  return {
+    files,
+    folders,
+    io,
+    run,
+    text,
+    seed,
+    window,
+    project,
+    holdAppends,
+    waits,
+    screen: shown,
+  }
 }

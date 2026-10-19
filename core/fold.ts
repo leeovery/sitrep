@@ -1,5 +1,5 @@
 /**
- * Folding a piece of work: every writer's lines, and the replies other works
+ * Folding a session: every writer's lines, and the replies other sessions
  * left in its inbox, merged into one order (time, then writer, then the
  * writer's own count) and read into the board.
  */
@@ -26,11 +26,11 @@ import {
   type Parked,
   type Reply,
   type Status,
-  type Work,
+  type Session,
 } from './types'
 
-/** A work's files as read: work.json's text, and every other file's text by the writer its name gives. */
-export type WorkFiles = {
+/** A session's files as read: its session.json's text, and every other file's text by the writer its name gives. */
+export type SessionFiles = {
   meta: string
   /** The project's project.json, which names the project; a folder from before projects were named has none. */
   project?: string
@@ -120,8 +120,9 @@ const deliver = (fold: Fold, reply: Reply, at: number) => {
 }
 
 /**
- * An edit voids the replies on their way to an item that they no longer fit:
- * a mark naming one later changes nothing, and the item can be answered again.
+ * An edit voids the replies on their way to an item that they no longer
+ * fit: a mark naming one later changes nothing, and the item can be
+ * answered again.
  */
 const voidUnfitting = (item: Item, at: number) => {
   if (item.type === 'note') {
@@ -361,11 +362,11 @@ const isAsk = (item: Item): item is Ask => item.type === 'ask'
 const isParked = (item: Item): item is Parked => item.type === 'park' && item.state === 'parked'
 
 /**
- * A piece of work as it stands at `now`; undefined when its work.json is
+ * A session as it stands at `now`; undefined when its session.json is
  * missing or bad. Only replies count from the inbox: a sender may answer
- * this work's items, never post to it.
+ * this session's items, never post to it.
  */
-export const foldWork = (files: WorkFiles, now: number): Work | undefined => {
+export const foldSession = (files: SessionFiles, now: number): Session | undefined => {
   const meta = parseMeta(files.meta)
 
   if (meta === undefined) {

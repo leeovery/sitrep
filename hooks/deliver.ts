@@ -1,21 +1,22 @@
 /**
  * Lee's replies, delivered to Claude as Lee's own message: Lee's send of
- * the held work's replies (send.ts), or the replies other works left in its
- * inbox (receive.ts). One message is in flight per window, whatever its
- * source, claimed in `$.state` before it is submitted. The claim holds what
- * it takes to write the message down: the work it goes to, the writer that
- * claimed it, its text, and the replies it carries, their ids fixed.
+ * the held session's replies (send.ts), or the replies other sessions left
+ * in its inbox (receive.ts). One message is in flight per window, whatever
+ * its source, claimed in `$.state` before it is submitted. The claim holds
+ * what it takes to write the message down: the session it goes to, the
+ * writer that claimed it, its text, and the replies it carries, their ids
+ * fixed.
  *
  * Claude Code taking it is heard from the submit resolving with no drop, or
  * from the turn it starts, whose text is the message's; whichever comes
- * first writes it down, into the work it went to, whatever the window holds
- * by then. Writing it down again finds its lines there and writes nothing.
- * A message refused is let go at once; one never heard is let go once the
- * session has gone quiet without it. Either way its replies are left as
- * they were, for Lee's next send or the inbox's next look.
+ * first writes it down, into the session it went to, whatever the window
+ * holds by then. Writing it down again finds its lines there and writes
+ * nothing. A message refused is let go at once; one never heard is let go
+ * once the window has gone quiet without it. Either way its replies are
+ * left as they were, for Lee's next send or the inbox's next look.
  */
 import type { PromptOrigin, Timer } from 'claude-code'
-import { deliveredMark, sentLines, type Body, type Work } from '../core'
+import { deliveredMark, sentLines, type Body, type Session } from '../core'
 import type { SitrepInFlight, SitrepSource } from '../types'
 import { logFailure, type Host } from './host'
 import { writeInto } from './into'
@@ -31,7 +32,7 @@ const PLUGIN = 'sitrep'
 export const FLASH_MS = 5_000
 
 /**
- * How long the session stays quiet after a turn, no other turn starting,
+ * How long the window stays quiet after a turn, no other turn starting,
  * before a message never heard is let go. A prompt waiting behind a turn
  * starts its own about 40 ms after that turn ends (live), once the prompt's
  * hooks have run, each plugin's held to its budget of seconds; one still
@@ -62,7 +63,7 @@ let quiet: Timer | undefined
 /** How many turns have started since this load began: a quiet that saw one start never lets go. */
 let turns = 0
 
-/** Whether a prompt is the board's own message: Lee's replies, from Ready to send or another work's inbox. */
+/** Whether a prompt is the board's own message: Lee's replies, from Ready to send or another session's inbox. */
 export const isBoardMessage = (origin: PromptOrigin) =>
   origin.kind === 'plugin' && origin.name === PLUGIN
 
@@ -113,12 +114,12 @@ const release = async (host: Host, delivery: SitrepInFlight, why: string) => {
   }
 }
 
-/** The lines a taken message is written down as, in its work as it stands: none once they are there. */
-const linesOf = (work: Work, delivery: SitrepInFlight): Body[] =>
+/** The lines a taken message is written down as, in its session as it stands: none once they are there. */
+const linesOf = (session: Session, delivery: SitrepInFlight): Body[] =>
   delivery.source === 'send'
-    ? sentLines(work, delivery.replies)
+    ? sentLines(session, delivery.replies)
     : deliveredMark(
-        work,
+        session,
         delivery.replies.map(reply => reply.id),
       )
 
@@ -127,25 +128,25 @@ const isHeld = (delivery: SitrepInFlight) => {
 
   return (
     held?.project === delivery.project &&
-    held.work === delivery.work &&
+    held.session === delivery.session &&
     held.writer === delivery.writer
   )
 }
 
-/** Writes through the hold, so its own text stays in step: lines Claude knows of. False when the work no longer folds. */
+/** Writes through the hold, so its own text stays in step: lines Claude knows of. False when the session no longer folds. */
 const writeHeld = async (host: Host, delivery: SitrepInFlight) => {
-  const work = await refresh(host)
-  const lines = work === undefined ? [] : linesOf(work, delivery)
+  const session = await refresh(host)
+  const lines = session === undefined ? [] : linesOf(session, delivery)
 
-  if (work !== undefined && lines.length > 0) {
-    await postKnown(host, work, lines)
+  if (session !== undefined && lines.length > 0) {
+    await postKnown(host, session, lines)
   }
 
-  return work !== undefined
+  return session !== undefined
 }
 
 /**
- * Writes a taken message down in the work it went to, then ends it; what
+ * Writes a taken message down in the session it went to, then ends it; what
  * follows its source follows once, by whichever write ended it. Two loads
  * may both write one down: a file-watch reload can cut short a write the
  * last load began once the submit resolved (settled live), and the next load
@@ -155,11 +156,11 @@ const writeDown = async (host: Host, delivery: SitrepInFlight) => {
   const isThere = await serially(() =>
     isHeld(delivery)
       ? writeHeld(host, delivery)
-      : writeInto(host, delivery, work => linesOf(work, delivery)),
+      : writeInto(host, delivery, session => linesOf(session, delivery)),
   )
 
   if (!isThere) {
-    host.log(`sitrep: Claude has replies to ${delivery.work}, whose work.json is gone`)
+    host.log(`sitrep: Claude has replies to ${delivery.session}, whose session.json is gone`)
   }
 
   if (await endIf(host, current => isClaim(current, delivery))) {
@@ -246,7 +247,7 @@ export const deliver = async (
 }
 
 /**
- * A turn starts: the session is no longer quiet, and a message whose text
+ * A turn starts: the window is no longer quiet, and a message whose text
  * it carries has gone in. After a `/reload-plugins` typed mid-turn the last
  * load's submit never resolves (settled live), and this is all that hears it.
  */
@@ -257,7 +258,7 @@ export const heardTurn = async (host: Host, text: string) => {
 }
 
 /**
- * The session went quiet: a turn of the main conversation ended, or the
+ * The window went quiet: a turn of the main conversation ended, or the
  * conversation did. A message not taken by then is let go once `QUIET_MS`
  * pass with no turn starting; one claimed later is another claim, left be.
  */

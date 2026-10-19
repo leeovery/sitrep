@@ -19,7 +19,7 @@ import { attach, leave, presenceText, type Where } from '../core'
 import { fold, MIN, scripted, T0, W1, W2 } from './support'
 
 const SOCKET = '/private/tmp/tmux-501/default'
-const OTHER_SOCKET = '/private/tmp/tmux-501/work'
+const OTHER_SOCKET = '/private/tmp/tmux-501/session'
 const GHOSTTY_APP = '/Applications/Ghostty.app/Contents/MacOS/ghostty'
 
 /** Claude's pane, and the tmux window holding it. */
@@ -223,23 +223,23 @@ test('the sockets the windows run under are each named once', () => {
   ).toEqual([SOCKET, OTHER_SOCKET])
 })
 
-test("a work's windows are its live presences' whereabouts, the deliverer's first; a window gone, stale or not saying where is left out", () => {
+test("a session's windows are its live presences' whereabouts, the deliverer's first; a window gone, stale or not saying where is left out", () => {
   const now = T0 + MIN
-  const work = fold(
+  const session = fold(
     {
       presence: {
-        [W1]: presenceText(attach(W1, T0 + 30_000, IN_GHOSTTY)),
-        [W2]: presenceText(attach(W2, T0, IN_TMUX)),
-        gone: presenceText(leave(attach('gone', T0, IN_GHOSTTY), T0 + 40_000)),
-        stale: presenceText(attach('stale', T0 - 10 * MIN, IN_GHOSTTY)),
+        [W1]: presenceText(attach(W1, T0 + 30_000, { where: IN_GHOSTTY })),
+        [W2]: presenceText(attach(W2, T0, { where: IN_TMUX })),
+        gone: presenceText(leave(attach('gone', T0, { where: IN_GHOSTTY }), T0 + 40_000)),
+        stale: presenceText(attach('stale', T0 - 10 * MIN, { where: IN_GHOSTTY })),
         unsaid: presenceText(attach('unsaid', T0 + 50_000)),
       },
     },
     now,
   )
 
-  expect(work.deliverer).toBe(W2)
-  expect(windowsOf(work, now)).toEqual([IN_TMUX, IN_GHOSTTY])
+  expect(session.deliverer).toBe(W2)
+  expect(windowsOf(session, now)).toEqual([IN_TMUX, IN_GHOSTTY])
 })
 
 test('a report names its path at localhost, every character but / percent-encoded', () => {

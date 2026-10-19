@@ -1,10 +1,11 @@
 /**
- * Claude's sitrep calls in the transcript: each one dim line saying what
- * it did, its result drawn as nothing, so the chat stays the chat. An item
- * a call names is named by its title, and a work by its name, as they stood
- * when the call was answered; a call with no name kept, by the held work.
+ * Claude's sitrep calls in the transcript: each one dim line saying what it
+ * did, its result drawn as nothing, so the chat stays the chat. An item a
+ * call names is named by its title, and a session by its name, as they
+ * stood when the call was answered; a call with no name kept, by the held
+ * session.
  */
-import { itemTitle, oneLine, type Work } from '../../core'
+import { itemTitle, oneLine, type Session } from '../../core'
 import { toolNamed, type ToolName } from '../tools'
 import type { Els } from './kit'
 
@@ -12,8 +13,11 @@ type Input = { readonly [key: string]: unknown }
 
 const text = (value: unknown) => (typeof value === 'string' ? oneLine(value) : '')
 
-/** The title of the item a call names, as the held work has it. */
-const heldTitle = (work: Work, input: Input) => itemTitle(work, text(input.item))
+/** The id a join names: a call from before the parameter was renamed names it as its `work`. */
+const joinedId = (input: Input) => text(input.session ?? input.work)
+
+/** The title of the item a call names, as the held session has it. */
+const heldTitle = (session: Session, input: Input) => itemTitle(session, text(input.item))
 
 /** What a project call changed: its name, where it lives, or both. */
 const projectSaid = (input: Input) => {
@@ -30,37 +34,37 @@ const projectSaid = (input: Input) => {
 /** What each call did, in Lee's words, given the name of what it names where one is known. */
 const SAID: Record<ToolName, (input: Input, name: string | undefined) => string> = {
   start: input => `started: ${text(input.name)}`,
-  join: (_, name) => (name === undefined ? 'joined a piece of work' : `joined: ${name}`),
+  join: (_, name) => (name === undefined ? 'joined a session' : `joined: ${name}`),
   status: () => '• status set',
   ask: input => `◆ asked: ${text(input.title)}`,
-  note: input => `logged: ${text(input.text)}`,
+  note: input => `noted: ${text(input.text)}`,
   park: input => `◇ parked: ${text(input.title)}`,
   resolve: (_, name = 'an item') => `resolved: ${name}`,
   reopen: (_, name = 'an item') => `reopened: ${name}`,
   edit: (_, name = 'an item') => `edited: ${name}`,
-  finish: (_, name) => (name === undefined ? '✓ finished a piece of work' : `✓ finished: ${name}`),
+  finish: (_, name) => (name === undefined ? '✓ finished a session' : `✓ finished: ${name}`),
   project: projectSaid,
   board: () => 'read the board back',
 }
 
-/** The calls whose rows name an item or a work, and its name as the held work has it. */
-const NAMING: Partial<Record<ToolName, (work: Work, input: Input) => string | undefined>> = {
-  join: (work, input) => (work.id === text(input.work) ? work.status.name : undefined),
+/** The calls whose rows name an item or a session, and its name as the held session has it. */
+const NAMING: Partial<Record<ToolName, (session: Session, input: Input) => string | undefined>> = {
+  join: (session, input) => (session.id === joinedId(input) ? session.status.name : undefined),
   resolve: heldTitle,
   reopen: heldTitle,
   edit: heldTitle,
-  finish: work => work.status.name,
+  finish: session => session.status.name,
 }
 
-/** Where a call's row finds the name of what it names: kept as the call was answered, else the held work. */
+/** Where a call's row finds the name of what it names: kept as the call was answered, else the held session. */
 type Naming = {
   kept: () => Promise<string | undefined>
-  held: () => Promise<Work | undefined>
+  held: () => Promise<Session | undefined>
 }
 
-/** The name of what a naming call names: the name kept, else the held work's, read only then. */
+/** The name of what a naming call names: the name kept, else the held session's, read only then. */
 const nameFor = async (
-  heldName: (work: Work, input: Input) => string | undefined,
+  heldName: (session: Session, input: Input) => string | undefined,
   input: Input,
   naming: Naming,
 ) => {
@@ -70,13 +74,13 @@ const nameFor = async (
     return kept
   }
 
-  const work = await naming.held()
+  const session = await naming.held()
 
-  return work === undefined ? undefined : heldName(work, input)
+  return session === undefined ? undefined : heldName(session, input)
 }
 
 /**
- * A call's line, from its input and, where it names an item or a work, its
+ * A call's line, from its input and, where it names an item or a session, its
  * name (read only then, so no other row is drawn again as the board moves).
  * Undefined for a tool that is not sitrep's.
  */

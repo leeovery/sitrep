@@ -3,7 +3,7 @@
  * is on its way: the replies grouped by where each goes, this session
  * first, each hung from its item with its own ✕, then send and cancel all.
  *
- * Replies sent into another work's inbox stay in their group until Claude
+ * Replies sent into another session's inbox stay in their group until Claude
  * has them, and a while after: the group says where they stand there, and
  * each reply whether it is on its way or when it was delivered.
  *
@@ -23,7 +23,7 @@ import {
 } from '../../core'
 import type { SitrepQueued } from '../../types'
 import { agoWords, C, counted, GLYPH, wrapped } from '../look'
-import { filedAt, itemKey, workLabel } from '../places'
+import { filedAt, itemKey, sessionLabel } from '../places'
 import { answered, destinations, isCarried, isShowing, queuedFor, sentIn } from '../queue'
 import type { Filed, Scene } from '../scene'
 import { drawReplyRow, drawRewrite, type Drawing } from './kit'
@@ -64,12 +64,12 @@ const BOX_SIDES = 4
 /** A reply waiting for a send, and the item it answers. */
 type Queued = { item: Ask | Parked; queued: SitrepQueued }
 
-/** A reply sent into its work's inbox, and the item it answers. */
+/** A reply sent into its session's inbox, and the item it answers. */
 type Sent = { item: Ask | Parked; sent: Reply }
 
 type Listed = Queued | Sent
 
-/** One destination: the work, where the replies sent to it stand there, and the replies listed for it. */
+/** One destination: the session, where the replies sent to it stand there, and the replies listed for it. */
 type Group = { filed: Filed; standing?: Delivery; listed: Listed[] }
 
 /** Ready to send as the box draws it. */
@@ -83,28 +83,28 @@ export type Ready = {
   sending: readonly string[]
 }
 
-const queuedIn = ({ work }: Filed, queue: readonly SitrepQueued[]): Queued[] =>
-  queuedFor(queue, work.id).flatMap(queued => {
-    const item = answered(work, queued)
+const queuedIn = ({ session }: Filed, queue: readonly SitrepQueued[]): Queued[] =>
+  queuedFor(queue, session.id).flatMap(queued => {
+    const item = answered(session, queued)
 
     return item === undefined ? [] : [{ item, queued }]
   })
 
-const sentTo = ({ work }: Filed, replies: readonly Reply[]): Sent[] =>
+const sentTo = ({ session }: Filed, replies: readonly Reply[]): Sent[] =>
   replies.flatMap(sent => {
-    const item = work.items.get(sent.item)
+    const item = session.items.get(sent.item)
 
     return item === undefined || item.type === 'note' ? [] : [{ item, sent }]
   })
 
 /** Each destination, this session first, then as first queued, then those only sent to. */
 const groupsOf = (scene: Scene): Group[] => {
-  const held = scene.work.id
+  const held = scene.session.id
   const queued = [...queuedFor(scene.queue, held), ...scene.queue]
 
-  return destinations([...queued, ...scene.sent]).flatMap(({ work }): Group[] => {
-    const filed = filedAt(scene, work)
-    const sent = scene.sent.find(each => each.work === work)
+  return destinations([...queued, ...scene.sent]).flatMap(({ session }): Group[] => {
+    const filed = filedAt(scene, session)
+    const sent = scene.sent.find(each => each.session === session)
 
     if (filed === undefined) {
       return []
@@ -112,15 +112,15 @@ const groupsOf = (scene: Scene): Group[] => {
 
     const waiting = queuedIn(filed, scene.queue)
 
-    if (sent === undefined || !isShowing(filed.work, sent, scene.now)) {
+    if (sent === undefined || !isShowing(filed.session, sent, scene.now)) {
       return waiting.length > 0 ? [{ filed, listed: waiting }] : []
     }
 
     return [
       {
         filed,
-        standing: deliveryOf(filed.work, sent.replies),
-        listed: [...waiting, ...sentTo(filed, sentIn(filed.work, sent))],
+        standing: deliveryOf(filed.session, sent.replies),
+        listed: [...waiting, ...sentTo(filed, sentIn(filed.session, sent))],
       },
     ]
   })
@@ -237,7 +237,7 @@ const drawAnswer = (
 /** A reply waiting for a send, as the box lists it: what it answers, its ✕, and the answer under it. */
 const drawQueuedEntry = (d: Drawing, { item, queued }: Queued) => {
   const { Box, Button } = d.els
-  const key = itemKey(queued.work, queued.item)
+  const key = itemKey(queued.session, queued.item)
 
   return (
     <Box key={`ready:${key}`} flexDirection="column">
@@ -251,7 +251,7 @@ const drawQueuedEntry = (d: Drawing, { item, queued }: Queued) => {
             plain
             dimColor
             label="✕"
-            onPress={() => d.act.unqueue(queued.work, queued.item)}
+            onPress={() => d.act.unqueue(queued.session, queued.item)}
           />
         )}
       </Box>
@@ -268,7 +268,7 @@ const drawQueuedEntry = (d: Drawing, { item, queued }: Queued) => {
   )
 }
 
-/** A reply sent into the work's inbox, as the box lists it: what it answers, and whether Claude has it yet. */
+/** A reply sent into the session's inbox, as the box lists it: what it answers, and whether Claude has it yet. */
 const drawSentEntry = (d: Drawing, { item, sent }: Sent) => {
   const { Box } = d.els
   const standing =
@@ -288,11 +288,12 @@ const drawSentEntry = (d: Drawing, { item, sent }: Sent) => {
 
 const drawGroup = (d: Drawing, { filed, standing, listed }: Group) => {
   const { Box } = d.els
-  const label = filed.work === d.scene.work ? 'to this session' : `to ${workLabel(d.scene, filed)}`
+  const label =
+    filed.session === d.scene.session ? 'to this session' : `to ${sessionLabel(d.scene, filed)}`
   const stands = standing === undefined ? undefined : STANDING[standing]
 
   return (
-    <Box key={`group:${filed.work.id}`} flexDirection="column" paddingTop={GAP_ROWS}>
+    <Box key={`group:${filed.session.id}`} flexDirection="column" paddingTop={GAP_ROWS}>
       <Box flexDirection="row" gap={1}>
         <Box flexGrow={1} flexShrink={1}>
           {line(d, label, C.grey)}

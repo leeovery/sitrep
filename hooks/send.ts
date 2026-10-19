@@ -1,9 +1,9 @@
 /**
- * Sending Ready to send. The replies to other works are written into their
- * inboxes first (letters.ts). The held work's go in as Lee's own message
+ * Sending Ready to send. The replies to other sessions are written into their
+ * inboxes first (letters.ts). The held session's go in as Lee's own message
  * (deliver.ts), their reply ids fixed as the send is claimed, and only once
  * Claude Code has taken it are they written, each reply and one delivered
- * mark together, into the work they answer. A send it refuses leaves every
+ * mark together, into the session they answer. A send it refuses leaves every
  * reply queued.
  *
  * A message sent while Claude is mid-turn waits for that turn to end, so a
@@ -20,17 +20,17 @@ const CHANGED = `Nothing to send: the items replied to have changed since. ${STI
 
 const BEHIND = `Not sent yet: replies from another session are going in first. ${STILL_THERE}`
 
-/** The held work as it stands, and the window's hold on it. */
+/** The held session as it stands, and the window's hold on it. */
 const heldNow = (host: Host) =>
   serially(async () => {
-    const work = await refresh(host)
+    const session = await refresh(host)
     const held = attached()
 
-    return work === undefined || held === undefined ? undefined : { work, held }
+    return session === undefined || held === undefined ? undefined : { session, held }
   })
 
 /**
- * Sends the held work's replies in Ready to send that still fit their
+ * Sends the held session's replies in Ready to send that still fit their
  * items, `claimed` running once their message is claimed; whether it was.
  */
 const sendHere = async (host: Host, claimed: () => Promise<void>) => {
@@ -40,9 +40,9 @@ const sendHere = async (host: Host, claimed: () => Promise<void>) => {
     return false
   }
 
-  const { work, held } = here
-  const queued = queuedFor(await host.state.queue.read(), work.id)
-  const message = boardMessage(work, queued)
+  const { session, held } = here
+  const queued = queuedFor(await host.state.queue.read(), session.id)
+  const message = boardMessage(session, queued)
 
   if (message === undefined) {
     if (queued.length > 0) {
@@ -57,10 +57,10 @@ const sendHere = async (host: Host, claimed: () => Promise<void>) => {
     {
       source: 'send',
       project: held.project,
-      work: work.id,
+      session: session.id,
       writer: held.writer,
       text: message.text,
-      replies: replyBodies(work, message.replies),
+      replies: replyBodies(session, message.replies),
     },
     claimed,
   )
@@ -73,10 +73,10 @@ const sendHere = async (host: Host, claimed: () => Promise<void>) => {
 }
 
 /**
- * Sends everything in Ready to send that still fits its item: other works'
- * into their inboxes, then the held work's. `claimed` runs once, as soon as
- * any of it has gone: the held work's message claimed, else the letters
- * written; never once nothing went.
+ * Sends everything in Ready to send that still fits its item: other
+ * sessions' into their inboxes, then the held session's. `claimed` runs
+ * once, as soon as any of it has gone: the held session's message claimed,
+ * else the letters written; never once nothing went.
  */
 export const send = async (host: Host, claimed: () => Promise<void>) => {
   const isLettered = await sendLetters(host)

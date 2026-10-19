@@ -1,20 +1,27 @@
 import { expect, test } from 'claude-code/testing'
 import { EXIT, main, WRITER } from '../cli/main'
-import { boardText, foldWork, parseEntries, serialise, VERSION, type WorkPaths } from '../core'
+import {
+  boardText,
+  foldSession,
+  parseEntries,
+  serialise,
+  VERSION,
+  type SessionPaths,
+} from '../core'
 import { file, META, MIN, note, status, T0, W1, yesAsk } from './support'
 import { ENV, FIRST_ID, NEXT_ID, NOW, terminal } from './terminal'
 import { ELSEWHERE } from './world'
 
 type Terminal = ReturnType<typeof terminal>
 
-/** Another piece of work, in this project or another. */
+/** Another session, in this project or another. */
 const LOBBY = { ...META, id: 'sr-bbbbbb', name: 'Lobby' }
 
-const WORK = ['--work', META.id]
+const SESSION = ['--session', META.id]
 
-/** The work as the mod's fold reads it from the files the terminal holds: its window's lines, and the CLI's. */
-const folded = (t: Terminal, paths: WorkPaths, now = NOW) => {
-  const work = foldWork(
+/** The session as the mod's fold reads it from the files the terminal holds: its window's lines, and the CLI's. */
+const folded = (t: Terminal, paths: SessionPaths, now = NOW) => {
+  const session = foldSession(
     {
       meta: t.text(paths.meta),
       logs: Object.fromEntries(
@@ -28,14 +35,14 @@ const folded = (t: Terminal, paths: WorkPaths, now = NOW) => {
     now,
   )
 
-  if (work === undefined) {
-    throw new Error('the work did not fold')
+  if (session === undefined) {
+    throw new Error('the session did not fold')
   }
 
-  return work
+  return session
 }
 
-const cliLines = (t: Terminal, paths: WorkPaths) => parseEntries(t.text(paths.log(WRITER)))
+const cliLines = (t: Terminal, paths: SessionPaths) => parseEntries(t.text(paths.log(WRITER)))
 
 test('a note prints its id and nothing more, and appends one line to the CLI’s own file', async () => {
   const t = terminal()
@@ -49,7 +56,7 @@ test('a note prints its id and nothing more, and appends one line to the CLI’s
     'In Paper',
     '--ref',
     'docs/plan.md',
-    ...WORK,
+    ...SESSION,
   )
 
   expect(run).toEqual({ exit: EXIT.done, out: `${FIRST_ID}\n`, err: '' })
@@ -71,7 +78,7 @@ test("the CLI's note is in the log as the mod folds it, and its ask counts as wa
   const t = terminal()
   const paths = t.seed(META, { lines: [[T0, yesAsk('k1', 'Review round 1')]] })
 
-  await t.run('note', 'Round', '3', 'drawn', ...WORK)
+  await t.run('note', 'Round', '3', 'drawn', ...SESSION)
   await t.run(
     'ask',
     'Try',
@@ -85,16 +92,16 @@ test("the CLI's note is in the log as the mod folds it, and its ask counts as wa
     'It works',
     '--where',
     'On the iPad',
-    ...WORK,
+    ...SESSION,
   )
 
-  const work = folded(t, paths)
+  const session = folded(t, paths)
 
-  expect(work.log.map(line => [line.kind, line.id, line.text, line.by])).toEqual([
+  expect(session.log.map(line => [line.kind, line.id, line.text, line.by])).toEqual([
     ['note', FIRST_ID, 'Round 3 drawn', WRITER],
   ])
-  expect(work.waiting).toBe(2)
-  expect(work.asks.map(each => [each.id, each.yes, each.title, each.where, each.by])).toEqual([
+  expect(session.waiting).toBe(2)
+  expect(session.asks.map(each => [each.id, each.yes, each.title, each.where, each.by])).toEqual([
     ['k1', 'Approve', 'Review round 1', undefined, W1],
     [NEXT_ID, 'It works', 'Try it on the iPad', 'On the iPad', WRITER],
   ])
@@ -114,7 +121,7 @@ test('a choice ask takes its options, one --option each', async () => {
     'Drop it',
     '--ref',
     'DESIGN.md',
-    ...WORK,
+    ...SESSION,
   )
 
   expect(run.out).toBe(`${FIRST_ID}\n`)
@@ -136,11 +143,11 @@ test('a yes ask takes its button with --yes; a words ask what its words are with
     'words',
     '--needs',
     "the command's\n output",
-    ...WORK,
+    ...SESSION,
   )
 
-  await t.run('ask', 'Run the apply', '--wants', 'words', '--needs', ' ', ...WORK)
-  await t.run('ask', 'Give the go for stage 3', '--wants', 'yes', '--yes', 'Go', ...WORK)
+  await t.run('ask', 'Run the apply', '--wants', 'words', '--needs', ' ', ...SESSION)
+  await t.run('ask', 'Give the go for stage 3', '--wants', 'yes', '--yes', 'Go', ...SESSION)
 
   expect(run).toEqual({ exit: EXIT.done, out: `${FIRST_ID}\n`, err: '' })
   expect(cliLines(t, paths).map(line => line.type === 'ask' && line.needs)).toEqual([
@@ -159,7 +166,7 @@ test("an input core's checks refuse ends as refused, with the check's words, and
   const t = terminal()
   const paths = t.seed(META)
   const refused = async (...words: string[]) => {
-    const run = await t.run(...words, ...WORK)
+    const run = await t.run(...words, ...SESSION)
 
     expect(run.exit).toBe(EXIT.refused)
     expect(run.out).toBe('')
@@ -199,10 +206,10 @@ test("an input core's checks refuse ends as refused, with the check's words, and
   expect(t.files.has(paths.log(WRITER))).toBe(false)
 })
 
-test('park prints its id, and the work counts it parked', async () => {
+test('park prints its id, and the session counts it parked', async () => {
   const t = terminal()
   const paths = t.seed(META)
-  const run = await t.run('park', 'A tmux indicator', '--where', 'DESIGN.md, Later', ...WORK)
+  const run = await t.run('park', 'A tmux indicator', '--where', 'DESIGN.md, Later', ...SESSION)
 
   expect(run.out).toBe(`${FIRST_ID}\n`)
   expect(folded(t, paths).parked.map(each => [each.id, each.title, each.where])).toEqual([
@@ -216,7 +223,7 @@ test('a status gives only what changed, the rest kept as it stands, and prints n
     lines: [[T0, status(['Drawing Usage, round 2'], { next: 'Usage, round 3' })]],
   })
 
-  expect(await t.run('status', '--now', 'Reviewing round 2', ...WORK)).toEqual({
+  expect(await t.run('status', '--now', 'Reviewing round 2', ...SESSION)).toEqual({
     exit: EXIT.done,
     out: '',
     err: '',
@@ -240,7 +247,7 @@ test('a status clears what is under way with --now "", and what is next with --n
     lines: [[T0, status(['Drawing Usage'], { next: 'Usage, round 3' })]],
   })
 
-  await t.run('status', '--now', '', '--next', '', '--name', 'Dashboard', ...WORK)
+  await t.run('status', '--now', '', '--next', '', '--name', 'Dashboard', ...SESSION)
 
   expect(folded(t, paths).status).toMatchObject({
     name: 'Dashboard',
@@ -256,7 +263,7 @@ test('the CLI appends after what its file holds: its count goes on, and nothing 
   const before = file([T0, note('n1', 'Generated round 1')], [T0, note('n2', 'Generated round 2')])
 
   t.files.set(paths.log(WRITER), { text: before, mtimeMs: T0 })
-  await t.run('note', 'Generated round 3', ...WORK)
+  await t.run('note', 'Generated round 3', ...SESSION)
 
   const after = t.text(paths.log(WRITER))
 
@@ -270,7 +277,7 @@ test('a line left torn in its file is ended first, so the torn line stays the on
   const torn = `${serialise({ v: VERSION, at: T0, seq: 1, type: 'note', id: 'n1', text: 'Whole' })}{"v":1,"at":`
 
   t.files.set(paths.log(WRITER), { text: torn, mtimeMs: T0 })
-  await t.run('note', 'After the tear', ...WORK)
+  await t.run('note', 'After the tear', ...SESSION)
 
   expect(cliLines(t, paths).map(entry => [entry.seq, 'text' in entry && entry.text])).toEqual([
     [1, 'Whole'],
@@ -283,8 +290,8 @@ test('two runs at once, each reading the file before either wrote, both land, wi
   const paths = t.seed(META)
   const held = t.holdAppends(2)
   const runs = Promise.all([
-    main(['note', 'Round 3 drawn', ...WORK], t.io),
-    main(['ask', 'Review round 3', '--wants', 'yes', '--yes', 'Approve', ...WORK], t.io),
+    main(['note', 'Round 3 drawn', ...SESSION], t.io),
+    main(['ask', 'Review round 3', '--wants', 'yes', '--yes', 'Approve', ...SESSION], t.io),
   ])
 
   await held.arrived
@@ -296,28 +303,28 @@ test('two runs at once, each reading the file before either wrote, both land, wi
     [1, 'ask'],
   ])
 
-  const work = folded(t, paths)
+  const session = folded(t, paths)
 
-  expect(work.log.map(line => line.text)).toEqual(['Round 3 drawn'])
-  expect(work.waiting).toBe(1)
+  expect(session.log.map(line => line.text)).toEqual(['Round 3 drawn'])
+  expect(session.waiting).toBe(1)
 })
 
-test('the work is the one --work names, else SITREP_WORK’s, and --work wins', async () => {
-  const t = terminal({ env: { ...ENV, SITREP_WORK: LOBBY.id } })
+test('the session is the one --session names, else SITREP_SESSION’s, and --session wins', async () => {
+  const t = terminal({ env: { ...ENV, SITREP_SESSION: LOBBY.id } })
   const dashboard = t.seed(META)
   const lobby = t.seed(LOBBY)
 
-  await t.run('note', 'Into the dashboard', ...WORK)
+  await t.run('note', 'Into the dashboard', ...SESSION)
   await t.run('note', 'Into the lobby')
 
   expect(folded(t, dashboard).log.map(line => line.text)).toEqual(['Into the dashboard'])
   expect(folded(t, lobby).log.map(line => line.text)).toEqual(['Into the lobby'])
 })
 
-test('with no work named, a command on one is refused, saying both ways to name it', async () => {
+test('with no session named, a command on one is refused, saying both ways to name it', async () => {
   const t = terminal()
   const nameIt =
-    'sitrep: Name the piece of work: --work sr-xxxxxx, or SITREP_WORK in the environment.\n'
+    'sitrep: Name the session: --session sr-xxxxxx, or SITREP_SESSION in the environment.\n'
 
   t.seed(META)
 
@@ -326,49 +333,49 @@ test('with no work named, a command on one is refused, saying both ways to name 
   }
 
   expect(
-    (await terminal({ env: { ...ENV, SITREP_WORK: '' } }).run('board')).err,
-    'an empty SITREP_WORK names none',
+    (await terminal({ env: { ...ENV, SITREP_SESSION: '' } }).run('board')).err,
+    'an empty SITREP_SESSION names none',
   ).toBe(nameIt)
 })
 
-test('a work id that is not one is refused as join refuses it', async () => {
-  const t = terminal({ env: { ...ENV, SITREP_WORK: 'dashboard' } })
+test('a session id that is not one is refused as join refuses it', async () => {
+  const t = terminal({ env: { ...ENV, SITREP_SESSION: 'dashboard' } })
 
   expect(await t.run('board')).toEqual({
     exit: EXIT.refused,
     out: '',
-    err: 'sitrep: Name the piece of work by the id start gave it: sr- and six characters.\n',
+    err: 'sitrep: Name the session by the id start gave it: sr- and six characters.\n',
   })
 })
 
-test('an id filed in no project is no such work, and ends as such', async () => {
+test('an id filed in no project is no such session, and ends as such', async () => {
   const t = terminal()
 
   t.seed(META)
 
-  expect(await t.run('note', 'Hello', '--work', 'sr-zzzzzz')).toEqual({
-    exit: EXIT.noWork,
+  expect(await t.run('note', 'Hello', '--session', 'sr-zzzzzz')).toEqual({
+    exit: EXIT.noSession,
     out: '',
-    err: 'sitrep: There is no piece of work sr-zzzzzz on the board, in any project.\n',
+    err: 'sitrep: There is no session sr-zzzzzz on the board, in any project.\n',
   })
 })
 
-test('a work whose work.json is torn is no such work', async () => {
+test('a session whose session.json is torn is no such session', async () => {
   const t = terminal()
   const paths = t.seed(META)
 
   t.files.set(paths.meta, { text: '{"v":1,"id":', mtimeMs: T0 })
 
-  expect((await t.run('board', ...WORK)).exit).toBe(EXIT.noWork)
+  expect((await t.run('board', ...SESSION)).exit).toBe(EXIT.noSession)
 })
 
-test('a work is found in whichever project files it, whatever folder the CLI runs in', async () => {
+test('a session is found in whichever project files it, whatever folder the CLI runs in', async () => {
   const t = terminal({ cwd: '/Users/lee' })
   const there = t.seed(LOBBY, { project: ELSEWHERE.key })
 
   t.seed(META)
 
-  expect((await t.run('note', 'Found it over there', '--work', LOBBY.id)).exit).toBe(EXIT.done)
+  expect((await t.run('note', 'Found it over there', '--session', LOBBY.id)).exit).toBe(EXIT.done)
   expect(folded(t, there).log.map(line => line.text)).toEqual(['Found it over there'])
 })
 
@@ -380,13 +387,13 @@ test('board prints the board as Claude’s board tool reads it', async () => {
       [T0, yesAsk('k1', 'Review round 1')],
     ],
   })
-  const run = await t.run('board', ...WORK)
+  const run = await t.run('board', ...SESSION)
 
   expect(run).toEqual({ exit: EXIT.done, out: `${boardText(folded(t, paths))}\n`, err: '' })
   expect(t.files.has(paths.log(WRITER)), 'reading the board writes nothing').toBe(false)
 })
 
-test('help: every command in brief, how a work is named, the exit codes, and answering not yet', async () => {
+test('help: every command in brief, how a session is named, the exit codes, and answering not yet', async () => {
   const t = terminal()
   const { exit, out, err } = await t.run('--help')
 
@@ -395,8 +402,8 @@ test('help: every command in brief, how a work is named, the exit codes, and ans
     '  sitrep ask <title> --wants yes|choice|words [--yes <label>] [--option <choice>]... [--needs <words>] [--where <words>] [--ref <ref>]\n',
   )
   expect(out).toContain('  sitrep list [--project <name>] [--json]\n')
-  expect(out).toContain('--work sr-xxxxxx, else $SITREP_WORK')
-  expect(out).toContain('2 no such piece of work')
+  expect(out).toContain('--session sr-xxxxxx, else $SITREP_SESSION')
+  expect(out).toContain('2 no such session')
   expect(out).toContain('Answering an ask from here: not yet.')
   expect((await t.run('help')).out).toBe(out)
   expect((await t.run('-h')).out).toBe(out)
@@ -408,14 +415,14 @@ test("a command's help is its usage, what it does and each of its words, however
 
   expect(help).toBe(
     [
-      'Usage: sitrep note <text> [--detail <line>]... [--ref <ref>] [--work <id>]',
+      'Usage: sitrep note <text> [--detail <line>]... [--ref <ref>] [--session <id>]',
       '',
       "Add a line to the board's log: something Lee would want to know later. Prints its id.",
       '',
       '  <text>           one line, starting with the verb',
       '  --detail <line>  a line it opens to; one each',
       '  --ref <ref>      where your own record of it is',
-      '  --work <id>      the piece of work: sr- and six characters; else $SITREP_WORK',
+      '  --session <id>   the session: sr- and six characters; else $SITREP_SESSION',
       '',
     ].join('\n'),
   )
@@ -435,10 +442,10 @@ test('no words, an unknown command or a word that will not read is a usage error
     err: 'sitrep: There is no command answer. sitrep --help lists them.\n',
   })
   expect((await t.run('help', 'answer')).exit).toBe(EXIT.refused)
-  expect(await t.run('list', '--work', META.id)).toEqual({
+  expect(await t.run('list', '--session', META.id)).toEqual({
     exit: EXIT.refused,
     out: '',
-    err: 'sitrep: There is no --work. sitrep list --help says more.\n',
+    err: 'sitrep: There is no --session. sitrep list --help says more.\n',
   })
 })
 
@@ -457,7 +464,7 @@ test('a run stamps its lines with the time it ran', async () => {
   const t = terminal({ now: () => later })
   const paths = t.seed(META)
 
-  await t.run('note', 'Later on', ...WORK)
+  await t.run('note', 'Later on', ...SESSION)
 
   expect(cliLines(t, paths).at(0)?.at).toBe(later)
 })

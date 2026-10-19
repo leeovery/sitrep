@@ -12,8 +12,8 @@ import SitRepCore
 /// MenuBarExtra tells nothing as its menu opens, and NSMenuDelegate does.
 @MainActor
 final class StatusMenu: NSObject, NSMenuDelegate {
-    private static let looking = "Looking for works on screen…"
-    private static let noneOnScreen = "No work is on screen"
+    private static let looking = "Looking for sessions on screen…"
+    private static let noneOnScreen = "No session is on screen"
 
     private let works: Works
     private let banners: Banners

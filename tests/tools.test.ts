@@ -5,7 +5,7 @@ import {
   parsePresence,
   parseProject,
   projectPaths,
-  workPaths,
+  sessionPaths,
 } from '../core'
 import { SPECS } from '../hooks/tools'
 import { file, finish, META, MIN, T0, W1, W2 } from './support'
@@ -15,7 +15,7 @@ import {
   PROJECT,
   REPO,
   ROOT,
-  SESSION,
+  CONVERSATION,
   startedId,
   postedId,
   world,
@@ -41,22 +41,29 @@ const TOOLS = [
 /** The lines a file holds. */
 const linesOf = (w: ReturnType<typeof world>, path: string) => parseEntries(w.text(path))
 
-test('a session start registers every tool, each schema loaded up front', async ($, on) => {
+test("a window's start registers every tool, each schema loaded up front", async ($, on) => {
   const w = world($, on)
 
-  await $.session.start(SESSION)
+  await $.session.start(CONVERSATION)
 
   expect(w.registered).toEqual(TOOLS.map(name => ({ name, isDeferred: false })))
 })
 
-test('start files the work under the project it names, attaches the window and says to record the id', async ($, on) => {
+test("Claude's tools speak of sessions, never pieces of work, and join takes the session's id", () => {
+  const join = SPECS.find(spec => spec.name === 'join')
+
+  expect(join?.inputSchema).toMatchObject({ properties: { session: {} }, required: ['session'] })
+  expect(JSON.stringify(SPECS)).not.toMatch(/\bpieces? of work\b|\bwork ids?\b/i)
+})
+
+test('start files the session under the project it names, attaches the window and says to record the id', async ($, on) => {
   const w = world($, on)
 
-  await $.session.start(SESSION)
+  await $.session.start(CONVERSATION)
 
   const answer = await w.call('start', DASHBOARD)
   const id = startedId(answer)
-  const paths = workPaths(ROOT, PROJECT.key, id)
+  const paths = sessionPaths(ROOT, PROJECT.key, id)
 
   expect(answer.result).toBe(
     `Started Dashboard redesign as ${id}, in a new project, Switchboard. Record ${id} wherever the project tracks this work, so a later window can join it.`,
@@ -74,22 +81,22 @@ test('start files the work under the project it names, attaches the window and s
   expect(parsePresence(w.text(paths.heartbeat(W1)), W1)?.leftAt).toBeUndefined()
   expect(w.state.attachment).toEqual({
     project: PROJECT.key,
-    work: id,
+    session: id,
     writer: W1,
     attachedAt: w.clock.now(),
   })
   expect(w.state.board?.status.name).toBe('Dashboard redesign')
 })
 
-test('start refuses a work with no name, no summary or no project, and writes nothing', async ($, on) => {
+test('start refuses a session with no name, no summary or no project, and writes nothing', async ($, on) => {
   const w = world($, on)
   const noProject =
-    'A piece of work needs its project: its name as Lee would say it, such as SitRep or Switchboard.'
+    'A session needs its project: its name as Lee would say it, such as SitRep or Switchboard.'
 
-  await $.session.start(SESSION)
+  await $.session.start(CONVERSATION)
 
   expect((await w.call('start', { name: 'Dashboard', project: 'SitRep' })).deny).toBe(
-    'A piece of work needs a summary: one line on what it is for.',
+    'A session needs a summary: one line on what it is for.',
   )
   expect((await w.call('start', { summary: 'Area by area' })).deny).toContain('needs a name')
   expect((await w.call('start', { name: 'Dashboard', summary: 'Area by area' })).deny).toBe(
@@ -102,42 +109,42 @@ test('start refuses a work with no name, no summary or no project, and writes no
   expect(w.files.size).toBe(0)
 })
 
-test('join attaches to a work by its id, in whichever project it is filed', async ($, on) => {
+test('join attaches to a session by its id, in whichever project it is filed', async ($, on) => {
   const w = world($, on)
   const here = { ...META, id: 'sr-aaaaaa', by: 'cli' }
   const there = { ...META, id: 'sr-bbbbbb', name: 'Lobby', project: 'goosemates', by: 'cli' }
 
   w.seed(here)
   w.seed(there, ELSEWHERE.key)
-  await $.session.start(SESSION)
+  await $.session.start(CONVERSATION)
 
-  const joined = await w.call('join', { work: 'sr-bbbbbb' })
+  const joined = await w.call('join', { session: 'sr-bbbbbb' })
 
   expect(String(joined.result)).toMatch(
     /^Joined Lobby \(sr-bbbbbb\)\. Correct anything on it that is stale against what you know\. The board as it stands:\n/,
   )
   expect(String(joined.result)).toContain('sitrep board: Lobby (sr-bbbbbb)')
-  expect(w.state.attachment).toMatchObject({ project: ELSEWHERE.key, work: 'sr-bbbbbb' })
-  expect(w.files.has(workPaths(ROOT, ELSEWHERE.key, 'sr-bbbbbb').heartbeat(W1))).toBe(true)
+  expect(w.state.attachment).toMatchObject({ project: ELSEWHERE.key, session: 'sr-bbbbbb' })
+  expect(w.files.has(sessionPaths(ROOT, ELSEWHERE.key, 'sr-bbbbbb').heartbeat(W1))).toBe(true)
 
-  await w.call('join', { work: 'sr-aaaaaa' })
+  await w.call('join', { session: 'sr-aaaaaa' })
 
-  expect(w.state.attachment).toMatchObject({ project: PROJECT.key, work: 'sr-aaaaaa' })
+  expect(w.state.attachment).toMatchObject({ project: PROJECT.key, session: 'sr-aaaaaa' })
 })
 
 test('join refuses an id of the wrong shape, or one no project holds', async ($, on) => {
   const w = world($, on)
 
-  await $.session.start(SESSION)
+  await $.session.start(CONVERSATION)
 
-  expect((await w.call('join', { work: 'dashboard' })).deny).toContain('by the id start gave it')
-  expect((await w.call('join', { work: 'sr-zzzzzz' })).deny).toBe(
-    'There is no piece of work sr-zzzzzz on the board, in any project.',
+  expect((await w.call('join', { session: 'dashboard' })).deny).toContain('by the id start gave it')
+  expect((await w.call('join', { session: 'sr-zzzzzz' })).deny).toBe(
+    'There is no session sr-zzzzzz on the board, in any project.',
   )
   expect(w.state.attachment).toBeUndefined()
 })
 
-test('starting or joining while attached lets go of the work held before', async ($, on) => {
+test('starting or joining while attached lets go of the session held before', async ($, on) => {
   const w = world($, on)
   const first = await w.begin()
 
@@ -146,14 +153,14 @@ test('starting or joining while attached lets go of the work held before', async
   const second = startedId(await w.call('start', { ...DASHBOARD, name: 'Lobby' }))
 
   expect(parsePresence(w.text(first.paths.heartbeat(W1)), W1)?.leftAt).toBe(w.clock.now())
-  expect(w.state.attachment?.work).toBe(second)
+  expect(w.state.attachment?.session).toBe(second)
 
-  await w.call('join', { work: first.id })
+  await w.call('join', { session: first.id })
 
   expect(
-    parsePresence(w.text(workPaths(ROOT, PROJECT.key, second).heartbeat(W1)), W1)?.leftAt,
+    parsePresence(w.text(sessionPaths(ROOT, PROJECT.key, second).heartbeat(W1)), W1)?.leftAt,
   ).toBeDefined()
-  expect(w.state.attachment?.work).toBe(first.id)
+  expect(w.state.attachment?.session).toBe(first.id)
 })
 
 test('status sets what changed, keeps the rest, and the board logs the change itself', async ($, on) => {
@@ -315,26 +322,26 @@ test("edit corrects an item's own fields; a field its kind has not is refused", 
   expect((await w.call('edit', { item: id, title: 'Merged' })).deny).toContain('not title')
 })
 
-test('finish marks the attached work done with its reason, the window staying attached; a second is refused', async ($, on) => {
+test('finish finishes the attached session with its reason, the window staying attached; a second is refused', async ($, on) => {
   const w = world($, on)
   const { id, paths } = await w.begin()
 
   await w.call('ask', { wants: 'yes', yes: 'Approve', title: 'Review round 1' })
 
   expect((await w.call('finish', { reason: '  Shipped in PR #82 ' })).result).toBe(
-    'Marked done. This window stays attached; joining the work again reopens it.',
+    'Finished. This window stays attached; joining the session again reopens it.',
   )
   expect(linesOf(w, paths.log(W1)).at(-1)).toMatchObject({
     type: 'finish',
     who: 'claude',
     reason: 'Shipped in PR #82',
   })
-  expect(w.state.attachment?.work).toBe(id)
+  expect(w.state.attachment?.session).toBe(id)
   expect(w.state.board).toMatchObject({ waiting: 0, finished: { who: 'claude', by: W1 } })
-  expect((await w.call('finish')).deny).toBe('This piece of work is already marked done.')
+  expect((await w.call('finish')).deny).toBe('This session is already finished.')
 })
 
-test('join reopens a finished work, saying who had marked it done and why', async ($, on) => {
+test('join reopens a finished session, saying who had finished it and why', async ($, on) => {
   const w = world($, on)
   const lobby = w.elsewhere({ ...META, id: 'sr-bbbbbb', name: 'Lobby', by: W2 })
   const themes = w.elsewhere({ ...META, id: 'sr-cccccc', name: 'Themes', by: W2 })
@@ -342,23 +349,23 @@ test('join reopens a finished work, saying who had marked it done and why', asyn
   lobby.write({ type: 'ask', id: 'k1', wants: 'yes', yes: 'Done', title: 'Run it' }, finish('lee'))
   themes.write(finish('claude', 'Shipped'))
   await w.clock.advance(MIN)
-  await $.session.start(SESSION)
+  await $.session.start(CONVERSATION)
 
-  const joined = String((await w.call('join', { work: 'sr-bbbbbb' })).result)
+  const joined = String((await w.call('join', { session: 'sr-bbbbbb' })).result)
 
   expect(joined).toMatch(
-    /^Joined Lobby \(sr-bbbbbb\)\. Lee had marked it done; joining it reopened it\. Correct anything on it that is stale against what you know\. The board as it stands:\n/,
+    /^Joined Lobby \(sr-bbbbbb\)\. Lee had finished it; joining it reopened it\. Correct anything on it that is stale against what you know\. The board as it stands:\n/,
   )
   expect(linesOf(w, lobby.paths.log(W1)).map(line => line.type)).toEqual(['unfinish'])
   expect(w.state.board).toMatchObject({ waiting: 1 })
   expect(w.state.board?.finished).toBeUndefined()
 
-  expect(String((await w.call('join', { work: 'sr-cccccc' })).result)).toContain(
-    'Claude had marked it done (Shipped); joining it reopened it.',
+  expect(String((await w.call('join', { session: 'sr-cccccc' })).result)).toContain(
+    'Claude had finished it (Shipped); joining it reopened it.',
   )
 })
 
-test('a line posted to a finished work leaves it done: only a join reopens it, once', async ($, on) => {
+test('a line posted to a finished session leaves it finished: only a join reopens it, once', async ($, on) => {
   const w = world($, on)
   const lobby = w.elsewhere({ ...META, id: 'sr-bbbbbb', name: 'Lobby', by: W2 })
 
@@ -367,14 +374,14 @@ test('a line posted to a finished work leaves it done: only a join reopens it, o
     file([T0, finish('lee')], [T0 + MIN, { type: 'note', id: 'n1', text: 'From a script' }]),
   )
   await w.clock.advance(2 * MIN)
-  await $.session.start(SESSION)
-  await w.call('join', { work: 'sr-bbbbbb' })
-  await w.call('join', { work: 'sr-bbbbbb' })
+  await $.session.start(CONVERSATION)
+  await w.call('join', { session: 'sr-bbbbbb' })
+  await w.call('join', { session: 'sr-bbbbbb' })
 
   expect(linesOf(w, lobby.paths.log(W1)).map(line => line.type)).toEqual(['unfinish'])
 })
 
-test("board reads back the work's open items with their ids", async ($, on) => {
+test("board reads back the session's open items with their ids", async ($, on) => {
   const w = world($, on)
   const { id } = await w.begin()
   const ask = postedId(
@@ -386,16 +393,16 @@ test("board reads back the work's open items with their ids", async ($, on) => {
   expect(read).toContain(`- ${ask} wants a yes (Approve), waiting on Lee: Review round 1`)
 })
 
-test('every tool but start and join refuses while no work is attached, saying to start or join one', async ($, on) => {
+test('every tool but start and join refuses while no session is attached, saying to start or join one', async ($, on) => {
   const w = world($, on)
 
-  await $.session.start(SESSION)
+  await $.session.start(CONVERSATION)
 
   for (const tool of TOOLS.slice(2)) {
     expect(
       (await w.call(tool, { item: 'k1', text: 'x', title: 'x', wants: 'yes', yes: 'Done' })).deny,
       tool,
-    ).toBe('No piece of work is attached to this window: start one, or join one by its id, first.')
+    ).toBe('No session is attached to this window: start one, or join one by its id, first.')
   }
 })
 

@@ -1,7 +1,8 @@
 /**
  * The engine beneath the mod, for its tests: a file system in memory, the
- * session, the environment and the clock, the display, and a record of what
- * the mod puts in `$.state` and submits. Nothing touches a real folder.
+ * conversation, the environment and the clock, the display, and a record of
+ * what the mod puts in `$.state` and submits. Nothing touches a real
+ * folder.
  */
 import type {
   ElementTable,
@@ -15,20 +16,23 @@ import type {
 import { mock, type Engine, type Mounted } from 'claude-code/testing'
 import {
   metaText,
+  movedTo,
   presenceText,
   projectPaths,
   projectText,
-  workPaths,
+  sessionPaths,
   type Body,
   type Presence,
   type Project,
   type ProjectFile,
   type Where,
-  type WorkMeta,
-  type WorkPaths,
+  type SessionFolder,
+  type SessionMeta,
+  type SessionPaths,
 } from '../core'
 import { PANE } from '../hooks/pane'
 import { itemKey } from '../hooks/places'
+import { MANIFEST } from '../hooks/version'
 import { file, T0, W1, W2, type Line } from './support'
 
 type Sitrep = PluginState['sitrep']
@@ -36,11 +40,18 @@ type Sitrep = PluginState['sitrep']
 export const STATE_HOME = '/state'
 export const ROOT = `${STATE_HOME}/sitrep`
 
-/** The folder the session starts in: Switchboard's repository, though that decides nothing. */
+/** The folder the window starts in: Switchboard's repository, though that decides nothing. */
 export const REPO = '/Users/lee/Code/switchboard'
 
-/** Lee's home folder, which a session may start in to talk of any project. */
+/** Lee's home folder, which a window may start in to talk of any project. */
 export const HOME = '/Users/lee'
+
+/** The sitrep version the plugin's manifest gives, unless a test says otherwise. */
+export const PLUGIN_VERSION = '0.1.0'
+
+/** The plugin's manifest, giving `version`. */
+export const manifestOf = (version: unknown) =>
+  `${JSON.stringify({ name: 'sitrep', version, description: 'A small window onto a session' })}\n`
 
 /** The terminal Claude Code is on, as the walk up its processes prints it. */
 export const TTY = 'ttys001'
@@ -51,13 +62,13 @@ export const WHERE: Where = { device: `/dev/${TTY}`, terminal: 'ghostty' }
 /** What the walk up Claude Code's processes for its terminal gives: what it printed and how it exited, or why it could not run. */
 export type Walk = { stdout: string; exitCode?: number } | { refused: string }
 
-/** The project the works under test are on: named so by Claude as it starts one, its key the name's slug. */
+/** The project the sessions under test are on: named so by Claude as it starts one, its key the name's slug. */
 export const PROJECT: Project = { key: 'switchboard', name: 'Switchboard' }
 
-/** Another project, with a work of its own. */
+/** Another project, with a session of its own. */
 export const ELSEWHERE: Project = { key: 'goosemates', name: 'Goosemates' }
 
-export const SESSION = { cwd: REPO, surface: 'terminal' as const, isInteractive: true }
+export const CONVERSATION = { cwd: REPO, surface: 'terminal' as const, isInteractive: true }
 
 export const DASHBOARD = {
   name: 'Dashboard redesign',
@@ -107,6 +118,9 @@ type Surface = (typeof SURFACES)[number]
 type Args = { [key: string]: unknown }
 
 type File = { text: string; mtimeMs: number }
+
+/** The kinds of look the mod takes at a path. */
+type Look = 'read' | 'exists' | 'list'
 
 const MISSING = (path: string) => ({ deny: `ENOENT: no such file or directory, ${path}` })
 
@@ -269,7 +283,7 @@ function display(on: On) {
 }
 
 /**
- * Knobs on the world: when it starts, the folder the session starts in, and
+ * Knobs on the world: when it starts, the folder the window starts in, and
  * the environment beyond sitrep's own folders (a Ghostty window outside tmux
  * unless told otherwise).
  */
@@ -283,12 +297,29 @@ export function world(engine: Engine, on: On, options: Options = {}) {
   /** How many times each of the mod's values was put in `$.state`. */
   const writes: Partial<Record<keyof Sitrep, number>> = {}
   const logs: string[] = []
+  /** Every folder the mod listed that was not there: each a line in the engine's debug log. */
+  const unlisted: string[] = []
   const registered: { name: string; isDeferred?: boolean }[] = []
   const shown = display(on)
-  let session = W1
+  let conversation = W1
   let cwd = options.cwd ?? REPO
   let isRefused: ((path: string) => boolean) | undefined
   let isUnread = false
+  /** The plugin's manifest; none, as one that cannot be read. */
+  let manifest: string | undefined = manifestOf(PLUGIN_VERSION)
+  /** What happens once, right after the mod's next look of a kind at a path is answered. */
+  const afterwards: { look: Look; path: string; act: () => void }[] = []
+
+  /** Answers the mod's look at `path`, then runs whatever was to happen right after it. */
+  const answered = <T>(look: Look, path: string, answer: T) => {
+    const at = afterwards.findIndex(each => each.look === look && each.path === path)
+
+    if (at !== -1) {
+      afterwards.splice(at, 1)[0]?.act()
+    }
+
+    return answer
+  }
 
   /** The commands the mod ran, each as its argument vector. */
   const runs: (readonly string[])[] = []
@@ -322,7 +353,7 @@ export function world(engine: Engine, on: On, options: Options = {}) {
   on('turn.complete', ($, e) => ({ text: e.answer }))
   on('classic.SessionStart', () => ({}))
   on('prompt.context', ($, e) => ({ blocks: e.blocks }))
-  on('session.id', () => ({ value: session }))
+  on('session.id', () => ({ value: conversation }))
   on('session.cwd', () => ({ value: cwd }))
 
   on('tool.register', ($, e) => {
@@ -350,10 +381,14 @@ export function world(engine: Engine, on: On, options: Options = {}) {
     return next(e)
   })
 
-  on('fs.read', ($, e) => {
-    const file = files.get(e.path)
+  /** What a read finds: the plugin's manifest in the plugin's own folder, wherever the test loads it from; else the file held there. */
+  const textAt = (path: string) =>
+    path.endsWith(`/${MANIFEST}`) ? manifest : files.get(path)?.text
 
-    return file === undefined ? MISSING(e.path) : { value: file.text }
+  on('fs.read', ($, e) => {
+    const text = textAt(e.path)
+
+    return answered('read', e.path, text === undefined ? MISSING(e.path) : { value: text })
   })
 
   on('fs.write', ($, e) => {
@@ -371,7 +406,12 @@ export function world(engine: Engine, on: On, options: Options = {}) {
     walk = next
   }
 
-  /** The other works the board reads in full, from here on, never land in `$.state`: as before the look reading one has, only their briefs are there. */
+  /** The plugin's manifest from here on is `text`; given none, it cannot be read. */
+  const manifestGives = (text?: string) => {
+    manifest = text
+  }
+
+  /** The other sessions the board reads in full, from here on, never land in `$.state`: as before the look reading one has, only their briefs are there. */
   const leaveUnread = () => {
     isUnread = true
   }
@@ -381,21 +421,28 @@ export function world(engine: Engine, on: On, options: Options = {}) {
     isRefused = test
   }
 
-  on('fs.exists', ($, e) => ({
-    value: files.has(e.path) || [...files.keys()].some(path => isUnder(e.path, path)),
-  }))
+  on('fs.exists', ($, e) =>
+    answered('exists', e.path, {
+      value: files.has(e.path) || [...files.keys()].some(path => isUnder(e.path, path)),
+    }),
+  )
 
-  on('fs.list', ($, e) => {
-    const under = [...files.entries()].filter(([path]) => isUnder(e.path, path))
+  on('fs.list', ($, e) => answered('list', e.path, listing(e.path)))
+
+  /** A folder's listing, as the engine gives it. */
+  const listing = (dir: string) => {
+    const under = [...files.entries()].filter(([path]) => isUnder(dir, path))
 
     if (under.length === 0) {
-      return MISSING(e.path)
+      unlisted.push(dir)
+
+      return MISSING(dir)
     }
 
     const entries = new Map<string, { kind: 'file' | 'dir'; size: number; mtimeMs: number }>()
 
     for (const [path, file] of under) {
-      const [name = '', ...deeper] = path.slice(e.path.length + 1).split('/')
+      const [name = '', ...deeper] = path.slice(dir.length + 1).split('/')
 
       entries.set(
         name,
@@ -410,7 +457,18 @@ export function world(engine: Engine, on: On, options: Options = {}) {
     }
 
     return { value: [...entries].map(([name, entry]) => ({ name, ...entry, isLink: false })) }
-  })
+  }
+
+  /** Runs `act` once, right after the mod's next look of the kind at `path` is answered: as a run of the CLI moving the old layout at that moment. */
+  const after = (look: Look, path: string, act: () => void) => afterwards.push({ look, path, act })
+
+  /** A session's old folder moved into today's at once, as the CLI moves it, each file renamed into a place none holds. */
+  const moveOld = (paths: SessionPaths) => {
+    for (const [path, held] of [...files].filter(([path]) => isUnder(paths.old.dir, path))) {
+      files.set(movedTo(paths, path), held)
+      files.delete(path)
+    }
+  }
 
   /** Writes a file as another writer would: a window elsewhere, the CLI, Lee's board. */
   const put = (path: string, text: string) => files.set(path, { text, mtimeMs: clock.now() })
@@ -426,35 +484,44 @@ export function world(engine: Engine, on: On, options: Options = {}) {
     return file.text
   }
 
-  /** A work started by another window, filed under `project`. */
-  const seed = (meta: WorkMeta, project = PROJECT.key) =>
-    put(workPaths(ROOT, project, meta.id).meta, metaText(meta))
+  /** A session started by another window, filed under `project`. */
+  const seed = (meta: SessionMeta, project = PROJECT.key) =>
+    put(sessionPaths(ROOT, project, meta.id).meta, metaText(meta))
+
+  /** A session started by a window on a version that filed it under the old layout, `works/<id>/work.json`: its paths. */
+  const seedOld = (meta: SessionMeta, project = PROJECT.key) => {
+    const paths = sessionPaths(ROOT, project, meta.id)
+
+    put(paths.old.meta, metaText(meta))
+
+    return paths
+  }
 
   /** A project's file, as a start or the project tool writes it. */
   const project = (key: string, file: ProjectFile) =>
     put(projectPaths(ROOT, key).file, projectText(file))
 
-  /** Another window's heartbeat on a work. */
+  /** Another window's heartbeat on a session. */
   const beat = (id: string, presence: Presence, project = PROJECT.key) =>
-    put(workPaths(ROOT, project, id).heartbeat(presence.writer), presenceText(presence))
+    put(sessionPaths(ROOT, project, id).heartbeat(presence.writer), presenceText(presence))
 
-  /** Another window's file in a work: each call writes lines to it as that window does, at the time. */
-  const writer = (paths: WorkPaths, name = W2) => {
+  /** Another window's file in a session's folder, under either layout: each call writes lines to it as that window does, at the time. */
+  const writer = (folder: SessionFolder, name = W2) => {
     const lines: Line[] = []
 
     return (...bodies: Body[]) => {
       lines.push(...bodies.map((body): Line => [clock.now(), body]))
-      put(paths.log(name), file(...lines))
+      put(folder.log(name), file(...lines))
     }
   }
 
   /**
-   * Another piece of work, started by the window `by` names and filed under
+   * Another session, started by the window `by` names and filed under
    * `project`: its paths, that window's lines as it writes them, and its
    * heartbeat as of now, attached at `attachedAt`.
    */
-  const elsewhere = (meta: WorkMeta, project = PROJECT.key, by = meta.by) => {
-    const paths = workPaths(ROOT, project, meta.id)
+  const elsewhere = (meta: SessionMeta, project = PROJECT.key, by = meta.by) => {
+    const paths = sessionPaths(ROOT, project, meta.id)
 
     seed(meta, project)
 
@@ -474,18 +541,18 @@ export function world(engine: Engine, on: On, options: Options = {}) {
       ...(agentId === undefined ? {} : { agentId }),
     } as never) as Promise<{ result?: unknown; deny?: string }>
 
-  /** The session started, and a piece of work started in it: its id and its folder's paths. */
+  /** The conversation started, and a session started in it: its id and its folder's paths. */
   const begin = async () => {
-    await engine.session.start(SESSION)
+    await engine.session.start(CONVERSATION)
 
     const id = startedId(await call('start', DASHBOARD))
 
-    return { id, paths: workPaths(ROOT, PROJECT.key, id) }
+    return { id, paths: sessionPaths(ROOT, PROJECT.key, id) }
   }
 
-  /** The session from here on: another id, as after a /clear, or another folder. */
-  const become = (next: { session?: string; cwd?: string }) => {
-    session = next.session ?? session
+  /** The conversation from here on: another id, as after a /clear, or another folder. */
+  const become = (next: { conversation?: string; cwd?: string }) => {
+    conversation = next.conversation ?? conversation
     cwd = next.cwd ?? cwd
   }
 
@@ -522,8 +589,8 @@ export function world(engine: Engine, on: On, options: Options = {}) {
   const pane = (surface: Surface = 'terminal', props: RenderPropsOf['Pane'] = DOCKED) =>
     engine.ui.mount({ plugin: 'sitrep', surface, component: 'Pane', requestId: PANE, props })
 
-  /** An item's address on the board, as its buttons are keyed (`pick:<address>`): in the held work, unless another is named. */
-  const item = (id: string, work = state.attachment?.work ?? '') => itemKey(work, id)
+  /** An item's address on the board, as its buttons are keyed (`pick:<address>`): in the held session, unless another is named. */
+  const item = (id: string, session = state.attachment?.session ?? '') => itemKey(session, id)
 
   /** The band drawn on a surface, `columns` across, on a screen that measured as `viewport` where given. */
   const band = (
@@ -546,6 +613,7 @@ export function world(engine: Engine, on: On, options: Options = {}) {
     boards,
     writes,
     logs,
+    unlisted,
     runs,
     registered,
     ...shown,
@@ -553,8 +621,12 @@ export function world(engine: Engine, on: On, options: Options = {}) {
     text,
     refuseWrites,
     walkGives,
+    manifestGives,
+    after,
+    moveOld,
     leaveUnread,
     seed,
+    seedOld,
     project,
     beat,
     writer,
@@ -577,12 +649,12 @@ export const toProject = async (ui: Pick<Mounted, 'press'>, key = PROJECT.key) =
   await ui.press({ key: `proj:${key}` })
 }
 
-/** The work id a start's answer names. */
+/** The session id a start's answer names. */
 export const startedId = (answer: { result?: unknown }) => {
   const id = String(answer.result).match(/\bsr-[0-9a-z]+/)?.[0]
 
   if (id === undefined) {
-    throw new Error(`no work id in ${String(answer.result)}`)
+    throw new Error(`no session id in ${String(answer.result)}`)
   }
 
   return id

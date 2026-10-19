@@ -4,7 +4,7 @@ import {
   brief,
   BRIEF_LOG_LINES,
   CURRENT_MS,
-  foldWork,
+  foldSession,
   isCurrent,
   metaText,
   projectLog,
@@ -12,8 +12,8 @@ import {
   summarise,
   summariseProject,
   type ProjectSummary,
-  type Work,
-  type WorkFiles,
+  type Session,
+  type SessionFiles,
 } from '../core'
 import {
   delivered,
@@ -36,25 +36,25 @@ import {
 
 const NOW = T0 + 60 * MIN
 
-/** A work of `project`, folded at NOW from its own meta and files. */
-const workOf = (id: string, project: string, files: Partial<WorkFiles>, created = T0): Work => {
-  const work = foldWork(
+/** A session of `project`, folded at NOW from its own meta and files. */
+const sessionOf = (id: string, project: string, files: Partial<SessionFiles>, created = T0): Session => {
+  const session = foldSession(
     { meta: metaText({ ...META, id, project, created }), logs: {}, ...files },
     NOW,
   )
 
-  if (work === undefined) {
-    throw new Error('the work did not fold')
+  if (session === undefined) {
+    throw new Error('the session did not fold')
   }
 
-  return work
+  return session
 }
 
 /** A project summary with these counts, the rest empty. */
 const project = (key: string, counts: Partial<ProjectSummary> = {}): ProjectSummary => ({
   key,
   name: key,
-  works: [],
+  sessions: [],
   open: 0,
   waiting: 0,
   parked: 0,
@@ -64,8 +64,8 @@ const project = (key: string, counts: Partial<ProjectSummary> = {}): ProjectSumm
 
 const keys = (projects: readonly ProjectSummary[]) => projects.map(each => each.key)
 
-test('a work in brief: what it is doing, whether a window has it, and what it holds for Lee', () => {
-  const work = workOf('sr-aaaaaa', 'switchboard', {
+test('a session in brief: what it is doing, whether a window has it, and what it holds for Lee', () => {
+  const session = sessionOf('sr-aaaaaa', 'switchboard', {
     logs: {
       [W1]: file(
         [T0 + MIN, status(['Drawing Usage, round 2'], { next: 'Usage, round 3' })],
@@ -77,7 +77,7 @@ test('a work in brief: what it is doing, whether a window has it, and what it ho
     presence: { [W1]: seen(W1, NOW) },
   })
 
-  expect(summarise(work)).toEqual({
+  expect(summarise(session)).toEqual({
     id: 'sr-aaaaaa',
     name: 'Dashboard redesign',
     summary: 'Redesign the dashboard, area by area in Paper',
@@ -92,22 +92,22 @@ test('a work in brief: what it is doing, whether a window has it, and what it ho
   })
 })
 
-test('a project adds up its works, those with a window first, then the most recently updated', () => {
-  const quiet = workOf('sr-aaaaaa', 'switchboard', {
+test('a project adds up its sessions, those with a window first, then the most recently updated', () => {
+  const quiet = sessionOf('sr-aaaaaa', 'switchboard', {
     logs: { [W1]: file([T0 + 50 * MIN, yesAsk('k1', 'Try it', 'It works')]) },
   })
-  const open = workOf('sr-bbbbbb', 'switchboard', {
+  const open = sessionOf('sr-bbbbbb', 'switchboard', {
     logs: { [W2]: file([T0 + 10 * MIN, park('p1', 'Later')]) },
     presence: { [W2]: seen(W2, NOW) },
   })
-  const older = workOf('sr-cccccc', 'switchboard', { logs: {} })
+  const older = sessionOf('sr-cccccc', 'switchboard', { logs: {} })
 
   expect(
     summariseProject('switchboard-1a2b3c4d', [older, quiet, open].map(summarise)),
   ).toMatchObject({
     key: 'switchboard-1a2b3c4d',
     name: 'Switchboard',
-    works: [{ id: 'sr-bbbbbb' }, { id: 'sr-aaaaaa' }, { id: 'sr-cccccc' }],
+    sessions: [{ id: 'sr-bbbbbb' }, { id: 'sr-aaaaaa' }, { id: 'sr-cccccc' }],
     open: 1,
     waiting: 1,
     parked: 1,
@@ -161,15 +161,15 @@ test('equally busy projects order by their latest update, then by name', () => {
   expect(keys(view.projects)).toEqual(['c', 'a', 'b'])
 })
 
-test("a project's log holds every work's lines, newest first, each naming its work", () => {
-  const first = workOf('sr-aaaaaa', 'switchboard', {
+test("a project's log holds every session's lines, newest first, each naming its session", () => {
+  const first = sessionOf('sr-aaaaaa', 'switchboard', {
     logs: { [W1]: file([T0 + 1 * MIN, note('n1', 'one')], [T0 + 4 * MIN, note('n4', 'four')]) },
   })
-  const second = workOf('sr-bbbbbb', 'switchboard', {
+  const second = sessionOf('sr-bbbbbb', 'switchboard', {
     logs: { [W2]: file([T0 + 2 * MIN, note('n2', 'two')], [T0 + 3 * MIN, status(['Drawing'])]) },
   })
 
-  expect(projectLog([first, second]).map(line => [line.work, line.text])).toEqual([
+  expect(projectLog([first, second]).map(line => [line.session, line.text])).toEqual([
     ['sr-aaaaaa', 'four'],
     ['sr-bbbbbb', 'Status: now drawing'],
     ['sr-bbbbbb', 'two'],
@@ -177,32 +177,32 @@ test("a project's log holds every work's lines, newest first, each naming its wo
   ])
 })
 
-test('an idle work shows for 7 days after its last update, then drops out of the views', () => {
+test('an idle session shows for 7 days after its last update, then drops out of the views', () => {
   const idle = summarise(
-    workOf('sr-aaaaaa', 'switchboard', { logs: { [W1]: file([NOW, note('n1', 'Drew it')]) } }),
+    sessionOf('sr-aaaaaa', 'switchboard', { logs: { [W1]: file([NOW, note('n1', 'Drew it')]) } }),
   )
 
   expect(isCurrent(idle, NOW + CURRENT_MS)).toBe(true)
   expect(isCurrent(idle, NOW + CURRENT_MS + 1)).toBe(false)
 })
 
-test('open, waiting on Lee or holding something parked, a work shows however long ago it was updated', () => {
+test('open, waiting on Lee or holding something parked, a session shows however long ago it was updated', () => {
   const later = T0 + 30 * CURRENT_MS
-  const open = workOf('sr-aaaaaa', 'switchboard', { presence: { [W1]: seen(W1, NOW) } })
-  const waiting = workOf('sr-bbbbbb', 'switchboard', {
+  const open = sessionOf('sr-aaaaaa', 'switchboard', { presence: { [W1]: seen(W1, NOW) } })
+  const waiting = sessionOf('sr-bbbbbb', 'switchboard', {
     logs: { [W1]: file([T0, yesAsk('k1', 'Run it', 'Done')]) },
   })
-  const parked = workOf('sr-cccccc', 'switchboard', {
+  const parked = sessionOf('sr-cccccc', 'switchboard', {
     logs: { [W1]: file([T0, park('p1', 'Later')]) },
   })
 
-  for (const work of [open, waiting, parked]) {
-    expect(isCurrent(summarise(work), later), work.id).toBe(true)
+  for (const session of [open, waiting, parked]) {
+    expect(isCurrent(summarise(session), later), session.id).toBe(true)
   }
 })
 
-test('a finished work is out of the views whatever it holds, and its asks count nowhere', () => {
-  const finished = workOf('sr-aaaaaa', 'switchboard', {
+test('a finished session is out of the views whatever it holds, and its asks count nowhere', () => {
+  const finished = sessionOf('sr-aaaaaa', 'switchboard', {
     logs: {
       [W1]: file(
         [NOW - MIN, yesAsk('k1', 'Run it', 'Done')],
@@ -219,15 +219,15 @@ test('a finished work is out of the views whatever it holds, and its asks count 
   expect(summariseProject('switchboard-1a2b3c4d', [summary]).waiting).toBe(0)
 })
 
-test('a brief carries the latest log lines a view shows, and what the work has parked', () => {
+test('a brief carries the latest log lines a view shows, and what the session has parked', () => {
   const notes = Array.from(
     { length: BRIEF_LOG_LINES + 2 },
     (_, i): Line => [T0 + i * MIN, note(`n${i}`, `note ${i}`)],
   )
-  const work = workOf('sr-aaaaaa', 'switchboard', {
+  const session = sessionOf('sr-aaaaaa', 'switchboard', {
     logs: { [W1]: file(...notes, [T0, park('p1', 'Later')]) },
   })
-  const briefed = brief(work)
+  const briefed = brief(session)
 
   expect(briefed.log).toHaveLength(BRIEF_LOG_LINES)
   expect(briefed.log[0]?.text).toBe(`note ${BRIEF_LOG_LINES + 1}`)
@@ -236,7 +236,7 @@ test('a brief carries the latest log lines a view shows, and what the work has p
 })
 
 test('a brief carries the asks still open, a replied one among them, and none closed', () => {
-  const work = workOf('sr-aaaaaa', 'switchboard', {
+  const session = sessionOf('sr-aaaaaa', 'switchboard', {
     logs: {
       [W1]: file(
         [T0, yesAsk('k1', 'Review round 1')],
@@ -249,21 +249,21 @@ test('a brief carries the asks still open, a replied one among them, and none cl
     },
   })
 
-  expect(brief(work).asks.map(ask => [ask.id, ask.state])).toEqual([
+  expect(brief(session).asks.map(ask => [ask.id, ask.state])).toEqual([
     ['k2', 'replied'],
     ['k3', 'waiting'],
   ])
 })
 
-test("a project's parked items, oldest first, each naming the work that parked it", () => {
+test("a project's parked items, oldest first, each naming the session that parked it", () => {
   const first = brief(
-    workOf('sr-aaaaaa', 'switchboard', { logs: { [W1]: file([T0 + 2 * MIN, park('p1', 'B')]) } }),
+    sessionOf('sr-aaaaaa', 'switchboard', { logs: { [W1]: file([T0 + 2 * MIN, park('p1', 'B')]) } }),
   )
   const second = brief(
-    workOf('sr-bbbbbb', 'switchboard', { logs: { [W2]: file([T0 + MIN, park('p2', 'A')]) } }),
+    sessionOf('sr-bbbbbb', 'switchboard', { logs: { [W2]: file([T0 + MIN, park('p2', 'A')]) } }),
   )
 
-  expect(projectParked([first, second]).map(each => [each.work, each.id])).toEqual([
+  expect(projectParked([first, second]).map(each => [each.session, each.id])).toEqual([
     ['sr-bbbbbb', 'p2'],
     ['sr-aaaaaa', 'p1'],
   ])

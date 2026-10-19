@@ -1,6 +1,6 @@
 /**
  * The message in flight, whatever its source, across what can come between
- * its submit and its lines: a reload, a quiet session, the conversation's end.
+ * its submit and its lines: a reload, a quiet window, the conversation's end.
  *
  * The test kit cannot load a fresh copy of the mod, so a reload here runs
  * session.start again in the same module. What a reload must carry over
@@ -11,11 +11,11 @@
  * short, left here as the message taken but not written down.
  */
 import { expect, test, tier } from 'claude-code/testing'
-import { parseEntries, type WorkPaths } from '../core'
+import { parseEntries, type SessionPaths } from '../core'
 import { QUIET_MS } from '../hooks/deliver'
 import { WATCH_MS } from '../hooks/window'
 import { file, MIN, reply, SENDER, SLOW, W1 } from './support'
-import { postedId, PROJECT, SESSION, startedId, world } from './world'
+import { postedId, PROJECT, CONVERSATION, startedId, world } from './world'
 
 tier('user')
 
@@ -34,38 +34,39 @@ const WRITTEN: Record<Source, string[]> = {
 }
 
 /** The kinds of line the window's own file holds, in order. */
-const kindsIn = (w: World, paths: WorkPaths) =>
+const kindsIn = (w: World, paths: SessionPaths) =>
   parseEntries(w.text(paths.log(W1))).map(line => line.type)
 
 /**
  * This session with a review asked and Lee's yes to it, a minute on: queued
- * on the board, or in the inbox from another work's window. `submit` sends
+ * on the board, or in the inbox from another session's window. `submit` sends
  * it: a press of send, or the looks that take the letter in.
  */
-const replying: Record<Source, (w: World) => Promise<{ paths: WorkPaths; submit: () => void }>> = {
-  send: async w => {
-    const { paths } = await w.begin()
-    const id = postedId(await w.call('ask', REVIEW))
-    const ui = await w.pane()
+const replying: Record<Source, (w: World) => Promise<{ paths: SessionPaths; submit: () => void }>> =
+  {
+    send: async w => {
+      const { paths } = await w.begin()
+      const id = postedId(await w.call('ask', REVIEW))
+      const ui = await w.pane()
 
-    await w.clock.advance(MIN)
-    await ui.press({ key: `yes:${w.item(id)}` })
+      await w.clock.advance(MIN)
+      await ui.press({ key: `yes:${w.item(id)}` })
 
-    return { paths, submit: () => void ui.press({ key: 'send' }) }
-  },
-  inbox: async w => {
-    const { paths } = await w.begin()
-    const id = postedId(await w.call('ask', REVIEW))
+      return { paths, submit: () => void ui.press({ key: 'send' }) }
+    },
+    inbox: async w => {
+      const { paths } = await w.begin()
+      const id = postedId(await w.call('ask', REVIEW))
 
-    await w.clock.advance(MIN)
-    w.put(paths.letters(SENDER), file([w.clock.now(), reply('r1', id, 'yes')]))
+      await w.clock.advance(MIN)
+      w.put(paths.letters(SENDER), file([w.clock.now(), reply('r1', id, 'yes')]))
 
-    return { paths, submit: () => void w.clock.advance(2 * WATCH_MS) }
-  },
-}
+      return { paths, submit: () => void w.clock.advance(2 * WATCH_MS) }
+    },
+  }
 
-/** Whether the work is as a message written down once leaves it: its lines, the ask closed, the queue empty. */
-const expectWrittenOnce = (w: World, paths: WorkPaths, source: Source) => {
+/** Whether the session is as a message written down once leaves it: its lines, the ask closed, the queue empty. */
+const expectWrittenOnce = (w: World, paths: SessionPaths, source: Source) => {
   expect(kindsIn(w, paths)).toEqual(WRITTEN[source])
   expect(w.state.board?.asks[0]?.state).toBe('closed')
   expect(w.state.queue ?? []).toEqual([])
@@ -90,7 +91,7 @@ for (const source of ['send', 'inbox'] as const) {
       submit()
       await turn.arrived
       turn.lose()
-      await $.session.start(SESSION)
+      await $.session.start(CONVERSATION)
       await w.clock.advance(4 * WATCH_MS)
 
       expect(kindsIn(w, paths)).toEqual(['ask'])
@@ -117,7 +118,7 @@ for (const source of ['send', 'inbox'] as const) {
     expect(kindsIn(w, paths)).toEqual(['ask'])
 
     w.refuseWrites()
-    await $.session.start(SESSION)
+    await $.session.start(CONVERSATION)
     expectWrittenOnce(w, paths, source)
 
     await longAfter(w)
@@ -143,7 +144,7 @@ for (const source of ['send', 'inbox'] as const) {
     expect(w.state.queue ?? []).toHaveLength(source === 'send' ? 1 : 0)
 
     isCut = false
-    await $.session.start(SESSION)
+    await $.session.start(CONVERSATION)
     expectWrittenOnce(w, paths, source)
     expect(w.state.flash).toBe(source === 'inbox' ? 1 : 0)
 
@@ -153,7 +154,7 @@ for (const source of ['send', 'inbox'] as const) {
   })
 
   test(
-    `${source}: a message that never goes in is let go once the session has been quiet a while, and no sooner`,
+    `${source}: a message that never goes in is let go once the window has been quiet a while, and no sooner`,
     SLOW,
     async ($, on) => {
       const w = world($, on)
@@ -181,7 +182,7 @@ for (const source of ['send', 'inbox'] as const) {
     },
   )
 
-  test(`${source}: a message in flight as the conversation ends is written into its work if it goes in after, though the window holds none`, async ($, on) => {
+  test(`${source}: a message in flight as the conversation ends is written into its session if it goes in after, though the window holds none`, async ($, on) => {
     const w = world($, on)
     const { paths, submit } = await replying[source](w)
     const turn = w.holdPrompts()
@@ -236,7 +237,7 @@ test('inbox: let go, its replies are taken in at a later look', async ($, on) =>
   expect(kindsIn(w, paths)).toEqual(['ask', 'delivered'])
 })
 
-test('a message whose writing a reload cut short is written into its own work, though the window holds another by then', async ($, on) => {
+test('a message whose writing a reload cut short is written into its own session, though the window holds another by then', async ($, on) => {
   const w = world($, on)
   const { paths, submit } = await replying.send(w)
 
@@ -251,10 +252,10 @@ test('a message whose writing a reload cut short is written into its own work, t
     project: PROJECT.name,
   })
 
-  await $.session.start(SESSION)
+  await $.session.start(CONVERSATION)
 
   expect(kindsIn(w, paths)).toEqual(WRITTEN.send)
-  expect(w.state.attachment?.work).toBe(startedId(themes))
+  expect(w.state.attachment?.session).toBe(startedId(themes))
   expect(w.state.board?.replies).toEqual([])
   expect(w.state.inFlight).toBeNull()
 })

@@ -1,7 +1,7 @@
 /**
- * This window's hold on a piece of work: its own file, its heartbeat, and a
- * watch that keeps the work's fold current in `$.state` and tells Lee of an
- * ask that lands. A window holds at most one work.
+ * This window's hold on a session: its own file, its heartbeat, and a watch
+ * that keeps the session's fold current in `$.state` and tells Lee of an
+ * ask that lands. A window holds at most one session.
  *
  * Whatever reads or changes the hold runs in turn (`serially`), so two tool
  * calls never write the window's file over each other, and a heartbeat never
@@ -11,17 +11,17 @@ import type { Timer } from 'claude-code'
 import {
   append,
   attach,
-  foldWork,
+  foldSession,
   heartbeat,
   HEARTBEAT_MS,
   isOpen,
   leave,
   presenceText,
-  workPaths,
+  sessionPaths,
   type Body,
   type Presence,
-  type Work,
-  type WorkPaths,
+  type Session,
+  type SessionPaths,
 } from '../core'
 import type { SitrepAttachment } from '../types'
 import { endAnswering, settleAnswering } from './answering'
@@ -29,14 +29,15 @@ import { boardOf } from './board'
 import { logFailure, rootFor, type Host } from './host'
 import { announce } from './news'
 import { createReader, ownText, type Reader } from './reader'
+import { versionNow } from './version'
 import { whereNow } from './where'
 
-/** How often the watch lists the work's folders for what changed. */
+/** How often the watch lists the session's folders for what changed. */
 export const WATCH_MS = 1_500
 
 type Hold = {
   attachment: SitrepAttachment
-  paths: WorkPaths
+  paths: SessionPaths
   /** The window's own file, as it last wrote it. */
   text: string
   presence: Presence
@@ -44,7 +45,7 @@ type Hold = {
   timers: Timer[]
   /** The board last put in `$.state`, as JSON, so a fold that changed nothing puts nothing. */
   shown?: string
-  /** Every ask the window has seen the work hold; unset until its first fold. */
+  /** Every ask the window has seen the session hold; unset until its first fold. */
   heard?: ReadonlySet<string>
 }
 
@@ -61,7 +62,7 @@ export const serially = <T>(task: () => Promise<T>): Promise<T> => {
   return turn
 }
 
-/** The work this window holds, if any. */
+/** The session this window holds, if any. */
 export const attached = () => current?.attachment
 
 const beat = async (host: Host, hold: Hold, presence: Presence) => {
@@ -69,33 +70,33 @@ const beat = async (host: Host, hold: Hold, presence: Presence) => {
   hold.presence = presence
 }
 
-/** Announces the open asks the work holds that the window had not seen; none at its first fold. */
-const hear = async (host: Host, hold: Hold, work: Work) => {
+/** Announces the open asks the session holds that the window had not seen; none at its first fold. */
+const hear = async (host: Host, hold: Hold, session: Session) => {
   const { heard } = hold
   const landed =
-    heard === undefined ? [] : work.asks.filter(ask => isOpen(ask) && !heard.has(ask.id))
+    heard === undefined ? [] : session.asks.filter(ask => isOpen(ask) && !heard.has(ask.id))
 
-  hold.heard = new Set(work.asks.map(ask => ask.id))
-  await announce(host, work.id, landed)
+  hold.heard = new Set(session.asks.map(ask => ask.id))
+  await announce(host, session.id, landed)
 }
 
-const show = async (host: Host, hold: Hold, work: Work) => {
-  const shown = boardOf(work)
+const show = async (host: Host, hold: Hold, session: Session) => {
+  const shown = boardOf(session)
   const json = JSON.stringify(shown)
 
   if (json !== hold.shown) {
     await host.state.board.write(shown)
     hold.shown = json
-    await hear(host, hold, work)
+    await hear(host, hold, session)
     await settleAnswering(host)
   }
 }
 
 /**
- * The held work folded as it stands, put in `$.state` when it changed.
- * Undefined with no work held, or with its work.json missing or torn.
+ * The held session folded as it stands, put in `$.state` when it changed.
+ * Undefined with no session held, or with its session.json missing or torn.
  */
-export const refresh = async (host: Host): Promise<Work | undefined> => {
+export const refresh = async (host: Host): Promise<Session | undefined> => {
   const hold = current
 
   if (hold === undefined) {
@@ -104,13 +105,13 @@ export const refresh = async (host: Host): Promise<Work | undefined> => {
 
   const files = await hold.read(host, hold.paths)
   const logs = { ...files.logs, [hold.attachment.writer]: hold.text }
-  const work = foldWork({ ...files, logs }, await host.clock.now())
+  const session = foldSession({ ...files, logs }, await host.clock.now())
 
-  if (work !== undefined) {
-    await show(host, hold, work)
+  if (session !== undefined) {
+    await show(host, hold, session)
   }
 
-  return work
+  return session
 }
 
 /** The beat and the watch, each run in turn and only while `hold` is still the window's. */
@@ -134,14 +135,14 @@ const timersFor = (host: Host, hold: Hold) => {
   ]
 }
 
-/** Puts nothing in `$.state` for drawing: no work is held, and nothing of one is being answered. */
+/** Puts nothing in `$.state` for drawing: no session is held, and nothing of one is being answered. */
 const forget = async (host: Host) => {
   await host.state.attachment.write(null)
   await host.state.board.write(null)
   await endAnswering(host)
 }
 
-/** Lets go of the held work: the heartbeat says so, and the beat and the watch stop. */
+/** Lets go of the held session: the heartbeat says so, and the beat and the watch stop. */
 export const letGo = async (host: Host) => {
   const hold = current
 
@@ -163,18 +164,20 @@ export const letGo = async (host: Host) => {
 }
 
 /**
- * Holds the work `attaching` names, letting go of any other first: reads the
- * window's own file back, works out where the window is, writes its
- * heartbeat, starts the beat and the watch, and folds the work.
+ * Holds the session `attaching` names, letting go of any other first: reads
+ * the window's own file back, under either layout, works out where the
+ * window is, writes its heartbeat, saying the version it runs, starts the
+ * beat and the watch, and folds the session.
  */
 export const attachTo = async (host: Host, root: string, attaching: SitrepAttachment) => {
-  const { project, work, writer, attachedAt } = attaching
-  const paths = workPaths(root, project, work)
+  const { project, session, writer, attachedAt } = attaching
+  const paths = sessionPaths(root, project, session)
+  const [where, version] = await Promise.all([whereNow(host), versionNow(host)])
   const hold: Hold = {
     attachment: attaching,
     paths,
-    text: await ownText(host, paths.log(writer)),
-    presence: attach(writer, attachedAt, await whereNow(host)),
+    text: await ownText(host, paths, folder => folder.log(writer)),
+    presence: attach(writer, attachedAt, { where, version }),
     read: createReader(),
     timers: [],
   }
@@ -189,9 +192,10 @@ export const attachTo = async (host: Host, root: string, attaching: SitrepAttach
 }
 
 /**
- * Takes the held work up again from `$.state`, after a reload of the mod's
- * code or a restart of its worker. A hold left by another session (one that
- * ended without letting go) is dropped instead: its file is not this one's.
+ * Takes the held session up again from `$.state`, after a reload of the
+ * mod's code or a restart of its worker. A hold left by another
+ * conversation (one that ended without letting go) is dropped instead: its
+ * file is not this one's.
  */
 export const resume = async (host: Host) => {
   const kept = await host.state.attachment.read()
@@ -200,7 +204,7 @@ export const resume = async (host: Host) => {
     return
   }
 
-  if (kept.writer !== (await host.session.id())) {
+  if (kept.writer !== (await host.conversation.id())) {
     await forget(host)
 
     return
@@ -209,12 +213,12 @@ export const resume = async (host: Host) => {
   await attachTo(host, await rootFor(host), kept)
 }
 
-/** Writes lines to the end of the window's own file, the whole file at once, and folds the work again. */
+/** Writes lines to the end of the window's own file, the whole file at once under today's layout, and folds the session again. */
 export const post = async (host: Host, bodies: readonly Body[]) => {
   const hold = current
 
   if (hold === undefined) {
-    throw new Error('no piece of work is held to post to')
+    throw new Error('no session is held to post to')
   }
 
   const { text } = append(hold.text, bodies, await host.clock.now())
