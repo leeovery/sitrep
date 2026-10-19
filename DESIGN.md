@@ -55,10 +55,11 @@ disk, `sessions/` and `session.json`, the old `works/` and `work.json` read
 beside them until the CLI moves them (see "Storage"). Claude Code's own
 session is a conversation or a window there, so "session" means only the
 board's. The old words are left in two places until what holds them is
-rebuilt: the spike's `lip`, renamed when the edge is built, and written here
-as it is until then; and the app's Swift identifiers, until the edge and the
-menu rebuild the app, later in stage 3. The CLI's JSON keeps its names
-(`works`, `work`), as "Versions side by side" has it.
+rebuilt: the spike's `lip`, in its views only, since the model the build
+took from it says the notch (19 October 2026); and the app's Swift
+identifiers, until the edge and the menu rebuild the app, later in stage 3.
+The CLI's JSON keeps its names (`works`, `work`), as "Versions side by
+side" has it.
 
 ## Sessions outlive their windows
 
