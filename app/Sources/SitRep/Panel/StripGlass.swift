@@ -139,10 +139,7 @@ private struct GlassMark: View {
         ZStack {
             Circle().fill(fill)
             if mark.look == .working || mark.isJumping {
-                Spinner(
-                    track: mark.isJumping ? nil : AnyShapeStyle(.quaternary), arc: arc,
-                    period: mark.isJumping ? 0.9 : 1.2, line: Self.line
-                )
+                Spinner(track: mark.isJumping ? nil : .quaternaryLabelColor, arc: arc, period: mark.isJumping ? 0.9 : 1.2)
             }
             if let ring {
                 Circle()
@@ -187,13 +184,12 @@ private struct GlassMark: View {
         isNeeds && !mark.isJumping ? 0.45 + 0.2 * mark.wash + 0.3 * mark.flash : 0
     }
 
-    private var arc: AnyShapeStyle {
+    private var arc: NSColor {
         guard mark.isJumping else {
-            return AnyShapeStyle(.secondary)
+            return .secondaryLabelColor
         }
 
-        return mark.look == .needs ? AnyShapeStyle(GlassInk.orange) : mark.look == .turn
-            ? AnyShapeStyle(.primary) : AnyShapeStyle(.secondary)
+        return mark.look == .needs ? GlassInk.orangeColour : mark.look == .turn ? .labelColor : .secondaryLabelColor
     }
 
     private var letters: AnyShapeStyle {
@@ -256,7 +252,7 @@ private struct GlassRow: View {
                 .foregroundStyle(.secondary)
                 .placed(in: at.sub)
             if pressed {
-                Spinner(track: AnyShapeStyle(.quaternary), arc: AnyShapeStyle(.primary), period: 1, line: 1.5)
+                Spinner(track: .quaternaryLabelColor, arc: .labelColor, period: 1)
                     .placed(in: at.spinner)
             } else {
                 Text(Session.ageText(StripWordsLayer.now - session.since))

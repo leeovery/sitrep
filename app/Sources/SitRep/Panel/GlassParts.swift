@@ -36,71 +36,160 @@ enum GlassThickness {
 enum GlassInk {
     /// Needs you: Claude's orange, as on the black.
     static let orange = Color(cgColor: PanelStyle.color(LiveLight.orange))
+    static let orangeColour = NSColor(cgColor: PanelStyle.color(LiveLight.orange)) ?? .systemOrange
 }
 
 /// An arc turning round a track, once in a period: a working mark's or row's, a jumping one's, a jumping row's age.
-/// Its angle is the clock's, so no update of the views around it, animated or not, can restart it.
+/// Black's arc, turned by Core Animation in the render server: the app does no work as it turns, and no update of the
+/// views round it, animated or not, restarts it.
 @available(macOS 26, *)
-struct Spinner: View {
-    let track: AnyShapeStyle?
-    let arc: AnyShapeStyle
+struct Spinner: NSViewRepresentable {
+    /// In the label colours, which the view resolves for the glass's appearance.
+    let track: NSColor?
+    let arc: NSColor
     let period: Double
-    let line: Double
 
-    var body: some View {
-        TimelineView(.animation) { context in
-            ZStack {
-                if let track {
-                    Circle().inset(by: line / 2).stroke(track, lineWidth: line)
-                }
-                Circle()
-                    .inset(by: line / 2)
-                    .trim(from: 0, to: 0.25)
-                    .stroke(arc, style: StrokeStyle(lineWidth: line, lineCap: .round))
-                    .rotationEffect(.degrees(-90))
+    func makeNSView(context _: Context) -> SpinnerView { SpinnerView() }
+
+    func updateNSView(_ view: SpinnerView, context _: Context) {
+        view.show(track: track, arc: arc, period: period)
+    }
+}
+
+/// The spinner's view: the arc in a layer of its own, as big as the view.
+@MainActor
+final class SpinnerView: NSView {
+    private let spinner = Arc()
+    private var colours: (track: NSColor?, arc: NSColor) = (nil, .clear)
+    private var period = 1.0
+
+    init() {
+        super.init(frame: .zero)
+        wantsLayer = true
+        layer?.addSublayer(spinner.layer)
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) is not used")
+    }
+
+    override var isFlipped: Bool { true }
+
+    func show(track: NSColor?, arc: NSColor, period: Double) {
+        colours = (track, arc)
+        self.period = period
+        paint()
+        spinner.turn(every: period)
+    }
+
+    override func layout() {
+        super.layout()
+        still { spinner.fit(bounds) }
+    }
+
+    override func viewDidChangeEffectiveAppearance() {
+        super.viewDidChangeEffectiveAppearance()
+        paint()
+    }
+
+    /// Back in a window, its turn is added again if the window took it.
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        spinner.turn(every: period)
+    }
+
+    private func paint() {
+        effectiveAppearance.performAsCurrentDrawingAppearance {
+            still {
+                spinner.track.strokeColor = colours.track?.cgColor
+                spinner.arc.strokeColor = colours.arc.cgColor
             }
-            .rotationEffect(.degrees(360 * cycle(context.date, period)))
         }
     }
 }
 
 /// A working title on glass: in the secondary label colour, with the primary sweeping along it every 2.5s, as the
-/// black's shimmer does, by the clock, as the spinner turns.
+/// black's shimmer does: the title again in the primary, shown through the black's band of light, which Core
+/// Animation carries along it in the render server, so the app does no work as it sweeps.
 @available(macOS 26, *)
 struct Shimmering: View {
     let text: Text
     let width: Double
 
     var body: some View {
-        TimelineView(.animation) { context in
-            swept(at: cycle(context.date, 2.5))
-        }
-    }
-
-    /// The sweep this far through, 0 to 1.
-    private func swept(at phase: Double) -> some View {
         text.foregroundStyle(.secondary)
             .overlay(alignment: .leading) {
-                text.foregroundStyle(.primary)
-                    .mask(alignment: .leading) {
-                        LinearGradient(
-                            stops: [
-                                .init(color: .clear, location: 0), .init(color: .clear, location: 0.36),
-                                .init(color: .black, location: 0.5), .init(color: .clear, location: 0.64),
-                                .init(color: .clear, location: 1),
-                            ],
-                            startPoint: .leading, endPoint: .trailing
-                        )
-                        .frame(width: 3 * width)
-                        .offset(x: -2 * width * (1 - phase))
-                    }
+                Sweep(lit: AnyView(text.foregroundStyle(.primary).lineLimit(1).truncationMode(.tail)), width: width)
             }
     }
 }
 
-/// How far through its period the clock is, 0 to 1.
-private func cycle(_ date: Date, _ period: Double) -> Double {
-    (date.timeIntervalSinceReferenceDate / period).truncatingRemainder(dividingBy: 1)
+/// The lit title in a view of its own, masked by the band of light.
+@available(macOS 26, *)
+private struct Sweep: NSViewRepresentable {
+    let lit: AnyView
+    let width: Double
+
+    func makeNSView(context _: Context) -> SweepView { SweepView() }
+
+    func updateNSView(_ view: SweepView, context _: Context) {
+        view.show(lit, width: width)
+    }
+}
+
+@available(macOS 26, *)
+@MainActor
+private final class SweepView: NSView {
+    private let lit = NSHostingView(rootView: AnyView(EmptyView()))
+    private var band: ShimmerBand?
+
+    init() {
+        super.init(frame: .zero)
+        wantsLayer = true
+        lit.sizingOptions = []
+        addSubview(lit)
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) is not used")
+    }
+
+    override var isFlipped: Bool { true }
+
+    func show(_ title: AnyView, width: Double) {
+        lit.rootView = AnyView(title.frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading))
+        if band.map({ $0.layer.bounds.width != 3 * width }) ?? true {
+            light(width)
+        }
+    }
+
+    override func layout() {
+        super.layout()
+        lit.frame = bounds
+        if let band {
+            still { band.layer.frame.size.height = bounds.height }
+        }
+    }
+
+    /// Back in a window, the sweep is added again if the window took it.
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        if let band, band.layer.animation(forKey: Self.key) == nil {
+            band.layer.add(band.sweep, forKey: Self.key)
+        }
+    }
+
+    /// A band for a title this wide, sweeping from now on.
+    private func light(_ width: Double) {
+        let made = ShimmerBand(width: width, height: bounds.height)
+        made.layer.add(made.sweep, forKey: Self.key)
+        layer?.mask = made.layer
+        band = made
+    }
+
+    private static let key = "sweep"
 }
 
 extension View {

@@ -206,7 +206,7 @@ private struct GlassSessionRow: View {
         case .turn:
             Circle().strokeBorder(.primary, lineWidth: 1.5).frame(width: 7, height: 7)
         case .working:
-            Spinner(track: AnyShapeStyle(.quaternary), arc: AnyShapeStyle(.primary), period: 1, line: 1.5)
+            Spinner(track: .quaternaryLabelColor, arc: .labelColor, period: 1)
                 .frame(width: 11, height: 11)
         case .quiet:
             Circle().fill(.tertiary).frame(width: 5, height: 5)

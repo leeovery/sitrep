@@ -8,7 +8,7 @@ import SitRepPanel
 @MainActor
 @Observable
 final class PanelDials {
-    private static let showKey = "panelShow", styleKey = "panelStyle", materialKey = "panelPanelMaterial"
+    private static let showKey = "panelShow", styleKey = "panelStyle", materialKey = "panelMaterial"
     private static let reduceMotionKey = "panelReduceMotion"
     private static let meniscusKey = "panelSettings", cardKey = "panelCardSettings", stripKey = "panelStripSettings"
 

@@ -392,6 +392,20 @@ struct StripTests {
         #expect(!lab.frame.hits(CGPoint(x: 400, y: 213)))
     }
 
+    /// A working mark's tab poured and drawn back, the pointer gone: its ring's lift settles with everything else, and
+    /// the strip wants no more frames, its arcs turning on in the views alone.
+    @Test func afterAHoverTheLiftSettlesAndTheFramesStop() {
+        var lab = StripLab()
+        lab.open("s7")
+
+        lab.pointer = nil
+        let settled = lab.settle()
+
+        #expect(settled)
+        #expect(lab.model.marks.allSatisfy { $0.lift.isAtRest && $0.lift.x == 0 })
+        #expect(!lab.frame.wantsFrames(pointer: nil))
+    }
+
     @Test func framesStopWithThePointerAwayAndRunWhileItIsOnTheStripAndForAFrameAfter() {
         var lab = StripLab(pointer: CGPoint(x: 600, y: 400))
         lab.settle()

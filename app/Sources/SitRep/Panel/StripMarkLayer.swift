@@ -12,9 +12,7 @@ final class StripMarkLayer {
 
     private let glow = CALayer()
     private let ring = CALayer()
-    private let spinner = CALayer()
-    private let track = CAShapeLayer()
-    private let arc = CAShapeLayer()
+    private let spinner = Arc(line: StripMarkLayer.line)
     private var letters: TextLine?
     private var look: Look?
 
@@ -37,18 +35,10 @@ final class StripMarkLayer {
         outside.addSublayer(glow)
         ring.frame = box
         ring.cornerRadius = Self.size / 2
-        spinner.frame = box
-        for (shape, path) in [(track, Self.circle()), (arc, Self.quarter())] {
-            shape.frame = box
-            shape.path = path
-            shape.fillColor = nil
-            shape.lineWidth = Self.line
-            shape.lineCap = .round
-            spinner.addSublayer(shape)
-        }
+        spinner.fit(box)
         layer.addSublayer(outside)
         layer.addSublayer(ring)
-        layer.addSublayer(spinner)
+        layer.addSublayer(spinner.layer)
     }
 
     /// What the mark looks like, short of its place, its lift and its arrival.
@@ -89,18 +79,16 @@ final class StripMarkLayer {
         glow.shadowPath = CGPath(ellipseIn: glow.bounds, transform: nil)
         glow.shadowRadius = Self.blur / 2
         glow.shadowOpacity = glows ? Float(Self.glowAlpha) : 0
-        spinner.opacity = kind == .working || look.jumping ? 1 : 0
-        track.strokeColor = look.jumping ? nil : PanelStyle.track
-        arc.strokeColor = look.jumping && kind == .needs ? PanelStyle.orange
+        spinner.layer.opacity = kind == .working || look.jumping ? 1 : 0
+        spinner.track.strokeColor = look.jumping ? nil : PanelStyle.track
+        spinner.arc.strokeColor = look.jumping && kind == .needs ? PanelStyle.orange
             : look.jumping && kind == .turn ? PanelStyle.ink : PanelStyle.arc
         CATransaction.commit()
 
         if look.text != self.look?.text || kind != self.look?.kind {
             setLetters(look.text, Self.letterColour(kind))
         }
-        if look.jumping != self.look?.jumping || spinner.animation(forKey: "spin") == nil {
-            spin(look.jumping ? 0.9 : 1.2)
-        }
+        spinner.turn(every: look.jumping ? 0.9 : 1.2)
         self.look = look
     }
 
@@ -130,17 +118,6 @@ final class StripMarkLayer {
         letters = line
     }
 
-    /// The arc turns once in this many seconds, from a phase of its own.
-    private func spin(_ seconds: Double) {
-        let turn = CABasicAnimation(keyPath: "transform.rotation.z")
-        turn.fromValue = 0
-        turn.toValue = 2 * Double.pi
-        turn.duration = seconds
-        turn.repeatCount = .infinity
-        turn.timeOffset = Double.random(in: 0 ..< seconds)
-        spinner.add(turn, forKey: "spin")
-    }
-
     private static func ringColour(_ kind: StripFrame.Mark.Look) -> CGColor? {
         switch kind {
         case .needs, .away: PanelStyle.orange
@@ -157,21 +134,6 @@ final class StripMarkLayer {
         case .working: PanelStyle.grey
         case .count: PanelStyle.ink2
         }
-    }
-
-    private static func circle() -> CGPath {
-        let r = (size - line) / 2
-        return CGPath(ellipseIn: CGRect(x: size / 2 - r, y: size / 2 - r, width: 2 * r, height: 2 * r), transform: nil)
-    }
-
-    /// The arc: the ring's top-right quarter, from its top round to its right.
-    private static func quarter() -> CGPath {
-        let path = CGMutablePath()
-        path.addArc(
-            center: CGPoint(x: size / 2, y: size / 2), radius: (size - line) / 2, startAngle: -.pi / 2, endAngle: 0,
-            clockwise: false
-        )
-        return path
     }
 
     /// Everything round the ring and none of it inside, so the glow shows only outside it, as a box-shadow does.
