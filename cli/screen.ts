@@ -68,7 +68,7 @@ const rows = (output: string, count: number) =>
       : [[...fields.slice(0, count - 1), fields.slice(count - 1).join('\t')]]
   })
 
-/** `list-panes -a` as each pane's tmux window. A window in several sessions lists its panes once for each, all the same window. */
+/** `list-panes -a` as each pane's tmux window. A tmux window in several tmux sessions lists its panes once for each, all the same window. */
 export const parsePanes = (output: string): ReadonlyMap<string, string> =>
   new Map(rows(output, 2).map(([pane = '', window = '']) => [pane, window]))
 

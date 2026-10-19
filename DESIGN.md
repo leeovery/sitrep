@@ -53,7 +53,7 @@ in the mod, core, the CLI (`--session`, `$SITREP_SESSION`) and Claude's
 tools; on the pane, ASKS, NOTES, RESOLVED and "finish this session". Claude
 Code's own session is a conversation or a window there, so "session" means
 only the board's. Two old names are left: the folder's on disk (`works/`,
-`work.json`), which the build renames next (stage 3, step 3), and the
+`work.json`), which the rest of this step renames, and the
 spike's `lip`, renamed when the edge is built; this document writes them
 as they are until then. The CLI's JSON keeps its names (`works`, `work`),
 as "Versions side by side" has it.

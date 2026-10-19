@@ -21,7 +21,7 @@
 	<key>LSUIElement</key>
 	<true/>
 	<key>NSAppleEventsUsageDescription</key>
-	<string>SitRep brings the Ghostty window showing a piece of work to the front when you choose that work.</string>
+	<string>SitRep brings the Ghostty window showing a session to the front when you choose that session.</string>
 	<key>NSHighResolutionCapable</key>
 	<true/>
 </dict>

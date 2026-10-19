@@ -330,7 +330,7 @@ export const register: Register = on => {
       const host = hostOf($)
 
       await serially(() => rejoin(host, e.session_id)).catch(
-        logFailure(host, 'rejoining the resumed session'),
+        logFailure(host, "rejoining the resumed conversation's session"),
       )
     }
 

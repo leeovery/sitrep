@@ -1,6 +1,6 @@
 /**
  * What the CLI does on screen, through Io: asks tmux which of its clients
- * show which of its sessions, and `ps` which processes those clients
+ * show which of its tmux sessions, and `ps` which processes those clients
  * descend from, and brings a session's Ghostty window to the front, and
  * keeps it there: the terminal remembered for its device focused by its id,
  * else found by a knock and remembered. Nothing in tmux changes, and no

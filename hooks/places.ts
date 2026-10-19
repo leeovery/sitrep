@@ -15,7 +15,7 @@ import {
   type SessionBrief,
 } from '../core'
 import type { SitrepPlace, SitrepSessionRef } from '../types'
-import { forYou, type Filed, type Scene } from './scene'
+import { shownAsks, type Filed, type Scene } from './scene'
 
 export const EVERY_PROJECT: SitrepPlace = { level: 'all' }
 
@@ -117,7 +117,7 @@ const refOf = ({ project, session }: Filed): SitrepSessionRef => ({ project, ses
 
 /** A session's Asks: its open asks, and those Lee's send just closed, the newest first. */
 export const askedOf = (scene: Scene, filed: Filed): AskedAt[] =>
-  forYou(filed.session, scene.now).map(ask => ({
+  shownAsks(filed.session, scene.now).map(ask => ({
     at: refOf(filed),
     name: filed.session.status.name,
     ask,

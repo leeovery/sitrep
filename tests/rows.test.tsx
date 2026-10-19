@@ -83,7 +83,7 @@ const LINES: [tool: string, input: { [key: string]: unknown }, line: string][] =
     { wants: 'yes', yes: 'Approve', title: 'Review Sessions & Runway, round 1' },
     '◆ asked: Review Sessions & Runway, round 1',
   ],
-  ['note', { text: 'PR #82 merged' }, 'logged: PR #82 merged'],
+  ['note', { text: 'PR #82 merged' }, 'noted: PR #82 merged'],
   ['park', { title: 'A tmux indicator' }, '◇ parked: A tmux indicator'],
   ['finish', { reason: 'Shipped' }, '✓ finished a session'],
   ['project', { name: 'SitRep' }, 'project renamed: SitRep'],

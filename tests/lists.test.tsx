@@ -154,7 +154,7 @@ test('a reply waiting on an ask not opened, or on its way, still hangs from it, 
     ...reviews('Review round 1', 'Review round 2'),
   )
   const ui = await w.pane()
-  const forYou = async () => {
+  const asksListed = async () => {
     const rows = await boardRows(ui)
     const at = rows.findIndex(row => row.startsWith(' ASKS'))
 
@@ -166,7 +166,7 @@ test('a reply waiting on an ask not opened, or on its way, still hangs from it, 
   await ui.press({ key: `ignore:${w.item(older)}` })
   await ui.press({ key: `pick:${w.item(older)}` })
 
-  expect(await forYou(), 'waiting to be sent').toEqual([
+  expect(await asksListed(), 'waiting to be sent').toEqual([
     ' ◆ Review round 2 1m',
     ' └ → Approve · not sent yet ↺ undo ✎ comment',
     ' ◆ Review round 1 2m',
@@ -177,7 +177,7 @@ test('a reply waiting on an ask not opened, or on its way, still hangs from it, 
   const pressed = ui.press({ key: 'send' })
 
   await turn.arrived
-  expect(await forYou(), 'on its way').toEqual([
+  expect(await asksListed(), 'on its way').toEqual([
     ' ◆ Review round 2 1m',
     ' └ → Approve · on its way',
     ' ◆ Review round 1 2m',

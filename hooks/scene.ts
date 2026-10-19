@@ -140,7 +140,7 @@ const isLingering = (ask: Ask, now: number) =>
   closingReply(ask) !== undefined && ask.closedAt !== undefined && now - ask.closedAt < LINGER_MS
 
 /** Asks: the open asks, and those Lee's send just closed, the newest first. */
-export const forYou = (session: Session, now: number) =>
+export const shownAsks = (session: Session, now: number) =>
   session.asks.filter(ask => isOpen(ask) || isLingering(ask, now)).reverse()
 
 /** The asks closed earlier than that, ignored ones aside, the newest closed first. */
