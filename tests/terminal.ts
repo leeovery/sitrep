@@ -41,6 +41,12 @@ export const NOW = T0 + MIN
 /** The version the CLI's plugin manifest says, unless a test says otherwise. */
 export const CLI_VERSION = '0.2.0'
 
+/** Where the plugin the CLI runs from keeps its manifest. */
+export const MANIFEST = `${HOME}/.claude/plugins/sitrep/.claude-plugin/plugin.json`
+
+/** The plugin's manifest saying `version`. */
+export const manifestText = (version: string) => JSON.stringify({ name: 'sitrep', version })
+
 /** The item ids a terminal's runs draw, unless a test says otherwise: this, then the next ever after. */
 export const FIRST_ID = '1234'
 export const NEXT_ID = '5678'
@@ -198,7 +204,7 @@ type Options = {
   front?: readonly string[]
   /** The bundle ids of the apps running, as lsappinfo finds them: none unless a test says otherwise. */
   running?: readonly string[]
-  /** The plugin's manifest; with none given, one saying CLI_VERSION. */
+  /** The plugin's manifest's text; with none given, one saying CLI_VERSION. */
   manifest?: string
 }
 
@@ -551,6 +557,8 @@ function screen(options: Options) {
 export function terminal(options: Options = {}) {
   const files = options.files ?? new Map<string, File>()
   const clock = options.now ?? (() => NOW)
+
+  files.set(MANIFEST, { text: options.manifest ?? manifestText(CLI_VERSION), mtimeMs: T0 })
   /** Every wait, in order. */
   const waits: number[] = []
   const now = () => clock() + waits.reduce((sum, ms) => sum + ms, 0)
@@ -561,6 +569,8 @@ export function terminal(options: Options = {}) {
   let gate: (() => Promise<void>) | undefined
   /** Standard output closing, as the app that started a run quitting closes it. */
   const closing = latch()
+  /** How many listenings for the run's end are not yet stopped. */
+  let listening = 0
 
   /**
    * A folder's stat, as a real one's moves: its time stands for the names in
@@ -650,9 +660,20 @@ export function terminal(options: Options = {}) {
     err: text => {
       printed.err += text
     },
-    ended: () => closing.opened,
-    manifest: async () =>
-      options.manifest ?? JSON.stringify({ name: 'sitrep', version: CLI_VERSION }),
+    ending: () => {
+      let isStopped = false
+
+      listening += 1
+
+      return {
+        ended: closing.opened,
+        stop: () => {
+          listening -= isStopped ? 0 : 1
+          isStopped = true
+        },
+      }
+    },
+    manifest: MANIFEST,
     run: shown.run,
     writeTo: shown.writeTo,
   }
@@ -770,6 +791,7 @@ export function terminal(options: Options = {}) {
     io,
     run,
     close: closing.open,
+    listening: () => listening,
     text,
     seed,
     window,

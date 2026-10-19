@@ -1332,8 +1332,13 @@ truth. There is still no background service. None of it is built now. Lee:
     (`core/feed.ts`).
     - **A line per change.** A line of JSON at its start, then one only when
       what it would print differs from the last, its own time aside, each
-      written whole and at once. Finished sessions are not in it; away ones
-      are, their asks still counting.
+      written whole and at once. A finished session is in no row and no
+      project, though a window still live on it is among the windows; an
+      away session is in both, its asks still counting. It carries no
+      project without a current session, so the SitRep window's foot of
+      quiet projects reads `list --json`. A state folder not there yet, as
+      before any Claude window has written, is an empty board, and what
+      comes into it shows.
 
       ```
       { "v": 1, "at": 1760000060000, "version": "0.2.0",
@@ -1378,7 +1383,9 @@ truth. There is still no background service. None of it is built now. Lee:
       the instant its time counts from, which the app ticks. `first` is in
       parts: `lead`, which a working row shimmers; `mono`, the subject set
       in mono; `more`, a question's `+2`. `second` is the project and the
-      session. `key` names the row for as long as it stands
+      session, or, for an away ask, "No window holds it. Carry it on in
+      Claude.", which the app shows as it comes. `key` names the row for as
+      long as it stands
       (`ask:<session>:<ask>`, `stop:<session>:<window>:<since>`,
       `turn:<session>`), so the app keeps a row's place by it.
     - `head`: how many rows need Lee, away ones among them, and how many
@@ -1386,7 +1393,8 @@ truth. There is still no background service. None of it is built now. Lee:
     - `projects`: those with a current session, in the SitRep window's
       order: a session where its first row sits, those with none after, the
       latest updated first; a project where its first session sits. Each
-      session is as `list --json` gives it, with its `state` (`needsYou`,
+      session is as `list --json` gives it but `onScreen`, which only `list
+      --json` works out, asking tmux, with its `state` (`needsYou`,
       `working`, `yourTurn` or `away`), `since`, its first row's time, else
       its latest line's, and the asks waiting on Lee, as `board --json`
       gives them.
@@ -1395,17 +1403,25 @@ truth. There is still no background service. None of it is built now. Lee:
       `version`, and `needsReload` where it says none, or one behind the
       CLI's own `version`, dotted part by part. Not `seenAt`: every beat
       would be a line. Nor `loadedAt`, which only the mod's fence reads.
-    - `new`: the keys of the rows needing Lee that the last line had not, a
+    - `new`: the keys of the rows needing Lee this watch has not shown, a
       new ask by its id or a window's new stop by when it showed: the
       notch's swell, the strip's flash. The first line has none, so the app
-      does not swell at its start. A finished session joined again brings
-      its asks back as new.
+      does not swell at its start, and what it shows counts as shown. A row
+      gone and back, as a window's heartbeat late or an ask's folder away
+      for a look, is not new again until it has been gone more than a day
+      of the watch's own time (core's `FORGET_MS`), counted from its going;
+      by then it is let go. So a finished session joined again brings back
+      as new only the asks this watch has not shown.
     - `changed`: the sessions on the line whose `board --json` changed since
       the last, one new to the line among them, for the SitRep window to
       read again; none on the first.
     - It is stable as `list --json` is: every field is always there (a list
       empty, any other value null where there is none), and `v` moves only
-      with a change a reader would trip on.
+      with a change a reader would trip on. A new value in a field that
+      names one of a set (a row's `is`, a session's `state`, an ask's
+      `wants`, a window's state's `is`, and the like) is such a change: the
+      app reads them strictly and refuses a line holding a value it does
+      not know. New words in a line, as an away ask's `second`, are not.
     - **The loop.** It looks every second, as the mod's readers do: a file
       is read again only once its size or time moved, a folder listed again
       only once its time moved, as an entry made, removed or renamed there
@@ -1426,28 +1442,56 @@ truth. There is still no background service. None of it is built now. Lee:
       the board next changes by time alone: the first live heartbeat going
       stale, or an idle session dropping out of the views. It looks again at
       that instant, folding every session afresh.
+    - **Pauses.** Time the watch was not running ages no heartbeat (core's
+      `pauses.ts`). A gap between two of its looks longer than 5 seconds,
+      where it looks every second, is a pause, all of it, as when the watch
+      or the Mac slept: told by the gap, not by the clock, whose running
+      while the Mac sleeps is nothing to rely on. A window live as the pause
+      began has the rest of its 90 seconds after it to beat again, and one
+      stale before it stays stale, so a Mac waking shows no stop gone for
+      the moment before the windows beat. The expiry follows: folded again
+      at the instant it was to go stale, the window is found live still,
+      and its next instant comes the pause later. A pause is let go once
+      the watch has run 90 seconds past it, when every heartbeat seen
+      before it is stale with it or without it.
     - **Torn files.** A file caught torn keeps the last text read of it whole
       until it changes again: a JSON file that does not parse, or a writer's
       lines holding only the start of what was last read whole, as a mod
       rewriting its whole file may leave them. So nothing drops off for a
       look and comes back as new. A file that will not read keeps it too,
-      tried at each look; one never read whole is not there.
+      tried at each look; one never read whole is not there. What a folder's
+      listing no longer shows is let go, and all under it, as every file of
+      the old layout once the move has run.
     - **The move.** It moves the old layout as it starts, as every run does,
       and every 10 minutes after: it runs as long as the app does, and the
       move waits on windows reloading.
     - **Ending.** It ends, exit 0, once what reads its standard output has
-      gone, or on SIGTERM. An app that quits, however it quits, leaves its
-      child to launchd, and while the board is still no write finds the
-      pipe closed, so it looks each second whether its parent has gone; a
-      write that fails ends it too. A folder it cannot look in ends it with
-      a `sitrep:` line on stderr and exit 1, for the app to start it again.
+      gone, or on SIGTERM (`cli/ending.ts`). An app that quits, however it
+      quits, leaves its child to launchd, and while the board is still no
+      write finds the pipe closed, so it looks each second whether its
+      parent has gone: the one it found as it loaded, launchd's pid 1
+      counting as gone, so an app dying as it starts the watch is caught at
+      once. A write that fails ends it too. It also ends, exit 0 and
+      printing nothing more, once the plugin's manifest says a version other
+      than the one it started on: each look stats the manifest, so after a
+      plugin update the app, hearing an exit it did not ask for, starts the
+      new one at once, with the new version and `needsReload` to match. A
+      folder it cannot look in ends it with a `sitrep:` line on stderr and
+      exit 1, for the app to start it again. However it ends, a failure
+      among them, it stops listening for its end, which would otherwise hold
+      the process open.
     - Tried live (19 October 2026) over a state folder of its own: an ask
       and a note posted with the CLI, and heartbeats written by hand with a
       working tool, a permission prompt and a question, each became a line
       at the next look, the ask and the stops new on it, the working row's
       path shown from the project's directory; each heartbeat went stale to
       the millisecond, a line with no file changed; SIGTERM, the parent
-      quitting and the pipe closing each ended it, exit 0.
+      quitting and the pipe closing each ended it, exit 0. Again later that
+      day, each way out: a state folder it could not read ended it
+      at once, exit 1, where before it ran on; one not there yet gave the
+      empty board and SIGTERM ended it within a tenth of a second; the
+      manifest saying another version ended it within a second, exit 0, no
+      line after; and one left to launchd as it started ended at once.
     - Claude windows don't watch: each mod writes its own files there and
       polls for its pane, as under Storage.
     - `sitrep serve`, later, builds on the same loop.

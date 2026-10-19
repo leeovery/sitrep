@@ -290,7 +290,7 @@ const jump: WindowCommand = {
 const watch: FeedCommand = {
   name: 'watch',
   about:
-    'Print the board as every surface shows it, a line of JSON at the start and each time it changes, until standard output closes: the SitRep app runs one.',
+    'Print the board as every surface shows it, a line of JSON at the start and each time it changes, until standard output closes or the plugin is updated: the SitRep app runs one.',
   grammar: { args: [], flags: {} },
   on: 'feed',
 }

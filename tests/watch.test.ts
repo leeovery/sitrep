@@ -4,6 +4,8 @@ import { EXIT, main } from '../cli/main'
 import { MOVE_MS, OFF_BOARD_MS, POLL_MS } from '../cli/watch'
 import {
   append,
+  metaText,
+  projectPaths,
   projectsDir,
   STALE_MS,
   type Body,
@@ -27,10 +29,12 @@ import {
   yesAsk,
   type Line,
 } from './support'
-import { CLI_VERSION, NOW, terminal } from './terminal'
+import { CLI_VERSION, MANIFEST, manifestText, NOW, terminal } from './terminal'
 import { PROJECT, REPO, ROOT, WHERE } from './world'
 
 type Terminal = ReturnType<typeof terminal>
+
+const HOUR = 60 * MIN
 
 /** Another session of Switchboard's, no window holding it. */
 const LOBBY = { ...META, id: 'sr-bbbbbb', name: 'Lobby' }
@@ -41,9 +45,15 @@ type Step = () => void
 /** A watch line, as read back: the fields the tests look at. */
 type Printed = {
   at: number
+  version: string | null
   rows: { key: string; is: string; isAway: boolean; first: { lead: string } }[]
-  projects: { sessions: { id: string; state: string }[] }[]
-  windows: { writer: string; version: string | null; needsReload: boolean }[]
+  projects: { sessions: { id: string; name: string; state: string }[] }[]
+  windows: {
+    writer: string
+    version: string | null
+    needsReload: boolean
+    state: { is: string } | null
+  }[]
   new: string[]
   changed: string[]
 }
@@ -55,17 +65,23 @@ const looks = (count: number): Step[] => Array.from({ length: count }, () => sti
 
 /**
  * `sitrep watch` over the terminal's files, `fs` standing in for any of its
- * file system's calls, the steps taken in turn, one at each wait, and then
- * its standard output closed: how it ended, what it told on standard
- * error, and each line it printed, read back.
+ * file system's calls and `ending` for the listening for its end, the steps
+ * taken in turn, one at each wait, and then its standard output closed: how
+ * it ended, what it told on standard error, and each line it printed, read
+ * back.
  */
-const watched = async (t: Terminal, steps: readonly Step[], fs: Partial<Io['fs']> = {}) => {
+const watched = async (
+  t: Terminal,
+  steps: readonly Step[],
+  { fs = {}, ending = t.io.ending }: { fs?: Partial<Io['fs']>; ending?: Io['ending'] } = {},
+) => {
   const queue = [...steps]
   let out = ''
   let err = ''
   const io: Io = {
     ...t.io,
     fs: { ...t.io.fs, ...fs },
+    ending,
     out: text => {
       out += text
     },
@@ -122,8 +138,8 @@ const beatOn = (
 const keys = (line: Printed | undefined) => line?.rows.map(row => row.key)
 
 /** Switchboard, living in REPO, and the session under test there holding `lines`, its window W1 on screen and on your turn. */
-const held = (lines: Line[] = []) => {
-  const t = terminal()
+const held = (lines: Line[] = [], options: Parameters<typeof terminal>[0] = {}) => {
+  const t = terminal(options)
 
   t.project(PROJECT.key, { name: PROJECT.name, directory: REPO, created: T0, by: W1 })
 
@@ -378,7 +394,7 @@ test('at rest a look lists no folder: one is listed again only once an entry is 
     counts.push(listed.length)
   }
   const { lines } = await watched(t, [still, count, still, still, count, () => t.seed(LOBBY)], {
-    list,
+    fs: { list },
   })
 
   expect(counts[1]).toBe(counts[0])
@@ -443,21 +459,17 @@ test(
 test('a folder it cannot look in ends the watch with a sitrep: line, for the app to start it again', async () => {
   const { t } = held()
   const projects = projectsDir(ROOT)
-  let looks = 0
+  let stats = 0
   const stat: Io['fs']['stat'] = async path => {
-    looks += path === projects ? 1 : 0
+    stats += path === projects ? 1 : 0
 
-    if (looks > 3) {
+    if (stats > 3) {
       throw new Error(`EACCES: permission denied, stat '${path}'`)
     }
 
     return t.io.fs.stat(path)
   }
-  const { exit, err, lines } = await watched(
-    t,
-    Array.from({ length: 10 }, () => still),
-    { stat },
-  )
+  const { exit, err, lines } = await watched(t, looks(10), { fs: { stat } })
 
   expect(exit).toBe(EXIT.refused)
   expect(err).toBe(`sitrep: EACCES: permission denied, stat '${projects}'\n`)
@@ -484,7 +496,7 @@ test('a file it cannot read is passed over for the look, its last whole text sta
         isLocked = false
       },
     ],
-    { read },
+    { fs: { read } },
   )
 
   expect({ exit, err }).toEqual({ exit: EXIT.done, err: '' })
@@ -505,8 +517,189 @@ test('watch takes nothing but --help, which says what it prints', async () => {
   expect((await t.run('watch', '--help')).out).toContain('Usage: sitrep watch\n')
 })
 
-test('the watch ends cleanly as its standard output closes', async () => {
-  const { t } = held()
+/** W1 stopped on a permission prompt since NOW, as its heartbeat says. */
+const PROMPT: WindowState = {
+  is: 'permission',
+  since: NOW,
+  tool: { name: 'Bash', subject: 'gh pr create' },
+}
 
-  expect(await watched(t, looks(3))).toMatchObject({ exit: EXIT.done, err: '' })
+const STOP = `stop:${META.id}:${W1}:${NOW}`
+
+test(
+  'a stop gone stale and beating again, saying what it said, is not new again: the watch has shown it',
+  SLOW,
+  async () => {
+    const { t, paths } = held()
+
+    beatOn(t, paths, W1, PROMPT, { seenAt: NOW, where: WHERE })
+
+    const { lines } = await watched(t, [
+      ...looks(STALE_MS / POLL_MS + 1),
+      () => beatOn(t, paths, W1, PROMPT, { where: WHERE }),
+    ])
+
+    expect(lines.map(line => [line.at, keys(line), line.new])).toEqual([
+      [NOW, [STOP], []],
+      [NOW + STALE_MS + 1, [], []],
+      [NOW + STALE_MS + 1 + POLL_MS, [STOP], []],
+    ])
+  },
+)
+
+test(
+  'the Mac asleep past a heartbeat’s time ages it not: its stop stands through the wake, and goes stale only once the rest of its time has run after',
+  SLOW,
+  async () => {
+    let slept = 0
+    const { t, paths } = held([], { now: () => NOW + slept })
+
+    beatOn(t, paths, W1, PROMPT, { seenAt: NOW, where: WHERE })
+
+    const { lines } = await watched(t, [
+      () => {
+        slept = HOUR
+      },
+      ...looks(STALE_MS / POLL_MS + 1),
+    ])
+    const woke = NOW + POLL_MS + HOUR
+
+    expect(lines.map(line => [line.at, keys(line), line.new])).toEqual([
+      [NOW, [STOP], []],
+      [woke + STALE_MS + 1, [], []],
+    ])
+  },
+)
+
+test('a session gone, and then its project, nothing else changing, is gone from the next line', async () => {
+  const { t } = held()
+  const lobby = t.seed(LOBBY)
+  const gone = (dir: string) => () => {
+    for (const path of [...t.files.keys()].filter(each => each.startsWith(`${dir}/`))) {
+      t.files.delete(path)
+    }
+  }
+  const { lines } = await watched(t, [gone(lobby.dir), gone(projectPaths(ROOT, PROJECT.key).dir)])
+
+  expect(
+    lines.map(line => [line.at, line.projects.map(each => each.sessions.map(({ id }) => id))]),
+  ).toEqual([
+    [NOW, [[META.id, LOBBY.id]]],
+    [NOW + POLL_MS, [[META.id]]],
+    [NOW + 2 * POLL_MS, []],
+  ])
+})
+
+test('a file rewritten at the same size within the same second is read again: its time moved', async () => {
+  const { t, paths } = held()
+  const before = t.files.get(paths.meta)
+  const renamed = metaText({ ...META, name: 'Dashboard reframed' })
+
+  expect(renamed.length).toBe(before?.text.length)
+
+  const { lines } = await watched(t, [
+    () => t.files.set(paths.meta, { text: renamed, mtimeMs: (before?.mtimeMs ?? 0) + 400 }),
+  ])
+
+  expect(lines.map(line => [line.at, line.projects[0]?.sessions[0]?.name])).toEqual([
+    [NOW, META.name],
+    [NOW + POLL_MS, 'Dashboard reframed'],
+  ])
+})
+
+test('a manifest come to say another version ends the watch, exit 0, printing nothing more; one rewritten saying the same goes on', async () => {
+  const { t, paths } = held()
+  const rewrite = (version: string) => () =>
+    t.files.set(MANIFEST, { text: manifestText(version), mtimeMs: t.io.now() })
+  const { exit, err, lines } = await watched(t, [
+    rewrite(CLI_VERSION),
+    () => {
+      rewrite('0.3.0')()
+      post(t, paths, yesAsk('k2', 'Try it'))
+    },
+    ...looks(5),
+  ])
+
+  expect({ exit, err, waits: t.waits.length }).toEqual({ exit: EXIT.done, err: '', waits: 2 })
+  expect(lines.map(line => [line.at, line.version])).toEqual([[NOW, CLI_VERSION]])
+})
+
+test('the run’s end is listened for once, not at each wait: a long watch holds nothing more for it', async () => {
+  const { t } = held()
+  let listens = 0
+  const ending = () => {
+    const { ended, stop } = t.io.ending()
+    const heard = ended.then(() => {})
+    const then = heard.then.bind(heard)
+
+    Object.defineProperty(heard, 'then', {
+      value: (...args: Parameters<typeof then>) => {
+        listens += 1
+
+        return then(...args)
+      },
+    })
+
+    return { ended: heard, stop }
+  }
+
+  expect(await watched(t, looks(30), { ending })).toMatchObject({ exit: EXIT.done, err: '' })
+  expect(listens).toBe(1)
+})
+
+test('however the watch ends, it stops listening for its end, which would hold the run open: its end come, another version, a failure', async () => {
+  const ended = held()
+  const updated = held()
+  const failing = held()
+  const stat: Io['fs']['stat'] = async path => {
+    if (path === projectsDir(ROOT)) {
+      throw new Error(`EACCES: permission denied, stat '${path}'`)
+    }
+
+    return failing.t.io.fs.stat(path)
+  }
+
+  await watched(ended.t, looks(2))
+  await watched(updated.t, [
+    () => updated.t.files.set(MANIFEST, { text: manifestText('0.3.0'), mtimeMs: NOW }),
+  ])
+
+  expect(await watched(failing.t, looks(2), { fs: { stat } })).toMatchObject({
+    exit: EXIT.refused,
+  })
+  expect([ended, updated, failing].map(({ t }) => t.listening())).toEqual([0, 0, 0])
+})
+
+test('a state folder not there yet, as before any Claude window has written, is an empty board, not a failure: what comes into it shows', async () => {
+  const t = terminal()
+  const { exit, err, lines } = await watched(t, [
+    () => {
+      t.project(PROJECT.key, { name: PROJECT.name, directory: REPO, created: T0, by: W1 })
+      t.seed(META)
+    },
+  ])
+
+  expect({ exit, err }).toEqual({ exit: EXIT.done, err: '' })
+  expect(
+    lines.map(line => [line.at, line.projects.map(each => each.sessions.map(({ id }) => id))]),
+  ).toEqual([
+    [NOW, []],
+    [NOW + POLL_MS, [[META.id]]],
+  ])
+})
+
+test('a finished session’s live window is heard at each look, not with the sessions off the board', async () => {
+  const t = terminal()
+  const paths = t.seed(META, { lines: [[T0, finish('claude')]] })
+
+  beatOn(t, paths, W1, { is: 'yourTurn', since: T0 }, { seenAt: NOW })
+
+  const { lines } = await watched(t, [
+    () => beatOn(t, paths, W1, { is: 'working', since: t.io.now() }),
+  ])
+
+  expect(lines.map(line => [line.at, line.windows.map(window => window.state?.is)])).toEqual([
+    [NOW, ['yourTurn']],
+    [NOW + POLL_MS, ['working']],
+  ])
 })

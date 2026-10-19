@@ -2,6 +2,7 @@ import { expect, test } from 'claude-code/testing'
 import {
   CURRENT_MS,
   feedOf,
+  FORGET_MS,
   foldSession,
   headOf,
   inPanelOrder,
@@ -14,6 +15,7 @@ import {
   rowsOf,
   sessionState,
   STALE_MS,
+  type Feed,
   type Presence,
   type Project,
   type ProjectRead,
@@ -168,7 +170,7 @@ test('of several windows on a session the most needing wins: a stop, then workin
   expect(both(yourTurn(T0), yourTurn(T0 + MIN))).toBe('yourTurn')
 })
 
-test('an ask is a row of its own: its title, its project and session, its posting, dimmed while away', () => {
+test('an ask is a row of its own: its title, its project and session, its posting; dimmed while away, saying no window holds it', () => {
   const held = sessionOf({
     lines: [[T0 + MIN, yesAsk('k1', 'Review round 1')]],
     presence: windowOn(W1, working(T0)),
@@ -189,7 +191,9 @@ test('an ask is a row of its own: its title, its project and session, its postin
       since: T0 + MIN,
     },
   ])
-  expect(rows(away).map(row => [row.key, row.isAway])).toEqual([[`ask:${META.id}:k1`, true]])
+  expect(rows(away).map(row => [row.key, row.isAway, row.second])).toEqual([
+    [`ask:${META.id}:k1`, true, 'No window holds it. Carry it on in Claude.'],
+  ])
 })
 
 test('a reopened ask waits since its reopening; a closed one is no row', () => {
@@ -547,7 +551,7 @@ test("the CLI's version is its manifest's; one torn or saying none gives none", 
   expect(manifestVersion('{"name":"sitrep","version":')).toBeUndefined()
 })
 
-test('what is new: a row needing Lee the board before had not; nothing on the first board, nor a working or your turn row', () => {
+test('what is new: a row needing Lee the watch has not shown; nothing on the first board, nor a working or your turn row', () => {
   const before = feedOf(board(), NOW)
   const after = feedOf(
     [
@@ -570,9 +574,14 @@ test('what is new: a row needing Lee the board before had not; nothing on the fi
     NOW,
   )
 
-  expect(newRows(undefined, before)).toEqual([])
-  expect(newRows(before, before)).toEqual([])
-  expect(newRows(before, after)).toEqual(['ask:sr-eeeeee:k3', `stop:sr-eeeeee:${W3}:${NOW}`])
+  const first = newRows(undefined, before, NOW)
+
+  expect(first.news).toEqual([])
+  expect(newRows(first.shown, before, NOW).news).toEqual([])
+  expect(newRows(first.shown, after, NOW).news).toEqual([
+    'ask:sr-eeeeee:k3',
+    `stop:sr-eeeeee:${W3}:${NOW}`,
+  ])
 })
 
 test('a stop is new by its window and when it showed: the same stop again is not, a later one is; an answered ask is not', () => {
@@ -588,15 +597,42 @@ test('a stop is new by its window and when it showed: the same stop again is not
     )
   const asked = (...lines: Line[]) =>
     feedOf([{ project: SWITCHBOARD, sessions: [sessionOf({ lines })] }], NOW)
+  const shownWith = (feed: Feed) => newRows(undefined, feed, NOW).shown
 
-  expect(newRows(stopped(T0), stopped(T0))).toEqual([])
-  expect(newRows(stopped(T0), stopped(T0 + MIN))).toEqual([`stop:${META.id}:${W1}:${T0 + MIN}`])
+  expect(newRows(shownWith(stopped(T0)), stopped(T0), NOW).news).toEqual([])
+  expect(newRows(shownWith(stopped(T0)), stopped(T0 + MIN), NOW).news).toEqual([
+    `stop:${META.id}:${W1}:${T0 + MIN}`,
+  ])
   expect(
     newRows(
-      asked([T0, yesAsk('k1', 'Review it')]),
+      shownWith(asked([T0, yesAsk('k1', 'Review it')])),
       asked([T0, yesAsk('k1', 'Review it')], [T0 + MIN, resolve('k1')]),
-    ),
+      NOW,
+    ).news,
   ).toEqual([])
+})
+
+test('a row needing Lee gone and back is not new again until it has been gone more than a day of the watch’s time, counted from its going; one gone that long is let go', () => {
+  const stop = `stop:${META.id}:${W1}:${T0}`
+  const on = feedOf(
+    [
+      {
+        project: SWITCHBOARD,
+        sessions: [sessionOf({ presence: windowOn(W1, permission(T0, 'Bash', 'ls')) })],
+      },
+    ],
+    NOW,
+  )
+  const off = feedOf([{ project: SWITCHBOARD, sessions: [sessionOf()] }], NOW)
+  const shown = newRows(newRows(undefined, on, 0).shown, on, 2 * FORGET_MS).shown
+  const gone = newRows(shown, off, 2 * FORGET_MS).shown
+
+  expect(newRows(shown, on, 2 * FORGET_MS).news).toEqual([])
+  expect([...gone]).toEqual([[stop, 2 * FORGET_MS]])
+  expect(newRows(gone, on, 3 * FORGET_MS).news).toEqual([])
+  expect(newRows(gone, on, 3 * FORGET_MS + 1).news).toEqual([stop])
+  expect([...newRows(gone, off, 3 * FORGET_MS).shown]).toEqual([[stop, 2 * FORGET_MS]])
+  expect([...newRows(gone, off, 3 * FORGET_MS + 1).shown]).toEqual([])
 })
 
 test('the board next changes by time alone as the first live heartbeat goes stale, or an idle session drops out of the views', () => {

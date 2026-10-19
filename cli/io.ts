@@ -25,6 +25,9 @@ export type Env = { XDG_STATE_HOME?: string; HOME?: string; SITREP_SESSION?: str
 /** How a program ran: its exit code, whatever it was, and what it printed. */
 export type Ran = { exitCode: number; stdout: string; stderr: string }
 
+/** A run's end as listened for: `ended` resolves once it is to end; `stop` stops the listening, as the run ends some other way, so nothing holds it open after. */
+export type Ending = { ended: Promise<void>; stop: () => void }
+
 export type Io = {
   fs: {
     /** A file's text; rejects when it is not there. */
@@ -63,14 +66,14 @@ export type Io = {
   /** Writes to standard error, as given. */
   err: (text: string) => void
   /**
-   * Resolves once the run is to end: what reads its standard output has
-   * gone, as when the program that started it quit or a write found it
-   * closed, or it was told to end (SIGTERM). Asked only by `watch`, which
-   * runs until then.
+   * Listens for the run's end: what reads its standard output has gone, as
+   * when the program that started it quit or a write found it closed, or it
+   * was told to end (SIGTERM). Asked only by `watch`, which runs until then
+   * and stops the listening however it ends (ending.ts).
    */
-  ended: () => Promise<void>
-  /** The text of the plugin's manifest, `.claude-plugin/plugin.json`, in the copy of the plugin the CLI runs from: whose version it runs. */
-  manifest: () => Promise<string>
+  ending: () => Ending
+  /** Where the plugin's manifest is, `.claude-plugin/plugin.json`, in the copy of the plugin the CLI runs from: it says the version the CLI runs. */
+  manifest: string
   /**
    * Runs a program by its words, no shell between. Rejects when it cannot
    * start, or, given `limitMs`, when it has not ended by then: it is killed.

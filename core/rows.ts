@@ -96,6 +96,9 @@ const SOME_QUESTION = 'Claude asks a question'
 /** A permission prompt's row when its heartbeat gave no tool for it. */
 const SOME_PERMISSION = 'A permission prompt'
 
+/** An away ask's second line, in place of its project and session: there is no window to jump to. */
+const AWAY_LINE = 'No window holds it. Carry it on in Claude.'
+
 /** Whether a row needs Lee: an ask, a permission prompt or a question. */
 export const needsYou = (row: Row) => NEEDS.includes(row.is)
 
@@ -213,6 +216,7 @@ const askRow = (ask: Ask, isAway: boolean, shared: Shared): Row => ({
   first: { lead: ask.title },
   since: ask.openedAt,
   ...shared,
+  second: isAway ? AWAY_LINE : shared.second,
 })
 
 /**

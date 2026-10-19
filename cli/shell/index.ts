@@ -6,6 +6,7 @@
  */
 import { constants, readdirSync, readFileSync, statSync } from 'node:fs'
 import { appendFile, link, mkdir, open, rename, rmdir, unlink } from 'node:fs/promises'
+import { endOf, type Signals } from '../ending'
 import type { Io, Listed, Ran } from '../io'
 import { main } from '../main'
 
@@ -18,12 +19,8 @@ const NOT_EMPTY = ['ENOTEMPTY', 'EEXIST']
 /** The plugin's manifest, from this file's folder, `cli/shell`. */
 const MANIFEST = `${import.meta.dir}/../../.claude-plugin/plugin.json`
 
-/**
- * How often a run that goes on until it is to end looks whether the program
- * that started it is still there. One that quits leaves its child to
- * launchd, and while the board stays still no write finds the pipe closed.
- */
-const PARENT_MS = 1_000
+/** The program that started the run, as the CLI loads: before anything could miss it going. */
+const PARENT = process.ppid
 
 const hasCode = (error: unknown, codes: readonly string[]) =>
   typeof error === 'object' && error !== null && codes.includes(String(Reflect.get(error, 'code')))
@@ -147,29 +144,24 @@ const writeTo = async (device: string, text: string) => {
   }
 }
 
-/**
- * Resolves once the program that started the run has gone, standard output
- * fails (a write to a pipe its reader closed), or SIGTERM comes; the
- * listeners go with it, so nothing holds the run open after.
- */
-const ended = () =>
-  new Promise<void>(resolve => {
-    const parent = process.ppid
-    const end = () => {
-      clearInterval(looking)
-      process.off('SIGTERM', end)
-      process.stdout.off('error', end)
-      resolve()
-    }
-    const looking = setInterval(() => {
-      if (process.ppid !== parent) {
-        end()
-      }
-    }, PARENT_MS)
+const signals: Signals = {
+  parent: () => process.ppid,
+  onTerm: heard => {
+    process.on('SIGTERM', heard)
 
-    process.on('SIGTERM', end)
-    process.stdout.on('error', end)
-  })
+    return () => process.off('SIGTERM', heard)
+  },
+  onOutputFailed: heard => {
+    process.stdout.on('error', heard)
+
+    return () => process.stdout.off('error', heard)
+  },
+  every: (ms, tick) => {
+    const timer = setInterval(tick, ms)
+
+    return () => clearInterval(timer)
+  },
+}
 
 const io: Io = {
   fs: {
@@ -189,8 +181,8 @@ const io: Io = {
   random: count => crypto.getRandomValues(new Uint8Array(count)),
   out: text => void process.stdout.write(text),
   err: text => void process.stderr.write(text),
-  ended,
-  manifest: async () => readFileSync(MANIFEST, 'utf8'),
+  ending: () => endOf(signals, PARENT),
+  manifest: MANIFEST,
   run,
   writeTo,
 }

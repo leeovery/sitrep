@@ -11,8 +11,10 @@
  *   updated first; a project where its first session sits.
  * - Every live window: its session, the version it runs, and whether that
  *   is behind the CLI's own.
- * - What is new since the board before, and when the board next changes by
- *   time alone: a heartbeat going stale changes no file.
+ * - What is new: a row needing Lee the watch has not shown, or not within a
+ *   day of its own time.
+ * - When the board next changes by time alone: a heartbeat going stale
+ *   changes no file.
  */
 import { isLive, STALE_MS } from './presence'
 import type { Project } from './project'
@@ -168,19 +170,41 @@ export const feedOf = (read: readonly ProjectRead[], now: number, own?: string):
 }
 
 /**
- * What is new on the board since the one before: the keys of its rows
- * needing Lee that the board before had not, a new ask or a new window's
- * stop, in the rows' order. Nothing is new on the first, which has no board
- * before it.
+ * How long a row needing Lee may be gone, in the watch's own time, and its
+ * coming back still be the same one: a window's heartbeat late, an ask's
+ * folder away for a look.
  */
-export const newRows = (before: Feed | undefined, now: Feed): string[] => {
-  if (before === undefined) {
-    return []
+export const FORGET_MS = 24 * 60 * 60_000
+
+/** The rows needing Lee a watch has shown, by their keys: when each went, in its own time, or undefined while it is on the board. */
+export type Shown = ReadonlyMap<string, number | undefined>
+
+/**
+ * What is new on the board at `at`, the watch's own time: the keys of its
+ * rows needing Lee that the watch has not shown, or not since FORGET_MS
+ * before, a new ask or a window's new stop, in the rows' order; and what it
+ * has shown with this board. Nothing is new on the first board, before which
+ * nothing was shown.
+ */
+export const newRows = (shown: Shown | undefined, feed: Feed, at: number) => {
+  const keys = feed.rows.filter(needsYou).map(row => row.key)
+  const isOn = new Set(keys)
+  const isRemembered = (goneAt: number | undefined) =>
+    goneAt === undefined || at - goneAt <= FORGET_MS
+  const gone = [...(shown ?? [])].flatMap(([key, goneAt]): [string, number][] =>
+    isOn.has(key) || !isRemembered(goneAt) ? [] : [[key, goneAt ?? at]],
+  )
+
+  return {
+    news:
+      shown === undefined
+        ? []
+        : keys.filter(key => !shown.has(key) || !isRemembered(shown.get(key))),
+    shown: new Map<string, number | undefined>([
+      ...gone,
+      ...keys.map(key => [key, undefined] as const),
+    ]),
   }
-
-  const had = new Set(before.rows.map(row => row.key))
-
-  return now.rows.filter(row => needsYou(row) && !had.has(row.key)).map(row => row.key)
 }
 
 /** Whether a session stays current by its latest line alone: nothing keeps it so but its being recent, or a window. */
@@ -190,8 +214,9 @@ const isIdle = (session: Session) =>
 /**
  * When the board next changes by time alone, after `now`: the earliest a
  * live heartbeat goes stale, or an idle session drops out of the views.
- * Neither changes a file, so `watch` looks again then. Undefined while
- * neither will.
+ * Neither changes a file, so `watch` looks again then. A heartbeat goes
+ * stale as its session was folded: aged only while the watch ran
+ * (pauses.ts). Undefined while neither will.
  */
 export const nextExpiry = (read: readonly ProjectRead[], now: number) => {
   const instants = read
