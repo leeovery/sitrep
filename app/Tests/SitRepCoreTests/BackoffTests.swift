@@ -18,6 +18,27 @@ struct BackoffTests {
         #expect(backoff.wait(after: .zero) == .seconds(2))
     }
 
+    @Test(arguments: [
+        (0, .seconds(1), true),
+        (0, .seconds(600), true),
+        (0, .milliseconds(999), false),
+        (1, .seconds(600), false),
+        (143, .seconds(5), false),
+    ] as [(Int32, Duration, Bool)])
+    func onlyARunThatExited0AfterASecondMadeWayForANewVersion(status: Int32, lived: Duration, renews: Bool) {
+        #expect(Backoff.renews(status: status, lived: lived) == renews)
+    }
+
+    @Test func aRenewalStartsTheCountAgain() {
+        var backoff = Backoff()
+
+        for _ in 1...4 { _ = backoff.wait(after: .seconds(5)) }
+
+        backoff.renew()
+
+        #expect(backoff.wait(after: .seconds(5)) == .seconds(1))
+    }
+
     @Test func aRunJustShortOfAMinuteDoesNot() {
         var backoff = Backoff()
 

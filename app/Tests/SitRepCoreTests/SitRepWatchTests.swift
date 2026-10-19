@@ -94,6 +94,47 @@ struct SitRepWatchTests {
         #expect(Array(runs.clock.slept.prefix(5)) == [1, 2, 4, 8, 1].map { .seconds($0) })
     }
 
+    @Test func watchMakingWayForANewVersionIsStartedAgainAtOnceTheBoardNotStale() async throws {
+        let runs = Runs([
+            Run(lives: .seconds(1), says: [.line(watched), .exited(status: 0, stderr: "")]),
+            Run(says: [.line(watchedEmpty)], ends: false),
+        ])
+
+        let boards = await Self.boards(2, of: runs)
+
+        #expect(boards.map(\.board) == [try Board.read(watched), try Board.read(watchedEmpty)])
+        #expect(boards.map(\.stale) == [nil, nil])
+        #expect(runs.clock.slept == [])
+        #expect(runs.programs.count == 2)
+    }
+
+    @Test func makingWayForANewVersionStartsTheBackOffAgain() async {
+        let runs = Runs([
+            Run(says: [.exited(status: 1, stderr: "")]),
+            Run(says: [.exited(status: 2, stderr: "")]),
+            Run(lives: .seconds(5), says: [.exited(status: 0, stderr: "")]),
+            Run(says: [.exited(status: 3, stderr: "")]),
+            Run(says: [.line(watched)], ends: false),
+        ])
+
+        _ = await Self.boards(4, of: runs)
+
+        #expect(runs.clock.slept == [1, 2, 1].map { .seconds($0) })
+    }
+
+    @Test func watchExiting0WithinASecondOfStartingIsAFailure() async throws {
+        let runs = Runs([
+            Run(lives: .milliseconds(500), says: [.line(watched), .exited(status: 0, stderr: "")]),
+            Run(says: [.line(watchedEmpty)], ends: false),
+        ])
+
+        let boards = await Self.boards(3, of: runs)
+
+        #expect(boards.map(\.stale) == [nil, .exited(status: 0, said: nil), nil])
+        #expect(boards[1].board == (try Board.read(watched)))
+        #expect(runs.clock.slept == [.seconds(1)])
+    }
+
     @Test func readingNoMoreStopsWatch() async {
         let runs = Runs([Run(says: [.line(watched)], ends: false)])
 

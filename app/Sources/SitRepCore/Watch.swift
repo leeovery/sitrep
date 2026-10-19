@@ -13,7 +13,8 @@ public enum Heard: Sendable, Equatable {
 public typealias Watcher = @Sendable (Program) -> AsyncStream<Heard>
 
 /// How the app hears the board: one `sitrep watch`, its child, started again
-/// after a back-off whenever it ends.
+/// after a back-off whenever it ends, or at once, the board not stale, when
+/// it made way for a new version.
 public struct SitRepWatch<C: Clock>: Sendable where C.Duration == Duration {
     let cli: SitRepCLI
     let watcher: Watcher
@@ -42,15 +43,25 @@ public struct SitRepWatch<C: Clock>: Sendable where C.Duration == Duration {
 
         while !Task.isCancelled {
             let started = clock.now
+            var isRenewed = false
 
             for await heard in watcher(await cli.program(["watch"], limit: .infinity)) {
-                if last.hear(heard), case .terminated = boards.yield(last) {
+                if case let .exited(status, _) = heard, Backoff.renews(status: status, lived: started.duration(to: clock.now)) {
+                    isRenewed = true
+                } else if last.hear(heard), case .terminated = boards.yield(last) {
                     return
                 }
             }
 
             guard !Task.isCancelled else {
                 break
+            }
+
+            if isRenewed {
+                backoff.renew()
+                logger.notice("sitrep watch made way for a new version: starting it again")
+
+                continue
             }
 
             let wait = backoff.wait(after: started.duration(to: clock.now))
