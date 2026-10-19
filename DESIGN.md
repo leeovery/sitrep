@@ -170,11 +170,106 @@ notch and its panel").
 - **finished**: off the panel.
 
 Working, your turn and the stops on a permission prompt or a question come
-from the window's events, which the mod does not record yet: stage 5, under
-"The menu bar", records them, and is in this build (16 October 2026). Until
-it is built, only the asks and away are real. Only a stop the events show
-needs Lee: a turn that ends on a question in plain text is your turn. The
-colours stay few; the look is played with later, in Paper.
+from the window's events. The mod records them as each window's state, in
+its heartbeat, with what the row shows of it (19 October 2026; the shape is
+under "Storage"); the session's state across its windows is worked out in
+core with `sitrep watch`, next. Only a stop the events show needs Lee: a
+turn that ends on a question in plain text is your turn. The colours stay
+few; the look is played with later, in Paper.
+
+How the mod hears its window's state, every hook only observing: it passes
+the event on as it came, and a failure recording what it heard is logged
+and swallowed, never breaking a turn, a tool or a permission prompt.
+- **A turn starts** (`turn.start`): working, since the turn began.
+- **A tool runs** (`tool.call`, until its `next` settles): working carries
+  the tool and its subject, the latest started where several run at once,
+  then the one still running. The hook is over every call, sitrep's own
+  among them, which still answer as before.
+- **A permission dialog shows** (19 October 2026): permission, with the
+  tool and its subject, since then. Only a dialog shown to Lee is a stop,
+  not a check's verdict: "ask" puts a call to the mode's decider, which is
+  the dialog by default but in auto mode, which Lee runs, a classifier that
+  settles most calls without Lee, so a stop taken from the verdict would
+  have read nearly every Bash as waiting on Lee for its whole run.
+  - `tool.check` settling "ask" on a real call (one with a `tool_use_id`; a
+    query of the check has none) makes the call a candidate, and nothing
+    more.
+  - `classic.PermissionRequest` is Claude Code about to show the dialog: in
+    auto mode only for a call the classifier hands to Lee, never for one it
+    settles. Where a settings hook beneath answers it, with a decision or a
+    block, no dialog shows, and nothing stops. A plugin above sitrep that
+    answers it itself, after sitrep has passed it on, is not seen: that
+    reads as a stop though no dialog shows. The observer hands the event's
+    answer on as it came.
+  - The event says the tool, its input and, for a subagent, its
+    `agent_id`, never the call, so it goes to the oldest candidate it is
+    for: the same tool; the same loop, strictly, a request with no
+    `agent_id` being the main loop's (the engine's types say it is absent
+    there) and taking only the main loop's calls; and the arguments equal
+    on every one both carry, at least one, or both carrying none. Not
+    equal as wholes: the check reads a call's arguments as the permission
+    decision does, and either side may carry one the other lacks (Bash's
+    `description`, `timeout`). Each argument is compared as a digest of
+    its JSON, its objects' keys in order (core's `jsonOf` and `digestOf`,
+    53 bits), so a candidate stays small, a Write's whole file a few
+    characters. A request no candidate fits is logged and ignored.
+  - Within one loop, two calls alike in tool and the arguments both carry,
+    which the classifier judged apart, can still cross: the dialog shown
+    for the later one stops the older, which the classifier settled. The
+    cost: that stop ends when the older call settles, perhaps with the
+    dialog still open, and the window reads working while it waits on Lee.
+  - A plan's approval (ExitPlanMode) takes the same rule, and shows as its
+    tool's permission prompt until the rows design it.
+- **Claude asks a question** (a call of AskUserQuestion, from its start,
+  whatever its check says): question, with the first question's text and
+  how many there are, since then. It always puts its own dialog to Lee, so
+  a permission request for it changes nothing.
+- **The call settles** (its `tool.call`'s `next` resolves), answered and
+  run, refused, or stopped: back to what the window was doing. Nothing the
+  mod hears marks the moment a call answered at its dialog starts to run,
+  so a command Lee allowed reads as its permission prompt until it ends.
+  Of several calls waiting on Lee, the oldest shows.
+- **The turn ends** (`turn.complete` of the window's own loop, whatever its
+  reason: an answer, Lee's stop, an error): your turn, since then. Before
+  any turn, your turn since the window attached.
+- **Each loop's turn bounds what it left.** The window's turn starting or
+  ending clears its own loop's tools, candidates and stops; a subagent's
+  own `turn.complete`, which carries its `agentId`, clears that
+  subagent's. So a background agent's prompt stays a stop across the
+  window's turns (another agent finishing starts one), until it is
+  answered or that agent's turn ends; and a call whose end the window
+  never heard, as one under way across a reload, holds its tool or its
+  stop only until its loop's turn ends.
+- **A new conversation starts afresh** (`session.end`, as at a `/clear`):
+  nothing heard, your turn since it attaches, not since the last
+  conversation's turn ended.
+- **Nothing in a call's way.** A change lands in the mod's memory at once;
+  its write to `$.state` and the heartbeat's rewrite follow in order, and
+  nothing waits on them. A call waits on the host only for the one
+  `$.state` read that loads what an earlier load heard, before the first
+  change of a load, and on the clock only at a question's start, whose stop
+  it stamps; its end needs no time. A turn's start and end and a dialog
+  wait on the clock for their times. A clock that fails leaves the last
+  time it gave, and anything heard before it ever answered reads as since
+  the attach. A rewrite waits its turn on the window's queue, so it may
+  follow a sitrep tool's own work there.
+- **Subagents.** A subagent's events carry its `agentId`, the main loop's
+  none. Its run raises no `turn.start`, and its `turn.complete` is not the
+  window's, so its turns neither start nor end the window's; and its tools do
+  not show, the row showing the Agent call that runs it, by its
+  description: several at once would only flicker. Its permission prompt
+  or its question stops the window on Lee all the same: it shows in the
+  window, and only Lee can answer it. Its own `turn.complete` ends only
+  what it left (above).
+- **For the live try**, each stop begun and ended goes to the debug log
+  (`claude --debug`, or `--debug-file`; a mod's log reaches no other, the
+  unified log among them), with its call, its tool and subject, and how it
+  was matched: `sitrep: stop begun, call toolu_…: a permission prompt for
+  Bash: gh pr create; its dialog shown, matched by tool, loop and input to
+  the oldest call put to Lee`, and `stop ended, …; its call settled` (or
+  the turn started or ended, its subagent's turn ended, or the
+  conversation ended). A request no candidate matched, or one a settings
+  hook answered, says so, as does a clock that failed.
 
 ## Claude's side
 
@@ -905,9 +1000,80 @@ $XDG_STATE_HOME/sitrep/, else ~/.local/state/sitrep/
   go, is a window on a release from before heartbeats said it, which still
   writes the old layout: it keeps the move waiting, and while live delivers
   its session's inbox (see "Storage"). Nothing shows it yet: the menu will
-  list the windows to reload. Its state, with what the row shows of it
-  (stage 5, under "The menu bar"), comes next, rewritten at once as the
-  state changes.
+  list the windows to reload. It also says the window's `state` (19 October
+  2026), with what the row shows of it, rewritten at once as it changes
+  (how the mod hears it is under "A session's state"):
+
+  ```
+  "state": { "is": "permission", "since": 1760000005000,
+             "tool": { "name": "Bash", "subject": "gh pr create" } }
+  ```
+
+  - `is` is `working`, `permission`, `question` or `yourTurn`, and `since`
+    when it began: the turn's start while working, the prompt's or the
+    question's showing, the turn's end, or before any turn the attach. So
+    the row's time is how long the turn has run, or how long it has waited.
+  - `tool` is the tool working runs, or the one a permission prompt asks for:
+    its `name` as the model calls it, and its `subject` where it has one, from
+    one argument (core's `subject.ts`): Read's, Edit's, MultiEdit's and Write's
+    `file_path`, NotebookEdit's `notebook_path`, LSP's `filePath`, Bash's
+    `command`, Monitor's `description`, Grep's and Glob's `pattern`, WebFetch's
+    `url`, WebSearch's `query`, Agent's and Task's `description`, and Skill's
+    `skill`; any other tool, an MCP tool among them, shows by its name alone.
+    `question` is a question's first `text` and the `count` asked. Each text is
+    one line, cut to 200 characters with an ellipsis, so a heartbeat stays small
+    whatever the command.
+  - It is read field by field, as `where` is: a state of a kind the reader
+    does not know, or without its time, is dropped, as is a bad `tool` or
+    `question` of it, and the heartbeat is kept; one written before reads
+    as ever, with no state. A later kind or field is added beside these, so
+    an older reader passes over what it does not know.
+  - A change is written at once, through the window's serialised writes, not on
+    the beat, which goes on as before and says the state as it stands, so a
+    state write that failed is put right within a beat. A burst of quick calls
+    is not written call by call: within a second of a rewrite, a change waits
+    for the second to pass, then the state as it stands by then is written once
+    (a rewrite still waiting a second past its time is taken never to have
+    fired, its timer refused or dropped, and waited on no more); a change back
+    to what the heartbeat says writes nothing, and holds nothing back. So a
+    change is at most a second late, inside a reader's poll of a second or two.
+  - A window holding no session writes no heartbeat but goes on hearing,
+    so attaching mid-turn writes the state as it stands. A window that lets
+    go says no state.
+  - The mod's own boards leave it out: the board in `$.state` and the
+    boards around it keep each presence without its `state`, which nothing
+    the mod draws reads, so a neighbour working rewrites no board, redraws
+    no pane and announces nothing (the board Claude is told it has seen
+    holds no presence at all). Core's parse still reads it, for `sitrep
+    watch`.
+  - Each load of the mod stamps its heartbeat with `loadedAt`, when it
+    loaded (session.start, its first hook, reads the clock once), and reads
+    the heartbeat file before rewriting it: once the file carries a later
+    load's stamp, it writes neither the heartbeat nor `$.state` again, and
+    says so once in the debug log. A call in flight across
+    `/reload-plugins` may settle in the load it began in, whose memory is
+    stale by then; the engine's types say a reload cancels the old load's
+    pending waits, not that its other continuations never resume, so the
+    fence stays. The file is read live, as `$.state` inside a long dispatch
+    is not. A stale load's read and a newer load's write may still cross
+    once, and the newer load's next rewrite, at its next change or beat,
+    puts it right.
+  - What the window has heard (its turn, the tools it runs, the calls put to Lee
+    with their tool, loop and arguments' digests, and the stops, each with its
+    loop) is kept in `$.state` (`activity`), so a `/reload-plugins` keeps it,
+    and in the mod, which reads it from there once a load and writes it back at
+    each change. It is never read back: every `get` of one dispatch reads one
+    moment, and a call's hook, whose dispatch lasts as long as its tool runs,
+    would read what stood as the call began and miss a prompt raised meanwhile
+    (found in the test kit). A new process starts with nothing heard: your turn
+    since the attach, until its next event.
+  - It is read field by field, as a heartbeat is, since an earlier load may
+    have kept another shape: a time or a list that does not read is as
+    nothing heard has it, and an entry that does not read is dropped.
+  - Each write carries the load's `loadedAt` and is made only on the version
+    the load last saw (`ifVersion`). A miss is another load's write: an
+    earlier load's is read and written over; a later load's means this one
+    is stale, and it writes neither `$.state` nor the heartbeat again.
 - Readers list and `stat` the folder every second or two (a mod cannot watch
   files) and read only what changed; each session's read lists its project's
   folder too, so a rename shows on every pane within a look. The sessions
@@ -2290,7 +2456,9 @@ reaches a window only while that pane is on show).
         below, brought forward, since the rows and the rings need it. With
         the state, what the row shows of it: the tool running and its path;
         the permission prompt's tool and command; the question, and how
-        many there are; when the turn began or ended;
+        many there are; when the turn began or ended. Built 19 October
+        2026: how the mod hears it is under "A session's state", and the
+        heartbeat's `state` under "Storage";
       - **`sitrep watch`** (under "One engine, two front ends"), with what
         is new and presence expiry worked out in core.
 
@@ -2340,7 +2508,18 @@ reaches a window only while that pane is on show).
    The build runs through to the end without stopping (Lee, 19 October
    2026): a PR per phase, or a stack where a phase needs several, each
    reviewed and merged to main as it passes, with no live try between them.
-   Lee tries the whole once it is done.
+   Lee tries the whole once it is done. That try confirms, beside the rest,
+   with the debug log on (see "A session's state"):
+   - a permission prompt in the default mode: the dialog shows, the row
+     says needs you, and the log says the stop began as its dialog showed
+     and ended as its call settled;
+   - the same in auto mode, for a call the classifier hands to Lee;
+   - a call the classifier approves showing working throughout, with no
+     stop in the log;
+   - a `/reload-plugins` while a call runs: the heartbeat's `loadedAt`
+     moves on, and if the old load's call settles after it, the log says
+     once that a later load wrote over it, and the state stays the new
+     load's.
 
    A jump outside tmux, tested since stage 2, was first
    run live from the bare app (below). Two things to carry over from stage 2: an app started from the Finder has
@@ -2452,8 +2631,12 @@ reaches a window only while that pane is on show).
    give a session's working, your turn and its stops on a permission prompt
    or a question (see "A session's state"):
    - a turn starts: working;
-   - `tool.check` gives its verdict "ask", so the permission prompt shows:
-     needs you, the row saying what it asks (`Allow Bash: gh pr create`);
+   - Claude Code is about to show a permission dialog
+     (`classic.PermissionRequest`, matched to the call `tool.check` put to
+     Lee with that tool and input): needs you, the row saying what it asks
+     (`Allow Bash: gh pr create`). A check's "ask" verdict alone is no
+     stop: in auto mode the classifier settles most such calls (corrected
+     19 October 2026; see "A session's state");
    - Claude asks a question (AskUserQuestion): needs you;
    - the prompt or the question answered and the tool run (`tool.call`'s
      `next` resolving): working;
@@ -2465,6 +2648,13 @@ reaches a window only while that pane is on show).
    swells twice, the light flashes, and the row gets its orange wash. Only
    deterministic stops need Lee: a turn ending with a question in plain
    text is your turn, and shows quietly.
+
+   The heartbeat's side was built on 19 October 2026, as stage 3's fourth
+   step: each window's state, written at once, a burst of calls at most
+   once a second, a subagent's prompt or question counting as the window's
+   own while its turns and tools do not, and a permission prompt only once
+   its dialog shows (see "A session's state" and "Storage"). The swell, the
+   light and the rows wait on `sitrep watch` and the app.
 
    A macOS notification comes only if Lee turns them on. First written (13
    October 2026) as a macOS notification for every session blocked on a

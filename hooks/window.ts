@@ -5,7 +5,10 @@
  *
  * Whatever reads or changes the hold runs in turn (`serially`), so two tool
  * calls never write the window's file over each other, and a heartbeat never
- * lands after the window let go.
+ * lands after the window let go. The heartbeat says what the window is
+ * doing as it attaches, and again whenever that changes (doing.ts), and
+ * which load wrote it: a load finding a later one's there writes it no more
+ * (load.ts).
  */
 import type { Timer } from 'claude-code'
 import {
@@ -16,17 +19,21 @@ import {
   HEARTBEAT_MS,
   isOpen,
   leave,
+  parsePresence,
   presenceText,
   sessionPaths,
+  stateOf,
   type Body,
   type Presence,
   type Session,
   type SessionPaths,
 } from '../core'
 import type { SitrepAttachment } from '../types'
+import { activityNow } from './activity'
 import { endAnswering, settleAnswering } from './answering'
 import { boardOf } from './board'
 import { logFailure, rootFor, type Host } from './host'
+import { isLater, isSuperseded, loadedNow, supersede } from './load'
 import { announce } from './news'
 import { createReader, ownText, type Reader } from './reader'
 import { versionNow } from './version'
@@ -65,8 +72,30 @@ export const serially = <T>(task: () => Promise<T>): Promise<T> => {
 /** The session this window holds, if any. */
 export const attached = () => current?.attachment
 
+/** Whether the heartbeat at `path` was written by a later load than `presence`'s: the file read live, as `$.state` in a long dispatch is not. */
+const isOutrun = async (host: Host, path: string, presence: Presence) => {
+  const there = isSuperseded()
+    ? undefined
+    : await host.fs.read(path).then(
+        text => parsePresence(text, presence.writer),
+        () => undefined,
+      )
+
+  if (isLater(there?.loadedAt, presence.loadedAt)) {
+    supersede(host, "the window's heartbeat")
+  }
+
+  return isSuperseded()
+}
+
 const beat = async (host: Host, hold: Hold, presence: Presence) => {
-  await host.fs.write(hold.paths.heartbeat(hold.attachment.writer), presenceText(presence))
+  const path = hold.paths.heartbeat(hold.attachment.writer)
+
+  if (await isOutrun(host, path, presence)) {
+    return
+  }
+
+  await host.fs.write(path, presenceText(presence))
   hold.presence = presence
 }
 
@@ -114,7 +143,11 @@ export const refresh = async (host: Host): Promise<Session | undefined> => {
   return session
 }
 
-/** The beat and the watch, each run in turn and only while `hold` is still the window's. */
+/** What the window is doing, as its heartbeat says it: from what it has heard, before any turn your turn since `attachedAt`. */
+const stateNow = async (host: Host, attachedAt: number) =>
+  stateOf(await activityNow(host), attachedAt)
+
+/** The beat, saying the state as it stands, and the watch, each run in turn and only while `hold` is still the window's. */
 const timersFor = (host: Host, hold: Hold) => {
   const whileHeld = (what: string, task: () => Promise<unknown>) => () =>
     void serially(() => (current === hold ? task() : Promise.resolve())).catch(
@@ -125,7 +158,14 @@ const timersFor = (host: Host, hold: Hold) => {
     host.clock.every(
       HEARTBEAT_MS,
       whileHeld('the heartbeat', async () =>
-        beat(host, hold, heartbeat(hold.presence, await host.clock.now())),
+        beat(
+          host,
+          hold,
+          heartbeat(
+            { ...hold.presence, state: await stateNow(host, hold.presence.attachedAt) },
+            await host.clock.now(),
+          ),
+        ),
       ),
     ),
     host.clock.every(
@@ -141,6 +181,30 @@ const forget = async (host: Host) => {
   await host.state.board.write(null)
   await endAnswering(host)
 }
+
+/**
+ * Rewrites the heartbeat of the held session with what the window is doing,
+ * should that differ from what it last said: whether it did. With no
+ * session held, nothing: the window's state waits for its next attach.
+ */
+export const restate = (host: Host) =>
+  serially(async () => {
+    const hold = current
+
+    if (hold === undefined) {
+      return false
+    }
+
+    const state = await stateNow(host, hold.presence.attachedAt)
+
+    if (JSON.stringify(state) === JSON.stringify(hold.presence.state)) {
+      return false
+    }
+
+    await beat(host, hold, heartbeat({ ...hold.presence, state }, await host.clock.now()))
+
+    return true
+  })
 
 /** Lets go of the held session: the heartbeat says so, and the beat and the watch stop. */
 export const letGo = async (host: Host) => {
@@ -166,18 +230,23 @@ export const letGo = async (host: Host) => {
 /**
  * Holds the session `attaching` names, letting go of any other first: reads
  * the window's own file back, under either layout, works out where the
- * window is, writes its heartbeat, saying the version it runs, starts the
- * beat and the watch, and folds the session.
+ * window is, writes its heartbeat, saying the version it runs and what it is
+ * doing as it stands, starts the beat and the watch, and folds the session.
  */
 export const attachTo = async (host: Host, root: string, attaching: SitrepAttachment) => {
   const { project, session, writer, attachedAt } = attaching
   const paths = sessionPaths(root, project, session)
-  const [where, version] = await Promise.all([whereNow(host), versionNow(host)])
+  const [where, version, state, loadedAt] = await Promise.all([
+    whereNow(host),
+    versionNow(host),
+    stateNow(host, attachedAt),
+    loadedNow(host),
+  ])
   const hold: Hold = {
     attachment: attaching,
     paths,
     text: await ownText(host, paths, folder => folder.log(writer)),
-    presence: attach(writer, attachedAt, { where, version }),
+    presence: attach(writer, attachedAt, { where, version, state, loadedAt }),
     read: createReader(),
     timers: [],
   }

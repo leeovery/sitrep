@@ -19,7 +19,9 @@
  * window, the CLI) rides into Claude's next turn as context Lee does not
  * see. A conversation starts knowing its project's sessions; one resumed,
  * in a new process or by /resume, takes its session up again; one that ends
- * lets go of its session.
+ * lets go of its session. Its heartbeat says what the window is doing, as
+ * hooks that only observe hear it: working, with the tool it runs; stopped
+ * on Lee at a permission prompt or a question; or Lee's turn.
  *
  * Every call on `$` is spelled here, in `hostOf`: the engine reads them off
  * this file's source, and refuses a module that hands `$` to an import.
@@ -33,10 +35,20 @@ import { captured, heardSurvey } from './answering'
 import { lookAround, lookEvery } from './around'
 import { clipOf, heardRows, revealFocus, scrollList } from './clip'
 import { heardTurn, isBoardMessage, takeUpDelivery, wentQuiet } from './deliver'
+import {
+  heardAgentTurnEnd,
+  heardCheck,
+  heardConversationEnd,
+  heardRequest,
+  heardTurnEnd,
+  heardTurnStart,
+  throughCall,
+} from './doing'
 import { BAND_ROWS, drawBand } from './draw/band'
 import { drawPane } from './draw/board'
 import { drawToolResult, drawToolRow, toolLine } from './draw/tool-row'
 import { logFailure, TOAST_MS, type Host } from './host'
+import { loadedNow } from './load'
 import { fromOlder } from './older'
 import {
   BAND_KEYS,
@@ -212,6 +224,11 @@ const hostOf = ($: EngineInterface): Host => ({
       write: value => update($, named, () => value),
       update: change => update($, named, change),
     },
+    activity: {
+      get: () => $.state.get({ plugin: 'sitrep', key: 'activity' }),
+      set: (value, version) =>
+        $.state.set({ plugin: 'sitrep', key: 'activity' }, value, { ifVersion: version }),
+    },
   },
 })
 
@@ -221,6 +238,7 @@ export const register: Register = on => {
   on('session.start', async ($, e, next) => {
     const host = hostOf($)
 
+    await loadedNow(host)
     await versionNow(host)
 
     for (const spec of SPECS) {
@@ -269,17 +287,53 @@ export const register: Register = on => {
   }).catch(($, e, next) => next(e))
 
   on('turn.start', async ($, e, next) => {
-    await heardTurn(hostOf($), e.text)
+    const host = hostOf($)
+
+    await heardTurnStart(host)
+    await heardTurn(host, e.text)
 
     return next(e)
   }).catch(($, e, next) => next(e))
 
+  // A subagent's turn is not the window's: it ends only what that subagent left.
   on('turn.complete', async ($, e, next) => {
+    const host = hostOf($)
+
     if (e.agentId === undefined) {
-      await wentQuiet(hostOf($))
+      await heardTurnEnd(host)
+      await wentQuiet(host)
+    } else {
+      await heardAgentTurnEnd(host, e.agentId)
     }
 
     return next(e)
+  }).catch(($, e, next) => next(e))
+
+  // Every call, the window's own and its subagents', sitrep's among them,
+  // heard as it starts and ends, and passed on as it came.
+  on('tool.call', ($, e, next) =>
+    throughCall(hostOf($), { id: e.tool_use_id, tool: e.tool, input: e, agentId: e.agentId }, () =>
+      next(e),
+    ),
+  ).catch(($, e, next) => next(e))
+
+  on('tool.check', async ($, e, next) => {
+    const verdict = await next(e)
+
+    await heardCheck(hostOf($), e, verdict.decision)
+
+    return verdict
+  }).catch(($, e, next) => next(e))
+
+  // Claude Code about to show Lee a permission dialog, unless the settings
+  // hooks beneath answer it: in auto mode, only for a call the classifier
+  // hands to Lee.
+  on('classic.PermissionRequest', async ($, e, next) => {
+    const answer = await next(e)
+
+    await heardRequest(hostOf($), e, answer)
+
+    return answer
   }).catch(($, e, next) => next(e))
 
   on('tool.call', { tool: TOOL_NAMES }, ($, e) => answerCall(hostOf($), e)).catch(($, e, next) =>
@@ -322,6 +376,7 @@ export const register: Register = on => {
     const host = hostOf($)
 
     await serially(() => letGo(host)).catch(logFailure(host, 'letting go of the attached session'))
+    await heardConversationEnd(host)
     await wentQuiet(host)
 
     return next(e)

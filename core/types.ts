@@ -244,6 +244,31 @@ export type Where = {
   tmux?: { socket: string; pane: string }
 }
 
+/** A tool as a row shows it: its name, and what it acts on (a file's path, Bash's command), where the tool has one. */
+export type ToolShown = { name: string; subject?: string }
+
+/** A question Claude put to Lee as a row shows it: the first question's text, and how many it asked. */
+export type QuestionShown = { text: string; count: number }
+
+/**
+ * What a window is doing: running a turn, stopped on Lee at a permission
+ * prompt or a question, or waiting for Lee's message.
+ */
+export type StateKind = 'working' | 'permission' | 'question' | 'yourTurn'
+
+/**
+ * A window's state, and since when: the turn's start while working, the
+ * prompt's or the question's showing while stopped, the turn's end (or the
+ * attach, before any turn) on your turn. Working carries the tool running,
+ * a permission prompt the tool it asks for, a question the question.
+ */
+export type WindowState = {
+  is: StateKind
+  since: number
+  tool?: ToolShown
+  question?: QuestionShown
+}
+
 /** A window's heartbeat on a session; `leftAt` once it has let go, and `where` the window is, as far as it is known. */
 export type Presence = {
   writer: string
@@ -253,6 +278,10 @@ export type Presence = {
   where?: Where
   /** The sitrep version the window runs, as its plugin's manifest gives it; none from a window on a version before heartbeats said it. */
   version?: string
+  /** What the window is doing; none from a window on a version before heartbeats said it, nor from one that let go. */
+  state?: WindowState
+  /** When the load of the mod that wrote it began, so a load a reload superseded writes no heartbeat over a newer one's; none where the clock failed, or before heartbeats said it. */
+  loadedAt?: number
 }
 
 /** A session as it stands, every writer's lines read together. */

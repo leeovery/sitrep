@@ -133,6 +133,8 @@ test('after a reload, the window takes up the session $.state names, reads its f
     seenAt: T0 + 60_000,
     where: WHERE,
     version: PLUGIN_VERSION,
+    state: { is: 'yourTurn', since: T0 },
+    loadedAt: T0 + 60_000,
   })
   expect(w.state.board?.asks.map(item => item.id)).toEqual(['k1'])
 })
@@ -175,6 +177,8 @@ test('the heartbeat is rewritten every 30 seconds while attached, and says when 
     seenAt: at,
     where: WHERE,
     version: PLUGIN_VERSION,
+    state: { is: 'yourTurn', since: T0 },
+    loadedAt: T0,
   })
 
   expect(beat()).toEqual(seenAt(T0))
@@ -376,6 +380,27 @@ test('the watch folds a line another writer added, and puts the board in $.state
 
   expect(w.boards.length).toBe(written + 1)
   expect(w.logs, 'no look failed').toEqual([])
+})
+
+test("another window's state changing puts nothing in $.state, so no pane redraws", async ($, on) => {
+  const w = world($, on)
+  const { id } = await w.begin()
+  const peer = { writer: W2, attachedAt: w.clock.now(), seenAt: w.clock.now() }
+
+  w.beat(id, { ...peer, state: { is: 'yourTurn', since: w.clock.now() } })
+  await w.clock.advance(WATCH_MS)
+  const writes = { ...w.writes }
+  const written = w.boards.length
+
+  for (const tool of ['Read', 'Edit', 'Bash']) {
+    w.beat(id, { ...peer, state: { is: 'working', since: w.clock.now(), tool: { name: tool } } })
+    await w.clock.advance(WATCH_MS)
+  }
+
+  expect(w.boards.length, 'the board unwritten').toBe(written)
+  expect(w.writes, 'nothing a pane draws from written').toEqual(writes)
+  expect(w.state.board?.presence.map(each => each.writer)).toEqual([W1, W2])
+  expect(w.state.board?.presence.some(each => 'state' in each)).toBe(false)
 })
 
 test("the watch reads another window's heartbeat and the letters in the inbox too", async ($, on) => {

@@ -56,6 +56,8 @@ test('a conversation resumed in a new process takes up by itself the session it 
     seenAt: NOW,
     where: WHERE,
     version: PLUGIN_VERSION,
+    state: { is: 'yourTurn', since: NOW },
+    loadedAt: NOW,
   })
 
   await w.call('note', { text: 'Drew round 2' })
