@@ -127,7 +127,7 @@ export type SitrepPresence = {
 }
 
 /** A call waiting on Lee: core's `Stop`. */
-export type SitrepStop = { call: string; at: number } & (
+export type SitrepStop = { call: string; at: number; agentId?: string } & (
   { is: 'permission'; tool: SitrepToolShown } | { is: 'question'; question?: SitrepQuestionShown }
 )
 
@@ -136,7 +136,7 @@ export type SitrepActivity = {
   turnAt?: number
   endedAt?: number
   tools: { call: string; tool: SitrepToolShown }[]
-  asked: { call: string; tool: string; input: string }[]
+  asked: { call: string; tool: string; input: { [argument: string]: string }; agentId?: string }[]
   stops: SitrepStop[]
 }
 

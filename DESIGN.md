@@ -197,12 +197,23 @@ and swallowed, never breaking a turn, a tool or a permission prompt.
   - `classic.PermissionRequest` is Claude Code about to show the dialog: in
     auto mode only for a call the classifier hands to Lee, never for one it
     settles. Where a settings hook beneath answers it, with a decision or a
-    block, no dialog shows, and nothing stops. The event says the tool and
-    its input, not the call, so it goes to the oldest candidate with that
-    tool and an equal input: equal as JSON, each object's keys put in
-    order and the two written out as text (core's `jsonOf`), a key left
-    undefined as one left out. A request matching no candidate is logged
-    and ignored. The observer hands the event's answer on as it came.
+    block, no dialog shows, and nothing stops. A plugin above sitrep that
+    answers it itself, after sitrep has passed it on, is not seen: that
+    reads as a stop though no dialog shows. The observer hands the event's
+    answer on as it came.
+  - The event says the tool, its input and, for a subagent, its
+    `agent_id`, never the call, so it goes to the oldest candidate it is
+    for: the same tool; the same loop, where it says one (the main loop
+    says none, and then any loop's will do); and the arguments equal on
+    every one both carry, at least one, or both carrying none. Not equal as
+    wholes: the check reads a call's arguments as the permission decision
+    does, and either side may carry one the other lacks (Bash's
+    `description`, `timeout`). Each argument is compared as a digest of
+    its JSON, its objects' keys in order (core's `jsonOf` and `digestOf`,
+    53 bits), so a candidate stays small, a Write's whole file a few
+    characters. A request no candidate fits is logged and ignored. Two
+    calls alike in tool, loop and the arguments both carry, which the
+    classifier judged apart, can still cross; scoping by loop narrows it.
   - A plan's approval (ExitPlanMode) takes the same rule, and shows as its
     tool's permission prompt until the rows design it.
 - **Claude asks a question** (a call of AskUserQuestion, from its start,
@@ -217,25 +228,40 @@ and swallowed, never breaking a turn, a tool or a permission prompt.
 - **The turn ends** (`turn.complete` of the window's own loop, whatever its
   reason: an answer, Lee's stop, an error): your turn, since then. Before
   any turn, your turn since the window attached.
-- A turn's start or end clears every tool, candidate and call waiting, so
-  one whose end the window never heard (a reload while it waited) cannot hold
-  it on Lee for ever. A background subagent's prompt left open across the
-  window's turn ending reads as your turn, which is rare.
+- **Each loop's turn bounds what it left.** The window's turn starting or
+  ending clears its own loop's tools, candidates and stops; a subagent's
+  own `turn.complete`, which carries its `agentId`, clears that
+  subagent's. So a background agent's prompt stays a stop across the
+  window's turns (another agent finishing starts one), until it is
+  answered or that agent's turn ends; and a call whose end the window
+  never heard, as one under way across a reload, holds its tool or its
+  stop only until its loop's turn ends.
+- **A new conversation starts afresh** (`session.end`, as at a `/clear`):
+  nothing heard, your turn since it attaches, not since the last
+  conversation's turn ended.
+- **Nothing in a call's way.** A change lands in the mod's memory at once;
+  its write to `$.state` and the heartbeat's rewrite follow in order, and
+  nothing waits on them. A call's end needs no time, and its start waits on
+  the clock only for a question, whose stop it stamps; a clock that fails
+  leaves the last time it gave. A rewrite waits its turn on the window's
+  queue, so it may follow a sitrep tool's own work there.
 - **Subagents.** A subagent's events carry its `agentId`, the main loop's
-  none. Its run raises no `turn.start`, and its `turn.complete` is passed
-  over, so its turns neither start nor end the window's; and its tools do
+  none. Its run raises no `turn.start`, and its `turn.complete` is not the
+  window's, so its turns neither start nor end the window's; and its tools do
   not show, the row showing the Agent call that runs it, by its
   description: several at once would only flicker. Its permission prompt
   or its question stops the window on Lee all the same: it shows in the
-  window, and only Lee can answer it.
+  window, and only Lee can answer it. Its own `turn.complete` ends only
+  what it left (above).
 - **For the live try**, each stop begun and ended goes to the debug log
   (`claude --debug`, or `--debug-file`; a mod's log reaches no other, the
   unified log among them), with its call, its tool and subject, and how it
   was matched: `sitrep: stop begun, call toolu_…: a permission prompt for
-  Bash: gh pr create; its dialog shown, matched by tool and input to the
-  oldest call put to Lee`, and `stop ended, …; its call settled` (or the
-  turn started or ended). A request no candidate matched, or one a
-  settings hook answered, says so.
+  Bash: gh pr create; its dialog shown, matched by tool, loop and input to
+  the oldest call put to Lee`, and `stop ended, …; its call settled` (or
+  the turn started or ended, its subagent's turn ended, or the
+  conversation ended). A request no candidate matched, or one a settings
+  hook answered, says so, as does a clock that failed.
 
 ## Claude's side
 
@@ -979,40 +1005,42 @@ $XDG_STATE_HOME/sitrep/, else ~/.local/state/sitrep/
     when it began: the turn's start while working, the prompt's or the
     question's showing, the turn's end, or before any turn the attach. So
     the row's time is how long the turn has run, or how long it has waited.
-  - `tool` is the tool working runs, or the one a permission prompt asks
-    for: its `name` as the model calls it, and its `subject` where it has
-    one, from one argument (core's `subject.ts`): a file tool's
-    `file_path` (NotebookEdit's `notebook_path`, LSP's `filePath`), Bash's
-    `command`, Monitor's `description`, Grep's and Glob's `pattern`,
-    WebFetch's `url`, WebSearch's `query`, an Agent's `description` and
-    Skill's `skill`; any other tool, an MCP tool among them, shows by its
-    name alone. `question` is a question's first `text` and the `count`
-    asked. Each text is one line, cut to 200 characters with an ellipsis,
-    so a heartbeat stays small whatever the command.
+  - `tool` is the tool working runs, or the one a permission prompt asks for:
+    its `name` as the model calls it, and its `subject` where it has one, from
+    one argument (core's `subject.ts`): Read's, Edit's, MultiEdit's and Write's
+    `file_path`, NotebookEdit's `notebook_path`, LSP's `filePath`, Bash's
+    `command`, Monitor's `description`, Grep's and Glob's `pattern`, WebFetch's
+    `url`, WebSearch's `query`, Agent's and Task's `description`, and Skill's
+    `skill`; any other tool, an MCP tool among them, shows by its name alone.
+    `question` is a question's first `text` and the `count` asked. Each text is
+    one line, cut to 200 characters with an ellipsis, so a heartbeat stays small
+    whatever the command.
   - It is read field by field, as `where` is: a state of a kind the reader
     does not know, or without its time, is dropped, as is a bad `tool` or
     `question` of it, and the heartbeat is kept; one written before reads
     as ever, with no state. A later kind or field is added beside these, so
     an older reader passes over what it does not know.
-  - A change is written at once, through the window's serialised writes,
-    not on the beat, which goes on as before, saying the state as it
-    stands. A burst of quick calls is not written call by call: within a
-    second of a rewrite, a change waits for the second to pass, then the
-    state as it stands by then is written once; a change back to what the
-    heartbeat says writes nothing, and holds nothing back. So a change is
-    at most a second late, inside a reader's poll of a second or two.
+  - A change is written at once, through the window's serialised writes, not on
+    the beat, which goes on as before and says the state as it stands, so a
+    state write that failed is put right within a beat. A burst of quick calls
+    is not written call by call: within a second of a rewrite, a change waits
+    for the second to pass, then the state as it stands by then is written once
+    (a rewrite still waiting a second past its time is taken never to have
+    fired, its timer refused or dropped, and waited on no more); a change back
+    to what the heartbeat says writes nothing, and holds nothing back. So a
+    change is at most a second late, inside a reader's poll of a second or two.
   - A window holding no session writes no heartbeat but goes on hearing,
     so attaching mid-turn writes the state as it stands. A window that lets
     go says no state.
-  - What the window has heard (its turn, the tools it runs, the calls put
-    to Lee with their tool and input as JSON text, and the stops) is kept
-    in `$.state` (`activity`), so a `/reload-plugins` keeps it, and in the
-    mod, which reads it from there once a load and writes it back at each
-    change. It is never read back: every `get` of one dispatch reads one
-    moment, and a call's hook, whose dispatch lasts as long as its tool
-    runs, would read what stood as the call began and miss a prompt raised
-    meanwhile (found in the test kit). A new process starts with nothing
-    heard: your turn since the attach, until its next event.
+  - What the window has heard (its turn, the tools it runs, the calls put to Lee
+    with their tool, loop and arguments' digests, and the stops, each with its
+    loop) is kept in `$.state` (`activity`), so a `/reload-plugins` keeps it,
+    and in the mod, which reads it from there once a load and writes it back at
+    each change. It is never read back: every `get` of one dispatch reads one
+    moment, and a call's hook, whose dispatch lasts as long as its tool runs,
+    would read what stood as the call began and miss a prompt raised meanwhile
+    (found in the test kit). A new process starts with nothing heard: your turn
+    since the attach, until its next event.
 - Readers list and `stat` the folder every second or two (a mod cannot watch
   files) and read only what changed; each session's read lists its project's
   folder too, so a rename shows on every pane within a look. The sessions

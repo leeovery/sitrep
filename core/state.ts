@@ -10,8 +10,8 @@
  *   candidate for a permission dialog, and nothing more. In auto mode a
  *   classifier settles most such calls, and Lee sees nothing.
  * - A permission dialog shows for one: stopped on Lee, since then. The
- *   engine says which tool and input the dialog is for, never which call,
- *   so it is the oldest candidate with that tool and an equal input.
+ *   engine says which tool, input and loop the dialog is for, never which
+ *   call, so it is the oldest candidate it is for (`isFor`).
  * - A call asks Lee a question: stopped on Lee, since its start; it always
  *   puts its own dialog to Lee.
  * - Of several stops, the oldest shows. A subagent's count: they stop the
@@ -21,25 +21,30 @@
  * - The turn ends, or Lee stops it: your turn, since then; before any
  *   turn, since the window attached.
  *
- * A turn's start or end clears every tool, candidate and stop, so one whose
- * end the window never heard (a reload while it waited) cannot hold it for
- * ever.
+ * Each loop's turn bounds what it left: the window's turn starting or
+ * ending clears its own tools, candidates and stops, and a subagent's turn
+ * ending clears that subagent's, so one whose end the window never heard (a
+ * reload while it waited) cannot hold it for ever, and one loop's turn
+ * never clears another's stop.
  */
 import { isCount, isFilled, isObject, isTime } from './entries'
 import { QUESTION_TOOL, questionShown, toolShown } from './subject'
 import { compareText } from './text'
 import type { QuestionShown, StateKind, ToolShown, WindowState } from './types'
 
-/** A tool running in the window's own loop: its call, and how a row shows it. */
+/** A tool running in the window's own loop, the only loop whose tools show: its call, and how a row shows it. */
 export type Running = { call: string; tool: ToolShown }
 
-/** A call waiting on Lee: its permission prompt or its question, and since when. */
-export type Stop = { call: string; at: number } & (
+/** A call waiting on Lee: its permission prompt or its question, since when, and the subagent it runs in, if any. */
+export type Stop = { call: string; at: number; agentId?: string } & (
   { is: 'permission'; tool: ToolShown } | { is: 'question'; question?: QuestionShown }
 )
 
-/** A call its check put to the mode's decider, a candidate for a permission dialog: its tool, and its input as `jsonOf` writes it. */
-export type Asked = { call: string; tool: string; input: string }
+/** Each top-level argument of a call, as a short digest of its value: enough to match a dialog, and small whatever the argument holds. */
+export type Digests = { [argument: string]: string }
+
+/** A call its check put to the mode's decider, a candidate for a permission dialog: its tool, its arguments' digests, and its subagent, if any. */
+export type Asked = { call: string; tool: string; input: Digests; agentId?: string }
 
 /** What a window has heard of its own doing, as `$.state` keeps it. */
 export type Activity = {
@@ -58,15 +63,37 @@ export type Activity = {
 /** A tool call as the engine raises it: its id, the tool, its arguments, and the subagent's loop it runs in, if any. */
 export type ToolCall = { id: string; tool: string; input: unknown; agentId?: string }
 
-/** A permission dialog as the engine says it is about to show one: the tool, and the input it is for. */
-export type PermissionRequest = { tool: string; input: unknown }
+/** A permission dialog as the engine says it is about to show one: the tool, the input, and the subagent it is for, where it says. */
+export type PermissionRequest = { tool: string; input: unknown; agentId?: string }
 
 /** A window that has heard nothing yet. */
 export const QUIET: Activity = { tools: [], asked: [], stops: [] }
 
-export const turnStarted = (at: number): Activity => ({ ...QUIET, turnAt: at })
+/** What of `activity` a subagent's loop left: its candidates and stops. The window's own loop has no `agentId`. */
+const others = (activity: Activity, agentId: string | undefined) => ({
+  asked: activity.asked.filter(asked => asked.agentId !== agentId),
+  stops: activity.stops.filter(stop => stop.agentId !== agentId),
+})
 
-export const turnEnded = (at: number): Activity => ({ ...QUIET, endedAt: at })
+/** The window's turn starting: its own loop's tools, candidates and stops are cleared, a subagent's kept. */
+export const turnStarted = (activity: Activity, at: number): Activity => ({
+  turnAt: at,
+  tools: [],
+  ...others(activity, undefined),
+})
+
+/** The window's turn ending: as its start, the subagents' kept. */
+export const turnEnded = (activity: Activity, at: number): Activity => ({
+  endedAt: at,
+  tools: [],
+  ...others(activity, undefined),
+})
+
+/** A subagent's turn ending: its candidates and stops are cleared, whether or not their calls were heard to end. */
+export const agentTurnEnded = (activity: Activity, agentId: string): Activity => ({
+  ...activity,
+  ...others(activity, agentId),
+})
 
 /** A JSON value with its objects' keys in order. */
 const ordered = (value: unknown): unknown =>
@@ -87,14 +114,64 @@ const ordered = (value: unknown): unknown =>
  */
 export const jsonOf = (value: unknown) => JSON.stringify(ordered(value)) ?? ''
 
-/** A call starting: a question stops the window on Lee; any other tool of its own loop shows while it runs. */
+/** A short digest of a text: 53 bits (cyrb53), in base 36. Two texts with one digest are taken as one. */
+export const digestOf = (text: string) => {
+  let h1 = 0xdeadbeef
+  let h2 = 0x41c6ce57
+
+  for (let i = 0; i < text.length; i += 1) {
+    const code = text.charCodeAt(i)
+
+    h1 = Math.imul(h1 ^ code, 2654435761)
+    h2 = Math.imul(h2 ^ code, 1597334677)
+  }
+
+  h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507) ^ Math.imul(h2 ^ (h2 >>> 13), 3266489909)
+  h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^ Math.imul(h1 ^ (h1 >>> 13), 3266489909)
+
+  return (4294967296 * (2097151 & h2) + (h1 >>> 0)).toString(36)
+}
+
+/** A call's arguments as digests, each top-level one's value as `jsonOf` writes it; an input that is no object, as one argument named "". */
+export const digestsOf = (input: unknown): Digests =>
+  Object.fromEntries(
+    Object.entries(isObject(input) ? input : { '': input })
+      .filter(([, value]) => value !== undefined)
+      .map(([key, value]) => [key, digestOf(jsonOf(value))]),
+  )
+
+/**
+ * Whether a dialog is for a candidate: the same tool; the same loop, where
+ * the request says which (the window's own says none, and then any loop
+ * fits); and the arguments equal on every one both carry, at least one, or
+ * both carry none. Not equal as wholes: the check and the request may each
+ * carry an argument the other lacks (Bash's `description`, `timeout`).
+ */
+const isFor = (request: PermissionRequest, input: Digests, asked: Asked) => {
+  const shared = Object.keys(asked.input).filter(key => Object.hasOwn(input, key))
+  const isEmpty = Object.keys(asked.input).length === 0 && Object.keys(input).length === 0
+
+  return (
+    asked.tool === request.tool &&
+    (request.agentId === undefined || asked.agentId === request.agentId) &&
+    (shared.length > 0 ? shared.every(key => asked.input[key] === input[key]) : isEmpty)
+  )
+}
+
+/** A call starting: a question stops the window on Lee, since `at`; any other tool of its own loop shows while it runs. */
 export const toolStarted = (activity: Activity, call: ToolCall, at: number): Activity => {
   if (call.tool === QUESTION_TOOL) {
     return {
       ...activity,
       stops: [
         ...activity.stops,
-        { call: call.id, at, is: 'question', question: questionShown(call.input) },
+        {
+          call: call.id,
+          at,
+          agentId: call.agentId,
+          is: 'question',
+          question: questionShown(call.input),
+        },
       ],
     }
   }
@@ -113,17 +190,20 @@ export const toolAsked = (activity: Activity, call: ToolCall): Activity =>
     ? activity
     : {
         ...activity,
-        asked: [...activity.asked, { call: call.id, tool: call.tool, input: jsonOf(call.input) }],
+        asked: [
+          ...activity.asked,
+          { call: call.id, tool: call.tool, input: digestsOf(call.input), agentId: call.agentId },
+        ],
       }
 
-/** A permission dialog about to show: the oldest candidate with its tool and an equal input waits on Lee, since `at`. With none, nothing changes. */
+/** A permission dialog about to show: the oldest candidate it is for waits on Lee, since `at`. With none, nothing changes. */
 export const permissionShown = (
   activity: Activity,
   request: PermissionRequest,
   at: number,
 ): Activity => {
-  const input = jsonOf(request.input)
-  const shown = activity.asked.find(asked => asked.tool === request.tool && asked.input === input)
+  const input = digestsOf(request.input)
+  const shown = activity.asked.find(asked => isFor(request, input, asked))
 
   return shown === undefined
     ? activity
@@ -132,7 +212,13 @@ export const permissionShown = (
         asked: activity.asked.filter(asked => asked !== shown),
         stops: [
           ...activity.stops,
-          { call: shown.call, at, is: 'permission', tool: toolShown(request.tool, request.input) },
+          {
+            call: shown.call,
+            at,
+            agentId: shown.agentId,
+            is: 'permission',
+            tool: toolShown(request.tool, request.input),
+          },
         ],
       }
 }

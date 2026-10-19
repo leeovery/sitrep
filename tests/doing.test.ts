@@ -1,9 +1,9 @@
 import type { On } from 'claude-code'
 import { expect, test, tier } from 'claude-code/testing'
 import { HEARTBEAT_MS, metaText, parsePresence, sessionPaths, type SessionPaths } from '../core'
-import { STATE_MS } from '../hooks/doing'
+import { rewriteAt, STATE_MS } from '../hooks/doing'
 import type { SitrepActivity, SitrepAttachment } from '../types'
-import { META, T0, W1 } from './support'
+import { META, T0, W1, W2 } from './support'
 import { CONVERSATION, DASHBOARD, PROJECT, ROOT, startedId, world } from './world'
 
 tier('user')
@@ -264,7 +264,7 @@ test('each stop begun and ended goes to the debug log, with its tool and how it 
 
   expect(w.logs).toEqual([
     expect.stringMatching(
-      /^sitrep: stop begun, call \S+: a permission prompt for Bash: gh pr create --fill; its dialog shown, matched by tool and input to the oldest call put to Lee$/,
+      /^sitrep: stop begun, call \S+: a permission prompt for Bash: gh pr create --fill; its dialog shown, matched by tool, loop and input to the oldest call put to Lee$/,
     ),
     expect.stringMatching(
       /^sitrep: stop ended, call \S+: a permission prompt for Bash: gh pr create --fill; its call settled$/,
@@ -729,4 +729,147 @@ test("sitrep's own tools answer as ever under the hook over every call", async (
 
   expect(String(noted.result)).toMatch(/^Logged note [0-9a-z]{4}\.$/)
   expect(w.state.board?.log.map(line => line.text)).toEqual(['Drew round 1'])
+})
+
+test("a background subagent's open prompt outlives the window's turns: it stops the window until it is answered, or that subagent's turn ends", async ($, on) => {
+  const w = world($, on)
+  const { paths } = await w.begin()
+
+  await w.turnStarts('Spawn the reviewers.')
+  await w.clock.advance(1_000)
+
+  const pr = w.calls('Bash', PR_CREATE, { verdict: 'ask', isShown: true, agentId: AGENT })
+  const permission = {
+    is: 'permission',
+    since: T0 + 1_000,
+    tool: { name: 'Bash', subject: 'gh pr create --fill' },
+  }
+
+  await later(w)
+
+  expect(stateIn(w, paths)).toEqual(permission)
+
+  await w.turnEnds()
+  await later(w)
+
+  expect(stateIn(w, paths), "the window's turn ending").toEqual(permission)
+
+  await w.turnStarts('')
+  await later(w)
+
+  expect(stateIn(w, paths), 'another agent finishing starts a turn').toEqual(permission)
+
+  await w.turnEnds({ agentId: AGENT })
+  await later(w)
+
+  expect(stateIn(w, paths)?.is, 'its own turn ending').toBe('working')
+
+  pr.refuse('The agent was stopped.')
+  await pr.done
+})
+
+test("a subagent's call put to Lee just before the window's turn ends is still the one its dialog is for", async ($, on) => {
+  const w = world($, on)
+  const { paths } = await w.begin()
+
+  await w.turnStarts('Spawn the reviewer.')
+
+  const pr = w.calls('Bash', PR_CREATE, { verdict: 'ask', agentId: AGENT })
+
+  await w.clock.settle()
+  await w.turnEnds()
+  await w.clock.advance(2_000)
+  await $.classic.PermissionRequest({
+    tool_name: 'Bash',
+    tool_input: { command: PR_CREATE.command },
+    agent_id: AGENT,
+  })
+  await later(w)
+
+  expect(stateIn(w, paths)).toEqual({
+    is: 'permission',
+    since: T0 + 2_000,
+    tool: { name: 'Bash', subject: 'gh pr create --fill' },
+  })
+
+  pr.finish()
+  await pr.done
+})
+
+test("a dialog whose input lacks an argument the check carried, or carries one it lacked, is still the call's", async ($, on) => {
+  const w = world($, on)
+  const { paths } = await w.begin()
+
+  await w.turnStarts('Ship it.')
+
+  const pr = w.calls('Bash', PR_CREATE, { verdict: 'ask' })
+  const push = w.calls('Bash', { command: 'git push' }, { verdict: 'ask' })
+
+  await w.clock.settle()
+  await $.classic.PermissionRequest({
+    tool_name: 'Bash',
+    tool_input: { command: PR_CREATE.command },
+  })
+  await $.classic.PermissionRequest({
+    tool_name: 'Bash',
+    tool_input: { command: 'git push', description: 'Push the branch', timeout: 60_000 },
+  })
+  await later(w)
+
+  expect(stateIn(w, paths)?.tool?.subject).toBe('gh pr create --fill')
+  expect(w.logs.filter(line => line.includes('matched no call'))).toEqual([])
+
+  pr.finish()
+  await pr.done
+  await later(w)
+
+  expect(stateIn(w, paths)?.tool?.subject).toBe('git push')
+
+  push.finish()
+  await push.done
+})
+
+test('a change is written at once, or once a second has passed since the last; while a rewrite waits, not again until a second past its time, when it is taken never to have fired', () => {
+  expect(rewriteAt(T0, -Infinity)).toBe(T0)
+  expect(rewriteAt(T0 + STATE_MS, T0)).toBe(T0 + STATE_MS)
+  expect(rewriteAt(T0 + 300, T0)).toBe(T0 + STATE_MS)
+  expect(rewriteAt(T0 + 300, T0, T0 + STATE_MS)).toBeUndefined()
+  expect(rewriteAt(T0 + 2 * STATE_MS, T0, T0 + STATE_MS)).toBeUndefined()
+  expect(rewriteAt(T0 + 2 * STATE_MS + 1, T0, T0 + STATE_MS)).toBe(T0 + 2 * STATE_MS + 1)
+})
+
+test('the beat says the state as it stands, so a state write that failed is put right within a beat', async ($, on) => {
+  const w = world($, on)
+  const { paths } = await w.begin()
+
+  w.refuseWrites(path => path === paths.heartbeat(W1))
+  await w.turnStarts('Carry on.')
+  await later(w)
+  w.refuseWrites()
+
+  expect(stateIn(w, paths)?.is).toBe('yourTurn')
+
+  await w.clock.advance(HEARTBEAT_MS)
+
+  expect(stateIn(w, paths)).toEqual({ is: 'working', since: T0 })
+})
+
+test("a new conversation starts with nothing heard: after a /clear, your turn since it attaches, not since the last conversation's turn", async ($, on) => {
+  const w = world($, on)
+  const { id } = await w.begin()
+
+  await w.turnStarts('Carry on.')
+  await w.clock.advance(5_000)
+  await w.turnEnds()
+  await $.session.end({ reason: 'clear', sessionId: W1, resume: { id: W1 } })
+  w.become({ conversation: W2 })
+  await w.clock.advance(60_000)
+  await w.call('join', { session: id })
+
+  const joined = sessionPaths(ROOT, PROJECT.key, id).heartbeat(W2)
+
+  expect(parsePresence(w.text(joined), W2)?.state).toEqual({
+    is: 'yourTurn',
+    since: T0 + 65_000,
+  })
 })

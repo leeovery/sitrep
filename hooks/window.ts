@@ -117,7 +117,11 @@ export const refresh = async (host: Host): Promise<Session | undefined> => {
   return session
 }
 
-/** The beat and the watch, each run in turn and only while `hold` is still the window's. */
+/** What the window is doing, as its heartbeat says it: from what it has heard, before any turn your turn since `attachedAt`. */
+const stateNow = async (host: Host, attachedAt: number) =>
+  stateOf(await activityNow(host), attachedAt)
+
+/** The beat, saying the state as it stands, and the watch, each run in turn and only while `hold` is still the window's. */
 const timersFor = (host: Host, hold: Hold) => {
   const whileHeld = (what: string, task: () => Promise<unknown>) => () =>
     void serially(() => (current === hold ? task() : Promise.resolve())).catch(
@@ -128,7 +132,14 @@ const timersFor = (host: Host, hold: Hold) => {
     host.clock.every(
       HEARTBEAT_MS,
       whileHeld('the heartbeat', async () =>
-        beat(host, hold, heartbeat(hold.presence, await host.clock.now())),
+        beat(
+          host,
+          hold,
+          heartbeat(
+            { ...hold.presence, state: await stateNow(host, hold.presence.attachedAt) },
+            await host.clock.now(),
+          ),
+        ),
       ),
     ),
     host.clock.every(
@@ -144,10 +155,6 @@ const forget = async (host: Host) => {
   await host.state.board.write(null)
   await endAnswering(host)
 }
-
-/** What the window is doing, as its heartbeat says it: from what it has heard, before any turn your turn since `attachedAt`. */
-const stateNow = async (host: Host, attachedAt: number) =>
-  stateOf(await activityNow(host), attachedAt)
 
 /**
  * Rewrites the heartbeat of the held session with what the window is doing,

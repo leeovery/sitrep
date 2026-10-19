@@ -1,6 +1,9 @@
 import { expect, test } from 'claude-code/testing'
 import {
+  agentTurnEnded,
   attach,
+  digestOf,
+  digestsOf,
   heartbeat,
   jsonOf,
   leave,
@@ -51,7 +54,7 @@ const question = (id: string, agentId?: string): ToolCall => ({
 
 /** A turn running since T0, with the changes given applied in order, each at its own time. */
 const during = (...changes: ((activity: Activity) => Activity)[]) =>
-  changes.reduce((activity, change) => change(activity), turnStarted(T0))
+  changes.reduce((activity, change) => change(activity), turnStarted(QUIET, T0))
 
 test("each file tool's subject is its path, Bash's its command, a search's its pattern, a fetch's its URL, an agent's its description", () => {
   for (const [tool, input, subject] of [
@@ -125,7 +128,7 @@ test('a question with no first question to show shows none', () => {
 
 test('a window that has heard nothing is your turn since it attached; after a turn, since the turn ended', () => {
   expect(stateOf(QUIET, T0)).toEqual({ is: 'yourTurn', since: T0 })
-  expect(stateOf(turnEnded(T0 + 9_000), T0)).toEqual({ is: 'yourTurn', since: T0 + 9_000 })
+  expect(stateOf(turnEnded(QUIET, T0 + 9_000), T0)).toEqual({ is: 'yourTurn', since: T0 + 9_000 })
 })
 
 test("a turn is working since it began, with its own loop's latest tool still running", () => {
@@ -135,7 +138,7 @@ test("a turn is working since it began, with its own loop's latest tool still ru
       toolStarted(activity, { id: 't2', tool: 'Read', input: { file_path: '/a' } }, T0 + 2_000),
   )
 
-  expect(stateOf(turnStarted(T0), T0 - 1)).toEqual({ is: 'working', since: T0 })
+  expect(stateOf(turnStarted(QUIET, T0), T0 - 1)).toEqual({ is: 'working', since: T0 })
   expect(stateOf(two, T0)).toEqual({
     is: 'working',
     since: T0,
@@ -148,7 +151,7 @@ test("a turn is working since it began, with its own loop's latest tool still ru
 test("a subagent's tool does not show", () => {
   const inside = during(activity => toolStarted(activity, bash('t1', 'ls', 'agent-1'), T0 + 1_000))
 
-  expect(inside).toEqual(turnStarted(T0))
+  expect(inside).toEqual(turnStarted(QUIET, T0))
 })
 
 /** A permission dialog about to show for Bash running `command`. */
@@ -201,30 +204,88 @@ test('a dialog is matched to the call by its tool and an equal input, whatever o
   expect(shown.asked.map(each => each.call)).toEqual(['t1'])
 })
 
-test("of two calls put to Lee with one tool and one input, the dialog is the older one's, then the other's", () => {
+test("of two calls put to Lee with one tool and one input, the dialog is the older one's, then the other's; one saying its loop is that loop's", () => {
   const asked = during(
     activity => toolAsked(activity, bash('t1', 'gh pr create')),
     activity => toolAsked(activity, bash('t2', 'gh pr create', 'agent-1')),
   )
   const first = permissionShown(asked, dialogFor('gh pr create'), T0 + 5_000)
   const second = permissionShown(first, dialogFor('gh pr create'), T0 + 6_000)
+  const theAgents = permissionShown(
+    asked,
+    { ...dialogFor('gh pr create'), agentId: 'agent-1' },
+    T0 + 5_000,
+  )
 
   expect(first.stops.map(stop => stop.call)).toEqual(['t1'])
   expect(second.stops.map(stop => stop.call)).toEqual(['t1', 't2'])
+  expect(theAgents.stops).toMatchObject([{ call: 't2', agentId: 'agent-1' }])
 })
 
-test('a dialog matching no call put to Lee stops nothing: not one of another tool or input, nor one never asked', () => {
+test('a dialog is for a call whose input carries arguments it lacks, and the reverse: only the arguments both carry are compared', () => {
+  const bare = { id: 't1', tool: 'Bash', input: { command: 'gh pr create' } }
+  const full = {
+    id: 't2',
+    tool: 'Bash',
+    input: { command: 'git push', description: 'Push', timeout: 60_000 },
+  }
+  const asked = during(
+    activity => toolAsked(activity, bare),
+    activity => toolAsked(activity, full),
+  )
+
+  expect(
+    permissionShown(
+      asked,
+      { tool: 'Bash', input: { command: 'gh pr create', description: 'PR', timeout: 5 } },
+      T0 + 5_000,
+    ).stops.map(stop => stop.call),
+  ).toEqual(['t1'])
+  expect(
+    permissionShown(asked, dialogFor('git push'), T0 + 5_000).stops.map(stop => stop.call),
+  ).toEqual(['t2'])
+})
+
+test('a dialog for no call put to Lee stops nothing: another tool, another loop, an argument both carry differing, none shared, or never asked', () => {
   const asked = during(activity => toolAsked(activity, bash('t1', 'gh pr create')))
 
   for (const request of [
     dialogFor('gh pr merge'),
     { tool: 'Write', input: { command: 'gh pr create' } },
-    { tool: 'Bash', input: { command: 'gh pr create', run_in_background: true } },
+    { ...dialogFor('gh pr create'), agentId: 'agent-2' },
+    { tool: 'Bash', input: { timeout: 5 } },
+    { tool: 'Bash', input: {} },
   ]) {
     expect(permissionShown(asked, request, T0 + 5_000), JSON.stringify(request)).toEqual(asked)
   }
 
-  expect(permissionShown(turnStarted(T0), dialogFor('ls'), T0 + 1)).toEqual(turnStarted(T0))
+  expect(permissionShown(turnStarted(QUIET, T0), dialogFor('ls'), T0 + 1)).toEqual(
+    turnStarted(QUIET, T0),
+  )
+})
+
+test('two inputs with no arguments at all are for each other', () => {
+  const asked = during(activity =>
+    toolAsked(activity, { id: 'p1', tool: 'ExitPlanMode', input: {} }),
+  )
+
+  expect(
+    permissionShown(asked, { tool: 'ExitPlanMode', input: {} }, T0 + 1_000).stops,
+  ).toMatchObject([{ call: 'p1', is: 'permission', tool: { name: 'ExitPlanMode' } }])
+})
+
+test("a candidate keeps each argument as a short digest, never the argument itself: a Write's whole file is a few characters", () => {
+  const content = 'x'.repeat(100_000)
+  const asked = during(activity =>
+    toolAsked(activity, { id: 'w1', tool: 'Write', input: { file_path: '/repo/a.ts', content } }),
+  )
+  const [candidate] = asked.asked
+
+  expect(Object.keys(candidate?.input ?? {})).toEqual(['file_path', 'content'])
+  expect(Object.values(candidate?.input ?? {}).every(digest => digest.length <= 11)).toBe(true)
+  expect(JSON.stringify(asked).length).toBeLessThan(200)
+  expect(digestOf('a')).not.toBe(digestOf('b'))
+  expect(digestsOf({ b: [2, 1], a: undefined })).toEqual({ b: digestOf(jsonOf([2, 1])) })
 })
 
 test("as JSON, inputs are equal whatever their keys' order and with a key left undefined; lists keep their order", () => {
@@ -287,22 +348,41 @@ test('a call that settles before its dialog shows is no longer a candidate', () 
   expect(permissionShown(settled, dialogFor('gh pr create'), T0 + 5_000).stops).toEqual([])
 })
 
-test("a turn's start or end clears every tool, every call put to Lee and every call waiting on Lee, whatever was running", () => {
+test("the window's turn starting or ending clears its own tools, candidates and stops, and keeps a subagent's", () => {
   const busy = during(
     activity => toolStarted(activity, bash('t1', 'bun test'), T0 + 1_000),
     activity => toolAsked(activity, bash('t2', 'gh pr create', 'agent-1')),
     activity => toolAsked(activity, bash('t3', 'git push')),
+    activity => toolAsked(activity, bash('t4', 'ls', 'agent-1')),
     activity => permissionShown(activity, dialogFor('gh pr create'), T0 + 2_000),
+    activity => toolStarted(activity, question('q1'), T0 + 3_000),
   )
-  const ended = turnEnded(T0 + 9_000)
-  const next = turnStarted(T0 + 10_000)
+  const ended = turnEnded(busy, T0 + 9_000)
+  const next = turnStarted(ended, T0 + 10_000)
+  const theAgents = {
+    asked: [expect.objectContaining({ call: 't4', agentId: 'agent-1' })],
+    stops: [expect.objectContaining({ call: 't2', agentId: 'agent-1' })],
+  }
 
-  expect(stateOf(busy, T0).is).toBe('permission')
-  expect(busy.asked).toHaveLength(1)
-  expect(ended).toEqual({ endedAt: T0 + 9_000, tools: [], asked: [], stops: [] })
-  expect(stateOf(ended, T0)).toEqual({ is: 'yourTurn', since: T0 + 9_000 })
-  expect(next).toEqual({ turnAt: T0 + 10_000, tools: [], asked: [], stops: [] })
-  expect(stateOf(next, T0)).toEqual({ is: 'working', since: T0 + 10_000 })
+  expect(busy.stops.map(stop => stop.call)).toEqual(['t2', 'q1'])
+  expect(ended).toEqual({ endedAt: T0 + 9_000, tools: [], ...theAgents })
+  expect(next).toEqual({ turnAt: T0 + 10_000, tools: [], ...theAgents })
+  expect(stateOf(next, T0)).toEqual({ ...PERMISSION, since: T0 + 2_000 })
+})
+
+test("a subagent's turn ending clears what it left, though its calls were never heard to end, and nothing of another loop's", () => {
+  const busy = during(
+    activity => toolAsked(activity, bash('t1', 'gh pr create', 'agent-1')),
+    activity => permissionShown(activity, dialogFor('gh pr create'), T0 + 2_000),
+    activity => toolAsked(activity, bash('t2', 'ls', 'agent-1')),
+    activity => toolAsked(activity, bash('t3', 'git push', 'agent-2')),
+    activity => toolStarted(activity, question('q1'), T0 + 3_000),
+  )
+  const ended = agentTurnEnded(busy, 'agent-1')
+
+  expect(ended.asked.map(asked => asked.call)).toEqual(['t3'])
+  expect(ended.stops.map(stop => stop.call)).toEqual(['q1'])
+  expect(ended.turnAt).toBe(T0)
 })
 
 test('a heartbeat reads back with its state, through every beat; letting go drops it', () => {
