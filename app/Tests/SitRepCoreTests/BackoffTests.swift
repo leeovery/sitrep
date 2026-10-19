@@ -19,14 +19,23 @@ struct BackoffTests {
     }
 
     @Test(arguments: [
-        (0, .seconds(1), true),
-        (0, .seconds(600), true),
-        (0, .milliseconds(999), false),
-        (1, .seconds(600), false),
-        (143, .seconds(5), false),
-    ] as [(Int32, Duration, Bool)])
-    func onlyARunThatExited0AfterASecondMadeWayForANewVersion(status: Int32, lived: Duration, renews: Bool) {
-        #expect(Backoff.renews(status: status, lived: lived) == renews)
+        (.status(0), .seconds(1), true),
+        (.status(0), .seconds(600), true),
+        (.status(0), .milliseconds(999), false),
+        (.status(1), .seconds(600), false),
+        (.signal(15), .seconds(600), false),
+    ] as [(Exit, Duration, Bool)])
+    func onlyARunThatExited0AfterASecondMadeWayForANewVersion(exit: Exit, lived: Duration, renews: Bool) {
+        #expect(Backoff.renews(exit, lived: lived, sinceRenewal: nil) == renews)
+    }
+
+    @Test(arguments: [
+        (.seconds(59), false),
+        (.seconds(60), true),
+        (.seconds(3600), true),
+    ] as [(Duration, Bool)])
+    func aRenewalWithinAMinuteOfTheLastIsNone(sinceRenewal: Duration, renews: Bool) {
+        #expect(Backoff.renews(.status(0), lived: .seconds(30), sinceRenewal: sinceRenewal) == renews)
     }
 
     @Test func aRenewalStartsTheCountAgain() {

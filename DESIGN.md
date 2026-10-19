@@ -2115,6 +2115,37 @@ asked for the sessions back, and approved the redraw as it stands.
     sessions stay as the board last read them, their heading saying when
     ("4 need you · as of 12:04"). The notch, the strip and the window keep
     the last board too, marked as stale.
+- **How the app keeps `watch` running** (built 19 October 2026, in
+  `app/Sources/SitRepCore`; the CLI's side is under "One engine, two front
+  ends"):
+  - **The back-off.** A `watch` that ends is started again after a second,
+    the wait doubling at each end in a row to 30 seconds, and starting over
+    once a run lived a minute, or after a renewal.
+  - **The renewal.** `watch` exits 0, unasked, when its plugin's version
+    moves under it, so the app runs the new code. That is started again at
+    once, the board not marked stale, as the new run's first line follows
+    within a second or so. An exit 0 within a second of the run starting,
+    or within a minute of the last renewal, is a failure, so a `watch` that
+    keeps exiting cannot spin. A run's life counts from its child starting,
+    not from asking Lee's shell for the PATH before it.
+  - **The reason.** The last 20 lines of `watch`'s stderr are kept, each to
+    1KB. The reason is the last that says anything: the CLI's own `sitrep:`
+    line when it ended on its own error, else the error's own line when Bun
+    crashed, never Bun's version trailer, a stack frame or the source Bun
+    quotes. With none, it says how `watch` ended: "ended", "ended with
+    status 1" or "was stopped (signal 9)". Output is read for half a
+    second after `watch` exits, as for any run of the CLI, so a child left
+    holding it open does not hold up the exit.
+  - **Stale since.** The board is stale from the instant the app heard the
+    exit, the failed start, or a line that does not read (one longer than
+    1MB among them); the "as of" is that instant, not the board's own time,
+    since `watch` prints only on a change. A line that reads ends it.
+  - **The first board of a run after another** is marked as resumed: its
+    `new` and `changed` are empty, as on any run's first line, though the
+    board may have moved while `watch` was down, so the SitRep window reads
+    what it shows again in full. The app decides no rows of its own, so a
+    row that needed Lee and came while `watch` was down gets no swell or
+    flash: accepted.
 - **The icon** in the menu bar is the light's glyph (see "The icon"): white
   on a dark menu bar and black on a light one, its bar lit orange while
   anything needs Lee, since the notch is on one display and the menu bar on

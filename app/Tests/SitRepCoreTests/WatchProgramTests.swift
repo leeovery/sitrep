@@ -2,6 +2,7 @@ import Foundation
 @testable import SitRepCore
 import Testing
 
+@Suite(.timeLimit(.minutes(1)))
 struct WatchProgramTests {
     private static func sh(_ script: String, environment: [String: String] = [:]) -> Program {
         Program(executable: URL(fileURLWithPath: "/bin/sh"), arguments: ["-c", script], environment: environment, limit: .infinity)
@@ -20,19 +21,44 @@ struct WatchProgramTests {
     @Test func eachLineIsHeardAsItComesThenHowTheProgramEnded() async {
         let heard = await Self.heard(Self.sh("echo one; echo two; echo err >&2; exit 3"))
 
-        #expect(heard == [.line("one"), .line("two"), .exited(status: 3, stderr: "err")])
+        #expect(heard == [.line("one"), .line("two"), .exited(.status(3), stderr: "err")])
     }
 
     @Test func theProgramGetsOnlyTheEnvironmentGivenAndAnEmptyStdin() async {
         let heard = await Self.heard(Self.sh(#"/bin/cat; printf '%s|%s\n' "$PATH" "${HOME-unset}""#, environment: ["PATH": "/lee/bin"]))
 
-        #expect(heard == [.line("/lee/bin|unset"), .exited(status: 0, stderr: "")])
+        #expect(heard == [.line("/lee/bin|unset"), .exited(.status(0), stderr: "")])
     }
 
     @Test func ofALongStderrOnlyTheLastLinesAreKept() async {
         let heard = await Self.heard(Self.sh("i=0; while [ $i -lt 30 ]; do echo $i >&2; i=$((i+1)); done"))
 
-        #expect(heard == [.exited(status: 0, stderr: (10..<30).map(String.init).joined(separator: "\n"))])
+        #expect(heard == [.exited(.status(0), stderr: (10..<30).map(String.init).joined(separator: "\n"))])
+    }
+
+    @Test func aProgramStoppedByASignalSaysWhich() async {
+        #expect(await Self.heard(Self.sh("kill -9 $$")) == [.exited(.signal(9), stderr: "")])
+    }
+
+    @Test func aChildLeftHoldingTheOutputOpenIsNotWaitedOn() async {
+        let clock = ContinuousClock()
+        let started = clock.now
+        let heard = await Self.heard(Self.sh("echo done; sleep 10 &"))
+
+        #expect(heard == [.line("done"), .exited(.status(0), stderr: "")])
+        #expect(clock.now - started < .seconds(3))
+    }
+
+    @Test func aLinePastTheLongestIsCutThere() async {
+        let heard = await Self.heard(Self.sh("head -c \(longestLine + 100) /dev/zero | tr '\\0' a; echo; echo next"))
+
+        #expect(heard == [.line(String(repeating: "a", count: longestLine)), .line("next"), .exited(.status(0), stderr: "")])
+    }
+
+    @Test func aLineOfStderrPastTheLongestKeptIsCutThere() async {
+        let heard = await Self.heard(Self.sh("head -c \(longestSaid * 4) /dev/zero | tr '\\0' e >&2"))
+
+        #expect(heard == [.exited(.status(0), stderr: String(repeating: "e", count: longestSaid))])
     }
 
     @Test func aProgramThatCannotStartSaysSo() async throws {

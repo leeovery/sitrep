@@ -10,15 +10,18 @@ struct Backoff {
     static let settled: Duration = .seconds(60)
     /// A run that exits 0 sooner was failing, not making way for a new version.
     static let renewing: Duration = .seconds(1)
+    /// Renewals closer together than this are a `watch` that keeps exiting, not new versions.
+    static let renewalsApart: Duration = .seconds(60)
 
     private var next = first
 
     /// Whether a run that ended so made way for a new version of itself:
     /// `watch` exits 0, unasked, once its plugin's version moves under it, so
-    /// the app runs the new code. One exiting 0 at once counts as a failure,
-    /// so a `watch` that keeps exiting cannot spin.
-    static func renews(status: Int32, lived: Duration) -> Bool {
-        status == 0 && lived >= renewing
+    /// the app runs the new code. One exiting 0 within a second of starting,
+    /// or within a minute of the last renewal, counts as a failure, so a
+    /// `watch` that keeps exiting cannot spin.
+    static func renews(_ exit: Exit, lived: Duration, sinceRenewal: Duration?) -> Bool {
+        exit == .status(0) && lived >= renewing && (sinceRenewal.map { $0 >= renewalsApart } ?? true)
     }
 
     /// A run made way for a new version: the next starts at once, and the count starts again.

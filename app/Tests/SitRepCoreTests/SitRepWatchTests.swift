@@ -3,21 +3,27 @@ import Foundation
 import os
 import Testing
 
+@Suite(.timeLimit(.minutes(1)))
 struct SitRepWatchTests {
     private static let path = "/Users/lee/.bun/bin:/opt/homebrew/bin:/usr/bin:/bin"
 
-    /// The watch over the runs given, on their clock.
-    private static func watch(_ runs: Runs) -> SitRepWatch<TestClock> {
-        let cli = SitRepCLI(plugin: URL(fileURLWithPath: "/Users/lee/Code/sitrep"), path: { path }, environment: ["HOME": "/Users/lee"])
+    /// The watch over the runs given, on their clock, Lee's PATH taking as long as given to find.
+    private static func watch(_ runs: Runs, pathTakes: Duration = .zero) -> SitRepWatch<TestClock> {
+        let clock = runs.clock
+        let cli = SitRepCLI(plugin: URL(fileURLWithPath: "/Users/lee/Code/sitrep"), path: {
+            clock.advance(by: pathTakes)
 
-        return SitRepWatch(cli: cli, watcher: runs.watcher, clock: runs.clock)
+            return path
+        }, environment: ["HOME": "/Users/lee"])
+
+        return SitRepWatch(cli: cli, watcher: runs.watcher, clock: clock, now: { clock.date })
     }
 
     /// The first boards the watch publishes; the reading stops after them.
-    private static func boards(_ count: Int, of runs: Runs) async -> [LastBoard] {
+    private static func boards(_ count: Int, of runs: Runs, pathTakes: Duration = .zero) async -> [LastBoard] {
         var boards: [LastBoard] = []
 
-        for await board in watch(runs).boards() {
+        for await board in watch(runs, pathTakes: pathTakes).boards() {
             boards.append(board)
 
             if boards.count == count {
@@ -28,8 +34,14 @@ struct SitRepWatchTests {
         return boards
     }
 
+    private static func exited(_ status: Int32, lives: Duration = .zero) -> Run {
+        Run(lives: lives, says: [.exited(.status(status), stderr: "")])
+    }
+
+    private static let watching = Run(says: [.line(watched)], ends: false)
+
     @Test func itRunsThePluginsWatchWithLeesPathAndNoTimeLimit() async {
-        let runs = Runs([Run(says: [.line(watched)], ends: false)])
+        let runs = Runs([Self.watching])
 
         _ = await Self.boards(1, of: runs)
 
@@ -62,22 +74,34 @@ struct SitRepWatchTests {
         #expect(runs.programs.count == 1)
     }
 
-    @Test func whenWatchEndsTheBoardIsKeptStaleAndWatchStartsAgainASecondLater() async throws {
+    @Test func whenWatchEndsTheBoardIsKeptStaleSinceThenAndWatchStartsAgainASecondLater() async throws {
         let runs = Runs([
-            Run(says: [.line(watched), .exited(status: 1, stderr: "sitrep: the state folder went\n")]),
+            Run(lives: .seconds(5), says: [.line(watched), .exited(.status(1), stderr: "sitrep: the state folder went\n")]),
             Run(says: [.line(watchedEmpty)], ends: false),
         ])
 
         let boards = await Self.boards(3, of: runs)
 
         #expect(boards.map(\.board) == [try Board.read(watched), try Board.read(watched), try Board.read(watchedEmpty)])
-        #expect(boards.map(\.stale) == [nil, .exited(status: 1, said: "the state folder went"), nil])
+        #expect(boards.map(\.stale) == [nil, .exited(.status(1), said: "the state folder went"), nil])
+        #expect(boards.map(\.staleSince) == [nil, TestClock.date(at: .seconds(5)), nil])
         #expect(runs.clock.slept == [.seconds(1)])
         #expect(runs.programs.count == 2)
     }
 
+    @Test func eachRunsFirstBoardAfterTheFirstRunIsResumed() async {
+        let runs = Runs([
+            Run(says: [.line(watchedEmpty), .line(watched), .exited(.status(1), stderr: "")]),
+            Run(says: [.line(watchedEmpty), .line(watched)], ends: false),
+        ])
+
+        let boards = await Self.boards(5, of: runs)
+
+        #expect(boards.map(\.isResumed) == [false, false, false, true, false])
+    }
+
     @Test func watchThatCannotStartIsTriedAgain() async {
-        let runs = Runs([Run(says: [.unstartable("no such file")]), Run(says: [.line(watched)], ends: false)])
+        let runs = Runs([Run(says: [.unstartable("no such file")]), Self.watching])
 
         let boards = await Self.boards(2, of: runs)
 
@@ -85,9 +109,7 @@ struct SitRepWatchTests {
     }
 
     @Test func eachEndInARowWaitsLongerAndARunThatLivedAMinuteStartsTheCountAgain() async {
-        let ends = (1...4).map { Run(says: [.exited(status: $0, stderr: "")]) }
-        let lived = Run(lives: .seconds(60), says: [.exited(status: 5, stderr: "")])
-        let runs = Runs(ends + [lived, Run(says: [.exited(status: 6, stderr: "")])])
+        let runs = Runs((1...4).map { Self.exited($0) } + [Self.exited(5, lives: .seconds(60)), Self.exited(6)])
 
         _ = await Self.boards(6, of: runs)
 
@@ -96,7 +118,7 @@ struct SitRepWatchTests {
 
     @Test func watchMakingWayForANewVersionIsStartedAgainAtOnceTheBoardNotStale() async throws {
         let runs = Runs([
-            Run(lives: .seconds(1), says: [.line(watched), .exited(status: 0, stderr: "")]),
+            Run(lives: .seconds(1), says: [.line(watched), .exited(.status(0), stderr: "")]),
             Run(says: [.line(watchedEmpty)], ends: false),
         ])
 
@@ -104,18 +126,13 @@ struct SitRepWatchTests {
 
         #expect(boards.map(\.board) == [try Board.read(watched), try Board.read(watchedEmpty)])
         #expect(boards.map(\.stale) == [nil, nil])
+        #expect(boards.map(\.isResumed) == [false, true])
         #expect(runs.clock.slept == [])
         #expect(runs.programs.count == 2)
     }
 
     @Test func makingWayForANewVersionStartsTheBackOffAgain() async {
-        let runs = Runs([
-            Run(says: [.exited(status: 1, stderr: "")]),
-            Run(says: [.exited(status: 2, stderr: "")]),
-            Run(lives: .seconds(5), says: [.exited(status: 0, stderr: "")]),
-            Run(says: [.exited(status: 3, stderr: "")]),
-            Run(says: [.line(watched)], ends: false),
-        ])
+        let runs = Runs([Self.exited(1), Self.exited(2), Self.exited(0, lives: .seconds(5)), Self.exited(3), Self.watching])
 
         _ = await Self.boards(4, of: runs)
 
@@ -124,19 +141,47 @@ struct SitRepWatchTests {
 
     @Test func watchExiting0WithinASecondOfStartingIsAFailure() async throws {
         let runs = Runs([
-            Run(lives: .milliseconds(500), says: [.line(watched), .exited(status: 0, stderr: "")]),
+            Run(lives: .milliseconds(500), says: [.line(watched), .exited(.status(0), stderr: "")]),
             Run(says: [.line(watchedEmpty)], ends: false),
         ])
 
         let boards = await Self.boards(3, of: runs)
 
-        #expect(boards.map(\.stale) == [nil, .exited(status: 0, said: nil), nil])
+        #expect(boards.map(\.stale) == [nil, .exited(.status(0), said: nil), nil])
         #expect(boards[1].board == (try Board.read(watched)))
         #expect(runs.clock.slept == [.seconds(1)])
     }
 
+    @Test func findingLeesPathIsNotCountedInARunsLife() async {
+        let runs = Runs([Self.exited(0), Self.watching])
+
+        let boards = await Self.boards(2, of: runs, pathTakes: .seconds(10))
+
+        #expect(boards.first?.stale == .exited(.status(0), said: nil))
+        #expect(runs.clock.slept == [.seconds(1)])
+    }
+
+    @Test func aRenewalWithinAMinuteOfTheLastIsAFailure() async {
+        let runs = Runs([Self.exited(0, lives: .seconds(30)), Self.exited(0, lives: .seconds(59)), Self.watching])
+
+        let boards = await Self.boards(2, of: runs)
+
+        #expect(boards.first?.stale == .exited(.status(0), said: nil))
+        #expect(runs.clock.slept == [.seconds(1)])
+    }
+
+    @Test func aRenewalAMinuteAfterTheLastIsARenewal() async {
+        let runs = Runs([Self.exited(0, lives: .seconds(30)), Self.exited(0, lives: .seconds(60)), Self.watching])
+
+        let boards = await Self.boards(1, of: runs)
+
+        #expect(boards.first?.stale == nil)
+        #expect(runs.clock.slept == [])
+        #expect(runs.programs.count == 3)
+    }
+
     @Test func readingNoMoreStopsWatch() async {
-        let runs = Runs([Run(says: [.line(watched)], ends: false)])
+        let runs = Runs([Self.watching])
 
         _ = await Self.boards(1, of: runs)
         await runs.stopped()
@@ -145,9 +190,9 @@ struct SitRepWatchTests {
     }
 }
 
-/// A run of `watch` stood in for: it lives as long as given on the test
-/// clock, says what is given, and ends, unless it is one that never ends
-/// until it is stopped.
+/// A run of `watch` stood in for: as it is read, it lives as long as given
+/// on the test clock, says what is given, and ends, unless it is one that
+/// never ends until it is stopped.
 private struct Run {
     var lives: Duration = .zero
     var says: [Heard]
@@ -176,16 +221,27 @@ private final class Runs: Sendable {
             started.withLock { $0.append(program) }
 
             let run = script.withLock { $0.isEmpty ? Run(says: [], ends: false) : $0.removeFirst() }
+            let left = OSAllocatedUnfairLock(initialState: (lives: run.lives, says: run.says))
 
-            return AsyncStream { heard in
-                clock.advance(by: run.lives)
-                run.says.forEach { heard.yield($0) }
+            return AsyncStream { [clock, stop] in
+                let (lives, said) = left.withLock { left in
+                    defer { left = (.zero, Array(left.says.dropFirst())) }
 
-                if run.ends {
-                    heard.finish()
-                } else {
-                    heard.onTermination = { [stop] _ in stop.yield() }
+                    return (left.lives, left.says.first)
                 }
+
+                clock.advance(by: lives)
+
+                if let said {
+                    return said
+                }
+
+                if !run.ends {
+                    try? await Task.sleep(for: .seconds(3600))
+                    stop.yield()
+                }
+
+                return nil
             }
         }
     }
@@ -208,11 +264,21 @@ private final class TestClock: Clock, Sendable {
         static func < (left: Instant, right: Instant) -> Bool { left.offset < right.offset }
     }
 
+    /// The time of day as the clock starts.
+    private static let start = Date(timeIntervalSince1970: 1_792_445_600)
+
     private let state = OSAllocatedUnfairLock(initialState: (now: Duration.zero, slept: [Duration]()))
 
     var now: Instant { Instant(offset: state.withLock { $0.now }) }
     var minimumResolution: Duration { .zero }
     var slept: [Duration] { state.withLock { $0.slept } }
+
+    /// The time of day as the clock stands.
+    var date: Date { Self.date(at: now.offset) }
+
+    static func date(at offset: Duration) -> Date {
+        start.addingTimeInterval(Double(offset.components.seconds) + Double(offset.components.attoseconds) / 1e18)
+    }
 
     func advance(by duration: Duration) {
         state.withLock { $0.now += duration }

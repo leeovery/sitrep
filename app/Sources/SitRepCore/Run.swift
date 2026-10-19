@@ -57,7 +57,7 @@ public let runProgram: Runner = { program in
 }
 
 /// How long output is read after the program ends: a child it left behind may hold its output open.
-private let drainSeconds: TimeInterval = 0.5
+let drainSeconds: TimeInterval = 0.5
 
 /// Runs the program to its end or its limit. One still running at the limit is
 /// killed outright: an interactive shell ignores SIGTERM.
