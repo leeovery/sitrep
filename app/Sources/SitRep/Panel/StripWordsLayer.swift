@@ -2,8 +2,9 @@ import AppKit
 import SitRepPanel
 
 /// A tab's words, laid out once as the prototype's `.tl` lays them out: a session's panel row (its title, its project
-/// and work, or why an away ask's takes no click, and its age at the right), or the count's rows. Each frame sets only
-/// their opacity, their slide along the strip, and a click pressing them in.
+/// and work, or why an away ask's takes no click, and its age at the right), a count's rows, or the notch at rest's
+/// two lines. Each frame sets only their opacity, their slide along the strip, how far a count's rows are scrolled,
+/// and a click pressing them in.
 @MainActor
 final class StripWordsLayer {
     let layer = CALayer()
@@ -12,10 +13,13 @@ final class StripWordsLayer {
     private let content = CALayer()
     private let age = CALayer()
     private let spinner = CALayer()
-    /// The count's rows, by session.
+    /// A count's rows, by session, scrolled together; those of away asks never lift.
+    private let list = CALayer()
     private var rows: [String: CALayer] = [:]
+    private var away: Set<String> = []
     private var pressed = false
     private var hovered: String?
+    private var scrolled = 0.0
 
     private static let pad = StripRowLayout.pad, gap = StripRowLayout.gap, ageMin = 18.0
 
@@ -30,25 +34,31 @@ final class StripWordsLayer {
         switch words.content {
         case let .row(session): lay(session, in: size, now: now)
         case let .rows(sessions): lay(sessions, width: size.width)
+        case .idle: layIdle(in: size)
         }
     }
 
     func show(_ words: StripFrame.Words, hover: String?) {
         layer.opacity = Float(words.alpha)
         layer.transform = CATransform3DMakeTranslation(0, words.dy, 0)
+        if words.scroll != scrolled {
+            scrolled = words.scroll
+            list.frame.origin.y = -scrolled
+        }
         if words.isPressed != pressed {
             pressed = words.isPressed
             press(content)
             age.isHidden = pressed
             spinner.isHidden = !pressed
         }
-        let lit = words.pressedRow ?? hover
+        let lit = words.pressedRow ?? hover.flatMap { away.contains($0) ? nil : $0 }
         if lit != hovered {
             light(lit, pressed: words.pressedRow != nil)
         }
     }
 
-    /// As wide as the words need, before the tab's slack: a session's row, or the widest of the count's rows.
+    /// As wide as the words need, before the tab's slack: a session's row, the widest of a count's rows, or the notch
+    /// at rest's lines.
     static let measure = StripMeasure(
         row: { session in
             MainActor.assumeIsolated {
@@ -59,6 +69,11 @@ final class StripWordsLayer {
         rows: { sessions in
             MainActor.assumeIsolated {
                 pad.left + (sessions.map { max(width(rowTitle($0)), width(rowSub($0))) }.max() ?? 0) + pad.right
+            }
+        },
+        idle: {
+            MainActor.assumeIsolated {
+                pad.left + max(width(idleTitle), width(idleLine2)) + pad.right
             }
         }
     )
@@ -119,17 +134,31 @@ final class StripWordsLayer {
         content.addSublayer(spinner)
     }
 
-    // MARK: The count's rows
+    // MARK: The notch at rest's
+
+    /// Nothing running, its title quieter than a row's, and nothing to click.
+    private func layIdle(in size: CGSize) {
+        let at = StripRowLayout.idle(in: size)
+        content.addSublayer(TextLine(Self.idleTitle, in: at.title))
+        content.addSublayer(TextLine(Self.idleLine2, in: at.sub))
+    }
+
+    // MARK: A count's rows
 
     private func lay(_ sessions: [StripSession], width: Double) {
+        list.frame = CGRect(origin: .zero, size: content.bounds.size)
+        content.addSublayer(list)
         for (i, session) in sessions.enumerated() {
             let at = StripRowsLayout(i, width: width), box = CALayer()
             box.frame = at.box
             box.cornerRadius = 10
             box.addSublayer(TextLine(Self.rowTitle(session), in: at.title))
             box.addSublayer(TextLine(Self.rowSub(session), in: at.sub))
-            content.addSublayer(box)
+            list.addSublayer(box)
             rows[session.id] = box
+            if session.away {
+                away.insert(session.id)
+            }
         }
     }
 
@@ -165,14 +194,21 @@ final class StripWordsLayer {
         let font = s.kind == .needs ? PanelStyle.needsTitle : PanelStyle.title
         let ink = colour ?? (s.away ? PanelStyle.quiet : PanelStyle.ink)
         let text = TextLine.text(s.title, font, ink, kern: PanelStyle.tightKern(font))
-        if let code = s.code {
-            text.append(TextLine.text(code, PanelStyle.code, ink))
-        }
-        if let more = s.more {
-            text.addAttribute(.kern, value: 6, range: NSRange(location: text.length - 1, length: 1))
-            text.append(TextLine.text("+\(more)", PanelStyle.title, PanelStyle.ink3))
-        }
+        append(s, to: text, ink, code: PanelStyle.code, more: PanelStyle.title)
         return text
+    }
+
+    /// A title's command in code type after it, and its "+2", dim, 6 further on.
+    private static func append(
+        _ s: StripSession, to text: NSMutableAttributedString, _ ink: CGColor, code: NSFont, more: NSFont
+    ) {
+        if let command = s.code {
+            text.append(TextLine.text(command, code, ink))
+        }
+        if let count = s.more {
+            text.addAttribute(.kern, value: 6, range: NSRange(location: text.length - 1, length: 1))
+            text.append(TextLine.text("+\(count)", more, PanelStyle.ink3))
+        }
     }
 
     private static func sub(_ s: StripSession) -> NSAttributedString {
@@ -187,16 +223,29 @@ final class StripWordsLayer {
         max(ageMin, width(ageText(s, at: now)))
     }
 
+    /// One of a count's rows' titles: needs you and your turn in ink, needs you's bolder, an away ask's quiet, and
+    /// working grey.
     private static func rowTitle(_ s: StripSession) -> NSAttributedString {
-        let text = TextLine.text(s.title, PanelStyle.rowTitle, s.kind == .turn ? PanelStyle.ink : PanelStyle.grey)
-        if let code = s.code {
-            text.append(TextLine.text(code, PanelStyle.code, s.kind == .turn ? PanelStyle.ink : PanelStyle.grey))
-        }
+        let ink = s.away ? PanelStyle.quiet : s.kind == .working ? PanelStyle.grey : PanelStyle.ink
+        let font = s.kind == .needs ? PanelStyle.needsRowTitle : PanelStyle.rowTitle
+        let text = TextLine.text(s.title, font, ink)
+        append(s, to: text, ink, code: PanelStyle.code, more: PanelStyle.rowTitle)
         return text
     }
 
     private static func rowSub(_ s: StripSession) -> NSAttributedString {
-        TextLine.text(s.sub, PanelStyle.rowSub, PanelStyle.ink2)
+        TextLine.text(s.line2, PanelStyle.rowSub, PanelStyle.ink2)
+    }
+
+    private static var idleTitle: NSAttributedString {
+        TextLine.text(
+            StripFrame.Words.Content.idleTitle, PanelStyle.title, PanelStyle.ink2,
+            kern: PanelStyle.tightKern(PanelStyle.title)
+        )
+    }
+
+    private static var idleLine2: NSAttributedString {
+        TextLine.text(StripFrame.Words.Content.idleLine2, PanelStyle.sub, PanelStyle.ink2)
     }
 
     private static func width(_ text: NSAttributedString) -> Double {

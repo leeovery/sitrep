@@ -156,7 +156,7 @@ private struct GlassMark: View {
         .opacity(mark.alpha)
     }
 
-    private var isNeeds: Bool { mark.look == .needs || mark.look == .away }
+    private var isNeeds: Bool { [.needs, .away, .needsCount].contains(mark.look) }
 
     private var fill: AnyShapeStyle {
         if mark.wash > 0 {
@@ -173,7 +173,7 @@ private struct GlassMark: View {
             return AnyShapeStyle(.quaternary)
         }
         switch mark.look {
-        case .needs, .away: return AnyShapeStyle(Glass.flashing(mark.flash))
+        case .needs, .away, .needsCount: return AnyShapeStyle(Glass.flashing(mark.flash))
         case .turn: return AnyShapeStyle(.primary)
         case .working: return nil
         case .count: return AnyShapeStyle(.tertiary)
@@ -194,7 +194,7 @@ private struct GlassMark: View {
 
     private var letters: AnyShapeStyle {
         switch mark.look {
-        case .needs, .turn: AnyShapeStyle(.primary)
+        case .needs, .turn, .needsCount: AnyShapeStyle(.primary)
         case .away: AnyShapeStyle(.tertiary)
         case .working, .count: AnyShapeStyle(.secondary)
         }
@@ -219,6 +219,8 @@ private struct GlassTab: View {
                     case let .rows(sessions):
                         GlassRows(sessions: sessions, width: words.frame.width, lit: words.pressedRow ?? hoverRow,
                                   pressed: words.pressedRow != nil)
+                            .offset(y: -words.scroll)
+                    case .idle: GlassIdle(size: words.frame.size)
                     }
                 }
                 .frame(width: words.frame.width, height: words.frame.height, alignment: .topLeading)
@@ -276,7 +278,8 @@ private struct GlassRow: View {
     }
 }
 
-/// The count's rows: each the session's title and its project and work, lifting under the pointer.
+/// A count's rows: each the session's title and its project and work (or why an away ask's takes no click), lifting
+/// under the pointer but for an away ask's.
 @available(macOS 26, *)
 private struct GlassRows: View {
     let sessions: [StripSession]
@@ -290,9 +293,9 @@ private struct GlassRows: View {
                 let at = StripRowsLayout(i, width: width)
                 ZStack(alignment: .topLeading) {
                     RoundedRectangle(cornerRadius: 10)
-                        .fill(.primary.opacity(lit == session.id ? (pressed ? 0.14 : 0.08) : 0))
+                        .fill(.primary.opacity(lit == session.id && !session.away ? (pressed ? 0.14 : 0.08) : 0))
                     Glass.rowTitle(session).placed(in: at.title)
-                    Text(session.sub).font(.system(size: 11)).foregroundStyle(.secondary).placed(in: at.sub)
+                    Text(session.line2).font(.system(size: 11)).foregroundStyle(.secondary).placed(in: at.sub)
                 }
                 .frame(width: at.box.width, height: at.box.height, alignment: .topLeading)
                 .scaleEffect(lit == session.id && pressed ? 0.985 : 1)
@@ -329,10 +332,37 @@ private enum Glass {
 
     /// One of the count's rows' titles: your turn in the primary label colour, the rest in the secondary.
     static func rowTitle(_ s: StripSession) -> some View {
-        var text = Text(s.title).font(.system(size: 13, weight: .medium))
+        var text = Text(s.title).font(.system(size: 13, weight: s.kind == .needs ? .semibold : .medium))
         if let code = s.code {
             text = text + Text(code).font(.system(size: 13, weight: .medium, design: .monospaced))
         }
-        return text.foregroundStyle(s.kind == .turn ? AnyShapeStyle(.primary) : AnyShapeStyle(.secondary))
+        if let more = s.more {
+            text = text + Text("  +\(more)").font(.system(size: 13, weight: .medium)).foregroundStyle(.tertiary)
+        }
+        let ink: AnyShapeStyle = s.away ? AnyShapeStyle(.tertiary)
+            : s.kind == .working ? AnyShapeStyle(.secondary) : AnyShapeStyle(.primary)
+        return text.foregroundStyle(ink)
+    }
+}
+
+/// The notch at rest's tab on glass: nothing running, in the secondary label colour, and nothing to click.
+@available(macOS 26, *)
+private struct GlassIdle: View {
+    let size: CGSize
+
+    var body: some View {
+        let at = StripRowLayout.idle(in: size)
+        ZStack(alignment: .topLeading) {
+            Text(StripFrame.Words.Content.idleTitle)
+                .font(.system(size: 14, weight: .medium))
+                .kerning(-0.14)
+                .foregroundStyle(.secondary)
+                .placed(in: at.title)
+            Text(StripFrame.Words.Content.idleLine2)
+                .font(.system(size: 12))
+                .foregroundStyle(.secondary)
+                .placed(in: at.sub)
+        }
+        .frame(width: size.width, height: size.height, alignment: .topLeading)
     }
 }

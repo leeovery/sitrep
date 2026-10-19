@@ -32,22 +32,36 @@ struct StripRecorded {
         let y, sc, op: Double
     }
 
+    /// A count: how many it holds, and its mark's three.
+    struct Count {
+        let n: Int
+        let mark: Mark
+    }
+
+    /// The strip's ends: where its top S and its bottom S leave the screen's edge, and how far it has drawn back into
+    /// the notch at rest.
+    struct Ends {
+        let top, bottom, lip: Double
+    }
+
     let t: Double
     /// The pointer as the strip took it; nil off the page.
     let p: CGPoint?
     let hair: Mark
+    let ends: Ends
     /// "mark s6" or "tab s7": a click jumping.
     let jumping: String?
     let tabs: [Tab]
     /// The scenario's marks, in its order; nil for one not on the strip.
     let marks: [Mark?]
-    let more: Mark?
+    let more: Count?
+    let moreNeeds: Count?
 
     static func R(
-        _ t: Double, _ p: CGPoint?, hair: Mark, jumping: String? = nil, tabs: [Tab] = [], marks: [Mark?] = [],
-        more: Mark? = nil
+        _ t: Double, _ p: CGPoint?, hair: Mark, ends: Ends, jumping: String? = nil, tabs: [Tab] = [],
+        marks: [Mark?] = [], more: Count? = nil, moreNeeds: Count? = nil
     ) -> Self {
-        Self(t: t, p: p, hair: hair, jumping: jumping, tabs: tabs, marks: marks, more: more)
+        Self(t: t, p: p, hair: hair, ends: ends, jumping: jumping, tabs: tabs, marks: marks, more: more, moreNeeds: moreNeeds)
     }
 
     static func T(
@@ -64,6 +78,10 @@ struct StripRecorded {
     static func W(_ key: String, _ alpha: Double) -> Words { Words(key: key, alpha: alpha) }
 
     static func M(_ y: Double, _ sc: Double, _ op: Double) -> Mark { Mark(y: y, sc: sc, op: op) }
+
+    static func C(_ n: Int, _ y: Double, _ sc: Double, _ op: Double) -> Count { Count(n: n, mark: M(y, sc, op)) }
+
+    static func X(_ top: Double, _ bottom: Double, _ lip: Double) -> Ends { Ends(top: top, bottom: bottom, lip: lip) }
 
     static func P(_ x: Double, _ y: Double) -> CGPoint { CGPoint(x: x, y: y) }
 }

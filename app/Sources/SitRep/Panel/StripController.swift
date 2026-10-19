@@ -14,8 +14,9 @@ final class StripController: NSObject {
     private var edge: ScreenEdge
     private var frame: StripFrame
     private var link: CADisplayLink?
-    /// How many asks the menu has simulated.
+    /// How many asks the menu has simulated, and how many times the sample sessions have started again.
     private var asked = 0
+    private var started = 0
 
     init(dials: PanelDials) {
         self.dials = dials
@@ -34,7 +35,9 @@ final class StripController: NSObject {
 
         view.material = dials.material
         view.place(menu: edge.stripStage.menu, height: edge.stripStage.height)
-        view.onClick = { [unowned self] point in click(at: point) }
+        view.onPress = { [unowned self] point in act(at: point, model.press) }
+        view.onRelease = { [unowned self] point in act(at: point, model.release) }
+        view.onScroll = { [unowned self] point, dy in act(at: point) { model.scroll(by: dy, at: $0) } }
         link = view.displayLink(target: self, selector: #selector(tick))
         link?.isPaused = true
         link?.add(to: .main, forMode: .common)
@@ -116,17 +119,37 @@ final class StripController: NSObject {
         step(at: Display.now)
     }
 
-    /// The count's row under a point on the stage, while its tab is out.
-    private func countRow(at point: CGPoint) -> String? {
-        frame.tabs.first { $0.isLive && $0.key == .more && $0.contains(point) }?.row(at: point)
+    /// Whether nothing is running, as the menu simulates it: every session ends, and the strip draws back into the notch
+    /// at rest; off, the sample sessions start again.
+    var isEmpty = false {
+        didSet {
+            guard isEmpty != oldValue else {
+                return
+            }
+
+            if isEmpty {
+                model.remove(model.sessions.map(\.id))
+            } else {
+                started += 1
+                let round = started
+                model.add(StripSession.samples(at: StripWordsLayer.now).map { $0.again(round) })
+            }
+            wake()
+        }
     }
 
-    private func click(at screenPoint: CGPoint) {
+    /// A count's row under a point on the stage, while its tab is out.
+    private func countRow(at point: CGPoint) -> String? {
+        frame.tabs.first { $0.isLive && $0.key.isCount && $0.contains(point) }?.row(at: point)
+    }
+
+    /// A press, its letting go or the wheel, in screen coordinates, on the strip's stage.
+    private func act(at screenPoint: CGPoint, _ action: (CGPoint) -> Void) {
         guard let point = edge.stagePoint(screenPoint) else {
             return
         }
 
-        model.click(at: point)
+        action(point)
         wake()
     }
 
@@ -180,4 +203,14 @@ final class StripController: NSObject {
         ("Aircon", "Which unit is the bedroom?", nil, 2, "Aircon · Aircon local control"),
         ("Agentic Workflows", "Approve the reshaped review workflow", nil, nil, "Agentic Workflows · Reshape the workflows"),
     ]
+}
+
+private extension StripSession {
+    /// The same session started again, under an id of its own for the round, so its mark is a new one.
+    func again(_ round: Int) -> Self {
+        Self(
+            id: "\(id)-\(round)", project: project, kind: kind, away: away, title: title, code: code, more: more,
+            sub: sub, since: since
+        )
+    }
 }

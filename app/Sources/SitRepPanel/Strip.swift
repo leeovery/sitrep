@@ -1,15 +1,20 @@
 import CoreGraphics
 import Foundation
 
-/// The strip, ported from its prototype (strip.html) at Lee's choices: the bezel grown into a 36pt black strip down the
+/// The strip, ported from its prototype (strip.html) at Lee's choices: the bezel grown into a 36pt black strip on the
 /// screen's edge that never shuts, every session a mark on it in the panel's order, and a mark under the pointer
-/// pouring its panel row out of the strip as a tab. The view feeds it a frame at a time and draws what each gives
-/// back, as it does a notch. Its coordinates are the edge's own: x into the screen from its edge, y down from its top.
+/// pouring its panel row out of the strip as a tab. At Grows it is only as long as its marks need, centred where the
+/// notch sits, and with nothing running it draws back into the notch at rest; at Full it runs the screen's height.
+/// The view feeds it a frame at a time and draws what each gives back, as it does a notch. Its coordinates are the
+/// edge's own: x into the screen from its edge, y down from its top.
 public final class Strip {
-    /// Room changes the strip's shape at once: any tab goes, and the marks slide to their new places.
+    /// Room, Length and Max change the strip's shape at once: any tab goes, and the marks slide to their new places.
     public var settings: StripSettings {
         didSet {
-            if settings.room != oldValue.room {
+            let shape = settings.room != oldValue.room || settings.maxMarks != oldValue.maxMarks
+            if settings.length != oldValue.length, display.isEmpty {
+                relayout()
+            } else if shape || settings.length != oldValue.length {
                 relayoutShape()
             }
         }
@@ -33,12 +38,22 @@ public final class Strip {
     /// ... and where each mark goes, from that order.
     var layout = StripLayout()
     var marks: [StripMark] = []
-    /// The count in the last place, when there are too many.
+    /// The grey count in the last place, when there are too many; and needs you's own, when its asks pass its room.
     var more: StripMark?
+    var moreNeeds: StripMark?
     var tabs: [StripTab] = []
-    /// The tabs as last drawn, which a click is hit-tested against.
+    /// The tabs as last drawn, which a click is hit-tested against, and the strip's black.
     var lastTabs: [StripFrame.Tab] = []
+    var lastStrip: CGPath?
     var serial = 0
+
+    /// Grows: where along the edge the strip centres, the notch's place unless it has been dragged.
+    var centre = 0.0
+    /// The strip's ends: where its top S leaves the screen's edge, and its bottom S; and, with nothing running at
+    /// Grows, how far it has drawn back into the notch at rest, 0 to 1.
+    var yt: Spring
+    var yb = Spring(0)
+    var lip = Spring(0)
 
     /// The mark under the pointer, or the open tab's.
     var hot: MarkKey?
@@ -51,11 +66,14 @@ public final class Strip {
     /// Marks sliding under a tab that keeps with its mark.
     var freeze = false
     var jumping: Jumping?
+    /// A press on the strip, where along the edge and with the strip centred where, and whether it became a drag.
+    var press: (y0: Double, centre: Double, moved: Bool)?
+    var dragging = false
 
     /// The hairline under needs you, and how much of it shows.
     var hair = Spring(0)
     var hairOp = Spring(0)
-    /// Under reduced motion, a tab's black cross-fading out from where it was, and since when.
+    /// Under reduced motion, a black cross-fading out from where it was, and since when.
     var fade: (outline: CGPath, t0: Double)?
 
     public init(
@@ -67,6 +85,8 @@ public final class Strip {
         stage = input.stage
         reducesMotion = input.reducesMotion
         now = input.time
+        yt = Spring(input.stage.menu)
+        centre = clampCentre(stage.height * StripTuning.notchAt)
 
         display = StripSession.sorted(sessions).map(\.id)
         needsSlot = Set(sessions.filter { $0.kind == .needs }.map(\.id))
@@ -83,10 +103,10 @@ public final class Strip {
         t += dt
         runTimers()
         updateHover()
-        for key in [\Strip.hair, \.hairOp] {
+        for key in [\Strip.hair, \.hairOp, \.yt, \.yb, \.lip] {
             self[keyPath: key].step(dt)
         }
-        for mark in marks + [more].compactMap(\.self) {
+        for mark in marks + counts {
             mark.step(dt)
         }
         for tab in tabs {
@@ -97,15 +117,16 @@ public final class Strip {
     }
 
     /// What changed since the last frame, before the sim clock moves on: the screen, reduced motion, and the pointer,
-    /// held to the screen.
+    /// held to the screen, which carries a drag.
     private func take(_ input: StripInput) {
         reducesMotion = input.reducesMotion
         if input.stage != stage {
             stage = input.stage
+            centre = clampCentre(centre)
             relayout(snapAll: true)
             hair.snap(hair.target)
-            if let more {
-                more.y.snap(more.y.target)
+            for count in counts {
+                count.y.snap(count.y.target)
             }
         }
         let p = input.pointer.map { Vec(clamp($0.x, 0.5, stage.width - 0.5), clamp($0.y, 0, stage.height)) }
@@ -116,10 +137,14 @@ public final class Strip {
         sp = p
         if let p {
             trail.add(p, at: now)
+            drag(to: p.y)
         }
     }
 
-    /// A new ask: its needs you moves in at once, pointer or not, and its ring flashes.
+    /// The counts there are, the grey one first.
+    var counts: [StripMark] { [more, moreNeeds].compactMap(\.self) }
+
+    /// A new ask: its needs you moves in at once, pointer or not, and its ring flashes, or its count's.
     public func newAsk(_ session: StripSession) {
         sessions.append(session)
         insertNeeds(session)
@@ -149,6 +174,15 @@ public final class Strip {
 
         sessions[i] = session
         changed(session)
+    }
+
+    /// Sessions that have ended: their marks fade where they are and the rest close up.
+    public func remove(_ ids: [String]) {
+        let gone = Set(ids).intersection(sessions.map(\.id))
+        if !gone.isEmpty {
+            sessions.removeAll { gone.contains($0.id) }
+            leave(gone)
+        }
     }
 
     /// A click anywhere off the strip and its tab draws the tab back at once.
@@ -194,13 +228,19 @@ public final class Strip {
     }
 }
 
-/// A mark on the strip: a session's, or the count's.
+/// A mark on the strip, a session's or a count's; or, with nothing running, the notch at rest, whose tab says so.
 public enum MarkKey: Hashable, Sendable {
     case session(String)
+    /// The grey count, of your turn and working past their places, ...
     case more
+    /// ... and needs you's own orange one, of the newest asks past its.
+    case moreNeeds
+    case empty
+
+    public var isCount: Bool { self == .more || self == .moreNeeds }
 }
 
-/// A click jumping, for the spin's 450ms: from a tab, to its session or one of the count's, or from a mark whose tab
+/// A click jumping, for the spin's 450ms: from a tab, to its session or one of a count's, or from a mark whose tab
 /// wasn't out.
 enum Jumping {
     case tab(StripTab, String)
@@ -215,6 +255,7 @@ struct StripTimer: RawRepresentable, Equatable {
     static let grace = Self(rawValue: "grace")
     static let settle = Self(rawValue: "settle")
     static let jumpGo = Self(rawValue: "jump:go")
+    static let morph = Self(rawValue: "morph")
 
     /// A tab drawing back, by its id.
     static func draw(_ tab: Int) -> Self { Self(rawValue: "draw:\(tab)") }

@@ -47,13 +47,21 @@ public protocol PanelDial: RawRepresentable<String>, CaseIterable, Hashable, Sen
     var name: String { get }
     func show(_ value: Double) -> String
     func json(_ value: Double) -> String
+    /// The value as the dial takes it, read from the JSON or moved on its slider.
+    func stepped(_ value: Double) -> Double
+    /// The dials the settings window shows as plain sliders, in their order.
+    static var sliders: [Self] { get }
 }
 
 extension PanelDial {
     public var name: String { rawValue.capitalized }
 
+    public static var sliders: [Self] { allCases }
+
+    public func stepped(_ value: Double) -> Double { onStep(value) }
+
     /// The value as the slider takes it: clamped to its range and onto its step, the nearest step up on a tie.
-    public func stepped(_ value: Double) -> Double {
+    public func onStep(_ value: Double) -> Double {
         let steps = ((clamp(value, range.lowerBound, range.upperBound) - range.lowerBound) / step).rounded()
         // to the step's own decimals, so 70 steps of 0.01 are 0.7 and not 0.7000000000000001
         let scale = pow(10, max(0, (-log10(step)).rounded(.up)))

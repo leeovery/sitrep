@@ -23,7 +23,7 @@ struct StripFitTests {
         #expect(lab.model.layout.more == nil)
         #expect(lab.model.layout.places.count == 16)
         #expect(lab.model.layout.places.last!.y == 543)
-        #expect(lab.model.lastY == 626 - 26 - 28 - 2 - 12 - 12)
+        #expect(lab.model.bottomEnd - lab.model.endPad == 626 - 26 - 28 - 2 - 12 - 12)
 
         lab.model.add([StripSession(id: "s17", project: "Kit", kind: .working, title: "", sub: "", since: 0)])
         lab.settle()
@@ -58,11 +58,11 @@ struct StripFitTests {
         #expect(points.allSatisfy { $0.y >= menu && $0.y <= bottom })
     }
 
-    @Test func underATallerMenuBarTheBottomEndIsStill26OverTheScreensBottom() {
+    @Test func atFullUnderATallerMenuBarTheBottomEndIsStill26OverTheScreensBottom() {
         let input = StripInput(
             time: 0, pointer: nil, stage: StripStage(width: 1512, height: 982, menu: 37), reducesMotion: false
         )
-        let model = Strip(settings: StripSettings(), sessions: StripLab.prototype, measure: StripLab.measure, input)
+        let model = Strip(settings: StripLab.full, sessions: StripLab.prototype, measure: StripLab.measure, input)
 
         let box = model.frame(input).strip.boundingBoxOfPath
 

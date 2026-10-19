@@ -37,6 +37,12 @@ final class SidePanels {
         }
     }
 
+    /// Whether nothing is running, as the menu simulates it on the strip, which draws back into the notch at rest.
+    var nothingRunning: Bool {
+        get { strip.isEmpty }
+        set { strip.isEmpty = newValue }
+    }
+
     /// A new ask, as the menu simulates one: the notch swells, and on the strip a needs you moves in.
     func newAsk() {
         notch.newAsk()

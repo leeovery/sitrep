@@ -2,9 +2,10 @@ import CoreGraphics
 import Foundation
 
 // The strip and its tabs: one black, drawn as paths in the edge's own coordinates, x into the screen from its edge.
-// Its two ends are the board's S, the same in every frame: at the top under the menu bar, and at the bottom mirrored
-// back into the bezel 26pt over the screen's bottom. A tab near either fits into the strip's shape: its edge runs
-// back into the strip and meets the S's lower curve in a fillet.
+// Its two ends are the board's S, the same in every frame: at the top, and at the bottom mirrored back into the bezel;
+// at Full under the menu bar and 26pt over the screen's bottom, at Grows wherever its springs carry them. With nothing
+// running, Grows, the strip narrows and shortens into the notch at rest, its ends morphing into the lip's. A tab near
+// either end fits into the strip's shape: its edge runs back into the strip and meets the S's lower curve in a fillet.
 
 /// A tab as drawn: its depth out of the strip (a dent below 0), its body's height and centre, its front corners'
 /// radius, and a dent's flares, each shortened where the straight edge runs out under the top end or over the bottom.
@@ -16,20 +17,32 @@ struct TabGeometry {
 }
 
 extension Strip {
-    /// Where the bottom end leaves the screen's edge, over the screen's bottom.
+    /// Where the full strip's bottom end leaves the screen's edge, over the screen's bottom.
     var bottomEnd: Double { stage.height - StripTuning.bottomEnd }
 
-    /// The first mark's centre: Room further under the top end's S than the board has it.
-    var firstY: Double { stage.menu + StripTuning.topEnd + StripTuning.padTop + StripTuning.mark / 2 + settings.room }
+    /// From an end's top to a mark's centre at the end of the strip: the end, the board's pad, half a ring and Room.
+    var endPad: Double { StripTuning.topEnd + StripTuning.padTop + StripTuning.mark / 2 + settings.room }
 
-    /// The lowest a mark's centre may be: over the bottom end's S as the first is under the top's, Room clear.
-    var lastY: Double { bottomEnd - StripTuning.topEnd - StripTuning.padTop - StripTuning.mark / 2 - settings.room }
+    /// The full strip's first mark's centre: Room further under the top end's S than the board has it.
+    var firstY: Double { stage.menu + endPad }
 
-    /// The highest a tab's top may be: the first mark's open tab's, its fillet meeting the S.
-    var topClear: Double { stage.menu + StripTuning.tabTop + settings.room }
+    /// How far the column has drawn back into the notch at rest, 0 to 1.
+    var lipK: Double { clamp(lip.x, 0, 1) }
 
-    /// The lowest a tab's body may reach: the mirror of the top, its fillet meeting the bottom end's S.
-    var botClear: Double { bottomEnd - StripTuning.tabTop - settings.room }
+    /// The column's depth now: the strip's 36, narrowing to the lip's 7.
+    var front: Double { lerp(StripTuning.width, StripTuning.lipWidth, lipK) }
+
+    /// Its ends now, in the top end's frame: the board's S, becoming the lip's S-curve; and how long.
+    var endCurve: [Vec] { zip(StripTuning.sCurve, StripTuning.lipCurve).map { lerp($0, $1, lipK) } }
+    var endLength: Double { lerp(StripTuning.topEnd, StripTuning.lipEnd, lipK) }
+
+    /// How far inside an end a tab's edge may come: the first mark's open tab's, its fillet meeting the S; out of the
+    /// notch at rest, its tab centred on it.
+    private var tabClear: Double { lerp(StripTuning.tabTop + settings.room, StripTuning.lipClear, lipK) }
+
+    /// The highest a tab's top may be, and the lowest its body may reach, the mirror of the top.
+    var topClear: Double { yt.x + tabClear }
+    var botClear: Double { yb.x - tabClear }
 
     /// The highest a tab's body may be centred under a limit.
     func minCy(_ h: Double, _ lim: Double) -> Double { lim + h / 2 }
@@ -43,7 +56,7 @@ extension Strip {
     /// between, even as its spring overshoots (the count's tab, at its tallest). A dent's flares stay on the straight
     /// edge, under the top end's S and over the bottom end's.
     func tabGeometry(_ tab: StripTab) -> TabGeometry {
-        let lim = topClear, bot = botClear, flare = StripTuning.flare, end = StripTuning.topEnd
+        let lim = topClear, bot = botClear, flare = StripTuning.flare, end = endLength
         let h = clamp(tab.h.x, 0, bot - minCy(0, lim))
         let cy = clamp(tab.y.x, minCy(h, lim), bot - h / 2)
         var w = tab.w.x - tab.press.x
@@ -53,24 +66,24 @@ extension Strip {
         let yt = cy - h / 2, yb = cy + h / 2
         return TabGeometry(
             w: w, h: h, cy: cy, r: min(StripTuning.corner, h / 2),
-            ft: min(flare, max(0, yt - stage.menu - end)), fb: min(flare, max(0, bottomEnd - end - yb))
+            ft: min(flare, max(0, yt - self.yt.x - end)), fb: min(flare, max(0, self.yb.x - end - yb))
         )
     }
 
-    /// The strip: from under the menu bar, its top end curving into the bezel, down its straight edge to its bottom
-    /// end, the top's mirrored, curving back into the bezel. A tab drawn back past the edge dents it, always on the
-    /// straight edge.
+    /// The strip: from its top end, curving into the bezel, down its straight edge to its bottom end, the top's
+    /// mirrored, curving back into the bezel; with nothing running, Grows, the notch at rest. A tab drawn back past the
+    /// edge dents it, always on the straight edge.
     func stripPath(_ geometries: [TabGeometry]) -> CGPath {
-        let path = CGMutablePath(), sw = StripTuning.width, menu = stage.menu, yB = bottomEnd, q = StripTuning.sCurve
-        func T(_ p: Vec) -> CGPoint { CGPoint(x: p.x, y: menu + p.y) }
+        let path = CGMutablePath(), q = endCurve, yT = yt.x, yB = yb.x
+        func T(_ p: Vec) -> CGPoint { CGPoint(x: p.x, y: yT + p.y) }
         func B(_ p: Vec) -> CGPoint { CGPoint(x: p.x, y: yB - p.y) }
-        path.move(to: CGPoint(x: -4, y: menu))
+        path.move(to: CGPoint(x: -4, y: yT))
         path.addLine(to: T(q[0]))
         path.addCurve(to: T(q[3]), control1: T(q[1]), control2: T(q[2]))
         path.addCurve(to: T(q[6]), control1: T(q[4]), control2: T(q[5]))
-        var y = menu + q[6].y
+        var y = yT + q[6].y
         for g in geometries.filter({ $0.w < -0.01 }).sorted(by: { $0.yt < $1.yt }) where g.yt - g.ft >= y {
-            addDent(path, g, base: sw)
+            addDent(path, g, base: front)
             y = g.yb + g.fb
         }
         path.addLine(to: B(q[6]))
@@ -91,7 +104,7 @@ extension Strip {
         }
 
         let ends = tabEnds(g), top = ends.top, bot = ends.bottom, rx = ends.rx, r = g.r, k = Tuning.k
-        let xr = StripTuning.width + g.w, xin = min(top[0].x, bot[0].x) - 1
+        let xr = front + g.w, xin = min(top[0].x, bot[0].x) - 1
         func P(_ x: Double, _ y: Double) -> CGPoint { CGPoint(x: x, y: y) }
         path.move(to: P(xin, top[0].y))
         path.addLine(to: top[0])
@@ -110,64 +123,67 @@ extension Strip {
     /// Where a tab's top and its bottom meet the strip's ends: each fillet in the top end's frame (the bottom's
     /// mirrored into it), for the frame and the tests.
     func tabFit(_ g: TabGeometry) -> (top: StripFit, bottom: StripFit) {
-        (StripFit(g.yt - stage.menu), StripFit(bottomEnd - g.yb))
+        let q = endCurve, e = endLength, k = lipK
+        return (StripFit(g.yt - yt.x, curve: q, end: e, lip: k), StripFit(yb.x - g.yb, curve: q, end: e, lip: k))
     }
 
     /// A tab's top and bottom ends: from the strip's edge, along its fillet, into its edge, as cubics on the screen,
     /// the bottom's mirrored, and how far round its front corners reach across.
     private func tabEnds(_ g: TabGeometry) -> (top: [CGPoint], bottom: [CGPoint], rx: Double) {
-        let sw = StripTuning.width, sc = min(1, g.w / (g.r + StripTuning.flare)), rx = g.r * sc
-        let fit = tabFit(g), yT = g.yt - stage.menu, yB = bottomEnd - g.yb, menu = stage.menu, bottom = bottomEnd
-        let top = fit.top.cubic(yT, sc, sw + g.w - rx).map { CGPoint(x: $0.x, y: menu + $0.y) }
-        let bot = fit.bottom.cubic(yB, sc, sw + g.w - rx).map { CGPoint(x: $0.x, y: bottom - $0.y) }
-        return (top, bot, rx)
+        let sc = min(1, g.w / (g.r + StripTuning.flare)), rx = g.r * sc, xMax = front + g.w - rx
+        let fit = tabFit(g), yT = g.yt - yt.x, yB = yb.x - g.yb, top = yt.x, bottom = yb.x
+        let topEnd = fit.top.cubic(yT, sc, xMax).map { CGPoint(x: $0.x, y: top + $0.y) }
+        let bottomEnd = fit.bottom.cubic(yB, sc, xMax).map { CGPoint(x: $0.x, y: bottom - $0.y) }
+        return (topEnd, bottomEnd, rx)
     }
 }
 
 /// Where a tab's top or bottom edge meets the strip's own shape, which never changes. In the top end's frame (x out
-/// from the screen's edge, y down from the menu bar; the bottom end mirrored into it), a circle of radius `rho` tangent
-/// to the strip's edge at a point on the S's lower curve or the straight edge under it, and to the tab's edge, level
-/// at `yr`. `rho` is the flare's unless that would leave the S higher than where it has turned 70°; then as big as fits
-/// under there, never under 2.
+/// from the screen's edge, y down from the end's top; the bottom end mirrored into it), a circle of radius `rho`
+/// tangent to the strip's edge at a point on the S's lower curve or the straight edge under it, and to the tab's edge,
+/// level at `yr`. `rho` is the flare's unless that would leave the S higher than where it has turned 70°; then as big
+/// as fits under there, never under 2. The end is the board's S, or on its way to the lip's (`lip` of the way), whose
+/// tab rides higher up it: the lip has no bump to keep off, so its fillet is the flare's, and above the lower curve it
+/// is on the upper one.
 struct StripFit: Equatable {
     /// Where the fillet leaves the strip's edge, and the edge's direction there.
     let x, y, phi: Double
     let rho: Double
-    /// How far along the S's lower curve it leaves, 1 on the straight edge under it.
+    /// How far along the S's lower curve it leaves, 1 on the straight edge under it, below 0 on the upper curve.
     let t: Double
 
     var onS: Bool { t < 1 }
 
-    init(_ yr: Double) {
-        let flare = StripTuning.flare
-        let keep = Self.at(Self.solve { Self.at($0).phi >= StripTuning.fitKeep })
+    private typealias Point = (x: Double, y: Double, phi: Double, t: Double)
+
+    init(_ yr: Double, curve q: [Vec] = StripTuning.sCurve, end: Double = StripTuning.topEnd, lip: Double = 0) {
+        let flare = StripTuning.flare, lower = Array(q[3 ... 6]), upper = Array(q[0 ... 3])
+        func onLower(_ t: Double) -> Point { Self.at(lower, t, from: 0) }
+        func onUpper(_ t: Double) -> Point { Self.at(upper, t, from: -1) }
+        let keep = onLower(Self.solve { onLower($0).phi >= StripTuning.fitKeep })
         var rho = flare
         if Self.off(keep, flare, yr) > 0 {
             rho = max(StripTuning.fitMin, (yr - keep.y) / (1 - cos(keep.phi)))
         }
-        if yr - rho >= StripTuning.topEnd {
-            self.init(x: StripTuning.width, y: yr - rho, phi: .pi / 2, rho: rho, t: 1)
-            return
+        rho = lerp(rho, flare, lip)
+        if yr - rho >= end {
+            self.init((q[6].x, yr - rho, .pi / 2, 1), rho: rho)
+        } else if Self.off(onLower(0), rho, yr) < 0 {
+            self.init(onLower(Self.solve { Self.off(onLower($0), rho, yr) > 0 }), rho: rho)
+        } else if Self.off(onUpper(0), rho, yr) < 0 {
+            self.init(onUpper(Self.solve { Self.off(onUpper($0), rho, yr) > 0 }), rho: rho)
+        } else {
+            // a circle tangent to the edge where the end leaves it
+            self.init(onUpper(0), rho: max(0, min(rho, yr)))
         }
-
-        let start = Self.at(0)
-        if Self.off(start, rho, yr) >= 0 {
-            self.init(
-                x: start.x, y: start.y, phi: start.phi, rho: max(0, (yr - start.y) / (1 - cos(start.phi))), t: 0
-            )
-            return
-        }
-
-        let on = Self.at(Self.solve { Self.off(Self.at($0), rho, yr) > 0 })
-        self.init(x: on.x, y: on.y, phi: on.phi, rho: rho, t: on.t)
     }
 
-    private init(x: Double, y: Double, phi: Double, rho: Double, t: Double) {
-        self.x = x
-        self.y = y
-        self.phi = phi
+    private init(_ p: Point, rho: Double) {
+        x = p.x
+        y = p.y
+        phi = p.phi
         self.rho = rho
-        self.t = t
+        t = p.t
     }
 
     /// The fillet as a cubic, from where it leaves the strip's edge, on its tangent, into the tab's edge, level:
@@ -181,19 +197,16 @@ struct StripFit: Equatable {
         ]
     }
 
-    /// The S's lower curve, as drawn in Paper, at the strip's width.
-    private static let lower = Array(StripTuning.sCurve[3 ... 6])
-
-    /// A point on the lower curve, and its direction.
-    private static func at(_ t: Double) -> (x: Double, y: Double, phi: Double, t: Double) {
-        let c = lower, u = 1 - t
+    /// A point on one of the end's two curves, and its direction, `t` counted on from where that curve's own starts.
+    private static func at(_ c: [Vec], _ t: Double, from start: Double) -> Point {
+        let u = 1 - t
         let p = u * u * u * c[0] + 3 * u * u * t * c[1] + 3 * u * t * t * c[2] + t * t * t * c[3]
         let d = 3 * (u * u * (c[1] - c[0]) + 2 * u * t * (c[2] - c[1]) + t * t * (c[3] - c[2]))
-        return (p.x, p.y, atan2(d.y, d.x), t)
+        return (p.x, p.y, atan2(d.y, d.x), start + t)
     }
 
     /// How far below the tab's edge a fillet of this radius leaving the curve here would reach.
-    private static func off(_ a: (x: Double, y: Double, phi: Double, t: Double), _ rho: Double, _ yr: Double) -> Double {
+    private static func off(_ a: Point, _ rho: Double, _ yr: Double) -> Double {
         a.y + rho * (1 - cos(a.phi)) - yr
     }
 

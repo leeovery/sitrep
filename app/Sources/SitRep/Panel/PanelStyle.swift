@@ -29,9 +29,10 @@ enum PanelStyle {
     static let age = NSFont.monospacedDigitSystemFont(ofSize: 12, weight: .regular)
     static let headTitle = NSFont.systemFont(ofSize: 13, weight: .semibold)
     static let headCount = NSFont.systemFont(ofSize: 12)
-    /// A mark's letters, and the count's rows.
+    /// A mark's letters, and a count's rows, needs you's bolder.
     static let letters = NSFont.systemFont(ofSize: 9.5, weight: .semibold)
     static let rowTitle = NSFont.systemFont(ofSize: 13, weight: .medium)
+    static let needsRowTitle = NSFont.systemFont(ofSize: 13, weight: .semibold)
     static let rowSub = NSFont.systemFont(ofSize: 11)
 
     /// The prototype's letter-spacing of -0.01em, as a kern in points.

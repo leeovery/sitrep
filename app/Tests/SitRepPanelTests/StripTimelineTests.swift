@@ -81,6 +81,95 @@ struct StripTimelineTests {
         expectMatches(played, StripRecorded.bottom)
     }
 
+    /// Grows: two working sessions end and the strip shrinks, the ends following the marks in; then a new ask, and it
+    /// grows, the ends leading the marks out.
+    @Test func atGrowsTheStripShrinksAndGrowsWithItsMarksAsThePrototypes() {
+        var lab = StripLab(settings: StripLab.grows())
+
+        let played = lab.play(StripRecorded.grows, marks: ["s4", "s5", "s7", "s8", "s9"], [
+            (0, { $0.model.remove(["s7"]) }), (0, { $0.model.remove(["s8"]) }),
+            (1300, { $0.model.newAsk(StripLab.ask) }),
+        ])
+
+        expectMatches(played, StripRecorded.grows)
+    }
+
+    /// Max 6, five new asks: nine asks and four others, four asks showing, the rest folding into needs you's orange
+    /// count, newest and away last, and the others into the grey one.
+    @Test func atMaxSixNineAsksFoldIntoTheirOwnCountAsThePrototypes() {
+        var lab = StripLab(settings: StripLab.grows(max: 6))
+
+        let played = lab.play(
+            StripRecorded.maxSix, marks: ["s3", "s4", "s5", "s9", "s10", "s13"], Self.asks(0 ..< 5, at: 0)
+        )
+
+        expectMatches(played, StripRecorded.maxSix)
+        #expect(lab.model.layout.restNeeds == StripRecorded.maxSixFolded.asks)
+        #expect(lab.model.layout.rest == StripRecorded.maxSixFolded.rest)
+    }
+
+    @Test func aNewAskPastItsRoomLandsInTheCountWhichFlashesAsThePrototypes() {
+        var lab = StripLab(settings: StripLab.grows(max: 6))
+        let start = lab.model.t
+
+        let played = lab.play(
+            StripRecorded.lands, marks: ["s4", "s9", "s13", "s14"],
+            Self.asks(0 ..< 5, at: 0) + Self.asks(5 ..< 6, at: 1000)
+        )
+
+        expectMatches(played, StripRecorded.lands)
+        #expect(abs(lab.model.moreNeeds!.arrived - start - StripRecorded.landed) < 1e-6)
+    }
+
+    @Test func theOrangeCountsTabPoursItsAsksAsRowsAsThePrototypes() {
+        var lab = StripLab(settings: StripLab.grows(max: 6))
+
+        let played = lab.play(StripRecorded.countTab, marks: ["s4", "s9"], Self.asks(0 ..< 5, at: 0))
+
+        expectMatches(played, StripRecorded.countTab)
+    }
+
+    /// Max 6 and six asks: an answer to one in the count changes its row in place; a settle after the pointer leaves,
+    /// the count goes and the last folded ask takes its place.
+    @Test func anAnswerOutOfTheCountReSortsOnceThePointerHasLeftAsThePrototypes() {
+        var lab = StripLab(settings: StripLab.grows(max: 6))
+
+        let played = lab.play(
+            StripRecorded.answerOut, marks: ["s4", "s5", "s9", "s10"],
+            Self.asks(0 ..< 2, at: 0) + [(1700, { $0.model.change(StripLab.answered(ask: "s10")) })]
+        )
+
+        expectMatches(played, StripRecorded.answerOut)
+    }
+
+    /// Nothing running: the strip draws back into the notch at rest; hovered, its tab says so; a new ask grows it back
+    /// out.
+    @Test func withNothingRunningTheStripDrawsBackIntoTheNotchAtRestAsThePrototypes() {
+        var lab = StripLab(settings: StripLab.grows())
+
+        let played = lab.play(StripRecorded.empty, marks: ["s1", "s8", "s9"], [
+            (0, { $0.model.remove(StripLab.prototype.map(\.id)) }), (3000, { $0.model.newAsk(StripLab.ask) }),
+        ])
+
+        expectMatches(played, StripRecorded.empty)
+    }
+
+    @Test func aPressCarriedAlongTheEdgeDragsTheStripAsThePrototypes() {
+        var lab = StripLab(settings: StripLab.grows())
+
+        let played = lab.play(StripRecorded.drag, marks: ["s1", "s5", "s8"], [
+            (60, { $0.model.press(at: $0.pointer!) }), (400, { $0.model.release(at: $0.pointer!) }),
+        ])
+
+        expectMatches(played, StripRecorded.drag)
+        #expect(lab.model.jumping == nil)
+    }
+
+    /// The prototype's new asks in its order, all at once.
+    private static func asks(_ range: Range<Int>, at time: Double) -> [Act] {
+        StripLab.asks[range].map { ask in (time, { $0.model.newAsk(ask) }) }
+    }
+
     @Test func theNewMarkGrowsOnceTheMarkBelowHasSlid45PercentOfItsStep() {
         var lab = StripLab()
         let from = lab.model.yOf(.session("s4"))

@@ -63,11 +63,39 @@ private struct PanelSettingsView: View {
                     DialsView(settings: $dials.card, reset: dials.reset)
                 }
             case .strip:
+                Picker("Length", selection: $dials.strip.length) {
+                    ForEach(StripLength.allCases, id: \.self) { length in
+                        Text(length.name).tag(length)
+                    }
+                }
+                .pickerStyle(.segmented)
+                StripMaxSlider(settings: $dials.strip)
                 DialsView(settings: $dials.strip, reset: dials.reset)
             }
         }
         .padding(20)
         .frame(width: 440)
+    }
+}
+
+/// The strip's Max, at Grows: from 5 marks to as many as the screen holds at Room, the right end Full.
+private struct StripMaxSlider: View {
+    @Binding var settings: StripSettings
+
+    var body: some View {
+        let most = Double(settings.longest(on: Display.edge.stripStage))
+        HStack {
+            Text(StripDial.max.name)
+            Slider(
+                value: Binding(
+                    get: { settings.maxMarks == 0 ? most : min(settings.maxMarks, most) },
+                    set: { settings.maxMarks = $0 >= most ? 0 : StripDial.max.stepped($0) }
+                ),
+                in: 5 ... most, step: 1
+            )
+            Text(StripDial.max.show(settings.maxMarks)).monospacedDigit()
+        }
+        .disabled(settings.length == .full)
     }
 }
 
@@ -80,7 +108,7 @@ private struct DialsView<Tuned: PanelSettings>: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             Grid(alignment: .leading, verticalSpacing: 6) {
-                ForEach(Tuned.Dial.allCases, id: \.self) { dial in
+                ForEach(Tuned.Dial.sliders, id: \.self) { dial in
                     GridRow {
                         Text(dial.name)
                         Slider(value: value(of: dial), in: dial.range, step: dial.step)

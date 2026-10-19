@@ -12,14 +12,22 @@ struct StripRowLayout {
     private static let titleLine = 18.0, subLine = 16.0, lines = 3.0, ageTop = 8.0, spinner = 11.0
 
     init(_ session: StripSession, in size: CGSize, now: Double) {
-        let ageWidth = StripWordsLayer.ageWidth(session, at: now)
-        let laneX = size.width - Self.pad.right - ageWidth
-        let textWidth = laneX - Self.gap - Self.pad.left
+        self.init(in: size, ageWidth: StripWordsLayer.ageWidth(session, at: now))
+    }
+
+    /// The notch at rest's two lines: as a row's, with no age lane.
+    static func idle(in size: CGSize) -> Self {
+        Self(in: size, ageWidth: nil)
+    }
+
+    private init(in size: CGSize, ageWidth: Double?) {
+        let laneX = size.width - Self.pad.right - (ageWidth ?? 0)
+        let textWidth = laneX - (ageWidth == nil ? 0 : Self.gap) - Self.pad.left
         let top = (size.height - 1 - (Self.titleLine + Self.lines + Self.subLine)) / 2
 
         title = CGRect(x: Self.pad.left, y: top, width: textWidth, height: Self.titleLine)
         sub = CGRect(x: Self.pad.left, y: title.maxY + Self.lines, width: textWidth, height: Self.subLine)
-        age = CGRect(x: laneX, y: Self.ageTop, width: ageWidth, height: Self.titleLine)
+        age = CGRect(x: laneX, y: Self.ageTop, width: ageWidth ?? 0, height: Self.titleLine)
         spinner = CGRect(
             x: age.maxX - Self.spinner, y: Self.ageTop + (Self.titleLine - Self.spinner) / 2, width: Self.spinner,
             height: Self.spinner

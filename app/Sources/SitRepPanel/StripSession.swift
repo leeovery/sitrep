@@ -101,15 +101,20 @@ public struct StripInput {
     }
 }
 
-/// How wide a tab's words are, as the view sets them, before the tab's slack and its limits: one session's row, or
-/// the count's rows.
+/// How wide a tab's words are, as the view sets them, before the tab's slack and its limits: one session's row, a
+/// count's rows, or the notch at rest's.
 public struct StripMeasure {
     public var row: (StripSession) -> Double
     public var rows: ([StripSession]) -> Double
+    public var idle: () -> Double
 
-    public init(row: @escaping (StripSession) -> Double, rows: @escaping ([StripSession]) -> Double) {
+    public init(
+        row: @escaping (StripSession) -> Double, rows: @escaping ([StripSession]) -> Double,
+        idle: @escaping () -> Double
+    ) {
         self.row = row
         self.rows = rows
+        self.idle = idle
     }
 }
 

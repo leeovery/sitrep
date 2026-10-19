@@ -75,7 +75,7 @@ final class StripMarkLayer {
         CATransaction.setAnimationDuration(0.24)
         ring.borderWidth = Self.line
         ring.borderColor = look.jumping ? PanelStyle.track : Self.ringColour(kind)
-        let glows = !look.jumping && (kind == .needs || kind == .away)
+        let glows = !look.jumping && [.needs, .away, .needsCount].contains(kind)
         glow.shadowPath = CGPath(ellipseIn: glow.bounds, transform: nil)
         glow.shadowRadius = Self.blur / 2
         glow.shadowOpacity = glows ? Float(Self.glowAlpha) : 0
@@ -120,7 +120,7 @@ final class StripMarkLayer {
 
     private static func ringColour(_ kind: StripFrame.Mark.Look) -> CGColor? {
         switch kind {
-        case .needs, .away: PanelStyle.orange
+        case .needs, .away, .needsCount: PanelStyle.orange
         case .turn: PanelStyle.ink
         case .working: nil
         case .count: PanelStyle.track
@@ -129,7 +129,7 @@ final class StripMarkLayer {
 
     private static func letterColour(_ kind: StripFrame.Mark.Look) -> CGColor {
         switch kind {
-        case .needs, .turn: PanelStyle.ink
+        case .needs, .turn, .needsCount: PanelStyle.ink
         case .away: PanelStyle.ink3
         case .working: PanelStyle.grey
         case .count: PanelStyle.ink2

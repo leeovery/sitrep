@@ -1,7 +1,9 @@
 import AppKit
+import SitRepPanel
 
 /// The spike's section of the menu bar's menu: Lee's dials, which form shows, what it is made of and which
-/// notch, whether to reduce motion, whether anything needs him, and a new ask to watch land.
+/// notch, the strip's length and its longest, whether to reduce motion, whether anything needs him, a new ask to
+/// watch land, and nothing running, for the strip.
 @MainActor
 final class PanelMenu: NSObject {
     private let panels: SidePanels
@@ -10,6 +12,9 @@ final class PanelMenu: NSObject {
     private let needsItem = NSMenuItem(title: "Something needs you", action: #selector(toggleNeeds), keyEquivalent: "")
     private let reduceMotionItem = NSMenuItem(
         title: "Reduce motion", action: #selector(toggleReduceMotion), keyEquivalent: ""
+    )
+    private let nothingItem = NSMenuItem(
+        title: "Simulate nothing running", action: #selector(toggleNothing), keyEquivalent: ""
     )
 
     init(panels: SidePanels, dials: PanelDials, settings: PanelSettingsWindow) {
@@ -20,6 +25,7 @@ final class PanelMenu: NSObject {
 
         needsItem.target = self
         reduceMotionItem.target = self
+        nothingItem.target = self
         needsItem.state = panels.needsLee ? .on : .off
     }
 
@@ -28,9 +34,12 @@ final class PanelMenu: NSObject {
         choices("Show", PanelForm.allCases, \.name, #selector(chooseForm(_:))),
     ] + materials + [
         choices("Style", NotchStyle.allCases, \.name, #selector(chooseStyle(_:))),
+        choices("Length", StripLength.allCases, \.name, #selector(chooseLength(_:))),
+        longest,
         reduceMotionItem,
         needsItem,
         action("Simulate a new ask", #selector(simulateAsk)),
+        nothingItem,
     ]
 
     /// What the form shown is made of, offered only where the Mac has glass.
@@ -42,6 +51,15 @@ final class PanelMenu: NSObject {
         return [choices("Material", PanelMaterial.allCases, \.name, #selector(chooseMaterial(_:)))]
     }
 
+    /// The strip's Max: Full, or as many marks as the screen holds short of it, made afresh as it opens, since the
+    /// screen and Room decide how many that is.
+    private lazy var longest: NSMenuItem = {
+        let item = NSMenuItem(title: "Max", action: nil, keyEquivalent: "")
+        item.submenu = NSMenu()
+        item.submenu?.delegate = self
+        return item
+    }()
+
     /// A submenu of choices, ticked as the menu opens, since the settings window can choose too.
     private func choices<Choice>(
         _ title: String, _ all: [Choice], _ name: KeyPath<Choice, String>, _ selector: Selector
@@ -49,16 +67,22 @@ final class PanelMenu: NSObject {
         let item = NSMenuItem(title: title, action: nil, keyEquivalent: "")
         let menu = NSMenu()
 
-        menu.items = all.map { choice in
+        menu.items = options(all, name, selector)
+        item.submenu = menu
+
+        return item
+    }
+
+    private func options<Choice>(
+        _ all: [Choice], _ name: KeyPath<Choice, String>, _ selector: Selector
+    ) -> [NSMenuItem] {
+        all.map { choice in
             let option = action(choice[keyPath: name], selector)
 
             option.representedObject = choice
 
             return option
         }
-        item.submenu = menu
-
-        return item
     }
 
     @objc private func showSettings() {
@@ -83,6 +107,18 @@ final class PanelMenu: NSObject {
         }
     }
 
+    @objc private func chooseLength(_ sender: NSMenuItem) {
+        if let length = sender.representedObject as? StripLength {
+            dials.strip.length = length
+        }
+    }
+
+    @objc private func chooseMax(_ sender: NSMenuItem) {
+        if let max = sender.representedObject as? StripMax {
+            dials.strip.maxMarks = max.marks
+        }
+    }
+
     @objc private func toggleReduceMotion() {
         dials.reduceMotion.toggle()
     }
@@ -97,6 +133,10 @@ final class PanelMenu: NSObject {
         needsItem.state = .on
     }
 
+    @objc private func toggleNothing() {
+        panels.nothingRunning.toggle()
+    }
+
     private func action(_ title: String, _ selector: Selector) -> NSMenuItem {
         let item = NSMenuItem(title: title, action: selector, keyEquivalent: "")
 
@@ -106,11 +146,30 @@ final class PanelMenu: NSObject {
     }
 }
 
+/// One of Max's choices: Full, kept as 0, or a number of marks.
+private struct StripMax {
+    let marks: Double
+
+    var name: String { StripDial.max.show(marks) }
+}
+
+extension PanelMenu: NSMenuDelegate {
+    func menuNeedsUpdate(_ menu: NSMenu) {
+        let most = dials.strip.longest(on: Display.edge.stripStage)
+        let all = [StripMax(marks: 0)] + (5 ..< most).map { StripMax(marks: Double($0)) }
+        menu.items = options(all, \.name, #selector(chooseMax(_:)))
+    }
+}
+
 extension PanelMenu: NSMenuItemValidation {
-    /// The form shown, its material, the notch chosen and SitRep's own Reduce motion are ticked.
+    /// The form shown, its material, the notch chosen, the strip's length and Max, SitRep's own Reduce motion and
+    /// nothing running are ticked; Max is the strip's at Grows alone.
     func validateMenuItem(_ item: NSMenuItem) -> Bool {
         if item === reduceMotionItem {
             item.state = dials.reduceMotion ? .on : .off
+        }
+        if item === nothingItem {
+            item.state = panels.nothingRunning ? .on : .off
         }
         switch item.representedObject {
         case let form as PanelForm:
@@ -119,6 +178,11 @@ extension PanelMenu: NSMenuItemValidation {
             item.state = material == dials.material ? .on : .off
         case let style as NotchStyle:
             item.state = style == dials.style ? .on : .off
+        case let length as StripLength:
+            item.state = length == dials.strip.length ? .on : .off
+        case let max as StripMax:
+            item.state = max.marks == dials.strip.maxMarks ? .on : .off
+            return dials.strip.length == .grows
         default:
             break
         }

@@ -47,13 +47,16 @@ final class StripTab {
     var current: StripWords? { words.last { !$0.out } }
 }
 
-/// A tab's words, coming in or going out: a session's row, or the count's rows.
+/// A tab's words, coming in or going out: a session's row, a count's rows, or the notch at rest's.
 final class StripWords {
     let id: Int
     let key: MarkKey
     let content: StripFrame.Words.Content
-    /// Their width, as wide as the row needs from 240 to 360, and height.
+    /// Their width, as wide as the row needs from 240 to 360, and height; a count's rows, as tall as the strip
+    /// holds, scroll through the rest of their full height.
     let W, Hb: Double
+    let full: Double
+    var scroll = 0.0
     var inT0: Double, inDur = 0.0, inDelay = 0.0
     /// The way the pointer went: they come in, or go out, moving that way.
     var dir = 0.0
@@ -64,12 +67,15 @@ final class StripWords {
     var pressed = false
     var pressedRow: String?
 
-    init(id: Int, key: MarkKey, content: StripFrame.Words.Content, W: Double, Hb: Double, at t: Double) {
+    init(
+        id: Int, key: MarkKey, content: StripFrame.Words.Content, W: Double, Hb: Double, full: Double, at t: Double
+    ) {
         self.id = id
         self.key = key
         self.content = content
         self.W = W
         self.Hb = Hb
+        self.full = full
         inT0 = t
     }
 
@@ -102,24 +108,41 @@ extension Strip {
     /// The tallest a tab's body may be: the count's, at its tallest, scrolls.
     var maxBody: Double { botClear - minCy(0, topClear) }
 
-    /// A tab's words: its panel row, or for the count, the rest as rows.
+    /// A tab's words: its panel row; for a count, what it holds, a row each, as the panel reads them; for the notch at
+    /// rest, that nothing is running.
     func buildWords(_ key: MarkKey) -> StripWords {
-        let content: StripFrame.Words.Content, natural: Double, Hb: Double
+        let content: StripFrame.Words.Content, natural: Double, full: Double
         switch key {
-        case .more:
-            let rows = layout.rest.compactMap(session)
+        case .more, .moreNeeds:
+            let rows = (key == .more ? layout.rest : layout.restNeeds).compactMap(session)
             let n = Double(rows.count)
             content = .rows(rows)
             natural = measure.rows(rows)
-            Hb = min(maxBody, StripTuning.rowsPad * 2 + n * StripTuning.rowHeight + max(0, n - 1) * StripTuning.rowGap)
+            full = StripTuning.rowsPad * 2 + n * StripTuning.rowHeight + max(0, n - 1) * StripTuning.rowGap
         case let .session(id):
             let s = session(id)!
             content = .row(s)
             natural = measure.row(s)
-            Hb = StripTuning.tabHeight
+            full = StripTuning.tabHeight
+        case .empty:
+            content = .idle
+            natural = measure.idle()
+            full = StripTuning.tabHeight
         }
         let W = clamp(natural.rounded(.up) + StripTuning.tabSlack, StripTuning.tabMin, tabMax)
-        return StripWords(id: nextSerial(), key: key, content: content, W: W, Hb: Hb, at: t)
+        let Hb = key.isCount ? min(maxBody, full) : full
+        return StripWords(id: nextSerial(), key: key, content: content, W: W, Hb: Hb, full: full, at: t)
+    }
+
+    /// The pointer's wheel over an open count's tab scrolls its rows, as far as they run.
+    public func scroll(by dy: Double, at point: CGPoint) {
+        guard let live = liveTab(), live.phase == .open, live.key.isCount, let words = live.current,
+              lastTabs.first(where: { $0.id == live.id })?.contains(point) == true
+        else {
+            return
+        }
+
+        words.scroll = clamp(words.scroll + dy, 0, max(0, words.full - words.Hb))
     }
 
     /// The words change: the old ones fade out, moving away, as the new come in.

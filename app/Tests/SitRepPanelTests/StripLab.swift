@@ -2,10 +2,25 @@ import CoreGraphics
 @testable import SitRepPanel
 
 /// The strip driven as the view will drive it: a frame every 1/60s, the pointer where a scenario puts it. The screen
-/// is the recording's, 626 tall under a 26pt menu bar, and the sessions its prototype's.
+/// is the recording's, 626 tall under a 26pt menu bar, and the sessions its prototype's. Unless a test says otherwise
+/// the strip is at Full, as the prototype was when most of its scenarios were recorded; Lee's Grows is `grows`.
 struct StripLab {
     static let frameMS = 1000.0 / 60
     static let stage = StripStage(width: 1076, height: 626, menu: 26)
+
+    /// Lee's settings at Full.
+    static var full: StripSettings {
+        var settings = StripSettings()
+        settings.length = .full
+        return settings
+    }
+
+    /// Lee's settings, at Max this many marks.
+    static func grows(max: Double = 0) -> StripSettings {
+        var settings = StripSettings()
+        settings.maxMarks = max
+        return settings
+    }
 
     let model: Strip
     var now = 1000.0
@@ -14,7 +29,7 @@ struct StripLab {
     private(set) var frame: StripFrame
 
     init(
-        sessions: [StripSession] = Self.prototype, settings: StripSettings = StripSettings(), pointer: CGPoint? = nil,
+        sessions: [StripSession] = Self.prototype, settings: StripSettings = Self.full, pointer: CGPoint? = nil,
         reducesMotion: Bool = false
     ) {
         self.pointer = pointer
@@ -22,6 +37,13 @@ struct StripLab {
         let input = StripInput(time: now, pointer: pointer, stage: Self.stage, reducesMotion: reducesMotion)
         model = Strip(settings: settings, sessions: sessions, measure: Self.measure, input)
         frame = model.frame(input)
+        // as the recorder runs the page 1200ms before a scenario, a frame every 16ms, in which a count there from the
+        // start grows in; whole steps, so a step of 16 is 16 and not 15.999..., which springs integrate otherwise
+        if pointer == nil {
+            for _ in 0 ..< 75 {
+                step(at: now + 16)
+            }
+        }
     }
 
     mutating func step() {
@@ -54,12 +76,20 @@ struct StripLab {
 
     /// The pointer on a mark's centre, x 18 into the strip.
     func on(_ id: String) -> CGPoint {
-        CGPoint(x: 18, y: model.yOf(.session(id)))
+        on(.session(id))
+    }
+
+    func on(_ key: MarkKey) -> CGPoint {
+        CGPoint(x: 18, y: model.yOf(key))
     }
 
     /// The pointer on a mark until its tab is out and still.
     mutating func open(_ id: String) {
-        pointer = on(id)
+        open(.session(id))
+    }
+
+    mutating func open(_ key: MarkKey) {
+        pointer = on(key)
         wait(1000) { $0.model.liveTab()?.phase == .open }
         settle()
     }
@@ -111,15 +141,17 @@ struct StripLab {
 struct StripPlayed {
     let t: Double
     let hair: StripRecorded.Mark
+    let ends: StripRecorded.Ends
     let jumping: String?
     let tabs: [StripRecorded.Tab]
     let marks: [StripRecorded.Mark?]
-    let more: StripRecorded.Mark?
+    let more, moreNeeds: StripRecorded.Count?
 
     init(_ lab: StripLab, marks ids: [String]) {
         let model = lab.model
         t = lab.now
         hair = StripRecorded.Mark(y: model.hair.x, sc: 1, op: model.hairOp.x)
+        ends = StripRecorded.Ends(top: model.yt.x, bottom: model.yb.x, lip: model.lip.x)
         jumping = switch model.jumping {
         case let .tab(_, id): "tab \(id)"
         case let .mark(key): "mark \(key.name)"
@@ -129,22 +161,26 @@ struct StripPlayed {
             let g = model.tabGeometry(tab), fit = g.w > 0.01 ? model.tabFit(g) : nil
             return StripRecorded.Tab(
                 key: tab.key.name, phase: tab.phase, w: tab.w.x, h: tab.h.x, y: tab.y.x, press: tab.press.x,
-                alpha: tab.alpha.x, words: shown.words.map { StripRecorded.Words(key: $0.content.key, alpha: $0.alpha) },
-                top: fit.map { .init($0.top, y: model.stage.menu + $0.top.y) },
-                bottom: fit.map { .init($0.bottom, y: model.bottomEnd - $0.bottom.y) }
+                alpha: tab.alpha.x, words: shown.words.map { StripRecorded.Words(key: $0.key.name, alpha: $0.alpha) },
+                top: fit.map { .init($0.top, y: model.yt.x + $0.top.y) },
+                bottom: fit.map { .init($0.bottom, y: model.yb.x - $0.bottom.y) }
             )
         }
         marks = ids.map(lab.mark)
-        more = model.more.map { StripRecorded.Mark(y: $0.y.x, sc: $0.sc.x, op: $0.op.x) }
+        func count(_ m: StripMark?) -> StripRecorded.Count? {
+            m.map { StripRecorded.Count(n: $0.count, mark: StripRecorded.Mark(y: $0.y.x, sc: $0.sc.x, op: $0.op.x)) }
+        }
+        more = count(model.more)
+        moreNeeds = count(model.moreNeeds)
     }
 
     /// The same strip as the prototype's: the springs and the fillets to the recording's six decimals, the words'
     /// opacity to the browser's three.
     func matches(_ r: StripRecorded) -> Bool {
-        same(hair, r.hair) && jumping == r.jumping
+        same(hair, r.hair) && same(ends, r.ends) && jumping == r.jumping
             && tabs.count == r.tabs.count && zip(tabs, r.tabs).allSatisfy(same)
             && marks.count == r.marks.count && zip(marks, r.marks).allSatisfy(same)
-            && same(more, r.more)
+            && same(more, r.more) && same(moreNeeds, r.moreNeeds)
     }
 
     /// The worst gap between the two, over every spring.
@@ -155,7 +191,8 @@ struct StripPlayed {
         let markGaps = zip(marks, r.marks).flatMap { a, b in
             a.flatMap { a in b.map { b in [a.y - b.y, a.sc - b.sc, a.op - b.op] } } ?? []
         }
-        return ([hair.y - r.hair.y, hair.op - r.hair.op] + tabGaps + markGaps).map(abs).max() ?? 0
+        let endGaps = [ends.top - r.ends.top, ends.bottom - r.ends.bottom, ends.lip - r.ends.lip]
+        return ([hair.y - r.hair.y, hair.op - r.hair.op] + endGaps + tabGaps + markGaps).map(abs).max() ?? 0
     }
 
     /// The worst gap between the two over the tabs' fillets: where each leaves the edge, its radius and its angle.
@@ -171,6 +208,18 @@ struct StripPlayed {
     }
 
     private func close(_ a: Double, _ b: Double) -> Bool { abs(a - b) < 1e-6 }
+
+    private func same(_ a: StripRecorded.Ends, _ b: StripRecorded.Ends) -> Bool {
+        close(a.top, b.top) && close(a.bottom, b.bottom) && close(a.lip, b.lip)
+    }
+
+    private func same(_ a: StripRecorded.Count?, _ b: StripRecorded.Count?) -> Bool {
+        guard let a, let b else {
+            return a == nil && b == nil
+        }
+
+        return a.n == b.n && same(a.mark, b.mark)
+    }
 
     private func same(_ a: StripRecorded.Mark?, _ b: StripRecorded.Mark?) -> Bool {
         guard let a, let b else {
@@ -205,20 +254,13 @@ extension StripRecorded.End {
 }
 
 extension MarkKey {
-    /// As the recording names it: the session's id, or "more".
+    /// As the recording names it: the session's id, "more", "moreNeeds", or "empty".
     var name: String {
         switch self {
         case let .session(id): id
         case .more: "more"
-        }
-    }
-}
-
-extension StripFrame.Words.Content {
-    var key: String {
-        switch self {
-        case let .row(session): session.id
-        case .rows: "more"
+        case .moreNeeds: "moreNeeds"
+        case .empty: "empty"
         }
     }
 }
@@ -251,12 +293,12 @@ extension StripLab {
         )
     }
 
-    private static let fiveAsks: [(project: String, title: String, code: String?, more: Int?, sub: String)] = [
-        ("Mint", "Choose the diff budget", nil, nil, "Mint · Token-aware diff sizing"),
-        ("Fabric", "Allow Bash ", "aws sso login --profile dev", nil, "Fabric · Atlas overload from llm-manager"),
-        ("Switchboard", "Give the go for stage 3", nil, nil, "Switchboard · Milestone 7 stages 4 to 14"),
-        ("Aircon", "Which unit is the bedroom?", nil, 2, "Aircon · Aircon local control"),
-        ("Agentic Workflows", "Approve the reshaped review workflow", nil, nil, "Agentic Workflows · Reshape the workflows"),
+    private static let fiveAsks: [(project: String, title: String, code: String?, more: Int?, sub: String, then: String)] = [
+        ("Mint", "Choose the diff budget", nil, nil, "Mint · Token-aware diff sizing", "Sizing the diffs"),
+        ("Fabric", "Allow Bash ", "aws sso login --profile dev", nil, "Fabric · Atlas overload from llm-manager", "Signing in to the dev account"),
+        ("Switchboard", "Give the go for stage 3", nil, nil, "Switchboard · Milestone 7 stages 4 to 14", "Running stage 3"),
+        ("Aircon", "Which unit is the bedroom?", nil, 2, "Aircon · Aircon local control", "Naming the units"),
+        ("Agentic Workflows", "Approve the reshaped review workflow", nil, nil, "Agentic Workflows · Reshape the workflows", "Reshaping the workflows"),
     ]
 
     /// The prototype's Ask answered, on its sessions: the oldest needs you a window holds, SitRep's, starts working.
@@ -265,6 +307,17 @@ extension StripLab {
         s.kind = .working
         s.title = "Drawing the strip in Paper"
         s.since = 0
+        return s
+    }
+
+    /// One of the new asks answered, as the prototype answers it: it starts working on what it does once answered.
+    static func answered(ask id: String) -> StripSession {
+        var s = asks.first { $0.id == id }!
+        s.kind = .working
+        s.title = fiveAsks.first { $0.project == s.project }!.then
+        s.code = nil
+        s.more = nil
+        s.since = 1
         return s
     }
 
@@ -298,11 +351,20 @@ extension StripLab {
         )
     }
 
-    /// The words as wide as the browser measured them; any other row, as narrow as a tab gets.
+    /// The words as wide as the browser measured them, by their lines; any other, as narrow as a tab gets.
     static var measure: StripMeasure {
-        StripMeasure(
-            row: { (StripRecorded.widths[$0.id] ?? StripTuning.tabMin) - StripTuning.tabSlack },
-            rows: { _ in (StripRecorded.widths["more"] ?? StripTuning.tabMin) - StripTuning.tabSlack }
+        func width(_ lines: String) -> Double {
+            (StripRecorded.widths[lines] ?? StripTuning.tabMin) - StripTuning.tabSlack
+        }
+        return StripMeasure(
+            row: { width(lines($0)) },
+            rows: { width($0.map(lines).joined(separator: "\n")) },
+            idle: { width("\(StripFrame.Words.Content.idleTitle)|\(StripFrame.Words.Content.idleLine2)") }
         )
+    }
+
+    /// A row's two lines as the prototype sets them: the title, its command and its "+2"; the line under it.
+    private static func lines(_ s: StripSession) -> String {
+        "\(s.title)\(s.code ?? "")\(s.more.map { "+\($0)" } ?? "")|\(s.line2)"
     }
 }

@@ -1,4 +1,4 @@
-/// The strip's own constants (strip.html's, from `STRIP` to `GROW_AT`), each with its value unchanged and a name close
+/// The strip's own constants (strip.html's, from `STRIP` to `COVER_TO`), each with its value unchanged and a name close
 /// to its own.
 enum StripTuning {
     /// The strip: the bezel grown, 36 of the same black, ...
@@ -65,4 +65,31 @@ enum StripTuning {
 
     /// A spring within this of its target, and all but still, has settled.
     static let settled = 0.5
+
+    /// With both needs you and the rest on the strip, the hairline takes this much more than a step.
+    static let hairExtra = 2 * hair - pitch
+
+    /// Length, Grows: the strip centres where the notch sits on the edge, this share of the way down.
+    static let notchAt = 0.42
+    /// With nothing running it draws back into the notch at rest, meniscus.html's lip: this deep and this long, each
+    /// end its S-curve (0,0) (0,17) (7,13) (7,29), split in two as the strip's S is drawn, so one morphs into the other
+    /// point for point.
+    static let lipWidth = 7.0, lipHeight = 76.0, lipEnd = 29.0
+    static let lipCurve: [Vec] = [
+        Vec(0, 0), Vec(0, 8.5), Vec(1.75, 11.75), Vec(3.5, 14.875), Vec(5.25, 18),
+        Vec(lipWidth, 21), Vec(lipWidth, lipEnd),
+    ]
+    /// A tab out of the notch at rest sits centred on it.
+    static let lipClear = (lipHeight - tabHeight) / 2
+    /// Emptied, the column waits this long for its last marks to fade, then narrows, ...
+    static let morphWait = 120.0
+    /// ... and the marks fade as it narrows from this share of the way to the lip to this.
+    static let marksGo = 0.2, marksGone = 0.7
+    /// The notch at rest answers the pointer this far out from the edge, and this far past its ends.
+    static let lipHit = 12.0, lipHitY = 4.0
+    /// A press on the strip moved this far along the edge is a drag, not a click.
+    static let dragFrom = 4.0
+    /// A ring isn't drawn past the strip's black: as an end sweeps over it, it fades across the end's S, gone this far
+    /// from the end, all there this far.
+    static let coverFrom = 8.0, coverTo = 22.0
 }
