@@ -54,10 +54,16 @@ export const parseVersioned = (text: string, upgrades: readonly Upgrade[]): Raw 
 export const isFilled = (value: unknown): value is string =>
   typeof value === 'string' && value !== ''
 
+/** Whether a value read from JSON is a time: a finite number. */
+export const isTime = (value: unknown): value is number =>
+  typeof value === 'number' && Number.isFinite(value)
+
+/** Whether a value read from JSON is a count from one up. */
+export const isCount = (value: unknown): value is number =>
+  Number.isSafeInteger(value) && (value as number) > 0
+
 const isText: Check = value => typeof value === 'string'
 const isTexts: Check = value => Array.isArray(value) && value.every(isText)
-const isTime: Check = value => typeof value === 'number' && Number.isFinite(value)
-const isCount: Check = value => Number.isSafeInteger(value) && (value as number) > 0
 const isWants: Check = value => WANTS.includes(value as Wants)
 const isAskKind: Check = value => ASK_KINDS.includes(value as AskKind)
 const isVerdict: Check = value => VERDICTS.includes(value as Verdict)

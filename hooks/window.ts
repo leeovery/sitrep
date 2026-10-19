@@ -5,7 +5,8 @@
  *
  * Whatever reads or changes the hold runs in turn (`serially`), so two tool
  * calls never write the window's file over each other, and a heartbeat never
- * lands after the window let go.
+ * lands after the window let go. The heartbeat says what the window is
+ * doing as it attaches, and again whenever that changes (doing.ts).
  */
 import type { Timer } from 'claude-code'
 import {
@@ -18,12 +19,14 @@ import {
   leave,
   presenceText,
   sessionPaths,
+  stateOf,
   type Body,
   type Presence,
   type Session,
   type SessionPaths,
 } from '../core'
 import type { SitrepAttachment } from '../types'
+import { activityNow } from './activity'
 import { endAnswering, settleAnswering } from './answering'
 import { boardOf } from './board'
 import { logFailure, rootFor, type Host } from './host'
@@ -142,6 +145,34 @@ const forget = async (host: Host) => {
   await endAnswering(host)
 }
 
+/** What the window is doing, as its heartbeat says it: from what it has heard, before any turn your turn since `attachedAt`. */
+const stateNow = async (host: Host, attachedAt: number) =>
+  stateOf(await activityNow(host), attachedAt)
+
+/**
+ * Rewrites the heartbeat of the held session with what the window is doing,
+ * should that differ from what it last said: whether it did. With no
+ * session held, nothing: the window's state waits for its next attach.
+ */
+export const restate = (host: Host) =>
+  serially(async () => {
+    const hold = current
+
+    if (hold === undefined) {
+      return false
+    }
+
+    const state = await stateNow(host, hold.presence.attachedAt)
+
+    if (JSON.stringify(state) === JSON.stringify(hold.presence.state)) {
+      return false
+    }
+
+    await beat(host, hold, heartbeat({ ...hold.presence, state }, await host.clock.now()))
+
+    return true
+  })
+
 /** Lets go of the held session: the heartbeat says so, and the beat and the watch stop. */
 export const letGo = async (host: Host) => {
   const hold = current
@@ -166,18 +197,22 @@ export const letGo = async (host: Host) => {
 /**
  * Holds the session `attaching` names, letting go of any other first: reads
  * the window's own file back, under either layout, works out where the
- * window is, writes its heartbeat, saying the version it runs, starts the
- * beat and the watch, and folds the session.
+ * window is, writes its heartbeat, saying the version it runs and what it is
+ * doing as it stands, starts the beat and the watch, and folds the session.
  */
 export const attachTo = async (host: Host, root: string, attaching: SitrepAttachment) => {
   const { project, session, writer, attachedAt } = attaching
   const paths = sessionPaths(root, project, session)
-  const [where, version] = await Promise.all([whereNow(host), versionNow(host)])
+  const [where, version, state] = await Promise.all([
+    whereNow(host),
+    versionNow(host),
+    stateNow(host, attachedAt),
+  ])
   const hold: Hold = {
     attachment: attaching,
     paths,
     text: await ownText(host, paths, folder => folder.log(writer)),
-    presence: attach(writer, attachedAt, { where, version }),
+    presence: attach(writer, attachedAt, { where, version, state }),
     read: createReader(),
     timers: [],
   }

@@ -170,11 +170,48 @@ notch and its panel").
 - **finished**: off the panel.
 
 Working, your turn and the stops on a permission prompt or a question come
-from the window's events, which the mod does not record yet: stage 5, under
-"The menu bar", records them, and is in this build (16 October 2026). Until
-it is built, only the asks and away are real. Only a stop the events show
-needs Lee: a turn that ends on a question in plain text is your turn. The
-colours stay few; the look is played with later, in Paper.
+from the window's events. The mod records them as each window's state, in
+its heartbeat, with what the row shows of it (19 October 2026; the shape is
+under "Storage"); the session's state across its windows is worked out in
+core with `sitrep watch`, next. Only a stop the events show needs Lee: a
+turn that ends on a question in plain text is your turn. The colours stay
+few; the look is played with later, in Paper.
+
+How the mod hears its window's state, every hook only observing: it passes
+the event on as it came, and a failure recording what it heard is logged
+and swallowed, never breaking a turn, a tool or a permission prompt.
+- **A turn starts** (`turn.start`): working, since the turn began.
+- **A tool runs** (`tool.call`, until its `next` settles): working carries
+  the tool and its subject, the latest started where several run at once,
+  then the one still running. The hook is over every call, sitrep's own
+  among them, which still answer as before.
+- **A call is put to Lee** (`tool.check` settling "ask" on a real call, one
+  with a `tool_use_id`; a query of the check has none): permission, with
+  the tool and its subject, since then.
+- **Claude asks a question** (a call of AskUserQuestion, from its start,
+  whatever its check says): question, with the first question's text and
+  how many there are, since then.
+- **The call settles**, answered and run, refused, or stopped: back to what
+  the window was doing. Of several calls waiting on Lee, the oldest shows.
+- **The turn ends** (`turn.complete` of the window's own loop, whatever its
+  reason: an answer, Lee's stop, an error): your turn, since then. Before
+  any turn, your turn since the window attached.
+- A turn's start or end clears every tool and every call waiting, so one
+  whose end the window never heard (a reload while it waited) cannot hold
+  it on Lee for ever. A background subagent's prompt left open across the
+  window's turn ending reads as your turn, which is rare.
+- **Subagents.** A subagent's events carry its `agentId`, the main loop's
+  none. Its run raises no `turn.start`, and its `turn.complete` is passed
+  over, so its turns neither start nor end the window's; and its tools do
+  not show, the row showing the Agent call that runs it, by its
+  description: several at once would only flicker. Its permission prompt
+  or its question stops the window on Lee all the same: it shows in the
+  window, and only Lee can answer it.
+- **Left open: auto mode.** "ask" puts a call to the mode's decider, which
+  is the dialog by default, but in auto mode a classifier that settles most
+  calls without Lee. Such a call reads as a permission prompt until it has
+  run, a long command for its whole run. To settle live: whether the
+  engine says when the dialog itself shows.
 
 ## Claude's side
 
@@ -905,9 +942,52 @@ $XDG_STATE_HOME/sitrep/, else ~/.local/state/sitrep/
   go, is a window on a release from before heartbeats said it, which still
   writes the old layout: it keeps the move waiting, and while live delivers
   its session's inbox (see "Storage"). Nothing shows it yet: the menu will
-  list the windows to reload. Its state, with what the row shows of it
-  (stage 5, under "The menu bar"), comes next, rewritten at once as the
-  state changes.
+  list the windows to reload. It also says the window's `state` (19 October
+  2026), with what the row shows of it, rewritten at once as it changes
+  (how the mod hears it is under "A session's state"):
+
+  ```
+  "state": { "is": "permission", "since": 1760000005000,
+             "tool": { "name": "Bash", "subject": "gh pr create" } }
+  ```
+
+  - `is` is `working`, `permission`, `question` or `yourTurn`, and `since`
+    when it began: the turn's start while working, the prompt's or the
+    question's showing, the turn's end, or before any turn the attach. So
+    the row's time is how long the turn has run, or how long it has waited.
+  - `tool` is the tool working runs, or the one a permission prompt asks
+    for: its `name` as the model calls it, and its `subject` where it has
+    one, from one argument (core's `subject.ts`): a file tool's
+    `file_path` (NotebookEdit's `notebook_path`, LSP's `filePath`), Bash's
+    `command`, Monitor's `description`, Grep's and Glob's `pattern`,
+    WebFetch's `url`, WebSearch's `query`, an Agent's `description` and
+    Skill's `skill`; any other tool, an MCP tool among them, shows by its
+    name alone. `question` is a question's first `text` and the `count`
+    asked. Each text is one line, cut to 200 characters with an ellipsis,
+    so a heartbeat stays small whatever the command.
+  - It is read field by field, as `where` is: a state of a kind the reader
+    does not know, or without its time, is dropped, as is a bad `tool` or
+    `question` of it, and the heartbeat is kept; one written before reads
+    as ever, with no state. A later kind or field is added beside these, so
+    an older reader passes over what it does not know.
+  - A change is written at once, through the window's serialised writes,
+    not on the beat, which goes on as before, saying the state as it
+    stands. A burst of quick calls is not written call by call: within a
+    second of a rewrite, a change waits for the second to pass, then the
+    state as it stands by then is written once; a change back to what the
+    heartbeat says writes nothing, and holds nothing back. So a change is
+    at most a second late, inside a reader's poll of a second or two.
+  - A window holding no session writes no heartbeat but goes on hearing,
+    so attaching mid-turn writes the state as it stands. A window that lets
+    go says no state.
+  - What the window has heard is kept in `$.state` (`activity`), so a
+    `/reload-plugins` keeps it, and in the mod, which reads it from there
+    once a load and writes it back at each change. It is never read back:
+    every `get` of one dispatch reads one moment, and a call's hook, whose
+    dispatch lasts as long as its tool runs, would read what stood as the
+    call began and miss a prompt raised meanwhile (found in the test kit).
+    A new process starts with nothing heard: your turn since the attach,
+    until its next event.
 - Readers list and `stat` the folder every second or two (a mod cannot watch
   files) and read only what changed; each session's read lists its project's
   folder too, so a rename shows on every pane within a look. The sessions
@@ -2290,7 +2370,9 @@ reaches a window only while that pane is on show).
         below, brought forward, since the rows and the rings need it. With
         the state, what the row shows of it: the tool running and its path;
         the permission prompt's tool and command; the question, and how
-        many there are; when the turn began or ended;
+        many there are; when the turn began or ended. Built 19 October
+        2026: how the mod hears it is under "A session's state", and the
+        heartbeat's `state` under "Storage";
       - **`sitrep watch`** (under "One engine, two front ends"), with what
         is new and presence expiry worked out in core.
 
@@ -2465,6 +2547,13 @@ reaches a window only while that pane is on show).
    swells twice, the light flashes, and the row gets its orange wash. Only
    deterministic stops need Lee: a turn ending with a question in plain
    text is your turn, and shows quietly.
+
+   The heartbeat's side was built on 19 October 2026, as stage 3's fourth
+   step: each window's state, written at once, a burst of calls at most
+   once a second, a subagent's prompt or question counting as the window's
+   own while its turns and tools do not (see "A session's state" and
+   "Storage"). The swell, the light and the rows wait on `sitrep watch` and
+   the app.
 
    A macOS notification comes only if Lee turns them on. First written (13
    October 2026) as a macOS notification for every session blocked on a

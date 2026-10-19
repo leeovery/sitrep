@@ -133,6 +133,7 @@ test('after a reload, the window takes up the session $.state names, reads its f
     seenAt: T0 + 60_000,
     where: WHERE,
     version: PLUGIN_VERSION,
+    state: { is: 'yourTurn', since: T0 },
   })
   expect(w.state.board?.asks.map(item => item.id)).toEqual(['k1'])
 })
@@ -175,6 +176,7 @@ test('the heartbeat is rewritten every 30 seconds while attached, and says when 
     seenAt: at,
     where: WHERE,
     version: PLUGIN_VERSION,
+    state: { is: 'yourTurn', since: T0 },
   })
 
   expect(beat()).toEqual(seenAt(T0))

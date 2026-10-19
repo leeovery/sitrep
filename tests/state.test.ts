@@ -1,0 +1,285 @@
+import { expect, test } from 'claude-code/testing'
+import {
+  attach,
+  heartbeat,
+  leave,
+  parsePresence,
+  presenceText,
+  QUIET,
+  questionShown,
+  SHOWN_LENGTH,
+  stateOf,
+  toolAsked,
+  toolEnded,
+  toolShown,
+  toolStarted,
+  turnEnded,
+  turnStarted,
+  type Activity,
+  type ToolCall,
+  type WindowState,
+} from '../core'
+import { T0, W1 } from './support'
+
+const PERMISSION: WindowState = {
+  is: 'permission',
+  since: T0 + 5_000,
+  tool: { name: 'Bash', subject: 'gh pr create' },
+}
+
+/** A heartbeat file holding `state` as given, its times good. */
+const fileWith = (state: unknown) =>
+  JSON.stringify({ writer: W1, attachedAt: T0, seenAt: T0, state })
+
+const stateRead = (state: unknown) => parsePresence(fileWith(state), W1)?.state
+
+const bash = (id: string, command: string, agentId?: string): ToolCall => ({
+  id,
+  tool: 'Bash',
+  input: { command },
+  agentId,
+})
+
+const question = (id: string, agentId?: string): ToolCall => ({
+  id,
+  tool: 'AskUserQuestion',
+  input: { questions: [{ question: 'Left or right?' }, { question: 'Once or twice?' }] },
+  agentId,
+})
+
+/** A turn running since T0, with the changes given applied in order, each at its own time. */
+const during = (...changes: ((activity: Activity) => Activity)[]) =>
+  changes.reduce((activity, change) => change(activity), turnStarted(T0))
+
+test("each file tool's subject is its path, Bash's its command, a search's its pattern, a fetch's its URL, an agent's its description", () => {
+  for (const [tool, input, subject] of [
+    ['Read', { file_path: '/repo/DESIGN.md', offset: 10 }, '/repo/DESIGN.md'],
+    [
+      'Edit',
+      { file_path: '/repo/core/state.ts', old_string: 'a', new_string: 'b' },
+      '/repo/core/state.ts',
+    ],
+    ['Write', { file_path: '/repo/core/subject.ts', content: '…' }, '/repo/core/subject.ts'],
+    ['NotebookEdit', { notebook_path: '/repo/look.ipynb', new_source: 'x' }, '/repo/look.ipynb'],
+    ['Bash', { command: 'gh pr create', description: 'Open the PR' }, 'gh pr create'],
+    ['Grep', { pattern: 'stateOf', path: '/repo' }, 'stateOf'],
+    ['Glob', { pattern: '**/*.ts' }, '**/*.ts'],
+    ['WebFetch', { url: 'https://example.com/a', prompt: 'Sum it up' }, 'https://example.com/a'],
+    ['WebSearch', { query: 'liquid glass notch' }, 'liquid glass notch'],
+    ['Agent', { description: 'Review the diff', prompt: 'Review it.' }, 'Review the diff'],
+  ] as const) {
+    expect(toolShown(tool, input), tool).toEqual({ name: tool, subject })
+  }
+})
+
+test('an MCP tool, and any tool without a subject, shows by its name alone', () => {
+  expect(toolShown('mcp__sitrep__note', { text: 'Drew round 1' })).toEqual({
+    name: 'mcp__sitrep__note',
+  })
+  expect(toolShown('TodoWrite', { todos: [] })).toEqual({ name: 'TodoWrite' })
+  expect(toolShown('constructor', {})).toEqual({ name: 'constructor' })
+})
+
+test('a subject that is missing, empty or not text is left out, the name kept', () => {
+  for (const input of [{}, { command: '' }, { command: '   ' }, { command: 7 }, null, 'ls']) {
+    expect(toolShown('Bash', input), JSON.stringify(input)).toEqual({ name: 'Bash' })
+  }
+})
+
+test('a subject is one line, and one too long is cut short with an ellipsis', () => {
+  const long = 'x'.repeat(SHOWN_LENGTH + 50)
+
+  expect(toolShown('Bash', { command: 'cd /repo &&\n  bun test\tcore' }).subject).toBe(
+    'cd /repo && bun test core',
+  )
+  expect(toolShown('Bash', { command: 'x'.repeat(SHOWN_LENGTH) }).subject).toHaveLength(
+    SHOWN_LENGTH,
+  )
+  expect(toolShown('Bash', { command: long }).subject).toBe(`${'x'.repeat(SHOWN_LENGTH - 1)}…`)
+  expect(
+    Array.from(toolShown('Bash', { command: '😀'.repeat(SHOWN_LENGTH + 1) }).subject ?? ''),
+  ).toHaveLength(SHOWN_LENGTH)
+})
+
+test('a question shows its first question, one line, and how many there are', () => {
+  expect(
+    questionShown({
+      questions: [{ question: 'Which edge\nshould it sit on?' }, { question: 'Twice?' }, {}],
+    }),
+  ).toEqual({ text: 'Which edge should it sit on?', count: 3 })
+})
+
+test('a question with no first question to show shows none', () => {
+  for (const input of [
+    {},
+    { questions: [] },
+    { questions: [{ header: 'Edge' }] },
+    { questions: 'x' },
+    null,
+  ]) {
+    expect(questionShown(input), JSON.stringify(input)).toBeUndefined()
+  }
+})
+
+test('a window that has heard nothing is your turn since it attached; after a turn, since the turn ended', () => {
+  expect(stateOf(QUIET, T0)).toEqual({ is: 'yourTurn', since: T0 })
+  expect(stateOf(turnEnded(T0 + 9_000), T0)).toEqual({ is: 'yourTurn', since: T0 + 9_000 })
+})
+
+test("a turn is working since it began, with its own loop's latest tool still running", () => {
+  const two = during(
+    activity => toolStarted(activity, bash('t1', 'bun test'), T0 + 1_000),
+    activity =>
+      toolStarted(activity, { id: 't2', tool: 'Read', input: { file_path: '/a' } }, T0 + 2_000),
+  )
+
+  expect(stateOf(turnStarted(T0), T0 - 1)).toEqual({ is: 'working', since: T0 })
+  expect(stateOf(two, T0)).toEqual({
+    is: 'working',
+    since: T0,
+    tool: { name: 'Read', subject: '/a' },
+  })
+  expect(stateOf(toolEnded(two, 't2'), T0).tool).toEqual({ name: 'Bash', subject: 'bun test' })
+  expect(stateOf(toolEnded(toolEnded(two, 't2'), 't1'), T0)).toEqual({ is: 'working', since: T0 })
+})
+
+test("a subagent's tool does not show", () => {
+  const inside = during(activity => toolStarted(activity, bash('t1', 'ls', 'agent-1'), T0 + 1_000))
+
+  expect(inside).toEqual(turnStarted(T0))
+})
+
+test("a call put to Lee is a permission prompt since then, its own or a subagent's, and its end ends it", () => {
+  for (const agentId of [undefined, 'agent-1']) {
+    const call = bash('t1', 'gh pr create', agentId)
+    const asked = during(
+      activity => toolStarted(activity, call, T0 + 1_000),
+      activity => toolAsked(activity, call, T0 + 5_000),
+    )
+
+    expect(stateOf(asked, T0), String(agentId)).toEqual(PERMISSION)
+    expect(stateOf(toolEnded(asked, 't1'), T0).is, String(agentId)).toBe('working')
+  }
+})
+
+test("a question is a question since it was asked, its own or a subagent's; its check putting it to Lee leaves it a question", () => {
+  for (const agentId of [undefined, 'agent-1']) {
+    const call = question('q1', agentId)
+    const asked = during(
+      activity => toolStarted(activity, call, T0 + 3_000),
+      activity => toolAsked(activity, call, T0 + 3_001),
+    )
+
+    expect(stateOf(asked, T0), String(agentId)).toEqual({
+      is: 'question',
+      since: T0 + 3_000,
+      question: { text: 'Left or right?', count: 2 },
+    })
+    expect(stateOf(toolEnded(asked, 'q1'), T0), String(agentId)).toEqual({
+      is: 'working',
+      since: T0,
+    })
+  }
+})
+
+test('a question with nothing to show is a question all the same', () => {
+  const asked = during(activity =>
+    toolStarted(activity, { id: 'q1', tool: 'AskUserQuestion', input: {} }, T0 + 1_000),
+  )
+
+  expect(stateOf(asked, T0)).toEqual({ is: 'question', since: T0 + 1_000 })
+})
+
+test('of several calls waiting on Lee, the oldest shows', () => {
+  const both = during(
+    activity => toolAsked(activity, bash('t1', 'gh pr create'), T0 + 5_000),
+    activity => toolStarted(activity, question('q1'), T0 + 6_000),
+  )
+
+  expect(stateOf(both, T0)).toEqual(PERMISSION)
+  expect(stateOf(toolEnded(both, 't1'), T0).is).toBe('question')
+})
+
+test("a turn's start or end clears every tool and every call waiting on Lee, whatever was running", () => {
+  const busy = during(
+    activity => toolStarted(activity, bash('t1', 'bun test'), T0 + 1_000),
+    activity => toolAsked(activity, bash('t2', 'gh pr create', 'agent-1'), T0 + 2_000),
+  )
+  const ended = turnEnded(T0 + 9_000)
+  const next = turnStarted(T0 + 10_000)
+
+  expect(stateOf(busy, T0).is).toBe('permission')
+  expect(ended).toEqual({ endedAt: T0 + 9_000, tools: [], stops: [] })
+  expect(stateOf(ended, T0)).toEqual({ is: 'yourTurn', since: T0 + 9_000 })
+  expect(next).toEqual({ turnAt: T0 + 10_000, tools: [], stops: [] })
+  expect(stateOf(next, T0)).toEqual({ is: 'working', since: T0 + 10_000 })
+})
+
+test('a heartbeat reads back with its state, through every beat; letting go drops it', () => {
+  const beat = heartbeat(attach(W1, T0, { state: PERMISSION }), T0 + 30_000)
+  const left = leave(beat, T0 + 40_000)
+
+  expect(parsePresence(presenceText(beat), W1)?.state).toEqual(PERMISSION)
+  expect(JSON.parse(presenceText(left))).not.toHaveProperty('state')
+  expect(parsePresence(presenceText(left), W1)?.state).toBeUndefined()
+})
+
+test('a heartbeat written before windows said their state reads as it always did', () => {
+  const read = parsePresence('{"writer":"w","attachedAt":1,"seenAt":2,"version":"0.1.0"}\n', W1)
+
+  expect(read).toEqual({ writer: W1, attachedAt: 1, seenAt: 2, version: '0.1.0' })
+  expect(read?.state).toBeUndefined()
+})
+
+test('a bad state, or one of a kind this reader does not know, is dropped and the heartbeat kept', () => {
+  for (const state of [
+    'working',
+    5,
+    null,
+    [],
+    {},
+    { is: 'working' },
+    { is: 'working', since: '1760000000000' },
+    { is: 'asleep', since: T0 },
+    { is: '', since: T0 },
+  ]) {
+    const read = parsePresence(fileWith(state), W1)
+
+    expect(read, JSON.stringify(state)).toEqual({ writer: W1, attachedAt: T0, seenAt: T0 })
+    expect(read?.state, JSON.stringify(state)).toBeUndefined()
+  }
+})
+
+test('a bad tool or question of a state is dropped, the state kept, and keys it does not know ignored', () => {
+  const working = { is: 'working', since: T0 }
+
+  expect(stateRead({ ...working, tool: { name: 'Bash', subject: 'ls' }, mood: 'calm' })).toEqual({
+    ...working,
+    tool: { name: 'Bash', subject: 'ls' },
+  })
+  expect(stateRead({ ...working, tool: { name: 'Bash', subject: 7 } })).toEqual({
+    ...working,
+    tool: { name: 'Bash' },
+  })
+
+  for (const tool of ['Bash', { subject: 'ls' }, { name: '' }, { name: 3 }]) {
+    expect(stateRead({ ...working, tool }), JSON.stringify(tool)).toEqual(working)
+  }
+
+  const asked = { is: 'question', since: T0 }
+
+  expect(stateRead({ ...asked, question: { text: 'Left?', count: 2 } })).toEqual({
+    ...asked,
+    question: { text: 'Left?', count: 2 },
+  })
+
+  for (const bad of [
+    { text: 'Left?' },
+    { text: '', count: 1 },
+    { text: 'Left?', count: 0 },
+    { text: 'Left?', count: 1.5 },
+    'Left?',
+  ]) {
+    expect(stateRead({ ...asked, question: bad }), JSON.stringify(bad)).toEqual(asked)
+  }
+})

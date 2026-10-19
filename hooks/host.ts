@@ -21,6 +21,7 @@ import type {
 } from 'claude-code'
 import { rootOf, type Random, type WhereEnv } from '../core'
 import type {
+  SitrepActivity,
   SitrepAnswering,
   SitrepAttachment,
   SitrepBoard,
@@ -116,6 +117,7 @@ export type Host = {
     flash: Slot<number>
     tick: Slot<number>
     named: Slot<SitrepNamed[]>
+    activity: Slot<SitrepActivity>
   }
 }
 

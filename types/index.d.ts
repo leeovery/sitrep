@@ -2,11 +2,14 @@
  * sitrep's values in `$.state`: the session this window is attached
  * to, that session as its files fold, the board as Claude last saw it, the
  * sessions around it as the board draws them, the window's own state as Lee
- * works the board, and what Claude's calls named as they were answered.
+ * works the board, what Claude's calls named as they were answered, and
+ * what the window is doing.
  *
  * The engine takes only a self-contained contract, so the board's types
- * mirror core's (core/types.ts). hooks/board.ts converts a folded session
- * to a board and back, so the compiler holds each to the other.
+ * mirror core's (core/types.ts, core/state.ts). hooks/board.ts converts a
+ * folded session to a board and back, and hooks/activity.ts hands the
+ * window's activity to core and back, so the compiler holds each to the
+ * other.
  */
 
 export type SitrepWants = 'yes' | 'choice' | 'words'
@@ -99,6 +102,20 @@ export type SitrepWhere = {
   tmux?: { socket: string; pane: string }
 }
 
+/** A tool as a row shows it: core's `ToolShown`. */
+export type SitrepToolShown = { name: string; subject?: string }
+
+/** A question as a row shows it: core's `QuestionShown`. */
+export type SitrepQuestionShown = { text: string; count: number }
+
+/** What a window is doing, and since when: core's `WindowState`. */
+export type SitrepWindowState = {
+  is: 'working' | 'permission' | 'question' | 'yourTurn'
+  since: number
+  tool?: SitrepToolShown
+  question?: SitrepQuestionShown
+}
+
 export type SitrepPresence = {
   writer: string
   attachedAt: number
@@ -106,6 +123,20 @@ export type SitrepPresence = {
   leftAt?: number
   where?: SitrepWhere
   version?: string
+  state?: SitrepWindowState
+}
+
+/** A call waiting on Lee: core's `Stop`. */
+export type SitrepStop = { call: string; at: number } & (
+  { is: 'permission'; tool: SitrepToolShown } | { is: 'question'; question?: SitrepQuestionShown }
+)
+
+/** What this window has heard of its own doing, its heartbeat's state worked out from it: core's `Activity`. */
+export type SitrepActivity = {
+  turnAt?: number
+  endedAt?: number
+  tools: { call: string; tool: SitrepToolShown }[]
+  stops: SitrepStop[]
 }
 
 /** A finished session: core's `Finished`. */
@@ -321,6 +352,8 @@ declare module 'claude-code' {
       named: SitrepNamed[]
       /** A count moved on as time passes, so what the board draws from the time is drawn again. */
       tick: number
+      /** What this window has heard of its own doing, held or not: its turn, the tools it runs, and what waits on Lee. */
+      activity: SitrepActivity
     }
   }
 }

@@ -117,6 +117,21 @@ type Surface = (typeof SURFACES)[number]
 /** What a test calls a tool with: its short name and its arguments. */
 type Args = { [key: string]: unknown }
 
+/** A permission check's verdict, as the engine's rules and mode give it. */
+type Verdict = 'allow' | 'ask' | 'deny'
+
+/** How a built-in tool's call ends beneath the mod: answered, or refused. */
+type Ending = { result: unknown } | { deny: string }
+
+/** A built-in tool's call as a test runs it: what it settles to, and its ending, the test's to give. */
+export type Calling = {
+  done: Promise<{ result?: unknown; deny?: string; isError?: true }>
+  /** The tool answers, as once it has run. */
+  finish: (result?: unknown) => void
+  /** The call is refused, as at a prompt Lee said no to, or one Lee stopped. */
+  refuse: (why: string) => void
+}
+
 type File = { text: string; mtimeMs: number }
 
 /** The kinds of look the mod takes at a path. */
@@ -321,6 +336,8 @@ export function world(engine: Engine, on: On, options: Options = {}) {
     return answer
   }
 
+  /** Every path the mod wrote, in the order written. */
+  const written: string[] = []
   /** The commands the mod ran, each as its argument vector. */
   const runs: (readonly string[])[] = []
   let walk: Walk = { stdout: `${TTY}\n` }
@@ -397,9 +414,39 @@ export function world(engine: Engine, on: On, options: Options = {}) {
     }
 
     files.set(e.path, { text: e.text, mtimeMs: clock.now() })
+    written.push(e.path)
 
     return { value: undefined }
   })
+
+  /** The built-in tools' calls the engine runs beneath the mod, by the tool and its arguments: a verdict to check them by, if any, and their ending. */
+  const beneath = new Map<string, { verdict?: Verdict; ending: Promise<Ending> }>()
+
+  const callKey = (tool: string, args: Args) => JSON.stringify({ tool, ...args })
+
+  // As the engine runs one: its permission check, then the tool, until the test ends it.
+  on('tool.call', async ($, e, next) => {
+    const { tool, tool_use_id, agentId, ...args } = e as Args & {
+      tool: string
+      tool_use_id: string
+      agentId?: string
+    }
+    const call = beneath.get(callKey(tool, args))
+
+    if (call === undefined) {
+      return next(e)
+    }
+
+    if (call.verdict !== undefined) {
+      await engine.tool.check({ tool, input: args, tool_use_id, agentId })
+    }
+
+    return (await call.ending) as never
+  })
+
+  on('tool.check', ($, e) => ({
+    decision: beneath.get(callKey(e.tool, e.input as Args))?.verdict ?? 'allow',
+  }))
 
   /** The walk for the terminal gives `next` from here on. */
   const walkGives = (next: Walk) => {
@@ -541,6 +588,34 @@ export function world(engine: Engine, on: On, options: Options = {}) {
       ...(agentId === undefined ? {} : { agentId }),
     } as never) as Promise<{ result?: unknown; deny?: string }>
 
+  /**
+   * A built-in tool called from the main conversation, or from a subagent
+   * given its id: checked first where given a verdict, then running until
+   * the test finishes or refuses it.
+   */
+  const calls = (
+    tool: string,
+    args: Args = {},
+    options: { verdict?: Verdict; agentId?: string } = {},
+  ): Calling => {
+    let end: (ending: Ending) => void = () => {}
+    const ending = new Promise<Ending>(resolve => {
+      end = resolve
+    })
+
+    beneath.set(callKey(tool, args), { verdict: options.verdict, ending })
+
+    return {
+      done: engine.tool.call({
+        tool,
+        ...args,
+        ...(options.agentId === undefined ? {} : { agentId: options.agentId }),
+      } as never) as Calling['done'],
+      finish: (result = 'done') => end({ result }),
+      refuse: why => end({ deny: why }),
+    }
+  }
+
   /** The conversation started, and a session started in it: its id and its folder's paths. */
   const begin = async () => {
     await engine.session.start(CONVERSATION)
@@ -575,14 +650,15 @@ export function world(engine: Engine, on: On, options: Options = {}) {
     await engine.turn.start({ text, turnId: `turn-${turns}` })
   }
 
-  /** The main conversation's turn ending, its answer given. */
-  const turnEnds = () =>
+  /** The main conversation's turn ending, its answer given; or stopped by Lee; or a subagent's turn, given its id. */
+  const turnEnds = (how: { isAborted?: boolean; agentId?: string } = {}) =>
     engine.turn.complete({
       answer: 'Done.',
       durationMs: 1_000,
-      isAborted: false,
+      isAborted: how.isAborted ?? false,
       turnId: `turn-${turns}`,
-      reason: 'answer',
+      reason: how.isAborted === true ? 'aborted' : 'answer',
+      ...(how.agentId === undefined ? {} : { agentId: how.agentId }),
     })
 
   /** The board pane drawn on a surface, as a docked pane unless told otherwise. */
@@ -615,6 +691,7 @@ export function world(engine: Engine, on: On, options: Options = {}) {
     logs,
     unlisted,
     runs,
+    written,
     registered,
     ...shown,
     put,
@@ -632,6 +709,7 @@ export function world(engine: Engine, on: On, options: Options = {}) {
     writer,
     elsewhere,
     call,
+    calls,
     begin,
     become,
     turnStarts,

@@ -19,7 +19,9 @@
  * window, the CLI) rides into Claude's next turn as context Lee does not
  * see. A conversation starts knowing its project's sessions; one resumed,
  * in a new process or by /resume, takes its session up again; one that ends
- * lets go of its session.
+ * lets go of its session. Its heartbeat says what the window is doing, as
+ * hooks that only observe hear it: working, with the tool it runs; stopped
+ * on Lee at a permission prompt or a question; or Lee's turn.
  *
  * Every call on `$` is spelled here, in `hostOf`: the engine reads them off
  * this file's source, and refuses a module that hands `$` to an import.
@@ -33,6 +35,7 @@ import { captured, heardSurvey } from './answering'
 import { lookAround, lookEvery } from './around'
 import { clipOf, heardRows, revealFocus, scrollList } from './clip'
 import { heardTurn, isBoardMessage, takeUpDelivery, wentQuiet } from './deliver'
+import { heardCheck, heardTurnEnd, heardTurnStart, throughCall } from './doing'
 import { BAND_ROWS, drawBand } from './draw/band'
 import { drawPane } from './draw/board'
 import { drawToolResult, drawToolRow, toolLine } from './draw/tool-row'
@@ -80,6 +83,7 @@ const pulse = atom({ plugin: 'sitrep', key: 'pulse' } as const, { asks: [], fram
 const flash = atom({ plugin: 'sitrep', key: 'flash' } as const, 0)
 const tick = atom({ plugin: 'sitrep', key: 'tick' } as const, 0)
 const named = atom({ plugin: 'sitrep', key: 'named' } as const, [])
+const activity = atom({ plugin: 'sitrep', key: 'activity' } as const, { tools: [], stops: [] })
 
 /** The host, as a hook's `$` reaches it. */
 const hostOf = ($: EngineInterface): Host => ({
@@ -212,6 +216,11 @@ const hostOf = ($: EngineInterface): Host => ({
       write: value => update($, named, () => value),
       update: change => update($, named, change),
     },
+    activity: {
+      read: () => read($, activity),
+      write: value => update($, activity, () => value),
+      update: change => update($, activity, change),
+    },
   },
 })
 
@@ -269,17 +278,40 @@ export const register: Register = on => {
   }).catch(($, e, next) => next(e))
 
   on('turn.start', async ($, e, next) => {
-    await heardTurn(hostOf($), e.text)
+    const host = hostOf($)
+
+    await heardTurnStart(host)
+    await heardTurn(host, e.text)
 
     return next(e)
   }).catch(($, e, next) => next(e))
 
+  // A subagent's turn is not the window's.
   on('turn.complete', async ($, e, next) => {
     if (e.agentId === undefined) {
-      await wentQuiet(hostOf($))
+      const host = hostOf($)
+
+      await heardTurnEnd(host)
+      await wentQuiet(host)
     }
 
     return next(e)
+  }).catch(($, e, next) => next(e))
+
+  // Every call, the window's own and its subagents', sitrep's among them,
+  // heard as it starts and ends, and passed on as it came.
+  on('tool.call', ($, e, next) =>
+    throughCall(hostOf($), { id: e.tool_use_id, tool: e.tool, input: e, agentId: e.agentId }, () =>
+      next(e),
+    ),
+  ).catch(($, e, next) => next(e))
+
+  on('tool.check', async ($, e, next) => {
+    const verdict = await next(e)
+
+    await heardCheck(hostOf($), e, verdict.decision)
+
+    return verdict
   }).catch(($, e, next) => next(e))
 
   on('tool.call', { tool: TOOL_NAMES }, ($, e) => answerCall(hostOf($), e)).catch(($, e, next) =>
