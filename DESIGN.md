@@ -1511,9 +1511,9 @@ blurred.
 
 **The window**, from the research into edge and camera-notch apps:
 - an `NSPanel` subclass, borderless and non-activating;
-- at level `.mainMenu + 3`, on every Space and over full-screen apps
-  (`.canJoinAllSpaces`, `.fullScreenAuxiliary`, `.stationary`,
-  `.ignoresCycle`);
+- at level `.mainMenu + 3`, on every Space (`.canJoinAllSpaces`,
+  `.stationary`, `.ignoresCycle`), and off the screen while a full-screen
+  app has its display (under "The strip", "Windows and full screen");
 - clicks pass through it except over the shape;
 - a global mouse monitor hears the approach.
 
@@ -1542,12 +1542,25 @@ the panel was, in the browser first, then in Swift.
 **The design**, drawn in Paper's "The strip" (surfaces round 2, 16 October
 2026; Lee: "I really like it"). The movement, the hover and the animation
 were settled in the browser spike (below, "How the strip moves").
-- **The form.** The bezel, grown: 36pt of the same black down the screen's
-  edge, both its ends curving back into the bezel as the notch's ends do:
-  the top under the menu bar, the bottom 26pt above the screen's bottom. It
-  reads as a very tall notch with content rather than a strip fitted to the
-  bottom (Lee, 18 October 2026). It sits on the notch's edge, left by
+- **The form.** The bezel, grown: 36pt of the same black along the screen's
+  edge, both its ends curving back into the bezel as the notch's ends do.
+  It reads as a very tall notch with content rather than a strip fitted to
+  the bottom (Lee, 18 October 2026). It sits on the notch's edge, left by
   default, and stays. Settings chooses it in place of the notch.
+- **Length.** **Grows**, the default, makes the strip as long as its marks
+  need, centred where the notch sits, 0.42 of the way down the screen, and
+  held between the menu bar and 26pt above the screen's bottom (Lee, 19
+  October 2026: "It should just sort of grow as needed"; then "I like that
+  it seems to skew slightly above centre"). At its longest it is the full
+  strip. **Full** runs it the screen's whole height, the top under the menu
+  bar, the bottom 26pt above the screen's bottom. With nothing running,
+  Grows draws the strip back into the notch at rest, unlit, and a hover
+  there says "Nothing running".
+- **Max**, for Grows: the strip's longest length, a slider in Settings
+  from five marks' length to Full, the default. It never speaks in marks
+  (Lee: "We definitely wouldn't want to record the Max as 'Marks.' That's
+  silly."). Past it, the counts take the rest (below, "Too many"). Lee:
+  "I like being able to control the maximum height, it's quite cool."
 - **A mark per session**, in the panel's order and for the same sessions. A
   mark is the project's two letters in a 24pt ring, and the ring carries the
   state, so the strip reads without a hover:
@@ -1574,16 +1587,41 @@ were settled in the browser spike (below, "How the strip moves").
   once it closes" becomes: a new needs you moves in at once, the marks below
   sliding down to make room; any other change shows in place, and the marks
   re-sort a second after the pointer leaves the strip.
-- **Too many.** About 30 marks fit at full height (32 on a 1117pt screen,
-  27 on a 982pt one). Past that, the last place is a count ("+3"), and under
-  the pointer it pours out the rest as one tab. Needs you never folds: it is
-  at the top.
+- **Too many.** The strip has as many places as Max gives it, or as the
+  full height holds: about 30 (32 on a 1117pt screen, 27 on a 982pt one).
+  Needs you takes them first, keeping one for your turn and working
+  whenever there are any. Past its room, the newest asks fold into a count
+  of their own: an orange "+N" ring, the needs-you group's last place, over
+  the hairline; away asks fold first (Lee, 19 October 2026: "new asks
+  should collapse into a number of collapsed icons... in the bottom of
+  their own panel"). Your turn and working take the places left, and past
+  them the last place is the grey count ("+3"). Under the pointer each
+  count pours out what it holds as one tab of rows, which scroll on a short
+  strip. A new ask landing in the orange count flashes its ring twice and
+  washes it, as a new mark's, and the marks showing never move. Lee: "It
+  works."
 - **Windows and full screen:** macOS lets no app reserve screen space as the
-  Dock does, so a window filling the screen goes under the strip's 36pt; the
-  strip is on every ordinary Space and steps aside while an app is full
-  screen, its window left off full-screen Spaces. In the Swift spike, which
-  Lee felt on the display ("I think it's good"); he hasn't said how a window
-  under the 36pt reads.
+  Dock does, so a window filling the screen goes under the strip's 36pt; Lee
+  hasn't said how that reads. Nothing of SitRep's goes over a full-screen
+  window, the notch as well as the strip (Lee, 19 October 2026: "It should
+  be hidden. Nothing should go over the top of a full screen window"): while
+  a full-screen app has the panel's display, the panel is off the screen,
+  and it comes back as the display leaves it. A maximised window doesn't
+  count, and each display is judged on its own. Leaving the window off
+  full-screen Spaces wasn't enough: a non-activating panel on every Space
+  still showed over Plex full screen. So the app asks:
+  - whether the app in front is full screen, from the system's presentation
+    options; a maximised window never says so;
+  - whether its window fills the panel's display, from the window list's
+    bounds, which need no permission.
+
+  Bounds alone can't tell the two apart: under the built-in display's notch
+  a maximised window has a full-screen one's. SitRep asks again on each
+  change of Space, of the app in front and of the screens, and once more a
+  second later, as the window is still moving; nothing polls. The private
+  SkyLight call yabai uses reads each display's Space type directly. It was
+  left out, as nothing guarantees it across macOS releases. In the Swift
+  spike, not yet felt.
 - **Material:** Black, the bezel's, or Glass, macOS 26's Liquid Glass, for
   the strip and its tabs alike, as one shape (Lee, 18 October 2026: "I like
   the glass and the black, actually"). See Settings.
@@ -1625,18 +1663,27 @@ prototype's Strip tab; Lee kept its defaults):
   twice, 450ms apart. A tab out while marks slide stays with its mark, then
   glides to whatever is under the pointer. The re-sort waits a second after
   the pointer leaves.
+- **Growing and shrinking**, at Grows: the strip's ends spring on their own,
+  leading the marks out as it grows (the marks' slide 1.25× quicker) and
+  following them in as it shrinks (1.25× slower). With nothing running for
+  120ms, its outline morphs into the notch's at rest point for point, each
+  end's S into the lip's. A press dragged along the edge carries it.
 - **Reduced motion:** no springs and no reach; a tab's shape fades in and
   out, and marks snap to their places and fade in.
 - **In glass**, Liquid Glass has two thicknesses and picks one from a
-  shape's size: the strip alone is thin, the strip with a tab out thick, and
-  a shape rebuilt every frame switches at once. Lee: "it needs to be a
-  little more graded rather than instant". So the strip and its tabs are
-  drawn as thick glass, and a thin glass of the strip alone fades out over
-  it as the tab pours, coming back as it draws in.
+  shape's size: the strip alone would be thin, the strip with a tab out
+  thick, and a shape rebuilt every frame switches at once (Lee: "it needs
+  to be a little more graded rather than instant"). A thin glass fading out
+  over the thick one still read on the display as two steps, so the strip
+  is thick glass from rest, one look in every frame (Lee, 19 October 2026:
+  "the glass panel looks good as it is"). A mark's ring lifts once under
+  the pointer, over 110ms, and settles back once. The working arcs and the
+  shimmer turn in Core Animation, in the render server, so the strip at
+  rest does no work in the app.
 
 They ship fixed, as the notch's do (above, "The app ships these values
 fixed"). Lee's settings:
-`{"bounce":0.50,"dwell":120,"reach":3,"pour":1.00,"glide":1.00,"fade":160,"close":1.00,"room":12,"grace":300,"settle":1000,"slide":1.00,"swells":2,"edge":"left"}`.
+`{"bounce":0.50,"dwell":120,"reach":3,"pour":1.00,"glide":1.00,"fade":160,"close":1.00,"room":12,"grace":300,"settle":1000,"slide":1.00,"lead":1.25,"swells":2,"edge":"left"}`.
 The springs, after Bounce, as SwiftUI's `.spring(response:dampingFraction:)`:
 
 | Spring | Value |
@@ -1648,8 +1695,10 @@ The springs, after Bounce, as SwiftUI's `.spring(response:dampingFraction:)`:
 | width | 0.24·0.86 |
 | draw | 0.22·0.80 |
 | slide | 0.36·0.80 |
+| ends | 0.29·0.80 growing, 0.45·0.80 shrinking |
 | arrive | 0.30·0.55 |
 | press | 0.10·0.70 |
+| morph | 0.42·0.86 |
 
 ### The SitRep window
 
@@ -1793,7 +1842,9 @@ Spaceman's preferences as a reference only.
     dot. The chosen one is ringed and live; it is the menu's Show. Then
     **Where**, for the notch and the strip alike: Edge, Left or Right ("or
     drag it across the middle"), and Display, the main one unless another
-    is chosen. Then **The notch**: Style, Meniscus or Card. Then **Look**:
+    is chosen. Then **The notch**: Style, Meniscus or Card. Then **The
+    strip**: Length, Grows or Full, and for Grows, Max, a slider whose right
+    end is Full. Then **Look**:
     Material, Black or Glass, for the notch and the strip alike, from
     macOS 26 (before it, Black and no row); and Reduce motion, off, its line
     saying SitRep follows the Mac's own setting either way (Lee, 18 October
