@@ -2,7 +2,8 @@ import Foundation
 
 /// What Lee sets for the screen's edge: Settings' At the edge pane, and the menu's Show (DESIGN, "Settings"). How the
 /// notch and the strip move is not among them; that ships fixed. Read leniently, so settings another version saved
-/// keep what they can: a key missing or unreadable keeps its default.
+/// keep what they can: a key missing or unreadable keeps its default, and anything but an object reads as the
+/// defaults.
 public struct EdgeSettings: Codable, Equatable, Sendable {
     /// What shows at the screen's edge: the notch and its light, the strip and its rings, or only the menu bar's glyph.
     public enum Show: String, Codable, CaseIterable, Sendable {
@@ -32,9 +33,13 @@ public struct EdgeSettings: Codable, Equatable, Sendable {
 
     public init() {}
 
-    public init(from decoder: any Decoder) throws {
-        let given = try decoder.container(keyedBy: CodingKeys.self)
+    public init(from decoder: any Decoder) {
         let defaults = EdgeSettings()
+        guard let given = try? decoder.container(keyedBy: CodingKeys.self) else {
+            self = defaults
+            return
+        }
+
         show = given.value(.show, or: defaults.show)
         edge = given.value(.edge, or: defaults.edge)
         display = given.value(.display, or: defaults.display)
@@ -78,9 +83,10 @@ public struct StripMax: Codable, Equatable, Sendable {
 
     public var isFull: Bool { share == 1 }
 
-    /// The most places it leaves a strip whose full height holds `longest`; nil at Full, which leaves what fits.
+    /// The most places it leaves a strip whose full height holds `longest`, never more; nil at Full, which leaves what
+    /// fits.
     func places(longest: Int) -> Int? {
-        isFull ? nil : Self.fewest + Int((share * Double(max(0, longest - Self.fewest))).rounded())
+        isFull ? nil : min(longest, Self.fewest + Int((share * Double(max(0, longest - Self.fewest))).rounded()))
     }
 
     /// The slider's left end, in places.

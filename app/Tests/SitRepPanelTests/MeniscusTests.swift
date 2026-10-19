@@ -269,6 +269,16 @@ struct MeniscusTests {
         #expect(lab.phase == .open)
     }
 
+    @Test(arguments: [-1, 8, 99])
+    func aClickOutsideTheRowsDoesNothing(_ index: Int) {
+        var lab = Lab()
+        lab.openByTouch()
+
+        lab.model.clickRow(index)
+
+        #expect(lab.phase == .open)
+    }
+
     @Test func aPointerLeftOnTheNotchAsThePanelClosesDoesNotReopenItUntilItLeaves() {
         var lab = Lab()
         lab.openByTouch()
@@ -332,6 +342,24 @@ struct MeniscusTests {
         let settled = lab.settle()
         #expect(settled)
         #expect(abs(lab.shape.w - 15) < 0.01)
+    }
+
+    @Test func noSwellsAtAllTakeTheNotchStraightTo15DeepWithNoOverSwell() {
+        var feel = MeniscusFeel.lees
+        feel.swells = -1
+        var lab = Lab(feel: feel)
+        lab.needsLee = true
+
+        var widest = 0.0
+        lab.wait(1000) { lab in
+            widest = max(widest, lab.shape.w)
+            return false
+        }
+
+        #expect(widest <= 15 + 1e-9)
+        let settled = lab.settle()
+        #expect(settled)
+        #expect(abs(lab.shape.w - 15) < 0.01 && abs(lab.shape.h - 124) < 0.01)
     }
 
     @Test func theSwellsAfterTheFirstStopOnceThePanelOpens() {

@@ -160,15 +160,21 @@ public final class Meniscus: Notch {
     }
 
     /// A new ask: the light flashes, and a closed notch over-swells, as many times as Swells says, the light
-    /// flashing again with each. Something needs Lee from here.
+    /// flashing again with each; with none, it goes straight to 15 deep. Something needs Lee from here.
     public func newAsk() {
         needs = true
         flash = t
         to(\.light, 1, 160)
-        if phase == .closed {
-            swellNotch()
-            swellAgain(feel.swells - 1)
+        guard phase == .closed else {
+            return
         }
+        guard feel.swells > 0 else {
+            let needs = NotchShape.needs
+            return setShape(w: needs.w, h: needs.h, r: needs.r, f: needs.f, 450)
+        }
+
+        swellNotch()
+        swellAgain(feel.swells - 1)
     }
 
     /// The swells after the first, each `swellGap` after the last, while the notch stays closed and something needs
@@ -191,7 +197,7 @@ public final class Meniscus: Notch {
 
     /// A click on one of `items`: one that jumps drains the panel, as a jump does.
     public func clickRow(_ index: Int) {
-        guard isLive, case let .session(session) = items[index], session.jumps else {
+        guard isLive, rowJumps(index) else {
             return
         }
 

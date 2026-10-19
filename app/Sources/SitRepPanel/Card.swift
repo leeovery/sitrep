@@ -134,9 +134,13 @@ public final class Card: Notch {
         swell()
     }
 
-    /// The pushes, 450ms apart.
+    /// The pushes, 450ms apart; with none, the notch comes straight out to its depth.
     func swell() {
         cancelPrefix(CardTimer.swellPrefix)
+        guard feel.swells > 0 else {
+            return springTo(\.w, resting.w, feel.sp(.follow))
+        }
+
         for i in 0 ..< feel.swells {
             later(.swell(i), Double(i) * Tuning.swellGap) { $0.pushOut() }
         }
@@ -170,7 +174,7 @@ public final class Card: Notch {
 
     /// A click on one of `items`: one that jumps closes the panel, as a jump does.
     public func clickRow(_ index: Int) {
-        guard isLive, items[index].session?.jumps == true else {
+        guard isLive, rowJumps(index) else {
             return
         }
 

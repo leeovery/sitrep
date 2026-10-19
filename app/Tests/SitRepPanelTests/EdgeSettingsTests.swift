@@ -37,6 +37,11 @@ struct EdgeSettingsTests {
         #expect(try JSONDecoder().decode(EdgeSettings.self, from: Data("{}".utf8)) == EdgeSettings())
     }
 
+    @Test(arguments: ["null", "[]", "7", #""notch""#])
+    func aFileThatIsNoObjectReadsAsTheDefaults(_ json: String) throws {
+        #expect(try JSONDecoder().decode(EdgeSettings.self, from: Data(json.utf8)) == EdgeSettings())
+    }
+
     @Test func aKeyMissingOrUnreadableKeepsItsDefault() throws {
         let json = #"{"show":"strip","edge":"top","display":7,"maxLength":"lots","reducesMotion":true}"#
 
@@ -85,7 +90,8 @@ struct StripMaxTests {
         #expect(StripMax(share: share).places(longest: 16) == places)
     }
 
-    @Test func aScreenTooShortForMoreLeavesFive() {
+    @Test func aScreenTooShortForMoreLeavesWhatFits() {
         #expect(StripMax(share: 0.5).places(longest: 5) == 5)
+        #expect(StripMax(share: 0.5).places(longest: 3) == 3)
     }
 }

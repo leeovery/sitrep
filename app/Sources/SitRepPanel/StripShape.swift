@@ -26,10 +26,15 @@ extension Strip {
     /// The full strip's first mark's centre: Room further under the top end's S than the board has it.
     var firstY: Double { stage.menu + endPad }
 
-    /// How many marks the full strip holds, never fewer than Max's least: where Max's slider runs to.
-    var longest: Int {
-        let run = bottomEnd - stage.menu - 2 * endPad
-        return Swift.max(StripMax.fewest, Int((run / StripTuning.pitch).rounded(.down)) + 1)
+    /// How many places the full strip holds, the hairline taking 13pt more than a step when there is one: Full, where
+    /// Max's slider runs to.
+    func fullPlaces(hairline: Bool) -> Int {
+        let hair = hairline ? StripTuning.hairExtra : 0
+        var places = 1
+        while firstY + Double(places) * StripTuning.pitch + hair <= bottomEnd - endPad {
+            places += 1
+        }
+        return places
     }
 
     /// How far the column has drawn back into the notch at rest, 0 to 1.

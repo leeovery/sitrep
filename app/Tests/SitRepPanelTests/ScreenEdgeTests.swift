@@ -63,7 +63,11 @@ struct ScreenEdgeTests {
             return false
         }
 
-        #expect(deepest > Tuning.panelDepth + Tuning.frontGive)
+        // a slow leave stretches the edge to Hold before it breaks; a fast one outruns it, and the edge flings out
+        // after the pointer as far as its speed throws it
+        let feel = MeniscusFeel.lees
+        let stretch = speed < 1 ? feel.hold : min(feel.hold, Tuning.fling * feel.pull * tanh(speed / Tuning.flingV))
+        #expect(deepest > Tuning.panelDepth + stretch / 2)
         #expect(deepest < ScreenEdge.depth)
     }
 }
