@@ -8,14 +8,27 @@ public protocol Notch: AnyObject {
     var items: [Item] { get }
     /// How far from the edge a pointer by the notch counts as near it, for `Frame.wantsFrames`.
     var field: Double { get }
+    /// The notch's home along the edge, its centre: the stage's, kept inside the band.
+    var notchY: Double { get }
 
     func frame(_ input: Input) -> Frame
     /// A new ask: the notch swells and the light flashes. Something needs Lee from here.
     func newAsk()
-    /// A click on one of `items`: one that jumps closes the panel, as a jump does.
-    func clickRow(_ index: Int)
+    /// Something needs Lee with nothing new, as on the first board: the notch goes to its size and the light comes
+    /// on, with no swell and no flash.
+    func needsLeeQuietly()
+    /// A click on one of `items`: one that jumps presses in and spins until the jump answers (`jumpAnswered`), for
+    /// `Tuning.jumpFor` at most, and then the panel drains. Only an open or opening panel takes it, one jump at a
+    /// time: whether it did.
+    @discardableResult func clickRow(_ index: Int) -> Bool
+    /// The jump answered: a row still pressed in drains the panel now.
+    func jumpAnswered()
     /// A click anywhere off the panel and the notch closes it at once.
     func clickElsewhere()
+    /// A drag carries the notch: the panel closes, and the notch doesn't open under the pointer until it leaves.
+    func carry()
+    /// The notch at rest, its home this far down the stage, inside the band: a drag's ghost on the other edge.
+    func restingOutline(at y: Double) -> CGPath
 }
 
 /// What the two notches share, as their prototypes share it: the sim clock and its timers, the pointer's trail, what
@@ -25,9 +38,10 @@ protocol NotchModel: Notch, SimModel {
 
     /// Every spring the notch is made of, by its prototype's names (its `S`).
     var S: SpringSet { get set }
-    /// The notch's home along the edge, its centre.
-    var notchY: Double { get }
     var isLive: Bool { get }
+    var content: Content { get }
+    /// The row a click is jumping to, pressed in until the panel has drained.
+    var jumping: String? { get set }
     /// The notch's hit area and the panel's content as last drawn, which the pointer is hit-tested against.
     var lastHit: CGRect? { get }
     var lastPanel: Frame.Panel? { get }
@@ -104,9 +118,9 @@ extension NotchModel {
     /// The pointer's real whereabouts, against the notch and the panel as last drawn.
     func pointerInside() -> Bool { hoverOf(sp) != nil }
 
-    /// Whether a click on this item jumps: it is a session's row, and a window holds it.
-    func rowJumps(_ index: Int) -> Bool {
-        items.indices.contains(index) && items[index].session?.jumps == true
+    /// The row a click on this item jumps from: a session's row a window holds, and not folding away.
+    func jumpingRow(_ index: Int) -> String? {
+        content.entries.indices.contains(index) && content.entries[index].jumps ? items[index].session?.id : nil
     }
 
     /// Each item's place in the order the rows land, after the head's 0: a divider lands with the row after it.
@@ -143,9 +157,9 @@ extension NotchModel {
         return Frame.Paint(alpha: a, rise: (1 - a) * 4)
     }
 
-    /// The head and each item as they land or fade.
+    /// The head and each item as they land or fade, an item also as it fades in or folds away (`Folds`).
     func renderRows() -> (head: Frame.Paint, items: [Frame.Paint]) {
-        (paint(revealAlpha(0)), revealOrder.map { paint(revealAlpha($0)) })
+        (paint(revealAlpha(0)), zip(revealOrder, content.entries).map { paint(revealAlpha($0) * $1.alpha) })
     }
 
     /// Rows landing or fading while the panel is out.

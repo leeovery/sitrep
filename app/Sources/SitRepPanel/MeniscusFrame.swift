@@ -48,7 +48,7 @@ extension Meniscus {
             frame: CGRect(x: 0, y: top, width: W, height: H),
             clip: CGRect(x: 0, y: top + it, width: max(0, W - front), height: max(0, H - it - ib)),
             topRadius: max(0, min(g.rt, cap)), bottomRadius: max(0, min(g.rb, cap)),
-            head: head, items: items
+            head: head, items: items, pressed: jumping
         )
     }
 

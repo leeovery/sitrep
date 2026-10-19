@@ -1738,6 +1738,15 @@ the edge, and past the middle to the other
 edge; never to the bottom. The form is Paper's round 1 "Bezel". The light's
 place, a bar in the notch, is round 2's "Strip".
 
+The drag, as built (20 October 2026), is the prototype's: a press on the
+black off a row, moved more than 4 points, closes the panel and carries the
+notch along the edge with the pointer; let go past the screen's middle, it
+goes to the other edge. Where it is let go is saved in what Lee sets, as
+its edge and how far down the screen it sits (0.42 until then), so the
+strip, centring where the notch sits, takes it too. A chosen display is
+named by its UUID, which outlives a restart and a replug; one not connected
+gives way to the main display.
+
 **The light: Live**, in Claude Code's orange, #E9643D. It is a crisp bar
 2.5 × 36 in the notch:
 - a tight halo, clipped to the notch;
@@ -1779,7 +1788,10 @@ name. With no tool, working and your turn read the board's "now", else the
 summary, else the name.
 
 Rows keep their places while the panel is open: a changed row moves only
-once it closes. A click on an away row does nothing; it is there, but there
+once it closes. Meanwhile a row gone folds away where it was, and a new one
+unfolds under the row core has above it, washed if it needs Lee (20 October
+2026). A click
+on an away row does nothing; it is there, but there
 is no window to jump to. What a click on it opens is decided later: for
 Lee, a new Ghostty window attached to the session's tmux session, where
 there is one (Lee, 16 October 2026, in place of "until the SitRep window
@@ -2003,7 +2015,8 @@ blurred.
   `.stationary`, `.ignoresCycle`), and off the screen while a full-screen
   app has its display (under "The strip", "Windows and full screen");
 - clicks pass through it except over the shape;
-- a global mouse monitor hears the approach.
+- a global mouse monitor hears the approach, and while the panel is out,
+  every move (see Stages, step 6).
 
 The shape is one path rebuilt every frame from the springs. As in the
 prototype, they are integrated semi-implicitly in substeps of at most 4ms,
@@ -2857,6 +2870,56 @@ reaches a window only while that pane is on show).
       Full, with or without the hairline. One fix came with it: a shape
       springing a little past the band's length stays on the band's middle,
       where the spike jumped to the screen's.
+
+      The notch and its panel were built on 20 October 2026, never run on
+      the display, every recorded test passing frame for frame. What the
+      build settled:
+      - **Core's rows, as given.** The panel lists `watch`'s rows in their
+        order, the hairline under the needs you that lead, and its head is
+        core's counts; the spike's sort is left to the strip until 6b. The
+        app maps a line to the panel's rows in one place (`PanelBoard`),
+        tested on the first line the real `watch` printed over a board
+        seeded in a scratch folder of its own.
+      - **Its swell is `new`'s alone.** Something needing Lee with nothing
+        new, as on every run's first line, takes the notch to 15 × 124 and
+        lights it with no swell and no flash.
+      - **Stale**, its head keeps its count of what needs Lee and says in
+        the count's place when the board was last known current, "as of
+        12:04". Before the first line it says "Looking for sessions…", and
+        with `watch` down before any, "SitRep can't read the board".
+      - **The spike's panel that stayed open**, found in the tests: frames
+        stop while nothing moves, and a move of the pointer woke them only
+        near the notch or over the panel as drawn. Under reduced motion,
+        rows going from under a still pointer leave the panel out wanting
+        no frames, so no move away reached the model. Every move wakes them
+        while the panel is out.
+      - **The click.** A row that jumps presses in (to 0.985, #1C1C20) and
+        an arc spins in its time's place until the jump answers, 450ms at
+        most, and then the panel drains: this design's "up to 450ms", where
+        the prototypes always wait the whole 450. While it is pressed in
+        nothing else closes the panel; a leave rings, and the panel stays
+        out for the jump. Only an open or opening panel takes a click, as
+        in the prototypes, one jump at a time, and a row folding away takes
+        none. Once the jump has jumped, "Jumped to SitRep's window" shows
+        90ms into the drain, or as the jump answers if that is later. The
+        CLI's answer names no place, so the caption names the row's
+        project. It sits at the top of the notch's screen, centred, 22
+        under the menu bar, where the prototypes put it 22 under their
+        stage's top, with no blur behind it. A jump refused leaves no
+        caption, and its banner says why.
+      - **Rows fold**, as the prototypes': while the panel is out, a new
+        row unfolds over 260ms and fades in over 220, and a row gone folds
+        away where it was, fading with its fold; under reduced motion a fold
+        takes 120 and nothing fades in. The panel's length follows.
+      - **The ghost.** Dragged past the screen's middle, the notch at rest
+        shows on the other edge where it would land, in the panel's black
+        at 0.3: in over 140ms, out over 200, and over 420 as the notch lands
+        there. The prototypes' lift under the pointer, and their drain and
+        regrow from one edge to the other, are not ported: the notch moves
+        at once.
+      - **A row's project** is named as the board names it, with core's
+        letters for it, ready for the strip; and an away ask's second line
+        is core's.
    7. **The menu bar item and Settings**, one PR: the native menu (see "The
       menu bar item"), the Settings window's three panes with Max as a
       slider, macOS notifications off by default with the switch to turn

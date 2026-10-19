@@ -37,7 +37,7 @@ extension Card {
             frame: CGRect(x: 0, y: top, width: W, height: H),
             clip: CGRect(x: 0, y: top + it, width: W - front, height: max(0, H - it - ib)),
             topRadius: g.r, bottomRadius: g.r,
-            head: head, items: items
+            head: head, items: items, pressed: jumping
         )
     }
 

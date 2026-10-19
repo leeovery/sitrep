@@ -9,6 +9,7 @@ struct EdgeSettingsTests {
 
         #expect(settings.show == .notch)
         #expect(settings.edge == .left)
+        #expect(settings.along == 0.42)
         #expect(settings.display == nil)
         #expect(settings.style == .meniscus)
         #expect(settings.length == .grows)
@@ -21,6 +22,7 @@ struct EdgeSettingsTests {
         var settings = EdgeSettings()
         settings.show = .strip
         settings.edge = .right
+        settings.along = 0.7
         settings.display = "37D8832A-2D66-02CA-B9F7-8F30A301B230"
         settings.style = .card
         settings.length = .full
@@ -68,6 +70,13 @@ struct EdgeSettingsTests {
         let read = try JSONDecoder().decode(EdgeSettings.self, from: Data(#"{"maxLength":\#(json)}"#.utf8))
 
         #expect(read.maxLength.share == share)
+    }
+
+    @Test(arguments: [("1.5", 1.0), ("-0.2", 0), ("0.6", 0.6), (#""low""#, 0.42)])
+    func thePlaceAlongTheEdgeReadsOntoTheScreen(_ json: String, _ along: Double) throws {
+        let read = try JSONDecoder().decode(EdgeSettings.self, from: Data(#"{"along":\#(json)}"#.utf8))
+
+        #expect(read.along == along)
     }
 
     @Test func eachStyleMakesItsNotch() {

@@ -46,6 +46,72 @@ struct ScreenEdgeTests {
         #expect(Self.studio.window == CGRect(x: 0, y: 0, width: ScreenEdge.depth, height: 1440))
     }
 
+    @Test func theNotchsHomeIsWhereTheSettingsPutItAlongTheEdge() {
+        var settings = EdgeSettings()
+        settings.edge = .right
+        settings.along = 0.75
+
+        let edge = ScreenEdge(Display(id: "studio", frame: Self.studio.frame, visible: Self.studio.visible), settings)
+
+        #expect(edge.stage.notchY == 1080)
+        #expect(edge.edge == .right)
+        #expect(edge.moved(along: 0.25).stage.notchY == 360)
+    }
+
+    private static let right = ScreenEdge(frame: studio.frame, visible: studio.visible, edge: .right)
+
+    @Test func onTheRightTheStageRunsInFromTheScreensRightSide() {
+        #expect(Self.right.stagePoint(CGPoint(x: 2559.5, y: 1000)) == CGPoint(x: 0.5, y: 440))
+        #expect(Self.right.stagePoint(CGPoint(x: 2160, y: 1000)) == CGPoint(x: 400, y: 440))
+        #expect(Self.right.stage == Self.studio.stage)
+    }
+
+    @Test func onTheRightTheWindowIsAgainstTheRightSide() {
+        #expect(Self.right.window == CGRect(x: 2560 - ScreenEdge.depth, y: 0, width: ScreenEdge.depth, height: 1440))
+    }
+
+    @Test func onTheLeftTheStageIsTheWindowsOwnAndOnTheRightItIsMirroredAcrossIt() {
+        let point = CGPoint(x: 30, y: 500)
+
+        #expect(point.applying(Self.studio.mirror) == point)
+        #expect(point.applying(Self.right.mirror) == CGPoint(x: ScreenEdge.depth - 30, y: 500))
+    }
+
+    /// The point a pointer at the screen's right side, 30 in from it, is drawn at in the window: on the screen, where
+    /// it is.
+    @Test func throughTheMirrorAStagePointIsDrawnUnderThePointer() {
+        let screenPoint = CGPoint(x: 2530, y: 900)
+        let stage = Self.right.stagePoint(screenPoint)!
+
+        let drawn = stage.applying(Self.right.mirror)
+
+        #expect(Self.right.window.minX + drawn.x == screenPoint.x)
+    }
+
+    @Test(arguments: [EdgeSettings.Edge.left, .right])
+    func aPointOnTheContentReadsLeftToRightOnEitherEdge(_ side: EdgeSettings.Edge) {
+        let edge = ScreenEdge(frame: Self.studio.frame, visible: Self.studio.visible, edge: side)
+        var lab = Lab(needsLee: true)
+        lab.openByTouch()
+        let panel = lab.frame.panel!
+        // 20 in from the content's left as drawn: on the left edge, from the edge; on the right, from the front
+        let stageX = side == .left ? panel.frame.minX + 20 : panel.frame.maxX - 20
+
+        let point = panel.contentPoint(CGPoint(x: stageX, y: panel.frame.minY + 50), mirror: edge.mirror, scroll: 30)
+
+        #expect(point == CGPoint(x: 20, y: 80))
+    }
+
+    @Test func theDisplayChosenIsTheOneOfThatIdWhileItIsConnectedElseTheMain() {
+        let main = Display(id: "studio", frame: Self.studio.frame, visible: Self.studio.visible)
+        let builtIn = Display(id: "built-in", frame: Self.builtIn, visible: Self.builtIn)
+
+        #expect(Display.chosen("built-in", among: [main, builtIn]) == builtIn)
+        #expect(Display.chosen(nil, among: [main, builtIn]) == main)
+        #expect(Display.chosen("gone", among: [main, builtIn]) == main)
+        #expect(Display.chosen(nil, among: []) == nil)
+    }
+
     @Test(arguments: [0.3, 1.5, 4])
     func theWindowHoldsEverythingTheModelDraws(leaving speed: Double) {
         var lab = Lab()

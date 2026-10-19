@@ -13,6 +13,9 @@ public struct EdgeSettings: Codable, Equatable, Sendable {
     /// The screen's edge it sits on.
     public enum Edge: String, Codable, CaseIterable, Sendable {
         case left, right
+
+        /// The screen's other side, where a drag let go past its middle takes the notch.
+        public var other: Edge { self == .left ? .right : .left }
     }
 
     /// The notch's and the strip's black: the bezel's, or macOS 26's Liquid Glass.
@@ -22,6 +25,9 @@ public struct EdgeSettings: Codable, Equatable, Sendable {
 
     public var show = Show.notch
     public var edge = Edge.left
+    /// How far down the screen the notch sits, from 0 at its top to 1 at its bottom: a little above the middle until
+    /// Lee drags it.
+    public var along = Tuning.notchAt
     /// The display it shows on, by the id the app gives it; nil for the main display.
     public var display: String?
     public var style = NotchStyle.meniscus
@@ -42,6 +48,7 @@ public struct EdgeSettings: Codable, Equatable, Sendable {
 
         show = given.value(.show, or: defaults.show)
         edge = given.value(.edge, or: defaults.edge)
+        along = clamp(given.value(.along, or: defaults.along), 0, 1)
         display = given.value(.display, or: defaults.display)
         style = given.value(.style, or: defaults.style)
         length = given.value(.length, or: defaults.length)

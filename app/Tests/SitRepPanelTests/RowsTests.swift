@@ -16,14 +16,21 @@ struct RowsTests {
         #expect(Session.ageText(minutes * Self.minute) == shown)
     }
 
-    /// Needs you, oldest first, away ones last; your turn, newest first; working, longest running first; the hairline
-    /// under needs you.
-    @Test func thePanelListsItsSessionsInTheDesignsOrder() {
+    /// The strip's order, until it takes core's: needs you, oldest first, away ones last; your turn, newest first;
+    /// working, longest running first.
+    @Test func theSessionsSortInTheDesignsOrder() {
+        let sessions = Item.prototype.compactMap(\.session).reversed()
+
+        #expect(Session.sorted(Array(sessions)).map(\.id) == ["s1", "s2", "s7", "s3", "s6", "s4", "s5"])
+    }
+
+    /// Core orders the rows: the panel keeps them as given, the hairline under the needs you that lead.
+    @Test func thePanelListsItsSessionsInTheOrderGiven() {
         let sessions = Item.prototype.compactMap(\.session).reversed()
 
         let ids = Item.list(Array(sessions)).map { $0.session?.id ?? "divider" }
 
-        #expect(ids == ["s1", "s2", "s7", "divider", "s3", "s6", "s4", "s5"])
+        #expect(ids == ["s7", "divider", "s6", "s5", "s4", "s3", "s2", "s1"])
     }
 
     @Test func noHairlineWithoutBothNeedsYouAndTheRest() {
@@ -33,21 +40,25 @@ struct RowsTests {
         #expect(!Item.list(sessions.filter { $0.kind != .needs }).contains(.divider))
     }
 
-    @Test func theHeadCountsWhatNeedsLeeAwayOrNotAndEverySession() {
-        let head = Head(Item.prototype)
-
-        #expect(head.title == "3 need you")
-        #expect(head.count == "7 sessions")
+    @Test func theHeadSaysHowManyNeedLeeAndHowManySessionsThereAre() {
+        #expect(Head(needYou: 3, sessions: 7) == Head(title: "3 need you", count: "7 sessions"))
+        #expect(Head(needYou: 1, sessions: 1) == Head(title: "1 needs you", count: "1 session"))
+        #expect(Head(needYou: 0, sessions: 4) == Head(title: "All clear", count: "4 sessions"))
     }
 
-    @Test func oneNeedingLeeNeedsHimAndNoneIsAllClear() {
-        let sessions = Item.prototype.compactMap(\.session)
-        let one = sessions.filter { $0.kind != .needs || $0.id == "s1" }.map(Item.session)
-        let none = sessions.filter { $0.kind != .needs }.map(Item.session)
+    @Test func thePanelsListIsLaidOutAsTheRowsAreDrawn() {
+        #expect(Content(laying: Item.prototype) == Content.css)
+    }
 
-        #expect(Head(one).title == "1 needs you")
-        #expect(Head(none).title == "All clear")
-        #expect(Head(none).count == "4 sessions")
+    /// The prototypes' list is 480 tall: in a panel showing 300 of it, it scrolls from its top to 180 down.
+    @Test(arguments: [(0.0, 50.0, 50.0), (50, -80, 0), (100, 50, 150), (150, 40, 180), (180, 10, 180)])
+    func theRowsScrollFromTheTopToWhereTheLastShowsAtTheFoot(_ offset: Double, _ delta: Double, _ scrolled: Double) {
+        #expect(Content.css.height == 480)
+        #expect(Content.css.scrolled(offset, by: delta, showing: 300) == scrolled)
+    }
+
+    @Test func aListThePanelHoldsWholeNeverScrolls() {
+        #expect(Content.css.scrolled(0, by: 40, showing: 500) == 0)
     }
 
     @Test func theHeadSitsInsideTheScrollsPadding() {
@@ -81,5 +92,28 @@ struct RowsTests {
     @Test(arguments: [CGPoint(x: 200, y: 100), CGPoint(x: 200, y: 165), CGPoint(x: 8, y: 50), CGPoint(x: 200, y: 30)])
     func theGapBelowARowTheDividerThePaddingAndTheHeadAreNoRow(_ point: CGPoint) {
         #expect(Content.css.row(at: point) == nil)
+    }
+
+    @Test func aRowFoldingAwayIsNoRowAndTakesNoClick() {
+        var content = Content.css
+        content.entries[0].isGoing = true
+
+        #expect(content.row(at: CGPoint(x: 20, y: 50)) == nil)
+        #expect(!content.entries[0].jumps)
+        #expect(content.entries[1].jumps)
+        #expect(!content.entries[2].jumps)
+        #expect(!content.entries[7].jumps)
+    }
+
+    @Test func aSessionTakesTheLettersItIsGivenElseMakesItsOwn() {
+        let given = Session(id: "", project: "SitRep", letters: "Si", kind: .turn, title: "", sub: "", since: 0)
+        let made = Session(id: "", project: "SitRep", kind: .turn, title: "", sub: "", since: 0)
+
+        #expect(given.letters == "Si")
+        #expect(made.letters == "SR")
+    }
+
+    @Test func eachItemIsKeyedBySessionTheHairlineByItself() {
+        #expect(Content.css.items.map(\.key) == ["s1", "s2", "divider", "s3", "s4", "s5", "s6", "s7"])
     }
 }

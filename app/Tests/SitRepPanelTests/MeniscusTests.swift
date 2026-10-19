@@ -251,13 +251,14 @@ struct MeniscusTests {
         #expect(lab.phase == .closed)
     }
 
-    @Test func aClickOnARowThatJumpsDrainsThePanel() {
+    @Test func aClickOnARowThatJumpsDrainsThePanelOnceItHasPressedIn() {
         var lab = Lab()
         lab.openByTouch()
 
         lab.model.clickRow(0)
+        let drained = lab.wait(Tuning.jumpFor + Lab.frameMS) { $0.phase == .closing }
 
-        #expect(lab.phase == .closing)
+        #expect(drained)
     }
 
     @Test func aClickOnARowNoWindowShowsDoesNothing() {
