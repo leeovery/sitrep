@@ -43,6 +43,8 @@ public final class Meniscus: Notch {
     var contact = Contact()
     var cling = Cling()
     var reveal = Reveal.none
+    /// The row a click is jumping to, pressed in until the panel has drained.
+    var jumping: String?
     /// The sim time of the last new ask.
     var flash: Double?
     var timers = SimTimers<Meniscus, MeniscusTimer>()
@@ -195,13 +197,23 @@ public final class Meniscus: Notch {
         }
     }
 
-    /// A click on one of `items`: one that jumps drains the panel, as a jump does.
-    public func clickRow(_ index: Int) {
-        guard isLive, rowJumps(index) else {
-            return
+    @discardableResult
+    public func clickRow(_ index: Int) -> Bool {
+        guard isLive, jumping == nil, let id = jumpingRow(index) else {
+            return false
         }
 
-        close()
+        cancel(.grace)
+        jumping = id
+        later(.jump, Tuning.jumpFor) { $0.close() }
+        return true
+    }
+
+    public func jumpAnswered() {
+        if timers.has(.jump) {
+            cancel(.jump)
+            close()
+        }
     }
 
     /// A click anywhere off the panel and the notch closes it at once.
@@ -213,6 +225,12 @@ public final class Meniscus: Notch {
 
     public func carry() {
         close()
+    }
+
+    public func restingOutline(at y: Double) -> CGPath {
+        let l = resting, cy = stage.centre(l.h, near: y)
+
+        return shapePath(MeniscusGeometry(w: l.w, h: l.h, cy: cy, rt: l.r, ft: l.f, rb: l.r, fb: l.f), nil)
     }
 
     /// The way back from `answerAll`; a swell under way is left to play out.
@@ -347,6 +365,7 @@ public final class Meniscus: Notch {
 
 enum MeniscusTimer: String {
     case dwell, grace, swell
+    case jump = "jump:go"
     case openW = "open:w", openDone = "open:done"
     case closeW = "close:w", closeH = "close:h", closeVis = "close:vis", closeDone = "close:done"
     case closeFar = "close:far", closeBurst = "close:burst", closePush = "close:push"

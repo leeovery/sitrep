@@ -140,6 +140,8 @@ public struct Frame {
         public let head: Paint
         /// One for each of the model's `items`.
         public let items: [Paint]
+        /// The row a click is jumping to, by its session's id: pressed in and spinning until the panel has drained.
+        public let pressed: String?
 
         /// Whether a point is on the content as shown: inside the clip, and inside the rounding of its front corners.
         public func contains(_ point: CGPoint) -> Bool {

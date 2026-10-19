@@ -15,7 +15,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        let edge = Edge { [works] session in works.jump(to: session) }
+        let edge = Edge { [works] session, answered in works.jump(to: session, answered: answered) }
 
         menu = StatusMenu(works: works, banners: banners)
         self.edge = edge

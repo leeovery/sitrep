@@ -9,8 +9,8 @@ import SitRepPanel
 /// while something needs Lee.
 @MainActor
 final class NotchController: NSObject {
-    /// A click on a row: the session to jump to.
-    var onJump: (String) -> Void = { _ in }
+    /// A click on a row: the session to jump to, and what to tell once the jump answers, whether it jumped.
+    var onJump: (String, @escaping (Bool) -> Void) -> Void = { _, _ in }
     /// A drag let the notch go: the settings with its new place.
     var onMoved: (EdgeSettings) -> Void = { _ in }
 
@@ -20,6 +20,7 @@ final class NotchController: NSObject {
     private var style: NotchStyle
     private var board = PanelBoard()
     private var rows = HeldRows()
+    private var folds = Folds()
     /// The panel's list as the model and the drawing have it.
     private var list: PanelList
     private let surface = NotchSurface()
@@ -30,6 +31,10 @@ final class NotchController: NSObject {
     private var lightLink: CADisplayLink?
     private var scroll = 0.0
     private var drag: NotchDrag?
+    private let ghost = GhostEdge()
+    /// The caption the jump from a row leaves, until it shows.
+    private var jumped: JumpCaption?
+    private let caption = CaptionWindow()
     private var monitors: [Any] = []
 
     /// The slow refresh the light breathes on while frames are idle.
@@ -87,7 +92,7 @@ final class NotchController: NSObject {
         board.tell(notch, after: self.board)
         self.board = board
         rows.take(board.sessions)
-        relist()
+        relist(at: Displays.now)
         if isOut {
             surface.wash(board.new)
         }
@@ -148,12 +153,19 @@ final class NotchController: NSObject {
     /// One frame: the model moved on to this time with the pointer where it is, drawn, and the clocks paced.
     private func step(at time: Double) {
         let pointer = edge.stagePoint(NSEvent.mouseLocation)
+
+        fold(at: time)
+
         let input = Self.input(at: time, pointer: pointer, needsLee: board.needsLee, edge, list, settings)
 
         frame = notch.frame(input)
         restyle(input)
         if rows.hold(notch.phase != .closed) {
-            relist()
+            relist(at: time)
+        }
+        if notch.phase == .closing || notch.phase == .closed {
+            jumped?.drained(at: time)
+            showCaption(at: time)
         }
         scroll = frame.panel.map { list.content.scrolled(scroll, by: 0, showing: $0.frame.height) } ?? 0
         asks.take(lastAsk: frame.light.lastAsk, simTime: frame.time, at: time)
@@ -162,12 +174,22 @@ final class NotchController: NSObject {
         ))
         drawLight(at: time)
         window.ignoresMouseEvents = drag == nil && !(pointer.map(frame.hits) ?? false)
-        pace(pointer)
+        let ghosts = ghost.step(at: time)
+
+        pace(pointer, moving: ghosts || folds.isMoving(at: time))
     }
 
-    /// The rows as they show now, laid out, to the model's next frame and the drawing.
-    private func relist() {
-        list = PanelList(head: board.head, content: Content(laying: Item.list(rows.shown)))
+    /// The rows as they show now, folding in and out while the panel is out, to the model's next frame and the
+    /// drawing.
+    private func relist(at time: Double) {
+        folds.take(Item.list(rows.shown), at: time, animating: isOut, reducesMotion: Displays.reducesMotion(settings))
+        list.head = board.head
+        fold(at: time)
+    }
+
+    /// The list as it folds at this time.
+    private func fold(at time: Double) {
+        list.content = folds.content(at: time)
         surface.show(list)
     }
 
@@ -190,10 +212,10 @@ final class NotchController: NSObject {
         surface.showLight(frame.light, outline: frame.outline, colours: LiveLight(time: time, sinceAsk: asks.since(time)))
     }
 
-    /// Frames run while the model wants them; otherwise only the light's slow refresh, and only while it is lit.
-    /// Hidden, none.
-    private func pace(_ pointer: CGPoint?) {
-        let running = isShown && frame.wantsFrames(pointer: pointer, field: notch.field)
+    /// Frames run while the model wants them, or a row folds, or the ghost comes or goes; otherwise only the light's
+    /// slow refresh, and only while it is lit. Hidden, none.
+    private func pace(_ pointer: CGPoint?, moving: Bool) {
+        let running = isShown && (moving || frame.wantsFrames(pointer: pointer, field: notch.field))
 
         link?.isPaused = !running
         lightLink?.isPaused = running || !isShown || frame.light.level <= 0.001
@@ -228,13 +250,38 @@ final class NotchController: NSObject {
         }
     }
 
+    /// A row that jumps, while the panel takes the click: it presses in until the jump answers, and once it has
+    /// jumped, the caption says where.
     private func click(_ index: Int) {
-        guard let session = list.item(index)?.session, let target = board.jump(session) else {
+        guard let session = list.item(index)?.session, let target = board.jump(session), notch.clickRow(index) else {
             return
         }
 
-        act { $0.clickRow(index) }
-        onJump(target)
+        jumped = JumpCaption(to: session.project)
+        wake()
+        onJump(target) { [weak self] in self?.answered(jumped: $0) }
+    }
+
+    private func answered(jumped: Bool) {
+        let now = Displays.now
+
+        if jumped {
+            self.jumped?.jumped(at: now)
+        } else {
+            self.jumped = nil
+        }
+        act { $0.jumpAnswered() }
+        showCaption(at: now)
+    }
+
+    /// The caption, once it knows when it shows: over the notch's screen.
+    private func showCaption(at now: Double) {
+        guard let jumped, let at = jumped.showsAt else {
+            return
+        }
+
+        caption.show(jumped.text, over: edge.visible, after: max(0, at - now))
+        self.jumped = nil
     }
 
     /// A press moved: once it is a drag the panel closes and the notch follows the pointer along the edge.
@@ -249,6 +296,7 @@ final class NotchController: NSObject {
         self.drag = drag
         if drag.isCarrying {
             edge = edge.moved(along: drag.notchY / edge.frame.height)
+            ghost.carried(across: drag.isAcross, outline: notch.restingOutline(at: drag.notchY), on: edge)
         }
         wake()
     }
@@ -261,6 +309,7 @@ final class NotchController: NSObject {
             return
         }
 
+        ghost.dropped()
         onMoved(drag.dropped(settings, at: notch.notchY, height: edge.frame.height))
     }
 

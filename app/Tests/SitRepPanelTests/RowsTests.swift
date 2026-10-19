@@ -93,4 +93,27 @@ struct RowsTests {
     func theGapBelowARowTheDividerThePaddingAndTheHeadAreNoRow(_ point: CGPoint) {
         #expect(Content.css.row(at: point) == nil)
     }
+
+    @Test func aRowFoldingAwayIsNoRowAndTakesNoClick() {
+        var content = Content.css
+        content.entries[0].isGoing = true
+
+        #expect(content.row(at: CGPoint(x: 20, y: 50)) == nil)
+        #expect(!content.entries[0].jumps)
+        #expect(content.entries[1].jumps)
+        #expect(!content.entries[2].jumps)
+        #expect(!content.entries[7].jumps)
+    }
+
+    @Test func aSessionTakesTheLettersItIsGivenElseMakesItsOwn() {
+        let given = Session(id: "", project: "SitRep", letters: "Si", kind: .turn, title: "", sub: "", since: 0)
+        let made = Session(id: "", project: "SitRep", kind: .turn, title: "", sub: "", since: 0)
+
+        #expect(given.letters == "Si")
+        #expect(made.letters == "SR")
+    }
+
+    @Test func eachItemIsKeyedBySessionTheHairlineByItself() {
+        #expect(Content.css.items.map(\.key) == ["s1", "s2", "divider", "s3", "s4", "s5", "s6", "s7"])
+    }
 }

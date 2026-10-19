@@ -22,12 +22,16 @@ final class Works {
         await sitrep?.list() ?? .failed(Plugin.unbuilt)
     }
 
-    /// Jumps to the work's window unless a jump is under way. A jump that
-    /// fails is told in a banner once the next jump may run, as a banner may
-    /// first wait on Lee allowing banners at all.
-    func jump(to work: String) {
+    /// Jumps to the work's window unless a jump is under way, and tells
+    /// `answered` whether it jumped. A jump that fails is told in a banner
+    /// once the next jump may run, as a banner may first wait on Lee allowing
+    /// banners at all.
+    func jump(to work: String, answered: @escaping (Bool) -> Void = { _ in }) {
         Task {
-            switch await oneJump.run({ await self.sitrep?.jump(to: work) ?? .refused(Plugin.unbuilt) }) {
+            let answer = await oneJump.run({ await self.sitrep?.jump(to: work) ?? .refused(Plugin.unbuilt) })
+
+            answered(answer == .jumped)
+            switch answer {
             case nil:
                 logger.notice("Jump to \(work, privacy: .public) refused: another jump is running")
             case let .refused(why):

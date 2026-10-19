@@ -68,7 +68,13 @@ private final class Told: Notch {
 
     func newAsk() { told.append("newAsk") }
     func needsLeeQuietly() { told.append("needsLeeQuietly") }
-    func clickRow(_ index: Int) { told.append("clickRow") }
+    func clickRow(_ index: Int) -> Bool {
+        told.append("clickRow")
+        return false
+    }
+
+    func jumpAnswered() { told.append("jumpAnswered") }
     func clickElsewhere() { told.append("clickElsewhere") }
     func carry() { told.append("carry") }
+    func restingOutline(at y: Double) -> CGPath { CGMutablePath() }
 }

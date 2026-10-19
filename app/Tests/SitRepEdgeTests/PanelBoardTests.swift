@@ -96,6 +96,39 @@ struct PanelBoardTests {
         ])
     }
 
+    @Test func theRealWatchsFirstLineMapsRowForRow() {
+        let board = Self.board(Self.heard(.line(realLine)))
+
+        #expect(board.sessions == [
+            Session(
+                id: "ask:sr-n0tch1:k1ap", project: "SitRep", letters: "SR", kind: .needs, title: "Approve the caption",
+                sub: "SitRep · Build the Mac app", since: 1_792_452_732_636
+            ),
+            Session(
+                id: "ask:sr-dash02:k2pc", project: "Switchboard", letters: "Sw", kind: .needs, away: true,
+                title: "Pick the cache size", sub: "No window holds it. Carry it on in Claude.",
+                since: 1_792_451_832_636
+            ),
+        ])
+        #expect(board.head == Head(title: "2 need you", count: "2 sessions"))
+        #expect(board.needsLee)
+        #expect(board.new.isEmpty)
+        #expect(board.sessions.map(board.jump) == ["sr-n0tch1", nil])
+    }
+
+    @Test func aRowNamesItsProjectAsTheBoardDoesWithCoresLetters() {
+        let sessions = Self.board(Self.heard(.line(realLine))).sessions
+
+        #expect(sessions.map(\.project) == ["SitRep", "Switchboard"])
+        #expect(sessions.map(\.letters) == ["SR", "Sw"])
+    }
+
+    @Test func aRowWhoseProjectTheLineDoesNotListKeepsItsKey() {
+        let sessions = Self.board(Self.heard(.line(watchLine))).sessions
+
+        #expect(sessions.allSatisfy { $0.project == "p" && $0.letters == "Pr" })
+    }
+
     @Test func beforeTheFirstLineThePanelIsLookingWithNothingNeedingLee() {
         let board = Self.board(LastBoard())
 

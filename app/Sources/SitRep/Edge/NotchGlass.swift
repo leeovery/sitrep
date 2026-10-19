@@ -145,9 +145,10 @@ private struct GlassPanel: View {
                 .frame(width: content.headFrame.width, height: HeadLayout.line, alignment: .top)
                 .painted(panel.head, at: content.headFrame.origin)
             ForEach(Array(zip(content.entries.indices, panel.items)), id: \.0) { i, paint in
-                let itemBox = content.itemFrame(i)
-                item(content.entries[i].item, lit: scene.hover == i, width: itemBox.width, height: itemBox.height)
+                let itemBox = content.itemFrame(i), shows = content.entries[i].item
+                item(shows, lit: scene.hover == i, pressed: shows.key == panel.pressed, width: itemBox.width)
                     .frame(width: itemBox.width, height: itemBox.height, alignment: .topLeading)
+                    .clipped()
                     .painted(paint, at: itemBox.origin)
             }
         }
@@ -157,11 +158,12 @@ private struct GlassPanel: View {
         .offset(x: box.minX, y: box.minY)
     }
 
-    @ViewBuilder private func item(_ item: Item, lit: Bool, width: Double, height: Double) -> some View {
+    /// An item at its own height, which its box clips as it folds.
+    @ViewBuilder private func item(_ item: Item, lit: Bool, pressed: Bool, width: Double) -> some View {
         if let session = item.session {
             GlassSessionRow(
-                session: session, size: CGSize(width: width, height: height - Item.rowGap), lit: lit && session.jumps,
-                now: scene.now, wash: wash(session.id)
+                session: session, size: CGSize(width: width, height: item.height - Item.rowGap),
+                lit: lit && session.jumps, pressed: pressed, now: scene.now, wash: wash(session.id)
             )
         } else {
             let rule = DividerLayout.rule(width: width)
@@ -201,12 +203,14 @@ private struct GlassHead: View {
 }
 
 /// A session's row on glass: its mark, its title with its subject and its "+2", its project and session, its time,
-/// laid out as the black's; under the pointer, a row that jumps lifts.
+/// laid out as the black's; under the pointer, a row that jumps lifts, and a click jumping from it presses it in with
+/// an arc spinning in its time's place.
 @available(macOS 26, *)
 private struct GlassSessionRow: View {
     let session: Session
     let size: CGSize
     let lit: Bool
+    let pressed: Bool
     /// The wall clock, ms.
     let now: Double
     /// How washed it is, from 1 as it comes to 0.
@@ -215,22 +219,35 @@ private struct GlassSessionRow: View {
     var body: some View {
         let at = SessionRowLayout(size: size)
         ZStack(alignment: .topLeading) {
-            RoundedRectangle(cornerRadius: SessionRowLayout.radius).fill(.primary.opacity(lit ? 0.08 : 0))
+            RoundedRectangle(cornerRadius: SessionRowLayout.radius)
+                .fill(.primary.opacity(pressed ? 0.12 : lit ? 0.08 : 0))
+                .animation(.easeOut(duration: 0.11), value: pressed)
             RoundedRectangle(cornerRadius: SessionRowLayout.radius)
                 .fill(GlassInk.orange.opacity(0.12))
                 .strokeBorder(GlassInk.orange.opacity(0.26), lineWidth: 1)
                 .opacity(wash)
             mark.position(at.mark)
             title(width: at.title.width).placed(in: at.title)
-            Text(session.line2).font(.system(size: 12)).foregroundStyle(session.away ? .tertiary : .secondary)
+            Text(session.sub).font(.system(size: 12)).foregroundStyle(session.away ? .tertiary : .secondary)
                 .placed(in: at.sub)
-            Text(session.ageText(at: now))
-                .font(.system(size: 12).monospacedDigit())
-                .foregroundStyle(.tertiary)
-                .placed(in: at.age, alignment: .trailing)
+            if pressed {
+                spinner.placed(in: at.age, alignment: .trailing)
+            } else {
+                Text(session.ageText(at: now))
+                    .font(.system(size: 12).monospacedDigit())
+                    .foregroundStyle(.tertiary)
+                    .placed(in: at.age, alignment: .trailing)
+            }
         }
         .frame(width: size.width, height: size.height, alignment: .topLeading)
         .animation(.easeOut(duration: 0.11), value: lit)
+        .scaleEffect(pressed ? 0.985 : 1)
+        .animation(.easeOut(duration: 0.14), value: pressed)
+    }
+
+    /// The arc turning once a second, as a working row's mark.
+    private var spinner: some View {
+        Spinner(track: .quaternaryLabelColor, arc: .labelColor, period: 1).frame(width: 11, height: 11)
     }
 
     /// Needs you an orange dot with its glow, away or not; your turn an open ring; working the arc turning.
@@ -242,8 +259,7 @@ private struct GlassSessionRow: View {
         case .turn:
             Circle().strokeBorder(.primary, lineWidth: 1.5).frame(width: 7, height: 7)
         case .working:
-            Spinner(track: .quaternaryLabelColor, arc: .labelColor, period: 1)
-                .frame(width: 11, height: 11)
+            spinner
         }
     }
 

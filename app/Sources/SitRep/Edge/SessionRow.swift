@@ -13,12 +13,15 @@ final class SessionRow {
 
     private let at: SessionRowLayout
     private let wash = CALayer()
+    /// The arc that spins in the time's place while a click is jumping from it.
+    private let spinner: Arc
     private var age: TextLine?
     private var ageText = ""
 
     init(_ session: Session, size: CGSize) {
         self.session = session
         at = SessionRowLayout(size: size)
+        spinner = Self.arc(right: at.age)
         layer.frame = CGRect(origin: .zero, size: size)
         layer.cornerRadius = SessionRowLayout.radius
         wash.frame = layer.bounds
@@ -30,14 +33,44 @@ final class SessionRow {
         layer.addSublayer(wash)
         layer.addSublayer(mark())
         title().forEach(layer.addSublayer)
-        layer.addSublayer(TextLine(TextLine.text(session.line2, EdgeStyle.sub, subColour), in: at.sub))
+        layer.addSublayer(TextLine(TextLine.text(session.sub, EdgeStyle.sub, subColour), in: at.sub))
+        spinner.layer.isHidden = true
+        layer.addSublayer(spinner.layer)
     }
 
     /// Under the pointer, a row that jumps lifts.
     var isHighlighted = false {
         didSet {
-            layer.backgroundColor = isHighlighted && session.jumps ? EdgeStyle.hover : nil
+            showBackground()
         }
+    }
+
+    /// A click is jumping from it: it presses in, as the prototype's does in 140ms, its background in 110, and an arc
+    /// spins where its time was.
+    var isPressed = false {
+        didSet {
+            guard isPressed != oldValue else {
+                return
+            }
+
+            CATransaction.begin()
+            CATransaction.setDisableActions(false)
+            CATransaction.setAnimationDuration(0.14)
+            layer.setAffineTransform(isPressed ? Self.pressedIn : .identity)
+            CATransaction.setAnimationDuration(0.11)
+            showBackground()
+            CATransaction.commit()
+            still {
+                age?.isHidden = isPressed
+                spinner.layer.isHidden = !isPressed
+            }
+        }
+    }
+
+    private static let pressedIn = CGAffineTransform(scaleX: 0.985, y: 0.985)
+
+    private func showBackground() {
+        layer.backgroundColor = isPressed ? EdgeStyle.press : isHighlighted && session.jumps ? EdgeStyle.hover : nil
     }
 
     /// Its time at this moment on the wall clock, ms, drawn again only when it reads differently.
@@ -51,6 +84,7 @@ final class SessionRow {
         let line = TextLine(TextLine.text(text, EdgeStyle.age, EdgeStyle.ink3), in: at.age, alignment: .right)
 
         line.contentsScale = layer.contentsScale
+        line.isHidden = isPressed
         if let age {
             layer.replaceSublayer(age, with: line)
         } else {
@@ -146,15 +180,25 @@ final class SessionRow {
 
             return ring
         case .working:
-            let arc = Arc(from: -0.75 * .pi)
-
-            arc.fit(CGRect(x: centre.x - 5.5, y: centre.y - 5.5, width: 11, height: 11))
-            arc.track.strokeColor = EdgeStyle.track
-            arc.arc.strokeColor = EdgeStyle.ink
-            arc.turn(every: 1)
-
-            return arc.layer
+            return Self.arc(in: CGRect(x: centre.x - 5.5, y: centre.y - 5.5, width: 11, height: 11)).layer
         }
+    }
+
+    /// The prototype's 11-point arc, turning once a second: a working row's mark, and a pressed row's spinner.
+    private static func arc(in box: CGRect) -> Arc {
+        let arc = Arc(from: -0.75 * .pi)
+
+        arc.fit(box)
+        arc.track.strokeColor = EdgeStyle.track
+        arc.arc.strokeColor = EdgeStyle.ink
+        arc.turn(every: 1)
+
+        return arc
+    }
+
+    /// The arc at the right of a lane, on its middle.
+    private static func arc(right lane: CGRect) -> Arc {
+        arc(in: CGRect(x: lane.maxX - 11, y: lane.midY - 5.5, width: 11, height: 11))
     }
 
     private func disc(_ size: CGFloat, at centre: CGPoint, fill: CGColor) -> CALayer {

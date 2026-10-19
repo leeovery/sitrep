@@ -13,7 +13,8 @@ final class Edge {
     private lazy var fullScreen = FullScreenWatch { [unowned self] in Displays.bounds(of: settings) }
     private var observers: [any NSObjectProtocol] = []
 
-    init(jump: @escaping (String) -> Void) {
+    /// `jump` jumps to a session, and tells once it answers whether it jumped.
+    init(jump: @escaping (String, @escaping (Bool) -> Void) -> Void) {
         let settings = saved.read()
 
         self.settings = settings

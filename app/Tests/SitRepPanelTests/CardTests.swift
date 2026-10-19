@@ -250,7 +250,8 @@ struct CardTests {
         #expect(lab.phase == .open)
 
         lab.model.clickRow(0)
-        #expect(lab.phase == .closing)
+        let drained = lab.wait(Tuning.jumpFor + CardLab.frameMS) { $0.phase == .closing }
+        #expect(drained)
     }
 
     @Test(arguments: [-1, 8, 99])

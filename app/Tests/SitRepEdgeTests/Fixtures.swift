@@ -16,6 +16,32 @@ private let watchRows = [
     row("work:sr-q7njzv", "working", session: "sr-q7njzv", lead: "Editing", mono: "app/Report.php", second: "DocMan · Fix inverted exception reporting", since: 1_792_445_000_000),
 ]
 
+/// The first line the real `sitrep watch` printed on 20 October 2026, run once over a board seeded in a scratch
+/// `XDG_STATE_HOME`: SitRep's ask, which a window holds, and Switchboard's, which none does. Verbatim, but for the
+/// line breaks.
+let realLine = #"""
+    {"v":1,"at":1792453038194,"version":"0.1.0","head":{"needYou":2,"sessions":2},"rows":[{"key":"ask:sr-n0tch1:k1ap",\#
+    "is":"ask","isAway":false,"session":"sr-n0tch1","project":"sitrep","letters":"SR","ask":"k1ap","writer":null,\#
+    "first":{"lead":"Approve the caption","mono":null,"more":null},"second":"SitRep · Build the Mac app",\#
+    "since":1792452732636},{"key":"ask:sr-dash02:k2pc","is":"ask","isAway":true,"session":"sr-dash02",\#
+    "project":"switchboard","letters":"Sw","ask":"k2pc","writer":null,"first":{"lead":"Pick the cache size",\#
+    "mono":null,"more":null},"second":"No window holds it. Carry it on in Claude.","since":1792451832636}],\#
+    "projects":[{"key":"sitrep","name":"SitRep","directory":"/Users/leeovery/Code/sitrep","open":1,"waiting":1,\#
+    "parked":0,"updatedAt":1792452732636,"sessions":[{"id":"sr-n0tch1","name":"Build the Mac app",\#
+    "summary":"The notch","now":["Building the notch"],"next":null,"isOpen":true,"waiting":1,"parked":0,\#
+    "updatedAt":1792452732636,"state":"needsYou","since":1792452732636,"asks":[{"id":"k1ap","wants":"yes",\#
+    "yes":"Approve","title":"Approve the caption","where":null,"options":[],"needs":null,"ref":null,\#
+    "state":"waiting","at":1792452732636}]}]},{"key":"switchboard","name":"Switchboard",\#
+    "directory":"/Users/leeovery/Code/switchboard","open":0,"waiting":1,"parked":0,"updatedAt":1792451832636,\#
+    "sessions":[{"id":"sr-dash02","name":"Dashboard memory","summary":"Snags","now":["Reading the logs"],\#
+    "next":null,"isOpen":false,"waiting":1,"parked":0,"updatedAt":1792451832636,"state":"needsYou",\#
+    "since":1792451832636,"asks":[{"id":"k2pc","wants":"yes","yes":"Approve","title":"Pick the cache size",\#
+    "where":null,"options":[],"needs":null,"ref":null,"state":"waiting","at":1792451832636}]}]}],\#
+    "windows":[{"writer":"b1c2d3e4-0000-4000-8000-0000000000aa","session":"sr-n0tch1","name":"Build the Mac app",\#
+    "project":"SitRep","version":null,"needsReload":true,"where":null,"state":null,"attachedAt":1792449432636}],\#
+    "new":[],"changed":[]}
+    """#
+
 /// One session working, nothing needing Lee.
 let allClearLine = line(
     needYou: 0, sessions: 1, new: [],

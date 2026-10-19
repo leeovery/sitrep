@@ -35,9 +35,10 @@ public struct PanelBoard: Equatable, Sendable {
 
         let head = Head(needYou: board.head.needYou, sessions: board.head.sessions)
         let asOf = last.staleSince.map { "as of \($0.formatted(clock))" }
+        let names = Dictionary(board.projects.map { ($0.key, $0.name) }) { first, _ in first }
 
         self.init(
-            sessions: board.rows.map(Session.init),
+            sessions: board.rows.map { Session($0, project: names[$0.project] ?? $0.project) },
             head: asOf.map { Head(title: head.title, count: $0) } ?? head,
             needsLee: !board.head.isAllClear,
             new: Set(board.new),
@@ -73,11 +74,12 @@ public struct PanelBoard: Equatable, Sendable {
 }
 
 extension Session {
-    /// A row as the panel draws it, keyed by the row's key so it keeps its place: its first line's lead, then its
-    /// subject in mono after a space, and a question's "+2"; its project and session beneath; its time from `since`.
-    init(_ row: Board.Row) {
+    /// A row as the panel draws it, keyed by the row's key so it keeps its place: its project by name, and core's
+    /// letters for it; its first line's lead, then its subject in mono after a space, and a question's "+2"; core's
+    /// second line beneath, an away ask's saying so; its time from `since`.
+    init(_ row: Board.Row, project: String) {
         self.init(
-            id: row.key, project: row.project, kind: Kind(row.kind), away: row.isAway,
+            id: row.key, project: project, letters: row.letters, kind: Kind(row.kind), away: row.isAway,
             title: row.first.mono == nil ? row.first.lead : row.first.lead + " ", code: row.first.mono,
             more: row.first.more, sub: row.second, since: row.since.timeIntervalSince1970 * 1000
         )

@@ -132,4 +132,6 @@ enum Tuning {
     /// A new ask's swells come this far apart (ms): about one swing of the ask spring, so each starts as the last
     /// comes back up through NEEDS.
     static let swellGap = 450.0
+    /// A clicked row presses in and spins until its jump answers, for this long at most, and then the panel drains.
+    static let jumpFor = 450.0
 }

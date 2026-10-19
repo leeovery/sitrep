@@ -8,7 +8,10 @@ public struct Session: Equatable, Sendable {
     }
 
     public let id: String
+    /// Its project's name, as Lee would say it.
     public var project: String
+    /// The project's two letters, as its mark on the strip shows them.
+    public var letters: String
     public var kind: Kind
     /// An ask no window holds: its row and its tab say so, and none of them takes a click.
     public var away: Bool
@@ -23,11 +26,12 @@ public struct Session: Equatable, Sendable {
     public var since: Double
 
     public init(
-        id: String, project: String, kind: Kind, away: Bool = false, title: String, code: String? = nil,
-        more: String? = nil, sub: String, since: Double
+        id: String, project: String, letters: String? = nil, kind: Kind, away: Bool = false, title: String,
+        code: String? = nil, more: String? = nil, sub: String, since: Double
     ) {
         self.id = id
         self.project = project
+        self.letters = letters ?? Self.letters(of: project)
         self.kind = kind
         self.away = away
         self.title = title
@@ -37,9 +41,9 @@ public struct Session: Equatable, Sendable {
         self.since = since
     }
 
-    /// The mark's letters: the project's two capitals where it has two (SitRep SR, DocMan DM), else its first two
-    /// (Switchboard Sw, agntc ag).
-    public var letters: String {
+    /// A project's letters as the prototypes have them, where none are given: its two capitals where it has two
+    /// (SitRep SR, DocMan DM), else its first two (Switchboard Sw, agntc ag).
+    static func letters(of project: String) -> String {
         let caps = project.filter { $0.isASCII && $0.isUppercase }
         return caps.count >= 2 ? String(caps.prefix(2)) : String(project.prefix(2))
     }
@@ -103,8 +107,15 @@ public enum Item: Equatable, Sendable {
         return nil
     }
 
+    /// What it is, the same for as long as it shows: its session's id, or the one divider's.
+    public var key: String { session?.id ?? "divider" }
+
     /// The gap below a row, inside its item.
     public static let rowGap = 4.0
+
+    /// Its height, unfolded, as its rows are drawn: a row, 10 + 34 of text + 11, and the gap below it; the divider's
+    /// 1 between 2 and 6.
+    public var height: Double { session == nil ? 9 : 55 + Self.rowGap }
 }
 
 /// The panel's head: how many rows need Lee at the left, and how many sessions there are at the right, as core counts
@@ -129,15 +140,23 @@ public struct Head: Equatable, Sendable {
 /// The panel's content, as the view lays it out: the head's height, and each item with its own. The scroll's padding
 /// is the prototype's, above the head and below the last item.
 public struct Content: Equatable, Sendable {
-    /// An item and its height.
+    /// An item and its height, which a fold shrinks; how opaque it is as it fades in or folds away; and whether it is
+    /// folding away, when it takes no click.
     public struct Entry: Equatable, Sendable {
         public var item: Item
         public var height: Double
+        public var alpha: Double
+        public var isGoing: Bool
 
-        public init(_ item: Item, height: Double) {
+        public init(_ item: Item, height: Double, alpha: Double = 1, isGoing: Bool = false) {
             self.item = item
             self.height = height
+            self.alpha = alpha
+            self.isGoing = isGoing
         }
+
+        /// Whether a click on it jumps: it is a session's row a window holds, and not folding away.
+        public var jumps: Bool { !isGoing && item.session?.jumps == true }
     }
 
     public var headHeight: Double
@@ -153,16 +172,12 @@ public struct Content: Equatable, Sendable {
 
     static let paddingTop = 18.0, paddingBottom = 14.0, paddingSide = 14.0
 
-    /// The panel's list laid out as its rows are drawn: the head's 16 line and the 10 below it; a row, 10 + 34 of text
-    /// + 11, and the gap below it; the divider's 1 between 2 and 6.
+    /// The panel's list laid out as its rows are drawn, unfolded, under the head's 16 line and the 10 below it.
     public init(laying items: [Item]) {
-        self.init(
-            headHeight: Self.headHeight,
-            entries: items.map { Entry($0, height: $0.session == nil ? Self.dividerHeight : Self.rowHeight) }
-        )
+        self.init(headHeight: Self.headHeight, entries: items.map { Entry($0, height: $0.height) })
     }
 
-    static let headHeight = 26.0, rowHeight = 55 + Item.rowGap, dividerHeight = 9.0
+    static let headHeight = 26.0
 
     /// The whole of it, padding and all, before the panel's height caps it: past that, the rows scroll.
     public var height: Double { Self.paddingTop + headHeight + entries.map(\.height).reduce(0, +) + Self.paddingBottom }
@@ -184,10 +199,11 @@ public struct Content: Equatable, Sendable {
         return CGRect(x: Self.paddingSide, y: headFrame.maxY + above, width: Self.width, height: entries[index].height)
     }
 
-    /// The item whose row holds a point in the content's own frame: never the divider, nor the gap below a row.
+    /// The item whose row holds a point in the content's own frame: never the divider, nor the gap below a row, nor a
+    /// row folding away.
     public func row(at point: CGPoint) -> Int? {
         entries.indices.first { i in
-            guard entries[i].item.session != nil else {
+            guard entries[i].item.session != nil, !entries[i].isGoing else {
                 return false
             }
 

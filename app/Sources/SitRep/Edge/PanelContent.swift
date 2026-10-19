@@ -28,19 +28,29 @@ final class PanelContent {
         list.addSublayer(head)
     }
 
-    /// The list from now on: the head drawn again, a row whose session reads the same kept, the rest made anew.
+    /// The list from now on: a head that reads differently drawn again; a row whose session reads the same kept, the
+    /// rest made anew; and each item in its place, at its height as it folds.
     func show(_ list: PanelList) {
         guard list != shown else {
             return
         }
 
         still {
-            let head = Self.head(list.head, in: list.content.headFrame)
+            let relaid = list.head != shown.head || list.content.items != shown.content.items
 
-            self.list.replaceSublayer(self.head, with: head)
-            self.head = head
-            lay(list.content)
-            rescale(self.list, to: scale)
+            if list.head != shown.head {
+                let head = Self.head(list.head, in: list.content.headFrame)
+
+                self.list.replaceSublayer(self.head, with: head)
+                self.head = head
+            }
+            if list.content.items != shown.content.items {
+                lay(list.content)
+            }
+            place(list.content)
+            if relaid {
+                rescale(self.list, to: scale)
+            }
         }
         shown = list
     }
@@ -60,6 +70,7 @@ final class PanelContent {
         paint(head, panel.head)
         zip(items, panel.items).forEach(paint)
         rows.values.forEach { $0.row.showAge(at: scene.now) }
+        rows.forEach { $1.row.isPressed = $0 == panel.pressed }
         highlight(scene.hover.flatMap { shown.item($0)?.session?.id })
     }
 
@@ -77,24 +88,20 @@ final class PanelContent {
         highlight(nil)
     }
 
-    /// Each item in its place: a row kept where its session reads the same, else made anew, and the divider. A row
-    /// kept stays in the tree, never taken out and put back, so nothing it runs is cut short.
+    /// An item for each, in their order: a row kept where its session reads the same, else made anew, and the
+    /// divider. A row kept stays in the tree, never taken out and put back, so nothing it runs is cut short.
     private func lay(_ content: Content) {
         var kept: [String: (item: CALayer, row: SessionRow)] = [:]
-        let was = items
+        let was = items, width = content.headFrame.width
 
-        items = content.entries.indices.map { index in
-            let box = content.itemFrame(index)
-
-            guard let session = content.entries[index].item.session else {
-                return Self.divider(in: box)
+        items = content.items.map { item in
+            guard let session = item.session else {
+                return Self.divider(width: width)
             }
 
-            let size = CGSize(width: box.width, height: box.height - Item.rowGap)
-            let row = rows[session.id].flatMap { $0.row.session == session && $0.row.layer.bounds.size == size ? $0 : nil }
-                ?? Self.row(session, size: size)
+            let row = rows[session.id].flatMap { $0.row.session == session ? $0 : nil }
+                ?? Self.row(session, size: CGSize(width: width, height: item.height - Item.rowGap))
 
-            row.item.frame = box
             kept[session.id] = row
             return row.item
         }
@@ -102,6 +109,17 @@ final class PanelContent {
         items.filter { $0.superlayer !== list }.forEach(list.addSublayer)
         rows = kept
         hovered = nil
+    }
+
+    /// Each item in its box, which a fold shortens: what is laid out in it keeps its own height, clipped. Placed by
+    /// its bounds and position, as its rise transforms it.
+    private func place(_ content: Content) {
+        for (item, index) in zip(items, content.entries.indices) {
+            let box = content.itemFrame(index)
+
+            item.bounds = CGRect(origin: .zero, size: box.size)
+            item.position = CGPoint(x: box.midX, y: box.midY)
+        }
     }
 
     private func paint(_ layer: CALayer, _ paint: Frame.Paint) {
@@ -125,11 +143,20 @@ final class PanelContent {
     }
 
     private static func row(_ session: Session, size: CGSize) -> (item: CALayer, row: SessionRow) {
-        let item = CALayer(), row = SessionRow(session, size: size)
+        let item = Self.item(), row = SessionRow(session, size: size)
 
         item.addSublayer(row.layer)
 
         return (item, row)
+    }
+
+    /// An item's box, clipping what it holds as it folds.
+    private static func item() -> CALayer {
+        let item = CALayer()
+
+        item.masksToBounds = true
+
+        return item
     }
 
     /// The head: how many need Lee at the left, how many sessions at the right, on one baseline.
@@ -152,11 +179,10 @@ final class PanelContent {
     }
 
     /// The rule between what needs Lee and the rest.
-    private static func divider(in box: CGRect) -> CALayer {
-        let item = CALayer(), rule = CALayer()
+    private static func divider(width: Double) -> CALayer {
+        let item = Self.item(), rule = CALayer()
 
-        item.frame = box
-        rule.frame = DividerLayout.rule(width: box.width)
+        rule.frame = DividerLayout.rule(width: width)
         rule.backgroundColor = EdgeStyle.rule
         item.addSublayer(rule)
 

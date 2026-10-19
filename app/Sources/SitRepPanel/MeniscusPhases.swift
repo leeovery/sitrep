@@ -28,6 +28,9 @@ extension Meniscus {
         }
 
         cancelPrefix("close:")
+        // reopened as it drained, after a click elsewhere cut a jump's press short
+        cancel(.jump)
+        jumping = nil
         cling = Cling()
         snap = nil
         landing = nil
@@ -239,7 +242,7 @@ extension Meniscus {
 
         sn.burst = true
         cancel(.closeBurst)
-        guard phase == .closing else {
+        guard sn.closes, phase == .closing else {
             return
         }
 
@@ -286,6 +289,7 @@ extension Meniscus {
     /// Closed: the attraction takes the notch from here, sliding it home on the home spring.
     func closed() {
         phase = .closed
+        jumping = nil
         if !ringing {
             cling.ripple = nil
         }
@@ -307,9 +311,10 @@ extension Meniscus {
     }
 
     /// Left back over a flare into the bezel (or with the cling off): the grace, shorter the faster the pointer went.
-    /// Leaving through any other part of the edge never comes here while it clings: the stretch is the grace.
+    /// Leaving through any other part of the edge never comes here while it clings: the stretch is the grace. Not while
+    /// a jump's row is pressed in: the jump drains it.
     func maybeClose(_ speed: Double) {
-        guard phase == .open, !cling.attached, !pointerInside() else {
+        guard phase == .open, jumping == nil, !cling.attached, !pointerInside() else {
             return
         }
 

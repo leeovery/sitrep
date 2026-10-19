@@ -13,6 +13,9 @@ public struct EdgeSettings: Codable, Equatable, Sendable {
     /// The screen's edge it sits on.
     public enum Edge: String, Codable, CaseIterable, Sendable {
         case left, right
+
+        /// The screen's other side, where a drag let go past its middle takes the notch.
+        public var other: Edge { self == .left ? .right : .left }
     }
 
     /// The notch's and the strip's black: the bezel's, or macOS 26's Liquid Glass.

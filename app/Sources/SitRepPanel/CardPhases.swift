@@ -13,6 +13,9 @@ extension Card {
 
         cancelPrefix("close:")
         cancelPrefix(CardTimer.swellPrefix)
+        // reopened as it went in, after a click elsewhere cut a jump's press short
+        cancel(.jump)
+        jumping = nil
         phase = .opening
         motion = Motion(kind: .open)
         S.w.x += S.n.x
@@ -85,6 +88,7 @@ extension Card {
     /// Home: the light is back, and the card rests at whatever the rest is now, an ask having perhaps come meanwhile.
     func closed() {
         phase = .closed
+        jumping = nil
         to(\.vis, 1, 140)
         settleRest()
     }
@@ -152,9 +156,9 @@ extension Card {
     }
 
     /// Open, once a frame: the pointer off the card starts the grace, shorter the faster it went; back on before it
-    /// ends, the grace is off.
+    /// ends, the grace is off. Not while a jump's row is pressed in: the jump drains it.
     func updateLeave() {
-        guard phase == .open else {
+        guard phase == .open, jumping == nil else {
             return
         }
         guard !pointerInside() else {

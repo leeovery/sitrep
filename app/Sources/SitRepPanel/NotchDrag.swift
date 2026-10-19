@@ -44,7 +44,7 @@ public struct NotchDrag: Equatable, Sendable {
 
         dropped.along = clamp(notchY / height, 0, 1)
         if isAcross {
-            dropped.edge = settings.edge == .left ? .right : .left
+            dropped.edge = settings.edge.other
         }
 
         return dropped

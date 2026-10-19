@@ -23,6 +23,8 @@ public final class Card: Notch {
     /// The open or the close under way, staged once a frame on where the springs have got to.
     var motion: Motion?
     var reveal = Reveal.none
+    /// The row a click is jumping to, pressed in until the card is home.
+    var jumping: String?
     /// The sim time of the last push of a new ask, or of an ask while the panel is out.
     var flash: Double?
     /// Under reduced motion, the outline cross-fading out, and since when.
@@ -185,13 +187,23 @@ public final class Card: Notch {
         }
     }
 
-    /// A click on one of `items`: one that jumps closes the panel, as a jump does.
-    public func clickRow(_ index: Int) {
-        guard isLive, rowJumps(index) else {
-            return
+    @discardableResult
+    public func clickRow(_ index: Int) -> Bool {
+        guard isLive, jumping == nil, let id = jumpingRow(index) else {
+            return false
         }
 
-        close()
+        cancel(.grace)
+        jumping = id
+        later(.jump, Tuning.jumpFor) { $0.close() }
+        return true
+    }
+
+    public func jumpAnswered() {
+        if timers.has(.jump) {
+            cancel(.jump)
+            close()
+        }
     }
 
     /// A click anywhere off the panel and the notch closes it at once.
@@ -203,6 +215,10 @@ public final class Card: Notch {
 
     public func carry() {
         close()
+    }
+
+    public func restingOutline(at y: Double) -> CGPath {
+        shapePath(CardGeometry(w: resting.w, h: resting.h, near: y, on: stage))
     }
 
     /// Straight to a shape: on critically damped springs, or under reduced motion a cross-fade to it.
@@ -259,6 +275,7 @@ struct CardTimer: RawRepresentable, Equatable {
 
     static let dwell = Self(rawValue: "dwell")
     static let grace = Self(rawValue: "grace")
+    static let jump = Self(rawValue: "jump:go")
     static let openLength = Self(rawValue: "open:length")
     static let closeLength = Self(rawValue: "close:length")
     static let closeDepth = Self(rawValue: "close:depth")

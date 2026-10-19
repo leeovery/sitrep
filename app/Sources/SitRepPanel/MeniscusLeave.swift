@@ -30,6 +30,8 @@ final class Snap {
     /// The return spring it let go on, and whether a fast leave flung it out first ...
     let ret: SpringParams
     let flung: Bool
+    /// Whether the panel closes with it: not while a jump's press holds it out.
+    let closes: Bool
     /// ... and is still flinging it out.
     var flying: Bool
     /// The tongue at the last frame, and when.
@@ -51,7 +53,10 @@ final class Snap {
     var peakT: Double?
     var burst = false
 
-    init(speed: Double, q: Double, e: Double, t0: Double, x: Double, v: Double, ret: SpringParams, flung: Bool) {
+    init(
+        speed: Double, q: Double, e: Double, t0: Double, x: Double, v: Double, ret: SpringParams, flung: Bool,
+        closes: Bool
+    ) {
         self.speed = speed
         self.q = q
         self.e = e
@@ -61,6 +66,7 @@ final class Snap {
         self.v = v
         self.ret = ret
         self.flung = flung
+        self.closes = closes
         flying = flung
     }
 }
@@ -208,7 +214,8 @@ extension Meniscus {
     /// holds still, quicker the less it had stretched; a fast leave first throws it out after the cursor, by as much
     /// as the pointer's speed gives it, so it still pulls before it pings. As it passes through its line the collapse
     /// starts, and it goes over to the ring, which plays on during the collapse: a dent, back out, in again
-    /// (watchRing). Back over a flare, it lets go and the grace runs, shorter the faster it went.
+    /// (watchRing). Back over a flare, it lets go and the grace runs, shorter the faster it went. While a jump's row is
+    /// pressed in, it rings and the panel stays out for the jump to drain.
     func letGo(_ route: Route, _ speed: Double = 0) {
         cling.attached = false
         let g = geometry(), O = outlineOf(g), at = outlineAt(O, O.sOf(S.by.x))
@@ -229,7 +236,10 @@ extension Meniscus {
         rp.response = lerp(Tuning.returnFast, rp.response, q)
         springTo(\.ba, 0, rp)
         let flung = fling(away: away, along: along, rp)
-        let sn = Snap(speed: away, q: q, e: exitE(letGoY, g), t0: t, x: S.ba.x, v: S.ba.v, ret: rp, flung: flung)
+        let sn = Snap(
+            speed: away, q: q, e: exitE(letGoY, g), t0: t, x: S.ba.x, v: S.ba.v, ret: rp, flung: flung,
+            closes: jumping == nil
+        )
         snap = sn
         // a return too damped to cross still lets go
         later(.closeBurst, 2.2 * rp.response * 1000) { m in
@@ -238,7 +248,9 @@ extension Meniscus {
                 m.burst()
             }
         }
-        close(.pop)
+        if sn.closes {
+            close(.pop)
+        }
     }
 
     /// Thrown out after the cursor: a fling past what the tongue would swing out to by itself on its return spring.

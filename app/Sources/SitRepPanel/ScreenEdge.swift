@@ -31,6 +31,11 @@ public struct ScreenEdge: Equatable, Sendable {
         ScreenEdge(frame: frame, visible: visible, edge: edge, along: along)
     }
 
+    /// The same screen's other side, where a drag's ghost shows.
+    public var across: ScreenEdge {
+        ScreenEdge(frame: frame, visible: visible, edge: edge.other, along: along)
+    }
+
     /// The screen as the model sees it, the notch's home where the settings put it.
     public var stage: Stage {
         Stage(

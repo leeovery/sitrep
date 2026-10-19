@@ -41,17 +41,26 @@ public struct HeldRows: Equatable, Sendable {
     /// core has above it, or first where core has none.
     private func kept(_ sessions: [Session]) -> [Session] {
         let now = Dictionary(sessions.map { ($0.id, $0) }) { first, _ in first }
-        var kept = shown.compactMap { now[$0.id] }
-        var placed = Set(kept.map(\.id))
 
-        for (index, session) in sessions.enumerated() where !placed.contains(session.id) {
-            let above = sessions[..<index].last { placed.contains($0.id) }
-            let at = above.flatMap { above in kept.firstIndex { $0.id == above.id } }.map { $0 + 1 } ?? 0
+        return shown.compactMap { now[$0.id] }.merging(sessions, by: \.id)
+    }
+}
 
-            kept.insert(session, at: at)
-            placed.insert(session.id)
+extension Array {
+    /// These in their order, with each of `others` not among them put in under the nearest one above it in `others`
+    /// that is, or first where none is.
+    func merging(_ others: [Element], by key: (Element) -> String) -> [Element] {
+        var merged = self
+        var placed = Set(map(key))
+
+        for (index, other) in others.enumerated() where !placed.contains(key(other)) {
+            let above = others[..<index].last { placed.contains(key($0)) }.map(key)
+            let at = above.flatMap { above in merged.firstIndex { key($0) == above } }.map { $0 + 1 } ?? 0
+
+            merged.insert(other, at: at)
+            placed.insert(key(other))
         }
 
-        return kept
+        return merged
     }
 }
