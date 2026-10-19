@@ -1,9 +1,9 @@
 import { expect, test, tier } from 'claude-code/testing'
-import { parseEntries, workPaths } from '../core'
+import { parseEntries, sessionPaths } from '../core'
 import { LINGER_MS } from '../hooks/scene'
 import { WATCH_MS } from '../hooks/window'
 import { note, W1 } from './support'
-import { INLINE, postedId, PROJECT, PROMPT, ROOT, SESSION, startedId, world } from './world'
+import { INLINE, postedId, PROJECT, PROMPT, ROOT, CONVERSATION, startedId, world } from './world'
 
 tier('user')
 
@@ -13,7 +13,7 @@ const REVIEW = { wants: 'yes', yes: 'Approve', title: 'Review Sessions & Runway,
 
 const FROM_THE_BOARD = { kind: 'plugin', name: 'sitrep', asUser: true }
 
-/** A work begun with one review asked: its folder's paths, the ask's id, and the board drawn. */
+/** A session begun with one review asked: its folder's paths, the ask's id, and the board drawn. */
 async function asking(w: World) {
   const { paths } = await w.begin()
   const id = postedId(await w.call('ask', REVIEW))
@@ -38,7 +38,7 @@ test("send delivers the replies as Lee's own message, and writes them only once 
   expect(w.state.inFlight).toMatchObject({
     source: 'send',
     project: w.state.attachment?.project,
-    work: w.state.attachment?.work,
+    session: w.state.attachment?.session,
     replies: [{ type: 'reply', item: id, verdict: 'yes' }],
     isTaken: false,
   })
@@ -78,7 +78,7 @@ test('the board then shows the ask closed, and folds it into what was done once 
   await w.clock.advance(LINGER_MS)
 
   expect(await ui.find({ type: 'Text', text: 'sent, and Claude has it' })).toBeUndefined()
-  expect(await ui.find({ key: `closed:${w.item(id)}` }), 'in DONE').toBeDefined()
+  expect(await ui.find({ key: `closed:${w.item(id)}` }), 'in RESOLVED').toBeDefined()
   expect(await ui.find({ type: 'Text', text: 'nothing waiting' })).toBeDefined()
 })
 
@@ -205,17 +205,17 @@ test('a reload keeps Ready to send as Lee left it', async ($, on) => {
   const { id, ui } = await asking(w)
 
   await ui.press({ key: `yes:${w.item(id)}` })
-  await $.session.start(SESSION)
+  await $.session.start(CONVERSATION)
 
   expect(w.state.queue).toMatchObject([{ item: id, verdict: 'yes' }])
   expect(await ui.find({ type: 'Text', text: /READY TO SEND/ })).toBeDefined()
   expect(await ui.find({ key: 'send' })).toBeDefined()
 })
 
-test('a send taken after Claude moved to another work mid-turn is written into the work it answered, and that ask closes', async ($, on) => {
+test('a send taken after Claude moved to another session mid-turn is written into the session it answered, and that ask closes', async ($, on) => {
   const w = world($, on)
   const { paths, id, ui } = await asking(w)
-  const answered = w.state.attachment?.work ?? ''
+  const answered = w.state.attachment?.session ?? ''
   const turn = w.holdPrompts()
 
   await ui.press({ key: `yes:${w.item(id)}` })
@@ -232,10 +232,10 @@ test('a send taken after Claude moved to another work mid-turn is written into t
   await pressed
 
   expect(kindsIn(w, paths.log(W1))).toEqual(['ask', 'reply', 'delivered'])
-  expect(w.files.has(workPaths(ROOT, PROJECT.key, themes).log(W1))).toBe(false)
+  expect(w.files.has(sessionPaths(ROOT, PROJECT.key, themes).log(W1))).toBe(false)
   expect(w.state.queue).toEqual([])
 
-  await w.call('join', { work: answered })
+  await w.call('join', { session: answered })
   expect(w.state.board?.asks[0]?.state).toBe('closed')
 })
 
@@ -256,7 +256,7 @@ test('two quick presses of send submit the replies once', async ($, on) => {
   expect(kindsIn(w, paths.log(W1))).toEqual(['ask', 'reply', 'delivered'])
 })
 
-/** A work begun with one review asked, the board opened by /sitrep and drawn inline, as on a phone. */
+/** A session begun with one review asked, the board opened by /sitrep and drawn inline, as on a phone. */
 async function askingInline(w: World) {
   const { paths } = await w.begin()
   const id = postedId(await w.call('ask', REVIEW))

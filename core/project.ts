@@ -1,15 +1,15 @@
 /**
- * A project: what Claude names it as it starts a piece of work, the name as
+ * A project: what Claude names it as it starts a session, the name as
  * Lee would say it, and where it lives. Its file, `project.json` in its
  * folder, is rewritten only as the project is made, renamed or given a
  * directory. A folder from before projects were named has none: it is named
- * as its works recorded it, its first letter a capital.
+ * as its sessions recorded it, its first letter a capital.
  *
  * Two names are one project's when their letters and digits match, case
  * aside: `Sitrep` and `Sit Rep` are SitRep's.
  */
 import { VERSION } from './entries'
-import type { WorkMeta } from './meta'
+import type { SessionMeta } from './meta'
 
 /** A project's file: its name and directory, and when and by whom it was first written. */
 export type ProjectFile = {
@@ -78,20 +78,20 @@ export const newProjectKey = (name: string, taken: ReadonlySet<string>) => {
 const capitalised = (name: string) => name.charAt(0).toUpperCase() + name.slice(1)
 
 /**
- * The name a folder from before projects were named goes by, as its works
+ * The name a folder from before projects were named goes by, as its sessions
  * recorded it: the first of them whose work.json reads, in the order listed.
  */
-export const recordedName = (metas: readonly (Pick<WorkMeta, 'project'> | undefined)[]) =>
+export const recordedName = (metas: readonly (Pick<SessionMeta, 'project'> | undefined)[]) =>
   metas.find(meta => meta !== undefined)?.project
 
-/** A project's name: its file's, else the name its works recorded, first letter a capital. */
+/** A project's name: its file's, else the name its sessions recorded, first letter a capital. */
 export const projectName = (file: ProjectFile | undefined, recorded: string) =>
   file?.name ?? capitalised(recorded)
 
 /**
  * A project as its folder has it: its file's name and directory, else the
- * name its works recorded, first letter a capital; undefined when neither
- * says (a folder with no file and no work).
+ * name its sessions recorded, first letter a capital; undefined when neither
+ * says (a folder with no file and no session).
  */
 export const projectFrom = (
   key: string,

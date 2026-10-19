@@ -4,10 +4,10 @@
  *
  *   <root>/projects/<project key>/
  *     project.json              the project's name and directory
- *     works/<work id>/
- *       work.json               the work as it was started
+ *     works/<session id>/
+ *       work.json               the session as it was started
  *       <writer>.jsonl          one file per writer
- *       inbox/<sender>.jsonl    replies sent from other works, one file per sender
+ *       inbox/<sender>.jsonl    replies from other sessions, one file per sender
  *       presence/<writer>.json  each attached window's heartbeat
  */
 
@@ -22,24 +22,24 @@ export const META_FILE = 'work.json'
 export const LOG_SUFFIX = '.jsonl'
 export const PRESENCE_SUFFIX = '.json'
 
-/** What a project key, work id or writer may be, so none of them can climb out of its folder. */
+/** What a project key, session id or writer may be, so none of them can climb out of its folder. */
 const SAFE_NAME = /^[A-Za-z0-9_-]+$/
 
 /** A project's folder, and its file there. */
 export type ProjectPaths = { dir: string; file: string }
 
-export type WorkPaths = {
+export type SessionPaths = {
   dir: string
-  /** The project the work is filed under. */
+  /** The project the session is filed under. */
   project: ProjectPaths
   meta: string
   inbox: string
   presence: string
-  /** A writer's own file in the work. */
+  /** A writer's own file in the session. */
   log: (writer: string) => string
-  /** A sender's file in the work's inbox. */
+  /** A sender's file in the session's inbox. */
   letters: (sender: string) => string
-  /** A window's heartbeat on the work. */
+  /** A window's heartbeat on the session. */
   heartbeat: (writer: string) => string
 }
 
@@ -75,11 +75,11 @@ export const projectPaths = (root: string, project: string): ProjectPaths => {
   return { dir, file: `${dir}/${PROJECT_FILE}` }
 }
 
-export const worksDir = (root: string, project: string) =>
+export const sessionsDir = (root: string, project: string) =>
   `${projectPaths(root, project).dir}/works`
 
-export const workPaths = (root: string, project: string, id: string): WorkPaths => {
-  const dir = `${worksDir(root, project)}/${safe(id)}`
+export const sessionPaths = (root: string, project: string, id: string): SessionPaths => {
+  const dir = `${sessionsDir(root, project)}/${safe(id)}`
   const inbox = `${dir}/inbox`
   const presence = `${dir}/presence`
 
@@ -95,7 +95,7 @@ export const workPaths = (root: string, project: string, id: string): WorkPaths 
   }
 }
 
-/** Whether a listed folder's name is one sitrep files under: a project key, a work id, a writer. */
+/** Whether a listed folder's name is one sitrep files under: a project key, a session id, a writer. */
 export const isSafeName = (name: string) => SAFE_NAME.test(name)
 
 /** The writer a listed file belongs to, given its folder's suffix; undefined for any other file. */

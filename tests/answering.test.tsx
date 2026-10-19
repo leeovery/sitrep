@@ -1,5 +1,5 @@
 import { expect, test, tier } from 'claude-code/testing'
-import { workPaths, type WorkMeta } from '../core'
+import { sessionPaths, type SessionMeta } from '../core'
 import { CLEAR_AFTER_DROP_MS, DRAFT, LEFT, NOT_TAKEN, TAKEN } from '../hooks/answering'
 import { AROUND_MS } from '../hooks/around'
 import { C } from '../hooks/look'
@@ -19,7 +19,7 @@ import {
   wordsAsk,
   yesAsk,
 } from './support'
-import { BAND, DOCKED, postedId, PROJECT, ROOT, SESSION, toProject, world } from './world'
+import { BAND, DOCKED, postedId, PROJECT, ROOT, CONVERSATION, toProject, world } from './world'
 
 tier('user')
 
@@ -70,10 +70,10 @@ const entered = (
   return engine.prompt.submit({ text, wait: false, origin: { kind: 'composer' }, ...extra })
 }
 
-/** Where a reply to an ask of the held work goes. */
+/** Where a reply to an ask of the held session goes. */
 const at = (w: World, item: string) => ({
   project: w.state.attachment?.project,
-  work: w.state.attachment?.work,
+  session: w.state.attachment?.session,
   item,
 })
 
@@ -159,7 +159,7 @@ test('an ask wanting words offers an answer and an ignore, and hangs what its wo
   expect((await ui.find({ type: 'Text', text: `needs: ${OUTPUT}` }))?.props.color).toBe(C.ask)
 })
 
-test("an ask written by its kind into a work's file draws as the shape it maps to", async ($, on) => {
+test("an ask written by its kind into a session's file draws as the shape it maps to", async ($, on) => {
   const w = world($, on)
   const { paths } = await w.begin()
 
@@ -238,7 +238,7 @@ test('while answering, the band says only what the next Enter does, pointing at 
   const says = `✎ Your next Enter answers "${LIST.title}"  ↓`
 
   expect(rows).toEqual([`${says.padEnd(100 - 'cancel'.length)}cancel`])
-  expect(await band.find({ key: 'band:for-you' })).toBeUndefined()
+  expect(await band.find({ key: 'band:asks' })).toBeUndefined()
   expect(await band.find({ key: 'band:board' })).toBeUndefined()
 })
 
@@ -279,7 +279,7 @@ test('cancel on the band ends it in one press: the counts are back, and the next
 
   await band.press({ key: 'band:cancel-answer' })
   expect(w.state.answering).toBeNull()
-  expect(await band.find({ key: 'band:for-you' })).toBeDefined()
+  expect(await band.find({ key: 'band:asks' })).toBeDefined()
   expect(await ui.find({ key: `answer:${w.item(id)}` })).toBeDefined()
   expect((await entered(w, $, 'Carry on.')).drop).toBeUndefined()
   expect(w.prompts.map(each => each.text)).toEqual(['Carry on.'])
@@ -490,7 +490,7 @@ test(
 
     const { band } = await bandRow(w)
 
-    expect(await band.find({ key: 'band:for-you' })).toBeDefined()
+    expect(await band.find({ key: 'band:asks' })).toBeDefined()
     expect((await entered(w, $, 'Carry on.')).drop).toBeUndefined()
     expect(w.prompts).toHaveLength(1)
   },
@@ -502,7 +502,7 @@ test(
   async ($, on) => {
     const w = world($, on)
     const { id } = await answering(w)
-    const paths = workPaths(ROOT, PROJECT.key, w.state.attachment?.work ?? '')
+    const paths = sessionPaths(ROOT, PROJECT.key, w.state.attachment?.session ?? '')
     const other = w.writer(paths)
 
     other({ type: 'resolve', item: id })
@@ -533,7 +533,7 @@ test('a send carrying the reply its comment would go with ends the mode: the ban
 
   const { band } = await bandRow(w)
 
-  expect(await band.find({ key: 'band:for-you' })).toBeDefined()
+  expect(await band.find({ key: 'band:asks' })).toBeDefined()
 
   const typed = entered(w, $, 'Carry on.')
 
@@ -546,7 +546,7 @@ test('a send carrying the reply its comment would go with ends the mode: the ban
   expect(w.state.answering).toBeNull()
 })
 
-test('the mode ends when the window takes up another work, or the session ends', async ($, on) => {
+test('the mode ends when the window takes up another session, or the conversation ends', async ($, on) => {
   const w = world($, on)
   const { ui } = await answering(w)
 
@@ -565,7 +565,7 @@ test('a reload keeps the mode: the band still shows it, and the next Enter is st
   const w = world($, on)
   const { id } = await answering(w)
 
-  await $.session.start(SESSION)
+  await $.session.start(CONVERSATION)
 
   const { rows } = await bandRow(w)
 
@@ -614,7 +614,7 @@ test('VS Code, whose prompts arrive some way unproven, offers nothing to write: 
 })
 
 /** Another session of the project, open in another window. */
-const LEDGER: WorkMeta = {
+const LEDGER: SessionMeta = {
   id: 'sr-1edger',
   name: 'Request ledger',
   summary: 'Request ledger, area by area',
@@ -626,7 +626,7 @@ const LEDGER: WorkMeta = {
 
 /**
  * The board on the project's view, the ledger's asks drawn from its brief,
- * a minute on. Given `isUnread`, the board's reads of other works in full
+ * a minute on. Given `isUnread`, the board's reads of other sessions in full
  * never land, as before the look that reads one has: only the briefs have it.
  */
 const onLedgersAsks = async (w: World, isUnread = false) => {
@@ -665,17 +665,20 @@ for (const [as, press, item] of [
     expect((await bandRow(w)).rows[0]).toMatch(/^✎ Your next Enter (answers|comments on) /)
 
     await w.call('note', { text: 'The schema is drawn' })
-    expect(w.state.answering, 'a redraw of the held board').toMatchObject({ work: LEDGER.id, item })
+    expect(w.state.answering, 'a redraw of the held board').toMatchObject({
+      session: LEDGER.id,
+      item,
+    })
 
     expect((await entered(w, $, 'id, at, by')).drop).toBeDefined()
     expect(w.state.queue).toEqual([
-      { project: PROJECT.key, work: LEDGER.id, item, verdict: press, note: 'id, at, by' },
+      { project: PROJECT.key, session: LEDGER.id, item, verdict: press, note: 'id, at, by' },
     ])
     expect(w.prompts).toEqual([])
   })
 }
 
-test("answering another session's ask has the board read that work in full at once", async ($, on) => {
+test("answering another session's ask has the board read that session in full at once", async ($, on) => {
   const w = world($, on)
   const ui = await onLedgersAsks(w)
   const there = w.item('k3', LEDGER.id)
@@ -691,7 +694,7 @@ test('the mode begun at the terminal takes nothing from Claude’s app, whose ba
   const { id } = await answering(w)
   const app = await bandOn($, 'mobile')
 
-  expect(await app.find({ key: 'band:for-you' })).toBeDefined()
+  expect(await app.find({ key: 'band:asks' })).toBeDefined()
   expect((await entered(w, $, 'v1.2.3', { origin: { kind: 'bridge' } })).drop).toBeUndefined()
   expect(w.prompts.map(each => each.text)).toEqual(['v1.2.3'])
   expect(w.state.answering).toMatchObject({ item: id, surface: 'terminal' })
@@ -706,7 +709,7 @@ test('the mode begun in Claude’s app takes nothing from the terminal, whose ba
   const id = await asked(w, LIST)
 
   await (await paneOn($, 'mobile')).press({ key: `answer:${w.item(id)}` })
-  expect(await (await w.band()).find({ key: 'band:for-you' })).toBeDefined()
+  expect(await (await w.band()).find({ key: 'band:asks' })).toBeDefined()
   expect((await entered(w, $, 'Carry on.')).drop).toBeUndefined()
   expect(w.prompts.map(each => each.text)).toEqual(['Carry on.'])
   expect(await entered(w, $, 'v1.2.3', { origin: { kind: 'bridge' } })).toEqual({
@@ -929,7 +932,7 @@ test('cancel ends picking up in one press: the buttons and the counts are back, 
 
   await band.press({ key: 'band:cancel-answer' })
   expect(w.state.answering).toBeNull()
-  expect(await band.find({ key: 'band:for-you' })).toBeDefined()
+  expect(await band.find({ key: 'band:asks' })).toBeDefined()
   expect(await ui.find({ key: `comment:${w.item(id)}` })).toBeDefined()
   expect((await entered(w, $, 'Carry on.')).drop).toBeUndefined()
   expect(w.prompts.map(each => each.text)).toEqual(['Carry on.'])
@@ -939,7 +942,7 @@ test('a reload keeps picking up: the band still names it, and the next Enter is 
   const w = world($, on)
   const { id } = await pickingUp(w)
 
-  await $.session.start(SESSION)
+  await $.session.start(CONVERSATION)
   expect((await bandRow(w)).rows[0]).toMatch(/^✎ Your next Enter picks up "A tmux indicator"/)
   expect(await entered(w, $, 'Before the release')).toEqual({ drop: TAKEN.pickup })
   expect(w.state.queue).toEqual([{ ...at(w, id), verdict: 'pickup', note: 'Before the release' }])
@@ -955,7 +958,7 @@ test(
     w.writer(paths)(reply('r9', id, 'pickup'), delivered('r9'))
     await w.clock.advance(WATCH_MS)
     expect(w.state.answering).toBeNull()
-    expect(await (await w.band()).find({ key: 'band:for-you' })).toBeDefined()
+    expect(await (await w.band()).find({ key: 'band:asks' })).toBeDefined()
     expect((await entered(w, $, 'Carry on.')).drop).toBeUndefined()
     expect(w.prompts.map(each => each.text)).toEqual(['Carry on.'])
   },
@@ -998,7 +1001,7 @@ test("picking up another session's parked item from the project's view stands fr
   expect(w.state.queue).toEqual([
     {
       project: PROJECT.key,
-      work: LEDGER.id,
+      session: LEDGER.id,
       item: 'p3',
       verdict: 'pickup',
       note: 'With the totals',
@@ -1007,16 +1010,20 @@ test("picking up another session's parked item from the project's view stands fr
   expect(w.prompts).toEqual([])
 })
 
-test("picking up another session's parked item ends once its work is done", SLOW, async ($, on) => {
-  const w = world($, on)
-  const ledger = await onLedgersParked(w)
+test(
+  "picking up another session's parked item ends once its session is finished",
+  SLOW,
+  async ($, on) => {
+    const w = world($, on)
+    const ledger = await onLedgersParked(w)
 
-  expect(w.state.answering).toMatchObject({ work: LEDGER.id, item: 'p3', as: 'pickup' })
-  ledger.write(finish('claude', 'Shipped'))
-  await w.clock.advance(AROUND_MS)
-  expect(w.state.answering).toBeNull()
-  expect((await entered(w, $, 'Carry on.')).drop).toBeUndefined()
-})
+    expect(w.state.answering).toMatchObject({ session: LEDGER.id, item: 'p3', as: 'pickup' })
+    ledger.write(finish('claude', 'Shipped'))
+    await w.clock.advance(AROUND_MS)
+    expect(w.state.answering).toBeNull()
+    expect((await entered(w, $, 'Carry on.')).drop).toBeUndefined()
+  },
+)
 
 test('a queued pick-up with a note shows it, how many lines more, undo and ✎ edit; edit fills the prompt, and the next Enter replaces the note', async ($, on) => {
   const w = world($, on)

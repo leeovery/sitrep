@@ -20,8 +20,8 @@ let pulsing: Timer | undefined
 
 const toastOf = (asks: readonly Ask[], newest: Ask) =>
   asks.length === 1
-    ? `${GLYPH.ask} For you: ${newest.title}`
-    : `${GLYPH.ask} ${asks.length} for you, the latest: ${newest.title}`
+    ? `${GLYPH.ask} New ask: ${newest.title}`
+    : `${GLYPH.ask} ${asks.length} new asks, the latest: ${newest.title}`
 
 /** Pulses the asks, frame by frame, until the pulse runs out; a new pulse starts over. */
 const pulse = async (host: Host, asks: readonly Ask[]) => {
@@ -46,8 +46,8 @@ const pulse = async (host: Host, asks: readonly Ask[]) => {
   pulsing = timer
 }
 
-/** Tells Lee of asks that just landed in a work, oldest first. */
-export const announce = async (host: Host, work: string, asks: readonly Ask[]) => {
+/** Tells Lee of asks that just landed in a session, oldest first. */
+export const announce = async (host: Host, session: string, asks: readonly Ask[]) => {
   const newest = asks.at(-1)
 
   if (newest === undefined) {
@@ -56,6 +56,6 @@ export const announce = async (host: Host, work: string, asks: readonly Ask[]) =
 
   host.ui.toast(toastOf(asks, newest))
   void host.ui.play(CHIME).catch(logFailure(host, 'the chime'))
-  await host.state.pane.update(pane => ({ ...pane, selected: itemKey(work, newest.id) }))
+  await host.state.pane.update(pane => ({ ...pane, selected: itemKey(session, newest.id) }))
   await pulse(host, asks)
 }

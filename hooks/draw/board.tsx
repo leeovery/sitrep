@@ -1,6 +1,6 @@
 /**
  * The board pane: where it is looking and its view there, under a header,
- * with Ready to send at the foot; one line when the window holds no work.
+ * with Ready to send at the foot; one line when the window holds no session.
  * The view is a list of blocks. Docked, the header and Ready to send never
  * move, and the list between them is clipped, a `Client` measuring each
  * block (hooks/clip.ts); inline, the header leads the view and Ready to send
@@ -24,8 +24,8 @@ import { drawProjectView } from './project'
 import { drawReady, readyOf, readyRows } from './ready'
 import { drawSessionView } from './session'
 
-const NO_WORK =
-  'This window holds no piece of work. Ask Claude to start one on the sitrep board, or to join one by its id.'
+const NO_SESSION =
+  'This window holds no session. Ask Claude to start one on the sitrep board, or to join one by its id.'
 
 /** A session the board has not read yet: it reads it as it opens there. */
 const READING = 'Reading the board…'
@@ -48,10 +48,10 @@ const TABS: readonly Tab[] = [
   {
     key: 'tab:session',
     glyph: GLYPH.home,
-    label: scene => scene.work.status.name,
+    label: scene => scene.session.status.name,
     isFitted: true,
     color: C.now,
-    count: scene => scene.work.waiting,
+    count: scene => scene.session.waiting,
     to: homeOf,
     isLit: isHome,
   },
@@ -256,7 +256,7 @@ const drawPlace = (d: Drawing): Block[] => {
 
   switch (place.level) {
     case 'session': {
-      const filed = filedAt(d.scene, place.work)
+      const filed = filedAt(d.scene, place.session)
 
       return filed === undefined
         ? [{ key: 'reading', element: <Text color={C.grey}>{READING}</Text> }]
@@ -392,7 +392,7 @@ export const drawPane = (
     return (
       <Box paddingX={1}>
         <Text color={C.soft} wrap="wrap">
-          {NO_WORK}
+          {NO_SESSION}
         </Text>
       </Box>
     )

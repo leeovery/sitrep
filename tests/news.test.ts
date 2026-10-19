@@ -1,11 +1,11 @@
 import { expect, test, tier } from 'claude-code/testing'
-import { workPaths } from '../core'
+import { sessionPaths } from '../core'
 import { TOAST_MS } from '../hooks/host'
 import { C } from '../hooks/look'
 import { WATCH_MS } from '../hooks/window'
 import type { SitrepAttachment } from '../types'
 import { choiceAsk, META, T0, W1, yesAsk } from './support'
-import { postedId, PROJECT, ROOT, SESSION, world } from './world'
+import { postedId, PROJECT, ROOT, CONVERSATION, world } from './world'
 
 tier('user')
 
@@ -13,7 +13,7 @@ const CHIME = 'sounds/ask.aiff'
 
 const PULSE_FRAME_MS = 150
 
-const paths = workPaths(ROOT, PROJECT.key, META.id)
+const paths = sessionPaths(ROOT, PROJECT.key, META.id)
 
 test('a new ask from another writer pulses, toasts for 10 seconds, chimes and opens; one there when the window attached does not', async ($, on) => {
   const w = world($, on)
@@ -21,8 +21,8 @@ test('a new ask from another writer pulses, toasts for 10 seconds, chimes and op
 
   w.seed(META)
   elsewhere(yesAsk('k1', 'Review round 1'))
-  await $.session.start(SESSION)
-  await w.call('join', { work: META.id })
+  await $.session.start(CONVERSATION)
+  await w.call('join', { session: META.id })
 
   expect(w.sounds).toEqual([])
   expect(w.toasts).toEqual([])
@@ -31,7 +31,7 @@ test('a new ask from another writer pulses, toasts for 10 seconds, chimes and op
   await w.clock.advance(WATCH_MS)
 
   expect(w.sounds).toEqual([CHIME])
-  expect(w.toasts).toEqual(['◆ For you: Keep the ledger forever?'])
+  expect(w.toasts).toEqual(['◆ New ask: Keep the ledger forever?'])
   expect(w.toastsMs, 'long enough to read through').toEqual([TOAST_MS])
   expect(w.state.pulse).toEqual({ asks: ['k2'], frames: 24 })
 
@@ -73,7 +73,7 @@ test("Claude's own ask is new to the window too", async ($, on) => {
   )
 
   expect(w.sounds).toEqual([CHIME])
-  expect(w.toasts).toEqual(['◆ For you: Run the production apply'])
+  expect(w.toasts).toEqual(['◆ New ask: Run the production apply'])
   expect(w.state.pane?.selected).toBe(w.item(id))
 })
 
@@ -86,14 +86,19 @@ test('asks landing together make one toast and one chime', async ($, on) => {
   await w.clock.advance(WATCH_MS)
 
   expect(w.sounds).toEqual([CHIME])
-  expect(w.toasts).toEqual(['◆ 2 for you, the latest: Try it at 80 columns'])
+  expect(w.toasts).toEqual(['◆ 2 new asks, the latest: Try it at 80 columns'])
   expect(w.state.pulse?.asks).toEqual(['k1', 'k2'])
 })
 
 test('after a reload, the asks already there make no chime; the next one does', async ($, on) => {
   const w = world($, on, { now: T0 + 60_000 })
   const elsewhere = w.writer(paths)
-  const kept: SitrepAttachment = { project: PROJECT.key, work: META.id, writer: W1, attachedAt: T0 }
+  const kept: SitrepAttachment = {
+    project: PROJECT.key,
+    session: META.id,
+    writer: W1,
+    attachedAt: T0,
+  }
   let isReloaded = false
 
   on('state.get', { plugin: 'sitrep', key: 'attachment' }, ($, e, next) => {
@@ -108,7 +113,7 @@ test('after a reload, the asks already there make no chime; the next one does', 
 
   w.seed(META)
   elsewhere(yesAsk('k1', 'Review round 1'))
-  await $.session.start(SESSION)
+  await $.session.start(CONVERSATION)
 
   expect(w.state.board?.asks.map(each => each.id)).toEqual(['k1'])
   expect(w.sounds).toEqual([])

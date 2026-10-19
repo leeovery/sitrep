@@ -4,7 +4,7 @@
  * words in full.
  */
 import type { Flag } from './args'
-import { COMMANDS, WORK_FLAG, type Command } from './commands'
+import { COMMANDS, SESSION_FLAG, type Command } from './commands'
 
 const GAP = 2
 
@@ -17,13 +17,13 @@ const flagUsage = ([name, flag]: [string, Flag]) => {
   return `${flag.isNeeded ? word : `[${word}]`}${flag.form === 'many' ? '...' : ''}`
 }
 
-/** A command's usage line; in the brief, without the flag every command on a work takes. */
+/** A command's usage line; in the brief, without the flag every command on a session takes. */
 const usageOf = ({ name, grammar }: Command, isBrief = false) =>
   [
     `sitrep ${name}`,
     ...grammar.args.map(arg => `<${arg.field}>`),
     ...Object.entries(grammar.flags)
-      .filter(([flag]) => !isBrief || flag !== WORK_FLAG)
+      .filter(([flag]) => !isBrief || flag !== SESSION_FLAG)
       .map(flagUsage),
   ].join(' ')
 
@@ -39,9 +39,9 @@ export const HELP = [
   '',
   ...COMMANDS.map(command => `  ${usageOf(command, true)}`),
   '',
-  'A command on a piece of work names it: --work sr-xxxxxx, else $SITREP_WORK.',
+  'A command on a session names it: --session sr-xxxxxx, else $SITREP_SESSION.',
   "A post prints its item's id. Exit codes: 0 done; 1 a usage error, a refused",
-  'input or a failure; 2 no such piece of work.',
+  'input or a failure; 2 no such session.',
   'Answering an ask from here: not yet. Answer it on the board.',
   '',
   'sitrep <command> --help says more.',

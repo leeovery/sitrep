@@ -1,5 +1,5 @@
 /**
- * For you: a session's asks, or every session's in a project's view, each
+ * Asks: a session's asks, or every session's in a project's view, each
  * naming its session there. An ask is drawn as every list's row: its mark,
  * its title and its age, and, while a reply waits on it or is on its way,
  * that one branch. Opened, it shows its whole title, its tree (what its
@@ -7,7 +7,7 @@
  * reply stands) and its buttons, by what it wants back: a yes in its own
  * words, its options, or words, written in the prompt box (DESIGN.md,
  * "Answering an ask"). Any session's asks answer the same way; a reply
- * names the work it goes to.
+ * names the session it goes to.
  */
 import { isClosing, VERDICTS, type Ask, type Verdict } from '../../core'
 import type { SitrepItemRef, SitrepQueued } from '../../types'
@@ -36,7 +36,7 @@ const HINT =
   "Your reply waits in Ready to send. Ignore tells Claude you've seen it and won't act on it."
 
 /** The mark of an ask Lee's send closed. */
-const DONE = { glyph: GLYPH.done, color: C.ok }
+const RESOLVED = { glyph: GLYPH.done, color: C.ok }
 
 /** The ask as the item a reply answers. */
 const refOf = ({ at, ask }: AskedAt): SitrepItemRef => ({ ...at, item: ask.id })
@@ -47,7 +47,7 @@ const commentLabel = (ask: Ask) => (isClosing(ask, 'comment') ? '✎ answer' : '
 /** The buttons a verdict puts on an ask, each keyed by the ask's address: one for each option of a choice. */
 const buttonsFor = (d: Drawing, at: SitrepItemRef, ask: Ask, verdict: Verdict) => {
   const { Button } = d.els
-  const key = itemKey(at.work, ask.id)
+  const key = itemKey(at.session, ask.id)
   const reply = (fields: Omit<SitrepQueued, keyof SitrepItemRef>) =>
     d.act.reply({ ...at, ...fields })
 
@@ -92,8 +92,8 @@ const buttonsFor = (d: Drawing, at: SitrepItemRef, ask: Ask, verdict: Verdict) =
 const standingOf = (d: Drawing, asked: AskedAt) => {
   const { ask } = asked
   const at = refOf(asked)
-  const key = itemKey(at.work, ask.id)
-  const queued = queuedOn(d.scene.queue, at.work, ask.id)
+  const key = itemKey(at.session, ask.id)
+  const queued = queuedOn(d.scene.queue, at.session, ask.id)
   const isClosed = ask.state === 'closed'
 
   return {
@@ -164,7 +164,7 @@ const drawAsk = (d: Drawing, asked: AskedAt, isLast: boolean, isNamed: boolean) 
   const { ask, name } = asked
   const standing = standingOf(d, asked)
   const { key, queued, sent, isAnswering, isClosed, isOpen } = standing
-  const mark = isClosed ? DONE : askMark(d.scene, ask)
+  const mark = isClosed ? RESOLVED : askMark(d.scene, ask)
   const isAnswerable = isOpen && queued === undefined && sent === undefined && !isAnswering
 
   return drawRow(d, {
@@ -179,11 +179,11 @@ const drawAsk = (d: Drawing, asked: AskedAt, isLast: boolean, isNamed: boolean) 
   })
 }
 
-/** What For you lists: how many of its asks wait, whether this session's are among them, and whether each names its session. */
-export type ForYou = { waiting: number; isHome: boolean; isNamed: boolean }
+/** What Asks lists: how many of its asks wait, whether this session's are among them, and whether each names its session. */
+export type AsksListed = { waiting: number; isHome: boolean; isNamed: boolean }
 
-/** For you's few words: new while one of this session's asks pulses there, else how many wait. */
-const noteOf = (d: Drawing, { waiting, isHome }: ForYou) => {
+/** Asks' few words: new while one of this session's asks pulses there, else how many wait. */
+const noteOf = (d: Drawing, { waiting, isHome }: AsksListed) => {
   if (isHome && isPulsing(d.scene)) {
     return { note: '✦ new', color: askMark(d.scene).color }
   }
@@ -191,23 +191,23 @@ const noteOf = (d: Drawing, { waiting, isHome }: ForYou) => {
   return { note: waiting > 0 ? `${waiting} waiting` : 'nothing waiting', color: C.grey }
 }
 
-/** For you's heading, then each ask, keyed by its address, since a project's view lists every session's. */
-export const drawForYou = (d: Drawing, asked: readonly AskedAt[], listing: ForYou): Block[] => {
+/** Asks' heading, then each ask, keyed by its address, since a project's view lists every session's. */
+export const drawAsks = (d: Drawing, asked: readonly AskedAt[], listing: AsksListed): Block[] => {
   const { Box } = d.els
   const { note, color } = noteOf(d, listing)
 
   return [
     {
-      key: 'foryou',
+      key: 'asks',
       element: (
         <Box flexDirection="column">
-          {heading(d, 'FOR YOU', C.ask, note, color)}
+          {heading(d, 'ASKS', C.ask, note, color)}
           {asked.length === 0 && emptyLine(d, 'Nothing waiting on you.')}
         </Box>
       ),
     },
     ...asked.map((each, i) => ({
-      key: `ask:${itemKey(each.at.work, each.ask.id)}`,
+      key: `ask:${itemKey(each.at.session, each.ask.id)}`,
       element: drawAsk(d, each, i === asked.length - 1, listing.isNamed),
     })),
   ]

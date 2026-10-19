@@ -1,7 +1,7 @@
-/** Builders the core tests share: a piece of work's files from its lines, and random bytes from a script. */
+/** Builders the core tests share: a session's files from its lines, and random bytes from a script. */
 import {
   append,
-  foldWork,
+  foldSession,
   metaText,
   presenceText,
   type AskKind,
@@ -10,9 +10,9 @@ import {
   type Presence,
   type Random,
   type Verdict,
-  type Work,
-  type WorkFiles,
-  type WorkMeta,
+  type Session,
+  type SessionFiles,
+  type SessionMeta,
 } from '../core'
 
 export const MIN = 60_000
@@ -20,20 +20,20 @@ export const MIN = 60_000
 /** For a test that runs the clock through many of the watch's looks: past the default 5s on a loaded machine. */
 export const SLOW = { timeoutMs: 20_000 }
 
-/** When the work under test was started. */
+/** When the session under test was started. */
 export const T0 = 1_760_000_000_000
 
-/** The window that started the work, a second window, two more on other works, and the CLI. */
+/** The window that started the session, a second window, two more on other sessions, and the CLI. */
 export const W1 = 'b1c2d3e4-0000-4000-8000-000000000001'
 export const W2 = 'b1c2d3e4-0000-4000-8000-000000000002'
 export const W3 = 'b1c2d3e4-0000-4000-8000-000000000003'
 export const W4 = 'b1c2d3e4-0000-4000-8000-000000000004'
 export const CLI = 'cli'
 
-/** A window on another piece of work, sending replies into this one's inbox. */
+/** A window on another session, sending replies into this one's inbox. */
 export const SENDER = 'f0e1d2c3-0000-4000-8000-0000000000ff'
 
-export const META: WorkMeta = {
+export const META: SessionMeta = {
   id: 'sr-k3f9qa',
   name: 'Dashboard redesign',
   summary: 'Redesign the dashboard, area by area in Paper',
@@ -57,15 +57,15 @@ export const beat = (writer: string, times: Omit<Presence, 'writer'>) =>
 /** The heartbeat of a window attached at `at` and seen then. */
 export const seen = (writer: string, at: number) => beat(writer, { attachedAt: at, seenAt: at })
 
-/** The work folded from these files at `now`; it fails the test when the work does not fold. */
-export const fold = (files: Partial<WorkFiles>, now = T0 + 60 * MIN): Work => {
-  const work = foldWork({ meta: metaText(META), logs: {}, ...files }, now)
+/** The session folded from these files at `now`; it fails the test when the session does not fold. */
+export const fold = (files: Partial<SessionFiles>, now = T0 + 60 * MIN): Session => {
+  const session = foldSession({ meta: metaText(META), logs: {}, ...files }, now)
 
-  if (work === undefined) {
-    throw new Error('the work did not fold')
+  if (session === undefined) {
+    throw new Error('the session did not fold')
   }
 
-  return work
+  return session
 }
 
 export const status = (

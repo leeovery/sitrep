@@ -1,6 +1,6 @@
 /**
- * Which windows have a piece of work open. A mod cannot tell that its own
- * window died, so each attached window rewrites a heartbeat, and a work is
+ * Which windows have a session open. A mod cannot tell that its own
+ * window died, so each attached window rewrites a heartbeat, and a session is
  * open while at least one heartbeat is fresh. A mod cannot delete a file
  * either, so a window that lets go says so in its heartbeat.
  */
@@ -17,7 +17,7 @@ export const STALE_MS = 3 * HEARTBEAT_MS
 const isTime = (value: unknown): value is number =>
   typeof value === 'number' && Number.isFinite(value)
 
-/** A window's first heartbeat on a piece of work, and where the window is when that is known. */
+/** A window's first heartbeat on a session, and where the window is when that is known. */
 export const attach = (writer: string, at: number, where?: Where): Presence => ({
   writer,
   attachedAt: at,
@@ -58,8 +58,9 @@ export const isLive = (presence: Presence, now: number) =>
   presence.leftAt === undefined && now - presence.seenAt <= STALE_MS
 
 /**
- * The window that submits a work's inbox replies: the one attached longest,
- * so two windows on one work never both submit. Undefined with none attached.
+ * The window that submits a session's inbox replies: the one attached
+ * longest, so two windows on one session never both submit. Undefined with
+ * none attached.
  */
 export const deliverer = (presence: readonly Presence[], now: number) =>
   presence

@@ -1,12 +1,12 @@
 /**
- * Reading sitrep's folder, as the CLI does at each run: a piece of work
+ * Reading sitrep's folder, as the CLI does at each run: a session
  * found by its id in whichever project files it, and every project with
- * the works filed under it.
+ * the sessions filed under it.
  */
 import {
-  foldWork,
+  foldSession,
   isSafeName,
-  isWorkId,
+  isSessionId,
   LOG_SUFFIX,
   parseMeta,
   parseProject,
@@ -16,20 +16,20 @@ import {
   projectsDir,
   recordedName,
   summarise,
-  workPaths,
-  worksDir,
+  sessionPaths,
+  sessionsDir,
   writerOf,
-  type ProjectWorks,
+  type ProjectSessions,
   type Where,
-  type Work,
-  type WorkFiles,
-  type WorkPaths,
+  type Session,
+  type SessionFiles,
+  type SessionPaths,
 } from '../core'
 import type { Io } from './io'
 import { windowsOf } from './screen'
 
-/** A piece of work as found: the project it is filed under, its paths and files, and the work they fold to. */
-export type Found = { project: string; paths: WorkPaths; files: WorkFiles; work: Work }
+/** A session as found: the project it is filed under, its paths and files, and the session they fold to. */
+export type Found = { project: string; paths: SessionPaths; files: SessionFiles; session: Session }
 
 const foldersIn = async (io: Io, dir: string) =>
   (await io.fs.list(dir)).filter(entry => entry.kind === 'dir').map(entry => entry.name)
@@ -54,8 +54,8 @@ const byWriter = async (io: Io, dir: string, suffix: string) => {
   )
 }
 
-/** A piece of work's files as they stand, and its project's; work.json's text is empty while it is not there. */
-export const readWork = async (io: Io, paths: WorkPaths): Promise<WorkFiles> => {
+/** A session's files as they stand, and its project's; work.json's text is empty while it is not there. */
+export const readSession = async (io: Io, paths: SessionPaths): Promise<SessionFiles> => {
   const [meta = '', project, logs, inbox, presence] = await Promise.all([
     textAt(io, paths.meta),
     textAt(io, paths.project.file),
@@ -67,60 +67,64 @@ export const readWork = async (io: Io, paths: WorkPaths): Promise<WorkFiles> => 
   return { meta, project, logs, inbox, presence }
 }
 
-/** A piece of work by its id, as it stands at `now`, in whichever project files it; undefined when none does. */
-export const findWork = async (
+/** A session by its id, as it stands at `now`, in whichever project files it; undefined when none does. */
+export const findSession = async (
   io: Io,
   root: string,
   id: string,
   now: number,
 ): Promise<Found | undefined> => {
   for (const project of await projectKeys(io, root)) {
-    const paths = workPaths(root, project, id)
-    const files = await readWork(io, paths)
-    const work = foldWork(files, now)
+    const paths = sessionPaths(root, project, id)
+    const files = await readSession(io, paths)
+    const session = foldSession(files, now)
 
-    if (work !== undefined) {
-      return { project, paths, files, work }
+    if (session !== undefined) {
+      return { project, paths, files, session }
     }
   }
 
   return undefined
 }
 
-/** The files of each work filed under a project, in the order listed. */
+/** The files of each session filed under a project, in the order listed. */
 const filesIn = async (io: Io, root: string, project: string) =>
   Promise.all(
-    (await foldersIn(io, worksDir(root, project)))
-      .filter(isWorkId)
-      .map(id => readWork(io, workPaths(root, project, id))),
+    (await foldersIn(io, sessionsDir(root, project)))
+      .filter(isSessionId)
+      .map(id => readSession(io, sessionPaths(root, project, id))),
   )
 
-/** A project and its works, but those whose work.json is missing or torn; undefined for a folder with no file and no work. */
+/** A project and its sessions, but those whose work.json is missing or torn; undefined for a folder with no file and no session. */
 const readProject = async (io: Io, root: string, key: string, now: number) => {
   const file = parseProject((await textAt(io, projectPaths(root, key).file)) ?? '')
   const files = await filesIn(io, root, key)
-  const works = files.map(each => foldWork(each, now)).filter(work => work !== undefined)
+  const sessions = files
+    .map(each => foldSession(each, now))
+    .filter(session => session !== undefined)
   const project = projectFrom(key, file, recordedName(files.map(each => parseMeta(each.meta))))
 
-  return project === undefined ? undefined : { project, works }
+  return project === undefined ? undefined : { project, sessions }
 }
 
-/** What `readProjects` gives: every project with its works in brief, and the windows each work is in, by its id. */
+/** What `readProjects` gives: every project with its sessions in brief, and the windows each session is in, by its id. */
 export type ProjectsRead = {
-  projects: ProjectWorks[]
+  projects: ProjectSessions[]
   windows: ReadonlyMap<string, readonly Where[]>
 }
 
-/** Every project, with its works in brief as they stand at `now`, and the windows each work is in. */
+/** Every project, with its sessions in brief as they stand at `now`, and the windows each session is in. */
 export const readProjects = async (io: Io, root: string, now: number): Promise<ProjectsRead> => {
   const read = (
     await Promise.all((await projectKeys(io, root)).map(key => readProject(io, root, key, now)))
   ).filter(each => each !== undefined)
 
   return {
-    projects: read.map(({ project, works }) => ({ project, works: works.map(summarise) })),
+    projects: read.map(({ project, sessions }) => ({ project, sessions: sessions.map(summarise) })),
     windows: new Map(
-      read.flatMap(({ works }) => works.map(work => [work.id, windowsOf(work, now)] as const)),
+      read.flatMap(({ sessions }) =>
+        sessions.map(session => [session.id, windowsOf(session, now)] as const),
+      ),
     ),
   }
 }

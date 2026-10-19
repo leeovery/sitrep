@@ -48,10 +48,15 @@ Settled with Lee on 16 October 2026.
 | **band** | The line above Claude Code's prompt. | |
 | **macOS notification** | What macOS shows from an app, as SitRep's for a new ask. | |
 
-The code still uses the old words, and the build renames them: in the mod,
-work, `work id`, For you, Log, Done and "mark this work done"; in the
-spike, `lip`. Until then, code identifiers keep their spelling (`--work`,
-`works/`, `work.json`), and this document writes them as they are.
+The code uses these words (19 October 2026): sessions, not pieces of work,
+in the mod, core, the CLI (`--session`, `$SITREP_SESSION`) and Claude's
+tools; on the pane, ASKS, NOTES, RESOLVED and "finish this session". Claude
+Code's own session is a conversation or a window there, so "session" means
+only the board's. Two old names are left: the folder's on disk (`works/`,
+`work.json`), which the build renames next (stage 3, step 3), and the
+spike's `lip`, renamed when the edge is built; this document writes them
+as they are until then. The CLI's JSON keeps its names (`works`, `work`),
+as "Versions side by side" has it.
 
 ## Sessions outlive their windows
 
@@ -701,7 +706,7 @@ Dropped for now (11 October 2026): a macOS notification for asks. Back on
 $XDG_STATE_HOME/sitrep/, else ~/.local/state/sitrep/
   projects/<project key>/
     project.json              name, directory, created and by whom: the project's own
-    works/<work id>/
+    works/<session id>/
       work.json               name, summary, project, root, created and by whom: written once, by whoever starts the session
       <writer>.jsonl          one file per writer: each window as Claude Code's session id, the CLI as `cli`
       inbox/<sender>.jsonl    replies from other sessions, one file per sending writer
@@ -854,7 +859,11 @@ truth. There is still no background service. None of it is built now. Lee:
     a reload of the mod's code, and the window takes its session up again; a
     new process (`--resume`) starts without it, and the window takes up by
     itself the session its conversation was last seen in (item 5 under
-    "Sessions outlive their windows").
+    "Sessions outlive their windows"). What a load from before the words
+    changed left there (a session as its `work`, RESOLVED in full as
+    `doneInFull`) is read in today's names, so a window reloaded mid-session
+    keeps its session, its place on the pane and Ready to send
+    (`hooks/older.ts`).
   - Drawing lives in modules of its own (`hooks/draw`): pure functions from
     a surface's element table and plain data to a tree, what a button does
     handed in as actions bound to the host. JSX's `h` is global in every
@@ -993,7 +1002,7 @@ truth. There is still no background service. None of it is built now. Lee:
   sitrep jump
   ```
 
-  - It writes as the writer `cli`, appending to `<work>/cli.jsonl`. It never
+  - It writes as the writer `cli`, appending to `<session>/cli.jsonl`. It never
     writes a delivered mark or a heartbeat: it is never a window on the
     session.
   - What it posts is checked by core as Claude's tools' posts are, and a
@@ -1003,10 +1012,11 @@ truth. There is still no background service. None of it is built now. Lee:
     `--needs` with it. A status gives only what changed, as the
     status tool does; `--now ""` and `--next ""` clear. The last argument takes
     every word left, so a title needs no quotes.
-  - The session is `--work sr-xxxxxx`, else `$SITREP_WORK`, looked up in every
-    project. `list` takes none: every project's current sessions, grouped, in
-    the order the first message lists them (those whose directory holds the
-    folder the CLI runs in first); a finished session is never among them.
+  - The session is `--session sr-xxxxxx`, else `$SITREP_SESSION`, looked up
+    in every project. `list` takes none: every project's current sessions,
+    grouped, in the order the first message lists them (those whose
+    directory holds the folder the CLI runs in first); a finished session is
+    never among them.
     `--project <name>` gives only that project's, matched as `start` matches
     it, and a name no project has is refused. `--all` is gone: every
     project is listed already. The CLI does not finish sessions.

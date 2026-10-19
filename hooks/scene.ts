@@ -1,11 +1,11 @@
 /**
- * What the board and the band are drawn from, as plain data:
- * the held work, the works around it as last read, the window's own state,
- * and the time. Read inside a render hook, each read subscribes the
- * drawing, so a write draws it again.
+ * What the board and the band are drawn from, as plain data: the held
+ * session, the sessions around it as last read, the window's own state, and
+ * the time. Read inside a render hook, each read subscribes the drawing, so
+ * a write draws it again.
  */
 import type { Timer } from 'claude-code'
-import { closingReply, isOpen, type Ask, type Work } from '../core'
+import { closingReply, isOpen, type Ask, type Session } from '../core'
 import type {
   SitrepAnswering,
   SitrepInFlight,
@@ -17,7 +17,7 @@ import type {
   SitrepScroll,
   SitrepSent,
 } from '../types'
-import { workOf } from './board'
+import { sessionOf } from './board'
 import { logFailure, type Host } from './host'
 import { C, pulseOf } from './look'
 
@@ -27,21 +27,21 @@ export const LINGER_MS = 8_000
 /** How often the board is drawn again for the time alone, so its ages move on. */
 const TICK_MS = 30_000
 
-/** A work as folded, and the project it is filed under, by key. */
-export type Filed = { project: string; work: Work }
+/** A session as folded, and the project it is filed under, by key. */
+export type Filed = { project: string; session: Session }
 
 export type Scene = {
-  /** The held work. */
-  work: Work
-  /** The project the held work is filed under. */
+  /** The held session. */
+  session: Session
+  /** The project the held session is filed under. */
   here: string
   /** Where the board is looking: this session, unless Lee went elsewhere. */
   place: SitrepPlace
-  /** The projects around the held work, as last read. */
+  /** The projects around the held session, as last read. */
   projects: readonly SitrepProject[]
-  /** The other works the board draws in full, by id. */
+  /** The other sessions the board draws in full, by id. */
   others: ReadonlyMap<string, Filed>
-  /** Ready to send: every work's replies, in the order queued. */
+  /** Ready to send: every session's replies, in the order queued. */
   queue: readonly SitrepQueued[]
   /** The message on its way to Claude: a send of Lee's, its replies frozen in the queue, or the inbox's. */
   inFlight: SitrepInFlight | null
@@ -58,7 +58,7 @@ export type Scene = {
 
 let ticking: Timer | undefined
 
-/** The scene as it stands; undefined while no work is held. */
+/** The scene as it stands; undefined while no session is held. */
 export const sceneOf = async (host: Host): Promise<Scene | undefined> => {
   const [
     board,
@@ -97,12 +97,12 @@ export const sceneOf = async (host: Host): Promise<Scene | undefined> => {
   }
 
   return {
-    work: workOf(board),
+    session: sessionOf(board),
     here: held.project,
-    place: pane.place ?? { level: 'session', project: held.project, work: held.work },
+    place: pane.place ?? { level: 'session', project: held.project, session: held.session },
     projects,
     others: new Map(
-      others.map(({ project, board: other }) => [other.id, { project, work: workOf(other) }]),
+      others.map(({ project, board: other }) => [other.id, { project, session: sessionOf(other) }]),
     ),
     queue,
     inFlight,
@@ -116,17 +116,17 @@ export const sceneOf = async (host: Host): Promise<Scene | undefined> => {
   }
 }
 
-/** The held work, as the board in `$.state` has it. */
-export const heldWork = async (host: Host) => {
+/** The held session, as the board in `$.state` has it. */
+export const heldSession = async (host: Host) => {
   const board = await host.state.board.read()
 
-  return board === null ? undefined : workOf(board)
+  return board === null ? undefined : sessionOf(board)
 }
 
 const tick = (host: Host) => () =>
   void host.state.tick.update(count => count + 1).catch(logFailure(host, 'the tick'))
 
-/** Draws the scene again every so often, so its ages move on; a session started again keeps one tick. */
+/** Draws the scene again every so often, so its ages move on; a window started again keeps one tick. */
 export const tickEvery = (host: Host) => {
   ticking?.cancel()
   ticking = host.clock.every(TICK_MS, tick(host))
@@ -139,20 +139,20 @@ export const tickAfter = (host: Host, ms: number) => host.clock.after(ms, tick(h
 const isLingering = (ask: Ask, now: number) =>
   closingReply(ask) !== undefined && ask.closedAt !== undefined && now - ask.closedAt < LINGER_MS
 
-/** For you: the open asks, and those Lee's send just closed, the newest first. */
-export const forYou = (work: Work, now: number) =>
-  work.asks.filter(ask => isOpen(ask) || isLingering(ask, now)).reverse()
+/** Asks: the open asks, and those Lee's send just closed, the newest first. */
+export const forYou = (session: Session, now: number) =>
+  session.asks.filter(ask => isOpen(ask) || isLingering(ask, now)).reverse()
 
 /** The asks closed earlier than that, ignored ones aside, the newest closed first. */
-export const doneEarlier = (work: Work, now: number) =>
-  work.asks
+export const resolvedEarlier = (session: Session, now: number) =>
+  session.asks
     .filter(ask => ask.state === 'closed' && !isLingering(ask, now))
     .sort((a, b) => (b.closedAt ?? b.at) - (a.closedAt ?? a.at))
 
-/** Whether an ask is one of those pulsing as new; with no ask, whether any is. Only the held work's asks pulse. */
-export const isPulsing = ({ pulse, work }: Scene, ask?: Ask) =>
+/** Whether an ask is one of those pulsing as new; with no ask, whether any is. Only the held session's asks pulse. */
+export const isPulsing = ({ pulse, session }: Scene, ask?: Ask) =>
   pulse.frames > 0 &&
-  (ask === undefined || (pulse.asks.includes(ask.id) && work.asks.includes(ask)))
+  (ask === undefined || (pulse.asks.includes(ask.id) && session.asks.includes(ask)))
 
 /** An ask's ◆ as it stands in the pulse; with no ask, the ◆ any new ask pulses. */
 export const askMark = (scene: Scene, ask?: Ask) =>
@@ -162,5 +162,5 @@ export const askMark = (scene: Scene, ask?: Ask) =>
 export const countMark = (scene: Scene) => {
   const mark = askMark(scene)
 
-  return scene.work.waiting > 0 || isPulsing(scene) ? mark : { ...mark, color: C.grey }
+  return scene.session.waiting > 0 || isPulsing(scene) ? mark : { ...mark, color: C.grey }
 }

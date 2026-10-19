@@ -1,36 +1,36 @@
 /**
- * Writing into a piece of work the window does not hold: to the end of a
+ * Writing into a session the window does not hold: to the end of a
  * writer's own file there, read back and written whole, since a mod's
- * `$.fs` writes only whole files. What it writes is made from the work as
+ * `$.fs` writes only whole files. What it writes is made from the session as
  * it stands with that file, so a line already there is not written again.
  */
-import { append, foldWork, workPaths, type Body, type Work } from '../core'
-import type { SitrepWorkRef } from '../types'
+import { append, foldSession, sessionPaths, type Body, type Session } from '../core'
+import type { SitrepSessionRef } from '../types'
 import { rootFor, type Host } from './host'
 import { createReader, ownText } from './reader'
 
-/** A work, and the writer whose file there is written. */
-export type Into = SitrepWorkRef & { writer: string }
+/** A session, and the writer whose file there is written. */
+export type Into = SitrepSessionRef & { writer: string }
 
-/** Writes what `linesOf` makes of the work as it stands, nothing when it makes none; false when the work no longer folds. */
+/** Writes what `linesOf` makes of the session as it stands, nothing when it makes none; false when the session no longer folds. */
 export const writeInto = async (
   host: Host,
-  { project, work: id, writer }: Into,
-  linesOf: (work: Work) => readonly Body[],
+  { project, session: id, writer }: Into,
+  linesOf: (session: Session) => readonly Body[],
 ) => {
-  const paths = workPaths(await rootFor(host), project, id)
+  const paths = sessionPaths(await rootFor(host), project, id)
   const path = paths.log(writer)
   const [text, files, now] = await Promise.all([
     ownText(host, path),
     createReader()(host, paths),
     host.clock.now(),
   ])
-  const work = foldWork({ ...files, logs: { ...files.logs, [writer]: text } }, now)
-  const lines = work === undefined ? [] : linesOf(work)
+  const session = foldSession({ ...files, logs: { ...files.logs, [writer]: text } }, now)
+  const lines = session === undefined ? [] : linesOf(session)
 
   if (lines.length > 0) {
     await host.fs.write(path, append(text, lines, now).text)
   }
 
-  return work !== undefined
+  return session !== undefined
 }

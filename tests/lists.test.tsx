@@ -1,6 +1,6 @@
 import type { Args } from 'claude-code'
 import { expect, test, tier } from 'claude-code/testing'
-import type { WorkMeta } from '../core'
+import type { SessionMeta } from '../core'
 import { rowsOf } from './drawn'
 import { MIN, SLOW, T0, W2, yesAsk } from './support'
 import { ELSEWHERE, postedId, toProject, world } from './world'
@@ -56,7 +56,7 @@ const PARKED = ['A tmux indicator', 'Thumbnails in the picker', 'Export the ledg
 )
 
 test(
-  'a session lists its log and its closed asks with no blank row between their entries',
+  'a session lists its notes and its closed asks with no blank row between their entries',
   SLOW,
   async ($, on) => {
     const w = world($, on)
@@ -71,12 +71,12 @@ test(
 
     const rows = await boardRows(await w.opened())
 
-    expect(listedUnder(rows, 'LOG')).toEqual([
+    expect(listedUnder(rows, 'NOTES')).toEqual([
       ' • The schema is drawn 5m',
       ' • PR #82 merged 6m',
       ' • PR #81 merged 7m',
     ])
-    expect(listedUnder(rows, 'DONE')).toEqual([' ✓ Review round 2 1m', ' ✓ Review round 1 2m'])
+    expect(listedUnder(rows, 'RESOLVED')).toEqual([' ✓ Review round 2 1m', ' ✓ Review round 1 2m'])
   },
 )
 
@@ -102,7 +102,7 @@ test('PARKED lists its items with no blank row between them, in a session and in
   ])
 })
 
-test('the project view lists its log with no blank row between the lines, each naming its session', async ($, on) => {
+test('the project view lists its notes with no blank row between the lines, each naming its session', async ($, on) => {
   const w = world($, on)
 
   await w.begin()
@@ -111,14 +111,14 @@ test('the project view lists its log with no blank row between the lines, each n
   const ui = await w.pane()
 
   await toProject(ui)
-  expect(listedUnder(await boardRows(ui), 'LOG')).toEqual([
+  expect(listedUnder(await boardRows(ui), 'NOTES')).toEqual([
     ' • Dashboard redesign: The schema is drawn 1m',
     ' • Dashboard redesign: PR #82 merged 2m',
     ' • Dashboard redesign: PR #81 merged 3m',
   ])
 })
 
-test('For you lists its asks as rows with no blank row between them, each its mark, title and age, no where', async ($, on) => {
+test('ASKS lists its asks as rows with no blank row between them, each its mark, title and age, no where', async ($, on) => {
   const w = world($, on)
 
   await w.begin()
@@ -133,7 +133,7 @@ test('For you lists its asks as rows with no blank row between them, each its ma
   await ui.press({ key: `pick:${w.item(newest)}` })
 
   const rows = await boardRows(ui)
-  const at = rows.findIndex(row => row.startsWith(' FOR YOU'))
+  const at = rows.findIndex(row => row.startsWith(' ASKS'))
 
   expect(rows.slice(at + 1, at + 5)).toEqual([
     ' ◆ Review round 3 1m',
@@ -156,7 +156,7 @@ test('a reply waiting on an ask not opened, or on its way, still hangs from it, 
   const ui = await w.pane()
   const forYou = async () => {
     const rows = await boardRows(ui)
-    const at = rows.findIndex(row => row.startsWith(' FOR YOU'))
+    const at = rows.findIndex(row => row.startsWith(' ASKS'))
 
     return rows.slice(at + 1, at + 5)
   }
@@ -207,8 +207,8 @@ test('an opened ask has a blank row after its buttons and hint, so the next ask 
   ])
 })
 
-/** A work open in another window, in another project. */
-const ORDERS: WorkMeta = {
+/** A session open in another window, in another project. */
+const ORDERS: SessionMeta = {
   id: 'sr-0rders',
   name: 'Standing orders',
   summary: 'Standing orders, area by area',

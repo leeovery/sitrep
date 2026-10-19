@@ -1,13 +1,14 @@
 /**
  * The projects on the board, as the mod reads them: every folder under
  * `projects/`, named by its project.json, else, for a folder from before
- * projects were named, as a work of its recorded it. Also which project
- * files a work, and the project a start files its work under. A project's
- * file is written only as a project is made, renamed or given a directory.
+ * projects were named, as a session of its recorded it. Also which project
+ * files a session, and the project a start files its session under. A
+ * project's file is written only as a project is made, renamed or given a
+ * directory.
  */
 import {
   isSafeName,
-  isWorkId,
+  isSessionId,
   newProjectKey,
   parseMeta,
   parseProject,
@@ -17,8 +18,8 @@ import {
   projectsDir,
   projectText,
   recordedName,
-  workPaths,
-  worksDir,
+  sessionPaths,
+  sessionsDir,
   type Project,
   type ProjectChange,
   type ProjectFile,
@@ -29,7 +30,7 @@ import { foldersIn, textAt } from './reader'
 /** Who first writes a project's file, and when. */
 type Writing = Pick<ProjectFile, 'created' | 'by'>
 
-/** The project a start files its work under, and what its answer says of it. */
+/** The project a start files its session under, and what its answer says of it. */
 export type Filing = { project: Project; said: string }
 
 /** The key of every project folder. */
@@ -41,17 +42,17 @@ const fileOf = async (host: Host, root: string, key: string) =>
   parseProject((await textAt(host, projectPaths(root, key).file)) ?? '')
 
 const metaOf = async (host: Host, root: string, key: string, id: string) =>
-  parseMeta((await textAt(host, workPaths(root, key, id).meta)) ?? '')
+  parseMeta((await textAt(host, sessionPaths(root, key, id).meta)) ?? '')
 
-/** The work.json of each work filed under a project, in the order listed; undefined for one that does not read. */
+/** The work.json of each session filed under a project, in the order listed; undefined for one that does not read. */
 const metasIn = async (host: Host, root: string, key: string) =>
   Promise.all(
-    (await foldersIn(host, worksDir(root, key)))
-      .filter(isWorkId)
+    (await foldersIn(host, sessionsDir(root, key)))
+      .filter(isSessionId)
       .map(id => metaOf(host, root, key, id)),
   )
 
-/** A project as its folder has it; undefined for a folder with no file and no work. */
+/** A project as its folder has it; undefined for a folder with no file and no session. */
 export const readProject = async (host: Host, root: string, key: string) => {
   const file = await fileOf(host, root, key)
   const recorded = file === undefined ? recordedName(await metasIn(host, root, key)) : undefined
@@ -65,7 +66,7 @@ export const readProjects = async (host: Host, root: string, keys: readonly stri
     project => project !== undefined,
   )
 
-/** The project a work is filed under, whichever it is; undefined when none files it. */
+/** The project a session is filed under, whichever it is; undefined when none files it. */
 export const projectFiling = async (host: Host, root: string, id: string) => {
   for (const key of await projectKeys(host, root)) {
     if ((await metaOf(host, root, key, id)) !== undefined) {
@@ -76,9 +77,9 @@ export const projectFiling = async (host: Host, root: string, id: string) => {
   return undefined
 }
 
-/** Every work id filed, in any project: a new one is unlike them all, as join looks in every project. */
-export const workIdsIn = async (host: Host, root: string, keys: readonly string[]) =>
-  new Set((await Promise.all(keys.map(key => foldersIn(host, worksDir(root, key))))).flat())
+/** Every session id filed, in any project: a new one is unlike them all, as join looks in every project. */
+export const sessionIdsIn = async (host: Host, root: string, keys: readonly string[]) =>
+  new Set((await Promise.all(keys.map(key => foldersIn(host, sessionsDir(root, key))))).flat())
 
 const writeProject = (host: Host, root: string, key: string, file: ProjectFile) =>
   host.fs.write(projectPaths(root, key).file, projectText(file))

@@ -1,8 +1,8 @@
 /**
- * Where a window is, so a click can find the terminal showing its work: the
- * terminal device Claude Code is on, the terminal program, and its tmux pane.
- * Read from the raw facts the mod gathers, and leniently, field by field: a
- * heartbeat is never lost over where its window is.
+ * Where a window is, so a click can find the terminal showing its session:
+ * the terminal device Claude Code is on, the terminal program, and its tmux
+ * pane. Read from the raw facts the mod gathers, and leniently, field by
+ * field: a heartbeat is never lost over where its window is.
  */
 import { isFilled, isObject } from './entries'
 import type { Where } from './types'

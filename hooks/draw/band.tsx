@@ -5,7 +5,7 @@
  * Enter alone, to leave the title room. Where the board said it sits
  * inline the hide is a bracketed `✕ close`, wide enough to tap where the
  * frame's own ✕ is one cell. For a few seconds after the window takes in
- * replies sent from another work's board, it says so.
+ * replies sent from another session's board, it says so.
  *
  * While Lee writes to an item in the prompt, the band on the surface Lee
  * began on says only that, the whole time, with the way out of it: the next
@@ -80,9 +80,9 @@ const drawAnswering = (els: Els, width: number, standing: Answering, scene: Scen
 /** The counts, each a way into the board, and the board's own show or hide. */
 const drawCounts = (els: Els, surface: RenderSurface, width: number, scene: Scene) => {
   const { Box, Text, Button } = els
-  const { work, pane, flash } = scene
+  const { session, pane, flash } = scene
   const isNarrow = width < NARROW
-  const waiting = work.waiting
+  const waiting = session.waiting
   const elsewhere = waitingElsewhere(scene)
   const mark = countMark(scene)
 
@@ -99,10 +99,10 @@ const drawCounts = (els: Els, surface: RenderSurface, width: number, scene: Scen
       <Box flexDirection="row" gap={1}>
         <Text color={mark.color}>{mark.glyph}</Text>
         <Button
-          key={BAND.forYou}
+          key={BAND.asks}
           plain
           dimColor={waiting === 0}
-          label={isNarrow ? `${waiting}` : `${waiting} for you`}
+          label={isNarrow ? `${waiting}` : counted(waiting, 'ask', 'asks')}
           onPress={answeredByTheHook}
         />
       </Box>

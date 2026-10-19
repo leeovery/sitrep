@@ -2,7 +2,7 @@ import { expect, test } from 'claude-code/testing'
 import {
   checkProject,
   checkStart,
-  foldWork,
+  foldSession,
   isSameName,
   metaText,
   nearestFirst,
@@ -74,7 +74,7 @@ test("a project's file holds its name, its directory if known, and when and by w
   }
 })
 
-test('a folder from before projects were named is named as its works recorded it, first letter a capital', () => {
+test('a folder from before projects were named is named as its sessions recorded it, first letter a capital', () => {
   expect(projectName(undefined, 'code')).toBe('Code')
   expect(projectName(SITREP, 'code')).toBe('SitRep')
   expect(projectFrom('code-84dbac88', undefined, 'code')).toEqual({
@@ -89,17 +89,19 @@ test('a folder from before projects were named is named as its works recorded it
   expect(projectFrom('empty', undefined, undefined)).toBeUndefined()
 })
 
-test('such a folder goes by the name the first of its works to read recorded, in the order listed', () => {
+test('such a folder goes by the name the first of its sessions to read recorded, in the order listed', () => {
   expect(recordedName([undefined, { project: 'code' }, { project: 'other' }])).toBe('code')
   expect(recordedName([undefined])).toBeUndefined()
 })
 
-test("a work folds with its project's name as the project's file has it, else as it recorded it", () => {
+test("a session folds with its project's name as the project's file has it, else as it recorded it", () => {
   const meta = metaText({ ...META, project: 'code' })
 
-  expect(foldWork({ meta, logs: {} }, T0)?.project).toBe('Code')
-  expect(foldWork({ meta, project: projectText(SITREP), logs: {} }, T0)?.project).toBe('SitRep')
-  expect(foldWork({ meta, project: '{"v":1,', logs: {} }, T0)?.project, 'a torn file').toBe('Code')
+  expect(foldSession({ meta, logs: {} }, T0)?.project).toBe('Code')
+  expect(foldSession({ meta, project: projectText(SITREP), logs: {} }, T0)?.project).toBe('SitRep')
+  expect(foldSession({ meta, project: '{"v":1,', logs: {} }, T0)?.project, 'a torn file').toBe(
+    'Code',
+  )
 })
 
 test('the projects living around a folder come first, the nearest first, the rest as they were', () => {

@@ -15,12 +15,12 @@ import {
   metaText,
   projectPaths,
   projectText,
-  workPaths,
+  sessionPaths,
   type ProjectFile,
   type Random,
   type Where,
-  type WorkMeta,
-  type WorkPaths,
+  type SessionMeta,
+  type SessionPaths,
 } from '../core'
 import { beat, file, MIN, scripted, T0, type Line } from './support'
 import { HOME, PROJECT, REPO, ROOT, STATE_HOME } from './world'
@@ -32,7 +32,7 @@ export type Run = { exit: number; out: string; err: string }
 
 export const ENV: Env = { XDG_STATE_HOME: STATE_HOME, HOME }
 
-/** When a run happens, unless a test says otherwise: a minute after the work under test was started. */
+/** When a run happens, unless a test says otherwise: a minute after the session under test was started. */
 export const NOW = T0 + MIN
 
 /** The item ids a terminal's runs draw, unless a test says otherwise: this, then the next ever after. */
@@ -501,20 +501,20 @@ export function terminal(options: Options = {}) {
     return held.text
   }
 
-  /** A window's heartbeat on a work: attached at `at`, seen then, and `where` it is. */
-  const window = (paths: WorkPaths, writer: string, at: number, where?: Where) =>
+  /** A window's heartbeat on a session: attached at `at`, seen then, and `where` it is. */
+  const window = (paths: SessionPaths, writer: string, at: number, where?: Where) =>
     files.set(paths.heartbeat(writer), {
       text: beat(writer, { attachedAt: at, seenAt: at, where }),
       mtimeMs: at,
     })
 
   /**
-   * A piece of work as the mod leaves it, filed under `project`: its
+   * A session as the mod leaves it, filed under `project`: its
    * work.json, the lines its window wrote, and, given `seenAt`, that
    * window's heartbeat, saying `where` it is.
    */
   const seed = (
-    meta: WorkMeta,
+    meta: SessionMeta,
     {
       project = PROJECT.key,
       lines = [],
@@ -522,7 +522,7 @@ export function terminal(options: Options = {}) {
       where,
     }: { project?: string; lines?: Line[]; seenAt?: number; where?: Where } = {},
   ) => {
-    const paths = workPaths(ROOT, project, meta.id)
+    const paths = sessionPaths(ROOT, project, meta.id)
 
     files.set(paths.meta, { text: metaText(meta), mtimeMs: meta.created })
     files.set(paths.log(meta.by), { text: file(...lines), mtimeMs: meta.created })

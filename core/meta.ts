@@ -1,13 +1,13 @@
-/** A work's work.json: what it was started as, written once by whoever started it. */
+/** A session's work.json: what it was started as, written once by whoever started it. */
 import { VERSION } from './entries'
 
-export type WorkMeta = {
+export type SessionMeta = {
   id: string
   name: string
   summary: string
-  /** The project's name as the work was started in it; the project's own file names it since. */
+  /** The project's name as the session was started in it; the project's own file names it since. */
   project: string
-  /** Where the work was started. */
+  /** Where the session was started. */
   root: string
   created: number
   by: string
@@ -15,10 +15,10 @@ export type WorkMeta = {
 
 const TEXTS = ['id', 'name', 'summary', 'project', 'root', 'by'] as const
 
-export const metaText = (meta: WorkMeta) => `${JSON.stringify({ v: VERSION, ...meta })}\n`
+export const metaText = (meta: SessionMeta) => `${JSON.stringify({ v: VERSION, ...meta })}\n`
 
 /** work.json's meta; undefined when the file is torn, bad or of another version. */
-export const parseMeta = (text: string): WorkMeta | undefined => {
+export const parseMeta = (text: string): SessionMeta | undefined => {
   let raw: { [key: string]: unknown }
 
   try {
@@ -36,7 +36,7 @@ export const parseMeta = (text: string): WorkMeta | undefined => {
     return undefined
   }
 
-  const { id, name, summary, project, root, created, by } = raw as WorkMeta
+  const { id, name, summary, project, root, created, by } = raw as SessionMeta
 
   return { id, name, summary, project, root, created, by }
 }

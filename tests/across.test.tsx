@@ -1,5 +1,5 @@
 import { expect, test, tier } from 'claude-code/testing'
-import { parseEntries, workPaths, type WorkMeta } from '../core'
+import { parseEntries, sessionPaths, type SessionMeta } from '../core'
 import { AROUND_MS } from '../hooks/around'
 import { SENT_LINGER_MS } from '../hooks/queue'
 import { delivered, file, MIN, reply, SLOW, T0, W1, W2, W3, yesAsk } from './support'
@@ -15,7 +15,7 @@ const THEMES = 'sr-themes'
 
 const REVIEW = { wants: 'yes', yes: 'Approve', title: 'Review Sessions & Runway, round 1' }
 
-const meta = (id: string, name: string, by: string): WorkMeta => ({
+const meta = (id: string, name: string, by: string): SessionMeta => ({
   id,
   name,
   summary: `${name}, area by area`,
@@ -26,7 +26,7 @@ const meta = (id: string, name: string, by: string): WorkMeta => ({
 })
 
 /** The ledger's inbox file this window writes. */
-const LETTERS = workPaths(ROOT, PROJECT.key, LEDGER).letters(W1)
+const LETTERS = sessionPaths(ROOT, PROJECT.key, LEDGER).letters(W1)
 
 /**
  * This session with an ask, beside two others of its project: the ledger,
@@ -51,11 +51,11 @@ async function threeSessions(w: World) {
 }
 
 /** Lee answers another session's ask from its view, then goes home. */
-const answer = async (ui: Board, work: string, item: string) => {
+const answer = async (ui: Board, session: string, item: string) => {
   await toProject(ui)
-  await ui.press({ key: `go:${work}` })
-  await ui.press({ key: `pick:${work}:${item}` })
-  await ui.press({ key: `yes:${work}:${item}` })
+  await ui.press({ key: `go:${session}` })
+  await ui.press({ key: `pick:${session}:${item}` })
+  await ui.press({ key: `yes:${session}:${item}` })
   await ui.press({ key: 'tab:session' })
 }
 
@@ -84,7 +84,7 @@ test('Ready to send groups the replies by where each goes, this session first, a
   }
 })
 
-test("send writes another work's replies into its inbox as this window's letters, and they leave the queue", async ($, on) => {
+test("send writes another session's replies into its inbox as this window's letters, and they leave the queue", async ($, on) => {
   const w = world($, on)
   const { asked, paths, ui } = await threeSessions(w)
 
@@ -97,7 +97,7 @@ test("send writes another work's replies into its inbox as this window's letters
 
   expect(letter).toMatchObject({ item: 'k3', verdict: 'yes', seq: 1 })
   expect(w.state.queue).toEqual([])
-  expect(w.state.sent).toEqual([{ project: PROJECT.key, work: LEDGER, replies: [letter?.id] }])
+  expect(w.state.sent).toEqual([{ project: PROJECT.key, session: LEDGER, replies: [letter?.id] }])
   expect(w.toasts).toContain('Sent 1 reply to Request ledger.')
   expect(w.prompts.map(prompt => prompt.text)).toEqual([
     'From the board:\n- Review Sessions & Runway, round 1 → Approve',
@@ -108,7 +108,7 @@ test("send writes another work's replies into its inbox as this window's letters
   ).toEqual(['ask', 'reply', 'delivered'])
 })
 
-test('a send of replies to other works only closes an inline board, once they are in their inboxes', async ($, on) => {
+test('a send of replies to other sessions only closes an inline board, once they are in their inboxes', async ($, on) => {
   const w = world($, on)
   const { ui } = await threeSessions(w)
 
@@ -172,7 +172,7 @@ test(
     await w.clock.advance(SENT_LINGER_MS)
     expect(await ui.find({ type: 'Text', text: 'to Request ledger' })).toBeUndefined()
     expect(await ui.find({ type: 'Text', text: 'to Themes' })).toBeDefined()
-    expect(w.state.sent?.map(each => each.work)).toEqual([THEMES])
+    expect(w.state.sent?.map(each => each.session)).toEqual([THEMES])
   },
 )
 
@@ -190,7 +190,7 @@ test("the destination's own view shows the ask's reply on its way, and offers no
   expect(await ui.find({ key: `yes:${LEDGER}:k3` })).toBeUndefined()
 })
 
-test('a reply to another work whose item changed since is left in Ready to send, unsent', async ($, on) => {
+test('a reply to another session whose item changed since is left in Ready to send, unsent', async ($, on) => {
   const w = world($, on)
   const { ledger, ui } = await threeSessions(w)
 
@@ -203,7 +203,7 @@ test('a reply to another work whose item changed since is left in Ready to send,
   await ui.press({ key: 'send' })
 
   expect(w.files.has(LETTERS)).toBe(false)
-  expect(w.state.queue).toMatchObject([{ work: LEDGER, item: 'k3' }])
+  expect(w.state.queue).toMatchObject([{ session: LEDGER, item: 'k3' }])
 })
 
 test('two quick presses of send write each letter once', async ($, on) => {
@@ -214,7 +214,7 @@ test('two quick presses of send write each letter once', async ($, on) => {
   await Promise.all([ui.press({ key: 'send' }), ui.press({ key: 'send' })])
 
   expect(repliesIn(w, LETTERS)).toHaveLength(1)
-  expect(w.state.sent).toMatchObject([{ work: LEDGER, replies: [repliesIn(w, LETTERS)[0]?.id] }])
+  expect(w.state.sent).toMatchObject([{ session: LEDGER, replies: [repliesIn(w, LETTERS)[0]?.id] }])
   expect(w.toasts.filter(toast => toast.startsWith('Sent'))).toEqual([
     'Sent 1 reply to Request ledger.',
   ])

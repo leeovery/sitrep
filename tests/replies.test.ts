@@ -82,15 +82,15 @@ for (const [id, verdict, extra, after] of EFFECTS) {
   const how = `${verdict}${extra.note === undefined ? '' : ' with words'}`
 
   test(`a delivered ${how} on an ask wanting ${SHAPES[id]} leaves it ${after}`, () => {
-    const work = fold({
+    const session = fold({
       logs: { [W1]: file(...SHAPED, ...sent(T0 + MIN, 'r1', id, verdict, extra)) },
     })
-    const answered = work.asks.find(each => each.id === id)
+    const answered = session.asks.find(each => each.id === id)
 
     expect(answered?.state).toBe(after)
     expect(answered?.answer?.id).toBe('r1')
     expect(answered?.closedAt).toBe(after === 'replied' ? undefined : T0 + MIN)
-    expect(work.waiting).toBe(2)
+    expect(session.waiting).toBe(2)
   })
 }
 
@@ -146,22 +146,22 @@ for (const [kind, verdict, extra, after] of OLD_EFFECTS) {
   const written = kind === 'needs' ? 'do needing something back' : kind
 
   test(`a delivered ${how} on an ask written as a ${written} still leaves it ${after}`, () => {
-    const work = fold({
+    const session = fold({
       logs: { [W1]: file(...OLD, ...sent(T0 + MIN, 'r1', OLD_IDS[kind], verdict, extra)) },
     })
-    const answered = work.asks.find(each => each.id === OLD_IDS[kind])
+    const answered = session.asks.find(each => each.id === OLD_IDS[kind])
 
     expect(answered?.state).toBe(after)
     expect(answered?.answer?.id).toBe('r1')
-    expect(work.waiting).toBe(4)
+    expect(session.waiting).toBe(4)
   })
 }
 
 test('an ask written by its kind reads as the shape its kind maps to, any needing something back as words', () => {
-  const work = fold({ logs: { [W1]: file(...OLD) } })
+  const session = fold({ logs: { [W1]: file(...OLD) } })
 
   expect(
-    work.asks.map(({ id, wants, yes, options, needs }) => [id, wants, yes, options, needs]),
+    session.asks.map(({ id, wants, yes, options, needs }) => [id, wants, yes, options, needs]),
   ).toEqual([
     ['o1', 'yes', 'Approve', undefined, undefined],
     ['o2', 'choice', undefined, ['400 days', 'Forever'], undefined],
@@ -172,8 +172,8 @@ test('an ask written by its kind reads as the shape its kind maps to, any needin
 })
 
 test("old replies read in their ask's words; a decide's comment is still its answer", () => {
-  const work = fold({ logs: { [W1]: file(...OLD) } })
-  const message = boardMessage(work, [
+  const session = fold({ logs: { [W1]: file(...OLD) } })
+  const message = boardMessage(session, [
     { item: 'o1', verdict: 'yes' },
     { item: 'o3', verdict: 'yes', note: 'On the iPad mini too' },
     { item: 'o2', verdict: 'comment', note: 'Two years, then archive' },
@@ -192,7 +192,7 @@ test("old replies read in their ask's words; a decide's comment is still its ans
 })
 
 test("an old edit changing an ask's kind, or what it needs back, reshapes it by the kind", () => {
-  const work = fold({
+  const session = fold({
     logs: {
       [W1]: file(
         ...OLD,
@@ -204,7 +204,7 @@ test("an old edit changing an ask's kind, or what it needs back, reshapes it by 
   })
 
   expect(
-    work.asks.map(({ id, wants, yes, options, needs }) => [id, wants, yes, options, needs]),
+    session.asks.map(({ id, wants, yes, options, needs }) => [id, wants, yes, options, needs]),
   ).toEqual([
     ['o1', 'words', 'Done', undefined, 'the exit code'],
     ['o2', 'choice', undefined, ['400 days', 'Forever'], undefined],
@@ -215,7 +215,7 @@ test("an old edit changing an ask's kind, or what it needs back, reshapes it by 
 })
 
 test('an edit saying what an old ask wants reads it by that shape from then on, its kind gone', () => {
-  const work = fold({
+  const session = fold({
     logs: {
       [W1]: file(
         ...OLD,
@@ -226,9 +226,13 @@ test('an edit saying what an old ask wants reads it by that shape from then on, 
     },
   })
 
-  expect(work.items.get('o5')).toMatchObject({ wants: 'words', kind: undefined, yes: undefined })
-  expect(work.items.get('o5')).not.toHaveProperty('needs', expect.anything())
-  expect(work.items.get('o2')).toMatchObject({ wants: 'choice', kind: undefined, state: 'replied' })
+  expect(session.items.get('o5')).toMatchObject({ wants: 'words', kind: undefined, yes: undefined })
+  expect(session.items.get('o5')).not.toHaveProperty('needs', expect.anything())
+  expect(session.items.get('o2')).toMatchObject({
+    wants: 'choice',
+    kind: undefined,
+    state: 'replied',
+  })
 })
 
 test("a comment on its way to an old decide still closes it once delivered, though Claude edited the ask's title meanwhile", () => {
@@ -245,13 +249,13 @@ test("a comment on its way to an old decide still closes it once delivered, thou
     throw new Error(checked.error)
   }
 
-  const work = fold({
+  const session = fold({
     logs: {
       [W1]: file(...pending, [T0 + 2 * MIN, checked.value], [T0 + 3 * MIN, delivered('r1')]),
     },
   })
 
-  expect(work.items.get('o2')).toMatchObject({
+  expect(session.items.get('o2')).toMatchObject({
     kind: 'decide',
     title: 'Keep the ledger two years, or forever?',
     state: 'closed',
@@ -260,10 +264,10 @@ test("a comment on its way to an old decide still closes it once delivered, thou
 })
 
 test('a delivered pick-up marks a parked item picked up, and it leaves the parked list', () => {
-  const work = fold({ logs: { [W1]: file(...POSTED, ...sent(T0 + MIN, 'r1', 'p1', 'pickup')) } })
+  const session = fold({ logs: { [W1]: file(...POSTED, ...sent(T0 + MIN, 'r1', 'p1', 'pickup')) } })
 
-  expect(work.items.get('p1')).toMatchObject({ state: 'picked' })
-  expect(work.parked).toEqual([])
+  expect(session.items.get('p1')).toMatchObject({ state: 'picked' })
+  expect(session.parked).toEqual([])
 })
 
 test('the board logs a delivered pick-up itself, with Lee’s note as its detail', () => {
@@ -275,14 +279,14 @@ test('the board logs a delivered pick-up itself, with Lee’s note as its detail
       ...sent(T0 + 4 * MIN, 'r2', 'p2', 'pickup'),
     ),
   }
-  const work = fold({
+  const session = fold({
     logs,
     inbox: {
       [SENDER]: file([T0 + MIN, reply('r1', 'p1', 'pickup', { note: 'Before the release' })]),
     },
   })
 
-  expect(work.log).toEqual([
+  expect(session.log).toEqual([
     {
       kind: 'pickup',
       at: T0 + 4 * MIN,
@@ -308,16 +312,16 @@ test('the board logs a delivered pick-up itself, with Lee’s note as its detail
 })
 
 test('an undelivered pick-up adds no line to the log', () => {
-  const work = fold({
+  const session = fold({
     logs: { [W1]: file(...POSTED) },
     inbox: { [SENDER]: file([T0 + MIN, reply('r1', 'p1', 'pickup')]) },
   })
 
-  expect(work.log).toEqual([])
+  expect(session.log).toEqual([])
 })
 
 test('a parked item picked up twice is logged once: the second pick-up finds it picked', () => {
-  const work = fold({
+  const session = fold({
     logs: {
       [W1]: file(
         ...POSTED,
@@ -327,32 +331,32 @@ test('a parked item picked up twice is logged once: the second pick-up finds it 
     },
   })
 
-  expect(work.log.map(line => [line.kind, line.at])).toEqual([['pickup', T0 + MIN]])
+  expect(session.log.map(line => [line.kind, line.at])).toEqual([['pickup', T0 + MIN]])
 })
 
 test('a reply not yet delivered changes nothing', () => {
-  const work = fold({
+  const session = fold({
     logs: { [W1]: file(...POSTED) },
     inbox: {
       [SENDER]: file([T0 + MIN, reply('r1', 'k1', 'yes')], [T0 + MIN, reply('r2', 'p1', 'pickup')]),
     },
   })
 
-  expect(work.asks.map(each => each.state)).toEqual(['waiting', 'waiting', 'waiting', 'waiting'])
-  expect(work.asks[0]?.answer).toBeUndefined()
-  expect(work.asks[0]?.replies.map(each => each.id)).toEqual(['r1'])
-  expect(work.parked.map(each => each.id)).toEqual(['p1'])
-  expect(work.waiting).toBe(4)
+  expect(session.asks.map(each => each.state)).toEqual(['waiting', 'waiting', 'waiting', 'waiting'])
+  expect(session.asks[0]?.answer).toBeUndefined()
+  expect(session.asks[0]?.replies.map(each => each.id)).toEqual(['r1'])
+  expect(session.parked.map(each => each.id)).toEqual(['p1'])
+  expect(session.waiting).toBe(4)
 })
 
-test('a reply sent from another work takes effect once its window writes the delivered mark', () => {
-  const work = fold({
+test('a reply sent from another session takes effect once its window writes the delivered mark', () => {
+  const session = fold({
     logs: { [W1]: file(...POSTED, [T0 + 5 * MIN, delivered('r1')]) },
     inbox: { [SENDER]: file([T0 + MIN, reply('r1', 'k1', 'yes')]) },
   })
 
-  expect(work.asks[0]).toMatchObject({ state: 'closed', closedAt: T0 + 5 * MIN })
-  expect(work.replies[0]).toMatchObject({
+  expect(session.asks[0]).toMatchObject({ state: 'closed', closedAt: T0 + 5 * MIN })
+  expect(session.replies[0]).toMatchObject({
     delivery: 'delivered',
     deliveredAt: T0 + 5 * MIN,
     by: SENDER,
@@ -360,22 +364,22 @@ test('a reply sent from another work takes effect once its window writes the del
 })
 
 test('a delivered mark read before the reply it names still delivers it', () => {
-  const work = fold({
+  const session = fold({
     logs: { [W1]: file(...POSTED, [T0 + MIN, delivered('r1')]) },
     inbox: { [SENDER]: file([T0 + 2 * MIN, reply('r1', 'k1', 'yes')]) },
   })
 
-  expect(work.asks[0]?.state).toBe('closed')
+  expect(session.asks[0]?.state).toBe('closed')
 })
 
-test('only a writer in the work can mark a reply delivered: a mark in an inbox is ignored', () => {
-  const work = fold({
+test('only a writer in the session can mark a reply delivered: a mark in an inbox is ignored', () => {
+  const session = fold({
     logs: { [W1]: file(...POSTED) },
     inbox: { [SENDER]: file([T0 + MIN, reply('r1', 'k1', 'yes')], [T0 + MIN, delivered('r1')]) },
   })
 
-  expect(work.asks[0]?.state).toBe('waiting')
-  expect(work.replies[0]?.delivery).not.toBe('delivered')
+  expect(session.asks[0]?.state).toBe('waiting')
+  expect(session.replies[0]?.delivery).not.toBe('delivered')
 })
 
 for (const [why, body] of [
@@ -389,21 +393,21 @@ for (const [why, body] of [
   ['a reply to no item', reply('r1', 'gone', 'yes')],
 ] as const) {
   test(`${why} fits nothing: it is neither kept nor sent`, () => {
-    const work = fold({
+    const session = fold({
       logs: { [W1]: file(...POSTED, [T0 + 2 * MIN, delivered('r1')]) },
       inbox: { [SENDER]: file([T0 + MIN, body]) },
       presence: { [W1]: seen(W1, NOW) },
     })
 
-    expect(work.replies).toEqual([])
-    expect(work.waiting).toBe(4)
-    expect(work.parked).toHaveLength(1)
-    expect(toDeliver(work, W1)).toEqual([])
+    expect(session.replies).toEqual([])
+    expect(session.waiting).toBe(4)
+    expect(session.parked).toHaveLength(1)
+    expect(toDeliver(session, W1)).toEqual([])
   })
 }
 
 test('a reply delivered after Claude closed the ask leaves it closed; a comment does not reopen it', () => {
-  const work = fold({
+  const session = fold({
     logs: {
       [W1]: file(
         ...POSTED,
@@ -414,16 +418,16 @@ test('a reply delivered after Claude closed the ask leaves it closed; a comment 
     inbox: { [SENDER]: file([T0 + MIN, reply('r1', 'k1', 'comment', { note: 'One more thing' })]) },
   })
 
-  expect(work.asks[0]).toMatchObject({
+  expect(session.asks[0]).toMatchObject({
     state: 'closed',
     closedAt: T0 + 2 * MIN,
     reason: 'Approved in the chat',
   })
-  expect(work.asks[0]?.answer).toBeUndefined()
+  expect(session.asks[0]?.answer).toBeUndefined()
 })
 
 test("Claude's resolve closes anything: a waiting ask, a replied one, a parked item", () => {
-  const work = fold({
+  const session = fold({
     logs: {
       [W1]: file(
         ...POSTED,
@@ -435,12 +439,12 @@ test("Claude's resolve closes anything: a waiting ask, a replied one, a parked i
     },
   })
 
-  expect(['k1', 'k3', 'p1'].map(id => work.items.get(id)?.state)).toEqual([
+  expect(['k1', 'k3', 'p1'].map(id => session.items.get(id)?.state)).toEqual([
     'closed',
     'closed',
     'closed',
   ])
-  expect(work.parked).toEqual([])
+  expect(session.parked).toEqual([])
 })
 
 test('waiting counts open asks with no delivered reply since they were opened or last reopened', () => {
@@ -462,10 +466,10 @@ test('waiting counts open asks with no delivered reply since they were opened or
   for (const [why, more, waiting, state] of steps) {
     lines.push(...more)
 
-    const work = fold({ logs: { [W1]: file(...lines) } })
+    const session = fold({ logs: { [W1]: file(...lines) } })
 
-    expect(work.waiting, why).toBe(waiting)
-    expect(work.asks[0]?.state, why).toBe(state)
+    expect(session.waiting, why).toBe(waiting)
+    expect(session.asks[0]?.state, why).toBe(state)
   }
 
   const reopened = fold({ logs: { [W1]: file(...lines) } }).asks[0]
@@ -476,20 +480,20 @@ test('waiting counts open asks with no delivered reply since they were opened or
 })
 
 test('a reopened parked item is parked again', () => {
-  const work = fold({
+  const session = fold({
     logs: {
       [W1]: file(...POSTED, ...sent(T0 + MIN, 'r1', 'p1', 'pickup'), [T0 + 2 * MIN, reopen('p1')]),
     },
   })
 
-  expect(work.parked.map(each => [each.id, each.state, each.answer])).toEqual([
+  expect(session.parked.map(each => [each.id, each.state, each.answer])).toEqual([
     ['p1', 'parked', undefined],
   ])
 })
 
 test("an ask's rule stands on its own: a closed ask stays as it is, whatever the verdict", () => {
-  const work = fold({ logs: { [W1]: file([T0, REVIEW], [T0 + MIN, resolve('k1')]) } })
-  const closed = work.asks[0]!
+  const session = fold({ logs: { [W1]: file([T0, REVIEW], [T0 + MIN, resolve('k1')]) } })
+  const closed = session.asks[0]!
 
   expect((['yes', 'comment', 'ignore'] as const).map(verdict => askAfter(closed, verdict))).toEqual(
     ['closed', 'closed', 'closed'],
@@ -518,23 +522,23 @@ for (const [why, presence, delivery] of [
   ],
   ['no window at all', {}, 'closed'],
 ] as const) {
-  test(`an undelivered reply to a work with ${why} is ${delivery}`, () => {
-    const work = inboxed(presence)
+  test(`an undelivered reply to a session with ${why} is ${delivery}`, () => {
+    const session = inboxed(presence)
 
-    expect(work.replies[0]?.delivery).toBe(delivery)
-    expect(work.isOpen).toBe(delivery === 'waiting')
+    expect(session.replies[0]?.delivery).toBe(delivery)
+    expect(session.isOpen).toBe(delivery === 'waiting')
   })
 }
 
 test('the window attached longest delivers, so two windows never both submit', () => {
-  const work = inboxed({
+  const session = inboxed({
     [W1]: beat(W1, { attachedAt: T0 + 5 * MIN, seenAt: NOW }),
     [W2]: beat(W2, { attachedAt: T0 + 2 * MIN, seenAt: NOW - MIN }),
   })
 
-  expect(work.deliverer).toBe(W2)
-  expect(toDeliver(work, W2).map(each => each.id)).toEqual(['r1'])
-  expect(toDeliver(work, W1)).toEqual([])
+  expect(session.deliverer).toBe(W2)
+  expect(toDeliver(session, W2).map(each => each.id)).toEqual(['r1'])
+  expect(toDeliver(session, W1)).toEqual([])
 })
 
 test('a window gone quiet or let go hands delivery to the next oldest; with none, no one delivers', () => {
@@ -559,7 +563,7 @@ test('windows attached at the same moment elect by writer, the same way in every
 })
 
 test('a delivered reply is never delivered again', () => {
-  const work = fold({
+  const session = fold({
     logs: { [W1]: file(...POSTED, [T0 + 2 * MIN, delivered('r1')]) },
     inbox: {
       [SENDER]: file(
@@ -570,12 +574,12 @@ test('a delivered reply is never delivered again', () => {
     presence: { [W1]: seen(W1, NOW) },
   })
 
-  expect(toDeliver(work, W1).map(each => each.id)).toEqual(['r2'])
+  expect(toDeliver(session, W1).map(each => each.id)).toEqual(['r2'])
 })
 
 test("Lee's message: one line per reply, in the spike's words, under From the board", () => {
-  const work = fold({ logs: { [W1]: file(...POSTED) } })
-  const message = boardMessage(work, [
+  const session = fold({ logs: { [W1]: file(...POSTED) } })
+  const message = boardMessage(session, [
     { item: 'k1', verdict: 'yes' },
     { item: 'k1', verdict: 'yes', note: 'Tighten the gutters' },
     { item: 'k3', verdict: 'yes' },
@@ -608,16 +612,16 @@ test("Lee's message: one line per reply, in the spike's words, under From the bo
 })
 
 test('the message leaves out replies that fit no item, and says which it carries; it is nothing when none fits', () => {
-  const work = fold({ logs: { [W1]: file(...POSTED) } })
+  const session = fold({ logs: { [W1]: file(...POSTED) } })
 
   expect(
-    boardMessage(work, [
+    boardMessage(session, [
       { item: 'gone', verdict: 'yes' },
       { item: 'k1', verdict: 'pickup' },
     ]),
   ).toBeUndefined()
   expect(
-    boardMessage(work, [
+    boardMessage(session, [
       { item: 'gone', verdict: 'yes' },
       { item: 'k1', verdict: 'yes' },
     ]),
@@ -628,9 +632,9 @@ test('the message leaves out replies that fit no item, and says which it carries
 })
 
 test("under its item, the board shows a yes in its button's words and a choice after an arrow, and a pick-up in its own words, a note by its first line", () => {
-  const work = fold({ logs: { [W1]: file(...POSTED) } })
-  const [review, decide] = work.asks
-  const parked = work.parked[0]!
+  const session = fold({ logs: { [W1]: file(...POSTED) } })
+  const [review, decide] = session.asks
+  const parked = session.parked[0]!
 
   expect(answerOf(review!, { item: 'k1', verdict: 'yes' })).toBe('→ Approve')
   expect(answerOf(decide!, { item: 'k2', verdict: 'choose', option: 'Forever' })).toBe('→ Forever')
@@ -661,9 +665,9 @@ test('replies sent into an inbox are delivered once every one is marked; until t
 })
 
 test('a reply the fold has not read yet is not delivered', () => {
-  const work = fold({ logs: { [W1]: file(...POSTED) }, presence: { [W1]: seen(W1, NOW) } })
+  const session = fold({ logs: { [W1]: file(...POSTED) }, presence: { [W1]: seen(W1, NOW) } })
 
-  expect(deliveryOf(work, ['r9'])).toBe('waiting')
+  expect(deliveryOf(session, ['r9'])).toBe('waiting')
 })
 
 /** An edit making k1, the review, a choice: a yes no longer fits it. */
@@ -674,18 +678,18 @@ const DECIDED: Body = {
 }
 
 test('a reply on its way whose item an edit changed past fitting goes void: a mark naming it changes nothing, and the item can be answered again', () => {
-  const work = fold({
+  const session = fold({
     logs: { [W1]: file(...POSTED, [T0 + 2 * MIN, DECIDED], [T0 + 3 * MIN, delivered('r1')]) },
     inbox: { [SENDER]: file([T0 + MIN, reply('r1', 'k1', 'yes')]) },
     presence: { [W1]: seen(W1, NOW) },
   })
 
-  expect(work.replies).toMatchObject([{ id: 'r1', delivery: 'void', voidedAt: T0 + 2 * MIN }])
-  expect(work.asks[0]?.state).toBe('waiting')
-  expect(work.asks[0]?.answer).toBeUndefined()
-  expect(work.waiting).toBe(4)
-  expect(toDeliver(work, W1)).toEqual([])
-  expect(deliveryOf(work, ['r1'])).toBe('void')
+  expect(session.replies).toMatchObject([{ id: 'r1', delivery: 'void', voidedAt: T0 + 2 * MIN }])
+  expect(session.asks[0]?.state).toBe('waiting')
+  expect(session.asks[0]?.answer).toBeUndefined()
+  expect(session.waiting).toBe(4)
+  expect(toDeliver(session, W1)).toEqual([])
+  expect(deliveryOf(session, ['r1'])).toBe('void')
 })
 
 test('a void reply stays void, though its item changes back; one delivered before the edit stays delivered', () => {
@@ -707,7 +711,7 @@ test('a void reply stays void, though its item changes back; one delivered befor
 })
 
 test('replies sent into an inbox are delivered once each is delivered or void; void when every one is', () => {
-  const work = fold({
+  const session = fold({
     logs: { [W1]: file(...POSTED, [T0 + 2 * MIN, DECIDED], [T0 + 3 * MIN, delivered('r2')]) },
     inbox: {
       [SENDER]: file([T0 + MIN, reply('r1', 'k1', 'yes')], [T0 + MIN, reply('r2', 'k4', 'yes')]),
@@ -715,11 +719,11 @@ test('replies sent into an inbox are delivered once each is delivered or void; v
     presence: { [W1]: seen(W1, NOW) },
   })
 
-  expect(deliveryOf(work, ['r1', 'r2'])).toBe('delivered')
-  expect(deliveryOf(work, ['r1'])).toBe('void')
+  expect(deliveryOf(session, ['r1', 'r2'])).toBe('delivered')
+  expect(deliveryOf(session, ['r1'])).toBe('void')
 })
 
-test("the lines recording the work's own replies are each reply and one mark; none once their ids are written", () => {
+test("the lines recording the session's own replies are each reply and one mark; none once their ids are written", () => {
   const replies = [
     { type: 'reply', id: 'r1', item: 'k1', verdict: 'yes' },
     { type: 'reply', id: 'r2', item: 'k4', verdict: 'ignore' },
@@ -737,13 +741,13 @@ test("the lines recording the work's own replies are each reply and one mark; no
 })
 
 test('the mark for inbox replies names those not marked yet, and is nothing once every one is', () => {
-  const work = fold({
+  const session = fold({
     logs: { [W1]: file(...POSTED, [T0 + 2 * MIN, delivered('r1')]) },
     inbox: {
       [SENDER]: file([T0 + MIN, reply('r1', 'k1', 'yes')], [T0 + MIN, reply('r2', 'k4', 'yes')]),
     },
   })
 
-  expect(deliveredMark(work, ['r1', 'r2'])).toEqual([delivered('r2')])
-  expect(deliveredMark(work, ['r1'])).toEqual([])
+  expect(deliveredMark(session, ['r1', 'r2'])).toEqual([delivered('r2')])
+  expect(deliveredMark(session, ['r1'])).toEqual([])
 })

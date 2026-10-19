@@ -1,6 +1,6 @@
 import { expect, test, tier } from 'claude-code/testing'
 import { file, note, W2 } from './support'
-import { PROMPT, SESSION, world } from './world'
+import { PROMPT, CONVERSATION, world } from './world'
 
 tier('user')
 
@@ -8,7 +8,7 @@ const CHANGED = 'The sitrep board changed since you last saw it. It now reads:'
 
 type World = ReturnType<typeof world>
 
-/** A piece of work started, and a way for a second window on it to write a note. */
+/** A session started, and a way for a second window on it to write a note. */
 async function begun(w: World) {
   const { paths } = await w.begin()
   const lines: Parameters<typeof file> = []
@@ -21,10 +21,10 @@ async function begun(w: World) {
   return { noteFromElsewhere }
 }
 
-test('with no work attached, a prompt takes nothing', async ($, on) => {
+test('with no session attached, a prompt takes nothing', async ($, on) => {
   world($, on)
 
-  await $.session.start(SESSION)
+  await $.session.start(CONVERSATION)
 
   expect((await $.prompt.submit(PROMPT)).context).toBeUndefined()
 })

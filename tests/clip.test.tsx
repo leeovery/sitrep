@@ -8,7 +8,7 @@ import type {
   UiScrollInput,
 } from 'claude-code'
 import { expect, test, tier } from 'claude-code/testing'
-import type { WorkMeta } from '../core'
+import type { SessionMeta } from '../core'
 import { stepOf, topShowing } from '../hooks/clip'
 import Measure from '../hooks/draw/measure'
 import { PANE } from '../hooks/pane'
@@ -34,7 +34,7 @@ const HEADER = 3
 const ROWS = 3
 
 /** Another session of the project, started in another window. */
-const LEDGER: WorkMeta = {
+const LEDGER: SessionMeta = {
   id: 'sr-1edger',
   name: 'Request ledger',
   summary: 'Request ledger, area by area',
@@ -50,7 +50,7 @@ const docked = (bodyRows: number): RenderPropsOf['Pane'] => ({
   scroll: { offset: 0, bodyRows },
 })
 
-/** The work begun, and Claude asking `count` reviews: their ids, as asked. */
+/** The session begun, and Claude asking `count` reviews: their ids, as asked. */
 const asked = async (w: World, count: number) => {
   await w.begin()
 
@@ -65,7 +65,7 @@ const asked = async (w: World, count: number) => {
   return ids
 }
 
-/** The work begun, Claude asking `count` reviews, and the board drawn: their ids, as asked. */
+/** The session begun, Claude asking `count` reviews, and the board drawn: their ids, as asked. */
 const asking = async (w: World, count: number, props = DOCKED) => ({
   ids: await asked(w, count),
   ui: await w.pane('terminal', props),
@@ -313,7 +313,7 @@ test('docked, each block of the list is measured by a Client spanning it, keyed 
   expect(new Set(keys).size).toBe(keys.length)
   expect(keys.slice(0, 3), 'the header unmeasured, the newest ask first').toEqual([
     'measure:context',
-    'measure:foryou',
+    'measure:asks',
     `measure:ask:${w.item(ids.at(-1) ?? '')}`,
   ])
   expect(keys.at(-1)).toBe('measure:end')
@@ -403,7 +403,7 @@ test("the wheel moves the list and holds the engine's window at the top", async 
 
   expect(await topOf(ui)).toBe(4)
   expect(w.state.scroll).toEqual({
-    place: { level: 'session', project: PROJECT.key, work: w.state.attachment?.work },
+    place: { level: 'session', project: PROJECT.key, session: w.state.attachment?.session },
     top: 4,
   })
   expect(moved.map(e => e.offset)).toEqual([0, 0, 0])
@@ -626,7 +626,7 @@ test(
 
     await ui.press({ key: 'tab:session' })
     await down()
-    await band.press({ key: 'band:for-you' })
+    await band.press({ key: 'band:asks' })
     expect(w.state.pane?.place ?? null, 'home already').toBeNull()
     expect(await settled(), 'home, by its count on the band, though the board was home').toBe(0)
 
@@ -744,7 +744,7 @@ test(
   },
 )
 
-test('replies sent into another work keep the box as tall as it draws, where they stand on its lines', async ($, on) => {
+test('replies sent into another session keep the box as tall as it draws, where they stand on its lines', async ($, on) => {
   const w = world($, on)
   const ledger = w.elsewhere(LEDGER)
 
@@ -768,7 +768,7 @@ test('replies sent into another work keep the box as tall as it draws, where the
   await expectHeightKept(ui, 'sent, on its way')
 })
 
-test("a project's view keys each ask by its work too, so two works' asks of one id never share a Client, a selection or a button", async ($, on) => {
+test("a project's view keys each ask by its session too, so two sessions' asks of one id never share a Client, a selection or a button", async ($, on) => {
   const w = world($, on)
   const ledger = w.elsewhere(LEDGER)
 
@@ -801,19 +801,19 @@ test("a project's view keys each ask by its work too, so two works' asks of one 
   expect(await ui.find({ key: `yes:${here}` }), 'only one opened at a time').toBeUndefined()
   await ui.press({ key: `yes:${there}` })
   expect(w.state.queue).toEqual([
-    { project: PROJECT.key, work: w.state.attachment?.work, item: 'k3', verdict: 'yes' },
-    { project: PROJECT.key, work: LEDGER.id, item: 'k3', verdict: 'yes' },
+    { project: PROJECT.key, session: w.state.attachment?.session, item: 'k3', verdict: 'yes' },
+    { project: PROJECT.key, session: LEDGER.id, item: 'k3', verdict: 'yes' },
   ])
 
   await ui.press({ key: `undo:${there}` })
   expect(w.state.queue, 'the ledger’s undone, this session’s kept').toEqual([
-    { project: PROJECT.key, work: w.state.attachment?.work, item: 'k3', verdict: 'yes' },
+    { project: PROJECT.key, session: w.state.attachment?.session, item: 'k3', verdict: 'yes' },
   ])
 
   await ui.press({ key: `yes:${there}` })
   await ui.press({ key: `unready:${here}` })
   expect(w.state.queue, 'out of Ready to send: this session’s, the ledger’s kept').toEqual([
-    { project: PROJECT.key, work: LEDGER.id, item: 'k3', verdict: 'yes' },
+    { project: PROJECT.key, session: LEDGER.id, item: 'k3', verdict: 'yes' },
   ])
 })
 

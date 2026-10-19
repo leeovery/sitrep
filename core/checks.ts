@@ -5,7 +5,7 @@
  * options, words what they are. A refusal says what to fix, in words Claude
  * can act on.
  */
-import { isWorkId, newItemId, type Random } from './ids'
+import { isSessionId, newItemId, type Random } from './ids'
 import { directoryOf, isNameable } from './project'
 import { WANTS } from './shapes'
 import type { StatusFields } from './status'
@@ -24,7 +24,7 @@ import {
   type ResolveBody,
   type StatusBody,
   type Wants,
-  type Work,
+  type Session,
 } from './types'
 
 export type Checked<T> = { ok: true; value: T } | { ok: false; error: string }
@@ -115,7 +115,7 @@ const SHAPE_RULES: readonly [breaks: (shape: Shape) => boolean, error: string][]
 /** Why a shape will not do; undefined when it will. */
 const misfitOf = (shape: Shape) => SHAPE_RULES.find(([breaks]) => breaks(shape))?.[1]
 
-/** A piece of work to start: its name and summary, and its project's name and directory. */
+/** A session to start: its name and summary, and its project's name and directory. */
 export type StartFields = { name: string; summary: string; project: string; directory?: string }
 
 /** What the project tool changes of a project: its name, its directory, or both. */
@@ -129,16 +129,16 @@ export const checkStart = (input: unknown): Checked<StartFields> => {
   const directory = directoryIn(fields.directory)
 
   if (name === undefined) {
-    return refuse('A piece of work needs a name: a few words.')
+    return refuse('A session needs a name: a few words.')
   }
 
   if (summary === undefined) {
-    return refuse('A piece of work needs a summary: one line on what it is for.')
+    return refuse('A session needs a summary: one line on what it is for.')
   }
 
   if (project === undefined) {
     return refuse(
-      'A piece of work needs its project: its name as Lee would say it, such as SitRep or Switchboard.',
+      'A session needs its project: its name as Lee would say it, such as SitRep or Switchboard.',
     )
   }
 
@@ -164,13 +164,13 @@ export const checkProject = (input: unknown): Checked<ProjectChange> => {
     : ok({ name, directory: directory.value })
 }
 
-/** The piece of work to join, by its id. */
-export const checkJoin = (input: unknown): Checked<{ work: string }> => {
-  const work = line(fieldsOf(input).work)
+/** The session to join, by its id. */
+export const checkJoin = (input: unknown): Checked<{ session: string }> => {
+  const session = line(fieldsOf(input).session)
 
-  return isWorkId(work)
-    ? ok({ work })
-    : refuse('Name the piece of work by the id start gave it: sr- and six characters.')
+  return isSessionId(session)
+    ? ok({ session })
+    : refuse('Name the session by the id start gave it: sr- and six characters.')
 }
 
 /** A status: what Claude gives replaces what it names, the rest stays as `current` has it; an empty `next` clears it. */
@@ -255,18 +255,18 @@ export const checkPark = (input: unknown): Checked<Omit<ParkBody, 'id'>> => {
     : ok({ type: 'park', title, where: line(fields.where), ref: line(fields.ref) })
 }
 
-/** A checked post given a fresh item id, unlike any its work uses. */
+/** A checked post given a fresh item id, unlike any its session uses. */
 export const withId = <T>(
   checked: Checked<T>,
-  work: Pick<Work, 'ids'>,
+  session: Pick<Session, 'ids'>,
   random: Random,
 ): Checked<T & { id: string }> =>
-  checked.ok ? ok({ ...checked.value, id: newItemId(random, work.ids) }) : checked
+  checked.ok ? ok({ ...checked.value, id: newItemId(random, session.ids) }) : checked
 
 /** The item `fields.item` names on the board, or a refusal. */
-const target = (work: Work, fields: Fields): Checked<Item> => {
+const target = (session: Session, fields: Fields): Checked<Item> => {
   const id = line(fields.item)
-  const item = id === undefined ? undefined : work.items.get(id)
+  const item = id === undefined ? undefined : session.items.get(id)
 
   if (id === undefined) {
     return refuse('Name the item by its id, as the board lists it.')
@@ -289,11 +289,11 @@ const ALREADY = {
 
 const closeOrOpen = <T extends keyof typeof ALREADY>(
   type: T,
-  work: Work,
+  session: Session,
   input: unknown,
 ): Checked<{ type: T; item: string; reason?: string }> => {
   const fields = fieldsOf(input)
-  const item = target(work, fields)
+  const item = target(session, fields)
   const already = ALREADY[type]
 
   if (!item.ok) {
@@ -305,11 +305,11 @@ const closeOrOpen = <T extends keyof typeof ALREADY>(
     : ok({ type, item: item.value.id, reason: line(fields.reason) })
 }
 
-export const checkResolve = (work: Work, input: unknown): Checked<ResolveBody> =>
-  closeOrOpen('resolve', work, input)
+export const checkResolve = (session: Session, input: unknown): Checked<ResolveBody> =>
+  closeOrOpen('resolve', session, input)
 
-export const checkReopen = (work: Work, input: unknown): Checked<ReopenBody> =>
-  closeOrOpen('reopen', work, input)
+export const checkReopen = (session: Session, input: unknown): Checked<ReopenBody> =>
+  closeOrOpen('reopen', session, input)
 
 /** A text as one line, empty where it comes to nothing: what an edit clears a field with. */
 const clearable = (value: unknown) => (typeof value === 'string' ? oneLine(value) : undefined)
@@ -382,7 +382,8 @@ const SHAPE_FIELDS: readonly (keyof Changes)[] = ['wants', 'yes', 'options', 'ne
 /**
  * An edit's changes as written. One changing the shape of an ask still read
  * from its kind says what it wants back, so it reads by its shape from then
- * on; any other keeps the kind, so the replies written to it keep their meaning.
+ * on; any other keeps the kind, so the replies written to it keep their
+ * meaning.
  */
 const written = (item: Item, changes: Changes): Changes =>
   item.type === 'ask' &&
@@ -391,9 +392,9 @@ const written = (item: Item, changes: Changes): Changes =>
     ? { wants: item.wants, ...changes }
     : changes
 
-export const checkEdit = (work: Work, input: unknown): Checked<EditBody> => {
+export const checkEdit = (session: Session, input: unknown): Checked<EditBody> => {
   const fields = fieldsOf(input)
-  const item = target(work, fields)
+  const item = target(session, fields)
 
   if (!item.ok) {
     return item
@@ -417,8 +418,12 @@ export const checkEdit = (work: Work, input: unknown): Checked<EditBody> => {
     : refuse(misfit)
 }
 
-/** Marks the piece of work done, by Lee or by Claude, with Claude's reason; refused once it is. */
-export const checkFinish = (work: Work, who: Finisher, input?: unknown): Checked<FinishBody> =>
-  work.finished === undefined
+/** Finishes the session, by Lee or by Claude, with Claude's reason; refused once it is. */
+export const checkFinish = (
+  session: Session,
+  who: Finisher,
+  input?: unknown,
+): Checked<FinishBody> =>
+  session.finished === undefined
     ? ok({ type: 'finish', who, reason: line(fieldsOf(input).reason) })
-    : refuse('This piece of work is already marked done.')
+    : refuse('This session is already finished.')

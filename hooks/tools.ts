@@ -1,10 +1,10 @@
 /**
- * Claude's tools: start or join a piece of work, then post to its board and
+ * Claude's tools: start or join a session, then post to its board and
  * read the board back, and name its project. Only the main conversation may
  * call them. An answer says what was done and names the item, and no more.
  *
  * The descriptions carry the board's wording rules, and load into every
- * session, so they stay short.
+ * conversation, so they stay short.
  */
 import type { ToolSpec } from 'claude-code'
 import {
@@ -22,16 +22,16 @@ import {
   checkStatus,
   itemTitle,
   metaText,
-  newWorkId,
+  newSessionId,
   projectNamed,
   reopenedText,
   withId,
   WANTS,
-  workPaths,
+  sessionPaths,
   type Body,
   type Checked,
   type Project,
-  type Work,
+  type Session,
 } from '../core'
 import type { SitrepAttachment } from '../types'
 import { lookAround } from './around'
@@ -42,7 +42,7 @@ import {
   projectFiling,
   projectKeys,
   readProjects,
-  workIdsIn,
+  sessionIdsIn,
 } from './projects'
 import { markSeen, postKnown } from './seen'
 import { attachTo, attached, refresh, serially } from './window'
@@ -67,10 +67,10 @@ const FOR_THE_REPORT =
   'Refused: only the main conversation writes to the sitrep board. Put this in your report instead, and the main conversation decides what reaches the board.'
 
 const NOT_ATTACHED =
-  'No piece of work is attached to this window: start one, or join one by its id, first.'
+  'No session is attached to this window: start one, or join one by its id, first.'
 
 const UNREADABLE =
-  "The attached piece of work's work.json is missing or torn, so its board cannot be read."
+  "The attached session's work.json is missing or torn, so its board cannot be read."
 
 const LINE =
   'One line in plain words, starting with the verb; no internal codes such as P- or D-numbers.'
@@ -80,12 +80,12 @@ const text = (description: string) => ({ type: 'string', description })
 const lines = (description: string) => ({ type: 'array', items: { type: 'string' }, description })
 
 const NAME = text('A few words.')
-const SUMMARY = text('One line: what the work is for.')
+const SUMMARY = text('One line: what the session is for.')
 const PROJECT = text(
   "The project's name as Lee would say it, cased: SitRep, Switchboard; never a slug. A project on the board by the name it has there.",
 )
 const DIRECTORY = text(
-  'Where the project lives, as an absolute path, once you know it: not the folder this session started in.',
+  'Where the project lives, as an absolute path, once you know it: not the folder this window started in.',
 )
 const ITEM = text('The item’s id, as the board lists it.')
 const REASON = text('Why, in a few words.')
@@ -120,9 +120,16 @@ const spec = <N extends string>(
   isDeferred: false,
 })
 
-/** A tool on the attached work, handed it folded as it stands, and where the window holds it. */
-const onWork =
-  (answer: (host: Host, work: Work, input: Fields, held: SitrepAttachment) => Promise<Answer>) =>
+/** A tool on the attached session, handed it folded as it stands, and where the window holds it. */
+const onSession =
+  (
+    answer: (
+      host: Host,
+      session: Session,
+      input: Fields,
+      held: SitrepAttachment,
+    ) => Promise<Answer>,
+  ) =>
   async (host: Host, input: Fields): Promise<Answer> => {
     const held = attached()
 
@@ -130,31 +137,31 @@ const onWork =
       return { deny: NOT_ATTACHED }
     }
 
-    const work = await refresh(host)
+    const session = await refresh(host)
 
-    return work === undefined ? { deny: UNREADABLE } : answer(host, work, input, held)
+    return session === undefined ? { deny: UNREADABLE } : answer(host, session, input, held)
   }
 
 /**
- * A tool that posts one line, checked from its input, to the attached work:
- * a line Claude knows of. `names` names what the line is about, in the work
- * as it stands after it.
+ * A tool that posts one line, checked from its input, to the attached
+ * session: a line Claude knows of. `names` names what the line is about, in
+ * the session as it stands after it.
  */
 const posting = <N extends string, B extends Body>(
   toolSpec: Spec<N>,
-  check: (work: Work, input: Fields) => Checked<B>,
+  check: (session: Session, input: Fields) => Checked<B>,
   said: (body: B) => string,
-  names: (work: Work, body: B) => string | undefined = () => undefined,
+  names: (session: Session, body: B) => string | undefined = () => undefined,
 ): Tool<N> => ({
   spec: toolSpec,
-  answer: onWork(async (host, work, input) => {
-    const checked = check(work, input)
+  answer: onSession(async (host, session, input) => {
+    const checked = check(session, input)
 
     if (!checked.ok) {
       return { deny: checked.error }
     }
 
-    const after = await postKnown(host, work, [checked.value])
+    const after = await postKnown(host, session, [checked.value])
 
     return {
       result: said(checked.value),
@@ -163,50 +170,50 @@ const posting = <N extends string, B extends Body>(
   }),
 })
 
-/** The title of the item a line is about, as a work has it. */
-const itemNamed = (work: Work, { item }: { item: string }) => itemTitle(work, item)
+/** The title of the item a line is about, as a session has it. */
+const itemNamed = (session: Session, { item }: { item: string }) => itemTitle(session, item)
 
 /**
- * Attaches the window to a work, and counts its board as seen: Claude gave
- * a work it starts all it holds, and a join answers with the board. A work
- * other than the one held brings the board home to it, and the works around
- * it are read.
+ * Attaches the window to a session, and counts its board as seen: Claude
+ * gave a session it starts all it holds, and a join answers with the board.
+ * A session other than the one held brings the board home to it, and the
+ * sessions around it are read.
  */
 const attachKnown = async (host: Host, root: string, attaching: SitrepAttachment) => {
-  const before = attached()?.work
-  const work = await attachTo(host, root, attaching)
+  const before = attached()?.session
+  const session = await attachTo(host, root, attaching)
 
-  if (work !== undefined) {
-    await markSeen(host, work)
+  if (session !== undefined) {
+    await markSeen(host, session)
   }
 
-  if (attaching.work !== before) {
+  if (attaching.session !== before) {
     await host.state.pane.update(pane => ({ ...pane, place: null, selected: null }))
   }
 
   await lookAround(host)
 
-  return work
+  return session
 }
 
-/** What a join writes to a finished work: it is taken up again. */
+/** What a join writes to a finished session: it is taken up again. */
 const UNFINISH: Body = { type: 'unfinish' }
 
-/** A joined work reopened when it was finished, and what the join says of that. */
-const reopening = async (host: Host, work: Work) => {
-  if (work.finished === undefined) {
-    return { work, said: '' }
+/** A joined session reopened when it was finished, and what the join says of that. */
+const reopening = async (host: Host, session: Session) => {
+  if (session.finished === undefined) {
+    return { session, said: '' }
   }
 
-  const reopened = await postKnown(host, work, [UNFINISH])
+  const reopened = await postKnown(host, session, [UNFINISH])
 
-  return { work: reopened ?? work, said: ` ${reopenedText(work.finished)}` }
+  return { session: reopened ?? session, said: ` ${reopenedText(session.finished)}` }
 }
 
 const start: Tool<'start'> = {
   spec: spec(
     'start',
-    'Start a piece of work on the sitrep board, where Lee sees where work stands and what waits on Lee, in the project it is on: the one being discussed, not the folder this session started in. A project on the board whose name matches, case, spaces and punctuation aside, takes it; else a new project is made. Returns the work id: record it wherever the project tracks the work (design doc, plan, memory), so a later window can join it.',
+    'Start a session on the sitrep board, where Lee sees where each session stands and what waits on Lee, in the project it is on: the one being discussed, not the folder this window started in. A project on the board whose name matches, case, spaces and punctuation aside, takes it; else a new project is made. Returns the session id: record it wherever the project tracks the work (design doc, plan, memory), so a later window can join it.',
     { name: NAME, summary: SUMMARY, project: PROJECT, directory: DIRECTORY },
     ['name', 'summary', 'project'],
   ),
@@ -217,18 +224,18 @@ const start: Tool<'start'> = {
       return { deny: checked.error }
     }
 
-    const { project: name, directory, ...work } = checked.value
+    const { project: name, directory, ...session } = checked.value
     const { root, cwd, writer } = await bearingsOf(host)
     const created = await host.clock.now()
     const keys = await projectKeys(host, root)
     const filing = await filingFor(host, root, keys, { name, directory, created, by: writer })
     const { key } = filing.project
-    const id = newWorkId(random, await workIdsIn(host, root, keys))
-    const meta = { id, ...work, project: filing.project.name, root: cwd, created, by: writer }
+    const id = newSessionId(random, await sessionIdsIn(host, root, keys))
+    const meta = { id, ...session, project: filing.project.name, root: cwd, created, by: writer }
 
-    await host.fs.write(workPaths(root, key, id).meta, metaText(meta))
+    await host.fs.write(sessionPaths(root, key, id).meta, metaText(meta))
 
-    await attachKnown(host, root, { project: key, work: id, writer, attachedAt: created })
+    await attachKnown(host, root, { project: key, session: id, writer, attachedAt: created })
 
     return {
       result: `Started ${meta.name} as ${id}, ${filing.said}. Record ${id} wherever the project tracks this work, so a later window can join it.`,
@@ -239,9 +246,9 @@ const start: Tool<'start'> = {
 const join: Tool<'join'> = {
   spec: spec(
     'join',
-    'Join a piece of work on the sitrep board by its id: after a /clear, or from a second window. A resumed session takes its work up again by itself. Joining a finished piece of work reopens it. Returns the board as it stands.',
-    { work: text('The work id: sr- and six characters.') },
-    ['work'],
+    'Join a session on the sitrep board by its id: after a /clear, or from a second window. A resumed conversation takes its session up again by itself. Joining a finished session reopens it. Returns the board as it stands.',
+    { session: text('The session id: sr- and six characters.') },
+    ['session'],
   ),
   answer: async (host, input) => {
     const checked = checkJoin(input)
@@ -250,26 +257,26 @@ const join: Tool<'join'> = {
       return { deny: checked.error }
     }
 
-    const { work: id } = checked.value
+    const { session: id } = checked.value
     const { root, writer } = await bearingsOf(host)
     const project = await projectFiling(host, root, id)
 
     if (project === undefined) {
-      return { deny: `There is no piece of work ${id} on the board, in any project.` }
+      return { deny: `There is no session ${id} on the board, in any project.` }
     }
 
     const attachedAt = await host.clock.now()
-    const work = await attachKnown(host, root, { project, work: id, writer, attachedAt })
+    const session = await attachKnown(host, root, { project, session: id, writer, attachedAt })
 
-    if (work === undefined) {
+    if (session === undefined) {
       return { deny: UNREADABLE }
     }
 
-    const joined = await reopening(host, work)
+    const joined = await reopening(host, session)
 
     return {
-      result: `Joined ${work.status.name} (${id}).${joined.said} Correct anything on it that is stale against what you know. The board as it stands:\n${boardText(joined.work)}`,
-      names: joined.work.status.name,
+      result: `Joined ${session.status.name} (${id}).${joined.said} Correct anything on it that is stale against what you know. The board as it stands:\n${boardText(joined.session)}`,
+      names: joined.session.status.name,
     }
   },
 }
@@ -284,10 +291,10 @@ const changedText = (before: Project, after: Project) =>
 const project: Tool<'project'> = {
   spec: spec(
     'project',
-    "Rename the attached piece of work's project, or say where the project lives, or both. It never moves a piece of work to another project.",
+    "Rename the attached session's project, or say where the project lives, or both. It never moves a session to another project.",
     { name: PROJECT, directory: DIRECTORY },
   ),
-  answer: onWork(async (host, work, input, held) => {
+  answer: onSession(async (host, session, input, held) => {
     const checked = checkProject(input)
 
     if (!checked.ok) {
@@ -298,7 +305,7 @@ const project: Tool<'project'> = {
     const projects = await readProjects(host, root, await projectKeys(host, root))
     const before = projects.find(each => each.key === held.project) ?? {
       key: held.project,
-      name: work.project,
+      name: session.project,
     }
     const { name } = checked.value
     const others = projects.filter(each => each.key !== held.project)
@@ -306,7 +313,7 @@ const project: Tool<'project'> = {
 
     if (other !== undefined) {
       return {
-        deny: `Another project is already named ${other.name}. This renames the attached work's project; it moves no work to another.`,
+        deny: `Another project is already named ${other.name}. This renames the attached session's project; it moves no session to another.`,
       }
     }
 
@@ -325,10 +332,10 @@ const board: Tool<'board'> = {
     'board',
     'Read the board back: the status, open asks, parked items and latest notes, with their ids, to check against what you know and repair.',
   ),
-  answer: onWork(async (host, work) => {
-    await markSeen(host, work)
+  answer: onSession(async (host, session) => {
+    await markSeen(host, session)
 
-    return { result: boardText(work) }
+    return { result: boardText(session) }
   }),
 }
 
@@ -338,7 +345,7 @@ const TOOLS = [
   posting(
     spec(
       'status',
-      'Set where the work stands, giving only what changed. The board logs the change itself: do nothing extra for it.',
+      'Set where the session stands, giving only what changed. The board logs the change itself: do nothing extra for it.',
       {
         name: NAME,
         summary: SUMMARY,
@@ -346,7 +353,7 @@ const TOOLS = [
         next: text('What comes next, in one line; "" clears it.'),
       },
     ),
-    (work, input) => checkStatus(input, work.status),
+    (session, input) => checkStatus(input, session.status),
     () => 'Status set.',
   ),
   posting(
@@ -364,7 +371,7 @@ const TOOLS = [
       },
       ['wants', 'title'],
     ),
-    (work, input) => withId(checkAsk(input), work, random),
+    (session, input) => withId(checkAsk(input), session, random),
     ({ id }) => `Posted ask ${id}.`,
   ),
   posting(
@@ -374,7 +381,7 @@ const TOOLS = [
       { text: text(LINE), detail: DETAIL, ref: REF },
       ['text'],
     ),
-    (work, input) => withId(checkNote(input), work, random),
+    (session, input) => withId(checkNote(input), session, random),
     ({ id }) => `Logged note ${id}.`,
   ),
   posting(
@@ -384,7 +391,7 @@ const TOOLS = [
       { title: text(LINE), where: WHERE, ref: REF },
       ['title'],
     ),
-    (work, input) => withId(checkPark(input), work, random),
+    (session, input) => withId(checkPark(input), session, random),
     ({ id }) => `Parked ${id}.`,
   ),
   posting(
@@ -430,12 +437,12 @@ const TOOLS = [
   posting(
     spec(
       'finish',
-      "Mark the attached piece of work done, when it is complete and nothing is left on it. It leaves the board's views, and its open asks stop counting.",
+      "Finish the attached session, when it is complete and nothing is left on it. It leaves the board's views, and its open asks stop counting.",
       { reason: REASON },
     ),
-    (work, input) => checkFinish(work, 'claude', input),
-    () => 'Marked done. This window stays attached; joining the work again reopens it.',
-    work => work.status.name,
+    (session, input) => checkFinish(session, 'claude', input),
+    () => 'Finished. This window stays attached; joining the session again reopens it.',
+    session => session.status.name,
   ),
   project,
   board,
@@ -457,7 +464,7 @@ export const toolNamed = (tool: string) => TOOLS.find(each => nameOf(each) === t
 
 export const SPECS = TOOLS.map(tool => tool.spec)
 
-/** The latest calls whose names are kept: `$.state` lasts the session, and an older row falls back to the held work. */
+/** The latest calls whose names are kept: `$.state` lasts as long as the window, and an older row falls back to the held session. */
 export const NAMES_KEPT = 300
 
 /** Keeps the name a call's row gives what it named, so the row keeps it as the window moves on. */

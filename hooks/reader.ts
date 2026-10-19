@@ -1,8 +1,8 @@
 /**
- * Reading a piece of work's files, and its project's. A mod cannot watch
- * files, so each read lists the work's folders and its project's, and reads
+ * Reading a session's files, and its project's. A mod cannot watch files,
+ * so each read lists the session's folders and its project's, and reads
  * again only a file whose size or time moved since it was last read. Also
- * the folders sitrep files works under, a file's text where it is there,
+ * the folders sitrep files sessions under, a file's text where it is there,
  * and a file the window writes itself, as it stands.
  */
 import type { FsEntry } from 'claude-code'
@@ -12,13 +12,13 @@ import {
   PRESENCE_SUFFIX,
   PROJECT_FILE,
   writerOf,
-  type WorkFiles,
-  type WorkPaths,
+  type SessionFiles,
+  type SessionPaths,
 } from '../core'
 import type { Host } from './host'
 
-/** A work's files as they stand, each read again only once it changed. */
-export type Reader = (host: Host, paths: WorkPaths) => Promise<WorkFiles>
+/** A session's files as they stand, each read again only once it changed. */
+export type Reader = (host: Host, paths: SessionPaths) => Promise<SessionFiles>
 
 /** A file's text, and the size and time it had when read. */
 type Held = { size: number; mtimeMs: number; text: string }
@@ -41,7 +41,7 @@ export const ownText = async (host: Host, path: string) =>
   (await host.fs.exists(path)) ? host.fs.read(path) : ''
 
 /**
- * A subfolder's entries, listed only once the work's own listing shows it:
+ * A subfolder's entries, listed only once the session's own listing shows it:
  * an inbox is not there before its first letter, and a listing that fails
  * is a line in the debug log at every look.
  */

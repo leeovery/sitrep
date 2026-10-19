@@ -14,7 +14,7 @@ import type { Random } from '../core'
 /** A folder's entry, as its listing gives it. */
 export type Listed = { name: string; kind: 'file' | 'dir' }
 
-export type Env = { XDG_STATE_HOME?: string; HOME?: string; SITREP_WORK?: string }
+export type Env = { XDG_STATE_HOME?: string; HOME?: string; SITREP_SESSION?: string }
 
 /** How a program ran: its exit code, whatever it was, and what it printed. */
 export type Ran = { exitCode: number; stdout: string; stderr: string }

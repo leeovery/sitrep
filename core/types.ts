@@ -1,6 +1,6 @@
 /**
  * The board's nouns as data: what each line of a writer's file holds, and
- * what a piece of work folds to once every writer's lines are read together.
+ * what a session folds to once every writer's lines are read together.
  */
 
 /**
@@ -20,8 +20,8 @@ export type AskKind = 'review' | 'decide' | 'try' | 'do'
 export type Verdict = 'yes' | 'choose' | 'answer' | 'comment' | 'ignore' | 'pickup'
 
 /**
- * Where a reply stands: Claude has it; it goes in when its work's window
- * ends its turn; no window has the work, so it waits for one to join; or
+ * Where a reply stands: Claude has it; it goes in when its session's window
+ * ends its turn; no window has the session, so it waits for one to join; or
  * its item changed under it before it went in, so it goes nowhere.
  */
 export type Delivery = 'delivered' | 'waiting' | 'closed' | 'void'
@@ -110,13 +110,13 @@ export type ReplyBody = {
 
 export type DeliveredBody = { type: 'delivered'; replies: string[] }
 
-/** Who marked a piece of work done: Lee, from the board, or Claude. */
+/** Who finished a session: Lee, from the board, or Claude. */
 export type Finisher = 'lee' | 'claude'
 
-/** Marks the piece of work done: Lee or Claude, with why. */
+/** Finishes the session: Lee or Claude, with why. */
 export type FinishBody = { type: 'finish'; who: Finisher; reason?: string }
 
-/** Takes a finished piece of work up again: a window joined it. */
+/** Takes a finished session up again: a window joined it. */
 export type UnfinishBody = { type: 'unfinish' }
 
 /** What one line of a writer's file says. */
@@ -137,7 +137,7 @@ export type Body =
 /** A line as written: its body, stamped with the format's version, the time and the writer's own count. */
 export type Entry = Body & { v: number; at: number; seq: number }
 
-/** Where a piece of work stands, as its latest status says, and who said it when. */
+/** Where a session stands, as its latest status says, and who said it when. */
 export type Status = {
   name: string
   summary: string
@@ -226,7 +226,7 @@ export type LogLine = {
   id?: string
 }
 
-/** A piece of work marked done: when, by which writer, and whether Lee or Claude, with why. */
+/** A finished session: when, by which writer, and whether Lee or Claude, with why. */
 export type Finished = {
   at: number
   by: string
@@ -244,7 +244,7 @@ export type Where = {
   tmux?: { socket: string; pane: string }
 }
 
-/** A window's heartbeat on a piece of work; `leftAt` once it has let go, and `where` the window is, as far as it is known. */
+/** A window's heartbeat on a session; `leftAt` once it has let go, and `where` the window is, as far as it is known. */
 export type Presence = {
   writer: string
   attachedAt: number
@@ -253,10 +253,10 @@ export type Presence = {
   where?: Where
 }
 
-/** A piece of work as it stands, every writer's lines read together. */
-export type Work = {
+/** A session as it stands, every writer's lines read together. */
+export type Session = {
   id: string
-  /** The project's name, as its file has it, else as the work recorded it, first letter a capital. */
+  /** The project's name, as its file has it, else as the session recorded it, first letter a capital. */
   project: string
   root: string
   created: number
@@ -276,12 +276,12 @@ export type Work = {
   isOpen: boolean
   /** The window that submits inbox replies: the oldest live presence. */
   deliverer?: string
-  /** Asks waiting on Lee; none once the work is finished. */
+  /** Asks waiting on Lee; none once the session is finished. */
   waiting: number
-  /** Set once the work is marked done, until a window joins it again. */
+  /** Set once the session is finished, until a window joins it again. */
   finished?: Finished
-  /** Every id the work's lines use, items and replies alike. */
+  /** Every id the session's lines use, items and replies alike. */
   ids: ReadonlySet<string>
-  /** The latest line's time, or when the work was started. */
+  /** The latest line's time, or when the session was started. */
   updatedAt: number
 }

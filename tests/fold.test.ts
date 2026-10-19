@@ -1,5 +1,5 @@
 import { expect, test } from 'claude-code/testing'
-import { foldWork, serialise, VERSION } from '../core'
+import { foldSession, serialise, VERSION } from '../core'
 import {
   choiceAsk,
   CLI,
@@ -65,9 +65,9 @@ test('the latest status across writers wins, whoever wrote it', () => {
     [W2]: file([T0 + 3 * MIN, status(['Drawing Usage, round 2'], { next: 'Usage, round 3' })]),
     [CLI]: file([T0 + 2 * MIN, status(['Generating frames'])]),
   }
-  const work = fold({ logs })
+  const session = fold({ logs })
 
-  expect(work.status).toEqual({
+  expect(session.status).toEqual({
     name: 'Dashboard redesign',
     summary: 'Redesign the dashboard, area by area in Paper',
     now: ['Drawing Usage, round 2'],
@@ -77,11 +77,11 @@ test('the latest status across writers wins, whoever wrote it', () => {
   })
 })
 
-test('with no status yet, the work stands as it was started', () => {
-  const work = fold({ logs: {} })
+test('with no status yet, the session stands as it was started', () => {
+  const session = fold({ logs: {} })
 
-  expect(work.status).toMatchObject({ name: 'Dashboard redesign', now: [], at: T0, by: W1 })
-  expect(work.updatedAt).toBe(T0)
+  expect(session.status).toMatchObject({ name: 'Dashboard redesign', now: [], at: T0, by: W1 })
+  expect(session.updatedAt).toBe(T0)
 })
 
 test('the first line to use an id keeps it', () => {
@@ -92,10 +92,10 @@ test('the first line to use an id keeps it', () => {
       [T0 + 3 * MIN, park('k3f9', 'A clashing park')],
     ),
   }
-  const work = fold({ logs })
+  const session = fold({ logs })
 
-  expect([...work.items.values()].map(item => item.type)).toEqual(['ask'])
-  expect(work.log).toEqual([])
+  expect([...session.items.values()].map(item => item.type)).toEqual(['ask'])
+  expect(session.log).toEqual([])
 })
 
 test("an edit changes only its item's own fields, and the log shows a note as edited", () => {
@@ -117,18 +117,18 @@ test("an edit changes only its item's own fields, and the log shows a note as ed
       ],
     ),
   }
-  const work = fold({ logs })
-  const edited = work.items.get('k3f9')
+  const session = fold({ logs })
+  const edited = session.items.get('k3f9')
 
   expect(edited).toMatchObject({ title: 'Review round 2', editedAt: T0 + 3 * MIN })
   expect(edited).not.toHaveProperty('text')
-  expect(work.log[0]).toMatchObject({
+  expect(session.log[0]).toMatchObject({
     kind: 'note',
     id: 'n4m5',
     text: 'PR #82 merged',
     at: T0 + 2 * MIN,
   })
-  expect(work.items.get('n4m5')).toMatchObject({ reason: 'Wrong number' })
+  expect(session.items.get('n4m5')).toMatchObject({ reason: 'Wrong number' })
 })
 
 test('an ask edited to want something other than a choice keeps no options', () => {
@@ -181,7 +181,7 @@ test('changes to an item no line posted change nothing', () => {
 })
 
 test('an inbox holds only replies: anything else a sender wrote there is ignored', () => {
-  const work = fold({
+  const session = fold({
     logs: { [W1]: file([T0 + 1 * MIN, yesAsk('k3f9', 'Review round 1')]) },
     inbox: {
       [SENDER]: file(
@@ -192,13 +192,13 @@ test('an inbox holds only replies: anything else a sender wrote there is ignored
     },
   })
 
-  expect([...work.items.keys()]).toEqual(['k3f9'])
-  expect(work.asks[0]?.state).toBe('waiting')
-  expect(work.status.now).toEqual([])
+  expect([...session.items.keys()]).toEqual(['k3f9'])
+  expect(session.asks[0]?.state).toBe('waiting')
+  expect(session.status.now).toEqual([])
 })
 
-test('the work knows every id its lines use, items and replies alike', () => {
-  const work = fold({
+test('the session knows every id its lines use, items and replies alike', () => {
+  const session = fold({
     logs: {
       [W1]: file(
         [T0 + 1 * MIN, yesAsk('k3f9', 'Review round 1')],
@@ -211,17 +211,17 @@ test('the work knows every id its lines use, items and replies alike', () => {
     },
   })
 
-  expect([...work.ids].sort()).toEqual(['k3f9', 'n4m5', 'p1q2', 'r7x2'])
-  expect(work.updatedAt).toBe(T0 + 4 * MIN)
+  expect([...session.ids].sort()).toEqual(['k3f9', 'n4m5', 'p1q2', 'r7x2'])
+  expect(session.updatedAt).toBe(T0 + 4 * MIN)
 })
 
-test('a work whose work.json is missing or torn does not fold', () => {
-  expect(foldWork({ meta: '', logs: {} }, T0)).toBeUndefined()
-  expect(foldWork({ meta: '{"v":1,"id":"sr-k3f9', logs: {} }, T0)).toBeUndefined()
+test('a session whose work.json is missing or torn does not fold', () => {
+  expect(foldSession({ meta: '', logs: {} }, T0)).toBeUndefined()
+  expect(foldSession({ meta: '{"v":1,"id":"sr-k3f9', logs: {} }, T0)).toBeUndefined()
 })
 
-test('a finish marks the work done, by whom and why; its waiting asks stop counting, and later lines leave it done', () => {
-  const work = fold({
+test('a finish finishes the session, by whom and why; its waiting asks stop counting, and later lines leave it finished', () => {
+  const session = fold({
     logs: {
       [W1]: file(
         [T0 + 1 * MIN, yesAsk('k3f9', 'Review round 1')],
@@ -231,30 +231,30 @@ test('a finish marks the work done, by whom and why; its waiting asks stop count
     },
   })
 
-  expect(work.finished).toEqual({ at: T0 + 2 * MIN, by: W1, who: 'claude', reason: 'Shipped' })
-  expect(work.asks.map(each => each.state)).toEqual(['waiting', 'waiting'])
-  expect(work.waiting).toBe(0)
+  expect(session.finished).toEqual({ at: T0 + 2 * MIN, by: W1, who: 'claude', reason: 'Shipped' })
+  expect(session.asks.map(each => each.state)).toEqual(['waiting', 'waiting'])
+  expect(session.waiting).toBe(0)
 })
 
-test('an unfinish takes a finished work up again, its waiting asks counting once more', () => {
-  const work = fold({
+test('an unfinish takes a finished session up again, its waiting asks counting once more', () => {
+  const session = fold({
     logs: {
       [W1]: file([T0 + 1 * MIN, yesAsk('k3f9', 'Review round 1')], [T0 + 2 * MIN, finish('lee')]),
       [W2]: file([T0 + 3 * MIN, unfinish()]),
     },
   })
 
-  expect(work.finished).toBeUndefined()
-  expect(work.waiting).toBe(1)
+  expect(session.finished).toBeUndefined()
+  expect(session.waiting).toBe(1)
 })
 
 test('a finish in the inbox, or by a finisher the format does not know, finishes nothing', () => {
-  const work = fold({
+  const session = fold({
     logs: {
       [W1]: `${JSON.stringify({ v: VERSION, at: T0 + MIN, seq: 1, type: 'finish', who: 'cli' })}\n`,
     },
     inbox: { [SENDER]: file([T0 + 2 * MIN, finish('lee')]) },
   })
 
-  expect(work.finished).toBeUndefined()
+  expect(session.finished).toBeUndefined()
 })

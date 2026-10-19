@@ -111,9 +111,9 @@ test('the board logs status changes itself as it folds, comparing each with the 
     ),
     [W2]: file([T0 + 5 * MIN, status([REVIEWING, DRAWING])]),
   }
-  const work = fold({ logs })
+  const session = fold({ logs })
 
-  expect(work.log.map(line => [line.kind, line.text, line.at, line.by])).toEqual([
+  expect(session.log.map(line => [line.kind, line.text, line.at, line.by])).toEqual([
     ['status', 'Status: now also drawing Usage, round 2', T0 + 5 * MIN, W2],
     ['note', 'Sessions & Runway drawn', T0 + 4 * MIN, W1],
     [
@@ -123,7 +123,7 @@ test('the board logs status changes itself as it folds, comparing each with the 
       W1,
     ],
   ])
-  expect(work.log.filter(line => line.kind === 'status').map(line => line.id)).toEqual([
+  expect(session.log.filter(line => line.kind === 'status').map(line => line.id)).toEqual([
     undefined,
     undefined,
   ])
@@ -135,7 +135,7 @@ test('the board logs status changes itself as it folds, comparing each with the 
   ])
 })
 
-test("a work's first status is compared with the work as it was started", () => {
+test("a session's first status is compared with the session as it was started", () => {
   const renamed = fold({
     logs: { [W1]: file([T0 + MIN, status([], { name: 'Dashboard, round 2' })]) },
   })

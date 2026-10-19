@@ -403,7 +403,7 @@ export const drawRow = (
   )
 }
 
-/** The reply an item waits on Claude with: sent from a board into its work's inbox, not delivered yet. */
+/** The reply an item waits on Claude with: sent from a board into its session's inbox, not delivered yet. */
 export const onItsWay = (item: Ask | Parked) => item.replies.findLast(isPending)
 
 /**
@@ -459,7 +459,7 @@ export const answeringOf = (
     ? undefined
     : {
         project: at.project,
-        work: at.work,
+        session: at.session,
         item: at.item,
         as,
         title: item.title,
@@ -474,7 +474,7 @@ export const ANSWERING = 'answering in the prompt…'
 export const isBeingAnswered = (d: Drawing, at: SitrepItemRef) => {
   const answering = answeringIn(d.scene, d.surface)?.answering
 
-  return answering?.work === at.work && answering.item === at.item
+  return answering?.session === at.session && answering.item === at.item
 }
 
 /** The button that has the next Enter in the prompt write to an item; none on a surface Lee cannot write back from. */
@@ -537,7 +537,7 @@ export const drawRewrite = (d: Drawing, key: string, item: Ask | Parked, queued:
 export const drawQueued = (d: Drawing, item: Ask | Parked, queued: SitrepQueued) => {
   const { Box, Text, Button } = d.els
   const isOnItsWay = isCarried(d.scene.inFlight, queued)
-  const key = itemKey(queued.work, queued.item)
+  const key = itemKey(queued.session, queued.item)
 
   return drawReplyRow(
     d,
@@ -551,7 +551,7 @@ export const drawQueued = (d: Drawing, item: Ask | Parked, queued: SitrepQueued)
           plain
           dimColor
           label="↺ undo"
-          onPress={() => d.act.unqueue(queued.work, queued.item)}
+          onPress={() => d.act.unqueue(queued.session, queued.item)}
         />
       )}
       {!isOnItsWay && drawRewrite(d, `rewrite:${key}`, item, queued)}

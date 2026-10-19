@@ -8,7 +8,7 @@ tier('user')
 
 type World = ReturnType<typeof world>
 
-/** Another piece of work Claude starts in the session, which the window then holds. */
+/** Another session Claude starts in the conversation, which the window then holds. */
 const USAGE = { name: 'Usage page', summary: 'Draw the usage page', project: PROJECT.name }
 
 const SURFACES = ['terminal', 'desktop', 'vscode', 'mobile'] as const
@@ -85,7 +85,7 @@ const LINES: [tool: string, input: { [key: string]: unknown }, line: string][] =
   ],
   ['note', { text: 'PR #82 merged' }, 'logged: PR #82 merged'],
   ['park', { title: 'A tmux indicator' }, '◇ parked: A tmux indicator'],
-  ['finish', { reason: 'Shipped' }, '✓ finished a piece of work'],
+  ['finish', { reason: 'Shipped' }, '✓ finished a session'],
   ['project', { name: 'SitRep' }, 'project renamed: SitRep'],
   ['project', { directory: '/Users/lee/sitrep' }, 'project lives in /Users/lee/sitrep'],
   [
@@ -111,7 +111,7 @@ test("each of Claude's sitrep calls is one dim line saying what it did, on every
   }
 })
 
-test('a call naming an item or a work, with no name kept, names it as the held work has it', async ($, on) => {
+test('a call naming an item or a session, with no name kept, names it as the held session has it; an older join, by its work', async ($, on) => {
   const w = world($, on)
 
   engineRows(on)
@@ -125,8 +125,9 @@ test('a call naming an item or a work, with no name kept, names it as the held w
     ['resolve', { item: asked }, 'resolved: Review round 1'],
     ['reopen', { item: asked }, 'reopened: Review round 1'],
     ['edit', { item: 'zzzz', title: 'x' }, 'edited: an item'],
+    ['join', { session: id }, 'joined: Dashboard redesign'],
     ['join', { work: id }, 'joined: Dashboard redesign'],
-    ['join', { work: 'sr-zzzzzz' }, 'joined a piece of work'],
+    ['join', { session: 'sr-zzzzzz' }, 'joined a session'],
     ['finish', {}, '✓ finished: Dashboard redesign'],
   ]
 
@@ -138,7 +139,7 @@ test('a call naming an item or a work, with no name kept, names it as the held w
   }
 })
 
-test("a resolve, reopen or edit row keeps its item's title after Claude joins another work", async ($, on) => {
+test("a resolve, reopen or edit row keeps its item's title after Claude joins another session", async ($, on) => {
   const w = world($, on)
 
   engineRows(on)
@@ -160,7 +161,7 @@ test("a resolve, reopen or edit row keeps its item's title after Claude joins an
 
   const other = startedId(await w.call('start', USAGE))
 
-  await w.call('join', { work: other })
+  await w.call('join', { session: other })
 
   for (const { call, tool, input, line } of kept) {
     expect(await drawnLine($, call, tool, input, line), tool).toBeDefined()
@@ -184,20 +185,20 @@ test("an edit's row names the item's title as the edit left it", async ($, on) =
   expect(await drawnLine($, edited, 'edit', input, 'edited: Review round 2')).toBeDefined()
 })
 
-test("a join row and a finish row keep the work's name after a later join", async ($, on) => {
+test("a join row and a finish row keep the session's name after a later join", async ($, on) => {
   const w = world($, on)
 
   engineRows(on)
 
   const { id } = await w.begin()
   const other = startedId(await w.call('start', USAGE))
-  const joined = await keeping(w, 'join', { work: id })
+  const joined = await keeping(w, 'join', { session: id })
   const finished = await keeping(w, 'finish', { reason: 'Shipped' })
 
-  await w.call('join', { work: other })
+  await w.call('join', { session: other })
 
   expect(
-    await drawnLine($, joined, 'join', { work: id }, 'joined: Dashboard redesign'),
+    await drawnLine($, joined, 'join', { session: id }, 'joined: Dashboard redesign'),
   ).toBeDefined()
   expect(
     await drawnLine($, finished, 'finish', { reason: 'Shipped' }, '✓ finished: Dashboard redesign'),
@@ -209,7 +210,7 @@ test('a refused call keeps no name', async ($, on) => {
 
   await w.begin()
   await w.call('resolve', { item: 'zzzz' })
-  await w.call('join', { work: 'sr-zzzzzz' })
+  await w.call('join', { session: 'sr-zzzzzz' })
 
   expect(w.state.named ?? []).toEqual([])
 })

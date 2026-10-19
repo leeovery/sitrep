@@ -1,9 +1,9 @@
 import { expect, test, tier } from 'claude-code/testing'
-import type { WorkMeta } from '../core'
+import type { SessionMeta } from '../core'
 import { C } from '../hooks/look'
 import { rowsOf } from './drawn'
 import { note, park, T0, W2, W4, yesAsk } from './support'
-import { ELSEWHERE, INLINE, PROJECT, SESSION, toProject, WIDE, world } from './world'
+import { ELSEWHERE, INLINE, PROJECT, CONVERSATION, toProject, WIDE, world } from './world'
 
 tier('user')
 
@@ -12,7 +12,7 @@ type Board = Awaited<ReturnType<World['pane']>>
 
 const LEDGER = 'sr-1edger'
 
-const LEDGER_META: WorkMeta = {
+const LEDGER_META: SessionMeta = {
   id: LEDGER,
   name: 'Request ledger',
   summary: 'Request ledger, area by area',
@@ -25,7 +25,7 @@ const LEDGER_META: WorkMeta = {
 const GOOSEMATES = 'sr-0rders'
 
 /** A session of another project, Goosemates. */
-const GOOSEMATES_META: WorkMeta = {
+const GOOSEMATES_META: SessionMeta = {
   id: GOOSEMATES,
   name: 'Standing orders',
   summary: 'Standing orders, area by area',
@@ -275,7 +275,7 @@ test('the first tab goes home from every place', async ($, on) => {
   await asksAround(w)
 
   const ui = await w.opened(WIDE)
-  const home = { level: 'session', project: PROJECT.key, work: w.state.attachment?.work }
+  const home = { level: 'session', project: PROJECT.key, session: w.state.attachment?.session }
 
   for (const { name, reach } of PLACES.slice(1)) {
     await reach(ui)
@@ -314,16 +314,16 @@ test("under the tab rule, the way back one level up, dim, at the left of its row
   }
 })
 
-test('with no work held, the board is its one line: no tabs, and no blank row under them', async ($, on) => {
+test('with no session held, the board is its one line: no tabs, and no blank row under them', async ($, on) => {
   const w = world($, on)
 
-  await $.session.start(SESSION)
+  await $.session.start(CONVERSATION)
 
   for (const props of [WIDE, INLINE]) {
     const ui = await w.pane('terminal', props)
 
     expect(await rows(ui), props.placement).toEqual([
-      expect.stringMatching(/^ This window holds no piece of work\./),
+      expect.stringMatching(/^ This window holds no session\./),
     ])
     await ui.unmount()
   }
@@ -357,10 +357,10 @@ const NARROW = [
 test('a long title cuts its aside first, then itself, at phone width and docked, to the whole line: the way back, on the row above, takes none of it', async ($, on) => {
   const w = world($, on)
   const named = (id: string, name: string) => {
-    const work = w.elsewhere({ ...LEDGER_META, id, name })
+    const session = w.elsewhere({ ...LEDGER_META, id, name })
 
-    work.write(note('n1', 'Began'))
-    work.beat()
+    session.write(note('n1', 'Began'))
+    session.beat()
   }
 
   named('sr-r0nd22', 'Request ledger, round 2 of the exports')
@@ -508,7 +508,7 @@ test('a pane saved on the parked page by an older load opens as the board', asyn
   const ui = await w.opened(WIDE)
 
   expect((await rows(ui))[0]).toMatch(HOME_FIRST)
-  expect(await ui.find({ type: 'Text', text: 'FOR YOU' })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: 'ASKS' })).toBeDefined()
   expect(await ui.find({ type: 'Text', text: 'PARKED' })).toBeDefined()
   expect(await ui.find({ type: 'Text', text: /^PARKED IN/ })).toBeUndefined()
   expect(await ui.find({ type: 'Button', text: /back to the board/ })).toBeUndefined()

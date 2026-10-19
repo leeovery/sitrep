@@ -31,7 +31,7 @@ import {
 } from './support'
 
 /** A board holding one of each item, an ask Lee has commented on, and two asks read from their kinds. */
-const WORK = fold({
+const SESSION = fold({
   logs: {
     [W1]: file(
       [T0, yesAsk('k1', 'Review round 1')],
@@ -164,11 +164,11 @@ test('a words ask may say what its words are, on one line; no other ask takes ne
   }
 })
 
-test('a work is joined by its id, as start gave it', () => {
-  expect(value(checkJoin({ work: ' sr-k3f9qa ' }))).toEqual({ work: 'sr-k3f9qa' })
+test('a session is joined by its id, as start gave it', () => {
+  expect(value(checkJoin({ session: ' sr-k3f9qa ' }))).toEqual({ session: 'sr-k3f9qa' })
 
-  for (const work of [undefined, 'k3f9qa', 'sr-K3F9QA', 7]) {
-    expect(refusal(checkJoin({ work })), String(work)).toContain('by the id start gave it')
+  for (const session of [undefined, 'k3f9qa', 'sr-K3F9QA', 7]) {
+    expect(refusal(checkJoin({ session })), String(session)).toContain('by the id start gave it')
   }
 })
 
@@ -193,26 +193,26 @@ test('a status that names nothing, empties its name or gives now as no list is r
 })
 
 test('resolve and reopen name an item on the board by its id', () => {
-  expect(value(checkResolve(WORK, { item: ' k1 ', reason: ' Done in\nthe chat ' }))).toEqual({
+  expect(value(checkResolve(SESSION, { item: ' k1 ', reason: ' Done in\nthe chat ' }))).toEqual({
     type: 'resolve',
     item: 'k1',
     reason: 'Done in the chat',
   })
-  expect(refusal(checkResolve(WORK, { item: 'zz' }))).toBe('There is no item zz on this board.')
-  expect(refusal(checkReopen(WORK, {}))).toContain('by its id')
+  expect(refusal(checkResolve(SESSION, { item: 'zz' }))).toBe('There is no item zz on this board.')
+  expect(refusal(checkReopen(SESSION, {}))).toContain('by its id')
 })
 
 test('resolving what is closed, or reopening what is open as posted, is refused', () => {
-  expect(refusal(checkResolve(WORK, { item: 'k9' }))).toBe('k9 is already closed.')
-  expect(refusal(checkReopen(WORK, { item: 'k1' }))).toBe('k1 is already open.')
-  expect(refusal(checkReopen(WORK, { item: 'p1' }))).toBe('p1 is already open.')
-  expect(value(checkReopen(WORK, { item: 'k3' }))).toEqual({ type: 'reopen', item: 'k3' })
-  expect(value(checkReopen(WORK, { item: 'k9' }))).toEqual({ type: 'reopen', item: 'k9' })
+  expect(refusal(checkResolve(SESSION, { item: 'k9' }))).toBe('k9 is already closed.')
+  expect(refusal(checkReopen(SESSION, { item: 'k1' }))).toBe('k1 is already open.')
+  expect(refusal(checkReopen(SESSION, { item: 'p1' }))).toBe('p1 is already open.')
+  expect(value(checkReopen(SESSION, { item: 'k3' }))).toEqual({ type: 'reopen', item: 'k3' })
+  expect(value(checkReopen(SESSION, { item: 'k9' }))).toEqual({ type: 'reopen', item: 'k9' })
 })
 
 test("an edit changes only the fields of its item's type, each put right", () => {
   expect(
-    value(checkEdit(WORK, { item: 'k1', title: ' Review\nround 2 ', reason: 'Round 2 is up' })),
+    value(checkEdit(SESSION, { item: 'k1', title: ' Review\nround 2 ', reason: 'Round 2 is up' })),
   ).toEqual({
     type: 'edit',
     item: 'k1',
@@ -220,84 +220,92 @@ test("an edit changes only the fields of its item's type, each put right", () =>
     reason: 'Round 2 is up',
   })
   expect(
-    value(checkEdit(WORK, { item: 'n1', text: 'Merged #82', detail: ['6 files'] }))?.changes,
+    value(checkEdit(SESSION, { item: 'n1', text: 'Merged #82', detail: ['6 files'] }))?.changes,
   ).toEqual({
     text: 'Merged #82',
     detail: ['6 files'],
   })
-  expect(refusal(checkEdit(WORK, { item: 'n1', title: 'A title' }))).toBe(
+  expect(refusal(checkEdit(SESSION, { item: 'n1', title: 'A title' }))).toBe(
     'An edit to a note changes text, detail, ref; not title.',
   )
-  expect(refusal(checkEdit(WORK, { item: 'p1' }))).toBe(
+  expect(refusal(checkEdit(SESSION, { item: 'p1' }))).toBe(
     'An edit names a field to change: for a parked item, title, where, ref.',
   )
-  expect(refusal(checkEdit(WORK, { item: 'k1', title: ' ' }))).toContain('cannot leave title empty')
+  expect(refusal(checkEdit(SESSION, { item: 'k1', title: ' ' }))).toContain(
+    'cannot leave title empty',
+  )
 })
 
 test('an edit leaves an ask holding what its shape takes', () => {
-  expect(refusal(checkEdit(WORK, { item: 'k1', wants: 'choice' }))).toContain('at least 2 options')
-  expect(
-    value(checkEdit(WORK, { item: 'k1', wants: 'choice', options: ['Ship it', 'Hold it'] }))
-      ?.changes,
-  ).toEqual({ wants: 'choice', options: ['Ship it', 'Hold it'] })
-  expect(refusal(checkEdit(WORK, { item: 'k2', options: ['Keep it'] }))).toContain(
+  expect(refusal(checkEdit(SESSION, { item: 'k1', wants: 'choice' }))).toContain(
     'at least 2 options',
   )
-  expect(refusal(checkEdit(WORK, { item: 'k1', options: ['Ship it', 'Hold it'] }))).toBe(
+  expect(
+    value(checkEdit(SESSION, { item: 'k1', wants: 'choice', options: ['Ship it', 'Hold it'] }))
+      ?.changes,
+  ).toEqual({ wants: 'choice', options: ['Ship it', 'Hold it'] })
+  expect(refusal(checkEdit(SESSION, { item: 'k2', options: ['Keep it'] }))).toContain(
+    'at least 2 options',
+  )
+  expect(refusal(checkEdit(SESSION, { item: 'k1', options: ['Ship it', 'Hold it'] }))).toBe(
     'Only a choice ask takes options.',
   )
-  expect(refusal(checkEdit(WORK, { item: 'k2', wants: 'yes' }))).toContain('A yes ask needs yes')
-  expect(value(checkEdit(WORK, { item: 'k2', wants: 'yes', yes: 'Keep it' }))?.changes).toEqual({
+  expect(refusal(checkEdit(SESSION, { item: 'k2', wants: 'yes' }))).toContain('A yes ask needs yes')
+  expect(value(checkEdit(SESSION, { item: 'k2', wants: 'yes', yes: 'Keep it' }))?.changes).toEqual({
     wants: 'yes',
     yes: 'Keep it',
   })
-  expect(value(checkEdit(WORK, { item: 'k1', yes: 'Ship it' }))?.changes).toEqual({
+  expect(value(checkEdit(SESSION, { item: 'k1', yes: 'Ship it' }))?.changes).toEqual({
     yes: 'Ship it',
   })
-  expect(refusal(checkEdit(WORK, { item: 'k2', yes: 'Keep it' }))).toBe('Only a yes ask takes yes.')
-  expect(value(checkEdit(WORK, { item: 'k1', wants: 'words' }))?.changes).toEqual({
+  expect(refusal(checkEdit(SESSION, { item: 'k2', yes: 'Keep it' }))).toBe(
+    'Only a yes ask takes yes.',
+  )
+  expect(value(checkEdit(SESSION, { item: 'k1', wants: 'words' }))?.changes).toEqual({
     wants: 'words',
   })
 })
 
 test('an edit gives a words ask what its words are, an empty one clearing it; no other shape takes it', () => {
   expect(
-    value(checkEdit(WORK, { item: 'k1', wants: 'words', needs: ' which\nframes ' }))?.changes,
+    value(checkEdit(SESSION, { item: 'k1', wants: 'words', needs: ' which\nframes ' }))?.changes,
   ).toEqual({ wants: 'words', needs: 'which frames' })
-  expect(refusal(checkEdit(WORK, { item: 'k1', needs: 'which frames' }))).toBe(
+  expect(refusal(checkEdit(SESSION, { item: 'k1', needs: 'which frames' }))).toBe(
     'Only a words ask takes needs: what its words are.',
   )
-  expect(value(checkEdit(WORK, { item: 'k4', needs: ' ' }))?.changes).toEqual({ needs: '' })
-  expect(value(checkEdit(WORK, { item: 'k4', needs: 'the exit code' }))?.changes).toEqual({
+  expect(value(checkEdit(SESSION, { item: 'k4', needs: ' ' }))?.changes).toEqual({ needs: '' })
+  expect(value(checkEdit(SESSION, { item: 'k4', needs: 'the exit code' }))?.changes).toEqual({
     needs: 'the exit code',
   })
-  expect(refusal(checkEdit(WORK, { item: 'k4', needs: 42 }))).toContain('cannot leave needs')
-  expect(refusal(checkEdit(WORK, { item: 'p1', needs: 'which frames' }))).toBe(
+  expect(refusal(checkEdit(SESSION, { item: 'k4', needs: 42 }))).toContain('cannot leave needs')
+  expect(refusal(checkEdit(SESSION, { item: 'p1', needs: 'which frames' }))).toBe(
     'An edit to a parked item changes title, where, ref; not needs.',
   )
 })
 
 test('an edit changing the shape of an ask read from its kind says what the ask wants, so it reads by its shape from then on', () => {
-  expect(value(checkEdit(WORK, { item: 'o1', needs: '' }))?.changes).toEqual({
+  expect(value(checkEdit(SESSION, { item: 'o1', needs: '' }))?.changes).toEqual({
     wants: 'words',
     needs: '',
   })
-  expect(value(checkEdit(WORK, { item: 'o2', yes: 'Ship it' }))?.changes).toEqual({
+  expect(value(checkEdit(SESSION, { item: 'o2', yes: 'Ship it' }))?.changes).toEqual({
     wants: 'yes',
     yes: 'Ship it',
   })
 })
 
 test('an edit leaving the shape of an ask read from its kind as it is keeps the kind', () => {
-  expect(value(checkEdit(WORK, { item: 'o1', title: 'Run the export again' }))?.changes).toEqual({
-    title: 'Run the export again',
-  })
+  expect(value(checkEdit(SESSION, { item: 'o1', title: 'Run the export again' }))?.changes).toEqual(
+    {
+      title: 'Run the export again',
+    },
+  )
   expect(
-    value(checkEdit(WORK, { item: 'o2', where: 'In Paper', ref: 'docs/plan.md' }))?.changes,
+    value(checkEdit(SESSION, { item: 'o2', where: 'In Paper', ref: 'docs/plan.md' }))?.changes,
   ).toEqual({ where: 'In Paper', ref: 'docs/plan.md' })
 })
 
-test('a checked post is given a fresh item id, unlike any its work uses; a refusal stays one', () => {
+test('a checked post is given a fresh item id, unlike any its session uses; a refusal stays one', () => {
   const random = scripted([20, 21, 22, 23], [1, 1, 1, 1])
 
   expect(value(withId(checkPark({ title: 'Later' }), { ids: new Set(['mnpq']) }, random))).toEqual({
@@ -305,7 +313,7 @@ test('a checked post is given a fresh item id, unlike any its work uses; a refus
     title: 'Later',
     id: '1111',
   })
-  expect(refusal(withId(checkPark({}), WORK, random))).toBe(
+  expect(refusal(withId(checkPark({}), SESSION, random))).toBe(
     'A parked item needs a title: one line.',
   )
 })

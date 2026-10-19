@@ -9,9 +9,9 @@
  * there is taken, and only there does it show. It stands exactly while the
  * next Enter would be taken: while its item, as the board reads it, in full
  * or in its project's briefs, can still take the reply. Once it cannot
- * (closed or picked up, answered from elsewhere, its work done, a send
+ * (closed or picked up, answered from elsewhere, its session finished, a send
  * carrying its reply) the next Enter goes to Claude as ever, and the mode
- * ends. An item whose work the board has not read yet leaves it standing,
+ * ends. An item whose session the board has not read yet leaves it standing,
  * unshown.
  *
  * Ended with nothing taken, the mode takes back the words it put in the
@@ -81,20 +81,20 @@ export const heardSurvey = (surface: RenderSurface, isHeld: boolean) => {
   }
 }
 
-/** The mode's item as the board reads it: in a work it has in full, else in its project's briefs, which list only open asks and what is still parked; undefined while it has read neither. */
-const seenIn = (scene: Scene, { work, item }: SitrepAnswering) => {
-  const filed = filedAt(scene, work)
+/** The mode's item as the board reads it: in a session it has in full, else in its project's briefs, which list only open asks and what is still parked; undefined while it has read neither. */
+const seenIn = (scene: Scene, { session, item }: SitrepAnswering) => {
+  const filed = filedAt(scene, session)
 
   if (filed !== undefined) {
-    const found = filed.work.items.get(item)
+    const found = filed.session.items.get(item)
 
     return {
       item: found?.type === 'note' ? undefined : found,
-      isFinished: filed.work.finished !== undefined,
+      isFinished: filed.session.finished !== undefined,
     }
   }
 
-  const brief = briefOf(scene, work)
+  const brief = briefOf(scene, session)
 
   return brief === undefined
     ? undefined
@@ -109,8 +109,8 @@ const isStillOpen = (item: Ask | Parked) =>
   item.type === 'ask' ? isOpen(item) : item.state === 'parked'
 
 /** Whether the item can take the reply: still open, nothing of Lee's on its way to it, and of a shape that takes it. */
-const canTake = (scene: Scene, { work, as }: SitrepAnswering, item: Ask | Parked) => {
-  const queued = queuedOn(scene.queue, work, item.id)
+const canTake = (scene: Scene, { session, as }: SitrepAnswering, item: Ask | Parked) => {
+  const queued = queuedOn(scene.queue, session, item.id)
 
   return (
     isStillOpen(item) &&
@@ -120,7 +120,7 @@ const canTake = (scene: Scene, { work, as }: SitrepAnswering, item: Ask | Parked
   )
 }
 
-/** Where the mode stands: over once its item, or the item's work, is done with; undefined while the window is not answering, or the board has not read the item's work yet. */
+/** Where the mode stands: over once its item, or the item's session, is finished; undefined while the window is not answering, or the board has not read the item's session yet. */
 const standingIn = (scene: Scene): Standing | undefined => {
   const { answering } = scene
   const seen = answering === null ? undefined : seenIn(scene, answering)
@@ -144,8 +144,8 @@ export const answeringIn = (scene: Scene, surface: RenderSurface): Answering | u
 }
 
 /** A yes or a choice queued on the ask, which a comment goes with, as its note. */
-const carrierOf = ({ work, item, as }: SitrepAnswering, queue: readonly SitrepQueued[]) => {
-  const queued = queuedOn(queue, work, item)
+const carrierOf = ({ session, item, as }: SitrepAnswering, queue: readonly SitrepQueued[]) => {
+  const queued = queuedOn(queue, session, item)
 
   return as === 'comment' && (queued?.verdict === 'yes' || queued?.verdict === 'choose')
     ? queued
@@ -158,11 +158,11 @@ const replyOf = (
   queue: readonly SitrepQueued[],
   note: string,
 ): SitrepQueued => {
-  const { project, work, item, as } = answering
+  const { project, session, item, as } = answering
   const carrier = carrierOf(answering, queue)
 
   return carrier === undefined
-    ? { project, work, item, verdict: VERDICT[as], note }
+    ? { project, session, item, verdict: VERDICT[as], note }
     : { ...carrier, note }
 }
 

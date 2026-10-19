@@ -3,13 +3,13 @@
  * its work, so each act runs in its own time and writes to the debug log
  * what failed.
  */
-import { checkFinish, type Work } from '../core'
+import { checkFinish, type Session } from '../core'
 import type {
   SitrepAnswering,
   SitrepPane,
   SitrepPlace,
   SitrepQueued,
-  SitrepWorkRef,
+  SitrepSessionRef,
 } from '../types'
 import { beginAnswering, settleAnswering } from './answering'
 import { lookAround } from './around'
@@ -25,12 +25,12 @@ import { attached, serially } from './window'
 export type Actions = {
   /** Opens an item, or a log line, under its line; or closes it again. */
   select: (id: string) => void
-  /** Opens a work's DONE to every closed ask, or folds it back to the latest, closing an opened ask among `hidden`, those it then no longer shows. */
-  toggleDone: (work: string, hidden: readonly string[]) => void
+  /** Opens a session's RESOLVED to every closed ask, or folds it back to the latest, closing an opened ask among `hidden`, those it then no longer shows. */
+  toggleResolved: (session: string, hidden: readonly string[]) => void
   /** Queues Lee's reply to an item, in place of any it had. */
   reply: (reply: SitrepQueued) => void
   /** Takes the reply to one item out of the queue. */
-  unqueue: (work: string, item: string) => void
+  unqueue: (session: string, item: string) => void
   /** Empties the queue, but for what a send is carrying. */
   cancelAll: () => void
   /** Has the next Enter in the prompt box answer an ask, comment on it, or pick a parked item up with a comment; `text` fills the box first, to edit the words already queued. */
@@ -41,36 +41,36 @@ export type Actions = {
   go: (place: SitrepPlace) => void
   /** Closes the board, by its own close where it sits inline. */
   close: () => void
-  /** Marks another work done, as Lee confirmed on its view, and takes the board up off it. */
-  finish: (at: SitrepWorkRef) => void
+  /** Finishes another session, as Lee confirmed on its view, and takes the board up off it. */
+  finish: (at: SitrepSessionRef) => void
 }
 
 const changePane = (host: Host, change: (pane: SitrepPane) => Partial<SitrepPane>) =>
   host.state.pane.update(pane => ({ ...pane, ...change(pane) }))
 
-/** A work's DONE shown in full, or folded back to the latest, an opened ask it stops showing closed with it. */
-const doneToggled = (
+/** A session's RESOLVED shown in full, or folded back to the latest, an opened ask it stops showing closed with it. */
+const resolvedToggled = (
   pane: SitrepPane,
-  work: string,
+  session: string,
   hidden: readonly string[],
 ): Partial<SitrepPane> => {
-  if (pane.doneInFull !== work) {
-    return { doneInFull: work }
+  if (pane.resolvedInFull !== session) {
+    return { resolvedInFull: session }
   }
 
   const isHidden = pane.selected !== null && hidden.includes(pane.selected)
 
-  return { doneInFull: null, selected: isHidden ? null : pane.selected }
+  return { resolvedInFull: null, selected: isHidden ? null : pane.selected }
 }
 
-/** Has another work read in full, for the board to draw what Lee did to it; the held one is the watch's. */
-const readIfElsewhere = async (host: Host, { work }: SitrepWorkRef) => {
-  if (work !== attached()?.work) {
+/** Has another session read in full, for the board to draw what Lee did to it; the held one is the watch's. */
+const readIfElsewhere = async (host: Host, { session }: SitrepSessionRef) => {
+  if (session !== attached()?.session) {
     await lookAround(host)
   }
 }
 
-/** Queues a reply; one to another work has that work read, for Ready to send to draw it. */
+/** Queues a reply; one to another session has that session read, for Ready to send to draw it. */
 const queue = async (host: Host, reply: SitrepQueued) => {
   await host.state.queue.update(replies => queuing(replies, reply))
   await readIfElsewhere(host, reply)
@@ -78,8 +78,9 @@ const queue = async (host: Host, reply: SitrepQueued) => {
 
 /**
  * Has the next Enter write to an item, the mode standing from the press on
- * the item as drawn; one of another work's has that work read in full, so
- * the mode is checked against all of it, not only its project's briefs.
+ * the item as drawn; one of another session's has that session read in
+ * full, so the mode is checked against all of it, not only its project's
+ * briefs.
  */
 const answer = async (host: Host, answering: SitrepAnswering, text?: string) => {
   await beginAnswering(host, answering, text)
@@ -93,16 +94,16 @@ const go = async (host: Host, place: SitrepPlace) => {
   await lookAround(host)
 }
 
-/** Lee's finish: a line in this window's own file in the work, none once it is done already. */
-const finishing = (work: Work) => {
-  const checked = checkFinish(work, 'lee')
+/** Lee's finish: a line in this window's own file in the session, none once it is finished already. */
+const finishing = (session: Session) => {
+  const checked = checkFinish(session, 'lee')
 
   return checked.ok ? [checked.value] : []
 }
 
-/** Marks a work the window does not hold done, then goes up to its project, where it no longer shows. */
-const finish = async (host: Host, at: SitrepWorkRef) => {
-  const writer = await host.session.id()
+/** Finishes a session the window does not hold, then goes up to its project, where it no longer shows. */
+const finish = async (host: Host, at: SitrepSessionRef) => {
+  const writer = await host.conversation.id()
 
   await serially(() => writeInto(host, { ...at, writer }, finishing))
   await go(host, projectPlace(at.project))
@@ -117,12 +118,14 @@ export const actionsOf = (host: Host): Actions => {
       run('opening an item', () =>
         changePane(host, pane => ({ selected: pane.selected === id ? null : id })),
       ),
-    toggleDone: (work, hidden) =>
-      run('showing what was done', () => changePane(host, pane => doneToggled(pane, work, hidden))),
+    toggleResolved: (session, hidden) =>
+      run('showing what was resolved', () =>
+        changePane(host, pane => resolvedToggled(pane, session, hidden)),
+      ),
     reply: reply => run('queuing a reply', () => queue(host, reply)),
-    unqueue: (work, item) =>
+    unqueue: (session, item) =>
       run('taking a reply back', () =>
-        host.state.queue.update(replies => unqueuing(replies, work, item)),
+        host.state.queue.update(replies => unqueuing(replies, session, item)),
       ),
     cancelAll: () =>
       run('cancelling every reply', async () => {
@@ -145,6 +148,6 @@ export const actionsOf = (host: Host): Actions => {
       ),
     go: place => run('going elsewhere on the board', () => go(host, place)),
     close: () => run('closing the board', () => closeBoard(host)),
-    finish: at => run('marking a work done', () => finish(host, at)),
+    finish: at => run('finishing a session', () => finish(host, at)),
   }
 }

@@ -25,7 +25,7 @@ const ROWS = 24
 
 /** The band's buttons: each a way into the board, or, while Lee answers in the prompt, the way out of that. */
 export const BAND = {
-  forYou: 'band:for-you',
+  asks: 'band:asks',
   elsewhere: 'band:elsewhere',
   board: 'band:board',
   cancelAnswer: 'band:cancel-answer',
@@ -38,12 +38,12 @@ export type Focus = Partial<Pick<SitrepPane, 'place' | 'selected'>>
 
 /** Where each of the band's counts opens the board: this session, or every project. */
 const COUNTED: Readonly<Record<string, Focus>> = {
-  [BAND.forYou]: { place: null },
+  [BAND.asks]: { place: null },
   [BAND.elsewhere]: { place: EVERY_PROJECT },
 }
 
-/** Where the board opens once it has been closed: home, nothing opened, every DONE showing its latest. */
-const HOME: Partial<SitrepPane> = { place: null, selected: null, doneInFull: null }
+/** Where the board opens once it has been closed: home, nothing opened, every RESOLVED showing its latest. */
+const HOME: Partial<SitrepPane> = { place: null, selected: null, resolvedInFull: null }
 
 const markOpen = (host: Host, isOpen: boolean) =>
   host.state.pane.update(pane => ({ ...pane, isOpen }))

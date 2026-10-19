@@ -1,10 +1,12 @@
 /**
- * What the CLI prints of the projects and of a piece of work: lines to
+ * What the CLI prints of the projects and of a session: lines to
  * read, or JSON for tools such as the tmux indicator.
  *
  * The JSON is stable: every field is always there, a list empty and any
  * other value null where there is none, and `v`, the output's version,
- * moves only with a change a reader would trip on.
+ * moves only with a change a reader would trip on. So its fields keep the
+ * names they had before a piece of work was called a session: `list`'s
+ * projects hold `works`, and `board` gives its session as `work`.
  */
 import {
   brief,
@@ -16,9 +18,9 @@ import {
   type Parked,
   type Project,
   type ProjectSummary,
-  type ProjectWorks,
-  type Work,
-  type WorkSummary,
+  type ProjectSessions,
+  type Session,
+  type SessionSummary,
 } from '../core'
 
 /** The JSON's version, by command: `board`'s moved to 2 as its asks came to say what they want back, in place of their kind. */
@@ -30,14 +32,14 @@ export type Listing = { here?: Project; projects: ProjectSummary[] }
 const json = (value: unknown) => JSON.stringify(value, null, 2)
 
 /**
- * The projects as `list` gives them, every one or those `named` names,
- * each with its current works, as the start of a session lists them: those
- * whose directory holds the folder the CLI runs in first. `here` is the
- * nearest of those. A project with no current works is left out, but never
- * `here`, nor one named.
+ * The projects as `list` gives them, every one or those `named` names, each
+ * with its current sessions, as the start of a conversation lists them:
+ * those whose directory holds the folder the CLI runs in first. `here` is
+ * the nearest of those. A project with no current sessions is left out, but
+ * never `here`, nor one named.
  */
 export const listing = (
-  read: readonly ProjectWorks[],
+  read: readonly ProjectSessions[],
   cwd: string,
   now: number,
   named?: string,
@@ -54,40 +56,42 @@ export const listing = (
   return { here, projects: listedProjects(chosen, cwd, now, keys) }
 }
 
-/** What a work holds that `list` tells: whether a window has it, and what waits and is parked. */
-const factsOf = (work: WorkSummary) => [
-  ...(work.isOpen ? ['open'] : []),
-  ...(work.waiting > 0 ? [`${work.waiting} waiting`] : []),
-  ...(work.parked > 0 ? [`${work.parked} parked`] : []),
+/** What a session holds that `list` tells: whether a window has it, and what waits and is parked. */
+const factsOf = (session: SessionSummary) => [
+  ...(session.isOpen ? ['open'] : []),
+  ...(session.waiting > 0 ? [`${session.waiting} waiting`] : []),
+  ...(session.parked > 0 ? [`${session.parked} parked`] : []),
 ]
 
-const workLine = (work: WorkSummary) => {
-  const facts = factsOf(work)
+const sessionLine = (session: SessionSummary) => {
+  const facts = factsOf(session)
 
-  return `  ${work.id}  ${work.name}${facts.length === 0 ? '' : ` (${facts.join(', ')})`}`
+  return `  ${session.id}  ${session.name}${facts.length === 0 ? '' : ` (${facts.join(', ')})`}`
 }
 
 const projectLines = (project: ProjectSummary) => [
   project.name,
-  ...(project.works.length === 0 ? ['  no current pieces of work'] : project.works.map(workLine)),
+  ...(project.sessions.length === 0
+    ? ['  no current sessions']
+    : project.sessions.map(sessionLine)),
 ]
 
-/** Each project's name, then its works, a line each: the id, the name, and what it holds. */
+/** Each project's name, then its sessions, a line each: the id, the name, and what it holds. */
 export const listText = (projects: readonly ProjectSummary[]) =>
   projects.length === 0
-    ? 'No current pieces of work on the board.'
+    ? 'No current sessions on the board.'
     : projects.flatMap(projectLines).join('\n')
 
-const workJson = (work: WorkSummary) => ({
-  id: work.id,
-  name: work.name,
-  summary: work.summary,
-  now: work.now,
-  next: work.next ?? null,
-  isOpen: work.isOpen,
-  waiting: work.waiting,
-  parked: work.parked,
-  updatedAt: work.updatedAt,
+const sessionJson = (session: SessionSummary) => ({
+  id: session.id,
+  name: session.name,
+  summary: session.summary,
+  now: session.now,
+  next: session.next ?? null,
+  isOpen: session.isOpen,
+  waiting: session.waiting,
+  parked: session.parked,
+  updatedAt: session.updatedAt,
 })
 
 const projectJson = (project: ProjectSummary, onScreen: ReadonlySet<string>) => ({
@@ -97,12 +101,15 @@ const projectJson = (project: ProjectSummary, onScreen: ReadonlySet<string>) => 
   waiting: project.waiting,
   parked: project.parked,
   updatedAt: project.updatedAt,
-  works: project.works.map(work => ({ ...workJson(work), onScreen: onScreen.has(work.id) })),
+  works: project.sessions.map(session => ({
+    ...sessionJson(session),
+    onScreen: onScreen.has(session.id),
+  })),
 })
 
 /**
  * `list --json`: the project the CLI runs in, by its key, else null, and the
- * projects as `listing` gives them, each work saying whether a Ghostty
+ * projects as `listing` gives them, each session saying whether a Ghostty
  * window shows it.
  */
 export const listJson = ({ here, projects }: Listing, onScreen: ReadonlySet<string>) =>
@@ -143,14 +150,14 @@ const logJson = (line: LogLine) => ({
   at: line.at,
 })
 
-/** `board --json`: the work in brief, as `list` gives it, with its open asks, what it parked and its latest log lines. */
-export const boardJson = (project: string, work: Work) => {
-  const { log, parkedItems, asks, ...summary } = brief(work)
+/** `board --json`: the session in brief, as `list` gives it, with its open asks, what it parked and its latest log lines. */
+export const boardJson = (project: string, session: Session) => {
+  const { log, parkedItems, asks, ...summary } = brief(session)
 
   return json({
     v: OUTPUT.board,
-    project: { key: project, name: work.project },
-    work: workJson(summary),
+    project: { key: project, name: session.project },
+    work: sessionJson(summary),
     asks: asks.map(askJson),
     parked: parkedItems.map(parkedJson),
     log: log.map(logJson),

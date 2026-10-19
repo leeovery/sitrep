@@ -3,7 +3,7 @@ import { expect, test, tier, type Mounted } from 'claude-code/testing'
 import Placement from '../hooks/draw/placement'
 import type { SitrepPlacement } from '../types'
 import { rowsOf } from './drawn'
-import { BAND, DOCKED, INLINE, postedId, SESSION, SURFACES, world } from './world'
+import { BAND, DOCKED, INLINE, postedId, CONVERSATION, SURFACES, world } from './world'
 
 tier('user')
 
@@ -36,7 +36,7 @@ const boardButton = async (ui: Pick<Mounted, 'find'>) => {
   return { rows: rowsOf(button), isDim: button?.props.dimColor === true }
 }
 
-/** A work begun with an ask waiting and an item parked. */
+/** A session begun with an ask waiting and an item parked. */
 async function busy(w: World) {
   await w.begin()
 
@@ -54,18 +54,18 @@ test('the band counts what waits on Lee and offers the board, on each surface', 
   for (const surface of SURFACES) {
     const ui = await w.band(surface)
 
-    expect(await ui.find({ key: 'band:for-you', text: '0 for you' })).toBeDefined()
+    expect(await ui.find({ key: 'band:asks', text: '0 asks' })).toBeDefined()
     expect(await ui.find({ key: 'band:board', text: '▸ show board' })).toBeDefined()
     expect(await ui.find({ key: 'band:parked' })).toBeUndefined()
     await ui.unmount()
   }
 })
 
-test('with no work held, the band draws nothing of its own', async ($, on) => {
+test('with no session held, the band draws nothing of its own', async ($, on) => {
   const w = world($, on)
 
   engineBand(w)
-  await $.session.start(SESSION)
+  await $.session.start(CONVERSATION)
 
   const ui = await w.band()
 
@@ -85,7 +85,7 @@ test('what another plugin draws above the prompt stays, above the band, in the r
 
     expect(rows[0]).toBe('a gate row')
     expect(rows.at(-1)).toContain('▸ show board')
-    expect(await ui.find({ key: 'band:for-you', text: '0 for you' })).toBeDefined()
+    expect(await ui.find({ key: 'band:asks', text: '0 asks' })).toBeDefined()
     await ui.unmount()
   }
 
@@ -115,17 +115,17 @@ test('the band is counts on the right, each opening the board on what it counts,
 
   const ui = await w.band()
   expect(await ui.drawn()).toMatchObject({ props: { justifyContent: 'flex-end' } })
-  expect(await ui.find({ key: 'band:for-you', text: '1 for you' })).toBeDefined()
+  expect(await ui.find({ key: 'band:asks', text: '1 ask' })).toBeDefined()
   expect(await ui.find({ key: 'band:parked' })).toBeUndefined()
   expect(await ui.find({ type: 'Text', text: '◇' })).toBeUndefined()
   expect(await ui.find({ text: /parked/ })).toBeUndefined()
 
-  await ui.press({ key: 'band:for-you' })
+  await ui.press({ key: 'band:asks' })
   expect(w.panes.get('sitrep')).toBe(true)
 
   const board = await w.pane()
 
-  expect(await board.find({ type: 'Text', text: 'FOR YOU' })).toBeDefined()
+  expect(await board.find({ type: 'Text', text: 'ASKS' })).toBeDefined()
   expect(w.state.pane).toMatchObject({ place: null })
 })
 
@@ -136,7 +136,7 @@ test('below 64 columns the words drop and the counts stay', async ($, on) => {
 
   const ui = await w.band('terminal', 50)
 
-  expect(await ui.find({ key: 'band:for-you', text: '1' })).toBeDefined()
+  expect(await ui.find({ key: 'band:asks', text: '1' })).toBeDefined()
   expect(await ui.find({ key: 'band:parked' })).toBeUndefined()
   expect(await ui.find({ key: 'band:board', text: '▸ show board' })).toBeDefined()
 })
@@ -160,7 +160,7 @@ test('a board Claude Code would not draw is closed again, and a toast says why',
 test('/sitrep opens the board, printing nothing', async ($, on) => {
   const w = world($, on)
 
-  await $.session.start(SESSION)
+  await $.session.start(CONVERSATION)
 
   const output = await $.command.run({
     command: 'sitrep',
@@ -179,7 +179,7 @@ test('after a reload, the band says what the engine has of the board', async ($,
 
   await w.begin()
   w.panes.set('sitrep', true)
-  await $.session.start(SESSION)
+  await $.session.start(CONVERSATION)
 
   const ui = await w.band()
 

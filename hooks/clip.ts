@@ -61,7 +61,7 @@ const keepOnly = (blocks: readonly Block[]) => {
  * The clip for one drawing of the board, from how far down its list was
  * kept: the list it is given is recorded for the scroll and focus hooks,
  * and starts as kept, stopped short at its end. A drawing that clips no
- * list (inline, or with no work) leaves the engine's moves to the engine.
+ * list (inline, or with no session) leaves the engine's moves to the engine.
  */
 export const clipOf = (kept: SitrepScroll | null): Clip => {
   drawn = undefined

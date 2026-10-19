@@ -17,14 +17,14 @@ struct BannerTests {
         let banner = Banner.test(.works([]))
 
         #expect(banner.work == nil)
-        #expect(banner.body == "A test banner. No work is on screen, so it jumps nowhere.")
+        #expect(banner.body == "A test banner. No session is on screen, so it jumps nowhere.")
     }
 
     @Test func aListThatFailedGivesATestBannerWithItsWordsAndNoJump() {
         let banner = Banner.test(.failed("sitrep list did not answer within 10 seconds."))
 
         #expect(banner.work == nil)
-        #expect(banner.body == "A test banner, with no work to jump to: sitrep list did not answer within 10 seconds.")
+        #expect(banner.body == "A test banner, with no session to jump to: sitrep list did not answer within 10 seconds.")
     }
 
     @Test func aFailedJumpShowsTheCLIsWordsAndJumpsNowhere() {

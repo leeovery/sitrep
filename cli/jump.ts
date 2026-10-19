@@ -1,10 +1,10 @@
 /**
  * What the CLI does on screen, through Io: asks tmux which of its clients
- * show which sessions, and `ps` which processes those clients descend from,
- * and brings a piece of work's Ghostty window to the front, and keeps it
- * there: the terminal remembered for its device focused by its id, else
- * found by a knock and remembered. Nothing in tmux changes, and no terminal
- * is left reporting the knock's marker.
+ * show which of its sessions, and `ps` which processes those clients
+ * descend from, and brings a session's Ghostty window to the front, and
+ * keeps it there: the terminal remembered for its device focused by its id,
+ * else found by a knock and remembered. Nothing in tmux changes, and no
+ * terminal is left reporting the knock's marker.
  */
 import type { Where } from '../core'
 import { frontmost, keepInFront } from './front'
@@ -39,7 +39,7 @@ import {
 
 /**
  * What a jump came to: the window brought forward; no Ghostty window
- * showing the work; none found, as programs asked gave no answer; or
+ * showing the session; none found, as programs asked gave no answer; or
  * devices showing it, where no Ghostty terminal answered the knock.
  */
 export type Jumped =
@@ -108,8 +108,8 @@ const readScreen = async (io: Io, windows: readonly Where[]): Promise<Screen> =>
   }
 }
 
-/** The ids of the works a Ghostty window shows, from the windows each is in; nothing is knocked on. */
-export const worksOnScreen = async (io: Io, windows: ReadonlyMap<string, readonly Where[]>) => {
+/** The ids of the sessions a Ghostty window shows, from the windows each is in; nothing is knocked on. */
+export const sessionsOnScreen = async (io: Io, windows: ReadonlyMap<string, readonly Where[]>) => {
   const screen = await readScreen(io, [...windows.values()].flat())
 
   return new Set(
@@ -149,8 +149,8 @@ const putBack = (io: Io, device: string, before: readonly Terminal[], id: string
   )
 
 /** Waits on what must not stop the jump, whatever comes of it. */
-const bestEffort = (work: Promise<unknown>) =>
-  work.then(
+const bestEffort = (session: Promise<unknown>) =>
+  session.then(
     () => undefined,
     () => undefined,
   )
