@@ -2,9 +2,9 @@
  * The CLI's world, for its tests: a file system in memory (the mod's test
  * world's own, when a test shares it), the folder the CLI runs in, the
  * environment, the clock, which only waiting moves, random bytes, what it
- * prints, and a fake tmux, `ps`, lsappinfo, `open` and Ghostty behind the
- * programs it runs and the devices it writes to. Nothing touches a real
- * folder, terminal or window.
+ * prints and its closing, the plugin's manifest, and a fake tmux, `ps`,
+ * lsappinfo, `open` and Ghostty behind the programs it runs and the devices
+ * it writes to. Nothing touches a real folder, terminal or window.
  */
 import { FRONT, GHOSTTY_BUNDLE } from '../cli/front'
 import { FIND_AND_FOCUS, FOCUS, LIST } from '../cli/ghostty'
@@ -13,6 +13,7 @@ import { main } from '../cli/main'
 import { PS } from '../cli/screen'
 import { CLIENTS, PANES } from '../cli/tmux'
 import {
+  digestOf,
   metaText,
   projectPaths,
   projectText,
@@ -36,6 +37,9 @@ export const ENV: Env = { XDG_STATE_HOME: STATE_HOME, HOME }
 
 /** When a run happens, unless a test says otherwise: a minute after the session under test was started. */
 export const NOW = T0 + MIN
+
+/** The version the CLI's plugin manifest says, unless a test says otherwise. */
+export const CLI_VERSION = '0.2.0'
 
 /** The item ids a terminal's runs draw, unless a test says otherwise: this, then the next ever after. */
 export const FIRST_ID = '1234'
@@ -194,6 +198,8 @@ type Options = {
   front?: readonly string[]
   /** The bundle ids of the apps running, as lsappinfo finds them: none unless a test says otherwise. */
   running?: readonly string[]
+  /** The plugin's manifest; with none given, one saying CLI_VERSION. */
+  manifest?: string
 }
 
 /** What lsappinfo says of an ASN it knows no app by. */
@@ -553,6 +559,22 @@ export function terminal(options: Options = {}) {
   const folders = new Set<string>()
   let printed = { out: '', err: '' }
   let gate: (() => Promise<void>) | undefined
+  /** Standard output closing, as the app that started a run quitting closes it. */
+  const closing = latch()
+
+  /**
+   * A folder's stat, as a real one's moves: its time stands for the names in
+   * it, so it moves only as an entry is made, removed or renamed there.
+   * Undefined for a folder not there.
+   */
+  const folderStat = (dir: string) => {
+    const names = entriesIn(files, folders, dir).map(entry => `${entry.kind}:${entry.name}`)
+    const isThere = folders.has(dir) || names.length > 0
+
+    return isThere
+      ? { size: names.length, mtimeMs: Number.parseInt(digestOf(names.sort().join('/')), 36) }
+      : undefined
+  }
 
   /** A file gone from `path`, its folders standing after it. */
   const unfile = (path: string) => {
@@ -573,7 +595,13 @@ export function terminal(options: Options = {}) {
         return held.text
       },
       list: async dir => entriesIn(files, folders, dir),
-      modifiedAt: async path => files.get(path)?.mtimeMs,
+      stat: async path => {
+        const held = files.get(path)
+
+        return held === undefined
+          ? folderStat(path)
+          : { size: held.text.length, mtimeMs: held.mtimeMs }
+      },
       append: async (path, text) => {
         await gate?.()
         files.set(path, { text: (files.get(path)?.text ?? '') + text, mtimeMs: now() })
@@ -622,6 +650,9 @@ export function terminal(options: Options = {}) {
     err: text => {
       printed.err += text
     },
+    ended: () => closing.opened,
+    manifest: async () =>
+      options.manifest ?? JSON.stringify({ name: 'sitrep', version: CLI_VERSION }),
     run: shown.run,
     writeTo: shown.writeTo,
   }
@@ -738,6 +769,7 @@ export function terminal(options: Options = {}) {
     folders,
     io,
     run,
+    close: closing.open,
     text,
     seed,
     window,

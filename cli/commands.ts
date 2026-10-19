@@ -1,9 +1,10 @@
 /**
  * The CLI's commands: the words each takes, and what each makes of a
- * session, of the projects, or of a jump to a session's window. A command
- * on a session hands back the lines it posts, as the CLI's own, and what to
- * print: a post's item id, so a script can keep it. Each is pure: what it
- * needs of the screen is looked at, and the jump made, before it acts.
+ * session, of the projects, or of a jump to a session's window; and the
+ * board watched, which runs until it is told to end. A command on a session
+ * hands back the lines it posts, as the CLI's own, and what to print: a
+ * post's item id, so a script can keep it. Each is pure: what it needs of
+ * the screen is looked at, and the jump made, before it acts.
  *
  * Answering an ask is not one of them yet (DESIGN's open question 4). It
  * would be a command on a session whose reply goes into the session's
@@ -61,7 +62,10 @@ export type WindowCommand = About & {
   act: (filed: Filed, jumped: Jumped) => Checked<string>
 }
 
-export type Command = SessionCommand | ProjectsCommand | WindowCommand
+/** The board watched, a line each time it changes, until the run is to end: the loop is `watch.ts`. */
+export type FeedCommand = About & { on: 'feed' }
+
+export type Command = SessionCommand | ProjectsCommand | WindowCommand | FeedCommand
 
 /** The flag naming the session, which every command on one takes. */
 export const SESSION_FLAG = 'session'
@@ -283,7 +287,15 @@ const jump: WindowCommand = {
       : { ok: false, error: unjumped(session.status.name, jumped) },
 }
 
+const watch: FeedCommand = {
+  name: 'watch',
+  about:
+    'Print the board as every surface shows it, a line of JSON at the start and each time it changes, until standard output closes: the SitRep app runs one.',
+  grammar: { args: [], flags: {} },
+  on: 'feed',
+}
+
 /** Every command, in the order the help lists them. */
-export const COMMANDS: readonly Command[] = [note, ask, park, status, board, list, jump]
+export const COMMANDS: readonly Command[] = [note, ask, park, status, board, list, jump, watch]
 
 export const commandNamed = (name: string) => COMMANDS.find(command => command.name === name)

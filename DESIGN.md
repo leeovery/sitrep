@@ -172,10 +172,13 @@ notch and its panel").
 Working, your turn and the stops on a permission prompt or a question come
 from the window's events. The mod records them as each window's state, in
 its heartbeat, with what the row shows of it (19 October 2026; the shape is
-under "Storage"); the session's state across its windows is worked out in
-core with `sitrep watch`, next. Only a stop the events show needs Lee: a
-turn that ends on a question in plain text is your turn. The colours stay
-few; the look is played with later, in Paper.
+under "Storage"). The session's state across its windows is core's
+(`core/rows.ts`, 19 October 2026), which `sitrep watch` prints: needing Lee
+wins, then working, then your turn, and a live window on a release from
+before heartbeats said a state reads as your turn since it attached. Only a
+stop the events show needs Lee: a turn that ends on a question in plain
+text is your turn. The colours stay few; the look is played with later, in
+Paper.
 
 How the mod hears its window's state, every hook only observing: it passes
 the event on as it came, and a failure recording what it heard is logged
@@ -999,10 +1002,10 @@ $XDG_STATE_HOME/sitrep/, else ~/.local/state/sitrep/
   It is read as `where` is, field by field; a heartbeat with none, not let
   go, is a window on a release from before heartbeats said it, which still
   writes the old layout: it keeps the move waiting, and while live delivers
-  its session's inbox (see "Storage"). Nothing shows it yet: the menu will
-  list the windows to reload. It also says the window's `state` (19 October
-  2026), with what the row shows of it, rewritten at once as it changes
-  (how the mod hears it is under "A session's state"):
+  its session's inbox (see "Storage"). `sitrep watch` says which windows
+  need a reload, for the menu to list. It also says the window's `state`
+  (19 October 2026), with what the row shows of it, rewritten at once as it
+  changes (how the mod hears it is under "A session's state"):
 
   ```
   "state": { "is": "permission", "since": 1760000005000,
@@ -1263,6 +1266,7 @@ truth. There is still no background service. None of it is built now. Lee:
   sitrep board [--json]
   sitrep list [--project <name>] [--json]
   sitrep jump
+  sitrep watch
   ```
 
   - It writes as the writer `cli`, appending to `<session>/cli.jsonl`. It never
@@ -1317,22 +1321,133 @@ truth. There is still no background service. None of it is built now. Lee:
     jump can reach is refused (`Dashboard redesign is not on screen: no
     terminal window on this Mac shows it.`), as is one whose devices no
     terminal answered, or whose pane's window tmux would not select.
-  - `watch` is designed (16 October 2026) and not built yet. It is how the
+  - `watch`, designed 16 October 2026 and built 19 October 2026, is how the
     SitRep app hears the board: one per Mac, which the app starts as its
     child, so it stops with the app, and the app starts it again if it
-    exits: no daemon. It watches the one folder that holds every project and
-    session, `~/.local/state/sitrep/` (see Storage), and reads only what
-    changed.
-    - It prints a versioned JSON line for each change: the board as every
-      surface shows it, and what is new (a new ask, a new permission prompt
-      or question). That is each project and its sessions, away ones too;
-      each session's state, its row's two lines and time, and its open asks;
-      and each window with its version and `where`. The SitRep window reads
-      the session it shows in full (`board --json`, its notes, parked and
-      resolved too) whenever a line says that session changed.
-    - Presence expiry and what is new are core's, worked out in `watch`: a
-      heartbeat going stale changes no file, so `watch` notices it itself,
-      and the notch's swell is decided in core, not in the app.
+    exits: no daemon. It takes no words but `--help`. It reads the one
+    folder that holds every project and session (see Storage), under both
+    layouts as every reader does, and what it prints is core's: a session's
+    state and its rows (`core/rows.ts`); the board as every surface shows
+    it, what is new, and when the board next changes by time alone
+    (`core/feed.ts`).
+    - **A line per change.** A line of JSON at its start, then one only when
+      what it would print differs from the last, its own time aside, each
+      written whole and at once. Finished sessions are not in it; away ones
+      are, their asks still counting.
+
+      ```
+      { "v": 1, "at": 1760000060000, "version": "0.2.0",
+        "head": { "needYou": 1, "sessions": 1 },
+        "rows": [
+          { "key": "ask:sr-k3f9qa:k1", "is": "ask", "isAway": false,
+            "session": "sr-k3f9qa", "project": "switchboard",
+            "letters": "Sw", "ask": "k1", "writer": null,
+            "first": { "lead": "Review round 1", "mono": null,
+                       "more": null },
+            "second": "Switchboard · Dashboard redesign",
+            "since": 1760000000000 } ],
+        "projects": [
+          { "key": "switchboard", "name": "Switchboard",
+            "directory": "/Users/lee/Code/switchboard", "open": 1,
+            "waiting": 1, "parked": 0, "updatedAt": 1760000000000,
+            "sessions": [
+              { "id": "sr-k3f9qa", "name": "Dashboard redesign",
+                "summary": "...", "now": ["..."], "next": null,
+                "isOpen": true, "waiting": 1, "parked": 0,
+                "updatedAt": 1760000000000, "state": "needsYou",
+                "since": 1760000000000, "asks": [ ... ] } ] } ],
+        "windows": [
+          { "writer": "b1c2d3e4-...", "session": "sr-k3f9qa",
+            "name": "Dashboard redesign", "project": "Switchboard",
+            "version": "0.2.0", "needsReload": false,
+            "where": { "device": "/dev/ttys001", "terminal": "ghostty",
+                       "tmux": null },
+            "state": { "is": "working", "since": 1760000000000,
+                       "tool": { "name": "Read", "subject": "..." },
+                       "question": null },
+            "attachedAt": 1760000000000 } ],
+        "new": [], "changed": [] }
+      ```
+
+    - `rows` are the panel's, the strip's and the menu's, in their order
+      (see "The rows"). `is` is what the row is (`ask`, `permission`,
+      `question`, `yourTurn` or `working`), and `isAway` an ask of a session
+      no window holds; then its session, its project's key, the strip's two
+      `letters` (the project's capitals where it has two, else its first
+      two), its `ask` or its window (`writer`), its two lines, and `since`,
+      the instant its time counts from, which the app ticks. `first` is in
+      parts: `lead`, which a working row shimmers; `mono`, the subject set
+      in mono; `more`, a question's `+2`. `second` is the project and the
+      session. `key` names the row for as long as it stands
+      (`ask:<session>:<ask>`, `stop:<session>:<window>:<since>`,
+      `turn:<session>`), so the app keeps a row's place by it.
+    - `head`: how many rows need Lee, away ones among them, and how many
+      sessions the rows hold; none needing Lee is "All clear".
+    - `projects`: those with a current session, in the SitRep window's
+      order: a session where its first row sits, those with none after, the
+      latest updated first; a project where its first session sits. Each
+      session is as `list --json` gives it, with its `state` (`needsYou`,
+      `working`, `yourTurn` or `away`), `since`, its first row's time, else
+      its latest line's, and the asks waiting on Lee, as `board --json`
+      gives them.
+    - `windows`: every live window, the longest attached first, a finished
+      session's among them, with its session's name and project, its
+      `version`, and `needsReload` where it says none, or one behind the
+      CLI's own `version`, dotted part by part. Not `seenAt`: every beat
+      would be a line. Nor `loadedAt`, which only the mod's fence reads.
+    - `new`: the keys of the rows needing Lee that the last line had not, a
+      new ask by its id or a window's new stop by when it showed: the
+      notch's swell, the strip's flash. The first line has none, so the app
+      does not swell at its start. A finished session joined again brings
+      its asks back as new.
+    - `changed`: the sessions on the line whose `board --json` changed since
+      the last, one new to the line among them, for the SitRep window to
+      read again; none on the first.
+    - It is stable as `list --json` is: every field is always there (a list
+      empty, any other value null where there is none), and `v` moves only
+      with a change a reader would trip on.
+    - **The loop.** It looks every second, as the mod's readers do: a file
+      is read again only once its size or time moved, a folder listed again
+      only once its time moved, as an entry made, removed or renamed there
+      moves it, and a session folded again only once its files changed
+      (`cli/held.ts`). A session off the board, finished or idle past the
+      views, is read every 10 seconds: it changes rarely, and only a join or
+      a post brings it back. The shell lists, stats and reads at once, not
+      through a promise's round trip to a thread, at about a tenth of the
+      cost (measured on Bun 1.4). At rest it costs about half a percent of a
+      core over a copy of Lee's board (50 sessions, 13 of them current, 11
+      windows beating), 0.15% over a board of three. Polling, not the
+      platform's file events: Bun's recursive `fs.watch` does hear every
+      change on macOS (probed), but events can be coalesced or dropped, so a
+      slower poll would still run beside them, and polling is what every
+      reader does and what the tests run on. Events are the lever should the
+      cost come to matter.
+    - **Expiry.** A heartbeat going stale changes no file, so core says when
+      the board next changes by time alone: the first live heartbeat going
+      stale, or an idle session dropping out of the views. It looks again at
+      that instant, folding every session afresh.
+    - **Torn files.** A file caught torn keeps the last text read of it whole
+      until it changes again: a JSON file that does not parse, or a writer's
+      lines holding only the start of what was last read whole, as a mod
+      rewriting its whole file may leave them. So nothing drops off for a
+      look and comes back as new. A file that will not read keeps it too,
+      tried at each look; one never read whole is not there.
+    - **The move.** It moves the old layout as it starts, as every run does,
+      and every 10 minutes after: it runs as long as the app does, and the
+      move waits on windows reloading.
+    - **Ending.** It ends, exit 0, once what reads its standard output has
+      gone, or on SIGTERM. An app that quits, however it quits, leaves its
+      child to launchd, and while the board is still no write finds the
+      pipe closed, so it looks each second whether its parent has gone; a
+      write that fails ends it too. A folder it cannot look in ends it with
+      a `sitrep:` line on stderr and exit 1, for the app to start it again.
+    - Tried live (19 October 2026) over a state folder of its own: an ask
+      and a note posted with the CLI, and heartbeats written by hand with a
+      working tool, a permission prompt and a question, each became a line
+      at the next look, the ask and the stops new on it, the working row's
+      path shown from the project's directory; each heartbeat went stale to
+      the millisecond, a line with no file changed; SIGTERM, the parent
+      quitting and the pipe closing each ended it, exit 0.
     - Claude windows don't watch: each mod writes its own files there and
       polls for its pane, as under Storage.
     - `sitrep serve`, later, builds on the same loop.
@@ -1578,6 +1693,23 @@ off it, for the SitRep window to show. In this order:
 1. needs you, oldest first, with away ones last, oldest first among them;
 2. your turn, newest first;
 3. working, longest running first.
+
+Core decides the rows (`core/rows.ts`, 19 October 2026), and `sitrep
+watch` prints them in this order, for the app to draw as they come: one per
+ask waiting, and one per live window stopped on a permission prompt or a
+question, a session that needs Lee showing only those; else one per session
+a window holds: working where any of its windows is, the one whose turn
+began last, else your turn, the one whose turn ended last. Each says what
+it is, its two lines as below, and the instant its time counts from: an
+ask's posting, or its reopening; a stop's showing; the turn's end on your
+turn; the turn's start while working. While a tool runs, a working row
+leads with its verb (Read Reading; Edit, MultiEdit and NotebookEdit Editing;
+Write Writing; Bash Running; Grep and WebSearch Searching; Glob Finding;
+WebFetch Fetching; Skill Using; LSP Checking), its subject after it, a
+file's path from the project's directory where it lies under it; Agent,
+Task and Monitor lead with their description, and any other tool with its
+name. With no tool, working and your turn read the board's "now", else the
+summary, else the name.
 
 Rows keep their places while the panel is open: a changed row moves only
 once it closes. A click on an away row does nothing; it is there, but there
@@ -2566,7 +2698,11 @@ reaches a window only while that pane is on show).
         2026: how the mod hears it is under "A session's state", and the
         heartbeat's `state` under "Storage";
       - **`sitrep watch`** (under "One engine, two front ends"), with what
-        is new and presence expiry worked out in core.
+        is new and presence expiry worked out in core. Built 19 October
+        2026: the board as every surface shows it, a line each time it
+        changes, each session's state and its rows in their order decided
+        in core, what is new by row, the windows with their versions, and
+        a look again the moment a heartbeat goes stale.
 
       The clone is the live plugin: each is proven by the CLI run live over
       a state folder of its own, and reaches Lee's windows as it merges, at
@@ -2775,8 +2911,9 @@ reaches a window only while that pane is on show).
    step: each window's state, written at once, a burst of calls at most
    once a second, a subagent's prompt or question counting as the window's
    own while its turns and tools do not, and a permission prompt only once
-   its dialog shows (see "A session's state" and "Storage"). The swell, the
-   light and the rows wait on `sitrep watch` and the app.
+   its dialog shows (see "A session's state" and "Storage"). `sitrep watch`
+   gives the rows and what is new (19 October 2026); the swell and the light
+   wait on the app.
 
    A macOS notification comes only if Lee turns them on. First written (13
    October 2026) as a macOS notification for every session blocked on a

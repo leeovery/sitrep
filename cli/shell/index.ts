@@ -1,21 +1,11 @@
 /**
  * The CLI bound to Bun: the file system, the environment and the folder it
  * runs in, the clock and waiting on it, random bytes, standard output and
- * error, programs and terminal devices, and the exit code. bin/sitrep runs
- * it.
+ * error and when the run is to end, the plugin's manifest, programs and
+ * terminal devices, and the exit code. bin/sitrep runs it.
  */
-import { constants } from 'node:fs'
-import {
-  appendFile,
-  link,
-  mkdir,
-  open,
-  readdir,
-  rename,
-  rmdir,
-  stat,
-  unlink,
-} from 'node:fs/promises'
+import { constants, readdirSync, readFileSync, statSync } from 'node:fs'
+import { appendFile, link, mkdir, open, rename, rmdir, unlink } from 'node:fs/promises'
 import type { Io, Listed, Ran } from '../io'
 import { main } from '../main'
 
@@ -24,6 +14,16 @@ const ABSENT = ['ENOENT', 'ENOTDIR']
 
 /** Errors a folder's removal leaves it by: it holds something (macOS says ENOTEMPTY, POSIX allows EEXIST). */
 const NOT_EMPTY = ['ENOTEMPTY', 'EEXIST']
+
+/** The plugin's manifest, from this file's folder, `cli/shell`. */
+const MANIFEST = `${import.meta.dir}/../../.claude-plugin/plugin.json`
+
+/**
+ * How often a run that goes on until it is to end looks whether the program
+ * that started it is still there. One that quits leaves its child to
+ * launchd, and while the board stays still no write finds the pipe closed.
+ */
+const PARENT_MS = 1_000
 
 const hasCode = (error: unknown, codes: readonly string[]) =>
   typeof error === 'object' && error !== null && codes.includes(String(Reflect.get(error, 'code')))
@@ -41,9 +41,18 @@ const allowing =
 
 const folderOf = (path: string) => path.slice(0, path.lastIndexOf('/'))
 
-const modifiedAt = async (path: string) => {
+/*
+ * A listing, a stat and a read are made at once, not through a promise's
+ * round trip to a thread: `watch` looks every second, a look is mostly
+ * these, and each costs about a tenth (measured on Bun 1.4: a stat 2µs of
+ * CPU in place of 26, a listing 17 in place of 46).
+ */
+
+const statOf = async (path: string) => {
   try {
-    return (await stat(path)).mtimeMs
+    const found = statSync(path, { throwIfNoEntry: false })
+
+    return found === undefined ? undefined : { size: found.size, mtimeMs: found.mtimeMs }
   } catch (error) {
     allowing(ABSENT)(error)
 
@@ -81,7 +90,7 @@ const moveIn = async (from: string, to: string) => {
 
 const list = async (dir: string): Promise<Listed[]> => {
   try {
-    return (await readdir(dir, { withFileTypes: true })).flatMap((entry): Listed[] => {
+    return readdirSync(dir, { withFileTypes: true }).flatMap((entry): Listed[] => {
       if (entry.isDirectory()) {
         return [{ name: entry.name, kind: 'dir' }]
       }
@@ -138,11 +147,35 @@ const writeTo = async (device: string, text: string) => {
   }
 }
 
+/**
+ * Resolves once the program that started the run has gone, standard output
+ * fails (a write to a pipe its reader closed), or SIGTERM comes; the
+ * listeners go with it, so nothing holds the run open after.
+ */
+const ended = () =>
+  new Promise<void>(resolve => {
+    const parent = process.ppid
+    const end = () => {
+      clearInterval(looking)
+      process.off('SIGTERM', end)
+      process.stdout.off('error', end)
+      resolve()
+    }
+    const looking = setInterval(() => {
+      if (process.ppid !== parent) {
+        end()
+      }
+    }, PARENT_MS)
+
+    process.on('SIGTERM', end)
+    process.stdout.on('error', end)
+  })
+
 const io: Io = {
   fs: {
-    read: path => Bun.file(path).text(),
+    read: async path => readFileSync(path, 'utf8'),
     list,
-    modifiedAt,
+    stat: statOf,
     append,
     moveIn,
     replace: (from, to) => rename(from, to).catch(allowing(ABSENT)),
@@ -156,6 +189,8 @@ const io: Io = {
   random: count => crypto.getRandomValues(new Uint8Array(count)),
   out: text => void process.stdout.write(text),
   err: text => void process.stderr.write(text),
+  ended,
+  manifest: async () => readFileSync(MANIFEST, 'utf8'),
   run,
   writeTo,
 }

@@ -1,9 +1,9 @@
 /**
  * What the CLI asks of the world: its file system, the environment and the
  * folder it runs in, the clock and waiting on it, random bytes, somewhere to
- * print, and, for the jump, programs to run and terminal devices to write
- * to. cli/shell binds it to Bun; a test binds it to memory, with a fake
- * tmux and Ghostty.
+ * print and when that is gone, the plugin's manifest, and, for the jump,
+ * programs to run and terminal devices to write to. cli/shell binds it to
+ * Bun; a test binds it to memory, with a fake tmux and Ghostty.
  *
  * The file system appends and never rewrites: the CLI's file may be written
  * by another run of it at the same moment, and an append keeps both runs'
@@ -17,6 +17,9 @@ import type { Random } from '../core'
 /** A folder's entry, as its listing gives it. */
 export type Listed = { name: string; kind: 'file' | 'dir' }
 
+/** A file's size and when it was last written; a folder's when an entry was last made, removed or renamed in it. */
+export type Stat = { size: number; mtimeMs: number }
+
 export type Env = { XDG_STATE_HOME?: string; HOME?: string; SITREP_SESSION?: string }
 
 /** How a program ran: its exit code, whatever it was, and what it printed. */
@@ -28,8 +31,8 @@ export type Io = {
     read: (path: string) => Promise<string>
     /** A folder's files and folders; none while it is not there. */
     list: (dir: string) => Promise<Listed[]>
-    /** When a file was last written; undefined while it is not there. */
-    modifiedAt: (path: string) => Promise<number | undefined>
+    /** A file's or a folder's size and time; undefined while it is not there. */
+    stat: (path: string) => Promise<Stat | undefined>
     /** Adds the text to the end of the file, making the file and its folder if need be. */
     append: (path: string, text: string) => Promise<void>
     /**
@@ -59,6 +62,15 @@ export type Io = {
   out: (text: string) => void
   /** Writes to standard error, as given. */
   err: (text: string) => void
+  /**
+   * Resolves once the run is to end: what reads its standard output has
+   * gone, as when the program that started it quit or a write found it
+   * closed, or it was told to end (SIGTERM). Asked only by `watch`, which
+   * runs until then.
+   */
+  ended: () => Promise<void>
+  /** The text of the plugin's manifest, `.claude-plugin/plugin.json`, in the copy of the plugin the CLI runs from: whose version it runs. */
+  manifest: () => Promise<string>
   /**
    * Runs a program by its words, no shell between. Rejects when it cannot
    * start, or, given `limitMs`, when it has not ended by then: it is killed.
