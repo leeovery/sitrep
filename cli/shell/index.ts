@@ -1,13 +1,13 @@
 /**
  * The CLI bound to Bun: the file system, the environment and the folder it
- * runs in, the clock and waiting on it, random bytes, standard output and
+ * runs in, the clocks and waiting on them, random bytes, standard output and
  * error and when the run is to end, the plugin's manifest, programs and
  * terminal devices, and the exit code. bin/sitrep runs it.
  */
 import { constants, readdirSync, readFileSync, statSync } from 'node:fs'
 import { appendFile, link, mkdir, open, rename, rmdir, unlink } from 'node:fs/promises'
 import { endOf, type Signals } from '../ending'
-import type { Io, Listed, Ran } from '../io'
+import type { Io, Listed, Ran, Waiting } from '../io'
 import { main } from '../main'
 
 /** Errors a listing means "not there" by: the folder is missing, or is a file. */
@@ -144,6 +144,15 @@ const writeTo = async (device: string, text: string) => {
   }
 }
 
+const wait = (ms: number): Waiting => {
+  let timer: ReturnType<typeof setTimeout> | undefined
+  const waited = new Promise<void>(resolve => {
+    timer = setTimeout(resolve, ms)
+  })
+
+  return Object.assign(waited, { cancel: () => clearTimeout(timer) })
+}
+
 const signals: Signals = {
   parent: () => process.ppid,
   onTerm: heard => {
@@ -177,7 +186,8 @@ const io: Io = {
   env: Bun.env,
   cwd: process.cwd(),
   now: () => Date.now(),
-  wait: ms => new Promise(resolve => setTimeout(resolve, ms)),
+  uptime: () => performance.now(),
+  wait,
   random: count => crypto.getRandomValues(new Uint8Array(count)),
   out: text => void process.stdout.write(text),
   err: text => void process.stderr.write(text),

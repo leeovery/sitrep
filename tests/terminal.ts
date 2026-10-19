@@ -1,7 +1,7 @@
 /**
  * The CLI's world, for its tests: a file system in memory (the mod's test
  * world's own, when a test shares it), the folder the CLI runs in, the
- * environment, the clock, which only waiting moves, random bytes, what it
+ * environment, the clocks, which only waiting moves, random bytes, what it
  * prints and its closing, the plugin's manifest, and a fake tmux, `ps`,
  * lsappinfo, `open` and Ghostty behind the programs it runs and the devices
  * it writes to. Nothing touches a real folder, terminal or window.
@@ -178,7 +178,10 @@ type Options = {
   files?: Map<string, File>
   cwd?: string
   env?: Env
+  /** The wall clock, waits aside: NOW unless a test says otherwise, moving it on as the Mac sleeping does. */
   now?: () => number
+  /** The uptime, waits aside: 0 unless a test says otherwise, moving it on with the wall clock as a stall does. */
+  uptime?: () => number
   random?: Random
   /** tmux's servers, by socket; a socket missing has none running. */
   tmux?: Record<string, FakeServer>
@@ -557,11 +560,13 @@ function screen(options: Options) {
 export function terminal(options: Options = {}) {
   const files = options.files ?? new Map<string, File>()
   const clock = options.now ?? (() => NOW)
+  const awake = options.uptime ?? (() => 0)
 
   files.set(MANIFEST, { text: options.manifest ?? manifestText(CLI_VERSION), mtimeMs: T0 })
   /** Every wait, in order. */
   const waits: number[] = []
-  const now = () => clock() + waits.reduce((sum, ms) => sum + ms, 0)
+  const waited = () => waits.reduce((sum, ms) => sum + ms, 0)
+  const now = () => clock() + waited()
   const shown = screen(options)
   /** Folders standing with no file in them: a real one outlives its last file until it is removed. */
   const folders = new Set<string>()
@@ -650,8 +655,11 @@ export function terminal(options: Options = {}) {
     env: options.env ?? ENV,
     cwd: options.cwd ?? REPO,
     now,
-    wait: async ms => {
+    uptime: () => awake() + waited(),
+    wait: ms => {
       waits.push(ms)
+
+      return Object.assign(Promise.resolve(), { cancel: () => {} })
     },
     random: options.random ?? scripted([1, 2, 3, 4], [5, 6, 7, 8]),
     out: text => {

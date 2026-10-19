@@ -1,6 +1,6 @@
 /**
  * What the CLI asks of the world: its file system, the environment and the
- * folder it runs in, the clock and waiting on it, random bytes, somewhere to
+ * folder it runs in, the clocks and waiting on them, random bytes, somewhere to
  * print and when that is gone, the plugin's manifest, and, for the jump,
  * programs to run and terminal devices to write to. cli/shell binds it to
  * Bun; a test binds it to memory, with a fake tmux and Ghostty.
@@ -24,6 +24,9 @@ export type Env = { XDG_STATE_HOME?: string; HOME?: string; SITREP_SESSION?: str
 
 /** How a program ran: its exit code, whatever it was, and what it printed. */
 export type Ran = { exitCode: number; stdout: string; stderr: string }
+
+/** A wait under way: it resolves once its time has passed, unless `cancel` lets it go first, its timer with it, never to resolve. */
+export type Waiting = Promise<void> & { cancel: () => void }
 
 /** A run's end as listened for: `ended` resolves once it is to end; `stop` stops the listening, as the run ends some other way, so nothing holds it open after. */
 export type Ending = { ended: Promise<void>; stop: () => void }
@@ -58,8 +61,10 @@ export type Io = {
   /** The folder the CLI runs in: which projects `list` gives first. */
   cwd: string
   now: () => number
-  /** Resolves once `ms` milliseconds have passed: the pause between the jump's looks at which app is in front. */
-  wait: (ms: number) => Promise<void>
+  /** Milliseconds by a clock that does not run while the Mac sleeps, from some start: what tells `watch` a sleep from a stall. */
+  uptime: () => number
+  /** Waits `ms` milliseconds: the pause between the jump's looks at which app is in front, and between `watch`'s looks. */
+  wait: (ms: number) => Waiting
   random: Random
   /** Writes to standard output, as given. */
   out: (text: string) => void

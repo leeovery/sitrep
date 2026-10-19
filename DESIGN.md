@@ -1428,11 +1428,13 @@ truth. There is still no background service. None of it is built now. Lee:
       moves it, and a session folded again only once its files changed
       (`cli/held.ts`). A session off the board, finished or idle past the
       views, is read every 10 seconds: it changes rarely, and only a join or
-      a post brings it back. The shell lists, stats and reads at once, not
-      through a promise's round trip to a thread, at about a tenth of the
-      cost (measured on Bun 1.4). At rest it costs about half a percent of a
-      core over a copy of Lee's board (50 sessions, 13 of them current, 11
-      windows beating), 0.15% over a board of three. Polling, not the
+      a post brings it back. A finished one a live window still holds is
+      read at every look, so the window's state is heard at once. The shell
+      lists, stats and reads at once, not through a promise's round trip to
+      a thread, at about a tenth of the cost (measured on Bun 1.4). At rest
+      it costs about half a percent of a core over a copy of Lee's board (50
+      sessions, 13 of them current, 11 windows beating), 0.15% over a board
+      of three. Polling, not the
       platform's file events: Bun's recursive `fs.watch` does hear every
       change on macOS (probed), but events can be coalesced or dropped, so a
       slower poll would still run beside them, and polling is what every
@@ -1442,18 +1444,31 @@ truth. There is still no background service. None of it is built now. Lee:
       the board next changes by time alone: the first live heartbeat going
       stale, or an idle session dropping out of the views. It looks again at
       that instant, folding every session afresh.
-    - **Pauses.** Time the watch was not running ages no heartbeat (core's
-      `pauses.ts`). A gap between two of its looks longer than 5 seconds,
-      where it looks every second, is a pause, all of it, as when the watch
-      or the Mac slept: told by the gap, not by the clock, whose running
-      while the Mac sleeps is nothing to rely on. A window live as the pause
-      began has the rest of its 90 seconds after it to beat again, and one
-      stale before it stays stale, so a Mac waking shows no stop gone for
-      the moment before the windows beat. The expiry follows: folded again
-      at the instant it was to go stale, the window is found live still,
-      and its next instant comes the pause later. A pause is let go once
-      the watch has run 90 seconds past it, when every heartbeat seen
-      before it is stale with it or without it.
+    - **Pauses.** Time the Mac slept ages no heartbeat (core's
+      `pauses.ts`). A window live as the Mac slept has the rest of its 90
+      seconds after the wake to beat again, and one stale before stays
+      stale, so a Mac waking shows no stop gone for the moment before the
+      windows beat. A sleep is told from a stall by two clocks: the wall
+      clock, which runs on while the Mac sleeps, and the uptime, which does
+      not. How far the wall clock moved beyond the uptime between two looks,
+      past 5 seconds of it, is the sleep, a pause. A look held back, by App
+      Nap, timers coalesced or a slow look, moves both alike and pauses
+      nothing: first written (19 October 2026) as any gap between looks past
+      5 seconds, all of it, which held back over and over kept a window
+      gone for good live. The uptime is Bun's `performance.now()`, read from
+      Bun 1.4.2's source on 20 October 2026: Rust's `Instant`, which on
+      macOS is `CLOCK_UPTIME_RAW`, `mach_absolute_time`, stopped while the
+      Mac sleeps. Should a later Bun's count the sleep, a sleep pauses
+      nothing: on a wake the board may drop a stop and bring it back as the
+      window beats, but never swell for it again, as `new` is what the
+      watch has not shown. Clocks that disagree otherwise, the uptime going
+      back or outrunning the wall clock, pause nothing either. The expiry
+      follows: folded again at the instant it was to go stale, the window
+      is found live still, and its next instant comes the sleep later. A
+      pause is let go once the Mac has been awake 90 seconds since it, when
+      every heartbeat seen before it is stale with it or without it, and
+      however the clocks run no more than 10 are kept, the oldest let go
+      first, so a look's cost stays a few sums.
     - **Torn files.** A file caught torn keeps the last text read of it whole
       until it changes again: a JSON file that does not parse, or a writer's
       lines holding only the start of what was last read whole, as a mod
@@ -1466,7 +1481,8 @@ truth. There is still no background service. None of it is built now. Lee:
       and every 10 minutes after: it runs as long as the app does, and the
       move waits on windows reloading.
     - **Ending.** It ends, exit 0, once what reads its standard output has
-      gone, or on SIGTERM (`cli/ending.ts`). An app that quits, however it
+      gone, or on SIGTERM (`cli/ending.ts`). A pipe closed is found only at
+      the next write, or once the parent goes. An app that quits, however it
       quits, leaves its child to launchd, and while the board is still no
       write finds the pipe closed, so it looks each second whether its
       parent has gone: the one it found as it loaded, launchd's pid 1
@@ -1475,11 +1491,13 @@ truth. There is still no background service. None of it is built now. Lee:
       printing nothing more, once the plugin's manifest says a version other
       than the one it started on: each look stats the manifest, so after a
       plugin update the app, hearing an exit it did not ask for, starts the
-      new one at once, with the new version and `needsReload` to match. A
-      folder it cannot look in ends it with a `sitrep:` line on stderr and
-      exit 1, for the app to start it again. However it ends, a failure
-      among them, it stops listening for its end, which would otherwise hold
-      the process open.
+      new one at once, with the new version and `needsReload` to match. The
+      version it runs is the first it reads whole, so a manifest caught torn
+      as it starts is no move. A folder it cannot look in ends it with a
+      `sitrep:` line on stderr and exit 1, for the app to start it again.
+      However it ends, a failure among them, it stops listening for its end
+      and lets go of the wait under way, either of which would otherwise
+      hold the process open.
     - Tried live (19 October 2026) over a state folder of its own: an ask
       and a note posted with the CLI, and heartbeats written by hand with a
       working tool, a permission prompt and a question, each became a line
@@ -1487,11 +1505,15 @@ truth. There is still no background service. None of it is built now. Lee:
       path shown from the project's directory; each heartbeat went stale to
       the millisecond, a line with no file changed; SIGTERM, the parent
       quitting and the pipe closing each ended it, exit 0. Again later that
-      day, each way out: a state folder it could not read ended it
-      at once, exit 1, where before it ran on; one not there yet gave the
-      empty board and SIGTERM ended it within a tenth of a second; the
-      manifest saying another version ended it within a second, exit 0, no
-      line after; and one left to launchd as it started ended at once.
+      day, each way out: a state folder it could not read ended it at once,
+      exit 1, where before it ran on; one not there yet gave the empty
+      board; the manifest saying another version ended it, exit 0, no line
+      after; and one left to launchd as it started ended at once. On 20
+      October 2026, timed from what ended it, three runs each, the wait
+      under way let go: SIGTERM in 10 to 20 milliseconds, where before it
+      took up to a second; the parent quitting, the manifest moving and a
+      write finding the pipe closed in about 0.7 seconds each, the time to
+      the next look or the next look for the parent, gone at once after.
     - Claude windows don't watch: each mod writes its own files there and
       polls for its pane, as under Storage.
     - `sitrep serve`, later, builds on the same loop.
@@ -2821,7 +2843,10 @@ reaches a window only while that pane is on show).
      the pane's window, and that Ghostty window comes forward showing it;
    - a jump to a session two windows hold, one stopped on a permission
      prompt: the jump goes to that one; and with neither stopped, to the one
-     working, else the one whose turn ended last.
+     working, else the one whose turn ended last;
+   - the Mac put to sleep for a few minutes with a permission prompt
+     showing, and woken: the row stands throughout, with no flicker, and
+     the notch does not swell again for it.
 
    A jump outside tmux, tested since stage 2, was first
    run live from the bare app (below). Two things to carry over from stage 2: an app started from the Finder has

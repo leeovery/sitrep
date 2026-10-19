@@ -10,16 +10,17 @@
  *   finished or idle past the views, is read again every 10 seconds: it
  *   changes rarely, and only a join or a post brings it back.
  * - It looks again the moment core says the board changes by time alone,
- *   as when a heartbeat goes stale, which changes no file. Time it was not
- *   running, told by a gap between its looks, ages no heartbeat
- *   (core's pauses.ts): folded again at the instant it was to go stale, a
- *   window that beat on through a pause is live still.
+ *   as when a heartbeat goes stale, which changes no file. Time the Mac
+ *   slept, told by its two clocks, ages no heartbeat (core's pauses.ts):
+ *   folded again at the instant it was to go stale, a window the Mac slept
+ *   through is live still.
  * - A line is printed at the start, and then only when what it would print
  *   differs from the last, its own time aside.
  * - Every 10 minutes it moves the old layout, as each run does at its start.
- * - It ends once its standard output is gone, or SIGTERM comes (ending.ts),
- *   and as the plugin's manifest comes to say another version, for the app
- *   to start the new one.
+ * - It ends once the program that started it has gone, a line finds its
+ *   standard output closed, or SIGTERM comes (ending.ts), and as the
+ *   plugin's manifest comes to say another version, for the app to start
+ *   the new one.
  */
 import {
   clockAt,
@@ -60,8 +61,13 @@ type Kept = SessionRead & { board?: string; isOff: boolean }
 /** What a look found: every project and its sessions, and whether each session stood as at the last look, none folded anew. */
 type Looked = { read: ProjectRead[]; isSame: boolean }
 
-/** What the last line showed: the board as text, each session's `board --json` then, and the rows needing Lee shown so far. */
-type Printed = { text: string; boards: ReadonlyMap<string, string>; shown: Shown }
+/** What the last line showed: the board as text, the version it ran, each session's `board --json` then, and the rows needing Lee shown so far. */
+type Printed = {
+  text: string
+  version: string | undefined
+  boards: ReadonlyMap<string, string>
+  shown: Shown
+}
 
 const isSameTexts = (
   a: Readonly<Record<string, string>> = {},
@@ -182,13 +188,14 @@ const print = (
 
   io.out(`${watchLine(feed, version, clock.at, news, changed)}\n`)
 
-  return { text, boards, shown }
+  return { text, version, boards, shown }
 }
 
 /**
- * The run's end, a wait it cuts short, and the listening stopped. Its end is
- * listened to once, not raced at every wait: each race would leave it a
- * reaction, held for as long as the run goes on.
+ * The run's end, a wait it cuts short, its timer let go so that nothing
+ * holds the run open, and the listening stopped. Its end is listened to
+ * once, not raced at every wait: each race would leave it a reaction, held
+ * for as long as the run goes on.
  */
 const untilEnded = (io: Io) => {
   const { ended, stop } = io.ending()
@@ -204,10 +211,36 @@ const untilEnded = (io: Io) => {
     isEnded: () => isEnded,
     wait: (ms: number) =>
       new Promise<void>(resolve => {
-        wake = resolve
-        void io.wait(ms).then(resolve)
+        const waiting = io.wait(ms)
+
+        wake = () => {
+          waiting.cancel()
+          resolve()
+        }
+        void waiting.then(resolve)
       }),
     stop,
+  }
+}
+
+/**
+ * The version the watch runs, as the plugin's manifest says it: the first
+ * read whole, so a manifest caught torn as it starts gives none until then.
+ * Whether it has moved since, a manifest saying none moving nothing; each
+ * look at it is a stat, read again only once it changed.
+ */
+const releaseOf = (io: Io, held: Io) => {
+  let version: string | undefined
+
+  return {
+    version: () => version,
+    isMoved: async () => {
+      const now = manifestVersion(await held.fs.read(io.manifest).catch(() => ''))
+
+      version ??= now
+
+      return now !== undefined && now !== version
+    },
   }
 }
 
@@ -234,8 +267,7 @@ const watchUntil = async (
   run: ReturnType<typeof untilEnded>,
 ) => {
   const held = heldReads(io)
-  const versionNow = async () => manifestVersion(await held.fs.read(io.manifest).catch(() => ''))
-  const version = await versionNow()
+  const release = releaseOf(io, held)
   const reader = boardReader(held, rootOf(io.env))
   const isMoveDue = every(MOVE_MS, io.now())
   const isWholeLook = every(OFF_BOARD_MS, -Infinity)
@@ -243,21 +275,22 @@ const watchUntil = async (
   let clock: Clock | undefined
   let expiry: number | undefined
 
-  while (!run.isEnded() && (await versionNow()) === version) {
-    const now = io.now()
-
-    clock = clockAt(clock, now)
-
-    if (isMoveDue(now)) {
+  while (!run.isEnded() && !(await release.isMoved())) {
+    if (isMoveDue(io.now())) {
       await move()
     }
+
+    const now = io.now()
+    const version = release.version()
+
+    clock = clockAt(clock, now, io.uptime())
 
     const isDue = expiry !== undefined && now >= expiry
     const { read, isSame } = await reader.look(now, clock, isWholeLook(now), isDue)
 
     expiry = nextExpiry(read, now)
 
-    if (last === undefined || !isSame) {
+    if (last === undefined || !isSame || version !== last.version) {
       last = print(io, last, feedOf(read, now, version), reader.boardOf, clock, version)
     }
 

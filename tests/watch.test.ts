@@ -1,7 +1,7 @@
 import { expect, test } from 'claude-code/testing'
 import type { Io } from '../cli/io'
 import { EXIT, main } from '../cli/main'
-import { MOVE_MS, OFF_BOARD_MS, POLL_MS } from '../cli/watch'
+import { MOVE_MS, OFF_BOARD_MS, POLL_MS, watch } from '../cli/watch'
 import {
   append,
   metaText,
@@ -65,19 +65,39 @@ const looks = (count: number): Step[] => Array.from({ length: count }, () => sti
 
 /**
  * `sitrep watch` over the terminal's files, `fs` standing in for any of its
- * file system's calls and `ending` for the listening for its end, the steps
- * taken in turn, one at each wait, and then its standard output closed: how
- * it ended, what it told on standard error, and each line it printed, read
- * back.
+ * file system's calls, `ending` for the listening for its end and `move` for
+ * its move of the old layout, the steps taken in turn, one at each wait, and
+ * then its standard output closed, the wait under way then never ending
+ * unless cancelled: how it ended, what it told on standard error, each line
+ * it printed, read back, and whether it left that wait holding the run.
  */
 const watched = async (
   t: Terminal,
   steps: readonly Step[],
-  { fs = {}, ending = t.io.ending }: { fs?: Partial<Io['fs']>; ending?: Io['ending'] } = {},
+  {
+    fs = {},
+    ending = t.io.ending,
+    move,
+  }: { fs?: Partial<Io['fs']>; ending?: Io['ending']; move?: () => Promise<void> } = {},
 ) => {
   const queue = [...steps]
   let out = ''
   let err = ''
+  let last: { isCancelled: boolean } | undefined
+  const waited = async (ms: number, waiting: { isCancelled: boolean }) => {
+    await t.io.wait(ms)
+
+    const step = queue.shift()
+
+    if (step === undefined) {
+      last = waiting
+      t.close()
+
+      return new Promise<void>(() => {})
+    }
+
+    step()
+  }
   const io: Io = {
     ...t.io,
     fs: { ...t.io.fs, ...fs },
@@ -88,27 +108,23 @@ const watched = async (
     err: text => {
       err += text
     },
-    wait: async ms => {
-      await t.io.wait(ms)
+    wait: ms => {
+      const waiting = { isCancelled: false }
 
-      const step = queue.shift()
-
-      if (step === undefined) {
-        t.close()
-
-        return new Promise<void>(() => {})
-      }
-
-      step()
+      return Object.assign(waited(ms, waiting), {
+        cancel: () => {
+          waiting.isCancelled = true
+        },
+      })
     },
   }
-  const exit = await main(['watch'], io)
+  const exit = move === undefined ? await main(['watch'], io) : (await watch(io, move), EXIT.done)
   const lines = out
     .split('\n')
     .filter(line => line !== '')
     .map(line => JSON.parse(line) as Printed)
 
-  return { exit, err, lines }
+  return { exit, err, lines, isWaitHeld: last !== undefined && !last.isCancelled }
 }
 
 /** Lines the CLI appends to the session's file, as the clock stands. */
@@ -548,7 +564,7 @@ test(
 )
 
 test(
-  'the Mac asleep past a heartbeat’s time ages it not: its stop stands through the wake, and goes stale only once the rest of its time has run after',
+  'the Mac asleep past a heartbeat’s time, the wall clock moving and the uptime not, ages it not: its stop stands through the wake, and goes stale only once the rest of its time has run after',
   SLOW,
   async () => {
     let slept = 0
@@ -562,14 +578,75 @@ test(
       },
       ...looks(STALE_MS / POLL_MS + 1),
     ])
-    const woke = NOW + POLL_MS + HOUR
 
     expect(lines.map(line => [line.at, keys(line), line.new])).toEqual([
       [NOW, [STOP], []],
-      [woke + STALE_MS + 1, [], []],
+      [NOW + HOUR + STALE_MS + 1, [], []],
     ])
   },
 )
+
+test(
+  'looks held back over and over, as App Nap would, both clocks moving alike, age a heartbeat as ever: a window gone goes stale at the first look past its time',
+  SLOW,
+  async () => {
+    let stalled = 0
+    const { t } = held([], { now: () => NOW + stalled, uptime: () => stalled })
+    const stall = () => {
+      stalled += 5_000
+    }
+    const { lines } = await watched(
+      t,
+      Array.from({ length: 20 }, () => stall),
+    )
+
+    expect(lines.map(line => [line.at, keys(line)])).toEqual([
+      [NOW, [`turn:${META.id}`]],
+      [NOW + STALE_MS + 1 + 5_000, []],
+    ])
+  },
+)
+
+test(
+  'a look after a slow move is at the instant the move ended, not the one before it',
+  SLOW,
+  async () => {
+    let moved = 0
+    const t = terminal({ now: () => NOW + moved, uptime: () => moved })
+
+    t.project(PROJECT.key, { name: PROJECT.name, directory: REPO, created: T0, by: W1 })
+
+    const paths = t.seed(META)
+    const move = async () => {
+      moved += 3_000
+      post(t, paths, yesAsk('k2', 'Try it'))
+    }
+    const { lines } = await watched(t, looks(MOVE_MS / POLL_MS + 1), { move })
+
+    expect(lines.map(line => [line.at, keys(line)])).toEqual([
+      [NOW, []],
+      [NOW + MOVE_MS + 3_000, [`ask:${META.id}:k2`]],
+    ])
+  },
+)
+
+test('a manifest caught torn as the watch starts gives no version until it reads whole, which is then the one it runs, not a move', async () => {
+  const { t } = held([], { manifest: '{"name":"sitrep","vers' })
+  const rewrite = (version: string) => () =>
+    t.files.set(MANIFEST, { text: manifestText(version), mtimeMs: t.io.now() })
+  const { exit, lines } = await watched(t, [
+    rewrite(CLI_VERSION),
+    still,
+    rewrite('0.3.0'),
+    ...looks(3),
+  ])
+
+  expect({ exit, waits: t.waits.length }).toEqual({ exit: EXIT.done, waits: 3 })
+  expect(lines.map(line => [line.at, line.version])).toEqual([
+    [NOW, null],
+    [NOW + POLL_MS, CLI_VERSION],
+  ])
+})
 
 test('a session gone, and then its project, nothing else changing, is gone from the next line', async () => {
   const { t } = held()
@@ -647,7 +724,7 @@ test('the run’s end is listened for once, not at each wait: a long watch holds
   expect(listens).toBe(1)
 })
 
-test('however the watch ends, it stops listening for its end, which would hold the run open: its end come, another version, a failure', async () => {
+test('however the watch ends, it stops listening for its end and lets its wait go, either of which would hold the run open: its end come, another version, a failure', async () => {
   const ended = held()
   const updated = held()
   const failing = held()
@@ -659,14 +736,19 @@ test('however the watch ends, it stops listening for its end, which would hold t
     return failing.t.io.fs.stat(path)
   }
 
-  await watched(ended.t, looks(2))
-  await watched(updated.t, [
-    () => updated.t.files.set(MANIFEST, { text: manifestText('0.3.0'), mtimeMs: NOW }),
-  ])
+  const runs = [
+    await watched(ended.t, looks(2)),
+    await watched(updated.t, [
+      () => updated.t.files.set(MANIFEST, { text: manifestText('0.3.0'), mtimeMs: NOW }),
+    ]),
+    await watched(failing.t, looks(2), { fs: { stat } }),
+  ]
 
-  expect(await watched(failing.t, looks(2), { fs: { stat } })).toMatchObject({
-    exit: EXIT.refused,
-  })
+  expect(runs.map(({ exit, isWaitHeld }) => ({ exit, isWaitHeld }))).toEqual([
+    { exit: EXIT.done, isWaitHeld: false },
+    { exit: EXIT.done, isWaitHeld: false },
+    { exit: EXIT.refused, isWaitHeld: false },
+  ])
   expect([ended, updated, failing].map(({ t }) => t.listening())).toEqual([0, 0, 0])
 })
 
