@@ -1,8 +1,9 @@
 import CoreGraphics
 @testable import SitRepPanel
 
-/// A frame of the strip as its prototype recorded it (`StripRecording.swift`), decoded from its JSON: a frame an
-/// object, its tabs too, and a mark, the ends, a count, a tab's end, a word and the pointer each its values in order.
+/// A frame of the strip as its prototype recorded it, in `Recorded/Strip`, loaded by `StripRecording.swift`. In the
+/// JSON a frame and a tab are objects; a mark, the ends, a count, a tab's end, a word and the pointer are each a list
+/// of their values in order.
 struct StripRecorded {
     struct Tab {
         let key: String
@@ -67,7 +68,7 @@ extension StripRecorded: Decodable {
     init(from decoder: any Decoder) throws {
         let c = try decoder.container(keyedBy: Keys.self)
         try self.init(
-            t: c.decode(Double.self, forKey: .t), p: c.decode(CGPoint?.self, forKey: .p),
+            t: c.decode(Double.self, forKey: .t), p: c.decode(Pointer?.self, forKey: .p)?.at,
             hair: c.decode(Mark.self, forKey: .hair), ends: c.decode(Ends.self, forKey: .ends),
             jumping: c.decodeIfPresent(String.self, forKey: .jumping),
             tabs: c.decodeIfPresent([Tab].self, forKey: .tabs) ?? [],
@@ -105,25 +106,24 @@ extension StripRecorded.Tab: Decodable {
 
 extension StripRecorded.End: Decodable {
     init(from decoder: any Decoder) throws {
-        var c = try decoder.unkeyedContainer()
-        try self.init(
-            x: c.decode(Double.self), y: c.decode(Double.self), rho: c.decode(Double.self), phi: c.decode(Double.self),
-            on: c.decode(On.self)
-        )
+        self = try decoder.values { c in
+            try Self(
+                x: c.decode(Double.self), y: c.decode(Double.self), rho: c.decode(Double.self),
+                phi: c.decode(Double.self), on: c.decode(On.self)
+            )
+        }
     }
 }
 
 extension StripRecorded.Words: Decodable {
     init(from decoder: any Decoder) throws {
-        var c = try decoder.unkeyedContainer()
-        try self.init(key: c.decode(String.self), alpha: c.decode(Double.self))
+        self = try decoder.values { c in try Self(key: c.decode(String.self), alpha: c.decode(Double.self)) }
     }
 }
 
 extension StripRecorded.Mark: Decodable {
     init(from decoder: any Decoder) throws {
-        var c = try decoder.unkeyedContainer()
-        try self.init(&c)
+        self = try decoder.values { c in try Self(&c) }
     }
 
     /// The three, next in a count's or a mark's values.
@@ -134,14 +134,37 @@ extension StripRecorded.Mark: Decodable {
 
 extension StripRecorded.Count: Decodable {
     init(from decoder: any Decoder) throws {
-        var c = try decoder.unkeyedContainer()
-        try self.init(n: c.decode(Int.self), mark: StripRecorded.Mark(&c))
+        self = try decoder.values { c in try Self(n: c.decode(Int.self), mark: StripRecorded.Mark(&c)) }
     }
 }
 
 extension StripRecorded.Ends: Decodable {
     init(from decoder: any Decoder) throws {
-        var c = try decoder.unkeyedContainer()
-        try self.init(top: c.decode(Double.self), bottom: c.decode(Double.self), drawnIn: c.decode(Double.self))
+        self = try decoder.values { c in
+            try Self(top: c.decode(Double.self), bottom: c.decode(Double.self), drawnIn: c.decode(Double.self))
+        }
+    }
+}
+
+/// The pointer, as its x and y; CGPoint's own decoding would pass over a third.
+private struct Pointer: Decodable {
+    let at: CGPoint
+
+    init(from decoder: any Decoder) throws {
+        at = try decoder.values { c in try CGPoint(x: c.decode(Double.self), y: c.decode(Double.self)) }
+    }
+}
+
+extension Decoder {
+    /// A list of values read in order, failing if any are left over once they are read.
+    fileprivate func values<T>(_ read: (inout any UnkeyedDecodingContainer) throws -> T) throws -> T {
+        var c = try unkeyedContainer()
+        let value = try read(&c)
+        guard c.isAtEnd else {
+            throw DecodingError.dataCorrupted(
+                .init(codingPath: codingPath, debugDescription: "More than the \(c.currentIndex) values expected")
+            )
+        }
+        return value
     }
 }

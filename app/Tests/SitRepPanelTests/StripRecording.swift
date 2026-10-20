@@ -86,7 +86,8 @@ extension StripRecorded {
     /// fade, each of its words' opacity, to the browser's three decimals, and, while it is out, where its top and
     /// bottom fillets leave the strip's edge, how round and at what angle, on the S or the straight edge), the
     /// scenario's marks (centre, scale, opacity), and the counts (how many, centre, scale, opacity), a JSON file per
-    /// scenario in `Recorded/Strip`. Generated; not edited by hand.
+    /// scenario in `Recorded/Strip`. Generated, with the declarations above, by the strip prototype's recorder,
+    /// `fixture.mjs` among the surfaces tools; not edited by hand.
     ///
     /// Data, not Swift: as array literals they cost the type checker 20 GB and more per compile.
     private static func recorded(_ scenario: String) -> [StripRecorded] {
