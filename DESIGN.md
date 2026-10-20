@@ -55,10 +55,11 @@ disk, `sessions/` and `session.json`, the old `works/` and `work.json` read
 beside them until the CLI moves them (see "Storage"). Claude Code's own
 session is a conversation or a window there, so "session" means only the
 board's. The old words are left in two places until what holds them is
-rebuilt: the spike's `lip`, renamed when the edge is built, and written here
-as it is until then; and the app's Swift identifiers, until the edge and the
-menu rebuild the app, later in stage 3. The CLI's JSON keeps its names
-(`works`, `work`), as "Versions side by side" has it.
+rebuilt: the spike's `lip`, in its views only, since the model the build
+took from it says the notch (19 October 2026); and the app's Swift
+identifiers, until the edge and the menu rebuild the app, later in stage 3.
+The CLI's JSON keeps its names (`works`, `work`), as "Versions side by
+side" has it.
 
 ## Sessions outlive their windows
 
@@ -1481,8 +1482,9 @@ truth. There is still no background service. None of it is built now. Lee:
       and every 10 minutes after: it runs as long as the app does, and the
       move waits on windows reloading.
     - **Ending.** It ends, exit 0, once what reads its standard output has
-      gone, or on SIGTERM (`cli/ending.ts`). A pipe closed is found only at
-      the next write, or once the parent goes. An app that quits, however it
+      gone, or on SIGTERM (`cli/ending.ts`), which the app sends it as it
+      quits, from the quit itself, before the app can be gone. A pipe
+      closed is found only at the next write, or once the parent goes. An app that quits, however it
       quits, leaves its child to launchd, and while the board is still no
       write finds the pipe closed, so it looks each second whether its
       parent has gone: the one it found as it loaded, launchd's pid 1
@@ -1737,6 +1739,19 @@ the edge, and past the middle to the other
 edge; never to the bottom. The form is Paper's round 1 "Bezel". The light's
 place, a bar in the notch, is round 2's "Strip".
 
+The drag, as built (20 October 2026), is the prototype's: a press on the
+black off a row, moved more than 4 points, closes the panel and lifts the
+notch over 140ms, 2 further out with a shadow, and it follows the pointer
+along the edge on a 50ms spring. Let go, it sets down over 220ms; let go
+past the screen's middle, it drains into this edge in 150ms, swaps to the
+other at 160 and grows out of it over 300, its ghost fading over 420; no
+press takes it again until it is home there.
+Where it is let go is saved in what Lee sets, as
+its edge and how far down the screen it sits (0.42 until then), so the
+strip, centring where the notch sits, takes it too. A chosen display is
+named by its UUID, which outlives a restart and a replug; one not connected
+gives way to the main display.
+
 **The light: Live**, in Claude Code's orange, #E9643D. It is a crisp bar
 2.5 × 36 in the notch:
 - a tight halo, clipped to the notch;
@@ -1778,7 +1793,10 @@ name. With no tool, working and your turn read the board's "now", else the
 summary, else the name.
 
 Rows keep their places while the panel is open: a changed row moves only
-once it closes. A click on an away row does nothing; it is there, but there
+once it closes. Meanwhile a row gone folds away where it was, and a new one
+unfolds under the row core has above it, washed if it needs Lee (20 October
+2026). A click
+on an away row does nothing; it is there, but there
 is no window to jump to. What a click on it opens is decided later: for
 Lee, a new Ghostty window attached to the session's tmux session, where
 there is one (Lee, 16 October 2026, in place of "until the SitRep window
@@ -2002,7 +2020,8 @@ blurred.
   `.stationary`, `.ignoresCycle`), and off the screen while a full-screen
   app has its display (under "The strip", "Windows and full screen");
 - clicks pass through it except over the shape;
-- a global mouse monitor hears the approach.
+- a global mouse monitor hears the approach, and while the panel is out,
+  every move (see Stages, step 6).
 
 The shape is one path rebuilt every frame from the springs. As in the
 prototype, they are integrated semi-implicitly in substeps of at most 4ms,
@@ -2313,6 +2332,37 @@ asked for the sessions back, and approved the redraw as it stands.
     sessions stay as the board last read them, their heading saying when
     ("4 need you · as of 12:04"). The notch, the strip and the window keep
     the last board too, marked as stale.
+- **How the app keeps `watch` running** (built 19 October 2026, in
+  `app/Sources/SitRepCore`; the CLI's side is under "One engine, two front
+  ends"):
+  - **The back-off.** A `watch` that ends is started again after a second,
+    the wait doubling at each end in a row to 30 seconds, and starting over
+    once a run lived a minute, or after a renewal.
+  - **The renewal.** `watch` exits 0, unasked, when its plugin's version
+    moves under it, so the app runs the new code. That is started again at
+    once, the board not marked stale, as the new run's first line follows
+    within a second or so. An exit 0 within a second of the run starting,
+    or within a minute of the last renewal, is a failure, so a `watch` that
+    keeps exiting cannot spin. A run's life counts from its child starting,
+    not from asking Lee's shell for the PATH before it.
+  - **The reason.** The last 20 lines of `watch`'s stderr are kept, each to
+    1KB. The reason is the last that says anything: the CLI's own `sitrep:`
+    line when it ended on its own error, else the error's own line when Bun
+    crashed, never Bun's version trailer, a stack frame or the source Bun
+    quotes. With none, it says how `watch` ended: "ended", "ended with
+    status 1" or "was stopped (signal 9)". Output is read for half a
+    second after `watch` exits, as for any run of the CLI, so a child left
+    holding it open does not hold up the exit.
+  - **Stale since.** The board is stale from the instant the app heard the
+    exit, the failed start, or a line that does not read (one longer than
+    1MB among them); the "as of" is that instant, not the board's own time,
+    since `watch` prints only on a change. A line that reads ends it.
+  - **The first board of a run after another** is marked as resumed: its
+    `new` and `changed` are empty, as on any run's first line, though the
+    board may have moved while `watch` was down, so the SitRep window reads
+    what it shows again in full. The app decides no rows of its own, so a
+    row that needed Lee and came while `watch` was down gets no swell or
+    flash: accepted.
 - **The icon** in the menu bar is the light's glyph (see "The icon"): white
   on a dark menu bar and black on a light one, its bar lit orange while
   anything needs Lee, since the notch is on one display and the menu bar on
@@ -2808,6 +2858,108 @@ reaches a window only while that pane is on show).
       - **The strip** over the same feed: Grows and Full, Max, the two
         counts and their tabs' scrolling rows, a click jumping, the drag,
         either edge.
+
+      The model came over first, on its own (19 October 2026): every
+      recorded test passing frame for frame, no number of the feel
+      changed. With the dials gone, what the spike worked out from their
+      furthest settings is worked out from Lee's, on purpose:
+      - the window's depth from the screen's edge: 422 for the notch, from
+        Hold's 35 at Bounce 0.90, where the spike's 434 came from Hold's 44
+        at Bounce 1; and 414 for the strip, where the spike's was 458;
+      - the notch's home along the edge, kept where its deepest swell fits
+        inside the band: Swell's 25, 92 either side, where the spike kept
+        the Swell dial's 30, 107 either side.
+
+      What Lee sets is one value the app saves, read leniently; Max is kept
+      as how far along its slider it is, never in marks, and its top is
+      Full, with or without the hairline. One fix came with it: a shape
+      springing a little past the band's length stays on the band's middle,
+      where the spike jumped to the screen's.
+
+      The notch and its panel were built on 20 October 2026, never run on
+      the display, every recorded test passing frame for frame. What the
+      build settled:
+      - **Core's rows, as given.** The panel lists `watch`'s rows in their
+        order, the hairline under the needs you that lead, and its head is
+        core's counts; the spike's sort is left to the strip until 6b. The
+        app maps a line to the panel's rows in one place (`PanelBoard`),
+        tested on the first line the real `watch` printed over a board
+        seeded in a scratch folder of its own.
+      - **Its swell is `new`'s alone.** Something needing Lee with nothing
+        new, as on every run's first line, takes the notch to 15 × 124 and
+        lights it with no swell and no flash.
+      - **Stale**, its head keeps its count of what needs Lee and says in
+        the count's place when the board was last known current, "as of
+        12:04", and nothing on it is new again: no swell, no wash. Before
+        the first line it says "Looking for sessions…", with `watch` down
+        before any, "SitRep can't read the board", and in a SitRep with no
+        plugin to run, that it was not built with `app/build`.
+      - **Frames run only while something moves**: the notch, a row
+        folding, the ghost, a new row's wash in glass. A pointer resting
+        anywhere, by the notch or on the still panel, costs nothing; the
+        open panel's times are drawn again as they change, each minute.
+      - **The spike's panel that stayed open**, found in the tests: frames
+        stop while nothing moves, and a move of the pointer woke them only
+        near the notch or over the panel as drawn. Under reduced motion,
+        rows going from under a still pointer leave the panel out with
+        nothing moving, so no move away reached the model. Every move wakes
+        them while the panel is out.
+      - **Hidden**, over a full-screen app or with Nothing chosen, nothing
+        of SitRep's shows, the caption and the ghost included, and a drag
+        under way ends where it began. The notch's time runs on meanwhile:
+        shown again, it is where it would have come to rest, with nothing
+        left to play late.
+      - **The click.** A row that jumps presses in (to 0.985, #1C1C20) and
+        an arc spins in its time's place until the jump answers, 450ms at
+        most, and then the panel drains: this design's "up to 450ms", where
+        the prototypes always wait the whole 450. While it is pressed in a
+        leave doesn't close the panel: it rings, and the panel stays out
+        for the jump. A click elsewhere still closes it at once, as it
+        always does. Only an open or opening panel takes a click, as in the
+        prototypes, and none while a jump runs, from the panel, the menu or
+        a banner, as the menu's works are disabled then; a row folding away
+        takes none either. Once the jump has jumped, "Jumped to SitRep's
+        window" shows 90ms into the drain, or as the jump answers if that is
+        later, and never once its moment has passed. The CLI's answer names
+        no place, so the caption names the row's project. It sits at the
+        top of the notch's screen, centred, 22 under the menu bar, where the
+        prototypes put it 22 under their stage's top, with no blur behind
+        it. A jump refused leaves no caption, and its banner says why.
+      - **Rows fold**, as the prototypes': while the panel is out, a new
+        row unfolds over 260ms and fades in over 220, and a row gone folds
+        away where it was, fading with its fold; under reduced motion a fold
+        takes 120 and nothing fades in. The panel's length follows.
+      - **The ghost.** Dragged past the screen's middle, the notch at rest
+        shows on the other edge where it would land, in the panel's black
+        at 0.3: in over 140ms, out over 140 as the drag comes back; let go,
+        out over 420 as the notch grows into it, or over 200 on its own
+        side. A press takes no hold of the notch from a drop across until
+        it is home on the other edge, as the prototypes take none while it
+        moves.
+      - **The light's own refresh.** While anything needs Lee and the panel
+        is in, the light breathes on a link of its own at 30Hz, with the
+        notch's frames asleep. Under reduced motion the light holds still,
+        mid-breath with its spots at home, as lights.js's `drawLive` holds
+        it, a new ask a 540ms brighten in place of the 700ms one, and the
+        link runs only while that brighten plays.
+      - **Between frames.** A board, a press, a drag, a scroll or a click
+        elsewhere first brings the notch up to now, so what it starts, a
+        wash, a swell, a press, a flash, runs from the clock and never from
+        the last frame's moment, minutes old once frames have slept; and
+        frames woken after a sleep take no speed from the pointer's unseen
+        move. A move wakes them from near the notch as well as to it, so a
+        notch leaning toward the pointer sees it go. Every input steps the
+        model, so the press, the drag and the rest act on one list in one
+        place (`NotchRun`), and the model's clock never goes back. While
+        frames run, the next one draws what the inputs between did. The
+        pointer's speed is measured in its own time, each reading stamped
+        as it was read, and one within 1ms of the last taking its place, as
+        `trackPointer` does, so a frame between ticks reads the speed the
+        ticks read. The light keeps a clock of its own, so it never steps
+        back and never moves the notch's.
+      - **A row's project** is named as the board names it, with core's
+        letters for it, ready for the strip; and an away ask's second line
+        is core's.
    7. **The menu bar item and Settings**, one PR: the native menu (see "The
       menu bar item"), the Settings window's three panes with Max as a
       slider, macOS notifications off by default with the switch to turn

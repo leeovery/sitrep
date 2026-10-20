@@ -6,7 +6,7 @@ public struct Program: Sendable, Equatable {
     public let executable: URL
     public let arguments: [String]
     public let environment: [String: String]
-    /// How long it may run before it is killed.
+    /// How long it may run before it is killed: `.infinity` for one watched, which runs for the app's life.
     public let limit: TimeInterval
 
     public init(executable: URL, arguments: [String], environment: [String: String], limit: TimeInterval) {
@@ -57,7 +57,7 @@ public let runProgram: Runner = { program in
 }
 
 /// How long output is read after the program ends: a child it left behind may hold its output open.
-private let drainSeconds: TimeInterval = 0.5
+let drainSeconds: TimeInterval = 0.5
 
 /// Runs the program to its end or its limit. One still running at the limit is
 /// killed outright: an interactive shell ignores SIGTERM.

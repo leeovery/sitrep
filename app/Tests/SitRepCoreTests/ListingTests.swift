@@ -19,11 +19,11 @@ struct ListingTests {
     }
 
     @Test func anotherVersionIsNamedAsSuchWhateverItsShape() {
-        #expect(throws: Listing.Unread.version(2)) { try Listing.read(#"{"v": 2, "boards": {}}"#) }
+        #expect(throws: Unread.version(given: 2, read: 1)) { try Listing.read(#"{"v": 2, "boards": {}}"#) }
     }
 
     @Test(arguments: ["", "not json", #"{"projects": []}"#, #"{"v": 1, "projects": [{"name": "Fumi"}]}"#])
     func outputThatIsNotAListingIsUnread(json: String) {
-        #expect(throws: Listing.Unread.shape) { try Listing.read(json) }
+        #expect(throws: Unread.shape) { try Listing.read(json) }
     }
 }
