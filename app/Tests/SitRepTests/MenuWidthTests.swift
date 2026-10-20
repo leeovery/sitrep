@@ -126,19 +126,3 @@ struct MenuWidthTests {
         #expect(abs(width(of: 260) - width(of: 160) - 100) <= 3)
     }
 }
-
-/// How a row or a button shows: lightly under the pointer, strongly picked or pressed.
-struct HighlightTests {
-    @Test func thePickedRowShowsStrongestWhateverElse() {
-        #expect(Highlight.of(isPicked: true, isPressed: false, isHovered: true) == .picked)
-        #expect(Highlight.of(isPicked: false, isPressed: true, isHovered: false) == .picked)
-    }
-
-    @Test func underThePointerItShowsLightly() {
-        #expect(Highlight.of(isPicked: false, isPressed: false, isHovered: true) == .hover)
-    }
-
-    @Test func aRowWithNothingOnItShowsNothing() {
-        #expect(Highlight.of(isPicked: false, isPressed: false, isHovered: false) == .none)
-    }
-}

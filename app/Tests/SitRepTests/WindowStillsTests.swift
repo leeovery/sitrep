@@ -23,8 +23,12 @@ struct WindowStillsTests {
     func eachStateDrawsWholeAtTheWindowsSize(still: Still) throws {
         let (run, now) = still.run()
         let renderer = ImageRenderer(
-            content: WindowContent(listed: run.listed(at: now), page: run.page(at: now), pick: run.pick, now: now)
+            content: HStack(spacing: 0) {
+                BoardColumn(listed: run.listed(at: now), pick: run.pick, now: now).frame(width: WindowStyle.boardWidth)
+                PageColumn(page: run.page(at: now), now: now)
+            }
                 .frame(width: WindowStyle.size.width, height: WindowStyle.size.height)
+                .environment(\.colorScheme, .dark)
                 .environment(\.isStill, true)
                 .environment(\.isHoveredStill, still == .hovered)
         )
@@ -64,6 +68,8 @@ struct WindowStillsTests {
         case quietProject = "d2-a-quiet-project-picked"
         case openedItems = "d3-items-opened"
         case longOptions = "d4-long-options-as-rows"
+        case projectItemOpened = "d5-a-project-its-note-opened"
+        case projectOfOne = "d6-a-project-of-one-session"
 
         /// The window's run in the state, and the time it is drawn at.
         func run() -> (WindowRun, Date) {
@@ -103,9 +109,20 @@ struct WindowStillsTests {
             case .quietProject:
                 Self.pick(.project("kit"), in: run)
             case .openedItems:
-                [.note("sr-macapp:n2"), .resolved("k4"), .resolved("k5")].forEach(run.toggle)
+                Self.pick(.session("sr-macapp"), in: run, board: Self.withLongItems)
+                [.note("sr-macapp:n2"), .parked("p1"), .resolved("k4"), .resolved("k5")].forEach(run.toggle)
             case .longOptions:
                 Self.pick(.session("sr-macapp"), in: run, board: Self.withLongOptions)
+            case .projectItemOpened:
+                for read in run.pick(.project("switchboard")) {
+                    Self.answer([read], in: run, board: read.session == "sr-rq7dgr" ? Self.longLedger : nil)
+                }
+                if case let .project(page) = run.page(at: now), let note = page.notes.first {
+                    run.toggle(.note(note.id))
+                }
+            case .projectOfOne:
+                Self.pick(.project("sitrep"), in: run)
+                run.toggle(.note("sr-macapp:n2"))
             }
             return (run, now)
         }
@@ -154,6 +171,16 @@ struct WindowStillsTests {
         private static let withLongOptions = Lines.board
             .replacingOccurrences(of: #""Left, the notch's edge""#, with: #""Inside the Claude Code step's script, with its clean-up as a nightly job beside it (recommended)""#)
             .replacingOccurrences(of: #""Right""#, with: #""A Scratch step of its own, after Claude Code's, with its clean-up as a nightly job""#)
+
+        /// The Mac app once its yes was delivered, its note and parked item as long as they often run, the parked item
+        /// saying where it was parked from.
+        private static let withLongItems = Lines.delivered
+            .replacingOccurrences(of: #""text": "The strip written into DESIGN.md""#, with: #""text": "The strip written into DESIGN.md, with its rings, its two lengths and how it carries the board while the notch hides""#)
+            .replacingOccurrences(of: #""title": "Try a shy notch",\#n      "where": null"#, with: #""title": "Try a shy notch that hides until the pointer comes near the top of the screen",\#n      "where": "Under \"The notch\", in DESIGN.md""#)
+
+        /// Request ledger's status as long as it often runs.
+        private static let longLedger = Lines.ledger
+            .replacingOccurrences(of: #""text": "Status: now drawing the ledger schema""#, with: #""text": "Status: now drawing the ledger schema, its entries keyed by request and its totals rolled up by the hour""#)
 
         /// The first board, Goosemates' ask new on it.
         private static let withNew = Lines.watch[0]

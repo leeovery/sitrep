@@ -25,35 +25,21 @@ extension EnvironmentValues {
     @Entry var pressedJump: JumpPress?
 }
 
-/// The window's two columns, all of it the panel's black: the board down the left, and what Lee picked on the right.
-/// It draws what it is given, at the time given, so it renders the same on the screen and off it.
-struct WindowContent: View {
-    let listed: Listed
-    let page: Page
-    let pick: Pick?
-    let now: Date
-
-    var body: some View {
-        HStack(spacing: 0) {
-            BoardColumn(listed: listed, pick: pick, now: now)
-                .frame(width: WindowStyle.boardWidth)
-                .modifier(Sidebar())
-            PageColumn(page: page, now: now)
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-        }
-        .background(WindowStyle.black)
-        .environment(\.colorScheme, .dark)
-        // Keyboard focus shows as the pointer's highlight does (`Highlighted`), never as the system's ring.
-        .focusEffectDisabled()
-    }
-}
-
-/// The right of the window: the session or the project picked, or why there is neither.
+/// The right of the window, beside the sidebar: the session or the project picked, or why there is neither, on the
+/// panel's black, its top row up beside the traffic lights. It draws what it is given, at the time given, so it
+/// renders the same on the screen and off it, as the sidebar's `BoardColumn` does.
 struct PageColumn: View {
     let page: Page
     let now: Date
 
     var body: some View {
+        pages
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+            .ignoresSafeArea(.container, edges: .top)
+            .background(WindowStyle.black.ignoresSafeArea())
+    }
+
+    @ViewBuilder private var pages: some View {
         switch page {
         case let .empty(words):
             Text(words)

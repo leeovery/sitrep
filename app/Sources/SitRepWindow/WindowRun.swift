@@ -387,10 +387,14 @@ public final class WindowRun {
     private func projectPage(_ project: Board.Project, on board: Board, at time: Date) -> ProjectPage {
         let needs = board.rows.filter { $0.project == project.key && $0.needsLee }
         let read = project.sessions.compactMap { session in boards[session.id].map { (session, $0) } }
-        let notes = Array(read.flatMap { Self.notes($1.log, of: $0, named: true) }.sorted { $0.at > $1.at }.prefix(Self.projectNotes))
+        let named = project.sessions.count > 1
+        let notes = Array(read.flatMap { Self.notes($1.log, of: $0, named: named) }.sorted { $0.at > $1.at }.prefix(Self.projectNotes))
         let parked = read.flatMap { session, read in
             read.parked.map {
-                Parked(id: "\(session.id):\($0.id)", session: session.name, title: $0.title, where: $0.where, at: $0.at)
+                Parked(
+                    id: "\(session.id):\($0.id)", session: named ? session.name : nil, title: $0.title, where: $0.where,
+                    at: $0.at
+                )
             }
         }.sorted { $0.at < $1.at }
 
@@ -406,7 +410,7 @@ public final class WindowRun {
             asksWaiting: project.sessions.map(\.waiting).reduce(0, +),
             asks: project.sessions.flatMap { session in
                 cards(of: session, at: time).map { card in
-                    ProjectPage.Ask(session: session.name, card: card, isOpened: opened.contains(card.id))
+                    ProjectPage.Ask(session: named ? session.name : nil, card: card, isOpened: opened.contains(card.id))
                 }
             }.sorted { $0.card.since > $1.card.since },
             notes: notes,
@@ -433,7 +437,8 @@ public final class WindowRun {
 
     /// A session's log lines as notes, each by an id that stays as lines come: its session's and its own; for a line
     /// without one, its kind, time, writer and words, and among lines alike in all of those, which of them it is,
-    /// counted from the oldest, as new lines come at the top. In a project's view each names its session.
+    /// counted from the oldest, as new lines come at the top. In a project's view of several sessions each names its
+    /// session.
     private static func notes(_ log: [SessionBoard.Line], of session: Board.Session, named: Bool) -> [Note] {
         var seen: [String: Int] = [:]
         let ids = log.reversed().map { line in

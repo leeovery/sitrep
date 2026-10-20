@@ -50,7 +50,7 @@ final class SitRepWindow: NSObject, NSWindowDelegate {
     }
 
     private func make() -> NSWindow {
-        let window = Self.window(NSHostingView(rootView: WindowView(model: model)))
+        let window = Self.window(NSHostingController(rootView: WindowView(model: model)))
 
         window.delegate = self
         window.setFrameAutosaveName("SitRepWindow")
@@ -58,23 +58,25 @@ final class SitRepWindow: NSObject, NSWindowDelegate {
         return window
     }
 
-    /// The window, over its content, on the Space Lee is on whenever it opens (`comeForward()`).
-    static func window(_ content: NSView) -> NSWindow {
-        let window = NSWindow(
-            contentRect: NSRect(origin: .zero, size: WindowStyle.size),
-            styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView],
-            backing: .buffered, defer: false
-        )
+    /// The window, over its content, on the Space Lee is on whenever it opens (`comeForward()`). Its toolbar, empty,
+    /// gives it the titlebar by which macOS sets the traffic lights in from the sidebar's corner: on macOS 26 inside
+    /// its glass, as Finder's. Without one they sit on the glass's corner.
+    static func window(_ content: NSViewController) -> NSWindow {
+        let window = NSWindow(contentViewController: content)
 
+        window.styleMask = [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView]
         window.title = "SitRep"
+        window.toolbar = NSToolbar(identifier: "SitRepWindow")
+        window.toolbarStyle = .unified
         window.titlebarAppearsTransparent = true
+        window.titlebarSeparatorStyle = .none
         window.titleVisibility = .hidden
         window.backgroundColor = .black
         window.appearance = NSAppearance(named: .darkAqua)
         window.isReleasedWhenClosed = false
         window.collectionBehavior.insert(.moveToActiveSpace)
-        window.minSize = NSSize(width: 860, height: 520)
-        window.contentView = content
+        window.setContentSize(WindowStyle.size)
+        window.contentMinSize = NSSize(width: 860, height: 520)
         window.center()
         return window
     }
@@ -93,21 +95,51 @@ final class SitRepWindow: NSObject, NSWindowDelegate {
     private static let escapeKey: UInt16 = 53
 }
 
-/// The window's content over its model, drawn every frame only while a wash or an answer's wait is under way.
+/// The window's content over its model: the board in the sidebar, the page beside it.
 private struct WindowView: View {
     let model: WindowModel
 
     var body: some View {
+        WindowSplit {
+            WindowSide(model: model) { now in BoardColumn(listed: model.listed, pick: model.pick, now: now) }
+        } page: {
+            WindowSide(model: model) { now in PageColumn(page: model.page, now: now) }
+        }
+    }
+}
+
+/// The window's two sides in the system's own split, as Settings' are: the board as its sidebar, which macOS 26 draws
+/// as Liquid Glass floating inside the window, its corners following the window's, and earlier macOS in its sidebar
+/// material; the page beside it. The sidebar keeps the drawing's width, and has no toggle.
+struct WindowSplit<Board: View, Page: View>: View {
+    @ViewBuilder let board: Board
+    @ViewBuilder let page: Page
+
+    var body: some View {
+        NavigationSplitView {
+            board
+                .navigationSplitViewColumnWidth(WindowStyle.boardWidth)
+                .toolbar(removing: .sidebarToggle)
+        } detail: {
+            page
+        }
+    }
+}
+
+/// A side of the window over its model, at the model's time, or each frame's while a wash or an answer's wait is
+/// under way.
+private struct WindowSide<Content: View>: View {
+    let model: WindowModel
+    @ViewBuilder let content: (Date) -> Content
+
+    var body: some View {
         TimelineView(.animation(minimumInterval: nil, paused: !model.isMoving)) { frame in
-            WindowContent(
-                listed: model.listed, page: model.page, pick: model.pick,
-                now: model.isMoving ? max(frame.date, model.now) : model.now
-            )
+            content(model.isMoving ? max(frame.date, model.now) : model.now)
         }
         .environment(\.windowActions, model.actions)
         .environment(\.pressedJump, model.jumping.pressed)
         .environment(\.reducesWindowMotion, model.reducesMotion)
-        .ignoresSafeArea()
+        .environment(\.colorScheme, .dark)
     }
 }
 

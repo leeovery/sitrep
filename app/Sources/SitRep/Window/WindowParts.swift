@@ -82,7 +82,7 @@ struct Pill: View {
                 .frame(maxWidth: fills ? .infinity : nil, alignment: .leading)
         }
         .buttonStyle(PillStyle(look: look))
-        .focusMark(RoundedRectangle(cornerRadius: Self.radius, style: .continuous), inset: -2)
+        .contentShape(.focusEffect, RoundedRectangle(cornerRadius: Self.radius, style: .continuous))
     }
 
     static let radius: CGFloat = 13
@@ -164,39 +164,14 @@ struct SectionHeading: View {
     }
 }
 
-/// A line of a section: its bullet in a lane, its words on one line, naming its session where it is a project's, and
-/// its time on the right.
-struct SectionLine: View {
-    let bullet: String
-    var bulletColour = WindowStyle.soft
-    var session: String?
-    let text: String
-    var textColour = WindowStyle.text
-    var time: String?
-    /// Opened in place: its words whole, wrapping.
-    var isOpen = false
-
-    var body: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 10) {
-            Text(bullet)
-                .font(WindowStyle.ui(bullet == "•" || bullet == "◦" ? 13 : 12))
-                .foregroundStyle(bulletColour)
-                .frame(width: 12)
-            HStack(alignment: .firstTextBaseline, spacing: 5) {
-                if let session {
-                    Text("\(session):").foregroundStyle(WindowStyle.soft).layoutPriority(1)
-                }
-                Text(text).foregroundStyle(textColour)
-            }
-            .font(WindowStyle.ui(13))
-            .lineLimit(isOpen ? nil : 1)
-            .fixedSize(horizontal: false, vertical: isOpen)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            if let time {
-                Text(time).font(WindowStyle.ui(12)).foregroundStyle(WindowStyle.faint)
-            }
+extension Text {
+    /// These words after their session's name, where there is one: quieter, and in the words' own flow, so a line
+    /// that wraps comes back to the words' edge, never to a column of the name's.
+    func led(by session: String?) -> Text {
+        guard let session else {
+            return self
         }
-        .padding(.vertical, 4)
+        return Text("\(Text("\(session):").foregroundStyle(WindowStyle.soft)) \(self)")
     }
 }
 
@@ -231,6 +206,10 @@ struct Scrolling<Content: View>: View {
                 .fixedSize(horizontal: false, vertical: true)
                 .frame(minHeight: 0, maxHeight: .infinity, alignment: .top)
                 .clipped()
+        } else if #available(macOS 26, *) {
+            // The page draws its own top row under the window's toolbar, beside the traffic lights, which the
+            // toolbar's soft edge would blur.
+            ScrollView { content }.scrollIndicators(.never).scrollEdgeEffectHidden(true, for: .top)
         } else {
             ScrollView { content }.scrollIndicators(.never)
         }

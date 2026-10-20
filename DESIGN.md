@@ -2613,16 +2613,18 @@ The bigger window, showing the whole board and updating as it changes (Lee,
 the strip leave off, shows here. Drawn in Paper's "The SitRep window"
 (surfaces round 3, 17 October 2026; Lee: "I like it", taking it as it
 stands).
-- **Two columns**, in a window of about 1100 × 720, all of it the panel's
+- **Two columns**, in a window of about 1100 × 720, the page the panel's
   black:
-  - **the board** down the left: every project with a session open, its
+  - **the board** down the left, in the system's sidebar (see "The frame"):
+    every project with a session open, its
     sessions under it. A project sits where its first session would sit in
     the panel, so the oldest need comes first, then away, then your turn,
     then working; its sessions keep that order. This replaces the pane's
     "the busiest" for the window, so every surface sorts by one rule. A
     project's name carries what waits there, in orange. Projects with
-    nothing open fold into the foot ("6 quiet projects"), each name there
-    opening its project as a project's name does: its sessions, none of
+    nothing open fold into the foot ("6 quiet projects"), a row each, each
+    name there opening its project as a project's name does: its sessions,
+    none of
     them in a window, and their notes (Lee, 20 October 2026: "at least
     interact with them, view them, see them"). The head says how many need
     Lee and how many sessions there are, or "All clear".
@@ -2638,35 +2640,76 @@ stands).
 - **A project**, opened from its name, is the pane's project view: its open
   sessions, each with what it is doing and what waits there; every session's
   asks, the newest first; their notes; and their parked items, the oldest
-  first. Each line names its session. There is no Resolved. An ask there is
-  one line, and opens in place into its card.
+  first. Each line names its session, unless the project has only the one,
+  which it could only name. There is no Resolved. An ask there is one line,
+  and opens in place into its card.
 - **It opens on** the oldest session that needs Lee; with none, on the one
   picked last. There is one window: opening it again brings it forward,
   on the Space Lee is on, as Settings does: it moves to the active Space
   and comes forward there before SitRep activates, so the activation takes
   him to no other Space. The menu opens it (see "The menu bar item").
+- **The frame is macOS's own** (Lee, 20 October 2026, of a sidebar of
+  hand-made glass, its corners unlike the window's and the traffic lights
+  on its corner: "It looks a mess"). Whatever macOS draws, SitRep does not
+  make again:
+  - the window is SwiftUI's `NavigationSplitView`, as Settings' is: the
+    board in the system's sidebar, which macOS 26 draws as Liquid Glass
+    floating inside the window, its corners concentric with the window's,
+    and earlier macOS in its sidebar material. The sidebar keeps the
+    drawing's 296 points and has no toggle;
+  - the window carries an empty toolbar, unified. Its taller titlebar is
+    what sets the traffic lights inside the glass, 11 points in from its
+    corner as Finder's; without one macOS puts them on the corner, a point
+    in. Their middle, 26 points down, is the middle of the page's top row:
+    the project's name and the jump;
+  - macOS draws an app in the design of the SDK its binary records, so the
+    glass shows only in a build that records macOS 26's, as `app/bundle`
+    sets it. The tests' binaries record macOS 14's, so offscreen the
+    window's parts can be read, a sidebar item beside the page and the
+    toolbar, but not what macOS draws of them.
+- **The board is a list with a selection**, in the sidebar's style: the
+  session or project picked is the list's selection, drawn by the system.
+  The arrow keys move it, and Tab moves between the sidebar and the page,
+  as in Finder or Mail. Its head, the "N need you" and the count, sits over
+  the list; the project groups, their counts, the sessions' marks and ages
+  and the quiet projects keep the window's own type and colours.
 - **Under the pointer** (Lee, 20 October 2026: "When I hover down the
-  left-hand side, nothing highlights"):
-  - every row of the list, a project's name among them, highlights as the
-    pointer passes over it, and the session or project picked keeps a
-    lasting selection, the stronger of the two;
-  - on macOS 26 the list is a glass sidebar floating inside the window, as
-    Settings' is, and its hover and selection are glass shapes, matching
-    each other, the selection the stronger. On the page, and before macOS
-    26, they are the panel's fills;
+  left-hand side, nothing highlights"; then, of glass highlights over the
+  rows, "a very deeply translucent, blurred bar"):
+  - a row of the sidebar not picked shows a quiet plain fill behind it,
+    white at 6%, never over its words; the one picked keeps the system's
+    selection. There is no glass highlight anywhere;
+  - on the page, a line that opens, a project's session or ask, and a
+    card's head show the panel's fills behind them;
   - every button shows a hover: the pills, the jump, the project's name
-    above a session, "show all";
-  - keyboard focus is a mark of its own, a thin white outline at low
-    opacity following the shape's corners: never the system's blue ring,
-    a fill or the hover, so a row tabbed to never looks like the one under
-    the pointer.
+    above a session, "show all".
+- **Keyboard focus is the system's.** On the page each button takes the
+  system's own ring, shaped to it, a pill's ring a pill; in the sidebar the
+  selection is the focus. Lee, 20 October 2026, of a white outline of
+  SitRep's own, which showed round a row untabbed and, tabbed, as "a
+  strange kind of border or ring around the option, which is not very
+  Mac-like at all"; before it, the system's blue square ring, where SitRep
+  had made every button take focus.
 - **Items that open.** A note, a parked item and a resolved ask open in
   place on a press, and close on a second, as an ask does in a project's
   view: the line whole, wrapping, and under it a note's detail, where a
   parked item was parked from, or how an ask closed: Lee's answer as the
   board words it, or Claude's resolve and its reason. A status line opens
   only while it is cut short. A line with nothing more to show is not a
-  button, and takes no keyboard stop.
+  button, and takes no keyboard stop. Lee, 20 October 2026, of an opened
+  item with a box behind it, its title in a narrow column hanging from its
+  session's name and its detail under the bullet: "a bit shit". So every
+  line of Status, Notes, Parked and Resolved, opened or closed, keeps one
+  grid:
+  - the marker in its lane, then the words, then the time on the first line;
+  - a session's name is a quieter lead-in in the words' own flow, wrapping
+    to their left edge, never a column of its own;
+  - opened, the words wrap whole in their column, and the detail sits close
+    under them from the same left edge, a size smaller, in the secondary
+    colour. Nothing behind it, no fill and no ring; the hover fill shows only
+    on a line that opens;
+  - it opens and closes on the window's spring, and with no motion under
+    reduced motion.
 - **Answering.** A session's asks show opened, as cards with their buttons:
   - **a yes** is a white pill in Claude's words, the brightest thing in the
     window; **a choice** is one outlined pill per option. Both are answered
