@@ -3,7 +3,7 @@
  * from what they take: every command's usage in brief, and one command's
  * words in full.
  */
-import type { Flag } from './args'
+import type { Arg, Flag } from './args'
 import { COMMANDS, SESSION_FLAG, type Command } from './commands'
 
 const GAP = 2
@@ -17,15 +17,22 @@ const flagUsage = ([name, flag]: [string, Flag]) => {
   return `${flag.isNeeded ? word : `[${word}]`}${flag.form === 'many' ? '...' : ''}`
 }
 
-/** A command's usage line; in the brief, without the flag every command on a session takes. */
-const usageOf = ({ name, grammar }: Command, isBrief = false) =>
-  [
+/** An argument as its usage gives it: itself, or it or the switch given in its place. */
+const argUsage = ({ field, or }: Arg) =>
+  or === undefined ? `<${field}>` : `(<${field}> | --${or})`
+
+/** A command's usage line, each switch an argument may stand in for beside it; in the brief, without the flag every command on a session takes. */
+const usageOf = ({ name, grammar }: Command, isBrief = false) => {
+  const besideArgs = grammar.args.flatMap(arg => (arg.or === undefined ? [] : [arg.or]))
+
+  return [
     `sitrep ${name}`,
-    ...grammar.args.map(arg => `<${arg.field}>`),
+    ...grammar.args.map(argUsage),
     ...Object.entries(grammar.flags)
-      .filter(([flag]) => !isBrief || flag !== SESSION_FLAG)
+      .filter(([flag]) => !besideArgs.includes(flag) && (!isBrief || flag !== SESSION_FLAG))
       .map(flagUsage),
   ].join(' ')
+}
 
 /** Rows of a word and what it is, the words padded to one column. */
 const table = (rows: readonly [word: string, about: string][]) => {
@@ -42,7 +49,6 @@ export const HELP = [
   'A command on a session names it: --session sr-xxxxxx, else $SITREP_SESSION.',
   "A post prints its item's id. Exit codes: 0 done; 1 a usage error, a refused",
   'input or a failure; 2 no such session.',
-  'Answering an ask from here: not yet. Answer it on the board.',
   '',
   'sitrep <command> --help says more.',
 ].join('\n')

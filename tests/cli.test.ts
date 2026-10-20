@@ -5,10 +5,11 @@ import {
   foldSession,
   parseEntries,
   serialise,
+  STALE_MS,
   VERSION,
   type SessionPaths,
 } from '../core'
-import { file, META, MIN, note, status, T0, W1, yesAsk } from './support'
+import { file, finish, META, MIN, note, status, T0, W1, yesAsk } from './support'
 import { ENV, FIRST_ID, NEXT_ID, NOW, terminal } from './terminal'
 import { ELSEWHERE } from './world'
 
@@ -393,7 +394,42 @@ test('board prints the board as Claude’s board tool reads it', async () => {
   expect(t.files.has(paths.log(WRITER)), 'reading the board writes nothing').toBe(false)
 })
 
-test('help: every command in brief, how a session is named, the exit codes, and answering not yet', async () => {
+test("finish finishes a session no window holds as Lee's finish on the board does, in the CLI's own file, and prints nothing", async () => {
+  const t = terminal()
+  const paths = t.seed(META, {
+    lines: [[T0, yesAsk('k1', 'Review round 1')]],
+    seenAt: NOW - STALE_MS - 1,
+  })
+
+  expect((await t.run('list')).out).toContain(META.id)
+  expect(await t.run('finish', ...SESSION)).toEqual({ exit: EXIT.done, out: '', err: '' })
+  expect(cliLines(t, paths)).toEqual([{ v: VERSION, at: NOW, seq: 1, type: 'finish', who: 'lee' }])
+  expect(folded(t, paths)).toMatchObject({
+    finished: { at: NOW, by: WRITER, who: 'lee' },
+    waiting: 0,
+  })
+  expect(t.files.has(paths.letters(WRITER)), 'nothing goes to its inbox').toBe(false)
+  expect((await t.run('list')).out).toBe('No current sessions on the board.\n')
+})
+
+test('finish refuses a session a live window holds, which is finished there, and one already finished; an unknown one is no such session', async () => {
+  const t = terminal()
+  const held = t.seed(META, { seenAt: NOW })
+  const done = t.seed(LOBBY, { lines: [[T0, finish('claude', 'Shipped')]] })
+
+  expect(await t.run('finish', ...SESSION)).toEqual({
+    exit: EXIT.refused,
+    out: '',
+    err: 'sitrep: Dashboard redesign is open in a window: tell Claude there to finish it.\n',
+  })
+  expect((await t.run('finish', '--session', LOBBY.id)).err).toBe(
+    'sitrep: This session is already finished.\n',
+  )
+  expect((await t.run('finish', '--session', 'sr-zzzzzz')).exit).toBe(EXIT.noSession)
+  expect([held, done].some(paths => t.files.has(paths.log(WRITER)))).toBe(false)
+})
+
+test('help: every command in brief, how a session is named, and the exit codes', async () => {
   const t = terminal()
   const { exit, out, err } = await t.run('--help')
 
@@ -401,10 +437,10 @@ test('help: every command in brief, how a session is named, the exit codes, and 
   expect(out).toContain(
     '  sitrep ask <title> --wants yes|choice|words [--yes <label>] [--option <choice>]... [--needs <words>] [--where <words>] [--ref <ref>]\n',
   )
+  expect(out).toContain('  sitrep answer <ask> (<answer> | --ignore)\n  sitrep finish\n')
   expect(out).toContain('  sitrep list [--project <name>] [--json]\n')
   expect(out).toContain('--session sr-xxxxxx, else $SITREP_SESSION')
   expect(out).toContain('2 no such session')
-  expect(out).toContain('Answering an ask from here: not yet.')
   expect((await t.run('help')).out).toBe(out)
   expect((await t.run('-h')).out).toBe(out)
 })
@@ -436,12 +472,12 @@ test('no words, an unknown command or a word that will not read is a usage error
 
   expect([bare.exit, bare.out]).toEqual([EXIT.refused, ''])
   expect(bare.err).toContain('sitrep <command> --help says more.')
-  expect(await t.run('answer', 'k1')).toEqual({
+  expect(await t.run('resolve', 'k1')).toEqual({
     exit: EXIT.refused,
     out: '',
-    err: 'sitrep: There is no command answer. sitrep --help lists them.\n',
+    err: 'sitrep: There is no command resolve. sitrep --help lists them.\n',
   })
-  expect((await t.run('help', 'answer')).exit).toBe(EXIT.refused)
+  expect((await t.run('help', 'resolve')).exit).toBe(EXIT.refused)
   expect(await t.run('list', '--session', META.id)).toEqual({
     exit: EXIT.refused,
     out: '',

@@ -15,11 +15,14 @@ import {
 } from '../core'
 import {
   beat,
+  delivered,
   file,
   finish,
+  kindAsk,
   META,
   MIN,
   note,
+  reply,
   SLOW,
   status,
   T0,
@@ -46,8 +49,11 @@ type Step = () => void
 type Printed = {
   at: number
   version: string | null
+  head: { needYou: number; sessions: number }
   rows: { key: string; is: string; isAway: boolean; first: { lead: string } }[]
-  projects: { sessions: { id: string; name: string; state: string }[] }[]
+  projects: {
+    sessions: { id: string; name: string; state: string; asks: { reply: unknown }[] }[]
+  }[]
   windows: {
     writer: string
     version: string | null
@@ -127,13 +133,16 @@ const watched = async (
   return { exit, err, lines, isWaitHeld: last !== undefined && !last.isCancelled }
 }
 
-/** Lines the CLI appends to the session's file, as the clock stands. */
-const post = (t: Terminal, paths: SessionPaths, ...bodies: Body[]) => {
-  const path = paths.log('cli')
+/** Lines a writer appends to its file at `path`, as the clock stands. */
+const appendTo = (t: Terminal, path: string, ...bodies: Body[]) => {
   const now = t.io.now()
 
   t.files.set(path, { text: append(t.files.get(path)?.text ?? '', bodies, now).text, mtimeMs: now })
 }
+
+/** Lines the CLI appends to the session's file, as the clock stands. */
+const post = (t: Terminal, paths: SessionPaths, ...bodies: Body[]) =>
+  appendTo(t, paths.log('cli'), ...bodies)
 
 /** A window's heartbeat rewritten as the clock stands, saying `state`: attached at T0 and seen now, on the CLI's version, unless `times` says otherwise. */
 const beatOn = (
@@ -248,6 +257,7 @@ test('the first line is the board as every surface shows it, with nothing new an
                   ref: null,
                   state: 'waiting',
                   at: T0,
+                  reply: null,
                 },
               ],
             },
@@ -290,6 +300,53 @@ test('a post is a line at the next look, its session changed; a new ask is new o
     [NOW, [`turn:${META.id}`], [], []],
     [NOW + POLL_MS, [`ask:${META.id}:k2`], [`ask:${META.id}:k2`], [META.id]],
     [NOW + 3 * POLL_MS, [`ask:${META.id}:k2`], [], [META.id]],
+  ])
+})
+
+test("an answer going into the session's inbox is a line, its ask on its way, needing Lee no more, and its session changed; the window's mark is another, the ask gone", async () => {
+  const { t, paths } = held([[T0, yesAsk('k1', 'Give the go for stage 3', 'Go')]])
+  const { lines } = await watched(t, [
+    () => appendTo(t, paths.letters('cli'), reply('r1', 'k1', 'yes')),
+    still,
+    () => appendTo(t, paths.log(W1), delivered('r1')),
+  ])
+  const replies = lines.map(line =>
+    line.projects
+      .flatMap(project => project.sessions)
+      .flatMap(session => session.asks.map(ask => ask.reply)),
+  )
+
+  expect(lines.map(line => [line.at, keys(line), line.head, line.changed])).toEqual([
+    [NOW, [`ask:${META.id}:k1`], { needYou: 1, sessions: 1 }, []],
+    [NOW + POLL_MS, [`turn:${META.id}`], { needYou: 0, sessions: 1 }, [META.id]],
+    [NOW + 3 * POLL_MS, [`turn:${META.id}`], { needYou: 0, sessions: 1 }, [META.id]],
+  ])
+  expect(replies).toEqual([
+    [null],
+    [{ is: 'onItsWay', isAnswer: true, words: '→ Go', since: NOW + POLL_MS }],
+    [],
+  ])
+})
+
+test("watch's isAnswer is the bar's own fact: an old decide's comment on its way is its answer, and only a comment once an edit makes it want a yes", async () => {
+  const { t, paths } = held([
+    [T0, kindAsk('k7', 'decide', 'Keep the ledger 400 days, or forever?')],
+  ])
+  const { lines } = await watched(t, [
+    () => appendTo(t, paths.letters('cli'), reply('r1', 'k7', 'comment', { note: 'Forever' })),
+    still,
+    () => appendTo(t, paths.log(W1), { type: 'edit', item: 'k7', changes: { wants: 'yes' } }),
+  ])
+  const replies = lines.map(line =>
+    line.projects
+      .flatMap(project => project.sessions)
+      .flatMap(session => session.asks.map(ask => ask.reply)),
+  )
+
+  expect(replies).toMatchObject([
+    [null],
+    [{ is: 'onItsWay', isAnswer: true, words: 'answer: “Forever”' }],
+    [{ is: 'onItsWay', isAnswer: false, words: 'comment: “Forever”' }],
   ])
 })
 

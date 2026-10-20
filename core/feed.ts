@@ -5,10 +5,11 @@
  *
  * - The rows, in the panel's order, and the head (rows.ts).
  * - Each project with a current session, and those sessions, away ones
- *   among them and never a finished one, each with its state and the asks
- *   waiting on Lee. They are in the SitRep window's order, the rows': a
- *   session where its first row sits, those with none after, the latest
- *   updated first; a project where its first session sits.
+ *   among them and never a finished one, each with its state and its open
+ *   asks, as `board --json` lists them (`openAsks`). They are in the SitRep
+ *   window's order, the rows': a session where its first row sits, those
+ *   with none after, the latest updated first; a project where its first
+ *   session sits.
  * - Every live window: its session, the version it runs, and whether that
  *   is behind the CLI's own.
  * - What is new: a row needing Lee the watch has not shown, or not within a
@@ -25,7 +26,6 @@ import {
   needsYou,
   rowsOf,
   sessionState,
-  waitingAsks,
   type Head,
   type Row,
   type SessionState,
@@ -35,6 +35,8 @@ import type { Ask, Session, WindowState, Where } from './types'
 import {
   CURRENT_MS,
   isCurrent,
+  isIdle,
+  openAsks,
   summarise,
   summariseProject,
   type ProjectSummary,
@@ -48,7 +50,7 @@ export type FeedSession = SessionSummary & {
   state: SessionState
   /** When its state began: its first row's time; with no row, its latest line's. */
   since: number
-  /** The asks waiting on Lee, oldest first. */
+  /** Its open asks, oldest first: waiting, on Lee or on a reply of Lee's going in, or replied, Claude's to act on. */
   asks: Ask[]
 }
 
@@ -104,7 +106,7 @@ const feedProject = (
       ...summary,
       state: sessionState(session, now),
       since: firsts.get(session.id)?.row.since ?? session.updatedAt,
-      asks: waitingAsks(session),
+      asks: openAsks(session),
     }))
     .sort(
       (a, b) =>
@@ -207,9 +209,12 @@ export const newRows = (shown: Shown | undefined, feed: Feed, at: number) => {
   }
 }
 
-/** Whether a session stays current by its latest line alone: nothing keeps it so but its being recent, or a window. */
-const isIdle = (session: Session) =>
-  session.finished === undefined && session.waiting === 0 && session.parked.length === 0
+/** Whether a session stays current by its being recent alone, or a window: unfinished, and idle. */
+const isAging = (session: Session) => {
+  const summary = summarise(session)
+
+  return !summary.isFinished && isIdle(summary)
+}
 
 /**
  * When the board next changes by time alone, after `now`: the earliest a
@@ -225,7 +230,7 @@ export const nextExpiry = (read: readonly ProjectRead[], now: number) => {
         ...session.presence
           .filter(each => isLive(each, now))
           .map(each => each.seenAt + STALE_MS + 1),
-        ...(isIdle(session) ? [session.updatedAt + CURRENT_MS + 1] : []),
+        ...(isAging(session) ? [session.updatedAt + CURRENT_MS + 1] : []),
       ]),
     )
     .filter(at => at > now)

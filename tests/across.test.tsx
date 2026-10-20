@@ -2,7 +2,24 @@ import { expect, test, tier } from 'claude-code/testing'
 import { parseEntries, sessionPaths, type SessionMeta } from '../core'
 import { AROUND_MS } from '../hooks/around'
 import { SENT_LINGER_MS } from '../hooks/queue'
-import { delivered, file, MIN, reply, SLOW, T0, W1, W2, W3, yesAsk } from './support'
+import { rowsOf } from './drawn'
+import {
+  CLI,
+  delivered,
+  file,
+  finish,
+  MIN,
+  reopen,
+  reply,
+  resolve,
+  SLOW,
+  T0,
+  unfinish,
+  W1,
+  W2,
+  W3,
+  yesAsk,
+} from './support'
 import { INLINE, postedId, PROJECT, ROOT, toProject, world } from './world'
 
 tier('user')
@@ -28,6 +45,9 @@ const meta = (id: string, name: string, by: string): SessionMeta => ({
 /** The ledger's inbox file this window writes. */
 const LETTERS = sessionPaths(ROOT, PROJECT.key, LEDGER).letters(W1)
 
+/** Themes' inbox file this window writes. */
+const THEME_LETTERS = sessionPaths(ROOT, PROJECT.key, THEMES).letters(W1)
+
 /**
  * This session with an ask, beside two others of its project: the ledger,
  * open in another window, and Themes, with no window; each with an ask.
@@ -47,7 +67,7 @@ async function threeSessions(w: World) {
   await w.clock.advance(MIN)
   ledger.beat()
 
-  return { ledger, paths, asked, ui: await w.opened() }
+  return { ledger, themes, paths, asked, ui: await w.opened() }
 }
 
 /** Lee answers another session's ask from its view, then goes home. */
@@ -176,6 +196,27 @@ test(
   },
 )
 
+test("an ask whose reply went into its session's inbox waits on Lee no more: the band, the tab and the project count it nowhere", async ($, on) => {
+  const w = world($, on)
+  const { ui } = await threeSessions(w)
+
+  expect(await (await w.band()).find({ key: 'band:elsewhere', text: '2 elsewhere' })).toBeDefined()
+
+  await answer(ui, LEDGER, 'k3')
+  await ui.press({ key: 'send' })
+
+  expect(await (await w.band()).find({ key: 'band:elsewhere', text: '1 elsewhere' })).toBeDefined()
+  expect(rowsOf(await ui.find({ key: 'tab:all:box' }))).toEqual([' ≡ All projects 2'])
+
+  await toProject(ui)
+
+  expect(await ui.find({ type: 'Text', text: '2 waiting on you' })).toBeDefined()
+  expect(
+    await ui.find({ key: `pick:${LEDGER}:k3`, text: 'Request ledger: Review the ledger schema' }),
+    'its ask still shows',
+  ).toBeDefined()
+})
+
 test("the destination's own view shows the ask's reply on its way, and offers no second answer", async ($, on) => {
   const w = world($, on)
   const { ui } = await threeSessions(w)
@@ -204,6 +245,9 @@ test('a reply to another session whose item changed since is left in Ready to se
 
   expect(w.files.has(LETTERS)).toBe(false)
   expect(w.state.queue).toMatchObject([{ session: LEDGER, item: 'k3' }])
+  expect(w.toasts).toContain(
+    'Nothing to send: the items replied to have changed since. Your replies are still on the board.',
+  )
 })
 
 test('two quick presses of send write each letter once', async ($, on) => {
@@ -249,5 +293,238 @@ test(
     await w.clock.advance(SENT_LINGER_MS)
     expect(await ui.find({ type: 'Text', text: 'to Request ledger' })).toBeUndefined()
     expect(w.state.sent).toEqual([])
+  },
+)
+
+test("a reply queued to another session's ask that Lee answered from elsewhere first, or that Claude closed, is not sent: Ready to send keeps it, saying why", async ($, on) => {
+  const w = world($, on)
+  const { themes, ui } = await threeSessions(w)
+
+  await answer(ui, LEDGER, 'k3')
+  await answer(ui, THEMES, 'k4')
+  w.put(
+    sessionPaths(ROOT, PROJECT.key, LEDGER).letters(CLI),
+    file([w.clock.now(), reply('r9', 'k3', 'yes')]),
+  )
+  themes.write(resolve('k4'))
+  await w.clock.advance(AROUND_MS)
+
+  expect(await ui.find({ type: 'Text', text: '· not sent: already answered' })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: '· not sent: Claude closed it' })).toBeDefined()
+
+  await ui.press({ key: 'send' })
+
+  expect(w.files.has(LETTERS)).toBe(false)
+  expect(w.files.has(THEME_LETTERS)).toBe(false)
+  expect(w.state.queue).toMatchObject([
+    { session: LEDGER, item: 'k3' },
+    { session: THEMES, item: 'k4' },
+  ])
+  expect(w.toasts).toContain(
+    'Nothing to send: the items replied to are answered or closed already. Your replies are still on the board.',
+  )
+})
+
+test("another window's comment on its way to an ask takes it off Lee's counts but bars no answer: the ask still offers its buttons, and Lee's yes to it is sent", async ($, on) => {
+  const w = world($, on)
+  const { ui } = await threeSessions(w)
+
+  w.put(
+    sessionPaths(ROOT, PROJECT.key, LEDGER).letters(W3),
+    file([w.clock.now(), reply('r9', 'k3', 'comment', { note: 'Tighten the schema first' })]),
+  )
+  await w.clock.advance(AROUND_MS)
+
+  expect(await (await w.band()).find({ key: 'band:elsewhere', text: '1 elsewhere' })).toBeDefined()
+  expect(rowsOf(await ui.find({ key: 'tab:all:box' }))).toEqual([' ≡ All projects 2'])
+
+  await toProject(ui)
+  await ui.press({ key: `go:${LEDGER}` })
+  await ui.press({ key: `pick:${LEDGER}:k3` })
+
+  expect(await ui.find({ type: 'Text', text: '· on its way' }), 'the comment').toBeDefined()
+  expect(await ui.find({ key: `yes:${LEDGER}:k3` })).toBeDefined()
+
+  await answer(ui, LEDGER, 'k3')
+
+  expect(await ui.find({ type: 'Text', text: /not sent:/ })).toBeUndefined()
+
+  await ui.press({ key: 'send' })
+
+  expect(repliesIn(w, LETTERS)).toMatchObject([{ item: 'k3', verdict: 'yes' }])
+  expect(w.state.queue).toEqual([])
+})
+
+test("a comment queued to another session's ask is sent though Lee's answer to it from elsewhere is on its way: an answer bars no comment", async ($, on) => {
+  const w = world($, on)
+  const { ui } = await threeSessions(w)
+  const words = 'Tighten the schema first'
+
+  await toProject(ui)
+  await ui.press({ key: `go:${LEDGER}` })
+  await ui.press({ key: `pick:${LEDGER}:k3` })
+  await ui.press({ key: `comment:${LEDGER}:k3` })
+  w.box.text = words
+  await $.prompt.submit({ text: words, wait: false, origin: { kind: 'composer' } })
+  w.put(
+    sessionPaths(ROOT, PROJECT.key, LEDGER).letters(CLI),
+    file([w.clock.now(), reply('r9', 'k3', 'yes')]),
+  )
+  await w.clock.advance(AROUND_MS)
+
+  expect(await ui.find({ type: 'Text', text: /not sent:/ })).toBeUndefined()
+
+  await ui.press({ key: 'send' })
+
+  expect(repliesIn(w, LETTERS)).toMatchObject([{ item: 'k3', verdict: 'comment', note: words }])
+})
+
+test('a sent reply whose session was finished before it went in shows there as not delivered, saying so', async ($, on) => {
+  const w = world($, on)
+  const { ledger, ui } = await threeSessions(w)
+
+  await answer(ui, LEDGER, 'k3')
+  await ui.press({ key: 'send' })
+  await w.clock.advance(MIN)
+  ledger.write(finish('lee'))
+  await w.clock.advance(AROUND_MS)
+
+  expect(
+    await ui.find({ type: 'Text', text: '· not delivered: the session was finished' }),
+  ).toBeDefined()
+})
+
+test('a sent reply Claude was given though its ask changed under it first shows there as delivered, saying it changed since', async ($, on) => {
+  const w = world($, on)
+  const { ledger, ui } = await threeSessions(w)
+
+  await answer(ui, LEDGER, 'k3')
+  await ui.press({ key: 'send' })
+
+  const [letter] = repliesIn(w, LETTERS)
+
+  ledger.write({
+    type: 'edit',
+    item: 'k3',
+    changes: { wants: 'choice', options: ['Now', 'Later'] },
+  })
+  ledger.write(delivered(letter?.id ?? ''))
+  await w.clock.advance(AROUND_MS)
+
+  expect(await ui.find({ type: 'Text', text: '✓ delivered' })).toBeDefined()
+  expect(
+    await ui.find({ type: 'Text', text: '· delivered just now, but it changed since' }),
+  ).toBeDefined()
+})
+
+test('a sent reply Claude was given only after its ask was closed and reopened shows there as delivered, saying it was reopened since', async ($, on) => {
+  const w = world($, on)
+  const { ledger, ui } = await threeSessions(w)
+
+  await answer(ui, LEDGER, 'k3')
+  await ui.press({ key: 'send' })
+
+  const [letter] = repliesIn(w, LETTERS)
+
+  await w.clock.advance(MIN)
+  ledger.write(resolve('k3'))
+  await w.clock.advance(MIN)
+  ledger.write(reopen('k3'))
+  ledger.write(delivered(letter?.id ?? ''))
+  await w.clock.advance(AROUND_MS)
+
+  expect(await ui.find({ type: 'Text', text: '✓ delivered' })).toBeDefined()
+  expect(
+    await ui.find({ type: 'Text', text: '· delivered just now, but it was reopened since' }),
+  ).toBeDefined()
+})
+
+test("a sent reply void as Lee's other answer went in first, marked only once its ask reopened, says it was reopened since", async ($, on) => {
+  const w = world($, on)
+  const { ledger, ui } = await threeSessions(w)
+
+  await answer(ui, LEDGER, 'k3')
+  await ui.press({ key: 'send' })
+
+  const [ours] = repliesIn(w, LETTERS)
+
+  w.put(
+    sessionPaths(ROOT, PROJECT.key, LEDGER).letters(W3),
+    file([(ours?.at ?? 0) - 1, reply('r9', 'k3', 'yes')]),
+  )
+  ledger.write(delivered('r9'))
+  ledger.write(reopen('k3'))
+  ledger.write(delivered(ours?.id ?? ''))
+  await w.clock.advance(AROUND_MS)
+
+  expect(
+    await ui.find({ type: 'Text', text: '· delivered just now, but it was reopened since' }),
+  ).toBeDefined()
+})
+
+test('a sent reply void as its session was finished, marked only once its ask was closed and reopened, says it was reopened since', async ($, on) => {
+  const w = world($, on)
+  const { ledger, ui } = await threeSessions(w)
+
+  await answer(ui, LEDGER, 'k3')
+  await ui.press({ key: 'send' })
+
+  const [ours] = repliesIn(w, LETTERS)
+
+  ledger.write(finish('lee'))
+  ledger.write(unfinish())
+  ledger.write(resolve('k3'))
+  ledger.write(reopen('k3'))
+  ledger.write(delivered(ours?.id ?? ''))
+  await w.clock.advance(AROUND_MS)
+
+  expect(
+    await ui.find({ type: 'Text', text: '· delivered just now, but it was reopened since' }),
+  ).toBeDefined()
+})
+
+test('a send that carries nothing, some of its replies changed under them and others answered first, says both', async ($, on) => {
+  const w = world($, on)
+  const { ledger, themes, ui } = await threeSessions(w)
+
+  await answer(ui, LEDGER, 'k3')
+  await answer(ui, THEMES, 'k4')
+  ledger.write({
+    type: 'edit',
+    item: 'k3',
+    changes: { wants: 'choice', options: ['Now', 'Later'] },
+  })
+  themes.write(resolve('k4'))
+  await ui.press({ key: 'send' })
+
+  expect(w.toasts).toContain(
+    'Nothing to send: the items replied to have changed since, or are answered or closed already. Your replies are still on the board.',
+  )
+})
+
+test(
+  "a sent reply that reached its ask after another of Lee's answers, or whose ask Claude closed before it went in, shows there as not delivered, saying which",
+  SLOW,
+  async ($, on) => {
+    const w = world($, on)
+    const { themes, ui } = await threeSessions(w)
+
+    await answer(ui, LEDGER, 'k3')
+    await answer(ui, THEMES, 'k4')
+    await ui.press({ key: 'send' })
+
+    const [ours] = repliesIn(w, LETTERS)
+
+    w.put(
+      sessionPaths(ROOT, PROJECT.key, LEDGER).letters(W3),
+      file([(ours?.at ?? 0) - 1, reply('r9', 'k3', 'yes', { note: 'From the other window' })]),
+    )
+    await w.clock.advance(MIN)
+    themes.write(resolve('k4'))
+    await w.clock.advance(AROUND_MS)
+
+    expect(await ui.findAll({ type: 'Text', text: '✕ not delivered' })).toHaveLength(2)
+    expect(await ui.find({ type: 'Text', text: '· not delivered: already answered' })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: '· not delivered: Claude closed it' })).toBeDefined()
   },
 )

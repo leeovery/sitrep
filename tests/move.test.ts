@@ -36,7 +36,7 @@ const SESSION = ['--session', META.id]
 const LOBBY: SessionMeta = { ...META, id: 'sr-bbbbbb', name: 'Lobby', by: W2 }
 
 /** The version a window on this release says in its heartbeat. */
-const RUNNING = '0.1.0'
+const RUNNING = '0.2.0'
 
 const DAY = 24 * 60 * MIN
 

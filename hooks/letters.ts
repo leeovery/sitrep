@@ -15,16 +15,24 @@ import {
   afterSend,
   destinations,
   isCarried,
+  leftOut,
   replyBodies,
   restoring,
   sendable,
   withSent,
+  type LeftOut,
 } from './queue'
 import { ownText } from './reader'
 import { attached, serially } from './window'
 
 /** What went to one session: its name, and how many replies. */
 type Went = { name: string; count: number }
+
+/** What a send did for one session: what went there, if any did, and why it left each reply it did not carry. */
+type SentTo = { went?: Went; left: readonly LeftOut[] }
+
+/** What a send did for every session but the held one: whether any of it went, and why it left each reply it did not carry. */
+export type Lettered = { isLettered: boolean; left: readonly LeftOut[] }
 
 /** The window's letters as it last wrote them, by path; one not written since a reload is read back. */
 const texts = new Map<string, string>()
@@ -47,35 +55,43 @@ const write = async (
 }
 
 /**
- * Takes a session's replies that still fit its items out of the queue, in one
+ * Takes a session's replies its items take now out of the queue, in one
  * change, so a second send finds them gone; never those a send in flight
- * carries, which are on their way as Lee's own message.
+ * carries, which are on their way as Lee's own message. Says why it left
+ * the rest.
  */
 const take = async (host: Host, session: Session) => {
   const inFlight = await host.state.inFlight.read()
   let taken: SitrepQueued[] = []
+  let left: LeftOut[] = []
 
   await host.state.queue.update(waiting => {
     taken = sendable(session, waiting).filter(reply => !isCarried(inFlight, reply))
+    left = leftOut(session, waiting)
 
     return afterSend(waiting, taken)
   })
 
-  return taken
+  return { taken, left }
 }
 
-/** Writes a session's replies that still fit its items into its inbox; a write that fails puts them back. */
+/** Writes a session's replies its items take now into its inbox; a write that fails puts them back. */
 const sendTo = async (
   host: Host,
   held: SitrepAttachment,
   to: SitrepSessionRef,
-): Promise<Went | undefined> => {
+): Promise<SentTo> => {
   const root = await rootFor(host)
   const session = await foldAt(host, root, to, await host.clock.now())
-  const replies = session === undefined ? [] : await take(host, session)
 
-  if (session === undefined || replies.length === 0) {
-    return undefined
+  if (session === undefined) {
+    return { left: [] }
+  }
+
+  const { taken: replies, left } = await take(host, session)
+
+  if (replies.length === 0) {
+    return { left }
   }
 
   const bodies = replyBodies(session, replies)
@@ -96,29 +112,32 @@ const sendTo = async (
     ),
   )
 
-  return { name: session.status.name, count: replies.length }
+  return { went: { name: session.status.name, count: replies.length }, left }
 }
 
 const toastOf = (went: readonly Went[]) =>
   `Sent ${went.map(({ name, count }) => `${counted(count, 'reply', 'replies')} to ${name}`).join(' and ')}.`
 
-/** Sends Ready to send's replies to sessions other than the held one, each into its session's inbox; whether any went. */
-export const sendLetters = async (host: Host) => {
+/** Sends Ready to send's replies to sessions other than the held one, each into its session's inbox. */
+export const sendLetters = async (host: Host): Promise<Lettered> => {
   const held = attached()
 
   if (held === undefined) {
-    return false
+    return { isLettered: false, left: [] }
   }
 
   const queue = await host.state.queue.read()
   const went: Went[] = []
+  const left: LeftOut[] = []
 
   for (const to of destinations(queue).filter(each => each.session !== held.session)) {
     const one = await serially(() => sendTo(host, held, to))
 
-    if (one !== undefined) {
-      went.push(one)
+    if (one.went !== undefined) {
+      went.push(one.went)
     }
+
+    left.push(...one.left)
   }
 
   if (went.length > 0) {
@@ -126,5 +145,5 @@ export const sendLetters = async (host: Host) => {
     await lookAround(host)
   }
 
-  return went.length > 0
+  return { isLettered: went.length > 0, left }
 }

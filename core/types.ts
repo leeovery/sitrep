@@ -22,9 +22,25 @@ export type Verdict = 'yes' | 'choose' | 'answer' | 'comment' | 'ignore' | 'pick
 /**
  * Where a reply stands: Claude has it; it goes in when its session's window
  * ends its turn; no window has the session, so it waits for one to join; or
- * its item changed under it before it went in, so it goes nowhere.
+ * it goes nowhere, void (`Voided` says why).
  */
 export type Delivery = 'delivered' | 'waiting' | 'closed' | 'void'
+
+/**
+ * What keeps an item from taking a reply of Lee's: `answered`, Lee's
+ * answer, on its way to it or delivered; `resolved`, Claude's closing it.
+ */
+export type Barred = 'answered' | 'resolved'
+
+/**
+ * Why a reply settles nothing: its item took it no more, as `Barred` says;
+ * `changed`, its item changed under it so it fits no more; `finished`, its
+ * session was finished before it went in.
+ */
+export type Voided = 'changed' | 'finished' | Barred
+
+/** Who closed an item, and how: Lee's answer, Lee's ignore, or Claude's resolve. */
+export type ClosedBy = 'answer' | 'ignore' | 'claude'
 
 export type StatusBody = {
   type: 'status'
@@ -156,9 +172,13 @@ export type Reply = {
   by: string
   at: number
   delivery: Delivery
+  /** When a mark said Claude has it. */
   deliveredAt?: number
-  /** When the edit that left it fitting its item no more was made. */
+  /** When it went void, and why. One its item changed under may be delivered too: Claude has it, and it settles nothing. */
   voidedAt?: number
+  voided?: Voided
+  /** Settled, void or delivered, while its item stood closed, which has reopened since: history to the item as it now stands, which settles nothing and never comes back. */
+  isHistory?: boolean
 }
 
 /** What every posted item carries: who posted it when, and when it was last opened, closed or edited. */
@@ -168,6 +188,8 @@ type Posted = {
   at: number
   openedAt: number
   closedAt?: number
+  /** Who closed it, as the event that closed it says; none while it is open. */
+  closedBy?: ClosedBy
   editedAt?: number
   reason?: string
   ref?: string
@@ -193,6 +215,8 @@ export type Ask = Posted & {
   state: AskState
   /** The delivered reply that last moved it, since it was opened or reopened. */
   answer?: Reply
+  /** Lee's answer on its way to it, which bars another: at most one, as a second starts void. A comment on its way is no answer. */
+  answerOnItsWay?: Reply
   replies: Reply[]
 }
 
@@ -209,6 +233,8 @@ export type Parked = Posted & {
   where?: string
   state: 'parked' | 'picked' | 'closed'
   answer?: Reply
+  /** Lee's pick-up on its way to it, its answer, as an ask's is. */
+  answerOnItsWay?: Reply
   replies: Reply[]
 }
 

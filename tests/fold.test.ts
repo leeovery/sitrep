@@ -10,6 +10,7 @@ import {
   note,
   park,
   reopen,
+  reply,
   resolve,
   SENDER,
   status,
@@ -54,6 +55,19 @@ test('lines at the same time order by writer, then by the writer’s own count',
     'w2, first',
     'w2, second',
   ])
+})
+
+test("a writer's own file and its letters count apart: of their lines at one moment, the file's comes first, whatever the counts", () => {
+  const at = T0 + 2 * MIN
+  const session = fold({
+    logs: {
+      [W1]: file([T0, yesAsk('k1', 'Review it')], [T0 + MIN, resolve('k1')], [at, reopen('k1')]),
+    },
+    inbox: { [W1]: file([at, reply('r1', 'k1', 'yes')]) },
+  })
+
+  expect(session.replies[0]?.voided, 'the reply comes after the reopen').toBeUndefined()
+  expect(session.asks[0]?.answerOnItsWay?.id).toBe('r1')
 })
 
 test('the latest status across writers wins, whoever wrote it', () => {

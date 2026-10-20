@@ -141,7 +141,7 @@ for (const source of ['send', 'inbox'] as const) {
     expect(kindsIn(w, paths)).toEqual(WRITTEN[source])
     expect(w.logs.some(line => line.includes('the load was cut short'))).toBe(true)
     expect(w.state.flash ?? 0).toBe(0)
-    expect(w.state.queue ?? []).toHaveLength(source === 'send' ? 1 : 0)
+    expect(w.state.queue ?? [], 'a send its lines written is out of the queue').toEqual([])
 
     isCut = false
     await $.session.start(CONVERSATION)

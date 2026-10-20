@@ -3,15 +3,19 @@
  * trimmed to one line, nothing empty where something is needed, and an ask
  * holding what its shape takes: a yes its button's words, a choice its
  * options, words what they are. A refusal says what to fix, in words Claude
- * can act on.
+ * can act on. Lee's answer to an ask from outside Claude Code, as the CLI
+ * gives it, is checked here too.
  */
 import { isSessionId, newItemId, type Random } from './ids'
 import { directoryOf, isNameable } from './project'
+import { needsReload } from './release'
+import { yesOf } from './replies'
 import { WANTS } from './shapes'
 import type { StatusFields } from './status'
-import { oneLine } from './text'
+import { inWords, oneLine } from './text'
 import {
   EDITABLE,
+  type Ask,
   type AskBody,
   type Changes,
   type EditBody,
@@ -21,6 +25,7 @@ import {
   type NoteBody,
   type ParkBody,
   type ReopenBody,
+  type ReplyBody,
   type ResolveBody,
   type StatusBody,
   type Wants,
@@ -427,3 +432,126 @@ export const checkFinish = (
   session.finished === undefined
     ? ok({ type: 'finish', who, reason: line(fieldsOf(input).reason) })
     : refuse('This session is already finished.')
+
+/** The words a yes or a choice ask is answered in outside Claude Code: its yes, or one of its options; none for words. */
+const answersOf = (ask: Ask): readonly string[] => {
+  switch (ask.wants) {
+    case 'yes':
+      return [yesOf(ask)]
+    case 'choice':
+      return ask.options ?? []
+    case 'words':
+      return []
+  }
+}
+
+/** Each quoted, in plain words: `“a” or “b”`. */
+const quotedOr = (answers: readonly string[]) => inWords(answers.map(each => `“${each}”`), 'or')
+
+/** What any answer from outside Claude Code needs of its ask, each rule broken where it says, with why. */
+const ANSWER_RULES: readonly [breaks: (ask: Ask) => boolean, error: (ask: Ask) => string][] = [
+  [ask => ask.state === 'ignored', ask => `${ask.id} is already ignored.`],
+  [ask => ask.state === 'closed', ask => `${ask.id} is already closed.`],
+  [ask => ask.answerOnItsWay !== undefined, ask => `An answer to ${ask.id} is on its way already.`],
+]
+
+const OLD_WINDOW =
+  'A window holding this session runs an older sitrep: run /reload-plugins in it first.'
+
+/**
+ * Whether the window that delivers the session's inbox runs a sitrep behind
+ * `version`, the CLI's, and needs `/reload-plugins`, as `watch` tells it
+ * (`needsReload`): one from before today's layout would never see an answer
+ * the CLI writes, and one from before answers would give Claude two at once.
+ */
+const isDeliveredByOld = (session: Session, version: string | undefined) => {
+  const window = session.presence.find(each => each.writer === session.deliverer)
+
+  return window !== undefined && needsReload(window.version, version)
+}
+
+type Answer = Checked<Omit<ReplyBody, 'id'>>
+
+/** A yes or a choice in the words given, the ask's own; or why they will not answer it. */
+const worded = (ask: Ask, given: string | undefined): Answer => {
+  const answers = answersOf(ask)
+  const wanted = ask.wants === 'yes' ? 'a yes' : 'a choice'
+
+  if (answers.length === 0) {
+    return refuse(
+      ask.wants === 'words'
+        ? `${ask.id} wants words, which need Claude Code's prompt: answer it there.`
+        : `${ask.id} gives no options to choose from: answer it in Claude Code's prompt.`,
+    )
+  }
+
+  if (given === undefined || !answers.includes(given)) {
+    return refuse(`${ask.id} wants ${wanted}: answer it with ${quotedOr(answers)}.`)
+  }
+
+  return ok(
+    ask.wants === 'yes'
+      ? { type: 'reply', item: ask.id, verdict: 'yes' }
+      : { type: 'reply', item: ask.id, verdict: 'choose', option: given },
+  )
+}
+
+/** Lee's ignore, as the board's `✕ ignore` gives it: seen, and not to be acted on, whatever the ask wants back. */
+const ignored = (ask: Ask, given: string | undefined): Answer =>
+  given === undefined
+    ? ok({ type: 'reply', item: ask.id, verdict: 'ignore' })
+    : refuse('Give an answer or --ignore, not both.')
+
+/** The ask an answer names, in a session still waiting on Lee whose window can take an answer in; or a refusal. */
+const askAnswered = (
+  session: Session,
+  fields: Fields,
+  version: string | undefined,
+): Checked<Ask> => {
+  if (session.finished !== undefined) {
+    return refuse('This session is finished: its asks wait on Lee no more.')
+  }
+
+  const item = target(session, { item: fields.ask })
+
+  if (!item.ok) {
+    return item
+  }
+
+  if (item.value.type !== 'ask') {
+    return refuse(`${item.value.id} is ${NOUNS[item.value.type]}, not an ask.`)
+  }
+
+  return isDeliveredByOld(session, version) ? refuse(OLD_WINDOW) : ok(item.value)
+}
+
+/**
+ * Lee's answer to an ask of the session, as the CLI gives it from outside
+ * Claude Code: a yes in its button's words, or one of a choice's options,
+ * as the board shows them; or, `ignore`, Lee's ignore, which any ask takes.
+ * Words, a comment and a permission prompt need Claude Code's prompt.
+ * Refused in a finished session, whose asks wait on Lee no more; while the
+ * window delivering the session runs a sitrep behind `version`, the CLI's;
+ * and for an ask closed or ignored, or with another answer of Lee's on its
+ * way already, since it takes no second answer. A comment on its way bars
+ * none.
+ */
+export const checkAnswer = (session: Session, input: unknown, version?: string): Answer => {
+  const fields = fieldsOf(input)
+  const asked = askAnswered(session, fields, version)
+
+  if (!asked.ok) {
+    return asked
+  }
+
+  const ask = asked.value
+  const broken = ANSWER_RULES.find(([breaks]) => breaks(ask))?.[1]
+
+  if (broken !== undefined) {
+    return refuse(broken(ask))
+  }
+
+  const given = line(fields.answer)
+
+  return fields.ignore === true ? ignored(ask, given) : worded(ask, given)
+}

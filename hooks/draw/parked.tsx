@@ -5,6 +5,7 @@
  * the prompt box as its note where Lee wants one (DESIGN.md, "Answering an
  * ask").
  */
+import { replyOnItsWay } from '../../core'
 import type { SitrepItemRef } from '../../types'
 import { C, GLYPH } from '../look'
 import { itemKey, type ParkedAt } from '../places'
@@ -18,7 +19,6 @@ import {
   drawWrite,
   heading,
   isBeingAnswered,
-  onItsWay,
   seeRef,
   shown,
   type Block,
@@ -31,7 +31,7 @@ const MARK = { glyph: GLYPH.parked, color: C.parked }
 /** Lee's pick-up of a parked item, as the branch it hangs on: waiting to be sent, or on its way. */
 const drawPickUp = (d: Drawing, { at, parked }: ParkedAt) => {
   const queued = queuedOn(d.scene.queue, at.session, parked.id)
-  const sent = onItsWay(parked)
+  const sent = replyOnItsWay(parked)
 
   if (queued !== undefined) {
     return drawQueued(d, parked, queued)

@@ -3,11 +3,11 @@
  * the board tool and for the context a turn takes when the board changed;
  * and every project's sessions with their ids, for the start of a
  * conversation. Undelivered replies are left out: Claude has not been told
- * them.
+ * them, so an ask with a reply of Lee's on its way still waits on Lee here.
  */
-import { answerOf, isOpen } from './replies'
+import { answerOf, isOpen, yesOf } from './replies'
 import type { Ask, Finished, Finisher, LogLine, Parked, Session } from './types'
-import type { ProjectSummary, SessionSummary } from './views'
+import { summarise, type ProjectSummary, type SessionSummary } from './views'
 
 /** How many of the latest notes the board text lists, for Claude to correct. */
 const RECENT_NOTES = 5
@@ -33,7 +33,7 @@ const withExtras = (head: string, extras: Record<string, string | undefined>) =>
 const wantsWords = (ask: Ask) => {
   switch (ask.wants) {
     case 'yes':
-      return `a yes (${ask.yes ?? 'yes'})`
+      return `a yes (${yesOf(ask)})`
     case 'choice':
       return 'a choice'
     case 'words':
@@ -74,6 +74,18 @@ export const boardText = (session: Session) => {
     section('Parked', session.parked.map(parkedLine)),
     section('Latest notes', notes.map(noteLine)),
   ].join('\n')
+}
+
+/**
+ * A session in brief as Claude knows it, for the first message's listing:
+ * its asks waiting as posted count, a reply of Lee's on its way to one or
+ * not, as its board text lists them, since Claude has not been told that
+ * reply.
+ */
+export const toldSummary = (session: Session): SessionSummary => {
+  const summary = summarise(session)
+
+  return { ...summary, waiting: summary.asked }
 }
 
 /** A session's line on the board: its project, its id and name, and what waits on Lee. */

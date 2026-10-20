@@ -10,6 +10,7 @@ import type {
   Ask,
   AskKind,
   AskState,
+  Barred,
   Body,
   DeliveredBody,
   Delivery,
@@ -53,8 +54,8 @@ export const takes = (item: Ask | Parked, verdict: Verdict) => takenBy(item).inc
 /** The verdicts that carry words of Lee's, and fit only with some. */
 const WORDED: readonly Verdict[] = ['answer', 'comment']
 
-/** The verdicts that close an ask once delivered. */
-const CLOSING: readonly Verdict[] = ['yes', 'choose', 'answer']
+/** The verdicts that answer an ask whatever it was read from. */
+const ANSWERS: readonly Verdict[] = ['yes', 'choose', 'answer', 'ignore']
 
 /** A pick-up, in the board's words. */
 const PICK_UP = 'pick it up'
@@ -75,44 +76,118 @@ export const fits = (item: Item, reply: ReplyFields): item is Ask | Parked =>
 
 export const isOpen = (ask: Ask) => ask.state === 'waiting' || ask.state === 'replied'
 
-/** Whether a reply is on its way: neither delivered, nor void since its item changed under it. */
+/** A yes ask's yes, the button's words, as Lee gives it; a bare `yes` where its line gave none. */
+export const yesOf = (ask: Pick<Ask, 'yes'>) => ask.yes ?? 'yes'
+
+/** Whether a reply is on its way: neither delivered, nor void. */
 export const isPending = (reply: Reply) =>
   reply.delivery === 'waiting' || reply.delivery === 'closed'
 
 /**
- * Whether a verdict closes an ask once delivered: a yes, a choice or an
- * answer. A comment closes only an ask read from its kind as a decide,
- * whose comment was its answer.
+ * Whether a verdict is Lee's answer to an item, which closes it once
+ * delivered: a yes, a choice, an answer or an ignore to an ask, and a
+ * comment to one read from its kind as a decide, whose comment was its
+ * answer; a pick-up to a parked item. Any other comment leaves its ask open,
+ * for Claude to act on.
  */
-export const isClosing = (ask: Ask, verdict: Verdict) =>
-  CLOSING.includes(verdict) || (verdict === 'comment' && ask.kind === 'decide')
+export const isAnswer = (item: Ask | Parked, verdict: Verdict) =>
+  item.type === 'park'
+    ? verdict === 'pickup'
+    : ANSWERS.includes(verdict) || (verdict === 'comment' && item.kind === 'decide')
 
-/**
- * Where a delivered reply leaves an ask. Ignore drops it; a comment leaves
- * it with Claude to act on; a yes, a choice or an answer closes it. An ask
- * already closed stays as it is: only Claude reopens one.
- */
+/** Where Lee's answer leaves an open ask: an ignore ignored, any other answer closed; a comment leaves it replied, Claude's to act on. */
 export const askAfter = (ask: Ask, verdict: Verdict): AskState => {
-  if (!isOpen(ask)) {
-    return ask.state
-  }
-
   if (verdict === 'ignore') {
     return 'ignored'
   }
 
-  return isClosing(ask, verdict) ? 'closed' : 'replied'
+  return isAnswer(ask, verdict) ? 'closed' : 'replied'
 }
 
-/** The reply that closed an ask, where Lee's answer closed it; undefined where Claude's resolve did. */
-export const closingReply = (ask: Ask) =>
-  ask.state === 'closed' && ask.answer !== undefined && isClosing(ask, ask.answer.verdict)
-    ? ask.answer
-    : undefined
+/** The reply that closed an ask, where Lee's answer closed it. */
+export const closingReply = (ask: Ask) => (ask.closedBy === 'answer' ? ask.answer : undefined)
 
-/** Where a delivered reply leaves a parked item: a pick-up picks it up. */
-export const parkedAfter = (parked: Parked, verdict: Verdict): Parked['state'] =>
-  parked.state === 'parked' && verdict === 'pickup' ? 'picked' : parked.state
+/** The reply an item waits on Claude with, sent from a board into its session's inbox: Lee's answer, else the latest comment. */
+export const replyOnItsWay = (item: Ask | Parked) =>
+  item.answerOnItsWay ?? item.replies.findLast(isPending)
+
+/** Why a closed item takes no reply: `answered` where Lee closed it, `resolved` where Claude did. */
+export const closedReason = (item: Pick<Item, 'closedBy'>): Barred =>
+  item.closedBy === 'claude' ? 'resolved' : 'answered'
+
+/**
+ * What keeps an item from taking a reply of Lee's with this verdict now;
+ * undefined while it takes one. A closed item takes none; an open one, no
+ * second answer while Lee's is on its way.
+ */
+export const barredBy = (item: Ask | Parked, verdict: Verdict): Barred | undefined => {
+  if (item.closedBy !== undefined) {
+    return closedReason(item)
+  }
+
+  return isAnswer(item, verdict) && item.answerOnItsWay !== undefined ? 'answered' : undefined
+}
+
+/**
+ * Whether an ask waits on Lee: open as posted, with no reply of Lee's on
+ * its way to it, an answer or a comment. One Lee replied to waits on a
+ * window to deliver the reply, and counts nowhere as needing Lee.
+ */
+export const waitsOnLee = (ask: Ask) => ask.state === 'waiting' && replyOnItsWay(ask) === undefined
+
+/** A session's asks waiting on Lee, the oldest first; none once it is finished. */
+export const waitingOnLee = (session: Pick<Session, 'asks' | 'finished'>): Ask[] =>
+  session.finished === undefined ? session.asks.filter(waitsOnLee) : []
+
+/**
+ * Where Lee's reply to an ask stands: on its way, in its session's inbox
+ * until a window of the session delivers it; delivered, Claude having it;
+ * or not delivered, Claude having closed the ask first. `since` is when it
+ * was sent, delivered, or left.
+ */
+export type ReplyState = {
+  is: 'onItsWay' | 'delivered' | 'notDelivered'
+  reply: Reply
+  /** Whether it is Lee's answer, not a comment; on its way, whether it is the answer on its way, which bars another. */
+  isAnswer: boolean
+  since: number
+}
+
+/** When a reply last moved: delivered, gone void, or else sent. */
+const movedAt = (reply: Reply) => reply.deliveredAt ?? reply.voidedAt ?? reply.at
+
+const standing = (
+  ask: Ask,
+  is: ReplyState['is'],
+  reply: Reply | undefined,
+): ReplyState | undefined =>
+  reply === undefined
+    ? undefined
+    : {
+        is,
+        reply,
+        isAnswer: is === 'onItsWay' ? reply === ask.answerOnItsWay : isAnswer(ask, reply.verdict),
+        since: movedAt(reply),
+      }
+
+/** Where Lee's reply to an ask stands, from those not history to it; on one still open, an answer Claude has may be one an edit left unfit. */
+export const replyState = (ask: Ask): ReplyState | undefined => {
+  if (ask.closedBy === 'answer' || ask.closedBy === 'ignore') {
+    return standing(ask, 'delivered', ask.answer)
+  }
+
+  const since = ask.replies.filter(reply => !reply.isHistory)
+  const had = since.findLast(
+    reply => reply.deliveredAt !== undefined && isAnswer(ask, reply.verdict),
+  )
+  const left = since.findLast(reply => reply.voided === 'resolved')
+
+  if (ask.closedBy === 'claude') {
+    return standing(ask, 'delivered', had) ?? standing(ask, 'notDelivered', left)
+  }
+
+  return standing(ask, 'onItsWay', replyOnItsWay(ask)) ?? standing(ask, 'delivered', had)
+}
 
 const quoted = (note: string) => `“${note}”`
 
@@ -159,13 +234,13 @@ const withNote = (note: string | undefined, quote: Quote, needs?: string) =>
 const words = (ask: Ask, { verdict, option, note }: ReplyFields, quote: Quote): string => {
   switch (verdict) {
     case 'yes':
-      return `${ask.yes ?? 'yes'}${withNote(note, quote, ask.needs)}`
+      return `${yesOf(ask)}${withNote(note, quote, ask.needs)}`
     case 'choose':
       return `${option ?? ''}${withNote(note, quote, ask.needs)}`
     case 'answer':
       return `${ask.needs ?? 'answer'}:${quote(note ?? '')}`
     case 'comment':
-      return `${isClosing(ask, verdict) ? 'answer' : 'comment'}:${quote(note ?? '')}`
+      return `${isAnswer(ask, verdict) ? 'answer' : 'comment'}:${quote(note ?? '')}`
     case 'ignore':
       return 'ignored'
     case 'pickup':

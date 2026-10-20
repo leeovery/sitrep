@@ -3,8 +3,10 @@
  * inboxes first (letters.ts). The held session's go in as Lee's own message
  * (deliver.ts), their reply ids fixed as the send is claimed, and only once
  * Claude Code has taken it are they written, each reply and one delivered
- * mark together, into the session they answer. A send it refuses leaves every
- * reply queued.
+ * mark together, into the session they answer. A send it refuses leaves
+ * every reply queued. A send carries a reply only while its item takes it
+ * (`sendable`): one to an item closed, or holding another answer of Lee's,
+ * stays in Ready to send, saying why.
  *
  * A message sent while Claude is mid-turn waits for that turn to end, so a
  * send can wait minutes; the replies it carries stay frozen in the queue.
@@ -13,10 +15,8 @@ import { boardMessage } from '../core'
 import { deliver, STILL_THERE } from './deliver'
 import type { Host } from './host'
 import { sendLetters } from './letters'
-import { queuedFor, replyBodies } from './queue'
+import { leftOut, replyBodies, sendable, type LeftOut } from './queue'
 import { attached, refresh, serially } from './window'
-
-const CHANGED = `Nothing to send: the items replied to have changed since. ${STILL_THERE}`
 
 const BEHIND = `Not sent yet: replies from another session are going in first. ${STILL_THERE}`
 
@@ -29,27 +29,36 @@ const heldNow = (host: Host) =>
     return session === undefined || held === undefined ? undefined : { session, held }
   })
 
+/** What a send did with the held session's replies: claimed their message, waited on one in flight, or carried none, leaving each for why. */
+type Here = { is: 'claimed' } | { is: 'heldBack' } | { is: 'none'; left: readonly LeftOut[] }
+
+/** Why a send carried nothing at all, by why it left the replies it held: their items changed, or answered or closed, or both. */
+const nothingSent = (left: readonly LeftOut[]) => {
+  const why = [
+    left.includes('changed') && 'have changed since',
+    left.some(each => each !== 'changed') && 'are answered or closed already',
+  ].filter(Boolean)
+
+  return `Nothing to send: the items replied to ${why.join(', or ')}. ${STILL_THERE}`
+}
+
 /**
- * Sends the held session's replies in Ready to send that still fit their
- * items, `claimed` running once their message is claimed; whether it was.
+ * Sends the held session's replies in Ready to send that its items take
+ * now (`sendable`), `claimed` running once their message is claimed.
  */
-const sendHere = async (host: Host, claimed: () => Promise<void>) => {
+const sendHere = async (host: Host, claimed: () => Promise<void>): Promise<Here> => {
   const here = await heldNow(host)
 
   if (here === undefined) {
-    return false
+    return { is: 'none', left: [] }
   }
 
   const { session, held } = here
-  const queued = queuedFor(await host.state.queue.read(), session.id)
-  const message = boardMessage(session, queued)
+  const queue = await host.state.queue.read()
+  const message = boardMessage(session, sendable(session, queue))
 
   if (message === undefined) {
-    if (queued.length > 0) {
-      host.ui.toast(CHANGED)
-    }
-
-    return false
+    return { is: 'none', left: leftOut(session, queue) }
   }
 
   const ahead = await deliver(
@@ -69,20 +78,29 @@ const sendHere = async (host: Host, claimed: () => Promise<void>) => {
     host.ui.toast(BEHIND)
   }
 
-  return ahead === undefined
+  return ahead === undefined ? { is: 'claimed' } : { is: 'heldBack' }
 }
 
 /**
- * Sends everything in Ready to send that still fits its item: other
+ * Sends everything in Ready to send that its item takes now: other
  * sessions' into their inboxes, then the held session's. `claimed` runs
  * once, as soon as any of it has gone: the held session's message claimed,
- * else the letters written; never once nothing went.
+ * else the letters written; never once nothing went. A send that carried
+ * nothing at all says why it left what it held.
  */
 export const send = async (host: Host, claimed: () => Promise<void>) => {
-  const isLettered = await sendLetters(host)
-  const isClaimed = await sendHere(host, claimed)
+  const letters = await sendLetters(host)
+  const here = await sendHere(host, claimed)
 
-  if (isLettered && !isClaimed) {
+  if (letters.isLettered && here.is !== 'claimed') {
     await claimed()
+  }
+
+  if (!letters.isLettered && here.is === 'none') {
+    const left = [...letters.left, ...here.left]
+
+    if (left.length > 0) {
+      host.ui.toast(nothingSent(left))
+    }
   }
 }

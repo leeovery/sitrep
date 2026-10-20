@@ -1,5 +1,7 @@
 import { expect, test } from 'claude-code/testing'
 import {
+  replyState,
+  brief,
   CURRENT_MS,
   feedOf,
   FORGET_MS,
@@ -28,12 +30,14 @@ import {
 } from '../core'
 import {
   beat,
+  CLI,
   file,
   finish,
   META,
   MIN,
   park,
   reopen,
+  reply,
   resolve,
   status,
   T0,
@@ -79,17 +83,23 @@ const windowOn = (
   [writer]: beat(writer, { attachedAt: T0, seenAt: NOW, version: '0.2.0', state, ...times }),
 })
 
-/** A session folded at `now` from its meta, the lines its window wrote, and the heartbeats given. */
+/** A session folded at `now` from its meta, the lines its window wrote, the letters in its inbox, and the heartbeats given. */
 const sessionOf = (
   {
     meta = {},
     lines = [],
+    inbox = {},
     presence = {},
-  }: { meta?: Partial<SessionMeta>; lines?: Line[]; presence?: SessionFiles['presence'] } = {},
+  }: {
+    meta?: Partial<SessionMeta>
+    lines?: Line[]
+    inbox?: SessionFiles['inbox']
+    presence?: SessionFiles['presence']
+  } = {},
   now = NOW,
 ): Session => {
   const session = foldSession(
-    { meta: metaText({ ...META, ...meta }), logs: { [W1]: file(...lines) }, presence },
+    { meta: metaText({ ...META, ...meta }), logs: { [W1]: file(...lines) }, inbox, presence },
     now,
   )
 
@@ -361,6 +371,58 @@ test('a session is one row while its windows work or wait on Lee: the latest sta
   ])
 })
 
+/** An ask, and Lee's answer to it in the session's inbox, on its way. */
+const ANSWERED = {
+  lines: [[T0, yesAsk('k1', 'Review it')]] satisfies Line[],
+  inbox: { [CLI]: file([T0 + MIN, reply('r1', 'k1', 'yes')]) },
+}
+
+test("an ask with Lee's answer on its way needs Lee no more: no row, no count, nothing new, the session as its windows leave it, the ask still among its asks", () => {
+  const away = sessionOf(ANSWERED)
+  const held = sessionOf({ ...ANSWERED, presence: windowOn(W1, yourTurn(T0)) })
+  const feed = feedOf([{ project: SWITCHBOARD, sessions: [away] }], NOW)
+
+  expect(away.waiting).toBe(0)
+  expect([sessionState(away, NOW), rows(away)]).toEqual(['away', []])
+  expect(sessionState(held, NOW)).toBe('yourTurn')
+  expect(rows(held).map(each => each.key)).toEqual([`turn:${META.id}`])
+  expect(feed.head).toEqual({ needYou: 0, sessions: 0 })
+  expect(feed.projects).toMatchObject([
+    { waiting: 0, sessions: [{ state: 'away', waiting: 0, asks: [{ id: 'k1' }] }] },
+  ])
+  expect(newRows(new Map(), feed, NOW).news).toEqual([])
+})
+
+test("watch lists a session's asks as board --json does, a replied one among them, so Lee's answer to it shows on its way", () => {
+  const session = sessionOf({
+    lines: [
+      [T0, yesAsk('k1', 'Review it')],
+      [T0, yesAsk('k2', 'Ship it', 'Go')],
+      [T0, yesAsk('k3', 'Tag it', 'Done')],
+      [T0 + MIN, reply('r1', 'k2', 'comment', { note: 'Tighten the copy first' })],
+      [T0 + MIN, { type: 'delivered', replies: ['r1'] }],
+      [T0 + MIN, resolve('k3')],
+    ],
+    inbox: { [CLI]: file([T0 + 2 * MIN, reply('r2', 'k2', 'yes')]) },
+  })
+  const [watched] = feedOf([{ project: SWITCHBOARD, sessions: [session] }], NOW).projects
+
+  expect(watched?.sessions[0]?.asks.map(each => each.id)).toEqual(['k1', 'k2'])
+  expect(watched?.sessions[0]?.asks).toEqual(brief(session).asks)
+  expect(replyState(session.asks[1]!)).toMatchObject({ is: 'onItsWay', reply: { id: 'r2' } })
+})
+
+test('an answer gone void, its ask edited under it, leaves the ask waiting on Lee again', () => {
+  const edited: Line = [
+    T0 + 2 * MIN,
+    { type: 'edit', item: 'k1', changes: { wants: 'choice', options: ['Now', 'Later'] } },
+  ]
+  const session = sessionOf({ ...ANSWERED, lines: [...ANSWERED.lines, edited] })
+
+  expect(session.waiting).toBe(1)
+  expect(rows(session).map(each => [each.key, each.isAway])).toEqual([[`ask:${META.id}:k1`, true]])
+})
+
 test('an away session with nothing waiting has no row, nor has a finished one, whatever it holds', () => {
   expect(rows(sessionOf({ lines: [[T0, park('p1', 'Later')]] }))).toEqual([])
   expect(
@@ -537,6 +599,9 @@ test('the feed lists every live window, the longest attached first, those behind
 test('a window needs a reload when it says no version, or one behind the CLI’s own, dotted part by part', () => {
   expect(needsReload(undefined, '0.2.0')).toBe(true)
   expect(needsReload('0.1.9', '0.2.0')).toBe(true)
+  expect(needsReload('0.1.0', '0.2.0'), 'a window from before answers, against this release').toBe(
+    true,
+  )
   expect(needsReload('0.9.0', '0.10.0')).toBe(true)
   expect(needsReload('0.2', '0.2.1')).toBe(true)
   expect(needsReload('0.2.0', '0.2.0')).toBe(false)
@@ -675,5 +740,17 @@ test('the board next changes by time alone as the first live heartbeat goes stal
   ).toBeUndefined()
   expect(
     nextExpiry(read([sessionOf({ lines: [[T0, yesAsk('k1', 'Keep me')]] })]), NOW),
+  ).toBeUndefined()
+  expect(
+    nextExpiry(
+      read([
+        sessionOf({
+          lines: [[T0, yesAsk('k1', 'Keep me')]],
+          inbox: { [CLI]: file([T0 + MIN, reply('r1', 'k1', 'yes')]) },
+        }),
+      ]),
+      NOW,
+    ),
+    'an answer on its way keeps its session current, as its ask did',
   ).toBeUndefined()
 })

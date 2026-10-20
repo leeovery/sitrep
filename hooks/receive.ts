@@ -33,15 +33,15 @@ const lineOf = ({ id, item, verdict, option, note }: Reply): ReplyBody => ({
 
 /** Submits the inbox replies waiting for the held session, when this window delivers them and no message is in flight. */
 const receive = async (host: Host) => {
-  const [held, board, inFlight] = await Promise.all([
-    host.state.attachment.read(),
-    host.state.board.read(),
-    host.state.inFlight.read(),
-  ])
+  const inFlight = await host.state.inFlight.read()
 
   if (inFlight !== null) {
     return writeTaken(host)
   }
+
+  // Only now the board: one read before a send's claim ended may predate its
+  // writing down, and show an answer it voided still on its way.
+  const [held, board] = await Promise.all([host.state.attachment.read(), host.state.board.read()])
 
   if (held === null || board === null) {
     return

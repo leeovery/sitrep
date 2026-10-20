@@ -7,6 +7,7 @@ import { WATCH_MS } from '../hooks/window'
 import { rowsOf } from './drawn'
 import {
   delivered,
+  file,
   finish,
   kindAsk,
   MIN,
@@ -16,6 +17,7 @@ import {
   T0,
   W1,
   W2,
+  W3,
   wordsAsk,
   yesAsk,
 } from './support'
@@ -212,6 +214,7 @@ test('✎ comment has the next Enter comment on the ask', async ($, on) => {
     title: GO.title,
     surface: 'terminal',
   })
+  expect((await bandRow(w)).rows[0]).toMatch(/^✎ Your next Enter comments on /)
 })
 
 test('with a draft in the prompt, ✎ is refused, and the draft is left as it is', async ($, on) => {
@@ -675,6 +678,24 @@ for (const [as, press, item] of [
       { project: PROJECT.key, session: LEDGER.id, item, verdict: press, note: 'id, at, by' },
     ])
     expect(w.prompts).toEqual([])
+  })
+}
+
+for (const [as, press, item, landing, isStanding] of [
+  ['commenting on', 'comment', 'k4', reply('r9', 'k4', 'yes'), true],
+  ['answering', 'answer', 'k3', reply('r9', 'k3', 'answer', { note: 'id, at' }), false],
+] as const) {
+  test(`${as} another session's ask as Lee's answer to it from another window lands: ${isStanding ? 'it stands, an answer barring no comment' : 'it ends, the ask taking no second answer'}`, async ($, on) => {
+    const w = world($, on)
+    const ui = await onLedgersAsks(w)
+    const there = w.item(item, LEDGER.id)
+
+    await ui.press({ key: `pick:${there}` })
+    await ui.press({ key: `${press}:${there}` })
+    w.put(sessionPaths(ROOT, PROJECT.key, LEDGER.id).letters(W3), file([w.clock.now(), landing]))
+    await w.clock.advance(AROUND_MS)
+
+    expect(w.state.answering !== null).toBe(isStanding)
   })
 }
 

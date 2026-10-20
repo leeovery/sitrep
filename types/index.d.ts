@@ -40,6 +40,10 @@ export type SitrepReply = {
   delivery: SitrepDelivery
   deliveredAt?: number
   voidedAt?: number
+  /** Why it went void, as core's `Voided` says. */
+  voided?: 'changed' | 'finished' | 'answered' | 'resolved'
+  /** Settled while its item stood closed, which has reopened since: core's `isHistory`. */
+  isHistory?: boolean
 }
 
 export type SitrepPosted = {
@@ -48,6 +52,8 @@ export type SitrepPosted = {
   at: number
   openedAt: number
   closedAt?: number
+  /** Who closed it: core's `ClosedBy`. */
+  closedBy?: 'answer' | 'ignore' | 'claude'
   editedAt?: number
   reason?: string
   ref?: string
@@ -64,6 +70,8 @@ export type SitrepAsk = SitrepPosted & {
   needs?: string
   state: 'waiting' | 'replied' | 'closed' | 'ignored'
   answer?: SitrepReply
+  /** Lee's answer on its way to it: core's `answerOnItsWay`. */
+  answerOnItsWay?: SitrepReply
   replies: SitrepReply[]
 }
 
@@ -80,6 +88,8 @@ export type SitrepParked = SitrepPosted & {
   where?: string
   state: 'parked' | 'picked' | 'closed'
   answer?: SitrepReply
+  /** Lee's answer on its way to it: core's `answerOnItsWay`. */
+  answerOnItsWay?: SitrepReply
   replies: SitrepReply[]
 }
 
@@ -261,6 +271,7 @@ export type SitrepSummary = {
   isOpen: boolean
   isFinished: boolean
   waiting: number
+  asked: number
   parked: number
   updatedAt: number
 }

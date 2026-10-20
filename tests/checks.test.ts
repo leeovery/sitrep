@@ -1,5 +1,6 @@
 import { expect, test } from 'claude-code/testing'
 import {
+  checkAnswer,
   checkAsk,
   checkEdit,
   checkJoin,
@@ -16,6 +17,7 @@ import {
   choiceAsk,
   delivered,
   file,
+  finish,
   fold,
   kindAsk,
   MIN,
@@ -24,6 +26,7 @@ import {
   reply,
   resolve,
   scripted,
+  SENDER,
   T0,
   W1,
   wordsAsk,
@@ -315,5 +318,99 @@ test('a checked post is given a fresh item id, unlike any its session uses; a re
   })
   expect(refusal(withId(checkPark({}), SESSION, random))).toBe(
     'A parked item needs a title: one line.',
+  )
+})
+
+test("an answer from outside Claude Code is a yes in its button's words, or one of a choice's options", () => {
+  expect(value(checkAnswer(SESSION, { ask: ' k1 ', answer: 'Approve' }))).toEqual({
+    type: 'reply',
+    item: 'k1',
+    verdict: 'yes',
+  })
+  expect(value(checkAnswer(SESSION, { ask: 'k2', answer: ' Drop\n it ' }))).toEqual({
+    type: 'reply',
+    item: 'k2',
+    verdict: 'choose',
+    option: 'Drop it',
+  })
+  expect(
+    value(checkAnswer(SESSION, { ask: 'o2', answer: 'Approve' })),
+    'a review read as a yes',
+  ).toEqual({ type: 'reply', item: 'o2', verdict: 'yes' })
+  expect(
+    value(checkAnswer(SESSION, { ask: 'k3', answer: 'It works' })),
+    'one Lee commented on, still open',
+  ).toEqual({ type: 'reply', item: 'k3', verdict: 'yes' })
+})
+
+test('an answer not in the words the ask takes is refused, saying what it takes', () => {
+  expect(refusal(checkAnswer(SESSION, { ask: 'k1', answer: 'Go' }))).toBe(
+    'k1 wants a yes: answer it with “Approve”.',
+  )
+  expect(refusal(checkAnswer(SESSION, { ask: 'k1' }))).toBe(
+    'k1 wants a yes: answer it with “Approve”.',
+  )
+  expect(refusal(checkAnswer(SESSION, { ask: 'k2', answer: 'keep it' }))).toBe(
+    'k2 wants a choice: answer it with “Keep it” or “Drop it”.',
+  )
+  expect(refusal(checkAnswer(SESSION, { ask: 'k2', answer: ' ' }))).toBe(
+    'k2 wants a choice: answer it with “Keep it” or “Drop it”.',
+  )
+})
+
+test("a words ask needs Claude Code's prompt, an old one needing something back among them; only an ask is answered", () => {
+  const prompt = "wants words, which need Claude Code's prompt: answer it there."
+
+  expect(refusal(checkAnswer(SESSION, { ask: 'k4', answer: 'v1.2.3' }))).toBe(`k4 ${prompt}`)
+  expect(refusal(checkAnswer(SESSION, { ask: 'o1', answer: 'Done' }))).toBe(`o1 ${prompt}`)
+  expect(refusal(checkAnswer(SESSION, { ask: 'n1', answer: 'Yes' }))).toBe(
+    'n1 is a note, not an ask.',
+  )
+  expect(refusal(checkAnswer(SESSION, { ask: 'p1', answer: 'Yes' }))).toBe(
+    'p1 is a parked item, not an ask.',
+  )
+  expect(refusal(checkAnswer(SESSION, { ask: 'zz', answer: 'Yes' }))).toBe(
+    'There is no item zz on this board.',
+  )
+  expect(refusal(checkAnswer(SESSION, { answer: 'Yes' }))).toContain('by its id')
+})
+
+test("an ignore is the board's, on an ask of any shape, a words ask among them, and with no words of its own", () => {
+  for (const id of ['k1', 'k2', 'k4', 'o1']) {
+    expect(value(checkAnswer(SESSION, { ask: id, ignore: true })), id).toEqual({
+      type: 'reply',
+      item: id,
+      verdict: 'ignore',
+    })
+  }
+
+  expect(refusal(checkAnswer(SESSION, { ask: 'k1', answer: 'Approve', ignore: true }))).toBe(
+    'Give an answer or --ignore, not both.',
+  )
+  expect(refusal(checkAnswer(SESSION, { ask: 'k9', ignore: true }))).toBe('k9 is already closed.')
+})
+
+test('an ask closed, or with an answer on its way, takes no answer, though a comment on its way bars none; nor does a finished session', () => {
+  const sent = fold({
+    logs: { [W1]: file([T0, yesAsk('k1', 'Review round 1')]) },
+    inbox: { [SENDER]: file([T0 + MIN, reply('r1', 'k1', 'ignore')]) },
+  })
+  const commented = fold({
+    logs: { [W1]: file([T0, yesAsk('k1', 'Review round 1')]) },
+    inbox: { [SENDER]: file([T0 + MIN, reply('r1', 'k1', 'comment', { note: 'Tighten it' })]) },
+  })
+  const finished = fold({
+    logs: { [W1]: file([T0, yesAsk('k1', 'Review round 1')], [T0 + MIN, finish('lee')]) },
+  })
+
+  expect(refusal(checkAnswer(SESSION, { ask: 'k9', answer: 'Done' }))).toBe('k9 is already closed.')
+  expect(refusal(checkAnswer(sent, { ask: 'k1', answer: 'Approve' }))).toBe(
+    'An answer to k1 is on its way already.',
+  )
+  expect(value(checkAnswer(commented, { ask: 'k1', answer: 'Approve' }))).toMatchObject({
+    verdict: 'yes',
+  })
+  expect(refusal(checkAnswer(finished, { ask: 'k1', answer: 'Approve' }))).toBe(
+    'This session is finished: its asks wait on Lee no more.',
   )
 })
