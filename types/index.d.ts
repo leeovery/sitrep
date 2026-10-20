@@ -40,6 +40,8 @@ export type SitrepReply = {
   delivery: SitrepDelivery
   deliveredAt?: number
   voidedAt?: number
+  /** Why it went void, as core's `Voided` says. */
+  voided?: 'changed' | 'finished' | 'answered' | 'resolved'
 }
 
 export type SitrepPosted = {
@@ -244,11 +246,7 @@ export type SitrepInFlight = SitrepSessionRef & {
   text: string
   /** The replies the message carries, their ids fixed as it was claimed. */
   replies: SitrepReplyBody[]
-  /**
-   * When it was claimed, which tells this claim from a later one of the same
-   * text: for a send, taken before it read the board, the time its replies
-   * are written as of.
-   */
+  /** When it was claimed, which tells this claim from a later one of the same text. */
   claimedAt: number
   /** Whether Claude Code has taken the message, its lines still to write. */
   isTaken: boolean

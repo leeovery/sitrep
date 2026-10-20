@@ -8,8 +8,8 @@
  */
 import { isSessionId, newItemId, type Random } from './ids'
 import { directoryOf, isNameable } from './project'
-import { isOldVersion } from './presence'
-import { onItsWay, yesOf } from './replies'
+import { needsReload } from './release'
+import { answerOnItsWay, yesOf } from './replies'
 import { WANTS } from './shapes'
 import type { StatusFields } from './status'
 import { inWords, oneLine } from './text'
@@ -452,21 +452,25 @@ const quotedOr = (answers: readonly string[]) => inWords(answers.map(each => `â€
 const ANSWER_RULES: readonly [breaks: (ask: Ask) => boolean, error: (ask: Ask) => string][] = [
   [ask => ask.state === 'ignored', ask => `${ask.id} is already ignored.`],
   [ask => ask.state === 'closed', ask => `${ask.id} is already closed.`],
-  [ask => onItsWay(ask) !== undefined, ask => `A reply to ${ask.id} is on its way already.`],
+  [
+    ask => answerOnItsWay(ask) !== undefined,
+    ask => `An answer to ${ask.id} is on its way already.`,
+  ],
 ]
 
 const OLD_WINDOW =
-  'A window holding this session runs an older sitrep, which never sees an answer sent from here: run /reload-plugins in that window first.'
+  'A window holding this session runs an older sitrep: run /reload-plugins in it first.'
 
 /**
- * Whether the window that delivers the session's inbox runs a release from
- * before today's layout: one that reads only the old, so it would never see
- * an answer the CLI writes, and no other window delivers while it is live.
+ * Whether the window that delivers the session's inbox runs a sitrep behind
+ * `version`, the CLI's, and needs `/reload-plugins`, as `watch` tells it
+ * (`needsReload`): one from before today's layout would never see an answer
+ * the CLI writes, and one from before answers would give Claude two at once.
  */
-const isDeliveredByOld = (session: Session) => {
+const isDeliveredByOld = (session: Session, version: string | undefined) => {
   const window = session.presence.find(each => each.writer === session.deliverer)
 
-  return window !== undefined && isOldVersion(window)
+  return window !== undefined && needsReload(window.version, version)
 }
 
 type Answer = Checked<Omit<ReplyBody, 'id'>>
@@ -502,12 +506,16 @@ const ignored = (ask: Ask, given: string | undefined): Answer =>
     : refuse('Give an answer or --ignore, not both.')
 
 /** The ask an answer names, in a session still waiting on Lee whose window can take an answer in; or a refusal. */
-const askAnswered = (session: Session, fields: Fields): Checked<Ask> => {
+const askAnswered = (
+  session: Session,
+  fields: Fields,
+  version: string | undefined,
+): Checked<Ask> => {
   if (session.finished !== undefined) {
     return refuse('This session is finished: its asks wait on Lee no more.')
   }
 
-  if (isDeliveredByOld(session)) {
+  if (isDeliveredByOld(session, version)) {
     return refuse(OLD_WINDOW)
   }
 
@@ -527,14 +535,15 @@ const askAnswered = (session: Session, fields: Fields): Checked<Ask> => {
  * Claude Code: a yes in its button's words, or one of a choice's options,
  * as the board shows them; or, `ignore`, Lee's ignore, which any ask takes.
  * Words, a comment and a permission prompt need Claude Code's prompt.
- * Refused in a finished session, whose asks wait on Lee no more; while a
- * window on a release from before today's layout delivers the session, as
- * it would never see the answer; and for an ask closed or ignored, or with
- * a reply of Lee's on its way already, since it takes no second answer.
+ * Refused in a finished session, whose asks wait on Lee no more; while the
+ * window delivering the session runs a sitrep behind `version`, the CLI's;
+ * and for an ask closed or ignored, or with another answer of Lee's on its
+ * way already, since it takes no second answer. A comment on its way bars
+ * none.
  */
-export const checkAnswer = (session: Session, input: unknown): Answer => {
+export const checkAnswer = (session: Session, input: unknown, version?: string): Answer => {
   const fields = fieldsOf(input)
-  const asked = askAnswered(session, fields)
+  const asked = askAnswered(session, fields, version)
 
   if (!asked.ok) {
     return asked

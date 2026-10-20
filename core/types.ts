@@ -27,18 +27,17 @@ export type Verdict = 'yes' | 'choose' | 'answer' | 'comment' | 'ignore' | 'pick
 export type Delivery = 'delivered' | 'waiting' | 'closed' | 'void'
 
 /**
- * What keeps an item from taking an answer of Lee's: `answered`, Lee's
- * answer already, on its way to it or delivered; `resolved`, Claude's
- * closing it.
+ * What keeps an item from taking a reply of Lee's: `answered`, Lee's
+ * answer, on its way to it or delivered; `resolved`, Claude's closing it.
  */
 export type Barred = 'answered' | 'resolved'
 
 /**
- * Why a reply went void: `changed`, an edit left it fitting its item no
- * more before it went in; or its item took no answer when it reached it, as
- * `Barred` says.
+ * Why a reply went void: its item took it no more, as `Barred` says;
+ * `changed`, an edit left it fitting its item no more; `finished`, its
+ * session was finished before it went in.
  */
-export type Voided = 'changed' | Barred
+export type Voided = 'changed' | 'finished' | Barred
 
 export type StatusBody = {
   type: 'status'

@@ -2,7 +2,6 @@ import { expect, test } from 'claude-code/testing'
 import {
   answerOf,
   answerState,
-  append,
   askAfter,
   barredBy,
   boardMessage,
@@ -12,7 +11,6 @@ import {
   deliveryOf,
   FROM_THE_BOARD,
   parseEntries,
-  sentAt,
   sentLines,
   STALE_MS,
   toDeliver,
@@ -30,6 +28,7 @@ import {
   CLI,
   delivered,
   file,
+  finish,
   fold,
   kindAsk,
   MIN,
@@ -834,175 +833,278 @@ test('an ask has no answer standing with none sent, one gone void, a comment Cla
   }
 })
 
-test('of two replies on their way to one item, the first goes in and the second is void, never delivered: Claude has one answer; a mark naming the void ones says Claude had them too', () => {
-  const letters = {
-    [CLI]: file(
-      [T0 + MIN, reply('r1', 'k2', 'choose', { option: '400 days' })],
-      [T0 + MIN, reply('r2', 'k2', 'choose', { option: 'Forever' })],
-    ),
-    [SENDER]: file([T0 + MIN, reply('r3', 'k2', 'ignore')]),
-  }
-  const presence = { [W1]: seen(W1, NOW) }
-  const sent = fold({ logs: { [W1]: file(...POSTED) }, inbox: letters, presence })
-  const marked = fold({
-    logs: { [W1]: file(...POSTED, [T0 + 2 * MIN, delivered('r1', 'r2', 'r3')]) },
-    inbox: letters,
-    presence,
-  })
-
-  expect(sent.replies.map(each => [each.id, each.delivery, each.voided, each.voidedAt])).toEqual([
-    ['r1', 'waiting', undefined, undefined],
-    ['r2', 'void', 'answered', T0 + MIN],
-    ['r3', 'void', 'answered', T0 + MIN],
-  ])
-  expect(boardMessage(sent, toDeliver(sent, W1))?.text).toBe(
-    'From the board:\n- Keep the ledger 400 days, or forever? → 400 days',
-  )
-  expect(marked.asks[1]).toMatchObject({ state: 'closed', answer: { id: 'r1' } })
-  expect(
-    marked.replies.map(each => each.delivery),
-    'a window on an old release, which voids none, delivers them all and marks them so',
-  ).toEqual(['delivered', 'delivered', 'delivered'])
-})
-
-/** What bars an item of a session from taking an answer of Lee's, as `barredBy` says. */
-const barredIn = (files: Partial<SessionFiles>, id: string) => {
+/** What bars an item of a session from taking a reply of Lee's with a verdict, as `barredBy` says. */
+const barredIn = (files: Partial<SessionFiles>, id: string, verdict: Verdict) => {
   const item = fold(files).items.get(id)
 
-  return item === undefined || item.type === 'note' ? 'no ask or parked item' : barredBy(item)
+  return item === undefined || item.type === 'note'
+    ? 'no ask or parked item'
+    : barredBy(item, verdict)
 }
 
-test("an item takes an answer of Lee's while open with none of Lee's on its way; else Lee's answer or Claude's resolve bars it", () => {
-  const letter = (item: string, verdict: Verdict) => ({
-    [SENDER]: file([T0 + MIN, reply('r1', item, verdict)]),
+test("an item open takes a reply of Lee's, but a second answer while one is on its way; one closed takes none, barred by Lee's answer or Claude's resolve", () => {
+  const letter = (item: string, verdict: Verdict, extra = {}) => ({
+    [SENDER]: file([T0 + MIN, reply('r1', item, verdict, extra)]),
   })
   const logs = (...more: Line[]) => ({ logs: { [W1]: file(...POSTED, ...more) } })
-  const yes = sent(T0 + MIN, 'r1', 'k1', 'yes')
+  const yes = logs(...sent(T0 + MIN, 'r1', 'k1', 'yes'))
+  const ignored = logs(...sent(T0 + MIN, 'r1', 'k1', 'ignore'))
   const comment = sent(T0 + MIN, 'r1', 'k3', 'comment', { note: 'Fails after the code' })
-  const cases: [string, Partial<SessionFiles>, string, Barred | undefined][] = [
-    ['an open ask', logs(), 'k1', undefined],
-    ["Lee's yes on its way", { ...logs(), inbox: letter('k1', 'yes') }, 'k1', 'answered'],
-    ["Lee's yes delivered", logs(...yes), 'k1', 'answered'],
-    ["Lee's ignore delivered", logs(...sent(T0 + MIN, 'r1', 'k1', 'ignore')), 'k1', 'answered'],
-    ["Lee's comment delivered, the ask Claude's to act on", logs(...comment), 'k3', undefined],
-    ["Claude's resolve", logs([T0 + MIN, resolve('k1')]), 'k1', 'resolved'],
+  const answering = { ...logs(), inbox: letter('k1', 'yes') }
+  const commenting = { ...logs(), inbox: letter('k1', 'comment', { note: 'Tighten the copy' }) }
+  const picking = { ...logs(), inbox: letter('p1', 'pickup') }
+  const picked = logs(...sent(T0 + MIN, 'r1', 'p1', 'pickup'))
+  const reopened = logs(...sent(T0 + MIN, 'r1', 'k1', 'yes'), [T0 + 2 * MIN, reopen('k1')])
+  const cases: [string, Partial<SessionFiles>, string, Verdict, Barred | undefined][] = [
+    ['an open ask', logs(), 'k1', 'yes', undefined],
+    ["Lee's yes on its way, to a yes", answering, 'k1', 'yes', 'answered'],
+    ["Lee's yes on its way, to an ignore", answering, 'k1', 'ignore', 'answered'],
+    ["Lee's yes on its way, to a comment", answering, 'k1', 'comment', undefined],
+    ["Lee's comment on its way, to a yes", commenting, 'k1', 'yes', undefined],
+    ["Lee's yes delivered", yes, 'k1', 'yes', 'answered'],
+    ["Lee's yes delivered, to a comment", yes, 'k1', 'comment', 'answered'],
+    ["Lee's ignore delivered", ignored, 'k1', 'yes', 'answered'],
+    ["Lee's comment delivered, Claude's to act on", logs(...comment), 'k3', 'yes', undefined],
+    ["Claude's resolve", logs([T0 + MIN, resolve('k1')]), 'k1', 'yes', 'resolved'],
     [
       "Claude's resolve after Lee's comment",
       logs(...comment, [T0 + 2 * MIN, resolve('k3')]),
       'k3',
+      'comment',
       'resolved',
     ],
-    ['reopened after its answer', logs(...yes, [T0 + 2 * MIN, reopen('k1')]), 'k1', undefined],
-    ['a parked item', logs(), 'p1', undefined],
-    ["Lee's pick-up on its way", { ...logs(), inbox: letter('p1', 'pickup') }, 'p1', 'answered'],
-    ['picked up', logs(...sent(T0 + MIN, 'r1', 'p1', 'pickup')), 'p1', 'answered'],
-    ['a parked item Claude resolved', logs([T0 + MIN, resolve('p1')]), 'p1', 'resolved'],
+    ['reopened after its answer', reopened, 'k1', 'yes', undefined],
+    ['a parked item', logs(), 'p1', 'pickup', undefined],
+    ["Lee's pick-up on its way", picking, 'p1', 'pickup', 'answered'],
+    ['picked up', picked, 'p1', 'pickup', 'answered'],
+    ['a parked item Claude resolved', logs([T0 + MIN, resolve('p1')]), 'p1', 'pickup', 'resolved'],
   ]
 
-  for (const [why, files, id, barred] of cases) {
-    expect(barredIn(files, id), why).toBe(barred)
+  for (const [why, files, id, verdict, barred] of cases) {
+    expect(barredIn(files, id, verdict), why).toBe(barred)
   }
 })
 
-test("a reply reaching an item after Lee's answer to it, or after Claude closed it, is void from the start, saying why: the window never carries it", () => {
-  const letters = {
-    [CLI]: file([T0 + MIN, reply('r1', 'k1', 'yes')]),
-    [SENDER]: file(
-      [T0 + 3 * MIN, reply('r2', 'k1', 'yes', { note: 'Ship it' })],
-      [T0 + 3 * MIN, reply('r3', 'k4', 'yes')],
-    ),
-  }
-  const presence = { [W1]: seen(W1, NOW) }
-  const logs = (...more: Line[]) => ({
-    [W1]: file(...POSTED, [T0 + 2 * MIN, delivered('r1')], [T0 + 2 * MIN, resolve('k4')], ...more),
+/**
+ * One rule of the fold's for Lee's replies, as a case: the window's lines
+ * after POSTED, the CLI's letters, and where each reply stands then, in the
+ * order the fold read them (`r1 void answered`); with k1's state, where the
+ * rule is about it.
+ */
+type ReplyRule = {
+  rule: string
+  logs?: Line[]
+  letters?: Line[]
+  replies: string[]
+  k1?: AskState
+}
+
+const at = (minutes: number) => T0 + minutes * MIN
+
+/** A reply written `minutes` in. */
+const to = (minutes: number, id: string, item: string, verdict: Verdict, extra = {}): Line => [
+  at(minutes),
+  reply(id, item, verdict, extra),
+]
+
+const TIGHTEN = { note: 'Tighten the copy first' }
+
+/** An edit to k1, the review, that every reply to it still fits. */
+const RETITLED: Body = { type: 'edit', item: 'k1', changes: { title: 'Review round 1, again' } }
+
+/**
+ * The fold's rules for Lee's replies, as DESIGN.md's "Delivery" states them:
+ * one closing answer per item, the first not void; a comment barring
+ * nothing; Claude's close, and the session's finish, voiding what is on its
+ * way; an edit voiding what fits no more; a mark, Claude's record, taking in
+ * any reply but one an edit voided; and a delivered answer voiding the
+ * other answers on their way.
+ */
+const REPLY_RULES: ReplyRule[] = [
+  {
+    rule: 'of two answers on their way to an item, the first goes in; the second is void, answered',
+    letters: [to(1, 'r1', 'k1', 'yes'), to(2, 'r2', 'k1', 'yes')],
+    replies: ['r1 waiting', 'r2 void answered'],
+  },
+  {
+    rule: 'an ignore is an answer: a yes after it is void',
+    letters: [to(1, 'r1', 'k1', 'ignore'), to(2, 'r2', 'k1', 'yes')],
+    replies: ['r1 waiting', 'r2 void answered'],
+  },
+  {
+    rule: "a pick-up is a parked item's answer: a second is void",
+    letters: [to(1, 'r1', 'p1', 'pickup'), to(2, 'r2', 'p1', 'pickup', TIGHTEN)],
+    replies: ['r1 waiting', 'r2 void answered'],
+  },
+  {
+    rule: "an answer reaching an item Lee's answer closed is void, answered",
+    logs: sent(at(1), 'r1', 'k1', 'yes'),
+    letters: [to(2, 'r2', 'k1', 'yes')],
+    replies: ['r1 delivered', 'r2 void answered'],
+  },
+  {
+    rule: 'an answer reaching an item Claude closed is void, resolved',
+    logs: [[at(1), resolve('k1')]],
+    letters: [to(2, 'r1', 'k1', 'yes')],
+    replies: ['r1 void resolved'],
+  },
+  {
+    rule: 'a void answer bars nothing: the item reopened, the next answer goes in',
+    logs: [
+      [at(2), resolve('k1')],
+      [at(3), reopen('k1')],
+    ],
+    letters: [to(1, 'r1', 'k1', 'yes'), to(4, 'r2', 'k1', 'yes')],
+    replies: ['r1 void resolved', 'r2 waiting'],
+  },
+  {
+    rule: 'a comment on its way bars no answer: both go in',
+    letters: [to(1, 'r1', 'k1', 'comment', TIGHTEN), to(2, 'r2', 'k1', 'yes')],
+    replies: ['r1 waiting', 'r2 waiting'],
+  },
+  {
+    rule: 'an answer on its way bars no comment',
+    letters: [to(1, 'r1', 'k1', 'yes'), to(2, 'r2', 'k1', 'comment', TIGHTEN)],
+    replies: ['r1 waiting', 'r2 waiting'],
+  },
+  {
+    rule: 'a comment reaching an item closed is void',
+    logs: sent(at(1), 'r1', 'k1', 'yes'),
+    letters: [to(2, 'r2', 'k1', 'comment', TIGHTEN)],
+    replies: ['r1 delivered', 'r2 void answered'],
+  },
+  {
+    rule: "Claude's close voids every reply on its way to the item, a comment too, and none to another",
+    logs: [[at(2), resolve('k1')]],
+    letters: [
+      to(1, 'r1', 'k1', 'comment', TIGHTEN),
+      to(1, 'r2', 'k1', 'yes'),
+      to(1, 'r3', 'k4', 'yes'),
+    ],
+    replies: ['r1 void resolved', 'r2 void resolved', 'r3 waiting'],
+  },
+  {
+    rule: 'finishing the session voids every reply on its way',
+    logs: [[at(2), finish('lee')]],
+    letters: [to(1, 'r1', 'k1', 'yes'), to(1, 'r2', 'p1', 'pickup')],
+    replies: ['r1 void finished', 'r2 void finished'],
+  },
+  {
+    rule: 'a reply reaching a finished session is void',
+    logs: [[at(1), finish('lee')]],
+    letters: [to(2, 'r1', 'k1', 'yes')],
+    replies: ['r1 void finished'],
+  },
+  {
+    rule: 'an edit voids a reply on its way that fits its item no more, changed',
+    logs: [[at(2), DECIDED]],
+    letters: [to(1, 'r1', 'k1', 'yes')],
+    replies: ['r1 void changed'],
+  },
+  {
+    rule: 'an edit voids a void reply that fits its item no more again, changed',
+    logs: [[at(2), DECIDED]],
+    letters: [to(1, 'r1', 'k1', 'yes'), to(1, 'r2', 'k1', 'yes')],
+    replies: ['r1 void changed', 'r2 void changed'],
+  },
+  {
+    rule: 'an edit leaves every reply that still fits as it was',
+    logs: [[at(2), RETITLED]],
+    letters: [to(1, 'r1', 'k1', 'yes'), to(1, 'r2', 'k1', 'yes')],
+    replies: ['r1 waiting', 'r2 void answered'],
+  },
+  {
+    rule: 'a mark delivers a reply on its way',
+    logs: [[at(2), delivered('r1')]],
+    letters: [to(1, 'r1', 'k1', 'yes')],
+    replies: ['r1 delivered'],
+    k1: 'closed',
+  },
+  {
+    rule: 'a mark delivers a reply void as answered, Claude having it, and that answer voids the one on its way',
+    logs: sent(at(2), 'r2', 'k1', 'yes'),
+    letters: [to(1, 'r1', 'k1', 'yes')],
+    replies: ['r1 void answered', 'r2 delivered'],
+    k1: 'closed',
+  },
+  {
+    rule: "a mark delivers a reply void as resolved, its message having crossed Claude's close, which stands",
+    logs: [
+      [at(2), resolve('k1')],
+      [at(3), delivered('r1')],
+    ],
+    letters: [to(1, 'r1', 'k1', 'yes')],
+    replies: ['r1 delivered'],
+    k1: 'closed',
+  },
+  {
+    rule: 'a mark delivers a reply void as finished, its message having crossed the finish',
+    logs: [
+      [at(2), finish('lee')],
+      [at(3), delivered('r1')],
+    ],
+    letters: [to(1, 'r1', 'k1', 'yes')],
+    replies: ['r1 delivered'],
+  },
+  {
+    rule: 'a mark never delivers a reply an edit voided: the ask takes an answer again',
+    logs: [
+      [at(2), DECIDED],
+      [at(3), delivered('r1')],
+    ],
+    letters: [to(1, 'r1', 'k1', 'yes')],
+    replies: ['r1 void changed'],
+    k1: 'waiting',
+  },
+  {
+    rule: 'nor one an edit voided again: a yes never closes the choice ask its ask became',
+    logs: [
+      [at(2), DECIDED],
+      [at(3), delivered('r2')],
+    ],
+    letters: [to(1, 'r1', 'k1', 'yes'), to(1, 'r2', 'k1', 'yes')],
+    replies: ['r1 void changed', 'r2 void changed'],
+    k1: 'waiting',
+  },
+  {
+    rule: 'a delivered comment voids nothing: the answer on its way still goes in',
+    logs: sent(at(2), 'r2', 'k1', 'comment', TIGHTEN),
+    letters: [to(1, 'r1', 'k1', 'yes')],
+    replies: ['r1 waiting', 'r2 delivered'],
+    k1: 'replied',
+  },
+  {
+    rule: 'a delivered answer leaves a comment on its way to go in',
+    logs: [[at(2), delivered('r2')]],
+    letters: [to(1, 'r1', 'k1', 'comment', TIGHTEN), to(1, 'r2', 'k1', 'yes')],
+    replies: ['r1 waiting', 'r2 delivered'],
+    k1: 'closed',
+  },
+]
+
+for (const { rule, logs = [], letters = [], replies, k1 } of REPLY_RULES) {
+  test(`a reply: ${rule}`, () => {
+    const session = fold({
+      logs: { [W1]: file(...POSTED, ...logs) },
+      inbox: { [CLI]: file(...letters) },
+      presence: { [W1]: seen(W1, NOW) },
+    })
+    const standing = session.replies.map(each =>
+      [each.id, each.delivery, each.voided].filter(Boolean).join(' '),
+    )
+
+    expect(standing).toEqual(replies)
+    expect(toDeliver(session, W1).map(each => each.id)).toEqual(
+      session.replies.filter(each => each.delivery === 'waiting').map(each => each.id),
+    )
+
+    if (k1 !== undefined) {
+      expect(session.asks[0]?.state).toBe(k1)
+    }
   })
-  const read = fold({ logs: logs(), inbox: letters, presence })
+}
 
-  expect(read.replies.map(each => [each.id, each.delivery, each.voided, each.voidedAt])).toEqual([
-    ['r1', 'delivered', undefined, undefined],
-    ['r2', 'void', 'answered', T0 + 3 * MIN],
-    ['r3', 'void', 'resolved', T0 + 3 * MIN],
-  ])
-  expect(toDeliver(read, W1)).toEqual([])
-  expect(read.asks[0]).toMatchObject({ state: 'closed', answer: { id: 'r1' } })
-})
-
-test("a send's replies are written as of its claim, its mark as Claude Code takes it: a letter written while it waited comes second, and goes void", () => {
-  const claimed = T0 + MIN
-  const taken = T0 + 3 * MIN
-  const replies = [
-    { type: 'reply', id: 'r1', item: 'k2', verdict: 'choose', option: '400 days' },
-  ] as const
-  const before = fold({ logs: { [W1]: file(...POSTED) } })
-  const written = append(file(...POSTED), sentLines(before, replies), sentAt(claimed, taken))
-  const session = fold({
-    logs: { [W1]: written.text },
-    inbox: { [CLI]: file([T0 + 2 * MIN, reply('r2', 'k2', 'choose', { option: 'Forever' })]) },
-    presence: { [W1]: seen(W1, NOW) },
-  })
-
-  expect(written.entries.map(entry => [entry.type, entry.at])).toEqual([
-    ['reply', claimed],
-    ['delivered', taken],
-  ])
-  expect(session.replies.map(each => [each.id, each.delivery, each.voided])).toEqual([
-    ['r1', 'delivered', undefined],
-    ['r2', 'void', 'answered'],
-  ])
-  expect(session.asks[1]).toMatchObject({ state: 'closed', closedAt: taken, answer: { id: 'r1' } })
-  expect(toDeliver(session, W1), 'the letter never goes in').toEqual([])
-})
-
-test("a reply a window marked delivered stays delivered, though a send of another window's, written later as of its earlier claim, reads before it: Claude had both", () => {
-  const presence = { [W1]: seen(W1, NOW), [W2]: seen(W2, NOW) }
-  const letters = {
-    [CLI]: file([T0 + 2 * MIN, reply('r1', 'k2', 'choose', { option: 'Forever' })]),
-  }
-  const marked = { [W1]: file(...POSTED, [T0 + 3 * MIN, delivered('r1')]) }
-  const before = fold({ logs: marked, inbox: letters, presence })
-  const sent = [
-    { type: 'reply', id: 'r2', item: 'k2', verdict: 'choose', option: '400 days' },
-  ] as const
-  const after = fold({
-    logs: {
-      ...marked,
-      [W2]: append('', sentLines(before, sent), sentAt(T0 + MIN, T0 + 4 * MIN)).text,
-    },
-    inbox: letters,
-    presence,
-  })
-
-  expect(before.replies[0]).toMatchObject({ id: 'r1', delivery: 'delivered' })
-  expect(after.replies.map(each => [each.id, each.delivery, each.deliveredAt])).toEqual([
-    ['r2', 'delivered', T0 + 4 * MIN],
-    ['r1', 'delivered', T0 + 3 * MIN],
-  ])
-  expect(after.asks[1]).toMatchObject({
-    state: 'closed',
-    closedAt: T0 + 3 * MIN,
-    answer: { id: 'r1' },
-  })
-})
-
-test('once a delivered reply closes its item, any other on its way to it goes nowhere: the window never carries it', () => {
-  const session = fold({
-    logs: { [W1]: file(...POSTED, [T0 + 3 * MIN, delivered('r2')]) },
-    inbox: {
-      [CLI]: file([T0 + MIN, reply('r1', 'k1', 'yes')]),
-      [SENDER]: file([T0 + 2 * MIN, reply('r2', 'k1', 'yes', { note: 'Ship it' })]),
-    },
-    presence: { [W1]: seen(W1, NOW) },
-  })
-
-  expect(session.replies.map(each => [each.id, each.delivery, each.voided])).toEqual([
-    ['r1', 'void', 'answered'],
-    ['r2', 'delivered', undefined],
-  ])
-  expect(session.asks[0]).toMatchObject({ state: 'closed', answer: { id: 'r2' } })
-  expect(toDeliver(session, W1)).toEqual([])
-})
-
-test("Claude closing an ask leaves Lee's answer on its way to it undelivered: never carried, and not delivered, Claude having closed it first, until a mark says Claude had it", () => {
+test("Lee's answer standing on an ask Claude closed: not delivered while Claude's closing left it; delivered once a mark says Claude had it after all", () => {
   const letters = { [CLI]: file([T0 + MIN, reply('r1', 'k1', 'yes')]) }
   const presence = { [W1]: seen(W1, NOW) }
   const closed: Line = [T0 + 2 * MIN, resolve('k1', 'Approved in the chat')]
@@ -1013,20 +1115,46 @@ test("Claude closing an ask leaves Lee's answer on its way to it undelivered: ne
     presence,
   })
 
-  expect(left.replies[0]).toMatchObject({
-    delivery: 'void',
-    voided: 'resolved',
-    voidedAt: T0 + 2 * MIN,
-  })
-  expect(toDeliver(left, W1)).toEqual([])
   expect(standing(left, 'k1')).toMatchObject({
     is: 'notDelivered',
     reply: { id: 'r1' },
     since: T0 + 2 * MIN,
   })
-  expect(crossed.replies[0]).toMatchObject({ delivery: 'delivered', deliveredAt: T0 + 3 * MIN })
-  expect(crossed.asks[0]).toMatchObject({ state: 'closed', reason: 'Approved in the chat' })
-  expect(standing(crossed, 'k1'), 'Claude closed it, then had it').toBeUndefined()
+  expect(crossed.asks[0]).toMatchObject({
+    state: 'closed',
+    closedAt: T0 + 2 * MIN,
+    reason: 'Approved in the chat',
+  })
+  expect(standing(crossed, 'k1')).toMatchObject({
+    is: 'delivered',
+    reply: { id: 'r1' },
+    since: T0 + 3 * MIN,
+  })
+})
+
+test("an ask Lee's answer closed, resolved by Claude after, keeps when it closed and carries Claude's reason", () => {
+  const reworded: Body = { ...RETITLED, reason: 'Reworded' }
+  const answered: Line[] = [
+    ...POSTED,
+    [T0 + MIN, reworded],
+    ...sent(T0 + 2 * MIN, 'r1', 'k1', 'yes'),
+  ]
+  const resolved = fold({
+    logs: { [W1]: file(...answered, [T0 + 3 * MIN, resolve('k1', 'Shipped')]) },
+  })
+
+  expect(
+    fold({ logs: { [W1]: file(...answered) } }).asks[0],
+    "no reason of Claude's for Lee's answer",
+  ).toMatchObject({
+    state: 'closed',
+    reason: undefined,
+  })
+  expect(resolved.asks[0]).toMatchObject({
+    state: 'closed',
+    closedAt: T0 + 2 * MIN,
+    reason: 'Shipped',
+  })
 })
 
 test("an answer Claude's closing left counts only on the ask as it closed then: reopened and closed again, it says nothing of it", () => {

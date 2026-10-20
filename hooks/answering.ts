@@ -104,12 +104,12 @@ const seenIn = (scene: Scene, { session, item }: SitrepAnswering) => {
       }
 }
 
-/** Whether the item can take the reply: open to an answer of Lee's (`barredBy`), not carried by a send, and of a shape that takes it. */
+/** Whether the item can take the reply: open to it (`barredBy`), not carried by a send, and of a shape that takes it. */
 const canTake = (scene: Scene, { session, as }: SitrepAnswering, item: Ask | Parked) => {
   const queued = queuedOn(scene.queue, session, item.id)
 
   return (
-    barredBy(item) === undefined &&
+    barredBy(item, VERDICT[as]) === undefined &&
     (queued === undefined || !isCarried(scene.inFlight, queued)) &&
     takes(item, VERDICT[as])
   )

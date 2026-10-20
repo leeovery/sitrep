@@ -390,21 +390,26 @@ test("an ignore is the board's, on an ask of any shape, a words ask among them, 
   expect(refusal(checkAnswer(SESSION, { ask: 'k9', ignore: true }))).toBe('k9 is already closed.')
 })
 
-test('an ask closed, or with a reply on its way, takes no answer; nor does a finished session', () => {
+test('an ask closed, or with an answer on its way, takes no answer, though a comment on its way bars none; nor does a finished session', () => {
   const sent = fold({
     logs: { [W1]: file([T0, yesAsk('k1', 'Review round 1')]) },
     inbox: { [SENDER]: file([T0 + MIN, reply('r1', 'k1', 'ignore')]) },
+  })
+  const commented = fold({
+    logs: { [W1]: file([T0, yesAsk('k1', 'Review round 1')]) },
+    inbox: { [SENDER]: file([T0 + MIN, reply('r1', 'k1', 'comment', { note: 'Tighten it' })]) },
   })
   const finished = fold({
     logs: { [W1]: file([T0, yesAsk('k1', 'Review round 1')], [T0 + MIN, finish('lee')]) },
   })
 
-  expect(refusal(checkAnswer(SESSION, { ask: 'k9', answer: 'Done' }))).toBe(
-    'k9 is already closed.',
-  )
+  expect(refusal(checkAnswer(SESSION, { ask: 'k9', answer: 'Done' }))).toBe('k9 is already closed.')
   expect(refusal(checkAnswer(sent, { ask: 'k1', answer: 'Approve' }))).toBe(
-    'A reply to k1 is on its way already.',
+    'An answer to k1 is on its way already.',
   )
+  expect(value(checkAnswer(commented, { ask: 'k1', answer: 'Approve' }))).toMatchObject({
+    verdict: 'yes',
+  })
   expect(refusal(checkAnswer(finished, { ask: 'k1', answer: 'Approve' }))).toBe(
     'This session is finished: its asks wait on Lee no more.',
   )

@@ -14,7 +14,6 @@ import {
   answerOf,
   answerState,
   brief,
-  closingReply,
   isSameName,
   listedProjects,
   projectAround,
@@ -140,7 +139,7 @@ export const listJson = ({ here, projects }: Listing, onScreen: ReadonlySet<stri
     projects: projects.map(project => projectJson(project, onScreen)),
   })
 
-/** Where Lee's answer to an ask stands, and its words as the board shows them on one row; null with none on its way, none that closed it and none Claude's closing left. */
+/** Where Lee's answer to an ask stands, and its words as the board shows them on one row; null where `answerState` gives none. */
 const answerJson = (ask: Ask) => {
   const answer = answerState(ask)
 
@@ -163,11 +162,11 @@ const askJson = (ask: Ask) => ({
   answer: answerJson(ask),
 })
 
-/** A resolved ask: as an open one is, with when it closed and, where Claude's resolve closed it, why. */
+/** A resolved ask: as an open one is, with when it closed, and Claude's reason, where Claude gave one as it resolved the ask. */
 const resolvedJson = (ask: Ask) => ({
   ...askJson(ask),
   closedAt: ask.closedAt ?? null,
-  reason: closingReply(ask) === undefined ? (ask.reason ?? null) : null,
+  reason: ask.reason ?? null,
 })
 
 const parkedJson = (parked: Parked) => ({

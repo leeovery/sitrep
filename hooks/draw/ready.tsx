@@ -33,11 +33,12 @@ import { drawReplyRow, drawRewrite, NOT_SENT, type Drawing } from './kit'
 
 const SENDING = '⧗ Sending. If Claude is mid-turn it goes in as soon as that turn ends.'
 
-/** Why a sent reply never went in: its item changed under it, took another answer of Lee's first, or Claude closed it. */
+/** Why a sent reply never went in: its item changed under it, took another answer of Lee's first, or Claude closed it; or its session was finished. */
 const NOT_DELIVERED: Record<Voided, string> = {
   changed: '· not delivered: it changed since',
   answered: '· not delivered: already answered',
   resolved: '· not delivered: Claude closed it',
+  finished: '· not delivered: the session was finished',
 }
 
 /** Where a group's sent replies stand, as its line says it. */

@@ -48,12 +48,12 @@ export const isCarried = (inFlight: SitrepInFlight | null, reply: SitrepQueued) 
   inFlight.session === reply.session &&
   inFlight.replies.some(each => each.item === reply.item)
 
-/** What holds a queued reply back from a send: its item answered already or closed (`barredBy`); nothing for one a send in flight carries, going already. */
+/** What holds a queued reply back from a send: its item closed, or holding another answer of Lee's (`barredBy`); nothing for one a send in flight carries, going already. */
 export const heldBack = (
   inFlight: SitrepInFlight | null,
   item: Ask | Parked,
   reply: SitrepQueued,
-): Barred | undefined => (isCarried(inFlight, reply) ? undefined : barredBy(item))
+): Barred | undefined => (isCarried(inFlight, reply) ? undefined : barredBy(item, reply.verdict))
 
 /** The queue less every reply but those a send in flight carries. */
 export const clearing = (queue: Queue, inFlight: SitrepInFlight | null) =>
@@ -89,20 +89,20 @@ export const answered = (session: Session, reply: SitrepQueued): Ask | Parked | 
   return item !== undefined && fits(item, reply) ? item : undefined
 }
 
-/** Why a send leaves a queued reply in Ready to send: its item changed past it, or is gone; or took an answer already, or closed (`Barred`). */
+/** Why a send leaves a queued reply in Ready to send: its item changed past it, or is gone; or holds another answer of Lee's, or closed (`Barred`). */
 export type LeftOut = 'changed' | Barred
 
-/** Why a send leaves a queued reply; undefined for one it carries: one that fits its item, and an item that takes an answer of Lee's now. */
+/** Why a send leaves a queued reply; undefined for one it carries: one that fits its item, which takes it now. */
 const whyLeft = (session: Session, reply: SitrepQueued): LeftOut | undefined => {
   const item = answered(session, reply)
 
-  return item === undefined ? 'changed' : barredBy(item)
+  return item === undefined ? 'changed' : barredBy(item, reply.verdict)
 }
 
 /**
  * A session's replies a send carries. One whose item changed under it, or
- * closed, or took another answer of Lee's first, stays in Ready to send,
- * unsent: Claude has one answer to an item, the first to reach it.
+ * closed, or holds another answer of Lee's on its way, stays in Ready to
+ * send, unsent: Claude has one answer to an item, the first to reach it.
  */
 export const sendable = (session: Session, queue: Queue) =>
   queuedFor(queue, session.id).filter(reply => whyLeft(session, reply) === undefined)

@@ -3,7 +3,21 @@ import { parseEntries, sessionPaths, type SessionMeta } from '../core'
 import { AROUND_MS } from '../hooks/around'
 import { SENT_LINGER_MS } from '../hooks/queue'
 import { rowsOf } from './drawn'
-import { CLI, delivered, file, MIN, reply, resolve, SLOW, T0, W1, W2, W3, yesAsk } from './support'
+import {
+  CLI,
+  delivered,
+  file,
+  finish,
+  MIN,
+  reply,
+  resolve,
+  SLOW,
+  T0,
+  W1,
+  W2,
+  W3,
+  yesAsk,
+} from './support'
 import { INLINE, postedId, PROJECT, ROOT, toProject, world } from './world'
 
 tier('user')
@@ -307,6 +321,64 @@ test("a reply queued to another session's ask that Lee answered from elsewhere f
   expect(w.toasts).toContain(
     'Nothing to send: the items replied to are answered or closed already. Your replies are still on the board.',
   )
+})
+
+test("another window's comment on its way to an ask bars no answer: the ask still offers its buttons, and Lee's yes to it is sent", async ($, on) => {
+  const w = world($, on)
+  const { ui } = await threeSessions(w)
+
+  w.put(
+    sessionPaths(ROOT, PROJECT.key, LEDGER).letters(W3),
+    file([w.clock.now(), reply('r9', 'k3', 'comment', { note: 'Tighten the schema first' })]),
+  )
+  await w.clock.advance(AROUND_MS)
+  await answer(ui, LEDGER, 'k3')
+
+  expect(await ui.find({ type: 'Text', text: /not sent:/ })).toBeUndefined()
+
+  await ui.press({ key: 'send' })
+
+  expect(repliesIn(w, LETTERS)).toMatchObject([{ item: 'k3', verdict: 'yes' }])
+  expect(w.state.queue).toEqual([])
+})
+
+test("a comment queued to another session's ask is sent though Lee's answer to it from elsewhere is on its way: an answer bars no comment", async ($, on) => {
+  const w = world($, on)
+  const { ui } = await threeSessions(w)
+  const words = 'Tighten the schema first'
+
+  await toProject(ui)
+  await ui.press({ key: `go:${LEDGER}` })
+  await ui.press({ key: `pick:${LEDGER}:k3` })
+  await ui.press({ key: `comment:${LEDGER}:k3` })
+  w.box.text = words
+  await $.prompt.submit({ text: words, wait: false, origin: { kind: 'composer' } })
+  w.put(
+    sessionPaths(ROOT, PROJECT.key, LEDGER).letters(CLI),
+    file([w.clock.now(), reply('r9', 'k3', 'yes')]),
+  )
+  await w.clock.advance(AROUND_MS)
+
+  expect(await ui.find({ type: 'Text', text: /not sent:/ })).toBeUndefined()
+
+  await ui.press({ key: 'send' })
+
+  expect(repliesIn(w, LETTERS)).toMatchObject([{ item: 'k3', verdict: 'comment', note: words }])
+})
+
+test('a sent reply whose session was finished before it went in shows there as not delivered, saying so', async ($, on) => {
+  const w = world($, on)
+  const { ledger, ui } = await threeSessions(w)
+
+  await answer(ui, LEDGER, 'k3')
+  await ui.press({ key: 'send' })
+  await w.clock.advance(MIN)
+  ledger.write(finish('lee'))
+  await w.clock.advance(AROUND_MS)
+
+  expect(
+    await ui.find({ type: 'Text', text: '· not delivered: the session was finished' }),
+  ).toBeDefined()
 })
 
 test('a send that carries nothing, some of its replies changed under them and others answered first, says both', async ($, on) => {

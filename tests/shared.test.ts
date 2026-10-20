@@ -3,17 +3,21 @@ import { EXIT, main, WRITER } from '../cli/main'
 import { parseEntries, type SessionMeta } from '../core'
 import { WATCH_MS } from '../hooks/window'
 import { file, MIN, reply, T0, W1, W2, yesAsk } from './support'
-import { terminal } from './terminal'
-import { CONVERSATION, postedId, PROMPT, world } from './world'
+import { manifestText, terminal } from './terminal'
+import { CONVERSATION, PLUGIN_VERSION, postedId, PROMPT, world } from './world'
 
 tier('user')
 
 type World = ReturnType<typeof world>
 
-/** A session the mod started, and the CLI run on the mod's own files, at the mod's own time. */
+/** The CLI on the mod's own files, at the mod's own time, from the plugin the windows run: one folder, one version. */
+const besideWindows = (w: World) =>
+  terminal({ files: w.files, now: () => w.clock.now(), manifest: manifestText(PLUGIN_VERSION) })
+
+/** A session the mod started, and the CLI run on it. */
 async function begun(w: World) {
   const { id, paths } = await w.begin()
-  const t = terminal({ files: w.files, now: () => w.clock.now() })
+  const t = besideWindows(w)
 
   return { id, paths, cli: (...words: string[]) => t.run(...words, '--session', id) }
 }
@@ -170,7 +174,7 @@ test("while the CLI's answer to the window's own ask goes in, the ask waits on L
 test('two answers the CLI writes at once to one ask both land, but the window gives Claude only the first, then and ever after', async ($, on) => {
   const w = world($, on)
   const { id, paths } = await w.begin()
-  const t = terminal({ files: w.files, now: () => w.clock.now() })
+  const t = besideWindows(w)
   const asked = postedId(
     await w.call('ask', {
       wants: 'choice',
@@ -258,7 +262,7 @@ test("a reply queued to an ask the CLI's answer reached first is not carried: Cl
   expect(await ui.find({ type: 'Text', text: '· not sent: already answered' })).toBeDefined()
 })
 
-test("an answer the CLI writes while the window's send waits out Claude's turn comes after it: Claude has the send's answer only, and the CLI's goes void", async ($, on) => {
+test("an answer the CLI writes while the window's send waits out Claude's turn never goes in: Claude has the send's answer, its mark the record of it, and the CLI's goes void", async ($, on) => {
   const w = world($, on)
   const { paths, cli } = await begun(w)
   const { asked, ui } = await sidebarAsked(w)
@@ -295,7 +299,7 @@ test("an answer the CLI writes while the window's send waits out Claude's turn c
   })
 })
 
-test("an answer stamped after the window's send was claimed, landing as the send reads the board, comes after it: Claude has the send's answer only", async ($, on) => {
+test("an answer landing as the window's send reads the board, unseen by it, goes void once the send is written down: Claude has the send's answer only", async ($, on) => {
   const w = world($, on)
   const { paths } = await w.begin()
   const { asked, ui } = await sidebarAsked(w)
@@ -319,10 +323,10 @@ test("an answer stamped after the window's send was claimed, landing as the send
   expect(w.prompts.map(prompt => prompt.text)).toEqual([
     'From the board:\n- Keep the sidebar? → Keep it',
   ])
-  expect(
-    w.state.board?.replies.find(each => each.id === 'r9'),
-    "void from the start, reaching the ask after the send's claim",
-  ).toMatchObject({ delivery: 'void', voided: 'answered', voidedAt: claimed + 1 })
+  expect(w.state.board?.replies.find(each => each.id === 'r9')).toMatchObject({
+    delivery: 'void',
+    voided: 'answered',
+  })
 })
 
 /** A session no window holds, started by a window gone since, with an ask waiting on Lee. */
@@ -338,7 +342,7 @@ const LEDGER: SessionMeta = {
 
 test('an answer to a session no window holds waits in its inbox, and goes in once a window takes the session up', async ($, on) => {
   const w = world($, on)
-  const t = terminal({ files: w.files, now: () => w.clock.now() })
+  const t = besideWindows(w)
   const ledger = w.elsewhere(LEDGER)
   const cli = (...words: string[]) => t.run(...words, '--session', LEDGER.id)
 

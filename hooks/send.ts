@@ -3,10 +3,10 @@
  * inboxes first (letters.ts). The held session's go in as Lee's own message
  * (deliver.ts), their reply ids fixed as the send is claimed, and only once
  * Claude Code has taken it are they written, each reply and one delivered
- * mark together, into the session they answer, the replies as of the claim.
- * A send it refuses leaves every reply queued. A send carries a reply only
- * while its item takes it (`sendable`): one to an item that took another
- * answer of Lee's first, or closed, stays in Ready to send, saying why.
+ * mark together, into the session they answer. A send it refuses leaves
+ * every reply queued. A send carries a reply only while its item takes it
+ * (`sendable`): one to an item closed, or holding another answer of Lee's,
+ * stays in Ready to send, saying why.
  *
  * A message sent while Claude is mid-turn waits for that turn to end, so a
  * send can wait minutes; the replies it carries stay frozen in the queue.
@@ -44,12 +44,9 @@ const nothingSent = (left: readonly LeftOut[]) => {
 
 /**
  * Sends the held session's replies in Ready to send that its items take
- * now (`sendable`), `claimed` running once their message is claimed. The
- * claim's time is taken before the board is read, so an answer the board
- * gains after that read comes after the send's.
+ * now (`sendable`), `claimed` running once their message is claimed.
  */
 const sendHere = async (host: Host, claimed: () => Promise<void>): Promise<Here> => {
-  const claimedAt = await host.clock.now()
   const here = await heldNow(host)
 
   if (here === undefined) {
@@ -67,7 +64,6 @@ const sendHere = async (host: Host, claimed: () => Promise<void>): Promise<Here>
   const ahead = await deliver(
     host,
     {
-      claimedAt,
       source: 'send',
       project: held.project,
       session: session.id,

@@ -159,16 +159,15 @@ test("an ask Claude resolved shows in board --json's resolved with Claude's reas
   ])
 })
 
-test("an answer still on its way when Claude closes its ask never goes in: board --json's resolved has it not delivered, since Claude closed it", async () => {
+test("an answer still on its way when Claude closes its ask never goes in: board --json's resolved has it not delivered, since Claude closed it; a mark crossing the close has it delivered", async () => {
   const t = terminal()
   const paths = t.seed(META, { lines: POSTED, seenAt: NOW, version: CLI_VERSION })
   const closedAt = NOW + MIN
+  const closed: Line = [closedAt, resolve('k1', 'Went ahead in the chat')]
+  const markedAt = closedAt + MIN
 
   await t.run('answer', 'k1', 'Go', ...SESSION)
-  t.files.set(paths.log(W1), {
-    text: file(...POSTED, [closedAt, resolve('k1', 'Went ahead in the chat')]),
-    mtimeMs: closedAt,
-  })
+  t.files.set(paths.log(W1), { text: file(...POSTED, closed), mtimeMs: closedAt })
 
   const board = await boardOf(t)
 
@@ -182,31 +181,45 @@ test("an answer still on its way when Claude closes its ask never goes in: board
   ])
   expect((await folded(t, paths)).deliverer).toBe(W1)
   expect(toDeliver(await folded(t, paths), W1), 'its window never carries it').toEqual([])
+
+  t.files.set(paths.log(W1), {
+    text: file(...POSTED, closed, [markedAt, delivered(FIRST_ID)]),
+    mtimeMs: markedAt,
+  })
+  expect((await boardOf(t)).resolved).toMatchObject([
+    {
+      id: 'k1',
+      answer: { is: 'delivered', words: '→ Go', since: markedAt },
+      closedAt,
+      reason: 'Went ahead in the chat',
+    },
+  ])
 })
 
-test('an answer is stamped as it is written, once its checks are done: later than every read of the session it was checked against', async () => {
-  type File = { text: string; mtimeMs: number }
-  let clock = NOW
-  let checkedAt = -Infinity
-  let appendedTo: string | undefined
-
-  /** The files, noting the time on the clock at each read of the session's, but of the letters it appends to. */
-  class Watched extends Map<string, File> {
-    override get(path: string) {
-      if (path.includes(`/${META.id}/`) && path !== appendedTo) {
-        checkedAt = clock
-      }
-
-      return super.get(path)
-    }
-  }
-
-  const t = terminal({ files: new Watched(), now: () => (clock += 1_000) })
+test("an ask Lee's answer closed that Claude resolves after keeps when it closed in board --json's resolved, and carries Claude's reason", async () => {
+  const t = terminal()
   const paths = t.seed(META, { lines: POSTED })
+  const markedAt = NOW + MIN
+  const resolvedAt = markedAt + MIN
 
-  appendedTo = paths.letters(WRITER)
-  expect((await t.run('answer', 'k1', 'Go', ...SESSION)).exit).toBe(EXIT.done)
-  expect(letters(t, paths)[0]?.at).toBeGreaterThan(checkedAt)
+  await t.run('answer', 'k1', 'Go', ...SESSION)
+  t.files.set(paths.log(W1), {
+    text: file(
+      ...POSTED,
+      [markedAt, delivered(FIRST_ID)],
+      [resolvedAt, resolve('k1', 'Shipped it')],
+    ),
+    mtimeMs: resolvedAt,
+  })
+
+  expect((await boardOf(t)).resolved).toMatchObject([
+    {
+      id: 'k1',
+      answer: { is: 'delivered', words: '→ Go', since: markedAt },
+      closedAt: markedAt,
+      reason: 'Shipped it',
+    },
+  ])
 })
 
 test('its letters count on from what they hold, a torn last line ended first, and are never rewritten', async () => {
@@ -254,15 +267,19 @@ test('while a window on an old version keeps the old layout, the letters go unde
   expect(t.text(paths.old.letters(WRITER))).toBe(before)
 })
 
-test("an answer is refused while the session's window runs a release from before today's layout, which would never see it, until that window reloads", async () => {
+test("an answer is refused while the window delivering the session runs a sitrep behind the CLI's, as watch's needsReload tells it, until that window reloads", async () => {
   const t = terminal()
   const paths = t.seed(META, { isOld: true, lines: POSTED, seenAt: NOW })
-
-  expect(await t.run('answer', 'k1', 'Go', ...SESSION)).toEqual({
+  const refused = {
     exit: EXIT.refused,
     out: '',
-    err: 'sitrep: A window holding this session runs an older sitrep, which never sees an answer sent from here: run /reload-plugins in that window first.\n',
-  })
+    err: 'sitrep: A window holding this session runs an older sitrep: run /reload-plugins in it first.\n',
+  }
+
+  expect(await t.run('answer', 'k1', 'Go', ...SESSION), "before today's layout").toEqual(refused)
+
+  t.window(paths, META.by, NOW, undefined, '0.1.9')
+  expect(await t.run('answer', 'k1', 'Go', ...SESSION), 'a release behind').toEqual(refused)
   expect(t.files.has(paths.letters(WRITER))).toBe(false)
 
   t.window(paths, META.by, NOW, undefined, CLI_VERSION)
@@ -333,7 +350,7 @@ test('a yes is answered in its words alone; an ask with an answer on its way tak
   expect(await t.run('answer', 'k1', 'Go', ...SESSION)).toEqual({
     exit: EXIT.refused,
     out: '',
-    err: 'sitrep: A reply to k1 is on its way already.\n',
+    err: 'sitrep: An answer to k1 is on its way already.\n',
   })
 })
 

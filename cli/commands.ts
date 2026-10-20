@@ -41,7 +41,13 @@ export type SessionCommand = About & {
   on: 'session'
   /** Where its lines go: the CLI's own file in the session, unless they are an answer, for the session's inbox. */
   into?: 'inbox'
-  act: (filed: Filed, input: Fields, random: Random) => Checked<Outcome>
+  /** `version` is the one the CLI runs, as its plugin's manifest says it, where that reads. */
+  act: (
+    filed: Filed,
+    input: Fields,
+    random: Random,
+    version: string | undefined,
+  ) => Checked<Outcome>
 }
 
 /** What a command on the projects is given: every one read, with its sessions, from the folder the CLI runs in, at `now`, and the ids of the sessions on screen. */
@@ -238,8 +244,8 @@ const answer: SessionCommand = {
   },
   on: 'session',
   into: 'inbox',
-  act: ({ session }, input, random) =>
-    posted(withId(checkAnswer(session, input), session, random), () => ''),
+  act: ({ session }, input, random, version) =>
+    posted(withId(checkAnswer(session, input, version), session, random), () => ''),
 }
 
 const finish: SessionCommand = {

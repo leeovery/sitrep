@@ -51,13 +51,14 @@ const sessionOf = (id: string, project: string, files: Partial<SessionFiles>, cr
   return session
 }
 
-/** A project summary with these counts, the rest empty. */
+/** A project summary with these counts, the rest empty; its asks waiting as posted count those waiting on Lee, as a project's do. */
 const project = (key: string, counts: Partial<ProjectSummary> = {}): ProjectSummary => ({
   key,
   name: key,
   sessions: [],
   open: 0,
   waiting: 0,
+  asked: counts.waiting ?? 0,
   parked: 0,
   updatedAt: T0,
   ...counts,
@@ -144,6 +145,19 @@ test('a project with nothing open, waiting or parked folds into one line, the mo
 
   expect(keys(view.projects)).toEqual(['busy'])
   expect(keys(view.folded)).toEqual(['idle-new', 'idle-old'])
+})
+
+test("a project whose asks wait only on a window to deliver Lee's answers is not folded: its sessions are current", () => {
+  const answered = sessionOf('sr-aaaaaa', 'switchboard', {
+    logs: { [W1]: file([T0, yesAsk('k1', 'Run it', 'Done')]) },
+    inbox: { [CLI]: file([T0 + MIN, reply('r1', 'k1', 'yes')]) },
+  })
+  const summary = summariseProject('switchboard-1a2b3c4d', [summarise(answered)])
+  const view = allProjects([summary, project('here')], 'here')
+
+  expect(summary).toMatchObject({ waiting: 0, asked: 1 })
+  expect(keys(view.projects)).toEqual(['here', 'switchboard-1a2b3c4d'])
+  expect(view.folded).toEqual([])
 })
 
 test('this project is never folded away, however quiet', () => {

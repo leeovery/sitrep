@@ -6,7 +6,6 @@
  * A reply changes nothing until it is delivered: the board never claims
  * Claude knows something it was not told.
  */
-import type { Stamp } from './entries'
 import type {
   Ask,
   AskKind,
@@ -115,10 +114,24 @@ export const closingReply = (ask: Ask) =>
     ? ask.answer
     : undefined
 
-/** The reply an item waits on Claude with: sent from a board into its session's inbox, not delivered yet. */
-export const onItsWay = (item: Ask | Parked) => item.replies.findLast(isPending)
+/**
+ * Whether a reply, delivered, closes its item to any other answer of Lee's:
+ * a yes, a choice, an answer or an ignore to an ask, a decide's comment
+ * among them; a pick-up, the only reply a parked item takes. A comment
+ * leaves its ask open, for Claude to act on.
+ */
+export const closesItem = (item: Ask | Parked, verdict: Verdict) =>
+  item.type === 'park' || verdict === 'ignore' || isClosing(item, verdict)
 
-/** Whether an item is open to an answer of Lee's: an ask open, a parked item not picked up. */
+/** Lee's answer on its way to an item: the reply sent that closes it, not delivered yet. An item has one at most. */
+export const answerOnItsWay = (item: Ask | Parked) =>
+  item.replies.find(reply => isPending(reply) && closesItem(item, reply.verdict))
+
+/** The reply an item waits on Claude with, sent from a board into its session's inbox: Lee's answer, else the latest comment. */
+export const onItsWay = (item: Ask | Parked) =>
+  answerOnItsWay(item) ?? item.replies.findLast(isPending)
+
+/** Whether an item is open to a reply of Lee's: an ask open, a parked item not picked up. */
 export const isAnswerable = (item: Ask | Parked) =>
   item.type === 'ask' ? isOpen(item) : item.state === 'parked'
 
@@ -129,20 +142,19 @@ const isSettledByLee = (item: Ask | Parked) =>
     : item.state === 'ignored' || closingReply(item) !== undefined
 
 /**
- * What keeps an item from taking an answer of Lee's now; undefined while it
- * takes one: an ask open, a parked item not picked up, with nothing of Lee's
- * on its way to it. An item takes one answer, the first to reach it.
+ * What keeps an item from taking a reply of Lee's with this verdict now;
+ * undefined while it takes one. A closed item takes none: `answered` where
+ * Lee's answer closed it, `resolved` where Claude did. An open one takes any
+ * reply but a second answer while Lee's answer is on its way to it
+ * (`answered`), so Claude has one answer to an item, the first to reach it.
+ * A comment bars nothing.
  */
-export const barredBy = (item: Ask | Parked): Barred | undefined => {
-  if (onItsWay(item) !== undefined) {
-    return 'answered'
+export const barredBy = (item: Ask | Parked, verdict: Verdict): Barred | undefined => {
+  if (!isAnswerable(item)) {
+    return isSettledByLee(item) ? 'answered' : 'resolved'
   }
 
-  if (isAnswerable(item)) {
-    return undefined
-  }
-
-  return isSettledByLee(item) ? 'answered' : 'resolved'
+  return closesItem(item, verdict) && answerOnItsWay(item) !== undefined ? 'answered' : undefined
 }
 
 /**
@@ -154,9 +166,9 @@ export const waitsOnLee = (ask: Ask) => ask.state === 'waiting' && onItsWay(ask)
 
 /**
  * Where Lee's answer to an ask stands: on its way, in its session's inbox
- * until a window of the session delivers it; delivered, Claude having it,
- * and the ask closed by it; or not delivered, Claude having closed the ask
- * first. `since` is when it was sent, delivered, or left.
+ * until a window of the session delivers it; delivered, Claude having it;
+ * or not delivered, Claude having closed the ask first. `since` is when it
+ * was sent, delivered, or left.
  */
 export type AnswerState = {
   is: 'onItsWay' | 'delivered' | 'notDelivered'
@@ -164,35 +176,33 @@ export type AnswerState = {
   since: number
 }
 
-/** Lee's answer to an ask since it was opened that went nowhere because Claude closed the ask first. */
-const leftByClaude = (ask: Ask) =>
-  ask.state === 'closed'
-    ? ask.replies.findLast(reply => reply.voided === 'resolved' && reply.at >= ask.openedAt)
-    : undefined
+/** When a reply last moved: delivered, gone void, or else sent. */
+const movedAt = (reply: Reply) => reply.deliveredAt ?? reply.voidedAt ?? reply.at
+
+/** An answer's standing, where there is such a reply. */
+const standing = (is: AnswerState['is'], reply: Reply | undefined): AnswerState | undefined =>
+  reply === undefined ? undefined : { is, reply, since: movedAt(reply) }
 
 /**
- * Where Lee's answer to an ask stands, from its replies; undefined with
- * none on its way, none that closed it and none Claude's closing left: none
- * sent, one gone void as its ask changed, or a comment Claude has.
+ * Where Lee's answer to an ask stands, from its replies since the ask last
+ * opened: one on its way; else an answer Claude has, whether it closed the
+ * ask or reached Claude after Claude closed it; else one Claude's closing
+ * left undelivered, which only a closed ask holds since it opened.
+ * Undefined with none of those: none sent, one gone void as its ask
+ * changed, or only a comment Claude has.
  */
 export const answerState = (ask: Ask): AnswerState | undefined => {
-  const sent = onItsWay(ask)
+  const since = ask.replies.filter(reply => movedAt(reply) >= ask.openedAt)
+  const had = since.findLast(
+    reply => reply.delivery === 'delivered' && closesItem(ask, reply.verdict),
+  )
+  const left = since.findLast(reply => reply.voided === 'resolved')
 
-  if (sent !== undefined) {
-    return { is: 'onItsWay', reply: sent, since: sent.at }
-  }
-
-  const closing = closingReply(ask)
-
-  if (closing !== undefined) {
-    return { is: 'delivered', reply: closing, since: closing.deliveredAt ?? closing.at }
-  }
-
-  const left = leftByClaude(ask)
-
-  return left === undefined
-    ? undefined
-    : { is: 'notDelivered', reply: left, since: left.voidedAt ?? left.at }
+  return (
+    standing('onItsWay', onItsWay(ask)) ??
+    standing('delivered', had) ??
+    standing('notDelivered', left)
+  )
 }
 
 /** Where a delivered reply leaves a parked item: a pick-up picks it up. */
@@ -325,21 +335,6 @@ export const sentLines = (session: Session, replies: readonly ReplyBody[]): Body
   replies.every(reply => session.ids.has(reply.id))
     ? []
     : [...replies, { type: 'delivered', replies: replies.map(reply => reply.id) }]
-
-/**
- * When the lines recording a send are written as of: each reply when the
- * send was claimed, a time taken before it read the board; the mark, and
- * any other line, `now`, as Claude Code takes it. So a reply the board
- * gains after that read (one the CLI stamps as it writes, while the send
- * waits out a turn of Claude's) comes after the send's, by the order every
- * reader reads in, and goes void. Only one stamped just before the claim
- * that lands just after the read, the two crossing as each reads, still
- * reads first.
- */
-export const sentAt =
-  (claimedAt: number, now: number): Stamp =>
-  body =>
-    body.type === 'reply' ? claimedAt : now
 
 /** The mark that Claude has these inbox replies, naming those not marked yet; none once every one is. */
 export const deliveredMark = (session: Session, ids: readonly string[]): DeliveredBody[] => {

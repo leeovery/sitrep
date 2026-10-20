@@ -71,6 +71,8 @@ export type ProjectSummary = {
   /** How many sessions have a window. */
   open: number
   waiting: number
+  /** Asks waiting as posted, as each session counts them: what keeps the project out of the folded line. */
+  asked: number
   parked: number
   updatedAt: number
 }
@@ -101,8 +103,9 @@ const busiest = (a: ProjectSummary, b: ProjectSummary) =>
   byRecency(a, b) ||
   compareText(a.name, b.name)
 
+/** Whether a project holds nothing that keeps a session current but its being recent: no window, no ask waiting, nothing parked. */
 const isIdle = (project: ProjectSummary) =>
-  project.open === 0 && project.waiting === 0 && project.parked === 0
+  project.open === 0 && project.asked === 0 && project.parked === 0
 
 const total = (sessions: readonly SessionSummary[], count: (session: SessionSummary) => number) =>
   sessions.reduce((sum, session) => sum + count(session), 0)
@@ -172,6 +175,7 @@ export const summariseProject = (
     sessions: summaries,
     open: summaries.filter(session => session.isOpen).length,
     waiting: total(summaries, session => session.waiting),
+    asked: total(summaries, session => session.asked),
     parked: total(summaries, session => session.parked),
     updatedAt: latest?.updatedAt ?? 0,
   }

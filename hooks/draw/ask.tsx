@@ -9,7 +9,15 @@
  * "Answering an ask"). Any session's asks answer the same way; a reply
  * names the session it goes to.
  */
-import { isClosing, onItsWay, VERDICTS, yesOf, type Ask, type Verdict } from '../../core'
+import {
+  answerOnItsWay,
+  isClosing,
+  onItsWay,
+  VERDICTS,
+  yesOf,
+  type Ask,
+  type Verdict,
+} from '../../core'
 import type { SitrepItemRef, SitrepQueued } from '../../types'
 import { C, GLYPH } from '../look'
 import { itemKey, type AskedAt } from '../places'
@@ -158,13 +166,14 @@ const drawButtons = (d: Drawing, ask: Ask, { at }: Standing, isLast: boolean) =>
   )
 }
 
-/** An ask's row, its title after its session's name where the list names them. */
+/** An ask's row, its title after its session's name where the list names them. Its buttons stand while nothing waits on it but a comment on its way, which bars no answer. */
 const drawAsk = (d: Drawing, asked: AskedAt, isLast: boolean, isNamed: boolean) => {
   const { ask, name } = asked
   const standing = standingOf(d, asked)
-  const { key, queued, sent, isAnswering, isClosed, isOpen } = standing
+  const { key, queued, isAnswering, isClosed, isOpen } = standing
   const mark = isClosed ? RESOLVED : askMark(d.scene, ask)
-  const isAnswerable = isOpen && queued === undefined && sent === undefined && !isAnswering
+  const isAnswerable =
+    isOpen && queued === undefined && answerOnItsWay(ask) === undefined && !isAnswering
 
   return drawRow(d, {
     key: `ask:${key}`,

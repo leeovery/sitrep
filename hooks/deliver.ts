@@ -10,14 +10,13 @@
  * Claude Code taking it is heard from the submit resolving with no drop, or
  * from the turn it starts, whose text is the message's; whichever comes
  * first writes it down, into the session it went to, whatever the window
- * holds by then, a send's replies as of its claim (`sentAt`). Writing it
- * down again finds its lines there and writes nothing. A message refused is
- * let go at once; one never heard is let go once the window has gone quiet
- * without it. Either way its replies are left as they were, for Lee's next
- * send or the inbox's next look.
+ * holds by then. Writing it down again finds its lines there and writes
+ * nothing. A message refused is let go at once; one never heard is let go
+ * once the window has gone quiet without it. Either way its replies are
+ * left as they were, for Lee's next send or the inbox's next look.
  */
 import type { PromptOrigin, Timer } from 'claude-code'
-import { deliveredMark, sentAt, sentLines, type Body, type Session, type Stamp } from '../core'
+import { deliveredMark, sentLines, type Body, type Session } from '../core'
 import type { SitrepInFlight, SitrepSource } from '../types'
 import { logFailure, type Host } from './host'
 import { writeInto } from './into'
@@ -48,8 +47,8 @@ const UNWRITTEN = 'Claude has your replies, but the board could not write them d
 
 const NEVER_WENT_IN = 'the message never went in'
 
-/** A message as its source hands it over, to be claimed, and when its source claims it as of. */
-type Outgoing = Omit<SitrepInFlight, 'isTaken'>
+/** A message as its source hands it over, to be claimed. */
+type Outgoing = Omit<SitrepInFlight, 'claimedAt' | 'isTaken'>
 
 /**
  * What follows a message, by its source: `written`, as each write puts it
@@ -145,12 +144,12 @@ const isHeld = (delivery: SitrepInFlight) => {
 }
 
 /** Writes through the hold, so its own text stays in step: lines Claude knows of. False when the session no longer folds. */
-const writeHeld = async (host: Host, delivery: SitrepInFlight, at: Stamp) => {
+const writeHeld = async (host: Host, delivery: SitrepInFlight) => {
   const session = await refresh(host)
   const lines = session === undefined ? [] : linesOf(session, delivery)
 
   if (session !== undefined && lines.length > 0) {
-    await postKnown(host, session, lines, at)
+    await postKnown(host, session, lines)
   }
 
   return session !== undefined
@@ -164,13 +163,11 @@ const writeHeld = async (host: Host, delivery: SitrepInFlight, at: Stamp) => {
  * writes it again, finding its lines there or not.
  */
 const writeDown = async (host: Host, delivery: SitrepInFlight) => {
-  const isThere = await serially(async () => {
-    const at = sentAt(delivery.claimedAt, await host.clock.now())
-
-    return isHeld(delivery)
-      ? writeHeld(host, delivery, at)
-      : writeInto(host, delivery, session => linesOf(session, delivery), at)
-  })
+  const isThere = await serially(() =>
+    isHeld(delivery)
+      ? writeHeld(host, delivery)
+      : writeInto(host, delivery, session => linesOf(session, delivery)),
+  )
 
   if (!isThere) {
     host.log(`sitrep: Claude has replies to ${delivery.session}, whose session.json is gone`)
@@ -231,7 +228,11 @@ export const deliver = async (
   outgoing: Outgoing,
   claimed: () => Promise<void> = async () => {},
 ) => {
-  const delivery: SitrepInFlight = { ...outgoing, isTaken: false }
+  const delivery: SitrepInFlight = {
+    ...outgoing,
+    claimedAt: await host.clock.now(),
+    isTaken: false,
+  }
   let ahead: SitrepInFlight | undefined
 
   await host.state.inFlight.update(current => {
