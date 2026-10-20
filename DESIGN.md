@@ -1620,8 +1620,9 @@ truth. There is still no background service. None of it is built now. Lee:
       written whole and at once. A finished session is in no row and no
       project, though a window still live on it is among the windows; an
       away session is in both, its asks still counting. It carries no
-      project without a current session, so the SitRep window's foot of
-      quiet projects reads `list --json`. A state folder not there yet, as
+      project without a current session, nor does `list --json`, so the
+      SitRep window's foot of quiet projects is those it carries with
+      nothing open (see "The SitRep window"). A state folder not there yet, as
       before any Claude window has written, is an empty board, and what
       comes into it shows.
 
@@ -1645,7 +1646,12 @@ truth. There is still no background service. None of it is built now. Lee:
                 "summary": "...", "now": ["..."], "next": null,
                 "isOpen": true, "waiting": 1, "parked": 0,
                 "updatedAt": 1760000000000, "state": "needsYou",
-                "since": 1760000000000, "asks": [ ... ] } ] } ],
+                "since": 1760000000000,
+                "doing": { "is": "working",
+                           "line": { "lead": "Reading", "mono": "...",
+                                     "more": null },
+                           "since": 1760000000000 },
+                "asks": [ ... ] } ] } ],
         "windows": [
           { "writer": "b1c2d3e4-...", "session": "sr-k3f9qa",
             "name": "Dashboard redesign", "project": "Switchboard",
@@ -1681,11 +1687,20 @@ truth. There is still no background service. None of it is built now. Lee:
       session is as `list --json` gives it but `onScreen`, which only `list
       --json` works out, asking tmux, with its `state` (`needsYou`,
       `working`, `yourTurn` or `away`), `since`, its first row's time, else
-      its latest line's, and its open asks, as `board --json` lists them
-      (core's `openAsks`): waiting, on Lee or on a window to deliver Lee's
+      its latest line's, `doing`, and its open asks, as `board --json` lists
+      them (core's `openAsks`): waiting, on Lee or on a window to deliver Lee's
       reply, or replied, Claude's to act on, each with its `reply`, which
       tells them apart. So a reply going into a session's inbox is a line,
-      the session among `changed`, and its mark is another.
+      the session among `changed`, and its mark is another. `doing` (20
+      October 2026) is what the session is doing, as the SitRep window's
+      line under its name says it, there for every session (core's
+      `doingOf`): a window's permission prompt or question, the one shown
+      first; else the window its turn row comes from; each as that row's
+      `is`, its `first` as `line`, and its `since`. With no window holding
+      it, `away`, "No window holds it. Carry it on in Claude.", since its
+      latest line. So a session needing Lee for its asks alone, which has
+      no row of its windows', still says what they do. A field added: `v`
+      did not move.
     - `windows`: every live window, the longest attached first, a finished
       session's among them, with its session's name and project, its
       `version`, and `needsReload` where it says none, or one behind the
@@ -1706,10 +1721,10 @@ truth. There is still no background service. None of it is built now. Lee:
     - It is stable as `list --json` is: every field is always there (a list
       empty, any other value null where there is none), and `v` moves only
       with a change a reader would trip on. A new value in a field that
-      names one of a set (a row's `is`, a session's `state`, an ask's
-      `wants`, a window's state's `is`, and the like) is such a change: the
-      app reads them strictly and refuses a line holding a value it does
-      not know. New words in a line, as an away ask's `second`, are not.
+      names one of a set (a row's `is`, a session's `state` and its
+      `doing`'s `is`, an ask's `wants`, a window's state's `is`, and the
+      like) is such a change: the app reads them strictly and refuses a
+      line holding a value it does not know. New words in a line, as an away ask's `second`, are not.
     - **The loop.** It looks every second, as the mod's readers do: a file
       is read again only once its size or time moved, a folder listed again
       only once its time moved, as an entry made, removed or renamed there
@@ -3404,6 +3419,94 @@ reaches a window only while that pane is on show).
         in;
       - the window (see "The SitRep window"). Its "Answer in Claude ↗" jumps
         without answering mode, which waits on the mod hearing the app.
+
+        Built 20 October 2026, never opened on the display: its key states
+        drawn offscreen and read beside Paper's drawing, its decisions in a
+        unit of their own (`WindowRun`, in `app/Sources/SitRepWindow`),
+        tested on the lines the real CLI printed over a board seeded in a
+        scratch folder. What the build settled:
+        - **One `watch`.** The app's one `watch` feeds the edge and the
+          window alike. The window lists `projects` in `watch`'s order and
+          counts `head` as the panel does; a session's detail, its asks
+          among it, is its `board --json`, read as it is picked, for each
+          session of a project opened, again whenever `changed` names one
+          shown, and every one shown on a resumed board, only while the
+          window shows; of two reads of a session crossing, the one asked
+          for last is taken. Until a read lands, a session picked again, or
+          the window reopened on it, shows its board as last read, its asks
+          among it; that first read lays the asks out afresh, washing
+          nothing and keeping nothing closed, as Lee saw neither come nor
+          go. A read that fails says why over what was read before, and
+          keeps it. Minimised, it reads nothing; brought back, its page
+          reads what it shows again.
+        - **Its counts.** A project's orange count, and a project's
+          session's "2 waiting", are its rows needing Lee, stops among them;
+          Asks' "3 waiting" is the asks waiting on Lee, as `waiting` counts
+          them.
+        - **Quiet projects** are those `watch` carries with nothing open: no
+          window, no ask waiting and nothing parked, as core folds a project
+          into All projects' line. `list --json` carries no others either.
+        - **It opens on** the first row needing Lee, `watch`'s oldest; with
+          none, on the session picked last, kept across launches; with none
+          of those on the board, the first listed. A pick gone from the
+          board gives way to that. Opening it again while it shows only
+          brings it forward.
+        - **The state line** is the session's `doing`, as `watch` gives it
+          for every session: core words it, the window draws it, a stop in
+          its washed card. A session needing Lee for its asks alone has no
+          row of its windows', so the rows could not say it. Its time reads
+          "6m into this turn", or "its turn ended 12m ago". Its `away` is the
+          one fact of away: the jump, finishing, the faint name and a card's
+          buttons all follow it.
+        - **A card.** Its buttons come from `wants`: a yes's white pill, an
+          option's outlined pill each, "Comment in Claude ↗" beside them,
+          "Answer in Claude ↗" for words, white, and ignore; on an away
+          session nothing that needs Claude Code's prompt, and "Your answer
+          waits in its inbox…" under a yes or a choice. A press, ignore
+          among them, waits 2 seconds, its line draining, Escape taking back
+          the one pressed last on the page showing while it waits (one on a
+          page left goes as it would); then it is "sending" until `reply`
+          says on its way, as an answer, or, once `sitrep answer` has
+          written it, until the first read asked for after, whatever it
+          says (should every one fail, the card says on its way, as the
+          write proved); then the card takes `reply`'s word: "on its way: waits for
+          the turn to end" mid-turn, "waits in its inbox for a window" away.
+          A comment on its way keeps the buttons. `sitrep answer`'s refusal
+          shows on the card in its words, its buttons back, until another
+          session is picked, or a read has the ask closed or Lee's answer to
+          it on its way, which bars them. After a written answer the session
+          is read again at once.
+        - **Kept in place.** The asks of the page showing, a session's or
+          each of a project's sessions', show the newest first, as the
+          pane's; one that leaves meanwhile keeps its place, faint, saying
+          how: "sent, and Claude has it" where Lee's answer closed it,
+          "resolved by Claude: …" with Claude's reason, "ignored" for one
+          gone without a place in Resolved; Resolved leaves it out until
+          another page is picked. A new ask lands at the top, washed. Where
+          the pane keeps an ask its send closed for a moment, the window
+          keeps every closed ask until the pick changes, as its own rule
+          says, the stricter of the two. Each page opens at its top.
+        - **The list.** Held while the pointer is over it and for a second
+          after, a change showing in place; a session new to needing Lee
+          (`new`) moves in at once to `watch`'s place, after the nearest of
+          those `watch` has before it, its project with it, washed for the
+          panel's 2 seconds, within its fill. Stale, nothing is new. A close
+          lets the hold go. Under Reduce motion, SitRep's or the Mac's,
+          followed as either changes, nothing slides or washes, and the arc
+          and the shimmer hold still. Opened again while minimised, it comes
+          back as it was.
+        - **Finishing** asks in place, "Finish …? Its open asks stop
+          counting.", Yes, finish it and Cancel, which a pick, a close or
+          the session coming back open lets lapse; Yes pressed, it shows
+          finishing, Cancel with it, until `watch` takes the session off;
+          refused, it says why there.
+        - **Jumps** go through the app's `Works`: none while one runs, from
+          the window, the notch or the menu, and the window's jumps wait
+          while one does.
+        - **For now** it opens from "Open SitRep Window" in today's menu,
+          which the menu bar item's phase rebuilds; the quiet projects' line
+          is a line, opening nothing; Resolved's rows do not open to how
+          they closed, which a pointer resting on one tells.
    9. **Installing the plugin**: the app's first start installs it, and its
       relaunch refreshes it (Installing and updating, under "Where it
       lives").

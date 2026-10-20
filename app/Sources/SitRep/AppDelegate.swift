@@ -8,6 +8,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let feed = Feed()
     private var menu: StatusMenu?
     private var edge: Edge?
+    private lazy var window = SitRepWindow(sitrep: sitrep, works: works)
 
     /// Banners are listened to before launching ends, so a click that starts the app is heard.
     func applicationWillFinishLaunching(_ notification: Notification) {
@@ -15,17 +16,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        NSApp.mainMenu = AppMenu.make()
+
         let edge = Edge(
             jump: { [works] session, answered in works.jump(to: session, answered: answered) },
             isJumping: { [works] in works.isJumping }
         )
 
-        menu = StatusMenu(works: works, banners: banners)
+        menu = StatusMenu(works: works, banners: banners) { [window] in window.open() }
         self.edge = edge
         if let sitrep {
-            feed.start(sitrep) { edge.show($0) }
+            feed.start(sitrep) { [window] in
+                edge.show($0)
+                window.show($0)
+            }
         } else {
             edge.unrun(Plugin.unbuilt)
+            window.unrun(Plugin.unbuilt)
         }
     }
 

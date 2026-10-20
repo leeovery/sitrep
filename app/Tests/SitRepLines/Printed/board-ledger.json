@@ -1,0 +1,36 @@
+{
+  "v": 2,
+  "project": {
+    "key": "switchboard",
+    "name": "Switchboard"
+  },
+  "work": {
+    "id": "sr-rq7dgr",
+    "name": "Request ledger",
+    "summary": "The request ledger",
+    "now": [
+      "Drawing the ledger schema"
+    ],
+    "next": null,
+    "isOpen": true,
+    "waiting": 0,
+    "parked": 0,
+    "updatedAt": 1792482221000
+  },
+  "asks": [],
+  "parked": [],
+  "log": [
+    {
+      "kind": "status",
+      "id": null,
+      "text": "Status: now drawing the ledger schema",
+      "detail": [
+        "Added: Drawing the ledger schema"
+      ],
+      "ref": null,
+      "by": "w3",
+      "at": 1792482221000
+    }
+  ],
+  "resolved": []
+}

@@ -29,13 +29,17 @@ let realLine = #"""
     "projects":[{"key":"sitrep","name":"SitRep","directory":"/Users/leeovery/Code/sitrep","open":1,"waiting":1,\#
     "parked":0,"updatedAt":1792452732636,"sessions":[{"id":"sr-n0tch1","name":"Build the Mac app",\#
     "summary":"The notch","now":["Building the notch"],"next":null,"isOpen":true,"waiting":1,"parked":0,\#
-    "updatedAt":1792452732636,"state":"needsYou","since":1792452732636,"asks":[{"id":"k1ap","wants":"yes",\#
+    "updatedAt":1792452732636,"state":"needsYou","since":1792452732636,\#
+    "doing":{"is":"yourTurn","line":{"lead":"Building the notch","mono":null,"more":null},"since":1792452732636},\#
+    "asks":[{"id":"k1ap","wants":"yes",\#
     "yes":"Approve","title":"Approve the caption","where":null,"options":[],"needs":null,"ref":null,\#
     "state":"waiting","at":1792452732636}]}]},{"key":"switchboard","name":"Switchboard",\#
     "directory":"/Users/leeovery/Code/switchboard","open":0,"waiting":1,"parked":0,"updatedAt":1792451832636,\#
     "sessions":[{"id":"sr-dash02","name":"Dashboard memory","summary":"Snags","now":["Reading the logs"],\#
     "next":null,"isOpen":false,"waiting":1,"parked":0,"updatedAt":1792451832636,"state":"needsYou",\#
-    "since":1792451832636,"asks":[{"id":"k2pc","wants":"yes","yes":"Approve","title":"Pick the cache size",\#
+    "since":1792451832636,\#
+    "doing":{"is":"away","line":{"lead":"No window holds it. Carry it on in Claude.","mono":null,"more":null},\#
+    "since":1792451832636},"asks":[{"id":"k2pc","wants":"yes","yes":"Approve","title":"Pick the cache size",\#
     "where":null,"options":[],"needs":null,"ref":null,"state":"waiting","at":1792451832636}]}]}],\#
     "windows":[{"writer":"b1c2d3e4-0000-4000-8000-0000000000aa","session":"sr-n0tch1","name":"Build the Mac app",\#
     "project":"SitRep","version":null,"needsReload":true,"where":null,"state":null,"attachedAt":1792449432636}],\#

@@ -33,7 +33,7 @@ struct BoardTests {
     @Test func aRowsFirstLineComesInItsPartsThenItsSecondAndItsTime() throws {
         let stop = try Board.read(watched).rows[1]
 
-        #expect(stop.first == Board.Row.Line(lead: "Allow Bash:", mono: "gh pr create", more: nil))
+        #expect(stop.first == Board.Row.Line(lead: "Allow Bash", mono: "gh pr create", more: nil))
         #expect(stop.second == "Switchboard · Dashboard memory and snags")
         #expect(stop.since == Self.at(1_792_445_500_000))
         #expect(stop.letters == "Sw")
@@ -59,6 +59,17 @@ struct BoardTests {
         #expect(terrace.asks.first?.where == "In the chat: decision 3, what an approval binds to")
         #expect(terrace.asks.first?.state == .waiting)
         #expect(projects.last?.sessions.first?.state == .yourTurn)
+    }
+
+    @Test func eachSessionSaysWhatItIsDoingAsTheLineUnderItsNameSaysIt() throws {
+        let sessions = try Board.read(watched).projects.flatMap(\.sessions)
+
+        #expect(sessions.map(\.doing.kind) == [.yourTurn, .permission, .yourTurn])
+        #expect(sessions[1].doing == Board.Session.Doing(
+            kind: .permission,
+            line: Board.Row.Line(lead: "Allow Bash", mono: "gh pr create", more: nil),
+            since: Self.at(1_792_445_500_000)
+        ))
     }
 
     @Test func theWindowsSayWhereTheyAreWhatTheyAreDoingAndWhetherTheyNeedAReload() throws {
@@ -102,6 +113,8 @@ struct BoardTests {
         #"{"head": {"needYou": 0, "sessions": 0}}"#,
         watchedEmpty.replacingOccurrences(of: #""windows":[],"#, with: ""),
         watched.replacingOccurrences(of: #""is": "yourTurn""#, with: #""is": "napping""#),
+        watched.replacingOccurrences(of: #""doing": {"# + "\n" + #"            "is": "permission""#, with: #""doing": {"# + "\n" + #"            "is": "napping""#),
+        watched.replacingOccurrences(of: #""doing": {"#, with: #""doings": {"#),
     ])
     func aLineThatIsNotABoardIsUnread(line: String) {
         #expect(throws: Unread.shape) { try Board.read(line) }

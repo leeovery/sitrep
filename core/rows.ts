@@ -1,8 +1,9 @@
 /**
- * A session's state across its windows, and the rows the notch's panel, the
- * strip and the menu show of the board, in their order, each with its two
- * lines and its time (see "A session's state" and "The rows" in DESIGN.md).
- * The app draws them as they come: what a surface shows is decided here.
+ * A session's state across its windows, what it is doing, and the rows the
+ * notch's panel, the strip and the menu show of the board, in their order,
+ * each with its two lines and its time (see "A session's state" and "The
+ * rows" in DESIGN.md). The app draws them as they come: what a surface shows
+ * is decided here.
  *
  * - Each ask waiting on Lee is a row, dimmed while no window holds its
  *   session, and so is each live window stopped on a permission prompt or a
@@ -58,6 +59,15 @@ export type Row = {
   /** When it began, which the app counts from: an ask's posting or reopening, a stop's showing, the turn's end, or its start while working. */
   since: number
 }
+
+/**
+ * What a session is doing, as the line under its name says it: a window's
+ * permission prompt or question, the one shown first; else the window its
+ * turn row comes from, working or your turn; each worded as its row's first
+ * line, since its state began. With no window holding it, away, since its
+ * latest line.
+ */
+export type Doing = { is: StateKind | 'away'; line: RowLine; since: number }
 
 /** The panel's head: how many rows need Lee, away ones among them, and how many sessions the rows hold. None needing Lee is all clear. */
 export type Head = { needYou: number; sessions: number }
@@ -121,6 +131,15 @@ const latest = (windows: readonly Held[]) =>
   [...windows]
     .sort((a, b) => b.state.since - a.state.since || compareText(a.writer, b.writer))
     .at(0)
+
+/** Of several windows, the one whose state began first: as their rows sit, the stop shown first. */
+const earliest = (windows: readonly Held[]) =>
+  [...windows]
+    .sort((a, b) => a.state.since - b.state.since || compareText(a.writer, b.writer))
+    .at(0)
+
+/** The window a session's turn row comes from: the one working whose turn began last, else the one active last. */
+const turnOf = (held: readonly Held[]) => latest(held.filter(isWorking)) ?? latest(held)
 
 /** Where a session stands at `now`, across its live windows: needing Lee wins, then working, then your turn. */
 export const sessionState = (session: Session, now: number): SessionState => {
@@ -254,9 +273,23 @@ export const rowsOf = (project: Project, session: Session, now: number): Row[] =
     return needs
   }
 
-  const turn = latest(held.filter(isWorking)) ?? latest(held)
+  const turn = turnOf(held)
 
   return turn === undefined ? [] : [windowRow(`turn:${session.id}`, turn)]
+}
+
+/** What a session is doing at `now`, across its live windows (`Doing`). */
+export const doingOf = (project: Project, session: Session, now: number): Doing => {
+  const held = heldBy(session, now)
+  const window = earliest(held.filter(isStopped)) ?? turnOf(held)
+
+  return window === undefined
+    ? { is: 'away', line: { lead: AWAY_LINE }, since: session.updatedAt }
+    : {
+        is: window.state.is,
+        line: stateLine(window.state, session, project),
+        since: window.state.since,
+      }
 }
 
 /** A row's group, in the panel's order: needing Lee, an away session's after; your turn; working. */

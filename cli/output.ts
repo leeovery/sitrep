@@ -224,6 +224,11 @@ const feedSessionJson = (session: FeedSession) => ({
   ...sessionJson(session),
   state: session.state,
   since: session.since,
+  doing: {
+    is: session.doing.is,
+    line: lineJson(session.doing.line),
+    since: session.doing.since,
+  },
   asks: session.asks.map(askJson),
 })
 

@@ -133,7 +133,7 @@ let watched = """
       "letters": "Sw",
       "ask": null,
       "writer": "6c847b5b-722d-4343-88e0-42ece4662e7d",
-      "first": { "lead": "Allow Bash:", "mono": "gh pr create", "more": null },
+      "first": { "lead": "Allow Bash", "mono": "gh pr create", "more": null },
       "second": "Switchboard · Dashboard memory and snags",
       "since": 1792445500000
     },
@@ -177,6 +177,15 @@ let watched = """
           "updatedAt": 1791991983206,
           "state": "needsYou",
           "since": 1791991983206,
+          "doing": {
+            "is": "yourTurn",
+            "line": {
+              "lead": "Settle terrace's open decisions, then write the spec and milestones",
+              "mono": null,
+              "more": null
+            },
+            "since": 1791991983206
+          },
           "asks": [
             {
               "id": "k1hs",
@@ -215,6 +224,11 @@ let watched = """
           "updatedAt": 1792441698646,
           "state": "needsYou",
           "since": 1792445500000,
+          "doing": {
+            "is": "permission",
+            "line": { "lead": "Allow Bash", "mono": "gh pr create", "more": null },
+            "since": 1792445500000
+          },
           "asks": []
         }
       ]
@@ -240,6 +254,11 @@ let watched = """
           "updatedAt": 1792445247692,
           "state": "yourTurn",
           "since": 1792259685462,
+          "doing": {
+            "is": "yourTurn",
+            "line": { "lead": "Build phase 4b: sitrep watch, the feed the app reads", "mono": null, "more": null },
+            "since": 1792259685462
+          },
           "asks": []
         }
       ]

@@ -1,7 +1,11 @@
+import Observation
+
 /// Lets one jump run at a time: two knocking on one terminal at once can
 /// leave it reporting `$HOME`, as the later takes the earlier's marker for
-/// a directory it cannot know.
+/// a directory it cannot know. Observed, so a view shows one running,
+/// whichever surface started it.
 @MainActor
+@Observable
 public final class OneJump {
     public private(set) var isRunning = false
 

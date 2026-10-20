@@ -32,24 +32,6 @@ struct NotchScene {
     let mirror: CGAffineTransform
 }
 
-/// A new row's orange wash, as the prototype washes it: held at its full, then easing out.
-enum Wash {
-    /// How long it lasts, ms, and how long of that it is held.
-    static let length = 2000.0, held = 300.0
-
-    /// How washed a row is this long after its wash began, ms: from 1 as it comes to 0.
-    static func amount(since elapsed: Double) -> Double {
-        let out = min(max((elapsed - held) / (length - held), 0), 1)
-
-        return 1 - out * out * (3 - 2 * out)
-    }
-
-    /// The washes still under way at this time, of those begun when each says.
-    static func live(_ began: [String: Double], at time: Double) -> [String: Double] {
-        began.filter { time - $0.value < length }
-    }
-}
-
 extension Frame.Panel {
     /// The content's clip in its own frame as drawn: the part shown, its two front corners rounded, the front away
     /// from the edge on either side.
