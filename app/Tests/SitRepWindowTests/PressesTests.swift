@@ -50,6 +50,12 @@ struct JumpingTests {
 
         #expect(next)
     }
+
+    @Test func eachPressJumpsToItsSession() {
+        #expect(Self.first.session == "sr-boot")
+        #expect(JumpPress.open("sr-macapp").session == "sr-macapp")
+        #expect(JumpPress.stop("sr-dash02").session == "sr-dash02")
+    }
 }
 
 /// The quiet projects' line: each name opens its project, as a project's name in the list does.
@@ -89,9 +95,22 @@ struct OpenedItemsTests {
     @Test func itemsOpenEachOnTheirOwn() throws {
         let run = opened()
 
-        run.toggle(.status(0))
+        run.toggle(.status("Drawing round 3, the SitRep window, in Paper"))
         run.toggle(.resolved("k4"))
-        #expect(try #require(run.page(at: printedAt).session).opened == [.status(0), .resolved("k4")])
+        #expect(try #require(run.page(at: printedAt).session).opened == [
+            .status("Drawing round 3, the SitRep window, in Paper"), .resolved("k4"),
+        ])
+    }
+
+    @Test func anItemGoneFromThePageIsLetGoAndCannotOpenAgainByItsKey() throws {
+        let run = opened()
+
+        run.toggle(.status("A line the status no longer has"))
+        run.toggle(.note("sr-macapp:n2"))
+        #expect(try #require(run.page(at: printedAt).session).opened == [.note("sr-macapp:n2")])
+        _ = run.page(at: printedAt)
+        run.toggle(.note("sr-macapp:n2"))
+        #expect(try #require(run.page(at: printedAt).session).opened.isEmpty)
     }
 
     @Test func pickingAnotherPageClosesThemAll() throws {
@@ -137,22 +156,27 @@ struct ArrangementTests {
     }
 
     @Test func buttonsPastTheLineByAPointLayTheAnswersOutAsRows() {
-        #expect(Card.arrangement(of: Self.choice, widths: [60, 60, 140, 60], spacing: 8, in: 343) == .rows)
+        #expect(Card.arrangement(of: Self.choice, widths: [60, 60, 140, 60], spacing: 8, in: 343) == .rows([0, 1]))
     }
 
     @Test func oneLongOptionAmongShortOnesMakesThemAllRows() {
-        #expect(Card.arrangement(of: Self.choice, widths: [520, 60, 140, 60], spacing: 8, in: 700) == .rows)
+        #expect(Card.arrangement(of: Self.choice, widths: [520, 60, 140, 60], spacing: 8, in: 700) == .rows([0, 1]))
     }
 
     @Test func aYesTooLongForTheLineIsARowToo() {
         let yes: [Card.Button] = [.yes("Merge it"), .inClaude(.comment), .ignore]
 
-        #expect(Card.arrangement(of: yes, widths: [600, 140, 60], spacing: 8, in: 700) == .rows)
+        #expect(Card.arrangement(of: yes, widths: [600, 140, 60], spacing: 8, in: 700) == .rows([0]))
     }
 
-    @Test func aCardWithNoAnswerToGiveHereKeepsItsPills() {
+    @Test func aCardWithNoAnswerToGiveHereThatOverflowsLaysEveryButtonOutAsARow() {
         let words: [Card.Button] = [.inClaude(.answer), .ignore]
 
-        #expect(Card.arrangement(of: words, widths: [600, 600], spacing: 8, in: 300) == .pills)
+        #expect(Card.arrangement(of: words, widths: [150, 60], spacing: 8, in: 300) == .pills)
+        #expect(Card.arrangement(of: words, widths: [250, 60], spacing: 8, in: 300) == .rows([0, 1]))
+    }
+
+    @Test func whereTheRestOverflowTheirLineTooEveryButtonIsARow() {
+        #expect(Card.arrangement(of: Self.choice, widths: [400, 60, 200, 120], spacing: 8, in: 300) == .rows([0, 1, 2, 3]))
     }
 }

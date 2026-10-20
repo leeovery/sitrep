@@ -58,8 +58,9 @@ struct TurningArc: View {
 }
 
 /// A button as a pill: the yes, white, the brightest thing in the window; an option, outlined on a fill; the rest
-/// outlined; ignore, quiet grey text. Each lifts under the pointer. Given more width than its words take on one line,
-/// as a card's answers laid out as rows, it takes it all, its words from the left and wrapping, its ends still round.
+/// outlined; ignore, quiet grey text. Each lifts under the pointer, and keeps the width of its words on one line. One
+/// that `fills`, as a card's buttons laid out as rows, takes the width it is given, its words from the left and
+/// wrapping, its ends still round.
 struct Pill: View {
     enum Look {
         case white, option, outlined, quiet
@@ -67,6 +68,7 @@ struct Pill: View {
 
     let words: String
     let look: Look
+    var fills = false
     let action: () -> Void
 
     var body: some View {
@@ -74,13 +76,16 @@ struct Pill: View {
             Text(words)
                 .font(WindowStyle.ui(12, look == .option || look == .white ? .semibold : .medium))
                 .multilineTextAlignment(.leading)
-                .fixedSize(horizontal: false, vertical: true)
+                .fixedSize(horizontal: !fills, vertical: true)
                 .padding(.vertical, look == .white || look == .quiet ? 6 : 5)
                 .padding(.horizontal, padding)
-                .frame(maxWidth: .infinity, alignment: .leading)
+                .frame(maxWidth: fills ? .infinity : nil, alignment: .leading)
         }
         .buttonStyle(PillStyle(look: look))
+        .focusMark(RoundedRectangle(cornerRadius: Self.radius, style: .continuous), inset: -2)
     }
+
+    static let radius: CGFloat = 13
 
     private var padding: CGFloat {
         switch look {
@@ -100,7 +105,7 @@ private struct PillStyle: ButtonStyle {
 
     func makeBody(configuration: Configuration) -> some View {
         Highlighted(isPressed: configuration.isPressed) { highlight in
-            let shape = RoundedRectangle(cornerRadius: 13, style: .continuous)
+            let shape = RoundedRectangle(cornerRadius: Pill.radius, style: .continuous)
 
             configuration.label
                 .foregroundStyle(foreground(highlight))

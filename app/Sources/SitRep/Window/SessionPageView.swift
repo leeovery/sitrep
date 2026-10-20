@@ -38,7 +38,7 @@ struct SessionPageView: View {
     private var bar: some View {
         HStack {
             Button(page.projectName) { act.pick(.project(page.projectKey)) }
-                .buttonStyle(WordsStyle())
+                .wordsButton()
                 .font(WindowStyle.ui(13, .medium))
             Spacer()
             if page.jumps {
@@ -52,7 +52,7 @@ struct SessionPageView: View {
                     .padding(.leading, 11)
                     .padding(.trailing, 10)
                 }
-                .buttonStyle(JumpStyle())
+                .jumpButton()
                 .disabled(pressedJump == .open(page.id))
             }
         }
@@ -205,7 +205,6 @@ private struct StopCard: View {
                     .padding(.leading, 22)
             }
             Pill(words: Words.button(.inClaude(.answer)), look: .white) { act.jump(.stop(session)) }
-                .fixedSize()
                 .disabled(pressedJump == .stop(session))
                 .padding(.leading, 22)
                 .padding(.top, 4)
@@ -230,18 +229,16 @@ private struct FinishFoot: View {
         HStack(spacing: 14) {
             switch finish {
             case .offered:
-                Pill(words: Words.finish, look: .outlined) { act.askToFinish(session) }.fixedSize()
+                Pill(words: Words.finish, look: .outlined) { act.askToFinish(session) }
                 note(Words.finishWhy)
             case .asking, .finishing:
                 note(Words.finishing(name), colour: WindowStyle.text)
                 Pill(words: "Yes, finish it", look: .white) { act.confirmFinish(session) }
-                    .fixedSize()
                     .disabled(finish == .finishing)
                 Pill(words: "Cancel", look: .quiet) { act.cancelFinish(session) }
-                    .fixedSize()
                     .disabled(finish == .finishing)
             case let .refused(why):
-                Pill(words: Words.finish, look: .outlined) { act.askToFinish(session) }.fixedSize()
+                Pill(words: Words.finish, look: .outlined) { act.askToFinish(session) }
                 note(why)
             }
         }

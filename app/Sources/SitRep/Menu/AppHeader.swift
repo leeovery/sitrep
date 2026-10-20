@@ -18,12 +18,12 @@ struct AppHeader: View {
     /// The app's icon as macOS renders it for the bundle, masked and drawn at the header's size, not the Info.plist's
     /// largest picture scaled down, whose edge showed a dark fringe at 30.
     @MainActor
-    static var icon: NSImage {
+    static let icon: NSImage = {
         let icon = NSWorkspace.shared.icon(forFile: Bundle.main.bundlePath)
 
         icon.size = NSSize(width: iconSize, height: iconSize)
         return icon
-    }
+    }()
 
     /// The version `app/build` stamps in the Info.plist, which the plugin shares.
     static var version: String {

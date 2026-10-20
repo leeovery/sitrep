@@ -51,7 +51,7 @@ struct ProjectPageView: View {
                 Button { act.pick(.session(session.id)) } label: {
                     ProjectSessionRow(session: session, now: now).padding(.horizontal, WindowStyle.reach)
                 }
-                .buttonStyle(RowStyle())
+                .rowButton()
                 .padding(.horizontal, -WindowStyle.reach)
             }
         }
@@ -88,7 +88,7 @@ struct ProjectPageView: View {
                         .padding(.horizontal, WindowStyle.reach)
                         .contentShape(Rectangle())
                     }
-                    .buttonStyle(RowStyle(radius: 6))
+                    .rowButton(radius: 6)
                     .padding(.horizontal, -WindowStyle.reach)
                 }
             }

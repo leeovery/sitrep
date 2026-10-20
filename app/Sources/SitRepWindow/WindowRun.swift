@@ -360,25 +360,39 @@ public final class WindowRun {
     private func sessionPage(_ session: Board.Session, of project: Board.Project, at time: Date) -> SessionPage {
         let read = boards[session.id]
         let isAway = session.doing.isAway
+        let status = Status(now: session.now, next: session.next, updated: read?.log.first { $0.kind == .status }?.at)
+        let notes = read.map { Self.notes($0.log, of: session, named: false) } ?? []
+        let parked = read?.parked.map { Parked(id: $0.id, session: nil, title: $0.title, where: $0.where, at: $0.at) } ?? []
+        let resolved = read.map { Self.resolved($0, leaving: frozen[session.id]?.kept ?? []) } ?? []
+        let items = status.now.map(Item.status) + (status.next.map { [Item.next($0)] } ?? [])
+            + notes.map { .note($0.id) } + parked.map { .parked($0.id) } + resolved.map { .resolved($0.id) }
 
         return SessionPage(
             id: session.id, projectKey: project.key, projectName: project.name, name: session.name,
             summary: session.summary, doing: session.doing, jumps: !isAway, waiting: session.waiting,
-            asks: cards(of: session, at: time),
-            status: Status(now: session.now, next: session.next, updated: read?.log.first { $0.kind == .status }?.at),
-            notes: read.map { Self.notes($0.log, of: session, named: false) } ?? [],
-            parked: read?.parked.map { Parked(id: $0.id, session: nil, title: $0.title, where: $0.where, at: $0.at) } ?? [],
-            resolved: read.map { Self.resolved($0, leaving: frozen[session.id]?.kept ?? []) } ?? [],
+            asks: cards(of: session, at: time), status: status, notes: notes, parked: parked, resolved: resolved,
             finish: isAway ? finishing[session.id] ?? .offered : nil,
             isRead: read != nil,
             failure: failed[session.id],
-            opened: openedItems
+            opened: keepOpen(items)
         )
+    }
+
+    /// The items opened that the page still shows, the rest let go, so one gone cannot open again by its key.
+    private func keepOpen(_ shown: [Item]) -> Set<Item> {
+        openedItems.formIntersection(shown)
+        return openedItems
     }
 
     private func projectPage(_ project: Board.Project, on board: Board, at time: Date) -> ProjectPage {
         let needs = board.rows.filter { $0.project == project.key && $0.needsLee }
         let read = project.sessions.compactMap { session in boards[session.id].map { (session, $0) } }
+        let notes = Array(read.flatMap { Self.notes($1.log, of: $0, named: true) }.sorted { $0.at > $1.at }.prefix(Self.projectNotes))
+        let parked = read.flatMap { session, read in
+            read.parked.map {
+                Parked(id: "\(session.id):\($0.id)", session: session.name, title: $0.title, where: $0.where, at: $0.at)
+            }
+        }.sorted { $0.at < $1.at }
 
         return ProjectPage(
             key: project.key, name: project.name, waiting: needs.count, open: project.open,
@@ -395,13 +409,9 @@ public final class WindowRun {
                     ProjectPage.Ask(session: session.name, card: card, isOpened: opened.contains(card.id))
                 }
             }.sorted { $0.card.since > $1.card.since },
-            notes: Array(read.flatMap { Self.notes($1.log, of: $0, named: true) }.sorted { $0.at > $1.at }.prefix(Self.projectNotes)),
-            parked: read.flatMap { session, read in
-                read.parked.map {
-                    Parked(id: "\(session.id):\($0.id)", session: session.name, title: $0.title, where: $0.where, at: $0.at)
-                }
-            }.sorted { $0.at < $1.at },
-            opened: openedItems
+            notes: notes,
+            parked: parked,
+            opened: keepOpen(notes.map { .note($0.id) } + parked.map { .parked($0.id) })
         )
     }
 

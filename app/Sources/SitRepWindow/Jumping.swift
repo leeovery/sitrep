@@ -4,6 +4,14 @@ public enum JumpPress: Hashable, Sendable {
     case card(AskAddress, Card.Button)
     case open(String)
     case stop(String)
+
+    /// The session it jumps to.
+    public var session: String {
+        switch self {
+        case let .card(ask, _): ask.session
+        case let .open(session), let .stop(session): session
+        }
+    }
 }
 
 /// The window's jump under way: only the button it was pressed from shows it, while every other stays as it looks.

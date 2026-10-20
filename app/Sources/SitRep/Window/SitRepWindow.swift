@@ -72,7 +72,7 @@ final class SitRepWindow: NSObject, NSWindowDelegate {
         window.backgroundColor = .black
         window.appearance = NSAppearance(named: .darkAqua)
         window.isReleasedWhenClosed = false
-        window.collectionBehavior = .moveToActiveSpace
+        window.collectionBehavior.insert(.moveToActiveSpace)
         window.minSize = NSSize(width: 860, height: 520)
         window.contentView = content
         window.center()

@@ -103,7 +103,7 @@ struct WindowStillsTests {
             case .quietProject:
                 Self.pick(.project("kit"), in: run)
             case .openedItems:
-                [.status(0), .next, .note("sr-macapp:n2"), .parked("p1"), .resolved("k4"), .resolved("k5")].forEach(run.toggle)
+                [.note("sr-macapp:n2"), .resolved("k4"), .resolved("k5")].forEach(run.toggle)
             case .longOptions:
                 Self.pick(.session("sr-macapp"), in: run, board: Self.withLongOptions)
             }

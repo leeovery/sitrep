@@ -1,11 +1,11 @@
 import SitRepMenu
 import Testing
 
-/// The menu's words cut to its one width, measured run by run in each one's face: here a point a character, two in
-/// mono, and an ellipsis one.
+/// The menu's words cut to their share of its width, measured run by run in each one's face: here a point a
+/// character, two in mono, half in a subtitle, and an ellipsis in the face it ends.
 struct MenuCutTests {
-    private static let cut = MenuCut(width: 20) { text, face in
-        Double(text.count) * (face == .mono ? 2 : 1)
+    private static let cut = MenuCut(title: 20, subtitle: 10) { text, face in
+        Double(text.count) * (face == .mono ? 2 : face == .subtitle ? 0.5 : 1)
     }
 
     @Test func aTitleThatFitsIsLeftWhole() {
@@ -50,14 +50,8 @@ struct MenuCutTests {
         }
     }
 
-    @Test func aLineUnderTheTitleIsCutInItsOwnFace() {
-        let narrow = MenuCut(width: 10) { text, face in Double(text.count) * (face == .subtitle ? 0.5 : 1) }
-
-        #expect(narrow.fit("SitRep · Build the Mac app", in: .subtitle) == "SitRep · Build the…")
-        #expect(narrow.fit("SitRep · Build the Mac app", in: .words) == "SitRep ·…")
-    }
-
-    @Test func theMenusWidthIsAboutSpacemansAndALittleWider() {
-        #expect(MenuCut.width == 340)
+    @Test func aLineUnderTheTitleIsCutInItsOwnFaceToItsOwnWidth() {
+        #expect(Self.cut.fit("SitRep · Build the Mac app", in: .subtitle) == "SitRep · Build the…")
+        #expect(Self.cut.fit("SitRep · Build the Mac app and more", in: .words) == "SitRep · Build the…")
     }
 }

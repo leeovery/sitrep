@@ -122,8 +122,8 @@ final class WindowModel {
     }
 
     private func press(_ button: Card.Button, on ask: AskAddress) {
-        if let session = run.press(button, on: ask, at: Date()) {
-            jump(.card(ask, button), to: session)
+        if run.press(button, on: ask, at: Date()) != nil {
+            jump(.card(ask, button))
         }
         refresh()
     }
@@ -167,22 +167,14 @@ final class WindowModel {
         }
     }
 
-    /// "Open in Ghostty ↗", or a stop's "Answer in Claude ↗".
-    private func jump(_ press: JumpPress) {
-        switch press {
-        case let .open(session), let .stop(session): jump(press, to: session)
-        case .card: break
-        }
-    }
-
     /// To the session's window, as the notch's and the menu's jumps go: one at a time, none while one runs from
     /// anywhere. Only the button pressed shows it, until it answers.
-    private func jump(_ press: JumpPress, to session: String) {
+    private func jump(_ press: JumpPress) {
         guard jumping.press(press, isJumping: works.isJumping) else {
             return
         }
 
-        works.jump(to: session) { [weak self] _ in
+        works.jump(to: press.session) { [weak self] _ in
             MainActor.assumeIsolated { self?.jumping.answered() }
         }
     }

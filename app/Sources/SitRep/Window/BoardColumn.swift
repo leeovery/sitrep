@@ -72,7 +72,7 @@ private struct ProjectRows: View {
                 .padding(.bottom, 5)
                 .contentShape(Rectangle())
             }
-            .buttonStyle(RowStyle(isPicked: pick == .project(project.id)))
+            .rowButton(isPicked: pick == .project(project.id))
             ForEach(project.sessions) { row in
                 SessionRowView(row: row, isPicked: pick == .session(row.id), now: now)
             }
@@ -108,7 +108,7 @@ private struct SessionRowView: View {
             .modifier(Washed(since: row.washed, now: now, radius: 8))
             .contentShape(Rectangle())
         }
-        .buttonStyle(RowStyle(isPicked: isPicked))
+        .rowButton(isPicked: isPicked)
     }
 
     private var isWashing: Bool { row.washed != nil }
@@ -139,7 +139,7 @@ private struct QuietFoot: View {
                             .padding(.horizontal, 8)
                             .contentShape(Rectangle())
                     }
-                    .buttonStyle(RowStyle(isPicked: pick == project.pick, radius: 6))
+                    .rowButton(isPicked: pick == project.pick, radius: 6)
                 }
             }
             .padding(.horizontal, 2)

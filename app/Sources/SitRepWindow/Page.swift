@@ -51,10 +51,10 @@ public struct SessionPage: Equatable, Sendable {
 
 /// An item of Status, Notes, Parked or Resolved, which a press opens in place to the whole of it, and closes again.
 public enum Item: Hashable, Sendable {
-    /// A line of the status, by its place.
-    case status(Int)
-    /// The status's next.
-    case next
+    /// A line of the status, by its words, so a line rewritten is another item, closed.
+    case status(String)
+    /// The status's next, by its words.
+    case next(String)
     case note(String)
     case parked(String)
     case resolved(String)

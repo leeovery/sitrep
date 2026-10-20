@@ -36,7 +36,7 @@ final class SettingsWindow {
         window.titleVisibility = .hidden
         window.titlebarAppearsTransparent = true
         window.isReleasedWhenClosed = false
-        window.collectionBehavior = .moveToActiveSpace
+        window.collectionBehavior.insert(.moveToActiveSpace)
         window.setContentSize(NSSize(width: 700, height: 540))
         window.contentMinSize = NSSize(width: 620, height: 460)
         window.center()

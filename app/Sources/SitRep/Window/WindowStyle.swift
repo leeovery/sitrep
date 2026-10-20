@@ -22,6 +22,8 @@ enum WindowStyle {
     static let ringLift = Color(hex: 0x45454C)
     /// A row under the pointer, fainter than the picked one's raise.
     static let hover = Color(hex: 0x0D0D0F)
+    /// Keyboard focus's outline.
+    static let focus = Color.white.opacity(0.35)
     /// An away session's dot.
     static let awayDot = Color(hex: 0x46464C)
     /// The working arc's track, and the arc.
