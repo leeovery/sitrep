@@ -174,11 +174,20 @@ export const serialise = (entry: Entry) => `${JSON.stringify(entry)}\n`
  */
 export const tornLineEnd = (text: string) => (text !== '' && !text.endsWith('\n') ? '\n' : '')
 
-/** Stamps bodies as the writer's next entries, its count going on from the highest `text` holds. */
-export const stamp = (text: string, bodies: readonly Body[], at: number): Entry[] => {
-  const last = parseEntries(text).reduce((most, entry) => Math.max(most, entry.seq), 0)
+/** The time bodies are stamped as of: one for them all, or each its own. */
+export type Stamp = number | ((body: Body) => number)
 
-  return bodies.map((body, i): Entry => ({ v: VERSION, at, seq: last + i + 1, ...body }))
+/** Stamps bodies as the writer's next entries, its count going on from the highest `text` holds. */
+export const stamp = (text: string, bodies: readonly Body[], at: Stamp): Entry[] => {
+  const last = parseEntries(text).reduce((most, entry) => Math.max(most, entry.seq), 0)
+  const timeOf = typeof at === 'number' ? () => at : at
+
+  return bodies.map((body, i): Entry => ({
+    v: VERSION,
+    at: timeOf(body),
+    seq: last + i + 1,
+    ...body,
+  }))
 }
 
 /** What adds entries to the end of a file whose text is `file`: a newline ending a torn last line first. */
@@ -186,7 +195,7 @@ export const addition = (file: string, entries: readonly Entry[]) =>
   `${tornLineEnd(file)}${entries.map(serialise).join('')}`
 
 /** Stamps bodies as the writer's next entries and says what the file becomes, a torn last line ended first. */
-export const append = (text: string, bodies: readonly Body[], at: number): Appended => {
+export const append = (text: string, bodies: readonly Body[], at: Stamp): Appended => {
   const entries = stamp(text, bodies, at)
 
   return { entries, text: text + addition(text, entries) }

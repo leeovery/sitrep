@@ -1,9 +1,17 @@
 import { expect, test } from 'claude-code/testing'
-import { boardText, onBoardText, startText, summarise, summariseProject } from '../core'
+import {
+  boardText,
+  onBoardText,
+  startText,
+  summarise,
+  summariseProject,
+  toldSummary,
+} from '../core'
 import {
   choiceAsk,
   delivered,
   file,
+  finish,
   fold,
   MIN,
   note,
@@ -112,7 +120,7 @@ test('an empty board says so in every section', () => {
 test('the board listing gives each session a line: its project, its id, its name and what waits on Lee', () => {
   const closed = fold({ logs: { [W1]: file([T0, yesAsk('k1', 'Run it', 'Done')]) } })
   const ledger = { ...summarise(closed), id: 'sr-1edger', name: 'Request ledger', waiting: 0 }
-  const switchboard = summariseProject('switchboard', [summarise(SESSION), ledger])
+  const switchboard = summariseProject('switchboard', [toldSummary(SESSION), ledger])
   const sitrep = {
     ...summariseProject('sitrep', [{ ...ledger, id: 'sr-wdsqvn', name: 'sitrep' }]),
     name: 'SitRep',
@@ -122,10 +130,22 @@ test('the board listing gives each session a line: its project, its id, its name
     [
       'On the board:',
       '- SitRep: sr-wdsqvn "sitrep"',
-      '- Switchboard: sr-k3f9qa "Dashboard redesign", 1 waiting on Lee',
+      '- Switchboard: sr-k3f9qa "Dashboard redesign", 2 waiting on Lee',
       '- Switchboard: sr-1edger "Request ledger"',
     ].join('\n'),
   )
+})
+
+test("Claude's listing counts an ask whose answer from Lee is on its way as waiting on Lee, as its board text lists it, while Lee's count leaves it out", () => {
+  const finished = fold({
+    logs: { [W1]: file([T0, yesAsk('k1', 'Run it', 'Done')], [T0, finish('lee')]) },
+  })
+
+  expect(SESSION.asks[0]?.replies).toMatchObject([{ id: 'r2', delivery: 'waiting' }])
+  expect(toldSummary(SESSION).waiting).toBe(2)
+  expect(boardText(SESSION)).toContain('- k1 wants a yes (Approve), waiting on Lee: Review round 1')
+  expect(summarise(SESSION).waiting, "Lee's surfaces count only what waits on Lee").toBe(1)
+  expect(toldSummary(finished).waiting, 'a finished session waits on Lee for nothing').toBe(0)
 })
 
 test('a conversation starts knowing how to keep the board, every session on it by project, and which this window holds', () => {

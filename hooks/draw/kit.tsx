@@ -13,6 +13,7 @@ import {
   answerOf,
   moreLines,
   type Ask,
+  type Barred,
   type Parked,
   type ReplyFields,
   type Verdict,
@@ -22,7 +23,7 @@ import type { Actions } from '../actions'
 import { answeringIn } from '../answering'
 import { ago, C, clip, counted, GLYPH, wrapped } from '../look'
 import { itemKey } from '../places'
-import { isCarried } from '../queue'
+import { heldBack, isCarried } from '../queue'
 import type { Scene } from '../scene'
 
 export type Els = ElementTable
@@ -526,13 +527,30 @@ export const drawRewrite = (d: Drawing, key: string, item: Ask | Parked, queued:
   )
 }
 
+/** Why a reply in Ready to send stays as a send goes: its item took another answer of Lee's first, or Claude closed it. */
+export const NOT_SENT: Record<Barred, string> = {
+  answered: '· not sent: already answered',
+  resolved: '· not sent: Claude closed it',
+}
+
+/** Where a reply in Ready to send stands, as the branch under what it answers says it. */
+const queuedWords = (isOnItsWay: boolean, barred: Barred | undefined) => {
+  if (isOnItsWay) {
+    return '· on its way'
+  }
+
+  return barred === undefined ? '· not sent yet' : NOT_SENT[barred]
+}
+
 /**
  * A reply in Ready to send, as a branch under what it answers: undone from
- * there until a send carries it, its words written again from there.
+ * there until a send carries it, its words written again from there while
+ * its item takes it.
  */
 export const drawQueued = (d: Drawing, item: Ask | Parked, queued: SitrepQueued) => {
   const { Box, Text, Button } = d.els
   const isOnItsWay = isCarried(d.scene.inFlight, queued)
+  const barred = heldBack(d.scene.inFlight, item, queued)
   const key = itemKey(queued.session, queued.item)
 
   return drawReplyRow(
@@ -540,7 +558,7 @@ export const drawQueued = (d: Drawing, item: Ask | Parked, queued: SitrepQueued)
     item,
     queued,
     <Box flexDirection="row" columnGap={1}>
-      <Text color={C.grey}>{isOnItsWay ? '· on its way' : '· not sent yet'}</Text>
+      <Text color={C.grey}>{queuedWords(isOnItsWay, barred)}</Text>
       {!isOnItsWay && (
         <Button
           key={`undo:${key}`}
@@ -550,7 +568,7 @@ export const drawQueued = (d: Drawing, item: Ask | Parked, queued: SitrepQueued)
           onPress={() => d.act.unqueue(queued.session, queued.item)}
         />
       )}
-      {!isOnItsWay && drawRewrite(d, `rewrite:${key}`, item, queued)}
+      {!isOnItsWay && barred === undefined && drawRewrite(d, `rewrite:${key}`, item, queued)}
     </Box>,
   )
 }

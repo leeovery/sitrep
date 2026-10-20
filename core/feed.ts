@@ -33,6 +33,7 @@ import {
 import { compareText } from './text'
 import type { Ask, Session, WindowState, Where } from './types'
 import {
+  askedOf,
   CURRENT_MS,
   isCurrent,
   summarise,
@@ -70,14 +71,6 @@ export type FeedWindow = {
 }
 
 export type Feed = { head: Head; rows: Row[]; projects: FeedProject[]; windows: FeedWindow[] }
-
-/**
- * A session's asks still waiting, the oldest first: on Lee, or on a window
- * to deliver Lee's answer, which each ask's answer tells apart; none once
- * the session is finished.
- */
-const askedOf = (session: Session): Ask[] =>
-  session.finished === undefined ? session.asks.filter(ask => ask.state === 'waiting') : []
 
 /** The place of a session with no row: after every one that has. */
 const NO_ROW = Number.MAX_SAFE_INTEGER

@@ -10,10 +10,10 @@ import { deliverer, isLive, parsePresence } from './presence'
 import { parseProject, projectName } from './project'
 import {
   askAfter,
+  barredBy,
   fits,
   isOpen,
   isPending,
-  onItsWay,
   parkedAfter,
   pickUpLog,
   waitsOnLee,
@@ -142,6 +142,7 @@ const voidUnfitting = (item: Item, at: number) => {
   for (const reply of item.replies) {
     if (isPending(reply) && !fits(item, reply)) {
       reply.delivery = 'void'
+      reply.voided = 'changed'
       reply.voidedAt = at
     }
   }
@@ -182,19 +183,23 @@ const reshape = (ask: Ask, { wants, kind }: EditBody['changes']) => {
 
 /**
  * Where a reply written at `at` starts out: on its way, waiting on the
- * session's window or for one to take the session up; or void where another
- * to its item is on its way already. An item takes one answer at a time:
- * of two sent at once, as two runs of the CLI may, the first goes in and the
- * second never does, so Claude never has two answers to one item.
+ * session's window or for one to take the session up; or void where its
+ * item takes no answer by then, another of Lee's on its way to it or
+ * delivered, or the item closed. An item takes one answer, the first to
+ * reach it: of two sent at once, as two runs of the CLI may, the first goes
+ * in and the second never does, so Claude never has two answers to one item.
  */
 const startOf = (
   fold: Fold,
   item: Ask | Parked,
   at: number,
-): Pick<Reply, 'delivery' | 'voidedAt'> =>
-  onItsWay(item) === undefined
+): Pick<Reply, 'delivery' | 'voided' | 'voidedAt'> => {
+  const barred = barredBy(item)
+
+  return barred === undefined
     ? { delivery: fold.isOpen ? 'waiting' : 'closed' }
-    : { delivery: 'void', voidedAt: at }
+    : { delivery: 'void', voided: barred, voidedAt: at }
+}
 
 const reopen = (item: Item, at: number) => {
   item.openedAt = at

@@ -2,7 +2,9 @@ import { expect, test } from 'claude-code/testing'
 import {
   answerOf,
   answerState,
+  append,
   askAfter,
+  barredBy,
   boardMessage,
   checkEdit,
   deliveredMark,
@@ -10,13 +12,16 @@ import {
   deliveryOf,
   FROM_THE_BOARD,
   parseEntries,
+  sentAt,
   sentLines,
   STALE_MS,
   toDeliver,
   type AskKind,
   type AskState,
+  type Barred,
   type Body,
   type Session,
+  type SessionFiles,
   type Verdict,
 } from '../core'
 import {
@@ -702,7 +707,9 @@ test('a reply on its way whose item an edit changed past fitting goes void: a ma
     presence: { [W1]: seen(W1, NOW) },
   })
 
-  expect(session.replies).toMatchObject([{ id: 'r1', delivery: 'void', voidedAt: T0 + 2 * MIN }])
+  expect(session.replies).toMatchObject([
+    { id: 'r1', delivery: 'void', voided: 'changed', voidedAt: T0 + 2 * MIN },
+  ])
   expect(session.asks[0]?.state).toBe('waiting')
   expect(session.asks[0]?.answer).toBeUndefined()
   expect(session.waiting).toBe(4)
@@ -843,10 +850,10 @@ test('of two replies on their way to one item, the first goes in and the second 
     presence,
   })
 
-  expect(sent.replies.map(each => [each.id, each.delivery, each.voidedAt])).toEqual([
-    ['r1', 'waiting', undefined],
-    ['r2', 'void', T0 + MIN],
-    ['r3', 'void', T0 + MIN],
+  expect(sent.replies.map(each => [each.id, each.delivery, each.voided, each.voidedAt])).toEqual([
+    ['r1', 'waiting', undefined, undefined],
+    ['r2', 'void', 'answered', T0 + MIN],
+    ['r3', 'void', 'answered', T0 + MIN],
   ])
   expect(boardMessage(sent, toDeliver(sent, W1))?.text).toBe(
     'From the board:\n- Keep the ledger 400 days, or forever? → 400 days',
@@ -856,4 +863,98 @@ test('of two replies on their way to one item, the first goes in and the second 
     marked.replies.map(each => each.delivery),
     'a mark naming the void ones, as a window on an old release would write, changes nothing',
   ).toEqual(['delivered', 'void', 'void'])
+})
+
+/** What bars an item of a session from taking an answer of Lee's, as `barredBy` says. */
+const barredIn = (files: Partial<SessionFiles>, id: string) => {
+  const item = fold(files).items.get(id)
+
+  return item === undefined || item.type === 'note' ? 'no ask or parked item' : barredBy(item)
+}
+
+test("an item takes an answer of Lee's while open with none of Lee's on its way; else Lee's answer or Claude's resolve bars it", () => {
+  const letter = (item: string, verdict: Verdict) => ({
+    [SENDER]: file([T0 + MIN, reply('r1', item, verdict)]),
+  })
+  const logs = (...more: Line[]) => ({ logs: { [W1]: file(...POSTED, ...more) } })
+  const yes = sent(T0 + MIN, 'r1', 'k1', 'yes')
+  const comment = sent(T0 + MIN, 'r1', 'k3', 'comment', { note: 'Fails after the code' })
+  const cases: [string, Partial<SessionFiles>, string, Barred | undefined][] = [
+    ['an open ask', logs(), 'k1', undefined],
+    ["Lee's yes on its way", { ...logs(), inbox: letter('k1', 'yes') }, 'k1', 'answered'],
+    ["Lee's yes delivered", logs(...yes), 'k1', 'answered'],
+    ["Lee's ignore delivered", logs(...sent(T0 + MIN, 'r1', 'k1', 'ignore')), 'k1', 'answered'],
+    ["Lee's comment delivered, the ask Claude's to act on", logs(...comment), 'k3', undefined],
+    ["Claude's resolve", logs([T0 + MIN, resolve('k1')]), 'k1', 'resolved'],
+    [
+      "Claude's resolve after Lee's comment",
+      logs(...comment, [T0 + 2 * MIN, resolve('k3')]),
+      'k3',
+      'resolved',
+    ],
+    ['reopened after its answer', logs(...yes, [T0 + 2 * MIN, reopen('k1')]), 'k1', undefined],
+    ['a parked item', logs(), 'p1', undefined],
+    ["Lee's pick-up on its way", { ...logs(), inbox: letter('p1', 'pickup') }, 'p1', 'answered'],
+    ['picked up', logs(...sent(T0 + MIN, 'r1', 'p1', 'pickup')), 'p1', 'answered'],
+    ['a parked item Claude resolved', logs([T0 + MIN, resolve('p1')]), 'p1', 'resolved'],
+  ]
+
+  for (const [why, files, id, barred] of cases) {
+    expect(barredIn(files, id), why).toBe(barred)
+  }
+})
+
+test("a reply reaching an item after Lee's answer to it, or after Claude closed it, is void from the start, saying why: a mark naming it changes nothing", () => {
+  const letters = {
+    [CLI]: file([T0 + MIN, reply('r1', 'k1', 'yes')]),
+    [SENDER]: file(
+      [T0 + 3 * MIN, reply('r2', 'k1', 'yes', { note: 'Ship it' })],
+      [T0 + 3 * MIN, reply('r3', 'k4', 'yes')],
+    ),
+  }
+  const presence = { [W1]: seen(W1, NOW) }
+  const logs = (...more: Line[]) => ({
+    [W1]: file(...POSTED, [T0 + 2 * MIN, delivered('r1')], [T0 + 2 * MIN, resolve('k4')], ...more),
+  })
+  const read = fold({ logs: logs(), inbox: letters, presence })
+  const marked = fold({
+    logs: logs([T0 + 4 * MIN, delivered('r2', 'r3')]),
+    inbox: letters,
+    presence,
+  })
+
+  expect(read.replies.map(each => [each.id, each.delivery, each.voided, each.voidedAt])).toEqual([
+    ['r1', 'delivered', undefined, undefined],
+    ['r2', 'void', 'answered', T0 + 3 * MIN],
+    ['r3', 'void', 'resolved', T0 + 3 * MIN],
+  ])
+  expect(toDeliver(read, W1)).toEqual([])
+  expect(marked.replies.map(each => each.delivery)).toEqual(['delivered', 'void', 'void'])
+  expect(marked.asks[0]).toMatchObject({ state: 'closed', answer: { id: 'r1' } })
+})
+
+test("a send's replies are written as of its claim, its mark as Claude Code takes it: a letter written while it waited comes second, and goes void", () => {
+  const claimed = T0 + MIN
+  const taken = T0 + 3 * MIN
+  const replies = [
+    { type: 'reply', id: 'r1', item: 'k2', verdict: 'choose', option: '400 days' },
+  ] as const
+  const before = fold({ logs: { [W1]: file(...POSTED) } })
+  const written = append(file(...POSTED), sentLines(before, replies), sentAt(claimed, taken))
+  const session = fold({
+    logs: { [W1]: written.text },
+    inbox: { [CLI]: file([T0 + 2 * MIN, reply('r2', 'k2', 'choose', { option: 'Forever' })]) },
+    presence: { [W1]: seen(W1, NOW) },
+  })
+
+  expect(written.entries.map(entry => [entry.type, entry.at])).toEqual([
+    ['reply', claimed],
+    ['delivered', taken],
+  ])
+  expect(session.replies.map(each => [each.id, each.delivery, each.voided])).toEqual([
+    ['r1', 'delivered', undefined],
+    ['r2', 'void', 'answered'],
+  ])
+  expect(session.asks[1]).toMatchObject({ state: 'closed', closedAt: taken, answer: { id: 'r1' } })
+  expect(toDeliver(session, W1), 'the letter never goes in').toEqual([])
 })

@@ -8,7 +8,7 @@
  * holds. The folder the window started in only orders them: the projects
  * living around it first.
  */
-import { listedProjects, rejoinable, startText, summarise, type ProjectSessions } from '../core'
+import { listedProjects, rejoinable, startText, toldSummary, type ProjectSessions } from '../core'
 import { sessionsIn } from './around'
 import { bearingsOf, rootFor, type Host } from './host'
 import { projectKeys, readProject } from './projects'
@@ -51,7 +51,7 @@ export const rejoin = async (host: Host, writer: string) => {
   }
 }
 
-/** A project, with its sessions in brief as they stand at `now`; undefined for a folder with no project in it. */
+/** A project, with its sessions in brief as Claude knows them at `now`; undefined for a folder with no project in it. */
 const projectSessions = async (
   host: Host,
   root: string,
@@ -64,7 +64,7 @@ const projectSessions = async (
     return undefined
   }
 
-  return { project, sessions: (await sessionsIn(host, root, key, now)).map(summarise) }
+  return { project, sessions: (await sessionsIn(host, root, key, now)).map(toldSummary) }
 }
 
 /** What the conversation's first message carries of sitrep: how to keep the board, and every project's current sessions. */

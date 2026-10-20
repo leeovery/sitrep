@@ -10,10 +10,12 @@
  * shows where they went until Claude has them, and a while after.
  */
 import {
+  barredBy,
   deliveryOf,
   fits,
   newItemId,
   type Ask,
+  type Barred,
   type Parked,
   type Reply,
   type ReplyBody,
@@ -46,6 +48,13 @@ export const isCarried = (inFlight: SitrepInFlight | null, reply: SitrepQueued) 
   inFlight.session === reply.session &&
   inFlight.replies.some(each => each.item === reply.item)
 
+/** What holds a queued reply back from a send: its item answered already or closed (`barredBy`); nothing for one a send in flight carries, going already. */
+export const heldBack = (
+  inFlight: SitrepInFlight | null,
+  item: Ask | Parked,
+  reply: SitrepQueued,
+): Barred | undefined => (isCarried(inFlight, reply) ? undefined : barredBy(item))
+
 /** The queue less every reply but those a send in flight carries. */
 export const clearing = (queue: Queue, inFlight: SitrepInFlight | null) =>
   queue.filter(each => isCarried(inFlight, each))
@@ -73,16 +82,27 @@ export const destinations = (replies: readonly SitrepSessionRef[]): SitrepSessio
   ...new Map(replies.map(({ project, session }) => [session, { project, session }])).values(),
 ]
 
-/** The ask or parked item a reply answers, as the session has it. */
+/** The ask or parked item a reply answers, as the session has it, while the reply fits it. */
 export const answered = (session: Session, reply: SitrepQueued): Ask | Parked | undefined => {
   const item = session.items.get(reply.item)
 
   return item !== undefined && fits(item, reply) ? item : undefined
 }
 
-/** A session's replies that still fit their items: what a send carries. */
+/** Whether a send carries a queued reply: one that fits its item, and an item that takes an answer of Lee's now. */
+const isSendable = (session: Session, reply: SitrepQueued) => {
+  const item = answered(session, reply)
+
+  return item !== undefined && barredBy(item) === undefined
+}
+
+/**
+ * A session's replies a send carries. One whose item changed under it, or
+ * closed, or took another answer of Lee's first, stays in Ready to send,
+ * unsent: Claude has one answer to an item, the first to reach it.
+ */
 export const sendable = (session: Session, queue: Queue) =>
-  queuedFor(queue, session.id).filter(reply => answered(session, reply) !== undefined)
+  queuedFor(queue, session.id).filter(reply => isSendable(session, reply))
 
 /** The replies as lines of the session, each with an id unlike any the session uses. */
 export const replyBodies = (session: Session, replies: Queue): ReplyBody[] => {
@@ -111,7 +131,7 @@ export const withSent = (list: readonly SitrepSent[], to: SitrepSessionRef, repl
 export const sentIn = (session: Session, sent: SitrepSent): Reply[] =>
   sent.replies.flatMap(id => session.replies.find(reply => reply.id === id) ?? [])
 
-/** Whether these replies have all gone where they go: to Claude, or void since their items changed. */
+/** Whether these replies have all gone where they go: to Claude, or void. */
 const isSettled = (session: Session, sent: SitrepSent) => {
   const delivery = deliveryOf(session, sent.replies)
 

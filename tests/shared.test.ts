@@ -208,6 +208,93 @@ test('two answers the CLI writes at once to one ask both land, but the window gi
   expect(w.state.board?.replies.find(reply => reply.id === second)?.delivery).toBe('void')
 })
 
+/** The window's own ask wanting a choice, and the board drawn. */
+async function sidebarAsked(w: World) {
+  const asked = postedId(
+    await w.call('ask', {
+      wants: 'choice',
+      options: ['Keep it', 'Drop it'],
+      title: 'Keep the sidebar?',
+    }),
+  )
+
+  return { asked, ui: await w.pane() }
+}
+
+test("a reply queued to an ask the CLI's answer reached first is not carried: Claude has that answer only, and Ready to send says why", async ($, on) => {
+  const w = world($, on)
+  const { cli } = await begun(w)
+  const { asked, ui } = await sidebarAsked(w)
+  const key = w.item(asked)
+
+  await ui.press({ key: `choose:${key}:0` })
+  expect(await ui.find({ key: `rewrite:${key}` })).toBeDefined()
+  expect(await ui.find({ key: `readyrewrite:${key}` })).toBeDefined()
+
+  await w.clock.advance(MIN)
+  await cli('answer', asked, 'Drop it')
+  await ui.press({ key: 'send' })
+
+  expect(w.toasts).toContain(
+    'Nothing to send: the items replied to are answered or closed already. Your replies are still on the board.',
+  )
+  expect(
+    await ui.findAll({ type: 'Text', text: '· not sent: already answered' }),
+    "under the ask's row and in Ready to send",
+  ).toHaveLength(2)
+  expect(await ui.find({ key: `rewrite:${key}` }), 'no comment to add to it').toBeUndefined()
+  expect(await ui.find({ key: `readyrewrite:${key}` })).toBeUndefined()
+  expect(await ui.find({ key: `unready:${key}` }), 'Lee can clear it').toBeDefined()
+
+  await w.clock.advance(TAKE_IN)
+  await ui.press({ key: 'send' })
+  await w.clock.advance(4 * WATCH_MS)
+
+  expect(w.prompts.map(prompt => prompt.text)).toEqual([
+    'From the board:\n- Keep the sidebar? → Drop it',
+  ])
+  expect(w.state.board?.asks[0]).toMatchObject({ state: 'closed', answer: { option: 'Drop it' } })
+  expect(w.state.queue, 'left in Ready to send, unsent').toMatchObject([{ item: asked }])
+  expect(await ui.find({ type: 'Text', text: '· not sent: already answered' })).toBeDefined()
+})
+
+test("an answer the CLI writes while the window's send waits out Claude's turn comes after it: Claude has the send's answer only, and the CLI's goes void", async ($, on) => {
+  const w = world($, on)
+  const { paths, cli } = await begun(w)
+  const { asked, ui } = await sidebarAsked(w)
+  const turn = w.holdPrompts()
+
+  await ui.press({ key: `choose:${w.item(asked)}:0` })
+
+  const pressed = ui.press({ key: 'send' })
+
+  await turn.arrived
+  await w.clock.advance(MIN)
+  expect((await cli('answer', asked, 'Drop it')).exit).toBe(EXIT.done)
+  await w.clock.advance(TAKE_IN)
+  expect(
+    await ui.find({ type: 'Text', text: /not sent/ }),
+    'the reply the send carries is going',
+  ).toBeUndefined()
+
+  turn.end()
+  await pressed
+  await w.clock.advance(4 * WATCH_MS)
+
+  const [letter] = parseEntries(w.text(paths.letters(WRITER))).map(line => 'id' in line && line.id)
+
+  expect(w.prompts.map(prompt => prompt.text)).toEqual([
+    'From the board:\n- Keep the sidebar? → Keep it',
+  ])
+  expect(w.state.board?.replies.find(reply => reply.id === letter)).toMatchObject({
+    delivery: 'void',
+    voided: 'answered',
+  })
+  expect(await answerIn(cli)).toMatchObject({
+    resolved: [{ is: 'delivered', words: '→ Keep it' }],
+  })
+})
+
 /** A session no window holds, started by a window gone since, with an ask waiting on Lee. */
 const LEDGER: SessionMeta = {
   id: 'sr-1edger',

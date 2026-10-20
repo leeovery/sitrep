@@ -5,7 +5,8 @@
  *
  * Replies sent into another session's inbox stay in their group until Claude
  * has them, and a while after: the group says where they stand there, and
- * each reply whether it is on its way or when it was delivered.
+ * each reply whether it is on its way or when it was delivered. A reply that
+ * will not go, or never went in, says why in its answer's place.
  *
  * Each of the box's lines takes one row, cut short rather than wrapped, so
  * its height follows from what it lists (`readyRows`): a docked board keeps
@@ -16,22 +17,28 @@ import type { RenderElement } from 'claude-code'
 import {
   deliveryOf,
   type Ask,
+  type Barred,
   type Delivery,
   type Parked,
   type Reply,
   type ReplyFields,
+  type Voided,
 } from '../../core'
-import type { SitrepQueued } from '../../types'
+import type { SitrepInFlight, SitrepQueued } from '../../types'
 import { agoWords, C, counted, GLYPH, wrapped } from '../look'
 import { filedAt, itemKey, sessionLabel } from '../places'
-import { answered, destinations, isCarried, isShowing, queuedFor, sentIn } from '../queue'
+import { answered, destinations, heldBack, isCarried, isShowing, queuedFor, sentIn } from '../queue'
 import type { Filed, Scene } from '../scene'
-import { drawReplyRow, drawRewrite, type Drawing } from './kit'
+import { drawReplyRow, drawRewrite, NOT_SENT, type Drawing } from './kit'
 
 const SENDING = '⧗ Sending. If Claude is mid-turn it goes in as soon as that turn ends.'
 
-/** A sent reply whose item changed under it before it went in. */
-const NOT_DELIVERED = '· not delivered: it changed since'
+/** Why a sent reply never went in: its item changed under it, took another answer of Lee's first, or Claude closed it. */
+const NOT_DELIVERED: Record<Voided, string> = {
+  changed: '· not delivered: it changed since',
+  answered: '· not delivered: already answered',
+  resolved: '· not delivered: Claude closed it',
+}
 
 /** Where a group's sent replies stand, as its line says it. */
 const STANDING: Record<Delivery, { text: string; color: string }> = {
@@ -61,8 +68,8 @@ const MORE_ROWS = 1
 /** The cells across the box keeps from its lines: its border and its padding, each side. */
 const BOX_SIDES = 4
 
-/** A reply waiting for a send, and the item it answers. */
-type Queued = { item: Ask | Parked; queued: SitrepQueued }
+/** A reply waiting for a send, the item it answers, and what holds it back from one, if anything does. */
+type Queued = { item: Ask | Parked; queued: SitrepQueued; barred?: Barred }
 
 /** A reply sent into its session's inbox, and the item it answers. */
 type Sent = { item: Ask | Parked; sent: Reply }
@@ -83,11 +90,16 @@ export type Ready = {
   sending: readonly string[]
 }
 
-const queuedIn = ({ session }: Filed, queue: readonly SitrepQueued[]): Queued[] =>
+/** A session's queued replies that fit their items, each with what holds it back from a send, if anything does. */
+const queuedIn = (
+  { session }: Filed,
+  queue: readonly SitrepQueued[],
+  inFlight: SitrepInFlight | null,
+): Queued[] =>
   queuedFor(queue, session.id).flatMap(queued => {
     const item = answered(session, queued)
 
-    return item === undefined ? [] : [{ item, queued }]
+    return item === undefined ? [] : [{ item, queued, barred: heldBack(inFlight, item, queued) }]
   })
 
 const sentTo = ({ session }: Filed, replies: readonly Reply[]): Sent[] =>
@@ -110,7 +122,7 @@ const groupsOf = (scene: Scene): Group[] => {
       return []
     }
 
-    const waiting = queuedIn(filed, scene.queue)
+    const waiting = queuedIn(filed, scene.queue, scene.inFlight)
 
     if (sent === undefined || !isShowing(filed.session, sent, scene.now)) {
       return waiting.length > 0 ? [{ filed, listed: waiting }] : []
@@ -234,8 +246,20 @@ const drawAnswer = (
   )
 }
 
+/** What follows a queued reply's answer: why it will not go, where something holds it back; else its edit, unless a send carries it. */
+const afterQueued = (d: Drawing, key: string, { item, queued, barred }: Queued) => {
+  if (barred !== undefined) {
+    return line(d, NOT_SENT[barred], C.grey)
+  }
+
+  return isCarried(d.scene.inFlight, queued)
+    ? undefined
+    : drawRewrite(d, `readyrewrite:${key}`, item, queued)
+}
+
 /** A reply waiting for a send, as the box lists it: what it answers, its ✕, and the answer under it. */
-const drawQueuedEntry = (d: Drawing, { item, queued }: Queued) => {
+const drawQueuedEntry = (d: Drawing, entry: Queued) => {
+  const { item, queued } = entry
   const { Box, Button } = d.els
   const key = itemKey(queued.session, queued.item)
 
@@ -255,15 +279,7 @@ const drawQueuedEntry = (d: Drawing, { item, queued }: Queued) => {
           />
         )}
       </Box>
-      {drawAnswer(
-        d,
-        `readyanswer:${key}`,
-        item,
-        queued,
-        isCarried(d.scene.inFlight, queued)
-          ? undefined
-          : drawRewrite(d, `readyrewrite:${key}`, item, queued),
-      )}
+      {drawAnswer(d, `readyanswer:${key}`, item, queued, afterQueued(d, key, entry))}
     </Box>
   )
 }
@@ -272,8 +288,8 @@ const drawQueuedEntry = (d: Drawing, { item, queued }: Queued) => {
 const drawSentEntry = (d: Drawing, { item, sent }: Sent) => {
   const { Box } = d.els
   const standing =
-    sent.delivery === 'void'
-      ? NOT_DELIVERED
+    sent.voided !== undefined
+      ? NOT_DELIVERED[sent.voided]
       : sent.deliveredAt === undefined
         ? '· on its way'
         : `· delivered ${agoWords(d.scene.now, sent.deliveredAt)}`

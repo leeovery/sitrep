@@ -27,6 +27,7 @@ import {
   type Presence,
   type Session,
   type SessionPaths,
+  type Stamp,
 } from '../core'
 import type { SitrepAttachment } from '../types'
 import { activityNow } from './activity'
@@ -282,15 +283,19 @@ export const resume = async (host: Host) => {
   await attachTo(host, await rootFor(host), kept)
 }
 
-/** Writes lines to the end of the window's own file, the whole file at once under today's layout, and folds the session again. */
-export const post = async (host: Host, bodies: readonly Body[]) => {
+/**
+ * Writes lines to the end of the window's own file, the whole file at once
+ * under today's layout, and folds the session again. Each is written as of
+ * now, or as of the time `at` gives it.
+ */
+export const post = async (host: Host, bodies: readonly Body[], at?: Stamp) => {
   const hold = current
 
   if (hold === undefined) {
     throw new Error('no session is held to post to')
   }
 
-  const { text } = append(hold.text, bodies, await host.clock.now())
+  const { text } = append(hold.text, bodies, at ?? (await host.clock.now()))
 
   await host.fs.write(hold.paths.log(hold.attachment.writer), text)
   hold.text = text

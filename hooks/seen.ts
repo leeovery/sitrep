@@ -4,7 +4,7 @@
  * change Claude did not make (another window's, Lee's, the CLI's) is never
  * taken as known.
  */
-import { boardText, type Body, type Session } from '../core'
+import { boardText, type Body, type Session, type Stamp } from '../core'
 import type { Host } from './host'
 import { post, refresh } from './window'
 
@@ -19,13 +19,18 @@ const isSeen = async (host: Host, session: Session) =>
   boardText(session) === (await host.state.seen.read())
 
 /**
- * Posts lines Claude knows of (its own, or replies it has just been sent):
- * the board counts as seen after them, unless it had already moved on from
- * what Claude last saw.
+ * Posts lines Claude knows of (its own, or replies it has just been sent),
+ * as of `at` as `post` takes it: the board counts as seen after them, unless
+ * it had already moved on from what Claude last saw.
  */
-export const postKnown = async (host: Host, session: Session, bodies: readonly Body[]) => {
+export const postKnown = async (
+  host: Host,
+  session: Session,
+  bodies: readonly Body[],
+  at?: Stamp,
+) => {
   const wasSeen = await isSeen(host, session)
-  const after = await post(host, bodies)
+  const after = await post(host, bodies, at)
 
   if (wasSeen && after !== undefined) {
     await markSeen(host, after)

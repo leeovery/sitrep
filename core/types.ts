@@ -22,9 +22,23 @@ export type Verdict = 'yes' | 'choose' | 'answer' | 'comment' | 'ignore' | 'pick
 /**
  * Where a reply stands: Claude has it; it goes in when its session's window
  * ends its turn; no window has the session, so it waits for one to join; or
- * its item changed under it before it went in, so it goes nowhere.
+ * it goes nowhere (`Voided` says why).
  */
 export type Delivery = 'delivered' | 'waiting' | 'closed' | 'void'
+
+/**
+ * What keeps an item from taking an answer of Lee's: `answered`, Lee's
+ * answer already, on its way to it or delivered; `resolved`, Claude's
+ * closing it.
+ */
+export type Barred = 'answered' | 'resolved'
+
+/**
+ * Why a reply went void: `changed`, an edit left it fitting its item no
+ * more before it went in; or its item took no answer when it reached it, as
+ * `Barred` says.
+ */
+export type Voided = 'changed' | Barred
 
 export type StatusBody = {
   type: 'status'
@@ -157,8 +171,9 @@ export type Reply = {
   at: number
   delivery: Delivery
   deliveredAt?: number
-  /** When the edit that left it fitting its item no more was made. */
+  /** When it went void, and why. */
   voidedAt?: number
+  voided?: Voided
 }
 
 /** What every posted item carries: who posted it when, and when it was last opened, closed or edited. */

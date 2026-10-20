@@ -3,11 +3,11 @@
  * the board tool and for the context a turn takes when the board changed;
  * and every project's sessions with their ids, for the start of a
  * conversation. Undelivered replies are left out: Claude has not been told
- * them.
+ * them, so an ask with Lee's answer on its way still waits on Lee here.
  */
 import { answerOf, isOpen, yesOf } from './replies'
 import type { Ask, Finished, Finisher, LogLine, Parked, Session } from './types'
-import type { ProjectSummary, SessionSummary } from './views'
+import { askedOf, summarise, type ProjectSummary, type SessionSummary } from './views'
 
 /** How many of the latest notes the board text lists, for Claude to correct. */
 const RECENT_NOTES = 5
@@ -75,6 +75,16 @@ export const boardText = (session: Session) => {
     section('Latest notes', notes.map(noteLine)),
   ].join('\n')
 }
+
+/**
+ * A session in brief as Claude knows it, for the first message's listing:
+ * its asks waiting as posted count, Lee's answer on its way to one or not,
+ * as its board text lists them, since Claude has not been told that answer.
+ */
+export const toldSummary = (session: Session): SessionSummary => ({
+  ...summarise(session),
+  waiting: askedOf(session).length,
+})
 
 /** A session's line on the board: its project, its id and name, and what waits on Lee. */
 const boardLine = (project: string, session: SessionSummary) =>

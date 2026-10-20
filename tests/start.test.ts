@@ -1,6 +1,6 @@
 import { expect, test, tier, type Engine } from 'claude-code/testing'
 import { CURRENT_MS, parseEntries, parsePresence, startText, type SessionMeta } from '../core'
-import { file, finish, MIN, note, T0, W1, W2 } from './support'
+import { CLI, file, finish, MIN, note, reply, T0, W1, W2, yesAsk } from './support'
 import { DASHBOARD, PROJECT, CONVERSATION, PLUGIN_VERSION, WHERE, world } from './world'
 
 tier('user')
@@ -107,6 +107,20 @@ test("the conversation's first message lists the current sessions by project and
   expect(block?.text).not.toContain('sr-dddddd')
   expect(block?.text).toContain('This window already holds sr-bbbbbb (Dashboard redesign)')
   expect(block?.text).toContain('join it by its id with the sitrep join tool')
+})
+
+test('the first message counts an ask whose answer from Lee is on its way as waiting on Lee: Claude has not been told the answer', async ($, on) => {
+  const w = world($, on, { now: NOW })
+  const ledger = w.elsewhere(meta('sr-cccccc', 'Request ledger', W2))
+
+  ledger.write(yesAsk('k3', 'Review the ledger schema'), yesAsk('k4', 'Run the apply', 'Done'))
+  await w.clock.advance(MIN)
+  w.put(ledger.paths.letters(CLI), file([w.clock.now(), reply('r1', 'k3', 'yes')]))
+  await $.session.start(CONVERSATION)
+
+  const [block] = await firstMessage($)
+
+  expect(block?.text).toContain('- Switchboard: sr-cccccc "Request ledger", 2 waiting on Lee')
 })
 
 test('with no current sessions on the board, the first message carries only how to keep the board', async ($, on) => {

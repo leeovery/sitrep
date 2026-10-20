@@ -6,10 +6,12 @@
  * A reply changes nothing until it is delivered: the board never claims
  * Claude knows something it was not told.
  */
+import type { Stamp } from './entries'
 import type {
   Ask,
   AskKind,
   AskState,
+  Barred,
   Body,
   DeliveredBody,
   Delivery,
@@ -78,7 +80,7 @@ export const isOpen = (ask: Ask) => ask.state === 'waiting' || ask.state === 're
 /** A yes ask's yes, the button's words, as Lee gives it; a bare `yes` where its line gave none. */
 export const yesOf = (ask: Pick<Ask, 'yes'>) => ask.yes ?? 'yes'
 
-/** Whether a reply is on its way: neither delivered, nor void since its item changed under it. */
+/** Whether a reply is on its way: neither delivered, nor void. */
 export const isPending = (reply: Reply) =>
   reply.delivery === 'waiting' || reply.delivery === 'closed'
 
@@ -116,6 +118,29 @@ export const closingReply = (ask: Ask) =>
 /** The reply an item waits on Claude with: sent from a board into its session's inbox, not delivered yet. */
 export const onItsWay = (item: Ask | Parked) => item.replies.findLast(isPending)
 
+/** Whether Lee's answer, delivered, settled an item: an ask closed or ignored by it, a parked item picked up. */
+const isSettledByLee = (item: Ask | Parked) =>
+  item.type === 'park'
+    ? item.answer !== undefined
+    : item.state === 'ignored' || closingReply(item) !== undefined
+
+/**
+ * What keeps an item from taking an answer of Lee's now; undefined while it
+ * takes one: an ask open, a parked item not picked up, with nothing of Lee's
+ * on its way to it. An item takes one answer, the first to reach it.
+ */
+export const barredBy = (item: Ask | Parked): Barred | undefined => {
+  if (onItsWay(item) !== undefined) {
+    return 'answered'
+  }
+
+  if (item.type === 'ask' ? isOpen(item) : item.state === 'parked') {
+    return undefined
+  }
+
+  return isSettledByLee(item) ? 'answered' : 'resolved'
+}
+
 /**
  * Whether an ask waits on Lee: open as posted, with no answer of Lee's on
  * its way to it. One answered waits on a window to deliver the answer, not
@@ -132,8 +157,8 @@ export type AnswerState = { is: 'onItsWay' | 'delivered'; reply: Reply; since: n
 
 /**
  * Where Lee's answer to an ask stands, from its replies; undefined with
- * none on its way and none that closed it: none sent, one void since the
- * ask changed under it, or the ask closed by Claude.
+ * none on its way and none that closed it: none sent, one gone void, or the
+ * ask closed by Claude.
  */
 export const answerState = (ask: Ask): AnswerState | undefined => {
   const sent = onItsWay(ask)
@@ -279,6 +304,18 @@ export const sentLines = (session: Session, replies: readonly ReplyBody[]): Body
   replies.every(reply => session.ids.has(reply.id))
     ? []
     : [...replies, { type: 'delivered', replies: replies.map(reply => reply.id) }]
+
+/**
+ * When the lines recording a send are written as of: each reply when the
+ * send was claimed, having read a board on which its item still took an
+ * answer; the mark, and any other line, `now`, as Claude Code takes it. So
+ * a reply the board gains while the send waits out a turn of Claude's comes
+ * after the send's, by the order every reader reads in, and goes void.
+ */
+export const sentAt =
+  (claimedAt: number, now: number): Stamp =>
+  body =>
+    body.type === 'reply' ? claimedAt : now
 
 /** The mark that Claude has these inbox replies, naming those not marked yet; none once every one is. */
 export const deliveredMark = (session: Session, ids: readonly string[]): DeliveredBody[] => {

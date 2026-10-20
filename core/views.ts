@@ -125,6 +125,14 @@ export const summarise = (session: Session): SessionSummary => ({
   updatedAt: session.updatedAt,
 })
 
+/**
+ * A session's asks still waiting, the oldest first: on Lee, or on a window
+ * to deliver Lee's answer, which each ask's answer tells apart; none once
+ * the session is finished.
+ */
+export const askedOf = (session: Pick<Session, 'asks' | 'finished'>): Ask[] =>
+  session.finished === undefined ? session.asks.filter(ask => ask.state === 'waiting') : []
+
 /** The asks closed, those ignored aside, the newest closed first: what a session's Resolved lists. */
 export const resolvedAsks = (session: Pick<Session, 'asks'>) =>
   session.asks

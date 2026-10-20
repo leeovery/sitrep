@@ -18,7 +18,7 @@
  * prompt box, so none of the board's words go to Claude unasked.
  */
 import type { PromptOrigin, PromptSubmitInput, RenderSurface } from 'claude-code'
-import { isClosing, isOpen, isPending, takes, type Ask, type Parked, type Verdict } from '../core'
+import { barredBy, isClosing, takes, type Ask, type Parked, type Verdict } from '../core'
 import type { SitrepAnswering, SitrepQueued } from '../types'
 import { logFailure, type Host } from './host'
 import { unwrapPastes } from './paste'
@@ -104,17 +104,12 @@ const seenIn = (scene: Scene, { session, item }: SitrepAnswering) => {
       }
 }
 
-/** Whether an item is still open to replies: an ask while open, a parked item until it is picked up. */
-const isStillOpen = (item: Ask | Parked) =>
-  item.type === 'ask' ? isOpen(item) : item.state === 'parked'
-
-/** Whether the item can take the reply: still open, nothing of Lee's on its way to it, and of a shape that takes it. */
+/** Whether the item can take the reply: open to an answer of Lee's (`barredBy`), not carried by a send, and of a shape that takes it. */
 const canTake = (scene: Scene, { session, as }: SitrepAnswering, item: Ask | Parked) => {
   const queued = queuedOn(scene.queue, session, item.id)
 
   return (
-    isStillOpen(item) &&
-    !item.replies.some(isPending) &&
+    barredBy(item) === undefined &&
     (queued === undefined || !isCarried(scene.inFlight, queued)) &&
     takes(item, VERDICT[as])
   )

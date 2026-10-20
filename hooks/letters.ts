@@ -47,7 +47,7 @@ const write = async (
 }
 
 /**
- * Takes a session's replies that still fit its items out of the queue, in one
+ * Takes a session's replies its items take now out of the queue, in one
  * change, so a second send finds them gone; never those a send in flight
  * carries, which are on their way as Lee's own message.
  */
@@ -64,7 +64,7 @@ const take = async (host: Host, session: Session) => {
   return taken
 }
 
-/** Writes a session's replies that still fit its items into its inbox; a write that fails puts them back. */
+/** Writes a session's replies its items take now into its inbox; a write that fails puts them back. */
 const sendTo = async (
   host: Host,
   held: SitrepAttachment,
