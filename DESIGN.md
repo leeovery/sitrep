@@ -2948,7 +2948,15 @@ reaches a window only while that pane is on show).
         the last frame's moment, minutes old once frames have slept; and
         frames woken after a sleep take no speed from the pointer's unseen
         move. A move wakes them from near the notch as well as to it, so a
-        notch leaning toward the pointer sees it go.
+        notch leaning toward the pointer sees it go. Every input steps the
+        model, so the press, the drag and the rest act on one list in one
+        place (`NotchRun`), and the model's clock never goes back. While
+        frames run, the next one draws what the inputs between did. The
+        pointer's speed is measured in its own time, each reading stamped
+        as it was read, and one within 1ms of the last taking its place, as
+        `trackPointer` does, so a frame between ticks reads the speed the
+        ticks read. The light keeps a clock of its own, so it never steps
+        back and never moves the notch's.
       - **A row's project** is named as the board names it, with core's
         letters for it, ready for the strip; and an away ask's second line
         is core's.
