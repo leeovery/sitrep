@@ -37,6 +37,8 @@ public final class WindowRun {
     private var finishing: [String: Finish] = [:]
     /// The asks opened in place in a project's view.
     private var opened: Set<AskAddress> = []
+    /// The items of Status, Notes, Parked and Resolved opened in place.
+    private var openedItems: Set<Item> = []
 
     public init(lastSession: String? = nil) {
         self.lastSession = lastSession
@@ -150,6 +152,7 @@ public final class WindowRun {
             self.pick = pick
             frozen = [:]
             opened = []
+            openedItems = []
             answers.forgetRefusals()
             dropAskingToFinish()
             if case let .session(id) = pick {
@@ -248,6 +251,14 @@ public final class WindowRun {
     public func toggle(_ ask: AskAddress) {
         if opened.remove(ask) == nil {
             opened.insert(ask)
+        }
+    }
+
+    /// An item of Status, Notes, Parked or Resolved opened in place to the whole of it, or closed again. Picking
+    /// another page closes them all.
+    public func toggle(_ item: Item) {
+        if openedItems.remove(item) == nil {
+            openedItems.insert(item)
         }
     }
 
@@ -356,11 +367,12 @@ public final class WindowRun {
             asks: cards(of: session, at: time),
             status: Status(now: session.now, next: session.next, updated: read?.log.first { $0.kind == .status }?.at),
             notes: read.map { Self.notes($0.log, of: session, named: false) } ?? [],
-            parked: read?.parked.map { Parked(id: $0.id, session: nil, title: $0.title, at: $0.at) } ?? [],
+            parked: read?.parked.map { Parked(id: $0.id, session: nil, title: $0.title, where: $0.where, at: $0.at) } ?? [],
             resolved: read.map { Self.resolved($0, leaving: frozen[session.id]?.kept ?? []) } ?? [],
             finish: isAway ? finishing[session.id] ?? .offered : nil,
             isRead: read != nil,
-            failure: failed[session.id]
+            failure: failed[session.id],
+            opened: openedItems
         )
     }
 
@@ -385,8 +397,11 @@ public final class WindowRun {
             }.sorted { $0.card.since > $1.card.since },
             notes: Array(read.flatMap { Self.notes($1.log, of: $0, named: true) }.sorted { $0.at > $1.at }.prefix(Self.projectNotes)),
             parked: read.flatMap { session, read in
-                read.parked.map { Parked(id: "\(session.id):\($0.id)", session: session.name, title: $0.title, at: $0.at) }
-            }.sorted { $0.at < $1.at }
+                read.parked.map {
+                    Parked(id: "\(session.id):\($0.id)", session: session.name, title: $0.title, where: $0.where, at: $0.at)
+                }
+            }.sorted { $0.at < $1.at },
+            opened: openedItems
         )
     }
 
@@ -420,13 +435,18 @@ public final class WindowRun {
         }
 
         return zip(log, ids.reversed()).map { line, own in
-            Note(id: "\(session.id):\(own)", session: named ? session.name : nil, text: line.text, at: line.at)
+            Note(id: "\(session.id):\(own)", session: named ? session.name : nil, text: line.text, detail: line.detail, at: line.at)
         }
     }
 
     private static func resolved(_ board: SessionBoard, leaving kept: Set<String>) -> [Resolved] {
         board.resolved.filter { !kept.contains($0.id) }.map { resolved in
-            Resolved(id: resolved.id, title: resolved.ask.title, closed: resolved.closedAt ?? resolved.ask.at, how: Card.closed(resolved.id, in: board))
+            let how = Card.closed(resolved.id, in: board)
+
+            return Resolved(
+                id: resolved.id, title: resolved.ask.title, closed: resolved.closedAt ?? resolved.ask.at, how: how,
+                answer: how == .sent ? resolved.ask.reply?.words : nil
+            )
         }
     }
 

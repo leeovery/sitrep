@@ -73,6 +73,11 @@ public enum Words {
         }
     }
 
+    /// A resolved ask opened: Lee's answer, as the board words it, where his answer closed it, and how it closed.
+    public static func howClosed(_ resolved: Resolved) -> (answer: String?, words: String) {
+        (resolved.answer, closed(resolved.how))
+    }
+
     public static let finish = "✓ Finish this session"
     public static let finishWhy = "For a session left with things open when its window closed."
 

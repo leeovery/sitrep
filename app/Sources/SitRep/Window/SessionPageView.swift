@@ -10,7 +10,7 @@ struct SessionPageView: View {
     let now: Date
 
     @Environment(\.windowActions) private var act
-    @Environment(\.isJumping) private var isJumping
+    @Environment(\.pressedJump) private var pressedJump
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -38,12 +38,11 @@ struct SessionPageView: View {
     private var bar: some View {
         HStack {
             Button(page.projectName) { act.pick(.project(page.projectKey)) }
-                .buttonStyle(.plain)
+                .buttonStyle(WordsStyle())
                 .font(WindowStyle.ui(13, .medium))
-                .foregroundStyle(WindowStyle.soft)
             Spacer()
             if page.jumps {
-                Button { act.jump(page.id) } label: {
+                Button { act.jump(.open(page.id)) } label: {
                     HStack(spacing: 6) {
                         Text("Open in Ghostty").foregroundStyle(WindowStyle.text)
                         Text("↗").foregroundStyle(WindowStyle.soft)
@@ -52,11 +51,9 @@ struct SessionPageView: View {
                     .padding(.vertical, 5)
                     .padding(.leading, 11)
                     .padding(.trailing, 10)
-                    .background(RoundedRectangle(cornerRadius: 7).fill(WindowStyle.raise))
-                    .overlay(RoundedRectangle(cornerRadius: 7).strokeBorder(WindowStyle.line, lineWidth: 1))
                 }
-                .buttonStyle(.plain)
-                .disabled(isJumping)
+                .buttonStyle(JumpStyle())
+                .disabled(pressedJump == .open(page.id))
             }
         }
         .frame(height: WindowStyle.barHeight)
@@ -103,19 +100,19 @@ struct SessionPageView: View {
         if page.isRead {
             TwoColumns {
                 VStack(alignment: .leading, spacing: 26) {
-                    StatusSection(status: page.status, now: now)
+                    StatusSection(status: page.status, opened: page.opened, now: now)
                     if !page.notes.isEmpty {
-                        NotesSection(notes: page.notes, now: now)
+                        NotesSection(notes: page.notes, opened: page.opened, now: now)
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 if !page.parked.isEmpty || !page.resolved.isEmpty {
                     VStack(alignment: .leading, spacing: 26) {
                         if !page.parked.isEmpty {
-                            ParkedSection(parked: page.parked, now: now)
+                            ParkedSection(parked: page.parked, opened: page.opened, now: now)
                         }
                         if !page.resolved.isEmpty {
-                            ResolvedSection(resolved: page.resolved, now: now)
+                            ResolvedSection(resolved: page.resolved, opened: page.opened, now: now)
                         }
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -178,7 +175,7 @@ private struct StopCard: View {
     let now: Date
 
     @Environment(\.windowActions) private var act
-    @Environment(\.isJumping) private var isJumping
+    @Environment(\.pressedJump) private var pressedJump
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -207,8 +204,9 @@ private struct StopCard: View {
                     .foregroundStyle(WindowStyle.soft)
                     .padding(.leading, 22)
             }
-            Pill(words: Words.button(.inClaude(.answer)), look: .white) { act.jump(session) }
-                .disabled(isJumping)
+            Pill(words: Words.button(.inClaude(.answer)), look: .white) { act.jump(.stop(session)) }
+                .fixedSize()
+                .disabled(pressedJump == .stop(session))
                 .padding(.leading, 22)
                 .padding(.top, 4)
         }
@@ -232,16 +230,18 @@ private struct FinishFoot: View {
         HStack(spacing: 14) {
             switch finish {
             case .offered:
-                Pill(words: Words.finish, look: .outlined) { act.askToFinish(session) }
+                Pill(words: Words.finish, look: .outlined) { act.askToFinish(session) }.fixedSize()
                 note(Words.finishWhy)
             case .asking, .finishing:
                 note(Words.finishing(name), colour: WindowStyle.text)
                 Pill(words: "Yes, finish it", look: .white) { act.confirmFinish(session) }
+                    .fixedSize()
                     .disabled(finish == .finishing)
                 Pill(words: "Cancel", look: .quiet) { act.cancelFinish(session) }
+                    .fixedSize()
                     .disabled(finish == .finishing)
             case let .refused(why):
-                Pill(words: Words.finish, look: .outlined) { act.askToFinish(session) }
+                Pill(words: Words.finish, look: .outlined) { act.askToFinish(session) }.fixedSize()
                 note(why)
             }
         }

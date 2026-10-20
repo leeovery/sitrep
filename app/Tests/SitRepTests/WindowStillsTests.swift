@@ -26,6 +26,7 @@ struct WindowStillsTests {
             content: WindowContent(listed: run.listed(at: now), page: run.page(at: now), pick: run.pick, now: now)
                 .frame(width: WindowStyle.size.width, height: WindowStyle.size.height)
                 .environment(\.isStill, true)
+                .environment(\.isHoveredStill, still == .hovered)
         )
 
         renderer.scale = 2
@@ -59,6 +60,10 @@ struct WindowStillsTests {
         case closedWhileRead = "c4-closed-while-read"
         case newAsk = "c5-a-new-ask"
         case allClear = "c6-all-clear"
+        case hovered = "d1-every-row-and-button-hovered"
+        case quietProject = "d2-a-quiet-project-picked"
+        case openedItems = "d3-items-opened"
+        case longOptions = "d4-long-options-as-rows"
 
         /// The window's run in the state, and the time it is drawn at.
         func run() -> (WindowRun, Date) {
@@ -93,6 +98,14 @@ struct WindowStillsTests {
             case .allClear:
                 _ = run.show(Self.heard(Self.nothingNeedingLee), at: now, reducesMotion: false)
                 Self.pick(.session("sr-rq7dgr"), in: run)
+            case .hovered:
+                break
+            case .quietProject:
+                Self.pick(.project("kit"), in: run)
+            case .openedItems:
+                [.status(0), .next, .note("sr-macapp:n2"), .parked("p1"), .resolved("k4"), .resolved("k5")].forEach(run.toggle)
+            case .longOptions:
+                Self.pick(.session("sr-macapp"), in: run, board: Self.withLongOptions)
             }
             return (run, now)
         }
@@ -136,6 +149,11 @@ struct WindowStillsTests {
         private static let resolvedByClaude = Lines.board
             .replacingOccurrences(of: #""id": "k5""#, with: #""id": "k2""#)
             .replacingOccurrences(of: #""id": "k2",\#n      "wants": "choice""#, with: #""id": "k9",\#n      "wants": "choice""#)
+
+        /// The Mac app's choice with options as long as Claude often gives them.
+        private static let withLongOptions = Lines.board
+            .replacingOccurrences(of: #""Left, the notch's edge""#, with: #""Inside the Claude Code step's script, with its clean-up as a nightly job beside it (recommended)""#)
+            .replacingOccurrences(of: #""Right""#, with: #""A Scratch step of its own, after Claude Code's, with its clean-up as a nightly job""#)
 
         /// The first board, Goosemates' ask new on it.
         private static let withNew = Lines.watch[0]

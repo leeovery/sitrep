@@ -25,7 +25,7 @@ public struct Card: Equatable, Sendable, Identifiable {
         }
 
         /// A yes or an option: Lee's answer, given here, which waits in the inbox while no window holds the session.
-        var isAnswer: Bool {
+        public var isAnswer: Bool {
             switch self {
             case .yes, .option: true
             case .inClaude, .ignore: false
@@ -150,6 +150,23 @@ extension Card {
         let prompt: [Button] = isAway ? [] : [.inClaude(answers.isEmpty ? .answer : .comment)]
 
         return answers + prompt + [.ignore]
+    }
+
+    /// How a card lays out its buttons.
+    public enum Arrangement: Sendable {
+        /// On one line, each a pill.
+        case pills
+        /// Its answers a column of rows as wide as the card, their words wrapping, the rest on a line after them.
+        case rows
+    }
+
+    /// Pills, while every button fits on one line at its one-line width, measured, with the space between; else its
+    /// answers as rows, as Claude's long options wrapped inside their pills. A card with no answer to give here keeps
+    /// its pills.
+    public static func arrangement(of buttons: [Button], widths: [Double], spacing: Double, in width: Double) -> Arrangement {
+        let needs = widths.reduce(0, +) + spacing * Double(max(0, widths.count - 1))
+
+        return buttons.contains(where: \.isAnswer) && needs > width ? .rows : .pills
     }
 
     private static func wait(_ doing: Doing) -> Wait {

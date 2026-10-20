@@ -34,8 +34,7 @@ final class SitRepWindow: NSObject, NSWindowDelegate {
         } else if !window.isVisible {
             model.opened()
         }
-        NSApp.activate()
-        window.makeKeyAndOrderFront(nil)
+        window.comeForward()
     }
 
     func windowWillClose(_ notification: Notification) {
@@ -51,6 +50,16 @@ final class SitRepWindow: NSObject, NSWindowDelegate {
     }
 
     private func make() -> NSWindow {
+        let window = Self.window(NSHostingView(rootView: WindowView(model: model)))
+
+        window.delegate = self
+        window.setFrameAutosaveName("SitRepWindow")
+        listenForEscape(in: window)
+        return window
+    }
+
+    /// The window, over its content, on the Space Lee is on whenever it opens (`comeForward()`).
+    static func window(_ content: NSView) -> NSWindow {
         let window = NSWindow(
             contentRect: NSRect(origin: .zero, size: WindowStyle.size),
             styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView],
@@ -63,12 +72,10 @@ final class SitRepWindow: NSObject, NSWindowDelegate {
         window.backgroundColor = .black
         window.appearance = NSAppearance(named: .darkAqua)
         window.isReleasedWhenClosed = false
+        window.collectionBehavior = .moveToActiveSpace
         window.minSize = NSSize(width: 860, height: 520)
-        window.contentView = NSHostingView(rootView: WindowView(model: model))
-        window.delegate = self
+        window.contentView = content
         window.center()
-        window.setFrameAutosaveName("SitRepWindow")
-        listenForEscape(in: window)
         return window
     }
 
@@ -98,8 +105,18 @@ private struct WindowView: View {
             )
         }
         .environment(\.windowActions, model.actions)
-        .environment(\.isJumping, model.isJumping)
+        .environment(\.pressedJump, model.jumping.pressed)
         .environment(\.reducesWindowMotion, model.reducesMotion)
         .ignoresSafeArea()
+    }
+}
+
+extension NSWindow {
+    /// Brought forward on the Space Lee is on, and keyed: the window moves to that Space as it orders front, which
+    /// `.moveToActiveSpace` asks for, before SitRep activates, so the activation finds a window of SitRep's where Lee
+    /// is and takes him to no other Space. Activated first, macOS went to the Space the window was last on.
+    func comeForward() {
+        makeKeyAndOrderFront(nil)
+        NSApp.activate()
     }
 }

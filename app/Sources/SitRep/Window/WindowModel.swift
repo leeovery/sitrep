@@ -19,6 +19,8 @@ final class WindowModel {
     private(set) var isMoving = false
     /// SitRep's own Reduce motion, or the Mac's, followed as either changes.
     private(set) var reducesMotion = WindowModel.readReducesMotion()
+    /// The window's jump under way, which only the button pressed shows.
+    private(set) var jumping = Jumping()
 
     /// What the views' presses ask the model for.
     @ObservationIgnored private(set) var actions = WindowActions()
@@ -42,7 +44,8 @@ final class WindowModel {
             pick: { [weak self] in self?.pick($0) },
             press: { [weak self] in self?.press($0, on: $1) },
             toggle: { [weak self] in self?.toggle($0) },
-            jump: { [weak self] in self?.jump(to: $0) },
+            toggleItem: { [weak self] in self?.toggle($0) },
+            jump: { [weak self] in self?.jump($0) },
             askToFinish: { [weak self] in self?.askToFinish($0) },
             cancelFinish: { [weak self] in self?.cancelFinish($0) },
             confirmFinish: { [weak self] in self?.confirmFinish($0) },
@@ -50,9 +53,6 @@ final class WindowModel {
         )
         listen()
     }
-
-    /// A jump runs, from the window, the notch, the strip or the menu: the window's jumps wait.
-    var isJumping: Bool { works.isJumping }
 
     private static func readReducesMotion() -> Bool {
         Displays.reducesMotion(SavedEdgeSettings().read())
@@ -123,13 +123,18 @@ final class WindowModel {
 
     private func press(_ button: Card.Button, on ask: AskAddress) {
         if let session = run.press(button, on: ask, at: Date()) {
-            jump(to: session)
+            jump(.card(ask, button), to: session)
         }
         refresh()
     }
 
     private func toggle(_ ask: AskAddress) {
         run.toggle(ask)
+        refresh()
+    }
+
+    private func toggle(_ item: Item) {
+        run.toggle(item)
         refresh()
     }
 
@@ -162,10 +167,23 @@ final class WindowModel {
         }
     }
 
-    /// To the session's window, as the notch's and the menu's jumps go: one at a time, none while one runs.
-    private func jump(to session: String) {
-        if !works.isJumping {
-            works.jump(to: session)
+    /// "Open in Ghostty ↗", or a stop's "Answer in Claude ↗".
+    private func jump(_ press: JumpPress) {
+        switch press {
+        case let .open(session), let .stop(session): jump(press, to: session)
+        case .card: break
+        }
+    }
+
+    /// To the session's window, as the notch's and the menu's jumps go: one at a time, none while one runs from
+    /// anywhere. Only the button pressed shows it, until it answers.
+    private func jump(_ press: JumpPress, to session: String) {
+        guard jumping.press(press, isJumping: works.isJumping) else {
+            return
+        }
+
+        works.jump(to: session) { [weak self] _ in
+            MainActor.assumeIsolated { self?.jumping.answered() }
         }
     }
 

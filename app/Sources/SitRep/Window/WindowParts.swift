@@ -58,7 +58,8 @@ struct TurningArc: View {
 }
 
 /// A button as a pill: the yes, white, the brightest thing in the window; an option, outlined on a fill; the rest
-/// outlined; ignore, quiet grey text.
+/// outlined; ignore, quiet grey text. Each lifts under the pointer. Given more width than its words take on one line,
+/// as a card's answers laid out as rows, it takes it all, its words from the left and wrapping, its ends still round.
 struct Pill: View {
     enum Look {
         case white, option, outlined, quiet
@@ -72,14 +73,13 @@ struct Pill: View {
         Button(action: action) {
             Text(words)
                 .font(WindowStyle.ui(12, look == .option || look == .white ? .semibold : .medium))
-                .foregroundStyle(foreground)
+                .multilineTextAlignment(.leading)
+                .fixedSize(horizontal: false, vertical: true)
                 .padding(.vertical, look == .white || look == .quiet ? 6 : 5)
                 .padding(.horizontal, padding)
-                .background(Capsule().fill(fill))
-                .overlay(Capsule().strokeBorder(ring, lineWidth: look == .outlined || look == .option ? 1 : 0))
-                .contentShape(Capsule())
+                .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .buttonStyle(.plain)
+        .buttonStyle(PillStyle(look: look))
     }
 
     private var padding: CGFloat {
@@ -89,25 +89,52 @@ struct Pill: View {
         case .quiet: 8
         }
     }
+}
 
-    private var foreground: Color {
+/// A pill's ink, fill and ring, a little lifted under the pointer or keyboard focus, and the more pressed; faint while
+/// it is the one whose jump runs.
+private struct PillStyle: ButtonStyle {
+    let look: Pill.Look
+
+    @Environment(\.isEnabled) private var isEnabled
+
+    func makeBody(configuration: Configuration) -> some View {
+        Highlighted(isPressed: configuration.isPressed) { highlight in
+            let shape = RoundedRectangle(cornerRadius: 13, style: .continuous)
+
+            configuration.label
+                .foregroundStyle(foreground(highlight))
+                .background(shape.fill(fill(highlight)))
+                .overlay(shape.strokeBorder(ring(highlight), lineWidth: look == .outlined || look == .option ? 1 : 0))
+                .contentShape(shape)
+                .opacity(isEnabled ? 1 : 0.45)
+        }
+    }
+
+    private func foreground(_ highlight: Highlight) -> Color {
         switch look {
         case .white: WindowStyle.ink
         case .option, .outlined: WindowStyle.text
-        case .quiet: WindowStyle.faint
+        case .quiet: highlight == .none ? WindowStyle.faint : WindowStyle.soft
         }
     }
 
-    private var fill: Color {
+    private func fill(_ highlight: Highlight) -> Color {
+        switch (look, highlight) {
+        case (.white, .none): WindowStyle.text
+        case (.white, _): WindowStyle.text.opacity(highlight == .picked ? 0.75 : 0.88)
+        case (.option, .none): WindowStyle.option
+        case (.option, _), (.outlined, .picked): WindowStyle.optionLift
+        case (.outlined, .hover): WindowStyle.option
+        case (.outlined, .none), (.quiet, _): .clear
+        }
+    }
+
+    private func ring(_ highlight: Highlight) -> Color {
         switch look {
-        case .white: WindowStyle.text
-        case .option: WindowStyle.option
-        case .outlined, .quiet: .clear
+        case .option: highlight == .none ? WindowStyle.optionRing : WindowStyle.ringLift
+        default: highlight == .none ? WindowStyle.ring : WindowStyle.ringLift
         }
-    }
-
-    private var ring: Color {
-        look == .option ? WindowStyle.optionRing : WindowStyle.ring
     }
 }
 
@@ -141,6 +168,8 @@ struct SectionLine: View {
     let text: String
     var textColour = WindowStyle.text
     var time: String?
+    /// Opened in place: its words whole, wrapping.
+    var isOpen = false
 
     var body: some View {
         HStack(alignment: .firstTextBaseline, spacing: 10) {
@@ -155,7 +184,8 @@ struct SectionLine: View {
                 Text(text).foregroundStyle(textColour)
             }
             .font(WindowStyle.ui(13))
-            .lineLimit(1)
+            .lineLimit(isOpen ? nil : 1)
+            .fixedSize(horizontal: false, vertical: isOpen)
             .frame(maxWidth: .infinity, alignment: .leading)
             if let time {
                 Text(time).font(WindowStyle.ui(12)).foregroundStyle(WindowStyle.faint)
@@ -241,4 +271,6 @@ extension EnvironmentValues {
     @Entry var reducesWindowMotion = false
     /// Drawn offscreen, as a still.
     @Entry var isStill = false
+    /// Drawn as a still with the pointer over every row and button at once, to show how each highlights.
+    @Entry var isHoveredStill = false
 }

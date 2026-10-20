@@ -12,7 +12,7 @@ struct CardView: View {
     var closesBack: (() -> Void)?
 
     @Environment(\.windowActions) private var act
-    @Environment(\.isJumping) private var isJumping
+    @Environment(\.pressedJump) private var pressedJump
 
     var body: some View {
         if card.lines == [.closed(.sent)] {
@@ -73,7 +73,12 @@ struct CardView: View {
     /// Its head, which closes it back to its line where it can.
     @ViewBuilder private func head(_ content: some View) -> some View {
         if let closesBack {
-            Button(action: closesBack) { content.contentShape(Rectangle()) }.buttonStyle(.plain)
+            Button(action: closesBack) {
+                content.padding(.vertical, 4).padding(.horizontal, 6).contentShape(Rectangle())
+            }
+            .buttonStyle(RowStyle())
+            .padding(.vertical, -4)
+            .padding(.horizontal, -6)
         } else {
             content
         }
@@ -101,11 +106,13 @@ struct CardView: View {
         }
     }
 
+    /// Its buttons, on one line as pills or its answers as rows (`CardButtons`). Only the button whose jump runs
+    /// shows it; the others stay as they look, and the model starts no second jump while one runs.
     private var buttons: some View {
-        HStack(spacing: 8) {
+        CardButtons(buttons: card.buttons) {
             ForEach(card.buttons, id: \.self) { button in
                 Pill(words: Words.button(button), look: Self.look(button)) { act.press(button, card.id) }
-                    .disabled(button.answer == nil && isJumping)
+                    .disabled(pressedJump == .card(card.id, button))
             }
         }
         .padding(.leading, 22)
@@ -120,6 +127,75 @@ struct CardView: View {
         case .option: .option
         case .inClaude(.comment): .outlined
         case .ignore: .quiet
+        }
+    }
+}
+
+/// A card's buttons, one subview each in the card's order: on one line as pills while they fit at their one-line
+/// widths, as measured; else its answers a column of rows as wide as the card, their words wrapping, then the rest on
+/// a line after them (`Card.arrangement`).
+struct CardButtons: Layout {
+    let buttons: [Card.Button]
+    var spacing: CGFloat = 8
+    var rowSpacing: CGFloat = 6
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache _: inout ()) -> CGSize {
+        let frames = frames(proposal.width, subviews)
+        let width = proposal.width ?? frames.map(\.maxX).max() ?? 0
+
+        return CGSize(width: width, height: frames.map(\.maxY).max() ?? 0)
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache _: inout ()) {
+        for (subview, frame) in zip(subviews, frames(bounds.width, subviews)) {
+            subview.place(
+                at: CGPoint(x: bounds.minX + frame.minX, y: bounds.minY + frame.minY),
+                proposal: ProposedViewSize(frame.size)
+            )
+        }
+    }
+
+    /// Each button's place, from the top left.
+    private func frames(_ width: CGFloat?, _ subviews: Subviews) -> [CGRect] {
+        let ideal = subviews.map { $0.sizeThatFits(.unspecified) }
+
+        guard let width, subviews.count == buttons.count,
+              Card.arrangement(of: buttons, widths: ideal.map { Double($0.width) }, spacing: spacing, in: width) == .rows
+        else {
+            return line(ideal, top: 0)
+        }
+
+        return rows(width, ideal, subviews)
+    }
+
+    /// The answers a row each, as wide as the card, then the rest on a line after them, each in its place.
+    private func rows(_ width: CGFloat, _ ideal: [CGSize], _ subviews: Subviews) -> [CGRect] {
+        var frames = [CGRect](repeating: .zero, count: subviews.count)
+        var top: CGFloat = 0
+
+        for offset in subviews.indices where buttons[offset].isAnswer {
+            let height = subviews[offset].sizeThatFits(ProposedViewSize(width: width, height: nil)).height
+
+            frames[offset] = CGRect(x: 0, y: top, width: width, height: height)
+            top += height + rowSpacing
+        }
+
+        let rest = subviews.indices.filter { !buttons[$0].isAnswer }
+
+        for (offset, frame) in zip(rest, line(rest.map { ideal[$0] }, top: top - rowSpacing + spacing)) {
+            frames[offset] = frame
+        }
+        return frames
+    }
+
+    /// Sizes side by side from the left, centred on one line.
+    private func line(_ sizes: [CGSize], top: CGFloat) -> [CGRect] {
+        let height = sizes.map(\.height).max() ?? 0
+        var x: CGFloat = 0
+
+        return sizes.map { size in
+            defer { x += size.width + spacing }
+            return CGRect(x: x, y: top + (height - size.height) / 2, width: size.width, height: size.height)
         }
     }
 }

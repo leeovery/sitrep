@@ -45,6 +45,19 @@ public struct SessionPage: Equatable, Sendable {
     public let isRead: Bool
     /// Why the latest read of its board failed, over what was read before, if anything was.
     public let failure: String?
+    /// The items of Status, Notes, Parked and Resolved opened in place.
+    public let opened: Set<Item>
+}
+
+/// An item of Status, Notes, Parked or Resolved, which a press opens in place to the whole of it, and closes again.
+public enum Item: Hashable, Sendable {
+    /// A line of the status, by its place.
+    case status(Int)
+    /// The status's next.
+    case next
+    case note(String)
+    case parked(String)
+    case resolved(String)
 }
 
 public struct Status: Equatable, Sendable {
@@ -54,27 +67,31 @@ public struct Status: Equatable, Sendable {
     public let updated: Date?
 }
 
-/// A line of a session's log, and in a project's view the session it is from.
+/// A line of a session's log, and in a project's view the session it is from; opened, its detail under it.
 public struct Note: Equatable, Sendable, Identifiable {
     public let id: String
     public let session: String?
     public let text: String
+    public let detail: [String]
     public let at: Date
 }
 
+/// Something parked, and opened, where it was parked from.
 public struct Parked: Equatable, Sendable, Identifiable {
     public let id: String
     public let session: String?
     public let title: String
+    public let `where`: String?
     public let at: Date
 }
 
-/// A resolved ask: its title, when it closed and how.
+/// A resolved ask: its title, when it closed and how; closed by Lee's answer, the answer, as the board words it.
 public struct Resolved: Equatable, Sendable, Identifiable {
     public let id: String
     public let title: String
     public let closed: Date
     public let how: Card.Closed
+    public let answer: String?
 }
 
 /// Finishing an away session, which asks first, in place.
@@ -125,4 +142,6 @@ public struct ProjectPage: Equatable, Sendable {
     public let asks: [Ask]
     public let notes: [Note]
     public let parked: [Parked]
+    /// Its notes and parked items opened in place.
+    public let opened: Set<Item>
 }

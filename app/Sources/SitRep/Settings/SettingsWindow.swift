@@ -19,15 +19,15 @@ final class SettingsWindow {
         let window = window ?? made()
 
         self.window = window
-        NSApp.activate()
-        window.makeKeyAndOrderFront(nil)
+        window.comeForward()
     }
 
     private func made() -> NSWindow {
         Self.window(NSHostingController(rootView: SettingsView(preferences: preferences, live: live, services: services)))
     }
 
-    /// The window, closable and minimisable so the main menu's ⌘W and ⌘M reach it (`AppMenu`).
+    /// The window, closable and minimisable so the main menu's ⌘W and ⌘M reach it (`AppMenu`), on the Space Lee is
+    /// on whenever it opens.
     static func window(_ content: NSViewController) -> NSWindow {
         let window = NSWindow(contentViewController: content)
 
@@ -36,6 +36,7 @@ final class SettingsWindow {
         window.titleVisibility = .hidden
         window.titlebarAppearsTransparent = true
         window.isReleasedWhenClosed = false
+        window.collectionBehavior = .moveToActiveSpace
         window.setContentSize(NSSize(width: 700, height: 540))
         window.contentMinSize = NSSize(width: 620, height: 460)
         window.center()

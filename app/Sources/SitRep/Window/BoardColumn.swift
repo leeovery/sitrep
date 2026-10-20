@@ -2,7 +2,8 @@ import SitRepWindow
 import SwiftUI
 
 /// The board down the left: the head, every project with something open and its sessions under it, and the quiet
-/// projects folded into a line at the foot. A press on a session picks it; on a project's name, opens the project.
+/// projects folded into a line at the foot. A press on a session picks it; on a project's name, its own or a quiet
+/// one's, opens the project. Every row highlights under the pointer, and the one picked stays highlighted.
 struct BoardColumn: View {
     let listed: Listed
     let pick: Pick?
@@ -25,7 +26,7 @@ struct BoardColumn: View {
             }
             .onHover { act.pointer($0) }
             if !listed.quiet.isEmpty {
-                QuietFoot(names: listed.quiet)
+                QuietFoot(quiet: listed.quiet, pick: pick)
             }
         }
         .padding(.horizontal, 10)
@@ -71,7 +72,7 @@ private struct ProjectRows: View {
                 .padding(.bottom, 5)
                 .contentShape(Rectangle())
             }
-            .buttonStyle(.plain)
+            .buttonStyle(RowStyle(isPicked: pick == .project(project.id)))
             ForEach(project.sessions) { row in
                 SessionRowView(row: row, isPicked: pick == .session(row.id), now: now)
             }
@@ -105,29 +106,83 @@ private struct SessionRowView: View {
             .padding(.vertical, 7)
             .padding(.horizontal, 10)
             .modifier(Washed(since: row.washed, now: now, radius: 8))
-            .background(RoundedRectangle(cornerRadius: 8).fill(isPicked ? WindowStyle.raise : .clear))
             .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
+        .buttonStyle(RowStyle(isPicked: isPicked))
     }
 
     private var isWashing: Bool { row.washed != nil }
 }
 
-/// The quiet projects, folded into one line at the foot.
+/// The quiet projects, folded into the foot: how many, then each name, which opens its project, highlighted under the
+/// pointer and kept highlighted while its project is picked.
 private struct QuietFoot: View {
-    let names: [String]
+    let quiet: [Listed.Quiet]
+    let pick: Pick?
+
+    @Environment(\.windowActions) private var act
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 3) {
-            Text(Words.quiet(names.count)).font(WindowStyle.ui(12, .semibold)).foregroundStyle(WindowStyle.soft)
-            Text(names.joined(separator: ", ")).font(WindowStyle.ui(12)).foregroundStyle(WindowStyle.faint).lineLimit(1)
+        VStack(alignment: .leading, spacing: 5) {
+            Text(Words.quiet(quiet.count))
+                .font(WindowStyle.ui(12, .semibold))
+                .foregroundStyle(WindowStyle.soft)
+                .padding(.horizontal, 10)
+            Flow(spacing: 2) {
+                ForEach(quiet) { project in
+                    Button { act.pick(project.pick) } label: {
+                        Text(project.name)
+                            .font(WindowStyle.ui(12, .medium))
+                            .foregroundStyle(WindowStyle.soft)
+                            .lineLimit(1)
+                            .padding(.vertical, 3)
+                            .padding(.horizontal, 8)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(RowStyle(isPicked: pick == project.pick, radius: 6))
+                }
+            }
+            .padding(.horizontal, 2)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.horizontal, 20)
         .padding(.top, 12)
-        .padding(.bottom, 16)
-        .overlay(alignment: .top) { Rectangle().fill(WindowStyle.line).frame(height: 1) }
-        .padding(.horizontal, -10)
+        .padding(.bottom, 12)
+        .overlay(alignment: .top) { Rectangle().fill(WindowStyle.line).frame(height: 1).padding(.horizontal, -10) }
+    }
+}
+
+/// Subviews side by side from the left, a line wrapping onto the next where it runs out of width.
+private struct Flow: Layout {
+    var spacing: CGFloat
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache _: inout ()) -> CGSize {
+        let frames = frames(proposal.width ?? .infinity, subviews)
+
+        return CGSize(width: proposal.width ?? frames.map(\.maxX).max() ?? 0, height: frames.map(\.maxY).max() ?? 0)
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache _: inout ()) {
+        for (subview, frame) in zip(subviews, frames(bounds.width, subviews)) {
+            subview.place(at: CGPoint(x: bounds.minX + frame.minX, y: bounds.minY + frame.minY), proposal: ProposedViewSize(frame.size))
+        }
+    }
+
+    private func frames(_ width: CGFloat, _ subviews: Subviews) -> [CGRect] {
+        var x: CGFloat = 0, y: CGFloat = 0, line: CGFloat = 0
+
+        return subviews.map { subview in
+            let size = subview.sizeThatFits(ProposedViewSize(width: width, height: nil))
+
+            if x > 0, x + size.width > width {
+                x = 0
+                y += line + spacing
+                line = 0
+            }
+            defer {
+                x += size.width + spacing
+                line = max(line, size.height)
+            }
+            return CGRect(origin: CGPoint(x: x, y: y), size: size)
+        }
     }
 }

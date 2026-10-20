@@ -5,14 +5,24 @@ import SwiftUI
 struct AppHeader: View {
     var body: some View {
         HStack(spacing: 10) {
-            Image(nsImage: NSApplication.shared.applicationIconImage)
-                .resizable()
-                .frame(width: 30, height: 30)
+            Image(nsImage: Self.icon).frame(width: Self.iconSize, height: Self.iconSize)
             VStack(alignment: .leading, spacing: 1) {
                 Text("SitRep").font(.system(size: 13, weight: .semibold))
                 Text(Self.version).font(.system(size: 11)).foregroundStyle(.secondary)
             }
         }
+    }
+
+    static let iconSize: CGFloat = 30
+
+    /// The app's icon as macOS renders it for the bundle, masked and drawn at the header's size, not the Info.plist's
+    /// largest picture scaled down, whose edge showed a dark fringe at 30.
+    @MainActor
+    static var icon: NSImage {
+        let icon = NSWorkspace.shared.icon(forFile: Bundle.main.bundlePath)
+
+        icon.size = NSSize(width: iconSize, height: iconSize)
+        return icon
     }
 
     /// The version `app/build` stamps in the Info.plist, which the plugin shares.
@@ -23,18 +33,17 @@ struct AppHeader: View {
 }
 
 enum MenuHeader {
-    /// The header as a menu item's view, as wide as the menu.
+    /// The header as a menu item's view, at its own width. A view that stretches to the menu keeps the width it was
+    /// stretched to, and the menu is never narrower than its views, so a stretched header held the menu as wide as
+    /// its widest row ever was.
     @MainActor
     static func view() -> NSView {
         let header = AppHeader()
             .padding(.horizontal, 14)
             .padding(.vertical, 6)
-            .frame(maxWidth: .infinity, alignment: .leading)
         let view = NSHostingView(rootView: header)
 
         view.frame.size = view.fittingSize
-        view.autoresizingMask = .width
-
         return view
     }
 }
