@@ -1,60 +1,19 @@
 #!/bin/bash
-# Builds SitRep, signs it as SitRep Local, installs it to ~/Applications and
-# starts it, replacing the one running. The login item and macOS's
-# permissions remember the app by where it is, so it is always installed to
-# the same place.
+# Builds SitRep, signed as SitRep Local and carrying the plugin (app/bundle),
+# installs it to ~/Applications and starts it, replacing the one running. The
+# login item and macOS's permissions remember the app by where it is, so it
+# is always installed to the same place. As it starts, the app installs its
+# plugin, or leaves the sitrep marketplace as it is where it is not its own.
 set -euo pipefail
 
-identity="SitRep Local"
 installed="$HOME/Applications/SitRep.app"
 app=$(cd "$(dirname "$0")" && pwd)
-repo=$(dirname "$app")
 
-if ! security find-identity -v -p codesigning | grep -q "\"$identity\""; then
-  echo "No \"$identity\" signing identity: run app/make-certificate once on this Mac." >&2
-  exit 1
-fi
-
-# One version covers the plugin and the app.
-version=$(plutil -extract version raw -o - "$repo/.claude-plugin/plugin.json")
-# The app runs the main checkout's plugin, the live one, even when built in a
-# worktree; until the app carries a copy of its own.
-plugin=$(dirname "$(git -C "$repo" rev-parse --path-format=absolute --git-common-dir)")
-
-swift build -c release --package-path "$app"
-binaries=$(swift build -c release --package-path "$app" --show-bin-path)
-
-# Put together outside the repository and gone once installed: a second
-# signed copy left about could be the one macOS launches by its bundle id.
+# Put together outside the repository, and gone once installed.
 work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT
-bundle="$work/SitRep.app"
-mkdir -p "$bundle/Contents/MacOS" "$bundle/Contents/Resources"
-cp "$binaries/SitRep" "$bundle/Contents/MacOS/SitRep"
-info="$bundle/Contents/Info.plist"
-cp "$app/Info.plist" "$info"
-plutil -insert CFBundleShortVersionString -string "$version" "$info"
-plutil -insert CFBundleVersion -string "$version" "$info"
-plutil -insert SitRepPlugin -string "$plugin" "$info"
-
-# The icon, compiled from its Icon Composer layers: Assets.car, from which
-# macOS makes the dark, clear and tinted looks, and an .icns for older
-# lookups, every size to 1024 (by default actool stops at 256). actool names
-# them, and its keys go into the Info.plist.
-xcrun actool "$app/Icon/SitRep.icon" --compile "$bundle/Contents/Resources" --platform macosx \
-  --minimum-deployment-target "$(plutil -extract LSMinimumSystemVersion raw -o - "$info")" \
-  --app-icon SitRep --standalone-icon-behavior all --output-partial-info-plist "$work/icon.plist" \
-  > "$work/actool.plist"
-# actool exits 0 having compiled nothing, as for an icon it cannot find, its
-# errors only in what it prints.
-if [[ ! -f "$bundle/Contents/Resources/Assets.car" ]]; then
-  echo "actool compiled no icon from $app/Icon/SitRep.icon:" >&2
-  cat "$work/actool.plist" >&2
-  exit 1
-fi
-/usr/libexec/PlistBuddy -c "Merge $work/icon.plist" "$info" > /dev/null
-
-codesign --force --options runtime --entitlements "$app/SitRep.entitlements" -s "$identity" "$bundle"
+"$app/bundle" "$work"
+version=$(plutil -extract CFBundleShortVersionString raw -o - "$work/SitRep.app/Contents/Info.plist")
 
 # Stopped by a signal: asking it to quit by an Apple Event would itself want
 # leave to control SitRep.
@@ -64,7 +23,7 @@ fi
 
 mkdir -p "$(dirname "$installed")"
 rm -rf "$installed"
-ditto "$bundle" "$installed"
+ditto "$work/SitRep.app" "$installed"
 open "$installed"
 
-echo "SitRep $version installed to $installed, running the plugin at $plugin"
+echo "SitRep $version installed to $installed"

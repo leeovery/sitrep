@@ -23,7 +23,7 @@ final class WindowModel {
     /// What the views' presses ask the model for.
     @ObservationIgnored private(set) var actions = WindowActions()
     @ObservationIgnored private let run: WindowRun
-    @ObservationIgnored private let sitrep: SitRepCLI?
+    @ObservationIgnored private let plugin: Plugin
     @ObservationIgnored private let works: Works
     @ObservationIgnored private let defaults: UserDefaults
     @ObservationIgnored private var wake: Task<Void, Never>?
@@ -33,8 +33,8 @@ final class WindowModel {
     /// How often the ages are drawn again while nothing else changes.
     private static let tick: TimeInterval = 30
 
-    init(sitrep: SitRepCLI?, works: Works, defaults: UserDefaults = .standard) {
-        self.sitrep = sitrep
+    init(plugin: Plugin, works: Works, defaults: UserDefaults = .standard) {
+        self.plugin = plugin
         self.works = works
         self.defaults = defaults
         run = WindowRun(lastSession: defaults.string(forKey: Self.lastSessionKey))
@@ -155,7 +155,7 @@ final class WindowModel {
 
         refresh()
         Task {
-            let finished = await sitrep?.finish(session) ?? .refused(Plugin.unbuilt)
+            let finished = await plugin.ask({ await $0.finish(session) }, unrun: WriteAnswer.refused)
 
             run.finished(session, finished)
             refresh()
@@ -174,7 +174,7 @@ final class WindowModel {
     private func read(_ reads: [Read]) {
         for read in reads {
             Task {
-                let answer = await sitrep?.board(of: read.session) ?? .failed(Plugin.unbuilt)
+                let answer = await plugin.ask({ await $0.board(of: read.session) }, unrun: BoardAnswer.failed)
 
                 run.read(read, gave: answer, at: Date(), reducesMotion: reducesMotion)
                 refresh()
@@ -186,7 +186,7 @@ final class WindowModel {
     private func send() {
         for (ask, answer) in run.due(at: Date()) {
             Task {
-                let written = await sitrep?.answer(ask.ask, of: ask.session, with: answer) ?? .refused(Plugin.unbuilt)
+                let written = await plugin.ask({ await $0.answer(ask.ask, of: ask.session, with: answer) }, unrun: WriteAnswer.refused)
 
                 read(run.answered(ask, written))
                 refresh()

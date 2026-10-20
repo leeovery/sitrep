@@ -12,8 +12,8 @@ final class SitRepWindow: NSObject, NSWindowDelegate {
     private lazy var window = make()
     private var escape: Any?
 
-    init(sitrep: SitRepCLI?, works: Works) {
-        model = WindowModel(sitrep: sitrep, works: works)
+    init(plugin: Plugin, works: Works) {
+        model = WindowModel(plugin: plugin, works: works)
     }
 
     /// The board as `watch` last printed it.

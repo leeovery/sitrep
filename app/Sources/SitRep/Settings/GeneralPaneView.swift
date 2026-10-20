@@ -22,8 +22,7 @@ struct GeneralPaneView: View {
     }
 
     var body: some View {
-        let card = live.unrun.map(PluginCard.init(unrun:))
-            ?? PluginCard(live.last, folder: services.pluginFolder ?? "this SitRep")
+        let card = PluginCard(live.last, plugin: live.plugin)
 
         Form {
             Section {

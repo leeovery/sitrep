@@ -108,12 +108,21 @@ struct MenuBoardTests {
         #expect(menu.items.isEmpty)
     }
 
-    @Test func withNoWatchToRunItSaysWhy() {
-        let menu = MenuBoard(unrun: "This SitRep names no plugin to run: build it with app/build.")
+    @Test func withNoPluginToRunItSpeaksUpWithTheTroubleAlone() {
+        let menu = MenuBoard(unrun: .noClaude)
 
-        #expect(menu.unread == "This SitRep names no plugin to run: build it with app/build.")
+        #expect(menu.trouble == .noClaude)
+        #expect(menu.unread == nil)
         #expect(menu.heading == nil)
         #expect(menu.glyph == .rest)
+    }
+
+    @Test func overItsOwnCopysBoardTheTroubleStaysWithTheSessions() {
+        let menu = MenuBoard(heard([.line(Watched.line())]), trouble: .noClaude, clock: london)
+
+        #expect(menu.trouble == .noClaude)
+        #expect(menu.heading == Self.board.heading)
+        #expect(menu.items == Self.board.items)
     }
 
     @Test func theGlyphLightsWhileAnythingNeedsLee() {

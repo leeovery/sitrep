@@ -12,6 +12,8 @@ public struct MenuBoard: Equatable, Sendable {
 
     /// Windows on an old sitrep, each a jump to the window to run `/reload-plugins` in, under "Needs /reload-plugins".
     public let reloads: [Reload]
+    /// The trouble SitRep met seeing to its plugin, which it speaks up with first; nil with none.
+    public let trouble: PluginTrouble?
     /// Why the board is not current, for "SitRep can't read the board"; nil while it is.
     public let unread: String?
     /// The sessions' heading, in the panel head's words, with when the board was last current while it is stale:
@@ -51,8 +53,8 @@ public struct MenuBoard: Equatable, Sendable {
     public static let unreadTitle = "SitRep can't read the board"
     public static let reloadTitle = "Needs /reload-plugins"
 
-    /// The board as last heard.
-    public init(_ last: LastBoard, clock: Date.FormatStyle = .init(date: .omitted, time: .shortened)) {
+    /// The board as last heard, and any trouble with the plugin.
+    public init(_ last: LastBoard, trouble: PluginTrouble? = nil, clock: Date.FormatStyle = .init(date: .omitted, time: .shortened)) {
         let panel = PanelBoard(last, clock: clock)
         let heading: String? = switch (last.board, last.stale) {
         case (nil, nil): panel.head.title
@@ -60,18 +62,21 @@ public struct MenuBoard: Equatable, Sendable {
         default: panel.asOf.map { "\(panel.head.title) · \($0)" } ?? panel.head.title
         }
 
-        self.init(panel, reloads: Reload.windows(of: last.board), unread: last.stale?.description, heading: heading)
+        self.init(
+            panel, trouble: trouble, reloads: Reload.windows(of: last.board), unread: last.stale?.description, heading: heading
+        )
     }
 
-    /// With no `watch` to run, it speaks up with why.
-    public init(unrun why: String) {
-        self.init(PanelBoard(unrun: why), reloads: [], unread: why, heading: nil)
+    /// With no plugin to run, it speaks up with the trouble that left it none.
+    public init(unrun trouble: PluginTrouble) {
+        self.init(PanelBoard(unrun: trouble.line), trouble: trouble, reloads: [], unread: nil, heading: nil)
     }
 
-    private init(_ panel: PanelBoard, reloads: [Reload], unread: String?, heading: String?) {
+    private init(_ panel: PanelBoard, trouble: PluginTrouble?, reloads: [Reload], unread: String?, heading: String?) {
         let shown = panel.sessions.prefix(Self.most)
 
         self.panel = panel
+        self.trouble = trouble
         self.reloads = reloads
         self.unread = unread
         self.heading = heading

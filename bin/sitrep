@@ -1,4 +1,2 @@
 #!/usr/bin/env bun
-import { shell } from '../cli/shell'
-
-await shell()
+import '../cli/shell/run'

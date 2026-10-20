@@ -33,6 +33,8 @@ interface ImportMeta {
 
 declare const process: {
   cwd(): string
+  /** The program running: Bun's own, or the binary `bun build --compile` made. */
+  readonly execPath: string
   /** The id of the process that started this one, as it stands: launchd's, once that one has gone. */
   readonly ppid: number
   exitCode: number | undefined
