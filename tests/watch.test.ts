@@ -245,6 +245,11 @@ test('the first line is the board as every surface shows it, with nothing new an
               updatedAt: T0,
               state: 'needsYou',
               since: T0,
+              doing: {
+                is: 'working',
+                line: { lead: 'Reading', mono: 'src/Limiter/Dispatcher.php', more: null },
+                since: T0,
+              },
               asks: [
                 {
                   id: 'k1',

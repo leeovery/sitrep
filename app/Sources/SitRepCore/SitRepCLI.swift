@@ -13,10 +13,30 @@ public enum JumpAnswer: Sendable, Equatable {
     case refused(String)
 }
 
+/// What `sitrep board --json` came to: the session's board, or why there is none to show, in words.
+public enum BoardAnswer: Sendable, Equatable {
+    case board(SessionBoard)
+    case failed(String)
+}
+
+/// What `sitrep answer` or `sitrep finish` came to: written, or refused in the CLI's words, with nothing written.
+public enum WriteAnswer: Sendable, Equatable {
+    case written
+    case refused(String)
+}
+
+/// Lee's answer to an ask, as the button pressed says it: a yes or one of a choice's options, in the board's words;
+/// or Lee's ignore, which any ask takes.
+public enum Answer: Sendable, Hashable {
+    case words(String)
+    case ignore
+}
+
 /// The plugin's CLI, `<plugin>/bin/sitrep`, run as a child with Lee's PATH.
-/// The app only reads the board and jumps: it never writes to it.
+/// The app reads the board and jumps, and writes only what the board's own buttons do: Lee's answers and finishes.
 public struct SitRepCLI: Sendable {
-    /// `list --json` answers in about 0.15s, and never hangs over tmux or `ps`.
+    /// `list --json` answers in about 0.15s, and never hangs over tmux or `ps`; `board --json`, `answer` and
+    /// `finish` read and write one session's files, and run no program.
     static let listLimit: TimeInterval = 10
     /// Only a backstop for a CLI that hangs, well above any realistic jump
     /// (cli/jump.ts, cli/ghostty.ts, cli/front.ts, cli/tmux.ts, cli/apps.ts):
@@ -71,6 +91,44 @@ public struct SitRepCLI: Sendable {
             .jumped
         case let .failure(unanswered):
             .refused(unanswered.complaint(of: "jump"))
+        }
+    }
+
+    public func board(of session: String) async -> BoardAnswer {
+        switch await sitrep(["board", "--json", "--session", session], limit: Self.listLimit) {
+        case let .failure(unanswered):
+            return .failed(unanswered.complaint(of: "board"))
+        case let .success(ran):
+            do {
+                return .board(try SessionBoard.read(ran.stdout))
+            } catch {
+                return .failed("sitrep board \(error).")
+            }
+        }
+    }
+
+    /// Answers an ask of the session, or ignores it, into the session's inbox. The ask and the answer come after
+    /// `--`, so neither is read as a flag, whatever its words.
+    public func answer(_ ask: String, of session: String, with answer: Answer) async -> WriteAnswer {
+        let words = switch answer {
+        case let .words(words): ["--session", session, "--", ask, words]
+        case .ignore: ["--session", session, "--ignore", "--", ask]
+        }
+
+        return written(await sitrep(["answer"] + words, limit: Self.listLimit), by: "answer")
+    }
+
+    /// Finishes a session no window holds.
+    public func finish(_ session: String) async -> WriteAnswer {
+        written(await sitrep(["finish", "--session", session], limit: Self.listLimit), by: "finish")
+    }
+
+    private func written(_ ended: Ended, by command: String) -> WriteAnswer {
+        switch ended {
+        case .success:
+            .written
+        case let .failure(unanswered):
+            .refused(unanswered.complaint(of: command))
         }
     }
 

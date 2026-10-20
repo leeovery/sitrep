@@ -3,6 +3,7 @@ import {
   replyState,
   brief,
   CURRENT_MS,
+  doingOf,
   feedOf,
   FORGET_MS,
   foldSession,
@@ -371,6 +372,49 @@ test('a session is one row while its windows work or wait on Lee: the latest sta
   ])
 })
 
+test("what a session is doing: its stop shown first, else its turn row's window, each worded as its row; away, since its latest line, with no window", () => {
+  const doing = (presence: SessionFiles['presence'], lines: Line[] = []) =>
+    doingOf(SWITCHBOARD, sessionOf({ lines, presence }), NOW)
+
+  expect(
+    doing({
+      ...windowOn(W1, working(T0)),
+      ...windowOn(W2, question(T0 + 2 * MIN, 'Left?', 2)),
+      ...windowOn(W3, permission(T0 + MIN, 'Bash', 'ls')),
+    }),
+  ).toEqual({ is: 'permission', line: { lead: 'Allow Bash', mono: 'ls' }, since: T0 + MIN })
+  expect(
+    doing({
+      ...windowOn(W1, working(T0, { name: 'Read', subject: '/Users/lee/Code/switchboard/a.ts' })),
+      ...windowOn(W2, yourTurn(T0 + MIN)),
+    }),
+  ).toEqual({ is: 'working', line: { lead: 'Reading', mono: 'a.ts' }, since: T0 })
+  expect(doing(windowOn(W1, yourTurn(T0 + MIN)), [[T0, status(['Drawing Usage'])]])).toEqual({
+    is: 'yourTurn',
+    line: { lead: 'Drawing Usage' },
+    since: T0 + MIN,
+  })
+  expect(doing({}, [[T0 + 5 * MIN, status(['Drawing Usage'])]])).toEqual({
+    is: 'away',
+    line: { lead: 'No window holds it. Carry it on in Claude.' },
+    since: T0 + 5 * MIN,
+  })
+})
+
+test("a session needing Lee for its asks alone, which has no row of its windows', is doing what they do", () => {
+  const session = sessionOf({
+    lines: [[T0, yesAsk('k1', 'Review it')]],
+    presence: windowOn(W1, working(T0 + MIN, { name: 'Bash', subject: 'bun test' })),
+  })
+
+  expect(rows(session).map(row => row.is)).toEqual(['ask'])
+  expect(doingOf(SWITCHBOARD, session, NOW)).toEqual({
+    is: 'working',
+    line: { lead: 'Running', mono: 'bun test' },
+    since: T0 + MIN,
+  })
+})
+
 /** An ask, and Lee's answer to it in the session's inbox, on its way. */
 const ANSWERED = {
   lines: [[T0, yesAsk('k1', 'Review it')]] satisfies Line[],
@@ -549,18 +593,19 @@ test('the feed: each project with its current sessions in the rows order, a fini
         session.id,
         session.state,
         session.since,
+        session.doing.is,
         session.asks.map(ask => ask.id),
       ]),
     ]),
   ).toEqual([
-    ['goosemates', 1, 1, [['sr-dddddd', 'needsYou', T0 + 10 * MIN, ['k2']]]],
+    ['goosemates', 1, 1, [['sr-dddddd', 'needsYou', T0 + 10 * MIN, 'yourTurn', ['k2']]]],
     [
       'switchboard',
       0,
       1,
       [
-        ['sr-aaaaaa', 'working', T0, []],
-        ['sr-bbbbbb', 'away', T0 + 30 * MIN, []],
+        ['sr-aaaaaa', 'working', T0, 'working', []],
+        ['sr-bbbbbb', 'away', T0 + 30 * MIN, 'away', []],
       ],
     ],
   ])

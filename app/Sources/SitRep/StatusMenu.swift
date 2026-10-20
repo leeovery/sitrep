@@ -17,6 +17,7 @@ final class StatusMenu: NSObject, NSMenuDelegate {
 
     private let works: Works
     private let banners: Banners
+    private let openWindow: () -> Void
     private let loginLog = Logger(sitrep: "login")
     private let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
     private let menu = NSMenu()
@@ -25,9 +26,10 @@ final class StatusMenu: NSObject, NSMenuDelegate {
     private var shown: [NSMenuItem] = []
     private var last = LastListing()
 
-    init(works: Works, banners: Banners) {
+    init(works: Works, banners: Banners, openWindow: @escaping () -> Void) {
         self.works = works
         self.banners = banners
+        self.openWindow = openWindow
         super.init()
 
         item.button?.image = NSImage(systemSymbolName: "square.stack.3d.up", accessibilityDescription: "SitRep")
@@ -35,6 +37,7 @@ final class StatusMenu: NSObject, NSMenuDelegate {
         loginItem.target = self
         menu.items = [
             .separator(),
+            action("Open SitRep Window", #selector(openSitRepWindow)),
             action("Send a test banner", #selector(sendTestBanner)),
             loginItem,
             .separator(),
@@ -104,6 +107,10 @@ final class StatusMenu: NSObject, NSMenuDelegate {
         if let work = sender.representedObject as? String {
             works.jump(to: work)
         }
+    }
+
+    @objc private func openSitRepWindow() {
+        openWindow()
     }
 
     @objc private func sendTestBanner() {

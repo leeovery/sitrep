@@ -61,6 +61,17 @@ struct BoardTests {
         #expect(projects.last?.sessions.first?.state == .yourTurn)
     }
 
+    @Test func eachSessionSaysWhatItIsDoingAsTheLineUnderItsNameSaysIt() throws {
+        let sessions = try Board.read(watched).projects.flatMap(\.sessions)
+
+        #expect(sessions.map(\.doing.kind) == [.yourTurn, .permission, .yourTurn])
+        #expect(sessions[1].doing == Board.Session.Doing(
+            kind: .permission,
+            line: Board.Row.Line(lead: "Allow Bash:", mono: "gh pr create", more: nil),
+            since: Self.at(1_792_445_500_000)
+        ))
+    }
+
     @Test func theWindowsSayWhereTheyAreWhatTheyAreDoingAndWhetherTheyNeedAReload() throws {
         let windows = try Board.read(watched).windows
 
@@ -102,6 +113,8 @@ struct BoardTests {
         #"{"head": {"needYou": 0, "sessions": 0}}"#,
         watchedEmpty.replacingOccurrences(of: #""windows":[],"#, with: ""),
         watched.replacingOccurrences(of: #""is": "yourTurn""#, with: #""is": "napping""#),
+        watched.replacingOccurrences(of: #""doing": {"# + "\n" + #"            "is": "permission""#, with: #""doing": {"# + "\n" + #"            "is": "napping""#),
+        watched.replacingOccurrences(of: #""doing": {"#, with: #""doings": {"#),
     ])
     func aLineThatIsNotABoardIsUnread(line: String) {
         #expect(throws: Unread.shape) { try Board.read(line) }

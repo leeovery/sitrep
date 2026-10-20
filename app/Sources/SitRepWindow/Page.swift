@@ -1,0 +1,128 @@
+import Foundation
+import SitRepCore
+
+/// What the right of the window shows: the session or the project Lee picked; else a line saying why there is none,
+/// as the head does before the board is read, or that no session is open at all.
+public enum Page: Equatable, Sendable {
+    case empty(String)
+    case session(SessionPage)
+    case project(ProjectPage)
+
+    static let nothingOpen = Page.empty("No session is open.")
+}
+
+/// What Lee picked to read on the right.
+public enum Pick: Hashable, Sendable {
+    case session(String)
+    case project(String)
+}
+
+/// A session at window size, as the pane's session view: its project above it, its name and summary, what its window
+/// is doing, then Asks, Status, Notes, Parked and Resolved.
+public struct SessionPage: Equatable, Sendable {
+    public let id: String
+    /// Its project, by its key, and its name, which opens the project.
+    public let projectKey: String
+    public let projectName: String
+    public let name: String
+    public let summary: String
+    public let doing: Doing
+    /// "Open in Ghostty ↗": only while a window holds it.
+    public let jumps: Bool
+    /// Its asks waiting on Lee.
+    public let waiting: Int
+    public let asks: [Card]
+    public let status: Status
+    /// Its latest log lines, newest first.
+    public let notes: [Note]
+    /// Oldest first.
+    public let parked: [Parked]
+    /// The newest closed first, those still keeping their place in Asks aside.
+    public let resolved: [Resolved]
+    /// "✓ Finish this session", only while no window holds it.
+    public let finish: Finish?
+    /// Its board has been read: its asks, Notes, Parked and Resolved show as last read.
+    public let isRead: Bool
+    /// Why the latest read of its board failed, over what was read before, if anything was.
+    public let failure: String?
+}
+
+public struct Status: Equatable, Sendable {
+    public let now: [String]
+    public let next: String?
+    /// When its status last changed, as its log has it.
+    public let updated: Date?
+}
+
+/// A line of a session's log, and in a project's view the session it is from.
+public struct Note: Equatable, Sendable, Identifiable {
+    public let id: String
+    public let session: String?
+    public let text: String
+    public let at: Date
+}
+
+public struct Parked: Equatable, Sendable, Identifiable {
+    public let id: String
+    public let session: String?
+    public let title: String
+    public let at: Date
+}
+
+/// A resolved ask: its title, when it closed and how.
+public struct Resolved: Equatable, Sendable, Identifiable {
+    public let id: String
+    public let title: String
+    public let closed: Date
+    public let how: Card.Closed
+}
+
+/// Finishing an away session, which asks first, in place.
+public enum Finish: Equatable, Sendable {
+    /// "✓ Finish this session".
+    case offered
+    /// "Finish …? Its open asks stop counting." with Yes, finish it and Cancel.
+    case asking
+    /// Yes pressed: `sitrep finish` runs.
+    case finishing
+    /// `sitrep finish` refused, in its words.
+    case refused(String)
+}
+
+/// A project, opened from its name, as the pane's project view: its sessions, each with what it is doing and what
+/// waits there; every session's asks, the newest first, each one line that opens in place into its card; their notes,
+/// the newest first; their parked items, the oldest first. Each line names its session. There is no Resolved.
+public struct ProjectPage: Equatable, Sendable {
+    public struct Session: Equatable, Sendable, Identifiable {
+        public let id: String
+        public let name: String
+        public let mark: Mark
+        public let isAway: Bool
+        public let doing: Doing
+        /// Its rows that need Lee: asks and stops alike.
+        public let waiting: Int
+        public let since: Date
+    }
+
+    /// An ask, one line naming its session, or opened into its card.
+    public struct Ask: Equatable, Sendable, Identifiable {
+        public let session: String
+        public let card: Card
+        public let isOpened: Bool
+
+        public var id: AskAddress { card.id }
+    }
+
+    public let key: String
+    public let name: String
+    /// What waits on Lee there: its rows that need Lee.
+    public let waiting: Int
+    /// How many of its sessions a window holds.
+    public let open: Int
+    public let sessions: [Session]
+    /// Its asks waiting on Lee.
+    public let asksWaiting: Int
+    public let asks: [Ask]
+    public let notes: [Note]
+    public let parked: [Parked]
+}

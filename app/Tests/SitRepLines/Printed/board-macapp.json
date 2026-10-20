@@ -1,0 +1,146 @@
+{
+  "v": 2,
+  "project": {
+    "key": "sitrep",
+    "name": "SitRep"
+  },
+  "work": {
+    "id": "sr-macapp",
+    "name": "The Mac app",
+    "summary": "SitRep, the menu bar app: the notch, the strip and this window",
+    "now": [
+      "Drawing round 3, the SitRep window, in Paper",
+      "Keeping DESIGN.md in step on docs/surfaces"
+    ],
+    "next": "round 4, the menu bar item and its menu",
+    "isOpen": true,
+    "waiting": 3,
+    "parked": 1,
+    "updatedAt": 1792486181000
+  },
+  "asks": [
+    {
+      "id": "k2",
+      "wants": "choice",
+      "yes": null,
+      "title": "Choose which edge the strip takes by default",
+      "where": null,
+      "options": [
+        "Left, the notch's edge",
+        "Right"
+      ],
+      "needs": null,
+      "ref": null,
+      "state": "waiting",
+      "at": 1792468421000,
+      "reply": null
+    },
+    {
+      "id": "k3",
+      "wants": "words",
+      "yes": null,
+      "title": "Paste the load test's output",
+      "where": null,
+      "options": [],
+      "needs": "the command's output",
+      "ref": null,
+      "state": "waiting",
+      "at": 1792474421000,
+      "reply": null
+    },
+    {
+      "id": "k1",
+      "wants": "yes",
+      "yes": "Approve",
+      "title": "Look at round 3, the SitRep window, and approve it or comment",
+      "where": "In Paper: SitRep · side panel, page “The SitRep window”, artboards A to C",
+      "options": [],
+      "needs": null,
+      "ref": "https://paper.design/x",
+      "state": "waiting",
+      "at": 1792486181000,
+      "reply": null
+    }
+  ],
+  "parked": [
+    {
+      "id": "p1",
+      "title": "Try a shy notch",
+      "where": null,
+      "ref": null,
+      "at": 1792425221000
+    }
+  ],
+  "log": [
+    {
+      "kind": "note",
+      "id": "n2",
+      "text": "The strip written into DESIGN.md",
+      "detail": [
+        "Under \"The strip\""
+      ],
+      "ref": null,
+      "by": "w1",
+      "at": 1792428821000
+    },
+    {
+      "kind": "note",
+      "id": "n1",
+      "text": "PR #4 merged",
+      "detail": [],
+      "ref": null,
+      "by": "w1",
+      "at": 1792421621000
+    },
+    {
+      "kind": "status",
+      "id": null,
+      "text": "Status: now drawing round 3, the SitRep window, in Paper (and 1 more)",
+      "detail": [
+        "Added: Drawing round 3, the SitRep window, in Paper",
+        "Added: Keeping DESIGN.md in step on docs/surfaces",
+        "Next: round 4, the menu bar item and its menu"
+      ],
+      "ref": null,
+      "by": "w1",
+      "at": 1792420421000
+    }
+  ],
+  "resolved": [
+    {
+      "id": "k5",
+      "wants": "yes",
+      "yes": "Approve",
+      "title": "Look at round 1, the panel's rows",
+      "where": null,
+      "options": [],
+      "needs": null,
+      "ref": null,
+      "state": "closed",
+      "at": 1792422221000,
+      "reply": null,
+      "closedAt": 1792422821000,
+      "reason": "you said \"left\" in the chat"
+    },
+    {
+      "id": "k4",
+      "wants": "yes",
+      "yes": "Merge",
+      "title": "Merge PR #4",
+      "where": null,
+      "options": [],
+      "needs": null,
+      "ref": null,
+      "state": "closed",
+      "at": 1792421021000,
+      "reply": {
+        "is": "delivered",
+        "isAnswer": true,
+        "words": "→ Merge",
+        "since": 1792421621000
+      },
+      "closedAt": 1792421621000,
+      "reason": null
+    }
+  ]
+}

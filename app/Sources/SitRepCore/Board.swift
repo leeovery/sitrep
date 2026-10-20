@@ -86,10 +86,28 @@ public struct Board: Versioned, Sendable, Equatable {
         public var id: String { key }
     }
 
-    /// A session as `list --json` gives it, with its state and the asks waiting on Lee.
+    /// A session as `list --json` gives it, with its state, what it is doing, and its open asks: waiting, on Lee or
+    /// on a window to deliver Lee's reply, or replied, Claude's to act on.
     public struct Session: Decodable, Sendable, Equatable, Identifiable {
         public enum State: String, Decodable, Sendable {
             case needsYou, working, yourTurn, away, finished
+        }
+
+        /// What a session is doing, as the line under its name says it: a window's permission prompt or question,
+        /// else its window working or waiting on Lee's message, each as its row's first line, since its state began;
+        /// else away, since its latest line.
+        public struct Doing: Decodable, Sendable, Equatable {
+            public enum Kind: String, Decodable, Sendable {
+                case permission, question, working, yourTurn, away
+            }
+
+            public let kind: Kind
+            public let line: Row.Line
+            public let since: Date
+
+            private enum CodingKeys: String, CodingKey {
+                case kind = "is", line, since
+            }
         }
 
         public let id: String
@@ -104,6 +122,7 @@ public struct Board: Versioned, Sendable, Equatable {
         public let state: State
         /// When its state began: its first row's time, else its latest line's.
         public let since: Date
+        public let doing: Doing
         /// Oldest first.
         public let asks: [Ask]
     }
@@ -129,6 +148,29 @@ public struct Board: Versioned, Sendable, Equatable {
         public let ref: String?
         public let state: State
         public let at: Date
+        /// Where Lee's reply to it stands; nil with none sent, one gone void as it was edited under it, or only a
+        /// comment Claude has.
+        public let reply: Reply?
+    }
+
+    /// Where Lee's reply to an ask stands, as core's `replyState` says: on its way, in the session's inbox; with
+    /// Claude; or never delivered, as Claude closed the ask first.
+    public struct Reply: Decodable, Sendable, Equatable {
+        public enum Standing: String, Decodable, Sendable {
+            case onItsWay, delivered, notDelivered
+        }
+
+        public let standing: Standing
+        /// It is Lee's answer, which bars another, and not a comment, which bars nothing.
+        public let isAnswer: Bool
+        /// The reply as the board shows it on one row: `→ Go`, `ignored`, `comment: “Tighten the copy”`.
+        public let words: String
+        /// When it last moved: delivered, gone void, or else sent.
+        public let since: Date
+
+        private enum CodingKeys: String, CodingKey {
+            case standing = "is", isAnswer, words, since
+        }
     }
 
     /// A live window, and the session it holds.

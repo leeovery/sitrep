@@ -1,6 +1,7 @@
 import Foundation
 @testable import SitRepCore
 import os
+import SitRepLines
 import Testing
 
 struct SitRepCLITests {
@@ -151,6 +152,75 @@ struct SitRepCLITests {
         let (cli, _) = Self.cli { program in throw RunError.timedOut(program.limit) }
 
         #expect(await cli.jump(to: "sr-047c7y") == .refused("sitrep jump did not answer within 180 seconds."))
+    }
+
+    @Test func boardRunsBoardJSONOnTheSessionAndGivesItsBoard() async throws {
+        let (cli, programs) = Self.cli(Self.exited(0, stdout: Lines.board))
+
+        #expect(await cli.board(of: "sr-macapp") == .board(try SessionBoard.read(Lines.board)))
+        #expect(programs.all.map(\.arguments) == [["board", "--json", "--session", "sr-macapp"]])
+        #expect(programs.all.map(\.limit) == [10])
+    }
+
+    @Test func aBoardThatFailsGivesTheCLIsOwnWords() async {
+        let (cli, _) = Self.cli(Self.exited(2, stderr: "sitrep: There is no session sr-zzzzzz on the board, in any project.\n"))
+
+        #expect(await cli.board(of: "sr-zzzzzz") == .failed("There is no session sr-zzzzzz on the board, in any project."))
+    }
+
+    @Test func aBoardOfAnotherVersionSaysSo() async {
+        let (cli, _) = Self.cli(Self.exited(0, stdout: #"{"v":3}"#))
+
+        #expect(await cli.board(of: "sr-macapp") == .failed("sitrep board gave output version 3, and this SitRep reads version 2."))
+    }
+
+    @Test func anAnswerGivesTheAskAndTheButtonsWordsAfterTheFlagsEnd() async {
+        let (cli, programs) = Self.cli(Self.exited(0))
+
+        #expect(await cli.answer("k2", of: "sr-macapp", with: .words("--Left, the notch's edge")) == .written)
+        #expect(programs.all.map(\.arguments) == [
+            ["answer", "--session", "sr-macapp", "--", "k2", "--Left, the notch's edge"],
+        ])
+        #expect(programs.all.map(\.limit) == [10])
+    }
+
+    @Test func anIgnoreGivesTheAskAfterTheFlagsEnd() async {
+        let (cli, programs) = Self.cli(Self.exited(0))
+
+        #expect(await cli.answer("k3", of: "sr-macapp", with: .ignore) == .written)
+        #expect(programs.all.map(\.arguments) == [["answer", "--session", "sr-macapp", "--ignore", "--", "k3"]])
+    }
+
+    /// The words the real CLI refused with on 20 October 2026 (`Lines`).
+    @Test(arguments: [
+        "k2 wants a choice: answer it with “Left, the notch's edge” or “Right”.",
+        "An answer to k1 is on its way already.",
+    ])
+    func anAnswerRefusedGivesTheCLIsWords(words: String) async {
+        let (cli, _) = Self.cli(Self.exited(1, stderr: "sitrep: \(words)\n"))
+
+        #expect(await cli.answer("k1", of: "sr-macapp", with: .words("Upward")) == .refused(words))
+    }
+
+    @Test func finishRunsFinishOnTheSession() async {
+        let (cli, programs) = Self.cli(Self.exited(0))
+
+        #expect(await cli.finish("sr-gs7kq2") == .written)
+        #expect(programs.all.map(\.arguments) == [["finish", "--session", "sr-gs7kq2"]])
+        #expect(programs.all.map(\.limit) == [10])
+    }
+
+    @Test func aFinishRefusedGivesTheCLIsWords() async {
+        let words = "The Mac app is open in a window: tell Claude there to finish it."
+        let (cli, _) = Self.cli(Self.exited(1, stderr: "sitrep: \(words)\n"))
+
+        #expect(await cli.finish("sr-macapp") == .refused(words))
+    }
+
+    @Test func aWriteThatNeverEndsSaysSo() async {
+        let (cli, _) = Self.cli { program in throw RunError.timedOut(program.limit) }
+
+        #expect(await cli.finish("sr-gs7kq2") == .refused("sitrep finish did not answer within 10 seconds."))
     }
 }
 
