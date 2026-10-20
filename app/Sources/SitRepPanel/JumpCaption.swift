@@ -30,6 +30,15 @@ public struct JumpCaption: Equatable, Sendable {
         return max(drained + Self.after, jumped)
     }
 
+    /// How long from now until it shows: nil until it knows when, and nil once that moment is past by more than
+    /// `late`, so it never shows after its time.
+    public func showsIn(at now: Double) -> Double? {
+        showsAt.flatMap { at in now - at > Self.late ? nil : max(0, at - now) }
+    }
+
+    /// How late it may still show: a frame or two.
+    static let late = 50.0
+
     /// How it shows this long after it came: how opaque, and how far above its place.
     public static func look(_ elapsed: Double) -> (alpha: Double, lift: Double) {
         let alpha = elapsed < fadeIn ? easeOut(clamp(elapsed / fadeIn, 0, 1))

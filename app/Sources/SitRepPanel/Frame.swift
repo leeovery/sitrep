@@ -79,12 +79,17 @@ public struct Frame {
     /// once the panel is out.
     public let hitRect: CGRect
     /// Whether anything can still change with the pointer held still: when it is false, frames can stop until the
-    /// pointer moves or Lee acts.
+    /// pointer moves (`wakes`) or Lee acts.
     public let isMoving: Bool
+    /// How far a drag has lifted the notch off the edge, 0 to 1: its shadow, 4 down and blurred 12 at 0.4 at full.
+    public let lift: Double
+    /// The notch has drained into this edge after a drag let it go across the screen's middle: from this frame it
+    /// grows out of the other, where the view moves it now.
+    public let swapsEdge: Bool
 
     init(
         time: Double, phase: Phase, outline: CGPath, outlineAlpha: Double = 1, fading: Fading? = nil, panel: Panel?,
-        light: Light, hitRect: CGRect, isMoving: Bool
+        light: Light, hitRect: CGRect, isMoving: Bool, lift: Double = 0, swapsEdge: Bool = false
     ) {
         self.time = time
         self.phase = phase
@@ -95,6 +100,8 @@ public struct Frame {
         self.light = light
         self.hitRect = hitRect
         self.isMoving = isMoving
+        self.lift = lift
+        self.swapsEdge = swapsEdge
     }
 
     /// Whether a click here lands on the black, or the notch's hit area, rather than on what is beneath: only a row
@@ -103,26 +110,18 @@ public struct Frame {
         outline.contains(point) || inRect(Vec(point.x, point.y), hitRect)
     }
 
-    /// Whether the view should keep frames coming: while anything moves, while the pointer is near the edge by the
-    /// notch (within the attraction's field from it, and a margin, and its reach along it), or while it is over the
-    /// open panel. Otherwise frames can stop until the pointer comes near or Lee acts.
-    public func wantsFrames(pointer: CGPoint?, field: Double) -> Bool {
-        guard !isMoving else {
-            return true
-        }
-        guard let pointer else {
-            return false
-        }
-
-        let nearNotch = pointer.x <= field + Self.nearMargin && abs(pointer.y - light.centre.y) <= Tuning.fieldY
-        return nearNotch || panel != nil && outline.contains(pointer)
+    /// Whether a move of the pointer to here should start frames again, once they have stopped with nothing moving: a
+    /// pointer resting anywhere, by the notch or on the open panel, changes nothing until it moves. While the panel is
+    /// out, every move wakes them, since only the model can tell that the pointer has left it (rows going from under
+    /// a still pointer, under reduced motion, leave the panel out with nothing moving); else a move near the notch.
+    public func wakes(pointer: CGPoint?, field: Double) -> Bool {
+        phase != .closed || isNear(pointer, field: field)
     }
 
-    /// Whether a move of the pointer should start frames again once they have stopped: while the panel is out, every
-    /// move, since only the model can tell that the pointer has left it (rows going from under a still pointer, under
-    /// reduced motion, leave the panel out and wanting no frames); else a move near enough to want them.
-    public func wakes(pointer: CGPoint?, field: Double) -> Bool {
-        phase != .closed || wantsFrames(pointer: pointer, field: field)
+    /// Whether the pointer is near the edge by the notch: within the attraction's field from it, and a margin, and its
+    /// reach along it.
+    func isNear(_ pointer: CGPoint?, field: Double) -> Bool {
+        pointer.map { $0.x <= field + Self.nearMargin && abs($0.y - light.centre.y) <= Tuning.fieldY } ?? false
     }
 
     /// How far past the field a pointer still counts as near the edge.

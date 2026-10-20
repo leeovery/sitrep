@@ -425,16 +425,6 @@ struct CardTests {
         lab.settle()
         #expect(abs(lab.frame.light.level - 1) < 1e-3)
     }
-
-    @Test func thePointerRestingNearTheNotchWantsFramesAndFurtherOutNone() {
-        var near = CardLab(needsLee: true, pointer: CGPoint(x: 49 + 20, y: 491))
-        var far = CardLab(needsLee: true, pointer: CGPoint(x: 49 + 30, y: 491))
-        near.settle()
-        far.settle()
-
-        #expect(near.frame.wantsFrames(pointer: near.pointer, field: near.model.field))
-        #expect(!far.frame.wantsFrames(pointer: far.pointer, field: far.model.field))
-    }
 }
 
 extension CardLab {

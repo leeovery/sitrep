@@ -38,6 +38,20 @@ struct JumpCaptionTests {
         #expect(caption.showsAt == 1090)
     }
 
+    @Test func itShowsWhenItsMomentComesAndNeverOnceItHasPassed() {
+        var caption = JumpCaption(to: "SitRep")
+        #expect(caption.showsIn(at: 1000) == nil)
+
+        caption.drained(at: 1000)
+        caption.jumped(at: 1010)
+
+        #expect(caption.showsIn(at: 1010) == 80)
+        #expect(caption.showsIn(at: 1090) == 0)
+        #expect(caption.showsIn(at: 1140) == 0)
+        #expect(caption.showsIn(at: 1141) == nil)
+        #expect(caption.showsIn(at: 1090 + 60_000) == nil)
+    }
+
     @Test func itFadesInDroppingIntoPlaceHoldsAndRisesAsItFades() {
         #expect(JumpCaption.look(0) == (0, 4))
         #expect(JumpCaption.look(80).alpha == 1 - 0.125)

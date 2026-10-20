@@ -68,7 +68,7 @@ extension Meniscus {
     }
 
     /// The attraction put away at once: no tongue, the notch at its own place.
-    private func snapReach() {
+    func snapReach() {
         S.ay.snap(0)
         S.ba.snap(0)
         S.by.snap(notchY)

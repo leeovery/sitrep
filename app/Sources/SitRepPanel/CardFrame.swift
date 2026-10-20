@@ -12,6 +12,8 @@ extension Card {
         }
         lastOutline = outline
         let (alpha, fading) = fadeOutlines()
+        let swaps = swapsEdge
+        swapsEdge = false
         return Frame(
             time: t, phase: phase, outline: outline, outlineAlpha: alpha, fading: fading, panel: panel,
             light: Frame.Light(
@@ -19,7 +21,7 @@ extension Card {
                 level: clamp(S.light.x, 0, 1) * clamp(S.vis.x, 0, 1),
                 lastAsk: flash
             ),
-            hitRect: hit, isMoving: isMoving
+            hitRect: hit, isMoving: isMoving, lift: clamp(S.lift.x, 0, 1), swapsEdge: swaps
         )
     }
 

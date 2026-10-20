@@ -13,13 +13,14 @@ final class Edge {
     private lazy var fullScreen = FullScreenWatch { [unowned self] in Displays.bounds(of: settings) }
     private var observers: [any NSObjectProtocol] = []
 
-    /// `jump` jumps to a session, and tells once it answers whether it jumped.
-    init(jump: @escaping (String, @escaping (Bool) -> Void) -> Void) {
+    /// `jump` jumps to a session, and tells once it answers whether it jumped; `isJumping` says whether one runs.
+    init(jump: @escaping (String, @escaping (Bool) -> Void) -> Void, isJumping: @escaping () -> Bool) {
         let settings = saved.read()
 
         self.settings = settings
         notch = NotchController(settings, on: Displays.chosen(settings))
         notch.onJump = jump
+        notch.isJumping = isJumping
         notch.onMoved = { [unowned self] moved in
             saved.save(moved)
             apply(moved)
@@ -34,15 +35,16 @@ final class Edge {
         notch.show(PanelBoard(last))
     }
 
+    /// With no `watch` to run, the notch's head says why.
+    func unrun(_ why: String) {
+        notch.show(PanelBoard(unrun: why))
+    }
+
     private func apply(_ settings: EdgeSettings) {
         self.settings = settings
         notch.apply(settings, on: Displays.chosen(settings))
         fullScreen.changed()
         show()
-    }
-
-    private func screensChanged() {
-        apply(settings)
     }
 
     /// The notch shows unless Lee chose Nothing, or a full-screen app has its display. Until the strip is built, the
@@ -58,7 +60,11 @@ final class Edge {
             NotificationCenter.default.addObserver(
                 forName: NSApplication.didChangeScreenParametersNotification, object: nil, queue: .main
             ) { [weak self] _ in
-                MainActor.assumeIsolated { self?.screensChanged() }
+                MainActor.assumeIsolated {
+                    if let self {
+                        self.apply(self.settings)
+                    }
+                }
             },
             NSWorkspace.shared.notificationCenter.addObserver(
                 forName: NSWorkspace.accessibilityDisplayOptionsDidChangeNotification, object: nil, queue: .main

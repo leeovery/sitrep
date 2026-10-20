@@ -36,6 +36,20 @@ struct JumpTests {
         #expect(lab.model.jumping == nil && card.model.jumping == nil)
     }
 
+    /// DESIGN's rule for the open panel holds while a row is pressed in: a click elsewhere closes it at once.
+    @Test func aClickElsewhereClosesThePanelWhileARowIsPressedIn() {
+        var lab = Lab(), card = CardLab()
+        lab.openByTouch()
+        card.openByTouch()
+        lab.model.clickRow(0)
+        card.model.clickRow(0)
+
+        lab.model.clickElsewhere()
+        card.model.clickElsewhere()
+
+        #expect(lab.phase == .closing && card.phase == .closing)
+    }
+
     @Test func oneJumpAtATime() {
         oneAtATime(Lab())
         oneAtATime(CardLab())

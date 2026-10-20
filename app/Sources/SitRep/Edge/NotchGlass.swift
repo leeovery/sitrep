@@ -110,6 +110,10 @@ private struct NotchGlass: View {
                     glass(fading.outline, shown.mirror).opacity(fading.alpha)
                 }
                 glass(frame.outline, shown.mirror).opacity(frame.outlineAlpha)
+                    .shadow(
+                        color: .black.opacity(0.4 * frame.lift), radius: EdgeStyle.liftBlur * frame.lift,
+                        y: 4 * frame.lift
+                    )
                 if let panel = frame.panel {
                     GlassPanel(panel: panel, scene: shown, list: scene.list, washed: scene.washed)
                 }
@@ -144,18 +148,24 @@ private struct GlassPanel: View {
             GlassHead(head: list.head)
                 .frame(width: content.headFrame.width, height: HeadLayout.line, alignment: .top)
                 .painted(panel.head, at: content.headFrame.origin)
-            ForEach(Array(zip(content.entries.indices, panel.items)), id: \.0) { i, paint in
-                let itemBox = content.itemFrame(i), shows = content.entries[i].item
+            ForEach(placed(content)) { placed in
+                let i = placed.index, itemBox = content.itemFrame(i), shows = content.entries[i].item
                 item(shows, lit: scene.hover == i, pressed: shows.key == panel.pressed, width: itemBox.width)
                     .frame(width: itemBox.width, height: itemBox.height, alignment: .topLeading)
                     .clipped()
-                    .painted(paint, at: itemBox.origin)
+                    .painted(placed.paint, at: itemBox.origin)
             }
         }
         .offset(y: -scene.scroll)
         .frame(width: box.width, height: box.height, alignment: .topLeading)
         .clipShape(Outline(path: Path(panel.clipPath(scene.mirror))))
         .offset(x: box.minX, y: box.minY)
+    }
+
+    /// Each item with its paint, known by its key, as the black keeps its rows: a row keeps its own lift, press, arc
+    /// and sweep as the rows around it fold.
+    private func placed(_ content: Content) -> [Placed] {
+        zip(content.entries.indices, panel.items).map { Placed(id: content.entries[$0].item.key, index: $0, paint: $1) }
     }
 
     /// An item at its own height, which its box clips as it folds.
@@ -183,6 +193,13 @@ private struct GlassPanel: View {
 
         return 1 - out * out * (3 - 2 * out)
     }
+}
+
+/// An item at its place in the list, with its paint, known by its key.
+private struct Placed: Identifiable {
+    let id: String
+    let index: Int
+    let paint: Frame.Paint
 }
 
 /// The head: how many need Lee at the left, how many sessions at the right, on one baseline.

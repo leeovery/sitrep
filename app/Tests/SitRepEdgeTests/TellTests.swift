@@ -27,6 +27,21 @@ struct TellTests {
         #expect(notch.told == ["newAsk"])
     }
 
+    @Test func theBoardGoingStaleSwellsNothingAgain() {
+        let notch = Told()
+        var last = LastBoard()
+        _ = last.hear(.line(watchLine), at: .now)
+        let current = PanelBoard(last)
+        _ = last.hear(.exited(.status(1), stderr: ""), at: .now)
+        let stale = PanelBoard(last)
+        _ = last.hear(.exited(.status(1), stderr: ""), at: .now)
+
+        stale.tell(notch, after: current)
+        PanelBoard(last).tell(notch, after: stale)
+
+        #expect(notch.told.isEmpty)
+    }
+
     @Test func theFirstBoardNeedingLeeLightsTheNotchWithNoSwell() {
         let notch = Told()
 
@@ -76,5 +91,7 @@ private final class Told: Notch {
     func jumpAnswered() { told.append("jumpAnswered") }
     func clickElsewhere() { told.append("clickElsewhere") }
     func carry() { told.append("carry") }
+    func carried(to y: Double) { told.append("carried") }
+    func drop(across: Bool) { told.append("drop") }
     func restingOutline(at y: Double) -> CGPath { CGMutablePath() }
 }

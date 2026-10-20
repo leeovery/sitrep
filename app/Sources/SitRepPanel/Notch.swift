@@ -6,7 +6,7 @@ public protocol Notch: AnyObject {
     var phase: Phase { get }
     /// The panel's list, in the order each frame paints it.
     var items: [Item] { get }
-    /// How far from the edge a pointer by the notch counts as near it, for `Frame.wantsFrames`.
+    /// How far from the edge a pointer by the notch counts as near it, for `Frame.wakes`.
     var field: Double { get }
     /// The notch's home along the edge, its centre: the stage's, kept inside the band.
     var notchY: Double { get }
@@ -25,10 +25,31 @@ public protocol Notch: AnyObject {
     func jumpAnswered()
     /// A click anywhere off the panel and the notch closes it at once.
     func clickElsewhere()
-    /// A drag carries the notch: the panel closes, and the notch doesn't open under the pointer until it leaves.
+    /// A drag carries the notch, as the prototypes' does: the panel closes and the notch lifts off the edge.
     func carry()
+    /// The drag has the notch's home this far down the stage: the notch follows it on a 50ms spring, inside the band.
+    func carried(to y: Double)
+    /// The drag let the notch go: it sets down, and doesn't open under the pointer until it leaves. Let go across the
+    /// screen's middle, it drains into this edge and grows out of the other, the frame saying when (`swapsEdge`).
+    func drop(across: Bool)
     /// The notch at rest, its home this far down the stage, inside the band: a drag's ghost on the other edge.
     func restingOutline(at y: Double) -> CGPath
+}
+
+extension Notch {
+    /// Its time run on while nothing showed it, from the last frame's time to now: a frame each 50ms, the pointer
+    /// away, until nothing moves, so it shows as it would have come to rest and plays nothing late. The first frame
+    /// takes what came meanwhile, a new ask's swell among it. Its last frame.
+    public func runOn(from time: Double, to now: Double, _ input: (Double) -> Input) -> Frame {
+        var time = time, last: Frame
+
+        repeat {
+            time = min(now, time + 50)
+            last = frame(input(time))
+        } while time < now && last.isMoving
+
+        return last
+    }
 }
 
 /// What the two notches share, as their prototypes share it: the sim clock and its timers, the pointer's trail, what

@@ -46,6 +46,14 @@ final class GhostEdge {
         ghost.dropped()
     }
 
+    /// Gone at once, the notch hidden mid-drag.
+    func hide() {
+        ghost = DragGhost()
+        time = nil
+        still { shape.opacity = 0 }
+        window.orderOut(nil)
+    }
+
     /// One frame: whether it still comes or goes.
     func step(at time: Double) -> Bool {
         ghost.step(min(50, max(0, time - (self.time ?? time))))
