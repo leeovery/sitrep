@@ -7,7 +7,7 @@ import SitRepPanel
 /// cross-fades from. A frame changes the shape's path, the light and the content's clip and paint; nothing animates
 /// implicitly.
 @MainActor
-final class NotchView: NSView, NotchDrawing {
+final class NotchView: StageHost, NotchDrawing {
     /// The shape and the light, through the edge's mirror.
     private let stage = CALayer()
     private let shape = CAShapeLayer()
@@ -16,11 +16,9 @@ final class NotchView: NSView, NotchDrawing {
     private let content = PanelContent()
 
     init() {
-        super.init(frame: .zero)
-
         let root = CALayer()
 
-        root.isGeometryFlipped = true
+        super.init(hosting: root)
         fading.fillColor = EdgeStyle.black
         fading.isHidden = true
         shape.fillColor = EdgeStyle.black
@@ -30,16 +28,12 @@ final class NotchView: NSView, NotchDrawing {
         stage.addSublayer(light)
         root.addSublayer(stage)
         root.addSublayer(content.layer)
-        layer = root
-        wantsLayer = true
     }
 
     @available(*, unavailable)
     required init?(coder: NSCoder) {
         fatalError("init(coder:) is not used")
     }
-
-    override var isFlipped: Bool { true }
 
     override func viewDidMoveToWindow() {
         super.viewDidMoveToWindow()

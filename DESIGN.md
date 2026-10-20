@@ -2104,7 +2104,15 @@ it is 15 × 124, with the light inside. It opens into a black panel:
 
 In Glass (Settings' Look; Black by default), Meniscus and the card are
 thick Liquid Glass from rest, the light drawn over the glass and the rows in
-the system's label colours.
+the system's label colours. Clear glass that narrow hardly reads (Lee, 20
+October 2026: "the hovering box maybe is a little too subtle"), so the
+notch is marked as the black is by its dark: the glass tinted black at 0.5,
+with a white rim 1 point wide at 0.22 inside its edge. It is in full at
+the notch at rest, and near it while something needs Lee or the notch
+reaches for the pointer (the tint 0.44 to 0.49), as it eases off with how
+far out the outline is past the notch at rest, to the plain glass of the
+panel open, which Lee liked as it was. Under reduced motion each outline
+of the cross-fade keeps its own.
 
 It sits on the left edge by default, at Lee's asking, 0.42 of the way down
 the screen, a little above the middle, as the prototypes have it and where
@@ -2396,7 +2404,12 @@ blurred.
   app has its display (under "The strip", "Windows and full screen");
 - clicks pass through it except over the shape;
 - a global mouse monitor hears the approach, and while the panel is out,
-  every move (see Stages, step 6).
+  every move (see Stages, step 6);
+- every layer drawn in the stage's coordinates, y down from the top, is
+  hosted in a flipped view, the edge's, the ghost's and the caption's
+  alike: AppKit sets a hosted layer's flip from its view's, whatever the
+  layer says, and an unflipped one drew the glass's light upside down in
+  its window, far below its notch (20 October 2026).
 
 The shape is one path rebuilt every frame from the springs. As in the
 prototype, they are integrated semi-implicitly in substeps of at most 4ms,

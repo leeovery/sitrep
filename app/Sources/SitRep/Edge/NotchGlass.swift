@@ -19,7 +19,7 @@ final class NotchGlassView: NSView, NotchDrawing {
         super.init(frame: .zero)
 
         let host = NSHostingView(rootView: NotchGlass(scene: scene))
-        let lit = NSView(frame: bounds), root = CALayer()
+        let root = CALayer(), lit = StageHost(hosting: root)
 
         host.sizingOptions = []
         for view in [host, lit] {
@@ -27,11 +27,8 @@ final class NotchGlassView: NSView, NotchDrawing {
             view.autoresizingMask = [.width, .height]
             addSubview(view)
         }
-        root.isGeometryFlipped = true
         stage.addSublayer(light)
         root.addSublayer(stage)
-        lit.layer = root
-        lit.wantsLayer = true
     }
 
     @available(*, unavailable)
@@ -109,9 +106,11 @@ private struct NotchGlass: View {
             let frame = shown.frame
             ZStack(alignment: .topLeading) {
                 if let fading = frame.fading {
-                    glass(fading.outline, shown.mirror).opacity(fading.alpha)
+                    glass(fading.outline, shown.mirror, NotchGlassMark(openness: Frame.openness(fading.outline)))
+                        .opacity(fading.alpha)
                 }
-                glass(frame.outline, shown.mirror).opacity(frame.outlineAlpha)
+                glass(frame.outline, shown.mirror, NotchGlassMark(openness: frame.openness))
+                    .opacity(frame.outlineAlpha)
                     .shadow(
                         color: .black.opacity(0.4 * frame.lift), radius: EdgeStyle.liftBlur * frame.lift,
                         y: 4 * frame.lift
@@ -126,12 +125,43 @@ private struct NotchGlass: View {
         }
     }
 
-    /// Thick glass in an outline: the notch at rest is narrow enough to be thin, and would switch as the panel pours.
-    private func glass(_ outline: CGPath, _ mirror: CGAffineTransform) -> some View {
+    /// Thick glass in an outline, as marked: the notch at rest is narrow enough to be thin, and would switch as the
+    /// panel pours. The rim is stroked twice its width on the outline and clipped to it, so it lies inside the edge.
+    private func glass(_ outline: CGPath, _ mirror: CGAffineTransform, _ mark: NotchGlassMark) -> some View {
         var mirror = mirror
-        let drawn = outline.copy(using: &mirror) ?? outline
+        let drawn = Path(outline.copy(using: &mirror) ?? outline)
+        let glass = Glass.regular.tint(mark.tint > 0 ? .black.opacity(mark.tint) : nil)
 
-        return Color.clear.glassEffect(.regular, in: Outline(path: GlassThickness.thick(drawn, width: ScreenEdge.depth)))
+        return Color.clear
+            .glassEffect(glass, in: Outline(path: GlassThickness.thick(drawn.cgPath, width: ScreenEdge.depth)))
+            .overlay(alignment: .topLeading) {
+                if mark.rim > 0 {
+                    Outline(path: drawn)
+                        .stroke(.white.opacity(mark.rim), lineWidth: 2 * NotchGlassMark.rimWidth)
+                        .clipShape(Outline(path: drawn))
+                }
+            }
+    }
+}
+
+/// How the glass marks the notch, which the black marks by its own dark: the glass tinted dark, with a light rim
+/// inside its edge, in full at the notch and easing off as the panel comes out, to the plain glass of the panel open.
+/// Each outline is marked by its own openness, so under reduced motion the outline fading out keeps its mark.
+struct NotchGlassMark {
+    /// The black's opacity in the glass's tint.
+    let tint: Double
+    /// The rim's opacity.
+    let rim: Double
+
+    static let notchTint = 0.5
+    static let notchRim = 0.22
+    static let rimWidth = 1.0
+
+    init(openness: Double) {
+        let notch = 1 - openness
+
+        tint = Self.notchTint * notch
+        rim = Self.notchRim * notch
     }
 }
 
