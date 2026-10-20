@@ -70,6 +70,29 @@ struct CarryTests {
         crossesOnceIn(CardLab())
     }
 
+    @Test func letGoAcrossNoPressCarriesItUntilItIsHomeOnTheOtherEdge() {
+        refusesCarryWhileCrossing(Lab())
+        refusesCarryWhileCrossing(CardLab())
+        refusesCarryWhileCrossing(Lab(reducesMotion: true))
+        refusesCarryWhileCrossing(CardLab(reducesMotion: true))
+    }
+
+    @Test func letGoAcrossWithThePanelOutNoPressCarriesItUntilItIsHome() {
+        refusesCarryWhileCrossing(Lab(), panelOut: true)
+        refusesCarryWhileCrossing(CardLab(), panelOut: true)
+    }
+
+    @Test func letGoAlongTheEdgeAPressCarriesItAgainAtOnce() {
+        let lab = Lab(), card = CardLab()
+        lab.model.carry()
+        card.model.carry()
+
+        lab.model.drop(across: false)
+        card.model.drop(across: false)
+
+        #expect(lab.model.mayCarry && card.model.mayCarry)
+    }
+
     @Test func letGoAlongTheEdgeItStaysOnIt() {
         var lab = Lab()
         lab.model.carry()
@@ -148,6 +171,33 @@ struct CarryTests {
         let settled = lab.settle()
         #expect(settled)
         #expect(abs(lab.frame.outline.boundingBox.maxX - NotchShape.rest.w) < 0.5)
+    }
+
+    /// From the drop across, every frame refuses a press, up to the one it is home on the other edge; then one takes.
+    private func refusesCarryWhileCrossing<M: NotchModel>(_ lab: NotchLab<M>, panelOut: Bool = false) {
+        var lab = lab
+        if panelOut {
+            lab.openByTouch()
+            lab.pointer = CGPoint(x: 600, y: lab.notchY)
+        }
+        #expect(lab.model.mayCarry)
+        lab.model.carry()
+
+        lab.model.drop(across: true)
+        #expect(!lab.model.mayCarry)
+
+        let dropped = lab.now
+        var swapped: Double?
+        let home = lab.wait(3000) { lab in
+            if swapped == nil, lab.frame.swapsEdge {
+                swapped = lab.now
+            }
+            return lab.model.mayCarry
+        }
+
+        #expect(home)
+        #expect(swapped.map { lab.now - $0 >= (lab.model.reducesMotion ? 140 : 240) } == true)
+        #expect(lab.now - dropped < 3000)
     }
 
     private func crossesAtOnce<M: NotchModel>(_ lab: NotchLab<M>) {

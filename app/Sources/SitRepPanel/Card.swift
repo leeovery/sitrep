@@ -83,6 +83,7 @@ public final class Card: Notch {
     /// One frame: the view's news since the last, then the prototype's frame loop, in its order.
     public func frame(_ input: Input) -> Frame {
         let dt = min(50, max(0, input.time - now))
+        trail.frame(at: input.time, after: now)
         now = input.time
         take(input)
         t += dt

@@ -73,4 +73,6 @@ extension Meniscus {
 
     /// Whether the pointer may draw the notch out: not while a drag has it, nor as it crosses.
     var isFree: Bool { !isCarried && !isCrossing }
+
+    public var mayCarry: Bool { !isCrossing && !timers.has(.moveStart) }
 }

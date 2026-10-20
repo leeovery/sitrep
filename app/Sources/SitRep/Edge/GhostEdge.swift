@@ -41,9 +41,9 @@ final class GhostEdge {
         }
     }
 
-    /// The drag let the notch go.
-    func dropped() {
-        ghost.dropped()
+    /// The drag let the notch go, past the screen's middle or not.
+    func dropped(across: Bool) {
+        ghost.dropped(across: across)
     }
 
     /// Gone at once, the notch hidden mid-drag.

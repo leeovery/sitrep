@@ -34,6 +34,17 @@ func hitArea(w: Double, h: Double, cy: Double, live: Bool) -> CGRect {
 struct Trail {
     private var samples: [Sample] = []
 
+    /// A gap between frames no display refresh leaves: the frames slept.
+    static let sleep = 100.0
+
+    /// A frame at `now`, the last at `last`: frames that slept never saw the pointer move meanwhile, so its samples
+    /// from before say nothing of its speed now, and the trail starts again.
+    mutating func frame(at now: Double, after last: Double) {
+        if now - last > Self.sleep {
+            samples.removeAll()
+        }
+    }
+
     mutating func add(_ p: Vec, at now: Double) {
         samples.append(Sample(p: p, t: now))
         while samples.count > 2, now - samples[0].t > 150 {

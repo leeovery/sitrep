@@ -44,7 +44,7 @@ struct PanelContentTests {
     }
 
     private static func scene(_ frame: Frame, hover: Int?) -> NotchScene {
-        NotchScene(frame: frame, hover: hover, scroll: 0, now: 0, mirror: .identity)
+        NotchScene(frame: frame, hover: hover, scroll: 0, time: 0, now: 0, mirror: .identity)
     }
 
     @Test func aRowLiftedComesDownAsThePointerLeavesAfterTheBoardChangedAnother() throws {

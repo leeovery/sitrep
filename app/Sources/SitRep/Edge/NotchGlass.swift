@@ -69,13 +69,14 @@ final class NotchGlassView: NSView, NotchDrawing {
         light.show(placed, outline: outline, colours: colours)
     }
 
-    /// Each row washed from the last frame's moment; washes over by now are let go.
-    func wash(_ rows: Set<String>) {
-        let now = scene.now
-
-        scene.washed = scene.washed.filter { now - $0.value < Wash.length }
-        rows.forEach { scene.washed[$0] = now }
+    /// Each row washed from its own time, never the last frame's; washes over by then are let go.
+    func wash(_ rows: Set<String>, at time: Double) {
+        scene.washed = Wash.live(scene.washed, at: time)
+        rows.forEach { scene.washed[$0] = time }
     }
+
+    /// When each row's wash began, by its key.
+    var washed: [String: Double] { scene.washed }
 
     private func rescaleToWindow() {
         if let scale = window?.backingScaleFactor {
@@ -93,7 +94,7 @@ final class NotchGlassScene {
     var frame: NotchScene?
     /// The wall clock at the last frame, ms.
     var now = 0.0
-    /// When each new row's wash began, on the wall clock, by the row's key.
+    /// When each new row's wash began, on the display's clock, by the row's key.
     var washed: [String: Double] = [:]
 }
 
@@ -185,13 +186,7 @@ private struct GlassPanel: View {
 
     /// A new row's wash at this frame, as the black's: held 300ms, then easing out by 2 seconds.
     private func wash(_ key: String) -> Double {
-        guard let began = washed[key] else {
-            return 0
-        }
-
-        let out = min(max((scene.now - began - Wash.held) / (Wash.length - Wash.held), 0), 1)
-
-        return 1 - out * out * (3 - 2 * out)
+        washed[key].map { Wash.amount(since: scene.time - $0) } ?? 0
     }
 }
 

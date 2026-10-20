@@ -27,8 +27,8 @@ final class NotchSurface: EdgeSurface<any NotchDrawing> {
         drawing.showLight(placed, outline: outline, colours: colours)
     }
 
-    func wash(_ rows: Set<String>) {
-        drawing.wash(rows)
+    func wash(_ rows: Set<String>, at time: Double) {
+        drawing.wash(rows, at: time)
     }
 
     override func replay() {

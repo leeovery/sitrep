@@ -60,4 +60,6 @@ extension Card {
 
     /// Whether the pointer may draw the card out: not while a drag has it, nor as it crosses.
     var isFree: Bool { !isCarried && !isCrossing }
+
+    public var mayCarry: Bool { !isCrossing && !crossesOnceHome }
 }

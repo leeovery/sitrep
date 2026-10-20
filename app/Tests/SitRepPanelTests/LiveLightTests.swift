@@ -77,7 +77,77 @@ struct LiveLightTests {
 
     @Test(arguments: [(nil, 0.0), (-5, 0), (0, 0), (30, 0.39358600583090375), (70, 1), (150, 1), (450, 0.5), (700, 0)])
     func aNewAskBrightensItUpInSeventyMillisecondsAndBackBySevenHundred(sinceAsk: Double?, brighten: Double) {
+        #expect(abs(LiveLight.brightenUp(sinceAsk) - brighten) < 1e-12)
+    }
+
+    /// Under reduced motion, as `drawLive` paints it with `reduce` set.
+    static let reduced = [
+        Drawn(time: 0, sinceAsk: nil, opacity: 0.944, line: "0.188", body: Self.still),
+        Drawn(time: 1234.5, sinceAsk: 30, opacity: 0.944, line: "0.220", body: [
+            "227 112 73", "230 114 75", "235 119 79", "239 124 82", "240 126 84",
+            "240 129 86", "241 131 88", "242 134 91", "242 137 93", "243 138 94",
+            "243 139 94", "243 138 94", "243 138 94", "242 137 93", "242 137 94",
+            "243 138 94", "243 139 95", "243 140 95", "243 139 95", "243 138 94",
+            "242 135 92", "241 132 89", "236 125 84", "231 118 78", "228 114 75",
+        ]),
+        Drawn(time: 5000, sinceAsk: 150, opacity: 1, line: "0.288", body: [
+            "232 129 87", "234 132 90", "239 138 94", "244 143 98", "244 145 100",
+            "245 147 101", "245 149 103", "246 151 105", "246 152 106", "246 153 107",
+            "246 154 107", "246 154 107", "246 153 107", "246 153 107", "246 153 107",
+            "246 153 107", "246 154 108", "247 155 108", "246 154 108", "246 153 107",
+            "246 151 105", "245 149 103", "240 142 98", "235 134 92", "232 130 89",
+        ]),
+        Drawn(time: 20000, sinceAsk: 300, opacity: 0.944, line: "0.272", body: [
+            "231 125 84", "233 128 86", "238 134 91", "243 139 95", "243 141 96",
+            "244 143 98", "244 145 100", "245 147 102", "245 149 103", "245 150 104",
+            "246 150 104", "245 150 104", "245 150 104", "245 149 104", "245 149 104",
+            "245 150 104", "246 151 105", "246 151 105", "246 151 105", "245 150 104",
+            "245 148 102", "244 145 100", "240 138 95", "234 131 89", "231 127 85",
+        ]),
+        Drawn(time: 47321, sinceAsk: 500, opacity: 0.944, line: "0.192", body: [
+            "226 105 67", "228 107 69", "233 112 72", "237 116 76", "238 119 78",
+            "239 121 80", "239 125 83", "240 128 85", "241 130 87", "241 132 89",
+            "241 133 89", "241 132 89", "241 132 89", "241 131 88", "241 131 88",
+            "241 132 89", "241 133 90", "242 134 90", "241 133 90", "241 132 89",
+            "240 129 86", "239 125 83", "235 118 78", "229 111 72", "226 107 69",
+        ]),
+        Drawn(time: 3100, sinceAsk: -5, opacity: 0.944, line: "0.188", body: Self.still),
+        Drawn(time: 900, sinceAsk: 540, opacity: 0.944, line: "0.188", body: Self.still),
+    ]
+
+    /// The light held still: mid-breath, its spots at home.
+    private static let still = [
+        "226 104 66", "228 106 68", "233 111 71", "237 115 74", "238 117 77",
+        "238 120 79", "239 123 82", "240 127 84", "241 129 87", "241 131 88",
+        "241 132 89", "241 131 88", "241 131 88", "241 130 87", "241 130 87",
+        "241 131 88", "241 132 89", "241 133 90", "241 132 89", "241 131 88",
+        "240 128 85", "239 124 82", "235 117 77", "229 110 71", "226 106 68",
+    ]
+
+    @Test(arguments: reduced)
+    func underReducedMotionItIsDrawnAsThePrototypeDrawsIt(_ drawn: Drawn) {
+        let light = LiveLight(time: drawn.time, sinceAsk: drawn.sinceAsk, reducesMotion: true)
+
+        #expect(abs(light.opacity - drawn.opacity) < 1e-12)
+        #expect(String(format: "%.3f", light.line) == drawn.line)
+        #expect(light.body.map(Self.css) == drawn.body)
+    }
+
+    @Test(arguments: [0.0, 600, 1234.5, 8300, 47321])
+    func underReducedMotionItHoldsStillWithNoAsk(time: Double) {
+        #expect(LiveLight(time: time, sinceAsk: nil, reducesMotion: true) == LiveLight(time: 0, sinceAsk: nil, reducesMotion: true))
+        #expect(LiveLight(time: time, sinceAsk: 5000, reducesMotion: true) == LiveLight(time: 0, sinceAsk: nil, reducesMotion: true))
+    }
+
+    @Test(arguments: [(nil, 0.0), (-5, 0), (0, 0), (40, 0.5), (80, 1), (220, 1), (380, 0.5), (540, 0)])
+    func underReducedMotionANewAskBrightensItUpInEightyAndBackBy540(sinceAsk: Double?, brighten: Double) {
         #expect(abs(LiveLight.brighten(sinceAsk) - brighten) < 1e-12)
+    }
+
+    @Test func itMovesAlwaysButUnderReducedMotionOnlyWhileANewAskBrightensIt() {
+        #expect([nil, -5, 0, 300, 5000].allSatisfy { LiveLight.moves(sinceAsk: $0, reducesMotion: false) })
+        #expect([0, 80, 300, 539].allSatisfy { LiveLight.moves(sinceAsk: $0, reducesMotion: true) })
+        #expect(![nil, -5, 540, 5000].contains { LiveLight.moves(sinceAsk: $0, reducesMotion: true) })
     }
 
     @Test func atTheBreathsTroughItStaysOrangeAtEightySixPercent() {

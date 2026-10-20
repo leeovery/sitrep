@@ -94,16 +94,23 @@ final class SessionRow {
         ageText = text
     }
 
-    /// New on the board while the panel is out: washed orange (`Wash`).
-    func washes() {
+    /// New on the board while the panel is out: washed orange (`Wash`) from this time, ms on the display's clock,
+    /// which may have passed.
+    func washes(since began: Double) {
         let fade = CAKeyframeAnimation(keyPath: "opacity")
 
+        fade.beginTime = wash.convertTime(began / 1000, from: nil)
         fade.values = [1, 1, 0]
         fade.keyTimes = [0, NSNumber(value: Wash.held / Wash.length), 1]
         fade.timingFunctions = [CAMediaTimingFunction(name: .linear), CAMediaTimingFunction(name: .easeInEaseOut)]
         fade.duration = Wash.length / 1000
-        wash.add(fade, forKey: "wash")
+        wash.add(fade, forKey: Self.washKey)
     }
+
+    static let washKey = "wash"
+
+    /// The wash under way, while there is one.
+    var washing: CAAnimation? { wash.animation(forKey: Self.washKey) }
 
     private var isWorking: Bool { session.kind == .working }
 
