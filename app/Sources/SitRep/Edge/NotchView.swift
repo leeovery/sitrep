@@ -1,4 +1,5 @@
 import AppKit
+import SitRepEdge
 import SitRepPanel
 
 /// The notch in black: the black shape, the light in the notch, and the content over them, as layers in the stage's

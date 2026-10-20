@@ -1,4 +1,5 @@
 import AppKit
+import SitRepEdge
 import SitRepPanel
 
 /// The notch's window content, drawn in the material chosen: what it was told last, replayed into a new drawing.

@@ -2,9 +2,9 @@ import AppKit
 import SitRepEdge
 import SitRepPanel
 
-/// The notch on its display: it owns the notch, in the style Lee chose, feeds it a frame per display refresh with the
-/// pointer, the time and the board's rows, and draws what each gives back. Frames run only while something moves: the
-/// model, a row folding, the ghost, a new row's wash in glass. A pointer resting anywhere moves nothing; the mouse
+/// The notch on its display: it runs the notch (`NotchRun`), in the style Lee chose, a frame per display refresh with
+/// the pointer, the time and the board's rows, and draws what each gives back. Frames run only while something moves:
+/// the model, a row folding, the ghost, a new row's wash in glass. A pointer resting anywhere moves nothing; the mouse
 /// monitors wake the frames as it moves near the notch, or anywhere while the panel is out (`Frame.wakes`). While
 /// idle it costs nothing, but for the light, which breathes on a slow refresh of its own while something needs Lee
 /// (under reduced motion it holds still, and the refresh runs only while a new ask brightens it), and the open
@@ -21,34 +21,19 @@ final class NotchController: NSObject {
 
     private var settings: EdgeSettings
     private var edge: ScreenEdge
-    private var notch: any Notch
-    private var style: NotchStyle
-    private var board = PanelBoard()
-    private var rows = HeldRows()
-    private var folds = Folds()
-    /// The panel's list as the model and the drawing have it.
-    private var list: PanelList
+    private let run: NotchRun
     private let surface = NotchSurface()
     private let window: EdgeWindow
-    private var frame: Frame
-    /// The display's clock at the last frame, ms.
-    private var time: Double
-    /// The pointer on the stage as the last frame saw it.
-    private var seen: CGPoint?
-    private var asks = AskClock()
     private var link: CADisplayLink?
     private var lightLink: CADisplayLink?
     /// While frames are idle with the panel out, its times drawn again as they next change.
     private var ages: Timer?
-    private var scroll = 0.0
     private var drag: NotchDrag?
     /// A drag let go across the screen's middle: its settings, saved as the notch swaps edges.
     private var crossing: EdgeSettings?
     private let ghost = GhostEdge()
     private let caption = CaptionWindow()
-    /// How many rows' clicks have asked for a jump: the latest's answer is the one heard.
-    private var clicks = 0
-    /// When a new row was last washed, on the display's clock.
+    /// When a new row was last washed, on the run's clock.
     private var washed: Double?
     private var monitors: [Any] = []
 
@@ -58,19 +43,12 @@ final class NotchController: NSObject {
     init(_ settings: EdgeSettings, on display: Display) {
         self.settings = settings
         edge = ScreenEdge(display, settings)
-        style = settings.style
-        list = PanelList(head: board.head, content: Content(laying: []))
-        time = Displays.now
-
-        let input = Self.input(at: time, pointer: nil, needsLee: false, edge, list, settings)
-
-        notch = settings.style.notch(input)
-        frame = notch.frame(input)
+        run = NotchRun(at: Displays.now, in: Self.setting(edge, settings))
         window = EdgeWindow(frame: edge.window, view: surface)
         super.init()
 
         surface.material = settings.material
-        surface.show(list)
+        surface.show(run.list)
         surface.pointer = EdgePointer(
             pressed: { [unowned self] in press(at: $0) },
             dragged: { [unowned self] in drag(to: $0) },
@@ -94,7 +72,7 @@ final class NotchController: NSObject {
 
             caption.mayShow = isShown
             if isShown {
-                catchUp(to: Displays.now)
+                run.catchUp(to: Displays.now, in: setting)
                 window.orderFrontRegardless()
                 wake()
             } else {
@@ -112,16 +90,13 @@ final class NotchController: NSObject {
     /// nothing new, as on the first board, lights the notch with no swell.
     func show(_ board: PanelBoard) {
         advance()
-        board.tell(notch, after: self.board)
-        self.board = board
-        rows.take(board.sessions)
 
-        let now = Displays.now
+        let washes = run.show(board, at: Displays.now, in: setting)
 
-        relist(at: now)
-        if isOut, !board.new.isEmpty {
-            surface.wash(board.new, at: now)
-            washed = now
+        surface.show(run.list)
+        if !washes.isEmpty {
+            surface.wash(washes, at: run.time)
+            washed = run.time
         }
         wake()
     }
@@ -150,23 +125,23 @@ final class NotchController: NSObject {
     /// run on while hidden. Running, the last frame is a refresh old at most.
     private func advance() {
         if !isShown {
-            catchUp(to: Displays.now)
+            run.catchUp(to: Displays.now, in: setting)
         } else {
             wake()
         }
     }
 
-    private var isOut: Bool { notch.phase == .open || notch.phase == .opening }
+    /// What the notch runs in now: the edge's stage, Lee's notch and the motion, which the Mac's setting may change.
+    private var setting: NotchRun.Setting { Self.setting(edge, settings) }
 
-    private static func input(
-        at time: Double, pointer: CGPoint?, needsLee: Bool, _ edge: ScreenEdge, _ list: PanelList,
-        _ settings: EdgeSettings
-    ) -> Input {
-        Input(
-            time: time, pointer: pointer, needsLee: needsLee, stage: edge.stage, content: list.content,
+    private static func setting(_ edge: ScreenEdge, _ settings: EdgeSettings) -> NotchRun.Setting {
+        NotchRun.Setting(
+            stage: edge.stage, mirror: edge.mirror, style: settings.style,
             reducesMotion: Displays.reducesMotion(settings)
         )
     }
+
+    private var pointer: CGPoint? { edge.stagePoint(NSEvent.mouseLocation) }
 
     private func startLink(_ selector: Selector, rate: CAFrameRateRange? = nil) -> CADisplayLink {
         let link = surface.displayLink(target: self, selector: selector)
@@ -187,7 +162,7 @@ final class NotchController: NSObject {
     /// The light drawn a refresh on; once it no longer moves, as a brighten under reduced motion ends, drawn at rest
     /// and the refresh stopped.
     @objc private func tickLight(_ link: CADisplayLink) {
-        let time = link.targetTimestamp * 1000
+        let time = run.clock(link.targetTimestamp * 1000)
 
         drawLight(at: time)
         if !lightMoves(at: time) {
@@ -195,79 +170,37 @@ final class NotchController: NSObject {
         }
     }
 
-    /// One frame: the model moved on to this time with the pointer where it is, drawn, and the clocks paced.
+    /// One frame: the notch moved on to this time with the pointer where it is, drawn, and the clocks paced.
     private func step(at time: Double) {
-        let pointer = edge.stagePoint(NSEvent.mouseLocation)
+        run.step(at: time, pointer: pointer, in: setting)
+        draw()
+    }
 
-        fold(at: time)
+    /// The run's latest frame drawn: the edge it swapped to saved, the caption told the panel drained, and the clocks
+    /// paced.
+    private func draw() {
+        let frame = run.frame, time = run.time, pointer = run.seen
 
-        let input = Self.input(at: time, pointer: pointer, needsLee: board.needsLee, edge, list, settings)
-
-        frame = notch.frame(input)
-        self.time = time
-        seen = pointer
-        if rows.hold(notch.phase != .closed) {
-            relist(at: time)
-        }
-        restyle(input)
         if frame.swapsEdge, let crossing {
             self.crossing = nil
             onMoved(crossing)
         }
-        if notch.phase == .closing || notch.phase == .closed {
+        if run.notch.phase == .closing || run.notch.phase == .closed {
             caption.drained(at: time)
         }
-        scroll = frame.panel.map { list.content.scrolled(scroll, by: 0, showing: $0.frame.height) } ?? 0
-        asks.take(lastAsk: frame.light.lastAsk, simTime: frame.time, at: time)
+        surface.show(run.list)
         surface.show(NotchScene(
-            frame: frame, hover: pointer.flatMap(row), scroll: scroll, time: time, now: Displays.wallNow,
-            mirror: edge.mirror
+            frame: frame, hover: pointer.flatMap { run.row(at: $0, in: setting) }, scroll: run.scroll, time: time,
+            now: Displays.wallNow, mirror: edge.mirror
         ))
         drawLight(at: time)
         window.ignoresMouseEvents = drag == nil && !(pointer.map(frame.hits) ?? false)
         pace(at: time)
     }
 
-    /// Hidden, the notch's time ran on: it is taken on to now (`Notch.runOn`), and the frame after shows it.
-    private func catchUp(to now: Double) {
-        frame = notch.runOn(from: time, to: now) { [board, edge, list, settings] in
-            Self.input(at: $0, pointer: nil, needsLee: board.needsLee, edge, list, settings)
-        }
-        time = now
-    }
-
-    /// The rows as they show now, folding in and out while the panel is out, to the model's next frame and the
-    /// drawing.
-    private func relist(at time: Double) {
-        folds.take(Item.list(rows.shown), at: time, animating: isOut, reducesMotion: Displays.reducesMotion(settings))
-        list.head = board.head
-        fold(at: time)
-    }
-
-    /// The list as it folds at this time.
-    private func fold(at time: Double) {
-        list.content = folds.content(at: time)
-        surface.show(list)
-    }
-
-    /// Lee chose the other notch: an open panel closes first, and the notch changes once it is at rest.
-    private func restyle(_ input: Input) {
-        guard settings.style != style else {
-            return
-        }
-
-        if isOut {
-            notch.clickElsewhere()
-        } else if notch.phase == .closed, !frame.isMoving {
-            style = settings.style
-            notch = style.notch(input)
-            frame = notch.frame(input)
-        }
-    }
-
     private func drawLight(at time: Double) {
-        surface.showLight(frame.light, outline: frame.outline, colours: LiveLight(
-            time: time, sinceAsk: asks.since(time), reducesMotion: Displays.reducesMotion(settings)
+        surface.showLight(run.frame.light, outline: run.frame.outline, colours: LiveLight(
+            time: time, sinceAsk: run.sinceAsk(at: time), reducesMotion: Displays.reducesMotion(settings)
         ))
     }
 
@@ -275,21 +208,21 @@ final class NotchController: NSObject {
     /// the panel out, a frame as its times next change. Hidden, none.
     private func pace(at time: Double) {
         let ghosts = ghost.step(at: time)
-        let running = isShown && (frame.isMoving || folds.isMoving(at: time) || ghosts || isWashing(at: time))
+        let running = isShown && (run.frame.isMoving || run.folds(at: time) || ghosts || isWashing(at: time))
 
         link?.isPaused = !running
         lightLink?.isPaused = running || !lightMoves(at: time)
         ages?.invalidate()
         ages = nil
-        if isShown, !running, frame.panel != nil {
+        if isShown, !running, run.frame.panel != nil {
             agesChange()
         }
     }
 
     /// Whether the light, shown and lit, changes from moment to moment (`LiveLight.moves`).
     private func lightMoves(at time: Double) -> Bool {
-        isShown && frame.light.level > 0.001
-            && LiveLight.moves(sinceAsk: asks.since(time), reducesMotion: Displays.reducesMotion(settings))
+        isShown && run.frame.light.level > 0.001
+            && LiveLight.moves(sinceAsk: run.sinceAsk(at: time), reducesMotion: Displays.reducesMotion(settings))
     }
 
     /// A new row's wash, which glass draws a frame at a time.
@@ -300,7 +233,7 @@ final class NotchController: NSObject {
     /// A frame as the first of the open panel's times next reads differently, menus tracking or not.
     private func agesChange() {
         let now = Displays.wallNow
-        guard let next = rows.shown.map({ $0.ageChanges(after: now) }).min() else {
+        guard let next = run.rows.shown.map({ $0.ageChanges(after: now) }).min() else {
             return
         }
 
@@ -315,61 +248,39 @@ final class NotchController: NSObject {
     /// Lee's action on the model, once it is up to now, then frames to show it.
     private func act(_ action: (any Notch) -> Void) {
         advance()
-        action(notch)
+        action(run.notch)
         wake()
     }
 
-    /// The session row under a point on the stage, while the panel shows it.
-    private func row(at point: CGPoint) -> Int? {
-        guard let panel = frame.panel, panel.contains(point) else {
-            return nil
-        }
-
-        return list.content.row(at: panel.contentPoint(point, mirror: edge.mirror, scroll: scroll))
-    }
-
-    /// A press on a row jumps to its session, unless no window holds it; anywhere else on the black, it may become
-    /// a drag, unless the notch is still crossing to the other edge from the last.
+    /// A press on a row that jumps presses it in and jumps to its session, and once the jump has jumped, the caption
+    /// says where; anywhere else on the black, it may become a drag (`NotchRun.press`).
     private func press(at screenPoint: CGPoint) {
-        advance()
         guard let point = edge.stagePoint(screenPoint) else {
             return
         }
 
-        if let index = row(at: point) {
-            click(index)
-        } else if frame.hits(point), notch.mayCarry {
-            drag = NotchDrag(at: point, home: notch.notchY)
+        let pressed = run.press(at: point, time: Displays.now, in: setting, mayJump: !isJumping())
+
+        draw()
+        switch pressed {
+        case let .jump(session, to: target, click: click):
+            caption.jumping(to: session.project)
+            wake()
+            onJump(target) { [weak self] in self?.answered(jumped: $0, click: click) }
+        case .carry:
+            drag = NotchDrag(at: point, home: run.notch.notchY)
+        case nil:
+            break
         }
-    }
-
-    /// A row that jumps, while the panel takes the click and no jump runs, as the menu's works are disabled while one
-    /// does: the row the model presses in, which it jumps to. Once the jump has jumped, the caption says where.
-    private func click(_ index: Int) {
-        let items = notch.items
-
-        guard !isJumping(), items.indices.contains(index), let session = items[index].session,
-              let target = board.jump(session), notch.clickRow(index)
-        else {
-            return
-        }
-
-        clicks += 1
-
-        let click = clicks
-
-        caption.jumping(to: session.project)
-        wake()
-        onJump(target) { [weak self] in self?.answered(jumped: $0, click: click) }
     }
 
     /// The jump a click asked for answered; an answer to an earlier click changes nothing.
     private func answered(jumped: Bool, click: Int) {
-        guard click == clicks else {
+        guard run.isLatest(click) else {
             return
         }
 
-        caption.answered(jumped: jumped, at: Displays.now)
+        caption.answered(jumped: jumped, at: run.clock(Displays.now))
         act { $0.jumpAnswered() }
     }
 
@@ -380,6 +291,8 @@ final class NotchController: NSObject {
         guard var drag, let point = edge.stagePoint(screenPoint) else {
             return
         }
+
+        let notch = run.notch
 
         if drag.move(to: point, width: edge.frame.width) {
             notch.carry()
@@ -403,9 +316,9 @@ final class NotchController: NSObject {
             return
         }
 
-        let moved = drag.dropped(settings, at: notch.notchY, height: edge.frame.height)
+        let moved = drag.dropped(settings, at: run.notch.notchY, height: edge.frame.height)
 
-        notch.drop(across: drag.isAcross)
+        run.notch.drop(across: drag.isAcross)
         ghost.dropped(across: drag.isAcross)
         if drag.isAcross {
             crossing = moved
@@ -429,19 +342,15 @@ final class NotchController: NSObject {
 
         self.drag = nil
         if drag.isCarrying {
-            notch.carried(to: edge.stage.notchY)
-            notch.drop(across: false)
+            run.notch.carried(to: edge.stage.notchY)
+            run.notch.drop(across: false)
         }
         window.ignoresMouseEvents = true
     }
 
     private func scroll(by delta: Double) {
         advance()
-        guard let panel = frame.panel else {
-            return
-        }
-
-        scroll = list.content.scrolled(scroll, by: delta, showing: panel.frame.height)
+        run.scroll(by: delta)
         wake()
     }
 
@@ -470,10 +379,10 @@ final class NotchController: NSObject {
             return
         }
 
-        if clickElsewhere, isOut {
+        if clickElsewhere, run.isOut {
             act { $0.clickElsewhere() }
         } else if !window.ignoresMouseEvents
-            || frame.wakes(from: seen, to: edge.stagePoint(NSEvent.mouseLocation), field: notch.field)
+            || run.frame.wakes(from: run.seen, to: pointer, field: run.notch.field)
         {
             wake()
         }

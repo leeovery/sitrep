@@ -1,4 +1,5 @@
 import AppKit
+import SitRepEdge
 import SitRepPanel
 
 /// One way of drawing the notch, in black or in glass: the list the panel holds, as it changes, and a frame at a time.
@@ -14,17 +15,6 @@ protocol NotchDrawing: NSView {
     /// These rows, by their keys, came new onto the board while the panel is out: each is washed orange from this
     /// time on the display's clock, ms.
     func wash(_ rows: Set<String>, at time: Double)
-}
-
-/// What the panel lists: its head, and its items laid out, in the order the model has them.
-struct PanelList: Equatable {
-    var head: Head
-    var content: Content
-
-    /// The item at an index, while there is one.
-    func item(_ index: Int) -> Item? {
-        content.entries.indices.contains(index) ? content.entries[index].item : nil
-    }
 }
 
 /// One frame as a drawing draws it.

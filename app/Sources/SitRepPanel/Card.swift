@@ -208,32 +208,6 @@ public final class Card: Notch {
         }
     }
 
-    @discardableResult
-    public func clickRow(_ index: Int) -> Bool {
-        guard isLive, jumping == nil, let id = jumpingRow(index) else {
-            return false
-        }
-
-        cancel(.grace)
-        jumping = id
-        later(.jump, Tuning.jumpFor) { $0.close() }
-        return true
-    }
-
-    public func jumpAnswered() {
-        if timers.has(.jump) {
-            cancel(.jump)
-            close()
-        }
-    }
-
-    /// A click anywhere off the panel and the notch closes it at once.
-    public func clickElsewhere() {
-        if isLive {
-            close()
-        }
-    }
-
     public func restingOutline(at y: Double) -> CGPath {
         shapePath(CardGeometry(w: resting.w, h: resting.h, near: y, on: stage))
     }
@@ -292,7 +266,7 @@ struct Motion {
 }
 
 /// A timer on the card's sim clock, by the prototype's name for it.
-struct CardTimer: RawRepresentable, Equatable {
+struct CardTimer: RawRepresentable, Equatable, ClickTimers {
     let rawValue: String
 
     static let dwell = Self(rawValue: "dwell")

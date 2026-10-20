@@ -57,7 +57,7 @@ extension Notch {
 
 /// What the two notches share, as their prototypes share it: the sim clock and its timers, the pointer's trail, what
 /// the pointer is over, the rows landing and fading, and reduced motion.
-protocol NotchModel: Notch, SimModel {
+protocol NotchModel: Notch, SimModel where TimerName: ClickTimers {
     associatedtype SpringSet
 
     /// Every spring the notch is made of, by its prototype's names (its `S`).
@@ -77,6 +77,43 @@ protocol NotchModel: Notch, SimModel {
     var fade: (outline: CGPath, t0: Double)? { get set }
     /// The outline as last drawn, which a cross-fade fades out.
     var lastOutline: CGPath? { get }
+
+    /// The panel goes in, as a click elsewhere or a jump sends it.
+    func close()
+}
+
+/// The timers a click runs, which both notches name alike: the grace a leave starts, and the jump's wait.
+protocol ClickTimers {
+    static var grace: Self { get }
+    static var jump: Self { get }
+}
+
+/// A click, as both prototypes take it.
+extension NotchModel {
+    @discardableResult
+    public func clickRow(_ index: Int) -> Bool {
+        guard isLive, jumping == nil, let id = jumpingRow(index) else {
+            return false
+        }
+
+        cancel(.grace)
+        jumping = id
+        later(.jump, Tuning.jumpFor) { $0.close() }
+        return true
+    }
+
+    public func jumpAnswered() {
+        if timers.has(.jump) {
+            cancel(.jump)
+            close()
+        }
+    }
+
+    public func clickElsewhere() {
+        if isLive {
+            close()
+        }
+    }
 }
 
 /// Reduced motion, as both prototypes have it: nothing springs, a move takes 140ms at most, and a change of shape

@@ -90,10 +90,15 @@ extension Meniscus {
         case dismissed
     }
 
+    /// Closed by a click off it, or on a row: it drains.
+    func close() {
+        close(.dismissed)
+    }
+
     /// A pop or a grace collapses straight home on springs, the end nearer where the pointer left leading, quicker
     /// the faster it left. Anything else drains as the prototype's Pour does. Under reduced motion, any close
     /// cross-fades to the notch.
-    func close(_ reason: CloseReason = .dismissed) {
+    func close(_ reason: CloseReason) {
         cancel(.dwell, .grace)
         // a pointer left on the notch doesn't reopen it until it leaves, nor one left within the attraction's reach
         contact.armed = false

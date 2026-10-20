@@ -8,9 +8,9 @@ import SitRepPanel
 final class CaptionWindow {
     /// The visible frame of the notch's screen.
     var over = CGRect.zero
-    /// Whether it may show: not while a full-screen app has the notch's display. Kept from showing, a caption showing
-    /// or waiting to goes.
-    var mayShow = true {
+    /// Whether it may show: only while the notch does, never while a full-screen app has the notch's display. Kept
+    /// from showing, a caption showing or waiting to goes.
+    var mayShow = false {
         didSet {
             if !mayShow {
                 pending = nil
