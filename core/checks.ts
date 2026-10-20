@@ -9,7 +9,7 @@
 import { isSessionId, newItemId, type Random } from './ids'
 import { directoryOf, isNameable } from './project'
 import { needsReload } from './release'
-import { answerOnItsWay, yesOf } from './replies'
+import { yesOf } from './replies'
 import { WANTS } from './shapes'
 import type { StatusFields } from './status'
 import { inWords, oneLine } from './text'
@@ -452,10 +452,7 @@ const quotedOr = (answers: readonly string[]) => inWords(answers.map(each => `â€
 const ANSWER_RULES: readonly [breaks: (ask: Ask) => boolean, error: (ask: Ask) => string][] = [
   [ask => ask.state === 'ignored', ask => `${ask.id} is already ignored.`],
   [ask => ask.state === 'closed', ask => `${ask.id} is already closed.`],
-  [
-    ask => answerOnItsWay(ask) !== undefined,
-    ask => `An answer to ${ask.id} is on its way already.`,
-  ],
+  [ask => ask.onItsWay !== undefined, ask => `An answer to ${ask.id} is on its way already.`],
 ]
 
 const OLD_WINDOW =
@@ -515,19 +512,17 @@ const askAnswered = (
     return refuse('This session is finished: its asks wait on Lee no more.')
   }
 
-  if (isDeliveredByOld(session, version)) {
-    return refuse(OLD_WINDOW)
-  }
-
   const item = target(session, { item: fields.ask })
 
   if (!item.ok) {
     return item
   }
 
-  return item.value.type === 'ask'
-    ? ok(item.value)
-    : refuse(`${item.value.id} is ${NOUNS[item.value.type]}, not an ask.`)
+  if (item.value.type !== 'ask') {
+    return refuse(`${item.value.id} is ${NOUNS[item.value.type]}, not an ask.`)
+  }
+
+  return isDeliveredByOld(session, version) ? refuse(OLD_WINDOW) : ok(item.value)
 }
 
 /**

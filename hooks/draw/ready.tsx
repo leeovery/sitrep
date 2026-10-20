@@ -285,15 +285,21 @@ const drawQueuedEntry = (d: Drawing, entry: Queued) => {
   )
 }
 
+/** Whether Claude has a sent reply, and since when; one its item changed under says so, as it settled nothing. */
+const sentWords = (now: number, sent: Reply) => {
+  if (sent.deliveredAt === undefined) {
+    return sent.voided === undefined ? '· on its way' : NOT_DELIVERED[sent.voided]
+  }
+
+  const changed = sent.voided === 'changed' ? ', but it changed since' : ''
+
+  return `· delivered ${agoWords(now, sent.deliveredAt)}${changed}`
+}
+
 /** A reply sent into the session's inbox, as the box lists it: what it answers, and whether Claude has it yet. */
 const drawSentEntry = (d: Drawing, { item, sent }: Sent) => {
   const { Box } = d.els
-  const standing =
-    sent.voided !== undefined
-      ? NOT_DELIVERED[sent.voided]
-      : sent.deliveredAt === undefined
-        ? '· on its way'
-        : `· delivered ${agoWords(d.scene.now, sent.deliveredAt)}`
+  const standing = sentWords(d.scene.now, sent)
 
   return (
     <Box key={`sentreply:${sent.id}`} flexDirection="column">

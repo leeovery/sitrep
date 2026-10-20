@@ -22,7 +22,7 @@ export type Verdict = 'yes' | 'choose' | 'answer' | 'comment' | 'ignore' | 'pick
 /**
  * Where a reply stands: Claude has it; it goes in when its session's window
  * ends its turn; no window has the session, so it waits for one to join; or
- * it goes nowhere (`Voided` says why).
+ * it goes nowhere, void (`Voided` says why).
  */
 export type Delivery = 'delivered' | 'waiting' | 'closed' | 'void'
 
@@ -33,11 +33,14 @@ export type Delivery = 'delivered' | 'waiting' | 'closed' | 'void'
 export type Barred = 'answered' | 'resolved'
 
 /**
- * Why a reply went void: its item took it no more, as `Barred` says;
- * `changed`, an edit left it fitting its item no more; `finished`, its
+ * Why a reply settles nothing: its item took it no more, as `Barred` says;
+ * `changed`, its item changed under it so it fits no more; `finished`, its
  * session was finished before it went in.
  */
 export type Voided = 'changed' | 'finished' | Barred
+
+/** Who closed an item, and how: Lee's answer, Lee's ignore, or Claude's resolve. */
+export type ClosedBy = 'answer' | 'ignore' | 'claude'
 
 export type StatusBody = {
   type: 'status'
@@ -169,8 +172,9 @@ export type Reply = {
   by: string
   at: number
   delivery: Delivery
+  /** When a mark said Claude has it. */
   deliveredAt?: number
-  /** When it went void, and why. */
+  /** When it went void, and why. One its item changed under may be delivered too: Claude has it, and it settles nothing. */
   voidedAt?: number
   voided?: Voided
 }
@@ -182,6 +186,8 @@ type Posted = {
   at: number
   openedAt: number
   closedAt?: number
+  /** Who closed it, as the event that closed it says; none while it is open. */
+  closedBy?: ClosedBy
   editedAt?: number
   reason?: string
   ref?: string
@@ -207,6 +213,8 @@ export type Ask = Posted & {
   state: AskState
   /** The delivered reply that last moved it, since it was opened or reopened. */
   answer?: Reply
+  /** Lee's answer on its way to it: at most one, as a second starts void. */
+  onItsWay?: Reply
   replies: Reply[]
 }
 
@@ -223,6 +231,8 @@ export type Parked = Posted & {
   where?: string
   state: 'parked' | 'picked' | 'closed'
   answer?: Reply
+  /** Lee's pick-up on its way to it, as an ask's answer is. */
+  onItsWay?: Reply
   replies: Reply[]
 }
 

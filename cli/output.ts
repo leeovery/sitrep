@@ -36,14 +36,7 @@ import {
   type Where,
 } from '../core'
 
-/**
- * The JSON's version, by command: `board`'s moved to 2 as its asks came to
- * say what they want back, in place of their kind. Fields added since, as
- * each ask's answer and `board`'s resolved asks, move none: a reader passes
- * over a field it does not know. Nor did `waiting` coming to leave out an
- * ask whose answer is on its way: no reader read it yet, and one reading it
- * as it was would count fewer asks, never trip on a shape.
- */
+/** The JSON's version, by command; why each stands where it does is DESIGN.md's ("One engine, two front ends"). */
 const OUTPUT = { list: 1, board: 2, watch: 1 } as const
 
 /** What `list` gives: the project the CLI runs in, if it runs in one, and the projects listed. */

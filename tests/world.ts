@@ -48,7 +48,7 @@ export const REPO = '/Users/lee/Code/switchboard'
 export const HOME = '/Users/lee'
 
 /** The sitrep version the plugin's manifest gives, unless a test says otherwise. */
-export const PLUGIN_VERSION = '0.1.0'
+export const PLUGIN_VERSION = '0.2.0'
 
 /** The plugin's manifest, giving `version`. */
 export const manifestOf = (version: unknown) =>

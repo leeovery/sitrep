@@ -82,6 +82,22 @@ test('the board then shows the ask closed, and folds it into what was done once 
   expect(await ui.find({ type: 'Text', text: 'nothing waiting' })).toBeDefined()
 })
 
+test("an ignore, once sent, drops its ask at once: no moment of 'sent, and Claude has it', and Resolved never lists it", async ($, on) => {
+  const w = world($, on)
+  const { id, ui } = await asking(w)
+
+  await ui.press({ key: `ignore:${w.item(id)}` })
+  await ui.press({ key: 'send' })
+
+  expect(w.state.board?.asks[0]?.state).toBe('ignored')
+  expect(await ui.find({ key: `ask:${w.item(id)}` })).toBeUndefined()
+  expect(await ui.find({ type: 'Text', text: 'sent, and Claude has it' })).toBeUndefined()
+
+  await w.clock.advance(LINGER_MS)
+
+  expect(await ui.find({ key: `closed:${w.item(id)}` })).toBeUndefined()
+})
+
 test('while a send waits for its turn, its replies are on their way and cannot be undone', async ($, on) => {
   const w = world($, on)
   const { id, ui } = await asking(w)
@@ -237,6 +253,30 @@ test('a send taken after Claude moved to another session mid-turn is written int
 
   await w.call('join', { session: answered })
   expect(w.state.board?.asks[0]?.state).toBe('closed')
+})
+
+test('a yes Claude made a choice while its send waited reaches Claude all the same, settles nothing, and the ask waits on Lee in its new shape', async ($, on) => {
+  const w = world($, on)
+  const { id, ui } = await asking(w)
+  const turn = w.holdPrompts()
+
+  await ui.press({ key: `yes:${w.item(id)}` })
+
+  const pressed = ui.press({ key: 'send' })
+
+  await turn.arrived
+  await w.call('edit', { item: id, wants: 'choice', options: ['Now', 'Later'] })
+  turn.end()
+  await pressed
+
+  expect(w.submitted).toEqual(['From the board:\n- Review Sessions & Runway, round 1 → Approve'])
+  expect(w.state.board?.replies).toMatchObject([
+    { item: id, verdict: 'yes', delivery: 'delivered', voided: 'changed' },
+  ])
+  expect(w.state.board?.asks[0]?.state).toBe('waiting')
+  expect(w.state.board?.waiting).toBe(1)
+  expect(await ui.find({ key: `choose:${w.item(id)}:0` })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: '· on its way' })).toBeUndefined()
 })
 
 test('two quick presses of send submit the replies once', async ($, on) => {

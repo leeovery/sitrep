@@ -20,12 +20,11 @@ export const CURRENT_MS = 7 * 24 * 60 * 60_000
 export const BRIEF_LOG_LINES = 8
 
 /**
- * A session's asks still waiting, the oldest first: on Lee, or on a window
- * to deliver Lee's answer, which each ask's answer tells apart; none once
- * the session is finished.
+ * A session's asks still open, the oldest first, as `board --json` and
+ * `watch` alike list them: waiting, on Lee or on a window to deliver Lee's
+ * reply, or replied, Claude's to act on.
  */
-export const stillAsked = (session: Pick<Session, 'asks' | 'finished'>): Ask[] =>
-  session.finished === undefined ? session.asks.filter(ask => ask.state === 'waiting') : []
+export const openAsks = (session: Pick<Session, 'asks'>): Ask[] => session.asks.filter(isOpen)
 
 /** A session in brief: what it is doing, and what it holds for Lee. */
 export type SessionSummary = {
@@ -42,9 +41,10 @@ export type SessionSummary = {
   /** Asks waiting on Lee. */
   waiting: number
   /**
-   * Asks waiting as posted, those with Lee's answer on its way among them:
-   * one keeps its session current as an ask waiting on Lee does, and Claude,
-   * not yet told that answer, reads it as waiting on Lee.
+   * Asks waiting as posted, none once the session is finished: those Lee's
+   * reply is on its way to among them, which keep the session current as an
+   * ask waiting on Lee does, and which Claude, not yet given the reply,
+   * reads as waiting on Lee.
    */
   asked: number
   parked: number
@@ -103,9 +103,12 @@ const busiest = (a: ProjectSummary, b: ProjectSummary) =>
   byRecency(a, b) ||
   compareText(a.name, b.name)
 
-/** Whether a project holds nothing that keeps a session current but its being recent: no window, no ask waiting, nothing parked. */
-const isIdle = (project: ProjectSummary) =>
-  project.open === 0 && project.asked === 0 && project.parked === 0
+/** Whether a session or a project holds nothing that keeps it current but a window or its being recent: no ask waiting, nothing parked. */
+export const isIdle = (counts: Pick<SessionSummary, 'asked' | 'parked'>) =>
+  counts.asked === 0 && counts.parked === 0
+
+/** A project folded into All projects' one line: no window, and idle. */
+const isFolded = (project: ProjectSummary) => project.open === 0 && isIdle(project)
 
 const total = (sessions: readonly SessionSummary[], count: (session: SessionSummary) => number) =>
   sessions.reduce((sum, session) => sum + count(session), 0)
@@ -117,10 +120,7 @@ const total = (sessions: readonly SessionSummary[], count: (session: SessionSumm
  */
 export const isCurrent = (session: SessionSummary, now: number) =>
   !session.isFinished &&
-  (session.isOpen ||
-    session.asked > 0 ||
-    session.parked > 0 ||
-    now - session.updatedAt <= CURRENT_MS)
+  (session.isOpen || !isIdle(session) || now - session.updatedAt <= CURRENT_MS)
 
 /** The title of a session's item, by its id, as the views show it (a note's is its text); undefined where the session has none. */
 export const itemTitle = (session: Session, id: string) => {
@@ -143,7 +143,8 @@ export const summarise = (session: Session): SessionSummary => ({
   isOpen: session.isOpen,
   isFinished: session.finished !== undefined,
   waiting: session.waiting,
-  asked: stillAsked(session).length,
+  asked:
+    session.finished === undefined ? session.asks.filter(ask => ask.state === 'waiting').length : 0,
   parked: session.parked.length,
   updatedAt: session.updatedAt,
 })
@@ -158,7 +159,7 @@ export const brief = (session: Session): SessionBrief => ({
   ...summarise(session),
   log: session.log.slice(0, BRIEF_LOG_LINES),
   parkedItems: session.parked,
-  asks: session.asks.filter(isOpen),
+  asks: openAsks(session),
 })
 
 /** A project from its sessions, named as its most recently updated session names it. */
@@ -188,9 +189,9 @@ export const allProjects = (projects: readonly ProjectSummary[], here?: string):
   return {
     projects: [
       ...projects.filter(project => project.key === here),
-      ...others.filter(project => !isIdle(project)).sort(busiest),
+      ...others.filter(project => !isFolded(project)).sort(busiest),
     ],
-    folded: others.filter(isIdle).sort((a, b) => byRecency(a, b) || compareText(a.name, b.name)),
+    folded: others.filter(isFolded).sort((a, b) => byRecency(a, b) || compareText(a.name, b.name)),
   }
 }
 

@@ -32,6 +32,7 @@ import {
   fold,
   kindAsk,
   MIN,
+  note,
   park,
   reopen,
   reply,
@@ -397,21 +398,35 @@ for (const [why, body] of [
   ['a choice with no option', reply('r1', 'k2', 'choose')],
   ['a comment with no words', reply('r1', 'k1', 'comment', { note: '' })],
   ['an ignore on a parked item', reply('r1', 'p1', 'ignore')],
-  ['a reply to no item', reply('r1', 'gone', 'yes')],
 ] as const) {
-  test(`${why} fits nothing: it is neither kept nor sent`, () => {
-    const session = fold({
+  test(`${why} fits nothing: it is void as it arrives, never sent, and a mark naming it settles nothing`, () => {
+    const letters = { [SENDER]: file([T0 + MIN, body]) }
+    const presence = { [W1]: seen(W1, NOW) }
+    const arrived = fold({ logs: { [W1]: file(...POSTED) }, inbox: letters, presence })
+    const marked = fold({
       logs: { [W1]: file(...POSTED, [T0 + 2 * MIN, delivered('r1')]) },
-      inbox: { [SENDER]: file([T0 + MIN, body]) },
-      presence: { [W1]: seen(W1, NOW) },
+      inbox: letters,
+      presence,
     })
 
-    expect(session.replies).toEqual([])
-    expect(session.waiting).toBe(4)
-    expect(session.parked).toHaveLength(1)
-    expect(toDeliver(session, W1)).toEqual([])
+    expect(arrived.replies).toMatchObject([{ delivery: 'void', voided: 'changed' }])
+    expect(toDeliver(arrived, W1)).toEqual([])
+    expect(marked.replies).toMatchObject([{ delivery: 'delivered', voided: 'changed' }])
+    expect(marked.waiting).toBe(4)
+    expect(marked.parked).toHaveLength(1)
   })
 }
+
+test('a reply to no item, or to a note, is never kept', () => {
+  const session = fold({
+    logs: { [W1]: file(...POSTED, [T0, note('n1', 'Drew it')]) },
+    inbox: {
+      [SENDER]: file([T0 + MIN, reply('r1', 'gone', 'yes')], [T0 + MIN, reply('r2', 'n1', 'yes')]),
+    },
+  })
+
+  expect(session.replies).toEqual([])
+})
 
 test('a reply delivered after Claude closed the ask leaves it closed; a comment does not reopen it', () => {
   const session = fold({
@@ -496,15 +511,6 @@ test('a reopened parked item is parked again', () => {
   expect(session.parked.map(each => [each.id, each.state, each.answer])).toEqual([
     ['p1', 'parked', undefined],
   ])
-})
-
-test("an ask's rule stands on its own: a closed ask stays as it is, whatever the verdict", () => {
-  const session = fold({ logs: { [W1]: file([T0, REVIEW], [T0 + MIN, resolve('k1')]) } })
-  const closed = session.asks[0]!
-
-  expect((['yes', 'comment', 'ignore'] as const).map(verdict => askAfter(closed, verdict))).toEqual(
-    ['closed', 'closed', 'closed'],
-  )
 })
 
 const inboxed = (presence: Record<string, string>) =>
@@ -699,21 +705,44 @@ const DECIDED: Body = {
   changes: { wants: 'choice', options: ['Now', 'Later'] },
 }
 
-test('a reply on its way whose item an edit changed past fitting goes void: a mark naming it changes nothing, and the item can be answered again', () => {
+/** An edit to k1, the review, that every reply to it still fits. */
+const RETITLED: Body = { type: 'edit', item: 'k1', changes: { title: 'Review round 1, again' } }
+
+test('a reply an edit voided keeps when it went void, whatever later edits leave it', () => {
   const session = fold({
-    logs: { [W1]: file(...POSTED, [T0 + 2 * MIN, DECIDED], [T0 + 3 * MIN, delivered('r1')]) },
+    logs: { [W1]: file(...POSTED, [T0 + 2 * MIN, DECIDED], [T0 + 3 * MIN, RETITLED]) },
     inbox: { [SENDER]: file([T0 + MIN, reply('r1', 'k1', 'yes')]) },
-    presence: { [W1]: seen(W1, NOW) },
   })
 
-  expect(session.replies).toMatchObject([
+  expect(session.replies[0]).toMatchObject({ voided: 'changed', voidedAt: T0 + 2 * MIN })
+})
+
+test('a reply on its way whose item an edit changed past fitting goes void; a mark naming it says Claude has it, but it settles nothing, and the item can be answered again', () => {
+  const letters = { [SENDER]: file([T0 + MIN, reply('r1', 'k1', 'yes')]) }
+  const presence = { [W1]: seen(W1, NOW) }
+  const edited = fold({
+    logs: { [W1]: file(...POSTED, [T0 + 2 * MIN, DECIDED]) },
+    inbox: letters,
+    presence,
+  })
+  const marked = fold({
+    logs: { [W1]: file(...POSTED, [T0 + 2 * MIN, DECIDED], [T0 + 3 * MIN, delivered('r1')]) },
+    inbox: letters,
+    presence,
+  })
+
+  expect(edited.replies).toMatchObject([
     { id: 'r1', delivery: 'void', voided: 'changed', voidedAt: T0 + 2 * MIN },
   ])
-  expect(session.asks[0]?.state).toBe('waiting')
-  expect(session.asks[0]?.answer).toBeUndefined()
-  expect(session.waiting).toBe(4)
-  expect(toDeliver(session, W1)).toEqual([])
-  expect(deliveryOf(session, ['r1'])).toBe('void')
+  expect(toDeliver(edited, W1)).toEqual([])
+  expect(deliveryOf(edited, ['r1'])).toBe('void')
+  expect(marked.replies).toMatchObject([
+    { id: 'r1', delivery: 'delivered', deliveredAt: T0 + 3 * MIN, voided: 'changed' },
+  ])
+  expect(deliveryOf(marked, ['r1'])).toBe('delivered')
+  expect(marked.asks[0]?.state).toBe('waiting')
+  expect(marked.asks[0]?.answer).toBeUndefined()
+  expect(marked.waiting).toBe(4)
 })
 
 test('a void reply stays void, though its item changes back; one delivered before the edit stays delivered', () => {
@@ -807,12 +836,19 @@ test('an answer written into an inbox is on its way, since it was sent; once mar
   expect(marked.asks[1]?.state).toBe('closed')
 })
 
-test('an ask has no answer standing with none sent, one gone void, a comment Claude has, or once Claude closed or reopened it', () => {
+test('an ask has no answer standing with none sent, one gone void, before Claude closed it too, a comment Claude has, or once Claude closed or reopened it', () => {
   const letters = { [SENDER]: file([T0 + MIN, reply('r1', 'k1', 'yes')]) }
   const commented = sent(T0 + MIN, 'r1', 'k1', 'comment', { note: 'Tighten the gutters' })
   const cases: [string, Session][] = [
     ['none sent', fold({ logs: { [W1]: file(...POSTED) } })],
     ['void', fold({ logs: { [W1]: file(...POSTED, [T0 + 2 * MIN, DECIDED]) }, inbox: letters })],
+    [
+      'void, then resolved',
+      fold({
+        logs: { [W1]: file(...POSTED, [T0 + 2 * MIN, DECIDED], [T0 + 3 * MIN, resolve('k1')]) },
+        inbox: letters,
+      }),
+    ],
     ['a comment', fold({ logs: { [W1]: file(...POSTED, ...commented) } })],
     [
       'resolved',
@@ -833,6 +869,64 @@ test('an ask has no answer standing with none sent, one gone void, a comment Cla
   }
 })
 
+test("on an ask Lee's answer or ignore closed, that is its standing: a comment still on its way to it says nothing", () => {
+  for (const verdict of ['yes', 'ignore'] as const) {
+    const session = fold({
+      logs: { [W1]: file(...POSTED, [T0 + 2 * MIN, delivered('r2')]) },
+      inbox: {
+        [CLI]: file(
+          [T0 + MIN, reply('r1', 'k1', 'comment', { note: 'Tighten the copy first' })],
+          [T0 + MIN, reply('r2', 'k1', verdict)],
+        ),
+      },
+    })
+
+    expect(
+      session.replies.map(each => [each.id, each.delivery]),
+      verdict,
+    ).toEqual([
+      ['r1', 'closed'],
+      ['r2', 'delivered'],
+    ])
+    expect(standing(session, 'k1'), verdict).toMatchObject({
+      is: 'delivered',
+      reply: { id: 'r2' },
+      since: T0 + 2 * MIN,
+    })
+  }
+})
+
+test("an open ask with Lee's answer on its way, and a comment after it, reads the answer on its way", () => {
+  const session = fold({
+    logs: { [W1]: file(...POSTED) },
+    inbox: {
+      [CLI]: file(
+        [T0 + MIN, reply('r1', 'k1', 'yes')],
+        [T0 + 2 * MIN, reply('r2', 'k1', 'comment', { note: 'Tighten the copy first' })],
+      ),
+    },
+  })
+
+  expect(standing(session, 'k1')).toMatchObject({
+    is: 'onItsWay',
+    reply: { id: 'r1' },
+    since: T0 + MIN,
+  })
+})
+
+test('an open ask whose answer reached Claude after an edit it no longer fits reads delivered: Claude has it, and the ask waits on Lee in its new shape', () => {
+  const session = fold({
+    logs: { [W1]: file(...POSTED, [T0 + MIN, DECIDED], ...sent(T0 + 2 * MIN, 'r1', 'k1', 'yes')) },
+  })
+
+  expect(session.asks[0]?.state).toBe('waiting')
+  expect(standing(session, 'k1')).toMatchObject({
+    is: 'delivered',
+    reply: { id: 'r1' },
+    since: T0 + 2 * MIN,
+  })
+})
+
 /** What bars an item of a session from taking a reply of Lee's with a verdict, as `barredBy` says. */
 const barredIn = (files: Partial<SessionFiles>, id: string, verdict: Verdict) => {
   const item = fold(files).items.get(id)
@@ -848,7 +942,8 @@ test("an item open takes a reply of Lee's, but a second answer while one is on i
   })
   const logs = (...more: Line[]) => ({ logs: { [W1]: file(...POSTED, ...more) } })
   const yes = logs(...sent(T0 + MIN, 'r1', 'k1', 'yes'))
-  const ignored = logs(...sent(T0 + MIN, 'r1', 'k1', 'ignore'))
+  const ignoring = sent(T0 + MIN, 'r1', 'k1', 'ignore')
+  const ignored = logs(...ignoring)
   const comment = sent(T0 + MIN, 'r1', 'k3', 'comment', { note: 'Fails after the code' })
   const answering = { ...logs(), inbox: letter('k1', 'yes') }
   const commenting = { ...logs(), inbox: letter('k1', 'comment', { note: 'Tighten the copy' }) }
@@ -864,6 +959,13 @@ test("an item open takes a reply of Lee's, but a second answer while one is on i
     ["Lee's yes delivered", yes, 'k1', 'yes', 'answered'],
     ["Lee's yes delivered, to a comment", yes, 'k1', 'comment', 'answered'],
     ["Lee's ignore delivered", ignored, 'k1', 'yes', 'answered'],
+    [
+      "Lee's ignore, then Claude's resolve",
+      logs(...ignoring, [T0 + 2 * MIN, resolve('k1')]),
+      'k1',
+      'yes',
+      'answered',
+    ],
     ["Lee's comment delivered, Claude's to act on", logs(...comment), 'k3', 'yes', undefined],
     ["Claude's resolve", logs([T0 + MIN, resolve('k1')]), 'k1', 'yes', 'resolved'],
     [
@@ -897,6 +999,8 @@ type ReplyRule = {
   letters?: Line[]
   replies: string[]
   k1?: AskState
+  /** How many of POSTED's four asks wait on Lee then. */
+  waiting?: number
 }
 
 const at = (minutes: number) => T0 + minutes * MIN
@@ -908,9 +1012,6 @@ const to = (minutes: number, id: string, item: string, verdict: Verdict, extra =
 ]
 
 const TIGHTEN = { note: 'Tighten the copy first' }
-
-/** An edit to k1, the review, that every reply to it still fits. */
-const RETITLED: Body = { type: 'edit', item: 'k1', changes: { title: 'Review round 1, again' } }
 
 /**
  * The fold's rules for Lee's replies, as DESIGN.md's "Delivery" states them:
@@ -963,9 +1064,23 @@ const REPLY_RULES: ReplyRule[] = [
     replies: ['r1 waiting', 'r2 waiting'],
   },
   {
+    rule: "a comment on its way takes its ask off Lee's counts: Lee has replied",
+    letters: [to(1, 'r1', 'k1', 'comment', TIGHTEN)],
+    replies: ['r1 waiting'],
+    k1: 'waiting',
+    waiting: 3,
+  },
+  {
     rule: 'an answer on its way bars no comment',
     letters: [to(1, 'r1', 'k1', 'yes'), to(2, 'r2', 'k1', 'comment', TIGHTEN)],
     replies: ['r1 waiting', 'r2 waiting'],
+  },
+  {
+    rule: 'an ask Lee ignored stays ignored though Claude resolves it after, and an answer reaching it is void, answered',
+    logs: [...sent(at(1), 'r1', 'k1', 'ignore'), [at(2), resolve('k1')]],
+    letters: [to(3, 'r2', 'k1', 'yes')],
+    replies: ['r1 delivered', 'r2 void answered'],
+    k1: 'ignored',
   },
   {
     rule: 'a comment reaching an item closed is void',
@@ -1047,14 +1162,15 @@ const REPLY_RULES: ReplyRule[] = [
     replies: ['r1 delivered'],
   },
   {
-    rule: 'a mark never delivers a reply an edit voided: the ask takes an answer again',
+    rule: 'a mark delivers a reply an edit voided, Claude having it, but it settles nothing: the ask takes an answer again',
     logs: [
       [at(2), DECIDED],
       [at(3), delivered('r1')],
     ],
     letters: [to(1, 'r1', 'k1', 'yes')],
-    replies: ['r1 void changed'],
+    replies: ['r1 delivered changed'],
     k1: 'waiting',
+    waiting: 4,
   },
   {
     rule: 'nor one an edit voided again: a yes never closes the choice ask its ask became',
@@ -1063,8 +1179,15 @@ const REPLY_RULES: ReplyRule[] = [
       [at(3), delivered('r2')],
     ],
     letters: [to(1, 'r1', 'k1', 'yes'), to(1, 'r2', 'k1', 'yes')],
-    replies: ['r1 void changed', 'r2 void changed'],
+    replies: ['r1 void changed', 'r2 delivered changed'],
     k1: 'waiting',
+  },
+  {
+    rule: 'a reply reaching an item changed under it since it was sent is void, changed; its mark says Claude has it, and the ask waits on Lee in its new shape',
+    logs: [[at(1), DECIDED], ...sent(at(2), 'r1', 'k1', 'yes')],
+    replies: ['r1 delivered changed'],
+    k1: 'waiting',
+    waiting: 4,
   },
   {
     rule: 'a delivered comment voids nothing: the answer on its way still goes in',
@@ -1082,7 +1205,7 @@ const REPLY_RULES: ReplyRule[] = [
   },
 ]
 
-for (const { rule, logs = [], letters = [], replies, k1 } of REPLY_RULES) {
+for (const { rule, logs = [], letters = [], replies, k1, waiting } of REPLY_RULES) {
   test(`a reply: ${rule}`, () => {
     const session = fold({
       logs: { [W1]: file(...POSTED, ...logs) },
@@ -1100,6 +1223,10 @@ for (const { rule, logs = [], letters = [], replies, k1 } of REPLY_RULES) {
 
     if (k1 !== undefined) {
       expect(session.asks[0]?.state).toBe(k1)
+    }
+
+    if (waiting !== undefined) {
+      expect(session.waiting).toBe(waiting)
     }
   })
 }

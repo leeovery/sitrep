@@ -214,6 +214,7 @@ test('✎ comment has the next Enter comment on the ask', async ($, on) => {
     title: GO.title,
     surface: 'terminal',
   })
+  expect((await bandRow(w)).rows[0]).toMatch(/^✎ Your next Enter comments on /)
 })
 
 test('with a draft in the prompt, ✎ is refused, and the draft is left as it is', async ($, on) => {

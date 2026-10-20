@@ -18,7 +18,7 @@
  * prompt box, so none of the board's words go to Claude unasked.
  */
 import type { PromptOrigin, PromptSubmitInput, RenderSurface } from 'claude-code'
-import { barredBy, isClosing, takes, type Ask, type Parked, type Verdict } from '../core'
+import { barredBy, isAnswer, takes, type Ask, type Parked, type Verdict } from '../core'
 import type { SitrepAnswering, SitrepQueued } from '../types'
 import { logFailure, type Host } from './host'
 import { unwrapPastes } from './paste'
@@ -173,7 +173,7 @@ export const writtenAs = (
 ): SitrepAnswering['as'] =>
   item.type === 'ask' &&
   carrierOf(answering, queue) === undefined &&
-  isClosing(item, VERDICT[answering.as])
+  isAnswer(item, VERDICT[answering.as])
     ? 'answer'
     : answering.as
 

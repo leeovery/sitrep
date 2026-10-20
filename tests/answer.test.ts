@@ -44,8 +44,7 @@ const POSTED: Line[] = [
 ]
 
 /** The CLI's letters in the session's inbox, as lines. */
-const letters = (t: Terminal, paths: SessionPaths) =>
-  parseEntries(t.text(paths.letters(WRITER)))
+const letters = (t: Terminal, paths: SessionPaths) => parseEntries(t.text(paths.letters(WRITER)))
 
 /** The session as the CLI reads it, under either layout, its inbox among its files. */
 const folded = async (t: Terminal, paths: SessionPaths) => {
@@ -222,6 +221,31 @@ test("an ask Lee's answer closed that Claude resolves after keeps when it closed
   ])
 })
 
+test('an answer is dated as it is written, once its checks are done: later than every read of the session it was checked against', async () => {
+  type File = { text: string; mtimeMs: number }
+  let clock = NOW
+  let checkedAt = -Infinity
+  let appendedTo: string | undefined
+
+  /** The files, noting the time on the clock at each read of the session's, but of the letters it appends to. */
+  class Watched extends Map<string, File> {
+    override get(path: string) {
+      if (path.includes(`/${META.id}/`) && path !== appendedTo) {
+        checkedAt = clock
+      }
+
+      return super.get(path)
+    }
+  }
+
+  const t = terminal({ files: new Watched(), now: () => (clock += 1_000) })
+  const paths = t.seed(META, { lines: POSTED })
+
+  appendedTo = paths.letters(WRITER)
+  expect((await t.run('answer', 'k1', 'Go', ...SESSION)).exit).toBe(EXIT.done)
+  expect(letters(t, paths)[0]?.at).toBeGreaterThan(checkedAt)
+})
+
 test('its letters count on from what they hold, a torn last line ended first, and are never rewritten', async () => {
   const t = terminal()
   const paths = t.seed(META, { lines: POSTED })
@@ -277,6 +301,9 @@ test("an answer is refused while the window delivering the session runs a sitrep
   }
 
   expect(await t.run('answer', 'k1', 'Go', ...SESSION), "before today's layout").toEqual(refused)
+  expect((await t.run('answer', 'k9', 'Go', ...SESSION)).err, 'no such item, first').toBe(
+    'sitrep: There is no item k9 on this board.\n',
+  )
 
   t.window(paths, META.by, NOW, undefined, '0.1.9')
   expect(await t.run('answer', 'k1', 'Go', ...SESSION), 'a release behind').toEqual(refused)

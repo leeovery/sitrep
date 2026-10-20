@@ -9,15 +9,7 @@
  * "Answering an ask"). Any session's asks answer the same way; a reply
  * names the session it goes to.
  */
-import {
-  answerOnItsWay,
-  isClosing,
-  onItsWay,
-  VERDICTS,
-  yesOf,
-  type Ask,
-  type Verdict,
-} from '../../core'
+import { isAnswer, replyOnItsWay, VERDICTS, yesOf, type Ask, type Verdict } from '../../core'
 import type { SitrepItemRef, SitrepQueued } from '../../types'
 import { C, GLYPH } from '../look'
 import { itemKey, type AskedAt } from '../places'
@@ -49,7 +41,7 @@ const RESOLVED = { glyph: GLYPH.done, color: C.ok }
 const refOf = ({ at, ask }: AskedAt): SitrepItemRef => ({ ...at, item: ask.id })
 
 /** The comment button's words: an answer's, on an ask read from its kind as a decide, where a comment closes it. */
-const commentLabel = (ask: Ask) => (isClosing(ask, 'comment') ? '✎ answer' : '✎ comment')
+const commentLabel = (ask: Ask) => (isAnswer(ask, 'comment') ? '✎ answer' : '✎ comment')
 
 /** The buttons a verdict puts on an ask, each keyed by the ask's address: one for each option of a choice. */
 const buttonsFor = (d: Drawing, at: SitrepItemRef, ask: Ask, verdict: Verdict) => {
@@ -107,7 +99,7 @@ const standingOf = (d: Drawing, asked: AskedAt) => {
     at,
     key,
     queued,
-    sent: queued === undefined ? onItsWay(ask) : undefined,
+    sent: queued === undefined ? replyOnItsWay(ask) : undefined,
     isAnswering: isBeingAnswered(d, at),
     isClosed,
     isOpen: d.scene.pane.selected === key && !isClosed,
@@ -172,8 +164,7 @@ const drawAsk = (d: Drawing, asked: AskedAt, isLast: boolean, isNamed: boolean) 
   const standing = standingOf(d, asked)
   const { key, queued, isAnswering, isClosed, isOpen } = standing
   const mark = isClosed ? RESOLVED : askMark(d.scene, ask)
-  const isAnswerable =
-    isOpen && queued === undefined && answerOnItsWay(ask) === undefined && !isAnswering
+  const isAnswerable = isOpen && queued === undefined && ask.onItsWay === undefined && !isAnswering
 
   return drawRow(d, {
     key: `ask:${key}`,

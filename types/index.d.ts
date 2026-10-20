@@ -50,6 +50,8 @@ export type SitrepPosted = {
   at: number
   openedAt: number
   closedAt?: number
+  /** Who closed it: core's `ClosedBy`. */
+  closedBy?: 'answer' | 'ignore' | 'claude'
   editedAt?: number
   reason?: string
   ref?: string
@@ -66,6 +68,7 @@ export type SitrepAsk = SitrepPosted & {
   needs?: string
   state: 'waiting' | 'replied' | 'closed' | 'ignored'
   answer?: SitrepReply
+  onItsWay?: SitrepReply
   replies: SitrepReply[]
 }
 
@@ -82,6 +85,7 @@ export type SitrepParked = SitrepPosted & {
   where?: string
   state: 'parked' | 'picked' | 'closed'
   answer?: SitrepReply
+  onItsWay?: SitrepReply
   replies: SitrepReply[]
 }
 

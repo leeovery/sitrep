@@ -1,5 +1,7 @@
 import { expect, test } from 'claude-code/testing'
 import {
+  answerState,
+  brief,
   CURRENT_MS,
   feedOf,
   FORGET_MS,
@@ -391,6 +393,25 @@ test("an ask with Lee's answer on its way needs Lee no more: no row, no count, n
   expect(newRows(new Map(), feed, NOW).news).toEqual([])
 })
 
+test("watch lists a session's asks as board --json does, a replied one among them, so Lee's answer to it shows on its way", () => {
+  const session = sessionOf({
+    lines: [
+      [T0, yesAsk('k1', 'Review it')],
+      [T0, yesAsk('k2', 'Ship it', 'Go')],
+      [T0, yesAsk('k3', 'Tag it', 'Done')],
+      [T0 + MIN, reply('r1', 'k2', 'comment', { note: 'Tighten the copy first' })],
+      [T0 + MIN, { type: 'delivered', replies: ['r1'] }],
+      [T0 + MIN, resolve('k3')],
+    ],
+    inbox: { [CLI]: file([T0 + 2 * MIN, reply('r2', 'k2', 'yes')]) },
+  })
+  const [watched] = feedOf([{ project: SWITCHBOARD, sessions: [session] }], NOW).projects
+
+  expect(watched?.sessions[0]?.asks.map(each => each.id)).toEqual(['k1', 'k2'])
+  expect(watched?.sessions[0]?.asks).toEqual(brief(session).asks)
+  expect(answerState(session.asks[1]!)).toMatchObject({ is: 'onItsWay', reply: { id: 'r2' } })
+})
+
 test('an answer gone void, its ask edited under it, leaves the ask waiting on Lee again', () => {
   const edited: Line = [
     T0 + 2 * MIN,
@@ -578,6 +599,9 @@ test('the feed lists every live window, the longest attached first, those behind
 test('a window needs a reload when it says no version, or one behind the CLI’s own, dotted part by part', () => {
   expect(needsReload(undefined, '0.2.0')).toBe(true)
   expect(needsReload('0.1.9', '0.2.0')).toBe(true)
+  expect(needsReload('0.1.0', '0.2.0'), 'a window from before answers, against this release').toBe(
+    true,
+  )
   expect(needsReload('0.9.0', '0.10.0')).toBe(true)
   expect(needsReload('0.2', '0.2.1')).toBe(true)
   expect(needsReload('0.2.0', '0.2.0')).toBe(false)

@@ -137,9 +137,9 @@ const fileFor = ({ paths, files }: Found, command: SessionCommand) =>
     ? { path: paths.letters(WRITER), held: files.inbox?.[WRITER] ?? '' }
     : { path: paths.log(WRITER), held: files.logs[WRITER] ?? '' }
 
+/** A command on a session: the session read, its checks, and its lines appended, dated as they are written. */
 const onSession = async (io: Io, command: SessionCommand, input: Fields) => {
-  const now = io.now()
-  const found = await namedSession(io, input, now)
+  const found = await namedSession(io, input, io.now())
 
   if (typeof found === 'number') {
     return found
@@ -154,7 +154,7 @@ const onSession = async (io: Io, command: SessionCommand, input: Fields) => {
 
   const { path, held } = fileFor(found, command)
 
-  await post(io, path, held, acted.value.post, now)
+  await post(io, path, held, acted.value.post, io.now())
   print(io, acted.value.print)
 
   return EXIT.done

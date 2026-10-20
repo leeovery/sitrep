@@ -323,7 +323,7 @@ test("a reply queued to another session's ask that Lee answered from elsewhere f
   )
 })
 
-test("another window's comment on its way to an ask bars no answer: the ask still offers its buttons, and Lee's yes to it is sent", async ($, on) => {
+test("another window's comment on its way to an ask takes it off Lee's counts but bars no answer: the ask still offers its buttons, and Lee's yes to it is sent", async ($, on) => {
   const w = world($, on)
   const { ui } = await threeSessions(w)
 
@@ -332,6 +332,17 @@ test("another window's comment on its way to an ask bars no answer: the ask stil
     file([w.clock.now(), reply('r9', 'k3', 'comment', { note: 'Tighten the schema first' })]),
   )
   await w.clock.advance(AROUND_MS)
+
+  expect(await (await w.band()).find({ key: 'band:elsewhere', text: '1 elsewhere' })).toBeDefined()
+  expect(rowsOf(await ui.find({ key: 'tab:all:box' }))).toEqual([' ≡ All projects 2'])
+
+  await toProject(ui)
+  await ui.press({ key: `go:${LEDGER}` })
+  await ui.press({ key: `pick:${LEDGER}:k3` })
+
+  expect(await ui.find({ type: 'Text', text: '· on its way' }), 'the comment').toBeDefined()
+  expect(await ui.find({ key: `yes:${LEDGER}:k3` })).toBeDefined()
+
   await answer(ui, LEDGER, 'k3')
 
   expect(await ui.find({ type: 'Text', text: /not sent:/ })).toBeUndefined()
@@ -378,6 +389,29 @@ test('a sent reply whose session was finished before it went in shows there as n
 
   expect(
     await ui.find({ type: 'Text', text: '· not delivered: the session was finished' }),
+  ).toBeDefined()
+})
+
+test('a sent reply Claude was given though its ask changed under it first shows there as delivered, saying it changed since', async ($, on) => {
+  const w = world($, on)
+  const { ledger, ui } = await threeSessions(w)
+
+  await answer(ui, LEDGER, 'k3')
+  await ui.press({ key: 'send' })
+
+  const [letter] = repliesIn(w, LETTERS)
+
+  ledger.write({
+    type: 'edit',
+    item: 'k3',
+    changes: { wants: 'choice', options: ['Now', 'Later'] },
+  })
+  ledger.write(delivered(letter?.id ?? ''))
+  await w.clock.advance(AROUND_MS)
+
+  expect(await ui.find({ type: 'Text', text: '✓ delivered' })).toBeDefined()
+  expect(
+    await ui.find({ type: 'Text', text: '· delivered just now, but it changed since' }),
   ).toBeDefined()
 })
 

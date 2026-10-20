@@ -35,7 +35,8 @@ import type { Ask, Session, WindowState, Where } from './types'
 import {
   CURRENT_MS,
   isCurrent,
-  stillAsked,
+  isIdle,
+  openAsks,
   summarise,
   summariseProject,
   type ProjectSummary,
@@ -105,7 +106,7 @@ const feedProject = (
       ...summary,
       state: sessionState(session, now),
       since: firsts.get(session.id)?.row.since ?? session.updatedAt,
-      asks: stillAsked(session),
+      asks: openAsks(session),
     }))
     .sort(
       (a, b) =>
@@ -208,9 +209,12 @@ export const newRows = (shown: Shown | undefined, feed: Feed, at: number) => {
   }
 }
 
-/** Whether a session stays current by its latest line alone: nothing keeps it so but its being recent, or a window; an ask waiting, Lee's answer on its way to it or not, does. */
-const isIdle = (session: Session) =>
-  session.finished === undefined && stillAsked(session).length === 0 && session.parked.length === 0
+/** Whether a session stays current by its being recent alone, or a window: unfinished, and idle. */
+const isAging = (session: Session) => {
+  const summary = summarise(session)
+
+  return !summary.isFinished && isIdle(summary)
+}
 
 /**
  * When the board next changes by time alone, after `now`: the earliest a
@@ -226,7 +230,7 @@ export const nextExpiry = (read: readonly ProjectRead[], now: number) => {
         ...session.presence
           .filter(each => isLive(each, now))
           .map(each => each.seenAt + STALE_MS + 1),
-        ...(isIdle(session) ? [session.updatedAt + CURRENT_MS + 1] : []),
+        ...(isAging(session) ? [session.updatedAt + CURRENT_MS + 1] : []),
       ]),
     )
     .filter(at => at > now)
