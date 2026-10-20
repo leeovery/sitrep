@@ -14,6 +14,7 @@ import {
   resolve,
   SLOW,
   T0,
+  unfinish,
   W1,
   W2,
   W3,
@@ -433,6 +434,50 @@ test('a sent reply Claude was given only after its ask was closed and reopened s
   await w.clock.advance(AROUND_MS)
 
   expect(await ui.find({ type: 'Text', text: '✓ delivered' })).toBeDefined()
+  expect(
+    await ui.find({ type: 'Text', text: '· delivered just now, but it was reopened since' }),
+  ).toBeDefined()
+})
+
+test("a sent reply void as Lee's other answer went in first, marked only once its ask reopened, says it was reopened since", async ($, on) => {
+  const w = world($, on)
+  const { ledger, ui } = await threeSessions(w)
+
+  await answer(ui, LEDGER, 'k3')
+  await ui.press({ key: 'send' })
+
+  const [ours] = repliesIn(w, LETTERS)
+
+  w.put(
+    sessionPaths(ROOT, PROJECT.key, LEDGER).letters(W3),
+    file([(ours?.at ?? 0) - 1, reply('r9', 'k3', 'yes')]),
+  )
+  ledger.write(delivered('r9'))
+  ledger.write(reopen('k3'))
+  ledger.write(delivered(ours?.id ?? ''))
+  await w.clock.advance(AROUND_MS)
+
+  expect(
+    await ui.find({ type: 'Text', text: '· delivered just now, but it was reopened since' }),
+  ).toBeDefined()
+})
+
+test('a sent reply void as its session was finished, marked only once its ask was closed and reopened, says it was reopened since', async ($, on) => {
+  const w = world($, on)
+  const { ledger, ui } = await threeSessions(w)
+
+  await answer(ui, LEDGER, 'k3')
+  await ui.press({ key: 'send' })
+
+  const [ours] = repliesIn(w, LETTERS)
+
+  ledger.write(finish('lee'))
+  ledger.write(unfinish())
+  ledger.write(resolve('k3'))
+  ledger.write(reopen('k3'))
+  ledger.write(delivered(ours?.id ?? ''))
+  await w.clock.advance(AROUND_MS)
+
   expect(
     await ui.find({ type: 'Text', text: '· delivered just now, but it was reopened since' }),
   ).toBeDefined()

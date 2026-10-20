@@ -42,6 +42,8 @@ export type SitrepReply = {
   voidedAt?: number
   /** Why it went void, as core's `Voided` says. */
   voided?: 'changed' | 'finished' | 'answered' | 'resolved'
+  /** Settled while its item stood closed, which has reopened since: core's `isHistory`. */
+  isHistory?: boolean
 }
 
 export type SitrepPosted = {

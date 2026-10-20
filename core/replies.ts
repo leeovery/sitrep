@@ -83,17 +83,6 @@ export const yesOf = (ask: Pick<Ask, 'yes'>) => ask.yes ?? 'yes'
 export const isPending = (reply: Reply) =>
   reply.delivery === 'waiting' || reply.delivery === 'closed'
 
-/** When a reply stopped being on its way: as it went void, else as it was delivered; never, while on its way. */
-const settledAt = (reply: Reply) => reply.voidedAt ?? reply.deliveredAt ?? Infinity
-
-/**
- * Whether a reply settled before its item last opened: history to the item
- * as it now stands, which a mark naming it later leaves so. One on its way
- * across a reopen is not, and settles the reopened item once delivered.
- */
-export const isBeforeOpening = (item: Ask | Parked, reply: Reply) =>
-  settledAt(reply) < item.openedAt
-
 /**
  * Whether a verdict is Lee's answer to an item, which closes it once
  * delivered: a yes, a choice, an answer or an ignore to an ask, and a
@@ -181,13 +170,13 @@ const standing = (
         since: movedAt(reply),
       }
 
-/** Where Lee's reply to an ask stands, from those on their way or settled since it last opened; on one still open, an answer Claude has may be one an edit left unfit. */
+/** Where Lee's reply to an ask stands, from those not history to it; on one still open, an answer Claude has may be one an edit left unfit. */
 export const replyState = (ask: Ask): ReplyState | undefined => {
   if (ask.closedBy === 'answer' || ask.closedBy === 'ignore') {
     return standing(ask, 'delivered', ask.answer)
   }
 
-  const since = ask.replies.filter(reply => !isBeforeOpening(ask, reply))
+  const since = ask.replies.filter(reply => !reply.isHistory)
   const had = since.findLast(
     reply => reply.deliveredAt !== undefined && isAnswer(ask, reply.verdict),
   )

@@ -712,6 +712,9 @@ const RETITLED: Body = { type: 'edit', item: 'k1', changes: { title: 'Review rou
 /** An edit making k1 want a yes again, after DECIDED. */
 const REVIEWED: Body = { type: 'edit', item: 'k1', changes: { wants: 'yes', yes: 'Approve' } }
 
+/** An edit making k1 want words, which an ignore still answers. */
+const WORDED: Body = { type: 'edit', item: 'k1', changes: { wants: 'words' } }
+
 test('a reply an edit voided keeps when it went void, whatever later edits leave it', () => {
   const session = fold({
     logs: { [W1]: file(...POSTED, [T0 + 2 * MIN, DECIDED], [T0 + 3 * MIN, RETITLED]) },
@@ -1001,6 +1004,46 @@ test('an answer barred keeps when it went void while the answer that barred it s
     ['r2', 'answered', T0 + 2 * MIN],
     ['r3', 'changed', T0 + 4 * MIN],
   ])
+})
+
+test('a reply settled at the moment its closed ask reopens is history only if it settled first, in the order every reader reads', () => {
+  const at = T0 + 2 * MIN
+  const closed: Line[] = [[T0, REVIEW], ...sent(T0 + MIN, 'r0', 'k1', 'yes')]
+  const later = { [CLI]: file([T0 + 3 * MIN, reply('r2', 'k1', 'yes')]) }
+  const late = (sender: string) => ({ [sender]: file([at, reply('r1', 'k1', 'ignore')]) })
+  const settledFirst = fold({
+    logs: { [W1]: file(...closed, [T0 + 4 * MIN, DECIDED]), [W2]: file([at, reopen('k1')]) },
+    inbox: { ...late(W1), ...later },
+  })
+  const reopenedFirst = fold({
+    logs: { [W1]: file(...closed, [at, reopen('k1')], [T0 + 4 * MIN, DECIDED]) },
+    inbox: { ...late(W2), ...later },
+  })
+
+  expect(settledFirst.replies.find(each => each.id === 'r1')).toMatchObject({
+    voided: 'answered',
+    isHistory: true,
+  })
+  expect(settledFirst.asks[0]?.answerOnItsWay).toBeUndefined()
+  expect(reopenedFirst.replies.find(each => each.id === 'r1')?.isHistory).toBeUndefined()
+  expect(reopenedFirst.asks[0]?.answerOnItsWay?.id).toBe('r1')
+})
+
+test("Lee's yes on its way across a reopen of a replied ask that Claude then resolves reads delivered once marked: Claude has it", () => {
+  const session = fold({
+    logs: {
+      [W1]: file(
+        [T0, REVIEW],
+        ...sent(T0 + MIN, 'c1', 'k1', 'comment', { note: 'Tighten the copy first' }),
+        [T0 + 3 * MIN, reopen('k1')],
+        [T0 + 4 * MIN, resolve('k1')],
+        [T0 + 5 * MIN, delivered('r1')],
+      ),
+    },
+    inbox: { [CLI]: file([T0 + 2 * MIN, reply('r1', 'k1', 'yes')]) },
+  })
+
+  expect(standing(session, 'k1')).toMatchObject({ is: 'delivered', reply: { id: 'r1' } })
 })
 
 /** An ask written by its kind, a decide, before asks said what they want back: its comment is its answer. */
@@ -1459,16 +1502,46 @@ const REPLY_RULES: ReplyRule[] = [
     replies: ['r1 void finished', 'r2 void changed'],
   },
   {
-    rule: 'an answer barred, and marked once its ask reopened, stays as Claude has it when the answer that barred it goes void: it is never sent again',
+    rule: 'an answer barred, history once its ask closed and reopened, stays as Claude has it when a later answer goes void: it is never sent again',
     logs: [
-      ...sent(at(1), 'c1', 'k1', 'comment', TIGHTEN),
+      [at(3), delivered('r1')],
       [at(4), reopen('k1')],
       [at(5), delivered('r2')],
-      [at(6), DECIDED],
+      [at(7), DECIDED],
     ],
-    letters: [to(2, 'r1', 'k1', 'yes'), to(3, 'r2', 'k1', 'ignore')],
-    replies: ['c1 delivered', 'r1 void changed', 'r2 delivered answered'],
+    letters: [to(1, 'r1', 'k1', 'yes'), to(2, 'r2', 'k1', 'ignore'), to(6, 'r3', 'k1', 'yes')],
+    replies: ['r1 delivered', 'r2 delivered answered', 'r3 void changed'],
     k1: 'waiting',
+  },
+  {
+    rule: "an edit to an ask Lee's answer closed leaves the comment that close left on its way to go in",
+    logs: [...sent(at(2), 'r2', 'k1', 'yes'), [at(3), RETITLED]],
+    letters: [to(1, 'c1', 'k1', 'comment', TIGHTEN)],
+    replies: ['c1 waiting', 'r2 delivered'],
+    k1: 'closed',
+  },
+  {
+    rule: "and so does one to an ask Lee's ignore closed",
+    logs: [...sent(at(2), 'r2', 'k1', 'ignore'), [at(3), RETITLED]],
+    letters: [to(1, 'c1', 'k1', 'comment', TIGHTEN)],
+    replies: ['c1 waiting', 'r2 delivered'],
+    k1: 'ignored',
+  },
+  {
+    rule: 'an answer barred on a replied ask Claude then reopens is no history: once the answer barring it goes void it comes back, and its mark answers the ask',
+    logs: [
+      [at(2), delivered('c0')],
+      [at(5), reopen('k1')],
+      [at(6), WORDED],
+      [at(7), delivered('a2')],
+    ],
+    letters: [
+      to(1, 'c0', 'k1', 'comment', TIGHTEN),
+      to(3, 'a1', 'k1', 'yes'),
+      to(4, 'a2', 'k1', 'ignore'),
+    ],
+    replies: ['c0 delivered', 'a1 void changed', 'a2 delivered'],
+    k1: 'ignored',
   },
 ]
 

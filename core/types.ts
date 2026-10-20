@@ -177,6 +177,8 @@ export type Reply = {
   /** When it went void, and why. One its item changed under may be delivered too: Claude has it, and it settles nothing. */
   voidedAt?: number
   voided?: Voided
+  /** Settled, void or delivered, while its item stood closed, which has reopened since: history to the item as it now stands, which settles nothing and never comes back. */
+  isHistory?: boolean
 }
 
 /** What every posted item carries: who posted it when, and when it was last opened, closed or edited. */

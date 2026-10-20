@@ -18,6 +18,7 @@ import {
   delivered,
   file,
   finish,
+  kindAsk,
   META,
   MIN,
   note,
@@ -324,6 +325,28 @@ test("an answer going into the session's inbox is a line, its ask on its way, ne
     [null],
     [{ is: 'onItsWay', isAnswer: true, words: '→ Go', since: NOW + POLL_MS }],
     [],
+  ])
+})
+
+test("watch's isAnswer is the bar's own fact: an old decide's comment on its way is its answer, and only a comment once an edit makes it want a yes", async () => {
+  const { t, paths } = held([
+    [T0, kindAsk('k7', 'decide', 'Keep the ledger 400 days, or forever?')],
+  ])
+  const { lines } = await watched(t, [
+    () => appendTo(t, paths.letters('cli'), reply('r1', 'k7', 'comment', { note: 'Forever' })),
+    still,
+    () => appendTo(t, paths.log(W1), { type: 'edit', item: 'k7', changes: { wants: 'yes' } }),
+  ])
+  const replies = lines.map(line =>
+    line.projects
+      .flatMap(project => project.sessions)
+      .flatMap(session => session.asks.map(ask => ask.reply)),
+  )
+
+  expect(replies).toMatchObject([
+    [null],
+    [{ is: 'onItsWay', isAnswer: true, words: 'answer: “Forever”' }],
+    [{ is: 'onItsWay', isAnswer: false, words: 'comment: “Forever”' }],
   ])
 })
 

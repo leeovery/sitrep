@@ -406,6 +406,35 @@ test("board --json says whether the reply on its way is Lee's answer, which bars
   })
 })
 
+test("board --json's isAnswer is the bar's own fact: an old decide's comment on its way is its answer, and only a comment once an edit makes it want a yes", async () => {
+  const t = terminal()
+  const decide: Line = [T0, kindAsk('k7', 'decide', 'Keep the ledger 400 days, or forever?')]
+  const paths = t.seed(META, { lines: [decide] })
+  const commentedAt = NOW - MIN
+
+  t.files.set(paths.letters(W2), {
+    text: file([commentedAt, reply('r9', 'k7', 'comment', { note: 'Forever' })]),
+    mtimeMs: commentedAt,
+  })
+
+  expect((await boardOf(t)).asks[0]?.reply).toMatchObject({
+    is: 'onItsWay',
+    isAnswer: true,
+    words: 'answer: “Forever”',
+  })
+
+  t.files.set(paths.log(W1), {
+    text: file(decide, [NOW, { type: 'edit', item: 'k7', changes: { wants: 'yes' } }]),
+    mtimeMs: NOW,
+  })
+
+  expect((await boardOf(t)).asks[0]?.reply).toMatchObject({
+    is: 'onItsWay',
+    isAnswer: false,
+    words: 'comment: “Forever”',
+  })
+})
+
 test("--ignore ignores any ask, as the board's ignore does: on its way, then, once marked, gone from the asks and Resolved alike", async () => {
   const t = terminal()
   const paths = t.seed(META, { lines: POSTED })

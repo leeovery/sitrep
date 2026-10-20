@@ -15,7 +15,6 @@ import {
   closedReason,
   fits,
   isAnswer,
-  isBeforeOpening,
   isOpen,
   isPending,
   pickUpLog,
@@ -171,13 +170,13 @@ const arrive = (fold: Fold, item: Ask | Parked, reply: Reply, at: number) => {
 /**
  * The answers `ahead`, Lee's answer on its way until now, barred, reaching
  * the item again, in order, as it stands now that it bars them no more. On
- * an open item a reply void `answered` since the item last opened was
- * barred by that answer and nothing else: a delivered answer closes its
- * item, and a reopen leaves what it voided older than the opening.
+ * an open item a reply void `answered`, and not history, was barred by
+ * that answer and nothing else: a delivered answer closes its item, and a
+ * reopen makes history of every reply settled as it stood closed.
  */
 const unbar = (fold: Fold, item: Ask | Parked, ahead: Reply, at: number) => {
   for (const reply of item.replies) {
-    if (reply !== ahead && reply.voided === 'answered' && !isBeforeOpening(item, reply)) {
+    if (reply !== ahead && reply.voided === 'answered' && !reply.isHistory) {
       arrive(fold, item, reply, at)
     }
   }
@@ -198,11 +197,11 @@ const voidReply = (fold: Fold, item: Ask | Parked, reply: Reply, voided: Voided,
 }
 
 /**
- * An item as an edit leaves it, the replies on their way reaching it again
- * in order: Lee's answer on its way is the first of them that is an answer
- * now, and bars the rest. One no longer the answer on its way, a decide's
- * comment once its ask wants a yes, bars nothing, and what it barred
- * reaches the item again.
+ * An open item as an edit leaves it, the replies on their way reaching it
+ * again in order: Lee's answer on its way is the first of them that is an
+ * answer now, and bars the rest. One no longer the answer on its way, a
+ * decide's comment once its ask wants a yes, bars nothing, and what it
+ * barred reaches the item again.
  */
 const reread = (fold: Fold, item: Ask | Parked, at: number) => {
   const ahead = item.answerOnItsWay
@@ -237,10 +236,10 @@ const voidOnItsWay = (
 
 /**
  * A reply Claude has, as a mark says, whatever else is true of it. One its
- * item changed under, or void before the item last opened, settles
- * nothing, and stays as it was: the item stands as it is now. Any other,
- * one on its way across a reopen among them, goes in as if never void,
- * settling its item, and an answer voids any other on its way there.
+ * item changed under, or history, settles nothing, and stays as it was: the
+ * item stands as it is now. Any other, one on its way across a reopen among
+ * them, goes in as if never void, settling its item, and an answer voids
+ * any other on its way there.
  */
 const deliver = (fold: Fold, reply: Reply, at: number) => {
   const item = fold.items.get(reply.item)
@@ -254,7 +253,7 @@ const deliver = (fold: Fold, reply: Reply, at: number) => {
 
   arrived(item, reply)
 
-  if (reply.voided === 'changed' || isBeforeOpening(item, reply)) {
+  if (reply.voided === 'changed' || reply.isHistory) {
     return
   }
 
@@ -314,7 +313,14 @@ const reshape = (ask: Ask, { wants, kind }: EditBody['changes']) => {
   fitShape(ask)
 }
 
+/** An item opening again: where it stood closed, every reply then settled, void or delivered, is history from here; one on its way stays live. */
 const reopen = (item: Item, at: number) => {
+  if (item.type !== 'note' && item.closedBy !== undefined) {
+    for (const reply of item.replies.filter(each => !isPending(each))) {
+      reply.isHistory = true
+    }
+  }
+
   item.openedAt = at
   item.closedAt = undefined
   item.closedBy = undefined
@@ -438,7 +444,10 @@ const HANDLERS: { [T in Body['type']]: Handler<T> } = {
 
     if (item.type !== 'note') {
       voidUnfit(fold, item, at)
-      reread(fold, item, at)
+
+      if (item.closedBy === undefined) {
+        reread(fold, item, at)
+      }
     }
   },
 

@@ -872,14 +872,14 @@ Dropped for now (11 October 2026): a macOS notification for asks. Back on
     that answer go void, or stop being an answer, and so never go in as
     one: it reaches the item as the item stands then, on its way where the
     item takes it, as Lee's answer on its way now, else void for the reason
-    that holds then. On an open item the replies void `answered` since it
-    last opened are just those that answer barred, since a delivered answer
-    closes its item and a reopen leaves what it voided older than the
-    opening; the fold reads them off the replies, with no record of its own,
-    and only those: one an edit made void `changed` stays so. So a second
-    answer an edit left fitting, an ignore, goes in in place of the first
-    the edit voided, and one whose first answer Claude's close voided says
-    `resolved`; none says `answered` when no answer went in.
+    that holds then. On an open item the replies void `answered` and not
+    history are just those that answer barred, since a delivered answer
+    closes its item and a reopen makes history of what it voided; the fold
+    reads them off the replies, with no record of its own, and only those:
+    one an edit made void `changed` stays so. So a second answer an edit
+    left fitting, an ignore, goes in in place of the first the edit voided,
+    and one whose first answer Claude's close voided says `resolved`; none
+    says `answered` when no answer went in.
   - **Claude closing first.** A reply on its way when Claude closes its item
     is void, `resolved`. One on its way when the session is finished is
     void, `finished`, and so is one reaching a finished session: none goes
@@ -890,12 +890,13 @@ Dropped for now (11 October 2026): a macOS notification for asks. Back on
     not yet delivered, void or not, when an edit reshapes its item (an ask
     wanting a yes made to want a choice under Lee's yes), and one reaching
     an item an edit already reshaped. The item can be answered again. An
-    edit also reads the replies still on their way again, in order, against
-    the item as it now stands, so Lee's answer on its way is always an
-    answer: an ask written by its kind, a decide, whose comment on its way
-    was its answer, edited to want a yes or a choice, has that comment on
-    its way as a comment, barring nothing, and what it barred reaches the
-    ask again.
+    edit to an open item also reads the replies still on their way again, in
+    order, against the item as it now stands, so Lee's answer on its way is
+    always an answer: an ask written by its kind, a decide, whose comment on
+    its way was its answer, edited to want a yes or a choice, has that
+    comment on its way as a comment, barring nothing, and what it barred
+    reaches the ask again. An edit to a closed item reads nothing again: a
+    comment Lee's close left on its way stays on its way, to go in.
   - **Marks.** A reply void `answered`, `resolved` or `finished` that a mark
     names goes in, its message having crossed what voided it. One void
     `changed` stays void: Claude has it, and it settles nothing, its item
@@ -912,11 +913,18 @@ Dropped for now (11 October 2026): a macOS notification for asks. Back on
     the yes, and the ask closes on it). A reopen of a closed item has no
     answer on its way, since a close voids it, though a comment Lee's close
     left on its way may still go in, leaving the reopened ask `replied`.
-    What a reopen does make history is a reply void before the item last
-    opened: a mark that names one after it, its message having crossed the
-    close, makes it delivered, keeps its void, and settles nothing, so the
-    item stands reopened, waiting on Lee. `reply` reads the replies on their
-    way, and those that settled since the item last opened.
+    What a reopen of a closed item does make history is every reply that
+    stood settled, void or delivered, while the item stood closed: a fact
+    the fold records as the reopen comes, in the order every reader reads
+    in, never from comparing times, so a reply settled at the reopen's own
+    moment is history where it settled first and live where it came after.
+    History settles nothing and never comes back: a mark that names it
+    later, its message having crossed the close, makes it delivered, keeps
+    its void, and the item stands reopened, waiting on Lee; and no answer
+    going void brings it back as one barred. A reopen of an open item, a
+    `replied` ask, makes nothing history: an answer barred there by Lee's
+    answer on its way is read again should that answer go void, and its
+    mark settles the ask. `reply` reads the replies that are not history.
   - **Delivery.** A delivered answer closes its item, as Lee's, and voids
     the other answers on their way to it, `answered`, leaving a comment on
     its way to go in; a delivered comment voids nothing.
@@ -1559,7 +1567,7 @@ truth. There is still no background service. None of it is built now. Lee:
       fall to their order in the file, the same in every reader.
     - Where Lee's reply stands is core's, from the files (`replyState`), and
       `board --json` and `watch` give it on each ask, as `reply`, from its
-      replies on their way and those settled since the ask last opened (see
+      replies but those a reopen of the closed ask made history (see
       "Reopening", under Delivery), by who closed it. `isAnswer` says
       whether that reply is Lee's answer, which bars another, or a comment,
       which bars nothing; on its way, it is whether the reply is the ask's
