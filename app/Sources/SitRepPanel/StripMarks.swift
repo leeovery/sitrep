@@ -413,10 +413,10 @@ extension Strip {
         return bd <= StripTuning.near ? best : nil
     }
 
-    /// The strip's order: a full sort, the marks sliding to their places.
+    /// The strip takes core's order, the marks sliding to their places.
     func resort() {
         cancel(.settle)
-        display = Session.sorted(sessions).map(\.id)
+        display = sessions.map(\.id)
         needsSlot = Set(sessions.filter { $0.kind == .needs }.map(\.id))
         pendingSort = false
         relayout()
@@ -428,12 +428,10 @@ extension Strip {
         }
     }
 
-    /// A change shown in place: an open tab of it, or a count's holding it, takes its new words.
+    /// A change shown in place: a count's tab holding it takes its new words, and its own tab with what else changed
+    /// (`show`).
     func changed(_ s: Session) {
         mark(.session(s.id))?.session = s
-        for tab in tabs where tab.phase == .open && tab.key == .session(s.id) {
-            relayer(tab, tab.key, 0)
-        }
         if let live = liveTab(), live.phase == .open, live.key.isCount,
            (live.key == .more ? layout.rest : layout.restNeeds).contains(s.id)
         {
@@ -445,13 +443,14 @@ extension Strip {
         }
     }
 
-    /// A new needs you moves in at once: after the needs you that aren't away (it is the newest of them), or for an
-    /// away one, after the away ones too. Past needs you's room it lands in its count, which flashes, and the marks
-    /// showing stay where they are; else the marks below slide down a step, and it grows into its place as the mark
-    /// below gets out of the way, washed, its ring flashing.
+    /// A new needs you moves in at once, under the needs you core has above it, or first where core has none. Past
+    /// needs you's room it lands in its count, which flashes, and the marks showing stay where they are; else the
+    /// marks below slide down a step, and it grows into its place as the mark below gets out of the way, washed, its
+    /// ring flashing.
     func insertNeeds(_ s: Session) {
         let end = display.prefix { needsSlot.contains($0) }.count
-        var i = s.away ? end : display.prefix(end).firstIndex { session($0)?.away == true } ?? end
+        let above = sessions.prefix { $0.id != s.id }.last { needsSlot.contains($0.id) }
+        var i = above.flatMap { display.firstIndex(of: $0.id) }.map { $0 + 1 } ?? 0
         let a = allot(asks: end + 1, others: display.count - end)
         if a.foldsAsks, i < a.asks {
             i = a.asks

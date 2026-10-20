@@ -1810,7 +1810,7 @@ time on the right; one line each, cut short with an ellipsis:
 - **an ask**: an orange dot; its title, then its project and session; how
   long it has waited. Its window may still be working: needs you wins, so
   nothing else shows;
-- **a permission prompt**: "Allow Bash", then the command in Geist Mono;
+- **a permission prompt**: "Allow Bash", then the command in SF Mono;
 - **a question**: the question itself, and "+2" when there are several;
 - **away, with an ask**: the dot stays orange and the words dim. Under the
   pointer it doesn't lift, and its second line says "No window holds it.
@@ -2881,7 +2881,7 @@ reaches a window only while that pane is on show).
       build settled:
       - **Core's rows, as given.** The panel lists `watch`'s rows in their
         order, the hairline under the needs you that lead, and its head is
-        core's counts; the spike's sort is left to the strip until 6b. The
+        core's counts; the spike's sort went with the strip's PR. The
         app maps a line to the panel's rows in one place (`PanelBoard`),
         tested on the first line the real `watch` printed over a board
         seeded in a scratch folder of its own.
@@ -2960,6 +2960,122 @@ reaches a window only while that pane is on show).
       - **A row's project** is named as the board names it, with core's
         letters for it, ready for the strip; and an away ask's second line
         is core's.
+
+      The strip was built on 20 October 2026, over the same feed, never run
+      on the display, every recorded test passing frame for frame. What the
+      build settled:
+      - **Core's rows, in core's order.** A mark is one of `watch`'s rows,
+        its letters core's, and the spike's own sort is gone: the re-sort a
+        second after the pointer leaves takes core's latest order. A new
+        needs you moves in under the needs you core has above it, or first
+        where core has none, and past its room into its count. The prototype
+        put it after every needs you a window holds; the two differ only for
+        a row whose time is older than one already there. Any other row new
+        to the strip comes in as the marks re-sort
+        at once, as the prototype's Too many brings them; a row that changed
+        shows in place; a row gone fades where it is. Core never turns an
+        ask into a turn in place: an ask answered goes, and its session's
+        turn comes in.
+      - **Its flash is `new`'s alone.** A needs you new to the strip but not
+        on the line's `new`, as on a first or a resumed line, comes in with
+        the rest, unflashed.
+      - **The click**, on a mark or its tab, spins until the jump answers,
+        450ms at most, as a panel row does, where the prototype always spins
+        the whole 450; then the tab draws back, or the ring springs back
+        out. Its arc fades in over 60ms as the spin starts, as the
+        prototype's `.mk.jumping .arc` does, so a quick answer still shows
+        it, and out over the mark's 240, as it fades in over 240 for a mark
+        turning working. The ring, its glow and the letters' colour ease over
+        240 and the pressed fill over 110, each on its own, in black and in
+        glass. The caption is the panel's, over the strip's screen, once the
+        spin is over. As the panel's, none is
+        taken while a jump runs, from
+        anywhere; an answer to an earlier click changes nothing; and the
+        session jumped to is the one the strip pressed in. A click is a
+        press and its mouse-up, as the prototype's is: a press on the strip,
+        which may drag, or on an open tab, which only clicks. A mouse-up
+        with no press the strip took behind it, refused or given up, is no
+        click.
+      - **The drag** is the notch's, at either length: a press on the strip
+        moved more than 4 points. At Grows it carries the strip along the
+        edge; at Full, which runs the screen's height, along nothing. Let go
+        past the screen's middle, the strip goes to the other edge, its
+        black showing there faintly meanwhile, as the notch's ghost does.
+        What it leaves is saved as the notch's drag saves it: the edge, and
+        at Grows the strip's centre as how far down the screen it sits,
+        which the notch then takes. Only that is saved, for the strip and the
+        notch alike, and onto the settings as they stand when it lands, at
+        the swap for a drop across: what Lee changed in between, Show among
+        it, stands. This replaces the spike's "at Full there is nothing to
+        drag". The strip's prototype drags only along, with no
+        lift, so the strip has none; nor has it a drag across, so the drop
+        across plays its `moveEdge`, the edge control's: the strip drains
+        into its edge over 170ms, its marks out in 90; at 200 it swaps
+        edges, the tabs gone, and grows out of the other over 320, its marks
+        back over 260; at 520 it takes the pointer again, and until then no
+        press, click or hover, so a re-grab can't flip it under a live
+        drag. Under reduced motion its old black fades as it swaps at once,
+        the marks in over 160. Drained all the way, there is no black.
+      - **Stale**, with no head to say it: before the first line the notch
+        at rest's tab says "Looking for sessions…", and with `watch` down
+        before any, "SitRep can't read the board". While the board is stale,
+        each tab says when it was last known current, "as of 12:04", in its
+        time's place, and the notch at rest's tab in its second line.
+        Nothing on it is new again: no flash. A tab out as what it says
+        changes, a row's words, its time going stale or the notch at rest's
+        title, takes its new words and eases to their measure as a glide
+        does, where the prototype keeps the old width and squeezes them;
+        under reduced motion its outline cross-fades to the new size, as a
+        glide's does. It takes them once, though one board changes both its
+        row and what the board says of it. A count's tab keeps its size as
+        its rows change, as the prototype's recording has it, and its rows
+        say no time, so it keeps them as the board goes stale.
+      - **Frames run only while something moves**, as the notch's: a tab
+        pouring, a ring flashing, the strip crossing, the ghost. A pointer
+        resting anywhere, on the strip or a still tab, costs nothing. A
+        move wakes them while a press is held, a tab is out, the strip had
+        the pointer, the last frame's pointer or this one is on the strip,
+        or the window takes the mouse; so a flick off a parked pointer,
+        frames already stopped, still reaches the model and the strip
+        settles. An open tab's time is drawn again as it changes, on a timer
+        at the next whole minute, in the run loop's common modes, so it
+        ticks while a menu is open; while the board is stale, never.
+      - **Between frames**, as the notch's. The strip has a run of its own
+        (`StripRun`), beside the notch's. What the two keep alike, each
+        holds once, in a part of its own (`RunBook`, in `EdgeRun.swift`):
+        the clock that never goes back, the clicks and which is the latest,
+        and what a frame showed for the drawing to show once. A board, Lee's
+        settings, a press, a drag, a let-go, a scroll or a click elsewhere
+        each steps the model first, its time run on while hidden, so what
+        it dates, a flash or a press, runs from the clock, and a click lands
+        on the strip as drawn: on a count whose rows the board changed since
+        the last frame, the row under the pointer is the row the strip
+        presses in. A board after a long idle flashes in full; frames woken
+        after a sleep take no speed from the move they slept through; the
+        pointer's speed is its own, each reading stamped as it was read.
+        While frames run, the next one draws what the inputs between did,
+        with what the frames showed latched for it: the edge swapped, from
+        every frame, the ones run on while hidden too, so a drop across
+        hidden before its swap still lands; and the drain a click's jump
+        waits for, the panel going in or the strip's spin over, which the
+        caption waits for in turn. That is latched only while a click waits
+        on it, so a panel closing with no click, as the pointer leaves, is
+        none.
+      - **Hidden**, over a full-screen app or with Nothing chosen, the
+        caption and the ghost go with it, and a drag under way ends where it
+        began, nothing saved, the window letting clicks through; hidden as
+        it crosses, it is on the other edge at once. Its time runs on, as
+        the notch's. The ghost's timings are the notch's.
+      - **Reduced motion** stills a working tab's title, in ink, as the
+        prototype's CSS does, and caps every ease at 140ms; the rings still
+        flash, the wash still fades and the arcs still turn, as there.
+      - **Either edge.** The blacks go through the edge's mirror as the
+        notch's do; the marks and the tabs' words are placed through it but
+        never mirrored, a tab's words set against the strip.
+      - **A tab's second line is core's**, an away ask's saying no window
+        holds it, as the panel's row's is; and the wheel scrolls a count's
+        rows 16 points a notch, as the panel's, where the spike's strip
+        scrolled 10.
    7. **The menu bar item and Settings**, one PR: the native menu (see "The
       menu bar item"), the Settings window's three panes with Max as a
       slider, macOS notifications off by default with the switch to turn

@@ -23,7 +23,7 @@ struct StripTimelineTests {
         var lab = StripLab()
         let start = lab.model.t
 
-        let played = lab.play(StripRecorded.arrive, marks: ["s4", "s5", "s9"], [(0, { $0.model.newAsk(StripLab.ask) })])
+        let played = lab.play(StripRecorded.arrive, marks: ["s4", "s5", "s9"], [(0, { $0.newAsk(StripLab.ask) })])
 
         expectMatches(played, StripRecorded.arrive)
         #expect(abs(lab.model.mark(.session("s9"))!.arrived - start - StripRecorded.arrived) < 1e-6)
@@ -31,7 +31,7 @@ struct StripTimelineTests {
 
     @Test func aChangeShownInPlaceReSortsASettleAfterAsThePrototypes() {
         expectPlays(
-            StripRecorded.settle, marks: ["s1", "s2", "s5", "s8"], [(0, { $0.model.change(StripLab.answered) })]
+            StripRecorded.settle, marks: ["s1", "s2", "s5", "s8"], [(0, { $0.change(StripLab.answered) })]
         )
     }
 
@@ -49,7 +49,7 @@ struct StripTimelineTests {
     @Test func tooManyFoldsTheRestIntoTheCountAndItsTabPoursAsThePrototypes() {
         var lab = StripLab()
 
-        let played = lab.play(StripRecorded.many, marks: ["s6", "s8", "s20"], [(0, { $0.model.add(StripLab.tooMany) })])
+        let played = lab.play(StripRecorded.many, marks: ["s6", "s8", "s20"], [(0, { $0.add(StripLab.tooMany) })])
 
         expectMatches(played, StripRecorded.many)
         #expect(lab.model.display == StripRecorded.manyOrder)
@@ -62,7 +62,7 @@ struct StripTimelineTests {
 
         let played = lab.play(
             StripRecorded.last, marks: ["s4", "s8", "s9", "s16"],
-            [(0, { lab in StripLab.asks.forEach(lab.model.newAsk) })]
+            [(0, { lab in StripLab.asks.forEach(lab.newAsk) })]
         )
 
         expectMatches(played, StripRecorded.last)
@@ -75,7 +75,7 @@ struct StripTimelineTests {
 
         let played = lab.play(
             StripRecorded.bottom, marks: ["s6", "s9"],
-            [(0, { $0.model.add(StripLab.tooMany) })]
+            [(0, { $0.add(StripLab.tooMany) })]
         )
 
         expectMatches(played, StripRecorded.bottom)
@@ -87,8 +87,8 @@ struct StripTimelineTests {
         var lab = StripLab(length: .grows)
 
         let played = lab.play(StripRecorded.grows, marks: ["s4", "s5", "s7", "s8", "s9"], [
-            (0, { $0.model.remove(["s7"]) }), (0, { $0.model.remove(["s8"]) }),
-            (1300, { $0.model.newAsk(StripLab.ask) }),
+            (0, { $0.remove(["s7"]) }), (0, { $0.remove(["s8"]) }),
+            (1300, { $0.newAsk(StripLab.ask) }),
         ])
 
         expectMatches(played, StripRecorded.grows)
@@ -136,7 +136,7 @@ struct StripTimelineTests {
 
         let played = lab.play(
             StripRecorded.answerOut, marks: ["s4", "s5", "s9", "s10"],
-            Self.asks(0 ..< 2, at: 0) + [(1700, { $0.model.change(StripLab.answered(ask: "s10")) })]
+            Self.asks(0 ..< 2, at: 0) + [(1700, { $0.change(StripLab.answered(ask: "s10")) })]
         )
 
         expectMatches(played, StripRecorded.answerOut)
@@ -148,7 +148,7 @@ struct StripTimelineTests {
         var lab = StripLab(length: .grows)
 
         let played = lab.play(StripRecorded.empty, marks: ["s1", "s8", "s9"], [
-            (0, { $0.model.remove(StripLab.prototype.map(\.id)) }), (3000, { $0.model.newAsk(StripLab.ask) }),
+            (0, { $0.remove(StripLab.prototype.map(\.id)) }), (3000, { $0.newAsk(StripLab.ask) }),
         ])
 
         expectMatches(played, StripRecorded.empty)
@@ -167,13 +167,13 @@ struct StripTimelineTests {
 
     /// The prototype's new asks in its order, all at once.
     private static func asks(_ range: Range<Int>, at time: Double) -> [Act] {
-        StripLab.asks[range].map { ask in (time, { $0.model.newAsk(ask) }) }
+        StripLab.asks[range].map { ask in (time, { $0.newAsk(ask) }) }
     }
 
     @Test func theNewMarkGrowsOnceTheMarkBelowHasSlid45PercentOfItsStep() {
         var lab = StripLab()
         let from = lab.model.yOf(.session("s4"))
-        lab.model.newAsk(StripLab.ask)
+        lab.newAsk(StripLab.ask)
         var slid: [Double] = []
 
         lab.wait(1000) { lab in

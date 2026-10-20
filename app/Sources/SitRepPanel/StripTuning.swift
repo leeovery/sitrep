@@ -85,8 +85,6 @@ enum StripTuning {
     static let marksGo = 0.2, marksGone = 0.7
     /// The notch at rest answers the pointer this far out from the edge, and this far past its ends.
     static let notchHit = 12.0, notchHitY = 4.0
-    /// A press on the strip moved this far along the edge is a drag, not a click.
-    static let dragFrom = 4.0
     /// A ring isn't drawn past the strip's black: as an end sweeps over it, it fades across the end's S, gone this far
     /// from the end, all there this far.
     static let coverFrom = 8.0, coverTo = 22.0

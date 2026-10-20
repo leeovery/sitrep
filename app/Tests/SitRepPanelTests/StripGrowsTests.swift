@@ -66,11 +66,11 @@ struct StripGrowsTests {
             return spring
         }
 
-        lab.model.remove(["s7", "s8"])
+        lab.remove(["s7", "s8"])
         #expect(lab.model.yt.k == ends(growing: false).k && lab.model.yb.k == ends(growing: false).k)
 
         lab.settle()
-        lab.model.newAsk(StripLab.ask)
+        lab.newAsk(StripLab.ask)
         #expect(lab.model.yt.k == ends(growing: true).k && lab.model.yb.k == ends(growing: true).k)
         #expect(ends(growing: true).k > lab.model.mark(.session("s5"))!.y.k)
     }
@@ -79,12 +79,12 @@ struct StripGrowsTests {
     @Test(arguments: [1, 3])
     func noMarkShowingMovesWhenAnAskFolds(_ before: Int) {
         var lab = StripLab(length: .grows, maxMarks: 6)
-        StripLab.asks.prefix(before).forEach(lab.model.newAsk)
+        StripLab.asks.prefix(before).forEach(lab.newAsk)
         lab.settle()
         let shown = Dictionary(uniqueKeysWithValues: lab.model.layout.places.map { ($0.id, $0.y) })
         let top = lab.model.yt.x, bottom = lab.model.yb.x
 
-        lab.model.newAsk(StripLab.asks[before])
+        lab.newAsk(StripLab.asks[before])
         var still = true
         lab.wait(2500) { lab in
             for (id, y) in shown where lab.model.layout.y(of: id) != nil {
@@ -102,11 +102,11 @@ struct StripGrowsTests {
     /// seconds, as a new mark is.
     @Test func theCountFlashesTwice450ApartAndIsWashedAsANewMarkIs() {
         var lab = StripLab(length: .grows, maxMarks: 6)
-        StripLab.asks.prefix(5).forEach(lab.model.newAsk)
+        StripLab.asks.prefix(5).forEach(lab.newAsk)
         lab.settle()
         let landed = lab.model.t
 
-        lab.model.newAsk(StripLab.asks[5])
+        lab.newAsk(StripLab.asks[5])
         var seen: [(t: Double, flash: Double, wash: Double)] = []
         lab.wait(2200) { lab in
             let count = lab.frame.marks.first { $0.key == .moreNeeds }!
@@ -127,13 +127,13 @@ struct StripGrowsTests {
     /// and then the count goes and the last folded ask, the away one, takes its place.
     @Test func anAnswerInTheCountShowsInPlaceAndReSortsASettleAfterThePointerLeaves() {
         var lab = StripLab(length: .grows, maxMarks: 6)
-        StripLab.asks.prefix(2).forEach(lab.model.newAsk)
+        StripLab.asks.prefix(2).forEach(lab.newAsk)
         lab.settle()
         let count = lab.model.layout.moreNeeds!.y
         #expect(lab.model.layout.restNeeds == ["s10", "s4"])
         lab.open(.moreNeeds)
 
-        lab.model.change(StripLab.answered(ask: "s10"))
+        lab.change(StripLab.answered(ask: "s10"))
         lab.wait(200)
         guard case let .rows(rows) = lab.live!.current!.content else {
             Issue.record("the count's tab holds rows")
@@ -157,9 +157,9 @@ struct StripGrowsTests {
     @Test func aMarkThatFoldsWhileItIsGrowingInStaysHidden() {
         var lab = StripLab(sessions: Array(StripLab.prototype.prefix(4)), length: .grows, maxMarks: 5)
 
-        lab.model.newAsk(StripLab.ask)
+        lab.newAsk(StripLab.ask)
         #expect(lab.model.mark(.session("s9"))!.gap != nil)
-        lab.model.add([Session(id: "w0", project: "Kit", kind: .working, title: "", sub: "", since: 0)])
+        lab.add([Session(id: "w0", project: "Kit", kind: .working, title: "", sub: "", since: 0)])
         #expect(lab.model.layout.restNeeds == ["s9", "s4"])
         lab.settle()
 
@@ -170,7 +170,7 @@ struct StripGrowsTests {
     /// The count's tab, taller than a short strip holds, scrolls its rows, as far as they run.
     @Test func theCountsRowsScrollOnAShortStrip() {
         var lab = StripLab(length: .grows, maxMarks: 6)
-        StripLab.asks.prefix(5).forEach(lab.model.newAsk)
+        StripLab.asks.prefix(5).forEach(lab.newAsk)
         lab.settle()
         lab.open(.moreNeeds)
         let tab = lab.frame.tabs.first { $0.isLive }!, words = tab.words.last!
@@ -189,7 +189,7 @@ struct StripGrowsTests {
     /// Away rows in the count's tab take no click.
     @Test func anAwayRowInTheCountsTabTakesNoClick() {
         var lab = StripLab(length: .grows, maxMarks: 6)
-        StripLab.asks.prefix(2).forEach(lab.model.newAsk)
+        StripLab.asks.prefix(2).forEach(lab.newAsk)
         lab.settle()
         lab.open(.moreNeeds)
         let tab = lab.frame.tabs.first { $0.isLive }!
@@ -205,14 +205,14 @@ struct StripGrowsTests {
     /// marks gone; its tab says nothing is running and takes no click; and the frames stop.
     @Test func withNothingRunningItIsTheNotchAtRestWhoseTabSaysSo() {
         var lab = StripLab(length: .grows)
-        lab.model.remove(StripLab.prototype.map(\.id))
+        lab.remove(StripLab.prototype.map(\.id))
         lab.settle()
 
         let box = lab.frame.strip.boundingBoxOfPath
         #expect(lab.model.drawnIn.x == 1 && lab.frame.marks.isEmpty)
         // at rest, as the springs take it, within a thousandth of a point
         #expect(abs(box.maxX - 7) < 1e-4 && abs(box.height - 76) < 1e-2 && abs(box.midY - 0.42 * 626) < 1e-2)
-        #expect(!lab.frame.wantsFrames(pointer: nil))
+        #expect(!lab.frame.isMoving && !lab.frame.wakes(pointer: nil))
 
         lab.pointer = CGPoint(x: 4, y: lab.model.yOf(.empty))
         lab.wait(1000) { $0.live?.phase == .open }
@@ -226,7 +226,7 @@ struct StripGrowsTests {
     /// The notch at rest answers the pointer 12 out from the edge and 4 past its ends.
     @Test func theNotchAtRestAnswersThePointerALittleFurtherOut() {
         var lab = StripLab(length: .grows)
-        lab.model.remove(StripLab.prototype.map(\.id))
+        lab.remove(StripLab.prototype.map(\.id))
         lab.settle()
         let top = lab.model.yt.x
 
@@ -238,23 +238,23 @@ struct StripGrowsTests {
     /// Once the ends have settled, at Grows as at Full, nothing moves and the frames stop.
     @Test func theFramesStopOnceGrowsHasSettled() {
         var lab = StripLab(length: .grows)
-        lab.model.remove(["s7", "s8"])
+        lab.remove(["s7", "s8"])
         lab.wait(100)
         #expect(lab.frame.isMoving)
 
         let shrunk = lab.settle()
         #expect(shrunk)
         #expect([lab.model.yt, lab.model.yb, lab.model.drawnIn].allSatisfy { $0.isAtRest })
-        #expect(!lab.frame.wantsFrames(pointer: nil))
+        #expect(!lab.frame.isMoving && !lab.frame.wakes(pointer: nil))
 
-        lab.model.newAsk(StripLab.ask)
+        lab.newAsk(StripLab.ask)
         let grown = lab.settle()
         #expect(grown)
-        #expect(!lab.frame.wantsFrames(pointer: nil))
+        #expect(!lab.frame.isMoving && !lab.frame.wakes(pointer: nil))
     }
 
     /// A press on the strip dragged along the edge carries it there, the tab drawn back, and no click comes of it; at
-    /// Full there is nothing to drag.
+    /// Full it runs the screen's height and goes nowhere along it.
     @Test func aDragCarriesTheStripAlongTheEdgeAtGrowsOnly() {
         var lab = StripLab(length: .grows)
         let top = lab.model.layout.top
@@ -282,20 +282,21 @@ struct StripGrowsTests {
         full.model.press(at: full.pointer!)
         full.pointer!.y += 50
         full.step()
-        #expect(full.model.layout.top == 26 && !full.model.dragging)
+        #expect(full.model.layout.top == 26 && full.model.yt.target == 26)
+        #expect(full.model.release(at: full.pointer!) == .dropped(along: nil, across: false))
     }
 
     /// Under reduced motion the strip takes its new length at once, its old shape fading out over it.
     @Test func underReducedMotionTheStripTakesItsLengthAtOnceAndCrossFades() {
         var lab = StripLab(length: .grows, reducesMotion: true)
 
-        lab.model.remove(["s7", "s8"])
+        lab.remove(["s7", "s8"])
         lab.step()
 
         #expect(lab.model.yt.x == lab.model.layout.top && lab.model.yb.x == lab.model.layout.bottom)
         #expect(lab.frame.fading != nil)
 
-        lab.model.remove(StripLab.prototype.map(\.id))
+        lab.remove(StripLab.prototype.map(\.id))
         lab.step()
         #expect(lab.model.drawnIn.x == 1)
     }
@@ -328,7 +329,9 @@ struct StripGrowsTests {
         #expect(model.fullPlaces(hairline: false) == StripLab.longest)
         #expect(model.fullPlaces(hairline: true) == StripLab.longest)
         #expect(StripLab(feel: roomless).model.fullPlaces(hairline: false) == 17)
-        let strip = Strip(length: .grows, maxLength: .full, sessions: [], measure: StripLab.measure, taller)
+        let strip = Strip(
+            length: .grows, maxLength: .full, along: Tuning.notchAt, sessions: [], measure: StripLab.measure, taller
+        )
         #expect(strip.fullPlaces(hairline: false) == 28)
     }
 
@@ -339,7 +342,8 @@ struct StripGrowsTests {
         let stage = StripStage(width: 1076, height: 615, menu: 26)
         let input = StripInput(time: 0, pointer: nil, stage: stage)
         let strip = Strip(
-            length: .grows, maxLength: StripMax(share: share), sessions: Self.sessions(asks: 9, others: 9),
+            length: .grows, maxLength: StripMax(share: share), along: Tuning.notchAt,
+            sessions: Self.sessions(asks: 9, others: 9),
             measure: StripLab.measure, input
         )
 

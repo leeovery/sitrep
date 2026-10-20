@@ -17,7 +17,7 @@ final class NotchController: NSObject {
     /// Whether a jump runs, from the panel, the menu or a banner.
     var isJumping: () -> Bool = { false }
     /// A drag let the notch go: the settings with its new place.
-    var onMoved: (EdgeSettings) -> Void = { _ in }
+    var onMoved: (EdgeMove) -> Void = { _ in }
 
     private var settings: EdgeSettings
     private var edge: ScreenEdge
@@ -29,7 +29,7 @@ final class NotchController: NSObject {
     /// While frames are idle with the panel out, its times drawn again as they next change.
     private var ages: Timer?
     /// A drag let go across the screen's middle: its settings, saved as the notch swaps edges.
-    private var crossing: EdgeSettings?
+    private var crossing: EdgeMove?
     private let ghost = GhostEdge()
     private let caption = CaptionWindow()
     /// When a new row was last washed, on the run's clock.
@@ -185,7 +185,7 @@ final class NotchController: NSObject {
             self.crossing = nil
             onMoved(crossing)
         }
-        if let drained = shown.drained {
+        if let drained = shown.jumpDrained {
             caption.drained(at: drained)
         }
         surface.show(run.list)
@@ -291,9 +291,9 @@ final class NotchController: NSObject {
         if let dropped = run.release(settings, height: edge.frame.height, moment()) {
             ghost.dropped(across: dropped.isAcross)
             if dropped.isAcross {
-                crossing = dropped.settings
+                crossing = dropped.move
             } else {
-                onMoved(dropped.settings)
+                onMoved(dropped.move)
             }
         }
         took()

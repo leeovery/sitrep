@@ -207,6 +207,31 @@ extension Strip {
         springTo(&tab.h, words.Hb, .width)
     }
 
+    /// What an open tab says changed in place, a row's words or what the board says of them: its words cross-fade, and
+    /// it eases to their measure as a glide does, so nothing squeezes inside the old one; under reduced motion, its
+    /// outline cross-fades to the new size, as a glide's does.
+    func reword(_ tab: StripTab) {
+        let words = relayer(tab, tab.key, 0)
+        let widens = words.W != tab.w.target, grows = words.Hb != tab.h.target
+
+        if reducesMotion, widens || grows {
+            crossfade(tab)
+        }
+        if widens {
+            springTo(&tab.w, words.W, .width)
+        }
+        if grows {
+            springTo(&tab.y, tabTargetY(tab.key, words.Hb), .glide)
+            springTo(&tab.h, words.Hb, .width)
+        }
+    }
+
+    /// The open tabs that say what the board says of their words: a session's time, or the notch at rest's lines. A
+    /// count's rows say neither.
+    var tabsSayingTheBoard: [StripTab] {
+        tabs.filter { $0.phase == .open && !$0.key.isCount }
+    }
+
     /// Back into the strip: the words go first, then the black, on the draw spring, a little past into a dent.
     func drawBack(_ tab: StripTab?) {
         guard let tab, tab.phase != .closing else {

@@ -20,16 +20,25 @@ public struct StripInput {
     public var time: Double
     /// The pointer in stage coordinates; nil while it is on another screen.
     public var pointer: CGPoint?
+    /// When the pointer was read, on the same clock, which its trail measures its speed by, as the notch's
+    /// (`Input.pointerAt`). Nil, the frame's time.
+    public var pointerAt: Double?
     public var stage: StripStage
     /// Whether to reduce motion, as the Mac or SitRep asks: then nothing springs, and shapes cross-fade.
     public var reducesMotion: Bool
 
-    public init(time: Double, pointer: CGPoint?, stage: StripStage, reducesMotion: Bool = false) {
+    public init(
+        time: Double, pointer: CGPoint?, pointerAt: Double? = nil, stage: StripStage, reducesMotion: Bool = false
+    ) {
         self.time = time
         self.pointer = pointer
+        self.pointerAt = pointerAt
         self.stage = stage
         self.reducesMotion = reducesMotion
     }
+
+    /// When the pointer was read.
+    var pointerTime: Double { pointerAt ?? time }
 }
 
 /// How wide a tab's words are, as the view sets them, before the tab's slack and its limits: one session's row, a

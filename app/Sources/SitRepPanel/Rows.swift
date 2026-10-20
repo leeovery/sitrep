@@ -51,9 +51,6 @@ public struct Session: Equatable, Sendable {
     /// A click on it jumps, unless no window holds it.
     public var jumps: Bool { !away }
 
-    /// The second line: its project and session, or for an away ask, why a click does nothing.
-    public var line2: String { away ? "No window holds it. Carry it on in Claude." : sub }
-
     /// How long it has stood where it does at this time on the wall clock, as its row shows it.
     public func ageText(at now: Double) -> String { Self.ageText(now - since) }
 
@@ -69,24 +66,6 @@ public struct Session: Equatable, Sendable {
         let minutes = Int((age / 60_000).rounded(.down))
         let hours = minutes / 60
         return minutes < 1 ? "now" : minutes < 60 ? "\(minutes)m" : hours < 24 ? "\(hours)h" : "\(hours / 24)d"
-    }
-
-    /// Its place in the panel's order: needs you, oldest first, away ones last; your turn, newest first; working,
-    /// longest running first (the prototype's `cmpSessions`, but for its last tie, the order they came).
-    private var order: (rank: Int, age: Double) {
-        switch kind {
-        case .needs: (away ? 1 : 0, since)
-        case .turn: (2, -since)
-        case .working: (3, since)
-        }
-    }
-
-    /// The sessions in the panel's order, those that came first first on a tie.
-    public static func sorted(_ sessions: [Self]) -> [Self] {
-        func key(_ s: (offset: Int, element: Self)) -> (Int, Double, Int) {
-            (s.element.order.rank, s.element.order.age, s.offset)
-        }
-        return sessions.enumerated().sorted { key($0) < key($1) }.map(\.element)
     }
 }
 

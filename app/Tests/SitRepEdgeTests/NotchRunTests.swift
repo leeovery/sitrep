@@ -154,7 +154,7 @@ struct NotchRunTests {
         let dropped = run.release(EdgeSettings(), height: Self.height, Self.at(run.time + Self.frameMS))
 
         #expect(dropped?.isAcross == false)
-        #expect(dropped.map { abs($0.settings.along - 291 / Self.height) < 1e-9 } == true)
+        #expect(dropped?.move.along.map { abs($0 - 291 / Self.height) < 1e-9 } == true)
         #expect(run.drag == nil)
     }
 
@@ -314,8 +314,50 @@ struct NotchRunTests {
         let shown = run.takeShown()
 
         #expect(shown.swappedEdge)
-        #expect(shown.drained != nil)
         #expect(run.takeShown() == NotchRun.Shown())
+    }
+
+    /// Hidden after a drop across but before its swap, and shown once the swap is past: the frames run on meanwhile
+    /// showed it, and the drawing hears it.
+    @Test func aSwapRunOnWhileHiddenStillReachesTheDrawing() {
+        let run = Self.droppedAcross()
+
+        _ = run.takeShown()
+        run.catchUp(NotchRun.Moment(time: run.time + 600, pointer: nil, isShown: false, setting: Self.setting))
+        run.step(Self.at(run.time + Self.frameMS))
+
+        #expect(run.takeShown().swappedEdge)
+    }
+
+    /// The panel going in with no click waiting on it, as the pointer leaves or a click elsewhere closes it, is no
+    /// jump's drain: the caption waits on nothing.
+    @Test func aPanelGoingInWithNoClickIsNoJumpsDrain() {
+        let run = Self.opened(["a", "b"])
+
+        _ = run.takeShown()
+        run.clickElsewhere(Self.at(run.time + Self.frameMS))
+        Self.frames(run, for: 1000, CGPoint(x: 900, y: 491))
+
+        #expect(run.phase == .closed)
+        #expect(run.takeShown().jumpDrained == nil)
+    }
+
+    /// A row's click drains the panel once its jump answers: the drawing hears it once, at the frame it began, and the
+    /// frames after, with the panel in, latch nothing more.
+    @Test func aClicksDrainIsLatchedOnceAsThePanelGoesIn() throws {
+        let run = Self.opened(["a", "b"])
+
+        _ = run.press(Self.at(run.time, try Self.point(of: "ask:a", in: run)), mayJump: true)
+        _ = run.takeShown()
+        run.jumpAnswered(Self.at(run.time + Self.frameMS))
+        run.step(Self.at(run.time + Self.frameMS))
+        let drained = run.time
+
+        #expect(run.phase == .closing)
+        #expect(run.takeShown().jumpDrained == drained)
+        Self.frames(run, for: 1000, CGPoint(x: 900, y: 491))
+        #expect(run.phase == .closed)
+        #expect(run.takeShown().jumpDrained == nil)
     }
 
     @Test func hiddenAnInputRunsTheNotchsTimeOnFirst() {

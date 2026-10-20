@@ -42,17 +42,29 @@ public protocol Notch: AnyObject {
 extension Notch {
     /// Its time run on while nothing showed it, from the last frame's time to now: a frame each 50ms, the pointer
     /// away, until nothing moves, so it shows as it would have come to rest and plays nothing late. The first frame
-    /// takes what came meanwhile, a new ask's swell among it. Its last frame.
-    public func runOn(from time: Double, to now: Double, _ input: (Double) -> Input) -> Frame {
-        var time = time, last: Frame
-
-        repeat {
-            time = min(now, time + 50)
-            last = frame(input(time))
-        } while time < now && last.isMoving
-
-        return last
+    /// takes what came meanwhile, a new ask's swell among it. Each frame, with its time, goes to `each`, for what it
+    /// shows once, as the edge swapping; its last is returned.
+    public func runOn(
+        from time: Double, to now: Double, _ input: (Double) -> Input, each: (Double, Frame) -> Void = { _, _ in }
+    ) -> Frame {
+        runningOn(from: time, to: now, frame: { frame(input($0)) }, each: each, isMoving: \.isMoving)
     }
+}
+
+/// A model's time run on while nothing showed it, from the last frame's time to now: a frame each 50ms, as far as a
+/// frame moves a model on, until nothing moves, each with its time to `each`. Its last frame.
+func runningOn<F>(
+    from time: Double, to now: Double, frame: (Double) -> F, each: (Double, F) -> Void, isMoving: (F) -> Bool
+) -> F {
+    var time = time, last: F
+
+    repeat {
+        time = min(now, time + 50)
+        last = frame(time)
+        each(time, last)
+    } while time < now && isMoving(last)
+
+    return last
 }
 
 /// What the two notches share, as their prototypes share it: the sim clock and its timers, the pointer's trail, what

@@ -184,5 +184,22 @@ struct PanelBoardTests {
         let back = Self.heard(.line(watchLine), .exited(.status(1), stderr: ""), .line(watchLine))
 
         #expect(Self.board(back).head.count == "6 sessions")
+        #expect(Self.board(back).asOf == nil)
+    }
+
+    /// The strip has no head: before any board, its notch at rest says what the panel's head says.
+    @Test func beforeAnyBoardTheStripSaysWhatThePanelsHeadSays() {
+        #expect(Self.board(LastBoard()).unread == "Looking for sessions…")
+        #expect(Self.board(Self.heard(.unstartable("no such file"))).unread == "SitRep can't read the board")
+        #expect(Self.board(Self.heard(.line(watchLine))).unread == nil)
+    }
+
+    /// While the board is stale the strip says as of when, as the panel's head does; while it is current, nothing.
+    @Test func withWatchStoppedTheStripSaysAsOfWhen() {
+        let stopped = Self.heard(.line(watchLine), .exited(.status(1), stderr: ""))
+
+        #expect(Self.board(stopped).asOf == "as of 12:01")
+        #expect(Self.board(stopped).unread == nil)
+        #expect(Self.board(Self.heard(.line(watchLine))).asOf == nil)
     }
 }

@@ -40,11 +40,21 @@ extension Strip {
     /// How far the column has drawn back into the notch at rest, 0 to 1.
     var inNotch: Double { clamp(drawnIn.x, 0, 1) }
 
-    /// The column's depth now: the strip's 36, narrowing to the notch's 7.
-    var front: Double { lerp(StripTuning.width, StripTuning.notchWidth, inNotch) }
+    /// How deep the strip is as it crosses to the other edge, against its 36: 1 but while it drains and grows back.
+    var across: Double { max(0, sw.x) / StripTuning.width }
 
-    /// Its ends now, in the top end's frame: the board's S, becoming the notch's S-curve; and how long.
-    var endCurve: [Vec] { zip(StripTuning.sCurve, StripTuning.notchCurve).map { lerp($0, $1, inNotch) } }
+    /// The column's depth now: the strip's 36, narrowing to the notch's 7, and as it crosses.
+    var front: Double { lerp(StripTuning.width, StripTuning.notchWidth, inNotch) * across }
+
+    /// Its ends now, in the top end's frame: the board's S, becoming the notch's S-curve, at its depth as it crosses;
+    /// and how long.
+    var endCurve: [Vec] {
+        let sx = across
+        return zip(StripTuning.sCurve, StripTuning.notchCurve).map { q, n in
+            let p = lerp(q, n, inNotch)
+            return Vec(p.x * sx, p.y)
+        }
+    }
     var endLength: Double { lerp(StripTuning.topEnd, StripTuning.notchEnd, inNotch) }
 
     /// How far inside an end a tab's edge may come: the first mark's open tab's, its fillet meeting the S; out of the
@@ -83,9 +93,13 @@ extension Strip {
 
     /// The strip: from its top end, curving into the bezel, down its straight edge to its bottom end, the top's
     /// mirrored, curving back into the bezel; with nothing running, Grows, the notch at rest. A tab drawn back past the
-    /// edge dents it, always on the straight edge.
+    /// edge dents it, always on the straight edge. Drained all the way as it crosses, there is none.
     func stripPath(_ geometries: [TabGeometry]) -> CGPath {
         let path = CGMutablePath(), q = endCurve, yT = yt.x, yB = yb.x
+        guard sw.x >= 0.05 else {
+            return path
+        }
+
         func T(_ p: Vec) -> CGPoint { CGPoint(x: p.x, y: yT + p.y) }
         func B(_ p: Vec) -> CGPoint { CGPoint(x: p.x, y: yB - p.y) }
         path.move(to: CGPoint(x: -4, y: yT))
