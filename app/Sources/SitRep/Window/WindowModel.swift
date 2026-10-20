@@ -15,8 +15,6 @@ final class WindowModel {
     private(set) var pick: Pick?
     /// The clock the pages are drawn at: ages, washes and an answer's wait.
     private(set) var now = Date()
-    /// A wash or an answer's wait is under way: the views draw every frame until it ends.
-    private(set) var isMoving = false
     /// SitRep's own Reduce motion, or the Mac's, followed as either changes.
     private(set) var reducesMotion = WindowModel.readReducesMotion()
     /// The window's jump under way, which only the button pressed shows.
@@ -25,6 +23,7 @@ final class WindowModel {
     /// What the views' presses ask the model for.
     @ObservationIgnored private(set) var actions = WindowActions()
     @ObservationIgnored private let run: WindowRun
+    @ObservationIgnored private var pickReads = PickReads()
     @ObservationIgnored private let plugin: Plugin
     @ObservationIgnored private let works: Works
     @ObservationIgnored private let defaults: UserDefaults
@@ -49,7 +48,8 @@ final class WindowModel {
             askToFinish: { [weak self] in self?.askToFinish($0) },
             cancelFinish: { [weak self] in self?.cancelFinish($0) },
             confirmFinish: { [weak self] in self?.confirmFinish($0) },
-            pointer: { [weak self] in self?.pointer(isIn: $0) }
+            pointer: { [weak self] in self?.pointer(isIn: $0) },
+            keyboard: { [weak self] in self?.keyboard(isIn: $0) }
         )
         listen()
     }
@@ -115,8 +115,9 @@ final class WindowModel {
         return run.undo()
     }
 
+    /// Lee's pick, its reads settled (`PickReads`).
     private func pick(_ pick: Pick) {
-        read(run.pick(pick))
+        read(pickReads.picked(run.pick(pick), at: Date()))
         defaults.set(run.lastSession, forKey: Self.lastSessionKey)
         refresh()
     }
@@ -140,6 +141,11 @@ final class WindowModel {
 
     private func pointer(isIn: Bool) {
         run.pointer(isIn: isIn, at: Date())
+        refresh()
+    }
+
+    private func keyboard(isIn: Bool) {
+        run.keyboard(isIn: isIn, at: Date())
         refresh()
     }
 
@@ -209,17 +215,18 @@ final class WindowModel {
         let time = Date()
 
         run.settle(at: time)
+        read(pickReads.due(at: time))
         send()
         now = time
         listed = run.listed(at: time)
         page = run.page(at: time)
         pick = run.pick
-        isMoving = run.isMoving(at: time)
         schedule(after: time)
     }
 
     private func schedule(after time: Date) {
-        let next = [run.nextChange, run.isOpen ? time.addingTimeInterval(Self.tick) : nil].compactMap { $0 }.min()
+        let next = [run.nextChange, pickReads.dueAt, run.isOpen ? time.addingTimeInterval(Self.tick) : nil]
+            .compactMap { $0 }.min()
 
         wake?.cancel()
         wake = next.map { next in

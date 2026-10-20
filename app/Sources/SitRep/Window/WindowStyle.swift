@@ -49,10 +49,15 @@ enum WindowStyle {
     static let pageInset: CGFloat = 44
     /// The page's top row, centred beside the traffic lights, which the window's toolbar sets 26 points down.
     static let barHeight: CGFloat = 52
-    /// The system's sidebar list, as it sets its rows: its selection in from the sidebar's edges, and a row's words
-    /// in from the selection's.
+    /// The system's sidebar list, as it lays out its rows, measured offscreen on macOS 26: a row's height, its words in
+    /// from the sidebar's edges, and the gap between two sections.
+    static let rowHeight: CGFloat = 32
+    static let rowInset: CGFloat = 16
+    static let sectionGap: CGFloat = 13
+    /// The system's selection in the sidebar, in from its edges and rounded, which a row's fills take: by eye, as
+    /// nothing offscreen draws it.
     static let selectionInset: CGFloat = 10
-    static let rowInset: CGFloat = 8
+    static let selectionRadius: CGFloat = 6
     /// A mark's lane, as the panel row's.
     static let lane = CGSize(width: 12, height: 18)
     /// Where a page line's words start, past its mark's lane.

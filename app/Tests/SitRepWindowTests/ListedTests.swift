@@ -87,6 +87,10 @@ struct HeldOrderTests {
             order.pointer(isIn: isIn, at: time)
         }
 
+        func keyboard(isIn: Bool, at time: Date) {
+            order.keyboard(isIn: isIn, at: time)
+        }
+
         func settle(at time: Date) -> Bool {
             order.settle(at: time)
         }
@@ -105,6 +109,30 @@ struct HeldOrderTests {
         _ = held.take(Self.first, moving: [])
         held.pointer(isIn: true, at: printedAt)
         #expect(Self.order(held.take(Self.reordered, moving: [])) == ["sitrep", "switchboard", "goosemates"])
+    }
+
+    /// So no row moves between two presses of an arrow key.
+    @Test func whileTheKeyboardIsInTheListAChangeShowsInPlace() {
+        let held = Held()
+
+        _ = held.take(Self.first, moving: [])
+        held.keyboard(isIn: true, at: printedAt)
+        #expect(Self.order(held.take(Self.reordered, moving: [])) == ["sitrep", "switchboard", "goosemates"])
+    }
+
+    @Test func theListReSortsASecondAfterTheLastOfThePointerAndTheKeyboardLeavesIt() {
+        let held = Held()
+
+        _ = held.take(Self.first, moving: [])
+        held.pointer(isIn: true, at: printedAt)
+        held.keyboard(isIn: true, at: printedAt)
+        held.pointer(isIn: false, at: printedAt)
+        #expect(held.resortsAt == nil)
+        #expect(!held.settle(at: printedAt.addingTimeInterval(2)))
+        held.keyboard(isIn: false, at: printedAt.addingTimeInterval(2))
+        #expect(held.resortsAt == printedAt.addingTimeInterval(3))
+        #expect(held.settle(at: printedAt.addingTimeInterval(3)))
+        #expect(Self.order(held.take(Self.reordered, moving: [])) == ["goosemates", "sitrep", "switchboard"])
     }
 
     @Test func aSessionNewToNeedingLeeMovesInAtOnceItsProjectWithIt() {

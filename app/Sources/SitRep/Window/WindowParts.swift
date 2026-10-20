@@ -182,13 +182,44 @@ struct Washed: ViewModifier {
     let radius: CGFloat
 
     func body(content: Content) -> some View {
-        let amount = since.map { Wash.amount(since: now.timeIntervalSince($0) * 1000) } ?? 0
+        content.background { WashFill(since: since, now: now, radius: radius) }
+    }
+}
 
-        content.background {
+/// The wash itself, fading by the frame while it lasts.
+struct WashFill: View {
+    let since: Date?
+    let now: Date
+    let radius: CGFloat
+
+    var body: some View {
+        Framed(now: now, isMoving: amount(at: now) > 0) { now in
             RoundedRectangle(cornerRadius: radius)
                 .fill(WindowStyle.wash)
                 .overlay(RoundedRectangle(cornerRadius: radius).strokeBorder(WindowStyle.washRing, lineWidth: 1))
-                .opacity(amount)
+                .opacity(amount(at: now))
+        }
+    }
+
+    private func amount(at time: Date) -> Double {
+        since.map { Wash.amount(since: time.timeIntervalSince($0) * 1000) } ?? 0
+    }
+}
+
+/// What moves by the frame, drawn at each frame's time while it moves, and at the model's time, `now`, while it stands
+/// or is drawn as a still. Only what moves is drawn again each frame, never the list or the page around it.
+struct Framed<Content: View>: View {
+    let now: Date
+    let isMoving: Bool
+    @ViewBuilder let content: (Date) -> Content
+
+    @Environment(\.isStill) private var isStill
+
+    var body: some View {
+        if isMoving, !isStill {
+            TimelineView(.animation) { frame in content(max(frame.date, now)) }
+        } else {
+            content(now)
         }
     }
 }

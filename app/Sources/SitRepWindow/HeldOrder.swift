@@ -1,22 +1,28 @@
 import Foundation
 
 /// The order the board's list shows its projects and sessions in: `watch`'s, but held while the pointer is over the
-/// list and for a second after it leaves, as the strip holds its marks, so a change shows in place. A session new to
-/// needing Lee moves in at once, to where `watch` has it, its project with it, the rows below sliding.
+/// list or the keyboard is in it, and for a second after the last of them leaves, as the strip holds its marks, so a
+/// change shows in place and no row moves between two presses of an arrow key. A session new to needing Lee moves in
+/// at once, to where `watch` has it, its project with it, the rows below sliding.
 public struct HeldOrder: Equatable, Sendable {
-    /// How long after the pointer leaves the list it takes `watch`'s order.
+    /// What holds the list: the pointer over it, the keyboard's focus in it.
+    public enum Holder: Hashable, Sendable {
+        case pointer, keyboard
+    }
+
+    /// How long after the last holder leaves the list it takes `watch`'s order.
     public static let settle: TimeInterval = 1
 
     private var projects: [String] = []
     private var sessions: [String: [String]] = [:]
-    private var isPointerIn = false
-    /// When the list takes `watch`'s order, a second after the pointer left it.
+    private var holders: Set<Holder> = []
+    /// When the list takes `watch`'s order, a second after the last holder left it.
     public private(set) var resortsAt: Date?
 
     public init() {}
 
-    /// Held, while the pointer is over the list and until the second after it leaves runs out.
-    var isHeld: Bool { isPointerIn || resortsAt != nil }
+    /// Held, while anything holds the list and until the second after the last leaves runs out.
+    var isHeld: Bool { !holders.isEmpty || resortsAt != nil }
 
     /// The list in the order it shows, after taking this one: `watch`'s, or while held the order it showed, the
     /// sessions moving in at their places in `watch`'s, as anything new to the list does.
@@ -37,18 +43,32 @@ public struct HeldOrder: Equatable, Sendable {
 
     /// The pointer came over the list, or left it at this time.
     public mutating func pointer(isIn: Bool, at time: Date) {
-        guard isIn != isPointerIn else {
+        hold(.pointer, isIn: isIn, at: time)
+    }
+
+    /// The keyboard's focus came into the list, or left it at this time.
+    public mutating func keyboard(isIn: Bool, at time: Date) {
+        hold(.keyboard, isIn: isIn, at: time)
+    }
+
+    private mutating func hold(_ holder: Holder, isIn: Bool, at time: Date) {
+        guard isIn != holders.contains(holder) else {
             return
         }
 
-        isPointerIn = isIn
-        resortsAt = isIn ? nil : time.addingTimeInterval(Self.settle)
+        if isIn {
+            holders.insert(holder)
+            resortsAt = nil
+        } else {
+            holders.remove(holder)
+            resortsAt = holders.isEmpty ? time.addingTimeInterval(Self.settle) : nil
+        }
     }
 
-    /// The second after the pointer left has run out by this time: the list is no longer held, and the next take
-    /// gives `watch`'s order. Whether it ran out now.
+    /// The second after the last holder left has run out by this time: the list is no longer held, and the next
+    /// take gives `watch`'s order. Whether it ran out now.
     public mutating func settle(at time: Date) -> Bool {
-        guard let due = resortsAt, time >= due, !isPointerIn else {
+        guard let due = resortsAt, time >= due, holders.isEmpty else {
             return false
         }
 
@@ -56,9 +76,10 @@ public struct HeldOrder: Equatable, Sendable {
         return true
     }
 
-    /// The pointer gone with the list, as when the window closes under it, which tells no exit: held no more.
+    /// The pointer and the keyboard gone with the list, as when the window closes under them, which tells no exit:
+    /// held no more.
     public mutating func release() {
-        isPointerIn = false
+        holders = []
         resortsAt = nil
     }
 

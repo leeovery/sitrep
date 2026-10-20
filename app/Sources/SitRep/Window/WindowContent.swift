@@ -17,6 +17,8 @@ struct WindowActions: Sendable {
     var confirmFinish: @MainActor @Sendable (String) -> Void = { _ in }
     /// The pointer came over the board's list, or left it.
     var pointer: @MainActor @Sendable (Bool) -> Void = { _ in }
+    /// The keyboard's focus came into the board's list, or left it.
+    var keyboard: @MainActor @Sendable (Bool) -> Void = { _ in }
 }
 
 extension EnvironmentValues {

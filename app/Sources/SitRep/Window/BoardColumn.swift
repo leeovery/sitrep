@@ -1,10 +1,12 @@
 import SitRepWindow
 import SwiftUI
 
-/// The board down the left, in the system's sidebar: the head, every project with something open and its sessions
-/// under it, and the quiet projects at the foot. Its rows are a list whose selection is the session or project picked,
-/// drawn by the system, which the pointer and the arrow keys move alike; a project's name, its own or a quiet one's,
-/// opens the project. A row under the pointer that is not the one picked shows a quiet fill behind it.
+/// The board down the left, in the system's sidebar: the head, then every project with something open and its
+/// sessions under it, and the quiet projects at the foot. Its rows are a list whose selection is the session or
+/// project picked, drawn by the system, which the pointer and the arrow keys move alike, and which never empties; a
+/// project's name, its own or a quiet one's, opens the project. A row under the pointer that is not the one picked
+/// shows a quiet fill behind it. The head stays put while the rows scroll, and a pick made elsewhere, by a jump, a
+/// notification or the menu, scrolls its row into view.
 struct BoardColumn: View {
     let listed: Listed
     let pick: Pick?
@@ -13,43 +15,73 @@ struct BoardColumn: View {
     @Environment(\.windowActions) private var act
     @Environment(\.reducesWindowMotion) private var reducesMotion
     @Environment(\.isStill) private var isStill
+    @FocusState private var isFocused: Bool
 
     var body: some View {
         if isStill {
-            still
+            standIn
         } else {
-            list
+            VStack(alignment: .leading, spacing: 0) {
+                head
+                list
+            }
         }
     }
 
     private var list: some View {
-        List(selection: selection) {
-            ForEach(listed.projects) { project in
-                Section {
-                    ProjectRows(project: project, pick: pick, now: now)
+        ScrollViewReader { scroller in
+            picking
+                .listStyle(.sidebar)
+                .animation(reducesMotion ? nil : .easeInOut(duration: 0.25), value: listed.sessions.map(\.id))
+                .onHover { act.pointer($0) }
+                .focused($isFocused)
+                .onChange(of: isFocused) { _, isFocused in act.keyboard(isFocused) }
+                .onChange(of: pick) { _, pick in
+                    if let pick {
+                        scroller.scrollTo(pick)
+                    }
                 }
-            }
-            if !listed.quiet.isEmpty {
-                Section {
-                    QuietRows(quiet: listed.quiet, pick: pick)
-                } header: {
-                    QuietHeading(count: listed.quiet.count)
-                }
-            }
         }
-        .listStyle(.sidebar)
-        .animation(reducesMotion ? nil : .easeInOut(duration: 0.25), value: listed.sessions.map(\.id))
-        .onHover { act.pointer($0) }
-        .safeAreaInset(edge: .top, spacing: 0) { head }
     }
 
-    /// The list laid out whole as a still, which renders no list: below the bar the traffic lights sit in, on the
-    /// panel's black with a hairline beside it, as before macOS 26.
-    private var still: some View {
+    /// The list over the pick, which a click in its blank space or on the row picked cannot clear. With nothing
+    /// picked, as when no session is open, a press picks.
+    @ViewBuilder private var picking: some View {
+        if let pick {
+            List(selection: Binding(get: { pick }, set: { picked in
+                if picked != pick {
+                    act.pick(picked)
+                }
+            })) { rows }
+        } else {
+            List(selection: Binding<Pick?>(get: { nil }, set: { picked in picked.map(act.pick) })) { rows }
+        }
+    }
+
+    @ViewBuilder private var rows: some View {
+        ForEach(listed.projects) { project in
+            Section {
+                ProjectRows(project: project, pick: pick, now: now)
+            }
+        }
+        if !listed.quiet.isEmpty {
+            Section {
+                QuietRows(quiet: listed.quiet, pick: pick, now: now)
+            } header: {
+                QuietHeading(count: listed.quiet.count)
+            }
+            .collapsible(false)
+        }
+    }
+
+    /// A stand-in for the sidebar, drawn as a still: an image renderer draws no list, nor the sidebar it sits in. Below
+    /// the bar the traffic lights sit in, its head and its rows are laid out as the system's list sets them, its
+    /// picked row on a stand-in for the selection, all on the panel's black with a hairline beside it.
+    private var standIn: some View {
         VStack(alignment: .leading, spacing: 0) {
             Color.clear.frame(height: WindowStyle.barHeight)
             head
-            VStack(alignment: .leading, spacing: 14) {
+            VStack(alignment: .leading, spacing: WindowStyle.sectionGap) {
                 ForEach(listed.projects) { project in
                     VStack(alignment: .leading, spacing: 0) {
                         ProjectRows(project: project, pick: pick, now: now)
@@ -57,25 +89,17 @@ struct BoardColumn: View {
                 }
                 if !listed.quiet.isEmpty {
                     VStack(alignment: .leading, spacing: 0) {
-                        QuietHeading(count: listed.quiet.count).padding(.horizontal, WindowStyle.rowInset).padding(.bottom, 4)
-                        QuietRows(quiet: listed.quiet, pick: pick)
+                        QuietHeading(count: listed.quiet.count)
+                            .padding(.horizontal, WindowStyle.rowInset)
+                            .padding(.bottom, 4)
+                        QuietRows(quiet: listed.quiet, pick: pick, now: now)
                     }
                 }
             }
-            .padding(.horizontal, WindowStyle.selectionInset)
             Spacer(minLength: 0)
         }
         .background(WindowStyle.black)
         .overlay(alignment: .trailing) { Rectangle().fill(WindowStyle.line).frame(width: 1) }
-    }
-
-    /// Lee's press or arrow key on a row, picking it; the list never picks nothing.
-    private var selection: Binding<Pick?> {
-        Binding(get: { pick }, set: { picked in
-            if let picked, picked != pick {
-                act.pick(picked)
-            }
-        })
     }
 
     private var head: some View {
@@ -88,7 +112,7 @@ struct BoardColumn: View {
             Spacer()
             Text(listed.head.count).font(WindowStyle.ui(12)).foregroundStyle(WindowStyle.faint)
         }
-        .padding(.horizontal, WindowStyle.selectionInset + WindowStyle.rowInset)
+        .padding(.horizontal, WindowStyle.rowInset)
         .padding(.top, 4)
         .padding(.bottom, 10)
     }
@@ -109,10 +133,10 @@ private struct ProjectRows: View {
             }
         }
         .font(WindowStyle.ui(12, .semibold))
-        .sidebarRow(.project(project.id), pick: pick)
+        .sidebarRow(.project(project.id), pick: pick, now: now)
         ForEach(project.sessions) { row in
             SessionRowView(row: row, isPicked: pick == .session(row.id), now: now)
-                .sidebarRow(.session(row.id), pick: pick)
+                .sidebarRow(.session(row.id), pick: pick, washed: row.washed, now: now)
         }
     }
 }
@@ -137,7 +161,6 @@ private struct SessionRowView: View {
                 .foregroundStyle(isWashing ? WindowStyle.orange : WindowStyle.faint)
                 .frame(width: 28, alignment: .trailing)
         }
-        .modifier(Washed(since: row.washed, now: now, radius: 6))
     }
 
     private var isWashing: Bool { row.washed != nil }
@@ -156,6 +179,7 @@ private struct QuietHeading: View {
 private struct QuietRows: View {
     let quiet: [Listed.Quiet]
     let pick: Pick?
+    let now: Date
 
     var body: some View {
         ForEach(quiet) { project in
@@ -163,46 +187,79 @@ private struct QuietRows: View {
                 .font(WindowStyle.ui(12, .medium))
                 .foregroundStyle(WindowStyle.soft)
                 .lineLimit(1)
-                .sidebarRow(project.pick, pick: pick)
+                .sidebarRow(project.pick, pick: pick, now: now)
         }
     }
 }
 
 private extension View {
-    /// A row of the sidebar's list, picked as `pick` (`BoardColumn`).
-    func sidebarRow(_ row: Pick, pick: Pick?) -> some View {
-        modifier(SidebarRow(row: row, isPicked: row == pick))
+    /// A row of the sidebar's list, picked as `pick`, washed orange from `washed` as it comes (`BoardColumn`).
+    func sidebarRow(_ row: Pick, pick: Pick?, washed: Date? = nil, now: Date) -> some View {
+        modifier(SidebarRow(row: row, isPicked: row == pick, washed: washed, now: now))
     }
 }
 
-/// A row of the sidebar's list, tagged with what it picks. Under the pointer, and not the one picked, it shows a quiet
-/// fill behind its words, as the row's own background, which the system's selection leaves alone. Drawn as a still,
-/// which renders no list, it is laid out as the list lays it out, the picked one on a stand-in for the selection.
+/// A row of the sidebar's list, tagged with what it picks, and named by it, to scroll to. Its words fill the row's
+/// height, and its background the whole row, so the pointer is over it anywhere on the row: under the pointer, and not
+/// the one picked, it shows a quiet fill, and as it comes, its wash, both as the row's background, shaped as the
+/// system's selection, which they leave alone. Drawn as a still, it is laid out as the list lays it out.
 private struct SidebarRow: ViewModifier {
     let row: Pick
     let isPicked: Bool
+    let washed: Date?
+    let now: Date
 
     @Environment(\.isStill) private var isStill
+    @Environment(\.isHoveredStill) private var isHoveredStill
+    @State private var isOverWords = false
+    @State private var isOverRow = false
 
     func body(content: Content) -> some View {
-        Highlighted(isPicked: isPicked) { highlight in
-            let fill = WindowStyle.sidebarFill(highlight, isStill: isStill).map(Self.fill)
-            let words = content.frame(maxWidth: .infinity, minHeight: WindowStyle.lane.height, alignment: .leading)
-                .contentShape(Rectangle())
+        let highlight = Highlight.of(
+            isPicked: isPicked, isPressed: false, isHovered: isOverWords || isOverRow || isHoveredStill
+        )
+        let background = RowBackground(
+            fill: WindowStyle.sidebarFill(highlight, isStill: isStill), washed: washed, now: now, isOver: $isOverRow
+        )
+        let words = content
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+            .contentShape(Rectangle())
+            .onHover { isOverWords = $0 }
 
+        Group {
             if isStill {
                 words
-                    .padding(.vertical, 5)
                     .padding(.horizontal, WindowStyle.rowInset)
-                    .background { fill }
+                    .frame(height: WindowStyle.rowHeight)
+                    .background(background)
             } else {
-                words.listRowBackground(fill.map { $0.padding(.horizontal, WindowStyle.selectionInset) })
+                words.listRowBackground(background)
             }
         }
         .tag(row)
+        .id(row)
     }
+}
 
-    private static func fill(_ colour: Color) -> some View {
-        RoundedRectangle(cornerRadius: 6, style: .continuous).fill(colour)
+/// What a sidebar row draws behind its words, across the whole row: its wash as it comes, and the pointer's fill,
+/// each inset and rounded as the system's selection is. It hears the pointer over the row's edges, where its words
+/// are not.
+private struct RowBackground: View {
+    let fill: Color?
+    let washed: Date?
+    let now: Date
+    @Binding var isOver: Bool
+
+    var body: some View {
+        ZStack {
+            WashFill(since: washed, now: now, radius: WindowStyle.selectionRadius)
+            if let fill {
+                RoundedRectangle(cornerRadius: WindowStyle.selectionRadius, style: .continuous).fill(fill)
+            }
+        }
+        .padding(.horizontal, WindowStyle.selectionInset)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .contentShape(Rectangle())
+        .onHover { isOver = $0 }
     }
 }

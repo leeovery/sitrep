@@ -3,7 +3,6 @@ import Foundation
 @testable import SitRep
 import SitRepEdge
 import SitRepPanel
-import SwiftUI
 import Testing
 
 /// The Settings window takes the main menu's ⌘W and ⌘M (`AppMenu`), which it validates by its style. It is made, never
@@ -26,40 +25,48 @@ struct SettingsWindowTests {
 /// on the screen; its parts can be read here.
 @MainActor
 struct SitRepWindowTests {
-    private static func window() -> NSWindow {
-        let window = SitRepWindow.window(NSHostingController(rootView: WindowSplit { Color.clear } page: { Color.clear }))
-
-        window.layoutIfNeeded()
-        return window
+    private static func split() -> NSSplitViewController {
+        SitRepWindow.split(sidebar: NSViewController.with(NSView()), page: NSViewController.with(NSView()))
     }
 
     @Test func itOpensOnTheSpaceLeeIsOn() {
-        #expect(Self.window().collectionBehavior.contains(.moveToActiveSpace))
+        #expect(SitRepWindow.window(Self.split()).collectionBehavior.contains(.moveToActiveSpace))
     }
 
-    @Test func theBoardIsTheSystemsOwnSidebarAndThePageSitsBesideIt() throws {
-        let content = try #require(Self.window().contentView)
-        let split = try #require(Self.split(in: content))
-
-        #expect(split.splitViewItems.map(\.behavior) == [.sidebar, .default])
+    @Test func theBoardIsTheSystemsOwnSidebarAndThePageSitsBesideIt() {
+        #expect(Self.split().splitViewItems.map(\.behavior) == [.sidebar, .default])
     }
 
-    /// Without a toolbar, macOS 26 sets the traffic lights on the sidebar glass's corner; with one, inside it.
-    @Test func itHasAnEmptyToolbarSoTheTrafficLightsSitInsideTheSidebar() throws {
-        let window = Self.window()
+    /// With no toggle to bring it back, it can neither be dragged shut nor shut by the window narrowing.
+    @Test func theSidebarNeverCollapses() throws {
+        let sidebar = try #require(Self.split().splitViewItems.first)
+
+        #expect(!sidebar.canCollapse)
+        #expect(!sidebar.canCollapseFromWindowResize)
+    }
+
+    @Test func theSidebarKeepsTheDrawingsWidth() throws {
+        let split = Self.split()
+        let window = SitRepWindow.window(split)
+
+        window.layoutIfNeeded()
+
+        let sidebar = try #require(split.splitViewItems.first)
+
+        #expect(sidebar.minimumThickness == WindowStyle.boardWidth)
+        #expect(sidebar.maximumThickness == WindowStyle.boardWidth)
+        #expect(sidebar.viewController.view.frame.width == WindowStyle.boardWidth)
+    }
+
+    /// The toolbar's titlebar is what macOS 26 sets the traffic lights inside the sidebar's glass by, which only the
+    /// screen shows.
+    @Test func itHasAnEmptyUnifiedToolbarOverItsFullSizeContent() throws {
+        let window = SitRepWindow.window(Self.split())
         let toolbar = try #require(window.toolbar)
 
         #expect(toolbar.items.isEmpty)
         #expect(window.toolbarStyle == .unified)
         #expect(window.styleMask.contains(.fullSizeContentView))
-    }
-
-    /// The split the system's sidebar is an item of, under this view.
-    private static func split(in view: NSView) -> NSSplitViewController? {
-        if let split = (view as? NSSplitView)?.delegate as? NSSplitViewController {
-            return split
-        }
-        return view.subviews.lazy.compactMap(split(in:)).first
     }
 }
 

@@ -218,7 +218,7 @@ private struct CardLine: View {
                 Text(words).font(WindowStyle.ui(12)).foregroundStyle(isFaint ? WindowStyle.faint : WindowStyle.soft)
             }
             if case let .waiting(pending) = line {
-                Draining(left: 1 - pending.waited(at: now))
+                Framed(now: now, isMoving: true) { now in Draining(left: 1 - pending.waited(at: now)) }
             }
         }
         .padding(.leading, 22)

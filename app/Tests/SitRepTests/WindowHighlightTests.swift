@@ -22,7 +22,8 @@ struct HighlightTests {
 /// nothing of SitRep's is drawn on it, save as a still, which renders no list.
 struct SidebarFillTests {
     @Test func underThePointerARowNotPickedShowsAQuietPlainFill() {
-        #expect(WindowStyle.sidebarFill(.hover, isStill: false) == .white.opacity(0.06))
+        #expect(WindowStyle.sidebarFill(.hover, isStill: false) == WindowStyle.sidebarHover)
+        #expect(WindowStyle.sidebarFill(.hover, isStill: true) == WindowStyle.sidebarHover)
     }
 
     @Test func thePickedRowIsLeftToTheSystemsSelection() {

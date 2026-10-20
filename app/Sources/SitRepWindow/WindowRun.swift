@@ -83,7 +83,13 @@ public final class WindowRun {
         held.pointer(isIn: isIn, at: time)
     }
 
-    /// The second after the pointer left the list has run out by this time: it takes `watch`'s order.
+    /// The keyboard's focus came into the list, or left it, at this time.
+    public func keyboard(isIn: Bool, at time: Date) {
+        held.keyboard(isIn: isIn, at: time)
+    }
+
+    /// The second after the pointer and the keyboard left the list has run out by this time: it takes `watch`'s
+    /// order.
     public func settle(at time: Date) {
         if held.settle(at: time) {
             take(given, moving: [])
@@ -349,12 +355,6 @@ public final class WindowRun {
             .map { $0.addingTimeInterval(Wash.length / 1000) }
 
         return ([answers.nextDue, held.resortsAt].compactMap { $0 } + washes).min()
-    }
-
-    /// Something moves at this time, which the views draw each frame: a wash, or an answer's wait draining.
-    public func isMoving(at time: Date) -> Bool {
-        answers.nextDue != nil || !Wash.live(washed, at: time).isEmpty
-            || frozen.values.contains { !Wash.live($0.washed, at: time).isEmpty }
     }
 
     private func sessionPage(_ session: Board.Session, of project: Board.Project, at time: Date) -> SessionPage {

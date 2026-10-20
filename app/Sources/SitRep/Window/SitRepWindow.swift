@@ -50,7 +50,11 @@ final class SitRepWindow: NSObject, NSWindowDelegate {
     }
 
     private func make() -> NSWindow {
-        let window = Self.window(NSHostingController(rootView: WindowView(model: model)))
+        let sidebar = Self.side(over: model) { [model] in
+            BoardColumn(listed: model.listed, pick: model.pick, now: model.now)
+        }
+        let page = Self.side(over: model) { [model] in PageColumn(page: model.page, now: model.now) }
+        let window = Self.window(Self.split(sidebar: sidebar, page: page))
 
         window.delegate = self
         window.setFrameAutosaveName("SitRepWindow")
@@ -58,7 +62,23 @@ final class SitRepWindow: NSObject, NSWindowDelegate {
         return window
     }
 
-    /// The window, over its content, on the Space Lee is on whenever it opens (`comeForward()`). Its toolbar, empty,
+    /// The window's two sides in macOS's own split: the board as its sidebar, which macOS 26 draws as Liquid Glass
+    /// floating inside the window, its corners following the window's, and earlier macOS in its sidebar material; the
+    /// page beside it. The sidebar keeps the drawing's width, and never collapses, as there is no toggle to bring it
+    /// back: SwiftUI's `NavigationSplitView`, as Settings has, pins neither.
+    static func split(sidebar: NSViewController, page: NSViewController) -> NSSplitViewController {
+        let split = NSSplitViewController()
+        let board = NSSplitViewItem(sidebarWithViewController: sidebar)
+
+        board.canCollapse = false
+        board.canCollapseFromWindowResize = false
+        board.minimumThickness = WindowStyle.boardWidth
+        board.maximumThickness = WindowStyle.boardWidth
+        split.splitViewItems = [board, NSSplitViewItem(viewController: page)]
+        return split
+    }
+
+    /// The window, over its split, on the Space Lee is on whenever it opens (`comeForward()`). Its toolbar, empty,
     /// gives it the titlebar by which macOS sets the traffic lights in from the sidebar's corner: on macOS 26 inside
     /// its glass, as Finder's. Without one they sit on the glass's corner.
     static func window(_ content: NSViewController) -> NSWindow {
@@ -81,6 +101,16 @@ final class SitRepWindow: NSObject, NSWindowDelegate {
         return window
     }
 
+    /// A side of the window over the model, sized by the split alone.
+    private static func side<Content: View>(
+        over model: WindowModel, @ViewBuilder _ content: @escaping () -> Content
+    ) -> NSViewController {
+        let hosting = NSHostingController(rootView: WindowSide(model: model, content: content))
+
+        hosting.sizingOptions = []
+        return hosting
+    }
+
     /// Escape in the window takes back the answer pressed last while it waits, as the drawing's "Esc to undo" says.
     private func listenForEscape(in window: NSWindow) {
         escape = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self, weak window] event in
@@ -95,51 +125,18 @@ final class SitRepWindow: NSObject, NSWindowDelegate {
     private static let escapeKey: UInt16 = 53
 }
 
-/// The window's content over its model: the board in the sidebar, the page beside it.
-private struct WindowView: View {
-    let model: WindowModel
-
-    var body: some View {
-        WindowSplit {
-            WindowSide(model: model) { now in BoardColumn(listed: model.listed, pick: model.pick, now: now) }
-        } page: {
-            WindowSide(model: model) { now in PageColumn(page: model.page, now: now) }
-        }
-    }
-}
-
-/// The window's two sides in the system's own split, as Settings' are: the board as its sidebar, which macOS 26 draws
-/// as Liquid Glass floating inside the window, its corners following the window's, and earlier macOS in its sidebar
-/// material; the page beside it. The sidebar keeps the drawing's width, and has no toggle.
-struct WindowSplit<Board: View, Page: View>: View {
-    @ViewBuilder let board: Board
-    @ViewBuilder let page: Page
-
-    var body: some View {
-        NavigationSplitView {
-            board
-                .navigationSplitViewColumnWidth(WindowStyle.boardWidth)
-                .toolbar(removing: .sidebarToggle)
-        } detail: {
-            page
-        }
-    }
-}
-
-/// A side of the window over its model, at the model's time, or each frame's while a wash or an answer's wait is
-/// under way.
+/// A side of the window over its model, at the model's time. What moves by the frame, a wash or an answer's wait
+/// draining, draws its own frames (`Framed`), so the side is drawn again only as the model changes.
 private struct WindowSide<Content: View>: View {
     let model: WindowModel
-    @ViewBuilder let content: (Date) -> Content
+    @ViewBuilder let content: () -> Content
 
     var body: some View {
-        TimelineView(.animation(minimumInterval: nil, paused: !model.isMoving)) { frame in
-            content(model.isMoving ? max(frame.date, model.now) : model.now)
-        }
-        .environment(\.windowActions, model.actions)
-        .environment(\.pressedJump, model.jumping.pressed)
-        .environment(\.reducesWindowMotion, model.reducesMotion)
-        .environment(\.colorScheme, .dark)
+        content()
+            .environment(\.windowActions, model.actions)
+            .environment(\.pressedJump, model.jumping.pressed)
+            .environment(\.reducesWindowMotion, model.reducesMotion)
+            .environment(\.colorScheme, .dark)
     }
 }
 
