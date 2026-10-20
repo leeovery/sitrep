@@ -122,7 +122,7 @@ test('the board listing gives each session a line: its project, its id, its name
     [
       'On the board:',
       '- SitRep: sr-wdsqvn "sitrep"',
-      '- Switchboard: sr-k3f9qa "Dashboard redesign", 2 waiting on Lee',
+      '- Switchboard: sr-k3f9qa "Dashboard redesign", 1 waiting on Lee',
       '- Switchboard: sr-1edger "Request ledger"',
     ].join('\n'),
   )

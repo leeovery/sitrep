@@ -22,6 +22,7 @@ import {
 import {
   beat,
   choiceAsk,
+  CLI,
   delivered,
   file,
   fold,
@@ -336,7 +337,7 @@ test('a parked item picked up twice is logged once: the second pick-up finds it 
   expect(session.log.map(line => [line.kind, line.at])).toEqual([['pickup', T0 + MIN]])
 })
 
-test('a reply not yet delivered changes nothing', () => {
+test('a reply not yet delivered leaves its item as it was, but its ask, answered, no longer waits on Lee', () => {
   const session = fold({
     logs: { [W1]: file(...POSTED) },
     inbox: {
@@ -348,7 +349,7 @@ test('a reply not yet delivered changes nothing', () => {
   expect(session.asks[0]?.answer).toBeUndefined()
   expect(session.asks[0]?.replies.map(each => each.id)).toEqual(['r1'])
   expect(session.parked.map(each => each.id)).toEqual(['p1'])
-  expect(session.waiting).toBe(4)
+  expect(session.waiting).toBe(3)
 })
 
 test('a reply sent from another session takes effect once its window writes the delivered mark', () => {
@@ -824,4 +825,35 @@ test('an ask has no answer standing with none sent, one gone void, a comment Cla
   for (const [why, session] of cases) {
     expect(standing(session, 'k1'), why).toBeUndefined()
   }
+})
+
+test('of two replies on their way to one item, the first goes in and the second is void, never delivered: Claude has one answer', () => {
+  const letters = {
+    [CLI]: file(
+      [T0 + MIN, reply('r1', 'k2', 'choose', { option: '400 days' })],
+      [T0 + MIN, reply('r2', 'k2', 'choose', { option: 'Forever' })],
+    ),
+    [SENDER]: file([T0 + MIN, reply('r3', 'k2', 'ignore')]),
+  }
+  const presence = { [W1]: seen(W1, NOW) }
+  const sent = fold({ logs: { [W1]: file(...POSTED) }, inbox: letters, presence })
+  const marked = fold({
+    logs: { [W1]: file(...POSTED, [T0 + 2 * MIN, delivered('r1', 'r2', 'r3')]) },
+    inbox: letters,
+    presence,
+  })
+
+  expect(sent.replies.map(each => [each.id, each.delivery, each.voidedAt])).toEqual([
+    ['r1', 'waiting', undefined],
+    ['r2', 'void', T0 + MIN],
+    ['r3', 'void', T0 + MIN],
+  ])
+  expect(boardMessage(sent, toDeliver(sent, W1))?.text).toBe(
+    'From the board:\n- Keep the ledger 400 days, or forever? → 400 days',
+  )
+  expect(marked.asks[1]).toMatchObject({ state: 'closed', answer: { id: 'r1' } })
+  expect(
+    marked.replies.map(each => each.delivery),
+    'a mark naming the void ones, as a window on an old release would write, changes nothing',
+  ).toEqual(['delivered', 'void', 'void'])
 })

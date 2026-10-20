@@ -447,22 +447,39 @@ const answersOf = (ask: Ask): readonly string[] => {
 /** Each quoted, in plain words: `“a” or “b”`. */
 const quotedOr = (answers: readonly string[]) => inWords(answers.map(each => `“${each}”`), 'or')
 
-/** What an answer from outside Claude Code needs of its ask, each rule broken where it says, with why. */
+/** What any answer from outside Claude Code needs of its ask, each rule broken where it says, with why. */
 const ANSWER_RULES: readonly [breaks: (ask: Ask) => boolean, error: (ask: Ask) => string][] = [
   [ask => !isOpen(ask), ask => `${ask.id} is already closed.`],
-  [
-    ask => answersOf(ask).length === 0,
-    ask => `${ask.id} wants words, which need Claude Code's prompt: answer it there.`,
-  ],
   [ask => onItsWay(ask) !== undefined, ask => `A reply to ${ask.id} is on its way already.`],
 ]
 
-/** Why the words given will not answer a yes or a choice ask: what it takes instead. */
-const misanswered = (ask: Ask) => {
+type Answer = Checked<Omit<ReplyBody, 'id'>>
+
+/** A yes or a choice in the words given, the ask's own; or why they will not answer it. */
+const worded = (ask: Ask, given: string | undefined): Answer => {
+  const answers = answersOf(ask)
   const wanted = ask.wants === 'yes' ? 'a yes' : 'a choice'
 
-  return `${ask.id} wants ${wanted}: answer it with ${quotedOr(answersOf(ask))}.`
+  if (answers.length === 0) {
+    return refuse(`${ask.id} wants words, which need Claude Code's prompt: answer it there.`)
+  }
+
+  if (given === undefined || !answers.includes(given)) {
+    return refuse(`${ask.id} wants ${wanted}: answer it with ${quotedOr(answers)}.`)
+  }
+
+  return ok(
+    ask.wants === 'yes'
+      ? { type: 'reply', item: ask.id, verdict: 'yes' }
+      : { type: 'reply', item: ask.id, verdict: 'choose', option: given },
+  )
 }
+
+/** Lee's ignore, as the board's `✕ ignore` gives it: seen, and not to be acted on, whatever the ask wants back. */
+const ignored = (ask: Ask, given: string | undefined): Answer =>
+  given === undefined
+    ? ok({ type: 'reply', item: ask.id, verdict: 'ignore' })
+    : refuse('Give an answer or --ignore, not both.')
 
 /** The ask an answer names, in a session still waiting on Lee; or a refusal. */
 const askAnswered = (session: Session, fields: Fields): Checked<Ask> => {
@@ -484,12 +501,13 @@ const askAnswered = (session: Session, fields: Fields): Checked<Ask> => {
 /**
  * Lee's answer to an ask of the session, as the CLI gives it from outside
  * Claude Code: a yes in its button's words, or one of a choice's options,
- * as the board shows them. A words ask, a comment and a permission prompt
- * need Claude Code's prompt. Refused in a finished session, whose asks wait
- * on Lee no more, and for an ask closed, or with a reply of Lee's on its
- * way already, since it takes no second answer.
+ * as the board shows them; or, `ignore`, Lee's ignore, which any ask takes.
+ * Words, a comment and a permission prompt need Claude Code's prompt.
+ * Refused in a finished session, whose asks wait on Lee no more, and for an
+ * ask closed, or with a reply of Lee's on its way already, since it takes
+ * no second answer.
  */
-export const checkAnswer = (session: Session, input: unknown): Checked<Omit<ReplyBody, 'id'>> => {
+export const checkAnswer = (session: Session, input: unknown): Answer => {
   const fields = fieldsOf(input)
   const asked = askAnswered(session, fields)
 
@@ -506,13 +524,5 @@ export const checkAnswer = (session: Session, input: unknown): Checked<Omit<Repl
 
   const given = line(fields.answer)
 
-  if (given === undefined || !answersOf(ask).includes(given)) {
-    return refuse(misanswered(ask))
-  }
-
-  return ok(
-    ask.wants === 'yes'
-      ? { type: 'reply', item: ask.id, verdict: 'yes' }
-      : { type: 'reply', item: ask.id, verdict: 'choose', option: given },
-  )
+  return fields.ignore === true ? ignored(ask, given) : worded(ask, given)
 }

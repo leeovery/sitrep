@@ -28,12 +28,14 @@ import {
 } from '../core'
 import {
   beat,
+  CLI,
   file,
   finish,
   META,
   MIN,
   park,
   reopen,
+  reply,
   resolve,
   status,
   T0,
@@ -79,17 +81,23 @@ const windowOn = (
   [writer]: beat(writer, { attachedAt: T0, seenAt: NOW, version: '0.2.0', state, ...times }),
 })
 
-/** A session folded at `now` from its meta, the lines its window wrote, and the heartbeats given. */
+/** A session folded at `now` from its meta, the lines its window wrote, the letters in its inbox, and the heartbeats given. */
 const sessionOf = (
   {
     meta = {},
     lines = [],
+    inbox = {},
     presence = {},
-  }: { meta?: Partial<SessionMeta>; lines?: Line[]; presence?: SessionFiles['presence'] } = {},
+  }: {
+    meta?: Partial<SessionMeta>
+    lines?: Line[]
+    inbox?: SessionFiles['inbox']
+    presence?: SessionFiles['presence']
+  } = {},
   now = NOW,
 ): Session => {
   const session = foldSession(
-    { meta: metaText({ ...META, ...meta }), logs: { [W1]: file(...lines) }, presence },
+    { meta: metaText({ ...META, ...meta }), logs: { [W1]: file(...lines) }, inbox, presence },
     now,
   )
 
@@ -359,6 +367,39 @@ test('a session is one row while its windows work or wait on Lee: the latest sta
   expect(rowOf(yourTurn(T0 + 2 * MIN), yourTurn(T0 + MIN))).toEqual([
     [`turn:${META.id}`, 'yourTurn', W1, T0 + 2 * MIN],
   ])
+})
+
+/** An ask, and Lee's answer to it in the session's inbox, on its way. */
+const ANSWERED = {
+  lines: [[T0, yesAsk('k1', 'Review it')]] satisfies Line[],
+  inbox: { [CLI]: file([T0 + MIN, reply('r1', 'k1', 'yes')]) },
+}
+
+test("an ask with Lee's answer on its way needs Lee no more: no row, no count, nothing new, the session as its windows leave it, the ask still among its asks", () => {
+  const away = sessionOf(ANSWERED)
+  const held = sessionOf({ ...ANSWERED, presence: windowOn(W1, yourTurn(T0)) })
+  const feed = feedOf([{ project: SWITCHBOARD, sessions: [away] }], NOW)
+
+  expect(away.waiting).toBe(0)
+  expect([sessionState(away, NOW), rows(away)]).toEqual(['away', []])
+  expect(sessionState(held, NOW)).toBe('yourTurn')
+  expect(rows(held).map(each => each.key)).toEqual([`turn:${META.id}`])
+  expect(feed.head).toEqual({ needYou: 0, sessions: 0 })
+  expect(feed.projects).toMatchObject([
+    { waiting: 0, sessions: [{ state: 'away', waiting: 0, asks: [{ id: 'k1' }] }] },
+  ])
+  expect(newRows(new Map(), feed, NOW).news).toEqual([])
+})
+
+test('an answer gone void, its ask edited under it, leaves the ask waiting on Lee again', () => {
+  const edited: Line = [
+    T0 + 2 * MIN,
+    { type: 'edit', item: 'k1', changes: { wants: 'choice', options: ['Now', 'Later'] } },
+  ]
+  const session = sessionOf({ ...ANSWERED, lines: [...ANSWERED.lines, edited] })
+
+  expect(session.waiting).toBe(1)
+  expect(rows(session).map(each => [each.key, each.isAway])).toEqual([[`ask:${META.id}:k1`, true]])
 })
 
 test('an away session with nothing waiting has no row, nor has a finished one, whatever it holds', () => {

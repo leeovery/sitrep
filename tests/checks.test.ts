@@ -375,6 +375,21 @@ test("a words ask needs Claude Code's prompt, an old one needing something back 
   expect(refusal(checkAnswer(SESSION, { answer: 'Yes' }))).toContain('by its id')
 })
 
+test("an ignore is the board's, on an ask of any shape, a words ask among them, and with no words of its own", () => {
+  for (const id of ['k1', 'k2', 'k4', 'o1']) {
+    expect(value(checkAnswer(SESSION, { ask: id, ignore: true })), id).toEqual({
+      type: 'reply',
+      item: id,
+      verdict: 'ignore',
+    })
+  }
+
+  expect(refusal(checkAnswer(SESSION, { ask: 'k1', answer: 'Approve', ignore: true }))).toBe(
+    'Give an answer or --ignore, not both.',
+  )
+  expect(refusal(checkAnswer(SESSION, { ask: 'k9', ignore: true }))).toBe('k9 is already closed.')
+})
+
 test('an ask closed, or with a reply on its way, takes no answer; nor does a finished session', () => {
   const sent = fold({
     logs: { [W1]: file([T0, yesAsk('k1', 'Review round 1')]) },

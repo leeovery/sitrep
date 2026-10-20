@@ -117,6 +117,13 @@ export const closingReply = (ask: Ask) =>
 export const onItsWay = (item: Ask | Parked) => item.replies.findLast(isPending)
 
 /**
+ * Whether an ask waits on Lee: open as posted, with no answer of Lee's on
+ * its way to it. One answered waits on a window to deliver the answer, not
+ * on Lee, so it counts nowhere as needing Lee.
+ */
+export const waitsOnLee = (ask: Ask) => ask.state === 'waiting' && onItsWay(ask) === undefined
+
+/**
  * Where Lee's answer to an ask stands: on its way, in its session's inbox
  * until a window of the session delivers it; or delivered, Claude having
  * it, and the ask closed by it. `since` is when it was sent, or delivered.

@@ -15,6 +15,7 @@
 import { isFilled } from './entries'
 import { isLive } from './presence'
 import { directoryOf, type Project } from './project'
+import { waitsOnLee } from './replies'
 import { isPathSubject } from './subject'
 import { compareText } from './text'
 import type { Ask, Session, StateKind, ToolShown, WindowState } from './types'
@@ -121,9 +122,9 @@ const latest = (windows: readonly Held[]) =>
     .sort((a, b) => b.state.since - a.state.since || compareText(a.writer, b.writer))
     .at(0)
 
-/** A session's asks waiting on Lee, the oldest first; none once it is finished. */
+/** A session's asks waiting on Lee, the oldest first, those with Lee's answer on its way aside; none once it is finished. */
 export const waitingAsks = (session: Session): Ask[] =>
-  session.finished === undefined ? session.asks.filter(ask => ask.state === 'waiting') : []
+  session.finished === undefined ? session.asks.filter(waitsOnLee) : []
 
 /** Where a session stands at `now`, across its live windows: needing Lee wins, then working, then your turn. */
 export const sessionState = (session: Session, now: number): SessionState => {

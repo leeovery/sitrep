@@ -52,6 +52,7 @@ const folded = async (t: Terminal, paths: SessionPaths) => {
 type Answer = { is: string; words: string; since: number } | null
 
 type Board = {
+  work: { waiting: number }
   asks: { id: string; state: string; answer: Answer }[]
   resolved: { id: string; answer: Answer; closedAt: number | null; reason: string | null }[]
 }
@@ -87,7 +88,7 @@ test("an answer goes into the session's inbox as the CLI's letters, a reply as t
   expect(t.text(paths.log(W1))).toBe(before)
 })
 
-test('the board never closes an ask on the answer alone: it waits, counted, its answer on its way, until a window gives it to Claude', async () => {
+test('the board never closes an ask on the answer alone: it stays open, its answer on its way, though it no longer waits on Lee', async () => {
   const t = terminal()
   const paths = t.seed(META, { lines: POSTED })
 
@@ -98,8 +99,9 @@ test('the board never closes an ask on the answer alone: it waits, counted, its 
   expect(session.asks[0]?.state).toBe('waiting')
   expect(session.asks[0]?.answer).toBeUndefined()
   expect(session.replies).toMatchObject([{ id: FIRST_ID, by: WRITER, delivery: 'closed' }])
-  expect(session.waiting).toBe(3)
-  expect(JSON.parse((await t.run('list', '--json')).out).projects[0].works[0].waiting).toBe(3)
+  expect(session.waiting).toBe(2)
+  expect(JSON.parse((await t.run('list', '--json')).out).projects[0].works[0].waiting).toBe(2)
+  expect((await boardOf(t)).work.waiting).toBe(2)
   expect((await boardOf(t)).asks[0]).toMatchObject({
     id: 'k1',
     state: 'waiting',
@@ -240,6 +242,32 @@ test('a yes is answered in its words alone; an ask with an answer on its way tak
     out: '',
     err: 'sitrep: A reply to k1 is on its way already.\n',
   })
+})
+
+test("--ignore ignores any ask, as the board's ignore does: on its way, then, once marked, gone from the asks and Resolved alike", async () => {
+  const t = terminal()
+  const paths = t.seed(META, { lines: POSTED })
+
+  expect(await t.run('answer', 'k3', '--ignore', ...SESSION)).toEqual({
+    exit: EXIT.done,
+    out: '',
+    err: '',
+  })
+  expect(letters(t, paths)).toMatchObject([{ type: 'reply', item: 'k3', verdict: 'ignore' }])
+  expect((await boardOf(t)).asks[2]).toMatchObject({
+    id: 'k3',
+    answer: { is: 'onItsWay', words: 'ignored', since: NOW },
+  })
+  expect((await t.run('answer', 'k1', 'Go', '--ignore', ...SESSION)).err).toBe(
+    'sitrep: Give an answer or --ignore, not both.\n',
+  )
+
+  t.files.set(paths.log(W1), { text: file(...POSTED, [NOW, delivered(FIRST_ID)]), mtimeMs: NOW })
+
+  const board = await boardOf(t)
+
+  expect(board.asks.map(ask => ask.id)).toEqual(['k1', 'k2'])
+  expect(board.resolved).toEqual([])
 })
 
 test('a finished session takes no answer; an unknown one is no such session', async () => {

@@ -1,5 +1,5 @@
 import { expect, test, tier } from 'claude-code/testing'
-import { EXIT, WRITER } from '../cli/main'
+import { EXIT, main, WRITER } from '../cli/main'
 import { parseEntries, type SessionMeta } from '../core'
 import { WATCH_MS } from '../hooks/window'
 import { MIN, T0, W1, W2, yesAsk } from './support'
@@ -134,6 +134,78 @@ test("the CLI's answer goes in from the session's window as Lee's own message, o
 
   await w.clock.advance(4 * WATCH_MS)
   expect(w.prompts, 'nothing goes in twice').toHaveLength(1)
+})
+
+test("while the CLI's answer to the window's own ask goes in, the ask waits on Lee no more: the band counts none, and the ask shows it on its way", async ($, on) => {
+  const w = world($, on)
+  const { cli } = await begun(w)
+  const asked = postedId(
+    await w.call('ask', {
+      wants: 'choice',
+      options: ['Keep it', 'Drop it'],
+      title: 'Keep the sidebar?',
+    }),
+  )
+
+  expect(await (await w.band()).find({ key: 'band:asks', text: '1 ask' })).toBeDefined()
+
+  const turn = w.holdPrompts()
+
+  await w.clock.advance(MIN)
+  await cli('answer', asked, 'Drop it')
+  await w.clock.advance(TAKE_IN)
+  await turn.arrived
+
+  expect(w.state.board?.waiting).toBe(0)
+  expect(await (await w.band()).find({ key: 'band:asks', text: '0 asks' })).toBeDefined()
+
+  const ui = await w.opened()
+
+  await ui.press({ key: `pick:${w.item(asked)}` })
+  expect(await ui.find({ type: 'Text', text: '· on its way' })).toBeDefined()
+
+  turn.end()
+})
+
+test('two answers the CLI writes at once to one ask both land, but the window gives Claude only the first, then and ever after', async ($, on) => {
+  const w = world($, on)
+  const { id, paths } = await w.begin()
+  const t = terminal({ files: w.files, now: () => w.clock.now() })
+  const asked = postedId(
+    await w.call('ask', {
+      wants: 'choice',
+      options: ['Keep it', 'Drop it'],
+      title: 'Keep the sidebar?',
+    }),
+  )
+
+  await w.clock.advance(MIN)
+
+  const held = t.holdAppends(2)
+  const runs = Promise.all([
+    main(['answer', asked, 'Keep it', '--session', id], t.io),
+    main(['answer', asked, 'Drop it', '--session', id], t.io),
+  ])
+
+  await held.arrived
+  held.release()
+  expect(await runs).toEqual([EXIT.done, EXIT.done])
+
+  const [first, second] = parseEntries(w.text(paths.letters(WRITER))).map(
+    line => 'id' in line && line.id,
+  )
+
+  await w.clock.advance(TAKE_IN)
+  await w.clock.advance(4 * WATCH_MS)
+
+  expect(w.prompts.map(prompt => prompt.text)).toEqual([
+    'From the board:\n- Keep the sidebar? → Keep it',
+  ])
+  expect(parseEntries(w.text(paths.log(W1))).at(-1)).toMatchObject({
+    type: 'delivered',
+    replies: [first],
+  })
+  expect(w.state.board?.replies.find(reply => reply.id === second)?.delivery).toBe('void')
 })
 
 /** A session no window holds, started by a window gone since, with an ask waiting on Lee. */

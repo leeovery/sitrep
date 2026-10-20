@@ -2,6 +2,7 @@ import { expect, test, tier } from 'claude-code/testing'
 import { parseEntries, sessionPaths, type SessionMeta } from '../core'
 import { AROUND_MS } from '../hooks/around'
 import { SENT_LINGER_MS } from '../hooks/queue'
+import { rowsOf } from './drawn'
 import { delivered, file, MIN, reply, SLOW, T0, W1, W2, W3, yesAsk } from './support'
 import { INLINE, postedId, PROJECT, ROOT, toProject, world } from './world'
 
@@ -175,6 +176,27 @@ test(
     expect(w.state.sent?.map(each => each.session)).toEqual([THEMES])
   },
 )
+
+test("an ask whose reply went into its session's inbox waits on Lee no more: the band, the tab and the project count it nowhere", async ($, on) => {
+  const w = world($, on)
+  const { ui } = await threeSessions(w)
+
+  expect(await (await w.band()).find({ key: 'band:elsewhere', text: '2 elsewhere' })).toBeDefined()
+
+  await answer(ui, LEDGER, 'k3')
+  await ui.press({ key: 'send' })
+
+  expect(await (await w.band()).find({ key: 'band:elsewhere', text: '1 elsewhere' })).toBeDefined()
+  expect(rowsOf(await ui.find({ key: 'tab:all:box' }))).toEqual([' ≡ All projects 2'])
+
+  await toProject(ui)
+
+  expect(await ui.find({ type: 'Text', text: '2 waiting on you' })).toBeDefined()
+  expect(
+    await ui.find({ key: `pick:${LEDGER}:k3`, text: 'Request ledger: Review the ledger schema' }),
+    'its ask still shows',
+  ).toBeDefined()
+})
 
 test("the destination's own view shows the ask's reply on its way, and offers no second answer", async ($, on) => {
   const w = world($, on)

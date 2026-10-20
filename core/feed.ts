@@ -6,9 +6,10 @@
  * - The rows, in the panel's order, and the head (rows.ts).
  * - Each project with a current session, and those sessions, away ones
  *   among them and never a finished one, each with its state and the asks
- *   waiting on Lee. They are in the SitRep window's order, the rows': a
- *   session where its first row sits, those with none after, the latest
- *   updated first; a project where its first session sits.
+ *   waiting, on Lee or on Lee's answer going in. They are in the SitRep
+ *   window's order, the rows': a session where its first row sits, those
+ *   with none after, the latest updated first; a project where its first
+ *   session sits.
  * - Every live window: its session, the version it runs, and whether that
  *   is behind the CLI's own.
  * - What is new: a row needing Lee the watch has not shown, or not within a
@@ -25,7 +26,6 @@ import {
   needsYou,
   rowsOf,
   sessionState,
-  waitingAsks,
   type Head,
   type Row,
   type SessionState,
@@ -48,7 +48,7 @@ export type FeedSession = SessionSummary & {
   state: SessionState
   /** When its state began: its first row's time; with no row, its latest line's. */
   since: number
-  /** The asks waiting on Lee, oldest first. */
+  /** The asks waiting, on Lee or on Lee's answer going in, oldest first. */
   asks: Ask[]
 }
 
@@ -70,6 +70,14 @@ export type FeedWindow = {
 }
 
 export type Feed = { head: Head; rows: Row[]; projects: FeedProject[]; windows: FeedWindow[] }
+
+/**
+ * A session's asks still waiting, the oldest first: on Lee, or on a window
+ * to deliver Lee's answer, which each ask's answer tells apart; none once
+ * the session is finished.
+ */
+const askedOf = (session: Session): Ask[] =>
+  session.finished === undefined ? session.asks.filter(ask => ask.state === 'waiting') : []
 
 /** The place of a session with no row: after every one that has. */
 const NO_ROW = Number.MAX_SAFE_INTEGER
@@ -104,7 +112,7 @@ const feedProject = (
       ...summary,
       state: sessionState(session, now),
       since: firsts.get(session.id)?.row.since ?? session.updatedAt,
-      asks: waitingAsks(session),
+      asks: askedOf(session),
     }))
     .sort(
       (a, b) =>

@@ -217,13 +217,20 @@ const board: SessionCommand = {
 const answer: SessionCommand = {
   name: 'answer',
   about:
-    "Answer a yes or a choice ask, as Lee does on the board: into the session's inbox, which its window gives Claude as Lee's own message, now or once a window takes the session up. A words ask, a comment and a permission prompt need Claude Code's prompt. Prints nothing.",
+    "Answer a yes or a choice ask, or ignore any ask, as Lee does on the board: into the session's inbox, which its window gives Claude as Lee's own message, now or once a window takes the session up. Words, a comment and a permission prompt need Claude Code's prompt. Prints nothing.",
   grammar: {
     args: [
       { field: 'ask', about: "the ask's id, as the board lists it" },
       { field: 'answer', about: "a yes ask's yes, in its words, or one of a choice ask's options" },
     ],
-    flags: { ...SESSION },
+    flags: {
+      ignore: {
+        field: 'ignore',
+        form: 'switch',
+        about: "in place of an answer: Lee has seen it and won't act on it",
+      },
+      ...SESSION,
+    },
   },
   on: 'session',
   into: 'inbox',

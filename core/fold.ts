@@ -8,7 +8,16 @@ import { parseMeta } from './meta'
 import { unpaused, type Pause } from './pauses'
 import { deliverer, isLive, parsePresence } from './presence'
 import { parseProject, projectName } from './project'
-import { askAfter, fits, isOpen, isPending, parkedAfter, pickUpLog } from './replies'
+import {
+  askAfter,
+  fits,
+  isOpen,
+  isPending,
+  onItsWay,
+  parkedAfter,
+  pickUpLog,
+  waitsOnLee,
+} from './replies'
 import { kindShape } from './shapes'
 import { statusChange } from './status'
 import { compareText } from './text'
@@ -171,6 +180,22 @@ const reshape = (ask: Ask, { wants, kind }: EditBody['changes']) => {
   fitShape(ask)
 }
 
+/**
+ * Where a reply written at `at` starts out: on its way, waiting on the
+ * session's window or for one to take the session up; or void where another
+ * to its item is on its way already. An item takes one answer at a time:
+ * of two sent at once, as two runs of the CLI may, the first goes in and the
+ * second never does, so Claude never has two answers to one item.
+ */
+const startOf = (
+  fold: Fold,
+  item: Ask | Parked,
+  at: number,
+): Pick<Reply, 'delivery' | 'voidedAt'> =>
+  onItsWay(item) === undefined
+    ? { delivery: fold.isOpen ? 'waiting' : 'closed' }
+    : { delivery: 'void', voidedAt: at }
+
 const reopen = (item: Item, at: number) => {
   item.openedAt = at
   item.closedAt = undefined
@@ -292,13 +317,13 @@ const HANDLERS: { [T in Body['type']]: Handler<T> } = {
       return
     }
 
-    const reply: Reply = { id, ...fields, by, at, delivery: fold.isOpen ? 'waiting' : 'closed' }
+    const reply: Reply = { id, ...fields, by, at, ...startOf(fold, item, at) }
     const early = fold.early.get(id)
 
     fold.replies.set(id, reply)
     item.replies.push(reply)
 
-    if (early !== undefined) {
+    if (early !== undefined && isPending(reply)) {
       deliver(fold, reply, early)
     }
   },
@@ -419,7 +444,7 @@ export const foldSession = (
     presence,
     isOpen: fold.isOpen,
     deliverer: deliverer(presence, now),
-    waiting: fold.finished === undefined ? asks.filter(ask => ask.state === 'waiting').length : 0,
+    waiting: fold.finished === undefined ? asks.filter(waitsOnLee).length : 0,
     finished: fold.finished,
     ids: fold.ids,
     updatedAt: Math.max(meta.created, entries.at(-1)?.at ?? 0),

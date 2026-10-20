@@ -48,6 +48,7 @@ type Step = () => void
 type Printed = {
   at: number
   version: string | null
+  head: { needYou: number; sessions: number }
   rows: { key: string; is: string; isAway: boolean; first: { lead: string } }[]
   projects: {
     sessions: { id: string; name: string; state: string; asks: { answer: unknown }[] }[]
@@ -301,7 +302,7 @@ test('a post is a line at the next look, its session changed; a new ask is new o
   ])
 })
 
-test("an answer going into the session's inbox is a line, its ask's answer on its way and its session changed; the window's mark is another, the ask gone", async () => {
+test("an answer going into the session's inbox is a line, its ask on its way, needing Lee no more, and its session changed; the window's mark is another, the ask gone", async () => {
   const { t, paths } = held([[T0, yesAsk('k1', 'Give the go for stage 3', 'Go')]])
   const { lines } = await watched(t, [
     () => appendTo(t, paths.letters('cli'), reply('r1', 'k1', 'yes')),
@@ -314,10 +315,10 @@ test("an answer going into the session's inbox is a line, its ask's answer on it
       .flatMap(session => session.asks.map(ask => ask.answer)),
   )
 
-  expect(lines.map(line => [line.at, keys(line), line.changed])).toEqual([
-    [NOW, [`ask:${META.id}:k1`], []],
-    [NOW + POLL_MS, [`ask:${META.id}:k1`], [META.id]],
-    [NOW + 3 * POLL_MS, [`turn:${META.id}`], [META.id]],
+  expect(lines.map(line => [line.at, keys(line), line.head, line.changed])).toEqual([
+    [NOW, [`ask:${META.id}:k1`], { needYou: 1, sessions: 1 }, []],
+    [NOW + POLL_MS, [`turn:${META.id}`], { needYou: 0, sessions: 1 }, [META.id]],
+    [NOW + 3 * POLL_MS, [`turn:${META.id}`], { needYou: 0, sessions: 1 }, [META.id]],
   ])
   expect(answers).toEqual([
     [null],
