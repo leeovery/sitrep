@@ -1,0 +1,82 @@
+#!/bin/bash
+# Builds SitRep.app into the folder given, signed as SitRep Local, carrying
+# the plugin: app/build runs it, then installs what it made. The folder must
+# be outside the repository, and the bundle gone once installed: a second
+# signed copy left about could be the one macOS launches by its bundle id.
+set -euo pipefail
+
+if [[ $# -ne 1 ]]; then
+  echo "Usage: app/bundle <folder>" >&2
+  exit 1
+fi
+
+identity="SitRep Local"
+app=$(cd "$(dirname "$0")" && pwd)
+repo=$(dirname "$app")
+work=$1
+bundle="$work/SitRep.app"
+
+if [[ -e "$bundle" ]]; then
+  echo "$bundle is there already: app/bundle makes one into a folder without one." >&2
+  exit 1
+fi
+
+if ! security find-identity -v -p codesigning | grep -q "\"$identity\""; then
+  echo "No \"$identity\" signing identity: run app/make-certificate once on this Mac." >&2
+  exit 1
+fi
+
+# One version covers the plugin and the app.
+version=$(plutil -extract version raw -o - "$repo/.claude-plugin/plugin.json")
+
+swift build -c release --package-path "$app"
+binaries=$(swift build -c release --package-path "$app" --show-bin-path)
+
+mkdir -p "$bundle/Contents/MacOS" "$bundle/Contents/Resources"
+cp "$binaries/SitRep" "$bundle/Contents/MacOS/SitRep"
+info="$bundle/Contents/Info.plist"
+cp "$app/Info.plist" "$info"
+plutil -insert CFBundleShortVersionString -string "$version" "$info"
+plutil -insert CFBundleVersion -string "$version" "$info"
+
+# The plugin the app installs, as Claude Code runs it from this checkout:
+# what the plugin loads (its manifests, the mod, the core, their types and its
+# sound), as the checkout stands, edits and files not yet committed among
+# them but not what git ignores, and its CLI compiled by Bun, so a Mac with
+# the app needs no Bun. The app's source, the tests and the CLI's own source
+# stay behind.
+plugin="$bundle/Contents/Resources/Plugin"
+mkdir "$plugin"
+git -C "$repo" ls-files -z --cached --others --exclude-standard -- .claude-plugin hooks core types sounds |
+  while IFS= read -r -d '' file; do
+    if [[ -e "$repo/$file" ]]; then
+      mkdir -p "$plugin/$(dirname "$file")"
+      cp -p "$repo/$file" "$plugin/$file"
+    fi
+  done
+# Bun makes the binary in the folder it runs in, then moves it; one it cannot
+# move, to another volume, it copies and leaves behind.
+(cd "$work" && bun build --compile "$repo/cli/shell/run.ts" --outfile "$plugin/bin/sitrep" > /dev/null)
+# Its build, a digest of its files, which the app compares with its own
+# copy's, so a build at the same version from other edits still replaces it.
+(cd "$plugin" && find . -type f -print0 | sort -z | xargs -0 shasum -a 256 | shasum -a 256 | cut -c1-16) > "$plugin/.sitrep-build"
+
+# The icon, compiled from its Icon Composer layers: Assets.car, from which
+# macOS makes the dark, clear and tinted looks, and an .icns for older
+# lookups, every size to 1024 (by default actool stops at 256). actool names
+# them, and its keys go into the Info.plist.
+xcrun actool "$app/Icon/SitRep.icon" --compile "$bundle/Contents/Resources" --platform macosx \
+  --minimum-deployment-target "$(plutil -extract LSMinimumSystemVersion raw -o - "$info")" \
+  --app-icon SitRep --standalone-icon-behavior all --output-partial-info-plist "$work/icon.plist" \
+  > "$work/actool.plist"
+# actool exits 0 having compiled nothing, as for an icon it cannot find, its
+# errors only in what it prints.
+if [[ ! -f "$bundle/Contents/Resources/Assets.car" ]]; then
+  echo "actool compiled no icon from $app/Icon/SitRep.icon:" >&2
+  cat "$work/actool.plist" >&2
+  exit 1
+fi
+/usr/libexec/PlistBuddy -c "Merge $work/icon.plist" "$info" > /dev/null
+rm "$work/icon.plist" "$work/actool.plist"
+
+codesign --force --options runtime --entitlements "$app/SitRep.entitlements" -s "$identity" "$bundle"

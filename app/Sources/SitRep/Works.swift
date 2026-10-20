@@ -8,11 +8,11 @@ final class Works {
     private let logger = Logger(sitrep: "jump")
     private let banners: Banners
     private let oneJump = OneJump()
-    private let sitrep: SitRepCLI?
+    private let plugin: Plugin
 
-    init(banners: Banners, sitrep: SitRepCLI?) {
+    init(banners: Banners, plugin: Plugin) {
         self.banners = banners
-        self.sitrep = sitrep
+        self.plugin = plugin
     }
 
     var isJumping: Bool { oneJump.isRunning }
@@ -23,7 +23,7 @@ final class Works {
     /// banners at all.
     func jump(to work: String, answered: @escaping (Bool) -> Void = { _ in }) {
         Task {
-            let answer = await oneJump.run({ await self.sitrep?.jump(to: work) ?? .refused(Plugin.unbuilt) })
+            let answer = await oneJump.run({ await self.plugin.ask({ await $0.jump(to: work) }, unrun: JumpAnswer.refused) })
 
             answered(answer == .jumped)
             switch answer {

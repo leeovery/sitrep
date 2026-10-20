@@ -61,10 +61,11 @@ final class Preferences {
     }
 }
 
-/// The board as `watch` last printed it, for Settings to read as it changes; or why there is no `watch` to run.
+/// The board as `watch` last printed it, and the plugin SitRep found, nil while it looks: for Settings to read as
+/// they change.
 @MainActor
 @Observable
 final class LiveBoard {
     var last = LastBoard()
-    var unrun: String?
+    var plugin: PluginStanding?
 }

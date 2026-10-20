@@ -16,8 +16,16 @@ const ABSENT = ['ENOENT', 'ENOTDIR']
 /** Errors a folder's removal leaves it by: it holds something (macOS says ENOTEMPTY, POSIX allows EEXIST). */
 const NOT_EMPTY = ['ENOTEMPTY', 'EEXIST']
 
-/** The plugin's manifest, from this file's folder, `cli/shell`. */
-const MANIFEST = `${import.meta.dir}/../../.claude-plugin/plugin.json`
+const folderOf = (path: string) => path.slice(0, path.lastIndexOf('/'))
+
+/**
+ * The plugin's manifest: from this file's folder, `cli/shell`, run on Bun;
+ * from the binary's, `bin`, compiled by `bun build --compile` (the copy the
+ * app carries), where this file's folder is one inside the binary.
+ */
+const MANIFEST = import.meta.dir.startsWith('/$bunfs/')
+  ? `${folderOf(process.execPath)}/../.claude-plugin/plugin.json`
+  : `${import.meta.dir}/../../.claude-plugin/plugin.json`
 
 /** The program that started the run, as the CLI loads: before anything could miss it going. */
 const PARENT = process.ppid
@@ -35,8 +43,6 @@ const allowing =
       throw error
     }
   }
-
-const folderOf = (path: string) => path.slice(0, path.lastIndexOf('/'))
 
 /*
  * A listing, a stat and a read are made at once, not through a promise's

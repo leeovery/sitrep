@@ -11,8 +11,6 @@ struct SettingsServices {
     var displays: () -> [DisplayChoice.Connected]
     /// Liquid Glass, for Material: macOS 26's.
     var hasGlass: Bool
-    /// The plugin's folder as Lee would write it, `~/Code/sitrep`; nil for a SitRep naming none.
-    var pluginFolder: String?
     var jump: (String) -> Void
     var sendTest: () -> Void
     var noticeLeave: () async -> NoticeLeave

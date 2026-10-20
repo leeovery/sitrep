@@ -29,6 +29,21 @@ struct MenuEntriesTests {
         ])
     }
 
+    @Test func troubleWithThePluginSpeaksUpFirstOfAll() {
+        let window = Watched.window("w1", session: "sr-boot", name: "The bootstrap", project: "Kit", version: nil, needsReload: true)
+        let last = heard([.line(Watched.line(windows: [window])), .exited(.status(1), stderr: "")])
+        let entries = MenuBoard(last, trouble: .noClaude, clock: london).entries(showing: .notch)
+
+        #expect(Array(entries.map(\.key).prefix(5)) == ["header", "separator:header", "trouble", "separator:trouble", "heading:reloads"])
+        #expect(entries[2] == .trouble(.noClaude))
+    }
+
+    @Test func withNoPluginToRunTheTroubleIsAllItSpeaksUpWith() {
+        let keys = MenuBoard(unrun: .noClaude).entries(showing: .notch).map(\.key)
+
+        #expect(Array(keys.prefix(5)) == ["header", "separator:header", "trouble", "separator:trouble", "openWindow"])
+    }
+
     @Test func showTicksTheOneInUse() {
         #expect(Self.entries(show: .strip).filter { $0.key.hasPrefix("show:") } == [
             .show(.notch, isTicked: false), .show(.strip, isTicked: true), .show(.nothing, isTicked: false),

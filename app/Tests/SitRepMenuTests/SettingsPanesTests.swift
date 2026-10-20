@@ -101,9 +101,11 @@ struct PluginCardTests {
         Watched.window("w1", session: "sr-boot", name: "The bootstrap", project: "Kit", version: "0.1.0", needsReload: true),
         Watched.window("w2", session: "sr-diff", name: "Diff", project: "Mint", version: "0.2.0", needsReload: false),
     ]
+    private static let clone = PluginStanding.running(.folder("~/Code/sitrep"), folder: "/Users/lee/Code/sitrep")
+    private static let current = heard([.line(Watched.line(windows: [windows[1]]))])
 
     @Test func itNamesThePluginsVersionAndTheWindowsRunningItAllCurrent() {
-        let card = PluginCard(heard([.line(Watched.line(windows: [Self.windows[1], Self.windows[1]]))]), folder: "~/Code/sitrep")
+        let card = PluginCard(heard([.line(Watched.line(windows: [Self.windows[1], Self.windows[1]]))]), plugin: Self.clone)
 
         #expect(card.title == "sitrep 0.2.0 for Claude Code")
         #expect(card.line == "From ~/Code/sitrep · 2 windows, all on 0.2.0")
@@ -112,13 +114,13 @@ struct PluginCardTests {
     }
 
     @Test func oneWindowIsSaidAsOne() {
-        let card = PluginCard(heard([.line(Watched.line(windows: [Self.windows[1]]))]), folder: "~/Code/sitrep")
+        let card = PluginCard(heard([.line(Watched.line(windows: [Self.windows[1]]))]), plugin: Self.clone)
 
         #expect(card.line == "From ~/Code/sitrep · 1 window, on 0.2.0")
     }
 
     @Test func windowsOnAnOldSitrepAreCountedAndListedAsTheMenuListsThem() {
-        let card = PluginCard(heard([.line(Watched.line(windows: Self.windows))]), folder: "~/Code/sitrep")
+        let card = PluginCard(heard([.line(Watched.line(windows: Self.windows))]), plugin: Self.clone)
 
         #expect(card.line == "From ~/Code/sitrep · 2 windows, 1 needs /reload-plugins")
         #expect(card.reloads.map(\.label) == ["Kit · The bootstrap"])
@@ -127,7 +129,7 @@ struct PluginCardTests {
 
     @Test func aStaleBoardSaysSoAndWhenNotItsWindowsNorCurrent() {
         let stale = heard([.line(Watched.line(windows: [Self.windows[1]])), .exited(.status(1), stderr: "")])
-        let card = PluginCard(stale, folder: "~/Code/sitrep", clock: london)
+        let card = PluginCard(stale, plugin: Self.clone, clock: london)
 
         #expect(card.line == "From ~/Code/sitrep · SitRep can't read the board · as of 12:01")
         #expect(!card.isCurrent)
@@ -136,19 +138,58 @@ struct PluginCardTests {
     }
 
     @Test func withNoWindowItSaysSo() {
-        #expect(PluginCard(heard([.line(Watched.line())]), folder: "~/Code/sitrep").line == "From ~/Code/sitrep · no window runs it")
+        #expect(PluginCard(heard([.line(Watched.line())]), plugin: Self.clone).line == "From ~/Code/sitrep · no window runs it")
     }
 
     @Test func beforeAnyBoardItIsLookingAndClaimsNothingCurrent() {
-        let card = PluginCard(LastBoard(), folder: "~/Code/sitrep")
+        let card = PluginCard(LastBoard(), plugin: Self.clone)
 
         #expect(card.title == "sitrep for Claude Code")
         #expect(card.line == "From ~/Code/sitrep · looking for the windows running it…")
         #expect(!card.isCurrent)
     }
 
-    @Test func withNoPluginToRunItSaysWhy() {
-        #expect(PluginCard(unrun: "No plugin.").line == "No plugin.")
+    @Test(arguments: [
+        (PluginSource.own, "Installed by SitRep · 1 window, on 0.2.0"),
+        (.folder("~/Code/sitrep"), "From ~/Code/sitrep · 1 window, on 0.2.0"),
+        (.github("leeovery/sitrep"), "From GitHub, leeovery/sitrep · 1 window, on 0.2.0"),
+        (.other("https://example.com/sitrep.git"), "From https://example.com/sitrep.git · 1 window, on 0.2.0"),
+    ])
+    func itSaysWhereThePluginComesFrom(source: PluginSource, line: String) {
+        let card = PluginCard(Self.current, plugin: .running(source, folder: "/Users/lee/sitrep"))
+
+        #expect(card.line == line)
+        #expect(card.isCurrent)
+    }
+
+    @Test func whileSitRepLooksForThePluginItSaysSo() {
+        let card = PluginCard(LastBoard(), plugin: nil)
+
+        #expect(card.line == "Looking for Claude Code's sitrep plugin…")
+        #expect(!card.isCurrent)
+    }
+
+    @Test(arguments: [
+        (PluginTrouble.noClaude, "SitRep can't find Claude Code. Install Claude Code, and SitRep will find it."),
+        (.uncarried, "This SitRep carries no plugin. Build it with app/build."),
+        (.unfound(.folder("~/Code/sitrep")), "SitRep can't find the sitrep plugin. Claude Code has it from ~/Code/sitrep, where SitRep can't read it."),
+        (.unfound(.github("leeovery/sitrep")), "SitRep can't find the sitrep plugin. Claude Code has it from GitHub, leeovery/sitrep, where SitRep can't read it."),
+        (.failed("Path does not exist: /nowhere"), "SitRep couldn't set up its plugin. Path does not exist: /nowhere"),
+    ])
+    func withTroubleItSaysWhatInPlainWordsEvenOverTheBoardItRunsMeanwhile(trouble: PluginTrouble, line: String) {
+        let card = PluginCard(Self.current, plugin: .trouble(trouble, folder: "/Users/lee/Library/Application Support/sitrep"))
+
+        #expect(card.line == line)
+        #expect(!card.isCurrent)
+        #expect(PluginCard(LastBoard(), plugin: .trouble(trouble, folder: nil)).line == line)
+    }
+
+    @Test func withTroubleOrWhileLookingItListsNoWindowsAsItsLineCountsNone() {
+        let last = heard([.line(Watched.line(windows: Self.windows))])
+
+        #expect(PluginCard(last, plugin: .trouble(.noClaude, folder: "/sitrep")).reloads.isEmpty)
+        #expect(PluginCard(last, plugin: nil).reloads.isEmpty)
+        #expect(PluginCard(last, plugin: Self.clone).reloads.map(\.label) == ["Kit · The bootstrap"])
     }
 }
 

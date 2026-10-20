@@ -1887,14 +1887,58 @@ How the app updates changed on 16 October 2026 (Sparkle, below).
   and from nowhere else (no download of its own), so every install updates
   the same way. That way was `brew upgrade` until 16 October 2026; now the
   app updates itself.
-- **The app installs the Claude plugin.** On its first start, once it has
-  asked for what macOS must grant it (notifications, leave to control Ghostty,
-  starting at login), it copies the plugin it carries to
+- **The app installs the Claude plugin**, at each start that finds nothing
+  of sitrep in either of Claude's lists. It copies the plugin it carries to
   `~/Library/Application Support/sitrep/`, outside its own bundle, since
   anything written into a signed app breaks its signature; then registers
   that folder as the `sitrep` marketplace and installs `sitrep@sitrep`,
-  through `claude plugin`. It finds `claude` where its installers put it,
-  or by asking Lee's login shell: an app sees almost no PATH.
+  through `claude plugin`. So removing SitRep's marketplace, or
+  uninstalling `sitrep@sitrep` from it, is undone at the next launch, while
+  disabling the plugin sticks. It finds `claude` where its installers put
+  it, or by asking Lee's login shell: an app sees almost no PATH. The
+  install waits on nothing macOS grants: notifications are off until Lee
+  turns them on in Settings, the leave to control Ghostty is asked at the
+  first jump or from General, and starting at login is General's (all
+  moved there since 14 October 2026, which had the install wait on them).
+  Built 20 October 2026 (stage 3, step 9).
+- **Anything of sitrep SitRep did not install is left exactly as it is.**
+  SitRep reads `claude plugin marketplace list --json` and `claude plugin
+  list --json` as it starts, and decides from both. It adds and installs
+  only when neither shows anything of sitrep: no `sitrep` marketplace, and
+  no installed plugin named `sitrep` from any marketplace. It refreshes
+  only its own copy, the `sitrep` marketplace being a folder marketplace of
+  that very folder. A `sitrep` marketplace anywhere else (Lee's clone, the
+  GitHub one), or any installed `sitrep` not from its own copy
+  (`sitrep@kit`, since sitrep began in kit's marketplace), is foreign: it
+  is never removed, replaced or re-pointed, no second sitrep is installed
+  beside it, which would leave each window running two mods, and SitRep
+  runs that plugin's CLI from where Claude loads it:
+  - from a folder marketplace, its folder and the plugin's place in it, as
+    the folder's own `marketplace.json` says (`./` for sitrep's), never
+    Claude's cached copy, which is as stale as the install (Claude drops
+    `readFromFolder` once the folder or its `marketplace.json` is gone);
+  - with that marketplace no longer listed, the folder Claude says it
+    reads the plugin from;
+  - from GitHub, or any source Claude fetches, Claude's copy
+    (`installPath`), which is what it runs;
+  - with none of these to read, the trouble, in plain words: "SitRep can't
+    find the sitrep plugin. Claude Code has it from ~/Code/sitrep, where
+    SitRep can't read it."
+
+  `claude plugin marketplace add` over an existing `sitrep` registration
+  re-points it without complaint, which is why an empty marketplace list
+  alone is not enough to add one: with Claude's record of its marketplaces
+  gone, the list says `[]` while the plugin still loads from the clone. On
+  this Mac, until the first release, the app changes nothing and runs the
+  clone's CLI.
+- **Trouble does not leave SitRep without a board.** SitRep remembers the
+  plugin folder of the last look that went well. A look that meets trouble
+  (no `claude`, a list that fails, times out or does not read, a step that
+  fails) runs that folder's CLI while the folder is there, else its own
+  copy's, and says the trouble in the card and the menu. It looks again a
+  second later, the wait doubling to half a minute, as `watch`'s back-off
+  does, until a look goes well; `watch` starts again only when the folder
+  it settles on is another.
 - **The app updates itself, with Sparkle** (16 October 2026). Its feed is
   published with each GitHub release. The cask stays the way to install,
   marked `auto_updates true`, so brew leaves updates to the app: one
@@ -1906,7 +1950,17 @@ How the app updates changed on 16 October 2026 (Sparkle, below).
   update moves both, and their versions never part. Windows on the old mod
   show as needing `/reload-plugins` (see "Versions side by side"). First
   planned for `brew upgrade`, the app finding its newer self on disk and
-  relaunching.
+  relaunching. Built as every start's look: when the bundle carries
+  another build than its copy (its version, or the digest of its files
+  `app/bundle` stamps it with, so a rebuild at the same version counts),
+  the app replaces the copy whole, copied beside it under a name of that
+  start's own, then swapped in. While Claude's record of the plugin is at
+  another version than the copy, it runs `claude plugin marketplace update
+  sitrep` and `claude plugin update sitrep@sitrep`, so a refresh cut short
+  after its copy is finished at the next start. A plugin from a folder
+  marketplace loads in place, so the copy is what each window takes up at
+  its next `/reload-plugins`; the two updates keep Claude's record of it
+  current. With all the same, it does nothing.
 - **Built at the first public release**, which waits for a Developer ID
   (stage 4); Lee will get one before going public. It must be testable
   locally first: a feed served from this Mac, and two builds signed with
@@ -1984,7 +2038,10 @@ app calls the copy of the plugin it installed, so nothing puts the CLI on
 Lee's shell's PATH: no project's folder goes on kit's `[paths]` (Lee, 14
 October 2026). The copy the app carries has it compiled
 (`bun build --compile`), so a Mac with the app needs no Bun; the plugin alone
-from GitHub runs it on Bun.
+from GitHub runs it on Bun. Bun reads a file by its extension, so what it
+compiles is `cli/shell/run.ts`, which `bin/sitrep` imports; compiled, the
+CLI finds its manifest from its binary's folder, since its own source's
+folder is then one inside the binary.
 
 The engine's types sit in `.claude-plugin/types/`, kept out of git by their
 own `.gitignore`; `.worktreeinclude` copies them into a worktree. The mod's
@@ -3215,7 +3272,7 @@ reaches a window only while that pane is on show).
         12:04", and nothing on it is new again: no swell, no wash. Before
         the first line it says "Looking for sessions…", with `watch` down
         before any, "SitRep can't read the board", and in a SitRep with no
-        plugin to run, that it was not built with `app/build`.
+        plugin to run, the trouble that left it none (step 9).
       - **Frames run only while something moves**: the notch, a row
         folding, the ghost, a new row's wash in glass. A pointer resting
         anywhere, by the notch or on the still panel, costs nothing; the
@@ -3481,8 +3538,9 @@ reaches a window only while that pane is on show).
         menu bar's light with Nothing. Send sends the board's first row a
         window holds, which a click jumps to.
       - **General.** The plugin's version is the CLI's, from the board; its
-        line says where it runs from (`~/Code/sitrep`, until SitRep installs
-        it at step 9), how many windows run it, and how many need
+        line says where it runs from (step 9 made it each case's: "Installed
+        by SitRep", "From ~/Code/sitrep", "From GitHub, leeovery/sitrep"),
+        how many windows run it, and how many need
         `/reload-plugins`, Show listing those; while the board is stale,
         only that SitRep can't read it, and since when, with no tick and no
         counts. Open at login is
@@ -3615,7 +3673,60 @@ reaches a window only while that pane is on show).
           they closed, which a pointer resting on one tells.
    9. **Installing the plugin**: the app's first start installs it, and its
       relaunch refreshes it (Installing and updating, under "Where it
-      lives").
+      lives"). Built 20 October 2026, and reviewed twice the same day:
+      - **The bundle carries the plugin**, in `Contents/Resources/Plugin`:
+        `app/bundle` copies what Claude Code loads (`.claude-plugin`,
+        `hooks`, `core`, `types`, `sounds`) as the checkout stands, files
+        not yet committed among them but not the ignored ones, compiles the
+        CLI into `bin/sitrep` with `bun build --compile`, and stamps it
+        with a digest of its files (`.sitrep-build`); the app's source, the
+        tests, the CLI's source and this design stay behind. The bundle's
+        signature verifies with it inside (`codesign --verify --deep
+        --strict`). `app/bundle` refuses a folder that already holds a
+        bundle. The Info.plist's `SitRepPlugin` is gone.
+      - **Each start looks first**, before `watch` starts: `claude` found
+        where its installers put it (`~/.local/bin`, Homebrew's, npm's on
+        an Intel Mac, the old `~/.claude/local`), else on Lee's login
+        shell's PATH; then the two lists, read as JSON, decide, in a unit
+        of their own (`PluginPlan`) apart from the running of `claude`:
+        - nothing of sitrep in either: copy, `claude plugin marketplace
+          add` the copy's folder, `claude plugin install sitrep@sitrep`;
+        - the marketplace SitRep's own copy: at another build than the
+          bundle carries, copy; with Claude's record at another version
+          than the copy, `claude plugin marketplace update sitrep` and
+          `claude plugin update sitrep@sitrep`; with the plugin not
+          installed, as after a first start cut short, install it; with
+          all the same, nothing;
+        - anything else of sitrep: nothing, and the CLI run is the
+          plugin's from where Claude loads it, never a folder plugin's
+          cached copy. A test reads the lists this Mac printed, the clone's
+          folder marketplace among them, and pins that nothing is run but
+          the two lists and nothing copied.
+      - **The trouble, in plain words.** With no `claude`, the card and
+        the menu's speak-up say "SitRep can't find Claude Code" and
+        "Install Claude Code, and SitRep will find it."; a step that fails
+        says so in `claude`'s own words (the `message` of its `--json`
+        line). Meanwhile SitRep runs the plugin of the last look that went
+        well, else its own copy, and looks again on `watch`'s back-off;
+        with none to run, the notch, the strip, the window and the menu say
+        why.
+      - **The card** says where the plugin comes from: "Installed by
+        SitRep", "From ~/Code/sitrep", "From GitHub, leeovery/sitrep";
+        before the first look ends, "Looking for Claude Code's sitrep
+        plugin…". In trouble, or while looking, it lists no windows to
+        reload, as its line counts none.
+      - **Proven** against the real `claude` with `CLAUDE_CONFIG_DIR` and
+        Application Support in a scratch folder (`LivePluginSetupTests`,
+        only when `SITREP_LIVE_CLAUDE` names that folder): a first start
+        ran the two lists, the add and the install; a relaunch at the same
+        build ran the two lists alone; one at a newer build replaced the
+        copy and ran the two updates, Claude then listing the new version;
+        and the copied, compiled CLI answered `list --json`. The reviews'
+        two states run there too: with Claude's record of its marketplaces
+        gone and the clone still installed, SitRep ran the two lists alone,
+        left `settings.json` as it was and ran the clone; with the clone's
+        `marketplace.json` gone, it ran the two lists alone and named the
+        trouble, never running Claude's cache.
 
    The build runs through to the end without stopping (Lee, 19 October
    2026): a PR per phase, or a stack where a phase needs several, each
@@ -3677,6 +3788,8 @@ reaches a window only while that pane is on show).
      screen. macOS 14 and later, Swift 6.
    - **`app/build`** builds it, makes `SitRep.app`, signs it, installs it to
      `~/Applications/SitRep.app`, replacing what is there, and starts it.
+     Since step 9 `app/bundle` makes the signed bundle, into a folder given,
+     and `app/build` installs what it made.
      Always that place: the login item and macOS's permissions remember an
      app by where it is. It stops a running SitRep with a signal, since
      asking it to quit by an Apple Event would itself want leave to control
@@ -3716,8 +3829,9 @@ reaches a window only while that pane is on show).
    - **The main checkout's path stamped in.** `app/build` writes the folder
      of the repository's main checkout, the live plugin, into the app's
      Info.plist (`SitRepPlugin`), even when it builds in a worktree; the
-     app runs that folder's `bin/sitrep`. Step 2 replaces it with the copy
-     the app installs.
+     app runs that folder's `bin/sitrep`. Step 9 took it out (20 October
+     2026): the app runs the CLI of the plugin the `sitrep` marketplace
+     names, which on this Mac is still the main checkout, from any build.
    - **A plain menu**, until the notch and its panel are built (replaced by
      "The menu bar item", 17 October 2026, rather than slimmed as first
      planned): the sessions on screen, a jump each; a test
@@ -3740,7 +3854,12 @@ reaches a window only while that pane is on show).
    being live: a script in the repository points the `sitrep` marketplace
    at the clone for a live test, and back. Going public needs the app
    signed with a Developer ID and notarised, since Homebrew quarantines
-   what a cask downloads, as macOS does any download. To settle then: whether
+   what a cask downloads, as macOS does any download. The compiled CLI the
+   bundle carries keeps Bun's ad hoc signature and is arm64 only (step 9):
+   notarising needs it signed with the Developer ID, the hardened runtime
+   and a timestamp, likely with Bun's `allow-jit` and
+   `allow-unsigned-executable-memory` entitlements, and an Intel Mac needs
+   an x64 build beside it. To settle then: whether
    `claude plugin update` follows `main` or the tags, for the plugin alone
    from GitHub.
 5. **Attention beyond asks**, in this build (decided with Lee on 16 October

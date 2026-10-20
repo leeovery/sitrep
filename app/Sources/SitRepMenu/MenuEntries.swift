@@ -1,3 +1,4 @@
+import SitRepCore
 import SitRepPanel
 
 /// One item of the menu, as data: what it shows, keyed by what it is, so an open menu is patched in place, each item
@@ -6,6 +7,8 @@ public enum MenuEntry: Equatable, Sendable {
     /// SitRep's icon, name and version.
     case header
     case separator(String)
+    /// The trouble SitRep met seeing to its plugin, and what to do.
+    case trouble(PluginTrouble)
     case heading(String, title: String)
     case reload(MenuBoard.Reload)
     /// "SitRep can't read the board", and why.
@@ -26,6 +29,7 @@ public enum MenuEntry: Equatable, Sendable {
         case let .separator(id): "separator:\(id)"
         case let .heading(id, _): "heading:\(id)"
         case let .reload(reload): "reload:\(reload.id)"
+        case .trouble: "trouble"
         case .unread: "unread"
         case let .row(session, _): "row:\(session.id)"
         case .more: "more"
@@ -52,9 +56,10 @@ extension MenuBoard {
     private var speakingUp: [MenuEntry] {
         let reloads: [MenuEntry] = self.reloads.isEmpty ? [] :
             [.heading("reloads", title: Self.reloadTitle)] + self.reloads.map(MenuEntry.reload) + [.separator("reloads")]
+        let trouble: [MenuEntry] = trouble.map { [.trouble($0), .separator("trouble")] } ?? []
         let unread: [MenuEntry] = unread.map { [.unread(why: $0), .separator("unread")] } ?? []
 
-        return reloads + unread
+        return trouble + reloads + unread
     }
 
     private var sessionEntries: [MenuEntry] {

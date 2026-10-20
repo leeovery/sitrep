@@ -20,6 +20,8 @@ final class StatusMenu: NSObject, NSMenuDelegate {
     private let menu = NSMenu()
     private lazy var header = MenuHeader.view()
     private var board = MenuBoard(LastBoard())
+    private var last = LastBoard()
+    private var trouble: PluginTrouble?
     /// What the menu's items show, one entry to an item, in its order.
     private var entries: [MenuEntry] = []
     private var isOpen = false
@@ -44,12 +46,20 @@ final class StatusMenu: NSObject, NSMenuDelegate {
 
     /// The board as `watch` last printed it.
     func show(_ last: LastBoard) {
-        take(MenuBoard(last))
+        self.last = last
+        take(MenuBoard(last, trouble: trouble))
     }
 
-    /// With no `watch` to run, it says why.
-    func unrun(_ why: String) {
-        take(MenuBoard(unrun: why))
+    /// The trouble SitRep met seeing to the plugin, which it speaks up with first, over the board of the plugin it
+    /// runs meanwhile; nil once it has none.
+    func speak(of trouble: PluginTrouble?) {
+        self.trouble = trouble
+        take(MenuBoard(last, trouble: trouble))
+    }
+
+    /// With no plugin to run, it speaks up with the trouble that left it none.
+    func unrun(_ trouble: PluginTrouble) {
+        take(MenuBoard(unrun: trouble))
     }
 
     private func take(_ board: MenuBoard) {
@@ -140,15 +150,10 @@ final class StatusMenu: NSObject, NSMenuDelegate {
         case let .reload(reload):
             command(item, reload.label, "arrow.clockwise", #selector(jump(_:)))
             item.representedObject = reload.session
+        case let .trouble(trouble):
+            warn(item, trouble.title, subtitle: trouble.detail)
         case let .unread(why):
-            // No command, so disabled, but set in the label's ink so macOS does not dim it: it is what matters most.
-            let title = NSAttributedString(string: MenuBoard.unreadTitle, attributes: [
-                .font: Self.font.bold, .foregroundColor: NSColor.labelColor,
-            ])
-
-            item.action = nil
-            item.image = MenuImages.symbol("exclamationmark.triangle")
-            describe(item, title, plain: MenuBoard.unreadTitle, subtitle: why)
+            warn(item, MenuBoard.unreadTitle, subtitle: why)
         case let .row(session, jump):
             item.image = MenuImages.mark(session)
             item.target = self
@@ -169,6 +174,16 @@ final class StatusMenu: NSObject, NSMenuDelegate {
         case .quit:
             command(item, "Quit SitRep", "power", #selector(quit), key: "q")
         }
+    }
+
+    /// What is wrong, and why: no command, so disabled, but set in the label's ink so macOS does not dim it, as it is
+    /// what matters most.
+    private func warn(_ item: NSMenuItem, _ words: String, subtitle: String) {
+        let title = NSAttributedString(string: words, attributes: [.font: Self.font.bold, .foregroundColor: NSColor.labelColor])
+
+        item.action = nil
+        item.image = MenuImages.symbol("exclamationmark.triangle")
+        describe(item, title, plain: words, subtitle: subtitle)
     }
 
     private func command(_ item: NSMenuItem, _ title: String, _ symbol: String?, _ action: Selector, key: String = "") {

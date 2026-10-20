@@ -1,0 +1,66 @@
+[
+  {
+    "id": "handoff@kit",
+    "version": "0.1.0",
+    "scope": "user",
+    "enabled": true,
+    "installPath": "/Users/leeovery/.claude/plugins/cache/kit/handoff/0.1.0",
+    "readFromFolder": "/Users/leeovery/.config/kit/shared/plugins/handoff",
+    "folderVersion": "0.1.0",
+    "installedAt": "2026-10-08T10:45:52.781Z",
+    "lastUpdated": "2026-10-08T10:45:52.781Z",
+    "projectEnabled": false
+  },
+  {
+    "id": "php-lsp@claude-plugins-official",
+    "version": "1.0.0",
+    "scope": "user",
+    "enabled": true,
+    "installPath": "/Users/leeovery/.claude/plugins/cache/claude-plugins-official/php-lsp/1.0.0",
+    "installedAt": "2026-06-14T20:09:59.871Z",
+    "lastUpdated": "2026-06-14T20:09:59.871Z",
+    "projectEnabled": false
+  },
+  {
+    "id": "revdiff@revdiff",
+    "version": "0.8.22",
+    "scope": "user",
+    "enabled": true,
+    "installPath": "/Users/leeovery/.claude/plugins/cache/revdiff/revdiff/0.8.22",
+    "installedAt": "2026-07-13T14:57:14.032Z",
+    "lastUpdated": "2026-07-13T14:57:14.032Z",
+    "projectEnabled": false
+  },
+  {
+    "id": "sitrep@sitrep",
+    "version": "0.1.0",
+    "scope": "user",
+    "enabled": true,
+    "installPath": "/Users/leeovery/.claude/plugins/cache/sitrep/sitrep/0.1.0",
+    "readFromFolder": "/Users/leeovery/Code/sitrep",
+    "folderVersion": "0.2.0",
+    "installedAt": "2026-10-13T20:31:34.339Z",
+    "lastUpdated": "2026-10-13T20:31:34.339Z",
+    "projectEnabled": false
+  },
+  {
+    "id": "swift-lsp@claude-plugins-official",
+    "version": "1.0.0",
+    "scope": "user",
+    "enabled": true,
+    "installPath": "/Users/leeovery/.claude/plugins/cache/claude-plugins-official/swift-lsp/1.0.0",
+    "installedAt": "2026-09-29T21:51:08.594Z",
+    "lastUpdated": "2026-09-29T21:51:08.594Z",
+    "projectEnabled": false
+  },
+  {
+    "id": "typesafe@typesafe-ai",
+    "version": "0.5.7",
+    "scope": "user",
+    "enabled": true,
+    "installPath": "/Users/leeovery/.claude/plugins/cache/typesafe-ai/typesafe/0.5.7",
+    "installedAt": "2026-09-17T07:22:19.038Z",
+    "lastUpdated": "2026-09-17T07:22:19.038Z",
+    "projectEnabled": false
+  }
+]

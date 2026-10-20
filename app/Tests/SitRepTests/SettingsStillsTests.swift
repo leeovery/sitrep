@@ -16,7 +16,7 @@ struct SettingsStillsTests {
 
     private static let services = SettingsServices(
         displays: { [DisplayChoice.Connected(id: "A", name: "Built-in Retina Display", isMain: true)] },
-        hasGlass: true, pluginFolder: "~/Code/sitrep", jump: { _ in }, sendTest: {},
+        hasGlass: true, jump: { _ in }, sendTest: {},
         noticeLeave: { .allowed(.banners) }, askForNotices: {}, login: { LoginItem(.enabled) }, chooseLogin: {},
         ghostty: { .allowed }, open: { _ in }
     )
@@ -36,6 +36,7 @@ struct SettingsStillsTests {
         last.begin()
         _ = last.hear(.line(stillsLine(windows: windows)), at: Date())
         live.last = last
+        live.plugin = .running(.folder("~/Code/sitrep"), folder: "/Users/lee/Code/sitrep")
 
         return live
     }

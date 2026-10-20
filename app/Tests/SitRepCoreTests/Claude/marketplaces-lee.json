@@ -1,0 +1,32 @@
+[
+  {
+    "name": "claude-plugins-official",
+    "source": "github",
+    "repo": "anthropics/claude-plugins-official",
+    "installLocation": "/Users/leeovery/.claude/plugins/marketplaces/claude-plugins-official"
+  },
+  {
+    "name": "kit",
+    "source": "directory",
+    "path": "/Users/leeovery/.config/kit/shared/plugins",
+    "installLocation": "/Users/leeovery/.config/kit/shared/plugins"
+  },
+  {
+    "name": "revdiff",
+    "source": "github",
+    "repo": "umputun/revdiff",
+    "installLocation": "/Users/leeovery/.claude/plugins/marketplaces/revdiff"
+  },
+  {
+    "name": "sitrep",
+    "source": "directory",
+    "path": "/Users/leeovery/Code/sitrep",
+    "installLocation": "/Users/leeovery/Code/sitrep"
+  },
+  {
+    "name": "typesafe-ai",
+    "source": "github",
+    "repo": "typesafe-ai/skills",
+    "installLocation": "/Users/leeovery/.claude/plugins/marketplaces/typesafe-ai"
+  }
+]
