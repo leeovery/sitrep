@@ -18,7 +18,7 @@ let package = Package(
         /// What the real CLI printed over a board seeded in a scratch folder, for the tests to read.
         .target(name: "SitRepLines", path: "Tests/SitRepLines", resources: [.copy("Printed")]),
         .testTarget(name: "SitRepCoreTests", dependencies: ["SitRepCore", "SitRepLines"]),
-        .testTarget(name: "SitRepPanelTests", dependencies: ["SitRepPanel"]),
+        .testTarget(name: "SitRepPanelTests", dependencies: ["SitRepPanel"], resources: [.copy("Recorded")]),
         .testTarget(name: "SitRepEdgeTests", dependencies: ["SitRepEdge", "SitRepCore", "SitRepPanel"]),
         .testTarget(
             name: "SitRepWindowTests", dependencies: ["SitRepWindow", "SitRepCore", "SitRepPanel", "SitRepLines"]

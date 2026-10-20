@@ -16,6 +16,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        NSApp.mainMenu = AppMenu.make()
+
         let edge = Edge(
             jump: { [works] session, answered in works.jump(to: session, answered: answered) },
             isJumping: { [works] in works.isJumping }
