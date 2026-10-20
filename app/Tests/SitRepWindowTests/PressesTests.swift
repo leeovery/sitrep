@@ -95,23 +95,28 @@ struct OpenedItemsTests {
     @Test func itemsOpenEachOnTheirOwn() throws {
         let run = opened()
 
-        run.toggle(.status("Drawing round 3, the SitRep window, in Paper"))
+        run.toggle(.status(0, Self.drawing))
         run.toggle(.resolved("k4"))
-        #expect(try #require(run.page(at: printedAt).session).opened == [
-            .status("Drawing round 3, the SitRep window, in Paper"), .resolved("k4"),
-        ])
+        #expect(try #require(run.page(at: printedAt).session).opened == [.status(0, Self.drawing), .resolved("k4")])
     }
 
     @Test func anItemGoneFromThePageIsLetGoAndCannotOpenAgainByItsKey() throws {
         let run = opened()
+        let rewritten = Lines.watch[0].replacingOccurrences(of: Self.drawing, with: "Drawing round 4")
 
-        run.toggle(.status("A line the status no longer has"))
-        run.toggle(.note("sr-macapp:n2"))
-        #expect(try #require(run.page(at: printedAt).session).opened == [.note("sr-macapp:n2")])
-        _ = run.page(at: printedAt)
-        run.toggle(.note("sr-macapp:n2"))
+        run.toggle(.status(0, Self.drawing))
+        _ = run.show(heard(.line(rewritten)), at: printedAt, reducesMotion: false)
+        #expect(try #require(run.page(at: printedAt).session).opened.isEmpty)
+        _ = run.show(heard(line(0)), at: printedAt, reducesMotion: false)
+        #expect(try #require(run.page(at: printedAt).session).status.now.first == Self.drawing)
         #expect(try #require(run.page(at: printedAt).session).opened.isEmpty)
     }
+
+    @Test func twoStatusLinesAlikeAreTwoItems() {
+        #expect(Item.status(0, Self.drawing) != Item.status(1, Self.drawing))
+    }
+
+    private static let drawing = "Drawing round 3, the SitRep window, in Paper"
 
     @Test func pickingAnotherPageClosesThemAll() throws {
         let run = opened()

@@ -11,8 +11,8 @@ struct StatusSection: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             SectionHeading(name: "Status", note: status.updated.map { Words.updated($0, at: now) }).padding(.bottom, 8)
-            ForEach(Array(status.now.enumerated()), id: \.offset) { _, line in
-                Opening(item: .status(line), opened: opened) { isOpen in
+            ForEach(Array(status.now.enumerated()), id: \.offset) { offset, line in
+                Opening(item: .status(offset, line), opened: opened) { isOpen in
                     SectionLine(bullet: "•", text: line, isOpen: isOpen)
                 }
             }

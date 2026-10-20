@@ -107,7 +107,7 @@ enum MenuFonts {
 /// row.
 @MainActor
 enum MenuChrome {
-    static let title = MenuCut.menuWidth - around(MenuFonts.words, repeats: 20) { item, words in
+    static let title = MenuCut.menuWidth - around(MenuFonts.words, repeats: 3) { item, words in
         item.attributedTitle = NSAttributedString(string: words, attributes: [.font: MenuFonts.words])
         subtitled(item, "x")
     }
@@ -135,13 +135,20 @@ enum MenuChrome {
         return menu
     }
 
-    /// The widest time a row's badge shows.
-    private static let widestAge = ["now", "59m", "23h", "30d"].max { MenuFonts.measure($0, .words) < MenuFonts.measure($1, .words) }!
+    /// The widest time a row's badge shows: "now", or each count `Session.ageText` gives in its widest digit, minutes
+    /// and hours to two, days to three, past two years.
+    static let widestAge: String = {
+        let digit = (0 ... 9).map(String.init).max { MenuFonts.measure($0, .words) < MenuFonts.measure($1, .words) }!
+        let two = digit + digit
+
+        return ["now", two + "m", two + "h", two + digit + "d"].max { MenuFonts.measure($0, .words) < MenuFonts.measure($1, .words) }!
+    }()
 
     /// How much wider the menu is than words that set its width, drawn in this font, rounded up: long enough to be
-    /// wider than the commands, and for a subtitle short enough to stay on one line.
+    /// wider than the commands, short enough to stay on one line and within any screen, and with no space at their
+    /// end, which AppKit drops.
     private static func around(_ font: NSFont, repeats: Int, _ set: (NSMenuItem, String) -> Void) -> Double {
-        let words = String(repeating: "abcdefghij ", count: repeats)
+        let words = Array(repeating: "abcdefghij", count: repeats).joined(separator: " ")
         let width = (words as NSString).size(withAttributes: [.font: font]).width
 
         return (menu { set($0, words) }.size.width - width).rounded(.up) + 1

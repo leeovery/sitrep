@@ -2738,7 +2738,9 @@ asked for the sessions back, and approved the redraw as it stands.
   each run in the font it is drawn in, the subject in SF Mono. The line
   under it is cut the same way, and to no more than AppKit sets on one line
   before it wraps, so no row grows taller. macOS draws that line at the
-  small size, 11 points. A row cut short has its whole words as its
+  small size, 11 points. The shares are measured once, as the menu first
+  draws, so a change to the menu bar's size in System Settings holds
+  until SitRep starts again. A row cut short has its whole words as its
   tooltip.
 - **An away session** is disabled, with no window to jump to: its words
   dim, and its dot with them, as macOS dims a disabled item's image and

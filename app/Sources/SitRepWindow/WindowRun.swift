@@ -364,7 +364,7 @@ public final class WindowRun {
         let notes = read.map { Self.notes($0.log, of: session, named: false) } ?? []
         let parked = read?.parked.map { Parked(id: $0.id, session: nil, title: $0.title, where: $0.where, at: $0.at) } ?? []
         let resolved = read.map { Self.resolved($0, leaving: frozen[session.id]?.kept ?? []) } ?? []
-        let items = status.now.map(Item.status) + (status.next.map { [Item.next($0)] } ?? [])
+        let items = status.now.enumerated().map { Item.status($0.offset, $0.element) } + (status.next.map { [Item.next($0)] } ?? [])
             + notes.map { .note($0.id) } + parked.map { .parked($0.id) } + resolved.map { .resolved($0.id) }
 
         return SessionPage(

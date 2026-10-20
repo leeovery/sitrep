@@ -9,6 +9,17 @@ import Testing
 @MainActor
 struct MenuWidthTests {
     private static let long = "Two Turnstile bug fixes from the Laravel skills review, one PR each: Httpable::report() inverted, and the dispatcher rate limiter registered in a deferred provider."
+    /// Words as wide as this many points in the face, to within a hair space: as wide as a cut can land.
+    private static func filled(to points: Double, in face: MenuFace) -> String {
+        var words = ""
+
+        for piece in ["a", ".", "\u{200A}"] {
+            while MenuFonts.measure(words + piece + ".", face) <= points {
+                words += piece
+            }
+        }
+        return words + "."
+    }
     private static let longLine = "Turnstile · Exception reporting and dispatcher limiter fixes, and the queue's retry rules as well"
 
     private static func session(_ title: String, code: String? = nil, more: String? = nil, sub: String = longLine) -> Session {
@@ -29,7 +40,7 @@ struct MenuWidthTests {
         for session in sessions {
             let item = NSMenuItem(title: "", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "")
 
-            MenuWords.row(item, session, jump: session.id, age: "59m", isHighlighted: false)
+            MenuWords.row(item, session, jump: session.id, age: MenuChrome.widestAge, isHighlighted: false)
             menu.addItem(item)
         }
         menu.addItem(NSMenuItem(title: "Open SitRep Window", action: #selector(NSApplication.terminate(_:)), keyEquivalent: ""))
@@ -47,6 +58,19 @@ struct MenuWidthTests {
 
         #expect(width <= MenuCut.menuWidth)
         #expect(width > MenuCut.menuWidth - 12)
+    }
+
+    /// A title and a line under it as wide as their shares, as the cut can leave them, come to the width at most.
+    @Test func rowsAtTheEdgeOfTheirSharesComeToTheMenusWidthAtMost() {
+        let title = Self.filled(to: MenuChrome.title, in: .words)
+        let line = Self.filled(to: MenuChrome.subtitle, in: .subtitle)
+        let width = Self.menu([
+            Self.session(title, sub: "Turnstile · Fixes"), Self.session("Wait for review", sub: line),
+        ]).size.width
+
+        #expect(MenuFonts.measure(title, .words) > MenuChrome.title - 1)
+        #expect(MenuFonts.measure(line, .subtitle) > MenuChrome.subtitle - 1)
+        #expect(width <= MenuCut.menuWidth)
     }
 
     @Test func noRowGrowsPastAOneLineRowsHeight() {
