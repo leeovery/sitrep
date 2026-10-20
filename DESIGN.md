@@ -2676,19 +2676,21 @@ stands).
   session or project picked is the list's selection, drawn by the system,
   and nothing clears it, neither a click in the list's blank space nor on
   the row picked. The arrow keys move it, each step a pick; picks that
-  follow sooner than 150ms read only the last one's boards once they stop,
-  so holding ↓ reads the first row, the second, as the Mac waits longer
-  than that before a key repeats, and the one it stops on. Only a read
-  that runs takes its place as a session's latest, so one let go never
-  throws away a read under way, and none waiting runs once the window
-  closes or is minimised. Each pick in the list holds the list's order for
-  a second after it, as the pointer over the list does, so no row moves
-  between two presses of a key. A pick made elsewhere, by a jump, a
-  notification or the menu, or before the window shows, scrolls its row
-  into view. Its head,
-  the "N need you" and the count, stays put above the rows as they
-  scroll; the project groups, their counts, the sessions' marks and ages
-  and the quiet projects keep the window's own type and colours.
+  follow sooner than 150ms read only the last one's boards once they stop.
+  With the Mac's key repeat faster than that, holding ↓ reads the first
+  row, the second, as the Mac waits longer before a key repeats, and the
+  one it stops on; at a slower repeat each row reads. Only a read that
+  runs takes its place as a session's latest, so one let go never throws
+  away a read under way, and none waiting runs once the window closes or
+  is minimised. Each pick in the list holds the list's order for a second
+  after it, as the pointer over the list does, so no row moves between two
+  presses of a key; closing or minimising the window lets the hold go. The
+  row picked scrolls into view, only as far as it needs, whenever the pick
+  or the order changes: a pick made elsewhere, by a jump, a notification
+  or the menu, or before the window shows, and a resort. Its head, the "N
+  need you" and the count, stays put above the rows as they scroll; the
+  project groups, their counts, the sessions' marks and ages and the quiet
+  projects keep the window's own type and colours.
 - **Under the pointer** (Lee, 20 October 2026: "When I hover down the
   left-hand side, nothing highlights"; then, of glass highlights over the
   rows, "a very deeply translucent, blurred bar"):

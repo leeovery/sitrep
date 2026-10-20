@@ -65,6 +65,7 @@ struct SitRepWindowTests {
         let toolbar = try #require(window.toolbar)
 
         #expect(toolbar.items.isEmpty)
+        #expect(!toolbar.allowsUserCustomization)
         #expect(window.toolbarStyle == .unified)
         #expect(window.styleMask.contains(.fullSizeContentView))
     }

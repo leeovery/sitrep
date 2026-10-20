@@ -5,8 +5,8 @@ import SwiftUI
 /// sessions under it, and the quiet projects at the foot. Its rows are a list whose selection is the session or
 /// project picked, drawn by the system, which the pointer and the arrow keys move alike, and which never empties; a
 /// project's name, its own or a quiet one's, opens the project. A row under the pointer that is not the one picked
-/// shows a quiet fill behind it. The head stays put while the rows scroll, and a pick made elsewhere, by a jump, a
-/// notification or the menu, scrolls its row into view.
+/// shows a quiet fill behind it. The head stays put while the rows scroll, and the row picked is scrolled into view
+/// whenever the pick or the order changes: a pick made elsewhere, by a jump, a notification or the menu, or a resort.
 struct BoardColumn: View {
     let listed: Listed
     let pick: Pick?
@@ -15,6 +15,9 @@ struct BoardColumn: View {
     @Environment(\.windowActions) private var act
     @Environment(\.reducesWindowMotion) private var reducesMotion
     @Environment(\.isStill) private var isStill
+    /// The row picked as the list holds it: the pick, put back whenever the list lets go of it, as a click in its
+    /// blank space or on the row picked does, so its selection never empties while something is picked.
+    @State private var selection: Pick?
 
     var body: some View {
         if isStill {
@@ -29,29 +32,36 @@ struct BoardColumn: View {
 
     private var list: some View {
         ScrollViewReader { scroller in
-            picking
+            List(selection: $selection) { rows }
                 .listStyle(.sidebar)
                 .animation(reducesMotion ? nil : .easeInOut(duration: 0.25), value: listed.sessions.map(\.id))
                 .onHover { act.pointer($0) }
-                .onChange(of: pick, initial: true) { _, pick in
-                    if let pick {
-                        scroller.scrollTo(pick)
+                .onChange(of: selection) { _, selected in
+                    guard let selected else {
+                        selection = pick
+                        return
+                    }
+                    if selected != pick {
+                        act.pickInList(selected)
                     }
                 }
+                .onChange(of: pick, initial: true) { _, pick in
+                    selection = pick
+                    reveal(pick, in: scroller)
+                }
+                .onChange(of: order) { reveal(pick, in: scroller) }
         }
     }
 
-    /// The list over the pick, which a click in its blank space or on the row picked cannot clear. With nothing
-    /// picked, as when no session is open, a press picks.
-    @ViewBuilder private var picking: some View {
+    /// The rows in the order they show, which moves the row picked when the list resorts.
+    private var order: [String] {
+        listed.projects.flatMap { [$0.id] + $0.sessions.map(\.id) } + listed.quiet.map(\.id)
+    }
+
+    /// The row picked scrolled into view, only as far as it needs.
+    private func reveal(_ pick: Pick?, in scroller: ScrollViewProxy) {
         if let pick {
-            List(selection: Binding(get: { pick }, set: { picked in
-                if picked != pick {
-                    act.pickInList(picked)
-                }
-            })) { rows }
-        } else {
-            List(selection: Binding<Pick?>(get: { nil }, set: { picked in picked.map(act.pickInList) })) { rows }
+            scroller.scrollTo(pick)
         }
     }
 

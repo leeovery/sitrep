@@ -105,21 +105,28 @@ public final class WindowRun {
         return repick()
     }
 
-    /// The window closes: the list's hold lets go, as the pointer leaves with it, the reads of a run of picks are
-    /// let go, and a finish asked about lapses.
+    /// The window closes: the list's hold lets go, as the pointer leaves with it, and a finish asked about lapses.
+    /// The reads a run of picks left waiting never run: nothing is read while the window is closed, and opening it
+    /// picks afresh.
     public func close() {
         isOpen = false
-        held.release()
-        pickReads = PickReads()
-        take(given, moving: [])
+        letGoOfTheList()
         dropAskingToFinish()
     }
 
-    /// The window minimised: it shows no more, so nothing is read, the reads of a run of picks let go, but it keeps
-    /// its page.
+    /// The window minimised: it shows no more, so nothing is read, and the list's hold lets go, as the pointer leaves
+    /// with it, but it keeps its page. The reads a run of picks left waiting are let go, as coming back from the Dock
+    /// reads the page again.
     public func minimise() {
         isOpen = false
+        letGoOfTheList()
         pickReads = PickReads()
+    }
+
+    /// The pointer gone with the window, which tells no exit: the list's hold lets go, and it takes `watch`'s order.
+    private func letGoOfTheList() {
+        held.release()
+        take(given, moving: [])
     }
 
     /// The window back from the Dock, on the page it had, which reads what it shows again, unless its pick has gone

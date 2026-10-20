@@ -94,20 +94,42 @@ struct WindowRunTests {
         #expect(run.page(at: printedAt).session?.isRead == true)
     }
 
-    @Test(arguments: [false, true])
-    func aRunOfPicksReadsNothingOnceTheWindowClosesOrIsMinimised(closes: Bool) {
+    @Test func aRunOfPicksReadsNothingWhileTheWindowIsClosed() {
         let run = opened()
 
         _ = run.pickInList(.session("sr-dash02"), at: printedAt)
         _ = run.pickInList(.session("sr-rq7dgr"), at: printedAt.addingTimeInterval(0.1))
-        if closes {
-            run.close()
-        } else {
-            run.minimise()
-        }
+        run.close()
         #expect(run.settledReads(at: printedAt.addingTimeInterval(1)).isEmpty)
-        _ = closes ? run.open() : run.restore()
+    }
+
+    /// Back from the Dock, the page is read again, so the run's waiting reads are let go.
+    @Test func aRunOfPicksReadsNothingOnceTheWindowIsBackFromTheDock() {
+        let run = opened()
+
+        _ = run.pickInList(.session("sr-dash02"), at: printedAt)
+        _ = run.pickInList(.session("sr-rq7dgr"), at: printedAt.addingTimeInterval(0.1))
+        run.minimise()
+        _ = run.restore()
         #expect(run.settledReads(at: printedAt.addingTimeInterval(1)).isEmpty)
+    }
+
+    @Test func theRunsReadsFallingDueIsTheNextChange() {
+        let run = opened()
+        let last = printedAt.addingTimeInterval(0.1)
+
+        _ = run.pickInList(.session("sr-dash02"), at: printedAt)
+        _ = run.pickInList(.session("sr-rq7dgr"), at: last)
+        #expect(run.nextChange == last.addingTimeInterval(PickReads.settle))
+    }
+
+    /// So no row moves between two presses of an arrow key, the pointer elsewhere.
+    @Test func aPickInTheListHoldsItsOrder() {
+        let run = opened()
+
+        _ = run.pickInList(.session("sr-dash02"), at: printedAt)
+        _ = run.show(heard(.line(projects(["goosemates", "sitrep", "switchboard", "kit"]))), at: printedAt, reducesMotion: false)
+        #expect(run.listed(at: printedAt).projects.map(\.id) == ["sitrep", "switchboard", "goosemates"])
     }
 
     @Test func aProjectsViewReadsEachOfItsSessions() {
@@ -172,6 +194,19 @@ struct WindowRunTests {
         run.close()
         _ = run.open()
         #expect(run.page(at: printedAt).session?.asks.count == 3)
+    }
+
+    /// ⌘M with the pointer over the list tells no exit.
+    @Test func minimisingWithThePointerOverTheListLetsTheHoldGo() {
+        let run = opened()
+
+        run.pointer(isIn: true, at: printedAt)
+        _ = run.show(heard(.line(projects(["goosemates", "sitrep", "switchboard", "kit"]))), at: printedAt, reducesMotion: false)
+        run.minimise()
+        #expect(run.listed(at: printedAt).projects.map(\.id) == ["goosemates", "sitrep", "switchboard"])
+        _ = run.restore()
+        _ = run.show(heard(line(0)), at: printedAt, reducesMotion: false)
+        #expect(run.listed(at: printedAt).projects.map(\.id) == ["sitrep", "switchboard", "goosemates"])
     }
 
     @Test func closingWithThePointerOverTheListLetsTheHoldGo() {

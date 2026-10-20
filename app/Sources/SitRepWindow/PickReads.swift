@@ -2,9 +2,10 @@ import Foundation
 
 /// The sessions Lee's picks in the list ask to read, settled: a pick on its own reads at once; picks that follow one
 /// another sooner than `settle`, as an arrow key repeating down the list gives, read only the last, once they stop.
-/// Holding ↓ reads the first row, the second, as the Mac's delay before a key repeats is longer than `settle`, and
-/// the row it stops on, not every row it passes. Only the reads that run take a ticket (`WindowRun`), so one dropped
-/// here never supersedes a read already under way.
+/// With the Mac's key repeat faster than `settle`, holding ↓ reads the first row, the second, as the delay before a
+/// key repeats is longer than `settle`, and the row it stops on, not every row it passes; at a slower repeat each row
+/// reads. Only the reads that run take a ticket (`WindowRun`), so one dropped here never supersedes a read already
+/// under way.
 public struct PickReads: Equatable, Sendable {
     /// How soon after one pick another must come to be one of a run of them.
     public static let settle: TimeInterval = 0.15

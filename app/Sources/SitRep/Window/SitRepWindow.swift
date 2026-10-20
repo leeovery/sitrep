@@ -86,7 +86,7 @@ final class SitRepWindow: NSObject, NSWindowDelegate {
 
         window.styleMask = [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView]
         window.title = "SitRep"
-        window.toolbar = NSToolbar(identifier: "SitRepWindow")
+        window.toolbar = Self.toolbar()
         window.toolbarStyle = .unified
         window.titlebarAppearsTransparent = true
         window.titlebarSeparatorStyle = .none
@@ -109,6 +109,15 @@ final class SitRepWindow: NSObject, NSWindowDelegate {
 
         hosting.sizingOptions = []
         return hosting
+    }
+
+    /// The toolbar, empty, and with nothing to customise, so a right-click on the titlebar offers no Customize
+    /// Toolbar.
+    private static func toolbar() -> NSToolbar {
+        let toolbar = NSToolbar(identifier: "SitRepWindow")
+
+        toolbar.allowsUserCustomization = false
+        return toolbar
     }
 
     /// Escape in the window takes back the answer pressed last while it waits, as the drawing's "Esc to undo" says.
