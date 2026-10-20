@@ -11,8 +11,9 @@ protocol NotchDrawing: NSView {
     /// The light as the frame places it, in these colours, round the notch's outline, through the mirror of the last
     /// scene.
     func showLight(_ placed: Frame.Light, outline: CGPath, colours: LiveLight)
-    /// These rows, by their keys, came new onto the board while the panel is out: each is washed orange.
-    func wash(_ rows: Set<String>)
+    /// These rows, by their keys, came new onto the board while the panel is out: each is washed orange from this
+    /// time on the display's clock, ms.
+    func wash(_ rows: Set<String>, at time: Double)
 }
 
 /// What the panel lists: its head, and its items laid out, in the order the model has them.
@@ -33,6 +34,8 @@ struct NotchScene {
     let hover: Int?
     /// How far down the content is scrolled.
     let scroll: Double
+    /// The display's clock, ms, which the washes run on.
+    let time: Double
     /// The wall clock, ms, which the rows' times count on.
     let now: Double
     /// The stage into the window: mirrored on the right edge.
@@ -43,6 +46,18 @@ struct NotchScene {
 enum Wash {
     /// How long it lasts, ms, and how long of that it is held.
     static let length = 2000.0, held = 300.0
+
+    /// How washed a row is this long after its wash began, ms: from 1 as it comes to 0.
+    static func amount(since elapsed: Double) -> Double {
+        let out = min(max((elapsed - held) / (length - held), 0), 1)
+
+        return 1 - out * out * (3 - 2 * out)
+    }
+
+    /// The washes still under way at this time, of those begun when each says.
+    static func live(_ began: [String: Double], at time: Double) -> [String: Double] {
+        began.filter { time - $0.value < length }
+    }
 }
 
 extension Frame.Panel {

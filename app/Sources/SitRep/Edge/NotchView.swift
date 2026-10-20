@@ -84,8 +84,8 @@ final class NotchView: NSView, NotchDrawing {
         light.show(placed, outline: outline, colours: colours)
     }
 
-    func wash(_ rows: Set<String>) {
-        content.wash(rows)
+    func wash(_ rows: Set<String>, at time: Double) {
+        content.wash(rows, at: time)
     }
 
     private func rescaleToWindow() {

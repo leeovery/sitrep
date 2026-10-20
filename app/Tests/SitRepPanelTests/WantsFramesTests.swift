@@ -12,8 +12,8 @@ struct WantsFramesTests {
         lab.settle()
 
         #expect(!lab.frame.isMoving)
-        #expect(!lab.frame.wakes(pointer: lab.pointer, field: Self.field))
-        #expect(!lab.frame.wakes(pointer: nil, field: Self.field))
+        #expect(!lab.frame.wakes(from: lab.pointer, to: lab.pointer, field: Self.field))
+        #expect(!lab.frame.wakes(from: nil, to: nil, field: Self.field))
     }
 
     @Test func anythingMovingWantsThem() {
@@ -35,7 +35,7 @@ struct WantsFramesTests {
         let settled = lab.settle()
 
         #expect(settled)
-        #expect(lab.frame.wakes(pointer: lab.pointer, field: Self.field))
+        #expect(lab.frame.wakes(from: lab.pointer, to: lab.pointer, field: Self.field))
     }
 
     @Test(arguments: [(30.0, 0.0), (-40, 230)])
@@ -44,7 +44,49 @@ struct WantsFramesTests {
         lab.pointer = CGPoint(x: Self.field + by, y: lab.notchY + along)
         lab.settle()
 
-        #expect(!lab.frame.wakes(pointer: lab.pointer, field: Self.field))
+        #expect(!lab.frame.wakes(from: lab.pointer, to: lab.pointer, field: Self.field))
+    }
+
+    @Test func aFlickFromTheFieldToFarWakesThemAndTheNotchLetsThePointerGo() {
+        var lab = Lab(needsLee: true)
+        let near = CGPoint(x: Self.field - 10, y: lab.notchY + 20), far = CGPoint(x: 900, y: lab.notchY + 20)
+        var away = Lab(needsLee: true, pointer: far)
+
+        lab.pointer = near
+        let leaning = lab.settle(), rested = away.settle()
+        let leant = lab.frame.outline.boundingBox
+
+        #expect(leaning && rested)
+        #expect(!lab.frame.wakes(from: far, to: far, field: Self.field))
+        #expect(lab.frame.wakes(from: near, to: far, field: Self.field))
+
+        lab.pointer = far
+        let letGo = lab.settle()
+
+        #expect(letGo)
+        #expect(leant != away.frame.outline.boundingBox)
+        #expect(lab.frame.outline.boundingBox.insetBy(dx: -0.01, dy: -0.01).contains(away.frame.outline.boundingBox))
+        #expect(away.frame.outline.boundingBox.insetBy(dx: -0.01, dy: -0.01).contains(lab.frame.outline.boundingBox))
+    }
+
+    @Test func framesWokenAfterASleepTakeNoSpeedFromTheMoveTheySlept() {
+        foundOnTheNotchAfterASleep(Lab(needsLee: true, pointer: CGPoint(x: Self.field + 20, y: 491)))
+        foundOnTheNotchAfterASleep(CardLab(needsLee: true, pointer: CGPoint(x: 49 + 20, y: 491)))
+    }
+
+    /// The pointer rested by the notch until frames slept, then came onto it unseen: the first frame woken finds it
+    /// there with no speed, so the notch waits on its dwell, as for a slow touch, never opening as for a flick.
+    private func foundOnTheNotchAfterASleep<M: NotchModel>(_ lab: NotchLab<M>) {
+        var lab = lab
+        let settled = lab.settle()
+
+        lab.now += 10_000
+        lab.pointer = CGPoint(x: 3, y: lab.notchY)
+        lab.step(at: lab.now)
+
+        #expect(settled)
+        #expect(lab.model.trailVelocity() == Vec(0, 0))
+        #expect(lab.phase == .closed)
     }
 
     @Test func aStillPointerOnAStillPanelWantsNoFramesAndAnyMoveWakesThem() {
@@ -55,14 +97,14 @@ struct WantsFramesTests {
 
         #expect(settled)
         #expect(lab.phase == .open)
-        #expect(lab.frame.wakes(pointer: CGPoint(x: 900, y: 40), field: Self.field))
+        #expect(lab.frame.wakes(from: lab.pointer, to: CGPoint(x: 900, y: 40), field: Self.field))
     }
 
     @Test func thePointerThereWithThePanelInWakesNone() {
         var lab = Lab(needsLee: true, pointer: CGPoint(x: 300, y: 491))
         lab.settle()
 
-        #expect(!lab.frame.wakes(pointer: lab.pointer, field: Self.field))
+        #expect(!lab.frame.wakes(from: lab.pointer, to: lab.pointer, field: Self.field))
     }
 
     @Test func theCardToo() {
@@ -71,7 +113,7 @@ struct WantsFramesTests {
         let nearSettled = near.settle(), farSettled = far.settle()
 
         #expect(nearSettled && farSettled)
-        #expect(near.frame.wakes(pointer: near.pointer, field: near.model.field))
-        #expect(!far.frame.wakes(pointer: far.pointer, field: far.model.field))
+        #expect(near.frame.wakes(from: near.pointer, to: near.pointer, field: near.model.field))
+        #expect(!far.frame.wakes(from: far.pointer, to: far.pointer, field: far.model.field))
     }
 }

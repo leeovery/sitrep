@@ -13,16 +13,46 @@ let longestLine = 1 << 20
 /// The longest line of stderr kept: what it says fits a menu item.
 let longestSaid = 1024
 
+/// The program a watcher has running, held so that it can be stopped at
+/// once: a cancelled iteration sends its SIGTERM on a thread of its own,
+/// which an app quitting may outrun.
+public final class RunningChild: Sendable {
+    private let process = OSAllocatedUnfairLock<Process?>(initialState: nil)
+
+    public init() {}
+
+    /// Sends the running program SIGTERM now, if there is one.
+    public func terminate() {
+        guard let process = process.withLock({ $0 }), process.isRunning else {
+            return
+        }
+
+        process.terminate()
+    }
+
+    fileprivate func hold(_ running: Process?) {
+        process.withLock { $0 = running }
+    }
+}
+
 /// The watcher for real programs: no shell between, stdin from /dev/null,
 /// and no time limit, the program's own aside. Stopped with SIGTERM, which
 /// `watch` ends on, exit 0.
-public let watchProgram: Watcher = { program in
+public let watchProgram: Watcher = { program in watch(program, holding: RunningChild()) }
+
+/// The watcher for real programs, each held by `running` while it runs.
+public func watchProgram(holding running: RunningChild) -> Watcher {
+    { program in watch(program, holding: running) }
+}
+
+private func watch(_ program: Program, holding running: RunningChild) -> AsyncStream<Heard> {
     AsyncStream { heard in
         let process = Process()
         let stdout = Reader(longest: longestLine)
         let stderr = Reader(longest: longestSaid)
         let exited = AsyncStream<Exit> { exited in
             process.terminationHandler = { process in
+                running.hold(nil)
                 exited.yield(process.exit)
                 exited.finish()
                 DispatchQueue.global().asyncAfter(deadline: .now() + drainSeconds) {
@@ -47,6 +77,7 @@ public let watchProgram: Watcher = { program in
 
         do {
             try process.run()
+            running.hold(process)
         } catch {
             stdout.close()
             stderr.close()

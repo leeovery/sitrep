@@ -93,5 +93,6 @@ private final class Told: Notch {
     func carry() { told.append("carry") }
     func carried(to y: Double) { told.append("carried") }
     func drop(across: Bool) { told.append("drop") }
+    var mayCarry: Bool { true }
     func restingOutline(at y: Double) -> CGPath { CGMutablePath() }
 }

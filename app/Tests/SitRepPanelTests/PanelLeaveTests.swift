@@ -48,7 +48,7 @@ struct PanelLeaveTests {
             frame.isMoving || frame.isNear(pointer, field: field)
                 || frame.panel != nil && pointer.map { frame.outline.contains($0) } == true
         }
-        var paced = Paced(Lab(needsLee: true, reducesMotion: true), runs: spike, wakes: spike)
+        var paced = Paced(Lab(needsLee: true, reducesMotion: true), runs: spike) { spike($0, $2, $3) }
 
         paced.leave(.shrunk)
 
@@ -59,17 +59,21 @@ struct PanelLeaveTests {
 /// A notch whose frames run as the view runs them: a frame a refresh while the last frame moves, else none
 /// until a move of the pointer that wakes them.
 private struct Paced<Model: NotchModel> {
-    /// Whether, after this frame, with the pointer here, by the notch with this field, frames run or a move wakes them.
+    /// Whether, after this frame, with the pointer here, by the notch with this field, frames run.
     typealias Rule = (Frame, CGPoint?, Double) -> Bool
+    /// Whether, after this frame, a move of the pointer from where it saw it to here wakes them.
+    typealias Wake = (Frame, CGPoint?, CGPoint?, Double) -> Bool
 
     var lab: NotchLab<Model>
     private(set) var isRunning = true
+    /// The pointer as the last frame saw it.
+    private var seen: CGPoint?
     private let runs: Rule
-    private let wakes: Rule
+    private let wakes: Wake
 
     init(
         _ lab: NotchLab<Model>, runs: @escaping Rule = { frame, _, _ in frame.isMoving },
-        wakes: @escaping Rule = { $0.wakes(pointer: $1, field: $2) }
+        wakes: @escaping Wake = { $0.wakes(from: $1, to: $2, field: $3) }
     ) {
         self.lab = lab
         self.runs = runs
@@ -125,7 +129,7 @@ private struct Paced<Model: NotchModel> {
     mutating func point(at pointer: CGPoint?) {
         lab.now += NotchLab<Model>.frameMS
         lab.pointer = pointer
-        if isRunning || wakes(lab.frame, pointer, field) {
+        if isRunning || wakes(lab.frame, seen, pointer, field) {
             frame()
         }
     }
@@ -144,6 +148,7 @@ private struct Paced<Model: NotchModel> {
 
     private mutating func frame() {
         lab.step(at: lab.now)
+        seen = lab.pointer
         isRunning = runs(lab.frame, lab.pointer, field)
     }
 }

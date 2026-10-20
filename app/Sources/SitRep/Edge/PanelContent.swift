@@ -20,6 +20,8 @@ final class PanelContent {
     private(set) var rows: [String: (item: CALayer, row: SessionRow)] = [:]
     /// The row lifted under the pointer.
     private var hovered: SessionRow?
+    /// When each row's wash began, by its key: a row made anew mid-wash carries it on.
+    private var washed: [String: Double] = [:]
     private var scale: CGFloat = 1
 
     init() {
@@ -75,8 +77,11 @@ final class PanelContent {
         highlight(scene.hover.flatMap { shown.item($0)?.session?.id })
     }
 
-    func wash(_ keys: Set<String>) {
-        keys.compactMap { rows[$0]?.row }.forEach { $0.washes() }
+    /// The rows washed from this time, ms on the display's clock.
+    func wash(_ keys: Set<String>, at time: Double) {
+        washed = Wash.live(washed, at: time)
+        keys.forEach { washed[$0] = time }
+        keys.compactMap { rows[$0]?.row }.forEach { $0.washes(since: time) }
     }
 
     func rescaled(to scale: CGFloat) {
@@ -100,8 +105,7 @@ final class PanelContent {
                 return Self.divider(width: width)
             }
 
-            let row = rows[session.id].flatMap { $0.row.session == session ? $0 : nil }
-                ?? Self.row(session, size: CGSize(width: width, height: item.height - Item.rowGap))
+            let row = rows[session.id].flatMap { $0.row.session == session ? $0 : nil } ?? made(session, item, width)
 
             kept[session.id] = row
             return row.item
@@ -109,6 +113,16 @@ final class PanelContent {
         was.filter { old in !items.contains { $0 === old } }.forEach { $0.removeFromSuperlayer() }
         items.filter { $0.superlayer !== list }.forEach(list.addSublayer)
         rows = kept
+    }
+
+    /// A row made anew, its wash, if one is under way, carried on from when it began.
+    private func made(_ session: Session, _ item: Item, _ width: Double) -> (item: CALayer, row: SessionRow) {
+        let made = Self.row(session, size: CGSize(width: width, height: item.height - Item.rowGap))
+
+        if let began = washed[session.id] {
+            made.row.washes(since: began)
+        }
+        return made
     }
 
     /// Each item in its box, which a fold shortens: what is laid out in it keeps its own height, clipped. Placed by

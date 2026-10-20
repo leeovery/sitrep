@@ -32,6 +32,9 @@ public protocol Notch: AnyObject {
     /// The drag let the notch go: it sets down, and doesn't open under the pointer until it leaves. Let go across the
     /// screen's middle, it drains into this edge and grows out of the other, the frame saying when (`swapsEdge`).
     func drop(across: Bool)
+    /// Whether a press may carry the notch: not from a drop across the screen's middle until it is home on the other
+    /// edge, as the prototypes take no press while it moves.
+    var mayCarry: Bool { get }
     /// The notch at rest, its home this far down the stage, inside the band: a drag's ghost on the other edge.
     func restingOutline(at y: Double) -> CGPath
 }

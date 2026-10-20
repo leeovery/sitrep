@@ -10,7 +10,7 @@ struct AskClockTests {
         #expect(clock.since(10_100) == nil)
     }
 
-    @Test func anAskIsPlacedOnTheWallClockFromTheFirstFrameThatCarriesIt() {
+    @Test func anAskIsPlacedOnTheDisplaysClockFromTheFirstFrameThatCarriesIt() {
         var clock = AskClock()
 
         clock.take(lastAsk: 1000, simTime: 1016, at: 50_000)
@@ -19,7 +19,7 @@ struct AskClockTests {
         #expect(clock.since(50_300) == 316)
     }
 
-    @Test func theFlashRunsOnTheWallClockThoughTheSimClockStandsStill() {
+    @Test func theFlashRunsOnTheDisplaysClockThoughTheSimClockStandsStill() {
         var clock = AskClock()
         clock.take(lastAsk: 1000, simTime: 1016, at: 50_000)
 

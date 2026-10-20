@@ -110,12 +110,13 @@ public struct Frame {
         outline.contains(point) || inRect(Vec(point.x, point.y), hitRect)
     }
 
-    /// Whether a move of the pointer to here should start frames again, once they have stopped with nothing moving: a
-    /// pointer resting anywhere, by the notch or on the open panel, changes nothing until it moves. While the panel is
-    /// out, every move wakes them, since only the model can tell that the pointer has left it (rows going from under
-    /// a still pointer, under reduced motion, leave the panel out with nothing moving); else a move near the notch.
-    public func wakes(pointer: CGPoint?, field: Double) -> Bool {
-        phase != .closed || isNear(pointer, field: field)
+    /// Whether a move of the pointer, from where this frame saw it to here, should start frames again, once they have
+    /// stopped with nothing moving: a pointer resting anywhere, by the notch or on the open panel, changes nothing
+    /// until it moves. While the panel is out, every move wakes them, since only the model can tell that the pointer
+    /// has left it (rows going from under a still pointer, under reduced motion, leave the panel out with nothing
+    /// moving); else a move near the notch, to it or from it, as the notch leaning toward a pointer must see it go.
+    public func wakes(from last: CGPoint?, to pointer: CGPoint?, field: Double) -> Bool {
+        phase != .closed || isNear(pointer, field: field) || isNear(last, field: field)
     }
 
     /// Whether the pointer is near the edge by the notch: within the attraction's field from it, and a margin, and its

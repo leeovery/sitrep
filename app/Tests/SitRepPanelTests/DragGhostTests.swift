@@ -3,7 +3,8 @@ import CoreGraphics
 import Testing
 
 /// The other edge's ghost during a drag, as the prototypes draw it: the notch at rest in the panel's black at 0.3,
-/// in over 140ms past the screen's middle, out over 200 back, and over 420 as the notch lands there.
+/// in over 140ms past the screen's middle, out over 140 back; let go, out over 420 as the notch lands there, or over
+/// 200 on its own side.
 struct DragGhostTests {
     /// The ghost after this many ms, a frame at a time.
     private static func stepped(_ ghost: DragGhost, _ ms: Double) -> DragGhost {
@@ -37,20 +38,29 @@ struct DragGhostTests {
         #expect(abs(Self.shown.opacity - 0.3) < 1e-3)
     }
 
-    @Test func backItGoesOver200() {
+    @Test func backItGoesOver140() {
         var ghost = Self.shown
         ghost.carried(across: false)
 
-        #expect(abs(Self.stepped(ghost, 200).opacity - 0.3 * 0.05) < 0.006)
+        #expect(Self.stepped(ghost, 100).opacity > 0.3 * 0.1)
+        #expect(abs(Self.stepped(ghost, 140).opacity - 0.3 * 0.05) < 0.006)
     }
 
-    @Test func letGoItFadesOver420() {
+    @Test func letGoAcrossItFadesOver420AsTheNotchLandsThere() {
         var ghost = Self.shown
-        ghost.dropped()
+        ghost.dropped(across: true)
 
         #expect(Self.stepped(ghost, 200).opacity > 0.1)
         #expect(abs(Self.stepped(ghost, 420).opacity - 0.3 * 0.05) < 0.006)
         #expect(!Self.stepped(ghost, 2000).isMoving)
+    }
+
+    @Test func letGoOnItsOwnSideItFadesOver200() {
+        var ghost = Self.shown
+        ghost.dropped(across: false)
+
+        #expect(Self.stepped(ghost, 150).opacity > 0.3 * 0.05)
+        #expect(abs(Self.stepped(ghost, 200).opacity - 0.3 * 0.05) < 0.006)
     }
 
     @Test func itIsTheNotchAtRestWhereTheDragHasIt() {

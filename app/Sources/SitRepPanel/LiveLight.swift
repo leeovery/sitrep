@@ -3,7 +3,8 @@ import Foundation
 
 /// The Live light's colours at a moment, ported from the prototype's `drawLive` (lights.js): the breath, the two
 /// spots swaying along the bar, the deeper tips and a new ask's brighten. The view draws the bar from these; they
-/// run on a wall clock, never the model's sim clock, so the light breathes while the model is idle.
+/// run on the display's clock, never the model's sim clock, so the light breathes while the model is idle. Under
+/// reduced motion it holds still, mid-breath with its spots at home, and a new ask is a shorter brighten.
 public struct LiveLight: Equatable, Sendable {
     /// A colour as the prototype mixes it: red, green and blue from 0 to 255, unrounded.
     public struct RGB: Equatable, Sendable {
@@ -51,11 +52,12 @@ public struct LiveLight: Equatable, Sendable {
 
     static let bodyStops = 24
 
-    /// The light at a wall time, ms, this long after the last new ask (nil when there has been none).
-    public init(time t: Double, sinceAsk e: Double?) {
-        let b = Self.breath(t), k = Self.brighten(e)
+    /// The light at a time on the display's clock, ms, this long after the last new ask (nil when there has been
+    /// none).
+    public init(time t: Double, sinceAsk e: Double?, reducesMotion reduce: Bool = false) {
+        let b = reduce ? Self.held : Self.breath(t), k = reduce ? Self.brighten(e) : Self.brightenUp(e)
         let base = Self.orange.mix(Self.warm, 0.38 * b).mix(Self.hot, 0.38 * k)
-        let spots = Self.sways.map { $0.spot(at: t) }
+        let spots = Self.sways.map { $0.spot(at: reduce ? 0 : t) }
         let half = Self.bar.height / 2
 
         opacity = max(lerp(0.86, 1, b), k)
@@ -71,13 +73,25 @@ public struct LiveLight: Equatable, Sendable {
         line = 0.14 + 0.08 * b + 0.1 * k
     }
 
+    /// Whether the light changes from moment to moment: always, as it breathes, but under reduced motion only while
+    /// a new ask's brighten plays.
+    public static func moves(sinceAsk e: Double?, reducesMotion: Bool) -> Bool {
+        !reducesMotion || e.map { $0 >= 0 && $0 < reducedFlash } == true
+    }
+
+    /// Under reduced motion the breath holds here.
+    static let held = 0.6
+
+    /// How long a new ask's brighten lasts under reduced motion, ms.
+    static let reducedFlash = 540.0
+
     /// The breath: one 2.4s cosine, 0 at the trough and 1 at the peak.
     static func breath(_ t: Double) -> Double {
         0.5 - 0.5 * cos(2 * .pi * t / 2400)
     }
 
-    /// A new ask's brighten (`brightenUp`): up in 70ms, held, and back by 700ms.
-    static func brighten(_ e: Double?) -> Double {
+    /// A new ask's brighten: up in 70ms, held, and back by 700ms.
+    static func brightenUp(_ e: Double?) -> Double {
         guard let e, e >= 0, e < 700 else {
             return 0
         }
@@ -89,6 +103,21 @@ public struct LiveLight: Equatable, Sendable {
             return 1
         }
         return 1 - easeInOut((e - 200) / 500)
+    }
+
+    /// A new ask's brighten under reduced motion: up in 80ms, held, and back by 540ms.
+    static func brighten(_ e: Double?) -> Double {
+        guard let e, e >= 0, e < reducedFlash else {
+            return 0
+        }
+
+        if e < 80 {
+            return smooth(e / 80)
+        }
+        if e < 220 {
+            return 1
+        }
+        return 1 - smooth((e - 220) / 320)
     }
 
     /// A warmer spot swaying round its home along the bar, on a slow period and a slower harmonic, never travelling

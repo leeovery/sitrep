@@ -1482,8 +1482,9 @@ truth. There is still no background service. None of it is built now. Lee:
       and every 10 minutes after: it runs as long as the app does, and the
       move waits on windows reloading.
     - **Ending.** It ends, exit 0, once what reads its standard output has
-      gone, or on SIGTERM (`cli/ending.ts`). A pipe closed is found only at
-      the next write, or once the parent goes. An app that quits, however it
+      gone, or on SIGTERM (`cli/ending.ts`), which the app sends it as it
+      quits, from the quit itself, before the app can be gone. A pipe
+      closed is found only at the next write, or once the parent goes. An app that quits, however it
       quits, leaves its child to launchd, and while the board is still no
       write finds the pipe closed, so it looks each second whether its
       parent has gone: the one it found as it loaded, launchd's pid 1
@@ -1743,7 +1744,8 @@ black off a row, moved more than 4 points, closes the panel and lifts the
 notch over 140ms, 2 further out with a shadow, and it follows the pointer
 along the edge on a 50ms spring. Let go, it sets down over 220ms; let go
 past the screen's middle, it drains into this edge in 150ms, swaps to the
-other at 160 and grows out of it over 300, its ghost fading over 420.
+other at 160 and grows out of it over 300, its ghost fading over 420; no
+press takes it again until it is home there.
 Where it is let go is saved in what Lee sets, as
 its edge and how far down the screen it sits (0.42 until then), so the
 strip, centring where the notch sits, takes it too. A chosen display is
@@ -2929,8 +2931,24 @@ reaches a window only while that pane is on show).
         takes 120 and nothing fades in. The panel's length follows.
       - **The ghost.** Dragged past the screen's middle, the notch at rest
         shows on the other edge where it would land, in the panel's black
-        at 0.3: in over 140ms, out over 200, and over 420 as the notch grows
-        into it.
+        at 0.3: in over 140ms, out over 140 as the drag comes back; let go,
+        out over 420 as the notch grows into it, or over 200 on its own
+        side. A press takes no hold of the notch from a drop across until
+        it is home on the other edge, as the prototypes take none while it
+        moves.
+      - **The light's own refresh.** While anything needs Lee and the panel
+        is in, the light breathes on a link of its own at 30Hz, with the
+        notch's frames asleep. Under reduced motion the light holds still,
+        mid-breath with its spots at home, as lights.js's `drawLive` holds
+        it, a new ask a 540ms brighten in place of the 700ms one, and the
+        link runs only while that brighten plays.
+      - **Between frames.** A board, a press, a drag, a scroll or a click
+        elsewhere first brings the notch up to now, so what it starts, a
+        wash, a swell, a press, a flash, runs from the clock and never from
+        the last frame's moment, minutes old once frames have slept; and
+        frames woken after a sleep take no speed from the pointer's unseen
+        move. A move wakes them from near the notch as well as to it, so a
+        notch leaning toward the pointer sees it go.
       - **A row's project** is named as the board names it, with core's
         letters for it, ready for the strip; and an away ask's second line
         is core's.
