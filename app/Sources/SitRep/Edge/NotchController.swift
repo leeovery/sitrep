@@ -120,8 +120,8 @@ final class NotchController: NSObject {
     /// Now, as the run takes an input: the time, the pointer, whether the notch shows, and what it runs in.
     private func moment(at time: Double = Displays.now, pointer: CGPoint? = nil) -> NotchRun.Moment {
         NotchRun.Moment(
-            time: time, pointer: pointer ?? edge.stagePoint(NSEvent.mouseLocation), isShown: isShown,
-            setting: Self.setting(edge, settings)
+            time: time, pointer: pointer ?? edge.stagePoint(NSEvent.mouseLocation), pointerAt: Displays.now,
+            isShown: isShown, setting: Self.setting(edge, settings)
         )
     }
 
@@ -165,9 +165,11 @@ final class NotchController: NSObject {
         draw()
     }
 
-    /// An input the run has taken: the frame it brought the notch up to drawn, and frames to show what it did.
+    /// An input the run has taken: while frames run, the next one draws it, with whatever the frames between showed
+    /// (`NotchRun.takeShown`); while they sleep, the frame it brought the notch up to is drawn, and frames start to
+    /// show what it did.
     private func took() {
-        if isShown {
+        if isShown, link?.isPaused == true {
             draw()
         }
         wake()
@@ -177,20 +179,21 @@ final class NotchController: NSObject {
     /// paced.
     private func draw() {
         let frame = run.frame, time = run.time, pointer = run.seen, setting = Self.setting(edge, settings)
+        let shown = run.takeShown()
 
-        if frame.swapsEdge, let crossing {
+        if shown.swappedEdge, let crossing {
             self.crossing = nil
             onMoved(crossing)
         }
-        if run.phase == .closing || run.phase == .closed {
-            caption.drained(at: time)
+        if let drained = shown.drained {
+            caption.drained(at: drained)
         }
         surface.show(run.list)
         surface.show(NotchScene(
             frame: frame, hover: pointer.flatMap { run.row(at: $0, in: setting) }, scroll: run.scroll, time: time,
             now: Displays.wallNow, mirror: edge.mirror
         ))
-        drawLight(at: time)
+        drawLight(at: run.lightTime(time))
         window.ignoresMouseEvents = run.drag == nil && !(pointer.map(frame.hits) ?? false)
         pace(at: time)
     }
@@ -276,7 +279,7 @@ final class NotchController: NSObject {
             return
         }
 
-        if let drag = run.drag(width: edge.frame.width, moment(pointer: point)), drag.isCarrying {
+        if let drag = run.moved(width: edge.frame.width, moment(pointer: point)), drag.isCarrying {
             ghost.carried(across: drag.isAcross, outline: run.restingOutline(at: run.notchY), on: edge)
         }
         took()

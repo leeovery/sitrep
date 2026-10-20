@@ -10,17 +10,17 @@ struct Attract {
 }
 
 extension Meniscus {
-    /// The pointer since the last frame, as the prototype's pointer events give it: a move adds to its trail, and
-    /// entering or leaving the notch or the panel, as they were last drawn, cancels the grace or may start it. A still
-    /// pointer gets no enter or leave as the shape pours under it.
-    func pointerMoved(_ p: Vec?) {
+    /// The pointer since the last frame, read at this time, as the prototype's pointer events give it: a move adds to
+    /// its trail, and entering or leaving the notch or the panel, as they were last drawn, cancels the grace or may
+    /// start it. A still pointer gets no enter or leave as the shape pours under it.
+    func pointerMoved(_ p: Vec?, at time: Double) {
         guard p != sp else {
             return
         }
 
         sp = p
         if let p {
-            trail.add(p, at: now)
+            trail.add(p, at: time)
         }
         let over = hoverOf(p)
         guard over != hover else {

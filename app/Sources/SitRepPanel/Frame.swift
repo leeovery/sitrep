@@ -40,6 +40,10 @@ public struct Input {
     /// The pointer in stage coordinates of the edge: x its depth from the screen's edge (a pointer held at the edge
     /// is at 0), y down from the screen's top; nil while it is on another screen.
     public var pointer: CGPoint?
+    /// When the pointer was read, on the same clock: the pointer's trail measures its speed in its own time, as the
+    /// prototype's `trackPointer` stamps each sample, never in the frame's, which may be stamped ahead of it. Nil, the
+    /// frame's time.
+    public var pointerAt: Double?
     /// Whether anything needs Lee: the notch rests at 7 × 76 when nothing does, and 15 × 124 when something does.
     public var needsLee: Bool
     public var stage: Stage
@@ -48,16 +52,20 @@ public struct Input {
     public var reducesMotion: Bool
 
     public init(
-        time: Double, pointer: CGPoint?, needsLee: Bool, stage: Stage, content: Content,
+        time: Double, pointer: CGPoint?, pointerAt: Double? = nil, needsLee: Bool, stage: Stage, content: Content,
         reducesMotion: Bool = false
     ) {
         self.time = time
         self.pointer = pointer
+        self.pointerAt = pointerAt
         self.needsLee = needsLee
         self.stage = stage
         self.content = content
         self.reducesMotion = reducesMotion
     }
+
+    /// When the pointer was read.
+    var pointerTime: Double { pointerAt ?? time }
 }
 
 /// What the view draws for one frame, in stage coordinates of the edge: x from the screen's edge into the screen,

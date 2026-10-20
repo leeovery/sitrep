@@ -122,7 +122,7 @@ public final class Card: Notch {
 
         sp = p
         if let p {
-            trail.add(p, at: now)
+            trail.add(p, at: input.pointerTime)
         }
     }
 
