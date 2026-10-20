@@ -15,23 +15,53 @@ let longestSaid = 1024
 
 /// The program a watcher has running, held so that it can be stopped at
 /// once: a cancelled iteration sends its SIGTERM on a thread of its own,
-/// which an app quitting may outrun.
+/// which an app quitting may outrun. Once stopped it stays so: a program
+/// held after, one started as the stop came, is sent SIGTERM as it is
+/// held, since what it says may be heard before then.
 public final class RunningChild: Sendable {
-    private let process = OSAllocatedUnfairLock<Process?>(initialState: nil)
+    private struct Held {
+        var process: Process?
+        var isStopped = false
+    }
+
+    private let held = OSAllocatedUnfairLock(initialState: Held())
 
     public init() {}
 
-    /// Sends the running program SIGTERM now, if there is one.
+    /// Sends the running program SIGTERM now, if there is one, and any
+    /// held from now on as it is.
     public func terminate() {
-        guard let process = process.withLock({ $0 }), process.isRunning else {
-            return
+        let process = held.withLock { held in
+            held.isStopped = true
+            return held.process
         }
 
-        process.terminate()
+        process.map(Self.stop)
     }
 
-    fileprivate func hold(_ running: Process?) {
-        process.withLock { $0 = running }
+    fileprivate func hold(_ process: Process) {
+        let isStopped = held.withLock { held in
+            held.process = process
+            return held.isStopped
+        }
+
+        if isStopped {
+            Self.stop(process)
+        }
+    }
+
+    fileprivate func release(_ process: Process) {
+        held.withLock { held in
+            if held.process === process {
+                held.process = nil
+            }
+        }
+    }
+
+    private static func stop(_ process: Process) {
+        if process.isRunning {
+            process.terminate()
+        }
     }
 }
 
@@ -52,7 +82,7 @@ private func watch(_ program: Program, holding running: RunningChild) -> AsyncSt
         let stderr = Reader(longest: longestSaid)
         let exited = AsyncStream<Exit> { exited in
             process.terminationHandler = { process in
-                running.hold(nil)
+                running.release(process)
                 exited.yield(process.exit)
                 exited.finish()
                 DispatchQueue.global().asyncAfter(deadline: .now() + drainSeconds) {

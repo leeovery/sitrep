@@ -96,11 +96,14 @@ struct WatchProgramTests {
         #expect(FileManager.default.fileExists(atPath: stopped.path))
     }
 
+    /// The program waits in the shell's own `wait`, never on a child in the foreground: `Process.terminate` signals
+    /// the program's process group, and a foreground child dying of it has the shell say "Terminated: 15" on
+    /// stderr, or not, as the two race.
     @Test func theRunningProgramIsHeldAndItsHolderStopsItWithSIGTERM() async {
         let running = RunningChild()
         var heard: [Heard] = []
 
-        for await said in watchProgram(holding: running)(Self.sh("trap 'exit 0' TERM; echo ready; while :; do sleep 0.05; done")) {
+        for await said in watchProgram(holding: running)(Self.sh("sleep 60 & trap 'exit 0' TERM; echo ready; wait")) {
             heard.append(said)
 
             if said == .line("ready") {
@@ -111,11 +114,15 @@ struct WatchProgramTests {
         #expect(heard == [.line("ready"), .exited(.status(0), stderr: "")])
     }
 
-    @Test func aHolderWithNothingRunningStopsNothing() async {
+    @Test func aHolderStoppedStopsAProgramHeldAfterAtOnce() async {
         let running = RunningChild()
+        var heard: [Heard] = []
 
-        for await _ in watchProgram(holding: running)(Self.sh("exit 0")) {}
         running.terminate()
-        running.terminate()
+        for await said in watchProgram(holding: running)(Self.sh("exec sleep 60")) {
+            heard.append(said)
+        }
+
+        #expect(heard == [.exited(.signal(SIGTERM), stderr: "")])
     }
 }
