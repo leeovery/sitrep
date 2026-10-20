@@ -3,6 +3,7 @@ import {
   answerOf,
   replyState,
   askAfter,
+  waitsOnLee,
   barredBy,
   boardMessage,
   checkEdit,
@@ -708,6 +709,9 @@ const DECIDED: Body = {
 /** An edit to k1, the review, that every reply to it still fits. */
 const RETITLED: Body = { type: 'edit', item: 'k1', changes: { title: 'Review round 1, again' } }
 
+/** An edit making k1 want a yes again, after DECIDED. */
+const REVIEWED: Body = { type: 'edit', item: 'k1', changes: { wants: 'yes', yes: 'Approve' } }
+
 test('a reply an edit voided keeps when it went void, whatever later edits leave it', () => {
   const session = fold({
     logs: { [W1]: file(...POSTED, [T0 + 2 * MIN, DECIDED], [T0 + 3 * MIN, RETITLED]) },
@@ -944,6 +948,139 @@ test('an open ask whose answer reached Claude after an edit it no longer fits re
     reply: { id: 'r1' },
     since: T0 + 2 * MIN,
   })
+})
+
+test("Lee's yes on its way as Claude reopens a replied ask is Lee's answer on its way until marked: it bars another, and the ask waits on Lee no more", () => {
+  const logs: Line[] = [
+    [T0, REVIEW],
+    ...sent(T0 + MIN, 'c1', 'k1', 'comment', { note: 'Tighten the copy first' }),
+    [T0 + 3 * MIN, reopen('k1')],
+  ]
+  const letters = { [CLI]: file([T0 + 2 * MIN, reply('r1', 'k1', 'yes')]) }
+  const before = fold({ logs: { [W1]: file(...logs) }, inbox: letters })
+  const marked = fold({
+    logs: { [W1]: file(...logs, [T0 + 4 * MIN, delivered('r1')]) },
+    inbox: letters,
+  })
+
+  expect(before.asks[0]).toMatchObject({ state: 'waiting', answerOnItsWay: { id: 'r1' } })
+  expect(standing(before, 'k1')).toMatchObject({
+    is: 'onItsWay',
+    isAnswer: true,
+    reply: { id: 'r1' },
+  })
+  expect(barredBy(before.asks[0]!, 'yes')).toBe('answered')
+  expect(before.waiting).toBe(0)
+  expect(marked.asks[0]).toMatchObject({
+    state: 'closed',
+    closedBy: 'answer',
+    answer: { id: 'r1' },
+  })
+  expect(standing(marked, 'k1')).toMatchObject({ is: 'delivered', reply: { id: 'r1' } })
+})
+
+test('an answer barred keeps when it went void while the answer that barred it stays on its way, whatever else goes void meanwhile', () => {
+  const worded: Line = [
+    T0 + 4 * MIN,
+    { type: 'edit', item: 'k1', changes: { wants: 'words' } } as Body,
+  ]
+  const session = fold({
+    logs: { [W1]: file(...POSTED, worded) },
+    inbox: {
+      [CLI]: file(
+        [T0 + MIN, reply('r1', 'k1', 'ignore')],
+        [T0 + 2 * MIN, reply('r2', 'k1', 'ignore')],
+        [T0 + 3 * MIN, reply('r3', 'k1', 'comment', { note: 'Tighten the copy first' })],
+      ),
+    },
+  })
+
+  expect(session.asks[0]?.answerOnItsWay?.id).toBe('r1')
+  expect(session.replies.map(each => [each.id, each.voided, each.voidedAt])).toEqual([
+    ['r1', undefined, undefined],
+    ['r2', 'answered', T0 + 2 * MIN],
+    ['r3', 'changed', T0 + 4 * MIN],
+  ])
+})
+
+/** An ask written by its kind, a decide, before asks said what they want back: its comment is its answer. */
+const OLD_DECIDE: Line = [T0, kindAsk('k7', 'decide', 'Keep the ledger 400 days, or forever?')]
+
+const COMMENTED = reply('r1', 'k7', 'comment', { note: 'Forever, but archive after a year' })
+
+test("an edit making an old decide's comment on its way only a comment: it bars nothing, and the board says so as the bar does", () => {
+  const letters = { [CLI]: file([T0 + MIN, COMMENTED]) }
+  const before = fold({ logs: { [W1]: file(OLD_DECIDE) }, inbox: letters })
+
+  expect(before.asks[0]?.answerOnItsWay?.id).toBe('r1')
+  expect(standing(before, 'k7')).toMatchObject({ is: 'onItsWay', isAnswer: true })
+  expect(barredBy(before.asks[0]!, 'ignore')).toBe('answered')
+
+  const reshapings = [
+    { wants: 'yes', yes: 'Keep it' },
+    { wants: 'choice', options: ['400 days', 'Forever'] },
+  ]
+
+  for (const changes of reshapings) {
+    const edited: Line = [T0 + 2 * MIN, { type: 'edit', item: 'k7', changes } as Body]
+    const after = fold({ logs: { [W1]: file(OLD_DECIDE, edited) }, inbox: letters })
+    const ask = after.asks[0]!
+
+    expect(ask.answerOnItsWay, changes.wants).toBeUndefined()
+    expect(standing(after, 'k7'), changes.wants).toMatchObject({ is: 'onItsWay', isAnswer: false })
+    expect(barredBy(ask, 'ignore'), changes.wants).toBeUndefined()
+    expect(waitsOnLee(ask), 'a comment on its way: Lee has responded').toBe(false)
+  }
+})
+
+test("an ignore an old decide's comment barred comes back on its way once an edit makes the comment only a comment", () => {
+  const letters = {
+    [CLI]: file([T0 + MIN, COMMENTED], [T0 + 2 * MIN, reply('r2', 'k7', 'ignore')]),
+  }
+  const edited: Line = [
+    T0 + 3 * MIN,
+    { type: 'edit', item: 'k7', changes: { wants: 'yes' } } as Body,
+  ]
+  const before = fold({ logs: { [W1]: file(OLD_DECIDE) }, inbox: letters })
+  const after = fold({ logs: { [W1]: file(OLD_DECIDE, edited) }, inbox: letters })
+
+  expect(before.replies.map(each => [each.id, each.voided])).toEqual([
+    ['r1', undefined],
+    ['r2', 'answered'],
+  ])
+  expect(after.replies.map(each => [each.id, each.delivery, each.voided])).toEqual([
+    ['r1', 'closed', undefined],
+    ['r2', 'closed', undefined],
+  ])
+  expect(after.asks[0]?.answerOnItsWay?.id).toBe('r2')
+  expect(standing(after, 'k7')).toMatchObject({
+    is: 'onItsWay',
+    isAnswer: true,
+    reply: { id: 'r2' },
+  })
+})
+
+test("an old edit making a comment on its way a decide's answer makes it Lee's answer on its way, barring another", () => {
+  const review: Line = [T0, kindAsk('k8', 'review', 'Review round 1')]
+  const decided: Line = [
+    T0 + 2 * MIN,
+    { type: 'edit', item: 'k8', changes: { kind: 'decide' } } as Body,
+  ]
+  const session = fold({
+    logs: { [W1]: file(review, decided) },
+    inbox: {
+      [CLI]: file(
+        [T0 + MIN, reply('r1', 'k8', 'comment', { note: 'Go ahead' })],
+        [T0 + 3 * MIN, reply('r2', 'k8', 'ignore')],
+      ),
+    },
+  })
+
+  expect(session.asks[0]?.answerOnItsWay?.id).toBe('r1')
+  expect(session.replies.map(each => [each.id, each.voided])).toEqual([
+    ['r1', undefined],
+    ['r2', 'answered'],
+  ])
 })
 
 /** What bars an item of a session from taking a reply of Lee's with a verdict, as `barredBy` says. */
@@ -1266,7 +1403,7 @@ const REPLY_RULES: ReplyRule[] = [
     replies: ['r1 void finished', 'r2 void finished'],
   },
   {
-    rule: 'a mark naming a reply written before its item last reopened makes it delivered and settles nothing: the reopened ask waits on Lee',
+    rule: 'a mark naming a reply void before its item last reopened makes it delivered and settles nothing: the reopened ask waits on Lee',
     logs: [
       [at(3), delivered('r1')],
       [at(4), reopen('k1')],
@@ -1278,11 +1415,48 @@ const REPLY_RULES: ReplyRule[] = [
     waiting: 4,
   },
   {
-    rule: 'nor does a comment that was on its way as Lee closed the ask and Claude reopened it',
+    rule: 'a comment on its way as Lee closed the ask and Claude reopened it stays live, and once marked leaves the reopened ask replied',
     logs: [...sent(at(2), 'r2', 'k1', 'yes'), [at(3), reopen('k1')], [at(4), delivered('r1')]],
     letters: [to(1, 'r1', 'k1', 'comment', TIGHTEN)],
     replies: ['r1 delivered', 'r2 delivered'],
-    k1: 'waiting',
+    k1: 'replied',
+  },
+  {
+    rule: "Lee's yes on its way as Claude reopens a replied ask stays live, and once marked answers the reopened ask",
+    logs: [
+      ...sent(at(1), 'c1', 'k1', 'comment', TIGHTEN),
+      [at(3), reopen('k1')],
+      [at(4), delivered('r1')],
+    ],
+    letters: [to(2, 'r1', 'k1', 'yes')],
+    replies: ['c1 delivered', 'r1 delivered'],
+    k1: 'closed',
+  },
+  {
+    rule: 'an edit that leaves the answer on its way an answer leaves it barring a second',
+    logs: [[at(2), RETITLED]],
+    letters: [to(1, 'r1', 'k1', 'yes'), to(3, 'r2', 'k1', 'yes')],
+    replies: ['r1 waiting', 'r2 void answered'],
+  },
+  {
+    rule: 'a barred answer an edit voided stays changed through a later close, though another edit made it fit again',
+    logs: [
+      [at(3), DECIDED],
+      [at(4), REVIEWED],
+      [at(5), resolve('k1')],
+    ],
+    letters: [to(1, 'r1', 'k1', 'ignore'), to(2, 'r2', 'k1', 'yes')],
+    replies: ['r1 void resolved', 'r2 void changed'],
+  },
+  {
+    rule: 'or through the finish',
+    logs: [
+      [at(3), DECIDED],
+      [at(4), REVIEWED],
+      [at(5), finish('lee')],
+    ],
+    letters: [to(1, 'r1', 'k1', 'ignore'), to(2, 'r2', 'k1', 'yes')],
+    replies: ['r1 void finished', 'r2 void changed'],
   },
   {
     rule: 'an answer barred, and marked once its ask reopened, stays as Claude has it when the answer that barred it goes void: it is never sent again',

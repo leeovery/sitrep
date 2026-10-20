@@ -722,8 +722,10 @@ way: `not delivered: it changed since`, its item edited under it;
 `not delivered: already answered`, another answer of Lee's to its item there
 first; `not delivered: Claude closed it`, the item closed by Claude before
 it went in; `not delivered: the session was finished`, before it went in.
-One Claude was given though its item was edited under it first, so that it
-settled nothing, says both: `delivered 2m ago, but it changed since`.
+One Claude was given though it settled nothing says both and why: its item
+edited under it first, `delivered 2m ago, but it changed since`; or void as
+its item closed, and marked only once Claude had reopened it,
+`delivered 2m ago, but it was reopened since`.
 
 **One answer to an item** (20 October 2026). A send carries a reply only
 while its item takes it, as the fold would (see "Which replies go in",
@@ -867,11 +869,16 @@ Dropped for now (11 October 2026): a macOS notification for asks. Back on
     reaching an item with Lee's answer on its way is void, `answered`. A
     comment bars no answer, and nothing bars a comment but its item closed.
     An answer barred so, by Lee's answer on its way, is read again should
-    that answer go void and never go in: it reaches the item as the item
-    stands then, on its way where the item takes it, as Lee's answer on its
-    way now, else void for the reason that holds then. So a second answer an
-    edit left fitting, an ignore, goes in in place of the first the edit
-    voided, and one whose first answer Claude's close voided says
+    that answer go void, or stop being an answer, and so never go in as
+    one: it reaches the item as the item stands then, on its way where the
+    item takes it, as Lee's answer on its way now, else void for the reason
+    that holds then. On an open item the replies void `answered` since it
+    last opened are just those that answer barred, since a delivered answer
+    closes its item and a reopen leaves what it voided older than the
+    opening; the fold reads them off the replies, with no record of its own,
+    and only those: one an edit made void `changed` stays so. So a second
+    answer an edit left fitting, an ignore, goes in in place of the first
+    the edit voided, and one whose first answer Claude's close voided says
     `resolved`; none says `answered` when no answer went in.
   - **Claude closing first.** A reply on its way when Claude closes its item
     is void, `resolved`. One on its way when the session is finished is
@@ -882,7 +889,13 @@ Dropped for now (11 October 2026): a macOS notification for asks. Back on
   - **Edits.** A reply that fits its item no more is void, `changed`: one
     not yet delivered, void or not, when an edit reshapes its item (an ask
     wanting a yes made to want a choice under Lee's yes), and one reaching
-    an item an edit already reshaped. The item can be answered again.
+    an item an edit already reshaped. The item can be answered again. An
+    edit also reads the replies still on their way again, in order, against
+    the item as it now stands, so Lee's answer on its way is always an
+    answer: an ask written by its kind, a decide, whose comment on its way
+    was its answer, edited to want a yes or a choice, has that comment on
+    its way as a comment, barring nothing, and what it barred reaches the
+    ask again.
   - **Marks.** A reply void `answered`, `resolved` or `finished` that a mark
     names goes in, its message having crossed what voided it. One void
     `changed` stays void: Claude has it, and it settles nothing, its item
@@ -891,12 +904,19 @@ Dropped for now (11 October 2026): a macOS notification for asks. Back on
     Lee's yes, `→ Approve`, and the ask waits on Lee with its choice's
     buttons; Ready to send says the reply was delivered, but it changed
     since, and `board --json`'s `reply` reads it as delivered.
-  - **Reopening.** A reopen makes the replies written before it history: a
-    mark that names one after it, a void one among them (its message
-    crossing a close, or a second answer racing the first), makes it
-    delivered and settles nothing, the reply staying as it was. The item
-    stands reopened, waiting on Lee, and `reply` reads only the replies
-    written since it opened.
+  - **Reopening.** A reply on its way across a reopen stays live: Lee's
+    answer among them is still Lee's answer on its way, and once delivered
+    it settles the reopened item as it would have before, so Lee's answer
+    is never thrown away and the board's history is what Claude was told
+    (Claude reopening a `replied` ask in the turn Lee gives the yes gets
+    the yes, and the ask closes on it). A reopen of a closed item has no
+    answer on its way, since a close voids it, though a comment Lee's close
+    left on its way may still go in, leaving the reopened ask `replied`.
+    What a reopen does make history is a reply void before the item last
+    opened: a mark that names one after it, its message having crossed the
+    close, makes it delivered, keeps its void, and settles nothing, so the
+    item stands reopened, waiting on Lee. `reply` reads the replies on their
+    way, and those that settled since the item last opened.
   - **Delivery.** A delivered answer closes its item, as Lee's, and voids
     the other answers on their way to it, `answered`, leaving a comment on
     its way to go in; a delivered comment voids nothing.
@@ -1538,16 +1558,18 @@ truth. There is still no background service. None of it is built now. Lee:
       is harmless, as two lines of one writer at one moment and one `seq`
       fall to their order in the file, the same in every reader.
     - Where Lee's reply stands is core's, from the files (`replyState`), and
-      `board --json` and `watch` give it on each ask, as `reply`, from the
-      replies written since the ask last opened, by who closed it.
-      `isAnswer` says whether that reply is Lee's answer, which bars
-      another, or a comment, which bars nothing: an open ask whose `reply`
-      is `onItsWay` with `isAnswer` true takes no answer, as `sitrep answer`
-      refuses one and the pane offers none, while one with only a comment on
-      its way still takes one, its buttons standing. An ask Lee's answer
-      closed reads that answer, `delivered`, since the window's mark,
-      whatever comment is still on its way. One Claude closed reads
-      `delivered` where Lee's answer reached Claude all the same, the
+      `board --json` and `watch` give it on each ask, as `reply`, from its
+      replies on their way and those settled since the ask last opened (see
+      "Reopening", under Delivery), by who closed it. `isAnswer` says
+      whether that reply is Lee's answer, which bars another, or a comment,
+      which bars nothing; on its way, it is whether the reply is the ask's
+      answer on its way, the very fact the bar reads, so an open ask whose
+      `reply` is `onItsWay` with `isAnswer` true takes no answer, as
+      `sitrep answer` refuses one and the pane offers none, while one with
+      only a comment on its way still takes one, its buttons standing. An
+      ask Lee's answer closed reads that answer, `delivered`, since the
+      window's mark, whatever comment is still on its way. One Claude closed
+      reads `delivered` where Lee's answer reached Claude all the same, the
       message crossing the resolve; else `notDelivered`, since Claude closed
       it, where Lee's reply was still on its way then, or reached it after:
       it never goes in, as a pane's send to a closed ask does not, and the

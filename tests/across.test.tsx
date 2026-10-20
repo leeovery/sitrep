@@ -9,6 +9,7 @@ import {
   file,
   finish,
   MIN,
+  reopen,
   reply,
   resolve,
   SLOW,
@@ -412,6 +413,28 @@ test('a sent reply Claude was given though its ask changed under it first shows 
   expect(await ui.find({ type: 'Text', text: '✓ delivered' })).toBeDefined()
   expect(
     await ui.find({ type: 'Text', text: '· delivered just now, but it changed since' }),
+  ).toBeDefined()
+})
+
+test('a sent reply Claude was given only after its ask was closed and reopened shows there as delivered, saying it was reopened since', async ($, on) => {
+  const w = world($, on)
+  const { ledger, ui } = await threeSessions(w)
+
+  await answer(ui, LEDGER, 'k3')
+  await ui.press({ key: 'send' })
+
+  const [letter] = repliesIn(w, LETTERS)
+
+  await w.clock.advance(MIN)
+  ledger.write(resolve('k3'))
+  await w.clock.advance(MIN)
+  ledger.write(reopen('k3'))
+  ledger.write(delivered(letter?.id ?? ''))
+  await w.clock.advance(AROUND_MS)
+
+  expect(await ui.find({ type: 'Text', text: '✓ delivered' })).toBeDefined()
+  expect(
+    await ui.find({ type: 'Text', text: '· delivered just now, but it was reopened since' }),
   ).toBeDefined()
 })
 

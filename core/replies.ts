@@ -83,6 +83,17 @@ export const yesOf = (ask: Pick<Ask, 'yes'>) => ask.yes ?? 'yes'
 export const isPending = (reply: Reply) =>
   reply.delivery === 'waiting' || reply.delivery === 'closed'
 
+/** When a reply stopped being on its way: as it went void, else as it was delivered; never, while on its way. */
+const settledAt = (reply: Reply) => reply.voidedAt ?? reply.deliveredAt ?? Infinity
+
+/**
+ * Whether a reply settled before its item last opened: history to the item
+ * as it now stands, which a mark naming it later leaves so. One on its way
+ * across a reopen is not, and settles the reopened item once delivered.
+ */
+export const isBeforeOpening = (item: Ask | Parked, reply: Reply) =>
+  settledAt(reply) < item.openedAt
+
 /**
  * Whether a verdict is Lee's answer to an item, which closes it once
  * delivered: a yes, a choice, an answer or an ignore to an ask, and a
@@ -148,33 +159,45 @@ export const waitingOnLee = (session: Pick<Session, 'asks' | 'finished'>): Ask[]
 export type ReplyState = {
   is: 'onItsWay' | 'delivered' | 'notDelivered'
   reply: Reply
+  /** Whether it is Lee's answer, not a comment; on its way, whether it is the answer on its way, which bars another. */
+  isAnswer: boolean
   since: number
 }
 
 /** When a reply last moved: delivered, gone void, or else sent. */
 const movedAt = (reply: Reply) => reply.deliveredAt ?? reply.voidedAt ?? reply.at
 
-const standing = (is: ReplyState['is'], reply: Reply | undefined): ReplyState | undefined =>
-  reply === undefined ? undefined : { is, reply, since: movedAt(reply) }
+const standing = (
+  ask: Ask,
+  is: ReplyState['is'],
+  reply: Reply | undefined,
+): ReplyState | undefined =>
+  reply === undefined
+    ? undefined
+    : {
+        is,
+        reply,
+        isAnswer: is === 'onItsWay' ? reply === ask.answerOnItsWay : isAnswer(ask, reply.verdict),
+        since: movedAt(reply),
+      }
 
-/** Where Lee's reply to an ask stands, from those written since it last opened; on one still open, an answer Claude has may be one an edit left unfit. */
+/** Where Lee's reply to an ask stands, from those on their way or settled since it last opened; on one still open, an answer Claude has may be one an edit left unfit. */
 export const replyState = (ask: Ask): ReplyState | undefined => {
   if (ask.closedBy === 'answer' || ask.closedBy === 'ignore') {
-    return standing('delivered', ask.answer)
+    return standing(ask, 'delivered', ask.answer)
   }
 
-  const since = ask.replies.filter(reply => reply.at >= ask.openedAt)
-  const had = standing(
-    'delivered',
-    since.findLast(reply => reply.deliveredAt !== undefined && isAnswer(ask, reply.verdict)),
+  const since = ask.replies.filter(reply => !isBeforeOpening(ask, reply))
+  const had = since.findLast(
+    reply => reply.deliveredAt !== undefined && isAnswer(ask, reply.verdict),
   )
   const left = since.findLast(reply => reply.voided === 'resolved')
 
   if (ask.closedBy === 'claude') {
-    return had ?? standing('notDelivered', left)
+    return standing(ask, 'delivered', had) ?? standing(ask, 'notDelivered', left)
   }
 
-  return standing('onItsWay', replyOnItsWay(ask)) ?? had
+  return standing(ask, 'onItsWay', replyOnItsWay(ask)) ?? standing(ask, 'delivered', had)
 }
 
 const quoted = (note: string) => `“${note}”`

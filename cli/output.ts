@@ -13,7 +13,6 @@
 import {
   answerOf,
   brief,
-  isAnswer,
   isSameName,
   listedProjects,
   projectAround,
@@ -141,7 +140,7 @@ const replyJson = (ask: Ask) => {
     ? null
     : {
         is: state.is,
-        isAnswer: isAnswer(ask, state.reply.verdict),
+        isAnswer: state.isAnswer,
         words: answerOf(ask, state.reply),
         since: state.since,
       }

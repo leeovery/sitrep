@@ -15,6 +15,7 @@ import {
   closedReason,
   fits,
   isAnswer,
+  isBeforeOpening,
   isOpen,
   isPending,
   pickUpLog,
@@ -66,8 +67,6 @@ type Fold = {
   replies: Map<string, Reply>
   /** Delivered marks read before the reply they name, by reply. */
   early: Map<string, number>
-  /** Answers void as they reached an item with Lee's answer on its way there, by that answer: read again should it never go in. */
-  barred: Map<Reply, Reply[]>
   ids: Set<string>
   finished?: Finished
   /** Status and pick-up lines as derived, and notes, resolved to lines once the fold ends so edits show. */
@@ -151,16 +150,11 @@ const voidedOnArrival = (
 /** A reply reaching its item at `at`, on its way or void as the item stands then: an answer on its way is Lee's answer on its way there. */
 const arrive = (fold: Fold, item: Ask | Parked, reply: Reply, at: number) => {
   const voided = voidedOnArrival(fold, item, reply)
-  const ahead = item.answerOnItsWay
 
   if (voided !== undefined) {
     reply.delivery = 'void'
     reply.voided = voided
     reply.voidedAt = at
-
-    if (voided === 'answered' && ahead !== undefined) {
-      fold.barred.set(ahead, [...(fold.barred.get(ahead) ?? []), reply])
-    }
 
     return
   }
@@ -174,20 +168,56 @@ const arrive = (fold: Fold, item: Ask | Parked, reply: Reply, at: number) => {
   }
 }
 
-/** Voids a reply not delivered; the answers it barred, as Lee's answer on its way, reach the item again as it stands now, since it never goes in. */
+/**
+ * The answers `ahead`, Lee's answer on its way until now, barred, reaching
+ * the item again, in order, as it stands now that it bars them no more. On
+ * an open item a reply void `answered` since the item last opened was
+ * barred by that answer and nothing else: a delivered answer closes its
+ * item, and a reopen leaves what it voided older than the opening.
+ */
+const unbar = (fold: Fold, item: Ask | Parked, ahead: Reply, at: number) => {
+  for (const reply of item.replies) {
+    if (reply !== ahead && reply.voided === 'answered' && !isBeforeOpening(item, reply)) {
+      arrive(fold, item, reply, at)
+    }
+  }
+}
+
+/** Voids a reply not delivered; where it was Lee's answer on its way, what it barred reaches the item again, since it never goes in. */
 const voidReply = (fold: Fold, item: Ask | Parked, reply: Reply, voided: Voided, at: number) => {
+  const wasAhead = item.answerOnItsWay === reply
+
   reply.delivery = 'void'
   reply.voided = voided
   reply.voidedAt = at
   arrived(item, reply)
 
-  for (const barred of fold.barred.get(reply) ?? []) {
-    if (barred.voided === 'answered' && barred.deliveredAt === undefined) {
-      arrive(fold, item, barred, at)
+  if (wasAhead) {
+    unbar(fold, item, reply, at)
+  }
+}
+
+/**
+ * An item as an edit leaves it, the replies on their way reaching it again
+ * in order: Lee's answer on its way is the first of them that is an answer
+ * now, and bars the rest. One no longer the answer on its way, a decide's
+ * comment once its ask wants a yes, bars nothing, and what it barred
+ * reaches the item again.
+ */
+const reread = (fold: Fold, item: Ask | Parked, at: number) => {
+  const ahead = item.answerOnItsWay
+
+  item.answerOnItsWay = undefined
+
+  for (const reply of item.replies) {
+    if (isPending(reply)) {
+      arrive(fold, item, reply, at)
     }
   }
 
-  fold.barred.delete(reply)
+  if (ahead !== undefined && item.answerOnItsWay !== ahead) {
+    unbar(fold, item, ahead, at)
+  }
 }
 
 /** Voids the replies on their way to an item that `isVoided` picks, saying why: none of them goes in from here. */
@@ -207,10 +237,10 @@ const voidOnItsWay = (
 
 /**
  * A reply Claude has, as a mark says, whatever else is true of it. One its
- * item changed under, or written before the item last opened, settles
- * nothing, and stays as it was: the item stands as it is now. Any other
- * goes in as if never void, settling its item, and an answer voids any
- * other on its way there.
+ * item changed under, or void before the item last opened, settles
+ * nothing, and stays as it was: the item stands as it is now. Any other,
+ * one on its way across a reopen among them, goes in as if never void,
+ * settling its item, and an answer voids any other on its way there.
  */
 const deliver = (fold: Fold, reply: Reply, at: number) => {
   const item = fold.items.get(reply.item)
@@ -224,7 +254,7 @@ const deliver = (fold: Fold, reply: Reply, at: number) => {
 
   arrived(item, reply)
 
-  if (reply.voided === 'changed' || reply.at < item.openedAt) {
+  if (reply.voided === 'changed' || isBeforeOpening(item, reply)) {
     return
   }
 
@@ -408,6 +438,7 @@ const HANDLERS: { [T in Body['type']]: Handler<T> } = {
 
     if (item.type !== 'note') {
       voidUnfit(fold, item, at)
+      reread(fold, item, at)
     }
   },
 
@@ -524,7 +555,6 @@ export const foldSession = (
     items: new Map(),
     replies: new Map(),
     early: new Map(),
-    barred: new Map(),
     ids: new Set(),
     log: [],
   }

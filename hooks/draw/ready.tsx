@@ -41,6 +41,18 @@ const NOT_DELIVERED: Record<Voided, string> = {
   finished: '· not delivered: the session was finished',
 }
 
+/**
+ * What a sent reply Claude has that settled nothing says after when it went
+ * in: its item changed under it, or, void as its item closed, was reopened
+ * before a mark said Claude has it.
+ */
+const UNSETTLED: Record<Voided, string> = {
+  changed: ', but it changed since',
+  answered: ', but it was reopened since',
+  resolved: ', but it was reopened since',
+  finished: ', but it was reopened since',
+}
+
 /** Where a group's sent replies stand, as its line says it. */
 const STANDING: Record<Delivery, { text: string; color: string }> = {
   delivered: { text: `${GLYPH.done} delivered`, color: C.ok },
@@ -285,15 +297,15 @@ const drawQueuedEntry = (d: Drawing, entry: Queued) => {
   )
 }
 
-/** Whether Claude has a sent reply, and since when; one its item changed under says so, as it settled nothing. */
+/** Whether Claude has a sent reply, and since when; one that settled nothing says why. */
 const sentWords = (now: number, sent: Reply) => {
   if (sent.deliveredAt === undefined) {
     return sent.voided === undefined ? '· on its way' : NOT_DELIVERED[sent.voided]
   }
 
-  const changed = sent.voided === 'changed' ? ', but it changed since' : ''
+  const unsettled = sent.voided === undefined ? '' : UNSETTLED[sent.voided]
 
-  return `· delivered ${agoWords(now, sent.deliveredAt)}${changed}`
+  return `· delivered ${agoWords(now, sent.deliveredAt)}${unsettled}`
 }
 
 /** A reply sent into the session's inbox, as the box lists it: what it answers, and whether Claude has it yet. */
