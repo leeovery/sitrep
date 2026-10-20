@@ -68,7 +68,8 @@ export type SitrepAsk = SitrepPosted & {
   needs?: string
   state: 'waiting' | 'replied' | 'closed' | 'ignored'
   answer?: SitrepReply
-  onItsWay?: SitrepReply
+  /** Lee's answer on its way to it: core's `answerOnItsWay`. */
+  answerOnItsWay?: SitrepReply
   replies: SitrepReply[]
 }
 
@@ -85,7 +86,8 @@ export type SitrepParked = SitrepPosted & {
   where?: string
   state: 'parked' | 'picked' | 'closed'
   answer?: SitrepReply
-  onItsWay?: SitrepReply
+  /** Lee's answer on its way to it: core's `answerOnItsWay`. */
+  answerOnItsWay?: SitrepReply
   replies: SitrepReply[]
 }
 

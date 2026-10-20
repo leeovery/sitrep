@@ -452,7 +452,7 @@ const quotedOr = (answers: readonly string[]) => inWords(answers.map(each => `â€
 const ANSWER_RULES: readonly [breaks: (ask: Ask) => boolean, error: (ask: Ask) => string][] = [
   [ask => ask.state === 'ignored', ask => `${ask.id} is already ignored.`],
   [ask => ask.state === 'closed', ask => `${ask.id} is already closed.`],
-  [ask => ask.onItsWay !== undefined, ask => `An answer to ${ask.id} is on its way already.`],
+  [ask => ask.answerOnItsWay !== undefined, ask => `An answer to ${ask.id} is on its way already.`],
 ]
 
 const OLD_WINDOW =

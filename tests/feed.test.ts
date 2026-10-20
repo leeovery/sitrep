@@ -1,6 +1,6 @@
 import { expect, test } from 'claude-code/testing'
 import {
-  answerState,
+  replyState,
   brief,
   CURRENT_MS,
   feedOf,
@@ -409,7 +409,7 @@ test("watch lists a session's asks as board --json does, a replied one among the
 
   expect(watched?.sessions[0]?.asks.map(each => each.id)).toEqual(['k1', 'k2'])
   expect(watched?.sessions[0]?.asks).toEqual(brief(session).asks)
-  expect(answerState(session.asks[1]!)).toMatchObject({ is: 'onItsWay', reply: { id: 'r2' } })
+  expect(replyState(session.asks[1]!)).toMatchObject({ is: 'onItsWay', reply: { id: 'r2' } })
 })
 
 test('an answer gone void, its ask edited under it, leaves the ask waiting on Lee again', () => {

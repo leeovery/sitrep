@@ -109,19 +109,23 @@ export const closingReply = (ask: Ask) => (ask.closedBy === 'answer' ? ask.answe
 
 /** The reply an item waits on Claude with, sent from a board into its session's inbox: Lee's answer, else the latest comment. */
 export const replyOnItsWay = (item: Ask | Parked) =>
-  item.onItsWay ?? item.replies.findLast(isPending)
+  item.answerOnItsWay ?? item.replies.findLast(isPending)
+
+/** Why a closed item takes no reply: `answered` where Lee closed it, `resolved` where Claude did. */
+export const closedReason = (item: Pick<Item, 'closedBy'>): Barred =>
+  item.closedBy === 'claude' ? 'resolved' : 'answered'
 
 /**
  * What keeps an item from taking a reply of Lee's with this verdict now;
- * undefined while it takes one. A closed item takes none, `answered` where
- * Lee closed it; an open one, no second answer while Lee's is on its way.
+ * undefined while it takes one. A closed item takes none; an open one, no
+ * second answer while Lee's is on its way.
  */
 export const barredBy = (item: Ask | Parked, verdict: Verdict): Barred | undefined => {
   if (item.closedBy !== undefined) {
-    return item.closedBy === 'claude' ? 'resolved' : 'answered'
+    return closedReason(item)
   }
 
-  return isAnswer(item, verdict) && item.onItsWay !== undefined ? 'answered' : undefined
+  return isAnswer(item, verdict) && item.answerOnItsWay !== undefined ? 'answered' : undefined
 }
 
 /**
@@ -136,12 +140,12 @@ export const waitingOnLee = (session: Pick<Session, 'asks' | 'finished'>): Ask[]
   session.finished === undefined ? session.asks.filter(waitsOnLee) : []
 
 /**
- * Where Lee's answer to an ask stands: on its way, in its session's inbox
+ * Where Lee's reply to an ask stands: on its way, in its session's inbox
  * until a window of the session delivers it; delivered, Claude having it;
  * or not delivered, Claude having closed the ask first. `since` is when it
  * was sent, delivered, or left.
  */
-export type AnswerState = {
+export type ReplyState = {
   is: 'onItsWay' | 'delivered' | 'notDelivered'
   reply: Reply
   since: number
@@ -150,16 +154,16 @@ export type AnswerState = {
 /** When a reply last moved: delivered, gone void, or else sent. */
 const movedAt = (reply: Reply) => reply.deliveredAt ?? reply.voidedAt ?? reply.at
 
-const standing = (is: AnswerState['is'], reply: Reply | undefined): AnswerState | undefined =>
+const standing = (is: ReplyState['is'], reply: Reply | undefined): ReplyState | undefined =>
   reply === undefined ? undefined : { is, reply, since: movedAt(reply) }
 
-/** Where Lee's answer to an ask stands, from its replies since it last opened; on one still open, an answer Claude has may be one an edit left unfit. */
-export const answerState = (ask: Ask): AnswerState | undefined => {
+/** Where Lee's reply to an ask stands, from those written since it last opened; on one still open, an answer Claude has may be one an edit left unfit. */
+export const replyState = (ask: Ask): ReplyState | undefined => {
   if (ask.closedBy === 'answer' || ask.closedBy === 'ignore') {
     return standing('delivered', ask.answer)
   }
 
-  const since = ask.replies.filter(reply => movedAt(reply) >= ask.openedAt)
+  const since = ask.replies.filter(reply => reply.at >= ask.openedAt)
   const had = standing(
     'delivered',
     since.findLast(reply => reply.deliveredAt !== undefined && isAnswer(ask, reply.verdict)),

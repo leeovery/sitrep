@@ -67,7 +67,7 @@ test("a writer's own file and its letters count apart: of their lines at one mom
   })
 
   expect(session.replies[0]?.voided, 'the reply comes after the reopen').toBeUndefined()
-  expect(session.asks[0]?.onItsWay?.id).toBe('r1')
+  expect(session.asks[0]?.answerOnItsWay?.id).toBe('r1')
 })
 
 test('the latest status across writers wins, whoever wrote it', () => {

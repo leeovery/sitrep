@@ -12,6 +12,7 @@ import { parseProject, projectName } from './project'
 import {
   askAfter,
   barredBy,
+  closedReason,
   fits,
   isAnswer,
   isOpen,
@@ -65,6 +66,8 @@ type Fold = {
   replies: Map<string, Reply>
   /** Delivered marks read before the reply they name, by reply. */
   early: Map<string, number>
+  /** Answers void as they reached an item with Lee's answer on its way there, by that answer: read again should it never go in. */
+  barred: Map<Reply, Reply[]>
   ids: Set<string>
   finished?: Finished
   /** Status and pick-up lines as derived, and notes, resolved to lines once the fold ends so edits show. */
@@ -127,20 +130,69 @@ const settleParked = (fold: Fold, parked: Parked, reply: Reply, at: number) => {
 
 /** A reply on its way no more, delivered or void: its item's answer on its way no longer. */
 const arrived = (item: Ask | Parked, reply: Reply) => {
-  if (item.onItsWay === reply) {
-    item.onItsWay = undefined
+  if (item.answerOnItsWay === reply) {
+    item.answerOnItsWay = undefined
   }
 }
 
-const voidReply = (item: Ask | Parked, reply: Reply, voided: Voided, at: number) => {
+/** Why a reply is void as it reaches its item; undefined while it goes on its way. */
+const voidedOnArrival = (
+  fold: Fold,
+  item: Ask | Parked,
+  reply: ReplyFields,
+): Voided | undefined => {
+  if (!fits(item, reply)) {
+    return 'changed'
+  }
+
+  return fold.finished === undefined ? barredBy(item, reply.verdict) : 'finished'
+}
+
+/** A reply reaching its item at `at`, on its way or void as the item stands then: an answer on its way is Lee's answer on its way there. */
+const arrive = (fold: Fold, item: Ask | Parked, reply: Reply, at: number) => {
+  const voided = voidedOnArrival(fold, item, reply)
+  const ahead = item.answerOnItsWay
+
+  if (voided !== undefined) {
+    reply.delivery = 'void'
+    reply.voided = voided
+    reply.voidedAt = at
+
+    if (voided === 'answered' && ahead !== undefined) {
+      fold.barred.set(ahead, [...(fold.barred.get(ahead) ?? []), reply])
+    }
+
+    return
+  }
+
+  reply.delivery = fold.isOpen ? 'waiting' : 'closed'
+  reply.voided = undefined
+  reply.voidedAt = undefined
+
+  if (isAnswer(item, reply.verdict)) {
+    item.answerOnItsWay = reply
+  }
+}
+
+/** Voids a reply not delivered; the answers it barred, as Lee's answer on its way, reach the item again as it stands now, since it never goes in. */
+const voidReply = (fold: Fold, item: Ask | Parked, reply: Reply, voided: Voided, at: number) => {
   reply.delivery = 'void'
   reply.voided = voided
   reply.voidedAt = at
   arrived(item, reply)
+
+  for (const barred of fold.barred.get(reply) ?? []) {
+    if (barred.voided === 'answered' && barred.deliveredAt === undefined) {
+      arrive(fold, item, barred, at)
+    }
+  }
+
+  fold.barred.delete(reply)
 }
 
 /** Voids the replies on their way to an item that `isVoided` picks, saying why: none of them goes in from here. */
 const voidOnItsWay = (
+  fold: Fold,
   item: Ask | Parked,
   at: number,
   voided: Voided,
@@ -148,16 +200,17 @@ const voidOnItsWay = (
 ) => {
   for (const reply of item.replies) {
     if (isPending(reply) && isVoided(reply)) {
-      voidReply(item, reply, voided, at)
+      voidReply(fold, item, reply, voided, at)
     }
   }
 }
 
 /**
- * A reply Claude has, as a mark says, whatever else is true of it. Unless
- * its item changed under it, it goes in as if never void, settling its
- * item, and an answer voids any other on its way there; one its item
- * changed under settles nothing, and the item stays open to its new shape.
+ * A reply Claude has, as a mark says, whatever else is true of it. One its
+ * item changed under, or written before the item last opened, settles
+ * nothing, and stays as it was: the item stands as it is now. Any other
+ * goes in as if never void, settling its item, and an answer voids any
+ * other on its way there.
  */
 const deliver = (fold: Fold, reply: Reply, at: number) => {
   const item = fold.items.get(reply.item)
@@ -171,7 +224,7 @@ const deliver = (fold: Fold, reply: Reply, at: number) => {
 
   arrived(item, reply)
 
-  if (reply.voided === 'changed') {
+  if (reply.voided === 'changed' || reply.at < item.openedAt) {
     return
   }
 
@@ -185,15 +238,15 @@ const deliver = (fold: Fold, reply: Reply, at: number) => {
   }
 
   if (isAnswer(item, reply.verdict)) {
-    voidOnItsWay(item, at, 'answered', other => isAnswer(item, other.verdict))
+    voidOnItsWay(fold, item, at, 'answered', other => isAnswer(item, other.verdict))
   }
 }
 
 /** Voids every reply not delivered that fits its item no more, one void already among them, as an edit does. */
-const voidUnfit = (item: Ask | Parked, at: number) => {
+const voidUnfit = (fold: Fold, item: Ask | Parked, at: number) => {
   for (const reply of item.replies) {
     if (reply.deliveredAt === undefined && reply.voided !== 'changed' && !fits(item, reply)) {
-      voidReply(item, reply, 'changed', at)
+      voidReply(fold, item, reply, 'changed', at)
     }
   }
 }
@@ -229,32 +282,6 @@ const reshape = (ask: Ask, { wants, kind }: EditBody['changes']) => {
   }
 
   fitShape(ask)
-}
-
-/** Why a reply is void as it reaches its item; undefined while it goes on its way. */
-const voidedOnArrival = (
-  fold: Fold,
-  item: Ask | Parked,
-  reply: ReplyFields,
-): Voided | undefined => {
-  if (!fits(item, reply)) {
-    return 'changed'
-  }
-
-  return fold.finished === undefined ? barredBy(item, reply.verdict) : 'finished'
-}
-
-const startOf = (
-  fold: Fold,
-  item: Ask | Parked,
-  reply: ReplyFields,
-  at: number,
-): Pick<Reply, 'delivery' | 'voided' | 'voidedAt'> => {
-  const voided = voidedOnArrival(fold, item, reply)
-
-  return voided === undefined
-    ? { delivery: fold.isOpen ? 'waiting' : 'closed' }
-    : { delivery: 'void', voided, voidedAt: at }
 }
 
 const reopen = (item: Item, at: number) => {
@@ -346,7 +373,7 @@ const HANDLERS: { [T in Body['type']]: Handler<T> } = {
     }
 
     if (item.type !== 'note') {
-      voidOnItsWay(item, at, 'resolved')
+      voidOnItsWay(fold, item, at, closedReason(item))
     }
   },
 
@@ -380,7 +407,7 @@ const HANDLERS: { [T in Body['type']]: Handler<T> } = {
     item.reason = reason
 
     if (item.type !== 'note') {
-      voidUnfit(item, at)
+      voidUnfit(fold, item, at)
     }
   },
 
@@ -391,16 +418,12 @@ const HANDLERS: { [T in Body['type']]: Handler<T> } = {
       return
     }
 
-    const fields = { item: target, verdict, option, note }
-    const reply: Reply = { id, ...fields, by, at, ...startOf(fold, item, fields, at) }
+    const reply: Reply = { id, item: target, verdict, option, note, by, at, delivery: 'waiting' }
     const early = fold.early.get(id)
 
+    arrive(fold, item, reply, at)
     fold.replies.set(id, reply)
     item.replies.push(reply)
-
-    if (isPending(reply) && isAnswer(item, verdict)) {
-      item.onItsWay = reply
-    }
 
     if (early !== undefined) {
       deliver(fold, reply, early)
@@ -424,7 +447,7 @@ const HANDLERS: { [T in Body['type']]: Handler<T> } = {
 
     for (const item of fold.items.values()) {
       if (item.type !== 'note') {
-        voidOnItsWay(item, at, 'finished')
+        voidOnItsWay(fold, item, at, 'finished')
       }
     }
   },
@@ -501,6 +524,7 @@ export const foldSession = (
     items: new Map(),
     replies: new Map(),
     early: new Map(),
+    barred: new Map(),
     ids: new Set(),
     log: [],
   }

@@ -92,16 +92,16 @@ const TAKE_IN = 2 * WATCH_MS
 
 type Run = ReturnType<ReturnType<typeof terminal>['run']>
 
-/** Where Lee's answer to each of the session's asks stands, as `board --json` gives it: the open asks', and the resolved ones'. */
-const answerIn = async (cli: (...words: string[]) => Run) => {
+/** Where Lee's reply to each of the session's asks stands, as `board --json` gives it: the open asks', and the resolved ones'. */
+const replyIn = async (cli: (...words: string[]) => Run) => {
   const board = JSON.parse((await cli('board', '--json')).out) as {
-    asks: { answer: unknown }[]
-    resolved: { answer: unknown }[]
+    asks: { reply: unknown }[]
+    resolved: { reply: unknown }[]
   }
 
   return {
-    asks: board.asks.map(ask => ask.answer),
-    resolved: board.resolved.map(ask => ask.answer),
+    asks: board.asks.map(ask => ask.reply),
+    resolved: board.resolved.map(ask => ask.reply),
   }
 }
 
@@ -114,7 +114,7 @@ test("the CLI's answer goes in from the session's window as Lee's own message, o
 
   await w.clock.advance(MIN)
   expect((await cli('answer', asked, 'Go')).exit).toBe(EXIT.done)
-  expect(await answerIn(cli)).toMatchObject({ asks: [{ is: 'onItsWay' }], resolved: [] })
+  expect(await replyIn(cli)).toMatchObject({ asks: [{ is: 'onItsWay' }], resolved: [] })
 
   await w.clock.advance(TAKE_IN)
 
@@ -131,7 +131,7 @@ test("the CLI's answer goes in from the session's window as Lee's own message, o
   expect(lines.map(line => line.type)).toEqual(['ask', 'delivered'])
   expect(lines.at(-1)).toMatchObject({ replies: answered })
   expect(w.state.board?.asks[0]?.state).toBe('closed')
-  expect(await answerIn(cli)).toMatchObject({
+  expect(await replyIn(cli)).toMatchObject({
     asks: [],
     resolved: [{ is: 'delivered', words: '→ Go', since: lines.at(-1)?.at }],
   })
@@ -294,7 +294,7 @@ test("an answer the CLI writes while the window's send waits out Claude's turn n
     delivery: 'void',
     voided: 'answered',
   })
-  expect(await answerIn(cli)).toMatchObject({
+  expect(await replyIn(cli)).toMatchObject({
     resolved: [{ is: 'delivered', words: '→ Keep it' }],
   })
 })
@@ -352,7 +352,7 @@ test('an answer to a session no window holds waits in its inbox, and goes in onc
   await w.clock.advance(TAKE_IN)
 
   expect(w.prompts, 'no window holds it').toEqual([])
-  expect(await answerIn(cli)).toMatchObject({ asks: [{ is: 'onItsWay' }] })
+  expect(await replyIn(cli)).toMatchObject({ asks: [{ is: 'onItsWay' }] })
 
   await w.call('join', { session: LEDGER.id })
   await w.clock.advance(TAKE_IN)
@@ -361,5 +361,5 @@ test('an answer to a session no window holds waits in its inbox, and goes in onc
     'From the board:\n- Review the ledger schema → Approve',
   ])
   expect(parseEntries(w.text(ledger.paths.log(W1))).at(-1)).toMatchObject({ type: 'delivered' })
-  expect(await answerIn(cli)).toMatchObject({ asks: [], resolved: [{ is: 'delivered' }] })
+  expect(await replyIn(cli)).toMatchObject({ asks: [], resolved: [{ is: 'delivered' }] })
 })

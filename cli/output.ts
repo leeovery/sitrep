@@ -12,11 +12,12 @@
  */
 import {
   answerOf,
-  answerState,
   brief,
+  isAnswer,
   isSameName,
   listedProjects,
   projectAround,
+  replyState,
   resolvedAsks,
   type Ask,
   type Feed,
@@ -132,13 +133,18 @@ export const listJson = ({ here, projects }: Listing, onScreen: ReadonlySet<stri
     projects: projects.map(project => projectJson(project, onScreen)),
   })
 
-/** Where Lee's answer to an ask stands, and its words as the board shows them on one row; null where `answerState` gives none. */
-const answerJson = (ask: Ask) => {
-  const answer = answerState(ask)
+/** Where Lee's reply to an ask stands, whether it is Lee's answer, which bars another, and its words as the board shows them on one row; null where `replyState` gives none. */
+const replyJson = (ask: Ask) => {
+  const state = replyState(ask)
 
-  return answer === undefined
+  return state === undefined
     ? null
-    : { is: answer.is, words: answerOf(ask, answer.reply), since: answer.since }
+    : {
+        is: state.is,
+        isAnswer: isAnswer(ask, state.reply.verdict),
+        words: answerOf(ask, state.reply),
+        since: state.since,
+      }
 }
 
 const askJson = (ask: Ask) => ({
@@ -152,7 +158,7 @@ const askJson = (ask: Ask) => ({
   ref: ask.ref ?? null,
   state: ask.state,
   at: ask.at,
-  answer: answerJson(ask),
+  reply: replyJson(ask),
 })
 
 /** A resolved ask: as an open one is, with when it closed, and Claude's reason, where Claude gave one as it resolved the ask. */

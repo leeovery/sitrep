@@ -5,8 +5,8 @@
  *
  * - The rows, in the panel's order, and the head (rows.ts).
  * - Each project with a current session, and those sessions, away ones
- *   among them and never a finished one, each with its state and the asks
- *   waiting, on Lee or on Lee's answer going in. They are in the SitRep
+ *   among them and never a finished one, each with its state and its open
+ *   asks, as `board --json` lists them (`openAsks`). They are in the SitRep
  *   window's order, the rows': a session where its first row sits, those
  *   with none after, the latest updated first; a project where its first
  *   session sits.
@@ -50,7 +50,7 @@ export type FeedSession = SessionSummary & {
   state: SessionState
   /** When its state began: its first row's time; with no row, its latest line's. */
   since: number
-  /** The asks waiting, on Lee or on Lee's answer going in, oldest first. */
+  /** Its open asks, oldest first: waiting, on Lee or on a reply of Lee's going in, or replied, Claude's to act on. */
   asks: Ask[]
 }
 

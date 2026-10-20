@@ -57,12 +57,12 @@ const folded = async (t: Terminal, paths: SessionPaths) => {
   return session
 }
 
-type Answer = { is: string; words: string; since: number } | null
+type ReplyStanding = { is: string; isAnswer: boolean; words: string; since: number } | null
 
 type Board = {
   work: { waiting: number }
-  asks: { id: string; state: string; answer: Answer }[]
-  resolved: { id: string; answer: Answer; closedAt: number | null; reason: string | null }[]
+  asks: { id: string; state: string; reply: ReplyStanding }[]
+  resolved: { id: string; reply: ReplyStanding; closedAt: number | null; reason: string | null }[]
 }
 
 const boardOf = async (t: Terminal) =>
@@ -113,7 +113,7 @@ test('the board never closes an ask on the answer alone: it stays open, its answ
   expect((await boardOf(t)).asks[0]).toMatchObject({
     id: 'k1',
     state: 'waiting',
-    answer: { is: 'onItsWay', words: '→ Go', since: NOW },
+    reply: { is: 'onItsWay', isAnswer: true, words: '→ Go', since: NOW },
   })
 })
 
@@ -134,14 +134,14 @@ test("once a window marks it delivered, board --json has the ask resolved, Lee's
   expect(board.resolved).toMatchObject([
     {
       id: 'k2',
-      answer: { is: 'delivered', words: '→ Keep it', since: markedAt },
+      reply: { is: 'delivered', isAnswer: true, words: '→ Keep it', since: markedAt },
       closedAt: markedAt,
       reason: null,
     },
   ])
 })
 
-test("an ask Claude resolved shows in board --json's resolved with Claude's reason and no answer; the newest closed first", async () => {
+test("an ask Claude resolved shows in board --json's resolved with Claude's reason and no reply; the newest closed first", async () => {
   const t = terminal()
 
   t.seed(META, {
@@ -153,8 +153,8 @@ test("an ask Claude resolved shows in board --json's resolved with Claude's reas
   })
 
   expect((await boardOf(t)).resolved).toMatchObject([
-    { id: 'k2', answer: null, closedAt: T0 + 2 * MIN, reason: null },
-    { id: 'k1', answer: null, closedAt: T0 + MIN, reason: 'Went ahead in the chat' },
+    { id: 'k2', reply: null, closedAt: T0 + 2 * MIN, reason: null },
+    { id: 'k1', reply: null, closedAt: T0 + MIN, reason: 'Went ahead in the chat' },
   ])
 })
 
@@ -173,7 +173,7 @@ test("an answer still on its way when Claude closes its ask never goes in: board
   expect(board.resolved).toMatchObject([
     {
       id: 'k1',
-      answer: { is: 'notDelivered', words: '→ Go', since: closedAt },
+      reply: { is: 'notDelivered', isAnswer: true, words: '→ Go', since: closedAt },
       closedAt,
       reason: 'Went ahead in the chat',
     },
@@ -188,7 +188,7 @@ test("an answer still on its way when Claude closes its ask never goes in: board
   expect((await boardOf(t)).resolved).toMatchObject([
     {
       id: 'k1',
-      answer: { is: 'delivered', words: '→ Go', since: markedAt },
+      reply: { is: 'delivered', isAnswer: true, words: '→ Go', since: markedAt },
       closedAt,
       reason: 'Went ahead in the chat',
     },
@@ -214,7 +214,7 @@ test("an ask Lee's answer closed that Claude resolves after keeps when it closed
   expect((await boardOf(t)).resolved).toMatchObject([
     {
       id: 'k1',
-      answer: { is: 'delivered', words: '→ Go', since: markedAt },
+      reply: { is: 'delivered', isAnswer: true, words: '→ Go', since: markedAt },
       closedAt: markedAt,
       reason: 'Shipped it',
     },
@@ -381,6 +381,31 @@ test('a yes is answered in its words alone; an ask with an answer on its way tak
   })
 })
 
+test("board --json says whether the reply on its way is Lee's answer, which bars another, or a comment, which bars none: an ask with only a comment on its way still takes an answer", async () => {
+  const t = terminal()
+  const paths = t.seed(META, { lines: POSTED })
+  const commentedAt = NOW - MIN
+
+  t.files.set(paths.letters(W2), {
+    text: file([commentedAt, reply('r9', 'k1', 'comment', { note: 'Tighten the copy first' })]),
+    mtimeMs: commentedAt,
+  })
+
+  expect((await boardOf(t)).asks[0]?.reply).toEqual({
+    is: 'onItsWay',
+    isAnswer: false,
+    words: 'comment: “Tighten the copy first”',
+    since: commentedAt,
+  })
+  expect((await t.run('answer', 'k1', 'Go', ...SESSION)).exit).toBe(EXIT.done)
+  expect((await boardOf(t)).asks[0]?.reply).toEqual({
+    is: 'onItsWay',
+    isAnswer: true,
+    words: '→ Go',
+    since: NOW,
+  })
+})
+
 test("--ignore ignores any ask, as the board's ignore does: on its way, then, once marked, gone from the asks and Resolved alike", async () => {
   const t = terminal()
   const paths = t.seed(META, { lines: POSTED })
@@ -393,7 +418,7 @@ test("--ignore ignores any ask, as the board's ignore does: on its way, then, on
   expect(letters(t, paths)).toMatchObject([{ type: 'reply', item: 'k3', verdict: 'ignore' }])
   expect((await boardOf(t)).asks[2]).toMatchObject({
     id: 'k3',
-    answer: { is: 'onItsWay', words: 'ignored', since: NOW },
+    reply: { is: 'onItsWay', isAnswer: true, words: 'ignored', since: NOW },
   })
   expect((await t.run('answer', 'k1', 'Go', '--ignore', ...SESSION)).err).toBe(
     'sitrep: Give an answer or --ignore, not both.\n',

@@ -166,20 +166,21 @@ notch and its panel").
 
   An ask waits on Lee until Lee replies to it (20 October 2026): once a
   reply of Lee's to it is on its way, an answer or a comment, in its
-  session's inbox from the pane or the SitRep window, it waits on a window
-  to deliver it, not on Lee, and counts nowhere on Lee's surfaces as needing
-  Lee: not in a session's or a project's waiting, on the tabs or the band,
-  in `list` or `board --json`, nor in `watch`'s head and rows, so the notch
-  does not swell for it. Its session's state is then what its windows make
-  it: an away one with nothing else waiting leaves the panel and the strip,
-  and shows in the SitRep window. The ask itself still shows among its
-  session's asks, saying its reply is on its way, until the delivered mark
-  settles it; an ask whose reply went void waits on Lee again, as does one
-  whose reply reached Claude after an edit it no longer fits (see "Which
-  replies go in", under Delivery). A comment on its way bars no answer: the
-  ask still offers its buttons. Core's `waitsOnLee` decides it. It still
-  keeps its session current, as an ask waiting on Lee does, however long the
-  answer waits for a window.
+  session's inbox from the pane or the SitRep window, Lee has responded: it
+  waits on a window to deliver the reply, and then on Claude, not on Lee,
+  and counts nowhere on Lee's surfaces as needing Lee: not in a session's or
+  a project's waiting, on the tabs or the band, in `list` or `board --json`,
+  nor in `watch`'s head and rows, so the notch does not swell for it. Its
+  session's state is then what its windows make it: an away one with nothing
+  else waiting leaves the panel and the strip, and shows in the SitRep
+  window. The ask itself still shows among its session's asks, saying its
+  reply is on its way, until the delivered mark settles it; an ask whose
+  reply went void waits on Lee again, as does one whose reply reached Claude
+  after an edit it no longer fits (see "Which replies go in", under
+  Delivery). A comment on its way bars no answer: the ask still offers its
+  buttons. Core's `waitsOnLee` decides it. It still keeps its session
+  current, as an ask waiting on Lee does, however long the answer waits for
+  a window.
 
   What Claude is told follows what Claude has been given, so everything
   Claude reads (the board text, the first message's listing and its counts,
@@ -839,12 +840,14 @@ Dropped for now (11 October 2026): a macOS notification for asks. Back on
   sends it twice. A send's replies are back in Ready to send, and a toast
   says so; the inbox's wait for the next look.
 - **Which replies go in** (20 October 2026) is the fold's to say, every
-  reader alike, each reply dated as it is written down and read in the
-  order every reader reads in. A reply that closes its item, a yes, a
-  choice, an answer, an ignore or a pick-up (a decide's comment too), is
-  Lee's **answer**; a comment is not, and leaves its ask open for Claude to
-  act on. The rules read three facts the fold keeps, each recorded once, by
-  the line that makes it true:
+  reader alike, each reply dated as it is written down and read in the order
+  every reader reads in. A reply that closes its item, a yes, a choice, an
+  answer, an ignore or a pick-up (a decide's comment too), is Lee's
+  **answer**; a comment is not, and leaves its ask open for Claude to act
+  on. A reply **on its way** is one neither delivered nor void, an answer or
+  a comment; **Lee's answer on its way** is the answer alone, which bars
+  another, where a comment on its way bars nothing. The rules read three
+  facts the fold keeps, each recorded once, by the line that makes it true:
   - **Lee's answer on its way** to an item, at most one: recorded as the
     answer reaches the item open with none on its way, and ended as it is
     delivered or goes void.
@@ -863,22 +866,37 @@ Dropped for now (11 October 2026): a macOS notification for asks. Back on
     `answered` where Lee closed it, `resolved` where Claude did. An answer
     reaching an item with Lee's answer on its way is void, `answered`. A
     comment bars no answer, and nothing bars a comment but its item closed.
-  - **Claude closing first.** A reply on its way when Claude closes its
-    item is void, `resolved`. One on its way when the session is finished
-    is void, `finished`, and so is one reaching a finished session: none
-    goes in stale when a window takes the session up again.
+    An answer barred so, by Lee's answer on its way, is read again should
+    that answer go void and never go in: it reaches the item as the item
+    stands then, on its way where the item takes it, as Lee's answer on its
+    way now, else void for the reason that holds then. So a second answer an
+    edit left fitting, an ignore, goes in in place of the first the edit
+    voided, and one whose first answer Claude's close voided says
+    `resolved`; none says `answered` when no answer went in.
+  - **Claude closing first.** A reply on its way when Claude closes its item
+    is void, `resolved`. One on its way when the session is finished is
+    void, `finished`, and so is one reaching a finished session: none goes
+    in stale when a window takes the session up again. A resolve after Lee's
+    close closes nothing, the first close standing, and the comments still
+    on their way go void by that close, `answered`.
   - **Edits.** A reply that fits its item no more is void, `changed`: one
     not yet delivered, void or not, when an edit reshapes its item (an ask
     wanting a yes made to want a choice under Lee's yes), and one reaching
     an item an edit already reshaped. The item can be answered again.
-  - **Marks.** A reply void `answered`, `resolved` or `finished` that a
-    mark names goes in, its message having crossed what voided it. One void
+  - **Marks.** A reply void `answered`, `resolved` or `finished` that a mark
+    names goes in, its message having crossed what voided it. One void
     `changed` stays void: Claude has it, and it settles nothing, its item
     open to its new shape and waiting on Lee. So a send whose ask Claude
     makes a choice while the send waits out Claude's turn reaches Claude as
     Lee's yes, `→ Approve`, and the ask waits on Lee with its choice's
     buttons; Ready to send says the reply was delivered, but it changed
-    since, and `answer` reads it as delivered.
+    since, and `board --json`'s `reply` reads it as delivered.
+  - **Reopening.** A reopen makes the replies written before it history: a
+    mark that names one after it, a void one among them (its message
+    crossing a close, or a second answer racing the first), makes it
+    delivered and settles nothing, the reply staying as it was. The item
+    stands reopened, waiting on Lee, and `reply` reads only the replies
+    written since it opened.
   - **Delivery.** A delivered answer closes its item, as Lee's, and voids
     the other answers on their way to it, `answered`, leaving a comment on
     its way to go in; a delivered comment voids nothing.
@@ -1438,7 +1456,7 @@ truth. There is still no background service. None of it is built now. Lee:
     the newest closed first, as a session's Resolved lists them. Its `v` is 2
     since its asks say what they want back (`wants`, `yes`, `needs`) in place
     of their kind; `list`'s stays 1. Each ask, open or resolved, carries
-    `answer`, where Lee's answer to it stands (below, `answer`), and a
+    `reply`, where Lee's reply to it stands (below, under `answer`), and a
     resolved one when it closed, by Lee's answer or Claude's resolve, and
     Claude's reason where Claude resolved it with one, Lee's answer having
     closed it first or not:
@@ -1447,17 +1465,18 @@ truth. There is still no background service. None of it is built now. Lee:
     { "id": "k1", "wants": "yes", "yes": "Go", "title": "Give the go for stage 3",
       "where": null, "options": [], "needs": null, "ref": null,
       "state": "closed", "at": 1760000000000,
-      "answer": { "is": "delivered", "words": "→ Go", "since": 1760000090000 },
+      "reply": { "is": "delivered", "isAnswer": true, "words": "→ Go",
+                 "since": 1760000090000 },
       "closedAt": 1760000090000, "reason": null }
     ```
 
-    No `v` moved for 20 October 2026's changes. `answer` and `resolved` are
+    No `v` moved for 20 October 2026's changes. `reply` and `resolved` are
     fields added, which a reader that does not know them passes over. One
     meaning changed too: `waiting`, in `list --json`, `board --json` and
     `watch`, leaves out an ask Lee's reply is on its way to, an answer or a
     comment (see "A session's state"), and `watch`'s session `state`, its
     rows and its head follow it, while its session's `asks` keep such an
-    ask, its `answer` saying it is on its way. `watch` and `board --json`
+    ask, its `reply` saying it is on its way. `watch` and `board --json`
     list a session's asks alike, by core's `openAsks`: those open, waiting
     or replied. No reader reads those yet (the SitRep window is their
     first), and a reader of the old meaning would only count fewer asks
@@ -1518,10 +1537,15 @@ truth. There is still no background service. None of it is built now. Lee:
       `inbox/cli.jsonl`, each counting on from the file as it read it; that
       is harmless, as two lines of one writer at one moment and one `seq`
       fall to their order in the file, the same in every reader.
-    - Where an answer stands is core's, from the files (`answerState`), and
-      `board --json` and `watch` give it on each ask, as `answer`, from the
-      ask's replies since it last opened, by who closed it. An ask Lee's
-      answer closed reads that answer, `delivered`, since the window's mark,
+    - Where Lee's reply stands is core's, from the files (`replyState`), and
+      `board --json` and `watch` give it on each ask, as `reply`, from the
+      replies written since the ask last opened, by who closed it.
+      `isAnswer` says whether that reply is Lee's answer, which bars
+      another, or a comment, which bars nothing: an open ask whose `reply`
+      is `onItsWay` with `isAnswer` true takes no answer, as `sitrep answer`
+      refuses one and the pane offers none, while one with only a comment on
+      its way still takes one, its buttons standing. An ask Lee's answer
+      closed reads that answer, `delivered`, since the window's mark,
       whatever comment is still on its way. One Claude closed reads
       `delivered` where Lee's answer reached Claude all the same, the
       message crossing the resolve; else `notDelivered`, since Claude closed
@@ -1534,10 +1558,10 @@ truth. There is still no background service. None of it is built now. Lee:
       else `null`, with none sent, one gone void as its ask was edited under
       it before Claude had it (the ask can be answered again), or only a
       comment Claude has. `words` is the reply as the board shows it on one
-      row (`→ Go`, `ignored`). Those are the SitRep window's card: "on its
-      way" on an open ask, "sent, and Claude has it" on the ask the answer
-      just closed, as the pane's Asks keep one for a moment, and then
-      Resolved, where `board --json` lists it.
+      row (`→ Go`, `ignored`, `comment: “Tighten the copy”`). Those are the
+      SitRep window's card: "on its way" on an open ask, "sent, and Claude
+      has it" on the ask the answer just closed, as the pane's Asks keep one
+      for a moment, and then Resolved, where `board --json` lists it.
   - `finish` (20 October 2026) finishes a session no window holds, as the
     pane's `✓ finish this session` does, for the SitRep window's `✓ Finish
     this session`: Lee's finish, `{ "type": "finish", "who": "lee" }`, in the
@@ -1626,11 +1650,11 @@ truth. There is still no background service. None of it is built now. Lee:
       session is as `list --json` gives it but `onScreen`, which only `list
       --json` works out, asking tmux, with its `state` (`needsYou`,
       `working`, `yourTurn` or `away`), `since`, its first row's time, else
-      its latest line's, and its asks waiting, on Lee or, answered, on a
-      window to deliver the answer, as `board --json` gives them, each with
-      its `answer`, which tells the two apart. So an answer going into a
-      session's inbox is a line, the session among `changed`, and its mark
-      is another.
+      its latest line's, and its open asks, as `board --json` lists them
+      (core's `openAsks`): waiting, on Lee or on a window to deliver Lee's
+      reply, or replied, Claude's to act on, each with its `reply`, which
+      tells them apart. So a reply going into a session's inbox is a line,
+      the session among `changed`, and its mark is another.
     - `windows`: every live window, the longest attached first, a finished
       session's among them, with its session's name and project, its
       `version`, and `needsReload` where it says none, or one behind the
@@ -1888,11 +1912,15 @@ read.
   refuses while the window delivering the session runs a sitrep behind the
   CLI's, by `needsReload` (see "One engine, two front ends"), saying to
   `/reload-plugins` it; the version moves at each release, this one among
-  them, 0.1.0 to 0.2.0. Known limits, both of a window not yet reloaded: one
+  them, 0.1.0 to 0.2.0. Known limits, all of a window not yet reloaded: one
   that only takes a session up later, after the answer was written, is not
   refused, so an old one attaching to a session still under `works/` never
-  sees the answer waiting under `sessions/`; and a session's second answer
-  still reaches Claude from a window before this release that delivers it.
+  sees the answer waiting under `sessions/`; a session's second answer still
+  reaches Claude from a window before this release that delivers it; and one
+  before this release, as a sender, letters a second answer into a session
+  whose window runs this release, which rightly voids it, `answered`, while
+  the old window's own Ready to send, reading by the old rules, keeps
+  showing it on its way until that window reloads.
 - The CLI's JSON stays as it is, its `v` and its stable fields (see "One
   engine, two front ends"): the app carries its own CLI, so the two never
   drift. Pinned versions, a client saying the version it speaks and being
@@ -2487,9 +2515,9 @@ stands).
     undo (borrowed from One, in Lee's dex). Then it goes into the session's
     inbox, as the pane's replies to another session do (see "Delivery"), by
     `sitrep answer`. The card says "on its way", then "sent, and Claude has
-    it", then moves to Resolved, as each ask's `answer` in `board --json`
-    says (see "One engine, two front ends"). The board never closes an ask on
-    the press alone;
+    it", then moves to Resolved, as each ask's `reply` in `board --json`
+    says (see "One engine, two front ends"). The board never closes an ask
+    on the press alone;
   - **a comment, a words ask and a permission prompt** need Claude Code's
     prompt, so their buttons read "Comment in Claude ↗" or "Answer in Claude
     ↗" and jump to the session's window. Proposed, and new: that jump also
@@ -3060,21 +3088,22 @@ reaches a window only while that pane is on show).
       slider, macOS notifications off by default with the switch to turn
       them on, and the icon.
    8. **The SitRep window**, two PRs:
-      - in the CLI, answering a yes or a choice into the session's inbox,
-        which its window delivers, and finishing an away session, each with
-        what the window shows of it ("on its way", "sent, and Claude has
-        it"). This settles open question 4. Built 20 October 2026, and run
-        live over a state folder of its own, the window's mark written by
-        hand, and two answers to one ask run at once, both landing and the
-        second read void: `sitrep answer` and `sitrep finish`, each ask's
-        `answer` in `board --json` and `watch`, `board --json`'s resolved
-        asks, an ask Lee replied to waiting on Lee no more (on Lee's
-        surfaces; on Claude's it waits until delivered), and one answer per
-        item, which a pane's send keeps too (see "One engine, two front
-        ends", "A session's state", "Ready to send" and "Delivery"). Nothing
-        new on disk: the answer is a reply as the pane's letters are, which
-        every window on today's layout delivers as it is, and the window's
-        delivered mark is how the CLI hears it went in;
+      - in the CLI, answering a yes or a choice, or ignoring any ask, into
+        the session's inbox, which its window delivers, and finishing an
+        away session, each with what the window shows of it ("on its way",
+        "sent, and Claude has it"). This settles open question 4. Built 20
+        October 2026, and run live over a state folder of its own, the
+        window's mark written by hand, and two answers to one ask run at
+        once, both landing and the second read void: `sitrep answer` and
+        `sitrep finish`, each ask's `reply` in `board --json` and `watch`,
+        `board --json`'s resolved asks, an ask Lee replied to waiting on Lee
+        no more (on Lee's surfaces; on Claude's it waits until delivered),
+        and one answer per item, which a pane's send keeps too (see "One
+        engine, two front ends", "A session's state", "Ready to send" and
+        "Delivery"). Nothing new on disk: the answer is a reply as the
+        pane's letters are, which every window on today's layout delivers as
+        it is, and the window's delivered mark is how the CLI hears it went
+        in;
       - the window (see "The SitRep window"). Its "Answer in Claude ↗" jumps
         without answering mode, which waits on the mod hearing the app.
    9. **Installing the plugin**: the app's first start installs it, and its
@@ -3280,10 +3309,10 @@ on 11 October 2026 (see "Build order"):
 3. **Left open: dropped.** Lee may be away for days, so no time is right; a
    window joining a session reconciles its open items instead.
 4. **The CLI answering asks:** settled on 20 October 2026, with stage 3's
-   step 8: `sitrep answer`, a yes or a choice, a reply into the session's
-   inbox, which its window delivers as it delivers any reply. A words ask, a
-   comment and a permission prompt stay with Claude Code's prompt (see "One
-   engine, two front ends").
+   step 8: `sitrep answer`, a yes or a choice, or `--ignore` for any ask, a
+   reply into the session's inbox, which its window delivers as it delivers
+   any reply. A words ask, a comment and a permission prompt stay with
+   Claude Code's prompt (see "One engine, two front ends").
 
 ## Build order
 

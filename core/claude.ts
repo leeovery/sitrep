@@ -3,7 +3,7 @@
  * the board tool and for the context a turn takes when the board changed;
  * and every project's sessions with their ids, for the start of a
  * conversation. Undelivered replies are left out: Claude has not been told
- * them, so an ask with Lee's answer on its way still waits on Lee here.
+ * them, so an ask with a reply of Lee's on its way still waits on Lee here.
  */
 import { answerOf, isOpen, yesOf } from './replies'
 import type { Ask, Finished, Finisher, LogLine, Parked, Session } from './types'
@@ -78,8 +78,9 @@ export const boardText = (session: Session) => {
 
 /**
  * A session in brief as Claude knows it, for the first message's listing:
- * its asks waiting as posted count, Lee's answer on its way to one or not,
- * as its board text lists them, since Claude has not been told that answer.
+ * its asks waiting as posted count, a reply of Lee's on its way to one or
+ * not, as its board text lists them, since Claude has not been told that
+ * reply.
  */
 export const toldSummary = (session: Session): SessionSummary => {
   const summary = summarise(session)

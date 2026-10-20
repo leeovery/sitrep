@@ -213,8 +213,8 @@ export type Ask = Posted & {
   state: AskState
   /** The delivered reply that last moved it, since it was opened or reopened. */
   answer?: Reply
-  /** Lee's answer on its way to it: at most one, as a second starts void. */
-  onItsWay?: Reply
+  /** Lee's answer on its way to it, which bars another: at most one, as a second starts void. A comment on its way is no answer. */
+  answerOnItsWay?: Reply
   replies: Reply[]
 }
 
@@ -231,8 +231,8 @@ export type Parked = Posted & {
   where?: string
   state: 'parked' | 'picked' | 'closed'
   answer?: Reply
-  /** Lee's pick-up on its way to it, as an ask's answer is. */
-  onItsWay?: Reply
+  /** Lee's pick-up on its way to it, its answer, as an ask's is. */
+  answerOnItsWay?: Reply
   replies: Reply[]
 }
 

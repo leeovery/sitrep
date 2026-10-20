@@ -51,7 +51,7 @@ type Printed = {
   head: { needYou: number; sessions: number }
   rows: { key: string; is: string; isAway: boolean; first: { lead: string } }[]
   projects: {
-    sessions: { id: string; name: string; state: string; asks: { answer: unknown }[] }[]
+    sessions: { id: string; name: string; state: string; asks: { reply: unknown }[] }[]
   }[]
   windows: {
     writer: string
@@ -256,7 +256,7 @@ test('the first line is the board as every surface shows it, with nothing new an
                   ref: null,
                   state: 'waiting',
                   at: T0,
-                  answer: null,
+                  reply: null,
                 },
               ],
             },
@@ -309,10 +309,10 @@ test("an answer going into the session's inbox is a line, its ask on its way, ne
     still,
     () => appendTo(t, paths.log(W1), delivered('r1')),
   ])
-  const answers = lines.map(line =>
+  const replies = lines.map(line =>
     line.projects
       .flatMap(project => project.sessions)
-      .flatMap(session => session.asks.map(ask => ask.answer)),
+      .flatMap(session => session.asks.map(ask => ask.reply)),
   )
 
   expect(lines.map(line => [line.at, keys(line), line.head, line.changed])).toEqual([
@@ -320,9 +320,9 @@ test("an answer going into the session's inbox is a line, its ask on its way, ne
     [NOW + POLL_MS, [`turn:${META.id}`], { needYou: 0, sessions: 1 }, [META.id]],
     [NOW + 3 * POLL_MS, [`turn:${META.id}`], { needYou: 0, sessions: 1 }, [META.id]],
   ])
-  expect(answers).toEqual([
+  expect(replies).toEqual([
     [null],
-    [{ is: 'onItsWay', words: '→ Go', since: NOW + POLL_MS }],
+    [{ is: 'onItsWay', isAnswer: true, words: '→ Go', since: NOW + POLL_MS }],
     [],
   ])
 })

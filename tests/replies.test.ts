@@ -1,7 +1,7 @@
 import { expect, test } from 'claude-code/testing'
 import {
   answerOf,
-  answerState,
+  replyState,
   askAfter,
   barredBy,
   boardMessage,
@@ -809,7 +809,7 @@ test('the mark for inbox replies names those not marked yet, and is nothing once
 const standing = (session: Session, id: string) => {
   const ask = session.asks.find(each => each.id === id)
 
-  return ask === undefined ? undefined : answerState(ask)
+  return ask === undefined ? undefined : replyState(ask)
 }
 
 test('an answer written into an inbox is on its way, since it was sent; once marked it is delivered, since then, and has closed its ask', () => {
@@ -842,6 +842,25 @@ test('an ask has no answer standing with none sent, one gone void, before Claude
   const cases: [string, Session][] = [
     ['none sent', fold({ logs: { [W1]: file(...POSTED) } })],
     ['void', fold({ logs: { [W1]: file(...POSTED, [T0 + 2 * MIN, DECIDED]) }, inbox: letters })],
+    [
+      'reopened, an older reply marked since',
+      fold({
+        logs: {
+          [W1]: file(
+            ...POSTED,
+            [T0 + 3 * MIN, delivered('r1')],
+            [T0 + 4 * MIN, reopen('k1')],
+            [T0 + 5 * MIN, delivered('r2')],
+          ),
+        },
+        inbox: {
+          [SENDER]: file(
+            [T0 + MIN, reply('r1', 'k1', 'yes')],
+            [T0 + 2 * MIN, reply('r2', 'k1', 'ignore')],
+          ),
+        },
+      }),
+    ],
     [
       'void, then resolved',
       fold({
@@ -1202,6 +1221,80 @@ const REPLY_RULES: ReplyRule[] = [
     letters: [to(1, 'r1', 'k1', 'comment', TIGHTEN), to(1, 'r2', 'k1', 'yes')],
     replies: ['r1 waiting', 'r2 delivered'],
     k1: 'closed',
+  },
+  {
+    rule: "a resolve after Lee's close voids the comments on their way by that close, answered",
+    logs: [...sent(at(2), 'r2', 'k1', 'yes'), [at(3), resolve('k1')]],
+    letters: [to(1, 'r1', 'k1', 'comment', TIGHTEN)],
+    replies: ['r1 void answered', 'r2 delivered'],
+    k1: 'closed',
+  },
+  {
+    rule: 'an answer barred by one an edit then voided comes back on its way, where the ask still takes it',
+    logs: [[at(3), DECIDED]],
+    letters: [to(1, 'r1', 'k1', 'yes'), to(2, 'r2', 'k1', 'ignore')],
+    replies: ['r1 void changed', 'r2 waiting'],
+    k1: 'waiting',
+    waiting: 3,
+  },
+  {
+    rule: 'and goes in once marked, in place of the answer the edit voided',
+    logs: [
+      [at(3), DECIDED],
+      [at(4), delivered('r2')],
+    ],
+    letters: [to(1, 'r1', 'k1', 'yes'), to(2, 'r2', 'k1', 'ignore')],
+    replies: ['r1 void changed', 'r2 delivered'],
+    k1: 'ignored',
+  },
+  {
+    rule: 'of two answers so barred, the first comes back as the answer on its way, and bars the second again',
+    logs: [[at(4), DECIDED]],
+    letters: [to(1, 'r1', 'k1', 'yes'), to(2, 'r2', 'k1', 'ignore'), to(3, 'r3', 'k1', 'ignore')],
+    replies: ['r1 void changed', 'r2 waiting', 'r3 void answered'],
+  },
+  {
+    rule: "an answer barred by one Claude's close then voided says so: resolved",
+    logs: [[at(3), resolve('k1')]],
+    letters: [to(1, 'r1', 'k1', 'yes'), to(2, 'r2', 'k1', 'ignore')],
+    replies: ['r1 void resolved', 'r2 void resolved'],
+  },
+  {
+    rule: 'an answer barred by one the finish then voided says so: finished',
+    logs: [[at(3), finish('lee')]],
+    letters: [to(1, 'r1', 'k1', 'yes'), to(2, 'r2', 'k1', 'ignore')],
+    replies: ['r1 void finished', 'r2 void finished'],
+  },
+  {
+    rule: 'a mark naming a reply written before its item last reopened makes it delivered and settles nothing: the reopened ask waits on Lee',
+    logs: [
+      [at(3), delivered('r1')],
+      [at(4), reopen('k1')],
+      [at(5), delivered('r2')],
+    ],
+    letters: [to(1, 'r1', 'k1', 'yes'), to(2, 'r2', 'k1', 'ignore')],
+    replies: ['r1 delivered', 'r2 delivered answered'],
+    k1: 'waiting',
+    waiting: 4,
+  },
+  {
+    rule: 'nor does a comment that was on its way as Lee closed the ask and Claude reopened it',
+    logs: [...sent(at(2), 'r2', 'k1', 'yes'), [at(3), reopen('k1')], [at(4), delivered('r1')]],
+    letters: [to(1, 'r1', 'k1', 'comment', TIGHTEN)],
+    replies: ['r1 delivered', 'r2 delivered'],
+    k1: 'waiting',
+  },
+  {
+    rule: 'an answer barred, and marked once its ask reopened, stays as Claude has it when the answer that barred it goes void: it is never sent again',
+    logs: [
+      ...sent(at(1), 'c1', 'k1', 'comment', TIGHTEN),
+      [at(4), reopen('k1')],
+      [at(5), delivered('r2')],
+      [at(6), DECIDED],
+    ],
+    letters: [to(2, 'r1', 'k1', 'yes'), to(3, 'r2', 'k1', 'ignore')],
+    replies: ['c1 delivered', 'r1 void changed', 'r2 delivered answered'],
+    k1: 'waiting',
   },
 ]
 

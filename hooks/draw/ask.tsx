@@ -164,7 +164,8 @@ const drawAsk = (d: Drawing, asked: AskedAt, isLast: boolean, isNamed: boolean) 
   const standing = standingOf(d, asked)
   const { key, queued, isAnswering, isClosed, isOpen } = standing
   const mark = isClosed ? RESOLVED : askMark(d.scene, ask)
-  const isAnswerable = isOpen && queued === undefined && ask.onItsWay === undefined && !isAnswering
+  const isAnswerable =
+    isOpen && queued === undefined && ask.answerOnItsWay === undefined && !isAnswering
 
   return drawRow(d, {
     key: `ask:${key}`,
