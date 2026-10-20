@@ -213,32 +213,6 @@ public final class Meniscus: Notch {
         }
     }
 
-    @discardableResult
-    public func clickRow(_ index: Int) -> Bool {
-        guard isLive, jumping == nil, let id = jumpingRow(index) else {
-            return false
-        }
-
-        cancel(.grace)
-        jumping = id
-        later(.jump, Tuning.jumpFor) { $0.close() }
-        return true
-    }
-
-    public func jumpAnswered() {
-        if timers.has(.jump) {
-            cancel(.jump)
-            close()
-        }
-    }
-
-    /// A click anywhere off the panel and the notch closes it at once.
-    public func clickElsewhere() {
-        if isLive {
-            close()
-        }
-    }
-
     public func restingOutline(at y: Double) -> CGPath {
         let l = resting, cy = stage.centre(l.h, near: y)
 
@@ -375,7 +349,7 @@ public final class Meniscus: Notch {
     }
 }
 
-enum MeniscusTimer: String {
+enum MeniscusTimer: String, ClickTimers {
     case dwell, grace, swell
     case jump = "jump:go"
     case moveStart = "move:start", moveSwap = "move:swap", moveDone = "move:done"

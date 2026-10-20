@@ -1,4 +1,5 @@
 import AppKit
+import SitRepEdge
 import SitRepPanel
 
 /// The panel's content in black: its head and its list, laid out as the list changes, a row kept as it was while its

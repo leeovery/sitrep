@@ -1,4 +1,5 @@
 import AppKit
+import SitRepEdge
 import SitRepPanel
 import SwiftUI
 
@@ -182,7 +183,6 @@ private struct GlassPanel: View {
                 .offset(x: rule.minX, y: rule.minY)
         }
     }
-
 
     /// A new row's wash at this frame, as the black's: held 300ms, then easing out by 2 seconds.
     private func wash(_ key: String) -> Double {

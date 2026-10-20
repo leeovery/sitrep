@@ -50,7 +50,7 @@ let allClearLine = line(
     ]
 )
 
-private func line(needYou: Int, sessions: Int, new: [String], rows: [String]) -> String {
+func line(needYou: Int, sessions: Int, new: [String], rows: [String]) -> String {
     """
     {"v":1,"at":1792445574706,"version":"0.1.0","head":{"needYou":\(needYou),"sessions":\(sessions)},\
     "rows":[\(rows.joined(separator: ","))],"projects":[],"windows":[],\
@@ -58,7 +58,7 @@ private func line(needYou: Int, sessions: Int, new: [String], rows: [String]) ->
     """
 }
 
-private func row(
+func row(
     _ key: String, _ kind: String, away: Bool = false, session: String, lead: String, mono: String? = nil,
     more: String? = nil, second: String, since: Int
 ) -> String {

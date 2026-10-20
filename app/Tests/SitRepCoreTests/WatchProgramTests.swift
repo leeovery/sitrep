@@ -119,7 +119,7 @@ struct WatchProgramTests {
         var heard: [Heard] = []
 
         running.terminate()
-        for await said in watchProgram(holding: running)(Self.sh("exec sleep 60")) {
+        for await said in watchProgram(holding: running)(Self.sh("exec sleep 5")) {
             heard.append(said)
         }
 

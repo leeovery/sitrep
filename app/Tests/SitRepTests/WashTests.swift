@@ -1,5 +1,6 @@
 import CoreGraphics
 @testable import SitRep
+import SitRepEdge
 import SitRepPanel
 import Testing
 
