@@ -4,7 +4,7 @@ import SwiftUI
 /// An ask as a card: its mark, title and time, after its session's name where it is a project's; where to look and
 /// what its words are; its buttons; and where Lee's answer is. One closed while it showed keeps its place, faint and
 /// without buttons, saying how it closed. Opened in place in a project's view, its head, and only its head, closes
-/// it again.
+/// it again. To VoiceOver it is a container named by its title, which it says once, its buttons inside it.
 struct CardView: View {
     let card: Card
     var session: String?
@@ -15,6 +15,12 @@ struct CardView: View {
     @Environment(\.pressedJump) private var pressedJump
 
     var body: some View {
+        drawn
+            .accessibilityElement(children: .contain)
+            .accessibilityLabel(Spoken.card(card, session: session))
+    }
+
+    @ViewBuilder private var drawn: some View {
         if card.lines == [.closed(.sent)] {
             head(sent)
         } else {
@@ -41,11 +47,12 @@ struct CardView: View {
     /// Closed by Lee's answer: one faint line, "sent, and Claude has it".
     private var sent: some View {
         HStack(spacing: 10) {
-            Text("✓").font(WindowStyle.ui(12)).foregroundStyle(WindowStyle.text).frame(width: WindowStyle.lane.width)
+            ClosedTick(colour: WindowStyle.text)
             titled(WindowStyle.faint)
                 .font(WindowStyle.ui(14, .semibold))
                 .spacing(-0.01, of: 14)
                 .lineLimit(1)
+                .accessibilityHidden(true)
             Text(Words.closed(.sent))
                 .font(WindowStyle.ui(12))
                 .foregroundStyle(WindowStyle.soft)
@@ -58,7 +65,7 @@ struct CardView: View {
     private var title: some View {
         HStack(spacing: 10) {
             if card.isClosed {
-                Text("✓").font(WindowStyle.ui(12)).foregroundStyle(WindowStyle.soft).frame(width: WindowStyle.lane.width)
+                ClosedTick()
             } else {
                 MarkView(mark: .needs)
             }
@@ -66,6 +73,7 @@ struct CardView: View {
                 .font(WindowStyle.ui(14, .semibold))
                 .spacing(-0.01, of: 14)
                 .frame(maxWidth: .infinity, alignment: .leading)
+                .accessibilityHidden(true)
             Text(Words.age(card.since, at: now)).font(WindowStyle.ui(12)).foregroundStyle(WindowStyle.faint)
         }
     }
@@ -77,6 +85,7 @@ struct CardView: View {
                 content.padding(.vertical, 4).padding(.horizontal, 6).contentShape(Rectangle())
             }
             .rowButton()
+            .accessibilityLabel(Spoken.closeCard)
             .padding(.vertical, -4)
             .padding(.horizontal, -6)
         } else {

@@ -18,6 +18,7 @@ struct ProjectPageView: View {
                     .font(WindowStyle.ui(28, .bold))
                     .spacing(-0.03, of: 28)
                     .foregroundStyle(WindowStyle.text)
+                    .accessibilityAddTraits(.isHeader)
                 Text(Words.project(waiting: page.waiting, open: page.open))
                     .font(WindowStyle.ui(14))
                     .foregroundStyle(WindowStyle.soft)
@@ -71,7 +72,7 @@ struct ProjectPageView: View {
                     Button { act.toggle(ask.id) } label: {
                         HStack(spacing: 10) {
                             if ask.card.isClosed {
-                                Text("✓").font(WindowStyle.ui(12)).foregroundStyle(WindowStyle.soft).frame(width: WindowStyle.lane.width)
+                                ClosedTick()
                             } else {
                                 MarkView(mark: .needs)
                             }

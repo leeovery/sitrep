@@ -140,9 +140,12 @@ private struct ProjectRows: View {
             }
         }
         .font(WindowStyle.ui(12, .semibold))
+        .spoken(Spoken.project(project))
+        .accessibilityAddTraits(.isHeader)
         .sidebarRow(.project(project.id), pick: pick, now: now)
         ForEach(project.sessions) { row in
             SessionRowView(row: row, isPicked: pick == .session(row.id), now: now)
+                .spoken(Spoken.row(row, in: project.name, at: now))
                 .sidebarRow(.session(row.id), pick: pick, washed: row.washed, now: now)
         }
     }
@@ -194,6 +197,7 @@ private struct QuietRows: View {
                 .font(WindowStyle.ui(12, .medium))
                 .foregroundStyle(WindowStyle.soft)
                 .lineLimit(1)
+                .spoken(Spoken.quiet(project))
                 .sidebarRow(project.pick, pick: pick, now: now)
         }
     }

@@ -2,9 +2,10 @@ import SitRepCore
 import SitRepWindow
 import SwiftUI
 
-/// The session picked, at window size: its project above it, which a press opens; "Open in Ghostty ↗" while a window
-/// holds it; its name and summary; what its window is doing, or the stop that takes that line's place; then Asks, and
-/// Status, Notes, Parked and Resolved in two columns; and, away, finishing it.
+/// The session picked, at window size, under the empty band beside the traffic lights: its project's name as an
+/// eyebrow, where a project's page has its title, which a press opens; its name, and "Open in Ghostty ↗" on its row
+/// while a window holds it; its summary; what its window is doing, or the stop that takes that line's place; then
+/// Asks, and Status, Notes, Parked and Resolved in two columns; and, away, finishing it.
 struct SessionPageView: View {
     let page: SessionPage
     let now: Date
@@ -14,12 +15,24 @@ struct SessionPageView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            bar
+            Color.clear.frame(height: WindowStyle.barHeight)
             VStack(alignment: .leading, spacing: 6) {
-                Text(page.name)
-                    .font(WindowStyle.ui(28, .bold))
-                    .spacing(-0.03, of: 28)
-                    .foregroundStyle(WindowStyle.text)
+                VStack(alignment: .leading, spacing: 2) {
+                    Button(page.projectName) { act.pick(.project(page.projectKey)) }
+                        .wordsButton()
+                        .font(WindowStyle.ui(15, .semibold))
+                        .accessibilityAddTraits(.isHeader)
+                    TitleRow {
+                        Text(page.name)
+                            .font(WindowStyle.ui(28, .bold))
+                            .spacing(-0.03, of: 28)
+                            .foregroundStyle(WindowStyle.text)
+                            .accessibilityAddTraits(.isHeader)
+                        if page.jumps {
+                            jump
+                        }
+                    }
+                }
                 Text(page.summary).font(WindowStyle.ui(14)).foregroundStyle(WindowStyle.soft)
             }
             .padding(.top, 6)
@@ -35,28 +48,19 @@ struct SessionPageView: View {
         .padding(.bottom, 34)
     }
 
-    private var bar: some View {
-        HStack {
-            Button(page.projectName) { act.pick(.project(page.projectKey)) }
-                .wordsButton()
-                .font(WindowStyle.ui(13, .medium))
-            Spacer()
-            if page.jumps {
-                Button { act.jump(.open(page.id)) } label: {
-                    HStack(spacing: 6) {
-                        Text("Open in Ghostty").foregroundStyle(WindowStyle.text)
-                        Text("↗").foregroundStyle(WindowStyle.soft)
-                    }
-                    .font(WindowStyle.ui(12, .medium))
-                    .padding(.vertical, 5)
-                    .padding(.leading, 11)
-                    .padding(.trailing, 10)
-                }
-                .jumpButton()
-                .disabled(pressedJump == .open(page.id))
+    private var jump: some View {
+        Button { act.jump(.open(page.id)) } label: {
+            HStack(spacing: 6) {
+                Text(Words.jump).foregroundStyle(WindowStyle.text)
+                Text("↗").foregroundStyle(WindowStyle.soft).accessibilityHidden(true)
             }
+            .font(WindowStyle.ui(12, .medium))
+            .padding(.vertical, 5)
+            .padding(.leading, 11)
+            .padding(.trailing, 10)
         }
-        .frame(height: WindowStyle.barHeight)
+        .jumpButton()
+        .disabled(pressedJump == .open(page.id))
     }
 
     @ViewBuilder private var doing: some View {

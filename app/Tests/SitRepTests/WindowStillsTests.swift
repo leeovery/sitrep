@@ -8,8 +8,9 @@ import Testing
 
 /// The SitRep window's key states, drawn offscreen over what the real CLI printed, as Paper's drawing has them: the
 /// session, a permission prompt, an away session and its finish, a project, and the moments of an answer and of a
-/// board changing under Lee. Each draws whole at the window's size. With `SITREP_WINDOW_STILLS` naming a folder, each
-/// is kept there as a PNG, to read beside the drawing; nothing opens on the screen.
+/// board changing under Lee; a session's long name, and the window as narrow as it goes. Each draws whole at the
+/// window's size, or at its narrowest. With `SITREP_WINDOW_STILLS` naming a folder, each is kept there as a PNG, to
+/// read beside the drawing; nothing opens on the screen.
 /// When the real `watch` printed its first line.
 private let printed = try! Board.read(Lines.watch[0]).at
 private let boards = [
@@ -27,7 +28,7 @@ struct WindowStillsTests {
                 BoardColumn(listed: run.listed(at: now), pick: run.pick, now: now).frame(width: WindowStyle.boardWidth)
                 PageColumn(page: run.page(at: now), now: now)
             }
-                .frame(width: WindowStyle.size.width, height: WindowStyle.size.height)
+                .frame(width: still.width, height: WindowStyle.size.height)
                 .environment(\.colorScheme, .dark)
                 .environment(\.isStill, true)
                 .environment(\.isHoveredStill, still == .hovered)
@@ -37,7 +38,7 @@ struct WindowStillsTests {
 
         let image = try #require(renderer.cgImage)
 
-        #expect(image.width == 2200)
+        #expect(image.width == Int(still.width * 2))
         #expect(image.height == 1440)
         try keep(image, as: still.rawValue)
     }
@@ -70,14 +71,26 @@ struct WindowStillsTests {
         case longOptions = "d4-long-options-as-rows"
         case projectItemOpened = "d5-a-project-its-note-opened"
         case projectOfOne = "d6-a-project-of-one-session"
+        case longTitle = "e1-a-long-title"
+        case longTitleNarrow = "e2-a-long-title-narrow"
+        case narrow = "e3-the-mac-app-narrow"
+        case projectNarrow = "e4-a-project-narrow"
+
+        /// The window's width: as drawn, or as narrow as it goes.
+        var width: CGFloat {
+            switch self {
+            case .longTitleNarrow, .narrow, .projectNarrow: WindowStyle.smallest.width
+            default: WindowStyle.size.width
+            }
+        }
 
         /// The window's run in the state, and the time it is drawn at.
         func run() -> (WindowRun, Date) {
             let now = printed
-            let run = Self.opened()
+            let run = Self.opened(self == .longTitle || self == .longTitleNarrow ? Self.longName : Lines.watch[0])
 
             switch self {
-            case .session:
+            case .session, .longTitle, .longTitleNarrow, .narrow:
                 break
             case .permission:
                 Self.pick(.session("sr-dash02"), in: run)
@@ -86,7 +99,7 @@ struct WindowStillsTests {
             case .finishing:
                 Self.pick(.session("sr-gs7kq2"), in: run)
                 run.askToFinish("sr-gs7kq2")
-            case .project:
+            case .project, .projectNarrow:
                 Self.pick(.project("switchboard"), in: run)
                 run.toggle(AskAddress(session: "sr-dash02", ask: "k1"))
             case .pressed:
@@ -127,10 +140,10 @@ struct WindowStillsTests {
             return (run, now)
         }
 
-        private static func opened() -> WindowRun {
+        private static func opened(_ line: String) -> WindowRun {
             let run = WindowRun()
 
-            _ = run.show(heard(Lines.watch[0]), at: printed, reducesMotion: false)
+            _ = run.show(heard(line), at: printed, reducesMotion: false)
             answer(run.open(), in: run)
             return run
         }
@@ -181,6 +194,10 @@ struct WindowStillsTests {
         /// Request ledger's status as long as it often runs.
         private static let longLedger = Lines.ledger
             .replacingOccurrences(of: #""text": "Status: now drawing the ledger schema""#, with: #""text": "Status: now drawing the ledger schema, its entries keyed by request and its totals rolled up by the hour""#)
+
+        /// The first board, the Mac app named as long as a session's name runs.
+        private static let longName = Lines.watch[0]
+            .replacingOccurrences(of: #""name":"The Mac app""#, with: #""name":"Build the Mac app's window, its sidebar on the system's own glass, and its two pages""#)
 
         /// The first board, Goosemates' ask new on it.
         private static let withNew = Lines.watch[0]

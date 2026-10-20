@@ -45,9 +45,12 @@ enum WindowStyle {
 
     /// The window as drawn: its two columns and their insides.
     static let size = CGSize(width: 1100, height: 720)
+    /// As small as the window goes.
+    static let smallest = CGSize(width: 860, height: 520)
     static let boardWidth: CGFloat = 296
     static let pageInset: CGFloat = 44
-    /// The page's top row, centred beside the traffic lights, which the window's toolbar sets 26 points down.
+    /// The band under the window's toolbar, beside the traffic lights, which the toolbar sets 26 points down: empty on
+    /// the page, which starts under it.
     static let barHeight: CGFloat = 52
     /// The system's sidebar list, as it lays out its rows, measured offscreen on macOS 26: a row's height, its words in
     /// from the sidebar's edges, and the gap between two sections.
@@ -65,8 +68,6 @@ enum WindowStyle {
     /// How far a page line's highlight reaches past the column's edges, so its words keep their place beside the
     /// headings.
     static let reach: CGFloat = 8
-    /// An item opening in place, and closing.
-    static let spring = Animation.spring(response: 0.32, dampingFraction: 0.9)
 
     /// What a sidebar row draws behind its words: under the pointer, a quiet fill, never on the row picked, which
     /// keeps the system's selection; drawn as a still, which renders no list, a stand-in for that selection.

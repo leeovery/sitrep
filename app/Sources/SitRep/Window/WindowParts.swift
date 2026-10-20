@@ -17,6 +17,20 @@ struct MarkView: View {
             }
         }
         .frame(width: WindowStyle.lane.width, height: WindowStyle.lane.height)
+        .spoken(Spoken.mark(mark))
+    }
+}
+
+/// A closed ask's tick, in the mark's lane.
+struct ClosedTick: View {
+    var colour = WindowStyle.soft
+
+    var body: some View {
+        Text("✓")
+            .font(WindowStyle.ui(12))
+            .foregroundStyle(colour)
+            .frame(width: WindowStyle.lane.width)
+            .accessibilityLabel(Spoken.closed)
     }
 }
 
@@ -143,7 +157,7 @@ private struct PillStyle: ButtonStyle {
     }
 }
 
-/// A section's heading: its name in small capitals, and a few words on the right.
+/// A section's heading: its name in small capitals, and a few words on the right; to VoiceOver, one heading.
 struct SectionHeading: View {
     let name: String
     var note: String?
@@ -161,6 +175,15 @@ struct SectionHeading: View {
             }
         }
         .frame(height: 16)
+        .spoken(Spoken.heading(name, note: note))
+        .accessibilityAddTraits(.isHeader)
+    }
+}
+
+extension View {
+    /// One element to VoiceOver, read as these words in place of what it draws.
+    func spoken(_ words: String) -> some View {
+        accessibilityElement(children: .ignore).accessibilityLabel(words)
     }
 }
 
@@ -239,8 +262,8 @@ struct Scrolling<Content: View>: View {
                 .frame(minHeight: 0, maxHeight: .infinity, alignment: .top)
                 .clipped()
         } else if #available(macOS 26, *) {
-            // The page draws its own top row under the window's toolbar, beside the traffic lights, which the
-            // toolbar's soft edge would blur.
+            // The page runs up under the window's toolbar, beside the traffic lights, where the toolbar's soft edge
+            // would blur it as it scrolls.
             ScrollView { content }.scrollIndicators(.never).scrollEdgeEffectHidden(true, for: .top)
         } else {
             ScrollView { content }.scrollIndicators(.never)
@@ -279,6 +302,75 @@ struct TwoColumns: Layout {
         let second = (whole - spacing) / (ratio + 1)
 
         return [whole - spacing - second, second]
+    }
+}
+
+/// A title and the button that goes with it, as a session's name and its jump: the button trailing on the title's
+/// row, centred on its first line, while the title wraps to no more lines beside it than across the whole width, as
+/// measured, and the width holds the button at all; else the button under the title, leading. A title alone takes the
+/// whole width.
+struct TitleRow: Layout {
+    var spacing: CGFloat = 16
+    var under: CGFloat = 10
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache _: inout ()) -> CGSize {
+        let width = Self.finite(proposal.width)
+        let frames = frames(width, subviews)
+
+        return CGSize(width: width ?? frames.map(\.maxX).max() ?? 0, height: frames.map(\.maxY).max() ?? 0)
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal _: ProposedViewSize, subviews: Subviews, cache _: inout ()) {
+        for (subview, frame) in zip(subviews, frames(Self.finite(bounds.width), subviews)) {
+            subview.place(
+                at: CGPoint(x: bounds.minX + frame.minX, y: bounds.minY + frame.minY),
+                proposal: ProposedViewSize(frame.size)
+            )
+        }
+    }
+
+    private func frames(_ width: CGFloat?, _ subviews: Subviews) -> [CGRect] {
+        guard let title = subviews.first else {
+            return []
+        }
+
+        return frames(
+            width, button: subviews.count > 1 ? subviews[1].sizeThatFits(.unspecified) : nil,
+            title: { title.sizeThatFits(ProposedViewSize(width: $0, height: nil)) }
+        )
+    }
+
+    /// The title's place, then the button's, from the top left, in this width, as `title` measures the title in a
+    /// width, or on one line in none; with no width, side by side, the title on one line. Where the button is the
+    /// taller, the two are centred on the line, the title lowered to it.
+    func frames(_ width: CGFloat?, button: CGSize?, title: (CGFloat?) -> CGSize) -> [CGRect] {
+        let line = title(nil)
+
+        guard let button else {
+            return [CGRect(origin: .zero, size: title(width ?? line.width))]
+        }
+
+        let whole = width ?? line.width + spacing + button.width
+        let across = title(whole)
+        let besideWidth = whole - button.width - spacing
+
+        if besideWidth >= 0, case let beside = title(besideWidth), beside.height <= across.height {
+            let offset = (line.height - button.height) / 2
+
+            return [
+                CGRect(origin: CGPoint(x: 0, y: max(-offset, 0)), size: beside),
+                CGRect(origin: CGPoint(x: whole - button.width, y: max(offset, 0)), size: button),
+            ]
+        }
+        return [
+            CGRect(origin: .zero, size: across),
+            CGRect(origin: CGPoint(x: 0, y: across.height + under), size: button),
+        ]
+    }
+
+    /// A width proposed, where it is one: nil for none, or for an infinite one.
+    static func finite(_ width: CGFloat?) -> CGFloat? {
+        width.flatMap { $0.isFinite ? $0 : nil }
     }
 }
 
