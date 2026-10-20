@@ -13,7 +13,7 @@ let package = Package(
         .target(name: "SitRepEdge", dependencies: ["SitRepCore", "SitRepPanel"]),
         .executableTarget(name: "SitRep", dependencies: ["SitRepCore", "SitRepPanel", "SitRepEdge"]),
         .testTarget(name: "SitRepCoreTests", dependencies: ["SitRepCore"]),
-        .testTarget(name: "SitRepPanelTests", dependencies: ["SitRepPanel"]),
+        .testTarget(name: "SitRepPanelTests", dependencies: ["SitRepPanel"], resources: [.copy("Recorded")]),
         .testTarget(name: "SitRepEdgeTests", dependencies: ["SitRepEdge", "SitRepCore", "SitRepPanel"]),
         .testTarget(name: "SitRepTests", dependencies: ["SitRep", "SitRepEdge", "SitRepPanel"]),
     ],

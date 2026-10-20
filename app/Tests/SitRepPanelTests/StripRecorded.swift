@@ -1,7 +1,8 @@
 import CoreGraphics
 @testable import SitRepPanel
 
-/// A frame of the strip as its prototype recorded it (`StripRecording.swift`).
+/// A frame of the strip as its prototype recorded it (`StripRecording.swift`), decoded from its JSON: a frame an
+/// object, its tabs too, and a mark, the ends, a count, a tab's end, a word and the pointer each its values in order.
 struct StripRecorded {
     struct Tab {
         let key: String
@@ -16,7 +17,7 @@ struct StripRecorded {
     /// Where a tab's fillet leaves the strip's edge, on the screen, its radius, the edge's direction there in degrees,
     /// and whether that is on the S or the straight edge.
     struct End {
-        enum On { case s, edge }
+        enum On: String, Decodable { case s, edge }
 
         let x, y, rho, phi: Double
         let on: On
@@ -56,32 +57,91 @@ struct StripRecorded {
     let marks: [Mark?]
     let more: Count?
     let moreNeeds: Count?
+}
 
-    static func R(
-        _ t: Double, _ p: CGPoint?, hair: Mark, ends: Ends, jumping: String? = nil, tabs: [Tab] = [],
-        marks: [Mark?] = [], more: Count? = nil, moreNeeds: Count? = nil
-    ) -> Self {
-        Self(t: t, p: p, hair: hair, ends: ends, jumping: jumping, tabs: tabs, marks: marks, more: more, moreNeeds: moreNeeds)
+extension StripRecorded: Decodable {
+    private enum Keys: String, CodingKey {
+        case t, p, hair, ends, jumping, tabs, marks, more, moreNeeds
     }
 
-    static func T(
-        _ key: String, _ phase: StripTab.Phase, w: Double, h: Double, y: Double, press: Double, alpha: Double,
-        words: [Words], top: End? = nil, bottom: End? = nil
-    ) -> Tab {
-        Tab(key: key, phase: phase, w: w, h: h, y: y, press: press, alpha: alpha, words: words, top: top, bottom: bottom)
+    init(from decoder: any Decoder) throws {
+        let c = try decoder.container(keyedBy: Keys.self)
+        try self.init(
+            t: c.decode(Double.self, forKey: .t), p: c.decode(CGPoint?.self, forKey: .p),
+            hair: c.decode(Mark.self, forKey: .hair), ends: c.decode(Ends.self, forKey: .ends),
+            jumping: c.decodeIfPresent(String.self, forKey: .jumping),
+            tabs: c.decodeIfPresent([Tab].self, forKey: .tabs) ?? [],
+            marks: c.decodeIfPresent([Mark?].self, forKey: .marks) ?? [],
+            more: c.decodeIfPresent(Count.self, forKey: .more),
+            moreNeeds: c.decodeIfPresent(Count.self, forKey: .moreNeeds)
+        )
+    }
+}
+
+extension StripRecorded.Tab: Decodable {
+    private enum Keys: String, CodingKey {
+        case key, phase, w, h, y, press, alpha, words, top, bottom
     }
 
-    static func E(_ x: Double, _ y: Double, _ rho: Double, _ phi: Double, _ on: End.On) -> End {
-        End(x: x, y: y, rho: rho, phi: phi, on: on)
+    init(from decoder: any Decoder) throws {
+        let c = try decoder.container(keyedBy: Keys.self)
+        let phase: StripTab.Phase = switch try c.decode(String.self, forKey: .phase) {
+        case "reach": .reach
+        case "open": .open
+        case "closing": .closing
+        case let other:
+            throw DecodingError.dataCorruptedError(forKey: .phase, in: c, debugDescription: "No phase \(other)")
+        }
+        try self.init(
+            key: c.decode(String.self, forKey: .key), phase: phase, w: c.decode(Double.self, forKey: .w),
+            h: c.decode(Double.self, forKey: .h), y: c.decode(Double.self, forKey: .y),
+            press: c.decode(Double.self, forKey: .press), alpha: c.decode(Double.self, forKey: .alpha),
+            words: c.decode([StripRecorded.Words].self, forKey: .words),
+            top: c.decodeIfPresent(StripRecorded.End.self, forKey: .top),
+            bottom: c.decodeIfPresent(StripRecorded.End.self, forKey: .bottom)
+        )
+    }
+}
+
+extension StripRecorded.End: Decodable {
+    init(from decoder: any Decoder) throws {
+        var c = try decoder.unkeyedContainer()
+        try self.init(
+            x: c.decode(Double.self), y: c.decode(Double.self), rho: c.decode(Double.self), phi: c.decode(Double.self),
+            on: c.decode(On.self)
+        )
+    }
+}
+
+extension StripRecorded.Words: Decodable {
+    init(from decoder: any Decoder) throws {
+        var c = try decoder.unkeyedContainer()
+        try self.init(key: c.decode(String.self), alpha: c.decode(Double.self))
+    }
+}
+
+extension StripRecorded.Mark: Decodable {
+    init(from decoder: any Decoder) throws {
+        var c = try decoder.unkeyedContainer()
+        try self.init(&c)
     }
 
-    static func W(_ key: String, _ alpha: Double) -> Words { Words(key: key, alpha: alpha) }
+    /// The three, next in a count's or a mark's values.
+    fileprivate init(_ c: inout any UnkeyedDecodingContainer) throws {
+        try self.init(y: c.decode(Double.self), sc: c.decode(Double.self), op: c.decode(Double.self))
+    }
+}
 
-    static func M(_ y: Double, _ sc: Double, _ op: Double) -> Mark { Mark(y: y, sc: sc, op: op) }
+extension StripRecorded.Count: Decodable {
+    init(from decoder: any Decoder) throws {
+        var c = try decoder.unkeyedContainer()
+        try self.init(n: c.decode(Int.self), mark: StripRecorded.Mark(&c))
+    }
+}
 
-    static func C(_ n: Int, _ y: Double, _ sc: Double, _ op: Double) -> Count { Count(n: n, mark: M(y, sc, op)) }
-
-    static func X(_ top: Double, _ bottom: Double, _ drawnIn: Double) -> Ends { Ends(top: top, bottom: bottom, drawnIn: drawnIn) }
-
-    static func P(_ x: Double, _ y: Double) -> CGPoint { CGPoint(x: x, y: y) }
+extension StripRecorded.Ends: Decodable {
+    init(from decoder: any Decoder) throws {
+        var c = try decoder.unkeyedContainer()
+        try self.init(top: c.decode(Double.self), bottom: c.decode(Double.self), drawnIn: c.decode(Double.self))
+    }
 }
