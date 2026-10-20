@@ -1,6 +1,6 @@
 import ServiceManagement
 
-/// The "Start at login" item, from the login item's real status.
+/// General's "Open at login", from the login item's real status.
 public struct LoginItem: Equatable {
     /// What choosing the item does.
     public enum Choice: Equatable {
@@ -25,8 +25,9 @@ public struct LoginItem: Equatable {
 
     public var needsApproval: Bool { choice == .openSettings }
 
-    public var title: String {
-        needsApproval ? "Start at login (approve in System Settings)" : "Start at login"
+    /// The line under the switch, while macOS waits on Lee.
+    public var line: String? {
+        needsApproval ? "Waiting for your approval in System Settings" : nil
     }
 }
 

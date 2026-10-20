@@ -3,22 +3,27 @@ import SitRepCore
 import SitRepEdge
 import SitRepPanel
 
-/// What shows at the screen's edge, as Lee set it: the notch or the strip on the chosen display, its settings saved as
-/// one value and kept as a drag moves either, the Mac's Reduce motion followed as it changes, and nothing over a
-/// full-screen app. Both take every board, so whichever Lee chooses shows it.
+/// What shows at the screen's edge, as Lee set it: the notch or the strip on the chosen display, following each change
+/// Lee makes at once and keeping where a drag moves either, the Mac's Reduce motion followed as it changes, and
+/// nothing over a full-screen app. Both take every board, so whichever Lee chooses shows it.
 @MainActor
 final class Edge {
-    private let saved = SavedEdgeSettings()
+    private let preferences: Preferences
     private var settings: EdgeSettings
     private let notch: NotchController
     private let strip: StripController
     private lazy var fullScreen = FullScreenWatch { [unowned self] in Displays.bounds(of: settings) }
     private var observers: [any NSObjectProtocol] = []
 
-    /// `jump` jumps to a session, and tells once it answers whether it jumped; `isJumping` says whether one runs.
-    init(jump: @escaping (String, @escaping (Bool) -> Void) -> Void, isJumping: @escaping () -> Bool) {
-        let settings = saved.read(), display = Displays.chosen(settings)
+    /// What Lee set, followed as it changes; `jump` jumps to a session, and tells once it answers whether it jumped;
+    /// `isJumping` says whether one runs.
+    init(
+        _ preferences: Preferences, jump: @escaping (String, @escaping (Bool) -> Void) -> Void,
+        isJumping: @escaping () -> Bool
+    ) {
+        let settings = preferences.edge, display = Displays.chosen(settings)
 
+        self.preferences = preferences
         self.settings = settings
         notch = NotchController(settings, on: display)
         strip = StripController(settings, on: display)
@@ -29,6 +34,7 @@ final class Edge {
         notch.onMoved = { [unowned self] in moved($0) }
         strip.onMoved = { [unowned self] in moved($0) }
         fullScreen.onChange = { [unowned self] in show() }
+        preferences.onEdge = { [unowned self] in apply($0) }
         listen()
         show()
     }
@@ -41,13 +47,13 @@ final class Edge {
         strip.show(board)
     }
 
-    /// A drag let the notch or the strip go: where it left it lands on the settings as they stand, is saved, and both
+    /// A drag let the notch or the strip go: where it left it lands on the settings as they stand, is kept, and both
     /// take it. A move changes only the edge and the place along it, never what shows nor on which display, so what
     /// shows is left as it is: a crossing saved as the strip hides, inside its `isShown`, never sets it again.
     private func moved(_ move: EdgeMove) {
         let settings = move.applied(to: settings)
 
-        saved.save(settings)
+        preferences.moved(settings)
         place(settings)
     }
 
@@ -59,6 +65,7 @@ final class Edge {
         strip.show(board)
     }
 
+    /// What Lee changed in Settings or the menu, at once.
     private func apply(_ settings: EdgeSettings) {
         place(settings)
         fullScreen.changed()

@@ -134,9 +134,9 @@ public struct StripMax: Codable, Equatable, Sendable {
     }
 }
 
-private extension KeyedDecodingContainer {
-    /// The value under a key, or the fallback where it is missing or unreadable.
-    func value<T: Decodable>(_ key: Key, or fallback: T) -> T {
+extension KeyedDecodingContainer {
+    /// The value under a key, or the fallback where it is missing or unreadable: how every setting is read leniently.
+    package func value<T: Decodable>(_ key: Key, or fallback: T) -> T {
         (try? decodeIfPresent(T.self, forKey: key)) ?? fallback
     }
 }

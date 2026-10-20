@@ -7,6 +7,11 @@ enum Displays {
     /// Those connected, the main one, with the menu bar, first.
     static var all: [Display] { NSScreen.screens.compactMap(display) }
 
+    /// Those connected, by the id the edge gives each and the name macOS does, for Settings' Display; the main one first.
+    static var named: [(id: String, name: String)] {
+        NSScreen.screens.compactMap { screen in display(screen).map { ($0.id, screen.localizedName) } }
+    }
+
     /// The display the settings choose: the one chosen while it is connected, else the main one.
     static func chosen(_ settings: EdgeSettings) -> Display {
         Display.chosen(settings.display, among: all) ?? Display(id: "", frame: .zero, visible: .zero)

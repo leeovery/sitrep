@@ -2,8 +2,7 @@ import Foundation
 import os
 import SitRepCore
 
-/// The works on screen and the jump to one, through the plugin's CLI. The
-/// app only reads the board and jumps; it never writes to it.
+/// The jump to a session's window, one at a time, through the plugin's CLI.
 @MainActor
 final class Works {
     private let logger = Logger(sitrep: "jump")
@@ -17,10 +16,6 @@ final class Works {
     }
 
     var isJumping: Bool { oneJump.isRunning }
-
-    func list() async -> ListAnswer {
-        await sitrep?.list() ?? .failed(Plugin.unbuilt)
-    }
 
     /// Jumps to the work's window unless a jump is under way, and tells
     /// `answered` whether it jumped. A jump that fails is told in a banner
@@ -40,9 +35,5 @@ final class Works {
                 break
             }
         }
-    }
-
-    func sendTestBanner() {
-        Task { await banners.post(.test(await list())) }
     }
 }

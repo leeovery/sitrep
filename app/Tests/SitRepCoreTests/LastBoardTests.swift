@@ -162,4 +162,45 @@ struct LastBoardTests {
 
         #expect(resumed == [false, false, false, true, false])
     }
+
+    @Test func everyRunsFirstLineIsItsFirstTheFirstRunsAmongThem() {
+        var last = LastBoard()
+        var first: [Bool] = []
+
+        func hear(_ heard: Heard) {
+            _ = last.hear(heard, at: Self.noon)
+            first.append(last.isRunsFirst)
+        }
+
+        last.begin()
+        hear(.line(watchedEmpty))
+        hear(.line(watched))
+        last.begin()
+        hear(.line(watchedEmpty))
+        hear(.exited(.status(1), stderr: ""))
+
+        #expect(first == [true, false, true, false])
+    }
+
+    /// A first line that does not read is still the run's first, so the next that reads is no longer taken for it:
+    /// its `new` is news. It is the run's first board read, though, so it is resumed.
+    @Test func aRunsFirstLineThatDoesNotReadIsItsFirstAndTheNextThatReadsIsResumed() {
+        var last = LastBoard()
+        var heard: [(first: Bool, resumed: Bool)] = []
+
+        func hear(_ said: Heard) {
+            _ = last.hear(said, at: Self.noon)
+            heard.append((last.isRunsFirst, last.isResumed))
+        }
+
+        last.begin()
+        hear(.line(watchedEmpty))
+        last.begin()
+        hear(.line("{"))
+        hear(.line(watched))
+        hear(.line(watchedEmpty))
+
+        #expect(heard.map(\.first) == [true, true, false, false])
+        #expect(heard.map(\.resumed) == [false, false, true, false])
+    }
 }

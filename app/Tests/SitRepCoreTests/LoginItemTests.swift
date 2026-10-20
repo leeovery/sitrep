@@ -9,7 +9,7 @@ struct LoginItemTests {
         #expect(login.isOn)
         #expect(!login.needsApproval)
         #expect(login.choice == .unregister)
-        #expect(login.title == "Start at login")
+        #expect(login.line == nil)
     }
 
     @Test(arguments: [SMAppService.Status.notRegistered, .notFound])
@@ -19,7 +19,7 @@ struct LoginItemTests {
         #expect(!login.isOn)
         #expect(!login.needsApproval)
         #expect(login.choice == .register)
-        #expect(login.title == "Start at login")
+        #expect(login.line == nil)
     }
 
     @Test func aLoginItemAwaitingApprovalSaysSoAndOpensSystemSettings() {
@@ -28,6 +28,6 @@ struct LoginItemTests {
         #expect(!login.isOn)
         #expect(login.needsApproval)
         #expect(login.choice == .openSettings)
-        #expect(login.title == "Start at login (approve in System Settings)")
+        #expect(login.line == "Waiting for your approval in System Settings")
     }
 }

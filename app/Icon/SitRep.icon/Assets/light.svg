@@ -1,0 +1,19 @@
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <clipPath id="notch">
+      <path d="M-36 202 L44 202 C44 269.5 102.12 298.25 160.25 325.75 C218.38 353.25 276.5 379.5 276.5 442 L276.5 582 C276.5 644.5 218.38 670.75 160.25 698.25 C102.12 725.75 44 754.5 44 822 L-36 822 Z"/>
+    </clipPath>
+    <filter id="halo" x="-300%" y="-50%" width="700%" height="200%">
+      <feGaussianBlur stdDeviation="16"/>
+    </filter>
+    <linearGradient id="bar" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FF8A63"/>
+      <stop offset="0.45" stop-color="#E9643D"/>
+      <stop offset="1" stop-color="#C94A24"/>
+    </linearGradient>
+  </defs>
+  <g clip-path="url(#notch)">
+    <rect x="116.25" y="346" width="76" height="332" rx="38" filter="url(#halo)" fill="#E9643D" fill-opacity="0.75"/>
+  </g>
+  <rect x="134.25" y="362" width="40" height="300" rx="20" fill="url(#bar)"/>
+</svg>

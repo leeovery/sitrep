@@ -3,10 +3,18 @@ import os
 import SitRepCore
 import SitRepPanel
 
-/// What Lee sets for the edge, kept as one value in the app's defaults: JSON, read leniently, so a value another
-/// version saved keeps what it can and anything unreadable is the defaults (`EdgeSettings`).
-public struct SavedEdgeSettings {
-    static let key = "edge"
+/// A value Lee sets, kept whole under a key of its own in the app's defaults, and read leniently: its type's decoding
+/// keeps what it can of a value another version saved, so only something that is not JSON at all is the defaults.
+public protocol SavedValue: Codable, Equatable, Sendable {
+    /// Its key in the app's defaults.
+    static var key: String { get }
+    /// The defaults.
+    init()
+}
+
+/// One saved value: JSON, under its type's key.
+public struct SavedSettings<Value: SavedValue> {
+    public static var key: String { Value.key }
 
     private let defaults: UserDefaults
     private let logger = Logger(sitrep: "settings")
@@ -15,25 +23,32 @@ public struct SavedEdgeSettings {
         self.defaults = defaults
     }
 
-    public func read() -> EdgeSettings {
+    public func read() -> Value {
         guard let saved = defaults.data(forKey: Self.key) else {
-            return EdgeSettings()
+            return Value()
         }
 
         do {
-            return try JSONDecoder().decode(EdgeSettings.self, from: saved)
+            return try JSONDecoder().decode(Value.self, from: saved)
         } catch {
-            logger.error("The edge's settings are not JSON, so the defaults stand: \(error, privacy: .public)")
+            logger.error("The \(Self.key, privacy: .public) settings are not JSON, so the defaults stand: \(error, privacy: .public)")
 
-            return EdgeSettings()
+            return Value()
         }
     }
 
-    public func save(_ settings: EdgeSettings) {
+    public func save(_ value: Value) {
         do {
-            defaults.set(try JSONEncoder().encode(settings), forKey: Self.key)
+            defaults.set(try JSONEncoder().encode(value), forKey: Self.key)
         } catch {
-            logger.error("The edge's settings were not saved: \(error, privacy: .public)")
+            logger.error("The \(Self.key, privacy: .public) settings were not saved: \(error, privacy: .public)")
         }
     }
+}
+
+/// What Lee sets for the edge (`EdgeSettings`), as one value.
+public typealias SavedEdgeSettings = SavedSettings<EdgeSettings>
+
+extension EdgeSettings: SavedValue {
+    public static let key = "edge"
 }

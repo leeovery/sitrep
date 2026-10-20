@@ -11,6 +11,10 @@ public enum Lines {
     /// `sitrep watch`'s lines, in the order it printed them.
     public static let watch = printed("watch.jsonl").split(separator: "\n").map(String.init)
 
+    /// `sitrep watch`'s first two lines over a board of its own, run the same day: Switchboard's Usage session, away,
+    /// then an ask posted into it, new on the second line.
+    public static let newAsk = printed("watch-new-ask.jsonl").split(separator: "\n").map(String.init)
+
     /// `board --json` for The Mac app, before anything was answered.
     public static let board = printed("board-macapp.json")
     /// The same, its yes answered and its words ask ignored, both on their way.
