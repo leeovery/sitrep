@@ -1,9 +1,9 @@
 import AppKit
 import SitRepPanel
 
-/// The other edge's ghost while a drag carries the notch: the notch at rest in faint black on the screen's other
-/// side, where letting go would take it, coming and going as `DragGhost` has it. Its window shows only while it does,
-/// and takes no clicks.
+/// The other edge's ghost while a drag carries the notch or the strip: the notch at rest, or the strip as it is, in
+/// faint black on the screen's other side, where letting go would take it, coming and going as `DragGhost` has it.
+/// Its window shows only while it does, and takes no clicks.
 @MainActor
 final class GhostEdge {
     private var ghost = DragGhost()
@@ -25,7 +25,8 @@ final class GhostEdge {
         window = EdgeWindow(frame: .zero, view: view)
     }
 
-    /// The drag carries the notch on this edge, past the screen's middle or not, the notch at rest in this outline.
+    /// The drag carries the notch or the strip on this edge, past the screen's middle or not, landing there in this
+    /// outline on the stage.
     func carried(across: Bool, outline: CGPath, on edge: ScreenEdge) {
         let other = edge.across
 
@@ -41,12 +42,12 @@ final class GhostEdge {
         }
     }
 
-    /// The drag let the notch go, past the screen's middle or not.
+    /// The drag let it go, past the screen's middle or not.
     func dropped(across: Bool) {
         ghost.dropped(across: across)
     }
 
-    /// Gone at once, the notch hidden mid-drag.
+    /// Gone at once, the notch or the strip hidden mid-drag.
     func hide() {
         ghost = DragGhost()
         time = nil

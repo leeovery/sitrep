@@ -28,6 +28,8 @@ enum GlassThickness {
 enum GlassInk {
     /// Needs you: Claude's orange, as on the black.
     static let orange = Color(cgColor: EdgeStyle.color(LiveLight.orange))
+    /// The same, for a spinner's arc.
+    static let orangeArc = NSColor(cgColor: EdgeStyle.color(LiveLight.orange)) ?? .systemOrange
 }
 
 /// An arc turning round a track, once in a period: a working row's mark.

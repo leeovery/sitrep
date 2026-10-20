@@ -16,7 +16,7 @@ struct StripFitTests {
     @Test func sixteenMarksFitOnTheRecordingsScreenTheLastKeepingRoomClearOfTheBottomEnd() {
         var lab = StripLab()
 
-        lab.model.add(StripLab.asks)
+        lab.add(StripLab.asks)
         lab.settle()
 
         #expect(lab.model.layout.more == nil)
@@ -24,7 +24,7 @@ struct StripFitTests {
         #expect(lab.model.layout.places.last!.y == 543)
         #expect(lab.model.bottomEnd - lab.model.endPad == 626 - 26 - 28 - 2 - 12 - 12)
 
-        lab.model.add([Session(id: "s17", project: "Kit", kind: .working, title: "", sub: "", since: 0)])
+        lab.add([Session(id: "s17", project: "Kit", kind: .working, title: "", sub: "", since: 0)])
         lab.settle()
         #expect(lab.model.layout.more?.y == 543)
     }
@@ -36,7 +36,7 @@ struct StripFitTests {
         lab.open("s1")
         #expect(lab.frame.strip == rest)
 
-        lab.model.add(StripLab.tooMany)
+        lab.add(StripLab.tooMany)
         lab.settle()
         lab.pointer = CGPoint(x: 18, y: lab.model.layout.more!.y)
         lab.wait(1000) { $0.live?.phase == .open }
@@ -61,7 +61,10 @@ struct StripFitTests {
         let input = StripInput(
             time: 0, pointer: nil, stage: StripStage(width: 1512, height: 982, menu: 37), reducesMotion: false
         )
-        let model = Strip(length: .full, maxLength: .full, sessions: StripLab.prototype, measure: StripLab.measure, input)
+        let model = Strip(
+            length: .full, maxLength: .full, along: Tuning.notchAt, sessions: StripLab.prototype,
+            measure: StripLab.measure, input
+        )
 
         let box = model.frame(input).strip.boundingBoxOfPath
 
@@ -105,7 +108,7 @@ struct StripFitTests {
 
     @Test func theLastMarksTabFitsIntoTheBottomEndAsTheFirstsDoesTheTop() {
         var lab = StripLab()
-        lab.model.add(StripLab.asks)
+        lab.add(StripLab.asks)
         lab.settle()
 
         lab.open("s8")
@@ -119,7 +122,7 @@ struct StripFitTests {
 
     @Test func theCountsTabAtItsTallestFitsIntoBothEndsAlike() {
         var lab = StripLab()
-        lab.model.add(StripLab.tooMany)
+        lab.add(StripLab.tooMany)
         lab.settle()
 
         lab.pointer = CGPoint(x: 18, y: lab.model.layout.more!.y)

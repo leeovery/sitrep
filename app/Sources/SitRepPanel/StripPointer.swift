@@ -6,9 +6,9 @@ import Foundation
 
 extension Strip {
     /// Once a frame: what is under the pointer, and what the tab does about it. A drag carries the strip and nothing
-    /// else.
+    /// else, and crossing to the other edge it takes no pointer.
     func updateHover() {
-        guard !dragging else {
+        guard !dragging, !crossing else {
             return
         }
 
@@ -94,7 +94,7 @@ extension Strip {
     }
 
     func inStrip(_ p: Vec) -> Bool {
-        inRect(p, column)
+        sw.x > 1 && inRect(p, column)
     }
 
     func inTab(_ p: Vec, _ tab: StripTab) -> Bool {
@@ -108,79 +108,126 @@ extension Strip {
 
     /// A click on the strip or an open tab, in stage coordinates: on a tab or its mark, it jumps, whether or not the
     /// tab is out yet; on an away mark, nothing (its tab says why); on a count, its tab opens at once, and a row on its
-    /// tab jumps, but for an away one's.
-    public func click(at point: CGPoint) {
-        if let live = liveTab(), live.phase == .open, let shown = lastTabs.first(where: { $0.id == live.id }),
-           shown.contains(point)
-        {
+    /// tab jumps, but for an away one's. Crossing to the other edge, it takes none. The session it jumps to, if it does.
+    @discardableResult
+    public func click(at point: CGPoint) -> Session? {
+        guard !crossing else {
+            return nil
+        }
+
+        if let (live, shown) = openTab(at: point) {
             if case let .session(id) = live.key {
-                jump(live, id, row: false)
-            } else if let id = shown.row(at: point) {
-                jump(live, id, row: true)
+                return jump(live, id, row: false)
             }
-            return
+            return shown.row(at: point).flatMap { jump(live, $0, row: true) }
         }
         guard jumping == nil, inStrip(Vec(point.x, point.y)), let key = keyAt(point.y) else {
-            return
+            return nil
         }
         guard case let .session(id) = key else {
-            return openCount(key)
+            openCount(key)
+            return nil
         }
-        guard session(id)?.jumps == true else {
-            return
+        guard let session = session(id), session.jumps else {
+            return nil
         }
 
         if let live = liveTab(), live.phase == .open, live.key == key {
-            jump(live, id, row: false)
-        } else {
-            jumpMark(key)
+            return jump(live, id, row: false)
+        }
+        return jumpMark(key) ? session : nil
+    }
+
+    /// The jump answered: a click's spin ends now, rather than at its 450ms.
+    public func jumpAnswered() {
+        if timers.has(.jumpGo) {
+            cancel(.jumpGo)
+            endJump()
         }
     }
 
-    /// A press on the strip, in stage coordinates: at Grows, moved along the edge it drags the strip there.
+    /// A press, in stage coordinates: on the strip, which moved may become a drag; on an open tab, which only clicks.
     public func press(at point: CGPoint) {
-        guard length == .grows, jumping == nil, inStrip(Vec(point.x, point.y)) else {
+        guard jumping == nil, !crossing else {
             return
         }
 
-        press = (point.y, layout.top + layout.length / 2, false)
+        if inStrip(Vec(point.x, point.y)) {
+            press = NotchDrag(at: point, home: layout.top + layout.length / 2)
+        } else {
+            pressesTab = openTab(at: point) != nil
+        }
     }
 
-    /// The press let go: the end of a drag, the pointer not opening the mark it is left on until it leaves it; or else
-    /// a click.
-    public func release(at point: CGPoint) {
-        let held = press
+    /// The press let go: the end of a drag, the pointer not opening the mark it is left on until it leaves it, and past
+    /// the screen's middle the strip crossing to the other edge (`cross`); or else a click, unless it `clicks` not, as
+    /// while a jump runs. A press refused, or given up, lets go on nothing.
+    @discardableResult
+    public func release(at point: CGPoint, clicks: Bool = true) -> StripRelease {
+        let onTab = pressesTab
+
+        pressesTab = false
+        guard let held = press else {
+            return onTab ? clicked(at: point, clicks) : .nothing
+        }
+
         press = nil
-        guard held?.moved == true else {
-            return click(at: point)
+        guard held.isCarrying else {
+            return clicked(at: point, clicks)
         }
 
         dragging = false
         disarmed = inStrip(Vec(point.x, point.y)) ? keyAt(point.y) : nil
         relayout()
+        if held.isAcross {
+            cross()
+        }
+        return .dropped(along: length == .grows ? centre / stage.height : nil, across: held.isAcross)
     }
 
-    /// A press moved more than 4 along the edge is a drag: any tab draws back, and the strip's centre follows the
-    /// pointer, the marks and the ends at once.
-    func drag(to y: Double) {
+    private func clicked(at point: CGPoint, _ clicks: Bool) -> StripRelease {
+        clicks ? click(at: point).map(StripRelease.jump) ?? .nothing : .nothing
+    }
+
+    /// The open tab under a point, and its words as last drawn.
+    private func openTab(at point: CGPoint) -> (StripTab, StripFrame.Tab)? {
+        guard let live = liveTab(), live.phase == .open, let shown = lastTabs.first(where: { $0.id == live.id }),
+              shown.contains(point)
+        else {
+            return nil
+        }
+
+        return (live, shown)
+    }
+
+    /// A press moved into a drag, which carries the strip till it lets go.
+    public var isDragging: Bool { dragging }
+
+    /// While a drag carries the strip, whether the pointer is past the screen's middle, where letting go takes the
+    /// strip to the other edge.
+    public var isAcross: Bool { dragging && press?.isAcross == true }
+
+    /// A press moved more than 4 is a drag: any tab draws back, and at Grows the strip's centre follows the pointer
+    /// along the edge, the marks and the ends at once. At Full it runs the screen's height, and goes nowhere along it.
+    func drag(to p: Vec) {
         guard var held = press else {
             return
         }
 
-        let dy = y - held.y0
-        if !held.moved {
-            guard abs(dy) > StripTuning.dragFrom else {
-                return
-            }
-
-            held.moved = true
-            press = held
+        if held.move(to: CGPoint(x: p.x, y: p.y), width: stage.width) {
             dragging = true
             tabs.forEach { drawBack($0) }
             cancel(.dwell, .grace)
             hot = nil
         }
-        centre = clampCentre(held.centre + dy)
+        press = held
+        guard held.isCarrying else {
+            return
+        }
+
+        if length == .grows {
+            centre = clampCentre(held.notchY)
+        }
         relayout()
     }
 
@@ -202,11 +249,12 @@ extension Strip {
         pour(makeTab(key))
     }
 
-    /// A click on an open tab, or one of a count's rows: it presses in and spins for 450ms, then draws back. An away
-    /// session's takes no click: no window holds it.
-    func jump(_ tab: StripTab, _ id: String, row: Bool) {
-        guard jumping == nil, tab.phase == .open, session(id)?.jumps == true else {
-            return
+    /// A click on an open tab, or one of a count's rows: it presses in and spins until the jump answers, 450ms at
+    /// most, then draws back. An away session's takes no click: no window holds it. The session it jumps to, if it
+    /// does.
+    func jump(_ tab: StripTab, _ id: String, row: Bool) -> Session? {
+        guard jumping == nil, tab.phase == .open, let session = session(id), session.jumps else {
+            return nil
         }
 
         jumping = .tab(tab, id)
@@ -217,28 +265,51 @@ extension Strip {
             tab.current?.pressed = true
         }
         springTo(&tab.press, row ? 0 : 4, .press)
-        later(.jumpGo, StripTuning.jumpSpin) { strip in
-            strip.jumping = nil
-            strip.disarmed = tab.key
-            strip.drawBack(tab)
-        }
+        later(.jumpGo, StripTuning.jumpSpin) { $0.endJump() }
+        return session
     }
 
     /// A click on a mark whose tab isn't out, inside the dwell too: the reach draws back at once, the ring presses in
-    /// and its own arc spins for the 450ms, then the jump.
-    func jumpMark(_ key: MarkKey) {
+    /// and its own arc spins until the jump answers, 450ms at most. Whether it took the click.
+    func jumpMark(_ key: MarkKey) -> Bool {
         guard jumping == nil, let m = mark(key) else {
-            return
+            return false
         }
 
         tabs.forEach { drawBack($0) }
         cancel(.dwell, .grace)
         jumping = .mark(key)
         springTo(&m.sc, StripTuning.markPress, .press)
-        later(.jumpGo, StripTuning.jumpSpin) { strip in
-            strip.jumping = nil
-            strip.disarmed = key
-            strip.springTo(&m.sc, 1, .press)
+        later(.jumpGo, StripTuning.jumpSpin) { $0.endJump() }
+        return true
+    }
+
+    /// The spin over: a tab draws back, a ring springs back out, and neither opens again under the pointer until it
+    /// leaves.
+    private func endJump() {
+        switch jumping {
+        case let .tab(tab, _):
+            jumping = nil
+            disarmed = tab.key
+            drawBack(tab)
+        case let .mark(key):
+            jumping = nil
+            disarmed = key
+            if let m = mark(key) {
+                springTo(&m.sc, 1, .press)
+            }
+        case nil:
+            break
         }
     }
+}
+
+/// What a press on the strip came to as it let go.
+public enum StripRelease: Equatable {
+    case nothing
+    /// A click that jumps to this session.
+    case jump(Session)
+    /// A drag let the strip go: how far down the screen its centre was left, 0 to 1, where it went along the edge (at
+    /// Grows); and whether it was let go past the screen's middle, for the other edge.
+    case dropped(along: Double?, across: Bool)
 }

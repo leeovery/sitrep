@@ -29,7 +29,7 @@ struct StripLab {
         self.reducesMotion = reducesMotion
         let input = StripInput(time: now, pointer: pointer, stage: Self.stage, reducesMotion: reducesMotion)
         model = Strip(
-            feel: feel, length: length, maxLength: Self.maxLength(marks: maxMarks), sessions: sessions,
+            feel: feel, length: length, maxLength: Self.maxLength(marks: maxMarks), sessions: Self.core(sessions),
             measure: Self.measure, input
         )
         frame = model.frame(input)
@@ -40,6 +40,44 @@ struct StripLab {
                 step(at: now + 16)
             }
         }
+    }
+
+    /// The board with a new ask on it, new on its line.
+    func newAsk(_ ask: Session) {
+        show(model.sessions + [ask], new: [ask.id])
+    }
+
+    /// The board with these on it too, none of them new: sessions that started, or asks on a first line.
+    func add(_ sessions: [Session]) {
+        show(model.sessions + sessions)
+    }
+
+    /// The board with a session's row changed.
+    func change(_ session: Session) {
+        show(model.sessions.map { $0.id == session.id ? session : $0 })
+    }
+
+    /// The board with these gone from it.
+    func remove(_ ids: [String]) {
+        show(model.sessions.filter { !ids.contains($0.id) })
+    }
+
+    private func show(_ sessions: [Session], new: Set<String> = []) {
+        model.show(Self.core(sessions), new: new)
+    }
+
+    /// The rows in core's order, as `watch` prints them (`core/rows.ts`): needs you, oldest first, away ones last;
+    /// your turn, newest first; working, longest running first; on a tie, as they were.
+    static func core(_ sessions: [Session]) -> [Session] {
+        func key(_ row: (offset: Int, element: Session)) -> (Int, Double, Int) {
+            let s = row.element
+            return switch s.kind {
+            case .needs: (s.away ? 1 : 0, s.since, row.offset)
+            case .turn: (2, -s.since, row.offset)
+            case .working: (3, s.since, row.offset)
+            }
+        }
+        return sessions.enumerated().sorted { key($0) < key($1) }.map(\.element)
     }
 
     mutating func step() {
@@ -270,7 +308,7 @@ extension StripLab {
         Session(id: "s1", project: "SitRep", kind: .needs, title: "Approve the round 2 drawings", sub: "SitRep · The Mac app", since: -1 * hour),
         Session(id: "s2", project: "Switchboard", kind: .needs, title: "Keep the old dashboard cache?", sub: "Switchboard · Dashboard memory fix", since: -12 * minute),
         Session(id: "s3", project: "agntc", kind: .needs, title: "Allow Bash ", code: "gh release create v0.5.3", sub: "agntc · v0.5.3: moved-skill remedy", since: -4 * minute),
-        Session(id: "s4", project: "Terrace", kind: .needs, away: true, title: "Approve the plan for the tool", sub: "Terrace · Plan the tool", since: -1 * day),
+        Session(id: "s4", project: "Terrace", kind: .needs, away: true, title: "Approve the plan for the tool", sub: "No window holds it. Carry it on in Claude.", since: -1 * day),
         Session(id: "s5", project: "Fumi", kind: .turn, title: "The management window is sketched", sub: "Fumi · Management window discussion", since: -20 * minute),
         Session(id: "s6", project: "Goosemates", kind: .turn, title: "Waiting for the next round of feedback", sub: "Goosemates · Settle the older open questions", since: -3 * hour),
         Session(id: "s7", project: "DocMan", kind: .working, title: "Running the exception reporting tests", sub: "DocMan · Fix inverted exception reporting", since: -12 * minute),
@@ -361,6 +399,6 @@ extension StripLab {
 
     /// A row's two lines as the prototype sets them: the title, its command and its "+2"; the line under it.
     private static func lines(_ s: Session) -> String {
-        "\(s.title)\(s.code ?? "")\(s.more ?? "")|\(s.line2)"
+        "\(s.title)\(s.code ?? "")\(s.more ?? "")|\(s.sub)"
     }
 }

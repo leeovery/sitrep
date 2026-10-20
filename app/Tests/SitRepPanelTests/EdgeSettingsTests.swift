@@ -79,6 +79,19 @@ struct EdgeSettingsTests {
         #expect(read.along == along)
     }
 
+    /// A drag lets the notch or the strip go: there along the edge, held to the screen, and across the middle on the
+    /// other edge; a strip at Full, carried nowhere along it, keeps its place.
+    @Test func aDropTakesThePlaceAlongTheEdgeAndAcrossTheMiddleTheOtherEdge() {
+        var settings = EdgeSettings()
+        settings.along = 0.3
+
+        #expect(settings.dropped(along: 0.6, across: false).along == 0.6)
+        #expect(settings.dropped(along: 1.4, across: false).along == 1)
+        #expect(settings.dropped(along: nil, across: false) == settings)
+        #expect(settings.dropped(along: nil, across: true).edge == .right)
+        #expect(settings.dropped(along: nil, across: true).along == 0.3)
+    }
+
     @Test func eachStyleMakesItsNotch() {
         let input = Input(time: 0, pointer: nil, needsLee: false, stage: screen, content: .css)
 

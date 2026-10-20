@@ -12,6 +12,10 @@ public struct PanelBoard: Equatable, Sendable {
     public let needsLee: Bool
     /// The rows needing Lee that are new on this board, by their keys: the notch's swell, and each row's wash.
     public let new: Set<String>
+    /// The strip's words for the board, which it has no head to say: before any board, the head's title; while the
+    /// board is stale, when it was last known current, "as of 12:04".
+    public let unread: String?
+    public let asOf: String?
     /// Each row's session, by the row's key, for the jump.
     private let sessionOf: [String: String]
 
@@ -27,14 +31,16 @@ public struct PanelBoard: Equatable, Sendable {
 
     /// With no `watch` to run, its head says why.
     public init(unrun why: String) {
-        self.init(sessions: [], head: Head(title: why, count: ""), needsLee: false, new: [])
+        self.init(sessions: [], head: Head(title: why, count: ""), needsLee: false, new: [], unread: why, asOf: nil)
     }
 
     /// The board as last heard. While it is stale, its rows stay as they were and its head says when it was last
     /// known current, "as of 12:04", as the menu's does.
     public init(_ last: LastBoard, clock: Date.FormatStyle = .init(date: .omitted, time: .shortened)) {
         guard let board = last.board else {
-            self.init(sessions: [], head: last.stale == nil ? Self.looking : Self.unread, needsLee: false, new: [])
+            let head = last.stale == nil ? Self.looking : Self.unread
+
+            self.init(sessions: [], head: head, needsLee: false, new: [], unread: head.title, asOf: nil)
             return
         }
 
@@ -48,17 +54,22 @@ public struct PanelBoard: Equatable, Sendable {
             needsLee: !board.head.isAllClear,
             // stale, the last line's new rows are not new again
             new: last.stale == nil ? Set(board.new) : [],
+            unread: nil,
+            asOf: asOf,
             sessionOf: Dictionary(board.rows.map { ($0.key, $0.session) }) { first, _ in first }
         )
     }
 
     private init(
-        sessions: [Session], head: Head, needsLee: Bool, new: Set<String>, sessionOf: [String: String] = [:]
+        sessions: [Session], head: Head, needsLee: Bool, new: Set<String>, unread: String?, asOf: String?,
+        sessionOf: [String: String] = [:]
     ) {
         self.sessions = sessions
         self.head = head
         self.needsLee = needsLee
         self.new = new
+        self.unread = unread
+        self.asOf = asOf
         self.sessionOf = sessionOf
     }
 

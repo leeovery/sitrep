@@ -117,7 +117,9 @@ struct StripTests {
     func aTabIsAsWideAsItsRowNeedsFrom240To360(natural: Double, width: Double) {
         let measure = StripMeasure(row: { _ in natural }, rows: { _ in natural }, idle: { natural })
         let input = StripInput(time: 0, pointer: nil, stage: StripLab.stage)
-        let strip = Strip(length: .grows, maxLength: .full, sessions: StripLab.prototype, measure: measure, input)
+        let strip = Strip(
+            length: .grows, maxLength: .full, along: Tuning.notchAt, sessions: StripLab.prototype, measure: measure, input
+        )
 
         #expect(strip.buildWords(.session("s5")).W == width)
     }
@@ -201,7 +203,7 @@ struct StripTests {
         var lab = StripLab(pointer: CGPoint(x: 18, y: 600))
         lab.settle()
 
-        lab.model.newAsk(StripLab.ask)
+        lab.newAsk(StripLab.ask)
         lab.settle()
 
         #expect(lab.model.display == ["s1", "s2", "s3", "s9", "s4", "s5", "s6", "s7", "s8"])
@@ -213,7 +215,7 @@ struct StripTests {
         var away = StripLab.ask
         away.away = true
 
-        lab.model.newAsk(away)
+        lab.newAsk(away)
 
         #expect(lab.model.display.prefix(5) == ["s1", "s2", "s3", "s4", "s9"])
     }
@@ -223,7 +225,7 @@ struct StripTests {
         feel.swells = -1
         var lab = StripLab(feel: feel)
 
-        lab.model.newAsk(StripLab.ask)
+        lab.newAsk(StripLab.ask)
         lab.wait(1000)
 
         #expect(lab.model.mark(.session("s9"))!.flashes.isEmpty)
@@ -232,7 +234,7 @@ struct StripTests {
 
     @Test func aNewMarksRingFlashesTwice450msApartAndItIsWashedForTwoSeconds() {
         var lab = StripLab()
-        lab.model.newAsk(StripLab.ask)
+        lab.newAsk(StripLab.ask)
         lab.wait(1000) { $0.model.mark(.session("s9"))!.arrived > -1e8 }
         let arrived = lab.model.t
         var flash: [(t: Double, level: Double)] = [], washed: [(t: Double, level: Double)] = []
@@ -257,7 +259,7 @@ struct StripTests {
         var lab = StripLab()
         lab.open("s6")
 
-        lab.model.change(StripLab.answered)
+        lab.change(StripLab.answered)
         lab.wait(1500)
         #expect(lab.model.display.first == "s1")
 
@@ -275,7 +277,7 @@ struct StripTests {
         lab.open("s6")
         let tab = lab.live!
 
-        lab.model.newAsk(StripLab.ask)
+        lab.newAsk(StripLab.ask)
         let mark = lab.model.mark(.session("s6"))!
         var apart = 0.0
         lab.wait(1000) { lab in
@@ -298,7 +300,7 @@ struct StripTests {
             Issue.record("no row")
             return
         }
-        #expect(session.line2 == "No window holds it. Carry it on in Claude.")
+        #expect(session.sub == "No window holds it. Carry it on in Claude.")
         lab.model.click(at: CGPoint(x: lab.frame.tabs[0].clip.midX, y: 170))
         lab.model.click(at: CGPoint(x: 18, y: 170))
         lab.step()
@@ -343,7 +345,7 @@ struct StripTests {
     @Test func tooManyTheLastPlaceIsTheCountAndNeedsYouNeverFolds() {
         var lab = StripLab()
 
-        lab.model.add(StripLab.tooMany)
+        lab.add(StripLab.tooMany)
         lab.settle()
 
         let count = lab.frame.marks.last!
@@ -354,7 +356,7 @@ struct StripTests {
 
     @Test func aClickOnTheCountOpensItsTabAtOnceAndARowOnItJumps() {
         var lab = StripLab()
-        lab.model.add(StripLab.tooMany)
+        lab.add(StripLab.tooMany)
         lab.settle()
 
         lab.pointer = CGPoint(x: 18, y: 543)
@@ -372,6 +374,19 @@ struct StripTests {
         #expect(lab.frame.tabs[0].words.last!.pressedRow == lab.model.layout.rest[0])
     }
 
+    /// Pressed and let go on a row of an open count's tab, past the strip: the press is the tab's, and it jumps.
+    @Test func aPressLetGoOnAnOpenTabsRowJumps() throws {
+        var lab = StripLab()
+        lab.add(StripLab.tooMany)
+        lab.open(.more)
+        let tab = lab.frame.tabs[0], row = CGPoint(x: 100, y: tab.box.minY + StripTuning.rowsPad + 20)
+        let first = try #require(lab.model.layout.rest.first.flatMap(lab.model.session))
+
+        lab.model.press(at: row)
+
+        #expect(lab.model.release(at: row) == .jump(first))
+    }
+
     @Test func underReducedMotionThereIsNoReachTheMarksSnapAndATabFadesIn() {
         var lab = StripLab(pointer: CGPoint(x: 18, y: 213), reducesMotion: true)
 
@@ -386,7 +401,7 @@ struct StripTests {
         #expect(abs(lab.live!.alpha.x - 1) < 1e-2)
 
         lab.pointer = CGPoint(x: 600, y: 213)
-        lab.model.newAsk(StripLab.ask)
+        lab.newAsk(StripLab.ask)
         lab.step()
         #expect(lab.model.mark(.session("s5"))!.y.x == 243)
     }
@@ -405,7 +420,7 @@ struct StripTests {
     }
 
     /// A working mark's tab poured and drawn back, the pointer gone: its ring's lift settles with everything else, and
-    /// the strip wants no more frames, its arcs turning on in the views alone.
+    /// nothing moves, its arcs turning on in the views alone.
     @Test func afterAHoverTheLiftSettlesAndTheFramesStop() {
         var lab = StripLab()
         lab.open("s7")
@@ -415,18 +430,41 @@ struct StripTests {
 
         #expect(settled)
         #expect(lab.model.marks.allSatisfy { $0.lift.isAtRest && $0.lift.x == 0 })
-        #expect(!lab.frame.wantsFrames(pointer: nil))
+        #expect(!lab.frame.wakes(pointer: nil))
     }
 
-    @Test func framesStopWithThePointerAwayAndRunWhileItIsOnTheStripAndForAFrameAfter() {
+    /// Off the strip, a move wakes nothing until it comes onto the strip.
+    @Test func withThePointerAwayOnlyAMoveOntoTheStripWakesFrames() {
         var lab = StripLab(pointer: CGPoint(x: 600, y: 400))
-        lab.settle()
-        #expect(!lab.frame.wantsFrames(pointer: lab.pointer))
-        #expect(lab.frame.wantsFrames(pointer: CGPoint(x: 10, y: 400)))
+        let settled = lab.settle()
 
-        lab.pointer = CGPoint(x: 10, y: 400)
-        lab.settle()
-        #expect(lab.frame.isOver)
-        #expect(lab.frame.wantsFrames(pointer: CGPoint(x: 600, y: 400)))
+        #expect(settled)
+        #expect(!lab.frame.wakes(pointer: lab.pointer))
+        #expect(lab.frame.wakes(pointer: CGPoint(x: 10, y: 400)))
+    }
+
+    /// A pointer resting on a tab poured out and still moves nothing: no frames run until it moves, and then any move
+    /// wakes them, since only the model can tell it has left.
+    @Test func aStillPointerOnAStillTabWantsNoFramesAndAnyMoveWakesThem() {
+        var lab = StripLab()
+        lab.open("s5")
+        lab.pointer = CGPoint(x: 120, y: lab.model.yOf(.session("s5")))
+        let settled = lab.settle()
+
+        #expect(settled)
+        #expect(lab.live?.phase == .open)
+        #expect(lab.frame.wakes(pointer: CGPoint(x: 600, y: 40)))
+    }
+
+    /// Left on a mark it just jumped from, no tab opens: a still pointer there moves nothing, and any move wakes them.
+    @Test func aStillPointerOnTheStripWithNoTabWantsNoFrames() {
+        var lab = StripLab(pointer: CGPoint(x: 18, y: 243))
+        lab.wait(50)
+        lab.model.click(at: lab.pointer!)
+        let settled = lab.settle()
+
+        #expect(settled)
+        #expect(lab.model.tabs.isEmpty && lab.frame.isOver)
+        #expect(lab.frame.wakes(pointer: CGPoint(x: 600, y: 400)))
     }
 }

@@ -22,7 +22,7 @@ public struct PanelList: Equatable, Sendable {
 /// and what a press means. Every input reaches the model through here, and each first brings it up to the input's
 /// moment, so it takes its time from the clock, and the row it finds is the row drawn. The controller draws what this
 /// has, and paces its frames.
-public final class NotchRun {
+public final class NotchRun: EdgeRun {
     /// What the notch runs in, as it stands at each frame.
     public struct Setting: Equatable, Sendable {
         public var stage: Stage
@@ -40,33 +40,9 @@ public final class NotchRun {
         }
     }
 
-    /// When an input comes: the time, the pointer on the stage and when it was read, whether the notch shows, and
-    /// what it runs in.
-    public struct Moment: Sendable {
-        public var time: Double
-        public var pointer: CGPoint?
-        /// When the pointer was read, which its trail measures its speed by (`Input.pointerAt`); nil, `time`.
-        public var pointerAt: Double?
-        public var isShown: Bool
-        public var setting: Setting
-
-        public init(
-            time: Double, pointer: CGPoint?, pointerAt: Double? = nil, isShown: Bool = true, setting: Setting
-        ) {
-            self.time = time
-            self.pointer = pointer
-            self.pointerAt = pointerAt
-            self.isShown = isShown
-            self.setting = setting
-        }
-    }
-
-    /// What frames showed that the drawing must show once, though it draws only some of them: the edge swapped, and
-    /// when the panel first drained.
-    public struct Shown: Equatable, Sendable {
-        public var swappedEdge = false
-        public var drained: Double?
-    }
+    public typealias Moment = RunMoment<Setting>
+    public typealias Shown = RunShown
+    public typealias Drop = RunDrop
 
     /// What a press on the notch comes to.
     public enum Press: Equatable, Sendable {
@@ -76,12 +52,6 @@ public final class NotchRun {
         case carry
     }
 
-    /// A drag let the notch go: the settings with its new place, and whether that is on the other edge.
-    public struct Drop: Equatable, Sendable {
-        public let settings: EdgeSettings
-        public let isAcross: Bool
-    }
-
     /// The model: every input to it comes through the run, and what is drawn from it is read here. Internal only for
     /// the tests, which read the pointer's speed off it.
     private(set) var notch: any Notch
@@ -89,10 +59,9 @@ public final class NotchRun {
     /// The panel's list as the model and the drawing have it.
     public private(set) var list: PanelList
     public private(set) var frame: Frame
-    /// The display's clock, ms, as the frames and what comes between them have it: it never goes back. The main
-    /// link's frames are stamped up to a refresh ahead of what comes between them, and an input after one takes its
-    /// time.
-    public private(set) var time: Double
+    /// The display's clock, ms, as the frames and what comes between them have it: it never goes back.
+    public var time: Double { clock.time }
+    private var clock: RunClock
     /// The pointer on the stage as the last frame saw it.
     public private(set) var seen: CGPoint?
     /// How far down the panel's content is scrolled.
@@ -111,7 +80,7 @@ public final class NotchRun {
     private var clicks = 0
 
     public init(at time: Double, in setting: Setting) {
-        self.time = time
+        clock = RunClock(time)
         lit = time
         style = setting.style
         list = PanelList(head: board.head, content: Content(laying: []))
@@ -140,7 +109,7 @@ public final class NotchRun {
     /// One frame: the list as it folds now, the model moved on with the pointer where it is, the rows taking core's
     /// order once the panel is in, the notch Lee chose once it is at rest, and the scroll kept inside the content.
     public func step(_ moment: Moment) {
-        let time = clock(moment.time), setting = moment.setting
+        let time = clock.take(moment.time), setting = moment.setting
 
         list.content = folds.content(at: time)
 
@@ -164,7 +133,7 @@ public final class NotchRun {
     /// Hidden, the notch's time ran on: it is taken on to now (`Notch.runOn`), the pointer away, and the frame after
     /// shows it.
     public func catchUp(_ moment: Moment) {
-        let from = time, to = clock(moment.time)
+        let from = time, to = clock.take(moment.time)
 
         frame = notch.runOn(from: from, to: to) { [board, list] in
             Self.input(at: $0, pointer: nil, needsLee: board.needsLee, list, moment.setting)
@@ -315,22 +284,6 @@ public final class NotchRun {
         }
 
         return list.content.row(at: panel.contentPoint(point, mirror: setting.mirror, scroll: scroll))
-    }
-
-    /// The model brought up to an input's moment before the input reaches it: a frame then, or, hidden, its time run
-    /// on to then.
-    private func upToNow(_ moment: Moment) {
-        if moment.isShown {
-            step(moment)
-        } else {
-            catchUp(moment)
-        }
-    }
-
-    /// The time on the run's clock: this time, or the latest already taken, if that is later.
-    private func clock(_ time: Double) -> Double {
-        self.time = max(self.time, time)
-        return self.time
     }
 
     private func jump(_ index: Int, mayJump: Bool) -> Press? {

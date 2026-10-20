@@ -18,6 +18,11 @@ enum EdgeStyle {
     static let rule = srgb(0x232327)
     static let track = srgb(0x2C2C31)
     static let shim = srgb(0x9A9AA1)
+    /// The strip's (strip.html's `--p-` colours beyond the panel's): an away ask's words, a working mark's letters, and
+    /// its arc.
+    static let quiet = srgb(0x8A8A92)
+    static let grey = srgb(0x8E8E95)
+    static let arc = srgb(0xC9C9CF)
     static let orange = color(LiveLight.orange)
     /// A new row's wash, and the ring round it (the prototype's `--wash-bg` and `--wash-ring`).
     static let wash = color(LiveLight.orange, alpha: 0.12)
@@ -30,6 +35,11 @@ enum EdgeStyle {
     static let age = NSFont.monospacedDigitSystemFont(ofSize: 12, weight: .regular)
     static let headTitle = NSFont.systemFont(ofSize: 13, weight: .semibold)
     static let headCount = NSFont.systemFont(ofSize: 12)
+    /// A mark's letters, and a count's rows, needs you's bolder.
+    static let letters = NSFont.systemFont(ofSize: 9.5, weight: .semibold)
+    static let rowTitle = NSFont.systemFont(ofSize: 13, weight: .medium)
+    static let needsRowTitle = NSFont.systemFont(ofSize: 13, weight: .semibold)
+    static let rowSub = NSFont.systemFont(ofSize: 11)
 
     /// The prototype's letter-spacing of -0.01em, as a kern in points.
     static func tightKern(_ font: NSFont) -> CGFloat { -0.01 * font.pointSize }

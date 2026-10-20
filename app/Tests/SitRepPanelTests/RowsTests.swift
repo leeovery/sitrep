@@ -16,14 +16,6 @@ struct RowsTests {
         #expect(Session.ageText(minutes * Self.minute) == shown)
     }
 
-    /// The strip's order, until it takes core's: needs you, oldest first, away ones last; your turn, newest first;
-    /// working, longest running first.
-    @Test func theSessionsSortInTheDesignsOrder() {
-        let sessions = Item.prototype.compactMap(\.session).reversed()
-
-        #expect(Session.sorted(Array(sessions)).map(\.id) == ["s1", "s2", "s7", "s3", "s6", "s4", "s5"])
-    }
-
     /// Core orders the rows: the panel keeps them as given, the hairline under the needs you that lead.
     @Test func thePanelListsItsSessionsInTheOrderGiven() {
         let sessions = Item.prototype.compactMap(\.session).reversed()

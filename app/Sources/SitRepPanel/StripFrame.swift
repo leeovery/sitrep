@@ -21,22 +21,31 @@ public struct StripFrame {
     public let isOver: Bool
     /// A press on the strip is held, which may yet drag it: the pointer is the strip's till it lets go.
     public let isHeld: Bool
+    /// A click's spin is under way, until its jump answers.
+    public let isJumping: Bool
+    /// The strip has drained into this edge after a drag let it go across the screen's middle: from this frame it
+    /// grows out of the other, where the view moves it now.
+    public let swapsEdge: Bool
     /// The strip's whole column, which takes the pointer and clicks.
     public let column: CGRect
+    /// The pointer as the frame took it, held to the screen.
+    public let pointer: CGPoint?
 
     /// Whether a click here lands on the strip, a mark or an open tab, rather than passing through to what is beneath.
     public func hits(_ point: CGPoint) -> Bool {
         isHeld || inRect(Vec(point.x, point.y), column) || tabs.contains { $0.isLive && $0.contains(point) }
     }
 
-    /// Whether the view should keep frames coming: while anything moves, while a press is held, while the pointer is
-    /// on the strip or a tab, and for a frame after it leaves them. Otherwise frames can stop until the pointer comes
-    /// back or Lee acts.
-    public func wantsFrames(pointer: CGPoint?) -> Bool {
-        isMoving || isOver || isHeld || pointer.map { p in
-            inRect(Vec(p.x, p.y), column)
-                || tabs.contains { $0.outline.boundingBoxOfPath.insetBy(dx: -2, dy: -2).contains(p) }
-        } ?? false
+    /// Whether a move of the pointer to here should start frames again, once they have stopped with nothing moving: a
+    /// pointer resting anywhere, on the strip or on a still tab, changes nothing until it moves. While a press is held,
+    /// a tab is out, or the frame had the pointer on the strip, every move wakes them, a flick away included, since
+    /// only the model can tell the pointer has left; else a move onto the strip.
+    public func wakes(pointer: CGPoint?) -> Bool {
+        isHeld || isOver || !tabs.isEmpty || [pointer, self.pointer].contains { isOnStrip($0) }
+    }
+
+    private func isOnStrip(_ point: CGPoint?) -> Bool {
+        point.map { inRect(Vec($0.x, $0.y), column) } ?? false
     }
 
     /// A tab: its black, and its words clipped to its body as the black pours out, the front corners rounding with it.
@@ -159,12 +168,16 @@ extension Strip {
         let strip = stripPath(geometries)
         lastStrip = strip
         let fading = renderFade()
+        let swaps = swapsEdge
+        swapsEdge = false
         return StripFrame(
             time: t, strip: strip, tabs: shown, fading: fading, marks: renderMarks(),
             hairline: StripFrame.Hairline(
-                x: front / 2, y: hair.x, alpha: clamp(hairOp.x, 0, 1) * marksShown * covered(hair.x, 0.5)
+                x: front / 2, y: hair.x,
+                alpha: clamp(hairOp.x, 0, 1) * clamp(mvis.x, 0, 1) * marksShown * covered(hair.x, 0.5)
             ),
-            isMoving: isMoving, isOver: over || hot != nil, isHeld: press != nil, column: column
+            isMoving: isMoving, isOver: over || hot != nil, isHeld: press != nil, isJumping: jumping != nil,
+            swapsEdge: swaps, column: column, pointer: sp.map { CGPoint(x: $0.x, y: $0.y) }
         )
     }
 
@@ -262,7 +275,7 @@ extension Strip {
         let shown = m.removing && reducesMotion ? 1 : marksShown * covered(m.y.x, StripTuning.mark / 2)
         return StripFrame.Mark(
             key: m.key, text: text, look: look, centre: CGPoint(x: front / 2, y: m.y.x), scale: m.sc.x,
-            alpha: clamp(m.op.x, 0, 1) * shown, isLifted: lifted, lift: clamp(m.lift.x, 0, 1), isJumping: isJumping,
+            alpha: clamp(m.op.x, 0, 1) * clamp(mvis.x, 0, 1) * shown, isLifted: lifted, lift: clamp(m.lift.x, 0, 1), isJumping: isJumping,
             wash: arriving ? wash : 0, flash: arriving ? flash(m) : 0
         )
     }
@@ -301,7 +314,8 @@ extension Strip {
         let all = marks + counts
         let markSprings: [Spring] = all.flatMap { [$0.y, $0.sc, $0.op, $0.lift] }
         let tabSprings: [Spring] = tabs.flatMap { [$0.w, $0.h, $0.y, $0.press, $0.alpha] }
-        let springing = ([hair, hairOp, yt, yb, drawnIn] + markSprings + tabSprings).contains { !$0.isAtRest }
+        let stripSprings = [hair, hairOp, yt, yb, drawnIn, sw, mvis]
+        let springing = (stripSprings + markSprings + tabSprings).contains { !$0.isAtRest }
         let washing = all.contains { m in
             t - m.arrived < StripTuning.washHold + StripTuning.washFade || m.gap != nil || m.waitsForColumn
         }

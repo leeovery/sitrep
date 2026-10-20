@@ -46,13 +46,6 @@ public struct NotchDrag: Equatable, Sendable {
     /// The settings once it lets the notch go with its home at this place on a screen this tall: there along the edge,
     /// on the other edge if it was let go across the middle.
     public func dropped(_ settings: EdgeSettings, at notchY: Double, height: Double) -> EdgeSettings {
-        var dropped = settings
-
-        dropped.along = clamp(notchY / height, 0, 1)
-        if isAcross {
-            dropped.edge = settings.edge.other
-        }
-
-        return dropped
+        settings.dropped(along: notchY / height, across: isAcross)
     }
 }

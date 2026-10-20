@@ -39,6 +39,21 @@ public struct EdgeSettings: Codable, Equatable, Sendable {
 
     public init() {}
 
+    /// The settings once a drag lets the notch or the strip go: this far down the screen, where it moved along the
+    /// edge, and on the other edge where it was let go past the screen's middle.
+    public func dropped(along: Double?, across: Bool) -> EdgeSettings {
+        var dropped = self
+
+        if let along {
+            dropped.along = clamp(along, 0, 1)
+        }
+        if across {
+            dropped.edge = edge.other
+        }
+
+        return dropped
+    }
+
     public init(from decoder: any Decoder) {
         let defaults = EdgeSettings()
         guard let given = try? decoder.container(keyedBy: CodingKeys.self) else {

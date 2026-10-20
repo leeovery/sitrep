@@ -73,6 +73,9 @@ public struct ScreenEdge: Equatable, Sendable {
     /// Its flipped content is the stage from under the menu bar.
     public var stripWindow: CGRect { against(depth: Strip.depth, height: visible.maxY - frame.minY) }
 
+    /// The strip's stage into its window's flipped content, as `mirror` is the notch's.
+    public var stripMirror: CGAffineTransform { mirror(depth: Strip.depth) }
+
     /// A window this deep against the edge, from the screen's bottom.
     private func against(depth: Double, height: Double) -> CGRect {
         CGRect(x: edge == .left ? frame.minX : frame.maxX - depth, y: frame.minY, width: depth, height: height)
