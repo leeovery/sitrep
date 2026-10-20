@@ -15,9 +15,14 @@ enum NotchApproach {
         }
     }
 
-    static func frames(_ style: Style, needsLee: Bool, on stage: Stage, content: Content) -> [Frame] {
+    static func frames(
+        _ style: Style, needsLee: Bool, on stage: Stage, content: Content, reducesMotion: Bool = false
+    ) -> [Frame] {
         let input = { (time: Double, pointer: CGPoint?) in
-            Input(time: time, pointer: pointer, needsLee: needsLee, stage: stage, content: content)
+            Input(
+                time: time, pointer: pointer, needsLee: needsLee, stage: stage, content: content,
+                reducesMotion: reducesMotion
+            )
         }
         let notch = style.make(input(0, nil))
         var frames = [notch.frame(input(0, nil))], time = 0.0

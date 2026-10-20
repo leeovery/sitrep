@@ -9,20 +9,17 @@ final class GhostEdge {
     private var ghost = DragGhost()
     private let stage = CALayer()
     private let shape = CAShapeLayer()
-    private let window: EdgeWindow
+    let window: EdgeWindow
     private var time: Double?
 
     init() {
-        let view = NSView(), root = CALayer()
+        let root = CALayer()
 
-        root.isGeometryFlipped = true
         shape.fillColor = EdgeStyle.black
         shape.opacity = 0
         stage.addSublayer(shape)
         root.addSublayer(stage)
-        view.layer = root
-        view.wantsLayer = true
-        window = EdgeWindow(frame: .zero, view: view)
+        window = EdgeWindow(frame: .zero, view: StageHost(hosting: root))
     }
 
     /// The drag carries the notch or the strip on this edge, past the screen's middle or not, landing there in this

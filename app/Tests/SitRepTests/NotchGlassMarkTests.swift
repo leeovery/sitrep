@@ -7,8 +7,14 @@ import Testing
 struct NotchGlassMarkTests {
     private static let stage = Stage(height: 982, visibleTop: 24, visibleBottom: 982, notchY: 491)
 
+    private static func frames(_ style: NotchApproach.Style, reducesMotion: Bool = false) -> [Frame] {
+        NotchApproach.frames(
+            style, needsLee: false, on: stage, content: Content(laying: []), reducesMotion: reducesMotion
+        )
+    }
+
     private static func marks(_ style: NotchApproach.Style) -> [NotchGlassMark] {
-        NotchApproach.frames(style, needsLee: false, on: stage, content: Content(laying: [])).map(NotchGlassMark.init)
+        frames(style).map { NotchGlassMark(openness: $0.openness) }
     }
 
     @Test(arguments: NotchApproach.Style.allCases)
@@ -27,11 +33,24 @@ struct NotchGlassMarkTests {
         #expect(mark.rim == 0)
     }
 
+    /// Never a jump either way: the card pours in about six frames, giving up under a quarter of the mark in each.
     @Test(arguments: NotchApproach.Style.allCases)
     func theMarkEasesOffAsThePanelPours(style: NotchApproach.Style) {
-        let tints = Self.marks(style).map(\.tint)
+        let tints = Self.marks(style).map(\.tint), drop = 0.3 * NotchGlassMark.notchTint
 
         #expect(tints.contains { $0 > 0.1 && $0 < 0.4 })
-        #expect(zip(tints, tints.dropFirst()).allSatisfy { $1 <= $0 + 0.05 })
+        #expect(zip(tints, tints.dropFirst()).allSatisfy { $1 <= $0 + 0.05 && $0 - $1 < drop })
+    }
+
+    /// Under reduced motion the notch cross-fades into the panel: the outline fading out keeps its own mark, the
+    /// notch's, as it goes, and the panel coming in is plain glass from the start.
+    @Test(arguments: NotchApproach.Style.allCases)
+    func theOutlineFadingOutKeepsItsOwnMark(style: NotchApproach.Style) throws {
+        let fadingIn = Self.frames(style, reducesMotion: true).filter { $0.fading != nil && $0.openness == 1 }
+        let frame = try #require(fadingIn.first)
+        let fading = try #require(frame.fading)
+
+        #expect(NotchGlassMark(openness: Frame.openness(fading.outline)).tint == NotchGlassMark.notchTint)
+        #expect(NotchGlassMark(openness: frame.openness).tint == 0)
     }
 }

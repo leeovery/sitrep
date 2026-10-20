@@ -19,7 +19,7 @@ final class NotchGlassView: NSView, NotchDrawing {
         super.init(frame: .zero)
 
         let host = NSHostingView(rootView: NotchGlass(scene: scene))
-        let lit = StageHost(frame: bounds), root = CALayer()
+        let root = CALayer(), lit = StageHost(hosting: root)
 
         host.sizingOptions = []
         for view in [host, lit] {
@@ -29,8 +29,6 @@ final class NotchGlassView: NSView, NotchDrawing {
         }
         stage.addSublayer(light)
         root.addSublayer(stage)
-        lit.layer = root
-        lit.wantsLayer = true
     }
 
     @available(*, unavailable)
@@ -85,14 +83,6 @@ final class NotchGlassView: NSView, NotchDrawing {
     }
 }
 
-/// The light's layers in the stage's coordinates, y down, as the black's. AppKit sets a hosted layer's flip from its
-/// view's, whatever the layer says: an unflipped view here, in its flipped superview, turned the light upside down in
-/// the window, away from the glass notch it belongs in.
-@MainActor
-private final class StageHost: NSView {
-    override var isFlipped: Bool { true }
-}
-
 /// What the glass draws, as last told.
 @available(macOS 26, *)
 @MainActor
@@ -113,12 +103,14 @@ private struct NotchGlass: View {
 
     var body: some View {
         if let shown = scene.frame {
-            let frame = shown.frame, mark = NotchGlassMark(frame)
+            let frame = shown.frame
             ZStack(alignment: .topLeading) {
                 if let fading = frame.fading {
-                    glass(fading.outline, shown.mirror, mark).opacity(fading.alpha)
+                    glass(fading.outline, shown.mirror, NotchGlassMark(openness: Frame.openness(fading.outline)))
+                        .opacity(fading.alpha)
                 }
-                glass(frame.outline, shown.mirror, mark).opacity(frame.outlineAlpha)
+                glass(frame.outline, shown.mirror, NotchGlassMark(openness: frame.openness))
+                    .opacity(frame.outlineAlpha)
                     .shadow(
                         color: .black.opacity(0.4 * frame.lift), radius: EdgeStyle.liftBlur * frame.lift,
                         y: 4 * frame.lift
@@ -143,15 +135,18 @@ private struct NotchGlass: View {
         return Color.clear
             .glassEffect(glass, in: Outline(path: GlassThickness.thick(drawn.cgPath, width: ScreenEdge.depth)))
             .overlay(alignment: .topLeading) {
-                Outline(path: drawn)
-                    .stroke(.white.opacity(mark.rim), lineWidth: 2 * NotchGlassMark.rimWidth)
-                    .clipShape(Outline(path: drawn))
+                if mark.rim > 0 {
+                    Outline(path: drawn)
+                        .stroke(.white.opacity(mark.rim), lineWidth: 2 * NotchGlassMark.rimWidth)
+                        .clipShape(Outline(path: drawn))
+                }
             }
     }
 }
 
 /// How the glass marks the notch, which the black marks by its own dark: the glass tinted dark, with a light rim
 /// inside its edge, in full at the notch and easing off as the panel comes out, to the plain glass of the panel open.
+/// Each outline is marked by its own openness, so under reduced motion the outline fading out keeps its mark.
 struct NotchGlassMark {
     /// The black's opacity in the glass's tint.
     let tint: Double
@@ -162,8 +157,8 @@ struct NotchGlassMark {
     static let notchRim = 0.22
     static let rimWidth = 1.0
 
-    init(_ frame: Frame) {
-        let notch = 1 - frame.openness
+    init(openness: Double) {
+        let notch = 1 - openness
 
         tint = Self.notchTint * notch
         rim = Self.notchRim * notch

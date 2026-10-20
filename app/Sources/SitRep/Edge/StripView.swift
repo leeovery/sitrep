@@ -6,7 +6,7 @@ import SitRepPanel
 /// (y down from the screen's top), hung from the menu bar the window starts under. A frame changes paths, places,
 /// opacities and clips; a tab's words and a mark's letters are laid out once.
 @MainActor
-final class StripView: NSView, StripDrawing {
+final class StripView: StageHost, StripDrawing {
     /// The blacks, through the edge's mirror, ...
     private let stage = CALayer()
     private let fading = CAShapeLayer()
@@ -27,11 +27,9 @@ final class StripView: NSView, StripDrawing {
     }
 
     init() {
-        super.init(frame: .zero)
-
         let root = CALayer()
 
-        root.isGeometryFlipped = true
+        super.init(hosting: root)
         for shape in [fading, strip] {
             shape.fillColor = EdgeStyle.black
             stage.addSublayer(shape)
@@ -42,16 +40,12 @@ final class StripView: NSView, StripDrawing {
         over.addSublayer(marks)
         root.addSublayer(stage)
         root.addSublayer(over)
-        layer = root
-        wantsLayer = true
     }
 
     @available(*, unavailable)
     required init?(coder: NSCoder) {
         fatalError("init(coder:) is not used")
     }
-
-    override var isFlipped: Bool { true }
 
     override func viewDidMoveToWindow() {
         super.viewDidMoveToWindow()

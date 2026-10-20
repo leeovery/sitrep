@@ -26,6 +26,8 @@ struct NotchLightTests {
             let window = EdgeWindow(frame: edge.window, view: surface)
             var seen = Seen()
 
+            defer { window.close() }
+
             surface.material = material
             window.displayIfNeeded()
             for frame in NotchApproach.frames(style, needsLee: true, on: edge.stage, content: Self.content) {

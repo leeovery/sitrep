@@ -118,9 +118,12 @@ public struct Frame {
         outline.contains(point) || inRect(Vec(point.x, point.y), hitRect)
     }
 
-    /// How far out the black is, from 0 at the notch at rest to 1 with the panel's full depth out: its reach into the
-    /// screen past the notch's, over the panel's.
-    public var openness: Double {
+    /// How far out the black is, from 0 at the notch at rest to 1 with the panel's full depth out; 1 throughout the
+    /// open phase, as the panel's front springs short of its depth and back.
+    public var openness: Double { phase == .open ? 1 : Self.openness(outline) }
+
+    /// How far out a notch's outline is: its reach into the screen past the notch's at rest, over the panel's.
+    public static func openness(_ outline: CGPath) -> Double {
         let rest = NotchShape.rest.w
 
         return clamp((outline.boundingBoxOfPath.maxX - rest) / (Tuning.panelDepth - rest), 0, 1)

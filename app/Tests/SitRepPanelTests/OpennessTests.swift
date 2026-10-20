@@ -20,6 +20,28 @@ struct OpennessTests {
         #expect(Self.opened(CardLab()).last == 1)
     }
 
+    /// Meniscus's front springs short of the panel's depth and back once it is open: open is open all the same.
+    @Test func everyOpenFrameIsOpenAllTheWay() {
+        for open in [Self.openFrames(Lab()), Self.openFrames(CardLab())] {
+            #expect(!open.isEmpty)
+            #expect(open.allSatisfy { $0.openness == 1 })
+        }
+    }
+
+    /// The frames of the panel open, the pointer held on the notch for three seconds.
+    private static func openFrames<Model>(_ lab: NotchLab<Model>) -> [Frame] {
+        var lab = lab, open: [Frame] = []
+
+        lab.pointer = CGPoint(x: 3, y: lab.notchY)
+        while lab.now < 4000 {
+            lab.step()
+            if lab.phase == .open {
+                open.append(lab.frame)
+            }
+        }
+        return open
+    }
+
     @Test func itRisesFromTheNotchToThePanelAsThePanelComes() {
         for rises in [Self.opened(Lab()), Self.opened(CardLab())] {
             #expect(rises.first == 0)

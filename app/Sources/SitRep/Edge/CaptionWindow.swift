@@ -22,13 +22,11 @@ final class CaptionWindow {
 
     private var pending: JumpCaption?
     private let pill = CALayer()
-    private let view = NSView()
-    private let window: EdgeWindow
+    let window: EdgeWindow
 
     init() {
         let root = CALayer()
 
-        root.isGeometryFlipped = true
         pill.backgroundColor = Self.fill
         pill.shadowColor = EdgeStyle.black
         pill.shadowOpacity = 0.18
@@ -36,9 +34,7 @@ final class CaptionWindow {
         pill.shadowOffset = CGSize(width: 0, height: 8)
         pill.opacity = 0
         root.addSublayer(pill)
-        view.layer = root
-        view.wantsLayer = true
-        window = EdgeWindow(frame: .zero, view: view)
+        window = EdgeWindow(frame: .zero, view: StageHost(hosting: root))
     }
 
     /// A row's jump began, to a session on this project.
@@ -107,7 +103,7 @@ final class CaptionWindow {
         let group = CAAnimationGroup()
 
         fade.values = looks.map(\.alpha)
-        drift.values = looks.map { -$0.lift }
+        drift.values = looks.map { Self.drift($0.lift) }
         group.animations = [fade, drift]
         group.duration = JumpCaption.length / 1000
         group.beginTime = pill.convertTime(CACurrentMediaTime(), from: nil) + delay
@@ -125,6 +121,9 @@ final class CaptionWindow {
             window.orderOut(nil)
         }
     }
+
+    /// The pill's drift for a lift above its place: up its window, which hosts it top-down.
+    static func drift(_ lift: Double) -> Double { -lift }
 
     private static let key = "caption"
     /// How finely the look is sampled, ms.
