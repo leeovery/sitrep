@@ -22,6 +22,7 @@ final class CaptionWindow {
 
     private var pending: JumpCaption?
     private let pill = CALayer()
+    /// Its window: internal only for the tests, which read which way the pill drifts in it.
     let window: EdgeWindow
 
     init() {
@@ -122,7 +123,8 @@ final class CaptionWindow {
         }
     }
 
-    /// The pill's drift for a lift above its place: up its window, which hosts it top-down.
+    /// The pill's drift for a lift above its place: up its window, which hosts it top-down; internal only for the
+    /// tests, which read its direction.
     static func drift(_ lift: Double) -> Double { -lift }
 
     private static let key = "caption"

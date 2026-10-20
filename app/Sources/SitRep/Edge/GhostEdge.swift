@@ -9,6 +9,7 @@ final class GhostEdge {
     private var ghost = DragGhost()
     private let stage = CALayer()
     private let shape = CAShapeLayer()
+    /// Its window: internal only for the tests, which read where the ghost lands in it.
     let window: EdgeWindow
     private var time: Double?
 

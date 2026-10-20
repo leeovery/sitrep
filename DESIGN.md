@@ -2107,10 +2107,12 @@ thick Liquid Glass from rest, the light drawn over the glass and the rows in
 the system's label colours. Clear glass that narrow hardly reads (Lee, 20
 October 2026: "the hovering box maybe is a little too subtle"), so the
 notch is marked as the black is by its dark: the glass tinted black at 0.5,
-with a white rim 1 point wide at 0.22 inside its edge, in full at rest and
-as it reaches for the pointer. The mark eases off with how far out the
-outline is, to the plain glass of the panel open, which Lee liked as it
-was; under reduced motion each outline of the cross-fade keeps its own.
+with a white rim 1 point wide at 0.22 inside its edge. It is in full at
+the notch at rest, and near it while something needs Lee or the notch
+reaches for the pointer (the tint 0.44 to 0.49), as it eases off with how
+far out the outline is past the notch at rest, to the plain glass of the
+panel open, which Lee liked as it was. Under reduced motion each outline
+of the cross-fade keeps its own.
 
 It sits on the left edge by default, at Lee's asking, 0.42 of the way down
 the screen, a little above the middle, as the prototypes have it and where

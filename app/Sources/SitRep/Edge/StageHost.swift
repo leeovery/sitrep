@@ -2,7 +2,7 @@ import AppKit
 
 /// A view hosting a layer tree drawn top-down, y down from the view's top, as the stage is: every drawing of an edge
 /// hosts its layers in one. AppKit sets a hosted layer's flip from its view's, whatever the layer says, so a layer
-/// hosted in an unflipped view draws upside down in its window (the glass's light once sat far below its notch).
+/// hosted in an unflipped view draws upside down in its window.
 @MainActor
 class StageHost: NSView {
     init(hosting root: CALayer) {
