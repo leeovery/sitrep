@@ -23,7 +23,6 @@ final class WindowModel {
     /// What the views' presses ask the model for.
     @ObservationIgnored private(set) var actions = WindowActions()
     @ObservationIgnored private let run: WindowRun
-    @ObservationIgnored private var pickReads = PickReads()
     @ObservationIgnored private let plugin: Plugin
     @ObservationIgnored private let works: Works
     @ObservationIgnored private let defaults: UserDefaults
@@ -41,6 +40,7 @@ final class WindowModel {
         run = WindowRun(lastSession: defaults.string(forKey: Self.lastSessionKey))
         actions = WindowActions(
             pick: { [weak self] in self?.pick($0) },
+            pickInList: { [weak self] in self?.pickInList($0) },
             press: { [weak self] in self?.press($0, on: $1) },
             toggle: { [weak self] in self?.toggle($0) },
             toggleItem: { [weak self] in self?.toggle($0) },
@@ -48,8 +48,7 @@ final class WindowModel {
             askToFinish: { [weak self] in self?.askToFinish($0) },
             cancelFinish: { [weak self] in self?.cancelFinish($0) },
             confirmFinish: { [weak self] in self?.confirmFinish($0) },
-            pointer: { [weak self] in self?.pointer(isIn: $0) },
-            keyboard: { [weak self] in self?.keyboard(isIn: $0) }
+            pointer: { [weak self] in self?.pointer(isIn: $0) }
         )
         listen()
     }
@@ -115,9 +114,17 @@ final class WindowModel {
         return run.undo()
     }
 
-    /// Lee's pick, its reads settled (`PickReads`).
     private func pick(_ pick: Pick) {
-        read(pickReads.picked(run.pick(pick), at: Date()))
+        picked(run.pick(pick))
+    }
+
+    private func pickInList(_ pick: Pick) {
+        picked(run.pickInList(pick, at: Date()))
+    }
+
+    /// A pick's reads run, and the session picked kept as the one the window opens on.
+    private func picked(_ reads: [Read]) {
+        read(reads)
         defaults.set(run.lastSession, forKey: Self.lastSessionKey)
         refresh()
     }
@@ -141,11 +148,6 @@ final class WindowModel {
 
     private func pointer(isIn: Bool) {
         run.pointer(isIn: isIn, at: Date())
-        refresh()
-    }
-
-    private func keyboard(isIn: Bool) {
-        run.keyboard(isIn: isIn, at: Date())
         refresh()
     }
 
@@ -215,7 +217,7 @@ final class WindowModel {
         let time = Date()
 
         run.settle(at: time)
-        read(pickReads.due(at: time))
+        read(run.settledReads(at: time))
         send()
         now = time
         listed = run.listed(at: time)
@@ -225,8 +227,7 @@ final class WindowModel {
     }
 
     private func schedule(after time: Date) {
-        let next = [run.nextChange, pickReads.dueAt, run.isOpen ? time.addingTimeInterval(Self.tick) : nil]
-            .compactMap { $0 }.min()
+        let next = [run.nextChange, run.isOpen ? time.addingTimeInterval(Self.tick) : nil].compactMap { $0 }.min()
 
         wake?.cancel()
         wake = next.map { next in

@@ -87,8 +87,8 @@ struct HeldOrderTests {
             order.pointer(isIn: isIn, at: time)
         }
 
-        func keyboard(isIn: Bool, at time: Date) {
-            order.keyboard(isIn: isIn, at: time)
+        func picked(at time: Date) {
+            order.picked(at: time)
         }
 
         func settle(at time: Date) -> Bool {
@@ -111,28 +111,37 @@ struct HeldOrderTests {
         #expect(Self.order(held.take(Self.reordered, moving: [])) == ["sitrep", "switchboard", "goosemates"])
     }
 
-    /// So no row moves between two presses of an arrow key.
-    @Test func whileTheKeyboardIsInTheListAChangeShowsInPlace() {
+    /// So no row moves between two presses of an arrow key, the pointer elsewhere.
+    @Test func aRunOfPicksInTheListHoldsItsOrderUntilASecondAfterTheLast() {
         let held = Held()
 
         _ = held.take(Self.first, moving: [])
-        held.keyboard(isIn: true, at: printedAt)
+        held.picked(at: printedAt)
+        held.picked(at: printedAt.addingTimeInterval(0.5))
+        #expect(!held.settle(at: printedAt.addingTimeInterval(1)))
         #expect(Self.order(held.take(Self.reordered, moving: [])) == ["sitrep", "switchboard", "goosemates"])
+
+        let last = printedAt.addingTimeInterval(1.2)
+
+        held.picked(at: last)
+        #expect(held.resortsAt == last.addingTimeInterval(1))
+        #expect(!held.settle(at: last.addingTimeInterval(0.9)))
+        #expect(held.settle(at: last.addingTimeInterval(1)))
+        #expect(Self.order(held.take(Self.reordered, moving: [])) == ["goosemates", "sitrep", "switchboard"])
     }
 
-    @Test func theListReSortsASecondAfterTheLastOfThePointerAndTheKeyboardLeavesIt() {
+    @Test func aPickWithThePointerOverTheListLeavesItHeldByThePointer() {
         let held = Held()
 
         _ = held.take(Self.first, moving: [])
         held.pointer(isIn: true, at: printedAt)
-        held.keyboard(isIn: true, at: printedAt)
-        held.pointer(isIn: false, at: printedAt)
+        held.picked(at: printedAt)
         #expect(held.resortsAt == nil)
-        #expect(!held.settle(at: printedAt.addingTimeInterval(2)))
-        held.keyboard(isIn: false, at: printedAt.addingTimeInterval(2))
-        #expect(held.resortsAt == printedAt.addingTimeInterval(3))
-        #expect(held.settle(at: printedAt.addingTimeInterval(3)))
-        #expect(Self.order(held.take(Self.reordered, moving: [])) == ["goosemates", "sitrep", "switchboard"])
+
+        let out = printedAt.addingTimeInterval(3)
+
+        held.pointer(isIn: false, at: out)
+        #expect(held.resortsAt == out.addingTimeInterval(1))
     }
 
     @Test func aSessionNewToNeedingLeeMovesInAtOnceItsProjectWithIt() {

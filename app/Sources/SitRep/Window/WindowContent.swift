@@ -5,6 +5,8 @@ import SwiftUI
 /// What a press in the window asks for, each handed to the model.
 struct WindowActions: Sendable {
     var pick: @MainActor @Sendable (Pick) -> Void = { _ in }
+    /// A row of the board's list picked, by a click or an arrow key (`WindowRun.pickInList`).
+    var pickInList: @MainActor @Sendable (Pick) -> Void = { _ in }
     var press: @MainActor @Sendable (Card.Button, AskAddress) -> Void = { _, _ in }
     /// A project's ask opened in place, or closed back.
     var toggle: @MainActor @Sendable (AskAddress) -> Void = { _ in }
@@ -17,8 +19,6 @@ struct WindowActions: Sendable {
     var confirmFinish: @MainActor @Sendable (String) -> Void = { _ in }
     /// The pointer came over the board's list, or left it.
     var pointer: @MainActor @Sendable (Bool) -> Void = { _ in }
-    /// The keyboard's focus came into the board's list, or left it.
-    var keyboard: @MainActor @Sendable (Bool) -> Void = { _ in }
 }
 
 extension EnvironmentValues {

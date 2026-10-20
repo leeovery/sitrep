@@ -26,6 +26,7 @@ public final class WindowRun {
     /// The list as `watch` gives it, before it is held.
     private var given = Listed()
     private var held = HeldOrder()
+    private var pickReads = PickReads()
     private var listed = Listed()
     /// Sessions new to needing Lee, washed from when they came.
     private var washed: [String: Date] = [:]
@@ -83,13 +84,8 @@ public final class WindowRun {
         held.pointer(isIn: isIn, at: time)
     }
 
-    /// The keyboard's focus came into the list, or left it, at this time.
-    public func keyboard(isIn: Bool, at time: Date) {
-        held.keyboard(isIn: isIn, at: time)
-    }
-
-    /// The second after the pointer and the keyboard left the list has run out by this time: it takes `watch`'s
-    /// order.
+    /// The second after the pointer left the list, or after the last pick made in it, has run out by this time: it
+    /// takes `watch`'s order.
     public func settle(at time: Date) {
         if held.settle(at: time) {
             take(given, moving: [])
@@ -109,17 +105,21 @@ public final class WindowRun {
         return repick()
     }
 
-    /// The window closes: the list's hold lets go, as the pointer leaves with it, and a finish asked about lapses.
+    /// The window closes: the list's hold lets go, as the pointer leaves with it, the reads of a run of picks are
+    /// let go, and a finish asked about lapses.
     public func close() {
         isOpen = false
         held.release()
+        pickReads = PickReads()
         take(given, moving: [])
         dropAskingToFinish()
     }
 
-    /// The window minimised: it shows no more, so nothing is read, but it keeps its page.
+    /// The window minimised: it shows no more, so nothing is read, the reads of a run of picks let go, but it keeps
+    /// its page.
     public func minimise() {
         isOpen = false
+        pickReads = PickReads()
     }
 
     /// The window back from the Dock, on the page it had, which reads what it shows again, unless its pick has gone
@@ -154,6 +154,26 @@ public final class WindowRun {
     /// then. Picking another lets go of the last page's asks kept in place, of what its cards said of refusals, and
     /// of a finish asked about. The reads to run.
     public func pick(_ pick: Pick) -> [Read] {
+        pickReads = PickReads()
+        return reads(choose(pick))
+    }
+
+    /// Lee picked a row of the list at this time, by a click or an arrow key: as any pick, but the list's order held
+    /// for a second after it, so no row moves between two presses of a key, and its reads settled (`PickReads`). The
+    /// reads to run now.
+    public func pickInList(_ pick: Pick, at time: Date) -> [Read] {
+        held.picked(at: time)
+        return reads(pickReads.picked(choose(pick), at: time))
+    }
+
+    /// The reads of the last of a run of picks in the list, once the picks have stopped by this time, while the
+    /// window shows.
+    public func settledReads(at time: Date) -> [Read] {
+        isOpen ? reads(pickReads.due(at: time)) : []
+    }
+
+    /// What is picked now, and the sessions it shows, to read.
+    private func choose(_ pick: Pick) -> [String] {
         if pick != self.pick {
             self.pick = pick
             frozen = [:]
@@ -166,7 +186,7 @@ public final class WindowRun {
             }
         }
         keepShown()
-        return reads(shown)
+        return shown
     }
 
     /// Each session the page shows keeps its asks in place, from its board as last read.
@@ -187,6 +207,8 @@ public final class WindowRun {
 
     // MARK: Reading sessions' boards
 
+    /// Reads of these sessions, to run now, each taking its ticket: only reads that run take one, so the latest read
+    /// asked for a session is always one under way.
     private func reads(_ sessions: [String]) -> [Read] {
         sessions.map { session in
             let ticket = tickets[session, default: 0] + 1
@@ -349,12 +371,12 @@ public final class WindowRun {
     }
 
     /// The next time something the window shows changes by time alone: an answer's wait running out, the list
-    /// settling after the pointer left, a wash ending.
+    /// settling after the pointer left or a pick, a wash ending, a run of picks' reads falling due.
     public var nextChange: Date? {
         let washes = (Array(washed.values) + frozen.values.flatMap(\.washed.values))
             .map { $0.addingTimeInterval(Wash.length / 1000) }
 
-        return ([answers.nextDue, held.resortsAt].compactMap { $0 } + washes).min()
+        return ([answers.nextDue, held.resortsAt, pickReads.dueAt].compactMap { $0 } + washes).min()
     }
 
     private func sessionPage(_ session: Board.Session, of project: Board.Project, at time: Date) -> SessionPage {

@@ -207,7 +207,8 @@ struct WashFill: View {
 }
 
 /// What moves by the frame, drawn at each frame's time while it moves, and at the model's time, `now`, while it stands
-/// or is drawn as a still. Only what moves is drawn again each frame, never the list or the page around it.
+/// or is drawn as a still. Only what moves is drawn again each frame, never the list or the page around it. Its
+/// content changes identity as `isMoving` flips, so nothing with state of its own belongs inside it.
 struct Framed<Content: View>: View {
     let now: Date
     let isMoving: Bool

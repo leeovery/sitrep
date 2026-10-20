@@ -123,9 +123,10 @@ private struct HowClosed: View {
 
 /// An item of a section with more to show than its line, as a button whose highlight under the pointer says it
 /// opens: a press opens it in place, its line whole and its detail under it, and a second closes it, the press's
-/// change on the window's spring, so the lines below move with it; still, under reduced motion. Opened, it shows nothing behind it. One with no detail is a button only while its line is cut short;
-/// whole, it is the line alone, which opens to nothing and takes no keyboard stop. Its highlight reaches past the
-/// column's edges, so the line keeps its place beside the heading.
+/// change on the window's spring, so the lines below move with it; still, under reduced motion. Opened, it shows
+/// nothing behind it. One with no detail is a button only while its line is cut short; whole, it is the line alone,
+/// which opens to nothing and takes no keyboard stop. Its highlight reaches past the column's edges, so the line keeps
+/// its place beside the heading.
 private struct Opening<Line: View>: View {
     let item: Item
     let opened: Set<Item>

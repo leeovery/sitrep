@@ -2676,11 +2676,16 @@ stands).
   session or project picked is the list's selection, drawn by the system,
   and nothing clears it, neither a click in the list's blank space nor on
   the row picked. The arrow keys move it, each step a pick; picks that
-  follow within 150ms read only the last session's board once they stop,
-  so holding ↓ reads the first row and the one it stops on. While the
-  keyboard is in the list it holds the list's order, as the pointer over
-  it does, so no row moves between two presses. A pick made elsewhere, by
-  a jump, a notification or the menu, scrolls its row into view. Its head,
+  follow sooner than 150ms read only the last one's boards once they stop,
+  so holding ↓ reads the first row, the second, as the Mac waits longer
+  than that before a key repeats, and the one it stops on. Only a read
+  that runs takes its place as a session's latest, so one let go never
+  throws away a read under way, and none waiting runs once the window
+  closes or is minimised. Each pick in the list holds the list's order for
+  a second after it, as the pointer over the list does, so no row moves
+  between two presses of a key. A pick made elsewhere, by a jump, a
+  notification or the menu, or before the window shows, scrolls its row
+  into view. Its head,
   the "N need you" and the count, stays put above the rows as they
   scroll; the project groups, their counts, the sessions' marks and ages
   and the quiet projects keep the window's own type and colours.

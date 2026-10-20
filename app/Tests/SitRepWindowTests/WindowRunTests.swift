@@ -69,6 +69,47 @@ struct WindowRunTests {
         #expect(run.show(heard(line(0), runs: 2), at: printedAt, reducesMotion: false).map(\.session) == ["sr-dash02", "sr-rq7dgr"])
     }
 
+    @Test func aRunOfPicksInTheListReadsTheLastPicksSessionsOnceThePicksStop() {
+        let run = opened()
+
+        #expect(run.pickInList(.session("sr-dash02"), at: printedAt).map(\.session) == ["sr-dash02"])
+        #expect(run.pickInList(.session("sr-rq7dgr"), at: printedAt.addingTimeInterval(0.1)).isEmpty)
+        #expect(run.settledReads(at: printedAt.addingTimeInterval(1)).map(\.session) == ["sr-rq7dgr"])
+    }
+
+    /// Only the reads that run take a ticket, so a read under way still lands.
+    @Test func aReadDroppedInARunOfPicksLeavesTheReadUnderWayForItsSessionToLand() throws {
+        let run = WindowRun()
+
+        _ = run.show(heard(line(0)), at: printedAt, reducesMotion: false)
+
+        let underWay = try #require(run.open().first)
+
+        #expect(underWay.session == "sr-macapp")
+        _ = run.pickInList(.session("sr-dash02"), at: printedAt)
+        #expect(run.pickInList(.session("sr-macapp"), at: printedAt.addingTimeInterval(0.05)).isEmpty)
+        _ = run.pickInList(.session("sr-dash02"), at: printedAt.addingTimeInterval(0.1))
+        run.read(underWay, gave: board(Lines.board), at: printedAt, reducesMotion: false)
+        _ = run.pick(.session("sr-macapp"))
+        #expect(run.page(at: printedAt).session?.isRead == true)
+    }
+
+    @Test(arguments: [false, true])
+    func aRunOfPicksReadsNothingOnceTheWindowClosesOrIsMinimised(closes: Bool) {
+        let run = opened()
+
+        _ = run.pickInList(.session("sr-dash02"), at: printedAt)
+        _ = run.pickInList(.session("sr-rq7dgr"), at: printedAt.addingTimeInterval(0.1))
+        if closes {
+            run.close()
+        } else {
+            run.minimise()
+        }
+        #expect(run.settledReads(at: printedAt.addingTimeInterval(1)).isEmpty)
+        _ = closes ? run.open() : run.restore()
+        #expect(run.settledReads(at: printedAt.addingTimeInterval(1)).isEmpty)
+    }
+
     @Test func aProjectsViewReadsEachOfItsSessions() {
         let run = opened()
 

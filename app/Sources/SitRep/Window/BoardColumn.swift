@@ -15,7 +15,6 @@ struct BoardColumn: View {
     @Environment(\.windowActions) private var act
     @Environment(\.reducesWindowMotion) private var reducesMotion
     @Environment(\.isStill) private var isStill
-    @FocusState private var isFocused: Bool
 
     var body: some View {
         if isStill {
@@ -34,9 +33,7 @@ struct BoardColumn: View {
                 .listStyle(.sidebar)
                 .animation(reducesMotion ? nil : .easeInOut(duration: 0.25), value: listed.sessions.map(\.id))
                 .onHover { act.pointer($0) }
-                .focused($isFocused)
-                .onChange(of: isFocused) { _, isFocused in act.keyboard(isFocused) }
-                .onChange(of: pick) { _, pick in
+                .onChange(of: pick, initial: true) { _, pick in
                     if let pick {
                         scroller.scrollTo(pick)
                     }
@@ -50,11 +47,11 @@ struct BoardColumn: View {
         if let pick {
             List(selection: Binding(get: { pick }, set: { picked in
                 if picked != pick {
-                    act.pick(picked)
+                    act.pickInList(picked)
                 }
             })) { rows }
         } else {
-            List(selection: Binding<Pick?>(get: { nil }, set: { picked in picked.map(act.pick) })) { rows }
+            List(selection: Binding<Pick?>(get: { nil }, set: { picked in picked.map(act.pickInList) })) { rows }
         }
     }
 
