@@ -63,9 +63,29 @@ public struct Session: Equatable, Sendable {
 
     /// An age in ms as a row shows it (the prototype's `age`): now, then whole minutes, hours or days.
     public static func ageText(_ age: Double) -> String {
+        switch Age(age) {
+        case .now: "now"
+        case let .minutes(count): "\(count)m"
+        case let .hours(count): "\(count)h"
+        case let .days(count): "\(count)d"
+        }
+    }
+}
+
+/// An age as a row counts it: under a minute, now; then whole minutes, under an hour; whole hours, under a day; and
+/// whole days.
+public enum Age: Equatable, Sendable {
+    case now
+    case minutes(Int)
+    case hours(Int)
+    case days(Int)
+
+    /// This age in ms.
+    public init(_ age: Double) {
         let minutes = Int((age / 60_000).rounded(.down))
         let hours = minutes / 60
-        return minutes < 1 ? "now" : minutes < 60 ? "\(minutes)m" : hours < 24 ? "\(hours)h" : "\(hours / 24)d"
+
+        self = minutes < 1 ? .now : minutes < 60 ? .minutes(minutes) : hours < 24 ? .hours(hours) : .days(hours / 24)
     }
 }
 

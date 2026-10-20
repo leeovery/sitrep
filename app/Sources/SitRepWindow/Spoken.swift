@@ -1,4 +1,5 @@
 import Foundation
+import SitRepPanel
 
 /// What VoiceOver reads of the window, in words, where its marks, counts and times would read as symbols.
 public enum Spoken {
@@ -30,18 +31,14 @@ public enum Spoken {
         }
     }
 
-    /// A time as a panel row shows it, in words: "just now", then whole minutes, hours or days.
+    /// A time as a panel row counts it (`Age`), in words: "just now", then whole minutes, hours or days.
     public static func age(_ since: Date, at now: Date) -> String {
-        let minutes = Int((now.timeIntervalSince(since) / 60).rounded(.down))
-        let hours = minutes / 60
-
-        if minutes < 1 {
-            return "just now"
+        switch Age(now.timeIntervalSince(since) * 1000) {
+        case .now: "just now"
+        case let .minutes(count): Words.count(count, "minute")
+        case let .hours(count): Words.count(count, "hour")
+        case let .days(count): Words.count(count, "day")
         }
-        if minutes < 60 {
-            return Words.count(minutes, "minute")
-        }
-        return hours < 24 ? Words.count(hours, "hour") : Words.count(hours / 24, "day")
     }
 
     /// A card, the container of its buttons: its ask's title, after its session's name where it is a project's.
@@ -53,6 +50,9 @@ public enum Spoken {
     public static func heading(_ name: String, note: String?) -> String {
         note.map { "\(name), \($0)" } ?? name
     }
+
+    /// A card's head on a project's page, which closes it back to its line, its title said by the card.
+    public static let closeCard = "Close"
 
     /// A closed ask's tick.
     public static let closed = "closed"

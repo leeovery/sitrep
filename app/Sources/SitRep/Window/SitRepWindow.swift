@@ -154,7 +154,7 @@ struct SideFocus {
 
         if [Self.return, Self.enter].contains(event.keyCode), focus.isDescendant(of: sidebar) {
             window.selectKeyView(following: page)
-            return true
+            return (window.firstResponder as? NSView)?.isDescendant(of: page) == true
         }
         if event.keyCode == Self.escape, focus.isDescendant(of: page) {
             return window.makeFirstResponder(sidebar.descendant(NSTableView.self) ?? sidebar)

@@ -2730,13 +2730,15 @@ stands).
     (needs you, your turn, working, away) and its age, as "The Mac app,
     SitRep, needs you, 5 hours"; an away session with something waiting
     reads "needs you, away". A project's name reads its count of what
-    waits there, "SitRep, 3 waiting", and a quiet one "Kit, quiet
-    project";
+    waits there, "SitRep, 3 waiting", or "Kit, nothing waiting", and a
+    quiet one "Kit, quiet project";
   - the page's title, the eyebrow and the section headings carry the
     header trait, each heading read with the words on its right, as
     "Asks, 3 waiting";
   - a card is a container labelled by its ask's title, after its
-    session's name on a project's page, its buttons inside it;
+    session's name on a project's page, its buttons inside it. The title
+    is said once, by the container; on a project's page its head, which
+    closes it, reads "Close";
   - a mark reads its meaning, a closed ask's tick "closed"; a section's
     bullets, which say what its heading says, are not read, nor the ↗ of
     "Open in Ghostty".

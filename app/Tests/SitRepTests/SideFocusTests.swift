@@ -41,6 +41,13 @@ struct SideFocusTests {
         #expect(!sides.press(SideFocus.return))
     }
 
+    @Test func returnPassesOnWhereNothingInThePageTakesFocus() throws {
+        let sides = try Sides(hasButtons: false)
+
+        #expect(!sides.press(SideFocus.return))
+        #expect(sides.focused == nil)
+    }
+
     @Test func returnWithAModifierIsLeftAlone() throws {
         let sides = try Sides()
 
@@ -61,13 +68,18 @@ private struct Sides {
     let focus: SideFocus
     let list: NSTableView
 
-    init() throws {
+    /// A page of buttons, or of words alone, as a page is with Keyboard navigation off: nothing in it takes focus.
+    init(hasButtons: Bool = true) throws {
         let sidebar = NSHostingController(rootView: List(selection: .constant(Optional("a"))) {
             Text("a").tag("a")
         }.listStyle(.sidebar))
         let page = NSHostingController(rootView: VStack {
-            Button("One") {}
-            Button("Two") {}
+            if hasButtons {
+                Button("One") {}
+                Button("Two") {}
+            } else {
+                Text("One")
+            }
         })
 
         sidebar.sizingOptions = []

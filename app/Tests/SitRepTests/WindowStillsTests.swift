@@ -9,8 +9,8 @@ import Testing
 /// The SitRep window's key states, drawn offscreen over what the real CLI printed, as Paper's drawing has them: the
 /// session, a permission prompt, an away session and its finish, a project, and the moments of an answer and of a
 /// board changing under Lee; a session's long name, and the window as narrow as it goes. Each draws whole at the
-/// window's size, or at its narrowest. With `SITREP_WINDOW_STILLS` naming a folder, each
-/// is kept there as a PNG, to read beside the drawing; nothing opens on the screen.
+/// window's size, or at its narrowest. With `SITREP_WINDOW_STILLS` naming a folder, each is kept there as a PNG, to
+/// read beside the drawing; nothing opens on the screen.
 /// When the real `watch` printed its first line.
 private let printed = try! Board.read(Lines.watch[0]).at
 private let boards = [
