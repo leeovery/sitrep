@@ -33,9 +33,15 @@ swift build -c release --package-path "$app"
 binaries=$(swift build -c release --package-path "$app" --show-bin-path)
 
 mkdir -p "$bundle/Contents/MacOS" "$bundle/Contents/Resources"
-cp "$binaries/SitRep" "$bundle/Contents/MacOS/SitRep"
 info="$bundle/Contents/Info.plist"
 cp "$app/Info.plist" "$info"
+# SwiftPM links the app recording its deployment target as the SDK it was
+# built with, though its objects record the SDK itself, and macOS draws an
+# app in the design of the SDK it records: as linked, SitRep was drawn as on
+# macOS 14, with none of the system's Liquid Glass. So the binary records
+# the SDK it was built with.
+vtool -set-build-version macos "$(plutil -extract LSMinimumSystemVersion raw -o - "$info")" "$(xcrun --show-sdk-version)" \
+  -replace -output "$bundle/Contents/MacOS/SitRep" "$binaries/SitRep"
 plutil -insert CFBundleShortVersionString -string "$version" "$info"
 plutil -insert CFBundleVersion -string "$version" "$info"
 
