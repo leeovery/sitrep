@@ -61,6 +61,22 @@ struct StripBoardTests {
         #expect(lab.model.display == board.map(\.id))
     }
 
+    /// A row changed with its tab out: the tab eases to its new words' measure, rather than squeezing them into the
+    /// old. A count's tab keeps its size as its rows change, as the prototype's recording has it.
+    @Test func aTabOutTakesItsChangedRowsMeasure() throws {
+        var lab = StripLab()
+        lab.open("s5")
+        let was = try #require(lab.live).w.x
+        var fumi = StripLab.prototype[4]
+        fumi.title = "Sketched"
+
+        lab.change(fumi)
+        lab.settle()
+
+        #expect(was > StripTuning.tabMin)
+        #expect(abs(try #require(lab.live).w.x - StripTuning.tabMin) < 0.5)
+    }
+
     @Test func aRowGoneFadesWhereItIsAndTheRestCloseUp() {
         var lab = StripLab()
         let y = lab.model.layout.y(of: "s6")

@@ -85,11 +85,36 @@ struct EdgeSettingsTests {
         var settings = EdgeSettings()
         settings.along = 0.3
 
-        #expect(settings.dropped(along: 0.6, across: false).along == 0.6)
-        #expect(settings.dropped(along: 1.4, across: false).along == 1)
-        #expect(settings.dropped(along: nil, across: false) == settings)
-        #expect(settings.dropped(along: nil, across: true).edge == .right)
-        #expect(settings.dropped(along: nil, across: true).along == 0.3)
+        let moved = { (along: Double?, across: Bool) in
+            settings.dropped(along: along, across: across).applied(to: settings)
+        }
+
+        #expect(moved(0.6, false).along == 0.6)
+        #expect(moved(1.4, false).along == 1)
+        #expect(moved(nil, false) == settings)
+        #expect(moved(nil, true).edge == .right)
+        #expect(moved(nil, true).along == 0.3)
+    }
+
+    /// Dropped across, the strip saves where it went only as it swaps edges: what Lee changed meanwhile, Show among
+    /// it, stands.
+    @Test func aDropLandsOnTheSettingsAsTheyStandWhenItIsSaved() {
+        var settings = EdgeSettings()
+        settings.show = .strip
+        settings.along = 0.3
+
+        let move = settings.dropped(along: 0.6, across: true)
+        var changed = settings
+        changed.show = .notch
+        changed.length = .full
+        changed.maxLength = StripMax(share: 0.5)
+        changed.material = .glass
+        changed.display = "2"
+
+        var expected = changed
+        expected.edge = .right
+        expected.along = 0.6
+        #expect(move.applied(to: changed) == expected)
     }
 
     @Test func eachStyleMakesItsNotch() {

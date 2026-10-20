@@ -275,8 +275,8 @@ extension Strip {
         let shown = m.removing && reducesMotion ? 1 : marksShown * covered(m.y.x, StripTuning.mark / 2)
         return StripFrame.Mark(
             key: m.key, text: text, look: look, centre: CGPoint(x: front / 2, y: m.y.x), scale: m.sc.x,
-            alpha: clamp(m.op.x, 0, 1) * clamp(mvis.x, 0, 1) * shown, isLifted: lifted, lift: clamp(m.lift.x, 0, 1), isJumping: isJumping,
-            wash: arriving ? wash : 0, flash: arriving ? flash(m) : 0
+            alpha: clamp(m.op.x, 0, 1) * clamp(mvis.x, 0, 1) * shown, isLifted: lifted, lift: clamp(m.lift.x, 0, 1),
+            isJumping: isJumping, wash: arriving ? wash : 0, flash: arriving ? flash(m) : 0
         )
     }
 

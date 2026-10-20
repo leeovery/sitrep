@@ -17,7 +17,7 @@ final class StripController: NSObject {
     /// Whether a jump runs, from the strip, the menu or a banner.
     var isJumping: () -> Bool = { false }
     /// A drag let the strip go: the settings with its new place.
-    var onMoved: (EdgeSettings) -> Void = { _ in }
+    var onMoved: (EdgeMove) -> Void = { _ in }
 
     private var settings: EdgeSettings
     private var edge: ScreenEdge
@@ -28,7 +28,7 @@ final class StripController: NSObject {
     /// While frames are idle with a tab out, its time drawn again as it next changes.
     private var ages: Timer?
     /// A drag let go across the screen's middle: its settings, saved as the strip swaps edges.
-    private var crossing: EdgeSettings?
+    private var crossing: EdgeMove?
     private let ghost = GhostEdge()
     private let caption = CaptionWindow()
     private var monitors: [Any] = []
@@ -146,7 +146,7 @@ final class StripController: NSObject {
             self.crossing = nil
             onMoved(crossing)
         }
-        if let drained = shown.drained {
+        if let drained = shown.jumpDrained {
             caption.drained(at: drained)
         }
         surface.show(StripScene(
@@ -217,9 +217,9 @@ final class StripController: NSObject {
         case let .dropped(dropped):
             ghost.dropped(across: dropped.isAcross)
             if dropped.isAcross {
-                crossing = dropped.settings
+                crossing = dropped.move
             } else {
-                onMoved(dropped.settings)
+                onMoved(dropped.move)
             }
         case nil:
             break

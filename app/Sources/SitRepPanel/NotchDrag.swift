@@ -43,9 +43,9 @@ public struct NotchDrag: Equatable, Sendable {
     /// Where it takes the notch's home along the edge, on the stage: as far from where the press began as the pointer.
     public var notchY: Double { home + point.y - press.y }
 
-    /// The settings once it lets the notch go with its home at this place on a screen this tall: there along the edge,
-    /// on the other edge if it was let go across the middle.
-    public func dropped(_ settings: EdgeSettings, at notchY: Double, height: Double) -> EdgeSettings {
+    /// Where it lets the notch go from these settings, its home at this place on a screen this tall: there along the
+    /// edge, on the other edge if it was let go across the middle.
+    public func dropped(_ settings: EdgeSettings, at notchY: Double, height: Double) -> EdgeMove {
         settings.dropped(along: notchY / height, across: isAcross)
     }
 }

@@ -86,6 +86,19 @@ struct StripCrossTests {
         #expect(lab.model.release(at: mark) == .nothing)
     }
 
+    /// Growing back out of the other edge, 200 to 520ms on, the strip takes the pointer's place again, but not yet a
+    /// press: a re-grab then would flip it under a live drag.
+    @Test func aPressAsItGrowsBackIsRefusedToo() {
+        var lab = Self.droppedAcross()
+        lab.wait(350)
+        let mark = CGPoint(x: 18, y: lab.model.yOf(.session("s5")))
+
+        #expect(lab.model.crossing && lab.model.inStrip(Vec(mark.x, mark.y)))
+        lab.model.press(at: mark)
+
+        #expect(lab.model.press == nil && !lab.model.pressesTab)
+    }
+
     /// Hidden mid-drag, its mouse-up perhaps never to come: the strip goes back where it was, and nothing comes of the
     /// press.
     @Test func aPressGivenUpPutsTheStripBackAndClicksNothing() {

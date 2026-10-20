@@ -41,10 +41,14 @@ final class Edge {
         strip.show(board)
     }
 
-    /// A drag let the notch or the strip go: where it left it is saved, and both take it.
-    private func moved(_ settings: EdgeSettings) {
+    /// A drag let the notch or the strip go: where it left it lands on the settings as they stand, is saved, and both
+    /// take it. A move changes only the edge and the place along it, never what shows nor on which display, so what
+    /// shows is left as it is: a crossing saved as the strip hides, inside its `isShown`, never sets it again.
+    private func moved(_ move: EdgeMove) {
+        let settings = move.applied(to: settings)
+
         saved.save(settings)
-        apply(settings)
+        place(settings)
     }
 
     /// With no `watch` to run, the notch's head says why, and the strip's notch at rest.
@@ -56,13 +60,18 @@ final class Edge {
     }
 
     private func apply(_ settings: EdgeSettings) {
+        place(settings)
+        fullScreen.changed()
+        show()
+    }
+
+    /// The settings, to the notch and the strip, on the display they choose.
+    private func place(_ settings: EdgeSettings) {
         let display = Displays.chosen(settings)
 
         self.settings = settings
         notch.apply(settings, on: display)
         strip.apply(settings, on: display)
-        fullScreen.changed()
-        show()
     }
 
     /// The notch or the strip, as Lee chose, unless he chose Nothing, or a full-screen app has the display.

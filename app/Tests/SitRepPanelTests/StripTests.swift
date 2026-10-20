@@ -118,7 +118,8 @@ struct StripTests {
         let measure = StripMeasure(row: { _ in natural }, rows: { _ in natural }, idle: { natural })
         let input = StripInput(time: 0, pointer: nil, stage: StripLab.stage)
         let strip = Strip(
-            length: .grows, maxLength: .full, along: Tuning.notchAt, sessions: StripLab.prototype, measure: measure, input
+            length: .grows, maxLength: .full, along: Tuning.notchAt, sessions: StripLab.prototype, measure: measure,
+            input
         )
 
         #expect(strip.buildWords(.session("s5")).W == width)

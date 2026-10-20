@@ -27,24 +27,39 @@ struct StripRunTests {
     }
 
     private static func run(_ settings: EdgeSettings = Self.settings(.grows)) -> StripRun {
-        StripRun(at: 1000, in: setting, settings) { _ in
-            StripMeasure(row: { _ in 200 }, rows: { _ in 200 }, idle: { 200 })
-        }
+        StripRun(at: 1000, in: setting, settings, measure: measure)
     }
 
-    /// A board of windows working, longest running first, each a window holds.
-    private static func working(_ ids: [String]) -> PanelBoard {
+    /// The words 230 wide, 330 where the board says something longer of them: stale, a row's time "as of 12:04"; or
+    /// the notch at rest's title anything but nothing running.
+    private static func measure(_ note: @escaping () -> StripNote) -> StripMeasure {
+        StripMeasure(
+            row: { _ in note().asOf == nil ? 230 : 330 }, rows: { _ in 200 },
+            idle: { note().idle == StripFrame.Words.Content.idleTitle ? 230 : 330 }
+        )
+    }
+
+    /// A board of windows working, longest running first, each a window holds; gone stale, with `watch` stopped.
+    private static func working(_ ids: [String], stale: Bool = false) -> PanelBoard {
         let rows = ids.enumerated().map { i, id in
-            row("work:\(id)", "working", session: "sr-\(id)", lead: "Work \(id)", second: "P · \(id)", since: 1_792_445_000_000 + i)
+            row(
+                "work:\(id)", "working", session: "sr-\(id)", lead: "Work \(id)", second: "P · \(id)",
+                since: 1_792_445_000_000 + i
+            )
         }
         var last = LastBoard()
 
         _ = last.hear(.line(line(needYou: 0, sessions: ids.count, new: [], rows: rows)), at: Date())
+        if stale {
+            _ = last.hear(.exited(.status(1), stderr: ""), at: Date())
+        }
         return PanelBoard(last)
     }
 
     /// Frames a refresh apart, with the pointer here, for this long or until a frame is done.
-    private static func frames(_ run: StripRun, for ms: Double, _ pointer: CGPoint?, until done: () -> Bool = { false }) {
+    private static func frames(
+        _ run: StripRun, for ms: Double, _ pointer: CGPoint?, until done: () -> Bool = { false }
+    ) {
         let end = run.time + ms
 
         while run.time + frameMS <= end + 1e-9 {
@@ -129,17 +144,38 @@ struct StripRunTests {
         #expect(!run.isLatest(0) && !run.isLatest(2))
     }
 
-    /// The spin is over when the drawing hears the strip drained, never before it began: the caption shows after it.
-    @Test func aClickLatchesNoDrainUntilItsSpinIsOver() {
+    /// The spin is over when the drawing hears the strip drained, never before it began, so the caption shows after
+    /// it; and it hears it once, the frames after latching nothing more.
+    @Test func aClicksDrainIsLatchedOnceItsSpinIsOver() {
         let run = Self.shown(["a", "b"]), mark = Self.on("a", in: run)
 
         run.press(Self.at(run.time, mark))
         let clicked = run.time
         _ = run.release(EdgeSettings(), mayJump: true, Self.at(run.time, mark))
 
-        #expect(run.takeShown().drained == nil)
+        #expect(run.takeShown().jumpDrained == nil)
         Self.frames(run, for: 600, mark)
-        #expect(run.takeShown().drained.map { $0 > clicked + 400 } == true)
+        #expect(run.takeShown().jumpDrained.map { $0 > clicked + 400 } == true)
+        Self.frames(run, for: 600, mark)
+        #expect(run.takeShown().jumpDrained == nil)
+    }
+
+    /// A spin over and a new click before the drawing has heard it: that drain is the old click's, and the new one's
+    /// caption waits for its own.
+    @Test func aDrainBeforeAClickIsNotItsOwn() {
+        let run = Self.shown(["a", "b"]), a = Self.on("a", in: run), b = Self.on("b", in: run)
+
+        run.press(Self.at(run.time, a))
+        _ = run.release(EdgeSettings(), mayJump: true, Self.at(run.time, a))
+        Self.frames(run, for: 600, a)
+        run.press(Self.at(run.time, b))
+        let released = run.release(EdgeSettings(), mayJump: true, Self.at(run.time, b))
+
+        guard case .jump(_, to: "sr-b", click: 2) = released else {
+            Issue.record("released \(String(describing: released))")
+            return
+        }
+        #expect(run.takeShown().jumpDrained == nil)
     }
 
     // MARK: A drag
@@ -168,8 +204,30 @@ struct StripRunTests {
             return
         }
         let centre = run.strip.layout.top + run.strip.layout.length / 2
-        #expect(!drop.isAcross && abs(drop.settings.along - centre / Self.stage.height) < 1e-9)
+        #expect(!drop.isAcross && drop.move.along.map { abs($0 - centre / Self.stage.height) < 1e-9 } == true)
         #expect(!run.isDragging)
+    }
+
+    /// Let go across, the drop holds only where the strip went, saved onto the settings as they stand at the swap:
+    /// Show changed to the notch meanwhile stays the notch.
+    @Test func aDropAcrossCarriesOnlyWhereItWentOntoTheSettingsAtTheSwap() {
+        let (run, _) = Self.carried()
+        var settings = Self.settings(.grows)
+        settings.show = .strip
+        let across = CGPoint(x: 1000, y: 300)
+
+        run.moved(Self.at(run.time + Self.frameMS, across))
+        let released = run.release(settings, mayJump: true, Self.at(run.time, across))
+
+        guard case let .dropped(drop) = released else {
+            Issue.record("released \(String(describing: released))")
+            return
+        }
+        settings.show = .notch
+        settings.material = .glass
+        let saved = drop.move.applied(to: settings)
+        #expect(drop.isAcross && saved.edge == .right)
+        #expect(saved.show == .notch && saved.material == .glass)
     }
 
     @Test func hiddenMidDragTheStripEndsWhereItBegan() {
@@ -321,12 +379,42 @@ struct StripRunTests {
 
         let shown = run.takeShown()
 
-        #expect(shown.swappedEdge)
-        #expect(shown.drained != nil)
+        #expect(shown.swappedEdge && shown.jumpDrained == nil)
         #expect(run.takeShown() == StripRun.Shown())
     }
 
     // MARK: The board
+
+    /// The tab out at this point until it is open and still: its width.
+    private static func opened(_ run: StripRun, at point: CGPoint) throws -> Double {
+        frames(run, for: 2000, point) { run.strip.liveTab()?.phase == .open }
+        frames(run, for: 2000, point) { !run.frame.isMoving }
+        return try #require(run.strip.liveTab()).w.x
+    }
+
+    /// Gone stale with a session's tab out, its time reads "as of 12:04", which the tab eases out to fit.
+    @Test func aTabOutTakesItsNewMeasureAsTheBoardGoesStale() throws {
+        let run = Self.shown(["a", "b"]), mark = Self.on("a", in: run)
+        let width = try Self.opened(run, at: mark)
+
+        run.show(Self.working(["a", "b"], stale: true), Self.at(run.time))
+        Self.frames(run, for: 2000, mark) { !run.frame.isMoving }
+
+        #expect(abs(try #require(run.strip.liveTab()).w.x - (width + 100)) < 0.5)
+    }
+
+    /// With `watch` down before its first line, the notch at rest's tab says SitRep can't read the board, and eases out
+    /// to fit it.
+    @Test func theNotchAtRestsTabTakesItsNewMeasureAsItsTitleChanges() throws {
+        let run = Self.run(), rest = CGPoint(x: 6, y: run.frame.column.midY)
+        let width = try Self.opened(run, at: rest)
+        #expect(run.strip.liveTab()?.key == .empty)
+
+        run.show(PanelBoard(unrun: "SitRep can't read the board"), Self.at(run.time))
+        Self.frames(run, for: 2000, rest) { !run.frame.isMoving }
+
+        #expect(abs(try #require(run.strip.liveTab()).w.x - (width + 100)) < 0.5)
+    }
 
     @Test func whileTheBoardIsStaleATabsTimeNeverTicks() {
         let run = Self.shown(["a", "b"]), mark = Self.on("a", in: run)

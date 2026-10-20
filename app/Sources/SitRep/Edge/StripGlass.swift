@@ -131,7 +131,8 @@ private struct StripGlassBody: View {
 
 /// A mark on glass: its letters in the glass's label colours, the ring in its state's colour, needs you orange with
 /// its glow, your turn the label colour so it reads on light glass as on dark; working, the arc turning round a faint
-/// track. Drawn as each frame has it, lift and all, with no animation of its own for a frame's update to restart.
+/// track. Drawn as each frame has it, lift and all, with no animation of its own for a frame's update to restart, but
+/// for the arc fading in and out as a click's jump starts and ends (`StripMarkLayer.arcFade`).
 @available(macOS 26, *)
 private struct GlassMark: View {
     let mark: StripFrame.Mark
@@ -145,6 +146,7 @@ private struct GlassMark: View {
                 Spinner(
                     track: mark.isJumping ? nil : .quaternaryLabelColor, arc: arc, period: mark.isJumping ? 0.9 : 1.2
                 )
+                .transition(.opacity)
             }
             if let ring {
                 Circle()
@@ -156,6 +158,7 @@ private struct GlassMark: View {
                 .kerning(0.095)
                 .foregroundStyle(letters)
         }
+        .animation(.linear(duration: StripMarkLayer.arcFade(jumping: mark.isJumping)), value: mark.isJumping)
         .frame(width: Self.size, height: Self.size)
         .scaleEffect(mark.scale)
         .opacity(mark.alpha)

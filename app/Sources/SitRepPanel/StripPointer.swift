@@ -108,7 +108,8 @@ extension Strip {
 
     /// A click on the strip or an open tab, in stage coordinates: on a tab or its mark, it jumps, whether or not the
     /// tab is out yet; on an away mark, nothing (its tab says why); on a count, its tab opens at once, and a row on its
-    /// tab jumps, but for an away one's. Crossing to the other edge, it takes none. The session it jumps to, if it does.
+    /// tab jumps, but for an away one's. Crossing to the other edge, it takes none. The session it jumps to, if it
+    /// does.
     @discardableResult
     public func click(at point: CGPoint) -> Session? {
         guard !crossing else {

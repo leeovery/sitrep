@@ -5,7 +5,7 @@ import SitRepPanel
 /// tabs say of it, the frames and the clock they run on, and what a press let go means. Every input reaches the model
 /// through here, and each first brings it up to the input's moment, so it takes its time from the clock, and a click
 /// lands on the strip as it is drawn. The controller draws what this has, and paces its frames.
-public final class StripRun: EdgeRun {
+public final class StripRun: EdgeRun<StripRun.Setting>, Framed {
     /// What the strip runs in, as it stands at each frame.
     public struct Setting: Equatable, Sendable {
         public var stage: StripStage
@@ -16,10 +16,6 @@ public final class StripRun: EdgeRun {
             self.reducesMotion = reducesMotion
         }
     }
-
-    public typealias Moment = RunMoment<Setting>
-    public typealias Shown = RunShown
-    public typealias Drop = RunDrop
 
     /// What a press let go comes to.
     public enum Release: Equatable, Sendable {
@@ -33,14 +29,7 @@ public final class StripRun: EdgeRun {
     private(set) var strip: Strip
     public private(set) var board = PanelBoard()
     public private(set) var frame: StripFrame
-    /// The display's clock, ms, as the frames and what comes between them have it: it never goes back.
-    public var time: Double { clock.time }
-    private var clock: RunClock
-    /// What frames have shown since the drawing last took it.
-    private var shown = Shown()
     private let said: Said
-    /// How many clicks have asked for a jump: the latest's answer is the one heard.
-    private var clicks = 0
 
     /// A pointer let go off the strip's screen, which lands on nothing.
     private static let offStage = CGPoint(x: -1, y: -1)
@@ -54,12 +43,12 @@ public final class StripRun: EdgeRun {
         let input = Self.input(at: time, pointer: nil, setting), said = Said()
 
         self.said = said
-        clock = RunClock(time)
         strip = Strip(
             length: settings.length, maxLength: settings.maxLength, along: settings.along, sessions: [],
             measure: measure { said.note }, input
         )
         frame = strip.frame(input)
+        super.init(at: time)
     }
 
     /// What the tabs say of the board as last heard.
@@ -73,32 +62,34 @@ public final class StripRun: EdgeRun {
 
     /// One frame: the model moved on with the pointer where it is, what the drawing must show once latched.
     public func step(_ moment: Moment) {
-        let time = clock.take(moment.time)
+        let time = clock(moment.time)
         var input = Self.input(at: time, pointer: moment.pointer, moment.setting)
 
         input.pointerAt = moment.pointerAt
         frame = strip.frame(input)
-        shown.swappedEdge = shown.swappedEdge || frame.swapsEdge
-        if !frame.isJumping {
-            shown.drained = shown.drained ?? time
-        }
+        latch(swapsEdge: frame.swapsEdge, drained: !frame.isJumping, at: time)
     }
 
     /// Hidden, the strip's time ran on: it is taken on to now (`Strip.runOn`), the pointer away, and the frame after
     /// shows it.
     public func catchUp(_ moment: Moment) {
-        let from = time, to = clock.take(moment.time)
+        let from = time, to = clock(moment.time)
 
         frame = strip.runOn(from: from, to: to) { Self.input(at: $0, pointer: nil, moment.setting) }
     }
 
     /// The board as `watch` last printed it: its rows, in core's order, become the marks, a needs you new on it
-    /// flashing; while it is stale, the tabs say since when.
+    /// flashing; while it is stale, the tabs say since when, an open one taking its new words as it does.
     public func show(_ board: PanelBoard, _ moment: Moment) {
+        let note = StripNote(board), reworded = note != said.note
+
         upToNow(moment)
-        said.note = StripNote(board)
+        said.note = note
         self.board = board
         strip.show(board.sessions, new: board.new)
+        if reworded {
+            strip.reworded()
+        }
     }
 
     /// Lee's settings for the strip: its length, Max, and where along the edge it sits.
@@ -133,7 +124,7 @@ public final class StripRun: EdgeRun {
         case let .jump(session):
             return jump(session)
         case let .dropped(along, across):
-            return .dropped(Drop(settings: settings.dropped(along: along, across: across), isAcross: across))
+            return .dropped(Drop(move: settings.dropped(along: along, across: across), isAcross: across))
         }
     }
 
@@ -164,17 +155,6 @@ public final class StripRun: EdgeRun {
         }
     }
 
-    /// Whether this click is the latest: an answer to an earlier one changes nothing.
-    public func isLatest(_ click: Int) -> Bool {
-        click == clicks
-    }
-
-    /// What frames have shown since this was last asked, for the drawing to show once.
-    public func takeShown() -> Shown {
-        defer { shown = Shown() }
-        return shown
-    }
-
     /// The count's row under the pointer as the last frame saw it, by its session, while its tab is out.
     public var hoverRow: String? {
         frame.pointer.flatMap { point in
@@ -199,9 +179,7 @@ public final class StripRun: EdgeRun {
             return nil
         }
 
-        clicks += 1
-        shown.drained = nil
-        return .jump(session, to: target, click: clicks)
+        return .jump(session, to: target, click: click())
     }
 
     private static func input(at time: Double, pointer: CGPoint?, _ setting: Setting) -> StripInput {

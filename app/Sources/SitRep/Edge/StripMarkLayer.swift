@@ -12,7 +12,8 @@ final class StripMarkLayer {
 
     private let glow = CALayer()
     private let ring = CALayer()
-    private let spinner = Arc(line: StripMarkLayer.line)
+    /// The arc: internal only for the tests, which read its fade.
+    let spinner = Arc(line: StripMarkLayer.line)
     private var letters: TextLine?
     private var look: Look?
 
@@ -21,6 +22,12 @@ final class StripMarkLayer {
     private static let blur = 9.0, glowAlpha = 0.45
     /// A new mark's ring at its brightest flash.
     static let flashed = LiveLight.RGB(r: 255, g: 160, b: 120)
+
+    /// How long the arc takes to fade, in seconds: in over 60ms as a click's jump starts, as the prototype's
+    /// `.mk.jumping .arc` has it, so a quick answer still shows it; otherwise over the mark's 240.
+    static func arcFade(jumping: Bool) -> Double {
+        jumping ? 0.06 : 0.24
+    }
 
     init() {
         let box = CGRect(x: 0, y: 0, width: Self.size, height: Self.size)
@@ -82,10 +89,15 @@ final class StripMarkLayer {
         glow.shadowPath = CGPath(ellipseIn: glow.bounds, transform: nil)
         glow.shadowRadius = Self.blur / 2
         glow.shadowOpacity = glows ? Float(Self.glowAlpha) : 0
-        spinner.layer.opacity = kind == .working || look.jumping ? 1 : 0
         spinner.track.strokeColor = look.jumping ? nil : EdgeStyle.track
         spinner.arc.strokeColor = look.jumping && kind == .needs ? EdgeStyle.orange
             : look.jumping && kind == .turn ? EdgeStyle.ink : EdgeStyle.arc
+        CATransaction.commit()
+
+        CATransaction.begin()
+        CATransaction.setDisableActions(!eased)
+        CATransaction.setAnimationDuration(Self.arcFade(jumping: look.jumping))
+        spinner.layer.opacity = kind == .working || look.jumping ? 1 : 0
         CATransaction.commit()
 
         if look.text != self.look?.text || kind != self.look?.kind {

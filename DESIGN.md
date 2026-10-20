@@ -1810,7 +1810,7 @@ time on the right; one line each, cut short with an ellipsis:
 - **an ask**: an orange dot; its title, then its project and session; how
   long it has waited. Its window may still be working: needs you wins, so
   nothing else shows;
-- **a permission prompt**: "Allow Bash", then the command in Geist Mono;
+- **a permission prompt**: "Allow Bash", then the command in SF Mono;
 - **a question**: the question itself, and "+2" when there are several;
 - **away, with an ask**: the dot stays orange and the words dim. Under the
   pointer it doesn't lift, and its second line says "No window holds it.
@@ -2982,8 +2982,11 @@ reaches a window only while that pane is on show).
       - **The click**, on a mark or its tab, spins until the jump answers,
         450ms at most, as a panel row does, where the prototype always spins
         the whole 450; then the tab draws back, or the ring springs back
-        out. The caption is the panel's, over the strip's screen, once the
-        spin is over. As the panel's, none is taken while a jump runs, from
+        out. Its arc fades in over 60ms as the spin starts, as the
+        prototype's `.mk.jumping .arc` does, so a quick answer still shows
+        it, and out over the mark's 240. The caption is the panel's, over
+        the strip's screen, once the spin is over. As the panel's, none is
+        taken while a jump runs, from
         anywhere; an answer to an earlier click changes nothing; and the
         session jumped to is the one the strip pressed in. A click is a
         press and its mouse-up, as the prototype's is: a press on the strip,
@@ -2997,8 +3000,11 @@ reaches a window only while that pane is on show).
         black showing there faintly meanwhile, as the notch's ghost does.
         What it leaves is saved as the notch's drag saves it: the edge, and
         at Grows the strip's centre as how far down the screen it sits,
-        which the notch then takes. This replaces the spike's "at Full there
-        is nothing to drag". The strip's prototype drags only along, with no
+        which the notch then takes. Only that is saved, for the strip and the
+        notch alike, and onto the settings as they stand when it lands, at
+        the swap for a drop across: what Lee changed in between, Show among
+        it, stands. This replaces the spike's "at Full there is nothing to
+        drag". The strip's prototype drags only along, with no
         lift, so the strip has none; nor has it a drag across, so the drop
         across plays its `moveEdge`, the edge control's: the strip drains
         into its edge over 170ms, its marks out in 90; at 200 it swaps
@@ -3012,7 +3018,12 @@ reaches a window only while that pane is on show).
         before any, "SitRep can't read the board". While the board is stale,
         each tab says when it was last known current, "as of 12:04", in its
         time's place, and the notch at rest's tab in its second line.
-        Nothing on it is new again: no flash.
+        Nothing on it is new again: no flash. A tab out as what it says
+        changes, a row's words, its time going stale or the notch at rest's
+        title, takes its new words and eases to their measure as a glide
+        does, where the prototype keeps the old width and squeezes them. A
+        count's tab keeps its size as its rows change, as the prototype's
+        recording has it.
       - **Frames run only while something moves**, as the notch's: a tab
         pouring, a ring flashing, the strip crossing, the ghost. A pointer
         resting anywhere, on the strip or a still tab, costs nothing. A
@@ -3024,9 +3035,10 @@ reaches a window only while that pane is on show).
         at the next whole minute, in the run loop's common modes, so it
         ticks while a menu is open; while the board is stale, never.
       - **Between frames**, as the notch's. The strip has a run of its own
-        (`StripRun`), beside the notch's and sharing its moment, its clock
-        that never goes back, and what a frame showed for the drawing to
-        show once. A board, Lee's settings, a press, a drag, a let-go, a
+        (`StripRun`), beside the notch's. What the two keep alike is kept
+        once (`EdgeRun`): the moment an input comes at, the clock that never
+        goes back, the clicks and which is the latest, and what a frame
+        showed for the drawing to show once. A board, Lee's settings, a press, a drag, a let-go, a
         scroll or a click elsewhere each steps the model first, its time
         run on while hidden, so what it dates, a flash or a press, runs
         from the clock, and a click lands on the strip as drawn: on a count
@@ -3035,9 +3047,10 @@ reaches a window only while that pane is on show).
         idle flashes in full; frames woken after a sleep take no speed from
         the move they slept through; the pointer's speed is its own, each
         reading stamped as it was read. While frames run, the next one
-        draws what the inputs between did; the edge swapped and the spin
-        over are latched for it, and the caption hears of the spin only
-        once it is over.
+        draws what the inputs between did; the edge swapped, and the jump
+        drained that the caption waits for, are latched for it as they
+        happen: the panel going in, or the strip's spin over, never before
+        the click that is waiting.
       - **Hidden**, over a full-screen app or with Nothing chosen, the
         caption and the ghost go with it, and a drag under way ends where it
         began, nothing saved, the window letting clicks through; hidden as

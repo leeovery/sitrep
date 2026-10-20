@@ -39,19 +39,10 @@ public struct EdgeSettings: Codable, Equatable, Sendable {
 
     public init() {}
 
-    /// The settings once a drag lets the notch or the strip go: this far down the screen, where it moved along the
-    /// edge, and on the other edge where it was let go past the screen's middle.
-    public func dropped(along: Double?, across: Bool) -> EdgeSettings {
-        var dropped = self
-
-        if let along {
-            dropped.along = clamp(along, 0, 1)
-        }
-        if across {
-            dropped.edge = edge.other
-        }
-
-        return dropped
+    /// Where a drag lets the notch or the strip go from these settings: this far down the screen, where it moved along
+    /// the edge, and on the other edge where it was let go past the screen's middle.
+    public func dropped(along: Double?, across: Bool) -> EdgeMove {
+        EdgeMove(edge: across ? edge.other : edge, along: along.map { clamp($0, 0, 1) })
     }
 
     public init(from decoder: any Decoder) {
@@ -89,6 +80,25 @@ public enum NotchStyle: String, Codable, CaseIterable, Sendable {
 /// How long the strip is: as long as its marks need, centred where the notch sits, or the screen's full height.
 public enum StripLength: String, Codable, CaseIterable, Sendable {
     case grows, full
+}
+
+/// Where a drag left the notch or the strip: its edge, and how far down the screen, where it moved along it. It is all
+/// a drag decides, so it lands on the settings as they stand when it is saved, whatever else changed meanwhile.
+public struct EdgeMove: Equatable, Sendable {
+    public let edge: EdgeSettings.Edge
+    public let along: Double?
+
+    /// These settings, with the drag's place.
+    public func applied(to settings: EdgeSettings) -> EdgeSettings {
+        var moved = settings
+
+        moved.edge = edge
+        if let along {
+            moved.along = along
+        }
+
+        return moved
+    }
 }
 
 /// Max, for Grows: the strip's longest, on a slider from five marks' length to Full, kept as how far along the slider

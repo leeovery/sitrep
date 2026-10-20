@@ -432,7 +432,7 @@ extension Strip {
     func changed(_ s: Session) {
         mark(.session(s.id))?.session = s
         for tab in tabs where tab.phase == .open && tab.key == .session(s.id) {
-            relayer(tab, tab.key, 0)
+            reword(tab)
         }
         if let live = liveTab(), live.phase == .open, live.key.isCount,
            (live.key == .more ? layout.rest : layout.restNeeds).contains(s.id)
