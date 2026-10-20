@@ -159,6 +159,27 @@ struct PanelBoardTests {
         #expect(board.needsLee)
     }
 
+    @Test func goneStaleItsNewRowsAreNotNewAgain() {
+        let current = Self.board(Self.heard(.line(watchLine)))
+        let stale = Self.board(Self.heard(.line(watchLine), .exited(.status(1), stderr: "")))
+        let staleAgain = Self.board(
+            Self.heard(.line(watchLine), .exited(.status(1), stderr: ""), .exited(.status(1), stderr: ""))
+        )
+
+        #expect(!current.new.isEmpty)
+        #expect(stale.new.isEmpty)
+        #expect(staleAgain.new.isEmpty)
+        #expect(stale.sessions == current.sessions)
+    }
+
+    @Test func withNoWatchToRunItsHeadSaysWhy() {
+        let board = PanelBoard(unrun: "This SitRep names no plugin to run: build it with app/build.")
+
+        #expect(board.head == Head(title: "This SitRep names no plugin to run: build it with app/build.", count: ""))
+        #expect(board.sessions.isEmpty)
+        #expect(!board.needsLee)
+    }
+
     @Test func aLineReadAgainIsCurrentAgain() {
         let back = Self.heard(.line(watchLine), .exited(.status(1), stderr: ""), .line(watchLine))
 

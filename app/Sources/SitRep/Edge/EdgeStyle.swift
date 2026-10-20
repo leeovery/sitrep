@@ -13,6 +13,8 @@ enum EdgeStyle {
     static let hover = srgb(0x141416)
     /// A row a click is jumping from, pressed in.
     static let press = srgb(0x1C1C20)
+    /// A lifted notch's shadow at full lift: the prototype's CSS blur of 12, which Core Animation's radius halves.
+    static let liftBlur = 6.0
     static let rule = srgb(0x232327)
     static let track = srgb(0x2C2C31)
     static let shim = srgb(0x9A9AA1)

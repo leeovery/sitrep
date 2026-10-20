@@ -1,10 +1,26 @@
 import AppKit
 import SitRepPanel
 
-/// The caption a jump leaves, at the top of the notch's screen, centred, under the menu bar: the prototypes' dark pill,
-/// coming and going as `JumpCaption.look` has it, played by Core Animation in the render server. It takes no clicks.
+/// The caption a jump from a row leaves, at the top of the notch's screen, centred, under the menu bar: the
+/// prototypes' dark pill, shown when `JumpCaption` says and coming and going as its `look` has it, played by Core
+/// Animation in the render server. It takes no clicks, and never shows over a full-screen app.
 @MainActor
 final class CaptionWindow {
+    /// The visible frame of the notch's screen.
+    var over = CGRect.zero
+    /// Whether it may show: not while a full-screen app has the notch's display. Kept from showing, a caption showing
+    /// or waiting to goes.
+    var mayShow = true {
+        didSet {
+            if !mayShow {
+                pending = nil
+                pill.removeAllAnimations()
+                window.orderOut(nil)
+            }
+        }
+    }
+
+    private var pending: JumpCaption?
     private let pill = CALayer()
     private let view = NSView()
     private let window: EdgeWindow
@@ -25,11 +41,44 @@ final class CaptionWindow {
         window = EdgeWindow(frame: .zero, view: view)
     }
 
-    /// The caption over this visible frame, this many ms from now.
-    func show(_ caption: String, over visible: CGRect, after delay: Double) {
+    /// A row's jump began, to a session on this project.
+    func jumping(to project: String) {
+        pending = mayShow ? JumpCaption(to: project) : nil
+    }
+
+    /// The panel began to drain, at this time on the display's clock.
+    func drained(at time: Double) {
+        pending?.drained(at: time)
+        showWhenDue(at: time)
+    }
+
+    /// The jump answered: whether it jumped. A jump refused leaves no caption.
+    func answered(jumped: Bool, at time: Double) {
+        if jumped {
+            pending?.jumped(at: time)
+        } else {
+            pending = nil
+        }
+        showWhenDue(at: time)
+    }
+
+    /// Once it knows when, it shows then, and a caption whose moment has passed never does.
+    private func showWhenDue(at now: Double) {
+        guard let pending, pending.showsAt != nil else {
+            return
+        }
+
+        self.pending = nil
+        if let delay = pending.showsIn(at: now) {
+            show(pending.text, after: delay)
+        }
+    }
+
+    /// The caption, this many ms from now.
+    private func show(_ caption: String, after delay: Double) {
         let text = TextLine.text(caption, Self.font, EdgeStyle.ink, kern: EdgeStyle.tightKern(Self.font))
         let size = CGSize(width: TextLine.width(text).rounded(.up) + 2 * Self.pad.x, height: Self.line + 2 * Self.pad.y)
-        let room = Self.room
+        let room = Self.room, visible = over
 
         window.setFrame(CGRect(
             x: visible.midX - size.width / 2 - room, y: visible.maxY - Self.top - size.height - room,

@@ -43,7 +43,7 @@ extension Meniscus {
     /// pointer. Under reduced motion there is none: only touching the notch opens it.
     func attraction() -> (reach: Double, ty: Double, dx: Double) {
         let none = (reach: 0.0, ty: notchY, dx: Double.infinity)
-        guard let p = sp, !reducesMotion, phase == .closed, feel.pull > 0 else {
+        guard let p = sp, !reducesMotion, phase == .closed, isFree, feel.pull > 0 else {
             return none
         }
 
@@ -118,7 +118,7 @@ extension Meniscus {
         switch contact.update(sp, hitRect(g), approach: approachSpeed()) {
         case .left:
             cancel(.dwell)
-        case let .touched(fast) where phase == .closed || phase == .closing:
+        case let .touched(fast) where isFree && (phase == .closed || phase == .closing):
             cancel(.grace)
             if fast {
                 open()

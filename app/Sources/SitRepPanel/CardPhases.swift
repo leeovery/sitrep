@@ -91,6 +91,9 @@ extension Card {
         jumping = nil
         to(\.vis, 1, 140)
         settleRest()
+        if crossesOnceHome {
+            cross()
+        }
     }
 
     /// Back to rest, wherever the card is, on the follow spring.

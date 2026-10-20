@@ -25,6 +25,11 @@ public struct PanelBoard: Equatable, Sendable {
         self.init(LastBoard())
     }
 
+    /// With no `watch` to run, its head says why.
+    public init(unrun why: String) {
+        self.init(sessions: [], head: Head(title: why, count: ""), needsLee: false, new: [])
+    }
+
     /// The board as last heard. While it is stale, its rows stay as they were and its head says when it was last
     /// known current, "as of 12:04", as the menu's does.
     public init(_ last: LastBoard, clock: Date.FormatStyle = .init(date: .omitted, time: .shortened)) {
@@ -41,7 +46,8 @@ public struct PanelBoard: Equatable, Sendable {
             sessions: board.rows.map { Session($0, project: names[$0.project] ?? $0.project) },
             head: asOf.map { Head(title: head.title, count: $0) } ?? head,
             needsLee: !board.head.isAllClear,
-            new: Set(board.new),
+            // stale, the last line's new rows are not new again
+            new: last.stale == nil ? Set(board.new) : [],
             sessionOf: Dictionary(board.rows.map { ($0.key, $0.session) }) { first, _ in first }
         )
     }

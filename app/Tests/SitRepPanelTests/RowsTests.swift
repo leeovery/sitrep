@@ -113,6 +113,13 @@ struct RowsTests {
         #expect(made.letters == "SR")
     }
 
+    @Test(arguments: [(0.0, 60_000.0), (59_999, 60_000), (60_000, 120_000), (-30_000, 60_000), (5_400_000, 5_460_000)])
+    func aRowsTimeMayNextReadDifferentlyAtItsNextWholeMinute(_ age: Double, changes: Double) {
+        let session = Session(id: "", project: "SitRep", kind: .turn, title: "", sub: "", since: 1000)
+
+        #expect(session.ageChanges(after: 1000 + age) == 1000 + changes)
+    }
+
     @Test func eachItemIsKeyedBySessionTheHairlineByItself() {
         #expect(Content.css.items.map(\.key) == ["s1", "s2", "divider", "s3", "s4", "s5", "s6", "s7"])
     }

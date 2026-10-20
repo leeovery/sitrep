@@ -3,10 +3,10 @@ import CoreGraphics
 import Testing
 
 /// The panel closing as the pointer leaves it, with frames paced as the view paces them (DESIGN, stage 3 step 6: on
-/// the spike it once stayed open). The view runs frames only while the last frame wants them, and once they stop, a
-/// move of the pointer starts them again where that frame `wakes` for it. The spike woke them only where the frame
-/// wanted frames, near the notch or over the panel as drawn: under reduced motion, rows going from under a still
-/// pointer leave the panel out and wanting none, and then no move away reached the model.
+/// the spike it once stayed open). The view runs frames only while the last frame moves, and once they stop, a
+/// move of the pointer starts them again where that frame `wakes` for it. The spike woke them only where the pointer
+/// was near the notch or over the panel as drawn: under reduced motion, rows going from under a still
+/// pointer leave the panel out with nothing moving, and then no move away reached the model.
 struct PanelLeaveTests {
     enum Leave: CaseIterable {
         /// Slowly out past the front, and on across the screen.
@@ -43,10 +43,12 @@ struct PanelLeaveTests {
         #expect(!paced.isRunning)
     }
 
-    @Test func wokenAsTheSpikeWokeItThePanelStayedOut() {
-        var paced = Paced(Lab(needsLee: true, reducesMotion: true)) { frame, pointer, field in
-            frame.wantsFrames(pointer: pointer, field: field)
+    @Test func pacedAsTheSpikePacedItThePanelStayedOut() {
+        let spike: Paced<Meniscus>.Rule = { frame, pointer, field in
+            frame.isMoving || frame.isNear(pointer, field: field)
+                || frame.panel != nil && pointer.map { frame.outline.contains($0) } == true
         }
+        var paced = Paced(Lab(needsLee: true, reducesMotion: true), runs: spike, wakes: spike)
 
         paced.leave(.shrunk)
 
@@ -54,17 +56,23 @@ struct PanelLeaveTests {
     }
 }
 
-/// A notch whose frames run as the view runs them: a frame a refresh while the last frame wants frames, else none
+/// A notch whose frames run as the view runs them: a frame a refresh while the last frame moves, else none
 /// until a move of the pointer that wakes them.
 private struct Paced<Model: NotchModel> {
-    typealias Wakes = (Frame, CGPoint?, Double) -> Bool
+    /// Whether, after this frame, with the pointer here, by the notch with this field, frames run or a move wakes them.
+    typealias Rule = (Frame, CGPoint?, Double) -> Bool
 
     var lab: NotchLab<Model>
     private(set) var isRunning = true
-    private let wakes: Wakes
+    private let runs: Rule
+    private let wakes: Rule
 
-    init(_ lab: NotchLab<Model>, wakes: @escaping Wakes = { $0.wakes(pointer: $1, field: $2) }) {
+    init(
+        _ lab: NotchLab<Model>, runs: @escaping Rule = { frame, _, _ in frame.isMoving },
+        wakes: @escaping Rule = { $0.wakes(pointer: $1, field: $2) }
+    ) {
         self.lab = lab
+        self.runs = runs
         self.wakes = wakes
     }
 
@@ -136,6 +144,6 @@ private struct Paced<Model: NotchModel> {
 
     private mutating func frame() {
         lab.step(at: lab.now)
-        isRunning = lab.frame.wantsFrames(pointer: lab.pointer, field: field)
+        isRunning = runs(lab.frame, lab.pointer, field)
     }
 }

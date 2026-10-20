@@ -45,6 +45,12 @@ public final class Meniscus: Notch {
     var reveal = Reveal.none
     /// The row a click is jumping to, pressed in until the panel has drained.
     var jumping: String?
+    /// A drag has the notch, ...
+    var isCarried = false
+    /// ... or let it go across the screen's middle, and it is draining into this edge to grow out of the other ...
+    var isCrossing = false
+    /// ... from this frame.
+    var swapsEdge = false
     /// The sim time of the last new ask.
     var flash: Double?
     var timers = SimTimers<Meniscus, MeniscusTimer>()
@@ -69,13 +75,13 @@ public final class Meniscus: Notch {
         needs = input.needsLee
         reducesMotion = input.reducesMotion
         now = input.time
-        notchY = Self.home(on: input.stage, feel)
+        notchY = Self.home(input.stage.notchY, on: input.stage, feel)
         S = MeniscusSprings(notch: needs ? .needs : .rest, notchY: notchY, light: needs ? 1 : 0)
     }
 
-    /// The notch's home on a screen, kept where its deepest swell fits inside the band.
-    private static func home(on stage: Stage, _ feel: MeniscusFeel) -> Double {
-        stage.keep(stage.notchY, half: NotchShape(feel.swell).h / 2)
+    /// The notch's home at a place on a screen, kept where its deepest swell fits inside the band.
+    static func home(_ y: Double, on stage: Stage, _ feel: MeniscusFeel) -> Double {
+        stage.keep(y, half: NotchShape(feel.swell).h / 2)
     }
 
     public var items: [Item] { content.items }
@@ -109,7 +115,7 @@ public final class Meniscus: Notch {
         followContent()
         updateField()
         // the pointer against the shape as it is on screen; an open or a pop moves it from this frame
-        let g0 = geometry()
+        let g0 = lifted(geometry())
         updateContact(g0)
         updateCling(g0)
         // the tongue first: as its ring comes in the second time, the collapse starts in this frame
@@ -129,8 +135,8 @@ public final class Meniscus: Notch {
         if let landing, S.w.x <= landing + clamp(-S.w.v * Tuning.landLead, Tuning.landMin, Tuning.landAt) {
             land()
         }
-        var g = geometry()
-        if abs(S.ba.x) > 0.05 {
+        var g = lifted(geometry())
+        if abs(S.ba.x) > 0.05, !isCrossing {
             g.bump = bumpOf()
         }
         return render(g)
@@ -155,11 +161,20 @@ public final class Meniscus: Notch {
         pointerMoved(input.pointer.map { Vec(max(0, $0.x), $0.y) })
     }
 
-    /// The screen changed: the notch's home moves with it.
+    /// The screen changed: the notch's home moves with it, unless a drag has already taken it there.
     private func measure() {
-        notchY = Self.home(on: stage, feel)
+        let home = Self.home(stage.notchY, on: stage, feel)
+
+        guard abs(home - notchY) > Self.samePlace else {
+            return
+        }
+
+        notchY = home
         S.y.snap(notchY)
     }
+
+    /// Two homes this close are one: a drag's place, saved as a share of the screen, comes back a hair off.
+    static let samePlace = 1e-6
 
     /// A new ask: the light flashes, and a closed notch over-swells, as many times as Swells says, the light
     /// flashing again with each; with none, it goes straight to 15 deep. Something needs Lee from here.
@@ -221,10 +236,6 @@ public final class Meniscus: Notch {
         if isLive {
             close()
         }
-    }
-
-    public func carry() {
-        close()
     }
 
     public func restingOutline(at y: Double) -> CGPath {
@@ -366,6 +377,7 @@ public final class Meniscus: Notch {
 enum MeniscusTimer: String {
     case dwell, grace, swell
     case jump = "jump:go"
+    case moveStart = "move:start", moveSwap = "move:swap", moveDone = "move:done"
     case openW = "open:w", openDone = "open:done"
     case closeW = "close:w", closeH = "close:h", closeVis = "close:vis", closeDone = "close:done"
     case closeFar = "close:far", closeBurst = "close:burst", closePush = "close:push"
@@ -397,6 +409,8 @@ struct MeniscusSprings {
     var rb = Spring(0)
     /// The landing's wobble on the notch's depth.
     var lw = Spring(0)
+    /// A drag lifting the notch off the edge.
+    var lift = Spring(0)
 
     init(notch: NotchShape, notchY: Double, light: Double) {
         w = Spring(notch.w)
@@ -410,6 +424,6 @@ struct MeniscusSprings {
 
     /// Every one, in the prototype's order.
     static var all: [WritableKeyPath<MeniscusSprings, Spring>] {
-        [\.w, \.h, \.r, \.f, \.y, \.ct, \.light, \.vis, \.ay, \.ba, \.by, \.et, \.eb, \.rb, \.lw]
+        [\.w, \.h, \.r, \.f, \.y, \.ct, \.light, \.vis, \.ay, \.ba, \.by, \.et, \.eb, \.rb, \.lw, \.lift]
     }
 }

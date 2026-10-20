@@ -15,7 +15,7 @@ extension Card {
     /// and the hit area's pad), and fading along the edge away from the notch's centre.
     func nudgeShare() -> Double {
         let field = CardTuning.field
-        guard let p = sp, !reducesMotion, phase == .closed, feel.nudge > 0, p.x < field else {
+        guard let p = sp, !reducesMotion, phase == .closed, isFree, feel.nudge > 0, p.x < field else {
             return 0
         }
 
@@ -37,7 +37,7 @@ extension Card {
         switch contact.update(sp, hitRect(g), approach: approachSpeed()) {
         case .left:
             cancel(.dwell)
-        case let .touched(fast) where phase == .closed || phase == .closing:
+        case let .touched(fast) where isFree && (phase == .closed || phase == .closing):
             if fast {
                 open()
             } else {

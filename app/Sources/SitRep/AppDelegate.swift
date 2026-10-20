@@ -15,12 +15,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        let edge = Edge { [works] session, answered in works.jump(to: session, answered: answered) }
+        let edge = Edge(
+            jump: { [works] session, answered in works.jump(to: session, answered: answered) },
+            isJumping: { [works] in works.isJumping }
+        )
 
         menu = StatusMenu(works: works, banners: banners)
         self.edge = edge
         if let sitrep {
             feed.start(sitrep) { edge.show($0) }
+        } else {
+            edge.unrun(Plugin.unbuilt)
         }
     }
 

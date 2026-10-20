@@ -57,6 +57,13 @@ public struct Session: Equatable, Sendable {
     /// How long it has stood where it does at this time on the wall clock, as its row shows it.
     public func ageText(at now: Double) -> String { Self.ageText(now - since) }
 
+    /// When on the wall clock its time may next read differently: at its next whole minute.
+    public func ageChanges(after now: Double) -> Double {
+        since + Self.minute * max(1, ((now - since) / Self.minute).rounded(.down) + 1)
+    }
+
+    private static let minute = 60_000.0
+
     /// An age in ms as a row shows it (the prototype's `age`): now, then whole minutes, hours or days.
     public static func ageText(_ age: Double) -> String {
         let minutes = Int((age / 60_000).rounded(.down))

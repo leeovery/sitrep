@@ -19,6 +19,8 @@ struct NotchLab<Model: NotchModel> {
     var needsLee: Bool
     var content: Content
     var reducesMotion: Bool
+    /// The screen it is on, as the view tells it each frame.
+    var stage = screen
     private(set) var frame: Frame
 
     init(
@@ -49,7 +51,7 @@ struct NotchLab<Model: NotchModel> {
     mutating func step(at time: Double) {
         now = time
         frame = model.frame(Input(
-            time: now, pointer: pointer, needsLee: needsLee, stage: screen, content: content,
+            time: now, pointer: pointer, needsLee: needsLee, stage: stage, content: content,
             reducesMotion: reducesMotion
         ))
     }

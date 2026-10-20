@@ -25,6 +25,14 @@ public final class Card: Notch {
     var reveal = Reveal.none
     /// The row a click is jumping to, pressed in until the card is home.
     var jumping: String?
+    /// A drag has the card, ...
+    var isCarried = false
+    /// ... or let it go across the screen's middle, and it moves to the other edge once it is home, ...
+    var crossesOnceHome = false
+    /// ... and it is sliding into this edge to slide out of the other ...
+    var isCrossing = false
+    /// ... from this frame.
+    var swapsEdge = false
     /// The sim time of the last push of a new ask, or of an ask while the panel is out.
     var flash: Double?
     /// Under reduced motion, the outline cross-fading out, and since when.
@@ -48,14 +56,14 @@ public final class Card: Notch {
         needs = input.needsLee
         reducesMotion = input.reducesMotion
         now = input.time
-        notchY = Self.home(on: input.stage)
+        notchY = Self.home(input.stage.notchY, on: input.stage)
         let rest = needs ? NotchShape.needs : .rest
-        S = CardSprings(w: rest.w, h: rest.h, light: needs ? 1 : 0)
+        S = CardSprings(w: rest.w, h: rest.h, y: notchY, light: needs ? 1 : 0)
     }
 
-    /// The notch's home on a screen, kept where it fits inside the band: a new ask never lengthens it.
-    private static func home(on stage: Stage) -> Double {
-        stage.keep(stage.notchY, half: NotchShape.needs.h / 2)
+    /// The notch's home at a place on a screen, kept where it fits inside the band: a new ask never lengthens it.
+    static func home(_ y: Double, on stage: Stage) -> Double {
+        stage.keep(y, half: NotchShape.needs.h / 2)
     }
 
     public var items: [Item] { content.items }
@@ -95,7 +103,7 @@ public final class Card: Notch {
     private func take(_ input: Input) {
         if input.stage != stage {
             stage = input.stage
-            notchY = Self.home(on: stage)
+            measure()
         }
         content = input.content
         reducesMotion = input.reducesMotion
@@ -117,9 +125,21 @@ public final class Card: Notch {
         }
     }
 
-    /// The live card, from the springs: the nudge adds to the depth.
+    /// The screen changed: the notch's home moves with it, unless a drag has already taken it there.
+    private func measure() {
+        let home = Self.home(stage.notchY, on: stage)
+
+        guard abs(home - notchY) > Meniscus.samePlace else {
+            return
+        }
+
+        notchY = home
+        S.y.snap(notchY)
+    }
+
+    /// The live card, from the springs: the nudge adds to the depth, and a drag lifts it out by up to 2 more.
     func geometry() -> CardGeometry {
-        CardGeometry(w: S.w.x + S.n.x, h: S.h.x, near: notchY, on: stage)
+        CardGeometry(w: S.w.x + S.n.x + (isLive ? 0 : 2 * S.lift.x), h: S.h.x, near: S.y.x, on: stage)
     }
 
     /// A new ask: the light comes on, and a closed notch is pushed out to Swell and back, Swells times, the light
@@ -213,10 +233,6 @@ public final class Card: Notch {
         }
     }
 
-    public func carry() {
-        close()
-    }
-
     public func restingOutline(at y: Double) -> CGPath {
         shapePath(CardGeometry(w: resting.w, h: resting.h, near: y, on: stage))
     }
@@ -244,14 +260,19 @@ struct CardSprings {
     var light: Spring
     /// The light, dimmed while the panel is out.
     var vis = Spring(1)
+    /// The card's centre along the edge, following a drag.
+    var y: Spring
+    /// A drag lifting it off the edge.
+    var lift = Spring(0)
 
-    init(w: Double, h: Double, light: Double) {
+    init(w: Double, h: Double, y: Double, light: Double) {
         self.w = Spring(w)
         self.h = Spring(h)
+        self.y = Spring(y)
         self.light = Spring(light)
     }
 
-    static var all: [WritableKeyPath<CardSprings, Spring>] { [\.w, \.h, \.n, \.light, \.vis] }
+    static var all: [WritableKeyPath<CardSprings, Spring>] { [\.w, \.h, \.n, \.light, \.vis, \.y, \.lift] }
 }
 
 /// The open or the close under way.
@@ -280,6 +301,8 @@ struct CardTimer: RawRepresentable, Equatable {
     static let closeLength = Self(rawValue: "close:length")
     static let closeDepth = Self(rawValue: "close:depth")
     static let closeDone = Self(rawValue: "close:done")
+    static let moveSwap = Self(rawValue: "move:swap")
+    static let moveDone = Self(rawValue: "move:done")
 
     /// A new ask's push, by its place among them.
     static func swell(_ i: Int) -> Self { Self(rawValue: swellPrefix + String(i)) }

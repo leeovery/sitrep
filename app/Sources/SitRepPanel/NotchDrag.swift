@@ -7,7 +7,7 @@ import Foundation
 public struct NotchDrag: Equatable, Sendable {
     /// Where the press began on the stage, and the notch's home then.
     private let press: CGPoint
-    private let home: Double
+    private var home: Double
     private var point: CGPoint
     /// Moved far enough to be a drag.
     public private(set) var isCarrying = false
@@ -32,6 +32,12 @@ public struct NotchDrag: Equatable, Sendable {
         isAcross = isCarrying && point.x > width / 2
 
         return begins
+    }
+
+    /// The notch, carried, took its home from here: from where the attraction had slid it, in the prototype's
+    /// `beginDrag`.
+    public mutating func carries(from home: Double) {
+        self.home = home
     }
 
     /// Where it takes the notch's home along the edge, on the stage: as far from where the press began as the pointer.

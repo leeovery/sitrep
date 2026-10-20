@@ -23,6 +23,7 @@ final class NotchView: NSView, NotchDrawing {
         fading.fillColor = EdgeStyle.black
         fading.isHidden = true
         shape.fillColor = EdgeStyle.black
+        shape.shadowColor = EdgeStyle.black
         stage.addSublayer(fading)
         stage.addSublayer(shape)
         stage.addSublayer(light)
@@ -63,11 +64,20 @@ final class NotchView: NSView, NotchDrawing {
             stage.setAffineTransform(CGAffineTransform(scaleX: scene.mirror.a, y: 1))
             shape.path = frame.outline
             shape.opacity = Float(frame.outlineAlpha)
+            lift(frame.lift)
             fading.isHidden = frame.fading == nil
             fading.path = frame.fading?.outline
             fading.opacity = Float(frame.fading?.alpha ?? 0)
             content.show(scene)
         }
+    }
+
+    /// Lifted by a drag, the black casts the prototype's shadow: 4 down, blurred 12, at 0.4, at full lift.
+    private func lift(_ lift: Double) {
+        shape.shadowOpacity = Float(0.4 * lift)
+        shape.shadowRadius = EdgeStyle.liftBlur * lift
+        shape.shadowOffset = CGSize(width: 0, height: 4 * lift)
+        shape.shadowPath = lift > 0 ? shape.path : nil
     }
 
     func showLight(_ placed: Frame.Light, outline: CGPath, colours: LiveLight) {

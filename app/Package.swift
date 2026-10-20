@@ -15,6 +15,7 @@ let package = Package(
         .testTarget(name: "SitRepCoreTests", dependencies: ["SitRepCore"]),
         .testTarget(name: "SitRepPanelTests", dependencies: ["SitRepPanel"]),
         .testTarget(name: "SitRepEdgeTests", dependencies: ["SitRepEdge", "SitRepCore", "SitRepPanel"]),
+        .testTarget(name: "SitRepTests", dependencies: ["SitRep", "SitRepPanel"]),
     ],
     swiftLanguageModes: [.v6]
 )

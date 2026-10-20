@@ -17,8 +17,9 @@ final class PanelContent {
     /// One for each of the list's items, in its order.
     private var items: [CALayer] = []
     /// The rows by their sessions' ids, each in its item's layer.
-    private var rows: [String: (item: CALayer, row: SessionRow)] = [:]
-    private var hovered: String?
+    private(set) var rows: [String: (item: CALayer, row: SessionRow)] = [:]
+    /// The row lifted under the pointer.
+    private var hovered: SessionRow?
     private var scale: CGFloat = 1
 
     init() {
@@ -108,7 +109,6 @@ final class PanelContent {
         was.filter { old in !items.contains { $0 === old } }.forEach { $0.removeFromSuperlayer() }
         items.filter { $0.superlayer !== list }.forEach(list.addSublayer)
         rows = kept
-        hovered = nil
     }
 
     /// Each item in its box, which a fold shortens: what is laid out in it keeps its own height, clipped. Placed by
@@ -127,19 +127,22 @@ final class PanelContent {
         layer.transform = CATransform3DMakeTranslation(0, paint.rise, 0)
     }
 
-    /// The lift comes and goes in 110ms, as the prototype's does.
+    /// The row under the pointer lifts, and the one lifted before comes down, kept or made anew since: the lift comes
+    /// and goes in 110ms, as the prototype's does.
     private func highlight(_ id: String?) {
-        guard id != hovered else {
+        let row = id.flatMap { rows[$0]?.row }
+
+        guard row !== hovered else {
             return
         }
 
         CATransaction.begin()
         CATransaction.setDisableActions(false)
         CATransaction.setAnimationDuration(0.11)
-        hovered.flatMap { rows[$0] }?.row.isHighlighted = false
-        id.flatMap { rows[$0] }?.row.isHighlighted = true
+        hovered?.isHighlighted = false
+        row?.isHighlighted = true
         CATransaction.commit()
-        hovered = id
+        hovered = row
     }
 
     private static func row(_ session: Session, size: CGSize) -> (item: CALayer, row: SessionRow) {
@@ -170,7 +173,10 @@ final class PanelContent {
         let half = (box.width - inset.left - inset.right) / 2
 
         layer.frame = box
-        layer.addSublayer(TextLine(title, in: CGRect(x: inset.left, y: 0, width: half, height: line)))
+        // a head with no count, as when SitRep can't run `watch`, has the line to itself
+        let titleWidth = head.count.isEmpty ? 2 * half : half
+
+        layer.addSublayer(TextLine(title, in: CGRect(x: inset.left, y: 0, width: titleWidth, height: line)))
         layer.addSublayer(TextLine(
             count, in: CGRect(x: inset.left + half, y: drop, width: half, height: line), alignment: .right
         ))
