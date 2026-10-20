@@ -31,12 +31,13 @@ struct ProjectPageView: View {
             TwoColumns {
                 VStack(alignment: .leading) {
                     if !page.notes.isEmpty {
-                        NotesSection(notes: page.notes, now: now)
+                        NotesSection(notes: page.notes, opened: page.opened, now: now)
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 if !page.parked.isEmpty {
-                    ParkedSection(parked: page.parked, now: now).frame(maxWidth: .infinity, alignment: .leading)
+                    ParkedSection(parked: page.parked, opened: page.opened, now: now)
+                        .frame(maxWidth: .infinity, alignment: .leading)
                 }
             }
         }
@@ -48,9 +49,10 @@ struct ProjectPageView: View {
             SectionHeading(name: "Sessions", note: "\(page.open) open").padding(.bottom, 8)
             ForEach(page.sessions) { session in
                 Button { act.pick(.session(session.id)) } label: {
-                    ProjectSessionRow(session: session, now: now)
+                    ProjectSessionRow(session: session, now: now).padding(.horizontal, WindowStyle.reach)
                 }
-                .buttonStyle(.plain)
+                .rowButton()
+                .padding(.horizontal, -WindowStyle.reach)
             }
         }
     }
@@ -83,9 +85,11 @@ struct ProjectPageView: View {
                             Text(Words.age(ask.card.since, at: now)).font(WindowStyle.ui(12)).foregroundStyle(WindowStyle.faint)
                         }
                         .padding(.vertical, 4)
+                        .padding(.horizontal, WindowStyle.reach)
                         .contentShape(Rectangle())
                     }
-                    .buttonStyle(.plain)
+                    .rowButton(radius: 6)
+                    .padding(.horizontal, -WindowStyle.reach)
                 }
             }
         }

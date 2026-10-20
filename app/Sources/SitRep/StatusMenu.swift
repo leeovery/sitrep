@@ -92,7 +92,7 @@ final class StatusMenu: NSObject, NSMenuDelegate {
             let offset = menu.index(of: item)
 
             if entries.indices.contains(offset), case let .row(session, jump) = entries[offset] {
-                describe(item, session, jump: jump)
+                MenuWords.describe(item, session, jump: jump, isHighlighted: item === highlighted)
             }
         }
     }
@@ -149,18 +149,17 @@ final class StatusMenu: NSObject, NSMenuDelegate {
             item.title = title
         case let .reload(reload):
             command(item, reload.label, "arrow.clockwise", #selector(jump(_:)))
+            MenuWords.plain(item, reload.label)
             item.representedObject = reload.session
         case let .trouble(trouble):
             warn(item, trouble.title, subtitle: trouble.detail)
         case let .unread(why):
             warn(item, MenuBoard.unreadTitle, subtitle: why)
         case let .row(session, jump):
-            item.image = MenuImages.mark(session)
             item.target = self
             item.action = jump == nil ? nil : #selector(jump(_:))
             item.representedObject = jump
-            item.badge = NSMenuItemBadge(string: session.ageText(at: Displays.wallNow))
-            describe(item, session, jump: jump)
+            MenuWords.row(item, session, jump: jump, age: session.ageText(at: Displays.wallNow), isHighlighted: item === highlighted)
         case let .more(title):
             command(item, title, "ellipsis", #selector(openTheWindow))
         case .openWindow:
@@ -179,11 +178,8 @@ final class StatusMenu: NSObject, NSMenuDelegate {
     /// What is wrong, and why: no command, so disabled, but set in the label's ink so macOS does not dim it, as it is
     /// what matters most.
     private func warn(_ item: NSMenuItem, _ words: String, subtitle: String) {
-        let title = NSAttributedString(string: words, attributes: [.font: Self.font.bold, .foregroundColor: NSColor.labelColor])
-
         item.action = nil
-        item.image = MenuImages.symbol("exclamationmark.triangle")
-        describe(item, title, plain: words, subtitle: subtitle)
+        MenuWords.warn(item, words, subtitle: subtitle)
     }
 
     private func command(_ item: NSMenuItem, _ title: String, _ symbol: String?, _ action: Selector, key: String = "") {
@@ -195,46 +191,6 @@ final class StatusMenu: NSObject, NSMenuDelegate {
             item.image = MenuImages.symbol(symbol)
         }
     }
-
-    /// A row's words: its first line, its subject in mono, a working row's fainter but under the pointer, where the
-    /// highlight's ink takes over; an away row's in the disabled ink, as macOS draws a disabled item's.
-    private func describe(_ item: NSMenuItem, _ session: Session, jump: String?) {
-        let line = session.menuLine
-        let ink: NSColor? = jump == nil ? .disabledControlTextColor
-            : line.isFaint && item !== highlighted ? .secondaryLabelColor : nil
-        let title = NSMutableAttributedString(string: line.words, attributes: [.font: Self.font])
-
-        if let mono = line.mono {
-            title.append(NSAttributedString(string: mono, attributes: [.font: Self.mono]))
-        }
-        if let more = line.more {
-            title.append(NSAttributedString(string: more, attributes: [.font: Self.font]))
-        }
-        if let ink {
-            title.addAttribute(.foregroundColor, value: ink, range: NSRange(location: 0, length: title.length))
-        }
-        describe(item, title, plain: session.menuTitle, subtitle: session.sub)
-    }
-
-    /// Its title and the line under it. An item with an attributed title shows no subtitle before macOS 15, so before
-    /// it the title is plain, and before 14.4, which has no subtitles, the line is its tooltip.
-    private func describe(_ item: NSMenuItem, _ title: NSAttributedString, plain: String, subtitle: String) {
-        if #available(macOS 15, *) {
-            item.attributedTitle = title
-            item.subtitle = subtitle
-        } else if #available(macOS 14.4, *) {
-            item.attributedTitle = nil
-            item.title = plain
-            item.subtitle = subtitle
-        } else {
-            item.attributedTitle = nil
-            item.title = plain
-            item.toolTip = subtitle
-        }
-    }
-
-    private static let font = NSFont.menuFont(ofSize: 0)
-    private static let mono = NSFont.monospacedSystemFont(ofSize: font.pointSize, weight: .regular)
 
     /// The rows' times, each drawn again as it next reads differently, and the timer set for the rows now showing.
     private func tick() {
@@ -304,8 +260,4 @@ extension EdgeSettings.Show {
         case .nothing: "Nothing"
         }
     }
-}
-
-private extension NSFont {
-    var bold: NSFont { NSFontManager.shared.convert(self, toHaveTrait: .boldFontMask) }
 }

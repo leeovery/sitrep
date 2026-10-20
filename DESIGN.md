@@ -2621,9 +2621,11 @@ stands).
     then working; its sessions keep that order. This replaces the pane's
     "the busiest" for the window, so every surface sorts by one rule. A
     project's name carries what waits there, in orange. Projects with
-    nothing open fold into one line at the foot ("6 quiet projects"). The
-    head says how many need Lee and how many sessions there are, or "All
-    clear".
+    nothing open fold into the foot ("6 quiet projects"), each name there
+    opening its project as a project's name does: its sessions, none of
+    them in a window, and their notes (Lee, 20 October 2026: "at least
+    interact with them, view them, see them"). The head says how many need
+    Lee and how many sessions there are, or "All clear".
   - **the session** Lee picks, on the right: the pane's session view at
     window size. Its project's name sits above it, and a press opens the
     project. Then its name and summary; what its window is doing now, the
@@ -2639,12 +2641,41 @@ stands).
   first. Each line names its session. There is no Resolved. An ask there is
   one line, and opens in place into its card.
 - **It opens on** the oldest session that needs Lee; with none, on the one
-  picked last. There is one window: opening it again brings it forward.
-  The menu opens it (see "The menu bar item").
+  picked last. There is one window: opening it again brings it forward,
+  on the Space Lee is on, as Settings does: it moves to the active Space
+  and comes forward there before SitRep activates, so the activation takes
+  him to no other Space. The menu opens it (see "The menu bar item").
+- **Under the pointer** (Lee, 20 October 2026: "When I hover down the
+  left-hand side, nothing highlights"):
+  - every row of the list, a project's name among them, highlights as the
+    pointer passes over it, and the session or project picked keeps a
+    lasting selection, the stronger of the two;
+  - on macOS 26 the list is a glass sidebar floating inside the window, as
+    Settings' is, and its hover and selection are glass shapes, matching
+    each other, the selection the stronger. On the page, and before macOS
+    26, they are the panel's fills;
+  - every button shows a hover: the pills, the jump, the project's name
+    above a session, "show all";
+  - keyboard focus is a mark of its own, a thin white outline at low
+    opacity following the shape's corners: never the system's blue ring,
+    a fill or the hover, so a row tabbed to never looks like the one under
+    the pointer.
+- **Items that open.** A note, a parked item and a resolved ask open in
+  place on a press, and close on a second, as an ask does in a project's
+  view: the line whole, wrapping, and under it a note's detail, where a
+  parked item was parked from, or how an ask closed: Lee's answer as the
+  board words it, or Claude's resolve and its reason. A status line opens
+  only while it is cut short. A line with nothing more to show is not a
+  button, and takes no keyboard stop.
 - **Answering.** A session's asks show opened, as cards with their buttons:
   - **a yes** is a white pill in Claude's words, the brightest thing in the
     window; **a choice** is one outlined pill per option. Both are answered
     here;
+  - **the buttons sit on one line** as pills while they fit at their
+    one-line widths, measured. Past that, as Claude's long options are, the
+    answers lay out as a column of rows as wide as the card, left-aligned,
+    their words wrapping, with Comment in Claude and Ignore on a line after
+    them, or every button a row where that line would not fit either;
   - **the answer waits 2 seconds**, a line draining under it, with Escape to
     undo (borrowed from One, in Lee's dex). Then it goes into the session's
     inbox, as the pane's replies to another session do (see "Delivery"), by
@@ -2652,6 +2683,8 @@ stands).
     it", then moves to Resolved, as each ask's `reply` in `board --json`
     says (see "One engine, two front ends"). The board never closes an ask
     on the press alone;
+  - **a jump shows on the button pressed** alone, faint while it runs; the
+    other cards stay as they look, and take no second jump while one runs;
   - **a comment, a words ask and a permission prompt** need Claude Code's
     prompt, so their buttons read "Comment in Claude ↗" or "Answer in Claude
     ↗" and jump to the session's window. Proposed, and new: that jump also
@@ -2693,7 +2726,10 @@ menu to the SitRep window, Settings and Quit. Lee, with Spaceman's menu
 beside it (a header, its spaces with a click to each, quick settings),
 asked for the sessions back, and approved the redraw as it stands.
 - **The menu, top to bottom:**
-  - **a header**: SitRep's icon, its name and its version, not a command;
+  - **a header**: SitRep's icon, its name and its version, not a command.
+    The icon is the one macOS renders for the bundle, at the header's 30;
+    the header keeps its own width, as one stretched to the menu kept the
+    widest the menu had ever been;
   - **the panel's sessions**, in its order and with its marks (see "The
     rows"), under a heading in the panel head's words, "4 need you" or "All
     clear". Each is a native item with a subtitle (macOS 14.4): what it is,
@@ -2707,6 +2743,18 @@ asked for the sessions back, and approved the redraw as it stands.
     you;
   - **Settings… ⌘,** (see "Settings"); **Check for Updates…**, with Sparkle, from the first public
     release; **Quit SitRep ⌘Q**.
+- **About Spaceman's width, a little wider** (Lee, 20 October 2026): the
+  whole menu is 340 points, the one number to tune. A native menu is as
+  wide as its widest item, so each row's title is cut at its tail with an
+  ellipsis to what AppKit leaves of the 340 round the mark's lane, the
+  badge and the insets, measured on an offscreen menu laid out as this one,
+  each run in the font it is drawn in, the subject in SF Mono. The line
+  under it is cut the same way, and to no more than AppKit sets on one line
+  before it wraps, so no row grows taller. macOS draws that line at the
+  small size, 11 points. The shares are measured once, as the menu first
+  draws, so a change to the menu bar's size in System Settings holds
+  until SitRep starts again. A row cut short has its whole words as its
+  tooltip.
 - **An away session** is disabled, with no window to jump to: its words
   dim, and its dot with them, as macOS dims a disabled item's image and
   AppKit has no switch for it, where the panel keeps the dot orange
@@ -3683,7 +3731,8 @@ reaches a window only while that pane is on show).
         - **For now** it opens from "Open SitRep Window" in today's menu,
           which the menu bar item's phase rebuilds; the quiet projects' line
           is a line, opening nothing; Resolved's rows do not open to how
-          they closed, which a pointer resting on one tells.
+          they closed, which a pointer resting on one tells. Both open since
+          Lee's first try, 20 October 2026 (see "The SitRep window").
    9. **Installing the plugin**: the app's first start installs it, and its
       relaunch refreshes it (Installing and updating, under "Where it
       lives"). Built 20 October 2026, and reviewed twice the same day:

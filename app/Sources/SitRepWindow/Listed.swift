@@ -42,10 +42,19 @@ public struct Listed: Equatable, Sendable {
         public var washed: Date?
     }
 
+    /// A project with nothing open, a name in the line at the foot, which opens its project as a project's name in the
+    /// list does: its sessions, none of them in a window, and their notes as their boards are read.
+    public struct Quiet: Equatable, Sendable, Identifiable {
+        public let id: String
+        public let name: String
+
+        public var pick: Pick { .project(id) }
+    }
+
     public let head: Head
     public var projects: [Project]
-    /// The quiet projects' names, in `watch`'s order.
-    public let quiet: [String]
+    /// The quiet projects, in `watch`'s order.
+    public let quiet: [Quiet]
 
     /// Before `watch` prints its first line.
     public init() {
@@ -69,7 +78,7 @@ public struct Listed: Equatable, Sendable {
         projects = shown.map { project in
             Project(id: project.key, name: project.name, waiting: needs[project.key] ?? 0, sessions: project.sessions.map(Row.init))
         }
-        quiet = board?.projects.filter(\.isQuiet).map(\.name) ?? []
+        quiet = board?.projects.filter(\.isQuiet).map { Quiet(id: $0.key, name: $0.name) } ?? []
     }
 
     /// Every session it lists, in its order.

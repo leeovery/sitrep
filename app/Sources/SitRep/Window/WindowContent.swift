@@ -8,8 +8,10 @@ struct WindowActions: Sendable {
     var press: @MainActor @Sendable (Card.Button, AskAddress) -> Void = { _, _ in }
     /// A project's ask opened in place, or closed back.
     var toggle: @MainActor @Sendable (AskAddress) -> Void = { _ in }
+    /// An item of Status, Notes, Parked or Resolved opened in place, or closed again.
+    var toggleItem: @MainActor @Sendable (Item) -> Void = { _ in }
     /// To the session's window: "Open in Ghostty ↗", and a stop's "Answer in Claude ↗".
-    var jump: @MainActor @Sendable (String) -> Void = { _ in }
+    var jump: @MainActor @Sendable (JumpPress) -> Void = { _ in }
     var askToFinish: @MainActor @Sendable (String) -> Void = { _ in }
     var cancelFinish: @MainActor @Sendable (String) -> Void = { _ in }
     var confirmFinish: @MainActor @Sendable (String) -> Void = { _ in }
@@ -19,8 +21,8 @@ struct WindowActions: Sendable {
 
 extension EnvironmentValues {
     @Entry var windowActions = WindowActions()
-    /// A jump runs: nothing jumps until it answers.
-    @Entry var isJumping = false
+    /// The button whose jump runs, which alone shows it; nil with none of the window's.
+    @Entry var pressedJump: JumpPress?
 }
 
 /// The window's two columns, all of it the panel's black: the board down the left, and what Lee picked on the right.
@@ -35,12 +37,14 @@ struct WindowContent: View {
         HStack(spacing: 0) {
             BoardColumn(listed: listed, pick: pick, now: now)
                 .frame(width: WindowStyle.boardWidth)
-            Rectangle().fill(WindowStyle.line).frame(width: 1)
+                .modifier(Sidebar())
             PageColumn(page: page, now: now)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         }
         .background(WindowStyle.black)
         .environment(\.colorScheme, .dark)
+        // Keyboard focus shows as the pointer's highlight does (`Highlighted`), never as the system's ring.
+        .focusEffectDisabled()
     }
 }
 

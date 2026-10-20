@@ -100,6 +100,6 @@ extension Session {
     /// The row's first line as one line of a menu item's title: its words, its subject after them, and a question's
     /// "+2".
     public var menuTitle: String {
-        [title + (code ?? ""), more].compactMap(\.self).joined(separator: " ")
+        menuLine.plain
     }
 }

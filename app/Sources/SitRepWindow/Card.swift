@@ -25,7 +25,7 @@ public struct Card: Equatable, Sendable, Identifiable {
         }
 
         /// A yes or an option: Lee's answer, given here, which waits in the inbox while no window holds the session.
-        var isAnswer: Bool {
+        public var isAnswer: Bool {
             switch self {
             case .yes, .option: true
             case .inClaude, .ignore: false
@@ -150,6 +150,36 @@ extension Card {
         let prompt: [Button] = isAway ? [] : [.inClaude(answers.isEmpty ? .answer : .comment)]
 
         return answers + prompt + [.ignore]
+    }
+
+    /// How a card lays out its buttons.
+    public enum Arrangement: Equatable, Sendable {
+        /// On one line, each a pill.
+        case pills
+        /// The buttons at these offsets a column of rows as wide as the card, their words wrapping; the rest on a line
+        /// after them.
+        case rows([Int])
+    }
+
+    /// Pills, while every button fits on one line at its one-line width, measured, with the space between; else its
+    /// answers as rows, as Claude's long options wrapped inside their pills, the rest on a line after them while that
+    /// line fits, and every button a row where it does not, so nothing runs past the card.
+    public static func arrangement(of buttons: [Button], widths: [Double], spacing: Double, in width: Double) -> Arrangement {
+        let all = Array(buttons.indices)
+
+        guard line(widths, spacing) > width else {
+            return .pills
+        }
+
+        let answers = all.filter { buttons[$0].isAnswer }
+        let rest = all.filter { !buttons[$0].isAnswer && widths.indices.contains($0) }
+
+        return .rows(answers.isEmpty || line(rest.map { widths[$0] }, spacing) > width ? all : answers)
+    }
+
+    /// How wide these are side by side.
+    private static func line(_ widths: [Double], _ spacing: Double) -> Double {
+        widths.reduce(0, +) + spacing * Double(max(0, widths.count - 1))
     }
 
     private static func wait(_ doing: Doing) -> Wait {

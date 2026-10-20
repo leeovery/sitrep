@@ -17,6 +17,13 @@ enum WindowStyle {
     /// An option's fill and its ring.
     static let option = Color(hex: 0x1C1C1F)
     static let optionRing = Color(hex: 0x34343A)
+    /// A pill under the pointer: its fill and its ring lifted.
+    static let optionLift = Color(hex: 0x26262A)
+    static let ringLift = Color(hex: 0x45454C)
+    /// A row under the pointer, fainter than the picked one's raise.
+    static let hover = Color(hex: 0x0D0D0F)
+    /// Keyboard focus's outline.
+    static let focus = Color.white.opacity(0.35)
     /// An away session's dot.
     static let awayDot = Color(hex: 0x46464C)
     /// The working arc's track, and the arc.
@@ -42,6 +49,17 @@ enum WindowStyle {
     static let barHeight: CGFloat = 52
     /// A mark's lane, as the panel row's.
     static let lane = CGSize(width: 12, height: 18)
+    /// How far a page line's highlight reaches past the column's edges, so its words keep their place beside the
+    /// headings.
+    static let reach: CGFloat = 8
+    /// macOS 26's glass sidebar, floating inside the window.
+    static let sidebarInset: CGFloat = 8
+    static let sidebarRadius: CGFloat = 18
+
+    /// The tint of a highlight's glass: the picked one's the stronger.
+    static func glassTint(_ highlight: Highlight) -> Color {
+        .white.opacity(highlight == .picked ? 0.14 : 0.05)
+    }
 }
 
 extension Color {

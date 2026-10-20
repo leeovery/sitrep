@@ -17,7 +17,7 @@ struct ListedTests {
     }
 
     @Test func aProjectWithNothingOpenFoldsIntoTheQuietLineAtTheFoot() {
-        #expect(Self.listed.quiet == ["Kit"])
+        #expect(Self.listed.quiet.map(\.name) == ["Kit"])
     }
 
     @Test func aProjectsCountIsWhatWaitsOnLeeThereItsStopsAmongIt() {

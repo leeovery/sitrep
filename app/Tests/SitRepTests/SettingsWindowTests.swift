@@ -15,6 +15,18 @@ struct SettingsWindowTests {
     func itTakesTheMainMenusWindowKeys(action: Selector) {
         #expect(Self.window.validateMenuItem(NSMenuItem(title: "", action: action, keyEquivalent: "")))
     }
+
+    @Test func itOpensOnTheSpaceLeeIsOn() {
+        #expect(Self.window.collectionBehavior.contains(.moveToActiveSpace))
+    }
+}
+
+/// The SitRep window, made, never shown.
+@MainActor
+struct SitRepWindowTests {
+    @Test func itOpensOnTheSpaceLeeIsOn() {
+        #expect(SitRepWindow.window(NSView()).collectionBehavior.contains(.moveToActiveSpace))
+    }
 }
 
 /// What Lee sets, kept in one place: a change saves as it is made, but a drag's steps only once it ends.
