@@ -75,6 +75,9 @@ export const fits = (item: Item, reply: ReplyFields): item is Ask | Parked =>
 
 export const isOpen = (ask: Ask) => ask.state === 'waiting' || ask.state === 'replied'
 
+/** A yes ask's yes, the button's words, as Lee gives it; a bare `yes` where its line gave none. */
+export const yesOf = (ask: Pick<Ask, 'yes'>) => ask.yes ?? 'yes'
+
 /** Whether a reply is on its way: neither delivered, nor void since its item changed under it. */
 export const isPending = (reply: Reply) =>
   reply.delivery === 'waiting' || reply.delivery === 'closed'
@@ -109,6 +112,35 @@ export const closingReply = (ask: Ask) =>
   ask.state === 'closed' && ask.answer !== undefined && isClosing(ask, ask.answer.verdict)
     ? ask.answer
     : undefined
+
+/** The reply an item waits on Claude with: sent from a board into its session's inbox, not delivered yet. */
+export const onItsWay = (item: Ask | Parked) => item.replies.findLast(isPending)
+
+/**
+ * Where Lee's answer to an ask stands: on its way, in its session's inbox
+ * until a window of the session delivers it; or delivered, Claude having
+ * it, and the ask closed by it. `since` is when it was sent, or delivered.
+ */
+export type AnswerState = { is: 'onItsWay' | 'delivered'; reply: Reply; since: number }
+
+/**
+ * Where Lee's answer to an ask stands, from its replies; undefined with
+ * none on its way and none that closed it: none sent, one void since the
+ * ask changed under it, or the ask closed by Claude.
+ */
+export const answerState = (ask: Ask): AnswerState | undefined => {
+  const sent = onItsWay(ask)
+
+  if (sent !== undefined) {
+    return { is: 'onItsWay', reply: sent, since: sent.at }
+  }
+
+  const closing = closingReply(ask)
+
+  return closing === undefined
+    ? undefined
+    : { is: 'delivered', reply: closing, since: closing.deliveredAt ?? closing.at }
+}
 
 /** Where a delivered reply leaves a parked item: a pick-up picks it up. */
 export const parkedAfter = (parked: Parked, verdict: Verdict): Parked['state'] =>
@@ -159,7 +191,7 @@ const withNote = (note: string | undefined, quote: Quote, needs?: string) =>
 const words = (ask: Ask, { verdict, option, note }: ReplyFields, quote: Quote): string => {
   switch (verdict) {
     case 'yes':
-      return `${ask.yes ?? 'yes'}${withNote(note, quote, ask.needs)}`
+      return `${yesOf(ask)}${withNote(note, quote, ask.needs)}`
     case 'choose':
       return `${option ?? ''}${withNote(note, quote, ask.needs)}`
     case 'answer':

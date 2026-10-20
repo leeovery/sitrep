@@ -5,6 +5,7 @@
  * the prompt box as its note where Lee wants one (DESIGN.md, "Answering an
  * ask").
  */
+import { onItsWay } from '../../core'
 import type { SitrepItemRef } from '../../types'
 import { C, GLYPH } from '../look'
 import { itemKey, type ParkedAt } from '../places'
@@ -18,7 +19,6 @@ import {
   drawWrite,
   heading,
   isBeingAnswered,
-  onItsWay,
   seeRef,
   shown,
   type Block,

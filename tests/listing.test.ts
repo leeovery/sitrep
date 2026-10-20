@@ -470,7 +470,7 @@ test('list names the project the CLI runs in even with nothing current in it, an
   ])
 })
 
-test('board --json: the session as list gives it, its open asks, what it parked and its latest log lines', async () => {
+test('board --json: the session as list gives it, its open asks, what it parked, its latest log lines and its resolved asks', async () => {
   const t = terminal()
 
   t.seed(META, {
@@ -515,6 +515,7 @@ test('board --json: the session as list gives it, its open asks, what it parked 
         ref: null,
         state: 'waiting',
         at: T0 + 1,
+        answer: null,
       },
       {
         id: 'k3',
@@ -527,6 +528,7 @@ test('board --json: the session as list gives it, its open asks, what it parked 
         ref: null,
         state: 'waiting',
         at: T0 + 1,
+        answer: null,
       },
     ],
     parked: [{ id: 'p1', title: 'A tmux indicator', where: null, ref: null, at: T0 + 2 }],
@@ -540,6 +542,23 @@ test('board --json: the session as list gives it, its open asks, what it parked 
         ref: null,
         by: W1,
         at: T0,
+      },
+    ],
+    resolved: [
+      {
+        id: 'k2',
+        wants: 'yes',
+        yes: 'Done',
+        title: 'Run the apply',
+        where: null,
+        options: [],
+        needs: null,
+        ref: null,
+        state: 'closed',
+        at: T0 + 1,
+        answer: null,
+        closedAt: T0 + 4,
+        reason: null,
       },
     ],
   })

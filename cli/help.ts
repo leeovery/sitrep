@@ -42,7 +42,6 @@ export const HELP = [
   'A command on a session names it: --session sr-xxxxxx, else $SITREP_SESSION.',
   "A post prints its item's id. Exit codes: 0 done; 1 a usage error, a refused",
   'input or a failure; 2 no such session.',
-  'Answering an ask from here: not yet. Answer it on the board.',
   '',
   'sitrep <command> --help says more.',
 ].join('\n')

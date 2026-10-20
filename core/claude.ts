@@ -5,7 +5,7 @@
  * conversation. Undelivered replies are left out: Claude has not been told
  * them.
  */
-import { answerOf, isOpen } from './replies'
+import { answerOf, isOpen, yesOf } from './replies'
 import type { Ask, Finished, Finisher, LogLine, Parked, Session } from './types'
 import type { ProjectSummary, SessionSummary } from './views'
 
@@ -33,7 +33,7 @@ const withExtras = (head: string, extras: Record<string, string | undefined>) =>
 const wantsWords = (ask: Ask) => {
   switch (ask.wants) {
     case 'yes':
-      return `a yes (${ask.yes ?? 'yes'})`
+      return `a yes (${yesOf(ask)})`
     case 'choice':
       return 'a choice'
     case 'words':

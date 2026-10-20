@@ -743,9 +743,11 @@ Dropped for now (11 October 2026): a macOS notification for asks. Back on
   only once Claude Code takes it; a refused send leaves every reply in place.
   If Claude is mid-turn the message waits for that turn to end.
 - Replies for **another** session go into that session's inbox in the shared
-  folder. The sitrep mod in that session's window picks them up and submits
-  them as Lee's message (not as a message between agents, which Claude would
-  give less weight). It writes back a delivered mark.
+  folder, and so do the SitRep window's answers, through `sitrep answer` (see
+  "One engine, two front ends"). The sitrep mod in that session's window
+  picks them up and submits them as Lee's message (not as a message between
+  agents, which Claude would give less weight). It writes back a delivered
+  mark.
   - open and idle: in within a second or two;
   - mid-turn: waits for the turn to end;
   - no window open: waits in the inbox, goes in when the session is joined
@@ -809,7 +811,7 @@ $XDG_STATE_HOME/sitrep/, else ~/.local/state/sitrep/
     sessions/<session id>/
       session.json            name, summary, project, root, created and by whom: written once, by whoever starts the session
       <writer>.jsonl          one file per writer: each window as Claude Code's session id, the CLI as `cli`
-      inbox/<sender>.jsonl    replies from other sessions, one file per sending writer
+      inbox/<sender>.jsonl    replies from other sessions, one file per sending writer; the CLI's answers as `cli`
       presence/<writer>.json  each attached window's heartbeat
     works/<session id>/       the old layout, its meta as work.json: read beside sessions/, never written, moved by the CLI
   ghostty-terminals.jsonl     each device's Ghostty terminal, as the jump last found it (see "The jump")
@@ -978,8 +980,10 @@ $XDG_STATE_HOME/sitrep/, else ~/.local/state/sitrep/
   mark voids it. For this session, the mod writes the reply and the mark
   together, once Claude Code has taken the message. For another session, the
   sender writes the reply into that session's inbox, and the window that
-  submits it there writes the mark to its own file. Only replies count from an
-  inbox.
+  submits it there writes the mark to its own file. The CLI's answers go in
+  as another session's replies do, as its letters, `inbox/cli.jsonl`,
+  appended to; the window's mark is the trace the CLI reads them delivered
+  by (20 October 2026). Only replies count from an inbox.
 - **Presence:** a mod can't tell that its own window died, so each attached
   window rewrites its heartbeat (`attachedAt`, `seenAt`) every 30 seconds,
   and a session is open while a heartbeat is under 90 seconds old. A mod
@@ -1256,20 +1260,26 @@ truth. There is still no background service. None of it is built now. Lee:
     writes once (tests/flight.test.tsx).
 - **the CLI**, `sitrep`: runs on Bun, reads and writes through the file system.
   For scripts and other tools: a Paper generator posting "round 3 drawn", and
-  later the tmux indicator.
+  later the tmux indicator; and for the SitRep app, which answers and
+  finishes through it.
 
   ```
   sitrep note <text> [--detail <line>]... [--ref <ref>]
   sitrep ask <title> --wants yes|choice|words [--yes <label>] [--option <choice>]... [--needs <words>] [--where <words>] [--ref <ref>]
   sitrep park <title> [--where <words>] [--ref <ref>]
   sitrep status [--name <words>] [--summary <line>] [--now <line>]... [--next <line>]
+  sitrep answer <ask> <answer>
+  sitrep finish
   sitrep board [--json]
   sitrep list [--project <name>] [--json]
   sitrep jump
   sitrep watch
   ```
 
-  - It writes as the writer `cli`, appending to `<session>/cli.jsonl`. It never
+  - It writes as the writer `cli`, appending to `<session>/cli.jsonl`, and an
+    answer to its letters in the session's inbox, `<session>/inbox/cli.jsonl`,
+    the same way: each file's count goes on from that file under both
+    layouts, a torn last line ended first, and nothing is rewritten. It never
     writes a delivered mark or a heartbeat: it is never a window on the
     session. Before a command reads the board, it moves the old layout into
     today's, once no window still writes it (see "Storage").
@@ -1287,7 +1297,7 @@ truth. There is still no background service. None of it is built now. Lee:
     never among them.
     `--project <name>` gives only that project's, matched as `start` matches
     it, and a name no project has is refused. `--all` is gone: every
-    project is listed already. The CLI does not finish sessions.
+    project is listed already.
   - Exit codes: 0 done; 1 a usage error, a refused input or a failure; 2 no
     such session.
   - `list --json` is for tools, and stable: every field is always there (a
@@ -1312,10 +1322,79 @@ truth. There is still no background service. None of it is built now. Lee:
     however many sessions there are; it selects and knocks on nothing. Plain
     `list` runs no program.
 
-    `board --json` is `{ v, project: { key, name }, work, asks, parked, log }`:
-    the session as `list` gives it, its open asks, what it parked, and its latest
-    log lines. Its `v` is 2 since its asks say what they want back (`wants`,
-    `yes`, `needs`) in place of their kind; `list`'s stays 1.
+    `board --json` is
+    `{ v, project: { key, name }, work, asks, parked, log, resolved }`: the
+    session as `list` gives it, its open asks, what it parked, its latest log
+    lines, and its resolved asks (20 October 2026), closed, the ignored aside,
+    the newest closed first, as a session's Resolved lists them. Its `v` is 2
+    since its asks say what they want back (`wants`, `yes`, `needs`) in place
+    of their kind; `list`'s stays 1. Each ask, open or resolved, carries
+    `answer`, where Lee's answer to it stands (below, `answer`), and a
+    resolved one when it closed and, where Claude's resolve closed it, why:
+
+    ```
+    { "id": "k1", "wants": "yes", "yes": "Go", "title": "Give the go for stage 3",
+      "where": null, "options": [], "needs": null, "ref": null,
+      "state": "closed", "at": 1760000000000,
+      "answer": { "is": "delivered", "words": "→ Go", "since": 1760000090000 },
+      "closedAt": 1760000090000, "reason": null }
+    ```
+
+    Neither moved a `v`: they are fields added, which a reader that does not
+    know them passes over, and no field it reads changed. The SitRep window
+    is their first reader.
+  - `answer` (20 October 2026) answers a yes or a choice ask, as Lee does on
+    the board, for the SitRep window to answer through (see "The SitRep
+    window"): the ask by its id, then the answer in the words of the button
+    Lee pressed, a yes ask's yes (`sitrep answer k1 Go`) or one of a choice
+    ask's options (`sitrep answer k2 Keep it`), matched exactly, as the board
+    shows them. It prints nothing.
+    - It writes a reply, `yes`, or `choose` with its option, into the
+      session's inbox as the CLI's letters, as the pane's replies to another
+      session go in (see "Delivery"): the session's window delivers it to
+      Claude as Lee's own message, as it delivers any reply, and marks it
+      delivered. A session no window holds is answered the same way: the
+      answer waits in its inbox, and goes in once a window takes the session
+      up.
+    - It never closes the ask: the delivered mark does, as for any reply, or
+      Claude's resolve. Until then the ask still waits, counted wherever
+      asks are and its row needing Lee, as one with the pane's reply on its
+      way does.
+    - Refused, exit 1 and nothing written: a words ask, a comment and a
+      permission prompt, which need Claude Code's prompt (`k3 wants words,
+      which need Claude Code's prompt: answer it there.`; a comment is no
+      word it takes, `There is no --comment.`; a permission prompt is no ask
+      on the board, and is answered in its window); an ask closed (`k1 is
+      already closed.`); one with a reply of Lee's on its way already, from
+      the pane or the CLI, since an ask takes no second answer, as the pane
+      offers none (`A reply to k1 is on its way already.`); an answer the ask
+      does not take (`k2 wants a choice: answer it with “Keep it” or “Drop
+      it”.`); an item that is no ask, or no item; and an ask of a finished
+      session, whose asks wait on Lee no more, as an answering mode ends with
+      its session finished. An unknown session is exit 2.
+    - Two runs answering one ask at once can both find it with nothing on
+      its way, and both land: the window delivers both in one message, and
+      the first closes the ask. The SitRep window sends one answer at a time,
+      so it is left at that.
+    - Where an answer stands is core's, from the files (`answerState`), and
+      `board --json` and `watch` give it on each ask, as `answer`: `null`
+      with nothing of Lee's on its way and none that closed it; `onItsWay`
+      once a reply is in the inbox, not yet delivered, since it was written;
+      `delivered`, since the window's mark, once Claude has it, which has
+      closed the ask. `words` is the answer as the board shows it on one row
+      (`→ Go`). A reply gone void, its ask edited under it, is `null`: the
+      ask can be answered again. Those are the SitRep window's card: "on its
+      way" on an open ask, "sent, and Claude has it" on the ask the answer
+      just closed, as the pane's Asks keep one for a moment, and then
+      Resolved, where `board --json` lists it.
+  - `finish` (20 October 2026) finishes a session no window holds, as the
+    pane's `✓ finish this session` does, for the SitRep window's `✓ Finish
+    this session`: Lee's finish, `{ "type": "finish", "who": "lee" }`, in the
+    CLI's own file, nothing in the inbox. It prints nothing. Asking first is
+    the window's. A session a live window holds is refused (`Dashboard
+    redesign is open in a window: tell Claude there to finish it.`), as is
+    one already finished (`This session is already finished.`); an unknown
+    one is exit 2.
   - `jump` brings the terminal window showing the session to the front, on
     whatever Space it is (see "The jump"), and prints nothing. A session no
     jump can reach is refused (`Dashboard redesign is not on screen: no
@@ -1397,7 +1476,9 @@ truth. There is still no background service. None of it is built now. Lee:
       --json` works out, asking tmux, with its `state` (`needsYou`,
       `working`, `yourTurn` or `away`), `since`, its first row's time, else
       its latest line's, and the asks waiting on Lee, as `board --json`
-      gives them.
+      gives them, each with its `answer`. So an answer going into a
+      session's inbox is a line, the session among `changed`, and its mark
+      is another.
     - `windows`: every live window, the longest attached first, a finished
       session's among them, with its session's name and project, its
       `version`, and `needsReload` where it says none, or one behind the
@@ -1517,8 +1598,6 @@ truth. There is still no background service. None of it is built now. Lee:
     - Claude windows don't watch: each mod writes its own files there and
       polls for its pane, as under Storage.
     - `sitrep serve`, later, builds on the same loop.
-  - Answering an ask waits on open question 4. It would be one more command,
-    a reply into the session's inbox, which its window already delivers.
   - Its logic is `cli/`, plain TypeScript beside core and tested in the test
     kit on a file system in memory; `cli/shell` binds it to Bun, and
     `bin/sitrep` runs that.
@@ -2240,9 +2319,11 @@ stands).
     here;
   - **the answer waits 2 seconds**, a line draining under it, with Escape to
     undo (borrowed from One, in Lee's dex). Then it goes into the session's
-    inbox, as the pane's replies to another session do (see "Delivery"). The
-    card says "on its way", then "sent, and Claude has it", then moves to
-    Resolved. The board never closes an ask on the press alone;
+    inbox, as the pane's replies to another session do (see "Delivery"), by
+    `sitrep answer`. The card says "on its way", then "sent, and Claude has
+    it", then moves to Resolved, as each ask's `answer` in `board --json`
+    says (see "One engine, two front ends"). The board never closes an ask on
+    the press alone;
   - **a comment, a words ask and a permission prompt** need Claude Code's
     prompt, so their buttons read "Comment in Claude ↗" or "Answer in Claude
     ↗" and jump to the session's window. Proposed, and new: that jump also
@@ -2261,7 +2342,7 @@ stands).
     inbox and goes in when a window takes the session up again. A comment or
     words wait for that window;
   - its foot has "✓ Finish this session", which asks first, in place, as the
-    pane's does.
+    pane's does, then runs `sitrep finish`.
 - **One colour.** Orange is for needs you only: the dots, the counts,
   "2 waiting". Parked and resolved stay grey, not the pane's purple and
   green.
@@ -2816,7 +2897,14 @@ reaches a window only while that pane is on show).
       - in the CLI, answering a yes or a choice into the session's inbox,
         which its window delivers, and finishing an away session, each with
         what the window shows of it ("on its way", "sent, and Claude has
-        it"). This settles open question 4;
+        it"). This settles open question 4. Built 20 October 2026, and run
+        live over a state folder of its own, the window's mark written by
+        hand: `sitrep answer` and `sitrep finish`, each ask's `answer` in
+        `board --json` and `watch`, and `board --json`'s resolved asks (see
+        "One engine, two front ends"). Nothing new on disk: the answer
+        is a reply as the pane's letters are, which every window on today's
+        layout delivers as it is, and the window's delivered mark is how the
+        CLI hears it went in;
       - the window (see "The SitRep window"). Its "Answer in Claude ↗" jumps
         without answering mode, which waits on the mod hearing the app.
    9. **Installing the plugin**: the app's first start installs it, and its
@@ -3021,8 +3109,11 @@ on 11 October 2026 (see "Build order"):
    Script Editor rather than Ghostty).
 3. **Left open: dropped.** Lee may be away for days, so no time is right; a
    window joining a session reconciles its open items instead.
-4. **The CLI answering asks:** later. It only posts for now; answering would
-   be one more command, a reply into the session's inbox.
+4. **The CLI answering asks:** settled on 20 October 2026, with stage 3's
+   step 8: `sitrep answer`, a yes or a choice, a reply into the session's
+   inbox, which its window delivers as it delivers any reply. A words ask, a
+   comment and a permission prompt stay with Claude Code's prompt (see "One
+   engine, two front ends").
 
 ## Build order
 

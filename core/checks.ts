@@ -3,15 +3,18 @@
  * trimmed to one line, nothing empty where something is needed, and an ask
  * holding what its shape takes: a yes its button's words, a choice its
  * options, words what they are. A refusal says what to fix, in words Claude
- * can act on.
+ * can act on. Lee's answer to an ask from outside Claude Code, as the CLI
+ * gives it, is checked here too.
  */
 import { isSessionId, newItemId, type Random } from './ids'
 import { directoryOf, isNameable } from './project'
+import { isOpen, onItsWay, yesOf } from './replies'
 import { WANTS } from './shapes'
 import type { StatusFields } from './status'
-import { oneLine } from './text'
+import { inWords, oneLine } from './text'
 import {
   EDITABLE,
+  type Ask,
   type AskBody,
   type Changes,
   type EditBody,
@@ -21,6 +24,7 @@ import {
   type NoteBody,
   type ParkBody,
   type ReopenBody,
+  type ReplyBody,
   type ResolveBody,
   type StatusBody,
   type Wants,
@@ -427,3 +431,88 @@ export const checkFinish = (
   session.finished === undefined
     ? ok({ type: 'finish', who, reason: line(fieldsOf(input).reason) })
     : refuse('This session is already finished.')
+
+/** The words a yes or a choice ask is answered in outside Claude Code: its yes, or one of its options; none for words. */
+const answersOf = (ask: Ask): readonly string[] => {
+  switch (ask.wants) {
+    case 'yes':
+      return [yesOf(ask)]
+    case 'choice':
+      return ask.options ?? []
+    case 'words':
+      return []
+  }
+}
+
+/** Each quoted, in plain words: `“a” or “b”`. */
+const quotedOr = (answers: readonly string[]) => inWords(answers.map(each => `“${each}”`), 'or')
+
+/** What an answer from outside Claude Code needs of its ask, each rule broken where it says, with why. */
+const ANSWER_RULES: readonly [breaks: (ask: Ask) => boolean, error: (ask: Ask) => string][] = [
+  [ask => !isOpen(ask), ask => `${ask.id} is already closed.`],
+  [
+    ask => answersOf(ask).length === 0,
+    ask => `${ask.id} wants words, which need Claude Code's prompt: answer it there.`,
+  ],
+  [ask => onItsWay(ask) !== undefined, ask => `A reply to ${ask.id} is on its way already.`],
+]
+
+/** Why the words given will not answer a yes or a choice ask: what it takes instead. */
+const misanswered = (ask: Ask) => {
+  const wanted = ask.wants === 'yes' ? 'a yes' : 'a choice'
+
+  return `${ask.id} wants ${wanted}: answer it with ${quotedOr(answersOf(ask))}.`
+}
+
+/** The ask an answer names, in a session still waiting on Lee; or a refusal. */
+const askAnswered = (session: Session, fields: Fields): Checked<Ask> => {
+  if (session.finished !== undefined) {
+    return refuse('This session is finished: its asks wait on Lee no more.')
+  }
+
+  const item = target(session, { item: fields.ask })
+
+  if (!item.ok) {
+    return item
+  }
+
+  return item.value.type === 'ask'
+    ? ok(item.value)
+    : refuse(`${item.value.id} is ${NOUNS[item.value.type]}, not an ask.`)
+}
+
+/**
+ * Lee's answer to an ask of the session, as the CLI gives it from outside
+ * Claude Code: a yes in its button's words, or one of a choice's options,
+ * as the board shows them. A words ask, a comment and a permission prompt
+ * need Claude Code's prompt. Refused in a finished session, whose asks wait
+ * on Lee no more, and for an ask closed, or with a reply of Lee's on its
+ * way already, since it takes no second answer.
+ */
+export const checkAnswer = (session: Session, input: unknown): Checked<Omit<ReplyBody, 'id'>> => {
+  const fields = fieldsOf(input)
+  const asked = askAnswered(session, fields)
+
+  if (!asked.ok) {
+    return asked
+  }
+
+  const ask = asked.value
+  const broken = ANSWER_RULES.find(([breaks]) => breaks(ask))?.[1]
+
+  if (broken !== undefined) {
+    return refuse(broken(ask))
+  }
+
+  const given = line(fields.answer)
+
+  if (given === undefined || !answersOf(ask).includes(given)) {
+    return refuse(misanswered(ask))
+  }
+
+  return ok(
+    ask.wants === 'yes'
+      ? { type: 'reply', item: ask.id, verdict: 'yes' }
+      : { type: 'reply', item: ask.id, verdict: 'choose', option: given },
+  )
+}

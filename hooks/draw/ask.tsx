@@ -9,7 +9,7 @@
  * "Answering an ask"). Any session's asks answer the same way; a reply
  * names the session it goes to.
  */
-import { isClosing, VERDICTS, type Ask, type Verdict } from '../../core'
+import { isClosing, onItsWay, VERDICTS, yesOf, type Ask, type Verdict } from '../../core'
 import type { SitrepItemRef, SitrepQueued } from '../../types'
 import { C, GLYPH } from '../look'
 import { itemKey, type AskedAt } from '../places'
@@ -25,7 +25,6 @@ import {
   emptyLine,
   heading,
   isBeingAnswered,
-  onItsWay,
   seeRef,
   shown,
   type Block,
@@ -57,7 +56,7 @@ const buttonsFor = (d: Drawing, at: SitrepItemRef, ask: Ask, verdict: Verdict) =
         <Button
           key={`yes:${key}`}
           variant="primary"
-          label={`✓ ${ask.yes ?? 'yes'}`}
+          label={`✓ ${yesOf(ask)}`}
           onPress={() => reply({ verdict })}
         />,
       ]

@@ -11,7 +11,6 @@
 import type { ElementTable, RenderElement, RenderSurface } from 'claude-code'
 import {
   answerOf,
-  isPending,
   moreLines,
   type Ask,
   type Parked,
@@ -402,9 +401,6 @@ export const drawRow = (
     </Box>
   )
 }
-
-/** The reply an item waits on Claude with: sent from a board into its session's inbox, not delivered yet. */
-export const onItsWay = (item: Ask | Parked) => item.replies.findLast(isPending)
 
 /**
  * A reply on one row, as the board shows it under its item and in Ready to

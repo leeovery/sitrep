@@ -1,6 +1,7 @@
 import { expect, test } from 'claude-code/testing'
 import {
   answerOf,
+  answerState,
   askAfter,
   boardMessage,
   checkEdit,
@@ -15,6 +16,7 @@ import {
   type AskKind,
   type AskState,
   type Body,
+  type Session,
   type Verdict,
 } from '../core'
 import {
@@ -765,4 +767,61 @@ test('the mark for inbox replies names those not marked yet, and is nothing once
 
   expect(deliveredMark(session, ['r1', 'r2'])).toEqual([delivered('r2')])
   expect(deliveredMark(session, ['r1'])).toEqual([])
+})
+
+/** Where Lee's answer to one of a session's asks stands. */
+const standing = (session: Session, id: string) => {
+  const ask = session.asks.find(each => each.id === id)
+
+  return ask === undefined ? undefined : answerState(ask)
+}
+
+test('an answer written into an inbox is on its way, since it was sent; once marked it is delivered, since then, and has closed its ask', () => {
+  const letters = {
+    [SENDER]: file([T0 + MIN, reply('r1', 'k2', 'choose', { option: 'Forever' })]),
+  }
+  const sent = fold({ logs: { [W1]: file(...POSTED) }, inbox: letters })
+  const marked = fold({
+    logs: { [W1]: file(...POSTED, [T0 + 2 * MIN, delivered('r1')]) },
+    inbox: letters,
+  })
+
+  expect(standing(sent, 'k2')).toMatchObject({
+    is: 'onItsWay',
+    reply: { id: 'r1' },
+    since: T0 + MIN,
+  })
+  expect(sent.asks[1]?.state).toBe('waiting')
+  expect(standing(marked, 'k2')).toMatchObject({
+    is: 'delivered',
+    reply: { id: 'r1', option: 'Forever' },
+    since: T0 + 2 * MIN,
+  })
+  expect(marked.asks[1]?.state).toBe('closed')
+})
+
+test('an ask has no answer standing with none sent, one gone void, a comment Claude has, or once Claude closed or reopened it', () => {
+  const letters = { [SENDER]: file([T0 + MIN, reply('r1', 'k1', 'yes')]) }
+  const commented = sent(T0 + MIN, 'r1', 'k1', 'comment', { note: 'Tighten the gutters' })
+  const cases: [string, Session][] = [
+    ['none sent', fold({ logs: { [W1]: file(...POSTED) } })],
+    ['void', fold({ logs: { [W1]: file(...POSTED, [T0 + 2 * MIN, DECIDED]) }, inbox: letters })],
+    ['a comment', fold({ logs: { [W1]: file(...POSTED, ...commented) } })],
+    [
+      'resolved',
+      fold({ logs: { [W1]: file(...POSTED, ...commented, [T0 + 2 * MIN, resolve('k1')]) } }),
+    ],
+    [
+      'reopened',
+      fold({
+        logs: {
+          [W1]: file(...POSTED, ...sent(T0 + MIN, 'r1', 'k1', 'yes'), [T0 + 2 * MIN, reopen('k1')]),
+        },
+      }),
+    ],
+  ]
+
+  for (const [why, session] of cases) {
+    expect(standing(session, 'k1'), why).toBeUndefined()
+  }
 })

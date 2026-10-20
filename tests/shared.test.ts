@@ -1,9 +1,10 @@
 import { expect, test, tier } from 'claude-code/testing'
 import { EXIT, WRITER } from '../cli/main'
+import { parseEntries, type SessionMeta } from '../core'
 import { WATCH_MS } from '../hooks/window'
-import { W1 } from './support'
+import { MIN, T0, W1, W2, yesAsk } from './support'
 import { terminal } from './terminal'
-import { PROMPT, world } from './world'
+import { CONVERSATION, postedId, PROMPT, world } from './world'
 
 tier('user')
 
@@ -78,4 +79,94 @@ test('the CLI writes only its own file: no heartbeat, and the window’s file un
   expect([...w.files.keys()].filter(path => path.startsWith(`${paths.presence}/`))).toEqual([
     paths.heartbeat(W1),
   ])
+})
+
+const FROM_THE_BOARD = { kind: 'plugin', name: 'sitrep', asUser: true }
+
+/** As long as the watch takes to fold a letter, and the next look to take it in. */
+const TAKE_IN = 2 * WATCH_MS
+
+type Run = ReturnType<ReturnType<typeof terminal>['run']>
+
+/** Where Lee's answer to each of the session's asks stands, as `board --json` gives it: the open asks', and the resolved ones'. */
+const answerIn = async (cli: (...words: string[]) => Run) => {
+  const board = JSON.parse((await cli('board', '--json')).out) as {
+    asks: { answer: unknown }[]
+    resolved: { answer: unknown }[]
+  }
+
+  return {
+    asks: board.asks.map(ask => ask.answer),
+    resolved: board.resolved.map(ask => ask.answer),
+  }
+}
+
+test("the CLI's answer goes in from the session's window as Lee's own message, once, and its mark closes the ask", async ($, on) => {
+  const w = world($, on)
+  const { paths, cli } = await begun(w)
+  const asked = postedId(
+    await w.call('ask', { wants: 'yes', yes: 'Go', title: 'Give the go for stage 3' }),
+  )
+
+  await w.clock.advance(MIN)
+  expect((await cli('answer', asked, 'Go')).exit).toBe(EXIT.done)
+  expect(await answerIn(cli)).toMatchObject({ asks: [{ is: 'onItsWay' }], resolved: [] })
+
+  await w.clock.advance(TAKE_IN)
+
+  const lines = parseEntries(w.text(paths.log(W1)))
+  const answered = parseEntries(w.text(paths.letters(WRITER))).map(line => 'id' in line && line.id)
+
+  expect(w.prompts).toEqual([
+    {
+      text: 'From the board:\n- Give the go for stage 3 → Go',
+      origin: FROM_THE_BOARD,
+      context: undefined,
+    },
+  ])
+  expect(lines.map(line => line.type)).toEqual(['ask', 'delivered'])
+  expect(lines.at(-1)).toMatchObject({ replies: answered })
+  expect(w.state.board?.asks[0]?.state).toBe('closed')
+  expect(await answerIn(cli)).toMatchObject({
+    asks: [],
+    resolved: [{ is: 'delivered', words: '→ Go', since: lines.at(-1)?.at }],
+  })
+
+  await w.clock.advance(4 * WATCH_MS)
+  expect(w.prompts, 'nothing goes in twice').toHaveLength(1)
+})
+
+/** A session no window holds, started by a window gone since, with an ask waiting on Lee. */
+const LEDGER: SessionMeta = {
+  id: 'sr-1edger',
+  name: 'Request ledger',
+  summary: 'Keep a ledger of requests',
+  project: 'switchboard',
+  root: '/Users/lee/Code/switchboard',
+  created: T0,
+  by: W2,
+}
+
+test('an answer to a session no window holds waits in its inbox, and goes in once a window takes the session up', async ($, on) => {
+  const w = world($, on)
+  const t = terminal({ files: w.files, now: () => w.clock.now() })
+  const ledger = w.elsewhere(LEDGER)
+  const cli = (...words: string[]) => t.run(...words, '--session', LEDGER.id)
+
+  ledger.write(yesAsk('k3', 'Review the ledger schema'))
+  await $.session.start(CONVERSATION)
+  expect((await cli('answer', 'k3', 'Approve')).exit).toBe(EXIT.done)
+  await w.clock.advance(TAKE_IN)
+
+  expect(w.prompts, 'no window holds it').toEqual([])
+  expect(await answerIn(cli)).toMatchObject({ asks: [{ is: 'onItsWay' }] })
+
+  await w.call('join', { session: LEDGER.id })
+  await w.clock.advance(TAKE_IN)
+
+  expect(w.prompts.map(prompt => prompt.text)).toEqual([
+    'From the board:\n- Review the ledger schema → Approve',
+  ])
+  expect(parseEntries(w.text(ledger.paths.log(W1))).at(-1)).toMatchObject({ type: 'delivered' })
+  expect(await answerIn(cli)).toMatchObject({ asks: [], resolved: [{ is: 'delivered' }] })
 })

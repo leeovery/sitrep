@@ -2,20 +2,21 @@
  * The CLI's commands: the words each takes, and what each makes of a
  * session, of the projects, or of a jump to a session's window; and the
  * board watched, which runs until it is told to end. A command on a session
- * hands back the lines it posts, as the CLI's own, and what to print: a
- * post's item id, so a script can keep it. Each is pure: what it needs of
- * the screen is looked at, and the jump made, before it acts.
- *
- * Answering an ask is not one of them yet (DESIGN's open question 4). It
- * would be a command on a session whose reply goes into the session's
- * inbox rather than the CLI's own file, for the session's window to deliver.
+ * hands back the lines it posts, and what to print: a post's item id, so a
+ * script can keep it. Its lines are the CLI's own, but an answer's, which
+ * go into the session's inbox as the CLI's letters, for the session's
+ * window to deliver as it delivers any reply. Each is pure: what it needs
+ * of the screen is looked at, and the jump made, before it acts.
  */
 import {
   boardText,
+  checkAnswer,
   checkAsk,
+  checkFinish,
   checkNote,
   checkPark,
   checkStatus,
+  inWords,
   WANTS,
   withId,
   type Body,
@@ -38,6 +39,8 @@ type About = { name: string; about: string; grammar: Grammar }
 
 export type SessionCommand = About & {
   on: 'session'
+  /** Where its lines go: the CLI's own file in the session, unless they are an answer, for the session's inbox. */
+  into?: 'inbox'
   act: (filed: Filed, input: Fields, random: Random) => Checked<Outcome>
 }
 
@@ -211,6 +214,41 @@ const board: SessionCommand = {
   }),
 }
 
+const answer: SessionCommand = {
+  name: 'answer',
+  about:
+    "Answer a yes or a choice ask, as Lee does on the board: into the session's inbox, which its window gives Claude as Lee's own message, now or once a window takes the session up. A words ask, a comment and a permission prompt need Claude Code's prompt. Prints nothing.",
+  grammar: {
+    args: [
+      { field: 'ask', about: "the ask's id, as the board lists it" },
+      { field: 'answer', about: "a yes ask's yes, in its words, or one of a choice ask's options" },
+    ],
+    flags: { ...SESSION },
+  },
+  on: 'session',
+  into: 'inbox',
+  act: ({ session }, input, random) =>
+    posted(withId(checkAnswer(session, input), session, random), () => ''),
+}
+
+const finish: SessionCommand = {
+  name: 'finish',
+  about:
+    'Finish a session no window holds, as Lee does on the board: its open asks stop counting. One a window holds is finished there, by telling Claude. Prints nothing.',
+  grammar: { args: [], flags: { ...SESSION } },
+  on: 'session',
+  act: ({ session }) => {
+    const finished = checkFinish(session, 'lee')
+
+    return finished.ok && session.isOpen
+      ? {
+          ok: false,
+          error: `${session.status.name} is open in a window: tell Claude there to finish it.`,
+        }
+      : posted(finished, () => '')
+  },
+}
+
 const list: ProjectsCommand = {
   name: 'list',
   about:
@@ -243,12 +281,6 @@ const list: ProjectsCommand = {
     }
   },
 }
-
-/** Things in plain words: `a`, `a and b`, `a, b and c`; or `a or b`, given `or`. */
-const inWords = (things: readonly string[], conjunction = 'and') =>
-  things.length < 2
-    ? things.join('')
-    : `${things.slice(0, -1).join(', ')} ${conjunction} ${things.at(-1)}`
 
 /** Why tmux did not select a pane's window, in words: in tmux's, where it said any. */
 const whyUnselected = (said: string | undefined) => {
@@ -296,6 +328,17 @@ const watch: FeedCommand = {
 }
 
 /** Every command, in the order the help lists them. */
-export const COMMANDS: readonly Command[] = [note, ask, park, status, board, list, jump, watch]
+export const COMMANDS: readonly Command[] = [
+  note,
+  ask,
+  park,
+  status,
+  answer,
+  finish,
+  board,
+  list,
+  jump,
+  watch,
+]
 
 export const commandNamed = (name: string) => COMMANDS.find(command => command.name === name)

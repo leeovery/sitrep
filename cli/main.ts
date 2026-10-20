@@ -4,11 +4,13 @@
  * a line appended or a window brought forward, and the answer printed.
  *
  * It writes as the writer `cli`, appending to `<session>/cli.jsonl` under
- * today's layout and never rewriting it, its count going on from its file
- * under either, and writes no delivered marks or heartbeats: it is never a
- * window on the session. Before a command reads the board, the old layout
- * is moved into today's, once no window still writes it. `watch` runs on,
- * printing the board as it changes, until it is to end.
+ * today's layout and never rewriting it, and an answer to its letters in
+ * the session's inbox, `<session>/inbox/cli.jsonl`, the same way; each
+ * file's count goes on from that file under either layout. It writes no
+ * delivered marks or heartbeats: it is never a window on the session.
+ * Before a command reads the board, the old layout is moved into today's,
+ * once no window still writes it. `watch` runs on, printing the board as it
+ * changes, until it is to end.
  */
 import { addition, checkJoin, rootOf, stamp, type Body, type Checked } from '../core'
 import { parseWords, wantsHelp, type Fields } from './args'
@@ -121,6 +123,12 @@ const told = (io: Io, acted: Checked<string>) => {
   return EXIT.done
 }
 
+/** The file a command's lines go to, and its lines under both layouts: the CLI's own, or its letters in the session's inbox. */
+const fileFor = ({ paths, files }: Found, command: SessionCommand) =>
+  command.into === 'inbox'
+    ? { path: paths.letters(WRITER), held: files.inbox?.[WRITER] ?? '' }
+    : { path: paths.log(WRITER), held: files.logs[WRITER] ?? '' }
+
 const onSession = async (io: Io, command: SessionCommand, input: Fields) => {
   const now = io.now()
   const found = await namedSession(io, input, now)
@@ -135,7 +143,9 @@ const onSession = async (io: Io, command: SessionCommand, input: Fields) => {
     return fail(io, EXIT.refused, acted.error)
   }
 
-  await post(io, found.paths.log(WRITER), found.files.logs[WRITER] ?? '', acted.value.post, now)
+  const { path, held } = fileFor(found, command)
+
+  await post(io, path, held, acted.value.post, now)
   print(io, acted.value.print)
 
   return EXIT.done

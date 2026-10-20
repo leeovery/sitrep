@@ -5,7 +5,7 @@
  * a write draws it again.
  */
 import type { Timer } from 'claude-code'
-import { closingReply, isOpen, type Ask, type Session } from '../core'
+import { closingReply, isOpen, resolvedAsks, type Ask, type Session } from '../core'
 import type {
   SitrepAnswering,
   SitrepInFlight,
@@ -145,9 +145,7 @@ export const shownAsks = (session: Session, now: number) =>
 
 /** The asks closed earlier than that, ignored ones aside, the newest closed first. */
 export const resolvedEarlier = (session: Session, now: number) =>
-  session.asks
-    .filter(ask => ask.state === 'closed' && !isLingering(ask, now))
-    .sort((a, b) => (b.closedAt ?? b.at) - (a.closedAt ?? a.at))
+  resolvedAsks(session).filter(ask => !isLingering(ask, now))
 
 /** Whether an ask is one of those pulsing as new; with no ask, whether any is. Only the held session's asks pulse. */
 export const isPulsing = ({ pulse, session }: Scene, ask?: Ask) =>

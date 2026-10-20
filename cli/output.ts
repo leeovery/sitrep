@@ -11,10 +11,14 @@
  * newer than the words, says sessions.
  */
 import {
+  answerOf,
+  answerState,
   brief,
+  closingReply,
   isSameName,
   listedProjects,
   projectAround,
+  resolvedAsks,
   type Ask,
   type Feed,
   type FeedProject,
@@ -33,7 +37,12 @@ import {
   type Where,
 } from '../core'
 
-/** The JSON's version, by command: `board`'s moved to 2 as its asks came to say what they want back, in place of their kind. */
+/**
+ * The JSON's version, by command: `board`'s moved to 2 as its asks came to
+ * say what they want back, in place of their kind. Fields added since, as
+ * each ask's answer and `board`'s resolved asks, move none: a reader passes
+ * over a field it does not know.
+ */
 const OUTPUT = { list: 1, board: 2, watch: 1 } as const
 
 /** What `list` gives: the project the CLI runs in, if it runs in one, and the projects listed. */
@@ -129,6 +138,15 @@ export const listJson = ({ here, projects }: Listing, onScreen: ReadonlySet<stri
     projects: projects.map(project => projectJson(project, onScreen)),
   })
 
+/** Where Lee's answer to an ask stands, and its words as the board shows them on one row; null with none on its way and none that closed it. */
+const answerJson = (ask: Ask) => {
+  const answer = answerState(ask)
+
+  return answer === undefined
+    ? null
+    : { is: answer.is, words: answerOf(ask, answer.reply), since: answer.since }
+}
+
 const askJson = (ask: Ask) => ({
   id: ask.id,
   wants: ask.wants,
@@ -140,6 +158,14 @@ const askJson = (ask: Ask) => ({
   ref: ask.ref ?? null,
   state: ask.state,
   at: ask.at,
+  answer: answerJson(ask),
+})
+
+/** A resolved ask: as an open one is, with when it closed and, where Claude's resolve closed it, why. */
+const resolvedJson = (ask: Ask) => ({
+  ...askJson(ask),
+  closedAt: ask.closedAt ?? null,
+  reason: closingReply(ask) === undefined ? (ask.reason ?? null) : null,
 })
 
 const parkedJson = (parked: Parked) => ({
@@ -160,7 +186,7 @@ const logJson = (line: LogLine) => ({
   at: line.at,
 })
 
-/** `board --json`: the session in brief, as `list` gives it, with its open asks, what it parked and its latest log lines. */
+/** `board --json`: the session in brief, as `list` gives it, with its open asks, what it parked, its latest log lines, and its resolved asks, the newest closed first. */
 export const boardJson = (project: string, session: Session) => {
   const { log, parkedItems, asks, ...summary } = brief(session)
 
@@ -171,6 +197,7 @@ export const boardJson = (project: string, session: Session) => {
     asks: asks.map(askJson),
     parked: parkedItems.map(parkedJson),
     log: log.map(logJson),
+    resolved: resolvedAsks(session).map(resolvedJson),
   })
 }
 

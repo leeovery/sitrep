@@ -125,6 +125,12 @@ export const summarise = (session: Session): SessionSummary => ({
   updatedAt: session.updatedAt,
 })
 
+/** The asks closed, those ignored aside, the newest closed first: what a session's Resolved lists. */
+export const resolvedAsks = (session: Pick<Session, 'asks'>) =>
+  session.asks
+    .filter(ask => ask.state === 'closed')
+    .sort((a, b) => (b.closedAt ?? b.at) - (a.closedAt ?? a.at))
+
 export const brief = (session: Session): SessionBrief => ({
   ...summarise(session),
   log: session.log.slice(0, BRIEF_LOG_LINES),
