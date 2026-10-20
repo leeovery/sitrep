@@ -17,6 +17,20 @@ struct MarkView: View {
             }
         }
         .frame(width: WindowStyle.lane.width, height: WindowStyle.lane.height)
+        .spoken(Spoken.mark(mark))
+    }
+}
+
+/// A closed ask's tick, in the mark's lane.
+struct ClosedTick: View {
+    var colour = WindowStyle.soft
+
+    var body: some View {
+        Text("✓")
+            .font(WindowStyle.ui(12))
+            .foregroundStyle(colour)
+            .frame(width: WindowStyle.lane.width)
+            .accessibilityLabel(Spoken.closed)
     }
 }
 
@@ -143,7 +157,7 @@ private struct PillStyle: ButtonStyle {
     }
 }
 
-/// A section's heading: its name in small capitals, and a few words on the right.
+/// A section's heading: its name in small capitals, and a few words on the right; to VoiceOver, one heading.
 struct SectionHeading: View {
     let name: String
     var note: String?
@@ -161,6 +175,15 @@ struct SectionHeading: View {
             }
         }
         .frame(height: 16)
+        .spoken(Spoken.heading(name, note: note))
+        .accessibilityAddTraits(.isHeader)
+    }
+}
+
+extension View {
+    /// One element to VoiceOver, read as these words in place of what it draws.
+    func spoken(_ words: String) -> some View {
+        accessibilityElement(children: .ignore).accessibilityLabel(words)
     }
 }
 
@@ -239,8 +262,8 @@ struct Scrolling<Content: View>: View {
                 .frame(minHeight: 0, maxHeight: .infinity, alignment: .top)
                 .clipped()
         } else if #available(macOS 26, *) {
-            // The page draws its own top row under the window's toolbar, beside the traffic lights, which the
-            // toolbar's soft edge would blur.
+            // The page runs up under the window's toolbar, beside the traffic lights, where the toolbar's soft edge
+            // would blur it as it scrolls.
             ScrollView { content }.scrollIndicators(.never).scrollEdgeEffectHidden(true, for: .top)
         } else {
             ScrollView { content }.scrollIndicators(.never)
@@ -279,6 +302,57 @@ struct TwoColumns: Layout {
         let second = (whole - spacing) / (ratio + 1)
 
         return [whole - spacing - second, second]
+    }
+}
+
+/// A title and the button that goes with it, as a session's name and its jump: the button trailing on the title's
+/// row, centred on its first line, while the title wraps to no more lines beside it than across the whole width, as
+/// measured; else the button under the title, leading. A title alone takes the whole width.
+struct TitleRow: Layout {
+    var spacing: CGFloat = 16
+    var under: CGFloat = 10
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache _: inout ()) -> CGSize {
+        let frames = frames(proposal.width, subviews)
+
+        return CGSize(
+            width: proposal.width ?? frames.map(\.maxX).max() ?? 0, height: frames.map(\.maxY).max() ?? 0
+        )
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal _: ProposedViewSize, subviews: Subviews, cache _: inout ()) {
+        for (subview, frame) in zip(subviews, frames(bounds.width, subviews)) {
+            subview.place(
+                at: CGPoint(x: bounds.minX + frame.minX, y: bounds.minY + frame.minY),
+                proposal: ProposedViewSize(frame.size)
+            )
+        }
+    }
+
+    /// The title's place, then the button's, from the top left.
+    private func frames(_ width: CGFloat?, _ subviews: Subviews) -> [CGRect] {
+        guard let title = subviews.first else {
+            return []
+        }
+
+        let line = title.sizeThatFits(.unspecified)
+        let whole = width ?? line.width
+        let across = CGRect(origin: .zero, size: title.sizeThatFits(ProposedViewSize(width: whole, height: nil)))
+
+        guard subviews.count > 1 else {
+            return [across]
+        }
+
+        let button = subviews[1].sizeThatFits(.unspecified)
+        let besideWidth = max(whole - button.width - spacing, 0)
+        let beside = CGRect(origin: .zero, size: title.sizeThatFits(ProposedViewSize(width: besideWidth, height: nil)))
+
+        if beside.height <= across.height {
+            let top = (line.height - button.height) / 2
+
+            return [beside, CGRect(origin: CGPoint(x: whole - button.width, y: top), size: button)]
+        }
+        return [across, CGRect(origin: CGPoint(x: 0, y: across.maxY + under), size: button)]
     }
 }
 

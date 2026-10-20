@@ -2628,11 +2628,19 @@ stands).
     them, view them, see them"). The head says how many need Lee and how
     many sessions there are, or "All clear".
   - **the session** Lee picks, on the right: the pane's session view at
-    window size. Its project's name sits above it, and a press opens the
-    project. Then its name and summary; what its window is doing now, the
-    panel row's second line; then Asks, Status, Notes, Parked and Resolved,
-    in the pane's order, the last four in two columns so a session fits
-    without scrolling.
+    window size. Its project's name is an eyebrow over its name, about 15
+    points semibold in the secondary colour, smaller than a title and more
+    than a caption, and a press opens the project. It starts at the top a
+    project's title starts at, so going from a project into one of its
+    sessions keeps the project's name in place (Lee, 20 October 2026, of
+    the name as a small button up by the toolbar: it "suddenly gets really
+    small and tucked up right close to the top… It almost sits inside the
+    header of the page"). Its name sits close under the eyebrow, then its
+    summary; what its window is doing now, the panel row's second line;
+    then Asks, Status, Notes, Parked and Resolved, in the pane's order, the
+    last four in two columns so a session fits without scrolling.
+  - **the band under the toolbar**, beside the traffic lights, stays
+    empty on both pages: nothing of the page sits in it.
 - **A session row is a small panel row:** the same marks in the same lanes,
   its name on one line, the panel row's time. An away session with nothing
   waiting has a faint dot and a faint name.
@@ -2662,8 +2670,8 @@ stands).
   - the window carries an empty toolbar, unified. Its taller titlebar is
     what sets the traffic lights inside the glass, 11 points in from its
     corner as Finder's; without one macOS puts them on the corner, a point
-    in. Their middle, 26 points down, is the middle of the page's top row:
-    the project's name and the jump;
+    in. Their middle is 26 points down, in the middle of the empty band the
+    page starts under;
   - macOS draws an app in the design of the SDK its binary records, so the
     glass shows only in a build that records macOS 26's, as `app/bundle`
     sets it. Offscreen, the window's parts can be read, the sidebar item
@@ -2711,7 +2719,27 @@ stands).
   SitRep's own, which showed round a row untabbed and, tabbed, as "a
   strange kind of border or ring around the option, which is not very
   Mac-like at all"; before it, the system's blue square ring, where SitRep
-  had made every button take focus.
+  had made every button take focus. The order is the Mac's own: the
+  sidebar one Tab stop, the arrows inside it, then the page's buttons.
+  Two keys move between the sides, through AppKit's key views: Return on
+  the sidebar's list moves focus into the page, to its first button, as
+  Tab would, and so only while Keyboard navigation is on; Escape in the
+  page, with no answer waiting to take back, moves it to the list.
+- **VoiceOver reads words, never symbols.**
+  - a sidebar row is one element: its session, its project, its state
+    (needs you, your turn, working, away) and its age, as "The Mac app,
+    SitRep, needs you, 5 hours"; an away session with something waiting
+    reads "needs you, away". A project's name reads its count of what
+    waits there, "SitRep, 3 waiting", and a quiet one "Kit, quiet
+    project";
+  - the page's title, the eyebrow and the section headings carry the
+    header trait, each heading read with the words on its right, as
+    "Asks, 3 waiting";
+  - a card is a container labelled by its ask's title, after its
+    session's name on a project's page, its buttons inside it;
+  - a mark reads its meaning, a closed ask's tick "closed"; a section's
+    bullets, which say what its heading says, are not read, nor the ↗ of
+    "Open in Ghostty".
 - **Items that open.** A note, a parked item and a resolved ask open in
   place on a press, and close on a second, as an ask does in a project's
   view: the line whole, wrapping, and under it a note's detail, where a
@@ -2730,8 +2758,11 @@ stands).
     under them from the same left edge, a size smaller, in the secondary
     colour. Nothing behind it, no fill and no ring; the hover fill shows
     only on a line that opens;
-  - it opens and closes on the window's spring, the lines below moving
-    with it, and with no motion under reduced motion.
+  - it opens and closes at once, with no motion of its words or of the
+    lines below. Lee, 20 October 2026, of its spring, where a word cut in
+    half by the truncation became whole and then dropped to the new line:
+    "I don't see really why we need it… Let's just sort of make them
+    appear. Less is more."
 - **Answering.** A session's asks show opened, as cards with their buttons:
   - **a yes** is a white pill in Claude's words, the brightest thing in the
     window; **a choice** is one outlined pill per option. Both are answered
@@ -2759,8 +2790,15 @@ stands).
 - **A permission prompt or a question** is the window's state, not an ask.
   It takes the state line's place, washed orange as the panel row that
   brought it, and says the tool and what it would run.
-- **The jump** is "Open in Ghostty ↗", at the session's top right, shown
-  only while a window holds the session. ↗ marks anything that leaves SitRep.
+- **The jump** is "Open in Ghostty ↗", shown only while a window holds the
+  session, and only on a session's page. ↗ marks anything that leaves
+  SitRep. It sits on the row of the session's name, trailing, centred on
+  its first line, while the name wraps to no more lines beside it than
+  across the whole width, as measured; on a window too narrow for that, it
+  goes under the name, leading. Lee, 20 October 2026, of it above the
+  name, by the toolbar: "Hierarchy-wise, that shouldn't be there… it's
+  opening the session in Ghostty. Doesn't make sense to have it above,
+  this is like basic UI principles."
 - **Away**, a session no window holds:
   - there is no jump, and the state line says "No window holds it. Carry it
     on in Claude.";

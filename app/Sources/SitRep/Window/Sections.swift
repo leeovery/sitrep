@@ -122,9 +122,8 @@ private struct HowClosed: View {
 }
 
 /// An item of a section with more to show than its line, as a button whose highlight under the pointer says it
-/// opens: a press opens it in place, its line whole and its detail under it, and a second closes it, the press's
-/// change on the window's spring, so the lines below move with it; still, under reduced motion. Opened, it shows
-/// nothing behind it. One with no detail is a button only while its line is cut short; whole, it is the line alone,
+/// opens: a press opens it in place, its line whole and its detail under it, and a second closes it, at once, with no
+/// motion of its words or of the lines below. Opened, it shows nothing behind it. One with no detail is a button only while its line is cut short; whole, it is the line alone,
 /// which opens to nothing and takes no keyboard stop. Its highlight reaches past the column's edges, so the line keeps
 /// its place beside the heading.
 private struct Opening<Line: View>: View {
@@ -134,7 +133,6 @@ private struct Opening<Line: View>: View {
     @ViewBuilder let line: (Bool) -> Line
 
     @Environment(\.windowActions) private var act
-    @Environment(\.reducesWindowMotion) private var reducesMotion
 
     var body: some View {
         if hasMore {
@@ -150,9 +148,7 @@ private struct Opening<Line: View>: View {
     private var button: some View {
         let isOpen = opened.contains(item)
 
-        return Button {
-            withAnimation(reducesMotion ? nil : WindowStyle.spring) { act.toggleItem(item) }
-        } label: {
+        return Button { act.toggleItem(item) } label: {
             line(isOpen)
                 .padding(.horizontal, WindowStyle.reach)
                 .contentShape(Rectangle())
@@ -182,6 +178,7 @@ struct SectionLine<Detail: View>: View {
                 .font(WindowStyle.ui(bullet == "•" || bullet == "◦" ? 13 : 12))
                 .foregroundStyle(bulletColour)
                 .frame(width: WindowStyle.lane.width)
+                .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 3) {
                 Text(text).foregroundStyle(textColour).led(by: lead)
                     .font(WindowStyle.ui(13))
@@ -192,7 +189,6 @@ struct SectionLine<Detail: View>: View {
                         .font(WindowStyle.ui(12))
                         .foregroundStyle(WindowStyle.soft)
                         .fixedSize(horizontal: false, vertical: true)
-                        .transition(.opacity)
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)

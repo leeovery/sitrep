@@ -28,7 +28,7 @@ extension EnvironmentValues {
 }
 
 /// The right of the window, beside the sidebar: the session or the project picked, or why there is neither, on the
-/// panel's black, its top row up beside the traffic lights. It draws what it is given, at the time given, so it
+/// panel's black, starting under the empty band beside the traffic lights. It draws what it is given, at the time given, so it
 /// renders the same on the screen and off it, as the sidebar's `BoardColumn` does.
 struct PageColumn: View {
     let page: Page

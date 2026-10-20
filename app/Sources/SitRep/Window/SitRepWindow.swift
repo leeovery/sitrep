@@ -10,7 +10,7 @@ import SwiftUI
 final class SitRepWindow: NSObject, NSWindowDelegate {
     private let model: WindowModel
     private lazy var window = make()
-    private var escape: Any?
+    private var keys: Any?
 
     init(plugin: Plugin, works: Works) {
         model = WindowModel(plugin: plugin, works: works)
@@ -58,7 +58,7 @@ final class SitRepWindow: NSObject, NSWindowDelegate {
 
         window.delegate = self
         window.setFrameAutosaveName("SitRepWindow")
-        listenForEscape(in: window)
+        listenForKeys(in: window, focus: SideFocus(window: window, sidebar: sidebar.view, page: page.view))
         return window
     }
 
@@ -96,7 +96,7 @@ final class SitRepWindow: NSObject, NSWindowDelegate {
         window.isReleasedWhenClosed = false
         window.collectionBehavior.insert(.moveToActiveSpace)
         window.setContentSize(WindowStyle.size)
-        window.contentMinSize = NSSize(width: 860, height: 520)
+        window.contentMinSize = WindowStyle.smallest
         window.center()
         return window
     }
@@ -120,18 +120,63 @@ final class SitRepWindow: NSObject, NSWindowDelegate {
         return toolbar
     }
 
-    /// Escape in the window takes back the answer pressed last while it waits, as the drawing's "Esc to undo" says.
-    private func listenForEscape(in window: NSWindow) {
-        escape = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self, weak window] event in
-            guard event.keyCode == Self.escapeKey, event.window === window, let self else {
+    /// Escape in the window takes back the answer pressed last while it waits, as the drawing's "Esc to undo" says;
+    /// with none waiting, it and Return move keyboard focus between the two sides (`SideFocus`).
+    private func listenForKeys(in window: NSWindow, focus: SideFocus) {
+        keys = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self, weak window] event in
+            guard event.window === window, let self else {
                 return event
             }
-
-            return model.undo() ? nil : event
+            if event.keyCode == SideFocus.escape, model.undo() {
+                return nil
+            }
+            return focus.move(event) ? nil : event
         }
     }
+}
 
-    private static let escapeKey: UInt16 = 53
+/// Keyboard focus moved between the window's two sides by a key, through AppKit's key views: Return on the sidebar's
+/// list into the page, to its first control, which with the Mac's Keyboard navigation off has none; Escape in the page
+/// back to the list. Tab and the arrows keep the Mac's own order.
+@MainActor
+struct SideFocus {
+    let window: NSWindow
+    let sidebar: NSView
+    let page: NSView
+
+    /// The move this key makes from where focus is, made; false where it makes none.
+    func move(_ event: NSEvent) -> Bool {
+        guard event.modifierFlags.isDisjoint(with: [.command, .option, .control, .shift]),
+              let focus = window.firstResponder as? NSView
+        else {
+            return false
+        }
+
+        if [Self.return, Self.enter].contains(event.keyCode), focus.isDescendant(of: sidebar) {
+            window.selectKeyView(following: page)
+            return true
+        }
+        if event.keyCode == Self.escape, focus.isDescendant(of: page) {
+            return window.makeFirstResponder(sidebar.descendant(NSTableView.self) ?? sidebar)
+        }
+        return false
+    }
+
+    static let `return`: UInt16 = 36
+    static let enter: UInt16 = 76
+    static let escape: UInt16 = 53
+}
+
+private extension NSView {
+    /// The first view of this kind inside it, depth first: the sidebar's list, as SwiftUI hosts it in AppKit's table.
+    func descendant<View: NSView>(_ kind: View.Type) -> View? {
+        for view in subviews {
+            if let found = view as? View ?? view.descendant(kind) {
+                return found
+            }
+        }
+        return nil
+    }
 }
 
 /// A side of the window over its model, at the model's time. What moves by the frame, a wash or an answer's wait

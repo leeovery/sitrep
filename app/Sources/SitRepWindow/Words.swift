@@ -78,6 +78,9 @@ public enum Words {
         (resolved.answer, closed(resolved.how))
     }
 
+    /// The jump to the session's window, before the ↗ that marks it leaving SitRep.
+    public static let jump = "Open in Ghostty"
+
     public static let finish = "✓ Finish this session"
     public static let finishWhy = "For a session left with things open when its window closed."
 
