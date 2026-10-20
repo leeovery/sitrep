@@ -89,11 +89,14 @@ export const answered = (session: Session, reply: SitrepQueued): Ask | Parked | 
   return item !== undefined && fits(item, reply) ? item : undefined
 }
 
-/** Whether a send carries a queued reply: one that fits its item, and an item that takes an answer of Lee's now. */
-const isSendable = (session: Session, reply: SitrepQueued) => {
+/** Why a send leaves a queued reply in Ready to send: its item changed past it, or is gone; or took an answer already, or closed (`Barred`). */
+export type LeftOut = 'changed' | Barred
+
+/** Why a send leaves a queued reply; undefined for one it carries: one that fits its item, and an item that takes an answer of Lee's now. */
+const whyLeft = (session: Session, reply: SitrepQueued): LeftOut | undefined => {
   const item = answered(session, reply)
 
-  return item !== undefined && barredBy(item) === undefined
+  return item === undefined ? 'changed' : barredBy(item)
 }
 
 /**
@@ -102,7 +105,11 @@ const isSendable = (session: Session, reply: SitrepQueued) => {
  * unsent: Claude has one answer to an item, the first to reach it.
  */
 export const sendable = (session: Session, queue: Queue) =>
-  queuedFor(queue, session.id).filter(reply => isSendable(session, reply))
+  queuedFor(queue, session.id).filter(reply => whyLeft(session, reply) === undefined)
+
+/** Why a send leaves each of a session's replies it does not carry. */
+export const leftOut = (session: Session, queue: Queue): LeftOut[] =>
+  queuedFor(queue, session.id).flatMap(reply => whyLeft(session, reply) ?? [])
 
 /** The replies as lines of the session, each with an id unlike any the session uses. */
 export const replyBodies = (session: Session, replies: Queue): ReplyBody[] => {

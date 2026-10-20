@@ -324,14 +324,14 @@ export function world(engine: Engine, on: On, options: Options = {}) {
   /** The plugin's manifest; none, as one that cannot be read. */
   let manifest: string | undefined = manifestOf(PLUGIN_VERSION)
   /** What happens once, right after the mod's next look of a kind at a path is answered. */
-  const afterwards: { look: Look; path: string; act: () => void }[] = []
+  const afterwards: { look: Look; path: string; act: () => void | Promise<void> }[] = []
 
-  /** Answers the mod's look at `path`, then runs whatever was to happen right after it. */
-  const answered = <T>(look: Look, path: string, answer: T) => {
+  /** Answers the mod's look at `path`, once whatever was to happen right after it has. */
+  const answered = async <T>(look: Look, path: string, answer: T) => {
     const at = afterwards.findIndex(each => each.look === look && each.path === path)
 
     if (at !== -1) {
-      afterwards.splice(at, 1)[0]?.act()
+      await afterwards.splice(at, 1)[0]?.act()
     }
 
     return answer
@@ -533,7 +533,8 @@ export function world(engine: Engine, on: On, options: Options = {}) {
   }
 
   /** Runs `act` once, right after the mod's next look of the kind at `path` is answered: as a run of the CLI moving the old layout at that moment. */
-  const after = (look: Look, path: string, act: () => void) => afterwards.push({ look, path, act })
+  const after = (look: Look, path: string, act: () => void | Promise<void>) =>
+    afterwards.push({ look, path, act })
 
   /** A session's old folder moved into today's at once, as the CLI moves it, each file renamed into a place none holds. */
   const moveOld = (paths: SessionPaths) => {

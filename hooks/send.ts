@@ -11,17 +11,12 @@
  * A message sent while Claude is mid-turn waits for that turn to end, so a
  * send can wait minutes; the replies it carries stay frozen in the queue.
  */
-import { boardMessage, type Session } from '../core'
-import type { SitrepQueued } from '../types'
+import { boardMessage } from '../core'
 import { deliver, STILL_THERE } from './deliver'
 import type { Host } from './host'
 import { sendLetters } from './letters'
-import { answered, queuedFor, replyBodies, sendable } from './queue'
+import { leftOut, replyBodies, sendable, type LeftOut } from './queue'
 import { attached, refresh, serially } from './window'
-
-const CHANGED = `Nothing to send: the items replied to have changed since. ${STILL_THERE}`
-
-const TAKEN = `Nothing to send: the items replied to are answered or closed already. ${STILL_THERE}`
 
 const BEHIND = `Not sent yet: replies from another session are going in first. ${STILL_THERE}`
 
@@ -34,20 +29,31 @@ const heldNow = (host: Host) =>
     return session === undefined || held === undefined ? undefined : { session, held }
   })
 
-/** Why a send carried none of the held session's replies: their items changed, or, still fitting some, those items took an answer already or closed. */
-const nothingSent = (session: Session, queued: readonly SitrepQueued[]) =>
-  queued.some(reply => answered(session, reply) !== undefined) ? TAKEN : CHANGED
+/** What a send did with the held session's replies: claimed their message, waited on one in flight, or carried none, leaving each for why. */
+type Here = { is: 'claimed' } | { is: 'heldBack' } | { is: 'none'; left: readonly LeftOut[] }
+
+/** Why a send carried nothing at all, by why it left the replies it held: their items changed, or answered or closed, or both. */
+const nothingSent = (left: readonly LeftOut[]) => {
+  const why = [
+    left.includes('changed') && 'have changed since',
+    left.some(each => each !== 'changed') && 'are answered or closed already',
+  ].filter(Boolean)
+
+  return `Nothing to send: the items replied to ${why.join(', or ')}. ${STILL_THERE}`
+}
 
 /**
  * Sends the held session's replies in Ready to send that its items take
- * now (`sendable`), `claimed` running once their message is claimed;
- * whether it was.
+ * now (`sendable`), `claimed` running once their message is claimed. The
+ * claim's time is taken before the board is read, so an answer the board
+ * gains after that read comes after the send's.
  */
-const sendHere = async (host: Host, claimed: () => Promise<void>) => {
+const sendHere = async (host: Host, claimed: () => Promise<void>): Promise<Here> => {
+  const claimedAt = await host.clock.now()
   const here = await heldNow(host)
 
   if (here === undefined) {
-    return false
+    return { is: 'none', left: [] }
   }
 
   const { session, held } = here
@@ -55,18 +61,13 @@ const sendHere = async (host: Host, claimed: () => Promise<void>) => {
   const message = boardMessage(session, sendable(session, queue))
 
   if (message === undefined) {
-    const queued = queuedFor(queue, session.id)
-
-    if (queued.length > 0) {
-      host.ui.toast(nothingSent(session, queued))
-    }
-
-    return false
+    return { is: 'none', left: leftOut(session, queue) }
   }
 
   const ahead = await deliver(
     host,
     {
+      claimedAt,
       source: 'send',
       project: held.project,
       session: session.id,
@@ -81,20 +82,29 @@ const sendHere = async (host: Host, claimed: () => Promise<void>) => {
     host.ui.toast(BEHIND)
   }
 
-  return ahead === undefined
+  return ahead === undefined ? { is: 'claimed' } : { is: 'heldBack' }
 }
 
 /**
  * Sends everything in Ready to send that its item takes now: other
  * sessions' into their inboxes, then the held session's. `claimed` runs
  * once, as soon as any of it has gone: the held session's message claimed,
- * else the letters written; never once nothing went.
+ * else the letters written; never once nothing went. A send that carried
+ * nothing at all says why it left what it held.
  */
 export const send = async (host: Host, claimed: () => Promise<void>) => {
-  const isLettered = await sendLetters(host)
-  const isClaimed = await sendHere(host, claimed)
+  const letters = await sendLetters(host)
+  const here = await sendHere(host, claimed)
 
-  if (isLettered && !isClaimed) {
+  if (letters.isLettered && here.is !== 'claimed') {
     await claimed()
+  }
+
+  if (!letters.isLettered && here.is === 'none') {
+    const left = [...letters.left, ...here.left]
+
+    if (left.length > 0) {
+      host.ui.toast(nothingSent(left))
+    }
   }
 }

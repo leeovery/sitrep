@@ -221,7 +221,11 @@ const answer: SessionCommand = {
   grammar: {
     args: [
       { field: 'ask', about: "the ask's id, as the board lists it" },
-      { field: 'answer', about: "a yes ask's yes, in its words, or one of a choice ask's options" },
+      {
+        field: 'answer',
+        about: "a yes ask's yes, in its words, or one of a choice ask's options",
+        or: 'ignore',
+      },
     ],
     flags: {
       ignore: {

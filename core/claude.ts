@@ -7,7 +7,7 @@
  */
 import { answerOf, isOpen, yesOf } from './replies'
 import type { Ask, Finished, Finisher, LogLine, Parked, Session } from './types'
-import { askedOf, summarise, type ProjectSummary, type SessionSummary } from './views'
+import { summarise, type ProjectSummary, type SessionSummary } from './views'
 
 /** How many of the latest notes the board text lists, for Claude to correct. */
 const RECENT_NOTES = 5
@@ -81,10 +81,11 @@ export const boardText = (session: Session) => {
  * its asks waiting as posted count, Lee's answer on its way to one or not,
  * as its board text lists them, since Claude has not been told that answer.
  */
-export const toldSummary = (session: Session): SessionSummary => ({
-  ...summarise(session),
-  waiting: askedOf(session).length,
-})
+export const toldSummary = (session: Session): SessionSummary => {
+  const summary = summarise(session)
+
+  return { ...summary, waiting: summary.asked }
+}
 
 /** A session's line on the board: its project, its id and name, and what waits on Lee. */
 const boardLine = (project: string, session: SessionSummary) =>

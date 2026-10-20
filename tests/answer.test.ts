@@ -1,12 +1,20 @@
 import { expect, test } from 'claude-code/testing'
 import { readSession } from '../cli/files'
 import { EXIT, WRITER } from '../cli/main'
-import { foldSession, parseEntries, serialise, VERSION, type SessionPaths } from '../core'
+import {
+  foldSession,
+  parseEntries,
+  serialise,
+  toDeliver,
+  VERSION,
+  type SessionPaths,
+} from '../core'
 import {
   choiceAsk,
   delivered,
   file,
   finish,
+  kindAsk,
   META,
   MIN,
   note,
@@ -15,11 +23,12 @@ import {
   resolve,
   T0,
   W1,
+  W2,
   wordsAsk,
   yesAsk,
   type Line,
 } from './support'
-import { FIRST_ID, NEXT_ID, NOW, terminal } from './terminal'
+import { CLI_VERSION, FIRST_ID, NEXT_ID, NOW, terminal } from './terminal'
 
 type Terminal = ReturnType<typeof terminal>
 
@@ -150,6 +159,56 @@ test("an ask Claude resolved shows in board --json's resolved with Claude's reas
   ])
 })
 
+test("an answer still on its way when Claude closes its ask never goes in: board --json's resolved has it not delivered, since Claude closed it", async () => {
+  const t = terminal()
+  const paths = t.seed(META, { lines: POSTED, seenAt: NOW, version: CLI_VERSION })
+  const closedAt = NOW + MIN
+
+  await t.run('answer', 'k1', 'Go', ...SESSION)
+  t.files.set(paths.log(W1), {
+    text: file(...POSTED, [closedAt, resolve('k1', 'Went ahead in the chat')]),
+    mtimeMs: closedAt,
+  })
+
+  const board = await boardOf(t)
+
+  expect(board.resolved).toMatchObject([
+    {
+      id: 'k1',
+      answer: { is: 'notDelivered', words: '→ Go', since: closedAt },
+      closedAt,
+      reason: 'Went ahead in the chat',
+    },
+  ])
+  expect((await folded(t, paths)).deliverer).toBe(W1)
+  expect(toDeliver(await folded(t, paths), W1), 'its window never carries it').toEqual([])
+})
+
+test('an answer is stamped as it is written, once its checks are done: later than every read of the session it was checked against', async () => {
+  type File = { text: string; mtimeMs: number }
+  let clock = NOW
+  let checkedAt = -Infinity
+  let appendedTo: string | undefined
+
+  /** The files, noting the time on the clock at each read of the session's, but of the letters it appends to. */
+  class Watched extends Map<string, File> {
+    override get(path: string) {
+      if (path.includes(`/${META.id}/`) && path !== appendedTo) {
+        checkedAt = clock
+      }
+
+      return super.get(path)
+    }
+  }
+
+  const t = terminal({ files: new Watched(), now: () => (clock += 1_000) })
+  const paths = t.seed(META, { lines: POSTED })
+
+  appendedTo = paths.letters(WRITER)
+  expect((await t.run('answer', 'k1', 'Go', ...SESSION)).exit).toBe(EXIT.done)
+  expect(letters(t, paths)[0]?.at).toBeGreaterThan(checkedAt)
+})
+
 test('its letters count on from what they hold, a torn last line ended first, and are never rewritten', async () => {
   const t = terminal()
   const paths = t.seed(META, { lines: POSTED })
@@ -175,9 +234,15 @@ test('its letters count on from what they hold, a torn last line ended first, an
   ])
 })
 
+/** Another session, whose window runs a release from before today's layout, and so keeps the old layout from moving. */
+const OLD_WINDOWED = { ...META, id: 'sr-1edger', name: 'Request ledger', by: W2 }
+
 test('while a window on an old version keeps the old layout, the letters go under sessions/ alone, counting on from those under works/', async () => {
   const t = terminal()
-  const paths = t.seed(META, { isOld: true, lines: POSTED, seenAt: NOW })
+  const paths = t.seed(META, { isOld: true, lines: POSTED, seenAt: NOW, version: CLI_VERSION })
+
+  t.seed(OLD_WINDOWED, { isOld: true, seenAt: NOW })
+
   const before = file([T0, reply('r1', 'k2', 'choose', { option: 'Keep it' })])
 
   t.files.set(paths.old.letters(WRITER), { text: before, mtimeMs: T0 })
@@ -187,6 +252,21 @@ test('while a window on an old version keeps the old layout, the letters go unde
     [2, 'k1'],
   ])
   expect(t.text(paths.old.letters(WRITER))).toBe(before)
+})
+
+test("an answer is refused while the session's window runs a release from before today's layout, which would never see it, until that window reloads", async () => {
+  const t = terminal()
+  const paths = t.seed(META, { isOld: true, lines: POSTED, seenAt: NOW })
+
+  expect(await t.run('answer', 'k1', 'Go', ...SESSION)).toEqual({
+    exit: EXIT.refused,
+    out: '',
+    err: 'sitrep: A window holding this session runs an older sitrep, which never sees an answer sent from here: run /reload-plugins in that window first.\n',
+  })
+  expect(t.files.has(paths.letters(WRITER))).toBe(false)
+
+  t.window(paths, META.by, NOW, undefined, CLI_VERSION)
+  expect((await t.run('answer', 'k1', 'Go', ...SESSION)).exit, 'reloaded').toBe(EXIT.done)
 })
 
 test("what needs Claude Code's prompt is refused in the CLI's words, and writes nothing: a words ask, a comment", async () => {
@@ -206,7 +286,16 @@ test("what needs Claude Code's prompt is refused in the CLI's words, and writes 
 
 test('an answer is refused for an ask not open, an answer its ask does not take, an item no ask, or none at all, and writes nothing', async () => {
   const t = terminal()
-  const paths = t.seed(META, { lines: [...POSTED, [T0 + MIN, resolve('k1')]] })
+  const paths = t.seed(META, {
+    lines: [
+      ...POSTED,
+      [T0, yesAsk('k4', 'Run the apply', 'Done')],
+      [T0, kindAsk('k5', 'decide', 'Which palette?')],
+      [T0 + MIN, resolve('k1')],
+      [T0 + MIN, reply('r1', 'k4', 'ignore')],
+      [T0 + MIN, delivered('r1')],
+    ],
+  })
   const refused = async (...words: string[]) => {
     const run = await t.run('answer', ...words, ...SESSION)
 
@@ -216,6 +305,10 @@ test('an answer is refused for an ask not open, an answer its ask does not take,
   }
 
   expect(await refused('k1', 'Go')).toBe('sitrep: k1 is already closed.\n')
+  expect(await refused('k4', 'Done')).toBe('sitrep: k4 is already ignored.\n')
+  expect(await refused('k5', 'Dark'), 'a decide written before asks had options').toBe(
+    "sitrep: k5 gives no options to choose from: answer it in Claude Code's prompt.\n",
+  )
   expect(await refused('k2', 'Forever')).toBe(
     'sitrep: k2 wants a choice: answer it with “Keep it” or “Drop it”.\n',
   )

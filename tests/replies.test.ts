@@ -834,7 +834,7 @@ test('an ask has no answer standing with none sent, one gone void, a comment Cla
   }
 })
 
-test('of two replies on their way to one item, the first goes in and the second is void, never delivered: Claude has one answer', () => {
+test('of two replies on their way to one item, the first goes in and the second is void, never delivered: Claude has one answer; a mark naming the void ones says Claude had them too', () => {
   const letters = {
     [CLI]: file(
       [T0 + MIN, reply('r1', 'k2', 'choose', { option: '400 days' })],
@@ -861,8 +861,8 @@ test('of two replies on their way to one item, the first goes in and the second 
   expect(marked.asks[1]).toMatchObject({ state: 'closed', answer: { id: 'r1' } })
   expect(
     marked.replies.map(each => each.delivery),
-    'a mark naming the void ones, as a window on an old release would write, changes nothing',
-  ).toEqual(['delivered', 'void', 'void'])
+    'a window on an old release, which voids none, delivers them all and marks them so',
+  ).toEqual(['delivered', 'delivered', 'delivered'])
 })
 
 /** What bars an item of a session from taking an answer of Lee's, as `barredBy` says. */
@@ -904,7 +904,7 @@ test("an item takes an answer of Lee's while open with none of Lee's on its way;
   }
 })
 
-test("a reply reaching an item after Lee's answer to it, or after Claude closed it, is void from the start, saying why: a mark naming it changes nothing", () => {
+test("a reply reaching an item after Lee's answer to it, or after Claude closed it, is void from the start, saying why: the window never carries it", () => {
   const letters = {
     [CLI]: file([T0 + MIN, reply('r1', 'k1', 'yes')]),
     [SENDER]: file(
@@ -917,11 +917,6 @@ test("a reply reaching an item after Lee's answer to it, or after Claude closed 
     [W1]: file(...POSTED, [T0 + 2 * MIN, delivered('r1')], [T0 + 2 * MIN, resolve('k4')], ...more),
   })
   const read = fold({ logs: logs(), inbox: letters, presence })
-  const marked = fold({
-    logs: logs([T0 + 4 * MIN, delivered('r2', 'r3')]),
-    inbox: letters,
-    presence,
-  })
 
   expect(read.replies.map(each => [each.id, each.delivery, each.voided, each.voidedAt])).toEqual([
     ['r1', 'delivered', undefined, undefined],
@@ -929,8 +924,7 @@ test("a reply reaching an item after Lee's answer to it, or after Claude closed 
     ['r3', 'void', 'resolved', T0 + 3 * MIN],
   ])
   expect(toDeliver(read, W1)).toEqual([])
-  expect(marked.replies.map(each => each.delivery)).toEqual(['delivered', 'void', 'void'])
-  expect(marked.asks[0]).toMatchObject({ state: 'closed', answer: { id: 'r1' } })
+  expect(read.asks[0]).toMatchObject({ state: 'closed', answer: { id: 'r1' } })
 })
 
 test("a send's replies are written as of its claim, its mark as Claude Code takes it: a letter written while it waited comes second, and goes void", () => {
@@ -957,4 +951,96 @@ test("a send's replies are written as of its claim, its mark as Claude Code take
   ])
   expect(session.asks[1]).toMatchObject({ state: 'closed', closedAt: taken, answer: { id: 'r1' } })
   expect(toDeliver(session, W1), 'the letter never goes in').toEqual([])
+})
+
+test("a reply a window marked delivered stays delivered, though a send of another window's, written later as of its earlier claim, reads before it: Claude had both", () => {
+  const presence = { [W1]: seen(W1, NOW), [W2]: seen(W2, NOW) }
+  const letters = {
+    [CLI]: file([T0 + 2 * MIN, reply('r1', 'k2', 'choose', { option: 'Forever' })]),
+  }
+  const marked = { [W1]: file(...POSTED, [T0 + 3 * MIN, delivered('r1')]) }
+  const before = fold({ logs: marked, inbox: letters, presence })
+  const sent = [
+    { type: 'reply', id: 'r2', item: 'k2', verdict: 'choose', option: '400 days' },
+  ] as const
+  const after = fold({
+    logs: {
+      ...marked,
+      [W2]: append('', sentLines(before, sent), sentAt(T0 + MIN, T0 + 4 * MIN)).text,
+    },
+    inbox: letters,
+    presence,
+  })
+
+  expect(before.replies[0]).toMatchObject({ id: 'r1', delivery: 'delivered' })
+  expect(after.replies.map(each => [each.id, each.delivery, each.deliveredAt])).toEqual([
+    ['r2', 'delivered', T0 + 4 * MIN],
+    ['r1', 'delivered', T0 + 3 * MIN],
+  ])
+  expect(after.asks[1]).toMatchObject({
+    state: 'closed',
+    closedAt: T0 + 3 * MIN,
+    answer: { id: 'r1' },
+  })
+})
+
+test('once a delivered reply closes its item, any other on its way to it goes nowhere: the window never carries it', () => {
+  const session = fold({
+    logs: { [W1]: file(...POSTED, [T0 + 3 * MIN, delivered('r2')]) },
+    inbox: {
+      [CLI]: file([T0 + MIN, reply('r1', 'k1', 'yes')]),
+      [SENDER]: file([T0 + 2 * MIN, reply('r2', 'k1', 'yes', { note: 'Ship it' })]),
+    },
+    presence: { [W1]: seen(W1, NOW) },
+  })
+
+  expect(session.replies.map(each => [each.id, each.delivery, each.voided])).toEqual([
+    ['r1', 'void', 'answered'],
+    ['r2', 'delivered', undefined],
+  ])
+  expect(session.asks[0]).toMatchObject({ state: 'closed', answer: { id: 'r2' } })
+  expect(toDeliver(session, W1)).toEqual([])
+})
+
+test("Claude closing an ask leaves Lee's answer on its way to it undelivered: never carried, and not delivered, Claude having closed it first, until a mark says Claude had it", () => {
+  const letters = { [CLI]: file([T0 + MIN, reply('r1', 'k1', 'yes')]) }
+  const presence = { [W1]: seen(W1, NOW) }
+  const closed: Line = [T0 + 2 * MIN, resolve('k1', 'Approved in the chat')]
+  const left = fold({ logs: { [W1]: file(...POSTED, closed) }, inbox: letters, presence })
+  const crossed = fold({
+    logs: { [W1]: file(...POSTED, closed, [T0 + 3 * MIN, delivered('r1')]) },
+    inbox: letters,
+    presence,
+  })
+
+  expect(left.replies[0]).toMatchObject({
+    delivery: 'void',
+    voided: 'resolved',
+    voidedAt: T0 + 2 * MIN,
+  })
+  expect(toDeliver(left, W1)).toEqual([])
+  expect(standing(left, 'k1')).toMatchObject({
+    is: 'notDelivered',
+    reply: { id: 'r1' },
+    since: T0 + 2 * MIN,
+  })
+  expect(crossed.replies[0]).toMatchObject({ delivery: 'delivered', deliveredAt: T0 + 3 * MIN })
+  expect(crossed.asks[0]).toMatchObject({ state: 'closed', reason: 'Approved in the chat' })
+  expect(standing(crossed, 'k1'), 'Claude closed it, then had it').toBeUndefined()
+})
+
+test("an answer Claude's closing left counts only on the ask as it closed then: reopened and closed again, it says nothing of it", () => {
+  const session = fold({
+    logs: {
+      [W1]: file(
+        ...POSTED,
+        [T0 + 2 * MIN, resolve('k1')],
+        [T0 + 3 * MIN, reopen('k1')],
+        [T0 + 4 * MIN, resolve('k1')],
+      ),
+    },
+    inbox: { [CLI]: file([T0 + MIN, reply('r1', 'k1', 'yes')]) },
+  })
+
+  expect(standing(session, 'k1')).toBeUndefined()
 })

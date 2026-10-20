@@ -52,6 +52,7 @@ const receive = async (host: Host) => {
 
   if (message !== undefined) {
     await deliver(host, {
+      claimedAt: await host.clock.now(),
       source: 'inbox',
       project: held.project,
       session: session.id,

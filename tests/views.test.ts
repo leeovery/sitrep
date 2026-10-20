@@ -16,6 +16,7 @@ import {
   type SessionFiles,
 } from '../core'
 import {
+  CLI,
   delivered,
   file,
   finish,
@@ -87,6 +88,7 @@ test('a session in brief: what it is doing, whether a window has it, and what it
     isOpen: true,
     isFinished: false,
     waiting: 2,
+    asked: 2,
     parked: 1,
     updatedAt: T0 + 4 * MIN,
   })
@@ -199,6 +201,25 @@ test('open, waiting on Lee or holding something parked, a session shows however 
   for (const session of [open, waiting, parked]) {
     expect(isCurrent(summarise(session), later), session.id).toBe(true)
   }
+})
+
+test('an ask whose answer from Lee is on its way keeps its session current as an ask waiting on Lee does, however long the answer waits; delivered, it ages out', () => {
+  const later = NOW + 30 * CURRENT_MS
+  const asked: Line = [T0, yesAsk('k1', 'Run it', 'Done')]
+  const letters = { [CLI]: file([NOW, reply('r1', 'k1', 'yes')]) }
+  const answered = sessionOf('sr-aaaaaa', 'switchboard', {
+    logs: { [W1]: file(asked) },
+    inbox: letters,
+  })
+  const closed = sessionOf('sr-bbbbbb', 'switchboard', {
+    logs: { [W1]: file(asked, [NOW, delivered('r1')]) },
+    inbox: letters,
+  })
+
+  expect(summarise(answered)).toMatchObject({ waiting: 0, asked: 1 })
+  expect(isCurrent(summarise(answered), later)).toBe(true)
+  expect(summarise(closed)).toMatchObject({ waiting: 0, asked: 0 })
+  expect(isCurrent(summarise(closed), later)).toBe(false)
 })
 
 test('a finished session is out of the views whatever it holds, and its asks count nowhere', () => {

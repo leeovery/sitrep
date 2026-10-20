@@ -12,6 +12,7 @@ import {
   askAfter,
   barredBy,
   fits,
+  isAnswerable,
   isOpen,
   isPending,
   parkedAfter,
@@ -37,6 +38,7 @@ import {
   type Reply,
   type Status,
   type Session,
+  type Voided,
 } from './types'
 
 /** A session's files as read: its session.json's text, and every other file's text by the writer its name gives. */
@@ -123,28 +125,48 @@ const settle = (fold: Fold, reply: Reply, at: number) => {
   }
 }
 
-const deliver = (fold: Fold, reply: Reply, at: number) => {
-  reply.delivery = 'delivered'
-  reply.deliveredAt = at
-  settle(fold, reply, at)
-}
-
-/**
- * An edit voids the replies on their way to an item that they no longer
- * fit: a mark naming one later changes nothing, and the item can be
- * answered again.
- */
-const voidUnfitting = (item: Item, at: number) => {
+/** Voids the replies on their way to an item that `isVoided` picks, saying why: none goes in from here. */
+const voidOnItsWay = (
+  item: Item,
+  at: number,
+  voided: Voided,
+  isVoided: (reply: Reply) => boolean = () => true,
+) => {
   if (item.type === 'note') {
     return
   }
 
   for (const reply of item.replies) {
-    if (isPending(reply) && !fits(item, reply)) {
+    if (isPending(reply) && isVoided(reply)) {
       reply.delivery = 'void'
-      reply.voided = 'changed'
+      reply.voided = voided
       reply.voidedAt = at
     }
+  }
+}
+
+/**
+ * Whether a delivered mark takes a reply in: one on its way; or one void
+ * because its item took another answer first or Claude closed it, since a
+ * window marks only what Claude has, and the message that carried it
+ * crossed the other answer or the closing. One void since an edit stays
+ * void: it fits its item no more, and the item can be answered again.
+ */
+const isMarkable = (reply: Reply) =>
+  isPending(reply) || (reply.delivery === 'void' && reply.voided !== 'changed')
+
+/** A reply Claude has: it settles its item, and once that closes, any other on its way to it goes nowhere. */
+const deliver = (fold: Fold, reply: Reply, at: number) => {
+  const item = fold.items.get(reply.item)
+
+  reply.delivery = 'delivered'
+  reply.deliveredAt = at
+  reply.voided = undefined
+  reply.voidedAt = undefined
+  settle(fold, reply, at)
+
+  if (item !== undefined && item.type !== 'note' && !isAnswerable(item)) {
+    voidOnItsWay(item, at, 'answered')
   }
 }
 
@@ -280,6 +302,7 @@ const HANDLERS: { [T in Body['type']]: Handler<T> } = {
       item.state = 'closed'
       item.closedAt = at
       item.reason = reason
+      voidOnItsWay(item, at, 'resolved')
     }
   },
 
@@ -311,7 +334,7 @@ const HANDLERS: { [T in Body['type']]: Handler<T> } = {
 
     item.editedAt = at
     item.reason = reason
-    voidUnfitting(item, at)
+    voidOnItsWay(item, at, 'changed', reply => !fits(item, reply))
   },
 
   reply: (fold, { id, item: target, verdict, option, note, at, by }) => {
@@ -328,7 +351,7 @@ const HANDLERS: { [T in Body['type']]: Handler<T> } = {
     fold.replies.set(id, reply)
     item.replies.push(reply)
 
-    if (early !== undefined && isPending(reply)) {
+    if (early !== undefined && isMarkable(reply)) {
       deliver(fold, reply, early)
     }
   },
@@ -339,7 +362,7 @@ const HANDLERS: { [T in Body['type']]: Handler<T> } = {
 
       if (reply === undefined && !fold.early.has(id)) {
         fold.early.set(id, at)
-      } else if (reply !== undefined && isPending(reply)) {
+      } else if (reply !== undefined && isMarkable(reply)) {
         deliver(fold, reply, at)
       }
     }

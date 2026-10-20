@@ -244,7 +244,11 @@ export type SitrepInFlight = SitrepSessionRef & {
   text: string
   /** The replies the message carries, their ids fixed as it was claimed. */
   replies: SitrepReplyBody[]
-  /** When it was claimed, which tells this claim from a later one of the same text. */
+  /**
+   * When it was claimed, which tells this claim from a later one of the same
+   * text: for a send, taken before it read the board, the time its replies
+   * are written as of.
+   */
   claimedAt: number
   /** Whether Claude Code has taken the message, its lines still to write. */
   isTaken: boolean
@@ -261,6 +265,7 @@ export type SitrepSummary = {
   isOpen: boolean
   isFinished: boolean
   waiting: number
+  asked: number
   parked: number
   updatedAt: number
 }

@@ -2,7 +2,7 @@ import { expect, test, tier } from 'claude-code/testing'
 import { EXIT, main, WRITER } from '../cli/main'
 import { parseEntries, type SessionMeta } from '../core'
 import { WATCH_MS } from '../hooks/window'
-import { MIN, T0, W1, W2, yesAsk } from './support'
+import { file, MIN, reply, T0, W1, W2, yesAsk } from './support'
 import { terminal } from './terminal'
 import { CONVERSATION, postedId, PROMPT, world } from './world'
 
@@ -293,6 +293,36 @@ test("an answer the CLI writes while the window's send waits out Claude's turn c
   expect(await answerIn(cli)).toMatchObject({
     resolved: [{ is: 'delivered', words: '→ Keep it' }],
   })
+})
+
+test("an answer stamped after the window's send was claimed, landing as the send reads the board, comes after it: Claude has the send's answer only", async ($, on) => {
+  const w = world($, on)
+  const { paths } = await w.begin()
+  const { asked, ui } = await sidebarAsked(w)
+
+  await ui.press({ key: `choose:${w.item(asked)}:0` })
+  await w.clock.advance(MIN)
+
+  const claimed = w.clock.now()
+
+  w.after('list', paths.dir, async () => {
+    await w.clock.set(claimed + 2)
+    w.put(
+      paths.letters(WRITER),
+      file([claimed + 1, reply('r9', asked, 'choose', { option: 'Drop it' })]),
+    )
+  })
+  await ui.press({ key: 'send' })
+  await w.clock.advance(4 * WATCH_MS)
+
+  expect(w.state.inFlight).toBeNull()
+  expect(w.prompts.map(prompt => prompt.text)).toEqual([
+    'From the board:\n- Keep the sidebar? → Keep it',
+  ])
+  expect(
+    w.state.board?.replies.find(each => each.id === 'r9'),
+    "void from the start, reaching the ask after the send's claim",
+  ).toMatchObject({ delivery: 'void', voided: 'answered', voidedAt: claimed + 1 })
 })
 
 /** A session no window holds, started by a window gone since, with an ask waiting on Lee. */

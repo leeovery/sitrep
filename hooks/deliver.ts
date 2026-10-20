@@ -48,12 +48,17 @@ const UNWRITTEN = 'Claude has your replies, but the board could not write them d
 
 const NEVER_WENT_IN = 'the message never went in'
 
-/** A message as its source hands it over, to be claimed. */
-type Outgoing = Omit<SitrepInFlight, 'claimedAt' | 'isTaken'>
+/** A message as its source hands it over, to be claimed, and when its source claims it as of. */
+type Outgoing = Omit<SitrepInFlight, 'isTaken'>
 
-/** What follows a message, by its source: once it is written down, and once it went nowhere. */
+/**
+ * What follows a message, by its source: `written`, as each write puts it
+ * down, before its claim ends, so nothing in between shows it otherwise;
+ * `ended`, once, as its claim ends; `notTaken`, once it went nowhere.
+ */
 type After = {
   written: (host: Host, delivery: SitrepInFlight) => Promise<void>
+  ended: (host: Host, delivery: SitrepInFlight) => Promise<void>
   notTaken: (host: Host, why: string) => void
 }
 
@@ -79,14 +84,19 @@ const flash = async (host: Host, count: number) => {
 
 const AFTER: Record<SitrepSource, After> = {
   send: {
+    // Out of the queue before the claim ends, or between the two the reply
+    // Claude has shows in Ready to send as not sent, its ask answered by it.
     written: async (host, delivery) => {
       await host.state.queue.update(queue => queue.filter(each => !isCarried(delivery, each)))
+    },
+    ended: async host => {
       tickAfter(host, LINGER_MS)
     },
     notTaken: (host, why) => host.ui.toast(`Not sent: ${why}. ${STILL_THERE}`),
   },
   inbox: {
-    written: (host, delivery) => flash(host, delivery.replies.length),
+    written: async () => {},
+    ended: (host, delivery) => flash(host, delivery.replies.length),
     notTaken: (host, why) =>
       host.log(`sitrep: the inbox's replies were not taken (${why}); trying again`),
   },
@@ -148,7 +158,7 @@ const writeHeld = async (host: Host, delivery: SitrepInFlight, at: Stamp) => {
 
 /**
  * Writes a taken message down in the session it went to, then ends it; what
- * follows its source follows once, by whichever write ended it. Two loads
+ * follows its claim's end follows once, by whichever write ended it. Two loads
  * may both write one down: a file-watch reload can cut short a write the
  * last load began once the submit resolved (settled live), and the next load
  * writes it again, finding its lines there or not.
@@ -166,8 +176,10 @@ const writeDown = async (host: Host, delivery: SitrepInFlight) => {
     host.log(`sitrep: Claude has replies to ${delivery.session}, whose session.json is gone`)
   }
 
+  await AFTER[delivery.source].written(host, delivery)
+
   if (await endIf(host, current => isClaim(current, delivery))) {
-    await AFTER[delivery.source].written(host, delivery)
+    await AFTER[delivery.source].ended(host, delivery)
   }
 }
 
@@ -219,11 +231,7 @@ export const deliver = async (
   outgoing: Outgoing,
   claimed: () => Promise<void> = async () => {},
 ) => {
-  const delivery: SitrepInFlight = {
-    ...outgoing,
-    claimedAt: await host.clock.now(),
-    isTaken: false,
-  }
+  const delivery: SitrepInFlight = { ...outgoing, isTaken: false }
   let ahead: SitrepInFlight | undefined
 
   await host.state.inFlight.update(current => {

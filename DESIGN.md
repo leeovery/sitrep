@@ -136,8 +136,9 @@ discussed. So `start` names its project, as Lee would say it and cased
   A session still records it, as `root`: where the session was started.
 
 A session is **current**, and shows in the project view, All projects and
-the first message's listing, while it is open, has an ask waiting, has
-something parked, or was updated in the last 7 days. An older idle session
+the first message's listing, while it is open, has an ask waiting (on Lee,
+or on a window to deliver Lee's answer), has something parked, or was
+updated in the last 7 days. An older idle session
 stays on disk and out of the views; a project left with none drops out of
 All projects altogether.
 
@@ -173,7 +174,9 @@ notch and its panel").
   nothing else waiting leaves the panel and the strip, and shows in the
   SitRep window. The ask itself still shows among its session's asks, saying
   its answer is on its way, until the delivered mark closes it; a reply gone
-  void waits on Lee again. Core's `waitsOnLee` decides it.
+  void waits on Lee again. Core's `waitsOnLee` decides it. It still keeps
+  its session current, as an ask waiting on Lee does, however long the
+  answer waits for a window.
 
   What Claude is told follows what Claude has been given, so everything
   Claude reads (the board text, the first message's listing and its counts,
@@ -713,8 +716,8 @@ until one does.
 A reply that never went in (see Delivery) says why, and lingers out the same
 way: `not delivered: it changed since`, its item edited under it;
 `not delivered: already answered`, another answer of Lee's to its item there
-first; `not delivered: Claude closed it`, the item closed before it reached
-it.
+first; `not delivered: Claude closed it`, the item closed by Claude before
+it went in.
 
 **One answer to an item** (20 October 2026). A send carries a reply only
 while its item takes one: open, with no answer of Lee's on its way to it.
@@ -724,10 +727,12 @@ closed, is not carried. It stays in Ready to send, which says why where its
 `✎ edit` was, `not sent: already answered` or `not sent: Claude closed it`,
 and so does its item's row, where it said `not sent yet`; until Lee clears
 it with its `✕`, or the item, reopened, takes it again. A send that carries
-nothing of this session's toasts why: `Nothing to send: the items replied
-to are answered or closed already.`, or `…have changed since.` where none
-fits its item any more. So Claude has one answer to an item, the first to
-reach it, by the order every reader reads in (see Delivery).
+nothing at all, to this session or any other, toasts why: `Nothing to
+send: the items replied to are answered or closed already.`, `…have changed
+since.` where none fits its item any more, or `…have changed since, or are
+answered or closed already.` for some of each. So Claude has one answer to
+an item, the first to reach it, by the order every reader reads in (see
+Delivery).
 
 ### The band
 
@@ -811,10 +816,14 @@ Dropped for now (11 October 2026): a macOS notification for asks. Back on
   then: through the hold when the window still holds that session as that
   writer, so the hold's own text stays in step; else into that writer's file
   there, read back and written whole. A send writes each reply and one
-  delivered mark, each reply as of the send's claim and the mark as of now
-  (core's `sentAt`): an answer the board gains while the send waits out a
-  turn of Claude's, as `sitrep answer` may write then, reads after the
-  send's, and goes void. The inbox writes one mark naming its replies.
+  delivered mark, each reply as of the send's claim, whose time is taken
+  before the send reads the board, and the mark as of now (core's
+  `sentAt`): an answer the board gains after that read, as `sitrep answer`
+  may write while the send waits out a turn of Claude's (it stamps its line
+  as it writes it, its checks done), reads after the send's, and goes void.
+  That leaves only the reads themselves: an answer stamped just before the
+  claim that lands just after the send's read still reads first. The inbox
+  writes one mark naming its replies.
   Writing first reads the session: lines already there, or replies already
   marked, are not written again, so writing down twice writes once. A write
   that fails is tried again at the next look.
@@ -836,13 +845,29 @@ Dropped for now (11 October 2026): a macOS notification for asks. Back on
   item closed, is void from the start (core's `barredBy`): two answers sent
   at once, as two runs of `sitrep answer` may, or two windows' letters, put
   only the first into Claude, by the order every reader reads in, and a
-  letter landing after an ask closed never goes in. Ready to send says which
-  it was, `not delivered: already answered` or `not delivered: Claude closed
-  it`, as it says `it changed since` for an edit. A mark naming it, as a
-  window on an older release may write, changes nothing. A send carries no
-  reply its item takes no more (see "Ready to send"), and its own replies
-  are written as of its claim (above), so this session's send and an inbox
-  answer never both go in either.
+  letter landing after an ask closed never goes in. When Claude closes an
+  item, a reply on its way to it goes void too, and is never carried; and
+  once a delivered reply closes its item, any other on its way to it does.
+  Ready to send says which it was, `not delivered: already answered` or
+  `not delivered: Claude closed it`, as it says `it changed since` for an
+  edit. A send carries no reply its item takes no more (see "Ready to
+  send").
+- **A mark is the record that Claude has a reply.** One naming a reply void
+  because its item took another answer first, or Claude closed it, makes
+  it delivered: a message carried across either is how Claude came to have
+  it, as a send claimed before Claude's resolve in the turn it waited
+  behind, or a window on an older release delivering both of two answers.
+  So a line written later that sorts before a delivered reply (a send's,
+  dated at its claim) never turns it void after the fact. Only an edit's
+  void stands: the reply fits its item no more, and the item can be
+  answered again.
+- **One window never gives Claude two answers to an item.** While its send
+  is in flight it delivers nothing else, and once the send is written down
+  its reply closes the item, and an answer that came in meanwhile goes void,
+  whichever reads first. Two windows on one session can: one delivers an
+  inbox answer while the other's send waits out its own turn, and each
+  window's Claude has one. The board keeps both, delivered, as they were. A
+  known limit of two windows on one session.
 - The inbox message is the board's own, as this session's is: it takes no
   board-change context, and written through the hold its lines are lines
   Claude knows of (`postKnown`). The rest rides in with Lee's next prompt.
@@ -1036,7 +1061,9 @@ $XDG_STATE_HOME/sitrep/, else ~/.local/state/sitrep/
   appended to; the window's mark is the trace the CLI reads them delivered
   by (20 October 2026). A reply read while its item takes no answer,
   another of Lee's on its way to it or delivered, or the item closed, is
-  void (see "Delivery"). Only replies count from an inbox.
+  void, and so is one on its way when Claude closes its item, unless a mark
+  names it: Claude had it (see "Delivery"). Only replies count from an
+  inbox.
 - **Presence:** a mod can't tell that its own window died, so each attached
   window rewrites its heartbeat (`attachedAt`, `seenAt`) every 30 seconds,
   and a session is open while a heartbeat is under 90 seconds old. A mod
@@ -1321,7 +1348,7 @@ truth. There is still no background service. None of it is built now. Lee:
   sitrep ask <title> --wants yes|choice|words [--yes <label>] [--option <choice>]... [--needs <words>] [--where <words>] [--ref <ref>]
   sitrep park <title> [--where <words>] [--ref <ref>]
   sitrep status [--name <words>] [--summary <line>] [--now <line>]... [--next <line>]
-  sitrep answer <ask> <answer> [--ignore]
+  sitrep answer <ask> (<answer> | --ignore)
   sitrep finish
   sitrep board [--json]
   sitrep list [--project <name>] [--json]
@@ -1393,9 +1420,15 @@ truth. There is still no background service. None of it is built now. Lee:
       "closedAt": 1760000090000, "reason": null }
     ```
 
-    Neither moved a `v`: they are fields added, which a reader that does not
-    know them passes over, and no field it reads changed. The SitRep window
-    is their first reader.
+    No `v` moved for 20 October 2026's changes. `answer` and `resolved` are
+    fields added, which a reader that does not know them passes over. One
+    meaning changed too: `waiting`, in `list --json`, `board --json` and
+    `watch`, leaves out an ask whose answer from Lee is on its way (see "A
+    session's state"), and `watch`'s session `state`, its rows and its head
+    follow it, while its session's `asks` keep such an ask, its `answer`
+    saying it is on its way. No reader reads those yet (the SitRep window is
+    their first), and a reader of the old meaning would only count fewer
+    asks waiting on Lee, never trip on a shape.
   - `answer` (20 October 2026) answers a yes or a choice ask, or ignores
     any ask, as Lee does on the board, for the SitRep window to answer
     through (see "The SitRep window"): the ask by its id, then the answer in
@@ -1420,29 +1453,43 @@ truth. There is still no background service. None of it is built now. Lee:
       permission prompt, which need Claude Code's prompt (`k3 wants words,
       which need Claude Code's prompt: answer it there.`; a comment is no
       word it takes, `There is no --comment.`; a permission prompt is no ask
-      on the board, and is answered in its window); an ask closed (`k1 is
-      already closed.`); one with a reply of Lee's on its way already, from
+      on the board, and is answered in its window); a decide written before
+      asks had options, which offers none to choose (`k5 gives no options to
+      choose from: answer it in Claude Code's prompt.`); an ask closed (`k1 is
+      already closed.`) or ignored (`k4 is already ignored.`); one with a
+      reply of Lee's on its way already, from
       the pane or the CLI, since an ask takes no second answer, as the pane
       offers none (`A reply to k1 is on its way already.`); an answer the ask
       does not take (`k2 wants a choice: answer it with “Keep it” or “Drop
       it”.`); an item that is no ask, or no item; and an ask of a finished
       session, whose asks wait on Lee no more, as an answering mode ends with
-      its session finished; and an answer given with `--ignore` (`Give an
-      answer or --ignore, not both.`). An unknown session is exit 2.
+      its session finished; an answer given with `--ignore` (`Give an
+      answer or --ignore, not both.`); and any answer while the window that
+      delivers the session runs a release from before today's layout, which
+      reads only `works/` and would never see the answer written under
+      `sessions/`, its answer on its way on every new surface the while
+      (`A window holding this session runs an older sitrep, which never sees
+      an answer sent from here: run /reload-plugins in that window first.`).
+      An unknown session is exit 2.
     - Two runs answering one ask at once can both find it with nothing on
       its way, and both land. Only the first goes in: a reply reaching an
       item that takes no answer, another on its way to it or delivered, is
       void (see "Delivery"), so the window gives Claude one answer, and the
-      second never. An answer written while a pane's send to the same ask
-      waits out Claude's turn reads after it, and is void the same way.
+      second never. An answer is stamped as it is written, once its checks
+      are done, not as the session was read; one written while a pane's send
+      to the same ask waits out Claude's turn reads after it, and is void
+      the same way.
     - Where an answer stands is core's, from the files (`answerState`), and
       `board --json` and `watch` give it on each ask, as `answer`: `null`
       with nothing of Lee's on its way and none that closed it; `onItsWay`
       once a reply is in the inbox, not yet delivered, since it was written;
       `delivered`, since the window's mark, once Claude has it, which has
-      closed the ask. `words` is the answer as the board shows it on one row
-      (`→ Go`, `ignored`). A reply gone void, its ask edited under it, is `null`: the
-      ask can be answered again. Those are the SitRep window's card: "on its
+      closed the ask; `notDelivered`, on a resolved ask, since Claude closed
+      it, where Lee's answer was still on its way then, or reached it after:
+      it never goes in, as a pane's send to a closed ask does not, and the
+      card can say so. `words` is the answer as the board shows it on one row
+      (`→ Go`, `ignored`). A reply gone void, its ask edited under it, is
+      `null`: the ask can be answered again. Those are the SitRep window's card: "on its
       way" on an open ask, "sent, and Claude has it" on the ask the answer
       just closed, as the pane's Asks keep one for a moment, and then
       Resolved, where `board --json` lists it.
@@ -1787,6 +1834,14 @@ read.
   reloaded reads only the old names, so it sees nothing written under the
   new ones until it reloads, as with newer lines. Built 19 October 2026,
   `works/` to `sessions/` and `work.json` to `session.json` (see "Storage").
+- A window on a release from before 20 October 2026 voids no second
+  answer: two answers to one ask that land at once (two runs of `sitrep
+  answer`, or the CLI and a pane's letter) both go in from it, until it
+  reloads, and the board records both delivered, as Claude had them. A
+  known limit. One from before today's layout (no `version` in its
+  heartbeat) reads only `works/`, so it would never see the CLI's answers,
+  written under `sessions/`: `sitrep answer` refuses while one delivers the
+  session, saying to `/reload-plugins` it.
 - The CLI's JSON stays as it is, its `v` and its stable fields (see "One
   engine, two front ends"): the app carries its own CLI, so the two never
   drift. Pinned versions, a client saying the version it speaks and being

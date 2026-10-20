@@ -8,7 +8,8 @@
  */
 import { isSessionId, newItemId, type Random } from './ids'
 import { directoryOf, isNameable } from './project'
-import { isOpen, onItsWay, yesOf } from './replies'
+import { isOldVersion } from './presence'
+import { onItsWay, yesOf } from './replies'
 import { WANTS } from './shapes'
 import type { StatusFields } from './status'
 import { inWords, oneLine } from './text'
@@ -449,9 +450,24 @@ const quotedOr = (answers: readonly string[]) => inWords(answers.map(each => `â€
 
 /** What any answer from outside Claude Code needs of its ask, each rule broken where it says, with why. */
 const ANSWER_RULES: readonly [breaks: (ask: Ask) => boolean, error: (ask: Ask) => string][] = [
-  [ask => !isOpen(ask), ask => `${ask.id} is already closed.`],
+  [ask => ask.state === 'ignored', ask => `${ask.id} is already ignored.`],
+  [ask => ask.state === 'closed', ask => `${ask.id} is already closed.`],
   [ask => onItsWay(ask) !== undefined, ask => `A reply to ${ask.id} is on its way already.`],
 ]
+
+const OLD_WINDOW =
+  'A window holding this session runs an older sitrep, which never sees an answer sent from here: run /reload-plugins in that window first.'
+
+/**
+ * Whether the window that delivers the session's inbox runs a release from
+ * before today's layout: one that reads only the old, so it would never see
+ * an answer the CLI writes, and no other window delivers while it is live.
+ */
+const isDeliveredByOld = (session: Session) => {
+  const window = session.presence.find(each => each.writer === session.deliverer)
+
+  return window !== undefined && isOldVersion(window)
+}
 
 type Answer = Checked<Omit<ReplyBody, 'id'>>
 
@@ -461,7 +477,11 @@ const worded = (ask: Ask, given: string | undefined): Answer => {
   const wanted = ask.wants === 'yes' ? 'a yes' : 'a choice'
 
   if (answers.length === 0) {
-    return refuse(`${ask.id} wants words, which need Claude Code's prompt: answer it there.`)
+    return refuse(
+      ask.wants === 'words'
+        ? `${ask.id} wants words, which need Claude Code's prompt: answer it there.`
+        : `${ask.id} gives no options to choose from: answer it in Claude Code's prompt.`,
+    )
   }
 
   if (given === undefined || !answers.includes(given)) {
@@ -481,10 +501,14 @@ const ignored = (ask: Ask, given: string | undefined): Answer =>
     ? ok({ type: 'reply', item: ask.id, verdict: 'ignore' })
     : refuse('Give an answer or --ignore, not both.')
 
-/** The ask an answer names, in a session still waiting on Lee; or a refusal. */
+/** The ask an answer names, in a session still waiting on Lee whose window can take an answer in; or a refusal. */
 const askAnswered = (session: Session, fields: Fields): Checked<Ask> => {
   if (session.finished !== undefined) {
     return refuse('This session is finished: its asks wait on Lee no more.')
+  }
+
+  if (isDeliveredByOld(session)) {
+    return refuse(OLD_WINDOW)
   }
 
   const item = target(session, { item: fields.ask })
@@ -503,9 +527,10 @@ const askAnswered = (session: Session, fields: Fields): Checked<Ask> => {
  * Claude Code: a yes in its button's words, or one of a choice's options,
  * as the board shows them; or, `ignore`, Lee's ignore, which any ask takes.
  * Words, a comment and a permission prompt need Claude Code's prompt.
- * Refused in a finished session, whose asks wait on Lee no more, and for an
- * ask closed, or with a reply of Lee's on its way already, since it takes
- * no second answer.
+ * Refused in a finished session, whose asks wait on Lee no more; while a
+ * window on a release from before today's layout delivers the session, as
+ * it would never see the answer; and for an ask closed or ignored, or with
+ * a reply of Lee's on its way already, since it takes no second answer.
  */
 export const checkAnswer = (session: Session, input: unknown): Answer => {
   const fields = fieldsOf(input)

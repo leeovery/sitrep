@@ -33,9 +33,9 @@ import {
 import { compareText } from './text'
 import type { Ask, Session, WindowState, Where } from './types'
 import {
-  askedOf,
   CURRENT_MS,
   isCurrent,
+  stillAsked,
   summarise,
   summariseProject,
   type ProjectSummary,
@@ -105,7 +105,7 @@ const feedProject = (
       ...summary,
       state: sessionState(session, now),
       since: firsts.get(session.id)?.row.since ?? session.updatedAt,
-      asks: askedOf(session),
+      asks: stillAsked(session),
     }))
     .sort(
       (a, b) =>
@@ -208,9 +208,9 @@ export const newRows = (shown: Shown | undefined, feed: Feed, at: number) => {
   }
 }
 
-/** Whether a session stays current by its latest line alone: nothing keeps it so but its being recent, or a window. */
+/** Whether a session stays current by its latest line alone: nothing keeps it so but its being recent, or a window; an ask waiting, Lee's answer on its way to it or not, does. */
 const isIdle = (session: Session) =>
-  session.finished === undefined && session.waiting === 0 && session.parked.length === 0
+  session.finished === undefined && stillAsked(session).length === 0 && session.parked.length === 0
 
 /**
  * When the board next changes by time alone, after `now`: the earliest a

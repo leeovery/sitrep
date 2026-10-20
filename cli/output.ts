@@ -41,7 +41,9 @@ import {
  * The JSON's version, by command: `board`'s moved to 2 as its asks came to
  * say what they want back, in place of their kind. Fields added since, as
  * each ask's answer and `board`'s resolved asks, move none: a reader passes
- * over a field it does not know.
+ * over a field it does not know. Nor did `waiting` coming to leave out an
+ * ask whose answer is on its way: no reader read it yet, and one reading it
+ * as it was would count fewer asks, never trip on a shape.
  */
 const OUTPUT = { list: 1, board: 2, watch: 1 } as const
 
@@ -138,7 +140,7 @@ export const listJson = ({ here, projects }: Listing, onScreen: ReadonlySet<stri
     projects: projects.map(project => projectJson(project, onScreen)),
   })
 
-/** Where Lee's answer to an ask stands, and its words as the board shows them on one row; null with none on its way and none that closed it. */
+/** Where Lee's answer to an ask stands, and its words as the board shows them on one row; null with none on its way, none that closed it and none Claude's closing left. */
 const answerJson = (ask: Ask) => {
   const answer = answerState(ask)
 

@@ -717,4 +717,16 @@ test('the board next changes by time alone as the first live heartbeat goes stal
   expect(
     nextExpiry(read([sessionOf({ lines: [[T0, yesAsk('k1', 'Keep me')]] })]), NOW),
   ).toBeUndefined()
+  expect(
+    nextExpiry(
+      read([
+        sessionOf({
+          lines: [[T0, yesAsk('k1', 'Keep me')]],
+          inbox: { [CLI]: file([T0 + MIN, reply('r1', 'k1', 'yes')]) },
+        }),
+      ]),
+      NOW,
+    ),
+    'an answer on its way keeps its session current, as its ask did',
+  ).toBeUndefined()
 })

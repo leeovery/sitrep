@@ -19,6 +19,14 @@ export const CURRENT_MS = 7 * 24 * 60 * 60_000
 /** How many of its latest log lines a brief carries: as many as any view of the board shows. */
 export const BRIEF_LOG_LINES = 8
 
+/**
+ * A session's asks still waiting, the oldest first: on Lee, or on a window
+ * to deliver Lee's answer, which each ask's answer tells apart; none once
+ * the session is finished.
+ */
+export const stillAsked = (session: Pick<Session, 'asks' | 'finished'>): Ask[] =>
+  session.finished === undefined ? session.asks.filter(ask => ask.state === 'waiting') : []
+
 /** A session in brief: what it is doing, and what it holds for Lee. */
 export type SessionSummary = {
   id: string
@@ -31,7 +39,14 @@ export type SessionSummary = {
   isOpen: boolean
   /** Finished: out of every view, whatever it holds. */
   isFinished: boolean
+  /** Asks waiting on Lee. */
   waiting: number
+  /**
+   * Asks waiting as posted, those with Lee's answer on its way among them:
+   * one keeps its session current as an ask waiting on Lee does, and Claude,
+   * not yet told that answer, reads it as waiting on Lee.
+   */
+  asked: number
   parked: number
   updatedAt: number
 }
@@ -92,11 +107,15 @@ const isIdle = (project: ProjectSummary) =>
 const total = (sessions: readonly SessionSummary[], count: (session: SessionSummary) => number) =>
   sessions.reduce((sum, session) => sum + count(session), 0)
 
-/** Whether a session shows in the views: not finished, and open, waiting on Lee, holding something parked, or updated within `CURRENT_MS`. */
+/**
+ * Whether a session shows in the views: not finished, and open, with an ask
+ * waiting (on Lee, or on a window to deliver Lee's answer), holding
+ * something parked, or updated within `CURRENT_MS`.
+ */
 export const isCurrent = (session: SessionSummary, now: number) =>
   !session.isFinished &&
   (session.isOpen ||
-    session.waiting > 0 ||
+    session.asked > 0 ||
     session.parked > 0 ||
     now - session.updatedAt <= CURRENT_MS)
 
@@ -121,17 +140,10 @@ export const summarise = (session: Session): SessionSummary => ({
   isOpen: session.isOpen,
   isFinished: session.finished !== undefined,
   waiting: session.waiting,
+  asked: stillAsked(session).length,
   parked: session.parked.length,
   updatedAt: session.updatedAt,
 })
-
-/**
- * A session's asks still waiting, the oldest first: on Lee, or on a window
- * to deliver Lee's answer, which each ask's answer tells apart; none once
- * the session is finished.
- */
-export const askedOf = (session: Pick<Session, 'asks' | 'finished'>): Ask[] =>
-  session.finished === undefined ? session.asks.filter(ask => ask.state === 'waiting') : []
 
 /** The asks closed, those ignored aside, the newest closed first: what a session's Resolved lists. */
 export const resolvedAsks = (session: Pick<Session, 'asks'>) =>

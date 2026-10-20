@@ -7,8 +7,8 @@
  */
 import type { Checked } from '../core'
 
-/** An argument, by the field a check reads it as. */
-export type Arg = { field: string; about: string }
+/** An argument, by the field a check reads it as, and the switch given in its place, if one may be. */
+export type Arg = { field: string; about: string; or?: string }
 
 /**
  * A flag: the field a check reads it as, and its form: one value, a value

@@ -437,7 +437,7 @@ test('help: every command in brief, how a session is named, and the exit codes',
   expect(out).toContain(
     '  sitrep ask <title> --wants yes|choice|words [--yes <label>] [--option <choice>]... [--needs <words>] [--where <words>] [--ref <ref>]\n',
   )
-  expect(out).toContain('  sitrep answer <ask> <answer> [--ignore]\n  sitrep finish\n')
+  expect(out).toContain('  sitrep answer <ask> (<answer> | --ignore)\n  sitrep finish\n')
   expect(out).toContain('  sitrep list [--project <name>] [--json]\n')
   expect(out).toContain('--session sr-xxxxxx, else $SITREP_SESSION')
   expect(out).toContain('2 no such session')
