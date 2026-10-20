@@ -5,7 +5,7 @@ import SitRepPanel
 /// carries the state, a glow outside it while it needs Lee, the working arc turning round it, lifted under the
 /// pointer, and pressed in with its arc turning while a click on it jumps. Just arrived, it is washed orange and its
 /// ring flashes, and its lift eases as the model eases it, a frame at a time; any other change of look eases over
-/// 240ms, as the prototype's transitions do.
+/// 240ms, the letters' colour among it, as the prototype's transitions do, and the pressed fill over 110.
 @MainActor
 final class StripMarkLayer {
     let layer = CALayer()
@@ -15,7 +15,9 @@ final class StripMarkLayer {
     let ring = CALayer()
     /// The arc: internal only for the tests, which read its fade.
     let spinner = Arc(line: StripMarkLayer.line)
-    private var letters: TextLine?
+    /// The letters: their colour, filled through their glyphs, so a change of look eases it as the ring's; internal
+    /// only for the tests, which read its ease.
+    let letters = CALayer()
     private var look: Look?
 
     private static let size = StripFrame.Mark.size, line = 1.5
@@ -24,8 +26,8 @@ final class StripMarkLayer {
     /// A new mark's ring at its brightest flash.
     static let flashed = LiveLight.RGB(r: 255, g: 160, b: 120)
 
-    /// How long a change of look eases, in seconds, the ring's colour and its glow, as the prototype's `.mk`
-    /// transitions do; and the pressed fill, as its background's.
+    /// How long a change of look eases, in seconds, the ring's colour, its glow and the letters', as the prototype's
+    /// `.mk` transitions do; and the pressed fill, as its background's.
     static let lookEase = 0.24, pressEase = 0.11
 
     /// How long the arc takes to fade, in seconds: in over 60ms as a click's jump starts, as the prototype's
@@ -48,9 +50,11 @@ final class StripMarkLayer {
         ring.frame = box
         ring.cornerRadius = Self.size / 2
         spinner.fit(box)
+        letters.frame = box
         layer.addSublayer(outside)
         layer.addSublayer(ring)
         layer.addSublayer(spinner.layer)
+        layer.addSublayer(letters)
     }
 
     /// What the mark looks like, short of its place, its lift and its arrival.
@@ -100,6 +104,7 @@ final class StripMarkLayer {
         glow.shadowPath = CGPath(ellipseIn: glow.bounds, transform: nil)
         glow.shadowRadius = Self.blur / 2
         glow.shadowOpacity = glows ? Float(Self.glowAlpha) : 0
+        letters.backgroundColor = Self.letterColour(kind)
         spinner.track.strokeColor = look.jumping ? nil : EdgeStyle.track
         spinner.arc.strokeColor = look.jumping && kind == .needs ? EdgeStyle.orange
             : look.jumping && kind == .turn ? EdgeStyle.ink : EdgeStyle.arc
@@ -111,8 +116,8 @@ final class StripMarkLayer {
         spinner.layer.opacity = kind == .working || look.jumping ? 1 : 0
         CATransaction.commit()
 
-        if look.text != self.look?.text || kind != self.look?.kind {
-            setLetters(look.text, Self.letterColour(kind))
+        if look.text != self.look?.text {
+            setLetters(look.text)
         }
         spinner.turn(every: look.jumping ? 0.9 : 1.2)
         self.look = look
@@ -130,18 +135,18 @@ final class StripMarkLayer {
         glow.shadowOpacity = Float(Self.glowAlpha + 0.2 * wash + 0.3 * flash)
     }
 
-    private func setLetters(_ text: String, _ colour: CGColor) {
+    /// New letters, at once, as the prototype's text changes: their glyphs, the mask the letters' colour shows
+    /// through.
+    private func setLetters(_ text: String) {
         let font = EdgeStyle.letters
-        let string = TextLine.text(text, font, colour, kern: 0.01 * font.pointSize)
+        let string = TextLine.text(text, font, .black, kern: 0.01 * font.pointSize)
         let width = TextLine.width(string).rounded(.up) + 1, height = 12.0
         let line = TextLine(
             string, in: CGRect(x: (Self.size - width) / 2, y: (Self.size - height) / 2, width: width, height: height)
         )
 
         line.contentsScale = layer.contentsScale
-        letters?.removeFromSuperlayer()
-        layer.addSublayer(line)
-        letters = line
+        still { letters.mask = line }
     }
 
     private static func ringColour(_ kind: StripFrame.Mark.Look) -> CGColor? {

@@ -57,6 +57,24 @@ struct StripMarkLayerTests {
         #expect(Self.eases(from: Self.mark(), to: Self.mark(.working), "opacity") { $0.spinner.layer } == [0.24])
     }
 
+    /// A change of look eases the letters' colour over 240, as the ring's, their glyphs kept; new letters come at once.
+    @Test func itsLettersEaseTheirColourOver240AndKeepTheirGlyphs() throws {
+        let turn = Self.mark(.turn), away = Self.mark(.away)
+        let layer = StripMarkLayer()
+        layer.show(turn, at: .zero)
+        let glyphs = try #require(layer.letters.mask)
+
+        #expect(Self.eases(from: turn, to: away, "backgroundColor") { $0.letters } == [0.24])
+
+        layer.show(away, at: .zero)
+        #expect(layer.letters.mask === glyphs)
+        layer.show(StripFrame.Mark(
+            key: .session("a"), text: "Sw", look: .away, centre: .zero, scale: 1, alpha: 1, isLifted: false, lift: 0,
+            isJumping: false, wash: 0, flash: 0
+        ), at: .zero)
+        #expect(layer.letters.mask !== glyphs)
+    }
+
     @Test func itsFillPressesInAndLetsOutOver110() {
         let pressed = Self.eases(from: Self.mark(), to: Self.mark(jumping: true), "backgroundColor") { $0.ring }
         let letOut = Self.eases(from: Self.mark(jumping: true), to: Self.mark(), "backgroundColor") { $0.ring }

@@ -2985,11 +2985,10 @@ reaches a window only while that pane is on show).
         out. Its arc fades in over 60ms as the spin starts, as the
         prototype's `.mk.jumping .arc` does, so a quick answer still shows
         it, and out over the mark's 240, as it fades in over 240 for a mark
-        turning working. The ring and its glow ease over 240 and the pressed
-        fill over 110, each on its own, in black and in glass; the letters
-        ease over 240 in glass, and in black, set anew, change at once. The
-        caption is the panel's, over
-        the strip's screen, once the spin is over. As the panel's, none is
+        turning working. The ring, its glow and the letters' colour ease over
+        240 and the pressed fill over 110, each on its own, in black and in
+        glass. The caption is the panel's, over the strip's screen, once the
+        spin is over. As the panel's, none is
         taken while a jump runs, from
         anywhere; an answer to an earlier click changes nothing; and the
         session jumped to is the one the strip pressed in. A click is a
