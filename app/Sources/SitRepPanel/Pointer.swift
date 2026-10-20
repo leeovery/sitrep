@@ -30,7 +30,8 @@ func hitArea(w: Double, h: Double, cy: Double, live: Bool) -> CGRect {
     return CGRect(x: -into, y: cy - hh / 2, width: reach + into, height: hh)
 }
 
-/// The pointer's recent samples, on the view's clock, for its speed.
+/// The pointer's recent samples, on the view's clock, for its speed: each stamped when the pointer was read, never
+/// when a frame was, so no frame, the display link's a refresh ahead or one between, skews it.
 struct Trail {
     private var samples: [Sample] = []
 
@@ -45,7 +46,13 @@ struct Trail {
         }
     }
 
+    /// The pointer here, read at this time: a reading within 1ms of the last moves that one, as the prototype's
+    /// `trackPointer` has a repeated event do.
     mutating func add(_ p: Vec, at now: Double) {
+        if let last = samples.last, now - last.t < 1 {
+            samples[samples.count - 1] = Sample(p: p, t: last.t)
+            return
+        }
         samples.append(Sample(p: p, t: now))
         while samples.count > 2, now - samples[0].t > 150 {
             samples.removeFirst()

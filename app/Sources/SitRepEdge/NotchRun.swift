@@ -40,19 +40,32 @@ public final class NotchRun {
         }
     }
 
-    /// When an input comes: the time, the pointer on the stage, whether the notch shows, and what it runs in.
+    /// When an input comes: the time, the pointer on the stage and when it was read, whether the notch shows, and
+    /// what it runs in.
     public struct Moment: Sendable {
         public var time: Double
         public var pointer: CGPoint?
+        /// When the pointer was read, which its trail measures its speed by (`Input.pointerAt`); nil, `time`.
+        public var pointerAt: Double?
         public var isShown: Bool
         public var setting: Setting
 
-        public init(time: Double, pointer: CGPoint?, isShown: Bool = true, setting: Setting) {
+        public init(
+            time: Double, pointer: CGPoint?, pointerAt: Double? = nil, isShown: Bool = true, setting: Setting
+        ) {
             self.time = time
             self.pointer = pointer
+            self.pointerAt = pointerAt
             self.isShown = isShown
             self.setting = setting
         }
+    }
+
+    /// What frames showed that the drawing must show once, though it draws only some of them: the edge swapped, and
+    /// when the panel first drained.
+    public struct Shown: Equatable, Sendable {
+        public var swappedEdge = false
+        public var drained: Double?
     }
 
     /// What a press on the notch comes to.
@@ -69,8 +82,9 @@ public final class NotchRun {
         public let isAcross: Bool
     }
 
-    /// The model: every input to it comes through the run, and what is drawn from it is read here.
-    private var notch: any Notch
+    /// The model: every input to it comes through the run, and what is drawn from it is read here. Internal only for
+    /// the tests, which read the pointer's speed off it.
+    private(set) var notch: any Notch
     public private(set) var board = PanelBoard()
     /// The panel's list as the model and the drawing have it.
     public private(set) var list: PanelList
@@ -85,6 +99,10 @@ public final class NotchRun {
     public private(set) var scroll = 0.0
     /// A press off a row, which a move makes a drag, until it lets go.
     public private(set) var drag: NotchDrag?
+    /// What frames have shown since the drawing last took it.
+    private var shown = Shown()
+    /// The light's own clock, apart from the frames': the latest it was drawn at.
+    private var lit: Double
     private var rows = HeldRows()
     private var style: NotchStyle
     private var folds = Folds()
@@ -94,6 +112,7 @@ public final class NotchRun {
 
     public init(at time: Double, in setting: Setting) {
         self.time = time
+        lit = time
         style = setting.style
         list = PanelList(head: board.head, content: Content(laying: []))
 
@@ -125,10 +144,15 @@ public final class NotchRun {
 
         list.content = folds.content(at: time)
 
-        let input = Self.input(at: time, pointer: moment.pointer, needsLee: board.needsLee, list, setting)
+        var input = Self.input(at: time, pointer: moment.pointer, needsLee: board.needsLee, list, setting)
 
+        input.pointerAt = moment.pointerAt
         frame = notch.frame(input)
         seen = moment.pointer
+        shown.swappedEdge = shown.swappedEdge || frame.swapsEdge
+        if phase == .closing || phase == .closed {
+            shown.drained = shown.drained ?? time
+        }
         if rows.hold(notch.phase != .closed) {
             relist(at: time, in: setting)
         }
@@ -181,7 +205,7 @@ public final class NotchRun {
 
     /// The press moved to the pointer on a screen this wide: once it is a drag the panel closes and the notch lifts,
     /// and it follows the pointer along the edge. The drag as it now is.
-    public func drag(width: Double, _ moment: Moment) -> NotchDrag? {
+    public func moved(width: Double, _ moment: Moment) -> NotchDrag? {
         upToNow(moment)
         guard var drag, let point = moment.pointer else {
             return drag
@@ -208,8 +232,10 @@ public final class NotchRun {
             return nil
         }
 
+        let dropped = drag.dropped(settings, at: notch.notchY, height: height)
+
         notch.drop(across: drag.isAcross)
-        return Drop(settings: drag.dropped(settings, at: notch.notchY, height: height), isAcross: drag.isAcross)
+        return Drop(settings: dropped, isAcross: drag.isAcross)
     }
 
     /// The notch hidden mid-drag, its mouse-up perhaps never to come: the drag ends where it began, saving nothing.
@@ -253,10 +279,18 @@ public final class NotchRun {
         click == clicks
     }
 
-    /// The time the light draws at on its own link: its target, or the run's time if that is later, taken without
-    /// moving the run's clock, so the light's refresh, up to one of its own ahead, never stamps the model's frames.
+    /// The time the light draws at, from its own link's target or a frame's time: the latest of that, the run's time,
+    /// and the last it was drawn at, so it never steps back. It is the light's own clock, apart from the frames':
+    /// its refresh, up to one of its own ahead, never stamps the model's frames.
     public func lightTime(_ target: Double) -> Double {
-        max(time, target)
+        lit = max(lit, time, target)
+        return lit
+    }
+
+    /// What frames have shown since this was last asked, for the drawing to show once.
+    public func takeShown() -> Shown {
+        defer { shown = Shown() }
+        return shown
     }
 
     /// Whether a row still folds or fades in at this time.

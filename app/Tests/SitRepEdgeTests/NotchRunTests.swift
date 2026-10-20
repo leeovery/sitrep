@@ -1,8 +1,8 @@
 import CoreGraphics
 import Foundation
 @testable import SitRepCore
-import SitRepEdge
-import SitRepPanel
+@testable import SitRepEdge
+@testable import SitRepPanel
 import Testing
 
 /// The notch as the controller runs it, with no screen: a press goes to the row under it and reads the notch as it is
@@ -109,7 +109,7 @@ struct NotchRunTests {
 
         run.step(at(run.time + frameMS))
         #expect(run.press(at(run.time, notch), mayJump: true) == .carry)
-        _ = run.drag(width: width, at(run.time + frameMS, CGPoint(x: 1000, y: 491)))
+        _ = run.moved(width: width, at(run.time + frameMS, CGPoint(x: 1000, y: 491)))
         let dropped = run.release(EdgeSettings(), height: height, at(run.time + frameMS))
         #expect(dropped?.isAcross == true)
         return run
@@ -131,18 +131,141 @@ struct NotchRunTests {
         #expect(run.press(Self.at(run.time + 40, CGPoint(x: 2, y: 491)), mayJump: true) == .carry)
     }
 
-    @Test func aDragFollowsThePointerAlongTheEdgeAndLetGoAlongItStaysOnIt() {
-        let run = NotchRun(at: 1000, in: Self.setting)
+    /// Pressed on the notch and dragged 200 up the edge, the notch carried there.
+    private static func carried() -> NotchRun {
+        let run = NotchRun(at: 1000, in: setting)
 
-        run.step(Self.at(run.time + Self.frameMS))
-        _ = run.press(Self.at(run.time, CGPoint(x: 2, y: 491)), mayJump: true)
-        let carried = run.drag(width: Self.width, Self.at(run.time + Self.frameMS, CGPoint(x: 2, y: 291)))
+        run.step(at(run.time + frameMS))
+        _ = run.press(at(run.time, CGPoint(x: 2, y: 491)), mayJump: true)
+        _ = run.moved(width: width, at(run.time + frameMS, CGPoint(x: 2, y: 291)))
+        return run
+    }
+
+    @Test func theNotchFollowsTheDragOnItsSpringLiftedOverItsLift() {
+        let run = Self.carried()
+
+        #expect(run.drag?.isCarrying == true && run.drag?.isAcross == false)
+        Self.frames(run, for: 140, CGPoint(x: 2, y: 291))
+        #expect(run.frame.lift > 0.9)
+        #expect(run.frame.light.centre.y < 300)
+        Self.frames(run, for: 500, CGPoint(x: 2, y: 291))
+        #expect(abs(run.frame.light.centre.y - 291) < 0.5)
+
         let dropped = run.release(EdgeSettings(), height: Self.height, Self.at(run.time + Self.frameMS))
 
-        #expect(carried?.isCarrying == true && carried?.isAcross == false)
         #expect(dropped?.isAcross == false)
-        #expect(dropped.map { abs($0.settings.along - run.notchY / Self.height) < 1e-9 } == true)
+        #expect(dropped.map { abs($0.settings.along - 291 / Self.height) < 1e-9 } == true)
         #expect(run.drag == nil)
+    }
+
+    @Test func hiddenMidDragTheNotchEndsWhereItBegan() {
+        let run = Self.carried()
+
+        Self.frames(run, for: 300, CGPoint(x: 2, y: 291))
+        let ended = run.endDrag(NotchRun.Moment(time: run.time + 10, pointer: nil, isShown: false, setting: Self.setting))
+        Self.frames(run, for: 1000, nil)
+
+        #expect(ended && run.drag == nil)
+        #expect(abs(run.frame.light.centre.y - 491) < 0.5)
+        #expect(run.frame.lift < 1e-3)
+    }
+
+    /// Each input the run takes, made at a moment.
+    enum Taken: CaseIterable {
+        case board, press, moved, release, endDrag, clickElsewhere, jumpAnswered, scroll
+
+        func take(_ run: NotchRun, _ moment: NotchRun.Moment) {
+            switch self {
+            case .board: _ = run.show(PanelBoard(), moment)
+            case .press: _ = run.press(moment, mayJump: true)
+            case .moved: _ = run.moved(width: NotchRunTests.width, moment)
+            case .release: _ = run.release(EdgeSettings(), height: NotchRunTests.height, moment)
+            case .endDrag: _ = run.endDrag(moment)
+            case .clickElsewhere: run.clickElsewhere(moment)
+            case .jumpAnswered: run.jumpAnswered(moment)
+            case .scroll: run.scroll(by: 10, moment)
+            }
+        }
+    }
+
+    @Test(arguments: Taken.allCases)
+    func eachInputBringsTheNotchUpToItsMomentFirst(_ taken: Taken) {
+        let run = Self.carried(), there = CGPoint(x: 2, y: 400)
+
+        taken.take(run, Self.at(run.time + 30, there))
+
+        #expect(run.time == 1000 + 2 * Self.frameMS + 30)
+        #expect(run.seen == there)
+    }
+
+    /// A drag along the pointer's path and let go across, a frame a refresh, its moves as given each refresh: the light's
+    /// place at every frame, and the frame it swaps edges at.
+    private static func dragAcross(movesPerRefresh: Int) -> (places: [Double], swappedAt: Int?) {
+        let run = NotchRun(at: 1000, in: setting)
+        var places: [Double] = [], swappedAt: Int?
+
+        run.step(at(run.time + frameMS))
+        _ = run.press(at(run.time, CGPoint(x: 2, y: 491)), mayJump: true)
+        for k in 1 ... 60 {
+            let read = 1000 + Double(k) * frameMS
+            for move in 1 ... movesPerRefresh {
+                let t = read - frameMS + frameMS * Double(move) / Double(movesPerRefresh)
+                _ = run.moved(width: width, at(t, CGPoint(x: 2 + (t - 1000) * 1.2, y: 491 - (t - 1000) * 0.3)))
+            }
+            if k == 40 {
+                _ = run.release(EdgeSettings(), height: height, at(read))
+            }
+            run.step(at(read + frameMS, nil))
+            places.append(run.frame.light.centre.y)
+            if swappedAt == nil, run.frame.swapsEdge {
+                swappedAt = k
+            }
+        }
+        return (places, swappedAt)
+    }
+
+    @Test func movesBetweenTheFramesLeaveTheDragAndTheCrossingAsWithAMoveAFrame() {
+        let alone = Self.dragAcross(movesPerRefresh: 1), between = Self.dragAcross(movesPerRefresh: 8)
+
+        #expect(alone.swappedAt != nil)
+        #expect(between.swappedAt == alone.swappedAt)
+        #expect(zip(alone.places, between.places).allSatisfy { abs($0 - $1) < 1e-9 })
+    }
+
+    /// The pointer read along the edge at a steady speed, a frame a refresh, stamped a refresh ahead as the display
+    /// link's are, with inputs between them stamped as they come: the speed read on each input's frame.
+    private static func speeds(inputsPerRefresh: Int, from start: Int = 0) -> [Double] {
+        let run = NotchRun(at: 1000, in: setting), speed = 0.6
+        let point = { (t: Double) in CGPoint(x: 600, y: 200 + (t - 1000) * speed) }
+        var speeds: [Double] = []
+
+        for k in 1 ... 20 {
+            let read = 1000 + Double(k) * frameMS
+            run.step(NotchRun.Moment(time: read + frameMS, pointer: point(read), pointerAt: read, setting: setting))
+            // the inputs come at a phase of the refresh that varies, as events do
+            let phase = 0.15 + 0.7 * Double(k * 7 % 10) / 10
+            for i in 1 ... inputsPerRefresh {
+                let t = read + frameMS * phase * Double(i) / Double(inputsPerRefresh)
+                run.scroll(by: 0, NotchRun.Moment(time: t, pointer: point(t), pointerAt: t, setting: setting))
+                if k > start, let meniscus = run.notch as? Meniscus {
+                    speeds.append(meniscus.trailVelocity().y)
+                }
+            }
+        }
+        return speeds
+    }
+
+    @Test func theSpeedReadOnAnInputsFrameIsThePointersOwn() {
+        let speeds = Self.speeds(inputsPerRefresh: 1, from: 4)
+
+        #expect(!speeds.isEmpty)
+        #expect(speeds.allSatisfy { abs($0 - 0.6) < 1e-6 })
+    }
+
+    @Test func twoInputsInOneRefreshReadTheSpeedToo() {
+        let speeds = Self.speeds(inputsPerRefresh: 2)
+
+        #expect(speeds.dropFirst(2).allSatisfy { abs($0 - 0.6) < 1e-6 })
     }
 
     @Test func theClockNeverGoesBack() {
@@ -163,11 +286,36 @@ struct NotchRunTests {
 
         run.step(Self.at(2000))
 
-        #expect(run.lightTime(2030) == 2030)
         #expect(run.lightTime(1990) == 2000)
+        #expect(run.lightTime(2030) == 2030)
         #expect(run.time == 2000)
         run.step(Self.at(2016))
         #expect(run.time == 2016)
+    }
+
+    @Test func theLightNeverStepsBackThoughAFrameIsDrawnBehindItsOwnRefresh() {
+        let run = NotchRun(at: 1000, in: Self.setting)
+
+        run.step(Self.at(2000))
+        #expect(run.lightTime(2033) == 2033)
+
+        run.step(Self.at(2016))
+        #expect(run.lightTime(run.time) == 2033)
+        run.step(Self.at(2050))
+        #expect(run.lightTime(run.time) == 2050)
+    }
+
+    @Test func whatAFrameShowedWaitsForTheDrawingOnce() {
+        let run = Self.droppedAcross()
+
+        _ = run.takeShown()
+        Self.frames(run, for: 300, nil)
+
+        let shown = run.takeShown()
+
+        #expect(shown.swappedEdge)
+        #expect(shown.drained != nil)
+        #expect(run.takeShown() == NotchRun.Shown())
     }
 
     @Test func hiddenAnInputRunsTheNotchsTimeOnFirst() {

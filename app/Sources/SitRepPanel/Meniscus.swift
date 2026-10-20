@@ -159,7 +159,7 @@ public final class Meniscus: Notch {
                 answerAll()
             }
         }
-        pointerMoved(input.pointer.map { Vec(max(0, $0.x), $0.y) })
+        pointerMoved(input.pointer.map { Vec(max(0, $0.x), $0.y) }, at: input.pointerTime)
     }
 
     /// The screen changed: the notch's home moves with it, unless a drag has already taken it there.
