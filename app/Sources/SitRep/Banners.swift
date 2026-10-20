@@ -1,5 +1,6 @@
 import os
 import SitRepCore
+import SitRepMenu
 import UserNotifications
 
 /// macOS banners: silent, since each Claude window's own chime already
@@ -36,6 +37,24 @@ final class Banners: NSObject, UNUserNotificationCenterDelegate {
         } catch {
             logger.error("Banner not posted: \(error.localizedDescription, privacy: .public)")
         }
+    }
+
+    /// What macOS lets SitRep do with notifications, as its own settings say.
+    func leave() async -> NoticeLeave {
+        let settings = await center.notificationSettings()
+
+        return switch settings.authorizationStatus {
+        case .notDetermined: .unasked
+        case .denied: .denied
+        case .provisional, .ephemeral: .provisional
+        case .authorized: .allowed(settings.alertStyle.style)
+        @unknown default: .denied
+        }
+    }
+
+    /// Asks macOS for leave to show banners, unless Lee has answered already.
+    func ask() async {
+        _ = await isAllowed()
     }
 
     /// Whether banners may show; the first time, macOS asks Lee, for alerts alone: no sound, no badge.
@@ -77,6 +96,16 @@ final class Banners: NSObject, UNUserNotificationCenterDelegate {
         }
 
         await MainActor.run { onClick(work) }
+    }
+}
+
+private extension UNAlertStyle {
+    var style: NoticeLeave.Style {
+        switch self {
+        case .banner: .banners
+        case .alert: .alerts
+        default: .none
+        }
     }
 }
 

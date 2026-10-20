@@ -2637,8 +2637,10 @@ asked for the sessions back, and approved the redraw as it stands.
     you;
   - **Settings… ⌘,** (see "Settings"); **Check for Updates…**, with Sparkle, from the first public
     release; **Quit SitRep ⌘Q**.
-- **An away session** is disabled, with no window to jump to: its dot stays
-  orange and its words dim, as in the panel. **Past twelve rows** the list
+- **An away session** is disabled, with no window to jump to: its words
+  dim, and its dot with them, as macOS dims a disabled item's image and
+  AppKit has no switch for it, where the panel keeps the dot orange
+  (accepted, 20 October 2026). **Past twelve rows** the list
   ends with "4 more…", which opens the SitRep window.
 - **One lane on the left** holds the marks, the tick and an SF Symbol for
   each command, as macOS 26's own menus carry icons. The tick is drawn as
@@ -3400,6 +3402,110 @@ reaches a window only while that pane is on show).
       menu bar item"), the Settings window's three panes with Max as a
       slider, macOS notifications off by default with the switch to turn
       them on, and the icon.
+
+      Built on 20 October 2026, never run on the display: the menu's and
+      Settings' decisions in a part of their own with no AppKit or SwiftUI
+      (`SitRepMenu`), tested, and the views over it thin. Settings' panes were
+      drawn offscreen and read beside Paper's drawings; the menu cannot be,
+      so only its images were. What the build settled:
+      - **One feed.** The menu's sessions are the panel's, from the board
+        the edge reads (`PanelBoard`), in core's order with the panel's
+        marks and its hairline, the first twelve of them; its heading the
+        panel head's words, "4 need you · as of 12:04" while the board is
+        stale. `sitrep list` is no longer read by the menu, nor the listing
+        it kept.
+      - **The rows**, each a native item: its title the row's first line,
+        set as attributed text, its words in the menu's font and its subject
+        in the system's mono, a question's "+2" after; core's second line as
+        its subtitle; its time as its badge. A working row's words are in
+        the secondary label colour, its arc fainter than the other marks;
+        under the pointer the colour is taken off, through the menu
+        delegate's `willHighlight`, so the highlight's own ink shows. An away
+        row has no action, so macOS draws it disabled, dimming its dot with
+        its words, its title in the disabled ink. An item with an attributed
+        title shows no subtitle before macOS 15, so before it a row's title
+        is plain, and before 14.4, which has no subtitles, the second line
+        is its tooltip. The marks, the tick and the commands' symbols are
+        each the item's 16-point image, the state column turned off.
+      - **The header** is a view, not an item, so it never highlights: the
+        app icon at 30, the name in semibold, the version, made once.
+        "SitRep can't read the board" is an item with no action, its title
+        set in the label colour so macOS does not dim it, the reason its
+        subtitle, under the same rule for macOS before 15.
+      - **Needs /reload-plugins** lists each window `watch` marks
+        `needsReload`, the longest attached first, as "Project · Session",
+        a click jumping to its session; two windows on one session are two
+        items, though the jump reaches the session's.
+      - **The menu is patched in place** as each board comes and as it
+        opens, for Show changed in Settings: the menu as data, an entry to
+        an item, each keyed by what it is (a row by its key), and between
+        the menu as it shows and as it should, the items gone are taken
+        out, those come put in, and those kept set again only where they
+        changed (`MenuChanges`). So an open menu keeps the item under the
+        pointer, highlighted, however often the board moves. While it is
+        open the rows' times tick, each change setting the timer for the
+        rows then showing.
+      - **Open SitRep Window** and "N more…" open the SitRep window.
+      - **The glyph** is drawn from the icon drawing's SVG: at rest a
+        template; lit, its housing drawn in the ink of the bar it is drawn
+        on, light or dark, its bar orange. It lights from the board's
+        "needs you", kept while the board is stale.
+      - **What Lee sets** is kept in one place (`Preferences`): the edge's
+        settings, saved as one value as before, and beside them, under a
+        key of their own and as leniently read, whether a new ask notifies
+        (off) and the pane ⌘, opens. The menu's Show and every control in
+        Settings save and the edge takes the change at once; a drag's move
+        is saved there too, for Settings to show. Max's slider moves the
+        strip as it is dragged and is saved once, as the drag ends. Settings
+        closes on ⌘W and minimises on ⌘M, and its controls take Edit's
+        keys, through the app's main menu.
+      - **At the edge** takes Show's pictures as drawn, on the pane's own
+        ground: the chosen one ringed in the accent, its light breathing on
+        2.4 seconds, held still under reduced motion. Display lists the main
+        display first, then the others by name, then the one chosen where
+        it is neither (one not connected, or the one since made main), so
+        the choice always shows. Max's slider runs from "Short" to "Full".
+      - **Notifications.** A new ask is one of a line's `new` whose row is
+        an ask, so a window's new stop sends none. None is sent while the
+        switch is off, for a run's first line (the first run's among them,
+        `LastBoard.isRunsFirst`), nor for a board gone stale, whose `new` was
+        told as it came. A run's first line is its first whether or not it
+        reads, so after one that does not, the next that reads notifies as
+        usual, though it is still the run's first board, resumed, for the
+        window to read again in full. Several are sent in core's order.
+        Each names the ask's project and session from the
+        board's projects, so an away ask's says them too, where its second
+        line does not; its click jumps nowhere. Turning the switch on asks
+        macOS for leave, unless Lee answered before. The switch's line says
+        what tells Lee instead: the notch's swell, the strip's flash, or the
+        menu bar's light with Nothing. Send sends the board's first row a
+        window holds, which a click jumps to.
+      - **General.** The plugin's version is the CLI's, from the board; its
+        line says where it runs from (`~/Code/sitrep`, until SitRep installs
+        it at step 9), how many windows run it, and how many need
+        `/reload-plugins`, Show listing those; while the board is stale,
+        only that SitRep can't read it, and since when, with no tick and no
+        counts. Open at login is
+        `SMAppService`, moved from the menu, as is the test banner, now
+        Send. The leave to control Ghostty is read with
+        `AEDeterminePermissionToAutomateTarget`, never asking Lee; macOS
+        answers only while Ghostty runs. What macOS says is read again each
+        time the window comes forward.
+      - **The icon** is Icon Composer's format, `app/Icon/SitRep.icon`, its
+        three layers the desktop, the bezel and notch, and the light (its
+        halo clipped to the notch), from the drawing's SVG. `app/build`
+        compiles it with `xcrun actool` into the bundle's `Assets.car`,
+        which holds the icon's layers for the default, dark and tinted
+        appearances, so macOS makes the dark, clear and tinted icons from
+        them, and the `.icns` `actool` makes beside it for older lookups,
+        every size to 1024 by `--standalone-icon-behavior all` (by default
+        it stops at 256);
+        the Info.plist takes `actool`'s keys, `CFBundleIconName` and
+        `CFBundleIconFile`. `actool` exits 0 having compiled nothing, as for
+        an icon it cannot find, so `app/build` stops when there is no
+        `Assets.car`. It needs Xcode's first launch run once on the Mac
+        (`xcodebuild -runFirstLaunch`); until Lee ran it, on 20 October
+        2026, the app was to ship an `.icns` of the default look alone.
    8. **The SitRep window**, two PRs:
       - in the CLI, answering a yes or a choice, or ignoring any ask, into
         the session's inbox, which its window delivers, and finishing an

@@ -14,21 +14,30 @@ public struct LastBoard: Sendable, Equatable {
     /// views say "as of" it, not `board.at`: `watch` prints only on a change,
     /// so the last line may be hours older.
     public private(set) var staleSince: Date?
-    /// The board is a run's first after another run: its `new` and
-    /// `changed` are empty, as on every run's first line, though the board
-    /// may have moved between the runs, so a view reads what it shows again
-    /// in full. True only as the board comes.
+    /// The line just heard is its run's first, the first run's among them,
+    /// whether or not it read: a run's first line has no `new` and no
+    /// `changed`, and what it shows counts as shown, so only a later line's
+    /// `new` is news. True only as the line comes.
+    public private(set) var isRunsFirst = false
+    /// The board is the first a run after another read: the board may have
+    /// moved while `watch` was down, with nothing new or changed said of
+    /// it, so a view reads what it shows again in full. True only as the
+    /// board comes.
     public private(set) var isResumed = false
 
     private var runs = 0
-    private var isRunsFirst = false
+    /// A run has started and nothing it printed has been heard yet.
+    private var awaitsRunsFirst = false
+    /// A run after another has started and none of its lines has read yet.
+    private var awaitsResumed = false
 
     public init() {}
 
     /// A run of `watch` starts.
     mutating func begin() {
         runs += 1
-        isRunsFirst = true
+        awaitsRunsFirst = true
+        awaitsResumed = runs > 1
     }
 
     /// Takes what a run of `watch` said, heard at the instant given; whether
@@ -36,10 +45,13 @@ public struct LastBoard: Sendable, Equatable {
     mutating func hear(_ heard: Heard, at instant: Date) -> Bool {
         let was = self
 
+        isRunsFirst = false
         isResumed = false
 
         switch heard {
         case let .line(line):
+            isRunsFirst = awaitsRunsFirst
+            awaitsRunsFirst = false
             read(line, at: instant)
         case let .exited(exit, stderr):
             goStale(.exited(exit, said: Said(stderr).reason), at: instant)
@@ -58,8 +70,8 @@ public struct LastBoard: Sendable, Equatable {
             board = try Board.read(line)
             stale = nil
             staleSince = nil
-            isResumed = isRunsFirst && runs > 1
-            isRunsFirst = false
+            isResumed = awaitsResumed
+            awaitsResumed = false
         } catch {
             Logger.watch.error("sitrep watch \(error, privacy: .public): \(line.prefix(200), privacy: .public)")
             goStale(.unread(error), at: instant)
