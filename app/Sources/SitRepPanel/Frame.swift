@@ -118,6 +118,14 @@ public struct Frame {
         outline.contains(point) || inRect(Vec(point.x, point.y), hitRect)
     }
 
+    /// How far out the black is, from 0 at the notch at rest to 1 with the panel's full depth out: its reach into the
+    /// screen past the notch's, over the panel's.
+    public var openness: Double {
+        let rest = NotchShape.rest.w
+
+        return clamp((outline.boundingBoxOfPath.maxX - rest) / (Tuning.panelDepth - rest), 0, 1)
+    }
+
     /// Whether a move of the pointer, from where this frame saw it to here, should start frames again, once they have
     /// stopped with nothing moving: a pointer resting anywhere, by the notch or on the open panel, changes nothing
     /// until it moves. While the panel is out, every move wakes them, since only the model can tell that the pointer

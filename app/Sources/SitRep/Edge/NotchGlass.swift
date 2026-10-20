@@ -19,7 +19,7 @@ final class NotchGlassView: NSView, NotchDrawing {
         super.init(frame: .zero)
 
         let host = NSHostingView(rootView: NotchGlass(scene: scene))
-        let lit = NSView(frame: bounds), root = CALayer()
+        let lit = StageHost(frame: bounds), root = CALayer()
 
         host.sizingOptions = []
         for view in [host, lit] {
@@ -27,7 +27,6 @@ final class NotchGlassView: NSView, NotchDrawing {
             view.autoresizingMask = [.width, .height]
             addSubview(view)
         }
-        root.isGeometryFlipped = true
         stage.addSublayer(light)
         root.addSublayer(stage)
         lit.layer = root
@@ -86,6 +85,14 @@ final class NotchGlassView: NSView, NotchDrawing {
     }
 }
 
+/// The light's layers in the stage's coordinates, y down, as the black's. AppKit sets a hosted layer's flip from its
+/// view's, whatever the layer says: an unflipped view here, in its flipped superview, turned the light upside down in
+/// the window, away from the glass notch it belongs in.
+@MainActor
+private final class StageHost: NSView {
+    override var isFlipped: Bool { true }
+}
+
 /// What the glass draws, as last told.
 @available(macOS 26, *)
 @MainActor
@@ -106,12 +113,12 @@ private struct NotchGlass: View {
 
     var body: some View {
         if let shown = scene.frame {
-            let frame = shown.frame
+            let frame = shown.frame, mark = NotchGlassMark(frame)
             ZStack(alignment: .topLeading) {
                 if let fading = frame.fading {
-                    glass(fading.outline, shown.mirror).opacity(fading.alpha)
+                    glass(fading.outline, shown.mirror, mark).opacity(fading.alpha)
                 }
-                glass(frame.outline, shown.mirror).opacity(frame.outlineAlpha)
+                glass(frame.outline, shown.mirror, mark).opacity(frame.outlineAlpha)
                     .shadow(
                         color: .black.opacity(0.4 * frame.lift), radius: EdgeStyle.liftBlur * frame.lift,
                         y: 4 * frame.lift
@@ -126,12 +133,40 @@ private struct NotchGlass: View {
         }
     }
 
-    /// Thick glass in an outline: the notch at rest is narrow enough to be thin, and would switch as the panel pours.
-    private func glass(_ outline: CGPath, _ mirror: CGAffineTransform) -> some View {
+    /// Thick glass in an outline, as marked: the notch at rest is narrow enough to be thin, and would switch as the
+    /// panel pours. The rim is stroked twice its width on the outline and clipped to it, so it lies inside the edge.
+    private func glass(_ outline: CGPath, _ mirror: CGAffineTransform, _ mark: NotchGlassMark) -> some View {
         var mirror = mirror
-        let drawn = outline.copy(using: &mirror) ?? outline
+        let drawn = Path(outline.copy(using: &mirror) ?? outline)
+        let glass = Glass.regular.tint(mark.tint > 0 ? .black.opacity(mark.tint) : nil)
 
-        return Color.clear.glassEffect(.regular, in: Outline(path: GlassThickness.thick(drawn, width: ScreenEdge.depth)))
+        return Color.clear
+            .glassEffect(glass, in: Outline(path: GlassThickness.thick(drawn.cgPath, width: ScreenEdge.depth)))
+            .overlay(alignment: .topLeading) {
+                Outline(path: drawn)
+                    .stroke(.white.opacity(mark.rim), lineWidth: 2 * NotchGlassMark.rimWidth)
+                    .clipShape(Outline(path: drawn))
+            }
+    }
+}
+
+/// How the glass marks the notch, which the black marks by its own dark: the glass tinted dark, with a light rim
+/// inside its edge, in full at the notch and easing off as the panel comes out, to the plain glass of the panel open.
+struct NotchGlassMark {
+    /// The black's opacity in the glass's tint.
+    let tint: Double
+    /// The rim's opacity.
+    let rim: Double
+
+    static let notchTint = 0.5
+    static let notchRim = 0.22
+    static let rimWidth = 1.0
+
+    init(_ frame: Frame) {
+        let notch = 1 - frame.openness
+
+        tint = Self.notchTint * notch
+        rim = Self.notchRim * notch
     }
 }
 
