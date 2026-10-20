@@ -86,8 +86,7 @@ struct CardView: View {
 
     /// Its title in this colour, after its session's name where it is a project's.
     private func titled(_ colour: Color) -> Text {
-        (session.map { Text("\($0): ").foregroundStyle(WindowStyle.soft) } ?? Text(""))
-            + Text(card.title).foregroundStyle(colour)
+        Text(card.title).foregroundStyle(colour).led(by: session)
     }
 
     @ViewBuilder private var details: some View {
@@ -219,7 +218,7 @@ private struct CardLine: View {
                 Text(words).font(WindowStyle.ui(12)).foregroundStyle(isFaint ? WindowStyle.faint : WindowStyle.soft)
             }
             if case let .waiting(pending) = line {
-                Draining(left: 1 - pending.waited(at: now))
+                Framed(now: now, isMoving: true) { now in Draining(left: 1 - pending.waited(at: now)) }
             }
         }
         .padding(.leading, 22)

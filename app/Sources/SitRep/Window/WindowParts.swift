@@ -82,7 +82,7 @@ struct Pill: View {
                 .frame(maxWidth: fills ? .infinity : nil, alignment: .leading)
         }
         .buttonStyle(PillStyle(look: look))
-        .focusMark(RoundedRectangle(cornerRadius: Self.radius, style: .continuous), inset: -2)
+        .contentShape(.focusEffect, RoundedRectangle(cornerRadius: Self.radius, style: .continuous))
     }
 
     static let radius: CGFloat = 13
@@ -164,39 +164,14 @@ struct SectionHeading: View {
     }
 }
 
-/// A line of a section: its bullet in a lane, its words on one line, naming its session where it is a project's, and
-/// its time on the right.
-struct SectionLine: View {
-    let bullet: String
-    var bulletColour = WindowStyle.soft
-    var session: String?
-    let text: String
-    var textColour = WindowStyle.text
-    var time: String?
-    /// Opened in place: its words whole, wrapping.
-    var isOpen = false
-
-    var body: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 10) {
-            Text(bullet)
-                .font(WindowStyle.ui(bullet == "•" || bullet == "◦" ? 13 : 12))
-                .foregroundStyle(bulletColour)
-                .frame(width: 12)
-            HStack(alignment: .firstTextBaseline, spacing: 5) {
-                if let session {
-                    Text("\(session):").foregroundStyle(WindowStyle.soft).layoutPriority(1)
-                }
-                Text(text).foregroundStyle(textColour)
-            }
-            .font(WindowStyle.ui(13))
-            .lineLimit(isOpen ? nil : 1)
-            .fixedSize(horizontal: false, vertical: isOpen)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            if let time {
-                Text(time).font(WindowStyle.ui(12)).foregroundStyle(WindowStyle.faint)
-            }
+extension Text {
+    /// These words after their session's name, where there is one: quieter, and in the words' own flow, so a line
+    /// that wraps comes back to the words' edge, never to a column of the name's.
+    func led(by session: String?) -> Text {
+        guard let session else {
+            return self
         }
-        .padding(.vertical, 4)
+        return Text("\(Text("\(session):").foregroundStyle(WindowStyle.soft)) \(self)")
     }
 }
 
@@ -207,13 +182,45 @@ struct Washed: ViewModifier {
     let radius: CGFloat
 
     func body(content: Content) -> some View {
-        let amount = since.map { Wash.amount(since: now.timeIntervalSince($0) * 1000) } ?? 0
+        content.background { WashFill(since: since, now: now, radius: radius) }
+    }
+}
 
-        content.background {
+/// The wash itself, fading by the frame while it lasts.
+struct WashFill: View {
+    let since: Date?
+    let now: Date
+    let radius: CGFloat
+
+    var body: some View {
+        Framed(now: now, isMoving: amount(at: now) > 0) { now in
             RoundedRectangle(cornerRadius: radius)
                 .fill(WindowStyle.wash)
                 .overlay(RoundedRectangle(cornerRadius: radius).strokeBorder(WindowStyle.washRing, lineWidth: 1))
-                .opacity(amount)
+                .opacity(amount(at: now))
+        }
+    }
+
+    private func amount(at time: Date) -> Double {
+        since.map { Wash.amount(since: time.timeIntervalSince($0) * 1000) } ?? 0
+    }
+}
+
+/// What moves by the frame, drawn at each frame's time while it moves, and at the model's time, `now`, while it stands
+/// or is drawn as a still. Only what moves is drawn again each frame, never the list or the page around it. Its
+/// content changes identity as `isMoving` flips, so nothing with state of its own belongs inside it.
+struct Framed<Content: View>: View {
+    let now: Date
+    let isMoving: Bool
+    @ViewBuilder let content: (Date) -> Content
+
+    @Environment(\.isStill) private var isStill
+
+    var body: some View {
+        if isMoving, !isStill {
+            TimelineView(.animation) { frame in content(max(frame.date, now)) }
+        } else {
+            content(now)
         }
     }
 }
@@ -231,6 +238,10 @@ struct Scrolling<Content: View>: View {
                 .fixedSize(horizontal: false, vertical: true)
                 .frame(minHeight: 0, maxHeight: .infinity, alignment: .top)
                 .clipped()
+        } else if #available(macOS 26, *) {
+            // The page draws its own top row under the window's toolbar, beside the traffic lights, which the
+            // toolbar's soft edge would blur.
+            ScrollView { content }.scrollIndicators(.never).scrollEdgeEffectHidden(true, for: .top)
         } else {
             ScrollView { content }.scrollIndicators(.never)
         }

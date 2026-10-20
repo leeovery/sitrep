@@ -3,7 +3,7 @@ import SwiftUI
 
 /// A project, opened from its name: its sessions, each with what it is doing and what waits there; every session's
 /// asks, the newest first, each one line that a press opens in place into its card; their notes and their parked
-/// items in two columns. Each line names its session.
+/// items in two columns. Each line names its session, where the project has several.
 struct ProjectPageView: View {
     let page: ProjectPage
     let now: Date
@@ -75,13 +75,12 @@ struct ProjectPageView: View {
                             } else {
                                 MarkView(mark: .needs)
                             }
-                            HStack(spacing: 5) {
-                                Text("\(ask.session):").foregroundStyle(WindowStyle.soft)
-                                Text(ask.card.title).foregroundStyle(ask.card.isClosed ? WindowStyle.faint : WindowStyle.text)
-                            }
-                            .font(WindowStyle.ui(13))
-                            .lineLimit(1)
-                            .frame(maxWidth: .infinity, alignment: .leading)
+                            Text(ask.card.title)
+                                .foregroundStyle(ask.card.isClosed ? WindowStyle.faint : WindowStyle.text)
+                                .led(by: ask.session)
+                                .font(WindowStyle.ui(13))
+                                .lineLimit(1)
+                                .frame(maxWidth: .infinity, alignment: .leading)
                             Text(Words.age(ask.card.since, at: now)).font(WindowStyle.ui(12)).foregroundStyle(WindowStyle.faint)
                         }
                         .padding(.vertical, 4)

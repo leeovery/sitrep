@@ -15,8 +15,6 @@ final class WindowModel {
     private(set) var pick: Pick?
     /// The clock the pages are drawn at: ages, washes and an answer's wait.
     private(set) var now = Date()
-    /// A wash or an answer's wait is under way: the views draw every frame until it ends.
-    private(set) var isMoving = false
     /// SitRep's own Reduce motion, or the Mac's, followed as either changes.
     private(set) var reducesMotion = WindowModel.readReducesMotion()
     /// The window's jump under way, which only the button pressed shows.
@@ -42,6 +40,7 @@ final class WindowModel {
         run = WindowRun(lastSession: defaults.string(forKey: Self.lastSessionKey))
         actions = WindowActions(
             pick: { [weak self] in self?.pick($0) },
+            pickInList: { [weak self] in self?.pickInList($0) },
             press: { [weak self] in self?.press($0, on: $1) },
             toggle: { [weak self] in self?.toggle($0) },
             toggleItem: { [weak self] in self?.toggle($0) },
@@ -116,7 +115,16 @@ final class WindowModel {
     }
 
     private func pick(_ pick: Pick) {
-        read(run.pick(pick))
+        picked(run.pick(pick))
+    }
+
+    private func pickInList(_ pick: Pick) {
+        picked(run.pickInList(pick, at: Date()))
+    }
+
+    /// A pick's reads run, and the session picked kept as the one the window opens on.
+    private func picked(_ reads: [Read]) {
+        read(reads)
         defaults.set(run.lastSession, forKey: Self.lastSessionKey)
         refresh()
     }
@@ -209,12 +217,12 @@ final class WindowModel {
         let time = Date()
 
         run.settle(at: time)
+        read(run.settledReads(at: time))
         send()
         now = time
         listed = run.listed(at: time)
         page = run.page(at: time)
         pick = run.pick
-        isMoving = run.isMoving(at: time)
         schedule(after: time)
     }
 

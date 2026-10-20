@@ -28,8 +28,8 @@ struct StatusSection: View {
     }
 }
 
-/// What happened: the log's latest lines, the newest first, each naming its session in a project's view, and opening
-/// in place to the whole of it and its detail.
+/// What happened: the log's latest lines, the newest first, each led by its session's name in a project's view, and
+/// opening in place to the whole of it and its detail.
 struct NotesSection: View {
     let notes: [Note]
     let opened: Set<Item>
@@ -39,11 +39,11 @@ struct NotesSection: View {
         VStack(alignment: .leading, spacing: 0) {
             SectionHeading(name: "Notes", note: "what happened").padding(.bottom, 8)
             ForEach(notes) { note in
-                Opening(item: .note(note.id), opened: opened, hasMore: !note.detail.isEmpty) { isOpen in
-                    SectionLine(bullet: "•", session: note.session, text: note.text, time: Words.age(note.at, at: now), isOpen: isOpen)
-                } detail: {
-                    ForEach(Array(note.detail.enumerated()), id: \.offset) { _, line in
-                        OpenedLine(words: line)
+                Opening(item: .note(note.id), opened: opened, hasMore: note.hasMore) { isOpen in
+                    SectionLine(bullet: "•", lead: note.session, text: note.text, time: Words.age(note.at, at: now), isOpen: isOpen) {
+                        ForEach(Array(note.detail.enumerated()), id: \.offset) { _, line in
+                            Text(line)
+                        }
                     }
                 }
             }
@@ -62,11 +62,11 @@ struct ParkedSection: View {
         VStack(alignment: .leading, spacing: 0) {
             SectionHeading(name: "Parked", note: Words.parked(parked.count)).padding(.bottom, 8)
             ForEach(parked) { item in
-                Opening(item: .parked(item.id), opened: opened, hasMore: item.where != nil) { isOpen in
-                    SectionLine(bullet: "◇", session: item.session, text: item.title, time: Words.age(item.at, at: now), isOpen: isOpen)
-                } detail: {
-                    if let place = item.where {
-                        OpenedLine(words: place)
+                Opening(item: .parked(item.id), opened: opened, hasMore: item.hasMore) { isOpen in
+                    SectionLine(bullet: "◇", lead: item.session, text: item.title, time: Words.age(item.at, at: now), isOpen: isOpen) {
+                        if let place = item.where {
+                            Text(place)
+                        }
                     }
                 }
             }
@@ -89,37 +89,52 @@ struct ResolvedSection: View {
         VStack(alignment: .leading, spacing: 0) {
             SectionHeading(name: "Resolved", note: Words.resolved(resolved.count)).padding(.bottom, 8)
             ForEach(showsAll ? resolved : Array(resolved.prefix(Self.shown))) { ask in
-                Opening(item: .resolved(ask.id), opened: opened, hasMore: true) { isOpen in
-                    SectionLine(bullet: "✓", text: ask.title, time: Words.age(ask.closed, at: now), isOpen: isOpen)
-                } detail: {
-                    let (answer, words) = Words.howClosed(ask)
-
-                    OpenedLine(answer: answer, words: words)
+                Opening(item: .resolved(ask.id), opened: opened, hasMore: ask.hasMore) { isOpen in
+                    SectionLine(bullet: "✓", text: ask.title, time: Words.age(ask.closed, at: now), isOpen: isOpen) {
+                        HowClosed(ask: ask)
+                    }
                 }
             }
             if resolved.count > Self.shown {
                 Button(showsAll ? "show fewer" : "show all \(resolved.count)") { showsAll.toggle() }
                     .wordsButton(WindowStyle.faint, hover: WindowStyle.soft)
                     .font(WindowStyle.ui(12))
-                    .padding(.leading, 22)
+                    .padding(.leading, WindowStyle.wordsEdge)
                     .padding(.top, 6)
             }
         }
     }
 }
 
-/// An item of a section with more to show than its line, as a button highlighted under the pointer: a press opens
-/// it in place, its line whole and its detail under it, and a second closes it. One with no detail is a button only
-/// while its line is cut short; whole, it is the line alone, which opens to nothing and takes no keyboard stop. Its
-/// highlight reaches past the column's edges, so the line keeps its place beside the heading.
-private struct Opening<Line: View, Detail: View>: View {
+/// How an ask closed, under it opened: Lee's answer, bright, leading the words in their flow.
+private struct HowClosed: View {
+    let ask: Resolved
+
+    var body: some View {
+        let (answer, words) = Words.howClosed(ask)
+
+        if let answer {
+            Text("\(Text(answer).fontWeight(.semibold).foregroundStyle(WindowStyle.text)) \(words)")
+        } else {
+            Text(words)
+        }
+    }
+}
+
+/// An item of a section with more to show than its line, as a button whose highlight under the pointer says it
+/// opens: a press opens it in place, its line whole and its detail under it, and a second closes it, the press's
+/// change on the window's spring, so the lines below move with it; still, under reduced motion. Opened, it shows
+/// nothing behind it. One with no detail is a button only while its line is cut short; whole, it is the line alone,
+/// which opens to nothing and takes no keyboard stop. Its highlight reaches past the column's edges, so the line keeps
+/// its place beside the heading.
+private struct Opening<Line: View>: View {
     let item: Item
     let opened: Set<Item>
     var hasMore = false
     @ViewBuilder let line: (Bool) -> Line
-    @ViewBuilder var detail: () -> Detail
 
     @Environment(\.windowActions) private var act
+    @Environment(\.reducesWindowMotion) private var reducesMotion
 
     var body: some View {
         if hasMore {
@@ -135,41 +150,68 @@ private struct Opening<Line: View, Detail: View>: View {
     private var button: some View {
         let isOpen = opened.contains(item)
 
-        return Button { act.toggleItem(item) } label: {
-            VStack(alignment: .leading, spacing: 2) {
-                line(isOpen)
-                if isOpen {
-                    VStack(alignment: .leading, spacing: 4) { detail() }.padding(.leading, 22)
-                }
-            }
-            .padding(.horizontal, WindowStyle.reach)
-            .contentShape(Rectangle())
+        return Button {
+            withAnimation(reducesMotion ? nil : WindowStyle.spring) { act.toggleItem(item) }
+        } label: {
+            line(isOpen)
+                .padding(.horizontal, WindowStyle.reach)
+                .contentShape(Rectangle())
         }
-        .rowButton(radius: 6)
+        .rowButton(radius: 6, highlights: !isOpen)
         .padding(.horizontal, -WindowStyle.reach)
     }
 }
 
-extension Opening where Detail == EmptyView {
-    init(item: Item, opened: Set<Item>, @ViewBuilder line: @escaping (Bool) -> Line) {
-        self.init(item: item, opened: opened, line: line) { EmptyView() }
+/// A line of a section, on the one grid every line of Status, Notes, Parked and Resolved keeps, opened or closed: its
+/// bullet in a lane, then its words, then its time on the first line. Its session's name, where it is a project's,
+/// leads its words, quieter, in their own flow, so a line that wraps comes back to the words' edge. Opened, its words
+/// wrap whole, and its detail sits close under them from the same edge, a size smaller, in the secondary colour.
+struct SectionLine<Detail: View>: View {
+    let bullet: String
+    var bulletColour = WindowStyle.soft
+    var lead: String?
+    let text: String
+    var textColour = WindowStyle.text
+    var time: String?
+    var isOpen = false
+    @ViewBuilder var detail: () -> Detail
+
+    var body: some View {
+        HStack(alignment: .firstTextBaseline, spacing: WindowStyle.wordsEdge - WindowStyle.lane.width) {
+            Text(bullet)
+                .font(WindowStyle.ui(bullet == "•" || bullet == "◦" ? 13 : 12))
+                .foregroundStyle(bulletColour)
+                .frame(width: WindowStyle.lane.width)
+            VStack(alignment: .leading, spacing: 3) {
+                Text(text).foregroundStyle(textColour).led(by: lead)
+                    .font(WindowStyle.ui(13))
+                    .lineLimit(isOpen ? nil : 1)
+                    .fixedSize(horizontal: false, vertical: isOpen)
+                if isOpen {
+                    VStack(alignment: .leading, spacing: 2) { detail() }
+                        .font(WindowStyle.ui(12))
+                        .foregroundStyle(WindowStyle.soft)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .transition(.opacity)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            if let time {
+                Text(time).font(WindowStyle.ui(12)).foregroundStyle(WindowStyle.faint)
+            }
+        }
+        .padding(.vertical, 4)
     }
 }
 
-/// A line under an item opened: an answer, bright, then the words, wrapping.
-private struct OpenedLine: View {
-    var answer: String?
-    let words: String
-
-    var body: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 8) {
-            if let answer {
-                Text(answer).font(WindowStyle.ui(12, .semibold)).foregroundStyle(WindowStyle.text)
-            }
-            Text(words)
-                .font(WindowStyle.ui(12))
-                .foregroundStyle(WindowStyle.soft)
-                .fixedSize(horizontal: false, vertical: true)
-        }
+extension SectionLine where Detail == EmptyView {
+    init(
+        bullet: String, bulletColour: Color = WindowStyle.soft, lead: String? = nil, text: String,
+        textColour: Color = WindowStyle.text, time: String? = nil, isOpen: Bool = false
+    ) {
+        self.init(
+            bullet: bullet, bulletColour: bulletColour, lead: lead, text: text, textColour: textColour, time: time,
+            isOpen: isOpen
+        ) { EmptyView() }
     }
 }

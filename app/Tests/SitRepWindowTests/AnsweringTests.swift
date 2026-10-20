@@ -402,13 +402,32 @@ struct ProjectPageTests {
         #expect(page.sessions.map(\.mark) == [.needs, .turn])
     }
 
-    @Test func itsAsksComeTheNewestFirstEachNamingItsSessionClosedUntilOpened() throws {
+    @Test func itsAsksComeTheNewestFirstClosedUntilOpened() throws {
         let page = try Self.page()
 
         #expect(page.asks.map(\.card.id.ask) == ["k1", "k3", "k2"])
-        #expect(page.asks.map(\.session) == ["The Mac app", "The Mac app", "The Mac app"])
         #expect(page.asks.map(\.isOpened) == [false, false, false])
         #expect(page.asksWaiting == 3)
+    }
+
+    @Test func inAProjectOfSeveralSessionsEachLineNamesItsSession() throws {
+        let run = opened()
+
+        answer(run.pick(.project("switchboard")), in: run, with: ["sr-dash02": Lines.dashboard, "sr-rq7dgr": Lines.ledger])
+
+        let page = try #require(run.page(at: printedAt).project)
+
+        #expect(page.asks.map(\.session) == ["Dashboard redesign"])
+        #expect(page.notes.map(\.session) == ["Request ledger", "Dashboard redesign"])
+    }
+
+    /// The one session's name could only name that session.
+    @Test func inAProjectOfOneSessionNoLineNamesIt() throws {
+        let page = try Self.page()
+
+        #expect(page.asks.map(\.session) == [nil, nil, nil])
+        #expect(page.notes.map(\.session) == [nil, nil, nil])
+        #expect(page.parked.map(\.session) == [nil])
     }
 
     @Test func anAskOpensInPlaceIntoItsCardAndClosesAgain() throws {
@@ -435,12 +454,10 @@ struct ProjectPageTests {
         #expect(asks.first?.card.isClosed == true)
     }
 
-    @Test func itsNotesComeTheNewestFirstAndItsParkedTheOldestEachNamingItsSession() throws {
+    @Test func itsNotesComeTheNewestFirstAndItsParkedTheOldest() throws {
         let page = try Self.page()
 
         #expect(page.notes.map(\.text).first == "The strip written into DESIGN.md")
-        #expect(page.notes.map(\.session) == ["The Mac app", "The Mac app", "The Mac app"])
         #expect(page.parked.map(\.title) == ["Try a shy notch"])
-        #expect(page.parked.map(\.session) == ["The Mac app"])
     }
 }

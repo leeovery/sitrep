@@ -1,9 +1,12 @@
 import SitRepWindow
 import SwiftUI
 
-/// The board down the left: the head, every project with something open and its sessions under it, and the quiet
-/// projects folded into a line at the foot. A press on a session picks it; on a project's name, its own or a quiet
-/// one's, opens the project. Every row highlights under the pointer, and the one picked stays highlighted.
+/// The board down the left, in the system's sidebar: the head, then every project with something open and its
+/// sessions under it, and the quiet projects at the foot. Its rows are a list whose selection is the session or
+/// project picked, drawn by the system, which the pointer and the arrow keys move alike, and which never empties; a
+/// project's name, its own or a quiet one's, opens the project. A row under the pointer that is not the one picked
+/// shows a quiet fill behind it. The head stays put while the rows scroll, and the row picked is scrolled into view
+/// whenever the pick or the order changes: a pick made elsewhere, by a jump, a notification or the menu, or a resort.
 struct BoardColumn: View {
     let listed: Listed
     let pick: Pick?
@@ -11,25 +14,99 @@ struct BoardColumn: View {
 
     @Environment(\.windowActions) private var act
     @Environment(\.reducesWindowMotion) private var reducesMotion
+    @Environment(\.isStill) private var isStill
+    /// The row picked as the list holds it: the pick, put back whenever the list lets go of it, as a click in its
+    /// blank space or on the row picked does, so its selection never empties while something is picked.
+    @State private var selection: Pick?
 
     var body: some View {
+        if isStill {
+            standIn
+        } else {
+            VStack(alignment: .leading, spacing: 0) {
+                head
+                list
+            }
+        }
+    }
+
+    private var list: some View {
+        ScrollViewReader { scroller in
+            List(selection: $selection) { rows }
+                .listStyle(.sidebar)
+                .animation(reducesMotion ? nil : .easeInOut(duration: 0.25), value: listed.sessions.map(\.id))
+                .onHover { act.pointer($0) }
+                .onChange(of: selection) { _, selected in
+                    guard let selected else {
+                        selection = pick
+                        return
+                    }
+                    if selected != pick {
+                        act.pickInList(selected)
+                    }
+                }
+                .onChange(of: pick, initial: true) { _, pick in
+                    selection = pick
+                    reveal(pick, in: scroller)
+                }
+                .onChange(of: order) { reveal(pick, in: scroller) }
+        }
+    }
+
+    /// The rows in the order they show, which moves the row picked when the list resorts.
+    private var order: [String] {
+        listed.projects.flatMap { [$0.id] + $0.sessions.map(\.id) } + listed.quiet.map(\.id)
+    }
+
+    /// The row picked scrolled into view, only as far as it needs.
+    private func reveal(_ pick: Pick?, in scroller: ScrollViewProxy) {
+        if let pick {
+            scroller.scrollTo(pick)
+        }
+    }
+
+    @ViewBuilder private var rows: some View {
+        ForEach(listed.projects) { project in
+            Section {
+                ProjectRows(project: project, pick: pick, now: now)
+            }
+        }
+        if !listed.quiet.isEmpty {
+            Section {
+                QuietRows(quiet: listed.quiet, pick: pick, now: now)
+            } header: {
+                QuietHeading(count: listed.quiet.count)
+            }
+            .collapsible(false)
+        }
+    }
+
+    /// A stand-in for the sidebar, drawn as a still: an image renderer draws no list, nor the sidebar it sits in. Below
+    /// the bar the traffic lights sit in, its head and its rows are laid out as the system's list sets them, its
+    /// picked row on a stand-in for the selection, all on the panel's black with a hairline beside it.
+    private var standIn: some View {
         VStack(alignment: .leading, spacing: 0) {
             Color.clear.frame(height: WindowStyle.barHeight)
             head
-            Scrolling {
-                VStack(alignment: .leading, spacing: 14) {
-                    ForEach(listed.projects) { project in
+            VStack(alignment: .leading, spacing: WindowStyle.sectionGap) {
+                ForEach(listed.projects) { project in
+                    VStack(alignment: .leading, spacing: 0) {
                         ProjectRows(project: project, pick: pick, now: now)
                     }
                 }
-                .animation(reducesMotion ? nil : .easeInOut(duration: 0.25), value: listed.sessions.map(\.id))
+                if !listed.quiet.isEmpty {
+                    VStack(alignment: .leading, spacing: 0) {
+                        QuietHeading(count: listed.quiet.count)
+                            .padding(.horizontal, WindowStyle.rowInset)
+                            .padding(.bottom, 4)
+                        QuietRows(quiet: listed.quiet, pick: pick, now: now)
+                    }
+                }
             }
-            .onHover { act.pointer($0) }
-            if !listed.quiet.isEmpty {
-                QuietFoot(quiet: listed.quiet, pick: pick)
-            }
+            Spacer(minLength: 0)
         }
-        .padding(.horizontal, 10)
+        .background(WindowStyle.black)
+        .overlay(alignment: .trailing) { Rectangle().fill(WindowStyle.line).frame(width: 1) }
     }
 
     private var head: some View {
@@ -42,40 +119,31 @@ struct BoardColumn: View {
             Spacer()
             Text(listed.head.count).font(WindowStyle.ui(12)).foregroundStyle(WindowStyle.faint)
         }
-        .padding(.horizontal, 10)
+        .padding(.horizontal, WindowStyle.rowInset)
         .padding(.top, 4)
-        .padding(.bottom, 14)
+        .padding(.bottom, 10)
     }
 }
 
-/// A project's name, what waits there in orange, and its sessions.
+/// A project's name, what waits there in orange, and its sessions: a row each.
 private struct ProjectRows: View {
     let project: Listed.Project
     let pick: Pick?
     let now: Date
 
-    @Environment(\.windowActions) private var act
-
     var body: some View {
-        VStack(alignment: .leading, spacing: 1) {
-            Button { act.pick(.project(project.id)) } label: {
-                HStack {
-                    Text(project.name).foregroundStyle(WindowStyle.soft)
-                    Spacer()
-                    if project.waiting > 0 {
-                        Text("\(project.waiting)").foregroundStyle(WindowStyle.orange)
-                    }
-                }
-                .font(WindowStyle.ui(12, .semibold))
-                .padding(.horizontal, 10)
-                .padding(.top, 4)
-                .padding(.bottom, 5)
-                .contentShape(Rectangle())
+        HStack {
+            Text(project.name).foregroundStyle(WindowStyle.soft)
+            Spacer()
+            if project.waiting > 0 {
+                Text("\(project.waiting)").foregroundStyle(WindowStyle.orange)
             }
-            .rowButton(isPicked: pick == .project(project.id))
-            ForEach(project.sessions) { row in
-                SessionRowView(row: row, isPicked: pick == .session(row.id), now: now)
-            }
+        }
+        .font(WindowStyle.ui(12, .semibold))
+        .sidebarRow(.project(project.id), pick: pick, now: now)
+        ForEach(project.sessions) { row in
+            SessionRowView(row: row, isPicked: pick == .session(row.id), now: now)
+                .sidebarRow(.session(row.id), pick: pick, washed: row.washed, now: now)
         }
     }
 }
@@ -86,103 +154,119 @@ private struct SessionRowView: View {
     let isPicked: Bool
     let now: Date
 
-    @Environment(\.windowActions) private var act
-
     var body: some View {
-        Button { act.pick(.session(row.id)) } label: {
-            HStack(spacing: 10) {
-                MarkView(mark: row.mark)
-                Text(row.name)
-                    .font(WindowStyle.ui(13, isPicked || isWashing ? .semibold : .medium))
-                    .spacing(-0.005, of: 13)
-                    .foregroundStyle(row.isAway ? WindowStyle.faint : WindowStyle.text)
-                    .lineLimit(1)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                Text(Words.age(row.since, at: now))
-                    .font(WindowStyle.ui(12))
-                    .foregroundStyle(isWashing ? WindowStyle.orange : WindowStyle.faint)
-                    .frame(width: 28, alignment: .trailing)
-            }
-            .padding(.vertical, 7)
-            .padding(.horizontal, 10)
-            .modifier(Washed(since: row.washed, now: now, radius: 8))
-            .contentShape(Rectangle())
+        HStack(spacing: 10) {
+            MarkView(mark: row.mark)
+            Text(row.name)
+                .font(WindowStyle.ui(13, isPicked || isWashing ? .semibold : .medium))
+                .spacing(-0.005, of: 13)
+                .foregroundStyle(row.isAway ? WindowStyle.faint : WindowStyle.text)
+                .lineLimit(1)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            Text(Words.age(row.since, at: now))
+                .font(WindowStyle.ui(12))
+                .foregroundStyle(isWashing ? WindowStyle.orange : WindowStyle.faint)
+                .frame(width: 28, alignment: .trailing)
         }
-        .rowButton(isPicked: isPicked)
     }
 
     private var isWashing: Bool { row.washed != nil }
 }
 
-/// The quiet projects, folded into the foot: how many, then each name, which opens its project, highlighted under the
-/// pointer and kept highlighted while its project is picked.
-private struct QuietFoot: View {
-    let quiet: [Listed.Quiet]
-    let pick: Pick?
-
-    @Environment(\.windowActions) private var act
+/// "6 quiet projects", over their names.
+private struct QuietHeading: View {
+    let count: Int
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 5) {
-            Text(Words.quiet(quiet.count))
-                .font(WindowStyle.ui(12, .semibold))
-                .foregroundStyle(WindowStyle.soft)
-                .padding(.horizontal, 10)
-            Flow(spacing: 2) {
-                ForEach(quiet) { project in
-                    Button { act.pick(project.pick) } label: {
-                        Text(project.name)
-                            .font(WindowStyle.ui(12, .medium))
-                            .foregroundStyle(WindowStyle.soft)
-                            .lineLimit(1)
-                            .padding(.vertical, 3)
-                            .padding(.horizontal, 8)
-                            .contentShape(Rectangle())
-                    }
-                    .rowButton(isPicked: pick == project.pick, radius: 6)
-                }
-            }
-            .padding(.horizontal, 2)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.top, 12)
-        .padding(.bottom, 12)
-        .overlay(alignment: .top) { Rectangle().fill(WindowStyle.line).frame(height: 1).padding(.horizontal, -10) }
+        Text(Words.quiet(count)).font(WindowStyle.ui(12, .semibold)).foregroundStyle(WindowStyle.soft)
     }
 }
 
-/// Subviews side by side from the left, a line wrapping onto the next where it runs out of width.
-private struct Flow: Layout {
-    var spacing: CGFloat
+/// The quiet projects, a row each, which opens its project.
+private struct QuietRows: View {
+    let quiet: [Listed.Quiet]
+    let pick: Pick?
+    let now: Date
 
-    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache _: inout ()) -> CGSize {
-        let frames = frames(proposal.width ?? .infinity, subviews)
-
-        return CGSize(width: proposal.width ?? frames.map(\.maxX).max() ?? 0, height: frames.map(\.maxY).max() ?? 0)
-    }
-
-    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache _: inout ()) {
-        for (subview, frame) in zip(subviews, frames(bounds.width, subviews)) {
-            subview.place(at: CGPoint(x: bounds.minX + frame.minX, y: bounds.minY + frame.minY), proposal: ProposedViewSize(frame.size))
+    var body: some View {
+        ForEach(quiet) { project in
+            Text(project.name)
+                .font(WindowStyle.ui(12, .medium))
+                .foregroundStyle(WindowStyle.soft)
+                .lineLimit(1)
+                .sidebarRow(project.pick, pick: pick, now: now)
         }
     }
+}
 
-    private func frames(_ width: CGFloat, _ subviews: Subviews) -> [CGRect] {
-        var x: CGFloat = 0, y: CGFloat = 0, line: CGFloat = 0
+private extension View {
+    /// A row of the sidebar's list, picked as `pick`, washed orange from `washed` as it comes (`BoardColumn`).
+    func sidebarRow(_ row: Pick, pick: Pick?, washed: Date? = nil, now: Date) -> some View {
+        modifier(SidebarRow(row: row, isPicked: row == pick, washed: washed, now: now))
+    }
+}
 
-        return subviews.map { subview in
-            let size = subview.sizeThatFits(ProposedViewSize(width: width, height: nil))
+/// A row of the sidebar's list, tagged with what it picks, and named by it, to scroll to. Its words fill the row's
+/// height, and its background the whole row, so the pointer is over it anywhere on the row: under the pointer, and not
+/// the one picked, it shows a quiet fill, and as it comes, its wash, both as the row's background, shaped as the
+/// system's selection, which they leave alone. Drawn as a still, it is laid out as the list lays it out.
+private struct SidebarRow: ViewModifier {
+    let row: Pick
+    let isPicked: Bool
+    let washed: Date?
+    let now: Date
 
-            if x > 0, x + size.width > width {
-                x = 0
-                y += line + spacing
-                line = 0
+    @Environment(\.isStill) private var isStill
+    @Environment(\.isHoveredStill) private var isHoveredStill
+    @State private var isOverWords = false
+    @State private var isOverRow = false
+
+    func body(content: Content) -> some View {
+        let highlight = Highlight.of(
+            isPicked: isPicked, isPressed: false, isHovered: isOverWords || isOverRow || isHoveredStill
+        )
+        let background = RowBackground(
+            fill: WindowStyle.sidebarFill(highlight, isStill: isStill), washed: washed, now: now, isOver: $isOverRow
+        )
+        let words = content
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+            .contentShape(Rectangle())
+            .onHover { isOverWords = $0 }
+
+        Group {
+            if isStill {
+                words
+                    .padding(.horizontal, WindowStyle.rowInset)
+                    .frame(height: WindowStyle.rowHeight)
+                    .background(background)
+            } else {
+                words.listRowBackground(background)
             }
-            defer {
-                x += size.width + spacing
-                line = max(line, size.height)
-            }
-            return CGRect(origin: CGPoint(x: x, y: y), size: size)
         }
+        .tag(row)
+        .id(row)
+    }
+}
+
+/// What a sidebar row draws behind its words, across the whole row: its wash as it comes, and the pointer's fill,
+/// each inset and rounded as the system's selection is. It hears the pointer over the row's edges, where its words
+/// are not.
+private struct RowBackground: View {
+    let fill: Color?
+    let washed: Date?
+    let now: Date
+    @Binding var isOver: Bool
+
+    var body: some View {
+        ZStack {
+            WashFill(since: washed, now: now, radius: WindowStyle.selectionRadius)
+            if let fill {
+                RoundedRectangle(cornerRadius: WindowStyle.selectionRadius, style: .continuous).fill(fill)
+            }
+        }
+        .padding(.horizontal, WindowStyle.selectionInset)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .contentShape(Rectangle())
+        .onHover { isOver = $0 }
     }
 }

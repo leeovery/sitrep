@@ -69,6 +69,69 @@ struct WindowRunTests {
         #expect(run.show(heard(line(0), runs: 2), at: printedAt, reducesMotion: false).map(\.session) == ["sr-dash02", "sr-rq7dgr"])
     }
 
+    @Test func aRunOfPicksInTheListReadsTheLastPicksSessionsOnceThePicksStop() {
+        let run = opened()
+
+        #expect(run.pickInList(.session("sr-dash02"), at: printedAt).map(\.session) == ["sr-dash02"])
+        #expect(run.pickInList(.session("sr-rq7dgr"), at: printedAt.addingTimeInterval(0.1)).isEmpty)
+        #expect(run.settledReads(at: printedAt.addingTimeInterval(1)).map(\.session) == ["sr-rq7dgr"])
+    }
+
+    /// Only the reads that run take a ticket, so a read under way still lands.
+    @Test func aReadDroppedInARunOfPicksLeavesTheReadUnderWayForItsSessionToLand() throws {
+        let run = WindowRun()
+
+        _ = run.show(heard(line(0)), at: printedAt, reducesMotion: false)
+
+        let underWay = try #require(run.open().first)
+
+        #expect(underWay.session == "sr-macapp")
+        _ = run.pickInList(.session("sr-dash02"), at: printedAt)
+        #expect(run.pickInList(.session("sr-macapp"), at: printedAt.addingTimeInterval(0.05)).isEmpty)
+        _ = run.pickInList(.session("sr-dash02"), at: printedAt.addingTimeInterval(0.1))
+        run.read(underWay, gave: board(Lines.board), at: printedAt, reducesMotion: false)
+        _ = run.pick(.session("sr-macapp"))
+        #expect(run.page(at: printedAt).session?.isRead == true)
+    }
+
+    @Test func aRunOfPicksReadsNothingWhileTheWindowIsClosed() {
+        let run = opened()
+
+        _ = run.pickInList(.session("sr-dash02"), at: printedAt)
+        _ = run.pickInList(.session("sr-rq7dgr"), at: printedAt.addingTimeInterval(0.1))
+        run.close()
+        #expect(run.settledReads(at: printedAt.addingTimeInterval(1)).isEmpty)
+    }
+
+    /// Back from the Dock, the page is read again, so the run's waiting reads are let go.
+    @Test func aRunOfPicksReadsNothingOnceTheWindowIsBackFromTheDock() {
+        let run = opened()
+
+        _ = run.pickInList(.session("sr-dash02"), at: printedAt)
+        _ = run.pickInList(.session("sr-rq7dgr"), at: printedAt.addingTimeInterval(0.1))
+        run.minimise()
+        _ = run.restore()
+        #expect(run.settledReads(at: printedAt.addingTimeInterval(1)).isEmpty)
+    }
+
+    @Test func theRunsReadsFallingDueIsTheNextChange() {
+        let run = opened()
+        let last = printedAt.addingTimeInterval(0.1)
+
+        _ = run.pickInList(.session("sr-dash02"), at: printedAt)
+        _ = run.pickInList(.session("sr-rq7dgr"), at: last)
+        #expect(run.nextChange == last.addingTimeInterval(PickReads.settle))
+    }
+
+    /// So no row moves between two presses of an arrow key, the pointer elsewhere.
+    @Test func aPickInTheListHoldsItsOrder() {
+        let run = opened()
+
+        _ = run.pickInList(.session("sr-dash02"), at: printedAt)
+        _ = run.show(heard(.line(projects(["goosemates", "sitrep", "switchboard", "kit"]))), at: printedAt, reducesMotion: false)
+        #expect(run.listed(at: printedAt).projects.map(\.id) == ["sitrep", "switchboard", "goosemates"])
+    }
+
     @Test func aProjectsViewReadsEachOfItsSessions() {
         let run = opened()
 
@@ -131,6 +194,19 @@ struct WindowRunTests {
         run.close()
         _ = run.open()
         #expect(run.page(at: printedAt).session?.asks.count == 3)
+    }
+
+    /// ⌘M with the pointer over the list tells no exit.
+    @Test func minimisingWithThePointerOverTheListLetsTheHoldGo() {
+        let run = opened()
+
+        run.pointer(isIn: true, at: printedAt)
+        _ = run.show(heard(.line(projects(["goosemates", "sitrep", "switchboard", "kit"]))), at: printedAt, reducesMotion: false)
+        run.minimise()
+        #expect(run.listed(at: printedAt).projects.map(\.id) == ["goosemates", "sitrep", "switchboard"])
+        _ = run.restore()
+        _ = run.show(heard(line(0)), at: printedAt, reducesMotion: false)
+        #expect(run.listed(at: printedAt).projects.map(\.id) == ["sitrep", "switchboard", "goosemates"])
     }
 
     @Test func closingWithThePointerOverTheListLetsTheHoldGo() {

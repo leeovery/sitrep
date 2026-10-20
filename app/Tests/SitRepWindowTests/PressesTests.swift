@@ -150,6 +150,25 @@ struct OpenedItemsTests {
         #expect(Words.howClosed(byClaude).answer == nil)
         #expect(Words.howClosed(byClaude).words == #"resolved by Claude: you said "left" in the chat"#)
     }
+
+    /// An item with more than its line is a button; one with nothing more is one only while its line is cut short,
+    /// which only its layout knows.
+    @Test func aNoteWithDetailAParkedItemWithAPlaceAndEveryResolvedAskOpenToMore() throws {
+        let page = try #require(opened(boards: ["sr-macapp": Self.parkedWithAPlace]).page(at: printedAt).session)
+
+        #expect(page.notes.map(\.hasMore) == [true, false, true])
+        #expect(page.parked.map(\.hasMore) == [true])
+        #expect(page.resolved.map(\.hasMore) == [true, true])
+    }
+
+    @Test func aParkedItemWithNoPlaceOpensToNothingMore() throws {
+        let page = try #require(opened().page(at: printedAt).session)
+
+        #expect(page.parked.map(\.hasMore) == [false])
+    }
+
+    private static let parkedWithAPlace = Lines.board
+        .replacingOccurrences(of: #""title": "Try a shy notch",\#n      "where": null"#, with: #""title": "Try a shy notch",\#n      "where": "In DESIGN.md, under The notch""#)
 }
 
 /// A card's buttons as pills on one line while they fit at their one-line width, else its answers as rows.

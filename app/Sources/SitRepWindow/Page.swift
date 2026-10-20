@@ -75,6 +75,9 @@ public struct Note: Equatable, Sendable, Identifiable {
     public let text: String
     public let detail: [String]
     public let at: Date
+
+    /// It opens to more than its line: its detail. Without, it opens only while its line is cut short.
+    public var hasMore: Bool { !detail.isEmpty }
 }
 
 /// Something parked, and opened, where it was parked from.
@@ -84,6 +87,9 @@ public struct Parked: Equatable, Sendable, Identifiable {
     public let title: String
     public let `where`: String?
     public let at: Date
+
+    /// It opens to more than its line: where it was parked from. Without, it opens only while its line is cut short.
+    public var hasMore: Bool { `where` != nil }
 }
 
 /// A resolved ask: its title, when it closed and how; closed by Lee's answer, the answer, as the board words it.
@@ -93,6 +99,9 @@ public struct Resolved: Equatable, Sendable, Identifiable {
     public let closed: Date
     public let how: Card.Closed
     public let answer: String?
+
+    /// It always opens to more than its line: how it closed.
+    public var hasMore: Bool { true }
 }
 
 /// Finishing an away session, which asks first, in place.
@@ -109,7 +118,8 @@ public enum Finish: Equatable, Sendable {
 
 /// A project, opened from its name, as the pane's project view: its sessions, each with what it is doing and what
 /// waits there; every session's asks, the newest first, each one line that opens in place into its card; their notes,
-/// the newest first; their parked items, the oldest first. Each line names its session. There is no Resolved.
+/// the newest first; their parked items, the oldest first. Each line names its session, unless the project has only
+/// the one, which it can only name. There is no Resolved.
 public struct ProjectPage: Equatable, Sendable {
     public struct Session: Equatable, Sendable, Identifiable {
         public let id: String
@@ -124,7 +134,7 @@ public struct ProjectPage: Equatable, Sendable {
 
     /// An ask, one line naming its session, or opened into its card.
     public struct Ask: Equatable, Sendable, Identifiable {
-        public let session: String
+        public let session: String?
         public let card: Card
         public let isOpened: Bool
 

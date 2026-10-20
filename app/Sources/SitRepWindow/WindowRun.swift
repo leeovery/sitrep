@@ -26,6 +26,7 @@ public final class WindowRun {
     /// The list as `watch` gives it, before it is held.
     private var given = Listed()
     private var held = HeldOrder()
+    private var pickReads = PickReads()
     private var listed = Listed()
     /// Sessions new to needing Lee, washed from when they came.
     private var washed: [String: Date] = [:]
@@ -83,7 +84,8 @@ public final class WindowRun {
         held.pointer(isIn: isIn, at: time)
     }
 
-    /// The second after the pointer left the list has run out by this time: it takes `watch`'s order.
+    /// The second after the pointer left the list, or after the last pick made in it, has run out by this time: it
+    /// takes `watch`'s order.
     public func settle(at time: Date) {
         if held.settle(at: time) {
             take(given, moving: [])
@@ -104,16 +106,27 @@ public final class WindowRun {
     }
 
     /// The window closes: the list's hold lets go, as the pointer leaves with it, and a finish asked about lapses.
+    /// The reads a run of picks left waiting never run: nothing is read while the window is closed, and opening it
+    /// picks afresh.
     public func close() {
         isOpen = false
-        held.release()
-        take(given, moving: [])
+        letGoOfTheList()
         dropAskingToFinish()
     }
 
-    /// The window minimised: it shows no more, so nothing is read, but it keeps its page.
+    /// The window minimised: it shows no more, so nothing is read, and the list's hold lets go, as the pointer leaves
+    /// with it, but it keeps its page. The reads a run of picks left waiting are let go, as coming back from the Dock
+    /// reads the page again.
     public func minimise() {
         isOpen = false
+        letGoOfTheList()
+        pickReads = PickReads()
+    }
+
+    /// The pointer gone with the window, which tells no exit: the list's hold lets go, and it takes `watch`'s order.
+    private func letGoOfTheList() {
+        held.release()
+        take(given, moving: [])
     }
 
     /// The window back from the Dock, on the page it had, which reads what it shows again, unless its pick has gone
@@ -148,6 +161,26 @@ public final class WindowRun {
     /// then. Picking another lets go of the last page's asks kept in place, of what its cards said of refusals, and
     /// of a finish asked about. The reads to run.
     public func pick(_ pick: Pick) -> [Read] {
+        pickReads = PickReads()
+        return reads(choose(pick))
+    }
+
+    /// Lee picked a row of the list at this time, by a click or an arrow key: as any pick, but the list's order held
+    /// for a second after it, so no row moves between two presses of a key, and its reads settled (`PickReads`). The
+    /// reads to run now.
+    public func pickInList(_ pick: Pick, at time: Date) -> [Read] {
+        held.picked(at: time)
+        return reads(pickReads.picked(choose(pick), at: time))
+    }
+
+    /// The reads of the last of a run of picks in the list, once the picks have stopped by this time, while the
+    /// window shows.
+    public func settledReads(at time: Date) -> [Read] {
+        isOpen ? reads(pickReads.due(at: time)) : []
+    }
+
+    /// What is picked now, and the sessions it shows, to read.
+    private func choose(_ pick: Pick) -> [String] {
         if pick != self.pick {
             self.pick = pick
             frozen = [:]
@@ -160,7 +193,7 @@ public final class WindowRun {
             }
         }
         keepShown()
-        return reads(shown)
+        return shown
     }
 
     /// Each session the page shows keeps its asks in place, from its board as last read.
@@ -181,6 +214,8 @@ public final class WindowRun {
 
     // MARK: Reading sessions' boards
 
+    /// Reads of these sessions, to run now, each taking its ticket: only reads that run take one, so the latest read
+    /// asked for a session is always one under way.
     private func reads(_ sessions: [String]) -> [Read] {
         sessions.map { session in
             let ticket = tickets[session, default: 0] + 1
@@ -343,18 +378,12 @@ public final class WindowRun {
     }
 
     /// The next time something the window shows changes by time alone: an answer's wait running out, the list
-    /// settling after the pointer left, a wash ending.
+    /// settling after the pointer left or a pick, a wash ending, a run of picks' reads falling due.
     public var nextChange: Date? {
         let washes = (Array(washed.values) + frozen.values.flatMap(\.washed.values))
             .map { $0.addingTimeInterval(Wash.length / 1000) }
 
-        return ([answers.nextDue, held.resortsAt].compactMap { $0 } + washes).min()
-    }
-
-    /// Something moves at this time, which the views draw each frame: a wash, or an answer's wait draining.
-    public func isMoving(at time: Date) -> Bool {
-        answers.nextDue != nil || !Wash.live(washed, at: time).isEmpty
-            || frozen.values.contains { !Wash.live($0.washed, at: time).isEmpty }
+        return ([answers.nextDue, held.resortsAt, pickReads.dueAt].compactMap { $0 } + washes).min()
     }
 
     private func sessionPage(_ session: Board.Session, of project: Board.Project, at time: Date) -> SessionPage {
@@ -387,10 +416,14 @@ public final class WindowRun {
     private func projectPage(_ project: Board.Project, on board: Board, at time: Date) -> ProjectPage {
         let needs = board.rows.filter { $0.project == project.key && $0.needsLee }
         let read = project.sessions.compactMap { session in boards[session.id].map { (session, $0) } }
-        let notes = Array(read.flatMap { Self.notes($1.log, of: $0, named: true) }.sorted { $0.at > $1.at }.prefix(Self.projectNotes))
+        let named = project.sessions.count > 1
+        let notes = Array(read.flatMap { Self.notes($1.log, of: $0, named: named) }.sorted { $0.at > $1.at }.prefix(Self.projectNotes))
         let parked = read.flatMap { session, read in
             read.parked.map {
-                Parked(id: "\(session.id):\($0.id)", session: session.name, title: $0.title, where: $0.where, at: $0.at)
+                Parked(
+                    id: "\(session.id):\($0.id)", session: named ? session.name : nil, title: $0.title, where: $0.where,
+                    at: $0.at
+                )
             }
         }.sorted { $0.at < $1.at }
 
@@ -406,7 +439,7 @@ public final class WindowRun {
             asksWaiting: project.sessions.map(\.waiting).reduce(0, +),
             asks: project.sessions.flatMap { session in
                 cards(of: session, at: time).map { card in
-                    ProjectPage.Ask(session: session.name, card: card, isOpened: opened.contains(card.id))
+                    ProjectPage.Ask(session: named ? session.name : nil, card: card, isOpened: opened.contains(card.id))
                 }
             }.sorted { $0.card.since > $1.card.since },
             notes: notes,
@@ -433,7 +466,8 @@ public final class WindowRun {
 
     /// A session's log lines as notes, each by an id that stays as lines come: its session's and its own; for a line
     /// without one, its kind, time, writer and words, and among lines alike in all of those, which of them it is,
-    /// counted from the oldest, as new lines come at the top. In a project's view each names its session.
+    /// counted from the oldest, as new lines come at the top. In a project's view of several sessions each names its
+    /// session.
     private static func notes(_ log: [SessionBoard.Line], of session: Board.Session, named: Bool) -> [Note] {
         var seen: [String: Int] = [:]
         let ids = log.reversed().map { line in
