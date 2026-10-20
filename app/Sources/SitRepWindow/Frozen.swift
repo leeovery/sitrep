@@ -15,13 +15,15 @@ struct Frozen: Equatable, Sendable {
     private var closed: [String: Card.Closed] = [:]
     /// Those new since the session first showed, washed from when they came, until their washes end.
     private(set) var washed: [String: Date] = [:]
+    /// A read has landed since the page showed: what the seed showed is not compared against.
     private var hasRead = false
 
-    /// Its asks laid out from its board as last read, if it has been, until a fresh read lands.
+    /// Its asks laid out from its board as last read, if it has been, until a fresh read lands, which lays them out
+    /// again.
     init(session: String, read board: SessionBoard?) {
         self.session = session
         if let board {
-            take(board, washingAt: nil)
+            layOut(board)
         }
     }
 
@@ -33,12 +35,18 @@ struct Frozen: Equatable, Sendable {
     /// The asks closed since they showed, which Resolved leaves to Asks while they keep their places there.
     var kept: Set<String> { Set(closed.keys) }
 
-    /// The session's board as read, what is new washed from this time, if one is given. The first read lays its asks
-    /// out.
+    /// The session's board as read, what is new washed from this time, if one is given. The first read since the
+    /// page showed lays its asks out, washing nothing and keeping nothing closed: Lee saw neither come nor go.
     mutating func take(_ board: SessionBoard, washingAt time: Date?) {
+        guard hasRead else {
+            layOut(board)
+            hasRead = true
+            return
+        }
+
         let open = board.asks.reversed().map(\.id)
         let isOpen = Set(open)
-        let new = hasRead ? open.filter { known[$0] == nil } : []
+        let new = open.filter { known[$0] == nil }
 
         for ask in board.asks {
             known[ask.id] = ask
@@ -46,11 +54,16 @@ struct Frozen: Equatable, Sendable {
         for ask in order {
             closed[ask] = isOpen.contains(ask) ? nil : closed[ask] ?? Card.closed(ask, in: board)
         }
-        order = hasRead ? new + order : open
-        hasRead = true
+        order = new + order
         if let time {
             new.forEach { washed[$0] = time }
         }
+    }
+
+    /// Its asks as this board has them, the newest first.
+    private mutating func layOut(_ board: SessionBoard) {
+        order = board.asks.reversed().map(\.id)
+        known = Dictionary(board.asks.map { ($0.id, $0) }) { first, _ in first }
     }
 
     /// The washes ended by this time let go.

@@ -109,6 +109,23 @@ public final class WindowRun {
         dropAskingToFinish()
     }
 
+    /// The window minimised: it shows no more, so nothing is read, but it keeps its page.
+    public func minimise() {
+        isOpen = false
+    }
+
+    /// The window back from the Dock, on the page it had, which reads what it shows again, unless its pick has gone
+    /// from the board meanwhile. The reads to run.
+    public func restore() -> [Read] {
+        isOpen = true
+        guard let pick, last.board?.has(pick) == true else {
+            return repick()
+        }
+
+        keepShown()
+        return reads(shown)
+    }
+
     /// What the window opens on, picked afresh.
     private func repick() -> [Read] {
         pick = nil
@@ -185,6 +202,7 @@ public final class WindowRun {
             frozen[read.session]?.take(board, washingAt: reducesMotion ? nil : time)
         case let .failed(why):
             failed[read.session] = why
+            answers.unread(read.session, read: read.ticket)
         }
     }
 
@@ -388,13 +406,21 @@ public final class WindowRun {
     /// How many of its latest notes a project's view lists, as many as a session's board carries.
     private static let projectNotes = 8
 
-    /// A session's log lines as notes, each by an id that stays as lines come: its session's and its own, or, for
-    /// a line without one, its kind and time. In a project's view each names its session.
+    /// A session's log lines as notes, each by an id that stays as lines come: its session's and its own; for a line
+    /// without one, its kind, time, writer and words, and among lines alike in all of those, which of them it is,
+    /// counted from the oldest, as new lines come at the top. In a project's view each names its session.
     private static func notes(_ log: [SessionBoard.Line], of session: Board.Session, named: Bool) -> [Note] {
-        log.map { line in
-            let own = line.id ?? "\(line.kind.rawValue)@\(line.at.timeIntervalSince1970)"
+        var seen: [String: Int] = [:]
+        let ids = log.reversed().map { line in
+            let own = line.id ?? "\(line.kind.rawValue)@\(line.at.timeIntervalSince1970):\(line.by):\(line.text)"
+            let repeats = seen[own, default: 0]
 
-            return Note(id: "\(session.id):\(own)", session: named ? session.name : nil, text: line.text, at: line.at)
+            seen[own] = repeats + 1
+            return repeats == 0 ? own : "\(own)#\(repeats)"
+        }
+
+        return zip(log, ids.reversed()).map { line, own in
+            Note(id: "\(session.id):\(own)", session: named ? session.name : nil, text: line.text, at: line.at)
         }
     }
 

@@ -133,7 +133,7 @@ let watched = """
       "letters": "Sw",
       "ask": null,
       "writer": "6c847b5b-722d-4343-88e0-42ece4662e7d",
-      "first": { "lead": "Allow Bash:", "mono": "gh pr create", "more": null },
+      "first": { "lead": "Allow Bash", "mono": "gh pr create", "more": null },
       "second": "Switchboard · Dashboard memory and snags",
       "since": 1792445500000
     },
@@ -226,7 +226,7 @@ let watched = """
           "since": 1792445500000,
           "doing": {
             "is": "permission",
-            "line": { "lead": "Allow Bash:", "mono": "gh pr create", "more": null },
+            "line": { "lead": "Allow Bash", "mono": "gh pr create", "more": null },
             "since": 1792445500000
           },
           "asks": []

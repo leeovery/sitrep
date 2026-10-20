@@ -42,6 +42,14 @@ final class SitRepWindow: NSObject, NSWindowDelegate {
         model.closed()
     }
 
+    func windowDidMiniaturize(_ notification: Notification) {
+        model.minimised()
+    }
+
+    func windowDidDeminiaturize(_ notification: Notification) {
+        model.restored()
+    }
+
     private func make() -> NSWindow {
         let window = NSWindow(
             contentRect: NSRect(origin: .zero, size: WindowStyle.size),

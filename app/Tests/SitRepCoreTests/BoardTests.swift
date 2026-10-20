@@ -33,7 +33,7 @@ struct BoardTests {
     @Test func aRowsFirstLineComesInItsPartsThenItsSecondAndItsTime() throws {
         let stop = try Board.read(watched).rows[1]
 
-        #expect(stop.first == Board.Row.Line(lead: "Allow Bash:", mono: "gh pr create", more: nil))
+        #expect(stop.first == Board.Row.Line(lead: "Allow Bash", mono: "gh pr create", more: nil))
         #expect(stop.second == "Switchboard · Dashboard memory and snags")
         #expect(stop.since == Self.at(1_792_445_500_000))
         #expect(stop.letters == "Sw")
@@ -67,7 +67,7 @@ struct BoardTests {
         #expect(sessions.map(\.doing.kind) == [.yourTurn, .permission, .yourTurn])
         #expect(sessions[1].doing == Board.Session.Doing(
             kind: .permission,
-            line: Board.Row.Line(lead: "Allow Bash:", mono: "gh pr create", more: nil),
+            line: Board.Row.Line(lead: "Allow Bash", mono: "gh pr create", more: nil),
             since: Self.at(1_792_445_500_000)
         ))
     }

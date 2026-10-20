@@ -104,7 +104,7 @@ extension Card {
         let (buttons, lines) = if let closed {
             ([Button](), [Line.closed(closed)])
         } else if let pending {
-            Self.pressed(pending, offering: offered)
+            Self.pressed(pending, offering: offered, doing: doing)
         } else {
             Self.replied(ask.reply, offering: offered, doing: doing)
         }
@@ -117,10 +117,11 @@ extension Card {
         )
     }
 
-    private static func pressed(_ pending: Pending, offering offered: [Button]) -> ([Button], [Line]) {
+    private static func pressed(_ pending: Pending, offering offered: [Button], doing: Doing) -> ([Button], [Line]) {
         switch pending.stage {
         case .waiting: ([], [.waiting(pending)])
         case .sending, .written: ([], [.sending(pending.words)])
+        case .onItsWay: ([], [.onItsWay(pending.words, wait(doing))])
         case let .refused(why): (offered, [.refused(why)])
         }
     }

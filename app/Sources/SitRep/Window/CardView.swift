@@ -3,21 +3,23 @@ import SwiftUI
 
 /// An ask as a card: its mark, title and time, after its session's name where it is a project's; where to look and
 /// what its words are; its buttons; and where Lee's answer is. One closed while it showed keeps its place, faint and
-/// without buttons, saying how it closed.
+/// without buttons, saying how it closed. Opened in place in a project's view, its head, and only its head, closes
+/// it again.
 struct CardView: View {
     let card: Card
     var session: String?
     let now: Date
+    var closesBack: (() -> Void)?
 
     @Environment(\.windowActions) private var act
     @Environment(\.isJumping) private var isJumping
 
     var body: some View {
         if card.lines == [.closed(.sent)] {
-            sent
+            head(sent)
         } else {
             VStack(alignment: .leading, spacing: card.isClosed ? 8 : 10) {
-                title
+                head(title)
                 details
                 if !card.buttons.isEmpty {
                     buttons
@@ -65,6 +67,15 @@ struct CardView: View {
                 .spacing(-0.01, of: 14)
                 .frame(maxWidth: .infinity, alignment: .leading)
             Text(Words.age(card.since, at: now)).font(WindowStyle.ui(12)).foregroundStyle(WindowStyle.faint)
+        }
+    }
+
+    /// Its head, which closes it back to its line where it can.
+    @ViewBuilder private func head(_ content: some View) -> some View {
+        if let closesBack {
+            Button(action: closesBack) { content.contentShape(Rectangle()) }.buttonStyle(.plain)
+        } else {
+            content
         }
     }
 

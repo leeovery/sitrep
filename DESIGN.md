@@ -3434,8 +3434,11 @@ reaches a window only while that pane is on show).
           window shows; of two reads of a session crossing, the one asked
           for last is taken. Until a read lands, a session picked again, or
           the window reopened on it, shows its board as last read, its asks
-          among it; a read that fails says why over what was read before,
-          and keeps it.
+          among it; that first read lays the asks out afresh, washing
+          nothing and keeping nothing closed, as Lee saw neither come nor
+          go. A read that fails says why over what was read before, and
+          keeps it. Minimised, it reads nothing; brought back, its page
+          reads what it shows again.
         - **Its counts.** A project's orange count, and a project's
           session's "2 waiting", are its rows needing Lee, stops among them;
           Asks' "3 waiting" is the asks waiting on Lee, as `waiting` counts
@@ -3465,7 +3468,8 @@ reaches a window only while that pane is on show).
           page left goes as it would); then it is "sending" until `reply`
           says on its way, as an answer, or, once `sitrep answer` has
           written it, until the first read asked for after, whatever it
-          says; then the card takes `reply`'s word: "on its way: waits for
+          says (should every one fail, the card says on its way, as the
+          write proved); then the card takes `reply`'s word: "on its way: waits for
           the turn to end" mid-turn, "waits in its inbox for a window" away.
           A comment on its way keeps the buttons. `sitrep answer`'s refusal
           shows on the card in its words, its buttons back, until another

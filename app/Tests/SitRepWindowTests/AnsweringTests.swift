@@ -101,6 +101,43 @@ struct AnsweringTests {
         #expect(try Self.card(Self.yes, run).buttons.first == .yes("Approve"))
     }
 
+    @Test func writtenWhileAnotherPageShowsAReadStillOnItsWayFromBeforeLeavesItSending() throws {
+        let run = opened()
+
+        _ = run.press(.yes("Approve"), on: Self.yes, at: printedAt)
+        _ = run.due(at: printedAt.addingTimeInterval(2))
+
+        let inFlight = run.pick(.session("sr-macapp"))
+
+        _ = run.pick(.session("sr-dash02"))
+        #expect(run.answered(Self.yes, .written).isEmpty)
+        answer(inFlight, in: run, with: ["sr-macapp": Lines.board])
+        #expect(run.answers.pending[Self.yes]?.stage == .written(after: try #require(inFlight.first).ticket))
+    }
+
+    @Test func writtenAndEveryReadSinceFailedItIsOnItsWayAsTheWriteProvedUntilAReadSaysMore() throws {
+        let run = opened()
+
+        _ = run.press(.yes("Approve"), on: Self.yes, at: printedAt)
+        _ = run.due(at: printedAt.addingTimeInterval(2))
+
+        let before = run.pick(.session("sr-macapp"))
+        let after = run.answered(Self.yes, .written)
+
+        for read in before {
+            run.read(read, gave: .failed("sitrep board ended with status 1."), at: printedAt, reducesMotion: false)
+        }
+        #expect(try Self.card(Self.yes, run).lines == [.sending("→ Approve")])
+        for read in after {
+            run.read(read, gave: .failed("sitrep board ended with status 1."), at: printedAt, reducesMotion: false)
+        }
+        #expect(try Self.card(Self.yes, run).lines == [.onItsWay("→ Approve", .turn)])
+        #expect(try Self.card(Self.yes, run).buttons.isEmpty)
+        answer(run.pick(.session("sr-macapp")), in: run, with: ["sr-macapp": Lines.delivered])
+        #expect(run.answers.pending.isEmpty)
+        #expect(try Self.card(Self.yes, run).lines == [.closed(.sent)])
+    }
+
     @Test func writtenWhileAnotherPageShowsItIsSettledByTheReadAsItShowsAgain() throws {
         let run = opened()
 

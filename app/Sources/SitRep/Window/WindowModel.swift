@@ -99,6 +99,16 @@ final class WindowModel {
         refresh()
     }
 
+    func minimised() {
+        run.minimise()
+        refresh()
+    }
+
+    func restored() {
+        read(run.restore())
+        refresh()
+    }
+
     /// Escape: the answer pressed last, still waiting, is taken back. Whether there was one.
     func undo() -> Bool {
         defer { refresh() }

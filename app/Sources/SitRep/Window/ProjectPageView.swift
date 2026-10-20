@@ -63,8 +63,7 @@ struct ProjectPageView: View {
             .padding(.bottom, 8)
             ForEach(page.asks) { ask in
                 if ask.isOpened {
-                    Button { act.toggle(ask.id) } label: { CardView(card: ask.card, session: ask.session, now: now) }
-                        .buttonStyle(.plain)
+                    CardView(card: ask.card, session: ask.session, now: now) { act.toggle(ask.id) }
                         .padding(.vertical, 4)
                 } else {
                     Button { act.toggle(ask.id) } label: {

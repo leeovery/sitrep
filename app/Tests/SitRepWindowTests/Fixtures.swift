@@ -83,6 +83,21 @@ func doing(_ kind: Doing.Kind, _ lead: String, mono: String? = nil, since: Date)
     Doing(kind: kind, line: Board.Row.Line(lead: lead, mono: mono, more: nil), since: since)
 }
 
+/// A board the real CLI printed, changed as given.
+func edited(_ text: String, _ change: (inout [String: Any]) -> Void) -> String {
+    var board = try! JSONSerialization.jsonObject(with: Data(text.utf8)) as! [String: Any]
+
+    change(&board)
+    return String(decoding: try! JSONSerialization.data(withJSONObject: board), as: UTF8.self)
+}
+
+/// The Mac app's board once its yes was answered and its words ask ignored, both delivered, and a new ask, k4, came.
+let deliveredAndNew = edited(Lines.delivered) { board in
+    let asks = board["asks"] as! [[String: Any]]
+
+    board["asks"] = asks + [asks[0].merging(["id": "k4", "title": "Pick the strip's width"]) { $1 }]
+}
+
 /// A session's board as the real CLI printed it.
 func board(_ text: String) -> BoardAnswer {
     .board(try! SessionBoard.read(text))

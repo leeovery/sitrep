@@ -146,6 +146,82 @@ struct WindowRunTests {
         #expect(run.nextChange == nil)
     }
 
+    @Test func whatCameAndWentWhileLeeWasOnAnotherPageIsTheFirstReadsLayoutNotWashedNorKept() throws {
+        let run = opened()
+
+        _ = run.pick(.session("sr-dash02"))
+        answer(run.pick(.session("sr-macapp")), in: run, with: ["sr-macapp": deliveredAndNew])
+
+        let page = try #require(run.page(at: printedAt).session)
+
+        #expect(page.asks.map(\.id.ask) == ["k4", "k2"])
+        #expect(page.asks.allSatisfy { $0.washed == nil && !$0.isClosed })
+        #expect(page.resolved.map(\.id).contains("k1"))
+        #expect(run.nextChange == nil)
+    }
+
+    @Test func whatCameAndWentWhileTheWindowWasClosedIsTheFirstReadsLayoutNotWashedNorKept() throws {
+        let run = opened()
+
+        run.close()
+        answer(run.open(), in: run, with: ["sr-macapp": deliveredAndNew])
+
+        let page = try #require(run.page(at: printedAt).session)
+
+        #expect(page.asks.map(\.id.ask) == ["k4", "k2"])
+        #expect(page.asks.allSatisfy { $0.washed == nil && !$0.isClosed })
+        #expect(page.resolved.map(\.id).contains("k1"))
+    }
+
+    @Test func whatComesAndGoesAfterTheFirstReadIsWashedOrKeptInPlace() throws {
+        let run = opened()
+
+        _ = run.pick(.session("sr-dash02"))
+        answer(run.pick(.session("sr-macapp")), in: run, with: ["sr-macapp": Lines.board])
+        answer(run.pick(.session("sr-macapp")), in: run, with: ["sr-macapp": deliveredAndNew])
+
+        let page = try #require(run.page(at: printedAt).session)
+
+        #expect(page.asks.map(\.id.ask) == ["k4", "k1", "k3", "k2"])
+        #expect(page.asks.first?.washed == printedAt)
+        #expect(page.asks.filter(\.isClosed).map(\.id.ask) == ["k1", "k3"])
+    }
+
+    @Test func minimisedNothingIsReadBroughtBackThePageReadsWhatItShowsAgain() {
+        let run = opened()
+
+        run.minimise()
+        #expect(run.show(heard(line(0), line(1)), at: printedAt, reducesMotion: false).isEmpty)
+        #expect(run.show(heard(line(0), runs: 2), at: printedAt, reducesMotion: false).isEmpty)
+        #expect(run.restore().map(\.session) == ["sr-macapp"])
+        #expect(run.pick == .session("sr-macapp"))
+    }
+
+    @Test func twoLinesWithoutIdsOfOneKindInOneMillisecondHaveIdsOfTheirOwnWhichStayAsLinesCome() throws {
+        let run = opened()
+        let twins = edited(Lines.board) { board in
+            let log = board["log"] as! [[String: Any]]
+            let status = log.first { $0["kind"] as? String == "status" }!
+
+            board["log"] = [status.merging(["text": "Status: now drawing round 4"]) { $1 }, status, status] + log
+        }
+
+        answer(run.pick(.session("sr-macapp")), in: run, with: ["sr-macapp": twins])
+
+        let before = try #require(run.page(at: printedAt).session?.notes)
+        let more = edited(twins) { board in
+            board["log"] = [(board["log"] as! [[String: Any]])[0].merging(["text": "Status: now drawing round 5"]) { $1 }]
+                + (board["log"] as! [[String: Any]])
+        }
+
+        answer(run.pick(.session("sr-macapp")), in: run, with: ["sr-macapp": more])
+
+        let after = try #require(run.page(at: printedAt).session?.notes)
+
+        #expect(Set(before.map(\.id)).count == before.count)
+        #expect(Array(after.dropFirst()) == before)
+    }
+
     @Test func aNotesIdStaysAsLinesComeAndIsItsSessionsOwn() throws {
         let run = opened()
         let before = try #require(run.page(at: printedAt).session?.notes)
