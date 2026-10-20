@@ -34,59 +34,54 @@ public struct RunDrop: Equatable, Sendable {
     public let isAcross: Bool
 }
 
-/// What the notch's run and the strip's keep alike: the display's clock, which never goes back; the clicks that ask
-/// for a jump, the latest's answer the one heard; and what frames showed for the drawing to show once. Each run adds
-/// its model and what its inputs mean.
-public class EdgeRun<Setting: Sendable> {
-    public typealias Moment = RunMoment<Setting>
-    public typealias Shown = RunShown
-    public typealias Drop = RunDrop
-
-    /// The display's clock, ms, as the frames and what comes between them have it: it never goes back. The main
-    /// link's frames are stamped up to a refresh ahead of what comes between them, and an input after one takes its
-    /// time.
-    public private(set) var time: Double
+/// What the notch's run and the strip's keep alike, each holding its own: the display's clock, which never goes back;
+/// the clicks that ask for a jump, the latest's answer the one heard; and what frames showed for the drawing to show
+/// once.
+struct RunBook {
+    /// The display's clock, ms, as the frames and what comes between them have it. The main link's frames are stamped
+    /// up to a refresh ahead of what comes between them, and an input after one takes its time.
+    private(set) var time: Double
     private var clicks = 0
-    private var shown = Shown()
-    /// Whether the last frame had a click's jump drained, or none under way.
-    private var drained = true
+    private var shown = RunShown()
+    /// A click's jump waits for its drain, which the caption waits for.
+    private var waits = false
 
     init(at time: Double) {
         self.time = time
     }
 
-    /// Whether this click is the latest: an answer to an earlier one changes nothing.
-    public func isLatest(_ click: Int) -> Bool {
-        click == clicks
-    }
-
-    /// What frames have shown since this was last asked, for the drawing to show once.
-    public func takeShown() -> Shown {
-        defer { shown = Shown() }
-        return shown
-    }
-
-    /// This time on the run's clock, or the latest already taken, if that is later.
-    func clock(_ time: Double) -> Double {
+    /// This time on the clock, or the latest already taken, if that is later.
+    mutating func clock(_ time: Double) -> Double {
         self.time = max(self.time, time)
         return self.time
     }
 
-    /// A new click asking for a jump, its number; any drain before it is not its own.
-    func click() -> Int {
+    /// A new click asking for a jump, its number: its drain is waited for, and any before it is not its own.
+    mutating func click() -> Int {
         clicks += 1
+        waits = true
         shown.jumpDrained = nil
         return clicks
     }
 
-    /// A frame at this time: whether it swapped edges, and whether a click's jump is drained in it, latched as it
-    /// first is.
-    func latch(swapsEdge: Bool, drained: Bool, at time: Double) {
+    /// Whether this click is the latest: an answer to an earlier one changes nothing.
+    func isLatest(_ click: Int) -> Bool {
+        click == clicks
+    }
+
+    /// A frame at this time: whether it swapped edges, and whether a click's jump that waits is drained in it.
+    mutating func latch(swapsEdge: Bool, drained: Bool, at time: Double) {
         shown.swappedEdge = shown.swappedEdge || swapsEdge
-        if drained, !self.drained {
+        if waits, drained {
             shown.jumpDrained = time
+            waits = false
         }
-        self.drained = drained
+    }
+
+    /// What frames have shown since this was last asked, for the drawing to show once.
+    mutating func takeShown() -> RunShown {
+        defer { shown = RunShown() }
+        return shown
     }
 }
 

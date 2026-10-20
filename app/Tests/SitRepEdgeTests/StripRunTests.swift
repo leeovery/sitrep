@@ -30,11 +30,11 @@ struct StripRunTests {
         StripRun(at: 1000, in: setting, settings, measure: measure)
     }
 
-    /// The words 230 wide, 330 where the board says something longer of them: stale, a row's time "as of 12:04"; or
-    /// the notch at rest's title anything but nothing running.
+    /// The words 230 wide, 330 where the board would say something longer of them: stale, "as of 12:04"; or the notch
+    /// at rest's title anything but nothing running. A count's rows measured so too, though they never say it.
     private static func measure(_ note: @escaping () -> StripNote) -> StripMeasure {
         StripMeasure(
-            row: { _ in note().asOf == nil ? 230 : 330 }, rows: { _ in 200 },
+            row: { _ in note().asOf == nil ? 230 : 330 }, rows: { _ in note().asOf == nil ? 230 : 330 },
             idle: { note().idle == StripFrame.Words.Content.idleTitle ? 230 : 330 }
         )
     }
@@ -383,6 +383,21 @@ struct StripRunTests {
         #expect(run.takeShown() == StripRun.Shown())
     }
 
+    /// Hidden after a drop across but before its swap, and shown once the swap is past: the frames run on meanwhile
+    /// showed it, and the drawing hears it, so the move is saved and the strip shows on the other edge.
+    @Test func aSwapRunOnWhileHiddenStillReachesTheDrawing() {
+        let (run, _) = Self.carried()
+        let across = CGPoint(x: 1000, y: 300)
+
+        run.moved(Self.at(run.time + Self.frameMS, across))
+        _ = run.release(EdgeSettings(), mayJump: true, Self.at(run.time, across))
+        _ = run.takeShown()
+        run.catchUp(Self.at(run.time + 600, isShown: false))
+        run.step(Self.at(run.time + Self.frameMS))
+
+        #expect(run.takeShown().swappedEdge)
+    }
+
     // MARK: The board
 
     /// The tab out at this point until it is open and still: its width.
@@ -414,6 +429,38 @@ struct StripRunTests {
         Self.frames(run, for: 2000, rest) { !run.frame.isMoving }
 
         #expect(abs(try #require(run.strip.liveTab()).w.x - (width + 100)) < 0.5)
+    }
+
+    /// A count's rows say no time, so gone stale its tab keeps its words and its size.
+    @Test func aCountsTabKeepsItsWordsAsTheBoardGoesStale() throws {
+        let run = Self.countOpen()
+        let tab = try #require(run.strip.liveTab()), words = tab.words.count, width = tab.w.x
+        #expect(tab.key == .more)
+
+        run.show(Self.working(["w1", "w2", "w3", "w4", "w5", "w6", "w7", "w8"], stale: true), Self.at(run.time))
+        Self.frames(run, for: 1000, CGPoint(x: 18, y: run.strip.yOf(.more)))
+
+        #expect(run.note.asOf != nil)
+        #expect(tab.words.count == words && abs(tab.w.x - width) < 0.01)
+    }
+
+    /// One board changing a tab's row and going stale at once: the tab takes its new words once, not a layer in and
+    /// straight out again.
+    @Test func aTabTakesItsNewWordsOnceThoughItsRowAndTheBoardBothChanged() throws {
+        let run = Self.shown(["a", "b"]), mark = Self.on("a", in: run)
+        _ = try Self.opened(run, at: mark)
+        let tab = try #require(run.strip.liveTab()), words = tab.words.count
+
+        var last = LastBoard()
+        let rows = [
+            row("work:a", "working", session: "sr-a", lead: "Still at a", second: "P · a", since: 1_792_445_000_000),
+            row("work:b", "working", session: "sr-b", lead: "Work b", second: "P · b", since: 1_792_445_000_001),
+        ]
+        _ = last.hear(.line(line(needYou: 0, sessions: 2, new: [], rows: rows)), at: Date())
+        _ = last.hear(.exited(.status(1), stderr: ""), at: Date())
+        run.show(PanelBoard(last), Self.at(run.time))
+
+        #expect(tab.words.count == words + 1)
     }
 
     @Test func whileTheBoardIsStaleATabsTimeNeverTicks() {

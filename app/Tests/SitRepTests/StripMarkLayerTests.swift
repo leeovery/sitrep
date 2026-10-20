@@ -3,45 +3,64 @@ import QuartzCore
 @testable import SitRepPanel
 import Testing
 
-/// A mark's arc in black, as the prototype's `.mk .arc` fades it: in over 60ms as a click's jump starts, so a quick
-/// answer still shows it, and out over the mark's 240 as it ends.
+/// A mark in black, eased as the prototype's `.mk` eases it: its arc in over 60ms as a click's jump starts, so a quick
+/// answer still shows it, and out over the mark's 240, as it does in over 240 for a mark turning working; and its fill
+/// pressed in and let out over 110.
 @MainActor
 struct StripMarkLayerTests {
-    private static func mark(jumping: Bool) -> StripFrame.Mark {
+    private static func mark(_ look: StripFrame.Mark.Look = .turn, jumping: Bool = false) -> StripFrame.Mark {
         StripFrame.Mark(
-            key: .session("a"), text: "SR", look: .turn, centre: .zero, scale: 1, alpha: 1, isLifted: false, lift: 0,
+            key: .session("a"), text: "SR", look: look, centre: .zero, scale: 1, alpha: 1, isLifted: false, lift: 0,
             isJumping: jumping, wash: 0, flash: 0
         )
     }
 
-    /// The transaction a layer's opacity changes in, as its action is looked up: how long it eases over.
-    private final class Fades: NSObject, CALayerDelegate {
-        var opacity: [Double] = []
+    /// The transactions a layer's property changes in, as its action is looked up: how long each eases over.
+    private final class Eases: NSObject, CALayerDelegate {
+        let key: String
+        var eases: [Double] = []
+
+        init(_ key: String) {
+            self.key = key
+        }
 
         func action(for layer: CALayer, forKey event: String) -> (any CAAction)? {
-            if event == "opacity", !CATransaction.disableActions() {
-                opacity.append(CATransaction.animationDuration())
+            if event == key, !CATransaction.disableActions() {
+                eases.append(CATransaction.animationDuration())
             }
             return nil
         }
     }
 
-    /// How long the arc eases over as the mark goes from not jumping to this.
-    private static func arcFade(to jumping: Bool) -> [Double] {
-        let layer = StripMarkLayer(), fades = Fades()
+    /// How a part of the mark eases as it goes from one look to the next, its layer and property as named.
+    private static func eases(
+        from: StripFrame.Mark, to: StripFrame.Mark, _ key: String, of part: (StripMarkLayer) -> CALayer
+    ) -> [Double] {
+        let layer = StripMarkLayer(), eases = Eases(key)
 
-        layer.show(mark(jumping: !jumping), at: .zero)
-        layer.spinner.layer.delegate = fades
-        layer.show(mark(jumping: jumping), at: .zero)
+        layer.show(from, at: .zero)
+        part(layer).delegate = eases
+        layer.show(to, at: .zero)
 
-        return fades.opacity
+        return eases.eases
     }
 
     @Test func aJumpsArcFadesInOver60ms() {
-        #expect(Self.arcFade(to: true) == [0.06])
+        #expect(Self.eases(from: Self.mark(), to: Self.mark(jumping: true), "opacity") { $0.spinner.layer } == [0.06])
     }
 
     @Test func andOutOverTheMarks240() {
-        #expect(Self.arcFade(to: false) == [0.24])
+        #expect(Self.eases(from: Self.mark(jumping: true), to: Self.mark(), "opacity") { $0.spinner.layer } == [0.24])
+    }
+
+    @Test func aMarkTurningWorkingFadesItsArcInOver240() {
+        #expect(Self.eases(from: Self.mark(), to: Self.mark(.working), "opacity") { $0.spinner.layer } == [0.24])
+    }
+
+    @Test func itsFillPressesInAndLetsOutOver110() {
+        let pressed = Self.eases(from: Self.mark(), to: Self.mark(jumping: true), "backgroundColor") { $0.ring }
+        let letOut = Self.eases(from: Self.mark(jumping: true), to: Self.mark(), "backgroundColor") { $0.ring }
+
+        #expect(pressed == [0.11] && letOut == [0.11])
     }
 }

@@ -131,34 +131,54 @@ private struct StripGlassBody: View {
 
 /// A mark on glass: its letters in the glass's label colours, the ring in its state's colour, needs you orange with
 /// its glow, your turn the label colour so it reads on light glass as on dark; working, the arc turning round a faint
-/// track. Drawn as each frame has it, lift and all, with no animation of its own for a frame's update to restart, but
-/// for the arc fading in and out as a click's jump starts and ends (`StripMarkLayer.arcFade`).
+/// track. Drawn as each frame has it, lift, wash and flash all, with no animation of its own for a frame's update to
+/// restart; only a change of look eases, each part on the prototype's timing: the ring, its glow and the letters over
+/// 240ms, the pressed fill over 110, and the arc in over 60 as a click's jump starts and out over 240
+/// (`StripMarkLayer`).
 @available(macOS 26, *)
 private struct GlassMark: View {
     let mark: StripFrame.Mark
 
     private static let size = StripFrame.Mark.size, line = 1.5
 
+    /// What the mark looks like, short of its place, its lift and its arrival: a change of it eases.
+    private struct Look: Equatable {
+        let look: StripFrame.Mark.Look
+        let isJumping: Bool
+    }
+
     var body: some View {
+        let showsArc = mark.look == .working || mark.isJumping
+
         ZStack {
             Circle().fill(fill)
-            if mark.look == .working || mark.isJumping {
-                Spinner(
-                    track: mark.isJumping ? nil : .quaternaryLabelColor, arc: arc, period: mark.isJumping ? 0.9 : 1.2
-                )
-                .transition(.opacity)
+                .animation(.linear(duration: StripMarkLayer.pressEase), value: mark.isJumping)
+            ZStack {
+                if showsArc {
+                    Spinner(
+                        track: mark.isJumping ? nil : .quaternaryLabelColor, arc: arc,
+                        period: mark.isJumping ? 0.9 : 1.2
+                    )
+                    .transition(.opacity)
+                }
             }
-            if let ring {
-                Circle()
-                    .strokeBorder(ring, lineWidth: Self.line + 1.1 * mark.flash)
-                    .shadow(color: GlassInk.orange.opacity(glow), radius: (9 + 3 * mark.wash + 7 * mark.flash) / 2)
+            .animation(.linear(duration: StripMarkLayer.arcFade(jumping: mark.isJumping)), value: showsArc)
+            ZStack {
+                if let ring {
+                    Circle()
+                        .strokeBorder(ring, lineWidth: Self.line + 1.1 * mark.flash)
+                        .shadow(color: GlassInk.orange.opacity(glow), radius: (9 + 3 * mark.wash + 7 * mark.flash) / 2)
+                        .transition(.opacity)
+                }
+                Text(mark.text)
+                    .font(.system(size: 9.5, weight: .semibold))
+                    .kerning(0.095)
+                    .foregroundStyle(letters)
             }
-            Text(mark.text)
-                .font(.system(size: 9.5, weight: .semibold))
-                .kerning(0.095)
-                .foregroundStyle(letters)
+            .animation(
+                .linear(duration: StripMarkLayer.lookEase), value: Look(look: mark.look, isJumping: mark.isJumping)
+            )
         }
-        .animation(.linear(duration: StripMarkLayer.arcFade(jumping: mark.isJumping)), value: mark.isJumping)
         .frame(width: Self.size, height: Self.size)
         .scaleEffect(mark.scale)
         .opacity(mark.alpha)

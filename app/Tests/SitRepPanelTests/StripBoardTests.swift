@@ -62,7 +62,8 @@ struct StripBoardTests {
     }
 
     /// A row changed with its tab out: the tab eases to its new words' measure, rather than squeezing them into the
-    /// old. A count's tab keeps its size as its rows change, as the prototype's recording has it.
+    /// old. (A count's tab keeps its size as its rows change, as the prototype's recording pins:
+    /// `StripTimelineTests.anAnswerOutOfTheCountReSortsOnceThePointerHasLeftAsThePrototypes`.)
     @Test func aTabOutTakesItsChangedRowsMeasure() throws {
         var lab = StripLab()
         lab.open("s5")
@@ -75,6 +76,21 @@ struct StripBoardTests {
 
         #expect(was > StripTuning.tabMin)
         #expect(abs(try #require(lab.live).w.x - StripTuning.tabMin) < 0.5)
+    }
+
+    /// Under reduced motion the tab takes its new size at once, its outline cross-fading from the old, as a glide's
+    /// does, rather than jumping.
+    @Test func underReducedMotionATabTakingItsNewMeasureCrossFades() throws {
+        var lab = StripLab(reducesMotion: true)
+        lab.open("s5")
+        var fumi = StripLab.prototype[4]
+        fumi.title = "Sketched"
+
+        lab.change(fumi)
+        lab.step()
+
+        #expect(lab.frame.fading != nil)
+        #expect(try #require(lab.live).alpha.x < 1)
     }
 
     @Test func aRowGoneFadesWhereItIsAndTheRestCloseUp() {

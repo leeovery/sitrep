@@ -428,12 +428,10 @@ extension Strip {
         }
     }
 
-    /// A change shown in place: an open tab of it, or a count's holding it, takes its new words.
+    /// A change shown in place: a count's tab holding it takes its new words, and its own tab with what else changed
+    /// (`show`).
     func changed(_ s: Session) {
         mark(.session(s.id))?.session = s
-        for tab in tabs where tab.phase == .open && tab.key == .session(s.id) {
-            reword(tab)
-        }
         if let live = liveTab(), live.phase == .open, live.key.isCount,
            (live.key == .more ? layout.rest : layout.restNeeds).contains(s.id)
         {

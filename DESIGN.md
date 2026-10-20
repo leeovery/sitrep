@@ -2984,7 +2984,11 @@ reaches a window only while that pane is on show).
         the whole 450; then the tab draws back, or the ring springs back
         out. Its arc fades in over 60ms as the spin starts, as the
         prototype's `.mk.jumping .arc` does, so a quick answer still shows
-        it, and out over the mark's 240. The caption is the panel's, over
+        it, and out over the mark's 240, as it fades in over 240 for a mark
+        turning working. The ring and its glow ease over 240 and the pressed
+        fill over 110, each on its own, in black and in glass; the letters
+        ease over 240 in glass, and in black, set anew, change at once. The
+        caption is the panel's, over
         the strip's screen, once the spin is over. As the panel's, none is
         taken while a jump runs, from
         anywhere; an answer to an earlier click changes nothing; and the
@@ -3021,9 +3025,12 @@ reaches a window only while that pane is on show).
         Nothing on it is new again: no flash. A tab out as what it says
         changes, a row's words, its time going stale or the notch at rest's
         title, takes its new words and eases to their measure as a glide
-        does, where the prototype keeps the old width and squeezes them. A
-        count's tab keeps its size as its rows change, as the prototype's
-        recording has it.
+        does, where the prototype keeps the old width and squeezes them;
+        under reduced motion its outline cross-fades to the new size, as a
+        glide's does. It takes them once, though one board changes both its
+        row and what the board says of it. A count's tab keeps its size as
+        its rows change, as the prototype's recording has it, and its rows
+        say no time, so it keeps them as the board goes stale.
       - **Frames run only while something moves**, as the notch's: a tab
         pouring, a ring flashing, the strip crossing, the ghost. A pointer
         resting anywhere, on the strip or a still tab, costs nothing. A
@@ -3035,22 +3042,26 @@ reaches a window only while that pane is on show).
         at the next whole minute, in the run loop's common modes, so it
         ticks while a menu is open; while the board is stale, never.
       - **Between frames**, as the notch's. The strip has a run of its own
-        (`StripRun`), beside the notch's. What the two keep alike is kept
-        once (`EdgeRun`): the moment an input comes at, the clock that never
-        goes back, the clicks and which is the latest, and what a frame
-        showed for the drawing to show once. A board, Lee's settings, a press, a drag, a let-go, a
-        scroll or a click elsewhere each steps the model first, its time
-        run on while hidden, so what it dates, a flash or a press, runs
-        from the clock, and a click lands on the strip as drawn: on a count
-        whose rows the board changed since the last frame, the row under
-        the pointer is the row the strip presses in. A board after a long
-        idle flashes in full; frames woken after a sleep take no speed from
-        the move they slept through; the pointer's speed is its own, each
-        reading stamped as it was read. While frames run, the next one
-        draws what the inputs between did; the edge swapped, and the jump
-        drained that the caption waits for, are latched for it as they
-        happen: the panel going in, or the strip's spin over, never before
-        the click that is waiting.
+        (`StripRun`), beside the notch's. What the two keep alike, each
+        holds once, in a part of its own (`RunBook`, in `EdgeRun.swift`):
+        the clock that never goes back, the clicks and which is the latest,
+        and what a frame showed for the drawing to show once. A board, Lee's
+        settings, a press, a drag, a let-go, a scroll or a click elsewhere
+        each steps the model first, its time run on while hidden, so what
+        it dates, a flash or a press, runs from the clock, and a click lands
+        on the strip as drawn: on a count whose rows the board changed since
+        the last frame, the row under the pointer is the row the strip
+        presses in. A board after a long idle flashes in full; frames woken
+        after a sleep take no speed from the move they slept through; the
+        pointer's speed is its own, each reading stamped as it was read.
+        While frames run, the next one draws what the inputs between did,
+        with what the frames showed latched for it: the edge swapped, from
+        every frame, the ones run on while hidden too, so a drop across
+        hidden before its swap still lands; and the drain a click's jump
+        waits for, the panel going in or the strip's spin over, which the
+        caption waits for in turn. That is latched only while a click waits
+        on it, so a panel closing with no click, as the pointer leaves, is
+        none.
       - **Hidden**, over a full-screen app or with Nothing chosen, the
         caption and the ghost go with it, and a drag under way ends where it
         began, nothing saved, the window letting clicks through; hidden as

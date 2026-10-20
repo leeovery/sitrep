@@ -22,7 +22,7 @@ public struct PanelList: Equatable, Sendable {
 /// and what a press means. Every input reaches the model through here, and each first brings it up to the input's
 /// moment, so it takes its time from the clock, and the row it finds is the row drawn. The controller draws what this
 /// has, and paces its frames.
-public final class NotchRun: EdgeRun<NotchRun.Setting>, Framed {
+public final class NotchRun: Framed {
     /// What the notch runs in, as it stands at each frame.
     public struct Setting: Equatable, Sendable {
         public var stage: Stage
@@ -39,6 +39,10 @@ public final class NotchRun: EdgeRun<NotchRun.Setting>, Framed {
             self.reducesMotion = reducesMotion
         }
     }
+
+    public typealias Moment = RunMoment<Setting>
+    public typealias Shown = RunShown
+    public typealias Drop = RunDrop
 
 
     /// What a press on the notch comes to.
@@ -68,18 +72,31 @@ public final class NotchRun: EdgeRun<NotchRun.Setting>, Framed {
     private var style: NotchStyle
     private var folds = Folds()
     private var asks = AskClock()
+    private var book: RunBook
 
     public init(at time: Double, in setting: Setting) {
+        book = RunBook(at: time)
         lit = time
         style = setting.style
+        list = PanelList(head: board.head, content: Content(laying: []))
 
-        let list = PanelList(head: PanelBoard().head, content: Content(laying: []))
         let input = Self.input(at: time, pointer: nil, needsLee: false, list, setting)
 
-        self.list = list
         notch = setting.style.notch(input)
         frame = notch.frame(input)
-        super.init(at: time)
+    }
+
+    /// The display's clock, ms, as the frames and what comes between them have it: it never goes back.
+    public var time: Double { book.time }
+
+    /// Whether this click is the latest: an answer to an earlier one changes nothing.
+    public func isLatest(_ click: Int) -> Bool {
+        book.isLatest(click)
+    }
+
+    /// What frames have shown since this was last asked, for the drawing to show once.
+    public func takeShown() -> Shown {
+        book.takeShown()
     }
 
     public var phase: Phase { notch.phase }
@@ -100,7 +117,7 @@ public final class NotchRun: EdgeRun<NotchRun.Setting>, Framed {
     /// One frame: the list as it folds now, the model moved on with the pointer where it is, the rows taking core's
     /// order once the panel is in, the notch Lee chose once it is at rest, and the scroll kept inside the content.
     public func step(_ moment: Moment) {
-        let time = clock(moment.time), setting = moment.setting
+        let time = book.clock(moment.time), setting = moment.setting
 
         list.content = folds.content(at: time)
 
@@ -109,7 +126,7 @@ public final class NotchRun: EdgeRun<NotchRun.Setting>, Framed {
         input.pointerAt = moment.pointerAt
         frame = notch.frame(input)
         seen = moment.pointer
-        latch(swapsEdge: frame.swapsEdge, drained: phase == .closing || phase == .closed, at: time)
+        latch(frame, at: time)
         if rows.hold(notch.phase != .closed) {
             relist(at: time, in: setting)
         }
@@ -121,11 +138,17 @@ public final class NotchRun: EdgeRun<NotchRun.Setting>, Framed {
     /// Hidden, the notch's time ran on: it is taken on to now (`Notch.runOn`), the pointer away, and the frame after
     /// shows it.
     public func catchUp(_ moment: Moment) {
-        let from = time, to = clock(moment.time)
-
-        frame = notch.runOn(from: from, to: to) { [board, list] in
-            Self.input(at: $0, pointer: nil, needsLee: board.needsLee, list, moment.setting)
+        let from = time, to = book.clock(moment.time)
+        let input = { [board, list] (time: Double) in
+            Self.input(at: time, pointer: nil, needsLee: board.needsLee, list, moment.setting)
         }
+
+        frame = notch.runOn(from: from, to: to, input) { latch($1, at: $0) }
+    }
+
+    /// What a frame at this time showed, for the drawing: the edge swapped, and the panel going in for a click's jump.
+    private func latch(_ frame: Frame, at time: Double) {
+        book.latch(swapsEdge: frame.swapsEdge, drained: phase == .closing || phase == .closed, at: time)
     }
 
     /// The board as `watch` last printed it, told to the notch, its rows held while the panel is out: the rows new
@@ -272,7 +295,7 @@ public final class NotchRun: EdgeRun<NotchRun.Setting>, Framed {
             return nil
         }
 
-        return .jump(session, to: target, click: click())
+        return .jump(session, to: target, click: book.click())
     }
 
     /// The rows as they show now, folding in and out while the panel is out, to the model's next frame.

@@ -317,6 +317,31 @@ struct NotchRunTests {
         #expect(run.takeShown() == NotchRun.Shown())
     }
 
+    /// Hidden after a drop across but before its swap, and shown once the swap is past: the frames run on meanwhile
+    /// showed it, and the drawing hears it.
+    @Test func aSwapRunOnWhileHiddenStillReachesTheDrawing() {
+        let run = Self.droppedAcross()
+
+        _ = run.takeShown()
+        run.catchUp(NotchRun.Moment(time: run.time + 600, pointer: nil, isShown: false, setting: Self.setting))
+        run.step(Self.at(run.time + Self.frameMS))
+
+        #expect(run.takeShown().swappedEdge)
+    }
+
+    /// The panel going in with no click waiting on it, as the pointer leaves or a click elsewhere closes it, is no
+    /// jump's drain: the caption waits on nothing.
+    @Test func aPanelGoingInWithNoClickIsNoJumpsDrain() {
+        let run = Self.opened(["a", "b"])
+
+        _ = run.takeShown()
+        run.clickElsewhere(Self.at(run.time + Self.frameMS))
+        Self.frames(run, for: 1000, CGPoint(x: 900, y: 491))
+
+        #expect(run.phase == .closed)
+        #expect(run.takeShown().jumpDrained == nil)
+    }
+
     /// A row's click drains the panel once its jump answers: the drawing hears it once, at the frame it began, and the
     /// frames after, with the panel in, latch nothing more.
     @Test func aClicksDrainIsLatchedOnceAsThePanelGoesIn() throws {

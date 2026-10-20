@@ -11,7 +11,8 @@ final class StripMarkLayer {
     let layer = CALayer()
 
     private let glow = CALayer()
-    private let ring = CALayer()
+    /// The ring: internal only for the tests, which read its fill's ease.
+    let ring = CALayer()
     /// The arc: internal only for the tests, which read its fade.
     let spinner = Arc(line: StripMarkLayer.line)
     private var letters: TextLine?
@@ -23,10 +24,14 @@ final class StripMarkLayer {
     /// A new mark's ring at its brightest flash.
     static let flashed = LiveLight.RGB(r: 255, g: 160, b: 120)
 
+    /// How long a change of look eases, in seconds, the ring's colour and its glow, as the prototype's `.mk`
+    /// transitions do; and the pressed fill, as its background's.
+    static let lookEase = 0.24, pressEase = 0.11
+
     /// How long the arc takes to fade, in seconds: in over 60ms as a click's jump starts, as the prototype's
     /// `.mk.jumping .arc` has it, so a quick answer still shows it; otherwise over the mark's 240.
     static func arcFade(jumping: Bool) -> Double {
-        jumping ? 0.06 : 0.24
+        jumping ? 0.06 : lookEase
     }
 
     init() {
@@ -62,6 +67,7 @@ final class StripMarkLayer {
         layer.opacity = Float(mark.alpha)
 
         let look = Look(kind: mark.look, text: mark.text, jumping: mark.isJumping)
+        let presses = self.look.map { $0.jumping != look.jumping } ?? false
 
         if look != self.look {
             restyle(look, eased: self.look != nil)
@@ -73,8 +79,13 @@ final class StripMarkLayer {
         if glow.shadowRadius != Self.blur / 2 || ring.borderWidth != Self.line {
             restyle(look, eased: false)
         }
-        // the lift as the frame has it, eased by the model: set with no animation of its own, so nothing restarts it
+        // pressed in or let out, the fill eases over 110ms, as the prototype's background does; otherwise it is the
+        // lift as the frame has it, eased by the model: set with no animation of its own, so nothing restarts it
+        CATransaction.begin()
+        CATransaction.setDisableActions(!presses)
+        CATransaction.setAnimationDuration(Self.pressEase)
         ring.backgroundColor = look.jumping ? EdgeStyle.press : EdgeStyle.hover.copy(alpha: mark.lift)
+        CATransaction.commit()
     }
 
     private func restyle(_ look: Look, eased: Bool) {
@@ -83,7 +94,7 @@ final class StripMarkLayer {
 
         CATransaction.begin()
         CATransaction.setDisableActions(!eased)
-        CATransaction.setAnimationDuration(0.24)
+        CATransaction.setAnimationDuration(Self.lookEase)
         ring.borderWidth = Self.line
         ring.borderColor = look.jumping ? EdgeStyle.track : Self.ringColour(kind)
         glow.shadowPath = CGPath(ellipseIn: glow.bounds, transform: nil)

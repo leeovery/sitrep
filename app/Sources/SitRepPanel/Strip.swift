@@ -165,9 +165,13 @@ public final class Strip {
 
     /// Its time run on while nothing showed it, as over a full-screen app, from the last frame's time to now: a frame
     /// each 50ms, the pointer away, until nothing moves, so it shows at rest and plays nothing late, a new ask's flash
-    /// among it. Its last frame.
-    public func runOn(from time: Double, to now: Double, _ input: (Double) -> StripInput) -> StripFrame {
-        runningOn(from: time, to: now, frame: { frame(input($0)) }, isMoving: \.isMoving)
+    /// among it. Each frame, with its time, goes to `each`, for what it shows once, as the edge swapping; its last is
+    /// returned.
+    public func runOn(
+        from time: Double, to now: Double, _ input: (Double) -> StripInput,
+        each: (Double, StripFrame) -> Void = { _, _ in }
+    ) -> StripFrame {
+        runningOn(from: time, to: now, frame: { frame(input($0)) }, each: each, isMoving: \.isMoving)
     }
 
     /// The press given up, as the strip hides with its mouse-up perhaps never to come: a drag puts the strip back
@@ -224,24 +228,31 @@ public final class Strip {
     /// - a new needs you moves in at once, pointer or not, and its ring flashes, or its count's;
     /// - any other new to the strip comes in as the marks re-sort at once, unflashed: needs you with nothing new among
     ///   them, as on a first or a resumed board.
-    public func show(_ board: [Session], new: Set<String>) {
+    ///
+    /// `reworded`, what the tabs say of the board changed with it, as when it goes stale: each open tab that says it
+    /// takes its new words. A tab takes them once, though its row changed too.
+    public func show(_ board: [Session], new: Set<String>, reworded: Bool = false) {
         let was = Dictionary(sessions.map { ($0.id, $0) }) { first, _ in first }
         let gone = Set(was.keys).subtracting(board.map(\.id))
         let fresh = board.filter { was[$0.id] == nil }
         let asks = fresh.filter { $0.kind == .needs && new.contains($0.id) }
+        let changes = board.filter { session in was[session.id].map { $0 != session } ?? false }
 
         sessions = board
         if !gone.isEmpty {
             leave(gone)
         }
-        for session in board where was[session.id].map({ $0 != session }) ?? false {
-            changed(session)
-        }
+        changes.forEach(changed)
         asks.forEach(insertNeeds)
         let others = fresh.filter { !asks.contains($0) }
         if !others.isEmpty {
             add(others)
         }
+
+        let rewords = reworded ? tabsSayingTheBoard : tabs.filter { tab in
+            tab.phase == .open && changes.contains { tab.key == .session($0.id) }
+        }
+        rewords.forEach(reword)
     }
 
     /// Sessions new to the strip, all at once, as the prototype's Too many brings them: the marks re-sort at once, and
