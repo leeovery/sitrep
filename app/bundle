@@ -29,8 +29,14 @@ fi
 # One version covers the plugin and the app.
 version=$(plutil -extract version raw -o - "$repo/.claude-plugin/plugin.json")
 
-swift build -c release --package-path "$app"
-binaries=$(swift build -c release --package-path "$app" --show-bin-path)
+# The link is given the SDK as -isysroot. SwiftPM hands it to clang's link
+# only as --sysroot and with no SDKROOT, so clang records the deployment
+# target as the SDK the app was built with, and macOS draws an app in the
+# design of the SDK it records: linked without it, SitRep was drawn as on
+# macOS 14, with none of the system's Liquid Glass.
+build=(-c release --package-path "$app" -Xswiftc -Xclang-linker -Xswiftc -isysroot -Xswiftc -Xclang-linker -Xswiftc "$(xcrun --show-sdk-path)")
+swift build "${build[@]}"
+binaries=$(swift build "${build[@]}" --show-bin-path)
 
 mkdir -p "$bundle/Contents/MacOS" "$bundle/Contents/Resources"
 cp "$binaries/SitRep" "$bundle/Contents/MacOS/SitRep"

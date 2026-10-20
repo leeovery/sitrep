@@ -3746,6 +3746,19 @@ reaches a window only while that pane is on show).
         signature verifies with it inside (`codesign --verify --deep
         --strict`). `app/bundle` refuses a folder that already holds a
         bundle. The Info.plist's `SitRepPlugin` is gone.
+      - **The binary records the SDK it was built with**: `app/bundle`
+        gives the release link the SDK as `-isysroot`. SwiftPM hands clang's
+        link the SDK only as `--sysroot`, with no `SDKROOT`, and clang then
+        records the deployment target, 14.0, as the SDK, though the objects
+        record the SDK itself (27.0 on 20 October 2026). macOS draws an app
+        in the design of the SDK it records, so SitRep was drawn as on
+        macOS 14, its Settings and its window with none of the system's
+        Liquid Glass (Lee, 20 October: "We should be using Liquid Glass for
+        the settings"). The flag can go once SwiftPM passes `-isysroot` or
+        `SDKROOT` itself. Only the bundle's build has it: `swift build` and
+        `swift test` still link as macOS 14, so the tests run in the older
+        design's behaviour, and the notch and strip, tuned frame by frame
+        under it, want a look in the bundle.
       - **Each start looks first**, before `watch` starts: `claude` found
         where its installers put it (`~/.local/bin`, Homebrew's, npm's on
         an Intel Mac, the old `~/.claude/local`), else on Lee's login
