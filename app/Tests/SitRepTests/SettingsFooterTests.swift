@@ -5,10 +5,11 @@ import SwiftUI
 import Testing
 
 /// Settings at the sidebar's foot as the window lays it out, against spec 2.5: a rule of 0.5, 276 wide and centred, 8
-/// under it the row, 32 tall, then 10 to the glass's bottom; the list running on under it, its last row 12 over the
-/// rule. A window on screen gives the sidebar a bottom safe area that an offscreen one does not, so each holds whatever
-/// bottom safe area the sidebar has. Picked, the row draws the system's selection itself; under the pointer, a row's
-/// quiet fill; a click picks it, and VoiceOver reads it as a button.
+/// under it the row, 32 tall, then 10 to the glass's bottom; the list ending at the rule, its last row 12 over it. A
+/// window on screen gives the sidebar a bottom safe area that an offscreen one does not, so each holds whatever bottom
+/// safe area the sidebar has. Picked, the row draws the system's selection itself; under the pointer, a row's quiet
+/// fill; a click picks it, and VoiceOver reads it as a choice, selected while Settings shows. What the row tells
+/// SwiftUI it tells after AppKit's change (`settle`).
 @MainActor
 struct SettingsFooterTests {
     /// Picked, so the selection draws the row's 276 by 32, in from the sidebar's edges; every frame from the drawing's
@@ -29,15 +30,15 @@ struct SettingsFooterTests {
         #expect(selection == CGRect(x: 10, y: row.minY, width: 276, height: 32))
     }
 
-    /// In a window too short for the board, scrolled to its end.
+    /// In a window too short for the board, scrolled to its end: no row of it passes behind the foot.
     @Test(arguments: [0, 10, 27.5])
-    func theListRunsOnUnderTheFootItsLastRow12OverTheRule(bottomSafeArea: CGFloat) throws {
+    func theListEndsAtTheRuleItsLastRow12OverIt(bottomSafeArea: CGFloat) throws {
         let side = try HostedSidebar(HostedSidebar.opened(), height: 400, bottomSafeArea: bottomSafeArea)
         let scroll = try Self.scrolledToItsEnd(side)
         let last = try #require(side.rows.last)
         let rule = try side.footRow().minY - WindowStyle.footerTop - WindowStyle.footerRule
 
-        #expect(side.frame(of: scroll).maxY == side.glassBottom)
+        #expect(side.frame(of: scroll).maxY == rule)
         #expect(rule - last.maxY == 12)
     }
 
@@ -57,42 +58,69 @@ struct SettingsFooterTests {
     }
 
     /// The system's grey, opaque, until its row has the key window's focus, as in a window not key or with focus on the
-    /// board's list; then the accent, its gear and its word white.
+    /// board's list; then the accent, its gear white, as the emphasized selection turns it.
     @Test(arguments: [(false, true), (true, false), (true, true)])
-    func pickedItsSelectionIsTheSystemsGreyUntilItsRowHasTheKeyWindowsFocus(isKey: Bool, isFocused: Bool) throws {
+    func pickedItsSelectionIsTheSystemsGreyUntilItsRowHasTheKeyWindowsFocus(isKey: Bool, isFocused: Bool) async throws {
         let side = try HostedSidebar(Self.onSettings(), isKey: isKey)
         let isEmphasized = isKey && isFocused
 
         side.window.makeFirstResponder(isFocused ? side.foot : side.board)
-        side.view.layoutSubtreeIfNeeded()
+        await Self.settle()
 
         let drawn = try side.drawn()
         let row = try Self.row(of: side)
         let fill = try #require(drawn.stored(at: CGPoint(x: 270, y: row.midY)))
         let gear = try drawn.brightest(in: Self.gear(in: row))
-        let word = try drawn.brightest(in: Self.word(in: row))
         let system: NSColor = isEmphasized
             ? .selectedContentBackgroundColor : .unemphasizedSelectedContentBackgroundColor
 
         #expect(Self.same(fill, Self.dark(system, in: drawn.bitmap.colorSpace)))
         #expect(gear.isWhite == isEmphasized)
-        #expect(!isEmphasized || word.isWhite)
     }
 
     /// Under the pointer and not picked, a session row's quiet fill, 6% white over the glass; gone as the pointer
-    /// leaves.
-    @Test func underThePointerItsRowTakesARowsQuietFill() throws {
+    /// leaves. The pointer's crossings come through the row's one tracking area (`cross`).
+    @Test func underThePointerItsRowTakesARowsQuietFill() async throws {
         let side = try HostedSidebar(HostedSidebar.opened())
         let foot = try #require(side.foot)
         let place = CGPoint(x: 270, y: try Self.row(of: side).midY)
 
-        foot.mouseEntered(with: try Self.crossing(.mouseEntered, in: side.window))
+        foot.updateTrackingAreas()
+        let area = try #require(foot.trackingAreas.first)
+        try Self.cross(.mouseEntered, area, in: side.window)
+        await Self.settle()
         let hovered = try #require(side.drawn().stored(at: place))
-        foot.mouseExited(with: try Self.crossing(.mouseExited, in: side.window))
+        try Self.cross(.mouseExited, area, in: side.window)
+        await Self.settle()
         let left = try #require(side.drawn().stored(at: place))
 
+        #expect(foot.trackingAreas.count == 1)
+        #expect(area.options.isSuperset(of: [.mouseEnteredAndExited, .inVisibleRect]))
         #expect(Self.same(hovered, try #require(NSColor(WindowStyle.sidebarHover).usingColorSpace(.sRGB))))
         #expect(left.alphaComponent == 0)
+    }
+
+    /// A window out of sight, closed, minimised or ordered out, sends no exit, nor does a row taken out of its window.
+    @Test(arguments: [false, true])
+    func theHoverGoesAsItsWindowGoesOutOfSightOrItLeavesIt(leavesItsWindow: Bool) async throws {
+        let side = try HostedSidebar(HostedSidebar.opened())
+        let foot = try #require(side.foot)
+        let host = try #require(foot.superview)
+        let place = CGPoint(x: 270, y: try Self.row(of: side).midY)
+
+        try Self.cross(.mouseEntered, try #require(foot.trackingAreas.first), in: side.window)
+        await Self.settle()
+        try #require(try side.drawn().stored(at: place)?.alphaComponent != 0)
+        if leavesItsWindow {
+            foot.removeFromSuperview()
+            await Self.settle()
+            host.addSubview(foot)
+        } else {
+            NotificationCenter.default.post(name: NSWindow.didChangeOcclusionStateNotification, object: side.window)
+            await Self.settle()
+        }
+
+        #expect(try side.drawn().stored(at: place)?.alphaComponent == 0)
     }
 
     /// A press anywhere across the row lands on it, past what it draws, picks Settings, and gives it focus, as a press
@@ -111,7 +139,22 @@ struct SettingsFooterTests {
         #expect(foot.acceptsFirstMouse(for: press))
     }
 
-    /// The list runs on under the rule and the space round it, where a press lands on none of its rows.
+    /// A Control-click is the Mac's right-click: it picks nothing, and focus stays where it was.
+    @Test func aControlClickPicksNothing() throws {
+        let picks = Picks()
+        let side = try HostedSidebar(HostedSidebar.opened(), actions: WindowActions(pick: { picks.made.append($0) }))
+        let foot = try #require(side.foot)
+        let press = try Self.press(
+            at: foot.convert(CGPoint(x: 150, y: foot.bounds.midY), to: nil), with: .control, in: side.window
+        )
+
+        side.window.makeFirstResponder(side.board)
+        foot.mouseDown(with: press)
+        #expect(picks.made.isEmpty)
+        #expect(side.window.firstResponder === side.board)
+    }
+
+    /// The list ends at the rule: a press on it or the space round it lands on none of the list's rows.
     @Test func aClickOnTheFootOutsideItsRowLandsOnNothingUnderIt() throws {
         let side = try HostedSidebar(HostedSidebar.opened(), height: 400)
         let foot = try #require(side.foot)
@@ -126,25 +169,34 @@ struct SettingsFooterTests {
         }
     }
 
-    @Test func voiceOverReadsItsRowAsAButtonSelectedWhileSettingsShows() throws {
+    /// One of the sidebar's choices, a radio button, whose value VoiceOver reads as selected or not.
+    @Test func voiceOverReadsItsRowAsAChoiceSelectedWhileSettingsShows() throws {
         let picks = Picks()
         let actions = WindowActions(pick: { picks.made.append($0) })
         let unpicked = try #require(try HostedSidebar(HostedSidebar.opened(), actions: actions).foot)
         let picked = try #require(try HostedSidebar(Self.onSettings()).foot)
 
-        #expect(unpicked.isAccessibilityElement() && unpicked.accessibilityRole() == .button)
+        #expect(unpicked.isAccessibilityElement() && unpicked.accessibilityRole() == .radioButton)
         #expect(unpicked.accessibilityLabel() == "Settings")
+        #expect(unpicked.accessibilityValue() as? NSNumber == 0 && picked.accessibilityValue() as? NSNumber == 1)
         #expect(!unpicked.isAccessibilitySelected() && picked.isAccessibilitySelected())
         #expect(unpicked.accessibilityPerformPress())
         #expect(picks.made == [.settings])
     }
 
-    /// The system's focus ring, round the selection's shape.
-    @Test func itsFocusRingIsTheSelectionsShape() throws {
+    /// Not picked, as Tab reaches it, the system's focus ring, round the selection's shape.
+    @Test func notPickedItsFocusRingIsTheSelectionsShape() throws {
         let foot = try #require(try HostedSidebar(HostedSidebar.opened()).foot)
 
-        #expect(foot.focusRingType != .none)
+        #expect(foot.focusRingType == .default)
         #expect(foot.focusRingMaskBounds == CGRect(x: 10, y: 0, width: 276, height: 32))
+    }
+
+    /// Picked, it shows focus as a list's row does, by its selection alone.
+    @Test func pickedItDrawsNoFocusRing() throws {
+        let foot = try #require(try HostedSidebar(Self.onSettings()).foot)
+
+        #expect(foot.focusRingType == .none)
     }
 
     private static func onSettings() -> WindowRun {
@@ -183,11 +235,19 @@ struct SettingsFooterTests {
     }
 
     /// A press at this point in the window.
-    private static func press(at point: CGPoint, in window: NSWindow) throws -> NSEvent {
+    private static func press(
+        at point: CGPoint, with modifiers: NSEvent.ModifierFlags = [], in window: NSWindow
+    ) throws -> NSEvent {
         try #require(NSEvent.mouseEvent(
-            with: .leftMouseDown, location: point, modifierFlags: [], timestamp: 0, windowNumber: window.windowNumber,
-            context: nil, eventNumber: 0, clickCount: 1, pressure: 1
+            with: .leftMouseDown, location: point, modifierFlags: modifiers, timestamp: 0,
+            windowNumber: window.windowNumber, context: nil, eventNumber: 0, clickCount: 1, pressure: 1
         ))
+    }
+
+    /// What the row tells SwiftUI after AppKit's change, told: queued on the main queue, which runs it once the test
+    /// lets go of the main actor.
+    private static func settle() async {
+        await Task.yield()
     }
 
     /// The view a press lands on, as the window finds it: a window never shown hands no press on.
@@ -197,11 +257,22 @@ struct SettingsFooterTests {
         return frame?.hitTest(frame?.convert(press.locationInWindow, from: nil) ?? .zero)
     }
 
-    private static func crossing(_ type: NSEvent.EventType, in window: NSWindow) throws -> NSEvent {
-        try #require(NSEvent.enterExitEvent(
+    /// The pointer crossing into a tracking area, or out of it, as the window server reports it, the event's tracking
+    /// number the area's own, handed to the owner the event names. AppKit hands a window never shown no crossing, by
+    /// `sendEvent` of the window's or the app's (measured).
+    private static func cross(_ type: NSEvent.EventType, _ area: NSTrackingArea, in window: NSWindow) throws {
+        let event = try #require(NSEvent.enterExitEvent(
             with: type, location: .zero, modifierFlags: [], timestamp: 0, windowNumber: window.windowNumber,
-            context: nil, eventNumber: 0, trackingNumber: 0, userData: nil
+            context: nil, eventNumber: 0, trackingNumber: Int(bitPattern: Unmanaged.passUnretained(area).toOpaque()),
+            userData: nil
         ))
+        let owner = try #require(event.trackingArea?.owner as? NSResponder)
+
+        if type == .mouseEntered {
+            owner.mouseEntered(with: event)
+        } else {
+            owner.mouseExited(with: event)
+        }
     }
 
     /// A system colour as the dark appearance gives it, in this colour space.

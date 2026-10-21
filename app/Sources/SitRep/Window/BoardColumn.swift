@@ -5,8 +5,9 @@ import SwiftUI
 /// projects each under a heading that folds, and the quiet projects under theirs. The filter narrows it in place, the
 /// words typed lit in the names that hold them; with nothing kept, one line says so, and an empty board says how the
 /// board stands. A quiet project's row opens the project. A row under the pointer that is not the one picked shows a
-/// quiet fill behind it. Settings sits at the sidebar's foot, which never scrolls, the list running on under it, its
-/// last row 12 over the foot's rule; while Settings shows, nothing on the board is picked.
+/// quiet fill behind it. Settings sits at the sidebar's foot, which never scrolls, under the list, whose rows fade out
+/// at its own bottom edge, over the foot's rule, its last row 12 over it; while Settings shows, nothing on the board is
+/// picked.
 struct BoardColumn: View {
     let sidebar: Sidebar
     let spot: Spot?
@@ -22,15 +23,15 @@ struct BoardColumn: View {
         } else {
             VStack(alignment: .leading, spacing: 0) {
                 accessory
-                list.underFoot().overlay {
+                list.fadingAtItsFoot().overlay {
                     if let note {
-                        ListNote(words: note).padding(.bottom, SettingsFooter.height)
+                        ListNote(words: note)
                     }
                 }
+                SettingsFooter(pick: pick)
             }
-            // Over the list and its scroll edge, on the glass's bottom: a window on screen gives the sidebar a bottom
-            // safe area, which an offscreen one does not, and by which a foot in the list's bar rose.
-            .overlay(alignment: .bottom) { SettingsFooter(pick: pick) }
+            // A window on screen gives the sidebar a bottom safe area, which an offscreen one does not: ignored, the
+            // foot sits on the glass's bottom.
             .ignoresSafeArea(.container, edges: .bottom)
         }
     }
@@ -121,16 +122,13 @@ extension View {
 }
 
 private extension View {
-    /// Room at the list's foot for Settings, drawn over it, the list running on under it: on macOS 26 the system's own
-    /// bar, holding nothing, whose soft scroll edge fades the list where it passes beneath (spec 2.5's fade, the
-    /// sidebar's glass where Paper drew a gradient); before it, the list's inset, with no fade.
-    @ViewBuilder func underFoot() -> some View {
-        let room = Color.clear.frame(height: SettingsFooter.height)
-
+    /// A list whose rows fade out at its bottom edge, over the foot's rule: on macOS 26 by the system's soft scroll
+    /// edge (spec 2.5's fade, the sidebar's glass where Paper drew a gradient); before it, with no fade.
+    @ViewBuilder func fadingAtItsFoot() -> some View {
         if #available(macOS 26, *) {
-            scrollEdgeEffectStyle(.soft, for: .bottom).safeAreaBar(edge: .bottom, spacing: 0) { room }
+            scrollEdgeEffectStyle(.soft, for: .bottom)
         } else {
-            safeAreaInset(edge: .bottom, spacing: 0) { room }
+            self
         }
     }
 }

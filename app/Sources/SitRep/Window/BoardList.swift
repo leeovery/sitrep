@@ -40,6 +40,7 @@ struct BoardList: View {
                 .sidebarList()
                 .focused($isFocused)
                 .padding(.top, -WindowStyle.listInset)
+                // The list's own bottom inset, 10, and 2 more: its content margins it ignores (measured offscreen).
                 .safeAreaPadding(.bottom, WindowStyle.listBottom - WindowStyle.listInset)
                 .animation(reducesMotion ? nil : .easeInOut(duration: 0.25), value: order)
                 .onHover { act.pointer($0) }

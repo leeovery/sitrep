@@ -210,10 +210,12 @@ struct SideFocusTests {
         sides.turn(to: .settings)
         sides.focus.focusList()
         #expect(sides.window.firstResponder === sides.foot)
+        #expect(sides.foot.focusRingType == .none)
 
         sides.turn(to: .session("sr-macapp"))
         sides.focus.focusList()
         #expect(sides.window.firstResponder === sides.board)
+        #expect(sides.foot.focusRingType == .default)
     }
 
     /// The foot is the stop after the board's list, as Tab and Shift-Tab step, whether Keyboard navigation is on or
@@ -245,6 +247,16 @@ struct SideFocusTests {
         sides.window.makeFirstResponder(sides.foot)
         #expect(!sides.pressThrough(key, typing: characters))
         #expect(sides.asked.picks == [.settings])
+        #expect(sides.window.firstResponder === sides.foot)
+    }
+
+    /// With a modifier held, Return on the foot is neither the window's nor the foot's, as on the board's list.
+    @Test func returnWithAModifierOnTheFootOpensNothing() throws {
+        let sides = try Sides()
+
+        sides.window.makeFirstResponder(sides.foot)
+        #expect(!sides.pressThrough(SideFocus.return, with: .shift))
+        #expect(sides.asked.picks.isEmpty)
         #expect(sides.window.firstResponder === sides.foot)
     }
 
@@ -387,8 +399,10 @@ private struct Sides {
 
     /// A key as the window hears it: the monitor's, and where it takes none, what has focus, as AppKit hands it on.
     /// Whether the monitor took it.
-    func pressThrough(_ key: UInt16, typing characters: String = "\r") -> Bool {
-        guard let event = Self.event(key, typing: characters, in: window) else {
+    func pressThrough(
+        _ key: UInt16, with modifiers: NSEvent.ModifierFlags = [], typing characters: String = "\r"
+    ) -> Bool {
+        guard let event = Self.event(key, with: modifiers, typing: characters, in: window) else {
             return false
         }
         if focus.take(event, undo: { false }) {

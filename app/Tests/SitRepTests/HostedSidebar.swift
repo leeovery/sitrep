@@ -10,9 +10,9 @@ import Testing
 /// 1260 × 1069 unless given another height, over a run of a board the real `watch` printed. Its frames are read as
 /// Paper's drawing gives them: x from the glass's left, y from the window's top.
 ///
-/// Under the foot's bar the list scrolls through macOS 26's soft edge, which draws its rows where nothing offscreen
+/// The list scrolls through macOS 26's soft scroll edge, which draws its rows where nothing offscreen
 /// reads them: the drawing shows the foot, and the list's frames are AppKit's. So what the rows draw is read from the
-/// real list hosted alone (`listAlone`), under the accessory's 47 as in the column, the bar the only thing gone.
+/// real list hosted alone (`listAlone`), under the accessory's 47 as in the column, the foot the only thing gone.
 /// (Touching the titlebar's band, the list would scroll through the toolbar's soft edge, which reads as blank too.)
 @MainActor
 struct HostedSidebar {
