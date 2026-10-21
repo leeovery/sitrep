@@ -295,7 +295,7 @@ private struct SessionRowView: View {
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-            Age(words: Words.age(row.since, at: now), isWashing: isWashing)
+            age
                 .font(WindowStyle.ui(12))
                 .frame(width: 28, alignment: .trailing)
                 .frame(minHeight: WindowStyle.lane.height)
@@ -303,6 +303,17 @@ private struct SessionRowView: View {
     }
 
     private var isWashing: Bool { row.washed != nil }
+
+    /// Its time: orange while it washes, as what needs Lee stays orange; else faint.
+    @ViewBuilder private var age: some View {
+        let words = Text(Words.age(row.since, at: now))
+
+        if isWashing {
+            words.foregroundStyle(WindowStyle.orange)
+        } else {
+            words.tone(.faint)
+        }
+    }
 }
 
 /// "6 quiet projects", over their names.
@@ -357,19 +368,6 @@ private struct Name: View {
                 return Text("\(text)\(Text(run.text).foregroundStyle(colour))")
             }
         }
-    }
-}
-
-/// A row's time: orange while it washes, as what needs Lee stays orange; else faint, white on the row selected in a
-/// list with focus.
-private struct Age: View {
-    let words: String
-    let isWashing: Bool
-
-    @Environment(\.backgroundProminence) private var prominence
-
-    var body: some View {
-        Text(words).foregroundStyle(isWashing ? WindowStyle.orange : WindowStyle.colour(.faint, on: prominence))
     }
 }
 

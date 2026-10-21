@@ -28,16 +28,11 @@ struct ShowPicturesTests {
 
     /// `#FFFFFF26` lifted to `#FFFFFF4D`, at once: the only thing the pointer changes.
     @Test func aTileNotChosenLiftsItsHairlineUnderThePointer() {
-        #expect(abs(PictureHover.hairline(isOver: false) - 0x26 / 255) < 0.002)
-        #expect(abs(PictureHover.hairline(isOver: true) - 0x4D / 255) < 0.002)
+        #expect(PictureHover.hairline(isOver: false) == Double(0x26) / 255)
+        #expect(PictureHover.hairline(isOver: true) == Double(0x4D) / 255)
     }
 
     @Test func theNotchsCrestIsAStraightRunAtX9() {
         #expect(abs(NotchPicture.outline.boundingRect.maxX - 9) < 0.001)
-    }
-
-    @Test func theStripsWorkingRingsStandAtTwelveAndFortyFiveAndTheRestAreWhole() {
-        #expect(StripPicture.restingArcs == [nil, nil, 0, 45])
-        #expect(StripPicture.rings.map(\.ring) == [.needs, .turn, .working, .working])
     }
 }

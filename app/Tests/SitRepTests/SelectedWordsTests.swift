@@ -17,4 +17,20 @@ struct SelectedWordsTests {
         #expect(WindowStyle.colour(.soft, on: .standard) == WindowStyle.soft)
         #expect(WindowStyle.colour(.faint, on: .standard) == WindowStyle.faint)
     }
+
+    @Test func onTheSelectionOfAListWithFocusAMarksGreysGoWhiteItsTrackDimmer() {
+        #expect(WindowStyle.colour(WindowStyle.awayDot, on: .increased) == .white)
+        #expect(WindowStyle.colour(WindowStyle.arc, on: .increased) == .white)
+        #expect(
+            WindowStyle.colour(WindowStyle.track, on: .increased, selected: WindowStyle.selectedTrack)
+                == .white.opacity(Double(0x4D) / 255)
+        )
+    }
+
+    @Test func elsewhereAMarkKeepsItsOwn() {
+        #expect(WindowStyle.colour(WindowStyle.awayDot, on: .standard) == WindowStyle.awayDot)
+        #expect(
+            WindowStyle.colour(WindowStyle.track, on: .standard, selected: WindowStyle.selectedTrack) == WindowStyle.track
+        )
+    }
 }

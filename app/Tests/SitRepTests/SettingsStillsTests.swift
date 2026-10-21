@@ -133,6 +133,26 @@ struct SettingsStillsTests {
         try Self.window(page, "settings-wide", width: 1500)
     }
 
+    /// The sidebar's foot as the window lays it out, Settings picked: the system's own list in the list's bar, over
+    /// black where the glass would be, which nothing offscreen draws.
+    @Test func theFootInTheWindow() throws {
+        let drawing = try Foot.laidOut().drawing
+        let rect = NSRect(x: 0, y: 0, width: drawing.pixelsWide, height: drawing.pixelsHigh)
+        let still = try #require(NSBitmapImageRep(
+            bitmapDataPlanes: nil, pixelsWide: drawing.pixelsWide, pixelsHigh: drawing.pixelsHigh, bitsPerSample: 8,
+            samplesPerPixel: 4, hasAlpha: true, isPlanar: false, colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0
+        ))
+
+        NSGraphicsContext.saveGraphicsState()
+        NSGraphicsContext.current = NSGraphicsContext(bitmapImageRep: still)
+        NSColor.black.setFill()
+        rect.fill()
+        drawing.draw(in: rect, from: .zero, operation: .sourceOver, fraction: 1, respectFlipped: false, hints: nil)
+        NSGraphicsContext.restoreGraphicsState()
+        try #require(still.representation(using: .png, properties: [:]))
+            .write(to: try #require(stills).appending(path: "foot-in-the-window.png"))
+    }
+
     @Test func aboutSitRep() throws {
         try Self.render(AboutView().background(Color(nsColor: .windowBackgroundColor)), "about", size: CGSize(width: 308, height: 313))
     }

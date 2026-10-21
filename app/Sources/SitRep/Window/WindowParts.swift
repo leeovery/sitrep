@@ -3,17 +3,20 @@ import SitRepWindow
 import SwiftUI
 
 /// A session's mark in its lane, as the panel row draws it: the orange dot with its glow, the open ring, the turning
-/// arc, an away session's faint dot.
+/// arc, an away session's faint dot. On the accent of a selection in the list that has the window's focus, its greys
+/// go white, as the system's own rows' icons do; its orange stays orange.
 struct MarkView: View {
     let mark: Mark
+
+    @Environment(\.backgroundProminence) private var prominence
 
     var body: some View {
         Group {
             switch mark {
             case .needs: NeedsDot()
             case .turn: Circle().strokeBorder(WindowStyle.text, lineWidth: 1.5).frame(width: 9, height: 9)
-            case .working: TurningArc()
-            case .away: Circle().fill(WindowStyle.awayDot).frame(width: 5, height: 5)
+            case .working: TurningArc(on: prominence)
+            case .away: Circle().fill(WindowStyle.colour(WindowStyle.awayDot, on: prominence)).frame(width: 5, height: 5)
             }
         }
         .frame(width: WindowStyle.lane.width, height: WindowStyle.lane.height)
@@ -43,17 +46,27 @@ struct NeedsDot: View {
     }
 }
 
-/// The prototype's 11-point arc, turning once a second; still under reduced motion.
+/// The prototype's 11-point arc, turning once a second; still under reduced motion. On the accent of a selection, its
+/// arc white over a dimmer white track.
 struct TurningArc: View {
+    let prominence: BackgroundProminence
+
     @Environment(\.reducesWindowMotion) private var reducesMotion
     @State private var isTurning = false
 
+    init(on prominence: BackgroundProminence) {
+        self.prominence = prominence
+    }
+
     var body: some View {
         ZStack {
-            Circle().stroke(WindowStyle.track, lineWidth: 1.5)
+            Circle().stroke(
+                WindowStyle.colour(WindowStyle.track, on: prominence, selected: WindowStyle.selectedTrack),
+                lineWidth: 1.5
+            )
             Circle()
                 .trim(from: 0, to: 0.25)
-                .stroke(WindowStyle.arc, style: StrokeStyle(lineWidth: 1.5, lineCap: .round))
+                .stroke(WindowStyle.colour(WindowStyle.arc, on: prominence), style: StrokeStyle(lineWidth: 1.5, lineCap: .round))
                 .rotationEffect(.degrees(isTurning ? 270 : -90))
         }
         .frame(width: 9, height: 9)

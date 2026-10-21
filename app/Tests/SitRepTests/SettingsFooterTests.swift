@@ -4,39 +4,71 @@ import SitRepWindow
 import SwiftUI
 import Testing
 
-/// Settings at the sidebar's foot, laid out by the system's own list in the window's split, made, never shown, against
-/// spec 2.6: under its hairline, 8, then its row 32 tall, then 10.
+/// Settings at the sidebar's foot as the window lays it out, made, never shown: the whole sidebar in the window's
+/// split, the foot in the list's bar, against spec 2.6: its hairline, 8, its row 32 tall, then 10.
 @MainActor
 struct SettingsFooterTests {
-    /// The foot at the sidebar's bottom, its row in the window, and the foot's top and bottom there.
-    private static func laidOut() throws -> (row: CGRect, top: CGFloat, bottom: CGFloat) {
-        let sidebar = NSHostingController(rootView: VStack(spacing: 0) {
-            Color.clear
-            SettingsFooter(pick: .settings, now: Date())
-        })
+    @Test func itsRowIs32Tall8UnderItsHairlineAnd10AboveTheSidebarsFoot() throws {
+        let foot = try Foot.laidOut()
+
+        #expect(foot.row.height == 32)
+        #expect(foot.hairline.height == 1)
+        // the window's points count up from its bottom
+        #expect(foot.hairline.minY - foot.row.maxY == 8)
+        #expect(foot.row.minY - foot.bottom == 10)
+    }
+}
+
+/// The foot as the window lays it out: its row, the system's own, and its hairline, found in the sidebar's drawing, in
+/// the window's points; the sidebar's bottom; and the drawing.
+@MainActor
+struct Foot {
+    let row: CGRect
+    let hairline: CGRect
+    let bottom: CGFloat
+    let drawing: NSBitmapImageRep
+
+    static func laidOut() throws -> Foot {
+        let sidebar = NSHostingController(
+            rootView: BoardColumn(listed: Listed(), pick: .settings, sidebar: .projects, filter: Filter(), now: Date())
+        )
         sidebar.sizingOptions = []
 
         let window = SitRepWindow.window(SitRepWindow.split(sidebar: sidebar, page: NSHostingController(rootView: Color.clear)))
 
         window.contentView?.layoutSubtreeIfNeeded()
 
-        let table = try #require(Self.tables(in: sidebar.view).first)
-        let bottom = sidebar.view.convert(sidebar.view.bounds, to: nil).minY
+        let view = sidebar.view
+        let table = try #require(tables(in: view).first { $0.numberOfRows == 1 })
+        let frame = view.convert(view.bounds, to: nil)
+        let drawing = try #require(view.bitmapImageRepForCachingDisplay(in: view.bounds))
 
-        return (table.convert(table.rect(ofRow: 0), to: nil), bottom + SettingsFooter.height, bottom)
+        view.cacheDisplay(in: view.bounds, to: drawing)
+
+        return Foot(
+            row: table.convert(table.rect(ofRow: 0), to: nil),
+            hairline: try hairline(in: drawing, of: frame),
+            bottom: frame.minY,
+            drawing: drawing
+        )
     }
 
-    @Test func itsRowIs32Tall8UnderItsHairlineAnd10AboveItsBottom() throws {
-        let (row, top, bottom) = try Self.laidOut()
+    /// The hairline's lines of pixels, `#FFFFFF14` over the sidebar's clear, down the middle of the sidebar's foot.
+    private static func hairline(in drawing: NSBitmapImageRep, of frame: CGRect) throws -> CGRect {
+        let scale = CGFloat(drawing.pixelsHigh) / frame.height
+        let foot = drawing.pixelsHigh - Int((SettingsFooter.height + 10) * scale)
+        let lines = (foot..<drawing.pixelsHigh).filter { y in
+            let alpha = drawing.colorAt(x: Int(frame.width / 2 * scale), y: y)?.alphaComponent ?? 0
 
-        #expect(row.height == 32)
-        // the window's points count up from its bottom
-        #expect(top - 1 - row.maxY == 8)
-        #expect(row.minY - bottom == 10)
-    }
+            return abs(alpha - Double(0x14) / 255) < 0.01
+        }
+        let top = try #require(lines.first)
+        let bottom = try #require(lines.last)
 
-    @Test func itIsItsHairlineAndItsRowWithTheirSpace() {
-        #expect(SettingsFooter.height == CGFloat(1 + 8 + 32 + 10))
+        return CGRect(
+            x: frame.minX, y: frame.maxY - CGFloat(bottom + 1) / scale,
+            width: frame.width, height: CGFloat(bottom + 1 - top) / scale
+        )
     }
 
     private static func tables(in view: NSView) -> [NSTableView] {

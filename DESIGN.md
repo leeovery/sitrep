@@ -2670,8 +2670,10 @@ stands).
     - **its foot is Settings**, a row with the system's gear, fixed under
       a hairline as the list runs on under it (see "Settings"): the
       hairline inside the sidebar's 10 either side, 8 under it the row,
-      32 tall, then 10 to the window's foot; the list fades out under it
-      by the system's own soft scroll edge, on macOS 26 only, never a
+      32 tall, then 10 to the window's foot, the system's list setting its
+      row 10 in from its top and its bottom as measured offscreen (whether
+      it does so on screen too is still to see); the list fades out under
+      it by the system's own soft scroll edge, on macOS 26 only, never a
       drawn gradient over the glass. Picked,
       Settings shows on the right, where a session would, and the board's
       list holds no selection while it shows; the foot's row takes the
@@ -2759,9 +2761,11 @@ stands).
   rows, "a very deeply translucent, blurred bar"):
   - a row of the sidebar not picked shows a quiet plain fill behind it,
     white at 6%, never over its words, anywhere the pointer is on the row;
-    the one picked keeps the system's selection, every soft or faint word
-    on it white while the window is key (Lee, 21 October 2026), its orange
-    staying orange. A session new to needing
+    the one picked keeps the system's selection. While that selection is
+    the accent, the window key and the list holding its focus, every soft
+    or faint word on the row goes white, and its mark's greys too, the
+    working arc's track a dimmer white (Lee, 21 October 2026); its orange
+    stays orange. A session new to needing
     Lee washes the whole row orange, in the selection's shape. There is no
     glass highlight anywhere;
   - on the page, a line that opens, a project's session or ask, and a

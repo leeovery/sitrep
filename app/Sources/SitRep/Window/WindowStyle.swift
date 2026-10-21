@@ -36,19 +36,25 @@ enum WindowStyle {
     static let wash = orange.opacity(0.12)
     static let washRing = orange.opacity(0.28)
 
-    /// Words of this tone on what is behind them: on a row selected in a list with focus, its selection the accent,
-    /// white whatever their tone, as the system's own rows' words go; on anything else, their own grey.
+    /// Words of this tone on what is behind them: on a row selected in the list that has the window's focus, its
+    /// selection the accent, white whatever their tone, as the system's own rows' words go; on anything else, their own
+    /// grey.
     static func colour(_ tone: Tone, on prominence: BackgroundProminence = .standard) -> Color {
-        guard prominence != .increased else {
-            return .white
-        }
-
         switch tone {
-        case .text: return text
-        case .soft: return soft
-        case .faint: return faint
+        case .text: colour(text, on: prominence)
+        case .soft: colour(soft, on: prominence)
+        case .faint: colour(faint, on: prominence)
         }
     }
+
+    /// A colour of words or of a mark on what is behind them: on the accent of a selection in the list that has the
+    /// window's focus, `selected`, as the system brightens its own rows' words and icons; on anything else, its own.
+    static func colour(_ own: Color, on prominence: BackgroundProminence, selected: Color = .white) -> Color {
+        prominence == .increased ? selected : own
+    }
+
+    /// The working arc's track on the accent of a selection: dimmer than the arc, now white, so the arc still reads.
+    static let selectedTrack = Color.white.opacity(Double(0x4D) / 255)
 
     static func ui(_ size: CGFloat, _ weight: Font.Weight = .regular) -> Font {
         .system(size: size, weight: weight)
@@ -81,8 +87,7 @@ enum WindowStyle {
     static let footerRow: CGFloat = 32
     static let footerBottom: CGFloat = 10
     /// The foot is a list of its one row, which the system's sidebar list sets 10 in from its top and from its bottom,
-    /// as measured offscreen on macOS 26: its bottom inset is the drawing's 10, and its top is tucked under the hairline
-    /// by what the drawing's 8 lacks of it.
+    /// as measured offscreen on macOS 26 through the list's bar in the window's split (`SettingsFooterTests`).
     static let footerListInset: CGFloat = 10
     static let footerList = footerListInset + footerRow + footerListInset
     /// The hairline over the foot, in from the sidebar's sides as its rows are.

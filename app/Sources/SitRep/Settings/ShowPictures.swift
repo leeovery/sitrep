@@ -24,7 +24,7 @@ struct ShowPictures: View {
 /// A tile not chosen under the pointer: its hairline, `#FFFFFF26`, lifted to `#FFFFFF4D`, at once.
 enum PictureHover {
     static func hairline(isOver: Bool) -> Double {
-        isOver ? 0.3 : 0.15
+        Double(isOver ? 0x4D : 0x26) / 255
     }
 }
 
@@ -145,9 +145,9 @@ enum StripPicture {
     }
 
     /// The rings, top to bottom, by their middles' height.
-    static let rings: [(y: CGFloat, ring: Ring)] = [(20.7, .needs), (31.45, .turn), (38.95, .working), (46.45, .working)]
+    private static let rings: [(y: CGFloat, ring: Ring)] = [(20.7, .needs), (31.45, .turn), (38.95, .working), (46.45, .working)]
     /// The working rings' arcs stand at 12 o'clock and at 45°; the others are whole.
-    static let restingArcs: [Double?] = [nil, nil, 0, 45]
+    private static let restingArcs: [Double?] = [nil, nil, 0, 45]
 
     private static let centre: CGFloat = 7.5
     private static let radius: CGFloat = 2.75
