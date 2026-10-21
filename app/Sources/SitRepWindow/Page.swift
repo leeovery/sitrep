@@ -1,20 +1,28 @@
 import Foundation
 import SitRepCore
 
-/// What the right of the window shows: the session or the project Lee picked; else a line saying why there is none,
-/// as the head does before the board is read, or that no session is open at all.
+/// What the right of the window shows: the session or the project Lee picked, or Settings; else a line saying why
+/// there is none, as the head does before the board is read, or that no session is open at all.
 public enum Page: Equatable, Sendable {
     case empty(String)
     case session(SessionPage)
     case project(ProjectPage)
+    case settings
 
     static let nothingOpen = Page.empty("No session is open.")
 }
 
-/// What Lee picked to read on the right.
+/// What Lee picked to read on the right: a session or a project from the board's list, or Settings from the
+/// sidebar's foot.
 public enum Pick: Hashable, Sendable {
     case session(String)
     case project(String)
+    case settings
+
+    /// The row of the board's list it picks: none for Settings, so nothing on the board is picked while it shows.
+    public var listRow: Pick? {
+        self == .settings ? nil : self
+    }
 }
 
 /// A session at window size, as the pane's session view: its project above it, its name and summary, what its window

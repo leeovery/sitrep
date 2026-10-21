@@ -9,7 +9,8 @@ import SwiftUI
 /// and the arrow keys move alike, and which never empties; a project's name, its own or a quiet one's, opens the
 /// project. A row under the pointer that is not the one picked shows a quiet fill behind it. The head stays put while
 /// the rows scroll, and the row picked is scrolled into view whenever the pick or the order changes: a pick made
-/// elsewhere, by a jump, a notification or the menu, or a resort.
+/// elsewhere, by a jump, a notification or the menu, or a resort. Settings sits at the sidebar's foot, which never
+/// scrolls; while it shows, nothing on the board is picked.
 struct BoardColumn: View {
     let listed: Listed
     let pick: Pick?
@@ -21,7 +22,7 @@ struct BoardColumn: View {
     @Environment(\.reducesWindowMotion) private var reducesMotion
     @Environment(\.isStill) private var isStill
     /// The row picked as the list holds it: the pick, put back whenever the list lets go of it, as a click in its
-    /// blank space or on the row picked does, so its selection never empties while something is picked.
+    /// blank space or on the row picked does, so its selection never empties while something on it is picked.
     @State private var selection: Pick?
 
     var body: some View {
@@ -34,7 +35,7 @@ struct BoardColumn: View {
                 views
                 list.overlay {
                     if isUnmatched {
-                        noMatch
+                        noMatch.padding(.bottom, SettingsFooter.height)
                     }
                 }
             }
@@ -42,7 +43,7 @@ struct BoardColumn: View {
     }
 
     /// The filter keeps nothing of the view chosen: one line says so, over the list, left in place, empty, so it hears
-    /// the pointer leave as ever and the order it holds settles.
+    /// the pointer leave as ever and the order it holds settles; centred on its rows, above Settings at its foot.
     private var isUnmatched: Bool {
         !filter.isEmpty && listed.isEmpty(in: sidebar)
     }
@@ -76,9 +77,10 @@ struct BoardColumn: View {
                 .listStyle(.sidebar)
                 .animation(reducesMotion ? nil : .easeInOut(duration: 0.25), value: order)
                 .onHover { act.pointer($0) }
+                .foot { SettingsFooter(pick: pick, now: now) }
                 .onChange(of: selection) { _, selected in
                     guard let selected else {
-                        selection = pick
+                        selection = pick?.listRow
                         return
                     }
                     if selected != pick {
@@ -86,10 +88,10 @@ struct BoardColumn: View {
                     }
                 }
                 .onChange(of: pick, initial: true) { _, pick in
-                    selection = pick
-                    reveal(pick, in: scroller)
+                    selection = pick?.listRow
+                    reveal(pick?.listRow, in: scroller)
                 }
-                .onChange(of: order) { reveal(pick, in: scroller) }
+                .onChange(of: order) { reveal(pick?.listRow, in: scroller) }
         }
     }
 
@@ -144,6 +146,7 @@ struct BoardColumn: View {
                 standInRows
                 Spacer(minLength: 0)
             }
+            SettingsFooter(pick: pick, now: now)
         }
         .background(WindowStyle.black)
         .overlay(alignment: .trailing) { Rectangle().fill(WindowStyle.line).frame(width: 1) }
@@ -418,5 +421,71 @@ private struct RowBackground: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .contentShape(Rectangle())
         .onHover { isOver = $0 }
+    }
+}
+
+private extension View {
+    /// A foot the list runs on under: on macOS 26 the system's own bar, whose scroll edge fades the list where it
+    /// passes beneath; before it, the list's inset.
+    @ViewBuilder func foot(@ViewBuilder _ foot: () -> some View) -> some View {
+        if #available(macOS 26, *) {
+            safeAreaBar(edge: .bottom, spacing: 0, content: foot)
+        } else {
+            safeAreaInset(edge: .bottom, spacing: 0, content: foot)
+        }
+    }
+}
+
+/// Settings at the sidebar's foot, under a hairline, fixed as the list runs on under it: a list of its one row, so it
+/// takes the system's own selection while Settings shows, as a picked session's row does, and is a stop of its own for
+/// the keys. Drawn as a still, its row alone, as the board's rows are.
+private struct SettingsFooter: View {
+    let pick: Pick?
+    let now: Date
+
+    @Environment(\.windowActions) private var act
+    @Environment(\.isStill) private var isStill
+    /// The row as the list holds it, put back whenever the list lets go of it while Settings shows.
+    @State private var selection: Pick?
+
+    /// Its hairline and its row.
+    static let height = 1 + WindowStyle.footerHeight
+
+    var body: some View {
+        VStack(spacing: 0) {
+            Rectangle().fill(.white.opacity(0.08)).frame(height: 1)
+            if isStill {
+                row.padding(.top, 8).padding(.bottom, 10)
+            } else {
+                List(selection: $selection) { row }
+                    .listStyle(.sidebar)
+                    .scrollDisabled(true)
+                    .frame(height: WindowStyle.footerHeight)
+                    .onChange(of: selection) { _, selected in
+                        if selected == .settings, pick != .settings {
+                            act.pick(.settings)
+                        } else if selected == nil, pick == .settings {
+                            selection = .settings
+                        }
+                    }
+                    .onChange(of: pick, initial: true) { _, pick in
+                        selection = pick == .settings ? .settings : nil
+                    }
+            }
+        }
+    }
+
+    private var row: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "gear")
+                .font(.system(size: 16))
+                .frame(width: 16, height: 18)
+                .accessibilityHidden(true)
+            Text("Settings")
+                .font(WindowStyle.ui(13, .medium))
+                .spacing(-0.005, of: 13)
+        }
+        .foregroundStyle(WindowStyle.text)
+        .sidebarRow(.settings, pick: pick, now: now)
     }
 }

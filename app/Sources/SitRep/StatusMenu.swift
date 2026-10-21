@@ -3,10 +3,10 @@ import SitRepCore
 import SitRepMenu
 import SitRepPanel
 
-/// The menu bar item and its native menu (DESIGN, "The menu bar item"): the header; what it speaks up with; the
-/// panel's sessions from the app's one `watch`, a click jumping to each; the SitRep window; Show; Settings and
-/// quitting. Its glyph lights while anything needs Lee. Each board, and each opening, patches the menu in place
-/// (`MenuChanges`), so an open menu keeps the item under the pointer; while it is open its times tick.
+/// The menu bar item and its native menu (DESIGN, "The menu bar item"): the header, a click opening About SitRep; what
+/// it speaks up with; the panel's sessions from the app's one `watch`, a click jumping to each; the SitRep window;
+/// Show; Settings and quitting. Its glyph lights while anything needs Lee. Each board, and each opening, patches the
+/// menu in place (`MenuChanges`), so an open menu keeps the item under the pointer; while it is open its times tick.
 ///
 /// An NSStatusItem rather than SwiftUI's MenuBarExtra: a menu-style MenuBarExtra tells nothing as its menu opens, and
 /// NSMenuDelegate does.
@@ -16,9 +16,10 @@ final class StatusMenu: NSObject, NSMenuDelegate {
     private let preferences: Preferences
     private let openWindow: () -> Void
     private let openSettings: () -> Void
+    private let openAbout: () -> Void
     private let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
     private let menu = NSMenu()
-    private lazy var header = MenuHeader.view()
+    private lazy var header = MenuHeaderView()
     private var board = MenuBoard(LastBoard())
     private var last = LastBoard()
     private var trouble: PluginTrouble?
@@ -29,12 +30,16 @@ final class StatusMenu: NSObject, NSMenuDelegate {
     /// The item under the pointer, whose words take the highlight's own ink.
     private weak var highlighted: NSMenuItem?
 
-    /// `openWindow` opens the SitRep window, `openSettings` Settings on the pane last used.
-    init(works: Works, preferences: Preferences, openWindow: @escaping () -> Void, openSettings: @escaping () -> Void) {
+    /// `openWindow` opens the SitRep window, `openSettings` the window on Settings, `openAbout` About SitRep.
+    init(
+        works: Works, preferences: Preferences, openWindow: @escaping () -> Void, openSettings: @escaping () -> Void,
+        openAbout: @escaping () -> Void
+    ) {
         self.works = works
         self.preferences = preferences
         self.openWindow = openWindow
         self.openSettings = openSettings
+        self.openAbout = openAbout
         super.init()
 
         menu.delegate = self
@@ -80,6 +85,7 @@ final class StatusMenu: NSObject, NSMenuDelegate {
     func menuDidClose(_ menu: NSMenu) {
         isOpen = false
         highlighted = nil
+        header.isHighlighted = false
         ticking?.invalidate()
         ticking = nil
     }
@@ -88,6 +94,7 @@ final class StatusMenu: NSObject, NSMenuDelegate {
         let was = highlighted
 
         highlighted = item
+        header.isHighlighted = item?.view === header
         for item in [was, item].compactMap(\.self) {
             let offset = menu.index(of: item)
 
@@ -132,6 +139,8 @@ final class StatusMenu: NSObject, NSMenuDelegate {
             let item = NSMenuItem()
 
             item.view = header
+            item.target = self
+            item.action = #selector(about)
             return item
         default:
             let item = NSMenuItem()
@@ -237,6 +246,10 @@ final class StatusMenu: NSObject, NSMenuDelegate {
 
     @objc private func settings() {
         openSettings()
+    }
+
+    @objc private func about() {
+        openAbout()
     }
 
     @objc private func quit() {

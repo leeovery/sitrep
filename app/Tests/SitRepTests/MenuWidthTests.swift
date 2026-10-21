@@ -34,7 +34,7 @@ struct MenuWidthTests {
         if header {
             let item = NSMenuItem()
 
-            item.view = MenuHeader.view()
+            item.view = MenuHeaderView()
             menu.addItem(item)
         }
         for session in sessions {
@@ -107,7 +107,7 @@ struct MenuWidthTests {
     /// The header used to stretch to the menu, and a view stretched keeps the width it was stretched to, which the
     /// menu is never narrower than.
     @Test func theHeaderDoesNotStretchWithTheMenu() {
-        #expect(!MenuHeader.view().autoresizingMask.contains(.width))
+        #expect(!MenuHeaderView().autoresizingMask.contains(.width))
     }
 
     /// Two lines under a title a hundred points apart, measured in the subtitle's font, widen the menu by a hundred

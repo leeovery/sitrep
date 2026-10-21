@@ -58,6 +58,8 @@ enum WindowStyle {
     static let smallest = CGSize(width: 860, height: 520)
     static let boardWidth: CGFloat = 296
     static let pageInset: CGFloat = 44
+    /// Settings' right inset, less than a page's, so the three pictures fit beside one another as drawn.
+    static let settingsInset: CGFloat = 36
     /// The band under the window's toolbar, beside the traffic lights, which the toolbar sets 26 points down: empty on
     /// the page, which starts under it.
     static let barHeight: CGFloat = 52
@@ -68,6 +70,8 @@ enum WindowStyle {
     static let rowPadding: CGFloat = (rowHeight - lane.height) / 2
     static let rowInset: CGFloat = 16
     static let sectionGap: CGFloat = 13
+    /// The sidebar's foot, a list of the one row Settings: the row and the list's own insets round it.
+    static let footerHeight: CGFloat = 52
     /// The system's selection in the sidebar, in from its edges and rounded, which a row's fills take: by eye, as
     /// nothing offscreen draws it.
     static let selectionInset: CGFloat = 10

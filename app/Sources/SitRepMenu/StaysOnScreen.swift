@@ -1,35 +1,25 @@
 import SitRepPanel
 
-/// Which of the At the edge pane's sections apply to what Lee set (DESIGN, "Settings"): a section that no longer
-/// applies fades out, and with Nothing shown one line says what carries the board instead.
-public struct EdgePane: Equatable, Sendable {
-    /// Edge and Display, for the notch and the strip alike.
-    public let showsWhere: Bool
-    /// Style.
-    public let showsNotch: Bool
-    /// Length.
-    public let showsStrip: Bool
-    /// Max, for Grows only.
-    public let showsMax: Bool
-    /// Material and Reduce motion.
-    public let showsLook: Bool
-    /// Material, Black or Glass: from macOS 26, before which the edge is black and there is no row.
-    public let showsMaterial: Bool
-    /// "The menu and the SitRep window carry the board", in the sections' place.
-    public let saysMenuCarries: Bool
+/// What stays on screen (DESIGN, "Settings"): the rows of the card under the three pictures that apply to the choice,
+/// in their order. With Nothing there is no card, and one line says what carries the board instead.
+public enum StaysOnScreen {
+    /// A row of the card.
+    public enum Row: Hashable, Sendable {
+        case edge, display, style, length, max, material, reduceMotion
+    }
 
     public static let menuCarries = "The menu and the SitRep window carry the board."
 
-    public init(_ settings: EdgeSettings, hasGlass: Bool) {
-        let shows = settings.show != .nothing
+    /// The rows for what Lee set: Style for the notch, Length and Max for the strip, Max only at Grows; Material only
+    /// from macOS 26, before which the edge is black and there is no row.
+    public static func rows(_ settings: EdgeSettings, hasGlass: Bool) -> [Row] {
+        let look: [Row] = (hasGlass ? [.material] : []) + [.reduceMotion]
 
-        showsWhere = shows
-        showsNotch = settings.show == .notch
-        showsStrip = settings.show == .strip
-        showsMax = showsStrip && settings.length == .grows
-        showsLook = shows
-        showsMaterial = shows && hasGlass
-        saysMenuCarries = !shows
+        return switch settings.show {
+        case .notch: [.edge, .display, .style] + look
+        case .strip: [.edge, .display, .length] + (settings.length == .grows ? [.max] : []) + look
+        case .nothing: []
+        }
     }
 }
 

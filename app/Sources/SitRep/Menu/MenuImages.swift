@@ -11,10 +11,11 @@ enum MenuImages {
     private static let lane = NSSize(width: 16, height: 16)
 
     /// The light in its housing, an 18-point box: at rest a template image, its thin bar unlit, in the menu bar's ink;
-    /// lit, its bar orange and its housing drawn in the ink of the bar it is drawn on, light or dark.
-    static func glyph(_ glyph: MenuBoard.Glyph) -> NSImage {
+    /// lit, its bar orange and its housing drawn in the ink of the bar it is drawn on, light or dark, or in the ink
+    /// given, as a drawing of a menu bar sets it.
+    static func glyph(_ glyph: MenuBoard.Glyph, ink given: NSColor? = nil) -> NSImage {
         let image = NSImage(size: NSSize(width: 18, height: 18), flipped: true) { _ in
-            let ink: NSColor = glyph == .rest ? .black : NSAppearance.currentDrawing().isDark ? .white : .black
+            let ink: NSColor = glyph == .rest ? .black : given ?? (NSAppearance.currentDrawing().isDark ? .white : .black)
             let housing = NSBezierPath(roundedRect: NSRect(x: 5.9, y: 2.5, width: 6.2, height: 13), xRadius: 3.1, yRadius: 3.1)
 
             housing.lineWidth = 1.3

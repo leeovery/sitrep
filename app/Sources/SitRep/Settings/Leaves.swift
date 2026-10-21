@@ -5,7 +5,7 @@ import SitRepCore
 import SitRepMenu
 
 /// What macOS lets SitRep do, read for Settings and changed only where Lee chooses: starting at login, and the leave
-/// to control Ghostty, which the CLI's first jump asks for.
+/// to control Ghostty, which the CLI's first jump asks for, or Allow… before it.
 @MainActor
 enum Leaves {
     private static let loginLog = Logger(sitrep: "login")
@@ -48,25 +48,48 @@ enum Leaves {
 
     /// Whether SitRep may control Ghostty, asked of macOS without asking Lee, off the main thread.
     static func ghostty() async -> GhosttyLeave {
-        await Task.detached {
-            guard let ghostty = NSAppleEventDescriptor(bundleIdentifier: "com.mitchellh.ghostty").aeDesc else {
-                return GhosttyLeave.unknown
-            }
+        await ghosttyLeave(asking: false)
+    }
 
-            return GhosttyLeave(AEDeterminePermissionToAutomateTarget(
-                ghostty, AEEventClass(typeWildCard), AEEventID(typeWildCard), false
-            ))
+    /// Allow…, before macOS has asked: macOS's own prompt, and what Lee chose.
+    static func allowGhostty() async -> GhosttyLeave {
+        await ghosttyLeave(asking: true)
+    }
+
+    /// The leave, for a harmless event, Get Data: macOS gives it for Ghostty, whatever the event. Off the main thread,
+    /// which a prompt would hold up. The descriptor is held for the call, as its `aeDesc` points into it.
+    private static func ghosttyLeave(asking: Bool) async -> GhosttyLeave {
+        await Task.detached {
+            let ghostty = NSAppleEventDescriptor(bundleIdentifier: "com.mitchellh.ghostty")
+
+            return withExtendedLifetime(ghostty) {
+                guard let target = ghostty.aeDesc else {
+                    return GhosttyLeave.unknown
+                }
+
+                return GhosttyLeave(AEDeterminePermissionToAutomateTarget(
+                    target, AEEventClass(kAECoreSuite), AEEventID(kAEGetData), asking
+                ))
+            }
         }.value
     }
 
-    /// System Settings, where Lee changes what macOS lets SitRep do.
-    enum Place: String {
-        case notifications = "x-apple.systempreferences:com.apple.Notifications-Settings.extension?id=com.leeovery.sitrep"
-        case automation = "x-apple.systempreferences:com.apple.preference.security?Privacy_Automation"
+    /// System Settings, where Lee changes what macOS lets SitRep do: SitRep's page in Notifications, Automation, and
+    /// Login Items, which macOS opens itself.
+    enum Place {
+        case notifications, automation, loginItems
     }
 
     static func open(_ place: Place) {
-        if let url = URL(string: place.rawValue) {
+        switch place {
+        case .notifications: open("x-apple.systempreferences:com.apple.Notifications-Settings.extension?id=com.leeovery.sitrep")
+        case .automation: open("x-apple.systempreferences:com.apple.preference.security?Privacy_Automation")
+        case .loginItems: SMAppService.openSystemSettingsLoginItems()
+        }
+    }
+
+    private static func open(_ address: String) {
+        if let url = URL(string: address) {
             NSWorkspace.shared.open(url)
         }
     }

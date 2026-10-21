@@ -3,21 +3,36 @@ import Foundation
 @testable import SitRep
 import SitRepEdge
 import SitRepPanel
+import SwiftUI
 import Testing
 
-/// The Settings window takes the main menu's ⌘W and ⌘M (`AppMenu`), which it validates by its style. It is made, never
-/// shown.
+/// About SitRep, made, never shown: its close button and the main menu's ⌘W shut it (`AppMenu`), which it validates by
+/// its style; it neither minimises nor zooms.
 @MainActor
-struct SettingsWindowTests {
-    private static let window = SettingsWindow.window(NSViewController.with(NSView()))
+struct AboutWindowTests {
+    private static let window = AboutWindow.window(NSViewController.with(NSView()))
 
-    @Test(arguments: [#selector(NSWindow.performClose(_:)), #selector(NSWindow.performMiniaturize(_:))])
-    func itTakesTheMainMenusWindowKeys(action: Selector) {
-        #expect(Self.window.validateMenuItem(NSMenuItem(title: "", action: action, keyEquivalent: "")))
+    @Test func itClosesByItsButtonAndTheMainMenusCommandW() {
+        #expect(Self.window.styleMask.contains(.closable))
+        #expect(Self.window.validateMenuItem(NSMenuItem(title: "", action: #selector(NSWindow.performClose(_:)), keyEquivalent: "")))
     }
 
-    @Test func itOpensOnTheSpaceLeeIsOn() {
+    @Test func itNeitherMinimisesNorZooms() {
+        #expect(!Self.window.styleMask.contains(.miniaturizable))
+        #expect(!Self.window.styleMask.contains(.resizable))
+        #expect(!Self.window.validateMenuItem(NSMenuItem(title: "", action: #selector(NSWindow.performMiniaturize(_:)), keyEquivalent: "")))
+    }
+
+    @Test func itShowsNoTitleAndOpensOnTheSpaceLeeIsOn() {
+        #expect(Self.window.titleVisibility == .hidden)
         #expect(Self.window.collectionBehavior.contains(.moveToActiveSpace))
+    }
+
+    @Test func itIsAsWideAsDrawnItsHeightFromWhatItShows() {
+        let window = AboutWindow.window(NSHostingController(rootView: AboutView()))
+
+        #expect(window.contentLayoutRect.width == 308)
+        #expect(window.frame.height > 112 + 36)
     }
 }
 

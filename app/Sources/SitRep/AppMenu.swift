@@ -1,9 +1,10 @@
 import AppKit
 
 /// The app's main menu, which an accessory app never shows: it is there for its key equivalents, which AppKit sends
-/// through it to whichever SitRep window is key, the SitRep window's and Settings' alike. Edit's to the first
-/// responder; Window's to the window. No Quit: ⌘Q aimed at another app must not quit SitRep through its window, and
-/// Quit stays in the menu bar item's menu.
+/// along the responder chain from whichever SitRep window is key. The app's own Settings… to the app's delegate,
+/// which brings the SitRep window forward on Settings; Edit's to the first responder; Window's to the window. No
+/// About SitRep, which the menu bar item's header opens, and no Quit: ⌘Q aimed at another app must not quit SitRep
+/// through its window, and Quit stays in the menu bar item's menu.
 enum AppMenu {
     /// An item, as data: its title, what it sends, and its key with the modifiers beyond ⌘.
     struct Item: Equatable {
@@ -12,6 +13,10 @@ enum AppMenu {
         let key: String
         var modifiers: NSEvent.ModifierFlags = []
     }
+
+    static let app = [
+        Item(title: "Settings…", action: #selector(AppDelegate.showSettings(_:)), key: ","),
+    ]
 
     static let edit = [
         Item(title: "Undo", action: Selector(("undo:")), key: "z"),
@@ -27,13 +32,13 @@ enum AppMenu {
         Item(title: "Minimise", action: #selector(NSWindow.performMiniaturize(_:)), key: "m"),
     ]
 
-    /// The menu, its items sent along the responder chain. AppKit takes the first submenu for the app's own, so an
-    /// empty one stands there, ahead of Edit.
+    /// The menu, its items sent along the responder chain. AppKit takes the first submenu for the app's own, so
+    /// SitRep's stands there, ahead of Edit.
     @MainActor
     static func make() -> NSMenu {
         let menu = NSMenu()
 
-        for (title, items) in [("SitRep", [Item]()), ("Edit", edit), ("Window", window)] {
+        for (title, items) in [("SitRep", app), ("Edit", edit), ("Window", window)] {
             let submenu = NSMenu(title: title)
 
             for item in items {
