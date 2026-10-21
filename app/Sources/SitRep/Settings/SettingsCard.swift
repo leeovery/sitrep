@@ -11,6 +11,9 @@ enum SettingsStyle {
     /// A row's words and its control, in from the card's edges; a section header and the line where a card would
     /// be, in as far.
     static let inset: CGFloat = 10
+    /// Over and under what a row holds, its words or the Show row's pictures: the drawing's 52 less a row's two lines,
+    /// 16 and 14, and the 2 between, which is what a wrapped line grows the row by.
+    static let rowMargin: CGFloat = 10
     /// Between a section's header and what it heads, and between a card and the next section.
     static let headerGap: CGFloat = 10
     static let sectionGap: CGFloat = 30
@@ -97,8 +100,7 @@ struct RowWords: View {
             }
         }
         .fixedSize(horizontal: false, vertical: true)
-        // the drawing's 52 less its two lines, 16 and 14, and the 2 between: what a wrapped line grows the row by
-        .padding(.vertical, 10)
+        .padding(.vertical, SettingsStyle.rowMargin)
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 }

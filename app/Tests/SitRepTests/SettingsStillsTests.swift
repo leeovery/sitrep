@@ -133,15 +133,7 @@ struct SettingsStillsTests {
             .write(to: try #require(stills).appending(path: show == .notch ? "show-row.png" : "show-row-nothing.png"))
     }
 
-    /// The three pictures, each drawn at twice its size.
-    @Test(arguments: EdgeSettings.Show.allCases)
-    func thePictures(show: EdgeSettings.Show) throws {
-        let picture = EdgePicture(show: show).clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
-
-        try Self.render(picture, "picture-\(show.title.lowercased())", size: CGSize(width: 450, height: 290))
-    }
-
-    /// The window wider than drawn, its pictures sharing the wider column.
+    /// The window wider than drawn, its column filling the wider page.
     @Test func theWindowOnSettingsWide() async throws {
         let page = await Self.page(Self.preferences(), windows: [Watched.window("w2", needsReload: false)])
 

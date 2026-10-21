@@ -20,7 +20,8 @@ struct ShowRow: View {
                     ShowTile(choice: choice, isChosen: choice == show, isOnScreen: isOnScreen) { show = choice }
                 }
             }
-            .padding(.vertical, SettingsStyle.inset)
+            .fixedSize()
+            .padding(.vertical, SettingsStyle.rowMargin)
         }
         .padding(.horizontal, SettingsStyle.inset)
     }

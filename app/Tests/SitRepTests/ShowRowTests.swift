@@ -21,6 +21,26 @@ struct ShowRowTests {
         [2.0, 1, 0].map { right(page) - 13.5 - 67 - $0 * 82 }
     }
 
+    /// The page drawn, Notch chosen unless `change` says, in a window (`atTwice`).
+    private static func page(
+        _ width: CGFloat, _ change: (inout EdgeSettings) -> Void = { _ in }
+    ) async throws -> Drawn {
+        try await atTwice(Hosted.drawn(width: width, change))
+    }
+
+    /// A view in a window over black, laid out as the page is (`atTwice`).
+    private static func inAWindow(_ view: some View, size: CGSize) throws -> Drawn {
+        try atTwice(Drawn(Hosted(view.frame(width: size.width, height: size.height).background(Color.black), size: size).hosting))
+    }
+
+    /// A window's drawing, which these tests read at 2×, counting the row's half points as whole pixels. A window lays
+    /// its views out to its screen's pixels, and none can be made to take another scale, so a screen at any other
+    /// says so here rather than failing the tests' counts.
+    private static func atTwice(_ drawn: Drawn) throws -> Drawn {
+        try #require(drawn.scale == 2, "Laid out at the screen's \(drawn.scale)×; these tests read it at 2×")
+        return drawn
+    }
+
     /// The card's raise, where the Show row draws nothing: under its label, clear of a line.
     private static func raise(_ drawn: Drawn) throws -> NSColor {
         try #require(drawn.pixels(in: CGRect(x: 54, y: top + 70, width: 0.5, height: 0.5)).first)
@@ -31,7 +51,7 @@ struct ShowRowTests {
     /// width.
     @Test(arguments: [564.0, 956, 1400])
     func thePicturesKeepTheirSizeAndPlaceAtAnyWidth(page: CGFloat) async throws {
-        let drawn = try await Hosted.drawn(width: page)
+        let drawn = try await Self.page(page)
         let lefts = Self.lefts(page)
         let across = try drawn.spans(
             atY: Self.top + 13.5 + 22, unlike: Self.raise(drawn), from: lefts[0] - 8, to: Self.right(page) - 1
@@ -50,7 +70,7 @@ struct ShowRowTests {
     /// Down the chosen picture, clear of its corners and its name: the ring's top 10 under the card's, over its
     /// picture, 44 tall, and under it.
     @Test func theChosenPictureIs44TallInItsRing() async throws {
-        let drawn = try await Hosted.drawn(width: 956)
+        let drawn = try await Self.page(956)
         let down = try drawn.spans(
             atX: Self.lefts(956)[0] + 14, unlike: Self.raise(drawn), from: Self.top + 1, to: Self.top + 85
         )
@@ -65,7 +85,7 @@ struct ShowRowTests {
 
     /// The ring is drawn in the accent, the system's, as Appearance's is.
     @Test func theRingIsTheAccent() async throws {
-        let drawn = try await Hosted.drawn(width: 956)
+        let drawn = try await Self.page(956)
         let ring = try #require(drawn.colour(at: CGPoint(x: Self.lefts(956)[0] - 2, y: Self.top + 35)))
         var accent = NSColor.controlAccentColor
 
@@ -78,27 +98,24 @@ struct ShowRowTests {
     }
 
     /// Each picture's name, 11, its baseline 73 under the card's top, centred under it: the chosen one's semibold in
-    /// the label colour, the others' regular in the secondary colour. Its weight is told by its ink, near the same
-    /// word's at the weight it should have, drawn alike in a window.
+    /// the label colour, the others' regular in the secondary colour. Each name's line of 14 is drawn to the pixel as
+    /// the word is at that size, weight and colour over the card's raise, centred in its tile's 74, in a window: the
+    /// line and the word stand on whole pixels alike, so nothing but the type can part them.
     @Test(arguments: EdgeSettings.Show.allCases)
     func theChosenNameIsSemiboldInTheLabelColour(chosen: EdgeSettings.Show) async throws {
-        let drawn = try await Hosted.drawn(width: 956) { $0.show = chosen }
+        let drawn = try await Self.page(956) { $0.show = chosen }
         let raise = try Self.raise(drawn)
         let pixel = 1 / drawn.scale
 
         for (choice, left) in zip(EdgeSettings.Show.allCases, Self.lefts(956)) {
             let isChosen = choice == chosen
-            let colour: NSColor = isChosen ? .labelColor : .secondaryLabelColor
-            let area = CGRect(x: left - 3.5, y: Self.top + 62, width: 74, height: 14)
-            let name = try #require(drawn.ink(in: area, over: raise))
-            let ink = drawn.inkMass(in: area, over: raise)
-            let semibold = try Self.inkMass(choice.title, .semibold, colour, over: raise)
-            let regular = try Self.inkMass(choice.title, .regular, colour, over: raise)
-            let (weight, other) = isChosen ? (semibold, regular) : (regular, semibold)
+            let line = CGRect(x: left - 3.5, y: Self.top + 62, width: 74, height: 14)
+            let word = try Self.word(
+                choice.title, isChosen ? .semibold : .regular, isChosen ? .labelColor : .secondaryLabelColor
+            )
+            let name = try #require(drawn.ink(in: line, over: raise))
 
-            try drawn.expectWords(in: area, colour, over: raise)
-            // within a quarter of the way to the other weight: a medium between them is neither
-            #expect(abs(ink - weight) < abs(other - weight) / 4)
+            #expect(drawn.pixels(in: line) == word.pixels(in: CGRect(origin: .zero, size: line.size)))
             #expect(abs(name.midX - (left + 33.5)) < 2 * pixel)
             if choice == .notch {
                 // with nothing below its line
@@ -107,10 +124,9 @@ struct ShowRowTests {
         }
     }
 
-    /// A word's ink, 11 at `weight` in `colour` over the card's raise, drawn in a window as the page is.
-    private static func inkMass(
-        _ word: String, _ weight: Font.Weight, _ colour: NSColor, over raise: NSColor
-    ) throws -> CGFloat {
+    /// A word, 11 at `weight` in `colour`, centred in a line of 74 by 14 over the card's raise, drawn in a window as
+    /// the page is.
+    private static func word(_ word: String, _ weight: Font.Weight, _ colour: NSColor) throws -> Drawn {
         let size = CGSize(width: 74, height: 14)
         let words = Text(word)
             .font(.subheadline.weight(weight))
@@ -118,12 +134,12 @@ struct ShowRowTests {
             .frame(width: size.width, height: size.height)
             .background(WindowStyle.raise)
 
-        return try Drawn(Hosted(words, size: size).hosting).inkMass(in: CGRect(origin: .zero, size: size), over: raise)
+        return try inAWindow(words, size: size)
     }
 
     /// Show stands at the top of its row, in a label's line 10 under the card's top, as Appearance's label does.
     @Test func showStandsAtTheTopOfItsRow() async throws {
-        let drawn = try await Hosted.drawn(width: 956)
+        let drawn = try await Self.page(956)
         let show = try #require(drawn.ink(in: CGRect(x: 54, y: Self.top, width: 60, height: 86), over: Self.raise(drawn)))
 
         #expect(show.minY >= Self.top + 10)
@@ -134,8 +150,8 @@ struct ShowRowTests {
     /// what carries the board; with the notch or the strip, Show has no line.
     @Test(arguments: [564.0, 956])
     func withNothingTheCardIsTheShowRowWithItsLine(page: CGFloat) async throws {
-        let nothing = try await Hosted.drawn(width: page) { $0.show = .nothing }
-        let strip = try await Hosted.drawn(width: page) { $0.show = .strip }
+        let nothing = try await Self.page(page) { $0.show = .nothing }
+        let strip = try await Self.page(page) { $0.show = .strip }
         // down the gap between the row's words and its pictures
         let x = Self.right(page) - 256
         let card = try #require(nothing.litSpans(atX: x).first)
@@ -186,28 +202,31 @@ struct ShowRowTests {
     /// Round the picture, the gap and the ring.
     private static let room: CGFloat = 3.5
 
+    /// A tile in a window, laid out as the page lays it out.
     private static func tile(_ choice: EdgeSettings.Show, isChosen: Bool, isOver: Bool) throws -> Drawn {
-        try Drawn(TileFace(choice: choice, isChosen: isChosen, isOver: isOver), size: size)
+        try inAWindow(TileFace(choice: choice, isChosen: isChosen, isOver: isOver), size: size)
     }
 
-    /// The hairline along the picture's top, clear of its corners, and the tile's name.
-    private static let hairline = CGRect(x: 30, y: room, width: 14, height: 0.5)
+    /// Along the picture's top, clear of its corners, where the hairline runs a pixel tall at 2×; and the tile's name.
+    private static let hairline = (row: Int(room * 2), columns: 60..<88)
     private static let name = CGRect(x: 10, y: 52, width: 54, height: 14)
 
-    /// The hairline is drawn as the strip's picture under a hairline of white at `alpha` is.
+    /// The hairline is white at `alpha` over the strip's picture there: each channel within 2 levels of 255 of the two
+    /// mixed, as the bitmap holds them.
     private static func expectHairline(_ drawn: Drawn, alpha: CGFloat) throws {
-        let picture = RoundedRectangle(cornerRadius: 5, style: .continuous)
-        let drawing = try Drawn(
-            EdgePicture(show: .strip)
-                .frame(width: 67, height: 44)
-                .clipShape(picture)
-                .overlay(picture.strokeBorder(.white.opacity(alpha), lineWidth: 0.5))
-                .padding(room)
-                .frame(maxHeight: .infinity, alignment: .top),
+        let picture = try inAWindow(
+            EdgePicture(show: .strip).frame(width: 67, height: 44).padding(room).frame(maxHeight: .infinity, alignment: .top),
             size: size
         )
 
-        #expect(drawn.pixels(in: hairline) == drawing.pixels(in: hairline))
+        for x in hairline.columns {
+            let under = try #require(picture.bitmap.colorAt(x: x, y: hairline.row))
+            let lined = try #require(drawn.bitmap.colorAt(x: x, y: hairline.row))
+
+            for (lined, under) in zip(lined.channels, under.channels) {
+                #expect(abs(lined - (alpha + under * (1 - alpha))) * 255 <= 2)
+            }
+        }
     }
 
     /// Under the pointer a tile not chosen lifts its hairline from white at 15% to 40%, and its name from the secondary
