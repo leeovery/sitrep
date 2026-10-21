@@ -23,6 +23,10 @@ public final class WindowRun {
     /// The window shows: only then are sessions' boards read.
     public private(set) var isOpen = false
     public private(set) var answers = Answers()
+    /// The sidebar's view, as Lee chose it.
+    public var sidebar: Sidebar
+    /// What the Filter field holds, which narrows the list and never moves the pick.
+    public var filter = Filter()
     /// The list as `watch` gives it, before it is held.
     private var given = Listed()
     private var held = HeldOrder()
@@ -41,8 +45,9 @@ public final class WindowRun {
     /// The items of Status, Notes, Parked and Resolved opened in place.
     private var openedItems: Set<Item> = []
 
-    public init(lastSession: String? = nil) {
+    public init(lastSession: String? = nil, sidebar: Sidebar = .projects) {
         self.lastSession = lastSession
+        self.sidebar = sidebar
     }
 
     // MARK: The board
@@ -105,11 +110,12 @@ public final class WindowRun {
         return repick()
     }
 
-    /// The window closes: the list's hold lets go, as the pointer leaves with it, and a finish asked about lapses.
-    /// The reads a run of picks left waiting never run: nothing is read while the window is closed, and opening it
-    /// picks afresh.
+    /// The window closes: the list's hold lets go, as the pointer leaves with it, a finish asked about lapses, and the
+    /// filter clears, as what it holds is not kept. The reads a run of picks left waiting never run: nothing is read
+    /// while the window is closed, and opening it picks afresh.
     public func close() {
         isOpen = false
+        filter = Filter()
         letGoOfTheList()
         dropAskingToFinish()
     }
@@ -171,6 +177,14 @@ public final class WindowRun {
     public func pickInList(_ pick: Pick, at time: Date) -> [Read] {
         held.picked(at: time)
         return reads(pickReads.picked(choose(pick), at: time))
+    }
+
+    /// Return in the Filter field: the first match in the view chosen, picked. The reads to run.
+    public func openFirstMatch() -> [Read] {
+        guard !filter.isEmpty, let first = listed.narrowed(by: filter).first(in: sidebar) else {
+            return []
+        }
+        return pick(first)
     }
 
     /// The reads of the last of a run of picks in the list, once the picks have stopped by this time, while the
@@ -336,23 +350,13 @@ public final class WindowRun {
 
     // MARK: What it shows
 
-    /// The board down the left at this time, in the order it shows, its washes under way.
+    /// The board down the left at this time, in the order it shows, narrowed by the filter, its washes under way.
     public func listed(at time: Date) -> Listed {
         washed = Wash.live(washed, at: time)
 
-        var shown = listed
+        var shown = listed.narrowed(by: filter)
 
-        shown.projects = shown.projects.map { project in
-            var project = project
-
-            project.sessions = project.sessions.map { row in
-                var row = row
-
-                row.washed = washed[row.id]
-                return row
-            }
-            return project
-        }
+        shown.changeRows { $0.washed = washed[$0.id] }
         return shown
     }
 

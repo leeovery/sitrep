@@ -4,12 +4,18 @@ import SitRepPanel
 /// What VoiceOver reads of the window, in words, where its marks, counts and times would read as symbols.
 public enum Spoken {
     /// A session's row in the sidebar, one element: its name, its project, its state and its time, as "The Mac app,
-    /// SitRep, needs you, 5 hours". Away with something waiting, it needs Lee and is away.
-    public static func row(_ row: Listed.Row, in project: String, at now: Date) -> String {
+    /// SitRep, needs you, 5 hours", in either view. Away with something waiting, it needs Lee and is away.
+    public static func row(_ row: Listed.Row, at now: Date) -> String {
         let state = row.isAway && row.mark != .away ? "\(mark(row.mark)), away" : mark(row.mark)
 
-        return "\(row.name), \(project), \(state), \(age(row.since, at: now))"
+        return "\(row.name), \(row.project), \(state), \(age(row.since, at: now))"
     }
+
+    /// The sidebar's Filter field.
+    public static let filter = "Filter sessions"
+
+    /// The sidebar's switch between its views.
+    public static let sidebar = "View"
 
     /// A project's heading in the sidebar: its name and what waits there.
     public static func project(_ project: Listed.Project) -> String {

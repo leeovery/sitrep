@@ -10,6 +10,7 @@ import SwiftUI
 final class SitRepWindow: NSObject, NSWindowDelegate {
     private let model: WindowModel
     private lazy var window = make()
+    private var focus: SideFocus?
     private var keys: Any?
 
     init(plugin: Plugin, works: Works) {
@@ -26,15 +27,20 @@ final class SitRepWindow: NSObject, NSWindowDelegate {
         model.unrun(why)
     }
 
-    /// Lee opens it: shown afresh, on what it opens on; or, where it shows already or was minimised, brought
-    /// forward as it was.
+    /// Lee opens it: shown afresh, on what it opens on, keyboard focus on the list; or, where it shows already or was
+    /// minimised, brought forward as it was.
     func open() {
+        let isAfresh = !window.isMiniaturized && !window.isVisible
+
         if window.isMiniaturized {
             window.deminiaturize(nil)
-        } else if !window.isVisible {
+        } else if isAfresh {
             model.opened()
         }
         window.comeForward()
+        if isAfresh {
+            focus?.focusList()
+        }
     }
 
     func windowWillClose(_ notification: Notification) {
@@ -51,14 +57,19 @@ final class SitRepWindow: NSObject, NSWindowDelegate {
 
     private func make() -> NSWindow {
         let sidebar = Self.side(over: model) { [model] in
-            BoardColumn(listed: model.listed, pick: model.pick, now: model.now)
+            BoardColumn(
+                listed: model.listed, pick: model.pick, sidebar: model.sidebar, filter: model.filter, now: model.now
+            )
         }
         let page = Self.side(over: model) { [model] in PageColumn(page: model.page, now: model.now) }
         let window = Self.window(Self.split(sidebar: sidebar, page: page))
 
         window.delegate = self
         window.setFrameAutosaveName("SitRepWindow")
-        listenForKeys(in: window, focus: SideFocus(window: window, sidebar: sidebar.view, page: page.view))
+        let focus = SideFocus(window: window, sidebar: sidebar.view, page: page.view)
+
+        self.focus = focus
+        listenForKeys(in: window, focus: focus)
         return window
     }
 
@@ -120,47 +131,81 @@ final class SitRepWindow: NSObject, NSWindowDelegate {
         return toolbar
     }
 
-    /// Escape in the window takes back the answer pressed last while it waits, as the drawing's "Esc to undo" says;
-    /// with none waiting, it and Return move keyboard focus between the two sides (`SideFocus`).
+    /// The window's keys, before what has focus hears them (`SideFocus.take`).
     private func listenForKeys(in window: NSWindow, focus: SideFocus) {
         keys = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self, weak window] event in
             guard event.window === window, let self else {
                 return event
             }
-            if event.keyCode == SideFocus.escape, model.undo() {
-                return nil
-            }
-            return focus.move(event) ? nil : event
+            return focus.take(event, undo: model.undo) ? nil : event
         }
     }
 }
 
-/// Keyboard focus moved between the window's two sides by a key, through AppKit's key views: Return on the sidebar's
-/// list into the page, to its first control, which with the Mac's Keyboard navigation off has none; Escape in the page
-/// back to the list. Tab and the arrows keep the Mac's own order.
+/// Keyboard focus moved by a key, through AppKit's key views: ⌘F into the sidebar's Filter field, from anywhere;
+/// Return in the sidebar, but for its Filter field, into the page, to its first control, which with the Mac's Keyboard
+/// navigation off has none; Escape in the page back to the list. Tab and the arrows keep the Mac's own order. In the
+/// Filter field Return and Escape are the field's own (`FilterField`).
 @MainActor
 struct SideFocus {
     let window: NSWindow
     let sidebar: NSView
     let page: NSView
 
+    /// A key in the window, taken before what has focus hears it: Escape takes back the answer pressed last while it
+    /// waits, as the drawing's "Esc to undo" says, wherever focus is, the Filter field too; with none waiting, the
+    /// move the key makes. Whether it was taken.
+    func take(_ event: NSEvent, undo: () -> Bool) -> Bool {
+        if event.keyCode == Self.escape, undo() {
+            return true
+        }
+        return move(event)
+    }
+
+    /// Focus on the list, as the window opens afresh, where AppKit would give it to the first of its key views, the
+    /// Filter field above the list. The list is laid out first, as SwiftUI makes its table only then.
+    func focusList() {
+        window.contentView?.layoutSubtreeIfNeeded()
+        window.makeFirstResponder(list ?? sidebar)
+    }
+
     /// The move this key makes from where focus is, made; false where it makes none.
     func move(_ event: NSEvent) -> Bool {
-        guard event.modifierFlags.isDisjoint(with: [.command, .option, .control, .shift]),
-              let focus = window.firstResponder as? NSView
-        else {
+        if Self.isFind(event) {
+            return filterField.map { window.makeFirstResponder($0) } ?? false
+        }
+        guard event.modifierFlags.isDisjoint(with: Self.modifiers), let focus else {
             return false
         }
 
-        if [Self.return, Self.enter].contains(event.keyCode), focus.isDescendant(of: sidebar) {
+        if [Self.return, Self.enter].contains(event.keyCode), focus.isDescendant(of: sidebar), !isInField(focus) {
             window.selectKeyView(following: page)
-            return (window.firstResponder as? NSView)?.isDescendant(of: page) == true
+            return self.focus?.isDescendant(of: page) == true
         }
         if event.keyCode == Self.escape, focus.isDescendant(of: page) {
-            return window.makeFirstResponder(sidebar.descendant(NSTableView.self) ?? sidebar)
+            return window.makeFirstResponder(list ?? sidebar)
         }
         return false
     }
+
+    private var focus: NSView? { window.firstResponder as? NSView }
+    /// The sidebar's list, as SwiftUI hosts it in AppKit's table.
+    private var list: NSView? { sidebar.descendant(NSTableView.self) }
+    private var filterField: NSView? { sidebar.descendant(NSSearchField.self) }
+
+    /// Focus in the Filter field, its field editor inside it, whose Return is its own.
+    private func isInField(_ focus: NSView) -> Bool {
+        filterField.map(focus.isDescendant(of:)) ?? false
+    }
+
+    /// ⌘F, whatever Caps Lock says.
+    private static func isFind(_ event: NSEvent) -> Bool {
+        event.modifierFlags.intersection(modifiers) == .command
+            && event.charactersIgnoringModifiers?.lowercased() == "f"
+    }
+
+    /// The keys a shortcut is made with; Caps Lock, the Fn key and the keypad's are none of them.
+    private static let modifiers: NSEvent.ModifierFlags = [.command, .option, .control, .shift]
 
     static let `return`: UInt16 = 36
     static let enter: UInt16 = 76

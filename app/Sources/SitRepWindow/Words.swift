@@ -117,6 +117,14 @@ public enum Words {
         count == 1 ? "1 quiet project" : "\(count) quiet projects"
     }
 
+    /// The Filter field's placeholder.
+    public static let filter = "Filter"
+
+    /// The sidebar's one line in its list's place where the filter keeps nothing, the field's text in the quotes.
+    public static func noMatch(_ filter: Filter) -> String {
+        "No sessions match “\(filter.text.trimmingCharacters(in: .whitespacesAndNewlines))”"
+    }
+
     /// A count of something, its noun made plural past one.
     static func count(_ count: Int, _ noun: String) -> String {
         "\(count) \(noun)\(count == 1 ? "" : "s")"
