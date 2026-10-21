@@ -33,6 +33,16 @@ struct SideFocusTests {
         #expect(sides.window.firstResponder === sides.list)
     }
 
+    /// While Settings shows, the sidebar's foot holds the pick, the board's list none.
+    @Test func escapeInThePageMovesFocusToTheListHoldingThePick() throws {
+        let sides = try Sides(isSettingsPicked: true)
+
+        sides.window.makeFirstResponder(sides.focus.page)
+        #expect(sides.press(SideFocus.escape))
+        #expect(sides.window.firstResponder === sides.list)
+        #expect(sides.list.numberOfRows == 1)
+    }
+
     @Test func escapeOnTheListAndReturnInThePageAreLeftAlone() throws {
         let sides = try Sides()
 
@@ -61,7 +71,8 @@ private func keyboardNavigation() async -> Bool {
     await MainActor.run { NSApplication.shared.isFullKeyboardAccessEnabled }
 }
 
-/// The window's split over a list and two buttons, its focus on the list.
+/// The window's split over a list and two buttons, its focus on the list holding the pick: the board's, of two rows,
+/// or the foot's, of Settings alone.
 @MainActor
 private struct Sides {
     let window: NSWindow
@@ -69,9 +80,15 @@ private struct Sides {
     let list: NSTableView
 
     /// A page of buttons, or of words alone, as a page is with Keyboard navigation off: nothing in it takes focus.
-    init(hasButtons: Bool = true) throws {
-        let sidebar = NSHostingController(rootView: List(selection: .constant(Optional("a"))) {
-            Text("a").tag("a")
+    init(hasButtons: Bool = true, isSettingsPicked: Bool = false) throws {
+        let sidebar = NSHostingController(rootView: VStack {
+            List(selection: .constant(isSettingsPicked ? nil : Optional("a"))) {
+                Text("a").tag("a")
+                Text("b").tag("b")
+            }
+            List(selection: .constant(isSettingsPicked ? Optional("settings") : nil)) {
+                Text("Settings").tag("settings")
+            }
         }.listStyle(.sidebar))
         let page = NSHostingController(rootView: VStack {
             if hasButtons {
@@ -87,7 +104,7 @@ private struct Sides {
         window = SitRepWindow.window(SitRepWindow.split(sidebar: sidebar, page: page))
         window.contentView?.layoutSubtreeIfNeeded()
         focus = SideFocus(window: window, sidebar: sidebar.view, page: page.view)
-        list = try #require(Self.table(in: sidebar.view))
+        list = try #require(Self.tables(in: sidebar.view).first { $0.selectedRow >= 0 })
         window.makeFirstResponder(list)
     }
 
@@ -113,7 +130,7 @@ private struct Sides {
         return event.map(focus.move) ?? false
     }
 
-    private static func table(in view: NSView) -> NSTableView? {
-        view.subviews.lazy.compactMap { $0 as? NSTableView ?? table(in: $0) }.first
+    private static func tables(in view: NSView) -> [NSTableView] {
+        view.subviews.flatMap { ($0 as? NSTableView).map { [$0] } ?? tables(in: $0) }
     }
 }

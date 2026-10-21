@@ -50,7 +50,7 @@ public final class WindowRun {
     /// The board as `watch` last printed it, heard at this time: the list takes it, held or not, a session new to
     /// needing Lee moving in at once, washed unless motion is reduced; the sessions shown are read again where `watch`
     /// says their boards changed, or all of them on a board resumed after `watch` was down. A pick gone from the board
-    /// gives way to what the window opens on. The reads to run.
+    /// gives way to what the window opens on; Settings stays. The reads to run.
     public func show(_ last: LastBoard, at time: Date, reducesMotion: Bool) -> [Read] {
         let board = last.board
         let moving = last.stale == nil ? board.map(Self.newToNeedingLee) ?? [] : []
@@ -66,7 +66,7 @@ public final class WindowRun {
         guard isOpen, let board else {
             return []
         }
-        guard let pick, board.has(pick) else {
+        guard stands(pick) else {
             return repick()
         }
 
@@ -99,10 +99,11 @@ public final class WindowRun {
 
     // MARK: Opening and picking
 
-    /// The window opens: on the oldest session that needs Lee; with none, on the one picked last. The reads to run.
-    public func open() -> [Read] {
+    /// The window opens: on the pick given, as ⌘, opens it on Settings; else on the oldest session that needs Lee,
+    /// and with none, on the one picked last. The reads to run.
+    public func open(on pick: Pick? = nil) -> [Read] {
         isOpen = true
-        return repick()
+        return pick.map { self.pick($0) } ?? repick()
     }
 
     /// The window closes: the list's hold lets go, as the pointer leaves with it, and a finish asked about lapses.
@@ -133,12 +134,21 @@ public final class WindowRun {
     /// from the board meanwhile. The reads to run.
     public func restore() -> [Read] {
         isOpen = true
-        guard let pick, last.board?.has(pick) == true else {
+        guard stands(pick) else {
             return repick()
         }
 
         keepShown()
         return reads(shown)
+    }
+
+    /// The pick still stands: Settings whatever the board, a session or a project while the board has it.
+    private func stands(_ pick: Pick?) -> Bool {
+        guard let pick else {
+            return false
+        }
+
+        return pick == .settings || last.board?.has(pick) == true
     }
 
     /// What the window opens on, picked afresh.
@@ -157,8 +167,8 @@ public final class WindowRun {
         return listed.sessions.first.map { .session($0.id) }
     }
 
-    /// Lee picked a session, or a project by its name: what it shows is read, its asks showing as last read until
-    /// then. Picking another lets go of the last page's asks kept in place, of what its cards said of refusals, and
+    /// Lee picked a session, a project by its name, or Settings: what it shows is read, its asks showing as last read
+    /// until then; Settings reads nothing. Picking another lets go of the last page's asks kept in place, of what its cards said of refusals, and
     /// of a finish asked about. The reads to run.
     public func pick(_ pick: Pick) -> [Read] {
         pickReads = PickReads()
@@ -208,7 +218,7 @@ public final class WindowRun {
         switch pick {
         case let .session(id)?: [id]
         case let .project(key)?: last.board?.projects.first { $0.key == key }?.sessions.map(\.id) ?? []
-        case nil: []
+        case .settings?, nil: []
         }
     }
 
@@ -361,6 +371,9 @@ public final class WindowRun {
         for session in frozen.keys {
             frozen[session]?.prune(at: time)
         }
+        if pick == .settings {
+            return .settings
+        }
         guard let board = last.board else {
             return .empty(listed.head.title)
         }
@@ -372,7 +385,7 @@ public final class WindowRun {
         case let .project(key)?:
             return board.projects.first { $0.key == key }.map { .project(projectPage($0, on: board, at: time)) }
                 ?? .nothingOpen
-        case nil:
+        case .settings?, nil:
             return board.projects.isEmpty ? .nothingOpen : .empty(listed.head.title)
         }
     }
@@ -508,10 +521,12 @@ extension Board {
         projects.lazy.compactMap { project in project.sessions.first { $0.id == id }.map { ($0, project) } }.first
     }
 
+    /// Whether it holds the session or project picked; Settings is no part of it.
     func has(_ pick: Pick) -> Bool {
         switch pick {
         case let .session(id): session(id) != nil
         case let .project(key): projects.contains { $0.key == key }
+        case .settings: false
         }
     }
 }

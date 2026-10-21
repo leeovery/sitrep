@@ -88,8 +88,9 @@ final class WindowModel {
         refresh()
     }
 
-    func opened() {
-        read(run.open())
+    /// The window opens, on the pick given, else on what it opens on.
+    func opened(on pick: Pick? = nil) {
+        read(run.open(on: pick))
         refresh()
     }
 
@@ -114,7 +115,7 @@ final class WindowModel {
         return run.undo()
     }
 
-    private func pick(_ pick: Pick) {
+    func pick(_ pick: Pick) {
         picked(run.pick(pick))
     }
 

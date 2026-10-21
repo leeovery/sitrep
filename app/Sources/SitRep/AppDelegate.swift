@@ -1,6 +1,7 @@
 import AppKit
 import SitRepCore
 import SitRepMenu
+import SitRepWindow
 
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
@@ -14,8 +15,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let live = LiveBoard()
     private var menu: StatusMenu?
     private var edge: Edge?
-    private var settings: SettingsWindow?
-    private lazy var window = SitRepWindow(plugin: plugin, works: works)
+    private let about = AboutWindow()
+    private lazy var window = SitRepWindow(plugin: plugin, works: works) { [preferences, live, services] in
+        SettingsPage(preferences: preferences, live: live, services: services)
+    }
+    private lazy var services = makeServices()
 
     /// Banners are listened to before launching ends, so a click that starts the app is heard.
     func applicationWillFinishLaunching(_ notification: Notification) {
@@ -30,14 +34,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             jump: { [works] session, answered in works.jump(to: session, answered: answered) },
             isJumping: { [works] in works.isJumping }
         )
-        let settings = SettingsWindow(preferences: preferences, live: live, services: services())
         let menu = StatusMenu(
             works: works, preferences: preferences, openWindow: { [window] in window.open() },
-            openSettings: { settings.show() }
+            openSettings: { [window] in window.open(on: .settings) }, openAbout: { [about] in about.show() }
         )
 
         self.edge = edge
-        self.settings = settings
         self.menu = menu
         plugin.start { [unowned self] in settled($0) }
     }
@@ -83,7 +85,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
-    private func services() -> SettingsServices {
+    /// ⌘,, through the main menu: the SitRep window forward on Settings.
+    @objc func showSettings(_ sender: Any?) {
+        window.open(on: .settings)
+    }
+
+    private func makeServices() -> SettingsServices {
         SettingsServices(
             displays: {
                 Displays.named.enumerated().map { DisplayChoice.Connected(id: $1.id, name: $1.name, isMain: $0 == 0) }
@@ -96,6 +103,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             login: { Leaves.login },
             chooseLogin: { [banners] in Leaves.chooseLogin(banners) },
             ghostty: { await Leaves.ghostty() },
+            allowGhostty: { await Leaves.allowGhostty() },
             open: { Leaves.open($0) }
         )
     }

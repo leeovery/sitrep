@@ -2102,7 +2102,7 @@ it is 15 × 124, with the light inside. It opens into a black panel:
 - front corners of radius 24, and flares of 18 into the bezel;
 - kept 40 from the top and bottom of the screen's visible frame.
 
-In Glass (Settings' Look; Black by default), Meniscus and the card are
+In Glass (Settings' Material; Black by default), Meniscus and the card are
 thick Liquid Glass from rest, the light drawn over the glass and the rows in
 the system's label colours. Clear glass that narrow hardly reads (Lee, 20
 October 2026: "the hovering box maybe is a little too subtle"), so the
@@ -2626,7 +2626,13 @@ stands).
     its project as a project's name does: its sessions, none of them in a
     window, and their notes (Lee, 20 October 2026: "at least interact with
     them, view them, see them"). The head says how many need Lee and how
-    many sessions there are, or "All clear".
+    many sessions there are, or "All clear". Its foot is Settings, a row
+    with the system's gear, fixed under a hairline as the list runs on
+    under it (see "Settings"): picked, Settings shows on the right, where a
+    session would, and the board's list holds no selection while it shows;
+    the foot's row takes the system's own selection, as a list of its own.
+    A click on a session or a project leaves Settings for it, and a board
+    changing under it leaves it showing.
   - **the session** Lee picks, on the right: the pane's session view at
     window size. Its project's name is an eyebrow over its name, about 15
     points semibold in the secondary colour, smaller than a title and more
@@ -2652,9 +2658,12 @@ stands).
   and opens in place into its card.
 - **It opens on** the oldest session that needs Lee; with none, on the one
   picked last. There is one window: opening it again brings it forward,
-  on the Space Lee is on, as Settings does: it moves to the active Space
-  and comes forward there before SitRep activates, so the activation takes
-  him to no other Space. The menu opens it (see "The menu bar item").
+  on the Space Lee is on: it moves to the active Space and comes forward
+  there before SitRep activates, so the activation takes him to no other
+  Space. The menu opens it (see "The menu bar item"). ⌘, and the menu's
+  Settings… open it on Settings, or turn it there where it shows already;
+  ⌘, is a key of the app's main menu, which an accessory app never shows,
+  so it works while a SitRep window is key.
 - **The frame is macOS's own** (Lee, 20 October 2026, of a sidebar of
   hand-made glass, its corners unlike the window's and the traffic lights
   on its corner: "It looks a mess"). Whatever macOS draws, SitRep does not
@@ -2665,8 +2674,8 @@ stands).
     material; the page sits beside it. Each side is SwiftUI;
   - the sidebar is pinned at the drawing's 296 points and never collapses,
     by a drag or by the window narrowing, as there is no toggle to bring it
-    back. That is why the window is not SwiftUI's `NavigationSplitView`, as
-    Settings is: it pins neither;
+    back. That is why the window is not SwiftUI's `NavigationSplitView`:
+    it pins neither;
   - the window carries an empty toolbar, unified. Its taller titlebar is
     what sets the traffic lights inside the glass, 11 points in from its
     corner as Finder's; without one macOS puts them on the corner, a point
@@ -2720,11 +2729,13 @@ stands).
   strange kind of border or ring around the option, which is not very
   Mac-like at all"; before it, the system's blue square ring, where SitRep
   had made every button take focus. The order is the Mac's own: the
-  sidebar one Tab stop, the arrows inside it, then the page's buttons.
-  Two keys move between the sides, through AppKit's key views: Return on
-  the sidebar's list moves focus into the page, to its first button, as
-  Tab would, and so only while Keyboard navigation is on; Escape in the
-  page, with no answer waiting to take back, moves it to the list.
+  sidebar's list one Tab stop, the arrows inside it, its foot, Settings,
+  another, then the page's buttons. Two keys move between the sides,
+  through AppKit's key views: Return on the sidebar's list moves focus into
+  the page, to its first button, as Tab would, and so only while Keyboard
+  navigation is on; Escape in the page, with no answer waiting to take
+  back, moves it to the list that holds the pick, the board's or the
+  foot's.
 - **VoiceOver reads words, never symbols.**
   - a sidebar row is one element: its session, its project, its state
     (needs you, your turn, working, away) and its age, as "The Mac app,
@@ -2831,10 +2842,13 @@ menu to the SitRep window, Settings and Quit. Lee, with Spaceman's menu
 beside it (a header, its spaces with a click to each, quick settings),
 asked for the sessions back, and approved the redraw as it stands.
 - **The menu, top to bottom:**
-  - **a header**: SitRep's icon, its name and its version, not a command.
-    The icon is the one macOS renders for the bundle, at the header's 30;
-    the header keeps its own width, as one stretched to the menu kept the
-    widest the menu had ever been;
+  - **a header**: SitRep's icon, its name and its version. The icon is the
+    one macOS renders for the bundle, at the header's 30. A click on it
+    opens About SitRep (see "About SitRep"): under the pointer or the keys
+    it takes the menu's own highlight, the accent behind it and its words
+    in white, as any item does. It is set at the menu's 340, so the
+    highlight runs across the menu, and never stretches with it, as one
+    stretched to the menu kept the widest the menu had ever been;
   - **the panel's sessions**, in its order and with its marks (see "The
     rows"), under a heading in the panel head's words, "4 need you" or "All
     clear". Each is a native item with a subtitle (macOS 14.4): what it is,
@@ -2846,8 +2860,9 @@ asked for the sessions back, and approved the redraw as it stands.
     pinning the strip takes one click. With Nothing, the menu and the
     SitRep window carry the board, and the glyph still lights for needs
     you;
-  - **Settings… ⌘,** (see "Settings"); **Check for Updates…**, with Sparkle, from the first public
-    release; **Quit SitRep ⌘Q**.
+  - **Settings… ⌘,**, the SitRep window on Settings (see "Settings");
+    **Check for Updates…**, with Sparkle, from the first public release;
+    **Quit SitRep ⌘Q**.
 - **About Spaceman's width, a little wider** (Lee, 20 October 2026): the
   whole menu is 340 points, the one number to tune. A native menu is as
   wide as its widest item, so each row's title is cut at its tail with an
@@ -2921,50 +2936,137 @@ drawing, which left the sessions to the SitRep window.
 
 ### Settings
 
-The Settings window, drawn in Paper's "Settings" (surfaces round 5, 17
-October 2026; Lee: "nice", once the dials for how the notch moves were taken
-out). Lee asked for macOS 26's Liquid Glass, modern and led by content, with
-Spaceman's preferences as a reference only.
-- **The window** is macOS 26's: a glass sidebar floating inside it, the
-  traffic lights on it, its header the menu's own (SitRep's icon, name and
-  version), and three panes, At the edge, Notifications and General. ⌘,
-  opens the last pane used. SwiftUI's grouped Form throughout: segmented
-  controls, pop-ups and switches in the system accent. Orange stays for
-  needs you, so it appears only inside the pictures.
-- **Each pane opens on what it is about**, drawn, before its rows:
-  - **At the edge**: Show, as three pictures of the screen's edge: the
-    notch and its light, the strip and its rings, or only the menu bar's
-    glyph. The chosen one is ringed and live; it is the menu's Show. Then
-    **Where**, for the notch and the strip alike: Edge, Left or Right ("or
-    drag it across the middle"), and Display, the main one unless another
-    is chosen. Then **The notch**: Style, Meniscus or Card. Then **The
-    strip**: Length, Grows or Full, and for Grows, Max, a slider whose right
-    end is Full. Then **Look**:
-    Material, Black or Glass, for the notch and the strip alike, Black by
-    default, from macOS 26 (before it, Black and no row); and Reduce
-    motion, off, its line saying SitRep follows the Mac's own setting either
-    way (Lee, 18 October 2026: "One thing we might want to ship... is the
-    ability to reduce motion"). A section that no longer applies fades out rather than
-    greying; with Nothing, one line says the menu and the SitRep window
+Settings is a page of the SitRep window, drawn in Paper's "Settings in the
+window" (surfaces round 7, 21 October 2026; Lee: "Yes, I really like what
+you've done there. Let's go ahead and build it"). It replaces round 5's
+separate Settings window and its three panes (Paper's "Settings", 17
+October 2026; Lee: "nice", once the dials for how the notch moves were
+taken out), so there is one SitRep window. Lee asked for macOS 26's Liquid
+Glass, modern and led by content, with Spaceman's preferences as a
+reference only.
+- **Where it opens:** the sidebar's foot, a row of its own, or ⌘, and the
+  menu's Settings…, which bring the window forward on it (see "The SitRep
+  window"). It shows on the right, where a session or a project would;
+  nothing on the board is picked while it shows, and a click on a session
+  or a project leaves it for that. A board changing under it leaves it
+  showing.
+- **One page, set as a project's page is:** the title in its place and
+  size, with nothing under it, then What stays on screen, Notifications and
+  General, each headed in the small capitals of Asks and Status, 36 points
+  apart, the page scrolling as one. Rows sit on the ask cards' raise, at
+  their radius, split by the page's hairline, one box deep: rows of
+  SitRep's own at the drawing's metrics, not SwiftUI's grouped Form, whose
+  sections draw their own fill and insets, scroll on their own and draw
+  nothing as a still. The controls are the system's at their own size,
+  never redrawn: segmented controls, pop-ups, switches in the system
+  accent, bordered push buttons and a pull-down; each sits at the right of
+  one column, 176 points, so the eye runs straight down them. Orange stays
+  for needs you, so it appears only inside the pictures and the glyph.
+- **What stays on screen**, named for the choice it makes, true for all
+  three, Nothing included (Lee's alternative, if he prefers it later: "Show
+  on screen"). Three pictures of the screen's edge, 225 by 145: the notch
+  and its light, the strip as it stands at Length Grows, its column curving
+  back into the edge in the strip's own S and its rings in the panel's
+  order, or only the menu bar's glyph, lit. The one chosen is ringed in the
+  accent past a gap of the page's black; a click chooses one; it is the
+  menu's Show. The pictures are a fixed sample, one needs you and the notch
+  lit, and nothing moves at rest: the chosen picture no longer breathes.
+  Under the pointer each moves (drawn in round 7, built next): the notch
+  reaches a tongue out of its crest to its full reach, its tip at the
+  pointer's height within the crest, on the meniscus's attract spring, and
+  home on its relax spring, the light brightening with it; the strip's
+  rings dim to their tracks and turn as working arcs, each a beat behind the
+  one above. A tile not chosen lifts its hairline under the pointer, always;
+  under Reduce motion that is all a hover does.
+- **The card under the pictures** holds the rows that apply to the choice,
+  in this order, each arriving and leaving by the system's own transition,
+  at once under Reduce motion:
+  - **Notch:** Edge, Left or Right ("or drag it across the middle");
+    Display, the main one unless another is chosen; Style, Meniscus or Card;
+    Material; Reduce motion.
+  - **Strip:** Edge; Display; Length, Grows or Full; Max, only at Grows, a
+    slider whose right end is Full; Material; Reduce motion.
+  - **Nothing:** no card. One line says the menu and the SitRep window
     carry the board.
-  - **Notifications**: the notification a new ask sends, its title, its project
-    and session, silent, a click jumping to it. Then Notify me of a new
-    ask, off by default, its line saying the notch swells and lights
-    instead; Send, for a test notification; and macOS's own answer
-    ("Allowed, as banners"), with Change ↗ leaving for System Settings.
-  - **General**: the Claude plugin SitRep installs, its version and the
-    windows running it; when some run an old one, how many need
-    `/reload-plugins`, as the menu says, and Show lists them, a click
-    jumping to each. Then Open at login; Update automatically and Check
-    Now, from the first public release (until then the row is not there);
-    and What macOS lets it do: Jump to a session's window, the leave to
-    control Ghostty, with Change ↗.
+
+  Material is Black or Glass, for the notch and the strip alike, Black by
+  default, from macOS 26 (before it, Black and no row). Reduce motion is
+  off, its line saying SitRep follows the Mac's own setting either way
+  (Lee, 18 October 2026: "One thing we might want to ship... is the ability
+  to reduce motion").
+- **Notifications** opens on a corner of the desktop, drawn by SitRep: the
+  wallpaper, the see-through menu bar with the glyph lit and a clock that
+  tells the time now in the menu bar's own form, a minute at a time, a
+  Claude window behind, and the banner a new ask sends where macOS puts it,
+  with SitRep's own icon. Its words are a sample, as drawn. Under it, Send
+  Test, a push button, sends what the test always has: a real notification,
+  its click jumping as any would. Then Notify me of a new ask, off by
+  default, its line "Silent; a click on it jumps to the session"; and
+  macOS's own answer, "Allowed by macOS, as banners", with Notification
+  Settings… for SitRep's page in System Settings.
+- **General:** the Claude Code plugin, "Puts each Claude Code session on the
+  board", up to date; Open at login; and the leave to control Ghostty,
+  worded as macOS words a permission, by what SitRep can do with it: "Bring
+  a session's Ghostty window to the front", "So a click on a session jumps
+  to it". The plugin's folder, its version and its windows are gone from
+  it: the version is About SitRep's, and the windows come back only when
+  some need reloading. Update automatically and Check Now come with the
+  first public release.
+- **A dot when it's fine, a button when it's yours.** Each row says its state
+  where its control goes. All well, that is a green dot and a word, Up to
+  date or Allowed, with nothing to press. When something wants Lee, the
+  words move into the row's line and say what is wrong, and a push button
+  takes him to the fix, its ellipsis saying it opens somewhere else. No blue
+  words and no ↗: blue is left to the switches, the menu's highlight and
+  the chosen picture.
+  - **Windows on an older plugin:** "Updated to 0.2.0. 3 windows run 0.1.0
+    until /reload-plugins", and Show Windows, a pull-down listing each by
+    the menu's words for it, its project and session, a click jumping to
+    it. Once every window runs the new one, the row is up to date again.
+  - **A plugin that failed or can't be found:** the line says what failed,
+    in the menu's words, with no dot. A button comes only where SitRep has
+    something to do about it; it has none today, as it looks again after
+    trouble by itself.
+  - **Ghostty not allowed:** "Not allowed, so a click on a session can't
+    reach its window", with Open System Settings… for Privacy & Security ›
+    Automation. Before macOS has asked, SitRep is not listed there, so where
+    it can tell, the button is Allow…, which brings up macOS's own prompt.
+  - **Banners off in macOS:** Notify me of a new ask keeps the state Lee
+    left it in but greys, "Can't while macOS stops it; the notch swells and
+    lights instead", and macOS's row reads "Not allowed by macOS", "Turn
+    SitRep on in System Settings › Notifications", with Notification
+    Settings….
+  - **Waiting on Lee's approval to open at login:** the switch gives way to
+    Login Items Settings….
+
+  What macOS says is read as the page appears and each time a window comes
+  forward, as Lee may have changed it in System Settings.
 - **How the notch moves is not a setting.** It ships fixed (see "The app
   ships these values fixed", under "The notch and its panel"). A first
   drawing had a Feel pane with the prototype's dials; Lee took it out.
 - **Borrowed**, from Lee's saved references: Dockset's native controls in a
   styled frame, a live picture leading each step, and leaves named by what
-  they give; One's ↗ on what leaves the app.
+  they give.
+
+### About SitRep
+
+Who and what version, where a Mac keeps it: a small window of SitRep's own,
+drawn in Paper's "Settings in the window" (round 7, 21 October 2026), laid
+out as every app's About is. It is set in SitRep's own window, not AppKit's
+standard About panel, which draws its icon smaller.
+- **Down its middle:** the app icon at 112, as macOS renders it; SitRep in
+  the system's bold; "Version 0.2.0", the bundle's short version, which the
+  plugin shares, as the app and its plugin are one release and never part;
+  then "The board for your Claude Code sessions", and "Made by Lee Overy",
+  where a Mac app's copyright line goes.
+- **Nothing to change, and nothing more in it:** no title, no links, no
+  licences, no update button; Check for Updates… stays in the menu. Only its
+  close button is live, and it or ⌘W shuts it. It opens centred, in the
+  upper part of the screen, on the Space Lee is on.
+- **It opens from the menu's header**, which takes the menu's own highlight
+  under the pointer, as any item does, and a click on it opens the window
+  from anywhere. It is not in the app menu: an accessory app never shows
+  its main menu.
 
 ### The icon
 
@@ -2985,8 +3087,8 @@ the light's glyph for the menu bar.
   - **The light is a picture, not a state.** It is always on in the icon,
     and the icon never changes; the menu bar glyph says needs you.
   - **Where it is seen**, with no Dock icon: the notification a new ask
-    sends, the menu's and Settings' header at 30, Finder, Login Items and
-    Spotlight. It holds down to 38; by 16 the light is a pixel.
+    sends, the menu's header at 30, About SitRep at 112, Finder, Login Items
+    and Spotlight. It holds down to 38; by 16 the light is a pixel.
 - **The menu bar glyph is the light**, in its housing: a rounded outline 13
   points tall in an 18-point box, a 1.3-point line, as SF Symbols' regular.
   - **At rest** it is a template image, its thin bar unlit, so macOS draws
@@ -2994,7 +3096,7 @@ the light's glyph for the menu bar.
   - **While anything needs Lee**, SitRep swaps in a second image whose bar
     is lit orange. The glyph itself is the state, with no dot beside it.
 - **The name is set, not drawn:** SitRep in the system's semibold, as the
-  menu and Settings set it. There is no wordmark; the README pairs the icon
+  menu's header sets it, and in its bold in About SitRep. There is no wordmark; the README pairs the icon
   and the name.
 
 The boards for rounds 4 and 5 still show round 4's placeholder.
