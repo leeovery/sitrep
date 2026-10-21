@@ -3006,38 +3006,52 @@ reference only.
   nothing on the board is picked while it shows, and a click on a session
   or a project leaves it for that. A board changing under it leaves it
   showing.
-- **One page, set as a project's page is:** the title in its place and
+- **One page, set as System Settings sets its grouped form** (Paper's
+  "Round 8 · sidebar and Settings", boards E and F, 21 October 2026; Lee:
+  "all the settings look good", after he found round 7's "don't look very
+  Mac… the text is too big"): the title in a project's page's place and
   size, with nothing under it, then What stays on screen, Notifications and
-  General, each headed in the small capitals of Asks and Status, 36 points
-  apart, the page scrolling as one, as the window's other pages scroll,
-  its toolbar's scroll edge hidden as theirs is. Rows sit on the ask cards' raise, at
-  their radius, split by the page's hairline, one box deep: rows of
-  SitRep's own at the drawing's metrics, not SwiftUI's grouped Form, whose
-  sections draw their own fill and insets, scroll on their own and draw
-  nothing as a still. The controls are the system's, never redrawn:
-  segmented controls, pop-ups, switches in the system accent, bordered push
-  buttons and a pull-down, in one column on the right, 176 points, so the
-  eye runs straight down them. The segmented controls and the pop-up fill
-  it, the segments equal, as AppKit's own controls set so, which SwiftUI's
-  picker will not; the switches and the buttons keep their own size, at its
-  right. Orange stays for needs you, so it appears only inside the pictures
+  General, each headed in sentence case, 13 semibold in the label colour,
+  10 in from its card's edge and 10 over it, the sections 30 apart. They
+  sit in a column at most 704 wide, the width System Settings caps its own
+  form at, at the title's edge rather than centred, so the title stays
+  where a project's is; under a page of 784 it narrows with the window. The
+  page scrolls as one, as the window's other pages scroll, its toolbar's
+  scroll edge hidden as theirs is. Rows sit on the ask cards' raise, radius
+  14, split by the system's separator, half a point, 10 in from both ends,
+  one box deep: rows of SitRep's own at the form's metrics, not SwiftUI's
+  grouped Form, whose sections draw their own fill and insets, scroll on
+  their own and draw nothing as a still. A row's label is 13, its line
+  under it 11 in the secondary colour; a row is at least 52 tall with a
+  line, 38 without, its words and its control 10 in from the card's edges,
+  and a line wraps, growing the row, before its control gives up any width.
+  The controls are the system's, never redrawn, each at the regular size
+  and its own width against the card's right: segmented controls, their
+  segments equal, as SwiftUI's picker sets them (Meniscus · Card is 155,
+  where Paper drew 160: its widths were Inter's, and the control's are SF's);
+  a pop-up as wide as its widest choice, as every Mac pop-up is; bordered
+  push buttons and a pull-down; and the mini switch, 36 by 16, as the HIG
+  gives a grouped form. Orange stays for needs you, so it appears only inside the pictures
   and the glyph.
 - **What stays on screen**, named for the choice it makes, true for all
   three, Nothing included (Lee's alternative, if he prefers it later: "Show
   on screen"). Three pictures of the screen's edge, in 225 by 145's shape,
-  sharing the page's column equally, 16 apart, as 3 × 225 + 2 × 16 fills
-  the drawn column's 707, at any window width: the notch and its light,
+  filling the column equally, 16 apart, 224 by 144 at 704, each named 8
+  under it: the notch and its light,
   the strip as it stands at Length Grows, its column curving back into the
   edge in the strip's own S and its rings in the panel's order, or only the
   menu bar's glyph, lit. The one chosen is ringed in the accent past a gap
-  of the page's black; a click chooses one; it is the menu's Show. The
+  of the page's black, 2, then the ring to 4.5 past its edge, its name
+  semibold in the label colour; a tile not chosen has a hairline of white
+  at 15% and its name regular in the secondary colour. A click chooses
+  one; it is the menu's Show. The
   pictures are a fixed sample, one needs you and the notch lit, and
   nothing in them moves, under the pointer or not (Lee, 21 October 2026,
   of the notch's tongue reaching for the pointer and the strip's rings
   turning under it: "This looks stupid… Remove the animation from these
-  highlights"). A tile not chosen lifts its hairline while the pointer is
-  over it, from `#FFFFFF26` to `#FFFFFF4D`, at once; the
-  chosen tile's ring stays as it is. The window leaving the screen, no
+  highlights"). A tile not chosen lifts its hairline to white at 40% while
+  the pointer is over it, and its name to the label colour, at once; the
+  chosen tile stays as it is. The window leaving the screen, no
   tile is taken as under the pointer, as AppKit may send no leave then.
 - **The card under the pictures** holds the rows that apply to the choice,
   in this order, each arriving and leaving by the system's own transition,
@@ -3045,10 +3059,12 @@ reference only.
   - **Notch:** Edge, Left or Right ("or drag it across the middle");
     Display, the main one unless another is chosen; Style, Meniscus or Card;
     Material; Reduce motion.
-  - **Strip:** Edge; Display; Length, Grows or Full; Max, only at Grows, a
-    slider whose right end is Full; Material; Reduce motion.
-  - **Nothing:** no card. One line says the menu and the SitRep window
-    carry the board.
+  - **Strip:** Edge; Display; Length, Grows or Full ("grows with what's on
+    it, or runs the screen's height"); Max, only at Grows, a slider 160
+    wide whose right end is Full ("how long it grows"); Material; Reduce
+    motion.
+  - **Nothing:** no card. One line in its place, 11 in the secondary
+    colour, says the menu and the SitRep window carry the board.
 
   Material is Black or Glass, for the notch and the strip alike, Black by
   default, from macOS 26 (before it, Black and no row). Reduce motion is
@@ -3059,9 +3075,13 @@ reference only.
   wallpaper, the see-through menu bar with the glyph lit and a clock that
   tells the time now in the menu bar's own form, a minute at a time, a
   Claude window behind, and the banner a new ask sends where macOS puts it,
-  with SitRep's own icon. Its words are a sample, as drawn. Under it, Send
-  Test, a push button, sends what the test always has: a real notification,
-  its click jumping as any would. Then Notify me of a new ask, off by
+  with SitRep's own icon. Its words are a sample, as drawn. It is the
+  column's widest, 704 by 150, and in a narrower one crops at its left,
+  keeping its right, where the clock and the banner are, which the picture
+  is there to show (spec round 8 had it cropping at its right; at the
+  narrowest column that dropped the clock and most of the banner). Under
+  it, its caption and Send Test, a push button, which sends what the test
+  always has: a real notification, its click jumping as any would. Then Notify me of a new ask, off by
   default, its line "Silent; a click on it jumps to the session"; and
   macOS's own answer, "Allowed by macOS, as banners", with Notification
   Settings… for SitRep's page in System Settings.
@@ -3069,15 +3089,16 @@ reference only.
   board", up to date; Open at login; and the leave to control Ghostty,
   worded as macOS words a permission, by what SitRep can do with it: "Bring
   a session's Ghostty window to the front", "So a click on a session jumps
-  to it". The plugin's folder, its version and its windows are gone from
-  it: the version is About SitRep's, and the windows come back only when
+  to it". No row carries an icon. The plugin's folder, its version and its
+  windows are gone from it: the version is About SitRep's, and the windows come back only when
   some need reloading. Update automatically and Check Now come with the
   first public release.
 - **A dot when it's fine, a button when it's yours.** Each row says its state
-  where its control goes. All well, that is a green dot and a word, Up to
-  date or Allowed, with nothing to press. When something wants Lee, the
-  words move into the row's line and say what is wrong, and a push button
-  takes him to the fix, its ellipsis saying it opens somewhere else. No blue
+  where its control goes. All well, that is a green dot, 7, and a word, Up
+  to date or Allowed, in the secondary colour, with nothing to press. When
+  something wants Lee, the words move into the row's 11-point line and say
+  what is wrong, and a push button at its own width takes him to the fix,
+  its ellipsis saying it opens somewhere else. No blue
   words and no ↗: blue is left to the switches, the menu's highlight and
   the chosen picture.
   - **Windows on an older plugin:** "Updated to 0.2.0. 3 windows run 0.1.0

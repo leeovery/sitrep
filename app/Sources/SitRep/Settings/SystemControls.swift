@@ -1,9 +1,8 @@
 import AppKit
 import SwiftUI
 
-/// The system's segmented control, as wide as it is given, its segments equal: SwiftUI's segmented picker keeps to
-/// its words' widths, where Settings sets every one across its controls' column and the sidebar's switch spans the
-/// sidebar.
+/// The system's segmented control, as wide as it is given, its segments equal, as the sidebar's switch spans the
+/// sidebar: SwiftUI's segmented picker keeps to its words' widths.
 struct Segments<Value: Hashable>: NSViewRepresentable {
     let label: String
     let values: [Value]
@@ -50,8 +49,8 @@ struct Segments<Value: Hashable>: NSViewRepresentable {
     }
 }
 
-/// The system's pop-up button, as wide as it is given, which SwiftUI's menu picker is not: its choices in sections,
-/// a separator between each two.
+/// The system's pop-up button, its choices in sections, a separator between each two, at its own width: its widest
+/// choice's.
 struct PopUp<Value: Hashable>: NSViewRepresentable {
     let label: String
     let sections: [[Value]]
@@ -100,7 +99,7 @@ struct PopUp<Value: Hashable>: NSViewRepresentable {
     }
 
     func sizeThatFits(_ proposal: ProposedViewSize, nsView button: NSPopUpButton, context: Context) -> CGSize? {
-        CGSize(width: proposal.width ?? button.intrinsicContentSize.width, height: button.intrinsicContentSize.height)
+        button.intrinsicContentSize
     }
 
     func makeCoordinator() -> Coordinator {

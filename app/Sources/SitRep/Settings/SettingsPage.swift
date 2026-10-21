@@ -48,7 +48,8 @@ final class SettingsModel {
     private(set) var displays: [DisplayChoice.Connected] = []
     /// Allow… under way, while macOS's prompt is up.
     private(set) var isAllowing = false
-    /// Whether the page's window is on screen: closed, minimised, hidden or covered, it is not, and the pictures rest.
+    /// Whether the page's window is on screen: closed, minimised, hidden or covered, it is not, and no picture is taken
+    /// as under the pointer.
     var isOnScreen = true
     /// The read of what macOS says begun last, as the page came into sight.
     @ObservationIgnored private(set) var reading: Task<Void, Never>?
@@ -137,9 +138,10 @@ final class SettingsModel {
     }
 }
 
-/// Settings, a page of the SitRep window (DESIGN, "Settings"), set as a project's page is: the title, then What stays
-/// on screen, Notifications and General, 36 apart. It reads what the Mac says as it comes into sight
-/// (`SettingsModel.shows`), and its displays as it appears and as they change.
+/// Settings, a page of the SitRep window (DESIGN, "Settings"), set as System Settings sets its grouped form: the
+/// title in a project's page's place, then What stays on screen, Notifications and General, 30 apart, in a column at
+/// most the form's 704 wide, which `PageColumn` sets at the title's edge. It reads what the Mac says as it comes into
+/// sight (`SettingsModel.shows`), and its displays as it appears and as they change.
 struct SettingsPage: View {
     let settings: SettingsModel
 
@@ -148,14 +150,17 @@ struct SettingsPage: View {
             Color.clear.frame(height: WindowStyle.barHeight)
             PageTitle(words: "Settings")
                 .padding(.top, 6)
-                .padding(.bottom, 36)
-            VStack(alignment: .leading, spacing: 36) {
+                // the drawing's 28 under a line of 34, where the title's own line is 33, so the first header stands
+                // at page y 120 and the title where a project's stands
+                .padding(.bottom, 29)
+            VStack(alignment: .leading, spacing: SettingsStyle.sectionGap) {
                 StaysOnScreenSection(settings: settings)
                 notifications
                 general
             }
         }
-        .padding(.bottom, 28)
+        .frame(maxWidth: SettingsStyle.column, alignment: .leading)
+        .padding(.bottom, 40)
         .onAppear {
             settings.readDisplays()
             settings.shows(true)
@@ -166,19 +171,21 @@ struct SettingsPage: View {
         }
     }
 
-    /// The desktop corner a new ask's notification lands on, Send Test, then the switch and macOS's own answer.
+    /// The desktop corner a new ask's notification lands on, its caption and Send Test, then the switch and macOS's
+    /// own answer.
     private var notifications: some View {
         let said = settings.said
 
-        return VStack(alignment: .leading, spacing: 14) {
-            SectionHeading(name: "Notifications")
+        return SettingsSection(name: "Notifications") {
             DesktopCorner()
             HStack(spacing: 16) {
-                Text("A new ask, as it lands on your desktop").font(.system(size: 13)).foregroundStyle(WindowStyle.soft)
+                Text("A new ask, as it lands on your desktop").font(.subheadline).foregroundStyle(SettingsStyle.secondary)
                 Spacer(minLength: 0)
-                Button("Send Test", action: settings.services.sendTest).buttonStyle(.bordered)
+                Button("Send Test", action: settings.services.sendTest).buttonStyle(.bordered).fixedSize()
             }
-            .padding(.horizontal, 2)
+            .padding(.top, 8)
+            .padding(.bottom, 10)
+            .padding(.horizontal, SettingsStyle.inset)
             SettingsCard {
                 StatedRow(row: .notify(said.notices, show: settings.preferences.edge.show), isOn: notifies, fix: settings.fix)
                 CardSeparator()
@@ -189,8 +196,7 @@ struct SettingsPage: View {
 
     /// The plugin, Open at login, and the leave to bring a session's Ghostty window to the front.
     private var general: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            SectionHeading(name: "General")
+        SettingsSection(name: "General") {
             SettingsCard {
                 PluginRow(settings: settings)
                 CardSeparator()
@@ -217,8 +223,7 @@ private struct PluginRow: View {
 
     var body: some View {
         StatedRow(
-            row: .plugin(settings.live.last, plugin: settings.live.plugin), icon: "terminal", fix: settings.fix,
-            jump: settings.services.jump
+            row: .plugin(settings.live.last, plugin: settings.live.plugin), fix: settings.fix, jump: settings.services.jump
         )
     }
 }

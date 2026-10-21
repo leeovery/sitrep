@@ -14,11 +14,13 @@ struct StaysOnScreenSection: View {
     var body: some View {
         let rows = StaysOnScreen.rows(preferences.edge, hasGlass: settings.services.hasGlass)
 
-        VStack(alignment: .leading, spacing: 14) {
-            SectionHeading(name: "What stays on screen")
+        SettingsSection(name: "What stays on screen") {
             ShowPictures(show: preferences.binding(\.show), isOnScreen: settings.isOnScreen)
             if rows.isEmpty {
-                Text(StaysOnScreen.menuCarries).font(.system(size: 13)).foregroundStyle(WindowStyle.soft)
+                Text(StaysOnScreen.menuCarries)
+                    .font(.subheadline)
+                    .foregroundStyle(SettingsStyle.secondary)
+                    .padding(.horizontal, SettingsStyle.inset)
             } else {
                 SettingsCard {
                     ForEach(Array(rows.enumerated()), id: \.element) { offset, row in
@@ -48,11 +50,11 @@ struct StaysOnScreenSection: View {
                 segmented("Style", \.style, NotchStyle.allCases, \.title)
             }
         case .length:
-            CardRow(label: "Length", line: "Grows with its marks, or runs the screen's height") {
+            CardRow(label: "Length", line: "Grows with what's on it, or runs the screen's height") {
                 segmented("Length", \.length, StripLength.allCases, \.title)
             }
         case .max:
-            CardRow(label: "Max", line: "How far it grows; its right end is Full") {
+            CardRow(label: "Max", line: "How long it grows; its right end is Full") {
                 Slider(value: maxShare, in: 0 ... 1) { Text("Max") } onEditingChanged: { isSliding in
                     self.isSliding = isSliding
                     if !isSliding {
@@ -60,7 +62,7 @@ struct StaysOnScreenSection: View {
                     }
                 }
                 .labelsHidden()
-                .frame(width: WindowStyle.controls)
+                .frame(width: 160)
             }
         case .material:
             CardRow(label: "Material", line: "For the notch and the strip alike") {
@@ -68,7 +70,7 @@ struct StaysOnScreenSection: View {
             }
         case .reduceMotion:
             CardRow(label: "Reduce motion", line: "SitRep follows the Mac's own setting either way") {
-                Toggle("Reduce motion", isOn: preferences.binding(\.reducesMotion)).toggleStyle(.switch).labelsHidden()
+                MiniSwitch(label: "Reduce motion", isOn: preferences.binding(\.reducesMotion))
             }
         }
     }
@@ -81,7 +83,6 @@ struct StaysOnScreenSection: View {
         let sections = [[DisplayChoice.main], choices.filter { $0 != .main }].filter { !$0.isEmpty }
 
         return PopUp(label: "Display", sections: sections, title: \.name, selection: display(among: choices))
-            .frame(width: WindowStyle.controls)
     }
 
     /// The display chosen, by its choice.
@@ -99,12 +100,16 @@ struct StaysOnScreenSection: View {
         })
     }
 
+    /// The system's segmented picker, its segments equal, each as wide as the widest word makes it.
     private func segmented<Value: Hashable>(
         _ label: String, _ setting: WritableKeyPath<EdgeSettings, Value>, _ values: [Value],
         _ title: @escaping (Value) -> String
     ) -> some View {
-        Segments(label: label, values: values, title: title, selection: preferences.binding(setting))
-            .frame(width: WindowStyle.controls)
+        Picker(label, selection: preferences.binding(setting)) {
+            ForEach(values, id: \.self) { Text(title($0)).tag($0) }
+        }
+        .pickerStyle(.segmented)
+        .labelsHidden()
     }
 }
 

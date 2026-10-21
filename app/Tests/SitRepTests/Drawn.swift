@@ -22,6 +22,13 @@ struct Drawn {
         scale = CGFloat(bitmap.pixelsHigh) / size.height
     }
 
+    /// A view as it draws where it is, as in a window, which lays it out to the window's pixels.
+    init(_ view: NSView) throws {
+        bitmap = try #require(view.bitmapImageRepForCachingDisplay(in: view.bounds))
+        view.cacheDisplay(in: view.bounds, to: bitmap)
+        scale = CGFloat(bitmap.pixelsHigh) / view.bounds.height
+    }
+
     /// The pixels in `rect`, row by row, in sRGB.
     func pixels(in rect: CGRect) -> [NSColor] {
         let columns = Int((rect.minX * scale).rounded())..<Int((rect.maxX * scale).rounded())
