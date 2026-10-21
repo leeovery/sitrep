@@ -70,7 +70,7 @@ enum WindowStyle {
     static let smallest = CGSize(width: 860, height: 520)
     static let boardWidth: CGFloat = 296
     static let pageInset: CGFloat = 44
-    /// Settings' right inset, less than a page's, so the three pictures fit beside one another as drawn.
+    /// Settings' right inset, less than a page's: under a page of 704 + 44 + 36, its column narrows with the page.
     static let settingsInset: CGFloat = 36
     /// The band under the window's toolbar, beside the traffic lights, which the toolbar sets 26 points down: empty on
     /// the page, which starts under it.

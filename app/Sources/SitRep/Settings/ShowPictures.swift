@@ -3,8 +3,8 @@ import SwiftUI
 
 /// What stays on screen, as three pictures of the screen's edge, drawn from Paper's "Settings in the window": the
 /// notch and its light, the strip and its rings, or only the menu bar's glyph, lit. The one chosen is ringed in the
-/// accent; a click on another chooses it. It is the menu's Show. The three share the page's column, 16 apart, each
-/// keeping the drawing's shape. Nothing in them moves, under the pointer or not.
+/// accent; a click on another chooses it. It is the menu's Show. The three fill the page's column, 16 apart, each
+/// keeping the drawing's shape, 14 over what follows. Nothing in them moves, under the pointer or not.
 struct ShowPictures: View {
     @Binding var show: EdgeSettings.Show
     /// Whether the window is on screen; off it, no tile is under the pointer.
@@ -16,13 +16,12 @@ struct ShowPictures: View {
                 ShowTile(choice: choice, isChosen: choice == show, isOnScreen: isOnScreen) { show = choice }
             }
         }
-        .padding(.top, 4)
-        .padding(.bottom, 8)
+        .padding(.bottom, 14)
     }
 }
 
 /// A picture and its label, as one button, as wide as its share of the column, the picture keeping its shape
-/// (`TileFace`), its hairline lifted while the pointer is over it.
+/// (`TileFace`), lifted while the pointer is over it.
 private struct ShowTile: View {
     let choice: EdgeSettings.Show
     let isChosen: Bool
@@ -49,8 +48,9 @@ private struct ShowTile: View {
 }
 
 /// A tile as it draws: its picture over its label. Chosen, a gap of the page's black and a ring in the accent round
-/// the picture; else a hairline inside it, `#FFFFFF26`, lifted to `#FFFFFF4D` at once while the pointer is over it,
-/// the only thing the pointer changes.
+/// the picture, its label semibold in the label colour; else a hairline inside it, white at 15%, its label regular in
+/// the secondary colour. While the pointer is over a tile not chosen, its hairline lifts to 40% and its label to the
+/// label colour, at once: all the pointer changes.
 struct TileFace: View {
     let choice: EdgeSettings.Show
     let isChosen: Bool
@@ -58,15 +58,15 @@ struct TileFace: View {
 
     private static let shape = CGSize(width: 225, height: 145)
     private static let radius: CGFloat = 12
-    private static let hairline = Color.white.opacity(Double(0x26) / 255)
-    private static let hairlineLifted = Color.white.opacity(Double(0x4D) / 255)
+    private static let hairline = Color.white.opacity(0.15)
+    private static let hairlineLifted = Color.white.opacity(0.4)
     /// The ring's middle, past the picture's edge: a gap of 2, then a ring 2.5 wide.
     private static let ring: CGFloat = 2 + 2.5 / 2
 
     var body: some View {
         let picture = RoundedRectangle(cornerRadius: Self.radius, style: .continuous)
 
-        VStack(spacing: 10) {
+        VStack(spacing: 8) {
             EdgePicture(show: choice)
                 .aspectRatio(Self.shape, contentMode: .fit)
                 .clipShape(picture)
@@ -80,9 +80,8 @@ struct TileFace: View {
                     }
                 }
             Text(choice.title)
-                .font(.system(size: 13, weight: isChosen ? .semibold : .medium))
-                .foregroundStyle(isChosen ? WindowStyle.text : WindowStyle.soft)
-                .frame(height: 18)
+                .font(.body.weight(isChosen ? .semibold : .regular))
+                .foregroundStyle(isChosen || isOver ? SettingsStyle.label : SettingsStyle.secondary)
         }
         .frame(maxWidth: .infinity)
         .contentShape(Rectangle())
