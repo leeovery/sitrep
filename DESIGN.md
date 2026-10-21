@@ -2668,7 +2668,10 @@ stands).
       no "⌘F" hint, which the system's field does not draw. Needs you lists
       every session, so it is empty only when the board is.
     - **its foot is Settings**, a row with the system's gear, fixed under
-      a hairline as the list runs on under it (see "Settings"). Picked,
+      a hairline as the list runs on under it (see "Settings"): the
+      hairline inside the sidebar's 10 either side, 8 under it the row,
+      32 tall, then 10 to the window's foot, and over the hairline the
+      list fades out across its last 14. Picked,
       Settings shows on the right, where a session would, and the board's
       list holds no selection while it shows; the foot's row takes the
       system's own selection, as a list of its own. A click on a session
@@ -2755,7 +2758,9 @@ stands).
   rows, "a very deeply translucent, blurred bar"):
   - a row of the sidebar not picked shows a quiet plain fill behind it,
     white at 6%, never over its words, anywhere the pointer is on the row;
-    the one picked keeps the system's selection. A session new to needing
+    the one picked keeps the system's selection, every soft or faint word
+    on it white while the window is key (Lee, 21 October 2026), its orange
+    staying orange. A session new to needing
     Lee washes the whole row orange, in the selection's shape. There is no
     glass highlight anywhere;
   - on the page, a line that opens, a project's session or ask, and a
@@ -3014,43 +3019,21 @@ reference only.
   and the glyph.
 - **What stays on screen**, named for the choice it makes, true for all
   three, Nothing included (Lee's alternative, if he prefers it later: "Show
-  on screen"). Three pictures of the screen's edge, 225 by 145: the notch
-  and its light, the strip as it stands at Length Grows, its column curving
-  back into the edge in the strip's own S and its rings in the panel's
-  order, or only the menu bar's glyph, lit. The one chosen is ringed in the
-  accent past a gap of the page's black; a click chooses one; it is the
-  menu's Show. The pictures are a fixed sample, one needs you and the notch
-  lit, and nothing moves at rest: the chosen picture no longer breathes.
-  Each picture is drawn at a pose, at rest as drawn, and moves only while
-  the pointer is over it, the chosen one and the others alike, as A2's
-  filmstrips draw it:
-  - **the notch reaches for the pointer:** a tongue out of its crest to its
-    full reach, about 6.5 units past it, on the meniscus's attract spring
-    (out in about 0.3 s), and home on its relax spring (about 0.6 s, with
-    the spring's own overshoot), the light brightening and settling with
-    it. Its outline runs through the filmstrip's frames by reach, the
-    flanks concave, a liquid pulled thin. Its tip follows the pointer's
-    height, held inside the crest so each flank keeps 2 units of it. The
-    reach is fixed: it does not grow as the pointer nears, as the real
-    one's pull does.
-  - **the strip's rings turn:** each dims to its own track and its colour
-    turns round it as a quarter arc from 12 o'clock, a turn in 1.2 s as a
-    working arc's, each ring 0.1 s behind the one above, so 30° behind it.
-    The turning look fades in over the strip's 0.24 s as the pointer
-    comes, and out over it as it goes, still turning, and the rings rest
-    again. The hairline stays. The frames run only from the pointer's
-    coming until the arcs have faded; at rest nothing draws again.
-  - **Nothing** has nothing to move.
-  - **a tile not chosen lifts its hairline** while the pointer is over the
-    tile, its label too, always, at once; the chosen tile's ring stays as
-    it is. Under Reduce motion, SitRep's or the Mac's, that is all a hover
-    does, and Reduce motion turned on under the pointer puts the picture at
-    rest at once; turned off, its motion starts.
-
-  The window closed, minimised, hidden or covered, or the page gone, every
-  picture is at rest at once, as though the pointer had left: AppKit may
-  send no leave then, and the window, kept between openings, would come
-  back with its rings still turning.
+  on screen"). Three pictures of the screen's edge, in 225 by 145's shape,
+  sharing the page's column equally, 16 apart, as 3 × 225 + 2 × 16 fills
+  the drawn column's 707, at any window width: the notch and its light,
+  the strip as it stands at Length Grows, its column curving back into the
+  edge in the strip's own S and its rings in the panel's order, or only the
+  menu bar's glyph, lit. The one chosen is ringed in the accent past a gap
+  of the page's black; a click chooses one; it is the menu's Show. The
+  pictures are a fixed sample, one needs you and the notch lit, and
+  nothing in them moves, under the pointer or not (Lee, 21 October 2026,
+  of the notch's tongue reaching for the pointer and the strip's rings
+  turning under it: "This looks stupid… Remove the animation from these
+  highlights"). A tile not chosen lifts its hairline while the pointer is
+  over it, from `#FFFFFF26` to `#FFFFFF4D`, at once; the
+  chosen tile's ring stays as it is. The window leaving the screen, no
+  tile is taken as under the pointer, as AppKit may send no leave then.
 - **The card under the pictures** holds the rows that apply to the choice,
   in this order, each arriving and leaving by the system's own transition,
   at once under Reduce motion:

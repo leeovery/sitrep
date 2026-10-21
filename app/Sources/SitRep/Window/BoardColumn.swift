@@ -236,7 +236,7 @@ private struct ProjectRows: View {
 
     var body: some View {
         HStack {
-            Text(project.name, litBy: filter, tone: .soft)
+            Name(project.name, litBy: filter, tone: .soft)
             Spacer()
             if project.waiting > 0 {
                 Text("\(project.waiting)").foregroundStyle(WindowStyle.orange)
@@ -283,21 +283,20 @@ private struct SessionRowView: View {
         HStack(alignment: showsProject ? .top : .center, spacing: 10) {
             MarkView(mark: row.mark)
             VStack(alignment: .leading, spacing: 1) {
-                Text(row.name, litBy: filter, tone: row.isAway ? .faint : .text)
+                Name(row.name, litBy: filter, tone: row.isAway ? .faint : .text)
                     .font(WindowStyle.ui(13, isPicked || isWashing ? .semibold : .medium))
                     .spacing(-0.005, of: 13)
                     .lineLimit(1)
                     .frame(minHeight: WindowStyle.lane.height)
                 if showsProject {
-                    Text(row.project, litBy: filter, tone: .soft)
+                    Name(row.project, litBy: filter, tone: .soft)
                         .font(WindowStyle.ui(12))
                         .lineLimit(1)
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-            Text(Words.age(row.since, at: now))
+            Age(words: Words.age(row.since, at: now), isWashing: isWashing)
                 .font(WindowStyle.ui(12))
-                .foregroundStyle(isWashing ? WindowStyle.orange : WindowStyle.faint)
                 .frame(width: 28, alignment: .trailing)
                 .frame(minHeight: WindowStyle.lane.height)
         }
@@ -324,7 +323,7 @@ private struct QuietRows: View {
 
     var body: some View {
         ForEach(quiet) { project in
-            Text(project.name, litBy: filter, tone: .soft)
+            Name(project.name, litBy: filter, tone: .soft)
                 .font(WindowStyle.ui(12, .medium))
                 .lineLimit(1)
                 .spoken(Spoken.quiet(project))
@@ -333,18 +332,61 @@ private struct QuietRows: View {
     }
 }
 
-private extension Text {
-    /// A name in its own tone; while the filter narrows the list, its words lit where they appear in it, a step
-    /// brighter than the rest (`Tone`).
-    init(_ name: String, litBy filter: Filter, tone: Tone) {
-        guard !filter.isEmpty else {
-            self = Text(name).foregroundStyle(WindowStyle.colour(tone))
-            return
-        }
+/// A name in its own tone; while the filter narrows the list, its words lit where they appear in it, a step brighter
+/// than the rest (`Tone`). On the row selected in a list with focus, all of it white (`WindowStyle.colour`).
+private struct Name: View {
+    let name: String
+    let filter: Filter
+    let tone: Tone
 
-        self = filter.runs(of: name).reduce(Text("")) { text, run in
-            Text("\(text)\(Text(run.text).foregroundStyle(WindowStyle.colour(run.isLit ? tone.lit : tone.rest)))")
+    @Environment(\.backgroundProminence) private var prominence
+
+    init(_ name: String, litBy filter: Filter, tone: Tone) {
+        self.name = name
+        self.filter = filter
+        self.tone = tone
+    }
+
+    var body: some View {
+        if filter.isEmpty {
+            Text(name).foregroundStyle(WindowStyle.colour(tone, on: prominence))
+        } else {
+            filter.runs(of: name).reduce(Text("")) { text, run in
+                let colour = WindowStyle.colour(run.isLit ? tone.lit : tone.rest, on: prominence)
+
+                return Text("\(text)\(Text(run.text).foregroundStyle(colour))")
+            }
         }
+    }
+}
+
+/// A row's time: orange while it washes, as what needs Lee stays orange; else faint, white on the row selected in a
+/// list with focus.
+private struct Age: View {
+    let words: String
+    let isWashing: Bool
+
+    @Environment(\.backgroundProminence) private var prominence
+
+    var body: some View {
+        Text(words).foregroundStyle(isWashing ? WindowStyle.orange : WindowStyle.colour(.faint, on: prominence))
+    }
+}
+
+/// Words of a tone, white on the row selected in a list with focus (`WindowStyle.colour`).
+private struct Toned: ViewModifier {
+    let tone: Tone
+
+    @Environment(\.backgroundProminence) private var prominence
+
+    func body(content: Content) -> some View {
+        content.foregroundStyle(WindowStyle.colour(tone, on: prominence))
+    }
+}
+
+private extension View {
+    func tone(_ tone: Tone) -> some View {
+        modifier(Toned(tone: tone))
     }
 }
 
@@ -437,7 +479,7 @@ private extension View {
 /// Settings at the sidebar's foot, under a hairline, fixed as the list runs on under it: a list of its one row, so it
 /// takes the system's own selection while Settings shows, as a picked session's row does, and is a stop of its own for
 /// the keys. Drawn as a still, its row alone, as the board's rows are.
-private struct SettingsFooter: View {
+struct SettingsFooter: View {
     let pick: Pick?
     let now: Date
 
@@ -446,19 +488,23 @@ private struct SettingsFooter: View {
     /// The row as the list holds it, put back whenever the list lets go of it while Settings shows.
     @State private var selection: Pick?
 
-    /// Its hairline and its row.
-    static let height = 1 + WindowStyle.footerHeight
+    /// Its hairline, and its row with the space above and below it (spec 2.6).
+    static let height = 1 + WindowStyle.footerTop + WindowStyle.footerRow + WindowStyle.footerBottom
 
     var body: some View {
         VStack(spacing: 0) {
-            Rectangle().fill(.white.opacity(0.08)).frame(height: 1)
+            Rectangle()
+                .fill(WindowStyle.footerLine)
+                .frame(height: 1)
+                .padding(.horizontal, WindowStyle.selectionInset)
             if isStill {
-                row.padding(.top, 8).padding(.bottom, 10)
+                row.padding(.top, WindowStyle.footerTop).padding(.bottom, WindowStyle.footerBottom)
             } else {
                 List(selection: $selection) { row }
                     .listStyle(.sidebar)
                     .scrollDisabled(true)
-                    .frame(height: WindowStyle.footerHeight)
+                    .frame(height: WindowStyle.footerList)
+                    .padding(.top, WindowStyle.footerTop - WindowStyle.footerListInset)
                     .onChange(of: selection) { _, selected in
                         if selected == .settings, pick != .settings {
                             act.pick(.settings)
@@ -471,6 +517,20 @@ private struct SettingsFooter: View {
                     }
             }
         }
+        .overlay(alignment: .top) { fade }
+    }
+
+    /// The list's foot fading where it runs on under the hairline (spec 2.5), over the list, not over the foot.
+    private var fade: some View {
+        LinearGradient(
+            colors: [WindowStyle.footerFadeInk.opacity(0), WindowStyle.footerFadeInk.opacity(0.7)],
+            startPoint: .top, endPoint: .bottom
+        )
+        .frame(height: WindowStyle.footerFade)
+        .padding(.horizontal, WindowStyle.selectionInset)
+        .offset(y: -WindowStyle.footerFade)
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
     }
 
     private var row: some View {
@@ -483,7 +543,7 @@ private struct SettingsFooter: View {
                 .font(WindowStyle.ui(13, .medium))
                 .spacing(-0.005, of: 13)
         }
-        .foregroundStyle(WindowStyle.text)
+        .tone(.text)
         .sidebarRow(.settings, pick: pick, now: now)
     }
 }

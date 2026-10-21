@@ -36,11 +36,17 @@ enum WindowStyle {
     static let wash = orange.opacity(0.12)
     static let washRing = orange.opacity(0.28)
 
-    static func colour(_ tone: Tone) -> Color {
+    /// Words of this tone on what is behind them: on a row selected in a list with focus, its selection the accent,
+    /// white whatever their tone, as the system's own rows' words go; on anything else, their own grey.
+    static func colour(_ tone: Tone, on prominence: BackgroundProminence = .standard) -> Color {
+        guard prominence != .increased else {
+            return .white
+        }
+
         switch tone {
-        case .text: text
-        case .soft: soft
-        case .faint: faint
+        case .text: return text
+        case .soft: return soft
+        case .faint: return faint
         }
     }
 
@@ -70,8 +76,20 @@ enum WindowStyle {
     static let rowPadding: CGFloat = (rowHeight - lane.height) / 2
     static let rowInset: CGFloat = 16
     static let sectionGap: CGFloat = 13
-    /// The sidebar's foot, a list of the one row Settings: the row and the list's own insets round it.
-    static let footerHeight: CGFloat = 52
+    /// The sidebar's foot, as spec 2.6 draws it: a hairline, then 8 above its row of 32 and 10 below it.
+    static let footerTop: CGFloat = 8
+    static let footerRow: CGFloat = 32
+    static let footerBottom: CGFloat = 10
+    /// The foot is a list of its one row, which the system's sidebar list sets 10 in from its top and from its bottom,
+    /// as measured offscreen on macOS 26: its bottom inset is the drawing's 10, and its top is tucked under the hairline
+    /// by what the drawing's 8 lacks of it.
+    static let footerListInset: CGFloat = 10
+    static let footerList = footerListInset + footerRow + footerListInset
+    /// The hairline over the foot, in from the sidebar's sides as its rows are.
+    static let footerLine = Color.white.opacity(Double(0x14) / 255)
+    /// The fade at the list's foot where it runs on under the foot: the sidebar's ground, clear to 70%.
+    static let footerFade: CGFloat = 14
+    static let footerFadeInk = Color(hex: 0x1C1C1F)
     /// The system's selection in the sidebar, in from its edges and rounded, which a row's fills take: by eye, as
     /// nothing offscreen draws it.
     static let selectionInset: CGFloat = 10
