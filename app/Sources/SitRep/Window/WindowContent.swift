@@ -63,13 +63,8 @@ struct PageColumn<Settings: View>: View {
             Scrolling { ProjectPageView(page: project, now: now).padding(.horizontal, WindowStyle.pageInset) }
                 .id(Pick.project(project.key))
         case .settings:
-            Scrolling {
-                settings()
-                    .padding(.leading, WindowStyle.pageInset)
-                    .padding(.trailing, WindowStyle.settingsInset)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-            }
-            .id(Pick.settings)
+            Scrolling { settings().padding(.horizontal, WindowStyle.pageInset) }
+                .id(Pick.settings)
         }
     }
 }

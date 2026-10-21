@@ -3,13 +3,11 @@ import SitRepMenu
 import SwiftUI
 
 /// Settings set as System Settings sets its grouped form, measured on macOS 26 (spec round 8, 4): its words in the
-/// system's own roles and text styles, its column at the form's cap, its rows at the form's heights.
+/// system's own roles and text styles, its rows at the form's heights.
 enum SettingsStyle {
     static let label = Color(nsColor: .labelColor)
     static let secondary = Color(nsColor: .secondaryLabelColor)
     static let separator = Color(nsColor: .separatorColor)
-    /// The widest the column goes, at the title's edge: the width System Settings caps its own form at.
-    static let column: CGFloat = 704
     /// A row's words and its control, in from the card's edges; a section header and the line where a card would
     /// be, in as far.
     static let inset: CGFloat = 10

@@ -14,32 +14,68 @@ import Testing
 struct SettingsLayoutTests {
     /// The column's left, at the title's edge, in the page's points.
     private static let edge = CGFloat(44)
+    /// The page whose column is the drawing's 704, at which Paper's heights hold: they follow the pictures' height.
+    private static let drawingsPage = CGFloat(704 + 88)
 
-    @Test(arguments: [(956.0, 704.0), (784.0, 704.0), (700.0, 620.0), (600.0, 520.0)])
-    func theColumnIsAtMost704AtTheTitlesEdge(page: CGFloat, column: CGFloat) async throws {
-        let hosted = await Hosted.page(width: page)
-        let popUp = try #require(hosted.all(NSPopUpButton.self).first)
-
-        // the trailing control, 10 in from the card's right
-        #expect(abs(hosted.frame(of: popUp).maxX - (Self.edge + column - 10)) < 0.5)
+    /// The column at a page's width: the page less 44 on each side, as a session's and a project's are, with no cap.
+    private static func column(_ page: CGFloat) -> CGFloat {
+        page - 2 * edge
     }
 
-    @Test func theControlsStandAgainstTheCardsRightAtTheirOwnWidths() async throws {
+    /// The column fills the page, less its insets, at any width: Notch's card spans it, and every control at a row's
+    /// right stands 10 in from the card's.
+    @Test(arguments: [(564.0, 476.0), (956.0, 868.0), (1003.0, 915.0), (1400.0, 1312.0)])
+    func theColumnFillsThePageLessItsInsets(page: CGFloat, column: CGFloat) async throws {
+        let hosted = await Hosted.page(width: page)
+        let drawn = try Drawn(hosted.hosting)
+        let popUp = try hosted.frame(of: #require(hosted.all(NSPopUpButton.self).first))
+        let card = try #require(drawn.litSpans(atY: popUp.midY).first)
+        let controls = hosted.trailingControls()
+        let pixel = 1 / hosted.scale
+
+        #expect((Self.edge ... Self.edge + column).isWithinAPixel(of: card, at: hosted.scale))
+        // Edge, Display, Style, Material, Reduce motion; Send Test, Notify me, Notification Settings…; Open at login
+        #expect(controls.count == 9)
+        for control in controls {
+            #expect(abs(control.maxX - (Self.edge + column - 10)) < pixel)
+        }
+    }
+
+    @Test func theControlsKeepTheirOwnWidths() async throws {
         let hosted = await Hosted.page(width: 956)
         let segmented = hosted.all(NSSegmentedControl.self).map(hosted.frame(of:))
         let button = try #require(hosted.all(NSPopUpButton.self).first)
         let popUp = hosted.frame(of: button)
-        let switches = hosted.all(NSSwitch.self).map(hosted.frame(of:))
-        let right = Self.edge + 704 - 10
 
         // Edge, Style, Material: Left · Right, Meniscus · Card, Black · Glass
         #expect(segmented.map { ($0.width * 2).rounded() / 2 } == [106, 155, 109])
         // to the window's half points, where the stock one, in none, rounds to whole ones
         #expect(abs(popUp.width - SystemControlsTests.stock(button.itemArray).intrinsicContentSize.width) <= 0.5)
         // Reduce motion, Notify me of a new ask, Open at login
-        #expect(switches.count == 3)
-        for frame in segmented + [popUp] + switches {
-            #expect(abs(frame.maxX - right) < 0.5)
+        #expect(hosted.all(NSSwitch.self).count == 3)
+    }
+
+    /// The three pictures fill the column, 16 apart, each a third of what the gaps leave and as tall as 225:145 makes
+    /// that, to the whole point, so the Notch card stands on a whole point, 38 under them, past their labels.
+    @Test(arguments: [564.0, 956, 1003, 1400])
+    func thePicturesFillTheColumnInWholePoints(page: CGFloat) async throws {
+        let drawn = try await Hosted.drawn(width: page)
+        let width = (Self.column(page) - 32) / 3
+        let height = (width * 145 / 225).rounded()
+        let card = try #require(drawn.litSpans(atX: Self.edge + width + 8).first)
+        // across the pictures' middle, where each one's edge is lit: the chosen one's picture to its right, and the
+        // others' hairlines
+        let across = drawn.litSpans(atY: 146 + height / 2)
+        let lefts = [1.0, 2].map { Self.edge + $0 * (width + 16) }
+        let rights = [0.0, 1, 2].map { Self.edge + $0 * (width + 16) + width }
+        let pixel = 1 / drawn.scale
+
+        #expect(abs(card.lowerBound - (146 + height + 8 + 16 + 14)) < pixel / 2)
+        for left in lefts {
+            #expect(across.contains { abs($0.lowerBound - left) < pixel })
+        }
+        for right in rights {
+            #expect(across.contains { abs($0.upperBound - right) < pixel })
         }
     }
 
@@ -69,7 +105,7 @@ struct SettingsLayoutTests {
         // Edge, Length, Material
         #expect(segmented.map { ($0 * 2).rounded() / 2 } == [106, 117, 109])
         #expect(slider.size == CGSize(width: 160, height: 16))
-        #expect(abs(slider.maxX - (Self.edge + 704 - 10)) < 0.5)
+        #expect(abs(slider.maxX - (Self.edge + Self.column(956) - 10)) < 0.5)
     }
 
     /// The page's push buttons at their own widths, as measured in a form, against the right: Send Test 84.5, and
@@ -83,20 +119,15 @@ struct SettingsLayoutTests {
         for (button, width) in zip(buttons, [84.5, 158]) {
             #expect(abs(button.width - width) < pixel)
             #expect(button.height == 24)
-            #expect(abs(button.maxX - (Self.edge + 704 - 10)) < pixel)
+            #expect(abs(button.maxX - (Self.edge + Self.column(956) - 10)) < pixel)
         }
     }
 
-    /// At the narrowest column, 484, in each state whose control is widest, the control keeps its own width, 10 in from
-    /// the card's right, and the row's line wraps, growing the row past 52, where it no longer fits beside it: Ghostty
-    /// not allowed and opening at login waiting on Lee. The plugin's line for windows on an older one fits beside Show
-    /// Windows, so its row stays 52.
-    @Test(arguments: [
-        (General.plugin, 139.5, false), (.login, 158, true), (.ghostty, 169.5, true),
-    ])
-    func aRowThatNeedsSomethingWrapsItsLineBeforeItsButtonShrinks(
-        row: General, width: CGFloat, wraps: Bool
-    ) async throws {
+    /// At the narrowest column, 476, in each state whose control is widest, the control keeps its own width, 10 in from
+    /// the card's right, and the row's line wraps, growing the row past 52, where it no longer fits beside it: windows
+    /// on an older plugin, Ghostty not allowed and opening at login waiting on Lee.
+    @Test(arguments: [(General.plugin, 139.5), (.login, 158), (.ghostty, 169.5)])
+    func aRowThatNeedsSomethingWrapsItsLineBeforeItsButtonShrinks(row: General, width: CGFloat) async throws {
         let hosted = await Hosted.page(width: 564, height: 1400, said: Hosted.needsLee, live: Hosted.live(needsReload: true))
         let drawn = try Drawn(hosted.hosting)
         // General's rows are the page's last
@@ -105,11 +136,11 @@ struct SettingsLayoutTests {
         let pixel = 1 / hosted.scale
 
         #expect(abs(control.width - width) < pixel)
-        #expect(abs(control.maxX - (Self.edge + 484 - 10)) < pixel)
+        #expect(abs(control.maxX - (Self.edge + Self.column(564) - 10)) < pixel)
 
         let height = try drawn.row(around: control).upperBound - drawn.row(around: control).lowerBound
 
-        #expect(wraps ? height > 52 : height == 52)
+        #expect(height > 52)
     }
 
     /// The row's height at a width, measured in a window, its control the segmented Style.
@@ -146,7 +177,7 @@ struct SettingsLayoutTests {
     /// drawing's heights, Notch chosen: 14 under the pictures, 30 from a card to the next header, and the caption's row
     /// of 42 between the corner and its card. Within a pixel at the screen's scale, which lays the page out.
     @Test func thePagesCardsStandAtTheDrawingsHeights() async throws {
-        let drawn = try await Hosted.drawn()
+        let drawn = try await Hosted.drawn(width: Self.drawingsPage)
         let spans = drawn.litSpans(atX: Self.edge + 232)
         let drawing: [ClosedRange<CGFloat>] = [328 ... 576, 632 ... 782, 824 ... 928.5, 984.5 ... 1127.5]
 
@@ -160,7 +191,7 @@ struct SettingsLayoutTests {
     /// General's card at 984.5, the first header's line 28 under the title's line of 34 (58 to 92). Each header's
     /// capitals stand alike in their line, so the same distance over what each heads.
     @Test func eachHeaderStands10OverWhatItHeads() async throws {
-        let drawn = try await Hosted.drawn()
+        let drawn = try await Hosted.drawn(width: Self.drawingsPage)
         let pictures = try #require(drawn.litSpans(atX: Self.edge + 352).first)
         let heads = [pictures.lowerBound, 632, 984.5]
         // the header's first word's first letters, which hang below no line: What, Noti, Gene
@@ -191,13 +222,13 @@ struct SettingsLayoutTests {
         let title = CGRect(x: Self.edge, y: 50, width: 200, height: 44)
 
         #expect(drawn.pixels(in: title).contains { $0.lightness > 2 })
-        #expect(try await Hosted.drawn().pixels(in: title) == drawn.pixels(in: title))
+        #expect(try await Hosted.drawn(width: 956).pixels(in: title) == drawn.pixels(in: title))
     }
 
     /// The Notch's card, Edge, Display, Style, Material and Reduce motion: a hairline of 0.5 between each two rows,
     /// none at its top or its foot, 10 in from both its ends. Within a pixel at the screen's scale.
     @Test func aCardsHairlinesAreHalfAPointBetweenItsRowsOnly() async throws {
-        let drawn = try await Hosted.drawn()
+        let drawn = try await Hosted.drawn(width: Self.drawingsPage)
         let card = try #require(drawn.litSpans(atX: Self.edge + 232).first)
         let lines = { (x: CGFloat) in drawn.lines(atX: Self.edge + x, in: card) }
         let rows: [CGFloat] = [52, 38, 52, 52]
@@ -223,17 +254,45 @@ struct SettingsLayoutTests {
         #expect(abs(size.height - height) <= 0.5)
     }
 
-    /// Narrower than 704, the desktop corner keeps its height and crops at its left, keeping its right, where the clock
-    /// and the banner are.
-    @Test func theDesktopCornerCropsAtItsLeft() throws {
-        let wide = try Drawn(DesktopCorner(), size: CGSize(width: 704, height: 150))
-        let narrow = try Drawn(DesktopCorner(), size: CGSize(width: 484, height: 150))
-        // the clock and the banner, clear of the corner's curve and its hairline
-        let right = { (width: CGFloat) in CGRect(x: width - 420, y: 20, width: 400, height: 110) }
-        let pairs = zip(narrow.pixels(in: right(484)), wide.pixels(in: right(704)))
+    /// The desktop corner fills the column's width at its 150, whatever the width.
+    @Test(arguments: [500.0, 704, 1200])
+    func theDesktopCornerFillsTheColumn150Tall(width: CGFloat) {
+        let size = NSHostingController(rootView: DesktopCorner()).sizeThatFits(in: CGSize(width: width, height: 1000))
 
-        // alike but for the gradients' dither, which follows the drawing's own pixels
-        #expect(pairs.allSatisfy { abs($0.lightness - $1.lightness) < 0.03 })
+        #expect(size == CGSize(width: width, height: 150))
+    }
+
+    /// Narrower than its drawing's 704, the desktop corner crops at its left: all of it inside its hairline and its
+    /// corners' curve is the drawing's right, the clock, the banner and the window behind, to the same pixels.
+    @Test func narrowerTheDesktopCornerCropsAtItsLeft() throws {
+        let drawing = try Drawn(DesktopCorner(), size: CGSize(width: 704, height: 150))
+        let narrow = try Drawn(DesktopCorner(), size: CGSize(width: 500, height: 150))
+        let inside = { (width: CGFloat) in CGRect(x: width - 488, y: 12, width: 476, height: 126) }
+
+        #expect(Self.alike(narrow.pixels(in: inside(500)), drawing.pixels(in: inside(704))))
+    }
+
+    /// The same pixels but for the wallpaper's dither, which follows where its pixels fall in the gradient: a step of
+    /// a level or so in a channel, where a mark a pixel out of place differs by far more.
+    private static func alike(_ some: [NSColor], _ others: [NSColor]) -> Bool {
+        some.count == others.count && zip(some, others).allSatisfy { abs($0.lightness - $1.lightness) < 0.05 }
+    }
+
+    /// Wider than its drawing, the desktop corner runs on with nothing stretched: at its right, the menu bar's items and
+    /// the banner, and at its left, the window behind 28 in, are the drawing's to the same pixels.
+    @Test func widerTheDesktopCornerRunsOnBetweenItsTwoEnds() throws {
+        let drawing = try Drawn(DesktopCorner(), size: CGSize(width: 704, height: 150))
+        let wide = try Drawn(DesktopCorner(), size: CGSize(width: 1200, height: 150))
+        // the menu bar's items, clear of the corners' curve
+        let bar = { (width: CGFloat) in CGRect(x: width - 480, y: 0, width: 468, height: 24) }
+        // under them the banner, clear of where the window behind stands in the drawing
+        let banner = { (width: CGFloat) in CGRect(x: width - 290, y: 24, width: 278, height: 114) }
+        // the window behind, clear of the banner and its shadow in the drawing
+        let behind = CGRect(x: 12, y: 24, width: 250, height: 114)
+
+        #expect(Self.alike(wide.pixels(in: bar(1200)), drawing.pixels(in: bar(704))))
+        #expect(Self.alike(wide.pixels(in: banner(1200)), drawing.pixels(in: banner(704))))
+        #expect(Self.alike(wide.pixels(in: behind), drawing.pixels(in: behind)))
     }
 }
 
@@ -318,13 +377,13 @@ struct Hosted {
         return Hosted(PageColumn(page: .settings, now: Date()) { page }, size: CGSize(width: width, height: height))
     }
 
-    /// The window's page on Settings drawn, Notch chosen, 956 wide and tall enough for all of it: as a still, so the
-    /// whole page draws, but in a window, which lays it out to the screen's pixels, as the window on screen does.
-    static func drawn() async throws -> Drawn {
+    /// The window's page on Settings drawn, Notch chosen, `width` wide and 1300 tall: as a still, so the whole page
+    /// draws, but in a window, which lays it out to the screen's pixels, as the window on screen does.
+    static func drawn(width: CGFloat) async throws -> Drawn {
         let page = await pageView()
         let still = PageColumn(page: .settings, now: Date()) { page }.environment(\.isStill, true)
 
-        return try Drawn(Hosted(still, size: CGSize(width: 956, height: 1300)).hosting)
+        return try Drawn(Hosted(still, size: CGSize(width: width, height: 1300)).hosting)
     }
 
     static let allWell = MacSays(notices: .allowed(.banners), login: LoginItem(.enabled), ghostty: .allowed)
@@ -389,17 +448,32 @@ extension Drawn {
     /// its last's foot.
     func litSpans(atX x: CGFloat, above ground: CGFloat = 0) -> [ClosedRange<CGFloat>] {
         let column = Int((x * scale).rounded())
+
+        return litSpans(across: bitmap.pixelsHigh, above: ground) { bitmap.colorAt(x: column, y: $0) }
+    }
+
+    /// Where a row of pixels across the drawing is lighter than `ground`, each span from its first lit pixel's left to
+    /// its last's right.
+    func litSpans(atY y: CGFloat, above ground: CGFloat = 0) -> [ClosedRange<CGFloat>] {
+        let row = Int((y * scale).rounded())
+
+        return litSpans(across: bitmap.pixelsWide, above: ground) { bitmap.colorAt(x: $0, y: row) }
+    }
+
+    private func litSpans(
+        across pixels: Int, above ground: CGFloat, at color: (Int) -> NSColor?
+    ) -> [ClosedRange<CGFloat>] {
         var spans: [ClosedRange<CGFloat>] = []
         var start: Int?
 
-        for y in 0...bitmap.pixelsHigh {
-            let lightness = y < bitmap.pixelsHigh ? bitmap.colorAt(x: column, y: y)?.usingColorSpace(.sRGB)?.lightness : nil
+        for pixel in 0...pixels {
+            let lightness = pixel < pixels ? color(pixel)?.usingColorSpace(.sRGB)?.lightness : nil
             let isLit = (lightness ?? 0) > ground + 0.05
 
             if isLit, start == nil {
-                start = y
+                start = pixel
             } else if !isLit, let first = start {
-                spans.append(CGFloat(first) / scale ... CGFloat(y) / scale)
+                spans.append(CGFloat(first) / scale ... CGFloat(pixel) / scale)
                 start = nil
             }
         }
