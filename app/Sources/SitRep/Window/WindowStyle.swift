@@ -36,13 +36,25 @@ enum WindowStyle {
     static let wash = orange.opacity(0.12)
     static let washRing = orange.opacity(0.28)
 
-    static func colour(_ tone: Tone) -> Color {
+    /// Words of this tone on what is behind them: on a row selected in the list that has the window's focus, its
+    /// selection the accent, white whatever their tone, as the system's own rows' words go; on anything else, their own
+    /// grey.
+    static func colour(_ tone: Tone, on prominence: BackgroundProminence) -> Color {
         switch tone {
-        case .text: text
-        case .soft: soft
-        case .faint: faint
+        case .text: colour(text, on: prominence)
+        case .soft: colour(soft, on: prominence)
+        case .faint: colour(faint, on: prominence)
         }
     }
+
+    /// A colour of words or of a mark on what is behind them: on the accent of a selection in the list that has the
+    /// window's focus, `selected`, as the system brightens its own rows' words and icons; on anything else, its own.
+    static func colour(_ own: Color, on prominence: BackgroundProminence, selected: Color = .white) -> Color {
+        prominence == .increased ? selected : own
+    }
+
+    /// The working arc's track on the accent of a selection: dimmer than the arc, now white, so the arc still reads.
+    static let selectedTrack = Color.white.opacity(Double(0x4D) / 255)
 
     static func ui(_ size: CGFloat, _ weight: Font.Weight = .regular) -> Font {
         .system(size: size, weight: weight)
@@ -70,8 +82,16 @@ enum WindowStyle {
     static let rowPadding: CGFloat = (rowHeight - lane.height) / 2
     static let rowInset: CGFloat = 16
     static let sectionGap: CGFloat = 13
-    /// The sidebar's foot, a list of the one row Settings: the row and the list's own insets round it.
-    static let footerHeight: CGFloat = 52
+    /// The sidebar's foot, as spec 2.6 draws it: a hairline, then 8 above its row of 32 and 10 below it.
+    static let footerTop: CGFloat = 8
+    static let footerRow: CGFloat = 32
+    static let footerBottom: CGFloat = 10
+    /// The foot is a list of its one row, which the system's sidebar list sets 10 in from its top and from its bottom,
+    /// as measured offscreen on macOS 26 through the list's bar in the window's split (`SettingsFooterTests`).
+    static let footerListInset: CGFloat = 10
+    static let footerList = footerListInset + footerRow + footerListInset
+    /// The hairline over the foot, in from the sidebar's sides as its rows are.
+    static let footerLine = Color.white.opacity(Double(0x14) / 255)
     /// The system's selection in the sidebar, in from its edges and rounded, which a row's fills take: by eye, as
     /// nothing offscreen draws it.
     static let selectionInset: CGFloat = 10

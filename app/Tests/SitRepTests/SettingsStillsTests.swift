@@ -76,12 +76,11 @@ struct SettingsStillsTests {
     /// The window on Settings, the sidebar's stand-in with Settings picked at its foot, over the board `run` holds, as
     /// tall as `height`.
     private static func window(
-        _ page: SettingsPage, _ name: String, height: CGFloat = WindowStyle.size.height, run: WindowRun = WindowRun()
+        _ page: SettingsPage, _ name: String, width: CGFloat = WindowStyle.size.width,
+        height: CGFloat = WindowStyle.size.height, run: WindowRun = WindowRun()
     ) throws {
         _ = run.pick(.settings)
-        try render(
-            stillWindow(run, at: Date()) { page }, name, size: CGSize(width: WindowStyle.size.width, height: height)
-        )
+        try render(stillWindow(run, at: Date()) { page }, name, size: CGSize(width: width, height: height))
     }
 
     @Test(arguments: EdgeSettings.Show.allCases)
@@ -119,25 +118,39 @@ struct SettingsStillsTests {
         try Self.window(page, "settings-needs-lee", height: 1500)
     }
 
-    /// A2's filmstrips: the notch at rest, part way and held out, its tip at the pointer's height, and held at either end
-    /// of the crest; the strip at rest and its rings 0.3 s and 0.6 s into their turn. Drawn at twice the picture's size.
-    @Test func thePicturesOnHover() throws {
-        let entered = Date()
-        let turn = StripTurn(since: entered)
-        let frames: [(String, EdgeSettings.Show, PicturePose)] = [
-            ("notch-rest", .notch, .rest), ("notch-0.1s", .notch, PicturePose(reach: 0.5, tip: 44)),
-            ("notch-0.3s-held", .notch, PicturePose(reach: 1, tip: 44)),
-            ("notch-held-top", .notch, PicturePose(reach: 1, tip: 0)), ("notch-held-bottom", .notch, PicturePose(reach: 1, tip: 80)),
-            ("strip-rest", .strip, .rest),
-            ("strip-0.3s", .strip, turn.pose(at: entered.addingTimeInterval(0.3))),
-            ("strip-0.6s", .strip, turn.pose(at: entered.addingTimeInterval(0.6))),
-        ]
+    /// The three pictures, each drawn at twice its size.
+    @Test(arguments: EdgeSettings.Show.allCases)
+    func thePictures(show: EdgeSettings.Show) throws {
+        let picture = EdgePicture(show: show).clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
 
-        for (name, show, pose) in frames {
-            let picture = EdgePicture(show: show, pose: pose).clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
+        try Self.render(picture, "picture-\(show.title.lowercased())", size: CGSize(width: 450, height: 290))
+    }
 
-            try Self.render(picture, "hover-\(name)", size: CGSize(width: 450, height: 290))
-        }
+    /// The window wider than drawn, its pictures sharing the wider column.
+    @Test func theWindowOnSettingsWide() async throws {
+        let page = await Self.page(Self.preferences(), windows: [Watched.window("w2", needsReload: false)])
+
+        try Self.window(page, "settings-wide", width: 1500)
+    }
+
+    /// The sidebar's foot as the window lays it out, Settings picked: the system's own list in the list's bar, over
+    /// black where the glass would be, which nothing offscreen draws.
+    @Test func theFootInTheWindow() throws {
+        let drawing = try Foot.laidOut().drawing
+        let rect = NSRect(x: 0, y: 0, width: drawing.pixelsWide, height: drawing.pixelsHigh)
+        let still = try #require(NSBitmapImageRep(
+            bitmapDataPlanes: nil, pixelsWide: drawing.pixelsWide, pixelsHigh: drawing.pixelsHigh, bitsPerSample: 8,
+            samplesPerPixel: 4, hasAlpha: true, isPlanar: false, colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0
+        ))
+
+        NSGraphicsContext.saveGraphicsState()
+        NSGraphicsContext.current = NSGraphicsContext(bitmapImageRep: still)
+        NSColor.black.setFill()
+        rect.fill()
+        drawing.draw(in: rect, from: .zero, operation: .sourceOver, fraction: 1, respectFlipped: false, hints: nil)
+        NSGraphicsContext.restoreGraphicsState()
+        try #require(still.representation(using: .png, properties: [:]))
+            .write(to: try #require(stills).appending(path: "foot-in-the-window.png"))
     }
 
     @Test func aboutSitRep() throws {
