@@ -2689,8 +2689,8 @@ stands).
       filtering hides. × or Escape clears it and gives the whole board
       back; Escape in it empty does nothing, and with an answer waiting,
       Escape takes the answer back first, as anywhere in the window. The
-      window opens with focus on the list holding the pick, the board's or
-      Settings' at the foot, not the field, and focus moves there too
+      window opens with focus on what holds the pick, the board's list or
+      Settings at the foot, not the field, and focus moves there too
       whenever opening it turns it to a pick, as ⌘, and the menu's Settings…
       do. What it holds is not kept: closing the window clears it;
     - **decided for round 7** (21 October 2026, as the design pointed):
@@ -2704,18 +2704,28 @@ stands).
       rule 0.5 tall in the separator colour, inside the sidebar's 10 either
       side, 8 under it the row, 32 tall, then 10 to the glass's foot. A
       window on screen gives the sidebar a bottom safe area that one
-      offscreen does not, which the foot's bar took into its height and its
-      list into its insets: round 7's foot rose by it, live, 24.5 under its
-      hairline and 20 over the glass's foot. So the sidebar ignores that safe
-      area, and the foot, still the system's bar over the list, sits on the
-      glass's foot. The list's last row ends 12 over the rule. The list fades
-      out under it by the bar's own soft scroll edge, on macOS 26 only, never
-      a drawn gradient over the glass. Picked,
-      Settings shows on the right, where a session would, and the board's
-      list holds no selection while it shows; the foot's row takes the
-      system's own selection, as a list of its own. A click on a session
-      or a project leaves Settings for it, and a board changing under it
-      leaves it showing.
+      offscreen does not. While the foot was a list of its one row in the
+      system's bar over the board's list, it rose by it live in three builds
+      running, every offscreen test passing: round 7's 24.5 under its
+      hairline and 20 over the glass's foot, and with the safe area ignored,
+      its row still 20 over the glass's foot, no rule to be seen and the
+      list's rows showing under it (fd54b60, 21 October 2026). So the foot is
+      SitRep's own, laid out by SitRep alone: the rule, the 8, the row and the
+      10, drawn over the list and pinned to the glass's foot, no inset, safe
+      area or bar deciding where it sits. The list's last row ends 12 over
+      the rule. The list fades out under it by the system's soft scroll edge,
+      on macOS 26 only, never a drawn gradient over the glass: the bar under
+      the foot holds nothing, there only to give the list its room and the
+      edge its height, and the rule draws over the edge. Picked, Settings
+      shows on the right, where a session would, and the board's list holds
+      no selection while it shows; the foot's row draws the selection itself,
+      as a heading's: 276 wide, 10 in, its corners 9, the accent while it has
+      the key window's focus, its gear and word white, else the system's
+      grey. Under the pointer, and not picked, it shows a row's quiet fill. A
+      click anywhere across it opens Settings, in a window not key too, and
+      takes focus there, as a click on a list's row does. A click on a
+      session or a project leaves Settings for it, and a board changing under
+      it leaves it showing.
   - **the session** Lee picks, on the right: the pane's session view at
     window size. Its project's name is an eyebrow over its name, about 15
     points semibold in the secondary colour, smaller than a title and more
@@ -2835,14 +2845,18 @@ stands).
   order is the Mac's own: the Filter field first, then the board's list,
   the arrows inside it, then its foot, Settings,
   then the page's buttons. With Keyboard navigation off, Tab stops at the
-  field, the board's list and the foot alone. Two keys move between the
+  field, the board's list and the foot alone. The foot is one stop, its row
+  ringed by the system's focus ring in the selection's shape; the arrows go
+  nowhere from it, as from either end of the board's list, and Space or
+  Return on it opens Settings, focus staying there. Two keys move between the
   sides, through AppKit's key views: Return in the sidebar, anywhere but
-  the Filter field, whose Return is its own, moves focus into the page, to
+  the Filter field, whose Return is its own, and the foot while Settings is
+  not open, moves focus into the page, to
   its first button, as Tab from the foot would; with Keyboard navigation
   off nothing there takes it, so Return leaves focus where it was, never
   passing through the field, and does nothing more. Escape in the page, with no answer waiting to take back, moves it
-  to the list that holds the pick, the board's or the foot's, and to the
-  board's when neither does.
+  to what holds the pick, the board's list or the foot, and to the
+  board's list when neither does.
 - **VoiceOver reads words, never symbols.**
   - a sidebar row is one element: its session, its project, its state
     (needs you, your turn, working, away) and its age, as "The Mac app,
@@ -2851,8 +2865,9 @@ stands).
     waits there, "SitRep, 3 waiting", or "Kit, nothing waiting", and
     folded says so, "Kit, nothing waiting, folded"; Quiet projects' reads
     "Quiet projects", and a quiet project's row "Kit, quiet project". A
-    Needs you row reads as its project's row does, and the Filter field as
-    "Filter sessions";
+    Needs you row reads as its project's row does, the Filter field as
+    "Filter sessions", and the foot as a button, "Settings", selected while
+    Settings shows;
   - the page's title, the eyebrow and the section headings carry the
     header trait, each heading read with the words on its right, as
     "Asks, 3 waiting";

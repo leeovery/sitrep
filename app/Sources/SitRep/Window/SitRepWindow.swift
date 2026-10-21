@@ -164,16 +164,17 @@ final class SitRepWindow: NSObject, NSWindowDelegate {
 }
 
 /// Keyboard focus moved by a key, through AppKit's key views: ⌘F into the sidebar's Filter field, from anywhere;
-/// Return in the sidebar, but for its Filter field, into the page, to its first control, which with the Mac's Keyboard
-/// navigation off has none, so Return there leaves focus where it is; Escape in the page back to the list holding the
-/// pick, the board's or Settings' at its foot. Tab and the arrows keep the Mac's own order. In the Filter field Return
-/// and Escape are the field's own (`FilterField`).
+/// Return in the sidebar into the page, to its first control, which with the Mac's Keyboard navigation off has none,
+/// so Return there leaves focus where it is; Escape in the page back to what holds the pick, the board's list or
+/// Settings at its foot. Tab and the arrows keep the Mac's own order. In the Filter field Return and Escape are the
+/// field's own (`FilterField`), and on Settings at the foot, while it is not the pick, Return is its own, which opens
+/// it (`SettingsFootControl`).
 @MainActor
 struct SideFocus {
     let window: NSWindow
     let sidebar: NSView
     let page: NSView
-    /// What the window shows, which the sidebar's tables show only after SwiftUI's next pass.
+    /// What the window shows, which the sidebar shows only after SwiftUI's next pass.
     let pick: () -> Pick?
 
     /// A key in the window, taken before what has focus hears it: Escape takes back the answer pressed last while it
@@ -186,12 +187,12 @@ struct SideFocus {
         return move(event)
     }
 
-    /// Focus on the list holding the pick, as the window opens afresh or turns to a pick, where AppKit would give it to
-    /// the first of its key views, the Filter field above the list. The list is laid out first, as SwiftUI makes its
-    /// table only then.
+    /// Focus on what holds the pick, as the window opens afresh or turns to a pick, where AppKit would give it to the
+    /// first of its key views, the Filter field above the list. The sidebar is laid out first, as SwiftUI makes the
+    /// list's table and the foot's control only then.
     func focusList() {
         window.contentView?.layoutSubtreeIfNeeded()
-        window.makeFirstResponder(list ?? sidebar)
+        window.makeFirstResponder(holder ?? sidebar)
     }
 
     /// The move this key makes from where focus is, made; false where it makes none.
@@ -203,12 +204,12 @@ struct SideFocus {
             return false
         }
 
-        if [Self.return, Self.enter].contains(event.keyCode), focus.isDescendant(of: sidebar), !isInField(focus) {
+        if [Self.return, Self.enter].contains(event.keyCode), focus.isDescendant(of: sidebar), !keepsReturn(focus) {
             intoThePage()
             return true
         }
         if event.keyCode == Self.escape, focus.isDescendant(of: page) {
-            return window.makeFirstResponder(list ?? sidebar)
+            return window.makeFirstResponder(holder ?? sidebar)
         }
         return false
     }
@@ -224,18 +225,20 @@ struct SideFocus {
     private var focus: NSView? { window.firstResponder as? NSView }
     private var filterField: NSView? { sidebar.descendants(NSSearchField.self).first }
 
-    /// The sidebar's list holding the pick, as SwiftUI hosts each list in AppKit's table: Settings' at the foot, the
-    /// lower, while Settings shows; else the board's, the one above, with nothing picked too.
-    private var list: NSTableView? {
-        let lists = sidebar.descendants(NSTableView.self)
-        let byTop = { (one: NSTableView, other: NSTableView) in one.top < other.top }
-
-        return pick() == .settings ? lists.min(by: byTop) : lists.max(by: byTop)
+    /// What in the sidebar holds the pick: Settings at the foot while it shows; else the board's list, as SwiftUI hosts
+    /// it in AppKit's table, with nothing picked too.
+    private var holder: NSView? {
+        pick() == .settings ? foot : sidebar.descendants(NSTableView.self).first
     }
 
-    /// Focus in the Filter field, its field editor inside it, whose Return is its own.
-    private func isInField(_ focus: NSView) -> Bool {
-        filterField.map(focus.isDescendant(of:)) ?? false
+    private var foot: SettingsFootControl? { sidebar.descendants(SettingsFootControl.self).first }
+
+    /// Focus where Return is its own: in the Filter field, its field editor inside it, or on Settings at the foot
+    /// while it is not the pick.
+    private func keepsReturn(_ focus: NSView) -> Bool {
+        let isInField = filterField.map(focus.isDescendant(of:)) ?? false
+
+        return isInField || (focus === foot && pick() != .settings)
     }
 
     /// ⌘F, whatever Caps Lock says.
@@ -247,20 +250,15 @@ struct SideFocus {
     /// The keys a shortcut is made with; Caps Lock, the Fn key and the keypad's are none of them.
     private static let modifiers: NSEvent.ModifierFlags = [.command, .option, .control, .shift]
 
-    static let `return`: UInt16 = 36
-    static let enter: UInt16 = 76
-    static let escape: UInt16 = 53
+    nonisolated static let `return`: UInt16 = 36
+    nonisolated static let enter: UInt16 = 76
+    nonisolated static let escape: UInt16 = 53
 }
 
 private extension NSView {
     /// The views of this kind inside it, depth first, not looking inside one found.
     func descendants<View: NSView>(_ kind: View.Type) -> [View] {
         subviews.flatMap { view in (view as? View).map { [$0] } ?? view.descendants(kind) }
-    }
-
-    /// Its top edge in its window, higher up the greater.
-    var top: CGFloat {
-        convert(bounds, to: nil).maxY
     }
 }
 

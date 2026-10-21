@@ -22,15 +22,15 @@ struct BoardColumn: View {
         } else {
             VStack(alignment: .leading, spacing: 0) {
                 accessory
-                list.foot { SettingsFooter(pick: pick, now: now) }.overlay {
+                list.underFoot().overlay {
                     if let note {
                         ListNote(words: note).padding(.bottom, SettingsFooter.height)
                     }
                 }
             }
-            // A window on screen gives the sidebar a bottom safe area, which an offscreen one does not, and which the
-            // foot's bar took into its height and its list into its insets, rising by it: ignored, the bar sits on the
-            // glass's bottom.
+            // Over the list and its scroll edge, on the glass's bottom: a window on screen gives the sidebar a bottom
+            // safe area, which an offscreen one does not, and by which a foot in the list's bar rose.
+            .overlay(alignment: .bottom) { SettingsFooter(pick: pick) }
             .ignoresSafeArea(.container, edges: .bottom)
         }
     }
@@ -70,7 +70,7 @@ struct BoardColumn: View {
                 list
                 Spacer(minLength: 0)
             }
-            SettingsFooter(pick: pick, now: now)
+            SettingsFooter(pick: pick)
         }
         .background(WindowStyle.black)
         .overlay(alignment: .trailing) { Rectangle().fill(WindowStyle.line).frame(width: 1) }
@@ -121,89 +121,16 @@ extension View {
 }
 
 private extension View {
-    /// A foot the list runs on under: on macOS 26 the system's own bar, whose soft scroll edge fades the list where it
-    /// passes beneath (spec 2.5's fade, the sidebar's glass where Paper drew a gradient); before it, the list's inset,
-    /// with no fade.
-    @ViewBuilder func foot(@ViewBuilder _ foot: () -> some View) -> some View {
+    /// Room at the list's foot for Settings, drawn over it, the list running on under it: on macOS 26 the system's own
+    /// bar, holding nothing, whose soft scroll edge fades the list where it passes beneath (spec 2.5's fade, the
+    /// sidebar's glass where Paper drew a gradient); before it, the list's inset, with no fade.
+    @ViewBuilder func underFoot() -> some View {
+        let room = Color.clear.frame(height: SettingsFooter.height)
+
         if #available(macOS 26, *) {
-            scrollEdgeEffectStyle(.soft, for: .bottom).safeAreaBar(edge: .bottom, spacing: 0, content: foot)
+            scrollEdgeEffectStyle(.soft, for: .bottom).safeAreaBar(edge: .bottom, spacing: 0) { room }
         } else {
-            safeAreaInset(edge: .bottom, spacing: 0, content: foot)
+            safeAreaInset(edge: .bottom, spacing: 0) { room }
         }
-    }
-}
-
-/// Settings at the sidebar's foot, under a rule, fixed as the list runs on under it: a list of its one row, so it
-/// takes the system's own selection while Settings shows, as a picked session's row does, and is a stop of its own for
-/// the keys. Drawn as a still, its row alone, as the board's rows are.
-struct SettingsFooter: View {
-    let pick: Pick?
-    let now: Date
-
-    @Environment(\.windowActions) private var act
-    @Environment(\.isStill) private var isStill
-    /// The row as the list holds it, put back whenever the list lets go of it while Settings shows.
-    @State private var selection: Spot?
-
-    /// Its rule, and its row with the space above and below it (spec 2.5).
-    static let height = WindowStyle.footerRule + WindowStyle.footerTop + WindowStyle.footerRow + WindowStyle.footerBottom
-
-    var body: some View {
-        VStack(spacing: 0) {
-            Rectangle()
-                .fill(WindowStyle.separator)
-                .frame(height: WindowStyle.footerRule)
-                .padding(.horizontal, WindowStyle.selectionInset)
-            if isStill {
-                row.padding(.top, WindowStyle.footerTop).padding(.bottom, WindowStyle.footerBottom)
-            } else {
-                // The list sets its row 10 under its own top, so it starts 2 over the rule, which it draws nothing
-                // over, to set its row 8 under it.
-                List(selection: $selection) { row }
-                    .sidebarList()
-                    .scrollDisabled(true)
-                    .frame(height: WindowStyle.footerList)
-                    .padding(.top, WindowStyle.footerTop - WindowStyle.listInset)
-                    .onChange(of: selection) { _, selected in
-                        if selected == Self.spot, pick != .settings {
-                            act.pick(.settings)
-                        } else if selected == nil, pick == .settings {
-                            selection = Self.spot
-                        }
-                    }
-                    .onChange(of: pick, initial: true) { _, pick in
-                        selection = pick == .settings ? Self.spot : nil
-                    }
-            }
-        }
-    }
-
-    private var row: some View {
-        SettingsFootRow().sidebarRow(Self.spot, picked: pick == .settings ? Self.spot : nil, now: now)
-    }
-
-    /// Its row, the one place Settings is picked from.
-    private static let spot = Spot.board(.settings)
-}
-
-/// Settings' row: the gear, in the accent, white on the emphasized selection, and its word.
-private struct SettingsFootRow: View {
-    @Environment(\.backgroundProminence) private var prominence
-
-    var body: some View {
-        HStack(spacing: WindowStyle.slotGap) {
-            Image(systemName: "gearshape")
-                .resizable()
-                .scaledToFit()
-                .frame(width: 15, height: 15)
-                .foregroundStyle(WindowStyle.colour(Color.accentColor, on: prominence))
-                .frame(width: WindowStyle.slot.width, height: WindowStyle.slot.height)
-                .accessibilityHidden(true)
-            Text("Settings")
-                .font(WindowStyle.ui(WindowStyle.titleSize))
-                .spacing(WindowStyle.titleTracking, of: WindowStyle.titleSize)
-                .foregroundStyle(.primary)
-        }
-        .frame(height: WindowStyle.footerRow)
     }
 }

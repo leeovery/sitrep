@@ -108,8 +108,6 @@ enum WindowStyle {
     static let footerTop: CGFloat = 8
     static let footerRow: CGFloat = 32
     static let footerBottom: CGFloat = 10
-    /// The foot is a list of its one row, which the list sets in by its insets.
-    static let footerList = listInset + footerRow + listInset
     /// A mark's lane, as the panel row's.
     static let lane = CGSize(width: 12, height: 18)
     /// Where a page line's words start, past its mark's lane.
@@ -142,10 +140,17 @@ enum WindowStyle {
     /// The working mark's track in the sidebar, as drawn.
     static let sidebarTrack = Color.white.opacity(0.15)
 
-    /// The system's selection, as SitRep draws it on a heading, which the list will not select (`FoldHeading`): the
-    /// accent's while the list has the key window's focus, else the system's grey.
-    static func selection(isEmphasized: Bool) -> Color {
-        Color(nsColor: isEmphasized ? .selectedContentBackgroundColor : .unemphasizedSelectedContentBackgroundColor)
+    /// The system's selection, as SitRep draws it where no list does, on a heading, which the list will not select
+    /// (`FoldHeading`), and on Settings at the foot (`SettingsFooter`): the accent's while it has the key window's
+    /// focus, else the system's grey; drawn as a still, the stand-in.
+    static func selection(isEmphasized: Bool, isStill: Bool) -> Color {
+        if isStill {
+            return stillSelection
+        }
+
+        let system: NSColor = isEmphasized ? .selectedContentBackgroundColor : .unemphasizedSelectedContentBackgroundColor
+
+        return Color(nsColor: system)
     }
 
     /// The rule over the sidebar's foot.

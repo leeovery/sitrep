@@ -5,43 +5,35 @@ import SwiftUI
 import Testing
 
 /// Settings at the sidebar's foot as the window lays it out, against spec 2.5: a rule of 0.5, 276 wide and centred, 8
-/// under it the row, 32 tall, then 10 to the glass's foot; the list running on under it, its last row 12 over the rule.
-/// A window on screen gives the sidebar a bottom safe area that an offscreen one does not: with it, round 7's foot, a
-/// bar over the list, rose by the safe area and its row with it, 20 over the glass's foot as Lee's window showed it
-/// (10 reproduces his capture's row exactly). So each holds whatever bottom safe area the sidebar has.
+/// under it the row, 32 tall, then 10 to the glass's bottom; the list running on under it, its last row 12 over the
+/// rule. A window on screen gives the sidebar a bottom safe area that an offscreen one does not, so each holds whatever
+/// bottom safe area the sidebar has. Picked, the row draws the system's selection itself; under the pointer, a row's
+/// quiet fill; a click picks it, and VoiceOver reads it as a button.
 @MainActor
 struct SettingsFooterTests {
+    /// Picked, so the selection draws the row's 276 by 32, in from the sidebar's edges; every frame from the drawing's
+    /// pixels but the row's own.
     @Test(arguments: [0, 10, 27.5])
-    func theFootIsARuleThen8ThenItsRow32Then10ToTheGlasssFoot(bottomSafeArea: CGFloat) throws {
-        let run = HostedSidebar.opened()
-
-        _ = run.pick(.settings)
-
-        let side = try HostedSidebar(run, bottomSafeArea: bottomSafeArea)
-        let row = try side.footRow()
+    func theFootIsARuleThen8ThenItsRow32Then10ToTheGlasssBottom(bottomSafeArea: CGFloat) throws {
+        let side = try HostedSidebar(Self.onSettings(), bottomSafeArea: bottomSafeArea)
+        let row = try Self.row(of: side)
+        let glass = side.glassBottom - side.glassTop
         let drawn = try side.drawn()
-        let above = CGRect(x: 0, y: row.minY - 20 - side.glassTop, width: 296, height: 20)
+        let above = CGRect(x: 0, y: row.minY - 20, width: 296, height: 20)
         let rule = try #require(drawn.drawnBox(in: above, ground: CGPoint(x: 4, y: above.midY)))
+        let below = CGRect(x: 0, y: rule.maxY, width: 296, height: glass - rule.maxY)
+        let selection = try #require(drawn.drawnBox(in: below, ground: CGPoint(x: 4, y: row.midY)))
 
-        #expect(row.height == 32)
-        #expect(side.glassBottom - row.maxY == 10)
-        #expect(rule.height == 0.5)
-        #expect(rule.minX == 10 && rule.maxX == 286)
-        #expect(row.minY - side.glassTop - rule.maxY == 8)
-        #expect(side.foot?.selectedRow == 0)
+        #expect(row == CGRect(x: 0, y: glass - 10 - 32, width: 296, height: 32))
+        #expect(rule == CGRect(x: 10, y: row.minY - 8 - 0.5, width: 276, height: 0.5))
+        #expect(selection == CGRect(x: 10, y: row.minY, width: 276, height: 32))
     }
 
     /// In a window too short for the board, scrolled to its end.
     @Test(arguments: [0, 10, 27.5])
     func theListRunsOnUnderTheFootItsLastRow12OverTheRule(bottomSafeArea: CGFloat) throws {
         let side = try HostedSidebar(HostedSidebar.opened(), height: 400, bottomSafeArea: bottomSafeArea)
-        let scroll = try #require(side.board.enclosingScrollView)
-        let clip = scroll.contentView
-        let end = side.board.frame.height - clip.bounds.height + scroll.contentInsets.bottom
-
-        clip.scroll(to: NSPoint(x: 0, y: end))
-        scroll.reflectScrolledClipView(clip)
-
+        let scroll = try Self.scrolledToItsEnd(side)
         let last = try #require(side.rows.last)
         let rule = try side.footRow().minY - WindowStyle.footerTop - WindowStyle.footerRule
 
@@ -53,10 +45,9 @@ struct SettingsFooterTests {
     @Test func itsRowIsASessionRowsGearAndWord() throws {
         let side = try HostedSidebar(HostedSidebar.opened())
         let drawn = try side.drawn()
-        let row = try side.footRow().offsetBy(dx: 0, dy: -side.glassTop)
-        let ground = CGPoint(x: 4, y: row.midY)
-        let gear = try #require(drawn.drawnBox(in: CGRect(x: 16, y: row.minY, width: 26, height: 32), ground: ground))
-        let word = try #require(drawn.drawnBox(in: CGRect(x: 42, y: row.minY, width: 150, height: 32), ground: ground))
+        let row = try Self.row(of: side)
+        let gear = try #require(drawn.drawnBox(in: Self.gear(in: row), ground: Self.ground(row)))
+        let word = try #require(drawn.drawnBox(in: Self.word(in: row), ground: Self.ground(row)))
         let accent = try drawn.brightest(in: gear)
 
         #expect(abs(gear.midX - 29) <= 0.5 && abs(gear.width - 15) <= 1)
@@ -64,4 +55,176 @@ struct SettingsFooterTests {
         #expect((46 ... 47.5).contains(word.minX))
         #expect(accent.blueComponent > 0.8 && accent.redComponent < 0.4)
     }
+
+    /// The system's grey, opaque, until its row has the key window's focus, as in a window not key or with focus on the
+    /// board's list; then the accent, its gear and its word white.
+    @Test(arguments: [(false, true), (true, false), (true, true)])
+    func pickedItsSelectionIsTheSystemsGreyUntilItsRowHasTheKeyWindowsFocus(isKey: Bool, isFocused: Bool) throws {
+        let side = try HostedSidebar(Self.onSettings(), isKey: isKey)
+        let isEmphasized = isKey && isFocused
+
+        side.window.makeFirstResponder(isFocused ? side.foot : side.board)
+        side.view.layoutSubtreeIfNeeded()
+
+        let drawn = try side.drawn()
+        let row = try Self.row(of: side)
+        let fill = try #require(drawn.stored(at: CGPoint(x: 270, y: row.midY)))
+        let gear = try drawn.brightest(in: Self.gear(in: row))
+        let word = try drawn.brightest(in: Self.word(in: row))
+        let system: NSColor = isEmphasized
+            ? .selectedContentBackgroundColor : .unemphasizedSelectedContentBackgroundColor
+
+        #expect(Self.same(fill, Self.dark(system, in: drawn.bitmap.colorSpace)))
+        #expect(gear.isWhite == isEmphasized)
+        #expect(!isEmphasized || word.isWhite)
+    }
+
+    /// Under the pointer and not picked, a session row's quiet fill, 6% white over the glass; gone as the pointer
+    /// leaves.
+    @Test func underThePointerItsRowTakesARowsQuietFill() throws {
+        let side = try HostedSidebar(HostedSidebar.opened())
+        let foot = try #require(side.foot)
+        let place = CGPoint(x: 270, y: try Self.row(of: side).midY)
+
+        foot.mouseEntered(with: try Self.crossing(.mouseEntered, in: side.window))
+        let hovered = try #require(side.drawn().stored(at: place))
+        foot.mouseExited(with: try Self.crossing(.mouseExited, in: side.window))
+        let left = try #require(side.drawn().stored(at: place))
+
+        #expect(Self.same(hovered, try #require(NSColor(WindowStyle.sidebarHover).usingColorSpace(.sRGB))))
+        #expect(left.alphaComponent == 0)
+    }
+
+    /// A press anywhere across the row lands on it, past what it draws, picks Settings, and gives it focus, as a press
+    /// on a list's row does; in a window not key too.
+    @Test(arguments: [20, 150, 290])
+    func aClickOnItsRowPicksSettingsItsRowTakingFocus(x: CGFloat) throws {
+        let picks = Picks()
+        let side = try HostedSidebar(HostedSidebar.opened(), actions: WindowActions(pick: { picks.made.append($0) }))
+        let foot = try #require(side.foot)
+        let press = try Self.press(at: foot.convert(CGPoint(x: x, y: foot.bounds.midY), to: nil), in: side.window)
+
+        try #require(Self.hit(press, in: side.window) === foot)
+        foot.mouseDown(with: press)
+        #expect(picks.made == [.settings])
+        #expect(side.window.firstResponder === foot)
+        #expect(foot.acceptsFirstMouse(for: press))
+    }
+
+    /// The list runs on under the rule and the space round it, where a press lands on none of its rows.
+    @Test func aClickOnTheFootOutsideItsRowLandsOnNothingUnderIt() throws {
+        let side = try HostedSidebar(HostedSidebar.opened(), height: 400)
+        let foot = try #require(side.foot)
+        let ys = [foot.bounds.maxY + 4, foot.bounds.maxY + WindowStyle.footerTop + 0.25, -4]
+
+        for y in ys {
+            let press = try Self.press(at: foot.convert(CGPoint(x: 150, y: y), to: nil), in: side.window)
+            let hit = try #require(Self.hit(press, in: side.window))
+
+            #expect(hit !== foot && !hit.isDescendant(of: side.board))
+            #expect(hit.isDescendant(of: side.view))
+        }
+    }
+
+    @Test func voiceOverReadsItsRowAsAButtonSelectedWhileSettingsShows() throws {
+        let picks = Picks()
+        let actions = WindowActions(pick: { picks.made.append($0) })
+        let unpicked = try #require(try HostedSidebar(HostedSidebar.opened(), actions: actions).foot)
+        let picked = try #require(try HostedSidebar(Self.onSettings()).foot)
+
+        #expect(unpicked.isAccessibilityElement() && unpicked.accessibilityRole() == .button)
+        #expect(unpicked.accessibilityLabel() == "Settings")
+        #expect(!unpicked.isAccessibilitySelected() && picked.isAccessibilitySelected())
+        #expect(unpicked.accessibilityPerformPress())
+        #expect(picks.made == [.settings])
+    }
+
+    /// The system's focus ring, round the selection's shape.
+    @Test func itsFocusRingIsTheSelectionsShape() throws {
+        let foot = try #require(try HostedSidebar(HostedSidebar.opened()).foot)
+
+        #expect(foot.focusRingType != .none)
+        #expect(foot.focusRingMaskBounds == CGRect(x: 10, y: 0, width: 276, height: 32))
+    }
+
+    private static func onSettings() -> WindowRun {
+        let run = HostedSidebar.opened()
+
+        _ = run.pick(.settings)
+        return run
+    }
+
+    /// Settings' row, its y from the glass's top, as the drawing's are.
+    private static func row(of side: HostedSidebar) throws -> CGRect {
+        try side.footRow().offsetBy(dx: 0, dy: -side.glassTop)
+    }
+
+    private static func gear(in row: CGRect) -> CGRect {
+        CGRect(x: 16, y: row.minY, width: 26, height: 32)
+    }
+
+    private static func word(in row: CGRect) -> CGRect {
+        CGRect(x: 42, y: row.minY, width: 150, height: 32)
+    }
+
+    /// The glass beside the row, left of its selection.
+    private static func ground(_ row: CGRect) -> CGPoint {
+        CGPoint(x: 4, y: row.midY)
+    }
+
+    private static func scrolledToItsEnd(_ side: HostedSidebar) throws -> NSScrollView {
+        let scroll = try #require(side.board.enclosingScrollView)
+        let clip = scroll.contentView
+        let end = side.board.frame.height - clip.bounds.height + scroll.contentInsets.bottom
+
+        clip.scroll(to: NSPoint(x: 0, y: end))
+        scroll.reflectScrolledClipView(clip)
+        return scroll
+    }
+
+    /// A press at this point in the window.
+    private static func press(at point: CGPoint, in window: NSWindow) throws -> NSEvent {
+        try #require(NSEvent.mouseEvent(
+            with: .leftMouseDown, location: point, modifierFlags: [], timestamp: 0, windowNumber: window.windowNumber,
+            context: nil, eventNumber: 0, clickCount: 1, pressure: 1
+        ))
+    }
+
+    /// The view a press lands on, as the window finds it: a window never shown hands no press on.
+    private static func hit(_ press: NSEvent, in window: NSWindow) -> NSView? {
+        let frame = window.contentView?.superview
+
+        return frame?.hitTest(frame?.convert(press.locationInWindow, from: nil) ?? .zero)
+    }
+
+    private static func crossing(_ type: NSEvent.EventType, in window: NSWindow) throws -> NSEvent {
+        try #require(NSEvent.enterExitEvent(
+            with: type, location: .zero, modifierFlags: [], timestamp: 0, windowNumber: window.windowNumber,
+            context: nil, eventNumber: 0, trackingNumber: 0, userData: nil
+        ))
+    }
+
+    /// A system colour as the dark appearance gives it, in this colour space.
+    private static func dark(_ colour: NSColor, in space: NSColorSpace) -> NSColor {
+        var resolved = colour
+
+        NSAppearance(named: .darkAqua)?.performAsCurrentDrawingAppearance {
+            resolved = colour.usingColorSpace(space) ?? colour
+        }
+        return resolved
+    }
+
+    /// Two colours alike to within a step of 8 bits in each channel and in their cover.
+    private static func same(_ one: NSColor, _ other: NSColor) -> Bool {
+        [
+            (one.redComponent, other.redComponent), (one.greenComponent, other.greenComponent),
+            (one.blueComponent, other.blueComponent), (one.alphaComponent, other.alphaComponent),
+        ].allSatisfy { abs($0 - $1) <= 1.5 / 255 }
+    }
+}
+
+/// What the foot asked the window to pick.
+@MainActor
+private final class Picks {
+    var made: [Pick] = []
 }
