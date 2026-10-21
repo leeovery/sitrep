@@ -55,7 +55,7 @@ struct Segments<Value: Hashable>: NSViewRepresentable {
 struct PopUp<Value: Hashable>: NSViewRepresentable {
     let label: String
     let sections: [[Value]]
-    let title: KeyPath<Value, String>
+    let title: (Value) -> String
     @Binding var selection: Value
 
     func makeNSView(context: Context) -> NSPopUpButton {
@@ -69,7 +69,7 @@ struct PopUp<Value: Hashable>: NSViewRepresentable {
 
     func updateNSView(_ button: NSPopUpButton, context: Context) {
         let values = sections.flatMap(\.self)
-        let titles = sections.map { $0.map { $0[keyPath: title] } }
+        let titles = sections.map { $0.map(title) }
         let selection = $selection
 
         if context.coordinator.titles != titles {

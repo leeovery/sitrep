@@ -204,7 +204,7 @@ struct SideFocus {
         }
 
         if [Self.return, Self.enter].contains(event.keyCode), focus.isDescendant(of: sidebar), !isInField(focus) {
-            intoThePage(from: focus)
+            intoThePage()
             return true
         }
         if event.keyCode == Self.escape, focus.isDescendant(of: page) {
@@ -213,13 +213,11 @@ struct SideFocus {
         return false
     }
 
-    /// Focus to the page's first control. With none to take it, as with Keyboard navigation off, AppKit wraps round
-    /// its key views to the sidebar's first, the Filter field, whose Return would open its first match: so focus goes
-    /// back where it was.
-    private func intoThePage(from focus: NSView) {
-        window.selectKeyView(following: page)
-        if self.focus?.isDescendant(of: page) != true {
-            window.makeFirstResponder(focus)
+    /// Focus to the page's first control, where it has one; else it stays where it is. The next key view after the
+    /// page is looked up before focus moves, as one outside the page means the page has none to take it.
+    private func intoThePage() {
+        if let first = page.nextValidKeyView, first.isDescendant(of: page) {
+            window.makeFirstResponder(first)
         }
     }
 

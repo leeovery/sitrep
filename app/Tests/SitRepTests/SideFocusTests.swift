@@ -57,15 +57,23 @@ struct SideFocusTests {
 
     /// With nothing in the page to take focus, AppKit's key loop wraps round to the Filter field, whose Return would
     /// open its first match over the row Lee picked: Return is taken, and focus stays on the list, the board's or the
-    /// foot's.
+    /// foot's, never passing through the field on the way, which VoiceOver would announce.
     @Test(arguments: [Pick.session("sr-macapp"), .settings])
     func returnWhereNothingInThePageTakesFocusLeavesFocusOnTheListAndOpensNothing(on pick: Pick) throws {
         let sides = try Sides(pick: pick, hasButtons: false, filter: "le")
+        var responders: [NSResponder] = []
 
         // the key loop as a window on screen has it, through the field
         sides.window.recalculateKeyViewLoop()
+
+        let watching = sides.window.observe(\.firstResponder, options: [.new]) { window, _ in
+            MainActor.assumeIsolated { window.firstResponder.map { responders.append($0) } }
+        }
+
         #expect(sides.pressThrough(SideFocus.return))
+        watching.invalidate()
         #expect(sides.window.firstResponder === sides.list)
+        #expect(responders.isEmpty)
         #expect(!sides.isInField)
         #expect(sides.asked.opens == 0)
     }

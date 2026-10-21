@@ -2654,14 +2654,13 @@ stands).
       Return in it opens the first match: in Needs you the first row; in
       Projects the first matching session, or with none a quiet project,
       never a project's heading, even one whose name is lit. × or Escape
-      clears it and
-      gives the whole board back; Escape in it empty does nothing, and with
-      an answer waiting, Escape takes the answer back first, as anywhere in
-      the window. The window opens with focus on the list holding the
-      pick, the board's or Settings' at the foot, not the field, and
-      focus moves there too whenever opening it turns it to a pick, as ⌘,
-      and the menu's Settings… do.
-      What it holds is not kept: closing the window clears it;
+      clears it and gives the whole board back; Escape in it empty does
+      nothing, and with an answer waiting, Escape takes the answer back
+      first, as anywhere in the window. The window opens with focus on the
+      list holding the pick, the board's or Settings' at the foot, not the
+      field, and focus moves there too whenever opening it turns it to a
+      pick, as ⌘, and the menu's Settings… do. What it holds is not kept:
+      closing the window clears it;
     - **decided for round 7** (21 October 2026, as the design pointed):
       a filter that keeps nothing says so in one centred line, "No sessions
       match “ledg”", the field's text in the quotes, and an empty board keeps
@@ -2777,9 +2776,9 @@ stands).
   field, the board's list and the foot alone. Two keys move between the
   sides, through AppKit's key views: Return in the sidebar, anywhere but
   the Filter field, whose Return is its own, moves focus into the page, to
-  its first button, as Tab would; with Keyboard navigation off nothing
-  there takes it, so Return leaves focus where it was and does nothing
-  more. Escape in the page, with no answer waiting to take back, moves it
+  its first button, as Tab from the foot would; with Keyboard navigation
+  off nothing there takes it, so Return leaves focus where it was, never
+  passing through the field, and does nothing more. Escape in the page, with no answer waiting to take back, moves it
   to the list that holds the pick, the board's or the foot's, and to the
   board's when neither does.
 - **VoiceOver reads words, never symbols.**
