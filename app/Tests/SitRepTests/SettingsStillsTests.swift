@@ -105,6 +105,27 @@ struct SettingsStillsTests {
         try Self.window(page, "settings-needs-lee", height: 1500)
     }
 
+    /// A2's filmstrips: the notch at rest, part way and held out, its tip at the pointer's height, and held at either end
+    /// of the crest; the strip at rest and its rings 0.3 s and 0.6 s into their turn. Drawn at twice the picture's size.
+    @Test func thePicturesOnHover() throws {
+        let entered = Date()
+        let turn = StripTurn(since: entered)
+        let frames: [(String, EdgeSettings.Show, PicturePose)] = [
+            ("notch-rest", .notch, .rest), ("notch-0.1s", .notch, PicturePose(reach: 0.5, tip: 44)),
+            ("notch-0.3s-held", .notch, PicturePose(reach: 1, tip: 44)),
+            ("notch-held-top", .notch, PicturePose(reach: 1, tip: 0)), ("notch-held-bottom", .notch, PicturePose(reach: 1, tip: 80)),
+            ("strip-rest", .strip, .rest),
+            ("strip-0.3s", .strip, turn.pose(at: entered.addingTimeInterval(0.3))),
+            ("strip-0.6s", .strip, turn.pose(at: entered.addingTimeInterval(0.6))),
+        ]
+
+        for (name, show, pose) in frames {
+            let picture = EdgePicture(show: show, pose: pose).clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
+
+            try Self.render(picture, "hover-\(name)", size: CGSize(width: 450, height: 290))
+        }
+    }
+
     @Test func aboutSitRep() throws {
         try Self.render(AboutView().background(Color(nsColor: .windowBackgroundColor)), "about", size: CGSize(width: 308, height: 313))
     }

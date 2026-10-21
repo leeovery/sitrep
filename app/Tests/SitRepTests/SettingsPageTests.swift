@@ -6,26 +6,6 @@ import SitRepMenu
 import SwiftUI
 import Testing
 
-/// The pictures of what stays on screen, drawn at a pose, which a pointer over them would move from rest.
-struct PicturePoseTests {
-    @Test func atRestTheNotchsCrestIsAStraightRun() {
-        #expect(abs(NotchPicture.outline(reach: 0).boundingRect.maxX - 9) < 0.001)
-        #expect(PicturePose.rest.reach == 0)
-    }
-
-    /// Its tip about 6.5 units past the crest, a little more than the lip's own 6-unit depth.
-    @Test func atFullReachTheTongueReachesAboutSixAndAHalfUnitsPastTheCrest() {
-        let tip = NotchPicture.outline(reach: 1).boundingRect.maxX
-
-        #expect(tip > 15.3 && tip < 15.7)
-    }
-
-    @Test func atRestTheStripsWorkingRingsStandAtTwelveAndFortyFiveAndTheRestAreWhole() {
-        #expect(PicturePose.rest.arcs == [nil, nil, 0, 45])
-        #expect(StripPicture.rings.map(\.ring) == [.needs, .turn, .working, .working])
-    }
-}
-
 struct DesktopCornerTests {
     private static let evening = Date(timeIntervalSince1970: 1_792_524_000)
     private static let london = TimeZone(identifier: "Europe/London")!

@@ -3015,15 +3015,36 @@ reference only.
   accent past a gap of the page's black; a click chooses one; it is the
   menu's Show. The pictures are a fixed sample, one needs you and the notch
   lit, and nothing moves at rest: the chosen picture no longer breathes.
-  Each picture is drawn at a pose, at rest as drawn, for the pointer to
-  move. Under the pointer, drawn in round 7 and built next:
-  - the notch reaches a tongue out of its crest to its full reach, its tip
-    at the pointer's height within the crest, on the meniscus's attract
-    spring, and home on its relax spring, the light brightening with it;
-  - the strip's rings dim to their tracks and turn as working arcs, each a
-    beat behind the one above;
-  - a tile not chosen lifts its hairline, always; under Reduce motion that
-    is all a hover does.
+  Each picture is drawn at a pose, at rest as drawn, and moves only while
+  the pointer is over it, the chosen one and the others alike, as A2's
+  filmstrips draw it:
+  - **the notch reaches for the pointer:** a tongue out of its crest to its
+    full reach, about 6.5 units past it, on the meniscus's attract spring
+    (out in about 0.3 s), and home on its relax spring (about 0.6 s, with
+    the spring's own overshoot), the light brightening and settling with
+    it. Its outline runs through the filmstrip's frames by reach, the
+    flanks concave, a liquid pulled thin. Its tip follows the pointer's
+    height, held inside the crest so each flank keeps 2 units of it. The
+    reach is fixed: it does not grow as the pointer nears, as the real
+    one's pull does.
+  - **the strip's rings turn:** each dims to its own track and its colour
+    turns round it as a quarter arc from 12 o'clock, a turn in 1.2 s as a
+    working arc's, each ring 0.1 s behind the one above, so 30° behind it.
+    The turning look fades in over the strip's 0.24 s as the pointer
+    comes, and out over it as it goes, still turning, and the rings rest
+    again. The hairline stays. The frames run only from the pointer's
+    coming until the arcs have faded; at rest nothing draws again.
+  - **Nothing** has nothing to move.
+  - **a tile not chosen lifts its hairline** while the pointer is over the
+    tile, its label too, always, at once; the chosen tile's ring stays as
+    it is. Under Reduce motion, SitRep's or the Mac's, that is all a hover
+    does, and Reduce motion turned on under the pointer puts the picture at
+    rest at once; turned off, its motion starts.
+
+  The window closed, minimised, hidden or covered, or the page gone, every
+  picture is at rest at once, as though the pointer had left: AppKit may
+  send no leave then, and the window, kept between openings, would come
+  back with its rings still turning.
 - **The card under the pictures** holds the rows that apply to the choice,
   in this order, each arriving and leaving by the system's own transition,
   at once under Reduce motion:
