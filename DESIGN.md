@@ -2636,10 +2636,9 @@ stands).
       panel's own order, core's rows': what needs Lee first, the oldest ask
       first and an away session's after the live ones, then your turn, then
       working, then away, the latest updated first. Each row names its
-      project under its own, and
-      keeps the marks, the age and the selection of a Projects row. The
-      quiet projects' foot shows in Projects alone. The view chosen is kept
-      across launches, in a saved value of its own;
+      project under its own, and keeps the marks, the age and the selection
+      of a Projects row. The quiet projects' foot shows in Projects alone.
+      The view chosen is kept across launches, in a saved value of its own;
     - **the filter** narrows the view chosen in place. A session stays while
       every word typed appears, anywhere, in its name or its project's,
       whatever their case and accents, so typing a project's name lists its
@@ -2656,7 +2655,7 @@ stands).
       gives the whole board back; Escape in it empty does nothing, and with
       an answer waiting, Escape takes the answer back first, as anywhere in
       the window. The window opens with focus on the list, not the field.
-      What it holds is not kept;
+      What it holds is not kept: closing the window clears it;
     - **decided for round 7** (21 October 2026, as the design pointed):
       a filter that keeps nothing says so in one centred line, "No sessions
       match “ledg”", the field's text in the quotes, and an empty board keeps

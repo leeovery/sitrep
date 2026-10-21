@@ -110,11 +110,12 @@ public final class WindowRun {
         return repick()
     }
 
-    /// The window closes: the list's hold lets go, as the pointer leaves with it, and a finish asked about lapses.
-    /// The reads a run of picks left waiting never run: nothing is read while the window is closed, and opening it
-    /// picks afresh.
+    /// The window closes: the list's hold lets go, as the pointer leaves with it, a finish asked about lapses, and the
+    /// filter clears, as what it holds is not kept. The reads a run of picks left waiting never run: nothing is read
+    /// while the window is closed, and opening it picks afresh.
     public func close() {
         isOpen = false
+        filter = Filter()
         letGoOfTheList()
         dropAskingToFinish()
     }

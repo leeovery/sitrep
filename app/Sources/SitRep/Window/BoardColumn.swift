@@ -54,6 +54,7 @@ struct BoardColumn: View {
             .lineLimit(1)
             .padding(.horizontal, WindowStyle.rowInset)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .allowsHitTesting(false)
     }
 
     /// The switch between the two views, the system's segmented control.

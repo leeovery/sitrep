@@ -122,7 +122,7 @@ public enum Words {
 
     /// The sidebar's one line in its list's place where the filter keeps nothing, the field's text in the quotes.
     public static func noMatch(_ filter: Filter) -> String {
-        "No sessions match “\(filter.text)”"
+        "No sessions match “\(filter.text.trimmingCharacters(in: .whitespacesAndNewlines))”"
     }
 
     /// A count of something, its noun made plural past one.

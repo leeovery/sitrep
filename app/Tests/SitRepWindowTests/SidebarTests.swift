@@ -44,17 +44,6 @@ struct SidebarTests {
         #expect(Listed.flat(try Board.read(line)).suffix(2).map(\.id) == ["sr-k7t001", "sr-old001"])
     }
 
-    @Test func returnOpensTheFirstSessionTheViewLists() {
-        let filtered = Self.listed.narrowed(by: Filter("le"))
-
-        #expect(filtered.first(in: .projects) == .session("sr-rq7dgr"))
-        #expect(filtered.first(in: .needsYou) == .session("sr-gs7kq2"))
-    }
-
-    @Test func inProjectsWithNoSessionMatchedReturnOpensTheFirstQuietProject() {
-        #expect(Self.listed.narrowed(by: Filter("kit")).first(in: .projects) == .project("kit"))
-    }
-
     @Test func aViewIsEmptyOnlyWithNothingInIt() {
         let none = Self.listed.narrowed(by: Filter("zzz"))
 

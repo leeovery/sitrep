@@ -42,6 +42,16 @@ struct SideFocusTests {
         #expect(!sides.press(SideFocus.return))
     }
 
+    /// As where the window first opened before SwiftUI had made the list's table, and focus fell to the sidebar.
+    @Test(.enabled { await keyboardNavigation() })
+    func returnFromTheSidebarOutsideTheListMovesFocusToThePage() throws {
+        let sides = try Sides(focusingList: false)
+
+        try #require(sides.window.makeFirstResponder(sides.focus.sidebar))
+        #expect(sides.press(SideFocus.return))
+        #expect(sides.focused === sides.firstControl)
+    }
+
     @Test func returnPassesOnWhereNothingInThePageTakesFocus() throws {
         let sides = try Sides(hasButtons: false)
 

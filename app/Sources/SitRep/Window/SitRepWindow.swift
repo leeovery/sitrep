@@ -143,9 +143,9 @@ final class SitRepWindow: NSObject, NSWindowDelegate {
 }
 
 /// Keyboard focus moved by a key, through AppKit's key views: ⌘F into the sidebar's Filter field, from anywhere;
-/// Return on the sidebar's list into the page, to its first control, which with the Mac's Keyboard navigation off has
-/// none; Escape in the page back to the list. Tab and the arrows keep the Mac's own order. In the Filter field Return
-/// and Escape are the field's own (`FilterField`).
+/// Return in the sidebar, but for its Filter field, into the page, to its first control, which with the Mac's Keyboard
+/// navigation off has none; Escape in the page back to the list. Tab and the arrows keep the Mac's own order. In the
+/// Filter field Return and Escape are the field's own (`FilterField`).
 @MainActor
 struct SideFocus {
     let window: NSWindow
@@ -178,7 +178,7 @@ struct SideFocus {
             return false
         }
 
-        if [Self.return, Self.enter].contains(event.keyCode), list.map(focus.isDescendant(of:)) == true {
+        if [Self.return, Self.enter].contains(event.keyCode), focus.isDescendant(of: sidebar), !isInField(focus) {
             window.selectKeyView(following: page)
             return self.focus?.isDescendant(of: page) == true
         }
@@ -193,9 +193,15 @@ struct SideFocus {
     private var list: NSView? { sidebar.descendant(NSTableView.self) }
     private var filterField: NSView? { sidebar.descendant(NSSearchField.self) }
 
+    /// Focus in the Filter field, its field editor inside it, whose Return is its own.
+    private func isInField(_ focus: NSView) -> Bool {
+        filterField.map(focus.isDescendant(of:)) ?? false
+    }
+
     /// ⌘F, whatever Caps Lock says.
     private static func isFind(_ event: NSEvent) -> Bool {
-        event.modifierFlags.intersection(modifiers) == .command && event.charactersIgnoringModifiers?.lowercased() == "f"
+        event.modifierFlags.intersection(modifiers) == .command
+            && event.charactersIgnoringModifiers?.lowercased() == "f"
     }
 
     /// The keys a shortcut is made with; Caps Lock, the Fn key and the keypad's are none of them.

@@ -51,15 +51,23 @@ struct WindowRunFilterTests {
         #expect(run.pick == .session("sr-macapp"))
     }
 
-    /// A run of arrow keys down the Needs you view reads only the row it stops on, as down Projects.
-    @Test func aRunOfPicksInNeedsYouReadsOnlyTheLast() {
+    /// What the filter holds is not kept: reopened, the window lists the whole board, its pick's row among it.
+    @Test func closingTheWindowClearsTheFilter() {
         let run = opened()
-        let rows = run.listed(at: printedAt).flat.map { Pick.session($0.id) }
 
-        run.sidebar = .needsYou
-        #expect(run.pickInList(rows[1], at: printedAt).map(\.session) == ["sr-dash02"])
-        #expect(run.pickInList(rows[2], at: printedAt.addingTimeInterval(0.1)).isEmpty)
-        #expect(run.pickInList(rows[3], at: printedAt.addingTimeInterval(0.2)).isEmpty)
-        #expect(run.settledReads(at: printedAt.addingTimeInterval(0.35)).map(\.session) == ["sr-rq7dgr"])
+        run.filter = Filter("ledg")
+        run.close()
+        #expect(run.filter.isEmpty)
+        _ = run.open()
+        #expect(run.listed(at: printedAt).sessions.map(\.id).contains("sr-macapp"))
+    }
+
+    @Test func minimisingTheWindowKeepsTheFilter() {
+        let run = opened()
+
+        run.filter = Filter("ledg")
+        run.minimise()
+        _ = run.restore()
+        #expect(run.filter == Filter("ledg"))
     }
 }

@@ -9,9 +9,9 @@ import Testing
 /// The SitRep window's key states, drawn offscreen over what the real CLI printed, as Paper's drawing has them: the
 /// session, a permission prompt, an away session and its finish, a project, and the moments of an answer and of a
 /// board changing under Lee; a session's long name, and the window as narrow as it goes; the sidebar's Needs you view,
-/// each view filtered, and a filter that keeps nothing. Each draws whole at the
-/// window's size, or at its narrowest. With `SITREP_WINDOW_STILLS` naming a folder, each is kept there as a PNG, to
-/// read beside the drawing; nothing opens on the screen.
+/// each view filtered, and a filter that keeps nothing. Each draws whole at the window's size, or at its narrowest.
+/// With `SITREP_WINDOW_STILLS` naming a folder, each is kept there as a PNG, to read beside the drawing; nothing opens
+/// on the screen.
 /// When the real `watch` printed its first line.
 private let printed = try! Board.read(Lines.watch[0]).at
 private let boards = [
@@ -26,7 +26,10 @@ struct WindowStillsTests {
         let (run, now) = still.run()
         let renderer = ImageRenderer(
             content: HStack(spacing: 0) {
-                BoardColumn(listed: run.listed(at: now), pick: run.pick, sidebar: run.sidebar, filter: run.filter, now: now).frame(width: WindowStyle.boardWidth)
+                BoardColumn(
+                    listed: run.listed(at: now), pick: run.pick, sidebar: run.sidebar, filter: run.filter, now: now
+                )
+                .frame(width: WindowStyle.boardWidth)
                 PageColumn(page: run.page(at: now), now: now)
             }
                 .frame(width: still.width, height: WindowStyle.size.height)

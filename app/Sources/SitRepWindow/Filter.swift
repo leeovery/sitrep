@@ -23,7 +23,7 @@ public struct Filter: Equatable, Sendable {
 
     /// Every word appears in one of these names.
     func matches(_ names: String...) -> Bool {
-        words.allSatisfy { word in names.contains { $0.range(of: word, options: Self.loosely) != nil } }
+        words.allSatisfy { word in names.contains { !Self.ranges(of: word, in: $0).isEmpty } }
     }
 
     /// A name in runs, each word typed lit wherever it appears, the rest soft.
@@ -57,8 +57,9 @@ public struct Filter: Equatable, Sendable {
         }
     }
 
-    /// Where the word appears in the name. Foundation finds a word whose folding changes its length, as "ß" does, at
-    /// a range that is not it ("St" in "Straße"), so a range whose letters do not fold to the word's is no place of it.
+    /// Where the word appears in the name. Foundation finds a word whose folding changes its length at a range that is
+    /// not it: "ß" at the "St" of "Strasse", or of "Stop the build", which holds no "ss" at all. So a range whose
+    /// letters do not fold to the word's is no place of it, for the match as for the letters lit.
     private static func ranges(of word: String, in name: String) -> [Range<String.Index>] {
         let folded = fold(word)
         var found: [Range<String.Index>] = []

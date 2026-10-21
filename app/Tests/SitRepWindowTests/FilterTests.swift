@@ -60,9 +60,9 @@ struct FilterTests {
         #expect(Self.listed.narrowed(by: Filter("kit ledg")).quiet.isEmpty)
     }
 
-    @Test func theMatchedLettersAreLitAndTheRestSoft() {
-        #expect(Filter("ledg").runs(of: "Request ledger") == [Self.soft("Request "), Self.lit("ledg"), Self.soft("er")])
-        #expect(Filter("LÉDG").runs(of: "Request ledger") == [Self.soft("Request "), Self.lit("ledg"), Self.soft("er")])
+    @Test(arguments: ["ledg", "LÉDG"])
+    func theMatchedLettersAreLitAndTheRestSoft(_ typed: String) {
+        #expect(Filter(typed).runs(of: "Request ledger") == [Self.soft("Request "), Self.lit("ledg"), Self.soft("er")])
     }
 
     @Test func aNameWithoutTheWordIsAllSoft() {
@@ -77,7 +77,14 @@ struct FilterTests {
         #expect(Filter("set  le").runs(of: "Settle") == [Self.lit("Set"), Self.soft("t"), Self.lit("le")])
     }
 
-    /// Foundation finds "ß" in "Straße" first at "St", which is not where it is.
+    /// Foundation finds "ß" first at the "St" of a name, which is not where it is, nor anywhere in "Stop the build".
+    @Test func aWordWhoseFoldingChangesItsLengthMatchesOnlyWhereItIs() {
+        #expect(!Filter("ß").matches("Stop the build"))
+        #expect(!Filter("ße").matches("Stem cells"))
+        #expect(Filter("ß").matches("Straße"))
+        #expect(Filter("ß").matches("the strasse"))
+    }
+
     @Test func aWordWhoseFoldingChangesItsLengthLightsOnlyWhereItIs() {
         #expect(Filter("ß").runs(of: "Straße") == [Self.soft("Stra"), Self.lit("ß"), Self.soft("e")])
         #expect(Filter("ß").runs(of: "the strasse") == [Self.soft("the stra"), Self.lit("ss"), Self.soft("e")])
@@ -101,5 +108,6 @@ struct FilterTests {
 
     @Test func noMatchSaysWhatWasTyped() {
         #expect(Words.noMatch(Filter("ledg")) == "No sessions match “ledg”")
+        #expect(Words.noMatch(Filter(" led g ")) == "No sessions match “led g”")
     }
 }
