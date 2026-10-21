@@ -18,11 +18,6 @@ public enum Pick: Hashable, Sendable {
     case session(String)
     case project(String)
     case settings
-
-    /// The row of the board's list it picks: none for Settings, so nothing on the board is picked while it shows.
-    public var listRow: Pick? {
-        self == .settings ? nil : self
-    }
 }
 
 /// A session at window size, as the pane's session view: its project above it, its name and summary, what its window

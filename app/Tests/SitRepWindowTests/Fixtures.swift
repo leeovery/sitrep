@@ -91,6 +91,28 @@ func edited(_ text: String, _ change: (inout [String: Any]) -> Void) -> String {
     return String(decoding: try! JSONSerialization.data(withJSONObject: board), as: UTF8.self)
 }
 
+/// `watch`'s first line with nothing waiting on Lee in this session any more, its turn come, as its asks closing would
+/// leave it.
+func answered(_ session: String) -> Heard {
+    .line(edited(Lines.watch[0]) { board in
+        board["rows"] = (board["rows"] as! [[String: Any]]).filter { $0["session"] as? String != session }
+        board["projects"] = (board["projects"] as! [[String: Any]]).map { project in
+            var project = project
+
+            project["sessions"] = (project["sessions"] as! [[String: Any]]).map { each in
+                var each = each
+
+                if each["id"] as? String == session {
+                    each["state"] = "yourTurn"
+                    each["waiting"] = 0
+                }
+                return each
+            }
+            return project
+        }
+    })
+}
+
 /// The Mac app's board once its yes was answered and its words ask ignored, both delivered, and a new ask, k4, came.
 let deliveredAndNew = edited(Lines.delivered) { board in
     let asks = board["asks"] as! [[String: Any]]

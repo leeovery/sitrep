@@ -10,11 +10,11 @@ import SitRepWindow
 @MainActor
 @Observable
 final class WindowModel {
-    private(set) var listed = Listed()
+    private(set) var sidebar = Sidebar()
     private(set) var page = Page.empty("Looking for sessions…")
     private(set) var pick: Pick?
-    /// The sidebar's view, saved as Lee chooses it.
-    private(set) var sidebar = Sidebar.projects
+    /// The row of the sidebar's list that shows the pick.
+    private(set) var spot: Spot?
     /// What the Filter field holds, never saved.
     private(set) var filter = Filter()
     /// The clock the pages are drawn at: ages, washes and an answer's wait.
@@ -45,8 +45,7 @@ final class WindowModel {
         let saved = SavedSettings<SidebarSettings>(defaults)
 
         self.saved = saved
-        run = WindowRun(lastSession: defaults.string(forKey: Self.lastSessionKey), sidebar: saved.read().sidebar)
-        sidebar = run.sidebar
+        run = WindowRun(lastSession: defaults.string(forKey: Self.lastSessionKey), folds: saved.read().folds)
         actions = WindowActions(
             pick: { [weak self] in self?.pick($0) },
             pickInList: { [weak self] in self?.pickInList($0) },
@@ -58,7 +57,7 @@ final class WindowModel {
             cancelFinish: { [weak self] in self?.cancelFinish($0) },
             confirmFinish: { [weak self] in self?.confirmFinish($0) },
             pointer: { [weak self] in self?.pointer(isIn: $0) },
-            choose: { [weak self] in self?.choose($0) },
+            fold: { [weak self] in self?.fold($0) },
             filter: { [weak self] in self?.narrow(to: $0) },
             openFirstMatch: { [weak self] in self?.openFirstMatch() }
         )
@@ -131,8 +130,8 @@ final class WindowModel {
         picked(run.pick(pick))
     }
 
-    private func pickInList(_ pick: Pick) {
-        picked(run.pickInList(pick, at: Date()))
+    private func pickInList(_ spot: Spot) {
+        picked(run.pickInList(spot, at: Date()))
     }
 
     /// A pick's reads run, and the session picked kept as the one the window opens on.
@@ -164,9 +163,10 @@ final class WindowModel {
         refresh()
     }
 
-    private func choose(_ sidebar: Sidebar) {
-        run.sidebar = sidebar
-        saved.save(sidebar)
+    /// A heading clicked: its fold, saved as Lee leaves it, unless the filter holds text.
+    private func fold(_ fold: Fold) {
+        run.toggle(fold)
+        saved.save(run.folds)
         refresh()
     }
 
@@ -248,10 +248,10 @@ final class WindowModel {
         read(run.settledReads(at: time))
         send()
         now = time
-        listed = run.listed(at: time)
+        sidebar = run.sidebar(at: time)
         page = run.page(at: time)
         pick = run.pick
-        sidebar = run.sidebar
+        spot = run.spot
         filter = run.filter
         schedule(after: time)
     }

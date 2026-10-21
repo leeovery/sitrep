@@ -6,7 +6,7 @@ import SwiftUI
 struct WindowActions: Sendable {
     var pick: @MainActor @Sendable (Pick) -> Void = { _ in }
     /// A row of the board's list picked, by a click or an arrow key (`WindowRun.pickInList`).
-    var pickInList: @MainActor @Sendable (Pick) -> Void = { _ in }
+    var pickInList: @MainActor @Sendable (Spot) -> Void = { _ in }
     var press: @MainActor @Sendable (Card.Button, AskAddress) -> Void = { _, _ in }
     /// A project's ask opened in place, or closed back.
     var toggle: @MainActor @Sendable (AskAddress) -> Void = { _ in }
@@ -19,8 +19,8 @@ struct WindowActions: Sendable {
     var confirmFinish: @MainActor @Sendable (String) -> Void = { _ in }
     /// The pointer came over the board's list, or left it.
     var pointer: @MainActor @Sendable (Bool) -> Void = { _ in }
-    /// The sidebar's view chosen at its top.
-    var choose: @MainActor @Sendable (Sidebar) -> Void = { _ in }
+    /// A heading of the sidebar clicked, which folds or unfolds what is under it.
+    var fold: @MainActor @Sendable (Fold) -> Void = { _ in }
     /// What the Filter field holds, as Lee types or clears it.
     var filter: @MainActor @Sendable (String) -> Void = { _ in }
     /// Return in the Filter field.

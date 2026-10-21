@@ -77,7 +77,7 @@ final class SitRepWindow: NSObject, NSWindowDelegate {
     private func make() -> NSWindow {
         let sidebar = Self.side(over: model) { [model] in
             BoardColumn(
-                listed: model.listed, pick: model.pick, sidebar: model.sidebar, filter: model.filter, now: model.now
+                sidebar: model.sidebar, spot: model.spot, pick: model.pick, filter: model.filter, now: model.now
             )
         }
         let page = Self.side(over: model) { [model, settings] in

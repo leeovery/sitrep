@@ -9,7 +9,7 @@ func stillWindow<Settings: View>(
     _ run: WindowRun, at now: Date, @ViewBuilder settings: @escaping () -> Settings
 ) -> some View {
     HStack(spacing: 0) {
-        BoardColumn(listed: run.listed(at: now), pick: run.pick, sidebar: run.sidebar, filter: run.filter, now: now)
+        BoardColumn(sidebar: run.sidebar(at: now), spot: run.spot, pick: run.pick, filter: run.filter, now: now)
             .frame(width: WindowStyle.boardWidth)
         PageColumn(page: run.page(at: now), now: now, settings: settings)
     }

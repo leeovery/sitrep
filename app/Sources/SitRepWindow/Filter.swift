@@ -1,6 +1,6 @@
 import Foundation
 
-/// What Lee types in the sidebar's Filter field, which narrows the view chosen in place: a session stays while every
+/// What Lee types in the sidebar's Filter field, which narrows the list in place: a session stays while every
 /// word typed appears, anywhere, in its name or its project's, whatever their case and accents, so typing a project's
 /// name lists its sessions. A quiet project stays while its name holds every word, or one of its sessions matches.
 public struct Filter: Equatable, Sendable {
@@ -98,9 +98,9 @@ public enum Tone: Sendable, Equatable {
 }
 
 extension Listed {
-    /// The list narrowed to what the filter keeps: a project's sessions that match under it, its count still of all of
-    /// them, and gone with none; the quiet projects whose names or sessions match; the sessions of the flat list that
-    /// match.
+    /// The list narrowed to what the filter keeps: the sessions with an ask that match, under Needs you; a project's
+    /// sessions that match under it, its counts still of all of them, and gone with none; the quiet projects whose
+    /// names or sessions match. A session that matches shows in both places.
     public func narrowed(by filter: Filter) -> Listed {
         guard !filter.isEmpty else {
             return self
@@ -108,6 +108,7 @@ extension Listed {
 
         var narrowed = self
 
+        narrowed.needsYou = needsYou.filter { filter.matches($0.name, $0.project) }
         narrowed.projects = projects.compactMap { project in
             var project = project
 
@@ -117,7 +118,6 @@ extension Listed {
         narrowed.quiet = quiet.filter { project in
             filter.matches(project.name) || project.sessions.contains { filter.matches($0, project.name) }
         }
-        narrowed.flat = flat.filter { filter.matches($0.name, $0.project) }
         return narrowed
     }
 }

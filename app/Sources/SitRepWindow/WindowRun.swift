@@ -18,15 +18,26 @@ public final class WindowRun {
     /// The board as `watch` last printed it.
     public private(set) var last = LastBoard()
     public private(set) var pick: Pick?
+    /// The row of the list that shows the pick, of a session's two while it has an ask.
+    public private(set) var spot: Spot?
     /// The session picked last, which the window opens on when nothing needs Lee.
     public private(set) var lastSession: String?
     /// The window shows: only then are sessions' boards read.
     public private(set) var isOpen = false
     public private(set) var answers = Answers()
-    /// The sidebar's view, as Lee chose it.
-    public var sidebar: Sidebar
-    /// What the Filter field holds, which narrows the list and never moves the pick.
-    public var filter = Filter()
+    /// What Lee folded, kept across launches.
+    public private(set) var folds: Folds
+    /// What the Filter field holds, which narrows the list and never moves the pick. While it holds text every project
+    /// shows open, its folds standing aside until it is cleared.
+    public var filter = Filter() {
+        didSet {
+            if filter.isEmpty != oldValue.isEmpty {
+                filtering = Folds()
+            }
+        }
+    }
+    /// What Lee folded while the filter holds text, let go as it clears.
+    private var filtering = Folds()
     /// The list as `watch` gives it, before it is held.
     private var given = Listed()
     private var held = HeldOrder()
@@ -45,9 +56,9 @@ public final class WindowRun {
     /// The items of Status, Notes, Parked and Resolved opened in place.
     private var openedItems: Set<Item> = []
 
-    public init(lastSession: String? = nil, sidebar: Sidebar = .projects) {
+    public init(lastSession: String? = nil, folds: Folds = Folds()) {
         self.lastSession = lastSession
-        self.sidebar = sidebar
+        self.folds = folds
     }
 
     // MARK: The board
@@ -62,6 +73,7 @@ public final class WindowRun {
 
         self.last = last
         take(Listed(last), moving: moving)
+        leaveNeedsYou()
         if !reducesMotion {
             moving.forEach { washed[$0] = time }
         }
@@ -100,6 +112,29 @@ public final class WindowRun {
     private func take(_ given: Listed, moving: Set<String>) {
         self.given = given
         listed = held.take(given, moving: moving)
+    }
+
+    /// A session picked under Needs you whose ask has cleared shows under its project, its page staying.
+    private func leaveNeedsYou() {
+        if case let .needsYou(id)? = spot, !given.needsYou.contains(where: { $0.id == id }) {
+            spot = .board(.session(id))
+        }
+    }
+
+    // MARK: Folding
+
+    /// A heading clicked: what is under it folds, or unfolds; while the filter holds text, only until it clears.
+    public func toggle(_ fold: Fold) {
+        if filter.isEmpty {
+            folds.toggle(fold)
+        } else {
+            filtering.toggle(fold)
+        }
+    }
+
+    /// What shows folded: Lee's folds, or while the filter holds text, those folded since it began.
+    private var shownFolds: Folds {
+        filter.isEmpty ? folds : filtering
     }
 
     // MARK: Opening and picking
@@ -160,6 +195,7 @@ public final class WindowRun {
     /// What the window opens on, picked afresh.
     private func repick() -> [Read] {
         pick = nil
+        spot = nil
         return last.board.flatMap(opening).map { self.pick($0) } ?? []
     }
 
@@ -173,25 +209,34 @@ public final class WindowRun {
         return listed.sessions.first.map { .session($0.id) }
     }
 
-    /// Lee picked a session, a project by its name, or Settings: what it shows is read, its asks showing as last read
-    /// until then; Settings reads nothing. Picking another lets go of the last page's asks kept in place, of what its
-    /// cards said of refusals, and of a finish asked about. The reads to run.
+    /// Lee picked a session, a project by its name, or Settings, from outside the list: what it shows is read, its
+    /// asks showing as last read until then; Settings reads nothing. A session shows under Needs you while it has an
+    /// ask (`Spot.of`). Picking another lets go of the last page's asks kept in place, of what its cards said of
+    /// refusals, and of a finish asked about. The reads to run.
     public func pick(_ pick: Pick) -> [Read] {
         pickReads = PickReads()
-        return reads(choose(pick))
+
+        let shown = choose(pick)
+
+        spot = Spot.of(pick, in: given)
+        return reads(shown)
     }
 
-    /// Lee picked a row of the list at this time, by a click or an arrow key: as any pick, but the list's order held
-    /// for a second after it, so no row moves between two presses of a key, and its reads settled (`PickReads`). The
-    /// reads to run now.
-    public func pickInList(_ pick: Pick, at time: Date) -> [Read] {
+    /// Lee picked a row of the list at this time, by a click or an arrow key: as any pick, the row picked showing it,
+    /// but the list's order held for a second after it, so no row moves between two presses of a key, and its reads
+    /// settled (`PickReads`). The reads to run now.
+    public func pickInList(_ spot: Spot, at time: Date) -> [Read] {
         held.picked(at: time)
-        return reads(pickReads.picked(choose(pick), at: time))
+
+        let shown = choose(spot.pick)
+
+        self.spot = spot
+        return reads(pickReads.picked(shown, at: time))
     }
 
-    /// Return in the Filter field: the first match in the view chosen, picked. The reads to run.
+    /// Return in the Filter field: the first match in the list, picked. The reads to run.
     public func openFirstMatch() -> [Read] {
-        guard !filter.isEmpty, let first = listed.narrowed(by: filter).first(in: sidebar) else {
+        guard !filter.isEmpty, let first = listed.narrowed(by: filter).first else {
             return []
         }
         return pick(first)
@@ -368,6 +413,11 @@ public final class WindowRun {
 
         shown.changeRows { $0.washed = washed[$0.id] }
         return shown
+    }
+
+    /// The sidebar's list at this time, as `listed(at:)` gives the board, folded as it shows.
+    public func sidebar(at time: Date) -> Sidebar {
+        Sidebar(listed(at: time), folds: shownFolds)
     }
 
     /// The right of the window at this time, its washes under way.

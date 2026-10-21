@@ -113,20 +113,14 @@ public enum Words {
         "\(count) resolved"
     }
 
-    public static func quiet(_ count: Int) -> String {
-        count == 1 ? "1 quiet project" : "\(count) quiet projects"
-    }
+    /// The heading over the quiet projects.
+    public static let quietProjects = "Quiet projects"
+
+    /// The heading over the sessions with an ask, at the top of the sidebar.
+    public static let needsYou = "Needs you"
 
     /// The Filter field's placeholder.
     public static let filter = "Filter"
-
-    /// A view's segment in the switch between them.
-    public static func sidebar(_ view: Sidebar) -> String {
-        switch view {
-        case .projects: "Projects"
-        case .needsYou: "Needs you"
-        }
-    }
 
     /// The sidebar's one line in its list's place where the filter keeps nothing, the field's text in the quotes.
     public static func noMatch(_ filter: Filter) -> String {

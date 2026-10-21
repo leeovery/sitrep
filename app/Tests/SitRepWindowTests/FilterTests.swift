@@ -27,28 +27,43 @@ struct FilterTests {
         #expect(Self.listed.narrowed(by: Filter("  ")) == Self.listed)
     }
 
-    @Test func inProjectsAMatchStaysUnderItsProjectWhoseCountIsStillOfAllItsSessions() throws {
+    @Test func aMatchStaysUnderItsProjectWhoseCountsAreStillOfAllItsSessions() throws {
         let narrowed = Self.listed.narrowed(by: Filter("ledg"))
         let switchboard = try #require(narrowed.projects.first)
 
         #expect(narrowed.projects.map(\.id) == ["switchboard"])
         #expect(switchboard.sessions.map(\.name) == ["Request ledger"])
         #expect(switchboard.waiting == 2)
+        #expect(switchboard.asking == 1)
         #expect(narrowed.quiet.isEmpty)
     }
 
-    @Test func inNeedsYouTheMatchesKeepThePanelsOrder() {
-        #expect(Self.listed.narrowed(by: Filter("e")).flat.map(\.id) == [
-            "sr-macapp", "sr-dash02", "sr-gs7kq2", "sr-rq7dgr", "sr-k7t001",
-        ])
-        #expect(Self.listed.narrowed(by: Filter("le")).flat.map(\.id) == ["sr-gs7kq2", "sr-rq7dgr"])
+    @Test func needsYouFiltersByTheSameRuleItsMatchesInTheirOrder() {
+        #expect(Self.listed.narrowed(by: Filter("e")).needsYou.map(\.id) == ["sr-macapp", "sr-dash02", "sr-gs7kq2"])
+        #expect(Self.listed.narrowed(by: Filter("le")).needsYou.map(\.id) == ["sr-gs7kq2"])
+        #expect(Self.listed.narrowed(by: Filter("ledg")).needsYou.isEmpty)
+    }
+
+    /// The match shows in both places: under Needs you and under its project.
+    @Test func aSessionWithAnAskThatMatchesShowsTwice() {
+        let narrowed = Self.listed.narrowed(by: Filter("dash"))
+
+        #expect(narrowed.needsYou.map(\.id) == ["sr-dash02"])
+        #expect(narrowed.sessions.map(\.id) == ["sr-dash02"])
+    }
+
+    /// Needs you's heading goes with its rows, and the first project's heading heads the list.
+    @Test func withNoAskMatchingNeedsYouGoesFromTheList() {
+        let sidebar = Sidebar(Self.listed.narrowed(by: Filter("ledg")), folds: Folds())
+
+        #expect(sidebar.lines.map(\.id) == [.spot(.board(.project("switchboard"))), .spot(.board(.session("sr-rq7dgr")))])
     }
 
     @Test func typingAProjectsNameListsItsSessions() {
         let narrowed = Self.listed.narrowed(by: Filter("switchboard"))
 
         #expect(narrowed.sessions.map(\.id) == ["sr-dash02", "sr-rq7dgr"])
-        #expect(narrowed.flat.map(\.id) == ["sr-dash02", "sr-rq7dgr"])
+        #expect(narrowed.needsYou.map(\.id) == ["sr-dash02"])
     }
 
     @Test func aQuietProjectShowsWhileItsNameHoldsEveryWord() {
@@ -56,8 +71,14 @@ struct FilterTests {
 
         #expect(narrowed.quiet.map(\.name) == ["Kit"])
         #expect(narrowed.projects.isEmpty)
-        #expect(narrowed.flat.map(\.name) == ["The bootstrap"])
+        #expect(narrowed.needsYou.isEmpty)
         #expect(Self.listed.narrowed(by: Filter("kit ledg")).quiet.isEmpty)
+    }
+
+    /// "No sessions match" shows only where nothing matches anywhere in the list.
+    @Test func theListIsEmptyOnlyWithNothingMatchingAnywhere() {
+        #expect(Sidebar(Self.listed.narrowed(by: Filter("zzz")), folds: Folds()).isEmpty)
+        #expect(!Sidebar(Self.listed.narrowed(by: Filter("kit")), folds: Folds()).isEmpty)
     }
 
     @Test(arguments: ["ledg", "LÉDG"])
@@ -95,9 +116,7 @@ struct FilterTests {
         let narrowed = Self.listed.narrowed(by: Filter("boot"))
 
         #expect(narrowed.quiet.map(\.name) == ["Kit"])
-        #expect(!narrowed.isEmpty(in: .projects))
-        #expect(narrowed.first(in: .projects) == .project("kit"))
-        #expect(narrowed.flat.map(\.name) == ["The bootstrap"])
+        #expect(narrowed.first == .project("kit"))
     }
 
     @Test(arguments: [(Tone.text, Tone.soft, Tone.text), (.soft, .soft, .text), (.faint, .faint, .soft)])

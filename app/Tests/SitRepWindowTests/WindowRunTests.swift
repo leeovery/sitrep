@@ -72,8 +72,8 @@ struct WindowRunTests {
     @Test func aRunOfPicksInTheListReadsTheLastPicksSessionsOnceThePicksStop() {
         let run = opened()
 
-        #expect(run.pickInList(.session("sr-dash02"), at: printedAt).map(\.session) == ["sr-dash02"])
-        #expect(run.pickInList(.session("sr-rq7dgr"), at: printedAt.addingTimeInterval(0.1)).isEmpty)
+        #expect(run.pickInList(.board(.session("sr-dash02")), at: printedAt).map(\.session) == ["sr-dash02"])
+        #expect(run.pickInList(.board(.session("sr-rq7dgr")), at: printedAt.addingTimeInterval(0.1)).isEmpty)
         #expect(run.settledReads(at: printedAt.addingTimeInterval(1)).map(\.session) == ["sr-rq7dgr"])
     }
 
@@ -86,9 +86,9 @@ struct WindowRunTests {
         let underWay = try #require(run.open().first)
 
         #expect(underWay.session == "sr-macapp")
-        _ = run.pickInList(.session("sr-dash02"), at: printedAt)
-        #expect(run.pickInList(.session("sr-macapp"), at: printedAt.addingTimeInterval(0.05)).isEmpty)
-        _ = run.pickInList(.session("sr-dash02"), at: printedAt.addingTimeInterval(0.1))
+        _ = run.pickInList(.board(.session("sr-dash02")), at: printedAt)
+        #expect(run.pickInList(.board(.session("sr-macapp")), at: printedAt.addingTimeInterval(0.05)).isEmpty)
+        _ = run.pickInList(.board(.session("sr-dash02")), at: printedAt.addingTimeInterval(0.1))
         run.read(underWay, gave: board(Lines.board), at: printedAt, reducesMotion: false)
         _ = run.pick(.session("sr-macapp"))
         #expect(run.page(at: printedAt).session?.isRead == true)
@@ -97,8 +97,8 @@ struct WindowRunTests {
     @Test func aRunOfPicksReadsNothingWhileTheWindowIsClosed() {
         let run = opened()
 
-        _ = run.pickInList(.session("sr-dash02"), at: printedAt)
-        _ = run.pickInList(.session("sr-rq7dgr"), at: printedAt.addingTimeInterval(0.1))
+        _ = run.pickInList(.board(.session("sr-dash02")), at: printedAt)
+        _ = run.pickInList(.board(.session("sr-rq7dgr")), at: printedAt.addingTimeInterval(0.1))
         run.close()
         #expect(run.settledReads(at: printedAt.addingTimeInterval(1)).isEmpty)
     }
@@ -107,8 +107,8 @@ struct WindowRunTests {
     @Test func aRunOfPicksReadsNothingOnceTheWindowIsBackFromTheDock() {
         let run = opened()
 
-        _ = run.pickInList(.session("sr-dash02"), at: printedAt)
-        _ = run.pickInList(.session("sr-rq7dgr"), at: printedAt.addingTimeInterval(0.1))
+        _ = run.pickInList(.board(.session("sr-dash02")), at: printedAt)
+        _ = run.pickInList(.board(.session("sr-rq7dgr")), at: printedAt.addingTimeInterval(0.1))
         run.minimise()
         _ = run.restore()
         #expect(run.settledReads(at: printedAt.addingTimeInterval(1)).isEmpty)
@@ -118,8 +118,8 @@ struct WindowRunTests {
         let run = opened()
         let last = printedAt.addingTimeInterval(0.1)
 
-        _ = run.pickInList(.session("sr-dash02"), at: printedAt)
-        _ = run.pickInList(.session("sr-rq7dgr"), at: last)
+        _ = run.pickInList(.board(.session("sr-dash02")), at: printedAt)
+        _ = run.pickInList(.board(.session("sr-rq7dgr")), at: last)
         #expect(run.nextChange == last.addingTimeInterval(PickReads.settle))
     }
 
@@ -127,7 +127,7 @@ struct WindowRunTests {
     @Test func aPickInTheListHoldsItsOrder() {
         let run = opened()
 
-        _ = run.pickInList(.session("sr-dash02"), at: printedAt)
+        _ = run.pickInList(.board(.session("sr-dash02")), at: printedAt)
         _ = run.show(heard(.line(projects(["goosemates", "sitrep", "switchboard", "kit"]))), at: printedAt, reducesMotion: false)
         #expect(run.listed(at: printedAt).projects.map(\.id) == ["sitrep", "switchboard", "goosemates"])
     }
@@ -331,9 +331,9 @@ struct WindowRunTests {
 
         _ = run.show(heard(line(0), line(new: ["ask:sr-gs7kq2:k1"])), at: printedAt, reducesMotion: false)
         #expect(run.listed(at: printedAt.addingTimeInterval(1.99)).sessions.compactMap(\.washed) == [printedAt])
-        #expect(run.listed(at: printedAt.addingTimeInterval(1.99)).flat.compactMap(\.washed) == [printedAt])
+        #expect(run.listed(at: printedAt.addingTimeInterval(1.99)).needsYou.compactMap(\.washed) == [printedAt])
         #expect(run.listed(at: printedAt.addingTimeInterval(2)).sessions.compactMap(\.washed).isEmpty)
-        #expect(run.listed(at: printedAt.addingTimeInterval(2)).flat.compactMap(\.washed).isEmpty)
+        #expect(run.listed(at: printedAt.addingTimeInterval(2)).needsYou.compactMap(\.washed).isEmpty)
     }
 
     @Test func underReducedMotionNothingIsWashed() {
