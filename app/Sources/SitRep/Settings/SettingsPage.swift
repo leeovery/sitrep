@@ -146,11 +146,7 @@ struct SettingsPage: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             Color.clear.frame(height: WindowStyle.barHeight)
-            Text("Settings")
-                .font(WindowStyle.ui(28, .bold))
-                .spacing(-0.03, of: 28)
-                .foregroundStyle(.primary)
-                .accessibilityAddTraits(.isHeader)
+            PageTitle(words: "Settings")
                 .padding(.top, 6)
                 .padding(.bottom, 36)
             VStack(alignment: .leading, spacing: 36) {
@@ -178,7 +174,7 @@ struct SettingsPage: View {
             SectionHeading(name: "Notifications")
             DesktopCorner()
             HStack(spacing: 16) {
-                Text("A new ask, as it lands on your desktop").font(.system(size: 13)).foregroundStyle(.secondary)
+                Text("A new ask, as it lands on your desktop").font(.system(size: 13)).foregroundStyle(WindowStyle.soft)
                 Spacer(minLength: 0)
                 Button("Send Test", action: settings.services.sendTest).buttonStyle(.bordered)
             }

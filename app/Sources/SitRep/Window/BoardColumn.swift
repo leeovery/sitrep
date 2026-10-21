@@ -58,14 +58,12 @@ struct BoardColumn: View {
             .allowsHitTesting(false)
     }
 
-    /// The switch between the two views, the system's segmented control.
+    /// The switch between the two views, the system's segmented control, across the sidebar in two equal halves.
     private var views: some View {
-        Picker(Spoken.sidebar, selection: Binding(get: { sidebar }, set: { act.choose($0) })) {
-            ForEach(Sidebar.allCases) { Text($0.title).tag($0) }
-        }
-        .pickerStyle(.segmented)
-        .labelsHidden()
-        .frame(maxWidth: .infinity)
+        Segments(
+            label: Spoken.sidebar, values: Sidebar.allCases, title: Words.sidebar,
+            selection: Binding(get: { sidebar }, set: { act.choose($0) })
+        )
         .padding(.horizontal, WindowStyle.selectionInset)
         .padding(.top, 10)
         .padding(.bottom, 14)
@@ -213,7 +211,7 @@ private struct StillControls: View {
             .background(Capsule().fill(Color.white.opacity(0.07)))
             HStack(spacing: 0) {
                 ForEach(Sidebar.allCases) { view in
-                    Text(view.title)
+                    Text(Words.sidebar(view))
                         .font(WindowStyle.ui(13, .medium))
                         .foregroundStyle(view == sidebar ? WindowStyle.text : WindowStyle.soft)
                         .frame(maxWidth: .infinity, minHeight: 24)

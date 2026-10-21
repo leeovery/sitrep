@@ -25,16 +25,9 @@ struct WindowStillsTests {
     func eachStateDrawsWholeAtTheWindowsSize(still: Still) throws {
         let (run, now) = still.run()
         let renderer = ImageRenderer(
-            content: HStack(spacing: 0) {
-                BoardColumn(
-                    listed: run.listed(at: now), pick: run.pick, sidebar: run.sidebar, filter: run.filter, now: now
-                )
-                .frame(width: WindowStyle.boardWidth)
-                PageColumn(page: run.page(at: now), now: now)
-            }
+            content: stillWindow(run, at: now)
                 .frame(width: still.width, height: WindowStyle.size.height)
                 .environment(\.colorScheme, .dark)
-                .environment(\.isStill, true)
                 .environment(\.isHoveredStill, still == .hovered)
         )
 

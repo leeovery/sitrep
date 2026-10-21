@@ -157,6 +157,19 @@ private struct PillStyle: ButtonStyle {
     }
 }
 
+/// A page's title, a session's, a project's or Settings': the biggest words in the window, to VoiceOver a heading.
+struct PageTitle: View {
+    let words: String
+
+    var body: some View {
+        Text(words)
+            .font(WindowStyle.ui(28, .bold))
+            .spacing(-0.03, of: 28)
+            .foregroundStyle(WindowStyle.text)
+            .accessibilityAddTraits(.isHeader)
+    }
+}
+
 /// A section's heading: its name in small capitals, and a few words on the right; to VoiceOver, one heading.
 struct SectionHeading: View {
     let name: String

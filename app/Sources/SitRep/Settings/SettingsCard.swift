@@ -47,12 +47,12 @@ struct CardRow<Control: View>: View {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(label)
                         .font(.system(size: 15))
-                        .foregroundStyle(.primary)
+                        .foregroundStyle(WindowStyle.text)
                         .opacity(isEnabled ? 1 : 0.5)
                     if let line {
                         Text(line)
                             .font(.system(size: 13))
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(WindowStyle.soft)
                             .opacity(isEnabled ? 1 : 0.6)
                             .fixedSize(horizontal: false, vertical: true)
                     }
@@ -78,7 +78,7 @@ private struct IconTile: View {
 
         Image(systemName: symbol)
             .font(.system(size: 15))
-            .foregroundStyle(.primary)
+            .foregroundStyle(WindowStyle.text)
             .frame(width: 36, height: 36)
             .background(tile.fill(LinearGradient(
                 colors: [Color(hex: 0x3C3C42), Color(hex: 0x1B1B1E)], startPoint: .topLeading, endPoint: .bottomTrailing
@@ -132,7 +132,7 @@ struct StatusDot: View {
     var body: some View {
         HStack(spacing: 7) {
             Circle().fill(Color(nsColor: .systemGreen)).frame(width: 8, height: 8)
-            Text(word).font(.system(size: 13)).foregroundStyle(.secondary)
+            Text(word).font(.system(size: 13)).foregroundStyle(WindowStyle.soft)
         }
         .spoken(word)
     }

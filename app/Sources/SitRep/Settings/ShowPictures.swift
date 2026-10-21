@@ -56,7 +56,7 @@ private struct ShowTile: View {
                     }
                 Text(choice.title)
                     .font(.system(size: 13, weight: isChosen ? .semibold : .medium))
-                    .foregroundStyle(isChosen ? .primary : .secondary)
+                    .foregroundStyle(isChosen ? WindowStyle.text : WindowStyle.soft)
                     .frame(height: 18)
             }
             .frame(maxWidth: Self.width)
@@ -64,11 +64,7 @@ private struct ShowTile: View {
         }
         .buttonStyle(.plain)
         .onHover { isOver = $0 }
-        .onChange(of: isOnScreen) {
-            if !isOnScreen {
-                isOver = false
-            }
-        }
+        .onLeavingScreen(isOnScreen) { isOver = false }
         .accessibilityLabel(choice.title)
         .accessibilityAddTraits(isChosen ? .isSelected : [])
     }
@@ -102,11 +98,7 @@ private struct HoverPicture: View {
         }
         .task(id: motion.turn) { await settle() }
         .onChange(of: reducesMotion) { change { $0.motion(reduced: reducesMotion, at: Date()) } }
-        .onChange(of: isOnScreen) {
-            if !isOnScreen {
-                change { $0.rest() }
-            }
-        }
+        .onLeavingScreen(isOnScreen) { change { $0.rest() } }
         .onDisappear { change { $0.rest() } }
     }
 
@@ -139,6 +131,18 @@ private struct HoverPicture: View {
         }
 
         motion.faded(turn)
+    }
+}
+
+private extension View {
+    /// What rests a picture or its tile, run as the window leaves the screen, where the pointer's leaving may never be
+    /// heard.
+    func onLeavingScreen(_ isOnScreen: Bool, rest: @escaping () -> Void) -> some View {
+        onChange(of: isOnScreen) {
+            if !isOnScreen {
+                rest()
+            }
+        }
     }
 }
 
@@ -204,14 +208,18 @@ struct EdgePicture: View, Animatable {
         context.fill(Path(CGRect(x: 0, y: 0, width: 3, height: units.height)), with: .color(.black))
     }
 
-    /// The menu bar's glyph, lit: its housing, and its bar in orange.
+    /// The menu bar's glyph, lit, as the menu bar draws it (`MenuImages.glyph`), scaled so its housing stands where
+    /// the drawing's does: 3.9 units tall from 1.55 down, centred at 97.25.
     private static func glyph(_ context: GraphicsContext) {
-        context.stroke(
-            Path(roundedRect: CGRect(x: 96.1, y: 1.55, width: 2.3, height: 3.9), cornerRadius: 1.15),
-            with: .color(ink.opacity(0.9)), lineWidth: 0.4
-        )
-        context.fill(Path(roundedRect: CGRect(x: 96.75, y: 2.2, width: 1, height: 2.6), cornerRadius: 0.5), with: .color(WindowStyle.orange))
+        let housing = MenuImages.glyphHousing
+        let scale = 3.9 / housing.height
+        let side = MenuImages.glyphSide * scale
+        let origin = CGPoint(x: 97.25 - housing.midX * scale, y: 1.55 - housing.minY * scale)
+
+        context.draw(litGlyph, in: CGRect(origin: origin, size: CGSize(width: side, height: side)))
     }
+
+    private static let litGlyph = Image(nsImage: MenuImages.glyph(.lit, ink: NSColor(ink.opacity(0.9))))
 }
 
 /// The strip as it stands at Length Grows, a 36-point strip drawn 9 wide: a black column out of the bezel, its ends

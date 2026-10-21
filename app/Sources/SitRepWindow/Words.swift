@@ -120,6 +120,14 @@ public enum Words {
     /// The Filter field's placeholder.
     public static let filter = "Filter"
 
+    /// A view's segment in the switch between them.
+    public static func sidebar(_ view: Sidebar) -> String {
+        switch view {
+        case .projects: "Projects"
+        case .needsYou: "Needs you"
+        }
+    }
+
     /// The sidebar's one line in its list's place where the filter keeps nothing, the field's text in the quotes.
     public static func noMatch(_ filter: Filter) -> String {
         "No sessions match “\(filter.text.trimmingCharacters(in: .whitespacesAndNewlines))”"

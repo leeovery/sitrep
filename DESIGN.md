@@ -2651,14 +2651,16 @@ stands).
       which goes soft, and soft on an away session's faint one, so an away
       row still reads as away. It never moves the pick: the page stays on
       what was open, even with its row filtered out. ⌘F focuses the field,
-      Return in it opens the first match, and × or Escape clears it and
-      gives the whole board back; Escape in it empty does nothing, and with
-      an answer waiting, Escape takes the answer back first, as anywhere in
-      the window. The window opens with focus on the list holding the
-      pick, the board's or Settings' at the foot, not the field, and
-      focus moves there too whenever opening it turns it to a pick, as ⌘,
-      and the menu's Settings… do.
-      What it holds is not kept: closing the window clears it;
+      Return in it opens the first match: in Needs you the first row; in
+      Projects the first matching session, or with none a quiet project,
+      never a project's heading, even one whose name is lit. × or Escape
+      clears it and gives the whole board back; Escape in it empty does
+      nothing, and with an answer waiting, Escape takes the answer back
+      first, as anywhere in the window. The window opens with focus on the
+      list holding the pick, the board's or Settings' at the foot, not the
+      field, and focus moves there too whenever opening it turns it to a
+      pick, as ⌘, and the menu's Settings… do. What it holds is not kept:
+      closing the window clears it;
     - **decided for round 7** (21 October 2026, as the design pointed):
       a filter that keeps nothing says so in one centred line, "No sessions
       match “ledg”", the field's text in the quotes, and an empty board keeps
@@ -2685,7 +2687,8 @@ stands).
     then Asks, Status, Notes, Parked and Resolved, in the pane's order, the
     last four in two columns so a session fits without scrolling.
   - **the band under the toolbar**, beside the traffic lights, stays
-    empty on both pages: nothing of the page sits in it.
+    empty on every page, a session's, a project's and Settings': nothing
+    of the page sits in it.
 - **A session row is a small panel row:** the same marks in the same lanes,
   its name on one line, the panel row's time. An away session with nothing
   waiting has a faint dot and a faint name.
@@ -2760,21 +2763,24 @@ stands).
   - every button shows a hover: the pills, the jump, the project's name
     above a session, "show all".
 - **Keyboard focus is the system's.** In the sidebar the selection is the
-  focus. Tab moves from the sidebar to the page's buttons, each showing the
-  system's own ring, shaped to it, a pill's ring a pill, only while the
-  Mac's Keyboard navigation setting is on, as in any Mac app; with it off,
-  Tab stops at the list alone. Lee, 20 October 2026, of a white outline of
-  SitRep's own, which showed round a row untabbed and, tabbed, as "a
-  strange kind of border or ring around the option, which is not very
-  Mac-like at all"; before it, the system's blue square ring, where SitRep
-  had made every button take focus. The order is the Mac's own: the
-  sidebar's list one Tab stop, the arrows inside it, its foot, Settings,
-  another, then the page's buttons. Two keys move between the sides,
-  through AppKit's key views: Return on the sidebar's list moves focus into
-  the page, to its first button, as Tab would, and so only while Keyboard
-  navigation is on; Escape in the page, with no answer waiting to take
-  back, moves it to the list that holds the pick, the board's or the
-  foot's, and to the board's when neither does.
+  focus. The page's buttons and the view switch take focus, each showing
+  the system's own ring, shaped to it, a pill's ring a pill, only while the
+  Mac's Keyboard navigation setting is on, as in any Mac app. Lee, 20
+  October 2026, of a white outline of SitRep's own, which showed round a
+  row untabbed and, tabbed, as "a strange kind of border or ring around
+  the option, which is not very Mac-like at all"; before it, the system's
+  blue square ring, where SitRep had made every button take focus. The
+  order is the Mac's own: the Filter field first, then the view switch,
+  then the board's list, the arrows inside it, then its foot, Settings,
+  then the page's buttons. With Keyboard navigation off, Tab stops at the
+  field, the board's list and the foot alone. Two keys move between the
+  sides, through AppKit's key views: Return in the sidebar, anywhere but
+  the Filter field, whose Return is its own, moves focus into the page, to
+  its first button, as Tab from the foot would; with Keyboard navigation
+  off nothing there takes it, so Return leaves focus where it was, never
+  passing through the field, and does nothing more. Escape in the page, with no answer waiting to take back, moves it
+  to the list that holds the pick, the board's or the foot's, and to the
+  board's when neither does.
 - **VoiceOver reads words, never symbols.**
   - a sidebar row is one element: its session, its project, its state
     (needs you, your turn, working, away) and its age, as "The Mac app,
@@ -3826,6 +3832,9 @@ reaches a window only while that pane is on show).
         each the item's 16-point image, the state column turned off.
       - **The header** is a view, not an item, so it never highlights: the
         app icon at 30, the name in semibold, the version, made once.
+        Round 7 changed this: the header is now an item's view that takes
+        the menu's own highlight under the pointer, and a click on it opens
+        About SitRep (see "The menu bar item").
         "SitRep can't read the board" is an item with no action, its title
         set in the label colour so macOS does not dim it, the reason its
         subtitle, under the same rule for macOS before 15.

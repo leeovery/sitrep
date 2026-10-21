@@ -55,12 +55,12 @@ struct SidebarTests {
     }
 
     @Test func theViewsAreNamedAsTheSwitchShowsThem() {
-        #expect(Sidebar.allCases.map(\.title) == ["Projects", "Needs you"])
+        #expect(Sidebar.allCases.map(Words.sidebar) == ["Projects", "Needs you"])
     }
 }
 
 /// The view chosen, kept across launches in a saved value of its own.
-struct WindowSettingsTests {
+struct SidebarSettingsTests {
     private static func withDefaults(_ test: (UserDefaults) throws -> Void) rethrows {
         let suite = "com.leeovery.sitrep.tests.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suite)!
@@ -71,18 +71,18 @@ struct WindowSettingsTests {
 
     @Test func nothingSavedIsProjects() {
         Self.withDefaults { defaults in
-            #expect(SavedSettings<WindowSettings>(defaults).read().sidebar == .projects)
+            #expect(SavedSettings<SidebarSettings>(defaults).read().sidebar == .projects)
         }
     }
 
     @Test func theViewChosenIsReadBackUnderItsOwnKey() {
         Self.withDefaults { defaults in
-            var settings = WindowSettings()
+            var settings = SidebarSettings()
 
             settings.sidebar = .needsYou
             SavedSettings(defaults).save(settings)
 
-            #expect(SavedSettings<WindowSettings>(defaults).read().sidebar == .needsYou)
+            #expect(SavedSettings<SidebarSettings>(defaults).read().sidebar == .needsYou)
             #expect(defaults.data(forKey: "window") != nil)
         }
     }
@@ -90,18 +90,18 @@ struct WindowSettingsTests {
     /// What the window does as Lee chooses a view.
     @Test func choosingAViewSavesIt() {
         Self.withDefaults { defaults in
-            SavedSettings<WindowSettings>(defaults).save(.needsYou)
-            #expect(SavedSettings<WindowSettings>(defaults).read().sidebar == .needsYou)
-            SavedSettings<WindowSettings>(defaults).save(.projects)
-            #expect(SavedSettings<WindowSettings>(defaults).read().sidebar == .projects)
+            SavedSettings<SidebarSettings>(defaults).save(.needsYou)
+            #expect(SavedSettings<SidebarSettings>(defaults).read().sidebar == .needsYou)
+            SavedSettings<SidebarSettings>(defaults).save(.projects)
+            #expect(SavedSettings<SidebarSettings>(defaults).read().sidebar == .projects)
         }
     }
 
     @Test func aViewItDoesNotKnowIsProjects() {
         Self.withDefaults { defaults in
-            defaults.set(Data(#"{"sidebar":"byAge"}"#.utf8), forKey: WindowSettings.key)
+            defaults.set(Data(#"{"sidebar":"byAge"}"#.utf8), forKey: SidebarSettings.key)
 
-            #expect(SavedSettings<WindowSettings>(defaults).read().sidebar == .projects)
+            #expect(SavedSettings<SidebarSettings>(defaults).read().sidebar == .projects)
         }
     }
 }

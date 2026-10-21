@@ -55,11 +55,36 @@ struct SideFocusTests {
         #expect(sides.focused === sides.firstControl)
     }
 
-    @Test func returnPassesOnWhereNothingInThePageTakesFocus() throws {
-        let sides = try Sides(hasButtons: false)
+    /// With nothing in the page to take focus, AppKit's key loop wraps round to the Filter field, whose Return would
+    /// open its first match over the row Lee picked: Return is taken, and focus stays on the list, the board's or the
+    /// foot's, never passing through the field on the way, which VoiceOver would announce.
+    @Test(arguments: [Pick.session("sr-macapp"), .settings])
+    func returnWhereNothingInThePageTakesFocusLeavesFocusOnTheListAndOpensNothing(on pick: Pick) throws {
+        let sides = try Sides(pick: pick, hasButtons: false, filter: "le")
+        var responders: [NSResponder] = []
 
-        #expect(!sides.press(SideFocus.return))
-        #expect(sides.focused == nil)
+        // the key loop as a window on screen has it, through the field
+        sides.window.recalculateKeyViewLoop()
+
+        let watching = sides.window.observe(\.firstResponder, options: [.new]) { window, _ in
+            MainActor.assumeIsolated { window.firstResponder.map { responders.append($0) } }
+        }
+
+        #expect(sides.pressThrough(SideFocus.return))
+        watching.invalidate()
+        #expect(sides.window.firstResponder === sides.list)
+        #expect(responders.isEmpty)
+        #expect(!sides.isInField)
+        #expect(sides.asked.opens == 0)
+    }
+
+    /// The other side of it: Return in the field, as AppKit hands it on, opens the first match.
+    @Test func returnInTheFilterFieldOpensTheFirstMatch() throws {
+        let sides = try Sides(filter: "le")
+
+        sides.press(Sides.f, with: .command, typing: "f")
+        #expect(!sides.pressThrough(SideFocus.return))
+        #expect(sides.asked.opens == 1)
     }
 
     @Test func returnWithAModifierIsLeftAlone() throws {
@@ -217,16 +242,23 @@ private struct Sides {
     /// The board's list, and Settings' at its foot.
     let board: NSTableView
     let foot: NSTableView
-    private let sidebar: NSHostingController<BoardColumn>
+    /// What the sidebar asked the window for.
+    let asked: Asked
+    private let sidebar: NSHostingController<Column>
     private let picked: Picked
+    private let filter: Filter
 
     /// The list holding the pick.
     var list: NSTableView { picked.pick == .settings ? foot : board }
 
     /// A page of buttons, or of words alone, as a page is with Keyboard navigation off: nothing in it takes focus.
-    init(pick: Pick? = .session("sr-macapp"), hasButtons: Bool = true, focusingList: Bool = true) throws {
+    init(
+        pick: Pick? = .session("sr-macapp"), hasButtons: Bool = true, focusingList: Bool = true, filter: String = ""
+    ) throws {
         let picked = Picked(pick)
-        let sidebar = NSHostingController(rootView: Self.column(on: pick))
+        let filter = Filter(filter)
+        let asked = Asked()
+        let sidebar = NSHostingController(rootView: Column(pick: pick, filter: filter, asked: asked))
         let page = NSHostingController(rootView: VStack {
             if hasButtons {
                 Button("One") {}
@@ -243,6 +275,8 @@ private struct Sides {
         focus = SideFocus(window: window, sidebar: sidebar.view, page: page.view) { picked.pick }
         self.sidebar = sidebar
         self.picked = picked
+        self.filter = filter
+        self.asked = asked
 
         let tables = Self.tables(in: sidebar.view)
 
@@ -257,15 +291,11 @@ private struct Sides {
     /// next pass.
     func turn(to pick: Pick?) {
         picked.pick = pick
-        sidebar.rootView = Self.column(on: pick)
-    }
-
-    private static func column(on pick: Pick?) -> BoardColumn {
-        BoardColumn(listed: listed, pick: pick, sidebar: .projects, filter: Filter(), now: Date())
+        sidebar.rootView = Column(pick: pick, filter: filter, asked: asked)
     }
 
     /// The board's list as the real `watch` first printed it.
-    private static let listed = {
+    fileprivate static let listed = {
         var last = LastBoard()
         let run = WindowRun()
 
@@ -304,6 +334,19 @@ private struct Sides {
         }
     }
 
+    /// A key as the window hears it: the monitor's, and where it takes none, what has focus, as AppKit hands it on.
+    /// Whether the monitor took it.
+    func pressThrough(_ key: UInt16) -> Bool {
+        guard let event = Self.event(key, in: window) else {
+            return false
+        }
+        if focus.take(event, undo: { false }) {
+            return true
+        }
+        window.firstResponder?.keyDown(with: event)
+        return false
+    }
+
     @discardableResult
     func press(_ key: UInt16, with modifiers: NSEvent.ModifierFlags = [], typing characters: String = "\r") -> Bool {
         Self.event(key, with: modifiers, typing: characters, in: window).map(focus.move) ?? false
@@ -325,6 +368,24 @@ private struct Sides {
     private static func tables(in view: NSView) -> [NSTableView] {
         view.subviews.flatMap { ($0 as? NSTableView).map { [$0] } ?? tables(in: $0) }
     }
+}
+
+/// The sidebar as the window draws it, its presses heard.
+private struct Column: View {
+    let pick: Pick?
+    let filter: Filter
+    let asked: Asked
+
+    var body: some View {
+        BoardColumn(listed: Sides.listed, pick: pick, sidebar: .projects, filter: filter, now: Date())
+            .environment(\.windowActions, WindowActions(openFirstMatch: { [asked] in asked.opens += 1 }))
+    }
+}
+
+/// What the sidebar asked the window for.
+@MainActor
+private final class Asked {
+    var opens = 0
 }
 
 /// What the window shows, as its model holds it.

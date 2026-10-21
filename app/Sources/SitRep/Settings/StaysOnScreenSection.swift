@@ -18,7 +18,7 @@ struct StaysOnScreenSection: View {
             SectionHeading(name: "What stays on screen")
             ShowPictures(show: preferences.binding(\.show), isOnScreen: settings.isOnScreen)
             if rows.isEmpty {
-                Text(StaysOnScreen.menuCarries).font(.system(size: 13)).foregroundStyle(.secondary)
+                Text(StaysOnScreen.menuCarries).font(.system(size: 13)).foregroundStyle(WindowStyle.soft)
             } else {
                 SettingsCard {
                     ForEach(Array(rows.enumerated()), id: \.element) { offset, row in
@@ -100,7 +100,8 @@ struct StaysOnScreenSection: View {
     }
 
     private func segmented<Value: Hashable>(
-        _ label: String, _ setting: WritableKeyPath<EdgeSettings, Value>, _ values: [Value], _ title: KeyPath<Value, String>
+        _ label: String, _ setting: WritableKeyPath<EdgeSettings, Value>, _ values: [Value],
+        _ title: @escaping (Value) -> String
     ) -> some View {
         Segments(label: label, values: values, title: title, selection: preferences.binding(setting))
             .frame(width: WindowStyle.controls)
