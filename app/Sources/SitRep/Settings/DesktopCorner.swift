@@ -3,13 +3,27 @@ import SwiftUI
 
 /// A top-right corner of a Mac's screen, drawn by SitRep, with the notification a new ask sends landing on it: the
 /// wallpaper, the see-through menu bar with the glyph lit and its clock telling the time now, a Claude window behind,
-/// and the banner as macOS 26 draws one, with SitRep's own icon. Its words are a sample. Drawn the column's widest, it
-/// crops at its left in a narrower one, keeping the clock and the banner. To VoiceOver, one image.
+/// and the banner as macOS 26 draws one, with SitRep's own icon. Its words are a sample. As wide as the column and 150
+/// tall, nothing in it stretched or scaled: wider than its drawing, the wallpaper and the menu bar run on, the window
+/// behind keeping its place at the left and the menu bar's items and the banner theirs at the right; narrower, it crops
+/// at its left, keeping the clock and the banner. To VoiceOver, one image.
 struct DesktopCorner: View {
     private static let shape = RoundedRectangle(cornerRadius: 12, style: .continuous)
-    private static let size = CGSize(width: SettingsStyle.column, height: 150)
+    /// As Paper draws it.
+    private static let drawing = CGSize(width: 704, height: 150)
 
     var body: some View {
+        CropsAtItsLeft(drawing: Self.drawing) {
+            desktop
+        }
+        .clipShape(Self.shape)
+        .overlay(Self.shape.strokeBorder(.white.opacity(0.15), lineWidth: 0.5))
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("A new ask's notification, as it lands on your desktop")
+        .accessibilityAddTraits(.isImage)
+    }
+
+    private var desktop: some View {
         ZStack(alignment: .topLeading) {
             LinearGradient(
                 stops: [
@@ -27,13 +41,6 @@ struct DesktopCorner: View {
                 .padding(.trailing, 10)
                 .frame(maxWidth: .infinity, alignment: .trailing)
         }
-        .frame(width: Self.size.width, height: Self.size.height)
-        .frame(minWidth: 0, maxWidth: Self.size.width, alignment: .trailing)
-        .clipShape(Self.shape)
-        .overlay(Self.shape.strokeBorder(.white.opacity(0.15), lineWidth: 0.5))
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel("A new ask's notification, as it lands on your desktop")
-        .accessibilityAddTraits(.isImage)
     }
 
     /// The clock in the menu bar's own form, in the Mac's locale and its 12- or 24-hour choice: "Tue 20 Oct 20:20", the
@@ -49,6 +56,27 @@ struct DesktopCorner: View {
         formatter.timeZone = timeZone
         formatter.dateFormat = "\(day.replacingOccurrences(of: ",", with: "")) \(time)"
         return formatter.string(from: date)
+    }
+}
+
+/// Its one view as wide as it is offered and the drawing's height, the view laid out at least the drawing's width
+/// against its right edge: wider, the view runs on; narrower, what is past its left is cropped by whoever clips it.
+private struct CropsAtItsLeft: Layout {
+    let drawing: CGSize
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        CGSize(width: proposal.width(or: drawing.width), height: drawing.height)
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        let width = max(bounds.width, drawing.width)
+
+        for subview in subviews {
+            subview.place(
+                at: CGPoint(x: bounds.maxX - width, y: bounds.minY),
+                proposal: ProposedViewSize(width: width, height: drawing.height)
+            )
+        }
     }
 }
 
