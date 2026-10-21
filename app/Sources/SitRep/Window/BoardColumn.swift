@@ -32,16 +32,17 @@ struct BoardColumn: View {
                 head
                 FilterField(text: filter.text).padding(.horizontal, WindowStyle.selectionInset)
                 views
-                if isUnmatched {
-                    noMatch
-                } else {
-                    list
+                list.overlay {
+                    if isUnmatched {
+                        noMatch
+                    }
                 }
             }
         }
     }
 
-    /// The filter keeps nothing of the view chosen.
+    /// The filter keeps nothing of the view chosen: one line says so, over the list, left in place, empty, so it hears
+    /// the pointer leave as ever and the order it holds settles.
     private var isUnmatched: Bool {
         !filter.isEmpty && listed.isEmpty(in: sidebar)
     }
@@ -233,7 +234,7 @@ private struct ProjectRows: View {
 
     var body: some View {
         HStack {
-            Text(project.name, litBy: filter, else: WindowStyle.soft)
+            Text(project.name, litBy: filter, tone: .soft)
             Spacer()
             if project.waiting > 0 {
                 Text("\(project.waiting)").foregroundStyle(WindowStyle.orange)
@@ -261,7 +262,6 @@ private struct FlatRows: View {
     var body: some View {
         ForEach(rows) { row in
             SessionRowView(row: row, isPicked: pick == .session(row.id), filter: filter, showsProject: true, now: now)
-                .padding(.vertical, 7)
                 .spoken(Spoken.row(row, at: now))
                 .sidebarRow(.session(row.id), pick: pick, washed: row.washed, now: now)
         }
@@ -281,13 +281,13 @@ private struct SessionRowView: View {
         HStack(alignment: showsProject ? .top : .center, spacing: 10) {
             MarkView(mark: row.mark)
             VStack(alignment: .leading, spacing: 1) {
-                Text(row.name, litBy: filter, else: row.isAway ? WindowStyle.faint : WindowStyle.text)
+                Text(row.name, litBy: filter, tone: row.isAway ? .faint : .text)
                     .font(WindowStyle.ui(13, isPicked || isWashing ? .semibold : .medium))
                     .spacing(-0.005, of: 13)
                     .lineLimit(1)
                     .frame(minHeight: WindowStyle.lane.height)
                 if showsProject {
-                    Text(row.project, litBy: filter, else: WindowStyle.soft)
+                    Text(row.project, litBy: filter, tone: .soft)
                         .font(WindowStyle.ui(12))
                         .lineLimit(1)
                 }
@@ -322,7 +322,7 @@ private struct QuietRows: View {
 
     var body: some View {
         ForEach(quiet) { project in
-            Text(project.name, litBy: filter, else: WindowStyle.soft)
+            Text(project.name, litBy: filter, tone: .soft)
                 .font(WindowStyle.ui(12, .medium))
                 .lineLimit(1)
                 .spoken(Spoken.quiet(project))
@@ -332,16 +332,16 @@ private struct QuietRows: View {
 }
 
 private extension Text {
-    /// A name in its own colour; while the filter narrows the list, its words lit where they appear in it and the rest
-    /// soft.
-    init(_ name: String, litBy filter: Filter, else colour: Color) {
+    /// A name in its own tone; while the filter narrows the list, its words lit where they appear in it, a step
+    /// brighter than the rest (`Tone`).
+    init(_ name: String, litBy filter: Filter, tone: Tone) {
         guard !filter.isEmpty else {
-            self = Text(name).foregroundStyle(colour)
+            self = Text(name).foregroundStyle(WindowStyle.colour(tone))
             return
         }
 
         self = filter.runs(of: name).reduce(Text("")) { text, run in
-            Text("\(text)\(Text(run.text).foregroundStyle(run.isLit ? WindowStyle.text : WindowStyle.soft))")
+            Text("\(text)\(Text(run.text).foregroundStyle(WindowStyle.colour(run.isLit ? tone.lit : tone.rest)))")
         }
     }
 }
@@ -384,6 +384,7 @@ private struct SidebarRow: ViewModifier {
             if isStill {
                 words
                     .padding(.horizontal, WindowStyle.rowInset)
+                    .padding(.vertical, WindowStyle.rowPadding)
                     .frame(minHeight: WindowStyle.rowHeight)
                     .fixedSize(horizontal: false, vertical: true)
                     .background(background)

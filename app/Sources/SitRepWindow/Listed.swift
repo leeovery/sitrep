@@ -50,6 +50,8 @@ public struct Listed: Equatable, Sendable {
     public struct Quiet: Equatable, Sendable, Identifiable {
         public let id: String
         public let name: String
+        /// Its sessions' names, which the filter finds it by as well as its own.
+        public let sessions: [String]
 
         public var pick: Pick { .project(id) }
     }
@@ -87,7 +89,9 @@ public struct Listed: Equatable, Sendable {
                 sessions: project.sessions.map { Row($0, of: project) }
             )
         }
-        quiet = board?.projects.filter(\.isQuiet).map { Quiet(id: $0.key, name: $0.name) } ?? []
+        quiet = board?.projects.filter(\.isQuiet).map {
+            Quiet(id: $0.key, name: $0.name, sessions: $0.sessions.map(\.name))
+        } ?? []
         flat = board.map(Self.flat) ?? []
     }
 

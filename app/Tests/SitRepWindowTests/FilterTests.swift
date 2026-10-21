@@ -57,7 +57,7 @@ struct FilterTests {
         #expect(narrowed.quiet.map(\.name) == ["Kit"])
         #expect(narrowed.projects.isEmpty)
         #expect(narrowed.flat.map(\.name) == ["The bootstrap"])
-        #expect(Self.listed.narrowed(by: Filter("kit boot")).quiet.isEmpty)
+        #expect(Self.listed.narrowed(by: Filter("kit ledg")).quiet.isEmpty)
     }
 
     @Test func theMatchedLettersAreLitAndTheRestSoft() {
@@ -75,6 +75,28 @@ struct FilterTests {
             Self.soft("S"), Self.lit("e"), Self.soft("ttl"), Self.lit("e"),
         ])
         #expect(Filter("set  le").runs(of: "Settle") == [Self.lit("Set"), Self.soft("t"), Self.lit("le")])
+    }
+
+    /// Foundation finds "ß" in "Straße" first at "St", which is not where it is.
+    @Test func aWordWhoseFoldingChangesItsLengthLightsOnlyWhereItIs() {
+        #expect(Filter("ß").runs(of: "Straße") == [Self.soft("Stra"), Self.lit("ß"), Self.soft("e")])
+        #expect(Filter("ß").runs(of: "the strasse") == [Self.soft("the stra"), Self.lit("ss"), Self.soft("e")])
+        #expect(Filter("ss").runs(of: "Straße") == [Self.soft("Stra"), Self.lit("ß"), Self.soft("e")])
+    }
+
+    @Test func aQuietProjectShowsInProjectsWhileOneOfItsSessionsMatches() {
+        let narrowed = Self.listed.narrowed(by: Filter("boot"))
+
+        #expect(narrowed.quiet.map(\.name) == ["Kit"])
+        #expect(!narrowed.isEmpty(in: .projects))
+        #expect(narrowed.first(in: .projects) == .project("kit"))
+        #expect(narrowed.flat.map(\.name) == ["The bootstrap"])
+    }
+
+    @Test(arguments: [(Tone.text, Tone.soft, Tone.text), (.soft, .soft, .text), (.faint, .faint, .soft)])
+    func theLitWordsAreAStepBrighterThanTheRestWhichIsNoBrighterThanSoft(tone: Tone, rest: Tone, lit: Tone) {
+        #expect(tone.rest == rest)
+        #expect(tone.lit == lit)
     }
 
     @Test func noMatchSaysWhatWasTyped() {

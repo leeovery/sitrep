@@ -39,14 +39,15 @@ public struct WindowSettings: SavedValue {
 extension Listed {
     /// Every session on the board in the panel's order, core's rows': by where its first row sits, so what needs Lee
     /// comes first, the oldest ask first and an away session's after the live ones, then your turn, then working. Those
-    /// with no row, away with nothing waiting, come after, in the board's order.
+    /// with no row, away with nothing waiting, come after, the latest updated first, as core orders a project's.
     static func flat(_ board: Board) -> [Row] {
-        let every = board.projects.flatMap { project in project.sessions.map { Row($0, of: project) } }
-        let byID = Dictionary(every.map { ($0.id, $0) }) { first, _ in first }
+        let every = board.projects.flatMap { project in project.sessions.map { (session: $0, project: project) } }
+        let byID = Dictionary(every.map { ($0.session.id, $0) }) { first, _ in first }
         var placed = Set<String>()
         let withRows = board.rows.map(\.session).filter { placed.insert($0).inserted }.compactMap { byID[$0] }
+        let away = every.filter { !placed.contains($0.session.id) }.sorted { $0.session.isNewer(than: $1.session) }
 
-        return withRows + every.filter { !placed.contains($0.id) }
+        return (withRows + away).map { Row($0.session, of: $0.project) }
     }
 
     /// The first session this view lists, or with none the first quiet project: what Return in the Filter field opens.
@@ -60,5 +61,22 @@ extension Listed {
     /// This view lists nothing.
     public func isEmpty(in sidebar: Sidebar) -> Bool {
         first(in: sidebar) == nil
+    }
+}
+
+private extension Board.Session {
+    /// Updated later, or as late and first by its id: core/feed.ts's order of a project's sessions with no row.
+    func isNewer(than other: Board.Session) -> Bool {
+        updatedAt != other.updatedAt ? updatedAt > other.updatedAt : id < other.id
+    }
+}
+
+extension SavedSettings where Value == WindowSettings {
+    /// The view Lee chose, kept with whatever else the window's settings hold.
+    public func save(_ sidebar: Sidebar) {
+        var settings = read()
+
+        settings.sidebar = sidebar
+        save(settings)
     }
 }

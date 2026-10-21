@@ -29,6 +29,21 @@ struct SidebarTests {
         #expect(Listed.flat(board).map(\.id) == ["sr-macapp", "sr-dash02", "sr-gs7kq2", "sr-rq7dgr", "sr-k7t001"])
     }
 
+    /// SitRep's away session, a minute older than Kit's, comes after it, though SitRep comes first on the board.
+    @Test func theSessionsWithNoRowComeTheLatestUpdatedFirstAcrossProjects() throws {
+        let line = edited(Lines.watch[0]) { board in
+            var projects = board["projects"] as! [[String: Any]]
+            var older = (projects[3]["sessions"] as! [[String: Any]])[0]
+
+            older["id"] = "sr-old001"
+            older["updatedAt"] = (older["updatedAt"] as! Double) - 60000
+            projects[0]["sessions"] = (projects[0]["sessions"] as! [[String: Any]]) + [older]
+            board["projects"] = projects
+        }
+
+        #expect(Listed.flat(try Board.read(line)).suffix(2).map(\.id) == ["sr-k7t001", "sr-old001"])
+    }
+
     @Test func returnOpensTheFirstSessionTheViewLists() {
         let filtered = Self.listed.narrowed(by: Filter("le"))
 
@@ -80,6 +95,16 @@ struct WindowSettingsTests {
 
             #expect(SavedSettings<WindowSettings>(defaults).read().sidebar == .needsYou)
             #expect(defaults.data(forKey: "window") != nil)
+        }
+    }
+
+    /// What the window does as Lee chooses a view.
+    @Test func choosingAViewSavesIt() {
+        Self.withDefaults { defaults in
+            SavedSettings<WindowSettings>(defaults).save(.needsYou)
+            #expect(SavedSettings<WindowSettings>(defaults).read().sidebar == .needsYou)
+            SavedSettings<WindowSettings>(defaults).save(.projects)
+            #expect(SavedSettings<WindowSettings>(defaults).read().sidebar == .projects)
         }
     }
 

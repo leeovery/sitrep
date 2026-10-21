@@ -164,11 +164,8 @@ final class WindowModel {
     }
 
     private func choose(_ sidebar: Sidebar) {
-        var settings = saved.read()
-
         run.sidebar = sidebar
-        settings.sidebar = sidebar
-        saved.save(settings)
+        saved.save(sidebar)
         refresh()
     }
 

@@ -46,7 +46,7 @@ struct SpokenTests {
 
         #expect(Spoken.project(waiting) == "SitRep, 3 waiting")
         #expect(Spoken.project(none) == "Kit, nothing waiting")
-        #expect(Spoken.quiet(Listed.Quiet(id: "kit", name: "Kit")) == "Kit, quiet project")
+        #expect(Spoken.quiet(Listed.Quiet(id: "kit", name: "Kit", sessions: [])) == "Kit, quiet project")
     }
 
     @Test func aCardIsLabelledByItsAsksTitleAfterItsSessionsNameInAProject() throws {

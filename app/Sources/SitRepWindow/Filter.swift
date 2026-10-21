@@ -2,7 +2,7 @@ import Foundation
 
 /// What Lee types in the sidebar's Filter field, which narrows the view chosen in place: a session stays while every
 /// word typed appears, anywhere, in its name or its project's, whatever their case and accents, so typing a project's
-/// name lists its sessions. A quiet project stays while its name holds every word.
+/// name lists its sessions. A quiet project stays while its name holds every word, or one of its sessions matches.
 public struct Filter: Equatable, Sendable {
     /// A piece of a name, lit where a word typed appears in it, soft elsewhere.
     public struct Run: Equatable, Sendable {
@@ -57,23 +57,49 @@ public struct Filter: Equatable, Sendable {
         }
     }
 
+    /// Where the word appears in the name. Foundation finds a word whose folding changes its length, as "ß" does, at
+    /// a range that is not it ("St" in "Straße"), so a range whose letters do not fold to the word's is no place of it.
     private static func ranges(of word: String, in name: String) -> [Range<String.Index>] {
+        let folded = fold(word)
         var found: [Range<String.Index>] = []
         var rest = name.startIndex ..< name.endIndex
 
         while let range = name.range(of: word, options: loosely, range: rest) {
-            found.append(range)
+            if fold(String(name[range])) == folded {
+                found.append(range)
+            }
             rest = range.upperBound ..< name.endIndex
         }
         return found
     }
 
+    private static func fold(_ text: String) -> String {
+        text.folding(options: loosely, locale: nil)
+    }
+
     private static let loosely: String.CompareOptions = [.caseInsensitive, .diacriticInsensitive]
+}
+
+/// How bright a name's words are, of the window's three greys: its own, with nothing typed; while the filter narrows
+/// the list, the rest of it no brighter than soft, and the words typed one step brighter than that.
+public enum Tone: Sendable, Equatable {
+    case text, soft, faint
+
+    /// The words of the name that the filter does not light.
+    public var rest: Tone {
+        self == .text ? .soft : self
+    }
+
+    /// The words the filter lights.
+    public var lit: Tone {
+        rest == .faint ? .soft : .text
+    }
 }
 
 extension Listed {
     /// The list narrowed to what the filter keeps: a project's sessions that match under it, its count still of all of
-    /// them, and gone with none; the quiet projects whose names match; the sessions of the flat list that match.
+    /// them, and gone with none; the quiet projects whose names or sessions match; the sessions of the flat list that
+    /// match.
     public func narrowed(by filter: Filter) -> Listed {
         guard !filter.isEmpty else {
             return self
@@ -87,7 +113,9 @@ extension Listed {
             project.sessions = project.sessions.filter { filter.matches($0.name, $0.project) }
             return project.sessions.isEmpty ? nil : project
         }
-        narrowed.quiet = quiet.filter { filter.matches($0.name) }
+        narrowed.quiet = quiet.filter { project in
+            filter.matches(project.name) || project.sessions.contains { filter.matches($0, project.name) }
+        }
         narrowed.flat = flat.filter { filter.matches($0.name, $0.project) }
         return narrowed
     }

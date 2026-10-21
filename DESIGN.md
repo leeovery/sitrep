@@ -2635,20 +2635,27 @@ stands).
       for one flat list of every session, quiet projects' too, in the
       panel's own order, core's rows': what needs Lee first, the oldest ask
       first and an away session's after the live ones, then your turn, then
-      working, then away. Each row names its project under its own, and
+      working, then away, the latest updated first. Each row names its
+      project under its own, and
       keeps the marks, the age and the selection of a Projects row. The
       quiet projects' foot shows in Projects alone. The view chosen is kept
       across launches, in a saved value of its own;
     - **the filter** narrows the view chosen in place. A session stays while
       every word typed appears, anywhere, in its name or its project's,
       whatever their case and accents, so typing a project's name lists its
-      sessions; a quiet project stays while its name holds every word. In
-      Projects a match stays under its project, whose count is still of all
-      its sessions. The words are lit, in the label colour, wherever they
-      appear in a name, the rest soft. It never moves the pick: the page
-      stays on what was open, even with its row filtered out. ⌘F focuses
-      the field, Return in it opens the first match, and × or Escape clears
-      it and gives the whole board back; Escape in it empty does nothing.
+      sessions; a quiet project stays while its name holds every word, or
+      while one of its sessions matches by the same rule, so Projects never
+      says nothing matches where Needs you lists a match. In Projects a
+      match stays under its project, whose count is still of all its
+      sessions. The words are lit wherever they appear in a name, a step
+      brighter than the rest: in the label colour on a name the rest of
+      which goes soft, and soft on an away session's faint one, so an away
+      row still reads as away. It never moves the pick: the page stays on
+      what was open, even with its row filtered out. ⌘F focuses the field,
+      Return in it opens the first match, and × or Escape clears it and
+      gives the whole board back; Escape in it empty does nothing, and with
+      an answer waiting, Escape takes the answer back first, as anywhere in
+      the window. The window opens with focus on the list, not the field.
       What it holds is not kept;
     - **decided for round 7** (21 October 2026, as the design pointed):
       a filter that keeps nothing says so in one centred line, "No sessions
