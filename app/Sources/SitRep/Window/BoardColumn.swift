@@ -465,11 +465,12 @@ private struct RowBackground: View {
 }
 
 private extension View {
-    /// A foot the list runs on under: on macOS 26 the system's own bar, whose scroll edge fades the list where it
-    /// passes beneath; before it, the list's inset.
+    /// A foot the list runs on under: on macOS 26 the system's own bar, whose soft scroll edge fades the list where it
+    /// passes beneath (spec 2.5's fade, the sidebar's glass where Paper drew a gradient); before it, the list's inset,
+    /// with no fade.
     @ViewBuilder func foot(@ViewBuilder _ foot: () -> some View) -> some View {
         if #available(macOS 26, *) {
-            safeAreaBar(edge: .bottom, spacing: 0, content: foot)
+            scrollEdgeEffectStyle(.soft, for: .bottom).safeAreaBar(edge: .bottom, spacing: 0, content: foot)
         } else {
             safeAreaInset(edge: .bottom, spacing: 0, content: foot)
         }
@@ -517,20 +518,6 @@ struct SettingsFooter: View {
                     }
             }
         }
-        .overlay(alignment: .top) { fade }
-    }
-
-    /// The list's foot fading where it runs on under the hairline (spec 2.5), over the list, not over the foot.
-    private var fade: some View {
-        LinearGradient(
-            colors: [WindowStyle.footerFadeInk.opacity(0), WindowStyle.footerFadeInk.opacity(0.7)],
-            startPoint: .top, endPoint: .bottom
-        )
-        .frame(height: WindowStyle.footerFade)
-        .padding(.horizontal, WindowStyle.selectionInset)
-        .offset(y: -WindowStyle.footerFade)
-        .allowsHitTesting(false)
-        .accessibilityHidden(true)
     }
 
     private var row: some View {

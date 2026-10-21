@@ -2670,8 +2670,9 @@ stands).
     - **its foot is Settings**, a row with the system's gear, fixed under
       a hairline as the list runs on under it (see "Settings"): the
       hairline inside the sidebar's 10 either side, 8 under it the row,
-      32 tall, then 10 to the window's foot, and over the hairline the
-      list fades out across its last 14. Picked,
+      32 tall, then 10 to the window's foot; the list fades out under it
+      by the system's own soft scroll edge, on macOS 26 only, never a
+      drawn gradient over the glass. Picked,
       Settings shows on the right, where a session would, and the board's
       list holds no selection while it shows; the foot's row takes the
       system's own selection, as a list of its own. A click on a session

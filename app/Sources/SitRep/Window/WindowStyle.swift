@@ -87,9 +87,6 @@ enum WindowStyle {
     static let footerList = footerListInset + footerRow + footerListInset
     /// The hairline over the foot, in from the sidebar's sides as its rows are.
     static let footerLine = Color.white.opacity(Double(0x14) / 255)
-    /// The fade at the list's foot where it runs on under the foot: the sidebar's ground, clear to 70%.
-    static let footerFade: CGFloat = 14
-    static let footerFadeInk = Color(hex: 0x1C1C1F)
     /// The system's selection in the sidebar, in from its edges and rounded, which a row's fills take: by eye, as
     /// nothing offscreen draws it.
     static let selectionInset: CGFloat = 10
