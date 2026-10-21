@@ -139,9 +139,9 @@ final class SettingsModel {
 }
 
 /// Settings, a page of the SitRep window (DESIGN, "Settings"), set as System Settings sets its grouped form: the
-/// title in a project's page's place, then What stays on screen, Notifications and General, 30 apart, in a column at
-/// most the form's 704 wide, which `PageColumn` sets at the title's edge. It reads what the Mac says as it comes into
-/// sight (`SettingsModel.shows`), and its displays as it appears and as they change.
+/// title in a project's page's place, then What stays on screen, Notifications and General, 30 apart, in a column as
+/// wide as the page less its insets, as a project's page is. It reads what the Mac says as it comes into sight
+/// (`SettingsModel.shows`), and its displays as it appears and as they change.
 struct SettingsPage: View {
     let settings: SettingsModel
 
@@ -159,7 +159,6 @@ struct SettingsPage: View {
                 general
             }
         }
-        .frame(maxWidth: SettingsStyle.column, alignment: .leading)
         .padding(.bottom, 40)
         .onAppear {
             settings.readDisplays()

@@ -3067,10 +3067,17 @@ reference only.
   size, with nothing under it, then What stays on screen, Notifications and
   General, each headed in sentence case, 13 semibold in the label colour,
   10 in from its card's edge and 10 over it, the sections 30 apart. They
-  sit in a column at most 704 wide, the width System Settings caps its own
-  form at, at the title's edge rather than centred, so the title stays
-  where a project's is; under a page of 784 it narrows with the window. The
-  page scrolls as one, as the window's other pages scroll, its toolbar's
+  sit in a column that fills the page less 44 on each side, as a session's
+  and a project's pages do, at the title's edge, so the title stays where a
+  project's is. It has no cap: round 8 drew it at most 704, the width System
+  Settings caps its own form at, until Lee, seeing it live on 21 October:
+  "why isnt the settings content dynamically sizing to the width? its weird
+  to have a large wide margin on the rigth when the window is widened". At
+  any width the controls keep their own widths against the card's right and
+  the labels take what's left, wrapping before a control moves. At the
+  narrowest window, a column of 476, every General row that needs
+  something wraps its line beside its button, the plugin's beside Show
+  Windows included. The page scrolls as one, as the window's other pages scroll, its toolbar's
   scroll edge hidden as theirs is. Rows sit on the ask cards' raise, radius
   14, split by the system's separator, half a point, 10 in from both ends,
   one box deep: rows of SitRep's own at the form's metrics, not SwiftUI's
@@ -3090,7 +3097,8 @@ reference only.
 - **What stays on screen**, named for the choice it makes, true for all
   three, Nothing included (Lee's alternative, if he prefers it later: "Show
   on screen"). Three pictures of the screen's edge, in 225 by 145's shape,
-  filling the column equally, 16 apart, 224 by 144 at 704, each named 8
+  filling the column equally, 16 apart, 224 by 144 at 704, their heights
+  in whole points, each named 8
   under it: the notch and its light,
   the strip as it stands at Length Grows, its column curving back into the
   edge in the strip's own S and its rings in the panel's order, or only the
@@ -3129,11 +3137,14 @@ reference only.
   wallpaper, the see-through menu bar with the glyph lit and a clock that
   tells the time now in the menu bar's own form, a minute at a time, a
   Claude window behind, and the banner a new ask sends where macOS puts it,
-  with SitRep's own icon. Its words are a sample, as drawn. It is the
-  column's widest, 704 by 150, and in a narrower one crops at its left,
-  keeping its right, where the clock and the banner are, which the picture
-  is there to show (spec round 8 had it cropping at its right; at the
-  narrowest column that dropped the clock and most of the banner). Under
+  with SitRep's own icon. Its words are a sample, as drawn. It fills the
+  column at 150 tall, nothing in it stretched or scaled. Wider than its
+  drawing's 704, the wallpaper and the menu bar run on, the menu bar's
+  items and the banner keeping to its right and the window behind to its
+  left, 28 in. Narrower, it crops at its left, keeping its right, where the
+  clock and the banner are, which the picture is there to show (spec round
+  8 had it cropping at its right; at the narrowest column that dropped the
+  clock and most of the banner). Under
   it, its caption and Send Test, a push button, which sends what the test
   always has: a real notification, its click jumping as any would. Then Notify me of a new ask, off by
   default, its line "Silent; a click on it jumps to the session"; and
