@@ -64,7 +64,10 @@ struct PageColumn<Settings: View>: View {
                 .id(Pick.project(project.key))
         case .settings:
             Scrolling {
-                settings().padding(.leading, WindowStyle.pageInset).padding(.trailing, WindowStyle.settingsInset)
+                settings()
+                    .padding(.leading, WindowStyle.pageInset)
+                    .padding(.trailing, WindowStyle.settingsInset)
+                    .frame(maxWidth: .infinity, alignment: .leading)
             }
             .id(Pick.settings)
         }

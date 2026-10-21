@@ -2,9 +2,46 @@ import AppKit
 import SitRepMenu
 import SwiftUI
 
-/// Settings' rows as a project's page sets its asks: on the ask cards' raise, at their radius, split by the page's
-/// hairline, one box deep. Rows of SitRep's own at the drawing's metrics, not SwiftUI's grouped Form, whose sections
-/// draw their own fill and insets, scroll on their own and draw nothing as a still.
+/// Settings set as System Settings sets its grouped form, measured on macOS 26 (spec round 8, 4): its words in the
+/// system's own roles and text styles, its column at the form's cap, its rows at the form's heights.
+enum SettingsStyle {
+    static let label = Color(nsColor: .labelColor)
+    static let secondary = Color(nsColor: .secondaryLabelColor)
+    static let separator = Color(nsColor: .separatorColor)
+    /// The widest the column goes, at the title's edge: the width System Settings caps its own form at.
+    static let column: CGFloat = 704
+    /// A row's words and its control, in from the card's edges; a section header and the line where a card would
+    /// be, in as far.
+    static let inset: CGFloat = 10
+    /// Between a section's header and what it heads, and between a card and the next section.
+    static let headerGap: CGFloat = 10
+    static let sectionGap: CGFloat = 30
+    /// A row at least as tall as the form's: with a line under its label, or without.
+    static let twoLineRow: CGFloat = 52
+    static let oneLineRow: CGFloat = 38
+}
+
+/// A section of Settings: its header, in sentence case as the form heads its sections, 10 over what it heads.
+struct SettingsSection<Content: View>: View {
+    let name: String
+    @ViewBuilder let content: Content
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: SettingsStyle.headerGap) {
+            Text(name)
+                .font(.body.weight(.semibold))
+                .spacing(-0.01, of: 13)
+                .foregroundStyle(SettingsStyle.label)
+                .padding(.horizontal, SettingsStyle.inset)
+                .accessibilityAddTraits(.isHeader)
+            VStack(alignment: .leading, spacing: 0) { content }
+        }
+    }
+}
+
+/// Settings' rows on the ask cards' raise, at their radius, one box deep: rows of SitRep's own at the form's metrics,
+/// not SwiftUI's grouped Form, whose sections draw their own fill and insets, scroll on their own and draw nothing as a
+/// still.
 struct SettingsCard<Content: View>: View {
     @ViewBuilder let content: Content
 
@@ -14,77 +51,56 @@ struct SettingsCard<Content: View>: View {
     }
 }
 
-extension WindowStyle {
-    /// The column on the right of Settings' rows that every control shares.
-    static let controls: CGFloat = 176
-}
-
-/// The hairline between two rows of a card, in from its left.
+/// The hairline between two rows of a card, in from both its ends.
 struct CardSeparator: View {
     var body: some View {
-        Rectangle().fill(WindowStyle.line).frame(height: 1).padding(.leading, 18)
+        Rectangle().fill(SettingsStyle.separator).frame(height: 0.5).padding(.horizontal, SettingsStyle.inset)
     }
 }
 
-/// A row of a card: its label, the line under it, and its control at the system's own size, set to the right of the
-/// one column every row's control shares, so the eye runs straight down them; with an icon, its tile leading.
-/// Disabled, its words dim as the system dims a disabled row's.
+/// A row of a card: its label, the line under it, and its control at the system's own size against the card's right.
+/// The words take what the control leaves, wrapping onto more lines, so the row grows, before the control would give
+/// up any of its width. Disabled, its words dim as the system dims a disabled row's.
 struct CardRow<Control: View>: View {
     let label: String
     var line: String?
-    /// An SF Symbol, in a tile before the words.
-    var icon: String?
     @ViewBuilder let control: () -> Control
 
     @Environment(\.isEnabled) private var isEnabled
 
     var body: some View {
         HStack(spacing: 16) {
-            HStack(spacing: 14) {
-                if let icon {
-                    IconTile(symbol: icon)
-                }
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(label)
-                        .font(.system(size: 15))
-                        .foregroundStyle(WindowStyle.text)
-                        .opacity(isEnabled ? 1 : 0.5)
-                    if let line {
-                        Text(line)
-                            .font(.system(size: 13))
-                            .foregroundStyle(WindowStyle.soft)
-                            .opacity(isEnabled ? 1 : 0.6)
-                            .fixedSize(horizontal: false, vertical: true)
-                    }
+            VStack(alignment: .leading, spacing: 2) {
+                Text(label)
+                    .font(.body)
+                    .spacing(-0.01, of: 13)
+                    .foregroundStyle(SettingsStyle.label)
+                    .opacity(isEnabled ? 1 : 0.5)
+                if let line {
+                    Text(line)
+                        .font(.subheadline)
+                        .foregroundStyle(SettingsStyle.secondary)
+                        .opacity(isEnabled ? 1 : 0.6)
                 }
             }
+            .fixedSize(horizontal: false, vertical: true)
+            // the drawing's 52 less its two lines, 16 and 14, and the 2 between: what a wrapped line grows the row by
+            .padding(.vertical, 10)
             .frame(maxWidth: .infinity, alignment: .leading)
-            control()
-                .fixedSize()
-                .frame(width: WindowStyle.controls, alignment: .trailing)
+            control().fixedSize()
         }
-        .padding(.vertical, icon == nil ? 12 : 14)
-        .padding(.horizontal, 18)
-        .frame(minHeight: icon == nil ? 64 : 72)
+        .padding(.horizontal, SettingsStyle.inset)
+        .frame(minHeight: line == nil ? SettingsStyle.oneLineRow : SettingsStyle.twoLineRow)
     }
 }
 
-/// The tile an icon sits in at a row's head: a dark rounded square under a hairline.
-private struct IconTile: View {
-    let symbol: String
+/// The switch as the HIG sets one in a grouped form: the mini switch.
+struct MiniSwitch: View {
+    let label: String
+    @Binding var isOn: Bool
 
     var body: some View {
-        let tile = RoundedRectangle(cornerRadius: 9, style: .continuous)
-
-        Image(systemName: symbol)
-            .font(.system(size: 15))
-            .foregroundStyle(WindowStyle.text)
-            .frame(width: 36, height: 36)
-            .background(tile.fill(LinearGradient(
-                colors: [Color(hex: 0x3C3C42), Color(hex: 0x1B1B1E)], startPoint: .topLeading, endPoint: .bottomTrailing
-            )))
-            .overlay(tile.strokeBorder(.white.opacity(0.15), lineWidth: 0.5))
-            .accessibilityHidden(true)
+        Toggle(label, isOn: $isOn).toggleStyle(.switch).controlSize(.mini).labelsHidden()
     }
 }
 
@@ -93,14 +109,13 @@ private struct IconTile: View {
 /// says the fix is under way; the switch, bound to `isOn`; or Show Windows, a click on a window jumping to it.
 struct StatedRow: View {
     let row: SettingsRow
-    var icon: String?
     var isOn: Binding<Bool> = .constant(false)
     var isBusy = false
     let fix: (SettingsRow.Fix) -> Void
     var jump: (String) -> Void = { _ in }
 
     var body: some View {
-        CardRow(label: row.label, line: row.line, icon: icon) { side }
+        CardRow(label: row.label, line: row.line) { side }
             .disabled(row.side == .toggle(isEnabled: false))
     }
 
@@ -113,7 +128,7 @@ struct StatedRow: View {
         case let .button(title, fix):
             Button(title) { self.fix(fix) }.buttonStyle(.bordered).disabled(isBusy)
         case .toggle:
-            Toggle(row.label, isOn: isOn).toggleStyle(.switch).labelsHidden()
+            MiniSwitch(label: row.label, isOn: isOn)
         case let .windows(windows):
             Menu("Show Windows") {
                 ForEach(windows) { window in
@@ -130,9 +145,9 @@ struct StatusDot: View {
     let word: String
 
     var body: some View {
-        HStack(spacing: 7) {
-            Circle().fill(Color(nsColor: .systemGreen)).frame(width: 8, height: 8)
-            Text(word).font(.system(size: 13)).foregroundStyle(WindowStyle.soft)
+        HStack(spacing: 6) {
+            Circle().fill(Color(nsColor: .systemGreen)).frame(width: 7, height: 7)
+            Text(word).font(.body).foregroundStyle(SettingsStyle.secondary)
         }
         .spoken(word)
     }

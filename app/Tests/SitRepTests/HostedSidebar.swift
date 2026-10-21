@@ -79,7 +79,7 @@ struct HostedSidebar {
 
     /// The sidebar as it draws itself, its points the glass's, so a y from the window's top is 8 more.
     func drawn() throws -> Drawn {
-        try Drawn(view: view)
+        try Drawn(view)
     }
 
     /// How far down the window the glass starts, which the drawing's points are counted from.

@@ -22,8 +22,8 @@ struct Drawn {
         scale = CGFloat(bitmap.pixelsHigh) / size.height
     }
 
-    /// An AppKit view as it draws itself, laid out where it is, as a window's sidebar is.
-    init(view: NSView) throws {
+    /// A view as it draws where it is, as in a window, which lays it out to the window's pixels.
+    init(_ view: NSView) throws {
         bitmap = try #require(view.bitmapImageRepForCachingDisplay(in: view.bounds))
         view.cacheDisplay(in: view.bounds, to: bitmap)
         scale = CGFloat(bitmap.pixelsHigh) / view.bounds.height
