@@ -8,8 +8,6 @@ enum SettingsStyle {
     static let label = Color(nsColor: .labelColor)
     static let secondary = Color(nsColor: .secondaryLabelColor)
     static let separator = Color(nsColor: .separatorColor)
-    /// A label's and a section header's letter-spacing, -0.01em of 13.
-    static let tracking: CGFloat = -0.13
     /// The widest the column goes, at the title's edge: the width System Settings caps its own form at.
     static let column: CGFloat = 704
     /// A row's words and its control, in from the card's edges; a section header and the line where a card would
@@ -32,7 +30,7 @@ struct SettingsSection<Content: View>: View {
         VStack(alignment: .leading, spacing: SettingsStyle.headerGap) {
             Text(name)
                 .font(.body.weight(.semibold))
-                .tracking(SettingsStyle.tracking)
+                .spacing(-0.01, of: 13)
                 .foregroundStyle(SettingsStyle.label)
                 .padding(.horizontal, SettingsStyle.inset)
                 .accessibilityAddTraits(.isHeader)
@@ -75,7 +73,7 @@ struct CardRow<Control: View>: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text(label)
                     .font(.body)
-                    .tracking(SettingsStyle.tracking)
+                    .spacing(-0.01, of: 13)
                     .foregroundStyle(SettingsStyle.label)
                     .opacity(isEnabled ? 1 : 0.5)
                 if let line {

@@ -13,12 +13,11 @@ struct ShowPicturesTests {
             .sizeThatFits(in: CGSize(width: width, height: 10_000)).height
     }
 
-    /// The three fill any column equally, 16 apart, each keeping the drawing's 225:145: at 704, 224 × 144.4.
-    @Test(arguments: [704.0, 500.0])
-    func theThreeFillTheColumnInTheDrawingsShape(width: CGFloat) {
-        let picture = (width - 2 * 16) / 3 * 145 / 225
-
-        #expect(abs(Self.height(at: width) - (picture + 8 + 16 + 14)) < 0.5)
+    /// The three fill any column equally, 16 apart, each keeping the drawing's 225:145 to the whole point: at 704,
+    /// 224 × 144; at 500, 156 × 101.
+    @Test(arguments: [(704.0, 144.0), (500.0, 101.0)])
+    func theThreeFillTheColumnInTheDrawingsShape(width: CGFloat, picture: CGFloat) {
+        #expect(Self.height(at: width) == picture + 8 + 16 + 14)
     }
 
     /// Across the 704 column, Notch chosen: each tile 224 wide, 16 apart; round the chosen one, 2 of the page's
@@ -27,7 +26,11 @@ struct ShowPicturesTests {
         let drawn = try Drawn(
             ShowPictures(show: .constant(.notch), isOnScreen: true).frame(width: 704), size: CGSize(width: 704, height: 200)
         )
-        let lit = { (x: CGFloat) in try drawn.brightest(in: CGRect(x: x - 0.25, y: 60, width: 0.5, height: 1)).lightness > 0.05 }
+        // the one pixel at x, at whatever scale the screen draws
+        let pixel = 1 / drawn.scale
+        let lit = { (x: CGFloat) in
+            try drawn.brightest(in: CGRect(x: x - pixel / 2, y: 60, width: pixel, height: 1)).lightness > 0.05
+        }
 
         // the tiles' edges, the second's and third's hairlines lit at their left
         for (left, right) in [(240.0, 464.0), (480.0, 704.0)] {

@@ -3027,10 +3027,11 @@ reference only.
   and a line wraps, growing the row, before its control gives up any width.
   The controls are the system's, never redrawn, each at the regular size
   and its own width against the card's right: segmented controls, their
-  segments equal, as SwiftUI's picker sets them; a pop-up as wide as its
-  chosen title, as the form sets one; bordered push buttons and a
-  pull-down; and the mini switch, 36 by 16, as the HIG gives a grouped
-  form. Orange stays for needs you, so it appears only inside the pictures
+  segments equal, as SwiftUI's picker sets them (Meniscus · Card is 155,
+  where Paper drew 160: its widths were Inter's, and the control's are SF's);
+  a pop-up as wide as its widest choice, as every Mac pop-up is; bordered
+  push buttons and a pull-down; and the mini switch, 36 by 16, as the HIG
+  gives a grouped form. Orange stays for needs you, so it appears only inside the pictures
   and the glyph.
 - **What stays on screen**, named for the choice it makes, true for all
   three, Nothing included (Lee's alternative, if he prefers it later: "Show
@@ -3075,9 +3076,12 @@ reference only.
   tells the time now in the menu bar's own form, a minute at a time, a
   Claude window behind, and the banner a new ask sends where macOS puts it,
   with SitRep's own icon. Its words are a sample, as drawn. It is the
-  column's widest, 704 by 150, and crops at its right in a narrower one.
-  Under it, its caption and Send Test, a push button, which sends what the test always has: a real notification,
-  its click jumping as any would. Then Notify me of a new ask, off by
+  column's widest, 704 by 150, and in a narrower one crops at its left,
+  keeping its right, where the clock and the banner are, which the picture
+  is there to show (spec round 8 had it cropping at its right; at the
+  narrowest column that dropped the clock and most of the banner). Under
+  it, its caption and Send Test, a push button, which sends what the test
+  always has: a real notification, its click jumping as any would. Then Notify me of a new ask, off by
   default, its line "Silent; a click on it jumps to the session"; and
   macOS's own answer, "Allowed by macOS, as banners", with Notification
   Settings… for SitRep's page in System Settings.

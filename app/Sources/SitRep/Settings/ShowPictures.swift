@@ -21,7 +21,7 @@ struct ShowPictures: View {
 }
 
 /// A picture and its label, as one button, as wide as its share of the column, the picture keeping its shape
-/// (`TileFace`), lifted while the pointer is over it.
+/// (`TileFace`); not chosen, its hairline and its label brighten while the pointer is over it.
 private struct ShowTile: View {
     let choice: EdgeSettings.Show
     let isChosen: Bool
@@ -67,8 +67,7 @@ struct TileFace: View {
         let picture = RoundedRectangle(cornerRadius: Self.radius, style: .continuous)
 
         VStack(spacing: 8) {
-            EdgePicture(show: choice)
-                .aspectRatio(Self.shape, contentMode: .fit)
+            InWholePoints(shape: Self.shape) { EdgePicture(show: choice) }
                 .clipShape(picture)
                 .overlay {
                     if isChosen {
@@ -85,6 +84,24 @@ struct TileFace: View {
         }
         .frame(maxWidth: .infinity)
         .contentShape(Rectangle())
+    }
+}
+
+/// Its one view as wide as it is offered, and as tall as `shape` makes that width, rounded to whole points, so what
+/// follows lands on the drawing's points: 144 at the 704 column, where the shape alone gives 144.36.
+private struct InWholePoints: Layout {
+    let shape: CGSize
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        let width = proposal.width.flatMap { $0.isFinite ? $0 : nil } ?? shape.width
+
+        return CGSize(width: width, height: (width * shape.height / shape.width).rounded())
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        for subview in subviews {
+            subview.place(at: bounds.origin, proposal: ProposedViewSize(bounds.size))
+        }
     }
 }
 

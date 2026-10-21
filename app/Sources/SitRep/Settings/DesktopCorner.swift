@@ -4,7 +4,7 @@ import SwiftUI
 /// A top-right corner of a Mac's screen, drawn by SitRep, with the notification a new ask sends landing on it: the
 /// wallpaper, the see-through menu bar with the glyph lit and its clock telling the time now, a Claude window behind,
 /// and the banner as macOS 26 draws one, with SitRep's own icon. Its words are a sample. Drawn the column's widest, it
-/// crops at its right in a narrower one. To VoiceOver, one image.
+/// crops at its left in a narrower one, keeping the clock and the banner. To VoiceOver, one image.
 struct DesktopCorner: View {
     private static let shape = RoundedRectangle(cornerRadius: 12, style: .continuous)
     private static let size = CGSize(width: SettingsStyle.column, height: 150)
@@ -28,7 +28,7 @@ struct DesktopCorner: View {
                 .frame(maxWidth: .infinity, alignment: .trailing)
         }
         .frame(width: Self.size.width, height: Self.size.height)
-        .frame(minWidth: 0, maxWidth: Self.size.width, alignment: .leading)
+        .frame(minWidth: 0, maxWidth: Self.size.width, alignment: .trailing)
         .clipShape(Self.shape)
         .overlay(Self.shape.strokeBorder(.white.opacity(0.15), lineWidth: 0.5))
         .accessibilityElement(children: .ignore)

@@ -63,13 +63,23 @@ struct SystemControlsTests {
         #expect(button.titleOfSelectedItem == "LG")
     }
 
-    /// As a grouped form sets it: as wide as its chosen title, 123 for Main display, however wide its other choices.
-    @Test func aPopUpIsAsWideAsItsChosenTitle() throws {
+    /// A stock pop-up holding these items, as AppKit sizes one.
+    static func stock(_ items: [NSMenuItem]) -> NSPopUpButton {
+        let stock = NSPopUpButton(frame: .zero, pullsDown: false)
+
+        for item in items {
+            stock.menu?.addItem(item.isSeparatorItem ? .separator() : NSMenuItem(title: item.title, action: nil, keyEquivalent: ""))
+        }
+        return stock
+    }
+
+    /// The system's own width for its items, its widest choice's, whichever is chosen.
+    @Test func aPopUpIsTheSystemsOwnWidthForItsItems() throws {
         let main = try Self.popUp(choosing: "Main display")
         let wide = try Self.popUp(choosing: "Built-in Retina Display")
 
-        #expect(abs(main.frame.width - 123) < 0.5)
+        #expect(main.frame.size == Self.stock(main.itemArray).intrinsicContentSize)
         #expect(main.frame.height == 24)
-        #expect(wide.frame.width > main.frame.width + 40)
+        #expect(wide.frame.size == main.frame.size)
     }
 }

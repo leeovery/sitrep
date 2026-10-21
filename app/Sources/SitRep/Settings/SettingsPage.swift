@@ -149,10 +149,10 @@ struct SettingsPage: View {
         VStack(alignment: .leading, spacing: 0) {
             Color.clear.frame(height: WindowStyle.barHeight)
             PageTitle(words: "Settings")
-                // the drawing's line of 34, where the title's own is 33
-                .frame(height: 34)
                 .padding(.top, 6)
-                .padding(.bottom, 28)
+                // the drawing's 28 under a line of 34, where the title's own line is 33, so the first header stands
+                // at page y 120 and the title where a project's stands
+                .padding(.bottom, 29)
             VStack(alignment: .leading, spacing: SettingsStyle.sectionGap) {
                 StaysOnScreenSection(settings: settings)
                 notifications

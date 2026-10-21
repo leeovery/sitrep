@@ -49,9 +49,8 @@ struct Segments<Value: Hashable>: NSViewRepresentable {
     }
 }
 
-/// The system's pop-up button, its choices in sections, a separator between each two. It is as wide as its chosen
-/// title makes it, whatever its other choices, as a grouped form sets its pop-up (123 for Main display, measured on
-/// macOS 26), where AppKit's and SwiftUI's menu picker take their widest choice's width.
+/// The system's pop-up button, its choices in sections, a separator between each two, at its own width: its widest
+/// choice's.
 struct PopUp<Value: Hashable>: NSViewRepresentable {
     let label: String
     let sections: [[Value]]
@@ -100,11 +99,7 @@ struct PopUp<Value: Hashable>: NSViewRepresentable {
     }
 
     func sizeThatFits(_ proposal: ProposedViewSize, nsView button: NSPopUpButton, context: Context) -> CGSize? {
-        let chosen = NSPopUpButtonCell(textCell: title(selection), pullsDown: false)
-
-        chosen.font = button.font
-        chosen.controlSize = button.controlSize
-        return chosen.cellSize
+        button.intrinsicContentSize
     }
 
     func makeCoordinator() -> Coordinator {
