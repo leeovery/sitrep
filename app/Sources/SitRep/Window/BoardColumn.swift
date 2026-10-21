@@ -46,7 +46,7 @@ struct BoardColumn: View {
         }
     }
 
-    /// The Filter field alone, at its large size.
+    /// The Filter field alone, at its large size, which SwiftUI sets on the field.
     private var accessory: some View {
         FilterField(text: filter.text)
             .controlSize(.large)

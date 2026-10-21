@@ -14,7 +14,6 @@ struct FilterField: NSViewRepresentable {
     func makeNSView(context: Context) -> NSSearchField {
         let field = NSSearchField()
 
-        field.controlSize = .large
         field.placeholderString = Words.filter
         field.setAccessibilityLabel(Spoken.filter)
         field.sendsSearchStringImmediately = true
