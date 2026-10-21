@@ -2616,65 +2616,101 @@ stands).
 - **Two columns**, in a window of about 1100 × 720, the page the panel's
   black:
   - **the board** down the left, in the system's sidebar (see "The frame
-    is macOS's own"): every project with a session open, its sessions under
-    it. A project sits where its first session would sit in the panel, so
-    the oldest need comes first, then away, then your turn, then working;
-    its sessions keep that order. This replaces the pane's "the busiest"
-    for the window, so every surface sorts by one rule. A project's name
-    carries what waits there, in orange. Projects with nothing open fold
-    into the foot ("6 quiet projects"), a row each, each name there opening
-    its project as a project's name does: its sessions, none of them in a
-    window, and their notes (Lee, 20 October 2026: "at least interact with
-    them, view them, see them"). The head says how many need Lee and how
-    many sessions there are, or "All clear".
-    Under the head sit a Filter field and a switch between **two views**
-    of the same board, the system's search field and segmented control
-    (Paper's "The sidebar's views", round 7; Lee, 21 October 2026: "Yes,
-    I really like what you've done there. Let's go ahead and build it"):
-    - **Projects** is the board as above. **Needs you** drops the headings
-      for one flat list of every session, quiet projects' too, in the
-      panel's own order, core's rows': what needs Lee first, the oldest ask
-      first and an away session's after the live ones, then your turn, then
-      working, then away, the latest updated first. Each row names its
-      project under its own, and keeps the marks, the age and the selection
-      of a Projects row. The quiet projects' foot shows in Projects alone.
-      The view chosen is kept across launches, in a saved value of its own;
-    - **the filter** narrows the view chosen in place. A session stays while
-      every word typed appears, anywhere, in its name or its project's,
-      whatever their case and accents, so typing a project's name lists its
-      sessions; a quiet project stays while its name holds every word, or
-      while one of its sessions matches by the same rule, so Projects never
-      says nothing matches where Needs you lists a match. In Projects a
-      match stays under its project, whose count is still of all its
-      sessions. The words are lit wherever they appear in a name, a step
-      brighter than the rest: in the label colour on a name the rest of
-      which goes soft, and soft on an away session's faint one, so an away
-      row still reads as away. It never moves the pick: the page stays on
-      what was open, even with its row filtered out. ⌘F focuses the field,
-      Return in it opens the first match: in Needs you the first row; in
-      Projects the first matching session, or with none a quiet project,
-      never a project's heading, even one whose name is lit. × or Escape
-      clears it and gives the whole board back; Escape in it empty does
-      nothing, and with an answer waiting, Escape takes the answer back
-      first, as anywhere in the window. The window opens with focus on the
-      list holding the pick, the board's or Settings' at the foot, not the
-      field, and focus moves there too whenever opening it turns it to a
-      pick, as ⌘, and the menu's Settings… do. What it holds is not kept:
-      closing the window clears it;
+    is macOS's own"), as Paper's round 8 draws it, board C, "Option B, one
+    list" (Lee, 21 October 2026, of the switch between two views: "let's go
+    option B, so we get rid of the project and Needs You button"; and "I
+    like everything as it's shown"). Under the titlebar's band sits the
+    Filter field alone, the system's search field at its large size, 28
+    tall, 9 under the band and 10 over the list. Then **one list**:
+    - **Needs you** heads it: every session with an ask, the oldest first,
+      by where its first row needing Lee sits in core's rows, an away
+      session's after the live ones. Its rows are two lines, the system's
+      two-line row, 39 tall: the session's name, and its project's under it.
+      Its heading is plain words, "Needs you", with no count and no chevron,
+      which neither folds nor picks, nor changes under the pointer. With no
+      ask it goes, line and all, and nothing takes its place. It scrolls with
+      the list, every ask in it, with no cap. Nothing sets it off from the
+      projects but the 10 over every heading;
+    - **the projects** follow, every project with a session open, its
+      sessions under it. A project sits where its first session would sit in
+      the panel, so the oldest need comes first, then away, then your turn,
+      then working; its sessions keep that order. This replaces the pane's
+      "the busiest" for the window, so every surface sorts by one rule. So
+      every ask shows twice, under Needs you and under its project;
+    - **Quiet projects** end it: the projects with nothing open, a row each,
+      its name soft after an empty mark, each opening its project as a
+      project's name does: its sessions, none of them in a window, and their
+      notes (Lee, 20 October 2026: "at least interact with them, view them,
+      see them").
+    - **A heading is a row of the list**, not the system's section header,
+      whose chevron hides at rest and alone folds: 24 tall, 10 under the rows
+      before it, or 2 under the list's top for the first. A click anywhere on
+      a project's heading or on Quiet projects' folds what is under it, or
+      unfolds it, and never moves the pick. Its chevron always shows which
+      way it is, down open and right folded, in the tertiary label colour, a
+      step brighter under the pointer. A project's name is soft, and while it
+      is folded and holds asks, the number of its sessions with one sits
+      before the chevron in orange; open, the orange dots under it say so.
+      Folded, a project keeps its place, its asks still showing under Needs
+      you, and picked there; the pick inside a folded project stays, its page
+      too, its selection hidden until it unfolds. The folds are kept across
+      launches, a set of the projects folded and whether Quiet projects is,
+      in the window's saved value of its own; Quiet projects starts open. A
+      project's fold is kept while it is off the board, so it comes back
+      folded as it left; nothing prunes the folds of projects gone for good,
+      which cost a word each. While the filter holds text every project with a match shows open, and
+      the folds come back as they were when it clears; a heading clicked
+      meanwhile folds only until then;
+    - **a session's row** is 32 tall, its mark in a 26-wide slot at the
+      system's icon centre, its name from where the system starts a label's
+      title, and on a row with an ask, only there, how long the ask has
+      waited, in tabular figures. Its words are in the system's label
+      colours, the name the primary and the rest the secondary or the
+      tertiary, so the system's emphasized selection turns them white by
+      itself; the orange stays orange. Its marks are drawn still: the ask's
+      orange dot, your turn's soft ring, working's still arc on a faint
+      track, away's faint dot, its name faint. Nothing in the sidebar turns;
+    - **the filter** narrows the list in place, Needs you and the projects
+      by one rule. A session stays while every word typed appears, anywhere,
+      in its name or its project's, whatever their case and accents, so
+      typing a project's name lists its sessions; a quiet project stays
+      while its name holds every word, or while one of its sessions matches
+      by the same rule. A match with an ask shows in both places; Needs
+      you's heading goes when none of its rows match; a match stays under its
+      project, whose count is still of all its sessions. The words are lit
+      wherever they appear in a name, a step brighter than the rest: in the
+      label colour on a name the rest of which goes soft, and soft on an
+      away session's faint one, so an away row still reads as away. It never
+      moves the pick: the page stays on what was open, even with its row
+      filtered out. ⌘F focuses the field, Return in it opens the first
+      match, the list's first row that picks, as it shows: a session under
+      Needs you, else under its project, else a quiet project, never a
+      heading, even one whose name is lit, nor a row a fold made while
+      filtering hides. × or Escape clears it and gives the whole board
+      back; Escape in it empty does nothing, and with an answer waiting,
+      Escape takes the answer back first, as anywhere in the window. The
+      window opens with focus on the list holding the pick, the board's or
+      Settings' at the foot, not the field, and focus moves there too
+      whenever opening it turns it to a pick, as ⌘, and the menu's Settings…
+      do. What it holds is not kept: closing the window clears it;
     - **decided for round 7** (21 October 2026, as the design pointed):
-      a filter that keeps nothing says so in one centred line, "No sessions
-      match “ledg”", the field's text in the quotes, and an empty board keeps
-      the words it has; the match is the rule above; and the field carries
-      no "⌘F" hint, which the system's field does not draw. Needs you lists
-      every session, so it is empty only when the board is.
-    - **its foot is Settings**, a row with the system's gear, fixed under
-      a hairline as the list runs on under it (see "Settings"): the
-      hairline inside the sidebar's 10 either side, 8 under it the row,
-      32 tall, then 10 to the window's foot, the system's list setting its
-      row 10 in from its top and its bottom as measured offscreen (whether
-      it does so on screen too is still to see); the list fades out under
-      it by the system's own soft scroll edge, on macOS 26 only, never a
-      drawn gradient over the glass. Picked,
+      a filter that keeps nothing anywhere says so in one centred line, "No
+      sessions match “ledg”", the field's text in the quotes, and an empty
+      board says how the board stands in the same place, as the panel's head
+      words it; the match is the rule above; and the field carries no "⌘F"
+      hint, which the system's field does not draw.
+    - **its foot is Settings**, a row with the system's gear in the accent,
+      fixed under a rule as the list runs on under it (see "Settings"): the
+      rule 0.5 tall in the separator colour, inside the sidebar's 10 either
+      side, 8 under it the row, 32 tall, then 10 to the glass's foot. A
+      window on screen gives the sidebar a bottom safe area that one
+      offscreen does not, which the foot's bar took into its height and its
+      list into its insets: round 7's foot rose by it, live, 24.5 under its
+      hairline and 20 over the glass's foot. So the sidebar ignores that safe
+      area, and the foot, still the system's bar over the list, sits on the
+      glass's foot. The list's last row ends 12 over the rule. The list fades
+      out under it by the bar's own soft scroll edge, on macOS 26 only, never
+      a drawn gradient over the glass. Picked,
       Settings shows on the right, where a session would, and the board's
       list holds no selection while it shows; the foot's row takes the
       system's own selection, as a list of its own. A click on a session
@@ -2740,7 +2776,23 @@ stands).
 - **The board is a list with a selection**, in the sidebar's style: the
   session or project picked is the list's selection, drawn by the system,
   and nothing clears it, neither a click in the list's blank space nor on
-  the row picked. The arrow keys move it, each step a pick; picks that
+  the row picked. A session with an ask shows twice, so the selection says
+  which of its two rows is picked, while the page follows the session: the
+  row clicked; for a pick made outside the list, a restore at launch, the
+  menu opening a session, the Filter field's Return, its row under Needs
+  you while the ask stands, else its project's; and when the ask clears
+  under its Needs you row, its project's, the page staying; with no board
+  to read, nothing has cleared, and the pick stays under Needs you. A project's
+  page shows as picked on its heading, 24 tall, though a click there only
+  folds: the system's list selects no row a click cannot pick (measured
+  offscreen), so the heading draws the system's selection colours itself,
+  the accent while the list has the key window's focus, else the grey. The
+  arrow keys move the selection through the list's own rows, a doubled
+  session's two among them, past the headings, each step a pick; from a
+  heading showing its project's page, which holds no selection, ↓ goes to
+  the first row after it and ↑ to the last before it, and from a pick a
+  fold hides as from the heading it is folded under; past either end the
+  keys go nowhere, and with a modifier held they are the list's own; picks that
   follow sooner than 150ms read only the last one's boards once they stop.
   With the Mac's key repeat faster than that, holding ↓ reads the first
   row, the second, as the Mac waits longer before a key repeats, and the
@@ -2752,20 +2804,20 @@ stands).
   presses of a key; closing or minimising the window lets the hold go. The
   row picked scrolls into view, only as far as it needs, whenever the pick
   or the order changes: a pick made elsewhere, by a jump, a notification
-  or the menu, or before the window shows, and a resort. Its head, the "N
-  need you" and the count, stays put above the rows as they scroll; the
-  project groups, their counts, the sessions' marks and ages and the quiet
-  projects keep the window's own type and colours.
+  or the menu, or before the window shows, and a resort or a fold. The
+  Filter field stays put above the rows as they scroll.
 - **Under the pointer** (Lee, 20 October 2026: "When I hover down the
   left-hand side, nothing highlights"; then, of glass highlights over the
   rows, "a very deeply translucent, blurred bar"):
   - a row of the sidebar not picked shows a quiet plain fill behind it,
     white at 6%, never over its words, anywhere the pointer is on the row;
-    the one picked keeps the system's selection. While that selection is
-    the accent, the window key and the list holding its focus, every soft
-    or faint word on the row goes white, and its mark's greys too, the
-    working arc's track a dimmer white (Lee, 21 October 2026); its orange
-    stays orange. A session new to needing
+    the one picked keeps the system's selection. A heading shows no fill,
+    only its chevron a step brighter; Needs you's shows nothing. While the
+    selection is the accent, the window key and the list holding its focus,
+    the system turns the row's words white and its soft words and marks a
+    softer white, as on its own rows, the sidebar's words being in its label
+    colours (Lee, 21 October 2026);
+    its orange stays orange. A session new to needing
     Lee washes the whole row orange, in the selection's shape. There is no
     glass highlight anywhere;
   - on the page, a line that opens, a project's session or ask, and a
@@ -2773,15 +2825,15 @@ stands).
   - every button shows a hover: the pills, the jump, the project's name
     above a session, "show all".
 - **Keyboard focus is the system's.** In the sidebar the selection is the
-  focus. The page's buttons and the view switch take focus, each showing
+  focus. The page's buttons take focus, each showing
   the system's own ring, shaped to it, a pill's ring a pill, only while the
   Mac's Keyboard navigation setting is on, as in any Mac app. Lee, 20
   October 2026, of a white outline of SitRep's own, which showed round a
   row untabbed and, tabbed, as "a strange kind of border or ring around
   the option, which is not very Mac-like at all"; before it, the system's
   blue square ring, where SitRep had made every button take focus. The
-  order is the Mac's own: the Filter field first, then the view switch,
-  then the board's list, the arrows inside it, then its foot, Settings,
+  order is the Mac's own: the Filter field first, then the board's list,
+  the arrows inside it, then its foot, Settings,
   then the page's buttons. With Keyboard navigation off, Tab stops at the
   field, the board's list and the foot alone. Two keys move between the
   sides, through AppKit's key views: Return in the sidebar, anywhere but
@@ -2795,10 +2847,12 @@ stands).
   - a sidebar row is one element: its session, its project, its state
     (needs you, your turn, working, away) and its age, as "The Mac app,
     SitRep, needs you, 5 hours"; an away session with something waiting
-    reads "needs you, away". A project's name reads its count of what
-    waits there, "SitRep, 3 waiting", or "Kit, nothing waiting", and a
-    quiet one "Kit, quiet project". A Needs you row reads as a Projects row
-    does, and the Filter field as "Filter sessions";
+    reads "needs you, away". A project's heading reads its count of what
+    waits there, "SitRep, 3 waiting", or "Kit, nothing waiting", and
+    folded says so, "Kit, nothing waiting, folded"; Quiet projects' reads
+    "Quiet projects", and a quiet project's row "Kit, quiet project". A
+    Needs you row reads as its project's row does, and the Filter field as
+    "Filter sessions";
   - the page's title, the eyebrow and the section headings carry the
     header trait, each heading read with the words on its right, as
     "Asks, 3 waiting";

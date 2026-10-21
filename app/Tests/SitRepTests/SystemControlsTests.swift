@@ -18,34 +18,6 @@ struct SystemControlsTests {
         view.subviews.lazy.compactMap { $0 as? Control ?? find(kind, in: $0) }.first
     }
 
-    @Test func aSegmentedControlFillsItsWidthInEqualSegments() throws {
-        let control = try Self.hosted(
-            Segments(label: "Edge", values: ["Left", "Right"], title: \.self, selection: .constant("Right")).frame(width: 200),
-            NSSegmentedControl.self
-        )
-
-        #expect(control.frame.width == 200)
-        #expect(control.segmentDistribution == .fillEqually)
-        #expect(control.selectedSegment == 1)
-        #expect(control.accessibilityLabel() == "Edge")
-    }
-
-    @Test func aSegmentedControlTakesItsSegmentsAgainAsTheyChange() throws {
-        let segments = { (values: [String]) in
-            Segments(label: "Edge", values: values, title: \.self, selection: .constant("Right")).frame(width: 200)
-        }
-        let hosting = NSHostingView(rootView: segments(["Left", "Right"]))
-
-        hosting.frame = CGRect(x: 0, y: 0, width: 300, height: 60)
-        hosting.layoutSubtreeIfNeeded()
-        hosting.rootView = segments(["Left", "Middle", "Right"])
-        hosting.layoutSubtreeIfNeeded()
-        let control = try #require(Self.find(NSSegmentedControl.self, in: hosting))
-
-        #expect((0..<control.segmentCount).map { control.label(forSegment: $0) } == ["Left", "Middle", "Right"])
-        #expect(control.selectedSegment == 2)
-    }
-
     private static func popUp(choosing chosen: String) throws -> NSPopUpButton {
         try Self.hosted(
             PopUp(

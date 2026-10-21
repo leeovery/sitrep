@@ -1,20 +1,57 @@
 import SitRepCore
 import SitRepEdge
+import SitRepPanel
 
-/// The sidebar's two views of the board, Lee's choice at its top: Projects, each project's sessions under its name,
-/// as the board reads; Needs you, every session in one flat list, in the panel's order.
-public enum Sidebar: String, Codable, CaseIterable, Sendable, Identifiable {
-    case projects, needsYou
-
-    public var id: Self { self }
+/// A part of the sidebar's list that folds under its heading: a project, by its key, or the quiet projects.
+public enum Fold: Hashable, Sendable {
+    case project(String)
+    case quiet
 }
 
-/// What Lee sets in the sidebar, saved as one value of its own under the key "window": its view, kept across
+/// What is folded: the projects, by their keys, and whether the quiet projects are. Nothing is, at first. A project's
+/// fold outlives its leaving the board, so it comes back folded; none is ever pruned.
+public struct Folds: Codable, Equatable, Sendable {
+    public var projects: Set<String> = []
+    public var quiet = false
+
+    public init() {}
+
+    public init(from decoder: any Decoder) {
+        let defaults = Folds()
+        guard let given = try? decoder.container(keyedBy: CodingKeys.self) else {
+            self = defaults
+            return
+        }
+
+        projects = given.value(.projects, or: defaults.projects)
+        quiet = given.value(.quiet, or: defaults.quiet)
+    }
+
+    public func contains(_ fold: Fold) -> Bool {
+        switch fold {
+        case let .project(key): projects.contains(key)
+        case .quiet: quiet
+        }
+    }
+
+    /// Folded, or unfolded where it was.
+    public mutating func toggle(_ fold: Fold) {
+        switch fold {
+        case let .project(key):
+            if projects.remove(key) == nil {
+                projects.insert(key)
+            }
+        case .quiet: quiet.toggle()
+        }
+    }
+}
+
+/// What Lee sets in the sidebar, saved as one value of its own under the key "window": its folds, kept across
 /// launches.
 public struct SidebarSettings: SavedValue {
     public static let key = "window"
 
-    public var sidebar = Sidebar.projects
+    public var folds = Folds()
 
     public init() {}
 
@@ -25,51 +62,215 @@ public struct SidebarSettings: SavedValue {
             return
         }
 
-        sidebar = given.value(.sidebar, or: defaults.sidebar)
-    }
-}
-
-extension Listed {
-    /// Every session on the board in the panel's order, core's rows': by where its first row sits, so what needs Lee
-    /// comes first, the oldest ask first and an away session's after the live ones, then your turn, then working. Those
-    /// with no row, away with nothing waiting, come after, the latest updated first, as core orders a project's.
-    static func flat(_ board: Board) -> [Row] {
-        let every = board.projects.flatMap { project in project.sessions.map { (session: $0, project: project) } }
-        let byID = Dictionary(every.map { ($0.session.id, $0) }) { first, _ in first }
-        var placed = Set<String>()
-        let withRows = board.rows.map(\.session).filter { placed.insert($0).inserted }.compactMap { byID[$0] }
-        let away = every.filter { !placed.contains($0.session.id) }.sorted { $0.session.isNewer(than: $1.session) }
-
-        return (withRows + away).map { Row($0.session, of: $0.project) }
-    }
-
-    /// The first session this view lists, or with none the first quiet project: what Return in the Filter field opens.
-    public func first(in sidebar: Sidebar) -> Pick? {
-        switch sidebar {
-        case .projects: sessions.first.map { .session($0.id) } ?? quiet.first?.pick
-        case .needsYou: flat.first.map { .session($0.id) }
-        }
-    }
-
-    /// This view lists nothing.
-    public func isEmpty(in sidebar: Sidebar) -> Bool {
-        first(in: sidebar) == nil
-    }
-}
-
-private extension Board.Session {
-    /// Updated later, or as late and first by its id: core/feed.ts's order of a project's sessions with no row.
-    func isNewer(than other: Board.Session) -> Bool {
-        updatedAt != other.updatedAt ? updatedAt > other.updatedAt : id < other.id
+        folds = given.value(.folds, or: defaults.folds)
     }
 }
 
 extension SavedSettings where Value == SidebarSettings {
-    /// The view Lee chose, kept with whatever else the sidebar's settings hold.
-    public func save(_ sidebar: Sidebar) {
+    /// The folds as Lee left them, kept with whatever else the sidebar's settings hold.
+    public func save(_ folds: Folds) {
         var settings = read()
 
-        settings.sidebar = sidebar
+        settings.folds = folds
         save(settings)
+    }
+}
+
+/// A row of the sidebar's list that shows the pick: a session's under Needs you, or the pick's own place on the
+/// board, a session under its project, a project's heading or a quiet project's row. A session with an ask shows
+/// twice, so the selection says which of its rows is picked, while the page follows the session.
+public enum Spot: Hashable, Sendable {
+    case needsYou(String)
+    case board(Pick)
+
+    public var pick: Pick {
+        switch self {
+        case let .needsYou(session): .session(session)
+        case let .board(pick): pick
+        }
+    }
+
+    /// Where a pick made outside the list shows, by a restore at launch, the menu or the Filter field's Return: a
+    /// session under Needs you while it has an ask, else under its project; Settings on no row of the board.
+    static func of(_ pick: Pick?, in listed: Listed) -> Spot? {
+        switch pick {
+        case let .session(id)? where listed.needsYou.contains { $0.id == id }: .needsYou(id)
+        case .settings?, nil: nil
+        case let pick?: .board(pick)
+        }
+    }
+}
+
+/// The sidebar's list as it shows, one list, in order: Needs you, every session with an ask, the oldest first, under
+/// a plain heading; then each project under its heading, in the board's order; then the quiet projects under theirs.
+/// A folded project or the quiet projects show their heading alone; while the filter holds text, the folds Lee set
+/// stand aside (`WindowRun.folds`).
+public struct Sidebar: Equatable, Sendable {
+    /// A heading that folds what is under it: a project's, or the quiet projects'.
+    public struct Heading: Equatable, Sendable {
+        public let fold: Fold
+        public let name: String
+        public let isFolded: Bool
+        /// Its sessions with an ask, of all of them, filtered or not.
+        public let asking: Int
+        /// What waits on Lee there, asks and stops alike, as VoiceOver reads it.
+        public let waiting: Int
+
+        /// The orange count: only while it is folded, and only when it holds asks.
+        public var count: Int? {
+            isFolded && asking > 0 ? asking : nil
+        }
+    }
+
+    public enum Line: Equatable, Sendable, Identifiable {
+        /// "Needs you": plain words, which neither fold nor pick.
+        case needsYou
+        case asking(Listed.Row)
+        case heading(Heading)
+        case session(Listed.Row)
+        case quiet(Listed.Quiet)
+
+        public var id: ID {
+            if let spot {
+                return .spot(spot)
+            }
+            return self == .needsYou ? .needsYou : .quietHeading
+        }
+
+        /// The row of it that shows the pick, if it can show one.
+        public var spot: Spot? {
+            switch self {
+            case .needsYou: nil
+            case let .asking(row): .needsYou(row.id)
+            case let .heading(heading):
+                if case let .project(key) = heading.fold { .board(.project(key)) } else { nil }
+            case let .session(row): .board(.session(row.id))
+            case let .quiet(project): .board(project.pick)
+            }
+        }
+
+        public enum ID: Hashable, Sendable {
+            case needsYou, quietHeading
+            case spot(Spot)
+        }
+    }
+
+    /// How the board stands, for the list's place where it lists nothing.
+    public let head: Head
+    public let lines: [Line]
+    /// The rows a fold hides, each by the heading it is folded under.
+    private let folded: [Spot: Line.ID]
+
+    public init() {
+        self.init(Listed(), folds: Folds())
+    }
+
+    /// The list, folded as given.
+    public init(_ listed: Listed, folds: Folds) {
+        head = listed.head
+        lines = Self.needsYou(listed) + listed.projects.flatMap { Self.lines(of: $0, folds: folds) }
+            + Self.quiet(listed.quiet, isFolded: folds.quiet)
+        folded = Self.folded(listed, by: folds)
+    }
+
+    private static func folded(_ listed: Listed, by folds: Folds) -> [Spot: Line.ID] {
+        let projects = listed.projects.filter { folds.contains(.project($0.id)) }.flatMap { project in
+            project.sessions.map { (Spot.board(.session($0.id)), Line.ID.spot(.board(.project(project.id)))) }
+        }
+        let quiet = folds.quiet ? listed.quiet.map { (Spot.board($0.pick), Line.ID.quietHeading) } : []
+
+        return Dictionary(projects + quiet) { first, _ in first }
+    }
+
+    private static func needsYou(_ listed: Listed) -> [Line] {
+        listed.needsYou.isEmpty ? [] : [.needsYou] + listed.needsYou.map(Line.asking)
+    }
+
+    private static func lines(of project: Listed.Project, folds: Folds) -> [Line] {
+        let fold = Fold.project(project.id)
+        let heading = Heading(
+            fold: fold, name: project.name, isFolded: folds.contains(fold), asking: project.asking,
+            waiting: project.waiting
+        )
+
+        return [.heading(heading)] + (heading.isFolded ? [] : project.sessions.map(Line.session))
+    }
+
+    private static func quiet(_ quiet: [Listed.Quiet], isFolded: Bool) -> [Line] {
+        guard !quiet.isEmpty else {
+            return []
+        }
+
+        let heading = Heading(fold: .quiet, name: Words.quietProjects, isFolded: isFolded, asking: 0, waiting: 0)
+
+        return [.heading(heading)] + (isFolded ? [] : quiet.map(Line.quiet))
+    }
+
+    /// It lists nothing.
+    public var isEmpty: Bool { lines.isEmpty }
+
+    /// The rows a click or an arrow key picks, in order: every row but the headings.
+    public var picks: [Spot] {
+        lines.compactMap { line in
+            switch line {
+            case .needsYou, .heading: nil
+            case .asking, .session, .quiet: line.spot
+            }
+        }
+    }
+
+    /// The first row it shows that picks, a folded project's hidden rows none of them: what Return in the Filter
+    /// field opens.
+    public var first: Pick? {
+        picks.first?.pick
+    }
+
+    /// Where an arrow key goes from the pick where the list holds no selection on it.
+    public enum Step: Equatable, Sendable {
+        /// To this row.
+        case to(Spot)
+        /// Nowhere: no row that picks lies that way.
+        case stays
+        /// The list's own way, from the row it selects, or from a pick it does not show, as one filtered out.
+        case listsOwn
+    }
+
+    /// An arrow key from the pick: from a heading showing it, its project's page open, or from a row folded under a
+    /// heading, which stands at that heading, to the first row that picks after the heading, going down, or the last
+    /// before it, going up.
+    public func step(from spot: Spot?, down: Bool) -> Step {
+        guard let spot, let place = heading(showing: spot) else {
+            return .listsOwn
+        }
+
+        let picking = Set(picks)
+        let beyond = down ? Array(lines[(place + 1)...]) : lines[..<place].reversed()
+
+        return beyond.lazy.compactMap(\.spot).first(where: picking.contains).map(Step.to) ?? .stays
+    }
+
+    /// Where the heading standing for the pick sits: its own, picked, or the one its row is folded under.
+    private func heading(showing spot: Spot) -> Int? {
+        let id = folded[spot] ?? .spot(spot)
+
+        return lines.firstIndex { line in
+            guard line.id == id, case .heading = line else {
+                return false
+            }
+            return true
+        }
+    }
+}
+
+extension Listed {
+    /// Every session with an ask, the oldest first: by where its first row needing Lee sits in the panel's order,
+    /// core's rows', an away session's after the live ones.
+    static func needsYou(_ board: Board) -> [Row] {
+        let every = board.projects.flatMap { project in project.sessions.map { (session: $0, project: project) } }
+        let byID = Dictionary(every.map { ($0.session.id, $0) }) { first, _ in first }
+        var placed = Set<String>()
+
+        return board.rows.filter(\.needsLee).map(\.session).filter { placed.insert($0).inserted }
+            .compactMap { byID[$0] }.map { Row($0.session, of: $0.project) }
     }
 }

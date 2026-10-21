@@ -4,7 +4,8 @@ import SitRepPanel
 /// What VoiceOver reads of the window, in words, where its marks, counts and times would read as symbols.
 public enum Spoken {
     /// A session's row in the sidebar, one element: its name, its project, its state and its time, as "The Mac app,
-    /// SitRep, needs you, 5 hours", in either view. Away with something waiting, it needs Lee and is away.
+    /// SitRep, needs you, 5 hours", under Needs you or its project. Away with something waiting, it needs Lee and is
+    /// away.
     public static func row(_ row: Listed.Row, at now: Date) -> String {
         let state = row.isAway && row.mark != .away ? "\(mark(row.mark)), away" : mark(row.mark)
 
@@ -14,15 +15,18 @@ public enum Spoken {
     /// The sidebar's Filter field.
     public static let filter = "Filter sessions"
 
-    /// The sidebar's switch between its views.
-    public static let sidebar = "View"
+    /// A heading in the sidebar that folds: a project's, its name and what waits there, as "SitRep, 3 waiting", or the
+    /// quiet projects'; and, folded, that it is.
+    public static func heading(_ heading: Sidebar.Heading) -> String {
+        let name = switch heading.fold {
+        case .project: "\(heading.name), \(heading.waiting == 0 ? "nothing waiting" : Words.waiting(heading.waiting))"
+        case .quiet: heading.name
+        }
 
-    /// A project's heading in the sidebar: its name and what waits there.
-    public static func project(_ project: Listed.Project) -> String {
-        "\(project.name), \(project.waiting == 0 ? "nothing waiting" : Words.waiting(project.waiting))"
+        return heading.isFolded ? "\(name), folded" : name
     }
 
-    /// A project in the sidebar's foot, with nothing open.
+    /// A quiet project's row in the sidebar, with nothing open.
     public static func quiet(_ project: Listed.Quiet) -> String {
         "\(project.name), quiet project"
     }

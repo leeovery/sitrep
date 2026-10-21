@@ -136,7 +136,11 @@ struct SettingsStillsTests {
     /// The sidebar's foot as the window lays it out, Settings picked: the system's own list in the list's bar, over
     /// black where the glass would be, which nothing offscreen draws.
     @Test func theFootInTheWindow() throws {
-        let drawing = try Foot.laidOut().drawing
+        let run = HostedSidebar.opened()
+
+        _ = run.pick(.settings)
+
+        let drawing = try HostedSidebar(run).drawn().bitmap
         let rect = NSRect(x: 0, y: 0, width: drawing.pixelsWide, height: drawing.pixelsHigh)
         let still = try #require(NSBitmapImageRep(
             bitmapDataPlanes: nil, pixelsWide: drawing.pixelsWide, pixelsHigh: drawing.pixelsHigh, bitsPerSample: 8,

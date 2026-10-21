@@ -3,15 +3,15 @@ import Foundation
 /// The order the board's list shows its projects and sessions in: `watch`'s, but held while the pointer is over the
 /// list and for a second after it leaves, as the strip holds its marks, so a change shows in place; and held for a
 /// second after each pick made in the list, so no row moves between two presses of an arrow key. A session new to
-/// needing Lee moves in at once, to where `watch` has it, its project with it, the rows below sliding. The Needs you
-/// view's flat list is held alike.
+/// needing Lee moves in at once, to where `watch` has it, its project with it, the rows below sliding. Needs you is
+/// held alike.
 public struct HeldOrder: Equatable, Sendable {
     /// How long after the pointer leaves the list, or after the last pick made in it, it takes `watch`'s order.
     public static let settle: TimeInterval = 1
 
     private var projects: [String] = []
     private var sessions: [String: [String]] = [:]
-    private var flat: [String] = []
+    private var needsYou: [String] = []
     private var isPointerIn = false
     /// When the list takes `watch`'s order, a second after the pointer left it or the last pick made in it.
     public private(set) var resortsAt: Date?
@@ -32,9 +32,9 @@ public struct HeldOrder: Equatable, Sendable {
             sessions = core.sessions.reduce(into: [:]) { held, project in
                 held[project.key] = Self.merge(sessions[project.key] ?? [], into: project.value, moving: moving)
             }
-            flat = Self.merge(flat, into: core.flat, moving: moving)
+            needsYou = Self.merge(needsYou, into: core.needsYou, moving: moving)
         } else {
-            (projects, sessions, flat) = core
+            (projects, sessions, needsYou) = core
         }
         return arranged(listed)
     }
@@ -84,15 +84,17 @@ public struct HeldOrder: Equatable, Sendable {
             project.sessions = project.sessions.sorted(by: sessions[project.id] ?? [])
             return project
         }
-        arranged.flat = listed.flat.sorted(by: flat)
+        arranged.needsYou = listed.needsYou.sorted(by: needsYou)
         return arranged
     }
 
-    private static func order(of listed: Listed) -> (projects: [String], sessions: [String: [String]], flat: [String]) {
+    private static func order(
+        of listed: Listed
+    ) -> (projects: [String], sessions: [String: [String]], needsYou: [String]) {
         (
             listed.projects.map(\.id),
             Dictionary(listed.projects.map { ($0.id, $0.sessions.map(\.id)) }) { first, _ in first },
-            listed.flat.map(\.id)
+            listed.needsYou.map(\.id)
         )
     }
 

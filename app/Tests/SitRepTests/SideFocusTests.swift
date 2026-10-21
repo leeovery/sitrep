@@ -295,14 +295,14 @@ private struct Sides {
     }
 
     /// The board's list as the real `watch` first printed it.
-    fileprivate static let listed = {
+    fileprivate static let sidebar = {
         var last = LastBoard()
         let run = WindowRun()
 
         last.begin()
         _ = last.hear(.line(Lines.watch[0]), at: Date())
         _ = run.show(last, at: Date(), reducesMotion: false)
-        return run.listed(at: Date())
+        return run.sidebar(at: Date())
     }()
 
     /// Keyboard focus is in the Filter field, its field editor inside it.
@@ -377,7 +377,10 @@ private struct Column: View {
     let asked: Asked
 
     var body: some View {
-        BoardColumn(listed: Sides.listed, pick: pick, sidebar: .projects, filter: filter, now: Date())
+        BoardColumn(
+            sidebar: Sides.sidebar, spot: pick.flatMap { $0 == .settings ? nil : .board($0) }, pick: pick, filter: filter,
+            now: Date()
+        )
             .environment(\.windowActions, WindowActions(openFirstMatch: { [asked] in asked.opens += 1 }))
     }
 }

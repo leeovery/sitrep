@@ -1,77 +1,67 @@
 import AppKit
 @testable import SitRep
-import SitRepWindow
+@testable import SitRepWindow
 import SwiftUI
 import Testing
 
-/// Settings at the sidebar's foot as the window lays it out, made, never shown: the whole sidebar in the window's
-/// split, the foot in the list's bar, against spec 2.6: its hairline, 8, its row 32 tall, then 10.
+/// Settings at the sidebar's foot as the window lays it out, against spec 2.5: a rule of 0.5, 276 wide and centred, 8
+/// under it the row, 32 tall, then 10 to the glass's foot; the list running on under it, its last row 12 over the rule.
+/// A window on screen gives the sidebar a bottom safe area that an offscreen one does not: with it, round 7's foot, a
+/// bar over the list, rose by the safe area and its row with it, 20 over the glass's foot as Lee's window showed it
+/// (10 reproduces his capture's row exactly). So each holds whatever bottom safe area the sidebar has.
 @MainActor
 struct SettingsFooterTests {
-    @Test func itsRowIs32Tall8UnderItsHairlineAnd10AboveTheSidebarsFoot() throws {
-        let foot = try Foot.laidOut()
+    @Test(arguments: [0, 10, 27.5])
+    func theFootIsARuleThen8ThenItsRow32Then10ToTheGlasssFoot(bottomSafeArea: CGFloat) throws {
+        let run = HostedSidebar.opened()
 
-        #expect(abs(foot.row.height - 32) < 0.5)
-        #expect(abs(foot.hairline.height - 1) < 0.5)
-        // the window's points count up from its bottom
-        #expect(abs(foot.hairline.minY - foot.row.maxY - 8) < 0.5)
-        #expect(abs(foot.row.minY - foot.bottom - 10) < 0.5)
-    }
-}
+        _ = run.pick(.settings)
 
-/// The foot as the window lays it out: its row, the system's own, and its hairline, found in the sidebar's drawing, in
-/// the window's points; the sidebar's bottom; and the drawing.
-@MainActor
-struct Foot {
-    let row: CGRect
-    let hairline: CGRect
-    let bottom: CGFloat
-    let drawing: NSBitmapImageRep
+        let side = try HostedSidebar(run, bottomSafeArea: bottomSafeArea)
+        let row = try side.footRow()
+        let drawn = try side.drawn()
+        let above = CGRect(x: 0, y: row.minY - 20 - side.glassTop, width: 296, height: 20)
+        let rule = try #require(drawn.drawnBox(in: above, ground: CGPoint(x: 4, y: above.midY)))
 
-    static func laidOut() throws -> Foot {
-        let sidebar = NSHostingController(
-            rootView: BoardColumn(listed: Listed(), pick: .settings, sidebar: .projects, filter: Filter(), now: Date())
-        )
-        sidebar.sizingOptions = []
-
-        let window = SitRepWindow.window(SitRepWindow.split(sidebar: sidebar, page: NSHostingController(rootView: Color.clear)))
-
-        window.contentView?.layoutSubtreeIfNeeded()
-
-        let view = sidebar.view
-        let table = try #require(tables(in: view).first { $0.numberOfRows == 1 })
-        let frame = view.convert(view.bounds, to: nil)
-        let drawing = try #require(view.bitmapImageRepForCachingDisplay(in: view.bounds))
-
-        view.cacheDisplay(in: view.bounds, to: drawing)
-
-        return Foot(
-            row: table.convert(table.rect(ofRow: 0), to: nil),
-            hairline: try hairline(in: drawing, of: frame),
-            bottom: frame.minY,
-            drawing: drawing
-        )
+        #expect(row.height == 32)
+        #expect(side.glassBottom - row.maxY == 10)
+        #expect(rule.height == 0.5)
+        #expect(rule.minX == 10 && rule.maxX == 286)
+        #expect(row.minY - side.glassTop - rule.maxY == 8)
+        #expect(side.foot?.selectedRow == 0)
     }
 
-    /// The hairline's lines of pixels, `#FFFFFF14` over the sidebar's clear, down the middle of the sidebar's foot.
-    private static func hairline(in drawing: NSBitmapImageRep, of frame: CGRect) throws -> CGRect {
-        let scale = CGFloat(drawing.pixelsHigh) / frame.height
-        let foot = drawing.pixelsHigh - Int((SettingsFooter.height + 10) * scale)
-        let lines = (foot..<drawing.pixelsHigh).filter { y in
-            let alpha = drawing.colorAt(x: Int(frame.width / 2 * scale), y: y)?.alphaComponent ?? 0
+    /// In a window too short for the board, scrolled to its end.
+    @Test(arguments: [0, 10, 27.5])
+    func theListRunsOnUnderTheFootItsLastRow12OverTheRule(bottomSafeArea: CGFloat) throws {
+        let side = try HostedSidebar(HostedSidebar.opened(), height: 400, bottomSafeArea: bottomSafeArea)
+        let scroll = try #require(side.board.enclosingScrollView)
+        let clip = scroll.contentView
+        let end = side.board.frame.height - clip.bounds.height + scroll.contentInsets.bottom
 
-            return abs(alpha - Double(0x14) / 255) < 0.01
-        }
-        let top = try #require(lines.first)
-        let bottom = try #require(lines.last)
+        clip.scroll(to: NSPoint(x: 0, y: end))
+        scroll.reflectScrolledClipView(clip)
 
-        return CGRect(
-            x: frame.minX, y: frame.maxY - CGFloat(bottom + 1) / scale,
-            width: frame.width, height: CGFloat(bottom + 1 - top) / scale
-        )
+        let last = try #require(side.rows.last)
+        let rule = try side.footRow().minY - WindowStyle.footerTop - WindowStyle.footerRule
+
+        #expect(side.frame(of: scroll).maxY == side.glassBottom)
+        #expect(rule - last.maxY == 12)
     }
 
-    private static func tables(in view: NSView) -> [NSTableView] {
-        view.subviews.flatMap { ($0 as? NSTableView).map { [$0] } ?? tables(in: $0) }
+    /// The gear centred on the mark's slot, at 29, in the accent; "Settings" at a title's 46.
+    @Test func itsRowIsASessionRowsGearAndWord() throws {
+        let side = try HostedSidebar(HostedSidebar.opened())
+        let drawn = try side.drawn()
+        let row = try side.footRow().offsetBy(dx: 0, dy: -side.glassTop)
+        let ground = CGPoint(x: 4, y: row.midY)
+        let gear = try #require(drawn.drawnBox(in: CGRect(x: 16, y: row.minY, width: 26, height: 32), ground: ground))
+        let word = try #require(drawn.drawnBox(in: CGRect(x: 42, y: row.minY, width: 150, height: 32), ground: ground))
+        let accent = try drawn.brightest(in: gear)
+
+        #expect(abs(gear.midX - 29) <= 0.5 && abs(gear.width - 15) <= 1)
+        #expect(abs(gear.midY - row.midY) <= 0.5)
+        #expect((46 ... 47.5).contains(word.minX))
+        #expect(accent.blueComponent > 0.8 && accent.redComponent < 0.4)
     }
 }

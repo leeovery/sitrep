@@ -1,54 +1,6 @@
 import AppKit
 import SwiftUI
 
-/// The system's segmented control, as wide as it is given, its segments equal, as the sidebar's switch spans the
-/// sidebar: SwiftUI's segmented picker keeps to its words' widths.
-struct Segments<Value: Hashable>: NSViewRepresentable {
-    let label: String
-    let values: [Value]
-    let title: (Value) -> String
-    @Binding var selection: Value
-
-    func makeNSView(context: Context) -> NSSegmentedControl {
-        let control = NSSegmentedControl(
-            labels: [], trackingMode: .selectOne, target: context.coordinator, action: #selector(Coordinator.chose(_:))
-        )
-
-        control.segmentDistribution = .fillEqually
-        control.setAccessibilityLabel(label)
-        return control
-    }
-
-    func updateNSView(_ control: NSSegmentedControl, context: Context) {
-        let labels = values.map(title)
-        let selection = $selection
-
-        control.segmentCount = labels.count
-        for (segment, label) in labels.enumerated() where control.label(forSegment: segment) != label {
-            control.setLabel(label, forSegment: segment)
-        }
-        context.coordinator.choose = { [values] in selection.wrappedValue = values[$0] }
-        control.selectedSegment = values.firstIndex(of: self.selection) ?? -1
-    }
-
-    func sizeThatFits(_ proposal: ProposedViewSize, nsView control: NSSegmentedControl, context: Context) -> CGSize? {
-        CGSize(width: proposal.width ?? control.intrinsicContentSize.width, height: control.intrinsicContentSize.height)
-    }
-
-    func makeCoordinator() -> Coordinator {
-        Coordinator()
-    }
-
-    @MainActor
-    final class Coordinator: NSObject {
-        var choose: (Int) -> Void = { _ in }
-
-        @objc func chose(_ control: NSSegmentedControl) {
-            choose(control.selectedSegment)
-        }
-    }
-}
-
 /// The system's pop-up button, its choices in sections, a separator between each two, at its own width: its widest
 /// choice's.
 struct PopUp<Value: Hashable>: NSViewRepresentable {

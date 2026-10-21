@@ -1,3 +1,4 @@
+import AppKit
 import SitRepWindow
 import SwiftUI
 
@@ -36,17 +37,6 @@ enum WindowStyle {
     static let wash = orange.opacity(0.12)
     static let washRing = orange.opacity(0.28)
 
-    /// Words of this tone on what is behind them: on a row selected in the list that has the window's focus, its
-    /// selection the accent, white whatever their tone, as the system's own rows' words go; on anything else, their own
-    /// grey.
-    static func colour(_ tone: Tone, on prominence: BackgroundProminence) -> Color {
-        switch tone {
-        case .text: colour(text, on: prominence)
-        case .soft: colour(soft, on: prominence)
-        case .faint: colour(faint, on: prominence)
-        }
-    }
-
     /// A colour of words or of a mark on what is behind them: on the accent of a selection in the list that has the
     /// window's focus, `selected`, as the system brightens its own rows' words and icons; on anything else, its own.
     static func colour(_ own: Color, on prominence: BackgroundProminence, selected: Color = .white) -> Color {
@@ -75,27 +65,51 @@ enum WindowStyle {
     /// The band under the window's toolbar, beside the traffic lights, which the toolbar sets 26 points down: empty on
     /// the page, which starts under it.
     static let barHeight: CGFloat = 52
-    /// The system's sidebar list, as it lays out its rows, measured offscreen on macOS 26: a row's height, its words in
-    /// from the sidebar's edges, and the gap between two sections.
-    static let rowHeight: CGFloat = 32
-    /// What the list sets above and below a row's words, a lane's 18 points tall in a row of 32: a still sets it.
-    static let rowPadding: CGFloat = (rowHeight - lane.height) / 2
+    /// The sidebar, as Paper's round 8 draws it (board C, "Option B, one list"). The accessory over the list: the
+    /// Filter field, the system's at its large size, 28 tall, 9 under the titlebar's band and 10 over the list.
+    static let accessoryTop: CGFloat = 9
+    static let fieldHeight: CGFloat = 28
+    static let accessoryBottom: CGFloat = 10
+    static let accessory = accessoryTop + fieldHeight + accessoryBottom
+    /// The system's sidebar list, as measured offscreen on macOS 26 in the window's split: it sets its rows 10 in from
+    /// its top and its bottom, which no modifier changes, and a row's words 16 in from the sidebar's edges, 6 inside
+    /// its selection, which is 10 in.
+    static let listInset: CGFloat = 10
+    static let selectionInset: CGFloat = 10
     static let rowInset: CGFloat = 16
-    static let sectionGap: CGFloat = 13
-    /// The sidebar's foot, as spec 2.6 draws it: a hairline, then 8 above its row of 32 and 10 below it.
+    /// The list's last row, 12 over the foot's rule.
+    static let listBottom: CGFloat = 12
+    /// A session's row, the sidebar's medium row; a session's row under Needs you, the system's two-line row, its
+    /// words 4 from its top; a heading's row, 10 under the rows before it, or 2 under the list's top when it is first.
+    static let rowHeight: CGFloat = 32
+    static let twoLineHeight: CGFloat = 39
+    static let twoLineTop: CGFloat = 4
+    static let headingHeight: CGFloat = 24
+    static let headingGap: CGFloat = 10
+    static let firstHeadingGap: CGFloat = 2
+    /// A heading's words end 2 inside its selection, 4 past a row's.
+    static let headingTrailing: CGFloat = 2
+    /// A row's mark, in its slot, the gap after it to the words, and a heading's chevron in its slot.
+    static let slot = CGSize(width: 26, height: 16)
+    static let slotGap: CGFloat = 4
+    static let chevronSlot = CGSize(width: 15, height: 24)
+    /// The selection's corners: a row's, as drawn, and a heading's, which SitRep draws (`FoldHeading`).
+    static let rowRadius: CGFloat = 9
+    static let headingRadius: CGFloat = 8
+    /// The sidebar's words: a title's, 13 with its tracking; a heading's, a row's project line and a count's, 11.
+    static let titleSize: CGFloat = 13
+    static let titleTracking: CGFloat = -0.01
+    static let smallSize: CGFloat = 11
+    static let ageSize: CGFloat = 12
+    static let titleLine: CGFloat = 16
+    static let smallLine: CGFloat = 14
+    /// The sidebar's foot, as spec 2.5 draws it: a rule of 0.5, then 8 above its row of 32 and 10 below it.
+    static let footerRule: CGFloat = 0.5
     static let footerTop: CGFloat = 8
     static let footerRow: CGFloat = 32
     static let footerBottom: CGFloat = 10
-    /// The foot is a list of its one row, which the system's sidebar list sets 10 in from its top and from its bottom,
-    /// as measured offscreen on macOS 26 through the list's bar in the window's split (`SettingsFooterTests`).
-    static let footerListInset: CGFloat = 10
-    static let footerList = footerListInset + footerRow + footerListInset
-    /// The hairline over the foot, in from the sidebar's sides as its rows are.
-    static let footerLine = Color.white.opacity(Double(0x14) / 255)
-    /// The system's selection in the sidebar, in from its edges and rounded, which a row's fills take: by eye, as
-    /// nothing offscreen draws it.
-    static let selectionInset: CGFloat = 10
-    static let selectionRadius: CGFloat = 6
+    /// The foot is a list of its one row, which the list sets in by its insets.
+    static let footerList = listInset + footerRow + listInset
     /// A mark's lane, as the panel row's.
     static let lane = CGSize(width: 12, height: 18)
     /// Where a page line's words start, past its mark's lane.
@@ -105,7 +119,8 @@ enum WindowStyle {
     static let reach: CGFloat = 8
 
     /// What a sidebar row draws behind its words: under the pointer, a quiet fill, never on the row picked, which
-    /// keeps the system's selection; drawn as a still, which renders no list, a stand-in for that selection.
+    /// keeps the system's selection; drawn as a still, which renders no list, a stand-in for that selection. A
+    /// heading draws none.
     static func sidebarFill(_ highlight: Highlight, isStill: Bool) -> Color? {
         switch highlight {
         case .hover: sidebarHover
@@ -113,6 +128,28 @@ enum WindowStyle {
         case .none: nil
         }
     }
+
+    /// The sidebar's words of a tone, in the system's label colours, which the list's emphasized selection turns white
+    /// by itself.
+    static func label(_ tone: Tone) -> HierarchicalShapeStyle {
+        switch tone {
+        case .text: .primary
+        case .soft: .secondary
+        case .faint: .tertiary
+        }
+    }
+
+    /// The working mark's track in the sidebar, as drawn.
+    static let sidebarTrack = Color.white.opacity(0.15)
+
+    /// The system's selection, as SitRep draws it on a heading, which the list will not select (`FoldHeading`): the
+    /// accent's while the list has the key window's focus, else the system's grey.
+    static func selection(isEmphasized: Bool) -> Color {
+        Color(nsColor: isEmphasized ? .selectedContentBackgroundColor : .unemphasizedSelectedContentBackgroundColor)
+    }
+
+    /// The rule over the sidebar's foot.
+    static let separator = Color(nsColor: .separatorColor)
 }
 
 extension Color {

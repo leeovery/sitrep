@@ -1,147 +1,73 @@
 import SitRepWindow
 import SwiftUI
 
-/// The board down the left, in the system's sidebar: the head, the Filter field and the switch between the two views,
-/// then the rows. Projects lists every project with something open and its sessions under it, and the quiet projects
-/// at the foot; Needs you every session, flat, in the panel's order, its project's name under its own. The filter
-/// narrows the view chosen in place, the words typed lit in the names that hold them; with nothing kept, one line says
-/// so. Its rows are a list whose selection is the session or project picked, drawn by the system, which the pointer
-/// and the arrow keys move alike, and which never empties; a project's name, its own or a quiet one's, opens the
-/// project. A row under the pointer that is not the one picked shows a quiet fill behind it. The head stays put while
-/// the rows scroll, and the row picked is scrolled into view whenever the pick or the order changes: a pick made
-/// elsewhere, by a jump, a notification or the menu, or a resort. Settings sits at the sidebar's foot, which never
-/// scrolls; while it shows, nothing on the board is picked.
+/// The board down the left, in the system's sidebar: the Filter field, then one list (`BoardList`): Needs you, the
+/// projects each under a heading that folds, and the quiet projects under theirs. The filter narrows it in place, the
+/// words typed lit in the names that hold them; with nothing kept, one line says so, and an empty board says how the
+/// board stands. A quiet project's row opens the project. A row under the pointer that is not the one picked shows a
+/// quiet fill behind it. Settings sits at the sidebar's foot, which never scrolls, the list running on under it, its
+/// last row 12 over the foot's rule; while Settings shows, nothing on the board is picked.
 struct BoardColumn: View {
-    let listed: Listed
-    let pick: Pick?
     let sidebar: Sidebar
+    let spot: Spot?
+    let pick: Pick?
     let filter: Filter
     let now: Date
 
-    @Environment(\.windowActions) private var act
-    @Environment(\.reducesWindowMotion) private var reducesMotion
     @Environment(\.isStill) private var isStill
-    /// The row picked as the list holds it: the pick, put back whenever the list lets go of it, as a click in its
-    /// blank space or on the row picked does, so its selection never empties while something on it is picked.
-    @State private var selection: Pick?
 
     var body: some View {
         if isStill {
             standIn
         } else {
             VStack(alignment: .leading, spacing: 0) {
-                head
-                FilterField(text: filter.text).padding(.horizontal, WindowStyle.selectionInset)
-                views
-                list.overlay {
-                    if isUnmatched {
-                        noMatch.padding(.bottom, SettingsFooter.height)
+                accessory
+                list.foot { SettingsFooter(pick: pick, now: now) }.overlay {
+                    if let note {
+                        ListNote(words: note).padding(.bottom, SettingsFooter.height)
                     }
                 }
             }
+            // A window on screen gives the sidebar a bottom safe area, which an offscreen one does not, and which the
+            // foot's bar took into its height and its list into its insets, rising by it: ignored, the bar sits on the
+            // glass's bottom.
+            .ignoresSafeArea(.container, edges: .bottom)
         }
     }
 
-    /// The filter keeps nothing of the view chosen: one line says so, over the list, left in place, empty, so it hears
-    /// the pointer leave as ever and the order it holds settles; centred on its rows, above Settings at its foot.
-    private var isUnmatched: Bool {
-        !filter.isEmpty && listed.isEmpty(in: sidebar)
+    /// The Filter field alone, at its large size, which SwiftUI sets on the field.
+    private var accessory: some View {
+        FilterField(text: filter.text)
+            .controlSize(.large)
+            .padding(.horizontal, WindowStyle.selectionInset)
+            .padding(.top, WindowStyle.accessoryTop)
+            .padding(.bottom, WindowStyle.accessoryBottom)
     }
 
-    private var noMatch: some View {
-        Text(Words.noMatch(filter))
-            .font(WindowStyle.ui(13))
-            .foregroundStyle(WindowStyle.soft)
-            .lineLimit(1)
-            .padding(.horizontal, WindowStyle.rowInset)
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .allowsHitTesting(false)
+    private var list: BoardList {
+        BoardList(sidebar: sidebar, spot: spot, filter: filter, now: now)
     }
 
-    /// The switch between the two views, the system's segmented control, across the sidebar in two equal halves.
-    private var views: some View {
-        Segments(
-            label: Spoken.sidebar, values: Sidebar.allCases, title: Words.sidebar,
-            selection: Binding(get: { sidebar }, set: { act.choose($0) })
-        )
-        .padding(.horizontal, WindowStyle.selectionInset)
-        .padding(.top, 10)
-        .padding(.bottom, 14)
-    }
-
-    private var list: some View {
-        ScrollViewReader { scroller in
-            List(selection: $selection) { rows }
-                .listStyle(.sidebar)
-                .animation(reducesMotion ? nil : .easeInOut(duration: 0.25), value: order)
-                .onHover { act.pointer($0) }
-                .foot { SettingsFooter(pick: pick, now: now) }
-                .onChange(of: selection) { _, selected in
-                    guard let selected else {
-                        selection = pick?.listRow
-                        return
-                    }
-                    if selected != pick {
-                        act.pickInList(selected)
-                    }
-                }
-                .onChange(of: pick, initial: true) { _, pick in
-                    selection = pick?.listRow
-                    reveal(pick?.listRow, in: scroller)
-                }
-                .onChange(of: order) { reveal(pick?.listRow, in: scroller) }
+    /// The one line in the list's place where it lists nothing: that the filter keeps nothing, or how the board stands.
+    private var note: String? {
+        guard sidebar.isEmpty else {
+            return nil
         }
-    }
-
-    /// The rows in the order they show, which moves the row picked when the list resorts.
-    private var order: [String] {
-        switch sidebar {
-        case .projects: listed.projects.flatMap { [$0.id] + $0.sessions.map(\.id) } + listed.quiet.map(\.id)
-        case .needsYou: listed.flat.map(\.id)
-        }
-    }
-
-    /// The row picked scrolled into view, only as far as it needs.
-    private func reveal(_ pick: Pick?, in scroller: ScrollViewProxy) {
-        if let pick {
-            scroller.scrollTo(pick)
-        }
-    }
-
-    @ViewBuilder private var rows: some View {
-        switch sidebar {
-        case .projects:
-            ForEach(listed.projects) { project in
-                Section {
-                    ProjectRows(project: project, pick: pick, filter: filter, now: now)
-                }
-            }
-            if !listed.quiet.isEmpty {
-                Section {
-                    QuietRows(quiet: listed.quiet, pick: pick, filter: filter, now: now)
-                } header: {
-                    QuietHeading(count: listed.quiet.count)
-                }
-                .collapsible(false)
-            }
-        case .needsYou:
-            FlatRows(rows: listed.flat, pick: pick, filter: filter, now: now)
-        }
+        return filter.isEmpty ? sidebar.head.title : Words.noMatch(filter)
     }
 
     /// A stand-in for the sidebar, drawn as a still: an image renderer draws no list, nor the sidebar it sits in, nor
-    /// AppKit's controls. Below the bar the traffic lights sit in, its head, a stand-in for the field and the switch,
-    /// and its rows are laid out as the system's list sets them, its picked row on a stand-in for the selection, all on
-    /// the panel's black with a hairline beside it.
+    /// AppKit's controls. Below the bar the traffic lights sit in, a stand-in for the field, then its lines laid out as
+    /// the system's list sets them, its picked row on a stand-in for the selection, all on the panel's black with a
+    /// hairline beside it.
     private var standIn: some View {
         VStack(alignment: .leading, spacing: 0) {
             Color.clear.frame(height: WindowStyle.barHeight)
-            head
-            StillControls(sidebar: sidebar, filter: filter)
-            if isUnmatched {
-                noMatch
+            StillField(filter: filter)
+            if let note {
+                ListNote(words: note)
             } else {
-                standInRows
+                list
                 Spacer(minLength: 0)
             }
             SettingsFooter(pick: pick, now: now)
@@ -149,316 +75,48 @@ struct BoardColumn: View {
         .background(WindowStyle.black)
         .overlay(alignment: .trailing) { Rectangle().fill(WindowStyle.line).frame(width: 1) }
     }
+}
 
-    @ViewBuilder private var standInRows: some View {
-        switch sidebar {
-        case .projects:
-            VStack(alignment: .leading, spacing: WindowStyle.sectionGap) {
-                ForEach(listed.projects) { project in
-                    VStack(alignment: .leading, spacing: 0) {
-                        ProjectRows(project: project, pick: pick, filter: filter, now: now)
-                    }
-                }
-                if !listed.quiet.isEmpty {
-                    VStack(alignment: .leading, spacing: 0) {
-                        QuietHeading(count: listed.quiet.count)
-                            .padding(.horizontal, WindowStyle.rowInset)
-                            .padding(.bottom, 4)
-                        QuietRows(quiet: listed.quiet, pick: pick, filter: filter, now: now)
-                    }
-                }
-            }
-        case .needsYou:
-            VStack(alignment: .leading, spacing: 0) {
-                FlatRows(rows: listed.flat, pick: pick, filter: filter, now: now)
-            }
-        }
-    }
+/// One line, centred in the list's place, soft.
+private struct ListNote: View {
+    let words: String
 
-    private var head: some View {
-        HStack(alignment: .firstTextBaseline) {
-            Text(listed.head.title)
-                .font(WindowStyle.ui(15, .semibold))
-                .spacing(-0.01, of: 15)
-                .foregroundStyle(WindowStyle.text)
-                .lineLimit(1)
-            Spacer()
-            Text(listed.head.count).font(WindowStyle.ui(12)).foregroundStyle(WindowStyle.faint)
-        }
-        .padding(.horizontal, WindowStyle.rowInset)
-        .padding(.top, 4)
-        .padding(.bottom, 10)
+    var body: some View {
+        Text(words)
+            .font(WindowStyle.ui(WindowStyle.titleSize))
+            .foregroundStyle(.secondary)
+            .lineLimit(1)
+            .padding(.horizontal, WindowStyle.rowInset)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .allowsHitTesting(false)
     }
 }
 
-/// The Filter field and the switch as a still draws them, which renders no AppKit control: at their sizes, the field's
-/// words or its placeholder, the view chosen raised.
-private struct StillControls: View {
-    let sidebar: Sidebar
+/// The Filter field as a still draws it, which renders no AppKit control: at its size, its words or its placeholder.
+private struct StillField: View {
     let filter: Filter
 
     var body: some View {
-        VStack(spacing: 0) {
-            HStack(spacing: 7) {
-                Image(systemName: "magnifyingglass").foregroundStyle(WindowStyle.soft)
-                Text(filter.text.isEmpty ? Words.filter : filter.text)
-                    .foregroundStyle(filter.text.isEmpty ? WindowStyle.faint : WindowStyle.text)
-                Spacer(minLength: 0)
-            }
-            .font(WindowStyle.ui(13))
-            .padding(.horizontal, 10)
-            .frame(height: 30)
-            .background(Capsule().fill(Color.white.opacity(0.07)))
-            HStack(spacing: 0) {
-                ForEach(Sidebar.allCases) { view in
-                    Text(Words.sidebar(view))
-                        .font(WindowStyle.ui(13, .medium))
-                        .foregroundStyle(view == sidebar ? WindowStyle.text : WindowStyle.soft)
-                        .frame(maxWidth: .infinity, minHeight: 24)
-                        .background(Capsule().fill(view == sidebar ? Color(hex: 0x5A5A5F) : .clear))
-                }
-            }
-            .padding(2)
-            .background(Capsule().fill(Color.white.opacity(0.07)))
-            .padding(.top, 10)
-            .padding(.bottom, 14)
+        HStack(spacing: 6) {
+            Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
+            Text(filter.text.isEmpty ? Words.filter : filter.text)
+                .foregroundStyle(filter.text.isEmpty ? .secondary : .primary)
+            Spacer(minLength: 0)
         }
+        .font(WindowStyle.ui(WindowStyle.titleSize))
+        .padding(.leading, 9)
+        .frame(height: WindowStyle.fieldHeight)
+        .background(Capsule().fill(Color.white.opacity(Double(0x17) / 255)))
         .padding(.horizontal, WindowStyle.selectionInset)
+        .padding(.top, WindowStyle.accessoryTop)
+        .padding(.bottom, WindowStyle.accessoryBottom)
     }
 }
 
-/// A project's name, what waits there in orange, and its sessions: a row each.
-struct ProjectRows: View {
-    let project: Listed.Project
-    let pick: Pick?
-    let filter: Filter
-    let now: Date
-
-    var body: some View {
-        HStack {
-            Name(project.name, litBy: filter, tone: .soft)
-            Spacer()
-            if project.waiting > 0 {
-                Text("\(project.waiting)").foregroundStyle(WindowStyle.orange)
-            }
-        }
-        .font(WindowStyle.ui(12, .semibold))
-        .spoken(Spoken.project(project))
-        .accessibilityAddTraits(.isHeader)
-        .sidebarRow(.project(project.id), pick: pick, now: now)
-        ForEach(project.sessions) { row in
-            SessionRowView(row: row, isPicked: pick == .session(row.id), filter: filter, now: now)
-                .spoken(Spoken.row(row, at: now))
-                .sidebarRow(.session(row.id), pick: pick, washed: row.washed, now: now)
-        }
-    }
-}
-
-/// The Needs you view's rows, flat: each session's name, and its project's under it.
-private struct FlatRows: View {
-    let rows: [Listed.Row]
-    let pick: Pick?
-    let filter: Filter
-    let now: Date
-
-    var body: some View {
-        ForEach(rows) { row in
-            SessionRowView(row: row, isPicked: pick == .session(row.id), filter: filter, showsProject: true, now: now)
-                .spoken(Spoken.row(row, at: now))
-                .sidebarRow(.session(row.id), pick: pick, washed: row.washed, now: now)
-        }
-    }
-}
-
-/// A session's row: a small panel row, its mark in its lane, its name on one line, the panel row's time; in the Needs
-/// you view its project's name under its own, the row's parts set to its top.
-struct SessionRowView: View {
-    let row: Listed.Row
-    let isPicked: Bool
-    let filter: Filter
-    var showsProject = false
-    let now: Date
-
-    var body: some View {
-        HStack(alignment: showsProject ? .top : .center, spacing: 10) {
-            MarkView(mark: row.mark)
-            VStack(alignment: .leading, spacing: 1) {
-                Name(row.name, litBy: filter, tone: row.isAway ? .faint : .text)
-                    .font(WindowStyle.ui(13, isPicked || isWashing ? .semibold : .medium))
-                    .spacing(-0.005, of: 13)
-                    .lineLimit(1)
-                    .frame(minHeight: WindowStyle.lane.height)
-                if showsProject {
-                    Name(row.project, litBy: filter, tone: .soft)
-                        .font(WindowStyle.ui(12))
-                        .lineLimit(1)
-                }
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            age
-                .font(WindowStyle.ui(12))
-                .frame(width: 28, alignment: .trailing)
-                .frame(minHeight: WindowStyle.lane.height)
-        }
-    }
-
-    private var isWashing: Bool { row.washed != nil }
-
-    /// Its time: orange while it washes, as what needs Lee stays orange; else faint.
-    @ViewBuilder private var age: some View {
-        let words = Text(Words.age(row.since, at: now))
-
-        if isWashing {
-            words.foregroundStyle(WindowStyle.orange)
-        } else {
-            words.tone(.faint)
-        }
-    }
-}
-
-/// "6 quiet projects", over their names.
-private struct QuietHeading: View {
-    let count: Int
-
-    var body: some View {
-        Text(Words.quiet(count)).font(WindowStyle.ui(12, .semibold)).foregroundStyle(WindowStyle.soft)
-    }
-}
-
-/// The quiet projects, a row each, which opens its project.
-private struct QuietRows: View {
-    let quiet: [Listed.Quiet]
-    let pick: Pick?
-    let filter: Filter
-    let now: Date
-
-    var body: some View {
-        ForEach(quiet) { project in
-            Name(project.name, litBy: filter, tone: .soft)
-                .font(WindowStyle.ui(12, .medium))
-                .lineLimit(1)
-                .spoken(Spoken.quiet(project))
-                .sidebarRow(project.pick, pick: pick, now: now)
-        }
-    }
-}
-
-/// A name in its own tone; while the filter narrows the list, its words lit where they appear in it, a step brighter
-/// than the rest (`Tone`). On the row selected in a list with focus, all of it white (`WindowStyle.colour`).
-private struct Name: View {
-    let name: String
-    let filter: Filter
-    let tone: Tone
-
-    @Environment(\.backgroundProminence) private var prominence
-
-    init(_ name: String, litBy filter: Filter, tone: Tone) {
-        self.name = name
-        self.filter = filter
-        self.tone = tone
-    }
-
-    var body: some View {
-        if filter.isEmpty {
-            Text(name).foregroundStyle(WindowStyle.colour(tone, on: prominence))
-        } else {
-            filter.runs(of: name).reduce(Text("")) { text, run in
-                let colour = WindowStyle.colour(run.isLit ? tone.lit : tone.rest, on: prominence)
-
-                return Text("\(text)\(Text(run.text).foregroundStyle(colour))")
-            }
-        }
-    }
-}
-
-/// Words of a tone, white on the row selected in a list with focus (`WindowStyle.colour`).
-private struct Toned: ViewModifier {
-    let tone: Tone
-
-    @Environment(\.backgroundProminence) private var prominence
-
-    func body(content: Content) -> some View {
-        content.foregroundStyle(WindowStyle.colour(tone, on: prominence))
-    }
-}
-
-private extension View {
-    func tone(_ tone: Tone) -> some View {
-        modifier(Toned(tone: tone))
-    }
-}
-
-private extension View {
-    /// A row of the sidebar's list, picked as `pick`, washed orange from `washed` as it comes (`BoardColumn`).
-    func sidebarRow(_ row: Pick, pick: Pick?, washed: Date? = nil, now: Date) -> some View {
-        modifier(SidebarRow(row: row, isPicked: row == pick, washed: washed, now: now))
-    }
-}
-
-/// A row of the sidebar's list, tagged with what it picks, and named by it, to scroll to. Its words fill the row's
-/// height, and its background the whole row, so the pointer is over it anywhere on the row: under the pointer, and not
-/// the one picked, it shows a quiet fill, and as it comes, its wash, both as the row's background, shaped as the
-/// system's selection, which they leave alone. Drawn as a still, it is laid out as the list lays it out.
-private struct SidebarRow: ViewModifier {
-    let row: Pick
-    let isPicked: Bool
-    let washed: Date?
-    let now: Date
-
-    @Environment(\.isStill) private var isStill
-    @Environment(\.isHoveredStill) private var isHoveredStill
-    @State private var isOverWords = false
-    @State private var isOverRow = false
-
-    func body(content: Content) -> some View {
-        let highlight = Highlight.of(
-            isPicked: isPicked, isPressed: false, isHovered: isOverWords || isOverRow || isHoveredStill
-        )
-        let background = RowBackground(
-            fill: WindowStyle.sidebarFill(highlight, isStill: isStill), washed: washed, now: now, isOver: $isOverRow
-        )
-        let words = content
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
-            .contentShape(Rectangle())
-            .onHover { isOverWords = $0 }
-
-        Group {
-            if isStill {
-                words
-                    .padding(.horizontal, WindowStyle.rowInset)
-                    .padding(.vertical, WindowStyle.rowPadding)
-                    .frame(minHeight: WindowStyle.rowHeight)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .background(background)
-            } else {
-                words.listRowBackground(background)
-            }
-        }
-        .tag(row)
-        .id(row)
-    }
-}
-
-/// What a sidebar row draws behind its words, across the whole row: its wash as it comes, and the pointer's fill,
-/// each inset and rounded as the system's selection is. It hears the pointer over the row's edges, where its words
-/// are not.
-private struct RowBackground: View {
-    let fill: Color?
-    let washed: Date?
-    let now: Date
-    @Binding var isOver: Bool
-
-    var body: some View {
-        ZStack {
-            WashFill(since: washed, now: now, radius: WindowStyle.selectionRadius)
-            if let fill {
-                RoundedRectangle(cornerRadius: WindowStyle.selectionRadius, style: .continuous).fill(fill)
-            }
-        }
-        .padding(.horizontal, WindowStyle.selectionInset)
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .contentShape(Rectangle())
-        .onHover { isOver = $0 }
+extension View {
+    /// A list in the sidebar's style, its rows as low as a heading's 24 allows, each row's height its own.
+    func sidebarList() -> some View {
+        listStyle(.sidebar).environment(\.sidebarRowSize, .small)
     }
 }
 
@@ -475,7 +133,7 @@ private extension View {
     }
 }
 
-/// Settings at the sidebar's foot, under a hairline, fixed as the list runs on under it: a list of its one row, so it
+/// Settings at the sidebar's foot, under a rule, fixed as the list runs on under it: a list of its one row, so it
 /// takes the system's own selection while Settings shows, as a picked session's row does, and is a stop of its own for
 /// the keys. Drawn as a still, its row alone, as the board's rows are.
 struct SettingsFooter: View {
@@ -485,50 +143,67 @@ struct SettingsFooter: View {
     @Environment(\.windowActions) private var act
     @Environment(\.isStill) private var isStill
     /// The row as the list holds it, put back whenever the list lets go of it while Settings shows.
-    @State private var selection: Pick?
+    @State private var selection: Spot?
 
-    /// Its hairline, and its row with the space above and below it (spec 2.6).
-    static let height = 1 + WindowStyle.footerTop + WindowStyle.footerRow + WindowStyle.footerBottom
+    /// Its rule, and its row with the space above and below it (spec 2.5).
+    static let height = WindowStyle.footerRule + WindowStyle.footerTop + WindowStyle.footerRow + WindowStyle.footerBottom
 
     var body: some View {
         VStack(spacing: 0) {
             Rectangle()
-                .fill(WindowStyle.footerLine)
-                .frame(height: 1)
+                .fill(WindowStyle.separator)
+                .frame(height: WindowStyle.footerRule)
                 .padding(.horizontal, WindowStyle.selectionInset)
             if isStill {
                 row.padding(.top, WindowStyle.footerTop).padding(.bottom, WindowStyle.footerBottom)
             } else {
+                // The list sets its row 10 under its own top, so it starts 2 over the rule, which it draws nothing
+                // over, to set its row 8 under it.
                 List(selection: $selection) { row }
-                    .listStyle(.sidebar)
+                    .sidebarList()
                     .scrollDisabled(true)
                     .frame(height: WindowStyle.footerList)
-                    .padding(.top, WindowStyle.footerTop - WindowStyle.footerListInset)
+                    .padding(.top, WindowStyle.footerTop - WindowStyle.listInset)
                     .onChange(of: selection) { _, selected in
-                        if selected == .settings, pick != .settings {
+                        if selected == Self.spot, pick != .settings {
                             act.pick(.settings)
                         } else if selected == nil, pick == .settings {
-                            selection = .settings
+                            selection = Self.spot
                         }
                     }
                     .onChange(of: pick, initial: true) { _, pick in
-                        selection = pick == .settings ? .settings : nil
+                        selection = pick == .settings ? Self.spot : nil
                     }
             }
         }
     }
 
     private var row: some View {
-        HStack(spacing: 8) {
-            Image(systemName: "gear")
-                .font(.system(size: 16))
-                .frame(width: 16, height: 18)
+        SettingsFootRow().sidebarRow(Self.spot, picked: pick == .settings ? Self.spot : nil, now: now)
+    }
+
+    /// Its row, the one place Settings is picked from.
+    private static let spot = Spot.board(.settings)
+}
+
+/// Settings' row: the gear, in the accent, white on the emphasized selection, and its word.
+private struct SettingsFootRow: View {
+    @Environment(\.backgroundProminence) private var prominence
+
+    var body: some View {
+        HStack(spacing: WindowStyle.slotGap) {
+            Image(systemName: "gearshape")
+                .resizable()
+                .scaledToFit()
+                .frame(width: 15, height: 15)
+                .foregroundStyle(WindowStyle.colour(Color.accentColor, on: prominence))
+                .frame(width: WindowStyle.slot.width, height: WindowStyle.slot.height)
                 .accessibilityHidden(true)
             Text("Settings")
-                .font(WindowStyle.ui(13, .medium))
-                .spacing(-0.005, of: 13)
+                .font(WindowStyle.ui(WindowStyle.titleSize))
+                .spacing(WindowStyle.titleTracking, of: WindowStyle.titleSize)
+                .foregroundStyle(.primary)
         }
-        .tone(.text)
-        .sidebarRow(.settings, pick: pick, now: now)
+        .frame(height: WindowStyle.footerRow)
     }
 }

@@ -22,10 +22,12 @@ struct SpokenTests {
 
     @Test func aNeedsYouRowReadsAsAProjectsRowDoes() throws {
         let listed = Listed(heard(line(0)))
-        let flat = try #require(listed.flat.first { $0.id == "sr-rq7dgr" })
+        let asking = try #require(listed.needsYou.first { $0.id == "sr-dash02" })
 
-        #expect(Spoken.row(flat, at: printedAt) == "Request ledger, Switchboard, your turn, 12 minutes")
+        #expect(asking == listed.sessions.first { $0.id == "sr-dash02" })
+        #expect(Spoken.row(asking, at: printedAt).hasPrefix("Dashboard redesign, Switchboard, needs you, "))
     }
+
 
     @Test func theFilterFieldReadsAsWhatItDoes() {
         #expect(Spoken.filter == "Filter sessions")
@@ -40,12 +42,15 @@ struct SpokenTests {
         #expect(Spoken.age(minutes(before: 48 * 60), at: printedAt) == "2 days")
     }
 
-    @Test func aProjectHeadingReadsItsNameAndWhatWaitsThere() {
-        let waiting = Listed.Project(id: "sitrep", name: "SitRep", waiting: 3, sessions: [])
-        let none = Listed.Project(id: "kit", name: "Kit", waiting: 0, sessions: [])
+    @Test func aSidebarHeadingReadsItsNameWhatWaitsThereAndWhetherItIsFolded() {
+        let heading = { (fold: Fold, name: String, isFolded: Bool, waiting: Int) in
+            Spoken.heading(Sidebar.Heading(fold: fold, name: name, isFolded: isFolded, asking: 1, waiting: waiting))
+        }
 
-        #expect(Spoken.project(waiting) == "SitRep, 3 waiting")
-        #expect(Spoken.project(none) == "Kit, nothing waiting")
+        #expect(heading(.project("sitrep"), "SitRep", false, 3) == "SitRep, 3 waiting")
+        #expect(heading(.project("kit"), "Kit", true, 0) == "Kit, nothing waiting, folded")
+        #expect(heading(.quiet, Words.quietProjects, false, 0) == "Quiet projects")
+        #expect(heading(.quiet, Words.quietProjects, true, 0) == "Quiet projects, folded")
         #expect(Spoken.quiet(Listed.Quiet(id: "kit", name: "Kit", sessions: [])) == "Kit, quiet project")
     }
 

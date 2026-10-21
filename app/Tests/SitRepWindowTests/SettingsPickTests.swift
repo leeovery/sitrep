@@ -16,16 +16,19 @@ struct SettingsPickTests {
     }
 
     @Test func whileSettingsShowsNothingOnTheBoardIsPicked() {
-        #expect(Pick.settings.listRow == nil)
-        #expect(Pick.session("sr-macapp").listRow == .session("sr-macapp"))
-        #expect(Pick.project("switchboard").listRow == .project("switchboard"))
+        let run = opened()
+
+        _ = run.pick(.settings)
+        #expect(run.spot == nil)
+        _ = run.pick(.project("switchboard"))
+        #expect(run.spot == .board(.project("switchboard")))
     }
 
     @Test func aClickOnASessionLeavesSettingsForIt() {
         let run = opened()
 
         _ = run.pick(.settings)
-        #expect(run.pickInList(.session("sr-dash02"), at: printedAt).map(\.session) == ["sr-dash02"])
+        #expect(run.pickInList(.board(.session("sr-dash02")), at: printedAt).map(\.session) == ["sr-dash02"])
         #expect(run.page(at: printedAt).session?.id == "sr-dash02")
     }
 
