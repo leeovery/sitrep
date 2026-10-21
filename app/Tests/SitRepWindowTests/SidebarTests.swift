@@ -135,29 +135,52 @@ struct SidebarTests {
     @Test func fromAPickedHeadingAStepGoesToTheRowAfterItOrBeforeIt() {
         let sidebar = Sidebar(Self.listed, folds: Folds())
 
-        #expect(sidebar.step(from: .board(.project("switchboard")), down: true) == .board(.session("sr-dash02")))
-        #expect(sidebar.step(from: .board(.project("switchboard")), down: false) == .board(.session("sr-macapp")))
-        #expect(sidebar.step(from: .board(.project("sitrep")), down: false) == .needsYou("sr-gs7kq2"))
+        #expect(sidebar.step(from: .board(.project("switchboard")), down: true) == .to(.board(.session("sr-dash02"))))
+        #expect(sidebar.step(from: .board(.project("switchboard")), down: false) == .to(.board(.session("sr-macapp"))))
+        #expect(sidebar.step(from: .board(.project("sitrep")), down: false) == .to(.needsYou("sr-gs7kq2")))
     }
 
     @Test func fromAFoldedHeadingAStepGoesPastItsHiddenRows() {
         let sidebar = Sidebar(Self.listed, folds: Self.folded(.project("goosemates")))
 
-        #expect(sidebar.step(from: .board(.project("goosemates")), down: true) == .board(.project("kit")))
+        #expect(sidebar.step(from: .board(.project("goosemates")), down: true) == .to(.board(.project("kit"))))
     }
 
-    /// The list's own keys move from a row it selects, and past the ends there is nowhere to go.
-    @Test func fromARowTheListSelectsOrPastTheEndsThereIsNoStep() {
+    /// A pick a fold hides stands at the heading it is folded under, its project's or the quiet projects'.
+    @Test func fromAPickAFoldHidesAStepGoesFromItsHeading() {
+        let projects = Sidebar(Self.listed, folds: Self.folded(.project("switchboard")))
+
+        #expect(projects.step(from: .board(.session("sr-rq7dgr")), down: true) == .to(.board(.session("sr-gs7kq2"))))
+        #expect(projects.step(from: .board(.session("sr-rq7dgr")), down: false) == .to(.board(.session("sr-macapp"))))
+
+        let quiet = Sidebar(Self.listed, folds: Self.folded(.quiet))
+
+        #expect(quiet.step(from: .board(.project("kit")), down: false) == .to(.board(.session("sr-gs7kq2"))))
+        #expect(quiet.step(from: .board(.project("kit")), down: true) == .stays)
+    }
+
+    /// Past the ends there is no row to go to, and the pick stays where it is.
+    @Test func fromAHeadingAtAnEndAStepStays() {
         var listed = Self.listed
 
         listed.needsYou = []
         listed.quiet = []
 
-        let sidebar = Sidebar(listed, folds: Folds())
+        #expect(Sidebar(listed, folds: Folds()).step(from: .board(.project("sitrep")), down: false) == .stays)
+        #expect(Sidebar(listed, folds: Self.folded(.project("goosemates")))
+            .step(from: .board(.project("goosemates")), down: true) == .stays)
+    }
 
-        #expect(sidebar.step(from: .board(.session("sr-dash02")), down: true) == nil)
-        #expect(sidebar.step(from: .board(.project("sitrep")), down: false) == nil)
-        #expect(Sidebar(listed, folds: Self.folded(.project("goosemates"))).step(from: .board(.project("goosemates")), down: true) == nil)
+    /// The list's own keys move from a row it selects, from a pick it does not show, and from none.
+    @Test func fromARowTheListSelectsOrAPickItDoesNotShowTheStepIsTheListsOwn() {
+        let sidebar = Sidebar(Self.listed, folds: Folds())
+
+        #expect(sidebar.step(from: .board(.session("sr-dash02")), down: true) == .listsOwn)
+        #expect(sidebar.step(from: .needsYou("sr-macapp"), down: false) == .listsOwn)
+        #expect(sidebar.step(from: .board(.project("kit")), down: true) == .listsOwn)
+        #expect(sidebar.step(from: .board(.session("sr-gone")), down: true) == .listsOwn)
+        #expect(sidebar.step(from: .board(.settings), down: true) == .listsOwn)
+        #expect(sidebar.step(from: nil, down: true) == .listsOwn)
     }
 
     @Test func aFoldTogglesAndTheQuietProjectsFoldOfTheirOwn() {

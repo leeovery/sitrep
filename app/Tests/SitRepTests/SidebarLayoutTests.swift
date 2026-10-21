@@ -22,7 +22,8 @@ struct SidebarLayoutTests {
     @Test func theAccessoryIsTheFilterFieldAlone47TallTheListUnderIt() throws {
         let side = try HostedSidebar(HostedSidebar.opened())
 
-        #expect(side.frame(of: try #require(side.field)) == CGRect(x: 10, y: 75, width: 276, height: 28))
+        #expect(side.frame(of: try #require(side.field)) == CGRect(x: 10, y: 75, width: 276, height: WindowStyle.fieldHeight))
+        #expect(WindowStyle.fieldHeight == 28)
         #expect(side.rows.first?.minY == 113)
     }
 
@@ -178,7 +179,7 @@ struct SidebarLayoutTests {
         let run = HostedSidebar.opened()
 
         _ = run.pickInList(.board(.session("sr-gs7kq2")), at: HostedSidebar.printed)
-        #expect(try Self.pressed(Self.downArrow, on: run) == [.board(.project("kit"))])
+        #expect(try Self.pressed(Self.downArrow, on: run).spots == [.board(.project("kit"))])
     }
 
     /// Switchboard's page open, its heading showing the pick, which the list holds no selection on.
@@ -189,18 +190,67 @@ struct SidebarLayoutTests {
         let run = HostedSidebar.opened()
 
         _ = run.pick(.project("switchboard"))
-        #expect(try Self.pressed(key, on: run) == [spot])
+        #expect(try Self.pressed(key, on: run).spots == [spot])
     }
 
-    /// What the list asked to pick as this key was pressed once on it, focus on it.
-    private static func pressed(_ key: UInt16, on run: WindowRun) throws -> [Spot] {
+    /// Request ledger picked, then Switchboard folded over it: its heading stands for the pick.
+    @Test(arguments: [
+        (downArrow, Spot.board(.session("sr-gs7kq2"))), (upArrow, .board(.session("sr-macapp"))),
+    ])
+    func fromAPickAFoldHidesTheArrowKeysGoFromItsHeading(key: UInt16, to spot: Spot) throws {
+        let run = HostedSidebar.opened()
+
+        _ = run.pickInList(.board(.session("sr-rq7dgr")), at: HostedSidebar.printed)
+        run.toggle(.project("switchboard"))
+        #expect(try Self.pressed(key, on: run).spots == [spot])
+    }
+
+    /// Filtered to Request ledger, Switchboard's heading is the list's first line, and nothing picks before it.
+    @Test func fromAPickedHeadingWithNoRowBeforeItUpPicksNothing() throws {
+        let run = HostedSidebar.opened()
+
+        run.filter = Filter("ledg")
+        _ = run.pick(.project("switchboard"))
+
+        let pressed = try Self.pressed(Self.upArrow, on: run)
+
+        #expect(pressed.spots == [])
+        #expect(pressed.selectedRow == -1)
+    }
+
+    /// Goosemates folded, and the quiet projects too: nothing picks after Goosemates' heading.
+    @Test func fromAPickedHeadingWithNoRowAfterItDownPicksNothing() throws {
+        let run = HostedSidebar.opened()
+
+        run.toggle(.project("goosemates"))
+        run.toggle(.quiet)
+        _ = run.pick(.project("goosemates"))
+
+        let pressed = try Self.pressed(Self.downArrow, on: run)
+
+        #expect(pressed.spots == [])
+        #expect(pressed.selectedRow == -1)
+    }
+
+    /// With a modifier held the keys are the list's own, even from a picked heading.
+    @Test func fromAPickedHeadingAnArrowWithAModifierIsTheListsOwn() throws {
+        let run = HostedSidebar.opened()
+
+        _ = run.pick(.project("switchboard"))
+        #expect(try Self.pressed(Self.downArrow, with: .command, on: run).spots != [.board(.session("sr-dash02"))])
+    }
+
+    /// What the list asked to pick as this key was pressed once on it, focus on it, and the row it then selects.
+    private static func pressed(
+        _ key: UInt16, with modifiers: NSEvent.ModifierFlags = [], on run: WindowRun
+    ) throws -> (spots: [Spot], selectedRow: Int) {
         let picked = Picked()
         let side = try HostedSidebar(run, actions: WindowActions(pickInList: { picked.spots.append($0) }))
 
         side.window.makeFirstResponder(side.board)
-        side.window.sendEvent(try #require(Self.arrow(key, in: side.window)))
+        side.window.sendEvent(try #require(Self.arrow(key, with: modifiers, in: side.window)))
         side.window.contentView?.layoutSubtreeIfNeeded()
-        return picked.spots
+        return (picked.spots, side.board.selectedRow)
     }
 
     /// A row as the drawing has it, its y from the glass's top.
@@ -219,11 +269,13 @@ struct SidebarLayoutTests {
     }
 
     /// ↓ or ↑, as the keyboard sends it.
-    private static func arrow(_ key: UInt16, in window: NSWindow) -> NSEvent? {
+    private static func arrow(
+        _ key: UInt16, with modifiers: NSEvent.ModifierFlags = [], in window: NSWindow
+    ) -> NSEvent? {
         let characters = key == downArrow ? "\u{F701}" : "\u{F700}"
 
         return NSEvent.keyEvent(
-            with: .keyDown, location: .zero, modifierFlags: [.numericPad, .function], timestamp: 0,
+            with: .keyDown, location: .zero, modifierFlags: modifiers.union([.numericPad, .function]), timestamp: 0,
             windowNumber: window.windowNumber, context: nil, characters: characters,
             charactersIgnoringModifiers: characters, isARepeat: false, keyCode: key
         )

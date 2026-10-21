@@ -3,7 +3,8 @@ import SwiftUI
 
 /// The sidebar's one list (`Sidebar`), whose selection is the row picked, of a session's two while it has an ask, drawn
 /// by the system, which the pointer and the arrow keys move alike, and which never empties. ↓ and ↑ from a heading
-/// showing its project's page, which the list selects no row for, go to the row after it or before it. The row picked
+/// showing its project's page, which the list selects no row for, go to the row after it or before it, as from a
+/// row folded under a heading, and nowhere past the ends. The row picked
 /// is scrolled into view whenever the pick or the order changes: a pick made elsewhere, by a jump, a notification or
 /// the menu, a resort or a fold. Drawn as a still, its lines one under another, as the list sets them.
 ///
@@ -75,15 +76,24 @@ struct BoardList: View {
         sidebar.lines.map(\.id)
     }
 
-    /// ↓ or ↑ while a heading shows the pick: to the row after it, or before it. From a row the list selects, the keys
-    /// are the list's own.
+    /// ↓ or ↑, bare, where the list holds no selection on the pick, a heading showing it or a fold hiding it: to the
+    /// row after the heading, or before it, or, with none, nowhere, so the list picks no row of its own. From a row the
+    /// list selects, and with a modifier held, the keys are the list's own.
     private func stepFromHeading(_ press: KeyPress) -> KeyPress.Result {
-        guard let spot, let next = sidebar.step(from: spot, down: press.key == .downArrow) else {
+        // An arrow comes with the numeric pad and function flags set (measured offscreen), so bare is none of these.
+        guard press.modifiers.isDisjoint(with: [.command, .option, .control, .shift]) else {
             return .ignored
         }
 
-        act.pickInList(next)
-        return .handled
+        switch sidebar.step(from: spot, down: press.key == .downArrow) {
+        case .listsOwn:
+            return .ignored
+        case .stays:
+            return .handled
+        case let .to(next):
+            act.pickInList(next)
+            return .handled
+        }
     }
 
     /// The row picked scrolled into view, only as far as it needs.

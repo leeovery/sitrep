@@ -73,6 +73,7 @@ public final class WindowRun {
 
         self.last = last
         take(Listed(last), moving: moving)
+        leaveNeedsYou()
         if !reducesMotion {
             moving.forEach { washed[$0] = time }
         }
@@ -108,14 +109,13 @@ public final class WindowRun {
         }
     }
 
-    /// The list as `watch` gives it taken, wherever the board changes.
     private func take(_ given: Listed, moving: Set<String>) {
         self.given = given
         listed = held.take(given, moving: moving)
-        leaveNeedsYou()
     }
 
-    /// A session picked under Needs you whose ask has cleared shows under its project, its page staying.
+    /// A session picked under Needs you whose ask has cleared on the board heard shows under its project, its page
+    /// staying. With no board at all, as `watch` cannot run, nothing has cleared, and it stays where it was.
     private func leaveNeedsYou() {
         if case let .needsYou(id)? = spot, !given.needsYou.contains(where: { $0.id == id }) {
             spot = .board(.session(id))

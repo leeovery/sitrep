@@ -32,7 +32,7 @@ struct HostedSidebar {
         let shown = run.sidebar(at: now)
         let side = listAlone
             ? AnyView(VStack(spacing: 0) {
-                Color.clear.frame(height: WindowStyle.accessoryTop + 28 + WindowStyle.accessoryBottom)
+                Color.clear.frame(height: WindowStyle.accessory)
                 BoardList(sidebar: shown, spot: run.spot, filter: run.filter, now: now)
             })
             : AnyView(BoardColumn(sidebar: shown, spot: run.spot, pick: run.pick, filter: run.filter, now: now))

@@ -72,12 +72,15 @@ struct SpotTests {
         #expect(run.page(at: printedAt).session?.id == "sr-macapp")
     }
 
-    /// With no `watch` to run the list is empty, and a Needs you row picked is gone with it.
-    @Test func whenTheBoardGoesASessionPickedUnderNeedsYouShowsUnderItsProject() {
+    /// With no `watch` to run nothing has cleared, so a session picked under Needs you stays picked there, and is
+    /// there still when the board comes back.
+    @Test func whenTheBoardGoesASessionPickedUnderNeedsYouStaysThere() {
         let run = opened()
 
         run.unrun("SitRep can't read the board")
-        #expect(run.spot == .board(.session("sr-macapp")))
+        #expect(run.spot == .needsYou("sr-macapp"))
+        _ = run.show(heard(line(0)), at: printedAt, reducesMotion: false)
+        #expect(run.spot == .needsYou("sr-macapp"))
     }
 
     @Test func aQuietProjectsRowShowsItsPickAndOpensItsPage() {

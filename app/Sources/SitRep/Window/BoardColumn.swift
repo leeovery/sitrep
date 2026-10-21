@@ -105,7 +105,7 @@ private struct StillField: View {
         }
         .font(WindowStyle.ui(WindowStyle.titleSize))
         .padding(.leading, 9)
-        .frame(height: 28)
+        .frame(height: WindowStyle.fieldHeight)
         .background(Capsule().fill(Color.white.opacity(Double(0x17) / 255)))
         .padding(.horizontal, WindowStyle.selectionInset)
         .padding(.top, WindowStyle.accessoryTop)

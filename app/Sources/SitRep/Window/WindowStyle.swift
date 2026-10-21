@@ -68,7 +68,9 @@ enum WindowStyle {
     /// The sidebar, as Paper's round 8 draws it (board C, "Option B, one list"). The accessory over the list: the
     /// Filter field, the system's at its large size, 28 tall, 9 under the titlebar's band and 10 over the list.
     static let accessoryTop: CGFloat = 9
+    static let fieldHeight: CGFloat = 28
     static let accessoryBottom: CGFloat = 10
+    static let accessory = accessoryTop + fieldHeight + accessoryBottom
     /// The system's sidebar list, as measured offscreen on macOS 26 in the window's split: it sets its rows 10 in from
     /// its top and its bottom, which no modifier changes, and a row's words 16 in from the sidebar's edges, 6 inside
     /// its selection, which is 10 in.

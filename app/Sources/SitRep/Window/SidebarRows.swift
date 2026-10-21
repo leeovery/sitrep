@@ -24,20 +24,24 @@ struct SidebarLine: View {
                 isEmphasized: isEmphasized, filter: filter
             )
         case let .asking(row):
-            session(row, at: .needsYou(row.id), showsProject: true)
+            picking(session(row, showsProject: true), washed: row.washed)
         case let .session(row):
-            session(row, at: .board(.session(row.id)), showsProject: false)
+            picking(session(row, showsProject: false), washed: row.washed)
         case let .quiet(project):
-            QuietRow(project: project, filter: filter)
-                .spoken(Spoken.quiet(project))
-                .sidebarRow(.board(project.pick), picked: spot, now: now)
+            picking(QuietRow(project: project, filter: filter).spoken(Spoken.quiet(project)))
         }
     }
 
-    private func session(_ row: Listed.Row, at place: Spot, showsProject: Bool) -> some View {
+    private func session(_ row: Listed.Row, showsProject: Bool) -> some View {
         SidebarSessionRow(row: row, filter: filter, showsProject: showsProject, now: now)
             .spoken(Spoken.row(row, at: now))
-            .sidebarRow(place, picked: spot, washed: row.washed, now: now)
+    }
+
+    /// A row that picks, tagged with the line's own spot (`Sidebar.Line.spot`), so the model says what each row picks.
+    @ViewBuilder private func picking(_ content: some View, washed: Date? = nil) -> some View {
+        if let place = line.spot {
+            content.sidebarRow(place, picked: spot, washed: washed, now: now)
+        }
     }
 
     private var gap: CGFloat {

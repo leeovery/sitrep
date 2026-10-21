@@ -166,7 +166,9 @@ final class WindowModel {
     /// A heading clicked: its fold, saved as Lee leaves it, unless the filter holds text.
     private func fold(_ fold: Fold) {
         run.toggle(fold)
-        saved.save(run.folds)
+        if run.filter.isEmpty {
+            saved.save(run.folds)
+        }
         refresh()
     }
 

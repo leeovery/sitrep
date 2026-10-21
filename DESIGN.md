@@ -2781,7 +2781,8 @@ stands).
   row clicked; for a pick made outside the list, a restore at launch, the
   menu opening a session, the Filter field's Return, its row under Needs
   you while the ask stands, else its project's; and when the ask clears
-  under its Needs you row, its project's, the page staying. A project's
+  under its Needs you row, its project's, the page staying; with no board
+  to read, nothing has cleared, and the pick stays under Needs you. A project's
   page shows as picked on its heading, 24 tall, though a click there only
   folds: the system's list selects no row a click cannot pick (measured
   offscreen), so the heading draws the system's selection colours itself,
@@ -2789,7 +2790,9 @@ stands).
   arrow keys move the selection through the list's own rows, a doubled
   session's two among them, past the headings, each step a pick; from a
   heading showing its project's page, which holds no selection, ↓ goes to
-  the first row after it and ↑ to the last before it; picks that
+  the first row after it and ↑ to the last before it, and from a pick a
+  fold hides as from the heading it is folded under; past either end the
+  keys go nowhere, and with a modifier held they are the list's own; picks that
   follow sooner than 150ms read only the last one's boards once they stop.
   With the Mac's key repeat faster than that, holding ↓ reads the first
   row, the second, as the Mac waits longer before a key repeats, and the

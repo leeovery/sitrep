@@ -158,6 +158,8 @@ public struct Sidebar: Equatable, Sendable {
     /// How the board stands, for the list's place where it lists nothing.
     public let head: Head
     public let lines: [Line]
+    /// The rows a fold hides, each by the heading it is folded under.
+    private let folded: [Spot: Line.ID]
 
     public init() {
         self.init(Listed(), folds: Folds())
@@ -168,6 +170,16 @@ public struct Sidebar: Equatable, Sendable {
         head = listed.head
         lines = Self.needsYou(listed) + listed.projects.flatMap { Self.lines(of: $0, folds: folds) }
             + Self.quiet(listed.quiet, isFolded: folds.quiet)
+        folded = Self.folded(listed, by: folds)
+    }
+
+    private static func folded(_ listed: Listed, by folds: Folds) -> [Spot: Line.ID] {
+        let projects = listed.projects.filter { folds.contains(.project($0.id)) }.flatMap { project in
+            project.sessions.map { (Spot.board(.session($0.id)), Line.ID.spot(.board(.project(project.id)))) }
+        }
+        let quiet = folds.quiet ? listed.quiet.map { (Spot.board($0.pick), Line.ID.quietHeading) } : []
+
+        return Dictionary(projects + quiet) { first, _ in first }
     }
 
     private static func needsYou(_ listed: Listed) -> [Line] {
@@ -213,18 +225,40 @@ public struct Sidebar: Equatable, Sendable {
         picks.first?.pick
     }
 
-    /// From a heading showing the pick, its project's page open, the row an arrow key moves to: the first row that
-    /// picks after it, going down, or the last before it, going up. None from a row the list itself selects, whose
-    /// arrow keys are the list's own.
-    public func step(from spot: Spot, down: Bool) -> Spot? {
-        guard let place = lines.firstIndex(where: { $0.spot == spot }), case .heading = lines[place] else {
-            return nil
+    /// Where an arrow key goes from the pick where the list holds no selection on it.
+    public enum Step: Equatable, Sendable {
+        /// To this row.
+        case to(Spot)
+        /// Nowhere: no row that picks lies that way.
+        case stays
+        /// The list's own way, from the row it selects, or from a pick it does not show, as one filtered out.
+        case listsOwn
+    }
+
+    /// An arrow key from the pick: from a heading showing it, its project's page open, or from a row folded under a
+    /// heading, which stands at that heading, to the first row that picks after the heading, going down, or the last
+    /// before it, going up.
+    public func step(from spot: Spot?, down: Bool) -> Step {
+        guard let spot, let place = heading(showing: spot) else {
+            return .listsOwn
         }
 
         let picking = Set(picks)
         let beyond = down ? Array(lines[(place + 1)...]) : lines[..<place].reversed()
 
-        return beyond.lazy.compactMap(\.spot).first(where: picking.contains)
+        return beyond.lazy.compactMap(\.spot).first(where: picking.contains).map(Step.to) ?? .stays
+    }
+
+    /// Where the heading standing for the pick sits: its own, picked, or the one its row is folded under.
+    private func heading(showing spot: Spot) -> Int? {
+        let id = folded[spot] ?? .spot(spot)
+
+        return lines.firstIndex { line in
+            guard line.id == id, case .heading = line else {
+                return false
+            }
+            return true
+        }
     }
 }
 
