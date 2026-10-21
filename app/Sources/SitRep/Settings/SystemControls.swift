@@ -2,11 +2,12 @@ import AppKit
 import SwiftUI
 
 /// The system's segmented control, as wide as it is given, its segments equal: SwiftUI's segmented picker keeps to
-/// its words' widths, where Settings sets every one across its controls' column.
+/// its words' widths, where Settings sets every one across its controls' column and the sidebar's switch spans the
+/// sidebar.
 struct Segments<Value: Hashable>: NSViewRepresentable {
     let label: String
     let values: [Value]
-    let title: KeyPath<Value, String>
+    let title: (Value) -> String
     @Binding var selection: Value
 
     func makeNSView(context: Context) -> NSSegmentedControl {
@@ -20,7 +21,7 @@ struct Segments<Value: Hashable>: NSViewRepresentable {
     }
 
     func updateNSView(_ control: NSSegmentedControl, context: Context) {
-        let labels = values.map { $0[keyPath: title] }
+        let labels = values.map(title)
         let selection = $selection
 
         control.segmentCount = labels.count

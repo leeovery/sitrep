@@ -7,18 +7,11 @@ public enum Sidebar: String, Codable, CaseIterable, Sendable, Identifiable {
     case projects, needsYou
 
     public var id: Self { self }
-
-    public var title: String {
-        switch self {
-        case .projects: "Projects"
-        case .needsYou: "Needs you"
-        }
-    }
 }
 
-/// What Lee sets in the SitRep window itself, saved as one value of its own: the sidebar's view, kept across
+/// What Lee sets in the sidebar, saved as one value of its own under the key "window": its view, kept across
 /// launches.
-public struct WindowSettings: SavedValue {
+public struct SidebarSettings: SavedValue {
     public static let key = "window"
 
     public var sidebar = Sidebar.projects
@@ -26,7 +19,7 @@ public struct WindowSettings: SavedValue {
     public init() {}
 
     public init(from decoder: any Decoder) {
-        let defaults = WindowSettings()
+        let defaults = SidebarSettings()
         guard let given = try? decoder.container(keyedBy: CodingKeys.self) else {
             self = defaults
             return
@@ -71,8 +64,8 @@ private extension Board.Session {
     }
 }
 
-extension SavedSettings where Value == WindowSettings {
-    /// The view Lee chose, kept with whatever else the window's settings hold.
+extension SavedSettings where Value == SidebarSettings {
+    /// The view Lee chose, kept with whatever else the sidebar's settings hold.
     public func save(_ sidebar: Sidebar) {
         var settings = read()
 

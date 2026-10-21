@@ -30,7 +30,7 @@ final class WindowModel {
     @ObservationIgnored private let plugin: Plugin
     @ObservationIgnored private let works: Works
     @ObservationIgnored private let defaults: UserDefaults
-    @ObservationIgnored private let saved: SavedSettings<WindowSettings>
+    @ObservationIgnored private let saved: SavedSettings<SidebarSettings>
     @ObservationIgnored private var wake: Task<Void, Never>?
     @ObservationIgnored private var observers: [any NSObjectProtocol] = []
 
@@ -42,7 +42,7 @@ final class WindowModel {
         self.plugin = plugin
         self.works = works
         self.defaults = defaults
-        let saved = SavedSettings<WindowSettings>(defaults)
+        let saved = SavedSettings<SidebarSettings>(defaults)
 
         self.saved = saved
         run = WindowRun(lastSession: defaults.string(forKey: Self.lastSessionKey), sidebar: saved.read().sidebar)
@@ -59,7 +59,7 @@ final class WindowModel {
             confirmFinish: { [weak self] in self?.confirmFinish($0) },
             pointer: { [weak self] in self?.pointer(isIn: $0) },
             choose: { [weak self] in self?.choose($0) },
-            filter: { [weak self] in self?.filter($0) },
+            filter: { [weak self] in self?.narrow(to: $0) },
             openFirstMatch: { [weak self] in self?.openFirstMatch() }
         )
         listen()
@@ -170,7 +170,7 @@ final class WindowModel {
         refresh()
     }
 
-    private func filter(_ text: String) {
+    private func narrow(to text: String) {
         run.filter = Filter(text)
         refresh()
     }

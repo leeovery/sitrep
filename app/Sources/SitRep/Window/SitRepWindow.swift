@@ -165,9 +165,9 @@ final class SitRepWindow: NSObject, NSWindowDelegate {
 
 /// Keyboard focus moved by a key, through AppKit's key views: ⌘F into the sidebar's Filter field, from anywhere;
 /// Return in the sidebar, but for its Filter field, into the page, to its first control, which with the Mac's Keyboard
-/// navigation off has none; Escape in the page back to the list holding the pick, the board's or Settings' at its foot.
-/// Tab and the arrows keep the Mac's own order. In the Filter field Return and Escape are the field's own
-/// (`FilterField`).
+/// navigation off has none, so Return there leaves focus where it is; Escape in the page back to the list holding the
+/// pick, the board's or Settings' at its foot. Tab and the arrows keep the Mac's own order. In the Filter field Return
+/// and Escape are the field's own (`FilterField`).
 @MainActor
 struct SideFocus {
     let window: NSWindow
@@ -204,13 +204,23 @@ struct SideFocus {
         }
 
         if [Self.return, Self.enter].contains(event.keyCode), focus.isDescendant(of: sidebar), !isInField(focus) {
-            window.selectKeyView(following: page)
-            return self.focus?.isDescendant(of: page) == true
+            intoThePage(from: focus)
+            return true
         }
         if event.keyCode == Self.escape, focus.isDescendant(of: page) {
             return window.makeFirstResponder(list ?? sidebar)
         }
         return false
+    }
+
+    /// Focus to the page's first control. With none to take it, as with Keyboard navigation off, AppKit wraps round
+    /// its key views to the sidebar's first, the Filter field, whose Return would open its first match: so focus goes
+    /// back where it was.
+    private func intoThePage(from focus: NSView) {
+        window.selectKeyView(following: page)
+        if self.focus?.isDescendant(of: page) != true {
+            window.makeFirstResponder(focus)
+        }
     }
 
     private var focus: NSView? { window.firstResponder as? NSView }

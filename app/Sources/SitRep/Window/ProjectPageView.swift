@@ -14,11 +14,7 @@ struct ProjectPageView: View {
         VStack(alignment: .leading, spacing: 0) {
             Color.clear.frame(height: WindowStyle.barHeight)
             VStack(alignment: .leading, spacing: 6) {
-                Text(page.name)
-                    .font(WindowStyle.ui(28, .bold))
-                    .spacing(-0.03, of: 28)
-                    .foregroundStyle(WindowStyle.text)
-                    .accessibilityAddTraits(.isHeader)
+                PageTitle(words: page.name)
                 Text(Words.project(waiting: page.waiting, open: page.open))
                     .font(WindowStyle.ui(14))
                     .foregroundStyle(WindowStyle.soft)

@@ -3,6 +3,7 @@ import Foundation
 @testable import SitRep
 @testable import SitRepCore
 import SitRepEdge
+import SitRepLines
 import SitRepMenu
 import SitRepPanel
 @testable import SitRepWindow
@@ -72,15 +73,15 @@ struct SettingsStillsTests {
             .write(to: try #require(stills).appending(path: "\(name).png"))
     }
 
-    /// The window on Settings, the sidebar's stand-in with Settings picked at its foot, as tall as `height`.
-    private static func window(_ page: SettingsPage, _ name: String, height: CGFloat = WindowStyle.size.height) throws {
-        let view = HStack(spacing: 0) {
-            BoardColumn(listed: Listed(), pick: .settings, sidebar: .projects, filter: Filter(), now: Date()).frame(width: WindowStyle.boardWidth)
-            PageColumn(page: .settings, now: Date()) { page }
-        }
-        .environment(\.isStill, true)
-
-        try render(view, name, size: CGSize(width: WindowStyle.size.width, height: height))
+    /// The window on Settings, the sidebar's stand-in with Settings picked at its foot, over the board `run` holds, as
+    /// tall as `height`.
+    private static func window(
+        _ page: SettingsPage, _ name: String, height: CGFloat = WindowStyle.size.height, run: WindowRun = WindowRun()
+    ) throws {
+        _ = run.pick(.settings)
+        try render(
+            stillWindow(run, at: Date()) { page }, name, size: CGSize(width: WindowStyle.size.width, height: height)
+        )
     }
 
     @Test(arguments: EdgeSettings.Show.allCases)
@@ -88,6 +89,19 @@ struct SettingsStillsTests {
         let page = await Self.page(Self.preferences { $0.show = show }, windows: [Watched.window("w2", needsReload: false)])
 
         try Self.window(page, "settings-\(show.title.lowercased())")
+    }
+
+    /// The foot under a filter: the board narrowed above it, Settings still picked.
+    @Test func theWindowOnSettingsUnderAFilter() async throws {
+        let page = await Self.page(Self.preferences(), windows: [Watched.window("w2", needsReload: false)])
+        let run = WindowRun()
+        var last = LastBoard()
+
+        last.begin()
+        _ = last.hear(.line(Lines.watch[0]), at: Date())
+        _ = run.show(last, at: Date(), reducesMotion: false)
+        run.filter = Filter("le")
+        try Self.window(page, "settings-under-a-filter", run: run)
     }
 
     @Test func theWholePage() async throws {

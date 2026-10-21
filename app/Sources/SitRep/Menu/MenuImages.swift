@@ -14,9 +14,9 @@ enum MenuImages {
     /// lit, its bar orange and its housing drawn in the ink of the bar it is drawn on, light or dark, or in the ink
     /// given, as a drawing of a menu bar sets it.
     static func glyph(_ glyph: MenuBoard.Glyph, ink given: NSColor? = nil) -> NSImage {
-        let image = NSImage(size: NSSize(width: 18, height: 18), flipped: true) { _ in
+        let image = NSImage(size: NSSize(width: glyphSide, height: glyphSide), flipped: true) { _ in
             let ink: NSColor = glyph == .rest ? .black : given ?? (NSAppearance.currentDrawing().isDark ? .white : .black)
-            let housing = NSBezierPath(roundedRect: NSRect(x: 5.9, y: 2.5, width: 6.2, height: 13), xRadius: 3.1, yRadius: 3.1)
+            let housing = NSBezierPath(roundedRect: glyphHousing, xRadius: 3.1, yRadius: 3.1)
 
             housing.lineWidth = 1.3
             ink.setStroke()
@@ -38,6 +38,10 @@ enum MenuImages {
 
         return image
     }
+
+    /// The glyph's box, and its housing in it, by which a drawing of a menu bar sets it.
+    static let glyphSide: CGFloat = 18
+    static let glyphHousing = NSRect(x: 5.9, y: 2.5, width: 6.2, height: 13)
 
     /// A session's mark: an orange dot for needs you, an away one's too; an open ring for your turn; a turning arc's
     /// still, for working, fainter than the rest. The ring and the arc are template images, so they take the menu's

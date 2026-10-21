@@ -23,11 +23,7 @@ struct SessionPageView: View {
                         .font(WindowStyle.ui(15, .semibold))
                         .accessibilityAddTraits(.isHeader)
                     TitleRow {
-                        Text(page.name)
-                            .font(WindowStyle.ui(28, .bold))
-                            .spacing(-0.03, of: 28)
-                            .foregroundStyle(WindowStyle.text)
-                            .accessibilityAddTraits(.isHeader)
+                        PageTitle(words: page.name)
                         if page.jumps {
                             jump
                         }
