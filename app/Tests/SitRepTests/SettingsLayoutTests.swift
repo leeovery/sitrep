@@ -14,7 +14,7 @@ import Testing
 struct SettingsLayoutTests {
     /// The column's left, at the title's edge, in the page's points.
     private static let edge = CGFloat(44)
-    /// The page whose column is the drawing's 704, at which Paper's heights hold: they follow the pictures' height.
+    /// The page whose column is the drawing's 704.
     private static let drawingsPage = CGFloat(704 + 88)
 
     /// The column at a page's width: the page less 44 on each side, as a session's and a project's are, with no cap.
@@ -53,31 +53,6 @@ struct SettingsLayoutTests {
         #expect(abs(popUp.width - SystemControlsTests.stock(button.itemArray).intrinsicContentSize.width) <= 0.5)
         // Reduce motion, Notify me of a new ask, Open at login
         #expect(hosted.all(NSSwitch.self).count == 3)
-    }
-
-    /// The three pictures fill the column, 16 apart, each a third of what the gaps leave and as tall as 225:145 makes
-    /// that, to the whole point, so the Notch card stands on a whole point, 38 under them, past their labels.
-    @Test(arguments: [564.0, 956, 1003, 1400])
-    func thePicturesFillTheColumnInWholePoints(page: CGFloat) async throws {
-        let drawn = try await Hosted.drawn(width: page)
-        let width = (Self.column(page) - 32) / 3
-        let height = (width * 145 / 225).rounded()
-        // down the gap between the second and third pictures, clear of the title and the header at any width
-        let card = try #require(drawn.litSpans(atX: Self.edge + 2 * width + 24).first)
-        // across the pictures' middle, where each one's edge is lit: the chosen one's picture to its right, and the
-        // others' hairlines
-        let across = drawn.litSpans(atY: 146 + height / 2)
-        let lefts = [1.0, 2].map { Self.edge + $0 * (width + 16) }
-        let rights = [0.0, 1, 2].map { Self.edge + $0 * (width + 16) + width }
-        let pixel = 1 / drawn.scale
-
-        #expect(abs(card.lowerBound - (146 + height + 8 + 16 + 14)) < pixel / 2)
-        for left in lefts {
-            #expect(across.contains { abs($0.lowerBound - left) < pixel })
-        }
-        for right in rights {
-            #expect(across.contains { abs($0.upperBound - right) < pixel })
-        }
     }
 
     @Test func eachSegmentedControlsSegmentsAreEqual() async throws {
@@ -174,13 +149,14 @@ struct SettingsLayoutTests {
         #expect(abs(narrow.control.maxX - (300 - 10)) < 0.5)
     }
 
-    /// Down the gap between the first two pictures, the page is black but for the cards and the desktop corner, at the
-    /// drawing's heights, Notch chosen: 14 under the pictures, 30 from a card to the next header, and the caption's row
-    /// of 42 between the corner and its card. Within a pixel at the screen's scale, which lays the page out.
-    @Test func thePagesCardsStandAtTheDrawingsHeights() async throws {
+    /// Down the column, clear of the Show row's pictures, the page is black but for the cards and the desktop corner,
+    /// Notch chosen: its card the Show row's 86 over the Notch's rows, 30 from a card to the next header, and the
+    /// caption's row of 42 between the corner and its card. Within a pixel at the screen's scale, which lays the page
+    /// out.
+    @Test func thePagesCardsStandAtTheirHeights() async throws {
         let drawn = try await Hosted.drawn(width: Self.drawingsPage)
         let spans = drawn.litSpans(atX: Self.edge + 232)
-        let drawing: [ClosedRange<CGFloat>] = [328 ... 576, 632 ... 782, 824 ... 928.5, 984.5 ... 1127.5]
+        let drawing: [ClosedRange<CGFloat>] = [146 ... 480.5, 536.5 ... 686.5, 728.5 ... 833, 889 ... 1032]
 
         #expect(spans.count == drawing.count)
         for (span, expected) in zip(spans, drawing) {
@@ -188,20 +164,20 @@ struct SettingsLayoutTests {
         }
     }
 
-    /// Each header's line of 16 stands 10 over what it heads: the pictures at 146, the desktop corner at 632 and
-    /// General's card at 984.5, the first header's line 28 under the title's line of 34 (58 to 92). Each header's
-    /// capitals stand alike in their line, so the same distance over what each heads.
+    /// Each header's line of 16 stands 10 over what it heads: What stays on screen's card at 146, the desktop corner
+    /// at 536.5 and General's card at 889, the first header's line 28 under the title's line of 34 (58 to 92). Each
+    /// header's capitals stand alike in their line, so the same distance over what each heads.
     @Test func eachHeaderStands10OverWhatItHeads() async throws {
         let drawn = try await Hosted.drawn(width: Self.drawingsPage)
-        let pictures = try #require(drawn.litSpans(atX: Self.edge + 352).first)
-        let heads = [pictures.lowerBound, 632, 984.5]
+        let first = try #require(drawn.litSpans(atX: Self.edge + 352).first)
+        let heads = [first.lowerBound, 536.5, 889]
         // the header's first word's first letters, which hang below no line: What, Noti, Gene
         let capitals = try heads.map { head in
             try #require(drawn.litRows(in: CGRect(x: Self.edge + 10, y: head - 30, width: 30, height: 24)))
         }
         let pixel = 1 / drawn.scale
 
-        #expect(abs(pictures.lowerBound - 146) < pixel)
+        #expect(abs(first.lowerBound - 146) < pixel)
         for (head, capital) in zip(heads, capitals) {
             // inside the line of 16 that ends 10 over the head
             #expect(capital.lowerBound >= head - 10 - 16)
@@ -226,13 +202,13 @@ struct SettingsLayoutTests {
         #expect(try await Hosted.drawn(width: 956).pixels(in: title) == drawn.pixels(in: title))
     }
 
-    /// The Notch's card, Edge, Display, Style, Material and Reduce motion: a hairline of 0.5 between each two rows,
-    /// none at its top or its foot, 10 in from both its ends. Within a pixel at the screen's scale.
+    /// The Notch's card, Show, Edge, Display, Style, Material and Reduce motion: a hairline of 0.5 between each two
+    /// rows, none at its top or its foot, 10 in from both its ends. Within a pixel at the screen's scale.
     @Test func aCardsHairlinesAreHalfAPointBetweenItsRowsOnly() async throws {
         let drawn = try await Hosted.drawn(width: Self.drawingsPage)
         let card = try #require(drawn.litSpans(atX: Self.edge + 232).first)
         let lines = { (x: CGFloat) in drawn.lines(atX: Self.edge + x, in: card) }
-        let rows: [CGFloat] = [52, 38, 52, 52]
+        let rows: [CGFloat] = [86, 52, 38, 52, 52]
         let drawing = rows.indices.map { row in
             let top = card.lowerBound + rows[...row].reduce(0, +) + CGFloat(row) * 0.5
 
@@ -247,7 +223,7 @@ struct SettingsLayoutTests {
         #expect(lines(704 - 5).isEmpty)
     }
 
-    @Test(arguments: [(EdgeSettings.Show.notch, 1167.5), (.strip, 1220)])
+    @Test(arguments: [(EdgeSettings.Show.notch, 1072.0), (.strip, 1124.5)])
     func thePageEnds40UnderGeneralsCard(show: EdgeSettings.Show, height: CGFloat) async {
         let page = await Hosted.pageView { $0.show = show }
         let size = NSHostingController(rootView: page).sizeThatFits(in: CGSize(width: 704, height: 10_000))
@@ -386,10 +362,11 @@ struct Hosted {
         return Hosted(PageColumn(page: .settings, now: Date()) { page }, size: CGSize(width: width, height: height))
     }
 
-    /// The window's page on Settings drawn, Notch chosen, `width` wide and 1300 tall: as a still, so the whole page
-    /// draws, but in a window, which lays it out to the screen's pixels, as the window on screen does.
-    static func drawn(width: CGFloat) async throws -> Drawn {
-        let page = await pageView()
+    /// The window's page on Settings drawn, Notch chosen unless `change` says, `width` wide and 1300 tall: as a still,
+    /// so the whole page draws, but in a window, which lays it out to the screen's pixels, as the window on screen
+    /// does.
+    static func drawn(width: CGFloat, _ change: (inout EdgeSettings) -> Void = { _ in }) async throws -> Drawn {
+        let page = await pageView(change)
         let still = PageColumn(page: .settings, now: Date()) { page }.environment(\.isStill, true)
 
         return try Drawn(Hosted(still, size: CGSize(width: width, height: 1300)).hosting)

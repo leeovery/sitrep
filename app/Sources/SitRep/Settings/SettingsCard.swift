@@ -11,6 +11,9 @@ enum SettingsStyle {
     /// A row's words and its control, in from the card's edges; a section header and the line where a card would
     /// be, in as far.
     static let inset: CGFloat = 10
+    /// Over and under what a row holds, its words or the Show row's pictures: the drawing's 52 less a row's two lines,
+    /// 16 and 14, and the 2 between, which is what a wrapped line grows the row by.
+    static let rowMargin: CGFloat = 10
     /// Between a section's header and what it heads, and between a card and the next section.
     static let headerGap: CGFloat = 10
     static let sectionGap: CGFloat = 30
@@ -64,31 +67,41 @@ struct CardRow<Control: View>: View {
     var line: String?
     @ViewBuilder let control: () -> Control
 
-    @Environment(\.isEnabled) private var isEnabled
-
     var body: some View {
         HStack(spacing: 16) {
-            VStack(alignment: .leading, spacing: 2) {
-                Text(label)
-                    .font(.body)
-                    .spacing(-0.01, of: 13)
-                    .foregroundStyle(SettingsStyle.label)
-                    .opacity(isEnabled ? 1 : 0.5)
-                if let line {
-                    Text(line)
-                        .font(.subheadline)
-                        .foregroundStyle(SettingsStyle.secondary)
-                        .opacity(isEnabled ? 1 : 0.6)
-                }
-            }
-            .fixedSize(horizontal: false, vertical: true)
-            // the drawing's 52 less its two lines, 16 and 14, and the 2 between: what a wrapped line grows the row by
-            .padding(.vertical, 10)
-            .frame(maxWidth: .infinity, alignment: .leading)
+            RowWords(label: label, line: line)
             control().fixedSize()
         }
         .padding(.horizontal, SettingsStyle.inset)
         .frame(minHeight: line == nil ? SettingsStyle.oneLineRow : SettingsStyle.twoLineRow)
+    }
+}
+
+/// A row's words: its label, 13, and the line under it, 11 in the secondary colour, taking the width the row leaves
+/// them and wrapping onto more lines. Disabled, they dim as the system dims a disabled row's.
+struct RowWords: View {
+    let label: String
+    var line: String?
+
+    @Environment(\.isEnabled) private var isEnabled
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(label)
+                .font(.body)
+                .spacing(-0.01, of: 13)
+                .foregroundStyle(SettingsStyle.label)
+                .opacity(isEnabled ? 1 : 0.5)
+            if let line {
+                Text(line)
+                    .font(.subheadline)
+                    .foregroundStyle(SettingsStyle.secondary)
+                    .opacity(isEnabled ? 1 : 0.6)
+            }
+        }
+        .fixedSize(horizontal: false, vertical: true)
+        .padding(.vertical, SettingsStyle.rowMargin)
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
 

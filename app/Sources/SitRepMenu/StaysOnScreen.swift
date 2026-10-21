@@ -1,7 +1,7 @@
 import SitRepPanel
 
-/// What stays on screen (DESIGN, "Settings"): the rows of the card under the three pictures that apply to the choice,
-/// in their order. With Nothing there is no card, and one line says what carries the board instead.
+/// What stays on screen (DESIGN, "Settings"): the rows of its card under the Show row that apply to the choice, in
+/// their order. With Nothing there are none, and the Show row's line says what carries the board instead.
 public enum StaysOnScreen {
     /// A row of the card.
     public enum Row: Hashable, Sendable {

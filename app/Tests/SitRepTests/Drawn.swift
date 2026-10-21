@@ -8,6 +8,8 @@ struct Drawn {
     let bitmap: NSBitmapImageRep
     let scale: CGFloat
 
+    /// Offscreen, at 2× whatever the screen's scale, as a Retina screen draws it, so what a test counts in pixels holds
+    /// on any Mac.
     init(_ view: some View, size: CGSize) throws {
         let hosting = NSHostingView(rootView: view
             .frame(width: size.width, height: size.height)
@@ -17,9 +19,17 @@ struct Drawn {
         hosting.appearance = NSAppearance(named: .darkAqua)
         hosting.frame = CGRect(origin: .zero, size: size)
         hosting.layoutSubtreeIfNeeded()
-        bitmap = try #require(hosting.bitmapImageRepForCachingDisplay(in: hosting.bounds))
+
+        let screen = try #require(hosting.bitmapImageRepForCachingDisplay(in: hosting.bounds))
+
+        bitmap = try #require(NSBitmapImageRep(
+            bitmapDataPlanes: nil, pixelsWide: Int((size.width * 2).rounded()), pixelsHigh: Int((size.height * 2).rounded()),
+            bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false, colorSpaceName: screen.colorSpaceName,
+            bytesPerRow: 0, bitsPerPixel: 0
+        )?.retagging(with: screen.colorSpace))
+        bitmap.size = size
         hosting.cacheDisplay(in: hosting.bounds, to: bitmap)
-        scale = CGFloat(bitmap.pixelsHigh) / size.height
+        scale = 2
     }
 
     /// A view as it draws where it is, as in a window, which lays it out to the window's pixels.

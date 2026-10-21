@@ -3116,28 +3116,38 @@ reference only.
   and the glyph.
 - **What stays on screen**, named for the choice it makes, true for all
   three, Nothing included (Lee's alternative, if he prefers it later: "Show
-  on screen"). Three pictures of the screen's edge, in 225 by 145's shape,
-  filling the column equally, 16 apart, 224 by 144 at 704, their heights
-  in whole points, each named 8
-  under it: the notch and its light,
+  on screen"). One card, opening on the **Show row**, set as System
+  Settings sets its Appearance row on macOS 26, measured from a capture of
+  it (round 9, 21 October 2026). Round 8 put three large pictures over the
+  card, filling the column; once the column filled the page they grew with
+  the window, 385 by 248 each in a window 1591 wide, and Lee pointed at
+  Appearance instead: "I think maybe we should change what that looks
+  like … and that would help solve this problem". Show is the row's label,
+  at a label's place at its top, as Appearance's is; at its right, against
+  the card's, three pictures, 67 by 44 at radius 5, 15 apart, the last
+  13.5 in from the card's edge, at any width: the notch and its light,
   the strip as it stands at Length Grows, its column curving back into the
   edge in the strip's own S and its rings in the panel's order, or only the
-  menu bar's glyph, lit. The one chosen is ringed in the accent past a gap
-  of the page's black, 2, then the ring to 4.5 past its edge, its name
-  semibold in the label colour; a tile not chosen has a hairline of white
-  at 15% and its name regular in the secondary colour. A click chooses
-  one; it is the menu's Show. The
+  menu bar's glyph, lit. Each is named under it, 11, 4.5 below it. The one
+  chosen is ringed in the accent, 3 wide past a gap of the card's raise,
+  0.5, its name semibold in the label colour; a picture not chosen has a
+  hairline of white at 15% and its name regular in the secondary colour.
+  The row is 86 tall, its pictures' ring 10 from its top. A click chooses
+  one; it is the menu's Show. At their size, the pictures keep to what
+  reads: the strip's rings drawn no finer than half a point, and Nothing's
+  menu bar seen closer, from its right end, until the glyph's housing
+  stands 5 tall, where its line is still a pixel. The
   pictures are a fixed sample, one needs you and the notch lit, and
   nothing in them moves, under the pointer or not (Lee, 21 October 2026,
   of the notch's tongue reaching for the pointer and the strip's rings
   turning under it: "This looks stupid… Remove the animation from these
-  highlights"). A tile not chosen lifts its hairline to white at 40% while
-  the pointer is over it, and its name to the label colour, at once; the
-  chosen tile stays as it is. The window leaving the screen, no
-  tile is taken as under the pointer, as AppKit may send no leave then.
-- **The card under the pictures** holds the rows that apply to the choice,
-  in this order, each arriving and leaving by the system's own transition,
-  at once under Reduce motion:
+  highlights"). A picture not chosen lifts its hairline to white at 40%
+  while the pointer is over it, and its name to the label colour, at once;
+  the chosen one stays as it is. The window leaving the screen, no
+  picture is taken as under the pointer, as AppKit may send no leave then.
+- **The rows under Show**, in the same card, are the ones that apply to the
+  choice, in this order, each arriving and leaving by the system's own
+  transition, at once under Reduce motion:
   - **Notch:** Edge, Left or Right ("or drag it across the middle");
     Display, the main one unless another is chosen; Style, Meniscus or Card;
     Material; Reduce motion.
@@ -3145,8 +3155,9 @@ reference only.
     it, or runs the screen's height"); Max, only at Grows, a slider 160
     wide whose right end is Full ("how long it grows"); Material; Reduce
     motion.
-  - **Nothing:** no card. One line in its place, 11 in the secondary
-    colour, says the menu and the SitRep window carry the board.
+  - **Nothing:** none; the card is the Show row alone, and Show has a line
+    under it, as a row's line is set, saying the menu and the SitRep window
+    carry the board. Under the notch or the strip, Show has no line.
 
   Material is Black or Glass, for the notch and the strip alike, Black by
   default, from macOS 26 (before it, Black and no row). Reduce motion is
