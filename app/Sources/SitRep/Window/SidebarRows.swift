@@ -113,12 +113,25 @@ struct FoldHeading: View {
     /// The selection's shape, on the heading's own row under its gap, in from the sidebar's edges.
     @ViewBuilder private var selection: some View {
         if isPicked {
-            RoundedRectangle(cornerRadius: WindowStyle.headingRadius, style: .continuous)
-                .fill(isStill ? WindowStyle.stillSelection : WindowStyle.selection(isEmphasized: isEmphasized))
-                .frame(height: WindowStyle.headingHeight)
-                .padding(.horizontal, WindowStyle.selectionInset)
-                .frame(maxHeight: .infinity, alignment: .bottom)
+            SelectionShaped(
+                fill: WindowStyle.selection(isEmphasized: isEmphasized, isStill: isStill),
+                radius: WindowStyle.headingRadius
+            )
+            .frame(height: WindowStyle.headingHeight)
+            .frame(maxHeight: .infinity, alignment: .bottom)
         }
+    }
+}
+
+/// A fill shaped as the system's selection: rounded, and in from the sidebar's edges.
+struct SelectionShaped: View {
+    let fill: Color
+    let radius: CGFloat
+
+    var body: some View {
+        RoundedRectangle(cornerRadius: radius, style: .continuous)
+            .fill(fill)
+            .padding(.horizontal, WindowStyle.selectionInset)
     }
 }
 

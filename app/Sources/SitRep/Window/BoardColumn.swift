@@ -5,8 +5,9 @@ import SwiftUI
 /// projects each under a heading that folds, and the quiet projects under theirs. The filter narrows it in place, the
 /// words typed lit in the names that hold them; with nothing kept, one line says so, and an empty board says how the
 /// board stands. A quiet project's row opens the project. A row under the pointer that is not the one picked shows a
-/// quiet fill behind it. Settings sits at the sidebar's foot, which never scrolls, the list running on under it, its
-/// last row 12 over the foot's rule; while Settings shows, nothing on the board is picked.
+/// quiet fill behind it. Settings sits at the sidebar's foot, which never scrolls, under the list, whose rows fade out
+/// at its own bottom edge, over the foot's rule, its last row 12 over it; while Settings shows, nothing on the board is
+/// picked.
 struct BoardColumn: View {
     let sidebar: Sidebar
     let spot: Spot?
@@ -22,15 +23,15 @@ struct BoardColumn: View {
         } else {
             VStack(alignment: .leading, spacing: 0) {
                 accessory
-                list.foot { SettingsFooter(pick: pick, now: now) }.overlay {
+                list.fadingAtItsFoot().overlay {
                     if let note {
-                        ListNote(words: note).padding(.bottom, SettingsFooter.height)
+                        ListNote(words: note)
                     }
                 }
+                SettingsFooter(pick: pick)
             }
-            // A window on screen gives the sidebar a bottom safe area, which an offscreen one does not, and which the
-            // foot's bar took into its height and its list into its insets, rising by it: ignored, the bar sits on the
-            // glass's bottom.
+            // A window on screen gives the sidebar a bottom safe area, which an offscreen one does not: ignored, the
+            // foot sits on the glass's bottom.
             .ignoresSafeArea(.container, edges: .bottom)
         }
     }
@@ -70,7 +71,7 @@ struct BoardColumn: View {
                 list
                 Spacer(minLength: 0)
             }
-            SettingsFooter(pick: pick, now: now)
+            SettingsFooter(pick: pick)
         }
         .background(WindowStyle.black)
         .overlay(alignment: .trailing) { Rectangle().fill(WindowStyle.line).frame(width: 1) }
@@ -121,89 +122,13 @@ extension View {
 }
 
 private extension View {
-    /// A foot the list runs on under: on macOS 26 the system's own bar, whose soft scroll edge fades the list where it
-    /// passes beneath (spec 2.5's fade, the sidebar's glass where Paper drew a gradient); before it, the list's inset,
-    /// with no fade.
-    @ViewBuilder func foot(@ViewBuilder _ foot: () -> some View) -> some View {
+    /// A list whose rows fade out at its bottom edge, over the foot's rule: on macOS 26 by the system's soft scroll
+    /// edge (spec 2.5's fade, the sidebar's glass where Paper drew a gradient); before it, with no fade.
+    @ViewBuilder func fadingAtItsFoot() -> some View {
         if #available(macOS 26, *) {
-            scrollEdgeEffectStyle(.soft, for: .bottom).safeAreaBar(edge: .bottom, spacing: 0, content: foot)
+            scrollEdgeEffectStyle(.soft, for: .bottom)
         } else {
-            safeAreaInset(edge: .bottom, spacing: 0, content: foot)
+            self
         }
-    }
-}
-
-/// Settings at the sidebar's foot, under a rule, fixed as the list runs on under it: a list of its one row, so it
-/// takes the system's own selection while Settings shows, as a picked session's row does, and is a stop of its own for
-/// the keys. Drawn as a still, its row alone, as the board's rows are.
-struct SettingsFooter: View {
-    let pick: Pick?
-    let now: Date
-
-    @Environment(\.windowActions) private var act
-    @Environment(\.isStill) private var isStill
-    /// The row as the list holds it, put back whenever the list lets go of it while Settings shows.
-    @State private var selection: Spot?
-
-    /// Its rule, and its row with the space above and below it (spec 2.5).
-    static let height = WindowStyle.footerRule + WindowStyle.footerTop + WindowStyle.footerRow + WindowStyle.footerBottom
-
-    var body: some View {
-        VStack(spacing: 0) {
-            Rectangle()
-                .fill(WindowStyle.separator)
-                .frame(height: WindowStyle.footerRule)
-                .padding(.horizontal, WindowStyle.selectionInset)
-            if isStill {
-                row.padding(.top, WindowStyle.footerTop).padding(.bottom, WindowStyle.footerBottom)
-            } else {
-                // The list sets its row 10 under its own top, so it starts 2 over the rule, which it draws nothing
-                // over, to set its row 8 under it.
-                List(selection: $selection) { row }
-                    .sidebarList()
-                    .scrollDisabled(true)
-                    .frame(height: WindowStyle.footerList)
-                    .padding(.top, WindowStyle.footerTop - WindowStyle.listInset)
-                    .onChange(of: selection) { _, selected in
-                        if selected == Self.spot, pick != .settings {
-                            act.pick(.settings)
-                        } else if selected == nil, pick == .settings {
-                            selection = Self.spot
-                        }
-                    }
-                    .onChange(of: pick, initial: true) { _, pick in
-                        selection = pick == .settings ? Self.spot : nil
-                    }
-            }
-        }
-    }
-
-    private var row: some View {
-        SettingsFootRow().sidebarRow(Self.spot, picked: pick == .settings ? Self.spot : nil, now: now)
-    }
-
-    /// Its row, the one place Settings is picked from.
-    private static let spot = Spot.board(.settings)
-}
-
-/// Settings' row: the gear, in the accent, white on the emphasized selection, and its word.
-private struct SettingsFootRow: View {
-    @Environment(\.backgroundProminence) private var prominence
-
-    var body: some View {
-        HStack(spacing: WindowStyle.slotGap) {
-            Image(systemName: "gearshape")
-                .resizable()
-                .scaledToFit()
-                .frame(width: 15, height: 15)
-                .foregroundStyle(WindowStyle.colour(Color.accentColor, on: prominence))
-                .frame(width: WindowStyle.slot.width, height: WindowStyle.slot.height)
-                .accessibilityHidden(true)
-            Text("Settings")
-                .font(WindowStyle.ui(WindowStyle.titleSize))
-                .spacing(WindowStyle.titleTracking, of: WindowStyle.titleSize)
-                .foregroundStyle(.primary)
-        }
-        .frame(height: WindowStyle.footerRow)
     }
 }

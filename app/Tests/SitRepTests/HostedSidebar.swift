@@ -10,23 +10,24 @@ import Testing
 /// 1260 × 1069 unless given another height, over a run of a board the real `watch` printed. Its frames are read as
 /// Paper's drawing gives them: x from the glass's left, y from the window's top.
 ///
-/// Under the foot's bar the list scrolls through macOS 26's soft edge, which draws its rows where nothing offscreen
+/// The list scrolls through macOS 26's soft scroll edge, which draws its rows where nothing offscreen
 /// reads them: the drawing shows the foot, and the list's frames are AppKit's. So what the rows draw is read from the
-/// real list hosted alone (`listAlone`), under the accessory's 47 as in the column, the bar the only thing gone.
+/// real list hosted alone (`listAlone`), under the accessory's 47 as in the column, the foot the only thing gone.
 /// (Touching the titlebar's band, the list would scroll through the toolbar's soft edge, which reads as blank too.)
 @MainActor
 struct HostedSidebar {
     let window: NSWindow
     let view: NSView
-    /// The board's list, and Settings' at its foot.
+    /// The board's list, and Settings at its foot.
     let board: NSTableView
-    let foot: NSTableView?
+    let foot: SettingsFootControl?
     let field: NSSearchField?
 
-    /// `bottomSafeArea` gives the sidebar the bottom safe area a window on screen has, which an offscreen one does not.
+    /// `bottomSafeArea` gives the sidebar the bottom safe area a window on screen has, which an offscreen one does not;
+    /// `isKey` tells it its window is key, which one never shown never is.
     init(
         _ run: WindowRun, height: CGFloat = 1069, bottomSafeArea: CGFloat = 0, actions: WindowActions = WindowActions(),
-        listAlone: Bool = false
+        listAlone: Bool = false, isKey: Bool = false
     ) throws {
         let now = Self.printed
         let shown = run.sidebar(at: now)
@@ -36,7 +37,10 @@ struct HostedSidebar {
                 BoardList(sidebar: shown, spot: run.spot, filter: run.filter, now: now)
             })
             : AnyView(BoardColumn(sidebar: shown, spot: run.spot, pick: run.pick, filter: run.filter, now: now))
-        let sidebar = NSHostingController(rootView: side.environment(\.windowActions, actions).environment(\.colorScheme, .dark))
+        let keyed = isKey ? AnyView(side.environment(\.controlActiveState, .key)) : side
+        let sidebar = NSHostingController(
+            rootView: keyed.environment(\.windowActions, actions).environment(\.colorScheme, .dark)
+        )
 
         sidebar.sizingOptions = []
         window = SitRepWindow.window(SitRepWindow.split(sidebar: sidebar, page: NSHostingController(rootView: Color.clear)))
@@ -45,10 +49,8 @@ struct HostedSidebar {
         window.contentView?.layoutSubtreeIfNeeded()
         view = sidebar.view
 
-        let tables = Self.views(NSTableView.self, in: view)
-
-        board = try #require(tables.max { $0.top < $1.top })
-        foot = tables.count > 1 ? tables.min { $0.top < $1.top } : nil
+        board = try #require(Self.views(NSTableView.self, in: view).first)
+        foot = Self.views(SettingsFootControl.self, in: view).first
         field = Self.views(NSSearchField.self, in: view).first
     }
 
@@ -66,10 +68,9 @@ struct HostedSidebar {
         (0 ..< board.numberOfRows).map { frame(of: board, board.rect(ofRow: $0)) }
     }
 
+    /// Settings' row at the foot.
     func footRow() throws -> CGRect {
-        let foot = try #require(foot)
-
-        return frame(of: foot, foot.rect(ofRow: 0))
+        frame(of: try #require(foot))
     }
 
     /// The glass's bottom, from the window's top.
@@ -107,17 +108,16 @@ struct HostedSidebar {
     }
 }
 
-private extension NSView {
-    /// Its top edge in its window, higher up the greater.
-    var top: CGFloat {
-        convert(bounds, to: nil).maxY
-    }
-}
-
 extension Drawn {
     /// The pixel under this point.
     func pixel(at point: CGPoint) -> NSColor? {
         bitmap.colorAt(x: Int(point.x * scale), y: Int(point.y * scale))?.usingColorSpace(.sRGB)
+    }
+
+    /// The pixel under this point as stored, in the drawing's own colour space, as a capture of the live window is
+    /// read.
+    func stored(at point: CGPoint) -> NSColor? {
+        bitmap.colorAt(x: Int(point.x * scale), y: Int(point.y * scale))
     }
 
     /// The bounds of what is drawn inside `rect` over what is drawn at `ground`, in points to the pixel; nil with
