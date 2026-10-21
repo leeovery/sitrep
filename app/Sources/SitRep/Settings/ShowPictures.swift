@@ -93,7 +93,7 @@ private struct InWholePoints: Layout {
     let shape: CGSize
 
     func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
-        let width = proposal.width.flatMap { $0.isFinite ? $0 : nil } ?? shape.width
+        let width = proposal.width(or: shape.width)
 
         return CGSize(width: width, height: (width * shape.height / shape.width).rounded())
     }

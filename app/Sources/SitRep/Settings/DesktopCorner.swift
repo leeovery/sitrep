@@ -65,7 +65,7 @@ private struct CropsAtItsLeft: Layout {
     let drawing: CGSize
 
     func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
-        CGSize(width: proposal.width.flatMap { $0.isFinite ? $0 : nil } ?? drawing.width, height: drawing.height)
+        CGSize(width: proposal.width(or: drawing.width), height: drawing.height)
     }
 
     func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {

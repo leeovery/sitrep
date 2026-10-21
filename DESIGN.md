@@ -3074,8 +3074,10 @@ reference only.
   "why isnt the settings content dynamically sizing to the width? its weird
   to have a large wide margin on the rigth when the window is widened". At
   any width the controls keep their own widths against the card's right and
-  the labels take what's left, wrapping before a control moves. The
-  page scrolls as one, as the window's other pages scroll, its toolbar's
+  the labels take what's left, wrapping before a control moves. At the
+  narrowest window, a column of 476, every General row that needs
+  something wraps its line beside its button, the plugin's beside Show
+  Windows included. The page scrolls as one, as the window's other pages scroll, its toolbar's
   scroll edge hidden as theirs is. Rows sit on the ask cards' raise, radius
   14, split by the system's separator, half a point, 10 in from both ends,
   one box deep: rows of SitRep's own at the form's metrics, not SwiftUI's

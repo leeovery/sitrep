@@ -62,7 +62,8 @@ struct SettingsLayoutTests {
         let drawn = try await Hosted.drawn(width: page)
         let width = (Self.column(page) - 32) / 3
         let height = (width * 145 / 225).rounded()
-        let card = try #require(drawn.litSpans(atX: Self.edge + width + 8).first)
+        // down the gap between the second and third pictures, clear of the title and the header at any width
+        let card = try #require(drawn.litSpans(atX: Self.edge + 2 * width + 24).first)
         // across the pictures' middle, where each one's edge is lit: the chosen one's picture to its right, and the
         // others' hairlines
         let across = drawn.litSpans(atY: 146 + height / 2)
@@ -272,10 +273,18 @@ struct SettingsLayoutTests {
         #expect(Self.alike(narrow.pixels(in: inside(500)), drawing.pixels(in: inside(704))))
     }
 
-    /// The same pixels but for the wallpaper's dither, which follows where its pixels fall in the gradient: a step of
-    /// a level or so in a channel, where a mark a pixel out of place differs by far more.
-    private static func alike(_ some: [NSColor], _ others: [NSColor]) -> Bool {
-        some.count == others.count && zip(some, others).allSatisfy { abs($0.lightness - $1.lightness) < 0.05 }
+    /// The same pixels but for the wallpaper's dither, which follows where its pixels fall in the gradient: no channel
+    /// more than `levels` of its 255 apart. Measured, the dither moves a channel 1.3 levels at most, and 4.5 under the
+    /// menu bar's shade; a mark a pixel out of place moves it by far more.
+    private static func alike(_ some: [NSColor], _ others: [NSColor], within levels: CGFloat = 2) -> Bool {
+        some.count == others.count && zip(some, others).allSatisfy { one, other in
+            let channels = [
+                one.redComponent - other.redComponent, one.greenComponent - other.greenComponent,
+                one.blueComponent - other.blueComponent,
+            ]
+
+            return channels.allSatisfy { abs($0) * 255 <= levels }
+        }
     }
 
     /// Wider than its drawing, the desktop corner runs on with nothing stretched: at its right, the menu bar's items and
@@ -290,7 +299,7 @@ struct SettingsLayoutTests {
         // the window behind, clear of the banner and its shadow in the drawing
         let behind = CGRect(x: 12, y: 24, width: 250, height: 114)
 
-        #expect(Self.alike(wide.pixels(in: bar(1200)), drawing.pixels(in: bar(704))))
+        #expect(Self.alike(wide.pixels(in: bar(1200)), drawing.pixels(in: bar(704)), within: 5))
         #expect(Self.alike(wide.pixels(in: banner(1200)), drawing.pixels(in: banner(704))))
         #expect(Self.alike(wide.pixels(in: behind), drawing.pixels(in: behind)))
     }

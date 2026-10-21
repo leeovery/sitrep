@@ -159,7 +159,6 @@ struct SettingsPage: View {
                 general
             }
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.bottom, 40)
         .onAppear {
             settings.readDisplays()
