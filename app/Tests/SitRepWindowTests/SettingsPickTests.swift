@@ -38,7 +38,7 @@ struct SettingsPickTests {
         #expect(run.page(at: printedAt) == .settings)
     }
 
-    /// ⌘, with the window closed: it opens straight on Settings, reading nothing of the session it would have opened on.
+    /// ⌘, with the window closed: it opens straight on Settings, reading nothing of the session it would open on.
     @Test func theWindowOpensOnSettingsWhenAskedTo() {
         let run = WindowRun()
 

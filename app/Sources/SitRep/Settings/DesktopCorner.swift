@@ -59,7 +59,7 @@ private struct MenuBar: View {
     var body: some View {
         HStack(spacing: 16) {
             Spacer(minLength: 0)
-            Image(systemName: "wifi").font(.system(size: 13, weight: .semibold))
+            Image(systemName: "wifi").font(.system(size: 16, weight: .semibold))
             Image(nsImage: Self.glyph).resizable().frame(width: 16, height: 16)
             TimelineView(.everyMinute) { moment in
                 Text(DesktopCorner.clock(moment.date)).font(.system(size: 12, weight: .medium))

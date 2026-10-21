@@ -1,7 +1,7 @@
 import Foundation
 
-/// What Lee sets for the screen's edge: Settings' What stays on screen, and the menu's Show (DESIGN, "Settings"). How the
-/// notch and the strip move is not among them; that ships fixed. Read leniently, so settings another version saved
+/// What Lee sets for the screen's edge: Settings' What stays on screen, and the menu's Show (DESIGN, "Settings"). How
+/// the notch and the strip move is not among them; that ships fixed. Read leniently, so settings another version saved
 /// keep what they can: a key missing or unreadable keeps its default, and anything but an object reads as the
 /// defaults.
 public struct EdgeSettings: Codable, Equatable, Sendable {

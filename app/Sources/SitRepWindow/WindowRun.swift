@@ -174,8 +174,8 @@ public final class WindowRun {
     }
 
     /// Lee picked a session, a project by its name, or Settings: what it shows is read, its asks showing as last read
-    /// until then; Settings reads nothing. Picking another lets go of the last page's asks kept in place, of what its cards said of refusals, and
-    /// of a finish asked about. The reads to run.
+    /// until then; Settings reads nothing. Picking another lets go of the last page's asks kept in place, of what its
+    /// cards said of refusals, and of a finish asked about. The reads to run.
     public func pick(_ pick: Pick) -> [Read] {
         pickReads = PickReads()
         return reads(choose(pick))

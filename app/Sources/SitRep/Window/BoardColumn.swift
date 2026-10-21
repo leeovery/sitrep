@@ -35,7 +35,7 @@ struct BoardColumn: View {
                 views
                 list.overlay {
                     if isUnmatched {
-                        noMatch
+                        noMatch.padding(.bottom, SettingsFooter.height)
                     }
                 }
             }
@@ -43,7 +43,7 @@ struct BoardColumn: View {
     }
 
     /// The filter keeps nothing of the view chosen: one line says so, over the list, left in place, empty, so it hears
-    /// the pointer leave as ever and the order it holds settles.
+    /// the pointer leave as ever and the order it holds settles; centred on its rows, above Settings at its foot.
     private var isUnmatched: Bool {
         !filter.isEmpty && listed.isEmpty(in: sidebar)
     }
@@ -447,6 +447,9 @@ private struct SettingsFooter: View {
     @Environment(\.isStill) private var isStill
     /// The row as the list holds it, put back whenever the list lets go of it while Settings shows.
     @State private var selection: Pick?
+
+    /// Its hairline and its row.
+    static let height = 1 + WindowStyle.footerHeight
 
     var body: some View {
         VStack(spacing: 0) {

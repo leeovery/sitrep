@@ -5,8 +5,8 @@ import SitRepPanel
 
 /// The menu bar item and its native menu (DESIGN, "The menu bar item"): the header, a click opening About SitRep; what
 /// it speaks up with; the panel's sessions from the app's one `watch`, a click jumping to each; the SitRep window;
-/// Show; Settings and quitting. Its glyph lights while anything needs Lee. Each board, and each opening, patches the menu in place
-/// (`MenuChanges`), so an open menu keeps the item under the pointer; while it is open its times tick.
+/// Show; Settings and quitting. Its glyph lights while anything needs Lee. Each board, and each opening, patches the
+/// menu in place (`MenuChanges`), so an open menu keeps the item under the pointer; while it is open its times tick.
 ///
 /// An NSStatusItem rather than SwiftUI's MenuBarExtra: a menu-style MenuBarExtra tells nothing as its menu opens, and
 /// NSMenuDelegate does.

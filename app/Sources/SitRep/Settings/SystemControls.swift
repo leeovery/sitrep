@@ -11,8 +11,7 @@ struct Segments<Value: Hashable>: NSViewRepresentable {
 
     func makeNSView(context: Context) -> NSSegmentedControl {
         let control = NSSegmentedControl(
-            labels: values.map { $0[keyPath: title] }, trackingMode: .selectOne, target: context.coordinator,
-            action: #selector(Coordinator.chose(_:))
+            labels: [], trackingMode: .selectOne, target: context.coordinator, action: #selector(Coordinator.chose(_:))
         )
 
         control.segmentDistribution = .fillEqually
@@ -21,8 +20,13 @@ struct Segments<Value: Hashable>: NSViewRepresentable {
     }
 
     func updateNSView(_ control: NSSegmentedControl, context: Context) {
+        let labels = values.map { $0[keyPath: title] }
         let selection = $selection
 
+        control.segmentCount = labels.count
+        for (segment, label) in labels.enumerated() where control.label(forSegment: segment) != label {
+            control.setLabel(label, forSegment: segment)
+        }
         context.coordinator.choose = { [values] in selection.wrappedValue = values[$0] }
         control.selectedSegment = values.firstIndex(of: self.selection) ?? -1
     }

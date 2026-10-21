@@ -8,8 +8,8 @@ import Testing
 
 /// ⌘F moves keyboard focus into the Filter field; Return on the sidebar's list moves it into the page, to its first
 /// control, and Escape in the page moves it back to the list holding the pick, in the SitRep window's split over the
-/// sidebar as the window draws it, the board's list with Settings' at its foot, and two buttons, made, never shown. A page's buttons take focus only while the Mac's Keyboard navigation setting is
-/// on, so what needs them runs only then.
+/// sidebar as the window draws it, the board's list with Settings' at its foot, and two buttons, made, never shown. A
+/// page's buttons take focus only while the Mac's Keyboard navigation setting is on, so what needs them runs only then.
 @MainActor
 struct SideFocusTests {
     @Test(.enabled { await keyboardNavigation() })
@@ -161,6 +161,36 @@ struct SideFocusTests {
         #expect(sides.window.firstResponder === sides.foot)
     }
 
+    /// The window turned to Settings and back, as ⌘, or a click turns it, and focus moved each time before SwiftUI's
+    /// next pass shows the pick in the tables, which hold Settings by the time it turns back.
+    @Test func escapeFollowsThePickAsTheWindowTurnsToSettingsAndBack() throws {
+        let sides = try Sides()
+
+        sides.turn(to: .settings)
+        sides.window.makeFirstResponder(sides.focus.page)
+        #expect(sides.press(SideFocus.escape))
+        #expect(sides.window.firstResponder === sides.foot)
+
+        sides.window.contentView?.layoutSubtreeIfNeeded()
+        try #require(sides.foot.selectedRow == 0)
+        sides.turn(to: .session("sr-macapp"))
+        sides.window.makeFirstResponder(sides.focus.page)
+        #expect(sides.press(SideFocus.escape))
+        #expect(sides.window.firstResponder === sides.board)
+    }
+
+    @Test func turningToAPickPutsFocusOnItsList() throws {
+        let sides = try Sides()
+
+        sides.turn(to: .settings)
+        sides.focus.focusList()
+        #expect(sides.window.firstResponder === sides.foot)
+
+        sides.turn(to: .session("sr-macapp"))
+        sides.focus.focusList()
+        #expect(sides.window.firstResponder === sides.board)
+    }
+
     @Test func withNothingPickedFocusGoesToTheBoardsList() throws {
         let sides = try Sides(pick: nil, focusingList: false)
 
@@ -187,15 +217,16 @@ private struct Sides {
     /// The board's list, and Settings' at its foot.
     let board: NSTableView
     let foot: NSTableView
+    private let sidebar: NSHostingController<BoardColumn>
+    private let picked: Picked
 
     /// The list holding the pick.
-    var list: NSTableView { foot.selectedRow >= 0 ? foot : board }
+    var list: NSTableView { picked.pick == .settings ? foot : board }
 
     /// A page of buttons, or of words alone, as a page is with Keyboard navigation off: nothing in it takes focus.
     init(pick: Pick? = .session("sr-macapp"), hasButtons: Bool = true, focusingList: Bool = true) throws {
-        let sidebar = NSHostingController(rootView: BoardColumn(
-            listed: Self.listed, pick: pick, sidebar: .projects, filter: Filter(), now: Date()
-        ))
+        let picked = Picked(pick)
+        let sidebar = NSHostingController(rootView: Self.column(on: pick))
         let page = NSHostingController(rootView: VStack {
             if hasButtons {
                 Button("One") {}
@@ -209,15 +240,28 @@ private struct Sides {
         page.sizingOptions = []
         window = SitRepWindow.window(SitRepWindow.split(sidebar: sidebar, page: page))
         window.contentView?.layoutSubtreeIfNeeded()
-        focus = SideFocus(window: window, sidebar: sidebar.view, page: page.view)
+        focus = SideFocus(window: window, sidebar: sidebar.view, page: page.view) { picked.pick }
+        self.sidebar = sidebar
+        self.picked = picked
 
         let tables = Self.tables(in: sidebar.view)
 
         board = try #require(tables.first { $0.numberOfRows > 1 })
         foot = try #require(tables.first { $0.numberOfRows == 1 })
         if focusingList {
-            window.makeFirstResponder(foot.selectedRow >= 0 ? foot : board)
+            window.makeFirstResponder(list)
         }
+    }
+
+    /// Turned to this pick as the window turns: the sidebar drawn on it again, its tables showing it only at SwiftUI's
+    /// next pass.
+    func turn(to pick: Pick?) {
+        picked.pick = pick
+        sidebar.rootView = Self.column(on: pick)
+    }
+
+    private static func column(on pick: Pick?) -> BoardColumn {
+        BoardColumn(listed: listed, pick: pick, sidebar: .projects, filter: Filter(), now: Date())
     }
 
     /// The board's list as the real `watch` first printed it.
@@ -280,5 +324,14 @@ private struct Sides {
 
     private static func tables(in view: NSView) -> [NSTableView] {
         view.subviews.flatMap { ($0 as? NSTableView).map { [$0] } ?? tables(in: $0) }
+    }
+}
+
+/// What the window shows, as its model holds it.
+private final class Picked {
+    var pick: Pick?
+
+    init(_ pick: Pick?) {
+        self.pick = pick
     }
 }

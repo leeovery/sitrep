@@ -48,6 +48,10 @@ final class SettingsModel {
     private(set) var displays: [DisplayChoice.Connected] = []
     /// Allow… under way, while macOS's prompt is up.
     private(set) var isAllowing = false
+    /// The read of what macOS says begun last, as the page came into sight.
+    @ObservationIgnored private(set) var reading: Task<Void, Never>?
+    @ObservationIgnored private var isShown = false
+    @ObservationIgnored private var isKey = false
 
     init(preferences: Preferences, live: LiveBoard, services: SettingsServices) {
         self.preferences = preferences
@@ -61,8 +65,30 @@ final class SettingsModel {
         displays = services.displays()
     }
 
-    /// What macOS says, as the page appears and each time a window comes forward, as Lee may have changed it in
-    /// System Settings.
+    /// The page shown, or gone. What macOS says is read as the page comes into sight, shown while its window is key:
+    /// each time the window comes forward on it, Lee perhaps having changed it in System Settings, and once as the
+    /// window opens on it, whether the page shows first or the window keys first.
+    func shows(_ isShown: Bool) {
+        sight { self.isShown = isShown }
+    }
+
+    /// The page's window keyed, or no longer (`shows`).
+    func keys(_ isKey: Bool) {
+        sight { self.isKey = isKey }
+    }
+
+    private func sight(_ change: () -> Void) {
+        let wasInSight = isInSight
+
+        change()
+        if isInSight, !wasInSight {
+            reading = Task { await read() }
+        }
+    }
+
+    private var isInSight: Bool { isShown && isKey }
+
+    /// What macOS says of SitRep's leaves.
     func read() async {
         said.login = services.login()
         said.notices = await services.noticeLeave()
@@ -110,8 +136,8 @@ final class SettingsModel {
 }
 
 /// Settings, a page of the SitRep window (DESIGN, "Settings"), set as a project's page is: the title, then What stays
-/// on screen, Notifications and General, 36 apart. It reads what the Mac says as it appears, again each time a window
-/// comes forward, and its displays as they change.
+/// on screen, Notifications and General, 36 apart. It reads what the Mac says as it comes into sight
+/// (`SettingsModel.shows`), and its displays as it appears and as they change.
 struct SettingsPage: View {
     let settings: SettingsModel
 
@@ -132,11 +158,11 @@ struct SettingsPage: View {
             }
         }
         .padding(.bottom, 28)
-        .onAppear(perform: settings.readDisplays)
-        .task { await settings.read() }
-        .onReceive(NotificationCenter.default.publisher(for: NSWindow.didBecomeKeyNotification)) { _ in
-            Task { await settings.read() }
+        .onAppear {
+            settings.readDisplays()
+            settings.shows(true)
         }
+        .onDisappear { settings.shows(false) }
         .onReceive(NotificationCenter.default.publisher(for: NSApplication.didChangeScreenParametersNotification)) { _ in
             settings.readDisplays()
         }
@@ -165,15 +191,10 @@ struct SettingsPage: View {
 
     /// The plugin, Open at login, and the leave to bring a session's Ghostty window to the front.
     private var general: some View {
-        let live = settings.live
-
-        return VStack(alignment: .leading, spacing: 14) {
+        VStack(alignment: .leading, spacing: 14) {
             SectionHeading(name: "General")
             SettingsCard {
-                StatedRow(
-                    row: .plugin(live.last, plugin: live.plugin), icon: "terminal", fix: settings.fix,
-                    jump: settings.services.jump
-                )
+                PluginRow(settings: settings)
                 CardSeparator()
                 StatedRow(row: .login(settings.said.login), isOn: opensAtLogin, fix: settings.fix)
                 CardSeparator()
@@ -188,6 +209,19 @@ struct SettingsPage: View {
 
     private var opensAtLogin: Binding<Bool> {
         Binding(get: { settings.said.login?.isOn ?? false }, set: { _ in settings.chooseLogin() })
+    }
+}
+
+/// The plugin's row, on its own as it reads the board, which `watch` brings each time it prints, so the rest of the
+/// page is drawn again only as the rest of Settings changes.
+private struct PluginRow: View {
+    let settings: SettingsModel
+
+    var body: some View {
+        StatedRow(
+            row: .plugin(settings.live.last, plugin: settings.live.plugin), icon: "terminal", fix: settings.fix,
+            jump: settings.services.jump
+        )
     }
 }
 

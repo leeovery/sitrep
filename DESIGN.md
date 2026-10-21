@@ -2655,7 +2655,9 @@ stands).
       gives the whole board back; Escape in it empty does nothing, and with
       an answer waiting, Escape takes the answer back first, as anywhere in
       the window. The window opens with focus on the list holding the
-      pick, the board's or Settings' at the foot, not the field.
+      pick, the board's or Settings' at the foot, not the field, and
+      focus moves there too whenever opening it turns it to a pick, as ⌘,
+      and the menu's Settings… do.
       What it holds is not kept: closing the window clears it;
     - **decided for round 7** (21 October 2026, as the design pointed):
       a filter that keeps nothing says so in one centred line, "No sessions
@@ -3083,8 +3085,11 @@ reference only.
   - **Waiting on Lee's approval to open at login:** the switch gives way to
     Login Items Settings….
 
-  What macOS says is read as the page appears and each time a window comes
-  forward, as Lee may have changed it in System Settings.
+  What macOS says is read as the page comes into sight, showing in the
+  SitRep window while the window is key: each time that window comes
+  forward on it, as Lee may have changed it in System Settings, and once
+  as the window opens on it. About SitRep, or any other window, coming
+  forward reads nothing.
 - **How the notch moves is not a setting.** It ships fixed (see "The app
   ships these values fixed", under "The notch and its panel"). A first
   drawing had a Feel pane with the prototype's dials; Lee took it out.

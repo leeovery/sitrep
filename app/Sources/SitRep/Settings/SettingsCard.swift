@@ -27,8 +27,8 @@ struct CardSeparator: View {
 }
 
 /// A row of a card: its label, the line under it, and its control at the system's own size, set to the right of the
-/// one column every row's control shares, so the eye runs straight down them; with an icon, its tile leading. Disabled, its words dim as the
-/// system dims a disabled row's.
+/// one column every row's control shares, so the eye runs straight down them; with an icon, its tile leading.
+/// Disabled, its words dim as the system dims a disabled row's.
 struct CardRow<Control: View>: View {
     let label: String
     var line: String?

@@ -30,8 +30,9 @@ final class SitRepWindow: NSObject, NSWindowDelegate {
         model.unrun(why)
     }
 
-    /// Lee opens it: shown afresh, on the pick given or else on what it opens on, keyboard focus on the list holding
-    /// the pick; or, where it shows already or was minimised, brought forward as it was, turned to the pick given.
+    /// Lee opens it: shown afresh, on the pick given or else on what it opens on; or, where it shows already or was
+    /// minimised, brought forward as it was, turned to the pick given. Keyboard focus goes to the list holding the pick
+    /// as it opens afresh or turns to one; brought forward as it was, it stays where it was.
     func open(on pick: Pick? = nil) {
         let isAfresh = !window.isMiniaturized && !window.isVisible
 
@@ -44,13 +45,21 @@ final class SitRepWindow: NSObject, NSWindowDelegate {
             window.deminiaturize(nil)
         }
         window.comeForward()
-        if isAfresh {
+        if isAfresh || pick != nil {
             focus?.focusList()
         }
     }
 
     func windowWillClose(_ notification: Notification) {
         model.closed()
+    }
+
+    func windowDidBecomeKey(_ notification: Notification) {
+        settings.keys(true)
+    }
+
+    func windowDidResignKey(_ notification: Notification) {
+        settings.keys(false)
     }
 
     func windowDidMiniaturize(_ notification: Notification) {
@@ -74,7 +83,7 @@ final class SitRepWindow: NSObject, NSWindowDelegate {
 
         window.delegate = self
         window.setFrameAutosaveName("SitRepWindow")
-        let focus = SideFocus(window: window, sidebar: sidebar.view, page: page.view)
+        let focus = SideFocus(window: window, sidebar: sidebar.view, page: page.view) { [model] in model.pick }
 
         self.focus = focus
         listenForKeys(in: window, focus: focus)
@@ -160,6 +169,8 @@ struct SideFocus {
     let window: NSWindow
     let sidebar: NSView
     let page: NSView
+    /// What the window shows, which the sidebar's tables show only after SwiftUI's next pass.
+    let pick: () -> Pick?
 
     /// A key in the window, taken before what has focus hears it: Escape takes back the answer pressed last while it
     /// waits, as the drawing's "Esc to undo" says, wherever focus is, the Filter field too; with none waiting, the
@@ -171,8 +182,9 @@ struct SideFocus {
         return move(event)
     }
 
-    /// Focus on the list holding the pick, as the window opens afresh, where AppKit would give it to the first of its
-    /// key views, the Filter field above the list. The list is laid out first, as SwiftUI makes its table only then.
+    /// Focus on the list holding the pick, as the window opens afresh or turns to a pick, where AppKit would give it to
+    /// the first of its key views, the Filter field above the list. The list is laid out first, as SwiftUI makes its
+    /// table only then.
     func focusList() {
         window.contentView?.layoutSubtreeIfNeeded()
         window.makeFirstResponder(list ?? sidebar)
@@ -200,12 +212,13 @@ struct SideFocus {
     private var focus: NSView? { window.firstResponder as? NSView }
     private var filterField: NSView? { sidebar.descendants(NSSearchField.self).first }
 
-    /// The sidebar's list holding the pick, as SwiftUI hosts each list in AppKit's table: the board's, or Settings' at
-    /// its foot; with nothing picked, the board's, the one above.
+    /// The sidebar's list holding the pick, as SwiftUI hosts each list in AppKit's table: Settings' at the foot, the
+    /// lower, while Settings shows; else the board's, the one above, with nothing picked too.
     private var list: NSTableView? {
         let lists = sidebar.descendants(NSTableView.self)
+        let byTop = { (one: NSTableView, other: NSTableView) in one.top < other.top }
 
-        return lists.first { $0.selectedRow >= 0 } ?? lists.max { $0.top < $1.top }
+        return pick() == .settings ? lists.min(by: byTop) : lists.max(by: byTop)
     }
 
     /// Focus in the Filter field, its field editor inside it, whose Return is its own.

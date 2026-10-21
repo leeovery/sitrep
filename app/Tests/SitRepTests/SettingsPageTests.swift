@@ -49,6 +49,8 @@ struct SettingsModelTests {
     final class Mac {
         var logins = 0
         var displays = 0
+        /// Reads of what macOS says, each asking first of notifications.
+        var reads = 0
         var allows = 0
         var opened: [Leaves.Place] = []
         var answer: CheckedContinuation<GhosttyLeave, Never>?
@@ -56,7 +58,11 @@ struct SettingsModelTests {
         func services() -> SettingsServices {
             SettingsServices(
                 displays: { self.displays += 1; return [] }, hasGlass: true, jump: { _ in }, sendTest: {},
-                noticeLeave: { .allowed(.banners) }, askForNotices: {},
+                noticeLeave: {
+                    self.reads += 1
+                    return .allowed(.banners)
+                },
+                askForNotices: {},
                 login: { self.logins += 1; return LoginItem(.enabled) }, chooseLogin: {}, ghostty: { .unasked },
                 allowGhostty: {
                     self.allows += 1
@@ -98,6 +104,49 @@ struct SettingsModelTests {
 
         await settings.read()
         #expect(settings.said == MacSays(notices: .allowed(.banners), login: LoginItem(.enabled), ghostty: .unasked))
+    }
+
+    @Test(arguments: [true, false])
+    func itReadsWhatMacOSSaysOnceAsTheWindowOpensOnThePage(showsFirst: Bool) async {
+        let mac = Mac()
+        let settings = Self.settings(mac)
+
+        if showsFirst {
+            settings.shows(true)
+            settings.keys(true)
+        } else {
+            settings.keys(true)
+            settings.shows(true)
+        }
+        await settings.reading?.value
+        #expect(mac.reads == 1)
+    }
+
+    @Test func itReadsAgainEachTimeTheWindowComesForwardOnThePage() async {
+        let mac = Mac()
+        let settings = Self.settings(mac)
+
+        settings.shows(true)
+        settings.keys(true)
+        await settings.reading?.value
+        settings.keys(false)
+        settings.keys(true)
+        await settings.reading?.value
+        #expect(mac.reads == 2)
+    }
+
+    /// As where About SitRep or another app's window takes the keyboard, or the window shows another page.
+    @Test func itReadsNothingWhileThePageIsAwayOrItsWindowIsNotKey() {
+        let mac = Mac()
+        let settings = Self.settings(mac)
+
+        settings.keys(true)
+        settings.keys(false)
+        settings.shows(true)
+        settings.shows(false)
+        settings.keys(true)
+        #expect(settings.reading == nil)
+        #expect(mac.reads == 0)
     }
 
     @Test func allowIsPressedOnceWhileMacOSsPromptIsUp() async {
@@ -153,6 +202,23 @@ struct SystemControlsTests {
         #expect(control.segmentDistribution == .fillEqually)
         #expect(control.selectedSegment == 1)
         #expect(control.accessibilityLabel() == "Edge")
+    }
+
+    @Test func aSegmentedControlTakesItsSegmentsAgainAsTheyChange() throws {
+        let segments = { (values: [String]) in
+            Segments(label: "Edge", values: values, title: \.self, selection: .constant("Right"))
+                .frame(width: WindowStyle.controls)
+        }
+        let hosting = NSHostingView(rootView: segments(["Left", "Right"]))
+
+        hosting.frame = CGRect(x: 0, y: 0, width: 300, height: 60)
+        hosting.layoutSubtreeIfNeeded()
+        hosting.rootView = segments(["Left", "Middle", "Right"])
+        hosting.layoutSubtreeIfNeeded()
+        let control = try #require(Self.find(NSSegmentedControl.self, in: hosting))
+
+        #expect((0..<control.segmentCount).map { control.label(forSegment: $0) } == ["Left", "Middle", "Right"])
+        #expect(control.selectedSegment == 2)
     }
 
     @Test func aPopUpFillsTheColumnItsSectionsSplitBySeparators() throws {
