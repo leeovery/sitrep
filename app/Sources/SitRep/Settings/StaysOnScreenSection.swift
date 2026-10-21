@@ -2,9 +2,8 @@ import SitRepMenu
 import SitRepPanel
 import SwiftUI
 
-/// What stays on screen: the three pictures, then the card of the rows that apply to the choice (`StaysOnScreen`), each
-/// arriving and leaving by the system's own transition, at once under reduced motion; with Nothing, one line says what
-/// carries the board.
+/// What stays on screen: one card, the Show row, then the rows that apply to the choice (`StaysOnScreen`), each
+/// arriving and leaving by the system's own transition, at once under reduced motion; with Nothing, the Show row alone.
 struct StaysOnScreenSection: View {
     let settings: SettingsModel
 
@@ -15,21 +14,12 @@ struct StaysOnScreenSection: View {
         let rows = StaysOnScreen.rows(preferences.edge, hasGlass: settings.services.hasGlass)
 
         SettingsSection(name: "What stays on screen") {
-            ShowPictures(show: preferences.binding(\.show), isOnScreen: settings.isOnScreen)
-            if rows.isEmpty {
-                Text(StaysOnScreen.menuCarries)
-                    .font(.subheadline)
-                    .foregroundStyle(SettingsStyle.secondary)
-                    .padding(.horizontal, SettingsStyle.inset)
-            } else {
-                SettingsCard {
-                    ForEach(Array(rows.enumerated()), id: \.element) { offset, row in
-                        VStack(spacing: 0) {
-                            if offset > 0 {
-                                CardSeparator()
-                            }
-                            self.row(row)
-                        }
+            SettingsCard {
+                ShowRow(show: preferences.binding(\.show), isOnScreen: settings.isOnScreen)
+                ForEach(rows, id: \.self) { row in
+                    VStack(spacing: 0) {
+                        CardSeparator()
+                        self.row(row)
                     }
                 }
             }

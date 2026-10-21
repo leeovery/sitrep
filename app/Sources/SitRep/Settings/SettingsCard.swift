@@ -64,31 +64,42 @@ struct CardRow<Control: View>: View {
     var line: String?
     @ViewBuilder let control: () -> Control
 
-    @Environment(\.isEnabled) private var isEnabled
-
     var body: some View {
         HStack(spacing: 16) {
-            VStack(alignment: .leading, spacing: 2) {
-                Text(label)
-                    .font(.body)
-                    .spacing(-0.01, of: 13)
-                    .foregroundStyle(SettingsStyle.label)
-                    .opacity(isEnabled ? 1 : 0.5)
-                if let line {
-                    Text(line)
-                        .font(.subheadline)
-                        .foregroundStyle(SettingsStyle.secondary)
-                        .opacity(isEnabled ? 1 : 0.6)
-                }
-            }
-            .fixedSize(horizontal: false, vertical: true)
-            // the drawing's 52 less its two lines, 16 and 14, and the 2 between: what a wrapped line grows the row by
-            .padding(.vertical, 10)
-            .frame(maxWidth: .infinity, alignment: .leading)
+            RowWords(label: label, line: line)
             control().fixedSize()
         }
         .padding(.horizontal, SettingsStyle.inset)
         .frame(minHeight: line == nil ? SettingsStyle.oneLineRow : SettingsStyle.twoLineRow)
+    }
+}
+
+/// A row's words: its label, 13, and the line under it, 11 in the secondary colour, taking the width the row leaves
+/// them and wrapping onto more lines. Disabled, they dim as the system dims a disabled row's.
+struct RowWords: View {
+    let label: String
+    var line: String?
+
+    @Environment(\.isEnabled) private var isEnabled
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(label)
+                .font(.body)
+                .spacing(-0.01, of: 13)
+                .foregroundStyle(SettingsStyle.label)
+                .opacity(isEnabled ? 1 : 0.5)
+            if let line {
+                Text(line)
+                    .font(.subheadline)
+                    .foregroundStyle(SettingsStyle.secondary)
+                    .opacity(isEnabled ? 1 : 0.6)
+            }
+        }
+        .fixedSize(horizontal: false, vertical: true)
+        // the drawing's 52 less its two lines, 16 and 14, and the 2 between: what a wrapped line grows the row by
+        .padding(.vertical, 10)
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
 
