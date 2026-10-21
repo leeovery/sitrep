@@ -38,6 +38,17 @@ struct WindowRunFilterTests {
         #expect(run.spot == .board(.session("sr-rq7dgr")))
     }
 
+    /// Switchboard folded while the field holds "ledg", Request ledger's row, its one match, hidden inside it: Return
+    /// opens nothing, and the pick stays.
+    @Test func returnOpensOnlyWhatTheListShows() {
+        let run = opened()
+
+        run.filter = Filter("ledg")
+        run.toggle(.project("switchboard"))
+        #expect(run.openFirstMatch().isEmpty)
+        #expect(run.pick == .session("sr-macapp"))
+    }
+
     @Test(arguments: ["", "zzz"])
     func returnWithNoFilterOrNoMatchOpensNothing(_ typed: String) {
         let run = opened()

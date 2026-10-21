@@ -13,12 +13,16 @@ struct SidebarLayoutTests {
     /// The rows of the first board `watch` printed, in order.
     private enum Row: Int {
         case needsYou, macAppAsking, dashboardAsking, goosematesAsking, sitrep, macApp, switchboard, dashboard, ledger
+        case goosemates, goosematesSession, quietProjects, kit
     }
+
+    nonisolated private static let downArrow: UInt16 = 125
+    nonisolated private static let upArrow: UInt16 = 126
 
     @Test func theAccessoryIsTheFilterFieldAlone47TallTheListUnderIt() throws {
         let side = try HostedSidebar(HostedSidebar.opened())
 
-        #expect(side.frame(of: side.field) == CGRect(x: 10, y: 75, width: 276, height: 28))
+        #expect(side.frame(of: try #require(side.field)) == CGRect(x: 10, y: 75, width: 276, height: 28))
         #expect(side.rows.first?.minY == 113)
     }
 
@@ -43,7 +47,7 @@ struct SidebarLayoutTests {
     }
 
     @Test func aSessionsMarkCentresAt29AndItsTitleStartsAt46() throws {
-        let side = try HostedSidebar(HostedSidebar.opened())
+        let side = try HostedSidebar(HostedSidebar.opened(), listAlone: true)
         let drawn = try side.drawn()
         let row = Self.inDrawing(side.rows[Row.macApp.rawValue], of: side)
         let dot = try #require(drawn.drawnBox(in: Self.band(row, x: 16 ... 42), ground: Self.ground(row)))
@@ -55,7 +59,7 @@ struct SidebarLayoutTests {
     }
 
     @Test func onlyARowWithAnAskShowsItsAgeEndingAt280() throws {
-        let side = try HostedSidebar(HostedSidebar.opened())
+        let side = try HostedSidebar(HostedSidebar.opened(), listAlone: true)
         let drawn = try side.drawn()
         let asking = Self.inDrawing(side.rows[Row.macApp.rawValue], of: side)
         let turn = Self.inDrawing(side.rows[Row.ledger.rawValue], of: side)
@@ -67,7 +71,7 @@ struct SidebarLayoutTests {
 
     /// The title's line 4 under the row's top and 16 tall, then 1, then the project's line, 14.
     @Test func aNeedsYouRowsTwoLinesSitFromItsTop() throws {
-        let side = try HostedSidebar(HostedSidebar.opened())
+        let side = try HostedSidebar(HostedSidebar.opened(), listAlone: true)
         let drawn = try side.drawn()
         let row = Self.inDrawing(side.rows[Row.dashboardAsking.rawValue], of: side)
         let title = CGRect(x: 46, y: row.minY + 4, width: 150, height: 16)
@@ -82,7 +86,7 @@ struct SidebarLayoutTests {
 
     /// Plain words, with no count and no chevron.
     @Test func needsYousHeadingIsItsNameAloneAt16() throws {
-        let side = try HostedSidebar(HostedSidebar.opened())
+        let side = try HostedSidebar(HostedSidebar.opened(), listAlone: true)
         let drawn = try side.drawn()
         let row = Self.inDrawing(side.rows[Row.needsYou.rawValue], of: side)
         let heading = CGRect(x: 0, y: row.maxY - 24, width: 296, height: 24)
@@ -94,7 +98,7 @@ struct SidebarLayoutTests {
 
     /// The chevron, open, 10 by 6, centred in its 15 by 24 slot at 269 to 284.
     @Test func aProjectsHeadingHasItsNameAt16AndItsChevronInItsSlot() throws {
-        let side = try HostedSidebar(HostedSidebar.opened())
+        let side = try HostedSidebar(HostedSidebar.opened(), listAlone: true)
         let drawn = try side.drawn()
         let row = Self.inDrawing(side.rows[Row.sitrep.rawValue], of: side)
         let heading = CGRect(x: 0, y: row.maxY - 24, width: 296, height: 24)
@@ -113,7 +117,7 @@ struct SidebarLayoutTests {
 
         run.toggle(.project("sitrep"))
 
-        let side = try HostedSidebar(run)
+        let side = try HostedSidebar(run, listAlone: true)
         let drawn = try side.drawn()
         let row = Self.inDrawing(side.rows[Row.sitrep.rawValue], of: side)
         let heading = CGRect(x: 0, y: row.maxY - 24, width: 296, height: 24)
@@ -142,7 +146,7 @@ struct SidebarLayoutTests {
 
         _ = run.pick(.project("switchboard"))
 
-        let side = try HostedSidebar(run)
+        let side = try HostedSidebar(run, listAlone: true)
         let drawn = try side.drawn()
         let row = Self.inDrawing(side.rows[Row.switchboard.rawValue], of: side)
         let picked = try #require(drawn.drawnBox(in: row, ground: Self.ground(row)))
@@ -157,10 +161,46 @@ struct SidebarLayoutTests {
 
         side.window.makeFirstResponder(side.board)
         for _ in 0 ..< 3 {
-            side.board.keyDown(with: try #require(Self.down(in: side.window)))
+            side.window.sendEvent(try #require(Self.arrow(Self.downArrow, in: side.window)))
             side.window.contentView?.layoutSubtreeIfNeeded()
         }
         #expect(picked.spots == [.needsYou("sr-dash02"), .needsYou("sr-gs7kq2"), .board(.session("sr-macapp"))])
+    }
+
+    @Test func aQuietProjectPickedShowsTheSelectionOnItsRow() throws {
+        let run = HostedSidebar.opened()
+
+        _ = run.pick(.project("kit"))
+        #expect(try HostedSidebar(run).board.selectedRow == Row.kit.rawValue)
+    }
+
+    @Test func theArrowKeysReachTheQuietProjectsRowsPastTheirHeading() throws {
+        let run = HostedSidebar.opened()
+
+        _ = run.pickInList(.board(.session("sr-gs7kq2")), at: HostedSidebar.printed)
+        #expect(try Self.pressed(Self.downArrow, on: run) == [.board(.project("kit"))])
+    }
+
+    /// Switchboard's page open, its heading showing the pick, which the list holds no selection on.
+    @Test(arguments: [
+        (downArrow, Spot.board(.session("sr-dash02"))), (upArrow, .board(.session("sr-macapp"))),
+    ])
+    func fromAPickedHeadingTheArrowKeysGoToTheRowAfterItOrBeforeIt(key: UInt16, to spot: Spot) throws {
+        let run = HostedSidebar.opened()
+
+        _ = run.pick(.project("switchboard"))
+        #expect(try Self.pressed(key, on: run) == [spot])
+    }
+
+    /// What the list asked to pick as this key was pressed once on it, focus on it.
+    private static func pressed(_ key: UInt16, on run: WindowRun) throws -> [Spot] {
+        let picked = Picked()
+        let side = try HostedSidebar(run, actions: WindowActions(pickInList: { picked.spots.append($0) }))
+
+        side.window.makeFirstResponder(side.board)
+        side.window.sendEvent(try #require(Self.arrow(key, in: side.window)))
+        side.window.contentView?.layoutSubtreeIfNeeded()
+        return picked.spots
     }
 
     /// A row as the drawing has it, its y from the glass's top.
@@ -178,11 +218,14 @@ struct SidebarLayoutTests {
         CGPoint(x: 4, y: row.midY)
     }
 
-    private static func down(in window: NSWindow) -> NSEvent? {
-        NSEvent.keyEvent(
+    /// ↓ or ↑, as the keyboard sends it.
+    private static func arrow(_ key: UInt16, in window: NSWindow) -> NSEvent? {
+        let characters = key == downArrow ? "\u{F701}" : "\u{F700}"
+
+        return NSEvent.keyEvent(
             with: .keyDown, location: .zero, modifierFlags: [.numericPad, .function], timestamp: 0,
-            windowNumber: window.windowNumber, context: nil, characters: "\u{F701}", charactersIgnoringModifiers: "\u{F701}",
-            isARepeat: false, keyCode: 125
+            windowNumber: window.windowNumber, context: nil, characters: characters,
+            charactersIgnoringModifiers: characters, isARepeat: false, keyCode: key
         )
     }
 }

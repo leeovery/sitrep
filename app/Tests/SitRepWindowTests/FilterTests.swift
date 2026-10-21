@@ -116,7 +116,7 @@ struct FilterTests {
         let narrowed = Self.listed.narrowed(by: Filter("boot"))
 
         #expect(narrowed.quiet.map(\.name) == ["Kit"])
-        #expect(narrowed.first == .project("kit"))
+        #expect(Sidebar(narrowed, folds: Folds()).first == .project("kit"))
     }
 
     @Test(arguments: [(Tone.text, Tone.soft, Tone.text), (.soft, .soft, .text), (.faint, .faint, .soft)])

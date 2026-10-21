@@ -3,9 +3,8 @@ import SitRepWindow
 import SwiftUI
 
 /// The sidebar's Filter field: the system's search field at its large size, 28 tall, its magnifier, placeholder and ×
-/// its own. Typing narrows the
-/// list as each key lands; Return opens the first match; × or Escape clears it, and Escape in it empty does nothing.
-/// ⌘F focuses it (`SideFocus`).
+/// its own. Typing narrows the list as each key lands; Return opens the first match; × or Escape clears it, and
+/// Escape in it empty does nothing. ⌘F focuses it (`SideFocus`).
 struct FilterField: NSViewRepresentable {
     let text: String
 

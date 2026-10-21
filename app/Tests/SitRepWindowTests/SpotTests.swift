@@ -72,6 +72,22 @@ struct SpotTests {
         #expect(run.page(at: printedAt).session?.id == "sr-macapp")
     }
 
+    /// With no `watch` to run the list is empty, and a Needs you row picked is gone with it.
+    @Test func whenTheBoardGoesASessionPickedUnderNeedsYouShowsUnderItsProject() {
+        let run = opened()
+
+        run.unrun("SitRep can't read the board")
+        #expect(run.spot == .board(.session("sr-macapp")))
+    }
+
+    @Test func aQuietProjectsRowShowsItsPickAndOpensItsPage() {
+        let run = opened()
+
+        _ = run.pickInList(.board(.project("kit")), at: printedAt)
+        #expect(run.spot == .board(.project("kit")))
+        #expect(run.page(at: printedAt).project?.key == "kit")
+    }
+
     @Test func aPickGoneFromTheBoardGivesItsSpotWayWithIt() {
         let run = opened()
 

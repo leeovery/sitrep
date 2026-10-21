@@ -18,7 +18,7 @@ struct SettingsFooterTests {
         _ = run.pick(.settings)
 
         let side = try HostedSidebar(run, bottomSafeArea: bottomSafeArea)
-        let row = side.footRow
+        let row = try side.footRow()
         let drawn = try side.drawn()
         let above = CGRect(x: 0, y: row.minY - 20 - side.glassTop, width: 296, height: 20)
         let rule = try #require(drawn.drawnBox(in: above, ground: CGPoint(x: 4, y: above.midY)))
@@ -28,7 +28,7 @@ struct SettingsFooterTests {
         #expect(rule.height == 0.5)
         #expect(rule.minX == 10 && rule.maxX == 286)
         #expect(row.minY - side.glassTop - rule.maxY == 8)
-        #expect(side.foot.selectedRow == 0)
+        #expect(side.foot?.selectedRow == 0)
     }
 
     /// In a window too short for the board, scrolled to its end.
@@ -43,7 +43,7 @@ struct SettingsFooterTests {
         scroll.reflectScrolledClipView(clip)
 
         let last = try #require(side.rows.last)
-        let rule = side.footRow.minY - WindowStyle.footerTop - WindowStyle.footerRule
+        let rule = try side.footRow().minY - WindowStyle.footerTop - WindowStyle.footerRule
 
         #expect(side.frame(of: scroll).maxY == side.glassBottom)
         #expect(rule - last.maxY == 12)
@@ -53,7 +53,7 @@ struct SettingsFooterTests {
     @Test func itsRowIsASessionRowsGearAndWord() throws {
         let side = try HostedSidebar(HostedSidebar.opened())
         let drawn = try side.drawn()
-        let row = side.footRow.offsetBy(dx: 0, dy: -side.glassTop)
+        let row = try side.footRow().offsetBy(dx: 0, dy: -side.glassTop)
         let ground = CGPoint(x: 4, y: row.midY)
         let gear = try #require(drawn.drawnBox(in: CGRect(x: 16, y: row.minY, width: 26, height: 32), ground: ground))
         let word = try #require(drawn.drawnBox(in: CGRect(x: 42, y: row.minY, width: 150, height: 32), ground: ground))

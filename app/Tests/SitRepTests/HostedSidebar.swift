@@ -9,24 +9,34 @@ import Testing
 /// The sidebar as the window lays it out, made, never shown: the real `BoardColumn` in the window's split, at Lee's
 /// 1260 × 1069 unless given another height, over a run of a board the real `watch` printed. Its frames are read as
 /// Paper's drawing gives them: x from the glass's left, y from the window's top.
+///
+/// Under the foot's bar the list scrolls through macOS 26's soft edge, which draws its rows where nothing offscreen
+/// reads them: the drawing shows the foot, and the list's frames are AppKit's. So what the rows draw is read from the
+/// real list hosted alone (`listAlone`), under the accessory's 47 as in the column, the bar the only thing gone.
+/// (Touching the titlebar's band, the list would scroll through the toolbar's soft edge, which reads as blank too.)
 @MainActor
 struct HostedSidebar {
     let window: NSWindow
     let view: NSView
     /// The board's list, and Settings' at its foot.
     let board: NSTableView
-    let foot: NSTableView
-    let field: NSSearchField
+    let foot: NSTableView?
+    let field: NSSearchField?
 
     /// `bottomSafeArea` gives the sidebar the bottom safe area a window on screen has, which an offscreen one does not.
     init(
-        _ run: WindowRun, height: CGFloat = 1069, bottomSafeArea: CGFloat = 0, actions: WindowActions = WindowActions()
+        _ run: WindowRun, height: CGFloat = 1069, bottomSafeArea: CGFloat = 0, actions: WindowActions = WindowActions(),
+        listAlone: Bool = false
     ) throws {
         let now = Self.printed
-        let column = BoardColumn(
-            sidebar: run.sidebar(at: now), spot: run.spot, pick: run.pick, filter: run.filter, now: now
-        )
-        let sidebar = NSHostingController(rootView: column.environment(\.windowActions, actions).environment(\.colorScheme, .dark))
+        let shown = run.sidebar(at: now)
+        let side = listAlone
+            ? AnyView(VStack(spacing: 0) {
+                Color.clear.frame(height: WindowStyle.accessoryTop + 28 + WindowStyle.accessoryBottom)
+                BoardList(sidebar: shown, spot: run.spot, filter: run.filter, now: now)
+            })
+            : AnyView(BoardColumn(sidebar: shown, spot: run.spot, pick: run.pick, filter: run.filter, now: now))
+        let sidebar = NSHostingController(rootView: side.environment(\.windowActions, actions).environment(\.colorScheme, .dark))
 
         sidebar.sizingOptions = []
         window = SitRepWindow.window(SitRepWindow.split(sidebar: sidebar, page: NSHostingController(rootView: Color.clear)))
@@ -38,8 +48,8 @@ struct HostedSidebar {
         let tables = Self.views(NSTableView.self, in: view)
 
         board = try #require(tables.max { $0.top < $1.top })
-        foot = try #require(tables.min { $0.top < $1.top })
-        field = try #require(Self.views(NSSearchField.self, in: view).first)
+        foot = tables.count > 1 ? tables.min { $0.top < $1.top } : nil
+        field = Self.views(NSSearchField.self, in: view).first
     }
 
     /// A rect of a view inside the sidebar, in the drawing's terms.
@@ -56,8 +66,10 @@ struct HostedSidebar {
         (0 ..< board.numberOfRows).map { frame(of: board, board.rect(ofRow: $0)) }
     }
 
-    var footRow: CGRect {
-        frame(of: foot, foot.rect(ofRow: 0))
+    func footRow() throws -> CGRect {
+        let foot = try #require(foot)
+
+        return frame(of: foot, foot.rect(ofRow: 0))
     }
 
     /// The glass's bottom, from the window's top.

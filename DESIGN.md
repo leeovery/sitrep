@@ -2655,8 +2655,10 @@ stands).
       you, and picked there; the pick inside a folded project stays, its page
       too, its selection hidden until it unfolds. The folds are kept across
       launches, a set of the projects folded and whether Quiet projects is,
-      in the window's saved value of its own; Quiet projects starts open.
-      While the filter holds text every project with a match shows open, and
+      in the window's saved value of its own; Quiet projects starts open. A
+      project's fold is kept while it is off the board, so it comes back
+      folded as it left; nothing prunes the folds of projects gone for good,
+      which cost a word each. While the filter holds text every project with a match shows open, and
       the folds come back as they were when it clears; a heading clicked
       meanwhile folds only until then;
     - **a session's row** is 32 tall, its mark in a 26-wide slot at the
@@ -2681,9 +2683,10 @@ stands).
       away session's faint one, so an away row still reads as away. It never
       moves the pick: the page stays on what was open, even with its row
       filtered out. ⌘F focuses the field, Return in it opens the first
-      match, the list's first row that picks: a session under Needs you, else
-      under its project, else a quiet project, never a heading, even one
-      whose name is lit. × or Escape clears it and gives the whole board
+      match, the list's first row that picks, as it shows: a session under
+      Needs you, else under its project, else a quiet project, never a
+      heading, even one whose name is lit, nor a row a fold made while
+      filtering hides. × or Escape clears it and gives the whole board
       back; Escape in it empty does nothing, and with an answer waiting,
       Escape takes the answer back first, as anywhere in the window. The
       window opens with focus on the list holding the pick, the board's or
@@ -2701,13 +2704,13 @@ stands).
       rule 0.5 tall in the separator colour, inside the sidebar's 10 either
       side, 8 under it the row, 32 tall, then 10 to the glass's foot. A
       window on screen gives the sidebar a bottom safe area that one
-      offscreen does not, which a bar over the list took into its insets:
-      round 7's foot rose by it, live, 24.5 under its hairline and 20 over
-      the glass's foot. So the foot is set from the glass's foot, the safe
-      area ignored, and the list keeps the foot's height clear under its last
-      row, which ends 12 over the rule. The list fades out under it by the
-      system's own soft scroll edge, on macOS 26 only, never a drawn gradient
-      over the glass. Picked,
+      offscreen does not, which the foot's bar took into its height and its
+      list into its insets: round 7's foot rose by it, live, 24.5 under its
+      hairline and 20 over the glass's foot. So the sidebar ignores that safe
+      area, and the foot, still the system's bar over the list, sits on the
+      glass's foot. The list's last row ends 12 over the rule. The list fades
+      out under it by the bar's own soft scroll edge, on macOS 26 only, never
+      a drawn gradient over the glass. Picked,
       Settings shows on the right, where a session would, and the board's
       list holds no selection while it shows; the foot's row takes the
       system's own selection, as a list of its own. A click on a session
@@ -2784,7 +2787,9 @@ stands).
   offscreen), so the heading draws the system's selection colours itself,
   the accent while the list has the key window's focus, else the grey. The
   arrow keys move the selection through the list's own rows, a doubled
-  session's two among them, past the headings, each step a pick; picks that
+  session's two among them, past the headings, each step a pick; from a
+  heading showing its project's page, which holds no selection, ↓ goes to
+  the first row after it and ↑ to the last before it; picks that
   follow sooner than 150ms read only the last one's boards once they stop.
   With the Mac's key repeat faster than that, holding ↓ reads the first
   row, the second, as the Mac waits longer before a key repeats, and the

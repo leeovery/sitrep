@@ -73,7 +73,6 @@ public final class WindowRun {
 
         self.last = last
         take(Listed(last), moving: moving)
-        leaveNeedsYou()
         if !reducesMotion {
             moving.forEach { washed[$0] = time }
         }
@@ -109,9 +108,11 @@ public final class WindowRun {
         }
     }
 
+    /// The list as `watch` gives it taken, wherever the board changes.
     private func take(_ given: Listed, moving: Set<String>) {
         self.given = given
         listed = held.take(given, moving: moving)
+        leaveNeedsYou()
     }
 
     /// A session picked under Needs you whose ask has cleared shows under its project, its page staying.
@@ -234,9 +235,9 @@ public final class WindowRun {
         return reads(pickReads.picked(shown, at: time))
     }
 
-    /// Return in the Filter field: the first match in the list, picked. The reads to run.
+    /// Return in the Filter field: the first match the list shows, picked. The reads to run.
     public func openFirstMatch() -> [Read] {
-        guard !filter.isEmpty, let first = listed.narrowed(by: filter).first else {
+        guard !filter.isEmpty, let first = Sidebar(listed.narrowed(by: filter), folds: shownFolds).first else {
             return []
         }
         return pick(first)

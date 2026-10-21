@@ -50,8 +50,9 @@ struct SidebarTests {
 
     /// The arrow keys walk the list's own rows, a session with an ask under Needs you and again under its project.
     @Test func theRowsThatPickAreEveryRowButTheHeadings() {
-        let picks = Sidebar(Self.listed, folds: Folds()).lines.filter { !Self.isHeading($0) }.compactMap(\.spot)
+        let picks = Sidebar(Self.listed, folds: Folds()).picks
 
+        #expect(picks == Sidebar(Self.listed, folds: Folds()).lines.filter { !Self.isHeading($0) }.compactMap(\.spot))
         #expect(picks == [
             .needsYou("sr-macapp"), .needsYou("sr-dash02"), .needsYou("sr-gs7kq2"),
             .board(.session("sr-macapp")), .board(.session("sr-dash02")), .board(.session("sr-rq7dgr")),
@@ -113,17 +114,50 @@ struct SidebarTests {
         #expect(!Sidebar(Self.listed, folds: Folds()).isEmpty)
     }
 
-    @Test func theListsFirstSessionIsUnderNeedsYouElseUnderItsProjectElseAQuietProject() {
+    @Test func theListsFirstRowThatPicksIsUnderNeedsYouElseUnderItsProjectElseAQuietProject() {
         var listed = Self.listed
+        let first = { (folds: Folds) in Sidebar(listed, folds: folds).first }
 
-        #expect(listed.first == .session("sr-macapp"))
+        #expect(first(Folds()) == .session("sr-macapp"))
         listed.needsYou = []
         listed.projects.removeFirst()
-        #expect(listed.first == .session("sr-dash02"))
+        #expect(first(Folds()) == .session("sr-dash02"))
+        // a folded project's rows are hidden, so the next project's come first
+        #expect(first(Self.folded(.project("switchboard"))) == .session("sr-gs7kq2"))
         listed.projects = []
-        #expect(listed.first == .project("kit"))
+        #expect(first(Folds()) == .project("kit"))
+        #expect(first(Self.folded(.quiet)) == nil)
         listed.quiet = []
-        #expect(listed.first == nil)
+        #expect(first(Folds()) == nil)
+    }
+
+    /// The arrow keys from a heading that shows its project's page, which the list selects no row for.
+    @Test func fromAPickedHeadingAStepGoesToTheRowAfterItOrBeforeIt() {
+        let sidebar = Sidebar(Self.listed, folds: Folds())
+
+        #expect(sidebar.step(from: .board(.project("switchboard")), down: true) == .board(.session("sr-dash02")))
+        #expect(sidebar.step(from: .board(.project("switchboard")), down: false) == .board(.session("sr-macapp")))
+        #expect(sidebar.step(from: .board(.project("sitrep")), down: false) == .needsYou("sr-gs7kq2"))
+    }
+
+    @Test func fromAFoldedHeadingAStepGoesPastItsHiddenRows() {
+        let sidebar = Sidebar(Self.listed, folds: Self.folded(.project("goosemates")))
+
+        #expect(sidebar.step(from: .board(.project("goosemates")), down: true) == .board(.project("kit")))
+    }
+
+    /// The list's own keys move from a row it selects, and past the ends there is nowhere to go.
+    @Test func fromARowTheListSelectsOrPastTheEndsThereIsNoStep() {
+        var listed = Self.listed
+
+        listed.needsYou = []
+        listed.quiet = []
+
+        let sidebar = Sidebar(listed, folds: Folds())
+
+        #expect(sidebar.step(from: .board(.session("sr-dash02")), down: true) == nil)
+        #expect(sidebar.step(from: .board(.project("sitrep")), down: false) == nil)
+        #expect(Sidebar(listed, folds: Self.folded(.project("goosemates"))).step(from: .board(.project("goosemates")), down: true) == nil)
     }
 
     @Test func aFoldTogglesAndTheQuietProjectsFoldOfTheirOwn() {

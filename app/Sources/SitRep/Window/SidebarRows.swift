@@ -30,14 +30,14 @@ struct SidebarLine: View {
         case let .quiet(project):
             QuietRow(project: project, filter: filter)
                 .spoken(Spoken.quiet(project))
-                .sidebarRow(project.pick, isPicked: Spot.board(project.pick) == spot, now: now)
+                .sidebarRow(.board(project.pick), picked: spot, now: now)
         }
     }
 
     private func session(_ row: Listed.Row, at place: Spot, showsProject: Bool) -> some View {
         SidebarSessionRow(row: row, filter: filter, showsProject: showsProject, now: now)
             .spoken(Spoken.row(row, at: now))
-            .sidebarRow(place, isPicked: place == spot, washed: row.washed, now: now)
+            .sidebarRow(place, picked: spot, washed: row.washed, now: now)
     }
 
     private var gap: CGFloat {
@@ -99,7 +99,7 @@ struct FoldHeading: View {
         .onHover { isHovered = $0 }
         .onTapGesture { act.fold(heading.fold) }
         .spoken(Spoken.heading(heading))
-        .accessibilityAddTraits([.isHeader, .isButton])
+        .accessibilityAddTraits(isPicked ? [.isHeader, .isButton, .isSelected] : [.isHeader, .isButton])
         .accessibilityAction { act.fold(heading.fold) }
         .padding(.top, gap)
         .selectionDisabled()
@@ -248,9 +248,10 @@ struct Name: View {
 }
 
 extension View {
-    /// A row of the sidebar's list, picked by `tag`, washed orange from `washed` as it comes.
-    func sidebarRow<Tag: Hashable>(_ tag: Tag, isPicked: Bool, washed: Date? = nil, now: Date) -> some View {
-        modifier(SidebarRow(tag: tag, isPicked: isPicked, washed: washed, now: now))
+    /// A row of the sidebar's lists that shows the pick at `spot`, the one picked while it is `picked`, washed orange
+    /// from `washed` as it comes. Its tag is the lists' selection's own type, so no row can carry one they ignore.
+    func sidebarRow(_ spot: Spot, picked: Spot?, washed: Date? = nil, now: Date) -> some View {
+        modifier(SidebarRow(spot: spot, isPicked: spot == picked, washed: washed, now: now))
     }
 
     /// A line of the sidebar's list, its height its own, its words 16 in from the sidebar's edges, as the list sets
@@ -278,8 +279,8 @@ private struct SidebarCell<Background: View>: ViewModifier {
 /// pointer is over it anywhere on the row: under the pointer, and not the one picked, it shows a quiet fill, and as it
 /// comes, its wash, both shaped as the system's selection, which they leave alone. Drawn as a still, the selection's
 /// stand-in.
-private struct SidebarRow<Tag: Hashable>: ViewModifier {
-    let tag: Tag
+private struct SidebarRow: ViewModifier {
+    let spot: Spot
     let isPicked: Bool
     let washed: Date?
     let now: Date
@@ -304,7 +305,7 @@ private struct SidebarRow<Tag: Hashable>: ViewModifier {
                     isOver: $isOverRow
                 )
             }
-            .tag(tag)
+            .tag(spot)
     }
 }
 

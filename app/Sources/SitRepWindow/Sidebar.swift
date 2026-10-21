@@ -8,7 +8,8 @@ public enum Fold: Hashable, Sendable {
     case quiet
 }
 
-/// What is folded: the projects, by their keys, and whether the quiet projects are. Nothing is, at first.
+/// What is folded: the projects, by their keys, and whether the quiet projects are. Nothing is, at first. A project's
+/// fold outlives its leaving the board, so it comes back folded; none is ever pruned.
 public struct Folds: Codable, Equatable, Sendable {
     public var projects: Set<String> = []
     public var quiet = false
@@ -195,6 +196,36 @@ public struct Sidebar: Equatable, Sendable {
 
     /// It lists nothing.
     public var isEmpty: Bool { lines.isEmpty }
+
+    /// The rows a click or an arrow key picks, in order: every row but the headings.
+    public var picks: [Spot] {
+        lines.compactMap { line in
+            switch line {
+            case .needsYou, .heading: nil
+            case .asking, .session, .quiet: line.spot
+            }
+        }
+    }
+
+    /// The first row it shows that picks, a folded project's hidden rows none of them: what Return in the Filter
+    /// field opens.
+    public var first: Pick? {
+        picks.first?.pick
+    }
+
+    /// From a heading showing the pick, its project's page open, the row an arrow key moves to: the first row that
+    /// picks after it, going down, or the last before it, going up. None from a row the list itself selects, whose
+    /// arrow keys are the list's own.
+    public func step(from spot: Spot, down: Bool) -> Spot? {
+        guard let place = lines.firstIndex(where: { $0.spot == spot }), case .heading = lines[place] else {
+            return nil
+        }
+
+        let picking = Set(picks)
+        let beyond = down ? Array(lines[(place + 1)...]) : lines[..<place].reversed()
+
+        return beyond.lazy.compactMap(\.spot).first(where: picking.contains)
+    }
 }
 
 extension Listed {
@@ -207,11 +238,5 @@ extension Listed {
 
         return board.rows.filter(\.needsLee).map(\.session).filter { placed.insert($0).inserted }
             .compactMap { byID[$0] }.map { Row($0.session, of: $0.project) }
-    }
-
-    /// The first session it lists, or with none the first quiet project: what Return in the Filter field opens, the
-    /// filter holding text showing every project open.
-    public var first: Pick? {
-        (needsYou.first ?? sessions.first).map { .session($0.id) } ?? quiet.first?.pick
     }
 }

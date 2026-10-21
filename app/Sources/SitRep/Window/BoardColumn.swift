@@ -1,15 +1,12 @@
 import SitRepWindow
 import SwiftUI
 
-/// The board down the left, in the system's sidebar: the Filter field, then one list (`Sidebar`): Needs you, the
+/// The board down the left, in the system's sidebar: the Filter field, then one list (`BoardList`): Needs you, the
 /// projects each under a heading that folds, and the quiet projects under theirs. The filter narrows it in place, the
 /// words typed lit in the names that hold them; with nothing kept, one line says so, and an empty board says how the
-/// board stands. Its rows are a list whose selection is the row picked, of a session's two while it has an ask, drawn
-/// by the system, which the pointer and the arrow keys move alike, and which never empties; a quiet project's row opens
-/// the project. A row under the pointer that is not the one picked shows a quiet fill behind it. The row picked is
-/// scrolled into view whenever the pick or the order changes: a pick made elsewhere, by a jump, a notification or the
-/// menu, or a resort. Settings sits at the sidebar's foot, which never scrolls; while it shows, nothing on the board
-/// is picked.
+/// board stands. A quiet project's row opens the project. A row under the pointer that is not the one picked shows a
+/// quiet fill behind it. Settings sits at the sidebar's foot, which never scrolls, the list running on under it, its
+/// last row 12 over the foot's rule; while Settings shows, nothing on the board is picked.
 struct BoardColumn: View {
     let sidebar: Sidebar
     let spot: Spot?
@@ -17,14 +14,7 @@ struct BoardColumn: View {
     let filter: Filter
     let now: Date
 
-    @Environment(\.windowActions) private var act
-    @Environment(\.reducesWindowMotion) private var reducesMotion
     @Environment(\.isStill) private var isStill
-    @Environment(\.controlActiveState) private var activeState
-    /// The row picked as the list holds it: the spot, put back whenever the list lets go of it, as a click in its
-    /// blank space or on the row picked does, so its selection never empties while something on it is picked.
-    @State private var selection: Spot?
-    @FocusState private var isListFocused: Bool
 
     var body: some View {
         if isStill {
@@ -32,16 +22,15 @@ struct BoardColumn: View {
         } else {
             VStack(alignment: .leading, spacing: 0) {
                 accessory
-                list
-                    .overlay {
-                        if let note {
-                            ListNote(words: note).padding(.bottom, SettingsFooter.height)
-                        }
+                list.foot { SettingsFooter(pick: pick, now: now) }.overlay {
+                    if let note {
+                        ListNote(words: note).padding(.bottom, SettingsFooter.height)
                     }
-                    .overlay(alignment: .bottom) { SettingsFooter(pick: pick, now: now) }
+                }
             }
-            // A window on screen gives the sidebar a bottom safe area, which an offscreen one does not, and which a
-            // list and a bar over it each take into their insets: the foot is set from the glass's bottom instead.
+            // A window on screen gives the sidebar a bottom safe area, which an offscreen one does not, and which the
+            // foot's bar took into its height and its list into its insets, rising by it: ignored, the bar sits on the
+            // glass's bottom.
             .ignoresSafeArea(.container, edges: .bottom)
         }
     }
@@ -55,65 +44,16 @@ struct BoardColumn: View {
             .padding(.bottom, WindowStyle.accessoryBottom)
     }
 
+    private var list: BoardList {
+        BoardList(sidebar: sidebar, spot: spot, filter: filter, now: now)
+    }
+
     /// The one line in the list's place where it lists nothing: that the filter keeps nothing, or how the board stands.
     private var note: String? {
         guard sidebar.isEmpty else {
             return nil
         }
         return filter.isEmpty ? sidebar.head.title : Words.noMatch(filter)
-    }
-
-    /// The list, running on under the foot, its last row 12 over the foot's rule. The system's list sets its first
-    /// row 10 under its top, so it starts 10 higher, over the accessory's last 10, for its first heading to sit 2
-    /// under the accessory as drawn. Scrolled, its rows pass under those 10, where the drawing clips them: a mask that
-    /// would clip them there takes the list's own 10 away (measured offscreen).
-    private var list: some View {
-        ScrollViewReader { scroller in
-            List(selection: $selection) { lines }
-                .sidebarList()
-                .focused($isListFocused)
-                .padding(.top, -WindowStyle.listInset)
-                .safeAreaPadding(.bottom, SettingsFooter.height + WindowStyle.listBottom - WindowStyle.listInset)
-                .softFoot()
-                .animation(reducesMotion ? nil : .easeInOut(duration: 0.25), value: order)
-                .onHover { act.pointer($0) }
-                .onChange(of: selection) { _, selected in
-                    guard let selected else {
-                        selection = spot
-                        return
-                    }
-                    if selected != spot {
-                        act.pickInList(selected)
-                    }
-                }
-                .onChange(of: spot, initial: true) { _, spot in
-                    selection = spot
-                    reveal(spot, in: scroller)
-                }
-                .onChange(of: order) { reveal(spot, in: scroller) }
-        }
-    }
-
-    private var lines: some View {
-        ForEach(Array(sidebar.lines.enumerated()), id: \.element.id) { place, line in
-            SidebarLine(
-                line: line, isFirst: place == 0, spot: spot, isEmphasized: isListFocused && activeState == .key,
-                filter: filter, now: now
-            )
-            .id(line.id)
-        }
-    }
-
-    /// The lines in the order they show, which moves the row picked when the list resorts or folds.
-    private var order: [Sidebar.Line.ID] {
-        sidebar.lines.map(\.id)
-    }
-
-    /// The row picked scrolled into view, only as far as it needs.
-    private func reveal(_ spot: Spot?, in scroller: ScrollViewProxy) {
-        if let spot {
-            scroller.scrollTo(Sidebar.Line.ID.spot(spot))
-        }
     }
 
     /// A stand-in for the sidebar, drawn as a still: an image renderer draws no list, nor the sidebar it sits in, nor
@@ -127,7 +67,7 @@ struct BoardColumn: View {
             if let note {
                 ListNote(words: note)
             } else {
-                VStack(alignment: .leading, spacing: 0) { lines }
+                list
                 Spacer(minLength: 0)
             }
             SettingsFooter(pick: pick, now: now)
@@ -181,13 +121,14 @@ extension View {
 }
 
 private extension View {
-    /// On macOS 26, the list faded by the system's soft scroll edge where it runs on under the foot (spec 2.5's fade,
-    /// the sidebar's glass where Paper drew a gradient); before it, no fade.
-    @ViewBuilder func softFoot() -> some View {
+    /// A foot the list runs on under: on macOS 26 the system's own bar, whose soft scroll edge fades the list where it
+    /// passes beneath (spec 2.5's fade, the sidebar's glass where Paper drew a gradient); before it, the list's inset,
+    /// with no fade.
+    @ViewBuilder func foot(@ViewBuilder _ foot: () -> some View) -> some View {
         if #available(macOS 26, *) {
-            scrollEdgeEffectStyle(.soft, for: .bottom)
+            scrollEdgeEffectStyle(.soft, for: .bottom).safeAreaBar(edge: .bottom, spacing: 0, content: foot)
         } else {
-            self
+            safeAreaInset(edge: .bottom, spacing: 0, content: foot)
         }
     }
 }
@@ -202,7 +143,7 @@ struct SettingsFooter: View {
     @Environment(\.windowActions) private var act
     @Environment(\.isStill) private var isStill
     /// The row as the list holds it, put back whenever the list lets go of it while Settings shows.
-    @State private var selection: Pick?
+    @State private var selection: Spot?
 
     /// Its rule, and its row with the space above and below it (spec 2.5).
     static let height = WindowStyle.footerRule + WindowStyle.footerTop + WindowStyle.footerRow + WindowStyle.footerBottom
@@ -224,22 +165,25 @@ struct SettingsFooter: View {
                     .frame(height: WindowStyle.footerList)
                     .padding(.top, WindowStyle.footerTop - WindowStyle.listInset)
                     .onChange(of: selection) { _, selected in
-                        if selected == .settings, pick != .settings {
+                        if selected == Self.spot, pick != .settings {
                             act.pick(.settings)
                         } else if selected == nil, pick == .settings {
-                            selection = .settings
+                            selection = Self.spot
                         }
                     }
                     .onChange(of: pick, initial: true) { _, pick in
-                        selection = pick == .settings ? .settings : nil
+                        selection = pick == .settings ? Self.spot : nil
                     }
             }
         }
     }
 
     private var row: some View {
-        SettingsFootRow().sidebarRow(Pick.settings, isPicked: pick == .settings, now: now)
+        SettingsFootRow().sidebarRow(Self.spot, picked: pick == .settings ? Self.spot : nil, now: now)
     }
+
+    /// Its row, the one place Settings is picked from.
+    private static let spot = Spot.board(.settings)
 }
 
 /// Settings' row: the gear, in the accent, white on the emphasized selection, and its word.
