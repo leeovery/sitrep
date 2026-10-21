@@ -39,7 +39,7 @@ enum WindowStyle {
     /// Words of this tone on what is behind them: on a row selected in the list that has the window's focus, its
     /// selection the accent, white whatever their tone, as the system's own rows' words go; on anything else, their own
     /// grey.
-    static func colour(_ tone: Tone, on prominence: BackgroundProminence = .standard) -> Color {
+    static func colour(_ tone: Tone, on prominence: BackgroundProminence) -> Color {
         switch tone {
         case .text: colour(text, on: prominence)
         case .soft: colour(soft, on: prominence)

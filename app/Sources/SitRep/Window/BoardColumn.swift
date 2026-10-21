@@ -228,7 +228,7 @@ private struct StillControls: View {
 }
 
 /// A project's name, what waits there in orange, and its sessions: a row each.
-private struct ProjectRows: View {
+struct ProjectRows: View {
     let project: Listed.Project
     let pick: Pick?
     let filter: Filter
@@ -272,7 +272,7 @@ private struct FlatRows: View {
 
 /// A session's row: a small panel row, its mark in its lane, its name on one line, the panel row's time; in the Needs
 /// you view its project's name under its own, the row's parts set to its top.
-private struct SessionRowView: View {
+struct SessionRowView: View {
     let row: Listed.Row
     let isPicked: Bool
     let filter: Filter

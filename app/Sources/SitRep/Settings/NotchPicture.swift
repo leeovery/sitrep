@@ -3,7 +3,7 @@ import SwiftUI
 /// The notch at rest, black, flared from the bezel out to its crest, and its light.
 enum NotchPicture {
     /// The notch's outline: out of the bezel, flaring to its crest, a straight run down x 9, and back.
-    static let outline = {
+    private static let outline = {
         var notch = Path()
 
         notch.move(to: CGPoint(x: -1, y: 18.7))

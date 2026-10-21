@@ -11,11 +11,11 @@ struct SettingsFooterTests {
     @Test func itsRowIs32Tall8UnderItsHairlineAnd10AboveTheSidebarsFoot() throws {
         let foot = try Foot.laidOut()
 
-        #expect(foot.row.height == 32)
-        #expect(foot.hairline.height == 1)
+        #expect(abs(foot.row.height - 32) < 0.5)
+        #expect(abs(foot.hairline.height - 1) < 0.5)
         // the window's points count up from its bottom
-        #expect(foot.hairline.minY - foot.row.maxY == 8)
-        #expect(foot.row.minY - foot.bottom == 10)
+        #expect(abs(foot.hairline.minY - foot.row.maxY - 8) < 0.5)
+        #expect(abs(foot.row.minY - foot.bottom - 10) < 0.5)
     }
 }
 

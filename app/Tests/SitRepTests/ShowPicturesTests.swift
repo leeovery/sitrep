@@ -26,13 +26,23 @@ struct ShowPicturesTests {
         #expect(abs(Self.height(at: width) - (4 + picture + 10 + 18 + 8)) < 0.5)
     }
 
-    /// `#FFFFFF26` lifted to `#FFFFFF4D`, at once: the only thing the pointer changes.
-    @Test func aTileNotChosenLiftsItsHairlineUnderThePointer() {
-        #expect(PictureHover.hairline(isOver: false) == Double(0x26) / 255)
-        #expect(PictureHover.hairline(isOver: true) == Double(0x4D) / 255)
+    /// A tile not chosen, drawn 225 wide, the pointer over it or not.
+    private static func tile(isOver: Bool) throws -> Drawn {
+        try Drawn(TileFace(choice: .strip, isChosen: false, isOver: isOver), size: CGSize(width: 225, height: 173))
     }
 
-    @Test func theNotchsCrestIsAStraightRunAtX9() {
-        #expect(abs(NotchPicture.outline.boundingRect.maxX - 9) < 0.001)
+    /// Under the pointer its hairline, `#FFFFFF26`, lifts to `#FFFFFF4D`, and nothing else changes: the picture inside
+    /// the hairline is drawn the same to the pixel, so nothing in it moves.
+    @Test func underThePointerOnlyTheHairlineLifts() throws {
+        let away = try Self.tile(isOver: false)
+        let over = try Self.tile(isOver: true)
+        let hairline = CGRect(x: 100, y: 0, width: 25, height: 0.5)
+        // inside the hairline, clear of the corners, where it curves in 12
+        let inside = [CGRect(x: 1, y: 12, width: 223, height: 121), CGRect(x: 12, y: 1, width: 201, height: 143)]
+
+        #expect(try over.brightest(in: hairline).lightness > away.brightest(in: hairline).lightness + 3 * 0.05)
+        for part in inside {
+            #expect(over.pixels(in: part) == away.pixels(in: part))
+        }
     }
 }

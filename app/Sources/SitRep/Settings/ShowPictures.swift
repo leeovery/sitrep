@@ -21,16 +21,8 @@ struct ShowPictures: View {
     }
 }
 
-/// A tile not chosen under the pointer: its hairline, `#FFFFFF26`, lifted to `#FFFFFF4D`, at once.
-enum PictureHover {
-    static func hairline(isOver: Bool) -> Double {
-        Double(isOver ? 0x4D : 0x26) / 255
-    }
-}
-
-/// A picture and its label, as one button, as wide as its share of the column, the picture keeping its shape. Chosen,
-/// a gap of the page's black and a ring in the accent round it; else a hairline inside it, lifted at once while the
-/// pointer is over the tile.
+/// A picture and its label, as one button, as wide as its share of the column, the picture keeping its shape
+/// (`TileFace`), its hairline lifted while the pointer is over it.
 private struct ShowTile: View {
     let choice: EdgeSettings.Show
     let isChosen: Bool
@@ -39,35 +31,9 @@ private struct ShowTile: View {
 
     @State private var isOver = false
 
-    private static let shape = CGSize(width: 225, height: 145)
-    private static let radius: CGFloat = 12
-    /// The ring's middle, past the picture's edge: a gap of 2, then a ring 2.5 wide.
-    private static let ring: CGFloat = 2 + 2.5 / 2
-
     var body: some View {
-        let picture = RoundedRectangle(cornerRadius: Self.radius, style: .continuous)
-
         Button(action: choose) {
-            VStack(spacing: 10) {
-                EdgePicture(show: choice)
-                    .aspectRatio(Self.shape, contentMode: .fit)
-                    .clipShape(picture)
-                    .overlay {
-                        if isChosen {
-                            RoundedRectangle(cornerRadius: Self.radius + Self.ring, style: .continuous)
-                                .stroke(Color.accentColor, lineWidth: 2.5)
-                                .padding(-Self.ring)
-                        } else {
-                            picture.strokeBorder(.white.opacity(PictureHover.hairline(isOver: isOver)), lineWidth: 0.5)
-                        }
-                    }
-                Text(choice.title)
-                    .font(.system(size: 13, weight: isChosen ? .semibold : .medium))
-                    .foregroundStyle(isChosen ? WindowStyle.text : WindowStyle.soft)
-                    .frame(height: 18)
-            }
-            .frame(maxWidth: .infinity)
-            .contentShape(Rectangle())
+            TileFace(choice: choice, isChosen: isChosen, isOver: isOver)
         }
         .buttonStyle(.plain)
         .onHover { isOver = $0 }
@@ -79,6 +45,47 @@ private struct ShowTile: View {
         }
         .accessibilityLabel(choice.title)
         .accessibilityAddTraits(isChosen ? .isSelected : [])
+    }
+}
+
+/// A tile as it draws: its picture over its label. Chosen, a gap of the page's black and a ring in the accent round
+/// the picture; else a hairline inside it, `#FFFFFF26`, lifted to `#FFFFFF4D` at once while the pointer is over it,
+/// the only thing the pointer changes.
+struct TileFace: View {
+    let choice: EdgeSettings.Show
+    let isChosen: Bool
+    let isOver: Bool
+
+    private static let shape = CGSize(width: 225, height: 145)
+    private static let radius: CGFloat = 12
+    private static let hairline = Color.white.opacity(Double(0x26) / 255)
+    private static let hairlineLifted = Color.white.opacity(Double(0x4D) / 255)
+    /// The ring's middle, past the picture's edge: a gap of 2, then a ring 2.5 wide.
+    private static let ring: CGFloat = 2 + 2.5 / 2
+
+    var body: some View {
+        let picture = RoundedRectangle(cornerRadius: Self.radius, style: .continuous)
+
+        VStack(spacing: 10) {
+            EdgePicture(show: choice)
+                .aspectRatio(Self.shape, contentMode: .fit)
+                .clipShape(picture)
+                .overlay {
+                    if isChosen {
+                        RoundedRectangle(cornerRadius: Self.radius + Self.ring, style: .continuous)
+                            .stroke(Color.accentColor, lineWidth: 2.5)
+                            .padding(-Self.ring)
+                    } else {
+                        picture.strokeBorder(isOver ? Self.hairlineLifted : Self.hairline, lineWidth: 0.5)
+                    }
+                }
+            Text(choice.title)
+                .font(.system(size: 13, weight: isChosen ? .semibold : .medium))
+                .foregroundStyle(isChosen ? WindowStyle.text : WindowStyle.soft)
+                .frame(height: 18)
+        }
+        .frame(maxWidth: .infinity)
+        .contentShape(Rectangle())
     }
 }
 
@@ -140,20 +147,21 @@ struct EdgePicture: View {
 /// curving back into the edge in the strip's own S, centred 0.42 of the way down; its rings in the panel's order,
 /// needs you lit orange with its glow, the hairline under it, your turn in white, then two working.
 enum StripPicture {
-    enum Ring {
+    private enum Ring {
         case needs, turn, working
     }
 
-    /// The rings, top to bottom, by their middles' height.
-    private static let rings: [(y: CGFloat, ring: Ring)] = [(20.7, .needs), (31.45, .turn), (38.95, .working), (46.45, .working)]
-    /// The working rings' arcs stand at 12 o'clock and at 45°; the others are whole.
-    private static let restingArcs: [Double?] = [nil, nil, 0, 45]
+    /// The rings, top to bottom, by their middles' height; the working rings' arcs standing at 12 o'clock and at 45°,
+    /// the others whole.
+    private static let rings: [(y: CGFloat, ring: Ring, arc: Double?)] = [
+        (20.7, .needs, nil), (31.45, .turn, nil), (38.95, .working, 0), (46.45, .working, 45),
+    ]
 
     private static let centre: CGFloat = 7.5
     private static let radius: CGFloat = 2.75
 
     /// `S_PTS` from strip.html scaled by 0.25, the bottom end mirrored.
-    static let column = {
+    private static let column = {
         var column = Path()
 
         column.move(to: CGPoint(x: -1, y: 10.2))
@@ -173,8 +181,8 @@ enum StripPicture {
     static func draw(_ context: GraphicsContext) {
         context.fill(column, with: .color(.black))
         context.fill(Path(CGRect(x: 5.5, y: 25.95, width: 4, height: 0.25)), with: .color(Color(hex: 0x3A3A40)))
-        for ((y, ring), resting) in zip(rings, restingArcs) {
-            draw(ring, at: CGPoint(x: centre, y: y), arc: resting, in: context)
+        for (y, ring, arc) in rings {
+            draw(ring, at: CGPoint(x: centre, y: y), arc: arc, in: context)
         }
     }
 
@@ -209,7 +217,7 @@ enum StripPicture {
     private static func ink(_ ring: Ring) -> Color {
         switch ring {
         case .needs: WindowStyle.orange
-        case .turn: Color(hex: 0xF5F5F7)
+        case .turn: WindowStyle.text
         case .working: WindowStyle.arc
         }
     }

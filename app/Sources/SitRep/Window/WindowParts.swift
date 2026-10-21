@@ -14,8 +14,11 @@ struct MarkView: View {
         Group {
             switch mark {
             case .needs: NeedsDot()
-            case .turn: Circle().strokeBorder(WindowStyle.text, lineWidth: 1.5).frame(width: 9, height: 9)
-            case .working: TurningArc(on: prominence)
+            case .turn:
+                Circle()
+                    .strokeBorder(WindowStyle.colour(WindowStyle.text, on: prominence), lineWidth: 1.5)
+                    .frame(width: 9, height: 9)
+            case .working: TurningArc()
             case .away: Circle().fill(WindowStyle.colour(WindowStyle.awayDot, on: prominence)).frame(width: 5, height: 5)
             }
         }
@@ -49,14 +52,9 @@ struct NeedsDot: View {
 /// The prototype's 11-point arc, turning once a second; still under reduced motion. On the accent of a selection, its
 /// arc white over a dimmer white track.
 struct TurningArc: View {
-    let prominence: BackgroundProminence
-
+    @Environment(\.backgroundProminence) private var prominence
     @Environment(\.reducesWindowMotion) private var reducesMotion
     @State private var isTurning = false
-
-    init(on prominence: BackgroundProminence) {
-        self.prominence = prominence
-    }
 
     var body: some View {
         ZStack {
@@ -66,7 +64,10 @@ struct TurningArc: View {
             )
             Circle()
                 .trim(from: 0, to: 0.25)
-                .stroke(WindowStyle.colour(WindowStyle.arc, on: prominence), style: StrokeStyle(lineWidth: 1.5, lineCap: .round))
+                .stroke(
+                    WindowStyle.colour(WindowStyle.arc, on: prominence),
+                    style: StrokeStyle(lineWidth: 1.5, lineCap: .round)
+                )
                 .rotationEffect(.degrees(isTurning ? 270 : -90))
         }
         .frame(width: 9, height: 9)
