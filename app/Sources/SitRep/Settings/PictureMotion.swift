@@ -15,66 +15,106 @@ enum PictureHover {
     }
 }
 
-/// The notch's tongue: the springs it reaches and goes home on, and its outline by reach.
-extension NotchPicture {
-    /// Out on the meniscus's attract spring, in about 0.3 s; home on its relax spring, in about 0.6 s, overshooting.
-    static let out = Spring(response: 0.20, dampingRatio: 0.75)
-    static let home = Spring(response: 0.45, dampingRatio: 0.55)
-
-    /// The crest's straight run at rest, down the notch's outer edge, which the tongue reaches out of.
-    static let crestX: CGFloat = 9
-    static let crest: ClosedRange<CGFloat> = 37.9 ... 49.1
-
-    /// The least height each flank keeps between the crest's end and the cap, however far the tip is moved.
-    static let leastFlank: CGFloat = 2
-
-    /// The filmstrip's tongue part way, its 0.1 s frame, the tip about 3.3 past the crest: half the full reach.
-    static let partWay: [CGPoint] = [
-        CGPoint(x: 9.8, y: 40.3), CGPoint(x: 11.4, y: 42), CGPoint(x: 12, y: 42.9),
-        CGPoint(x: 12.4, y: 43.5), CGPoint(x: 12.4, y: 44.1), CGPoint(x: 12, y: 44.7),
-        CGPoint(x: 11.4, y: 45.6), CGPoint(x: 9.8, y: 47.1),
-    ]
-    /// The filmstrip's tongue at full reach, its 0.3 s frame.
-    static let fullReach: [CGPoint] = [
-        CGPoint(x: 10.2, y: 40.5), CGPoint(x: 13.9, y: 42.4), CGPoint(x: 15, y: 43.2),
-        CGPoint(x: 15.7, y: 43.7), CGPoint(x: 15.7, y: 44.5), CGPoint(x: 15, y: 45),
-        CGPoint(x: 13.9, y: 45.8), CGPoint(x: 10.2, y: 47.2),
-    ]
-
-    /// The tongue's stages by reach: home, flat on the crest; part way; full.
-    private static let stages: [(reach: CGFloat, tongue: [CGPoint])] = [
-        (0, partWay.map { CGPoint(x: crestX, y: $0.y) }), (0.5, partWay), (1, fullReach),
-    ]
-
-    /// The tongue, the points between the crest's ends: each of its three curves' two controls and its end, down the
-    /// upper flank, round the tip's cap and back up the lower flank. At a reach, from stage to stage, and past home or full as a spring overshoots; its tip at `tip`, the
-    /// stage's own where nil.
-    static func tongue(reach: CGFloat, tip: CGFloat? = nil) -> [CGPoint] {
-        let (from, to) = reach < stages[1].reach ? (stages[0], stages[1]) : (stages[1], stages[2])
-        let amount = (reach - from.reach) / (to.reach - from.reach)
-        let tongue = zip(from.tongue, to.tongue).map { a, b in
-            CGPoint(x: a.x + (b.x - a.x) * amount, y: a.y + (b.y - a.y) * amount)
-        }
-
-        return tip.map { placed(tongue, tip: $0) } ?? tongue
+/// A picture's motion under the pointer: whether the pointer is over it, where the notch's tongue heads and its tip,
+/// and the strip's turn. Each change says how it is eased.
+struct HoverMotion: Equatable {
+    enum Ease {
+        /// As it comes, the tip following the pointer.
+        case follow
+        /// On the attract spring.
+        case out
+        /// On the relax spring.
+        case home
+        /// At once, anything moving stopped where it stands.
+        case snap
     }
 
-    /// The tongue with its tip at a height, held inside the crest so each flank keeps `leastFlank`: the cap moved whole,
-    /// each flank stretched between the crest's end and the cap, so it stays as concave as drawn.
-    private static func placed(_ tongue: [CGPoint], tip: CGFloat) -> [CGPoint] {
-        let (capTop, capBottom) = (tongue[2].y, tongue[5].y)
-        let drawn = (capTop + capBottom) / 2
-        let held = (crest.lowerBound + leastFlank + drawn - capTop) ... (crest.upperBound - leastFlank - (capBottom - drawn))
-        let shift = min(max(tip, held.lowerBound), held.upperBound) - drawn
-        let upper = (capTop + shift - crest.lowerBound) / (capTop - crest.lowerBound)
-        let lower = (crest.upperBound - capBottom - shift) / (crest.upperBound - capBottom)
+    let show: EdgeSettings.Show
+    private(set) var isOver = false
+    /// The reach the tongue heads for.
+    private(set) var reach: CGFloat = 0
+    private(set) var tip = NotchPicture.drawnTip
+    private(set) var turn: StripTurn?
+    /// The pointer's height, in units, over the notch's picture, which its tip reaches toward.
+    private var pointer: CGFloat?
 
-        return tongue.enumerated().map { index, point in
-            switch index {
-            case 0 ..< 2: CGPoint(x: point.x, y: crest.lowerBound + (point.y - crest.lowerBound) * upper)
-            case 2 ..< 6: CGPoint(x: point.x, y: point.y + shift)
-            default: CGPoint(x: point.x, y: crest.upperBound - (crest.upperBound - point.y) * lower)
-            }
+    init(show: EdgeSettings.Show) {
+        self.show = show
+    }
+
+    /// The picture as it stands at a time.
+    func pose(at time: Date) -> PicturePose {
+        var pose = turn?.pose(at: time) ?? .rest
+
+        pose.reach = reach
+        pose.tip = tip
+        return pose
+    }
+
+    /// The pointer over the picture at a height, in units, or gone from it: the motion starts as it comes, the tip
+    /// follows it while it stays, and the picture goes home as it leaves.
+    mutating func pointer(at height: CGFloat?, time: Date, reducesMotion: Bool) -> Ease {
+        guard let height else {
+            isOver = false
+            reach = 0
+            turn = turn?.left(at: time)
+            return .home
+        }
+
+        if show == .notch {
+            pointer = height
+        }
+        guard isOver else {
+            isOver = true
+            return enter(at: time, reducesMotion: reducesMotion)
+        }
+        if show == .notch, PictureHover.moves(show, reducesMotion: reducesMotion) {
+            tip = height
+        }
+        return .follow
+    }
+
+    /// Reduce motion turned on, the picture at rest at once; turned off with the pointer over it, the motion starts.
+    mutating func motion(reduced reducesMotion: Bool, at time: Date) -> Ease {
+        guard !reducesMotion else {
+            reach = 0
+            turn = nil
+            return .snap
+        }
+
+        return isOver ? enter(at: time, reducesMotion: false) : .follow
+    }
+
+    /// The picture at rest at once, the pointer taken as gone: its window closed, minimised or out of sight, which
+    /// may send it no leave.
+    mutating func rest() -> Ease {
+        self = HoverMotion(show: show)
+        return .snap
+    }
+
+    /// The arcs faded after the pointer left: the strip at rest, unless the pointer came back as they faded.
+    mutating func faded(_ turn: StripTurn) {
+        if self.turn == turn {
+            self.turn = nil
+        }
+    }
+
+    /// The tip eases to the pointer with the tongue, which may be still on its way home.
+    private mutating func enter(at time: Date, reducesMotion: Bool) -> Ease {
+        guard PictureHover.moves(show, reducesMotion: reducesMotion) else {
+            return .follow
+        }
+
+        switch show {
+        case .notch:
+            reach = 1
+            tip = pointer ?? tip
+            return .out
+        case .strip:
+            turn = turn?.entered(at: time) ?? StripTurn(since: time)
+            return .follow
+        case .nothing:
+            return .follow
         }
     }
 }

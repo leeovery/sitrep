@@ -207,3 +207,134 @@ struct StripTurnTests {
         #expect(back.faded == nil)
     }
 }
+
+/// A picture's motion as the pointer comes, moves and goes, as motion is reduced, and as its window leaves the screen.
+struct HoverMotionTests {
+    private static let now = Date(timeIntervalSinceReferenceDate: 800_000_000)
+
+    private static func at(_ seconds: TimeInterval) -> Date {
+        now.addingTimeInterval(seconds)
+    }
+
+    private static func near(_ a: [Double], _ b: [Double]) -> Bool {
+        a.count == b.count && zip(a, b).allSatisfy { abs($0 - $1) < 0.001 }
+    }
+
+    @Test func theNotchReachesOutOnTheAttractSpringItsTipAtThePointerAndFollowsIt() {
+        var motion = HoverMotion(show: .notch)
+
+        #expect(motion.pointer(at: 42, time: Self.now, reducesMotion: false) == .out)
+        #expect(motion.isOver && motion.reach == 1 && motion.tip == 42)
+        #expect(motion.pointer(at: 45, time: Self.at(0.1), reducesMotion: false) == .follow)
+        #expect(motion.tip == 45)
+    }
+
+    @Test func leftTheNotchGoesHomeOnTheRelaxSpring() {
+        var motion = HoverMotion(show: .notch)
+
+        _ = motion.pointer(at: 42, time: Self.now, reducesMotion: false)
+        #expect(motion.pointer(at: nil, time: Self.at(1), reducesMotion: false) == .home)
+        #expect(!motion.isOver && motion.reach == 0)
+    }
+
+    /// The tongue may be still on its way home, so its tip eases to the pointer with it, not jumping.
+    @Test func comingBackTheTipEasesToThePointerOnTheAttractSpring() {
+        var motion = HoverMotion(show: .notch)
+
+        _ = motion.pointer(at: 46, time: Self.now, reducesMotion: false)
+        _ = motion.pointer(at: nil, time: Self.at(1), reducesMotion: false)
+        #expect(motion.pointer(at: 41, time: Self.at(1.1), reducesMotion: false) == .out)
+        #expect(motion.tip == 41)
+    }
+
+    @Test func theStripTurnsFromThePointersComingAndFadesAsItGoes() {
+        var motion = HoverMotion(show: .strip)
+
+        _ = motion.pointer(at: 30, time: Self.now, reducesMotion: false)
+        #expect(motion.turn == StripTurn(since: Self.now))
+        #expect(Self.near(motion.pose(at: Self.at(0.3)).arcs, [90, 60, 30, 0]))
+        _ = motion.pointer(at: nil, time: Self.at(1), reducesMotion: false)
+        #expect(motion.turn?.faded.map { abs($0.timeIntervalSince(Self.at(1.24))) < 0.001 } == true)
+    }
+
+    @Test func theFadedArcsRestTheStrip() throws {
+        var motion = HoverMotion(show: .strip)
+
+        _ = motion.pointer(at: 30, time: Self.now, reducesMotion: false)
+        _ = motion.pointer(at: nil, time: Self.at(1), reducesMotion: false)
+        motion.faded(try #require(motion.turn))
+        #expect(motion.turn == nil)
+        #expect(motion.pose(at: Self.at(2)) == .rest)
+    }
+
+    /// The pointer back as the fade's wait ends: the turn it brought keeps turning.
+    @Test func arcsFadedAsThePointerCameBackLeaveItTurning() throws {
+        var motion = HoverMotion(show: .strip)
+
+        _ = motion.pointer(at: 30, time: Self.now, reducesMotion: false)
+        _ = motion.pointer(at: nil, time: Self.at(1), reducesMotion: false)
+
+        let faded = try #require(motion.turn)
+
+        _ = motion.pointer(at: 30, time: Self.at(1.2), reducesMotion: false)
+        motion.faded(faded)
+        #expect(motion.turn != nil)
+    }
+
+    @Test(arguments: EdgeSettings.Show.allCases)
+    func underReducedMotionThePointerMovesNothing(show: EdgeSettings.Show) {
+        var motion = HoverMotion(show: show)
+
+        #expect(motion.pointer(at: 42, time: Self.now, reducesMotion: true) == .follow)
+        #expect(motion.pointer(at: 45, time: Self.at(0.1), reducesMotion: true) == .follow)
+        #expect(motion.isOver)
+        #expect(motion.pose(at: Self.at(0.3)) == .rest)
+    }
+
+    @Test func nothingHasNothingToMove() {
+        var motion = HoverMotion(show: .nothing)
+
+        _ = motion.pointer(at: 42, time: Self.now, reducesMotion: false)
+        #expect(motion.pose(at: Self.at(0.3)) == .rest)
+    }
+
+    @Test(arguments: [EdgeSettings.Show.notch, .strip])
+    func motionReducedUnderThePointerSnapsThePictureToRest(show: EdgeSettings.Show) {
+        var motion = HoverMotion(show: show)
+
+        _ = motion.pointer(at: 42, time: Self.now, reducesMotion: false)
+        #expect(motion.motion(reduced: true, at: Self.at(0.5)) == .snap)
+        #expect(motion.reach == 0 && motion.turn == nil)
+        #expect(motion.isOver)
+    }
+
+    @Test func motionNoLongerReducedUnderThePointerStartsIt() {
+        var notch = HoverMotion(show: .notch)
+        var strip = HoverMotion(show: .strip)
+
+        _ = notch.pointer(at: 42, time: Self.now, reducesMotion: true)
+        _ = strip.pointer(at: 30, time: Self.now, reducesMotion: true)
+        #expect(notch.motion(reduced: false, at: Self.at(1)) == .out)
+        #expect(notch.reach == 1 && notch.tip == 42)
+        #expect(strip.motion(reduced: false, at: Self.at(1)) == .follow)
+        #expect(strip.turn == StripTurn(since: Self.at(1)))
+    }
+
+    @Test func motionNoLongerReducedWithNoPointerMovesNothing() {
+        var motion = HoverMotion(show: .notch)
+
+        #expect(motion.motion(reduced: false, at: Self.now) == .follow)
+        #expect(motion == HoverMotion(show: .notch))
+    }
+
+    /// Its window closed, minimised or out of sight, which may send no leave: nothing left moving for its return.
+    @Test(arguments: [EdgeSettings.Show.notch, .strip])
+    func offScreenThePictureRestsAtOnceAsThoughThePointerHadGone(show: EdgeSettings.Show) {
+        var motion = HoverMotion(show: show)
+
+        _ = motion.pointer(at: 42, time: Self.now, reducesMotion: false)
+        #expect(motion.rest() == .snap)
+        #expect(motion == HoverMotion(show: show))
+        #expect(!motion.isOver && motion.turn == nil && motion.pose(at: Self.at(0.3)) == .rest)
+    }
+}

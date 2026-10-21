@@ -3035,9 +3035,16 @@ reference only.
     again. The hairline stays. The frames run only from the pointer's
     coming until the arcs have faded; at rest nothing draws again.
   - **Nothing** has nothing to move.
-  - **a tile not chosen lifts its hairline** under the pointer, always, at
-    once; the chosen tile's ring stays as it is. Under Reduce motion,
-    SitRep's or the Mac's, that is all a hover does.
+  - **a tile not chosen lifts its hairline** while the pointer is over the
+    tile, its label too, always, at once; the chosen tile's ring stays as
+    it is. Under Reduce motion, SitRep's or the Mac's, that is all a hover
+    does, and Reduce motion turned on under the pointer puts the picture at
+    rest at once; turned off, its motion starts.
+
+  The window closed, minimised, hidden or covered, or the page gone, every
+  picture is at rest at once, as though the pointer had left: AppKit may
+  send no leave then, and the window, kept between openings, would come
+  back with its rings still turning.
 - **The card under the pictures** holds the rows that apply to the choice,
   in this order, each arriving and leaving by the system's own transition,
   at once under Reduce motion:

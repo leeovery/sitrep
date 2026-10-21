@@ -6,11 +6,13 @@ import SwiftUI
 /// accent; a click on another chooses it. It is the menu's Show. Nothing moves at rest, only under the pointer.
 struct ShowPictures: View {
     @Binding var show: EdgeSettings.Show
+    /// Whether the window is on screen; off it, each picture is at rest.
+    let isOnScreen: Bool
 
     var body: some View {
         HStack(alignment: .top, spacing: 16) {
             ForEach(EdgeSettings.Show.allCases, id: \.self) { choice in
-                ShowTile(choice: choice, isChosen: choice == show) { show = choice }
+                ShowTile(choice: choice, isChosen: choice == show, isOnScreen: isOnScreen) { show = choice }
             }
         }
         .padding(.top, 4)
@@ -20,10 +22,11 @@ struct ShowPictures: View {
 
 /// A picture and its label, as one button: 225 wide at most, narrower in a narrow window, the picture keeping its
 /// shape. Chosen, a gap of the page's black and a ring in the accent round it; else a hairline inside it, lifted
-/// under the pointer.
+/// while the pointer is over the tile, its label too.
 private struct ShowTile: View {
     let choice: EdgeSettings.Show
     let isChosen: Bool
+    let isOnScreen: Bool
     let choose: () -> Void
 
     @State private var isOver = false
@@ -39,7 +42,7 @@ private struct ShowTile: View {
 
         Button(action: choose) {
             VStack(spacing: 10) {
-                HoverPicture(show: choice, isOver: $isOver)
+                HoverPicture(show: choice, isOnScreen: isOnScreen)
                     .aspectRatio(Self.shape, contentMode: .fit)
                     .clipShape(picture)
                     .overlay {
@@ -60,86 +63,82 @@ private struct ShowTile: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .onHover { isOver = $0 }
+        .onChange(of: isOnScreen) {
+            if !isOnScreen {
+                isOver = false
+            }
+        }
         .accessibilityLabel(choice.title)
         .accessibilityAddTraits(isChosen ? .isSelected : [])
     }
 }
 
-/// A picture moving under the pointer, where `PictureHover` says it may: the notch's tongue out toward the pointer's
-/// height on the attract spring and home on the relax spring; the strip's rings turning by the display's frame, which
-/// runs only from the pointer's coming until the arcs have faded after it goes.
+/// A picture moving under the pointer (`HoverMotion`): the notch's tongue out toward the pointer's height on the
+/// attract spring and home on the relax spring; the strip's rings turning by the display's frame, which runs only from
+/// the pointer's coming until the arcs have faded after it goes. At rest at once as its window leaves the screen or the
+/// page goes, as the pointer's leaving may never be heard then.
 private struct HoverPicture: View {
     let show: EdgeSettings.Show
-    @Binding var isOver: Bool
+    let isOnScreen: Bool
 
     @Environment(\.reducesWindowMotion) private var reducesMotion
-    @State private var reach: CGFloat = 0
-    @State private var tip: CGFloat?
-    @State private var turn: StripTurn?
+    @State private var motion: HoverMotion
+
+    init(show: EdgeSettings.Show, isOnScreen: Bool) {
+        self.show = show
+        self.isOnScreen = isOnScreen
+        _motion = State(initialValue: HoverMotion(show: show))
+    }
 
     var body: some View {
         GeometryReader { geometry in
-            TimelineView(.animation(paused: turn == nil)) { frame in
-                EdgePicture(show: show, pose: pose(at: frame.date))
+            TimelineView(.animation(paused: motion.turn == nil)) { frame in
+                EdgePicture(show: show, pose: motion.pose(at: frame.date))
             }
-            .onContinuousHover { hover($0, height: geometry.size.height) }
-        }
-        .task(id: turn) { await rest() }
-        .onChange(of: reducesMotion) {
-            if reducesMotion {
-                reach = 0
-                turn = nil
+            .onContinuousHover { phase in
+                change { $0.pointer(at: Self.height(phase, in: geometry.size), time: Date(), reducesMotion: reducesMotion) }
             }
         }
+        .task(id: motion.turn) { await settle() }
+        .onChange(of: reducesMotion) { change { $0.motion(reduced: reducesMotion, at: Date()) } }
+        .onChange(of: isOnScreen) {
+            if !isOnScreen {
+                change { $0.rest() }
+            }
+        }
+        .onDisappear { change { $0.rest() } }
     }
 
-    private var moves: Bool { PictureHover.moves(show, reducesMotion: reducesMotion) }
-
-    private func pose(at time: Date) -> PicturePose {
-        var pose = turn?.pose(at: time) ?? .rest
-
-        pose.reach = reach
-        pose.tip = tip
-        return pose
-    }
-
-    private func hover(_ phase: HoverPhase, height: CGFloat) {
-        switch phase {
-        case let .active(at):
-            if show == .notch, moves {
-                tip = at.y / height * EdgePicture.units.height
-            }
-            if !isOver {
-                isOver = true
-                enter()
-            }
-        case .ended:
-            isOver = false
-            withAnimation(.spring(NotchPicture.home)) { reach = 0 }
-            turn = turn?.left(at: Date())
-        }
-    }
-
-    private func enter() {
-        guard moves else {
-            return
+    /// The pointer's height over the picture, in units; nil once it has gone.
+    private static func height(_ phase: HoverPhase, in size: CGSize) -> CGFloat? {
+        guard case let .active(at) = phase else {
+            return nil
         }
 
-        switch show {
-        case .notch: withAnimation(.spring(NotchPicture.out)) { reach = 1 }
-        case .strip: turn = turn?.entered(at: Date()) ?? StripTurn(since: Date())
-        case .nothing: break
+        return at.y / size.height * EdgePicture.units.height
+    }
+
+    private func change(_ change: (inout HoverMotion) -> HoverMotion.Ease) {
+        var next = motion
+
+        switch change(&next) {
+        case .follow: motion = next
+        case .out: withAnimation(.spring(NotchPicture.out)) { motion = next }
+        case .home: withAnimation(.spring(NotchPicture.home)) { motion = next }
+        case .snap: withTransaction(\.disablesAnimations, true) { motion = next }
         }
     }
 
     /// Back at rest once the arcs have faded, the frames stopped.
-    private func rest() async {
-        guard let faded = turn?.faded, (try? await Task.sleep(for: .seconds(max(faded.timeIntervalSinceNow, 0)))) != nil
+    private func settle() async {
+        guard let turn = motion.turn, let faded = turn.faded,
+              (try? await Task.sleep(for: .seconds(max(faded.timeIntervalSinceNow, 0)))) != nil, !Task.isCancelled
         else {
             return
         }
 
-        turn = nil
+        motion.faded(turn)
     }
 }
 
@@ -149,8 +148,8 @@ struct PicturePose: Equatable {
     /// How far the notch's tongue reaches out of its crest toward the pointer: 0 at rest, 1 at full reach, past either
     /// as a spring overshoots.
     var reach: CGFloat = 0
-    /// The pointer's height, in units, which the tongue's tip reaches toward; nil for the tip where it is drawn.
-    var tip: CGFloat?
+    /// The pointer's height, in units, which the tongue's tip reaches toward.
+    var tip = NotchPicture.drawnTip
     /// How far the strip's rings are from their rest look to turning: 0 at rest, 1 turning.
     var turning: Double = 0
     /// Where each of the strip's rings' turning arcs starts, top to bottom, in degrees clockwise from 12 o'clock.
@@ -160,16 +159,16 @@ struct PicturePose: Equatable {
 }
 
 /// One picture, drawn in its 124 × 80 units scaled to its size: a dark desktop under a menu bar, the bezel down its
-/// left, and what shows there, as it stands at `pose`, its reach following a spring.
+/// left, and what shows there, as it stands at `pose`, its reach and tip following a spring.
 struct EdgePicture: View, Animatable {
     let show: EdgeSettings.Show
     var pose = PicturePose.rest
 
     static let units = CGSize(width: 124, height: 80)
 
-    nonisolated var animatableData: CGFloat {
-        get { pose.reach }
-        set { pose.reach = newValue }
+    nonisolated var animatableData: AnimatablePair<CGFloat, CGFloat> {
+        get { AnimatablePair(pose.reach, pose.tip) }
+        set { (pose.reach, pose.tip) = (newValue.first, newValue.second) }
     }
 
     var body: some View {
@@ -212,63 +211,6 @@ struct EdgePicture: View, Animatable {
             with: .color(ink.opacity(0.9)), lineWidth: 0.4
         )
         context.fill(Path(roundedRect: CGRect(x: 96.75, y: 2.2, width: 1, height: 2.6), cornerRadius: 0.5), with: .color(WindowStyle.orange))
-    }
-}
-
-/// The notch, black, flared from the bezel out to its crest, and its light; reaching, a tongue out of the crest, the
-/// light brightening with it.
-enum NotchPicture {
-    /// The notch's outline at a reach from 0, its crest a straight run, to 1, the tongue at full reach, its tip about
-    /// 6.5 units past the crest, its tip toward `tip`.
-    static func outline(reach: CGFloat, tip: CGFloat? = nil) -> Path {
-        let tongue = tongue(reach: reach, tip: tip)
-        var notch = Path()
-
-        notch.move(to: CGPoint(x: -1, y: 18.7))
-        notch.addLine(to: CGPoint(x: 3, y: 18.7))
-        notch.addCurve(to: CGPoint(x: 6, y: 28.6), control1: CGPoint(x: 3, y: 24.1), control2: CGPoint(x: 4.5, y: 26.4))
-        notch.addCurve(to: CGPoint(x: crestX, y: crest.lowerBound), control1: CGPoint(x: 7.5, y: 30.8), control2: CGPoint(x: 9, y: 32.9))
-        notch.addCurve(to: tongue[2], control1: tongue[0], control2: tongue[1])
-        notch.addCurve(to: tongue[5], control1: tongue[3], control2: tongue[4])
-        notch.addCurve(to: CGPoint(x: crestX, y: crest.upperBound), control1: tongue[6], control2: tongue[7])
-        notch.addCurve(to: CGPoint(x: 6, y: 58.4), control1: CGPoint(x: 9, y: 54.1), control2: CGPoint(x: 7.5, y: 56.2))
-        notch.addCurve(to: CGPoint(x: 3, y: 68.3), control1: CGPoint(x: 4.5, y: 60.6), control2: CGPoint(x: 3, y: 62.9))
-        notch.addLine(to: CGPoint(x: -1, y: 68.3))
-        notch.closeSubpath()
-
-        return notch
-    }
-
-    /// The notch and its light at a reach: the light's glow and core grow from those at rest to the brighter, wider
-    /// ones at full reach.
-    static func draw(_ context: GraphicsContext, reach: CGFloat, tip: CGFloat?) {
-        let outline = outline(reach: reach, tip: tip)
-        let glow = mix(CGRect(x: 5.24, y: 35.78, width: 1.52, height: 15.44), CGRect(x: 4.9, y: 35.4, width: 2.2, height: 16.2), reach)
-        let bar = mix(CGRect(x: 5.5, y: 36.3, width: 1, height: 14.4), CGRect(x: 5.45, y: 36.3, width: 1.1, height: 14.4), reach)
-        let core = Path(roundedRect: bar, cornerRadius: bar.width / 2)
-        var lit = context
-
-        context.fill(outline, with: .color(.black))
-        lit.clip(to: outline)
-
-        var halo = lit
-
-        halo.addFilter(.blur(radius: 0.8 + 0.45 * reach))
-        halo.fill(Path(roundedRect: glow, cornerRadius: glow.width / 2), with: .color(WindowStyle.orange.opacity(0.8 + 0.2 * reach)))
-        lit.fill(core, with: .color(WindowStyle.orange))
-        lit.fill(core, with: .color(lift.opacity(reach)))
-    }
-
-    /// The core's brighter orange at full reach.
-    private static let lift = Color(hex: 0xF07A52)
-
-    private static func mix(_ from: CGRect, _ to: CGRect, _ amount: CGFloat) -> CGRect {
-        func mix(_ a: CGFloat, _ b: CGFloat) -> CGFloat { a + (b - a) * amount }
-
-        return CGRect(
-            x: mix(from.minX, to.minX), y: mix(from.minY, to.minY), width: mix(from.width, to.width),
-            height: mix(from.height, to.height)
-        )
     }
 }
 

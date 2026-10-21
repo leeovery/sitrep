@@ -16,7 +16,7 @@ struct StaysOnScreenSection: View {
 
         VStack(alignment: .leading, spacing: 14) {
             SectionHeading(name: "What stays on screen")
-            ShowPictures(show: preferences.binding(\.show))
+            ShowPictures(show: preferences.binding(\.show), isOnScreen: settings.isOnScreen)
             if rows.isEmpty {
                 Text(StaysOnScreen.menuCarries).font(.system(size: 13)).foregroundStyle(.secondary)
             } else {

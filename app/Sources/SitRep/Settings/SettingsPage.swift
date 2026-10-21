@@ -48,6 +48,8 @@ final class SettingsModel {
     private(set) var displays: [DisplayChoice.Connected] = []
     /// Allow… under way, while macOS's prompt is up.
     private(set) var isAllowing = false
+    /// Whether the page's window is on screen: closed, minimised, hidden or covered, it is not, and the pictures rest.
+    var isOnScreen = true
     /// The read of what macOS says begun last, as the page came into sight.
     @ObservationIgnored private(set) var reading: Task<Void, Never>?
     @ObservationIgnored private var isShown = false
