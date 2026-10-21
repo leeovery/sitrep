@@ -175,6 +175,20 @@ struct HeldOrderTests {
         #expect(Self.order(held.take(Self.reordered, moving: [])) == ["switchboard", "goosemates", "sitrep"])
     }
 
+    @Test func theNeedsYouViewIsHeldAsProjectsIsItsMovingSessionMovingInAtOnce() {
+        let held = Held()
+        var reordered = Self.first
+
+        reordered.flat = [reordered.flat[2]] + reordered.flat.prefix(2) + reordered.flat.dropFirst(3)
+        _ = held.take(Self.first, moving: [])
+        held.pointer(isIn: true, at: printedAt)
+        #expect(held.take(reordered, moving: []).flat.map(\.id) == Self.first.flat.map(\.id))
+        #expect(held.take(reordered, moving: ["sr-gs7kq2"]).flat.map(\.id) == reordered.flat.map(\.id))
+        held.pointer(isIn: false, at: printedAt)
+        _ = held.settle(at: printedAt.addingTimeInterval(1))
+        #expect(held.take(reordered, moving: []).flat.map(\.id) == reordered.flat.map(\.id))
+    }
+
     @Test func theListReSortsASecondAfterThePointerLeavesIt() {
         let held = Held()
 

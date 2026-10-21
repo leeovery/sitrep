@@ -2627,6 +2627,35 @@ stands).
     window, and their notes (Lee, 20 October 2026: "at least interact with
     them, view them, see them"). The head says how many need Lee and how
     many sessions there are, or "All clear".
+    Under the head sit a Filter field and a switch between **two views**
+    of the same board, the system's search field and segmented control
+    (Paper's "The sidebar's views", round 7; Lee, 21 October 2026: "Yes,
+    I really like what you've done there. Let's go ahead and build it"):
+    - **Projects** is the board as above. **Needs you** drops the headings
+      for one flat list of every session, quiet projects' too, in the
+      panel's own order, core's rows': what needs Lee first, the oldest ask
+      first and an away session's after the live ones, then your turn, then
+      working, then away. Each row names its project under its own, and
+      keeps the marks, the age and the selection of a Projects row. The
+      quiet projects' foot shows in Projects alone. The view chosen is kept
+      across launches, in a saved value of its own;
+    - **the filter** narrows the view chosen in place. A session stays while
+      every word typed appears, anywhere, in its name or its project's,
+      whatever their case and accents, so typing a project's name lists its
+      sessions; a quiet project stays while its name holds every word. In
+      Projects a match stays under its project, whose count is still of all
+      its sessions. The words are lit, in the label colour, wherever they
+      appear in a name, the rest soft. It never moves the pick: the page
+      stays on what was open, even with its row filtered out. ⌘F focuses
+      the field, Return in it opens the first match, and × or Escape clears
+      it and gives the whole board back; Escape in it empty does nothing.
+      What it holds is not kept;
+    - **decided for round 7** (21 October 2026, as the design pointed):
+      a filter that keeps nothing says so in one centred line, "No sessions
+      match “ledg”", the field's text in the quotes, and an empty board keeps
+      the words it has; the match is the rule above; and the field carries
+      no "⌘F" hint, which the system's field does not draw. Needs you lists
+      every session, so it is empty only when the board is.
   - **the session** Lee picks, on the right: the pane's session view at
     window size. Its project's name is an eyebrow over its name, about 15
     points semibold in the secondary colour, smaller than a title and more
@@ -2731,7 +2760,8 @@ stands).
     SitRep, needs you, 5 hours"; an away session with something waiting
     reads "needs you, away". A project's name reads its count of what
     waits there, "SitRep, 3 waiting", or "Kit, nothing waiting", and a
-    quiet one "Kit, quiet project";
+    quiet one "Kit, quiet project". A Needs you row reads as a Projects row
+    does, and the Filter field as "Filter sessions";
   - the page's title, the eyebrow and the section headings carry the
     header trait, each heading read with the words on its right, as
     "Asks, 3 waiting";

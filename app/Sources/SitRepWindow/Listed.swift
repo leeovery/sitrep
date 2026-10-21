@@ -19,7 +19,8 @@ public enum Mark: Sendable, Equatable {
 }
 
 /// The board down the window's left: its head; every project with something open, in `watch`'s order, its sessions
-/// under it in theirs; and the quiet projects, folded into a line at the foot.
+/// under it in theirs; and the quiet projects, folded into a line at the foot. For the Needs you view, every session
+/// flat, in the panel's order.
 public struct Listed: Equatable, Sendable {
     public struct Project: Equatable, Sendable, Identifiable {
         public let id: String
@@ -33,6 +34,8 @@ public struct Listed: Equatable, Sendable {
     public struct Row: Equatable, Sendable, Identifiable {
         public let id: String
         public let name: String
+        /// Its project's name, under its own in the Needs you view.
+        public let project: String
         public let mark: Mark
         /// No window holds it: its name is faint, whatever its mark.
         public let isAway: Bool
@@ -54,7 +57,9 @@ public struct Listed: Equatable, Sendable {
     public let head: Head
     public var projects: [Project]
     /// The quiet projects, in `watch`'s order.
-    public let quiet: [Quiet]
+    public var quiet: [Quiet]
+    /// Every session on the board, quiet projects' too, in the panel's order (`Listed.flat(_:)`).
+    public var flat: [Row]
 
     /// Before `watch` prints its first line.
     public init() {
@@ -66,6 +71,7 @@ public struct Listed: Equatable, Sendable {
         head = PanelBoard(unrun: why).head
         projects = []
         quiet = []
+        flat = []
     }
 
     /// The board as last heard, its head as the panel's says it, stale or not.
@@ -76,18 +82,33 @@ public struct Listed: Equatable, Sendable {
 
         head = PanelBoard(last).head
         projects = shown.map { project in
-            Project(id: project.key, name: project.name, waiting: needs[project.key] ?? 0, sessions: project.sessions.map(Row.init))
+            Project(
+                id: project.key, name: project.name, waiting: needs[project.key] ?? 0,
+                sessions: project.sessions.map { Row($0, of: project) }
+            )
         }
         quiet = board?.projects.filter(\.isQuiet).map { Quiet(id: $0.key, name: $0.name) } ?? []
+        flat = board.map(Self.flat) ?? []
     }
 
     /// Every session it lists, in its order.
     public var sessions: [Row] { projects.flatMap(\.sessions) }
+
+    /// Each of its rows changed, in both views.
+    mutating func changeRows(_ change: (inout Row) -> Void) {
+        for project in projects.indices {
+            projects[project].sessions.indices.forEach { change(&projects[project].sessions[$0]) }
+        }
+        flat.indices.forEach { change(&flat[$0]) }
+    }
 }
 
 extension Listed.Row {
-    init(_ session: Board.Session) {
-        self.init(id: session.id, name: session.name, mark: Mark(session.state), isAway: session.doing.isAway, since: session.since)
+    init(_ session: Board.Session, of project: Board.Project) {
+        self.init(
+            id: session.id, name: session.name, project: project.name, mark: Mark(session.state),
+            isAway: session.doing.isAway, since: session.since
+        )
     }
 }
 

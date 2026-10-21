@@ -13,6 +13,10 @@ final class WindowModel {
     private(set) var listed = Listed()
     private(set) var page = Page.empty("Looking for sessions…")
     private(set) var pick: Pick?
+    /// The sidebar's view, saved as Lee chooses it.
+    private(set) var sidebar = Sidebar.projects
+    /// What the Filter field holds, never saved.
+    private(set) var filter = Filter()
     /// The clock the pages are drawn at: ages, washes and an answer's wait.
     private(set) var now = Date()
     /// SitRep's own Reduce motion, or the Mac's, followed as either changes.
@@ -26,6 +30,7 @@ final class WindowModel {
     @ObservationIgnored private let plugin: Plugin
     @ObservationIgnored private let works: Works
     @ObservationIgnored private let defaults: UserDefaults
+    @ObservationIgnored private let saved: SavedSettings<WindowSettings>
     @ObservationIgnored private var wake: Task<Void, Never>?
     @ObservationIgnored private var observers: [any NSObjectProtocol] = []
 
@@ -37,7 +42,11 @@ final class WindowModel {
         self.plugin = plugin
         self.works = works
         self.defaults = defaults
-        run = WindowRun(lastSession: defaults.string(forKey: Self.lastSessionKey))
+        let saved = SavedSettings<WindowSettings>(defaults)
+
+        self.saved = saved
+        run = WindowRun(lastSession: defaults.string(forKey: Self.lastSessionKey), sidebar: saved.read().sidebar)
+        sidebar = run.sidebar
         actions = WindowActions(
             pick: { [weak self] in self?.pick($0) },
             pickInList: { [weak self] in self?.pickInList($0) },
@@ -48,7 +57,10 @@ final class WindowModel {
             askToFinish: { [weak self] in self?.askToFinish($0) },
             cancelFinish: { [weak self] in self?.cancelFinish($0) },
             confirmFinish: { [weak self] in self?.confirmFinish($0) },
-            pointer: { [weak self] in self?.pointer(isIn: $0) }
+            pointer: { [weak self] in self?.pointer(isIn: $0) },
+            choose: { [weak self] in self?.choose($0) },
+            filter: { [weak self] in self?.filter($0) },
+            openFirstMatch: { [weak self] in self?.openFirstMatch() }
         )
         listen()
     }
@@ -151,6 +163,24 @@ final class WindowModel {
         refresh()
     }
 
+    private func choose(_ sidebar: Sidebar) {
+        var settings = saved.read()
+
+        run.sidebar = sidebar
+        settings.sidebar = sidebar
+        saved.save(settings)
+        refresh()
+    }
+
+    private func filter(_ text: String) {
+        run.filter = Filter(text)
+        refresh()
+    }
+
+    private func openFirstMatch() {
+        picked(run.openFirstMatch())
+    }
+
     private func askToFinish(_ session: String) {
         run.askToFinish(session)
         refresh()
@@ -223,6 +253,8 @@ final class WindowModel {
         listed = run.listed(at: time)
         page = run.page(at: time)
         pick = run.pick
+        sidebar = run.sidebar
+        filter = run.filter
         schedule(after: time)
     }
 

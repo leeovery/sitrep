@@ -3,9 +3,10 @@ import AppKit
 import SwiftUI
 import Testing
 
-/// Return on the sidebar's list moves keyboard focus into the page, to its first control, and Escape in the page moves
-/// it back to the list, in the SitRep window's split over a list and two buttons, made, never shown. A page's buttons
-/// take focus only while the Mac's Keyboard navigation setting is on, so what needs them runs only then.
+/// ⌘F moves keyboard focus into the Filter field; Return on the sidebar's list moves it into the page, to its first
+/// control, and Escape in the page moves it back to the list, in the SitRep window's split over a Filter field, a list
+/// and two buttons, made, never shown. A page's buttons take focus only while the Mac's Keyboard navigation setting is
+/// on, so what needs them runs only then.
 @MainActor
 struct SideFocusTests {
     @Test(.enabled { await keyboardNavigation() })
@@ -54,6 +55,33 @@ struct SideFocusTests {
         #expect(!sides.press(SideFocus.return, with: .command))
         #expect(sides.window.firstResponder === sides.list)
     }
+
+    @Test func commandFFocusesTheFilterFieldFromTheListOrThePage() throws {
+        let sides = try Sides()
+
+        #expect(!sides.focus.isFiltering)
+        #expect(sides.press(Sides.f, with: .command, typing: "f"))
+        #expect(sides.focus.isFiltering)
+        sides.window.makeFirstResponder(sides.focus.page)
+        #expect(sides.press(Sides.f, with: .command, typing: "f"))
+        #expect(sides.focus.isFiltering)
+    }
+
+    @Test func fWithoutCommandIsLeftAlone() throws {
+        let sides = try Sides()
+
+        #expect(!sides.press(Sides.f, typing: "f"))
+        #expect(sides.window.firstResponder === sides.list)
+    }
+
+    /// The field's Return opens the first match, and is the field's own: focus stays in it.
+    @Test func returnInTheFilterFieldStaysThere() throws {
+        let sides = try Sides()
+
+        sides.press(Sides.f, with: .command, typing: "f")
+        #expect(!sides.press(SideFocus.return))
+        #expect(sides.focus.isFiltering)
+    }
 }
 
 /// The Mac's Keyboard navigation setting, by which a page's buttons take focus.
@@ -70,9 +98,12 @@ private struct Sides {
 
     /// A page of buttons, or of words alone, as a page is with Keyboard navigation off: nothing in it takes focus.
     init(hasButtons: Bool = true) throws {
-        let sidebar = NSHostingController(rootView: List(selection: .constant(Optional("a"))) {
-            Text("a").tag("a")
-        }.listStyle(.sidebar))
+        let sidebar = NSHostingController(rootView: VStack {
+            FilterField(text: "")
+            List(selection: .constant(Optional("a"))) {
+                Text("a").tag("a")
+            }.listStyle(.sidebar)
+        })
         let page = NSHostingController(rootView: VStack {
             if hasButtons {
                 Button("One") {}
@@ -104,14 +135,18 @@ private struct Sides {
     }
 
     @discardableResult
-    func press(_ key: UInt16, with modifiers: NSEvent.ModifierFlags = []) -> Bool {
+    func press(_ key: UInt16, with modifiers: NSEvent.ModifierFlags = [], typing characters: String = "\r") -> Bool {
         let event = NSEvent.keyEvent(
             with: .keyDown, location: .zero, modifierFlags: modifiers, timestamp: 0, windowNumber: window.windowNumber,
-            context: nil, characters: "\r", charactersIgnoringModifiers: "\r", isARepeat: false, keyCode: key
+            context: nil, characters: characters, charactersIgnoringModifiers: characters, isARepeat: false,
+            keyCode: key
         )
 
         return event.map(focus.move) ?? false
     }
+
+    /// The F key.
+    static let f: UInt16 = 3
 
     private static func table(in view: NSView) -> NSTableView? {
         view.subviews.lazy.compactMap { $0 as? NSTableView ?? table(in: $0) }.first

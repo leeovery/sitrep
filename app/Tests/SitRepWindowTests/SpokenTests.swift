@@ -6,7 +6,7 @@ import Testing
 /// What VoiceOver reads of the window: words for its marks, counts and times, never their symbols.
 struct SpokenTests {
     private static func row(_ mark: Mark, isAway: Bool = false, since: Date = minutes(before: 300)) -> Listed.Row {
-        Listed.Row(id: "sr-macapp", name: "The Mac app", mark: mark, isAway: isAway, since: since)
+        Listed.Row(id: "sr-macapp", name: "The Mac app", project: "SitRep", mark: mark, isAway: isAway, since: since)
     }
 
     @Test(arguments: [
@@ -17,7 +17,18 @@ struct SpokenTests {
         (.needs, true, "The Mac app, SitRep, needs you, away, 5 hours"),
     ])
     func aSidebarRowReadsAsItsSessionItsProjectItsStateAndItsAge(mark: Mark, isAway: Bool, words: String) {
-        #expect(Spoken.row(Self.row(mark, isAway: isAway), in: "SitRep", at: printedAt) == words)
+        #expect(Spoken.row(Self.row(mark, isAway: isAway), at: printedAt) == words)
+    }
+
+    @Test func aNeedsYouRowReadsAsAProjectsRowDoes() throws {
+        let listed = Listed(heard(line(0)))
+        let flat = try #require(listed.flat.first { $0.id == "sr-rq7dgr" })
+
+        #expect(Spoken.row(flat, at: printedAt) == "Request ledger, Switchboard, your turn, 12 minutes")
+    }
+
+    @Test func theFilterFieldReadsAsWhatItDoes() {
+        #expect(Spoken.filter == "Filter sessions")
     }
 
     @Test func anAgeReadsInWholeMinutesHoursOrDaysAsTheRowShowsIt() {

@@ -51,7 +51,9 @@ final class SitRepWindow: NSObject, NSWindowDelegate {
 
     private func make() -> NSWindow {
         let sidebar = Self.side(over: model) { [model] in
-            BoardColumn(listed: model.listed, pick: model.pick, now: model.now)
+            BoardColumn(
+                listed: model.listed, pick: model.pick, sidebar: model.sidebar, filter: model.filter, now: model.now
+            )
         }
         let page = Self.side(over: model) { [model] in PageColumn(page: model.page, now: model.now) }
         let window = Self.window(Self.split(sidebar: sidebar, page: page))
@@ -121,10 +123,11 @@ final class SitRepWindow: NSObject, NSWindowDelegate {
     }
 
     /// Escape in the window takes back the answer pressed last while it waits, as the drawing's "Esc to undo" says;
-    /// with none waiting, it and Return move keyboard focus between the two sides (`SideFocus`).
+    /// with none waiting, it and Return move keyboard focus between the two sides, and ⌘F into the Filter field
+    /// (`SideFocus`). Typing in the Filter field, every key is the field's own.
     private func listenForKeys(in window: NSWindow, focus: SideFocus) {
         keys = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self, weak window] event in
-            guard event.window === window, let self else {
+            guard event.window === window, let self, !focus.isFiltering else {
                 return event
             }
             if event.keyCode == SideFocus.escape, model.undo() {
@@ -135,9 +138,9 @@ final class SitRepWindow: NSObject, NSWindowDelegate {
     }
 }
 
-/// Keyboard focus moved between the window's two sides by a key, through AppKit's key views: Return on the sidebar's
-/// list into the page, to its first control, which with the Mac's Keyboard navigation off has none; Escape in the page
-/// back to the list. Tab and the arrows keep the Mac's own order.
+/// Keyboard focus moved by a key, through AppKit's key views: ⌘F into the sidebar's Filter field, from anywhere;
+/// Return on the sidebar's list into the page, to its first control, which with the Mac's Keyboard navigation off has
+/// none; Escape in the page back to the list. Tab and the arrows keep the Mac's own order.
 @MainActor
 struct SideFocus {
     let window: NSWindow
@@ -146,20 +149,39 @@ struct SideFocus {
 
     /// The move this key makes from where focus is, made; false where it makes none.
     func move(_ event: NSEvent) -> Bool {
-        guard event.modifierFlags.isDisjoint(with: [.command, .option, .control, .shift]),
-              let focus = window.firstResponder as? NSView
-        else {
+        if Self.isFind(event) {
+            return filterField.map { window.makeFirstResponder($0) } ?? false
+        }
+        guard event.modifierFlags.isDisjoint(with: [.command, .option, .control, .shift]), let focus else {
             return false
         }
 
-        if [Self.return, Self.enter].contains(event.keyCode), focus.isDescendant(of: sidebar) {
+        if [Self.return, Self.enter].contains(event.keyCode), list.map(focus.isDescendant(of:)) == true {
             window.selectKeyView(following: page)
-            return (window.firstResponder as? NSView)?.isDescendant(of: page) == true
+            return self.focus?.isDescendant(of: page) == true
         }
         if event.keyCode == Self.escape, focus.isDescendant(of: page) {
-            return window.makeFirstResponder(sidebar.descendant(NSTableView.self) ?? sidebar)
+            return window.makeFirstResponder(list ?? sidebar)
         }
         return false
+    }
+
+    /// Focus is in the Filter field, its keys its own: Return opens the first match, Escape clears it.
+    var isFiltering: Bool {
+        guard let focus, let filterField else {
+            return false
+        }
+        return focus.isDescendant(of: filterField)
+    }
+
+    private var focus: NSView? { window.firstResponder as? NSView }
+    /// The sidebar's list, as SwiftUI hosts it in AppKit's table.
+    private var list: NSView? { sidebar.descendant(NSTableView.self) }
+    private var filterField: NSView? { sidebar.descendant(NSSearchField.self) }
+
+    private static func isFind(_ event: NSEvent) -> Bool {
+        event.modifierFlags.intersection(.deviceIndependentFlagsMask) == .command
+            && event.charactersIgnoringModifiers == "f"
     }
 
     static let `return`: UInt16 = 36
