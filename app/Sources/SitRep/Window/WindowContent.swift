@@ -19,6 +19,12 @@ struct WindowActions: Sendable {
     var confirmFinish: @MainActor @Sendable (String) -> Void = { _ in }
     /// The pointer came over the board's list, or left it.
     var pointer: @MainActor @Sendable (Bool) -> Void = { _ in }
+    /// The sidebar's view chosen at its top.
+    var choose: @MainActor @Sendable (Sidebar) -> Void = { _ in }
+    /// What the Filter field holds, as Lee types or clears it.
+    var filter: @MainActor @Sendable (String) -> Void = { _ in }
+    /// Return in the Filter field.
+    var openFirstMatch: @MainActor @Sendable () -> Void = {}
 }
 
 extension EnvironmentValues {

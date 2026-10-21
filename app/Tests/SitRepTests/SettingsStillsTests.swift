@@ -67,7 +67,7 @@ struct SettingsStillsTests {
     /// The window on Settings, the sidebar's stand-in with Settings picked at its foot, as tall as `height`.
     private static func window(_ page: SettingsPage, _ name: String, height: CGFloat = WindowStyle.size.height) throws {
         let view = HStack(spacing: 0) {
-            BoardColumn(listed: Listed(), pick: .settings, now: Date()).frame(width: WindowStyle.boardWidth)
+            BoardColumn(listed: Listed(), pick: .settings, sidebar: .projects, filter: Filter(), now: Date()).frame(width: WindowStyle.boardWidth)
             PageColumn(page: .settings, now: Date()) { page }
         }
         .environment(\.isStill, true)

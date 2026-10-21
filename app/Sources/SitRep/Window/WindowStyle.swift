@@ -1,3 +1,4 @@
+import SitRepWindow
 import SwiftUI
 
 /// The SitRep window's colours and type, from Paper's "The SitRep window" (surfaces round 3) and its tokens, in the
@@ -35,6 +36,14 @@ enum WindowStyle {
     static let wash = orange.opacity(0.12)
     static let washRing = orange.opacity(0.28)
 
+    static func colour(_ tone: Tone) -> Color {
+        switch tone {
+        case .text: text
+        case .soft: soft
+        case .faint: faint
+        }
+    }
+
     static func ui(_ size: CGFloat, _ weight: Font.Weight = .regular) -> Font {
         .system(size: size, weight: weight)
     }
@@ -57,6 +66,8 @@ enum WindowStyle {
     /// The system's sidebar list, as it lays out its rows, measured offscreen on macOS 26: a row's height, its words in
     /// from the sidebar's edges, and the gap between two sections.
     static let rowHeight: CGFloat = 32
+    /// What the list sets above and below a row's words, a lane's 18 points tall in a row of 32: a still sets it.
+    static let rowPadding: CGFloat = (rowHeight - lane.height) / 2
     static let rowInset: CGFloat = 16
     static let sectionGap: CGFloat = 13
     /// The sidebar's foot, a list of the one row Settings: the row and the list's own insets round it.

@@ -331,7 +331,9 @@ struct WindowRunTests {
 
         _ = run.show(heard(line(0), line(new: ["ask:sr-gs7kq2:k1"])), at: printedAt, reducesMotion: false)
         #expect(run.listed(at: printedAt.addingTimeInterval(1.99)).sessions.compactMap(\.washed) == [printedAt])
+        #expect(run.listed(at: printedAt.addingTimeInterval(1.99)).flat.compactMap(\.washed) == [printedAt])
         #expect(run.listed(at: printedAt.addingTimeInterval(2)).sessions.compactMap(\.washed).isEmpty)
+        #expect(run.listed(at: printedAt.addingTimeInterval(2)).flat.compactMap(\.washed).isEmpty)
     }
 
     @Test func underReducedMotionNothingIsWashed() {
