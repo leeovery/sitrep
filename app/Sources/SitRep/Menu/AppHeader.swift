@@ -46,19 +46,11 @@ enum AppIcon {
     }
 }
 
-enum MenuHeader {
-    /// The header as a menu item's view.
-    @MainActor
-    static func view() -> MenuHeaderView {
-        MenuHeaderView()
-    }
-}
-
 /// The menu's header as its item's view, which a click opens About SitRep from (DESIGN, "About SitRep"): under the
 /// pointer, or the keys, it takes the menu's own highlight, the accent behind it and its words in white, and a click
 /// sends its item's action, as any item's does. It is as wide as the menu, so the highlight runs across it, and set at
 /// that width: a view that stretches with the menu keeps the width it was stretched to, which the menu is never
-/// narrower than.
+/// narrower than. To VoiceOver it is one button, About SitRep.
 final class MenuHeaderView: NSView {
     private let highlight = NSVisualEffectView()
     private let words = NSHostingView(rootView: AppHeader())
@@ -89,6 +81,9 @@ final class MenuHeaderView: NSView {
         words.frame = NSRect(x: 14, y: 6, width: size.width, height: size.height)
         addSubview(highlight)
         addSubview(words)
+        setAccessibilityElement(true)
+        setAccessibilityRole(.button)
+        setAccessibilityLabel("About SitRep")
     }
 
     @available(*, unavailable)
@@ -102,12 +97,28 @@ final class MenuHeaderView: NSView {
     }
 
     override func mouseUp(with event: NSEvent) {
+        press()
+    }
+
+    override func accessibilityPerformPress() -> Bool {
+        press()
+    }
+
+    /// Its words are its label's, not read apart.
+    override func accessibilityChildren() -> [Any]? {
+        nil
+    }
+
+    /// The menu closed, and its item's action sent.
+    @discardableResult
+    private func press() -> Bool {
         guard let item = enclosingMenuItem, let menu = item.menu else {
-            return
+            return false
         }
 
         menu.cancelTracking()
         menu.performActionForItem(at: menu.index(of: item))
+        return true
     }
 
     /// The highlight's rounded corners, as a mask that stretches to its size.

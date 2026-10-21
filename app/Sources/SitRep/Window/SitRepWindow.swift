@@ -6,16 +6,16 @@ import SwiftUI
 /// The SitRep window: one, which the app owns, made the first time Lee opens it and kept after it closes. Opening it
 /// again brings it forward. It comes forward and takes focus only when Lee opens it, never by itself, as the notch or
 /// the strip tells Lee what changed; with no Dock icon, the app activates only then. Its page is a session, a project,
-/// or Settings, which `settings` draws.
+/// or Settings, drawn from `settings`.
 @MainActor
 final class SitRepWindow: NSObject, NSWindowDelegate {
     private let model: WindowModel
-    private let settings: () -> SettingsPage
+    private let settings: SettingsModel
     private lazy var window = make()
     private var focus: SideFocus?
     private var keys: Any?
 
-    init(plugin: Plugin, works: Works, settings: @escaping () -> SettingsPage) {
+    init(plugin: Plugin, works: Works, settings: SettingsModel) {
         model = WindowModel(plugin: plugin, works: works)
         self.settings = settings
     }
@@ -68,7 +68,7 @@ final class SitRepWindow: NSObject, NSWindowDelegate {
             )
         }
         let page = Self.side(over: model) { [model, settings] in
-            PageColumn(page: model.page, now: model.now, settings: settings)
+            PageColumn(page: model.page, now: model.now) { SettingsPage(settings: settings) }
         }
         let window = Self.window(Self.split(sidebar: sidebar, page: page))
 
@@ -201,11 +201,11 @@ struct SideFocus {
     private var filterField: NSView? { sidebar.descendants(NSSearchField.self).first }
 
     /// The sidebar's list holding the pick, as SwiftUI hosts each list in AppKit's table: the board's, or Settings' at
-    /// its foot; the board's with nothing picked.
-    var list: NSTableView? {
+    /// its foot; with nothing picked, the board's, the one above.
+    private var list: NSTableView? {
         let lists = sidebar.descendants(NSTableView.self)
 
-        return lists.first { $0.selectedRow >= 0 } ?? lists.first
+        return lists.first { $0.selectedRow >= 0 } ?? lists.max { $0.top < $1.top }
     }
 
     /// Focus in the Filter field, its field editor inside it, whose Return is its own.
@@ -231,6 +231,11 @@ private extension NSView {
     /// The views of this kind inside it, depth first, not looking inside one found.
     func descendants<View: NSView>(_ kind: View.Type) -> [View] {
         subviews.flatMap { view in (view as? View).map { [$0] } ?? view.descendants(kind) }
+    }
+
+    /// Its top edge in its window, higher up the greater.
+    var top: CGFloat {
+        convert(bounds, to: nil).maxY
     }
 }
 

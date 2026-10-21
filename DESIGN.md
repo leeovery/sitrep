@@ -2991,15 +2991,19 @@ reference only.
 - **One page, set as a project's page is:** the title in its place and
   size, with nothing under it, then What stays on screen, Notifications and
   General, each headed in the small capitals of Asks and Status, 36 points
-  apart, the page scrolling as one. Rows sit on the ask cards' raise, at
+  apart, the page scrolling as one, as the window's other pages scroll,
+  its toolbar's scroll edge hidden as theirs is. Rows sit on the ask cards' raise, at
   their radius, split by the page's hairline, one box deep: rows of
   SitRep's own at the drawing's metrics, not SwiftUI's grouped Form, whose
   sections draw their own fill and insets, scroll on their own and draw
-  nothing as a still. The controls are the system's at their own size,
-  never redrawn: segmented controls, pop-ups, switches in the system
-  accent, bordered push buttons and a pull-down; each sits at the right of
-  one column, 176 points, so the eye runs straight down them. Orange stays
-  for needs you, so it appears only inside the pictures and the glyph.
+  nothing as a still. The controls are the system's, never redrawn:
+  segmented controls, pop-ups, switches in the system accent, bordered push
+  buttons and a pull-down, in one column on the right, 176 points, so the
+  eye runs straight down them. The segmented controls and the pop-up fill
+  it, the segments equal, as AppKit's own controls set so, which SwiftUI's
+  picker will not; the switches and the buttons keep their own size, at its
+  right. Orange stays for needs you, so it appears only inside the pictures
+  and the glyph.
 - **What stays on screen**, named for the choice it makes, true for all
   three, Nothing included (Lee's alternative, if he prefers it later: "Show
   on screen"). Three pictures of the screen's edge, 225 by 145: the notch
@@ -3009,13 +3013,15 @@ reference only.
   accent past a gap of the page's black; a click chooses one; it is the
   menu's Show. The pictures are a fixed sample, one needs you and the notch
   lit, and nothing moves at rest: the chosen picture no longer breathes.
-  Under the pointer each moves (drawn in round 7, built next): the notch
-  reaches a tongue out of its crest to its full reach, its tip at the
-  pointer's height within the crest, on the meniscus's attract spring, and
-  home on its relax spring, the light brightening with it; the strip's
-  rings dim to their tracks and turn as working arcs, each a beat behind the
-  one above. A tile not chosen lifts its hairline under the pointer, always;
-  under Reduce motion that is all a hover does.
+  Each picture is drawn at a pose, at rest as drawn, for the pointer to
+  move. Under the pointer, drawn in round 7 and built next:
+  - the notch reaches a tongue out of its crest to its full reach, its tip
+    at the pointer's height within the crest, on the meniscus's attract
+    spring, and home on its relax spring, the light brightening with it;
+  - the strip's rings dim to their tracks and turn as working arcs, each a
+    beat behind the one above;
+  - a tile not chosen lifts its hairline, always; under Reduce motion that
+    is all a hover does.
 - **The card under the pictures** holds the rows that apply to the choice,
   in this order, each arriving and leaving by the system's own transition,
   at once under Reduce motion:
@@ -3103,7 +3109,7 @@ standard About panel, which draws its icon smaller.
   upper part of the screen, on the Space Lee is on.
 - **It opens from the menu's header**, which takes the menu's own highlight
   under the pointer, as any item does, and a click on it opens the window
-  from anywhere. It is not in the app menu: an accessory app never shows
+  from anywhere. To VoiceOver the header is one button, "About SitRep". It is not in the app menu: an accessory app never shows
   its main menu.
 
 ### The icon
@@ -3770,7 +3776,9 @@ reaches a window only while that pane is on show).
       Settings' decisions in a part of their own with no AppKit or SwiftUI
       (`SitRepMenu`), tested, and the views over it thin. Settings' panes were
       drawn offscreen and read beside Paper's drawings; the menu cannot be,
-      so only its images were. What the build settled:
+      so only its images were. Round 7 replaced this Settings window and
+      its panes with a page of the SitRep window (see "Settings"). What the
+      build settled:
       - **One feed.** The menu's sessions are the panel's, from the board
         the edge reads (`PanelBoard`), in core's order with the panel's
         marks and its hairline, the first twelve of them; its heading the

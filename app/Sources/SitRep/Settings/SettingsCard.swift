@@ -89,12 +89,13 @@ private struct IconTile: View {
 }
 
 /// A row from what it says of itself (`SettingsRow`): its state where its control goes. A green dot and a word when
-/// it's fine; a push button, its ellipsis saying it opens somewhere else, when the fix is Lee's; the switch, bound to
-/// `isOn`; or Show Windows, a click on a window jumping to it.
+/// it's fine; a push button, its ellipsis saying it opens somewhere else, when the fix is Lee's, greyed while `isBusy`
+/// says the fix is under way; the switch, bound to `isOn`; or Show Windows, a click on a window jumping to it.
 struct StatedRow: View {
     let row: SettingsRow
     var icon: String?
     var isOn: Binding<Bool> = .constant(false)
+    var isBusy = false
     let fix: (SettingsRow.Fix) -> Void
     var jump: (String) -> Void = { _ in }
 
@@ -110,7 +111,7 @@ struct StatedRow: View {
         case let .fine(word):
             StatusDot(word: word)
         case let .button(title, fix):
-            Button(title) { self.fix(fix) }.buttonStyle(.bordered)
+            Button(title) { self.fix(fix) }.buttonStyle(.bordered).disabled(isBusy)
         case .toggle:
             Toggle(row.label, isOn: isOn).toggleStyle(.switch).labelsHidden()
         case let .windows(windows):

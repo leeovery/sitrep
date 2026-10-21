@@ -57,28 +57,39 @@ enum Leaves {
     }
 
     /// The leave, for a harmless event, Get Data: macOS gives it for Ghostty, whatever the event. Off the main thread,
-    /// which a prompt would hold up.
+    /// which a prompt would hold up. The descriptor is held for the call, as its `aeDesc` points into it.
     private static func ghosttyLeave(asking: Bool) async -> GhosttyLeave {
         await Task.detached {
-            guard let ghostty = NSAppleEventDescriptor(bundleIdentifier: "com.mitchellh.ghostty").aeDesc else {
-                return GhosttyLeave.unknown
-            }
+            let ghostty = NSAppleEventDescriptor(bundleIdentifier: "com.mitchellh.ghostty")
 
-            return GhosttyLeave(AEDeterminePermissionToAutomateTarget(
-                ghostty, AEEventClass(kAECoreSuite), AEEventID(kAEGetData), asking
-            ))
+            return withExtendedLifetime(ghostty) {
+                guard let target = ghostty.aeDesc else {
+                    return GhosttyLeave.unknown
+                }
+
+                return GhosttyLeave(AEDeterminePermissionToAutomateTarget(
+                    target, AEEventClass(kAECoreSuite), AEEventID(kAEGetData), asking
+                ))
+            }
         }.value
     }
 
-    /// System Settings, where Lee changes what macOS lets SitRep do.
-    enum Place: String {
-        case notifications = "x-apple.systempreferences:com.apple.Notifications-Settings.extension?id=com.leeovery.sitrep"
-        case automation = "x-apple.systempreferences:com.apple.preference.security?Privacy_Automation"
-        case loginItems = "x-apple.systempreferences:com.apple.LoginItems-Settings.extension"
+    /// System Settings, where Lee changes what macOS lets SitRep do: SitRep's page in Notifications, Automation, and
+    /// Login Items, which macOS opens itself.
+    enum Place {
+        case notifications, automation, loginItems
     }
 
     static func open(_ place: Place) {
-        if let url = URL(string: place.rawValue) {
+        switch place {
+        case .notifications: open("x-apple.systempreferences:com.apple.Notifications-Settings.extension?id=com.leeovery.sitrep")
+        case .automation: open("x-apple.systempreferences:com.apple.preference.security?Privacy_Automation")
+        case .loginItems: SMAppService.openSystemSettingsLoginItems()
+        }
+    }
+
+    private static func open(_ address: String) {
+        if let url = URL(string: address) {
             NSWorkspace.shared.open(url)
         }
     }

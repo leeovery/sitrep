@@ -6,14 +6,13 @@ import SwiftUI
 /// arriving and leaving by the system's own transition, at once under reduced motion; with Nothing, one line says what
 /// carries the board.
 struct StaysOnScreenSection: View {
-    @Bindable var preferences: Preferences
-    let services: SettingsServices
+    let settings: SettingsModel
 
     @Environment(\.reducesWindowMotion) private var reducesMotion
     @State private var isSliding = false
 
     var body: some View {
-        let rows = StaysOnScreen.rows(preferences.edge, hasGlass: services.hasGlass)
+        let rows = StaysOnScreen.rows(preferences.edge, hasGlass: settings.services.hasGlass)
 
         VStack(alignment: .leading, spacing: 14) {
             SectionHeading(name: "What stays on screen")
@@ -74,20 +73,22 @@ struct StaysOnScreenSection: View {
         }
     }
 
+    private var preferences: Preferences { settings.preferences }
+
     /// The main display first, then each other by its name.
     private var display: some View {
-        let choices = DisplayChoice.choices(among: services.displays(), chosen: preferences.edge.display)
+        let choices = DisplayChoice.choices(among: settings.displays, chosen: preferences.edge.display)
+        let sections = [[DisplayChoice.main], choices.filter { $0 != .main }].filter { !$0.isEmpty }
 
-        return Picker("Display", selection: preferences.binding(\.display)) {
-            ForEach(choices) { choice in
-                Text(choice.name).tag(choice.id)
-                if choice == .main, choices.count > 1 {
-                    Divider()
-                }
-            }
-        }
-        .pickerStyle(.menu)
-        .labelsHidden()
+        return PopUp(label: "Display", sections: sections, title: \.name, selection: display(among: choices))
+            .frame(width: WindowStyle.controls)
+    }
+
+    /// The display chosen, by its choice.
+    private func display(among choices: [DisplayChoice]) -> Binding<DisplayChoice> {
+        let id = preferences.binding(\.display)
+
+        return Binding(get: { choices.first { $0.id == id.wrappedValue } ?? .main }, set: { id.wrappedValue = $0.id })
     }
 
     /// Max, as how far along its slider it is: its right end is Full. The edge follows a drag as it goes, and it is
@@ -101,11 +102,8 @@ struct StaysOnScreenSection: View {
     private func segmented<Value: Hashable>(
         _ label: String, _ setting: WritableKeyPath<EdgeSettings, Value>, _ values: [Value], _ title: KeyPath<Value, String>
     ) -> some View {
-        Picker(label, selection: preferences.binding(setting)) {
-            ForEach(values, id: \.self) { Text($0[keyPath: title]).tag($0) }
-        }
-        .pickerStyle(.segmented)
-        .labelsHidden()
+        Segments(label: label, values: values, title: title, selection: preferences.binding(setting))
+            .frame(width: WindowStyle.controls)
     }
 }
 

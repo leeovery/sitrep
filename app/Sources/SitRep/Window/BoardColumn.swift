@@ -475,7 +475,7 @@ private struct SettingsFooter: View {
     private var row: some View {
         HStack(spacing: 8) {
             Image(systemName: "gear")
-                .font(.system(size: 14))
+                .font(.system(size: 16))
                 .frame(width: 16, height: 18)
                 .accessibilityHidden(true)
             Text("Settings")

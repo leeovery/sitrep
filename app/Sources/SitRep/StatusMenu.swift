@@ -19,7 +19,7 @@ final class StatusMenu: NSObject, NSMenuDelegate {
     private let openAbout: () -> Void
     private let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
     private let menu = NSMenu()
-    private lazy var header = MenuHeader.view()
+    private lazy var header = MenuHeaderView()
     private var board = MenuBoard(LastBoard())
     private var last = LastBoard()
     private var trouble: PluginTrouble?

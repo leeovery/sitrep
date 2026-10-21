@@ -20,7 +20,7 @@ struct DesktopCorner: View {
             WindowBehind().offset(x: 28, y: 56)
             MenuBar()
             Banner()
-                .frame(width: 376)
+                .fixedSize()
                 .padding(.top, 32)
                 .padding(.trailing, 10)
                 .frame(maxWidth: .infinity, alignment: .trailing)
@@ -34,26 +34,38 @@ struct DesktopCorner: View {
         .accessibilityAddTraits(.isImage)
     }
 
-    /// The clock in the menu bar's own form, in the Mac's locale: "Tue 20 Oct 20:20".
-    nonisolated static func clock(_ date: Date, locale: Locale = .autoupdatingCurrent, timeZone: TimeZone = .autoupdatingCurrent) -> String {
-        let style = Date.FormatStyle(locale: locale, timeZone: timeZone)
+    /// The clock in the menu bar's own form, in the Mac's locale and its 12- or 24-hour choice: "Tue 20 Oct 20:20", the
+    /// day in the locale's order with none of its commas.
+    nonisolated static func clock(
+        _ date: Date, locale: Locale = .autoupdatingCurrent, timeZone: TimeZone = .autoupdatingCurrent
+    ) -> String {
+        let formatter = DateFormatter()
+        let day = DateFormatter.dateFormat(fromTemplate: "EEEdMMM", options: 0, locale: locale) ?? "EEE d MMM"
+        let time = DateFormatter.dateFormat(fromTemplate: "jmm", options: 0, locale: locale) ?? "HH:mm"
 
-        return "\(date.formatted(style.weekday(.abbreviated).day().month(.abbreviated))) \(date.formatted(style.hour().minute()))"
+        formatter.locale = locale
+        formatter.timeZone = timeZone
+        formatter.dateFormat = "\(day.replacingOccurrences(of: ",", with: "")) \(time)"
+        return formatter.string(from: date)
     }
 }
 
-/// The menu bar across the top, right-aligned: Wi-Fi, SitRep's glyph lit, and the clock, a minute at a time.
+/// The menu bar across the top, right-aligned: Wi-Fi, SitRep's glyph lit, and the clock, a minute at a time, all in
+/// the drawn bar's own ink, whatever the Mac's appearance.
 private struct MenuBar: View {
+    private static let ink = Color(hex: 0xF5F5F7)
+    private static let glyph = MenuImages.glyph(.lit, ink: NSColor(ink))
+
     var body: some View {
         HStack(spacing: 16) {
             Spacer(minLength: 0)
             Image(systemName: "wifi").font(.system(size: 13, weight: .semibold))
-            Image(nsImage: MenuImages.glyph(.lit)).resizable().frame(width: 16, height: 16)
+            Image(nsImage: Self.glyph).resizable().frame(width: 16, height: 16)
             TimelineView(.everyMinute) { moment in
                 Text(DesktopCorner.clock(moment.date)).font(.system(size: 12, weight: .medium))
             }
         }
-        .foregroundStyle(Color(hex: 0xF5F5F7))
+        .foregroundStyle(Self.ink)
         .padding(.horizontal, 14)
         .frame(height: 24)
         .background(.black.opacity(0.18))

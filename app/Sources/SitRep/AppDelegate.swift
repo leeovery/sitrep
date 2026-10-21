@@ -16,10 +16,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var menu: StatusMenu?
     private var edge: Edge?
     private let about = AboutWindow()
-    private lazy var window = SitRepWindow(plugin: plugin, works: works) { [preferences, live, services] in
-        SettingsPage(preferences: preferences, live: live, services: services)
-    }
-    private lazy var services = makeServices()
+    private lazy var window = SitRepWindow(
+        plugin: plugin, works: works,
+        settings: SettingsModel(preferences: preferences, live: live, services: makeServices())
+    )
 
     /// Banners are listened to before launching ends, so a click that starts the app is heard.
     func applicationWillFinishLaunching(_ notification: Notification) {

@@ -17,16 +17,24 @@ struct SettingsStillsTests {
 
     private static let fine = MacSays(notices: .allowed(.banners), login: LoginItem(.enabled), ghostty: .allowed)
 
-    /// The page over a Mac that says this, as the page reads it again as it appears.
-    private static func page(_ preferences: Preferences, windows: [String], said: MacSays = fine) -> SettingsPage {
+    /// The page over a Mac that says this, read as the page reads it as it appears.
+    private static func page(_ preferences: Preferences, windows: [String], said: MacSays = fine) async -> SettingsPage {
         let services = SettingsServices(
-            displays: { [DisplayChoice.Connected(id: "A", name: "Built-in Retina Display", isMain: true)] },
+            displays: {
+                [
+                    DisplayChoice.Connected(id: "A", name: "Built-in Retina Display", isMain: true),
+                    DisplayChoice.Connected(id: "B", name: "Studio Display", isMain: false),
+                ]
+            },
             hasGlass: true, jump: { _ in }, sendTest: {},
             noticeLeave: { said.notices ?? .unasked }, askForNotices: {}, login: { said.login ?? LoginItem(.notFound) },
             chooseLogin: {}, ghostty: { said.ghostty ?? .unknown }, allowGhostty: { .allowed }, open: { _ in }
         )
+        let settings = SettingsModel(preferences: preferences, live: live(windows: windows), services: services)
 
-        return SettingsPage(preferences: preferences, live: live(windows: windows), services: services, said: said)
+        settings.readDisplays()
+        await settings.read()
+        return SettingsPage(settings: settings)
     }
 
     private static func preferences(_ change: (inout EdgeSettings) -> Void = { _ in }) -> Preferences {
@@ -76,23 +84,23 @@ struct SettingsStillsTests {
     }
 
     @Test(arguments: EdgeSettings.Show.allCases)
-    func theWindowOnSettings(show: EdgeSettings.Show) throws {
-        let page = Self.page(Self.preferences { $0.show = show }, windows: [Watched.window("w2", needsReload: false)])
+    func theWindowOnSettings(show: EdgeSettings.Show) async throws {
+        let page = await Self.page(Self.preferences { $0.show = show }, windows: [Watched.window("w2", needsReload: false)])
 
         try Self.window(page, "settings-\(show.title.lowercased())")
     }
 
-    @Test func theWholePage() throws {
-        let page = Self.page(Self.preferences(), windows: [Watched.window("w2", needsReload: false)])
+    @Test func theWholePage() async throws {
+        let page = await Self.page(Self.preferences(), windows: [Watched.window("w2", needsReload: false)])
 
         try Self.window(page, "settings-whole", height: 1500)
     }
 
     /// A dot when it's fine, a button when it's Lee's: windows on an older plugin, Ghostty not asked, banners off.
-    @Test func whenARowNeedsSomething() throws {
+    @Test func whenARowNeedsSomething() async throws {
         let old = Watched.window("w1", needsReload: true)
         let said = MacSays(notices: .denied, login: LoginItem(.requiresApproval), ghostty: .unasked)
-        let page = Self.page(Self.preferences(), windows: [old, old], said: said)
+        let page = await Self.page(Self.preferences(), windows: [old, old], said: said)
 
         try Self.window(page, "settings-needs-lee", height: 1500)
     }
