@@ -223,6 +223,23 @@ struct SidebarLayoutTests {
         #expect(abs(chevron.midY - heading.midY) <= 0.75)
     }
 
+    /// A project's name, under Projects, starts where the heading's words do, at 16.
+    @Test func aProjectsNameStartsWhereTheProjectsHeadingsWordsDo() throws {
+        let run = Self.opened(folds: Folds(projects: false))
+        let side = try HostedSidebar(run, listAlone: true)
+        let drawn = try side.drawn()
+        let lines = Sidebar(run.listed(at: HostedSidebar.printed), folds: run.folds).lines
+        let project = try #require(lines.firstIndex { $0.id == .pick(.project("kit")) })
+        let heading = Self.inDrawing(side.rows[Row.projects.rawValue], of: side)
+        let row = Self.inDrawing(side.rows[project], of: side)
+        let band = CGRect(x: 0, y: 0, width: 269, height: 24)
+        let words = try #require(drawn.drawnBox(in: band.offsetBy(dx: 0, dy: heading.maxY - 24), ground: Self.ground(heading)))
+        let name = try #require(drawn.drawnBox(in: CGRect(x: 0, y: row.minY, width: 269, height: 28), ground: Self.ground(row)))
+
+        #expect((16 ... 17.5).contains(name.minX))
+        #expect(abs(name.minX - words.minX) <= 1.5)
+    }
+
     /// Working's count, "2", stands 6 after its name: the widest gap between what its words draw, letter to letter.
     @Test func aHeadingsCountStands6AfterItsName() throws {
         let side = try HostedSidebar(Self.opened(), listAlone: true)
@@ -540,7 +557,7 @@ struct SidebarLayoutTests {
         let drawn = try side.drawn()
         let row = Self.inDrawing(side.rows[place], of: side)
         let fill = try #require(drawn.stored(at: CGPoint(x: 270, y: row.midY)))
-        let name = try drawn.brightest(in: CGRect(x: 40, y: row.minY + 6, width: 30, height: 16))
+        let name = try drawn.brightest(in: CGRect(x: 14, y: row.minY + 6, width: 30, height: 16))
         let system: NSColor = isEmphasized
             ? .selectedContentBackgroundColor : .unemphasizedSelectedContentBackgroundColor
 

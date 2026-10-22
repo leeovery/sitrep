@@ -143,7 +143,7 @@ struct SelectedWordsTests {
                 height: WindowStyle.oneLineHeight, on: prominence
             )
         }
-        let name = CGRect(x: 40, y: 6, width: 30, height: 16)
+        let name = CGRect(x: 0, y: 6, width: 30, height: 16)
 
         Self.expectGrey(try project(.standard).brightest(in: name), 0.85)
         #expect(try project(.increased).brightest(in: name).isWhite)

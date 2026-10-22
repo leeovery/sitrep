@@ -3008,9 +3008,11 @@ stands).
       any change by time alone, nothing polling; the period changing refolds
       the list at once;
     - **Projects** ends it: every project on the board, quiet ones too, a
-      row each in `watch`'s order, its name 13 regular in white at 85% after
-      an empty slot, 28 tall, each opening its project as a project's name
-      does: its sessions, those no window holds among them, and their notes
+      row each in `watch`'s order, its name 13 regular in white at 85%
+      starting where the heading's words do (Lee, 22 October 2026: the empty
+      slot before it read as an icon missing), 28 tall, each opening its
+      project as a project's name does: its sessions, those no window holds
+      among them, and their notes
       (Lee, 20 October 2026, of the projects with nothing open: "at least
       interact with them, view them, see them"). It is folded at first. A
       project's page is reached from it and from the session page's project
