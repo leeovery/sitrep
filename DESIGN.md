@@ -2631,8 +2631,9 @@ stands).
       ask it goes, line and all, and nothing takes its place. It scrolls with
       the list, every ask in it, with no cap. A rule sets it off from the
       projects, the foot's own: 0.5 tall in the separator colour, inside
-      the sidebar's 10 either side, 12 under its last row, the next
-      heading 10 under it as every heading sits. It shows only while Needs
+      the sidebar's 10 either side, 11.5 under its last row, so it ends on
+      a whole point and every row after it starts on one, the next heading
+      10 under it as every heading sits. It shows only while Needs
       you shows and a line follows it, filtered or not. It is drawn behind
       the heading after it, on that heading's row, so the list holds no line
       of its own for it, whose insets a live window could move as it moved

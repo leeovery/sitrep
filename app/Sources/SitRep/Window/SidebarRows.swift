@@ -63,7 +63,7 @@ private struct NeedsYouHeading: View {
 /// and a chevron saying which way it is, faint, a step brighter under the pointer. A click anywhere on it folds or
 /// unfolds what is under it, and never moves the pick. The list will not select a row the pointer cannot pick, so
 /// while its project's page shows it draws the system's selection itself, its words white on the accent. The first
-/// after Needs you carries the rule after it, 12 under Needs you's last row and 10 over its own words, drawn behind
+/// after Needs you carries the rule after it, 11.5 under Needs you's last row and 10 over its own words, drawn behind
 /// the row so the list adds no line of its own, whose insets a live window could move; the pointer, a click and
 /// VoiceOver know only the heading's 24.
 struct FoldHeading: View {
@@ -115,7 +115,7 @@ struct FoldHeading: View {
         }
     }
 
-    /// What is over its words: 10, or after Needs you its rule, 12 under the rows before it, and 10 more.
+    /// What is over its words: 10, or after Needs you its rule, 11.5 under the rows before it, and 10 more.
     private var gap: CGFloat {
         isRuled ? WindowStyle.ruleGap + WindowStyle.rule + WindowStyle.headingGap : WindowStyle.headingGap
     }

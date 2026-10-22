@@ -16,8 +16,9 @@ struct SidebarLayoutTests {
         case goosemates, goosematesSession, quietProjects, kit
     }
 
-    /// A heading's row with no rule: 10 over its 24.
+    /// A heading's row with no rule: 10 over its 24; with the rule after Needs you, 11.5, the rule's 0.5, then those.
     private static let headingRow: CGFloat = 10 + 24
+    private static let ruledRow: CGFloat = 11.5 + 0.5 + 10 + 24
 
     nonisolated private static let downArrow: UInt16 = 125
     nonisolated private static let upArrow: UInt16 = 126
@@ -30,7 +31,7 @@ struct SidebarLayoutTests {
         #expect(side.rows.first?.minY == 113)
     }
 
-    /// Every heading 10 under what is before it, then 24, the first after Needs you carrying its rule, 12 and 0.5 more
+    /// Every heading 10 under what is before it, then 24, the first after Needs you carrying its rule, 11.5 and 0.5 more
     /// over that; a row under Needs you 39, the system's two-line row; a session's or a quiet project's 32.
     @Test func eachLineIsAsTallAsDrawnEachUnderTheLast() throws {
         let run = HostedSidebar.opened()
@@ -38,8 +39,8 @@ struct SidebarLayoutTests {
         let lines = run.sidebar(at: HostedSidebar.printed).lines
         let heights: [CGFloat] = lines.enumerated().map { place, line in
             switch line {
-            case .needsYou: 10 + 24
-            case .heading: place == Row.sitrep.rawValue ? 12 + 0.5 + 10 + 24 : 10 + 24
+            case .needsYou: Self.headingRow
+            case .heading: place == Row.sitrep.rawValue ? Self.ruledRow : Self.headingRow
             case .asking: 39
             case .session, .quiet: 32
             }
@@ -48,6 +49,7 @@ struct SidebarLayoutTests {
         #expect(side.rows.map(\.height) == heights)
         #expect(zip(side.rows, side.rows.dropFirst()).allSatisfy { $0.maxY == $1.minY })
         #expect(side.rows[Row.sitrep.rawValue].minY == 264)
+        #expect(side.rows.allSatisfy { $0.minY == $0.minY.rounded() })
     }
 
     /// The first heading, Needs you's or with no ask the first project's, 10 under the list's top as every heading sits
@@ -72,14 +74,14 @@ struct SidebarLayoutTests {
         #expect(first.maxY - 24 - field.maxY == 20)
     }
 
-    /// The foot's rule after Needs you: 0.5 in the separator's colour, 276 wide and 10 in, 12 under the last ask's row;
+    /// The foot's rule after Needs you: 0.5 in the separator's colour, 276 wide and 10 in, 11.5 under the last ask's row;
     /// SitRep's heading 10 under it, its words inside the heading's 24.
-    @Test func aRuleSits12UnderNeedsYouTheNextHeading10UnderIt() throws {
+    @Test func aRuleSits11AndAHalfUnderNeedsYouTheNextHeading10UnderIt() throws {
         let side = try HostedSidebar(HostedSidebar.opened(), listAlone: true)
         let drawn = try side.drawn()
         let last = Self.inDrawing(side.rows[Row.goosematesAsking.rawValue], of: side)
         let heading = Self.inDrawing(side.rows[Row.sitrep.rawValue], of: side)
-        let gap = CGRect(x: 0, y: last.maxY, width: 296, height: 12 + 0.5 + 10)
+        let gap = CGRect(x: 0, y: last.maxY, width: 296, height: 11.5 + 0.5 + 10)
         let rule = try #require(drawn.drawnBox(in: gap, ground: Self.ground(heading)))
         let words = CGRect(x: 0, y: rule.maxY, width: 200, height: heading.maxY - rule.maxY)
         let name = try #require(drawn.drawnBox(in: words, ground: Self.ground(heading)))
@@ -87,7 +89,7 @@ struct SidebarLayoutTests {
         let footRule = try column.footRow().minY - column.glassTop - WindowStyle.footerTop - WindowStyle.rule
         let footPixel = try #require(try column.drawn().pixel(at: CGPoint(x: 148, y: footRule)))
 
-        #expect(rule == CGRect(x: 10, y: last.maxY + 12, width: 276, height: 0.5))
+        #expect(rule == CGRect(x: 10, y: last.maxY + 11.5, width: 276, height: 0.5))
         #expect(heading.maxY - 24 - rule.maxY == 10)
         #expect(name.minY > heading.maxY - 24)
         #expect(try #require(drawn.pixel(at: CGPoint(x: 148, y: rule.minY))) == footPixel)
@@ -100,22 +102,53 @@ struct SidebarLayoutTests {
         let run = HostedSidebar.opened()
         let listed = unruled.listed(of: run)
         let side = try HostedSidebar(run, listAlone: true, listed: listed)
-        let drawn = try side.drawn()
-        let rows = side.rows.map { Self.inDrawing($0, of: side) }
-        let lines = Sidebar(listed, folds: Folds()).lines
-        let headings = zip(rows, lines).filter { _, line in
-            switch line {
-            case .needsYou, .heading: true
-            case .asking, .session, .quiet: false
-            }
+
+        #expect(Sidebar(listed, folds: Folds()).ruled == nil)
+        try Self.expectRuled(side, showing: listed)
+    }
+
+    /// A board changing under a list already showing: the first ask comes, a resort puts Goosemates first after Needs
+    /// you, then SitRep again, and the last ask goes. Each time the heading after Needs you, and only it, grows to carry
+    /// the rule, and gives it back.
+    @Test func theRuleFollowsTheBoardOnAListAlreadyShowing() throws {
+        let run = HostedSidebar.opened()
+        let board = run.listed(at: HostedSidebar.printed)
+        var noAsk = board
+        var resorted = board
+
+        noAsk.needsYou = []
+        resorted.projects.reverse()
+
+        let side = try HostedSidebar(run, listAlone: true, listed: noAsk)
+
+        for listed in [noAsk, board, resorted, board, noAsk] {
+            side.show(listed)
+            // the list first hosted, still showing, not one made anew
+            #expect(side.board.window === side.window)
+            try Self.expectRuled(side, showing: listed)
         }
+    }
 
-        #expect(rows.count == lines.count && !headings.isEmpty)
-        for (row, _) in headings {
-            let above = CGRect(x: 0, y: row.minY, width: 296, height: 10)
+    /// Each heading of this board as the list shows it: the one `Sidebar.ruled` names 46 tall, its rule 11.5 under its
+    /// top, 276 wide and 10 in; every other 34, nothing drawn over its words.
+    private static func expectRuled(_ side: HostedSidebar, showing listed: Listed) throws {
+        let sidebar = Sidebar(listed, folds: Folds())
+        let drawn = try side.drawn()
+        let rows = side.rows.map { inDrawing($0, of: side) }
 
-            #expect(row.height == Self.headingRow)
-            #expect(drawn.drawnBox(in: above, ground: Self.ground(row)) == nil)
+        #expect(rows.count == sidebar.lines.count)
+        for (row, line) in zip(rows, sidebar.lines) {
+            switch line {
+            case .needsYou, .heading:
+                let isRuled = line.id == sidebar.ruled
+                let above = CGRect(x: 0, y: row.minY, width: 296, height: row.height - 24)
+                let rule = CGRect(x: 10, y: row.minY + 11.5, width: 276, height: 0.5)
+
+                #expect(row.height == (isRuled ? ruledRow : headingRow))
+                #expect(drawn.drawnBox(in: above, ground: ground(row)) == (isRuled ? rule : nil))
+            case .asking, .session, .quiet:
+                continue
+            }
         }
     }
 
@@ -247,6 +280,25 @@ struct SidebarLayoutTests {
 
         #expect(side.board.selectedRow == -1)
         #expect(picked == CGRect(x: 10, y: row.maxY - 24, width: 276, height: 24))
+    }
+
+    /// SitRep's page open: its heading, the one after Needs you, draws the selection on its own 24, under the rule.
+    @Test func aPickedRuledHeadingShowsItsSelectionUnderTheRule() throws {
+        let run = HostedSidebar.opened()
+
+        _ = run.pick(.project("sitrep"))
+
+        let side = try HostedSidebar(run, listAlone: true)
+        let drawn = try side.drawn()
+        let row = Self.inDrawing(side.rows[Row.sitrep.rawValue], of: side)
+        let heading = CGRect(x: 0, y: row.maxY - 24, width: 296, height: 24)
+        let above = CGRect(x: 0, y: row.minY, width: 296, height: row.height - 24)
+        let selection = CGRect(x: 10, y: row.maxY - 24, width: 276, height: 24)
+        let rule = CGRect(x: 10, y: row.minY + 11.5, width: 276, height: 0.5)
+
+        #expect(side.board.selectedRow == -1)
+        #expect(drawn.drawnBox(in: heading, ground: Self.ground(row)) == selection)
+        #expect(drawn.drawnBox(in: above, ground: Self.ground(row)) == rule)
     }
 
     @Test func theArrowKeysWalkTheListsOwnRowsTheDoubledOnesAmongThem() throws {

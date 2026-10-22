@@ -64,6 +64,17 @@ struct SidebarTests {
         #expect(Sidebar(Self.listed, folds: Folds()).ruled == .spot(.board(.project("sitrep"))))
     }
 
+    @Test func aFoldedProjectsHeadingFirstAfterNeedsYouIsRuled() {
+        #expect(Sidebar(Self.listed, folds: Self.folded(.project("sitrep"))).ruled == .spot(.board(.project("sitrep"))))
+    }
+
+    @Test func withNoProjectQuietProjectsHeadingIsRuled() {
+        var listed = Self.listed
+
+        listed.projects = []
+        #expect(Sidebar(listed, folds: Folds()).ruled == .quietHeading)
+    }
+
     @Test func withNoAskOrNothingAfterNeedsYouNoLineIsRuled() {
         var asksAlone = Self.listed
         var noAsk = Self.listed

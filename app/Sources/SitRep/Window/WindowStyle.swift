@@ -75,11 +75,12 @@ enum WindowStyle {
     static let listInset: CGFloat = 10
     static let selectionInset: CGFloat = 10
     static let rowInset: CGFloat = 16
-    /// The sidebar's rule, 0.5 tall, over its foot and after Needs you, 12 under the rows before it.
+    /// The sidebar's rule, 0.5 tall, over its foot and after Needs you; after Needs you, 11.5 under its last row, so
+    /// the rule ends on a whole point and every row after it starts on one.
     static let rule: CGFloat = 0.5
-    static let ruleGap: CGFloat = 12
+    static let ruleGap: CGFloat = 11.5
     /// The list's last row, 12 over the foot's rule.
-    static let listBottom = ruleGap
+    static let listBottom: CGFloat = 12
     /// A session's row, the sidebar's medium row; a session's row under Needs you, the system's two-line row, its
     /// words 4 from its top; a heading's row, 10 under what is before it: the list's top, the rows before it, or the
     /// rule after Needs you.
