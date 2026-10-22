@@ -17,77 +17,97 @@ public enum Mark: Sendable, Equatable {
         case .away, .finished: self = .away
         }
     }
+
+    /// A row's, by its first line: an ask or a window's stop needs Lee.
+    init(_ line: Board.Row.Line.Kind) {
+        switch line {
+        case .ask, .permission, .question: self = .needs
+        case .yourTurn: self = .turn
+        case .working: self = .working
+        case .onItsWork: self = .onItsWork
+        }
+    }
 }
 
-/// The board down the window's left: its head; every session with an ask, for Needs you at its top; every project with
-/// something open, in `watch`'s order, its sessions under it in theirs; and the quiet projects.
+/// The board down the window's left, as the card lists it: a row for each session core has one for, in its section,
+/// Needs you, Working or Your turn, in core's order, each session once; and every project, quiet ones too, for
+/// Projects at the list's foot.
 public struct Listed: Equatable, Sendable {
+    /// A project, a row of Projects, which opens its page: its sessions, those no window holds among them, and their
+    /// notes as their boards are read.
     public struct Project: Equatable, Sendable, Identifiable {
         public let id: String
         public let name: String
-        /// What waits on Lee there: its rows that need Lee, asks and stops alike.
-        public let waiting: Int
-        /// Its sessions with an ask, which its heading counts while it is folded.
-        public let asking: Int
-        public var sessions: [Row]
+
+        public var pick: Pick { .project(id) }
     }
 
-    /// A session's row: under its project, a small panel row, its name on one line and the panel row's time; under
-    /// Needs you, its lines waiting on Lee over its project and its name.
+    /// A session's row, in its section: under Needs you, its lines waiting on Lee over its project and its name; in
+    /// Working, its turn's line over them; in Your turn, what Claude left Lee, on one line with its project.
     public struct Row: Equatable, Sendable, Identifiable {
         public let id: String
         public let name: String
-        /// Its project's name, under its own in Needs you.
+        /// Its project's name.
         public let project: String
+        public let section: BoardSection
         public let mark: Mark
-        /// No window holds it: its name is faint, whatever its mark.
+        /// No window holds it: its words are faint, whatever its mark.
         public let isAway: Bool
-        /// When its state began, which its time counts from.
+        /// When its oldest line began, which its time counts from: on Your turn, its turn's end.
         public let since: Date
-        /// Under Needs you, its asks and stops waiting on Lee, the oldest first, as core's row has them; none under
-        /// its project.
-        public var lines: [Waiting] = []
+        /// Under Needs you, its asks and stops waiting on Lee, the oldest first, as core's row has them; else its
+        /// turn's one line.
+        public var lines: [Line] = []
         /// New to needing Lee: washed orange from then (`Wash`).
         public var washed: Date?
+        /// On Your turn, ended longer ago than the fold period: folded into "N earlier" (`WindowRun.listed(at:)`).
+        public var isEarlier = false
+
+        public var pick: Pick { .session(id) }
     }
 
-    /// One of a Needs you row's lines: an ask or a window's stop waiting on Lee, as the card's line says it, and its
-    /// time.
-    public struct Waiting: Equatable, Sendable, Identifiable {
+    /// One of a row's lines, as the card's line says it: an ask or a window's stop waiting on Lee, or the session's
+    /// turn; and its time.
+    public struct Line: Equatable, Sendable, Identifiable {
         /// Its key in core's row.
         public let id: String
+        /// Its words, or a working line's verb.
         public let lead: String
         /// A command or a path, set in mono after the lead.
         public let code: String?
+        /// Set plain after the lead, where what it acts on is no command: "3 agents".
+        public var subject: String?
+        /// When the wake a line on its own work waits on is due: its subject counts down to it, "in 12m".
+        public var until: Date?
         /// A question's "+2".
         public let more: String?
         public let since: Date
         /// New on the board: its time washed orange from then (`Wash`), which tells the new one among its row's.
         public var washed: Date?
 
-        /// Its words, as the filter reads them.
+        /// Its words, as the filter reads them, with no clock.
         public var words: String {
-            code.map { "\(lead) \($0)" } ?? lead
+            [lead, code, subject].compactMap { $0 }.joined(separator: " ")
+        }
+
+        /// What it says plain after its lead at this time: a wake's countdown, "in 12m", else its subject.
+        public func subject(at now: Date) -> String? {
+            until.map { Session.untilText($0.timeIntervalSince(now) * 1000) } ?? subject
+        }
+
+        /// Its words at this time, as VoiceOver reads them, a wake's countdown among them.
+        func words(at now: Date) -> String {
+            [lead, code, subject(at: now)].compactMap { $0 }.joined(separator: " ")
         }
     }
 
-    /// A project with nothing open, a row among the quiet projects, which opens its project: its sessions, none of them
-    /// in a window, and their notes as their boards are read.
-    public struct Quiet: Equatable, Sendable, Identifiable {
-        public let id: String
-        public let name: String
-        /// Its sessions' names, which the filter finds it by as well as its own.
-        public let sessions: [String]
-
-        public var pick: Pick { .project(id) }
-    }
-
     public let head: Head
-    /// Every session needing Lee, in core's order, its lines with it (`Listed.needsYou(_:)`).
-    public var needsYou: [Row]
+    /// Every row, by its section in the sections' order, each section's in core's order (`Listed.rows(_:)`).
+    public var rows: [Row]
+    /// Every project on the board, in `watch`'s order.
     public var projects: [Project]
-    /// The quiet projects, in `watch`'s order.
-    public var quiet: [Quiet]
+    /// The sessions on the board with no row, as an away one with nothing waiting, each by its project's key.
+    public var rowless: [String: String]
 
     /// Before `watch` prints its first line.
     public init() {
@@ -97,83 +117,97 @@ public struct Listed: Equatable, Sendable {
     /// With no `watch` to run, its head says why.
     public init(unrun why: String) {
         head = PanelBoard(unrun: why).head
-        needsYou = []
+        rows = []
         projects = []
-        quiet = []
+        rowless = [:]
     }
 
     /// The board as last heard, its head as the panel's says it, stale or not.
     public init(_ last: LastBoard) {
         let board = last.board
-        let needs = Dictionary(grouping: board?.rows.filter(\.needsLee) ?? [], by: \.project).mapValues { rows in
-            rows.map(\.lines.count).reduce(0, +)
-        }
-        let shown = board?.projects.filter { !$0.isQuiet } ?? []
 
         head = PanelBoard(last).head
-        needsYou = board.map(Self.needsYou) ?? []
-        projects = shown.map { project in
-            let sessions = project.sessions.map { Row($0, of: project) }
-
-            return Project(
-                id: project.key, name: project.name, waiting: needs[project.key] ?? 0,
-                asking: sessions.filter { $0.mark == .needs }.count, sessions: sessions
-            )
-        }
-        quiet = board?.projects.filter(\.isQuiet).map {
-            Quiet(id: $0.key, name: $0.name, sessions: $0.sessions.map(\.name))
-        } ?? []
+        rows = board.map(Self.rows) ?? []
+        projects = board?.projects.map { Project(id: $0.key, name: $0.name) } ?? []
+        rowless = board.map(Self.rowless) ?? [:]
     }
 
-    /// Every session it lists, in its order.
-    public var sessions: [Row] { projects.flatMap(\.sessions) }
+    /// A section's rows, in their order.
+    public func rows(in section: BoardSection) -> [Row] {
+        rows.filter { $0.section == section }
+    }
 
-    /// Each of its rows changed, under Needs you and under their projects.
-    mutating func changeRows(_ change: (inout Row) -> Void) {
-        needsYou.indices.forEach { change(&needsYou[$0]) }
-        for project in projects.indices {
-            projects[project].sessions.indices.forEach { change(&projects[project].sessions[$0]) }
+    /// Every session needing Lee, in core's order.
+    public var needsYou: [Row] { rows(in: .needsYou) }
+
+    /// It has a row for the pick, a session's or a project's.
+    func lists(_ pick: Pick) -> Bool {
+        rows.contains { $0.pick == pick } || projects.contains { $0.pick == pick }
+    }
+
+    /// The row it lists that shows a pick: its own; for a session with no row, its project's in Projects; none where
+    /// it lists neither.
+    func listedRow(showing pick: Pick) -> Pick? {
+        if lists(pick) {
+            return pick
         }
+        guard case let .session(id) = pick, let key = rowless[id], lists(.project(key)) else {
+            return nil
+        }
+        return .project(key)
+    }
+
+    /// Each of its rows changed.
+    mutating func changeRows(_ change: (inout Row) -> Void) {
+        rows.indices.forEach { change(&rows[$0]) }
     }
 }
 
 extension Listed {
-    /// Every session needing Lee, as core's rows have them, in their order: the oldest first, by its oldest line, an
-    /// away session's after the live ones; each with its lines.
-    static func needsYou(_ board: Board) -> [Row] {
-        board.rows.filter(\.needsLee).compactMap { row in
+    /// A row for each of core's, with its lines, by its section, in the sections' order: within one, core's order,
+    /// Needs you's the oldest first by its oldest line, an away session's after the live ones.
+    static func rows(_ board: Board) -> [Row] {
+        let rows = board.rows.compactMap { row in
             board.session(row.session).map { Row(row, of: $0.session, in: $0.project) }
         }
+
+        return BoardSection.allCases.flatMap { section in rows.filter { $0.section == section } }
+    }
+
+    /// The board's sessions core has no row for, by their projects' keys.
+    static func rowless(_ board: Board) -> [String: String] {
+        let rowed = Set(board.rows.map(\.session))
+        let sessions = board.projects.flatMap { project in project.sessions.map { ($0.id, project.key) } }
+
+        return Dictionary(sessions.filter { !rowed.contains($0.0) }) { first, _ in first }
     }
 }
 
 extension Listed.Row {
-    init(_ session: Board.Session, of project: Board.Project) {
-        self.init(
-            id: session.id, name: session.name, project: project.name, mark: Mark(session.state),
-            isAway: session.doing.isAway, since: session.since
-        )
-    }
-
-    /// A row of Needs you: its session's, with core's row's lines and time.
+    /// Its session's row, with core's row's lines and time.
     init(_ row: Board.Row, of session: Board.Session, in project: Board.Project) {
         self.init(
-            id: session.id, name: session.name, project: project.name, mark: .needs, isAway: row.isAway,
-            since: row.since, lines: row.lines.map(Listed.Waiting.init)
+            id: session.id, name: session.name, project: project.name, section: BoardSection(row.section),
+            mark: Mark(row.oldest.kind), isAway: row.isAway, since: row.since, lines: row.lines.map(Listed.Line.init)
         )
     }
 }
 
-private extension Listed.Waiting {
+private extension Listed.Line {
     init(_ line: Board.Row.Line) {
-        self.init(id: line.key, lead: line.first.lead, code: line.first.mono, more: line.first.more, since: line.since)
+        self.init(
+            id: line.key, lead: line.first.lead, code: line.first.mono, subject: line.first.subject,
+            until: line.first.until, more: line.first.more, since: line.since
+        )
     }
 }
 
-extension Board.Project {
-    /// Nothing open: no window on any of its sessions, no ask waiting on Lee and nothing parked, as core folds a
-    /// project into All projects' one line (core/views.ts's `isFolded`).
-    var isQuiet: Bool {
-        open == 0 && parked == 0 && sessions.allSatisfy { $0.asks.allSatisfy { $0.state != .waiting } }
+extension BoardSection {
+    init(_ section: Board.Row.Section) {
+        switch section {
+        case .needsYou: self = .needsYou
+        case .working: self = .working
+        case .yourTurn: self = .yourTurn
+        }
     }
 }

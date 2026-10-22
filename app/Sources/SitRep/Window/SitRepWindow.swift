@@ -16,8 +16,12 @@ final class SitRepWindow: NSObject, NSWindowDelegate {
     private var keys: Any?
 
     init(plugin: Plugin, works: Works, settings: SettingsModel) {
-        model = WindowModel(plugin: plugin, works: works)
+        let preferences = settings.preferences
+        let model = WindowModel(plugin: plugin, works: works, period: preferences.app.foldsAfter)
+
+        self.model = model
         self.settings = settings
+        preferences.follow { model.period($0.foldsAfter) }
     }
 
     /// The board as `watch` last printed it.
@@ -73,7 +77,7 @@ final class SitRepWindow: NSObject, NSWindowDelegate {
     private func make() -> NSWindow {
         let sidebar = Self.side(over: model) { [model] in
             BoardColumn(
-                sidebar: model.sidebar, spot: model.spot, pick: model.pick, filter: model.filter, now: model.now
+                sidebar: model.sidebar, pick: model.pick, filter: model.filter, now: model.now
             )
         }
         let page = Self.side(over: model) { [model, settings] in

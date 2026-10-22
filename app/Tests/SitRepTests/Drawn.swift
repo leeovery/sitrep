@@ -112,4 +112,22 @@ extension NSColor {
     func isGrey(atMost grey: CGFloat) -> Bool {
         max(redComponent, greenComponent, blueComponent) <= grey
     }
+
+    /// A system colour as the dark appearance gives it, in this colour space.
+    func dark(in space: NSColorSpace) -> NSColor {
+        var resolved = self
+
+        NSAppearance(named: .darkAqua)?.performAsCurrentDrawingAppearance {
+            resolved = usingColorSpace(space) ?? self
+        }
+        return resolved
+    }
+
+    /// Alike to within a step of 8 bits in each channel and in its cover.
+    func isAlike(_ other: NSColor) -> Bool {
+        [
+            (redComponent, other.redComponent), (greenComponent, other.greenComponent),
+            (blueComponent, other.blueComponent), (alphaComponent, other.alphaComponent),
+        ].allSatisfy { abs($0 - $1) <= 1.5 / 255 }
+    }
 }

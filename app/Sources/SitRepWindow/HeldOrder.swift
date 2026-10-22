@@ -1,17 +1,18 @@
 import Foundation
+import SitRepPanel
 
-/// The order the board's list shows its projects and sessions in: `watch`'s, but held while the pointer is over the
+/// The order the board's list shows its rows and its projects in: `watch`'s, but held while the pointer is over the
 /// list and for a second after it leaves, as the strip holds its marks, so a change shows in place; and held for a
-/// second after each pick made in the list, so no row moves between two presses of an arrow key. A session new to
-/// needing Lee moves in at once, to where `watch` has it, its project with it, the rows below sliding. Needs you is
-/// held alike.
+/// second after each pick made in the list, so no row moves between two presses of an arrow key. Each section is held
+/// on its own, as the card holds them, so a row changing section leaves its held place and takes its place in its new
+/// one, where `watch` has it; a session new to needing Lee moves in at once, to where `watch` has it, the rows below
+/// sliding. Projects is held alike.
 public struct HeldOrder: Equatable, Sendable {
     /// How long after the pointer leaves the list, or after the last pick made in it, it takes `watch`'s order.
     public static let settle: TimeInterval = 1
 
+    private var sections: [BoardSection: [String]] = [:]
     private var projects: [String] = []
-    private var sessions: [String: [String]] = [:]
-    private var needsYou: [String] = []
     private var isPointerIn = false
     /// When the list takes `watch`'s order, a second after the pointer left it or the last pick made in it.
     public private(set) var resortsAt: Date?
@@ -25,16 +26,14 @@ public struct HeldOrder: Equatable, Sendable {
     /// sessions moving in at their places in `watch`'s, as anything new to the list does.
     public mutating func take(_ listed: Listed, moving: Set<String>) -> Listed {
         let core = Self.order(of: listed)
-        let movingProjects = Set(listed.projects.filter { $0.sessions.contains { moving.contains($0.id) } }.map(\.id))
 
         if isHeld {
-            projects = Self.merge(projects, into: core.projects, moving: movingProjects)
-            sessions = core.sessions.reduce(into: [:]) { held, project in
-                held[project.key] = Self.merge(sessions[project.key] ?? [], into: project.value, moving: moving)
+            sections = core.sections.reduce(into: [:]) { held, section in
+                held[section.key] = Self.merge(sections[section.key] ?? [], into: section.value, moving: moving)
             }
-            needsYou = Self.merge(needsYou, into: core.needsYou, moving: moving)
+            projects = Self.merge(projects, into: core.projects, moving: [])
         } else {
-            (projects, sessions, needsYou) = core
+            (sections, projects) = core
         }
         return arranged(listed)
     }
@@ -78,23 +77,17 @@ public struct HeldOrder: Equatable, Sendable {
     func arranged(_ listed: Listed) -> Listed {
         var arranged = listed
 
-        arranged.projects = listed.projects.sorted(by: projects).map { project in
-            var project = project
-
-            project.sessions = project.sessions.sorted(by: sessions[project.id] ?? [])
-            return project
+        arranged.rows = BoardSection.allCases.flatMap { section in
+            listed.rows(in: section).sorted(by: sections[section] ?? [])
         }
-        arranged.needsYou = listed.needsYou.sorted(by: needsYou)
+        arranged.projects = listed.projects.sorted(by: projects)
         return arranged
     }
 
-    private static func order(
-        of listed: Listed
-    ) -> (projects: [String], sessions: [String: [String]], needsYou: [String]) {
+    private static func order(of listed: Listed) -> (sections: [BoardSection: [String]], projects: [String]) {
         (
-            listed.projects.map(\.id),
-            Dictionary(listed.projects.map { ($0.id, $0.sessions.map(\.id)) }) { first, _ in first },
-            listed.needsYou.map(\.id)
+            Dictionary(uniqueKeysWithValues: BoardSection.allCases.map { ($0, listed.rows(in: $0).map(\.id)) }),
+            listed.projects.map(\.id)
         )
     }
 

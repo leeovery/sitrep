@@ -1704,8 +1704,8 @@ truth. There is still no background service. None of it is built now. Lee:
       project, though a window still live on it is among the windows; an
       away session is in both, its asks still counting. It carries no
       project without a current session, nor does `list --json`, so the
-      SitRep window's foot of quiet projects is those it carries with
-      nothing open (see "The SitRep window"). A state folder not there yet, as
+      SitRep window's Projects is every project it carries, those with
+      nothing open among them (see "The SitRep window"). A state folder not there yet, as
       before any Claude window has written, is an empty board, and what
       comes into it shows.
 
@@ -2893,131 +2893,157 @@ The springs, after Bounce, as SwiftUI's `.spring(response:dampingFraction:)`:
 
 The bigger window, showing the whole board and updating as it changes (Lee,
 16 October 2026). An away session with nothing waiting, which the panel and
-the strip leave off, shows here. Drawn in Paper's "The SitRep window"
+the strip leave off, shows here, on its project's page. Drawn in Paper's "The SitRep window"
 (surfaces round 3, 17 October 2026; Lee: "I like it", taking it as it
 stands).
 - **Two columns**, in a window of about 1100 × 720, the page the panel's
   black:
   - **the board** down the left, in the system's sidebar (see "The frame
-    is macOS's own"), as Paper's round 8 draws it, board C, "Option B, one
-    list" (Lee, 21 October 2026, of the switch between two views: "let's go
-    option B, so we get rid of the project and Needs You button"; and "I
-    like everything as it's shown"). Under the titlebar's band sits the
-    Filter field alone, the system's search field at its large size, 28
-    tall, 9 under the band and 10 over the list. Then **one list**:
-    - **Needs you** heads it: every session with an ask, the oldest first,
-      by where its row sits in core's rows, an away session's after the
-      live ones, read from the rows `watch` prints. A row is a session, as
-      on the card, one shape however many lines it has (board D, 22 October
-      2026: Lee, "It shouldn't look different if a session has multiple
-      asks"): each ask or stop waiting a line of its own, 16 tall, 3 apart,
-      its dot (7) in the 26 slot, its words 13 medium, and its age 12 in
-      tabular figures; then "project · session" at 11, soft, 1 under the
-      last, aligned with the words. The row is inset 4 at its top, so one
-      line is the system's two-line row, 39 tall, as built, its words now
-      the ask's over its project and session, where they were the session's
-      name over its project's; each line more makes it 19 taller. It is one
-      row: one pick, filling it all, the system's accent at radius 9, under
-      which its words go white and its second line and ages white at 80%,
-      its dots staying orange; and a click opens its session. As the row
-      washes, a new ask's coming, only the new line's age goes orange, which
-      tells it among the rest. Its heading is plain words, "Needs you", with no count and no chevron,
-      which neither folds nor picks, nor changes under the pointer. With no
-      ask it goes, line and all, and nothing takes its place. It scrolls with
-      the list, every ask in it, with no cap. A rule sets it off from the
-      projects, the foot's own: 0.5 tall in the separator colour, inside
-      the sidebar's 10 either side, 11.5 under its last row, so it ends on
-      a whole point and every row after it starts on one, the next heading
-      10 under it as every heading sits. It shows only while Needs
-      you shows and a line follows it, filtered or not. It is drawn behind
-      the heading after it, on that heading's row, so the list holds no line
-      of its own for it, whose insets a live window could move as it moved
-      the foot's: nothing picks it, the pointer lights nothing on it, the
-      arrow keys pass over it with the heading, and VoiceOver reads nothing
-      there. Lee, 22 October 2026: "we should separate the 'Needs you' from
-      the rest of the project list … we already said we would have a rule,
-      but it also needs just a little bit of space";
-    - **the projects** follow, every project with a session open, its
-      sessions under it. A project sits where its first session would sit in
-      the panel, so the oldest need comes first, then away, then working,
-      then on its own work, then your turn; its sessions keep that order.
-      This replaces the pane's
-      "the busiest" for the window, so every surface sorts by one rule. So
-      every ask shows twice, under Needs you and under its project;
-    - **Quiet projects** end it: the projects with nothing open, a row each,
-      its name soft after an empty mark, each opening its project as a
-      project's name does: its sessions, none of them in a window, and their
-      notes (Lee, 20 October 2026: "at least interact with them, view them,
-      see them").
+    is macOS's own"): the card's list at the window's size, as Paper's board
+    D, "One list, two sizes", draws it (22 October 2026). Lee, of the card
+    listing a session's three asks as three rows while the sidebar showed
+    the session once and its asks only on its page: "We should be
+    consistent in that view", the sidebar feeling "very messy"; and of a
+    session's asks drawn apart under it, "It shouldn't look different if a
+    session has multiple asks". It replaces round 8's board C, "Option B,
+    one list" (Lee, 21 October 2026: "let's go option B, so we get rid of
+    the project and Needs You button"), which listed Needs you, then every
+    project under its heading with its sessions, so every ask showed twice,
+    then the quiet projects. Under the titlebar's band sits the Filter field
+    alone, the system's search field at its large size, 28 tall, 9 under the
+    band and 10 over the list. Then **one list**, the card's sections in the
+    card's order, each session once, in its section, a row only where core
+    has one (see "The rows"), so an away session with nothing waiting is
+    reached by its project; then Projects:
+    - **Needs you** heads it: every session with an ask or a window
+      stopped on a permission prompt or a question, the oldest first, by its
+      oldest line, an away session's after the live ones, as core's rows
+      have them. A row is a session, one shape however many lines it has:
+      each ask or stop waiting a line of its own, 16 tall, 3 apart, its dot
+      (7) in the 26 slot, its words 13 medium in white at 85%, and its age
+      12 in tabular figures; then "project · session" at 11 in white at 55%,
+      1 under the last, aligned with the words. The row is inset 4 at its
+      top, so one line is the system's two-line row, 39 tall, as built; each
+      line more makes it 19 taller. As the row washes, a new ask's coming,
+      only the new line's age goes orange, which tells it among the rest;
+    - **the rule** after it sets it off from what follows, the foot's own:
+      0.5 tall in the separator colour, inside the sidebar's 10 either side,
+      11.5 under Needs you's last row, or its heading where it is folded, so
+      it ends on a whole point and every row after it starts on one, the
+      next heading 10 under it as every heading sits. It shows only while
+      Needs you shows and a heading follows it, filtered or not. It is drawn
+      behind the heading after it, on that heading's row, so the list holds
+      no line of its own for it, whose insets a live window could move as it
+      moved the foot's: nothing picks it, the pointer lights nothing on it,
+      the arrow keys pass over it with the heading, and VoiceOver reads
+      nothing there. Lee, 22 October 2026: "we should separate the 'Needs
+      you' from the rest of the project list … we already said we would
+      have a rule, but it also needs just a little bit of space";
+    - **Working** follows: the sessions whose turn runs, the longest running
+      first, then those on their own work. Its rows are Needs you's one-line
+      shape, two lines, 39 tall: the working mark, its still arc on a faint
+      track (r 4.25, white at 55% on white at 15%), or on its own work's
+      ring of round-capped dashes in white at 45% (r 4.25, its stroke 1.5,
+      dashes 1.5 with gaps of 2.0); the verb 13 medium in white at 55%, and
+      5 after it what it acts on in white at 35%, a command in mono at 11,
+      anything else at 13, a wake's countdown among them; how long its turn
+      has run, or since it ended, 12 in white at 55%; then "project ·
+      session" under them. It needs nothing of Lee, so it is greyer than the
+      rest. Nothing in the sidebar turns;
+    - **Your turn**: the sessions waiting on Lee with nothing posted, the
+      newest first, each on one line, 28 tall, inset 6, its parts 4 apart:
+      the open ring, 10 across, r 3.75, its stroke 1.5, in white at 55%;
+      what Claude left Lee, 13 regular in white at 85%, cut short; its
+      project at its right, 11 in white at 35%, its own width, never cut, 10
+      after the words at the least (board D's 6 of padding after the row's 4);
+      its time 12 in white at 55%, tabular, in a 30 lane. Those whose turn
+      ended longer ago than the fold period (Settings' "Your turn folds
+      after", an hour unless Lee sets four hours, today or never) fold into
+      **"N earlier"** at its end, as on the card, shown only while at least
+      one has: 28 tall, its ring in white at 25%, "8 earlier" 13 regular in
+      white at 55%, its sessions' projects 9 after it, 11 in white at 25%,
+      each once in the rows' order, comma-separated and cut short, and a
+      chevron where a heading's stands, right while folded. A click
+      anywhere on it opens them in place as ordinary your-turn rows under
+      it, its chevron down, and a click again folds them, each at once; the
+      list never selects it, and under the pointer it shows a row's quiet
+      fill. Whether it is open is never kept: it is folded each time the
+      window opens, and as the line goes, its last row starting a turn, so
+      it never comes back already open. The period is measured from each
+      row's turn's end against the wall clock: as time passes a row folds in
+      the moment it passes the period, the window drawn again then as for
+      any change by time alone, nothing polling; the period changing refolds
+      the list at once;
+    - **Projects** ends it: every project on the board, quiet ones too, a
+      row each in `watch`'s order, its name 13 regular in white at 85% after
+      an empty slot, 28 tall, each opening its project as a project's name
+      does: its sessions, those no window holds among them, and their notes
+      (Lee, 20 October 2026, of the projects with nothing open: "at least
+      interact with them, view them, see them"). It is folded at first. A
+      project's page is reached from it and from the session page's project
+      name;
     - **A heading is a row of the list**, not the system's section header,
       whose chevron hides at rest and alone folds: 24 tall, 10 under what is
-      before it, the first of them too, Needs you's or with no ask a
-      project's, which sits 10 under the list's top, 20 under the Filter
-      field (Lee, 22 October 2026, of the first heading 2 under it: "where
-      it says 'Needs you,' that's a little bit close … the 'Needs you'
-      eyebrow for that top section needs a little bit of spacing", System
-      Settings' sidebar his reference, its first item about 20 under its
-      Search field). A click anywhere on
-      a project's heading or on Quiet projects' folds what is under it, or
-      unfolds it, and never moves the pick. Its chevron always shows which
-      way it is, down open and right folded, in the tertiary label colour, a
-      step brighter under the pointer. A project's name is soft, and while it
-      is folded and holds asks, the number of its sessions with one sits
-      before the chevron in orange; open, the orange dots under it say so.
-      Folded, a project keeps its place, its asks still showing under Needs
-      you, and picked there; the pick inside a folded project stays, its page
-      too, its selection hidden until it unfolds. The folds are kept across
-      launches, a set of the projects folded and whether Quiet projects is,
-      in the window's saved value of its own; Quiet projects starts open. A
-      project's fold is kept while it is off the board, so it comes back
-      folded as it left; nothing prunes the folds of projects gone for good,
-      which cost a word each. While the filter holds text every project with a match shows open, and
-      the folds come back as they were when it clears; a heading clicked
-      meanwhile folds only until then;
-    - **a session's row** is 32 tall, its mark in a 26-wide slot at the
-      system's icon centre, its name from where the system starts a label's
-      title, and on a row with an ask, only there, how long the ask has
-      waited, in tabular figures. Its words are in the system's label
-      colours, the name the primary and the rest the secondary or the
-      tertiary, so the system's emphasized selection turns them white by
-      itself; the orange stays orange. Its marks are drawn still: the ask's
-      orange dot, your turn's soft ring, working's still arc on a faint
-      track, on its own work's ring of round-capped dashes in white at 45%
-      (r 4.25, its stroke 1.5, dashes 1.5 with gaps of 2.0, board D, 22
-      October 2026), away's faint dot, its name faint. Nothing in the
-      sidebar turns;
-    - **the filter** narrows the list in place, Needs you and the projects
-      by one rule. A session stays while every word typed appears, anywhere,
-      in its name or its project's, whatever their case and accents, so
-      typing a project's name lists its sessions; in any of its lines'
-      words waiting on Lee too, so "gh pr" finds the session a permission
-      prompt for `gh pr create` waits on, under Needs you and under its
-      project; a quiet project stays
-      while its name holds every word, or while one of its sessions matches
-      by the same rule. A match with an ask shows in both places; Needs
-      you's heading goes when none of its rows match; a match stays under its
-      project, whose count is still of all its sessions. The words are lit
-      wherever they appear in a name, a step brighter than the rest: in the
-      label colour on a name the rest of which goes soft, and soft on an
-      away session's faint one, so an away row still reads as away. It never
-      moves the pick: the page stays on what was open, even with its row
-      filtered out. ⌘F focuses the field, Return in it opens the first
-      match, the list's first row that picks, as it shows: a session under
-      Needs you, else under its project, else a quiet project, never a
-      heading, even one whose name is lit, nor a row a fold made while
-      filtering hides. × or Escape clears it and gives the whole board
-      back; Escape in it empty does nothing, and with an answer waiting,
-      Escape takes the answer back first, as anywhere in the window. The
-      window opens with focus on what holds the pick, the board's list or
-      Settings at the foot, not the field, and focus moves there too
-      whenever opening it turns it to a pick, as ⌘, and the menu's Settings…
-      do. What it holds is not kept: closing the window clears it;
+      before it, the first of them too, which sits 10 under the list's top,
+      20 under the Filter field (Lee, 22 October 2026, of the first heading
+      2 under it: "where it says 'Needs you,' that's a little bit close …
+      the 'Needs you' eyebrow for that top section needs a little bit of
+      spacing", System Settings' sidebar his reference, its first item
+      about 20 under its Search field). Its name is 11 semibold in white at
+      55%, and 6 after it its count, 11 semibold in tabular figures, orange
+      for Needs you and white at 30% for the others: Needs you counts its
+      lines waiting, the asks and stops; Working and Your turn their rows,
+      "N earlier"'s among them; Projects its projects; each of what it
+      lists, filtered or not. Every heading folds, Needs you's too: a click
+      anywhere on it folds what is under it to the heading alone, or
+      unfolds it, at once, with no motion, as the card's eyebrows do, and
+      never moves the pick; the list never selects it. Its chevron, in a 15
+      by 24 slot whose end is a row's time's, always shows which way it is,
+      down open (10 by 6) and right folded (6 by 10), stroked 1.5 in the
+      tertiary label colour, a step brighter under the pointer. The folds
+      are kept across launches, the sections folded and whether Projects
+      is, in the window's saved value of its own, "window"; a round 8
+      value, its projects folded by their keys, reads as the defaults,
+      Projects folded and nothing else. A picked row that moves into a
+      folded section, its turn ending under a folded Your turn, stays hidden
+      there, and the arrow keys step from that section's heading, as from any
+      pick a fold hides. While the filter holds text every section with a
+      match shows open, "N earlier" too, and the folds come back as they were
+      when it clears, but for a pick made meanwhile (see the selection); a
+      heading clicked meanwhile folds only until then;
+    - **the type is the card's**, not System Settings' regular, in its
+      whites (Lee, 22 October 2026, approving board D: ask lines medium,
+      working verbs medium, your-turn lines regular). Paper draws in Inter
+      and the app in SF, so the built metrics stand, the headings, the
+      two-line rows, the rule and the foot, and board D's are taken relative
+      to them;
+    - **the filter** narrows the list in place, every section by one rule.
+      A session stays while every word typed appears, anywhere, in its
+      name, its project's or any of its lines' words, whatever their case
+      and accents: typing a project's name lists its sessions, "gh pr" finds
+      the session a permission prompt for `gh pr create` waits on, "3
+      agents" the one on its own work waiting on them; a project stays in
+      Projects while its name holds every word. A section with no match
+      goes, its heading with it. The words are lit wherever they appear, a
+      step brighter than the rest: in the label colour on words the rest of
+      which goes soft, and soft on fainter ones, so an away row still reads
+      as away. It never moves the pick: the page stays on what was open,
+      even with its row filtered out. ⌘F focuses the field, Return in it
+      opens the first match, the list's first row that picks, as it shows,
+      never a heading nor "N earlier", nor a row a fold made while
+      filtering hides. × or Escape clears it and gives the whole board back;
+      Escape in it empty does nothing, and with an answer waiting, Escape
+      takes the answer back first, as anywhere in the window. The window
+      opens with focus on what holds the pick, the board's list or Settings
+      at the foot, not the field, and focus moves there too whenever opening
+      it turns it to a pick, as ⌘, and the menu's Settings… do. What it
+      holds is not kept: closing the window clears it;
     - **decided for round 7** (21 October 2026, as the design pointed):
       a filter that keeps nothing anywhere says so in one centred line, "No
       sessions match “ledg”", the field's text in the quotes, and an empty
       board says how the board stands in the same place, as the panel's head
-      words it; the match is the rule above; and the field carries no "⌘F"
-      hint, which the system's field does not draw.
+      words it; and the field carries no "⌘F" hint, which the system's
+      field does not draw.
     - **its foot is Settings**, a row with the system's gear in the accent,
       fixed under a rule at the list's foot (see "Settings"): the rule 0.5
       tall in the separator colour, inside the sidebar's 10 either side, 8
@@ -3037,9 +3063,10 @@ stands).
       the list, laid out by SitRep alone, with no inset, safe area or bar for
       the live window to move. Picked, Settings shows on the right, where a
       session would, and the board's list holds no selection while it shows;
-      the foot's row draws the selection itself, as a heading's: 276 wide, 10
-      in, its corners 9, the accent while it has the key window's focus, its
-      gear and word white, else the system's grey. Under the pointer, and not
+      SitRep draws the foot's selection itself, in the system's selection
+      colours, shaped as the list's: 276 wide, 10 in, its corners 9, the
+      accent while it has the key window's focus, its gear and word white,
+      else the system's grey. Under the pointer, and not
       picked, it shows a row's quiet fill, gone as the pointer leaves or the
       window goes out of sight. A click anywhere across it opens Settings, in
       a window not key too, and takes focus there, as a click on a list's row
@@ -3061,10 +3088,9 @@ stands).
   - **the band under the toolbar**, beside the traffic lights, stays
     empty on every page, a session's, a project's and Settings': nothing
     of the page sits in it.
-- **A session row is a small panel row:** the same marks in the same lanes,
-  its name on one line, the panel row's time. An away session with nothing
-  waiting has a faint dot and a faint name.
-- **A project**, opened from its name, is the pane's project view: its open
+- **A session's row is the card's row at the window's size:** the same
+  marks in the same lanes, the same words, and the panel row's time.
+- **A project**, opened from its name or its row in Projects, is the pane's project view: its open
   sessions, each with what it is doing and what waits there; every session's
   asks, the newest first; their notes; and their parked items, the oldest
   first. Each line names its session, unless the project has only the one,
@@ -3106,22 +3132,49 @@ stands).
 - **The board is a list with a selection**, in the sidebar's style: the
   session or project picked is the list's selection, drawn by the system,
   and nothing clears it, neither a click in the list's blank space nor on
-  the row picked. A session with an ask shows twice, so the selection says
-  which of its two rows is picked, while the page follows the session: the
-  row clicked; for a pick made outside the list, a restore at launch, the
-  menu opening a session, the Filter field's Return, its row under Needs
-  you while the ask stands, else its project's; and when the ask clears
-  under its Needs you row, its project's, the page staying; with no board
-  to read, nothing has cleared, and the pick stays under Needs you. A project's
-  page shows as picked on its heading, 24 tall, though a click there only
-  folds: the system's list selects no row a click cannot pick (measured
-  offscreen), so the heading draws the system's selection colours itself,
-  the accent while the list has the key window's focus, else the grey. The
-  arrow keys move the selection through the list's own rows, a doubled
-  session's two among them, past the headings, each step a pick; from a
-  heading showing its project's page, which holds no selection, ↓ goes to
-  the first row after it and ↑ to the last before it, and from a pick a
-  fold hides as from the heading it is folded under; past either end the
+  the row picked. Each session shows once, so its row is the pick: the
+  pick is a session or a project and nothing more, the round 8 `Spot`,
+  which said which of a doubled session's two rows showed it, gone with
+  the doubled rows. A session keeps its selection as its row moves between
+  sections, its asks coming or answered, its turn ending, its row the same
+  session's. The pick fills the whole row, whatever its kind, the
+  system's accent at radius 9, under which its words go white and the rest,
+  its second line, its project, what it acts on and its ages, white at 80%;
+  the orange stays orange. A project's page shows picked on its row in
+  Projects, as a session's does on its own. A session with no row of its
+  own, an away one with nothing waiting, picked from its project's page,
+  stands at its project's row in Projects, which shows picked; with its
+  project listed nowhere either, as one filtered out, nothing shows picked.
+  That row stands in for it and is not the list's selection, which holds
+  none, as for a pick a fold hides: SitRep draws the selection on it as the
+  system would, its grey, or the accent while the list has the key window's
+  focus, its words white on it, so a click on it selects it and opens the
+  project's page.
+  A pick made outside the list, a restore at launch, the menu opening a
+  session, a jump, a project's name pressed on a session's page, unfolds
+  the section holding its row, Projects for a project or a session with no
+  row, and opens "N earlier" where its row is under it, so the pick shows;
+  the unfold is kept, as a click's is. While the filter holds text a pick
+  made outside the list unfolds only what the filter shows, until it
+  clears; as it clears, every pick made meanwhile shows, one made by a
+  click, the keys or Return, or from outside the list, by a jump, the menu
+  or a notification, or picked afresh as the board drops the pick: whatever
+  of Lee's folds would hide it unfolds as for a pick made outside the list,
+  kept, and "N earlier" open for the run only, and everything else the
+  filter opened folds back. A pick made before the filter changes nothing
+  as it clears, Return on the row already picked included, and closing the
+  window, which clears the filter, shows nothing: opening it again picks
+  afresh.
+  A heading folded over the pick hides its row and keeps its page, the list
+  then showing nothing picked, Projects folded over a project's page as
+  any. The arrow keys move
+  the selection through the list's rows in order, past the headings and
+  "N earlier", which the list never selects, and past what a fold hides,
+  each step a pick; from a pick the list holds no selection on, ↓ goes to
+  the first row after the line it stands at, and ↑ to the last before it:
+  for a pick a fold hides, the line it is folded under, its section's
+  heading or "N earlier"; for a session with no row, its project's row, or
+  Projects' heading folded over it; past either end the
   keys go nowhere, and with a modifier held they are the list's own; picks that
   follow sooner than 150ms read only the last one's boards once they stop.
   With the Mac's key repeat faster than that, holding ↓ reads the first
@@ -3131,7 +3184,11 @@ stands).
   away a read under way, and none waiting runs once the window closes or
   is minimised. Each pick in the list holds the list's order for a second
   after it, as the pointer over the list does, so no row moves between two
-  presses of a key; closing or minimising the window lets the hold go. The
+  presses of a key; closing or minimising the window lets the hold go. Each
+  section is held on its own, as on the card, and Projects too, so a row
+  changing section leaves its held place and takes its place in its new
+  one, where `watch` has it. A resort slides the rows; a fold, or a row
+  folding into "N earlier" as time passes, changes the list at once. The
   row picked scrolls into view, only as far as it needs, whenever the pick
   or the order changes: a pick made elsewhere, by a jump, a notification
   or the menu, or before the window shows, and a resort or a fold. The
@@ -3141,12 +3198,12 @@ stands).
   rows, "a very deeply translucent, blurred bar"):
   - a row of the sidebar not picked shows a quiet plain fill behind it,
     white at 6%, never over its words, anywhere the pointer is on the row;
-    the one picked keeps the system's selection. A heading shows no fill,
-    only its chevron a step brighter; Needs you's shows nothing. While the
+    the one picked keeps the system's selection. "N earlier" shows it too.
+    A heading shows no fill, only its chevron a step brighter. While the
     selection is the accent, the window key and the list holding its focus,
-    the system turns the row's words white and its soft words and marks a
-    softer white, as on its own rows, the sidebar's words being in its label
-    colours (Lee, 21 October 2026);
+    the row's words go white and the rest white at 80%, as above, and its
+    grey marks brighter, as the system does on its own rows (Lee, 21
+    October 2026);
     its orange stays orange. A session new to needing
     Lee washes the whole row orange, in the selection's shape. There is no
     glass highlight anywhere;
@@ -3181,19 +3238,19 @@ stands).
   to what holds the pick, the board's list or the foot, and to the
   board's list when neither does.
 - **VoiceOver reads words, never symbols.**
-  - a sidebar row is one element: its session, its project, its state
-    (needs you, your turn, working, on its own work, away) and its age, as
-    "The Mac app, SitRep, needs you, 5 hours"; an away session with
-    something waiting reads "needs you, away". A project's heading reads its
-    count of what
-    waits there, "SitRep, 3 waiting", or "Kit, nothing waiting", and
-    folded says so, "Kit, nothing waiting, folded"; Quiet projects' reads
-    "Quiet projects", and a quiet project's row "Kit, quiet project". A
-    Needs you row reads what waits first: how many where there are several,
-    "2 asks", then each line's words; then its project and session, "away"
-    where no window holds it, and the oldest's age, as "2 asks, Paste the
-    load test's output, Allow Bash gh pr create, Switchboard, Dashboard
-    redesign, 3 hours" (22 October 2026). The Filter field reads as
+  - a sidebar row is one element. A Needs you row reads what waits first:
+    how many where there are several, "2 asks", then each line's words; then
+    its project and session, "away" where no window holds it, and the
+    oldest's age, as "2 asks, Paste the load test's output, Allow Bash gh
+    pr create, Switchboard, Dashboard redesign, 3 hours" (22 October 2026).
+    A row of Working or Your turn reads its line's words, its project, its
+    session, its state (working, on its own work, your turn) and its age, as
+    "Drawing the ledger schema, Switchboard, Request ledger, your turn, 12
+    minutes". A heading reads its name and its count, as "Needs you, 4
+    waiting", "Your turn, 3 sessions" or "Projects, 6 projects", and folded
+    says so, "Working, 2 sessions, folded"; "N earlier" reads how many and
+    their projects, as "8 earlier, Switchboard, Fumi", and folded says so;
+    a project's row reads "Kit, project". The Filter field reads as
     "Filter sessions", and the foot as one of the sidebar's choices, a radio
     button, "Settings", selected while Settings shows, as a list's row reads
     selected, and announced as that changes;
@@ -3523,13 +3580,14 @@ reference only.
 - **General:** first, "Your turn folds after", "Older ones fold into one
   line, which opens in place", a pop-up at its own width of An hour, the
   default, Four hours, Today or Never: how long a your-turn row stays on the
-  card before it folds into "N earlier" (see "The sections", under "The
-  notch and its panel"), measured from its turn's end, "Today" folding what
+  card, and in the SitRep window's sidebar, before it folds into "N earlier"
+  (see "The sections", under "The notch and its panel", and "The SitRep
+  window"), measured from its turn's end, "Today" folding what
   ended before local midnight and "Never" folding nothing. It is in General,
   not under What stays on screen, as that card is the Show row alone at
-  Nothing and the period is to govern the SitRep window's sidebar too (22
+  Nothing and the period governs the SitRep window's sidebar too (22
   October 2026). It is saved with the rest of what Lee sets beyond the edge, under
-  "app", and the card refolds as it changes. Then the Claude Code plugin,
+  "app", and the card and the sidebar refold as it changes. Then the Claude Code plugin,
   "Puts each Claude Code session on the board", up to date; Open at login;
   and the leave to control Ghostty,
   worded as macOS words a permission, by what SitRep can do with it: "Bring

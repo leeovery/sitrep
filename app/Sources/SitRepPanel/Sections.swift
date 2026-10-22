@@ -56,10 +56,15 @@ public struct Earlier: Equatable, Sendable {
     public let isOpen: Bool
 
     public init(_ sessions: [Session], isOpen: Bool) {
-        count = sessions.count
-        projects = sessions.reduce(into: []) { projects, session in
-            if !projects.contains(session.project) {
-                projects.append(session.project)
+        self.init(projects: sessions.map(\.project), isOpen: isOpen)
+    }
+
+    /// Of sessions in these projects, one each, in the rows' order.
+    public init(projects: [String], isOpen: Bool) {
+        count = projects.count
+        self.projects = projects.reduce(into: []) { once, project in
+            if !once.contains(project) {
+                once.append(project)
             }
         }
         self.isOpen = isOpen

@@ -119,11 +119,8 @@ public enum Words {
         "\(count) resolved"
     }
 
-    /// The heading over the quiet projects.
-    public static let quietProjects = "Quiet projects"
-
-    /// The heading over the sessions with an ask, at the top of the sidebar.
-    public static let needsYou = "Needs you"
+    /// The heading over every project, at the foot of the sidebar's list.
+    public static let projects = "Projects"
 
     /// The Filter field's placeholder.
     public static let filter = "Filter"

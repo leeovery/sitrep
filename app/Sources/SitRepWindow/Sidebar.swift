@@ -2,19 +2,29 @@ import SitRepCore
 import SitRepEdge
 import SitRepPanel
 
-/// A part of the sidebar's list that folds under its heading: a project, by its key, or the quiet projects.
+/// A part of the sidebar's list that folds under its heading: one of the card's sections, or Projects; or Your turn's
+/// "N earlier", which opens in place.
 public enum Fold: Hashable, Sendable {
-    case project(String)
-    case quiet
+    case section(BoardSection)
+    case projects
+    case earlier
 }
 
-/// What is folded: the projects, by their keys, and whether the quiet projects are. Nothing is, at first. A project's
-/// fold outlives its leaving the board, so it comes back folded; none is ever pruned.
+/// What is folded: the sections Lee folded and whether Projects is, kept across launches; and whether "N earlier" is
+/// open, never kept, as what it holds is stale. At first only Projects is folded.
 public struct Folds: Codable, Equatable, Sendable {
-    public var projects: Set<String> = []
-    public var quiet = false
+    public var sections: Set<BoardSection> = []
+    public var projects = true
+    public var isEarlierOpen = false
 
-    public init() {}
+    /// Everything open, "N earlier" too: the list as it shows while the filter holds text.
+    public static let open = Folds(sections: [], projects: false, isEarlierOpen: true)
+
+    public init(sections: Set<BoardSection> = [], projects: Bool = true, isEarlierOpen: Bool = false) {
+        self.sections = sections
+        self.projects = projects
+        self.isEarlierOpen = isEarlierOpen
+    }
 
     public init(from decoder: any Decoder) {
         let defaults = Folds()
@@ -23,26 +33,64 @@ public struct Folds: Codable, Equatable, Sendable {
             return
         }
 
+        // one by one, so a section another version saved that this one doesn't know leaves the rest folded
+        let sections: [String] = given.value(.sections, or: [])
+
+        self.sections = Set(sections.compactMap(BoardSection.init(rawValue:)))
         projects = given.value(.projects, or: defaults.projects)
-        quiet = given.value(.quiet, or: defaults.quiet)
+    }
+
+    /// What of them is kept across launches: "N earlier" folded, as each time the window opens.
+    public var kept: Folds {
+        Folds(sections: sections, projects: projects)
     }
 
     public func contains(_ fold: Fold) -> Bool {
         switch fold {
-        case let .project(key): projects.contains(key)
-        case .quiet: quiet
+        case let .section(section): sections.contains(section)
+        case .projects: projects
+        case .earlier: !isEarlierOpen
         }
     }
 
     /// Folded, or unfolded where it was.
     public mutating func toggle(_ fold: Fold) {
         switch fold {
-        case let .project(key):
-            if projects.remove(key) == nil {
-                projects.insert(key)
+        case let .section(section):
+            if sections.remove(section) == nil {
+                sections.insert(section)
             }
-        case .quiet: quiet.toggle()
+        case .projects: projects.toggle()
+        case .earlier: isEarlierOpen.toggle()
         }
+    }
+
+    /// Unfolded, where it was folded.
+    mutating func unfold(_ fold: Fold) {
+        if contains(fold) {
+            toggle(fold)
+        }
+    }
+
+    /// Unfolded wherever the list would hide the row showing this pick (`Listed.listedRow(showing:)`): a session's
+    /// section, and "N earlier" where its row is under it; Projects, for a project, or a session with no row of its
+    /// own.
+    mutating func unfold(toShow pick: Pick, in listed: Listed) {
+        switch listed.listedRow(showing: pick) {
+        case let .session(id)?:
+            if let row = listed.rows.first(where: { $0.id == id }) {
+                unfold(.section(row.section))
+                if row.isEarlier {
+                    unfold(.earlier)
+                }
+            }
+        case .project?: unfold(.projects)
+        case .settings?, nil: break
+        }
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case sections, projects
     }
 }
 
@@ -76,90 +124,70 @@ extension SavedSettings where Value == SidebarSettings {
     }
 }
 
-/// A row of the sidebar's list that shows the pick: a session's under Needs you, or the pick's own place on the
-/// board, a session under its project, a project's heading or a quiet project's row. A session with an ask shows
-/// twice, so the selection says which of its rows is picked, while the page follows the session.
-public enum Spot: Hashable, Sendable {
-    case needsYou(String)
-    case board(Pick)
-
-    public var pick: Pick {
-        switch self {
-        case let .needsYou(session): .session(session)
-        case let .board(pick): pick
-        }
-    }
-
-    /// Where a pick made outside the list shows, by a restore at launch, the menu or the Filter field's Return: a
-    /// session under Needs you while it has an ask, else under its project; Settings on no row of the board.
-    static func of(_ pick: Pick?, in listed: Listed) -> Spot? {
-        switch pick {
-        case let .session(id)? where listed.needsYou.contains { $0.id == id }: .needsYou(id)
-        case .settings?, nil: nil
-        case let pick?: .board(pick)
-        }
-    }
-}
-
-/// The sidebar's list as it shows, one list, in order: Needs you, every session needing Lee, a row each with its
-/// lines, the oldest first, under a plain heading; then each project under its heading, in the board's order; then the quiet projects under theirs.
-/// A folded project or the quiet projects show their heading alone; while the filter holds text, the folds Lee set
-/// stand aside (`WindowRun.folds`).
+/// The sidebar's list as it shows, the card's list at the window's size: each section with rows, Needs you, Working
+/// and Your turn, under its heading, a session's row in one of them only; then Projects, every project on the board,
+/// under its own. A folded section shows its heading alone; Your turn's rows past the fold period sit under "N
+/// earlier" at its end, shown only while it is open. While the filter holds text, the folds Lee set stand aside
+/// (`WindowRun.filter`).
 public struct Sidebar: Equatable, Sendable {
-    /// A heading that folds what is under it: a project's, or the quiet projects'.
+    /// A heading that folds what is under it, a section's or Projects': its count, and which way it is.
     public struct Heading: Equatable, Sendable {
         public let fold: Fold
-        public let name: String
+        /// Needs you's counts its lines waiting on Lee, the asks and stops; Working's and Your turn's their rows,
+        /// "N earlier"'s among them; Projects' its projects.
+        public let count: Int
         public let isFolded: Bool
-        /// Its sessions with an ask, of all of them, filtered or not.
-        public let asking: Int
-        /// What waits on Lee there, asks and stops alike, as VoiceOver reads it.
-        public let waiting: Int
 
-        /// The orange count: only while it is folded, and only when it holds asks.
-        public var count: Int? {
-            isFolded && asking > 0 ? asking : nil
+        public var title: String {
+            if case let .section(section) = fold {
+                return section.title
+            }
+            return Words.projects
         }
+
+        /// Its count in orange, as what needs Lee is.
+        public var isNeedsYou: Bool { fold == .section(.needsYou) }
     }
 
     public enum Line: Equatable, Sendable, Identifiable {
-        /// "Needs you": plain words, which neither fold nor pick.
-        case needsYou
-        case asking(Listed.Row)
         case heading(Heading)
         case session(Listed.Row)
-        case quiet(Listed.Quiet)
+        /// Your turn's "N earlier", which opens in place, as the card's does.
+        case earlier(Earlier)
+        case project(Listed.Project)
 
         public var id: ID {
-            if let spot {
-                return .spot(spot)
+            switch self {
+            case let .heading(heading): .fold(heading.fold)
+            case .earlier: .fold(.earlier)
+            case let .session(row): .pick(row.pick)
+            case let .project(project): .pick(project.pick)
             }
-            return self == .needsYou ? .needsYou : .quietHeading
         }
 
-        /// The row of it that shows the pick, if it can show one.
-        public var spot: Spot? {
-            switch self {
-            case .needsYou: nil
-            case let .asking(row): .needsYou(row.id)
-            case let .heading(heading):
-                if case let .project(key) = heading.fold { .board(.project(key)) } else { nil }
-            case let .session(row): .board(.session(row.id))
-            case let .quiet(project): .board(project.pick)
+        /// What a click on it picks; none on a heading or "N earlier", which fold.
+        public var pick: Pick? {
+            if case let .pick(pick) = id {
+                return pick
             }
+            return nil
         }
 
         public enum ID: Hashable, Sendable {
-            case needsYou, quietHeading
-            case spot(Spot)
+            case fold(Fold)
+            case pick(Pick)
         }
     }
 
     /// How the board stands, for the list's place where it lists nothing.
     public let head: Head
     public let lines: [Line]
-    /// The rows a fold hides, each by the heading it is folded under.
-    private let folded: [Spot: Line.ID]
+    /// Every row it holds, in order, folded or not: what moves as the board resorts, and a fold leaves alone.
+    public let order: [Pick]
+    /// The picks a fold hides, each by the line it is folded under: its section's heading, or "N earlier".
+    private let folded: [Pick: Line.ID]
+    /// The sessions with no row of their own, each by its project's row, which shows it.
+    private let homes: [String: Pick]
 
     public init() {
         self.init(Listed(), folds: Folds())
@@ -167,114 +195,134 @@ public struct Sidebar: Equatable, Sendable {
 
     /// The list, folded as given.
     public init(_ listed: Listed, folds: Folds) {
+        let sections = BoardSection.allCases.map { Self.section($0, listed.rows(in: $0), folds: folds) }
+        let projects = Self.projects(listed.projects, isFolded: folds.projects)
+
         head = listed.head
-        lines = Self.needsYou(listed) + listed.projects.flatMap { Self.lines(of: $0, folds: folds) }
-            + Self.quiet(listed.quiet, isFolded: folds.quiet)
-        folded = Self.folded(listed, by: folds)
+        lines = (sections + [projects]).flatMap(\.lines)
+        order = listed.rows.map(\.pick) + listed.projects.map(\.pick)
+        folded = Dictionary((sections + [projects]).flatMap(\.hidden)) { first, _ in first }
+        homes = listed.rowless.mapValues(Pick.project).filter { listed.lists($0.value) }
     }
 
-    private static func folded(_ listed: Listed, by folds: Folds) -> [Spot: Line.ID] {
-        let projects = listed.projects.filter { folds.contains(.project($0.id)) }.flatMap { project in
-            project.sessions.map { (Spot.board(.session($0.id)), Line.ID.spot(.board(.project(project.id)))) }
+    /// The row that shows the pick, drawn picked: its own; for a session with no row of its own, its project's in
+    /// Projects, which stands in for it; none for Settings, at the foot. A pick it lists nowhere stands for itself,
+    /// showing on no row.
+    public func row(showing pick: Pick?) -> Pick? {
+        switch pick {
+        case let .session(id)?: homes[id] ?? pick
+        case .settings?, nil: nil
+        case .project?: pick
         }
-        let quiet = folds.quiet ? listed.quiet.map { (Spot.board($0.pick), Line.ID.quietHeading) } : []
-
-        return Dictionary(projects + quiet) { first, _ in first }
     }
 
-    private static func needsYou(_ listed: Listed) -> [Line] {
-        listed.needsYou.isEmpty ? [] : [.needsYou] + listed.needsYou.map(Line.asking)
+    /// The list's selection for the pick: the pick itself, the row it has; none where a project's row stands in for
+    /// it, so a click on that row picks the project, nor for Settings.
+    public func selection(for pick: Pick?) -> Pick? {
+        row(showing: pick) == pick ? pick : nil
     }
 
-    private static func lines(of project: Listed.Project, folds: Folds) -> [Line] {
-        let fold = Fold.project(project.id)
-        let heading = Heading(
-            fold: fold, name: project.name, isFolded: folds.contains(fold), asking: project.asking,
-            waiting: project.waiting
-        )
+    /// A part of the list: its lines as they show, and the picks its folds hide, by the line each is folded under.
+    private typealias Part = (lines: [Line], hidden: [(Pick, Line.ID)])
 
-        return [.heading(heading)] + (heading.isFolded ? [] : project.sessions.map(Line.session))
-    }
-
-    private static func quiet(_ quiet: [Listed.Quiet], isFolded: Bool) -> [Line] {
-        guard !quiet.isEmpty else {
-            return []
+    /// A section with rows: its heading, then, unless it is folded, its rows; Your turn's past the fold period under
+    /// "N earlier", at its end.
+    private static func section(_ section: BoardSection, _ rows: [Listed.Row], folds: Folds) -> Part {
+        guard !rows.isEmpty else {
+            return ([], [])
         }
 
-        let heading = Heading(fold: .quiet, name: Words.quietProjects, isFolded: isFolded, asking: 0, waiting: 0)
+        let fold = Fold.section(section)
+        let count = section == .needsYou ? rows.map(\.lines.count).reduce(0, +) : rows.count
+        let heading = Line.heading(Heading(fold: fold, count: count, isFolded: folds.contains(fold)))
 
-        return [.heading(heading)] + (isFolded ? [] : quiet.map(Line.quiet))
+        if folds.contains(fold) {
+            return ([heading], rows.map { ($0.pick, heading.id) })
+        }
+
+        let earlier = rows.filter(\.isEarlier)
+        let current = rows.filter { !$0.isEarlier }.map(Line.session)
+        guard !earlier.isEmpty else {
+            return ([heading] + current, [])
+        }
+
+        let line = Line.earlier(Earlier(projects: earlier.map(\.project), isOpen: folds.isEarlierOpen))
+
+        return folds.isEarlierOpen
+            ? ([heading] + current + [line] + earlier.map(Line.session), [])
+            : ([heading] + current + [line], earlier.map { ($0.pick, line.id) })
+    }
+
+    /// Projects, with any: its heading, then, unless it is folded, a row for each.
+    private static func projects(_ projects: [Listed.Project], isFolded: Bool) -> Part {
+        guard !projects.isEmpty else {
+            return ([], [])
+        }
+
+        let heading = Line.heading(Heading(fold: .projects, count: projects.count, isFolded: isFolded))
+
+        return isFolded
+            ? ([heading], projects.map { ($0.pick, heading.id) })
+            : ([heading] + projects.map(Line.project), [])
     }
 
     /// It lists nothing.
     public var isEmpty: Bool { lines.isEmpty }
 
-    /// The line the rule after Needs you sits over: the first after its rows, while Needs you shows and a line follows
-    /// it.
+    /// The heading the rule after Needs you sits over: the next one after it, while Needs you shows, folded or not,
+    /// and something follows it.
     public var ruled: Line.ID? {
-        guard lines.first == .needsYou else {
+        guard lines.first?.id == .fold(.section(.needsYou)) else {
             return nil
         }
 
-        let after = lines.dropFirst().first { line in
-            guard case .asking = line else {
-                return true
+        return lines.dropFirst().first { line in
+            guard case .heading = line else {
+                return false
             }
-            return false
-        }
-
-        return after?.id
+            return true
+        }?.id
     }
 
-    /// The rows a click or an arrow key picks, in order: every row but the headings.
-    public var picks: [Spot] {
-        lines.compactMap { line in
-            switch line {
-            case .needsYou, .heading: nil
-            case .asking, .session, .quiet: line.spot
-            }
-        }
+    /// The rows a click or an arrow key picks, in order: every row but the headings and "N earlier".
+    public var picks: [Pick] {
+        lines.compactMap(\.pick)
     }
 
-    /// The first row it shows that picks, a folded project's hidden rows none of them: what Return in the Filter
-    /// field opens.
+    /// The first row it shows that picks, a fold's hidden rows none of them: what Return in the Filter field opens.
     public var first: Pick? {
-        picks.first?.pick
+        picks.first
     }
 
     /// Where an arrow key goes from the pick where the list holds no selection on it.
     public enum Step: Equatable, Sendable {
         /// To this row.
-        case to(Spot)
+        case to(Pick)
         /// Nowhere: no row that picks lies that way.
         case stays
-        /// The list's own way, from the row it selects, or from a pick it does not show, as one filtered out.
+        /// The list's own way, from the row it selects, or from a pick it does not list, as one filtered out.
         case listsOwn
     }
 
-    /// An arrow key from the pick: from a heading showing it, its project's page open, or from a row folded under a
-    /// heading, which stands at that heading, to the first row that picks after the heading, going down, or the last
+    /// An arrow key from a pick the list holds no selection on: one whose row a fold hides, which stands at the line it
+    /// is folded under, its section's heading or "N earlier"; or one a project's row stands in for, which stands at
+    /// that row, or, folded, at Projects' heading. To the first row that picks after that line, going down, or the last
     /// before it, going up.
-    public func step(from spot: Spot?, down: Bool) -> Step {
-        guard let spot, let place = heading(showing: spot) else {
+    public func step(from pick: Pick?, down: Bool) -> Step {
+        guard let line = standing(pick), let place = lines.firstIndex(where: { $0.id == line }) else {
             return .listsOwn
         }
 
-        let picking = Set(picks)
         let beyond = down ? Array(lines[(place + 1)...]) : lines[..<place].reversed()
 
-        return beyond.lazy.compactMap(\.spot).first(where: picking.contains).map(Step.to) ?? .stays
+        return beyond.lazy.compactMap(\.pick).first.map(Step.to) ?? .stays
     }
 
-    /// Where the heading standing for the pick sits: its own, picked, or the one its row is folded under.
-    private func heading(showing spot: Spot) -> Int? {
-        let id = folded[spot] ?? .spot(spot)
-
-        return lines.firstIndex { line in
-            guard line.id == id, case .heading = line else {
-                return false
-            }
-            return true
+    /// The line a pick the list holds no selection on stands at; none for one it selects, or lists nowhere.
+    private func standing(_ pick: Pick?) -> Line.ID? {
+        guard let row = row(showing: pick) else {
+            return nil
         }
+        return folded[row] ?? (row == pick ? nil : .pick(row))
     }
 }

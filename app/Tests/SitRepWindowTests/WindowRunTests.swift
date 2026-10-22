@@ -72,8 +72,8 @@ struct WindowRunTests {
     @Test func aRunOfPicksInTheListReadsTheLastPicksSessionsOnceThePicksStop() {
         let run = opened()
 
-        #expect(run.pickInList(.board(.session("sr-dash02")), at: printedAt).map(\.session) == ["sr-dash02"])
-        #expect(run.pickInList(.board(.session("sr-rq7dgr")), at: printedAt.addingTimeInterval(0.1)).isEmpty)
+        #expect(run.pickInList(.session("sr-dash02"), at: printedAt).map(\.session) == ["sr-dash02"])
+        #expect(run.pickInList(.session("sr-rq7dgr"), at: printedAt.addingTimeInterval(0.1)).isEmpty)
         #expect(run.settledReads(at: printedAt.addingTimeInterval(1)).map(\.session) == ["sr-rq7dgr"])
     }
 
@@ -86,9 +86,9 @@ struct WindowRunTests {
         let underWay = try #require(run.open().first)
 
         #expect(underWay.session == "sr-macapp")
-        _ = run.pickInList(.board(.session("sr-dash02")), at: printedAt)
-        #expect(run.pickInList(.board(.session("sr-macapp")), at: printedAt.addingTimeInterval(0.05)).isEmpty)
-        _ = run.pickInList(.board(.session("sr-dash02")), at: printedAt.addingTimeInterval(0.1))
+        _ = run.pickInList(.session("sr-dash02"), at: printedAt)
+        #expect(run.pickInList(.session("sr-macapp"), at: printedAt.addingTimeInterval(0.05)).isEmpty)
+        _ = run.pickInList(.session("sr-dash02"), at: printedAt.addingTimeInterval(0.1))
         run.read(underWay, gave: board(Lines.board), at: printedAt, reducesMotion: false)
         _ = run.pick(.session("sr-macapp"))
         #expect(run.page(at: printedAt).session?.isRead == true)
@@ -97,8 +97,8 @@ struct WindowRunTests {
     @Test func aRunOfPicksReadsNothingWhileTheWindowIsClosed() {
         let run = opened()
 
-        _ = run.pickInList(.board(.session("sr-dash02")), at: printedAt)
-        _ = run.pickInList(.board(.session("sr-rq7dgr")), at: printedAt.addingTimeInterval(0.1))
+        _ = run.pickInList(.session("sr-dash02"), at: printedAt)
+        _ = run.pickInList(.session("sr-rq7dgr"), at: printedAt.addingTimeInterval(0.1))
         run.close()
         #expect(run.settledReads(at: printedAt.addingTimeInterval(1)).isEmpty)
     }
@@ -107,8 +107,8 @@ struct WindowRunTests {
     @Test func aRunOfPicksReadsNothingOnceTheWindowIsBackFromTheDock() {
         let run = opened()
 
-        _ = run.pickInList(.board(.session("sr-dash02")), at: printedAt)
-        _ = run.pickInList(.board(.session("sr-rq7dgr")), at: printedAt.addingTimeInterval(0.1))
+        _ = run.pickInList(.session("sr-dash02"), at: printedAt)
+        _ = run.pickInList(.session("sr-rq7dgr"), at: printedAt.addingTimeInterval(0.1))
         run.minimise()
         _ = run.restore()
         #expect(run.settledReads(at: printedAt.addingTimeInterval(1)).isEmpty)
@@ -118,8 +118,8 @@ struct WindowRunTests {
         let run = opened()
         let last = printedAt.addingTimeInterval(0.1)
 
-        _ = run.pickInList(.board(.session("sr-dash02")), at: printedAt)
-        _ = run.pickInList(.board(.session("sr-rq7dgr")), at: last)
+        _ = run.pickInList(.session("sr-dash02"), at: printedAt)
+        _ = run.pickInList(.session("sr-rq7dgr"), at: last)
         #expect(run.nextChange == last.addingTimeInterval(PickReads.settle))
     }
 
@@ -127,9 +127,9 @@ struct WindowRunTests {
     @Test func aPickInTheListHoldsItsOrder() {
         let run = opened()
 
-        _ = run.pickInList(.board(.session("sr-dash02")), at: printedAt)
+        _ = run.pickInList(.session("sr-dash02"), at: printedAt)
         _ = run.show(heard(.line(projects(["goosemates", "sitrep", "switchboard", "kit"]))), at: printedAt, reducesMotion: false)
-        #expect(run.listed(at: printedAt).projects.map(\.id) == ["sitrep", "switchboard", "goosemates"])
+        #expect(run.listed(at: printedAt).projects.map(\.id) == ["sitrep", "switchboard", "goosemates", "kit"])
     }
 
     @Test func aProjectsViewReadsEachOfItsSessions() {
@@ -203,10 +203,10 @@ struct WindowRunTests {
         run.pointer(isIn: true, at: printedAt)
         _ = run.show(heard(.line(projects(["goosemates", "sitrep", "switchboard", "kit"]))), at: printedAt, reducesMotion: false)
         run.minimise()
-        #expect(run.listed(at: printedAt).projects.map(\.id) == ["goosemates", "sitrep", "switchboard"])
+        #expect(run.listed(at: printedAt).projects.map(\.id) == ["goosemates", "sitrep", "switchboard", "kit"])
         _ = run.restore()
         _ = run.show(heard(line(0)), at: printedAt, reducesMotion: false)
-        #expect(run.listed(at: printedAt).projects.map(\.id) == ["sitrep", "switchboard", "goosemates"])
+        #expect(run.listed(at: printedAt).projects.map(\.id) == ["sitrep", "switchboard", "goosemates", "kit"])
     }
 
     @Test func closingWithThePointerOverTheListLetsTheHoldGo() {
@@ -215,11 +215,11 @@ struct WindowRunTests {
         run.pointer(isIn: true, at: printedAt)
         _ = run.show(heard(.line(projects(["goosemates", "sitrep", "switchboard", "kit"]))), at: printedAt, reducesMotion: false)
         run.close()
-        #expect(run.listed(at: printedAt).projects.map(\.id) == ["goosemates", "sitrep", "switchboard"])
+        #expect(run.listed(at: printedAt).projects.map(\.id) == ["goosemates", "sitrep", "switchboard", "kit"])
         _ = run.open()
         _ = run.show(heard(line(0)), at: printedAt, reducesMotion: false)
-        #expect(run.listed(at: printedAt).projects.map(\.id) == ["sitrep", "switchboard", "goosemates"])
-        #expect(run.nextChange == nil)
+        #expect(run.listed(at: printedAt).projects.map(\.id) == ["sitrep", "switchboard", "goosemates", "kit"])
+        #expect(run.nextChange == Self.ledgerFolds)
     }
 
     @Test func whatCameAndWentWhileLeeWasOnAnotherPageIsTheFirstReadsLayoutNotWashedNorKept() throws {
@@ -233,7 +233,7 @@ struct WindowRunTests {
         #expect(page.asks.map(\.id.ask) == ["k4", "k2"])
         #expect(page.asks.allSatisfy { $0.washed == nil && !$0.isClosed })
         #expect(page.resolved.map(\.id).contains("k1"))
-        #expect(run.nextChange == nil)
+        #expect(run.nextChange == Self.ledgerFolds)
     }
 
     @Test func whatCameAndWentWhileTheWindowWasClosedIsTheFirstReadsLayoutNotWashedNorKept() throws {
@@ -330,9 +330,9 @@ struct WindowRunTests {
         let run = opened()
 
         _ = run.show(heard(line(0), line(new: ["ask:sr-gs7kq2:k1"])), at: printedAt, reducesMotion: false)
-        #expect(run.listed(at: printedAt.addingTimeInterval(1.99)).sessions.compactMap(\.washed) == [printedAt])
+        #expect(run.listed(at: printedAt.addingTimeInterval(1.99)).rows.compactMap(\.washed) == [printedAt])
         #expect(run.listed(at: printedAt.addingTimeInterval(1.99)).needsYou.compactMap(\.washed) == [printedAt])
-        #expect(run.listed(at: printedAt.addingTimeInterval(2)).sessions.compactMap(\.washed).isEmpty)
+        #expect(run.listed(at: printedAt.addingTimeInterval(2)).rows.compactMap(\.washed).isEmpty)
         #expect(run.listed(at: printedAt.addingTimeInterval(2)).needsYou.compactMap(\.washed).isEmpty)
     }
 
@@ -352,7 +352,7 @@ struct WindowRunTests {
         let run = opened()
 
         _ = run.show(heard(line(0), line(new: ["ask:sr-gs7kq2:k1"])), at: printedAt, reducesMotion: true)
-        #expect(run.listed(at: printedAt).sessions.compactMap(\.washed).isEmpty)
+        #expect(run.listed(at: printedAt).rows.compactMap(\.washed).isEmpty)
         #expect(run.listed(at: printedAt).needsYou.flatMap(\.lines).allSatisfy { $0.washed == nil })
     }
 
@@ -361,7 +361,7 @@ struct WindowRunTests {
         let stale = heard(line(0), line(new: ["ask:sr-gs7kq2:k1"]), .exited(.status(1), stderr: ""))
 
         _ = run.show(stale, at: printedAt, reducesMotion: false)
-        #expect(run.listed(at: printedAt).sessions.compactMap(\.washed).isEmpty)
+        #expect(run.listed(at: printedAt).rows.compactMap(\.washed).isEmpty)
         #expect(run.listed(at: printedAt).head.count.hasPrefix("as of "))
     }
 
@@ -377,14 +377,14 @@ struct WindowRunTests {
 
         run.pointer(isIn: true, at: printedAt)
         _ = run.show(heard(.line(projects(["goosemates", "sitrep", "switchboard", "kit"]))), at: printedAt, reducesMotion: false)
-        #expect(run.listed(at: printedAt).projects.map(\.id) == ["sitrep", "switchboard", "goosemates"])
+        #expect(run.listed(at: printedAt).projects.map(\.id) == ["sitrep", "switchboard", "goosemates", "kit"])
         run.pointer(isIn: false, at: printedAt)
         #expect(run.nextChange == printedAt.addingTimeInterval(1))
         run.settle(at: printedAt.addingTimeInterval(0.5))
-        #expect(run.listed(at: printedAt).projects.map(\.id) == ["sitrep", "switchboard", "goosemates"])
+        #expect(run.listed(at: printedAt).projects.map(\.id) == ["sitrep", "switchboard", "goosemates", "kit"])
         run.settle(at: printedAt.addingTimeInterval(1))
-        #expect(run.listed(at: printedAt).projects.map(\.id) == ["goosemates", "sitrep", "switchboard"])
-        #expect(run.nextChange == nil)
+        #expect(run.listed(at: printedAt).projects.map(\.id) == ["goosemates", "sitrep", "switchboard", "kit"])
+        #expect(run.nextChange == Self.ledgerFolds)
     }
 
     @Test func withNoWatchToRunTheHeadAndThePageSayWhy() {
@@ -403,6 +403,10 @@ struct WindowRunTests {
         _ = run.open()
         #expect(run.page(at: printedAt) == .empty("No session is open."))
     }
+
+    /// When Request ledger's turn, ended 12 minutes before the first board, passes the hour and folds into "N earlier":
+    /// the one change by time alone that board holds.
+    private static let ledgerFolds = minutes(before: 12).addingTimeInterval(3600)
 
     /// The first board with no ask waiting and no window stopped: nothing needs Lee.
     private static let allClear = Heard.line(

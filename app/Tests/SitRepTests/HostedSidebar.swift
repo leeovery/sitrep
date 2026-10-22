@@ -27,25 +27,25 @@ struct HostedSidebar {
 
     /// `bottomSafeArea` gives the sidebar the bottom safe area a window on screen has, which an offscreen one does not;
     /// `isKey` tells it its window is key, which one never shown never is; `listed`, a board shown in place of the
-    /// run's, as one the real `watch` never printed.
+    /// run's, as one the real `watch` never printed, folded as the run's.
     init(
         _ run: WindowRun, height: CGFloat = 1069, bottomSafeArea: CGFloat = 0, actions: WindowActions = WindowActions(),
         listAlone: Bool = false, isKey: Bool = false, listed: Listed? = nil
     ) throws {
-        let now = Self.printed
+        let now = run.last.board?.at ?? Self.printed
         let made = { (shown: Sidebar) in
             let side = listAlone
                 ? AnyView(VStack(spacing: 0) {
                     Color.clear.frame(height: WindowStyle.accessory)
-                    BoardList(sidebar: shown, spot: run.spot, filter: run.filter, now: now)
+                    BoardList(sidebar: shown, pick: run.pick, filter: run.filter, now: now)
                 })
-                : AnyView(BoardColumn(sidebar: shown, spot: run.spot, pick: run.pick, filter: run.filter, now: now))
+                : AnyView(BoardColumn(sidebar: shown, pick: run.pick, filter: run.filter, now: now))
             let keyed = isKey ? AnyView(side.environment(\.controlActiveState, .key)) : side
 
             return AnyView(keyed.environment(\.windowActions, actions).environment(\.colorScheme, .dark))
         }
         let sidebar = NSHostingController(
-            rootView: made(listed.map { Sidebar($0, folds: Folds()) } ?? run.sidebar(at: now))
+            rootView: made(listed.map { Sidebar($0, folds: run.folds) } ?? run.sidebar(at: now))
         )
 
         sidebar.sizingOptions = []
@@ -62,9 +62,10 @@ struct HostedSidebar {
         field = Self.views(NSSearchField.self, in: view).first
     }
 
-    /// This board shown in place of what shows, on the same host, as a board changing under a window open on it.
-    func show(_ listed: Listed) {
-        host.rootView = made(Sidebar(listed, folds: Folds()))
+    /// This board shown in place of what shows, on the same host, as a board changing under a window open on it,
+    /// folded as given.
+    func show(_ listed: Listed, folds: Folds = Folds()) {
+        host.rootView = made(Sidebar(listed, folds: folds))
         window.contentView?.layoutSubtreeIfNeeded()
     }
 
@@ -102,14 +103,16 @@ struct HostedSidebar {
         frame(of: view).minY
     }
 
-    /// The first board `watch` printed, unless given another it printed, the window open on it.
-    static func opened(_ line: String = Lines.watch[0]) -> WindowRun {
+    /// The first board `watch` printed, unless given another it printed, the window open on it, folded as given, its
+    /// wall clock at the moment the line was printed, unless given another.
+    static func opened(_ line: String = Lines.watch[0], folds: Folds = Folds(), wall: Date? = nil) -> WindowRun {
         var last = LastBoard()
-        let run = WindowRun()
+        let at = (try? Board.read(line).at) ?? printed
+        let run = WindowRun(folds: folds, wall: { wall ?? at })
 
         last.begin()
-        _ = last.hear(.line(line), at: printed)
-        _ = run.show(last, at: printed, reducesMotion: false)
+        _ = last.hear(.line(line), at: at)
+        _ = run.show(last, at: at, reducesMotion: false)
         _ = run.open()
         return run
     }

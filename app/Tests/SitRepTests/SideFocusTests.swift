@@ -357,10 +357,10 @@ private struct Sides {
         sidebar.rootView = Column(pick: pick, filter: filter, asked: asked)
     }
 
-    /// The board's list as the real `watch` first printed it.
+    /// The board's list as the real `watch` first printed it, Projects open, Kit's row its last.
     fileprivate static let sidebar = {
         var last = LastBoard()
-        let run = WindowRun()
+        let run = WindowRun(folds: Folds(projects: false), wall: { HostedSidebar.printed })
 
         last.begin()
         _ = last.hear(.line(Lines.watch[0]), at: Date())
@@ -456,10 +456,7 @@ private struct Column: View {
     let asked: Asked
 
     var body: some View {
-        BoardColumn(
-            sidebar: Sides.sidebar, spot: pick.flatMap { $0 == .settings ? nil : .board($0) }, pick: pick, filter: filter,
-            now: Date()
-        )
+        BoardColumn(sidebar: Sides.sidebar, pick: pick, filter: filter, now: Date())
             .environment(\.windowActions, WindowActions(
                 pick: { [asked] in asked.picks.append($0) }, openFirstMatch: { [asked] in asked.opens += 1 }
             ))

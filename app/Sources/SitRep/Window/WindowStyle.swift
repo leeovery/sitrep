@@ -83,25 +83,33 @@ enum WindowStyle {
     static let ruleGap: CGFloat = 11.5
     /// The list's last row, 12 over the foot's rule.
     static let listBottom: CGFloat = 12
-    /// A session's row, the sidebar's medium row; a session's row under Needs you, the system's two-line row, its
-    /// words 4 from its top; a heading's row, 10 under what is before it: the list's top, the rows before it, or the
-    /// rule after Needs you.
-    static let rowHeight: CGFloat = 32
+    /// A row of Needs you or Working, the system's two-line row, its words 4 from its top; a row of one line, as board D
+    /// sets Your turn's, "N earlier" and a project's; a heading's row, 10 under what is before it: the list's top, the
+    /// rows before it, or the rule after Needs you.
     static let twoLineHeight: CGFloat = 39
     static let twoLineTop: CGFloat = 4
+    static let oneLineHeight: CGFloat = 28
     /// A Needs you row's lines waiting on Lee, 3 apart, as board D sets several.
     static let waitingGap: CGFloat = 3
     static let headingHeight: CGFloat = 24
     static let headingGap: CGFloat = 10
-    /// A heading's words end 2 inside its selection, 4 past a row's.
+    /// A heading's words, and "N earlier"'s chevron, end 2 inside the selection, 4 past a row's.
     static let headingTrailing: CGFloat = 2
+    /// A heading's count, 2 more after its name than the row's gap, so 6.
+    static let countGap: CGFloat = 2
     /// A row's mark, in its slot, the gap after it to the words, and a heading's chevron in its slot.
     static let slot = CGSize(width: 26, height: 16)
     static let slotGap: CGFloat = 4
     static let chevronSlot = CGSize(width: 15, height: 24)
-    /// The selection's corners: a row's, as drawn, and a heading's, which SitRep draws (`FoldHeading`).
+    /// A working row's verb, and what it acts on 5 after it.
+    static let verbGap: CGFloat = 5
+    /// A your-turn row's project, 6 more after its words than the row's gap, and its time's lane.
+    static let turnProjectGap: CGFloat = 6
+    static let turnTimeLane: CGFloat = 30
+    /// "N earlier"'s projects, 5 more after "8 earlier" than the row's gap.
+    static let earlierProjectsGap: CGFloat = 5
+    /// The selection's corners, as drawn.
     static let rowRadius: CGFloat = 9
-    static let headingRadius: CGFloat = 8
     /// The sidebar's words: a title's, 13 with its tracking; a heading's, a row's project line and a count's, 11.
     static let titleSize: CGFloat = 13
     static let titleTracking: CGFloat = -0.01
@@ -137,30 +145,35 @@ enum WindowStyle {
         twoLineHeight + (titleLine + waitingGap) * CGFloat(max(0, lines - 1))
     }
 
-    /// A Needs you row's words of a tone on the accent of its pick, as board D draws it: the words white, the rest,
-    /// its second line and its ages among them, white at 80%.
+    /// A row's words of a tone on the accent of its pick, as board D draws it: the words white, the rest, its second
+    /// line and its ages among them, white at 80%.
     static func picked(_ tone: Tone) -> Color {
         tone == .text ? .white : .white.opacity(0.8)
     }
 
-    /// The sidebar's words of a tone, in the system's label colours, which the list's emphasized selection turns white
-    /// by itself.
-    static func label(_ tone: Tone) -> HierarchicalShapeStyle {
+    /// The sidebar's words of a tone: in the system's label colours, white at 85%, 55% and 25%, and between the last
+    /// two board D's white at 35%.
+    static func label(_ tone: Tone) -> AnyShapeStyle {
         switch tone {
-        case .text: .primary
-        case .soft: .secondary
-        case .faint: .tertiary
+        case .text: AnyShapeStyle(.primary)
+        case .soft: AnyShapeStyle(.secondary)
+        case .dim: AnyShapeStyle(dim)
+        case .faint: AnyShapeStyle(.tertiary)
         }
     }
+
+    /// Board D's white at 35%, a your-turn row's project and a working row's subject; and at 30%, a heading's count,
+    /// but Needs you's.
+    static let dim = Color.white.opacity(0.35)
+    static let count = Color.white.opacity(0.3)
 
     /// The working mark's track in the sidebar, as drawn.
     static let sidebarTrack = Color.white.opacity(0.15)
     /// On its own work, the sidebar's dotted ring, from Paper's board D.
     static let sidebarDotted = Color.white.opacity(0.45)
 
-    /// The system's selection, as SitRep draws it where no list does, on a heading, which the list will not select
-    /// (`FoldHeading`), and on Settings at the foot (`SettingsFooter`): the accent's while it has the key window's
-    /// focus, else the system's grey; drawn as a still, the stand-in.
+    /// The system's selection, as SitRep draws it where no list does, on Settings at the foot (`SettingsFooter`): the
+    /// accent's while it has the key window's focus, else the system's grey; drawn as a still, the stand-in.
     static func selection(isEmphasized: Bool, isStill: Bool) -> Color {
         if isStill {
             return stillSelection
