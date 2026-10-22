@@ -44,9 +44,11 @@ import {
   META,
   MIN,
   park,
+  reopen,
   reply,
   resolve,
   T0,
+  unfinish,
   W1,
   W2,
   yesAsk,
@@ -256,6 +258,88 @@ test('a reply in flight its item takes no more is left out, Claude closing the a
     expect(askIn(finished, 'k1').replies, when).toEqual([])
     expect([finished.waiting, waitingOnLee(finished)], when).toEqual([0, []])
   }
+})
+
+/** The send's lines as the window writes them down, after everything else: its reply and the mark naming it. */
+const writtenDown = (body: Body): Line[] => [
+  [NOW - 5_000, body],
+  [NOW - 5_000, delivered('r1')],
+]
+
+/** Lines while the send waits out Claude's turn: the claim at CLAIMED, then these, a few seconds apart. */
+const whileWaiting = (...bodies: Body[]): Line[] =>
+  bodies.map((body, i): Line => [CLAIMED + (i + 1) * 10_000, body])
+
+test('a close or a finish undone while the send waits leaves its reply on its way: the ask waits on Lee no more and takes no second answer, and its lines settle it once written', () => {
+  const cases = {
+    'resolved, then reopened': whileWaiting(resolve('k1'), reopen('k1')),
+    'finished, then taken up again': whileWaiting(finish('claude'), unfinish()),
+  }
+
+  for (const [what, during] of Object.entries(cases)) {
+    const waiting = sessionOf([REVIEW, ...during], windowOn(W1, sending(YES)))
+    const written = sessionOf(
+      [REVIEW, ...during, ...writtenDown(reply('r1', 'k1', 'yes'))],
+      windowOn(W1, sending(YES)),
+    )
+
+    expect(askIn(waiting, 'k1').answerOnItsWay?.id, what).toBe('r1')
+    expect(needingLee(waiting), what).toEqual(NONE)
+    expect(checkAnswer(waiting, { ask: 'k1', answer: 'Approve' }), what).toEqual({
+      ok: false,
+      error: 'An answer to k1 is on its way already.',
+    })
+    expect(askIn(written, 'k1').state, what).toBe('closed')
+    expect(
+      askIn(written, 'k1').replies.map(each => [each.id, each.delivery]),
+      what,
+    ).toEqual([['r1', 'delivered']])
+  }
+})
+
+test('an edit leaving the reply in flight unfit leaves it out, the ask waiting on Lee; one making it fit again has it on its way, and its lines settle the ask once written', () => {
+  const toChoice: Body = {
+    type: 'edit',
+    item: 'k1',
+    changes: { wants: 'choice', options: ['A', 'B'] },
+  }
+  const toYes: Body = { type: 'edit', item: 'k1', changes: { wants: 'yes', yes: 'Approve' } }
+  const unfit = sessionOf([REVIEW, ...whileWaiting(toChoice)], windowOn(W1, sending(YES)))
+  const fitAgain = sessionOf([REVIEW, ...whileWaiting(toChoice, toYes)], windowOn(W1, sending(YES)))
+  const written = sessionOf(
+    [REVIEW, ...whileWaiting(toChoice, toYes), ...writtenDown(reply('r1', 'k1', 'yes'))],
+    windowOn(W1, sending(YES)),
+  )
+
+  expect(askIn(unfit, 'k1').replies).toEqual([])
+  expect(unfit.waiting).toBe(1)
+  expect(askIn(fitAgain, 'k1').answerOnItsWay?.id).toBe('r1')
+  expect(needingLee(fitAgain)).toEqual(NONE)
+  expect(askIn(written, 'k1').state).toBe('closed')
+})
+
+test('an answer in flight barred by an inbox answer comes back on its way once that answer goes void, and its lines settle the ask once written', () => {
+  const IGNORE = { id: 'r1', item: 'k1', verdict: 'ignore' } as const
+  const toWords: Body = { type: 'edit', item: 'k1', changes: { wants: 'words' } }
+  const inbox = { [CLI]: file([CLAIMED - 30_000, reply('r9', 'k1', 'yes')]) }
+  const barred = sessionOf([REVIEW], windowOn(W1, sending(IGNORE)), inbox)
+  const unbarred = sessionOf(
+    [REVIEW, ...whileWaiting(toWords)],
+    windowOn(W1, sending(IGNORE)),
+    inbox,
+  )
+  const written = sessionOf(
+    [REVIEW, ...whileWaiting(toWords), ...writtenDown(reply('r1', 'k1', 'ignore'))],
+    windowOn(W1, sending(IGNORE)),
+    inbox,
+  )
+
+  expect(askIn(barred, 'k1').answerOnItsWay?.id).toBe('r9')
+  expect(askIn(barred, 'k1').replies.map(each => each.id)).toEqual(['r9'])
+  expect(unbarred.replies.find(each => each.id === 'r9')?.voided).toBe('changed')
+  expect(askIn(unbarred, 'k1').answerOnItsWay?.id).toBe('r1')
+  expect(needingLee(unbarred)).toEqual(NONE)
+  expect(askIn(written, 'k1').state).toBe('ignored')
 })
 
 test("a parked item's pick-up in flight is on its way from the claim, and bars a second", () => {

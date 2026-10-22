@@ -909,29 +909,34 @@ Dropped for now (11 October 2026): a macOS notification for asks. Back on
   the session it holds carries (`sending`) from the claim until the claim
   ends, written down or let go. A load's first heartbeat says the send
   `$.state` holds, so a reload mid-send never drops it for a moment. Every
-  reader folds them in among the session's lines in the order every reader
-  reads in, as lines of their window's dated at the claim (after the
-  window's own file and letters at that moment), each reaching its item as
-  it then stands, as a reply on its way from a live window: an answer or a
-  comment, the ask waits on Lee no more, and the first answer on its way
-  bars any later, whatever its source, so an inbox answer written after the
-  claim is barred by it and one written before bars it, and of two windows'
-  sends the earlier claim wins; a comment bars nothing. One whose line is
-  written by then is that line, so between the lines going down and the
-  claim ending nothing reads twice and nothing drops out; one its item takes
-  no more, or that goes void while the send waits (Claude closing the item,
-  the session finished, another answer delivered), is left out, as its
-  lines, once written, would settle it. They are no reply of the session's
-  own: no inbox delivers them, and Claude's reads (the board text,
-  `toldSummary`) still have the ask waiting on Lee until it is delivered.
-  The inbox's message says nothing there, its replies on their way in the
-  inbox already; nor does a send to a session the window no longer holds,
-  whose heartbeat there let go. Refused or never taken, the claim ends and
-  the ask waits on Lee again; the window gone, its heartbeat goes stale and
-  the same follows, within 90 seconds. The window itself keeps the claim it
-  last set for its heartbeat, reading `$.state` only the first time a load
-  needs it, since a tool call's long dispatch reads it as it stood when the
-  call began.
+  reader folds them in among the session's lines. Their place among the
+  answers is their claim's: each is read as a line of its window's dated at
+  the claim (after the window's own file and letters at that moment), so the
+  first answer on its way bars any later, whatever its source: an inbox
+  answer written after the claim is barred by it and one written before bars
+  it, of two windows' sends the earlier claim wins, and one barred by an
+  answer that later goes void comes back on its way; a comment bars nothing.
+  Whether its item takes it at all is judged as the item stands once every
+  line is read, since its line, once written, is read after all of them:
+  nothing the lines say while the send waits voids it, so a close, a finish
+  or an edit undone since (a reopen, an unfinish, an edit back) leaves it on
+  its way, and the ask takes no second answer, while one that still stands
+  (the item closed, the session finished, the reply fitting the item no
+  more) leaves it out, what it barred reaching the item again. While on its
+  way, an answer or a comment, the ask waits on Lee no more. One whose line
+  is written by then is that line, so between the lines going down and the
+  claim ending nothing reads twice and nothing drops out. They are no reply
+  of the session's own: no inbox delivers them, and Claude's reads (the
+  board text, `toldSummary`) still have the ask waiting on Lee until it is
+  delivered. The inbox's message says nothing there, its replies on their
+  way in the inbox already; nor does a send to a session the window no
+  longer holds, whose heartbeat there let go. Refused or never taken, the
+  claim ends and the ask waits on Lee again; the window gone, its heartbeat
+  goes stale and the same follows, within 90 seconds. The window itself
+  keeps the claim it last set for its heartbeat, reading `$.state` only the
+  first time a load needs it, and only while it does not know the claim yet:
+  a hook's dispatch, a tool call's or the load's first, reads `$.state` as
+  it stood when the dispatch began, which may predate a send claimed since.
 - **Taken** is heard from the submit resolving with no drop, or from a turn
   starting whose text is the message's; whichever comes first marks it taken
   and writes it down. A load that starts with a message taken but not written

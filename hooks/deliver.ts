@@ -310,10 +310,14 @@ export const writeTaken = async (host: Host) => {
   }
 }
 
-/** A load starting: no quiet of an earlier one runs on, the heartbeat says the message it left in flight, and one it left taken is written down. */
+/**
+ * A load starting: no quiet of an earlier one runs on, and a message it left
+ * taken is written down. The heartbeat learns the message in flight from the
+ * window's first need of it (window.ts), never from this read, which is as
+ * old as the load's first hook and may predate a send claimed since.
+ */
 export const takeUpDelivery = async (host: Host) => {
   quiet?.cancel()
   quiet = undefined
-  say(host, await host.state.inFlight.read())
   await writeTaken(host)
 }

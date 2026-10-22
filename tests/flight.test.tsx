@@ -14,8 +14,7 @@ import { expect, test, tier } from 'claude-code/testing'
 import { parseEntries, parsePresence, sessionPaths, type SessionPaths } from '../core'
 import { QUIET_MS } from '../hooks/deliver'
 import { WATCH_MS } from '../hooks/window'
-import type { SitrepInFlight } from '../types'
-import { file, MIN, reply, SENDER, SLOW, T0, W1 } from './support'
+import { file, MIN, reply, SENDER, SLOW, W1 } from './support'
 import { postedId, PROJECT, CONVERSATION, ROOT, startedId, world } from './world'
 
 tier('user')
@@ -374,32 +373,28 @@ test('a send whose window has moved to another session is said in neither heartb
   turn.end()
 })
 
-test('a load taking up a send left in flight has its heartbeat say it', async ($, on) => {
-  let left: SitrepInFlight | undefined
+test('a load whose read of $.state predates a send claimed since keeps the newer claim in the heartbeat', async ($, on) => {
+  let isStale = false
 
+  // session.start reads $.state as it stood when its dispatch began: before the send.
   on('state.get', { plugin: 'sitrep', key: ['inFlight'] }, ($, e, next) =>
-    left === undefined ? next(e) : { value: { value: left, version: 1 } },
+    isStale ? { value: { value: null, version: 0 } } : next(e),
   )
 
   const w = world($, on)
-  const { id: session, paths } = await w.begin()
-  const id = postedId(await w.call('ask', REVIEW))
+  const { paths, id, turn, claimedAt } = await sentHeld(w)
+  const [carried] = w.state.inFlight?.replies ?? []
 
-  left = {
-    source: 'send',
-    project: PROJECT.key,
-    session,
-    writer: W1,
-    text: MESSAGE,
-    replies: [{ type: 'reply', id: 'r7', item: id, verdict: 'yes' }],
-    claimedAt: T0,
-    isTaken: false,
-  }
-  expect(sendingIn(w, paths)).toBeUndefined()
-
+  isStale = true
   await $.session.start(CONVERSATION)
+  isStale = false
   await w.clock.advance(WATCH_MS)
 
-  expect(sendingIn(w, paths)).toEqual({ at: T0, replies: [{ id: 'r7', item: id, verdict: 'yes' }] })
+  expect(sendingIn(w, paths)).toEqual({
+    at: claimedAt,
+    replies: [{ id: carried?.id, item: id, verdict: 'yes' }],
+  })
   expect(w.state.board?.waiting).toBe(0)
+
+  turn.end()
 })
