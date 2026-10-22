@@ -36,7 +36,7 @@ struct SettingsFooterTests {
         let side = try HostedSidebar(HostedSidebar.opened(), height: 400, bottomSafeArea: bottomSafeArea)
         let scroll = try Self.scrolledToItsEnd(side)
         let last = try #require(side.rows.last)
-        let rule = try side.footRow().minY - WindowStyle.footerTop - WindowStyle.footerRule
+        let rule = try side.footRow().minY - WindowStyle.footerTop - WindowStyle.rule
 
         #expect(side.frame(of: scroll).maxY == rule)
         #expect(rule - last.maxY == 12)

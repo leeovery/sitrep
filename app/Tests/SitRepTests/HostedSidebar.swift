@@ -22,24 +22,30 @@ struct HostedSidebar {
     let board: NSTableView
     let foot: SettingsFootControl?
     let field: NSSearchField?
+    private let host: NSHostingController<AnyView>
+    private let made: (Sidebar) -> AnyView
 
     /// `bottomSafeArea` gives the sidebar the bottom safe area a window on screen has, which an offscreen one does not;
-    /// `isKey` tells it its window is key, which one never shown never is.
+    /// `isKey` tells it its window is key, which one never shown never is; `listed`, a board shown in place of the
+    /// run's, as one the real `watch` never printed.
     init(
         _ run: WindowRun, height: CGFloat = 1069, bottomSafeArea: CGFloat = 0, actions: WindowActions = WindowActions(),
-        listAlone: Bool = false, isKey: Bool = false
+        listAlone: Bool = false, isKey: Bool = false, listed: Listed? = nil
     ) throws {
         let now = Self.printed
-        let shown = run.sidebar(at: now)
-        let side = listAlone
-            ? AnyView(VStack(spacing: 0) {
-                Color.clear.frame(height: WindowStyle.accessory)
-                BoardList(sidebar: shown, spot: run.spot, filter: run.filter, now: now)
-            })
-            : AnyView(BoardColumn(sidebar: shown, spot: run.spot, pick: run.pick, filter: run.filter, now: now))
-        let keyed = isKey ? AnyView(side.environment(\.controlActiveState, .key)) : side
+        let made = { (shown: Sidebar) in
+            let side = listAlone
+                ? AnyView(VStack(spacing: 0) {
+                    Color.clear.frame(height: WindowStyle.accessory)
+                    BoardList(sidebar: shown, spot: run.spot, filter: run.filter, now: now)
+                })
+                : AnyView(BoardColumn(sidebar: shown, spot: run.spot, pick: run.pick, filter: run.filter, now: now))
+            let keyed = isKey ? AnyView(side.environment(\.controlActiveState, .key)) : side
+
+            return AnyView(keyed.environment(\.windowActions, actions).environment(\.colorScheme, .dark))
+        }
         let sidebar = NSHostingController(
-            rootView: keyed.environment(\.windowActions, actions).environment(\.colorScheme, .dark)
+            rootView: made(listed.map { Sidebar($0, folds: Folds()) } ?? run.sidebar(at: now))
         )
 
         sidebar.sizingOptions = []
@@ -48,10 +54,18 @@ struct HostedSidebar {
         sidebar.view.additionalSafeAreaInsets = NSEdgeInsets(top: 0, left: 0, bottom: bottomSafeArea, right: 0)
         window.contentView?.layoutSubtreeIfNeeded()
         view = sidebar.view
+        host = sidebar
+        self.made = made
 
         board = try #require(Self.views(NSTableView.self, in: view).first)
         foot = Self.views(SettingsFootControl.self, in: view).first
         field = Self.views(NSSearchField.self, in: view).first
+    }
+
+    /// This board shown in place of what shows, on the same host, as a board changing under a window open on it.
+    func show(_ listed: Listed) {
+        host.rootView = made(Sidebar(listed, folds: Folds()))
+        window.contentView?.layoutSubtreeIfNeeded()
     }
 
     /// A rect of a view inside the sidebar, in the drawing's terms.

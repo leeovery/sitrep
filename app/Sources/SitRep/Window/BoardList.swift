@@ -9,8 +9,9 @@ import SwiftUI
 /// the menu, a resort or a fold. Drawn as a still, its lines one under another, as the list sets them.
 ///
 /// The system's list sets its first row 10 under its top, so it starts 10 higher, over the accessory's last 10, for
-/// its first heading to sit 2 under the accessory as drawn. Scrolled, its rows pass under those 10, where the drawing
-/// clips them: a mask that would clip them there takes the list's own 10 away (measured offscreen).
+/// its first heading's row to start at the accessory's foot, its words 10 under it as every heading's are. Scrolled,
+/// its rows pass under those 10, where the drawing clips them: a mask that would clip them there takes the list's own
+/// 10 away (measured offscreen).
 struct BoardList: View {
     let sidebar: Sidebar
     let spot: Spot?
@@ -63,9 +64,11 @@ struct BoardList: View {
     }
 
     private var lines: some View {
-        ForEach(Array(sidebar.lines.enumerated()), id: \.element.id) { place, line in
+        let ruled = sidebar.ruled
+
+        return ForEach(sidebar.lines) { line in
             SidebarLine(
-                line: line, isFirst: place == 0, spot: spot, isEmphasized: isFocused && activeState == .key,
+                line: line, isRuled: line.id == ruled, spot: spot, isEmphasized: isFocused && activeState == .key,
                 filter: filter, now: now
             )
             .id(line.id)

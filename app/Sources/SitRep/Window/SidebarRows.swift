@@ -6,8 +6,8 @@ import SwiftUI
 /// colours, so the list's emphasized selection turns them white by itself; its orange stays orange.
 struct SidebarLine: View {
     let line: Sidebar.Line
-    /// The first in the list, whose heading sits 2 under its top, where a later one sits 10 under the rows before it.
-    let isFirst: Bool
+    /// The first line after Needs you, which the rule after it sits over (`Sidebar.ruled`).
+    let isRuled: Bool
     let spot: Spot?
     /// The list has the key window's focus, so a selection shows in the accent.
     let isEmphasized: Bool
@@ -17,10 +17,10 @@ struct SidebarLine: View {
     var body: some View {
         switch line {
         case .needsYou:
-            NeedsYouHeading(gap: gap).sidebarCell()
+            NeedsYouHeading().sidebarCell()
         case let .heading(heading):
             FoldHeading(
-                heading: heading, gap: gap, isPicked: line.spot.map { $0 == spot } ?? false,
+                heading: heading, isRuled: isRuled, isPicked: line.spot.map { $0 == spot } ?? false,
                 isEmphasized: isEmphasized, filter: filter
             )
         case let .asking(row):
@@ -43,23 +43,17 @@ struct SidebarLine: View {
             content.sidebarRow(place, picked: spot, washed: washed, now: now)
         }
     }
-
-    private var gap: CGFloat {
-        isFirst ? WindowStyle.firstHeadingGap : WindowStyle.headingGap
-    }
 }
 
 /// "Needs you", over the sessions with an ask: plain words, which neither fold nor pick, nor change under the pointer.
 private struct NeedsYouHeading: View {
-    let gap: CGFloat
-
     var body: some View {
         Text(Words.needsYou)
             .font(WindowStyle.ui(WindowStyle.smallSize, .semibold))
             .foregroundStyle(.secondary)
             .lineLimit(1)
             .frame(maxWidth: .infinity, minHeight: WindowStyle.headingHeight, alignment: .leading)
-            .padding(.top, gap)
+            .padding(.top, WindowStyle.headingGap)
             .accessibilityAddTraits(.isHeader)
             .selectionDisabled()
     }
@@ -68,10 +62,13 @@ private struct NeedsYouHeading: View {
 /// A project's heading, or the quiet projects': its name, while folded the orange count of its sessions with an ask,
 /// and a chevron saying which way it is, faint, a step brighter under the pointer. A click anywhere on it folds or
 /// unfolds what is under it, and never moves the pick. The list will not select a row the pointer cannot pick, so
-/// while its project's page shows it draws the system's selection itself, its words white on the accent.
+/// while its project's page shows it draws the system's selection itself, its words white on the accent. The first
+/// after Needs you carries the rule after it, 11.5 under Needs you's last row and 10 over its own words, drawn behind
+/// the row so the list adds no line of its own, whose insets a live window could move; the pointer, a click and
+/// VoiceOver know only the heading's 24.
 struct FoldHeading: View {
     let heading: Sidebar.Heading
-    let gap: CGFloat
+    let isRuled: Bool
     let isPicked: Bool
     let isEmphasized: Bool
     let filter: Filter
@@ -107,7 +104,20 @@ struct FoldHeading: View {
         .accessibilityAction { act.fold(heading.fold) }
         .padding(.top, gap)
         .selectionDisabled()
-        .sidebarCell { selection }
+        .sidebarCell {
+            ZStack(alignment: .top) {
+                if isRuled {
+                    SidebarRule().padding(.top, WindowStyle.ruleGap)
+                }
+                selection
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        }
+    }
+
+    /// What is over its words: 10, or after Needs you its rule, 11.5 under the rows before it, and 10 more.
+    private var gap: CGFloat {
+        isRuled ? WindowStyle.ruleGap + WindowStyle.rule + WindowStyle.headingGap : WindowStyle.headingGap
     }
 
     /// The selection's shape, on the heading's own row under its gap, in from the sidebar's edges.
@@ -120,6 +130,17 @@ struct FoldHeading: View {
             .frame(height: WindowStyle.headingHeight)
             .frame(maxHeight: .infinity, alignment: .bottom)
         }
+    }
+}
+
+/// The sidebar's rule: 0.5 in the separator's colour, inside the sidebar's 10 either side; nothing to VoiceOver.
+struct SidebarRule: View {
+    var body: some View {
+        Rectangle()
+            .fill(WindowStyle.separator)
+            .frame(height: WindowStyle.rule)
+            .padding(.horizontal, WindowStyle.selectionInset)
+            .accessibilityHidden(true)
     }
 }
 

@@ -209,6 +209,23 @@ public struct Sidebar: Equatable, Sendable {
     /// It lists nothing.
     public var isEmpty: Bool { lines.isEmpty }
 
+    /// The line the rule after Needs you sits over: the first after its rows, while Needs you shows and a line follows
+    /// it.
+    public var ruled: Line.ID? {
+        guard lines.first == .needsYou else {
+            return nil
+        }
+
+        let after = lines.dropFirst().first { line in
+            guard case .asking = line else {
+                return true
+            }
+            return false
+        }
+
+        return after?.id
+    }
+
     /// The rows a click or an arrow key picks, in order: every row but the headings.
     public var picks: [Spot] {
         lines.compactMap { line in
