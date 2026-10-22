@@ -3,11 +3,10 @@ import SitRepPanel
 import SwiftUI
 
 /// What stays on screen: one card, the Show row, then the rows that apply to the choice (`StaysOnScreen`), each
-/// arriving and leaving by the system's own transition, at once under reduced motion; with Nothing, the Show row alone.
+/// arriving and leaving at once, the card taking its new height with them; with Nothing, the Show row alone.
 struct StaysOnScreenSection: View {
     let settings: SettingsModel
 
-    @Environment(\.reducesWindowMotion) private var reducesMotion
     @State private var isSliding = false
 
     var body: some View {
@@ -16,8 +15,6 @@ struct StaysOnScreenSection: View {
         SettingsSection(name: "What stays on screen") {
             SettingsCard {
                 ShowRow(show: preferences.binding(\.show))
-                    // its tiles change at once, as Appearance's do, while the card and the rows under it move
-                    .transaction { $0.animation = nil }
                 ForEach(rows, id: \.self) { row in
                     VStack(spacing: 0) {
                         CardSeparator()
@@ -26,7 +23,6 @@ struct StaysOnScreenSection: View {
                 }
             }
         }
-        .animation(reducesMotion ? nil : .default, value: rows)
     }
 
     @ViewBuilder private func row(_ row: StaysOnScreen.Row) -> some View {

@@ -70,9 +70,8 @@ struct ShowRowTests {
         }
     }
 
-    /// A choice changes the tiles at once, as Appearance's do, though the rows under Show arrive and leave by the
-    /// system's transition: drawn as soon as Show is the strip, the ring is whole round the strip's picture and gone
-    /// from the notch's.
+    /// A choice changes the tiles at once, as Appearance's do: drawn as soon as Show is the strip, the ring is whole
+    /// round the strip's picture and gone from the notch's.
     @Test func aChoiceChangesTheTilesAtOnce() async throws {
         let page = await Hosted.pageView()
         let hosted = Hosted(PageColumn(page: .settings, now: Date()) { page }, size: CGSize(width: 956, height: 1069))
