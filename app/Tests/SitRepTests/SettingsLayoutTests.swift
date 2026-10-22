@@ -34,8 +34,9 @@ struct SettingsLayoutTests {
         let pixel = 1 / hosted.scale
 
         #expect((Self.edge ... Self.edge + column).isWithinAPixel(of: card, at: hosted.scale))
-        // Edge, Display, Style, Material, Reduce motion; Send Test, Notify me, Notification Settings…; Open at login
-        #expect(controls.count == 9)
+        // Edge, Display, Style, Material, Reduce motion; Send Test, Notify me, Notification Settings…; Your turn folds
+        // after, Open at login
+        #expect(controls.count == 10)
         for control in controls {
             #expect(abs(control.maxX - (Self.edge + column - 10)) < pixel)
         }
@@ -156,7 +157,7 @@ struct SettingsLayoutTests {
     @Test func thePagesCardsStandAtTheirHeights() async throws {
         let drawn = try await Hosted.drawn(width: Self.drawingsPage)
         let spans = drawn.litSpans(atX: Self.edge + 232)
-        let drawing: [ClosedRange<CGFloat>] = [146 ... 480.5, 536.5 ... 686.5, 728.5 ... 833, 889 ... 1032]
+        let drawing: [ClosedRange<CGFloat>] = [146 ... 480.5, 536.5 ... 686.5, 728.5 ... 833, 889 ... 1084.5]
 
         #expect(spans.count == drawing.count)
         for (span, expected) in zip(spans, drawing) {
@@ -223,7 +224,7 @@ struct SettingsLayoutTests {
         #expect(lines(704 - 5).isEmpty)
     }
 
-    @Test(arguments: [(EdgeSettings.Show.notch, 1072.0), (.strip, 1124.5)])
+    @Test(arguments: [(EdgeSettings.Show.notch, 1124.5), (.strip, 1177.0)])
     func thePageEnds40UnderGeneralsCard(show: EdgeSettings.Show, height: CGFloat) async {
         let page = await Hosted.pageView { $0.show = show }
         let size = NSHostingController(rootView: page).sizeThatFits(in: CGSize(width: 704, height: 10_000))
@@ -417,7 +418,9 @@ struct Hosted {
 
     /// Settings, its Mac saying `said`, read as the page reads it as it appears, with a second display.
     static func pageView(
-        said: MacSays = allWell, live: LiveBoard = LiveBoard(), _ change: (inout EdgeSettings) -> Void = { _ in }
+        said: MacSays = allWell, live: LiveBoard = LiveBoard(),
+        defaults: UserDefaults = UserDefaults(suiteName: "com.leeovery.sitrep.layout.\(UUID().uuidString)")!,
+        _ change: (inout EdgeSettings) -> Void = { _ in }
     ) async -> SettingsPage {
         let services = SettingsServices(
             displays: {
@@ -430,7 +433,7 @@ struct Hosted {
             noticeLeave: { said.notices ?? .unasked }, askForNotices: {}, login: { said.login ?? LoginItem(.notFound) },
             chooseLogin: {}, ghostty: { said.ghostty ?? .unknown }, allowGhostty: { .allowed }, open: { _ in }
         )
-        let preferences = Preferences(UserDefaults(suiteName: "com.leeovery.sitrep.layout.\(UUID().uuidString)")!)
+        let preferences = Preferences(defaults)
         let settings = SettingsModel(preferences: preferences, live: live, services: services)
 
         preferences.edit(change)

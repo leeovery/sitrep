@@ -60,8 +60,9 @@ struct NotchRunTests {
         return CGPoint(x: panel.frame.minX + row.midX, y: panel.frame.minY + row.minY + 10 - run.scroll)
     }
 
+    /// The rows' keys, in the list's order.
     private static func keys(_ run: NotchRun) -> [String] {
-        run.list.content.entries.map(\.item.key)
+        run.list.content.entries.filter { $0.item.session != nil }.map(\.item.key)
     }
 
     @Test func aPressGoesToTheRowUnderItThoughARowCameInAboveItSinceTheModelsLastFrame() throws {

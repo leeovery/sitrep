@@ -52,3 +52,30 @@ public typealias SavedEdgeSettings = SavedSettings<EdgeSettings>
 extension EdgeSettings: SavedValue {
     public static let key = "edge"
 }
+
+/// The card's sections Lee folded, kept across opens and launches as one value of its own under the key "card". "N
+/// earlier" open is not kept: it is folded each time the card comes out.
+public struct CardSettings: SavedValue {
+    public static let key = "card"
+
+    public var folded: Set<BoardSection> = []
+
+    public init() {}
+
+    public init(folded: Set<BoardSection>) {
+        self.folded = folded
+    }
+
+    public init(from decoder: any Decoder) {
+        let defaults = CardSettings()
+        guard let given = try? decoder.container(keyedBy: CodingKeys.self) else {
+            self = defaults
+            return
+        }
+
+        // one by one, so a section another version saved that this one doesn't know leaves the rest folded
+        let saved: [String] = given.value(.folded, or: [])
+
+        folded = Set(saved.compactMap(BoardSection.init(rawValue:)))
+    }
+}

@@ -166,8 +166,7 @@ public struct Session: Equatable, Sendable {
     /// A click on it jumps, unless no window holds it.
     public var jumps: Bool { !away }
 
-    /// Whether it is among needs you, over the hairline: on the card, the section a place is held in, a row crossing
-    /// the hairline leaving its place for its new one.
+    /// Whether it is among needs you, over the hairline.
     public var needsLee: Bool { kind == .needs }
 
     /// How long it has stood where it does at this time on the wall clock: its oldest line's time.
@@ -223,13 +222,18 @@ public enum Age: Equatable, Sendable {
     }
 }
 
-/// One item in the panel's list, below its head: a session's row, or the hairline under what needs Lee.
+/// One item in the panel's list, below any head: a session's row, drawn whole or, in Your turn on the card, on one line;
+/// a section's eyebrow; Your turn's "N earlier"; or the hairline after what needs Lee.
 public enum Item: Equatable, Sendable {
     case session(Session)
+    /// A your-turn row on the card, on one line.
+    case turn(Session)
+    case eyebrow(Eyebrow)
+    case earlier(Earlier)
     case divider
 
     /// The panel's list of these sessions, in the order given, which is core's: the hairline under the needs you that
-    /// lead it, when anything follows them.
+    /// lead it, when anything follows them. The menu's; the card's is `card`.
     public static func list(_ sessions: [Session]) -> [Item] {
         let needs = sessions.prefix(while: \.needsLee).count
         var items = sessions.map(Item.session)
@@ -239,38 +243,63 @@ public enum Item: Equatable, Sendable {
         return items
     }
 
-    /// The session it shows; nil for the divider.
+    /// The session its row shows; nil for any other item.
     public var session: Session? {
-        if case let .session(session) = self {
-            return session
+        switch self {
+        case let .session(session), let .turn(session): session
+        case .eyebrow, .earlier, .divider: nil
         }
-        return nil
     }
 
-    /// What it is, the same for as long as it shows: its session's id, marked as needs you over the hairline, so a row
-    /// crossing it folds away from one place and unfolds in the other, as two rows; or the one divider's.
+    /// What it is, the same for as long as it shows: a row by its session, marked as needs you or, on one line, as your
+    /// turn, so a row changing section folds away from one place and unfolds in the other, as two rows; an eyebrow by
+    /// its section; "N earlier" and the divider by themselves.
     public var key: String {
-        guard let session else {
-            return "divider"
+        switch self {
+        case let .session(session): session.needsLee ? "needs:\(session.id)" : session.id
+        case let .turn(session): "turn:\(session.id)"
+        case let .eyebrow(eyebrow): "eyebrow:\(eyebrow.section.rawValue)"
+        case .earlier: "earlier"
+        case .divider: "divider"
         }
-
-        return session.needsLee ? "needs:\(session.id)" : session.id
     }
 
-    /// The gap below a row, inside its item.
+    /// The gap below a row drawn whole, inside its item.
     public static let rowGap = 4.0
 
     /// How far down each line after a row's first sits under the one before it: its 18, and 4 between them, board D's.
     public static let lineStep = 22.0
 
-    /// Its height, unfolded, as its rows are drawn: a row, 10 + its lines' 18 each, 4 apart, and the 16 of its second
-    /// line + 11, and the gap below it; the divider's 1 between 2 and 6.
-    public var height: Double {
-        guard let session else {
-            return 9
-        }
+    /// Board D's: a your-turn row, with no gap, so the lifts of two meet; an eyebrow, under the room over it; and "N
+    /// earlier", under the 2 over it.
+    public static let turnHeight = 30.0, eyebrowHeight = 28.0, earlierHeight = 34.0, earlierAbove = 2.0
 
-        return 55 + Self.lineStep * Double(session.lines.count - 1) + Self.rowGap
+    /// Its height, unfolded, as it is drawn: a row whole, 10 + its lines' 18 each, 4 apart, and the 16 of its second
+    /// line + 11, and the gap below it; a your-turn row's 30; an eyebrow's 28 under its room; "N earlier"'s 34 under
+    /// its 2; the divider's 1 between 2 and 6.
+    public var height: Double {
+        switch self {
+        case let .session(session): 55 + Self.lineStep * Double(session.lines.count - 1) + Self.rowGap
+        case .turn: Self.turnHeight
+        case let .eyebrow(eyebrow): eyebrow.above + Self.eyebrowHeight
+        case .earlier: Self.earlierAbove + Self.earlierHeight
+        case .divider: 9
+        }
+    }
+
+    /// The room in its item over what it draws, and under it: what takes no click.
+    public var margins: (above: Double, below: Double) {
+        switch self {
+        case .session: (0, Self.rowGap)
+        case .turn, .divider: (0, 0)
+        case let .eyebrow(eyebrow): (eyebrow.above, 0)
+        case .earlier: (Self.earlierAbove, 0)
+        }
+    }
+
+    /// What it draws, in its item, which is this wide: its height less its margins.
+    public func box(width: Double) -> CGRect {
+        CGRect(x: 0, y: margins.above, width: width, height: height - margins.above - margins.below)
     }
 }
 
@@ -293,8 +322,8 @@ public struct Head: Equatable, Sendable {
     }
 }
 
-/// The panel's content, as the view lays it out: the head's height, and each item with its own. The scroll's padding
-/// is the prototype's, above the head and below the last item.
+/// The panel's content, as the view lays it out: the head's height, none where it has none, and each item with its
+/// own. The scroll's padding is the prototype's, above the head and below the last item.
 public struct Content: Equatable, Sendable {
     /// An item and its height, which a fold shrinks; how opaque it is as it fades in or folds away; and whether it is
     /// folding away, when it takes no click.
@@ -315,6 +344,7 @@ public struct Content: Equatable, Sendable {
         public var jumps: Bool { !isGoing && item.session?.jumps == true }
     }
 
+    /// The head's line and the room under it; 0 with no head, as on the card with its sections.
     public var headHeight: Double
     public var entries: [Entry]
 
@@ -327,16 +357,23 @@ public struct Content: Equatable, Sendable {
     public var items: [Item] { entries.map(\.item) }
 
     static let paddingTop = 18.0, paddingBottom = 14.0, paddingSide = 14.0
+    /// With no head, board D's padding over the first eyebrow, whose 4 and 28 bring the first row to 44, where it
+    /// stood under the head.
+    static let bareTop = 12.0
 
-    /// The panel's list laid out as its rows are drawn, unfolded, under the head's 16 line and the 10 below it.
-    public init(laying items: [Item]) {
-        self.init(headHeight: Self.headHeight, entries: items.map { Entry($0, height: $0.height) })
+    /// The panel's list laid out as its rows are drawn, unfolded, under the head's 16 line and the 10 below it, or
+    /// with no head.
+    public init(laying items: [Item], headed: Bool = true) {
+        self.init(headHeight: headed ? Self.headHeight : 0, entries: items.map { Entry($0, height: $0.height) })
     }
 
-    static let headHeight = 26.0
+    public static let headHeight = 26.0
+
+    /// Where the first item sits: under the head, inside the scroll's padding, or with none, board D's 12 down.
+    public var top: Double { headHeight > 0 ? Self.paddingTop + headHeight : Self.bareTop }
 
     /// The whole of it, padding and all, before the panel's height caps it: past that, the rows scroll.
-    public var height: Double { Self.paddingTop + headHeight + entries.map(\.height).reduce(0, +) + Self.paddingBottom }
+    public var height: Double { top + entries.map(\.height).reduce(0, +) + Self.paddingBottom }
 
     /// How far down it is scrolled after a scroll of this many points down, in a panel showing this much of it: from
     /// its top to where its last row shows at the panel's foot.
@@ -352,20 +389,25 @@ public struct Content: Equatable, Sendable {
     /// Each item's box, in the content's own frame, under the head and the items before it.
     public func itemFrame(_ index: Int) -> CGRect {
         let above = entries[..<index].map(\.height).reduce(0, +)
-        return CGRect(x: Self.paddingSide, y: headFrame.maxY + above, width: Self.width, height: entries[index].height)
+        return CGRect(x: Self.paddingSide, y: top + above, width: Self.width, height: entries[index].height)
     }
 
-    /// The item whose row holds a point in the content's own frame: never the divider, nor the gap below a row, nor a
-    /// row folding away.
-    public func row(at point: CGPoint) -> Int? {
+    /// The item a click at a point in the content's own frame acts on, where it is drawn: a row, an eyebrow or "N
+    /// earlier"; never the divider, nor the room round an item, nor an item folding away.
+    public func item(at point: CGPoint) -> Int? {
         entries.indices.first { i in
-            guard entries[i].item.session != nil, !entries[i].isGoing else {
+            let item = entries[i].item
+
+            guard item != .divider, !entries[i].isGoing else {
                 return false
             }
 
-            var row = itemFrame(i)
-            row.size.height -= Item.rowGap
-            return row.contains(point)
+            let frame = itemFrame(i), margins = item.margins
+            let drawn = CGRect(
+                x: frame.minX, y: frame.minY + margins.above, width: frame.width,
+                height: max(0, frame.height - margins.above - margins.below)
+            )
+            return drawn.contains(point)
         }
     }
 

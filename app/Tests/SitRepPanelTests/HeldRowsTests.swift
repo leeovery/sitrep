@@ -69,19 +69,43 @@ struct HeldRowsTests {
         #expect(Self.ids(rows) == ["s1", "s2", "s3"])
     }
 
-    /// Your turn to working is a change within a section: in place.
+    /// Working to on its own work is a change within a section, Working: in place.
     @Test func whileItIsOutAChangedRowChangesInPlace() {
         var rows = HeldRows()
-        rows.take(Self.by("s1", "s2", "s3", "s4"))
+        rows.take(Self.by("s1", "s2", "s4", "s5", "s3"))
         rows.hold(true)
-        var prompted = Self.by("s3")[0]
-        prompted.kind = .working
-        prompted.title = "Drawing the strip in Paper"
+        var waiting = Self.by("s4")[0]
+        waiting.kind = .onItsWork
+        waiting.title = "Waiting on "
+        waiting.subject = "3 agents"
 
-        let changed = rows.take(Self.by("s1", "s2", "s4") + [prompted])
+        let changed = rows.take(Self.by("s1", "s2", "s5") + [waiting] + Self.by("s3"))
 
         #expect(changed)
-        #expect(rows.shown == Self.by("s1", "s2") + [prompted] + Self.by("s4"))
+        #expect(rows.shown == Self.by("s1", "s2") + [waiting] + Self.by("s5", "s3"))
+    }
+
+    /// Working to your turn crosses from one section to the next: the row leaves its place in Working for one in Your
+    /// turn, under the your turn core has above it, or at its top.
+    @Test func whileItIsOutARowWhoseTurnEndsTakesItsPlaceInYourTurn() {
+        var rows = HeldRows()
+        rows.take(Self.by("s1", "s4", "s5", "s3", "s6"))
+        rows.hold(true)
+
+        rows.take(Self.by("s1", "s4") + Self.by("s3") + [Self.answered(Self.by("s5")[0])] + Self.by("s6"))
+
+        #expect(Self.ids(rows) == ["s1", "s4", "s3", "s5", "s6"])
+        #expect(HeldRows.section(rows.shown[3]) == .yourTurn)
+    }
+
+    /// The sections' order: Needs you, then Working, on its own work among it, then Your turn.
+    @Test func aRowsPlaceIsHeldInItsSection() {
+        var waiting = Self.by("s4")[0]
+        waiting.kind = .onItsWork
+
+        #expect(Self.by("s1", "s4", "s3").map(HeldRows.section) == [.needsYou, .working, .yourTurn])
+        #expect(HeldRows.section(waiting) == .working)
+        #expect(BoardSection.allCases.sorted() == [.needsYou, .working, .yourTurn])
     }
 
     /// A place is held within its section: a row coming to need Lee, from your turn or from working, leaves its place
@@ -89,12 +113,12 @@ struct HeldRowsTests {
     @Test(arguments: ["s3", "s4"])
     func whileItIsOutARowComingToNeedLeeTakesItsPlaceInNeedsYou(id: String) {
         var rows = HeldRows()
-        rows.take(Self.by("s1", "s2", "s3", "s4", "s5"))
+        rows.take(Self.by("s1", "s2", "s4", "s5", "s3"))
         rows.hold(true)
         var asking = Self.by(id)[0]
         asking.kind = .needs
         asking.title = "Approve the plan"
-        let rest = Self.by("s3", "s4", "s5").filter { $0.id != id }
+        let rest = Self.by("s4", "s5", "s3").filter { $0.id != id }
 
         rows.take(Self.by("s1") + [asking] + Self.by("s2") + rest)
 
@@ -102,12 +126,12 @@ struct HeldRowsTests {
         #expect(Item.list(rows.shown).firstIndex(of: .divider) == 3)
     }
 
-    /// A needs you whose asks are answered leaves its place there, the first or one between, for its place among the
-    /// rest, under the row core has above it: needs you stays together over the hairline.
+    /// A needs you whose asks are answered leaves its place there, the first or one between, for its place in Your
+    /// turn, at its top where core has none above it there: needs you stays together over the hairline.
     @Test(arguments: ["s1", "s2"])
     func whileItIsOutANeedsYouAnsweredLeavesNeedsYouTogether(id: String) {
         var rows = HeldRows()
-        rows.take(Self.by("s1", "s2", "s7", "s3", "s4"))
+        rows.take(Self.by("s1", "s2", "s7", "s4", "s3"))
         rows.hold(true)
         var answered = Self.by(id)[0]
         answered.kind = .turn
@@ -116,7 +140,7 @@ struct HeldRowsTests {
 
         rows.take(needs + Self.by("s4") + [answered] + Self.by("s3"))
 
-        #expect(Self.ids(rows) == needs.map(\.id) + ["s3", "s4", id])
+        #expect(Self.ids(rows) == needs.map(\.id) + ["s4", id, "s3"])
         #expect(Item.list(rows.shown).firstIndex(of: .divider) == 2)
     }
 
@@ -146,14 +170,14 @@ struct HeldRowsTests {
         #expect(Self.needsYouIsTogether(rows))
     }
 
-    /// Core orders needs you anew, s7 first, as s1 is answered: needs you keeps its held order, and s1 comes in among
-    /// the rest under s4, the row core has above it there.
+    /// Core orders needs you anew, s7 first, as s1 is answered: needs you keeps its held order, and s1 comes in at the
+    /// top of Your turn, where core has nothing above it there.
     @Test func whileItIsOutAnAnsweredRowComesInAmongTheRestThoughNeedsYouMoved() {
         let s1 = Self.answered(Self.by("s1")[0])
 
-        let rows = Self.held(Self.by("s1", "s2", "s7", "s3", "s4"), taking: Self.by("s7", "s2", "s4") + [s1] + Self.by("s3"))
+        let rows = Self.held(Self.by("s1", "s2", "s7", "s4", "s3"), taking: Self.by("s7", "s2", "s4") + [s1] + Self.by("s3"))
 
-        #expect(Self.ids(rows) == ["s2", "s7", "s3", "s4", "s1"])
+        #expect(Self.ids(rows) == ["s2", "s7", "s4", "s1", "s3"])
         #expect(Self.needsYouIsTogether(rows))
     }
 
@@ -187,15 +211,15 @@ struct HeldRowsTests {
         #expect(Self.ids(rows) == ["s1", "s3"])
     }
 
-    /// Within its section: s7 under s1 in needs you, s4 under s3 among the rest.
+    /// Within its section: s7 under s1 in needs you, s6 under s3 in Your turn.
     @Test func whileItIsOutANewRowComesInUnderTheRowCoreHasAboveIt() {
         var rows = HeldRows()
         rows.take(Self.by("s1", "s2", "s3"))
         rows.hold(true)
 
-        rows.take(Self.by("s1", "s7", "s2", "s3", "s4"))
+        rows.take(Self.by("s1", "s7", "s2", "s3", "s6"))
 
-        #expect(Self.ids(rows) == ["s1", "s7", "s2", "s3", "s4"])
+        #expect(Self.ids(rows) == ["s1", "s7", "s2", "s3", "s6"])
     }
 
     @Test func whileItIsOutANewRowCoreHasFirstComesInFirst() {

@@ -5,12 +5,15 @@ import SitRepPanel
 /// mono after it and a question's "+2", and its time at the right, the lines 4 apart; its project and session beneath,
 /// or for an away one why a click does nothing; the lift under the pointer, and a new row's wash, the row's as one. A
 /// working row's arc turns and its lead shimmers, its subject still, in the render server. A row on its own work is
-/// still: its dotted ring, and its title, a wake's countdown in it set again as it reads differently.
+/// still: its dotted ring, and its title, a wake's countdown in it set again as it reads differently. A your-turn row
+/// on the card is on one line, as board D draws it: its ring, its words in regular, its project faint at the right of
+/// them, never cut, and its time.
 @MainActor
 final class SessionRow {
     /// The row's box: the item less the gap below it.
     let layer = CALayer()
     let session: Session
+    let isOneLine: Bool
 
     private let at: SessionRowLayout
     private let wash = CALayer()
@@ -24,18 +27,24 @@ final class SessionRow {
     /// What each line's title says after its verb, as last set: a wake's countdown changes it as the clock ticks.
     private var subjects: [String?]
 
-    init(_ session: Session, size: CGSize) {
+    init(_ session: Session, size: CGSize, oneLine: Bool = false) {
+        let project = TextLine.text(session.project, EdgeStyle.sub, EdgeStyle.ink3)
+        let radius = oneLine ? SessionRowLayout.turnRadius : SessionRowLayout.radius
+
         self.session = session
-        at = SessionRowLayout(size: size, lines: session.lines.count)
+        isOneLine = oneLine
+        at = oneLine
+            ? SessionRowLayout(turn: size, project: TextLine.width(project))
+            : SessionRowLayout(size: size, lines: session.lines.count)
         spinner = Self.arc(right: at.age)
         ages = session.lines.map { _ in nil }
         ageTexts = session.lines.map { _ in "" }
         titleLayers = session.lines.map { _ in [] }
         subjects = session.lines.map(\.subject)
         layer.frame = CGRect(origin: .zero, size: size)
-        layer.cornerRadius = SessionRowLayout.radius
+        layer.cornerRadius = radius
         wash.frame = layer.bounds
-        wash.cornerRadius = SessionRowLayout.radius
+        wash.cornerRadius = radius
         wash.backgroundColor = EdgeStyle.wash
         wash.borderColor = EdgeStyle.washRing
         wash.borderWidth = 1
@@ -43,9 +52,16 @@ final class SessionRow {
         layer.addSublayer(wash)
         at.lines.forEach { layer.addSublayer(mark(at: $0.mark)) }
         session.lines.indices.forEach(showTitle)
-        layer.addSublayer(TextLine(TextLine.text(session.sub, EdgeStyle.sub, subColour), in: at.sub))
+        layer.addSublayer(oneLine ? projectLine(project) : TextLine(TextLine.text(session.sub, EdgeStyle.sub, subColour), in: at.sub))
         spinner.layer.isHidden = true
         layer.addSublayer(spinner.layer)
+    }
+
+    /// A one-line row's project in its lane, on its words' baseline.
+    private func projectLine(_ project: NSAttributedString) -> TextLine {
+        let drop = TextLine.drop(of: EdgeStyle.sub, to: EdgeStyle.line, lineHeight: at.sub.height)
+
+        return TextLine(project, in: at.sub.offsetBy(dx: 0, dy: drop))
     }
 
     /// Under the pointer, a row that jumps lifts.
@@ -197,9 +213,9 @@ final class SessionRow {
         return (shimmer.layer, shimmer.width)
     }
 
-    /// A line's title in a colour, its subject in mono after it.
+    /// A line's title in a colour, its subject in mono after it: in medium, or on one line in regular.
     private func titleText(_ line: Session.Line, _ colour: CGColor, subject: Bool = true) -> NSAttributedString {
-        let font = EdgeStyle.title
+        let font = isOneLine ? EdgeStyle.line : EdgeStyle.title
         let text = TextLine.text(line.title, font, colour, kern: EdgeStyle.tightKern(font))
 
         if subject, let code = line.code {
@@ -209,12 +225,12 @@ final class SessionRow {
         return text
     }
 
-    /// A line's mark: needs you an orange dot with its glow, away or not; your turn an open white ring; working the arc
-    /// turning; on its own work the dotted ring, still.
+    /// A line's mark: needs you an orange dot with its glow, away or not; your turn an open white ring, on one line
+    /// board D's 9; working the arc turning; on its own work the dotted ring, still.
     private func mark(at centre: CGPoint) -> CALayer {
         switch session.kind {
         case .needs:
-            let dot = disc(7, at: centre, fill: EdgeStyle.orange)
+            let dot = Self.disc(7, at: centre, fill: EdgeStyle.orange)
 
             dot.shadowColor = EdgeStyle.orange
             dot.shadowOpacity = 0.75
@@ -223,12 +239,7 @@ final class SessionRow {
 
             return dot
         case .turn:
-            let ring = disc(7, at: centre, fill: CGColor.clear)
-
-            ring.borderWidth = 1.5
-            ring.borderColor = EdgeStyle.ink
-
-            return ring
+            return Self.ring(isOneLine ? 9 : 7, at: centre, colour: EdgeStyle.ink)
         case .working:
             return Self.arc(in: CGRect(x: centre.x - 5.5, y: centre.y - 5.5, width: 11, height: 11)).layer
         case .onItsWork:
@@ -253,7 +264,17 @@ final class SessionRow {
         arc(in: CGRect(x: lane.maxX - 11, y: lane.midY - 5.5, width: 11, height: 11))
     }
 
-    private func disc(_ size: CGFloat, at centre: CGPoint, fill: CGColor) -> CALayer {
+    /// An open ring this wide, its stroke 1.5 inside it: your turn's, and "N earlier"'s.
+    static func ring(_ size: CGFloat, at centre: CGPoint, colour: CGColor) -> CALayer {
+        let ring = disc(size, at: centre, fill: CGColor.clear)
+
+        ring.borderWidth = 1.5
+        ring.borderColor = colour
+
+        return ring
+    }
+
+    private static func disc(_ size: CGFloat, at centre: CGPoint, fill: CGColor) -> CALayer {
         let dot = CALayer()
 
         dot.frame = CGRect(x: centre.x - size / 2, y: centre.y - size / 2, width: size, height: size)

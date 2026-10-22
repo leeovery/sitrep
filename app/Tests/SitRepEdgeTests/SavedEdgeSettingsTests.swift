@@ -61,3 +61,38 @@ struct SavedEdgeSettingsTests {
         }
     }
 }
+
+/// The card's folded sections, kept across launches under a key of their own.
+struct CardSettingsTests {
+    private static func withDefaults(_ test: (UserDefaults) throws -> Void) rethrows {
+        let suite = "com.leeovery.sitrep.tests.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suite)!
+
+        defer { defaults.removePersistentDomain(forName: suite) }
+        try test(defaults)
+    }
+
+    @Test func nothingFoldedUntilLeeFoldsIt() {
+        Self.withDefaults { defaults in
+            #expect(SavedSettings<CardSettings>(defaults).read().folded.isEmpty)
+        }
+    }
+
+    @Test func theFoldsAreSavedUnderCardAndReadBack() {
+        Self.withDefaults { defaults in
+            SavedSettings(defaults).save(CardSettings(folded: [.working, .yourTurn]))
+
+            #expect(defaults.data(forKey: "card") != nil)
+            #expect(SavedSettings<CardSettings>(defaults).read().folded == [.working, .yourTurn])
+        }
+    }
+
+    /// A section another version saved that this one doesn't know is passed over, and the folds it knows are kept.
+    @Test func aSectionItDoesNotKnowIsPassedOverAndTheRestKept() {
+        Self.withDefaults { defaults in
+            defaults.set(Data(#"{"folded":["working","projects"]}"#.utf8), forKey: "card")
+
+            #expect(SavedSettings<CardSettings>(defaults).read().folded == [.working])
+        }
+    }
+}

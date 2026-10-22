@@ -19,6 +19,13 @@ final class NotchController: NSObject {
     /// A drag let the notch go: the settings with its new place.
     var onMoved: (EdgeMove) -> Void = { _ in }
 
+    /// How long a your-turn row stays before it folds into "N earlier": the card refolds at once as it changes.
+    var period: FoldPeriod {
+        didSet {
+            wake()
+        }
+    }
+
     private var settings: EdgeSettings
     private var edge: ScreenEdge
     private let run: NotchRun
@@ -39,10 +46,11 @@ final class NotchController: NSObject {
     /// The slow refresh the light breathes on while frames are idle.
     private static let lightRate = CAFrameRateRange(minimum: 20, maximum: 30, preferred: 30)
 
-    init(_ settings: EdgeSettings, on display: Display) {
+    init(_ settings: EdgeSettings, period: FoldPeriod, on display: Display, defaults: UserDefaults = .standard) {
         self.settings = settings
+        self.period = period
         edge = ScreenEdge(display, settings)
-        run = NotchRun(at: Displays.now, in: Self.setting(edge, settings))
+        run = NotchRun(at: Displays.now, in: Self.setting(edge, settings, period), kept: SavedSettings(defaults))
         window = EdgeWindow(frame: edge.window, view: surface)
         super.init()
 
@@ -121,14 +129,14 @@ final class NotchController: NSObject {
     private func moment(at time: Double = Displays.now, pointer: CGPoint? = nil) -> NotchRun.Moment {
         NotchRun.Moment(
             time: time, pointer: pointer ?? edge.stagePoint(NSEvent.mouseLocation), pointerAt: Displays.now,
-            isShown: isShown, setting: Self.setting(edge, settings)
+            isShown: isShown, setting: Self.setting(edge, settings, period)
         )
     }
 
-    private static func setting(_ edge: ScreenEdge, _ settings: EdgeSettings) -> NotchRun.Setting {
+    private static func setting(_ edge: ScreenEdge, _ settings: EdgeSettings, _ period: FoldPeriod) -> NotchRun.Setting {
         NotchRun.Setting(
             stage: edge.stage, mirror: edge.mirror, style: settings.style,
-            reducesMotion: Displays.reducesMotion(settings)
+            reducesMotion: Displays.reducesMotion(settings), period: period
         )
     }
 
@@ -178,7 +186,7 @@ final class NotchController: NSObject {
     /// The run's latest frame drawn: the edge it swapped to saved, the caption told the panel drained, and the clocks
     /// paced.
     private func draw() {
-        let frame = run.frame, time = run.time, pointer = run.seen, setting = Self.setting(edge, settings)
+        let frame = run.frame, time = run.time, pointer = run.seen, setting = Self.setting(edge, settings, period)
         let shown = run.takeShown()
 
         if shown.swappedEdge, let crossing {
@@ -190,7 +198,7 @@ final class NotchController: NSObject {
         }
         surface.show(run.list)
         surface.show(NotchScene(
-            frame: frame, hover: pointer.flatMap { run.row(at: $0, in: setting) }, scroll: run.scroll, time: time,
+            frame: frame, hover: pointer.flatMap { run.item(at: $0, in: setting) }, scroll: run.scroll, time: time,
             now: Displays.wallNow, mirror: edge.mirror
         ))
         drawLight(at: run.lightTime(time))
@@ -230,14 +238,14 @@ final class NotchController: NSObject {
         NotchSurface.drawn(settings.material) == .glass && washed.map { time - $0 < Wash.length } == true
     }
 
-    /// A frame as the first of the open panel's times next reads differently, menus tracking or not.
+    /// A frame as the first of the open panel's times next reads differently, or a your-turn row folds into "N
+    /// earlier", menus tracking or not.
     private func agesChange() {
-        let now = Displays.wallNow
-        guard let next = run.nextAgeChange(after: now) else {
+        guard let wait = Self.wait(for: run, at: Displays.wallNow) else {
             return
         }
 
-        let ages = Timer(timeInterval: (next - now) / 1000, repeats: false) { [weak self] _ in
+        let ages = Timer(timeInterval: wait, repeats: false) { [weak self] _ in
             MainActor.assumeIsolated { self?.wake() }
         }
 
@@ -245,16 +253,21 @@ final class NotchController: NSObject {
         self.ages = ages
     }
 
+    /// How long, in seconds, from this time on the wall clock, ms, until the run's open panel next draws differently
+    /// (`NotchRun.nextAgeChange`); nil with nothing to draw again.
+    static func wait(for run: NotchRun, at now: Double) -> TimeInterval? {
+        run.nextAgeChange(after: now).map { ($0 - now) / 1000 }
+    }
+
     /// A press on a row that jumps presses it in and jumps to its session, and once the jump has jumped, the caption
-    /// says where; anywhere else on the black, it may become a drag (`NotchRun.press`).
+    /// says where; on an eyebrow, its section folds or unfolds, kept; anywhere else on the black, it may become a drag
+    /// (`NotchRun.press`).
     private func press(at screenPoint: CGPoint) {
         guard let point = edge.stagePoint(screenPoint) else {
             return
         }
 
-        let pressed = run.press(moment(pointer: point), mayJump: !isJumping())
-
-        if case let .jump(session, to: target, click: click) = pressed {
+        if case let .jump(session, to: target, click: click) = run.press(moment(pointer: point), mayJump: !isJumping()) {
             caption.jumping(to: session.project)
             onJump(target) { [weak self] in self?.answered(jumped: $0, click: click) }
         }

@@ -271,10 +271,45 @@ struct AppSettingsTests {
 
             let read = SavedSettings<AppSettings>(defaults).read()
             let saved = try JSONEncoder().encode(read)
+            let keys = try #require(try JSONSerialization.jsonObject(with: saved) as? [String: Any]).keys
 
             #expect(read.notifiesNewAsks)
-            #expect(String(data: saved, encoding: .utf8) == #"{"notifiesNewAsks":true}"#)
+            #expect(Set(keys) == ["notifiesNewAsks", "foldsAfter"])
         }
+    }
+
+    @Test func yourTurnFoldsAfterAnHourByDefault() {
+        Self.withDefaults { defaults in
+            #expect(SavedSettings<AppSettings>(defaults).read().foldsAfter == .hour)
+        }
+    }
+
+    @Test(arguments: FoldPeriod.allCases)
+    func theFoldPeriodIsSavedAndReadBack(period: FoldPeriod) {
+        Self.withDefaults { defaults in
+            var settings = AppSettings()
+
+            settings.foldsAfter = period
+            SavedSettings(defaults).save(settings)
+
+            #expect(SavedSettings<AppSettings>(defaults).read().foldsAfter == period)
+        }
+    }
+
+    /// A period another version saved that this one doesn't know is the default, and keeps what else it can.
+    @Test func aFoldPeriodItDoesNotKnowIsTheDefault() {
+        Self.withDefaults { defaults in
+            defaults.set(Data(#"{"notifiesNewAsks":true,"foldsAfter":"week"}"#.utf8), forKey: "app")
+
+            let read = SavedSettings<AppSettings>(defaults).read()
+
+            #expect(read.foldsAfter == .hour)
+            #expect(read.notifiesNewAsks)
+        }
+    }
+
+    @Test func settingsNamesEachPeriod() {
+        #expect(FoldPeriod.allCases.map(\.title) == ["An hour", "Four hours", "Today", "Never"])
     }
 
     @Test func aValueAnotherVersionSavedKeepsWhatItCan() {

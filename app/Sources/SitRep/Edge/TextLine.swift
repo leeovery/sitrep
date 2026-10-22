@@ -72,6 +72,12 @@ final class TextLine: CALayer {
         CTLineGetTypographicBounds(CTLineCreateWithAttributedString(text), nil, nil, nil)
     }
 
+    /// How far down a line of `lower` sits in a line box as tall as one of `upper`'s for their baselines to meet, as
+    /// two sizes on one baseline: a your-turn row's project after its words.
+    static func drop(of lower: NSFont, to upper: NSFont, lineHeight: CGFloat) -> CGFloat {
+        baseline(text("A", upper, .black), lineHeight: lineHeight) - baseline(text("A", lower, .black), lineHeight: lineHeight)
+    }
+
     /// Where the baseline sits below the line box's top.
     static func baseline(_ text: NSAttributedString, lineHeight: CGFloat) -> CGFloat {
         var ascent: CGFloat = 0, descent: CGFloat = 0, leading: CGFloat = 0

@@ -147,6 +147,24 @@ struct FoldsTests {
 
         #expect(!content.entries[0].jumps)
         #expect(content.entries[1].jumps)
-        #expect(content.row(at: content.itemFrame(0).origin.applying(.init(translationX: 1, y: 1))) == nil)
+        #expect(content.item(at: content.itemFrame(0).origin.applying(.init(translationX: 1, y: 1))) == nil)
+    }
+
+    /// What a fold changes comes and goes at once, while the panel is out, and every other row keeps its own motion:
+    /// b, folding away already, finishes; c comes at once; a goes at once; d, new, folds in.
+    @Test func whatAFoldChangesComesAndGoesAtOnceTheRestKeepTheirMotion() {
+        var folds = Self.folds(Self.a, Self.b)
+        let d = Self.row("d")
+
+        folds.take([Self.a], at: 1000, animating: true, reducesMotion: false)
+        folds.take([Self.c, d], at: 1100, animating: true, reducesMotion: false, atOnce: ["a", "c"])
+
+        let content = folds.content(at: 1100)
+        let heights = Dictionary(uniqueKeysWithValues: content.entries.map { ($0.item.key, $0.height) })
+
+        #expect(Self.keys(content).sorted() == ["b", "c", "d"])
+        #expect(heights["c"] == 59)
+        #expect(heights["b"].map { $0 > 0 && $0 < 59 } == true)
+        #expect(heights["d"].map { $0 < 59 } == true)
     }
 }
