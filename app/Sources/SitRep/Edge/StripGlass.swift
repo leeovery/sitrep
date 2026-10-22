@@ -391,12 +391,16 @@ private enum GlassWords {
         return (text + subject(s, size: size, at: now) + more(s, size: size)).foregroundStyle(ink)
     }
 
-    /// Its subject in code type; else, plain at the title's size, what it waits on or a wake's countdown.
+    /// Its subject in code type; else, plain at the title's size, what it waits on, or a wake's countdown in tabular
+    /// figures, as the black's measure leaves room for.
     private static func subject(_ s: Session, size: Double, at now: Double) -> Text {
         if let code = s.code {
             return Text(code).font(.system(size: 13, weight: .medium, design: .monospaced))
         }
-        return Text(s.subject(at: now) ?? "").font(.system(size: size))
+
+        let plain = Font.system(size: size)
+
+        return Text(s.subject(at: now) ?? "").font(s.until == nil ? plain : plain.monospacedDigit())
     }
 
     private static func more(_ s: Session, size: Double) -> Text {

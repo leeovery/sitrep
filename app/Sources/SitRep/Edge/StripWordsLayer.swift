@@ -88,7 +88,7 @@ final class StripWordsLayer {
 
                 return MainActor.assumeIsolated {
                     let now = Displays.wallNow
-                    let words = max(TextLine.width(title(session, at: now)), TextLine.width(sub(session)))
+                    let words = rowWidth(session, at: now)
                     let age = StripRowLayout.ageWidth(said.age(session, at: now))
 
                     return StripRowLayout.pad.left + words + StripRowLayout.gap + age + StripRowLayout.pad.right
@@ -97,10 +97,7 @@ final class StripWordsLayer {
             rows: { sessions in
                 MainActor.assumeIsolated {
                     let now = Displays.wallNow
-                    let words = sessions.map { session in
-                        max(TextLine.width(rowTitle(session, at: now)), TextLine.width(rowSub(session)))
-                    }
-                    .max() ?? 0
+                    let words = sessions.map { countRowWidth($0, at: now) }.max() ?? 0
 
                     return StripRowLayout.pad.left + words + StripRowLayout.pad.right
                 }
@@ -280,10 +277,34 @@ final class StripWordsLayer {
 
     // MARK: The words
 
-    /// A row's title at this time on the wall clock, in a colour where given; one on its own work as the card sets it.
+    /// A session's row's words at their widest from this time on: its title, leaving room for every reading a wake's
+    /// countdown may yet take, or its second line.
+    static func rowWidth(_ s: Session, at now: Double) -> Double {
+        max(sayings(s, at: now).map { TextLine.width(title(s, saying: $0)) }.max() ?? 0, TextLine.width(sub(s)))
+    }
+
+    /// One of a count's rows' words at their widest from this time on, as a session's row's are.
+    static func countRowWidth(_ s: Session, at now: Double) -> Double {
+        max(sayings(s, at: now).map { TextLine.width(rowTitle(s, saying: $0)) }.max() ?? 0, TextLine.width(rowSub(s)))
+    }
+
+    /// What a row's title may say after its verb from this time on, to leave room for: what it says now, or each
+    /// reading a wake's countdown leaves room for, as it widens from "in 1h" to "in 59m".
+    private static func sayings(_ s: Session, at now: Double) -> [String?] {
+        let room = s.countdownRoom(after: now)
+
+        return room.isEmpty ? [s.subject(at: now)] : room
+    }
+
+    /// A row's title at this time on the wall clock, in a colour where given.
     private static func title(_ s: Session, at now: Double, _ colour: CGColor? = nil) -> NSAttributedString {
+        title(s, saying: s.subject(at: now), colour)
+    }
+
+    /// A row's title saying this after its verb, in a colour where given; one on its own work as the card sets it.
+    private static func title(_ s: Session, saying subject: String?, _ colour: CGColor? = nil) -> NSAttributedString {
         if s.kind == .onItsWork {
-            return WaitingTitle.text(s, subject: s.subject(at: now))
+            return WaitingTitle.text(s, subject: subject)
         }
 
         let font = s.kind == .needs ? EdgeStyle.needsTitle : EdgeStyle.title
@@ -310,14 +331,23 @@ final class StripWordsLayer {
         TextLine.text(s.sub, EdgeStyle.sub, EdgeStyle.ink2)
     }
 
-    /// One of a count's rows' titles at this time on the wall clock: needs you and your turn in ink, needs you's
-    /// bolder, an away ask's quiet, and working and on its own work grey, the latter with what it waits on.
+    /// One of a count's rows' titles at this time on the wall clock.
     private static func rowTitle(_ s: Session, at now: Double) -> NSAttributedString {
+        rowTitle(s, saying: s.subject(at: now))
+    }
+
+    /// One of a count's rows' titles saying this after its verb, where it has no command: needs you and your turn in
+    /// ink, needs you's bolder, an away ask's quiet, and working and on its own work grey, a wake's countdown in
+    /// tabular figures.
+    private static func rowTitle(_ s: Session, saying subject: String?) -> NSAttributedString {
         let isGrey = s.kind == .working || s.kind == .onItsWork
         let ink = s.away ? EdgeStyle.quiet : isGrey ? EdgeStyle.grey : EdgeStyle.ink
         let font = s.kind == .needs ? EdgeStyle.needsRowTitle : EdgeStyle.rowTitle
-        let text = TextLine.text(s.title + (s.code == nil ? s.subject(at: now) ?? "" : ""), font, ink)
+        let text = TextLine.text(s.title, font, ink)
 
+        if s.code == nil, let subject {
+            text.append(TextLine.text(subject, s.until == nil ? font : EdgeStyle.rowCountdown, ink))
+        }
         append(s, to: text, ink, more: EdgeStyle.rowTitle)
         return text
     }

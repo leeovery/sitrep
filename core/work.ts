@@ -11,7 +11,7 @@
  *   hears each one start (`watchOf`) and tells it here by its task.
  * - Only a one-off wake counts: a recurring cron never ends. A one-off's
  *   schedule encodes a single fire time, read in local time, as the engine
- *   reads it; one that does not read counts with no time.
+ *   reads it, nearest now; one that does not read counts with no time.
  *
  * A shell that never ends, such as `tail -f`, cannot be told from one that
  * will: it counts while it runs.
@@ -60,7 +60,7 @@ const KIND_OF_TYPE: ReadonlyMap<string, TaskKind> = new Map([
  */
 const AMBIENT: ReadonlySet<string> = new Set(['dream', 'auto-mode scan', 'memory import'])
 
-/** The days a wake's schedule is looked for over, from today: four years, a 29 February's among them. */
+/** The days a wake's schedule is looked for over, either side of today: four years, a 29 February's among them. */
 const WAKE_DAYS = 4 * 366
 
 const kindOf = (task: PendingTask, watches: readonly Watch[]): TaskKind | undefined => {
@@ -73,11 +73,14 @@ const kindOf = (task: PendingTask, watches: readonly Watch[]): TaskKind | undefi
   return watch === undefined ? (KIND_OF_TYPE.get(task.type) ?? 'others') : 'monitors'
 }
 
-/** What a task's line says of it, one line and cut short: a shell's command, a workflow's name, else its description; its type where that says nothing. */
+/** What a task's words are where it says nothing of itself; never empty, as the summary's reader takes no empty words. */
+const A_TASK = 'a task'
+
+/** What a task's line says of it, one line and cut short: a shell's command, a workflow's name, else its description; its type, else "a task", where that says nothing. */
 const wordsOf = (task: PendingTask, kind: TaskKind) => {
   const named = kind === 'shells' ? task.command : kind === 'workflows' ? task.name : undefined
 
-  return [named, task.description, task.type].map(shownText).find(isFilled) ?? ''
+  return [named, task.description, task.type].map(shownText).find(isFilled) ?? A_TASK
 }
 
 /** A cron field: `*`, any; else a whole number in its range; else undefined. */
@@ -99,14 +102,11 @@ const isDayOf = (at: Date, day: number | '*', weekday: number | '*') => {
   return day !== '*' && weekday !== '*' ? isDay || isWeekday : isDay && isWeekday
 }
 
-/**
- * When a one-off wake's schedule next fires, from the start of `now`'s
- * minute, in local time: a minute and an hour, and its day, month and
- * weekday each a number or any. Undefined where it does not read, or names
- * no time in the next four years.
- */
-export const wakeAt = (schedule: string, now: number): number | undefined => {
-  const fields = schedule.trim().split(/\s+/)
+/** A one-off wake's schedule as read: its minute and hour, and its day, month and weekday each a number or any. */
+type Schedule = { minute: number; hour: number; day: number | '*'; month: number | '*'; weekday: number | '*' }
+
+const scheduleOf = (text: string): Schedule | undefined => {
+  const fields = text.trim().split(/\s+/)
   const [minute, hour] = [cronField(fields[0], 0, 59), cronField(fields[1], 0, 23)]
   const [day, month, weekday] = [
     cronField(fields[2], 1, 31),
@@ -114,14 +114,48 @@ export const wakeAt = (schedule: string, now: number): number | undefined => {
     cronField(fields[4], 0, 7),
   ]
 
-  if (
-    fields.length !== 5 ||
-    typeof minute !== 'number' ||
-    typeof hour !== 'number' ||
-    day === undefined ||
-    month === undefined ||
-    weekday === undefined
-  ) {
+  return fields.length === 5 &&
+    typeof minute === 'number' &&
+    typeof hour === 'number' &&
+    day !== undefined &&
+    month !== undefined &&
+    weekday !== undefined
+    ? { minute, hour, day, month, weekday }
+    : undefined
+}
+
+/**
+ * The first time a schedule fires on one side of `from`, the days from it
+ * looked at in turn, later (`step` 1) or earlier (-1), over four years.
+ */
+const firstFire = (
+  { minute, hour, day, month, weekday }: Schedule,
+  from: Date,
+  step: 1 | -1,
+  isOnItsSide: (at: number) => boolean,
+): number | undefined => {
+  for (let days = 0; days <= WAKE_DAYS; days += 1) {
+    const at = new Date(from.getFullYear(), from.getMonth(), from.getDate() + step * days, hour, minute)
+
+    if (isOnItsSide(at.getTime()) && (month === '*' || at.getMonth() + 1 === month) && isDayOf(at, day, weekday)) {
+      return at.getTime()
+    }
+  }
+
+  return undefined
+}
+
+/**
+ * When a one-off wake's schedule fires, in local time, as near `now` as it
+ * does: its next time, from the start of `now`'s minute, unless the last
+ * before it is nearer. A one-off still listed has not fired, so one whose
+ * minute just passed is due now, not a day or a year away. Undefined where
+ * the schedule does not read, or names no time four years either side.
+ */
+export const wakeAt = (text: string, now: number): number | undefined => {
+  const schedule = scheduleOf(text)
+
+  if (schedule === undefined) {
     return undefined
   }
 
@@ -129,19 +163,10 @@ export const wakeAt = (schedule: string, now: number): number | undefined => {
 
   from.setSeconds(0, 0)
 
-  for (let offset = 0; offset <= WAKE_DAYS; offset += 1) {
-    const at = new Date(from.getFullYear(), from.getMonth(), from.getDate() + offset, hour, minute)
+  const next = firstFire(schedule, from, 1, at => at >= from.getTime())
+  const last = firstFire(schedule, from, -1, at => at < from.getTime())
 
-    if (
-      at.getTime() >= from.getTime() &&
-      (month === '*' || at.getMonth() + 1 === month) &&
-      isDayOf(at, day, weekday)
-    ) {
-      return at.getTime()
-    }
-  }
-
-  return undefined
+  return last !== undefined && (next === undefined || now - last < next - now) ? last : next
 }
 
 /**
@@ -184,10 +209,15 @@ export const workOf = (
 export const watchesLeft = (watches: readonly Watch[], { tasks }: Pending): Watch[] =>
   tasks === undefined ? [...watches] : watches.filter(watch => tasks.some(task => task.id === watch.task))
 
-/** The monitor a call started, from the tool's result: its task, and whether it is persistent; none for any other tool, or a result naming no task. */
+/**
+ * The monitor a call started, from the tool's result: its task, and whether
+ * it is persistent, which the result says either way (the engine's tool
+ * types: `persistent`, or a `timeoutMs` of 0); none for any other tool, or a
+ * result naming no task.
+ */
 export const watchOf = (tool: string, result: unknown): Watch | undefined =>
   tool === MONITOR_TOOL && isObject(result) && isFilled(result.taskId)
-    ? { task: result.taskId, isPersistent: result.persistent === true }
+    ? { task: result.taskId, isPersistent: result.persistent === true || result.timeoutMs === 0 }
     : undefined
 
 const parseTasks = (raw: unknown): Tasks | undefined =>

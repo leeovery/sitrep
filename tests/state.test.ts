@@ -720,6 +720,17 @@ test('a workflow with no name is its description, a shell with no command its de
   })
 })
 
+test('a task that says nothing of itself is "a task", never an empty word, so its summary reads back as written', () => {
+  const work = workOf({ tasks: [task('x', '', '')] }, [], NOW)
+  const waiting = turnStopped(turnEnded(turnStarted(QUIET, T0), T0 + 9_000), { tasks: [task('x', '', '')] }, NOW)
+  const state = stateOf(waiting, T0)
+
+  expect(work).toEqual({ others: { count: 1, first: 'a task' } })
+  expect(state).toEqual({ is: 'onItsWork', since: T0 + 9_000, work })
+  expect(stateRead(JSON.parse(JSON.stringify(state)))).toEqual(state)
+  expect(parseActivity(JSON.parse(JSON.stringify(waiting)))).toEqual(waiting)
+})
+
 test("a persistent monitor never ends, and the engine's ambient tasks never wake the window: none of them counts", () => {
   const watching = task('m1', 'monitor', 'Deploys', { server: 'github', tool: 'watch' })
   const ambient = [
@@ -773,19 +784,22 @@ test('a recurring cron never ends and counts for nothing; one-off wakes count, w
     ),
   ).toEqual({ wakes: { count: 3, at: local(2026, 10, 22, 14, 45) } })
   expect(workOf({ crons: [cron('*/5 * * * *', false)] }, [], NOW)).toEqual({ wakes: { count: 1 } })
+  expect(
+    workOf({ crons: [cron('45 14 * * *', false), cron('15 14 * * *', false)] }, [], NOW),
+    'one whose minute just passed is due first',
+  ).toEqual({ wakes: { count: 2, at: local(2026, 10, 22, 14, 15) } })
 })
 
-test("a one-off wake's schedule fires at the next time it names, in local time, from the start of the minute", () => {
+test("a one-off wake's schedule fires at the next time it names, in local time, from the start of the minute, where that is nearer than the last", () => {
   for (const [schedule, at] of [
     ['45 14 * * *', local(2026, 10, 22, 14, 45)],
+    ['31 14 * * *', local(2026, 10, 22, 14, 31)],
     ['30 14 * * *', local(2026, 10, 22, 14, 30)],
-    ['15 14 * * *', local(2026, 10, 23, 14, 15)],
     ['5 9 1 1 *', local(2027, 1, 1, 9, 5)],
-    ['0 12 22 10 *', local(2027, 10, 22, 12, 0)],
     [' 0  18  22  10  * ', local(2026, 10, 22, 18, 0)],
-    ['0 9 * * 1', local(2026, 10, 26, 9, 0)],
+    ['0 9 * * 5', local(2026, 10, 23, 9, 0)],
     ['0 9 * * 7', local(2026, 10, 25, 9, 0)],
-    ['0 9 1 * 1', local(2026, 10, 26, 9, 0)],
+    ['0 9 23 * 1', local(2026, 10, 23, 9, 0)],
     ['0 9 1 * 5', local(2026, 10, 23, 9, 0)],
     ['0 9 29 2 *', local(2028, 2, 29, 9, 0)],
   ] as const) {
@@ -793,7 +807,20 @@ test("a one-off wake's schedule fires at the next time it names, in local time, 
   }
 })
 
-test('a schedule that names no single time, or none at all, has none', () => {
+test('a one-off still listed has not fired: where the last time it names is nearer than its next, it is due then, in the past, not a day or a year away', () => {
+  for (const [schedule, at] of [
+    ['29 14 * * *', local(2026, 10, 22, 14, 29)],
+    ['15 14 * * *', local(2026, 10, 22, 14, 15)],
+    ['30 14 22 10 *', local(2026, 10, 22, 14, 30)],
+    ['29 14 22 10 *', local(2026, 10, 22, 14, 29)],
+    ['0 12 22 10 *', local(2026, 10, 22, 12, 0)],
+    ['0 9 * * 1', local(2026, 10, 19, 9, 0)],
+  ] as const) {
+    expect(wakeAt(schedule, NOW), schedule).toBe(at)
+  }
+})
+
+test('a schedule that names no single time, or none at all, has none: its minute or hour not a number, or its day, month or weekday a range, a list, a step, a name or out of range', () => {
   for (const schedule of [
     '',
     '0 9 * *',
@@ -801,10 +828,15 @@ test('a schedule that names no single time, or none at all, has none', () => {
     '* 9 * * *',
     '*/5 * * * *',
     '0 9 1-5 * *',
+    '0 9 1,15 * *',
+    '0 9 * */2 *',
+    '0 9 * JAN *',
     '0 9 * * MON',
+    '0 9 * * 1-5',
     '60 9 * * *',
     '0 24 * * *',
     '0 9 0 * *',
+    '0 9 32 * *',
     '0 9 * 13 *',
     '0 9 * * 8',
     '0 9 31 2 *',
@@ -815,15 +847,26 @@ test('a schedule that names no single time, or none at all, has none', () => {
   }
 })
 
-test('a Monitor call says the task it started and whether it is persistent; any other call, or one naming no task, says none', () => {
+test('a Monitor call says the task it started and whether it is persistent, by its `persistent` or a `timeoutMs` of 0; any other call, or one naming no task, says none', () => {
   expect(watchOf('Monitor', { taskId: 'bm1', timeoutMs: 300_000 })).toEqual({
     task: 'bm1',
     isPersistent: false,
   })
-  expect(watchOf('Monitor', { taskId: 'bm2', timeoutMs: 0, persistent: true })).toEqual({
-    task: 'bm2',
-    isPersistent: true,
+  expect(watchOf('Monitor', { taskId: 'bm1', timeoutMs: 300_000, persistent: false })).toEqual({
+    task: 'bm1',
+    isPersistent: false,
   })
+
+  for (const result of [
+    { taskId: 'bm2', timeoutMs: 0, persistent: true },
+    { taskId: 'bm2', timeoutMs: 300_000, persistent: true },
+    { taskId: 'bm2', timeoutMs: 0 },
+  ]) {
+    expect(watchOf('Monitor', result), JSON.stringify(result)).toEqual({
+      task: 'bm2',
+      isPersistent: true,
+    })
+  }
 
   for (const [tool, result] of [
     ['Bash', { taskId: 'bm1' }],

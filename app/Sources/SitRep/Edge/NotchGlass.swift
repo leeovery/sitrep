@@ -339,9 +339,13 @@ private struct GlassSessionRow: View {
         Text(session.code ?? "").font(.system(size: 13, weight: .medium, design: .monospaced))
     }
 
-    /// What it waits on, plain, after the title: its subject, or a wake's countdown.
+    /// What it waits on, plain, after the title: its subject, or a wake's countdown in tabular figures, as the
+    /// black's.
     private var plain: Text {
-        Text(session.subject(at: now) ?? "").font(.system(size: 14)).kerning(-0.14)
+        let font = Font.system(size: 14)
+
+        return Text(session.subject(at: now) ?? "").font(session.until == nil ? font : font.monospacedDigit())
+            .kerning(-0.14)
     }
 }
 

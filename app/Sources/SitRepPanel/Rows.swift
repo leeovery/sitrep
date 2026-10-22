@@ -87,6 +87,21 @@ public struct Session: Equatable, Sendable {
         return until - Self.minute * (((until - now) / Self.minute).rounded(.up) - 1)
     }
 
+    /// The readings of a wake's countdown a row leaves room for from this time on: its reading now, and the widest of
+    /// each smaller unit still to come, "in 23h" and "in 59m", as wide as any of its unit with the figures tabular, as
+    /// the views set them; none with no wake.
+    public func countdownRoom(after now: Double) -> [String] {
+        guard let until else {
+            return []
+        }
+
+        let left = until - now
+        let minutes = (left / Self.minute).rounded(.up)
+        let later = minutes >= 24 * 60 ? ["in 23h", "in 59m"] : minutes >= 60 ? ["in 59m"] : []
+
+        return [Self.untilText(left)] + later
+    }
+
     private static let minute = 60_000.0
 
     /// The time until a wake in ms as its countdown reads (`Age`, up to the whole minute): "in 12m", "in 2h", "in

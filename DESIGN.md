@@ -301,13 +301,18 @@ and swallowed, never breaking a turn, a tool or a permission prompt.
     its auto mode's scan, a memory import), which never wakes the window;
   - a persistent monitor. The list does not say whether a monitor is
     persistent, so the mod reads it from the Monitor call that started it:
-    the `persistent` its result gives beside its `taskId`, the list's id for
-    the task. A Monitor running a command is listed as a shell; known by its
-    id, it counts as the monitor it is. A call's task is kept until a Stop
-    no longer lists it;
-  - a recurring wake. A one-off wake's time is its schedule's next minute in
-    local time, as a cron reads it, within four years; one that cannot be
-    read, its minute or its hour not a number, counts without a time.
+    its result gives its `taskId`, the list's id for the task, and says it
+    is persistent by `persistent`, or by a `timeoutMs` of 0, as the engine's
+    tool types have it. A Monitor running a command is listed as a shell;
+    known by its id, it counts as the monitor it is. A call's task is kept
+    until a Stop no longer lists it;
+  - a recurring wake. A one-off wake's time is the minute its schedule names
+    nearest now, in local time, as a cron reads it, within four years either
+    side: its next, unless the last before it is nearer. A one-off still
+    listed has not fired, so one whose minute has just passed is due now,
+    not a day or a year away. One that cannot be read counts without a
+    time: its minute or its hour not a number, or its day, month or weekday
+    a range, a list, a step, a name, or out of its range.
 - **Either order.** Whether Stop comes before `turn.complete` or after it
   is unverified, so neither waits on the other: what Stop heard outlasts the
   turn's end, and the state is worked out from both, whichever came last.
@@ -2272,10 +2277,13 @@ first of these that it has (22 October 2026):
 
 The countdown is the app's: core writes nothing that hangs on the clock, so
 the wake's line carries when it is due (`until`), and each surface words it
-after "Wakes" as its clock ticks, as the time lane counts: the whole minutes
-left, rounded up ("in 12m" from twelve minutes down to eleven), then "now"
-once due. The row's time still counts from the turn's end, as every row's
-does, so the countdown never shows twice.
+after "Wakes" as its clock ticks: under an hour, the whole minutes left,
+rounded up ("in 12m" from twelve minutes down to eleven); past that, hours
+and then days, as an age is worded ("in 1h" up to two hours); then "now"
+once due, as a wake past its minute is. Its figures are tabular, and a tab
+on the strip leaves room for the widest it will read, so it never widens
+past its tab: "in 1h" becomes "in 59m". The row's time still counts from
+the turn's end, as every row's does, so the countdown never shows twice.
 
 Rows keep their places while the panel is open: a changed row moves only
 once it closes. Meanwhile a row gone folds away where it was, and a new one
@@ -3579,10 +3587,12 @@ shape allows them. A jump made in Swift, in the app, stays parked too.
    working window is active now, however long ago its turn began, since
    `state.since` is its turn's start: one working since 9:00 is more active
    than one whose turn ended at 10:00. So the order is: needs Lee; then
-   working; then the rest, on their turn, on their own work, their turn
-   ended too, or saying no state; within each,
-   the latest `state.since` (the later stop, the turn Lee started last, the
-   later end of a turn), then the latest `attachedAt`. A window saying no
+   working; then on its own work, as the session's row prefers it, so the
+   jump goes to the window the row describes, though another's turn ended
+   later (22 October 2026); then the rest, on their turn or saying no state;
+   within each, the latest `state.since` (the later stop, the turn Lee
+   started last, the later end of a turn), then the latest `attachedAt`. A
+   window saying no
    state, as one on a release from before heartbeats said it, goes with
    those on their turn, by its attach, which is what a state's start is
    before any turn. Each window's places are tried before the next window's,

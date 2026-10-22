@@ -33,6 +33,31 @@ struct StripWordsLayerTests {
         )
     }
 
+    private static func wake(in minutes: Double) -> Session {
+        Session(id: "k", project: "Kit", kind: .onItsWork, title: "Wakes ", until: minutes * 60_000, sub: "", since: 0)
+    }
+
+    /// A wake an hour and a minute off reads "in 1h", and widens to "in 59m" two minutes on: its tab, a session's or a
+    /// count's, is as wide from the first, so the countdown is never cut short.
+    @Test func aTabLeavesRoomForAWakesCountdownToWiden() {
+        let wake = Self.wake(in: 61)
+
+        #expect(wake.subject(at: 0) == "in 1h")
+        #expect(wake.subject(at: 120_000) == "in 59m")
+        #expect(StripWordsLayer.rowWidth(wake, at: 0) == StripWordsLayer.rowWidth(wake, at: 120_000))
+        #expect(StripWordsLayer.countRowWidth(wake, at: 0) == StripWordsLayer.countRowWidth(wake, at: 120_000))
+        #expect(StripWordsLayer.rowWidth(wake, at: 0) > StripWordsLayer.rowWidth(Self.wake(in: 2), at: 0))
+    }
+
+    /// The room left is each unit's widest reading, "in 59m", so every reading of two figures must set as wide as it:
+    /// "in 11m" too, its figures tabular.
+    @Test func aCountdownsFiguresAreTabular() {
+        let wake = Self.wake(in: 59)
+
+        #expect(StripWordsLayer.rowWidth(wake, at: 48 * 60_000) == StripWordsLayer.rowWidth(wake, at: 0))
+        #expect(StripWordsLayer.countRowWidth(wake, at: 48 * 60_000) == StripWordsLayer.countRowWidth(wake, at: 0))
+    }
+
     @Test func aRowLiftedComesDownAsThePointerMovesToAnother() {
         let layer = StripWordsLayer(Self.words(), in: Self.box, Self.scene())
 

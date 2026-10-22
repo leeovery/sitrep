@@ -188,24 +188,33 @@ const needsLee = (presence: Presence) =>
 
 /**
  * How a window ranks for a jump: stopped on Lee first; then working, as it is
- * active now, however long ago its turn began; then the rest, on its turn,
- * or saying no state.
+ * active now, however long ago its turn began; then on its own work, as the
+ * session's row prefers it (core's `turnOf`), so the jump goes to the window
+ * the row describes; then the rest, on its turn, or saying no state.
  */
 const rankOf = (presence: Presence) => {
   if (needsLee(presence)) {
     return 0
   }
 
-  return presence.state?.is === 'working' ? 1 : 2
+  switch (presence.state?.is) {
+    case 'working':
+      return 1
+    case 'onItsWork':
+      return 2
+    default:
+      return 3
+  }
 }
 
 /** When a window's state began; else, saying none, as one before any turn does, its attach. */
 const sinceOf = (presence: Presence) => presence.state?.since ?? presence.attachedAt
 
 /**
- * The window that needs Lee first, then one working, then the rest; within
- * each, the latest to begin its state (the later stop, the turn Lee started
- * last, the later end of a turn), then the one attached last.
+ * The window that needs Lee first, then one working, then one on its own
+ * work, then the rest; within each, the latest to begin its state (the later
+ * stop, the turn Lee started last, the later end of a turn), then the one
+ * attached last.
  */
 const byJump = (a: Presence, b: Presence) =>
   rankOf(a) - rankOf(b) || sinceOf(b) - sinceOf(a) || b.attachedAt - a.attachedAt

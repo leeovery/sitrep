@@ -32,8 +32,10 @@ enum EdgeStyle {
 
     static let title = NSFont.systemFont(ofSize: 14, weight: .medium)
     static let needsTitle = NSFont.systemFont(ofSize: 14, weight: .semibold)
-    /// A row on its own work's subject, where it is no command.
+    /// A row on its own work's subject, where it is no command; a wake's countdown in its tabular figures, so a row
+    /// can leave room for every reading it will take (`Session.countdownRoom`).
     static let subject = NSFont.systemFont(ofSize: 14, weight: .regular)
+    static let countdown = NSFont.monospacedDigitSystemFont(ofSize: 14, weight: .regular)
     static let code = NSFont.monospacedSystemFont(ofSize: 13, weight: .medium)
     static let sub = NSFont.systemFont(ofSize: 12)
     static let age = NSFont.monospacedDigitSystemFont(ofSize: 12, weight: .regular)
@@ -43,6 +45,8 @@ enum EdgeStyle {
     static let letters = NSFont.systemFont(ofSize: 9.5, weight: .semibold)
     static let rowTitle = NSFont.systemFont(ofSize: 13, weight: .medium)
     static let needsRowTitle = NSFont.systemFont(ofSize: 13, weight: .semibold)
+    /// A wake's countdown in a count's row, in tabular figures, as `countdown`.
+    static let rowCountdown = NSFont.monospacedDigitSystemFont(ofSize: 13, weight: .medium)
     static let rowSub = NSFont.systemFont(ofSize: 11)
 
     /// The prototype's letter-spacing of -0.01em, as a kern in points.
