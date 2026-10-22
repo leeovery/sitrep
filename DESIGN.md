@@ -3170,8 +3170,11 @@ reference only.
   for appearance. Auto light and dark doesn't change the appearance at
   all, actually").
 - **The rows under Show**, in the same card, are the ones that apply to the
-  choice, in this order, each arriving and leaving by the system's own
-  transition, at once under Reduce motion:
+  choice, in this order. They change at once, always, with no motion: as
+  the choice changes, or Length with Max, the rows arrive and leave and the
+  card takes its new height in the frame the tiles change in (Lee, 22
+  October 2026, of the system's transition there: "the animation on the
+  panel when switching the notch mode is a bit jarring"):
   - **Notch:** Edge, Left or Right ("or drag it across the middle");
     Display, the main one unless another is chosen; Style, Meniscus or Card;
     Material; Reduce motion.
