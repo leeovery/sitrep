@@ -39,6 +39,14 @@ struct Drawn {
         scale = CGFloat(bitmap.pixelsHigh) / view.bounds.height
     }
 
+    /// A window's drawing, read at 2×, counting a page's half points as whole pixels. A window lays its views out to
+    /// its screen's pixels, and none can be made to take another scale, so a screen at any other says so here rather
+    /// than failing a test's counts.
+    func atTwice() throws -> Drawn {
+        try #require(scale == 2, "Laid out at the screen's \(scale)×; these tests read it at 2×")
+        return self
+    }
+
     /// The pixels in `rect`, row by row, in sRGB.
     func pixels(in rect: CGRect) -> [NSColor] {
         let columns = Int((rect.minX * scale).rounded())..<Int((rect.maxX * scale).rounded())

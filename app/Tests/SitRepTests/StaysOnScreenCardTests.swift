@@ -49,43 +49,52 @@ struct StaysOnScreenCardTests {
     /// Down the column, clear of the Show row's pictures.
     private static let column: CGFloat = 276
 
-    /// The page drawn straight after `change`, and the page drawn with it made before the page appeared.
-    private static func drawn(_ change: Change) async throws -> (changed: Drawn, settled: Drawn) {
-        let page = await Hosted.pageView(change.start)
-        let hosted = Hosted(PageColumn(page: .settings, now: Date()) { page }, size: size)
-        let settledPage = await Hosted.pageView { change.start(&$0); change.change(&$0) }
-        let settled = Hosted(PageColumn(page: .settings, now: Date()) { settledPage }, size: size)
+    /// The page in a window, its edge settings started by `settings`.
+    private static func hosted(_ settings: (inout EdgeSettings) -> Void) async -> (page: SettingsPage, hosted: Hosted) {
+        let page = await Hosted.pageView(settings)
+
+        return (page, Hosted(PageColumn(page: .settings, now: Date()) { page }, size: size))
+    }
+
+    /// The page drawn straight after `change`.
+    private static func changed(_ change: Change) async throws -> Drawn {
+        let (page, hosted) = await hosted(change.start)
 
         page.settings.preferences.edit(change.change)
         await Task.yield()
         hosted.hosting.layoutSubtreeIfNeeded()
 
-        return try (atTwice(Drawn(hosted.hosting)), atTwice(Drawn(settled.hosting)))
+        return try Drawn(hosted.hosting).atTwice()
     }
 
-    /// Read at 2×, as `ShowRowTests` reads the page.
-    private static func atTwice(_ drawn: Drawn) throws -> Drawn {
-        try #require(drawn.scale == 2, "Laid out at the screen's \(drawn.scale)×; these tests read it at 2×")
-        return drawn
+    /// The page drawn with `change` made before it appeared.
+    private static func settled(_ change: Change) async throws -> Drawn {
+        try await Drawn(hosted { change.start(&$0); change.change(&$0) }.hosted.hosting).atTwice()
     }
 
     /// The card's height is the new one as soon as the choice changes.
     @Test(arguments: Change.allCases)
     func theCardTakesItsNewHeightAtOnce(change: Change) async throws {
-        let drawn = try await Self.drawn(change).changed
+        let drawn = try await Self.changed(change)
         let card = try #require(drawn.litSpans(atX: Self.column).first)
 
         #expect(change.card.isWithinAPixel(of: card, at: drawn.scale))
     }
 
-    /// As soon as the choice changes, the card and what follows it to where the old card ended are drawn to the pixel
-    /// as the page drawn with the choice already made: the new rows whole, in their places, at full opacity, and
-    /// nothing left of the old ones. Across the column's left half, where every row's words and hairlines are, clear of
-    /// the desktop corner's clock.
+    /// How far past the taller card's foot is read, so a hairline or an edge left just under it is read too.
+    private static let pastTheFoot: CGFloat = 10
+
+    /// As soon as the choice changes, the card and what follows it to the foot of the taller of the old card and the
+    /// new are drawn to the pixel as the page drawn with the choice already made: the new rows whole, in their places,
+    /// at full opacity, and nothing left of the old ones. Across the column's left half, where every row's words and
+    /// hairlines are, clear of the desktop corner's clock.
     @Test(arguments: Change.allCases)
     func theRowsChangeAtOnce(change: Change) async throws {
-        let (changed, settled) = try await Self.drawn(change)
-        let rows = CGRect(x: 0, y: 146, width: Self.size.width / 2, height: change.footBefore + 10 - 146)
+        let changed = try await Self.changed(change)
+        let settled = try await Self.settled(change)
+        let top = change.card.lowerBound
+        let foot = max(change.footBefore, change.card.upperBound) + Self.pastTheFoot
+        let rows = CGRect(x: 0, y: top, width: Self.size.width / 2, height: foot - top)
 
         #expect(changed.pixels(in: rows) == settled.pixels(in: rows))
     }

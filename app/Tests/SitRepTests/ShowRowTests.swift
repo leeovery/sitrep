@@ -21,24 +21,16 @@ struct ShowRowTests {
         [2.0, 1, 0].map { right(page) - 13.5 - 67 - $0 * 82 }
     }
 
-    /// The page drawn, Notch chosen unless `change` says, in a window (`atTwice`).
+    /// The page drawn, Notch chosen unless `change` says, in a window (`atTwice()`).
     private static func page(
         _ width: CGFloat, _ change: (inout EdgeSettings) -> Void = { _ in }
     ) async throws -> Drawn {
-        try await atTwice(Hosted.drawn(width: width, change))
+        try await Hosted.drawn(width: width, change).atTwice()
     }
 
-    /// A view in a window over `ground`, laid out as the page is (`atTwice`).
+    /// A view in a window over `ground`, laid out as the page is (`atTwice()`).
     private static func inAWindow(_ view: some View, size: CGSize, over ground: Color = .black) throws -> Drawn {
-        try atTwice(Drawn(Hosted(view.frame(width: size.width, height: size.height).background(ground), size: size).hosting))
-    }
-
-    /// A window's drawing, which these tests read at 2×, counting the row's half points as whole pixels. A window lays
-    /// its views out to its screen's pixels, and none can be made to take another scale, so a screen at any other
-    /// says so here rather than failing the tests' counts.
-    private static func atTwice(_ drawn: Drawn) throws -> Drawn {
-        try #require(drawn.scale == 2, "Laid out at the screen's \(drawn.scale)×; these tests read it at 2×")
-        return drawn
+        try Drawn(Hosted(view.frame(width: size.width, height: size.height).background(ground), size: size).hosting).atTwice()
     }
 
     /// Where the Show row draws nothing but the card's raise: under its label, clear of a line.
@@ -85,7 +77,7 @@ struct ShowRowTests {
         await Task.yield()
         hosted.hosting.layoutSubtreeIfNeeded()
 
-        let drawn = try Self.atTwice(Drawn(hosted.hosting))
+        let drawn = try Drawn(hosted.hosting).atTwice()
         let strip = try #require(drawn.colour(at: CGPoint(x: lefts[1] - 2, y: Self.top + 35)))
         let notch = try #require(drawn.colour(at: CGPoint(x: lefts[0] - 2, y: Self.top + 35)))
         let raise = try #require(drawn.colour(at: Self.raisePoint))
