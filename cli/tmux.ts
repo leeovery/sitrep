@@ -57,11 +57,17 @@ export const CLIENTS = [
   '#{client_tty}\t#{client_pid}\t#{window_id}\t#{session_id}',
 ]
 
+/**
+ * tmux on a server's socket, told its client takes UTF-8 (`-u`). Without it,
+ * run with no UTF-8 locale and no `$TMUX`, as SitRep runs the CLI, a tmux 3.8
+ * server writes each tab of a `-F` format as `_`, and every line reads as no
+ * pane or client (proven live, 22 October 2026).
+ */
+export const tmuxOn = (socket: string) => ['tmux', '-u', '-S', socket]
+
 /** tmux's words making a select. */
 export const selectWords = ({ socket, session, window }: Select) => [
-  'tmux',
-  '-S',
-  socket,
+  ...tmuxOn(socket),
   'select-window',
   '-t',
   `${session}:${window}`,
@@ -110,7 +116,7 @@ export const parseClients = (output: string): Client[] =>
  */
 export const readServer = async (io: Io, socket: string): Promise<ServerRead> => {
   const [panes, clients] = await Promise.all(
-    [PANES, CLIENTS].map(words => look(io, ['tmux', '-S', socket, ...words])),
+    [PANES, CLIENTS].map(words => look(io, [...tmuxOn(socket), ...words])),
   )
 
   if (panes === undefined || clients === undefined) {

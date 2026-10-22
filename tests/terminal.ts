@@ -486,8 +486,17 @@ function screen(options: Options) {
       )
     }
 
-    if (name === 'tmux' && words[0] === '-S') {
-      return tmux(words[1] ?? '', words.slice(2), limitMs)
+    if (name === 'tmux') {
+      // As a tmux 3.8 server does for a client with no UTF-8 locale and no `$TMUX`, as SitRep runs the CLI: a
+      // format's tabs come back as `_` unless the client says it takes UTF-8.
+      const isUtf8 = words[0] === '-u'
+      const [flag, socket = '', ...rest] = isUtf8 ? words.slice(1) : words
+
+      if (flag === '-S') {
+        const ran = tmux(socket, rest, limitMs)
+
+        return isUtf8 ? ran : { ...ran, stdout: ran.stdout.replaceAll('\t', '_') }
+      }
     }
 
     if (name === 'ps') {

@@ -158,6 +158,7 @@ test("tmux's clients read as each one's device, process, the tmux window it show
 test("tmux's select makes a window current in a tmux session by their ids, on the server's socket", () => {
   expect(selectWords({ socket: SOCKET, session: '$7', window: WINDOW })).toEqual([
     'tmux',
+    '-u',
     '-S',
     SOCKET,
     'select-window',
