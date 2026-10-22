@@ -12,6 +12,9 @@ struct DesktopCorner: View {
     /// As Paper draws it.
     private static let drawing = CGSize(width: 704, height: 150)
 
+    /// The time its clock tells: the time now, a minute at a time, unless given one.
+    var time: Date?
+
     var body: some View {
         CropsAtItsLeft(drawing: Self.drawing) {
             desktop
@@ -34,7 +37,7 @@ struct DesktopCorner: View {
                 startPoint: .top, endPoint: .bottom
             )
             WindowBehind().offset(x: 28, y: 56)
-            MenuBar()
+            MenuBar(time: time)
             Banner()
                 .fixedSize()
                 .padding(.top, 32)
@@ -80,25 +83,37 @@ private struct CropsAtItsLeft: Layout {
     }
 }
 
-/// The menu bar across the top, right-aligned: Wi-Fi, SitRep's glyph lit, and the clock, a minute at a time, all in
-/// the drawn bar's own ink, whatever the Mac's appearance.
+/// The menu bar across the top, right-aligned: Wi-Fi, SitRep's glyph lit, and the clock, at `time` or else the time
+/// now, a minute at a time, all in the drawn bar's own ink, whatever the Mac's appearance.
 private struct MenuBar: View {
     private static let ink = Color(hex: 0xF5F5F7)
     private static let glyph = MenuImages.glyph(.lit, ink: NSColor(ink))
+
+    let time: Date?
 
     var body: some View {
         HStack(spacing: 16) {
             Spacer(minLength: 0)
             Image(systemName: "wifi").font(.system(size: 16, weight: .semibold))
             Image(nsImage: Self.glyph).resizable().frame(width: 16, height: 16)
-            TimelineView(.everyMinute) { moment in
-                Text(DesktopCorner.clock(moment.date)).font(.system(size: 12, weight: .medium))
-            }
+            clock
         }
         .foregroundStyle(Self.ink)
         .padding(.horizontal, 14)
         .frame(height: 24)
         .background(.black.opacity(0.18))
+    }
+
+    @ViewBuilder private var clock: some View {
+        if let time {
+            Self.clock(time)
+        } else {
+            TimelineView(.everyMinute) { Self.clock($0.date) }
+        }
+    }
+
+    private static func clock(_ date: Date) -> some View {
+        Text(DesktopCorner.clock(date)).font(.system(size: 12, weight: .medium))
     }
 }
 

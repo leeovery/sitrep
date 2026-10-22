@@ -239,11 +239,29 @@ struct SettingsLayoutTests {
         #expect(size == CGSize(width: width, height: 150))
     }
 
+    /// The time every desktop corner's clock tells here, so two drawings of it compared tell the same one, whenever the
+    /// minute turns: Tue 20 Oct 20:20 in London.
+    private static let cornersTime = Date(timeIntervalSince1970: 1_792_524_000)
+
+    /// The desktop corner `width` wide, its clock at `time`.
+    private static func corner(_ width: CGFloat, at time: Date = cornersTime) throws -> Drawn {
+        try Drawn(DesktopCorner(time: time), size: CGSize(width: width, height: 150))
+    }
+
+    /// The clock tells the time it is given: a minute later, the menu bar's right, where the clock stands, is drawn
+    /// otherwise.
+    @Test func theDesktopCornersClockTellsTheTimeItIsGiven() throws {
+        let clock = CGRect(x: 704 - 120, y: 0, width: 108, height: 24)
+        let later = try Self.corner(704, at: Self.cornersTime + 60)
+
+        #expect(try Self.corner(704).pixels(in: clock) != later.pixels(in: clock))
+    }
+
     /// Narrower than its drawing's 704, the desktop corner crops at its left: all of it inside its hairline and its
     /// corners' curve is the drawing's right, the clock, the banner and the window behind, to the same pixels.
     @Test func narrowerTheDesktopCornerCropsAtItsLeft() throws {
-        let drawing = try Drawn(DesktopCorner(), size: CGSize(width: 704, height: 150))
-        let narrow = try Drawn(DesktopCorner(), size: CGSize(width: 500, height: 150))
+        let drawing = try Self.corner(704)
+        let narrow = try Self.corner(500)
         let inside = { (width: CGFloat) in CGRect(x: width - 488, y: 12, width: 476, height: 126) }
 
         #expect(Self.alike(narrow.pixels(in: inside(500)), drawing.pixels(in: inside(704))))
@@ -266,8 +284,8 @@ struct SettingsLayoutTests {
     /// Wider than its drawing, the desktop corner runs on with nothing stretched: at its right, the menu bar's items and
     /// the banner, and at its left, the window behind 28 in, are the drawing's to the same pixels.
     @Test func widerTheDesktopCornerRunsOnBetweenItsTwoEnds() throws {
-        let drawing = try Drawn(DesktopCorner(), size: CGSize(width: 704, height: 150))
-        let wide = try Drawn(DesktopCorner(), size: CGSize(width: 1200, height: 150))
+        let drawing = try Self.corner(704)
+        let wide = try Self.corner(1200)
         // the menu bar's items, clear of the corners' curve
         let bar = { (width: CGFloat) in CGRect(x: width - 480, y: 0, width: 468, height: 24) }
         // under them the banner, clear of where the window behind stands in the drawing
