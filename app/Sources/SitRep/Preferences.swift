@@ -16,12 +16,15 @@ final class Preferences {
         didSet {
             if app != oldValue {
                 savedApp.save(app)
+                onApp(app)
             }
         }
     }
 
     /// The edge, told of each change Lee makes in the menu or Settings.
     @ObservationIgnored var onEdge: (EdgeSettings) -> Void = { _ in }
+    /// The edge, told of each change Lee makes to the rest, for the card's fold period.
+    @ObservationIgnored var onApp: (AppSettings) -> Void = { _ in }
     @ObservationIgnored private let savedEdge: SavedEdgeSettings
     @ObservationIgnored private let savedApp: SavedSettings<AppSettings>
 

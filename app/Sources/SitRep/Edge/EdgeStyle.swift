@@ -25,6 +25,12 @@ enum EdgeStyle {
     static let arc = srgb(0xC9C9CF)
     /// A row on its own work's verb, from Paper's board D; its subject and its dotted ring are `grey`.
     static let waitingVerb = srgb(0xB4B4BA)
+    /// Board D's eyebrows: a section's name, its count where it is not needs you's orange, and its chevron; and "N
+    /// earlier"'s ring.
+    static let eyebrow = white(0.55)
+    static let eyebrowCount = white(0.30)
+    static let chevron = white(0.25)
+    static let earlierRing = white(0.35)
     static let orange = color(LiveLight.orange)
     /// A new row's wash, and the ring round it (the prototype's `--wash-bg` and `--wash-ring`).
     static let wash = color(LiveLight.orange, alpha: 0.12)
@@ -41,6 +47,11 @@ enum EdgeStyle {
     static let age = NSFont.monospacedDigitSystemFont(ofSize: 12, weight: .regular)
     static let headTitle = NSFont.systemFont(ofSize: 13, weight: .semibold)
     static let headCount = NSFont.systemFont(ofSize: 12)
+    /// An eyebrow's name, and its count in tabular figures.
+    static let eyebrowTitle = NSFont.systemFont(ofSize: 11, weight: .semibold)
+    static let eyebrowFigures = NSFont.monospacedDigitSystemFont(ofSize: 11, weight: .semibold)
+    /// A your-turn row's words on one line, and "8 earlier": regular (board D, as Lee approved it).
+    static let line = NSFont.systemFont(ofSize: 13, weight: .regular)
     /// A mark's letters, and a count's rows, needs you's bolder.
     static let letters = NSFont.systemFont(ofSize: 9.5, weight: .semibold)
     static let rowTitle = NSFont.systemFont(ofSize: 13, weight: .medium)
@@ -55,6 +66,10 @@ enum EdgeStyle {
 
     nonisolated static func color(_ rgb: LiveLight.RGB, alpha: Double = 1) -> CGColor {
         CGColor(srgbRed: rgb.r / 255, green: rgb.g / 255, blue: rgb.b / 255, alpha: alpha)
+    }
+
+    private static func white(_ alpha: Double) -> CGColor {
+        CGColor(srgbRed: 1, green: 1, blue: 1, alpha: alpha)
     }
 
     private static func srgb(_ hex: UInt32) -> CGColor {

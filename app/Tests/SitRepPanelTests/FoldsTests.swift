@@ -147,6 +147,6 @@ struct FoldsTests {
 
         #expect(!content.entries[0].jumps)
         #expect(content.entries[1].jumps)
-        #expect(content.row(at: content.itemFrame(0).origin.applying(.init(translationX: 1, y: 1))) == nil)
+        #expect(content.item(at: content.itemFrame(0).origin.applying(.init(translationX: 1, y: 1))) == nil)
     }
 }

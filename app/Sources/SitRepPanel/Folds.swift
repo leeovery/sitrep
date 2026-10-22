@@ -28,11 +28,11 @@ public struct Folds: Equatable, Sendable {
         }
     }
 
-    /// The list at this time, each item at its folded height and fade. An item folded all the way away is gone from
-    /// here on.
-    public mutating func content(at time: Double) -> Content {
+    /// The list at this time, under a head or with none, each item at its folded height and fade. An item folded all
+    /// the way away is gone from here on.
+    public mutating func content(at time: Double, headed: Bool = true) -> Content {
         folds.removeAll { $0.isGoing && !$0.isFolding(at: time) }
-        return Content(headHeight: Content.headHeight, entries: folds.map { $0.entry(at: time) })
+        return Content(headHeight: headed ? Content.headHeight : 0, entries: folds.map { $0.entry(at: time) })
     }
 
     /// Whether anything still folds or fades in at this time: frames must keep coming until it is done.

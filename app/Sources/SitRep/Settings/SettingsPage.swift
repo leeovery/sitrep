@@ -190,10 +190,15 @@ struct SettingsPage: View {
         }
     }
 
-    /// The plugin, Open at login, and the leave to bring a session's Ghostty window to the front.
+    /// How long Your turn's rows stay out, the plugin, Open at login, and the leave to bring a session's Ghostty window
+    /// to the front.
     private var general: some View {
         SettingsSection(name: "General") {
             SettingsCard {
+                CardRow(label: "Your turn folds after", line: "Older ones fold into one line, which opens in place") {
+                    PopUp(label: "Your turn folds after", sections: [FoldPeriod.allCases], title: \.title, selection: foldsAfter)
+                }
+                CardSeparator()
                 PluginRow(settings: settings)
                 CardSeparator()
                 StatedRow(row: .login(settings.said.login), isOn: opensAtLogin, fix: settings.fix)
@@ -205,6 +210,10 @@ struct SettingsPage: View {
 
     private var notifies: Binding<Bool> {
         Binding(get: { settings.preferences.app.notifiesNewAsks }, set: settings.notify)
+    }
+
+    private var foldsAfter: Binding<FoldPeriod> {
+        Binding(get: { settings.preferences.app.foldsAfter }, set: { settings.preferences.app.foldsAfter = $0 })
     }
 
     private var opensAtLogin: Binding<Bool> {

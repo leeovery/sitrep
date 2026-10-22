@@ -88,7 +88,7 @@ final class NotchGlassView: NSView, NotchDrawing {
 @MainActor
 @Observable
 final class NotchGlassScene {
-    var list = PanelList(head: Head(title: "", count: ""), content: Content(laying: []))
+    var list = PanelList(head: nil, content: Content(laying: []))
     var frame: NotchScene?
     /// The wall clock at the last frame, ms.
     var now = 0.0
@@ -165,8 +165,9 @@ struct NotchGlassMark {
     }
 }
 
-/// The panel's content as the black's: its head and its list, moved with the panel, scrolled, clipped to its body
-/// with its front corners rounded, each row landing or fading as the frame paints it.
+/// The panel's content as the black's: its head, where it has one, and its list, the sections under their eyebrows,
+/// moved with the panel, scrolled, clipped to its body with its front corners rounded, each item landing or fading as
+/// the frame paints it.
 @available(macOS 26, *)
 private struct GlassPanel: View {
     let panel: Frame.Panel
@@ -177,9 +178,11 @@ private struct GlassPanel: View {
     var body: some View {
         let box = panel.drawn(scene.mirror), content = list.content
         ZStack(alignment: .topLeading) {
-            GlassHead(head: list.head)
-                .frame(width: content.headFrame.width, height: HeadLayout.line, alignment: .top)
-                .painted(panel.head, at: content.headFrame.origin)
+            if let head = list.head {
+                GlassHead(head: head)
+                    .frame(width: content.headFrame.width, height: HeadLayout.line, alignment: .top)
+                    .painted(panel.head, at: content.headFrame.origin)
+            }
             ForEach(placed(content)) { placed in
                 let i = placed.index, itemBox = content.itemFrame(i), shows = content.entries[i].item
                 item(shows, lit: scene.hover == i, pressed: shows.key == panel.pressed, width: itemBox.width)
@@ -200,14 +203,22 @@ private struct GlassPanel: View {
         zip(content.entries.indices, panel.items).map { Placed(id: content.entries[$0].item.key, index: $0, paint: $1) }
     }
 
-    /// An item at its own height, which its box clips as it folds.
+    /// An item at its own height, which its box clips as it folds, what it draws where its margins leave it.
     @ViewBuilder private func item(_ item: Item, lit: Bool, pressed: Bool, width: Double) -> some View {
-        if let session = item.session {
+        let box = item.box(width: width)
+
+        switch item {
+        case let .session(session), let .turn(session):
             GlassSessionRow(
-                session: session, size: CGSize(width: width, height: item.height - Item.rowGap),
-                lit: lit && session.jumps, pressed: pressed, now: scene.now, wash: wash(item.key)
+                session: session, size: box.size, oneLine: item == .turn(session), lit: lit && session.jumps,
+                pressed: pressed, now: scene.now, wash: wash(item.key)
             )
-        } else {
+            .offset(y: box.minY)
+        case let .eyebrow(eyebrow):
+            GlassEyebrow(eyebrow: eyebrow, size: box.size).offset(y: box.minY)
+        case let .earlier(earlier):
+            GlassEarlier(earlier: earlier, size: box.size, lit: lit).offset(y: box.minY)
+        case .divider:
             let rule = DividerLayout.rule(width: width)
             Rectangle().fill(.separator).frame(width: rule.width, height: rule.height)
                 .offset(x: rule.minX, y: rule.minY)
@@ -247,11 +258,14 @@ private struct GlassHead: View {
 /// A session's row on glass: for each of its lines, its mark, its title with its subject and its "+2", and its time;
 /// its project and session under them; laid out as the black's. Under the pointer, a row that jumps lifts, and a click
 /// jumping from it presses it in with an arc spinning in its first line's time's place. One on its own work is still,
-/// its subject plain or a wake's countdown.
+/// its subject plain or a wake's countdown. A your-turn row on the card is on one line: its ring, its words in
+/// regular, its project in the tertiary at the right of them, never cut, and its time.
 @available(macOS 26, *)
-private struct GlassSessionRow: View {
+struct GlassSessionRow: View {
     let session: Session
     let size: CGSize
+    /// A your-turn row on the card, on one line, as the black's.
+    let oneLine: Bool
     let lit: Bool
     let pressed: Bool
     /// The wall clock, ms.
@@ -260,12 +274,12 @@ private struct GlassSessionRow: View {
     let wash: Double
 
     var body: some View {
-        let at = SessionRowLayout(size: size, lines: session.lines.count)
+        let at = layout, radius = oneLine ? SessionRowLayout.turnRadius : SessionRowLayout.radius
         ZStack(alignment: .topLeading) {
-            RoundedRectangle(cornerRadius: SessionRowLayout.radius)
+            RoundedRectangle(cornerRadius: radius)
                 .fill(.primary.opacity(pressed ? 0.12 : lit ? 0.08 : 0))
                 .animation(.easeOut(duration: 0.11), value: pressed)
-            RoundedRectangle(cornerRadius: SessionRowLayout.radius)
+            RoundedRectangle(cornerRadius: radius)
                 .fill(GlassInk.orange.opacity(0.12))
                 .strokeBorder(GlassInk.orange.opacity(0.26), lineWidth: 1)
                 .opacity(wash)
@@ -280,8 +294,13 @@ private struct GlassSessionRow: View {
                         .placed(in: place.age, alignment: .trailing)
                 }
             }
-            Text(session.sub).font(.system(size: 12)).foregroundStyle(session.away ? .tertiary : .secondary)
-                .placed(in: at.sub)
+            if oneLine {
+                Text(session.project).font(.system(size: 12)).foregroundStyle(.tertiary)
+                    .placed(in: at.sub.offsetBy(dx: 0, dy: TextLine.drop(of: EdgeStyle.sub, to: EdgeStyle.line, lineHeight: at.sub.height)))
+            } else {
+                Text(session.sub).font(.system(size: 12)).foregroundStyle(session.away ? .tertiary : .secondary)
+                    .placed(in: at.sub)
+            }
             if pressed {
                 spinner.placed(in: at.age, alignment: .trailing)
             }
@@ -290,6 +309,15 @@ private struct GlassSessionRow: View {
         .animation(.easeOut(duration: 0.11), value: lit)
         .scaleEffect(pressed ? 0.985 : 1)
         .animation(.easeOut(duration: 0.14), value: pressed)
+    }
+
+    /// The black's layout: on one line, its project's lane as wide as the black sets its project.
+    private var layout: SessionRowLayout {
+        guard oneLine else {
+            return SessionRowLayout(size: size, lines: session.lines.count)
+        }
+
+        return SessionRowLayout(turn: size, project: TextLine.width(TextLine.text(session.project, EdgeStyle.sub, EdgeStyle.ink3)))
     }
 
     /// The arc turning once a second, as a working row's mark.
@@ -305,7 +333,8 @@ private struct GlassSessionRow: View {
             Circle().fill(GlassInk.orange).frame(width: 7, height: 7)
                 .shadow(color: GlassInk.orange.opacity(0.75), radius: 2)
         case .turn:
-            Circle().strokeBorder(.primary, lineWidth: 1.5).frame(width: 7, height: 7)
+            let ring = oneLine ? 9.0 : 7.0
+            Circle().strokeBorder(.primary, lineWidth: 1.5).frame(width: ring, height: ring)
         case .working:
             spinner
         case .onItsWork:
@@ -335,9 +364,9 @@ private struct GlassSessionRow: View {
         .lineLimit(1)
     }
 
-    private func lead(_ line: Session.Line) -> Text { Text(line.title).font(titleFont).kerning(-0.14) }
+    private func lead(_ line: Session.Line) -> Text { Text(line.title).font(titleFont).kerning(oneLine ? -0.13 : -0.14) }
 
-    private var titleFont: Font { .system(size: 14, weight: .medium) }
+    private var titleFont: Font { oneLine ? .system(size: 13) : .system(size: 14, weight: .medium) }
 
     /// Its subject in mono, after the title.
     private func subject(_ line: Session.Line) -> Text {

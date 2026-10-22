@@ -46,8 +46,8 @@ struct RowsTests {
 
         #expect(row.height == 103)
         #expect(content.height == 18 + 26 + 103 + 9 + 14)
-        #expect([10.0, 40, 72, 95].allSatisfy { content.row(at: CGPoint(x: row.midX, y: row.minY + $0)) == 0 })
-        #expect(content.row(at: CGPoint(x: row.midX, y: row.minY + 100)) == nil)
+        #expect([10.0, 40, 72, 95].allSatisfy { content.item(at: CGPoint(x: row.midX, y: row.minY + $0)) == 0 })
+        #expect(content.item(at: CGPoint(x: row.midX, y: row.minY + 100)) == nil)
     }
 
     @Test func thePrototypesSessionsShowTheirAgesAsItDoes() {
@@ -121,21 +121,21 @@ struct RowsTests {
     @Test func aPointOnARowIsThatRow() {
         let content = Content.css
 
-        #expect(content.row(at: CGPoint(x: 20, y: 50)) == 0)
-        #expect(content.row(at: CGPoint(x: 350, y: 98)) == 0)
-        #expect(content.row(at: CGPoint(x: 200, y: 190)) == 3)
+        #expect(content.item(at: CGPoint(x: 20, y: 50)) == 0)
+        #expect(content.item(at: CGPoint(x: 350, y: 98)) == 0)
+        #expect(content.item(at: CGPoint(x: 200, y: 190)) == 3)
     }
 
     @Test(arguments: [CGPoint(x: 200, y: 100), CGPoint(x: 200, y: 165), CGPoint(x: 8, y: 50), CGPoint(x: 200, y: 30)])
     func theGapBelowARowTheDividerThePaddingAndTheHeadAreNoRow(_ point: CGPoint) {
-        #expect(Content.css.row(at: point) == nil)
+        #expect(Content.css.item(at: point) == nil)
     }
 
     @Test func aRowFoldingAwayIsNoRowAndTakesNoClick() {
         var content = Content.css
         content.entries[0].isGoing = true
 
-        #expect(content.row(at: CGPoint(x: 20, y: 50)) == nil)
+        #expect(content.item(at: CGPoint(x: 20, y: 50)) == nil)
         #expect(!content.entries[0].jumps)
         #expect(content.entries[1].jumps)
         #expect(!content.entries[2].jumps)
