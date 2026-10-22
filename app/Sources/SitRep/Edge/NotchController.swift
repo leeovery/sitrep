@@ -29,9 +29,6 @@ final class NotchController: NSObject {
     private var settings: EdgeSettings
     private var edge: ScreenEdge
     private let run: NotchRun
-    /// The sections Lee folded, kept across opens and launches, as last saved.
-    private let saved: SavedSettings<CardSettings>
-    private var kept: CardSettings
     private let surface = NotchSurface()
     private let window: EdgeWindow
     private var link: CADisplayLink?
@@ -52,10 +49,8 @@ final class NotchController: NSObject {
     init(_ settings: EdgeSettings, period: FoldPeriod, on display: Display, defaults: UserDefaults = .standard) {
         self.settings = settings
         self.period = period
-        saved = SavedSettings(defaults)
-        kept = saved.read()
         edge = ScreenEdge(display, settings)
-        run = NotchRun(at: Displays.now, in: Self.setting(edge, settings, period), folded: kept.folded)
+        run = NotchRun(at: Displays.now, in: Self.setting(edge, settings, period), kept: SavedSettings(defaults))
         window = EdgeWindow(frame: edge.window, view: surface)
         super.init()
 
@@ -107,19 +102,7 @@ final class NotchController: NSObject {
             surface.wash(washes, at: run.time)
             washed = run.time
         }
-        keepFolds()
         took()
-    }
-
-    /// The sections folded as they now stand, saved where they changed: by a click on an eyebrow, or an arrival
-    /// unfolding Needs you.
-    private func keepFolds() {
-        let folded = CardSettings(folded: run.folded.sections)
-
-        if folded != kept {
-            saved.save(folded)
-            kept = folded
-        }
     }
 
     /// The settings and the display, as they stand: the edge and the place along it, the material and the motion at
@@ -255,19 +238,25 @@ final class NotchController: NSObject {
         NotchSurface.drawn(settings.material) == .glass && washed.map { time - $0 < Wash.length } == true
     }
 
-    /// A frame as the first of the open panel's times next reads differently, menus tracking or not.
+    /// A frame as the first of the open panel's times next reads differently, or a your-turn row folds into "N
+    /// earlier", menus tracking or not.
     private func agesChange() {
-        let now = Displays.wallNow
-        guard let next = run.nextAgeChange(after: now) else {
+        guard let wait = Self.wait(for: run, at: Displays.wallNow) else {
             return
         }
 
-        let ages = Timer(timeInterval: (next - now) / 1000, repeats: false) { [weak self] _ in
+        let ages = Timer(timeInterval: wait, repeats: false) { [weak self] _ in
             MainActor.assumeIsolated { self?.wake() }
         }
 
         RunLoop.main.add(ages, forMode: .common)
         self.ages = ages
+    }
+
+    /// How long, in seconds, from this time on the wall clock, ms, until the run's open panel next draws differently
+    /// (`NotchRun.nextAgeChange`); nil with nothing to draw again.
+    static func wait(for run: NotchRun, at now: Double) -> TimeInterval? {
+        run.nextAgeChange(after: now).map { ($0 - now) / 1000 }
     }
 
     /// A press on a row that jumps presses it in and jumps to its session, and once the jump has jumped, the caption
@@ -278,14 +267,9 @@ final class NotchController: NSObject {
             return
         }
 
-        switch run.press(moment(pointer: point), mayJump: !isJumping()) {
-        case let .jump(session, to: target, click: click)?:
+        if case let .jump(session, to: target, click: click) = run.press(moment(pointer: point), mayJump: !isJumping()) {
             caption.jumping(to: session.project)
             onJump(target) { [weak self] in self?.answered(jumped: $0, click: click) }
-        case .fold?:
-            keepFolds()
-        case .carry?, nil:
-            break
         }
         took()
     }

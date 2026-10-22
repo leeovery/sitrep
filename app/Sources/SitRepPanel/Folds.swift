@@ -6,8 +6,11 @@ public struct Folds: Equatable, Sendable {
 
     public init() {}
 
-    /// The list as it stands now, in its order, with any item folding away kept where it was.
-    public mutating func take(_ items: [Item], at time: Double, animating: Bool, reducesMotion: Bool) {
+    /// The list as it stands now, in its order, with any item folding away kept where it was. The items `atOnce`
+    /// names come and go at once, with no motion, as a section folding does, while the rest keep theirs.
+    public mutating func take(
+        _ items: [Item], at time: Double, animating: Bool, reducesMotion: Bool, atOnce: Set<String> = []
+    ) {
         guard animating else {
             folds = items.map { Fold(item: $0) }
             return
@@ -16,8 +19,12 @@ public struct Folds: Equatable, Sendable {
         let duration = reducesMotion ? Self.reducedFor : Self.foldFor
         let was = Dictionary(folds.map { ($0.item.key, $0) }) { first, _ in first }
         let live = Set(items.map(\.key))
+        let staying = folds.map(\.item).filter { live.contains($0.key) || !atOnce.contains($0.key) }
 
-        folds = items.merging(folds.map(\.item), by: \.key).map { item in
+        folds = items.merging(staying, by: \.key).map { item in
+            if atOnce.contains(item.key) {
+                return Fold(item: item)
+            }
             guard var fold = was[item.key] else {
                 return Fold(born: item, at: time, duration, fades: !reducesMotion)
             }

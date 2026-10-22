@@ -2316,8 +2316,9 @@ eyebrow with it.
   15 by 24 that stands 7.5 in, so the chevron ends where a row's time does.
   Needs you counts its waiting lines, the asks and stops (Kit's one and
   Harness's three are 4); Working and Your turn count their rows, Your
-  turn's folded ones among them. Working's eyebrow follows the hairline
-  straight on, and Your turn's sits 10 under the section before it.
+  turn's folded ones among them. The eyebrow after the hairline follows it
+  straight on, Working's, or Your turn's where there is no Working; Your
+  turn's under Working sits 10 under it, Working folded or not.
 - **The hairline** sits after Needs you only, as it did, whenever another
   section follows, Needs you folded or not.
 - **Folding.** A click on an eyebrow folds its section to the eyebrow
@@ -2327,7 +2328,11 @@ eyebrow with it.
   across opens and launches, a value of their own in the app's defaults
   under "card". An arrival unfolds Needs you, at once: a row holding a line
   new to the board, as swells the notch, whether the session is new, comes
-  to need Lee or gains a line.
+  to need Lee or gains a line. The unfold is kept, as a click's is: Needs
+  you stays open until Lee folds it again. At once is for what the fold
+  changes only, the section's rows coming or going; every other row keeps
+  its own motion, one folding away finishing and one arriving, the new
+  ask's own row among them, folding in.
 - **Your turn's rows are one line**, 30 tall, with no gap between them (see
   "How each row reads").
 - **"N earlier."** Your-turn sessions whose turn ended longer ago than the
@@ -2341,10 +2346,12 @@ eyebrow with it.
   your-turn rows, the line staying as their eyebrow with its chevron
   pointing down; a click again folds them, each at once. Whether it is open
   is never kept: it is folded each time the card comes out, since what it
-  holds is stale. The period is measured from each row's time, its turn's
+  holds is stale, and as the line goes, its last row starting a turn, so it
+  never comes back already open. The period is measured from each row's time, its turn's
   end, against the wall clock: "today" folds what ended before local
   midnight, and "never" shows no "N earlier". As time passes a row folds in
-  where it passes the period, at once, the card drawn again at that moment
+  where it passes the period, at once, the rest keeping their motion, and
+  under the line where it is open, the card drawn again at that moment
   as it is drawn again as a row's time changes, and nothing polls; the
   period changing refolds the card at once.
 

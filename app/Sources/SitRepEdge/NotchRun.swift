@@ -74,8 +74,18 @@ public final class NotchRun: Framed {
     public private(set) var scroll = 0.0
     /// A press off a row, which a move makes a drag, until it lets go.
     public private(set) var drag: NotchDrag?
-    /// The sections Lee folded, and whether "N earlier" is open, which it is not each time the panel comes out.
-    public private(set) var folded: CardFolds
+    /// The sections Lee folded, kept as they change, by a click or an arrival unfolding Needs you; and whether "N
+    /// earlier" is open, which is never kept, and closes each time the panel comes out or the line goes.
+    public private(set) var folded: CardFolds {
+        didSet {
+            if folded.sections != oldValue.sections {
+                kept?.save(CardSettings(folded: folded.sections))
+            }
+        }
+    }
+
+    /// Where the sections folded are kept across opens and launches; none, they are not.
+    private let kept: SavedSettings<CardSettings>?
     /// The light's own clock, apart from the frames': the latest it was drawn at.
     private var lit: Double
     private var rows = HeldRows()
@@ -88,21 +98,24 @@ public final class NotchRun: Framed {
     /// The wall clock, ms, against which a your-turn row passes the fold period, and the calendar its days are in.
     private let wall: () -> Double
     private let calendar: Calendar
-    /// The fold period the list was last laid out by, and when on the wall clock a your-turn row it shows next passes
-    /// it.
-    private var period: FoldPeriod
+    /// What the list was last laid out from, which its folds are told apart from, and when on the wall clock a
+    /// your-turn row it shows next passes the fold period.
+    private var laid: Laid
     private var nextRefold: Double?
 
-    /// From these sections folded, against this wall clock, ms.
+    /// The sections folded as kept, if they are, against this wall clock, ms, its days in the Mac's own calendar,
+    /// followed as its time zone changes.
     public init(
-        at time: Double, in setting: Setting, folded sections: Set<BoardSection> = [],
-        wall: @escaping () -> Double = { Date().timeIntervalSince1970 * 1000 }, calendar: Calendar = .current
+        at time: Double, in setting: Setting, kept: SavedSettings<CardSettings>? = nil,
+        wall: @escaping () -> Double = { Date().timeIntervalSince1970 * 1000 },
+        calendar: Calendar = .autoupdatingCurrent
     ) {
         book = RunBook(at: time)
         lit = time
         style = setting.style
-        folded = CardFolds(sections: sections)
-        period = setting.period
+        self.kept = kept
+        folded = CardFolds(sections: kept?.read().folded ?? [])
+        laid = Laid(rows: [], folds: folded, now: wall(), period: setting.period)
         self.wall = wall
         self.calendar = calendar
         list = PanelList(head: board.head, content: Content(laying: []))
@@ -156,7 +169,7 @@ public final class NotchRun: Framed {
         seen = moment.pointer
         latch(frame, at: time)
         if hold(notch.phase != .closed) || refolds(by: setting.period) {
-            relist(at: time, in: setting, animating: false)
+            relist(at: time, in: setting)
         }
         restyle(input, to: setting.style)
         scroll = frame.panel.map { list.content.scrolled(scroll, by: 0, showing: $0.frame.height) } ?? 0
@@ -188,12 +201,10 @@ public final class NotchRun: Framed {
         self.board = board
         rows.take(board.sessions)
 
-        let unfolds = !board.new.isEmpty && folded.sections.contains(.needsYou)
-
-        if unfolds {
+        if !board.new.isEmpty {
             folded.sections.remove(.needsYou)
         }
-        relist(at: time, in: moment.setting, animating: isOut && !unfolds)
+        relist(at: time, in: moment.setting)
         return isOut ? Set(board.sessions.filter { board.new.contains($0.id) }.map { Item.session($0).key }) : []
     }
 
@@ -336,7 +347,7 @@ public final class NotchRun: Framed {
             return jump(index, mayJump: mayJump)
         }
 
-        relist(at: time, in: setting, animating: false)
+        relist(at: time, in: setting)
         return .fold
     }
 
@@ -369,23 +380,66 @@ public final class NotchRun: Framed {
 
     /// Whether the list folds differently now: the period changed, or a your-turn row passed it.
     private func refolds(by period: FoldPeriod) -> Bool {
-        period != self.period || nextRefold.map { wall() >= $0 } == true
+        period != laid.period || nextRefold.map { wall() >= $0 } == true
     }
 
     /// The rows as they show now in their sections, the your-turn rows past the fold period under "N earlier",
-    /// folding in and out while the panel is out, or at once, to the model's next frame. The head shows only on a card
-    /// with no rows, or while the board is stale, to say so; otherwise the eyebrows carry the counts.
-    private func relist(at time: Double, in setting: Setting, animating: Bool) {
-        let now = wall(), period = setting.period, calendar = calendar
-        let isEarlier = { (session: Session) in period.isPast(session.since, at: now, in: calendar) }
-        let items = Item.card(rows.shown, folds: folded, isEarlier: isEarlier)
+    /// folding in and out while the panel is out, to the model's next frame. What a fold changed, a section folding or
+    /// unfolding, "N earlier" opening or closing, or rows passing the period or a new one, changes at once; every
+    /// other row keeps its own motion, one folding away finishing and one arriving folding in. "N earlier" closes as
+    /// it goes. The head shows only on a card with no rows, or while the board is stale, to say so; otherwise the
+    /// eyebrows carry the counts.
+    private func relist(at time: Double, in setting: Setting) {
+        let next = Laid(rows: rows.shown, folds: folded, now: wall(), period: setting.period)
+        let items = next.items(in: calendar)
 
-        folds.take(items, at: time, animating: animating, reducesMotion: setting.reducesMotion)
-        self.period = period
-        nextRefold = rows.shown.filter { $0.section == .yourTurn && !isEarlier($0) }
-            .compactMap { period.folds($0.since, in: calendar) }.min()
+        folds.take(
+            items, at: time, animating: isOut, reducesMotion: setting.reducesMotion,
+            atOnce: laid.refolded(to: next, in: calendar)
+        )
+        if !items.contains(where: { $0.key == "earlier" }) {
+            folded.isEarlierOpen = false
+        }
+        laid = Laid(rows: next.rows, folds: folded, now: next.now, period: next.period)
+        nextRefold = next.nextRefold(in: calendar)
         list.head = board.sessions.isEmpty || board.asOf != nil ? board.head : nil
         list.content = folds.content(at: time, headed: list.head != nil)
+    }
+
+    /// What the list is laid out from: its rows, and how they fold, by Lee's folds and the fold period at a time on
+    /// the wall clock.
+    private struct Laid {
+        let rows: [Session]
+        let folds: CardFolds
+        let now: Double
+        let period: FoldPeriod
+
+        func items(in calendar: Calendar) -> [Item] {
+            items(of: rows, in: calendar)
+        }
+
+        /// The keys of the items that fold differently from this to `next` over the same rows, the rows this had: what
+        /// a fold changed, which changes at once. A row new with `next` is none of them, and folds in.
+        func refolded(to next: Laid, in calendar: Calendar) -> Set<String> {
+            let was = Set(items(of: rows, in: calendar).map(\.key))
+            let now = Set(next.items(of: rows, in: calendar).map(\.key))
+
+            return was.symmetricDifference(now)
+        }
+
+        /// When on the wall clock a your-turn row it shows next passes the period.
+        func nextRefold(in calendar: Calendar) -> Double? {
+            rows.filter { $0.section == .yourTurn && !isEarlier($0, in: calendar) }
+                .compactMap { period.folds($0.since, in: calendar) }.min()
+        }
+
+        private func items(of rows: [Session], in calendar: Calendar) -> [Item] {
+            Item.card(rows, folds: folds) { isEarlier($0, in: calendar) }
+        }
+
+        private func isEarlier(_ session: Session, in calendar: Calendar) -> Bool {
+            period.isPast(session.since, at: now, in: calendar)
+        }
     }
 
     /// Lee chose the other notch: an open panel closes first, and the notch changes once it is at rest.

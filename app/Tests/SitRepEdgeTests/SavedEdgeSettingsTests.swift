@@ -87,12 +87,12 @@ struct CardSettingsTests {
         }
     }
 
-    /// A section another version saved that this one doesn't know leaves nothing folded.
-    @Test func aSectionItDoesNotKnowFoldsNothing() {
+    /// A section another version saved that this one doesn't know is passed over, and the folds it knows are kept.
+    @Test func aSectionItDoesNotKnowIsPassedOverAndTheRestKept() {
         Self.withDefaults { defaults in
-            defaults.set(Data(#"{"folded":["projects"]}"#.utf8), forKey: "card")
+            defaults.set(Data(#"{"folded":["working","projects"]}"#.utf8), forKey: "card")
 
-            #expect(SavedSettings<CardSettings>(defaults).read() == CardSettings())
+            #expect(SavedSettings<CardSettings>(defaults).read().folded == [.working])
         }
     }
 }

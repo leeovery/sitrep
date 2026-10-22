@@ -73,6 +73,9 @@ public struct CardSettings: SavedValue {
             return
         }
 
-        folded = given.value(.folded, or: defaults.folded)
+        // one by one, so a section another version saved that this one doesn't know leaves the rest folded
+        let saved: [String] = given.value(.folded, or: [])
+
+        folded = Set(saved.compactMap(BoardSection.init(rawValue:)))
     }
 }
