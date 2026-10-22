@@ -3004,10 +3004,13 @@ stands).
       are kept across launches, the sections folded and whether Projects
       is, in the window's saved value of its own, "window"; a round 8
       value, its projects folded by their keys, reads as the defaults,
-      Projects folded and nothing else. While the filter holds text every
-      section with a match shows open, "N earlier" too, and the folds come
-      back as they were when it clears; a heading clicked meanwhile folds
-      only until then;
+      Projects folded and nothing else. A picked row that moves into a
+      folded section, its turn ending under a folded Your turn, stays hidden
+      there, and the arrow keys step from that section's heading, as from any
+      pick a fold hides. While the filter holds text every section with a
+      match shows open, "N earlier" too, and the folds come back as they were
+      when it clears, but for a pick made meanwhile (see the selection); a
+      heading clicked meanwhile folds only until then;
     - **the type is the card's**, not System Settings' regular, in its
       whites (Lee, 22 October 2026, approving board D: ask lines medium,
       working verbs medium, your-turn lines regular). Paper draws in Inter
@@ -3060,9 +3063,10 @@ stands).
       the list, laid out by SitRep alone, with no inset, safe area or bar for
       the live window to move. Picked, Settings shows on the right, where a
       session would, and the board's list holds no selection while it shows;
-      the foot's row draws the selection itself, as a heading's: 276 wide, 10
-      in, its corners 9, the accent while it has the key window's focus, its
-      gear and word white, else the system's grey. Under the pointer, and not
+      SitRep draws the foot's selection itself, in the system's selection
+      colours, shaped as the list's: 276 wide, 10 in, its corners 9, the
+      accent while it has the key window's focus, its gear and word white,
+      else the system's grey. Under the pointer, and not
       picked, it shows a row's quiet fill, gone as the pointer leaves or the
       window goes out of sight. A click anywhere across it opens Settings, in
       a window not key too, and takes focus there, as a click on a list's row
@@ -3137,19 +3141,29 @@ stands).
   system's accent at radius 9, under which its words go white and the rest,
   its second line, its project, what it acts on and its ages, white at 80%;
   the orange stays orange. A project's page shows picked on its row in
-  Projects, as a session's does on its own. A pick made outside the list, a
-  restore at launch, the menu opening a session, a jump, a project's name
-  pressed on a session's page, unfolds the section holding it, Projects for
-  a project, and opens "N earlier" where its row is under it, so the pick
-  shows; the unfold is kept, as a click's is; while the filter holds text,
-  it unfolds only what shows until the filter clears. A heading folded over
-  the pick hides its row and keeps its page, the list then showing nothing
-  picked, Projects folded over a project's page as any. The arrow keys move
+  Projects, as a session's does on its own. A session with no row of its
+  own, an away one with nothing waiting, picked from its project's page,
+  stands at its project's row in Projects, which shows picked; with its
+  project listed nowhere either, as one filtered out, nothing shows picked.
+  A pick made outside the list, a restore at launch, the menu opening a
+  session, a jump, a project's name pressed on a session's page, unfolds
+  the section holding its row, Projects for a project or a session with no
+  row, and opens "N earlier" where its row is under it, so the pick shows;
+  the unfold is kept, as a click's is. While the filter holds text a pick
+  unfolds only what shows until it clears; as it clears, a pick made
+  meanwhile, by a click, the keys or Return, shows: whatever of Lee's folds
+  would hide it unfolds as for a pick made outside the list, kept, and "N
+  earlier" open for the run only, and everything else the filter opened
+  folds back; a pick made before the filter changes nothing as it clears.
+  A heading folded over the pick hides its row and keeps its page, the list
+  then showing nothing picked, Projects folded over a project's page as
+  any. The arrow keys move
   the selection through the list's rows in order, past the headings and
   "N earlier", which the list never selects, and past what a fold hides,
-  each step a pick; from a pick a fold hides, which holds no selection, ↓
-  goes to the first row after the line it is folded under, its section's
-  heading or "N earlier", and ↑ to the last before it; past either end the
+  each step a pick, and from a session with no row as from its project's
+  row; from a pick a fold hides, which holds no selection, ↓ goes to the
+  first row after the line it is folded under, its section's heading or "N
+  earlier", and ↑ to the last before it; past either end the
   keys go nowhere, and with a modifier held they are the list's own; picks that
   follow sooner than 150ms read only the last one's boards once they stop.
   With the Mac's key repeat faster than that, holding ↓ reads the first

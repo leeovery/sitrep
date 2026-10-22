@@ -29,16 +29,25 @@ public final class WindowRun {
     /// changes.
     public var period: FoldPeriod
     /// What the Filter field holds, which narrows the list and never moves the pick. While it holds text every section
-    /// with a match shows open, "N earlier" too, Lee's folds standing aside until it is cleared.
+    /// with a match shows open, "N earlier" too, Lee's folds standing aside until it is cleared. As it clears, a pick
+    /// made while it held text shows: Lee's folds unfold to show it, as for a pick made outside the list.
     public var filter = Filter() {
         didSet {
-            if filter.isEmpty != oldValue.isEmpty {
-                filtering = .open
+            guard filter.isEmpty != oldValue.isEmpty else {
+                return
             }
+
+            filtering = .open
+            if filter.isEmpty, isPickedWhileFiltering, let pick {
+                folds.unfold(toShow: pick, in: earlier(given))
+            }
+            isPickedWhileFiltering = false
         }
     }
     /// What Lee folded while the filter holds text, let go as it clears.
     private var filtering = Folds.open
+    /// The pick was made while the filter held text, so it shows as the filter clears.
+    private var isPickedWhileFiltering = false
     /// The wall clock, against which a your-turn row passes the fold period, and the calendar its days are in.
     private let wall: () -> Date
     private let calendar: Calendar
@@ -257,6 +266,7 @@ public final class WindowRun {
 
     /// What is picked now, and the sessions it shows, to read.
     private func choose(_ pick: Pick) -> [String] {
+        isPickedWhileFiltering = !filter.isEmpty
         if pick != self.pick {
             self.pick = pick
             frozen = [:]

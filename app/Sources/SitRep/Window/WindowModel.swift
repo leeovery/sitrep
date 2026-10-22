@@ -265,8 +265,9 @@ final class WindowModel {
         schedule(after: time)
     }
 
-    /// Lee's folds saved as they change, by a heading clicked or a pick made elsewhere unfolding its section; those
-    /// made while the filter holds text are never his, and "N earlier" open is never kept.
+    /// Lee's folds saved as they change, by a heading clicked, a pick made elsewhere unfolding its section, or the
+    /// filter clearing on a pick made while it held text; those made while the filter holds text are never his, and
+    /// "N earlier" open is never kept.
     private func keepFolds() {
         let kept = run.folds.kept
 

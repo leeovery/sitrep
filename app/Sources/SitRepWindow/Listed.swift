@@ -106,6 +106,8 @@ public struct Listed: Equatable, Sendable {
     public var rows: [Row]
     /// Every project on the board, in `watch`'s order.
     public var projects: [Project]
+    /// The sessions on the board with no row, as an away one with nothing waiting, each by its project's key.
+    public var rowless: [String: String]
 
     /// Before `watch` prints its first line.
     public init() {
@@ -117,6 +119,7 @@ public struct Listed: Equatable, Sendable {
         head = PanelBoard(unrun: why).head
         rows = []
         projects = []
+        rowless = [:]
     }
 
     /// The board as last heard, its head as the panel's says it, stale or not.
@@ -126,6 +129,7 @@ public struct Listed: Equatable, Sendable {
         head = PanelBoard(last).head
         rows = board.map(Self.rows) ?? []
         projects = board?.projects.map { Project(id: $0.key, name: $0.name) } ?? []
+        rowless = board.map(Self.rowless) ?? [:]
     }
 
     /// A section's rows, in their order.
@@ -135,6 +139,17 @@ public struct Listed: Equatable, Sendable {
 
     /// Every session needing Lee, in core's order.
     public var needsYou: [Row] { rows(in: .needsYou) }
+
+    /// The row that shows a pick: its own; for a session with no row, its project's in Projects; none where it lists
+    /// neither.
+    public func row(showing pick: Pick) -> Pick? {
+        let shown = Set(rows.map(\.pick) + projects.map(\.pick))
+
+        if case let .session(id) = pick, !shown.contains(pick) {
+            return rowless[id].map(Pick.project).flatMap { shown.contains($0) ? $0 : nil }
+        }
+        return shown.contains(pick) ? pick : nil
+    }
 
     /// Each of its rows changed.
     mutating func changeRows(_ change: (inout Row) -> Void) {
@@ -151,6 +166,14 @@ extension Listed {
         }
 
         return BoardSection.allCases.flatMap { section in rows.filter { $0.section == section } }
+    }
+
+    /// The board's sessions core has no row for, by their projects' keys.
+    static func rowless(_ board: Board) -> [String: String] {
+        let rowed = Set(board.rows.map(\.session))
+        let sessions = board.projects.flatMap { project in project.sessions.map { ($0.id, project.key) } }
+
+        return Dictionary(sessions.filter { !rowed.contains($0.0) }) { first, _ in first }
     }
 }
 

@@ -58,6 +58,22 @@ struct ListedTests {
     /// Kit's away session waits on nothing, so core has no row for it: it is reached by its project's page.
     @Test func anAwaySessionWithNothingWaitingHasNoRow() {
         #expect(!Self.listed.rows.contains { $0.id == "sr-k7t001" })
+        #expect(Self.listed.rowless == ["sr-k7t001": "kit"])
+        #expect(Self.bySession.rowless.isEmpty)
+    }
+
+    /// A session with no row of its own shows at its project's row; with its project not listed either, nowhere.
+    @Test func aSessionWithNoRowShowsAtItsProjectsRow() {
+        var unlisted = Self.listed
+
+        unlisted.projects.removeAll { $0.id == "kit" }
+
+        #expect(Self.listed.row(showing: .session("sr-k7t001")) == .project("kit"))
+        #expect(Self.listed.row(showing: .session("sr-rq7dgr")) == .session("sr-rq7dgr"))
+        #expect(Self.listed.row(showing: .project("kit")) == .project("kit"))
+        #expect(Self.listed.row(showing: .session("sr-gone")) == nil)
+        #expect(Self.listed.row(showing: .settings) == nil)
+        #expect(unlisted.row(showing: .session("sr-k7t001")) == nil)
     }
 
     @Test func aRowsTimeIsItsOldestLines() throws {

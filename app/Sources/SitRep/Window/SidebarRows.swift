@@ -9,6 +9,7 @@ struct SidebarLine: View {
     let line: Sidebar.Line
     /// The heading after Needs you, which the rule after it sits over (`Sidebar.ruled`).
     let isRuled: Bool
+    /// The row showing the pick (`Sidebar.row(showing:)`), drawn picked.
     let pick: Pick?
     let filter: Filter
     let now: Date

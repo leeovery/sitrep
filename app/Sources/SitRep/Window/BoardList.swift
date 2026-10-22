@@ -3,11 +3,12 @@ import SwiftUI
 
 /// The sidebar's one list (`Sidebar`), whose selection is the row picked, a session's or a project's, drawn by the
 /// system, which the pointer and the arrow keys move alike, and which never empties. Each session shows once, so its
-/// row is the pick's: one that changes section keeps its selection, its row's tag the same. ↓ and ↑ from a pick a fold
-/// hides, which the list selects no row for, go to the row after the line it is folded under, or before it, and
-/// nowhere past the ends. The row picked is scrolled into view whenever the pick or the order changes: a pick made
-/// elsewhere, by a jump, a notification or the menu, a resort or a fold. Drawn as a still, its lines one under another,
-/// as the list sets them.
+/// row is the pick's: one that changes section keeps its selection, its row's tag the same. A session with no row of
+/// its own stands at its project's row, which the list selects. ↓ and ↑ from a pick a fold hides, which the list
+/// selects no row for, go to the row after the line it is folded under, or before it, and nowhere past the ends. The
+/// row picked is scrolled into view whenever the row showing the pick or the order changes: a pick made elsewhere, by
+/// a jump, a notification or the menu, a resort or a fold. Drawn as a still, its lines one under another, as the list
+/// sets them.
 ///
 /// The system's list sets its first row 10 under its top, so it starts 10 higher, over the accessory's last 10, for
 /// its first heading's row to start at the accessory's foot, its words 10 under it as every heading's are. Scrolled,
@@ -50,11 +51,11 @@ struct BoardList: View {
                         selection = listed
                         return
                     }
-                    if selected != pick {
+                    if selected != listed {
                         act.pickInList(selected)
                     }
                 }
-                .onChange(of: pick, initial: true) {
+                .onChange(of: listed, initial: true) {
                     selection = listed
                     reveal(in: scroller)
                 }
@@ -66,14 +67,16 @@ struct BoardList: View {
         let ruled = sidebar.ruled
 
         return ForEach(sidebar.lines) { line in
-            SidebarLine(line: line, isRuled: line.id == ruled, pick: pick, filter: filter, now: now)
+            SidebarLine(line: line, isRuled: line.id == ruled, pick: listed, filter: filter, now: now)
                 .id(line.id)
         }
     }
 
-    /// The pick as the list's selection holds it: a session or a project; Settings, at the foot, is none of its rows.
+    /// The pick as the list's selection holds it, the row showing it (`Sidebar.row(showing:)`): a session's, or a
+    /// project's, a session with no row of its own standing at its project's; Settings, at the foot, is none of its
+    /// rows.
     private var listed: Pick? {
-        pick == .settings ? nil : pick
+        sidebar.row(showing: pick)
     }
 
     /// The lines as they show, which moves the row picked when the list resorts or folds.

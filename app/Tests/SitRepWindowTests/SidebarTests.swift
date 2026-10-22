@@ -184,6 +184,37 @@ struct SidebarTests {
         #expect(sidebar.step(from: .project("kit"), down: true) == .stays)
     }
 
+    /// Kit's away session, with no row of its own, shows at Kit's row in Projects; its project not listed, nowhere.
+    @Test func aSessionWithNoRowShowsAtItsProjectsRow() {
+        var unlisted = Self.first
+
+        unlisted.projects.removeAll { $0.id == "kit" }
+
+        let sidebar = Sidebar(Self.first, folds: Folds())
+
+        #expect(sidebar.row(showing: .session("sr-k7t001")) == .project("kit"))
+        #expect(sidebar.row(showing: .session("sr-rq7dgr")) == .session("sr-rq7dgr"))
+        #expect(sidebar.row(showing: .project("goosemates")) == .project("goosemates"))
+        #expect(sidebar.row(showing: .settings) == nil)
+        #expect(sidebar.row(showing: nil) == nil)
+        #expect(Sidebar(unlisted, folds: Folds()).row(showing: .session("sr-k7t001")) == .session("sr-k7t001"))
+    }
+
+    /// Kit's away session stands at Kit's row: under Projects folded, at its heading, the list's last line; shown, the
+    /// list's own keys move from it; its project not listed, as today, the list's own.
+    @Test func fromASessionWithNoRowAStepGoesFromItsProjectsRow() {
+        var unlisted = Self.first
+
+        unlisted.projects.removeAll { $0.id == "kit" }
+
+        let folded = Sidebar(Self.first, folds: Folds())
+
+        #expect(folded.step(from: .session("sr-k7t001"), down: false) == .to(.session("sr-rq7dgr")))
+        #expect(folded.step(from: .session("sr-k7t001"), down: true) == .stays)
+        #expect(Sidebar(Self.first, folds: Folds(projects: false)).step(from: .session("sr-k7t001"), down: true) == .listsOwn)
+        #expect(Sidebar(unlisted, folds: Folds()).step(from: .session("sr-k7t001"), down: false) == .listsOwn)
+    }
+
     @Test func fromARowUnderAFoldedNEarlierAStepGoesFromIt() {
         let sidebar = Sidebar(Self.marked(Self.first, earlier: ["sr-rq7dgr"]), folds: Folds(projects: false))
 

@@ -3,8 +3,9 @@ import Foundation
 import Testing
 
 /// The sidebar's selection: each session shows once, so the pick is its row, which keeps it as it moves between
-/// sections; a pick made outside the list unfolds what would hide it, so it shows; a fold made over the pick hides
-/// its row and keeps its page.
+/// sections; a pick made outside the list unfolds what would hide it, so it shows, as one made while filtering does
+/// once the filter clears; a session with no row shows at its project's; a fold made over the pick hides its row and
+/// keeps its page.
 struct SelectionTests {
     private static func ids(_ run: WindowRun) -> [Sidebar.Line.ID] {
         run.sidebar(at: printedAt).lines.map(\.id)
@@ -82,6 +83,17 @@ struct SelectionTests {
         #expect(run.page(at: printedAt).project?.key == "switchboard")
     }
 
+    /// Kit's away session, with no row of its own, picked from Kit's page: Projects unfolds, Kit's row showing it.
+    @Test func aPickMadeOutsideTheListOfASessionWithNoRowUnfoldsProjects() {
+        let run = opened()
+
+        #expect(run.folds.projects)
+        _ = run.pick(.session("sr-k7t001"))
+        #expect(!run.folds.projects)
+        #expect(run.sidebar(at: printedAt).row(showing: run.pick) == .project("kit"))
+        #expect(Self.ids(run).contains(.pick(.project("kit"))))
+    }
+
     @Test func aProjectsRowClickedOpensItsPage() {
         let run = opened()
 
@@ -107,14 +119,60 @@ struct SelectionTests {
         #expect(run.page(at: printedAt).project?.key == "kit")
     }
 
-    /// While the filter holds text the list shows open; a pick made then leaves Lee's folds as they were.
-    @Test func aPickMadeWhileFilteringChangesNoneOfLeesFolds() {
+    /// "kit" typed, Return opening Kit's page, then Escape: Lee's folds stand while the filter holds text, and as it
+    /// clears Projects unfolds, Kit's row showing picked.
+    @Test func aPickMadeWhileFilteringShowsOnceTheFilterClears() {
         let run = opened()
+
+        run.filter = Filter("kit")
+        _ = run.openFirstMatch()
+        #expect(run.pick == .project("kit"))
+        #expect(run.folds.projects)
+        run.filter = Filter()
+        #expect(!run.folds.projects)
+        #expect(Self.ids(run).contains(.pick(.project("kit"))))
+    }
+
+    /// Needs you and Your turn folded, Request ledger picked from the filtered list: as the filter clears Your turn
+    /// unfolds to show it, and Needs you and Projects, which the filter opened, fold back.
+    @Test func asTheFilterClearsOnlyWhatHidesThePickUnfolds() {
+        let run = opened()
+
+        run.toggle(.section(.needsYou))
+        run.toggle(.section(.yourTurn))
+        run.filter = Filter("ledg")
+        _ = run.pickInList(.session("sr-rq7dgr"), at: printedAt)
+        run.filter = Filter()
+        #expect(run.folds == Folds(sections: [.needsYou], projects: true))
+    }
+
+    /// An hour on, Request ledger's turn is under "N earlier": picked from the filtered list, it opens as the filter
+    /// clears, for the run only.
+    @Test func aPickMadeWhileFilteringUnderNEarlierOpensItAsTheFilterClears() {
+        let run = opened(wall: { printedAt.addingTimeInterval(3600) })
 
         run.toggle(.section(.yourTurn))
         run.filter = Filter("ledg")
-        _ = run.pick(.session("sr-rq7dgr"))
-        #expect(run.folds.contains(.section(.yourTurn)))
+        _ = run.pickInList(.session("sr-rq7dgr"), at: printedAt)
+        run.filter = Filter()
+        #expect(!run.folds.contains(.section(.yourTurn)))
+        #expect(run.folds.isEarlierOpen)
+        #expect(!run.folds.kept.isEarlierOpen)
+        #expect(Self.ids(run).contains(.pick(.session("sr-rq7dgr"))))
+    }
+
+    /// Request ledger picked, then Your turn folded over it: a filter typed and cleared leaves it folded.
+    @Test func aPickMadeBeforeTheFilterChangesNothingAsItClears() {
+        let run = opened()
+
+        _ = run.pickInList(.session("sr-rq7dgr"), at: printedAt)
+        run.toggle(.section(.yourTurn))
+
+        let folds = run.folds
+
+        run.filter = Filter("ledg")
+        run.filter = Filter()
+        #expect(run.folds == folds)
     }
 
     @Test func aPickInTheListUnfoldsNothing() {

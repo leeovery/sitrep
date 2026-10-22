@@ -485,6 +485,61 @@ struct SidebarLayoutTests {
         #expect(try Self.pressed(Self.downArrow, with: .command, on: run).picks != [.session("sr-v3t7a0")])
     }
 
+    /// Kit's away session, with no row of its own, picked from Kit's page on `watch`'s first board: Projects unfolds,
+    /// and Kit's row, the last of Projects, is the list's selection, filled as any row picked; or SitRep's, the first,
+    /// the session counted SitRep's.
+    @Test(arguments: ["kit", "sitrep"])
+    func aSessionWithNoRowShowsPickedOnItsProjectsRow(project: String) throws {
+        let run = HostedSidebar.opened()
+
+        _ = run.pick(.session("sr-k7t001"))
+
+        let listed = Self.rowless(run, in: project)
+        let side = try HostedSidebar(run, listAlone: true, listed: listed)
+        let place = try #require(Sidebar(listed, folds: run.folds).lines.firstIndex { $0.pick == .project(project) })
+        let drawn = try side.drawn()
+        let row = Self.inDrawing(side.rows[place], of: side)
+        let picked = try #require(drawn.drawnBox(in: row, ground: Self.ground(row)))
+
+        #expect(!run.folds.projects)
+        #expect(side.board.selectedRow == place)
+        #expect(picked == CGRect(x: 10, y: row.minY, width: 276, height: row.height))
+    }
+
+    /// Kit's away session picked, standing at its project's row: ↑ and ↓ go from that row, at either end of Projects.
+    @Test(arguments: [
+        ("kit", upArrow, [Pick.project("goosemates")]), ("kit", downArrow, []),
+        ("sitrep", upArrow, [.session("sr-rq7dgr")]), ("sitrep", downArrow, [.project("switchboard")]),
+    ])
+    func fromASessionWithNoRowTheArrowKeysGoFromItsProjectsRow(project: String, key: UInt16, to picks: [Pick]) throws {
+        let run = HostedSidebar.opened()
+
+        _ = run.pick(.session("sr-k7t001"))
+        #expect(try Self.pressed(key, on: run, listed: Self.rowless(run, in: project)).picks == picks)
+    }
+
+    /// Projects folded over Kit's away session: it stands at Projects' heading, the list's last line.
+    @Test(arguments: [(upArrow, [Pick.session("sr-rq7dgr")]), (downArrow, [])])
+    func fromASessionWithNoRowUnderProjectsFoldedTheArrowKeysGoFromItsHeading(key: UInt16, to picks: [Pick]) throws {
+        let run = HostedSidebar.opened()
+
+        _ = run.pick(.session("sr-k7t001"))
+        run.toggle(.projects)
+
+        let pressed = try Self.pressed(key, on: run)
+
+        #expect(pressed.picks == picks)
+        #expect(pressed.selectedRow == -1)
+    }
+
+    /// The run's board with Kit's away session, which has no row of its own, counted this project's.
+    private static func rowless(_ run: WindowRun, in project: String) -> Listed {
+        var listed = run.listed(at: HostedSidebar.printed)
+
+        listed.rowless["sr-k7t001"] = project
+        return listed
+    }
+
     /// The run's board with a your-turn session of Kit's past the fold period, under "N earlier", typed small.
     private static func withEarlier(_ run: WindowRun) -> Listed {
         var listed = run.listed(at: HostedSidebar.printed)
@@ -498,12 +553,13 @@ struct SidebarLayoutTests {
         return listed
     }
 
-    /// What the list asked to pick as this key was pressed once on it, focus on it, and the row it then selects.
+    /// What the list asked to pick as this key was pressed once on it, focus on it, and the row it then selects; over
+    /// `listed`, where given, in place of the run's board.
     private static func pressed(
-        _ key: UInt16, with modifiers: NSEvent.ModifierFlags = [], on run: WindowRun
+        _ key: UInt16, with modifiers: NSEvent.ModifierFlags = [], on run: WindowRun, listed: Listed? = nil
     ) throws -> (picks: [Pick], selectedRow: Int) {
         let picked = Picked()
-        let side = try HostedSidebar(run, actions: WindowActions(pickInList: { picked.picks.append($0) }))
+        let side = try HostedSidebar(run, actions: WindowActions(pickInList: { picked.picks.append($0) }), listed: listed)
 
         side.window.makeFirstResponder(side.board)
         side.window.sendEvent(try #require(Self.arrow(key, with: modifiers, in: side.window)))

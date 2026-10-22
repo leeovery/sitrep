@@ -72,19 +72,19 @@ public struct Folds: Codable, Equatable, Sendable {
         }
     }
 
-    /// Unfolded wherever the list would hide this pick: its row's section, and "N earlier" where its row is under it;
-    /// Projects, for a project.
+    /// Unfolded wherever the list would hide the row showing this pick (`Listed.row(showing:)`): a session's section,
+    /// and "N earlier" where its row is under it; Projects, for a project, or a session with no row of its own.
     mutating func unfold(toShow pick: Pick, in listed: Listed) {
-        switch pick {
-        case let .session(id):
+        switch listed.row(showing: pick) {
+        case let .session(id)?:
             if let row = listed.rows.first(where: { $0.id == id }) {
                 unfold(.section(row.section))
                 if row.isEarlier {
                     unfold(.earlier)
                 }
             }
-        case .project: unfold(.projects)
-        case .settings: break
+        case .project?: unfold(.projects)
+        case .settings?, nil: break
         }
     }
 
@@ -185,6 +185,8 @@ public struct Sidebar: Equatable, Sendable {
     public let order: [Pick]
     /// The picks a fold hides, each by the line it is folded under: its section's heading, or "N earlier".
     private let folded: [Pick: Line.ID]
+    /// The sessions with no row of their own, each by its project's row, which shows it.
+    private let homes: [String: Pick]
 
     public init() {
         self.init(Listed(), folds: Folds())
@@ -199,6 +201,18 @@ public struct Sidebar: Equatable, Sendable {
         lines = (sections + [projects]).flatMap(\.lines)
         order = listed.rows.map(\.pick) + listed.projects.map(\.pick)
         folded = Dictionary((sections + [projects]).flatMap(\.hidden)) { first, _ in first }
+        homes = listed.rowless.compactMapValues { key in listed.row(showing: .project(key)) }
+    }
+
+    /// The row that shows the pick, which the list selects: its own; for a session with no row of its own, its
+    /// project's in Projects; none for Settings, at the foot. A pick it lists nowhere stands for itself, showing on no
+    /// row.
+    public func row(showing pick: Pick?) -> Pick? {
+        switch pick {
+        case let .session(id)?: homes[id] ?? pick
+        case .settings?, nil: nil
+        case .project?: pick
+        }
     }
 
     /// A part of the list: its lines as they show, and the picks its folds hide, by the line each is folded under.
@@ -283,10 +297,13 @@ public struct Sidebar: Equatable, Sendable {
         case listsOwn
     }
 
-    /// An arrow key from a pick a fold hides, which stands at the line it is folded under, its section's heading or "N
-    /// earlier": to the first row that picks after that line, going down, or the last before it, going up.
+    /// An arrow key from a pick whose row (`row(showing:)`) a fold hides, which stands at the line it is folded under,
+    /// its section's heading or "N earlier": to the first row that picks after that line, going down, or the last
+    /// before it, going up.
     public func step(from pick: Pick?, down: Bool) -> Step {
-        guard let pick, let line = folded[pick], let place = lines.firstIndex(where: { $0.id == line }) else {
+        guard let row = row(showing: pick), let line = folded[row],
+              let place = lines.firstIndex(where: { $0.id == line })
+        else {
             return .listsOwn
         }
 
