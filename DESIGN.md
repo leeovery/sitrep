@@ -306,6 +306,14 @@ and swallowed, never breaking a turn, a tool or a permission prompt.
     tool types have it. A Monitor running a command is listed as a shell;
     known by its id, it counts as the monitor it is. A call's task is kept
     until a Stop no longer lists it;
+  - a monitor the mod never heard start. Claude Code runs some of its own
+    (its watch on a published artifact, re-armed on session resume), which
+    never end, and without hearing a monitor's call the mod cannot tell
+    whether it is persistent. So one listed as a monitor counts only where
+    its call was heard and it is not persistent; one started before the
+    mod was loaded is left out too, erring toward your turn. A Monitor
+    running a command that was never heard is listed as a shell, cannot be
+    told from a background shell, and counts as one;
   - a recurring wake. A one-off wake's time is the minute its schedule names
     nearest now, in local time, as a cron reads it, within four years either
     side: its next, unless the last before it is nearer. A one-off still

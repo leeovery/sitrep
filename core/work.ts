@@ -6,9 +6,13 @@
  * - Every task counts, by its kind (agents, workflows, shells, monitors, any
  *   other), but those that never wake the window: a persistent monitor,
  *   which runs until it is stopped, and the engine's own ambient tasks.
- * - A monitor watching a command is listed as a shell. The Monitor call's
+ * - A monitor counts only where the mod heard it start. The Monitor call's
  *   result names its task and says whether it is persistent, so the mod
- *   hears each one start (`watchOf`) and tells it here by its task.
+ *   hears each one start (`watchOf`) and tells it here by its task. One
+ *   never heard may be persistent, as the engine's own watch on a published
+ *   artifact is, so it is left out, erring toward your turn.
+ * - A monitor watching a command is listed as a shell: never heard, it
+ *   cannot be told from a background shell, and counts as one.
  * - Only a one-off wake counts: a recurring cron never ends. A one-off's
  *   schedule encodes a single fire time, read in local time, as the engine
  *   reads it, nearest now; one that does not read counts with no time.
@@ -50,8 +54,10 @@ const KIND_OF_TYPE: ReadonlyMap<string, TaskKind> = new Map([
   ['subagent', 'agents'],
   ['workflow', 'workflows'],
   ['shell', 'shells'],
-  ['monitor', 'monitors'],
 ])
+
+/** The type a Stop lists a monitor under, unless it watches a command. */
+const MONITOR_TYPE = 'monitor'
 
 /**
  * The engine's own tasks, by the type a Stop lists them under: they run
@@ -63,14 +69,17 @@ const AMBIENT: ReadonlySet<string> = new Set(['dream', 'auto-mode scan', 'memory
 /** The days a wake's schedule is looked for over, either side of today: four years, a 29 February's among them. */
 const WAKE_DAYS = 4 * 366
 
+/** A task's kind, the monitors heard started telling theirs; undefined for one that never wakes the window, or a monitor never heard. */
 const kindOf = (task: PendingTask, watches: readonly Watch[]): TaskKind | undefined => {
   const watch = watches.find(each => each.task === task.id)
 
-  if (watch?.isPersistent === true || AMBIENT.has(task.type)) {
-    return undefined
+  if (watch !== undefined) {
+    return watch.isPersistent ? undefined : 'monitors'
   }
 
-  return watch === undefined ? (KIND_OF_TYPE.get(task.type) ?? 'others') : 'monitors'
+  return task.type === MONITOR_TYPE || AMBIENT.has(task.type)
+    ? undefined
+    : (KIND_OF_TYPE.get(task.type) ?? 'others')
 }
 
 /** What a task's words are where it says nothing of itself; never empty, as the summary's reader takes no empty words. */

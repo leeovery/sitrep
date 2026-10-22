@@ -684,7 +684,7 @@ test("what is pending is summed up by kind, each kind's count and its first as i
           task('x1', 'cloud session', 'Port the tests'),
         ],
       },
-      [],
+      [{ task: 'm1', isPersistent: false }],
       NOW,
     ),
   ).toEqual({
@@ -755,6 +755,41 @@ test('a monitor watching a command is listed as a shell, and counts as a monitor
   expect(workOf({ tasks: [tailing] }, [{ task: 'b2', isPersistent: true }], NOW)).toBeUndefined()
   expect(workOf({ tasks: [tailing] }, [], NOW), 'a shell that never ends counts').toEqual({
     shells: { count: 1, first: 'tail -f app.log | grep ERROR' },
+  })
+})
+
+/** Claude Code's own watch on a published artifact: a monitor no Monitor call started, which never ends. */
+const ARTIFACT_WATCH = task(
+  'bx1',
+  'monitor',
+  'live updates for artifact https://claude.ai/artifact/abc (re-armed on session resume)',
+)
+
+test('a monitor the mod never heard start may never end, so it counts for nothing and its Stop leaves the window your turn', () => {
+  expect(workOf({ tasks: [ARTIFACT_WATCH] }, [], NOW)).toBeUndefined()
+  expect(stateOf(stopped({ tasks: [ARTIFACT_WATCH] }, 'end first'), T0)).toEqual({
+    is: 'yourTurn',
+    since: T0 + 9_000,
+  })
+})
+
+test('a monitor heard started, and not persistent, counts', () => {
+  const watching = task('m1', 'monitor', 'CI on main', { server: 'github', tool: 'watch' })
+
+  expect(workOf({ tasks: [watching] }, [{ task: 'm1', isPersistent: false }], NOW)).toEqual({
+    monitors: { count: 1, first: 'CI on main' },
+  })
+})
+
+test('a shell never heard started counts as a shell, as a Monitor running a command cannot be told from a background shell', () => {
+  expect(workOf({ tasks: [TESTS] }, [], NOW)).toEqual({ shells: { count: 1, first: 'bun test' } })
+})
+
+test("a Stop listing Claude Code's watch on an artifact beside a background shell is on its own work by the shell alone", () => {
+  expect(stateOf(stopped({ tasks: [ARTIFACT_WATCH, TESTS] }, 'end first'), T0)).toEqual({
+    is: 'onItsWork',
+    since: T0 + 9_000,
+    work: { shells: { count: 1, first: 'bun test' } },
   })
 })
 
