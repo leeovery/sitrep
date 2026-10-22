@@ -349,7 +349,7 @@ struct EarlierRow: View {
     }
 }
 
-/// A project's row under Projects, which opens its page: its name, after an empty slot, on one line, 28 tall.
+/// A project's row under Projects, which opens its page: its name, under the heading's words, on one line, 28 tall.
 private struct ProjectRow: View {
     let project: Listed.Project
     let filter: Filter
@@ -357,12 +357,12 @@ private struct ProjectRow: View {
     @Environment(\.backgroundProminence) private var prominence
 
     var body: some View {
-        HStack(spacing: WindowStyle.slotGap) {
-            Color.clear.frame(width: WindowStyle.slot.width, height: WindowStyle.slot.height)
+        HStack(spacing: 0) {
             Name(project.name, litBy: filter, tone: .text, onPick: prominence == .increased)
                 .font(WindowStyle.ui(WindowStyle.titleSize))
                 .spacing(WindowStyle.titleTracking, of: WindowStyle.titleSize)
                 .lineLimit(1)
+            Spacer(minLength: 0)
         }
         .frame(height: WindowStyle.oneLineHeight)
     }
