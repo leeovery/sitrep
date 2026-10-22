@@ -62,10 +62,6 @@ final class SitRepWindow: NSObject, NSWindowDelegate {
         settings.keys(false)
     }
 
-    func windowDidChangeOcclusionState(_ notification: Notification) {
-        settings.isOnScreen = window.occlusionState.contains(.visible)
-    }
-
     func windowDidMiniaturize(_ notification: Notification) {
         model.minimised()
     }
