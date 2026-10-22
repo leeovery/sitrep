@@ -67,11 +67,15 @@ export type Row = {
   isAway: boolean
   /** The key of the project the session is filed under. */
   project: string
+  /** The session's name, which a Needs you row shows as its title. */
+  name: string
+  /** Its project's name, which a Needs you row shows under its title. */
+  projectName: string
   /** The project's two letters, as the strip's mark shows them. */
   letters: string
   /** In Needs you, a line for each ask and stop waiting on Lee, the oldest first; else the one of its turn. */
   lines: Line[]
-  /** Its project and session: `Switchboard · Dashboard redesign`. */
+  /** Its project and session, `Switchboard · Dashboard redesign`, under a Working or Your turn row's line; an away row's says no window holds it. */
   second: string
   /** When it began: its oldest line's. */
   since: number
@@ -307,9 +311,11 @@ export const rowOf = (project: Project, session: Session, now: number): Row | un
   const shared = {
     session: session.id,
     project: project.key,
+    name: session.status.name,
+    projectName: project.name,
     letters: lettersOf(project.name),
   }
-  const second = `${project.name} · ${session.status.name}`
+  const second = `${shared.projectName} · ${shared.name}`
   const windowLine = (key: string, { writer, state }: Held): Line => ({
     key,
     is: state.is,

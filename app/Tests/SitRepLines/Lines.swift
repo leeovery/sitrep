@@ -10,7 +10,9 @@ import Foundation
 ///
 /// `watch`'s lines printed before its version 2 (`watch`, `newAsk`, `onItsWork`) had their rows grouped by session on
 /// 22 October 2026 by core's own order and head, every other field as printed; the same regrouping of version 1's lines
-/// over `bySession`'s board gave, field for field, what the real version 2 printed over it.
+/// over `bySession`'s board gave, field for field, what the real version 2 printed over it. Each row's `name` and
+/// `projectName`, which came after (22 October 2026, `v` unmoved), were set from its session and project on its own
+/// line.
 public enum Lines {
     /// `sitrep watch`'s first two lines at version 2, rows by session, over a board of its own run on 22 October 2026:
     /// Harness's Finish the Harness modernisation, its window working, three asks waiting; Switchboard's Dashboard

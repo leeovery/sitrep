@@ -14,7 +14,7 @@ public enum Notices {
         let new = Set(board.new)
 
         return board.rows.flatMap { row in
-            row.lines.filter { $0.kind == .ask && new.contains($0.key) }.map { newAsk($0, of: row, on: board) }
+            row.lines.filter { $0.kind == .ask && new.contains($0.key) }.map { newAsk($0, of: row) }
         }
     }
 
@@ -25,23 +25,15 @@ public enum Notices {
             return Banner(title: "SitRep", subtitle: nil, body: "A test notification. No window holds a session, so it jumps nowhere.", work: nil)
         }
 
-        return Banner(title: row.oldest.first.lead, subtitle: placeOf(row, on: board), body: "A test notification. Click it to jump to this session.", work: row.session)
+        return Banner(title: row.oldest.first.lead, subtitle: placeOf(row), body: "A test notification. Click it to jump to this session.", work: row.session)
     }
 
-    private static func newAsk(_ ask: Board.Row.Line, of row: Board.Row, on board: Board) -> Banner {
-        Banner(title: ask.first.lead, subtitle: placeOf(row, on: board), body: "", work: row.isAway ? nil : row.session)
+    private static func newAsk(_ ask: Board.Row.Line, of row: Board.Row) -> Banner {
+        Banner(title: ask.first.lead, subtitle: placeOf(row), body: "", work: row.isAway ? nil : row.session)
     }
 
-    /// The row's project and session by name: its second line, but for an away row, whose second line says no window
-    /// holds it.
-    private static func placeOf(_ row: Board.Row, on board: Board) -> String {
-        let project = board.projects.first { $0.key == row.project }
-        let session = project?.sessions.first { $0.id == row.session }
-
-        guard let project, let session else {
-            return row.second
-        }
-
-        return "\(project.name) · \(session.name)"
+    /// The row's project and session by name, an away row's too, whose second line says no window holds it.
+    private static func placeOf(_ row: Board.Row) -> String {
+        "\(row.projectName) · \(row.name)"
     }
 }

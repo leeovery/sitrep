@@ -7,47 +7,90 @@ struct RowsTests {
 
     /// Harness's three asks, an hour apart, the oldest first.
     private static let harness = Session(
-        id: "sr-4g01a7", project: "Harness", kind: .needs,
+        id: "sr-4g01a7", project: "Harness", name: "Finish the Harness modernisation", kind: .needs,
         lines: [
             Session.Line(title: "Approve the first fix batch", since: 0),
             Session.Line(title: "Choose the release notes' grouping", since: 60 * minute),
             Session.Line(title: "Which branch?", more: "+1", since: 120 * minute),
         ],
-        sub: "Harness · Finish the Harness modernisation"
+        sub: "Harness"
     )
 
-    /// Where there is room for one line, as on the strip and in the menu: the oldest, its time, and "+2" for the two
-    /// after it, in place of a question's own count; a session of one line shows its question's "+2" as it is.
-    @Test func withRoomForOneLineASessionShowsItsOldestThenHowManyMore() {
-        let question = Session(id: "q", project: "Kit", kind: .needs, title: "Which edge?", more: "+2", sub: "", since: 0)
-
-        #expect(Self.harness.title == "Approve the first fix batch")
+    /// A row needing Lee says its session, on every surface: its name, its oldest line's time, and "+2" for the two
+    /// lines after it; none of its lines' words.
+    @Test func aRowNeedingLeeShowsItsSessionsNameThenHowManyMore() {
+        #expect(Self.harness.title == "Finish the Harness modernisation")
+        #expect(Self.harness.code == nil && Self.harness.subject == nil)
         #expect(Self.harness.since == 0)
         #expect(Self.harness.ageText(at: 180 * Self.minute) == "3h")
-        #expect(Self.harness.moreOnOneLine == "+2")
-        #expect(question.moreOnOneLine == "+2")
-        #expect(Session(id: "t", project: "Kit", kind: .turn, title: "Done", sub: "", since: 0).moreOnOneLine == nil)
+        #expect(Self.harness.more == "+2")
     }
 
-    /// Each line's time ticks on its own minute: the row may next read differently at the soonest of them.
-    @Test func aRowsWordsMayNextReadDifferentlyAtItsSoonestLinesChange() {
+    /// One line waiting shows no count: a permission prompt's command and a question's own "+2", whose words the row
+    /// does not show, show nowhere on it.
+    @Test func aRowNeedingLeeOfOneLineShowsItsNameAlone() {
+        let question = Session(
+            id: "q", project: "Kit", name: "The bootstrap", kind: .needs, title: "Which edge?", more: "+2", sub: "",
+            since: 0
+        )
+        let prompt = Session(
+            id: "p", project: "Kit", name: "The bootstrap", kind: .needs, title: "Allow Bash ", code: "gh pr create",
+            sub: "", since: 0
+        )
+
+        #expect(question.title == "The bootstrap" && question.more == nil)
+        #expect(prompt.title == "The bootstrap" && prompt.code == nil)
+    }
+
+    /// Any other row says its one line, as it did.
+    @Test func anyOtherRowShowsItsOneLine() {
+        let working = Session(
+            id: "w", project: "Kit", name: "The bootstrap", kind: .working, title: "Editing ", code: "app/Kit.swift",
+            sub: "Kit · The bootstrap", since: 0
+        )
+
+        #expect(working.headline == working.lines[0])
+        #expect(working.title == "Editing " && working.code == "app/Kit.swift" && working.more == nil)
+    }
+
+    /// Only its time shows: the row may next read differently as its oldest line's ticks, not its others'.
+    @Test func aRowsWordsMayNextReadDifferentlyAsItsTimeTicks() {
         var staggered = Self.harness
 
         staggered.lines[1].since = 30_000
         #expect(staggered.changes(after: 40_000) == 60_000)
-        #expect(staggered.changes(after: 70_000) == 90_000)
+        #expect(staggered.changes(after: 70_000) == 120_000)
     }
 
-    /// A row of three lines: 99 and the 4 under it, the content's height with it, and the pointer anywhere on any of
-    /// its lines over the one row.
-    @Test func aRowOfSeveralLinesIsOneRowAsTallAsThem() {
+    /// A row of three lines is one row of one line's height, 55 and the 4 under it, the pointer anywhere on it over
+    /// the one row.
+    @Test func aRowOfSeveralLinesIsOneRowOfOneLinesHeight() {
         let content = Content(laying: [.session(Self.harness), .divider])
         let row = content.itemFrame(0)
 
-        #expect(row.height == 103)
-        #expect(content.height == 18 + 26 + 103 + 9 + 14)
-        #expect([10.0, 40, 72, 95].allSatisfy { content.item(at: CGPoint(x: row.midX, y: row.minY + $0)) == 0 })
-        #expect(content.item(at: CGPoint(x: row.midX, y: row.minY + 100)) == nil)
+        #expect(row.height == 59)
+        #expect(content.height == 18 + 26 + 59 + 9 + 14)
+        #expect([1.0, 28, 54].allSatisfy { content.item(at: CGPoint(x: row.midX, y: row.minY + $0)) == 0 })
+        #expect(content.item(at: CGPoint(x: row.midX, y: row.minY + 56)) == nil)
+    }
+
+    /// Board F's button, 24 square, its right 10 in from the row's and on the row's middle, whole or on one line: a
+    /// press on it opens the session, one beside it on the row does not.
+    @Test func aRowsButtonIs24SquareAtItsRightOnItsMiddle() {
+        let content = Content(laying: [.session(Self.harness), .turn(Self.harness)], headed: false)
+        let width = content.itemFrame(0).width
+
+        #expect(Opener.frame(in: CGSize(width: width, height: 55)) == CGRect(x: width - 34, y: 15.5, width: 24, height: 24))
+        #expect(Opener.frame(in: CGSize(width: width, height: 30)) == CGRect(x: width - 34, y: 3, width: 24, height: 24))
+
+        for index in 0 ..< 2 {
+            let row = content.itemFrame(index)
+            let centre = CGPoint(x: row.maxX - 22, y: row.minY + (index == 0 ? 27.5 : 15))
+
+            #expect(content.opens(index, at: centre))
+            #expect(!content.opens(index, at: CGPoint(x: row.maxX - 36, y: centre.y)))
+            #expect(!content.opens(index, at: CGPoint(x: centre.x, y: centre.y + 13)))
+        }
     }
 
     @Test func thePrototypesSessionsShowTheirAgesAsItDoes() {

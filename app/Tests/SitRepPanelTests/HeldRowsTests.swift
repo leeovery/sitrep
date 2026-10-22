@@ -35,7 +35,7 @@ struct HeldRowsTests {
     private static func answered(_ session: Session) -> Session {
         var session = session
         session.kind = .turn
-        session.title = "Your turn"
+        session.lines[0].title = "Your turn"
         return session
     }
 
@@ -76,8 +76,8 @@ struct HeldRowsTests {
         rows.hold(true)
         var waiting = Self.by("s4")[0]
         waiting.kind = .onItsWork
-        waiting.title = "Waiting on "
-        waiting.subject = "3 agents"
+        waiting.lines[0].title = "Waiting on "
+        waiting.lines[0].subject = "3 agents"
 
         let changed = rows.take(Self.by("s1", "s2", "s5") + [waiting] + Self.by("s3"))
 
@@ -117,7 +117,7 @@ struct HeldRowsTests {
         rows.hold(true)
         var asking = Self.by(id)[0]
         asking.kind = .needs
-        asking.title = "Approve the plan"
+        asking.lines[0].title = "Approve the plan"
         let rest = Self.by("s4", "s5", "s3").filter { $0.id != id }
 
         rows.take(Self.by("s1") + [asking] + Self.by("s2") + rest)
@@ -135,7 +135,7 @@ struct HeldRowsTests {
         rows.hold(true)
         var answered = Self.by(id)[0]
         answered.kind = .turn
-        answered.title = "Your turn"
+        answered.lines[0].title = "Your turn"
         let needs = Self.by("s1", "s2", "s7").filter { $0.id != id }
 
         rows.take(needs + Self.by("s4") + [answered] + Self.by("s3"))

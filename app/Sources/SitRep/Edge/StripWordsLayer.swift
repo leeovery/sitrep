@@ -2,8 +2,8 @@ import AppKit
 import SitRepEdge
 import SitRepPanel
 
-/// A tab's words in black, laid out once as the prototype's `.tl` lays them out: a session's panel row (its title, its
-/// project and session, or why an away ask's takes no click, and its time at the right), a count's rows, or the notch
+/// A tab's words in black, laid out once as the prototype's `.tl` lays them out: a session's panel row (its title, the
+/// line under it, or why an away ask's takes no click, and its time at the right), a count's rows, or the notch
 /// at rest's two lines. Each frame sets only their opacity, their slide along the strip, how far a count's rows are
 /// scrolled, a click pressing them in, and the time, and a wake's countdown, as they tick.
 @MainActor
@@ -315,18 +315,21 @@ final class StripWordsLayer {
         return text
     }
 
-    /// A title's subject in code type after it, and its "+2" (`moreOnOneLine`), dim, 6 further on.
+    /// A title's subject in code type after it, and its "+2" (`more`), dim, 6 further on.
     private static func append(_ s: Session, to text: NSMutableAttributedString, _ ink: CGColor, more font: NSFont) {
         if let code = s.code {
             text.append(TextLine.text(code, EdgeStyle.code, ink))
         }
-        if let more = s.moreOnOneLine {
-            text.addAttribute(.kern, value: 6, range: NSRange(location: text.length - 1, length: 1))
+        if let more = s.more {
+            if text.length > 0 {
+                text.addAttribute(.kern, value: 6, range: NSRange(location: text.length - 1, length: 1))
+            }
             text.append(TextLine.text(more, font, EdgeStyle.ink3))
         }
     }
 
-    /// Core's second line: its project and session, or for an away ask, why a click does nothing.
+    /// Its second line (`Session.sub`): needing Lee, its project, or with no window holding it, why a click does
+    /// nothing; else its project and session.
     private static func sub(_ s: Session) -> NSAttributedString {
         TextLine.text(s.sub, EdgeStyle.sub, EdgeStyle.ink2)
     }

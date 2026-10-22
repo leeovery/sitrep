@@ -86,6 +86,10 @@ public enum Words {
 
     /// The jump to the session's window, before the ↗ that marks it leaving SitRep.
     public static let jump = "Open in Ghostty"
+    /// A row's jump: the card's right-click menu's, and VoiceOver's action on a sidebar row a window holds, as its
+    /// button under the pointer jumps; and the card's menu's way into the window.
+    public static let jumpToWindow = "Jump to the window"
+    public static let openInSitRep = "Open in SitRep"
 
     public static let finish = "✓ Finish this session"
     public static let finishWhy = "For a session left with things open when its window closed."

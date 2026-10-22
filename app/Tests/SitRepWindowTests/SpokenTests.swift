@@ -37,6 +37,24 @@ struct SpokenTests {
         #expect(Spoken.row(Self.row(section, mark, line), at: printedAt) == words)
     }
 
+    /// Every row a window holds offers VoiceOver its button as an action, "Jump to the window", whatever its section;
+    /// an away row, none.
+    @Test func aRowAWindowHoldsOffersTheJumpAsAnActionAndAnAwayRowNone() {
+        let working = Self.row(.working, .working, Self.said("Running", code: "swift test"))
+        let turn = Self.row(.yourTurn, .turn, Self.said("Drawing round 3"))
+        let needs = Listed.Row(
+            id: "sr-dash02", name: "Dashboard redesign", project: "Switchboard", section: .needsYou, mark: .needs,
+            isAway: false, since: minutes(before: 300), lines: [Self.said("Paste the load test's output")]
+        )
+        let away = Listed.Row(
+            id: "sr-gs7kq2", name: "Onboarding", project: "Goosemates", section: .needsYou, mark: .needs,
+            isAway: true, since: minutes(before: 300), lines: [Self.said("Keep the invite flow?")]
+        )
+
+        #expect([working, turn, needs].map(Spoken.jump) == ["Jump to the window", "Jump to the window", "Jump to the window"])
+        #expect(Spoken.jump(away) == nil)
+    }
+
     @Test func aNeedsYouRowReadsAsNeedsYouSaysIt() throws {
         let asking = try #require(Listed(heard(line(0))).needsYou.first)
 

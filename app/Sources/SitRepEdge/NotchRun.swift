@@ -55,6 +55,8 @@ public final class NotchRun: Framed {
     public enum Press: Equatable, Sendable {
         /// A row that jumps, pressed in: its session, the session to jump to, and which click it is.
         case jump(Session, to: String, click: Int)
+        /// A row's button in its time's place (`Opener`), away or not: the session to open in the SitRep window.
+        case open(String)
         /// An eyebrow or "N earlier": what it folds folded or unfolded, at once (`folded`).
         case fold
         /// The black off a row, which a move makes a drag.
@@ -70,6 +72,8 @@ public final class NotchRun: Framed {
     public private(set) var frame: Frame
     /// The pointer on the stage as the last frame saw it.
     public private(set) var seen: CGPoint?
+    /// While a row's menu is open, where it was opened (`menuOpened(at:)`).
+    private var menuAt: CGPoint?
     /// How far down the panel's content is scrolled.
     public private(set) var scroll = 0.0
     /// A press off a row, which a move makes a drag, until it lets go.
@@ -162,11 +166,12 @@ public final class NotchRun: Framed {
 
         list.content = folds.content(at: time, headed: list.head != nil)
 
-        var input = Self.input(at: time, pointer: moment.pointer, needsLee: board.needsLee, list, setting)
+        let pointer = menuAt ?? moment.pointer
+        var input = Self.input(at: time, pointer: pointer, needsLee: board.needsLee, list, setting)
 
-        input.pointerAt = moment.pointerAt
+        input.pointerAt = menuAt == nil ? moment.pointerAt : nil
         frame = notch.frame(input)
-        seen = moment.pointer
+        seen = pointer
         latch(frame, at: time)
         if hold(notch.phase != .closed) || refolds(by: setting.period) {
             relist(at: time, in: setting)
@@ -210,9 +215,9 @@ public final class NotchRun: Framed {
 
     /// A press at the pointer. The model takes a frame first, so the row under the press and the row it presses in
     /// are found in the one list, the list as drawn, even when the board changed it since the model's last frame. On
-    /// a row that jumps, while jumps may run, the model presses it in; on an eyebrow or "N earlier", what it folds
-    /// folds or unfolds; anywhere else on the black, a drag may begin, unless the notch is still crossing to the other
-    /// edge.
+    /// a row's button in its time's place, its session opens in the SitRep window; on a row that jumps, while jumps
+    /// may run, the model presses it in; on an eyebrow or "N earlier", what it folds folds or unfolds; anywhere else on
+    /// the black, a drag may begin, unless the notch is still crossing to the other edge.
     public func press(_ moment: Moment, mayJump: Bool) -> Press? {
         upToNow(moment)
         guard let point = moment.pointer else {
@@ -220,6 +225,9 @@ public final class NotchRun: Framed {
         }
 
         if let index = item(at: point, in: moment.setting) {
+            if let session = list.item(index)?.session, opens(index, at: point, in: moment.setting) {
+                return .open(session.id)
+            }
             return click(index, mayJump: mayJump, in: moment.setting)
         }
         guard frame.hits(point), notch.mayCarry else {
@@ -328,11 +336,55 @@ public final class NotchRun: Framed {
     /// The item a click at a point on the stage acts on, a row, an eyebrow or "N earlier", by its index in the list,
     /// while the panel shows it.
     public func item(at point: CGPoint, in setting: Setting) -> Int? {
+        contentPoint(point, in: setting).flatMap(list.content.item(at:))
+    }
+
+    /// A row's menu opened at a point on the stage: until it closes, the card holds open as if the pointer rested
+    /// there, wherever the pointer goes on the menu, and its grace starts only once the menu closes, so a choice made
+    /// on it finds its row still showing.
+    public func menuOpened(at point: CGPoint) {
+        menuAt = point
+    }
+
+    /// The row's menu closed: the pointer is where it is again.
+    public func menuClosed() {
+        menuAt = nil
+    }
+
+    /// The session whose row is at a point on the stage, away or not, while the panel shows it: what a right-click
+    /// there offers to open or jump to.
+    public func session(at point: CGPoint, in setting: Setting) -> Session? {
+        item(at: point, in: setting).flatMap { list.item($0)?.session }
+    }
+
+    /// A jump to a session's row chosen from its menu: as a click on the row, its row pressed in, while it still
+    /// shows a row that jumps and jumps may run.
+    public func jump(to session: String, _ moment: Moment, mayJump: Bool) -> Press? {
+        upToNow(moment)
+        let index = list.content.entries.indices.first { index in
+            !list.content.entries[index].isGoing && list.item(index)?.session?.id == session
+        }
+
+        return index.flatMap { jump($0, mayJump: mayJump) }
+    }
+
+    /// A point on the stage in the content's own frame, while the panel shows it there.
+    private func contentPoint(_ point: CGPoint, in setting: Setting) -> CGPoint? {
         guard let panel = frame.panel, panel.contains(point) else {
             return nil
         }
 
-        return list.content.item(at: panel.contentPoint(point, mirror: setting.mirror, scroll: scroll))
+        return panel.contentPoint(point, mirror: setting.mirror, scroll: scroll)
+    }
+
+    /// Whether a point on the stage is on the button of the row at this index that opens its session.
+    /// While the row is pressed in, jumping, its spinner stands where the button was, and takes no press of its own.
+    private func opens(_ index: Int, at point: CGPoint, in setting: Setting) -> Bool {
+        guard list.item(index)?.key != frame.panel?.pressed else {
+            return false
+        }
+
+        return contentPoint(point, in: setting).map { list.content.opens(index, at: $0) } ?? false
     }
 
     /// A click on an item: an eyebrow folds its section or unfolds it, "N earlier" opens or folds, each at once; a row

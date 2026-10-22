@@ -21,19 +21,25 @@ struct MenuBoardTests {
         #expect(sessions.map(\.away) == [false, false, true, false, false])
     }
 
-    @Test func aRowsTitleIsItsFirstLineItsSubjectAndAQuestionsMoreInOne() {
-        let question = Session(id: "q", project: "Goosemates", kind: .needs, title: "Which edge?", more: "+2", sub: "", since: 0)
+    /// A row needing Lee is titled by its session's name, away or not, a question's own "+2" nowhere; any other by its
+    /// line, its subject in one with it.
+    @Test func aRowsTitleIsItsSessionsNameOrElseItsLineAndItsSubjectInOne() {
+        let question = Session(
+            id: "q", project: "Goosemates", name: "Onboarding", kind: .needs, title: "Which edge?", more: "+2", sub: "",
+            since: 0
+        )
         let titles = Self.board.items.compactMap(\.session).map { $0.menuTitle(at: 0) }
 
-        #expect(titles[0] == "Choose how long the ledger keeps requests")
-        #expect(titles[1] == "Allow Bash: gh pr create")
+        #expect(titles[0] == "Usage")
+        #expect(titles[1] == "Dashboard memory")
+        #expect(titles[2] == "Plan the tool")
         #expect(titles[4] == "Reading StatusMenu.swift")
-        #expect(question.menuTitle(at: 0) == "Which edge? +2")
+        #expect(question.menuTitle(at: 0) == "Onboarding")
     }
 
-    /// A session with several lines waiting is one item, as on the panel: its oldest line, then "+2" for the two after
-    /// it, in place of a question's own count.
-    @Test func aSessionWithSeveralLinesIsOneItemItsOldestLineThenHowManyMore() {
+    /// A session with several lines waiting is one item, as on the panel: its name, then "+2" for the two lines after
+    /// its first, in place of a question's own count.
+    @Test func aSessionWithSeveralLinesIsOneItemItsNameThenHowManyMore() {
         let ledger = Watched.row(
             "ask:sr-ledger:k1", "ask", session: "sr-ledger", project: "switchboard", lead: "Choose how long it keeps",
             more: "+3", second: "Switchboard · Usage", since: 1_792_445_000_000,
@@ -43,7 +49,7 @@ struct MenuBoardTests {
         let sessions = menu.items.compactMap(\.session)
 
         #expect(sessions.filter { $0.id == "sr-ledger" }.count == 1)
-        #expect(sessions.first?.menuTitle(at: 0) == "Choose how long it keeps +2")
+        #expect(sessions.first?.menuTitle(at: 0) == "Usage +2")
         #expect(sessions.first?.ageText(at: 1_792_445_000_000 + 60 * 60_000) == "1h")
     }
 

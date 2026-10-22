@@ -271,7 +271,7 @@ struct CardSectionsDrawnTests {
         let project = "Agentic Workflows"
         let size = CGSize(width: Self.width, height: Item.turnHeight)
         let row = GlassSessionRow(
-            session: Self.turn(Self.long, project: project), size: size, oneLine: true, lit: false, pressed: false,
+            session: Self.turn(Self.long, project: project), size: size, oneLine: true, hovered: false, pressed: false,
             now: 5 * 60_000, wash: 0
         )
         let drawn = try Drawn(row, size: size)

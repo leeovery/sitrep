@@ -194,7 +194,7 @@ test('of several windows on a session the most needing wins: a stop, then workin
   expect(both(yourTurn(T0), yourTurn(T0 + MIN))).toBe('yourTurn')
 })
 
-test('a session with an ask is a row in Needs you, the ask a line of it, its title and its posting; its project and session under it; dimmed while away, saying no window holds it', () => {
+test("a session with an ask is a row in Needs you, the ask a line of it, its title and its posting; the session's name and its project's of their own, and both under it; dimmed while away, saying no window holds it", () => {
   const held = sessionOf({
     lines: [[T0 + MIN, yesAsk('k1', 'Review round 1')]],
     presence: windowOn(W1, working(T0)),
@@ -206,6 +206,8 @@ test('a session with an ask is a row in Needs you, the ask a line of it, its tit
     section: 'needsYou',
     isAway: false,
     project: 'switchboard',
+    name: 'Dashboard redesign',
+    projectName: 'Switchboard',
     letters: 'Sw',
     lines: [
       {
@@ -221,6 +223,8 @@ test('a session with an ask is a row in Needs you, the ask a line of it, its tit
   })
   expect(rowFor(away)).toMatchObject({
     isAway: true,
+    name: 'Dashboard redesign',
+    projectName: 'Switchboard',
     lines: [{ key: `ask:${META.id}:k1` }],
     second: 'No window holds it. Carry it on in Claude.',
   })
@@ -245,6 +249,8 @@ test("a session with several asks is one row, a line for each, the oldest first;
   expect(row).toMatchObject({
     session: META.id,
     section: 'needsYou',
+    name: 'Dashboard redesign',
+    projectName: 'Harness',
     second: 'Harness · Dashboard redesign',
     since: T0 + MIN,
   })
@@ -661,6 +667,8 @@ const row = (session: string, is: RowKind, since: number | number[], isAway = fa
     section: SECTIONS[is],
     isAway,
     project: 'p',
+    name: 's',
+    projectName: 'P',
     letters: 'Pp',
     lines: times.map(at => ({ key: `${is}:${session}:${at}`, is, first: { lead: session }, since: at })),
     second: 'P · s',

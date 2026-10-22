@@ -20,6 +20,7 @@ struct SidebarLine: View {
         case let .session(row):
             SidebarSessionRow(row: row, filter: filter, now: now)
                 .spoken(Spoken.row(row, at: now))
+                .modifier(SpokenJump(row: row))
                 .sidebarRow(row.pick, picked: picked, washed: row.washed, now: now)
         case let .earlier(earlier):
             EarlierRow(earlier: earlier).sidebarRow(nil, picked: picked, now: now)
@@ -140,27 +141,31 @@ struct Chevron: View {
     }
 }
 
-/// A session's row as its section draws it, in the card's type: Needs you's lines over its project and session;
-/// Working's verb and what it acts on over them; Your turn's words on one line with its project.
+/// A session's row as its section draws it, in the card's type: Needs you's session over its project; Working's verb
+/// and what it acts on over its project and session; Your turn's words on one line with its project. Under the
+/// pointer, a row a window holds gives its time's place to its button, which jumps there (`HoverJump`).
 struct SidebarSessionRow: View {
     let row: Listed.Row
     let filter: Filter
     let now: Date
 
     var body: some View {
-        switch row.section {
-        case .needsYou: NeedsYouRow(row: row, filter: filter, now: now)
-        case .working: WorkingRow(row: row, filter: filter, now: now)
-        case .yourTurn: TurnRow(row: row, filter: filter, now: now)
+        Group {
+            switch row.section {
+            case .needsYou: NeedsYouRow(row: row, filter: filter, now: now)
+            case .working: WorkingRow(row: row, filter: filter, now: now)
+            case .yourTurn: TurnRow(row: row, filter: filter, now: now)
+            }
         }
+        .modifier(HoverJump(row: row))
     }
 }
 
-/// A session's row under Needs you, one shape however many lines it has, as board D draws it: each ask or stop
-/// waiting on Lee a line of its own, its dot in the mark's slot, its words medium and its age, 3 apart; then its
-/// project and session, 1 under them. One line is the system's two-line row, 39 tall, as built; each line more adds
-/// its 16 and the 3 over it. A new line's age is orange while the row washes, so the new one shows among the rest. On
-/// the accent of the pick its words go white, its second line and its ages white at 80%; its dots stay orange.
+/// A session's row under Needs you, as Paper's board F draws it, in the system's two-line row: its dot in the mark's
+/// slot; its session's name, medium, dim while no window holds it, and a quiet "+2" 5 after it for its lines waiting
+/// after the first, none for one; its age, its oldest line's, orange while a new line washes the row; then its project,
+/// 1 under. The asks are read on its page. On the accent of the pick its name goes white, the rest white at 80%; its
+/// dot stays orange.
 struct NeedsYouRow: View {
     let row: Listed.Row
     let filter: Filter
@@ -170,41 +175,31 @@ struct NeedsYouRow: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 1) {
-            VStack(alignment: .leading, spacing: WindowStyle.waitingGap) {
-                ForEach(row.lines) { line in
-                    HStack(alignment: .top, spacing: WindowStyle.slotGap) {
-                        SidebarMark(mark: .needs)
-                        words(line)
-                            .frame(maxWidth: .infinity, minHeight: WindowStyle.titleLine, maxHeight: WindowStyle.titleLine, alignment: .leading)
-                        SidebarAge(since: line.since, washed: line.washed, now: now, onPick: onPick)
-                            .frame(height: WindowStyle.titleLine)
-                    }
-                }
+            HStack(alignment: .top, spacing: WindowStyle.slotGap) {
+                SidebarMark(mark: .needs)
+                title
+                    .frame(maxWidth: .infinity, minHeight: WindowStyle.titleLine, maxHeight: WindowStyle.titleLine, alignment: .leading)
+                SidebarAge(since: row.since, washed: row.lineWashed, now: now, onPick: onPick)
+                    .frame(height: WindowStyle.titleLine)
             }
-            SecondLine(row: row, filter: filter, onPick: onPick)
+            SecondLine(row.project, filter: filter, onPick: onPick)
         }
         .padding(.top, WindowStyle.twoLineTop)
-        .frame(height: WindowStyle.needsYouHeight(lines: row.lines.count), alignment: .top)
+        .frame(height: WindowStyle.twoLineHeight, alignment: .top)
     }
 
     /// Picked, on the accent: what its words and its soft words are drawn in.
     private var onPick: Bool { prominence == .increased }
 
-    /// A line's words: its lead, medium, dim while no window holds its session, then a command or a path in mono, and a
-    /// question's "+2".
-    private func words(_ line: Listed.Line) -> some View {
-        let lead = Name(line.lead, litBy: filter, tone: row.isAway ? .faint : .text, onPick: onPick)
-            .font(WindowStyle.ui(WindowStyle.titleSize, .medium))
-            .spacing(WindowStyle.titleTracking, of: WindowStyle.titleSize)
-
-        return HStack(spacing: WindowStyle.slotGap) {
-            lead
-            if let code = line.code {
-                Name(code, litBy: filter, tone: .soft, onPick: onPick).font(WindowStyle.mono(WindowStyle.smallSize))
-            }
-            if let more = line.more {
+    /// Its session's name, cut short before its "+2", in tabular figures on the name's baseline.
+    private var title: some View {
+        HStack(alignment: .firstTextBaseline, spacing: WindowStyle.moreGap) {
+            Name(row.name, litBy: filter, tone: row.isAway ? .faint : .text, onPick: onPick)
+                .font(WindowStyle.ui(WindowStyle.titleSize, .medium))
+                .spacing(WindowStyle.titleTracking, of: WindowStyle.titleSize)
+            if let more = row.more {
                 Name(more, litBy: filter, tone: .soft, onPick: onPick)
-                    .font(WindowStyle.ui(WindowStyle.titleSize, .medium))
+                    .font(WindowStyle.ui(WindowStyle.moreSize, .medium).monospacedDigit())
                     .fixedSize()
             }
         }
@@ -233,7 +228,7 @@ struct WorkingRow: View {
                 SidebarAge(since: row.since, washed: nil, now: now, onPick: onPick)
                     .frame(height: WindowStyle.titleLine)
             }
-            SecondLine(row: row, filter: filter, onPick: onPick)
+            SecondLine("\(row.project) · \(row.name)", filter: filter, onPick: onPick)
         }
         .padding(.top, WindowStyle.twoLineTop)
         .frame(height: WindowStyle.twoLineHeight, alignment: .top)
@@ -292,16 +287,23 @@ struct TurnRow: View {
     private var onPick: Bool { prominence == .increased }
 }
 
-/// A row's second line, under its first, from its words' edge: its project and its session, 11 in white at 55%.
+/// A row's second line, under its first, from its words' edge: its project, and on Working its session, 11 in white at
+/// 55%.
 private struct SecondLine: View {
-    let row: Listed.Row
+    let words: String
     let filter: Filter
     let onPick: Bool
+
+    init(_ words: String, filter: Filter, onPick: Bool) {
+        self.words = words
+        self.filter = filter
+        self.onPick = onPick
+    }
 
     var body: some View {
         HStack(spacing: WindowStyle.slotGap) {
             Color.clear.frame(width: WindowStyle.slot.width, height: WindowStyle.smallLine)
-            Name("\(row.project) · \(row.name)", litBy: filter, tone: .soft, onPick: onPick)
+            Name(words, litBy: filter, tone: .soft, onPick: onPick)
                 .font(WindowStyle.ui(WindowStyle.smallSize))
                 .lineLimit(1)
                 .frame(height: WindowStyle.smallLine)
@@ -374,10 +376,13 @@ private struct SidebarAge: View {
     let now: Date
     let onPick: Bool
 
+    @Environment(\.showsJump) private var showsJump
+
     var body: some View {
         Text(Words.age(since, at: now))
             .font(WindowStyle.ui(WindowStyle.ageSize).monospacedDigit())
             .foregroundStyle(ink)
+            .opacity(showsJump ? 0 : 1)
     }
 
     private var ink: AnyShapeStyle {
@@ -386,6 +391,86 @@ private struct SidebarAge: View {
         }
         return onPick ? AnyShapeStyle(WindowStyle.picked(.soft)) : AnyShapeStyle(.secondary)
     }
+}
+
+/// Under the pointer, a row a window holds shows its button where its time was, which gives way to it: 22 square, on
+/// the row's middle, its right where the time's lane ends, as Paper's board F draws it. A click on the button jumps to
+/// the session's window, and moves no pick and opens no page, which a click anywhere else on the row does. An away
+/// row, which no window holds, shows none.
+private struct HoverJump: ViewModifier {
+    let row: Listed.Row
+
+    @Environment(\.isRowHovered) private var isRowHovered
+
+    func body(content: Content) -> some View {
+        let shows = isRowHovered && row.jumps
+
+        content
+            .environment(\.showsJump, shows)
+            .overlay(alignment: .trailing) {
+                if shows {
+                    SidebarJump(session: row.id)
+                }
+            }
+    }
+}
+
+/// A sidebar row's button that jumps to its session's window: white at 10%, its corners 6, its arrow in white at 80%.
+private struct SidebarJump: View {
+    let session: String
+
+    @Environment(\.windowActions) private var act
+
+    var body: some View {
+        Button { act.jump(.row(session)) } label: {
+            JumpArrow()
+                .stroke(WindowStyle.jumpGlyph, style: StrokeStyle(lineWidth: 1.5, lineCap: .round, lineJoin: .round))
+                .frame(width: JumpArrow.side, height: JumpArrow.side)
+                .frame(width: WindowStyle.jumpSide, height: WindowStyle.jumpSide)
+                .background(WindowStyle.jumpFill, in: RoundedRectangle(cornerRadius: WindowStyle.jumpRadius))
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+/// To VoiceOver, which reads the row as one element and never hovers it, a row a window holds offers its button as
+/// an action, "Jump to the window", which jumps as the button does, moving no pick.
+private struct SpokenJump: ViewModifier {
+    let row: Listed.Row
+
+    @Environment(\.windowActions) private var act
+
+    func body(content: Content) -> some View {
+        content.accessibilityActions {
+            if let jump = Spoken.jump(row) {
+                Button(jump) { act.jump(.row(row.id)) }
+            }
+        }
+    }
+}
+
+/// The arrow on a sidebar row's button, board F's, 11 square: up and to the right, its head a corner from 3.5 across
+/// to 9.5 and down to 7.5, its shaft from 9.2, 1.8 to 1.8, 9.2.
+private struct JumpArrow: Shape {
+    static let side: CGFloat = 11
+
+    func path(in _: CGRect) -> Path {
+        Path { path in
+            path.move(to: CGPoint(x: 3.5, y: 1.5))
+            path.addLine(to: CGPoint(x: 9.5, y: 1.5))
+            path.addLine(to: CGPoint(x: 9.5, y: 7.5))
+            path.move(to: CGPoint(x: 9.2, y: 1.8))
+            path.addLine(to: CGPoint(x: 1.8, y: 9.2))
+        }
+    }
+}
+
+extension EnvironmentValues {
+    /// The pointer is over the sidebar row, or it is drawn as a still with the pointer over every row.
+    @Entry var isRowHovered = false
+    /// The row's button shows where its time was.
+    @Entry var showsJump = false
 }
 
 /// A session's mark in its slot, drawn still: needs you an orange dot; your turn a soft ring; working a still arc on
@@ -496,6 +581,7 @@ private struct SidebarRow: ViewModifier {
 
     func body(content: Content) -> some View {
         let row = content
+            .environment(\.isRowHovered, isHovered)
             .transformEnvironment(\.backgroundProminence) { prominence in
                 if case .standIn(_, isEmphasized: true) = picked {
                     prominence = .increased
@@ -515,12 +601,12 @@ private struct SidebarRow: ViewModifier {
         }
     }
 
+    private var isHovered: Bool { isOverWords || isOverRow || isHoveredStill }
+
     private var fill: Color? {
         if case let .standIn(_, isEmphasized) = picked {
             return WindowStyle.selection(isEmphasized: isEmphasized, isStill: isStill)
         }
-
-        let isHovered = isOverWords || isOverRow || isHoveredStill
 
         return WindowStyle.sidebarFill(
             Highlight.of(isPicked: picked != nil, isPressed: false, isHovered: isHovered), isStill: isStill

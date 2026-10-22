@@ -224,6 +224,8 @@ test('the first line is the board as every surface shows it, with nothing new an
           section: 'needsYou',
           isAway: false,
           project: PROJECT.key,
+          name: 'Dashboard redesign',
+          projectName: 'Switchboard',
           letters: 'Sw',
           lines: [
             {

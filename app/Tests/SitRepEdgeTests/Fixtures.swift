@@ -21,10 +21,12 @@ private let watchRows = [
 /// line breaks and its rows, grouped by session as version 2 prints them (`Lines`).
 let realLine = #"""
     {"v":2,"at":1792453038194,"version":"0.1.0","head":{"needYou":2,"sessions":2},"rows":[{"session":"sr-n0tch1",\#
-    "section":"needsYou","isAway":false,"project":"sitrep","letters":"SR","lines":[{"key":"ask:sr-n0tch1:k1ap",\#
+    "section":"needsYou","isAway":false,"project":"sitrep","name":"Build the Mac app","projectName":"SitRep",\#
+    "letters":"SR","lines":[{"key":"ask:sr-n0tch1:k1ap",\#
     "is":"ask","ask":"k1ap","writer":null,"first":{"lead":"Approve the caption","mono":null,"more":null},\#
     "since":1792452732636}],"second":"SitRep · Build the Mac app","since":1792452732636},{"session":"sr-dash02",\#
-    "section":"needsYou","isAway":true,"project":"switchboard","letters":"Sw","lines":[{"key":"ask:sr-dash02:k2pc",\#
+    "section":"needsYou","isAway":true,"project":"switchboard","name":"Dashboard memory",\#
+    "projectName":"Switchboard","letters":"Sw","lines":[{"key":"ask:sr-dash02:k2pc",\#
     "is":"ask","ask":"k2pc","writer":null,"first":{"lead":"Pick the cache size","mono":null,"more":null},\#
     "since":1792451832636}],"second":"No window holds it. Carry it on in Claude.","since":1792451832636}],\#
     "projects":[{"key":"sitrep","name":"SitRep","directory":"/Users/leeovery/Code/sitrep","open":1,"waiting":1,\#
@@ -72,10 +74,11 @@ func row(
 ) -> String {
     let first = rowLine(key, kind, lead: lead, mono: mono, more: more, until: until, since: since)
     let lines = [first] + newer.map { rowLine($0.key, kind, lead: $0.lead, since: $0.since) }
+    let names = names(of: second)
 
     return """
-    {"session":"\(session)","section":"\(section(of: kind))","isAway":\(away),"project":"p","letters":"Pr",\
-    "lines":[\(lines.joined(separator: ","))],"second":"\(second)","since":\(since)}
+    {"session":"\(session)","section":"\(section(of: kind))","isAway":\(away),"project":"p",\
+    "name":"\(names.session)","projectName":"\(names.project)","letters":"Pr","lines":[\(lines.joined(separator: ","))],"second":"\(second)","since":\(since)}
     """
 }
 
@@ -87,6 +90,13 @@ private func rowLine(
     {"key":"\(key)","is":"\(kind)","ask":null,"writer":null,"first":{"lead":"\(lead)","mono":\(json(mono)),\
     "more":\(json(more)),"until":\(until.map(String.init) ?? "null")},"since":\(since)}
     """
+}
+
+/// The project and the session a row's second line names, as core words it: "Terrace · Plan the tool".
+func names(of second: String) -> (project: String, session: String) {
+    let parts = second.components(separatedBy: " · ")
+
+    return (parts[0], parts.count > 1 ? parts[1] : second)
 }
 
 /// The section core puts a row of this kind in.

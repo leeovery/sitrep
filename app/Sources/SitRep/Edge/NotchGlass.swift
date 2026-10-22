@@ -210,8 +210,8 @@ private struct GlassPanel: View {
         switch item {
         case let .session(session), let .turn(session):
             GlassSessionRow(
-                session: session, size: box.size, oneLine: item == .turn(session), lit: lit && session.jumps,
-                pressed: pressed, now: scene.now, wash: wash(item.key)
+                session: session, size: box.size, oneLine: item == .turn(session), hovered: lit, pressed: pressed,
+                now: scene.now, wash: wash(item.key)
             )
             .offset(y: box.minY)
         case let .eyebrow(eyebrow):
@@ -255,18 +255,19 @@ private struct GlassHead: View {
     }
 }
 
-/// A session's row on glass: for each of its lines, its mark, its title with its subject and its "+2", and its time;
-/// its project and session under them; laid out as the black's. Under the pointer, a row that jumps lifts, and a click
-/// jumping from it presses it in with an arc spinning in its first line's time's place. One on its own work is still,
-/// its subject plain or a wake's countdown. A your-turn row on the card is on one line: its ring, its words in
-/// regular, its project in the tertiary at the right of them, never cut, and its time.
+/// A session's row on glass: its mark, its title (`Session.headline`) with its subject, a session's "+2" after its
+/// name, and its time; the line under them; laid out as the black's. Under the pointer, a row that jumps lifts, any
+/// row's time gives way to its button, and a click jumping from it presses it in with an arc spinning in its time's
+/// place. One on its own work is still, its subject plain or a wake's countdown. A your-turn row on the card is on one
+/// line: its ring, its words in regular, its project in the tertiary at the right of them, never cut, and its time.
 @available(macOS 26, *)
 struct GlassSessionRow: View {
     let session: Session
     let size: CGSize
     /// A your-turn row on the card, on one line, as the black's.
     let oneLine: Bool
-    let lit: Bool
+    /// Under the pointer.
+    let hovered: Bool
     let pressed: Bool
     /// The wall clock, ms.
     let now: Double
@@ -283,26 +284,24 @@ struct GlassSessionRow: View {
                 .fill(GlassInk.orange.opacity(0.12))
                 .strokeBorder(GlassInk.orange.opacity(0.26), lineWidth: 1)
                 .opacity(wash)
-            ForEach(Array(zip(session.lines, at.lines).enumerated()), id: \.offset) { _, pair in
-                let (line, place) = pair
-                mark.position(place.mark)
-                title(line, width: place.title.width).placed(in: place.title)
-                if !pressed {
-                    Text(line.ageText(at: now))
-                        .font(.system(size: 12).monospacedDigit())
-                        .foregroundStyle(.tertiary)
-                        .placed(in: place.age, alignment: .trailing)
-                }
-            }
+            mark.position(at.mark)
+            title(width: at.title.width).placed(in: at.title)
             if oneLine {
                 Text(session.project).font(.system(size: 12)).foregroundStyle(.tertiary)
                     .placed(in: at.sub.offsetBy(dx: 0, dy: TextLine.drop(of: EdgeStyle.sub, to: EdgeStyle.line, lineHeight: at.sub.height)))
             } else {
-                Text(session.sub).font(.system(size: 12)).foregroundStyle(session.away ? .tertiary : .secondary)
+                Text(session.sub).font(.system(size: 12)).foregroundStyle(soft)
                     .placed(in: at.sub)
             }
             if pressed {
                 spinner.placed(in: at.age, alignment: .trailing)
+            } else if hovered {
+                GlassOpener().placed(in: at.opener)
+            } else {
+                Text(session.ageText(at: now))
+                    .font(.system(size: 12).monospacedDigit())
+                    .foregroundStyle(.tertiary)
+                    .placed(in: at.age, alignment: .trailing)
             }
         }
         .frame(width: size.width, height: size.height, alignment: .topLeading)
@@ -311,10 +310,16 @@ struct GlassSessionRow: View {
         .animation(.easeOut(duration: 0.14), value: pressed)
     }
 
+    /// Under the pointer, a row that jumps lifts; an away one, which jumps nowhere, does not.
+    private var lit: Bool { hovered && session.jumps }
+
+    /// The line under its title, and its "+2": dimmer while no window holds it.
+    private var soft: HierarchicalShapeStyle { session.away ? .tertiary : .secondary }
+
     /// The black's layout: on one line, its project's lane as wide as the black sets its project.
     private var layout: SessionRowLayout {
         guard oneLine else {
-            return SessionRowLayout(size: size, lines: session.lines.count)
+            return SessionRowLayout(size: size)
         }
 
         return SessionRowLayout(turn: size, project: TextLine.width(TextLine.text(session.project, EdgeStyle.sub, EdgeStyle.ink3)))
@@ -342,10 +347,13 @@ struct GlassSessionRow: View {
         }
     }
 
-    /// A line's title in a box this wide, cut short before a question's "+2": a working one shimmering along its lead,
-    /// its subject still; one on its own work still, its subject plain where it is no command; an away one dim.
-    private func title(_ line: Session.Line, width: Double) -> some View {
-        HStack(spacing: SessionRowLayout.moreGap) {
+    /// Its title in a box this wide, cut short before a session's "+2", which sits 6 after it on its baseline: a
+    /// working one shimmering along its lead, its subject still; one on its own work still, its subject plain where it
+    /// is no command; an away one dim.
+    private func title(width: Double) -> some View {
+        let line = session.headline
+
+        return HStack(alignment: .firstTextBaseline, spacing: SessionRowLayout.countGap) {
             if session.kind == .working {
                 HStack(spacing: 0) {
                     Shimmering(text: lead(line), width: width)
@@ -358,7 +366,8 @@ struct GlassSessionRow: View {
                 (lead(line).foregroundStyle(style) + subject(line).foregroundStyle(style)).truncationMode(.tail)
             }
             if let more = line.more {
-                Text(more).font(titleFont).foregroundStyle(.secondary).fixedSize()
+                Text(more).font(Font(EdgeStyle.count)).foregroundStyle(soft)
+                    .fixedSize()
             }
         }
         .lineLimit(1)

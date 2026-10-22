@@ -112,6 +112,8 @@ let watched = """
       "section": "needsYou",
       "isAway": false,
       "project": "terrace",
+      "name": "Plan the tool",
+      "projectName": "Terrace",
       "letters": "Te",
       "lines": [
         {
@@ -135,6 +137,8 @@ let watched = """
       "section": "needsYou",
       "isAway": false,
       "project": "switchboard-7a75d7ba",
+      "name": "Dashboard memory and snags",
+      "projectName": "Switchboard",
       "letters": "Sw",
       "lines": [
         {
@@ -154,6 +158,8 @@ let watched = """
       "section": "yourTurn",
       "isAway": false,
       "project": "code-84dbac88",
+      "name": "Build the Mac app",
+      "projectName": "SitRep",
       "letters": "SR",
       "lines": [
         {

@@ -74,9 +74,9 @@ struct PanelContentTests {
         #expect(content.rows["a"]?.row.isHighlighted == false)
     }
 
-    /// A session's row gaining a line, as a second ask comes, is made anew at its new height in its place, and the row
-    /// under it moves down by the line; still lifted, as one under the pointer was.
-    @Test func aRowGainingALineTakesItsNewHeightInPlace() {
+    /// A session's row gaining a line, as a second ask comes, is made anew in its place at its height, its count after
+    /// its name, and the row under it stays; still lifted, as one under the pointer was.
+    @Test func aRowGainingALineIsMadeAnewInPlace() {
         let content = PanelContent()
         let one = Session(id: "a", project: "Harness", kind: .needs, title: "Approve the batch", sub: "Harness · H", since: 0)
         var two = one
@@ -89,7 +89,7 @@ struct PanelContentTests {
         content.show(Self.scene(frame, hover: 0))
 
         #expect(content.rows["needs:a"]?.row.session == two)
-        #expect(content.rows["needs:a"]?.row.layer.bounds.height == 77)
+        #expect(content.rows["needs:a"]?.row.layer.bounds.height == 55)
         #expect(content.rows["needs:a"]?.row.isHighlighted == true)
         #expect(content.rows["b"]?.item.position.y == Content(laying: [.session(two), Self.row("b")]).itemFrame(1).midY)
     }
@@ -101,7 +101,7 @@ struct PanelContentTests {
         let rest = Session(id: "x", project: "SitRep", kind: .turn, title: "Your turn", sub: "SitRep · Build", since: 0)
         var asking = rest
         asking.kind = .needs
-        asking.title = "Approve the plan"
+        asking.lines[0].title = "Approve the plan"
         let crossing = Content(
             headHeight: 26,
             entries: [Content.Entry(.session(asking), height: 0), Content.Entry(.session(rest), height: 59, isGoing: true)]

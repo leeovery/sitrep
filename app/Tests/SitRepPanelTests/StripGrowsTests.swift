@@ -139,7 +139,7 @@ struct StripGrowsTests {
             Issue.record("the count's tab holds rows")
             return
         }
-        #expect(rows.map(\.title) == ["Signing in to the dev account", "Approve the plan for the tool"])
+        #expect(rows.map(\.lines[0].title) == ["Signing in to the dev account", "Approve the plan for the tool"])
         #expect(lab.model.layout.restNeeds == ["s10", "s4"])
 
         let left = lab.leave(by: 40)

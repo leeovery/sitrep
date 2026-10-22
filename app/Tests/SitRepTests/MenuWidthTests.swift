@@ -22,8 +22,9 @@ struct MenuWidthTests {
     }
     private static let longLine = "Turnstile · Exception reporting and dispatcher limiter fixes, and the queue's retry rules as well"
 
+    /// A row whose line is these words, as a your-turn row's is: a row needing Lee shows its session's name.
     private static func session(_ title: String, code: String? = nil, more: String? = nil, sub: String = longLine) -> Session {
-        Session(id: title, project: "Turnstile", kind: .needs, title: title, code: code, more: more, sub: sub, since: 0)
+        Session(id: title, project: "Turnstile", kind: .turn, title: title, code: code, more: more, sub: sub, since: 0)
     }
 
     /// The menu: the header, these rows as the status menu sets them, each with the widest time, and its commands.

@@ -84,6 +84,105 @@ struct NotchRunTests {
         #expect(run.frame.panel?.pressed == "needs:sr-a")
     }
 
+    /// A run over Kit's away ask and SitRep's held one, its panel opened.
+    private static func openedWithAway() -> NotchRun {
+        let rows = [
+            row("ask:a", "ask", session: "sr-a", lead: "Ask a", second: "SitRep · a", since: 1_792_445_000_000),
+            row("ask:k", "ask", away: true, session: "sr-k", lead: "Ask k", second: "Kit · k", since: 1_792_445_000_000),
+        ]
+        var last = LastBoard()
+        let run = NotchRun(at: 1000, in: setting)
+
+        _ = last.hear(.line(line(needYou: 2, sessions: 2, new: [], rows: rows)), at: Date())
+        _ = run.show(PanelBoard(last), at(run.time))
+        frames(run, for: 3000, onTheNotch) { run.phase == .open }
+        return run
+    }
+
+    /// The middle of a row's button on the stage (`Opener`).
+    private static func opener(of key: String, in run: NotchRun) throws -> CGPoint {
+        let panel = try #require(run.frame.panel)
+        let content = run.list.content
+        let index = try #require(content.entries.firstIndex { $0.item.key == key })
+        let row = content.itemFrame(index), box = content.entries[index].item.box(width: row.width)
+        let button = Opener.frame(in: box.size)
+
+        return CGPoint(
+            x: panel.frame.minX + row.minX + button.midX, y: panel.frame.minY + row.minY + box.minY + button.midY - run.scroll
+        )
+    }
+
+    /// A press on a row's button opens its session, away or not, pressing nothing in and counting no click; one on the
+    /// row beside it jumps, as before, and on an away row does nothing.
+    @Test func aPressOnARowsButtonOpensItsSessionAwayOrNot() throws {
+        let run = Self.openedWithAway()
+
+        #expect(run.press(Self.at(run.time, try Self.opener(of: "needs:sr-a", in: run)), mayJump: true) == .open("sr-a"))
+        #expect(run.press(Self.at(run.time, try Self.opener(of: "needs:sr-k", in: run)), mayJump: false) == .open("sr-k"))
+        #expect(!run.isLatest(1))
+        run.step(Self.at(run.time + Self.frameMS))
+        #expect(run.frame.panel?.pressed == nil)
+
+        #expect(run.press(Self.at(run.time, try Self.point(of: "needs:sr-k", in: run)), mayJump: true) == nil)
+        guard case .jump? = run.press(Self.at(run.time, try Self.point(of: "needs:sr-a", in: run)), mayJump: true) else {
+            Issue.record("a press beside the button did not jump")
+            return
+        }
+    }
+
+    /// A right-click finds the session of the row under it, away or not; its menu's jump presses the row in as a
+    /// click does, and on an away row, which no window holds, jumps nowhere.
+    @Test func theMenusJumpIsAClickOnTheRow() throws {
+        let run = Self.openedWithAway()
+
+        #expect(run.session(at: try Self.point(of: "needs:sr-k", in: run), in: Self.setting)?.id == "sr-k")
+        #expect(run.session(at: try Self.point(of: "needs:sr-a", in: run), in: Self.setting)?.id == "sr-a")
+        #expect(run.jump(to: "sr-k", Self.at(run.time), mayJump: true) == nil)
+
+        guard case let .jump(session, to: target, click: click)? = run.jump(to: "sr-a", Self.at(run.time), mayJump: true)
+        else {
+            Issue.record("the menu's jump did not jump")
+            return
+        }
+        #expect(session.id == "sr-a" && target == "sr-a" && click == 1)
+        run.step(Self.at(run.time + Self.frameMS))
+        #expect(run.frame.panel?.pressed == "needs:sr-a")
+    }
+
+    /// A row's menu open holds the card open however long the pointer is away on it, its row still there for the
+    /// menu's jump; once the menu closes, the pointer away lets it close.
+    @Test func aRowsMenuHoldsTheCardOpenUntilItCloses() throws {
+        let run = Self.openedWithAway()
+        let away = CGPoint(x: 900, y: 200)
+
+        run.menuOpened(at: try Self.point(of: "needs:sr-a", in: run))
+        Self.frames(run, for: 10_000, away)
+        #expect(run.phase == .open)
+        guard case .jump? = run.jump(to: "sr-a", Self.at(run.time, away), mayJump: true) else {
+            Issue.record("the menu's jump found no row")
+            return
+        }
+
+        let held = Self.openedWithAway()
+
+        held.menuOpened(at: try Self.point(of: "needs:sr-a", in: held))
+        Self.frames(held, for: 1000, away)
+        held.menuClosed()
+        Self.frames(held, for: 5000, away) { held.phase == .closed }
+        #expect(held.phase == .closed)
+    }
+
+    /// While a row is pressed in, jumping, the spinner stands where its button was: a press there opens nothing, and
+    /// goes where any press on a jumping row goes.
+    @Test func aPressOnAJumpingRowsSpinnerOpensNothing() throws {
+        let run = Self.openedWithAway()
+
+        _ = run.press(Self.at(run.time, try Self.point(of: "needs:sr-a", in: run)), mayJump: true)
+        run.step(Self.at(run.time + Self.frameMS))
+        #expect(run.frame.panel?.pressed == "needs:sr-a")
+        #expect(run.press(Self.at(run.time, try Self.opener(of: "needs:sr-a", in: run)), mayJump: true) != .open("sr-a"))
+    }
+
     @Test func noPressJumpsWhileAJumpRunsAndNoneIsCounted() throws {
         let run = Self.opened(["a", "b"])
 

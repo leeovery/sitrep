@@ -48,6 +48,18 @@ struct BoardTests {
         #expect(!stop.isAway)
     }
 
+    /// Each row names its session and its project by name, fields of their own, as a Needs you row shows them; an
+    /// away row too, whose second line says no window holds it.
+    @Test func aRowNamesItsSessionAndItsProject() throws {
+        let rows = try Board.read(watched).rows
+        let byName = try Board.read(Lines.bySession[0]).rows
+
+        #expect(rows.map(\.name) == ["Plan the tool", "Dashboard memory and snags", "Build the Mac app"])
+        #expect(rows.map(\.projectName) == ["Terrace", "Switchboard", "SitRep"])
+        #expect(byName[2].isAway && byName[2].name == "Onboarding" && byName[2].projectName == "Goosemates")
+        #expect(byName[2].second == "No window holds it. Carry it on in Claude.")
+    }
+
     /// The real CLI's lines (`Lines.bySession`): Harness's three asks one row, the oldest first; Switchboard's ask and
     /// its window's permission prompt another; Goosemates' away row last in Needs you; then Working, the Mac app's
     /// turn running before Kit's on its own work; then Fumi's turn.
@@ -185,6 +197,8 @@ struct BoardTests {
         watched.replacingOccurrences(of: #""doing": {"# + "\n" + #"            "is": "permission""#, with: #""doing": {"# + "\n" + #"            "is": "napping""#),
         watched.replacingOccurrences(of: #""doing": {"#, with: #""doings": {"#),
         watched.replacingOccurrences(of: #""section": "yourTurn""#, with: #""section": "napping""#),
+        watched.replacingOccurrences(of: #""name": "Plan the tool","# + "\n" + #"      "projectName""#, with: #""projectName""#),
+        watched.replacingOccurrences(of: #""projectName": "Terrace","#, with: ""),
         Lines.bySession[0].replacingOccurrences(of: #""lines":[{"key":"turn:sr-v3t7a0""#, with: #""lines":[],"was":[{"key":"turn:sr-v3t7a0""#),
     ])
     func aLineThatIsNotABoardIsUnread(line: String) {

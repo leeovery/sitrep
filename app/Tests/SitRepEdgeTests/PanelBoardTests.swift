@@ -50,7 +50,8 @@ struct PanelBoardTests {
         ])
         #expect(harness.lines.map(\.since) == line.rows[0].lines.map { $0.since.timeIntervalSince1970 * 1000 })
         #expect(harness.since == harness.lines[0].since)
-        #expect(harness.sub == "Harness · Finish the Harness modernisation")
+        #expect(harness.name == "Finish the Harness modernisation")
+        #expect(harness.sub == "Harness")
         #expect(switchboard.lines.map(\.title) == ["Paste the load test's output", "Allow Bash "])
         #expect(switchboard.lines.map(\.code) == [nil, "gh pr create --draft"])
         #expect(sessions.map(\.lines.count) == [3, 2, 1, 1, 1, 1])
@@ -89,22 +90,33 @@ struct PanelBoardTests {
         #expect(sessions.map(\.code) == [nil, nil])
     }
 
-    @Test func aRowReadsItsFirstLineItsSubjectInMonoAfterASpaceAndItsSecond() {
+    /// A row needing Lee is its session: its name over its project, its oldest line's time; its line keeps its words,
+    /// a prompt's command in mono after a space, for its page.
+    @Test func aRowNeedingLeeReadsItsSessionsNameOverItsProject() {
         let prompt = Self.board(Self.heard(.line(watchLine))).sessions[1]
 
-        #expect(prompt.title == "Allow Bash: ")
-        #expect(prompt.code == "gh pr create")
-        #expect(prompt.more == nil)
-        #expect(prompt.sub == "Switchboard · Dashboard memory and snags")
+        #expect(prompt.title == "Dashboard memory and snags")
+        #expect(prompt.code == nil && prompt.more == nil)
+        #expect(prompt.sub == "Switchboard")
         #expect(prompt.since == 1_792_445_500_000)
+        #expect(prompt.lines[0].title == "Allow Bash: " && prompt.lines[0].code == "gh pr create")
     }
 
-    @Test func aQuestionKeepsCoresWordsForHowManyMore() {
+    /// An away row's line under its name says no window holds it, as core words it.
+    @Test func anAwayRowSaysNoWindowHoldsItUnderItsName() {
+        let away = Self.board(Self.heard(.line(realLine))).sessions[1]
+
+        #expect(away.title == "Dashboard memory")
+        #expect(away.sub == "No window holds it. Carry it on in Claude.")
+    }
+
+    /// A question's own "+2" stays on its line, for its page, and shows on no row.
+    @Test func aQuestionKeepsCoresWordsForHowManyMoreOnItsLine() {
         let question = Self.board(Self.heard(.line(watchLine))).sessions[2]
 
-        #expect(question.title == "Which edge should it start on?")
-        #expect(question.code == nil)
-        #expect(question.more == "+2")
+        #expect(question.lines[0].title == "Which edge should it start on?")
+        #expect(question.lines[0].more == "+2")
+        #expect(question.more == nil)
     }
 
     @Test func theHeadIsCoresCounts() {
@@ -139,12 +151,12 @@ struct PanelBoardTests {
 
         #expect(board.sessions == [
             Session(
-                id: "sr-n0tch1", project: "SitRep", letters: "SR", kind: .needs, title: "Approve the caption",
-                sub: "SitRep · Build the Mac app", since: 1_792_452_732_636
+                id: "sr-n0tch1", project: "SitRep", name: "Build the Mac app", letters: "SR", kind: .needs,
+                title: "Approve the caption", sub: "SitRep", since: 1_792_452_732_636
             ),
             Session(
-                id: "sr-dash02", project: "Switchboard", letters: "Sw", kind: .needs, away: true,
-                title: "Pick the cache size", sub: "No window holds it. Carry it on in Claude.",
+                id: "sr-dash02", project: "Switchboard", name: "Dashboard memory", letters: "Sw", kind: .needs,
+                away: true, title: "Pick the cache size", sub: "No window holds it. Carry it on in Claude.",
                 since: 1_792_451_832_636
             ),
         ])
@@ -161,10 +173,16 @@ struct PanelBoardTests {
         #expect(sessions.map(\.letters) == ["SR", "Sw"])
     }
 
-    @Test func aRowWhoseProjectTheLineDoesNotListKeepsItsKey() {
+    /// A row names its project and its session by core's own fields, whatever projects the line lists.
+    @Test func aRowNamesItsProjectAndSessionByItsOwnFields() {
         let sessions = Self.board(Self.heard(.line(watchLine))).sessions
 
-        #expect(sessions.allSatisfy { $0.project == "p" && $0.letters == "Pr" })
+        #expect(sessions.map(\.project) == ["Terrace", "Switchboard", "Goosemates", "Kit", "SitRep", "DocMan"])
+        #expect(sessions.map(\.name) == [
+            "Plan the tool", "Dashboard memory and snags", "Settle the older open questions", "The bootstrap",
+            "Build the Mac app", "Fix inverted exception reporting",
+        ])
+        #expect(sessions.allSatisfy { $0.letters == "Pr" })
     }
 
     @Test func beforeTheFirstLineThePanelIsLookingWithNothingNeedingLee() {

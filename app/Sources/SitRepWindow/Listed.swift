@@ -42,8 +42,9 @@ public struct Listed: Equatable, Sendable {
         public var pick: Pick { .project(id) }
     }
 
-    /// A session's row, in its section: under Needs you, its lines waiting on Lee over its project and its name; in
-    /// Working, its turn's line over them; in Your turn, what Claude left Lee, on one line with its project.
+    /// A session's row, in its section: under Needs you, its name and a count of its lines waiting on Lee over its
+    /// project; in Working, its turn's line over its project and its name; in Your turn, what Claude left Lee, on one
+    /// line with its project.
     public struct Row: Equatable, Sendable, Identifiable {
         public let id: String
         public let name: String
@@ -64,6 +65,15 @@ public struct Listed: Equatable, Sendable {
         public var isEarlier = false
 
         public var pick: Pick { .session(id) }
+
+        /// A window holds it: its button under the pointer, and VoiceOver's "Jump to the window", jump there.
+        public var jumps: Bool { !isAway }
+
+        /// Under Needs you, what follows its name: "+2" for its two lines after the first.
+        public var more: String? { Session.more(over: lines.count) }
+
+        /// When its newest line new to needing Lee began to wash, while one does: its age washes with it.
+        public var lineWashed: Date? { lines.compactMap(\.washed).max() }
     }
 
     /// One of a row's lines, as the card's line says it: an ask or a window's stop waiting on Lee, or the session's
@@ -167,9 +177,7 @@ extension Listed {
     /// A row for each of core's, with its lines, by its section, in the sections' order: within one, core's order,
     /// Needs you's the oldest first by its oldest line, an away session's after the live ones.
     static func rows(_ board: Board) -> [Row] {
-        let rows = board.rows.compactMap { row in
-            board.session(row.session).map { Row(row, of: $0.session, in: $0.project) }
-        }
+        let rows = board.rows.map(Row.init)
 
         return BoardSection.allCases.flatMap { section in rows.filter { $0.section == section } }
     }
@@ -184,10 +192,10 @@ extension Listed {
 }
 
 extension Listed.Row {
-    /// Its session's row, with core's row's lines and time.
-    init(_ row: Board.Row, of session: Board.Session, in project: Board.Project) {
+    /// Core's row, with its lines and time.
+    init(_ row: Board.Row) {
         self.init(
-            id: session.id, name: session.name, project: project.name, section: BoardSection(row.section),
+            id: row.session, name: row.name, project: row.projectName, section: BoardSection(row.section),
             mark: Mark(row.oldest.kind), isAway: row.isAway, since: row.since, lines: row.lines.map(Listed.Line.init)
         )
     }

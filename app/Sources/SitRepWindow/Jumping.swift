@@ -1,15 +1,16 @@
-/// What in the window a jump was pressed from: a card's button, the session's "Open in Ghostty ↗", or a stop's
-/// "Answer in Claude ↗".
+/// What in the window a jump was pressed from: a card's button, the session's "Open in Ghostty ↗", a stop's "Answer
+/// in Claude ↗", or a sidebar row's button under the pointer.
 public enum JumpPress: Hashable, Sendable {
     case card(AskAddress, Card.Button)
     case open(String)
     case stop(String)
+    case row(String)
 
     /// The session it jumps to.
     public var session: String {
         switch self {
         case let .card(ask, _): ask.session
-        case let .open(session), let .stop(session): session
+        case let .open(session), let .stop(session), let .row(session): session
         }
     }
 }
