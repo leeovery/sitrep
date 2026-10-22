@@ -369,12 +369,10 @@ private struct GlassIdle: View {
 /// A tab's titles on glass, set as the black's are.
 @available(macOS 26, *)
 private enum GlassWords {
-    /// A row's title at this time on the wall clock, its subject in code type or plain, and its "+2".
+    /// A row's title at this time on the wall clock, its subject in code type or plain, and its "+2" (`moreOnOneLine`).
     static func title(_ s: Session, at now: Double) -> Text {
         let size = 14.0
-        let text = Text(s.title)
-            .font(.system(size: size, weight: s.kind == .needs ? .semibold : .medium))
-            .kerning(-0.14)
+        let text = Text(s.title).font(.system(size: size, weight: .medium)).kerning(-0.14)
 
         return text + subject(s, size: size, at: now) + more(s, size: size)
     }
@@ -383,7 +381,7 @@ private enum GlassWords {
     /// colour, the rest dimmer.
     static func rowTitle(_ s: Session, at now: Double) -> some View {
         let size = 13.0
-        let text = Text(s.title).font(.system(size: size, weight: s.kind == .needs ? .semibold : .medium))
+        let text = Text(s.title).font(.system(size: size, weight: .medium))
         let isDim = s.kind == .working || s.kind == .onItsWork
         let ink: AnyShapeStyle = s.away ? AnyShapeStyle(.tertiary)
             : isDim ? AnyShapeStyle(.secondary) : AnyShapeStyle(.primary)
@@ -404,7 +402,7 @@ private enum GlassWords {
     }
 
     private static func more(_ s: Session, size: Double) -> Text {
-        guard let more = s.more else {
+        guard let more = s.moreOnOneLine else {
             return Text("")
         }
 

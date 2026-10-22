@@ -50,7 +50,12 @@ type Printed = {
   at: number
   version: string | null
   head: { needYou: number; sessions: number }
-  rows: { key: string; is: string; isAway: boolean; first: { lead: string } }[]
+  rows: {
+    session: string
+    section: string
+    isAway: boolean
+    lines: { key: string; is: string; first: { lead: string } }[]
+  }[]
   projects: {
     sessions: { id: string; name: string; state: string; asks: { reply: unknown }[] }[]
   }[]
@@ -160,7 +165,12 @@ const beatOn = (
   })
 }
 
-const keys = (line: Printed | undefined) => line?.rows.map(row => row.key)
+/** The keys of a watch line's lines, its rows' in order. */
+const keys = (line: Printed | undefined) =>
+  line?.rows.flatMap(row => row.lines.map(each => each.key))
+
+/** A watch line's first row's first line. */
+const firstLine = (line: Printed | undefined) => line?.rows[0]?.lines[0]
 
 /** Switchboard, living in REPO, and the session under test there holding `lines`, its window W1 on screen and on your turn. */
 const held = (lines: Line[] = [], options: Parameters<typeof terminal>[0] = {}) => {
@@ -204,21 +214,27 @@ test('the first line is the board as every surface shows it, with nothing new an
   expect({ exit, err }).toEqual({ exit: EXIT.done, err: '' })
   expect(lines).toEqual([
     {
-      v: 1,
+      v: 2,
       at: NOW,
       version: CLI_VERSION,
       head: { needYou: 1, sessions: 1 },
       rows: [
         {
-          key: `ask:${META.id}:k1`,
-          is: 'ask',
-          isAway: false,
           session: META.id,
+          section: 'needsYou',
+          isAway: false,
           project: PROJECT.key,
           letters: 'Sw',
-          ask: 'k1',
-          writer: null,
-          first: { lead: 'Review round 1', mono: null, subject: null, more: null, until: null },
+          lines: [
+            {
+              key: `ask:${META.id}:k1`,
+              is: 'ask',
+              ask: 'k1',
+              writer: null,
+              first: { lead: 'Review round 1', mono: null, subject: null, more: null, until: null },
+              since: T0,
+            },
+          ],
           second: 'Switchboard · Dashboard redesign',
           since: T0,
         },
@@ -321,20 +337,27 @@ test("a window on its own work is a row of that kind after working, its line say
 
   const [line] = (await watched(t, [])).lines
   const printed = line as unknown as {
-    rows: { session: string; is: string; first: unknown }[]
+    rows: { session: string; section: string; lines: { is: string; first: unknown }[] }[]
     projects: { sessions: { state: string; doing: { is: string; line: unknown } }[] }[]
   }
 
-  expect(printed.rows.map(row => [row.session, row.is, row.first])).toEqual([
+  expect(
+    printed.rows.map(row => [row.session, row.section, row.lines.map(each => [each.is, each.first])]),
+  ).toEqual([
     [
       LOBBY.id,
-      'onItsWork',
-      { lead: 'Wakes', mono: null, subject: null, more: null, until: wakesAt },
+      'working',
+      [['onItsWork', { lead: 'Wakes', mono: null, subject: null, more: null, until: wakesAt }]],
     ],
     [
       META.id,
-      'onItsWork',
-      { lead: 'Waiting on', mono: null, subject: '3 agents', more: null, until: null },
+      'working',
+      [
+        [
+          'onItsWork',
+          { lead: 'Waiting on', mono: null, subject: '3 agents', more: null, until: null },
+        ],
+      ],
     ],
   ])
   expect(printed.projects[0]?.sessions.map(each => [each.state, each.doing.is])).toEqual([
@@ -460,7 +483,7 @@ test('a window stopping on Lee is new once; its prompt answered, the window work
   ])
   const stop = `stop:${META.id}:${W1}:${NOW + POLL_MS}`
 
-  expect(lines.map(line => [keys(line), line.rows[0]?.first.lead, line.new])).toEqual([
+  expect(lines.map(line => [keys(line), firstLine(line)?.first.lead, line.new])).toEqual([
     [[`turn:${META.id}`], META.summary, []],
     [[stop], 'Allow Bash', [stop]],
     [[`turn:${META.id}`], 'Running', []],
@@ -480,7 +503,7 @@ test('a heartbeat caught torn is passed over: the window stands as last read unt
     () => beatOn(t, paths, W1, { is: 'working', since: NOW }, { where: WHERE }),
   ])
 
-  expect(lines.map(line => [line.at, keys(line), line.rows[0]?.is])).toEqual([
+  expect(lines.map(line => [line.at, keys(line), firstLine(line)?.is])).toEqual([
     [NOW, [`turn:${META.id}`], 'yourTurn'],
     [NOW + 3 * POLL_MS, [`turn:${META.id}`], 'working'],
   ])
@@ -629,7 +652,7 @@ test('a file it cannot read is passed over for the look, its last whole text sta
   )
 
   expect({ exit, err }).toEqual({ exit: EXIT.done, err: '' })
-  expect(lines.map(line => [line.at, line.rows[0]?.is])).toEqual([
+  expect(lines.map(line => [line.at, firstLine(line)?.is])).toEqual([
     [NOW, 'yourTurn'],
     [NOW + 3 * POLL_MS, 'working'],
   ])

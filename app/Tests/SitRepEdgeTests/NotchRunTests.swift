@@ -69,24 +69,24 @@ struct NotchRunTests {
         #expect(run.phase == .open)
 
         _ = run.show(Self.board(["c", "a", "b"], new: ["c"]), Self.at(run.time))
-        #expect(Self.keys(run) == ["ask:c", "ask:a", "ask:b"])
+        #expect(Self.keys(run) == ["sr-c", "sr-a", "sr-b"])
 
-        let onA = try Self.point(of: "ask:a", in: run)
+        let onA = try Self.point(of: "sr-a", in: run)
         let pressed = run.press(Self.at(run.time, onA), mayJump: true)
 
         guard case let .jump(session, to: target, click: click) = pressed else {
             Issue.record("pressed \(String(describing: pressed))")
             return
         }
-        #expect(session.id == "ask:a" && target == "sr-a" && click == 1)
+        #expect(session.id == "sr-a" && target == "sr-a" && click == 1)
         run.step(Self.at(run.time + Self.frameMS, onA))
-        #expect(run.frame.panel?.pressed == "ask:a")
+        #expect(run.frame.panel?.pressed == "sr-a")
     }
 
     @Test func noPressJumpsWhileAJumpRunsAndNoneIsCounted() throws {
         let run = Self.opened(["a", "b"])
 
-        let pressed = run.press(Self.at(run.time, try Self.point(of: "ask:b", in: run)), mayJump: false)
+        let pressed = run.press(Self.at(run.time, try Self.point(of: "sr-b", in: run)), mayJump: false)
 
         #expect(pressed == nil)
         #expect(run.frame.panel?.pressed == nil)
@@ -96,7 +96,7 @@ struct NotchRunTests {
     @Test func onlyTheLatestClicksAnswerIsHeard() throws {
         let run = Self.opened(["a", "b"])
 
-        _ = run.press(Self.at(run.time, try Self.point(of: "ask:a", in: run)), mayJump: true)
+        _ = run.press(Self.at(run.time, try Self.point(of: "sr-a", in: run)), mayJump: true)
 
         #expect(run.isLatest(1))
         #expect(!run.isLatest(0) && !run.isLatest(2))
@@ -347,7 +347,7 @@ struct NotchRunTests {
     @Test func aClicksDrainIsLatchedOnceAsThePanelGoesIn() throws {
         let run = Self.opened(["a", "b"])
 
-        _ = run.press(Self.at(run.time, try Self.point(of: "ask:a", in: run)), mayJump: true)
+        _ = run.press(Self.at(run.time, try Self.point(of: "sr-a", in: run)), mayJump: true)
         _ = run.takeShown()
         run.jumpAnswered(Self.at(run.time + Self.frameMS))
         run.step(Self.at(run.time + Self.frameMS))
@@ -373,13 +373,13 @@ struct NotchRunTests {
         let run = Self.opened(["a", "b"])
 
         _ = run.show(Self.board(["b", "a"]), Self.at(run.time))
-        #expect(Self.keys(run) == ["ask:a", "ask:b"])
+        #expect(Self.keys(run) == ["sr-a", "sr-b"])
 
         run.clickElsewhere(Self.at(run.time))
         Self.frames(run, for: 5000, CGPoint(x: 900, y: 491)) { run.phase == .closed }
 
         #expect(run.phase == .closed)
-        #expect(Self.keys(run) == ["ask:b", "ask:a"])
+        #expect(Self.keys(run) == ["sr-b", "sr-a"])
     }
 
     @Test func aNewRowIsWashedOnlyWhileThePanelIsOut() {
@@ -387,7 +387,7 @@ struct NotchRunTests {
         let open = Self.opened(["a"])
 
         #expect(closed.show(Self.board(["c", "a"], new: ["c"]), Self.at(1000)).isEmpty)
-        #expect(open.show(Self.board(["c", "a"], new: ["c"]), Self.at(open.time)) == ["ask:c"])
+        #expect(open.show(Self.board(["c", "a"], new: ["c"]), Self.at(open.time)) == ["sr-c"])
     }
 
     @Test func theTimesNextChangeIsTheSoonestOfTheShownRows() {

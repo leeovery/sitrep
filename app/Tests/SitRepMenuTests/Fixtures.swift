@@ -25,21 +25,37 @@ enum Watched {
         needYou: Int = 3, rows: [String] = rows, new: [String] = [], windows: [String] = [], version: String? = "0.2.0"
     ) -> String {
         """
-        {"v":1,"at":1792445574706,"version":\(json(version)),"head":{"needYou":\(needYou),"sessions":\(rows.count)},\
+        {"v":2,"at":1792445574706,"version":\(json(version)),"head":{"needYou":\(needYou),"sessions":\(rows.count)},\
         "rows":[\(rows.joined(separator: ","))],"projects":[\(projects.joined(separator: ","))],\
         "windows":[\(windows.joined(separator: ","))],\
         "new":[\(new.map { "\"\($0)\"" }.joined(separator: ","))],"changed":[]}
         """
     }
 
+    /// A session's row of one line, its key `key`, in the section its kind puts it in; with `newer`, more lines of
+    /// the same kind after it, by their keys, leads and times, as a session with several asks has.
     static func row(
         _ key: String, _ kind: String, away: Bool = false, session: String, project: String, lead: String,
-        mono: String? = nil, more: String? = nil, second: String, since: Int
+        mono: String? = nil, more: String? = nil, second: String, since: Int,
+        newer: [(key: String, lead: String, since: Int)] = []
+    ) -> String {
+        let lines = [line(key, kind, lead: lead, mono: mono, more: more, since: since)]
+            + newer.map { line($0.key, kind, lead: $0.lead, since: $0.since) }
+        let section = ["ask", "permission", "question"].contains(kind) ? "needsYou"
+            : kind == "yourTurn" ? "yourTurn" : "working"
+
+        return """
+        {"session":"\(session)","section":"\(section)","isAway":\(away),"project":"\(project)","letters":"Pr",\
+        "lines":[\(lines.joined(separator: ","))],"second":"\(second)","since":\(since)}
+        """
+    }
+
+    private static func line(
+        _ key: String, _ kind: String, lead: String, mono: String? = nil, more: String? = nil, since: Int
     ) -> String {
         """
-        {"key":"\(key)","is":"\(kind)","isAway":\(away),"session":"\(session)","project":"\(project)",\
-        "letters":"Pr","ask":null,"writer":null,"first":{"lead":"\(lead)","mono":\(json(mono)),\
-        "more":\(json(more))},"second":"\(second)","since":\(since)}
+        {"key":"\(key)","is":"\(kind)","ask":null,"writer":null,"first":{"lead":"\(lead)","mono":\(json(mono)),\
+        "more":\(json(more))},"since":\(since)}
         """
     }
 

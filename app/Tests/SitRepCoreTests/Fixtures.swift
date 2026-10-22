@@ -102,55 +102,73 @@ let listedEmpty = """
 /// there, null where there is none.
 let watched = """
 {
-  "v": 1,
+  "v": 2,
   "at": 1792445574706,
   "version": "0.1.0",
   "head": { "needYou": 2, "sessions": 3 },
   "rows": [
     {
-      "key": "ask:sr-7e68fj:k1hs",
-      "is": "ask",
-      "isAway": false,
       "session": "sr-7e68fj",
+      "section": "needsYou",
+      "isAway": false,
       "project": "terrace",
       "letters": "Te",
-      "ask": "k1hs",
-      "writer": null,
-      "first": {
-        "lead": "Approve saved plans for anything needing a human",
-        "mono": null,
-        "more": null
-      },
+      "lines": [
+        {
+          "key": "ask:sr-7e68fj:k1hs",
+          "is": "ask",
+          "ask": "k1hs",
+          "writer": null,
+          "first": {
+            "lead": "Approve saved plans for anything needing a human",
+            "mono": null,
+            "more": null
+          },
+          "since": 1791991983206
+        }
+      ],
       "second": "Terrace · Plan the tool",
       "since": 1791991983206
     },
     {
-      "key": "stop:sr-y4d0qj:6c847b5b-722d-4343-88e0-42ece4662e7d:1792445500000",
-      "is": "permission",
-      "isAway": false,
       "session": "sr-y4d0qj",
+      "section": "needsYou",
+      "isAway": false,
       "project": "switchboard-7a75d7ba",
       "letters": "Sw",
-      "ask": null,
-      "writer": "6c847b5b-722d-4343-88e0-42ece4662e7d",
-      "first": { "lead": "Allow Bash", "mono": "gh pr create", "more": null },
+      "lines": [
+        {
+          "key": "stop:sr-y4d0qj:6c847b5b-722d-4343-88e0-42ece4662e7d:1792445500000",
+          "is": "permission",
+          "ask": null,
+          "writer": "6c847b5b-722d-4343-88e0-42ece4662e7d",
+          "first": { "lead": "Allow Bash", "mono": "gh pr create", "more": null },
+          "since": 1792445500000
+        }
+      ],
       "second": "Switchboard · Dashboard memory and snags",
       "since": 1792445500000
     },
     {
-      "key": "turn:sr-aw3bgs",
-      "is": "yourTurn",
-      "isAway": false,
       "session": "sr-aw3bgs",
+      "section": "yourTurn",
+      "isAway": false,
       "project": "code-84dbac88",
       "letters": "SR",
-      "ask": null,
-      "writer": "408a755f-ed3a-4ee1-9cc0-c0208cf3e03b",
-      "first": {
-        "lead": "Build phase 4b: sitrep watch, the feed the app reads",
-        "mono": null,
-        "more": null
-      },
+      "lines": [
+        {
+          "key": "turn:sr-aw3bgs",
+          "is": "yourTurn",
+          "ask": null,
+          "writer": "408a755f-ed3a-4ee1-9cc0-c0208cf3e03b",
+          "first": {
+            "lead": "Build phase 4b: sitrep watch, the feed the app reads",
+            "mono": null,
+            "more": null
+          },
+          "since": 1792259685462
+        }
+      ],
       "second": "SitRep · Build the Mac app",
       "since": 1792259685462
     }
@@ -303,4 +321,4 @@ let watched = """
 """
 
 /// The first line of `sitrep watch` over an empty board, on one line as it prints it.
-let watchedEmpty = #"{"v":1,"at":1792445580000,"version":"0.1.0","head":{"needYou":0,"sessions":0},"rows":[],"projects":[],"windows":[],"new":[],"changed":[]}"#
+let watchedEmpty = #"{"v":2,"at":1792445580000,"version":"0.1.0","head":{"needYou":0,"sessions":0},"rows":[],"projects":[],"windows":[],"new":[],"changed":[]}"#

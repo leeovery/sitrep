@@ -8,7 +8,7 @@ import {
   nextExpiry,
   ownTime,
   PAUSE_MS,
-  rowsOf,
+  rowOf,
   STALE_MS,
   unpaused,
   type Clock,
@@ -130,12 +130,12 @@ test('a session folded across a sleep holds its window, its stop still a row, un
   const unaware = folded(awake, [], window)
 
   expect(across.isOpen).toBe(true)
-  expect(rowsOf(SWITCHBOARD, across, awake).map(row => row.key)).toEqual([
+  expect(rowOf(SWITCHBOARD, across, awake)?.lines.map(line => line.key)).toEqual([
     `stop:${META.id}:${W1}:${T0}`,
   ])
   expect(nextExpiry([{ project: SWITCHBOARD, sessions: [across] }], awake)).toBe(awake + 60_001)
   expect(unaware.isOpen).toBe(false)
-  expect(rowsOf(SWITCHBOARD, unaware, awake)).toEqual([])
+  expect(rowOf(SWITCHBOARD, unaware, awake)).toBeUndefined()
 })
 
 test('pauses add up, the time awake between them counting', () => {

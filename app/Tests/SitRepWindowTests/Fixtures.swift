@@ -80,7 +80,7 @@ private func quoted(_ keys: [String]) -> String {
 
 /// What `watch` says a session is doing.
 func doing(_ kind: Doing.Kind, _ lead: String, mono: String? = nil, since: Date) -> Doing {
-    Doing(kind: kind, line: Board.Row.Line(lead: lead, mono: mono, more: nil), since: since)
+    Doing(kind: kind, line: Board.Row.Words(lead: lead, mono: mono, more: nil), since: since)
 }
 
 /// A board the real CLI printed, changed as given.

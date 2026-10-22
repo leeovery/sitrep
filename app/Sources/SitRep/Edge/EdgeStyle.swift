@@ -30,8 +30,8 @@ enum EdgeStyle {
     static let wash = color(LiveLight.orange, alpha: 0.12)
     static let washRing = color(LiveLight.orange, alpha: 0.26)
 
+    /// A row's title, an ask's among them (board D: every ask's line medium, as Lee approved it).
     static let title = NSFont.systemFont(ofSize: 14, weight: .medium)
-    static let needsTitle = NSFont.systemFont(ofSize: 14, weight: .semibold)
     /// A row on its own work's subject, where it is no command; a wake's countdown in its tabular figures, so a row
     /// can leave room for every reading it will take (`Session.countdownRoom`).
     static let subject = NSFont.systemFont(ofSize: 14, weight: .regular)
@@ -44,7 +44,6 @@ enum EdgeStyle {
     /// A mark's letters, and a count's rows, needs you's bolder.
     static let letters = NSFont.systemFont(ofSize: 9.5, weight: .semibold)
     static let rowTitle = NSFont.systemFont(ofSize: 13, weight: .medium)
-    static let needsRowTitle = NSFont.systemFont(ofSize: 13, weight: .semibold)
     /// A wake's countdown in a count's row, in tabular figures, as `countdown`.
     static let rowCountdown = NSFont.monospacedDigitSystemFont(ofSize: 13, weight: .medium)
     static let rowSub = NSFont.systemFont(ofSize: 11)

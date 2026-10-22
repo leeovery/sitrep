@@ -29,13 +29,39 @@ struct PanelBoardTests {
         PanelBoard(last, clock: london)
     }
 
-    @Test func eachRowIsASessionInCoresOrderKeyedByTheRowsKey() {
+    @Test func eachRowIsASessionInCoresOrderKeyedByItsSession() {
         let sessions = Self.board(Self.heard(.line(watchLine))).sessions
 
-        #expect(sessions.map(\.id) == [
-            "ask:sr-7e68fj:k1hs", "stop:sr-y4d0qj:w1:1792445500000", "stop:sr-j94s0e:w2:1792445400000",
-            "ask:sr-50f7g8:a2", "turn:sr-aw3bgs", "work:sr-q7njzv",
+        #expect(sessions.map(\.id) == ["sr-7e68fj", "sr-y4d0qj", "sr-j94s0e", "sr-50f7g8", "sr-aw3bgs", "sr-q7njzv"])
+    }
+
+    /// The real CLI's line (`Lines.bySession`): Harness's three asks, the oldest first, each its words and its time;
+    /// Switchboard's ask and its window's permission prompt, the command in mono after a space.
+    @Test func aRowWithSeveralLinesKeepsEachInCoresOrderWithItsWordsAndItsTime() throws {
+        let line = try Board.read(Lines.bySession[0])
+        let sessions = Self.board(Self.heard(.line(Lines.bySession[0]))).sessions
+        let harness = try #require(sessions.first), switchboard = sessions[1]
+
+        #expect(harness.id == "sr-4g01a7")
+        #expect(harness.kind == .needs)
+        #expect(harness.lines.map(\.title) == [
+            "Approve the first fix batch from the branch review", "Choose how the release notes are grouped",
+            "Paste the failing test's output",
         ])
+        #expect(harness.lines.map(\.since) == line.rows[0].lines.map { $0.since.timeIntervalSince1970 * 1000 })
+        #expect(harness.since == harness.lines[0].since)
+        #expect(harness.sub == "Harness · Finish the Harness modernisation")
+        #expect(switchboard.lines.map(\.title) == ["Paste the load test's output", "Allow Bash "])
+        #expect(switchboard.lines.map(\.code) == [nil, "gh pr create --draft"])
+        #expect(sessions.map(\.lines.count) == [3, 2, 1, 1, 1, 1])
+    }
+
+    /// The second line: a fourth ask in Harness's session, new on it, which washes its row.
+    @Test func aRowHoldingALineNewOnTheBoardIsNewByItsSession() {
+        let board = Self.board(Self.heard(.line(Lines.bySession[0]), .line(Lines.bySession[1])))
+
+        #expect(board.new == ["sr-4g01a7"])
+        #expect(board.sessions.first?.lines.count == 4)
     }
 
     @Test func anAskAPermissionPromptAndAQuestionNeedLeeAndTheRestAreYourTurnOrWorking() {
@@ -95,8 +121,8 @@ struct PanelBoardTests {
         #expect(!board.needsLee)
     }
 
-    @Test func whatIsNewIsTheLinesNew() {
-        #expect(Self.board(Self.heard(.line(watchLine))).new == ["stop:sr-y4d0qj:w1:1792445500000"])
+    @Test func whatIsNewIsTheRowsHoldingTheLinesNew() {
+        #expect(Self.board(Self.heard(.line(watchLine))).new == ["sr-y4d0qj"])
         #expect(Self.board(Self.heard(.line(allClearLine))).new.isEmpty)
     }
 
@@ -113,11 +139,11 @@ struct PanelBoardTests {
 
         #expect(board.sessions == [
             Session(
-                id: "ask:sr-n0tch1:k1ap", project: "SitRep", letters: "SR", kind: .needs, title: "Approve the caption",
+                id: "sr-n0tch1", project: "SitRep", letters: "SR", kind: .needs, title: "Approve the caption",
                 sub: "SitRep · Build the Mac app", since: 1_792_452_732_636
             ),
             Session(
-                id: "ask:sr-dash02:k2pc", project: "Switchboard", letters: "Sw", kind: .needs, away: true,
+                id: "sr-dash02", project: "Switchboard", letters: "Sw", kind: .needs, away: true,
                 title: "Pick the cache size", sub: "No window holds it. Carry it on in Claude.",
                 since: 1_792_451_832_636
             ),

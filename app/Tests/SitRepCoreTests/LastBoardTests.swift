@@ -53,10 +53,10 @@ struct LastBoardTests {
     }
 
     @Test func aLineOfAnotherVersionKeepsTheBoardStaleSayingSo() throws {
-        let last = Self.after(.line(watched), .line(#"{"v": 2}"#))
+        let last = Self.after(.line(watched), .line(#"{"v": 1}"#))
 
         #expect(last.board == (try Board.read(watched)))
-        #expect(last.stale?.description == "sitrep watch gave output version 2, and this SitRep reads version 1.")
+        #expect(last.stale?.description == "sitrep watch gave output version 1, and this SitRep reads version 2.")
     }
 
     @Test func aLineThatReadsAfterOneThatDidNotIsTheBoardNoLongerStale() throws {

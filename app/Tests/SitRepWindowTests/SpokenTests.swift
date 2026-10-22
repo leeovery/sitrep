@@ -22,8 +22,9 @@ struct SpokenTests {
 
     @Test func aNeedsYouRowReadsAsAProjectsRowDoes() throws {
         let listed = Listed(heard(line(0)))
-        let asking = try #require(listed.needsYou.first { $0.id == "sr-dash02" })
+        var asking = try #require(listed.needsYou.first { $0.id == "sr-dash02" })
 
+        asking.lines = []
         #expect(asking == listed.sessions.first { $0.id == "sr-dash02" })
         #expect(Spoken.row(asking, at: printedAt).hasPrefix("Dashboard redesign, Switchboard, needs you, "))
     }

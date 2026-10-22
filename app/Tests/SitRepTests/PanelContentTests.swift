@@ -74,6 +74,26 @@ struct PanelContentTests {
         #expect(content.rows["a"]?.row.isHighlighted == false)
     }
 
+    /// A session's row gaining a line, as a second ask comes, is made anew at its new height in its place, and the row
+    /// under it moves down by the line; still lifted, as one under the pointer was.
+    @Test func aRowGainingALineTakesItsNewHeightInPlace() {
+        let content = PanelContent()
+        let one = Session(id: "a", project: "Harness", kind: .needs, title: "Approve the batch", sub: "Harness · H", since: 0)
+        var two = one
+        let frame = Self.open(Self.list(.session(one), Self.row("b")))
+
+        two.lines.append(Session.Line(title: "Choose the branch", since: 60_000))
+        content.show(Self.list(.session(one), Self.row("b")))
+        content.show(Self.scene(frame, hover: 0))
+        content.show(Self.list(.session(two), Self.row("b")))
+        content.show(Self.scene(frame, hover: 0))
+
+        #expect(content.rows["a"]?.row.session == two)
+        #expect(content.rows["a"]?.row.layer.bounds.height == 77)
+        #expect(content.rows["a"]?.row.isHighlighted == true)
+        #expect(content.rows["b"]?.item.position.y == Content(laying: [.session(two), Self.row("b")]).itemFrame(1).midY)
+    }
+
     @Test func aRowMadeAnewUnderThePointerLifts() {
         let content = PanelContent(), list = Self.list(Self.row("a"))
         let frame = Self.open(list)

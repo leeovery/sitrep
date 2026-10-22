@@ -384,7 +384,7 @@ struct WindowRunTests {
 
     @Test func withNoSessionOpenAtAllThePageSaysSo() {
         let run = WindowRun()
-        let empty = #"{"v":1,"at":1792486421238,"version":"0.2.0","head":{"needYou":0,"sessions":0},"rows":[],"projects":[],"windows":[],"new":[],"changed":[]}"#
+        let empty = #"{"v":2,"at":1792486421238,"version":"0.2.0","head":{"needYou":0,"sessions":0},"rows":[],"projects":[],"windows":[],"new":[],"changed":[]}"#
 
         _ = run.show(heard(.line(empty)), at: printedAt, reducesMotion: false)
         _ = run.open()
@@ -396,5 +396,6 @@ struct WindowRunTests {
         Lines.watch[0]
             .replacingOccurrences(of: #""is":"ask""#, with: #""is":"yourTurn""#)
             .replacingOccurrences(of: #""is":"permission""#, with: #""is":"yourTurn""#)
+            .replacingOccurrences(of: #""section":"needsYou""#, with: #""section":"yourTurn""#)
     )
 }

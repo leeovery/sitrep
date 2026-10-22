@@ -403,7 +403,7 @@ struct Hosted {
             "attachedAt":1792440000000}
             """
         let line = """
-            {"v":1,"at":1792445574706,"version":"0.2.0","head":{"needYou":0,"sessions":1},"rows":[],"projects":[],\
+            {"v":2,"at":1792445574706,"version":"0.2.0","head":{"needYou":0,"sessions":1},"rows":[],"projects":[],\
             "windows":[\(window),\(window)],"new":[],"changed":[]}
             """
         var last = LastBoard()

@@ -56,6 +56,21 @@ struct HeldRowsTests {
         #expect(rows.shown == [answered] + Self.by("s2", "s3"))
     }
 
+    /// A row is its session: one gaining a line, as a second ask comes, is the same row, changed in its place.
+    @Test func whileItIsOutARowGainingALineKeepsItsPlace() {
+        var rows = HeldRows()
+        rows.take(Self.by("s1", "s2", "s3"))
+        rows.hold(true)
+        var asked = Self.by("s2")[0]
+        asked.lines.insert(Session.Line(title: "An older ask", since: asked.since - 60_000), at: 0)
+
+        let changed = rows.take([asked] + Self.by("s1", "s3"))
+
+        #expect(changed)
+        #expect(Self.ids(rows) == ["s1", "s2", "s3"])
+        #expect(rows.shown[1].lines.count == 2)
+    }
+
     @Test func whileItIsOutARowGoneLeaves() {
         var rows = HeldRows()
         rows.take(Self.by("s1", "s2", "s3"))

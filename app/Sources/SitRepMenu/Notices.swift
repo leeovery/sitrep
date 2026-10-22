@@ -13,7 +13,9 @@ public enum Notices {
 
         let new = Set(board.new)
 
-        return board.rows.filter { $0.kind == .ask && new.contains($0.key) }.map { newAsk($0, on: board) }
+        return board.rows.flatMap { row in
+            row.lines.filter { $0.kind == .ask && new.contains($0.key) }.map { newAsk($0, of: row, on: board) }
+        }
     }
 
     /// The test notification Settings sends: as a new ask's would be, of the board's first row a window holds, which a
@@ -23,14 +25,14 @@ public enum Notices {
             return Banner(title: "SitRep", subtitle: nil, body: "A test notification. No window holds a session, so it jumps nowhere.", work: nil)
         }
 
-        return Banner(title: row.first.lead, subtitle: placeOf(row, on: board), body: "A test notification. Click it to jump to this session.", work: row.session)
+        return Banner(title: row.oldest.first.lead, subtitle: placeOf(row, on: board), body: "A test notification. Click it to jump to this session.", work: row.session)
     }
 
-    private static func newAsk(_ row: Board.Row, on board: Board) -> Banner {
-        Banner(title: row.first.lead, subtitle: placeOf(row, on: board), body: "", work: row.isAway ? nil : row.session)
+    private static func newAsk(_ ask: Board.Row.Line, of row: Board.Row, on board: Board) -> Banner {
+        Banner(title: ask.first.lead, subtitle: placeOf(row, on: board), body: "", work: row.isAway ? nil : row.session)
     }
 
-    /// The row's project and session by name: its second line, but for an away ask, whose second line says no window
+    /// The row's project and session by name: its second line, but for an away row, whose second line says no window
     /// holds it.
     private static func placeOf(_ row: Board.Row, on board: Board) -> String {
         let project = board.projects.first { $0.key == row.project }

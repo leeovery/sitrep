@@ -22,7 +22,7 @@ public enum Words {
 
     /// What a line says plain after its lead at this time: a wake's countdown, "in 12m", else its subject, where it
     /// is no command.
-    public static func subject(_ line: Board.Row.Line, at now: Date) -> String? {
+    public static func subject(_ line: Board.Row.Words, at now: Date) -> String? {
         line.until.map { Session.untilText($0.timeIntervalSince(now) * 1000) } ?? line.subject
     }
 

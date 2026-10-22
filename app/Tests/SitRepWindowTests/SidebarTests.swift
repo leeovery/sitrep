@@ -29,13 +29,33 @@ struct SidebarTests {
         #expect(Listed.needsYou(board).map(\.id) == ["sr-macapp", "sr-dash02", "sr-gs7kq2"])
     }
 
-    @Test func aNeedsYouRowIsItsSessionsRowNamingItsProject() throws {
-        let asking = try #require(Self.listed.needsYou.first)
+    @Test func aNeedsYouRowIsItsSessionsRowNamingItsProjectWithItsLines() throws {
+        var asking = try #require(Self.listed.needsYou.first)
 
         #expect(asking.project == "SitRep")
+        #expect(!asking.lines.isEmpty)
+        asking.lines = []
         #expect(asking == Self.listed.sessions.first { $0.id == asking.id })
     }
 
+    /// The lines of core's row, the oldest first: the Mac app's three asks, Dashboard redesign's ask and its window's
+    /// permission prompt, the command apart from the words, Goosemates' away ask.
+    @Test func aNeedsYouRowsLinesAreCoresRowsWithTheirWordsAndTheirTimes() throws {
+        let board = try Board.read(Lines.watch[0])
+
+        #expect(Self.listed.needsYou.map { $0.lines.map(\.id) } == board.rows.filter(\.needsLee).map { $0.lines.map(\.id) })
+        #expect(Self.listed.needsYou.map(\.lines.count) == [3, 2, 1])
+        #expect(Self.listed.needsYou[0].lines.map(\.lead) == [
+            "Choose which edge the strip takes by default", "Paste the load test's output",
+            "Look at round 3, the SitRep window, and approve it or comment",
+        ])
+        #expect(Self.listed.needsYou[0].lines.map(\.since) == board.rows[0].lines.map(\.since))
+        #expect(Self.listed.needsYou[0].since == board.rows[0].since)
+        #expect(Self.listed.needsYou[1].lines.map(\.words) == [
+            "Paste the load test's output for the Usage area", "Allow Bash gh pr create --draft --base main",
+        ])
+        #expect(Self.listed.needsYou[1].lines.map(\.code) == [nil, "gh pr create --draft --base main"])
+    }
     @Test func theListIsNeedsYouThenEachProjectThenTheQuietProjects() {
         #expect(Self.lines() == [
             .needsYou,

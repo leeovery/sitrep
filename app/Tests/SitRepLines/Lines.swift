@@ -7,7 +7,18 @@ import Foundation
 /// - `watch`, its four lines: the first; the yes answered and the words ask ignored, both on their way; both
 ///   delivered; and Goosemates' session finished;
 /// - `board --json` for The Mac app at each of the first three, and for Goosemates' session.
+///
+/// `watch`'s lines printed before its version 2 (`watch`, `newAsk`, `onItsWork`) had their rows grouped by session on
+/// 22 October 2026 by core's own order and head, every other field as printed; the same regrouping of version 1's lines
+/// over `bySession`'s board gave, field for field, what the real version 2 printed over it.
 public enum Lines {
+    /// `sitrep watch`'s first two lines at version 2, rows by session, over a board of its own run on 22 October 2026:
+    /// Harness's Finish the Harness modernisation, its window working, three asks waiting; Switchboard's Dashboard
+    /// redesign, a words ask and its window stopped on a permission prompt since; Goosemates' Onboarding, away, a
+    /// choice waiting; SitRep's The Mac app working; Kit's The bootstrap on its own work; Fumi's Licensing discussion
+    /// on your turn. Then a fourth ask posted into Harness's session, new on the second line.
+    public static let bySession = printed("watch-by-session.jsonl").split(separator: "\n").map(String.init)
+
     /// `sitrep watch`'s lines, in the order it printed them.
     public static let watch = printed("watch.jsonl").split(separator: "\n").map(String.init)
 

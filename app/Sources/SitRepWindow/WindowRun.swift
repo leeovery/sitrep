@@ -69,7 +69,7 @@ public final class WindowRun {
     /// gives way to what the window opens on; Settings stays. The reads to run.
     public func show(_ last: LastBoard, at time: Date, reducesMotion: Bool) -> [Read] {
         let board = last.board
-        let moving = last.stale == nil ? board.map(Self.newToNeedingLee) ?? [] : []
+        let moving = last.stale == nil ? board?.newRows ?? [] : []
 
         self.last = last
         take(Listed(last), moving: moving)
@@ -483,6 +483,7 @@ public final class WindowRun {
 
     private func projectPage(_ project: Board.Project, on board: Board, at time: Date) -> ProjectPage {
         let needs = board.rows.filter { $0.project == project.key && $0.needsLee }
+        let waiting = { (rows: [Board.Row]) in rows.map(\.lines.count).reduce(0, +) }
         let read = project.sessions.compactMap { session in boards[session.id].map { (session, $0) } }
         let named = project.sessions.count > 1
         let notes = Array(read.flatMap { Self.notes($1.log, of: $0, named: named) }.sorted { $0.at > $1.at }.prefix(Self.projectNotes))
@@ -496,12 +497,12 @@ public final class WindowRun {
         }.sorted { $0.at < $1.at }
 
         return ProjectPage(
-            key: project.key, name: project.name, waiting: needs.count, open: project.open,
+            key: project.key, name: project.name, waiting: waiting(needs), open: project.open,
             sessions: project.sessions.map { session in
                 ProjectPage.Session(
                     id: session.id, name: session.name, mark: Mark(session.state), isAway: session.doing.isAway,
                     doing: session.doing,
-                    waiting: needs.filter { $0.session == session.id }.count, since: session.since
+                    waiting: waiting(needs.filter { $0.session == session.id }), since: session.since
                 )
             },
             asksWaiting: project.sessions.map(\.waiting).reduce(0, +),
@@ -562,12 +563,6 @@ public final class WindowRun {
         }
     }
 
-    /// The sessions whose rows `watch` says are new and need Lee.
-    private static func newToNeedingLee(_ board: Board) -> Set<String> {
-        let new = Set(board.new)
-
-        return Set(board.rows.filter { new.contains($0.key) }.map(\.session))
-    }
 }
 
 extension Board {

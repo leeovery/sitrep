@@ -38,6 +38,14 @@ struct FilterTests {
         #expect(narrowed.quiet.isEmpty)
     }
 
+    /// A Needs you row by its lines' words too: the Mac app's ask about the strip's edge, Dashboard redesign's prompt
+    /// to run `gh pr create`; neither under its project, which knows only names.
+    @Test func needsYouFindsARowByAnyOfItsLinesWords() {
+        #expect(Self.listed.narrowed(by: Filter("strip edge")).needsYou.map(\.id) == ["sr-macapp"])
+        #expect(Self.listed.narrowed(by: Filter("gh pr")).needsYou.map(\.id) == ["sr-dash02"])
+        #expect(Self.listed.narrowed(by: Filter("strip edge")).projects.isEmpty)
+    }
+
     @Test func needsYouFiltersByTheSameRuleItsMatchesInTheirOrder() {
         #expect(Self.listed.narrowed(by: Filter("e")).needsYou.map(\.id) == ["sr-macapp", "sr-dash02", "sr-gs7kq2"])
         #expect(Self.listed.narrowed(by: Filter("le")).needsYou.map(\.id) == ["sr-gs7kq2"])

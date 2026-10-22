@@ -32,6 +32,23 @@ struct FoldsTests {
         #expect(!folds.isMoving(at: 1000))
     }
 
+    /// Keyed by its session, a row gaining a line while the panel is out neither folds away nor in again: it is the
+    /// same row, at once its new height, the line's 22 more.
+    @Test func aRowGainingALineIsTheSameRowAtItsNewHeight() {
+        var folds = Self.folds(Self.a, Self.b)
+        var asked = Self.a.session!
+
+        asked.lines.append(Session.Line(title: "Another ask", since: 60_000))
+        folds.take([.session(asked), Self.b], at: 1000, animating: true, reducesMotion: false)
+
+        let content = folds.content(at: 1000)
+
+        #expect(Self.keys(content) == ["a", "b"])
+        #expect(content.entries.map(\.height) == [81, 59])
+        #expect(content.entries.allSatisfy { $0.alpha == 1 && !$0.isGoing })
+        #expect(!folds.isMoving(at: 1000))
+    }
+
     @Test func aNewRowUnfoldsOver260msAndFadesInOver220() {
         var folds = Self.folds(Self.a)
 

@@ -5,6 +5,51 @@ import Testing
 struct RowsTests {
     private static let minute = 60_000.0
 
+    /// Harness's three asks, an hour apart, the oldest first.
+    private static let harness = Session(
+        id: "sr-4g01a7", project: "Harness", kind: .needs,
+        lines: [
+            Session.Line(title: "Approve the first fix batch", since: 0),
+            Session.Line(title: "Choose the release notes' grouping", since: 60 * minute),
+            Session.Line(title: "Which branch?", more: "+1", since: 120 * minute),
+        ],
+        sub: "Harness · Finish the Harness modernisation"
+    )
+
+    /// Where there is room for one line, as on the strip and in the menu: the oldest, its time, and "+2" for the two
+    /// after it, in place of a question's own count; a session of one line shows its question's "+2" as it is.
+    @Test func withRoomForOneLineASessionShowsItsOldestThenHowManyMore() {
+        let question = Session(id: "q", project: "Kit", kind: .needs, title: "Which edge?", more: "+2", sub: "", since: 0)
+
+        #expect(Self.harness.title == "Approve the first fix batch")
+        #expect(Self.harness.since == 0)
+        #expect(Self.harness.ageText(at: 180 * Self.minute) == "3h")
+        #expect(Self.harness.moreOnOneLine == "+2")
+        #expect(question.moreOnOneLine == "+2")
+        #expect(Session(id: "t", project: "Kit", kind: .turn, title: "Done", sub: "", since: 0).moreOnOneLine == nil)
+    }
+
+    /// Each line's time ticks on its own minute: the row may next read differently at the soonest of them.
+    @Test func aRowsWordsMayNextReadDifferentlyAtItsSoonestLinesChange() {
+        var staggered = Self.harness
+
+        staggered.lines[1].since = 30_000
+        #expect(staggered.changes(after: 40_000) == 60_000)
+        #expect(staggered.changes(after: 70_000) == 90_000)
+    }
+
+    /// A row of three lines: 99 and the 4 under it, the content's height with it, and the pointer anywhere on any of
+    /// its lines over the one row.
+    @Test func aRowOfSeveralLinesIsOneRowAsTallAsThem() {
+        let content = Content(laying: [.session(Self.harness), .divider])
+        let row = content.itemFrame(0)
+
+        #expect(row.height == 103)
+        #expect(content.height == 18 + 26 + 103 + 9 + 14)
+        #expect([10.0, 40, 72, 95].allSatisfy { content.row(at: CGPoint(x: row.midX, y: row.minY + $0)) == 0 })
+        #expect(content.row(at: CGPoint(x: row.midX, y: row.minY + 100)) == nil)
+    }
+
     @Test func thePrototypesSessionsShowTheirAgesAsItDoes() {
         let ages = Item.prototype.compactMap(\.session).map { $0.ageText(at: 0) }
 
@@ -109,7 +154,7 @@ struct RowsTests {
     func aRowsTimeMayNextReadDifferentlyAtItsNextWholeMinute(_ age: Double, changes: Double) {
         let session = Session(id: "", project: "SitRep", kind: .turn, title: "", sub: "", since: 1000)
 
-        #expect(session.ageChanges(after: 1000 + age) == 1000 + changes)
+        #expect(session.lines[0].ageChanges(after: 1000 + age) == 1000 + changes)
     }
 
     /// A wake's countdown, from its time left: up to the whole minute, then as the time lane counts, and "now" once due.
@@ -144,7 +189,7 @@ struct RowsTests {
     @Test func aRowWaitingOnNoWakeMayNextReadDifferentlyAsItsTimeTicks() {
         let agents = Session(id: "", project: "SitRep", kind: .onItsWork, title: "Waiting on ", subject: "3", sub: "", since: 0)
 
-        #expect(agents.changes(after: 40_000) == agents.ageChanges(after: 40_000))
+        #expect(agents.changes(after: 40_000) == agents.lines[0].ageChanges(after: 40_000))
         #expect(agents.countdownChanges(after: 40_000) == nil)
     }
 

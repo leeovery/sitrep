@@ -244,9 +244,10 @@ private struct GlassHead: View {
     }
 }
 
-/// A session's row on glass: its mark, its title with its subject and its "+2", its project and session, its time,
-/// laid out as the black's; under the pointer, a row that jumps lifts, and a click jumping from it presses it in with
-/// an arc spinning in its time's place. One on its own work is still, its subject plain or a wake's countdown.
+/// A session's row on glass: for each of its lines, its mark, its title with its subject and its "+2", and its time;
+/// its project and session under them; laid out as the black's. Under the pointer, a row that jumps lifts, and a click
+/// jumping from it presses it in with an arc spinning in its first line's time's place. One on its own work is still,
+/// its subject plain or a wake's countdown.
 @available(macOS 26, *)
 private struct GlassSessionRow: View {
     let session: Session
@@ -259,7 +260,7 @@ private struct GlassSessionRow: View {
     let wash: Double
 
     var body: some View {
-        let at = SessionRowLayout(size: size)
+        let at = SessionRowLayout(size: size, lines: session.lines.count)
         ZStack(alignment: .topLeading) {
             RoundedRectangle(cornerRadius: SessionRowLayout.radius)
                 .fill(.primary.opacity(pressed ? 0.12 : lit ? 0.08 : 0))
@@ -268,17 +269,21 @@ private struct GlassSessionRow: View {
                 .fill(GlassInk.orange.opacity(0.12))
                 .strokeBorder(GlassInk.orange.opacity(0.26), lineWidth: 1)
                 .opacity(wash)
-            mark.position(at.mark)
-            title(width: at.title.width).placed(in: at.title)
+            ForEach(Array(zip(session.lines, at.lines).enumerated()), id: \.offset) { _, pair in
+                let (line, place) = pair
+                mark.position(place.mark)
+                title(line, width: place.title.width).placed(in: place.title)
+                if !pressed {
+                    Text(line.ageText(at: now))
+                        .font(.system(size: 12).monospacedDigit())
+                        .foregroundStyle(.tertiary)
+                        .placed(in: place.age, alignment: .trailing)
+                }
+            }
             Text(session.sub).font(.system(size: 12)).foregroundStyle(session.away ? .tertiary : .secondary)
                 .placed(in: at.sub)
             if pressed {
                 spinner.placed(in: at.age, alignment: .trailing)
-            } else {
-                Text(session.ageText(at: now))
-                    .font(.system(size: 12).monospacedDigit())
-                    .foregroundStyle(.tertiary)
-                    .placed(in: at.age, alignment: .trailing)
             }
         }
         .frame(width: size.width, height: size.height, alignment: .topLeading)
@@ -308,43 +313,43 @@ private struct GlassSessionRow: View {
         }
     }
 
-    /// The title in a box this wide, cut short before a question's "+2": a working one shimmering along its lead, its
-    /// subject still; one on its own work still, its subject plain where it is no command; an away one dim.
-    private func title(width: Double) -> some View {
+    /// A line's title in a box this wide, cut short before a question's "+2": a working one shimmering along its lead,
+    /// its subject still; one on its own work still, its subject plain where it is no command; an away one dim.
+    private func title(_ line: Session.Line, width: Double) -> some View {
         HStack(spacing: SessionRowLayout.moreGap) {
             if session.kind == .working {
                 HStack(spacing: 0) {
-                    Shimmering(text: lead, width: width)
-                    subject.foregroundStyle(.secondary)
+                    Shimmering(text: lead(line), width: width)
+                    subject(line).foregroundStyle(.secondary)
                 }
             } else if session.kind == .onItsWork {
-                (lead + subject + plain).foregroundStyle(.secondary).truncationMode(.tail)
+                (lead(line) + subject(line) + plain(line)).foregroundStyle(.secondary).truncationMode(.tail)
             } else {
                 let style: HierarchicalShapeStyle = session.away ? .tertiary : .primary
-                (lead.foregroundStyle(style) + subject.foregroundStyle(style)).truncationMode(.tail)
+                (lead(line).foregroundStyle(style) + subject(line).foregroundStyle(style)).truncationMode(.tail)
             }
-            if let more = session.more {
+            if let more = line.more {
                 Text(more).font(titleFont).foregroundStyle(.secondary).fixedSize()
             }
         }
         .lineLimit(1)
     }
 
-    private var lead: Text { Text(session.title).font(titleFont).kerning(-0.14) }
+    private func lead(_ line: Session.Line) -> Text { Text(line.title).font(titleFont).kerning(-0.14) }
 
-    private var titleFont: Font { .system(size: 14, weight: session.kind == .needs ? .semibold : .medium) }
+    private var titleFont: Font { .system(size: 14, weight: .medium) }
 
     /// Its subject in mono, after the title.
-    private var subject: Text {
-        Text(session.code ?? "").font(.system(size: 13, weight: .medium, design: .monospaced))
+    private func subject(_ line: Session.Line) -> Text {
+        Text(line.code ?? "").font(.system(size: 13, weight: .medium, design: .monospaced))
     }
 
     /// What it waits on, plain, after the title: its subject, or a wake's countdown in tabular figures, as the
     /// black's.
-    private var plain: Text {
+    private func plain(_ line: Session.Line) -> Text {
         let font = Font.system(size: 14)
 
-        return Text(session.subject(at: now) ?? "").font(session.until == nil ? font : font.monospacedDigit())
+        return Text(line.subject(at: now) ?? "").font(line.until == nil ? font : font.monospacedDigit())
             .kerning(-0.14)
     }
 }
