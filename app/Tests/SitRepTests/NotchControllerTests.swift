@@ -26,7 +26,8 @@ struct NotchControllerTests {
         let since = Int(midnight) - 30_000
         let line = """
             {"v":2,"at":\(since),"version":"0.2.0","head":{"needYou":0,"sessions":1},"rows":[{"session":"sr-a",\
-            "section":"yourTurn","isAway":false,"project":"sitrep","letters":"SR","lines":[{"key":"turn:sr-a",\
+            "section":"yourTurn","isAway":false,"project":"sitrep","name":"The Mac app","projectName":"SitRep",\
+            "letters":"SR","lines":[{"key":"turn:sr-a",\
             "is":"yourTurn","ask":null,"writer":null,"first":{"lead":"Your turn","mono":null,"more":null},\
             "since":\(since)}],"second":"SitRep · The Mac app","since":\(since)}],"projects":[],"windows":[],\
             "new":[],"changed":[]}

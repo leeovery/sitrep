@@ -1714,7 +1714,9 @@ truth. There is still no background service. None of it is built now. Lee:
         "head": { "needYou": 2, "sessions": 1 },
         "rows": [
           { "session": "sr-k3f9qa", "section": "needsYou",
-            "isAway": false, "project": "switchboard", "letters": "Sw",
+            "isAway": false, "project": "switchboard",
+            "name": "Dashboard redesign", "projectName": "Switchboard",
+            "letters": "Sw",
             "lines": [
               { "key": "ask:sr-k3f9qa:k1", "is": "ask", "ask": "k1",
                 "writer": null,
@@ -1767,12 +1769,16 @@ truth. There is still no background service. None of it is built now. Lee:
       keeps a row's place by it; its `section` (`needsYou`, `working` or
       `yourTurn`; on its own work is in `working`, at its end), and
       `isAway`, a Needs you row of a session no window holds; its project's
-      key, the strip's two `letters` (the project's capitals where it has
-      two, else its first two), its `lines`, its `second` line, and `since`,
-      the instant its time counts from: its oldest line's on Needs you, else
-      its one line's. `second` is the project and the session, or, for an
-      away row, "No window holds it. Carry it on in Claude.", which the app
-      shows as it comes.
+      key, its session's `name` and its project's (`projectName`), the
+      strip's two `letters` (the project's capitals where it has two, else
+      its first two), its `lines`, its `second` line, and `since`, the
+      instant its time counts from: its oldest line's on Needs you, else its
+      one line's. `second` is the project and the session, or, for an away
+      row, "No window holds it. Carry it on in Claude.", which the app shows
+      as it comes, under a Working or Your turn row's line and an away row's
+      name. A Needs you row a window holds shows its `name` over its
+      `projectName` (board F). `name` and `projectName` came in with board F
+      (22 October 2026): a field added, `v` did not move.
     - A row's `lines`, never empty, are what it says: on Needs you one per
       ask waiting, permission prompt and question, the oldest first; on any
       other row one, its state's. A line's `key` names it for as long as it
@@ -2361,10 +2367,20 @@ under a line of its own: "It shouldn't look different if a session has
 multiple asks." So a row has lines, and one shape serves every section: a
 Needs you row has a line for each ask waiting and each permission prompt or
 question its windows are stopped on, the oldest first; any other row has
-one, its state's. One ask is that shape with one line, as before. It is one
-row: one lift, one press, one pick, and a click anywhere on it jumps to the
-session. Needs you sorts by each row's oldest line, and its count, on its
-eyebrow, is of lines: the asks and stops waiting, not the sessions.
+one, its state's. It is one row: one lift, one press, one pick, and a click
+anywhere on it jumps to the session. Needs you sorts by each row's oldest
+line, and its count, on its eyebrow, is of lines: the asks and stops
+waiting, not the sessions.
+
+**A Needs you row shows the session, not its asks** (22 October 2026,
+Paper's board F, "The session, and +2", which Lee approved, superseding
+board D's stack of lines and board E). Its title is the session's name, the
+line under it its project's name, the dot as before, on every surface that
+shows it: the card, the strip's tab, the menu and the SitRep window's
+sidebar. More than one line waiting adds a quiet "+N" after the name, N the
+lines after the first; one line shows none. No ask's words are on the row,
+so a question's own "+2" is not either: Lee reads the asks on the session's
+page in the SitRep window.
 
 Core decides the rows (`core/rows.ts`, 19 October 2026), and `sitrep
 watch` prints them in this order, for the app to draw as they come: a row
@@ -2409,9 +2425,8 @@ its own and the sections follow in their order, so each stays together
 under its eyebrow however core reorders it meanwhile (22 October 2026, rows
 by session, then the card's sections). A row is kept by its session, so one
 gaining or losing a line in Needs you, as a second ask comes, is the same
-row, changed where it stands at its new height, at once, and the rows under
-it move with it, as is one going from working to on its own work, both
-Working. A row changing section, its session coming to need Lee, its asks
+row, its "+N" changed where it stands, at once, as is one going from working
+to on its own work, both Working. A row changing section, its session coming to need Lee, its asks
 answered, or its turn ending, leaves its held place and takes its place in
 its new section: it folds away where it was and unfolds in the other, as
 two rows, as when each ask was a row of its own, washed where it arrives
@@ -2422,7 +2437,8 @@ washed if it needs Lee (20 October 2026). A row new to a section, new to
 the board or come from another, goes under the row core has above it in
 that section, or at the section's top where core has none there. A click
 on an away row does nothing; it is there, but there
-is no window to jump to. What a click on it opens is decided later: for
+is no window to jump to; its button still opens it in the SitRep window
+(board F). What a click on it opens is open for Lee, decided later: for
 Lee, a new Ghostty window attached to the session's tmux session, where
 there is one (Lee, 16 October 2026, in place of "until the SitRep window
 exists; then it opens the session there"). This replaces the first list,
@@ -2432,21 +2448,18 @@ turn, and not on screen is a fact about where a window is, for the jump.
 **How each row reads**, drawn in Paper's "Panel rows" (surfaces round 1,
 16 October 2026; Lee: "everything looks great"). A mark, two lines, and a
 time on the right; one line each, cut short with an ellipsis:
-- **an ask**: an orange dot; its title, then its project and session; how
-  long it has waited. Its window may still be working: needs you wins, so
-  nothing else shows;
-- **a permission prompt**: "Allow Bash", then the command in SF Mono;
-- **a question**: the question itself, and "+2" when there are several;
-- **several waiting** (board D, 22 October 2026): each line as its own row
-  of one would read, each with its dot in the mark lane and its age in the
-  time lane, 22 under the last (its 18 and 4 between), the project and
-  session once under the last, as under a row's one. So a row of one line
-  is 55 as built, and each line more makes it 22 taller; the card's height
-  and its scrolling take it. Every waiting line's words are medium, a row
-  of one's too, not semibold as they were, as the card's other titles are;
+- **needs you** (board F, 22 October 2026): an orange dot; the session's
+  name, 14 medium; under it its project's name; how long its oldest line
+  has waited. One row of the standard 55 however many lines wait, an ask, a
+  permission prompt or a question alike. Its window may still be working:
+  needs you wins, so nothing else shows. More than one line waiting adds
+  "+N" after the name: 13, weight 500, in the second line's soft colour, in
+  tabular figures, 6 after the name on its baseline; the name is cut short
+  before it, never the count;
 - **away, with an ask**: the dot stays orange and the words dim. Under the
-  pointer it doesn't lift, and its second line says "No window holds it.
-  Carry it on in Claude.";
+  pointer it doesn't lift, its title is still the session's name, and its
+  second line says "No window holds it. Carry it on in Claude." in place of
+  its project;
 - **your turn**, on one line (board B's, in board D, 22 October 2026; Lee:
   "B's flattened, one-line turn"): 30 tall, inset 10, an open white ring 9
   across with a stroke of 1.5 in the 12 mark lane, so its shape differs
@@ -2480,11 +2493,22 @@ keyboard; an eyebrow never lifts. With nothing waiting, the hairline goes,
 and the notch rests with no light; with nothing at all, the head reads "All
 clear".
 
-Each row drawn whole says what it is, with its project and session beneath;
-a your-turn row, its project at its right. A click jumps: the
-row presses in and spins for up to 450ms in its first line's time lane, the
-other lines' times hidden meanwhile, the panel drains, and a caption
-says where it jumped. A new ask
+Each row drawn whole says what it is, with its project and session beneath,
+or a Needs you row's project; a your-turn row, its project at its right. A
+click jumps: the row presses in and spins for up to 450ms in its time lane,
+the panel drains, and a caption says where it jumped.
+
+**Under the pointer, any row's time gives way to its button** (board F, 22
+October 2026): 24 square, its corners 7, white at 10% (#FFFFFF1A), its right
+where the time lane ends and on the row's middle, whole or on one line. Its
+glyph is a window with its sidebar, 13 by 11: a rounded rect 11.5 by 9.5,
+its corners 2, a line down it 4.75 in, stroked 1.5 in white at 80%. A press
+on it opens the session in the SitRep window, as a pick made outside the
+window does: the window opens, or comes forward, on that session's page.
+The row's lift and its click are as they were; an away row shows the button
+too, and still takes no lift and no jump. A right-click on any row brings
+up its menu: Open in SitRep, as the button; Jump to the window, as a click,
+disabled on an away row. Snooze joins the menu with the snooze work. A new ask
 makes the notch over-swell twice, to 25 deep, about 450ms apart, as each
 comes back through its 15. The light flashes with each, and its row, new or
 gaining the line, gets an orange wash for 2 seconds. Lee set the swell on the display
@@ -2749,11 +2773,12 @@ were settled in the browser spike (below, "How the strip moves").
   out yet, the ring presses in and its own arc turns. An away mark's tab
   says "No window holds it. Carry it on in Claude." and neither it nor the
   mark takes a click. A click on the count opens its tab. A tab, or a
-  count's row, has room for one line: a session with several waiting shows
-  its oldest, its time, and "+N" for the rest, set as a question's "+2"
-  is, in its place where the oldest is a question (the proposal Lee
-  agreed, 22 October 2026: "a row is a session on every surface"). Every waiting
-  line's words are medium there too.
+  count's row, has room for one line: a session needing Lee shows its name
+  over its project, its oldest line's time, and with several waiting "+N"
+  for the lines after the first, set dim 6 after the name, as a question's
+  "+2" was (board F, 22 October 2026, after the proposal Lee agreed: "a row
+  is a session on every surface"). An away one's name sits over "No window
+  holds it. Carry it on in Claude.".
 - **Moving.** The strip never shuts, so the panel's "a changed row moves only
   once it closes" becomes: a needs you arriving moves in at once, the marks
   below sliding down to make room; any other change shows in place, and the
@@ -2918,14 +2943,16 @@ stands).
     - **Needs you** heads it: every session with an ask or a window
       stopped on a permission prompt or a question, the oldest first, by its
       oldest line, an away session's after the live ones, as core's rows
-      have them. A row is a session, one shape however many lines it has:
-      each ask or stop waiting a line of its own, 16 tall, 3 apart, its dot
-      (7) in the 26 slot, its words 13 medium in white at 85%, and its age
-      12 in tabular figures; then "project · session" at 11 in white at 55%,
-      1 under the last, aligned with the words. The row is inset 4 at its
-      top, so one line is the system's two-line row, 39 tall, as built; each
-      line more makes it 19 taller. As the row washes, a new ask's coming,
-      only the new line's age goes orange, which tells it among the rest;
+      have them. A row is the session, as on the card (board F, 22 October
+      2026): its dot (7) in the 26 slot, the session's name 13 medium in
+      white at 85%, dim while no window holds it, and its oldest line's age
+      12 in tabular figures; then its project's name at 11 in white at 55%,
+      1 under, aligned with the name. More than one line waiting adds "+N"
+      after the name: 12, weight 500, in tabular figures, 5 after it on its
+      baseline, in the second line's colour, white on the emphasized
+      selection as the row's other words are. The row is inset 4 at its top,
+      the system's two-line row, 39 tall, however many lines wait. As the row
+      washes, a new ask's coming, its age goes orange;
     - **the rule** after it sets it off from what follows, the foot's own:
       0.5 tall in the separator colour, inside the sidebar's 10 either side,
       11.5 under Needs you's last row, or its heading where it is folded, so
@@ -2982,6 +3009,15 @@ stands).
       interact with them, view them, see them"). It is folded at first. A
       project's page is reached from it and from the session page's project
       name;
+    - **Under the pointer**, a session's row a window holds, in any section,
+      gives its age's place to a button that jumps to its window (board F, 22
+      October 2026): 22 square, its corners 6, white at 10% (#FFFFFF1A), its
+      right where the age ends and on the row's middle. Its glyph is an
+      arrow up and to the right, 11 square, `M3.5 1.5 H9.5 V7.5 M9.2 1.8
+      L1.8 9.2`, stroked 1.5 in white at 80%, its caps and joins round. A
+      press on it jumps, as the session page's "Open in Ghostty ↗" does, and
+      moves no pick and opens nothing; a click anywhere else on the row opens
+      its page, as before. An away row, which no window holds, shows none;
     - **A heading is a row of the list**, not the system's section header,
       whose chevron hides at rest and alone folds: 24 tall, 10 under what is
       before it, the first of them too, which sits 10 under the list's top,
@@ -3242,8 +3278,10 @@ stands).
     how many where there are several, "2 asks", then each line's words; then
     its project and session, "away" where no window holds it, and the
     oldest's age, as "2 asks, Paste the load test's output, Allow Bash gh
-    pr create, Switchboard, Dashboard redesign, 3 hours" (22 October 2026).
-    A row of Working or Your turn reads its line's words, its project, its
+    pr create, Switchboard, Dashboard redesign, 3 hours" (22 October 2026);
+    it reads its lines' words still, since board F, though the row shows
+    its session's name in their place. A row's button under the pointer
+    reads "Jump to the window". A row of Working or Your turn reads its line's words, its project, its
     session, its state (working, on its own work, your turn) and its age, as
     "Drawing the ledger schema, Switchboard, Request ledger, your turn, 12
     minutes". A heading reads its name and its count, as "Needs you, 4
@@ -3365,8 +3403,9 @@ asked for the sessions back, and approved the redraw as it stands.
     clear". Each is a native item with a subtitle (macOS 14.4): what it is,
     then its project and session, and its time on the right as the item's
     badge. An item is a session, as a row is, with room for one line: one
-    with several waiting shows its oldest, its time, and "+N" for the rest,
-    as the strip's tab does. A row on its own work is faint, as a working row is, its mark
+    needing Lee shows its name over its project, its oldest line's time,
+    and with several waiting "+N" for the lines after the first, as the
+    strip's tab does (board F, 22 October 2026). A row on its own work is faint, as a working row is, its mark
     the dotted ring, and a wake's countdown is set again as it ticks, with
     the badges. A separator sits where the panel's hairline is. A click
     jumps;
@@ -4335,7 +4374,9 @@ reaches a window only while that pane is on show).
       - **The rows**, each a native item: its title the row's first line,
         set as attributed text, its words in the menu's font and its subject
         in the system's mono, a question's "+2" after (since rows by session,
-        a row's oldest line, and "+N" for its other lines in its place); core's second line as
+        a row's oldest line, and "+N" for its other lines in its place; since
+        board F, a Needs you row's session's name and its "+N", its project
+        as its subtitle); core's second line as
         its subtitle; its time as its badge. A working row's words are in
         the secondary label colour, its arc fainter than the other marks;
         under the pointer the colour is taken off, through the menu

@@ -23,7 +23,7 @@ struct RealWatchTests {
         let rows = menu.items.compactMap(\.session)
 
         #expect(menu.heading == "1 needs you")
-        #expect(rows.map { $0.menuTitle(at: 0) } == ["Choose how long the ledger keeps requests"])
+        #expect(rows.map { $0.menuTitle(at: 0) } == ["Usage"])
         #expect(rows.map(menu.jump) == [nil])
         #expect(menu.glyph == .lit)
     }
@@ -50,16 +50,18 @@ struct RealWatchTests {
         #expect(menu.reloads.isEmpty)
     }
 
-    /// Harness's three asks are one item, its oldest ask then "+2"; Switchboard's ask and permission prompt one, "+1".
-    @Test func aSessionWithSeveralLinesIsOneItemItsOldestThenHowManyMore() {
+    /// Harness's three asks are one item, its session's name then "+2"; Switchboard's ask and permission prompt one,
+    /// "+1"; Goosemates' one away ask its name alone.
+    @Test func aSessionWithSeveralLinesIsOneItemItsNameThenHowManyMore() {
         let menu = MenuBoard(heard([.line(Lines.bySession[0])]), clock: london)
         let rows = menu.items.compactMap(\.session)
 
         #expect(menu.heading == "6 need you")
         #expect(rows.map(\.id) == ["sr-4g01a7", "sr-dash02", "sr-gs7kq2", "sr-macapp", "sr-k7bt2s", "sr-v3t7a0"])
-        #expect(rows[0].menuTitle(at: 0) == "Approve the first fix batch from the branch review +2")
-        #expect(rows[1].menuTitle(at: 0) == "Paste the load test's output +1")
-        #expect(rows[2].menuTitle(at: 0) == "Keep the invite-by-link flow, or drop it?")
+        #expect(rows[0].menuTitle(at: 0) == "Finish the Harness modernisation +2")
+        #expect(rows[1].menuTitle(at: 0) == "Dashboard redesign +1")
+        #expect(rows[2].menuTitle(at: 0) == "Onboarding")
+        #expect(rows.prefix(3).map(\.sub) == ["Harness", "Switchboard", "No window holds it. Carry it on in Claude."])
     }
 
     /// The fourth ask posted into Harness's session, its row's newest line: a notice of its own, naming the session.

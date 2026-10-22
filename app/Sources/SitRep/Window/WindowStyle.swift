@@ -89,8 +89,6 @@ enum WindowStyle {
     static let twoLineHeight: CGFloat = 39
     static let twoLineTop: CGFloat = 4
     static let oneLineHeight: CGFloat = 28
-    /// A Needs you row's lines waiting on Lee, 3 apart, as board D sets several.
-    static let waitingGap: CGFloat = 3
     static let headingHeight: CGFloat = 24
     static let headingGap: CGFloat = 10
     /// A heading's words, and "N earlier"'s chevron, end 2 inside the selection, 4 past a row's.
@@ -103,6 +101,15 @@ enum WindowStyle {
     static let chevronSlot = CGSize(width: 15, height: 24)
     /// A working row's verb, and what it acts on 5 after it.
     static let verbGap: CGFloat = 5
+    /// A Needs you row's "+2", 5 after its session's name, in 12 (board F).
+    static let moreGap: CGFloat = 5
+    static let moreSize: CGFloat = 12
+    /// A row's button in its time's place under the pointer, which jumps to its session's window: 22 square, its
+    /// corners 6, white at 10% (board F).
+    static let jumpSide: CGFloat = 22
+    static let jumpRadius: CGFloat = 6
+    static let jumpFill = Color.white.opacity(Double(0x1A) / 255)
+    static let jumpGlyph = Color.white.opacity(0.8)
     /// A your-turn row's project, 6 more after its words than the row's gap, and its time's lane.
     static let turnProjectGap: CGFloat = 6
     static let turnTimeLane: CGFloat = 30
@@ -138,11 +145,6 @@ enum WindowStyle {
         case .picked: isStill ? stillSelection : nil
         case .none: nil
         }
-    }
-
-    /// A Needs you row's height: the system's two-line row, as built, and each line more, 16 and the 3 over it.
-    static func needsYouHeight(lines: Int) -> CGFloat {
-        twoLineHeight + (titleLine + waitingGap) * CGFloat(max(0, lines - 1))
     }
 
     /// A row's words of a tone on the accent of its pick, as board D draws it: the words white, the rest, its second

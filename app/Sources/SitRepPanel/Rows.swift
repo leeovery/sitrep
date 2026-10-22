@@ -82,23 +82,26 @@ public struct Session: Equatable, Sendable {
     public let id: String
     /// Its project's name, as Lee would say it.
     public var project: String
+    /// Its name, which its row shows as its title while it needs Lee.
+    public var name: String
     /// The project's two letters, as its mark on the strip shows them.
     public var letters: String
     public var kind: Kind
-    /// Needing Lee with no window holding it: its row and its tab say so, and none of them takes a click.
+    /// Needing Lee with no window holding it: its row and its tab say so, and a click on them jumps nowhere.
     public var away: Bool
     /// The oldest first; never none.
     public var lines: [Line]
-    /// Its project and session.
+    /// What its row says under its title.
     public var sub: String
 
     public init(
-        id: String, project: String, letters: String? = nil, kind: Kind, away: Bool = false, lines: [Line],
-        sub: String
+        id: String, project: String, name: String = "", letters: String? = nil, kind: Kind, away: Bool = false,
+        lines: [Line], sub: String
     ) {
         precondition(!lines.isEmpty, "a session's row has a line")
         self.id = id
         self.project = project
+        self.name = name
         self.letters = letters ?? Self.letters(of: project)
         self.kind = kind
         self.away = away
@@ -108,53 +111,41 @@ public struct Session: Equatable, Sendable {
 
     /// A session of one line.
     public init(
-        id: String, project: String, letters: String? = nil, kind: Kind, away: Bool = false, title: String,
-        code: String? = nil, subject: String? = nil, until: Double? = nil, more: String? = nil, sub: String,
-        since: Double
+        id: String, project: String, name: String = "", letters: String? = nil, kind: Kind, away: Bool = false,
+        title: String, code: String? = nil, subject: String? = nil, until: Double? = nil, more: String? = nil,
+        sub: String, since: Double
     ) {
         self.init(
-            id: id, project: project, letters: letters, kind: kind, away: away,
+            id: id, project: project, name: name, letters: letters, kind: kind, away: away,
             lines: [Line(title: title, code: code, subject: subject, until: until, more: more, since: since)], sub: sub
         )
     }
 
-    /// Its oldest line's words and time, which a surface with room for one line shows.
-    public var title: String {
-        get { lines[0].title }
-        set { lines[0].title = newValue }
+    /// What its row says, on every surface, on one line with its time: needing Lee, its name, and "+2" for the two
+    /// lines after its first, none for one; else its one line. Its lines' words are read on its page in the SitRep
+    /// window, so a question's own "+2", which counts words not shown, shows nowhere on a row needing Lee.
+    public var headline: Line {
+        guard needsLee else {
+            return lines[0]
+        }
+
+        return Line(title: name, more: Self.more(over: lines.count), since: lines[0].since)
     }
 
-    public var code: String? {
-        get { lines[0].code }
-        set { lines[0].code = newValue }
+    /// What follows a session's name on a row needing Lee of this many lines: "+2" for the two after its first, none
+    /// for one.
+    public static func more(over lines: Int) -> String? {
+        lines > 1 ? "+\(lines - 1)" : nil
     }
 
-    public var subject: String? {
-        get { lines[0].subject }
-        set { lines[0].subject = newValue }
-    }
-
-    public var until: Double? {
-        get { lines[0].until }
-        set { lines[0].until = newValue }
-    }
-
-    public var more: String? {
-        get { lines[0].more }
-        set { lines[0].more = newValue }
-    }
+    public var title: String { headline.title }
+    public var code: String? { headline.code }
+    public var subject: String? { headline.subject }
+    public var until: Double? { headline.until }
+    public var more: String? { headline.more }
 
     /// When it came to stand where it does: its oldest line's time.
-    public var since: Double {
-        get { lines[0].since }
-        set { lines[0].since = newValue }
-    }
-
-    /// What follows its oldest line's words where there is room for that line alone, as on the strip and in the menu:
-    /// "+2" for the two lines after it, as a question's "+2" counts its other parts, which it shows with no more.
-    public var moreOnOneLine: String? {
-        lines.count > 1 ? "+\(lines.count - 1)" : more
-    }
+    public var since: Double { headline.since }
 
     /// A project's letters as the prototypes have them, where none are given: its two capitals where it has two
     /// (SitRep SR, DocMan DM), else its first two (Switchboard Sw, agntc ag).
@@ -170,21 +161,19 @@ public struct Session: Equatable, Sendable {
     public var needsLee: Bool { kind == .needs }
 
     /// How long it has stood where it does at this time on the wall clock: its oldest line's time.
-    public func ageText(at now: Double) -> String { lines[0].ageText(at: now) }
+    public func ageText(at now: Double) -> String { headline.ageText(at: now) }
 
-    /// What its oldest line waits on, set plain after its title at this time on the wall clock.
-    public func subject(at now: Double) -> String? { lines[0].subject(at: now) }
+    /// What its row waits on, set plain after its title at this time on the wall clock.
+    public func subject(at now: Double) -> String? { headline.subject(at: now) }
 
-    /// When on the wall clock its words may next read differently: any line's time, or a wake's countdown.
-    public func changes(after now: Double) -> Double {
-        lines.map { $0.changes(after: now) }.min() ?? .infinity
-    }
+    /// When on the wall clock its row's words may next read differently: its time, or a wake's countdown.
+    public func changes(after now: Double) -> Double { headline.changes(after: now) }
 
     /// When on the wall clock its wake's countdown next reads differently (`Line.countdownChanges`).
-    public func countdownChanges(after now: Double) -> Double? { lines[0].countdownChanges(after: now) }
+    public func countdownChanges(after now: Double) -> Double? { headline.countdownChanges(after: now) }
 
     /// The readings of its wake's countdown a row leaves room for (`Line.countdownRoom`).
-    public func countdownRoom(after now: Double) -> [String] { lines[0].countdownRoom(after: now) }
+    public func countdownRoom(after now: Double) -> [String] { headline.countdownRoom(after: now) }
 
     fileprivate static let minute = 60_000.0
 
@@ -267,19 +256,19 @@ public enum Item: Equatable, Sendable {
     /// The gap below a row drawn whole, inside its item.
     public static let rowGap = 4.0
 
-    /// How far down each line after a row's first sits under the one before it: its 18, and 4 between them, board D's.
-    public static let lineStep = 22.0
+    /// A row drawn whole, less the gap below it: 10, its two lines' 34, and 11.
+    public static let rowHeight = 55.0
 
     /// Board D's: a your-turn row, with no gap, so the lifts of two meet; an eyebrow, under the room over it; and "N
     /// earlier", under the 2 over it.
     public static let turnHeight = 30.0, eyebrowHeight = 28.0, earlierHeight = 34.0, earlierAbove = 2.0
 
-    /// Its height, unfolded, as it is drawn: a row whole, 10 + its lines' 18 each, 4 apart, and the 16 of its second
-    /// line + 11, and the gap below it; a your-turn row's 30; an eyebrow's 28 under its room; "N earlier"'s 34 under
-    /// its 2; the divider's 1 between 2 and 6.
+    /// Its height, unfolded, as it is drawn: a row whole, however many lines it holds, and the gap below it; a
+    /// your-turn row's 30; an eyebrow's 28 under its room; "N earlier"'s 34 under its 2; the divider's 1 between 2
+    /// and 6.
     public var height: Double {
         switch self {
-        case let .session(session): 55 + Self.lineStep * Double(session.lines.count - 1) + Self.rowGap
+        case .session: Self.rowHeight + Self.rowGap
         case .turn: Self.turnHeight
         case let .eyebrow(eyebrow): eyebrow.above + Self.eyebrowHeight
         case .earlier: Self.earlierAbove + Self.earlierHeight
@@ -411,5 +400,31 @@ public struct Content: Equatable, Sendable {
         }
     }
 
+    /// Whether a point in the content's own frame is on the button of the item at this index that opens its session
+    /// in the SitRep window: a row's, whole or on one line (`Opener`).
+    public func opens(_ index: Int, at point: CGPoint) -> Bool {
+        let item = entries[index].item
+
+        guard item.session != nil else {
+            return false
+        }
+
+        let frame = itemFrame(index), box = item.box(width: frame.width)
+
+        return Opener.frame(in: box.size).offsetBy(dx: frame.minX, dy: frame.minY + box.minY).contains(point)
+    }
+
     private static let width = Tuning.panelDepth - 2 * paddingSide
+}
+
+/// The button a row on the card shows in its time's place under the pointer, which opens its session in the SitRep
+/// window, as Paper's board F draws it: 24 square, its corners 7, its right where the time's lane ends, 10 in from the
+/// row's, on the row's middle.
+public enum Opener {
+    public static let side = 24.0, radius = 7.0, inset = 10.0
+
+    /// Its box in a row's box of this size.
+    public static func frame(in row: CGSize) -> CGRect {
+        CGRect(x: row.width - inset - side, y: (row.height - side) / 2, width: side, height: side)
+    }
 }

@@ -9,6 +9,8 @@ struct EdgePointer {
     var released: () -> Void = {}
     /// A scroll, by this many points down the content.
     var scrolled: (Double) -> Void = { _ in }
+    /// A right-click: the menu it brings up there, if any.
+    var menu: (CGPoint) -> NSMenu? = { _ in nil }
 }
 
 /// An edge's window content: one drawing of it at a time, in the material Lee chose, and every press, drag and scroll
@@ -78,6 +80,11 @@ class EdgeSurface<Drawing>: NSView {
 
     override func mouseUp(with event: NSEvent) {
         pointer.released()
+    }
+
+    /// A right-click brings up the menu of what is under it, as AppKit shows a view's.
+    override func menu(for event: NSEvent) -> NSMenu? {
+        window.flatMap { pointer.menu($0.convertPoint(toScreen: event.locationInWindow)) }
     }
 
     override func scrollWheel(with event: NSEvent) {

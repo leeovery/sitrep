@@ -32,7 +32,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let edge = Edge(
             preferences,
             jump: { [works] session, answered in works.jump(to: session, answered: answered) },
-            isJumping: { [works] in works.isJumping }
+            isJumping: { [works] in works.isJumping },
+            open: { [window] in window.open(on: .session($0)) }
         )
         let menu = StatusMenu(
             works: works, preferences: preferences, openWindow: { [window] in window.open() },

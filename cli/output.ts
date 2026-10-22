@@ -223,6 +223,8 @@ const rowJson = (row: Row) => ({
   section: row.section,
   isAway: row.isAway,
   project: row.project,
+  name: row.name,
+  projectName: row.projectName,
   letters: row.letters,
   lines: row.lines.map(rowLineJson),
   second: row.second,

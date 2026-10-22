@@ -125,9 +125,9 @@ public struct MenuChanges: Equatable, Sendable {
     public var isEmpty: Bool { removals.isEmpty && insertions.isEmpty && changes.isEmpty }
 }
 
-/// A row's first line as the menu sets it: its words in the menu's font, a plain subject or a wake's countdown among
-/// them, its subject in mono after them, a question's "+2"; a working row's, or one on its own work, fainter than the
-/// rest, since it needs nothing.
+/// A row's first line as the menu sets it (`Session.headline`): its words in the menu's font, a plain subject or a
+/// wake's countdown among them, its subject in mono after them, and a "+2"; a working row's, or one on its own work,
+/// fainter than the rest, since it needs nothing.
 public struct MenuTitle: Equatable, Sendable {
     public let words: String
     public let mono: String?
@@ -146,7 +146,7 @@ extension Session {
     /// Its first line as the menu sets it at this time on the wall clock, ms.
     public func menuLine(at now: Double) -> MenuTitle {
         MenuTitle(
-            words: title + (subject(at: now) ?? ""), mono: code, more: moreOnOneLine.map { " \($0)" },
+            words: title + (subject(at: now) ?? ""), mono: code, more: more.map { " \($0)" },
             isFaint: kind == .working || kind == .onItsWork
         )
     }

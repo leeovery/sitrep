@@ -8,7 +8,7 @@ enum Watched {
     static let rows = [
         row("ask:sr-ledger:k1", "ask", session: "sr-ledger", project: "switchboard", lead: "Choose how long the ledger keeps requests", second: "Switchboard · Usage", since: 1_792_445_000_000),
         row("stop:sr-dash:w1:1792445500000", "permission", session: "sr-dash", project: "switchboard", lead: "Allow Bash:", mono: "gh pr create", second: "Switchboard · Dashboard memory", since: 1_792_445_500_000),
-        row("ask:sr-plan:k2", "ask", away: true, session: "sr-plan", project: "terrace", lead: "Pick the plan's shape", second: "No window holds it. Carry it on in Claude.", since: 1_792_440_000_000),
+        row("ask:sr-plan:k2", "ask", away: true, session: "sr-plan", project: "terrace", lead: "Pick the plan's shape", second: "No window holds it. Carry it on in Claude.", named: ("Terrace", "Plan the tool"), since: 1_792_440_000_000),
         row("turn:sr-boot", "yourTurn", session: "sr-boot", project: "kit", lead: "Write round 4 into DESIGN.md", second: "Kit · The bootstrap", since: 1_792_445_400_000),
         row("work:sr-diff", "working", session: "sr-diff", project: "mint", lead: "Reading", mono: "StatusMenu.swift", second: "Mint · Token-aware diff sizing", since: 1_792_445_540_000),
     ]
@@ -33,19 +33,23 @@ enum Watched {
     }
 
     /// A session's row of one line, its key `key`, in the section its kind puts it in; with `newer`, more lines of
-    /// the same kind after it, by their keys, leads and times, as a session with several asks has.
+    /// the same kind after it, by their keys, leads and times, as a session with several asks has. Its project and
+    /// session by name are those its second line names, "Switchboard · Usage", unless given.
     static func row(
         _ key: String, _ kind: String, away: Bool = false, session: String, project: String, lead: String,
-        mono: String? = nil, more: String? = nil, second: String, since: Int,
-        newer: [(key: String, lead: String, since: Int)] = []
+        mono: String? = nil, more: String? = nil, second: String, named: (project: String, session: String)? = nil,
+        since: Int, newer: [(key: String, lead: String, since: Int)] = []
     ) -> String {
         let lines = [line(key, kind, lead: lead, mono: mono, more: more, since: since)]
             + newer.map { line($0.key, kind, lead: $0.lead, since: $0.since) }
         let section = ["ask", "permission", "question"].contains(kind) ? "needsYou"
             : kind == "yourTurn" ? "yourTurn" : "working"
+        let parts = second.components(separatedBy: " · ")
+        let names = named ?? (parts[0], parts.count > 1 ? parts[1] : second)
 
         return """
-        {"session":"\(session)","section":"\(section)","isAway":\(away),"project":"\(project)","letters":"Pr",\
+        {"session":"\(session)","section":"\(section)","isAway":\(away),"project":"\(project)",\
+        "name":"\(names.session)","projectName":"\(names.project)","letters":"Pr",\
         "lines":[\(lines.joined(separator: ","))],"second":"\(second)","since":\(since)}
         """
     }

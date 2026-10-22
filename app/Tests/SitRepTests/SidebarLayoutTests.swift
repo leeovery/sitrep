@@ -39,8 +39,8 @@ struct SidebarLayoutTests {
     }
 
     /// Every heading 10 under what is before it, then 24, the one after Needs you carrying its rule, 11.5 and 0.5 more
-    /// over that; a Needs you row 39, the system's two-line row, and 19 more for each line after its first, Harness's
-    /// three asks 77, Dashboard redesign's ask and prompt 58; a working row 39; a your-turn row 28.
+    /// over that; a Needs you row 39, the system's two-line row, however many lines wait, Harness's three asks as
+    /// Goosemates' one; a working row 39; a your-turn row 28.
     @Test func eachLineIsAsTallAsDrawnEachUnderTheLast() throws {
         let run = Self.opened()
         let side = try HostedSidebar(run)
@@ -48,17 +48,16 @@ struct SidebarLayoutTests {
         let heights: [CGFloat] = sidebar.lines.map { line in
             switch line {
             case .heading: line.id == sidebar.ruled ? Self.ruledRow : Self.headingRow
-            case let .session(row) where row.section == .needsYou: 39 + 19 * CGFloat(row.lines.count - 1)
-            case let .session(row): row.section == .working ? 39 : 28
+            case let .session(row): row.section == .yourTurn ? 28 : 39
             case .earlier, .project: 28
             }
         }
 
         #expect(sidebar.lines.count == Row.projects.rawValue + 1)
         #expect(side.rows.map(\.height) == heights)
-        #expect(heights == [34, 77, 58, 39, 46, 39, 39, 34, 28, 34])
+        #expect(heights == [34, 39, 39, 39, 46, 39, 39, 34, 28, 34])
         #expect(zip(side.rows, side.rows.dropFirst()).allSatisfy { $0.maxY == $1.minY })
-        #expect(side.rows[Row.working.rawValue].minY == 321)
+        #expect(side.rows[Row.working.rawValue].minY == 264)
         #expect(side.rows.allSatisfy { $0.minY == $0.minY.rounded() })
     }
 
@@ -300,9 +299,10 @@ struct SidebarLayoutTests {
         #expect(chevron.minX >= 270.5 && chevron.maxX <= 282.5)
     }
 
-    /// Several lines, as board D sets them: each line 16 tall and 3 under the last, its dot centred in the 26 slot at
-    /// 29, its words from 46 and its age ending at 280; then the project and session's line, 1 under the last, 14.
-    @Test func aNeedsYouRowsSeveralLinesStackUnderItsTopEachWithItsDotAndAge() throws {
+    /// Harness's three asks are one row, board F's: its dot centred in the 26 slot at 29, its session's name from 46
+    /// with its count after it and its age ending at 280, on the row's first line; then its project, 1 under, 14; none
+    /// of its asks' words.
+    @Test func aNeedsYouRowIsItsSessionOnOneLineOverItsProject() throws {
         let run = Self.opened()
 
         _ = run.pickInList(.session("sr-macapp"), at: HostedSidebar.printed)
@@ -311,32 +311,20 @@ struct SidebarLayoutTests {
         let drawn = try side.drawn()
         let row = Self.inDrawing(side.rows[Row.harness.rawValue], of: side)
         let ground = Self.ground(row)
+        let top = row.minY + 4
+        let dot = try #require(drawn.drawnBox(in: CGRect(x: 16, y: top, width: 26, height: 16), ground: ground))
+        let words = try #require(drawn.drawnBox(in: CGRect(x: 42, y: top, width: 220, height: 16), ground: ground))
+        let age = try #require(drawn.drawnBox(in: CGRect(x: 262, y: top, width: 34, height: 16), ground: ground))
+        let second = CGRect(x: 42, y: top + 17, width: 200, height: 14)
+        let project = try #require(drawn.drawnBox(in: second, ground: ground))
+        let alone = NSAttributedString(string: "Harness", attributes: [.font: NSFont.systemFont(ofSize: 11)]).size()
 
-        for line in 0 ..< 3 {
-            let top = row.minY + 4 + 19 * CGFloat(line)
-            let dot = try #require(drawn.drawnBox(in: CGRect(x: 16, y: top, width: 26, height: 16), ground: ground))
-            let words = try #require(drawn.drawnBox(in: CGRect(x: 42, y: top, width: 150, height: 16), ground: ground))
-            let age = try #require(drawn.drawnBox(in: CGRect(x: 220, y: top, width: 76, height: 16), ground: ground))
-
-            #expect(abs(dot.midX - 29) <= 0.5 && abs(dot.midY - (top + 8)) <= 0.5)
-            #expect(abs(dot.width - 7) <= 1)
-            #expect((46 ... 47.5).contains(words.minX))
-            #expect(words.minY >= top && words.maxY <= top + 16)
-            #expect((278.5 ... 280.5).contains(age.maxX))
-            #expect(drawn.drawnBox(in: CGRect(x: 42, y: top + 16, width: 238, height: 3), ground: ground) == nil)
-        }
-
-        let second = CGRect(x: 46, y: row.minY + 4 + 3 * 16 + 2 * 3 + 1, width: 150, height: 14)
-        let secondDrawn = try #require(drawn.drawnBox(in: second, ground: ground))
-
-        #expect(secondDrawn.minY >= second.minY && secondDrawn.maxY <= second.maxY)
-        #expect(drawn.drawnBox(in: CGRect(x: 16, y: second.minY, width: 26, height: 14), ground: ground) == nil)
-
-        // no age on the second line, as Dashboard redesign's short one shows: Harness's runs on to the row's end
-        let dashboard = Self.inDrawing(side.rows[Row.dashboard.rawValue], of: side)
-        let lane = CGRect(x: 246, y: dashboard.minY + 4 + 2 * 16 + 3 + 1, width: 50, height: 14)
-
-        #expect(drawn.drawnBox(in: lane, ground: Self.ground(dashboard)) == nil)
+        #expect(abs(dot.midX - 29) <= 0.5 && abs(dot.midY - (top + 8)) <= 0.5)
+        #expect((46 ... 47.5).contains(words.minX))
+        #expect((278.5 ... 280.5).contains(age.maxX))
+        #expect((46 ... 47.5).contains(project.minX) && abs(project.width - alone.width) <= 1.5)
+        #expect(project.minY >= second.minY && project.maxY <= second.maxY)
+        #expect(row.height == 39)
     }
 
     /// The pick on every row kind: the list's selection fills the whole of it, 276 wide and 10 in, as one row.

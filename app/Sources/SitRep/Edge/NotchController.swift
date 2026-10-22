@@ -14,6 +14,8 @@ import SitRepPanel
 final class NotchController: NSObject {
     /// A click on a row: the session to jump to, and what to tell once the jump answers, whether it jumped.
     var onJump: (String, @escaping (Bool) -> Void) -> Void = { _, _ in }
+    /// A row's button, or its menu's Open in SitRep: the session to open in the SitRep window.
+    var onOpen: (String) -> Void = { _ in }
     /// Whether a jump runs, from the panel, the menu or a banner.
     var isJumping: () -> Bool = { false }
     /// A drag let the notch go: the settings with its new place.
@@ -60,7 +62,8 @@ final class NotchController: NSObject {
             pressed: { [unowned self] in press(at: $0) },
             dragged: { [unowned self] in drag(to: $0) },
             released: { [unowned self] in release() },
-            scrolled: { [unowned self] in scroll(by: $0) }
+            scrolled: { [unowned self] in scroll(by: $0) },
+            menu: { [unowned self] in menu(at: $0) }
         )
         caption.over = edge.visible
         link = startLink(#selector(tick))
@@ -259,17 +262,56 @@ final class NotchController: NSObject {
         run.nextAgeChange(after: now).map { ($0 - now) / 1000 }
     }
 
-    /// A press on a row that jumps presses it in and jumps to its session, and once the jump has jumped, the caption
-    /// says where; on an eyebrow, its section folds or unfolds, kept; anywhere else on the black, it may become a drag
-    /// (`NotchRun.press`).
+    /// A press on a row's button opens its session in the SitRep window; on a row that jumps, presses it in and jumps
+    /// to its session, and once the jump has jumped, the caption says where; on an eyebrow, its section folds or
+    /// unfolds, kept; anywhere else on the black, it may become a drag (`NotchRun.press`).
     private func press(at screenPoint: CGPoint) {
         guard let point = edge.stagePoint(screenPoint) else {
             return
         }
 
-        if case let .jump(session, to: target, click: click) = run.press(moment(pointer: point), mayJump: !isJumping()) {
-            caption.jumping(to: session.project)
-            onJump(target) { [weak self] in self?.answered(jumped: $0, click: click) }
+        switch run.press(moment(pointer: point), mayJump: !isJumping()) {
+        case let .open(session)?:
+            onOpen(session)
+        case let .jump(session, to: target, click: click)?:
+            jump(from: session, to: target, click: click)
+        case .fold?, .carry?, nil:
+            break
+        }
+        took()
+    }
+
+    /// A row pressed in jumps to its session; the caption says where once the jump has jumped.
+    private func jump(from session: Session, to target: String, click: Int) {
+        caption.jumping(to: session.project)
+        onJump(target) { [weak self] in self?.answered(jumped: $0, click: click) }
+    }
+
+    /// A right-click on a row, away or not: its menu (`CardRowMenu`).
+    private func menu(at screenPoint: CGPoint) -> NSMenu? {
+        guard let point = edge.stagePoint(screenPoint),
+              let session = run.session(at: point, in: Self.setting(edge, settings, period))
+        else {
+            return nil
+        }
+
+        return CardRowMenu.make(for: session, target: self, open: #selector(openFromMenu), jump: #selector(jumpFromMenu))
+    }
+
+    @objc private func openFromMenu(_ item: NSMenuItem) {
+        if let session = item.representedObject as? String {
+            onOpen(session)
+        }
+    }
+
+    /// Jump to the window, as a click on the row would, its row pressed in, while it still shows.
+    @objc private func jumpFromMenu(_ item: NSMenuItem) {
+        guard let session = item.representedObject as? String else {
+            return
+        }
+
+        if case let .jump(row, to: target, click: click) = run.jump(to: session, moment(), mayJump: !isJumping()) {
+            jump(from: row, to: target, click: click)
         }
         took()
     }

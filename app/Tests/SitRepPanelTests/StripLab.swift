@@ -347,8 +347,8 @@ extension StripLab {
     static var answered: Session {
         var s = prototype[0]
         s.kind = .working
-        s.title = "Drawing the strip in Paper"
-        s.since = 0
+        s.lines[0].title = "Drawing the strip in Paper"
+        s.lines[0].since = 0
         return s
     }
 
@@ -356,10 +356,10 @@ extension StripLab {
     static func answered(ask id: String) -> Session {
         var s = asks.first { $0.id == id }!
         s.kind = .working
-        s.title = fiveAsks.first { $0.project == s.project }!.then
-        s.code = nil
-        s.more = nil
-        s.since = 1
+        s.lines[0].title = fiveAsks.first { $0.project == s.project }!.then
+        s.lines[0].code = nil
+        s.lines[0].more = nil
+        s.lines[0].since = 1
         return s
     }
 
@@ -405,8 +405,11 @@ extension StripLab {
         )
     }
 
-    /// A row's two lines as the prototype sets them: the title, its command and its "+2"; the line under it.
+    /// A row's two lines as the prototype set them, whose widths it recorded: its oldest line's title, command and
+    /// "+2", an ask's words where the app now shows its session's name; the line under it.
     private static func lines(_ s: Session) -> String {
-        "\(s.title)\(s.code ?? "")\(s.more ?? "")|\(s.sub)"
+        let line = s.lines[0]
+
+        return "\(line.title)\(line.code ?? "")\(line.more ?? "")|\(s.sub)"
     }
 }

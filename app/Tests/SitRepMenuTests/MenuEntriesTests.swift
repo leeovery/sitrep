@@ -117,10 +117,14 @@ struct MenuEntriesTests {
 
     @Test func aRowsLineSetsItsSubjectApartAndAWorkingRowsFainter() {
         let rows = MenuBoard(heard([.line(Watched.line())]), clock: london).items.compactMap(\.session)
-        let question = Session(id: "q", project: "Goosemates", kind: .needs, title: "Which edge?", more: "+2", sub: "", since: 0)
+        var harness = Session(
+            id: "h", project: "Harness", name: "Modernisation", kind: .needs, title: "Allow Bash ", code: "gh pr create",
+            more: "+2", sub: "", since: 0
+        )
 
-        #expect(rows[1].menuLine(at: 0) == MenuTitle(words: "Allow Bash: ", mono: "gh pr create", more: nil, isFaint: false))
+        harness.lines.append(Session.Line(title: "Approve the batch", since: 1))
+        #expect(rows[1].menuLine(at: 0) == MenuTitle(words: "Dashboard memory", mono: nil, more: nil, isFaint: false))
         #expect(rows[4].menuLine(at: 0) == MenuTitle(words: "Reading ", mono: "StatusMenu.swift", more: nil, isFaint: true))
-        #expect(question.menuLine(at: 0) == MenuTitle(words: "Which edge?", mono: nil, more: " +2", isFaint: false))
+        #expect(harness.menuLine(at: 0) == MenuTitle(words: "Modernisation", mono: nil, more: " +1", isFaint: false))
     }
 }

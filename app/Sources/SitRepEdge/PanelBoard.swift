@@ -45,10 +45,9 @@ public struct PanelBoard: Equatable, Sendable {
 
         let head = Head(needYou: board.head.needYou, sessions: board.head.sessions)
         let asOf = last.staleSince.map { "as of \($0.formatted(clock))" }
-        let names = Dictionary(board.projects.map { ($0.key, $0.name) }) { first, _ in first }
 
         self.init(
-            sessions: board.rows.map { Session($0, project: names[$0.project] ?? $0.project) },
+            sessions: board.rows.map(Session.init),
             head: asOf.map { Head(title: head.title, count: $0) } ?? head,
             needsLee: !board.head.isAllClear,
             // stale, the last line's new rows are not new again
@@ -86,11 +85,15 @@ public struct PanelBoard: Equatable, Sendable {
 
 extension Session {
     /// A row as the panel draws it, keyed by its session so it keeps its place: its project by name, and core's
-    /// letters for it; its lines; core's second line beneath, an away one's saying so.
-    init(_ row: Board.Row, project: String) {
+    /// letters for it; its session's name; its lines; and beneath them, needing Lee, its project, else core's second
+    /// line, an away one's saying no window holds it.
+    init(_ row: Board.Row) {
+        let isNamed = row.needsLee && !row.isAway
+
         self.init(
-            id: row.session, project: project, letters: row.letters, kind: Kind(row.oldest.kind), away: row.isAway,
-            lines: row.lines.map(Line.init), sub: row.second
+            id: row.session, project: row.projectName, name: row.name, letters: row.letters,
+            kind: Kind(row.oldest.kind), away: row.isAway, lines: row.lines.map(Line.init),
+            sub: isNamed ? row.projectName : row.second
         )
     }
 }

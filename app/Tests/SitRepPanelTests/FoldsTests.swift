@@ -37,8 +37,8 @@ struct FoldsTests {
     }
 
     /// Keyed by its session, a row gaining a line in needs you while the panel is out neither folds away nor in again:
-    /// it is the same row, at once its new height, the line's 22 more.
-    @Test func aRowGainingALineIsTheSameRowAtItsNewHeight() {
+    /// it is the same row, its height as it was.
+    @Test func aRowGainingALineIsTheSameRowAtItsHeight() {
         var folds = Self.folds(.session(Self.needs("a")), Self.b)
         var asked = Self.needs("a")
 
@@ -48,7 +48,7 @@ struct FoldsTests {
         let content = folds.content(at: 1000)
 
         #expect(Self.keys(content) == ["needs:a", "b"])
-        #expect(content.entries.map(\.height) == [81, 59])
+        #expect(content.entries.map(\.height) == [59, 59])
         #expect(content.entries.allSatisfy { $0.alpha == 1 && !$0.isGoing })
         #expect(!folds.isMoving(at: 1000))
     }

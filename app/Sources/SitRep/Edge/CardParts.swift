@@ -45,6 +45,24 @@ enum CardParts {
         return line
     }
 
+    /// A row's button that opens its session in the SitRep window, board F's: white at 10%, its corners 7, its glyph
+    /// in white at 80% on its middle.
+    static func opener(in box: CGRect) -> CALayer {
+        let button = CALayer(), glyph = CAShapeLayer()
+
+        button.frame = box
+        button.cornerRadius = Opener.radius
+        button.backgroundColor = EdgeStyle.opener
+        glyph.frame = OpenerGlyph.placed(in: CGRect(origin: .zero, size: box.size))
+        glyph.path = OpenerGlyph.path
+        glyph.fillColor = nil
+        glyph.strokeColor = EdgeStyle.openerGlyph
+        glyph.lineWidth = OpenerGlyph.stroke
+        button.addSublayer(glyph)
+
+        return button
+    }
+
     private static func chevron(isOpen: Bool, in box: CGRect) -> CAShapeLayer {
         let chevron = CAShapeLayer()
 

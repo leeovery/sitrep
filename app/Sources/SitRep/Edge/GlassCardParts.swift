@@ -59,3 +59,17 @@ private struct GlassChevron: View {
             .offset(x: box.minX, y: box.minY)
     }
 }
+
+/// A row's button that opens its session in the SitRep window, on glass as in black: the primary at 10%, its corners
+/// 7, its glyph in the primary at 80%.
+struct GlassOpener: View {
+    var body: some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: Opener.radius).fill(.primary.opacity(0x1A / 255))
+            Outline(path: Path(OpenerGlyph.path))
+                .stroke(.primary.opacity(0.8), lineWidth: OpenerGlyph.stroke)
+                .frame(width: OpenerGlyph.size.width, height: OpenerGlyph.size.height)
+        }
+        .frame(width: Opener.side, height: Opener.side)
+    }
+}

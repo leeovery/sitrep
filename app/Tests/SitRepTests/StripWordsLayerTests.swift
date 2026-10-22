@@ -49,26 +49,28 @@ struct StripWordsLayerTests {
         #expect(StripWordsLayer.rowWidth(wake, at: 0) > StripWordsLayer.rowWidth(Self.wake(in: 2), at: 0))
     }
 
-    /// A session with three lines waiting is one tab, as one row of a count's: its oldest line, then "+2" for the two
-    /// after it, set as a question of one line sets its "+2".
-    @Test func aSessionOfSeveralLinesSaysItsOldestThenHowManyMore() {
-        let oldest = Session.Line(title: "Approve the first fix batch", since: 0)
+    /// A session with three lines waiting is one tab, as one row of a count's: its name, then "+2" for the two lines
+    /// after its first, set as a row's "+2" is; one line waiting, a question with its own "+2" among them, its name
+    /// alone.
+    @Test func aSessionOfSeveralLinesSaysItsNameThenHowManyMore() {
+        let name = "Finish the Harness modernisation"
         let three = Session(
-            id: "h", project: "Harness", kind: .needs,
-            lines: [oldest, Session.Line(title: "Choose", since: 1), Session.Line(title: "Paste", since: 2)],
+            id: "h", project: "Harness", name: name, kind: .needs,
+            lines: ["Approve the first fix batch", "Choose", "Paste"].enumerated().map {
+                Session.Line(title: $1, since: Double($0))
+            },
             sub: "Harness"
         )
-        let asked = Session(
-            id: "h", project: "Harness", kind: .needs, title: oldest.title, more: "+2",
-            sub: "Harness", since: 0
+        let counted = Session(id: "h", project: "Harness", kind: .turn, title: name, more: "+2", sub: "Harness", since: 0)
+        let question = Session(
+            id: "h", project: "Harness", name: name, kind: .needs, title: "Which edge?", more: "+2", sub: "Harness",
+            since: 0
         )
-        let alone = Session(
-            id: "h", project: "Harness", kind: .needs, title: oldest.title,
-            sub: "Harness", since: 0
-        )
+        let alone = Session(id: "h", project: "Harness", kind: .turn, title: name, sub: "Harness", since: 0)
 
-        #expect(StripWordsLayer.rowWidth(three, at: 0) == StripWordsLayer.rowWidth(asked, at: 0))
-        #expect(StripWordsLayer.countRowWidth(three, at: 0) == StripWordsLayer.countRowWidth(asked, at: 0))
+        #expect(StripWordsLayer.rowWidth(three, at: 0) == StripWordsLayer.rowWidth(counted, at: 0))
+        #expect(StripWordsLayer.countRowWidth(three, at: 0) == StripWordsLayer.countRowWidth(counted, at: 0))
+        #expect(StripWordsLayer.countRowWidth(question, at: 0) == StripWordsLayer.countRowWidth(alone, at: 0))
         #expect(StripWordsLayer.countRowWidth(three, at: 0) > StripWordsLayer.countRowWidth(alone, at: 0))
     }
 

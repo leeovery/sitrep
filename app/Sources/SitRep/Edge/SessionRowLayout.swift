@@ -2,26 +2,21 @@ import CoreGraphics
 import SitRepPanel
 
 /// Where a session's row in the panel lays its parts, as the prototype's rows lay them out, the same in black and in
-/// glass: each line's mark at the left, its title beside it and its time at the right, the lines 4 apart as board D
-/// sets a row with several; then its project and session under the last. A row of one line fills the row's 55 of
-/// `Content(laying:)`: 10 above, the two lines' 34, and 11 below; each line more adds its 18 and the 4 over it
-/// (`Item.lineStep`).
+/// glass: its mark at the left, its title beside it and its time at the right; then the line under them. A row fills
+/// the row's 55 of `Content(laying:)`: 10 above, the two lines' 34, and 11 below. Under the pointer its button takes
+/// its time's place (`Opener`).
 struct SessionRowLayout {
-    /// One of the row's lines: its mark's centre, its title's box and its time's.
-    struct Line {
-        let mark: CGPoint
-        let title, age: CGRect
-    }
-
-    /// The oldest first; never none.
-    let lines: [Line]
-    let sub: CGRect
+    /// The mark's centre: where a working row's arc turns.
+    let mark: CGPoint
+    let title, age, sub: CGRect
+    /// The button that opens its session in the SitRep window.
+    let opener: CGRect
 
     static let radius = 14.0
     /// A your-turn row's on one line, board D's.
     static let turnRadius = 10.0
-    /// Between the title and a question's "+2".
-    static let moreGap = 4.0
+    /// Between a session's name and its "+2", board F's.
+    static let countGap = 6.0
     /// Between a your-turn row's words and its project.
     static let projectGap = 12.0
     static let pad = (top: 10.0, side: 10.0), gap = 10.0
@@ -29,21 +24,16 @@ struct SessionRowLayout {
     static let titleLine = 18.0
     private static let subLine = 16.0
 
-    init(size: CGSize, lines count: Int = 1) {
+    init(size: CGSize) {
         let textX = Self.pad.side + Self.markBox.width + Self.gap
         let textWidth = size.width - textX - Self.gap - Self.ageWidth - Self.pad.side
-        let lines = (0 ..< max(1, count)).map { index in
-            let top = Self.pad.top + Item.lineStep * Double(index)
+        let top = Self.pad.top
 
-            return Line(
-                mark: CGPoint(x: Self.pad.side + Self.markBox.width / 2, y: top + Self.markBox.height / 2),
-                title: CGRect(x: textX, y: top, width: textWidth, height: Self.titleLine),
-                age: CGRect(x: size.width - Self.pad.side - Self.ageWidth, y: top, width: Self.ageWidth, height: Self.titleLine)
-            )
-        }
-
-        self.lines = lines
-        sub = CGRect(x: textX, y: lines[lines.count - 1].title.maxY, width: textWidth, height: Self.subLine)
+        mark = CGPoint(x: Self.pad.side + Self.markBox.width / 2, y: top + Self.markBox.height / 2)
+        title = CGRect(x: textX, y: top, width: textWidth, height: Self.titleLine)
+        age = CGRect(x: size.width - Self.pad.side - Self.ageWidth, y: top, width: Self.ageWidth, height: Self.titleLine)
+        sub = CGRect(x: textX, y: title.maxY, width: textWidth, height: Self.subLine)
+        opener = Opener.frame(in: size)
     }
 
     /// A your-turn row on one line, as board D lays it out on the card: its mark, its words, its project in a lane
@@ -55,18 +45,12 @@ struct SessionRowLayout {
         let middle = size.width - textX - Self.gap - Self.ageWidth - Self.pad.side
         let project = min(project, middle)
 
-        lines = [Line(
-            mark: CGPoint(x: Self.pad.side + Self.markBox.width / 2, y: size.height / 2),
-            title: CGRect(x: textX, y: top, width: max(0, middle - project - Self.projectGap), height: Self.titleLine),
-            age: CGRect(x: size.width - Self.pad.side - Self.ageWidth, y: top, width: Self.ageWidth, height: Self.titleLine)
-        )]
+        mark = CGPoint(x: Self.pad.side + Self.markBox.width / 2, y: size.height / 2)
+        title = CGRect(x: textX, y: top, width: max(0, middle - project - Self.projectGap), height: Self.titleLine)
+        age = CGRect(x: size.width - Self.pad.side - Self.ageWidth, y: top, width: Self.ageWidth, height: Self.titleLine)
         sub = CGRect(x: textX + middle - project, y: top, width: project, height: Self.titleLine)
+        opener = Opener.frame(in: size)
     }
-
-    /// The first line's: where a working row's arc turns, and a pressed row's spinner.
-    var mark: CGPoint { lines[0].mark }
-    var title: CGRect { lines[0].title }
-    var age: CGRect { lines[0].age }
 }
 
 /// The panel's head: how many need Lee at the left, how many sessions at the right, on one line.
@@ -132,6 +116,31 @@ enum CardChevron {
 
         path.addLines(between: points.map { CGPoint(x: origin.x + $0.x, y: origin.y + $0.y) })
         return path
+    }
+}
+
+/// The glyph on a row's button that opens its session in the SitRep window, board F's: a window with its sidebar, a
+/// rounded rect 11.5 by 9.5, its corners 2, and a line down it 4.75 in, stroked 1.5, 13 by 11 overall.
+enum OpenerGlyph {
+    static let size = CGSize(width: 13, height: 11), stroke = 1.5
+
+    /// Its path in its own 13 by 11.
+    static var path: CGPath {
+        let path = CGMutablePath(), inset = stroke / 2
+
+        path.addRoundedRect(
+            in: CGRect(x: inset, y: inset, width: 11.5, height: 9.5), cornerWidth: 2, cornerHeight: 2
+        )
+        path.move(to: CGPoint(x: 4.75, y: inset))
+        path.addLine(to: CGPoint(x: 4.75, y: size.height - inset))
+        return path
+    }
+
+    /// Centred in a box.
+    static func placed(in box: CGRect) -> CGRect {
+        CGRect(
+            x: box.midX - size.width / 2, y: box.midY - size.height / 2, width: size.width, height: size.height
+        )
     }
 }
 

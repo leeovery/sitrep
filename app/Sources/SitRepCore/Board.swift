@@ -96,11 +96,15 @@ public struct Board: Versioned, Sendable, Equatable {
         public let isAway: Bool
         /// Its project's key.
         public let project: String
+        /// Its session's name, which a Needs you row shows as its title.
+        public let name: String
+        /// Its project's name, which a Needs you row shows under its title.
+        public let projectName: String
         /// The strip's two letters for its project.
         public let letters: String
         /// The oldest first.
         public let lines: [Line]
-        /// The project and the session.
+        /// The project and the session, under a Working or Your turn row's line; an away row's says no window holds it.
         public let second: String
         /// The instant its time counts from, its oldest line's, which the views tick.
         public let since: Date
@@ -120,6 +124,8 @@ public struct Board: Versioned, Sendable, Equatable {
             section = try given.decode(Section.self, forKey: .section)
             isAway = try given.decode(Bool.self, forKey: .isAway)
             project = try given.decode(String.self, forKey: .project)
+            name = try given.decode(String.self, forKey: .name)
+            projectName = try given.decode(String.self, forKey: .projectName)
             letters = try given.decode(String.self, forKey: .letters)
             lines = try given.decode([Line].self, forKey: .lines)
             second = try given.decode(String.self, forKey: .second)
@@ -130,7 +136,7 @@ public struct Board: Versioned, Sendable, Equatable {
         }
 
         private enum CodingKeys: String, CodingKey {
-            case session, section, isAway, project, letters, lines, second, since
+            case session, section, isAway, project, name, projectName, letters, lines, second, since
         }
     }
 

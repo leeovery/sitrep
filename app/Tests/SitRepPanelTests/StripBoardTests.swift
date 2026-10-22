@@ -12,7 +12,7 @@ struct StripBoardTests {
     @Test func aNewNeedsYouMovesInAtOnceUnderTheRowCoreHasAboveIt() {
         let lab = StripLab()
         var ask = StripLab.ask
-        ask.since = -30 * Self.minute
+        ask.lines[0].since = -30 * Self.minute
 
         lab.newAsk(ask)
 
@@ -36,8 +36,8 @@ struct StripBoardTests {
         var lab = StripLab()
         var asking = try #require(lab.model.session(id))
         asking.kind = .needs
-        asking.title = "Approve the plan"
-        asking.since = -30 * Self.minute
+        asking.lines[0].title = "Approve the plan"
+        asking.lines[0].since = -30 * Self.minute
 
         lab.arrive(asking)
 
@@ -93,7 +93,7 @@ struct StripBoardTests {
     @Test func aChangeShowsInPlaceThenTheMarksTakeCoresOrder() {
         var lab = StripLab()
         var docMan = StripLab.prototype[6]
-        docMan.title = "Reading the reports"
+        docMan.lines[0].title = "Reading the reports"
         let board = Array(StripLab.prototype.prefix(6)) + [StripLab.prototype[7], docMan]
 
         lab.model.show(board, new: [])
@@ -114,7 +114,7 @@ struct StripBoardTests {
         lab.open("s5")
         let was = try #require(lab.live).w.x
         var fumi = StripLab.prototype[4]
-        fumi.title = "Sketched"
+        fumi.lines[0].title = "Sketched"
 
         lab.change(fumi)
         lab.settle()
@@ -129,7 +129,7 @@ struct StripBoardTests {
         var lab = StripLab(reducesMotion: true)
         lab.open("s5")
         var fumi = StripLab.prototype[4]
-        fumi.title = "Sketched"
+        fumi.lines[0].title = "Sketched"
 
         lab.change(fumi)
         lab.step()
