@@ -205,7 +205,7 @@ private struct GlassPanel: View {
         if let session = item.session {
             GlassSessionRow(
                 session: session, size: CGSize(width: width, height: item.height - Item.rowGap),
-                lit: lit && session.jumps, pressed: pressed, now: scene.now, wash: wash(session.id)
+                lit: lit && session.jumps, pressed: pressed, now: scene.now, wash: wash(item.key)
             )
         } else {
             let rule = DividerLayout.rule(width: width)

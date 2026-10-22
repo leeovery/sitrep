@@ -94,6 +94,27 @@ struct PanelContentTests {
         #expect(content.rows["b"]?.item.position.y == Content(laying: [.session(two), Self.row("b")]).itemFrame(1).midY)
     }
 
+    /// A row crossing the hairline as its session comes to need Lee is two while it folds: the wash lands on the one
+    /// arriving in needs you, never on the one folding away.
+    @Test func aRowCrossingTheHairlineWashesOnlyWhereItArrives() {
+        let content = PanelContent()
+        let rest = Session(id: "x", project: "SitRep", kind: .turn, title: "Your turn", sub: "SitRep · Build", since: 0)
+        var asking = rest
+        asking.kind = .needs
+        asking.title = "Approve the plan"
+        let crossing = Content(
+            headHeight: 26,
+            entries: [Content.Entry(.session(asking), height: 0), Content.Entry(.session(rest), height: 59, isGoing: true)]
+        )
+
+        content.show(Self.list(.session(rest)))
+        content.wash([Item.session(asking).key], at: 0)
+        content.show(PanelList(head: Head(needYou: 1, sessions: 1), content: crossing))
+
+        #expect(content.rows["needs:x"]?.row.washing != nil)
+        #expect(content.rows["x"]?.row.washing == nil)
+    }
+
     @Test func aRowMadeAnewUnderThePointerLifts() {
         let content = PanelContent(), list = Self.list(Self.row("a"))
         let frame = Self.open(list)

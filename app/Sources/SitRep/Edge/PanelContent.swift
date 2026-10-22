@@ -22,7 +22,7 @@ final class PanelContent {
     private(set) var rows: [String: (item: CALayer, row: SessionRow)] = [:]
     /// The row lifted under the pointer.
     private var hovered: SessionRow?
-    /// When each row's wash began, by its session: a row made anew mid-wash carries it on.
+    /// When each row's wash began, by its item's key: a row made anew mid-wash carries it on.
     private var washed: [String: Double] = [:]
     private var scale: CGFloat = 1
 
@@ -79,11 +79,11 @@ final class PanelContent {
         highlight(scene.hover.flatMap { shown.item($0)?.key })
     }
 
-    /// The rows of these sessions washed from this time, ms on the display's clock.
-    func wash(_ sessions: Set<String>, at time: Double) {
+    /// The rows washed from this time, by their items' keys, ms on the display's clock.
+    func wash(_ keys: Set<String>, at time: Double) {
         washed = Wash.live(washed, at: time)
-        sessions.forEach { washed[$0] = time }
-        rows.values.map(\.row).filter { sessions.contains($0.session.id) }.forEach { $0.washes(since: time) }
+        keys.forEach { washed[$0] = time }
+        keys.compactMap { rows[$0]?.row }.forEach { $0.washes(since: time) }
     }
 
     func rescaled(to scale: CGFloat) {
@@ -121,7 +121,7 @@ final class PanelContent {
     private func made(_ session: Session, _ item: Item, _ width: Double) -> (item: CALayer, row: SessionRow) {
         let made = Self.row(session, size: CGSize(width: width, height: item.height - Item.rowGap))
 
-        if let began = washed[session.id] {
+        if let began = washed[item.key] {
             made.row.washes(since: began)
         }
         return made

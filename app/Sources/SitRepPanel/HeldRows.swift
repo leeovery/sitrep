@@ -38,13 +38,24 @@ public struct HeldRows: Equatable, Sendable {
         return true
     }
 
-    /// The rows showing, in their places, each as it now is, those gone left out; a new one comes in under the row
-    /// core has above it, or first where core has none, as does one come into needs you or gone out of it.
+    /// Each section on its own, in the sections' order: its rows showing, in their places, each as it now is, those
+    /// gone from it left out; a row new to it, new to the board or come from another section, in under the row core
+    /// has above it in the section, or at the section's top where core has none there.
     private func kept(_ sessions: [Session]) -> [Session] {
-        let now = Dictionary(sessions.map { ($0.id, $0) }) { first, _ in first }
-        let stayed = shown.compactMap { held in now[held.id].flatMap { $0.needsLee == held.needsLee ? $0 : nil } }
+        let core = Dictionary(grouping: sessions, by: Self.section)
+        let held = Dictionary(grouping: shown, by: Self.section)
 
-        return stayed.merging(sessions, by: \.id)
+        return core.keys.sorted().flatMap { section in
+            let rows = core[section] ?? []
+            let now = Dictionary(rows.map { ($0.id, $0) }) { first, _ in first }
+
+            return (held[section] ?? []).compactMap { now[$0.id] }.merging(rows, by: \.id)
+        }
+    }
+
+    /// The section a row's place is held in, by the sections' order: needs you over the hairline, then the rest.
+    static func section(_ session: Session) -> Int {
+        session.needsLee ? 0 : 1
     }
 }
 

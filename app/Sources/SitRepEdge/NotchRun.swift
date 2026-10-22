@@ -151,15 +151,16 @@ public final class NotchRun: Framed {
         book.latch(swapsEdge: frame.swapsEdge, drained: phase == .closing || phase == .closed, at: time)
     }
 
-    /// The board as `watch` last printed it, told to the notch, its rows held while the panel is out: the rows new
-    /// on it to wash, while the panel is out.
+    /// The board as `watch` last printed it, told to the notch, its rows held while the panel is out: the items
+    /// arriving on it to wash, by their keys, while the panel is out; never one a row crossing the hairline leaves,
+    /// folding away.
     public func show(_ board: PanelBoard, _ moment: Moment) -> Set<String> {
         upToNow(moment)
         board.tell(notch, after: self.board)
         self.board = board
         rows.take(board.sessions)
         relist(at: time, in: moment.setting)
-        return isOut ? board.new : []
+        return isOut ? Set(board.sessions.filter { board.new.contains($0.id) }.map { Item.session($0).key }) : []
     }
 
     /// A press at the pointer. The model takes a frame first, so the row under the press and the row it presses in

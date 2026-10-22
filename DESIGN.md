@@ -2344,17 +2344,20 @@ past its tab: "in 1h" becomes "in 59m". The row's time still counts from
 the turn's end, as every row's does, so the countdown never shows twice.
 
 Rows keep their places while the panel is open: a changed row moves only
-once it closes. A place is held within its section, Needs you or the rest,
-so Needs you stays together over the hairline (22 October 2026, rows by
+once it closes. Each section, Needs you or the rest, is held on its own
+and the sections follow in their order, so Needs you stays together over
+the hairline however core reorders it meanwhile (22 October 2026, rows by
 session). A row is kept by its session, so one gaining or losing a line in
 Needs you, as a second ask comes, is the same row, changed where it stands
 at its new height, at once, and the rows under it move with it. A row
 changing section, its session coming to need Lee or its asks answered,
 leaves its held place and takes its place in its new section: it folds
-away where it was and unfolds under the row core has above it, as two
-rows, as when each ask was a row of its own. Meanwhile a row gone folds
-away where it was, and a new one unfolds under the row core has above it,
-washed if it needs Lee (20 October 2026). A click
+away where it was and unfolds in the other, as two rows, as when each ask
+was a row of its own, washed where it arrives and never as it folds away.
+Meanwhile a row gone folds away where it was, and a new one unfolds,
+washed if it needs Lee (20 October 2026). A row new to a section, new to
+the board or come from another, goes under the row core has above it in
+that section, or at the section's top where core has none there. A click
 on an away row does nothing; it is there, but there
 is no window to jump to. What a click on it opens is decided later: for
 Lee, a new Ghostty window attached to the session's tmux session, where

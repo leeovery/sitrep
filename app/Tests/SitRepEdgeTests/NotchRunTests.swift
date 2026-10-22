@@ -387,7 +387,7 @@ struct NotchRunTests {
         let open = Self.opened(["a"])
 
         #expect(closed.show(Self.board(["c", "a"], new: ["c"]), Self.at(1000)).isEmpty)
-        #expect(open.show(Self.board(["c", "a"], new: ["c"]), Self.at(open.time)) == ["sr-c"])
+        #expect(open.show(Self.board(["c", "a"], new: ["c"]), Self.at(open.time)) == ["needs:sr-c"])
     }
 
     @Test func theTimesNextChangeIsTheSoonestOfTheShownRows() {
