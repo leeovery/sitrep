@@ -201,6 +201,8 @@ notch and its panel").
   session your turn all the same:
   - a persistent monitor and a recurring wake: neither ever ends, so a
     session holding one would never be Lee's turn again;
+  - a monitor the mod never heard start, which may be one of Claude Code's
+    own that never ends, as its watch on a published artifact is;
   - a turn stopped with Esc, or ended by an API error: Claude Code sends no
     Stop for the first, and for the second a StopFailure, which lists
     nothing, so nothing pending is heard.
@@ -306,6 +308,15 @@ and swallowed, never breaking a turn, a tool or a permission prompt.
     tool types have it. A Monitor running a command is listed as a shell;
     known by its id, it counts as the monitor it is. A call's task is kept
     until a Stop no longer lists it;
+  - a monitor the mod never heard start. Claude Code runs some of its own
+    (its watch on a published artifact, re-armed on session resume), which
+    never end, and without hearing a monitor's call the mod cannot tell
+    whether it is persistent. So one listed as a monitor counts only where
+    its call was heard and it is not persistent; one started before the
+    mod was loaded, or by an MCP server's tool rather than the Monitor
+    tool, is left out too, erring toward your turn. (A Monitor
+    running a command is listed as a shell, so one never heard is counted
+    as the background shell it cannot be told from);
   - a recurring wake. A one-off wake's time is the minute its schedule names
     nearest now, in local time, as a cron reads it, within four years either
     side: its next, unless the last before it is nearer. A one-off still
