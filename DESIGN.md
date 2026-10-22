@@ -313,7 +313,8 @@ and swallowed, never breaking a turn, a tool or a permission prompt.
     never end, and without hearing a monitor's call the mod cannot tell
     whether it is persistent. So one listed as a monitor counts only where
     its call was heard and it is not persistent; one started before the
-    mod was loaded is left out too, erring toward your turn. (A Monitor
+    mod was loaded, or by an MCP server's tool rather than the Monitor
+    tool, is left out too, erring toward your turn. (A Monitor
     running a command is listed as a shell, so one never heard is counted
     as the background shell it cannot be told from);
   - a recurring wake. A one-off wake's time is the minute its schedule names
