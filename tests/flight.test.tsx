@@ -11,7 +11,7 @@
  * short, left here as the message taken but not written down.
  */
 import { expect, test, tier } from 'claude-code/testing'
-import { parseEntries, parsePresence, sessionPaths, type SessionPaths } from '../core'
+import { HEARTBEAT_MS, parseEntries, parsePresence, sessionPaths, type SessionPaths } from '../core'
 import { QUIET_MS } from '../hooks/deliver'
 import { WATCH_MS } from '../hooks/window'
 import { file, MIN, reply, SENDER, SLOW, W1 } from './support'
@@ -397,4 +397,26 @@ test('a load whose read of $.state predates a send claimed since keeps the newer
   expect(w.state.board?.waiting).toBe(0)
 
   turn.end()
+})
+
+test('a claim another load ended leaves the heartbeat at its next beat, though this load still held it, and the ask waits on Lee again', async ($, on) => {
+  let isEnded = false
+
+  // A load a reload left running lets go of the claim in $.state: this load never hears it.
+  on('state.get', { plugin: 'sitrep', key: ['inFlight'] }, ($, e, next) =>
+    isEnded ? { value: { value: null, version: 0 } } : next(e),
+  )
+
+  const w = world($, on)
+  const { paths, turn } = await sentHeld(w)
+
+  expect(sendingIn(w, paths)).toBeDefined()
+
+  isEnded = true
+  await w.clock.advance(HEARTBEAT_MS + WATCH_MS)
+
+  expect(sendingIn(w, paths)).toBeUndefined()
+  expect(w.state.board?.waiting).toBe(1)
+
+  turn.lose()
 })

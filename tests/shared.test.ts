@@ -350,6 +350,9 @@ test("an answer landing as the window's send reads the board, unseen by it, goes
 
   const claimed = w.clock.now()
 
+  // The send's read lists the session's folder twice, before its heartbeats
+  // and after them: the letter lands once the second has taken its view.
+  w.after('list', paths.dir, () => {})
   w.after('list', paths.dir, async () => {
     await w.clock.set(claimed + 2)
     w.put(

@@ -61,30 +61,42 @@ type Hold = {
 let current: Hold | undefined
 
 /**
- * The message in flight as this load last set it in `$.state`, kept here
- * for the heartbeat: a hook's dispatch reads `$.state` as it stood when the
- * dispatch began, and a tool call's lasts as long as its tool runs.
+ * The message in flight as this load last set or read it in `$.state`, kept
+ * here for the heartbeat: a hook's dispatch reads `$.state` as it stood when
+ * the dispatch began, and a tool call's lasts as long as its tool runs.
  * Undefined until the load first needs it or sets it.
  */
 let flight: SitrepInFlight | null | undefined
 
+/** How many times this load has set the claim: a read of `$.state` begun before the latest is older than it. */
+let changes = 0
+
+/**
+ * Takes the message in flight from `$.state`, unless this load has set the
+ * claim since `since`, a count of its changes, which is the later word.
+ * Another load may have ended or let go of the claim, as one a reload left
+ * running can. A read that fails changes nothing.
+ */
+const readFlight = async (host: Host, since: number) => {
+  const read = await host.state.inFlight.read().catch((error: unknown) => {
+    logFailure(host, 'reading the message in flight')(error)
+
+    return undefined
+  })
+
+  if (read !== undefined && changes === since) {
+    flight = read
+  }
+}
+
 /**
  * The message in flight as this load knows it: read from `$.state` the first
  * time, so a load's first heartbeat says a send an earlier load left in
- * flight. A read that fails is tried again at the next heartbeat.
+ * flight. A read that fails is tried again at the next beat.
  */
 const flightNow = async (host: Host) => {
   if (flight === undefined) {
-    const read = await host.state.inFlight.read().catch((error: unknown) => {
-      logFailure(host, 'reading the message in flight')(error)
-
-      return undefined
-    })
-
-    // Set meanwhile by a change to the claim, which is the later word.
-    if (flight === undefined) {
-      flight = read
-    }
+    await readFlight(host, changes)
   }
 
   return flight ?? null
@@ -207,7 +219,7 @@ const isSaid = (presence: Presence, doing: Pick<Presence, 'state' | 'sending'>) 
   JSON.stringify([presence.state, presence.sending]) ===
   JSON.stringify([doing.state, doing.sending])
 
-/** The beat, saying the window's doing as it stands, and the watch, each run in turn and only while `hold` is still the window's. */
+/** The beat, saying the window's doing as it stands, the message in flight read afresh from `$.state`, and the watch, each run in turn and only while `hold` is still the window's. */
 const timersFor = (host: Host, hold: Hold) => {
   const whileHeld = (what: string, task: () => Promise<unknown>) => () =>
     void serially(() => (current === hold ? task() : Promise.resolve())).catch(
@@ -215,19 +227,23 @@ const timersFor = (host: Host, hold: Hold) => {
     )
 
   return [
-    host.clock.every(
-      HEARTBEAT_MS,
-      whileHeld('the heartbeat', async () =>
-        beat(
+    host.clock.every(HEARTBEAT_MS, () => {
+      // Counted as the beat's dispatch begins, which is the moment its read
+      // of `$.state` gives, before it waits its turn on the window's queue.
+      const since = changes
+
+      whileHeld('the heartbeat', async () => {
+        await readFlight(host, since)
+        await beat(
           host,
           hold,
           heartbeat(
             { ...hold.presence, ...(await doingNow(host, hold.attachment)) },
             await host.clock.now(),
           ),
-        ),
-      ),
-    ),
+        )
+      })()
+    }),
     host.clock.every(
       WATCH_MS,
       whileHeld('the watch', () => refresh(host)),
@@ -274,6 +290,7 @@ export const restate = (host: Host) =>
  */
 export const sayInFlight = (host: Host, inFlight: SitrepInFlight | null) => {
   flight = inFlight
+  changes += 1
 
   return restate(host)
 }

@@ -914,29 +914,39 @@ Dropped for now (11 October 2026): a macOS notification for asks. Back on
   the claim (after the window's own file and letters at that moment), so the
   first answer on its way bars any later, whatever its source: an inbox
   answer written after the claim is barred by it and one written before bars
-  it, of two windows' sends the earlier claim wins, and one barred by an
-  answer that later goes void comes back on its way; a comment bars nothing.
-  Whether its item takes it at all is judged as the item stands once every
-  line is read, since its line, once written, is read after all of them:
-  nothing the lines say while the send waits voids it, so a close, a finish
-  or an edit undone since (a reopen, an unfinish, an edit back) leaves it on
-  its way, and the ask takes no second answer, while one that still stands
-  (the item closed, the session finished, the reply fitting the item no
-  more) leaves it out, what it barred reaching the item again. While on its
-  way, an answer or a comment, the ask waits on Lee no more. One whose line
-  is written by then is that line, so between the lines going down and the
-  claim ending nothing reads twice and nothing drops out. They are no reply
-  of the session's own: no inbox delivers them, and Claude's reads (the
-  board text, `toldSummary`) still have the ask waiting on Lee until it is
-  delivered. The inbox's message says nothing there, its replies on their
-  way in the inbox already; nor does a send to a session the window no
-  longer holds, whose heartbeat there let go. Refused or never taken, the
-  claim ends and the ask waits on Lee again; the window gone, its heartbeat
-  goes stale and the same follows, within 90 seconds. The window itself
-  keeps the claim it last set for its heartbeat, reading `$.state` only the
-  first time a load needs it, and only while it does not know the claim yet:
-  a hook's dispatch, a tool call's or the load's first, reads `$.state` as
-  it stood when the dispatch began, which may predate a send claimed since.
+  it, of two windows' sends the earlier claim wins, and one is held back
+  only by an answer that still stands once every line is read, on its way or
+  settling the item as it now stands: one barred by an answer that went void
+  since, or that was delivered and its item reopened since, comes back on
+  its way; a comment bars nothing. Whether its item takes it at all is
+  judged as the item stands once every line is read, since its line, once
+  written, is read after all of them: nothing the lines say while the send
+  waits voids it, so a close, a finish or an edit undone since (a reopen, an
+  unfinish, an edit back) leaves it on its way, and the ask takes no second
+  answer, while one that still stands (the item closed, the session
+  finished, the reply fitting the item no more) leaves it out, what it
+  barred reaching the item again as of what left it out. While on its way,
+  an answer or a comment, the ask waits on Lee no more. One whose line is
+  written by then is that line, so between the lines going down and the
+  claim ending nothing reads twice and nothing drops out, every reader, the
+  mod's and the CLI's, reading a session's heartbeats before its lines, and
+  listing its folder again after them: a window writes the lines down before
+  its heartbeat stops saying the send, so lines read after the heartbeat
+  miss nothing it no longer says. They are no reply of the session's own: no
+  inbox delivers them, and Claude's reads (the board text, `toldSummary`)
+  still have the ask waiting on Lee until it is delivered. The inbox's
+  message says nothing there, its replies on their way in the inbox already;
+  nor does a send to a session the window no longer holds, whose heartbeat
+  there let go. Refused or never taken, the claim ends and the ask waits on
+  Lee again; the window gone, its heartbeat goes stale and the same follows,
+  within 90 seconds. The window itself keeps the claim it last set for its
+  heartbeat, reading `$.state` the first time a load needs it and again at
+  each beat, and taking what it reads only where the load has not changed
+  the claim since the read's dispatch began: a hook's dispatch, a tool
+  call's or the load's first, reads `$.state` as it stood when the dispatch
+  began, which may predate a send claimed since; and another load, one a
+  reload left running, may end or let go of the claim, which the next beat
+  then drops.
 - **Taken** is heard from the submit resolving with no drop, or from a turn
   starting whose text is the message's; whichever comes first marks it taken
   and writes it down. A load that starts with a message taken but not written
@@ -1393,7 +1403,10 @@ $XDG_STATE_HOME/sitrep/, else ~/.local/state/sitrep/
     is stale, and it writes neither `$.state` nor the heartbeat again.
 - Readers list and `stat` the folder every second or two (a mod cannot watch
   files) and read only what changed; each session's read lists its project's
-  folder too, so a rename shows on every pane within a look. The sessions
+  folder too, so a rename shows on every pane within a look. A session's
+  heartbeats are read before its lines, its folder listed again after them
+  where it has any (22 October 2026: one more listing a look, so a send
+  handed from a heartbeat to the lines is never missed). The sessions
   around the held one are read every 5 seconds, each through its reader:
   they are glanced at, not watched. Every project is read, the pane open
   or closed, for the band's `elsewhere` and the All projects tab: each look

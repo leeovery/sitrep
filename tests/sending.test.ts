@@ -318,6 +318,58 @@ test('an edit leaving the reply in flight unfit leaves it out, the ask waiting o
   expect(askIn(written, 'k1').state).toBe('closed')
 })
 
+test('an answer in flight barred by an inbox answer delivered while the send waits comes back once Claude reopens the ask: the bar is judged as the ask stands, and its lines settle the ask once written', () => {
+  const inbox = { [CLI]: file([CLAIMED - 30_000, reply('r9', 'k1', 'yes')]) }
+  const during = whileWaiting(delivered('r9'), reopen('k1'))
+  const waiting = sessionOf([REVIEW, ...during], windowOn(W1, sending(YES)), inbox)
+  const written = sessionOf(
+    [REVIEW, ...during, ...writtenDown(reply('r1', 'k1', 'yes'))],
+    windowOn(W1, sending(YES)),
+    inbox,
+  )
+
+  expect(askIn(waiting, 'k1').answerOnItsWay?.id).toBe('r1')
+  expect(needingLee(waiting)).toEqual(NONE)
+  expect(checkAnswer(waiting, { ask: 'k1', answer: 'Approve' })).toEqual({
+    ok: false,
+    error: 'An answer to k1 is on its way already.',
+  })
+  expect(askIn(written, 'k1')).toMatchObject({ state: 'closed', answer: { id: 'r1' } })
+})
+
+test('what a left-out answer in flight barred reaches its item again as of what left it out: an ignore after it ends void as Claude resolved the ask', () => {
+  const inbox = { [CLI]: file([CLAIMED + 10_000, reply('r9', 'k1', 'ignore')]) }
+  const resolvedAt = CLAIMED + 20_000
+  const session = sessionOf(
+    [REVIEW, [resolvedAt, resolve('k1')]],
+    windowOn(W1, sending(YES)),
+    inbox,
+  )
+
+  expect(session.replies.find(each => each.id === 'r9')).toMatchObject({
+    delivery: 'void',
+    voided: 'resolved',
+    voidedAt: resolvedAt,
+  })
+  expect(askIn(session, 'k1').replies.map(each => each.id)).toEqual(['r9'])
+})
+
+test('what an answer in flight barred reaches its item again through an edit that leaves the answer unfit: the ignore after it is on its way', () => {
+  const inbox = { [CLI]: file([CLAIMED + 10_000, reply('r9', 'k1', 'ignore')]) }
+  const toWords: Body = { type: 'edit', item: 'k1', changes: { wants: 'words' } }
+  const session = sessionOf(
+    [REVIEW, [CLAIMED + 20_000, toWords]],
+    windowOn(W1, sending(YES)),
+    inbox,
+  )
+
+  expect(askIn(session, 'k1').answerOnItsWay?.id).toBe('r9')
+  expect(askIn(session, 'k1').replies.map(each => [each.id, each.delivery])).toEqual([
+    ['r9', 'waiting'],
+  ])
+  expect(needingLee(session)).toEqual(NONE)
+})
+
 test('an answer in flight barred by an inbox answer comes back on its way once that answer goes void, and its lines settle the ask once written', () => {
   const IGNORE = { id: 'r1', item: 'k1', verdict: 'ignore' } as const
   const toWords: Body = { type: 'edit', item: 'k1', changes: { wants: 'words' } }

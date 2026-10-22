@@ -628,20 +628,46 @@ const carriedIn = (presence: readonly Presence[], lines: readonly Written[], now
 }
 
 /**
+ * Whether what barred a carried answer stands no more once every line is
+ * read: nothing on its way to the item, and the item open, the answer that
+ * barred it gone void, or delivered and its item reopened since.
+ */
+const isReleased = (item: Ask | Parked, reply: Reply) =>
+  reply.voided === 'answered' && item.answerOnItsWay === undefined && item.closedBy === undefined
+
+/** When what refused a carried reply happened: the session's finish, the item's last edit, or its close. */
+const refusedAt = (fold: Fold, item: Ask | Parked, voided: Voided) => {
+  switch (voided) {
+    case 'finished':
+      return fold.finished?.at
+    case 'changed':
+      return item.editedAt
+    default:
+      return item.closedAt
+  }
+}
+
+/**
  * The carried replies judged once every line is read, against their items
  * as their lines will find them when written down, which is later than all
- * of it: one still on its way that its item takes no more goes void, and
- * what it barred reaches the item again, in order, so is judged in its
- * turn. A close, a finish or an edit the lines have since undone leaves it
- * on its way. Then every carried reply void, barred or refused, leaves its
- * item's replies: no line of it is written yet to settle anything.
+ * of it, in the order they took their places among the answers. One barred
+ * by an answer that stands no more comes back. One still on its way that
+ * its item takes no more goes void, and what it barred reaches the item
+ * again, as of what refused it, to be judged in its turn. A close, a
+ * finish or an edit the lines have since undone leaves it on its way. Then
+ * every carried reply void, barred or refused, leaves its item's replies:
+ * no line of it is written yet to settle anything.
  */
-const judgeCarried = (fold: Fold, item: Ask | Parked, at: number) => {
-  for (const reply of item.replies) {
-    const refused = !isLine(fold, reply) && isPending(reply) && refusedBy(fold, item, reply)
+const judgeCarried = (fold: Fold, item: Ask | Parked) => {
+  for (const reply of item.replies.filter(each => !isLine(fold, each))) {
+    if (isReleased(item, reply)) {
+      arrive(fold, item, reply, reply.at)
+    }
 
-    if (refused) {
-      voidReply(fold, item, reply, refused, at)
+    const refused = isPending(reply) ? refusedBy(fold, item, reply) : undefined
+
+    if (refused !== undefined) {
+      voidReply(fold, item, reply, refused, refusedAt(fold, item, refused) ?? reply.at)
     }
   }
 
@@ -700,7 +726,7 @@ export const foldSession = (
 
   for (const item of items) {
     if (item.type !== 'note') {
-      judgeCarried(fold, item, updatedAt)
+      judgeCarried(fold, item)
     }
   }
 

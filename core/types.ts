@@ -220,7 +220,7 @@ export type Ask = Posted & {
   answer?: Reply
   /** Lee's answer on its way to it, which bars another: at most one, as a second starts void. A comment on its way is no answer. */
   answerOnItsWay?: Reply
-  /** Lee's replies to it, oldest first, then those on their way in a live window's message, not written down yet. */
+  /** Lee's replies to it, oldest first, those on their way in a live window's message, not written down yet, among them at their claim's time. */
   replies: Reply[]
 }
 
