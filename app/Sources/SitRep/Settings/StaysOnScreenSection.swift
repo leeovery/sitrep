@@ -15,7 +15,7 @@ struct StaysOnScreenSection: View {
 
         SettingsSection(name: "What stays on screen") {
             SettingsCard {
-                ShowRow(show: preferences.binding(\.show), isOnScreen: settings.isOnScreen)
+                ShowRow(show: preferences.binding(\.show))
                 ForEach(rows, id: \.self) { row in
                     VStack(spacing: 0) {
                         CardSeparator()

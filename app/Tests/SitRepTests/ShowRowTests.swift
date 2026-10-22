@@ -5,7 +5,7 @@ import SwiftUI
 import Testing
 
 /// What stays on screen's Show row, set as System Settings sets Appearance's on macOS 26: on the real page, as the
-/// window lays it out (`Hosted`), and its tiles drawn under the pointer, which a window never shown can't be given.
+/// window lays it out (`Hosted`), and its tiles' edges, each in a window of its own.
 @MainActor
 struct ShowRowTests {
     /// What stays on screen's card's top, under the title and the header, at any width.
@@ -28,9 +28,9 @@ struct ShowRowTests {
         try await atTwice(Hosted.drawn(width: width, change))
     }
 
-    /// A view in a window over black, laid out as the page is (`atTwice`).
-    private static func inAWindow(_ view: some View, size: CGSize) throws -> Drawn {
-        try atTwice(Drawn(Hosted(view.frame(width: size.width, height: size.height).background(Color.black), size: size).hosting))
+    /// A view in a window over `ground`, laid out as the page is (`atTwice`).
+    private static func inAWindow(_ view: some View, size: CGSize, over ground: Color = .black) throws -> Drawn {
+        try atTwice(Drawn(Hosted(view.frame(width: size.width, height: size.height).background(ground), size: size).hosting))
     }
 
     /// A window's drawing, which these tests read at 2×, counting the row's half points as whole pixels. A window lays
@@ -197,66 +197,55 @@ struct ShowRowTests {
         #expect(CGFloat(rows) / drawn.scale >= 2.5)
     }
 
-    /// A tile as it lays out: the ring's room round its 67 × 44 picture, then its name's line of 14, 1 under it.
-    private static let size = CGSize(width: 74, height: 66)
-    /// Round the picture, the gap and the ring.
-    private static let room: CGFloat = 3.5
-
-    /// A tile in a window, laid out as the page lays it out.
-    private static func tile(_ choice: EdgeSettings.Show, isChosen: Bool, isOver: Bool) throws -> Drawn {
-        try inAWindow(TileFace(choice: choice, isChosen: isChosen, isOver: isOver), size: size)
+    /// A tile in a window over a mid grey, 10 clear of it all round, so its edge's shadow can be read: the picture from
+    /// (13.5, 13.5), 67 × 44, the ring's room round it, then its name.
+    private static func tile(_ choice: EdgeSettings.Show, isChosen: Bool) throws -> Drawn {
+        try inAWindow(
+            TileFace(choice: choice, isChosen: isChosen).padding(10), size: CGSize(width: 94, height: 86),
+            over: Color(white: 0.5)
+        )
     }
 
-    /// Along the picture's top, clear of its corners, where the hairline runs a pixel tall at 2×; and the tile's name.
-    private static let hairline = (row: Int(room * 2), columns: 60..<88)
-    private static let name = CGRect(x: 10, y: 52, width: 54, height: 14)
+    /// How much darker than the ground the edge leaves each pixel at 2×, 1 to 8 out from the picture, round
+    /// Appearance's unchosen thumbnails in a capture of System Settings on macOS 26: (32,33,42), (33,35,43),
+    /// (34,36,45), (35,37,46), (36,37,47), (36,38,48), (36,38,48), then the card's (37,39,49), alike on all four sides.
+    private static let appearancesEdge: [CGFloat] = [0.144, 0.111, 0.080, 0.055, 0.040, 0.024, 0.024, 0]
 
-    /// The hairline is white at `alpha` over the strip's picture there: each channel within 2 levels of 255 of the two
-    /// mixed, as the bitmap holds them.
-    private static func expectHairline(_ drawn: Drawn, alpha: CGFloat) throws {
-        let picture = try inAWindow(
-            EdgePicture(show: .strip).frame(width: 67, height: 44).padding(room).frame(maxHeight: .infinity, alignment: .top),
-            size: size
-        )
+    /// How much darker than the ground each pixel `steps` out from `edge`, a pixel on the picture's edge, is.
+    private static func darkening(_ drawn: Drawn, from edge: (x: Int, y: Int), by step: (x: Int, y: Int)) throws -> [CGFloat] {
+        let ground = try #require(drawn.bitmap.colorAt(x: 1, y: 1)).redComponent
 
-        for x in hairline.columns {
-            let under = try #require(picture.bitmap.colorAt(x: x, y: hairline.row))
-            let lined = try #require(drawn.bitmap.colorAt(x: x, y: hairline.row))
+        return try (1...8).map { out in
+            let pixel = try #require(drawn.bitmap.colorAt(x: edge.x + out * step.x, y: edge.y + out * step.y))
 
-            for (lined, under) in zip(lined.channels, under.channels) {
-                #expect(abs(lined - (alpha + under * (1 - alpha))) * 255 <= 2)
+            return 1 - pixel.redComponent / ground
+        }
+    }
+
+    /// Round a picture not chosen, its edge as Appearance draws its unchosen thumbnails': a soft shadow, darkest at
+    /// the picture, gone 4 out, alike on every side, so with no offset; no hairline.
+    @Test func aPictureNotChosenStandsOnAppearancesSoftShadow() throws {
+        let drawn = try Self.tile(.strip, isChosen: false)
+        // the picture's edges, in pixels: left 27, right 160, top 27, foot 114; down its side at 71, across at 47
+        let sides: [(edge: (x: Int, y: Int), step: (x: Int, y: Int))] = [
+            ((27, 71), (-1, 0)), ((160, 71), (1, 0)), ((47, 27), (0, -1)), ((47, 114), (0, 1)),
+        ]
+
+        for side in sides {
+            for (drawn, appearance) in zip(try Self.darkening(drawn, from: side.edge, by: side.step), Self.appearancesEdge) {
+                #expect(abs(drawn - appearance) < 0.015)
             }
         }
     }
 
-    /// Under the pointer a tile not chosen lifts its hairline from white at 15% to 40%, and its name from the secondary
-    /// colour to the label colour; nothing else changes: the picture inside the hairline is drawn the same to the pixel.
-    @Test func underThePointerOnlyTheHairlineAndTheNameLift() throws {
-        let away = try Self.tile(.strip, isChosen: false, isOver: false)
-        let over = try Self.tile(.strip, isChosen: false, isOver: true)
-        // inside the hairline, clear of the corners, whose continuous curve runs 8 along each edge
-        let inside = [
-            CGRect(x: Self.room + 1, y: Self.room + 8, width: 65, height: 28),
-            CGRect(x: Self.room + 8, y: Self.room + 1, width: 51, height: 42),
-        ]
+    /// Round the chosen picture, as round Appearance's, no shadow: its gap and what is past its ring are the ground.
+    @Test func theChosenPictureHasNoShadow() throws {
+        let drawn = try Self.tile(.notch, isChosen: true)
+        // left of the picture: the gap's pixel, then past the ring, from 7 out
+        let darkening = try Self.darkening(drawn, from: (27, 71), by: (-1, 0))
 
-        try Self.expectHairline(away, alpha: 0.15)
-        try Self.expectHairline(over, alpha: 0.4)
-        try away.expectWords(in: Self.name, .secondaryLabelColor, over: .black)
-        try over.expectWords(in: Self.name, .labelColor, over: .black)
-        for part in inside {
-            #expect(over.pixels(in: part) == away.pixels(in: part))
-        }
-    }
-
-    /// The chosen tile is drawn the same under the pointer or not: its ring, its picture and its name.
-    @Test func theChosenTileHoldsStillUnderThePointer() throws {
-        let away = try Self.tile(.notch, isChosen: true, isOver: false)
-        let over = try Self.tile(.notch, isChosen: true, isOver: true)
-        let whole = CGRect(origin: .zero, size: Self.size)
-
-        #expect(over.pixels(in: whole) == away.pixels(in: whole))
-        try over.expectWords(in: Self.name, .labelColor, over: .black)
+        #expect(darkening[0] == 0)
+        #expect(darkening[7] == 0)
     }
 }
 
@@ -291,7 +280,8 @@ extension Drawn {
         }
     }
 
-    /// Each run of pixels in `pixels` more than 4 levels of 255 from `ground` in any channel.
+    /// Each run of pixels in `pixels` more than 4 levels of 255 lighter than `ground` in any channel, or more than 8
+    /// darker: the shade an unchosen picture's shadow casts on the card, 3 levels at most, counts as the ground.
     private func spans(
         _ pixels: Range<Int>, unlike ground: NSColor, at color: (Int) -> NSColor?
     ) -> [ClosedRange<CGFloat>] {
@@ -301,7 +291,7 @@ extension Drawn {
         for pixel in pixels.lowerBound...pixels.upperBound {
             let colour = pixel < pixels.upperBound ? color(pixel)?.usingColorSpace(.sRGB) : nil
 
-            if let colour, zip(colour.channels, ground.channels).contains(where: { abs($0 - $1) * 255 > 4 }) {
+            if let colour, zip(colour.channels, ground.channels).contains(where: { ($0 - $1) * 255 > 4 || ($1 - $0) * 255 > 8 }) {
                 first = first ?? pixel
             } else if let start = first {
                 spans.append(CGFloat(start) / scale ... CGFloat(pixel) / scale)
