@@ -5,7 +5,7 @@
  * two, so a take-back and the turn's end racing never both win, and never
  * lose the message.
  */
-import type { On } from 'claude-code'
+import type { On, SessionEndReason } from 'claude-code'
 import { expect, test, tier } from 'claude-code/testing'
 import { parseEntries, parsePresence, type SessionPaths } from '../core'
 import { QUIET_MS } from '../hooks/deliver'
@@ -358,6 +358,7 @@ test('send: once submitted it cannot be taken back: the control is gone, and Rea
   expect(w.state.inFlight).toMatchObject({ isHeld: false, isTaken: false })
   expect(await ui.find({ key: TAKE_BACK })).toBeUndefined()
   expect(await ui.find({ type: 'Text', text: '⧗ Sending.' })).toBeDefined()
+  expect(sendingIn(w, paths), 'still on its way').toBeDefined()
 
   turn.end()
   await ended
@@ -459,19 +460,119 @@ test("a load that finds the send held between turns, its last load's going cut s
   expectWrittenOnce(w, paths, 'send')
 })
 
-test('a send held as the conversation ends goes as it ends, and is written into its session though the window holds none', async ($, on) => {
+test("a send left held between turns, its update as the turn ended refused, goes at the window's next look, once", async ($, on) => {
+  const w = world($, on)
+  let isRefused = true
+
+  on('state.set', { plugin: 'sitrep', key: 'inFlight' }, ($, e, next) =>
+    isRefused && (e.value as SitrepInFlight | null)?.isHeld === false
+      ? { deny: 'the update failed' }
+      : next(e),
+  )
+
+  const { paths, ui, claim } = await replying.send(w)
+
+  await w.turnStarts('Carry on.')
+  await claim()
+  await turnEnded(w)
+  expect(w.submitted).toEqual([])
+  expect(await ui.find({ key: TAKE_BACK }), 'still held').toBeDefined()
+
+  isRefused = false
+  await w.clock.advance(WATCH_MS)
+  expectWrittenOnce(w, paths, 'send')
+
+  await w.clock.advance(QUIET_MS + 4 * WATCH_MS)
+  expectWrittenOnce(w, paths, 'send')
+})
+
+test('nothing in flight, a load, a turn and its end, and the looks write no claim; a claim held while a turn runs, the looks leave unwritten', async ($, on) => {
+  const w = world($, on)
+  const { claim } = await replying.send(w)
+
+  await w.turnStarts('Carry on.')
+  await turnEnded(w)
+  await w.clock.advance(4 * WATCH_MS)
+  expect(w.writes.inFlight).toBeUndefined()
+
+  await w.turnStarts('Carry on.')
+  await claim()
+
+  const claimed = w.writes.inFlight
+
+  await w.clock.advance(4 * WATCH_MS)
+  expect(claimed).toBe(1)
+  expect(w.writes.inFlight).toBe(claimed)
+})
+
+/** The conversation ending, for `reason`. */
+const ending = (reason: SessionEndReason) => ({ reason, sessionId: W1, resume: { id: W1 } })
+
+test('a send held as a /clear ends the conversation goes into the next, and is written into its session though the window holds none', async ($, on) => {
   const w = world($, on)
   const { paths, claim } = await replying.send(w)
 
   await w.turnStarts('Carry on.')
   await claim()
-  await $.session.end({ reason: 'clear', sessionId: W1, resume: { id: W1 } })
+  await $.session.end(ending('clear'))
   await w.clock.settle()
 
   expect(w.state.attachment ?? null).toBeNull()
   expect(w.submitted).toEqual([MESSAGE])
   expect(kindsIn(w, paths)).toEqual(WRITTEN.send)
   expect(w.state.inFlight).toBeNull()
+})
+
+for (const reason of ['resume', 'prompt_input_exit', 'logout', 'other'] as const) {
+  test(`a send held as the conversation ends for ${reason}, no conversation of its own going on, is let go as a take-back lets it go: nothing submitted, its replies in Ready to send as they were`, async ($, on) => {
+    const w = world($, on)
+    const { paths, claim } = await replying.send(w)
+    const queued = w.state.queue
+
+    await w.turnStarts('Carry on.')
+    await claim()
+    await $.session.end(ending(reason))
+    await w.clock.advance(QUIET_MS + WATCH_MS)
+
+    expect(w.state.inFlight).toBeNull()
+    expect(w.submitted).toEqual([])
+    expect(w.state.queue).toEqual(queued)
+    expect(kindsIn(w, paths)).toEqual(['ask'])
+  })
+}
+
+test("inbox: a message held as the conversation ends for a resume is let go, its letters left unmarked in the inbox", async ($, on) => {
+  const w = world($, on)
+  const { paths, claim } = await replying.inbox(w)
+
+  await w.turnStarts('Carry on.')
+  await claim()
+  await $.session.end(ending('resume'))
+  await w.clock.settle()
+
+  expect(w.state.inFlight).toBeNull()
+  expect(w.submitted).toEqual([])
+  expect(kindsIn(w, paths)).toEqual(['ask'])
+  expect(w.files.has(paths.letters(SENDER))).toBe(true)
+})
+
+test('a send submitted and not yet taken as the conversation ends for an exit is Claude Code’s: it is left on its way, its claim unwritten', async ($, on) => {
+  const w = world($, on)
+  const { claim } = await replying.send(w)
+  const turn = w.holdPrompts()
+
+  void claim()
+  await turn.arrived
+
+  const claimed = w.writes.inFlight
+
+  await $.session.end(ending('prompt_input_exit'))
+  await w.clock.settle()
+
+  expect(w.state.inFlight).toMatchObject({ isHeld: false, isTaken: false })
+  expect(w.writes.inFlight).toBe(claimed)
+
+  turn.end()
 })
 
 test('inbox: a held message offers no take-back, though the window holds it as it holds a send', async ($, on) => {

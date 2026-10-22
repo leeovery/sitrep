@@ -37,10 +37,8 @@ test("a reload mid-send says the claim in the load's first heartbeat, so no read
     inFlight: LEFT,
   }
 
-  // What the last load left, at the version this engine stands at, never
-  // written here: an update over it lands, as it would over the last load's.
   on('state.get', { plugin: 'sitrep', key: ['attachment', 'inFlight'] }, ($, e, next) =>
-    e.key in left ? { value: { value: left[e.key], version: 0 } } : next(e),
+    e.key in left ? { value: { value: left[e.key], version: 1 } } : next(e),
   )
   on('state.set', { plugin: 'sitrep', key: ['attachment', 'inFlight'] }, ($, e, next) => {
     delete left[e.key]

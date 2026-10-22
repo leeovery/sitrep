@@ -35,7 +35,7 @@ import { actionsOf } from './actions'
 import { captured, heardSurvey } from './answering'
 import { lookAround, lookEvery } from './around'
 import { clipOf, heardRows, revealFocus, scrollList } from './clip'
-import { carryOn, heardTurn, isBoardMessage, takeUpDelivery } from './deliver'
+import { carryOn, conversationEnded, heardTurn, isBoardMessage, takeUpDelivery } from './deliver'
 import {
   heardAgentTurnEnd,
   heardCheck,
@@ -256,7 +256,7 @@ export const register: Register = on => {
     // The last load's timers are gone: what it had pulsing or flashing comes to rest.
     await host.state.pulse.write({ asks: [], frames: 0 })
     await host.state.flash.write(0)
-    await takeUpDelivery(host).catch(logFailure(host, 'writing down the replies Claude has'))
+    await takeUpDelivery(host).catch(logFailure(host, 'taking up the message in flight'))
     await $.command.register({
       name: 'sitrep',
       description: 'Open the sitrep board: where this session stands, and what waits on you.',
@@ -392,7 +392,7 @@ export const register: Register = on => {
 
     await serially(() => letGo(host)).catch(logFailure(host, 'letting go of the attached session'))
     await heardConversationEnd(host)
-    await carryOn(host)
+    await conversationEnded(host, e.reason === 'clear')
 
     return next(e)
   }).catch(($, e, next) => next(e))

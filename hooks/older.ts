@@ -6,9 +6,9 @@
  * shown in full its `doneInFull`; read through these, the window keeps its
  * session, its place on the board, what waits in Ready to send and what is
  * on its way. Writes are in today's names only, so each value is read in the
- * old ones only until this load first writes it. A message in flight a load
- * from before the window held one left was submitted as it was claimed, and
- * reads as held no more.
+ * old ones only until this load first writes it. A load from before the
+ * window held messages submitted each as it claimed it, so a message in
+ * flight it left reads as not held.
  */
 import type {
   SitrepAnswering,

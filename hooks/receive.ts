@@ -12,13 +12,15 @@
  * behind a turn of Claude's whose tool calls take that turn too. A message
  * it claims while Claude is mid-turn the window holds until the turn ends,
  * as it holds a send, though with no take-back: Lee sent those replies from
- * elsewhere. While a message is in flight a look submits nothing, and
- * writes down one Claude Code took whose writing failed.
+ * elsewhere. While a message is in flight a look takes in nothing more: it
+ * writes down one Claude Code took whose writing failed, and sends one the
+ * window still holds between turns, as after an update at the turn's end
+ * that failed. A look finding it held while a turn runs writes nothing.
  */
 import type { Timer } from 'claude-code'
 import { boardMessage, toDeliver, type Reply, type ReplyBody } from '../core'
 import { sessionOf } from './board'
-import { deliver, writeTaken } from './deliver'
+import { deliver, sendHeld, writeTaken } from './deliver'
 import { logFailure, type Host } from './host'
 import { WATCH_MS } from './window'
 
@@ -33,12 +35,14 @@ const lineOf = ({ id, item, verdict, option, note }: Reply): ReplyBody => ({
   note,
 })
 
-/** Submits the inbox replies waiting for the held session, when this window delivers them and no message is in flight. */
+/** Submits the inbox replies waiting for the held session, when this window delivers them and no message is in flight; or carries on the message in flight. */
 const receive = async (host: Host) => {
   const inFlight = await host.state.inFlight.read()
 
   if (inFlight !== null) {
-    return writeTaken(host)
+    await (inFlight.isHeld ? sendHeld(host) : writeTaken(host))
+
+    return
   }
 
   // Only now the board: one read before a send's claim ended may predate its

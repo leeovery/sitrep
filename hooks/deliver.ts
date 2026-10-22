@@ -36,7 +36,7 @@ import { writeInto } from './into'
 import { isCarried } from './queue'
 import { LINGER_MS, tickAfter } from './scene'
 import { postKnown } from './seen'
-import { attached, isHoldOn, refresh, sayInFlight, serially } from './window'
+import { attached, flightNow, isHoldOn, refresh, sayInFlight, serially } from './window'
 
 /** The name Claude Code knows the mod by: what a prompt it submitted carries as its origin. */
 const PLUGIN = 'sitrep'
@@ -173,8 +173,6 @@ const linesOf = (session: Session, delivery: SitrepInFlight): Body[] =>
         delivery.replies.map(reply => reply.id),
       )
 
-const isHeld = (delivery: SitrepInFlight) => isHoldOn(attached(), delivery)
-
 /** Writes through the hold, so its own text stays in step: lines Claude knows of. False when the session no longer folds. */
 const writeHeld = async (host: Host, delivery: SitrepInFlight) => {
   const session = await refresh(host)
@@ -196,7 +194,7 @@ const writeHeld = async (host: Host, delivery: SitrepInFlight) => {
  */
 const writeDown = async (host: Host, delivery: SitrepInFlight) => {
   const isThere = await serially(() =>
-    isHeld(delivery)
+    isHoldOn(attached(), delivery)
       ? writeHeld(host, delivery)
       : writeInto(host, delivery, session => linesOf(session, delivery)),
   )
@@ -212,15 +210,23 @@ const writeDown = async (host: Host, delivery: SitrepInFlight) => {
   }
 }
 
-/** Marks the message in flight taken where `isIt` names it, and writes it down; nothing when it was heard already, or is held, never submitted. */
+/**
+ * Marks the message in flight taken where `isIt` names it, and writes it
+ * down; nothing when it was heard already, or is held, never submitted, and
+ * no write where the window knows of no such message, as at a turn
+ * starting with another prompt.
+ */
 const heard = async (host: Host, isIt: (current: SitrepInFlight) => boolean) => {
+  const isHeard = (current: SitrepInFlight | null): current is SitrepInFlight =>
+    current !== null && !current.isHeld && !current.isTaken && isIt(current)
   let taken: SitrepInFlight | undefined
 
+  if (!isHeard(await flightNow(host))) {
+    return
+  }
+
   await changeFlight(host, current => {
-    taken =
-      current !== null && !current.isHeld && !current.isTaken && isIt(current)
-        ? { ...current, isTaken: true }
-        : undefined
+    taken = isHeard(current) ? { ...current, isTaken: true } : undefined
 
     return taken ?? current
   })
@@ -273,44 +279,69 @@ const quietFor = (host: Host, waiting: SitrepInFlight) => {
 }
 
 /**
- * Carries the message in flight on, while the main conversation is between
- * turns as the window has heard it, and not while a turn runs, stopped on
- * Lee or not: one the window holds goes, a single update ending the hold,
- * so a take-back racing it lands first or finds it gone; and one submitted
- * and not taken, now or before, is let go once `QUIET_MS` pass with no turn
- * starting. The submit is not waited on: a hook waiting on its own submit
+ * Submits the message the window holds, should the main conversation be
+ * between turns as the window has heard it, and not while a turn runs,
+ * stopped on Lee or not: a single update ends the hold, so a take-back
+ * racing it lands first or finds it gone, and its quiet counts from the
+ * submit. With nothing held, as the window knows its claim, it writes
+ * nothing. The submit is not waited on: a hook waiting on its own submit
  * never ends, and one made as a turn ends starts a turn of its own about
- * 13 ms later (a live probe).
+ * 13 ms later (a live probe). Whether it submitted one.
  *
- * Run at the claim, as a turn of the main conversation ends however it ends
- * (answered, stopped by Lee, failed, refused), as the conversation ends,
- * and as a load starts.
+ * Run at the claim, and at each look, for a message still held between
+ * turns: its update as the turn ended failed, or no load ran it then.
  */
-export const carryOn = async (host: Host) => {
+export const sendHeld = async (host: Host) => {
   const isBetween = await betweenTurns(host)
+
+  if (!isBetween() || (await flightNow(host))?.isHeld !== true) {
+    return false
+  }
+
   let going: SitrepInFlight | undefined
 
-  const after = await changeFlight(host, current => {
+  await changeFlight(host, current => {
     going = current?.isHeld === true && isBetween() ? { ...current, isHeld: false } : undefined
 
     return going ?? current
   })
 
-  if (after !== null && !after.isHeld && !after.isTaken && isBetween()) {
-    quietFor(host, after)
+  if (going === undefined) {
+    return false
   }
 
-  if (going !== undefined) {
-    void submit(host, going).catch(logFailure(host, 'submitting the message'))
+  quietFor(host, going)
+  void submit(host, going).catch(logFailure(host, 'submitting the message'))
+
+  return true
+}
+
+/**
+ * Carries the message in flight on as the main conversation comes to be
+ * between turns: a turn of it ending however it ends (answered, stopped by
+ * Lee, failed, refused), a `/clear`, or a load starting. One the window
+ * holds goes (`sendHeld`); one submitted before and not taken is let go
+ * once `QUIET_MS` pass with no turn starting. Nothing while a turn runs.
+ */
+export const carryOn = async (host: Host) => {
+  if (await sendHeld(host)) {
+    return
+  }
+
+  const waiting = await flightNow(host)
+  const isBetween = await betweenTurns(host)
+
+  if (waiting?.isHeld === false && !waiting.isTaken && isBetween()) {
+    quietFor(host, waiting)
   }
 }
 
 /**
- * Claims the window's one message in flight, held, and carries it on: it
- * goes at once while the main conversation is between turns, else as the
- * turn ends. `claimed` runs once it is claimed, before it is submitted, so
- * it never waits on Claude's turn or on Claude Code taking it. Gives back
- * the message already in flight, when one is, and then claims nothing.
+ * Claims the window's one message in flight, held, and sends it at once
+ * while the main conversation is between turns, else as the turn ends.
+ * `claimed` runs once it is claimed, before it is submitted, so it never
+ * waits on Claude's turn or on Claude Code taking it. Gives back the
+ * message already in flight, when one is, and then claims nothing.
  */
 export const deliver = async (
   host: Host,
@@ -336,26 +367,55 @@ export const deliver = async (
   }
 
   await claimed().catch(logFailure(host, 'what follows a claimed send'))
-  await carryOn(host)
+  await sendHeld(host)
 
   return undefined
 }
 
 /**
- * Takes back Lee's send while the window still holds it, unsubmitted: the
- * claim let go, its replies in Ready to send as they were before it, and
- * its asks waiting on Lee again. One update decides it against the send
- * going, so a send submitted already stays, as does the inbox's message,
- * which Lee sent from elsewhere. Whether it was taken back.
+ * Lets go of the message the window holds, unsubmitted, where `isIt` picks
+ * it: its replies left as they were, a send's in Ready to send and the
+ * inbox's in the inbox, and its asks waiting on Lee again. One update
+ * decides it against the message going, so one submitted already stays;
+ * where the window knows of none held, nothing is written. Whether it let
+ * one go.
  */
-export const takeBack = async (host: Host) => {
-  const isBack = await endIf(host, current => current.source === 'send' && current.isHeld)
+const letGoHeld = async (host: Host, isIt: (current: SitrepInFlight) => boolean) => {
+  const isPicked = (current: SitrepInFlight | null): current is SitrepInFlight =>
+    current?.isHeld === true && isIt(current)
 
-  if (isBack) {
+  if (!isPicked(await flightNow(host))) {
+    return false
+  }
+
+  const isLet = await endIf(host, isPicked)
+
+  if (isLet) {
     await foldAgain(host)
   }
 
-  return isBack
+  return isLet
+}
+
+/** Takes back Lee's send while the window still holds it; never the inbox's message, which Lee sent from elsewhere. Whether it was taken back. */
+export const takeBack = (host: Host) => letGoHeld(host, current => current.source === 'send')
+
+/**
+ * The conversation ending, which ends any turn of it. After a `/clear` the
+ * process goes on with the next conversation, so the message the window
+ * holds goes into it, as a prompt queued across a `/clear` goes in after.
+ * Any other end leaves no conversation for it: a resume puts another in
+ * this one's place, which its replies are not for, and an exit or a logout
+ * ends the process. So there it is let go, as a take-back lets it go, and
+ * nothing is submitted. One submitted already is Claude Code's, its quiet
+ * counted as at a turn's end.
+ */
+export const conversationEnded = async (host: Host, isCleared: boolean) => {
+  if (!isCleared) {
+    await letGoHeld(host, () => true)
+  }
+
+  await carryOn(host)
 }
 
 /**
@@ -383,8 +443,9 @@ export const writeTaken = async (host: Host) => {
  * A load starting: no quiet of an earlier one runs on, a message it left
  * taken is written down, and one it left otherwise is carried on, still
  * held while a turn runs. The heartbeat learns the message in flight from
- * the window's first need of it (window.ts), never from this read, which is
- * as old as the load's first hook and may predate a send claimed since.
+ * the window's first need of it (window.ts), never from `writeTaken`'s
+ * read, which is as old as the load's first hook and may predate a send
+ * claimed since.
  */
 export const takeUpDelivery = async (host: Host) => {
   quiet?.cancel()

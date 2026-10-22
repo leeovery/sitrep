@@ -918,9 +918,9 @@ Dropped for now (11 October 2026): a macOS notification for asks. Back on
   it was claimed, whether the window still holds it, and whether Claude Code
   has taken it. The replies' ids are fixed at the claim: a send's are made
   then; the inbox's are the replies whose lines the message holds, no
-  others. While it is in flight a look submits nothing, and a send says it
-  waits for the inbox's replies. A claim an older load left, which submitted
-  as it claimed, reads as held no more.
+  others. While it is in flight a look takes in nothing more, and a send
+  says it waits for the inbox's replies. A claim an older load left, which
+  submitted as it claimed, reads as held no more.
 - **Held while Claude is mid-turn** (22 October 2026, Lee's choice: "Hold
   the reply in SitRep and send it as the turn ends."). Every message the
   window claims, a send or the inbox's, it holds while the main
@@ -933,9 +933,23 @@ Dropped for now (11 October 2026): a macOS notification for asks. Back on
   as the last one ends, keeps it held to that turn's end. Whether a turn
   runs is what the window has heard (its `activity`, under "Storage"), read
   at the moment the claim is updated. A load that finds a message held
-  keeps holding it while a turn runs, and submits it at once between turns;
-  and the conversation's end, which ends any turn, submits it, as a prompt
-  queued across a `/clear` goes in after.
+  keeps holding it while a turn runs, and submits it at once between turns.
+  So does each look (the inbox's, every 1.5 seconds), should the message
+  still be held between turns: the update as the turn ended failed, or no
+  load ran it then. A look finding it held while a turn runs, or finding
+  nothing held, writes nothing. A turn's end that no load heard leaves the
+  turn running as the window has heard it, and the message held, until the
+  next turn ends; the window's state says the same of it.
+  - The conversation's end ends any turn of it, but only a `/clear` goes on
+    in this process with a next conversation, so only a `/clear` submits a
+    held message, into that conversation, as a prompt queued across a
+    `/clear` goes in after. Any other end lets it go, as a take-back does,
+    submitting nothing, its replies left as they were (a send's in Ready to
+    send, the inbox's in the inbox): a resume puts another conversation in
+    this one's place, which those replies are not for, and an exit, a
+    logout, or a `-p` run's end or a signal ends the process. One submitted
+    already is Claude Code's: it waits to be heard as at a turn's end, let
+    go as never taken should no turn start.
   - Why: a send submitted mid-turn waited in Claude Code's own queue, and
     no API takes a prompt back out of it. Dropping one at its
     `prompt.submit` as the turn ended showed a notice, and left any prompt

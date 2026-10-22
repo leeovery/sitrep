@@ -92,9 +92,10 @@ const readFlight = async (host: Host, since: number) => {
 /**
  * The message in flight as this load knows it: read from `$.state` the first
  * time, so a load's first heartbeat says a send an earlier load left in
- * flight. A read that fails is tried again at the next beat.
+ * flight, and a load sends one an earlier load left held. A read that fails
+ * is tried again at the next need.
  */
-const flightNow = async (host: Host) => {
+export const flightNow = async (host: Host) => {
   if (flight === undefined) {
     await readFlight(host, changes)
   }
