@@ -174,22 +174,29 @@ export const createReader = (): Reader => {
     )
   }
 
-  /** A session's files under one layout, `top` its folder's listing. */
+  /**
+   * A session's files under one layout, `first` its folder's listing. The
+   * heartbeats are read before everything else, and the folder listed again
+   * after them where it has any: a window writes a send's lines down before
+   * its heartbeat stops saying the send, so lines read after the heartbeat
+   * miss nothing it no longer says.
+   */
   const filesIn = async (
     host: Host,
     folder: SessionFolder,
-    top: readonly FsEntry[],
+    first: readonly FsEntry[],
   ): Promise<FolderFiles> => {
-    const [inbox = [], presence = []] = await Promise.all(
-      [folder.inbox, folder.presence].map(path => listedIn(host, folder.dir, top, path)),
-    )
+    const beats = await listedIn(host, folder.dir, first, folder.presence)
+    const presence = await byWriter(host, folder.presence, beats, PRESENCE_SUFFIX)
+    const top = beats.length === 0 ? first : await listed(host, folder.dir)
+    const inbox = await listedIn(host, folder.dir, top, folder.inbox)
     const meta = entryAt(top, folder.dir, folder.meta, 'file')
 
     return {
       meta: (meta === undefined ? undefined : await textOf(host, folder.meta, meta)) ?? '',
       logs: await byWriter(host, folder.dir, top, LOG_SUFFIX),
       inbox: await byWriter(host, folder.inbox, inbox, LOG_SUFFIX),
-      presence: await byWriter(host, folder.presence, presence, PRESENCE_SUFFIX),
+      presence,
     }
   }
 

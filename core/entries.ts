@@ -8,7 +8,7 @@
  * shape (see versions.ts).
  */
 import { ASK_KINDS, WANTS } from './shapes'
-import type { AskKind, Body, Entry, Finisher, Verdict, Wants } from './types'
+import type { AskKind, Body, Entry, Finisher, SentReply, Verdict, Wants } from './types'
 import { upgraded, versionOf, type Raw, type Upgrade } from './versions'
 
 /** How a line of each past version is brought to the next: none yet, the format being at its first. */
@@ -131,6 +131,19 @@ const WHOLE: Partial<Record<Body['type'], (raw: Raw) => boolean>> = {
 const isType = (value: unknown): value is Body['type'] =>
   typeof value === 'string' && Object.hasOwn(SHAPES, value)
 
+/** The fields `shape` checks, as `raw` holds them, those beyond them dropped; undefined where one does not read. */
+const fieldsIn = (shape: Record<string, Check>, raw: Raw): Raw | undefined => {
+  const fields = Object.entries(shape)
+
+  if (!fields.every(([key, check]) => check(raw[key]))) {
+    return undefined
+  }
+
+  return Object.fromEntries(
+    fields.flatMap(([key]) => (raw[key] === undefined ? [] : [[key, raw[key]]])),
+  )
+}
+
 /** A line's entry in today's shape, or undefined for a line that is torn, bad, or of a kind or version this reader does not know. */
 const decode = (line: string): Entry | undefined => {
   const raw = parseVersioned(line, UPGRADES)
@@ -139,22 +152,18 @@ const decode = (line: string): Entry | undefined => {
     return undefined
   }
 
-  const fields = Object.entries(SHAPES[raw.type])
+  const fields = fieldsIn(SHAPES[raw.type], raw)
 
-  if (!fields.every(([key, check]) => check(raw[key])) || WHOLE[raw.type]?.(raw) === false) {
+  if (fields === undefined || WHOLE[raw.type]?.(raw) === false) {
     return undefined
   }
 
-  const entry: Raw = { v: raw.v, at: raw.at, seq: raw.seq, type: raw.type }
-
-  for (const [key] of fields) {
-    if (raw[key] !== undefined) {
-      entry[key] = raw[key]
-    }
-  }
-
-  return entry as Entry
+  return { v: raw.v, at: raw.at, seq: raw.seq, type: raw.type, ...fields } as Entry
 }
+
+/** A reply as a message in flight carries it, read as a reply line's fields are; undefined where one does not read. */
+export const parseSentReply = (value: unknown): SentReply | undefined =>
+  isObject(value) ? (fieldsIn(SHAPES.reply, value) as SentReply | undefined) : undefined
 
 /**
  * Every entry a file's text holds, in file order. A line it holds twice,

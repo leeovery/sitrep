@@ -8,8 +8,10 @@
  * (`sendable`): one to an item closed, or holding another answer of Lee's,
  * stays in Ready to send, saying why.
  *
- * A message sent while Claude is mid-turn waits for that turn to end, so a
- * send can wait minutes; the replies it carries stay frozen in the queue.
+ * A message sent while Claude is mid-turn the window holds until that turn
+ * ends, which can take minutes, and Lee can take it back until then
+ * (deliver.ts); the replies it carries stay frozen in the queue, and taken
+ * back are there as they were.
  */
 import { boardMessage } from '../core'
 import { deliver, STILL_THERE } from './deliver'
@@ -54,11 +56,11 @@ const sendHere = async (host: Host, claimed: () => Promise<void>): Promise<Here>
   }
 
   const { session, held } = here
-  const queue = await host.state.queue.read()
-  const message = boardMessage(session, sendable(session, queue))
+  const [queue, inFlight] = await Promise.all([host.state.queue.read(), host.state.inFlight.read()])
+  const message = boardMessage(session, sendable(session, queue, inFlight))
 
   if (message === undefined) {
-    return { is: 'none', left: leftOut(session, queue) }
+    return { is: 'none', left: leftOut(session, queue, inFlight) }
   }
 
   const ahead = await deliver(

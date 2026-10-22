@@ -7,7 +7,7 @@ import type { On } from 'claude-code'
 import { expect, test, tier, type Engine } from 'claude-code/testing'
 import { metaText, sessionPaths, type SessionMeta } from '../core'
 import { fromOlder } from '../hooks/older'
-import type { SitrepPane, SitrepProject } from '../types'
+import type { SitrepInFlight, SitrepPane, SitrepProject } from '../types'
 import { file, META, resolve, T0, W1, W2, yesAsk, type Line } from './support'
 import { CONVERSATION, PROJECT, ROOT, world } from './world'
 
@@ -124,6 +124,7 @@ test('every other slot an older load named otherwise reads in the names of today
     text: 'From the board',
     replies: [],
     claimedAt: T0,
+    isHeld: false,
     isTaken: false,
   }
   const answering = {
@@ -157,4 +158,22 @@ test('every other slot an older load named otherwise reads in the names of today
   expect(fromOlder.attachment(null)).toBeNull()
   expect(fromOlder.projects([project])).toEqual([project])
   expect(fromOlder.pane(pane)).toEqual(pane)
+})
+
+test('a message in flight an older load left, submitted as it was claimed, is held no more; one this load holds reads as it is', () => {
+  const held: SitrepInFlight = {
+    source: 'send',
+    project: PROJECT.key,
+    session: META.id,
+    writer: W1,
+    text: 'From the board',
+    replies: [],
+    claimedAt: T0,
+    isHeld: true,
+    isTaken: false,
+  }
+  const { isHeld: _, ...left } = held
+
+  expect(fromOlder.inFlight(left as never)).toEqual({ ...held, isHeld: false })
+  expect(fromOlder.inFlight(held)).toEqual(held)
 })

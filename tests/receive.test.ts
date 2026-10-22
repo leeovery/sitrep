@@ -50,6 +50,7 @@ const SENT: SitrepInFlight = {
   text: 'From the board:\n- Review round 1 → Approve',
   replies: [{ type: 'reply', id: 'r1', item: 'k1', verdict: 'yes' }],
   claimedAt: NOW,
+  isHeld: false,
   isTaken: true,
 }
 
@@ -93,6 +94,8 @@ const delivering = (board: Session, inFlight: SitrepInFlight | null) => {
           state.inFlight = change(state.inFlight)
         },
       },
+      // Nothing heard: the window between turns, so a message claimed goes at once.
+      activity: { get: async () => ({ value: undefined, version: 0 }) },
     },
     prompt: {
       submit: async (text: string) => {

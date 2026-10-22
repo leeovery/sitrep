@@ -66,8 +66,8 @@ const take = async (host: Host, session: Session) => {
   let left: LeftOut[] = []
 
   await host.state.queue.update(waiting => {
-    taken = sendable(session, waiting).filter(reply => !isCarried(inFlight, reply))
-    left = leftOut(session, waiting)
+    taken = sendable(session, waiting, inFlight).filter(reply => !isCarried(inFlight, reply))
+    left = leftOut(session, waiting, inFlight)
 
     return afterSend(waiting, taken)
   })

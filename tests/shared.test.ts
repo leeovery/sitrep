@@ -262,27 +262,61 @@ test("a reply queued to an ask the CLI's answer reached first is not carried: Cl
   expect(await ui.find({ type: 'Text', text: '· not sent: already answered' })).toBeDefined()
 })
 
-test("an answer the CLI writes while the window's send waits out Claude's turn never goes in: Claude has the send's answer, its mark the record of it, and the CLI's goes void", async ($, on) => {
+test("while the window's send waits out Claude's turn, the CLI reads its answer on its way from the claim: `board --json` says so, `list` counts nothing waiting, and a second answer is refused", async ($, on) => {
+  const w = world($, on)
+  const { cli } = await begun(w)
+  const { asked, ui } = await sidebarAsked(w)
+
+  await ui.press({ key: `choose:${w.item(asked)}:0` })
+  await w.turnStarts('Carry on.')
+  await ui.press({ key: 'send' })
+  await w.clock.advance(MIN)
+  expect(await replyIn(cli)).toMatchObject({
+    asks: [{ is: 'onItsWay', isAnswer: true, words: '→ Keep it' }],
+    resolved: [],
+  })
+  expect(JSON.parse((await besideWindows(w).run('list', '--json')).out)).toMatchObject({
+    projects: [{ waiting: 0, works: [{ waiting: 0 }] }],
+  })
+
+  const second = await cli('answer', asked, 'Drop it')
+
+  expect(second.exit).toBe(EXIT.refused)
+  expect(second.err).toContain(`An answer to ${asked} is on its way already.`)
+  expect(w.prompts, 'held for the turn to end').toEqual([])
+
+  await w.turnEnds()
+  await w.clock.advance(4 * WATCH_MS)
+
+  expect(w.prompts.map(prompt => prompt.text)).toEqual([
+    'From the board:\n- Keep the sidebar? → Keep it',
+  ])
+  expect(await replyIn(cli)).toMatchObject({
+    asks: [],
+    resolved: [{ is: 'delivered', words: '→ Keep it' }],
+  })
+})
+
+test("an answer reaching the inbox while the window's send waits out Claude's turn never goes in: Claude has the send's answer, its mark the record of it, and the inbox's goes void", async ($, on) => {
   const w = world($, on)
   const { paths, cli } = await begun(w)
   const { asked, ui } = await sidebarAsked(w)
-  const turn = w.holdPrompts()
 
   await ui.press({ key: `choose:${w.item(asked)}:0` })
-
-  const pressed = ui.press({ key: 'send' })
-
-  await turn.arrived
+  await w.turnStarts('Carry on.')
+  await ui.press({ key: 'send' })
   await w.clock.advance(MIN)
-  expect((await cli('answer', asked, 'Drop it')).exit).toBe(EXIT.done)
+  w.put(
+    paths.letters(WRITER),
+    file([w.clock.now(), reply('r9', asked, 'choose', { option: 'Drop it' })]),
+  )
   await w.clock.advance(TAKE_IN)
   expect(
     await ui.find({ type: 'Text', text: /not sent/ }),
     'the reply the send carries is going',
   ).toBeUndefined()
 
-  turn.end()
-  await pressed
+  await w.turnEnds()
   await w.clock.advance(4 * WATCH_MS)
 
   const [letter] = parseEntries(w.text(paths.letters(WRITER))).map(line => 'id' in line && line.id)
@@ -309,6 +343,9 @@ test("an answer landing as the window's send reads the board, unseen by it, goes
 
   const claimed = w.clock.now()
 
+  // The send's read lists the session's folder twice, before its heartbeats
+  // and after them: the letter lands once the second has taken its view.
+  w.after('list', paths.dir, () => {})
   w.after('list', paths.dir, async () => {
     await w.clock.set(claimed + 2)
     w.put(

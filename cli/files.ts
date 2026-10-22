@@ -112,22 +112,33 @@ export const heartbeatsIn = async (io: Io, folder: SessionFolder) => {
   }
 }
 
+/** Whether a folder's listing, `entries`, shows `path` as an entry of the kind. */
+const isListed = (dir: string, entries: readonly Listed[], path: string, kind: Listed['kind']) =>
+  entries.some(entry => entry.kind === kind && `${dir}/${entry.name}` === path)
+
 /**
  * A session's folder under one layout, as its listing shows it: its meta
  * read, and its inbox and presence listed, only where it lists them, as the
  * mod's readers read. A folder the session is not filed in costs one look.
+ * The heartbeats are read before everything else, and the folder listed
+ * again after them where it has any: a window writes a send's lines down
+ * before its heartbeat stops saying the send, so lines read after the
+ * heartbeat miss nothing it no longer says.
  */
 const filesIn = async (io: Io, folder: SessionFolder): Promise<FolderFiles> => {
-  const top = await io.fs.list(folder.dir)
-  const isListed = (path: string, kind: Listed['kind']) =>
-    top.some(entry => entry.kind === kind && `${folder.dir}/${entry.name}` === path)
+  const first = await io.fs.list(folder.dir)
+  const hasBeats = isListed(folder.dir, first, folder.presence, 'dir')
+  const presence = hasBeats
+    ? await byWriter(io, folder.presence, await io.fs.list(folder.presence), PRESENCE_SUFFIX)
+    : {}
+  // A folder the move emptied and removed since is not there: its files are under today's layout, read after.
+  const top = hasBeats ? await io.fs.list(folder.dir).catch((): Listed[] => []) : first
   const within = async (dir: string, suffix: string) =>
-    isListed(dir, 'dir') ? byWriter(io, dir, await io.fs.list(dir), suffix) : {}
-  const [meta = '', logs, inbox, presence] = await Promise.all([
-    isListed(folder.meta, 'file') ? textAt(io, folder.meta) : undefined,
+    isListed(folder.dir, top, dir, 'dir') ? byWriter(io, dir, await io.fs.list(dir), suffix) : {}
+  const [meta = '', logs, inbox] = await Promise.all([
+    isListed(folder.dir, top, folder.meta, 'file') ? textAt(io, folder.meta) : undefined,
     byWriter(io, folder.dir, top, LOG_SUFFIX),
     within(folder.inbox, LOG_SUFFIX),
-    within(folder.presence, PRESENCE_SUFFIX),
   ])
 
   return { meta, logs, inbox, presence }

@@ -6,7 +6,9 @@
  * shown in full its `doneInFull`; read through these, the window keeps its
  * session, its place on the board, what waits in Ready to send and what is
  * on its way. Writes are in today's names only, so each value is read in the
- * old ones only until this load first writes it.
+ * old ones only until this load first writes it. A load from before the
+ * window held messages submitted each as it claimed it, so a message in
+ * flight it left reads as not held.
  */
 import type {
   SitrepAnswering,
@@ -22,8 +24,13 @@ import type {
 } from '../types'
 import { RESOLVED_KEY } from './draw/earlier'
 
-/** What an older load named otherwise: a session as its `work`, a project's sessions as its `works`, RESOLVED in full as `doneInFull`. */
-type Older = { work?: string; works?: SitrepProject['sessions']; doneInFull?: string | null }
+/** What an older load named otherwise: a session as its `work`, a project's sessions as its `works`, RESOLVED in full as `doneInFull`; and what it left out: a message in flight's hold. */
+type Older = {
+  work?: string
+  works?: SitrepProject['sessions']
+  doneInFull?: string | null
+  isHeld?: boolean
+}
 
 /** What an older load opened a closed ask by, as DONE's, where this load has RESOLVED's. */
 const DONE_KEY = 'done:'
@@ -51,6 +58,12 @@ const project = (read: SitrepProject): SitrepProject => {
     : { ...(rest as SitrepProject), sessions: works }
 }
 
+/** A message in flight in today's names, held only where it says so. */
+const inFlight = (kept: SitrepInFlight): SitrepInFlight => ({
+  ...sessionRef(kept),
+  isHeld: asOlder(kept).isHeld ?? false,
+})
+
 const selected = (key: string | null) =>
   key?.startsWith(DONE_KEY) ? `${RESOLVED_KEY}${key.slice(DONE_KEY.length)}` : key
 
@@ -72,7 +85,7 @@ export const fromOlder = {
   projects: (read: SitrepProject[]) => read.map(project),
   queue: (queued: SitrepQueued[]) => queued.map(sessionRef),
   sent: (sent: SitrepSent[]) => sent.map(sessionRef),
-  inFlight: orNull<SitrepInFlight>(sessionRef),
+  inFlight: orNull(inFlight),
   pane,
   scroll: orNull<SitrepScroll>(kept => ({ ...kept, place: placeOf(kept.place) })),
   answering: orNull<SitrepAnswering>(sessionRef),

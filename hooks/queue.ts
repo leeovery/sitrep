@@ -5,9 +5,11 @@
  * the window holds, and a send knows where to write it.
  *
  * The held session's replies a send carries stay in the queue, frozen, until
- * Claude Code has taken the message. Replies a send wrote into another
- * session's inbox have left the queue: sent, not yet delivered. Ready to send
- * shows where they went until Claude has them, and a while after.
+ * Claude Code has taken the message, or Lee takes the send back while the
+ * window holds it, which leaves them as they were. Replies a send wrote into
+ * another session's inbox have left the queue: sent, not yet delivered.
+ * Ready to send shows where they went until Claude has them, and a while
+ * after.
  */
 import {
   barredBy,
@@ -92,24 +94,34 @@ export const answered = (session: Session, reply: SitrepQueued): Ask | Parked | 
 /** Why a send leaves a queued reply in Ready to send: its item changed past it, or is gone; or holds another answer of Lee's, or closed (`Barred`). */
 export type LeftOut = 'changed' | Barred
 
-/** Why a send leaves a queued reply; undefined for one it carries: one that fits its item, which takes it now. */
-const whyLeft = (session: Session, reply: SitrepQueued): LeftOut | undefined => {
+/** Why a send leaves a queued reply; undefined for one it carries: one that fits its item, which takes it now, or that a send in flight carries already (`heldBack`). */
+const whyLeft = (
+  session: Session,
+  reply: SitrepQueued,
+  inFlight: SitrepInFlight | null,
+): LeftOut | undefined => {
   const item = answered(session, reply)
 
-  return item === undefined ? 'changed' : barredBy(item, reply.verdict)
+  return item === undefined ? 'changed' : heldBack(inFlight, item, reply)
 }
 
 /**
  * A session's replies a send carries. One whose item changed under it, or
  * closed, or holds another answer of Lee's on its way, stays in Ready to
  * send, unsent: Claude has one answer to an item, the first to reach it.
+ * One a send in flight carries is never held back by its own answer, on its
+ * way from the claim.
  */
-export const sendable = (session: Session, queue: Queue) =>
-  queuedFor(queue, session.id).filter(reply => whyLeft(session, reply) === undefined)
+export const sendable = (session: Session, queue: Queue, inFlight: SitrepInFlight | null) =>
+  queuedFor(queue, session.id).filter(reply => whyLeft(session, reply, inFlight) === undefined)
 
 /** Why a send leaves each of a session's replies it does not carry. */
-export const leftOut = (session: Session, queue: Queue): LeftOut[] =>
-  queuedFor(queue, session.id).flatMap(reply => whyLeft(session, reply) ?? [])
+export const leftOut = (
+  session: Session,
+  queue: Queue,
+  inFlight: SitrepInFlight | null,
+): LeftOut[] =>
+  queuedFor(queue, session.id).flatMap(reply => whyLeft(session, reply, inFlight) ?? [])
 
 /** The replies as lines of the session, each with an id unlike any the session uses. */
 export const replyBodies = (session: Session, replies: Queue): ReplyBody[] => {

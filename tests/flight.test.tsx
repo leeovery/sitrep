@@ -11,11 +11,11 @@
  * short, left here as the message taken but not written down.
  */
 import { expect, test, tier } from 'claude-code/testing'
-import { parseEntries, type SessionPaths } from '../core'
+import { HEARTBEAT_MS, parseEntries, parsePresence, sessionPaths, type SessionPaths } from '../core'
 import { QUIET_MS } from '../hooks/deliver'
 import { WATCH_MS } from '../hooks/window'
 import { file, MIN, reply, SENDER, SLOW, W1 } from './support'
-import { postedId, PROJECT, CONVERSATION, startedId, world } from './world'
+import { postedId, PROJECT, CONVERSATION, ROOT, startedId, world } from './world'
 
 tier('user')
 
@@ -258,4 +258,160 @@ test('a message whose writing a reload cut short is written into its own session
   expect(w.state.attachment?.session).toBe(startedId(themes))
   expect(w.state.board?.replies).toEqual([])
   expect(w.state.inFlight).toBeNull()
+})
+
+/** What the window's heartbeat says it sends its session. */
+const sendingIn = (w: World, paths: SessionPaths) =>
+  parsePresence(w.text(paths.heartbeat(W1)), W1)?.sending
+
+/** The band's count of what waits on Lee in this session, where it says `text`. */
+const asksOnBand = async (w: World, text: string) =>
+  (await w.band()).find({ key: 'band:asks', text })
+
+/** This session with a review asked, Lee's yes to it queued a minute on, and send pressed while Claude is mid-turn, the window holding the message for the turn to end. */
+const sentHeld = async (w: World) => {
+  const { paths } = await w.begin()
+  const id = postedId(await w.call('ask', REVIEW))
+  const ui = await w.pane()
+
+  await w.clock.advance(MIN)
+  await ui.press({ key: `yes:${w.item(id)}` })
+  await w.turnStarts('Carry on.')
+
+  const claimedAt = w.clock.now()
+
+  await ui.press({ key: 'send' })
+  await w.clock.advance(WATCH_MS)
+
+  return { paths, id, ui, claimedAt }
+}
+
+test("send: from its claim the heartbeat says the yes it carries, and the ask needs Lee no more; taken and written down, the heartbeat drops it and the session's lines carry it", async ($, on) => {
+  const w = world($, on)
+  const { paths, id, claimedAt } = await sentHeld(w)
+  const [carried] = w.state.inFlight?.replies ?? []
+
+  expect(sendingIn(w, paths)).toEqual({
+    at: claimedAt,
+    replies: [{ id: carried?.id, item: id, verdict: 'yes' }],
+  })
+  expect(w.state.board?.waiting).toBe(0)
+  expect(await asksOnBand(w, '0 asks')).toBeDefined()
+
+  await w.turnEnds()
+  await w.clock.advance(WATCH_MS)
+
+  expect(sendingIn(w, paths)).toBeUndefined()
+  expectWrittenOnce(w, paths, 'send')
+  expect(w.state.board?.waiting).toBe(0)
+})
+
+test('send refused: the heartbeat keeps no claim, and the ask waits on Lee again', async ($, on) => {
+  const w = world($, on)
+  const { paths } = await w.begin()
+  const id = postedId(await w.call('ask', REVIEW))
+  const ui = await w.pane()
+
+  w.dropPrompts('the session is closing')
+  await ui.press({ key: `yes:${w.item(id)}` })
+  await ui.press({ key: 'send' })
+  await w.clock.advance(WATCH_MS)
+
+  expect(sendingIn(w, paths)).toBeUndefined()
+  expect(w.state.board?.waiting).toBe(1)
+  expect(await asksOnBand(w, '1 ask')).toBeDefined()
+})
+
+test('send never taken: let go once the window was quiet a while, the heartbeat drops it, and the ask waits on Lee again', async ($, on) => {
+  const w = world($, on)
+  const { paths } = await sentHeld(w)
+
+  expect(sendingIn(w, paths)).toBeDefined()
+
+  const turn = w.holdPrompts()
+
+  void w.turnEnds()
+  await turn.arrived
+  turn.lose()
+  await w.clock.advance(QUIET_MS + WATCH_MS)
+
+  expect(w.state.inFlight).toBeNull()
+  expect(sendingIn(w, paths)).toBeUndefined()
+  expect(w.state.board?.waiting).toBe(1)
+})
+
+test("inbox: the heartbeat says nothing of the inbox's message, its replies on their way in the inbox already", async ($, on) => {
+  const w = world($, on)
+  const { paths, submit } = await replying.inbox(w)
+  const turn = w.holdPrompts()
+
+  submit()
+  await turn.arrived
+  await w.clock.advance(WATCH_MS)
+
+  expect(w.state.inFlight).toMatchObject({ source: 'inbox', isTaken: false })
+  expect(sendingIn(w, paths)).toBeUndefined()
+  expect(w.state.board?.waiting).toBe(0)
+
+  turn.end()
+})
+
+test('a send whose window has moved to another session is said in neither heartbeat', async ($, on) => {
+  const w = world($, on)
+  const { paths } = await sentHeld(w)
+  const themes = await w.call('start', {
+    name: 'Themes',
+    summary: 'The dark palette',
+    project: PROJECT.name,
+  })
+
+  await w.clock.advance(WATCH_MS)
+
+  expect(w.state.inFlight).toMatchObject({ source: 'send', isTaken: false })
+  expect(sendingIn(w, paths)).toBeUndefined()
+  expect(sendingIn(w, sessionPaths(ROOT, PROJECT.key, startedId(themes)))).toBeUndefined()
+})
+
+test('a load whose read of $.state predates a send claimed since keeps the newer claim in the heartbeat', async ($, on) => {
+  let isStale = false
+
+  // session.start reads $.state as it stood when its dispatch began: before the send.
+  on('state.get', { plugin: 'sitrep', key: ['inFlight'] }, ($, e, next) =>
+    isStale ? { value: { value: null, version: 0 } } : next(e),
+  )
+
+  const w = world($, on)
+  const { paths, id, claimedAt } = await sentHeld(w)
+  const [carried] = w.state.inFlight?.replies ?? []
+
+  isStale = true
+  await $.session.start(CONVERSATION)
+  isStale = false
+  await w.clock.advance(WATCH_MS)
+
+  expect(sendingIn(w, paths)).toEqual({
+    at: claimedAt,
+    replies: [{ id: carried?.id, item: id, verdict: 'yes' }],
+  })
+  expect(w.state.board?.waiting).toBe(0)
+})
+
+test('a claim another load ended leaves the heartbeat at its next beat, though this load still held it, and the ask waits on Lee again', async ($, on) => {
+  let isEnded = false
+
+  // A load a reload left running lets go of the claim in $.state: this load never hears it.
+  on('state.get', { plugin: 'sitrep', key: ['inFlight'] }, ($, e, next) =>
+    isEnded ? { value: { value: null, version: 0 } } : next(e),
+  )
+
+  const w = world($, on)
+  const { paths } = await sentHeld(w)
+
+  expect(sendingIn(w, paths)).toBeDefined()
+
+  isEnded = true
+  await w.clock.advance(HEARTBEAT_MS + WATCH_MS)
+
+  expect(sendingIn(w, paths)).toBeUndefined()
+  expect(w.state.board?.waiting).toBe(1)
 })

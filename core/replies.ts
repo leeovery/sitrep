@@ -107,7 +107,7 @@ export const askAfter = (ask: Ask, verdict: Verdict): AskState => {
 /** The reply that closed an ask, where Lee's answer closed it. */
 export const closingReply = (ask: Ask) => (ask.closedBy === 'answer' ? ask.answer : undefined)
 
-/** The reply an item waits on Claude with, sent from a board into its session's inbox: Lee's answer, else the latest comment. */
+/** The reply an item waits on Claude with, sent from a board into its session's inbox, or in a live window's message to it from the claim: Lee's answer, else the latest comment. */
 export const replyOnItsWay = (item: Ask | Parked) =>
   item.answerOnItsWay ?? item.replies.findLast(isPending)
 
@@ -130,7 +130,8 @@ export const barredBy = (item: Ask | Parked, verdict: Verdict): Barred | undefin
 
 /**
  * Whether an ask waits on Lee: open as posted, with no reply of Lee's on
- * its way to it, an answer or a comment. One Lee replied to waits on a
+ * its way to it, an answer or a comment, in its session's inbox or in a
+ * live window's message from the claim. One Lee replied to waits on a
  * window to deliver the reply, and counts nowhere as needing Lee.
  */
 export const waitsOnLee = (ask: Ask) => ask.state === 'waiting' && replyOnItsWay(ask) === undefined
@@ -141,7 +142,8 @@ export const waitingOnLee = (session: Pick<Session, 'asks' | 'finished'>): Ask[]
 
 /**
  * Where Lee's reply to an ask stands: on its way, in its session's inbox
- * until a window of the session delivers it; delivered, Claude having it;
+ * until a window of the session delivers it, or in a live window's message
+ * until it is written down; delivered, Claude having it;
  * or not delivered, Claude having closed the ask first. `since` is when it
  * was sent, delivered, or left.
  */

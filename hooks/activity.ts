@@ -13,7 +13,7 @@
  * written over, and a later load's means this load is stale (load.ts), and
  * writes no more.
  */
-import { isTime, parseActivity, QUIET, type Activity } from '../core'
+import { isBetweenTurns, isTime, parseActivity, QUIET, type Activity } from '../core'
 import type { SitrepActivity } from '../types'
 import { logFailure, type Host } from './host'
 import { isLater, isSuperseded, loadedNow, supersede } from './load'
@@ -83,6 +83,17 @@ export const activityNow = async (host: Host) => {
   await load(host)
 
   return known ?? QUIET
+}
+
+/**
+ * Whether the main conversation is between turns, as the window has heard
+ * it the moment the check is made: loaded first, so the check waits on
+ * nothing and can decide inside a `$.state` update.
+ */
+export const betweenTurns = async (host: Host) => {
+  await load(host)
+
+  return () => isBetweenTurns(known ?? QUIET)
 }
 
 /**

@@ -126,6 +126,9 @@ export type ReplyBody = {
 
 export type DeliveredBody = { type: 'delivered'; replies: string[] }
 
+/** A reply a message in flight carries, its id fixed as the message was claimed: the fields its line will hold. */
+export type SentReply = Omit<ReplyBody, 'type'>
+
 /** Who finished a session: Lee, from the board, or Claude. */
 export type Finisher = 'lee' | 'claude'
 
@@ -217,6 +220,7 @@ export type Ask = Posted & {
   answer?: Reply
   /** Lee's answer on its way to it, which bars another: at most one, as a second starts void. A comment on its way is no answer. */
   answerOnItsWay?: Reply
+  /** Lee's replies to it, oldest first, those on their way in a live window's message, not written down yet, among them at their claim's time. */
   replies: Reply[]
 }
 
@@ -330,7 +334,17 @@ export type Presence = {
   state?: WindowState
   /** When the load of the mod that wrote it began, so a load a reload superseded writes no heartbeat over a newer one's; none where the clock failed, or before heartbeats said it. */
   loadedAt?: number
+  /** Lee's replies the window's message in flight carries to this session, from its claim until it ends; none while it sends none, nor from a window that let go. */
+  sending?: Sending
 }
+
+/**
+ * Lee's replies a window sends its own session as Lee's message, published
+ * in its heartbeat from the claim until the message ends, written down or
+ * let go: on their way from the claim, as an inbox reply is. `at` is when
+ * the message was claimed.
+ */
+export type Sending = { at: number; replies: SentReply[] }
 
 /** A session as it stands, every writer's lines read together. */
 export type Session = {

@@ -732,15 +732,20 @@ test(
     })
     await expectHeightKept(ui, 'three replies, a comment of two lines among them')
 
+    await w.turnStarts('Carry on.')
+    await ui.press({ key: 'send' })
+    expect(await ui.find({ key: 'take-back' })).toBeDefined()
+    await expectHeightKept(ui, 'a send held for the turn to end, its take-back beside it')
+
     const turn = w.holdPrompts()
-    const pressed = ui.press({ key: 'send' })
+    const ended = w.turnEnds()
 
     await turn.arrived
     expect(await ui.find({ type: 'Text', text: /⧗ Sending/ })).toBeDefined()
     await expectHeightKept(ui, 'a send on its way')
 
     turn.end()
-    await pressed
+    await ended
   },
 )
 

@@ -1,8 +1,9 @@
 /**
- * Folding a session: every writer's lines, and the replies other sessions
- * left in its inbox, merged into one order (time, then writer, then a
- * writer's own file before its letters, then the count within the file)
- * and read into the board.
+ * Folding a session: every writer's lines, the replies other sessions left
+ * in its inbox, and those its live windows' messages in flight carry, not
+ * written down yet, each dated at its claim, merged into one order (time,
+ * then writer, then a writer's own file before its letters before its
+ * message in flight, then the count within each) and read into the board.
  */
 import { parseEntries } from './entries'
 import { parseMeta } from './meta'
@@ -11,7 +12,6 @@ import { deliverer, isLive, parsePresence } from './presence'
 import { parseProject, projectName } from './project'
 import {
   askAfter,
-  barredBy,
   closedReason,
   fits,
   isAnswer,
@@ -37,7 +37,9 @@ import {
   type LogLine,
   type Note,
   type Parked,
+  type Presence,
   type Reply,
+  type SentReply,
   type Status,
   type Session,
   type Voided,
@@ -56,8 +58,25 @@ export type SessionFiles = {
   presence?: Readonly<Record<string, string>>
 }
 
-/** An entry, the writer whose file it came from, and whether that file is the writer's letters in the inbox. */
-type Written = Entry & { by: string; isLetter: boolean }
+/** Where a writer's reads come from, in the order those of one moment are read: its own file, its letters in the inbox, then the replies its message in flight carries. */
+const FROM = { file: 0, letters: 1, sending: 2 } as const
+
+type From = keyof typeof FROM
+
+/** An entry, the writer whose file it came from, and whether that file is its own or its letters in the inbox. */
+type Written = Entry & { by: string; from: Exclude<From, 'sending'> }
+
+/** A reply a live window's message carries, not written down yet, read as a line of that window's dated at the claim. */
+type Carried = {
+  type: 'carried'
+  at: number
+  by: string
+  from: 'sending'
+  seq: number
+  sent: SentReply
+}
+
+type Read = Written | Carried
 
 type Fold = {
   isOpen: boolean
@@ -70,6 +89,8 @@ type Fold = {
   finished?: Finished
   /** Status and pick-up lines as derived, and notes, resolved to lines once the fold ends so edits show. */
   log: Array<LogLine | Note>
+  /** The replies carried in flight that reached their items on their way. */
+  carried: Set<Reply>
 }
 
 type Handler<T extends Body['type']> = (fold: Fold, entry: Extract<Written, { type: T }>) => void
@@ -77,14 +98,14 @@ type Handler<T extends Body['type']> = (fold: Fold, entry: Extract<Written, { ty
 const byName = <T>(files: Readonly<Record<string, T>>) =>
   Object.entries(files).sort(([a], [b]) => compareText(a, b))
 
-const written = (files: Readonly<Record<string, string>>, isLetter: boolean) =>
+const written = (files: Readonly<Record<string, string>>, from: Written['from']) =>
   byName(files).flatMap(([by, text]) =>
-    parseEntries(text).map((entry): Written => ({ ...entry, by, isLetter })),
+    parseEntries(text).map((entry): Written => ({ ...entry, by, from })),
   )
 
-/** A writer's own file and its letters count apart, so of two lines of theirs at one moment the file's comes first, whatever the counts. */
-const inOrder = (a: Written, b: Written) =>
-  a.at - b.at || compareText(a.by, b.by) || Number(a.isLetter) - Number(b.isLetter) || a.seq - b.seq
+/** A writer's own file, its letters and its message in flight count apart, so of its reads at one moment the file's come first, then the letters', whatever the counts. */
+const inOrder = (a: Read, b: Read) =>
+  a.at - b.at || compareText(a.by, b.by) || FROM[a.from] - FROM[b.from] || a.seq - b.seq
 
 /** Posts an item unless its id is taken: the first line to use an id keeps it. */
 const post = (fold: Fold, item: Item) => {
@@ -133,18 +154,43 @@ const arrived = (item: Ask | Parked, reply: Reply) => {
   }
 }
 
-/** Why a reply is void as it reaches its item; undefined while it goes on its way. */
-const voidedOnArrival = (
-  fold: Fold,
-  item: Ask | Parked,
-  reply: ReplyFields,
-): Voided | undefined => {
+/**
+ * Whether a reply is one of the session's lines, which what the lines say
+ * after it settles. A carried reply is no line yet: its line, once written,
+ * is read after everything here, so no close, finish or edit read now voids
+ * it, and nothing makes it history; only its place among the answers is
+ * its claim's.
+ */
+const isLine = (fold: Fold, reply: Reply) => !fold.carried.has(reply)
+
+/** Why an item takes a reply no more, whatever else is on its way to it: unfit, its session finished, or the item closed. */
+const refusedBy = (fold: Fold, item: Ask | Parked, reply: ReplyFields): Voided | undefined => {
   if (!fits(item, reply)) {
     return 'changed'
   }
 
-  return fold.finished === undefined ? barredBy(item, reply.verdict) : 'finished'
+  if (fold.finished !== undefined) {
+    return 'finished'
+  }
+
+  return item.closedBy === undefined ? undefined : closedReason(item)
 }
+
+/** Whether a reply that fits its item answers it, and so is Lee's answer on its way there while nothing bars it. */
+const isFittingAnswer = (item: Ask | Parked, reply: ReplyFields) =>
+  fits(item, reply) && isAnswer(item, reply.verdict)
+
+/** Why an answer is barred as it reaches its item: Lee's answer on its way there first. */
+const barredByAnswer = (item: Ask | Parked, reply: ReplyFields): Voided | undefined =>
+  isFittingAnswer(item, reply) && item.answerOnItsWay !== undefined ? 'answered' : undefined
+
+/**
+ * Why a reply is void as it reaches its item; undefined while it goes on its
+ * way. A carried reply is judged here by its place among the answers alone;
+ * whether its item takes it at all, once every line is read (`judgeCarried`).
+ */
+const voidedOnArrival = (fold: Fold, item: Ask | Parked, reply: Reply): Voided | undefined =>
+  (isLine(fold, reply) ? refusedBy(fold, item, reply) : undefined) ?? barredByAnswer(item, reply)
 
 /** A reply reaching its item at `at`, on its way or void as the item stands then: an answer on its way is Lee's answer on its way there. */
 const arrive = (fold: Fold, item: Ask | Parked, reply: Reply, at: number) => {
@@ -162,7 +208,7 @@ const arrive = (fold: Fold, item: Ask | Parked, reply: Reply, at: number) => {
   reply.voided = undefined
   reply.voidedAt = undefined
 
-  if (isAnswer(item, reply.verdict)) {
+  if (isFittingAnswer(item, reply)) {
     item.answerOnItsWay = reply
   }
 }
@@ -228,7 +274,7 @@ const voidOnItsWay = (
   isVoided: (reply: Reply) => boolean = () => true,
 ) => {
   for (const reply of item.replies) {
-    if (isPending(reply) && isVoided(reply)) {
+    if (isPending(reply) && isLine(fold, reply) && isVoided(reply)) {
       voidReply(fold, item, reply, voided, at)
     }
   }
@@ -273,7 +319,7 @@ const deliver = (fold: Fold, reply: Reply, at: number) => {
 
 /** Voids every reply not delivered that fits its item no more, one void already among them, as an edit does. */
 const voidUnfit = (fold: Fold, item: Ask | Parked, at: number) => {
-  for (const reply of item.replies) {
+  for (const reply of item.replies.filter(each => isLine(fold, each))) {
     if (reply.deliveredAt === undefined && reply.voided !== 'changed' && !fits(item, reply)) {
       voidReply(fold, item, reply, 'changed', at)
     }
@@ -314,9 +360,9 @@ const reshape = (ask: Ask, { wants, kind }: EditBody['changes']) => {
 }
 
 /** An item opening again: where it stood closed, every reply then settled, void or delivered, is history from here; one on its way stays live. */
-const reopen = (item: Item, at: number) => {
+const reopen = (fold: Fold, item: Item, at: number) => {
   if (item.type !== 'note' && item.closedBy !== undefined) {
-    for (const reply of item.replies.filter(each => !isPending(each))) {
+    for (const reply of item.replies.filter(each => !isPending(each) && isLine(fold, each))) {
       reply.isHistory = true
     }
   }
@@ -417,7 +463,7 @@ const HANDLERS: { [T in Body['type']]: Handler<T> } = {
     const item = fold.items.get(id)
 
     if (item !== undefined) {
-      reopen(item, at)
+      reopen(fold, item, at)
       item.reason = reason
     }
   },
@@ -497,7 +543,33 @@ const HANDLERS: { [T in Body['type']]: Handler<T> } = {
   },
 }
 
-const take = (fold: Fold, entry: Written) => {
+/**
+ * A reply a live window's message carries, taking its place among its
+ * item's answers at its claim's time: on its way from the claim, as an
+ * inbox reply is, so Lee's answer among them bars any later one, whatever
+ * its source, and is barred by any earlier, until that one goes void.
+ */
+const carry = (fold: Fold, { sent, by, at }: Carried) => {
+  const item = fold.items.get(sent.item)
+
+  if (item === undefined || item.type === 'note') {
+    return
+  }
+
+  const reply: Reply = { ...sent, by, at, delivery: 'waiting' }
+
+  fold.carried.add(reply)
+  item.replies.push(reply)
+  arrive(fold, item, reply, at)
+}
+
+const take = (fold: Fold, entry: Read) => {
+  if (entry.type === 'carried') {
+    carry(fold, entry)
+
+    return
+  }
+
   const handle = HANDLERS[entry.type] as Handler<Body['type']>
 
   if ('id' in entry) {
@@ -528,6 +600,79 @@ const logOf = (fold: Fold) =>
       return line.state === 'open' ? [noteLine(line)] : []
     })
     .reverse()
+
+/**
+ * The replies live windows' messages carry to the session, claimed and not
+ * written down yet, each read as a line of its window's dated at the claim.
+ * One whose line is written by now is that line, read once. None is a reply
+ * of the session's own: no inbox delivers it, and its id is no line's.
+ */
+const carriedIn = (presence: readonly Presence[], lines: readonly Written[], now: number) => {
+  const ids = new Set(lines.flatMap(line => ('id' in line ? [line.id] : [])))
+
+  const carried = ({ writer, sending }: Presence): Carried[] =>
+    sending === undefined
+      ? []
+      : sending.replies
+          .filter(sent => !ids.has(sent.id))
+          .map((sent, i) => ({
+            type: 'carried',
+            at: sending.at,
+            by: writer,
+            from: 'sending',
+            seq: i + 1,
+            sent,
+          }))
+
+  return presence.filter(each => isLive(each, now)).flatMap(carried)
+}
+
+/**
+ * Whether what barred a carried answer stands no more once every line is
+ * read: nothing on its way to the item, and the item open, the answer that
+ * barred it gone void, or delivered and its item reopened since.
+ */
+const isReleased = (item: Ask | Parked, reply: Reply) =>
+  reply.voided === 'answered' && item.answerOnItsWay === undefined && item.closedBy === undefined
+
+/** When what refused a carried reply happened: the session's finish, the item's last edit, or its close. */
+const refusedAt = (fold: Fold, item: Ask | Parked, voided: Voided) => {
+  switch (voided) {
+    case 'finished':
+      return fold.finished?.at
+    case 'changed':
+      return item.editedAt
+    default:
+      return item.closedAt
+  }
+}
+
+/**
+ * The carried replies judged once every line is read, against their items
+ * as their lines will find them when written down, which is later than all
+ * of it, in the order they took their places among the answers. One barred
+ * by an answer that stands no more comes back. One still on its way that
+ * its item takes no more goes void, and what it barred reaches the item
+ * again, as of what refused it, to be judged in its turn. A close, a
+ * finish or an edit the lines have since undone leaves it on its way. Then
+ * every carried reply void, barred or refused, leaves its item's replies:
+ * no line of it is written yet to settle anything.
+ */
+const judgeCarried = (fold: Fold, item: Ask | Parked) => {
+  for (const reply of item.replies.filter(each => !isLine(fold, each))) {
+    if (isReleased(item, reply)) {
+      arrive(fold, item, reply, reply.at)
+    }
+
+    const refused = isPending(reply) ? refusedBy(fold, item, reply) : undefined
+
+    if (refused !== undefined) {
+      voidReply(fold, item, reply, refused, refusedAt(fold, item, refused) ?? reply.at)
+    }
+  }
+
+  item.replies = item.replies.filter(reply => isLine(fold, reply) || isPending(reply))
+}
 
 const presenceOf = (files: Readonly<Record<string, string>>, pauses: readonly Pause[]) =>
   byName(files).flatMap(([writer, text]) => {
@@ -566,15 +711,25 @@ export const foldSession = (
     early: new Map(),
     ids: new Set(),
     log: [],
+    carried: new Set(),
   }
-  const letters = written(files.inbox ?? {}, true).filter(entry => entry.type === 'reply')
-  const entries = [...written(files.logs, false), ...letters].sort(inOrder)
+  const letters = written(files.inbox ?? {}, 'letters').filter(entry => entry.type === 'reply')
+  const lines = [...written(files.logs, 'file'), ...letters].sort(inOrder)
 
-  for (const entry of entries) {
+  const updatedAt = Math.max(meta.created, lines.at(-1)?.at ?? 0)
+
+  for (const entry of [...lines, ...carriedIn(presence, lines, now)].sort(inOrder)) {
     take(fold, entry)
   }
 
   const items = [...fold.items.values()]
+
+  for (const item of items) {
+    if (item.type !== 'note') {
+      judgeCarried(fold, item)
+    }
+  }
+
   const asks = items.filter(isAsk)
 
   return {
@@ -595,6 +750,6 @@ export const foldSession = (
     waiting: waitingOnLee({ asks, finished: fold.finished }).length,
     finished: fold.finished,
     ids: fold.ids,
-    updatedAt: Math.max(meta.created, entries.at(-1)?.at ?? 0),
+    updatedAt,
   }
 }

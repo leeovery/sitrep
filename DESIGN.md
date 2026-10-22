@@ -167,21 +167,36 @@ notch and its panel").
 
   An ask waits on Lee until Lee replies to it (20 October 2026): once a
   reply of Lee's to it is on its way, an answer or a comment, in its
-  session's inbox from the pane or the SitRep window, Lee has responded: it
-  waits on a window to deliver the reply, and then on Claude, not on Lee,
-  and counts nowhere on Lee's surfaces as needing Lee: not in a session's or
-  a project's waiting, on the tabs or the band, in `list` or `board --json`,
-  nor in `watch`'s head and rows, so the notch does not swell for it. Its
-  session's state is then what its windows make it: an away one with nothing
-  else waiting leaves the panel and the strip, and shows in the SitRep
-  window. The ask itself still shows among its session's asks, saying its
-  reply is on its way, until the delivered mark settles it; an ask whose
-  reply went void waits on Lee again, as does one whose reply reached Claude
-  after an edit it no longer fits (see "Which replies go in", under
+  session's inbox from the pane or the SitRep window, or, sent from the
+  pane to its own session, in that window's message from the moment it is
+  claimed (22 October 2026), Lee has responded: it waits on a window to
+  deliver the reply, and then on Claude, not on Lee, and counts nowhere on
+  Lee's surfaces as needing Lee: not in a session's or a project's waiting,
+  on the tabs or the band, in `list` or `board --json`, nor in `watch`'s
+  head and rows, so the notch does not swell for it. Its session's state is
+  then what its windows make it: an away one with nothing else waiting
+  leaves the panel and the strip, and shows in the SitRep window. The ask
+  itself still shows among its session's asks, saying its reply is on its
+  way, until the delivered mark settles it; an ask whose reply went void
+  waits on Lee again, as does one whose reply reached Claude after an edit
+  it no longer fits (see "Which replies go in", under Delivery), and one
+  whose own session's message was let go, taken back by Lee, refused or
+  never taken, or whose window is gone before it was written down (see
   Delivery). A comment on its way bars no answer: the ask still offers its
   buttons. Core's `waitsOnLee` decides it. It still keeps its session
   current, as an ask waiting on Lee does, however long the answer waits for
   a window.
+
+  Lee saw why on 22 October 2026: answering an ask while Claude was
+  mid-turn, the reply sat in Claude Code's queue for minutes, and the card
+  kept the ask in Needs you until the turn ended and the message was taken.
+  A message to its own session is claimed in the window's `$.state`, which
+  no other reader sees, so the window's heartbeat says the replies it
+  carries, from the claim until the claim ends (`sending`, under "Storage"),
+  and every reader folds them in as replies on their way. The window now
+  holds such a message itself while Claude is mid-turn, where Lee can take
+  it back, and submits it as the turn ends (see Delivery); it is on its way
+  from the claim all the same.
 
   What Claude is told follows what Claude has been given, so everything
   Claude reads (the board text, the first message's listing and its counts,
@@ -776,11 +791,23 @@ one below the fold brings its item into view; a click never moves the list
 
 On an inline pane (the phone layout) a send closes the pane as soon as it
 is claimed: the message to this session claimed, or, with none, the replies
-written into other sessions' inboxes. It never waits for Claude Code to take
-the message, which can take minutes while Claude is mid-turn. A send that
-Claude Code refuses still toasts and leaves its replies queued, and the
-pane, opened again, shows them; a send that sent nothing leaves the pane
-open. A docked pane stays open.
+written into other sessions' inboxes. It never waits for Claude's turn to
+end, which can take minutes, nor for Claude Code to take the message. A
+send that Claude Code refuses still toasts and leaves its replies queued,
+and the pane, opened again, shows them; a send that sent nothing leaves the
+pane open. A docked pane stays open.
+
+**Taking a send back** (22 October 2026). While the window holds Lee's send
+for Claude's turn to end (see Delivery), Ready to send says so where send
+and cancel all were, `⧗ Waiting for Claude's turn to end.`, with
+`↺ take back` beside it; the replies it carries stay above it, frozen, and
+their asks say `on its way`. Taking it back lets go of its claim: its
+replies are in the queue as they were before the send, each with its `✕`,
+`↺ undo` and `✎ edit` again, its asks wait on Lee again at once, and send
+sends them again. Once the window has submitted it, it is Claude Code's,
+and nothing takes it back out of Claude Code's queue: the line says
+`⧗ Sending.` and the take-back is gone. The inbox's message offers none:
+Lee sent its replies from elsewhere.
 
 A group sent into another session's inbox stays in the box, its replies out
 of the queue, until Claude has them all, and 10 minutes after, so
@@ -858,9 +885,13 @@ Dropped for now (11 October 2026): a macOS notification for asks. Back on
 **The board never claims Claude knows something it was not told.**
 
 - Replies for **this** session are sent as Lee's own message
-  (`$.prompt.submit`, `asUser`), marked "From the board:". The board changes
-  only once Claude Code takes it; a refused send leaves every reply in place.
-  If Claude is mid-turn the message waits for that turn to end.
+  (`$.prompt.submit`, `asUser`), marked "From the board:". Its lines are
+  written only once Claude Code takes it; a refused send leaves every reply in
+  place. If Claude is mid-turn the window holds the message until that turn
+  ends, and Lee can take it back until then (below). From its claim, though,
+  its replies are **on their way** to every reader (22 October 2026), as an
+  inbox reply is: the window's heartbeat says them (`sending`, under
+  "Storage") until the claim ends.
 - Replies for **another** session go into that session's inbox in the shared
   folder, and so do the SitRep window's answers, through `sitrep answer` (see
   "One engine, two front ends"). The sitrep mod in that session's window
@@ -868,7 +899,7 @@ Dropped for now (11 October 2026): a macOS notification for asks. Back on
   agents, which Claude would give less weight). It writes back a delivered
   mark.
   - open and idle: in within a second or two;
-  - mid-turn: waits for the turn to end;
+  - mid-turn: the window holds it until the turn ends;
   - no window open: waits in the inbox, goes in when the session is joined
     again.
 - The send box shows each destination's state (`✓ delivered`, `⧗ waiting for its
@@ -884,14 +915,115 @@ Dropped for now (11 October 2026): a macOS notification for asks. Back on
   send, or the inbox. It is claimed in `$.state` before it is submitted, and
   holds its source, the session it goes to (project and session), the writer
   that claimed it, the text exactly as submitted, the replies it carries, when
-  it was claimed, and whether Claude Code has taken it. The replies' ids are
-  fixed at the claim: a send's are made then; the inbox's are the replies
-  whose lines the message holds, no others. While it is in flight a look
-  submits nothing, and a send says it waits for the inbox's replies.
-- **Taken** is heard from the submit resolving with no drop, or from a turn
-  starting whose text is the message's; whichever comes first marks it taken
-  and writes it down. A load that starts with a message taken but not written
-  down writes it down.
+  it was claimed, whether the window still holds it, and whether Claude Code
+  has taken it. The replies' ids are fixed at the claim: a send's are made
+  then; the inbox's are the replies whose lines the message holds, no
+  others. While it is in flight a look takes in nothing more, and a send
+  says it waits for the inbox's replies. A claim an older load left, which
+  submitted as it claimed, reads as held no more.
+- **Held while Claude is mid-turn** (22 October 2026, Lee's choice: "Hold
+  the reply in SitRep and send it as the turn ends."). Every message the
+  window claims, a send or the inbox's, it holds while the main
+  conversation is mid-turn, and submits once it is between turns: at once
+  when it is at the claim, else as the turn ends, however it ends
+  (`turn.complete` without an `agentId`: answered, stopped by Lee, failed on
+  an API error, or refused). A turn stopped on a permission prompt or a
+  question still runs, and a subagent's turn is not the main
+  conversation's, so neither lets it go; a turn that starts before it goes,
+  as the last one ends, keeps it held to that turn's end. Whether a turn
+  runs is what the window has heard (its `activity`, under "Storage"), read
+  at the moment the claim is updated. A load that finds a message held
+  keeps holding it while a turn runs, and submits it at once between turns.
+  So does each look (the inbox's, every 1.5 seconds), should the message
+  still be held between turns: the update as the turn ended failed, or no
+  load ran it then. A look finding it held while a turn runs, or finding
+  nothing held, writes nothing. A turn's end that no load heard leaves the
+  turn running as the window has heard it, and the message held, until the
+  next turn ends; the window's state says the same of it.
+  - The conversation's end ends any turn of it, but only a `/clear` goes on
+    in this process with a next conversation, so only a `/clear` submits a
+    held message, into that conversation, as a prompt queued across a
+    `/clear` goes in after. Any other end lets it go, as a take-back does,
+    submitting nothing, its replies left as they were (a send's in Ready to
+    send, the inbox's in the inbox): a resume puts another conversation in
+    this one's place, which those replies are not for, and an exit, a
+    logout, or a `-p` run's end or a signal ends the process. One submitted
+    already is Claude Code's: it waits to be heard as at a turn's end, let
+    go as never taken should no turn start.
+  - Why: a send submitted mid-turn waited in Claude Code's own queue, and
+    no API takes a prompt back out of it. Dropping one at its
+    `prompt.submit` as the turn ended showed a notice, and left any prompt
+    queued behind it in the transcript, unanswered (a probe, Claude Code
+    2.1.308). Holding it in the window takes nothing from Claude Code's
+    queue, shows no notice, and strands nothing.
+  - The probe: a `$.prompt.submit` made from a `turn.complete` hook, not
+    awaited there, started its own turn about 13 ms later; a hook awaiting
+    its own submit never ends. So the window submits a held message from the
+    hook and waits on none of it there.
+  - **Taken back.** While the window holds Lee's send, Ready to send offers
+    to take it back (see "Ready to send"): its claim is let go, its replies
+    stay in the queue as they were, the heartbeat says them no more, and
+    the held session is folded again at once, so their asks wait on Lee
+    again at once. One update of the claim in `$.state` decides between
+    taken back and submitting, so a take-back and the turn's end racing
+    never both win: the take-back lands first and nothing is submitted, or
+    the turn's end does and the take-back finds the send submitted, and
+    lets it be. Submitted, it is Claude Code's, and cannot be taken back.
+    The inbox's message offers no take-back: Lee sent those replies from
+    elsewhere.
+- **Its replies on their way from the claim** (22 October 2026). A send's
+  replies are in no file until they are written down, and its claim is in
+  the window's `$.state`, which no other reader sees, so every change to the
+  claim rewrites the window's heartbeat, which says the replies a send to
+  the session it holds carries (`sending`) from the claim until the claim
+  ends, written down or let go. A load's first heartbeat says the send
+  `$.state` holds, so a reload mid-send never drops it for a moment. Every
+  reader folds them in among the session's lines. Their place among the
+  answers is their claim's: each is read as a line of its window's dated at
+  the claim (after the window's own file and letters at that moment), so the
+  first answer on its way bars any later, whatever its source: an inbox
+  answer written after the claim is barred by it and one written before bars
+  it, of two windows' sends the earlier claim wins, and one is held back
+  only by an answer that still stands once every line is read, on its way or
+  settling the item as it now stands: one barred by an answer that went void
+  since, or that was delivered and its item reopened since, comes back on
+  its way; a comment bars nothing. Whether its item takes it at all is
+  judged as the item stands once every line is read, since its line, once
+  written, is read after all of them: nothing the lines say while the send
+  waits voids it, so a close, a finish or an edit undone since (a reopen, an
+  unfinish, an edit back) leaves it on its way, and the ask takes no second
+  answer, while one that still stands (the item closed, the session
+  finished, the reply fitting the item no more) leaves it out, what it
+  barred reaching the item again as of what left it out. While on its way,
+  an answer or a comment, the ask waits on Lee no more. One whose line is
+  written by then is that line, so between the lines going down and the
+  claim ending nothing reads twice and nothing drops out, every reader, the
+  mod's and the CLI's, reading a session's heartbeats before its lines, and
+  listing its folder again after them: a window writes the lines down before
+  its heartbeat stops saying the send, so lines read after the heartbeat
+  miss nothing it no longer says. They are no reply of the session's own: no
+  inbox delivers them, and Claude's reads (the board text, `toldSummary`)
+  still have the ask waiting on Lee until it is delivered. The inbox's
+  message says nothing there, its replies on their way in the inbox already;
+  nor does a send to a session the window no longer holds, whose heartbeat
+  there let go. Taken back, refused or never taken, the claim ends and the
+  ask waits on Lee again, the window folding its session again at once
+  rather than at the watch's next look, after its heartbeat stops saying
+  the send; the window gone, its heartbeat goes stale and the same follows,
+  within 90 seconds. The window itself keeps the claim it last set for its
+  heartbeat, reading `$.state` the first time a load needs it and again at
+  each beat, and taking what it reads only where the load has not changed
+  the claim since the read's dispatch began: a hook's dispatch, a tool
+  call's or the load's first, reads `$.state` as it stood when the dispatch
+  began, which may predate a send claimed since; and another load, one a
+  reload left running, may end or let go of the claim, which the next beat
+  then drops.
+- **Taken** is heard, once it is submitted, from the submit resolving with
+  no drop, or from a turn starting whose text is the message's; whichever
+  comes first marks it taken and writes it down. A message the window still
+  holds is never taken: a turn starting with its text is some other prompt.
+  A load that starts with a message taken but not written down writes it
+  down.
 - **Written down** in the session it went to, whatever the window holds by
   then: through the hold when the window still holds that session as that
   writer, so the hold's own text stays in step; else into that writer's file
@@ -901,15 +1033,19 @@ Dropped for now (11 October 2026): a macOS notification for asks. Back on
   again, so writing down twice writes once. A write that fails is tried again
   at the next look.
 - **Refused** (a drop, or a throw): let go at once, its replies left as they
-  were; the next look, or Lee's next send, tries again.
+  were, and its asks wait on Lee again; the next look, or Lee's next send,
+  tries again.
 - **Never taken** (Lee deleted the queued prompt, or the submit was lost): let
-  go once the window has gone quiet without it, 30 seconds after a turn of
-  the main conversation (or the conversation) ended with no turn starting
-  since. A queued prompt goes in as the turn before it ends, its own turn
-  starting about 40 ms after (live), once the prompt's hooks have run; so a
-  message still unheard by then was never going in, and letting it go never
-  sends it twice. A send's replies are back in Ready to send, and a toast
-  says so; the inbox's wait for the next look.
+  go once the window has gone quiet without it, 30 seconds after its submit,
+  or after a later end of a turn of the main conversation (or of the
+  conversation) or a load's start, with no turn starting since; never while
+  the window still holds it, however long the turn it waits out. A prompt
+  submitted between turns starts its own turn about 13 ms after (a probe),
+  and one queued goes in as the turn before it ends, its own turn starting
+  about 40 ms after (live), once the prompt's hooks have run; so a message
+  still unheard by then was never going in, and letting it go never sends
+  it twice. A send's replies are back in Ready to send, their asks waiting
+  on Lee again, and a toast says so; the inbox's wait for the next look.
 - **Which replies go in** (20 October 2026) is the fold's to say, every
   reader alike, each reply dated as it is written down and read in the order
   every reader reads in. A reply that closes its item, a yes, a choice, an
@@ -1290,6 +1426,26 @@ $XDG_STATE_HOME/sitrep/, else ~/.local/state/sitrep/
     no pane and announces nothing (the board Claude is told it has seen
     holds no presence at all). Core's parse still reads it, for `sitrep
     watch`.
+  - `sending` (22 October 2026) is the replies the window's message carries
+    to the session, from a send's claim until the claim ends (see "Its
+    replies on their way from the claim", under Delivery), each as its line
+    will hold it, with when the message was claimed:
+
+    ```
+    "sending": { "at": 1760000005000,
+                 "replies": [{ "id": "q7rx", "item": "k3f9",
+                               "verdict": "choose", "option": "Keep it" }] }
+    ```
+
+    A reply's words go whole, a note of several lines too, so the boards
+    show it as they show an inbox reply (`board --json`'s `reply`, the
+    pane's `+3 lines`). It is read field by field: a reply that does not
+    read as a reply line's fields do is dropped, and `sending` with no time,
+    or with no reply that reads, is none; the heartbeat is kept. It is
+    rewritten at once as the claim changes, through the window's serialised
+    writes, and said again on every beat; a window that lets go says none.
+    The mod's boards leave it out as they leave `state`, the replies it says
+    showing on their items.
   - Each load of the mod stamps its heartbeat with `loadedAt`, when it
     loaded (session.start, its first hook, reads the clock once), and reads
     the heartbeat file before rewriting it: once the file carries a later
@@ -1322,7 +1478,10 @@ $XDG_STATE_HOME/sitrep/, else ~/.local/state/sitrep/
     is stale, and it writes neither `$.state` nor the heartbeat again.
 - Readers list and `stat` the folder every second or two (a mod cannot watch
   files) and read only what changed; each session's read lists its project's
-  folder too, so a rename shows on every pane within a look. The sessions
+  folder too, so a rename shows on every pane within a look. A session's
+  heartbeats are read before its lines, its folder listed again after them
+  where it has any (22 October 2026: one more listing a look, so a send
+  handed from a heartbeat to the lines is never missed). The sessions
   around the held one are read every 5 seconds, each through its reader:
   they are glanced at, not watched. Every project is read, the pane open
   or closed, for the band's `elsewhere` and the All projects tab: each look
@@ -1452,8 +1611,13 @@ truth. There is still no background service. None of it is built now. Lee:
     turn completes, the prompt starts a turn of its own and the call
     resolves as it starts. A hook holding the turn (`tool.call`,
     `command.run`, or a timer one of them started, while that hook runs) is
-    refused the call, so the pane submits from its send button's own
-    handler.
+    refused the call, so the pane claims from its send button's own
+    handler, and submits there while Claude is between turns. Since 22
+    October 2026 the window holds a message claimed mid-turn rather than
+    submit it to wait (see Delivery), and submits it from the `turn.complete`
+    hook, never waiting on it there: a hook awaiting its own submit never
+    ends, while one not awaited starts its turn about 13 ms after the last
+    ends (a probe, 2.1.308).
   - The mod's own `prompt.submit` hook does not see a prompt the mod
     submitted from a button's handler or a timer (live, and in the test
     kit); from its `ui.press` hook it does. Either way the pane's own
@@ -1490,6 +1654,10 @@ truth. There is still no background service. None of it is built now. Lee:
     and was marked once; a send of this window's own reply, made while
     Claude ran a 40-second command, with `/reload-plugins` typed during it,
     went in after the reload and was written exactly once, closing its ask.
+    The window now holds a message claimed mid-turn, so a reload mid-turn
+    finds it held: the new load keeps holding it, and submits it as the turn
+    ends, or at once should it find the window between turns. What the
+    probes settled holds for one submitted as the turn ended.
   - The test kit cannot load a fresh copy of the mod: a test's reload runs
     `session.start` again in the same module, its variables kept. Everything
     a reload must carry over lives in `$.state`, so the tests model each
@@ -1624,6 +1792,7 @@ truth. There is still no background service. None of it is built now. Lee:
       choose from: answer it in Claude Code's prompt.`); an ask closed (`k1 is
       already closed.`) or ignored (`k4 is already ignored.`); one with
       another answer of Lee's on its way already, from the pane or the CLI,
+      a pane's send to its own session from its claim (22 October 2026),
       since an ask takes no second answer, as the pane offers none (`An
       answer to k1 is on its way already.`), though a comment on its way bars
       none, as on the pane; an answer the ask does not take (`k2 wants a
@@ -1666,9 +1835,12 @@ truth. There is still no background service. None of it is built now. Lee:
       it, where Lee's reply was still on its way then, or reached it after:
       it never goes in, as a pane's send to a closed ask does not, and the
       card can say so. An open ask reads `onItsWay` once a reply is in the
-      inbox, not yet delivered, since it was written, Lee's answer before a
-      comment where both are; else `delivered` where Claude has an answer
-      the ask, edited under it, no longer takes (it waits on Lee again);
+      inbox, not yet delivered, since it was written, or in a live window's
+      message to its own session, since that was claimed (22 October 2026;
+      see "Its replies on their way from the claim", under Delivery), Lee's
+      answer before a comment where both are; else `delivered` where Claude
+      has an answer the ask, edited under it, no longer takes (it waits on
+      Lee again);
       else `null`, with none sent, one gone void as its ask was edited under
       it before Claude had it (the ask can be answered again), or only a
       comment Claude has. `words` is the reply as the board shows it on one
