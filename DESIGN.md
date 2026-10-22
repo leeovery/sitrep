@@ -3779,7 +3779,12 @@ shape allows them. A jump made in Swift, in the app, stays parked too.
    will make show it (below). `list-panes -a` gives each pane's window and
    tmux session, a pane once for each session its window is in, and
    `list-clients` each client's current window and session, all by tmux's ids;
-   a window keeps its id in every session. One `ps` snapshot settles each
+   a window keeps its id in every session. Every tmux the CLI runs is told
+   its client takes UTF-8 (`tmux -u`): run as SitRep runs it, with no UTF-8
+   locale and no `$TMUX`, a tmux 3.8 server writes each tab of a `-F` format
+   as `_`, and every session read as off screen, so no jump from the app went
+   anywhere (live, 22 October 2026, the first restart after brew's tmux 3.8).
+   One `ps` snapshot settles each
    client's app, the nearest app among its ancestors: a Ghostty window's
    client runs `tmux < zsh < login < ghostty`, a phone's or iPad's `tmux < zsh
    < mosh-server`, one over ssh from another Mac `sshd` (all checked live, 13

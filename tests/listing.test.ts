@@ -239,7 +239,7 @@ test('list --json says whether a jump can reach each session, a Ghostty window o
   })
   const tmuxRuns = t.screen.ran.filter(([name]) => name === 'tmux')
 
-  expect(tmuxRuns.map(([name, , socket, command]) => [name, socket, command]).sort()).toEqual([
+  expect(tmuxRuns.map(([name, , , socket, command]) => [name, socket, command]).sort()).toEqual([
     ['tmux', SOCKET, 'list-clients'],
     ['tmux', SOCKET, 'list-panes'],
     ['tmux', GONE_SOCKET, 'list-clients'],

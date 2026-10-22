@@ -115,8 +115,8 @@ test('jump asks tmux only to list and ps for one snapshot, and lsappinfo which a
   await t.run('jump', ...SESSION)
 
   expect(t.screen.ran.filter(([name]) => name !== 'lsappinfo')).toEqual([
-    ['tmux', '-S', SOCKET, ...PANES],
-    ['tmux', '-S', SOCKET, ...CLIENTS],
+    ['tmux', '-u', '-S', SOCKET, ...PANES],
+    ['tmux', '-u', '-S', SOCKET, ...CLIENTS],
     PS,
     ['osascript', '-e', LIST],
     ['osascript', '-e', FIND_AND_FOCUS, MARKER],
@@ -545,8 +545,8 @@ test("a knock that answers remembers the device's terminal, and the next jump fo
 
   expect(await t.run('jump', ...SESSION)).toEqual(FOCUSED_RUN)
   expect(t.screen.ran.slice(first).filter(([name]) => name !== 'lsappinfo')).toEqual([
-    ['tmux', '-S', SOCKET, ...PANES],
-    ['tmux', '-S', SOCKET, ...CLIENTS],
+    ['tmux', '-u', '-S', SOCKET, ...PANES],
+    ['tmux', '-u', '-S', SOCKET, ...CLIENTS],
     PS,
     ['osascript', '-e', FOCUS, 'SWITCHBOARD-TERMINAL'],
   ])
@@ -941,10 +941,10 @@ test("a pane whose tmux window no client shows is shown by tmux selecting it in 
 
   expect(await t.run('jump', ...SESSION)).toEqual(FOCUSED_RUN)
   expect(t.screen.ran.filter(([name]) => name !== 'lsappinfo')).toEqual([
-    ['tmux', '-S', SOCKET, ...PANES],
-    ['tmux', '-S', SOCKET, ...CLIENTS],
+    ['tmux', '-u', '-S', SOCKET, ...PANES],
+    ['tmux', '-u', '-S', SOCKET, ...CLIENTS],
     PS,
-    ['tmux', '-S', SOCKET, 'select-window', '-t', `${CLAUDES_SESSION}:${CLAUDES}`],
+    ['tmux', '-u', '-S', SOCKET, 'select-window', '-t', `${CLAUDES_SESSION}:${CLAUDES}`],
     ['osascript', '-e', LIST],
     ['osascript', '-e', FIND_AND_FOCUS, MARKER],
   ])
