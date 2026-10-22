@@ -89,11 +89,11 @@ struct SelectedWordsTests {
         let heading = { (isEmphasized: Bool) in
             FoldHeading(
                 heading: Sidebar.Heading(fold: .project("p"), name: "Switchboard", isFolded: false, asking: 0, waiting: 0),
-                gap: 0, isPicked: true, isEmphasized: isEmphasized, filter: Filter()
+                isRuled: false, isPicked: true, isEmphasized: isEmphasized, filter: Filter()
             )
             .environment(\.isStill, true)
         }
-        let name = CGRect(x: 16, y: 4, width: 80, height: 16)
+        let name = CGRect(x: 16, y: WindowStyle.headingGap + 4, width: 80, height: 16)
         let emphasized = try Self.drawn(heading(true), on: .standard).brightest(in: name)
         let not = try Self.drawn(heading(false), on: .standard).brightest(in: name)
 

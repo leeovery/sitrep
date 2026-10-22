@@ -24,13 +24,14 @@ struct HostedSidebar {
     let field: NSSearchField?
 
     /// `bottomSafeArea` gives the sidebar the bottom safe area a window on screen has, which an offscreen one does not;
-    /// `isKey` tells it its window is key, which one never shown never is.
+    /// `isKey` tells it its window is key, which one never shown never is; `listed`, a board shown in place of the
+    /// run's, as one the real `watch` never printed.
     init(
         _ run: WindowRun, height: CGFloat = 1069, bottomSafeArea: CGFloat = 0, actions: WindowActions = WindowActions(),
-        listAlone: Bool = false, isKey: Bool = false
+        listAlone: Bool = false, isKey: Bool = false, listed: Listed? = nil
     ) throws {
         let now = Self.printed
-        let shown = run.sidebar(at: now)
+        let shown = listed.map { Sidebar($0, folds: Folds()) } ?? run.sidebar(at: now)
         let side = listAlone
             ? AnyView(VStack(spacing: 0) {
                 Color.clear.frame(height: WindowStyle.accessory)

@@ -60,6 +60,21 @@ struct SidebarTests {
         ])
     }
 
+    @Test func theRuleAfterNeedsYouSitsOverTheFirstLineAfterItsRows() {
+        #expect(Sidebar(Self.listed, folds: Folds()).ruled == .spot(.board(.project("sitrep"))))
+    }
+
+    @Test func withNoAskOrNothingAfterNeedsYouNoLineIsRuled() {
+        var asksAlone = Self.listed
+        var noAsk = Self.listed
+
+        asksAlone.projects = []
+        asksAlone.quiet = []
+        noAsk.needsYou = []
+        #expect(Sidebar(asksAlone, folds: Folds()).ruled == nil)
+        #expect(Sidebar(noAsk, folds: Folds()).ruled == nil)
+    }
+
     @Test func withNoAskNeedsYouGoesAndAProjectsHeadingHeadsTheList() {
         var listed = Self.listed
 

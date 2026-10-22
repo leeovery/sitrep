@@ -18,10 +18,7 @@ struct SettingsFooter: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            Rectangle()
-                .fill(WindowStyle.separator)
-                .frame(height: WindowStyle.footerRule)
-                .padding(.horizontal, WindowStyle.selectionInset)
+            SidebarRule()
             row.padding(.top, WindowStyle.footerTop).padding(.bottom, WindowStyle.footerBottom)
         }
     }

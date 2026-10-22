@@ -2629,8 +2629,18 @@ stands).
       Its heading is plain words, "Needs you", with no count and no chevron,
       which neither folds nor picks, nor changes under the pointer. With no
       ask it goes, line and all, and nothing takes its place. It scrolls with
-      the list, every ask in it, with no cap. Nothing sets it off from the
-      projects but the 10 over every heading;
+      the list, every ask in it, with no cap. A rule sets it off from the
+      projects, the foot's own: 0.5 tall in the separator colour, inside
+      the sidebar's 10 either side, 12 under its last row, the next
+      heading 10 under it as every heading sits. It shows only while Needs
+      you shows and a line follows it, filtered or not. It is drawn behind
+      the heading after it, on that heading's row, so the list holds no line
+      of its own for it, whose insets a live window could move as it moved
+      the foot's: nothing picks it, the pointer lights nothing on it, the
+      arrow keys pass over it with the heading, and VoiceOver reads nothing
+      there. Lee, 22 October 2026: "we should separate the 'Needs you' from
+      the rest of the project list … we already said we would have a rule,
+      but it also needs just a little bit of space";
     - **the projects** follow, every project with a session open, its
       sessions under it. A project sits where its first session would sit in
       the panel, so the oldest need comes first, then away, then your turn,
@@ -2643,8 +2653,14 @@ stands).
       notes (Lee, 20 October 2026: "at least interact with them, view them,
       see them").
     - **A heading is a row of the list**, not the system's section header,
-      whose chevron hides at rest and alone folds: 24 tall, 10 under the rows
-      before it, or 2 under the list's top for the first. A click anywhere on
+      whose chevron hides at rest and alone folds: 24 tall, 10 under what is
+      before it, the first of them too, Needs you's or with no ask a
+      project's, which sits 10 under the list's top, 20 under the Filter
+      field (Lee, 22 October 2026, of the first heading 2 under it: "where
+      it says 'Needs you,' that's a little bit close … the 'Needs you'
+      eyebrow for that top section needs a little bit of spacing", System
+      Settings' sidebar his reference, its first item about 20 under its
+      Search field). A click anywhere on
       a project's heading or on Quiet projects' folds what is under it, or
       unfolds it, and never moves the pick. Its chevron always shows which
       way it is, down open and right folded, in the tertiary label colour, a

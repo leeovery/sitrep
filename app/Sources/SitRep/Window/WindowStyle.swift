@@ -75,16 +75,19 @@ enum WindowStyle {
     static let listInset: CGFloat = 10
     static let selectionInset: CGFloat = 10
     static let rowInset: CGFloat = 16
+    /// The sidebar's rule, 0.5 tall, over its foot and after Needs you, 12 under the rows before it.
+    static let rule: CGFloat = 0.5
+    static let ruleGap: CGFloat = 12
     /// The list's last row, 12 over the foot's rule.
-    static let listBottom: CGFloat = 12
+    static let listBottom = ruleGap
     /// A session's row, the sidebar's medium row; a session's row under Needs you, the system's two-line row, its
-    /// words 4 from its top; a heading's row, 10 under the rows before it, or 2 under the list's top when it is first.
+    /// words 4 from its top; a heading's row, 10 under what is before it: the list's top, the rows before it, or the
+    /// rule after Needs you.
     static let rowHeight: CGFloat = 32
     static let twoLineHeight: CGFloat = 39
     static let twoLineTop: CGFloat = 4
     static let headingHeight: CGFloat = 24
     static let headingGap: CGFloat = 10
-    static let firstHeadingGap: CGFloat = 2
     /// A heading's words end 2 inside its selection, 4 past a row's.
     static let headingTrailing: CGFloat = 2
     /// A row's mark, in its slot, the gap after it to the words, and a heading's chevron in its slot.
@@ -101,8 +104,7 @@ enum WindowStyle {
     static let ageSize: CGFloat = 12
     static let titleLine: CGFloat = 16
     static let smallLine: CGFloat = 14
-    /// The sidebar's foot, as spec 2.5 draws it: a rule of 0.5, then 8 above its row of 32 and 10 below it.
-    static let footerRule: CGFloat = 0.5
+    /// The sidebar's foot, as spec 2.5 draws it: its rule, then 8 above its row of 32 and 10 below it.
     static let footerTop: CGFloat = 8
     static let footerRow: CGFloat = 32
     static let footerBottom: CGFloat = 10
@@ -151,7 +153,7 @@ enum WindowStyle {
         return Color(nsColor: system)
     }
 
-    /// The rule over the sidebar's foot.
+    /// The sidebar's rule's colour.
     static let separator = Color(nsColor: .separatorColor)
 }
 
