@@ -16,6 +16,8 @@ struct StaysOnScreenSection: View {
         SettingsSection(name: "What stays on screen") {
             SettingsCard {
                 ShowRow(show: preferences.binding(\.show))
+                    // its tiles change at once, as Appearance's do, while the card and the rows under it move
+                    .transaction { $0.animation = nil }
                 ForEach(rows, id: \.self) { row in
                     VStack(spacing: 0) {
                         CardSeparator()

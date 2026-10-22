@@ -41,9 +41,12 @@ struct ShowRowTests {
         return drawn
     }
 
-    /// The card's raise, where the Show row draws nothing: under its label, clear of a line.
+    /// Where the Show row draws nothing but the card's raise: under its label, clear of a line.
+    private static let raisePoint = CGPoint(x: 54, y: top + 70)
+
+    /// The card's raise.
     private static func raise(_ drawn: Drawn) throws -> NSColor {
-        try #require(drawn.pixels(in: CGRect(x: 54, y: top + 70, width: 0.5, height: 0.5)).first)
+        try #require(drawn.pixels(in: CGRect(origin: raisePoint, size: CGSize(width: 0.5, height: 0.5))).first)
     }
 
     /// Across the pictures' middle, Notch chosen: its ring, 3 wide past a gap of the raise, 0.5, round its picture,
@@ -54,7 +57,7 @@ struct ShowRowTests {
         let drawn = try await Self.page(page)
         let lefts = Self.lefts(page)
         let across = try drawn.spans(
-            atY: Self.top + 13.5 + 22, unlike: Self.raise(drawn), from: lefts[0] - 8, to: Self.right(page) - 1
+            atY: Self.top + 13.5 + 22, unlike: Self.raisePoint, from: lefts[0] - 8, to: Self.right(page) - 1
         )
         let expected = [
             lefts[0] - 3.5 ... lefts[0] - 0.5, lefts[0] ... lefts[0] + 67, lefts[0] + 67.5 ... lefts[0] + 70.5,
@@ -67,12 +70,41 @@ struct ShowRowTests {
         }
     }
 
+    /// A choice changes the tiles at once, as Appearance's do, though the rows under Show arrive and leave by the
+    /// system's transition: drawn as soon as Show is the strip, the ring is whole round the strip's picture and gone
+    /// from the notch's.
+    @Test func aChoiceChangesTheTilesAtOnce() async throws {
+        let page = await Hosted.pageView()
+        let hosted = Hosted(PageColumn(page: .settings, now: Date()) { page }, size: CGSize(width: 956, height: 1069))
+        let lefts = Self.lefts(956)
+        var accent = NSColor.controlAccentColor
+
+        NSAppearance(named: .darkAqua)?.performAsCurrentDrawingAppearance {
+            accent = NSColor.controlAccentColor.usingColorSpace(.sRGB) ?? accent
+        }
+        page.settings.preferences.edit { $0.show = .strip }
+        await Task.yield()
+        hosted.hosting.layoutSubtreeIfNeeded()
+
+        let drawn = try Self.atTwice(Drawn(hosted.hosting))
+        let strip = try #require(drawn.colour(at: CGPoint(x: lefts[1] - 2, y: Self.top + 35)))
+        let notch = try #require(drawn.colour(at: CGPoint(x: lefts[0] - 2, y: Self.top + 35)))
+        let raise = try #require(drawn.colour(at: Self.raisePoint))
+
+        for (drawn, expected) in zip(strip.channels, accent.channels) {
+            #expect(abs(drawn - expected) < 0.02)
+        }
+        for (drawn, expected) in zip(notch.channels, raise.channels) {
+            #expect(abs(drawn - expected) < 0.02)
+        }
+    }
+
     /// Down the chosen picture, clear of its corners and its name: the ring's top 10 under the card's, over its
     /// picture, 44 tall, and under it.
     @Test func theChosenPictureIs44TallInItsRing() async throws {
         let drawn = try await Self.page(956)
         let down = try drawn.spans(
-            atX: Self.lefts(956)[0] + 14, unlike: Self.raise(drawn), from: Self.top + 1, to: Self.top + 85
+            atX: Self.lefts(956)[0] + 14, unlike: Self.raisePoint, from: Self.top + 1, to: Self.top + 85
         )
         let picture = Self.top + 13.5 ... Self.top + 57.5
         let expected = [Self.top + 10 ... Self.top + 13, picture, Self.top + 58 ... Self.top + 61]
@@ -209,7 +241,12 @@ struct ShowRowTests {
     /// How much darker than the ground the edge leaves each pixel at 2×, 1 to 8 out from the picture, round
     /// Appearance's unchosen thumbnails in a capture of System Settings on macOS 26: (32,33,42), (33,35,43),
     /// (34,36,45), (35,37,46), (36,37,47), (36,38,48), (36,38,48), then the card's (37,39,49), alike on all four sides.
+    /// They are 8-bit readings on a ground of about 37 levels, each rounded to its level, so one level there is about
+    /// 2.7% of the darkening (`level`).
     private static let appearancesEdge: [CGFloat] = [0.144, 0.111, 0.080, 0.055, 0.040, 0.024, 0.024, 0]
+    /// How near the edge's darkening matches the capture's: a level of the capture's, on its ground of 37, and one of
+    /// ours, on the mid grey's 128, as each is rounded to its level.
+    private static let level: CGFloat = 1.0 / 37 + 1.0 / 128
 
     /// How much darker than the ground each pixel `steps` out from `edge`, a pixel on the picture's edge, is.
     private static func darkening(_ drawn: Drawn, from edge: (x: Int, y: Int), by step: (x: Int, y: Int)) throws -> [CGFloat] {
@@ -233,7 +270,7 @@ struct ShowRowTests {
 
         for side in sides {
             for (drawn, appearance) in zip(try Self.darkening(drawn, from: side.edge, by: side.step), Self.appearancesEdge) {
-                #expect(abs(drawn - appearance) < 0.015)
+                #expect(abs(drawn - appearance) <= Self.level)
             }
         }
     }
@@ -260,9 +297,9 @@ extension Drawn {
         }
     }
 
-    /// Where a row of pixels across the drawing, from `start` to `end`, is not `ground`, each span from its first such
-    /// pixel's left to its last's right.
-    func spans(atY y: CGFloat, unlike ground: NSColor, from start: CGFloat, to end: CGFloat) -> [ClosedRange<CGFloat>] {
+    /// Where a row of pixels across the drawing, from `start` to `end`, is not what is drawn at `ground`, each span from
+    /// its first such pixel's left to its last's right.
+    func spans(atY y: CGFloat, unlike ground: CGPoint, from start: CGFloat, to end: CGFloat) -> [ClosedRange<CGFloat>] {
         let row = Int((y * scale).rounded())
 
         return spans(Int((start * scale).rounded())..<Int((end * scale).rounded()), unlike: ground) {
@@ -270,9 +307,9 @@ extension Drawn {
         }
     }
 
-    /// Where a column of pixels down the drawing, from `start` to `end`, is not `ground`, each span from its first
-    /// such pixel's top to its last's foot.
-    func spans(atX x: CGFloat, unlike ground: NSColor, from start: CGFloat, to end: CGFloat) -> [ClosedRange<CGFloat>] {
+    /// Where a column of pixels down the drawing, from `start` to `end`, is not what is drawn at `ground`, each span
+    /// from its first such pixel's top to its last's foot.
+    func spans(atX x: CGFloat, unlike ground: CGPoint, from start: CGFloat, to end: CGFloat) -> [ClosedRange<CGFloat>] {
         let column = Int((x * scale).rounded())
 
         return spans(Int((start * scale).rounded())..<Int((end * scale).rounded()), unlike: ground) {
@@ -280,18 +317,21 @@ extension Drawn {
         }
     }
 
-    /// Each run of pixels in `pixels` more than 4 levels of 255 lighter than `ground` in any channel, or more than 8
-    /// darker: the shade an unchosen picture's shadow casts on the card, 3 levels at most, counts as the ground.
+    /// Each run of pixels in `pixels` more than 4 levels of 255 from the pixel at `ground` in any channel, both read in
+    /// the levels the bitmap holds. Read through sRGB, as `pixels(in:)` reads a window's (`colour(at:)`), the darkest
+    /// of an unchosen picture's shadow on the card's raise, 3 levels there, would stretch to 4.6.
     private func spans(
-        _ pixels: Range<Int>, unlike ground: NSColor, at color: (Int) -> NSColor?
+        _ pixels: Range<Int>, unlike ground: CGPoint, at color: (Int) -> NSColor?
     ) -> [ClosedRange<CGFloat>] {
+        let ground = bitmap.colorAt(x: Int((ground.x * scale).rounded()), y: Int((ground.y * scale).rounded()))
         var spans: [ClosedRange<CGFloat>] = []
         var first: Int?
 
         for pixel in pixels.lowerBound...pixels.upperBound {
-            let colour = pixel < pixels.upperBound ? color(pixel)?.usingColorSpace(.sRGB) : nil
+            let colour = pixel < pixels.upperBound ? color(pixel) : nil
 
-            if let colour, zip(colour.channels, ground.channels).contains(where: { ($0 - $1) * 255 > 4 || ($1 - $0) * 255 > 8 }) {
+            if let colour, let ground,
+               zip(colour.channels, ground.channels).contains(where: { abs($0 - $1) * 255 > 4 }) {
                 first = first ?? pixel
             } else if let start = first {
                 spans.append(CGFloat(start) / scale ... CGFloat(pixel) / scale)
