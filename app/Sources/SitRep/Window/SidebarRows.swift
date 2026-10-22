@@ -2,8 +2,9 @@ import SitRepWindow
 import SwiftUI
 
 /// A line of the sidebar's list as its kind draws it: Needs you's heading, a heading that folds, a session's row under
-/// Needs you, two lines, or under its project, one, and a quiet project's row. Its words are in the system's label
-/// colours, so the list's emphasized selection turns them white by itself; its orange stays orange.
+/// Needs you, its lines waiting on Lee over its project and session, or under its project, one line, and a quiet
+/// project's row. Its words are in the system's label colours, so the list's emphasized selection turns them white by
+/// itself, a Needs you row's in board D's whites; its orange stays orange.
 struct SidebarLine: View {
     let line: Sidebar.Line
     /// The first line after Needs you, which the rule after it sits over (`Sidebar.ruled`).
@@ -24,17 +25,17 @@ struct SidebarLine: View {
                 isEmphasized: isEmphasized, filter: filter
             )
         case let .asking(row):
-            picking(session(row, showsProject: true), washed: row.washed)
+            picking(
+                NeedsYouRow(row: row, filter: filter, now: now).spoken(Spoken.needsYou(row, at: now)), washed: row.washed
+            )
         case let .session(row):
-            picking(session(row, showsProject: false), washed: row.washed)
+            picking(
+                SidebarSessionRow(row: row, filter: filter, now: now).spoken(Spoken.row(row, at: now)),
+                washed: row.washed
+            )
         case let .quiet(project):
             picking(QuietRow(project: project, filter: filter).spoken(Spoken.quiet(project)))
         }
-    }
-
-    private func session(_ row: Listed.Row, showsProject: Bool) -> some View {
-        SidebarSessionRow(row: row, filter: filter, showsProject: showsProject, now: now)
-            .spoken(Spoken.row(row, at: now))
     }
 
     /// A row that picks, tagged with the line's own spot (`Sidebar.Line.spot`), so the model says what each row picks.
@@ -174,44 +175,112 @@ struct Chevron: View {
     }
 }
 
-/// A session's row: its mark in its slot, its name on one line, and on a row with an ask how long it has waited. Under
-/// Needs you, two lines, its project's name under its own, its parts set to its top.
+/// A session's row under its project: its mark in its slot, its name on one line, and on a row with an ask how long it
+/// has waited.
 struct SidebarSessionRow: View {
     let row: Listed.Row
     let filter: Filter
-    let showsProject: Bool
     let now: Date
 
     var body: some View {
         HStack(alignment: .top, spacing: WindowStyle.slotGap) {
             SidebarMark(mark: row.mark)
-            VStack(alignment: .leading, spacing: 1) {
-                Name(row.name, litBy: filter, tone: row.isAway ? .faint : .text)
-                    .font(WindowStyle.ui(WindowStyle.titleSize))
-                    .spacing(WindowStyle.titleTracking, of: WindowStyle.titleSize)
-                    .lineLimit(1)
-                    .frame(height: WindowStyle.titleLine)
-                if showsProject {
-                    Name(row.project, litBy: filter, tone: .soft)
-                        .font(WindowStyle.ui(WindowStyle.smallSize))
-                        .lineLimit(1)
-                        .frame(height: WindowStyle.smallLine)
-                }
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
+            Name(row.name, litBy: filter, tone: row.isAway ? .faint : .text)
+                .font(WindowStyle.ui(WindowStyle.titleSize))
+                .spacing(WindowStyle.titleTracking, of: WindowStyle.titleSize)
+                .lineLimit(1)
+                .frame(maxWidth: .infinity, minHeight: WindowStyle.titleLine, maxHeight: WindowStyle.titleLine, alignment: .leading)
             if row.mark == .needs {
-                age.frame(height: WindowStyle.titleLine)
+                SidebarAge(since: row.since, washed: row.washed, now: now, onPick: false)
+                    .frame(height: WindowStyle.titleLine)
             }
         }
-        .padding(.top, showsProject ? WindowStyle.twoLineTop : (WindowStyle.rowHeight - WindowStyle.titleLine) / 2)
-        .frame(height: showsProject ? WindowStyle.twoLineHeight : WindowStyle.rowHeight, alignment: .top)
+        .padding(.top, (WindowStyle.rowHeight - WindowStyle.titleLine) / 2)
+        .frame(height: WindowStyle.rowHeight, alignment: .top)
+    }
+}
+
+/// A session's row under Needs you, one shape however many lines it has, as board D draws it: each ask or stop
+/// waiting on Lee a line of its own, its dot in the mark's slot, its words medium and its age, 3 apart; then its
+/// project and session, 1 under them. One line is the system's two-line row, 39 tall, as built; each line more adds
+/// its 16 and the 3 over it. A new line's age is orange while the row washes, so the new one shows among the rest. On
+/// the accent of the pick its words go white, its second line and its ages white at 80%; its dots stay orange.
+struct NeedsYouRow: View {
+    let row: Listed.Row
+    let filter: Filter
+    let now: Date
+
+    @Environment(\.backgroundProminence) private var prominence
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 1) {
+            VStack(alignment: .leading, spacing: WindowStyle.waitingGap) {
+                ForEach(row.lines) { line in
+                    HStack(alignment: .top, spacing: WindowStyle.slotGap) {
+                        SidebarMark(mark: .needs)
+                        words(line)
+                            .frame(maxWidth: .infinity, minHeight: WindowStyle.titleLine, maxHeight: WindowStyle.titleLine, alignment: .leading)
+                        SidebarAge(since: line.since, washed: line.washed, now: now, onPick: onPick)
+                            .frame(height: WindowStyle.titleLine)
+                    }
+                }
+            }
+            HStack(spacing: WindowStyle.slotGap) {
+                Color.clear.frame(width: WindowStyle.slot.width, height: WindowStyle.smallLine)
+                Name("\(row.project) · \(row.name)", litBy: filter, tone: .soft, onPick: onPick)
+                    .font(WindowStyle.ui(WindowStyle.smallSize))
+                    .lineLimit(1)
+                    .frame(height: WindowStyle.smallLine)
+            }
+        }
+        .padding(.top, WindowStyle.twoLineTop)
+        .frame(height: WindowStyle.needsYouHeight(lines: row.lines.count), alignment: .top)
     }
 
-    /// How long its ask has waited: orange while it washes, as what needs Lee stays orange; else soft.
-    private var age: some View {
-        Text(Words.age(row.since, at: now))
+    /// Picked, on the accent: what its words and its soft words are drawn in.
+    private var onPick: Bool { prominence == .increased }
+
+    /// A line's words: its lead, medium, dim while no window holds its session, then a command or a path in mono, and a
+    /// question's "+2".
+    private func words(_ line: Listed.Waiting) -> some View {
+        let lead = Name(line.lead, litBy: filter, tone: row.isAway ? .faint : .text, onPick: onPick)
+            .font(WindowStyle.ui(WindowStyle.titleSize, .medium))
+            .spacing(WindowStyle.titleTracking, of: WindowStyle.titleSize)
+
+        return HStack(spacing: WindowStyle.slotGap) {
+            lead
+            if let code = line.code {
+                Name(code, litBy: filter, tone: .soft, onPick: onPick).font(WindowStyle.mono(WindowStyle.smallSize))
+            }
+            if let more = line.more {
+                Name(more, litBy: filter, tone: .soft, onPick: onPick)
+                    .font(WindowStyle.ui(WindowStyle.titleSize, .medium))
+                    .fixedSize()
+            }
+        }
+        .lineLimit(1)
+    }
+}
+
+/// How long something has waited on Lee, in tabular figures: orange while its row washes, as what needs Lee stays
+/// orange; else soft, or on the accent of a Needs you row's pick, white at 80%.
+private struct SidebarAge: View {
+    let since: Date
+    let washed: Date?
+    let now: Date
+    let onPick: Bool
+
+    var body: some View {
+        Text(Words.age(since, at: now))
             .font(WindowStyle.ui(WindowStyle.ageSize).monospacedDigit())
-            .foregroundStyle(row.washed == nil ? AnyShapeStyle(.secondary) : AnyShapeStyle(WindowStyle.orange))
+            .foregroundStyle(ink)
+    }
+
+    private var ink: AnyShapeStyle {
+        if washed != nil {
+            return AnyShapeStyle(WindowStyle.orange)
+        }
+        return onPick ? AnyShapeStyle(WindowStyle.picked(.soft)) : AnyShapeStyle(.secondary)
     }
 }
 
@@ -261,28 +330,32 @@ struct SidebarMark: View {
 }
 
 /// A name in its tone; while the filter narrows the list, its words lit where they appear in it, a step brighter than
-/// the rest (`Tone`), in the system's label colours.
+/// the rest (`Tone`), in the system's label colours, or on the accent of a Needs you row's pick in its whites.
 struct Name: View {
     let name: String
     let filter: Filter
     let tone: Tone
+    let onPick: Bool
 
-    init(_ name: String, litBy filter: Filter, tone: Tone) {
+    init(_ name: String, litBy filter: Filter, tone: Tone, onPick: Bool = false) {
         self.name = name
         self.filter = filter
         self.tone = tone
+        self.onPick = onPick
     }
 
     var body: some View {
         if filter.isEmpty {
-            Text(name).foregroundStyle(WindowStyle.label(tone))
+            Text(name).foregroundStyle(ink(tone))
         } else {
             filter.runs(of: name).reduce(Text("")) { text, run in
-                let style = WindowStyle.label(run.isLit ? tone.lit : tone.rest)
-
-                return Text("\(text)\(Text(run.text).foregroundStyle(style))")
+                Text("\(text)\(Text(run.text).foregroundStyle(ink(run.isLit ? tone.lit : tone.rest)))")
             }
         }
+    }
+
+    private func ink(_ tone: Tone) -> AnyShapeStyle {
+        onPick ? AnyShapeStyle(WindowStyle.picked(tone)) : AnyShapeStyle(WindowStyle.label(tone))
     }
 }
 

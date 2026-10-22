@@ -11,8 +11,8 @@ struct MenuEntriesTests {
     @Test func theMenuRunsFromTheHeaderThroughTheSessionsToQuit() {
         #expect(Self.entries().map(\.key) == [
             "header", "separator:header",
-            "heading:sessions", "row:ask:sr-ledger:k1", "row:stop:sr-dash:w1:1792445500000", "row:ask:sr-plan:k2",
-            "separator:hairline", "row:turn:sr-boot", "row:work:sr-diff", "separator:sessions",
+            "heading:sessions", "row:sr-ledger", "row:sr-dash", "row:sr-plan",
+            "separator:hairline", "row:sr-boot", "row:sr-diff", "separator:sessions",
             "openWindow", "separator:window",
             "heading:show", "show:notch", "show:strip", "show:nothing", "separator:show",
             "settings", "separator:settings", "quit",

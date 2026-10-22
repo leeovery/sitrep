@@ -3,17 +3,16 @@
  * prints a line of each time it changes (see "One engine, two front ends"
  * in DESIGN.md), and what decides when it does.
  *
- * - The rows, in the panel's order, and the head (rows.ts).
+ * - The rows, a session each, in the panel's order, and the head (rows.ts).
  * - Each project with a current session, and those sessions, away ones
  *   among them and never a finished one, each with its state, what it is
  *   doing as the line under its name says it, and its open asks, as
  *   `board --json` lists them (`openAsks`). They are in the SitRep window's
- *   order, the rows': a session where its first row sits, those with none
- *   after, the latest updated first; a project where its first session
- *   sits.
+ *   order, the rows': a session where its row sits, those with none after,
+ *   the latest updated first; a project where its first session sits.
  * - Every live window: its session, the version it runs, and whether that
  *   is behind the CLI's own.
- * - What is new: a row needing Lee the watch has not shown, or not within a
+ * - What is new: a line needing Lee the watch has not shown, or not within a
  *   day of its own time.
  * - When the board next changes by time alone: a heartbeat going stale
  *   changes no file.
@@ -26,7 +25,7 @@ import {
   headOf,
   inPanelOrder,
   needsYou,
-  rowsOf,
+  rowOf,
   sessionState,
   type Doing,
   type Head,
@@ -51,7 +50,7 @@ export type ProjectRead = { project: Project; sessions: readonly Session[] }
 
 export type FeedSession = SessionSummary & {
   state: SessionState
-  /** When its state began: its first row's time; with no row, its latest line's. */
+  /** When its state began: its row's time; with no row, its latest line's. */
   since: number
   /** What it is doing, as the line under its name says it. */
   doing: Doing
@@ -81,27 +80,18 @@ export type Feed = { head: Head; rows: Row[]; projects: FeedProject[]; windows: 
 /** The place of a session with no row: after every one that has. */
 const NO_ROW = Number.MAX_SAFE_INTEGER
 
-/** Each session's first row, and where it sits among the rows, by the session's id. */
-type Firsts = ReadonlyMap<string, { place: number; row: Row }>
+/** Each session's row, and where it sits among the rows, by the session's id. */
+type Places = ReadonlyMap<string, { place: number; row: Row }>
 
-const firstRows = (rows: readonly Row[]): Firsts => {
-  const firsts = new Map<string, { place: number; row: Row }>()
+const placesOf = (rows: readonly Row[]): Places =>
+  new Map(rows.map((row, place) => [row.session, { place, row }]))
 
-  rows.forEach((row, place) => {
-    if (!firsts.has(row.session)) {
-      firsts.set(row.session, { place, row })
-    }
-  })
+const placeOf = (places: Places, id: string | undefined) => places.get(id ?? '')?.place ?? NO_ROW
 
-  return firsts
-}
-
-const placeOf = (firsts: Firsts, id: string | undefined) => firsts.get(id ?? '')?.place ?? NO_ROW
-
-/** A project's current sessions as the feed holds them: where their first rows sit, those with none after, the latest updated first. */
+/** A project's current sessions as the feed holds them: where their rows sit, those with none after, the latest updated first. */
 const feedProject = (
   { project, sessions }: ProjectRead,
-  firsts: Firsts,
+  places: Places,
   now: number,
 ): FeedProject => {
   const current = sessions
@@ -110,13 +100,13 @@ const feedProject = (
     .map(({ session, summary }): FeedSession => ({
       ...summary,
       state: sessionState(session, now),
-      since: firsts.get(session.id)?.row.since ?? session.updatedAt,
+      since: places.get(session.id)?.row.since ?? session.updatedAt,
       doing: doingOf(project, session, now),
       asks: openAsks(session),
     }))
     .sort(
       (a, b) =>
-        placeOf(firsts, a.id) - placeOf(firsts, b.id) ||
+        placeOf(places, a.id) - placeOf(places, b.id) ||
         b.updatedAt - a.updatedAt ||
         compareText(a.id, b.id),
     )
@@ -155,17 +145,17 @@ const liveWindows = (read: readonly ProjectRead[], now: number, own?: string): F
 export const feedOf = (read: readonly ProjectRead[], now: number, own?: string): Feed => {
   const rows = inPanelOrder(
     read.flatMap(({ project, sessions }) =>
-      sessions.flatMap(session => rowsOf(project, session, now)),
+      sessions.flatMap(session => rowOf(project, session, now) ?? []),
     ),
   )
-  const firsts = firstRows(rows)
-  const projectPlace = (project: FeedProject) => placeOf(firsts, project.sessions[0]?.id)
+  const places = placesOf(rows)
+  const projectPlace = (project: FeedProject) => placeOf(places, project.sessions[0]?.id)
 
   return {
     head: headOf(rows),
     rows,
     projects: read
-      .map(each => feedProject(each, firsts, now))
+      .map(each => feedProject(each, places, now))
       .filter(project => project.sessions.length > 0)
       .sort(
         (a, b) =>
@@ -178,24 +168,24 @@ export const feedOf = (read: readonly ProjectRead[], now: number, own?: string):
 }
 
 /**
- * How long a row needing Lee may be gone, in the watch's own time, and its
+ * How long a line needing Lee may be gone, in the watch's own time, and its
  * coming back still be the same one: a window's heartbeat late, an ask's
  * folder away for a look.
  */
 export const FORGET_MS = 24 * 60 * 60_000
 
-/** The rows needing Lee a watch has shown, by their keys: when each went, in its own time, or undefined while it is on the board. */
+/** The lines needing Lee a watch has shown, by their keys: when each went, in its own time, or undefined while it is on the board. */
 export type Shown = ReadonlyMap<string, number | undefined>
 
 /**
  * What is new on the board at `at`, the watch's own time: the keys of its
- * rows needing Lee that the watch has not shown, or not since FORGET_MS
+ * lines needing Lee that the watch has not shown, or not since FORGET_MS
  * before, a new ask or a window's new stop, in the rows' order; and what it
  * has shown with this board. Nothing is new on the first board, before which
  * nothing was shown.
  */
 export const newRows = (shown: Shown | undefined, feed: Feed, at: number) => {
-  const keys = feed.rows.filter(needsYou).map(row => row.key)
+  const keys = feed.rows.filter(needsYou).flatMap(row => row.lines.map(line => line.key))
   const isOn = new Set(keys)
   const isRemembered = (goneAt: number | undefined) =>
     goneAt === undefined || at - goneAt <= FORGET_MS

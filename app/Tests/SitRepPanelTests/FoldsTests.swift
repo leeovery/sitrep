@@ -12,6 +12,10 @@ struct FoldsTests {
 
     private static let a = row("a"), b = row("b"), c = row("c")
 
+    private static func needs(_ id: String) -> Session {
+        Session(id: id, project: "SitRep", kind: .needs, title: id, sub: "", since: 0)
+    }
+
     /// Folds holding these, taken while the panel was in.
     private static func folds(_ items: Item...) -> Folds {
         var folds = Folds()
@@ -30,6 +34,39 @@ struct FoldsTests {
         #expect(Self.keys(content) == ["a", "c"])
         #expect(content.entries.allSatisfy { $0.height == 59 && $0.alpha == 1 && !$0.isGoing })
         #expect(!folds.isMoving(at: 1000))
+    }
+
+    /// Keyed by its session, a row gaining a line in needs you while the panel is out neither folds away nor in again:
+    /// it is the same row, at once its new height, the line's 22 more.
+    @Test func aRowGainingALineIsTheSameRowAtItsNewHeight() {
+        var folds = Self.folds(.session(Self.needs("a")), Self.b)
+        var asked = Self.needs("a")
+
+        asked.lines.append(Session.Line(title: "Another ask", since: 60_000))
+        folds.take([.session(asked), Self.b], at: 1000, animating: true, reducesMotion: false)
+
+        let content = folds.content(at: 1000)
+
+        #expect(Self.keys(content) == ["needs:a", "b"])
+        #expect(content.entries.map(\.height) == [81, 59])
+        #expect(content.entries.allSatisfy { $0.alpha == 1 && !$0.isGoing })
+        #expect(!folds.isMoving(at: 1000))
+    }
+
+    /// A row crossing the hairline, as its session comes to need Lee, is two while the panel is out, as when its ask
+    /// was a row of its own: the one in needs you unfolds and fades in, and the one it was folds away where it was.
+    @Test func aRowComingToNeedLeeUnfoldsInNeedsYouAndFoldsAwayWhereItWas() {
+        var folds = Self.folds(.session(Self.needs("a")), .divider, Self.b, Self.c)
+        var asking = Self.b.session!
+        asking.kind = .needs
+
+        folds.take(Item.list([Self.needs("a"), asking, Self.c.session!]), at: 1000, animating: true, reducesMotion: false)
+
+        let content = folds.content(at: 1000)
+        #expect(Self.keys(content) == ["needs:a", "needs:b", "divider", "b", "c"])
+        #expect(content.entries.map(\.height) == [59, 0, 9, 59, 59])
+        #expect(content.entries.map(\.isGoing) == [false, false, false, true, false])
+        #expect(Self.keys(folds.content(at: 1260)) == ["needs:a", "needs:b", "divider", "c"])
     }
 
     @Test func aNewRowUnfoldsOver260msAndFadesInOver220() {

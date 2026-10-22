@@ -336,11 +336,24 @@ struct WindowRunTests {
         #expect(run.listed(at: printedAt.addingTimeInterval(2)).needsYou.compactMap(\.washed).isEmpty)
     }
 
+    /// A new ask on a row of several lines: the row washes, and of its lines only the new one, which its age says.
+    @Test func ofARowsLinesOnlyTheNewOneIsWashed() throws {
+        let run = opened()
+
+        _ = run.show(heard(line(0), line(new: ["ask:sr-macapp:k3"])), at: printedAt, reducesMotion: false)
+
+        let row = try #require(run.listed(at: printedAt.addingTimeInterval(1)).needsYou.first { $0.id == "sr-macapp" })
+        #expect(row.washed == printedAt)
+        #expect(row.lines.map(\.washed) == [nil, printedAt, nil])
+        #expect(run.listed(at: printedAt.addingTimeInterval(2)).needsYou.flatMap(\.lines).allSatisfy { $0.washed == nil })
+    }
+
     @Test func underReducedMotionNothingIsWashed() {
         let run = opened()
 
         _ = run.show(heard(line(0), line(new: ["ask:sr-gs7kq2:k1"])), at: printedAt, reducesMotion: true)
         #expect(run.listed(at: printedAt).sessions.compactMap(\.washed).isEmpty)
+        #expect(run.listed(at: printedAt).needsYou.flatMap(\.lines).allSatisfy { $0.washed == nil })
     }
 
     @Test func staleNothingOnTheBoardIsNewAgain() {
@@ -384,7 +397,7 @@ struct WindowRunTests {
 
     @Test func withNoSessionOpenAtAllThePageSaysSo() {
         let run = WindowRun()
-        let empty = #"{"v":1,"at":1792486421238,"version":"0.2.0","head":{"needYou":0,"sessions":0},"rows":[],"projects":[],"windows":[],"new":[],"changed":[]}"#
+        let empty = #"{"v":2,"at":1792486421238,"version":"0.2.0","head":{"needYou":0,"sessions":0},"rows":[],"projects":[],"windows":[],"new":[],"changed":[]}"#
 
         _ = run.show(heard(.line(empty)), at: printedAt, reducesMotion: false)
         _ = run.open()
@@ -396,5 +409,6 @@ struct WindowRunTests {
         Lines.watch[0]
             .replacingOccurrences(of: #""is":"ask""#, with: #""is":"yourTurn""#)
             .replacingOccurrences(of: #""is":"permission""#, with: #""is":"yourTurn""#)
+            .replacingOccurrences(of: #""section":"needsYou""#, with: #""section":"yourTurn""#)
     )
 }

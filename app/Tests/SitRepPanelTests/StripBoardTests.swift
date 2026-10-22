@@ -29,6 +29,51 @@ struct StripBoardTests {
         #expect(lab.model.mark(.session("s9"))!.flashes.count == 2)
     }
 
+    /// A session on the strip coming to need Lee, from your turn or from working, arrives as a new needs you does: it
+    /// moves into needs you at once, under the needs you core has above it, and its ring flashes twice.
+    @Test(arguments: ["s5", "s7"])
+    func aMarkComingToNeedLeeMovesInAtOnceAndFlashesTwice(id: String) throws {
+        var lab = StripLab()
+        var asking = try #require(lab.model.session(id))
+        asking.kind = .needs
+        asking.title = "Approve the plan"
+        asking.since = -30 * Self.minute
+
+        lab.arrive(asking)
+
+        #expect(lab.model.display.prefix(5) == ["s1", id, "s2", "s3", "s4"])
+        #expect(lab.model.needsSlot.contains(id))
+        #expect(lab.wait(1000) { $0.model.mark(.session(id))!.arrived > -1e8 })
+        #expect(lab.model.mark(.session(id))!.flashes.count == 2)
+    }
+
+    /// A needs you gaining a line new on the board stays where it is, and its ring flashes twice.
+    @Test func aNeedsYouGainingALineFlashesTwiceWhereItIs() throws {
+        var lab = StripLab()
+        var asked = try #require(lab.model.session("s2"))
+        asked.lines.append(Session.Line(title: "Pick the cache's size", since: 0))
+
+        lab.arrive(asked)
+
+        #expect(lab.model.display == StripLab.core(StripLab.prototype).map(\.id))
+        #expect(lab.wait(1000) { $0.model.mark(.session("s2"))!.arrived > -1e8 })
+        #expect(lab.model.mark(.session("s2"))!.flashes.count == 2)
+    }
+
+    /// A mark answered, still on the needs you side until the marks re-sort, that gains a new ask flashes where it is.
+    @Test func anAnsweredMarkAskedAgainBeforeTheReSortFlashesWhereItIs() throws {
+        var lab = StripLab()
+        var answered = try #require(lab.model.session("s2"))
+        answered.kind = .turn
+        lab.change(answered)
+        answered.kind = .needs
+
+        lab.arrive(answered)
+
+        #expect(lab.model.display == StripLab.core(StripLab.prototype).map(\.id))
+        #expect(lab.wait(1000) { $0.model.mark(.session("s2"))!.arrived > -1e8 })
+    }
+
     /// As on a run's first line, or a resumed one: what needs Lee with nothing new comes in as the marks re-sort, and
     /// nothing flashes.
     @Test func aNeedsYouWithNothingNewComesInUnflashedAsTheMarksReSort() {

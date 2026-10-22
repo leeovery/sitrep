@@ -10,14 +10,13 @@ public struct PanelBoard: Equatable, Sendable {
     public let sessions: [Session]
     public let head: Head
     public let needsLee: Bool
-    /// The rows needing Lee that are new on this board, by their keys: the notch's swell, and each row's wash.
+    /// The rows holding a line needing Lee that is new on this board, by their sessions: the notch's swell, and each
+    /// row's wash.
     public let new: Set<String>
     /// The strip's words for the board, which it has no head to say: before any board, the head's title; while the
     /// board is stale, when it was last known current, "as of 12:04".
     public let unread: String?
     public let asOf: String?
-    /// Each row's session, by the row's key, for the jump.
-    private let sessionOf: [String: String]
 
     /// Until `watch` prints its first line.
     static let looking = Head(title: "Looking for sessions…", count: "")
@@ -53,24 +52,19 @@ public struct PanelBoard: Equatable, Sendable {
             head: asOf.map { Head(title: head.title, count: $0) } ?? head,
             needsLee: !board.head.isAllClear,
             // stale, the last line's new rows are not new again
-            new: last.stale == nil ? Set(board.new) : [],
+            new: last.stale == nil ? board.newRows : [],
             unread: nil,
-            asOf: asOf,
-            sessionOf: Dictionary(board.rows.map { ($0.key, $0.session) }) { first, _ in first }
+            asOf: asOf
         )
     }
 
-    private init(
-        sessions: [Session], head: Head, needsLee: Bool, new: Set<String>, unread: String?, asOf: String?,
-        sessionOf: [String: String] = [:]
-    ) {
+    private init(sessions: [Session], head: Head, needsLee: Bool, new: Set<String>, unread: String?, asOf: String?) {
         self.sessions = sessions
         self.head = head
         self.needsLee = needsLee
         self.new = new
         self.unread = unread
         self.asOf = asOf
-        self.sessionOf = sessionOf
     }
 
     /// Tells the notch what this board brings after the last: a row new on it swells the notch; something needing
@@ -86,29 +80,38 @@ public struct PanelBoard: Equatable, Sendable {
 
     /// The session a click on this row jumps to; nil for an away one, which no window holds.
     public func jump(_ row: Session) -> String? {
-        row.jumps ? sessionOf[row.id] : nil
+        row.jumps ? row.id : nil
     }
 }
 
 extension Session {
-    /// A row as the panel draws it, keyed by the row's key so it keeps its place: its project by name, and core's
-    /// letters for it; its first line's lead, then after a space its subject, in mono or plain, or the wake it counts
-    /// down to, and a question's "+2"; core's second line beneath, an away ask's saying so; its time from `since`.
+    /// A row as the panel draws it, keyed by its session so it keeps its place: its project by name, and core's
+    /// letters for it; its lines; core's second line beneath, an away one's saying so.
     init(_ row: Board.Row, project: String) {
-        let line = row.first
-        let isFollowed = line.mono != nil || line.subject != nil || line.until != nil
+        self.init(
+            id: row.session, project: project, letters: row.letters, kind: Kind(row.oldest.kind), away: row.isAway,
+            lines: row.lines.map(Line.init), sub: row.second
+        )
+    }
+}
+
+private extension Session.Line {
+    /// A line as the panel draws it: its lead, then after a space its subject, in mono or plain, or the wake it counts
+    /// down to, and a question's "+2"; its time from `since`.
+    init(_ line: Board.Row.Line) {
+        let words = line.first
+        let isFollowed = words.mono != nil || words.subject != nil || words.until != nil
 
         self.init(
-            id: row.key, project: project, letters: row.letters, kind: Kind(row.kind), away: row.isAway,
-            title: isFollowed ? line.lead + " " : line.lead, code: line.mono, subject: line.subject,
-            until: line.until.map { $0.timeIntervalSince1970 * 1000 }, more: line.more, sub: row.second,
-            since: row.since.timeIntervalSince1970 * 1000
+            title: isFollowed ? words.lead + " " : words.lead, code: words.mono, subject: words.subject,
+            until: words.until.map { $0.timeIntervalSince1970 * 1000 }, more: words.more,
+            since: line.since.timeIntervalSince1970 * 1000
         )
     }
 }
 
 private extension Session.Kind {
-    init(_ kind: Board.Row.Kind) {
+    init(_ kind: Board.Row.Line.Kind) {
         switch kind {
         case .ask, .permission, .question: self = .needs
         case .yourTurn: self = .turn

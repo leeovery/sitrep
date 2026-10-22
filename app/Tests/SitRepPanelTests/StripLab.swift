@@ -52,6 +52,11 @@ struct StripLab {
         show(model.sessions + sessions)
     }
 
+    /// The board with a session's row changed, holding a line new on it that needs Lee.
+    func arrive(_ session: Session) {
+        show(model.sessions.map { $0.id == session.id ? session : $0 }, new: [session.id])
+    }
+
     /// The board with a session's row changed.
     func change(_ session: Session) {
         show(model.sessions.map { $0.id == session.id ? session : $0 })

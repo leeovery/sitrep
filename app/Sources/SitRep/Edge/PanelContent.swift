@@ -17,11 +17,12 @@ final class PanelContent {
     private var shown = PanelList(head: Head(title: "", count: ""), content: Content(laying: []))
     /// One for each of the list's items, in its order.
     private var items: [CALayer] = []
-    /// The rows by their sessions' ids, each in its item's layer.
+    /// The rows by their items' keys, each in its item's layer: a row crossing the hairline is two while it folds out of
+    /// one place and into the other.
     private(set) var rows: [String: (item: CALayer, row: SessionRow)] = [:]
     /// The row lifted under the pointer.
     private var hovered: SessionRow?
-    /// When each row's wash began, by its key: a row made anew mid-wash carries it on.
+    /// When each row's wash began, by its item's key: a row made anew mid-wash carries it on.
     private var washed: [String: Double] = [:]
     private var scale: CGFloat = 1
 
@@ -75,10 +76,10 @@ final class PanelContent {
         zip(items, panel.items).forEach(paint)
         rows.values.forEach { $0.row.showAge(at: scene.now) }
         rows.forEach { $1.row.isPressed = $0 == panel.pressed }
-        highlight(scene.hover.flatMap { shown.item($0)?.session?.id })
+        highlight(scene.hover.flatMap { shown.item($0)?.key })
     }
 
-    /// The rows washed from this time, ms on the display's clock.
+    /// The rows washed from this time, by their items' keys, ms on the display's clock.
     func wash(_ keys: Set<String>, at time: Double) {
         washed = Wash.live(washed, at: time)
         keys.forEach { washed[$0] = time }
@@ -106,9 +107,9 @@ final class PanelContent {
                 return Self.divider(width: width)
             }
 
-            let row = rows[session.id].flatMap { $0.row.session == session ? $0 : nil } ?? made(session, item, width)
+            let row = rows[item.key].flatMap { $0.row.session == session ? $0 : nil } ?? made(session, item, width)
 
-            kept[session.id] = row
+            kept[item.key] = row
             return row.item
         }
         was.filter { old in !items.contains { $0 === old } }.forEach { $0.removeFromSuperlayer() }
@@ -120,7 +121,7 @@ final class PanelContent {
     private func made(_ session: Session, _ item: Item, _ width: Double) -> (item: CALayer, row: SessionRow) {
         let made = Self.row(session, size: CGSize(width: width, height: item.height - Item.rowGap))
 
-        if let began = washed[session.id] {
+        if let began = washed[item.key] {
             made.row.washes(since: began)
         }
         return made

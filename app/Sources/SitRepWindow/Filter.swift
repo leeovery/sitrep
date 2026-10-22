@@ -1,8 +1,9 @@
 import Foundation
 
 /// What Lee types in the sidebar's Filter field, which narrows the list in place: a session stays while every
-/// word typed appears, anywhere, in its name or its project's, whatever their case and accents, so typing a project's
-/// name lists its sessions. A quiet project stays while its name holds every word, or one of its sessions matches.
+/// word typed appears, anywhere, in its name or its project's, or under Needs you in its lines' words too, whatever
+/// their case and accents, so typing a project's name lists its sessions. A quiet project stays while its name holds
+/// every word, or one of its sessions matches.
 public struct Filter: Equatable, Sendable {
     /// A piece of a name, lit where a word typed appears in it, soft elsewhere.
     public struct Run: Equatable, Sendable {
@@ -23,6 +24,10 @@ public struct Filter: Equatable, Sendable {
 
     /// Every word appears in one of these names.
     func matches(_ names: String...) -> Bool {
+        matches(names)
+    }
+
+    func matches(_ names: [String]) -> Bool {
         words.allSatisfy { word in names.contains { !Self.ranges(of: word, in: $0).isEmpty } }
     }
 
@@ -98,21 +103,24 @@ public enum Tone: Sendable, Equatable {
 }
 
 extension Listed {
-    /// The list narrowed to what the filter keeps: the sessions with an ask that match, under Needs you; a project's
-    /// sessions that match under it, its counts still of all of them, and gone with none; the quiet projects whose
-    /// names or sessions match. A session that matches shows in both places.
+    /// The list narrowed to what the filter keeps: the sessions that match, by their names, their projects' and the
+    /// words of the lines waiting on Lee, under Needs you and under their projects, a project's counts still of all of
+    /// them, and a project gone with none; the quiet projects whose names or sessions match. A session that matches
+    /// shows in both places.
     public func narrowed(by filter: Filter) -> Listed {
         guard !filter.isEmpty else {
             return self
         }
 
         var narrowed = self
+        let waiting = Dictionary(needsYou.map { ($0.id, $0.lines.map(\.words)) }) { first, _ in first }
+        let matches = { (row: Row) in filter.matches([row.name, row.project] + (waiting[row.id] ?? [])) }
 
-        narrowed.needsYou = needsYou.filter { filter.matches($0.name, $0.project) }
+        narrowed.needsYou = needsYou.filter(matches)
         narrowed.projects = projects.compactMap { project in
             var project = project
 
-            project.sessions = project.sessions.filter { filter.matches($0.name, $0.project) }
+            project.sessions = project.sessions.filter(matches)
             return project.sessions.isEmpty ? nil : project
         }
         narrowed.quiet = quiet.filter { project in

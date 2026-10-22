@@ -18,29 +18,72 @@ struct BoardTests {
         #expect(!board.head.isAllClear)
     }
 
-    @Test func theRowsComeInTheLinesOrderEachWhatItIsAndOfAnAskOrAWindow() throws {
+    @Test func theRowsComeInTheLinesOrderASessionEachInItsSectionEachLineWhatItIsAndOfAnAskOrAWindow() throws {
         let rows = try Board.read(watched).rows
+        let lines = rows.map(\.oldest)
 
-        #expect(rows.map(\.id) == [
+        #expect(rows.map(\.id) == ["sr-7e68fj", "sr-y4d0qj", "sr-aw3bgs"])
+        #expect(rows.map(\.section) == [.needsYou, .needsYou, .yourTurn])
+        #expect(rows.map(\.needsLee) == [true, true, false])
+        #expect(lines.map(\.id) == [
             "ask:sr-7e68fj:k1hs",
             "stop:sr-y4d0qj:6c847b5b-722d-4343-88e0-42ece4662e7d:1792445500000",
             "turn:sr-aw3bgs",
         ])
-        #expect(rows.map(\.kind) == [.ask, .permission, .yourTurn])
-        #expect(rows.map(\.ask) == ["k1hs", nil, nil])
-        #expect(rows.map(\.writer) == [nil, "6c847b5b-722d-4343-88e0-42ece4662e7d", "408a755f-ed3a-4ee1-9cc0-c0208cf3e03b"])
+        #expect(lines.map(\.kind) == [.ask, .permission, .yourTurn])
+        #expect(lines.map(\.ask) == ["k1hs", nil, nil])
+        #expect(lines.map(\.writer) == [nil, "6c847b5b-722d-4343-88e0-42ece4662e7d", "408a755f-ed3a-4ee1-9cc0-c0208cf3e03b"])
     }
 
-    @Test func aRowsFirstLineComesInItsPartsThenItsSecondAndItsTime() throws {
+    @Test func aRowsLineComesInItsPartsThenTheRowsSecondAndItsTime() throws {
         let stop = try Board.read(watched).rows[1]
 
-        #expect(stop.first == Board.Row.Line(lead: "Allow Bash", mono: "gh pr create", more: nil))
+        #expect(stop.lines.map(\.first) == [Board.Row.Words(lead: "Allow Bash", mono: "gh pr create", more: nil)])
+        #expect(stop.oldest.since == Self.at(1_792_445_500_000))
         #expect(stop.second == "Switchboard · Dashboard memory and snags")
         #expect(stop.since == Self.at(1_792_445_500_000))
         #expect(stop.letters == "Sw")
         #expect(stop.project == "switchboard-7a75d7ba")
         #expect(stop.session == "sr-y4d0qj")
         #expect(!stop.isAway)
+    }
+
+    /// The real CLI's lines (`Lines.bySession`): Harness's three asks one row, the oldest first; Switchboard's ask and
+    /// its window's permission prompt another; Goosemates' away row last in Needs you; then Working, the Mac app's
+    /// turn running before Kit's on its own work; then Fumi's turn.
+    @Test func aSessionWithSeveralLinesWaitingIsOneRowOfThemTheOldestFirst() throws {
+        let board = try Board.read(Lines.bySession[0])
+        let lines = board.rows.map { $0.lines.map(\.id) }
+
+        #expect(board.rows.map(\.id) == ["sr-4g01a7", "sr-dash02", "sr-gs7kq2", "sr-macapp", "sr-k7bt2s", "sr-v3t7a0"])
+        #expect(board.rows.map(\.section) == [.needsYou, .needsYou, .needsYou, .working, .working, .yourTurn])
+        #expect(board.rows.map(\.isAway) == [false, false, true, false, false, false])
+        #expect(lines[0] == ["ask:sr-4g01a7:k1", "ask:sr-4g01a7:k2", "ask:sr-4g01a7:k3"])
+        #expect(board.rows[0].lines.map(\.first.lead) == [
+            "Approve the first fix batch from the branch review", "Choose how the release notes are grouped",
+            "Paste the failing test's output",
+        ])
+        #expect(board.rows[0].lines.map(\.since) == board.rows[0].lines.map(\.since).sorted())
+        #expect(board.rows[0].since == board.rows[0].oldest.since)
+        #expect(board.rows[0].second == "Harness · Finish the Harness modernisation")
+        #expect(board.rows[1].lines.map(\.kind) == [.ask, .permission])
+        #expect(board.rows[1].lines.map(\.first.mono) == [nil, "gh pr create --draft"])
+        #expect(board.rows[4].oldest.kind == .onItsWork)
+        #expect(board.head.needYou == 6)
+        #expect(board.head.sessions == 6)
+    }
+
+    /// The second line: a fourth ask posted into Harness's session, new on it, its row gaining it as its newest line.
+    @Test func aLineNewOnTheBoardNamesItsRowAsNew() throws {
+        let before = try Board.read(Lines.bySession[0])
+        let after = try Board.read(Lines.bySession[1])
+
+        #expect(before.new.isEmpty && before.newRows.isEmpty)
+        #expect(after.new.count == 1)
+        #expect(after.rows[0].lines.last?.id == after.new.first)
+        #expect(after.rows[0].lines.count == 4)
+        #expect(after.newRows == ["sr-4g01a7"])
+        #expect(after.head.needYou == 7)
     }
 
     @Test func theProjectsHoldTheirSessionsEachWithItsStateAndItsAsks() throws {
@@ -68,7 +111,7 @@ struct BoardTests {
         #expect(sessions.map(\.doing.kind) == [.yourTurn, .permission, .yourTurn])
         #expect(sessions[1].doing == Board.Session.Doing(
             kind: .permission,
-            line: Board.Row.Line(lead: "Allow Bash", mono: "gh pr create", more: nil),
+            line: Board.Row.Words(lead: "Allow Bash", mono: "gh pr create", more: nil),
             since: Self.at(1_792_445_500_000)
         ))
     }
@@ -94,6 +137,7 @@ struct BoardTests {
         let board = try Board.read(watched)
 
         #expect(board.new == ["stop:sr-y4d0qj:6c847b5b-722d-4343-88e0-42ece4662e7d:1792445500000"])
+        #expect(board.newRows == ["sr-y4d0qj"])
         #expect(board.changed == ["sr-y4d0qj"])
     }
 
@@ -104,16 +148,18 @@ struct BoardTests {
         let sessions = board.projects.flatMap(\.sessions)
 
         #expect(board.head.isAllClear)
-        #expect(board.rows.map(\.id) == ["turn:sr-k7bt2s", "turn:sr-macapp"])
-        #expect(board.rows.map(\.kind) == [.onItsWork, .onItsWork])
-        #expect(board.rows.map(\.first) == [
-            Board.Row.Line(lead: "Wakes", until: Self.at(1_792_670_195_432)),
-            Board.Row.Line(lead: "Waiting on", subject: "3 agents"),
+        #expect(board.rows.map(\.id) == ["sr-k7bt2s", "sr-macapp"])
+        #expect(board.rows.map(\.section) == [.working, .working])
+        #expect(board.rows.map(\.oldest.id) == ["turn:sr-k7bt2s", "turn:sr-macapp"])
+        #expect(board.rows.map(\.oldest.kind) == [.onItsWork, .onItsWork])
+        #expect(board.rows.map(\.oldest.first) == [
+            Board.Row.Words(lead: "Wakes", until: Self.at(1_792_670_195_432)),
+            Board.Row.Words(lead: "Waiting on", subject: "3 agents"),
         ])
         #expect(board.rows.map(\.since) == [Self.at(1_792_669_295_432), Self.at(1_792_669_295_432)])
         #expect(sessions.map(\.state) == [.onItsWork, .onItsWork])
         #expect(sessions.map(\.doing.kind) == [.onItsWork, .onItsWork])
-        #expect(sessions.map(\.doing.line) == board.rows.map(\.first))
+        #expect(sessions.map(\.doing.line) == board.rows.map(\.oldest.first))
         #expect(board.windows.map(\.state?.kind) == [.onItsWork, .onItsWork])
     }
 
@@ -124,8 +170,10 @@ struct BoardTests {
         #expect(board.rows.isEmpty)
     }
 
+    /// Version 1, a row per ask or stop, is the plugin before rows by session, which this app reads no more.
     @Test func aLineOfAnotherVersionIsNamedAsSuchWhateverItsShape() {
-        #expect(throws: Unread.version(given: 2, read: 1)) { try Board.read(#"{"v": 2, "feed": {}}"#) }
+        #expect(throws: Unread.version(given: 1, read: 2)) { try Board.read(#"{"v": 1, "feed": {}}"#) }
+        #expect(throws: Unread.version(given: 3, read: 2)) { try Board.read(#"{"v": 3, "feed": {}}"#) }
     }
 
     @Test(arguments: [
@@ -136,6 +184,8 @@ struct BoardTests {
         watched.replacingOccurrences(of: #""is": "yourTurn""#, with: #""is": "napping""#),
         watched.replacingOccurrences(of: #""doing": {"# + "\n" + #"            "is": "permission""#, with: #""doing": {"# + "\n" + #"            "is": "napping""#),
         watched.replacingOccurrences(of: #""doing": {"#, with: #""doings": {"#),
+        watched.replacingOccurrences(of: #""section": "yourTurn""#, with: #""section": "napping""#),
+        Lines.bySession[0].replacingOccurrences(of: #""lines":[{"key":"turn:sr-v3t7a0""#, with: #""lines":[],"was":[{"key":"turn:sr-v3t7a0""#),
     ])
     func aLineThatIsNotABoardIsUnread(line: String) {
         #expect(throws: Unread.shape) { try Board.read(line) }

@@ -86,7 +86,7 @@ struct StripRunTests {
 
     /// A mark's centre on the strip, 18 in from the edge.
     private static func on(_ id: String, in run: StripRun) -> CGPoint {
-        CGPoint(x: 18, y: run.strip.yOf(.session("work:\(id)")))
+        CGPoint(x: 18, y: run.strip.yOf(.session("sr-\(id)")))
     }
 
     // MARK: A click
@@ -119,7 +119,7 @@ struct StripRunTests {
     @Test func aClickGoesToTheRowUnderItThoughTheBoardChangedTheCountSinceTheModelsLastFrame() throws {
         let run = Self.countOpen()
         let rows = run.strip.layout.rest
-        #expect(rows.first == "work:w5")
+        #expect(rows.first == "sr-w5")
 
         run.show(Self.working(["w1", "w2", "w3", "w4", "w6", "w7", "w8", "w9"]), Self.at(run.time))
         let first = try Self.countRow(0, in: run)
@@ -130,7 +130,7 @@ struct StripRunTests {
             Issue.record("released \(String(describing: released))")
             return
         }
-        #expect(session.id == "work:w6" && target == "sr-w6" && click == 1)
+        #expect(session.id == "sr-w6" && target == "sr-w6" && click == 1)
     }
 
     @Test func noClickJumpsWhileAJumpRunsAndNoneIsCounted() {
@@ -485,7 +485,7 @@ struct StripRunTests {
         let waking = Self.countOpen(PanelBoard(last)), working = Self.countOpen()
         let due = Double(until)
 
-        #expect(waking.strip.layout.rest.last == "turn:w8")
+        #expect(waking.strip.layout.rest.last == "sr-w8")
         #expect(waking.nextAgeChange(after: due - 90_000) == due - 60_000)
         #expect(waking.nextAgeChange(after: due - 30_000) == due)
         #expect(waking.nextAgeChange(after: due) == nil)

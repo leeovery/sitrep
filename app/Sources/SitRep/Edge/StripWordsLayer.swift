@@ -307,7 +307,7 @@ final class StripWordsLayer {
             return WaitingTitle.text(s, subject: subject)
         }
 
-        let font = s.kind == .needs ? EdgeStyle.needsTitle : EdgeStyle.title
+        let font = EdgeStyle.title
         let ink = colour ?? (s.away ? EdgeStyle.quiet : EdgeStyle.ink)
         let text = TextLine.text(s.title, font, ink, kern: EdgeStyle.tightKern(font))
 
@@ -315,12 +315,12 @@ final class StripWordsLayer {
         return text
     }
 
-    /// A title's subject in code type after it, and its "+2", dim, 6 further on.
+    /// A title's subject in code type after it, and its "+2" (`moreOnOneLine`), dim, 6 further on.
     private static func append(_ s: Session, to text: NSMutableAttributedString, _ ink: CGColor, more font: NSFont) {
         if let code = s.code {
             text.append(TextLine.text(code, EdgeStyle.code, ink))
         }
-        if let more = s.more {
+        if let more = s.moreOnOneLine {
             text.addAttribute(.kern, value: 6, range: NSRange(location: text.length - 1, length: 1))
             text.append(TextLine.text(more, font, EdgeStyle.ink3))
         }
@@ -337,12 +337,11 @@ final class StripWordsLayer {
     }
 
     /// One of a count's rows' titles saying this after its verb, where it has no command: needs you and your turn in
-    /// ink, needs you's bolder, an away ask's quiet, and working and on its own work grey, a wake's countdown in
-    /// tabular figures.
+    /// ink, an away ask's quiet, and working and on its own work grey, a wake's countdown in tabular figures.
     private static func rowTitle(_ s: Session, saying subject: String?) -> NSAttributedString {
         let isGrey = s.kind == .working || s.kind == .onItsWork
         let ink = s.away ? EdgeStyle.quiet : isGrey ? EdgeStyle.grey : EdgeStyle.ink
-        let font = s.kind == .needs ? EdgeStyle.needsRowTitle : EdgeStyle.rowTitle
+        let font = EdgeStyle.rowTitle
         let text = TextLine.text(s.title, font, ink)
 
         if s.code == nil, let subject {

@@ -18,14 +18,15 @@ private let watchRows = [
 
 /// The first line the real `sitrep watch` printed on 20 October 2026, run once over a board seeded in a scratch
 /// `XDG_STATE_HOME`: SitRep's ask, which a window holds, and Switchboard's, which none does. Verbatim, but for the
-/// line breaks.
+/// line breaks and its rows, grouped by session as version 2 prints them (`Lines`).
 let realLine = #"""
-    {"v":1,"at":1792453038194,"version":"0.1.0","head":{"needYou":2,"sessions":2},"rows":[{"key":"ask:sr-n0tch1:k1ap",\#
-    "is":"ask","isAway":false,"session":"sr-n0tch1","project":"sitrep","letters":"SR","ask":"k1ap","writer":null,\#
-    "first":{"lead":"Approve the caption","mono":null,"more":null},"second":"SitRep · Build the Mac app",\#
-    "since":1792452732636},{"key":"ask:sr-dash02:k2pc","is":"ask","isAway":true,"session":"sr-dash02",\#
-    "project":"switchboard","letters":"Sw","ask":"k2pc","writer":null,"first":{"lead":"Pick the cache size",\#
-    "mono":null,"more":null},"second":"No window holds it. Carry it on in Claude.","since":1792451832636}],\#
+    {"v":2,"at":1792453038194,"version":"0.1.0","head":{"needYou":2,"sessions":2},"rows":[{"session":"sr-n0tch1",\#
+    "section":"needsYou","isAway":false,"project":"sitrep","letters":"SR","lines":[{"key":"ask:sr-n0tch1:k1ap",\#
+    "is":"ask","ask":"k1ap","writer":null,"first":{"lead":"Approve the caption","mono":null,"more":null},\#
+    "since":1792452732636}],"second":"SitRep · Build the Mac app","since":1792452732636},{"session":"sr-dash02",\#
+    "section":"needsYou","isAway":true,"project":"switchboard","letters":"Sw","lines":[{"key":"ask:sr-dash02:k2pc",\#
+    "is":"ask","ask":"k2pc","writer":null,"first":{"lead":"Pick the cache size","mono":null,"more":null},\#
+    "since":1792451832636}],"second":"No window holds it. Carry it on in Claude.","since":1792451832636}],\#
     "projects":[{"key":"sitrep","name":"SitRep","directory":"/Users/leeovery/Code/sitrep","open":1,"waiting":1,\#
     "parked":0,"updatedAt":1792452732636,"sessions":[{"id":"sr-n0tch1","name":"Build the Mac app",\#
     "summary":"The notch","now":["Building the notch"],"next":null,"isOpen":true,"waiting":1,"parked":0,\#
@@ -56,21 +57,45 @@ let allClearLine = line(
 
 func line(needYou: Int, sessions: Int, new: [String], rows: [String]) -> String {
     """
-    {"v":1,"at":1792445574706,"version":"0.1.0","head":{"needYou":\(needYou),"sessions":\(sessions)},\
+    {"v":2,"at":1792445574706,"version":"0.1.0","head":{"needYou":\(needYou),"sessions":\(sessions)},\
     "rows":[\(rows.joined(separator: ","))],"projects":[],"windows":[],\
     "new":[\(new.map { "\"\($0)\"" }.joined(separator: ","))],"changed":[]}
     """
 }
 
+/// A session's row of one line, its key `key`, in the section its kind puts it in; with `newer`, more lines of the
+/// same kind after it, by their keys, leads and times, as a session with several asks has.
 func row(
     _ key: String, _ kind: String, away: Bool = false, session: String, lead: String, mono: String? = nil,
-    more: String? = nil, until: Int? = nil, second: String, since: Int
+    more: String? = nil, until: Int? = nil, second: String, since: Int,
+    newer: [(key: String, lead: String, since: Int)] = []
+) -> String {
+    let first = rowLine(key, kind, lead: lead, mono: mono, more: more, until: until, since: since)
+    let lines = [first] + newer.map { rowLine($0.key, kind, lead: $0.lead, since: $0.since) }
+
+    return """
+    {"session":"\(session)","section":"\(section(of: kind))","isAway":\(away),"project":"p","letters":"Pr",\
+    "lines":[\(lines.joined(separator: ","))],"second":"\(second)","since":\(since)}
+    """
+}
+
+private func rowLine(
+    _ key: String, _ kind: String, lead: String, mono: String? = nil, more: String? = nil, until: Int? = nil,
+    since: Int
 ) -> String {
     """
-    {"key":"\(key)","is":"\(kind)","isAway":\(away),"session":"\(session)","project":"p","letters":"Pr",\
-    "ask":null,"writer":null,"first":{"lead":"\(lead)","mono":\(json(mono)),"more":\(json(more)),\
-    "until":\(until.map(String.init) ?? "null")},"second":"\(second)","since":\(since)}
+    {"key":"\(key)","is":"\(kind)","ask":null,"writer":null,"first":{"lead":"\(lead)","mono":\(json(mono)),\
+    "more":\(json(more)),"until":\(until.map(String.init) ?? "null")},"since":\(since)}
     """
+}
+
+/// The section core puts a row of this kind in.
+private func section(of kind: String) -> String {
+    switch kind {
+    case "ask", "permission", "question": "needsYou"
+    case "yourTurn": "yourTurn"
+    default: "working"
+    }
 }
 
 private func json(_ text: String?) -> String {

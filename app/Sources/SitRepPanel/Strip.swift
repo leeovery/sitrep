@@ -135,7 +135,7 @@ public final class Strip {
         centre = clampCentre(stage.height * along)
 
         display = sessions.map(\.id)
-        needsSlot = Set(sessions.filter { $0.kind == .needs }.map(\.id))
+        needsSlot = Set(sessions.filter(\.needsLee).map(\.id))
         sessions.forEach { _ = markOf($0) }
         relayout(snapAll: true)
         hairOp.snap(layout.hair != nil ? 1 : 0)
@@ -222,10 +222,12 @@ public final class Strip {
     /// The counts there are, the grey one first.
     var counts: [StripMark] { [more, moreNeeds].compactMap(\.self) }
 
-    /// The board's sessions, in core's order, and the keys of those new on it that need Lee:
+    /// The board's sessions, in core's order, and those of them arriving, holding a line new on it that needs Lee:
     /// - one gone fades where it is, and the rest close up;
-    /// - one changed shows in place, and moves once the pointer has been off the strip for Settle;
-    /// - a new needs you moves in at once, pointer or not, and its ring flashes, or its count's;
+    /// - one changed shows in place, and moves once the pointer has been off the strip for Settle, as one whose asks
+    ///   were answered does;
+    /// - one arriving off the needs you side, new to the strip or already on it, moves in at once, pointer or not, and
+    ///   its ring flashes, or its count's; one arriving on the needs you side flashes where it is;
     /// - any other new to the strip comes in as the marks re-sort at once, unflashed: needs you with nothing new among
     ///   them, as on a first or a resumed board.
     ///
@@ -235,15 +237,19 @@ public final class Strip {
         let was = Dictionary(sessions.map { ($0.id, $0) }) { first, _ in first }
         let gone = Set(was.keys).subtracting(board.map(\.id))
         let fresh = board.filter { was[$0.id] == nil }
-        let asks = fresh.filter { $0.kind == .needs && new.contains($0.id) }
+        let arriving = board.filter { $0.needsLee && new.contains($0.id) }
+        let asks = arriving.filter { !needsSlot.contains($0.id) }
+        let crossing = asks.filter { was[$0.id] != nil }
         let changes = board.filter { session in was[session.id].map { $0 != session } ?? false }
 
         sessions = board
         if !gone.isEmpty {
             leave(gone)
         }
-        changes.forEach(changed)
+        lift(crossing)
+        changes.filter { !crossing.contains($0) }.forEach(changed)
         asks.forEach(insertNeeds)
+        arriving.filter { !asks.contains($0) }.forEach(flashInPlace)
         let others = fresh.filter { !asks.contains($0) }
         if !others.isEmpty {
             add(others)

@@ -20,12 +20,32 @@ struct SpokenTests {
         #expect(Spoken.row(Self.row(mark, isAway: isAway), at: printedAt) == words)
     }
 
-    @Test func aNeedsYouRowReadsAsAProjectsRowDoes() throws {
+    /// What waits first, how many and each line's words, then its project and session and the oldest's time.
+    @Test func aNeedsYouRowReadsItsLinesThenItsProjectAndSession() throws {
         let listed = Listed(heard(line(0)))
         let asking = try #require(listed.needsYou.first { $0.id == "sr-dash02" })
+        let age = Spoken.age(asking.since, at: printedAt)
 
-        #expect(asking == listed.sessions.first { $0.id == "sr-dash02" })
-        #expect(Spoken.row(asking, at: printedAt).hasPrefix("Dashboard redesign, Switchboard, needs you, "))
+        #expect(
+            Spoken.needsYou(asking, at: printedAt)
+                == "2 asks, Paste the load test's output for the Usage area, Allow Bash gh pr create --draft --base main, "
+                + "Switchboard, Dashboard redesign, \(age)"
+        )
+    }
+
+    /// One line reads with no count; away, it says so before its time.
+    @Test(arguments: [false, true])
+    func aNeedsYouRowOfOneLineReadsNoCountAndAwaySaysSo(isAway: Bool) {
+        let since = minutes(before: 90)
+        let asking = Listed.Row(
+            id: "sr-1", name: "The bootstrap", project: "Kit", mark: .needs, isAway: isAway, since: since,
+            lines: [Listed.Waiting(id: "ask:sr-1:k1", lead: "Which edge?", code: nil, more: "+2", since: since)]
+        )
+
+        #expect(
+            Spoken.needsYou(asking, at: printedAt)
+                == (isAway ? "Which edge?, Kit, The bootstrap, away, 1 hour" : "Which edge?, Kit, The bootstrap, 1 hour")
+        )
     }
 
 

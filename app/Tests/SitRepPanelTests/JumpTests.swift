@@ -103,13 +103,13 @@ struct JumpTests {
         lab.step()
 
         #expect(took)
-        #expect(lab.frame.panel?.pressed == "s1")
+        #expect(lab.frame.panel?.pressed == "needs:s1")
         let early = lab.wait(Tuning.jumpFor - 2 * NotchLab<M>.frameMS) { $0.phase != .open }
         #expect(!early)
-        #expect(lab.frame.panel?.pressed == "s1")
+        #expect(lab.frame.panel?.pressed == "needs:s1")
         let drained = lab.wait(3 * NotchLab<M>.frameMS) { $0.phase == .closing }
         #expect(drained)
-        #expect(lab.frame.panel?.pressed == "s1")
+        #expect(lab.frame.panel?.pressed == "needs:s1")
         let settled = lab.settle()
         #expect(settled)
         #expect(lab.phase == .closed)
@@ -165,7 +165,7 @@ struct JumpTests {
 
         #expect(first)
         #expect(!second)
-        #expect(lab.model.jumping == "s1")
+        #expect(lab.model.jumping == "needs:s1")
     }
 
     private func foldingTakesNoClick<M: NotchModel>(_ lab: NotchLab<M>) {

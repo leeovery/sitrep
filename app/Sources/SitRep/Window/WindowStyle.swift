@@ -89,6 +89,8 @@ enum WindowStyle {
     static let rowHeight: CGFloat = 32
     static let twoLineHeight: CGFloat = 39
     static let twoLineTop: CGFloat = 4
+    /// A Needs you row's lines waiting on Lee, 3 apart, as board D sets several.
+    static let waitingGap: CGFloat = 3
     static let headingHeight: CGFloat = 24
     static let headingGap: CGFloat = 10
     /// A heading's words end 2 inside its selection, 4 past a row's.
@@ -128,6 +130,17 @@ enum WindowStyle {
         case .picked: isStill ? stillSelection : nil
         case .none: nil
         }
+    }
+
+    /// A Needs you row's height: the system's two-line row, as built, and each line more, 16 and the 3 over it.
+    static func needsYouHeight(lines: Int) -> CGFloat {
+        twoLineHeight + (titleLine + waitingGap) * CGFloat(max(0, lines - 1))
+    }
+
+    /// A Needs you row's words of a tone on the accent of its pick, as board D draws it: the words white, the rest,
+    /// its second line and its ages among them, white at 80%.
+    static func picked(_ tone: Tone) -> Color {
+        tone == .text ? .white : .white.opacity(0.8)
     }
 
     /// The sidebar's words of a tone, in the system's label colours, which the list's emphasized selection turns white

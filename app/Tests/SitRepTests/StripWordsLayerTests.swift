@@ -49,6 +49,29 @@ struct StripWordsLayerTests {
         #expect(StripWordsLayer.rowWidth(wake, at: 0) > StripWordsLayer.rowWidth(Self.wake(in: 2), at: 0))
     }
 
+    /// A session with three lines waiting is one tab, as one row of a count's: its oldest line, then "+2" for the two
+    /// after it, set as a question of one line sets its "+2".
+    @Test func aSessionOfSeveralLinesSaysItsOldestThenHowManyMore() {
+        let oldest = Session.Line(title: "Approve the first fix batch", since: 0)
+        let three = Session(
+            id: "h", project: "Harness", kind: .needs,
+            lines: [oldest, Session.Line(title: "Choose", since: 1), Session.Line(title: "Paste", since: 2)],
+            sub: "Harness"
+        )
+        let asked = Session(
+            id: "h", project: "Harness", kind: .needs, title: oldest.title, more: "+2",
+            sub: "Harness", since: 0
+        )
+        let alone = Session(
+            id: "h", project: "Harness", kind: .needs, title: oldest.title,
+            sub: "Harness", since: 0
+        )
+
+        #expect(StripWordsLayer.rowWidth(three, at: 0) == StripWordsLayer.rowWidth(asked, at: 0))
+        #expect(StripWordsLayer.countRowWidth(three, at: 0) == StripWordsLayer.countRowWidth(asked, at: 0))
+        #expect(StripWordsLayer.countRowWidth(three, at: 0) > StripWordsLayer.countRowWidth(alone, at: 0))
+    }
+
     /// The room left is each unit's widest reading, "in 59m", so every reading of two figures must set as wide as it:
     /// "in 11m" too, its figures tabular.
     @Test func aCountdownsFiguresAreTabular() {

@@ -74,6 +74,47 @@ struct PanelContentTests {
         #expect(content.rows["a"]?.row.isHighlighted == false)
     }
 
+    /// A session's row gaining a line, as a second ask comes, is made anew at its new height in its place, and the row
+    /// under it moves down by the line; still lifted, as one under the pointer was.
+    @Test func aRowGainingALineTakesItsNewHeightInPlace() {
+        let content = PanelContent()
+        let one = Session(id: "a", project: "Harness", kind: .needs, title: "Approve the batch", sub: "Harness · H", since: 0)
+        var two = one
+        let frame = Self.open(Self.list(.session(one), Self.row("b")))
+
+        two.lines.append(Session.Line(title: "Choose the branch", since: 60_000))
+        content.show(Self.list(.session(one), Self.row("b")))
+        content.show(Self.scene(frame, hover: 0))
+        content.show(Self.list(.session(two), Self.row("b")))
+        content.show(Self.scene(frame, hover: 0))
+
+        #expect(content.rows["needs:a"]?.row.session == two)
+        #expect(content.rows["needs:a"]?.row.layer.bounds.height == 77)
+        #expect(content.rows["needs:a"]?.row.isHighlighted == true)
+        #expect(content.rows["b"]?.item.position.y == Content(laying: [.session(two), Self.row("b")]).itemFrame(1).midY)
+    }
+
+    /// A row crossing the hairline as its session comes to need Lee is two while it folds: the wash lands on the one
+    /// arriving in needs you, never on the one folding away.
+    @Test func aRowCrossingTheHairlineWashesOnlyWhereItArrives() {
+        let content = PanelContent()
+        let rest = Session(id: "x", project: "SitRep", kind: .turn, title: "Your turn", sub: "SitRep · Build", since: 0)
+        var asking = rest
+        asking.kind = .needs
+        asking.title = "Approve the plan"
+        let crossing = Content(
+            headHeight: 26,
+            entries: [Content.Entry(.session(asking), height: 0), Content.Entry(.session(rest), height: 59, isGoing: true)]
+        )
+
+        content.show(Self.list(.session(rest)))
+        content.wash([Item.session(asking).key], at: 0)
+        content.show(PanelList(head: Head(needYou: 1, sessions: 1), content: crossing))
+
+        #expect(content.rows["needs:x"]?.row.washing != nil)
+        #expect(content.rows["x"]?.row.washing == nil)
+    }
+
     @Test func aRowMadeAnewUnderThePointerLifts() {
         let content = PanelContent(), list = Self.list(Self.row("a"))
         let frame = Self.open(list)

@@ -1,15 +1,16 @@
 /**
  * A session's state across its windows, what it is doing, and the rows the
- * notch's panel, the strip and the menu show of the board, in their order,
- * each with its two lines and its time (see "A session's state" and "The
- * rows" in DESIGN.md). The app draws them as they come: what a surface shows
- * is decided here.
+ * notch's panel, the strip, the menu and the SitRep window show of the
+ * board, in their order, each in its section with its lines and its time
+ * (see "A session's state" and "The rows" in DESIGN.md). The app draws them
+ * as they come: what a surface shows is decided here.
  *
- * - Each ask waiting on Lee is a row, dimmed while no window holds its
- *   session, and so is each live window stopped on a permission prompt or a
- *   question. They need Lee, and a session that does shows only them.
- * - Else a session a window holds is one row: working, where any of its
- *   windows is, else on its own work, else your turn.
+ * A row is a session, which shows once, in one row.
+ * - A session needing Lee is a row in Needs you, with a line for each ask
+ *   waiting on Lee and each live window stopped on a permission prompt or a
+ *   question, the oldest first; dimmed while no window holds it.
+ * - Else a session a window holds is a row of one line: working, where any
+ *   of its windows is, else on its own work, both in Working; else your turn.
  * - A session no window holds, with nothing waiting, has none: the SitRep
  *   window shows it. Nor has a finished one.
  */
@@ -29,37 +30,50 @@ import type { Ask, Session, StateKind, ToolShown, WindowState, Work } from './ty
  */
 export type SessionState = 'needsYou' | 'working' | 'onItsWork' | 'yourTurn' | 'away' | 'finished'
 
-/** What a row is: an ask, a window's permission prompt or question, or a session whose window works, is on its own work, or waits on Lee's message. */
+/** What a row's line is: an ask, a window's permission prompt or question, or a session whose window works, is on its own work, or waits on Lee's message. */
 export type RowKind = 'ask' | 'permission' | 'question' | 'working' | 'onItsWork' | 'yourTurn'
 
+/** Where a row sits: needing Lee; its window working or on its own work; or waiting on Lee's message. */
+export type Section = 'needsYou' | 'working' | 'yourTurn'
+
 /**
- * A row's first line, in parts: what leads it, which a working row
- * shimmers; what it acts on, set in mono where it is a command or a path,
- * else `subject`, plain; how many more there are, as a question's `+2`; and
- * when the wake it waits on is due, which the app words after the lead as
- * it counts down ("in 12m"): core writes nothing that changes with the clock.
+ * A line's words, in parts: what leads it, which a working line shimmers;
+ * what it acts on, set in mono where it is a command or a path, else
+ * `subject`, plain; how many more there are, as a question's `+2`; and when
+ * the wake it waits on is due, which the app words after the lead as it
+ * counts down ("in 12m"): core writes nothing that changes with the clock.
  */
 export type RowLine = { lead: string; mono?: string; subject?: string; more?: string; until?: number }
 
-export type Row = {
-  /** What the row is, the same for as long as it stands: an ask's session and id, a stop's window and when it showed, else its session. */
+/** One of a row's lines: an ask or a window's stop waiting on Lee, or the state of the window the row's turn comes from. */
+export type Line = {
+  /** What it is, the same for as long as it stands: an ask's session and id, a stop's window and when it showed, else its session. */
   key: string
   is: RowKind
-  /** An ask of a session no window holds: dimmed, with no window to jump to. */
-  isAway: boolean
+  ask?: string
+  /** The window it comes from: a stop's, or the one working or waiting on Lee's message. */
+  writer?: string
+  /** What it says. */
+  first: RowLine
+  /** When it began, which the app counts from: an ask's posting or reopening, a stop's showing, the turn's end, or its start while working. */
+  since: number
+}
+
+export type Row = {
+  /** The session, which names the row. */
   session: string
+  section: Section
+  /** Needing Lee, with no window holding the session: dimmed, with no window to jump to. */
+  isAway: boolean
   /** The key of the project the session is filed under. */
   project: string
   /** The project's two letters, as the strip's mark shows them. */
   letters: string
-  ask?: string
-  /** The window it comes from: a stop's, or the one working or waiting on Lee's message. */
-  writer?: string
-  /** What it is. */
-  first: RowLine
+  /** In Needs you, a line for each ask and stop waiting on Lee, the oldest first; else the one of its turn. */
+  lines: Line[]
   /** Its project and session: `Switchboard · Dashboard redesign`. */
   second: string
-  /** When it began, which the app counts from: an ask's posting or reopening, a stop's showing, the turn's end, or its start while working. */
+  /** When it began: its oldest line's. */
   since: number
   /** On its own work, the soonest wake its window waits on, which orders it among the rest. */
   wakeAt?: number
@@ -74,13 +88,11 @@ export type Row = {
  */
 export type Doing = { is: StateKind | 'away'; line: RowLine; since: number }
 
-/** The panel's head: how many rows need Lee, away ones among them, and how many sessions the rows hold. None needing Lee is all clear. */
+/** The panel's head: how many lines need Lee, away ones among them, and how many sessions the rows hold. None needing Lee is all clear. */
 export type Head = { needYou: number; sessions: number }
 
 /** A live window on a session, and what it is doing. */
 type Held = { writer: string; state: WindowState }
-
-const NEEDS: readonly RowKind[] = ['ask', 'permission', 'question']
 
 const STOPS: readonly StateKind[] = ['permission', 'question']
 
@@ -115,8 +127,8 @@ const SOME_PERMISSION = 'A permission prompt'
 /** An away ask's second line, in place of its project and session: there is no window to jump to. */
 const AWAY_LINE = 'No window holds it. Carry it on in Claude.'
 
-/** Whether a row needs Lee: an ask, a permission prompt or a question. */
-export const needsYou = (row: Row) => NEEDS.includes(row.is)
+/** Whether a row needs Lee: its lines asks, permission prompts or questions. */
+export const needsYou = (row: Row) => row.section === 'needsYou'
 
 /** The live windows on a session; one on a version before heartbeats said its state reads as your turn since it attached. */
 const heldBy = (session: Session, now: number): Held[] =>
@@ -269,62 +281,80 @@ const stateLine = (state: WindowState, session: Session, project: Project): RowL
   }
 }
 
-/** What every row of a session's has: the session, its project, the strip's letters, and the second line. */
-type Shared = Pick<Row, 'session' | 'project' | 'letters' | 'second'>
-
-const askRow = (ask: Ask, isAway: boolean, shared: Shared): Row => ({
-  key: `ask:${shared.session}:${ask.id}`,
+const askLine = (session: Session, ask: Ask): Line => ({
+  key: `ask:${session.id}:${ask.id}`,
   is: 'ask',
-  isAway,
   ask: ask.id,
   first: { lead: ask.title },
   since: ask.openedAt,
-  ...shared,
-  second: isAway ? AWAY_LINE : shared.second,
 })
 
+/** Lines, the oldest first. */
+const byAge = (a: Line, b: Line) => a.since - b.since || compareText(a.key, b.key)
+
 /**
- * A session's rows at `now`, in no order: its asks waiting on Lee and its
- * windows stopped on Lee, else one for its windows working or waiting on
- * Lee's message; none for a session no window holds with nothing waiting,
- * nor for a finished one.
+ * A session's row at `now`: in Needs you, its asks waiting on Lee and its
+ * windows stopped on Lee; else one line for its windows working, on their own
+ * work or waiting on Lee's message. None for a session no window holds with
+ * nothing waiting, nor for a finished one.
  */
-export const rowsOf = (project: Project, session: Session, now: number): Row[] => {
+export const rowOf = (project: Project, session: Session, now: number): Row | undefined => {
   if (session.finished !== undefined) {
-    return []
+    return undefined
   }
 
   const held = heldBy(session, now)
-  const shared: Shared = {
+  const shared = {
     session: session.id,
     project: project.key,
     letters: lettersOf(project.name),
-    second: `${project.name} · ${session.status.name}`,
   }
-  const windowRow = (key: string, { writer, state }: Held): Row => ({
+  const second = `${project.name} · ${session.status.name}`
+  const windowLine = (key: string, { writer, state }: Held): Line => ({
     key,
     is: state.is,
-    isAway: false,
     writer,
     first: stateLine(state, session, project),
     since: state.since,
-    ...(state.work?.wakes?.at === undefined ? {} : { wakeAt: state.work.wakes.at }),
-    ...shared,
   })
   const needs = [
-    ...waitingOnLee(session).map(ask => askRow(ask, held.length === 0, shared)),
+    ...waitingOnLee(session).map(ask => askLine(session, ask)),
     ...held
       .filter(isStopped)
-      .map(each => windowRow(`stop:${session.id}:${each.writer}:${each.state.since}`, each)),
-  ]
+      .map(each => windowLine(`stop:${session.id}:${each.writer}:${each.state.since}`, each)),
+  ].sort(byAge)
+  const [oldest] = needs
 
-  if (needs.length > 0) {
-    return needs
+  if (oldest !== undefined) {
+    const isAway = held.length === 0
+
+    return {
+      ...shared,
+      section: 'needsYou',
+      isAway,
+      lines: needs,
+      second: isAway ? AWAY_LINE : second,
+      since: oldest.since,
+    }
   }
 
   const turn = turnOf(held)
 
-  return turn === undefined ? [] : [windowRow(`turn:${session.id}`, turn)]
+  if (turn === undefined) {
+    return undefined
+  }
+
+  const wakeAt = turn.state.work?.wakes?.at
+
+  return {
+    ...shared,
+    section: turn.state.is === 'yourTurn' ? 'yourTurn' : 'working',
+    isAway: false,
+    lines: [windowLine(`turn:${session.id}`, turn)],
+    second,
+    since: turn.state.since,
+    ...(wakeAt === undefined ? {} : { wakeAt }),
+  }
 }
 
 /** What a session is doing at `now`, across its live windows (`Doing`). */
@@ -341,16 +371,19 @@ export const doingOf = (project: Project, session: Session, now: number): Doing 
       }
 }
 
-/** The groups after needing Lee, in the panel's order. */
-const TURN_GROUPS: readonly RowKind[] = ['working', 'onItsWork', 'yourTurn']
+/** Whether a row in Working is on its own work, not working. */
+const isOwnWork = (row: Row) => row.lines[0]?.is === 'onItsWork'
 
-/** A row's group, in the panel's order: needing Lee, an away session's after; working; on its own work; your turn. */
+/** A row's group, in the panel's order: needing Lee, an away session's after; working, on its own work at its end; your turn. */
 const groupOf = (row: Row) => {
-  if (needsYou(row)) {
-    return row.isAway ? 1 : 0
+  switch (row.section) {
+    case 'needsYou':
+      return row.isAway ? 1 : 0
+    case 'working':
+      return isOwnWork(row) ? 3 : 2
+    case 'yourTurn':
+      return 4
   }
-
-  return 2 + TURN_GROUPS.indexOf(row.is)
 }
 
 /** On its own work, a row waiting on a wake before one that is not, the sooner first. */
@@ -361,28 +394,25 @@ const byWake = (a: Row, b: Row) =>
 
 /**
  * Your turn's rows newest first; on its own work's soonest to wake first,
- * then oldest first; every other group's oldest first, so working's the
- * longest running first.
+ * then oldest first; every other group's oldest first, so Needs you's by its
+ * oldest line, and working's the longest running first.
  */
 const bySince = (a: Row, b: Row) => {
-  if (a.is === 'yourTurn') {
+  if (a.section === 'yourTurn') {
     return b.since - a.since
   }
 
-  return (a.is === 'onItsWork' ? byWake(a, b) : 0) || a.since - b.since
+  return (isOwnWork(a) ? byWake(a, b) : 0) || a.since - b.since
 }
 
 /** Rows in the panel's order (see "The rows" in DESIGN.md). */
 export const inPanelOrder = (rows: readonly Row[]) =>
   [...rows].sort(
-    (a, b) =>
-      groupOf(a) - groupOf(b) ||
-      bySince(a, b) ||
-      compareText(a.session, b.session) ||
-      compareText(a.key, b.key),
+    (a, b) => groupOf(a) - groupOf(b) || bySince(a, b) || compareText(a.session, b.session),
   )
 
+/** The head: the lines needing Lee, and the rows. */
 export const headOf = (rows: readonly Row[]): Head => ({
-  needYou: rows.filter(needsYou).length,
-  sessions: new Set(rows.map(row => row.session)).size,
+  needYou: rows.filter(needsYou).reduce((count, row) => count + row.lines.length, 0),
+  sessions: rows.length,
 })

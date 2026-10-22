@@ -4,17 +4,22 @@ import AppKit
 import SwiftUI
 import Testing
 
-/// The sidebar's words in the system's label colours, drawn on what is behind them: on the emphasized selection of the
-/// list that has the window's focus the system turns the title white and the soft words and marks brighter, as on its
-/// own rows; the orange stays orange. Elsewhere each keeps its own.
+/// The sidebar's words drawn on what is behind them: on the emphasized selection of the list that has the window's
+/// focus, a session's row under its project in the system's label colours, which turn the title white and the soft
+/// words and marks brighter, as on the system's own rows; a Needs you row in board D's whites, its words white, its
+/// second line and its ages white at 80%. The orange stays orange. Elsewhere each keeps its own.
 @MainActor
 struct SelectedWordsTests {
     private static let now = Date()
 
     private static func row(_ mark: Mark = .needs, isAway: Bool = false, washed: Date? = nil) -> Listed.Row {
-        Listed.Row(
-            id: "sr-1", name: "Name", project: "Mono", mark: mark, isAway: isAway,
-            since: now.addingTimeInterval(-3600), washed: washed
+        let since = now.addingTimeInterval(-3600)
+
+        return Listed.Row(
+            id: "sr-1", name: "Name", project: "Mono", mark: mark, isAway: isAway, since: since,
+            lines: mark == .needs
+                ? [Listed.Waiting(id: "ask:sr-1:k1", lead: "Name", code: nil, more: nil, since: since, washed: washed)] : [],
+            washed: washed
         )
     }
 
@@ -26,19 +31,34 @@ struct SelectedWordsTests {
     }
 
     private static func asking(_ row: Listed.Row, on prominence: BackgroundProminence) throws -> Drawn {
-        try drawn(SidebarSessionRow(row: row, filter: Filter(), showsProject: true, now: now), on: prominence)
+        try drawn(NeedsYouRow(row: row, filter: Filter(), now: now), on: prominence)
     }
 
-    /// The row's parts as the cell lays them out, 16 in from the sidebar's edge: the mark's slot, the title's line,
-    /// the project's line under it, and the age on the title's line at the trailing end.
+    private static func underProject(_ row: Listed.Row, on prominence: BackgroundProminence) throws -> Drawn {
+        try Drawn(
+            SidebarSessionRow(row: row, filter: Filter(), now: now).environment(\.backgroundProminence, prominence),
+            size: CGSize(width: 264, height: WindowStyle.rowHeight)
+        )
+    }
+
+    /// A Needs you row's parts as the cell lays them out, 16 in from the sidebar's edge: the mark's slot, its line's
+    /// words, the project and session's line under it, and the age on the line at the trailing end.
     nonisolated private static let slot = CGRect(x: 0, y: 4, width: 26, height: 16)
     nonisolated private static let title = CGRect(x: 30, y: 4, width: 60, height: 16)
     nonisolated private static let project = CGRect(x: 30, y: 21, width: 60, height: 14)
     nonisolated private static let age = CGRect(x: 230, y: 4, width: 34, height: 16)
 
-    @Test func theTitleIsWhiteOnTheSelectionAndTheLabelColourElsewhere() throws {
+    @Test func aNeedsYouRowsWordsAreWhiteOnTheSelectionAndTheLabelColourElsewhere() throws {
         #expect(try Self.asking(Self.row(), on: .increased).brightest(in: Self.title).isWhite)
         #expect(try Self.asking(Self.row(), on: .standard).brightest(in: Self.title).isGrey(atMost: 0.9))
+    }
+
+    /// Board D's 80%, over the black here as over the accent.
+    @Test(arguments: [project, age])
+    func aNeedsYouRowsSecondLineAndAgesAreWhiteAt80PercentOnTheSelection(part: CGRect) throws {
+        let selected = try Self.asking(Self.row(), on: .increased).brightest(in: part)
+
+        #expect([selected.redComponent, selected.greenComponent, selected.blueComponent].allSatisfy { abs($0 - 0.8) <= 0.04 })
     }
 
     @Test(arguments: [title, project, age])
@@ -47,6 +67,14 @@ struct SelectedWordsTests {
         let elsewhere = try Self.asking(Self.row(), on: .standard).brightest(in: part)
 
         #expect(selected.lightness > elsewhere.lightness)
+    }
+
+    /// A row under its project keeps the system's label colours: its title white on the selection.
+    @Test func aRowUnderItsProjectsTitleIsWhiteOnTheSelection() throws {
+        let name = CGRect(x: 30, y: 8, width: 60, height: 16)
+
+        #expect(try Self.underProject(Self.row(), on: .increased).brightest(in: name).isWhite)
+        #expect(try Self.underProject(Self.row(), on: .standard).brightest(in: name).isGrey(atMost: 0.9))
     }
 
     @Test func theProjectsLineAndTheAgeAreTheSecondaryColourElsewhere() throws {
@@ -66,8 +94,9 @@ struct SelectedWordsTests {
     @Test(arguments: [Mark.turn, .working, .away])
     func aGreyMarkGoesBrighterOnTheSelection(mark: Mark) throws {
         let row = Self.row(mark, isAway: mark == .away)
-        let selected = try Self.asking(row, on: .increased).brightest(in: Self.slot)
-        let elsewhere = try Self.asking(row, on: .standard).brightest(in: Self.slot)
+        let slot = CGRect(x: 0, y: 8, width: 26, height: 16)
+        let selected = try Self.underProject(row, on: .increased).brightest(in: slot)
+        let elsewhere = try Self.underProject(row, on: .standard).brightest(in: slot)
 
         #expect(selected.lightness > elsewhere.lightness)
     }
@@ -78,8 +107,18 @@ struct SelectedWordsTests {
         #expect(age.redComponent > 0.85 && age.blueComponent < 0.35)
     }
 
+    /// Of a washing row's lines, only a new one's age is orange: one already waiting keeps its own.
+    @Test func aWashingRowsOlderLineKeepsItsAgesInk() throws {
+        var row = Self.row(washed: Self.now)
+        row.lines[0].washed = nil
+
+        let age = try Self.asking(row, on: .standard).brightest(in: Self.age)
+
+        #expect(!(age.redComponent > 0.85 && age.blueComponent < 0.35))
+    }
+
     @Test func noAgeShowsOnARowWithoutAnAsk() throws {
-        let age = try Self.asking(Self.row(.turn), on: .standard).brightest(in: Self.age)
+        let age = try Self.underProject(Self.row(.turn), on: .standard).brightest(in: CGRect(x: 230, y: 8, width: 34, height: 16))
 
         #expect(age.lightness < 0.05)
     }

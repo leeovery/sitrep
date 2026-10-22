@@ -32,7 +32,8 @@ struct SidebarLayoutTests {
     }
 
     /// Every heading 10 under what is before it, then 24, the first after Needs you carrying its rule, 11.5 and 0.5 more
-    /// over that; a row under Needs you 39, the system's two-line row; a session's or a quiet project's 32.
+    /// over that; a row under Needs you 39, the system's two-line row, and 19 more for each line after its first, the
+    /// Mac app's three asks 77, Dashboard redesign's ask and prompt 58; a session's or a quiet project's 32.
     @Test func eachLineIsAsTallAsDrawnEachUnderTheLast() throws {
         let run = HostedSidebar.opened()
         let side = try HostedSidebar(run)
@@ -41,14 +42,15 @@ struct SidebarLayoutTests {
             switch line {
             case .needsYou: Self.headingRow
             case .heading: place == Row.sitrep.rawValue ? Self.ruledRow : Self.headingRow
-            case .asking: 39
+            case let .asking(row): 39 + 19 * CGFloat(row.lines.count - 1)
             case .session, .quiet: 32
             }
         }
 
         #expect(side.rows.map(\.height) == heights)
+        #expect(heights[Row.macAppAsking.rawValue] == 77 && heights[Row.dashboardAsking.rawValue] == 58)
         #expect(zip(side.rows, side.rows.dropFirst()).allSatisfy { $0.maxY == $1.minY })
-        #expect(side.rows[Row.sitrep.rawValue].minY == 264)
+        #expect(side.rows[Row.sitrep.rawValue].minY == 321)
         #expect(side.rows.allSatisfy { $0.minY == $0.minY.rounded() })
     }
 
@@ -196,11 +198,12 @@ struct SidebarLayoutTests {
         #expect(drawn.drawnBox(in: Self.band(turn, x: 220 ... 296), ground: Self.ground(turn)) == nil)
     }
 
-    /// The title's line 4 under the row's top and 16 tall, then 1, then the project's line, 14.
+    /// One line: as built, its ask's line 4 under the row's top and 16 tall, then 1, then the project and session's
+    /// line, 14.
     @Test func aNeedsYouRowsTwoLinesSitFromItsTop() throws {
         let side = try HostedSidebar(HostedSidebar.opened(), listAlone: true)
         let drawn = try side.drawn()
-        let row = Self.inDrawing(side.rows[Row.dashboardAsking.rawValue], of: side)
+        let row = Self.inDrawing(side.rows[Row.goosematesAsking.rawValue], of: side)
         let title = CGRect(x: 46, y: row.minY + 4, width: 150, height: 16)
         let project = CGRect(x: 46, y: row.minY + 21, width: 150, height: 14)
         let titleDrawn = try #require(drawn.drawnBox(in: title, ground: Self.ground(row)))
@@ -209,6 +212,52 @@ struct SidebarLayoutTests {
         #expect(drawn.drawnBox(in: CGRect(x: 46, y: row.minY + 20, width: 150, height: 1), ground: Self.ground(row)) == nil)
         #expect(titleDrawn.minY < project.minY)
         #expect(projectDrawn.maxY <= row.minY + 35)
+    }
+
+    /// Several lines, as board D sets them: each line 16 tall and 3 under the last, its dot centred in the 26 slot at
+    /// 29, its words from 46 and its age ending at 280; then the project and session's line, 1 under the last, 14.
+    @Test func aNeedsYouRowsSeveralLinesStackUnderItsTopEachWithItsDotAndAge() throws {
+        let run = HostedSidebar.opened()
+
+        _ = run.pick(.project("kit"))
+
+        let side = try HostedSidebar(run, listAlone: true)
+        let drawn = try side.drawn()
+        let row = Self.inDrawing(side.rows[Row.macAppAsking.rawValue], of: side)
+        let ground = Self.ground(row)
+
+        for line in 0 ..< 3 {
+            let top = row.minY + 4 + 19 * CGFloat(line)
+            let dot = try #require(drawn.drawnBox(in: CGRect(x: 16, y: top, width: 26, height: 16), ground: ground))
+            let words = try #require(drawn.drawnBox(in: CGRect(x: 42, y: top, width: 150, height: 16), ground: ground))
+            let age = try #require(drawn.drawnBox(in: CGRect(x: 220, y: top, width: 76, height: 16), ground: ground))
+
+            #expect(abs(dot.midX - 29) <= 0.5 && abs(dot.midY - (top + 8)) <= 0.5)
+            #expect(abs(dot.width - 7) <= 1)
+            #expect((46 ... 47.5).contains(words.minX))
+            #expect(words.minY >= top && words.maxY <= top + 16)
+            #expect((278.5 ... 280.5).contains(age.maxX))
+            #expect(drawn.drawnBox(in: CGRect(x: 42, y: top + 16, width: 238, height: 3), ground: ground) == nil)
+        }
+
+        let second = CGRect(x: 46, y: row.minY + 4 + 3 * 16 + 2 * 3 + 1, width: 150, height: 14)
+        let secondDrawn = try #require(drawn.drawnBox(in: second, ground: ground))
+
+        #expect(secondDrawn.minY >= second.minY && secondDrawn.maxY <= second.maxY)
+        #expect(drawn.drawnBox(in: CGRect(x: 16, y: second.minY, width: 26, height: 14), ground: ground) == nil)
+        #expect(drawn.drawnBox(in: CGRect(x: 220, y: second.minY, width: 76, height: 14), ground: ground) == nil)
+    }
+
+    /// The window opens on the Mac app's row under Needs you: the list's selection fills the whole of it, its three
+    /// lines and its project and session's, 276 wide and 10 in, as one row.
+    @Test func thePickFillsAWholeNeedsYouRowOfSeveralLines() throws {
+        let side = try HostedSidebar(HostedSidebar.opened(), listAlone: true)
+        let drawn = try side.drawn()
+        let row = Self.inDrawing(side.rows[Row.macAppAsking.rawValue], of: side)
+        let picked = try #require(drawn.drawnBox(in: row, ground: Self.ground(row)))
+
+        #expect(side.board.selectedRow == Row.macAppAsking.rawValue)
+        #expect(picked == CGRect(x: 10, y: row.minY, width: 276, height: 77))
     }
 
     /// Plain words, with no count and no chevron.

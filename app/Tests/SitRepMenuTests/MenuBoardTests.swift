@@ -11,10 +11,7 @@ struct MenuBoardTests {
     private static let board = menu(heard([.line(Watched.line())]))
 
     @Test func itListsThePanelsSessionsInCoresOrderWithTheHairlineUnderTheNeedsYou() {
-        #expect(Self.board.items.map(\.key) == [
-            "ask:sr-ledger:k1", "stop:sr-dash:w1:1792445500000", "ask:sr-plan:k2", "divider", "turn:sr-boot",
-            "work:sr-diff",
-        ])
+        #expect(Self.board.items.map(\.key) == ["needs:sr-ledger", "needs:sr-dash", "needs:sr-plan", "divider", "sr-boot", "sr-diff"])
     }
 
     @Test func eachRowCarriesThePanelsMark() {
@@ -32,6 +29,22 @@ struct MenuBoardTests {
         #expect(titles[1] == "Allow Bash: gh pr create")
         #expect(titles[4] == "Reading StatusMenu.swift")
         #expect(question.menuTitle(at: 0) == "Which edge? +2")
+    }
+
+    /// A session with several lines waiting is one item, as on the panel: its oldest line, then "+2" for the two after
+    /// it, in place of a question's own count.
+    @Test func aSessionWithSeveralLinesIsOneItemItsOldestLineThenHowManyMore() {
+        let ledger = Watched.row(
+            "ask:sr-ledger:k1", "ask", session: "sr-ledger", project: "switchboard", lead: "Choose how long it keeps",
+            more: "+3", second: "Switchboard · Usage", since: 1_792_445_000_000,
+            newer: [("ask:sr-ledger:k2", "Approve the schema", 1_792_445_100_000), ("ask:sr-ledger:k3", "Paste the log", 1_792_445_200_000)]
+        )
+        let menu = Self.menu(heard([.line(Watched.line(rows: [ledger] + Watched.rows.dropFirst()))]))
+        let sessions = menu.items.compactMap(\.session)
+
+        #expect(sessions.filter { $0.id == "sr-ledger" }.count == 1)
+        #expect(sessions.first?.menuTitle(at: 0) == "Choose how long it keeps +2")
+        #expect(sessions.first?.ageText(at: 1_792_445_000_000 + 60 * 60_000) == "1h")
     }
 
     @Test func aClickJumpsToTheRowsSessionButAnAwayRowJumpsNowhere() {

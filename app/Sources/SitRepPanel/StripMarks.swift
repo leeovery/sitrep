@@ -417,7 +417,7 @@ extension Strip {
     func resort() {
         cancel(.settle)
         display = sessions.map(\.id)
-        needsSlot = Set(sessions.filter { $0.kind == .needs }.map(\.id))
+        needsSlot = Set(sessions.filter(\.needsLee).map(\.id))
         pendingSort = false
         relayout()
     }
@@ -523,6 +523,34 @@ extension Strip {
         let span = below.target - gap.from
         if abs(span) < 1 || (below.x - gap.from) / span >= StripTuning.growAt {
             grow(m)
+        }
+    }
+
+    /// Sessions on the strip arriving in needs you, taken from their places to move in as a new needs you does,
+    /// unplaced and out of any count: any tab of theirs draws back, as a mark's leaving does.
+    func lift(_ crossing: [Session]) {
+        let ids = Set(crossing.map(\.id))
+
+        for tab in tabs {
+            if case let .session(id) = tab.key, ids.contains(id) {
+                drawBack(tab)
+            }
+        }
+        for s in crossing {
+            if let m = mark(.session(s.id)) {
+                m.session = s
+                m.fresh = true
+                m.folded = false
+            }
+        }
+        display.removeAll(where: ids.contains)
+        needsSlot.subtract(ids)
+    }
+
+    /// A new line needing Lee on a mark already on the needs you side: its ring flashes where it is, or its count's.
+    func flashInPlace(_ s: Session) {
+        if let m = layout.restNeeds.contains(s.id) ? moreNeeds : mark(.session(s.id)) {
+            arrive(m)
         }
     }
 

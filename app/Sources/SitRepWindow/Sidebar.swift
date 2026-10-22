@@ -101,8 +101,8 @@ public enum Spot: Hashable, Sendable {
     }
 }
 
-/// The sidebar's list as it shows, one list, in order: Needs you, every session with an ask, the oldest first, under
-/// a plain heading; then each project under its heading, in the board's order; then the quiet projects under theirs.
+/// The sidebar's list as it shows, one list, in order: Needs you, every session needing Lee, a row each with its
+/// lines, the oldest first, under a plain heading; then each project under its heading, in the board's order; then the quiet projects under theirs.
 /// A folded project or the quiet projects show their heading alone; while the filter holds text, the folds Lee set
 /// stand aside (`WindowRun.folds`).
 public struct Sidebar: Equatable, Sendable {
@@ -276,18 +276,5 @@ public struct Sidebar: Equatable, Sendable {
             }
             return true
         }
-    }
-}
-
-extension Listed {
-    /// Every session with an ask, the oldest first: by where its first row needing Lee sits in the panel's order,
-    /// core's rows', an away session's after the live ones.
-    static func needsYou(_ board: Board) -> [Row] {
-        let every = board.projects.flatMap { project in project.sessions.map { (session: $0, project: project) } }
-        let byID = Dictionary(every.map { ($0.session.id, $0) }) { first, _ in first }
-        var placed = Set<String>()
-
-        return board.rows.filter(\.needsLee).map(\.session).filter { placed.insert($0).inserted }
-            .compactMap { byID[$0] }.map { Row($0.session, of: $0.project) }
     }
 }

@@ -32,7 +32,8 @@ public struct Listed: Equatable, Sendable {
         public var sessions: [Row]
     }
 
-    /// A session's row: a small panel row, its name on one line and the panel row's time.
+    /// A session's row: under its project, a small panel row, its name on one line and the panel row's time; under
+    /// Needs you, its lines waiting on Lee over its project and its name.
     public struct Row: Equatable, Sendable, Identifiable {
         public let id: String
         public let name: String
@@ -43,8 +44,31 @@ public struct Listed: Equatable, Sendable {
         public let isAway: Bool
         /// When its state began, which its time counts from.
         public let since: Date
+        /// Under Needs you, its asks and stops waiting on Lee, the oldest first, as core's row has them; none under
+        /// its project.
+        public var lines: [Waiting] = []
         /// New to needing Lee: washed orange from then (`Wash`).
         public var washed: Date?
+    }
+
+    /// One of a Needs you row's lines: an ask or a window's stop waiting on Lee, as the card's line says it, and its
+    /// time.
+    public struct Waiting: Equatable, Sendable, Identifiable {
+        /// Its key in core's row.
+        public let id: String
+        public let lead: String
+        /// A command or a path, set in mono after the lead.
+        public let code: String?
+        /// A question's "+2".
+        public let more: String?
+        public let since: Date
+        /// New on the board: its time washed orange from then (`Wash`), which tells the new one among its row's.
+        public var washed: Date?
+
+        /// Its words, as the filter reads them.
+        public var words: String {
+            code.map { "\(lead) \($0)" } ?? lead
+        }
     }
 
     /// A project with nothing open, a row among the quiet projects, which opens its project: its sessions, none of them
@@ -59,7 +83,7 @@ public struct Listed: Equatable, Sendable {
     }
 
     public let head: Head
-    /// Every session with an ask, the oldest first (`Listed.needsYou(_:)`).
+    /// Every session needing Lee, in core's order, its lines with it (`Listed.needsYou(_:)`).
     public var needsYou: [Row]
     public var projects: [Project]
     /// The quiet projects, in `watch`'s order.
@@ -81,7 +105,9 @@ public struct Listed: Equatable, Sendable {
     /// The board as last heard, its head as the panel's says it, stale or not.
     public init(_ last: LastBoard) {
         let board = last.board
-        let needs = Dictionary(grouping: board?.rows.filter(\.needsLee) ?? [], by: \.project).mapValues(\.count)
+        let needs = Dictionary(grouping: board?.rows.filter(\.needsLee) ?? [], by: \.project).mapValues { rows in
+            rows.map(\.lines.count).reduce(0, +)
+        }
         let shown = board?.projects.filter { !$0.isQuiet } ?? []
 
         head = PanelBoard(last).head
@@ -111,6 +137,16 @@ public struct Listed: Equatable, Sendable {
     }
 }
 
+extension Listed {
+    /// Every session needing Lee, as core's rows have them, in their order: the oldest first, by its oldest line, an
+    /// away session's after the live ones; each with its lines.
+    static func needsYou(_ board: Board) -> [Row] {
+        board.rows.filter(\.needsLee).compactMap { row in
+            board.session(row.session).map { Row(row, of: $0.session, in: $0.project) }
+        }
+    }
+}
+
 extension Listed.Row {
     init(_ session: Board.Session, of project: Board.Project) {
         self.init(
@@ -118,15 +154,19 @@ extension Listed.Row {
             isAway: session.doing.isAway, since: session.since
         )
     }
+
+    /// A row of Needs you: its session's, with core's row's lines and time.
+    init(_ row: Board.Row, of session: Board.Session, in project: Board.Project) {
+        self.init(
+            id: session.id, name: session.name, project: project.name, mark: .needs, isAway: row.isAway,
+            since: row.since, lines: row.lines.map(Listed.Waiting.init)
+        )
+    }
 }
 
-extension Board.Row {
-    /// An ask, a permission prompt or a question: the rows that need Lee.
-    var needsLee: Bool {
-        switch kind {
-        case .ask, .permission, .question: true
-        case .yourTurn, .working, .onItsWork: false
-        }
+private extension Listed.Waiting {
+    init(_ line: Board.Row.Line) {
+        self.init(id: line.key, lead: line.first.lead, code: line.first.mono, more: line.first.more, since: line.since)
     }
 }
 

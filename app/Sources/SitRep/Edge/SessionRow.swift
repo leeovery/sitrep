@@ -1,11 +1,11 @@
 import AppKit
 import SitRepPanel
 
-/// One session's row in black, as the prototype draws it: its mark; its title, its subject in mono after it and a
-/// question's "+2"; its project and session beneath, or for an away one why a click does nothing; its time at the
-/// right; the lift under the pointer, and a new row's wash. A working row's arc turns and its lead shimmers, its
-/// subject still, in the render server. A row on its own work is still: its dotted ring, and its title, a wake's
-/// countdown in it set again as it reads differently.
+/// One session's row in black, as the prototype draws it: for each of its lines, its mark, its title, its subject in
+/// mono after it and a question's "+2", and its time at the right, the lines 4 apart; its project and session beneath,
+/// or for an away one why a click does nothing; the lift under the pointer, and a new row's wash, the row's as one. A
+/// working row's arc turns and its lead shimmers, its subject still, in the render server. A row on its own work is
+/// still: its dotted ring, and its title, a wake's countdown in it set again as it reads differently.
 @MainActor
 final class SessionRow {
     /// The row's box: the item less the gap below it.
@@ -14,18 +14,24 @@ final class SessionRow {
 
     private let at: SessionRowLayout
     private let wash = CALayer()
-    /// The arc that spins in the time's place while a click is jumping from it.
+    /// The arc that spins in the first line's time's place while a click is jumping from it.
     private let spinner: Arc
-    private var age: TextLine?
-    private var ageText = ""
-    private var titleLayers: [CALayer] = []
-    /// What its title says after its verb, as last set: a wake's countdown changes it as the clock ticks.
-    private var subject: String?
+    /// Each line's time, and what it says, as last set.
+    private var ages: [TextLine?]
+    private var ageTexts: [String]
+    /// Each line's title's layers.
+    private var titleLayers: [[CALayer]]
+    /// What each line's title says after its verb, as last set: a wake's countdown changes it as the clock ticks.
+    private var subjects: [String?]
 
     init(_ session: Session, size: CGSize) {
         self.session = session
-        at = SessionRowLayout(size: size)
+        at = SessionRowLayout(size: size, lines: session.lines.count)
         spinner = Self.arc(right: at.age)
+        ages = session.lines.map { _ in nil }
+        ageTexts = session.lines.map { _ in "" }
+        titleLayers = session.lines.map { _ in [] }
+        subjects = session.lines.map(\.subject)
         layer.frame = CGRect(origin: .zero, size: size)
         layer.cornerRadius = SessionRowLayout.radius
         wash.frame = layer.bounds
@@ -35,9 +41,8 @@ final class SessionRow {
         wash.borderWidth = 1
         wash.opacity = 0
         layer.addSublayer(wash)
-        layer.addSublayer(mark())
-        subject = session.subject
-        showTitle()
+        at.lines.forEach { layer.addSublayer(mark(at: $0.mark)) }
+        session.lines.indices.forEach(showTitle)
         layer.addSublayer(TextLine(TextLine.text(session.sub, EdgeStyle.sub, subColour), in: at.sub))
         spinner.layer.isHidden = true
         layer.addSublayer(spinner.layer)
@@ -51,7 +56,7 @@ final class SessionRow {
     }
 
     /// A click is jumping from it: it presses in, as the prototype's does in 140ms, its background in 110, and an arc
-    /// spins where its time was.
+    /// spins where its first line's time was, the others' gone meanwhile.
     var isPressed = false {
         didSet {
             guard isPressed != oldValue else {
@@ -66,7 +71,7 @@ final class SessionRow {
             showBackground()
             CATransaction.commit()
             still {
-                age?.isHidden = isPressed
+                ages.forEach { $0?.isHidden = isPressed }
                 spinner.layer.isHidden = !isPressed
             }
         }
@@ -78,31 +83,34 @@ final class SessionRow {
         layer.backgroundColor = isPressed ? EdgeStyle.press : isHighlighted && session.jumps ? EdgeStyle.hover : nil
     }
 
-    /// Its time at this moment on the wall clock, ms, and a wake's countdown, each drawn again only when it reads
-    /// differently.
+    /// Each line's time at this moment on the wall clock, ms, and a wake's countdown, each drawn again only when it
+    /// reads differently.
     func showAge(at now: Double) {
-        if session.until != nil, session.subject(at: now) != subject {
-            subject = session.subject(at: now)
-            showTitle()
+        for (index, line) in session.lines.enumerated() {
+            if line.until != nil, line.subject(at: now) != subjects[index] {
+                subjects[index] = line.subject(at: now)
+                showTitle(index)
+            }
+            showAge(index, line.ageText(at: now))
         }
+    }
 
-        let text = session.ageText(at: now)
-
-        guard text != ageText else {
+    private func showAge(_ index: Int, _ text: String) {
+        guard text != ageTexts[index] else {
             return
         }
 
-        let line = TextLine(TextLine.text(text, EdgeStyle.age, EdgeStyle.ink3), in: at.age, alignment: .right)
+        let line = TextLine(TextLine.text(text, EdgeStyle.age, EdgeStyle.ink3), in: at.lines[index].age, alignment: .right)
 
         line.contentsScale = layer.contentsScale
         line.isHidden = isPressed
-        if let age {
+        if let age = ages[index] {
             layer.replaceSublayer(age, with: line)
         } else {
             layer.addSublayer(line)
         }
-        age = line
-        ageText = text
+        ages[index] = line
+        ageTexts[index] = text
     }
 
     /// New on the board while the panel is out: washed orange (`Wash`) from this time, ms on the display's clock,
@@ -123,20 +131,18 @@ final class SessionRow {
     /// The wash under way, while there is one.
     var washing: CAAnimation? { wash.animation(forKey: Self.washKey) }
 
-    private var isWorking: Bool { session.kind == .working }
-
-    /// Its title drawn again in place of the last.
-    private func showTitle() {
-        let made = title()
+    /// A line's title drawn again in place of the last.
+    private func showTitle(_ index: Int) {
+        let made = title(index)
 
         still {
-            titleLayers.forEach { $0.removeFromSuperlayer() }
+            titleLayers[index].forEach { $0.removeFromSuperlayer() }
             made.forEach { line in
                 line.contentsScale = layer.contentsScale
                 layer.addSublayer(line)
             }
         }
-        titleLayers = made
+        titleLayers[index] = made
     }
 
     /// An away row's words dim.
@@ -144,63 +150,68 @@ final class SessionRow {
 
     private var subColour: CGColor { session.away ? EdgeStyle.ink3 : EdgeStyle.ink2 }
 
-    /// The title's layers: the title, and a question's "+2" after it, which the title is cut short to leave room for.
-    private func title() -> [CALayer] {
-        guard let more = session.more else {
-            return [titleLine(in: at.title).layer]
+    /// A line's title's layers: the title, and a question's "+2" after it, which the title is cut short to leave room
+    /// for.
+    private func title(_ index: Int) -> [CALayer] {
+        let box = at.lines[index].title
+
+        guard let more = session.lines[index].more else {
+            return [titleLine(index, in: box).layer]
         }
 
         let count = TextLine.text(more, EdgeStyle.title, EdgeStyle.ink2)
         let width = TextLine.width(count), gap = SessionRowLayout.moreGap
-        var box = at.title
+        var cut = box
 
-        box.size.width -= width + gap
+        cut.size.width -= width + gap
 
-        let line = titleLine(in: box)
-        let after = CGRect(x: box.minX + line.width + gap, y: box.minY, width: width, height: box.height)
+        let line = titleLine(index, in: cut)
+        let after = CGRect(x: cut.minX + line.width + gap, y: cut.minY, width: width, height: cut.height)
 
         return [line.layer, TextLine(count, in: after)]
     }
 
-    /// The title in its box, and how wide it is drawn there. A working title is grey, its lead lit by the sweep and
-    /// its subject left still; one on its own work is still.
-    private func titleLine(in box: CGRect) -> (layer: CALayer, width: CGFloat) {
+    /// A line's title in its box, and how wide it is drawn there. A working title is grey, its lead lit by the sweep
+    /// and its subject left still; one on its own work is still.
+    private func titleLine(_ index: Int, in box: CGRect) -> (layer: CALayer, width: CGFloat) {
+        let line = session.lines[index]
+
         if session.kind == .onItsWork {
-            let line = TextLine(WaitingTitle.text(session, subject: subject), in: box)
+            let drawn = TextLine(WaitingTitle.text(session, subject: subjects[index]), in: box)
 
-            return (line, line.width)
+            return (drawn, drawn.width)
         }
 
-        guard isWorking else {
-            let line = TextLine(titleText(titleColour), in: box)
+        guard session.kind == .working else {
+            let drawn = TextLine(titleText(line, titleColour), in: box)
 
-            return (line, line.width)
+            return (drawn, drawn.width)
         }
 
-        let shimmer = Shimmer(grey: titleText(EdgeStyle.shim), lit: titleText(EdgeStyle.ink, subject: false), in: box)
+        let shimmer = Shimmer(
+            grey: titleText(line, EdgeStyle.shim), lit: titleText(line, EdgeStyle.ink, subject: false), in: box
+        )
 
         shimmer.band.add(shimmer.sweep, forKey: "sweep")
 
         return (shimmer.layer, shimmer.width)
     }
 
-    /// The title in a colour, its subject in mono after it.
-    private func titleText(_ colour: CGColor, subject: Bool = true) -> NSAttributedString {
-        let font = session.kind == .needs ? EdgeStyle.needsTitle : EdgeStyle.title
-        let text = TextLine.text(session.title, font, colour, kern: EdgeStyle.tightKern(font))
+    /// A line's title in a colour, its subject in mono after it.
+    private func titleText(_ line: Session.Line, _ colour: CGColor, subject: Bool = true) -> NSAttributedString {
+        let font = EdgeStyle.title
+        let text = TextLine.text(line.title, font, colour, kern: EdgeStyle.tightKern(font))
 
-        if subject, let code = session.code {
+        if subject, let code = line.code {
             text.append(TextLine.text(code, EdgeStyle.code, colour))
         }
 
         return text
     }
 
-    /// Needs you an orange dot with its glow, away or not; your turn an open white ring; working the arc turning; on
-    /// its own work the dotted ring, still.
-    private func mark() -> CALayer {
-        let centre = at.mark
-
+    /// A line's mark: needs you an orange dot with its glow, away or not; your turn an open white ring; working the arc
+    /// turning; on its own work the dotted ring, still.
+    private func mark(at centre: CGPoint) -> CALayer {
         switch session.kind {
         case .needs:
             let dot = disc(7, at: centre, fill: EdgeStyle.orange)

@@ -23,6 +23,7 @@ import {
   type FeedProject,
   type FeedSession,
   type FeedWindow,
+  type Line,
   type LogLine,
   type Parked,
   type Project,
@@ -37,7 +38,7 @@ import {
 } from '../core'
 
 /** The JSON's version, by command; why each stands where it does is DESIGN.md's ("One engine, two front ends"). */
-const OUTPUT = { list: 1, board: 2, watch: 1 } as const
+const OUTPUT = { list: 1, board: 2, watch: 2 } as const
 
 /** What `list` gives: the project the CLI runs in, if it runs in one, and the projects listed. */
 export type Listing = { here?: Project; projects: ProjectSummary[] }
@@ -208,16 +209,22 @@ const lineJson = (line: RowLine) => ({
   until: line.until ?? null,
 })
 
+const rowLineJson = (line: Line) => ({
+  key: line.key,
+  is: line.is,
+  ask: line.ask ?? null,
+  writer: line.writer ?? null,
+  first: lineJson(line.first),
+  since: line.since,
+})
+
 const rowJson = (row: Row) => ({
-  key: row.key,
-  is: row.is,
-  isAway: row.isAway,
   session: row.session,
+  section: row.section,
+  isAway: row.isAway,
   project: row.project,
   letters: row.letters,
-  ask: row.ask ?? null,
-  writer: row.writer ?? null,
-  first: lineJson(row.first),
+  lines: row.lines.map(rowLineJson),
   second: row.second,
   since: row.since,
 })
@@ -297,8 +304,8 @@ export const feedText = (feed: Feed, version: string | undefined) =>
   JSON.stringify(feedFields(feed, version))
 
 /**
- * A line of `watch`, on one line: the board at `at`, the keys of the rows
- * new since the last line, and the ids of the sessions whose `board --json`
+ * A line of `watch`, on one line: the board at `at`, the keys of the lines
+ * needing Lee new since the last line, and the ids of the sessions whose `board --json`
  * has changed since then.
  */
 export const watchLine = (

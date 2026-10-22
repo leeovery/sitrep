@@ -5,26 +5,33 @@ import Foundation
 /// (cli/output.ts's `watchLine`). Finished sessions are not on it; away
 /// ones are, their asks still counting.
 public struct Board: Versioned, Sendable, Equatable {
-    static let version = 1
+    static let version = 2
 
     /// When the line was printed.
     public let at: Date
     /// The CLI's own version, which a window behind needs `/reload-plugins` to catch up to.
     public let version: String?
     public let head: Head
-    /// The panel's, the strip's and the menu's rows, in their order.
+    /// The panel's, the strip's, the menu's and the sidebar's rows, a session each, in their order.
     public let rows: [Row]
     /// Those with a current session, in the SitRep window's order.
     public let projects: [Project]
     /// Every live window, the longest attached first, a finished session's among them.
     public let windows: [Window]
-    /// The keys of the rows needing Lee that the last line had not: the
-    /// notch's swell, the strip's flash. None on the first line.
+    /// The keys of the lines needing Lee that the last line had not, an ask's or a window's stop: the notch's swell,
+    /// the strip's flash. None on the first line.
     public let new: [String]
     /// The sessions whose `board --json` changed since the last line, for the SitRep window to read again.
     public let changed: [String]
 
-    /// How many rows need Lee, away ones among them, and how many sessions the rows hold.
+    /// The rows holding a line new on this board, by their sessions.
+    public var newRows: Set<String> {
+        let new = Set(self.new)
+
+        return Set(rows.filter { $0.lines.contains { new.contains($0.key) } }.map(\.session))
+    }
+
+    /// How many lines need Lee, away ones among them, and how many sessions the rows hold.
     public struct Head: Decodable, Sendable, Equatable {
         public let needYou: Int
         public let sessions: Int
@@ -33,15 +40,17 @@ public struct Board: Versioned, Sendable, Equatable {
         public var isAllClear: Bool { needYou == 0 }
     }
 
+    /// A session's row: in Needs you, a line for each ask and stop waiting on Lee, the oldest first; else the one line
+    /// of its turn, working, on its own work or your turn. Never without a line.
     public struct Row: Decodable, Sendable, Equatable, Identifiable {
-        public enum Kind: String, Decodable, Sendable {
-            case ask, permission, question, yourTurn, working, onItsWork
+        public enum Section: String, Decodable, Sendable {
+            case needsYou, working, yourTurn
         }
 
-        /// A row's first line, in parts: `lead`, which a working row shimmers; `mono`, the subject set in mono where
-        /// it is a command or a path; `subject`, set plain where it is not; `more`, a question's `+2`; `until`, when
-        /// the wake a row on its own work waits on is due, which the views count down to after the lead.
-        public struct Line: Decodable, Sendable, Equatable {
+        /// A line's words, in parts: `lead`, which a working line shimmers; `mono`, the subject set in mono where it
+        /// is a command or a path; `subject`, set plain where it is not; `more`, a question's `+2`; `until`, when the
+        /// wake a line on its own work waits on is due, which the views count down to after the lead.
+        public struct Words: Decodable, Sendable, Equatable {
             public let lead: String
             public let mono: String?
             public let subject: String?
@@ -57,30 +66,71 @@ public struct Board: Versioned, Sendable, Equatable {
             }
         }
 
-        /// Names the row for as long as it stands, so a view keeps its place by it.
-        public let key: String
-        public let kind: Kind
-        /// An ask of a session no window holds.
-        public let isAway: Bool
+        /// One of a row's lines: an ask or a window's stop waiting on Lee, or the session's turn.
+        public struct Line: Decodable, Sendable, Equatable, Identifiable {
+            public enum Kind: String, Decodable, Sendable {
+                case ask, permission, question, yourTurn, working, onItsWork
+            }
+
+            /// Names the line for as long as it stands: an ask's, a window's stop's, or the session's turn.
+            public let key: String
+            public let kind: Kind
+            /// The ask it is, by its id; nil for a window's line.
+            public let ask: String?
+            /// The window it is of, by its writer; nil for an ask's line.
+            public let writer: String?
+            public let first: Words
+            /// The instant its time counts from, which the views tick.
+            public let since: Date
+
+            public var id: String { key }
+
+            private enum CodingKeys: String, CodingKey {
+                case key, kind = "is", ask, writer, first, since
+            }
+        }
+
         public let session: String
+        public let section: Section
+        /// Needing Lee, with no window holding its session.
+        public let isAway: Bool
         /// Its project's key.
         public let project: String
         /// The strip's two letters for its project.
         public let letters: String
-        /// The ask it is, by its id; nil for a window's row.
-        public let ask: String?
-        /// The window it is of, by its writer; nil for an ask's row.
-        public let writer: String?
-        public let first: Line
+        /// The oldest first.
+        public let lines: [Line]
         /// The project and the session.
         public let second: String
-        /// The instant its time counts from, which the views tick.
+        /// The instant its time counts from, its oldest line's, which the views tick.
         public let since: Date
 
-        public var id: String { key }
+        public var id: String { session }
+
+        /// Its oldest line, which a surface with room for one line shows.
+        public var oldest: Line { lines[0] }
+
+        /// In Needs you: its lines are asks, permission prompts or questions.
+        public var needsLee: Bool { section == .needsYou }
+
+        public init(from decoder: any Decoder) throws {
+            let given = try decoder.container(keyedBy: CodingKeys.self)
+
+            session = try given.decode(String.self, forKey: .session)
+            section = try given.decode(Section.self, forKey: .section)
+            isAway = try given.decode(Bool.self, forKey: .isAway)
+            project = try given.decode(String.self, forKey: .project)
+            letters = try given.decode(String.self, forKey: .letters)
+            lines = try given.decode([Line].self, forKey: .lines)
+            second = try given.decode(String.self, forKey: .second)
+            since = try given.decode(Date.self, forKey: .since)
+            guard !lines.isEmpty else {
+                throw DecodingError.dataCorruptedError(forKey: .lines, in: given, debugDescription: "A row has a line.")
+            }
+        }
 
         private enum CodingKeys: String, CodingKey {
-            case key, kind = "is", isAway, session, project, letters, ask, writer, first, second, since
+            case session, section, isAway, project, letters, lines, second, since
         }
     }
 
@@ -113,7 +163,7 @@ public struct Board: Versioned, Sendable, Equatable {
             }
 
             public let kind: Kind
-            public let line: Row.Line
+            public let line: Row.Words
             public let since: Date
 
             private enum CodingKeys: String, CodingKey {

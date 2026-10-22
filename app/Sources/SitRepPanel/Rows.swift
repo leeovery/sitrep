@@ -1,10 +1,82 @@
 import CoreGraphics
 
-/// A session as the edge shows it: a row on the panel, a mark on the strip, and a mark's tab.
+/// A session as the edge shows it: a row on the panel, a mark on the strip, and a mark's tab. One needing Lee has a
+/// line for each ask and stop waiting on Lee, the oldest first; any other has its one line.
 public struct Session: Equatable, Sendable {
     /// Where it stands: its turn over but on its own work, which will wake it, among them.
     public enum Kind: Sendable {
         case needs, turn, working, onItsWork
+    }
+
+    /// One of its lines: its words, and its time.
+    public struct Line: Equatable, Sendable {
+        public var title: String
+        /// Set in code type after the title, as in an ask to allow a command.
+        public var code: String?
+        /// Set plain after the title, where what it waits on is no command: "3 agents".
+        public var subject: String?
+        /// When the wake it waits on is due, ms on the wall clock: its subject counts down to it, "in 12m".
+        public var until: Double?
+        /// How many more questions it holds, as core words it: "+2".
+        public var more: String?
+        /// When it began, ms on the wall clock.
+        public var since: Double
+
+        public init(
+            title: String, code: String? = nil, subject: String? = nil, until: Double? = nil, more: String? = nil,
+            since: Double
+        ) {
+            self.title = title
+            self.code = code
+            self.subject = subject
+            self.until = until
+            self.more = more
+            self.since = since
+        }
+
+        /// How long it has stood at this time on the wall clock, as its row shows it.
+        public func ageText(at now: Double) -> String { Session.ageText(now - since) }
+
+        /// When on the wall clock its time may next read differently: at its next whole minute.
+        public func ageChanges(after now: Double) -> Double {
+            since + Session.minute * max(1, ((now - since) / Session.minute).rounded(.down) + 1)
+        }
+
+        /// What it waits on, set plain after the title at this time on the wall clock: a wake's countdown, else its
+        /// subject.
+        public func subject(at now: Double) -> String? {
+            until.map { Session.untilText($0 - now) } ?? subject
+        }
+
+        /// When on the wall clock its words may next read differently: its time, or a wake's countdown.
+        public func changes(after now: Double) -> Double {
+            min(ageChanges(after: now), countdownChanges(after: now) ?? .infinity)
+        }
+
+        /// When on the wall clock a wake's countdown next reads differently: as it passes a whole minute before the
+        /// wake, and as the wake comes due; nil with no wake, or one due, which reads "now" for good.
+        public func countdownChanges(after now: Double) -> Double? {
+            guard let until, until > now else {
+                return nil
+            }
+
+            return until - Session.minute * (((until - now) / Session.minute).rounded(.up) - 1)
+        }
+
+        /// The readings of a wake's countdown a row leaves room for from this time on: its reading now, and the widest
+        /// of each smaller unit still to come, "in 23h" and "in 59m", as wide as any of its unit with the figures
+        /// tabular, as the views set them; none with no wake.
+        public func countdownRoom(after now: Double) -> [String] {
+            guard let until else {
+                return []
+            }
+
+            let left = until - now
+            let minutes = (left / Session.minute).rounded(.up)
+            let later = minutes >= 24 * 60 ? ["in 23h", "in 59m"] : minutes >= 60 ? ["in 59m"] : []
+
+            return [Session.untilText(left)] + later
+        }
     }
 
     public let id: String
@@ -13,39 +85,75 @@ public struct Session: Equatable, Sendable {
     /// The project's two letters, as its mark on the strip shows them.
     public var letters: String
     public var kind: Kind
-    /// An ask no window holds: its row and its tab say so, and none of them takes a click.
+    /// Needing Lee with no window holding it: its row and its tab say so, and none of them takes a click.
     public var away: Bool
-    public var title: String
-    /// Set in code type after the title, as in an ask to allow a command.
-    public var code: String?
-    /// Set plain after the title, where what it waits on is no command: "3 agents".
-    public var subject: String?
-    /// When the wake it waits on is due, ms on the wall clock: its subject counts down to it, "in 12m".
-    public var until: Double?
-    /// How many more questions it holds, as core words it: "+2".
-    public var more: String?
+    /// The oldest first; never none.
+    public var lines: [Line]
     /// Its project and session.
     public var sub: String
-    /// When it came to stand where it does, ms on the wall clock.
-    public var since: Double
 
     public init(
-        id: String, project: String, letters: String? = nil, kind: Kind, away: Bool = false, title: String,
-        code: String? = nil, subject: String? = nil, until: Double? = nil, more: String? = nil, sub: String,
-        since: Double
+        id: String, project: String, letters: String? = nil, kind: Kind, away: Bool = false, lines: [Line],
+        sub: String
     ) {
+        precondition(!lines.isEmpty, "a session's row has a line")
         self.id = id
         self.project = project
         self.letters = letters ?? Self.letters(of: project)
         self.kind = kind
         self.away = away
-        self.title = title
-        self.code = code
-        self.subject = subject
-        self.until = until
-        self.more = more
+        self.lines = lines
         self.sub = sub
-        self.since = since
+    }
+
+    /// A session of one line.
+    public init(
+        id: String, project: String, letters: String? = nil, kind: Kind, away: Bool = false, title: String,
+        code: String? = nil, subject: String? = nil, until: Double? = nil, more: String? = nil, sub: String,
+        since: Double
+    ) {
+        self.init(
+            id: id, project: project, letters: letters, kind: kind, away: away,
+            lines: [Line(title: title, code: code, subject: subject, until: until, more: more, since: since)], sub: sub
+        )
+    }
+
+    /// Its oldest line's words and time, which a surface with room for one line shows.
+    public var title: String {
+        get { lines[0].title }
+        set { lines[0].title = newValue }
+    }
+
+    public var code: String? {
+        get { lines[0].code }
+        set { lines[0].code = newValue }
+    }
+
+    public var subject: String? {
+        get { lines[0].subject }
+        set { lines[0].subject = newValue }
+    }
+
+    public var until: Double? {
+        get { lines[0].until }
+        set { lines[0].until = newValue }
+    }
+
+    public var more: String? {
+        get { lines[0].more }
+        set { lines[0].more = newValue }
+    }
+
+    /// When it came to stand where it does: its oldest line's time.
+    public var since: Double {
+        get { lines[0].since }
+        set { lines[0].since = newValue }
+    }
+
+    /// What follows its oldest line's words where there is room for that line alone, as on the strip and in the menu:
+    /// "+2" for the two lines after it, as a question's "+2" counts its other parts, which it shows with no more.
+    public var moreOnOneLine: String? {
+        lines.count > 1 ? "+\(lines.count - 1)" : more
     }
 
     /// A project's letters as the prototypes have them, where none are given: its two capitals where it has two
@@ -58,51 +166,28 @@ public struct Session: Equatable, Sendable {
     /// A click on it jumps, unless no window holds it.
     public var jumps: Bool { !away }
 
-    /// How long it has stood where it does at this time on the wall clock, as its row shows it.
-    public func ageText(at now: Double) -> String { Self.ageText(now - since) }
+    /// Whether it is among needs you, over the hairline: on the card, the section a place is held in, a row crossing
+    /// the hairline leaving its place for its new one.
+    public var needsLee: Bool { kind == .needs }
 
-    /// When on the wall clock its time may next read differently: at its next whole minute.
-    public func ageChanges(after now: Double) -> Double {
-        since + Self.minute * max(1, ((now - since) / Self.minute).rounded(.down) + 1)
-    }
+    /// How long it has stood where it does at this time on the wall clock: its oldest line's time.
+    public func ageText(at now: Double) -> String { lines[0].ageText(at: now) }
 
-    /// What it waits on, set plain after the title at this time on the wall clock: a wake's countdown, else its
-    /// subject.
-    public func subject(at now: Double) -> String? {
-        until.map { Self.untilText($0 - now) } ?? subject
-    }
+    /// What its oldest line waits on, set plain after its title at this time on the wall clock.
+    public func subject(at now: Double) -> String? { lines[0].subject(at: now) }
 
-    /// When on the wall clock its words may next read differently: its time, or a wake's countdown.
+    /// When on the wall clock its words may next read differently: any line's time, or a wake's countdown.
     public func changes(after now: Double) -> Double {
-        min(ageChanges(after: now), countdownChanges(after: now) ?? .infinity)
+        lines.map { $0.changes(after: now) }.min() ?? .infinity
     }
 
-    /// When on the wall clock a wake's countdown next reads differently: as it passes a whole minute before the wake,
-    /// and as the wake comes due; nil with no wake, or one due, which reads "now" for good.
-    public func countdownChanges(after now: Double) -> Double? {
-        guard let until, until > now else {
-            return nil
-        }
+    /// When on the wall clock its wake's countdown next reads differently (`Line.countdownChanges`).
+    public func countdownChanges(after now: Double) -> Double? { lines[0].countdownChanges(after: now) }
 
-        return until - Self.minute * (((until - now) / Self.minute).rounded(.up) - 1)
-    }
+    /// The readings of its wake's countdown a row leaves room for (`Line.countdownRoom`).
+    public func countdownRoom(after now: Double) -> [String] { lines[0].countdownRoom(after: now) }
 
-    /// The readings of a wake's countdown a row leaves room for from this time on: its reading now, and the widest of
-    /// each smaller unit still to come, "in 23h" and "in 59m", as wide as any of its unit with the figures tabular, as
-    /// the views set them; none with no wake.
-    public func countdownRoom(after now: Double) -> [String] {
-        guard let until else {
-            return []
-        }
-
-        let left = until - now
-        let minutes = (left / Self.minute).rounded(.up)
-        let later = minutes >= 24 * 60 ? ["in 23h", "in 59m"] : minutes >= 60 ? ["in 59m"] : []
-
-        return [Self.untilText(left)] + later
-    }
-
-    private static let minute = 60_000.0
+    fileprivate static let minute = 60_000.0
 
     /// The time until a wake in ms as its countdown reads (`Age`, up to the whole minute): "in 12m", "in 2h", "in
     /// 3d"; "now" once it is due.
@@ -146,7 +231,7 @@ public enum Item: Equatable, Sendable {
     /// The panel's list of these sessions, in the order given, which is core's: the hairline under the needs you that
     /// lead it, when anything follows them.
     public static func list(_ sessions: [Session]) -> [Item] {
-        let needs = sessions.prefix { $0.kind == .needs }.count
+        let needs = sessions.prefix(while: \.needsLee).count
         var items = sessions.map(Item.session)
         if needs > 0, needs < items.count {
             items.insert(.divider, at: needs)
@@ -162,15 +247,31 @@ public enum Item: Equatable, Sendable {
         return nil
     }
 
-    /// What it is, the same for as long as it shows: its session's id, or the one divider's.
-    public var key: String { session?.id ?? "divider" }
+    /// What it is, the same for as long as it shows: its session's id, marked as needs you over the hairline, so a row
+    /// crossing it folds away from one place and unfolds in the other, as two rows; or the one divider's.
+    public var key: String {
+        guard let session else {
+            return "divider"
+        }
+
+        return session.needsLee ? "needs:\(session.id)" : session.id
+    }
 
     /// The gap below a row, inside its item.
     public static let rowGap = 4.0
 
-    /// Its height, unfolded, as its rows are drawn: a row, 10 + 34 of text + 11, and the gap below it; the divider's
-    /// 1 between 2 and 6.
-    public var height: Double { session == nil ? 9 : 55 + Self.rowGap }
+    /// How far down each line after a row's first sits under the one before it: its 18, and 4 between them, board D's.
+    public static let lineStep = 22.0
+
+    /// Its height, unfolded, as its rows are drawn: a row, 10 + its lines' 18 each, 4 apart, and the 16 of its second
+    /// line + 11, and the gap below it; the divider's 1 between 2 and 6.
+    public var height: Double {
+        guard let session else {
+            return 9
+        }
+
+        return 55 + Self.lineStep * Double(session.lines.count - 1) + Self.rowGap
+    }
 }
 
 /// The panel's head: how many rows need Lee at the left, and how many sessions there are at the right, as core counts

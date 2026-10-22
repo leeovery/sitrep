@@ -19,12 +19,12 @@ struct WordsTests {
 
     /// A wake's countdown at this time, else the subject; nothing where the line has neither, its subject a command.
     @Test func whatALineSaysPlainAfterItsLeadIsAWakesCountdownElseItsSubject() {
-        let wake = Board.Row.Line(lead: "Wakes", until: printedAt.addingTimeInterval(690))
+        let wake = Board.Row.Words(lead: "Wakes", until: printedAt.addingTimeInterval(690))
 
         #expect(Words.subject(wake, at: printedAt) == "in 12m")
         #expect(Words.subject(wake, at: printedAt.addingTimeInterval(690)) == "now")
-        #expect(Words.subject(Board.Row.Line(lead: "Waiting on", subject: "3 agents"), at: printedAt) == "3 agents")
-        #expect(Words.subject(Board.Row.Line(lead: "Running", mono: "npm test"), at: printedAt) == nil)
+        #expect(Words.subject(Board.Row.Words(lead: "Waiting on", subject: "3 agents"), at: printedAt) == "3 agents")
+        #expect(Words.subject(Board.Row.Words(lead: "Running", mono: "npm test"), at: printedAt) == nil)
     }
 
     @Test func aYesIsInClaudesWordsAndWhatNeedsClaudesPromptSaysItLeavesSitRep() {
