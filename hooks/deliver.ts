@@ -14,6 +14,10 @@
  * nothing. A message refused is let go at once; one never heard is let go
  * once the window has gone quiet without it. Either way its replies are
  * left as they were, for Lee's next send or the inbox's next look.
+ *
+ * Every change to the claim goes to the heartbeat as well, which says the
+ * replies a send carries to its own session from the claim to its end, so
+ * every reader has them on their way as soon as Lee sends them.
  */
 import type { PromptOrigin, Timer } from 'claude-code'
 import { deliveredMark, sentLines, type Body, type Session } from '../core'
@@ -23,7 +27,7 @@ import { writeInto } from './into'
 import { isCarried } from './queue'
 import { LINGER_MS, tickAfter } from './scene'
 import { postKnown } from './seen'
-import { attached, refresh, serially } from './window'
+import { attached, refresh, sayInFlight, serially } from './window'
 
 /** The name Claude Code knows the mod by: what a prompt it submitted carries as its origin. */
 const PLUGIN = 'sitrep'
@@ -104,11 +108,26 @@ const AFTER: Record<SitrepSource, After> = {
 const isClaim = (current: SitrepInFlight, delivery: SitrepInFlight) =>
   current.claimedAt === delivery.claimedAt && current.text === delivery.text
 
+/** Has the heartbeat say what the message in flight carries now; never waited on. */
+const say = (host: Host, inFlight: SitrepInFlight | null) =>
+  void sayInFlight(host, inFlight).catch(logFailure(host, 'saying the message in flight'))
+
+/** Changes the message in flight as `change` makes it of what stands, and has the heartbeat say it. */
+const changeFlight = async (
+  host: Host,
+  change: (current: SitrepInFlight | null) => SitrepInFlight | null,
+) => {
+  let after: SitrepInFlight | null = null
+
+  await host.state.inFlight.update(current => (after = change(current)))
+  say(host, after)
+}
+
 /** Ends the message in flight where `isEnding` says so; whether it did. */
 const endIf = async (host: Host, isEnding: (current: SitrepInFlight) => boolean) => {
   let isEnded = false
 
-  await host.state.inFlight.update(current => {
+  await changeFlight(host, current => {
     isEnded = current !== null && isEnding(current)
 
     return isEnded ? null : current
@@ -184,7 +203,7 @@ const writeDown = async (host: Host, delivery: SitrepInFlight) => {
 const heard = async (host: Host, isIt: (current: SitrepInFlight) => boolean) => {
   let taken: SitrepInFlight | undefined
 
-  await host.state.inFlight.update(current => {
+  await changeFlight(host, current => {
     taken =
       current !== null && !current.isTaken && isIt(current)
         ? { ...current, isTaken: true }
@@ -235,7 +254,7 @@ export const deliver = async (
   }
   let ahead: SitrepInFlight | undefined
 
-  await host.state.inFlight.update(current => {
+  await changeFlight(host, current => {
     ahead = current ?? undefined
 
     return current ?? delivery
@@ -299,9 +318,10 @@ export const writeTaken = async (host: Host) => {
   }
 }
 
-/** A load starting: no quiet of an earlier one runs on, and a message it left taken is written down. */
+/** A load starting: no quiet of an earlier one runs on, the heartbeat says the message it left in flight, and one it left taken is written down. */
 export const takeUpDelivery = async (host: Host) => {
   quiet?.cancel()
   quiet = undefined
+  say(host, await host.state.inFlight.read())
   await writeTaken(host)
 }

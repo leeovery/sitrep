@@ -167,21 +167,32 @@ notch and its panel").
 
   An ask waits on Lee until Lee replies to it (20 October 2026): once a
   reply of Lee's to it is on its way, an answer or a comment, in its
-  session's inbox from the pane or the SitRep window, Lee has responded: it
-  waits on a window to deliver the reply, and then on Claude, not on Lee,
-  and counts nowhere on Lee's surfaces as needing Lee: not in a session's or
-  a project's waiting, on the tabs or the band, in `list` or `board --json`,
-  nor in `watch`'s head and rows, so the notch does not swell for it. Its
-  session's state is then what its windows make it: an away one with nothing
-  else waiting leaves the panel and the strip, and shows in the SitRep
-  window. The ask itself still shows among its session's asks, saying its
-  reply is on its way, until the delivered mark settles it; an ask whose
-  reply went void waits on Lee again, as does one whose reply reached Claude
-  after an edit it no longer fits (see "Which replies go in", under
-  Delivery). A comment on its way bars no answer: the ask still offers its
-  buttons. Core's `waitsOnLee` decides it. It still keeps its session
-  current, as an ask waiting on Lee does, however long the answer waits for
-  a window.
+  session's inbox from the pane or the SitRep window, or, sent from the
+  pane to its own session, in that window's message from the moment it is
+  claimed (22 October 2026), Lee has responded: it waits on a window to
+  deliver the reply, and then on Claude, not on Lee, and counts nowhere on
+  Lee's surfaces as needing Lee: not in a session's or a project's waiting,
+  on the tabs or the band, in `list` or `board --json`, nor in `watch`'s
+  head and rows, so the notch does not swell for it. Its session's state is
+  then what its windows make it: an away one with nothing else waiting
+  leaves the panel and the strip, and shows in the SitRep window. The ask
+  itself still shows among its session's asks, saying its reply is on its
+  way, until the delivered mark settles it; an ask whose reply went void
+  waits on Lee again, as does one whose reply reached Claude after an edit
+  it no longer fits (see "Which replies go in", under Delivery), and one
+  whose own session's message was let go, refused or never taken, or whose
+  window is gone before it was written down (see Delivery). A comment on its
+  way bars no answer: the ask still offers its buttons. Core's `waitsOnLee`
+  decides it. It still keeps its session current, as an ask waiting on Lee
+  does, however long the answer waits for a window.
+
+  Lee saw why on 22 October 2026: answering an ask while Claude was
+  mid-turn, the reply sat in Claude Code's queue for minutes, and the card
+  kept the ask in Needs you until the turn ended and the message was taken.
+  A message to its own session is claimed in the window's `$.state`, which
+  no other reader sees, so the window's heartbeat says the replies it
+  carries, from the claim until the claim ends (`sending`, under "Storage"),
+  and every reader folds them in as replies on their way.
 
   What Claude is told follows what Claude has been given, so everything
   Claude reads (the board text, the first message's listing and its counts,
@@ -858,9 +869,12 @@ Dropped for now (11 October 2026): a macOS notification for asks. Back on
 **The board never claims Claude knows something it was not told.**
 
 - Replies for **this** session are sent as Lee's own message
-  (`$.prompt.submit`, `asUser`), marked "From the board:". The board changes
-  only once Claude Code takes it; a refused send leaves every reply in place.
-  If Claude is mid-turn the message waits for that turn to end.
+  (`$.prompt.submit`, `asUser`), marked "From the board:". Its lines are
+  written only once Claude Code takes it; a refused send leaves every reply in
+  place. If Claude is mid-turn the message waits for that turn to end. From
+  its claim, though, its replies are **on their way** to every reader (22
+  October 2026), as an inbox reply is: the window's heartbeat says them
+  (`sending`, under "Storage") until the claim ends.
 - Replies for **another** session go into that session's inbox in the shared
   folder, and so do the SitRep window's answers, through `sitrep answer` (see
   "One engine, two front ends"). The sitrep mod in that session's window
@@ -888,6 +902,30 @@ Dropped for now (11 October 2026): a macOS notification for asks. Back on
   fixed at the claim: a send's are made then; the inbox's are the replies
   whose lines the message holds, no others. While it is in flight a look
   submits nothing, and a send says it waits for the inbox's replies.
+- **Its replies on their way from the claim** (22 October 2026). A send's
+  replies are in no file until they are written down, and its claim is in
+  the window's `$.state`, which no other reader sees, so every change to the
+  claim rewrites the window's heartbeat, which says the replies a send to
+  the session it holds carries (`sending`) from the claim until the claim
+  ends, written down or let go; a load starting with a send in flight says
+  it too. Every reader folds them in after the session's lines, each
+  reaching its item as it then stands, as a reply on its way from a live
+  window: an answer or a comment, the ask waits on Lee no more, and an
+  answer bars a second, the SitRep window's and another window's pane's
+  alike, where a comment bars nothing. One whose line is written by then is
+  that line, so between the lines going down and the claim ending nothing
+  reads twice and nothing drops out; one its item takes no more (closed,
+  the session finished, another answer read first) is left out, as its
+  lines, once written, would settle it. They are no reply of the session's
+  own: no inbox delivers them, and Claude's reads (the board text,
+  `toldSummary`) still have the ask waiting on Lee until it is delivered.
+  The inbox's message says nothing there, its replies on their way in the
+  inbox already; nor does a send to a session the window no longer holds,
+  whose heartbeat there let go. Refused or never taken, the claim ends and
+  the ask waits on Lee again; the window gone, its heartbeat goes stale and
+  the same follows, within 90 seconds. The window itself keeps the claim it
+  last set for its heartbeat, never reading it back from `$.state`, which a
+  tool call's long dispatch reads as it stood when the call began.
 - **Taken** is heard from the submit resolving with no drop, or from a turn
   starting whose text is the message's; whichever comes first marks it taken
   and writes it down. A load that starts with a message taken but not written
@@ -901,15 +939,17 @@ Dropped for now (11 October 2026): a macOS notification for asks. Back on
   again, so writing down twice writes once. A write that fails is tried again
   at the next look.
 - **Refused** (a drop, or a throw): let go at once, its replies left as they
-  were; the next look, or Lee's next send, tries again.
+  were, and its asks wait on Lee again; the next look, or Lee's next send,
+  tries again.
 - **Never taken** (Lee deleted the queued prompt, or the submit was lost): let
   go once the window has gone quiet without it, 30 seconds after a turn of
   the main conversation (or the conversation) ended with no turn starting
   since. A queued prompt goes in as the turn before it ends, its own turn
   starting about 40 ms after (live), once the prompt's hooks have run; so a
   message still unheard by then was never going in, and letting it go never
-  sends it twice. A send's replies are back in Ready to send, and a toast
-  says so; the inbox's wait for the next look.
+  sends it twice. A send's replies are back in Ready to send, their asks
+  waiting on Lee again, and a toast says so; the inbox's wait for the next
+  look.
 - **Which replies go in** (20 October 2026) is the fold's to say, every
   reader alike, each reply dated as it is written down and read in the order
   every reader reads in. A reply that closes its item, a yes, a choice, an
@@ -1290,6 +1330,26 @@ $XDG_STATE_HOME/sitrep/, else ~/.local/state/sitrep/
     no pane and announces nothing (the board Claude is told it has seen
     holds no presence at all). Core's parse still reads it, for `sitrep
     watch`.
+  - `sending` (22 October 2026) is the replies the window's message carries
+    to the session, from a send's claim until the claim ends (see "Its
+    replies on their way from the claim", under Delivery), each as its line
+    will hold it, with when the message was claimed:
+
+    ```
+    "sending": { "at": 1760000005000,
+                 "replies": [{ "id": "q7rx", "item": "k3f9",
+                               "verdict": "choose", "option": "Keep it" }] }
+    ```
+
+    A reply's words go whole, a note of several lines too, so the boards
+    show it as they show an inbox reply (`board --json`'s `reply`, the
+    pane's `+3 lines`). It is read field by field: a reply that does not
+    read as a reply line's fields do is dropped, and `sending` with no time,
+    or with no reply that reads, is none; the heartbeat is kept. It is
+    rewritten at once as the claim changes, through the window's serialised
+    writes, and said again on every beat; a window that lets go says none.
+    The mod's boards leave it out as they leave `state`, the replies it says
+    showing on their items.
   - Each load of the mod stamps its heartbeat with `loadedAt`, when it
     loaded (session.start, its first hook, reads the clock once), and reads
     the heartbeat file before rewriting it: once the file carries a later
@@ -1624,6 +1684,7 @@ truth. There is still no background service. None of it is built now. Lee:
       choose from: answer it in Claude Code's prompt.`); an ask closed (`k1 is
       already closed.`) or ignored (`k4 is already ignored.`); one with
       another answer of Lee's on its way already, from the pane or the CLI,
+      a pane's send to its own session from its claim (22 October 2026),
       since an ask takes no second answer, as the pane offers none (`An
       answer to k1 is on its way already.`), though a comment on its way bars
       none, as on the pane; an answer the ask does not take (`k2 wants a
@@ -1666,9 +1727,12 @@ truth. There is still no background service. None of it is built now. Lee:
       it, where Lee's reply was still on its way then, or reached it after:
       it never goes in, as a pane's send to a closed ask does not, and the
       card can say so. An open ask reads `onItsWay` once a reply is in the
-      inbox, not yet delivered, since it was written, Lee's answer before a
-      comment where both are; else `delivered` where Claude has an answer
-      the ask, edited under it, no longer takes (it waits on Lee again);
+      inbox, not yet delivered, since it was written, or in a live window's
+      message to its own session, since that was claimed (22 October 2026;
+      see "Its replies on their way from the claim", under Delivery), Lee's
+      answer before a comment where both are; else `delivered` where Claude
+      has an answer the ask, edited under it, no longer takes (it waits on
+      Lee again);
       else `null`, with none sent, one gone void as its ask was edited under
       it before Claude had it (the ask can be answered again), or only a
       comment Claude has. `words` is the reply as the board shows it on one

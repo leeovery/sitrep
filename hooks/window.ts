@@ -6,9 +6,10 @@
  * Whatever reads or changes the hold runs in turn (`serially`), so two tool
  * calls never write the window's file over each other, and a heartbeat never
  * lands after the window let go. The heartbeat says what the window is
- * doing as it attaches, and again whenever that changes (doing.ts), and
- * which load wrote it: a load finding a later one's there writes it no more
- * (load.ts).
+ * doing as it attaches, and again whenever that changes (doing.ts), the
+ * replies Lee's send in flight carries to the session, from its claim to its
+ * end (deliver.ts), and which load wrote it: a load finding a later one's
+ * there writes it no more (load.ts).
  */
 import type { Timer } from 'claude-code'
 import {
@@ -25,10 +26,11 @@ import {
   stateOf,
   type Body,
   type Presence,
+  type Sending,
   type Session,
   type SessionPaths,
 } from '../core'
-import type { SitrepAttachment } from '../types'
+import type { SitrepAttachment, SitrepInFlight } from '../types'
 import { activityNow } from './activity'
 import { endAnswering, settleAnswering } from './answering'
 import { boardOf } from './board'
@@ -57,6 +59,13 @@ type Hold = {
 }
 
 let current: Hold | undefined
+
+/**
+ * The message in flight as this load last set it in `$.state`, kept here
+ * for the heartbeat: a hook's dispatch reads `$.state` as it stood when the
+ * dispatch began, and a tool call's lasts as long as its tool runs.
+ */
+let flight: SitrepInFlight | null = null
 
 let queue: Promise<unknown> = Promise.resolve()
 
@@ -147,7 +156,32 @@ export const refresh = async (host: Host): Promise<Session | undefined> => {
 const stateNow = async (host: Host, attachedAt: number) =>
   stateOf(await activityNow(host), attachedAt)
 
-/** The beat, saying the state as it stands, and the watch, each run in turn and only while `hold` is still the window's. */
+/**
+ * What the window sends the session it holds as `held`: the replies Lee's
+ * send in flight carries there. None for the inbox's, which are on their way
+ * there already, nor for a send to another session, or claimed as another
+ * writer.
+ */
+const sendingTo = (held: SitrepAttachment): Sending | undefined =>
+  flight?.source === 'send' &&
+  flight.project === held.project &&
+  flight.session === held.session &&
+  flight.writer === held.writer
+    ? { at: flight.claimedAt, replies: flight.replies.map(({ type, ...reply }) => reply) }
+    : undefined
+
+/** What the heartbeat says of the window's doing on the session it holds as `held`: its state, and what it sends there. */
+const doingNow = async (host: Host, held: SitrepAttachment) => ({
+  state: await stateNow(host, held.attachedAt),
+  sending: sendingTo(held),
+})
+
+/** Whether a heartbeat already says this of the window's doing. */
+const isSaid = (presence: Presence, doing: Pick<Presence, 'state' | 'sending'>) =>
+  JSON.stringify([presence.state, presence.sending]) ===
+  JSON.stringify([doing.state, doing.sending])
+
+/** The beat, saying the window's doing as it stands, and the watch, each run in turn and only while `hold` is still the window's. */
 const timersFor = (host: Host, hold: Hold) => {
   const whileHeld = (what: string, task: () => Promise<unknown>) => () =>
     void serially(() => (current === hold ? task() : Promise.resolve())).catch(
@@ -162,7 +196,7 @@ const timersFor = (host: Host, hold: Hold) => {
           host,
           hold,
           heartbeat(
-            { ...hold.presence, state: await stateNow(host, hold.presence.attachedAt) },
+            { ...hold.presence, ...(await doingNow(host, hold.attachment)) },
             await host.clock.now(),
           ),
         ),
@@ -183,9 +217,10 @@ const forget = async (host: Host) => {
 }
 
 /**
- * Rewrites the heartbeat of the held session with what the window is doing,
- * should that differ from what it last said: whether it did. With no
- * session held, nothing: the window's state waits for its next attach.
+ * Rewrites the heartbeat of the held session with what the window is doing
+ * and sending there, should that differ from what it last said: whether it
+ * did. With no session held, nothing: the window's doing waits for its next
+ * attach.
  */
 export const restate = (host: Host) =>
   serially(async () => {
@@ -195,16 +230,27 @@ export const restate = (host: Host) =>
       return false
     }
 
-    const state = await stateNow(host, hold.presence.attachedAt)
+    const doing = await doingNow(host, hold.attachment)
 
-    if (JSON.stringify(state) === JSON.stringify(hold.presence.state)) {
+    if (isSaid(hold.presence, doing)) {
       return false
     }
 
-    await beat(host, hold, heartbeat({ ...hold.presence, state }, await host.clock.now()))
+    await beat(host, hold, heartbeat({ ...hold.presence, ...doing }, await host.clock.now()))
 
     return true
   })
+
+/**
+ * Keeps the message in flight as it now stands in `$.state`, and has the
+ * heartbeat say what it sends the held session: from a send's claim to its
+ * end. Whether the heartbeat was rewritten.
+ */
+export const sayInFlight = (host: Host, inFlight: SitrepInFlight | null) => {
+  flight = inFlight
+
+  return restate(host)
+}
 
 /** Lets go of the held session: the heartbeat says so, and the beat and the watch stop. */
 export const letGo = async (host: Host) => {
@@ -236,17 +282,17 @@ export const letGo = async (host: Host) => {
 export const attachTo = async (host: Host, root: string, attaching: SitrepAttachment) => {
   const { project, session, writer, attachedAt } = attaching
   const paths = sessionPaths(root, project, session)
-  const [where, version, state, loadedAt] = await Promise.all([
+  const [where, version, doing, loadedAt] = await Promise.all([
     whereNow(host),
     versionNow(host),
-    stateNow(host, attachedAt),
+    doingNow(host, attaching),
     loadedNow(host),
   ])
   const hold: Hold = {
     attachment: attaching,
     paths,
     text: await ownText(host, paths, folder => folder.log(writer)),
-    presence: attach(writer, attachedAt, { where, version, state, loadedAt }),
+    presence: attach(writer, attachedAt, { where, version, ...doing, loadedAt }),
     read: createReader(),
     timers: [],
   }

@@ -2,7 +2,8 @@
  * Folding a session: every writer's lines, and the replies other sessions
  * left in its inbox, merged into one order (time, then writer, then a
  * writer's own file before its letters, then the count within the file)
- * and read into the board.
+ * and read into the board; then the replies its live windows' messages in
+ * flight carry, not written down yet.
  */
 import { parseEntries } from './entries'
 import { parseMeta } from './meta'
@@ -37,6 +38,7 @@ import {
   type LogLine,
   type Note,
   type Parked,
+  type Presence,
   type Reply,
   type Status,
   type Session,
@@ -529,6 +531,35 @@ const logOf = (fold: Fold) =>
     })
     .reverse()
 
+/**
+ * The replies a live window's message carries to the session, claimed and
+ * not written down yet, each reaching its item after every line, as it
+ * stands then: on its way from the claim, as an inbox reply is, Lee's answer
+ * among them barring another. One whose line is written by now is that line;
+ * one its item takes no more is left out, its lines to settle it once
+ * written. None is a reply of the session's own: no inbox delivers it, and
+ * its id is no line's.
+ */
+const carry = (fold: Fold, { writer, sending }: Presence) => {
+  if (sending === undefined) {
+    return
+  }
+
+  for (const sent of sending.replies.filter(each => !fold.ids.has(each.id))) {
+    const item = fold.items.get(sent.item)
+
+    if (item !== undefined && item.type !== 'note') {
+      const reply: Reply = { ...sent, by: writer, at: sending.at, delivery: 'waiting' }
+
+      arrive(fold, item, reply, sending.at)
+
+      if (isPending(reply)) {
+        item.replies.push(reply)
+      }
+    }
+  }
+}
+
 const presenceOf = (files: Readonly<Record<string, string>>, pauses: readonly Pause[]) =>
   byName(files).flatMap(([writer, text]) => {
     const beat = parsePresence(text, writer)
@@ -572,6 +603,10 @@ export const foldSession = (
 
   for (const entry of entries) {
     take(fold, entry)
+  }
+
+  for (const beat of presence.filter(each => isLive(each, now))) {
+    carry(fold, beat)
   }
 
   const items = [...fold.items.values()]

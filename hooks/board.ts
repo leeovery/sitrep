@@ -7,14 +7,15 @@ import type { Session } from '../core'
 import type { SitrepBoard } from '../types'
 
 /**
- * A folded session as the board `$.state` holds, each window's state left
- * out: nothing the mod draws reads it, and a window working changes it up to
+ * A folded session as the board `$.state` holds, each window's state and
+ * what it sends left out: nothing the mod draws reads them, the replies sent
+ * showing on their items, and a window working changes its state up to
  * once a second, which would rewrite the board and redraw every pane that
  * watches the session.
  */
 export const boardOf = (session: Session): SitrepBoard => ({
   ...session,
-  presence: session.presence.map(({ state, ...presence }) => presence),
+  presence: session.presence.map(({ state, sending, ...presence }) => presence),
   items: [...session.items.values()],
   ids: [...session.ids],
 })
