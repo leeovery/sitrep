@@ -1817,10 +1817,20 @@ truth. There is still no background service. None of it is built now. Lee:
       CLI's own `version`, dotted part by part. Not `seenAt`: every beat
       would be a line. Nor `loadedAt`, which only the mod's fence reads.
     - `new`: the keys of the lines needing Lee this watch has not shown, a
-      new ask by its id or a window's new stop by when it showed: the
-      notch's swell, the strip's flash, on the row holding it. The first
-      line has none, so the app does not swell at its start, and what it
-      shows counts as shown. A line gone and back, as a window's heartbeat late or an ask's folder away
+      new ask by its id or a window's new stop by when it showed. A row
+      holding one **arrives**: a session new to the board, one coming to
+      need Lee from working or your turn, or one in Needs you gaining a
+      line. Since rows went by session a row keeps its key through all
+      three, so an arrival is this, not a key new to the app, as it was
+      while each ask and stop was a row of its own (22 October 2026). An
+      arrival swells the notch, washes its row on the card and in the
+      sidebar, the new line's time orange there, and on the strip moves its
+      mark into Needs you at once, flashing, or flashes it where it is
+      already in Needs you. A row **changes section** when its session
+      comes into Needs you or leaves it: on the card, while it is out, it
+      leaves its held place for its place in its new section (see "The
+      rows"). The first line has none, so the app does not swell at its
+      start, and what it shows counts as shown. A line gone and back, as a window's heartbeat late or an ask's folder away
       for a look, is not new again until it has been gone more than a day
       of the watch's own time (core's `FORGET_MS`), counted from its going;
       by then it is let go. So a finished session joined again brings back
@@ -2334,11 +2344,17 @@ past its tab: "in 1h" becomes "in 59m". The row's time still counts from
 the turn's end, as every row's does, so the countdown never shows twice.
 
 Rows keep their places while the panel is open: a changed row moves only
-once it closes. A row is kept by its session, so one gaining or losing a
-line, as a second ask comes, is the same row, changed where it stands at its
-new height, and the rows under it move with it. Meanwhile a row gone folds away where it was, and a new one
-unfolds under the row core has above it, washed if it needs Lee (20 October
-2026). A click
+once it closes. A place is held within its section, Needs you or the rest,
+so Needs you stays together over the hairline (22 October 2026, rows by
+session). A row is kept by its session, so one gaining or losing a line in
+Needs you, as a second ask comes, is the same row, changed where it stands
+at its new height, at once, and the rows under it move with it. A row
+changing section, its session coming to need Lee or its asks answered,
+leaves its held place and takes its place in its new section: it folds
+away where it was and unfolds under the row core has above it, as two
+rows, as when each ask was a row of its own. Meanwhile a row gone folds
+away where it was, and a new one unfolds under the row core has above it,
+washed if it needs Lee (20 October 2026). A click
 on an away row does nothing; it is there, but there
 is no window to jump to. What a click on it opens is decided later: for
 Lee, a new Ghostty window attached to the session's tmux session, where
@@ -2663,9 +2679,15 @@ were settled in the browser spike (below, "How the strip moves").
   agreed, 22 October 2026: "a row is a session on every surface"). Every waiting
   line's words are medium there too.
 - **Moving.** The strip never shuts, so the panel's "a changed row moves only
-  once it closes" becomes: a new needs you moves in at once, the marks below
-  sliding down to make room; any other change shows in place, and the marks
-  re-sort a second after the pointer leaves the strip.
+  once it closes" becomes: a needs you arriving moves in at once, the marks
+  below sliding down to make room; any other change shows in place, and the
+  marks re-sort a second after the pointer leaves the strip. A mark arrives
+  when `new` names any of its lines (see "One engine, two front ends"): new
+  to the strip, or already on it, from working or your turn, it moves into
+  Needs you at once and its ring flashes twice, as a new one's does; one
+  already on the Needs you side, a second ask come, flashes where it is.
+  One whose asks are answered changes in place and moves at the re-sort,
+  as the prototype's answer does (below, "Too many").
 - **Too many.** The strip has as many places as Max gives it, or as the
   full height holds: about 30 (32 on a 1117pt screen, 27 on a 982pt one).
   Needs you takes them first, keeping one for your turn and working
@@ -2821,7 +2843,9 @@ stands).
       name over its project's; each line more makes it 19 taller. It is one
       row: one pick, filling it all, the system's accent at radius 9, under
       which its words go white and its second line and ages white at 80%,
-      its dots staying orange; and a click opens its session. Its heading is plain words, "Needs you", with no count and no chevron,
+      its dots staying orange; and a click opens its session. As the row
+      washes, a new ask's coming, only the new line's age goes orange, which
+      tells it among the rest. Its heading is plain words, "Needs you", with no count and no chevron,
       which neither folds nor picks, nor changes under the pointer. With no
       ask it goes, line and all, and nothing takes its place. It scrolls with
       the list, every ask in it, with no cap. A rule sets it off from the
@@ -2889,9 +2913,10 @@ stands).
     - **the filter** narrows the list in place, Needs you and the projects
       by one rule. A session stays while every word typed appears, anywhere,
       in its name or its project's, whatever their case and accents, so
-      typing a project's name lists its sessions; under Needs you, in any of
-      its lines' words too, so "gh pr" finds the session a permission prompt
-      for `gh pr create` waits on; a quiet project stays
+      typing a project's name lists its sessions; in any of its lines'
+      words waiting on Lee too, so "gh pr" finds the session a permission
+      prompt for `gh pr create` waits on, under Needs you and under its
+      project; a quiet project stays
       while its name holds every word, or while one of its sessions matches
       by the same rule. A match with an ask shows in both places; Needs
       you's heading goes when none of its rows match; a match stays under its
@@ -3088,7 +3113,11 @@ stands).
     waits there, "SitRep, 3 waiting", or "Kit, nothing waiting", and
     folded says so, "Kit, nothing waiting, folded"; Quiet projects' reads
     "Quiet projects", and a quiet project's row "Kit, quiet project". A
-    Needs you row reads as its project's row does, the Filter field as
+    Needs you row reads what waits first: how many where there are several,
+    "2 asks", then each line's words; then its project and session, "away"
+    where no window holds it, and the oldest's age, as "2 asks, Paste the
+    load test's output, Allow Bash gh pr create, Switchboard, Dashboard
+    redesign, 3 hours" (22 October 2026). The Filter field reads as
     "Filter sessions", and the foot as one of the sidebar's choices, a radio
     button, "Settings", selected while Settings shows, as a list's row reads
     selected, and announced as that changes;

@@ -12,6 +12,18 @@ public enum Spoken {
         return "\(row.name), \(row.project), \(state), \(age(row.since, at: now))"
     }
 
+    /// A session's row under Needs you, one element: what waits on Lee first, how many where there are several, then
+    /// each line's words; then its project and its session, away where no window holds it, and how long the oldest
+    /// has waited, as "2 asks, Paste the load test's output, Allow Bash gh pr create, Switchboard, Dashboard redesign,
+    /// 3 hours".
+    public static func needsYou(_ row: Listed.Row, at now: Date) -> String {
+        let count = row.lines.count > 1 ? [Words.count(row.lines.count, "ask")] : []
+        let away = row.isAway ? ["away"] : []
+
+        return (count + row.lines.map(\.words) + [row.project, row.name] + away + [age(row.since, at: now)])
+            .joined(separator: ", ")
+    }
+
     /// The sidebar's Filter field.
     public static let filter = "Filter sessions"
 

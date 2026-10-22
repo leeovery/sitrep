@@ -43,7 +43,7 @@ public final class WindowRun {
     private var held = HeldOrder()
     private var pickReads = PickReads()
     private var listed = Listed()
-    /// Sessions new to needing Lee, washed from when they came.
+    /// Sessions new to needing Lee, by their ids, and the lines new on them, by their keys, washed from when they came.
     private var washed: [String: Date] = [:]
     private var boards: [String: SessionBoard] = [:]
     private var failed: [String: String] = [:]
@@ -70,12 +70,13 @@ public final class WindowRun {
     public func show(_ last: LastBoard, at time: Date, reducesMotion: Bool) -> [Read] {
         let board = last.board
         let moving = last.stale == nil ? board?.newRows ?? [] : []
+        let newLines = last.stale == nil ? board?.new ?? [] : []
 
         self.last = last
         take(Listed(last), moving: moving)
         leaveNeedsYou()
         if !reducesMotion {
-            moving.forEach { washed[$0] = time }
+            (Array(moving) + newLines).forEach { washed[$0] = time }
         }
         if let board {
             finishing = finishing.filter { board.session($0.key)?.session.doing.isAway ?? false }
@@ -412,7 +413,10 @@ public final class WindowRun {
 
         var shown = listed.narrowed(by: filter)
 
-        shown.changeRows { $0.washed = washed[$0.id] }
+        shown.changeRows { row in
+            row.washed = washed[row.id]
+            row.lines.indices.forEach { row.lines[$0].washed = washed[row.lines[$0].id] }
+        }
         return shown
     }
 

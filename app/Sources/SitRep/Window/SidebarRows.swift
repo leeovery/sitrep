@@ -25,7 +25,9 @@ struct SidebarLine: View {
                 isEmphasized: isEmphasized, filter: filter
             )
         case let .asking(row):
-            picking(NeedsYouRow(row: row, filter: filter, now: now).spoken(Spoken.row(row, at: now)), washed: row.washed)
+            picking(
+                NeedsYouRow(row: row, filter: filter, now: now).spoken(Spoken.needsYou(row, at: now)), washed: row.washed
+            )
         case let .session(row):
             picking(
                 SidebarSessionRow(row: row, filter: filter, now: now).spoken(Spoken.row(row, at: now)),
@@ -201,8 +203,8 @@ struct SidebarSessionRow: View {
 /// A session's row under Needs you, one shape however many lines it has, as board D draws it: each ask or stop
 /// waiting on Lee a line of its own, its dot in the mark's slot, its words medium and its age, 3 apart; then its
 /// project and session, 1 under them. One line is the system's two-line row, 39 tall, as built; each line more adds
-/// its 16 and the 3 over it. On the accent of the pick its words go white, its second line and its ages white at 80%;
-/// its dots stay orange.
+/// its 16 and the 3 over it. A new line's age is orange while the row washes, so the new one shows among the rest. On
+/// the accent of the pick its words go white, its second line and its ages white at 80%; its dots stay orange.
 struct NeedsYouRow: View {
     let row: Listed.Row
     let filter: Filter
@@ -218,7 +220,7 @@ struct NeedsYouRow: View {
                         SidebarMark(mark: .needs)
                         words(line)
                             .frame(maxWidth: .infinity, minHeight: WindowStyle.titleLine, maxHeight: WindowStyle.titleLine, alignment: .leading)
-                        SidebarAge(since: line.since, washed: row.washed, now: now, onPick: onPick)
+                        SidebarAge(since: line.since, washed: line.washed, now: now, onPick: onPick)
                             .frame(height: WindowStyle.titleLine)
                     }
                 }

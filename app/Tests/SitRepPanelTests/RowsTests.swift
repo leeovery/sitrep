@@ -223,6 +223,6 @@ struct RowsTests {
     }
 
     @Test func eachItemIsKeyedBySessionTheHairlineByItself() {
-        #expect(Content.css.items.map(\.key) == ["s1", "s2", "divider", "s3", "s4", "s5", "s6", "s7"])
+        #expect(Content.css.items.map(\.key) == ["needs:s1", "needs:s2", "divider", "s3", "s4", "s5", "s6", "needs:s7"])
     }
 }

@@ -166,6 +166,10 @@ public struct Session: Equatable, Sendable {
     /// A click on it jumps, unless no window holds it.
     public var jumps: Bool { !away }
 
+    /// Whether it is among needs you, over the hairline: on the card, the section a place is held in, a row crossing
+    /// the hairline leaving its place for its new one.
+    public var needsLee: Bool { kind == .needs }
+
     /// How long it has stood where it does at this time on the wall clock: its oldest line's time.
     public func ageText(at now: Double) -> String { lines[0].ageText(at: now) }
 
@@ -227,7 +231,7 @@ public enum Item: Equatable, Sendable {
     /// The panel's list of these sessions, in the order given, which is core's: the hairline under the needs you that
     /// lead it, when anything follows them.
     public static func list(_ sessions: [Session]) -> [Item] {
-        let needs = sessions.prefix { $0.kind == .needs }.count
+        let needs = sessions.prefix(while: \.needsLee).count
         var items = sessions.map(Item.session)
         if needs > 0, needs < items.count {
             items.insert(.divider, at: needs)
@@ -243,8 +247,15 @@ public enum Item: Equatable, Sendable {
         return nil
     }
 
-    /// What it is, the same for as long as it shows: its session's id, or the one divider's.
-    public var key: String { session?.id ?? "divider" }
+    /// What it is, the same for as long as it shows: its session's id, marked as needs you over the hairline, so a row
+    /// crossing it folds away from one place and unfolds in the other, as two rows; or the one divider's.
+    public var key: String {
+        guard let session else {
+            return "divider"
+        }
+
+        return session.needsLee ? "needs:\(session.id)" : session.id
+    }
 
     /// The gap below a row, inside its item.
     public static let rowGap = 4.0

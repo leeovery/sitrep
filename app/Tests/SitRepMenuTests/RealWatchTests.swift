@@ -46,7 +46,7 @@ struct RealWatchTests {
         let menu = MenuBoard(heard([.line(Lines.watch[0])]), clock: london)
 
         #expect(menu.heading == "6 need you")
-        #expect(menu.items.map(\.key) == ["sr-macapp", "sr-dash02", "sr-gs7kq2", "divider", "sr-rq7dgr"])
+        #expect(menu.items.map(\.key) == ["needs:sr-macapp", "needs:sr-dash02", "needs:sr-gs7kq2", "divider", "sr-rq7dgr"])
         #expect(menu.reloads.isEmpty)
     }
 

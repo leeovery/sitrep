@@ -1,6 +1,7 @@
 /// The panel's sessions as it shows them: core's order while the panel is in; while it is out, each row keeps the
-/// place it had, so a changed row moves only once the panel closes (DESIGN, "The rows"). Core decides the rows and
-/// their order; this decides only when a new order shows.
+/// place it had in its section, needs you or the rest, so a changed row moves only once the panel closes (DESIGN, "The
+/// rows"), and needs you stays together over the hairline. Core decides the rows and their order; this decides only
+/// when a new order shows.
 public struct HeldRows: Equatable, Sendable {
     public private(set) var shown: [Session] = []
     /// The board's latest, in core's order, which shows once the panel is in.
@@ -38,11 +39,12 @@ public struct HeldRows: Equatable, Sendable {
     }
 
     /// The rows showing, in their places, each as it now is, those gone left out; a new one comes in under the row
-    /// core has above it, or first where core has none.
+    /// core has above it, or first where core has none, as does one come into needs you or gone out of it.
     private func kept(_ sessions: [Session]) -> [Session] {
         let now = Dictionary(sessions.map { ($0.id, $0) }) { first, _ in first }
+        let stayed = shown.compactMap { held in now[held.id].flatMap { $0.needsLee == held.needsLee ? $0 : nil } }
 
-        return shown.compactMap { now[$0.id] }.merging(sessions, by: \.id)
+        return stayed.merging(sessions, by: \.id)
     }
 }
 

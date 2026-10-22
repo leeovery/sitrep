@@ -336,11 +336,24 @@ struct WindowRunTests {
         #expect(run.listed(at: printedAt.addingTimeInterval(2)).needsYou.compactMap(\.washed).isEmpty)
     }
 
+    /// A new ask on a row of several lines: the row washes, and of its lines only the new one, which its age says.
+    @Test func ofARowsLinesOnlyTheNewOneIsWashed() throws {
+        let run = opened()
+
+        _ = run.show(heard(line(0), line(new: ["ask:sr-macapp:k3"])), at: printedAt, reducesMotion: false)
+
+        let row = try #require(run.listed(at: printedAt.addingTimeInterval(1)).needsYou.first { $0.id == "sr-macapp" })
+        #expect(row.washed == printedAt)
+        #expect(row.lines.map(\.washed) == [nil, printedAt, nil])
+        #expect(run.listed(at: printedAt.addingTimeInterval(2)).needsYou.flatMap(\.lines).allSatisfy { $0.washed == nil })
+    }
+
     @Test func underReducedMotionNothingIsWashed() {
         let run = opened()
 
         _ = run.show(heard(line(0), line(new: ["ask:sr-gs7kq2:k1"])), at: printedAt, reducesMotion: true)
         #expect(run.listed(at: printedAt).sessions.compactMap(\.washed).isEmpty)
+        #expect(run.listed(at: printedAt).needsYou.flatMap(\.lines).allSatisfy { $0.washed == nil })
     }
 
     @Test func staleNothingOnTheBoardIsNewAgain() {

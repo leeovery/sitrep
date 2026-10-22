@@ -11,7 +11,7 @@ struct MenuBoardTests {
     private static let board = menu(heard([.line(Watched.line())]))
 
     @Test func itListsThePanelsSessionsInCoresOrderWithTheHairlineUnderTheNeedsYou() {
-        #expect(Self.board.items.map(\.key) == ["sr-ledger", "sr-dash", "sr-plan", "divider", "sr-boot", "sr-diff"])
+        #expect(Self.board.items.map(\.key) == ["needs:sr-ledger", "needs:sr-dash", "needs:sr-plan", "divider", "sr-boot", "sr-diff"])
     }
 
     @Test func eachRowCarriesThePanelsMark() {

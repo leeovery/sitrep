@@ -17,7 +17,8 @@ struct SelectedWordsTests {
 
         return Listed.Row(
             id: "sr-1", name: "Name", project: "Mono", mark: mark, isAway: isAway, since: since,
-            lines: mark == .needs ? [Listed.Waiting(id: "ask:sr-1:k1", lead: "Name", code: nil, more: nil, since: since)] : [],
+            lines: mark == .needs
+                ? [Listed.Waiting(id: "ask:sr-1:k1", lead: "Name", code: nil, more: nil, since: since, washed: washed)] : [],
             washed: washed
         )
     }
@@ -104,6 +105,16 @@ struct SelectedWordsTests {
         let age = try Self.asking(Self.row(washed: Self.now), on: .increased).brightest(in: Self.age)
 
         #expect(age.redComponent > 0.85 && age.blueComponent < 0.35)
+    }
+
+    /// Of a washing row's lines, only a new one's age is orange: one already waiting keeps its own.
+    @Test func aWashingRowsOlderLineKeepsItsAgesInk() throws {
+        var row = Self.row(washed: Self.now)
+        row.lines[0].washed = nil
+
+        let age = try Self.asking(row, on: .standard).brightest(in: Self.age)
+
+        #expect(!(age.redComponent > 0.85 && age.blueComponent < 0.35))
     }
 
     @Test func noAgeShowsOnARowWithoutAnAsk() throws {

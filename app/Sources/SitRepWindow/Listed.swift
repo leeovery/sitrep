@@ -62,6 +62,8 @@ public struct Listed: Equatable, Sendable {
         /// A question's "+2".
         public let more: String?
         public let since: Date
+        /// New on the board: its time washed orange from then (`Wash`), which tells the new one among its row's.
+        public var washed: Date?
 
         /// Its words, as the filter reads them.
         public var words: String {

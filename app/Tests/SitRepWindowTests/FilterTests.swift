@@ -38,12 +38,15 @@ struct FilterTests {
         #expect(narrowed.quiet.isEmpty)
     }
 
-    /// A Needs you row by its lines' words too: the Mac app's ask about the strip's edge, Dashboard redesign's prompt
-    /// to run `gh pr create`; neither under its project, which knows only names.
-    @Test func needsYouFindsARowByAnyOfItsLinesWords() {
-        #expect(Self.listed.narrowed(by: Filter("strip edge")).needsYou.map(\.id) == ["sr-macapp"])
-        #expect(Self.listed.narrowed(by: Filter("gh pr")).needsYou.map(\.id) == ["sr-dash02"])
-        #expect(Self.listed.narrowed(by: Filter("strip edge")).projects.isEmpty)
+    /// A session by its lines' words too, the Mac app's ask about the strip's edge, Dashboard redesign's prompt to run
+    /// `gh pr create`: under Needs you and under its project, as every match shows in both places.
+    @Test func aSessionIsFoundByAnyOfItsLinesWordsInBothPlaces() {
+        let strip = Self.listed.narrowed(by: Filter("strip edge")), pr = Self.listed.narrowed(by: Filter("gh pr"))
+
+        #expect(strip.needsYou.map(\.id) == ["sr-macapp"])
+        #expect(strip.sessions.map(\.id) == ["sr-macapp"])
+        #expect(pr.needsYou.map(\.id) == ["sr-dash02"])
+        #expect(pr.sessions.map(\.id) == ["sr-dash02"])
     }
 
     @Test func needsYouFiltersByTheSameRuleItsMatchesInTheirOrder() {
