@@ -3130,8 +3130,13 @@ reference only.
   edge in the strip's own S and its rings in the panel's order, or only the
   menu bar's glyph, lit. Each is named under it, 11, 4.5 below it. The one
   chosen is ringed in the accent, 3 wide past a gap of the card's raise,
-  0.5, its name semibold in the label colour; a picture not chosen has a
-  hairline of white at 15% and its name regular in the secondary colour.
+  0.5, with no shadow, its name semibold in the label colour. A picture
+  not chosen stands on the soft shadow Appearance's unchosen thumbnails
+  stand on, measured from the same capture: black, darkest at the edge,
+  where it takes 14% off the card, gone 4 out, alike on every side, so
+  with no offset; drawn as black at 30% blurred 2. Its name is regular in
+  the secondary colour. Round 9 drew a hairline of white at 15% there
+  instead, which Lee saw live as "a very thin white border or ring".
   The row is 86 tall, its pictures' ring 10 from its top. A click chooses
   one; it is the menu's Show. At their size, the pictures keep to what
   reads: the strip's rings drawn no finer than half a point, and Nothing's
@@ -3141,10 +3146,12 @@ reference only.
   nothing in them moves, under the pointer or not (Lee, 21 October 2026,
   of the notch's tongue reaching for the pointer and the strip's rings
   turning under it: "This looks stupid… Remove the animation from these
-  highlights"). A picture not chosen lifts its hairline to white at 40%
-  while the pointer is over it, and its name to the label colour, at once;
-  the chosen one stays as it is. The window leaving the screen, no
-  picture is taken as under the pointer, as AppKit may send no leave then.
+  highlights"). Nor does the row answer the pointer at all: a picture
+  changes only as it is chosen. Round 9 lifted a picture's edge and its
+  name under the pointer, which Appearance does not (Lee, 22 October 2026:
+  "in Mac settings, hovering an item doesn't actually hover in the boxes
+  for appearance. Auto light and dark doesn't change the appearance at
+  all, actually").
 - **The rows under Show**, in the same card, are the ones that apply to the
   choice, in this order, each arriving and leaving by the system's own
   transition, at once under Reduce motion:
