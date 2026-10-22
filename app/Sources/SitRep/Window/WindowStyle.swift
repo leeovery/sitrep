@@ -33,6 +33,8 @@ enum WindowStyle {
     /// The working arc's track, and the arc.
     static let track = Color(hex: 0x2C2C31)
     static let arc = Color(hex: 0xC9C9CF)
+    /// On its own work, the card's dotted ring.
+    static let dotted = Color(hex: 0x8E8E95)
     /// What is new, and a stop: washed orange in a ring of it.
     static let wash = orange.opacity(0.12)
     static let washRing = orange.opacity(0.28)
@@ -140,6 +142,8 @@ enum WindowStyle {
 
     /// The working mark's track in the sidebar, as drawn.
     static let sidebarTrack = Color.white.opacity(0.15)
+    /// On its own work, the sidebar's dotted ring, from Paper's board D.
+    static let sidebarDotted = Color.white.opacity(0.45)
 
     /// The system's selection, as SitRep draws it where no list does, on a heading, which the list will not select
     /// (`FoldHeading`), and on Settings at the foot (`SettingsFooter`): the accent's while it has the key window's

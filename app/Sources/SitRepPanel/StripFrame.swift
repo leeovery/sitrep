@@ -121,9 +121,9 @@ public struct StripFrame {
     public struct Mark {
         public enum Look: Sendable {
             /// Orange, with the panel dot's glow, the letters white; away, the letters dim; your turn, white; working,
-            /// a grey track with a pale arc turning; the grey count, a grey ring; needs you's count, orange with its
-            /// glow, the letters white.
-            case needs, away, turn, working, count, needsCount
+            /// a grey track with a pale arc turning; on its own work, the working mark held still, its arc never
+            /// turning; the grey count, a grey ring; needs you's count, orange with its glow, the letters white.
+            case needs, away, turn, working, onItsWork, count, needsCount
         }
 
         public let key: MarkKey
@@ -247,6 +247,7 @@ extension Strip {
             case .needs: s.away ? .away : .needs
             case .turn: .turn
             case .working: .working
+            case .onItsWork: .onItsWork
             }
             shown.append(paint(m, s.letters, look, lifted: lifted == m.key && !s.away, washes: s.kind == .needs))
         }

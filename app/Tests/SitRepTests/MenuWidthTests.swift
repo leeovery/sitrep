@@ -40,7 +40,7 @@ struct MenuWidthTests {
         for session in sessions {
             let item = NSMenuItem(title: "", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "")
 
-            MenuWords.row(item, session, jump: session.id, age: MenuChrome.widestAge, isHighlighted: false)
+            MenuWords.row(item, session, jump: session.id, age: MenuChrome.widestAge, now: 0, isHighlighted: false)
             menu.addItem(item)
         }
         menu.addItem(NSMenuItem(title: "Open SitRep Window", action: #selector(NSApplication.terminate(_:)), keyEquivalent: ""))
@@ -99,7 +99,7 @@ struct MenuWidthTests {
     @Test func aShortRowIsLeftWholeWithNoTooltip() {
         let item = NSMenuItem()
 
-        MenuWords.row(item, Self.session("Wait for Lee to review PR #21", sub: "Turnstile · Fixes"), jump: "a", age: "2h", isHighlighted: false)
+        MenuWords.row(item, Self.session("Wait for Lee to review PR #21", sub: "Turnstile · Fixes"), jump: "a", age: "2h", now: 0, isHighlighted: false)
         #expect(item.attributedTitle?.string == "Wait for Lee to review PR #21")
         #expect(item.toolTip == nil)
     }

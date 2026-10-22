@@ -26,12 +26,12 @@ struct MenuBoardTests {
 
     @Test func aRowsTitleIsItsFirstLineItsSubjectAndAQuestionsMoreInOne() {
         let question = Session(id: "q", project: "Goosemates", kind: .needs, title: "Which edge?", more: "+2", sub: "", since: 0)
-        let titles = Self.board.items.compactMap(\.session).map(\.menuTitle)
+        let titles = Self.board.items.compactMap(\.session).map { $0.menuTitle(at: 0) }
 
         #expect(titles[0] == "Choose how long the ledger keeps requests")
         #expect(titles[1] == "Allow Bash: gh pr create")
         #expect(titles[4] == "Reading StatusMenu.swift")
-        #expect(question.menuTitle == "Which edge? +2")
+        #expect(question.menuTitle(at: 0) == "Which edge? +2")
     }
 
     @Test func aClickJumpsToTheRowsSessionButAnAwayRowJumpsNowhere() {

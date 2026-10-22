@@ -39,6 +39,41 @@ struct Drawn {
         scale = CGFloat(bitmap.pixelsHigh) / view.bounds.height
     }
 
+    /// A layer as Core Animation draws it, at 2×, over black: under a flipped root, as the edge lays its layers out
+    /// from the top left, each drawn at a `contentsScale` of 2.
+    init(_ layer: CALayer) throws {
+        let size = layer.bounds.size
+        let root = CALayer()
+
+        bitmap = try #require(NSBitmapImageRep(
+            bitmapDataPlanes: nil, pixelsWide: Int((size.width * 2).rounded()), pixelsHigh: Int((size.height * 2).rounded()),
+            bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false, colorSpaceName: .calibratedRGB,
+            bytesPerRow: 0, bitsPerPixel: 0
+        )?.retagging(with: .sRGB))
+        scale = 2
+        root.isGeometryFlipped = true
+        root.frame = CGRect(origin: .zero, size: size)
+        root.addSublayer(layer)
+        Self.display(root)
+
+        let context = try #require(NSGraphicsContext(bitmapImageRep: bitmap)).cgContext
+
+        context.setFillColor(.black)
+        context.fill(CGRect(x: 0, y: 0, width: bitmap.pixelsWide, height: bitmap.pixelsHigh))
+        // `render(in:)` lays the root's sublayers out from its bottom, flipped or not, while its text is drawn the
+        // flipped root's way up: the context's own flip sets both right.
+        context.translateBy(x: 0, y: CGFloat(bitmap.pixelsHigh))
+        context.scaleBy(x: scale, y: -scale)
+        root.render(in: context)
+        bitmap.size = size
+    }
+
+    private static func display(_ layer: CALayer) {
+        layer.contentsScale = 2
+        layer.displayIfNeeded()
+        layer.sublayers?.forEach(display)
+    }
+
     /// A window's drawing, read at 2×, counting a page's half points as whole pixels. A window lays its views out to
     /// its screen's pixels, and none can be made to take another scale, so a screen at any other says so here rather
     /// than failing a test's counts.

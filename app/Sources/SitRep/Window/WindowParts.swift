@@ -3,7 +3,7 @@ import SitRepWindow
 import SwiftUI
 
 /// A session's mark in its lane, as the panel row draws it: the orange dot with its glow, the open ring, the turning
-/// arc, an away session's faint dot. On the accent of a selection in the list that has the window's focus, its greys
+/// arc, the dotted ring, still, an away session's faint dot. On the accent of a selection in the list that has the window's focus, its greys
 /// go white, as the system's own rows' icons do; its orange stays orange.
 struct MarkView: View {
     let mark: Mark
@@ -19,6 +19,7 @@ struct MarkView: View {
                     .strokeBorder(WindowStyle.colour(WindowStyle.text, on: prominence), lineWidth: 1.5)
                     .frame(width: 9, height: 9)
             case .working: TurningArc()
+            case .onItsWork: DottedRingView(ring: .card, ink: WindowStyle.colour(WindowStyle.dotted, on: prominence))
             case .away: Circle().fill(WindowStyle.colour(WindowStyle.awayDot, on: prominence)).frame(width: 5, height: 5)
             }
         }

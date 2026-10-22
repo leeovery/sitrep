@@ -66,8 +66,10 @@ struct StripLab {
         model.show(Self.core(sessions), new: new)
     }
 
-    /// The rows in core's order, as `watch` prints them (`core/rows.ts`): needs you, oldest first, away ones last;
-    /// your turn, newest first; working, longest running first; on a tie, as they were.
+    /// The rows in the order core gave them as the prototype's timelines were recorded, which the recordings hold
+    /// them to: needs you, oldest first, away ones last; your turn, newest first; working, longest running first; on
+    /// its own work, which they never had, last; on a tie, as they were. Core has since put working, then on its own
+    /// work, before your turn (`core/rows.ts`), which the strip draws as it comes.
     static func core(_ sessions: [Session]) -> [Session] {
         func key(_ row: (offset: Int, element: Session)) -> (Int, Double, Int) {
             let s = row.element
@@ -75,6 +77,7 @@ struct StripLab {
             case .needs: (s.away ? 1 : 0, s.since, row.offset)
             case .turn: (2, -s.since, row.offset)
             case .working: (3, s.since, row.offset)
+            case .onItsWork: (4, s.since, row.offset)
             }
         }
         return sessions.enumerated().sorted { key($0) < key($1) }.map(\.element)

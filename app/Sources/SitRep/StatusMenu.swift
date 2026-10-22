@@ -99,7 +99,9 @@ final class StatusMenu: NSObject, NSMenuDelegate {
             let offset = menu.index(of: item)
 
             if entries.indices.contains(offset), case let .row(session, jump) = entries[offset] {
-                MenuWords.describe(item, session, jump: jump, isHighlighted: item === highlighted)
+                MenuWords.describe(
+                    item, session, jump: jump, now: Displays.wallNow, isHighlighted: item === highlighted
+                )
             }
         }
     }
@@ -168,7 +170,11 @@ final class StatusMenu: NSObject, NSMenuDelegate {
             item.target = self
             item.action = jump == nil ? nil : #selector(jump(_:))
             item.representedObject = jump
-            MenuWords.row(item, session, jump: jump, age: session.ageText(at: Displays.wallNow), isHighlighted: item === highlighted)
+            let now = Displays.wallNow
+
+            MenuWords.row(
+                item, session, jump: jump, age: session.ageText(at: now), now: now, isHighlighted: item === highlighted
+            )
         case let .more(title):
             command(item, title, "ellipsis", #selector(openTheWindow))
         case .openWindow:
@@ -201,12 +207,13 @@ final class StatusMenu: NSObject, NSMenuDelegate {
         }
     }
 
-    /// The rows' times, each drawn again as it next reads differently, and the timer set for the rows now showing.
+    /// The rows' times, and a wake's countdown, each drawn again as it next reads differently, and the timer set for
+    /// the rows now showing.
     private func tick() {
         let now = Displays.wallNow
 
         for (offset, entry) in entries.enumerated() {
-            guard case let .row(session, _) = entry, let item = menu.item(at: offset) else {
+            guard case let .row(session, jump) = entry, let item = menu.item(at: offset) else {
                 continue
             }
 
@@ -214,6 +221,9 @@ final class StatusMenu: NSObject, NSMenuDelegate {
 
             if item.badge?.stringValue != age {
                 item.badge = NSMenuItemBadge(string: age)
+            }
+            if session.until != nil {
+                MenuWords.describe(item, session, jump: jump, now: now, isHighlighted: item === highlighted)
             }
         }
 

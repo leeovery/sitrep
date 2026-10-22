@@ -5,6 +5,7 @@
  * folder.
  */
 import type {
+  ClassicEventOf,
   ClassicResultOf,
   ElementTable,
   On,
@@ -470,6 +471,21 @@ export function world(engine: Engine, on: On, options: Options = {}) {
     requestAnswer = answer
   }
 
+  /** What the settings hooks beneath answer a turn's Stop: nothing, so the turn stops, unless a test says otherwise. */
+  let stopAnswer: ClassicResultOf['classic.Stop'] = {}
+
+  on('classic.Stop', () => stopAnswer)
+
+  /** The settings hooks beneath answer every Stop from here on with `answer`, as one that blocks it to go on with the turn. */
+  const answerStops = (answer: ClassicResultOf['classic.Stop']) => {
+    stopAnswer = answer
+  }
+
+  /** The main conversation's turn stopping, its Stop listing what it leaves pending, or a subagent's id where given: the classic event's answer. */
+  const stops = (
+    pending: Pick<ClassicEventOf['classic.Stop'], 'background_tasks' | 'session_crons' | 'agent_id'>,
+  ) => engine.classic.Stop({ stop_hook_active: false, ...pending })
+
   on('tool.check', ($, e) => ({
     decision: beneath.get(callKey(e.tool, e.input as Args))?.verdict ?? 'allow',
   }))
@@ -743,6 +759,8 @@ export function world(engine: Engine, on: On, options: Options = {}) {
     call,
     calls,
     answerRequests,
+    answerStops,
+    stops,
     begin,
     become,
     turnStarts,

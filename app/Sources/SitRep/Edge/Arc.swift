@@ -35,6 +35,12 @@ final class Arc {
         arc.path = quarter
     }
 
+    /// Held still, its quarter where it starts: its turn taken off, so nothing of it runs.
+    func hold() {
+        period = nil
+        layer.removeAnimation(forKey: Self.key)
+    }
+
     /// Turning once in this many seconds, from a phase of its own: added only when it isn't already turning so.
     func turn(every seconds: Double) {
         guard seconds != period || layer.animation(forKey: Self.key) == nil else {

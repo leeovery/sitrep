@@ -4,7 +4,8 @@ import SitRepPanel
 /// One session's row in black, as the prototype draws it: its mark; its title, its subject in mono after it and a
 /// question's "+2"; its project and session beneath, or for an away one why a click does nothing; its time at the
 /// right; the lift under the pointer, and a new row's wash. A working row's arc turns and its lead shimmers, its
-/// subject still, in the render server.
+/// subject still, in the render server. A row on its own work is still: its dotted ring, and its title, a wake's
+/// countdown in it set again as it reads differently.
 @MainActor
 final class SessionRow {
     /// The row's box: the item less the gap below it.
@@ -17,6 +18,9 @@ final class SessionRow {
     private let spinner: Arc
     private var age: TextLine?
     private var ageText = ""
+    private var titleLayers: [CALayer] = []
+    /// What its title says after its verb, as last set: a wake's countdown changes it as the clock ticks.
+    private var subject: String?
 
     init(_ session: Session, size: CGSize) {
         self.session = session
@@ -32,7 +36,8 @@ final class SessionRow {
         wash.opacity = 0
         layer.addSublayer(wash)
         layer.addSublayer(mark())
-        title().forEach(layer.addSublayer)
+        subject = session.subject
+        showTitle()
         layer.addSublayer(TextLine(TextLine.text(session.sub, EdgeStyle.sub, subColour), in: at.sub))
         spinner.layer.isHidden = true
         layer.addSublayer(spinner.layer)
@@ -73,8 +78,14 @@ final class SessionRow {
         layer.backgroundColor = isPressed ? EdgeStyle.press : isHighlighted && session.jumps ? EdgeStyle.hover : nil
     }
 
-    /// Its time at this moment on the wall clock, ms, drawn again only when it reads differently.
+    /// Its time at this moment on the wall clock, ms, and a wake's countdown, each drawn again only when it reads
+    /// differently.
     func showAge(at now: Double) {
+        if session.until != nil, session.subject(at: now) != subject {
+            subject = session.subject(at: now)
+            showTitle()
+        }
+
         let text = session.ageText(at: now)
 
         guard text != ageText else {
@@ -114,6 +125,20 @@ final class SessionRow {
 
     private var isWorking: Bool { session.kind == .working }
 
+    /// Its title drawn again in place of the last.
+    private func showTitle() {
+        let made = title()
+
+        still {
+            titleLayers.forEach { $0.removeFromSuperlayer() }
+            made.forEach { line in
+                line.contentsScale = layer.contentsScale
+                layer.addSublayer(line)
+            }
+        }
+        titleLayers = made
+    }
+
     /// An away row's words dim.
     private var titleColour: CGColor { session.away ? EdgeStyle.off : EdgeStyle.ink }
 
@@ -138,8 +163,14 @@ final class SessionRow {
     }
 
     /// The title in its box, and how wide it is drawn there. A working title is grey, its lead lit by the sweep and
-    /// its subject left still.
+    /// its subject left still; one on its own work is still.
     private func titleLine(in box: CGRect) -> (layer: CALayer, width: CGFloat) {
+        if session.kind == .onItsWork {
+            let line = TextLine(WaitingTitle.text(session, subject: subject), in: box)
+
+            return (line, line.width)
+        }
+
         guard isWorking else {
             let line = TextLine(titleText(titleColour), in: box)
 
@@ -165,7 +196,8 @@ final class SessionRow {
         return text
     }
 
-    /// Needs you an orange dot with its glow, away or not; your turn an open white ring; working the arc turning.
+    /// Needs you an orange dot with its glow, away or not; your turn an open white ring; working the arc turning; on
+    /// its own work the dotted ring, still.
     private func mark() -> CALayer {
         let centre = at.mark
 
@@ -188,6 +220,8 @@ final class SessionRow {
             return ring
         case .working:
             return Self.arc(in: CGRect(x: centre.x - 5.5, y: centre.y - 5.5, width: 11, height: 11)).layer
+        case .onItsWork:
+            return DottedRing.card.layer(centredOn: centre, colour: EdgeStyle.grey)
         }
     }
 

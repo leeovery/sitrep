@@ -4,15 +4,16 @@ import SitRepEdge
 import SitRepPanel
 
 /// A session's mark, in the panel row's lane: needs you an orange dot, your turn an open ring, working the turning
-/// arc; away, with nothing waiting, a faint dot.
+/// arc, on its own work the dotted ring, still; away, with nothing waiting, a faint dot.
 public enum Mark: Sendable, Equatable {
-    case needs, turn, working, away
+    case needs, turn, working, onItsWork, away
 
     init(_ state: Board.Session.State) {
         switch state {
         case .needsYou: self = .needs
         case .yourTurn: self = .turn
         case .working: self = .working
+        case .onItsWork: self = .onItsWork
         case .away, .finished: self = .away
         }
     }
@@ -124,7 +125,7 @@ extension Board.Row {
     var needsLee: Bool {
         switch kind {
         case .ask, .permission, .question: true
-        case .yourTurn, .working: false
+        case .yourTurn, .working, .onItsWork: false
         }
     }
 }

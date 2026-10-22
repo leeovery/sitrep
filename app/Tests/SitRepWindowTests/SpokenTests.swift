@@ -66,7 +66,10 @@ struct SpokenTests {
         #expect(Spoken.heading("Status", note: nil) == "Status")
     }
 
-    @Test(arguments: [(Mark.needs, "needs you"), (.turn, "your turn"), (.working, "working"), (.away, "away")])
+    @Test(arguments: [
+        (Mark.needs, "needs you"), (.turn, "your turn"), (.working, "working"), (.onItsWork, "on its own work"),
+        (.away, "away"),
+    ])
     func aMarkReadsAsWhatItMeans(mark: Mark, words: String) {
         #expect(Spoken.mark(mark) == words)
     }

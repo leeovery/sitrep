@@ -32,7 +32,7 @@ enum GlassInk {
     static let orangeArc = NSColor(cgColor: EdgeStyle.color(LiveLight.orange)) ?? .systemOrange
 }
 
-/// An arc turning round a track, once in a period: a working row's mark.
+/// An arc turning round a track, once in a period, or held still with none: a working row's mark.
 /// Black's arc, turned by Core Animation in the render server: the app does no work as it turns, and no update of the
 /// views round it, animated or not, restarts it.
 @available(macOS 26, *)
@@ -40,7 +40,7 @@ struct Spinner: NSViewRepresentable {
     /// In the label colours, which the view resolves for the glass's appearance.
     let track: NSColor?
     let arc: NSColor
-    let period: Double
+    let period: Double?
 
     func makeNSView(context _: Context) -> SpinnerView { SpinnerView() }
 
@@ -54,7 +54,7 @@ struct Spinner: NSViewRepresentable {
 final class SpinnerView: NSView {
     private let spinner = Arc()
     private var colours: (track: NSColor?, arc: NSColor) = (nil, .clear)
-    private var period = 1.0
+    private var period: Double? = 1.0
 
     init() {
         super.init(frame: .zero)
@@ -69,11 +69,11 @@ final class SpinnerView: NSView {
 
     override var isFlipped: Bool { true }
 
-    func show(track: NSColor?, arc: NSColor, period: Double) {
+    func show(track: NSColor?, arc: NSColor, period: Double?) {
         colours = (track, arc)
         self.period = period
         paint()
-        spinner.turn(every: period)
+        follow()
     }
 
     override func layout() {
@@ -89,7 +89,16 @@ final class SpinnerView: NSView {
     /// Back in a window, its turn is added again if the window took it.
     override func viewDidMoveToWindow() {
         super.viewDidMoveToWindow()
-        spinner.turn(every: period)
+        follow()
+    }
+
+    /// Turning once a period, or held still with none.
+    private func follow() {
+        if let period {
+            spinner.turn(every: period)
+        } else {
+            spinner.hold()
+        }
     }
 
     private func paint() {

@@ -8,6 +8,7 @@ extension Board.Session.Doing {
     public var mark: Mark {
         switch kind {
         case .working: .working
+        case .onItsWork: .onItsWork
         case .yourTurn: .turn
         case .permission, .question: .needs
         case .away: .away

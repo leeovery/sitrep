@@ -1,5 +1,6 @@
 import Foundation
 @testable import SitRepCore
+import SitRepLines
 import Testing
 
 struct BoardTests {
@@ -94,6 +95,26 @@ struct BoardTests {
 
         #expect(board.new == ["stop:sr-y4d0qj:6c847b5b-722d-4343-88e0-42ece4662e7d:1792445500000"])
         #expect(board.changed == ["sr-y4d0qj"])
+    }
+
+    /// The real CLI's line (`Lines.onItsWork`): Kit's window waiting on a wake, its row first, and SitRep's on three
+    /// agents.
+    @Test func aWindowOnItsOwnWorkIsItsRowItsSessionsStateAndItsOwnWithWhatItWaitsOnOrWhenItsWakeIsDue() throws {
+        let board = try Board.read(Lines.onItsWork)
+        let sessions = board.projects.flatMap(\.sessions)
+
+        #expect(board.head.isAllClear)
+        #expect(board.rows.map(\.id) == ["turn:sr-k7bt2s", "turn:sr-macapp"])
+        #expect(board.rows.map(\.kind) == [.onItsWork, .onItsWork])
+        #expect(board.rows.map(\.first) == [
+            Board.Row.Line(lead: "Wakes", until: Self.at(1_792_670_195_432)),
+            Board.Row.Line(lead: "Waiting on", subject: "3 agents"),
+        ])
+        #expect(board.rows.map(\.since) == [Self.at(1_792_669_295_432), Self.at(1_792_669_295_432)])
+        #expect(sessions.map(\.state) == [.onItsWork, .onItsWork])
+        #expect(sessions.map(\.doing.kind) == [.onItsWork, .onItsWork])
+        #expect(sessions.map(\.doing.line) == board.rows.map(\.first))
+        #expect(board.windows.map(\.state?.kind) == [.onItsWork, .onItsWork])
     }
 
     @Test func anEmptyBoardIsAllClear() throws {

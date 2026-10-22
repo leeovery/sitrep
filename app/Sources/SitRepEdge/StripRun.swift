@@ -184,14 +184,14 @@ public final class StripRun: Framed {
         }
     }
 
-    /// When, after this wall time, the time on a tab out next reads differently; nil with none, and while the board
-    /// is stale, its times as of then.
+    /// When, after this wall time, the time or a wake's countdown on a tab out next reads differently; nil with none,
+    /// and while the board is stale, its times as of then.
     public func nextAgeChange(after now: Double) -> Double? {
         guard note.asOf == nil else {
             return nil
         }
 
-        return frame.tabs.flatMap(\.words).compactMap(\.session).map { $0.ageChanges(after: now) }.min()
+        return frame.tabs.flatMap(\.words).compactMap { $0.changes(after: now) }.min()
     }
 
     /// A click on a session: one no window holds ends its spin at once, as there is nowhere to jump.
@@ -216,11 +216,13 @@ private final class Said {
 }
 
 private extension StripFrame.Words {
-    /// A session's row's session.
-    var session: Session? {
-        if case let .row(session) = content {
-            return session
+    /// When after this wall time they next read differently: a session's row's time or its wake's countdown; a count's
+    /// rows' countdowns, as they show no time; nil with neither.
+    func changes(after now: Double) -> Double? {
+        switch content {
+        case let .row(session): session.changes(after: now)
+        case let .rows(sessions): sessions.compactMap { $0.countdownChanges(after: now) }.min()
+        case .idle: nil
         }
-        return nil
     }
 }

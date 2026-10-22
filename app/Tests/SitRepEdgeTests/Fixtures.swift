@@ -64,12 +64,12 @@ func line(needYou: Int, sessions: Int, new: [String], rows: [String]) -> String 
 
 func row(
     _ key: String, _ kind: String, away: Bool = false, session: String, lead: String, mono: String? = nil,
-    more: String? = nil, second: String, since: Int
+    more: String? = nil, until: Int? = nil, second: String, since: Int
 ) -> String {
     """
     {"key":"\(key)","is":"\(kind)","isAway":\(away),"session":"\(session)","project":"p","letters":"Pr",\
-    "ask":null,"writer":null,"first":{"lead":"\(lead)","mono":\(json(mono)),"more":\(json(more))},\
-    "second":"\(second)","since":\(since)}
+    "ask":null,"writer":null,"first":{"lead":"\(lead)","mono":\(json(mono)),"more":\(json(more)),\
+    "until":\(until.map(String.init) ?? "null")},"second":"\(second)","since":\(since)}
     """
 }
 

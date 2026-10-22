@@ -233,7 +233,7 @@ private struct QuietRow: View {
 }
 
 /// A session's mark in its slot, drawn still: needs you an orange dot; your turn a soft ring; working a still arc on
-/// its faint track; away a faint dot.
+/// its faint track; on its own work the dotted ring; away a faint dot.
 struct SidebarMark: View {
     let mark: Mark
 
@@ -251,6 +251,7 @@ struct SidebarMark: View {
                         .rotationEffect(.degrees(-90))
                 }
                 .frame(width: 8.5, height: 8.5)
+            case .onItsWork: DottedRingView(ring: .sidebar, ink: WindowStyle.sidebarDotted)
             case .away: Circle().fill(.tertiary).frame(width: 5, height: 5)
             }
         }

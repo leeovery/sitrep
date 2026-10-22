@@ -119,8 +119,8 @@ struct MenuEntriesTests {
         let rows = MenuBoard(heard([.line(Watched.line())]), clock: london).items.compactMap(\.session)
         let question = Session(id: "q", project: "Goosemates", kind: .needs, title: "Which edge?", more: "+2", sub: "", since: 0)
 
-        #expect(rows[1].menuLine == MenuTitle(words: "Allow Bash: ", mono: "gh pr create", more: nil, isFaint: false))
-        #expect(rows[4].menuLine == MenuTitle(words: "Reading ", mono: "StatusMenu.swift", more: nil, isFaint: true))
-        #expect(question.menuLine == MenuTitle(words: "Which edge?", mono: nil, more: " +2", isFaint: false))
+        #expect(rows[1].menuLine(at: 0) == MenuTitle(words: "Allow Bash: ", mono: "gh pr create", more: nil, isFaint: false))
+        #expect(rows[4].menuLine(at: 0) == MenuTitle(words: "Reading ", mono: "StatusMenu.swift", more: nil, isFaint: true))
+        #expect(question.menuLine(at: 0) == MenuTitle(words: "Which edge?", mono: nil, more: " +2", isFaint: false))
     }
 }

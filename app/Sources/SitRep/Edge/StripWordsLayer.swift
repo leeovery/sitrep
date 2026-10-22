@@ -5,7 +5,7 @@ import SitRepPanel
 /// A tab's words in black, laid out once as the prototype's `.tl` lays them out: a session's panel row (its title, its
 /// project and session, or why an away ask's takes no click, and its time at the right), a count's rows, or the notch
 /// at rest's two lines. Each frame sets only their opacity, their slide along the strip, how far a count's rows are
-/// scrolled, a click pressing them in, and the time as it ticks.
+/// scrolled, a click pressing them in, and the time, and a wake's countdown, as they tick.
 @MainActor
 final class StripWordsLayer {
     let layer = CALayer()
@@ -21,9 +21,14 @@ final class StripWordsLayer {
     private let list = CALayer()
     private(set) var rows: [String: CALayer] = [:]
     private var away: Set<String> = []
+    /// A count's rows waiting on a wake: each title, where it sits in its row, and what its countdown said.
+    private var countdowns: [(session: Session, title: CALayer, box: CGRect, subject: String?)] = []
     private var session: Session?
     private var at: StripRowLayout?
     private var ageText = ""
+    private var title: CALayer?
+    /// What a row on its own work's title says after its verb, as last set: a wake's countdown changes it.
+    private var subject: String?
     private var pressed = false
     /// The count's row lifted, or pressed in.
     private var lit: (row: CALayer, pressed: Bool)?
@@ -44,7 +49,7 @@ final class StripWordsLayer {
         layer.addSublayer(content)
         switch words.content {
         case let .row(session): lay(session, in: frame.size, now: now)
-        case let .rows(sessions): lay(sessions, width: frame.width)
+        case let .rows(sessions): lay(sessions, width: frame.width, now: now)
         case .idle: layIdle(in: frame.size)
         }
     }
@@ -67,6 +72,7 @@ final class StripWordsLayer {
             press()
         }
         showAge(at: now)
+        showCountdowns(at: now)
 
         let id = words.pressedRow ?? hover.flatMap { away.contains($0) ? nil : $0 }
 
@@ -81,16 +87,20 @@ final class StripWordsLayer {
                 let said = note()
 
                 return MainActor.assumeIsolated {
-                    let words = max(TextLine.width(title(session)), TextLine.width(sub(session)))
-                    let age = StripRowLayout.ageWidth(said.age(session, at: Displays.wallNow))
+                    let now = Displays.wallNow
+                    let words = max(TextLine.width(title(session, at: now)), TextLine.width(sub(session)))
+                    let age = StripRowLayout.ageWidth(said.age(session, at: now))
 
                     return StripRowLayout.pad.left + words + StripRowLayout.gap + age + StripRowLayout.pad.right
                 }
             },
             rows: { sessions in
                 MainActor.assumeIsolated {
-                    let words = sessions.map { max(TextLine.width(rowTitle($0)), TextLine.width(rowSub($0))) }
-                        .max() ?? 0
+                    let now = Displays.wallNow
+                    let words = sessions.map { session in
+                        max(TextLine.width(rowTitle(session, at: now)), TextLine.width(rowSub(session)))
+                    }
+                    .max() ?? 0
 
                     return StripRowLayout.pad.left + words + StripRowLayout.pad.right
                 }
@@ -116,13 +126,14 @@ final class StripWordsLayer {
         self.at = at
         if session.kind == .working, !reducesMotion {
             let shimmer = Shimmer(
-                grey: Self.title(session, EdgeStyle.shim), lit: Self.title(session, EdgeStyle.ink), in: at.title
+                grey: Self.title(session, at: now, EdgeStyle.shim), lit: Self.title(session, at: now, EdgeStyle.ink),
+                in: at.title
             )
 
             shimmer.band.add(shimmer.sweep, forKey: "sweep")
             content.addSublayer(shimmer.layer)
         } else {
-            content.addSublayer(TextLine(Self.title(session), in: at.title))
+            showTitle(of: session, in: at, now: now)
         }
         content.addSublayer(TextLine(Self.sub(session), in: at.sub))
         age.frame = at.ageBox
@@ -136,11 +147,31 @@ final class StripWordsLayer {
         content.addSublayer(spinner.layer)
     }
 
-    /// The row's time at this moment on the wall clock, or as of when the board was last current, drawn again only
-    /// when it reads differently.
+    /// A still title, set again in place of the last as a wake's countdown reads differently.
+    private func showTitle(of session: Session, in at: StripRowLayout, now: Double) {
+        let line = TextLine(Self.title(session, at: now), in: at.title)
+
+        line.contentsScale = layer.contentsScale
+        still {
+            if let title {
+                content.replaceSublayer(title, with: line)
+            } else {
+                content.addSublayer(line)
+            }
+        }
+        title = line
+        subject = session.subject(at: now)
+    }
+
+    /// The row's time at this moment on the wall clock, or as of when the board was last current, and a wake's
+    /// countdown, each drawn again only when it reads differently.
     private func showAge(at now: Double) {
         guard let session, let at else {
             return
+        }
+
+        if session.until != nil, session.subject(at: now) != subject {
+            showTitle(of: session, in: at, now: now)
         }
 
         let text = note.age(session, at: now)
@@ -171,21 +202,43 @@ final class StripWordsLayer {
 
     // MARK: A count's rows
 
-    private func lay(_ sessions: [Session], width: Double) {
+    private func lay(_ sessions: [Session], width: Double, now: Double) {
         list.frame = CGRect(origin: .zero, size: content.bounds.size)
         content.addSublayer(list)
         for (i, session) in sessions.enumerated() {
             let at = StripRowsLayout(i, width: width), box = CALayer()
 
+            let title = TextLine(Self.rowTitle(session, at: now), in: at.title)
+
             box.frame = at.box
             box.cornerRadius = StripRowsLayout.radius
-            box.addSublayer(TextLine(Self.rowTitle(session), in: at.title))
+            box.addSublayer(title)
             box.addSublayer(TextLine(Self.rowSub(session), in: at.sub))
             list.addSublayer(box)
             rows[session.id] = box
             if session.away {
                 away.insert(session.id)
             }
+            if session.until != nil {
+                countdowns.append((session, title, at.title, session.subject(at: now)))
+            }
+        }
+    }
+
+    /// A count's rows waiting on a wake, each title set again in place of the last as its countdown reads differently.
+    private func showCountdowns(at now: Double) {
+        countdowns = countdowns.map { row in
+            let subject = row.session.subject(at: now)
+
+            guard subject != row.subject else {
+                return row
+            }
+
+            let line = TextLine(Self.rowTitle(row.session, at: now), in: row.box)
+
+            line.contentsScale = layer.contentsScale
+            still { row.title.superlayer?.replaceSublayer(row.title, with: line) }
+            return (row.session, line, row.box, subject)
         }
     }
 
@@ -227,7 +280,12 @@ final class StripWordsLayer {
 
     // MARK: The words
 
-    private static func title(_ s: Session, _ colour: CGColor? = nil) -> NSAttributedString {
+    /// A row's title at this time on the wall clock, in a colour where given; one on its own work as the card sets it.
+    private static func title(_ s: Session, at now: Double, _ colour: CGColor? = nil) -> NSAttributedString {
+        if s.kind == .onItsWork {
+            return WaitingTitle.text(s, subject: s.subject(at: now))
+        }
+
         let font = s.kind == .needs ? EdgeStyle.needsTitle : EdgeStyle.title
         let ink = colour ?? (s.away ? EdgeStyle.quiet : EdgeStyle.ink)
         let text = TextLine.text(s.title, font, ink, kern: EdgeStyle.tightKern(font))
@@ -252,12 +310,13 @@ final class StripWordsLayer {
         TextLine.text(s.sub, EdgeStyle.sub, EdgeStyle.ink2)
     }
 
-    /// One of a count's rows' titles: needs you and your turn in ink, needs you's bolder, an away ask's quiet, and
-    /// working grey.
-    private static func rowTitle(_ s: Session) -> NSAttributedString {
-        let ink = s.away ? EdgeStyle.quiet : s.kind == .working ? EdgeStyle.grey : EdgeStyle.ink
+    /// One of a count's rows' titles at this time on the wall clock: needs you and your turn in ink, needs you's
+    /// bolder, an away ask's quiet, and working and on its own work grey, the latter with what it waits on.
+    private static func rowTitle(_ s: Session, at now: Double) -> NSAttributedString {
+        let isGrey = s.kind == .working || s.kind == .onItsWork
+        let ink = s.away ? EdgeStyle.quiet : isGrey ? EdgeStyle.grey : EdgeStyle.ink
         let font = s.kind == .needs ? EdgeStyle.needsRowTitle : EdgeStyle.rowTitle
-        let text = TextLine.text(s.title, font, ink)
+        let text = TextLine.text(s.title + (s.code == nil ? s.subject(at: now) ?? "" : ""), font, ink)
 
         append(s, to: text, ink, more: EdgeStyle.rowTitle)
         return text

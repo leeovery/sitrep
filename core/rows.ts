@@ -9,7 +9,7 @@
  *   session, and so is each live window stopped on a permission prompt or a
  *   question. They need Lee, and a session that does shows only them.
  * - Else a session a window holds is one row: working, where any of its
- *   windows is, else your turn.
+ *   windows is, else on its own work, else your turn.
  * - A session no window holds, with nothing waiting, has none: the SitRep
  *   window shows it. Nor has a finished one.
  */
@@ -19,24 +19,27 @@ import { directoryOf, type Project } from './project'
 import { waitingOnLee } from './replies'
 import { isPathSubject } from './subject'
 import { compareText } from './text'
-import type { Ask, Session, StateKind, ToolShown, WindowState } from './types'
+import type { Ask, Session, StateKind, ToolShown, WindowState, Work } from './types'
 
 /**
  * Where a session stands: needing Lee, as when an ask waits (while no window
- * holds it, too) or a window is stopped on Lee; its window working; waiting
- * for Lee's message; no window holding it; or finished.
+ * holds it, too) or a window is stopped on Lee; its window working; its
+ * window's turn over, on its own work; waiting for Lee's message; no window
+ * holding it; or finished.
  */
-export type SessionState = 'needsYou' | 'working' | 'yourTurn' | 'away' | 'finished'
+export type SessionState = 'needsYou' | 'working' | 'onItsWork' | 'yourTurn' | 'away' | 'finished'
 
-/** What a row is: an ask, a window's permission prompt or question, or a session whose window waits on Lee's message or works. */
-export type RowKind = 'ask' | 'permission' | 'question' | 'yourTurn' | 'working'
+/** What a row is: an ask, a window's permission prompt or question, or a session whose window works, is on its own work, or waits on Lee's message. */
+export type RowKind = 'ask' | 'permission' | 'question' | 'working' | 'onItsWork' | 'yourTurn'
 
 /**
  * A row's first line, in parts: what leads it, which a working row
- * shimmers; what it acts on, set in mono, where it says; and how many more
- * there are, as a question's `+2`.
+ * shimmers; what it acts on, set in mono where it is a command or a path,
+ * else `subject`, plain; how many more there are, as a question's `+2`; and
+ * when the wake it waits on is due, which the app words after the lead as
+ * it counts down ("in 12m"): core writes nothing that changes with the clock.
  */
-export type RowLine = { lead: string; mono?: string; more?: string }
+export type RowLine = { lead: string; mono?: string; subject?: string; more?: string; until?: number }
 
 export type Row = {
   /** What the row is, the same for as long as it stands: an ask's session and id, a stop's window and when it showed, else its session. */
@@ -58,6 +61,8 @@ export type Row = {
   second: string
   /** When it began, which the app counts from: an ask's posting or reopening, a stop's showing, the turn's end, or its start while working. */
   since: number
+  /** On its own work, the soonest wake its window waits on, which orders it among the rest. */
+  wakeAt?: number
 }
 
 /**
@@ -126,6 +131,8 @@ const isStopped = (window: Held) => STOPS.includes(window.state.is)
 
 const isWorking = (window: Held) => window.state.is === 'working'
 
+const isOnItsWork = (window: Held) => window.state.is === 'onItsWork'
+
 /** Of several windows, the one whose state began last: the one active last. */
 const latest = (windows: readonly Held[]) =>
   [...windows]
@@ -138,10 +145,11 @@ const earliest = (windows: readonly Held[]) =>
     .sort((a, b) => a.state.since - b.state.since || compareText(a.writer, b.writer))
     .at(0)
 
-/** The window a session's turn row comes from: the one working whose turn began last, else the one active last. */
-const turnOf = (held: readonly Held[]) => latest(held.filter(isWorking)) ?? latest(held)
+/** The window a session's turn row comes from: the one working whose turn began last, else the one on its own work whose turn ended last, else the one active last. */
+const turnOf = (held: readonly Held[]) =>
+  latest(held.filter(isWorking)) ?? latest(held.filter(isOnItsWork)) ?? latest(held)
 
-/** Where a session stands at `now`, across its live windows: needing Lee wins, then working, then your turn. */
+/** Where a session stands at `now`, across its live windows: needing Lee wins, then working, then on its own work, then your turn. */
 export const sessionState = (session: Session, now: number): SessionState => {
   if (session.finished !== undefined) {
     return 'finished'
@@ -157,7 +165,11 @@ export const sessionState = (session: Session, now: number): SessionState => {
     return 'away'
   }
 
-  return held.some(isWorking) ? 'working' : 'yourTurn'
+  if (held.some(isWorking)) {
+    return 'working'
+  }
+
+  return held.some(isOnItsWork) ? 'onItsWork' : 'yourTurn'
 }
 
 /**
@@ -200,9 +212,43 @@ const toolLine = (tool: ToolShown, project: Project): RowLine => {
   return { lead: TASKS.has(tool.name) ? (tool.subject ?? tool.name) : tool.name }
 }
 
+/**
+ * What a window on its own work waits on, as its line says it, the first of
+ * these it has: its agents, by their count or the one's description; a
+ * workflow, by its name; a shell, its command in mono; a monitor; any other
+ * task; and, with nothing else, its soonest wake, which the app counts down
+ * to after the lead.
+ */
+const workLine = ({ agents, workflows, shells, monitors, others, wakes }: Work): RowLine => {
+  if (agents !== undefined) {
+    return {
+      lead: 'Waiting on',
+      subject: agents.count === 1 ? agents.first : `${agents.count} agents`,
+    }
+  }
+
+  if (workflows !== undefined) {
+    return { lead: 'Running', subject: workflows.first }
+  }
+
+  if (shells !== undefined) {
+    return { lead: 'Running', mono: shells.first }
+  }
+
+  if (monitors !== undefined) {
+    return { lead: 'Watching', subject: monitors.first }
+  }
+
+  if (others !== undefined) {
+    return { lead: 'Waiting on', subject: others.first }
+  }
+
+  return { lead: 'Wakes', ...(wakes?.at === undefined ? {} : { until: wakes.at }) }
+}
+
 /** What a window's state shows as its row's first line. */
 const stateLine = (state: WindowState, session: Session, project: Project): RowLine => {
-  const { tool, question } = state
+  const { tool, question, work } = state
 
   switch (state.is) {
     case 'permission':
@@ -216,6 +262,8 @@ const stateLine = (state: WindowState, session: Session, project: Project): RowL
       }
     case 'working':
       return tool === undefined ? boardLine(session) : toolLine(tool, project)
+    case 'onItsWork':
+      return work === undefined ? boardLine(session) : workLine(work)
     case 'yourTurn':
       return boardLine(session)
   }
@@ -260,6 +308,7 @@ export const rowsOf = (project: Project, session: Session, now: number): Row[] =
     writer,
     first: stateLine(state, session, project),
     since: state.since,
+    ...(state.work?.wakes?.at === undefined ? {} : { wakeAt: state.work.wakes.at }),
     ...shared,
   })
   const needs = [
@@ -292,17 +341,36 @@ export const doingOf = (project: Project, session: Session, now: number): Doing 
       }
 }
 
-/** A row's group, in the panel's order: needing Lee, an away session's after; your turn; working. */
+/** The groups after needing Lee, in the panel's order. */
+const TURN_GROUPS: readonly RowKind[] = ['working', 'onItsWork', 'yourTurn']
+
+/** A row's group, in the panel's order: needing Lee, an away session's after; working; on its own work; your turn. */
 const groupOf = (row: Row) => {
   if (needsYou(row)) {
     return row.isAway ? 1 : 0
   }
 
-  return row.is === 'yourTurn' ? 2 : 3
+  return 2 + TURN_GROUPS.indexOf(row.is)
 }
 
-/** Your turn's rows newest first; every other group's oldest first, so working's the longest running first. */
-const bySince = (a: Row, b: Row) => (a.is === 'yourTurn' ? b.since - a.since : a.since - b.since)
+/** On its own work, a row waiting on a wake before one that is not, the sooner first. */
+const byWake = (a: Row, b: Row) =>
+  a.wakeAt === undefined || b.wakeAt === undefined
+    ? Number(a.wakeAt === undefined) - Number(b.wakeAt === undefined)
+    : a.wakeAt - b.wakeAt
+
+/**
+ * Your turn's rows newest first; on its own work's soonest to wake first,
+ * then oldest first; every other group's oldest first, so working's the
+ * longest running first.
+ */
+const bySince = (a: Row, b: Row) => {
+  if (a.is === 'yourTurn') {
+    return b.since - a.since
+  }
+
+  return (a.is === 'onItsWork' ? byWake(a, b) : 0) || a.since - b.since
+}
 
 /** Rows in the panel's order (see "The rows" in DESIGN.md). */
 export const inPanelOrder = (rows: readonly Row[]) =>

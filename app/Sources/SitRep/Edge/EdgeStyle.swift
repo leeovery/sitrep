@@ -23,6 +23,8 @@ enum EdgeStyle {
     static let quiet = srgb(0x8A8A92)
     static let grey = srgb(0x8E8E95)
     static let arc = srgb(0xC9C9CF)
+    /// A row on its own work's verb, from Paper's board D; its subject and its dotted ring are `grey`.
+    static let waitingVerb = srgb(0xB4B4BA)
     static let orange = color(LiveLight.orange)
     /// A new row's wash, and the ring round it (the prototype's `--wash-bg` and `--wash-ring`).
     static let wash = color(LiveLight.orange, alpha: 0.12)
@@ -30,6 +32,8 @@ enum EdgeStyle {
 
     static let title = NSFont.systemFont(ofSize: 14, weight: .medium)
     static let needsTitle = NSFont.systemFont(ofSize: 14, weight: .semibold)
+    /// A row on its own work's subject, where it is no command.
+    static let subject = NSFont.systemFont(ofSize: 14, weight: .regular)
     static let code = NSFont.monospacedSystemFont(ofSize: 13, weight: .medium)
     static let sub = NSFont.systemFont(ofSize: 12)
     static let age = NSFont.monospacedDigitSystemFont(ofSize: 12, weight: .regular)

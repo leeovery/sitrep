@@ -45,7 +45,7 @@ const PATHS: ReadonlySet<string> = new Set(['file_path', 'notebook_path', 'fileP
 export const isPathSubject = (name: string) => PATHS.has(SUBJECTS.get(name) ?? '')
 
 /** Text as one line, cut to SHOWN_LENGTH characters with an ellipsis where it was cut; empty for anything but text. */
-const shown = (value: unknown) => {
+export const shownText = (value: unknown) => {
   const characters = Array.from(typeof value === 'string' ? oneLine(value) : '')
 
   return characters.length <= SHOWN_LENGTH
@@ -56,7 +56,7 @@ const shown = (value: unknown) => {
 /** A tool call as a row shows it, from the tool's name and its arguments. */
 export const toolShown = (name: string, input: unknown): ToolShown => {
   const field = SUBJECTS.get(name)
-  const subject = field !== undefined && isObject(input) ? shown(input[field]) : ''
+  const subject = field !== undefined && isObject(input) ? shownText(input[field]) : ''
 
   return subject === '' ? { name } : { name, subject }
 }
@@ -66,7 +66,7 @@ export const questionShown = (input: unknown): QuestionShown | undefined => {
   const questions: unknown[] =
     isObject(input) && Array.isArray(input.questions) ? input.questions : []
   const [first] = questions
-  const text = isObject(first) ? shown(first.question) : ''
+  const text = isObject(first) ? shownText(first.question) : ''
 
   return text === '' ? undefined : { text, count: questions.length }
 }

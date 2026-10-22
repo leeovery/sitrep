@@ -40,6 +40,7 @@ import {
   heardCheck,
   heardConversationEnd,
   heardRequest,
+  heardStop,
   heardTurnEnd,
   heardTurnStart,
   throughCall,
@@ -332,6 +333,17 @@ export const register: Register = on => {
     const answer = await next(e)
 
     await heardRequest(hostOf($), e, answer)
+
+    return answer
+  }).catch(($, e, next) => next(e))
+
+  // The turn's end, as the classic Stop says it, with what it leaves pending
+  // to wake the window; unless the settings hooks beneath block it, which
+  // goes on with the turn. It and turn.complete come in either order.
+  on('classic.Stop', async ($, e, next) => {
+    const answer = await next(e)
+
+    await heardStop(hostOf($), e, answer)
 
     return answer
   }).catch(($, e, next) => next(e))

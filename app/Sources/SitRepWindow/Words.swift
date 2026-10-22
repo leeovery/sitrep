@@ -15,9 +15,15 @@ public enum Words {
 
         switch doing.kind {
         case .working: return age == "now" ? "· this turn just began" : "· \(age) into this turn"
-        case .yourTurn: return age == "now" ? "· its turn just ended" : "· its turn ended \(age) ago"
+        case .onItsWork, .yourTurn: return age == "now" ? "· its turn just ended" : "· its turn ended \(age) ago"
         case .permission, .question, .away: return nil
         }
+    }
+
+    /// What a line says plain after its lead at this time: a wake's countdown, "in 12m", else its subject, where it
+    /// is no command.
+    public static func subject(_ line: Board.Row.Line, at now: Date) -> String? {
+        line.until.map { Session.untilText($0.timeIntervalSince(now) * 1000) } ?? line.subject
     }
 
     /// What a stop says under its line: that it is answered in Claude Code.
@@ -25,7 +31,7 @@ public enum Words {
         switch kind {
         case .permission: "Its window stopped on Claude Code's permission prompt. It is answered there."
         case .question: "Its window stopped on a question from Claude. It is answered there."
-        case .working, .yourTurn, .away: nil
+        case .working, .onItsWork, .yourTurn, .away: nil
         }
     }
 

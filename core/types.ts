@@ -278,21 +278,43 @@ export type QuestionShown = { text: string; count: number }
 
 /**
  * What a window is doing: running a turn, stopped on Lee at a permission
- * prompt or a question, or waiting for Lee's message.
+ * prompt or a question, its turn over but on its own work, which will wake
+ * it, or waiting for Lee's message.
  */
-export type StateKind = 'working' | 'permission' | 'question' | 'yourTurn'
+export type StateKind = 'working' | 'permission' | 'question' | 'onItsWork' | 'yourTurn'
+
+/** Tasks of one kind a turn left running: how many, and the first, as its line says it. */
+export type Tasks = { count: number; first: string }
+
+/**
+ * What a turn left pending that will wake its window, as its Stop listed
+ * it, in summary: its tasks by kind, each kind's first as its line says it
+ * (an agent's, a monitor's or another task's description, a workflow's name,
+ * a shell's command), and its one-off wakes, with the soonest's time where
+ * its schedule reads.
+ */
+export type Work = {
+  agents?: Tasks
+  workflows?: Tasks
+  shells?: Tasks
+  monitors?: Tasks
+  others?: Tasks
+  wakes?: { count: number; at?: number }
+}
 
 /**
  * A window's state, and since when: the turn's start while working, the
  * prompt's or the question's showing while stopped, the turn's end (or the
- * attach, before any turn) on your turn. Working carries the tool running,
- * a permission prompt the tool it asks for, a question the question.
+ * attach, before any turn) on its own work and on your turn. Working
+ * carries the tool running, a permission prompt the tool it asks for, a
+ * question the question, on its own work what is pending.
  */
 export type WindowState = {
   is: StateKind
   since: number
   tool?: ToolShown
   question?: QuestionShown
+  work?: Work
 }
 
 /** A window's heartbeat on a session; `leftAt` once it has let go, and `where` the window is, as far as it is known. */

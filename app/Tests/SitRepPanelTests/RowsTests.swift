@@ -112,6 +112,50 @@ struct RowsTests {
         #expect(session.ageChanges(after: 1000 + age) == 1000 + changes)
     }
 
+    /// A wake's countdown, from its time left: up to the whole minute, then as the time lane counts, and "now" once due.
+    @Test(arguments: [
+        (720_000.0, "in 12m"), (690_000, "in 12m"), (660_001, "in 12m"), (660_000, "in 11m"), (30_000, "in 1m"),
+        (1, "in 1m"), (0, "now"), (-5_000, "now"), (5_400_000, "in 1h"), (90_000_000, "in 1d"),
+    ])
+    func aWakesCountdownReadsUpToTheWholeMinute(_ left: Double, reads: String) {
+        #expect(Session.untilText(left) == reads)
+    }
+
+    @Test func aRowWaitingOnAWakeSaysItsCountdownElseItsSubject() {
+        let wake = Session(id: "", project: "Kit", kind: .onItsWork, title: "Wakes ", until: 1_000_000, sub: "", since: 0)
+        let agents = Session(id: "", project: "SitRep", kind: .onItsWork, title: "Waiting on ", subject: "3 agents", sub: "", since: 0)
+
+        #expect(wake.subject(at: 1_000_000 - 690_000) == "in 12m")
+        #expect(wake.subject(at: 1_000_000) == "now")
+        #expect(agents.subject(at: 0) == "3 agents")
+    }
+
+    /// Its words may next read differently at the sooner of its time's next whole minute and its countdown's next,
+    /// which passes a whole minute before the wake, then comes due, then reads so for good.
+    @Test(arguments: [
+        (0.0, 40_000.0), (40_000, 60_000), (60_000, 100_000), (970_000, 1_000_000), (1_000_000, 1_020_000),
+    ])
+    func aRowWaitingOnAWakeMayNextReadDifferentlyAsItsCountdownOrItsTimeTicks(_ now: Double, changes: Double) {
+        let wake = Session(id: "", project: "Kit", kind: .onItsWork, title: "Wakes ", until: 1_000_000, sub: "", since: 0)
+
+        #expect(wake.changes(after: now) == changes)
+    }
+
+    @Test func aRowWaitingOnNoWakeMayNextReadDifferentlyAsItsTimeTicks() {
+        let agents = Session(id: "", project: "SitRep", kind: .onItsWork, title: "Waiting on ", subject: "3", sub: "", since: 0)
+
+        #expect(agents.changes(after: 40_000) == agents.ageChanges(after: 40_000))
+        #expect(agents.countdownChanges(after: 40_000) == nil)
+    }
+
+    /// Alone, as a count's rows show no time: a minute before the wake, then as it comes due, then never.
+    @Test(arguments: [(0.0, 40_000.0), (970_000, 1_000_000), (1_000_000, nil), (2_000_000, nil)] as [(Double, Double?)])
+    func aWakesCountdownAloneNextReadsDifferentlyUntilItIsDue(_ now: Double, changes: Double?) {
+        let wake = Session(id: "", project: "Kit", kind: .onItsWork, title: "Wakes ", until: 1_000_000, sub: "", since: 0)
+
+        #expect(wake.countdownChanges(after: now) == changes)
+    }
+
     @Test func eachItemIsKeyedBySessionTheHairlineByItself() {
         #expect(Content.css.items.map(\.key) == ["s1", "s2", "divider", "s3", "s4", "s5", "s6", "s7"])
     }

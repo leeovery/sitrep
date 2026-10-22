@@ -131,7 +131,7 @@ private struct StripGlassBody: View {
 
 /// A mark on glass: its letters in the glass's label colours, the ring in its state's colour, needs you orange with
 /// its glow, your turn the label colour so it reads on light glass as on dark; working, the arc turning round a faint
-/// track. Drawn as each frame has it, lift, wash and flash all, with no animation of its own for a frame's update to
+/// track, and on its own work the same arc held still. Drawn as each frame has it, lift, wash and flash all, with no animation of its own for a frame's update to
 /// restart; only a change of look eases, each part on the prototype's timing: the ring, its glow and the letters over
 /// 240ms, the pressed fill over 110, and the arc in over 60 as a click's jump starts and out over 240
 /// (`StripMarkLayer`).
@@ -148,7 +148,7 @@ private struct GlassMark: View {
     }
 
     var body: some View {
-        let showsArc = mark.look == .working || mark.isJumping
+        let showsArc = mark.look == .working || mark.look == .onItsWork || mark.isJumping
 
         ZStack {
             Circle().fill(fill)
@@ -157,7 +157,7 @@ private struct GlassMark: View {
                 if showsArc {
                     Spinner(
                         track: mark.isJumping ? nil : .quaternaryLabelColor, arc: arc,
-                        period: mark.isJumping ? 0.9 : 1.2
+                        period: mark.isJumping ? 0.9 : mark.look == .onItsWork ? nil : 1.2
                     )
                     .transition(.opacity)
                 }
@@ -206,7 +206,7 @@ private struct GlassMark: View {
 
             return AnyShapeStyle(Color(cgColor: EdgeStyle.color(flashed)))
         case .turn: return AnyShapeStyle(.primary)
-        case .working: return nil
+        case .working, .onItsWork: return nil
         case .count: return AnyShapeStyle(.tertiary)
         }
     }
@@ -227,7 +227,7 @@ private struct GlassMark: View {
         switch mark.look {
         case .needs, .turn, .needsCount: AnyShapeStyle(.primary)
         case .away: AnyShapeStyle(.tertiary)
-        case .working, .count: AnyShapeStyle(.secondary)
+        case .working, .onItsWork, .count: AnyShapeStyle(.secondary)
         }
     }
 }
@@ -252,7 +252,7 @@ private struct GlassTab: View {
                     case let .rows(sessions):
                         GlassRows(
                             sessions: sessions, width: frame.width, lit: words.pressedRow ?? hover,
-                            pressed: words.pressedRow != nil
+                            pressed: words.pressedRow != nil, now: scene.now
                         )
                         .offset(y: -words.scroll)
                     case .idle: GlassIdle(size: frame.size, note: scene.note)
@@ -303,11 +303,12 @@ private struct GlassRow: View {
     }
 
     @ViewBuilder private func title(in box: CGRect) -> some View {
-        let text = GlassWords.title(session)
+        let text = GlassWords.title(session, at: scene.now)
         if session.kind == .working, !scene.reducesMotion {
             Shimmering(text: text, width: box.width).placed(in: box)
         } else {
-            text.foregroundStyle(session.away ? AnyShapeStyle(.secondary) : AnyShapeStyle(.primary)).placed(in: box)
+            let isDim = session.away || session.kind == .onItsWork
+            text.foregroundStyle(isDim ? AnyShapeStyle(.secondary) : AnyShapeStyle(.primary)).placed(in: box)
         }
     }
 }
@@ -319,6 +320,8 @@ private struct GlassRows: View {
     let width: Double
     let lit: String?
     let pressed: Bool
+    /// The wall clock, ms.
+    let now: Double
 
     var body: some View {
         ZStack(alignment: .topLeading) {
@@ -327,7 +330,7 @@ private struct GlassRows: View {
                 ZStack(alignment: .topLeading) {
                     RoundedRectangle(cornerRadius: StripRowsLayout.radius)
                         .fill(.primary.opacity(isLit ? (pressed ? 0.14 : 0.08) : 0))
-                    GlassWords.rowTitle(session).placed(in: at.title)
+                    GlassWords.rowTitle(session, at: now).placed(in: at.title)
                     Text(session.sub).font(.system(size: 11)).foregroundStyle(.secondary).placed(in: at.sub)
                 }
                 .frame(width: at.box.width, height: at.box.height, alignment: .topLeading)
@@ -366,28 +369,34 @@ private struct GlassIdle: View {
 /// A tab's titles on glass, set as the black's are.
 @available(macOS 26, *)
 private enum GlassWords {
-    /// A row's title, its subject in code type and its "+2".
-    static func title(_ s: Session) -> Text {
+    /// A row's title at this time on the wall clock, its subject in code type or plain, and its "+2".
+    static func title(_ s: Session, at now: Double) -> Text {
         let size = 14.0
         let text = Text(s.title)
             .font(.system(size: size, weight: s.kind == .needs ? .semibold : .medium))
             .kerning(-0.14)
 
-        return text + subject(s) + more(s, size: size)
+        return text + subject(s, size: size, at: now) + more(s, size: size)
     }
 
-    /// One of the count's rows' titles: your turn and needs you in the primary label colour, the rest dimmer.
-    static func rowTitle(_ s: Session) -> some View {
+    /// One of the count's rows' titles at this time on the wall clock: your turn and needs you in the primary label
+    /// colour, the rest dimmer.
+    static func rowTitle(_ s: Session, at now: Double) -> some View {
         let size = 13.0
         let text = Text(s.title).font(.system(size: size, weight: s.kind == .needs ? .semibold : .medium))
+        let isDim = s.kind == .working || s.kind == .onItsWork
         let ink: AnyShapeStyle = s.away ? AnyShapeStyle(.tertiary)
-            : s.kind == .working ? AnyShapeStyle(.secondary) : AnyShapeStyle(.primary)
+            : isDim ? AnyShapeStyle(.secondary) : AnyShapeStyle(.primary)
 
-        return (text + subject(s) + more(s, size: size)).foregroundStyle(ink)
+        return (text + subject(s, size: size, at: now) + more(s, size: size)).foregroundStyle(ink)
     }
 
-    private static func subject(_ s: Session) -> Text {
-        Text(s.code ?? "").font(.system(size: 13, weight: .medium, design: .monospaced))
+    /// Its subject in code type; else, plain at the title's size, what it waits on or a wake's countdown.
+    private static func subject(_ s: Session, size: Double, at now: Double) -> Text {
+        if let code = s.code {
+            return Text(code).font(.system(size: 13, weight: .medium, design: .monospaced))
+        }
+        return Text(s.subject(at: now) ?? "").font(.system(size: size))
     }
 
     private static func more(_ s: Session, size: Double) -> Text {

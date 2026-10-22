@@ -218,7 +218,7 @@ test('the first line is the board as every surface shows it, with nothing new an
           letters: 'Sw',
           ask: 'k1',
           writer: null,
-          first: { lead: 'Review round 1', mono: null, more: null },
+          first: { lead: 'Review round 1', mono: null, subject: null, more: null, until: null },
           second: 'Switchboard · Dashboard redesign',
           since: T0,
         },
@@ -247,7 +247,13 @@ test('the first line is the board as every surface shows it, with nothing new an
               since: T0,
               doing: {
                 is: 'working',
-                line: { lead: 'Reading', mono: 'src/Limiter/Dispatcher.php', more: null },
+                line: {
+                  lead: 'Reading',
+                  mono: 'src/Limiter/Dispatcher.php',
+                  subject: null,
+                  more: null,
+                  until: null,
+                },
                 since: T0,
               },
               asks: [
@@ -291,6 +297,51 @@ test('the first line is the board as every surface shows it, with nothing new an
       changed: [],
     },
   ])
+})
+
+test("a window on its own work is a row of that kind after working, its line saying what it waits on, a wake's by when it is due, which the app counts down to", async () => {
+  const { t, paths } = held()
+  const lobby = t.seed(LOBBY)
+  const wakesAt = NOW + 12 * MIN
+
+  beatOn(
+    t,
+    paths,
+    W1,
+    { is: 'onItsWork', since: T0, work: { agents: { count: 3, first: 'Review the diff' } } },
+    { seenAt: NOW },
+  )
+  beatOn(
+    t,
+    lobby,
+    W2,
+    { is: 'onItsWork', since: T0 + MIN, work: { wakes: { count: 1, at: wakesAt } } },
+    { seenAt: NOW },
+  )
+
+  const [line] = (await watched(t, [])).lines
+  const printed = line as unknown as {
+    rows: { session: string; is: string; first: unknown }[]
+    projects: { sessions: { state: string; doing: { is: string; line: unknown } }[] }[]
+  }
+
+  expect(printed.rows.map(row => [row.session, row.is, row.first])).toEqual([
+    [
+      LOBBY.id,
+      'onItsWork',
+      { lead: 'Wakes', mono: null, subject: null, more: null, until: wakesAt },
+    ],
+    [
+      META.id,
+      'onItsWork',
+      { lead: 'Waiting on', mono: null, subject: '3 agents', more: null, until: null },
+    ],
+  ])
+  expect(printed.projects[0]?.sessions.map(each => [each.state, each.doing.is])).toEqual([
+    ['onItsWork', 'onItsWork'],
+    ['onItsWork', 'onItsWork'],
+  ])
+  expect(line?.windows.map(window => window.state?.is)).toEqual(['onItsWork', 'onItsWork'])
 })
 
 test('a post is a line at the next look, its session changed; a new ask is new on that line alone', async () => {

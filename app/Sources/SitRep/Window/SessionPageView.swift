@@ -65,13 +65,18 @@ struct SessionPageView: View {
         } else {
             HStack(spacing: 8) {
                 MarkView(mark: page.doing.mark)
-                if page.doing.kind == .away {
+                switch page.doing.kind {
+                case .away:
                     Text(page.doing.line.lead).font(WindowStyle.ui(13)).foregroundStyle(WindowStyle.faint)
-                } else {
+                case .onItsWork:
+                    Text(page.doing.line.lead).font(WindowStyle.ui(13, .medium)).foregroundStyle(WindowStyle.soft)
+                default:
                     ShimmeringLead(text: page.doing.line.lead, isOn: page.doing.kind == .working)
                 }
                 if let mono = page.doing.line.mono {
                     Text(mono).font(WindowStyle.mono(12)).foregroundStyle(WindowStyle.soft).lineLimit(1)
+                } else if let subject = Words.subject(page.doing.line, at: now) {
+                    Text(subject).font(WindowStyle.ui(13)).foregroundStyle(WindowStyle.soft).lineLimit(1)
                 }
                 if let time = Words.turn(page.doing, at: now) {
                     Text(time).font(WindowStyle.ui(13)).foregroundStyle(WindowStyle.faint).fixedSize()

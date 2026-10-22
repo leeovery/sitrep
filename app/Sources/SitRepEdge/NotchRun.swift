@@ -267,9 +267,10 @@ public final class NotchRun: Framed {
         folds.isMoving(at: time)
     }
 
-    /// When, after this wall time, the first of the shown rows' times next reads differently; nil with no rows.
+    /// When, after this wall time, the first of the shown rows' times, or a wake's countdown, next reads differently; nil
+    /// with no rows.
     public func nextAgeChange(after now: Double) -> Double? {
-        rows.shown.map { $0.ageChanges(after: now) }.min()
+        rows.shown.map { $0.changes(after: now) }.min()
     }
 
     /// How long before this time the last new ask was, ms; nil when there has been none.

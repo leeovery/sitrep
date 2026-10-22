@@ -31,6 +31,16 @@ struct ListedTests {
         #expect(rows.map(\.isAway) == [false, false, false, true])
     }
 
+    /// Kit's window waiting on a wake and SitRep's on three agents, as the real `watch` printed them: neither waits on
+    /// Lee, so no project counts them.
+    @Test func aSessionOnItsOwnWorkTakesTheStillDottedMarkAndWaitsOnNoOne() {
+        let listed = Listed(heard(.line(Lines.onItsWork)))
+
+        #expect(listed.sessions.map(\.mark) == [.onItsWork, .onItsWork])
+        #expect(listed.needsYou.isEmpty)
+        #expect(listed.projects.map(\.waiting) == [0, 0])
+    }
+
     @Test func aSessionRowsTimeIsItsPanelRowsSince() throws {
         let ledger = try #require(Self.listed.sessions.first { $0.id == "sr-rq7dgr" })
 
