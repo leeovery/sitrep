@@ -506,6 +506,32 @@ struct SidebarLayoutTests {
         #expect(picked == CGRect(x: 10, y: row.minY, width: 276, height: row.height))
     }
 
+    /// Request ledger picked, Projects open, then its row goes, nothing waiting on Lee in it any more: the list lets go
+    /// of its selection, and Switchboard's row stands in for it, drawn picked.
+    @Test func aPickedSessionLosingItsRowStandsAtItsProjectsRow() throws {
+        let run = HostedSidebar.opened(folds: Folds(projects: false))
+
+        _ = run.pickInList(.session("sr-rq7dgr"), at: HostedSidebar.printed)
+
+        let side = try HostedSidebar(run, listAlone: true)
+        let own = run.sidebar(at: HostedSidebar.printed).lines.firstIndex { $0.pick == .session("sr-rq7dgr") }
+        var rowless = run.listed(at: HostedSidebar.printed)
+
+        #expect(side.board.selectedRow == own)
+        rowless.rows.removeAll { $0.id == "sr-rq7dgr" }
+        rowless.rowless["sr-rq7dgr"] = "switchboard"
+        side.show(rowless, folds: run.folds)
+
+        let lines = Sidebar(rowless, folds: run.folds).lines
+        let place = try #require(lines.firstIndex { $0.pick == .project("switchboard") })
+        let drawn = try side.drawn()
+        let row = Self.inDrawing(side.rows[place], of: side)
+        let picked = try #require(drawn.drawnBox(in: row, ground: Self.ground(row)))
+
+        #expect(side.board.selectedRow == -1)
+        #expect(picked == CGRect(x: 10, y: row.minY, width: 276, height: row.height))
+    }
+
     /// SitRep's selection on the stand-in, as the system's on a row: its grey until the list has the key window's
     /// focus, then the accent, Kit's name white on it.
     @Test(arguments: [(false, true), (true, false), (true, true)])

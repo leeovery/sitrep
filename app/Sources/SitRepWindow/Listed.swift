@@ -140,15 +140,21 @@ public struct Listed: Equatable, Sendable {
     /// Every session needing Lee, in core's order.
     public var needsYou: [Row] { rows(in: .needsYou) }
 
-    /// The row that shows a pick: its own; for a session with no row, its project's in Projects; none where it lists
-    /// neither.
-    public func row(showing pick: Pick) -> Pick? {
-        let shown = Set(rows.map(\.pick) + projects.map(\.pick))
+    /// It has a row for the pick, a session's or a project's.
+    func lists(_ pick: Pick) -> Bool {
+        rows.contains { $0.pick == pick } || projects.contains { $0.pick == pick }
+    }
 
-        if case let .session(id) = pick, !shown.contains(pick) {
-            return rowless[id].map(Pick.project).flatMap { shown.contains($0) ? $0 : nil }
+    /// The row it lists that shows a pick: its own; for a session with no row, its project's in Projects; none where
+    /// it lists neither.
+    func listedRow(showing pick: Pick) -> Pick? {
+        if lists(pick) {
+            return pick
         }
-        return shown.contains(pick) ? pick : nil
+        guard case let .session(id) = pick, let key = rowless[id], lists(.project(key)) else {
+            return nil
+        }
+        return .project(key)
     }
 
     /// Each of its rows changed.

@@ -48,7 +48,7 @@ struct ShowRowTests {
     func thePicturesKeepTheirSizeAndPlaceAtAnyWidth(page: CGFloat) async throws {
         let drawn = try await Self.page(page)
         let lefts = Self.lefts(page)
-        let across = try drawn.spans(
+        let across = drawn.spans(
             atY: Self.top + 13.5 + 22, unlike: Self.raisePoint, from: lefts[0] - 8, to: Self.right(page) - 1
         )
         let expected = [
@@ -94,7 +94,7 @@ struct ShowRowTests {
     /// picture, 44 tall, and under it.
     @Test func theChosenPictureIs44TallInItsRing() async throws {
         let drawn = try await Self.page(956)
-        let down = try drawn.spans(
+        let down = drawn.spans(
             atX: Self.lefts(956)[0] + 14, unlike: Self.raisePoint, from: Self.top + 1, to: Self.top + 85
         )
         let picture = Self.top + 13.5 ... Self.top + 57.5

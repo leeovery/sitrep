@@ -167,10 +167,11 @@ public final class WindowRun {
     }
 
     /// The window closes: the list's hold lets go, as the pointer leaves with it, a finish asked about lapses, and the
-    /// filter clears, as what it holds is not kept. The reads a run of picks left waiting never run: nothing is read
-    /// while the window is closed, and opening it picks afresh.
+    /// filter clears, as what it holds is not kept, showing nothing picked while it held text, as opening the window
+    /// picks afresh. The reads a run of picks left waiting never run: nothing is read while the window is closed.
     public func close() {
         isOpen = false
+        isPickedWhileFiltering = false
         filter = Filter()
         letGoOfTheList()
         dropAskingToFinish()
@@ -266,9 +267,9 @@ public final class WindowRun {
 
     /// What is picked now, and the sessions it shows, to read.
     private func choose(_ pick: Pick) -> [String] {
-        isPickedWhileFiltering = !filter.isEmpty
         if pick != self.pick {
             self.pick = pick
+            isPickedWhileFiltering = !filter.isEmpty
             frozen = [:]
             opened = []
             openedItems = []

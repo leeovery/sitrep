@@ -68,12 +68,12 @@ struct ListedTests {
 
         unlisted.projects.removeAll { $0.id == "kit" }
 
-        #expect(Self.listed.row(showing: .session("sr-k7t001")) == .project("kit"))
-        #expect(Self.listed.row(showing: .session("sr-rq7dgr")) == .session("sr-rq7dgr"))
-        #expect(Self.listed.row(showing: .project("kit")) == .project("kit"))
-        #expect(Self.listed.row(showing: .session("sr-gone")) == nil)
-        #expect(Self.listed.row(showing: .settings) == nil)
-        #expect(unlisted.row(showing: .session("sr-k7t001")) == nil)
+        #expect(Self.listed.listedRow(showing: .session("sr-k7t001")) == .project("kit"))
+        #expect(Self.listed.listedRow(showing: .session("sr-rq7dgr")) == .session("sr-rq7dgr"))
+        #expect(Self.listed.listedRow(showing: .project("kit")) == .project("kit"))
+        #expect(Self.listed.listedRow(showing: .session("sr-gone")) == nil)
+        #expect(Self.listed.listedRow(showing: .settings) == nil)
+        #expect(unlisted.listedRow(showing: .session("sr-k7t001")) == nil)
     }
 
     @Test func aRowsTimeIsItsOldestLines() throws {

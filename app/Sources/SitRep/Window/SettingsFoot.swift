@@ -3,8 +3,9 @@ import SitRepWindow
 import SwiftUI
 
 /// Settings at the sidebar's foot, fixed under the list (spec 2.5): a rule, 8 of space, its row of 32, and 10 to the
-/// glass's bottom, every part of it SitRep's own. Picked, its row takes the selection, drawn as a heading's is; under
-/// the pointer and not picked, a session row's quiet fill. Its row is a stop of its own in the window's key loop
+/// glass's bottom, every part of it SitRep's own. Picked, its row takes the selection, which SitRep draws as no list
+/// does here, in the system's selection colours (`WindowStyle.selection(isEmphasized:isStill:)`), shaped as the list's;
+/// under the pointer and not picked, a session row's quiet fill. Its row is a stop of its own in the window's key loop
 /// (`SettingsFootControl`). Drawn as a still, it lays out as it does on screen.
 struct SettingsFooter: View {
     let pick: Pick?

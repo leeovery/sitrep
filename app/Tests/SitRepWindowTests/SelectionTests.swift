@@ -161,8 +161,10 @@ struct SelectionTests {
         #expect(Self.ids(run).contains(.pick(.session("sr-rq7dgr"))))
     }
 
-    /// Request ledger picked, then Your turn folded over it: a filter typed and cleared leaves it folded.
-    @Test func aPickMadeBeforeTheFilterChangesNothingAsItClears() {
+    /// Request ledger picked, then Your turn folded over it: a filter typed and cleared leaves it folded, as does
+    /// Return on its row, already picked, in between.
+    @Test(arguments: [false, true])
+    func aPickMadeBeforeTheFilterChangesNothingAsItClears(returnOnIt: Bool) {
         let run = opened()
 
         _ = run.pickInList(.session("sr-rq7dgr"), at: printedAt)
@@ -171,8 +173,52 @@ struct SelectionTests {
         let folds = run.folds
 
         run.filter = Filter("ledg")
+        if returnOnIt {
+            _ = run.openFirstMatch()
+            #expect(run.pick == .session("sr-rq7dgr"))
+        }
         run.filter = Filter()
         #expect(run.folds == folds)
+    }
+
+    /// A jump to Request ledger while the filter holds "kit", Your turn folded: it unfolds only what the filter shows,
+    /// and Your turn as the filter clears.
+    @Test func aPickMadeOutsideTheListWhileFilteringShowsOnceTheFilterClears() {
+        let run = opened()
+
+        run.toggle(.section(.yourTurn))
+        run.filter = Filter("kit")
+        _ = run.pick(.session("sr-rq7dgr"))
+        #expect(run.folds.contains(.section(.yourTurn)))
+        run.filter = Filter()
+        #expect(!run.folds.contains(.section(.yourTurn)))
+        #expect(Self.ids(run).contains(.pick(.session("sr-rq7dgr"))))
+    }
+
+    /// Nothing picked, as before the window first opens: the filter clearing changes none of the folds.
+    @Test func withNoPickTheFilterClearingChangesNothing() {
+        let run = WindowRun(folds: Folds(sections: [.yourTurn]), wall: { printedAt })
+
+        _ = run.show(heard(line(0)), at: printedAt, reducesMotion: false)
+        run.filter = Filter("ledg")
+        run.filter = Filter()
+        #expect(run.pick == nil)
+        #expect(run.folds == Folds(sections: [.yourTurn]))
+    }
+
+    /// Your turn folded, Request ledger picked from the filtered list, then ⌘W: closing clears the filter but shows
+    /// nothing, so Your turn stays folded, opening again on the Mac app.
+    @Test func closingTheWindowOnAPickMadeWhileFilteringUnfoldsNothing() {
+        let run = opened()
+
+        run.toggle(.section(.yourTurn))
+        run.filter = Filter("ledg")
+        _ = run.pickInList(.session("sr-rq7dgr"), at: printedAt)
+        run.close()
+        #expect(run.folds.contains(.section(.yourTurn)))
+        _ = run.open()
+        #expect(run.pick == .session("sr-macapp"))
+        #expect(run.folds.contains(.section(.yourTurn)))
     }
 
     @Test func aPickInTheListUnfoldsNothing() {

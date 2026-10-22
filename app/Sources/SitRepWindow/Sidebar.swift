@@ -72,10 +72,11 @@ public struct Folds: Codable, Equatable, Sendable {
         }
     }
 
-    /// Unfolded wherever the list would hide the row showing this pick (`Listed.row(showing:)`): a session's section,
-    /// and "N earlier" where its row is under it; Projects, for a project, or a session with no row of its own.
+    /// Unfolded wherever the list would hide the row showing this pick (`Listed.listedRow(showing:)`): a session's
+    /// section, and "N earlier" where its row is under it; Projects, for a project, or a session with no row of its
+    /// own.
     mutating func unfold(toShow pick: Pick, in listed: Listed) {
-        switch listed.row(showing: pick) {
+        switch listed.listedRow(showing: pick) {
         case let .session(id)?:
             if let row = listed.rows.first(where: { $0.id == id }) {
                 unfold(.section(row.section))
@@ -201,7 +202,7 @@ public struct Sidebar: Equatable, Sendable {
         lines = (sections + [projects]).flatMap(\.lines)
         order = listed.rows.map(\.pick) + listed.projects.map(\.pick)
         folded = Dictionary((sections + [projects]).flatMap(\.hidden)) { first, _ in first }
-        homes = listed.rowless.compactMapValues { key in listed.row(showing: .project(key)) }
+        homes = listed.rowless.mapValues(Pick.project).filter { listed.lists($0.value) }
     }
 
     /// The row that shows the pick, drawn picked: its own; for a session with no row of its own, its project's in

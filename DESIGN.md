@@ -3155,11 +3155,16 @@ stands).
   the section holding its row, Projects for a project or a session with no
   row, and opens "N earlier" where its row is under it, so the pick shows;
   the unfold is kept, as a click's is. While the filter holds text a pick
-  unfolds only what shows until it clears; as it clears, a pick made
-  meanwhile, by a click, the keys or Return, shows: whatever of Lee's folds
-  would hide it unfolds as for a pick made outside the list, kept, and "N
-  earlier" open for the run only, and everything else the filter opened
-  folds back; a pick made before the filter changes nothing as it clears.
+  made outside the list unfolds only what the filter shows, until it
+  clears; as it clears, every pick made meanwhile shows, one made by a
+  click, the keys or Return, or from outside the list, by a jump, the menu
+  or a notification, or picked afresh as the board drops the pick: whatever
+  of Lee's folds would hide it unfolds as for a pick made outside the list,
+  kept, and "N earlier" open for the run only, and everything else the
+  filter opened folds back. A pick made before the filter changes nothing
+  as it clears, Return on the row already picked included, and closing the
+  window, which clears the filter, shows nothing: opening it again picks
+  afresh.
   A heading folded over the pick hides its row and keeps its page, the list
   then showing nothing picked, Projects folded over a project's page as
   any. The arrow keys move
