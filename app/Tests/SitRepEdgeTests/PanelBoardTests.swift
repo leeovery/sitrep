@@ -1,6 +1,7 @@
 import Foundation
 @testable import SitRepCore
 import SitRepEdge
+import SitRepLines
 import SitRepPanel
 import Testing
 
@@ -49,6 +50,17 @@ struct PanelBoardTests {
 
         #expect(working.title == "Editing ")
         #expect(working.code == "app/Report.php")
+    }
+
+    /// The real CLI's line: Kit's window waiting on a wake, SitRep's on three agents.
+    @Test func aRowOnItsOwnWorkLeadsWithItsVerbThenItsPlainSubjectOrTheWakeItCountsDownTo() {
+        let sessions = Self.board(Self.heard(.line(Lines.onItsWork))).sessions
+
+        #expect(sessions.map(\.kind) == [.onItsWork, .onItsWork])
+        #expect(sessions.map(\.title) == ["Wakes ", "Waiting on "])
+        #expect(sessions.map(\.subject) == [nil, "3 agents"])
+        #expect(sessions.map(\.until) == [1_792_670_195_432, nil])
+        #expect(sessions.map(\.code) == [nil, nil])
     }
 
     @Test func aRowReadsItsFirstLineItsSubjectInMonoAfterASpaceAndItsSecond() {

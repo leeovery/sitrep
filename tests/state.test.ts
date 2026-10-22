@@ -21,7 +21,13 @@ import {
   toolStarted,
   turnEnded,
   turnStarted,
+  turnStopped,
+  wakeAt,
+  watchOf,
+  workOf,
   type Activity,
+  type Pending,
+  type PendingTask,
   type ToolCall,
   type WindowState,
 } from '../core'
@@ -384,8 +390,8 @@ test("the window's turn starting or ending clears its own tools, candidates and 
   }
 
   expect(busy.stops.map(stop => stop.call)).toEqual(['t2', 'q1'])
-  expect(ended).toEqual({ endedAt: T0 + 9_000, tools: [], ...theAgents })
-  expect(next).toEqual({ turnAt: T0 + 10_000, tools: [], ...theAgents })
+  expect(ended).toEqual({ endedAt: T0 + 9_000, tools: [], ...theAgents, watches: [] })
+  expect(next).toEqual({ turnAt: T0 + 10_000, tools: [], ...theAgents, watches: [] })
   expect(stateOf(next, T0)).toEqual({ ...PERMISSION, since: T0 + 2_000 })
 })
 
@@ -501,10 +507,19 @@ test("what an earlier load kept in another shape reads field by field: a field t
     tools: [running],
     asked: [],
     stops: [],
+    watches: [],
   })
-  expect(parseActivity({ turnAt: null, endedAt: '1', tools: {}, asked: 'x', stops: 3 })).toEqual(
-    QUIET,
-  )
+  expect(
+    parseActivity({
+      turnAt: null,
+      endedAt: '1',
+      tools: {},
+      asked: 'x',
+      stops: 3,
+      work: { agents: { count: 0, first: 'x' } },
+      watches: 'Monitor',
+    }),
+  ).toEqual(QUIET)
 
   const asked = { call: 't2', tool: 'Bash', input: { command: digestOf('"ls"') } }
   const stop = { call: 't3', at: T0, is: 'question', question: { text: 'Left?', count: 1 } }
@@ -534,7 +549,18 @@ test("what an earlier load kept in another shape reads field by field: a field t
       stop,
       { call: 't5', at: T0, is: 'permission', tool: { name: 'Bash' }, agentId: 'agent-1' },
     ],
+    watches: [],
   })
+
+  const watch = { task: 'bm1', isPersistent: true }
+
+  expect(
+    parseActivity({
+      ...QUIET,
+      work: { shells: { count: 1, first: 'bun test' }, monitors: { count: 1 }, wakes: 'soon' },
+      watches: [watch, { task: 'bm2' }, { task: '', isPersistent: false }, 'bm3'],
+    }),
+  ).toEqual({ ...QUIET, work: { shells: { count: 1, first: 'bun test' } }, watches: [watch] })
 })
 
 test('a time heard before the clock first answered, which has none, reads as when the window attached', () => {
@@ -547,4 +573,376 @@ test('a time heard before the clock first answered, which has none, reads as whe
   })
   expect(stateOf(turnStarted(QUIET, -Infinity), T0)).toEqual({ is: 'working', since: T0 })
   expect(stateOf(turnEnded(QUIET, -Infinity), T0)).toEqual({ is: 'yourTurn', since: T0 })
+})
+
+/** A task as a Stop lists it, with any of the engine's fields for its type. */
+const task = (
+  id: string,
+  type: string,
+  description: string,
+  more: { [field: string]: string } = {},
+): PendingTask => ({ id, type, description, ...more })
+
+const REVIEW = task('a1', 'subagent', 'Review the diff', { agent_type: 'general-purpose' })
+
+const TESTS = task('b1', 'shell', 'Run the tests', { command: 'bun test' })
+
+/** A time in local time, as a wake's schedule names it. */
+const local = (year: number, month: number, day: number, hour: number, minute: number) =>
+  new Date(year, month - 1, day, hour, minute).getTime()
+
+/** Thursday 22 October 2026, 14:30 and 25 seconds, local time. */
+const NOW = local(2026, 10, 22, 14, 30) + 25_000
+
+/** A turn begun at T0 and ended at T0 + 9s, its Stop listing `pending` before its end or after it. */
+const stopped = (pending: Pending, order: 'stop first' | 'end first') =>
+  order === 'stop first'
+    ? turnEnded(turnStopped(turnStarted(QUIET, T0), pending, T0 + 9_000), T0 + 9_000)
+    : turnStopped(turnEnded(turnStarted(QUIET, T0), T0 + 9_000), pending, T0 + 9_000)
+
+test("a Stop listing what the turn left pending puts the window on its own work since the turn ended, whichever of the Stop and the turn's end comes first", () => {
+  const pending = { tasks: [REVIEW], crons: [] }
+  const onItsWork: WindowState = {
+    is: 'onItsWork',
+    since: T0 + 9_000,
+    work: { agents: { count: 1, first: 'Review the diff' } },
+  }
+
+  expect(stateOf(stopped(pending, 'stop first'), T0)).toEqual(onItsWork)
+  expect(stateOf(stopped(pending, 'end first'), T0)).toEqual(onItsWork)
+  expect(stopped(pending, 'stop first')).toEqual(stopped(pending, 'end first'))
+})
+
+test('until the turn ends it is working, its Stop heard first or not', () => {
+  const early = turnStopped(turnStarted(QUIET, T0), { tasks: [TESTS] }, T0 + 9_000)
+
+  expect(stateOf(early, T0)).toEqual({ is: 'working', since: T0 })
+})
+
+test('a Stop with nothing pending, or listing nothing at all, leaves it your turn, in either order', () => {
+  for (const pending of [{ tasks: [], crons: [] }, {}]) {
+    for (const order of ['stop first', 'end first'] as const) {
+      expect(stateOf(stopped(pending, order), T0), `${JSON.stringify(pending)}, ${order}`).toEqual(
+        { is: 'yourTurn', since: T0 + 9_000 },
+      )
+    }
+  }
+})
+
+test("the latest Stop's list replaces the one before it whole, and an empty one clears it", () => {
+  const first = turnStopped(turnStarted(QUIET, T0), { tasks: [REVIEW, TESTS] }, T0 + 5_000)
+  const second = turnStopped(first, { tasks: [TESTS] }, T0 + 8_000)
+  const cleared = turnStopped(second, { tasks: [], crons: [] }, T0 + 9_000)
+
+  expect(first.work).toEqual({
+    agents: { count: 1, first: 'Review the diff' },
+    shells: { count: 1, first: 'bun test' },
+  })
+  expect(second.work).toEqual({ shells: { count: 1, first: 'bun test' } })
+  expect(cleared.work).toBeUndefined()
+  expect(stateOf(turnEnded(cleared, T0 + 9_000), T0)).toEqual({
+    is: 'yourTurn',
+    since: T0 + 9_000,
+  })
+})
+
+test("the next turn's start clears what was pending: working, then your turn at its end, as with Esc or an API error, which list nothing", () => {
+  const waiting = stopped({ tasks: [REVIEW] }, 'stop first')
+  const woken = turnStarted(waiting, T0 + 60_000)
+  const interrupted = turnEnded(woken, T0 + 70_000)
+
+  expect(woken.work).toBeUndefined()
+  expect(stateOf(woken, T0)).toEqual({ is: 'working', since: T0 + 60_000 })
+  expect(stateOf(interrupted, T0)).toEqual({ is: 'yourTurn', since: T0 + 70_000 })
+})
+
+test("a stop on Lee comes before what is pending, and a subagent's turn ending keeps it", () => {
+  const waiting = stopped({ tasks: [REVIEW] }, 'end first')
+  const asking = toolStarted(waiting, question('q1', 'agent-1'), T0 + 20_000)
+
+  expect(stateOf(asking, T0)).toEqual({
+    is: 'question',
+    since: T0 + 20_000,
+    question: { text: 'Left or right?', count: 2 },
+  })
+  expect(stateOf(toolEnded(asking, 'q1'), T0).is).toBe('onItsWork')
+  expect(agentTurnEnded(waiting, 'agent-1').work).toEqual(waiting.work)
+})
+
+test("what is pending is summed up by kind, each kind's count and its first as its line says it: an agent's description, a workflow's name, a shell's command", () => {
+  expect(
+    workOf(
+      {
+        tasks: [
+          REVIEW,
+          task('a2', 'subagent', 'Draw round 2'),
+          task('w1', 'workflow', 'Ship the release', { name: 'release' }),
+          task('w2', 'workflow', 'Nightly'),
+          TESTS,
+          task('m1', 'monitor', 'CI on main', { server: 'github', tool: 'watch' }),
+          task('t1', 'teammate', 'Designer'),
+          task('x1', 'cloud session', 'Port the tests'),
+        ],
+      },
+      [],
+      NOW,
+    ),
+  ).toEqual({
+    agents: { count: 2, first: 'Review the diff' },
+    workflows: { count: 2, first: 'release' },
+    shells: { count: 1, first: 'bun test' },
+    monitors: { count: 1, first: 'CI on main' },
+    others: { count: 2, first: 'Designer' },
+  })
+})
+
+test('a workflow with no name is its description, a shell with no command its description, and a task with neither its type; each one line, cut short', () => {
+  const long = 'x'.repeat(SHOWN_LENGTH)
+
+  expect(
+    workOf(
+      {
+        tasks: [
+          task('w1', 'workflow', 'Nightly'),
+          task('b1', 'shell', 'Watch the build'),
+          task('o1', 'MCP task', ''),
+          task('a1', 'subagent', `Review\n  the ${long}`),
+        ],
+      },
+      [],
+      NOW,
+    ),
+  ).toEqual({
+    agents: { count: 1, first: `Review the ${'x'.repeat(SHOWN_LENGTH - 12)}…` },
+    workflows: { count: 1, first: 'Nightly' },
+    shells: { count: 1, first: 'Watch the build' },
+    others: { count: 1, first: 'MCP task' },
+  })
+})
+
+test('a task that says nothing of itself is "a task", never an empty word, so its summary reads back as written', () => {
+  const work = workOf({ tasks: [task('x', '', '')] }, [], NOW)
+  const waiting = turnStopped(turnEnded(turnStarted(QUIET, T0), T0 + 9_000), { tasks: [task('x', '', '')] }, NOW)
+  const state = stateOf(waiting, T0)
+
+  expect(work).toEqual({ others: { count: 1, first: 'a task' } })
+  expect(state).toEqual({ is: 'onItsWork', since: T0 + 9_000, work })
+  expect(stateRead(JSON.parse(JSON.stringify(state)))).toEqual(state)
+  expect(parseActivity(JSON.parse(JSON.stringify(waiting)))).toEqual(waiting)
+})
+
+test("a persistent monitor never ends, and the engine's ambient tasks never wake the window: none of them counts", () => {
+  const watching = task('m1', 'monitor', 'Deploys', { server: 'github', tool: 'watch' })
+  const ambient = [
+    task('d1', 'dream', 'dreaming'),
+    task('s1', 'auto-mode scan', 'scanning for auto-mode setup'),
+    task('i1', 'memory import', 'importing memory'),
+  ]
+
+  expect(
+    workOf({ tasks: [watching, ...ambient] }, [{ task: 'm1', isPersistent: true }], NOW),
+  ).toBeUndefined()
+})
+
+test('a monitor watching a command is listed as a shell, and counts as a monitor by the task its call started', () => {
+  const tailing = task('b2', 'shell', 'Errors in the log', {
+    command: 'tail -f app.log | grep ERROR',
+  })
+
+  expect(workOf({ tasks: [tailing] }, [{ task: 'b2', isPersistent: false }], NOW)).toEqual({
+    monitors: { count: 1, first: 'Errors in the log' },
+  })
+  expect(workOf({ tasks: [tailing] }, [{ task: 'b2', isPersistent: true }], NOW)).toBeUndefined()
+  expect(workOf({ tasks: [tailing] }, [], NOW), 'a shell that never ends counts').toEqual({
+    shells: { count: 1, first: 'tail -f app.log | grep ERROR' },
+  })
+})
+
+test('a recurring cron never ends and counts for nothing; one-off wakes count, with the soonest time that reads', () => {
+  const cron = (schedule: string, recurring: boolean) => ({
+    id: schedule,
+    schedule,
+    recurring,
+    prompt: 'Check the build',
+  })
+
+  expect(
+    workOf({ crons: [cron('*/5 * * * *', true), cron('0 9 * * 1-5', true)] }, [], NOW),
+  ).toBeUndefined()
+  expect(
+    workOf(
+      {
+        crons: [
+          cron('0 17 * * *', false),
+          cron('45 14 * * *', false),
+          cron('*/5 * * * *', false),
+          cron('0 9 * * 1-5', true),
+        ],
+      },
+      [],
+      NOW,
+    ),
+  ).toEqual({ wakes: { count: 3, at: local(2026, 10, 22, 14, 45) } })
+  expect(workOf({ crons: [cron('*/5 * * * *', false)] }, [], NOW)).toEqual({ wakes: { count: 1 } })
+  expect(
+    workOf({ crons: [cron('45 14 * * *', false), cron('15 14 * * *', false)] }, [], NOW),
+    'one whose minute just passed is due first',
+  ).toEqual({ wakes: { count: 2, at: local(2026, 10, 22, 14, 15) } })
+})
+
+test("a one-off wake's schedule fires at the next time it names, in local time, from the start of the minute, where that is nearer than the last", () => {
+  for (const [schedule, at] of [
+    ['45 14 * * *', local(2026, 10, 22, 14, 45)],
+    ['31 14 * * *', local(2026, 10, 22, 14, 31)],
+    ['30 14 * * *', local(2026, 10, 22, 14, 30)],
+    ['5 9 1 1 *', local(2027, 1, 1, 9, 5)],
+    [' 0  18  22  10  * ', local(2026, 10, 22, 18, 0)],
+    ['0 9 * * 5', local(2026, 10, 23, 9, 0)],
+    ['0 9 * * 7', local(2026, 10, 25, 9, 0)],
+    ['0 9 23 * 1', local(2026, 10, 23, 9, 0)],
+    ['0 9 1 * 5', local(2026, 10, 23, 9, 0)],
+    ['0 9 29 2 *', local(2028, 2, 29, 9, 0)],
+  ] as const) {
+    expect(wakeAt(schedule, NOW), schedule).toBe(at)
+  }
+})
+
+test('a one-off still listed has not fired: where the last time it names is nearer than its next, it is due then, in the past, not a day or a year away', () => {
+  for (const [schedule, at] of [
+    ['29 14 * * *', local(2026, 10, 22, 14, 29)],
+    ['15 14 * * *', local(2026, 10, 22, 14, 15)],
+    ['30 14 22 10 *', local(2026, 10, 22, 14, 30)],
+    ['29 14 22 10 *', local(2026, 10, 22, 14, 29)],
+    ['0 12 22 10 *', local(2026, 10, 22, 12, 0)],
+    ['0 9 * * 1', local(2026, 10, 19, 9, 0)],
+  ] as const) {
+    expect(wakeAt(schedule, NOW), schedule).toBe(at)
+  }
+})
+
+test('a schedule that names no single time, or none at all, has none: its minute or hour not a number, or its day, month or weekday a range, a list, a step, a name or out of range', () => {
+  for (const schedule of [
+    '',
+    '0 9 * *',
+    '0 9 * * * 2026',
+    '* 9 * * *',
+    '*/5 * * * *',
+    '0 9 1-5 * *',
+    '0 9 1,15 * *',
+    '0 9 * */2 *',
+    '0 9 * JAN *',
+    '0 9 * * MON',
+    '0 9 * * 1-5',
+    '60 9 * * *',
+    '0 24 * * *',
+    '0 9 0 * *',
+    '0 9 32 * *',
+    '0 9 * 13 *',
+    '0 9 * * 8',
+    '0 9 31 2 *',
+    '-1 9 * * *',
+    '1.5 9 * * *',
+  ]) {
+    expect(wakeAt(schedule, NOW), schedule).toBeUndefined()
+  }
+})
+
+test('a Monitor call says the task it started and whether it is persistent, by its `persistent` or a `timeoutMs` of 0; any other call, or one naming no task, says none', () => {
+  expect(watchOf('Monitor', { taskId: 'bm1', timeoutMs: 300_000 })).toEqual({
+    task: 'bm1',
+    isPersistent: false,
+  })
+  expect(watchOf('Monitor', { taskId: 'bm1', timeoutMs: 300_000, persistent: false })).toEqual({
+    task: 'bm1',
+    isPersistent: false,
+  })
+
+  for (const result of [
+    { taskId: 'bm2', timeoutMs: 0, persistent: true },
+    { taskId: 'bm2', timeoutMs: 300_000, persistent: true },
+    { taskId: 'bm2', timeoutMs: 0 },
+  ]) {
+    expect(watchOf('Monitor', result), JSON.stringify(result)).toEqual({
+      task: 'bm2',
+      isPersistent: true,
+    })
+  }
+
+  for (const [tool, result] of [
+    ['Bash', { taskId: 'bm1' }],
+    ['Monitor', 'done'],
+    ['Monitor', { taskId: '' }],
+    ['Monitor', undefined],
+  ] as const) {
+    expect(watchOf(tool, result), `${tool}: ${JSON.stringify(result)}`).toBeUndefined()
+  }
+})
+
+test('a call that started a monitor is heard as it ends; a Stop keeps the monitors it lists still running, all of them where it lists no tasks', () => {
+  const monitor: ToolCall = { id: 'c1', tool: 'Monitor', input: { description: 'Deploys' } }
+  const started = toolEnded(toolStarted(turnStarted(QUIET, T0), monitor, T0 + 1_000), 'c1', {
+    tool: 'Monitor',
+    result: { taskId: 'bm1', timeoutMs: 0, persistent: true },
+  })
+  const listed = task('bm1', 'shell', 'Deploys', { command: 'gh run watch' })
+
+  expect(started.watches).toEqual([{ task: 'bm1', isPersistent: true }])
+  expect(turnStopped(started, { tasks: [listed] }, T0 + 9_000)).toEqual({
+    turnAt: T0,
+    tools: [],
+    asked: [],
+    stops: [],
+    watches: [{ task: 'bm1', isPersistent: true }],
+  })
+  expect(turnStopped(started, {}, T0 + 9_000).watches).toEqual(started.watches)
+  expect(turnStopped(started, { tasks: [] }, T0 + 9_000).watches).toEqual([])
+  expect(turnStarted(turnEnded(started, T0 + 9_000), T0 + 10_000).watches).toEqual(
+    started.watches,
+  )
+})
+
+test('on its own work reads back from a heartbeat, and what the window heard from $.state, as each was kept', () => {
+  const waiting = turnStopped(
+    turnEnded(turnStarted(QUIET, T0), T0 + 9_000),
+    { tasks: [REVIEW, TESTS], crons: [{ schedule: '45 14 * * *', recurring: false }] },
+    NOW,
+  )
+  const state = stateOf(waiting, T0)
+
+  expect(state).toEqual({
+    is: 'onItsWork',
+    since: T0 + 9_000,
+    work: {
+      agents: { count: 1, first: 'Review the diff' },
+      shells: { count: 1, first: 'bun test' },
+      wakes: { count: 1, at: local(2026, 10, 22, 14, 45) },
+    },
+  })
+  expect(stateRead(state)).toEqual(state)
+  expect(parseActivity(JSON.parse(JSON.stringify(waiting)))).toEqual(waiting)
+})
+
+test('of what is pending in a heartbeat, a kind that does not read is dropped and the state kept', () => {
+  const onItsWork = { is: 'onItsWork', since: T0 }
+
+  expect(
+    stateRead({
+      ...onItsWork,
+      work: {
+        agents: { count: 2, first: 'Review the diff' },
+        shells: { count: 0, first: 'bun test' },
+        monitors: { count: 1, first: '' },
+        others: 'Designer',
+        wakes: { count: 1, at: 'soon' },
+        tasks: { count: 1, first: 'x' },
+      },
+    }),
+  ).toEqual({
+    ...onItsWork,
+    work: { agents: { count: 2, first: 'Review the diff' }, wakes: { count: 1 } },
+  })
+
+  for (const work of [undefined, {}, 'agents', { wakes: { count: 0 } }]) {
+    expect(stateRead({ ...onItsWork, work }), JSON.stringify(work)).toEqual(onItsWork)
+  }
 })

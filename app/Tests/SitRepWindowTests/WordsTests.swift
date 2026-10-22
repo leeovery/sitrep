@@ -11,8 +11,20 @@ struct WordsTests {
         #expect(Words.turn(doing(.working, "Writing", since: printedAt), at: printedAt) == "· this turn just began")
         #expect(Words.turn(doing(.yourTurn, "Writing", since: since), at: printedAt) == "· its turn ended 6m ago")
         #expect(Words.turn(doing(.yourTurn, "Writing", since: printedAt), at: printedAt) == "· its turn just ended")
+        #expect(Words.turn(doing(.onItsWork, "Waiting on", since: since), at: printedAt) == "· its turn ended 6m ago")
+        #expect(Words.turn(doing(.onItsWork, "Waiting on", since: printedAt), at: printedAt) == "· its turn just ended")
         #expect(Words.turn(doing(.permission, "Allow Bash", since: since), at: printedAt) == nil)
         #expect(Words.turn(doing(.away, "No window holds it.", since: since), at: printedAt) == nil)
+    }
+
+    /// A wake's countdown at this time, else the subject; nothing where the line has neither, its subject a command.
+    @Test func whatALineSaysPlainAfterItsLeadIsAWakesCountdownElseItsSubject() {
+        let wake = Board.Row.Line(lead: "Wakes", until: printedAt.addingTimeInterval(690))
+
+        #expect(Words.subject(wake, at: printedAt) == "in 12m")
+        #expect(Words.subject(wake, at: printedAt.addingTimeInterval(690)) == "now")
+        #expect(Words.subject(Board.Row.Line(lead: "Waiting on", subject: "3 agents"), at: printedAt) == "3 agents")
+        #expect(Words.subject(Board.Row.Line(lead: "Running", mono: "npm test"), at: printedAt) == nil)
     }
 
     @Test func aYesIsInClaudesWordsAndWhatNeedsClaudesPromptSaysItLeavesSitRep() {

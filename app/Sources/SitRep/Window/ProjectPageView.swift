@@ -127,6 +127,8 @@ private struct ProjectSessionRow: View {
             Text(session.doing.line.lead)
             if let mono = session.doing.line.mono {
                 Text(mono).font(WindowStyle.mono(12))
+            } else if let subject = Words.subject(session.doing.line, at: now) {
+                Text(subject)
             }
         }
     }

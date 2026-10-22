@@ -15,6 +15,11 @@ public enum Lines {
     /// then an ask posted into it, new on the second line.
     public static let newAsk = printed("watch-new-ask.jsonl").split(separator: "\n").map(String.init)
 
+    /// `sitrep watch`'s first line over a board of its own, run on 22 October 2026: SitRep's The Mac app, its window
+    /// on its own work waiting on three agents, and Kit's The bootstrap, its window waiting on a one-off wake 12
+    /// minutes off, its row first.
+    public static let onItsWork = printed("watch-on-its-work.jsonl").trimmingCharacters(in: .newlines)
+
     /// `board --json` for The Mac app, before anything was answered.
     public static let board = printed("board-macapp.json")
     /// The same, its yes answered and its words ask ignored, both on their way.

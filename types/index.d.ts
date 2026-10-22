@@ -118,12 +118,26 @@ export type SitrepToolShown = { name: string; subject?: string }
 /** A question as a row shows it: core's `QuestionShown`. */
 export type SitrepQuestionShown = { text: string; count: number }
 
+/** Tasks of one kind a turn left running: core's `Tasks`. */
+export type SitrepTasks = { count: number; first: string }
+
+/** What a turn left pending that will wake its window: core's `Work`. */
+export type SitrepWork = {
+  agents?: SitrepTasks
+  workflows?: SitrepTasks
+  shells?: SitrepTasks
+  monitors?: SitrepTasks
+  others?: SitrepTasks
+  wakes?: { count: number; at?: number }
+}
+
 /** What a window is doing, and since when: core's `WindowState`. */
 export type SitrepWindowState = {
-  is: 'working' | 'permission' | 'question' | 'yourTurn'
+  is: 'working' | 'permission' | 'question' | 'onItsWork' | 'yourTurn'
   since: number
   tool?: SitrepToolShown
   question?: SitrepQuestionShown
+  work?: SitrepWork
 }
 
 export type SitrepPresence = {
@@ -150,6 +164,9 @@ export type SitrepActivity = {
   tools: { call: string; tool: SitrepToolShown }[]
   asked: { call: string; tool: string; input: { [argument: string]: string }; agentId?: string }[]
   stops: SitrepStop[]
+  work?: SitrepWork
+  /** The monitors heard started: core's `Watch`. */
+  watches: { task: string; isPersistent: boolean }[]
 }
 
 /** A finished session: core's `Finished`. */

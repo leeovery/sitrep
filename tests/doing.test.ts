@@ -629,6 +629,7 @@ test('after a reload mid-turn, the window says the state $.state kept, and goes 
       tools: [{ call: 'toolu_kept', tool: { name: 'Bash', subject: 'bun test' } }],
       asked: [],
       stops: [],
+      watches: [],
     },
   })
   await $.session.start(CONVERSATION)
@@ -896,5 +897,211 @@ test("a new conversation starts with nothing heard: after a /clear, your turn si
   expect(parsePresence(w.text(joined), W2)?.state).toEqual({
     is: 'yourTurn',
     since: T0 + 65_000,
+  })
+})
+
+/** A background agent, as a Stop lists it. */
+const REVIEWING = {
+  id: 'a1b2',
+  type: 'subagent',
+  status: 'running',
+  description: 'Review the diff',
+  agent_type: 'general-purpose',
+}
+
+/** What the window is on, once its turn has stopped leaving REVIEWING running. */
+const ON_ITS_WORK = {
+  is: 'onItsWork',
+  since: T0 + 9_000,
+  work: { agents: { count: 1, first: 'Review the diff' } },
+}
+
+test("a Stop listing a background agent before the turn's end: working until the end, then on its own work since then", async ($, on) => {
+  const w = world($, on)
+  const { paths } = await w.begin()
+
+  await w.turnStarts('Review it in the background.')
+  await w.clock.advance(9_000)
+  await w.stops({ background_tasks: [REVIEWING], session_crons: [] })
+  await w.clock.settle()
+
+  expect(stateIn(w, paths)).toEqual({ is: 'working', since: T0 })
+
+  await w.turnEnds()
+  await w.clock.settle()
+
+  expect(stateIn(w, paths)).toEqual(ON_ITS_WORK)
+})
+
+test("a Stop after the turn's end turns your turn to on its own work, and the heartbeat says so", async ($, on) => {
+  const w = world($, on)
+  const { paths } = await w.begin()
+
+  await w.turnStarts('Review it in the background.')
+  await w.clock.advance(9_000)
+  await w.turnEnds()
+  await w.clock.settle()
+
+  expect(stateIn(w, paths)).toEqual({ is: 'yourTurn', since: T0 + 9_000 })
+
+  const before = beats(w, paths)
+
+  await w.stops({ background_tasks: [REVIEWING], session_crons: [] })
+  await later(w)
+
+  expect(stateIn(w, paths)).toEqual(ON_ITS_WORK)
+  expect(beats(w, paths)).toBe(before + 1)
+})
+
+test('a Stop the settings hooks beneath block goes on with the turn: nothing pending is heard, and its answer goes on as it came', async ($, on) => {
+  const w = world($, on)
+  const { paths } = await w.begin()
+  const block = { block: 'The tests are still failing: fix them first.' }
+
+  w.answerStops(block)
+  await w.turnStarts('Fix the tests.')
+  await w.clock.advance(9_000)
+
+  expect(await w.stops({ background_tasks: [REVIEWING] })).toEqual(block)
+
+  await w.turnEnds()
+  await w.clock.settle()
+
+  expect(stateIn(w, paths)).toEqual({ is: 'yourTurn', since: T0 + 9_000 })
+  expect(w.logs).toContain(
+    'sitrep: a settings hook blocked the Stop, so the turn goes on: nothing pending heard',
+  )
+})
+
+test("a Stop that blocks yet stops the session all the same is the turn's end: what it lists is heard", async ($, on) => {
+  const w = world($, on)
+  const { paths } = await w.begin()
+
+  w.answerStops({ block: 'Keep going.', preventContinuation: true })
+  await w.turnStarts('Review it in the background.')
+  await w.clock.advance(9_000)
+  await w.turnEnds()
+  await w.stops({ background_tasks: [REVIEWING] })
+  await later(w)
+
+  expect(stateIn(w, paths)).toEqual(ON_ITS_WORK)
+})
+
+test("a Stop saying a subagent's id is not the window's, and changes nothing", async ($, on) => {
+  const w = world($, on)
+  const { paths } = await w.begin()
+
+  await w.turnStarts('Review it in the background.')
+  await w.clock.advance(9_000)
+  await w.turnEnds()
+  await w.stops({ background_tasks: [REVIEWING], agent_id: AGENT })
+  await later(w)
+
+  expect(stateIn(w, paths)).toEqual({ is: 'yourTurn', since: T0 + 9_000 })
+})
+
+test("the latest Stop's list stands, an empty one clearing it; the next turn's start clears it, as the agent's end wakes the window, and a turn stopped with Esc, which lists nothing, is your turn", async ($, on) => {
+  const w = world($, on)
+  const { paths } = await w.begin()
+
+  await w.turnStarts('Review it in the background.')
+  await w.clock.advance(9_000)
+  await w.turnEnds()
+  await w.stops({ background_tasks: [REVIEWING] })
+  await w.stops({ background_tasks: [], session_crons: [] })
+  await later(w)
+
+  expect(stateIn(w, paths)).toEqual({ is: 'yourTurn', since: T0 + 9_000 })
+
+  await w.stops({ background_tasks: [REVIEWING] })
+  await later(w)
+
+  expect(stateIn(w, paths)).toEqual(ON_ITS_WORK)
+
+  await w.clock.advance(60_000)
+
+  const woke = w.clock.now()
+
+  await w.turnStarts('')
+  await later(w)
+
+  expect(stateIn(w, paths)).toEqual({ is: 'working', since: woke })
+
+  await w.turnEnds({ isAborted: true })
+  await later(w)
+
+  expect(stateIn(w, paths)?.is).toBe('yourTurn')
+})
+
+test('a monitor the turn started counts as one, though its Stop lists it as a shell; a persistent one never ends, so it counts for nothing', async ($, on) => {
+  const w = world($, on)
+  const { paths } = await w.begin()
+  const watch = (description: string, command: string) =>
+    w.calls('Monitor', { description, timeout_ms: 300_000, command })
+  const listed = (id: string, description: string, command: string) => ({
+    id,
+    type: 'shell',
+    status: 'running',
+    description,
+    command,
+  })
+  const every = listed('bm1', 'Every deploy', 'gh run watch --exit-status')
+  const one = listed('bm2', 'This deploy', 'gh run watch 42 --exit-status')
+
+  await w.turnStarts('Watch the deploys.')
+
+  const standing = watch(every.description, every.command)
+
+  standing.finish({ taskId: every.id, timeoutMs: 0, persistent: true })
+  await standing.done
+
+  const once = watch(one.description, one.command)
+
+  once.finish({ taskId: one.id, timeoutMs: 300_000 })
+  await once.done
+  await w.clock.advance(9_000)
+  await w.turnEnds()
+  await w.stops({ background_tasks: [every, one] })
+  await later(w)
+
+  expect(stateIn(w, paths)).toEqual({
+    is: 'onItsWork',
+    since: T0 + 9_000,
+    work: { monitors: { count: 1, first: 'This deploy' } },
+  })
+
+  await w.stops({ background_tasks: [every] })
+  await later(w)
+
+  expect(stateIn(w, paths)).toEqual({ is: 'yourTurn', since: T0 + 9_000 })
+})
+
+test('a recurring cron never ends and counts for nothing; a one-off wake puts the window on its own work until it is due', async ($, on) => {
+  const w = world($, on)
+  const { paths } = await w.begin()
+  const due = new Date(new Date(T0 + 30 * 60_000).setSeconds(0, 0))
+  const wake = {
+    id: 'c1',
+    schedule: `${due.getMinutes()} ${due.getHours()} * * *`,
+    recurring: false,
+    prompt: 'Check the build',
+  }
+  const loop = { id: 'c2', schedule: '*/10 * * * *', recurring: true, prompt: '/loop check' }
+
+  await w.turnStarts('Check the build in half an hour.')
+  await w.clock.advance(9_000)
+  await w.turnEnds()
+  await w.stops({ background_tasks: [], session_crons: [loop] })
+  await later(w)
+
+  expect(stateIn(w, paths)).toEqual({ is: 'yourTurn', since: T0 + 9_000 })
+
+  await w.stops({ background_tasks: [], session_crons: [loop, wake] })
+  await later(w)
+
+  expect(stateIn(w, paths)).toEqual({
+    is: 'onItsWork',
+    since: T0 + 9_000,
+    work: { wakes: { count: 1, at: due.getTime() } },
   })
 })

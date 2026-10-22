@@ -35,15 +35,26 @@ public struct Board: Versioned, Sendable, Equatable {
 
     public struct Row: Decodable, Sendable, Equatable, Identifiable {
         public enum Kind: String, Decodable, Sendable {
-            case ask, permission, question, yourTurn, working
+            case ask, permission, question, yourTurn, working, onItsWork
         }
 
-        /// A row's first line, in parts: `lead`, which a working row
-        /// shimmers; `mono`, the subject set in mono; `more`, a question's `+2`.
+        /// A row's first line, in parts: `lead`, which a working row shimmers; `mono`, the subject set in mono where
+        /// it is a command or a path; `subject`, set plain where it is not; `more`, a question's `+2`; `until`, when
+        /// the wake a row on its own work waits on is due, which the views count down to after the lead.
         public struct Line: Decodable, Sendable, Equatable {
             public let lead: String
             public let mono: String?
+            public let subject: String?
             public let more: String?
+            public let until: Date?
+
+            init(lead: String, mono: String? = nil, subject: String? = nil, more: String? = nil, until: Date? = nil) {
+                self.lead = lead
+                self.mono = mono
+                self.subject = subject
+                self.more = more
+                self.until = until
+            }
         }
 
         /// Names the row for as long as it stands, so a view keeps its place by it.
@@ -90,15 +101,15 @@ public struct Board: Versioned, Sendable, Equatable {
     /// on a window to deliver Lee's reply, or replied, Claude's to act on.
     public struct Session: Decodable, Sendable, Equatable, Identifiable {
         public enum State: String, Decodable, Sendable {
-            case needsYou, working, yourTurn, away, finished
+            case needsYou, working, onItsWork, yourTurn, away, finished
         }
 
         /// What a session is doing, as the line under its name says it: a window's permission prompt or question,
-        /// else its window working or waiting on Lee's message, each as its row's first line, since its state began;
-        /// else away, since its latest line.
+        /// else its window working, on its own work or waiting on Lee's message, each as its row's first line, since
+        /// its state began; else away, since its latest line.
         public struct Doing: Decodable, Sendable, Equatable {
             public enum Kind: String, Decodable, Sendable {
-                case permission, question, working, yourTurn, away
+                case permission, question, working, onItsWork, yourTurn, away
             }
 
             public let kind: Kind
@@ -191,7 +202,7 @@ public struct Board: Versioned, Sendable, Equatable {
         /// What the window is doing, and since when.
         public struct State: Decodable, Sendable, Equatable {
             public enum Kind: String, Decodable, Sendable {
-                case working, permission, question, yourTurn
+                case working, permission, question, onItsWork, yourTurn
             }
 
             /// A tool: its name, and what it acts on (a file's path, Bash's command).

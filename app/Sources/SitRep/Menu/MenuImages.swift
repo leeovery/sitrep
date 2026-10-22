@@ -44,13 +44,14 @@ enum MenuImages {
     static let glyphHousing = NSRect(x: 5.9, y: 2.5, width: 6.2, height: 13)
 
     /// A session's mark: an orange dot for needs you, an away one's too; an open ring for your turn; a turning arc's
-    /// still, for working, fainter than the rest. The ring and the arc are template images, so they take the menu's
-    /// ink, highlighted or not.
+    /// still, for working, and the dotted ring, for on its own work, each fainter than the rest. All but the dot are
+    /// template images, so they take the menu's ink, highlighted or not.
     static func mark(_ session: Session) -> NSImage {
         switch session.kind {
         case .needs: dot
         case .turn: ring
         case .working: arc
+        case .onItsWork: dotted
         }
     }
 
@@ -84,6 +85,20 @@ enum MenuImages {
         turn.lineCapStyle = .round
         NSColor.black.withAlphaComponent(0.6).setStroke()
         turn.stroke()
+    }
+
+    /// The card's dotted ring, as faint as the arc.
+    private static let dotted = drawn {
+        let card = DottedRing.card
+        let ring = NSBezierPath(ovalIn: NSRect(
+            x: 8 - card.radius, y: 8 - card.radius, width: 2 * card.radius, height: 2 * card.radius
+        ))
+
+        ring.lineWidth = card.line
+        ring.lineCapStyle = .round
+        ring.setLineDash(card.dash, count: card.dash.count, phase: 0)
+        NSColor.black.withAlphaComponent(0.6).setStroke()
+        ring.stroke()
     }
 
     /// Show's tick, for the one in use; the others hold the lane empty, so their words line up with it.

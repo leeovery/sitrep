@@ -75,6 +75,36 @@ struct StripMarkLayerTests {
         #expect(layer.letters.mask !== glyphs)
     }
 
+    /// Shown as it is: its arc on the track, held still, so nothing of it runs.
+    private static func shown(_ marks: StripFrame.Mark...) -> StripMarkLayer {
+        let layer = StripMarkLayer()
+
+        marks.forEach { layer.show($0, at: .zero) }
+        return layer
+    }
+
+    @Test func aMarkOnItsOwnWorkShowsTheWorkingArcHeldStill() {
+        let layer = Self.shown(Self.mark(.onItsWork))
+
+        #expect(layer.spinner.layer.opacity == 1)
+        #expect(layer.spinner.layer.animationKeys() == nil)
+        #expect(layer.ring.borderColor == nil)
+    }
+
+    @Test func aWorkingMarkComingToItsOwnWorkStopsTurning() {
+        let layer = Self.shown(Self.mark(.working), Self.mark(.onItsWork))
+
+        #expect(layer.spinner.layer.animationKeys() == nil)
+    }
+
+    @Test func aMarkOnItsOwnWorkTurnsAsAClickOnItJumpsAndIsHeldAgainAfter() {
+        let jumping = Self.shown(Self.mark(.onItsWork), Self.mark(.onItsWork, jumping: true))
+        let after = Self.shown(Self.mark(.onItsWork, jumping: true), Self.mark(.onItsWork))
+
+        #expect(jumping.spinner.layer.animationKeys() == ["spin"])
+        #expect(after.spinner.layer.animationKeys() == nil)
+    }
+
     @Test func itsFillPressesInAndLetsOutOver110() {
         let pressed = Self.eases(from: Self.mark(), to: Self.mark(jumping: true), "backgroundColor") { $0.ring }
         let letOut = Self.eases(from: Self.mark(jumping: true), to: Self.mark(), "backgroundColor") { $0.ring }

@@ -28,6 +28,7 @@ import {
   type SessionMeta,
   type ToolShown,
   type WindowState,
+  type Work,
 } from '../core'
 import {
   beat,
@@ -62,6 +63,8 @@ const GOOSEMATES: Project = { key: 'goosemates', name: 'Goosemates' }
 const working = (since: number, tool?: ToolShown): WindowState => ({ is: 'working', since, tool })
 
 const yourTurn = (since: number): WindowState => ({ is: 'yourTurn', since })
+
+const onItsWork = (since: number, work?: Work): WindowState => ({ is: 'onItsWork', since, work })
 
 const permission = (since: number, name: string, subject?: string): WindowState => ({
   is: 'permission',
@@ -171,13 +174,18 @@ test('a window on a version before heartbeats said its state reads as your turn 
   ])
 })
 
-test('of several windows on a session the most needing wins: a stop, then working, then your turn', () => {
+test('of several windows on a session the most needing wins: a stop, then working, then on its own work, then your turn', () => {
   const both = (a: WindowState, b: WindowState) =>
     sessionState(sessionOf({ presence: { ...windowOn(W1, a), ...windowOn(W2, b) } }), NOW)
+  const agents = onItsWork(T0, { agents: { count: 2, first: 'Review the diff' } })
 
+  expect(sessionState(sessionOf({ presence: windowOn(W1, agents) }), NOW)).toBe('onItsWork')
   expect(both(yourTurn(T0), permission(T0, 'Bash', 'ls'))).toBe('needsYou')
   expect(both(working(T0), question(T0, 'Left?', 1))).toBe('needsYou')
+  expect(both(agents, question(T0, 'Left?', 1))).toBe('needsYou')
   expect(both(yourTurn(T0), working(T0))).toBe('working')
+  expect(both(agents, working(T0))).toBe('working')
+  expect(both(yourTurn(T0 + MIN), agents)).toBe('onItsWork')
   expect(both(yourTurn(T0), yourTurn(T0 + MIN))).toBe('yourTurn')
 })
 
@@ -372,6 +380,80 @@ test('a session is one row while its windows work or wait on Lee: the latest sta
   ])
 })
 
+test('on its own work, a row says the first of what it waits on: agents by their count or the one, a workflow, a shell in mono, a monitor, any other task, else its wake, counted down by the app', () => {
+  const lineFor = (work: Work) =>
+    firstLines(sessionOf({ presence: windowOn(W1, onItsWork(T0, work)) }))[0]
+  const all: Work = {
+    agents: { count: 3, first: 'Review the diff' },
+    workflows: { count: 1, first: 'release' },
+    shells: { count: 2, first: 'bun test --watch' },
+    monitors: { count: 1, first: 'CI on main' },
+    others: { count: 1, first: 'Designer' },
+    wakes: { count: 1, at: T0 + 90 * MIN },
+  }
+  const noAgents = { ...all, agents: undefined }
+  const noWorkflows = { ...noAgents, workflows: undefined }
+  const noShells = { ...noWorkflows, shells: undefined }
+  const noMonitors = { ...noShells, monitors: undefined }
+
+  expect(lineFor(all)).toEqual({ lead: 'Waiting on', subject: '3 agents' })
+  expect(lineFor({ agents: { count: 1, first: 'Review the diff' } })).toEqual({
+    lead: 'Waiting on',
+    subject: 'Review the diff',
+  })
+  expect(lineFor(noAgents)).toEqual({ lead: 'Running', subject: 'release' })
+  expect(lineFor(noWorkflows)).toEqual({ lead: 'Running', mono: 'bun test --watch' })
+  expect(lineFor(noShells)).toEqual({ lead: 'Watching', subject: 'CI on main' })
+  expect(lineFor(noMonitors)).toEqual({ lead: 'Waiting on', subject: 'Designer' })
+  expect(lineFor({ ...noMonitors, others: undefined })).toEqual({
+    lead: 'Wakes',
+    until: T0 + 90 * MIN,
+  })
+  expect(lineFor({ wakes: { count: 1 } })).toEqual({ lead: 'Wakes' })
+})
+
+test("on its own work, a row's time counts from the turn's end; it carries its soonest wake for its order, whatever its line says", () => {
+  const rowFor = (work: Work) =>
+    rows(sessionOf({ presence: windowOn(W1, onItsWork(T0 + MIN, work)) })).map(each => [
+      each.key,
+      each.is,
+      each.writer,
+      each.since,
+      each.wakeAt,
+    ])
+
+  expect(
+    rowFor({ agents: { count: 1, first: 'Review the diff' }, wakes: { count: 2, at: NOW + MIN } }),
+  ).toEqual([[`turn:${META.id}`, 'onItsWork', W1, T0 + MIN, NOW + MIN]])
+  expect(rowFor({ agents: { count: 1, first: 'Review the diff' } })).toEqual([
+    [`turn:${META.id}`, 'onItsWork', W1, T0 + MIN, undefined],
+  ])
+})
+
+test("on its own work with nothing to say of what it waits on, as a heartbeat whose work did not read, reads the board's now", () => {
+  expect(
+    firstLines(
+      sessionOf({
+        lines: [[T0, status(['Drawing Usage'])]],
+        presence: windowOn(W1, onItsWork(T0)),
+      }),
+    ),
+  ).toEqual([{ lead: 'Drawing Usage' }])
+})
+
+test('of several windows, the row is the one working, else the one on its own work whose turn ended last, else the one active last', () => {
+  const rowOf = (a: WindowState, b: WindowState) =>
+    rows(sessionOf({ presence: { ...windowOn(W1, a), ...windowOn(W2, b) } })).map(row => [
+      row.is,
+      row.writer,
+    ])
+  const shell = { shells: { count: 1, first: 'bun test' } }
+
+  expect(rowOf(working(T0), onItsWork(T0 + MIN, shell))).toEqual([['working', W1]])
+  expect(rowOf(onItsWork(T0, shell), yourTurn(T0 + MIN))).toEqual([['onItsWork', W1]])
+  expect(rowOf(onItsWork(T0, shell), onItsWork(T0 + MIN, shell))).toEqual([['onItsWork', W2]])
+})
+
 test("what a session is doing: its stop shown first, else its turn row's window, each worded as its row; away, since its latest line, with no window", () => {
   const doing = (presence: SessionFiles['presence'], lines: Line[] = []) =>
     doingOf(SWITCHBOARD, sessionOf({ lines, presence }), NOW)
@@ -392,6 +474,16 @@ test("what a session is doing: its stop shown first, else its turn row's window,
   expect(doing(windowOn(W1, yourTurn(T0 + MIN)), [[T0, status(['Drawing Usage'])]])).toEqual({
     is: 'yourTurn',
     line: { lead: 'Drawing Usage' },
+    since: T0 + MIN,
+  })
+  expect(
+    doing({
+      ...windowOn(W1, onItsWork(T0 + MIN, { monitors: { count: 1, first: 'CI on main' } })),
+      ...windowOn(W2, yourTurn(T0 + 2 * MIN)),
+    }),
+  ).toEqual({
+    is: 'onItsWork',
+    line: { lead: 'Watching', subject: 'CI on main' },
     since: T0 + MIN,
   })
   expect(doing({}, [[T0 + 5 * MIN, status(['Drawing Usage'])]])).toEqual({
@@ -495,13 +587,17 @@ const row = (key: string, is: Row['is'], since: number, isAway = false): Row => 
   since,
 })
 
-test('the rows in order: needs you oldest first, away ones last; then your turn, newest first; then working, longest running first', () => {
+test('the rows in order: needs you oldest first, away ones last; then working, longest running first; then on its own work, soonest to wake first, else oldest first; then your turn, newest first', () => {
   const shuffled = [
     row('working-new', 'working', T0 + 5 * MIN),
     row('turn-old', 'yourTurn', T0 + MIN),
+    row('own-old', 'onItsWork', T0),
+    { ...row('wakes-later', 'onItsWork', T0 + 2 * MIN), wakeAt: T0 + 90 * MIN },
     row('away-new', 'ask', T0 + 4 * MIN, true),
     row('ask-new', 'ask', T0 + 3 * MIN),
+    row('own-new', 'onItsWork', T0 + 3 * MIN),
     row('working-old', 'working', T0 + MIN),
+    { ...row('wakes-soon', 'onItsWork', T0 + 4 * MIN), wakeAt: T0 + 70 * MIN },
     row('away-old', 'ask', T0, true),
     row('permission-old', 'permission', T0 + MIN),
     row('turn-new', 'yourTurn', T0 + 6 * MIN),
@@ -514,10 +610,14 @@ test('the rows in order: needs you oldest first, away ones last; then your turn,
     'ask-new',
     'away-old',
     'away-new',
-    'turn-new',
-    'turn-old',
     'working-old',
     'working-new',
+    'wakes-soon',
+    'wakes-later',
+    'own-old',
+    'own-new',
+    'turn-new',
+    'turn-old',
   ])
 })
 

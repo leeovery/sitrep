@@ -72,9 +72,14 @@ struct StripRunTests {
 
     /// A run at Grows over these windows working, come to rest.
     private static func shown(_ ids: [String], _ settings: EdgeSettings = Self.settings(.grows)) -> StripRun {
+        shown(working(ids), settings)
+    }
+
+    /// A run over this board, come to rest.
+    private static func shown(_ board: PanelBoard, _ settings: EdgeSettings) -> StripRun {
         let run = run(settings)
 
-        run.show(working(ids), at(run.time))
+        run.show(board, at(run.time))
         frames(run, for: 3000, nil) { !run.frame.isMoving }
         return run
     }
@@ -86,9 +91,12 @@ struct StripRunTests {
 
     // MARK: A click
 
-    /// Eight windows working at Max's fewest, the grey count's tab open and still with the pointer on it.
-    private static func countOpen() -> StripRun {
-        let run = shown(["w1", "w2", "w3", "w4", "w5", "w6", "w7", "w8"], settings(.grows, max: StripMax(share: 0)))
+    /// Eight windows working, unless given another board, at Max's fewest, the grey count's tab open and still with
+    /// the pointer on it: w5 to w8 in it.
+    private static func countOpen(
+        _ board: PanelBoard = working(["w1", "w2", "w3", "w4", "w5", "w6", "w7", "w8"])
+    ) -> StripRun {
+        let run = shown(board, settings(.grows, max: StripMax(share: 0)))
         let count = CGPoint(x: 18, y: run.strip.yOf(.more))
 
         frames(run, for: 2000, count) { run.strip.liveTab()?.phase == .open }
@@ -461,6 +469,27 @@ struct StripRunTests {
         run.show(PanelBoard(last), Self.at(run.time))
 
         #expect(tab.words.count == words + 1)
+    }
+
+    /// A count's rows say no time, so its tab ticks only for a wake's countdown among them, a minute before the wake
+    /// and as it comes due, then never.
+    @Test func aCountsTabTicksOnlyForAWakesCountdownAmongItsRows() {
+        let until = 1_792_445_600_000
+        let rows = (1 ... 8).map { i in
+            i == 8
+                ? row("turn:w8", "onItsWork", session: "sr-w8", lead: "Wakes", until: until, second: "P · w8", since: 1_792_445_000_008)
+                : row("work:w\(i)", "working", session: "sr-w\(i)", lead: "Work w\(i)", second: "P · w\(i)", since: 1_792_445_000_000 + i)
+        }
+        var last = LastBoard()
+        _ = last.hear(.line(line(needYou: 0, sessions: 8, new: [], rows: rows)), at: Date())
+        let waking = Self.countOpen(PanelBoard(last)), working = Self.countOpen()
+        let due = Double(until)
+
+        #expect(waking.strip.layout.rest.last == "turn:w8")
+        #expect(waking.nextAgeChange(after: due - 90_000) == due - 60_000)
+        #expect(waking.nextAgeChange(after: due - 30_000) == due)
+        #expect(waking.nextAgeChange(after: due) == nil)
+        #expect(working.nextAgeChange(after: due - 90_000) == nil)
     }
 
     @Test func whileTheBoardIsStaleATabsTimeNeverTicks() {

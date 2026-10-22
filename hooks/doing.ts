@@ -21,9 +21,14 @@
  *
  * Each stop begun or ended is written to the debug log, with its tool and
  * how it was matched, so a live try can tell the dialog from the verdict.
+ *
+ * The turn's Stop says what it left pending: unless a hook beneath blocked
+ * it, which goes on with the turn, its lists replace what was pending, in
+ * whichever order it and the turn's end come.
  */
 import {
   agentTurnEnded,
+  isObject,
   permissionShown,
   QUESTION_TOOL,
   QUIET,
@@ -32,7 +37,10 @@ import {
   toolStarted,
   turnEnded,
   turnStarted,
+  turnStopped,
   type Activity,
+  type PendingCron,
+  type PendingTask,
   type Stop,
   type ToolCall,
 } from '../core'
@@ -51,6 +59,16 @@ type RequestInput = { tool_name: string; tool_input: unknown; agent_id?: string 
 
 /** What the settings hooks beneath answered a permission request: a decision, or a block, shows no dialog. */
 type RequestAnswer = { decision?: unknown; block?: string }
+
+/** A turn's Stop as the classic event says it: the subagent it is of, where it says, and what the session has pending. */
+type StopInput = {
+  agent_id?: string
+  background_tasks?: readonly PendingTask[]
+  session_crons?: readonly PendingCron[]
+}
+
+/** What the settings hooks beneath answered a Stop: a block goes on with the turn, unless the session is to stop after it. */
+type StopAnswer = { block?: string; preventContinuation?: true }
 
 const UNWRITTEN = "writing the window's state"
 
@@ -195,16 +213,25 @@ export const heardAgentTurnEnd = (host: Host, agentId: string) =>
 export const heardConversationEnd = (host: Host) =>
   heard(host, () => QUIET, 'the conversation ended')
 
-/** Runs a tool call, heard as it starts and as it ends however it ends; what it settles to is the call's own. Only a question's start, a stop, waits on the clock. */
+/**
+ * Runs a tool call, heard as it starts and as it ends however it ends, with
+ * its tool's result where it gave one; what it settles to is the call's own.
+ * Only a question's start, a stop, waits on the clock.
+ */
 export const throughCall = async <R>(host: Host, call: ToolCall, run: () => Promise<R>) => {
   const at = call.tool === QUESTION_TOOL ? await timeNow(host) : lastAt
+  let ended: { tool: string; result: unknown } | undefined
 
   await heard(host, activity => toolStarted(activity, call, at), 'its call started')
 
   try {
-    return await run()
+    const answer = await run()
+
+    ended = { tool: call.tool, result: isObject(answer) ? answer.result : undefined }
+
+    return answer
   } finally {
-    await heard(host, activity => toolEnded(activity, call.id), 'its call settled')
+    await heard(host, activity => toolEnded(activity, call.id, ended), 'its call settled')
   }
 }
 
@@ -255,4 +282,30 @@ export const heardRequest = async (
   if (begun.length === 0) {
     host.log(`sitrep: a permission dialog for ${tool} matched no call put to Lee: no stop`)
   }
+}
+
+/**
+ * The window's turn stopping, unless a settings hook beneath blocked its
+ * Stop, which goes on with the turn: what it lists pending replaces what
+ * was. A subagent's stop is its own event, never this one; one saying a
+ * subagent all the same is not the window's, and changes nothing.
+ */
+export const heardStop = async (
+  host: Host,
+  { agent_id: agentId, background_tasks: tasks, session_crons: crons }: StopInput,
+  answer: StopAnswer,
+) => {
+  if (agentId !== undefined) {
+    return
+  }
+
+  if (answer.block !== undefined && answer.preventContinuation !== true) {
+    host.log('sitrep: a settings hook blocked the Stop, so the turn goes on: nothing pending heard')
+
+    return
+  }
+
+  const at = await timeNow(host)
+
+  await heard(host, activity => turnStopped(activity, { tasks, crons }, at), 'its turn stopped')
 }

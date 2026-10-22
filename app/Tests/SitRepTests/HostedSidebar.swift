@@ -102,13 +102,13 @@ struct HostedSidebar {
         frame(of: view).minY
     }
 
-    /// The first board `watch` printed, the window open on it.
-    static func opened() -> WindowRun {
+    /// The first board `watch` printed, unless given another it printed, the window open on it.
+    static func opened(_ line: String = Lines.watch[0]) -> WindowRun {
         var last = LastBoard()
         let run = WindowRun()
 
         last.begin()
-        _ = last.hear(.line(Lines.watch[0]), at: printed)
+        _ = last.hear(.line(line), at: printed)
         _ = run.show(last, at: printed, reducesMotion: false)
         _ = run.open()
         return run

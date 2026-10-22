@@ -5,6 +5,7 @@
  * folder.
  */
 import type {
+  ClassicEventOf,
   ClassicResultOf,
   ElementTable,
   On,
@@ -423,16 +424,21 @@ export function world(engine: Engine, on: On, options: Options = {}) {
   /**
    * The built-in tools' calls the engine runs beneath the mod, by the tool
    * and its arguments: a verdict to check them by, if any, whether an "ask"
-   * shows Lee its dialog, and their ending.
+   * shows Lee its dialog, their ending, and whether the engine's own check
+   * of it has been let through.
    */
   const beneath = new Map<
     string,
-    { verdict?: Verdict; isShown: boolean; ending: Promise<Ending> }
+    { verdict?: Verdict; isShown: boolean; ending: Promise<Ending>; isPrechecked?: boolean }
   >()
 
   const callKey = (tool: string, args: Args) => JSON.stringify({ tool, ...args })
 
-  // As the engine runs one: its permission check, then the tool, until the test ends it.
+  // As the engine runs one: its permission check, then the tool, until the
+  // test ends it. Claude Code 2.1.308's harness runs its own check of the call
+  // before this hook, its dialog answered at once by a headless decider that
+  // denies, so that check is passed with `allow` (below) and the test's
+  // verdict and dialog are replayed here, as the call's own.
   on('tool.call', async ($, e, next) => {
     const { tool, tool_use_id, agentId, ...args } = e as Args & {
       tool: string
@@ -470,9 +476,32 @@ export function world(engine: Engine, on: On, options: Options = {}) {
     requestAnswer = answer
   }
 
-  on('tool.check', ($, e) => ({
-    decision: beneath.get(callKey(e.tool, e.input as Args))?.verdict ?? 'allow',
-  }))
+  /** What the settings hooks beneath answer a turn's Stop: nothing, so the turn stops, unless a test says otherwise. */
+  let stopAnswer: ClassicResultOf['classic.Stop'] = {}
+
+  on('classic.Stop', () => stopAnswer)
+
+  /** The settings hooks beneath answer every Stop from here on with `answer`, as one that blocks it to go on with the turn. */
+  const answerStops = (answer: ClassicResultOf['classic.Stop']) => {
+    stopAnswer = answer
+  }
+
+  /** The main conversation's turn stopping, its Stop listing what it leaves pending, or a subagent's id where given: the classic event's answer. */
+  const stops = (
+    pending: Pick<ClassicEventOf['classic.Stop'], 'background_tasks' | 'session_crons' | 'agent_id'>,
+  ) => engine.classic.Stop({ stop_hook_active: false, ...pending })
+
+  on('tool.check', ($, e) => {
+    const call = beneath.get(callKey(e.tool, e.input as Args))
+
+    if (call !== undefined && e.tool_use_id !== undefined && call.isPrechecked !== true) {
+      call.isPrechecked = true
+
+      return { decision: 'allow' as const }
+    }
+
+    return { decision: call?.verdict ?? 'allow' }
+  })
 
   /** The walk for the terminal gives `next` from here on. */
   const walkGives = (next: Walk) => {
@@ -619,7 +648,10 @@ export function world(engine: Engine, on: On, options: Options = {}) {
    * A built-in tool called from the main conversation, or from a subagent
    * given its id: checked first where given a verdict, its dialog shown to
    * Lee where an "ask" `isShown` (in auto mode, where the classifier hands
-   * it to Lee), then running until the test finishes or refuses it.
+   * it to Lee), then running until the test finishes or refuses it. The
+   * engine's own check of it, which its harness runs before the call's hook,
+   * is passed with `allow`; the call's hook then replays the check and the
+   * dialog with the test's verdict.
    */
   const calls = (
     tool: string,
@@ -743,6 +775,8 @@ export function world(engine: Engine, on: On, options: Options = {}) {
     call,
     calls,
     answerRequests,
+    answerStops,
+    stops,
     begin,
     become,
     turnStarts,

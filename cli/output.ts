@@ -203,7 +203,9 @@ export const boardJson = (project: string, session: Session) => {
 const lineJson = (line: RowLine) => ({
   lead: line.lead,
   mono: line.mono ?? null,
+  subject: line.subject ?? null,
   more: line.more ?? null,
+  until: line.until ?? null,
 })
 
 const rowJson = (row: Row) => ({

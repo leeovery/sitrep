@@ -92,13 +92,17 @@ public struct PanelBoard: Equatable, Sendable {
 
 extension Session {
     /// A row as the panel draws it, keyed by the row's key so it keeps its place: its project by name, and core's
-    /// letters for it; its first line's lead, then its subject in mono after a space, and a question's "+2"; core's
-    /// second line beneath, an away ask's saying so; its time from `since`.
+    /// letters for it; its first line's lead, then after a space its subject, in mono or plain, or the wake it counts
+    /// down to, and a question's "+2"; core's second line beneath, an away ask's saying so; its time from `since`.
     init(_ row: Board.Row, project: String) {
+        let line = row.first
+        let isFollowed = line.mono != nil || line.subject != nil || line.until != nil
+
         self.init(
             id: row.key, project: project, letters: row.letters, kind: Kind(row.kind), away: row.isAway,
-            title: row.first.mono == nil ? row.first.lead : row.first.lead + " ", code: row.first.mono,
-            more: row.first.more, sub: row.second, since: row.since.timeIntervalSince1970 * 1000
+            title: isFollowed ? line.lead + " " : line.lead, code: line.mono, subject: line.subject,
+            until: line.until.map { $0.timeIntervalSince1970 * 1000 }, more: line.more, sub: row.second,
+            since: row.since.timeIntervalSince1970 * 1000
         )
     }
 }
@@ -109,6 +113,7 @@ private extension Session.Kind {
         case .ask, .permission, .question: self = .needs
         case .yourTurn: self = .turn
         case .working: self = .working
+        case .onItsWork: self = .onItsWork
         }
     }
 }

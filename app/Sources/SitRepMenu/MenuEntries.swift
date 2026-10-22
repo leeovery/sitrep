@@ -73,9 +73,10 @@ extension MenuBoard {
         return [.heading("sessions", title: heading)] + rows + more + [.separator("sessions")]
     }
 
-    /// When on the wall clock, ms, a row's time next reads differently, for an open menu's badges; nil with no rows.
+    /// When on the wall clock, ms, a row's time or a wake's countdown next reads differently, for an open menu; nil with
+    /// no rows.
     public func nextTick(after now: Double) -> Double? {
-        items.compactMap(\.session).map { $0.ageChanges(after: now) }.min()
+        items.compactMap(\.session).map { $0.changes(after: now) }.min()
     }
 }
 
@@ -124,8 +125,9 @@ public struct MenuChanges: Equatable, Sendable {
     public var isEmpty: Bool { removals.isEmpty && insertions.isEmpty && changes.isEmpty }
 }
 
-/// A row's first line as the menu sets it: its words in the menu's font, its subject in mono after them, a question's
-/// "+2"; a working row's fainter than the rest, since it needs nothing.
+/// A row's first line as the menu sets it: its words in the menu's font, a plain subject or a wake's countdown among
+/// them, its subject in mono after them, a question's "+2"; a working row's, or one on its own work, fainter than the
+/// rest, since it needs nothing.
 public struct MenuTitle: Equatable, Sendable {
     public let words: String
     public let mono: String?
@@ -141,7 +143,11 @@ public struct MenuTitle: Equatable, Sendable {
 }
 
 extension Session {
-    public var menuLine: MenuTitle {
-        MenuTitle(words: title, mono: code, more: more.map { " \($0)" }, isFaint: kind == .working)
+    /// Its first line as the menu sets it at this time on the wall clock, ms.
+    public func menuLine(at now: Double) -> MenuTitle {
+        MenuTitle(
+            words: title + (subject(at: now) ?? ""), mono: code, more: more.map { " \($0)" },
+            isFaint: kind == .working || kind == .onItsWork
+        )
     }
 }

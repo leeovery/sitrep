@@ -2,10 +2,11 @@ import AppKit
 import SitRepPanel
 
 /// One mark on the strip in black, drawn as the prototype's `.mk`: the project's letters in a 24pt ring whose colour
-/// carries the state, a glow outside it while it needs Lee, the working arc turning round it, lifted under the
-/// pointer, and pressed in with its arc turning while a click on it jumps. Just arrived, it is washed orange and its
-/// ring flashes, and its lift eases as the model eases it, a frame at a time; any other change of look eases over
-/// 240ms, the letters' colour among it, as the prototype's transitions do, and the pressed fill over 110.
+/// carries the state, a glow outside it while it needs Lee, the working arc turning round it, or held still on its own
+/// work, lifted under the pointer, and pressed in with its arc turning while a click on it jumps. Just arrived, it is
+/// washed orange and its ring flashes, and its lift eases as the model eases it, a frame at a time; any other change of
+/// look eases over 240ms, the letters' colour among it, as the prototype's transitions do, and the pressed fill over
+/// 110.
 @MainActor
 final class StripMarkLayer {
     let layer = CALayer()
@@ -113,13 +114,17 @@ final class StripMarkLayer {
         CATransaction.begin()
         CATransaction.setDisableActions(!eased)
         CATransaction.setAnimationDuration(Self.arcFade(jumping: look.jumping))
-        spinner.layer.opacity = kind == .working || look.jumping ? 1 : 0
+        spinner.layer.opacity = kind == .working || kind == .onItsWork || look.jumping ? 1 : 0
         CATransaction.commit()
 
         if look.text != self.look?.text {
             setLetters(look.text)
         }
-        spinner.turn(every: look.jumping ? 0.9 : 1.2)
+        if kind == .onItsWork, !look.jumping {
+            spinner.hold()
+        } else {
+            spinner.turn(every: look.jumping ? 0.9 : 1.2)
+        }
         self.look = look
     }
 
@@ -153,7 +158,7 @@ final class StripMarkLayer {
         switch kind {
         case .needs, .away, .needsCount: EdgeStyle.orange
         case .turn: EdgeStyle.ink
-        case .working: nil
+        case .working, .onItsWork: nil
         case .count: EdgeStyle.track
         }
     }
@@ -162,7 +167,7 @@ final class StripMarkLayer {
         switch kind {
         case .needs, .turn, .needsCount: EdgeStyle.ink
         case .away: EdgeStyle.ink3
-        case .working: EdgeStyle.grey
+        case .working, .onItsWork: EdgeStyle.grey
         case .count: EdgeStyle.ink2
         }
     }

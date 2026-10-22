@@ -22,7 +22,7 @@ import {
   type Screen,
 } from '../cli/screen'
 import { parseClients, parsePanes, selectWords, type Client } from '../cli/tmux'
-import { attach, leave, presenceText, type Where, type WindowState } from '../core'
+import { attach, leave, presenceText, rowsOf, type Where, type WindowState } from '../core'
 import { fold, MIN, scripted, T0, W1, W2 } from './support'
 
 const SOCKET = '/private/tmp/tmux-501/default'
@@ -385,10 +385,14 @@ test('the sockets the windows run under are each named once', () => {
 /** A window's whereabouts, by its writer: a device of its own. */
 const whereOf = (writer: string): Where => ({ device: `/dev/tty${writer}`, terminal: 'ghostty' })
 
-/** The windows a session of these live windows is in, each attached at its time and in its state, if any. */
-const windowsAt = (...windows: [writer: string, at: number, state?: WindowState][]) => {
-  const now = T0 + MIN
-  const session = fold(
+type Window = [writer: string, at: number, state?: WindowState]
+
+/** When the windows below are looked at: a minute on. */
+const LOOKED = T0 + MIN
+
+/** A session of these live windows, each attached at its time and in its state, if any. */
+const sessionAt = (...windows: Window[]) =>
+  fold(
     {
       presence: Object.fromEntries(
         windows.map(([writer, at, state]) => [
@@ -397,11 +401,12 @@ const windowsAt = (...windows: [writer: string, at: number, state?: WindowState]
         ]),
       ),
     },
-    now,
+    LOOKED,
   )
 
-  return windowsOf(session, now).map(where => where.device?.slice('/dev/tty'.length))
-}
+/** The windows a session of these live windows is in, by writer, in the order a jump tries them. */
+const windowsAt = (...windows: Window[]) =>
+  windowsOf(sessionAt(...windows), LOOKED).map(where => where.device?.slice('/dev/tty'.length))
 
 test("a session's windows are its live presences' whereabouts; a window gone, stale or not saying where is left out", () => {
   const now = T0 + MIN
@@ -471,6 +476,17 @@ test("a session's windows go the one stopped on Lee first, at a permission promp
     windowsAt(['a', T0 + 30_000], ['b', T0, at('working', T0 + 5_000)]),
     'and below one working',
   ).toEqual(['b', 'a'])
+})
+
+test("a window on its own work goes below one working and above one on its turn, though that turn ended later: the window the session's row describes", () => {
+  const work = { agents: { count: 1, first: 'Review the diff' } }
+  const waiting: Window = ['a', T0, { is: 'onItsWork', since: T0 + 10_000, work }]
+  const turn: Window = ['b', T0, { is: 'yourTurn', since: T0 + 40_000 }]
+  const [row] = rowsOf({ key: 'kit', name: 'Kit' }, sessionAt(waiting, turn), LOOKED)
+
+  expect(row?.writer).toBe('a')
+  expect(windowsAt(waiting, turn)).toEqual(['a', 'b'])
+  expect(windowsAt(waiting, ['b', T0, { is: 'working', since: T0 + 5_000 }])).toEqual(['b', 'a'])
 })
 
 test('a report names its path at localhost, every character but / percent-encoded', () => {

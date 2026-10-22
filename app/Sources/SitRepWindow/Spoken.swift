@@ -37,6 +37,7 @@ public enum Spoken {
         case .needs: "needs you"
         case .turn: "your turn"
         case .working: "working"
+        case .onItsWork: "on its own work"
         case .away: "away"
         }
     }

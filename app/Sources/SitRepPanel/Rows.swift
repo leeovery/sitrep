@@ -2,9 +2,9 @@ import CoreGraphics
 
 /// A session as the edge shows it: a row on the panel, a mark on the strip, and a mark's tab.
 public struct Session: Equatable, Sendable {
-    /// Where it stands.
+    /// Where it stands: its turn over but on its own work, which will wake it, among them.
     public enum Kind: Sendable {
-        case needs, turn, working
+        case needs, turn, working, onItsWork
     }
 
     public let id: String
@@ -18,6 +18,10 @@ public struct Session: Equatable, Sendable {
     public var title: String
     /// Set in code type after the title, as in an ask to allow a command.
     public var code: String?
+    /// Set plain after the title, where what it waits on is no command: "3 agents".
+    public var subject: String?
+    /// When the wake it waits on is due, ms on the wall clock: its subject counts down to it, "in 12m".
+    public var until: Double?
     /// How many more questions it holds, as core words it: "+2".
     public var more: String?
     /// Its project and session.
@@ -27,7 +31,8 @@ public struct Session: Equatable, Sendable {
 
     public init(
         id: String, project: String, letters: String? = nil, kind: Kind, away: Bool = false, title: String,
-        code: String? = nil, more: String? = nil, sub: String, since: Double
+        code: String? = nil, subject: String? = nil, until: Double? = nil, more: String? = nil, sub: String,
+        since: Double
     ) {
         self.id = id
         self.project = project
@@ -36,6 +41,8 @@ public struct Session: Equatable, Sendable {
         self.away = away
         self.title = title
         self.code = code
+        self.subject = subject
+        self.until = until
         self.more = more
         self.sub = sub
         self.since = since
@@ -59,7 +66,49 @@ public struct Session: Equatable, Sendable {
         since + Self.minute * max(1, ((now - since) / Self.minute).rounded(.down) + 1)
     }
 
+    /// What it waits on, set plain after the title at this time on the wall clock: a wake's countdown, else its
+    /// subject.
+    public func subject(at now: Double) -> String? {
+        until.map { Self.untilText($0 - now) } ?? subject
+    }
+
+    /// When on the wall clock its words may next read differently: its time, or a wake's countdown.
+    public func changes(after now: Double) -> Double {
+        min(ageChanges(after: now), countdownChanges(after: now) ?? .infinity)
+    }
+
+    /// When on the wall clock a wake's countdown next reads differently: as it passes a whole minute before the wake,
+    /// and as the wake comes due; nil with no wake, or one due, which reads "now" for good.
+    public func countdownChanges(after now: Double) -> Double? {
+        guard let until, until > now else {
+            return nil
+        }
+
+        return until - Self.minute * (((until - now) / Self.minute).rounded(.up) - 1)
+    }
+
+    /// The readings of a wake's countdown a row leaves room for from this time on: its reading now, and the widest of
+    /// each smaller unit still to come, "in 23h" and "in 59m", as wide as any of its unit with the figures tabular, as
+    /// the views set them; none with no wake.
+    public func countdownRoom(after now: Double) -> [String] {
+        guard let until else {
+            return []
+        }
+
+        let left = until - now
+        let minutes = (left / Self.minute).rounded(.up)
+        let later = minutes >= 24 * 60 ? ["in 23h", "in 59m"] : minutes >= 60 ? ["in 59m"] : []
+
+        return [Self.untilText(left)] + later
+    }
+
     private static let minute = 60_000.0
+
+    /// The time until a wake in ms as its countdown reads (`Age`, up to the whole minute): "in 12m", "in 2h", "in
+    /// 3d"; "now" once it is due.
+    public static func untilText(_ left: Double) -> String {
+        left <= 0 ? "now" : "in \(ageText((left / minute).rounded(.up) * minute))"
+    }
 
     /// An age in ms as a row shows it (the prototype's `age`): now, then whole minutes, hours or days.
     public static func ageText(_ age: Double) -> String {

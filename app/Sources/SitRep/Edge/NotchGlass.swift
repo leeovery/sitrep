@@ -246,7 +246,7 @@ private struct GlassHead: View {
 
 /// A session's row on glass: its mark, its title with its subject and its "+2", its project and session, its time,
 /// laid out as the black's; under the pointer, a row that jumps lifts, and a click jumping from it presses it in with
-/// an arc spinning in its time's place.
+/// an arc spinning in its time's place. One on its own work is still, its subject plain or a wake's countdown.
 @available(macOS 26, *)
 private struct GlassSessionRow: View {
     let session: Session
@@ -292,7 +292,8 @@ private struct GlassSessionRow: View {
         Spinner(track: .quaternaryLabelColor, arc: .labelColor, period: 1).frame(width: 11, height: 11)
     }
 
-    /// Needs you an orange dot with its glow, away or not; your turn an open ring; working the arc turning.
+    /// Needs you an orange dot with its glow, away or not; your turn an open ring; working the arc turning; on its own
+    /// work the dotted ring, still.
     @ViewBuilder private var mark: some View {
         switch session.kind {
         case .needs:
@@ -302,11 +303,13 @@ private struct GlassSessionRow: View {
             Circle().strokeBorder(.primary, lineWidth: 1.5).frame(width: 7, height: 7)
         case .working:
             spinner
+        case .onItsWork:
+            DottedRingView(ring: .card, ink: .secondary)
         }
     }
 
     /// The title in a box this wide, cut short before a question's "+2": a working one shimmering along its lead, its
-    /// subject still; an away one dim.
+    /// subject still; one on its own work still, its subject plain where it is no command; an away one dim.
     private func title(width: Double) -> some View {
         HStack(spacing: SessionRowLayout.moreGap) {
             if session.kind == .working {
@@ -314,6 +317,8 @@ private struct GlassSessionRow: View {
                     Shimmering(text: lead, width: width)
                     subject.foregroundStyle(.secondary)
                 }
+            } else if session.kind == .onItsWork {
+                (lead + subject + plain).foregroundStyle(.secondary).truncationMode(.tail)
             } else {
                 let style: HierarchicalShapeStyle = session.away ? .tertiary : .primary
                 (lead.foregroundStyle(style) + subject.foregroundStyle(style)).truncationMode(.tail)
@@ -332,6 +337,15 @@ private struct GlassSessionRow: View {
     /// Its subject in mono, after the title.
     private var subject: Text {
         Text(session.code ?? "").font(.system(size: 13, weight: .medium, design: .monospaced))
+    }
+
+    /// What it waits on, plain, after the title: its subject, or a wake's countdown in tabular figures, as the
+    /// black's.
+    private var plain: Text {
+        let font = Font.system(size: 14)
+
+        return Text(session.subject(at: now) ?? "").font(session.until == nil ? font : font.monospacedDigit())
+            .kerning(-0.14)
     }
 }
 

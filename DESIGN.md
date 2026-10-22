@@ -190,27 +190,47 @@ notch and its panel").
   Lee has replied; Claude's show what Claude knows, and a reply not yet
   delivered is not Claude's to know.
 - **working**: its window is running a turn.
-- **your turn**: its window finished its turn, or Lee stopped it, and waits
-  for Lee's message. Not orange: they are in a conversation, and Lee comes
-  back when ready.
+- **on its own work** (22 October 2026): its window's turn has ended, but
+  Claude left something running that will wake it, so it waits on that and
+  not on Lee: background agents, a workflow, a background shell, a monitor,
+  anything else Claude Code runs in the background for it, or a one-off wake
+  it scheduled. When the work ends or the wake fires, Claude Code wakes the
+  window with a turn of its own, and it is working again. Board A, which Lee
+  took as the base of the card's sections ("A is kind of the base"), puts
+  Working above Your turn and on its own work in Working. What leaves a
+  session your turn all the same:
+  - a persistent monitor and a recurring wake: neither ever ends, so a
+    session holding one would never be Lee's turn again;
+  - a turn stopped with Esc, or ended by an API error: Claude Code sends no
+    Stop for the first, and for the second a StopFailure, which lists
+    nothing, so nothing pending is heard.
+
+  Known limit: a background shell that never ends, as `tail -f`, cannot be
+  told from one that will. It counts while it runs.
+- **your turn**: its window finished its turn, or Lee stopped it, with
+  nothing of its own left running, and waits for Lee's message. Not orange:
+  they are in a conversation, and Lee comes back when ready.
 - **away**: no window holds it, and it is still current. Dimmed.
 - **finished**: off the panel.
 
-Working, your turn and the stops on a permission prompt or a question come
-from the window's events. The mod records them as each window's state, in
-its heartbeat, with what the row shows of it (19 October 2026; the shape is
-under "Storage"). The session's state across its windows is core's
-(`core/rows.ts`, 19 October 2026), which `sitrep watch` prints: needing Lee
-wins, then working, then your turn, and a live window on a release from
-before heartbeats said a state reads as your turn since it attached. Only a
-stop the events show needs Lee: a turn that ends on a question in plain
-text is your turn. The colours stay few; the look is played with later, in
-Paper.
+Working, on its own work, your turn and the stops on a permission prompt or
+a question come from the window's events. The mod records them as each
+window's state, in its heartbeat, with what the row shows of it (19 October
+2026; the shape is under "Storage"). The session's state across its windows
+is core's (`core/rows.ts`, 19 October 2026), which `sitrep watch` prints:
+needing Lee wins, then working, then on its own work, then your turn, and a
+live window on a release from before heartbeats said a state reads as your
+turn since it attached. Only a stop the events show needs Lee: a turn that
+ends on a question in plain text is your turn. The colours stay few; the
+look is played with later, in Paper.
 
 How the mod hears its window's state, every hook only observing: it passes
 the event on as it came, and a failure recording what it heard is logged
 and swallowed, never breaking a turn, a tool or a permission prompt.
-- **A turn starts** (`turn.start`): working, since the turn began.
+- **A turn starts** (`turn.start`): working, since the turn began. What an
+  earlier turn left running is forgotten: a wake-up is such a turn, a
+  task's end or a monitor's event coming as `prompt.submit` then
+  `turn.start`, and the turn's own Stop says again what still runs.
 - **A tool runs** (`tool.call`, until its `next` settles): working carries
   the tool and its subject, the latest started where several run at once,
   then the one still running. The hook is over every call, sitrep's own
@@ -260,8 +280,45 @@ and swallowed, never breaking a turn, a tool or a permission prompt.
   so a command Lee allowed reads as its permission prompt until it ends.
   Of several calls waiting on Lee, the oldest shows.
 - **The turn ends** (`turn.complete` of the window's own loop, whatever its
-  reason: an answer, Lee's stop, an error): your turn, since then. Before
-  any turn, your turn since the window attached.
+  reason: an answer, Lee's stop, an error): your turn, since then, or on its
+  own work where the turn's Stop left something running. Before any turn,
+  your turn since the window attached.
+- **The turn stops** (`classic.Stop`, 22 October 2026): Claude Code's hook
+  at the end of the main loop's turn, which lists what still runs in the
+  background (`background_tasks`) and what is scheduled (`session_crons`).
+  The mod passes it on, then reads the answer it settles to: a `block`
+  from a hook beneath, without `preventContinuation`, carries the turn on,
+  so nothing is heard, and the debug log says so. Otherwise the mod keeps a
+  summary of what runs, never the lists: how many of each kind (agents,
+  workflows, shells, monitors, the rest), the first's words (a shell's
+  command, a workflow's name, else its description), and the one-off wakes,
+  with the soonest's time. The latest Stop replaces what an earlier one
+  left, and one with nothing running clears it. A Stop carrying an
+  `agent_id` is not the window's and changes nothing; Claude Code 2.1.308
+  sends a subagent's end as SubagentStop, never Stop, so none is expected.
+  Left out of the summary:
+  - a task Claude Code runs for itself and not for the turn (its dream,
+    its auto mode's scan, a memory import), which never wakes the window;
+  - a persistent monitor. The list does not say whether a monitor is
+    persistent, so the mod reads it from the Monitor call that started it:
+    its result gives its `taskId`, the list's id for the task, and says it
+    is persistent by `persistent`, or by a `timeoutMs` of 0, as the engine's
+    tool types have it. A Monitor running a command is listed as a shell;
+    known by its id, it counts as the monitor it is. A call's task is kept
+    until a Stop no longer lists it;
+  - a recurring wake. A one-off wake's time is the minute its schedule names
+    nearest now, in local time, as a cron reads it, within four years either
+    side: its next, unless the last before it is nearer. A one-off still
+    listed has not fired, so one whose minute has just passed is due now,
+    not a day or a year away. One that cannot be read counts without a
+    time: its minute or its hour not a number, or its day, month or weekday
+    a range, a list, a step, a name, or out of its range.
+- **Either order.** Whether Stop comes before `turn.complete` or after it
+  is unverified, so neither waits on the other: what Stop heard outlasts the
+  turn's end, and the state is worked out from both, whichever came last.
+  With no turn running and nothing stopped, something running makes it on
+  its own work, since the turn's end; else your turn. A Stop that changes
+  the state rewrites the heartbeat as any change does.
 - **Each loop's turn bounds what it left.** The window's turn starting or
   ending clears its own loop's tools, candidates and stops; a subagent's
   own `turn.complete`, which carries its `agentId`, clears that
@@ -1172,10 +1229,23 @@ $XDG_STATE_HOME/sitrep/, else ~/.local/state/sitrep/
              "tool": { "name": "Bash", "subject": "gh pr create" } }
   ```
 
-  - `is` is `working`, `permission`, `question` or `yourTurn`, and `since`
-    when it began: the turn's start while working, the prompt's or the
-    question's showing, the turn's end, or before any turn the attach. So
-    the row's time is how long the turn has run, or how long it has waited.
+  - `is` is `working`, `permission`, `question`, `onItsWork` or `yourTurn`,
+    and `since` when it began: the turn's start while working, the prompt's
+    or the question's showing, the turn's end, or before any turn the
+    attach. So the row's time is how long the turn has run, or how long it
+    has waited.
+  - `work`, on its own work alone (22 October 2026), is what it waits on, as
+    the turn's Stop listed it: each kind running, of `agents`, `workflows`,
+    `shells`, `monitors` and `others`, as its `count` and its `first`'s
+    words, cut as a subject is; and `wakes`, their `count` and `at`, when
+    the soonest is due of those whose schedule reads. A kind with nothing
+    is left out:
+
+    ```
+    "state": { "is": "onItsWork", "since": 1760000005000,
+               "work": { "agents": { "count": 3, "first": "Review the diff" },
+                         "wakes": { "count": 1, "at": 1760000725000 } } }
+    ```
   - `tool` is the tool working runs, or the one a permission prompt asks for:
     its `name` as the model calls it, and its `subject` where it has one, from
     one argument (core's `subject.ts`): Read's, Edit's, MultiEdit's and Write's
@@ -1222,8 +1292,10 @@ $XDG_STATE_HOME/sitrep/, else ~/.local/state/sitrep/
     once, and the newer load's next rewrite, at its next change or beat,
     puts it right.
   - What the window has heard (its turn, the tools it runs, the calls put to Lee
-    with their tool, loop and arguments' digests, and the stops, each with its
-    loop) is kept in `$.state` (`activity`), so a `/reload-plugins` keeps it,
+    with their tool, loop and arguments' digests, the stops, each with its
+    loop, the summary of what its last Stop listed running, and the tasks its
+    Monitor calls started, each with whether it is persistent) is kept in
+    `$.state` (`activity`), so a `/reload-plugins` keeps it,
     and in the mod, which reads it from there once a load and writes it back at
     each change. It is never read back: every `get` of one dispatch reads one
     moment, and a call's hook, whose dispatch lasts as long as its tool runs,
@@ -1634,7 +1706,7 @@ truth. There is still no background service. None of it is built now. Lee:
             "session": "sr-k3f9qa", "project": "switchboard",
             "letters": "Sw", "ask": "k1", "writer": null,
             "first": { "lead": "Review round 1", "mono": null,
-                       "more": null },
+                       "subject": null, "more": null, "until": null },
             "second": "Switchboard · Dashboard redesign",
             "since": 1760000000000 } ],
         "projects": [
@@ -1649,7 +1721,8 @@ truth. There is still no background service. None of it is built now. Lee:
                 "since": 1760000000000,
                 "doing": { "is": "working",
                            "line": { "lead": "Reading", "mono": "...",
-                                     "more": null },
+                                     "subject": null, "more": null,
+                                     "until": null },
                            "since": 1760000000000 },
                 "asks": [ ... ] } ] } ],
         "windows": [
@@ -1667,13 +1740,17 @@ truth. There is still no background service. None of it is built now. Lee:
 
     - `rows` are the panel's, the strip's and the menu's, in their order
       (see "The rows"). `is` is what the row is (`ask`, `permission`,
-      `question`, `yourTurn` or `working`), and `isAway` an ask of a session
-      no window holds; then its session, its project's key, the strip's two
-      `letters` (the project's capitals where it has two, else its first
-      two), its `ask` or its window (`writer`), its two lines, and `since`,
-      the instant its time counts from, which the app ticks. `first` is in
-      parts: `lead`, which a working row shimmers; `mono`, the subject set
-      in mono; `more`, a question's `+2`. `second` is the project and the
+      `question`, `working`, `onItsWork` or `yourTurn`), and `isAway` an ask
+      of a session no window holds; then its session, its project's key, the
+      strip's two `letters` (the project's capitals where it has two, else
+      its first two), its `ask` or its window (`writer`), its two lines, and
+      `since`, the instant its time counts from, which the app ticks. `first`
+      is in parts: `lead`, which a working row shimmers; `mono`, the subject
+      set in mono; `subject`, one set plain, as on its own work's "3 agents";
+      `more`, a question's `+2`; `until`, when the wake a row on its own work
+      waits on is due, which the app words as its countdown after the lead.
+      `subject` and `until` came in with on its own work (22 October 2026),
+      null on every other row. `second` is the project and the
       session, or, for an away ask, "No window holds it. Carry it on in
       Claude.", which the app shows as it comes. `key` names the row for as
       long as it stands
@@ -1686,7 +1763,8 @@ truth. There is still no background service. None of it is built now. Lee:
       latest updated first; a project where its first session sits. Each
       session is as `list --json` gives it but `onScreen`, which only `list
       --json` works out, asking tmux, with its `state` (`needsYou`,
-      `working`, `yourTurn` or `away`), `since`, its first row's time, else
+      `working`, `onItsWork`, `yourTurn` or `away`), `since`, its first
+      row's time, else
       its latest line's, `doing`, and its open asks, as `board --json` lists
       them (core's `openAsks`): waiting, on Lee or on a window to deliver Lee's
       reply, or replied, Claude's to act on, each with its `reply`, which
@@ -1725,6 +1803,11 @@ truth. There is still no background service. None of it is built now. Lee:
       `doing`'s `is`, an ask's `wants`, a window's state's `is`, and the
       like) is such a change: the app reads them strictly and refuses a
       line holding a value it does not know. New words in a line, as an away ask's `second`, are not.
+      On its own work breaks this once, by plan (22 October 2026):
+      `onItsWork` came into the rows', the sessions', the doings' and the
+      windows' kinds without `v` moving, the app taking it in the same
+      change, so an app built before it refuses a line holding it until it
+      is built again. The rows grouped by session, next, move `v` to 2.
     - **The loop.** It looks every second, as the mod's readers do: a file
       is read again only once its size or time moved, a folder listed again
       only once its time moved, as an entry made, removed or renamed there
@@ -2151,22 +2234,30 @@ looked blurred from across the room. Lee wanted "the crisp edges on the
 black background", with a little happening inside: subtle, and narrower.
 
 **The rows** (16 October 2026). The panel shows every session that needs
-Lee, away ones included, and every session a window holds, working or your
-turn (see "A session's state"). An away session with nothing waiting stays
-off it, for the SitRep window to show. In this order:
+Lee, away ones included, and every session a window holds, working, on its
+own work or your turn (see "A session's state"). An away session with
+nothing waiting stays off it, for the SitRep window to show. In this order:
 1. needs you, oldest first, with away ones last, oldest first among them;
-2. your turn, newest first;
-3. working, longest running first.
+2. working, longest running first;
+3. on its own work: those waiting on a wake first, the soonest due first,
+   then the rest, the longest waiting first;
+4. your turn, newest first.
+
+Working and on its own work came above your turn with on its own work (22
+October 2026): board A, the base of the card's sections, puts Working above
+Your turn, and on its own work at Working's end. Your turn was second until
+then.
 
 Core decides the rows (`core/rows.ts`, 19 October 2026), and `sitrep
 watch` prints them in this order, for the app to draw as they come: one per
 ask waiting, and one per live window stopped on a permission prompt or a
 question, a session that needs Lee showing only those; else one per session
 a window holds: working where any of its windows is, the one whose turn
-began last, else your turn, the one whose turn ended last. Each says what
-it is, its two lines as below, and the instant its time counts from: an
-ask's posting, or its reopening; a stop's showing; the turn's end on your
-turn; the turn's start while working. While a tool runs, a working row
+began last, else on its own work where any is, else your turn, each the one
+whose turn ended last. Each says what it is, its two lines as below, and
+the instant its time counts from: an ask's posting, or its reopening; a
+stop's showing; the turn's end on your turn and on its own work; the turn's
+start while working. While a tool runs, a working row
 leads with its verb (Read Reading; Edit, MultiEdit and NotebookEdit Editing;
 Write Writing; Bash Running; Grep and WebSearch Searching; Glob Finding;
 WebFetch Fetching; Skill Using; LSP Checking), its subject after it, a
@@ -2174,6 +2265,25 @@ file's path from the project's directory where it lies under it; Agent,
 Task and Monitor lead with their description, and any other tool with its
 name. With no tool, working and your turn read the board's "now", else the
 summary, else the name.
+
+A row on its own work says what it waits on, in the working row's form, the
+first of these that it has (22 October 2026):
+1. agents: "Waiting on" and "3 agents", or the one agent's description;
+2. a workflow: "Running" and its name, else its description;
+3. a shell: "Running" and its command, in mono, as a working row sets one;
+4. a monitor: "Watching" and its description;
+5. anything else: "Waiting on" and its description;
+6. only a wake: "Wakes" and "in 12m".
+
+The countdown is the app's: core writes nothing that hangs on the clock, so
+the wake's line carries when it is due (`until`), and each surface words it
+after "Wakes" as its clock ticks: under an hour, the whole minutes left,
+rounded up ("in 12m" from twelve minutes down to eleven); past that, hours
+and then days, as an age is worded ("in 1h" up to two hours); then "now"
+once due, as a wake past its minute is. Its figures are tabular, and a tab
+on the strip leaves room for the widest it will read, so it never widens
+past its tab: "in 1h" becomes "in 59m". The row's time still counts from
+the turn's end, as every row's does, so the countdown never shows twice.
 
 Rows keep their places while the panel is open: a changed row moves only
 once it closes. Meanwhile a row gone folds away where it was, and a new one
@@ -2205,6 +2315,14 @@ time on the right; one line each, cut short with an ellipsis:
   line, as Claude Code's own; while a tool runs, the line is the tool (the
   verb shimmers, a path stays still in mono), else the board's "now"; how
   long the turn has run. It is greyer than the rest: it needs nothing.
+- **on its own work** (Paper's board D, "One list, two sizes", 22 October
+  2026): the working row's layout, all of it still. Its mark is a ring of
+  round-capped dashes that never turns, #8E8E95, centred in the working
+  mark's 11-wide lane (r 4.5, its stroke 1.5, dashes 1.6 with gaps of
+  2.12); its verb 14 medium in #B4B4BA, what it waits on 14 regular in
+  #8E8E95 after it, or a command in mono as working sets one; how long
+  since its turn ended. Nothing of it runs: no shimmer, no turning, and only
+  a wake's countdown is drawn again, as it reads differently.
 
 The shimmer stays neutral. Orange is for needs you only: the dot, the wash
 and a new row's "now". Lee had suggested working titles shimmer white or
@@ -2465,7 +2583,10 @@ were settled in the browser spike (below, "How the strip moves").
   - **away, with an ask**: orange, the letters dim;
   - **your turn**: white;
   - **working**: a grey track with a pale arc turning round it, the letters
-    grey.
+    grey;
+  - **on its own work** (22 October 2026): working's mark held still, its
+    arc never turning and nothing of it running, until a click's jump turns
+    it as it turns any mark's.
 
   One hairline sits under needs you, as in the panel. The letters are the
   project's capitals where it has two (SitRep SR, DocMan DM), else its first
@@ -2644,8 +2765,9 @@ stands).
       but it also needs just a little bit of space";
     - **the projects** follow, every project with a session open, its
       sessions under it. A project sits where its first session would sit in
-      the panel, so the oldest need comes first, then away, then your turn,
-      then working; its sessions keep that order. This replaces the pane's
+      the panel, so the oldest need comes first, then away, then working,
+      then on its own work, then your turn; its sessions keep that order.
+      This replaces the pane's
       "the busiest" for the window, so every surface sorts by one rule. So
       every ask shows twice, under Needs you and under its project;
     - **Quiet projects** end it: the projects with nothing open, a row each,
@@ -2686,7 +2808,10 @@ stands).
       tertiary, so the system's emphasized selection turns them white by
       itself; the orange stays orange. Its marks are drawn still: the ask's
       orange dot, your turn's soft ring, working's still arc on a faint
-      track, away's faint dot, its name faint. Nothing in the sidebar turns;
+      track, on its own work's ring of round-capped dashes in white at 45%
+      (r 4.25, its stroke 1.5, dashes 1.5 with gaps of 2.0, board D, 22
+      October 2026), away's faint dot, its name faint. Nothing in the
+      sidebar turns;
     - **the filter** narrows the list in place, Needs you and the projects
       by one rule. A session stays while every word typed appears, anywhere,
       in its name or its project's, whatever their case and accents, so
@@ -2880,9 +3005,10 @@ stands).
   board's list when neither does.
 - **VoiceOver reads words, never symbols.**
   - a sidebar row is one element: its session, its project, its state
-    (needs you, your turn, working, away) and its age, as "The Mac app,
-    SitRep, needs you, 5 hours"; an away session with something waiting
-    reads "needs you, away". A project's heading reads its count of what
+    (needs you, your turn, working, on its own work, away) and its age, as
+    "The Mac app, SitRep, needs you, 5 hours"; an away session with
+    something waiting reads "needs you, away". A project's heading reads its
+    count of what
     waits there, "SitRep, 3 waiting", or "Kit, nothing waiting", and
     folded says so, "Kit, nothing waiting, folded"; Quiet projects' reads
     "Quiet projects", and a quiet project's row "Kit, quiet project". A
@@ -3000,7 +3126,10 @@ asked for the sessions back, and approved the redraw as it stands.
     rows"), under a heading in the panel head's words, "4 need you" or "All
     clear". Each is a native item with a subtitle (macOS 14.4): what it is,
     then its project and session, and its time on the right as the item's
-    badge. A separator sits where the panel's hairline is. A click jumps;
+    badge. A row on its own work is faint, as a working row is, its mark
+    the dotted ring, and a wake's countdown is set again as it ticks, with
+    the badges. A separator sits where the panel's hairline is. A click
+    jumps;
   - **Open SitRep Window**, after the list, for what the list leaves out:
     away sessions with nothing waiting, notes, parked and resolved;
   - **Show**: Notch, Strip or Nothing, inline, the one in use ticked, so
@@ -3458,9 +3587,12 @@ shape allows them. A jump made in Swift, in the app, stays parked too.
    working window is active now, however long ago its turn began, since
    `state.since` is its turn's start: one working since 9:00 is more active
    than one whose turn ended at 10:00. So the order is: needs Lee; then
-   working; then the rest, on their turn or saying no state; within each,
-   the latest `state.since` (the later stop, the turn Lee started last, the
-   later end of a turn), then the latest `attachedAt`. A window saying no
+   working; then on its own work, as the session's row prefers it, so the
+   jump goes to the window the row describes, though another's turn ended
+   later (22 October 2026); then the rest, on their turn or saying no state;
+   within each, the latest `state.since` (the later stop, the turn Lee
+   started last, the later end of a turn), then the latest `attachedAt`. A
+   window saying no
    state, as one on a release from before heartbeats said it, goes with
    those on their turn, by its attach, which is what a state's start is
    before any turn. Each window's places are tried before the next window's,
@@ -4100,7 +4232,9 @@ reaches a window only while that pane is on show).
           for every session: core words it, the window draws it, a stop in
           its washed card. A session needing Lee for its asks alone has no
           row of its windows', so the rows could not say it. Its time reads
-          "6m into this turn", or "its turn ended 12m ago". Its `away` is the
+          "6m into this turn", or "its turn ended 12m ago", as on its own
+          work too, whose line says what it waits on, a wake's countdown
+          worded at the window's tick. Its `away` is the
           one fact of away: the jump, finishing, the faint name and a card's
           buttons all follow it.
         - **A card.** Its buttons come from `wants`: a yes's white pill, an
