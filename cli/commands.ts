@@ -3,10 +3,11 @@
  * session, of the projects, or of a jump to a session's window; and the
  * board watched, which runs until it is told to end. A command on a session
  * hands back the lines it posts, and what to print: a post's item id, so a
- * script can keep it. Its lines are the CLI's own, but an answer's, which
- * go into the session's inbox as the CLI's letters, for the session's
- * window to deliver as it delivers any reply. Each is pure: what it needs
- * of the screen is looked at, and the jump made, before it acts.
+ * script can keep it. Its lines are the CLI's own, a snooze's and a wake's
+ * among them, but an answer's, which go into the session's inbox as the
+ * CLI's letters, for the session's window to deliver as it delivers any
+ * reply. Each is pure: what it needs of the screen is looked at, and the
+ * jump made, before it acts.
  */
 import {
   boardText,
@@ -15,7 +16,9 @@ import {
   checkFinish,
   checkNote,
   checkPark,
+  checkSnooze,
   checkStatus,
+  checkWake,
   inWords,
   WANTS,
   withId,
@@ -25,7 +28,7 @@ import {
   type Random,
   type Session,
 } from '../core'
-import type { Fields, Flag, Grammar } from './args'
+import type { Arg, Fields, Flag, Grammar } from './args'
 import type { Jumped } from './jump'
 import { boardJson, listing, listJson, listText } from './output'
 
@@ -35,19 +38,16 @@ export type Filed = { project: string; session: Session }
 /** What a command on a session comes to: the lines it posts, and what it prints. */
 export type Outcome = { post: Body[]; print: string }
 
+/** What a command on a session is given beyond its words: random bytes, the version the CLI runs, as its plugin's manifest says it, where that reads, and the time the session was read at. */
+export type Given = { random: Random; version: string | undefined; now: number }
+
 type About = { name: string; about: string; grammar: Grammar }
 
 export type SessionCommand = About & {
   on: 'session'
   /** Where its lines go: the CLI's own file in the session, unless they are an answer, for the session's inbox. */
   into?: 'inbox'
-  /** `version` is the one the CLI runs, as its plugin's manifest says it, where that reads. */
-  act: (
-    filed: Filed,
-    input: Fields,
-    random: Random,
-    version: string | undefined,
-  ) => Checked<Outcome>
+  act: (filed: Filed, input: Fields, given: Given) => Checked<Outcome>
 }
 
 /** What a command on the projects is given: every one read, with its sessions, from the folder the CLI runs in, at `now`, and the ids of the sessions on screen. */
@@ -116,6 +116,13 @@ const posted = <B extends Body>(
 
 const idOf = (body: { id: string }) => body.id
 
+/** Lines that print nothing, as they come out. */
+const quietly = (checked: Checked<Body[]>): Checked<Outcome> =>
+  checked.ok ? { ok: true, value: { post: checked.value, print: '' } } : checked
+
+/** The asks a snooze or a wake names. */
+const ASKS: Arg = { field: 'ask', about: "each ask's id, as the board lists it", isMany: true }
+
 const note: SessionCommand = {
   name: 'note',
   about: "Add a line to the board's log: something Lee would want to know later. Prints its id.",
@@ -133,7 +140,7 @@ const note: SessionCommand = {
     },
   },
   on: 'session',
-  act: ({ session }, input, random) => posted(withId(checkNote(input), session, random), idOf),
+  act: ({ session }, input, { random }) => posted(withId(checkNote(input), session, random), idOf),
 }
 
 const ask: SessionCommand = {
@@ -173,7 +180,7 @@ const ask: SessionCommand = {
     },
   },
   on: 'session',
-  act: ({ session }, input, random) => posted(withId(checkAsk(input), session, random), idOf),
+  act: ({ session }, input, { random }) => posted(withId(checkAsk(input), session, random), idOf),
 }
 
 const park: SessionCommand = {
@@ -181,7 +188,7 @@ const park: SessionCommand = {
   about: 'Park something raised and put off, to come back to. Prints its id.',
   grammar: { args: [{ field: 'title', about: LINE }], flags: { ...WHERE, ...REF, ...SESSION } },
   on: 'session',
-  act: ({ session }, input, random) => posted(withId(checkPark(input), session, random), idOf),
+  act: ({ session }, input, { random }) => posted(withId(checkPark(input), session, random), idOf),
 }
 
 const status: SessionCommand = {
@@ -244,8 +251,38 @@ const answer: SessionCommand = {
   },
   on: 'session',
   into: 'inbox',
-  act: ({ session }, input, random, version) =>
+  act: ({ session }, input, { random, version }) =>
     posted(withId(checkAnswer(session, input, version), session, random), () => ''),
+}
+
+const snooze: SessionCommand = {
+  name: 'snooze',
+  about:
+    "Snooze asks until a time, as Lee does on the board: they count nowhere as waiting on Lee until it comes, then wait on Lee again. A line for each in the CLI's own file, none in the inbox; every ask named is snoozed, or none is. One snoozed already is snoozed again, to the new time. Prints nothing.",
+  grammar: {
+    args: [ASKS],
+    flags: {
+      until: {
+        field: 'until',
+        form: 'one',
+        value: '<ms>',
+        about: 'when they wake, in milliseconds since the epoch: a time still to come',
+        isNeeded: true,
+      },
+      ...SESSION,
+    },
+  },
+  on: 'session',
+  act: ({ session }, input, { now }) => quietly(checkSnooze(session, input, now)),
+}
+
+const wake: SessionCommand = {
+  name: 'wake',
+  about:
+    "Wake snoozed asks now, as Lee does on the board: they wait on Lee again. A line for each in the CLI's own file; every ask named is woken, or none is. Prints nothing.",
+  grammar: { args: [ASKS], flags: { ...SESSION } },
+  on: 'session',
+  act: ({ session }, input) => quietly(checkWake(session, input)),
 }
 
 const finish: SessionCommand = {
@@ -351,6 +388,8 @@ export const COMMANDS: readonly Command[] = [
   park,
   status,
   answer,
+  snooze,
+  wake,
   finish,
   board,
   list,

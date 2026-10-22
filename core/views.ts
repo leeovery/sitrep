@@ -9,7 +9,7 @@
  * one, stays on disk, out of every view.
  */
 import { nearestFirst, type Project } from './project'
-import { isOpen } from './replies'
+import { isOpen, snoozedAsks } from './replies'
 import { compareText } from './text'
 import type { Ask, LogLine, Parked, Session } from './types'
 
@@ -38,13 +38,15 @@ export type SessionSummary = {
   isOpen: boolean
   /** Finished: out of every view, whatever it holds. */
   isFinished: boolean
-  /** Asks waiting on Lee. */
+  /** Asks waiting on Lee, those snoozed aside. */
   waiting: number
+  /** Asks Lee snoozed, which wait on Lee again as they wake; none once the session is finished. */
+  snoozed: number
   /**
    * Asks waiting as posted, none once the session is finished: those Lee's
    * reply is on its way to among them, which keep the session current as an
    * ask waiting on Lee does, and which Claude, not yet given the reply,
-   * reads as waiting on Lee.
+   * reads as waiting on Lee; and those snoozed, which keep it current too.
    */
   asked: number
   parked: number
@@ -71,6 +73,7 @@ export type ProjectSummary = {
   /** How many sessions have a window. */
   open: number
   waiting: number
+  snoozed: number
   /** Asks waiting as posted, as each session counts them: what keeps the project out of the folded line. */
   asked: number
   parked: number
@@ -115,8 +118,8 @@ const total = (sessions: readonly SessionSummary[], count: (session: SessionSumm
 
 /**
  * Whether a session shows in the views: not finished, and open, with an ask
- * waiting (on Lee, or on a window to deliver Lee's answer), holding
- * something parked, or updated within `CURRENT_MS`.
+ * waiting (on Lee, snoozed or not, or on a window to deliver Lee's answer),
+ * holding something parked, or updated within `CURRENT_MS`.
  */
 export const isCurrent = (session: SessionSummary, now: number) =>
   !session.isFinished &&
@@ -143,6 +146,7 @@ export const summarise = (session: Session): SessionSummary => ({
   isOpen: session.isOpen,
   isFinished: session.finished !== undefined,
   waiting: session.waiting,
+  snoozed: snoozedAsks(session).length,
   asked:
     session.finished === undefined ? session.asks.filter(ask => ask.state === 'waiting').length : 0,
   parked: session.parked.length,
@@ -176,6 +180,7 @@ export const summariseProject = (
     sessions: summaries,
     open: summaries.filter(session => session.isOpen).length,
     waiting: total(summaries, session => session.waiting),
+    snoozed: total(summaries, session => session.snoozed),
     asked: total(summaries, session => session.asked),
     parked: total(summaries, session => session.parked),
     updatedAt: latest?.updatedAt ?? 0,

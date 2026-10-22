@@ -17,9 +17,12 @@ const flagUsage = ([name, flag]: [string, Flag]) => {
   return `${flag.isNeeded ? word : `[${word}]`}${flag.form === 'many' ? '...' : ''}`
 }
 
-/** An argument as its usage gives it: itself, or it or the switch given in its place. */
-const argUsage = ({ field, or }: Arg) =>
-  or === undefined ? `<${field}>` : `(<${field}> | --${or})`
+/** An argument as its usage gives it: itself, one or more of it, or it or the switch given in its place. */
+const argUsage = ({ field, or, isMany }: Arg) => {
+  const word = `<${field}>${isMany ? '...' : ''}`
+
+  return or === undefined ? word : `(${word} | --${or})`
+}
 
 /** A command's usage line, each switch an argument may stand in for beside it; in the brief, without the flag every command on a session takes. */
 const usageOf = ({ name, grammar }: Command, isBrief = false) => {

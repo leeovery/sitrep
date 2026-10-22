@@ -138,6 +138,12 @@ export type FinishBody = { type: 'finish'; who: Finisher; reason?: string }
 /** Takes a finished session up again: a window joined it. */
 export type UnfinishBody = { type: 'unfinish' }
 
+/** Lee's snooze of an ask: it counts nowhere as waiting on Lee until `until`, in place of any snooze before. */
+export type SnoozeBody = { type: 'snooze'; item: string; until: number }
+
+/** Lee's waking of a snoozed ask now: it waits on Lee again. */
+export type WakeBody = { type: 'wake'; item: string }
+
 /** What one line of a writer's file says. */
 export type Body =
   | StatusBody
@@ -152,6 +158,8 @@ export type Body =
   | DeliveredBody
   | FinishBody
   | UnfinishBody
+  | SnoozeBody
+  | WakeBody
 
 /** A line as written: its body, stamped with the format's version, the time and the writer's own count. */
 export type Entry = Body & { v: number; at: number; seq: number }
@@ -222,6 +230,10 @@ export type Ask = Posted & {
   answerOnItsWay?: Reply
   /** Lee's replies to it, oldest first, those on their way in a live window's message, not written down yet, among them at their claim's time. */
   replies: Reply[]
+  /** When Lee's latest snooze of it wakes, while that is still to come at the fold's moment; only on one waiting as posted. */
+  snoozedUntil?: number
+  /** When Lee's latest snooze of it ran out, once it has, until a later line ends it; only on one waiting as posted. */
+  wokeAt?: number
 }
 
 export type Note = Posted & {
@@ -369,7 +381,7 @@ export type Session = {
   isOpen: boolean
   /** The window that submits inbox replies: the oldest live presence. */
   deliverer?: string
-  /** Asks waiting on Lee; none once the session is finished. */
+  /** Asks waiting on Lee, those Lee snoozed aside; none once the session is finished. */
   waiting: number
   /** Set once the session is finished, until a window joins it again. */
   finished?: Finished

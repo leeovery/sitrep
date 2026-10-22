@@ -121,6 +121,8 @@ const SHAPES: { [T in Body['type']]: Record<string, Check> } = {
   delivered: { replies: isTexts },
   finish: { who: isFinisher, reason: maybe(isText) },
   unfinish: {},
+  snooze: { item: isText, until: isTime },
+  wake: { item: isText },
 }
 
 /** What a kind of line needs beyond its fields one by one: an ask says what it wants back, or, written before asks did, its kind. */

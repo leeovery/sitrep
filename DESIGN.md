@@ -32,11 +32,12 @@ Settled with Lee on 16 October 2026.
 | **session id** | The board's internal id for a session (`sr-k3f9qa`). Not Claude Code's session id, which names a conversation and changes on `/clear`. | Never shown. |
 | **the board** | The content: projects, sessions and their items, the state any surface shows. Putting something on the board is like putting it in a database. | |
 | **status** | Where a session stands: its name, a one-line summary, what is under way now (one line each), and what comes next. | |
-| **ask** | Something only Lee can do or decide, posted by Claude. Counted on the band. | |
+| **ask** | Something only Lee can do or decide, posted by Claude. Counted on the band, unless snoozed. | |
 | **note** | A line under Notes: something that happened that Lee may want to know. Not counted. | |
 | **parked** | Something raised and put off, to circle back to. Not counted, not dismissable. | |
 | **reply** | Lee's answer to an ask, or a pick-up of a parked item, waiting in Ready to send. | |
 | **resolved** | An item done with: an ask a reply closed, or any item Claude resolved. Resolved lists a session's resolved asks. | |
+| **snoozed** | An ask Lee put off until a time (23 October 2026; see "Snooze"): it counts nowhere as waiting on Lee until then, and is back in Needs you as it wakes, or as Lee wakes it. | Snoozed |
 | **finished** | A session Claude or Lee finished, once it was complete with nothing left on it. | |
 | **notch** | The SitRep notch, where it needs telling from the camera's: the black shape at the edge of the screen that opens into the panel. | |
 | **panel** | What the notch opens, the notch panel or the SitRep panel: a glance at the board, and a jump. | |
@@ -84,11 +85,12 @@ of its own.
 
    ```
    On the board:
-   - SitRep: sr-wdsqvn "sitrep", 2 waiting on Lee
+   - SitRep: sr-wdsqvn "sitrep", 2 waiting on Lee, 1 snoozed by Lee
    - Switchboard: sr-v1pwm9 "Milestone 7 stage 1"
    ```
 
-   The projects whose directory holds the window's folder come first, the
+   An ask Lee snoozed counts apart, as snoozed by Lee (see "Snooze"). The
+   projects whose directory holds the window's folder come first, the
    nearest first, then the busiest, as All projects orders them. It is
    computed once per conversation, again after `/clear` or a compaction, and
    again for a conversation resumed in a new process or by `/resume` (live). It
@@ -138,8 +140,8 @@ discussed. So `start` names its project, as Lee would say it and cased
 
 A session is **current**, and shows in the project view, All projects and
 the first message's listing, while it is open, has an ask waiting (on Lee,
-or on a window to deliver Lee's answer), has something parked, or was
-updated in the last 7 days. An older idle session
+snoozed or not, or on a window to deliver Lee's answer), has something
+parked, or was updated in the last 7 days. An older idle session
 stays on disk and out of the views; a project left with none drops out of
 All projects altogether.
 
@@ -163,7 +165,9 @@ notch and its panel").
 - **needs you**: an ask waits, or its window has stopped on a permission
   prompt or a question. Orange. It wins over the others: a session can need
   Lee and be working at once, as when Claude posts an ask and carries on.
-  An ask counts even while the session is away.
+  An ask counts even while the session is away, and not while Lee has it
+  snoozed (23 October 2026; see "Snooze"): a session whose waiting asks are
+  all snoozed stands as its windows leave it.
 
   An ask waits on Lee until Lee replies to it (20 October 2026): once a
   reply of Lee's to it is on its way, an answer or a comment, in its
@@ -1361,13 +1365,15 @@ sitrep wake <ask>... [--session <id>]
   these saying why: the session finished (`This session is finished: its
   asks wait on Lee no more.`); no ask named (`Name the asks by their ids, as
   the board lists them.`); an id that is no item, or no ask; for `snooze`,
-  an ask closed or ignored (`k1 is already closed.`), one Lee's reply is on
-  its way to (`Lee's reply to k1 is on its way: it waits on Lee no more.`),
-  one Lee commented on (`k1 waits on Claude: Lee's comment is Claude's to
-  act on.`), then `--until` missing, no time, or come already (`That time
-  has come already: give one still to come.`); for `wake`, an ask not
-  snoozed (`k1 is not snoozed.`). One snoozed already is snoozed again, to
-  the new time. An unknown session is exit 2.
+  an ask closed or ignored (`k1 is already closed.`, `k1 is already
+  ignored.`), one Lee's reply is on its way to (`Lee's reply to k1 is on
+  its way: it waits on Lee no more.`), one Lee commented on (`k1 waits on
+  Claude: Lee's comment is Claude's to act on.`), then `--until` missing or
+  no time (`A snooze needs its time: --until, in milliseconds since the
+  epoch.`), or come already (`That time has come already: give one still
+  to come.`); for `wake`, an ask not snoozed (`k1 is not snoozed.`). Each
+  names the first ask, in the order given, that breaks it. One snoozed
+  already is snoozed again, to the new time. An unknown session is exit 2.
 - The app calls `snooze` with one ask from the session page and with a
   row's asks from its right-click, and `wake` with one ask or a Snoozed
   row's, the ids after `--`, as `answer`'s.
@@ -1548,11 +1554,13 @@ $XDG_STATE_HOME/sitrep/, else ~/.local/state/sitrep/
   The kinds: `status`, `ask`, `note` and `park`; `resolve`, `reopen` and
   `edit`, each naming an item; `reply`, Lee's answer to one; `delivered`,
   naming the replies Claude has been given; `finish`, the session finished,
-  saying who (`lee` or `claude`) and with an optional reason; and
-  `unfinish`, a window joining it again. The session holds the latest finish,
-  when, by which writer and why, until an unfinish clears it. Who is a field
-  of its own because Lee's pane and Claude's tool write as the same
-  window.
+  saying who (`lee` or `claude`) and with an optional reason; `unfinish`, a
+  window joining it again; and `snooze`, Lee's snooze of an ask until a time
+  (`until`), and `wake`, Lee's waking of it now, each naming an ask, Lee's
+  alone and written to the writer's own file, never an inbox (23 October
+  2026; see "Snooze"). The session holds the latest finish, when, by which
+  writer and why, until an unfinish clears it. Who is a field of its own
+  because Lee's pane and Claude's tool write as the same window.
 - Reading merges every writer's lines into one order: time, then writer,
   then count. A writer's own file and its letters in an inbox count apart,
   so of two lines of theirs at one moment the file's goes first, whatever
@@ -1920,6 +1928,8 @@ truth. There is still no background service. None of it is built now. Lee:
   sitrep park <title> [--where <words>] [--ref <ref>]
   sitrep status [--name <words>] [--summary <line>] [--now <line>]... [--next <line>]
   sitrep answer <ask> (<answer> | --ignore)
+  sitrep snooze <ask>... --until <ms>
+  sitrep wake <ask>...
   sitrep finish
   sitrep board [--json]
   sitrep list [--project <name>] [--json]
@@ -1927,9 +1937,9 @@ truth. There is still no background service. None of it is built now. Lee:
   sitrep watch
   ```
 
-  - It writes as the writer `cli`, appending to `<session>/cli.jsonl`, and an
-    answer to its letters in the session's inbox, `<session>/inbox/cli.jsonl`,
-    the same way: each file's count goes on from that file under both
+  - It writes as the writer `cli`, appending to `<session>/cli.jsonl`, a
+    snooze and a wake among its lines (see "Snooze"), and an answer to its
+    letters in the session's inbox, `<session>/inbox/cli.jsonl`, the same way: each file's count goes on from that file under both
     layouts, a torn last line ended first, and nothing is rewritten. It never
     writes a delivered mark or a heartbeat: it is never a window on the
     session. Before a command reads the board, it moves the old layout into
@@ -1961,12 +1971,18 @@ truth. There is still no background service. None of it is built now. Lee:
     ```
     { "v": 1, "here": "switchboard",
       "projects": [ { "key": "switchboard", "name": "Switchboard",
-                      "open": 1, "waiting": 2, "parked": 1, "updatedAt": 1760000000000,
+                      "open": 1, "waiting": 2, "snoozed": 1, "parked": 1,
+                      "updatedAt": 1760000000000,
                       "works": [ { "id": "sr-k3f9qa", "name": "Dashboard redesign",
                                    "summary": "...", "now": ["..."], "next": null,
-                                   "isOpen": true, "waiting": 1, "parked": 1,
-                                   "updatedAt": 1760000000000, "onScreen": true } ] } ] }
+                                   "isOpen": true, "waiting": 1, "snoozed": 1,
+                                   "parked": 1, "updatedAt": 1760000000000,
+                                   "onScreen": true } ] } ] }
     ```
+
+    `snoozed` (23 October 2026) counts the asks Lee snoozed, which `waiting`
+    leaves out (see "Snooze"); plain `list` says it among a session's facts,
+    `(open, 1 waiting, 1 snoozed)`.
 
     `onScreen` says whether a jump can reach the session (see "The jump",
     step 2). Only `--json` works it out, from tmux, asked twice per socket
@@ -1980,10 +1996,12 @@ truth. There is still no background service. None of it is built now. Lee:
     the newest closed first, as a session's Resolved lists them. Its `v` is 2
     since its asks say what they want back (`wants`, `yes`, `needs`) in place
     of their kind; `list`'s stays 1. Each ask, open or resolved, carries
-    `reply`, where Lee's reply to it stands (below, under `answer`), and a
-    resolved one when it closed, by Lee's answer or Claude's resolve, and
-    Claude's reason where Claude resolved it with one, Lee's answer having
-    closed it first or not:
+    `reply`, where Lee's reply to it stands (below, under `answer`), and
+    `snoozedUntil`, when Lee's snooze of it wakes while it is snoozed, else
+    null (23 October 2026; see "Snooze"); a resolved one when it closed, by
+    Lee's answer or Claude's resolve, and Claude's reason where Claude
+    resolved it with one, Lee's answer having closed it first or not. `work`
+    carries `snoozed`, as `list`'s sessions do:
 
     ```
     { "id": "k1", "wants": "yes", "yes": "Go", "title": "Give the go for stage 3",
@@ -1991,6 +2009,7 @@ truth. There is still no background service. None of it is built now. Lee:
       "state": "closed", "at": 1760000000000,
       "reply": { "is": "delivered", "isAnswer": true, "words": "→ Go",
                  "since": 1760000090000 },
+      "snoozedUntil": null,
       "closedAt": 1760000090000, "reason": null }
     ```
 
@@ -2150,14 +2169,16 @@ truth. There is still no background service. None of it is built now. Lee:
                 "since": 1760000030000 } ],
             "second": "Switchboard · Dashboard redesign",
             "since": 1760000000000 } ],
+        "snoozed": [],
         "projects": [
           { "key": "switchboard", "name": "Switchboard",
             "directory": "/Users/lee/Code/switchboard", "open": 1,
-            "waiting": 1, "parked": 0, "updatedAt": 1760000000000,
+            "waiting": 1, "snoozed": 0, "parked": 0,
+            "updatedAt": 1760000000000,
             "sessions": [
               { "id": "sr-k3f9qa", "name": "Dashboard redesign",
                 "summary": "...", "now": ["..."], "next": null,
-                "isOpen": true, "waiting": 1, "parked": 0,
+                "isOpen": true, "waiting": 1, "snoozed": 0, "parked": 0,
                 "updatedAt": 1760000000000, "state": "needsYou",
                 "since": 1760000000000,
                 "doing": { "is": "working",
@@ -2196,7 +2217,8 @@ truth. There is still no background service. None of it is built now. Lee:
       `projectName` (board F). `name` and `projectName` came in with board F
       (22 October 2026): a field added, `v` did not move.
     - A row's `lines`, never empty, are what it says: on Needs you one per
-      ask waiting, permission prompt and question, the oldest first; on any
+      ask waiting on Lee, not snoozed, permission prompt and question, the
+      oldest first; on any
       other row one, its state's. A line's `key` names it for as long as it
       stands (`ask:<session>:<ask>`, `stop:<session>:<window>:<since>`,
       `turn:<session>`). `is` is what the line is (`ask`, `permission`,
@@ -2212,6 +2234,14 @@ truth. There is still no background service. None of it is built now. Lee:
       line.
     - `head`: how many lines need Lee, away ones among them, and how many
       sessions the rows hold; none needing Lee is "All clear".
+    - `snoozed` (23 October 2026): the Snoozed rows, a session each, apart
+      from `rows` and never among them, the soonest to wake first; each
+      line an ask snoozed, under the key it has in Needs you, with when it
+      wakes (`wakesAt`), and the row's `wakesAt` its soonest line's (see
+      "Snooze", whose example shows a row). Each session and project counts
+      its asks snoozed as `snoozed`, which `waiting` leaves out, and each ask
+      carries `snoozedUntil`, as in `board --json`. Fields added: `v` did not
+      move.
     - `projects`: those with a current session, in the SitRep window's
       order: a session where its row sits, those with none after, the
       latest updated first; a project where its first session sits. Each
@@ -2256,7 +2286,14 @@ truth. There is still no background service. None of it is built now. Lee:
       for a look, is not new again until it has been gone more than a day
       of the watch's own time (core's `FORGET_MS`), counted from its going;
       by then it is let go. So a finished session joined again brings back
-      as new only the asks this watch has not shown.
+      as new only the asks this watch has not shown. A line in `snoozed` is
+      kept among those shown, asleep, however long it sleeps, and its
+      absence from Needs you never makes it new: back there, it is new only
+      once its snooze's time has woken it, as its line in core says
+      (`woke`, never printed), and woken by Lee it comes back as shown (see
+      "Snooze"). One that leaves Snoozed for nowhere, as when Lee replies to
+      it, is a line gone as any is, so taken back after its time it is not
+      new.
     - `changed`: the sessions on the line whose `board --json` changed since
       the last, one new to the line among them, for the SitRep window to
       read again; none on the first.
@@ -2297,8 +2334,10 @@ truth. There is still no background service. None of it is built now. Lee:
       cost come to matter.
     - **Expiry.** A heartbeat going stale changes no file, so core says when
       the board next changes by time alone: the first live heartbeat going
-      stale, or an idle session dropping out of the views. It looks again at
-      that instant, folding every session afresh.
+      stale, a snooze of an ask snoozed running out (23 October 2026), or an
+      idle session dropping out of the views. It looks again at that
+      instant, folding every session afresh. A snooze runs out on the wall
+      clock, which no pause holds back.
     - **Pauses.** Time the Mac slept ages no heartbeat (core's
       `pauses.ts`). A window live as the Mac slept has the rest of its 90
       seconds after the wake to beat again, and one stale before stays

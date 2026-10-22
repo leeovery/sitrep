@@ -13,11 +13,15 @@
  *   of its windows is, else on its own work, both in Working; else your turn.
  * - A session no window holds, with nothing waiting, has none: the SitRep
  *   window shows it. Nor has a finished one.
+ *
+ * An ask Lee snoozed waits on Lee in none of them: the session's row in
+ * Snoozed holds it, apart from the rows, so a session with an ask snoozed
+ * and another waiting shows in both.
  */
 import { isFilled } from './entries'
 import { isLive } from './presence'
 import { directoryOf, type Project } from './project'
-import { waitingOnLee } from './replies'
+import { snoozedAsks, waitingOnLee, type SnoozedAsk } from './replies'
 import { isPathSubject } from './subject'
 import { compareText } from './text'
 import type { Ask, Session, StateKind, ToolShown, WindowState, Work } from './types'
@@ -57,13 +61,15 @@ export type Line = {
   first: RowLine
   /** When it began, which the app counts from: an ask's posting or reopening, a stop's showing, the turn's end, or its start while working. */
   since: number
+  /** An ask's, when the snooze it woke from ran out: what makes it new to a watch that showed it asleep. Core's alone, never printed. */
+  woke?: number
 }
 
-export type Row = {
+/** What names a session's row, wherever it sits: the session, its project, and whether a window holds it. */
+type Named = {
   /** The session, which names the row. */
   session: string
-  section: Section
-  /** Needing Lee, with no window holding the session: dimmed, with no window to jump to. */
+  /** Needing Lee or in Snoozed, with no window holding the session: dimmed, with no window to jump to. */
   isAway: boolean
   /** The key of the project the session is filed under. */
   project: string
@@ -73,15 +79,32 @@ export type Row = {
   projectName: string
   /** The project's two letters, as the strip's mark shows them. */
   letters: string
-  /** In Needs you, a line for each ask and stop waiting on Lee, the oldest first; else the one of its turn. */
-  lines: Line[]
   /** Its project and session, `Switchboard · Dashboard redesign`, under a Working or Your turn row's line; an away row's says no window holds it. */
   second: string
+}
+
+export type Row = Named & {
+  section: Section
+  /** In Needs you, a line for each ask and stop waiting on Lee, the oldest first; else the one of its turn. */
+  lines: Line[]
   /** When it began: its oldest line's. */
   since: number
   /** On its own work, the soonest wake its window waits on, which orders it among the rest. */
   wakeAt?: number
 }
+
+/** One of a Snoozed row's lines: an ask snoozed, by the key it has in Needs you, and when it wakes. */
+export type SnoozedLine = {
+  key: string
+  ask: string
+  first: RowLine
+  /** Its posting or reopening, as in Needs you. */
+  since: number
+  wakesAt: number
+}
+
+/** A session's row in Snoozed, named as its Needs you row is: a line for each ask snoozed, and when the soonest wakes. */
+export type SnoozedRow = Named & { lines: SnoozedLine[]; wakesAt: number }
 
 /**
  * What a session is doing, as the line under its name says it: a window's
@@ -285,13 +308,32 @@ const stateLine = (state: WindowState, session: Session, project: Project): RowL
   }
 }
 
+/** An ask's key, the same in Needs you and Snoozed. */
+const askKey = (session: Session, ask: Ask) => `ask:${session.id}:${ask.id}`
+
 const askLine = (session: Session, ask: Ask): Line => ({
-  key: `ask:${session.id}:${ask.id}`,
+  key: askKey(session, ask),
   is: 'ask',
   ask: ask.id,
   first: { lead: ask.title },
   since: ask.openedAt,
+  ...(ask.wokeAt === undefined ? {} : { woke: ask.wokeAt }),
 })
+
+/** What names a session's row in `project`, its second line saying so where it is away. */
+const namedRow = (project: Project, session: Session, isAway: boolean): Named => {
+  const name = session.status.name
+
+  return {
+    session: session.id,
+    isAway,
+    project: project.key,
+    name,
+    projectName: project.name,
+    letters: lettersOf(project.name),
+    second: isAway ? AWAY_LINE : `${project.name} · ${name}`,
+  }
+}
 
 /** Lines, the oldest first. */
 const byAge = (a: Line, b: Line) => a.since - b.since || compareText(a.key, b.key)
@@ -308,14 +350,6 @@ export const rowOf = (project: Project, session: Session, now: number): Row | un
   }
 
   const held = heldBy(session, now)
-  const shared = {
-    session: session.id,
-    project: project.key,
-    name: session.status.name,
-    projectName: project.name,
-    letters: lettersOf(project.name),
-  }
-  const second = `${shared.projectName} · ${shared.name}`
   const windowLine = (key: string, { writer, state }: Held): Line => ({
     key,
     is: state.is,
@@ -332,14 +366,10 @@ export const rowOf = (project: Project, session: Session, now: number): Row | un
   const [oldest] = needs
 
   if (oldest !== undefined) {
-    const isAway = held.length === 0
-
     return {
-      ...shared,
+      ...namedRow(project, session, held.length === 0),
       section: 'needsYou',
-      isAway,
       lines: needs,
-      second: isAway ? AWAY_LINE : second,
       since: oldest.since,
     }
   }
@@ -353,15 +383,60 @@ export const rowOf = (project: Project, session: Session, now: number): Row | un
   const wakeAt = turn.state.work?.wakes?.at
 
   return {
-    ...shared,
+    ...namedRow(project, session, false),
     section: turn.state.is === 'yourTurn' ? 'yourTurn' : 'working',
-    isAway: false,
     lines: [windowLine(`turn:${session.id}`, turn)],
-    second,
     since: turn.state.since,
     ...(wakeAt === undefined ? {} : { wakeAt }),
   }
 }
+
+const snoozedLine = (session: Session, ask: SnoozedAsk): SnoozedLine => ({
+  key: askKey(session, ask),
+  ask: ask.id,
+  first: { lead: ask.title },
+  since: ask.openedAt,
+  wakesAt: ask.snoozedUntil,
+})
+
+/** Snoozed lines, the soonest to wake first, then the oldest. */
+const bySleep = (a: SnoozedLine, b: SnoozedLine) =>
+  a.wakesAt - b.wakesAt || a.since - b.since || compareText(a.key, b.key)
+
+/**
+ * A session's row in Snoozed at `now`, beside any row it has: a line for
+ * each ask snoozed, the soonest to wake first, then the oldest, and dimmed
+ * while no window holds it, as in Needs you. None with no ask snoozed, so
+ * none for a finished session.
+ */
+export const snoozedRowOf = (
+  project: Project,
+  session: Session,
+  now: number,
+): SnoozedRow | undefined => {
+  const lines = snoozedAsks(session)
+    .map(ask => snoozedLine(session, ask))
+    .sort(bySleep)
+  const [soonest] = lines
+
+  return soonest === undefined
+    ? undefined
+    : {
+        ...namedRow(project, session, heldBy(session, now).length === 0),
+        lines,
+        wakesAt: soonest.wakesAt,
+      }
+}
+
+/** A Snoozed row's oldest line's time. */
+const oldestOf = (row: SnoozedRow) => Math.min(...row.lines.map(line => line.since))
+
+/** Snoozed's rows, the soonest to wake first, then the oldest. */
+export const inSnoozedOrder = (rows: readonly SnoozedRow[]) =>
+  [...rows].sort(
+    (a, b) =>
+      a.wakesAt - b.wakesAt || oldestOf(a) - oldestOf(b) || compareText(a.session, b.session),
+  )
 
 /** What a session is doing at `now`, across its live windows (`Doing`). */
 export const doingOf = (project: Project, session: Session, now: number): Doing => {

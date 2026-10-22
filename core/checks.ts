@@ -4,12 +4,13 @@
  * holding what its shape takes: a yes its button's words, a choice its
  * options, words what they are. A refusal says what to fix, in words Claude
  * can act on. Lee's answer to an ask from outside Claude Code, as the CLI
- * gives it, is checked here too.
+ * gives it, is checked here too, and Lee's snooze and waking of asks.
  */
+import { isTime } from './entries'
 import { isSessionId, newItemId, type Random } from './ids'
 import { directoryOf, isNameable } from './project'
 import { needsReload } from './release'
-import { yesOf } from './replies'
+import { isSnoozed, replyOnItsWay, yesOf } from './replies'
 import { WANTS } from './shapes'
 import type { StatusFields } from './status'
 import { inWords, oneLine } from './text'
@@ -27,7 +28,9 @@ import {
   type ReopenBody,
   type ReplyBody,
   type ResolveBody,
+  type SnoozeBody,
   type StatusBody,
+  type WakeBody,
   type Wants,
   type Session,
 } from './types'
@@ -448,12 +451,35 @@ const answersOf = (ask: Ask): readonly string[] => {
 /** Each quoted, in plain words: `“a” or “b”`. */
 const quotedOr = (answers: readonly string[]) => inWords(answers.map(each => `“${each}”`), 'or')
 
-/** What any answer from outside Claude Code needs of its ask, each rule broken where it says, with why. */
-const ANSWER_RULES: readonly [breaks: (ask: Ask) => boolean, error: (ask: Ask) => string][] = [
+/** A rule an ask Lee acts on from outside Claude Code keeps, broken where it says, with why. */
+type AskRule = readonly [breaks: (ask: Ask) => boolean, error: (ask: Ask) => string]
+
+/** What an ask needs to take an answer or a snooze: open still. */
+const OPEN_RULES: readonly AskRule[] = [
   [ask => ask.state === 'ignored', ask => `${ask.id} is already ignored.`],
   [ask => ask.state === 'closed', ask => `${ask.id} is already closed.`],
+]
+
+/** What any answer from outside Claude Code needs of its ask. */
+const ANSWER_RULES: readonly AskRule[] = [
+  ...OPEN_RULES,
   [ask => ask.answerOnItsWay !== undefined, ask => `An answer to ${ask.id} is on its way already.`],
 ]
+
+/** Why the first rule any of the asks breaks refuses them, the rules in their order, then the asks in theirs; undefined while none does. */
+const brokenBy = (rules: readonly AskRule[], asks: readonly Ask[]) => {
+  for (const [breaks, error] of rules) {
+    const ask = asks.find(breaks)
+
+    if (ask !== undefined) {
+      return error(ask)
+    }
+  }
+
+  return undefined
+}
+
+const FINISHED = 'This session is finished: its asks wait on Lee no more.'
 
 const OLD_WINDOW =
   'A window holding this session runs an older sitrep: run /reload-plugins in it first.'
@@ -502,6 +528,19 @@ const ignored = (ask: Ask, given: string | undefined): Answer =>
     ? ok({ type: 'reply', item: ask.id, verdict: 'ignore' })
     : refuse('Give an answer or --ignore, not both.')
 
+/** The ask an id names on the board, or a refusal: no id, no item, or one that is no ask. */
+const askIn = (session: Session, id: unknown): Checked<Ask> => {
+  const item = target(session, { item: id })
+
+  if (!item.ok) {
+    return item
+  }
+
+  return item.value.type === 'ask'
+    ? ok(item.value)
+    : refuse(`${item.value.id} is ${NOUNS[item.value.type]}, not an ask.`)
+}
+
 /** The ask an answer names, in a session still waiting on Lee whose window can take an answer in; or a refusal. */
 const askAnswered = (
   session: Session,
@@ -509,20 +548,12 @@ const askAnswered = (
   version: string | undefined,
 ): Checked<Ask> => {
   if (session.finished !== undefined) {
-    return refuse('This session is finished: its asks wait on Lee no more.')
+    return refuse(FINISHED)
   }
 
-  const item = target(session, { item: fields.ask })
+  const ask = askIn(session, fields.ask)
 
-  if (!item.ok) {
-    return item
-  }
-
-  if (item.value.type !== 'ask') {
-    return refuse(`${item.value.id} is ${NOUNS[item.value.type]}, not an ask.`)
-  }
-
-  return isDeliveredByOld(session, version) ? refuse(OLD_WINDOW) : ok(item.value)
+  return ask.ok && isDeliveredByOld(session, version) ? refuse(OLD_WINDOW) : ask
 }
 
 /**
@@ -545,13 +576,105 @@ export const checkAnswer = (session: Session, input: unknown, version?: string):
   }
 
   const ask = asked.value
-  const broken = ANSWER_RULES.find(([breaks]) => breaks(ask))?.[1]
+  const broken = brokenBy(ANSWER_RULES, [ask])
 
   if (broken !== undefined) {
-    return refuse(broken(ask))
+    return refuse(broken)
   }
 
   const given = line(fields.answer)
 
   return fields.ignore === true ? ignored(ask, given) : worded(ask, given)
+}
+
+/** What a snooze needs of each ask it names: open, and waiting on Lee as posted. */
+const SNOOZE_RULES: readonly AskRule[] = [
+  ...OPEN_RULES,
+  [
+    ask => replyOnItsWay(ask) !== undefined,
+    ask => `Lee's reply to ${ask.id} is on its way: it waits on Lee no more.`,
+  ],
+  [
+    ask => ask.state === 'replied',
+    ask => `${ask.id} waits on Claude: Lee's comment is Claude's to act on.`,
+  ],
+]
+
+/** What a wake needs of each ask it names: snoozed. */
+const WAKE_RULES: readonly AskRule[] = [
+  [ask => !isSnoozed(ask), ask => `${ask.id} is not snoozed.`],
+]
+
+const isRefusal = <T>(checked: Checked<T>): checked is { ok: false; error: string } => !checked.ok
+
+/**
+ * The asks a snooze or a wake names, by their ids, in a session not
+ * finished, each an ask that keeps `rules`; or a refusal, the first that
+ * applies saying why, whichever ask it is.
+ */
+const asksNamed = (session: Session, fields: Fields, rules: readonly AskRule[]): Checked<Ask[]> => {
+  if (session.finished !== undefined) {
+    return refuse(FINISHED)
+  }
+
+  const named = (lines(fields.ask) ?? []).map(id => askIn(session, id))
+
+  if (named.length === 0) {
+    return refuse('Name the asks by their ids, as the board lists them.')
+  }
+
+  const refused = named.find(isRefusal)
+
+  if (refused !== undefined) {
+    return refused
+  }
+
+  const asks = named.flatMap(each => (each.ok ? [each.value] : []))
+  const broken = brokenBy(rules, asks)
+
+  return broken === undefined ? ok(asks) : refuse(broken)
+}
+
+/** When a snooze wakes, as given: milliseconds since the epoch, as a number or in digits; undefined where it is no time. */
+const timeIn = (value: unknown) => {
+  const time = typeof value === 'string' && /^\d+$/.test(value.trim()) ? Number(value) : value
+
+  return isTime(time) ? time : undefined
+}
+
+/**
+ * Lee's snooze of asks of the session until a time, a line for each, as the
+ * CLI and the pane give it: every ask named takes it, or none does. Each is
+ * open and waits on Lee as posted, with no reply of Lee's on its way to it
+ * nor a comment of Lee's for Claude to act on; one snoozed already is
+ * snoozed again, to the new time, which is still to come at `now`.
+ */
+export const checkSnooze = (
+  session: Session,
+  input: unknown,
+  now: number,
+): Checked<SnoozeBody[]> => {
+  const fields = fieldsOf(input)
+  const asks = asksNamed(session, fields, SNOOZE_RULES)
+
+  if (!asks.ok) {
+    return asks
+  }
+
+  const until = timeIn(fields.until)
+
+  if (until === undefined) {
+    return refuse('A snooze needs its time: --until, in milliseconds since the epoch.')
+  }
+
+  return until > now
+    ? ok(asks.value.map((ask): SnoozeBody => ({ type: 'snooze', item: ask.id, until })))
+    : refuse('That time has come already: give one still to come.')
+}
+
+/** Lee's waking of snoozed asks of the session now, a line for each: every ask named is snoozed, or none is woken. */
+export const checkWake = (session: Session, input: unknown): Checked<WakeBody[]> => {
+  const asks = asksNamed(session, fieldsOf(input), WAKE_RULES)
+
+  return asks.ok ? ok(asks.value.map((ask): WakeBody => ({ type: 'wake', item: ask.id }))) : asks
 }

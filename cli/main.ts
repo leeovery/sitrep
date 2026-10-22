@@ -139,14 +139,15 @@ const fileFor = ({ paths, files }: Found, command: SessionCommand) =>
 
 /** A command on a session: the session read, its checks, and its lines appended, dated as they are written. */
 const onSession = async (io: Io, command: SessionCommand, input: Fields) => {
-  const found = await namedSession(io, input, io.now())
+  const now = io.now()
+  const found = await namedSession(io, input, now)
 
   if (typeof found === 'number') {
     return found
   }
 
   const version = manifestVersion((await textAt(io, io.manifest)) ?? '')
-  const acted = command.act(found, input, io.random, version)
+  const acted = command.act(found, input, { random: io.random, version, now })
 
   if (!acted.ok) {
     return fail(io, EXIT.refused, acted.error)

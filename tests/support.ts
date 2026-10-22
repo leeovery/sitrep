@@ -140,6 +140,12 @@ export const finish = (who: Finisher, reason?: string): Body => ({ type: 'finish
 
 export const unfinish = (): Body => ({ type: 'unfinish' })
 
+/** Lee's snooze of an ask until `until`. */
+export const snooze = (item: string, until: number): Body => ({ type: 'snooze', item, until })
+
+/** Lee's waking of a snoozed ask now. */
+export const wake = (item: string): Body => ({ type: 'wake', item })
+
 /** Random bytes from a script: each draw takes the next list of bytes, the last list repeating. */
 export const scripted = (...draws: number[][]): Random => {
   let next = 0

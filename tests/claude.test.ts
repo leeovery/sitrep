@@ -20,6 +20,7 @@ import {
   resolve,
   SENDER,
   seen,
+  snooze,
   status,
   T0,
   W1,
@@ -177,4 +178,65 @@ test('a conversation starts knowing how to keep the board, every session on it b
   expect(startText(projects, summarise(SESSION))).toBe(
     `${guide}\n${onBoardText(projects)}\nThis window already holds sr-k3f9qa (Dashboard redesign): post to its board as you go.`,
   )
+})
+
+/** Monday 26 October 2026, 09:00, local time: when the snoozes under test wake. */
+const MONDAY = new Date(2026, 9, 26, 9).getTime()
+
+/** Four asks, three of them snoozed until Monday, and the fourth waiting. */
+const SNOOZING: Line[] = [
+  [T0, yesAsk('k1', 'Give the go for stage 3', 'Go')],
+  [T0, yesAsk('k2', 'Review the plan')],
+  [T0, choiceAsk('k3', 'Keep it, or drop it?', ['Keep it', 'Drop it'])],
+  [T0, yesAsk('k4', 'Tag the release', 'Done')],
+  [T0 + MIN, snooze('k1', MONDAY)],
+  [T0 + MIN, snooze('k3', MONDAY)],
+  [T0 + MIN, snooze('k4', MONDAY)],
+]
+
+/** The asks at `now`, Lee's answer to the last snoozed on its way. */
+const snoozedAt = (now: number, ...more: Line[]) =>
+  fold(
+    {
+      logs: { [W1]: file(...SNOOZING, ...more) },
+      inbox: { [SENDER]: file([T0 + 2 * MIN, reply('r1', 'k4', 'yes')]) },
+    },
+    now,
+  )
+
+const SNOOZED = snoozedAt(NOW)
+
+test("a snoozed ask reads as snoozed by Lee until its time, whole and local, in place of waiting on Lee, one with Lee's answer on its way among them", () => {
+  expect(boardText(SNOOZED)).toContain(
+    [
+      'Open asks:',
+      '- k1 wants a yes (Go), snoozed by Lee until Mon 26 Oct 09:00 (leave it until then): Give the go for stage 3',
+      '- k2 wants a yes (Approve), waiting on Lee: Review the plan',
+      '- k3 wants a choice, snoozed by Lee until Mon 26 Oct 09:00 (leave it until then): Keep it, or drop it?; options: Keep it | Drop it',
+      '- k4 wants a yes (Done), snoozed by Lee until Mon 26 Oct 09:00 (leave it until then): Tag the release',
+      'Parked:',
+    ].join('\n'),
+  )
+  expect(boardText(snoozedAt(MONDAY)), 'its time come').not.toContain('snoozed')
+})
+
+test("Claude's listing counts snoozed asks apart from those waiting on Lee, one Lee's answer is on its way to among them, where Lee's counts leave that one out of both", () => {
+  const told = toldSummary(SNOOZED)
+
+  expect([told.waiting, told.snoozed]).toEqual([1, 3])
+  expect([summarise(SNOOZED).waiting, summarise(SNOOZED).snoozed]).toEqual([1, 2])
+  expect(onBoardText([summariseProject('switchboard', [told])])).toBe(
+    [
+      'On the board:',
+      '- Switchboard: sr-k3f9qa "Dashboard redesign", 1 waiting on Lee, 3 snoozed by Lee',
+    ].join('\n'),
+  )
+  expect(
+    onBoardText([summariseProject('switchboard', [{ ...told, waiting: 0 }])]),
+    'snoozed alone',
+  ).toBe('On the board:\n- Switchboard: sr-k3f9qa "Dashboard redesign", 3 snoozed by Lee')
+  expect(
+    toldSummary(snoozedAt(NOW, [T0 + 3 * MIN, finish('lee')])),
+    'a finished session waits on Lee for nothing',
+  ).toMatchObject({ waiting: 0, snoozed: 0 })
 })
