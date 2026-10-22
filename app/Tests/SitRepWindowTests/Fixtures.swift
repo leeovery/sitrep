@@ -51,7 +51,8 @@ func projects(_ order: [String]) -> String {
     return String(decoding: try! JSONSerialization.data(withJSONObject: line), as: UTF8.self)
 }
 
-/// `watch`'s line at this place with one session's `doing` as given, as its windows coming or going would leave it.
+/// `watch`'s line at this place with one session's `doing` as given, and its row away or not, as its windows coming or
+/// going would leave it.
 func line(_ place: Int = 0, with session: String, doing kind: Doing.Kind) -> Heard {
     var line = try! JSONSerialization.jsonObject(with: Data(Lines.watch[place].utf8)) as! [String: Any]
 
@@ -70,6 +71,9 @@ func line(_ place: Int = 0, with session: String, doing kind: Doing.Kind) -> Hea
             return each
         }
         return project
+    }
+    line["rows"] = (line["rows"] as! [[String: Any]]).map { row in
+        row["session"] as? String == session ? row.merging(["isAway": kind == .away]) { $1 } : row
     }
     return .line(String(decoding: try! JSONSerialization.data(withJSONObject: line), as: UTF8.self))
 }
@@ -120,14 +124,63 @@ let deliveredAndNew = edited(Lines.delivered) { board in
     board["asks"] = asks + [asks[0].merging(["id": "k4", "title": "Pick the strip's width"]) { $1 }]
 }
 
+/// `watch`'s first line with this session's turn ended on an ask, its row in Needs you, as Claude posting one would
+/// leave it.
+func asked(_ session: String) -> Heard {
+    .line(edited(Lines.watch[0]) { board in
+        board["rows"] = (board["rows"] as! [[String: Any]]).map { row in
+            guard row["session"] as? String == session else {
+                return row
+            }
+
+            var asking = row
+
+            asking["section"] = "needsYou"
+            asking["lines"] = (row["lines"] as! [[String: Any]]).map { line in
+                line.merging(["is": "ask", "key": "ask:\(session):k9", "ask": "k9"]) { $1 }
+            }
+            return asking
+        }
+    })
+}
+
+/// `watch`'s first line with these sessions' rows on Your turn, each ended so many minutes before the board was
+/// seeded, as their turns ending would leave them, and Your turn the newest first, as core orders it.
+func turned(_ ended: [String: Double]) -> Heard {
+    .line(edited(Lines.watch[0]) { board in
+        let rows = (board["rows"] as! [[String: Any]]).map { row in
+            let session = row["session"] as! String
+            guard let ago = ended[session] else {
+                return row
+            }
+
+            let since = minutes(before: ago).timeIntervalSince1970 * 1000
+            let words: [String: Any] = ["lead": "The turn of \(session)", "mono": NSNull(), "subject": NSNull(), "more": NSNull(), "until": NSNull()]
+            let line: [String: Any] = [
+                "key": "turn:\(session)", "is": "yourTurn", "ask": NSNull(), "writer": NSNull(), "first": words, "since": since,
+            ]
+
+            return row.merging(["section": "yourTurn", "isAway": false, "lines": [line], "since": since]) { $1 }
+        }
+        let isTurn = { (row: [String: Any]) in row["section"] as? String == "yourTurn" }
+
+        board["rows"] = rows.filter { !isTurn($0) }
+            + rows.filter(isTurn).sorted { ($0["since"] as! Double) > ($1["since"] as! Double) }
+    })
+}
+
 /// A session's board as the real CLI printed it.
 func board(_ text: String) -> BoardAnswer {
     .board(try! SessionBoard.read(text))
 }
 
-/// A window open on the board `watch` first printed, with every read it asked for answered as given.
-func opened(on last: LastBoard = heard(line(0)), boards: [String: String] = ["sr-macapp": Lines.board]) -> WindowRun {
-    let run = WindowRun()
+/// A window open on the board `watch` first printed, with every read it asked for answered as given, its wall clock
+/// at the moment `watch` printed it unless given another.
+func opened(
+    on last: LastBoard = heard(line(0)), boards: [String: String] = ["sr-macapp": Lines.board],
+    wall: @escaping () -> Date = { printedAt }
+) -> WindowRun {
+    let run = WindowRun(wall: wall)
 
     _ = run.show(last, at: printedAt, reducesMotion: false)
     answer(run.open(), in: run, with: boards)

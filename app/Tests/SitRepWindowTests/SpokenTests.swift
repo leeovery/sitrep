@@ -1,23 +1,46 @@
 import Foundation
 @testable import SitRepCore
+import enum SitRepPanel.BoardSection
+import struct SitRepPanel.Earlier
 @testable import SitRepWindow
 import Testing
 
 /// What VoiceOver reads of the window: words for its marks, counts and times, never their symbols.
 struct SpokenTests {
-    private static func row(_ mark: Mark, isAway: Bool = false, since: Date = minutes(before: 300)) -> Listed.Row {
-        Listed.Row(id: "sr-macapp", name: "The Mac app", project: "SitRep", mark: mark, isAway: isAway, since: since)
+    /// A row of Working or Your turn, its one line as given.
+    private static func row(_ section: BoardSection, _ mark: Mark, _ line: Listed.Line) -> Listed.Row {
+        Listed.Row(
+            id: "sr-macapp", name: "The Mac app", project: "SitRep", section: section, mark: mark, isAway: false,
+            since: minutes(before: 300), lines: [line]
+        )
+    }
+
+    private static func said(_ lead: String, code: String? = nil, subject: String? = nil, until: Date? = nil) -> Listed.Line {
+        Listed.Line(
+            id: "turn:sr-macapp", lead: lead, code: code, subject: subject, until: until, more: nil,
+            since: minutes(before: 300)
+        )
     }
 
     @Test(arguments: [
-        (Mark.needs, false, "The Mac app, SitRep, needs you, 5 hours"),
-        (.working, false, "The Mac app, SitRep, working, 5 hours"),
-        (.turn, false, "The Mac app, SitRep, your turn, 5 hours"),
-        (.away, true, "The Mac app, SitRep, away, 5 hours"),
-        (.needs, true, "The Mac app, SitRep, needs you, away, 5 hours"),
+        (BoardSection.working, Mark.working, said("Running", code: "swift test"),
+         "Running swift test, SitRep, The Mac app, working, 5 hours"),
+        (.working, .onItsWork, said("Waiting on", subject: "3 agents"),
+         "Waiting on 3 agents, SitRep, The Mac app, on its own work, 5 hours"),
+        (.working, .onItsWork, said("Wakes", until: minutes(before: -12)),
+         "Wakes in 12m, SitRep, The Mac app, on its own work, 5 hours"),
+        (.yourTurn, .turn, said("Drawing round 3"), "Drawing round 3, SitRep, The Mac app, your turn, 5 hours"),
     ])
-    func aSidebarRowReadsAsItsSessionItsProjectItsStateAndItsAge(mark: Mark, isAway: Bool, words: String) {
-        #expect(Spoken.row(Self.row(mark, isAway: isAway), at: printedAt) == words)
+    func aWorkingOrYourTurnRowReadsItsWordsItsProjectItsSessionItsStateAndItsAge(
+        section: BoardSection, mark: Mark, line: Listed.Line, words: String
+    ) {
+        #expect(Spoken.row(Self.row(section, mark, line), at: printedAt) == words)
+    }
+
+    @Test func aNeedsYouRowReadsAsNeedsYouSaysIt() throws {
+        let asking = try #require(Listed(heard(line(0))).needsYou.first)
+
+        #expect(Spoken.row(asking, at: printedAt) == Spoken.needsYou(asking, at: printedAt))
     }
 
     /// What waits first, how many and each line's words, then its project and session and the oldest's time.
@@ -38,8 +61,8 @@ struct SpokenTests {
     func aNeedsYouRowOfOneLineReadsNoCountAndAwaySaysSo(isAway: Bool) {
         let since = minutes(before: 90)
         let asking = Listed.Row(
-            id: "sr-1", name: "The bootstrap", project: "Kit", mark: .needs, isAway: isAway, since: since,
-            lines: [Listed.Waiting(id: "ask:sr-1:k1", lead: "Which edge?", code: nil, more: "+2", since: since)]
+            id: "sr-1", name: "The bootstrap", project: "Kit", section: .needsYou, mark: .needs, isAway: isAway,
+            since: since, lines: [Listed.Line(id: "ask:sr-1:k1", lead: "Which edge?", code: nil, more: "+2", since: since)]
         )
 
         #expect(
@@ -62,16 +85,24 @@ struct SpokenTests {
         #expect(Spoken.age(minutes(before: 48 * 60), at: printedAt) == "2 days")
     }
 
-    @Test func aSidebarHeadingReadsItsNameWhatWaitsThereAndWhetherItIsFolded() {
-        let heading = { (fold: Fold, name: String, isFolded: Bool, waiting: Int) in
-            Spoken.heading(Sidebar.Heading(fold: fold, name: name, isFolded: isFolded, asking: 1, waiting: waiting))
+    @Test func aSidebarHeadingReadsItsNameItsCountAndWhetherItIsFolded() {
+        let heading = { (fold: Fold, count: Int, isFolded: Bool) in
+            Spoken.heading(Sidebar.Heading(fold: fold, count: count, isFolded: isFolded))
         }
 
-        #expect(heading(.project("sitrep"), "SitRep", false, 3) == "SitRep, 3 waiting")
-        #expect(heading(.project("kit"), "Kit", true, 0) == "Kit, nothing waiting, folded")
-        #expect(heading(.quiet, Words.quietProjects, false, 0) == "Quiet projects")
-        #expect(heading(.quiet, Words.quietProjects, true, 0) == "Quiet projects, folded")
-        #expect(Spoken.quiet(Listed.Quiet(id: "kit", name: "Kit", sessions: [])) == "Kit, quiet project")
+        #expect(heading(.section(.needsYou), 4, false) == "Needs you, 4 waiting")
+        #expect(heading(.section(.working), 1, true) == "Working, 1 session, folded")
+        #expect(heading(.section(.yourTurn), 3, false) == "Your turn, 3 sessions")
+        #expect(heading(.projects, 6, true) == "Projects, 6 projects, folded")
+    }
+
+    @Test func nEarlierReadsHowManyAndTheirProjectsAndWhetherItIsFolded() {
+        #expect(Spoken.earlier(Earlier(projects: ["Kit", "Fumi", "Kit"], isOpen: false)) == "3 earlier, Kit, Fumi, folded")
+        #expect(Spoken.earlier(Earlier(projects: ["Kit"], isOpen: true)) == "1 earlier, Kit")
+    }
+
+    @Test func aProjectsRowReadsAsAProject() {
+        #expect(Spoken.project(Listed.Project(id: "kit", name: "Kit")) == "Kit, project")
     }
 
     @Test func aCardIsLabelledByItsAsksTitleAfterItsSessionsNameInAProject() throws {

@@ -1,16 +1,15 @@
 import SitRepWindow
 import SwiftUI
 
-/// The board down the left, in the system's sidebar: the Filter field, then one list (`BoardList`): Needs you, the
-/// projects each under a heading that folds, and the quiet projects under theirs. The filter narrows it in place, the
-/// words typed lit in the names that hold them; with nothing kept, one line says so, and an empty board says how the
-/// board stands. A quiet project's row opens the project. A row under the pointer that is not the one picked shows a
-/// quiet fill behind it. Settings sits at the sidebar's foot, which never scrolls, under the list, whose rows fade out
+/// The board down the left, in the system's sidebar: the Filter field, then one list (`BoardList`), the card's sections
+/// at the window's size, Needs you, Working and Your turn, each under a heading that folds, then Projects under its
+/// own. The filter narrows it in place, the words typed lit where they appear; with nothing kept, one line says so, and
+/// an empty board says how the board stands. A project's row opens the project. A row under the pointer that is not
+/// the one picked shows a quiet fill behind it. Settings sits at the sidebar's foot, which never scrolls, under the list, whose rows fade out
 /// at its own bottom edge, over the foot's rule, its last row 12 over it; while Settings shows, nothing on the board is
 /// picked.
 struct BoardColumn: View {
     let sidebar: Sidebar
-    let spot: Spot?
     let pick: Pick?
     let filter: Filter
     let now: Date
@@ -46,7 +45,7 @@ struct BoardColumn: View {
     }
 
     private var list: BoardList {
-        BoardList(sidebar: sidebar, spot: spot, filter: filter, now: now)
+        BoardList(sidebar: sidebar, pick: pick, filter: filter, now: now)
     }
 
     /// The one line in the list's place where it lists nothing: that the filter keeps nothing, or how the board stands.

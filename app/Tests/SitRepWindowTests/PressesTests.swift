@@ -58,18 +58,11 @@ struct JumpingTests {
     }
 }
 
-/// The quiet projects' line: each name opens its project, as a project's name in the list does.
-struct QuietLineTests {
-    @Test func eachQuietProjectsNamePicksItsProject() {
-        let quiet = Listed(heard(line(0))).quiet
-
-        #expect(quiet.map(\.name) == ["Kit"])
-        #expect(quiet.map(\.pick) == [.project("kit")])
-    }
-
+/// A quiet project's row in Projects: it opens its project, as any project's does.
+struct QuietProjectTests {
     @Test func aQuietProjectOpensOnItsSessionsNoneOfThemInAWindow() throws {
         let run = opened()
-        let pick = try #require(run.listed(at: printedAt).quiet.first?.pick)
+        let pick = try #require(run.listed(at: printedAt).projects.first { $0.name == "Kit" }?.pick)
 
         #expect(run.pick(pick).map(\.session) == ["sr-k7t001"])
 

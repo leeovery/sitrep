@@ -18,26 +18,30 @@ public final class WindowRun {
     /// The board as `watch` last printed it.
     public private(set) var last = LastBoard()
     public private(set) var pick: Pick?
-    /// The row of the list that shows the pick, of a session's two while it has an ask.
-    public private(set) var spot: Spot?
     /// The session picked last, which the window opens on when nothing needs Lee.
     public private(set) var lastSession: String?
     /// The window shows: only then are sessions' boards read.
     public private(set) var isOpen = false
     public private(set) var answers = Answers()
-    /// What Lee folded, kept across launches.
+    /// What Lee folded, its sections and Projects kept across launches; "N earlier" open, never kept.
     public private(set) var folds: Folds
-    /// What the Filter field holds, which narrows the list and never moves the pick. While it holds text every project
-    /// shows open, its folds standing aside until it is cleared.
+    /// How long a your-turn row stays in Your turn before it folds into "N earlier": the list refolds at once as it
+    /// changes.
+    public var period: FoldPeriod
+    /// What the Filter field holds, which narrows the list and never moves the pick. While it holds text every section
+    /// with a match shows open, "N earlier" too, Lee's folds standing aside until it is cleared.
     public var filter = Filter() {
         didSet {
             if filter.isEmpty != oldValue.isEmpty {
-                filtering = Folds()
+                filtering = .open
             }
         }
     }
     /// What Lee folded while the filter holds text, let go as it clears.
-    private var filtering = Folds()
+    private var filtering = Folds.open
+    /// The wall clock, against which a your-turn row passes the fold period, and the calendar its days are in.
+    private let wall: () -> Date
+    private let calendar: Calendar
     /// The list as `watch` gives it, before it is held.
     private var given = Listed()
     private var held = HeldOrder()
@@ -56,9 +60,17 @@ public final class WindowRun {
     /// The items of Status, Notes, Parked and Resolved opened in place.
     private var openedItems: Set<Item> = []
 
-    public init(lastSession: String? = nil, folds: Folds = Folds()) {
+    /// Opened on the session picked last, folded as Lee left it, a your-turn row folding into "N earlier" after the
+    /// period given, against this wall clock, its days in the Mac's own calendar, followed as its time zone changes.
+    public init(
+        lastSession: String? = nil, folds: Folds = Folds(), period: FoldPeriod = .hour,
+        wall: @escaping () -> Date = Date.init, calendar: Calendar = .autoupdatingCurrent
+    ) {
         self.lastSession = lastSession
         self.folds = folds
+        self.period = period
+        self.wall = wall
+        self.calendar = calendar
     }
 
     // MARK: The board
@@ -74,7 +86,6 @@ public final class WindowRun {
 
         self.last = last
         take(Listed(last), moving: moving)
-        leaveNeedsYou()
         if !reducesMotion {
             (Array(moving) + newLines).forEach { washed[$0] = time }
         }
@@ -115,28 +126,25 @@ public final class WindowRun {
         listed = held.take(given, moving: moving)
     }
 
-    /// A session picked under Needs you whose ask has cleared on the board heard shows under its project, its page
-    /// staying. With no board at all, as `watch` cannot run, nothing has cleared, and it stays where it was.
-    private func leaveNeedsYou() {
-        if case let .needsYou(id)? = spot, !given.needsYou.contains(where: { $0.id == id }) {
-            spot = .board(.session(id))
-        }
-    }
-
     // MARK: Folding
 
-    /// A heading clicked: what is under it folds, or unfolds; while the filter holds text, only until it clears.
+    /// A heading clicked: what is under it folds, or unfolds; "N earlier" clicked, it opens, or folds; while the
+    /// filter holds text, only until it clears.
     public func toggle(_ fold: Fold) {
-        if filter.isEmpty {
-            folds.toggle(fold)
-        } else {
-            filtering.toggle(fold)
-        }
+        changeShownFolds { $0.toggle(fold) }
     }
 
     /// What shows folded: Lee's folds, or while the filter holds text, those folded since it began.
     private var shownFolds: Folds {
         filter.isEmpty ? folds : filtering
+    }
+
+    private func changeShownFolds(_ change: (inout Folds) -> Void) {
+        if filter.isEmpty {
+            change(&folds)
+        } else {
+            change(&filtering)
+        }
     }
 
     // MARK: Opening and picking
@@ -145,6 +153,7 @@ public final class WindowRun {
     /// and with none, on the one picked last. The reads to run.
     public func open(on pick: Pick? = nil) -> [Read] {
         isOpen = true
+        folds.isEarlierOpen = false
         return pick.map { self.pick($0) } ?? repick()
     }
 
@@ -197,7 +206,6 @@ public final class WindowRun {
     /// What the window opens on, picked afresh.
     private func repick() -> [Read] {
         pick = nil
-        spot = nil
         return last.board.flatMap(opening).map { self.pick($0) } ?? []
     }
 
@@ -208,37 +216,34 @@ public final class WindowRun {
         if let lastSession, board.has(.session(lastSession)) {
             return .session(lastSession)
         }
-        return listed.sessions.first.map { .session($0.id) }
+        return listed.rows.first?.pick
     }
 
     /// Lee picked a session, a project by its name, or Settings, from outside the list: what it shows is read, its
-    /// asks showing as last read until then; Settings reads nothing. A session shows under Needs you while it has an
-    /// ask (`Spot.of`). Picking another lets go of the last page's asks kept in place, of what its cards said of
-    /// refusals, and of a finish asked about. The reads to run.
+    /// asks showing as last read until then; Settings reads nothing. Its row shows: the section holding it unfolds,
+    /// and "N earlier" opens where it is under it; Projects, for a project. Picking another lets go of the last page's
+    /// asks kept in place, of what its cards said of refusals, and of a finish asked about. The reads to run.
     public func pick(_ pick: Pick) -> [Read] {
         pickReads = PickReads()
 
         let shown = choose(pick)
+        let listed = earlier(given)
 
-        spot = Spot.of(pick, in: given)
+        changeShownFolds { $0.unfold(toShow: pick, in: listed) }
         return reads(shown)
     }
 
     /// Lee picked a row of the list at this time, by a click or an arrow key: as any pick, the row picked showing it,
     /// but the list's order held for a second after it, so no row moves between two presses of a key, and its reads
     /// settled (`PickReads`). The reads to run now.
-    public func pickInList(_ spot: Spot, at time: Date) -> [Read] {
+    public func pickInList(_ pick: Pick, at time: Date) -> [Read] {
         held.picked(at: time)
-
-        let shown = choose(spot.pick)
-
-        self.spot = spot
-        return reads(pickReads.picked(shown, at: time))
+        return reads(pickReads.picked(choose(pick), at: time))
     }
 
     /// Return in the Filter field: the first match the list shows, picked. The reads to run.
     public func openFirstMatch() -> [Read] {
-        guard !filter.isEmpty, let first = Sidebar(listed.narrowed(by: filter), folds: shownFolds).first else {
+        guard !filter.isEmpty, let first = Sidebar(earlier(listed).narrowed(by: filter), folds: shownFolds).first else {
             return []
         }
         return pick(first)
@@ -407,11 +412,12 @@ public final class WindowRun {
 
     // MARK: What it shows
 
-    /// The board down the left at this time, in the order it shows, narrowed by the filter, its washes under way.
+    /// The board down the left at this time, in the order it shows, narrowed by the filter, its washes under way, Your
+    /// turn's rows past the fold period by the wall clock folding into "N earlier".
     public func listed(at time: Date) -> Listed {
         washed = Wash.live(washed, at: time)
 
-        var shown = listed.narrowed(by: filter)
+        var shown = earlier(listed).narrowed(by: filter)
 
         shown.changeRows { row in
             row.washed = washed[row.id]
@@ -420,9 +426,38 @@ public final class WindowRun {
         return shown
     }
 
-    /// The sidebar's list at this time, as `listed(at:)` gives the board, folded as it shows.
+    /// The sidebar's list at this time, as `listed(at:)` gives the board, folded as it shows. "N earlier" folds as its
+    /// line goes, so it never comes back already open.
     public func sidebar(at time: Date) -> Sidebar {
-        Sidebar(listed(at: time), folds: shownFolds)
+        let shown = listed(at: time)
+
+        if filter.isEmpty, !shown.rows.contains(where: \.isEarlier) {
+            folds.isEarlierOpen = false
+        }
+        return Sidebar(shown, folds: shownFolds)
+    }
+
+    /// Its your-turn rows marked where they have passed the fold period by the wall clock.
+    private func earlier(_ listed: Listed) -> Listed {
+        let now = Self.ms(wall())
+        var marked = listed
+
+        marked.changeRows { row in
+            row.isEarlier = row.section == .yourTurn && period.isPast(Self.ms(row.since), at: now, in: calendar)
+        }
+        return marked
+    }
+
+    /// When on the wall clock the next of Your turn's rows passes the fold period, folding into "N earlier".
+    private var nextRefold: Date? {
+        let now = Self.ms(wall())
+        let folds = listed.rows(in: .yourTurn).compactMap { period.folds(Self.ms($0.since), in: calendar) }
+
+        return folds.filter { $0 > now }.min().map { Date(timeIntervalSince1970: $0 / 1000) }
+    }
+
+    private static func ms(_ date: Date) -> Double {
+        date.timeIntervalSince1970 * 1000
     }
 
     /// The right of the window at this time, its washes under way.
@@ -450,12 +485,13 @@ public final class WindowRun {
     }
 
     /// The next time something the window shows changes by time alone: an answer's wait running out, the list
-    /// settling after the pointer left or a pick, a wash ending, a run of picks' reads falling due.
+    /// settling after the pointer left or a pick, a wash ending, a run of picks' reads falling due, a your-turn row
+    /// folding into "N earlier".
     public var nextChange: Date? {
         let washes = (Array(washed.values) + frozen.values.flatMap(\.washed.values))
             .map { $0.addingTimeInterval(Wash.length / 1000) }
 
-        return ([answers.nextDue, held.resortsAt, pickReads.dueAt].compactMap { $0 } + washes).min()
+        return ([answers.nextDue, held.resortsAt, pickReads.dueAt, nextRefold].compactMap { $0 } + washes).min()
     }
 
     private func sessionPage(_ session: Board.Session, of project: Board.Project, at time: Date) -> SessionPage {

@@ -3,13 +3,16 @@ import SitRepPanel
 
 /// What VoiceOver reads of the window, in words, where its marks, counts and times would read as symbols.
 public enum Spoken {
-    /// A session's row in the sidebar, one element: its name, its project, its state and its time, as "The Mac app,
-    /// SitRep, needs you, 5 hours", under Needs you or its project. Away with something waiting, it needs Lee and is
-    /// away.
+    /// A session's row in the sidebar, one element: under Needs you, as `needsYou(_:at:)` reads it; in Working or Your
+    /// turn, its line's words, its project, its session, its state and its time, as "Drawing the ledger schema,
+    /// Switchboard, Request ledger, your turn, 12 minutes".
     public static func row(_ row: Listed.Row, at now: Date) -> String {
-        let state = row.isAway && row.mark != .away ? "\(mark(row.mark)), away" : mark(row.mark)
+        guard row.section != .needsYou else {
+            return needsYou(row, at: now)
+        }
 
-        return "\(row.name), \(row.project), \(state), \(age(row.since, at: now))"
+        return (row.lines.map { $0.words(at: now) } + [row.project, row.name, mark(row.mark), age(row.since, at: now)])
+            .joined(separator: ", ")
     }
 
     /// A session's row under Needs you, one element: what waits on Lee first, how many where there are several, then
@@ -20,27 +23,38 @@ public enum Spoken {
         let count = row.lines.count > 1 ? [Words.count(row.lines.count, "ask")] : []
         let away = row.isAway ? ["away"] : []
 
-        return (count + row.lines.map(\.words) + [row.project, row.name] + away + [age(row.since, at: now)])
+        return (count + row.lines.map { $0.words(at: now) } + [row.project, row.name] + away + [age(row.since, at: now)])
             .joined(separator: ", ")
     }
 
     /// The sidebar's Filter field.
     public static let filter = "Filter sessions"
 
-    /// A heading in the sidebar that folds: a project's, its name and what waits there, as "SitRep, 3 waiting", or the
-    /// quiet projects'; and, folded, that it is.
+    /// A heading in the sidebar, which folds: its name and its count, as "Needs you, 4 waiting", "Your turn, 3
+    /// sessions" or "Projects, 6 projects"; and, folded, that it is.
     public static func heading(_ heading: Sidebar.Heading) -> String {
-        let name = switch heading.fold {
-        case .project: "\(heading.name), \(heading.waiting == 0 ? "nothing waiting" : Words.waiting(heading.waiting))"
-        case .quiet: heading.name
+        let count = switch heading.fold {
+        case .section(.needsYou): Words.waiting(heading.count)
+        case .section: Words.count(heading.count, "session")
+        case .projects, .earlier: Words.count(heading.count, "project")
         }
 
-        return heading.isFolded ? "\(name), folded" : name
+        return folded("\(heading.title), \(count)", heading.isFolded)
     }
 
-    /// A quiet project's row in the sidebar, with nothing open.
-    public static func quiet(_ project: Listed.Quiet) -> String {
-        "\(project.name), quiet project"
+    /// Your turn's "N earlier": how many, and their projects, as "8 earlier, Switchboard, Fumi"; and, folded, that it
+    /// is.
+    public static func earlier(_ earlier: Earlier) -> String {
+        folded(([earlier.title] + earlier.projects).joined(separator: ", "), !earlier.isOpen)
+    }
+
+    /// A project's row in the sidebar, which opens its page.
+    public static func project(_ project: Listed.Project) -> String {
+        "\(project.name), project"
+    }
+
+    private static func folded(_ words: String, _ isFolded: Bool) -> String {
+        isFolded ? "\(words), folded" : words
     }
 
     /// What a session's mark means.

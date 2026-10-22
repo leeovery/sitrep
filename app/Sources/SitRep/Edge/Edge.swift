@@ -35,7 +35,7 @@ final class Edge {
         strip.onMoved = { [unowned self] in moved($0) }
         fullScreen.onChange = { [unowned self] in show() }
         preferences.onEdge = { [unowned self] in apply($0) }
-        preferences.onApp = { [unowned self] in notch.period = $0.foldsAfter }
+        preferences.follow { [unowned self] in notch.period = $0.foldsAfter }
         listen()
         show()
     }

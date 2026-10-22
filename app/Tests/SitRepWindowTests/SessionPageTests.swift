@@ -86,7 +86,7 @@ struct SessionPageTests {
         #expect(held.jumps)
         #expect(held.finish == nil)
         #expect(held.asks.first?.buttons.contains(.inClaude(.comment)) == true)
-        #expect(run.listed(at: printedAt).sessions.first { $0.id == "sr-gs7kq2" }?.isAway == false)
+        #expect(run.listed(at: printedAt).rows.first { $0.id == "sr-gs7kq2" }?.isAway == false)
     }
 
     // MARK: The cards

@@ -2,6 +2,7 @@ import AppKit
 import Observation
 import SitRepCore
 import SitRepEdge
+import enum SitRepPanel.FoldPeriod
 import SitRepWindow
 
 /// The SitRep window's run, as the views see it: what it lists and shows, kept current as the board, the clock and
@@ -13,8 +14,6 @@ final class WindowModel {
     private(set) var sidebar = Sidebar()
     private(set) var page = Page.empty("Looking for sessions…")
     private(set) var pick: Pick?
-    /// The row of the sidebar's list that shows the pick.
-    private(set) var spot: Spot?
     /// What the Filter field holds, never saved.
     private(set) var filter = Filter()
     /// The clock the pages are drawn at: ages, washes and an answer's wait.
@@ -31,6 +30,8 @@ final class WindowModel {
     @ObservationIgnored private let works: Works
     @ObservationIgnored private let defaults: UserDefaults
     @ObservationIgnored private let saved: SavedSettings<SidebarSettings>
+    /// The folds as last saved, which are saved again as they change.
+    @ObservationIgnored private var savedFolds: Folds
     @ObservationIgnored private var wake: Task<Void, Never>?
     @ObservationIgnored private var observers: [any NSObjectProtocol] = []
 
@@ -38,14 +39,17 @@ final class WindowModel {
     /// How often the ages are drawn again while nothing else changes.
     private static let tick: TimeInterval = 30
 
-    init(plugin: Plugin, works: Works, defaults: UserDefaults = .standard) {
+    /// `period`, how long a your-turn row stays before it folds into "N earlier", as Lee set it.
+    init(plugin: Plugin, works: Works, period: FoldPeriod, defaults: UserDefaults = .standard) {
         self.plugin = plugin
         self.works = works
         self.defaults = defaults
         let saved = SavedSettings<SidebarSettings>(defaults)
+        let folds = saved.read().folds
 
         self.saved = saved
-        run = WindowRun(lastSession: defaults.string(forKey: Self.lastSessionKey), folds: saved.read().folds)
+        savedFolds = folds.kept
+        run = WindowRun(lastSession: defaults.string(forKey: Self.lastSessionKey), folds: folds, period: period)
         actions = WindowActions(
             pick: { [weak self] in self?.pick($0) },
             pickInList: { [weak self] in self?.pickInList($0) },
@@ -130,8 +134,14 @@ final class WindowModel {
         picked(run.pick(pick))
     }
 
-    private func pickInList(_ spot: Spot) {
-        picked(run.pickInList(spot, at: Date()))
+    private func pickInList(_ pick: Pick) {
+        picked(run.pickInList(pick, at: Date()))
+    }
+
+    /// Lee set how long a your-turn row stays before it folds into "N earlier": the list refolds at once.
+    func period(_ period: FoldPeriod) {
+        run.period = period
+        refresh()
     }
 
     /// A pick's reads run, and the session picked kept as the one the window opens on.
@@ -163,12 +173,9 @@ final class WindowModel {
         refresh()
     }
 
-    /// A heading clicked: its fold, saved as Lee leaves it, unless the filter holds text.
+    /// A heading clicked, or "N earlier": its fold, kept as Lee leaves it (`keepFolds`), unless the filter holds text.
     private func fold(_ fold: Fold) {
         run.toggle(fold)
-        if run.filter.isEmpty {
-            saved.save(run.folds)
-        }
         refresh()
     }
 
@@ -253,9 +260,20 @@ final class WindowModel {
         sidebar = run.sidebar(at: time)
         page = run.page(at: time)
         pick = run.pick
-        spot = run.spot
         filter = run.filter
+        keepFolds()
         schedule(after: time)
+    }
+
+    /// Lee's folds saved as they change, by a heading clicked or a pick made elsewhere unfolding its section; those
+    /// made while the filter holds text are never his, and "N earlier" open is never kept.
+    private func keepFolds() {
+        let kept = run.folds.kept
+
+        if kept != savedFolds {
+            savedFolds = kept
+            saved.save(kept)
+        }
     }
 
     private func schedule(after time: Date) {

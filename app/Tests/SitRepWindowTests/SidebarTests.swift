@@ -2,246 +2,234 @@ import Foundation
 @testable import SitRepCore
 import SitRepEdge
 import SitRepLines
+import enum SitRepPanel.BoardSection
+import struct SitRepPanel.Earlier
 @testable import SitRepWindow
 import Testing
 
-/// The sidebar's one list, over the first line the real `watch` printed: Needs you, then the projects under their
-/// headings, then the quiet projects; and the folds, kept across launches.
+/// The sidebar's one list, the card's sections at the window's size: Needs you, Working and Your turn, each under a
+/// heading with its count, each session once; then Projects; and the folds, kept across launches.
 struct SidebarTests {
-    private static let listed = Listed(heard(line(0)))
+    /// Harness's three asks, Switchboard's ask and prompt and Goosemates' away ask; SitRep working, Kit on its own work;
+    /// Fumi's turn; six projects.
+    private static let bySession = Listed(heard(.line(Lines.bySession[0])))
+    /// Three sessions needing Lee, Request ledger's turn, nothing working; four projects, Kit's quiet.
+    private static let first = Listed(heard(line(0)))
 
-    private static func lines(_ listed: Listed = listed, folds: Folds = Folds()) -> [Sidebar.Line.ID] {
+    private static func ids(_ listed: Listed = bySession, folds: Folds = Folds()) -> [Sidebar.Line.ID] {
         Sidebar(listed, folds: folds).lines.map(\.id)
     }
 
-    @Test func needsYouHoldsEverySessionWithAnAskTheOldestFirstAndNoOther() {
-        // the Mac app's ask is the oldest, then Dashboard redesign's, then Goosemates' away one; Request ledger's turn
-        // and Kit's away session wait on nothing
-        #expect(Self.listed.needsYou.map(\.name) == [
-            "The Mac app", "Dashboard redesign", "Settle the older open questions",
-        ])
-        #expect(Self.listed.needsYou.allSatisfy { $0.mark == .needs })
+    private static func session(_ id: String) -> Sidebar.Line.ID {
+        .pick(.session(id))
     }
 
-    @Test func needsYousOrderIsTheAsksWhereverTheirProjectsSit() throws {
-        let board = try Board.read(projects(["kit", "goosemates", "switchboard", "sitrep"]))
+    private static let needsYou = Sidebar.Line.ID.fold(.section(.needsYou))
+    private static let working = Sidebar.Line.ID.fold(.section(.working))
+    private static let yourTurn = Sidebar.Line.ID.fold(.section(.yourTurn))
+    private static let projects = Sidebar.Line.ID.fold(.projects)
+    private static let earlier = Sidebar.Line.ID.fold(.earlier)
 
-        #expect(Listed.needsYou(board).map(\.id) == ["sr-macapp", "sr-dash02", "sr-gs7kq2"])
-    }
-
-    @Test func aNeedsYouRowIsItsSessionsRowNamingItsProjectWithItsLines() throws {
-        var asking = try #require(Self.listed.needsYou.first)
-
-        #expect(asking.project == "SitRep")
-        #expect(!asking.lines.isEmpty)
-        asking.lines = []
-        #expect(asking == Self.listed.sessions.first { $0.id == asking.id })
-    }
-
-    /// The lines of core's row, the oldest first: the Mac app's three asks, Dashboard redesign's ask and its window's
-    /// permission prompt, the command apart from the words, Goosemates' away ask.
-    @Test func aNeedsYouRowsLinesAreCoresRowsWithTheirWordsAndTheirTimes() throws {
-        let board = try Board.read(Lines.watch[0])
-
-        #expect(Self.listed.needsYou.map { $0.lines.map(\.id) } == board.rows.filter(\.needsLee).map { $0.lines.map(\.id) })
-        #expect(Self.listed.needsYou.map(\.lines.count) == [3, 2, 1])
-        #expect(Self.listed.needsYou[0].lines.map(\.lead) == [
-            "Choose which edge the strip takes by default", "Paste the load test's output",
-            "Look at round 3, the SitRep window, and approve it or comment",
-        ])
-        #expect(Self.listed.needsYou[0].lines.map(\.since) == board.rows[0].lines.map(\.since))
-        #expect(Self.listed.needsYou[0].since == board.rows[0].since)
-        #expect(Self.listed.needsYou[1].lines.map(\.words) == [
-            "Paste the load test's output for the Usage area", "Allow Bash gh pr create --draft --base main",
-        ])
-        #expect(Self.listed.needsYou[1].lines.map(\.code) == [nil, "gh pr create --draft --base main"])
-    }
-    @Test func theListIsNeedsYouThenEachProjectThenTheQuietProjects() {
-        #expect(Self.lines() == [
-            .needsYou,
-            .spot(.needsYou("sr-macapp")), .spot(.needsYou("sr-dash02")), .spot(.needsYou("sr-gs7kq2")),
-            .spot(.board(.project("sitrep"))), .spot(.board(.session("sr-macapp"))),
-            .spot(.board(.project("switchboard"))), .spot(.board(.session("sr-dash02"))),
-            .spot(.board(.session("sr-rq7dgr"))),
-            .spot(.board(.project("goosemates"))), .spot(.board(.session("sr-gs7kq2"))),
-            .quietHeading, .spot(.board(.project("kit"))),
+    @Test func theListIsNeedsYouThenWorkingThenYourTurnThenProjectsFolded() {
+        #expect(Self.ids() == [
+            Self.needsYou, Self.session("sr-4g01a7"), Self.session("sr-dash02"), Self.session("sr-gs7kq2"),
+            Self.working, Self.session("sr-macapp"), Self.session("sr-k7bt2s"),
+            Self.yourTurn, Self.session("sr-v3t7a0"),
+            Self.projects,
         ])
     }
 
-    /// The arrow keys walk the list's own rows, a session with an ask under Needs you and again under its project.
-    @Test func theRowsThatPickAreEveryRowButTheHeadings() {
-        let picks = Sidebar(Self.listed, folds: Folds()).picks
+    @Test func eachSessionShowsOnceInItsSection() {
+        let picks = Sidebar(Self.bySession, folds: Folds()).picks
 
-        #expect(picks == Sidebar(Self.listed, folds: Folds()).lines.filter { !Self.isHeading($0) }.compactMap(\.spot))
-        #expect(picks == [
-            .needsYou("sr-macapp"), .needsYou("sr-dash02"), .needsYou("sr-gs7kq2"),
-            .board(.session("sr-macapp")), .board(.session("sr-dash02")), .board(.session("sr-rq7dgr")),
-            .board(.session("sr-gs7kq2")), .board(.project("kit")),
+        #expect(picks.count == Set(picks).count)
+        #expect(picks == Self.bySession.rows.map(\.pick))
+    }
+
+    @Test func aSectionWithNoRowsIsLeftOutHeadingAndAll() {
+        let ids = Self.ids(Self.first)
+
+        #expect(!ids.contains(Self.working))
+        #expect(ids.filter { if case .fold = $0 { true } else { false } } == [Self.needsYou, Self.yourTurn, Self.projects])
+    }
+
+    /// Needs you counts its lines, Harness's three, Switchboard's two and Goosemates' one; the others their rows;
+    /// Projects its projects.
+    @Test func eachHeadingCountsWhatItHolds() {
+        let headings = Self.headings(Sidebar(Self.bySession, folds: Folds()))
+
+        #expect(headings.map(\.fold) == [.section(.needsYou), .section(.working), .section(.yourTurn), .projects])
+        #expect(headings.map(\.count) == [6, 2, 1, 6])
+        #expect(headings.map(\.title) == ["Needs you", "Working", "Your turn", "Projects"])
+        #expect(headings.map(\.isNeedsYou) == [true, false, false, false])
+    }
+
+    /// Fumi's turn ended longer ago than the period: Your turn still counts it, under "N earlier".
+    @Test func yourTurnsCountTakesInItsEarlierRows() {
+        let headings = Self.headings(Sidebar(Self.marked(Self.bySession, earlier: ["sr-v3t7a0"]), folds: Folds()))
+
+        #expect(headings.first { $0.fold == .section(.yourTurn) }?.count == 1)
+    }
+
+    @Test func projectsIsFoldedAtFirstItsChevronRightAndOpenListsEveryProject() {
+        let folded = Sidebar(Self.first, folds: Folds())
+        let open = Sidebar(Self.first, folds: Folds(projects: false))
+
+        #expect(Self.headings(folded).last == Sidebar.Heading(fold: .projects, count: 4, isFolded: true))
+        #expect(folded.lines.last?.id == Self.projects)
+        #expect(Array(open.lines.suffix(5).map(\.id)) == [
+            Self.projects, .pick(.project("sitrep")), .pick(.project("switchboard")), .pick(.project("goosemates")),
+            .pick(.project("kit")),
         ])
     }
 
-    @Test func theRuleAfterNeedsYouSitsOverTheFirstLineAfterItsRows() {
-        #expect(Sidebar(Self.listed, folds: Folds()).ruled == .spot(.board(.project("sitrep"))))
+    @Test(arguments: [BoardSection.needsYou, .working, .yourTurn])
+    func everySectionFoldsToItsHeadingAlone(section: BoardSection) {
+        let sidebar = Sidebar(Self.bySession, folds: Folds(sections: [section]))
+        let hidden = Self.bySession.rows(in: section).map(\.pick)
+
+        #expect(Self.headings(sidebar).first { $0.fold == .section(section) }?.isFolded == true)
+        #expect(sidebar.lines.contains { $0.id == .fold(.section(section)) })
+        #expect(Set(sidebar.picks).isDisjoint(with: hidden))
     }
 
-    @Test func aFoldedProjectsHeadingFirstAfterNeedsYouIsRuled() {
-        #expect(Sidebar(Self.listed, folds: Self.folded(.project("sitrep"))).ruled == .spot(.board(.project("sitrep"))))
+    @Test func theRuleSitsOverTheHeadingAfterNeedsYouFoldedOrNot() {
+        #expect(Sidebar(Self.bySession, folds: Folds()).ruled == Self.working)
+        #expect(Sidebar(Self.bySession, folds: Folds(sections: [.needsYou])).ruled == Self.working)
+        #expect(Sidebar(Self.first, folds: Folds()).ruled == Self.yourTurn)
     }
 
-    @Test func withNoProjectQuietProjectsHeadingIsRuled() {
-        var listed = Self.listed
+    @Test func withNoAskOrNothingAfterNeedsYouNoHeadingIsRuled() {
+        var asksAlone = Self.first
+        var noAsk = Self.first
 
-        listed.projects = []
-        #expect(Sidebar(listed, folds: Folds()).ruled == .quietHeading)
-    }
-
-    @Test func withNoAskOrNothingAfterNeedsYouNoLineIsRuled() {
-        var asksAlone = Self.listed
-        var noAsk = Self.listed
-
+        asksAlone.rows = asksAlone.needsYou
         asksAlone.projects = []
-        asksAlone.quiet = []
-        noAsk.needsYou = []
+        noAsk.rows = noAsk.rows(in: .yourTurn)
         #expect(Sidebar(asksAlone, folds: Folds()).ruled == nil)
         #expect(Sidebar(noAsk, folds: Folds()).ruled == nil)
+        #expect(Self.ids(noAsk).first == Self.yourTurn)
     }
 
-    @Test func withNoAskNeedsYouGoesAndAProjectsHeadingHeadsTheList() {
-        var listed = Self.listed
+    /// Request ledger's turn past the period, Fumi's not: Request ledger folds under "N earlier" at Your turn's end,
+    /// which names its project.
+    @Test func yourTurnsRowsPastThePeriodFoldIntoNEarlierAtItsEnd() throws {
+        var listed = Self.first
 
-        listed.needsYou = []
-        #expect(Self.lines(listed).first == .spot(.board(.project("sitrep"))))
-        #expect(!Self.lines(listed).contains(.needsYou))
-    }
+        listed.rows.append(try #require(Self.bySession.rows.last))
 
-    @Test func aFoldedProjectShowsItsHeadingAloneItsAskStillUnderNeedsYou() {
-        let lines = Self.lines(folds: Self.folded(.project("sitrep")))
+        let sidebar = Sidebar(Self.marked(listed, earlier: ["sr-rq7dgr"]), folds: Folds())
+        let line = try #require(sidebar.lines.first { $0.id == Self.earlier })
 
-        #expect(lines.contains(.spot(.board(.project("sitrep")))))
-        #expect(!lines.contains(.spot(.board(.session("sr-macapp")))))
-        #expect(lines.contains(.spot(.needsYou("sr-macapp"))))
-    }
-
-    @Test func theQuietProjectsFoldAsAProjectDoes() {
-        let lines = Self.lines(folds: Self.folded(.quiet))
-
-        #expect(lines.last == .quietHeading)
-        #expect(!lines.contains(.spot(.board(.project("kit")))))
-    }
-
-    /// SitRep's one session holds three asks, and Switchboard's two sessions one between them.
-    @Test func aFoldedProjectCountsItsSessionsWithAnAskAndOnlyWhileFolded() throws {
-        let open = Self.headings(Sidebar(Self.listed, folds: Folds()))
-        let folded = Self.headings(Sidebar(Self.listed, folds: Self.folded(.project("sitrep"), .project("switchboard"))))
-
-        #expect(open.map(\.count) == [nil, nil, nil, nil])
-        #expect(folded.map(\.count) == [1, 1, nil, nil])
-        #expect(folded.map(\.waiting) == [3, 2, 1, 0])
-    }
-
-    @Test func aFoldedProjectWithNoAskShowsNoCount() {
-        let folded = Self.headings(Sidebar(Self.listed, folds: Self.folded(.quiet)))
-
-        #expect(folded.last?.isFolded == true)
-        #expect(folded.last?.count == nil)
-    }
-
-    /// A heading shows a project's page as picked; Needs you's and the quiet projects' show no pick at all.
-    @Test func onlyAProjectsHeadingShowsAPick() {
-        let headings = Sidebar(Self.listed, folds: Folds()).lines.filter(Self.isHeading)
-
-        #expect(headings.map(\.spot) == [
-            nil, .board(.project("sitrep")), .board(.project("switchboard")), .board(.project("goosemates")), nil,
+        #expect(Array(sidebar.lines.map(\.id).drop { $0 != Self.yourTurn }.prefix(3)) == [
+            Self.yourTurn, Self.session("sr-v3t7a0"), Self.earlier,
         ])
+        #expect(line == .earlier(Earlier(projects: ["Switchboard"], isOpen: false)))
+        #expect(!sidebar.picks.contains(.session("sr-rq7dgr")))
+    }
+
+    @Test func nEarlierOpenShowsItsRowsUnderIt() {
+        let listed = Self.marked(Self.first, earlier: ["sr-rq7dgr"])
+        let ids = Self.ids(listed, folds: Folds(isEarlierOpen: true))
+
+        #expect(Array(ids.drop { $0 != Self.yourTurn }.prefix(3)) == [Self.yourTurn, Self.earlier, Self.session("sr-rq7dgr")])
+    }
+
+    @Test func withNoRowPastThePeriodThereIsNoNEarlier() {
+        #expect(!Self.ids(Self.first, folds: Folds(isEarlierOpen: true)).contains(Self.earlier))
+    }
+
+    /// The list slides its rows by their order, so a resort moves them and a fold, which leaves the order alone, changes
+    /// the list at once.
+    @Test func aFoldLeavesTheRowsOrderAloneAResortChangesIt() {
+        let open = Sidebar(Self.bySession, folds: Folds())
+        let folded = Sidebar(Self.bySession, folds: Folds(sections: [.working], projects: false, isEarlierOpen: true))
+        var resorted = Self.bySession
+
+        resorted.rows.swapAt(0, 1)
+        #expect(open.lines != folded.lines)
+        #expect(open.order == folded.order)
+        #expect(Sidebar(resorted, folds: Folds()).order != open.order)
     }
 
     @Test func anEmptyBoardListsNothing() {
         #expect(Sidebar().isEmpty)
-        #expect(!Sidebar(Self.listed, folds: Folds()).isEmpty)
+        #expect(!Sidebar(Self.first, folds: Folds()).isEmpty)
     }
 
-    @Test func theListsFirstRowThatPicksIsUnderNeedsYouElseUnderItsProjectElseAQuietProject() {
-        var listed = Self.listed
-        let first = { (folds: Folds) in Sidebar(listed, folds: folds).first }
-
-        #expect(first(Folds()) == .session("sr-macapp"))
-        listed.needsYou = []
-        listed.projects.removeFirst()
-        #expect(first(Folds()) == .session("sr-dash02"))
-        // a folded project's rows are hidden, so the next project's come first
-        #expect(first(Self.folded(.project("switchboard"))) == .session("sr-gs7kq2"))
-        listed.projects = []
-        #expect(first(Folds()) == .project("kit"))
-        #expect(first(Self.folded(.quiet)) == nil)
-        listed.quiet = []
-        #expect(first(Folds()) == nil)
+    /// What Return in the Filter field opens: the first row that picks, never a heading, nor a row a fold hides.
+    @Test func theListsFirstRowThatPicksIsTheFirstItShows() {
+        #expect(Sidebar(Self.bySession, folds: Folds()).first == .session("sr-4g01a7"))
+        #expect(Sidebar(Self.bySession, folds: Folds(sections: [.needsYou])).first == .session("sr-macapp"))
+        #expect(Sidebar(Self.bySession, folds: Folds(sections: [.needsYou, .working, .yourTurn])).first == nil)
+        #expect(
+            Sidebar(Self.bySession, folds: Folds(sections: [.needsYou, .working, .yourTurn], projects: false)).first
+                == .project("harness")
+        )
     }
 
-    /// The arrow keys from a heading that shows its project's page, which the list selects no row for.
-    @Test func fromAPickedHeadingAStepGoesToTheRowAfterItOrBeforeIt() {
-        let sidebar = Sidebar(Self.listed, folds: Folds())
-
-        #expect(sidebar.step(from: .board(.project("switchboard")), down: true) == .to(.board(.session("sr-dash02"))))
-        #expect(sidebar.step(from: .board(.project("switchboard")), down: false) == .to(.board(.session("sr-macapp"))))
-        #expect(sidebar.step(from: .board(.project("sitrep")), down: false) == .to(.needsYou("sr-gs7kq2")))
-    }
-
-    @Test func fromAFoldedHeadingAStepGoesPastItsHiddenRows() {
-        let sidebar = Sidebar(Self.listed, folds: Self.folded(.project("goosemates")))
-
-        #expect(sidebar.step(from: .board(.project("goosemates")), down: true) == .to(.board(.project("kit"))))
-    }
-
-    /// A pick a fold hides stands at the heading it is folded under, its project's or the quiet projects'.
+    /// A pick a fold hides stands at the line it is folded under: its section's heading.
     @Test func fromAPickAFoldHidesAStepGoesFromItsHeading() {
-        let projects = Sidebar(Self.listed, folds: Self.folded(.project("switchboard")))
+        let sidebar = Sidebar(Self.bySession, folds: Folds(sections: [.working]))
 
-        #expect(projects.step(from: .board(.session("sr-rq7dgr")), down: true) == .to(.board(.session("sr-gs7kq2"))))
-        #expect(projects.step(from: .board(.session("sr-rq7dgr")), down: false) == .to(.board(.session("sr-macapp"))))
-
-        let quiet = Sidebar(Self.listed, folds: Self.folded(.quiet))
-
-        #expect(quiet.step(from: .board(.project("kit")), down: false) == .to(.board(.session("sr-gs7kq2"))))
-        #expect(quiet.step(from: .board(.project("kit")), down: true) == .stays)
+        #expect(sidebar.step(from: .session("sr-k7bt2s"), down: true) == .to(.session("sr-v3t7a0")))
+        #expect(sidebar.step(from: .session("sr-k7bt2s"), down: false) == .to(.session("sr-gs7kq2")))
     }
 
-    /// Past the ends there is no row to go to, and the pick stays where it is.
-    @Test func fromAHeadingAtAnEndAStepStays() {
-        var listed = Self.listed
+    /// A project's page shows while Projects is folded: it stands at Projects' heading, the list's last line.
+    @Test func fromAProjectFoldedUnderProjectsUpGoesToTheLastRowAndDownStays() {
+        let sidebar = Sidebar(Self.bySession, folds: Folds())
 
-        listed.needsYou = []
-        listed.quiet = []
-
-        #expect(Sidebar(listed, folds: Folds()).step(from: .board(.project("sitrep")), down: false) == .stays)
-        #expect(Sidebar(listed, folds: Self.folded(.project("goosemates")))
-            .step(from: .board(.project("goosemates")), down: true) == .stays)
+        #expect(sidebar.step(from: .project("kit"), down: false) == .to(.session("sr-v3t7a0")))
+        #expect(sidebar.step(from: .project("kit"), down: true) == .stays)
     }
 
-    /// The list's own keys move from a row it selects, from a pick it does not show, and from none.
-    @Test func fromARowTheListSelectsOrAPickItDoesNotShowTheStepIsTheListsOwn() {
-        let sidebar = Sidebar(Self.listed, folds: Folds())
+    @Test func fromARowUnderAFoldedNEarlierAStepGoesFromIt() {
+        let sidebar = Sidebar(Self.marked(Self.first, earlier: ["sr-rq7dgr"]), folds: Folds(projects: false))
 
-        #expect(sidebar.step(from: .board(.session("sr-dash02")), down: true) == .listsOwn)
-        #expect(sidebar.step(from: .needsYou("sr-macapp"), down: false) == .listsOwn)
-        #expect(sidebar.step(from: .board(.project("kit")), down: true) == .listsOwn)
-        #expect(sidebar.step(from: .board(.session("sr-gone")), down: true) == .listsOwn)
-        #expect(sidebar.step(from: .board(.settings), down: true) == .listsOwn)
+        #expect(sidebar.step(from: .session("sr-rq7dgr"), down: true) == .to(.project("sitrep")))
+        #expect(sidebar.step(from: .session("sr-rq7dgr"), down: false) == .to(.session("sr-gs7kq2")))
+    }
+
+    @Test func fromAHiddenPickWithNoRowBeforeItUpStays() {
+        let sidebar = Sidebar(Self.bySession, folds: Folds(sections: [.needsYou]))
+
+        #expect(sidebar.step(from: .session("sr-dash02"), down: false) == .stays)
+    }
+
+    /// The list's own keys move from a row it selects, from a pick it does not list, and from none.
+    @Test func fromARowTheListSelectsOrAPickItDoesNotListTheStepIsTheListsOwn() {
+        let sidebar = Sidebar(Self.bySession, folds: Folds())
+
+        #expect(sidebar.step(from: .session("sr-dash02"), down: true) == .listsOwn)
+        #expect(sidebar.step(from: .session("sr-gone"), down: true) == .listsOwn)
+        #expect(sidebar.step(from: .settings, down: true) == .listsOwn)
         #expect(sidebar.step(from: nil, down: true) == .listsOwn)
     }
 
-    @Test func aFoldTogglesAndTheQuietProjectsFoldOfTheirOwn() {
+    @Test func aFoldTogglesAndNEarlierOpensOfItsOwn() {
         var folds = Folds()
 
-        folds.toggle(.project("kit"))
-        folds.toggle(.quiet)
-        #expect(folds.contains(.project("kit")) && folds.contains(.quiet))
-        #expect(!folds.contains(.project("sitrep")))
-        folds.toggle(.project("kit"))
-        #expect(folds == Self.folded(.quiet))
+        folds.toggle(.section(.needsYou))
+        folds.toggle(.projects)
+        folds.toggle(.earlier)
+        #expect(folds == Folds(sections: [.needsYou], projects: false, isEarlierOpen: true))
+        #expect(folds.contains(.section(.needsYou)) && !folds.contains(.projects) && !folds.contains(.earlier))
+        folds.toggle(.section(.needsYou))
+        #expect(!folds.contains(.section(.needsYou)))
     }
 
-    private static func folded(_ folds: Fold...) -> Folds {
-        folds.reduce(into: Folds()) { $0.toggle($1) }
+    /// These sessions' rows marked past the fold period, as the window marks them by the wall clock.
+    private static func marked(_ listed: Listed, earlier: Set<String>) -> Listed {
+        var marked = listed
+
+        marked.rows = listed.rows.map { row in
+            var row = row
+
+            row.isEarlier = earlier.contains(row.id)
+            return row
+        }
+        return marked
     }
 
     private static func headings(_ sidebar: Sidebar) -> [Sidebar.Heading] {
@@ -250,13 +238,6 @@ struct SidebarTests {
                 return heading
             }
             return nil
-        }
-    }
-
-    private static func isHeading(_ line: Sidebar.Line) -> Bool {
-        switch line {
-        case .needsYou, .heading: true
-        case .asking, .session, .quiet: false
         }
     }
 }
@@ -271,35 +252,46 @@ struct SidebarSettingsTests {
         try test(defaults)
     }
 
-    @Test func nothingSavedIsNothingFoldedTheQuietProjectsOpen() {
+    @Test func nothingSavedIsProjectsFoldedAlone() {
         Self.withDefaults { defaults in
-            #expect(SavedSettings<SidebarSettings>(defaults).read().folds == Folds())
-            #expect(!Folds().quiet)
+            let folds = SavedSettings<SidebarSettings>(defaults).read().folds
+
+            #expect(folds == Folds())
+            #expect(folds.projects && folds.sections.isEmpty && !folds.isEarlierOpen)
         }
     }
 
-    @Test func theFoldsAreReadBackUnderTheWindowsKey() {
+    @Test func theFoldsAreReadBackUnderTheWindowsKeyEachSectionsOwn() {
         Self.withDefaults { defaults in
-            var folds = Folds()
+            let folds = Folds(sections: [.needsYou, .yourTurn], projects: false)
 
-            folds.toggle(.project("fumi"))
-            folds.toggle(.quiet)
             SavedSettings<SidebarSettings>(defaults).save(folds)
-
             #expect(SavedSettings<SidebarSettings>(defaults).read().folds == folds)
             #expect(defaults.data(forKey: "window") != nil)
         }
     }
 
-    /// Round 7's saved view, or anything else it cannot read, gives the folds' defaults.
-    @Test func whatItCannotReadIsNothingFolded() {
+    /// What it holds is stale, so "N earlier" is folded each time the window opens.
+    @Test func nEarlierOpenIsNeverKept() {
+        Self.withDefaults { defaults in
+            SavedSettings<SidebarSettings>(defaults).save(Folds(isEarlierOpen: true))
+            #expect(!SavedSettings<SidebarSettings>(defaults).read().folds.isEarlierOpen)
+            #expect(Folds(sections: [.working], projects: false, isEarlierOpen: true).kept == Folds(sections: [.working], projects: false))
+        }
+    }
+
+    /// Round 7's saved view, round 8's projects folded by their keys, or a section this version doesn't know: what it
+    /// cannot read gives the defaults, the rest kept.
+    @Test func whatItCannotReadIsTheDefaults() {
         Self.withDefaults { defaults in
             defaults.set(Data(#"{"sidebar":"needsYou"}"#.utf8), forKey: SidebarSettings.key)
             #expect(SavedSettings<SidebarSettings>(defaults).read().folds == Folds())
 
-            defaults.set(Data(#"{"folds":{"projects":"kit","quiet":true}}"#.utf8), forKey: SidebarSettings.key)
-            #expect(SavedSettings<SidebarSettings>(defaults).read().folds.projects.isEmpty)
-            #expect(SavedSettings<SidebarSettings>(defaults).read().folds.quiet)
+            defaults.set(Data(#"{"folds":{"projects":["kit"],"quiet":true}}"#.utf8), forKey: SidebarSettings.key)
+            #expect(SavedSettings<SidebarSettings>(defaults).read().folds == Folds())
+
+            defaults.set(Data(#"{"folds":{"sections":["working","later"],"projects":false}}"#.utf8), forKey: SidebarSettings.key)
+            #expect(SavedSettings<SidebarSettings>(defaults).read().folds == Folds(sections: [.working], projects: false))
         }
     }
 }

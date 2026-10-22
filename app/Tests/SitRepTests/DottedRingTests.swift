@@ -76,9 +76,9 @@ struct DottedRingTests {
         #expect(early.width - due.width > 10)
     }
 
-    /// Its 4.25 radius and 1.5 stroke 10 across, on the mark's centre at 29, in white at 45% over what is under it,
-    /// dashed: 1.5 with gaps of 2.0 go round seven and a half times. Read on the row the window opens picked, as only
-    /// the selection's dark draws offscreen.
+    /// Its 4.25 radius and 1.5 stroke 10 across, on the mark's centre at 29 on the working row's first line, in white
+    /// at 45% over what is under it, dashed: 1.5 with gaps of 2.0 go round seven and a half times. Read on the row the
+    /// window opens picked, as only the selection's dark draws offscreen.
     @Test func theSidebarsRingIsCentredDashedAndFaint() throws {
         let run = HostedSidebar.opened(Lines.onItsWork)
         let side = try HostedSidebar(run, listAlone: true)
@@ -87,12 +87,14 @@ struct DottedRingTests {
             if case let .session(row) = $0 { row.name == "The bootstrap" } else { false }
         })
         let row = side.rows[place].offsetBy(dx: 0, dy: -side.glassTop)
-        let ground = CGPoint(x: 13, y: row.midY)
-        let lane = CGRect(x: 18, y: row.midY - 8, width: 22, height: 16)
+        let middle = row.minY + WindowStyle.twoLineTop + WindowStyle.titleLine / 2
+        let ground = CGPoint(x: 13, y: middle)
+        let lane = CGRect(x: 18, y: middle - 8, width: 22, height: 16)
         let ring = try #require(drawn.drawnBox(in: lane, ground: ground))
         let under = try #require(drawn.stored(at: ground))
 
-        #expect(abs(ring.midX - 29) <= 0.5 && abs(ring.midY - row.midY) <= 0.5)
+        #expect(run.pick == .session("sr-k7bt2s"))
+        #expect(abs(ring.midX - 29) <= 0.5 && abs(ring.midY - middle) <= 0.5)
         #expect(abs(ring.width - 10) <= 1 && abs(ring.height - 10) <= 1)
         #expect(abs(Self.colour(drawn, in: ring)[0] - (0.45 + 0.55 * under.redComponent)) <= 0.02)
         #expect(try Self.dashes(drawn, in: lane, ground: ground) == 7)

@@ -19,16 +19,16 @@ struct SettingsPickTests {
         let run = opened()
 
         _ = run.pick(.settings)
-        #expect(run.spot == nil)
+        #expect(!run.sidebar(at: printedAt).lines.contains { $0.pick == .settings })
         _ = run.pick(.project("switchboard"))
-        #expect(run.spot == .board(.project("switchboard")))
+        #expect(run.sidebar(at: printedAt).lines.contains { $0.pick == .project("switchboard") })
     }
 
     @Test func aClickOnASessionLeavesSettingsForIt() {
         let run = opened()
 
         _ = run.pick(.settings)
-        #expect(run.pickInList(.board(.session("sr-dash02")), at: printedAt).map(\.session) == ["sr-dash02"])
+        #expect(run.pickInList(.session("sr-dash02"), at: printedAt).map(\.session) == ["sr-dash02"])
         #expect(run.page(at: printedAt).session?.id == "sr-dash02")
     }
 
