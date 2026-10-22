@@ -3145,6 +3145,11 @@ stands).
   own, an away one with nothing waiting, picked from its project's page,
   stands at its project's row in Projects, which shows picked; with its
   project listed nowhere either, as one filtered out, nothing shows picked.
+  That row stands in for it and is not the list's selection, which holds
+  none, as for a pick a fold hides: SitRep draws the selection on it as the
+  system would, its grey, or the accent while the list has the key window's
+  focus, its words white on it, so a click on it selects it and opens the
+  project's page.
   A pick made outside the list, a restore at launch, the menu opening a
   session, a jump, a project's name pressed on a session's page, unfolds
   the section holding its row, Projects for a project or a session with no
@@ -3160,10 +3165,11 @@ stands).
   any. The arrow keys move
   the selection through the list's rows in order, past the headings and
   "N earlier", which the list never selects, and past what a fold hides,
-  each step a pick, and from a session with no row as from its project's
-  row; from a pick a fold hides, which holds no selection, ↓ goes to the
-  first row after the line it is folded under, its section's heading or "N
-  earlier", and ↑ to the last before it; past either end the
+  each step a pick; from a pick the list holds no selection on, ↓ goes to
+  the first row after the line it stands at, and ↑ to the last before it:
+  for a pick a fold hides, the line it is folded under, its section's
+  heading or "N earlier"; for a session with no row, its project's row, or
+  Projects' heading folded over it; past either end the
   keys go nowhere, and with a modifier held they are the list's own; picks that
   follow sooner than 150ms read only the last one's boards once they stop.
   With the Mac's key repeat faster than that, holding ↓ reads the first

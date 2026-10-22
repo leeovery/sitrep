@@ -486,8 +486,8 @@ struct SidebarLayoutTests {
     }
 
     /// Kit's away session, with no row of its own, picked from Kit's page on `watch`'s first board: Projects unfolds,
-    /// and Kit's row, the last of Projects, is the list's selection, filled as any row picked; or SitRep's, the first,
-    /// the session counted SitRep's.
+    /// and Kit's row, the last of Projects, stands in for it, filled as any row picked though the list selects none; or
+    /// SitRep's, the first, the session counted SitRep's.
     @Test(arguments: ["kit", "sitrep"])
     func aSessionWithNoRowShowsPickedOnItsProjectsRow(project: String) throws {
         let run = HostedSidebar.opened()
@@ -502,8 +502,55 @@ struct SidebarLayoutTests {
         let picked = try #require(drawn.drawnBox(in: row, ground: Self.ground(row)))
 
         #expect(!run.folds.projects)
-        #expect(side.board.selectedRow == place)
+        #expect(side.board.selectedRow == -1)
         #expect(picked == CGRect(x: 10, y: row.minY, width: 276, height: row.height))
+    }
+
+    /// SitRep's selection on the stand-in, as the system's on a row: its grey until the list has the key window's
+    /// focus, then the accent, Kit's name white on it.
+    @Test(arguments: [(false, true), (true, false), (true, true)])
+    func aStandInsSelectionIsTheSystemsGreyUntilTheListHasTheKeyWindowsFocus(
+        isKey: Bool, isFocused: Bool
+    ) async throws {
+        let run = HostedSidebar.opened()
+
+        _ = run.pick(.session("sr-k7t001"))
+
+        let side = try HostedSidebar(run, listAlone: true, isKey: isKey)
+        let isEmphasized = isKey && isFocused
+        let place = try #require(run.sidebar(at: HostedSidebar.printed).lines.firstIndex { $0.pick == .project("kit") })
+
+        side.window.makeFirstResponder(isFocused ? side.board : nil)
+        await Task.yield()
+
+        let drawn = try side.drawn()
+        let row = Self.inDrawing(side.rows[place], of: side)
+        let fill = try #require(drawn.stored(at: CGPoint(x: 270, y: row.midY)))
+        let name = try drawn.brightest(in: CGRect(x: 40, y: row.minY + 6, width: 30, height: 16))
+        let system: NSColor = isEmphasized
+            ? .selectedContentBackgroundColor : .unemphasizedSelectedContentBackgroundColor
+
+        #expect(fill.isAlike(system.dark(in: drawn.bitmap.colorSpace)))
+        #expect(name.isWhite == isEmphasized)
+    }
+
+    /// A click on Kit's row standing in for Kit's away session, which the list holds no selection on: it selects the
+    /// row, and Kit's page opens.
+    @Test func aClickOnTheRowStandingInForASessionPicksItsProject() throws {
+        let run = HostedSidebar.opened()
+
+        _ = run.pick(.session("sr-k7t001"))
+
+        let picked = Picked()
+        let side = try HostedSidebar(run, actions: WindowActions(pickInList: { picked.picks.append($0) }))
+        let place = try #require(run.sidebar(at: HostedSidebar.printed).lines.firstIndex { $0.pick == .project("kit") })
+
+        #expect(side.board.selectedRow == -1)
+        // as the list's own click selects a row
+        side.board.selectRowIndexes(IndexSet(integer: place), byExtendingSelection: false)
+        side.window.contentView?.layoutSubtreeIfNeeded()
+        #expect(picked.picks == [.project("kit")])
+        #expect(side.board.selectedRow == place)
     }
 
     /// Kit's away session picked, standing at its project's row: ↑ and ↓ go from that row, at either end of Projects.

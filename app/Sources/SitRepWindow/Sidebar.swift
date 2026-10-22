@@ -204,15 +204,21 @@ public struct Sidebar: Equatable, Sendable {
         homes = listed.rowless.compactMapValues { key in listed.row(showing: .project(key)) }
     }
 
-    /// The row that shows the pick, which the list selects: its own; for a session with no row of its own, its
-    /// project's in Projects; none for Settings, at the foot. A pick it lists nowhere stands for itself, showing on no
-    /// row.
+    /// The row that shows the pick, drawn picked: its own; for a session with no row of its own, its project's in
+    /// Projects, which stands in for it; none for Settings, at the foot. A pick it lists nowhere stands for itself,
+    /// showing on no row.
     public func row(showing pick: Pick?) -> Pick? {
         switch pick {
         case let .session(id)?: homes[id] ?? pick
         case .settings?, nil: nil
         case .project?: pick
         }
+    }
+
+    /// The list's selection for the pick: the pick itself, the row it has; none where a project's row stands in for
+    /// it, so a click on that row picks the project, nor for Settings.
+    public func selection(for pick: Pick?) -> Pick? {
+        row(showing: pick) == pick ? pick : nil
     }
 
     /// A part of the list: its lines as they show, and the picks its folds hide, by the line each is folded under.
@@ -297,18 +303,25 @@ public struct Sidebar: Equatable, Sendable {
         case listsOwn
     }
 
-    /// An arrow key from a pick whose row (`row(showing:)`) a fold hides, which stands at the line it is folded under,
-    /// its section's heading or "N earlier": to the first row that picks after that line, going down, or the last
+    /// An arrow key from a pick the list holds no selection on: one whose row a fold hides, which stands at the line it
+    /// is folded under, its section's heading or "N earlier"; or one a project's row stands in for, which stands at
+    /// that row, or, folded, at Projects' heading. To the first row that picks after that line, going down, or the last
     /// before it, going up.
     public func step(from pick: Pick?, down: Bool) -> Step {
-        guard let row = row(showing: pick), let line = folded[row],
-              let place = lines.firstIndex(where: { $0.id == line })
-        else {
+        guard let line = standing(pick), let place = lines.firstIndex(where: { $0.id == line }) else {
             return .listsOwn
         }
 
         let beyond = down ? Array(lines[(place + 1)...]) : lines[..<place].reversed()
 
         return beyond.lazy.compactMap(\.pick).first.map(Step.to) ?? .stays
+    }
+
+    /// The line a pick the list holds no selection on stands at; none for one it selects, or lists nowhere.
+    private func standing(_ pick: Pick?) -> Line.ID? {
+        guard let row = row(showing: pick) else {
+            return nil
+        }
+        return folded[row] ?? (row == pick ? nil : .pick(row))
     }
 }

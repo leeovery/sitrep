@@ -137,8 +137,8 @@ struct SelectedWordsTests {
         let project = { (prominence: BackgroundProminence) in
             try Self.drawn(
                 SidebarLine(
-                    line: .project(Listed.Project(id: "kit", name: "Kit")), isRuled: false, pick: nil, filter: Filter(),
-                    now: Self.now
+                    line: .project(Listed.Project(id: "kit", name: "Kit")), isRuled: false, picked: nil,
+                    filter: Filter(), now: Self.now
                 ).environment(\.isStill, true),
                 height: WindowStyle.oneLineHeight, on: prominence
             )

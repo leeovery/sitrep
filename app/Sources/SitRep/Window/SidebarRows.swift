@@ -9,8 +9,7 @@ struct SidebarLine: View {
     let line: Sidebar.Line
     /// The heading after Needs you, which the rule after it sits over (`Sidebar.ruled`).
     let isRuled: Bool
-    /// The row showing the pick (`Sidebar.row(showing:)`), drawn picked.
-    let pick: Pick?
+    let picked: PickedRow?
     let filter: Filter
     let now: Date
 
@@ -21,13 +20,27 @@ struct SidebarLine: View {
         case let .session(row):
             SidebarSessionRow(row: row, filter: filter, now: now)
                 .spoken(Spoken.row(row, at: now))
-                .sidebarRow(row.pick, picked: pick, washed: row.washed, now: now)
+                .sidebarRow(row.pick, picked: picked, washed: row.washed, now: now)
         case let .earlier(earlier):
-            EarlierRow(earlier: earlier).sidebarRow(nil, picked: pick, now: now)
+            EarlierRow(earlier: earlier).sidebarRow(nil, picked: picked, now: now)
         case let .project(project):
             ProjectRow(project: project, filter: filter)
                 .spoken(Spoken.project(project))
-                .sidebarRow(project.pick, picked: pick, now: now)
+                .sidebarRow(project.pick, picked: picked, now: now)
+        }
+    }
+}
+
+/// The row showing the pick (`Sidebar.row(showing:)`), drawn picked: the list's selection, which the system draws; or
+/// a project's row standing in for a session with no row of its own, which the list does not select, so SitRep draws
+/// the selection on it as the system would, emphasized while the list has focus in the key window.
+enum PickedRow: Equatable {
+    case selected(Pick)
+    case standIn(Pick, isEmphasized: Bool)
+
+    var pick: Pick {
+        switch self {
+        case let .selected(pick), let .standIn(pick, _): pick
         }
     }
 }
@@ -434,11 +447,13 @@ struct Name: View {
 }
 
 extension View {
-    /// A row of the sidebar's list: one that shows `pick`, the one picked while it is `picked`, washed orange from
+    /// A row of the sidebar's list: one that shows `pick`, the one picked while it is `picked`'s, washed orange from
     /// `washed` as it comes; or with no pick, "N earlier", which the list never selects. Its tag is the list's
     /// selection's own type, so no row can carry one it ignores.
-    func sidebarRow(_ pick: Pick?, picked: Pick?, washed: Date? = nil, now: Date) -> some View {
-        modifier(SidebarRow(pick: pick, isPicked: pick != nil && pick == picked, washed: washed, now: now))
+    func sidebarRow(_ pick: Pick?, picked: PickedRow?, washed: Date? = nil, now: Date) -> some View {
+        let isPicked = pick != nil && pick == picked?.pick
+
+        return modifier(SidebarRow(pick: pick, picked: isPicked ? picked : nil, washed: washed, now: now))
     }
 
     /// A line of the sidebar's list, its height its own, its words 16 in from the sidebar's edges, as the list sets
@@ -465,10 +480,12 @@ private struct SidebarCell<Background: View>: ViewModifier {
 /// A row of the sidebar's list, tagged with what it picks, or, with nothing to pick, never selected. Its background
 /// fills the whole row, so the pointer is over it anywhere on the row: under the pointer, and not the one picked, it
 /// shows a quiet fill, and as it comes, its wash, both shaped as the system's selection, which they leave alone. Drawn
-/// as a still, the selection's stand-in.
+/// as a still, the selection's stand-in; standing in for a session with no row, the selection SitRep draws, its words
+/// as on the system's.
 private struct SidebarRow: ViewModifier {
     let pick: Pick?
-    let isPicked: Bool
+    /// Set on the row picked alone.
+    let picked: PickedRow?
     let washed: Date?
     let now: Date
 
@@ -478,18 +495,17 @@ private struct SidebarRow: ViewModifier {
     @State private var isOverRow = false
 
     func body(content: Content) -> some View {
-        let highlight = Highlight.of(
-            isPicked: isPicked, isPressed: false, isHovered: isOverWords || isOverRow || isHoveredStill
-        )
         let row = content
+            .transformEnvironment(\.backgroundProminence) { prominence in
+                if case .standIn(_, isEmphasized: true) = picked {
+                    prominence = .increased
+                }
+            }
             .frame(maxWidth: .infinity, alignment: .leading)
             .contentShape(Rectangle())
             .onHover { isOverWords = $0 }
             .sidebarCell {
-                RowBackground(
-                    fill: WindowStyle.sidebarFill(highlight, isStill: isStill), washed: washed, now: now,
-                    isOver: $isOverRow
-                )
+                RowBackground(fill: fill, washed: washed, now: now, isOver: $isOverRow)
             }
 
         if let pick {
@@ -497,6 +513,18 @@ private struct SidebarRow: ViewModifier {
         } else {
             row.selectionDisabled()
         }
+    }
+
+    private var fill: Color? {
+        if case let .standIn(_, isEmphasized) = picked {
+            return WindowStyle.selection(isEmphasized: isEmphasized, isStill: isStill)
+        }
+
+        let isHovered = isOverWords || isOverRow || isHoveredStill
+
+        return WindowStyle.sidebarFill(
+            Highlight.of(isPicked: picked != nil, isPressed: false, isHovered: isHovered), isStill: isStill
+        )
     }
 }
 

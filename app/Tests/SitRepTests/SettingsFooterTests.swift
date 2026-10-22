@@ -74,7 +74,7 @@ struct SettingsFooterTests {
         let system: NSColor = isEmphasized
             ? .selectedContentBackgroundColor : .unemphasizedSelectedContentBackgroundColor
 
-        #expect(Self.same(fill, Self.dark(system, in: drawn.bitmap.colorSpace)))
+        #expect(fill.isAlike(system.dark(in: drawn.bitmap.colorSpace)))
         #expect(gear.isWhite == isEmphasized)
     }
 
@@ -96,7 +96,7 @@ struct SettingsFooterTests {
 
         #expect(foot.trackingAreas.count == 1)
         #expect(area.options.isSuperset(of: [.mouseEnteredAndExited, .inVisibleRect]))
-        #expect(Self.same(hovered, try #require(NSColor(WindowStyle.sidebarHover).usingColorSpace(.sRGB))))
+        #expect(hovered.isAlike(try #require(NSColor(WindowStyle.sidebarHover).usingColorSpace(.sRGB))))
         #expect(left.alphaComponent == 0)
     }
 
@@ -275,23 +275,6 @@ struct SettingsFooterTests {
         }
     }
 
-    /// A system colour as the dark appearance gives it, in this colour space.
-    private static func dark(_ colour: NSColor, in space: NSColorSpace) -> NSColor {
-        var resolved = colour
-
-        NSAppearance(named: .darkAqua)?.performAsCurrentDrawingAppearance {
-            resolved = colour.usingColorSpace(space) ?? colour
-        }
-        return resolved
-    }
-
-    /// Two colours alike to within a step of 8 bits in each channel and in their cover.
-    private static func same(_ one: NSColor, _ other: NSColor) -> Bool {
-        [
-            (one.redComponent, other.redComponent), (one.greenComponent, other.greenComponent),
-            (one.blueComponent, other.blueComponent), (one.alphaComponent, other.alphaComponent),
-        ].allSatisfy { abs($0 - $1) <= 1.5 / 255 }
-    }
 }
 
 /// What the foot asked the window to pick.
