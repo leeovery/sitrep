@@ -907,15 +907,20 @@ Dropped for now (11 October 2026): a macOS notification for asks. Back on
   the window's `$.state`, which no other reader sees, so every change to the
   claim rewrites the window's heartbeat, which says the replies a send to
   the session it holds carries (`sending`) from the claim until the claim
-  ends, written down or let go; a load starting with a send in flight says
-  it too. Every reader folds them in after the session's lines, each
-  reaching its item as it then stands, as a reply on its way from a live
-  window: an answer or a comment, the ask waits on Lee no more, and an
-  answer bars a second, the SitRep window's and another window's pane's
-  alike, where a comment bars nothing. One whose line is written by then is
-  that line, so between the lines going down and the claim ending nothing
-  reads twice and nothing drops out; one its item takes no more (closed,
-  the session finished, another answer read first) is left out, as its
+  ends, written down or let go. A load's first heartbeat says the send
+  `$.state` holds, so a reload mid-send never drops it for a moment. Every
+  reader folds them in among the session's lines in the order every reader
+  reads in, as lines of their window's dated at the claim (after the
+  window's own file and letters at that moment), each reaching its item as
+  it then stands, as a reply on its way from a live window: an answer or a
+  comment, the ask waits on Lee no more, and the first answer on its way
+  bars any later, whatever its source, so an inbox answer written after the
+  claim is barred by it and one written before bars it, and of two windows'
+  sends the earlier claim wins; a comment bars nothing. One whose line is
+  written by then is that line, so between the lines going down and the
+  claim ending nothing reads twice and nothing drops out; one its item takes
+  no more, or that goes void while the send waits (Claude closing the item,
+  the session finished, another answer delivered), is left out, as its
   lines, once written, would settle it. They are no reply of the session's
   own: no inbox delivers them, and Claude's reads (the board text,
   `toldSummary`) still have the ask waiting on Lee until it is delivered.
@@ -924,8 +929,9 @@ Dropped for now (11 October 2026): a macOS notification for asks. Back on
   whose heartbeat there let go. Refused or never taken, the claim ends and
   the ask waits on Lee again; the window gone, its heartbeat goes stale and
   the same follows, within 90 seconds. The window itself keeps the claim it
-  last set for its heartbeat, never reading it back from `$.state`, which a
-  tool call's long dispatch reads as it stood when the call began.
+  last set for its heartbeat, reading `$.state` only the first time a load
+  needs it, since a tool call's long dispatch reads it as it stood when the
+  call began.
 - **Taken** is heard from the submit resolving with no drop, or from a turn
   starting whose text is the message's; whichever comes first marks it taken
   and writes it down. A load that starts with a message taken but not written

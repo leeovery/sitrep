@@ -27,7 +27,7 @@ import { writeInto } from './into'
 import { isCarried } from './queue'
 import { LINGER_MS, tickAfter } from './scene'
 import { postKnown } from './seen'
-import { attached, refresh, sayInFlight, serially } from './window'
+import { attached, isHoldOn, refresh, sayInFlight, serially } from './window'
 
 /** The name Claude Code knows the mod by: what a prompt it submitted carries as its origin. */
 const PLUGIN = 'sitrep'
@@ -152,15 +152,7 @@ const linesOf = (session: Session, delivery: SitrepInFlight): Body[] =>
         delivery.replies.map(reply => reply.id),
       )
 
-const isHeld = (delivery: SitrepInFlight) => {
-  const held = attached()
-
-  return (
-    held?.project === delivery.project &&
-    held.session === delivery.session &&
-    held.writer === delivery.writer
-  )
-}
+const isHeld = (delivery: SitrepInFlight) => isHoldOn(attached(), delivery)
 
 /** Writes through the hold, so its own text stays in step: lines Claude knows of. False when the session no longer folds. */
 const writeHeld = async (host: Host, delivery: SitrepInFlight) => {

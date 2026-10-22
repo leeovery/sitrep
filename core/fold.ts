@@ -1,9 +1,9 @@
 /**
- * Folding a session: every writer's lines, and the replies other sessions
- * left in its inbox, merged into one order (time, then writer, then a
- * writer's own file before its letters, then the count within the file)
- * and read into the board; then the replies its live windows' messages in
- * flight carry, not written down yet.
+ * Folding a session: every writer's lines, the replies other sessions left
+ * in its inbox, and those its live windows' messages in flight carry, not
+ * written down yet, each dated at its claim, merged into one order (time,
+ * then writer, then a writer's own file before its letters before its
+ * message in flight, then the count within each) and read into the board.
  */
 import { parseEntries } from './entries'
 import { parseMeta } from './meta'
@@ -40,6 +40,7 @@ import {
   type Parked,
   type Presence,
   type Reply,
+  type SentReply,
   type Status,
   type Session,
   type Voided,
@@ -58,8 +59,25 @@ export type SessionFiles = {
   presence?: Readonly<Record<string, string>>
 }
 
-/** An entry, the writer whose file it came from, and whether that file is the writer's letters in the inbox. */
-type Written = Entry & { by: string; isLetter: boolean }
+/** Where a writer's reads come from, in the order those of one moment are read: its own file, its letters in the inbox, then the replies its message in flight carries. */
+const FROM = { file: 0, letters: 1, sending: 2 } as const
+
+type From = keyof typeof FROM
+
+/** An entry, the writer whose file it came from, and whether that file is its own or its letters in the inbox. */
+type Written = Entry & { by: string; from: Exclude<From, 'sending'> }
+
+/** A reply a live window's message carries, not written down yet, read as a line of that window's dated at the claim. */
+type Carried = {
+  type: 'carried'
+  at: number
+  by: string
+  from: 'sending'
+  seq: number
+  sent: SentReply
+}
+
+type Read = Written | Carried
 
 type Fold = {
   isOpen: boolean
@@ -72,6 +90,8 @@ type Fold = {
   finished?: Finished
   /** Status and pick-up lines as derived, and notes, resolved to lines once the fold ends so edits show. */
   log: Array<LogLine | Note>
+  /** The replies carried in flight that reached their items on their way. */
+  carried: Set<Reply>
 }
 
 type Handler<T extends Body['type']> = (fold: Fold, entry: Extract<Written, { type: T }>) => void
@@ -79,14 +99,14 @@ type Handler<T extends Body['type']> = (fold: Fold, entry: Extract<Written, { ty
 const byName = <T>(files: Readonly<Record<string, T>>) =>
   Object.entries(files).sort(([a], [b]) => compareText(a, b))
 
-const written = (files: Readonly<Record<string, string>>, isLetter: boolean) =>
+const written = (files: Readonly<Record<string, string>>, from: Written['from']) =>
   byName(files).flatMap(([by, text]) =>
-    parseEntries(text).map((entry): Written => ({ ...entry, by, isLetter })),
+    parseEntries(text).map((entry): Written => ({ ...entry, by, from })),
   )
 
-/** A writer's own file and its letters count apart, so of two lines of theirs at one moment the file's comes first, whatever the counts. */
-const inOrder = (a: Written, b: Written) =>
-  a.at - b.at || compareText(a.by, b.by) || Number(a.isLetter) - Number(b.isLetter) || a.seq - b.seq
+/** A writer's own file, its letters and its message in flight count apart, so of its reads at one moment the file's come first, then the letters', whatever the counts. */
+const inOrder = (a: Read, b: Read) =>
+  a.at - b.at || compareText(a.by, b.by) || FROM[a.from] - FROM[b.from] || a.seq - b.seq
 
 /** Posts an item unless its id is taken: the first line to use an id keeps it. */
 const post = (fold: Fold, item: Item) => {
@@ -499,7 +519,37 @@ const HANDLERS: { [T in Body['type']]: Handler<T> } = {
   },
 }
 
-const take = (fold: Fold, entry: Written) => {
+/**
+ * A reply a live window's message carries, reaching its item at its claim's
+ * time as the item stands then: on its way from the claim, as an inbox reply
+ * is, so Lee's answer among them bars any later one, whatever its source,
+ * and is barred by any earlier. One its item takes no more is left out, its
+ * lines to settle it once written.
+ */
+const carry = (fold: Fold, { sent, by, at }: Carried) => {
+  const item = fold.items.get(sent.item)
+
+  if (item === undefined || item.type === 'note') {
+    return
+  }
+
+  const reply: Reply = { ...sent, by, at, delivery: 'waiting' }
+
+  arrive(fold, item, reply, at)
+
+  if (isPending(reply)) {
+    item.replies.push(reply)
+    fold.carried.add(reply)
+  }
+}
+
+const take = (fold: Fold, entry: Read) => {
+  if (entry.type === 'carried') {
+    carry(fold, entry)
+
+    return
+  }
+
   const handle = HANDLERS[entry.type] as Handler<Body['type']>
 
   if ('id' in entry) {
@@ -532,30 +582,36 @@ const logOf = (fold: Fold) =>
     .reverse()
 
 /**
- * The replies a live window's message carries to the session, claimed and
- * not written down yet, each reaching its item after every line, as it
- * stands then: on its way from the claim, as an inbox reply is, Lee's answer
- * among them barring another. One whose line is written by now is that line;
- * one its item takes no more is left out, its lines to settle it once
- * written. None is a reply of the session's own: no inbox delivers it, and
- * its id is no line's.
+ * The replies live windows' messages carry to the session, claimed and not
+ * written down yet, each read as a line of its window's dated at the claim.
+ * One whose line is written by now is that line, read once. None is a reply
+ * of the session's own: no inbox delivers it, and its id is no line's.
  */
-const carry = (fold: Fold, { writer, sending }: Presence) => {
-  if (sending === undefined) {
-    return
-  }
+const carriedIn = (presence: readonly Presence[], lines: readonly Written[], now: number) => {
+  const ids = new Set(lines.flatMap(line => ('id' in line ? [line.id] : [])))
 
-  for (const sent of sending.replies.filter(each => !fold.ids.has(each.id))) {
-    const item = fold.items.get(sent.item)
+  const carried = ({ writer, sending }: Presence): Carried[] =>
+    sending === undefined
+      ? []
+      : sending.replies
+          .filter(sent => !ids.has(sent.id))
+          .map((sent, i) => ({
+            type: 'carried',
+            at: sending.at,
+            by: writer,
+            from: 'sending',
+            seq: i + 1,
+            sent,
+          }))
 
-    if (item !== undefined && item.type !== 'note') {
-      const reply: Reply = { ...sent, by: writer, at: sending.at, delivery: 'waiting' }
+  return presence.filter(each => isLive(each, now)).flatMap(carried)
+}
 
-      arrive(fold, item, reply, sending.at)
-
-      if (isPending(reply)) {
-        item.replies.push(reply)
-      }
+/** Each item's replies less those carried in flight that went void since they reached it, Claude closing it or the session finishing: no line of theirs is written to settle anything. */
+const dropVoidCarried = (fold: Fold) => {
+  for (const item of fold.items.values()) {
+    if (item.type !== 'note') {
+      item.replies = item.replies.filter(reply => !fold.carried.has(reply) || isPending(reply))
     }
   }
 }
@@ -597,17 +653,16 @@ export const foldSession = (
     early: new Map(),
     ids: new Set(),
     log: [],
+    carried: new Set(),
   }
-  const letters = written(files.inbox ?? {}, true).filter(entry => entry.type === 'reply')
-  const entries = [...written(files.logs, false), ...letters].sort(inOrder)
+  const letters = written(files.inbox ?? {}, 'letters').filter(entry => entry.type === 'reply')
+  const lines = [...written(files.logs, 'file'), ...letters].sort(inOrder)
 
-  for (const entry of entries) {
+  for (const entry of [...lines, ...carriedIn(presence, lines, now)].sort(inOrder)) {
     take(fold, entry)
   }
 
-  for (const beat of presence.filter(each => isLive(each, now))) {
-    carry(fold, beat)
-  }
+  dropVoidCarried(fold)
 
   const items = [...fold.items.values()]
   const asks = items.filter(isAsk)
@@ -630,6 +685,6 @@ export const foldSession = (
     waiting: waitingOnLee({ asks, finished: fold.finished }).length,
     finished: fold.finished,
     ids: fold.ids,
-    updatedAt: Math.max(meta.created, entries.at(-1)?.at ?? 0),
+    updatedAt: Math.max(meta.created, lines.at(-1)?.at ?? 0),
   }
 }

@@ -30,7 +30,7 @@ import {
   type Session,
   type SessionPaths,
 } from '../core'
-import type { SitrepAttachment, SitrepInFlight } from '../types'
+import type { SitrepAttachment, SitrepInFlight, SitrepSessionRef } from '../types'
 import { activityNow } from './activity'
 import { endAnswering, settleAnswering } from './answering'
 import { boardOf } from './board'
@@ -64,8 +64,37 @@ let current: Hold | undefined
  * The message in flight as this load last set it in `$.state`, kept here
  * for the heartbeat: a hook's dispatch reads `$.state` as it stood when the
  * dispatch began, and a tool call's lasts as long as its tool runs.
+ * Undefined until the load first needs it or sets it.
  */
-let flight: SitrepInFlight | null = null
+let flight: SitrepInFlight | null | undefined
+
+/**
+ * The message in flight as this load knows it: read from `$.state` the first
+ * time, so a load's first heartbeat says a send an earlier load left in
+ * flight. A read that fails is tried again at the next heartbeat.
+ */
+const flightNow = async (host: Host) => {
+  if (flight === undefined) {
+    const read = await host.state.inFlight.read().catch((error: unknown) => {
+      logFailure(host, 'reading the message in flight')(error)
+
+      return undefined
+    })
+
+    // Set meanwhile by a change to the claim, which is the later word.
+    if (flight === undefined) {
+      flight = read
+    }
+  }
+
+  return flight ?? null
+}
+
+/** Whether `held` is the window's hold on the session `ref` names, as the writer it names. */
+export const isHoldOn = (
+  held: SitrepAttachment | undefined,
+  ref: SitrepSessionRef & { writer: string },
+) => held?.project === ref.project && held.session === ref.session && held.writer === ref.writer
 
 let queue: Promise<unknown> = Promise.resolve()
 
@@ -162,18 +191,15 @@ const stateNow = async (host: Host, attachedAt: number) =>
  * there already, nor for a send to another session, or claimed as another
  * writer.
  */
-const sendingTo = (held: SitrepAttachment): Sending | undefined =>
-  flight?.source === 'send' &&
-  flight.project === held.project &&
-  flight.session === held.session &&
-  flight.writer === held.writer
-    ? { at: flight.claimedAt, replies: flight.replies.map(({ type, ...reply }) => reply) }
+const sendingTo = (held: SitrepAttachment, inFlight: SitrepInFlight | null): Sending | undefined =>
+  inFlight?.source === 'send' && isHoldOn(held, inFlight)
+    ? { at: inFlight.claimedAt, replies: inFlight.replies.map(({ type, ...reply }) => reply) }
     : undefined
 
 /** What the heartbeat says of the window's doing on the session it holds as `held`: its state, and what it sends there. */
 const doingNow = async (host: Host, held: SitrepAttachment) => ({
   state: await stateNow(host, held.attachedAt),
-  sending: sendingTo(held),
+  sending: sendingTo(held, await flightNow(host)),
 })
 
 /** Whether a heartbeat already says this of the window's doing. */

@@ -19,13 +19,16 @@ import {
   metaText,
   parsePresence,
   presenceText,
+  replyOnItsWay,
   replyState,
   rowOf,
   STALE_MS,
   summarise,
   toDeliver,
   toldSummary,
+  waitingOnLee,
   waitsOnLee,
+  type Body,
   type Presence,
   type Project,
   type Sending,
@@ -40,6 +43,7 @@ import {
   finish,
   META,
   MIN,
+  park,
   reply,
   resolve,
   T0,
@@ -66,7 +70,23 @@ const SIDEBAR: Line = [T0, choiceAsk('k2', 'Keep the sidebar?', ['Keep it', 'Dro
 const YES = { id: 'r1', item: 'k1', verdict: 'yes' } as const
 const COMMENT = { id: 'r2', item: 'k2', verdict: 'comment', note: 'Narrower first' } as const
 
-const sending = (...replies: Sending['replies']): Sending => ({ at: CLAIMED, replies })
+/** A message claimed at `at`, carrying these replies. */
+const claimed = (at: number, ...replies: Sending['replies']): Sending => ({ at, replies })
+
+const sending = (...replies: Sending['replies']) => claimed(CLAIMED, ...replies)
+
+/** Lee's choice on the sidebar: "Keep it" as a send claims it, "Drop it" in the inbox. */
+const KEEP = { id: 'r1', item: 'k2', verdict: 'choose', option: 'Keep it' } as const
+const DROP: Body = reply('r9', 'k2', 'choose', { option: 'Drop it' })
+
+/** The words `board --json` gives the sidebar's reply. */
+const sidebarWords = (session: Session) => {
+  const board = JSON.parse(boardJson(SWITCHBOARD.key, session)) as {
+    asks: { id: string; reply: { words: string } | null }[]
+  }
+
+  return board.asks.find(ask => ask.id === 'k2')?.reply?.words
+}
 
 /** A window's heartbeat, live at NOW unless the times say otherwise, sending what it is given. */
 const windowOn = (writer: string, what?: Sending, times: Partial<Presence> = {}) => ({
@@ -168,19 +188,27 @@ test('an answer in flight bars a second answer, from anywhere; a comment in flig
   expect(checkAnswer(session, { ask: 'k2', answer: 'Drop it' })).toMatchObject({ ok: true })
 })
 
-test('an inbox answer reaching the ask after the claim is barred by it as the fold reads them, and the ask still needs Lee no more', () => {
-  const session = sessionOf([REVIEW], windowOn(W1, sending(YES)), {
-    [CLI]: file([NOW - MIN / 2, reply('r9', 'k1', 'yes')]),
+test("an answer in flight takes its place in the fold's order at its claim: an inbox answer written after it is barred by it, one written before bars it", () => {
+  const withInbox = (at: number) =>
+    sessionOf([SIDEBAR], windowOn(W1, sending(KEEP)), { [CLI]: file([at, DROP]) })
+  const after = withInbox(CLAIMED + MIN / 2)
+  const before = withInbox(CLAIMED - MIN / 2)
+
+  expect(askIn(after, 'k2').answerOnItsWay?.id).toBe('r1')
+  expect(sidebarWords(after)).toBe('→ Keep it')
+  expect(after.replies.find(each => each.id === 'r9')).toMatchObject({
+    delivery: 'void',
+    voided: 'answered',
   })
 
-  expect(waitsOnLee(askIn(session, 'k1'))).toBe(false)
-  expect(askIn(session, 'k1').answerOnItsWay?.id, 'the inbox line is read before the claim').toBe(
-    'r9',
-  )
+  expect(askIn(before, 'k2').answerOnItsWay?.id).toBe('r9')
+  expect(sidebarWords(before)).toBe('→ Drop it')
   expect(
-    askIn(session, 'k1').replies.map(each => each.id),
+    askIn(before, 'k2').replies.map(each => each.id),
     'the claim, barred, is left out',
   ).toEqual(['r9'])
+
+  expect([after.waiting, before.waiting]).toEqual([0, 0])
 })
 
 test('the ask needs Lee again once the heartbeat drops the claim, goes stale, or says its window let go', () => {
@@ -215,16 +243,35 @@ test('once written down, its lines carry it: the claim still published reads as 
   expect(askIn(done, 'k1').replies).toHaveLength(1)
 })
 
-test('a reply in flight its item takes no more is left out: the ask closed by Claude, or the session finished', () => {
-  const resolved = sessionOf([REVIEW, [CLAIMED - MIN, resolve('k1')]], windowOn(W1, sending(YES)))
-  const finished = sessionOf(
-    [REVIEW, [CLAIMED - MIN, finish('claude')]],
-    windowOn(W1, sending(YES)),
-  )
+test('a reply in flight its item takes no more is left out, Claude closing the ask or the session finishing before the claim or while the send waits', () => {
+  for (const at of [CLAIMED - MIN, CLAIMED + MIN / 2]) {
+    const resolved = sessionOf([REVIEW, [at, resolve('k1')]], windowOn(W1, sending(YES)))
+    const finished = sessionOf([REVIEW, [at, finish('claude')]], windowOn(W1, sending(YES)))
+    const when = at < CLAIMED ? 'before the claim' : 'after it'
 
-  expect(askIn(resolved, 'k1').replies).toEqual([])
-  expect(replyState(askIn(resolved, 'k1'))).toBeUndefined()
-  expect(askIn(finished, 'k1').replies).toEqual([])
+    expect(askIn(resolved, 'k1').state, when).toBe('closed')
+    expect(askIn(resolved, 'k1').replies, when).toEqual([])
+    expect(replyState(askIn(resolved, 'k1')), `${when}: no "not delivered"`).toBeUndefined()
+    expect(needingLee(resolved), when).toEqual(NONE)
+    expect(askIn(finished, 'k1').replies, when).toEqual([])
+    expect([finished.waiting, waitingOnLee(finished)], when).toEqual([0, []])
+  }
+})
+
+test("a parked item's pick-up in flight is on its way from the claim, and bars a second", () => {
+  const parked = sessionOf(
+    [[T0, park('p1', 'A tmux indicator across sessions')]],
+    windowOn(W1, sending({ id: 'r4', item: 'p1', verdict: 'pickup' })),
+  )
+  const [item] = parked.parked
+
+  expect(item === undefined ? undefined : replyOnItsWay(item)).toMatchObject({
+    id: 'r4',
+    verdict: 'pickup',
+    delivery: 'waiting',
+  })
+  expect(item === undefined ? undefined : barredBy(item, 'pickup')).toBe('answered')
+  expect(parked.replies).toEqual([])
 })
 
 test("a reply in flight is no reply of the session's: no inbox delivers it, and Claude, not given it yet, still reads its ask waiting on Lee", () => {
@@ -240,15 +287,20 @@ test("a reply in flight is no reply of the session's: no inbox delivers it, and 
   expect(boardText(session)).toContain('k1 wants a yes (Approve), waiting on Lee')
 })
 
-test("two windows' messages each count, the first answer read barring the other's", () => {
-  const session = sessionOf([REVIEW, SIDEBAR], {
-    ...windowOn(W1, sending(YES)),
-    ...windowOn(W2, sending({ id: 'r3', item: 'k1', verdict: 'ignore' }, COMMENT)),
-  })
+test("two windows' messages each count, the earlier claim's answer barring the later's, whichever window it is", () => {
+  const IGNORE = { id: 'r3', item: 'k1', verdict: 'ignore' } as const
+  const claims = (yesAt: number, ignoreAt: number) =>
+    sessionOf([REVIEW, SIDEBAR], {
+      ...windowOn(W1, claimed(yesAt, YES)),
+      ...windowOn(W2, claimed(ignoreAt, IGNORE, COMMENT)),
+    })
+  const yesFirst = claims(CLAIMED - MIN, CLAIMED)
+  const ignoreFirst = claims(CLAIMED, CLAIMED - MIN)
 
-  expect(needingLee(session)).toEqual(NONE)
-  expect(askIn(session, 'k1').answerOnItsWay?.id).toBe('r1')
-  expect(askIn(session, 'k1').replies.map(each => each.id)).toEqual(['r1'])
+  expect(needingLee(yesFirst)).toEqual(NONE)
+  expect(askIn(yesFirst, 'k1').replies.map(each => each.id)).toEqual(['r1'])
+  expect(needingLee(ignoreFirst)).toEqual(NONE)
+  expect(askIn(ignoreFirst, 'k1').replies.map(each => each.id)).toEqual(['r3'])
 })
 
 test('a heartbeat says what its window sends field by field: a bad reply is dropped, one without its time or any reply that reads says nothing, and the heartbeat stands', () => {
