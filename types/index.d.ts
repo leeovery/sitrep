@@ -260,8 +260,9 @@ export type SitrepSource = 'send' | 'inbox'
 
 /**
  * Lee's replies submitted as Lee's own message, one message at a time
- * whatever its source: on their way until Claude Code has taken it and its
- * lines are written into the session it went to.
+ * whatever its source: held by the window while Claude is mid-turn, then
+ * on their way until Claude Code has taken it and its lines are written
+ * into the session it went to.
  */
 export type SitrepInFlight = SitrepSessionRef & {
   source: SitrepSource
@@ -273,6 +274,8 @@ export type SitrepInFlight = SitrepSessionRef & {
   replies: SitrepReplyBody[]
   /** When it was claimed, which tells this claim from a later one of the same text. */
   claimedAt: number
+  /** Whether the window still holds it, not yet submitted, for Claude's turn to end: a send can be taken back until then. One an older load left, submitted as it was claimed, is not. */
+  isHeld: boolean
   /** Whether Claude Code has taken the message, its lines still to write. */
   isTaken: boolean
 }

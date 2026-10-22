@@ -230,13 +230,14 @@ test('inbox replies taken after Claude moved to another session mid-turn are mar
   const w = world($, on)
   const { paths, asked, send } = await asking(w)
   const answered = w.state.attachment?.session ?? ''
-  const turn = w.holdPrompts()
 
+  await w.turnStarts('Carry on.')
   send(['r1', asked, 'yes'])
   await w.clock.advance(TAKE_IN)
-  await turn.arrived
+  expect(w.state.inFlight).toMatchObject({ source: 'inbox', isHeld: true })
+
   await w.call('start', { name: 'Themes', summary: 'The dark palette', project: PROJECT.name })
-  turn.end()
+  await w.turnEnds()
   await w.clock.advance(WATCH_MS)
 
   expect(kindsIn(w, paths)).toEqual(['ask', 'delivered'])

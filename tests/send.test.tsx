@@ -98,7 +98,7 @@ test("an ignore, once sent, drops its ask at once: no moment of 'sent, and Claud
   expect(await ui.find({ key: `closed:${w.item(id)}` })).toBeUndefined()
 })
 
-test('while a send waits for its turn, its replies are on their way and cannot be undone', async ($, on) => {
+test('while a send submitted waits for Claude Code to take it, its replies are on their way and cannot be undone', async ($, on) => {
   const w = world($, on)
   const { id, ui } = await asking(w)
   const turn = w.holdPrompts()
@@ -232,20 +232,17 @@ test('a send taken after Claude moved to another session mid-turn is written int
   const w = world($, on)
   const { paths, id, ui } = await asking(w)
   const answered = w.state.attachment?.session ?? ''
-  const turn = w.holdPrompts()
 
   await ui.press({ key: `yes:${w.item(id)}` })
-
-  const pressed = ui.press({ key: 'send' })
-
-  await turn.arrived
+  await w.turnStarts('Carry on.')
+  await ui.press({ key: 'send' })
 
   const themes = startedId(
     await w.call('start', { name: 'Themes', summary: 'The dark palette', project: PROJECT.name }),
   )
 
-  turn.end()
-  await pressed
+  await w.turnEnds()
+  await w.clock.settle()
 
   expect(kindsIn(w, paths.log(W1))).toEqual(['ask', 'reply', 'delivered'])
   expect(w.files.has(sessionPaths(ROOT, PROJECT.key, themes).log(W1))).toBe(false)
@@ -258,16 +255,13 @@ test('a send taken after Claude moved to another session mid-turn is written int
 test('a yes Claude made a choice while its send waited reaches Claude all the same, settles nothing, and the ask waits on Lee in its new shape', async ($, on) => {
   const w = world($, on)
   const { id, ui } = await asking(w)
-  const turn = w.holdPrompts()
 
   await ui.press({ key: `yes:${w.item(id)}` })
-
-  const pressed = ui.press({ key: 'send' })
-
-  await turn.arrived
+  await w.turnStarts('Carry on.')
+  await ui.press({ key: 'send' })
   await w.call('edit', { item: id, wants: 'choice', options: ['Now', 'Later'] })
-  turn.end()
-  await pressed
+  await w.turnEnds()
+  await w.clock.settle()
 
   expect(w.submitted).toEqual(['From the board:\n- Review Sessions & Runway, round 1 → Approve'])
   expect(w.state.board?.replies).toMatchObject([
@@ -304,22 +298,20 @@ async function askingInline(w: World) {
   return { paths, id, ui: await w.opened(INLINE) }
 }
 
-test('send closes an inline board once the send is claimed, not waiting for Claude Code to take it', async ($, on) => {
+test("send closes an inline board once the send is claimed, not waiting for Claude's turn to end", async ($, on) => {
   const w = world($, on)
   const { paths, id, ui } = await askingInline(w)
-  const turn = w.holdPrompts()
 
   await ui.press({ key: `yes:${w.item(id)}` })
+  await w.turnStarts('Carry on.')
+  await ui.press({ key: 'send' })
 
-  const pressed = ui.press({ key: 'send' })
-
-  await turn.arrived
-  expect(w.state.inFlight).toMatchObject({ source: 'send', isTaken: false })
+  expect(w.state.inFlight).toMatchObject({ source: 'send', isHeld: true })
   expect(w.panes.has('sitrep')).toBe(false)
   expect(w.state.pane).toMatchObject({ isOpen: false, selected: null })
 
-  turn.end()
-  await pressed
+  await w.turnEnds()
+  await w.clock.settle()
 
   expect(kindsIn(w, paths.log(W1))).toEqual(['ask', 'reply', 'delivered'])
   expect(w.state.queue).toEqual([])

@@ -9,9 +9,11 @@
  * It looks on a timer of its own, started with the window rather than by a
  * tool call, so the engine never takes it for a hook holding the turn; and
  * its submit waits outside the hold's turn (`serially`), since it can wait
- * out a turn of Claude's whose tool calls take that turn too. While a
- * message is in flight a look submits nothing, and writes down one Claude
- * Code took whose writing failed.
+ * behind a turn of Claude's whose tool calls take that turn too. A message
+ * it claims while Claude is mid-turn the window holds until the turn ends,
+ * as it holds a send, though with no take-back: Lee sent those replies from
+ * elsewhere. While a message is in flight a look submits nothing, and
+ * writes down one Claude Code took whose writing failed.
  */
 import type { Timer } from 'claude-code'
 import { boardMessage, toDeliver, type Reply, type ReplyBody } from '../core'

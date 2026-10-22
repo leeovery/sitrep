@@ -125,6 +125,9 @@ export const turnStopped = (activity: Activity, pending: Pending, at: number): A
   }
 }
 
+/** Whether the main conversation is between turns, as the window heard it: no turn of its own running, whatever a subagent or its work does. A turn stopped on Lee still runs. */
+export const isBetweenTurns = (activity: Activity) => activity.turnAt === undefined
+
 /** A subagent's turn ending: its candidates and stops are cleared, whether or not their calls were heard to end. */
 export const agentTurnEnded = (activity: Activity, agentId: string): Activity => ({
   ...activity,

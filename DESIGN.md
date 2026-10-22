@@ -180,11 +180,12 @@ notch and its panel").
   way, until the delivered mark settles it; an ask whose reply went void
   waits on Lee again, as does one whose reply reached Claude after an edit
   it no longer fits (see "Which replies go in", under Delivery), and one
-  whose own session's message was let go, refused or never taken, or whose
-  window is gone before it was written down (see Delivery). A comment on its
-  way bars no answer: the ask still offers its buttons. Core's `waitsOnLee`
-  decides it. It still keeps its session current, as an ask waiting on Lee
-  does, however long the answer waits for a window.
+  whose own session's message was let go, taken back by Lee, refused or
+  never taken, or whose window is gone before it was written down (see
+  Delivery). A comment on its way bars no answer: the ask still offers its
+  buttons. Core's `waitsOnLee` decides it. It still keeps its session
+  current, as an ask waiting on Lee does, however long the answer waits for
+  a window.
 
   Lee saw why on 22 October 2026: answering an ask while Claude was
   mid-turn, the reply sat in Claude Code's queue for minutes, and the card
@@ -192,7 +193,10 @@ notch and its panel").
   A message to its own session is claimed in the window's `$.state`, which
   no other reader sees, so the window's heartbeat says the replies it
   carries, from the claim until the claim ends (`sending`, under "Storage"),
-  and every reader folds them in as replies on their way.
+  and every reader folds them in as replies on their way. The window now
+  holds such a message itself while Claude is mid-turn, where Lee can take
+  it back, and submits it as the turn ends (see Delivery); it is on its way
+  from the claim all the same.
 
   What Claude is told follows what Claude has been given, so everything
   Claude reads (the board text, the first message's listing and its counts,
@@ -787,11 +791,23 @@ one below the fold brings its item into view; a click never moves the list
 
 On an inline pane (the phone layout) a send closes the pane as soon as it
 is claimed: the message to this session claimed, or, with none, the replies
-written into other sessions' inboxes. It never waits for Claude Code to take
-the message, which can take minutes while Claude is mid-turn. A send that
-Claude Code refuses still toasts and leaves its replies queued, and the
-pane, opened again, shows them; a send that sent nothing leaves the pane
-open. A docked pane stays open.
+written into other sessions' inboxes. It never waits for Claude's turn to
+end, which can take minutes, nor for Claude Code to take the message. A
+send that Claude Code refuses still toasts and leaves its replies queued,
+and the pane, opened again, shows them; a send that sent nothing leaves the
+pane open. A docked pane stays open.
+
+**Taking a send back** (22 October 2026). While the window holds Lee's send
+for Claude's turn to end (see Delivery), Ready to send says so where send
+and cancel all were, `⧗ Waiting for Claude's turn to end.`, with
+`↺ take back` beside it; the replies it carries stay above it, frozen, and
+their asks say `on its way`. Taking it back lets go of its claim: its
+replies are in the queue as they were before the send, each with its `✕`,
+`↺ undo` and `✎ edit` again, its asks wait on Lee again at once, and send
+sends them again. Once the window has submitted it, it is Claude Code's,
+and nothing takes it back out of Claude Code's queue: the line says
+`⧗ Sending.` and the take-back is gone. The inbox's message offers none:
+Lee sent its replies from elsewhere.
 
 A group sent into another session's inbox stays in the box, its replies out
 of the queue, until Claude has them all, and 10 minutes after, so
@@ -871,10 +887,11 @@ Dropped for now (11 October 2026): a macOS notification for asks. Back on
 - Replies for **this** session are sent as Lee's own message
   (`$.prompt.submit`, `asUser`), marked "From the board:". Its lines are
   written only once Claude Code takes it; a refused send leaves every reply in
-  place. If Claude is mid-turn the message waits for that turn to end. From
-  its claim, though, its replies are **on their way** to every reader (22
-  October 2026), as an inbox reply is: the window's heartbeat says them
-  (`sending`, under "Storage") until the claim ends.
+  place. If Claude is mid-turn the window holds the message until that turn
+  ends, and Lee can take it back until then (below). From its claim, though,
+  its replies are **on their way** to every reader (22 October 2026), as an
+  inbox reply is: the window's heartbeat says them (`sending`, under
+  "Storage") until the claim ends.
 - Replies for **another** session go into that session's inbox in the shared
   folder, and so do the SitRep window's answers, through `sitrep answer` (see
   "One engine, two front ends"). The sitrep mod in that session's window
@@ -882,7 +899,7 @@ Dropped for now (11 October 2026): a macOS notification for asks. Back on
   agents, which Claude would give less weight). It writes back a delivered
   mark.
   - open and idle: in within a second or two;
-  - mid-turn: waits for the turn to end;
+  - mid-turn: the window holds it until the turn ends;
   - no window open: waits in the inbox, goes in when the session is joined
     again.
 - The send box shows each destination's state (`✓ delivered`, `⧗ waiting for its
@@ -898,10 +915,48 @@ Dropped for now (11 October 2026): a macOS notification for asks. Back on
   send, or the inbox. It is claimed in `$.state` before it is submitted, and
   holds its source, the session it goes to (project and session), the writer
   that claimed it, the text exactly as submitted, the replies it carries, when
-  it was claimed, and whether Claude Code has taken it. The replies' ids are
-  fixed at the claim: a send's are made then; the inbox's are the replies
-  whose lines the message holds, no others. While it is in flight a look
-  submits nothing, and a send says it waits for the inbox's replies.
+  it was claimed, whether the window still holds it, and whether Claude Code
+  has taken it. The replies' ids are fixed at the claim: a send's are made
+  then; the inbox's are the replies whose lines the message holds, no
+  others. While it is in flight a look submits nothing, and a send says it
+  waits for the inbox's replies. A claim an older load left, which submitted
+  as it claimed, reads as held no more.
+- **Held while Claude is mid-turn** (22 October 2026, Lee's choice: "Hold
+  the reply in SitRep and send it as the turn ends."). Every message the
+  window claims, a send or the inbox's, it holds while the main
+  conversation is mid-turn, and submits once it is between turns: at once
+  when it is at the claim, else as the turn ends, however it ends
+  (`turn.complete` without an `agentId`: answered, stopped by Lee, failed on
+  an API error, or refused). A turn stopped on a permission prompt or a
+  question still runs, and a subagent's turn is not the main
+  conversation's, so neither lets it go; a turn that starts before it goes,
+  as the last one ends, keeps it held to that turn's end. Whether a turn
+  runs is what the window has heard (its `activity`, under "Storage"), read
+  at the moment the claim is updated. A load that finds a message held
+  keeps holding it while a turn runs, and submits it at once between turns;
+  and the conversation's end, which ends any turn, submits it, as a prompt
+  queued across a `/clear` goes in after.
+  - Why: a send submitted mid-turn waited in Claude Code's own queue, and
+    no API takes a prompt back out of it. Dropping one at its
+    `prompt.submit` as the turn ended showed a notice, and left any prompt
+    queued behind it in the transcript, unanswered (a probe, Claude Code
+    2.1.308). Holding it in the window takes nothing from Claude Code's
+    queue, shows no notice, and strands nothing.
+  - The probe: a `$.prompt.submit` made from a `turn.complete` hook, not
+    awaited there, started its own turn about 13 ms later; a hook awaiting
+    its own submit never ends. So the window submits a held message from the
+    hook and waits on none of it there.
+  - **Taken back.** While the window holds Lee's send, Ready to send offers
+    to take it back (see "Ready to send"): its claim is let go, its replies
+    stay in the queue as they were, the heartbeat says them no more, and
+    the held session is folded again at once, so their asks wait on Lee
+    again at once. One update of the claim in `$.state` decides between
+    taken back and submitting, so a take-back and the turn's end racing
+    never both win: the take-back lands first and nothing is submitted, or
+    the turn's end does and the take-back finds the send submitted, and
+    lets it be. Submitted, it is Claude Code's, and cannot be taken back.
+    The inbox's message offers no take-back: Lee sent those replies from
+    elsewhere.
 - **Its replies on their way from the claim** (22 October 2026). A send's
   replies are in no file until they are written down, and its claim is in
   the window's `$.state`, which no other reader sees, so every change to the
@@ -937,8 +992,10 @@ Dropped for now (11 October 2026): a macOS notification for asks. Back on
   still have the ask waiting on Lee until it is delivered. The inbox's
   message says nothing there, its replies on their way in the inbox already;
   nor does a send to a session the window no longer holds, whose heartbeat
-  there let go. Refused or never taken, the claim ends and the ask waits on
-  Lee again; the window gone, its heartbeat goes stale and the same follows,
+  there let go. Taken back, refused or never taken, the claim ends and the
+  ask waits on Lee again, the window folding its session again at once
+  rather than at the watch's next look, after its heartbeat stops saying
+  the send; the window gone, its heartbeat goes stale and the same follows,
   within 90 seconds. The window itself keeps the claim it last set for its
   heartbeat, reading `$.state` the first time a load needs it and again at
   each beat, and taking what it reads only where the load has not changed
@@ -947,10 +1004,12 @@ Dropped for now (11 October 2026): a macOS notification for asks. Back on
   began, which may predate a send claimed since; and another load, one a
   reload left running, may end or let go of the claim, which the next beat
   then drops.
-- **Taken** is heard from the submit resolving with no drop, or from a turn
-  starting whose text is the message's; whichever comes first marks it taken
-  and writes it down. A load that starts with a message taken but not written
-  down writes it down.
+- **Taken** is heard, once it is submitted, from the submit resolving with
+  no drop, or from a turn starting whose text is the message's; whichever
+  comes first marks it taken and writes it down. A message the window still
+  holds is never taken: a turn starting with its text is some other prompt.
+  A load that starts with a message taken but not written down writes it
+  down.
 - **Written down** in the session it went to, whatever the window holds by
   then: through the hold when the window still holds that session as that
   writer, so the hold's own text stays in step; else into that writer's file
@@ -963,14 +1022,16 @@ Dropped for now (11 October 2026): a macOS notification for asks. Back on
   were, and its asks wait on Lee again; the next look, or Lee's next send,
   tries again.
 - **Never taken** (Lee deleted the queued prompt, or the submit was lost): let
-  go once the window has gone quiet without it, 30 seconds after a turn of
-  the main conversation (or the conversation) ended with no turn starting
-  since. A queued prompt goes in as the turn before it ends, its own turn
-  starting about 40 ms after (live), once the prompt's hooks have run; so a
-  message still unheard by then was never going in, and letting it go never
-  sends it twice. A send's replies are back in Ready to send, their asks
-  waiting on Lee again, and a toast says so; the inbox's wait for the next
-  look.
+  go once the window has gone quiet without it, 30 seconds after its submit,
+  or after a later end of a turn of the main conversation (or of the
+  conversation) or a load's start, with no turn starting since; never while
+  the window still holds it, however long the turn it waits out. A prompt
+  submitted between turns starts its own turn about 13 ms after (a probe),
+  and one queued goes in as the turn before it ends, its own turn starting
+  about 40 ms after (live), once the prompt's hooks have run; so a message
+  still unheard by then was never going in, and letting it go never sends
+  it twice. A send's replies are back in Ready to send, their asks waiting
+  on Lee again, and a toast says so; the inbox's wait for the next look.
 - **Which replies go in** (20 October 2026) is the fold's to say, every
   reader alike, each reply dated as it is written down and read in the order
   every reader reads in. A reply that closes its item, a yes, a choice, an
@@ -1536,8 +1597,13 @@ truth. There is still no background service. None of it is built now. Lee:
     turn completes, the prompt starts a turn of its own and the call
     resolves as it starts. A hook holding the turn (`tool.call`,
     `command.run`, or a timer one of them started, while that hook runs) is
-    refused the call, so the pane submits from its send button's own
-    handler.
+    refused the call, so the pane claims from its send button's own
+    handler, and submits there while Claude is between turns. Since 22
+    October 2026 the window holds a message claimed mid-turn rather than
+    submit it to wait (see Delivery), and submits it from the `turn.complete`
+    hook, never waiting on it there: a hook awaiting its own submit never
+    ends, while one not awaited starts its turn about 13 ms after the last
+    ends (a probe, 2.1.308).
   - The mod's own `prompt.submit` hook does not see a prompt the mod
     submitted from a button's handler or a timer (live, and in the test
     kit); from its `ui.press` hook it does. Either way the pane's own
@@ -1574,6 +1640,10 @@ truth. There is still no background service. None of it is built now. Lee:
     and was marked once; a send of this window's own reply, made while
     Claude ran a 40-second command, with `/reload-plugins` typed during it,
     went in after the reload and was written exactly once, closing its ask.
+    The window now holds a message claimed mid-turn, so a reload mid-turn
+    finds it held: the new load keeps holding it, and submits it as the turn
+    ends, or at once should it find the window between turns. What the
+    probes settled holds for one submitted as the turn ended.
   - The test kit cannot load a fresh copy of the mod: a test's reload runs
     `session.start` again in the same module, its variables kept. Everything
     a reload must carry over lives in `$.state`, so the tests model each

@@ -266,13 +266,10 @@ test("while the window's send waits out Claude's turn, the CLI reads its answer 
   const w = world($, on)
   const { cli } = await begun(w)
   const { asked, ui } = await sidebarAsked(w)
-  const turn = w.holdPrompts()
 
   await ui.press({ key: `choose:${w.item(asked)}:0` })
-
-  const pressed = ui.press({ key: 'send' })
-
-  await turn.arrived
+  await w.turnStarts('Carry on.')
+  await ui.press({ key: 'send' })
   await w.clock.advance(MIN)
   expect(await replyIn(cli)).toMatchObject({
     asks: [{ is: 'onItsWay', isAnswer: true, words: '→ Keep it' }],
@@ -286,9 +283,9 @@ test("while the window's send waits out Claude's turn, the CLI reads its answer 
 
   expect(second.exit).toBe(EXIT.refused)
   expect(second.err).toContain(`An answer to ${asked} is on its way already.`)
+  expect(w.prompts, 'held for the turn to end').toEqual([])
 
-  turn.end()
-  await pressed
+  await w.turnEnds()
   await w.clock.advance(4 * WATCH_MS)
 
   expect(w.prompts.map(prompt => prompt.text)).toEqual([
@@ -304,13 +301,10 @@ test("an answer reaching the inbox while the window's send waits out Claude's tu
   const w = world($, on)
   const { paths, cli } = await begun(w)
   const { asked, ui } = await sidebarAsked(w)
-  const turn = w.holdPrompts()
 
   await ui.press({ key: `choose:${w.item(asked)}:0` })
-
-  const pressed = ui.press({ key: 'send' })
-
-  await turn.arrived
+  await w.turnStarts('Carry on.')
+  await ui.press({ key: 'send' })
   await w.clock.advance(MIN)
   w.put(
     paths.letters(WRITER),
@@ -322,8 +316,7 @@ test("an answer reaching the inbox while the window's send waits out Claude's tu
     'the reply the send carries is going',
   ).toBeUndefined()
 
-  turn.end()
-  await pressed
+  await w.turnEnds()
   await w.clock.advance(4 * WATCH_MS)
 
   const [letter] = parseEntries(w.text(paths.letters(WRITER))).map(line => 'id' in line && line.id)

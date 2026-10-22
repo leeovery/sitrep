@@ -5,9 +5,11 @@
  * the window holds, and a send knows where to write it.
  *
  * The held session's replies a send carries stay in the queue, frozen, until
- * Claude Code has taken the message. Replies a send wrote into another
- * session's inbox have left the queue: sent, not yet delivered. Ready to send
- * shows where they went until Claude has them, and a while after.
+ * Claude Code has taken the message, or Lee takes the send back while the
+ * window holds it, which leaves them as they were. Replies a send wrote into
+ * another session's inbox have left the queue: sent, not yet delivered.
+ * Ready to send shows where they went until Claude has them, and a while
+ * after.
  */
 import {
   barredBy,

@@ -25,6 +25,7 @@ const LEFT: SitrepInFlight = {
   text: 'From the board:\n- Review round 1 → Approve',
   replies: [{ type: 'reply', id: 'r7', item: 'k1', verdict: 'yes' }],
   claimedAt: T0 + 30_000,
+  isHeld: false,
   isTaken: false,
 }
 
@@ -36,8 +37,10 @@ test("a reload mid-send says the claim in the load's first heartbeat, so no read
     inFlight: LEFT,
   }
 
+  // What the last load left, at the version this engine stands at, never
+  // written here: an update over it lands, as it would over the last load's.
   on('state.get', { plugin: 'sitrep', key: ['attachment', 'inFlight'] }, ($, e, next) =>
-    e.key in left ? { value: { value: left[e.key], version: 1 } } : next(e),
+    e.key in left ? { value: { value: left[e.key], version: 0 } } : next(e),
   )
   on('state.set', { plugin: 'sitrep', key: ['attachment', 'inFlight'] }, ($, e, next) => {
     delete left[e.key]

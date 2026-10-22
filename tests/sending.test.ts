@@ -472,6 +472,7 @@ test('a send in flight never holds back the replies it carries for its own answe
     text: 'From the board:\n- Review round 1 → Approve',
     replies: [{ type: 'reply', ...YES }],
     claimedAt: CLAIMED,
+    isHeld: true,
     isTaken: false,
   }
 

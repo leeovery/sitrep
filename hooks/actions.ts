@@ -14,6 +14,7 @@ import type {
 import { beginAnswering, settleAnswering } from './answering'
 import { lookAround } from './around'
 import { fromTheTop } from './clip'
+import { takeBack } from './deliver'
 import { logFailure, type Host } from './host'
 import { writeInto } from './into'
 import { closeBoard } from './pane'
@@ -37,6 +38,8 @@ export type Actions = {
   answer: (answering: SitrepAnswering, text?: string) => void
   /** Sends Ready to send; a board drawn inline closes once the send is claimed, as on a phone. */
   send: (isDock: boolean) => void
+  /** Takes back the send the window holds for Claude's turn to end, its replies back in Ready to send; none once it has gone. */
+  takeBack: () => void
   /** Takes the board somewhere in the tree, at its top there: elsewhere, or where it already is. */
   go: (place: SitrepPlace) => void
   /** Closes the board, by its own close where it sits inline. */
@@ -146,6 +149,7 @@ export const actionsOf = (host: Host): Actions => {
           }
         }),
       ),
+    takeBack: () => run('taking a send back', () => takeBack(host)),
     go: place => run('going elsewhere on the board', () => go(host, place)),
     close: () => run('closing the board', () => closeBoard(host)),
     finish: at => run('finishing a session', () => finish(host, at)),

@@ -11,17 +11,18 @@
  * Lee sees it on the board pane and the band above the prompt, answers its
  * asks there, writing words in the prompt box itself, which the board takes
  * as the answer, and sends the replies as Lee's own message, one message in
- * flight at a time, written down once Claude Code takes it. The board also
- * reads the sessions around the held one: its project's, and every
- * project's, each a view of its own, where Lee answers other sessions' asks
- * too; those replies go into the other session's inbox, and the window
- * there submits them. What changed on the board without Claude (another
- * window, the CLI) rides into Claude's next turn as context Lee does not
- * see. A conversation starts knowing its project's sessions; one resumed,
- * in a new process or by /resume, takes its session up again; one that ends
- * lets go of its session. Its heartbeat says what the window is doing, as
- * hooks that only observe hear it: working, with the tool it runs; stopped
- * on Lee at a permission prompt or a question; or Lee's turn.
+ * flight at a time, held while Claude is mid-turn and written down once
+ * Claude Code takes it. The board also reads the sessions around the held
+ * one: its project's, and every project's, each a view of its own, where
+ * Lee answers other sessions' asks too; those replies go into the other
+ * session's inbox, and the window there submits them. What changed on the
+ * board without Claude (another window, the CLI) rides into Claude's next
+ * turn as context Lee does not see. A conversation starts knowing its
+ * project's sessions; one resumed, in a new process or by /resume, takes
+ * its session up again; one that ends lets go of its session. Its heartbeat
+ * says what the window is doing, as hooks that only observe hear it:
+ * working, with the tool it runs; stopped on Lee at a permission prompt or
+ * a question; or Lee's turn.
  *
  * Every call on `$` is spelled here, in `hostOf`: the engine reads them off
  * this file's source, and refuses a module that hands `$` to an import.
@@ -34,7 +35,7 @@ import { actionsOf } from './actions'
 import { captured, heardSurvey } from './answering'
 import { lookAround, lookEvery } from './around'
 import { clipOf, heardRows, revealFocus, scrollList } from './clip'
-import { heardTurn, isBoardMessage, takeUpDelivery, wentQuiet } from './deliver'
+import { carryOn, heardTurn, isBoardMessage, takeUpDelivery } from './deliver'
 import {
   heardAgentTurnEnd,
   heardCheck,
@@ -296,13 +297,15 @@ export const register: Register = on => {
     return next(e)
   }).catch(($, e, next) => next(e))
 
-  // A subagent's turn is not the window's: it ends only what that subagent left.
+  // The main conversation's turn ending, however it ended, sends the message
+  // the window held for it. A subagent's turn is not the window's: it ends
+  // only what that subagent left.
   on('turn.complete', async ($, e, next) => {
     const host = hostOf($)
 
     if (e.agentId === undefined) {
       await heardTurnEnd(host)
-      await wentQuiet(host)
+      await carryOn(host)
     } else {
       await heardAgentTurnEnd(host, e.agentId)
     }
@@ -389,7 +392,7 @@ export const register: Register = on => {
 
     await serially(() => letGo(host)).catch(logFailure(host, 'letting go of the attached session'))
     await heardConversationEnd(host)
-    await wentQuiet(host)
+    await carryOn(host)
 
     return next(e)
   }).catch(($, e, next) => next(e))
