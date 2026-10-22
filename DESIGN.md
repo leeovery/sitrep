@@ -2496,7 +2496,12 @@ clear".
 Each row drawn whole says what it is, with its project and session beneath,
 or a Needs you row's project; a your-turn row, its project at its right. A
 click jumps: the row presses in and spins for up to 450ms in its time lane,
-the panel drains, and a caption says where it jumped.
+the panel drains, and a caption says where it jumped. A new ask
+makes the notch over-swell twice, to 25 deep, about 450ms apart, as each
+comes back through its 15. The light flashes with each, and its row, new or
+gaining the line, gets an orange wash for 2 seconds. Lee set the swell on the display
+(15 October 2026). The prototype swells once, to 19, which Lee found a
+little too quiet, and Lee thought it might look nice twice.
 
 **Under the pointer, any row's time gives way to its button** (board F, 22
 October 2026): 24 square, its corners 7, white at 10% (#FFFFFF1A), its right
@@ -2508,12 +2513,13 @@ window does: the window opens, or comes forward, on that session's page.
 The row's lift and its click are as they were; an away row shows the button
 too, and still takes no lift and no jump. A right-click on any row brings
 up its menu: Open in SitRep, as the button; Jump to the window, as a click,
-disabled on an away row. Snooze joins the menu with the snooze work. A new ask
-makes the notch over-swell twice, to 25 deep, about 450ms apart, as each
-comes back through its 15. The light flashes with each, and its row, new or
-gaining the line, gets an orange wash for 2 seconds. Lee set the swell on the display
-(15 October 2026). The prototype swells once, to 19, which Lee found a
-little too quiet, and Lee thought it might look nice twice.
+disabled on an away row. While the menu shows, the card holds open as if
+the pointer rested where it was opened, wherever the pointer goes on the
+menu, and its grace starts only once the menu closes, so a choice made on it
+finds its row still there. While a row is pressed in, jumping, its spinner
+stands where the button was and the button takes no press. Snooze joins the
+menu with the snooze work. The card's rows are drawn layers, which VoiceOver
+does not read today, so neither the button nor the menu is offered to it.
 
 **The feel: Meniscus.** The edge is the surface of a liquid.
 - **Approach.** The field reaches 49 from the edge (140 × Pull) and 220
@@ -2949,8 +2955,8 @@ stands).
       12 in tabular figures; then its project's name at 11 in white at 55%,
       1 under, aligned with the name. More than one line waiting adds "+N"
       after the name: 12, weight 500, in tabular figures, 5 after it on its
-      baseline, in the second line's colour, white on the emphasized
-      selection as the row's other words are. The row is inset 4 at its top,
+      baseline, in the second line's colour, and on the accent of the pick
+      white at 80%, as the project's line is. The row is inset 4 at its top,
       the system's two-line row, 39 tall, however many lines wait. As the row
       washes, a new ask's coming, its age goes orange;
     - **the rule** after it sets it off from what follows, the foot's own:
@@ -3280,8 +3286,11 @@ stands).
     oldest's age, as "2 asks, Paste the load test's output, Allow Bash gh
     pr create, Switchboard, Dashboard redesign, 3 hours" (22 October 2026);
     it reads its lines' words still, since board F, though the row shows
-    its session's name in their place. A row's button under the pointer
-    reads "Jump to the window". A row of Working or Your turn reads its line's words, its project, its
+    its session's name in their place. Every row a window holds, in any
+    section, offers VoiceOver the action "Jump to the window", which jumps as
+    its button under the pointer does, moving no pick; VoiceOver never
+    hovers, and the row is one element, so the button itself is not read. An
+    away row offers none. A row of Working or Your turn reads its line's words, its project, its
     session, its state (working, on its own work, your turn) and its age, as
     "Drawing the ledger schema, Switchboard, Request ledger, your turn, 12
     minutes". A heading reads its name and its count, as "Needs you, 4

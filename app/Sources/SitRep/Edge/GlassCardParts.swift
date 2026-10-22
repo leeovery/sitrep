@@ -60,14 +60,14 @@ private struct GlassChevron: View {
     }
 }
 
-/// A row's button that opens its session in the SitRep window, on glass as in black: the primary at 10%, its corners
-/// 7, its glyph in the primary at 80%.
+/// A row's button that opens its session in the SitRep window, on glass as in black: white at 10%, its corners 7, its
+/// glyph in white at 80% (`EdgeStyle.opener`, `openerGlyph`).
 struct GlassOpener: View {
     var body: some View {
         ZStack {
-            RoundedRectangle(cornerRadius: Opener.radius).fill(.primary.opacity(0x1A / 255))
+            RoundedRectangle(cornerRadius: Opener.radius).fill(Color(cgColor: EdgeStyle.opener))
             Outline(path: Path(OpenerGlyph.path))
-                .stroke(.primary.opacity(0.8), lineWidth: OpenerGlyph.stroke)
+                .stroke(Color(cgColor: EdgeStyle.openerGlyph), lineWidth: OpenerGlyph.stroke)
                 .frame(width: OpenerGlyph.size.width, height: OpenerGlyph.size.height)
         }
         .frame(width: Opener.side, height: Opener.side)

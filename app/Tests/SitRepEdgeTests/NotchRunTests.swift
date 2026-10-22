@@ -149,6 +149,40 @@ struct NotchRunTests {
         #expect(run.frame.panel?.pressed == "needs:sr-a")
     }
 
+    /// A row's menu open holds the card open however long the pointer is away on it, its row still there for the
+    /// menu's jump; once the menu closes, the pointer away lets it close.
+    @Test func aRowsMenuHoldsTheCardOpenUntilItCloses() throws {
+        let run = Self.openedWithAway()
+        let away = CGPoint(x: 900, y: 200)
+
+        run.menuOpened(at: try Self.point(of: "needs:sr-a", in: run))
+        Self.frames(run, for: 10_000, away)
+        #expect(run.phase == .open)
+        guard case .jump? = run.jump(to: "sr-a", Self.at(run.time, away), mayJump: true) else {
+            Issue.record("the menu's jump found no row")
+            return
+        }
+
+        let held = Self.openedWithAway()
+
+        held.menuOpened(at: try Self.point(of: "needs:sr-a", in: held))
+        Self.frames(held, for: 1000, away)
+        held.menuClosed()
+        Self.frames(held, for: 5000, away) { held.phase == .closed }
+        #expect(held.phase == .closed)
+    }
+
+    /// While a row is pressed in, jumping, the spinner stands where its button was: a press there opens nothing, and
+    /// goes where any press on a jumping row goes.
+    @Test func aPressOnAJumpingRowsSpinnerOpensNothing() throws {
+        let run = Self.openedWithAway()
+
+        _ = run.press(Self.at(run.time, try Self.point(of: "needs:sr-a", in: run)), mayJump: true)
+        run.step(Self.at(run.time + Self.frameMS))
+        #expect(run.frame.panel?.pressed == "needs:sr-a")
+        #expect(run.press(Self.at(run.time, try Self.opener(of: "needs:sr-a", in: run)), mayJump: true) != .open("sr-a"))
+    }
+
     @Test func noPressJumpsWhileAJumpRunsAndNoneIsCounted() throws {
         let run = Self.opened(["a", "b"])
 

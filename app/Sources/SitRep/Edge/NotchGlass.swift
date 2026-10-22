@@ -366,7 +366,7 @@ struct GlassSessionRow: View {
                 (lead(line).foregroundStyle(style) + subject(line).foregroundStyle(style)).truncationMode(.tail)
             }
             if let more = line.more {
-                Text(more).font(.system(size: 13, weight: .medium).monospacedDigit()).foregroundStyle(soft)
+                Text(more).font(Font(EdgeStyle.count)).foregroundStyle(soft)
                     .fixedSize()
             }
         }

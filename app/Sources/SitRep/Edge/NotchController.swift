@@ -44,6 +44,9 @@ final class NotchController: NSObject {
     /// When a new row was last washed, on the run's clock.
     private var washed: Double?
     private var monitors: [Any] = []
+    /// Where on the stage the row's menu AppKit was last handed was asked for, which holds the card open once it
+    /// shows.
+    private var menuAt: CGPoint?
 
     /// The slow refresh the light breathes on while frames are idle.
     private static let lightRate = CAFrameRateRange(minimum: 20, maximum: 30, preferred: 30)
@@ -287,7 +290,7 @@ final class NotchController: NSObject {
         onJump(target) { [weak self] in self?.answered(jumped: $0, click: click) }
     }
 
-    /// A right-click on a row, away or not: its menu (`CardRowMenu`).
+    /// A right-click on a row, away or not: its menu (`CardRowMenu`), which holds the card open while it shows.
     private func menu(at screenPoint: CGPoint) -> NSMenu? {
         guard let point = edge.stagePoint(screenPoint),
               let session = run.session(at: point, in: Self.setting(edge, settings, period))
@@ -295,7 +298,11 @@ final class NotchController: NSObject {
             return nil
         }
 
-        return CardRowMenu.make(for: session, target: self, open: #selector(openFromMenu), jump: #selector(jumpFromMenu))
+        let menu = CardRowMenu.make(for: session, target: self, open: #selector(openFromMenu), jump: #selector(jumpFromMenu))
+
+        menuAt = point
+        menu.delegate = self
+        return menu
     }
 
     @objc private func openFromMenu(_ item: NSMenuItem) {
@@ -405,5 +412,21 @@ final class NotchController: NSObject {
         {
             wake()
         }
+    }
+}
+
+extension NotchController: NSMenuDelegate {
+    /// A row's menu showing holds the card open as if the pointer rested where it was opened (`NotchRun.menuOpened`).
+    func menuWillOpen(_ menu: NSMenu) {
+        if let menuAt {
+            run.menuOpened(at: menuAt)
+        }
+    }
+
+    /// Closed, before any choice on it runs: the card follows the pointer again, its grace starting from now.
+    func menuDidClose(_ menu: NSMenu) {
+        menuAt = nil
+        run.menuClosed()
+        took()
     }
 }

@@ -66,6 +66,9 @@ public struct Listed: Equatable, Sendable {
 
         public var pick: Pick { .session(id) }
 
+        /// A window holds it: its button under the pointer, and VoiceOver's "Jump to the window", jump there.
+        public var jumps: Bool { !isAway }
+
         /// Under Needs you, what follows its name: "+2" for its two lines after the first.
         public var more: String? { Session.more(over: lines.count) }
 

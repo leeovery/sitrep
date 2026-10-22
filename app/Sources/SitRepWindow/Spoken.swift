@@ -27,6 +27,12 @@ public enum Spoken {
             .joined(separator: ", ")
     }
 
+    /// The action VoiceOver offers on a session's row in the sidebar, which jumps to its window as the row's button
+    /// under the pointer does, moving no pick: "Jump to the window" on a row a window holds; none on an away row.
+    public static func jump(_ row: Listed.Row) -> String? {
+        row.jumps ? Words.jumpToWindow : nil
+    }
+
     /// The sidebar's Filter field.
     public static let filter = "Filter sessions"
 

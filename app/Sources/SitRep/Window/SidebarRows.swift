@@ -20,6 +20,7 @@ struct SidebarLine: View {
         case let .session(row):
             SidebarSessionRow(row: row, filter: filter, now: now)
                 .spoken(Spoken.row(row, at: now))
+                .modifier(SpokenJump(row: row))
                 .sidebarRow(row.pick, picked: picked, washed: row.washed, now: now)
         case let .earlier(earlier):
             EarlierRow(earlier: earlier).sidebarRow(nil, picked: picked, now: now)
@@ -402,7 +403,7 @@ private struct HoverJump: ViewModifier {
     @Environment(\.isRowHovered) private var isRowHovered
 
     func body(content: Content) -> some View {
-        let shows = isRowHovered && !row.isAway
+        let shows = isRowHovered && row.jumps
 
         content
             .environment(\.showsJump, shows)
@@ -430,7 +431,22 @@ private struct SidebarJump: View {
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .accessibilityLabel(Words.jumpToWindow)
+    }
+}
+
+/// To VoiceOver, which reads the row as one element and never hovers it, a row a window holds offers its button as
+/// an action, "Jump to the window", which jumps as the button does, moving no pick.
+private struct SpokenJump: ViewModifier {
+    let row: Listed.Row
+
+    @Environment(\.windowActions) private var act
+
+    func body(content: Content) -> some View {
+        content.accessibilityActions {
+            if let jump = Spoken.jump(row) {
+                Button(jump) { act.jump(.row(row.id)) }
+            }
+        }
     }
 }
 
