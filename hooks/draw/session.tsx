@@ -4,6 +4,7 @@
  * session's is the board's home; another's draws the same, its asks
  * answered the same way, and with no window on it, a way to finish it.
  */
+import { snoozedAsks } from '../../core'
 import { agoWords, C, GLYPH } from '../look'
 import { askedOf, parkedOf } from '../places'
 import type { Filed } from '../scene'
@@ -57,6 +58,7 @@ export const drawSessionView = (d: Drawing, filed: Filed): Block[] =>
     [{ key: 'context', element: drawContext(d, filed) }],
     drawAsks(d, askedOf(d.scene, filed), {
       waiting: filed.session.waiting,
+      snoozed: snoozedAsks(filed.session).length,
       isHome: filed.session === d.scene.session,
       isNamed: false,
     }),

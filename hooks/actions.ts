@@ -3,9 +3,19 @@
  * its work, so each act runs in its own time and writes to the debug log
  * what failed.
  */
-import { checkFinish, type Session } from '../core'
+import {
+  checkFinish,
+  checkSnooze,
+  checkWake,
+  snoozeAt,
+  type Body,
+  type Checked,
+  type Session,
+  type SnoozeChoice,
+} from '../core'
 import type {
   SitrepAnswering,
+  SitrepItemRef,
   SitrepPane,
   SitrepPlace,
   SitrepQueued,
@@ -16,12 +26,12 @@ import { lookAround } from './around'
 import { fromTheTop } from './clip'
 import { takeBack } from './deliver'
 import { logFailure, type Host } from './host'
-import { writeInto } from './into'
+import { writeInto, writeOwnFile } from './into'
 import { closeBoard } from './pane'
 import { projectPlace } from './places'
 import { clearing, queuing, unqueuing } from './queue'
 import { send } from './send'
-import { attached, serially } from './window'
+import { attached, post, serially } from './window'
 
 export type Actions = {
   /** Opens an item, or a log line, under its line; or closes it again. */
@@ -46,6 +56,10 @@ export type Actions = {
   close: () => void
   /** Finishes another session, as Lee confirmed on its view, and takes the board up off it. */
   finish: (at: SitrepSessionRef) => void
+  /** Snoozes an ask until the time Lee chose, worked out at the press, the ask closed on the board. */
+  snooze: (at: SitrepItemRef, when: SnoozeChoice) => void
+  /** Wakes a snoozed ask now: it waits on Lee again. */
+  wake: (at: SitrepItemRef) => void
 }
 
 const changePane = (host: Host, change: (pane: SitrepPane) => Partial<SitrepPane>) =>
@@ -112,6 +126,57 @@ const finish = async (host: Host, at: SitrepSessionRef) => {
   await go(host, projectPlace(at.project))
 }
 
+/** Why a press on an ask wrote nothing, its session no longer there to write into. */
+const GONE = 'its session is no longer on the board.'
+
+/** A check of Lee's press against an ask's session as it stands: the lines it writes, or why it is refused. */
+type Check = (session: Session) => Checked<readonly Body[]>
+
+/**
+ * Writes what Lee's press makes of an ask's session as it stands into this
+ * window's own file there, as checked; through the hold, a change Claude
+ * did not make, so it rides into its next turn. A refusal, or a session no
+ * longer there, writes nothing, a toast saying why after `refused`. Another
+ * session is read again after.
+ */
+const writeLee = async (host: Host, at: SitrepSessionRef, refused: string, check: Check) => {
+  const into = { project: at.project, session: at.session, writer: await host.conversation.id() }
+  const say = (why: string) => host.ui.toast(`${refused}: ${why}`)
+  const isThere = await writeOwnFile(
+    host,
+    into,
+    session => {
+      const checked = check(session)
+
+      if (!checked.ok) {
+        say(checked.error)
+      }
+
+      return checked.ok ? checked.value : []
+    },
+    (session, lines) => post(host, lines),
+  )
+
+  if (!isThere) {
+    say(GONE)
+  }
+
+  await readIfElsewhere(host, at)
+}
+
+/** Lee's snooze of an ask, its time worked out at the press, checked as the CLI checks it. */
+const snooze = async (host: Host, at: SitrepItemRef, when: SnoozeChoice) => {
+  const now = await host.clock.now()
+  const input = { ask: [at.item], until: snoozeAt(when, now) }
+
+  await changePane(host, () => ({ selected: null }))
+  await writeLee(host, at, 'Not snoozed', session => checkSnooze(session, input, now))
+}
+
+/** Lee's waking of a snoozed ask, checked as the CLI checks it. */
+const wake = (host: Host, at: SitrepItemRef) =>
+  writeLee(host, at, 'Not woken', session => checkWake(session, { ask: [at.item] }))
+
 export const actionsOf = (host: Host): Actions => {
   const run = (what: string, act: () => Promise<unknown>) =>
     void act().catch(logFailure(host, what))
@@ -153,5 +218,7 @@ export const actionsOf = (host: Host): Actions => {
     go: place => run('going elsewhere on the board', () => go(host, place)),
     close: () => run('closing the board', () => closeBoard(host)),
     finish: at => run('finishing a session', () => finish(host, at)),
+    snooze: (at, when) => run('snoozing an ask', () => snooze(host, at, when)),
+    wake: at => run('waking an ask', () => wake(host, at)),
   }
 }

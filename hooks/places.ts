@@ -9,6 +9,7 @@ import {
   brief,
   projectLog,
   projectParked,
+  snoozedUntilIn,
   summariseProject,
   type Ask,
   type Parked,
@@ -19,8 +20,28 @@ import { shownAsks, type Filed, type Scene } from './scene'
 
 export const EVERY_PROJECT: SitrepPlace = { level: 'all' }
 
-/** An ask a view lists, the session it is on, and that session's name. */
-export type AskedAt = { at: SitrepSessionRef; name: string; ask: Ask }
+/**
+ * An ask a view lists: the session it is on, that session's name and
+ * whether it is finished, where nothing waits on Lee, and when the ask
+ * wakes while Lee has it snoozed.
+ */
+export type AskedAt = {
+  at: SitrepSessionRef
+  name: string
+  isFinished: boolean
+  ask: Ask
+  snoozedUntil?: number
+}
+
+type SnoozedAt = AskedAt & { snoozedUntil: number }
+
+const isAsleep = (asked: AskedAt): asked is SnoozedAt => asked.snoozedUntil !== undefined
+
+/** Asks as a view lists them: those not snoozed in the order given, then those snoozed, the soonest to wake first. */
+const snoozedLast = (asked: readonly AskedAt[]): AskedAt[] => [
+  ...asked.filter(each => !isAsleep(each)),
+  ...asked.filter(isAsleep).sort((a, b) => a.snoozedUntil - b.snoozedUntil),
+]
 
 /** Something a view lists as parked, the session that parked it, and that session's name. */
 export type ParkedAt = { at: SitrepSessionRef; name: string; parked: Parked }
@@ -115,13 +136,34 @@ export const waitingElsewhere = (scene: Scene) =>
 
 const refOf = ({ project, session }: Filed): SitrepSessionRef => ({ project, session: session.id })
 
-/** A session's Asks: its open asks, and those Lee's send just closed, the newest first. */
-export const askedOf = (scene: Scene, filed: Filed): AskedAt[] =>
-  shownAsks(filed.session, scene.now).map(ask => ({
-    at: refOf(filed),
-    name: filed.session.status.name,
+/** An ask as a view lists it, with when it wakes where it is snoozed in its session. */
+const askedAt = (
+  at: SitrepSessionRef,
+  session: { name: string; isFinished: boolean },
+  ask: Ask,
+): AskedAt => {
+  const snoozedUntil = snoozedUntilIn(session, ask)
+
+  return {
+    at,
+    name: session.name,
+    isFinished: session.isFinished,
     ask,
-  }))
+    ...(snoozedUntil === undefined ? {} : { snoozedUntil }),
+  }
+}
+
+/** A session's Asks: its open asks, and those Lee's send just closed, the newest first; then those snoozed. */
+export const askedOf = (scene: Scene, filed: Filed): AskedAt[] => {
+  const session = {
+    name: filed.session.status.name,
+    isFinished: filed.session.finished !== undefined,
+  }
+
+  return snoozedLast(
+    shownAsks(filed.session, scene.now).map(ask => askedAt(refOf(filed), session, ask)),
+  )
+}
 
 /** A session's asks as its project's Asks lists them: as its own view does where the board has it in full, else its open asks. */
 const briefAsked = (scene: Scene, key: string, session: SessionBrief): AskedAt[] => {
@@ -130,15 +172,17 @@ const briefAsked = (scene: Scene, key: string, session: SessionBrief): AskedAt[]
   return filed === undefined
     ? [...session.asks]
         .reverse()
-        .map(ask => ({ at: { project: key, session: session.id }, name: session.name, ask }))
+        .map(ask => askedAt({ project: key, session: session.id }, session, ask))
     : askedOf(scene, filed)
 }
 
-/** A project's Asks: every current session's asks, the newest first. */
+/** A project's Asks: every current session's asks, the newest first; then those snoozed. */
 export const askedIn = (scene: Scene, key: string): AskedAt[] =>
-  briefsIn(scene, key)
-    .flatMap(session => briefAsked(scene, key, session))
-    .sort((a, b) => b.ask.at - a.ask.at)
+  snoozedLast(
+    briefsIn(scene, key)
+      .flatMap(session => briefAsked(scene, key, session))
+      .sort((a, b) => b.ask.at - a.ask.at),
+  )
 
 /** What a session has parked, oldest first. */
 export const parkedOf = (filed: Filed): ParkedAt[] =>

@@ -117,7 +117,7 @@ const answering = async (w: World) => {
   return { id, ui }
 }
 
-test('an ask wanting a yes offers its yes in its own words, a comment and an ignore', async ($, on) => {
+test('an ask wanting a yes offers its yes in its own words, a comment, an ignore and a snooze', async ($, on) => {
   const w = world($, on)
 
   await w.begin()
@@ -126,11 +126,11 @@ test('an ask wanting a yes offers its yes in its own words, a comment and an ign
   const ui = await w.pane()
 
   expect(rowsOf(await ui.find({ key: `ask:${w.item(id)}` }))[1]).toBe(
-    '  [ ✓ Go ] [ ✎ comment ] [ ✕ ignore ]',
+    '  [ ✓ Go ] [ ✎ comment ] [ ✕ ignore ] [ snooze ]',
   )
 })
 
-test('an ask wanting a choice offers each option, a comment and an ignore', async ($, on) => {
+test('an ask wanting a choice offers each option, a comment, an ignore and a snooze', async ($, on) => {
   const w = world($, on)
 
   await w.begin()
@@ -139,11 +139,11 @@ test('an ask wanting a choice offers each option, a comment and an ignore', asyn
   const ui = await w.pane()
 
   expect(rowsOf(await ui.find({ key: `ask:${w.item(id)}` }))[1]).toBe(
-    '  [ Ship it ] [ Redraw ] [ ✎ comment ] [ ✕ ignore ]',
+    '  [ Ship it ] [ Redraw ] [ ✎ comment ] [ ✕ ignore ] [ snooze ]',
   )
 })
 
-test('an ask wanting words offers an answer and an ignore, and hangs what its words are first, in amber', async ($, on) => {
+test('an ask wanting words offers an answer, an ignore and a snooze, and hangs what its words are first, in amber', async ($, on) => {
   const w = world($, on)
 
   await w.begin()
@@ -156,7 +156,7 @@ test('an ask wanting words offers an answer and an ignore, and hangs what its wo
     '│ prints',
     `├ needs: ${OUTPUT}`,
     '└ Any terminal: type sitrep list',
-    '  [ ✎ Answer ] [ ✕ ignore ]',
+    '  [ ✎ Answer ] [ ✕ ignore ] [ snooze ]',
   ])
   expect((await ui.find({ type: 'Text', text: `needs: ${OUTPUT}` }))?.props.color).toBe(C.ask)
 })

@@ -577,6 +577,9 @@ show all 4
   after them, so the next ask does not run into them. There is no blank row
   between asks otherwise. An ask Lee's send just closed keeps the same row
   for a moment: a green `✓`, its title faint, `sent, and Claude has it`.
+  An ask Lee snoozed comes after those waiting, the soonest to wake first,
+  quieted (its `◆` grey, its title dim), and hangs `snoozed until Mon 09:00`
+  with `wake now`; opened, it answers as any ask does (see "Snooze").
 - **Resolved:** a section of its own at the foot of a session's view, under
   Parked, drawn once an ask has closed. Its heading counts the asks closed
   before now, ignored ones aside (`4 resolved`), and it lists the latest 3,
@@ -590,10 +593,12 @@ show all 4
   RESOLVED closes an ask opened past the latest 3, no longer shown. Asks
   holds only what is open, and the asks Lee's send just closed, for a moment.
 - Each tab carries what waits there: home, this session's asks; All
-  projects, every project's.
+  projects, every project's. A snoozed ask counts on neither.
 - Each view's first line sits under the way back's row.
 - Every section heading has a few words on the right: `1 waiting`,
-  `what happened`, `updated 12m ago`, `2 of 3 open`.
+  `what happened`, `updated 12m ago`, `2 of 3 open`. Asks says what is
+  snoozed too, where any is: `1 waiting · 2 snoozed`, or
+  `nothing waiting · 1 snoozed`.
 - **A line in Notes opens** to the detail behind it, as a tree. A project's
   Notes names each line's session before its text (`Request ledger: Wrote the
   schema`). A status change's detail lines open with their labels (`Added:`,
@@ -632,6 +637,14 @@ shape is ever shown as a word:
   `needs: the command's output`, while the ask is opened. Only a words ask
   takes it.
 - **Ignore** tells Claude Lee has seen it and won't act on it.
+- **Snooze** follows the buttons, dim, on an ask waiting on Lee: none while
+  it waits on Claude (Lee's comment) or on a reply of Lee's on its way, once
+  it is snoozed, nor in a finished session, where nothing waits on Lee. It
+  asks in place, the buttons giving way to
+  `Snooze it? It stops counting until it wakes.` over `[ later today ]`
+  `[ tomorrow ]` `[ next week ]` `[ cancel ]`; a choice writes the snooze
+  and closes the ask, cancel goes back to the buttons, and the ask's title
+  closes it (see "Snooze").
 - **What a reply does once Claude has it:** a yes, a choice or an answer
   closes the ask; ignore drops it; a comment leaves it open, replied, for
   Claude to act on.
@@ -853,14 +866,14 @@ One line above the prompt, right-aligned counts only, each one a way in:
 ```
 
 `asks` opens this session; `elsewhere`, what waits on Lee in every other
-current session, in every project, opens All projects. Below 64 columns the
-words drop and the counts stay (`+2`), and the answering line says `Enter`
-for `Your next Enter`, to leave the title room. The pane's show/hide button
-always matches whether it is drawn. Where the pane sits inline and its
-frame's ✕ is one cell, the open pane's button is a wide `[ ✕ close ]`
-instead, its words kept at any width; on the phone, where the band is not
-shown while the pane is, the pane's tabs end with the same close. Where the pane sits is
-where Claude Code seated it, which only the pane's drawing knows: never
+current session, in every project, opens All projects; a snoozed ask counts
+in neither (see "Snooze"). Below 64 columns the words drop and the counts
+stay (`+2`), and the answering line says `Enter` for `Your next Enter`, to
+leave the title room. The pane's show/hide button always matches whether it
+is drawn. Where the pane sits inline and its frame's ✕ is one cell, the open
+pane's button is a wide `[ ✕ close ]` instead, its words kept at any width;
+on the phone, where the band is not shown while the pane is, the pane's tabs
+end with the same close. Where the pane sits is where Claude Code seated it, which only the pane's drawing knows: never
 guessed from widths, since beside a docked pane the band's columns are the
 transcript's. A `Client` in the pane's header (`hooks/draw/placement.tsx`)
 posts the placement it was drawn with on its surface as it changes, and the
@@ -881,8 +894,12 @@ as before (11 October 2026: until then the band dropped everything beneath
 it once it had a session to show).
 
 When a new ask lands: the ◆ pulses, a toast names it, and a soft chime plays.
-Dropped for now (11 October 2026): a macOS notification for asks. Back on
-13 October 2026, from the menu bar app (see "The menu bar").
+So it is when an ask's snooze runs out in this session, the toast saying
+`◆ Back from snooze: Review the plan`, and the pane opens it; not when Lee
+wakes it, from the pane or the app. Asks landing and waking together make
+one toast, the new asks' (see "Snooze"). Dropped for now (11 October 2026):
+a macOS notification for asks. Back on 13 October 2026, from the menu bar
+app (see "The menu bar").
 
 ## Delivery
 
@@ -1325,9 +1342,22 @@ swell, as any line then.
   press; `wake now` writes one `wake`. Each is checked as the CLI checks it,
   and goes in the window's own file in the ask's session (above), wherever
   the pane draws an ask's buttons (**proposed**).
+- How it is drawn, with no Paper for the pane (**proposed**): the snoozed
+  asks the soonest to wake first, each `◆` grey and its title dim,
+  `wake now` a dim press after its time; `snooze` a dim button after an
+  ask's answers, on an ask waiting on Lee in a session not finished, its
+  question `Snooze it? It stops counting until it wakes.` in their place,
+  a choice closing the ask, and the title closing it from the question in
+  one press. One refused, a line landing after the pane last drew, writes
+  nothing, and a toast gives the CLI's words after `Not snoozed:` or
+  `Not woken:`; one whose session is gone says so.
 - An ask its time wakes in the held session is announced as a new one is:
   the `◆` pulses, a toast, `◆ Back from snooze: Review the plan`, the chime,
-  and it opens. One Lee wakes is not (**proposed**).
+  and it opens. One Lee wakes is not (**proposed**): it carries no `wokeAt`.
+  The window keeps the asks it saw snoozed at its last look, and a load's
+  first look announces nothing, so a reload over an ask asleep, or one woken
+  as it reloaded, says nothing of it; one asleep through the reload is
+  announced as its time wakes it.
 
 **Claude's view.** Claude is told of a snooze as of any change to the board
 it did not make: the board's text changes, and rides into its next turn as

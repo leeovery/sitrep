@@ -85,6 +85,7 @@ export const drawProjectView = (d: Drawing, key: string): Block[] => {
     drawSessions(d, key, hereFirst(d.scene, summary.sessions), summary.open),
     drawAsks(d, askedIn(d.scene, key), {
       waiting: summary.waiting,
+      snoozed: summary.snoozed,
       isHome: key === d.scene.here,
       isNamed: true,
     }),

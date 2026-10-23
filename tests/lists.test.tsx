@@ -200,7 +200,7 @@ test('an opened ask has a blank row after its buttons and hint, so the next ask 
   expect(rows.slice(at('Review round 2'), at('Review round 1') + 1)).toEqual([
     ' ◆ Review round 2 1m',
     ' └ In Paper: page round 2',
-    '   [ ✓ Approve ] [ ✎ comment ] [ ✕ ignore ]',
+    '   [ ✓ Approve ] [ ✎ comment ] [ ✕ ignore ] [ snooze ]',
     "   Your reply waits in Ready to send. Ignore tells Claude you've seen it and won't act on it.",
     '',
     ' ◆ Review round 1 2m',

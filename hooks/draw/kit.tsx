@@ -209,6 +209,7 @@ export const drawTitle = (
   key: string,
   lines: readonly string[],
   onPress: () => void,
+  isDim?: boolean,
 ) => {
   const { Box, Button } = els
   const hover = { scope: hoverScope(key), inverse: true }
@@ -219,6 +220,7 @@ export const drawTitle = (
         <Button
           key={i === 0 ? key : `${key}:${i}`}
           plain
+          dimColor={isDim}
           label={line}
           hover={hover}
           onPress={onPress}
@@ -355,8 +357,8 @@ export type Row = {
   /** When it happened, as the age on the right says. */
   at: number
   isOpen: boolean
-  /** The title's press: its key, and what it does. None for a row closed for good, its title faint. */
-  press?: { key: string; onPress: () => void }
+  /** The title's press: its key, what it does, and whether it is quieted. None for a row closed for good, its title faint. */
+  press?: { key: string; onPress: () => void; isDim?: boolean }
   branches: readonly Branch[]
   /** What comes after the tree, under the title. */
   after?: RenderElement | false
@@ -371,7 +373,7 @@ const drawRowTitle = (d: Drawing, lines: readonly string[], press: Row['press'])
       {lines.join(' ')}
     </Text>
   ) : (
-    drawTitle(d, press.key, lines, press.onPress)
+    drawTitle(d, press.key, lines, press.onPress, press.isDim)
   )
 }
 

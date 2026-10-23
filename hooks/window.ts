@@ -1,7 +1,8 @@
 /**
  * This window's hold on a session: its own file, its heartbeat, and a watch
  * that keeps the session's fold current in `$.state` and tells Lee of an
- * ask that lands. A window holds at most one session.
+ * ask that lands, or that its snooze's time wakes. A window holds at most
+ * one session.
  *
  * Whatever reads or changes the hold runs in turn (`serially`), so two tool
  * calls never write the window's file over each other, and a heartbeat never
@@ -23,7 +24,9 @@ import {
   parsePresence,
   presenceText,
   sessionPaths,
+  snoozedAsks,
   stateOf,
+  waitingOnLee,
   type Body,
   type Presence,
   type Sending,
@@ -36,7 +39,7 @@ import { endAnswering, settleAnswering } from './answering'
 import { boardOf } from './board'
 import { logFailure, rootFor, type Host } from './host'
 import { isLater, isSuperseded, loadedNow, supersede } from './load'
-import { announce } from './news'
+import { announce, type News } from './news'
 import { createReader, ownText, type Reader } from './reader'
 import { versionNow } from './version'
 import { whereNow } from './where'
@@ -54,9 +57,12 @@ type Hold = {
   timers: Timer[]
   /** The board last put in `$.state`, as JSON, so a fold that changed nothing puts nothing. */
   shown?: string
-  /** Every ask the window has seen the session hold; unset until its first fold. */
-  heard?: ReadonlySet<string>
+  /** What the window saw of the session at its last fold; unset until its first. */
+  heard?: Heard
 }
+
+/** Every ask the window has seen the session hold, and those it saw snoozed. */
+type Heard = { asks: ReadonlySet<string>; asleep: ReadonlySet<string> }
 
 let current: Hold | undefined
 
@@ -150,14 +156,31 @@ const beat = async (host: Host, hold: Hold, presence: Presence) => {
   hold.presence = presence
 }
 
-/** Announces the open asks the session holds that the window had not seen; none at its first fold. */
-const hear = async (host: Host, hold: Hold, session: Session) => {
-  const { heard } = hold
-  const landed =
-    heard === undefined ? [] : session.asks.filter(ask => isOpen(ask) && !heard.has(ask.id))
+/**
+ * What the session brings Lee since the window last saw it: the open asks
+ * it had not seen, and those it saw snoozed that their time woke. One Lee
+ * woke carries no time it woke at. None at the window's first fold, a
+ * reload's among them.
+ */
+const newsOf = (heard: Heard | undefined, session: Session): News =>
+  heard === undefined
+    ? { landed: [], woken: [] }
+    : {
+        landed: session.asks.filter(ask => isOpen(ask) && !heard.asks.has(ask.id)),
+        woken: waitingOnLee(session).filter(
+          ask => heard.asleep.has(ask.id) && ask.wokeAt !== undefined,
+        ),
+      }
 
-  hold.heard = new Set(session.asks.map(ask => ask.id))
-  await announce(host, session.id, landed)
+/** Announces what the session brings Lee since the window last saw it. */
+const hear = async (host: Host, hold: Hold, session: Session) => {
+  const news = newsOf(hold.heard, session)
+
+  hold.heard = {
+    asks: new Set(session.asks.map(ask => ask.id)),
+    asleep: new Set(snoozedAsks(session).map(ask => ask.id)),
+  }
+  await announce(host, session.id, news)
 }
 
 const show = async (host: Host, hold: Hold, session: Session) => {

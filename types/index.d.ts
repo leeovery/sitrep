@@ -335,7 +335,7 @@ export type SitrepPane = {
   isOpen: boolean
   /** Null at home: this session. */
   place: SitrepPlace | null
-  /** The item (or log line) opened under its line. */
+  /** The item (or log line) opened under its line, or the press asking in place what it should do (`finish:<session>`, `snooze:<session>:<ask>`, the ask opened still). */
   selected: string | null
   /** The session whose RESOLVED shows every closed ask, not only the latest; null for none. A pane an older load saved lacks it, and is read as none. */
   resolvedInFull: string | null
