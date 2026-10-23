@@ -3,9 +3,19 @@
  * its work, so each act runs in its own time and writes to the debug log
  * what failed.
  */
-import { checkFinish, type Session } from '../core'
+import {
+  checkFinish,
+  checkSnooze,
+  checkWake,
+  snoozeAt,
+  type Body,
+  type Checked,
+  type Session,
+  type SnoozeChoice,
+} from '../core'
 import type {
   SitrepAnswering,
+  SitrepItemRef,
   SitrepPane,
   SitrepPlace,
   SitrepQueued,
@@ -21,7 +31,7 @@ import { closeBoard } from './pane'
 import { projectPlace } from './places'
 import { clearing, queuing, unqueuing } from './queue'
 import { send } from './send'
-import { attached, serially } from './window'
+import { attached, isHoldOn, post, refresh, serially } from './window'
 
 export type Actions = {
   /** Opens an item, or a log line, under its line; or closes it again. */
@@ -46,6 +56,10 @@ export type Actions = {
   close: () => void
   /** Finishes another session, as Lee confirmed on its view, and takes the board up off it. */
   finish: (at: SitrepSessionRef) => void
+  /** Snoozes an ask until the time Lee chose, worked out at the press, the ask closed on the board. */
+  snooze: (at: SitrepItemRef, when: SnoozeChoice) => void
+  /** Wakes a snoozed ask now: it waits on Lee again. */
+  wake: (at: SitrepItemRef) => void
 }
 
 const changePane = (host: Host, change: (pane: SitrepPane) => Partial<SitrepPane>) =>
@@ -112,6 +126,69 @@ const finish = async (host: Host, at: SitrepSessionRef) => {
   await go(host, projectPlace(at.project))
 }
 
+/** What Lee's lines are made from: a session as it stands. */
+type LinesOf = (session: Session) => readonly Body[]
+
+/** The lines a check makes of a session as it stands; none where it refuses, a toast saying why. */
+const checkedLines =
+  (host: Host, refused: string, check: (session: Session) => Checked<readonly Body[]>): LinesOf =>
+  session => {
+    const checked = check(session)
+
+    if (!checked.ok) {
+      host.ui.toast(`${refused}: ${checked.error}`)
+    }
+
+    return checked.ok ? checked.value : []
+  }
+
+/**
+ * Writes through the hold, which keeps its file's text and would write a
+ * line put beside it over: a change Claude did not make, so it rides into
+ * its next turn. False when the session no longer folds, as `writeInto`.
+ */
+const writeHeld = async (host: Host, linesOf: LinesOf) => {
+  const session = await refresh(host)
+  const lines = session === undefined ? [] : linesOf(session)
+
+  if (lines.length > 0) {
+    await post(host, lines)
+  }
+
+  return session !== undefined
+}
+
+/** Writes Lee's lines into this window's own file in a session, through the hold where the window holds it, then has another session read again. */
+const writeLee = async (host: Host, at: SitrepSessionRef, linesOf: LinesOf) => {
+  const into = { project: at.project, session: at.session, writer: await host.conversation.id() }
+
+  await serially(() =>
+    isHoldOn(attached(), into) ? writeHeld(host, linesOf) : writeInto(host, into, linesOf),
+  )
+  await readIfElsewhere(host, at)
+}
+
+/** Lee's snooze of an ask, its time worked out at the press, checked as the CLI checks it. */
+const snooze = async (host: Host, at: SitrepItemRef, when: SnoozeChoice) => {
+  const now = await host.clock.now()
+  const input = { ask: [at.item], until: snoozeAt(when, now) }
+
+  await changePane(host, () => ({ selected: null }))
+  await writeLee(
+    host,
+    at,
+    checkedLines(host, 'Not snoozed', session => checkSnooze(session, input, now)),
+  )
+}
+
+/** Lee's waking of a snoozed ask, checked as the CLI checks it. */
+const wake = (host: Host, at: SitrepItemRef) =>
+  writeLee(
+    host,
+    at,
+    checkedLines(host, 'Not woken', session => checkWake(session, { ask: [at.item] })),
+  )
+
 export const actionsOf = (host: Host): Actions => {
   const run = (what: string, act: () => Promise<unknown>) =>
     void act().catch(logFailure(host, what))
@@ -153,5 +230,7 @@ export const actionsOf = (host: Host): Actions => {
     go: place => run('going elsewhere on the board', () => go(host, place)),
     close: () => run('closing the board', () => closeBoard(host)),
     finish: at => run('finishing a session', () => finish(host, at)),
+    snooze: (at, when) => run('snoozing an ask', () => snooze(host, at, when)),
+    wake: at => run('waking an ask', () => wake(host, at)),
   }
 }

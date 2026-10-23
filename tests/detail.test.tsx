@@ -230,7 +230,7 @@ test("an opened ask hangs where and its record from its mark; its buttons and hi
   expect((await rows(ui, `ask:${w.item(id)}`)).slice(1, 5)).toEqual([
     '├ In Paper: page round 1',
     '└ see docs/dashboard.md',
-    '  [ ✓ Approve ] [ ✎ comment ] [ ✕ ignore ]',
+    '  [ ✓ Approve ] [ ✎ comment ] [ ✕ ignore ] [ snooze ]',
     "  Your reply waits in Ready to send. Ignore tells Claude you've seen it and won't act on it.",
   ])
 })
