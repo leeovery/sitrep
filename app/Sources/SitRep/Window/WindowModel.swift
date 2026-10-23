@@ -27,6 +27,8 @@ final class WindowModel {
     /// What the views' presses ask the model for.
     @ObservationIgnored private(set) var actions = WindowActions()
     @ObservationIgnored private let run: WindowRun
+    /// The calendar the window's wake times are worded on, its run's.
+    var calendar: Calendar { run.calendar }
     @ObservationIgnored private let plugin: Plugin
     @ObservationIgnored private let works: Works
     @ObservationIgnored private let snoozes: Snoozes

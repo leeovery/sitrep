@@ -112,14 +112,14 @@ final class SessionRow {
         }
     }
 
-    /// Its time at this moment on the wall clock, ms, or in Snoozed when it wakes, and a wake's countdown, each drawn
-    /// again only when it reads differently.
-    func showAge(at now: Double) {
+    /// Its time at this moment on the wall clock, ms, or in Snoozed when it wakes, worded on this calendar, and a
+    /// wake's countdown, each drawn again only when it reads differently.
+    func showAge(at now: Double, in calendar: Calendar = WakeTime.calendar) {
         if session.until != nil, session.subject(at: now) != subject {
             subject = session.subject(at: now)
             showTitle()
         }
-        showAge(session.timeText(at: now, in: .autoupdatingCurrent))
+        showAge(session.timeText(at: now, in: calendar))
     }
 
     private func showAge(_ text: String) {
@@ -160,6 +160,7 @@ final class SessionRow {
 
         let sub = sub(in: at.sub)
 
+        sub.contentsScale = layer.contentsScale
         still { layer.replaceSublayer(subLine, with: sub) }
         subLine = sub
     }
@@ -201,9 +202,9 @@ final class SessionRow {
         titleLayers = made
     }
 
-    /// An away row's words dim; a Snoozed row's are soft, its "+2" and its project faint.
+    /// An away row's words dim; a Snoozed row's are soft, away or not, its "+2" and its project faint.
     private var titleColour: CGColor {
-        session.away ? EdgeStyle.off : session.isSnoozed ? EdgeStyle.ink2 : EdgeStyle.ink
+        session.isSnoozed ? EdgeStyle.ink2 : session.away ? EdgeStyle.off : EdgeStyle.ink
     }
 
     private var subColour: CGColor { session.away || session.isSnoozed ? EdgeStyle.ink3 : EdgeStyle.ink2 }

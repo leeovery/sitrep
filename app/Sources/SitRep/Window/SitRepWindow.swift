@@ -272,6 +272,7 @@ private struct WindowSide<Content: View>: View {
         content()
             .environment(\.windowActions, model.actions)
             .environment(\.pressedJump, model.jumping.pressed)
+            .environment(\.wakeCalendar, model.calendar)
             .environment(\.reducesWindowMotion, model.reducesMotion)
             .environment(\.colorScheme, .dark)
     }

@@ -1,8 +1,8 @@
 import Foundation
 
 /// Snooze's choices, as the card's and the sidebar's menus and a card's Snooze on the session page offer them, each
-/// worked out as it is pressed on the Mac's calendar and in its time zone, so 09:00 is 09:00 across a change of the
-/// clocks (DESIGN, "Snooze"; core's `snoozeAt`).
+/// worked out as it is pressed on the Gregorian calendar, as core's `snoozeAt` is, in the Mac's time zone, so 09:00 is
+/// 09:00 across a change of the clocks (DESIGN, "Snooze").
 public enum SnoozeChoice: CaseIterable, Sendable {
     case laterToday, tomorrow, nextWeek
 
@@ -17,7 +17,9 @@ public enum SnoozeChoice: CaseIterable, Sendable {
     /// When a snooze chosen at `now` wakes: Later today three hours on; Tomorrow 09:00 on the next calendar day, so
     /// pressed at 01:00 it wakes 32 hours on; Next week 09:00 on the Monday after today, a week on from a Monday.
     public func wakes(after now: Date, in calendar: Calendar) -> Date {
-        switch self {
+        let calendar = WakeTime.gregorian(like: calendar)
+
+        return switch self {
         case .laterToday: now.addingTimeInterval(Self.later)
         case .tomorrow: Self.waking(days: 1, after: now, in: calendar)
         case .nextWeek:
@@ -65,6 +67,7 @@ extension Session {
 /// `3 Nov 09:00`. Spoken, VoiceOver's, the weekday and month whole: `Saturday 09:00`, `3 November 09:00`.
 public enum WakeTime {
     public static func words(_ wakes: Date, at now: Date, in calendar: Calendar, spoken: Bool = false) -> String {
+        let calendar = gregorian(like: calendar)
         let parts = calendar.dateComponents([.weekday, .day, .month, .hour, .minute], from: wakes)
         let clock = String(format: "%02d:%02d", parts.hour!, parts.minute!)
         let today = calendar.startOfDay(for: now)
@@ -82,7 +85,33 @@ public enum WakeTime {
     /// When on the wall clock the words for any wake next read differently: at the next local midnight, as today's
     /// time becomes tomorrow's weekday, and a date a weekday.
     public static func changes(after now: Date, in calendar: Calendar) -> Date {
-        calendar.date(byAdding: .day, value: 1, to: calendar.startOfDay(for: now))!
+        let calendar = gregorian(like: calendar)
+
+        return calendar.date(byAdding: .day, value: 1, to: calendar.startOfDay(for: now))!
+    }
+
+    /// The calendar a snooze is worked out and worded on: the Gregorian, as core's, in the Mac's time zone and locale,
+    /// followed as they change, whatever calendar the Mac is set to.
+    public static var calendar: Calendar {
+        var calendar = Calendar(identifier: .gregorian)
+
+        calendar.timeZone = .autoupdatingCurrent
+        calendar.locale = .autoupdatingCurrent
+        return calendar
+    }
+
+    /// The Gregorian calendar in another's time zone and locale, so 09:00, Monday and a month's name mean what core
+    /// means on a Hebrew or an Islamic one too.
+    static func gregorian(like calendar: Calendar) -> Calendar {
+        guard calendar.identifier != .gregorian else {
+            return calendar
+        }
+
+        var gregorian = Calendar(identifier: .gregorian)
+
+        gregorian.timeZone = calendar.timeZone
+        gregorian.locale = calendar.locale
+        return gregorian
     }
 
     private static let shortWeekdays = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]

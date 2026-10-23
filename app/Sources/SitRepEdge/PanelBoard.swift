@@ -118,7 +118,7 @@ extension Session {
     init(_ row: Board.SnoozedRow) {
         self.init(
             id: row.session, project: row.projectName, name: row.name, letters: row.letters, kind: .snoozed,
-            away: row.isAway, lines: row.lines.map(Line.init), sub: row.isAway ? row.second : row.projectName,
+            away: row.isAway, lines: row.lines.map(Line.init), sub: row.projectName,
             wakesAt: row.wakesAt.timeIntervalSince1970 * 1000
         )
     }

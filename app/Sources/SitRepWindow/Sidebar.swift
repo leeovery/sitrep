@@ -137,15 +137,16 @@ extension SavedSettings where Value == SidebarSettings {
 
 /// The sidebar's list as it shows, the card's list at the window's size: each section with rows, Needs you, Working,
 /// Your turn and Snoozed, under its heading, a session's row in one of the first three only, and in Snoozed beside it
-/// where it has asks asleep; then Projects, every project on the board, under its own. A folded section shows its heading alone; Your turn's rows past the fold period sit under "N
-/// earlier" at its end, shown only while it is open. While the filter holds text, the folds Lee set stand aside
+/// where it has asks asleep; then Projects, every project on the board, under its own. A folded section shows its
+/// heading alone; Your turn's rows past the fold period sit under "N earlier" at its end, shown only while it is
+/// open. While the filter holds text, the folds Lee set stand aside
 /// (`WindowRun.filter`).
 public struct Sidebar: Equatable, Sendable {
     /// A heading that folds what is under it, a section's or Projects': its count, and which way it is.
     public struct Heading: Equatable, Sendable {
         public let fold: Fold
-        /// Needs you's counts its lines waiting on Lee, the asks and stops, and Snoozed's its asks asleep; Working's and
-        /// Your turn's their rows, "N earlier"'s among them; Projects' its projects.
+        /// Needs you's counts its lines waiting on Lee, the asks and stops, and Snoozed's its asks asleep; Working's
+        /// and Your turn's their rows, "N earlier"'s among them; Projects' its projects.
         public let count: Int
         public let isFolded: Bool
 

@@ -84,6 +84,37 @@ struct SnoozeTests {
         #expect(WakeTime.changes(after: Self.at(25, 12), in: Self.london) == Self.at(26, 0))
     }
 
+    // MARK: On another calendar
+
+    /// A calendar of this kind in London, as the Mac may be set to.
+    private static func london(_ kind: Calendar.Identifier) -> Calendar {
+        var calendar = Calendar(identifier: kind)
+
+        calendar.timeZone = london.timeZone
+        return calendar
+    }
+
+    /// On a Hebrew or an Islamic calendar the words and the times are core's, the Gregorian's: 6 September 2027 falls
+    /// in Elul of a Hebrew leap year, its 13th month.
+    @Test(arguments: [Calendar.Identifier.hebrew, .islamicUmmAlQura])
+    func onAnotherCalendarTheyAreTheGregoriansInItsTimeZone(kind: Calendar.Identifier) {
+        let calendar = Self.london(kind), now = Self.at(23, 14)
+        let elul = Self.london.date(from: DateComponents(year: 2027, month: 9, day: 6, hour: 9))!
+
+        #expect(WakeTime.words(elul, at: now, in: calendar) == "6 Sep 09:00")
+        #expect(WakeTime.words(Self.at(3, 9, month: 11), at: now, in: calendar, spoken: true) == "3 November 09:00")
+        #expect(WakeTime.words(Self.at(24, 9), at: now, in: calendar) == "Sat 09:00")
+        #expect(SnoozeChoice.allCases.map { $0.wakes(after: now, in: calendar) }
+            == SnoozeChoice.allCases.map { Self.wakes($0, after: now) })
+        #expect(WakeTime.changes(after: now, in: calendar) == Self.at(24, 0))
+    }
+
+    /// The calendar the app works snoozes out on is the Gregorian in the Mac's time zone, whatever it is set to.
+    @Test func theAppsCalendarIsTheGregorian() {
+        #expect(WakeTime.calendar.identifier == .gregorian)
+        #expect(WakeTime.calendar.timeZone.identifier == TimeZone.current.identifier)
+    }
+
     /// A Snoozed row shows when it wakes in its time's place; any other row, its age.
     @Test func aSnoozedRowsTimeIsWhenItWakes() {
         let now = Self.at(23, 14).timeIntervalSince1970 * 1000

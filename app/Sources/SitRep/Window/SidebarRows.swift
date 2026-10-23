@@ -1,4 +1,5 @@
 import struct SitRepPanel.Earlier
+import enum SitRepPanel.SnoozeChoice
 import enum SitRepPanel.WakeTime
 import SitRepWindow
 import SwiftUI
@@ -14,6 +15,8 @@ struct SidebarLine: View {
     let filter: Filter
     let now: Date
 
+    @Environment(\.wakeCalendar) private var calendar
+
     var body: some View {
         switch line {
         case let .heading(heading):
@@ -21,8 +24,8 @@ struct SidebarLine: View {
         case let .session(row):
             SidebarSessionRow(row: row, filter: filter, now: now)
                 .modifier(RowContextMenu(row: row))
-                .spoken(Spoken.row(row, at: now))
-                .modifier(SpokenActions(row: row))
+                .spoken(Spoken.row(row, at: now, in: calendar))
+                .modifier(SpokenActions(row: row, now: now))
                 .sidebarRow(row.pick, picked: picked, washed: row.washed, now: now)
         case let .earlier(earlier):
             EarlierRow(earlier: earlier).sidebarRow(nil, picked: picked, now: now)
@@ -69,7 +72,7 @@ struct FoldHeading: View {
                 .lineLimit(1)
             Text("\(heading.count)")
                 .monospacedDigit()
-                .foregroundStyle(heading.isNeedsYou ? WindowStyle.orange : WindowStyle.count)
+                .foregroundStyle(countInk)
                 .padding(.leading, WindowStyle.countGap)
             Spacer(minLength: 0)
             Chevron(isFolded: heading.isFolded)
@@ -99,6 +102,15 @@ struct FoldHeading: View {
     /// What is over its words: 10, or after Needs you its rule, 11.5 under the rows before it, and 10 more.
     private var gap: CGFloat {
         isRuled ? WindowStyle.ruleGap + WindowStyle.rule + WindowStyle.headingGap : WindowStyle.headingGap
+    }
+
+    /// Its count in orange for Needs you, in board H's white at 35% for Snoozed, else white at 30%.
+    private var countInk: Color {
+        switch heading.fold {
+        case .section(.needsYou): WindowStyle.orange
+        case .section(.snoozed): WindowStyle.dim
+        default: WindowStyle.count
+        }
     }
 }
 
@@ -176,6 +188,7 @@ struct NeedsYouRow: View {
     let now: Date
 
     @Environment(\.backgroundProminence) private var prominence
+    @Environment(\.wakeCalendar) private var calendar
 
     var body: some View {
         VStack(alignment: .leading, spacing: 1) {
@@ -199,13 +212,13 @@ struct NeedsYouRow: View {
 
     /// Its oldest line's age, or in Snoozed when its soonest ask wakes.
     private var time: String {
-        row.wakesAt.map { WakeTime.words($0, at: now, in: .autoupdatingCurrent) } ?? Words.age(row.since, at: now)
+        row.wakesAt.map { WakeTime.words($0, at: now, in: calendar) } ?? Words.age(row.since, at: now)
     }
 
     /// Its session's name, cut short before its "+2", in tabular figures on the name's baseline.
     private var title: some View {
         HStack(alignment: .firstTextBaseline, spacing: WindowStyle.moreGap) {
-            Name(row.name, litBy: filter, tone: row.isAway ? .faint : isSnoozed ? .quiet : .text, onPick: onPick)
+            Name(row.name, litBy: filter, tone: isSnoozed ? .quiet : row.isAway ? .faint : .text, onPick: onPick)
                 .font(WindowStyle.ui(WindowStyle.titleSize, .medium))
                 .spacing(WindowStyle.titleTracking, of: WindowStyle.titleSize)
             if let more = row.more {
@@ -453,12 +466,14 @@ private struct SidebarJump: View {
 }
 
 /// To VoiceOver, which reads the row as one element and never hovers it, a row a window holds offers its button as
-/// an action, "Jump to the window", which jumps as the button does, moving no pick; and a row in Snoozed, its menu's
-/// Wake now.
+/// an action, "Jump to the window", which jumps as the button does, moving no pick; a row in Snoozed, its menu's Wake
+/// now; and any other whose lines hold asks, its menu's three snoozes (`Spoken.snooze`).
 private struct SpokenActions: ViewModifier {
     let row: Listed.Row
+    let now: Date
 
     @Environment(\.windowActions) private var act
+    @Environment(\.wakeCalendar) private var calendar
 
     func body(content: Content) -> some View {
         content.accessibilityActions {
@@ -467,6 +482,11 @@ private struct SpokenActions: ViewModifier {
             }
             if let wake = Spoken.wake(row) {
                 Button(wake) { act.wakeRow(row) }
+            }
+            ForEach(SnoozeChoice.allCases, id: \.self) { choice in
+                if let snooze = Spoken.snooze(choice, of: row, at: now, in: calendar) {
+                    Button(snooze) { act.snoozeRow(row, choice) }
+                }
             }
         }
     }
@@ -479,13 +499,14 @@ private struct RowContextMenu: ViewModifier {
     let row: Listed.Row
 
     @Environment(\.windowActions) private var act
+    @Environment(\.wakeCalendar) private var calendar
 
     func body(content: Content) -> some View {
         content.overlay {
-            ContextMenuArea { [row, act] in
+            ContextMenuArea { [row, act, calendar] in
                 RowMenu.make(
                     for: RowMenu.Row(jumps: row.jumps, asks: row.asks, isSnoozed: row.section == .snoozed),
-                    at: Date(), in: .autoupdatingCurrent,
+                    at: Date(), in: calendar,
                     RowMenu.Actions(
                         jump: { act.jump(.row(row.id)) }, snooze: { act.snoozeRow(row, $0) }, wake: { act.wakeRow(row) }
                     )

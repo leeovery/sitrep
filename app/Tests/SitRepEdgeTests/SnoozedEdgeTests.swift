@@ -32,7 +32,9 @@ struct SnoozedEdgeTests {
         #expect(asleep.asks == ["k1", "k2"])
         #expect(asleep.lines.map(\.title) == ["Review the plan", "Pick when stage 2 runs"])
         #expect(asleep.name == "Finish the Harness modernisation" && asleep.project == "Harness")
-        #expect(asleep.sub == "No window holds it. Carry it on in Claude.")
+        // away, its second line still its project: it was put off, so it urges nothing
+        #expect(asleep.sub == "Harness")
+        #expect(board.sessions[0].sub == "No window holds it. Carry it on in Claude.")
         #expect(asleep.wakesAt == 1_792_741_532_000)
         #expect(board.cardSessions == board.sessions + [asleep])
     }
@@ -122,6 +124,24 @@ struct SnoozedEdgeTests {
         #expect((play(1500) > 0.9) == flashes)
     }
 
+    /// The menu's jump from a session's Snoozed row presses that row in, not its row in Needs you.
+    @Test func theMenusJumpFromASnoozedRowPressesThatRow() throws {
+        let run = Self.opened(kept: Self.kept([]))
+        let onTheNotch = CGPoint(x: 3, y: 491)
+
+        _ = run.show(Self.edited(Self.held), Self.at(run.time))
+        while run.phase != .open, run.time < 5000 {
+            run.step(NotchRun.Moment(time: run.time + 1000 / 60, pointer: onTheNotch, setting: Self.setting))
+        }
+        #expect(Self.keys(run).contains("needs:sr-4g01a7"))
+        guard case .jump? = run.jump(to: "snoozed:sr-4g01a7", Self.at(run.time), mayJump: true) else {
+            Issue.record("the menu's jump found no row")
+            return
+        }
+        run.step(Self.at(run.time + 1000 / 60))
+        #expect(run.frame.panel?.pressed == "snoozed:sr-4g01a7")
+    }
+
     // MARK: Helpers
 
     private static let stage = StripStage(width: 1512, height: 982, menu: 37)
@@ -164,11 +184,27 @@ struct SnoozedEdgeTests {
 
     /// The first line with its Needs you row gone, as its last waiting ask snoozed would leave it.
     private static func boardOfSnoozedAlone() -> PanelBoard {
+        edited { line in
+            line["rows"] = []
+            line["head"] = ["needYou": 0, "sessions": 0]
+        }
+    }
+
+    /// The first line with a window holding the session, its row in each section one that jumps.
+    private static func held(_ line: inout [String: Any]) {
+        for list in ["rows", "snoozed"] {
+            line[list] = (line[list] as! [[String: Any]]).map { row in
+                row.merging(["isAway": false, "second": "Harness"]) { $1 }
+            }
+        }
+    }
+
+    /// The first line, changed so.
+    private static func edited(_ change: (inout [String: Any]) -> Void) -> PanelBoard {
         var line = try! JSONSerialization.jsonObject(with: Data(Lines.snoozed[0].utf8)) as! [String: Any]
         var last = LastBoard()
 
-        line["rows"] = []
-        line["head"] = ["needYou": 0, "sessions": 0]
+        change(&line)
         _ = last.hear(.line(String(decoding: try! JSONSerialization.data(withJSONObject: line), as: UTF8.self)), at: .now)
         return PanelBoard(last)
     }

@@ -6,7 +6,7 @@ public enum Spoken {
     /// A session's row in the sidebar, one element: under Needs you, as `needsYou(_:at:)` reads it; in Snoozed, as
     /// `snoozed(_:at:in:)` does; in Working or Your turn, its line's words, its project, its session, its state and its
     /// time, as "Drawing the ledger schema, Switchboard, Request ledger, your turn, 12 minutes".
-    public static func row(_ row: Listed.Row, at now: Date, in calendar: Calendar = .autoupdatingCurrent) -> String {
+    public static func row(_ row: Listed.Row, at now: Date, in calendar: Calendar = WakeTime.calendar) -> String {
         switch row.section {
         case .needsYou: return needsYou(row, at: now)
         case .snoozed: return snoozed(row, at: now, in: calendar)
@@ -22,22 +22,41 @@ public enum Spoken {
     /// has waited, as "2 asks, Paste the load test's output, Allow Bash gh pr create, Switchboard, Dashboard redesign,
     /// 3 hours".
     public static func needsYou(_ row: Listed.Row, at now: Date) -> String {
-        let count = row.lines.count > 1 ? [Words.count(row.lines.count, "ask")] : []
-        let away = row.isAway ? ["away"] : []
-
-        return (count + row.lines.map { $0.words(at: now) } + [row.project, row.name] + away + [age(row.since, at: now)])
-            .joined(separator: ", ")
+        asks(row, at: now, then: age(row.since, at: now))
     }
 
     /// A session's row in Snoozed, one element, as a Needs you row reads, its time when it wakes: "2 asks, Review the
     /// plan, Pick when stage 2 runs, Harness, Finish the Harness modernisation, wakes Saturday 09:00".
     public static func snoozed(_ row: Listed.Row, at now: Date, in calendar: Calendar) -> String {
+        asks(row, at: now, then: row.wakesAt.map { wakes($0, at: now, in: calendar) })
+    }
+
+    /// A row of asks: how many where there are several, each line's words, its project and its session, away where no
+    /// window holds it, then its time.
+    private static func asks(_ row: Listed.Row, at now: Date, then time: String?) -> String {
         let count = row.lines.count > 1 ? [Words.count(row.lines.count, "ask")] : []
         let away = row.isAway ? ["away"] : []
-        let wakes = row.wakesAt.map { ["wakes \(WakeTime.words($0, at: now, in: calendar, spoken: true))"] } ?? []
 
-        return (count + row.lines.map { $0.words(at: now) } + [row.project, row.name] + away + wakes)
+        return (count + row.lines.map { $0.words(at: now) } + [row.project, row.name] + away + [time].compactMap(\.self))
             .joined(separator: ", ")
+    }
+
+    /// When a snooze wakes, its weekday and month whole: "wakes Saturday 09:00".
+    private static func wakes(_ wakes: Date, at now: Date, in calendar: Calendar) -> String {
+        "wakes \(WakeTime.words(wakes, at: now, in: calendar, spoken: true))"
+    }
+
+    /// The actions VoiceOver offers on a row whose lines hold asks, out of Snoozed, one per choice of its menu's
+    /// Snooze, each saying when it would wake, as "Snooze tomorrow, wakes Saturday 09:00"; none on a row of stops alone
+    /// or in Snoozed.
+    public static func snooze(
+        _ choice: SnoozeChoice, of row: Listed.Row, at now: Date, in calendar: Calendar
+    ) -> String? {
+        guard row.section != .snoozed, !row.asks.isEmpty else {
+            return nil
+        }
+
+        return "Snooze \(choice.title.lowercased()), \(wakes(choice.wakes(after: now, in: calendar), at: now, in: calendar))"
     }
 
     /// The action VoiceOver offers on a row in Snoozed, which wakes its asks now, as its menu's Wake now does.
@@ -110,8 +129,8 @@ public enum Spoken {
     }
 
     /// A section's heading, and the few words on its right.
-    public static func heading(_ name: String, note: String?) -> String {
-        note.map { "\(name), \($0)" } ?? name
+    public static func heading(_ name: String, note: String?, aside: String? = nil) -> String {
+        ([name] + [note, aside].compactMap(\.self)).joined(separator: ", ")
     }
 
     /// A card's head on a project's page, which closes it back to its line, its title said by the card.

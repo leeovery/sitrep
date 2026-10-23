@@ -96,6 +96,34 @@ struct SnoozedWindowTests {
         #expect(Spoken.wake(try Self.row(.session(Self.session), in: run)) == nil)
     }
 
+    /// A row whose lines hold asks offers its menu's three snoozes, each saying when it would wake; a Snoozed row and
+    /// a row of stops alone offer none.
+    @Test func voiceOverOffersARowOfAsksItsSnoozes() throws {
+        let run = Self.opened()
+        let waiting = try Self.row(.session(Self.session), in: run)
+        let stops = Listed.Row(
+            id: "sr-kit", name: "Kit", project: "Kit", section: .needsYou, mark: .needs, isAway: false, since: Self.now,
+            lines: [Listed.Line(id: "stop:sr-kit:w1", lead: "Allow Bash", code: "gh pr create", more: nil, since: Self.now)]
+        )
+        let snoozes = { (row: Listed.Row) in
+            SnoozeChoice.allCases.compactMap { Spoken.snooze($0, of: row, at: Self.now, in: Self.london) }
+        }
+
+        #expect(snoozes(waiting) == [
+            "Snooze later today, wakes 11:45", "Snooze tomorrow, wakes Saturday 09:00",
+            "Snooze next week, wakes Monday 09:00",
+        ])
+        #expect(snoozes(try Self.row(.snoozed(Self.session), in: run)).isEmpty)
+        #expect(snoozes(stops).isEmpty)
+    }
+
+    private static let london: Calendar = {
+        var calendar = Calendar(identifier: .gregorian)
+
+        calendar.timeZone = TimeZone(identifier: "Europe/London")!
+        return calendar
+    }()
+
     /// Woken at its time, k1's line arrives in Needs you, its row washing; the Snoozed row never washes.
     @Test func aWakeAtItsTimeWashesItsRowInNeedsYouAndNotItsRowInSnoozed() throws {
         let run = Self.opened()
@@ -210,7 +238,9 @@ struct SnoozedWindowTests {
         #expect(Words.snoozed(0) == nil)
         #expect(Words.snoozed(2) == "2 snoozed")
         #expect(Words.snoozedUntil("Sat 09:00") == "Snoozed until Sat 09:00")
-        #expect(Spoken.heading("Asks", note: "1 waiting, 2 snoozed") == "Asks, 1 waiting, 2 snoozed")
+        #expect(Spoken.heading("Asks", note: "1 waiting", aside: "2 snoozed") == "Asks, 1 waiting, 2 snoozed")
+        #expect(Spoken.heading("Asks", note: nil, aside: "1 snoozed") == "Asks, 1 snoozed")
+        #expect(Spoken.heading("Status", note: nil, aside: nil) == "Status")
     }
 
     /// The first line with its Needs you row gone, as its last waiting ask snoozed would leave it.

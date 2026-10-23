@@ -152,10 +152,10 @@ enum WindowStyle {
         }
     }
 
-    /// A row's words of a tone on the accent of its pick, as board D draws it: the words white, the rest, its second
-    /// line and its ages among them, white at 80%.
+    /// A row's words of a tone on the accent of its pick, as board D draws it: the words white, a Snoozed row's name
+    /// among them, the rest, its second line and its ages among them, white at 80%.
     static func picked(_ tone: Tone) -> Color {
-        tone == .text ? .white : .white.opacity(0.8)
+        tone == .text || tone == .quiet ? .white : .white.opacity(0.8)
     }
 
     /// The sidebar's words of a tone: in the system's label colours, white at 85%, 55% and 25%, and between the last

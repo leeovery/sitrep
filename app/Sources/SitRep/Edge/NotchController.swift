@@ -209,7 +209,7 @@ final class NotchController: NSObject {
         surface.show(run.list)
         surface.show(NotchScene(
             frame: frame, hover: pointer.flatMap { run.item(at: $0, in: setting) }, scroll: run.scroll, time: time,
-            now: Displays.wallNow, mirror: edge.mirror
+            now: Displays.wallNow, mirror: edge.mirror, calendar: run.calendar
         ))
         drawLight(at: run.lightTime(time))
         window.ignoresMouseEvents = run.drag == nil && !(pointer.map(frame.hits) ?? false)
@@ -298,17 +298,17 @@ final class NotchController: NSObject {
     /// snoozes or wakes is the asks the row showed.
     private func menu(at screenPoint: CGPoint) -> NSMenu? {
         guard let point = edge.stagePoint(screenPoint),
-              let session = run.session(at: point, in: Self.setting(edge, settings, period))
+              let row = run.row(at: point, in: Self.setting(edge, settings, period)), let session = row.session
         else {
             return nil
         }
 
-        let id = session.id, asks = session.asks
+        let id = session.id, asks = session.asks, key = row.key
         let menu = RowMenu.make(
-            for: RowMenu.Row(session), at: Date(), in: .autoupdatingCurrent,
+            for: RowMenu.Row(session), at: Date(), in: run.calendar,
             RowMenu.Actions(
                 open: { [unowned self] in onOpen(id) },
-                jump: { [unowned self] in jumpFromMenu(to: id) },
+                jump: { [unowned self] in jumpFromMenu(to: key) },
                 snooze: { [unowned self] in onSnooze(id, asks, $0) },
                 wake: { [unowned self] in onWake(id, asks) }
             )
@@ -319,10 +319,10 @@ final class NotchController: NSObject {
         return menu
     }
 
-    /// Jump to the window, as a click on the row would, its row pressed in, while it still shows.
-    private func jumpFromMenu(to session: String) {
-        if case let .jump(row, to: target, click: click) = run.jump(to: session, moment(), mayJump: !isJumping()) {
-            jump(from: row, to: target, click: click)
+    /// Jump to the window, as a click on the row would, the row the menu is for pressed in, while it still shows.
+    private func jumpFromMenu(to row: String) {
+        if case let .jump(session, to: target, click: click) = run.jump(to: row, moment(), mayJump: !isJumping()) {
+            jump(from: session, to: target, click: click)
         }
         took()
     }

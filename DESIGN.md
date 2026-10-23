@@ -1195,8 +1195,9 @@ a call made then that Lee has not made himself.
   - Next week: 09:00 on the Monday after today, a week on from a Monday.
 
   Lee: "We can always improve and add new options there." Each is worked out
-  where it is pressed, on that Mac's calendar and in its time zone, so 09:00
-  is 09:00 across a change of the clocks: the app's in Swift, the pane's by
+  where it is pressed, on the Gregorian calendar in that Mac's time zone,
+  whatever calendar the Mac is set to, so 09:00 is 09:00 across a change of
+  the clocks and Monday is core's Monday: the app's in Swift, the pane's by
   core's `snoozeAt`, both to this rule (**proposed**: the day after today is
   the next calendar day, so Tomorrow pressed at 01:00 wakes 32 hours on).
   What is pressed is stored as the instant it comes to, in milliseconds since
@@ -2986,8 +2987,9 @@ time on the right; one line each, cut short with an ellipsis:
   a wake's countdown is drawn again, as it reads differently.
 - **snoozed** (Paper's board G, 23 October 2026): a needs you row quieted.
   Its dot 7 across in the faint grey, #5C5C63, with no glow; the session's
-  name in the soft grey, #98989F; its project, or an away row's "No window
-  holds it. Carry it on in Claude.", and its "+N" in the faint grey. In its
+  name in the soft grey, #98989F; its project, and its "+N", in the faint
+  grey. An away row is drawn the same, its project under its name, since an
+  ask Lee put off urges nothing until it wakes; it still jumps nowhere. In its
   time's place, when it wakes, in the soft grey, 12 in tabular figures,
   24-hour and local: today's time alone, "17:42"; within six days its
   weekday, "Sat 09:00"; further out its date, "3 Nov 09:00". Its lane is the
@@ -3539,8 +3541,9 @@ stands).
       after Your turn and before Projects: a row for each session with asks
       Lee snoozed, its lines those asks, the soonest to wake first, beside the
       session's row in Needs you where it has asks waiting too. It is folded
-      at first. Its rows are Needs you's quieted: the dot 7 across in white at
-      25%, with no glow; the name in white at 60%; "+N" and the project in
+      at first. Its rows are Needs you's quieted, away or not: the dot 7
+      across in white at 25%, with no glow; the name in white at 60%, white
+      on the pick as any row's words; "+N" and the project in
       white at 35%; and in the age's place when it wakes, 12 in tabular
       figures in white at 55%, worded as on the card, "17:42", "Sat 09:00" or
       "3 Nov 09:00", its lane grown to fit and ending where an age does. None
@@ -3855,7 +3858,9 @@ stands).
     says so, "Working, 2 sessions, folded", "Snoozed, 2 asks, folded"; a
     Snoozed row reads as a Needs you row, then when it wakes, "wakes Saturday
     09:00", weekday and month in whole words, and offers the action "Wake
-    now" after the jump; "N earlier" reads how many and
+    now" after the jump; any other row whose lines hold asks offers its
+    menu's three snoozes after the jump, each saying when it would wake, as
+    "Snooze tomorrow, wakes Saturday 09:00"; "N earlier" reads how many and
     their projects, as "8 earlier, Switchboard, Fumi", and folded says so;
     a project's row reads "Kit, project". The Filter field reads as
     "Filter sessions", and the foot as one of the sidebar's choices, a radio

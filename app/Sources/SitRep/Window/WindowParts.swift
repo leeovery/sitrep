@@ -204,7 +204,7 @@ struct SectionHeading: View {
             notes.font(WindowStyle.ui(12))
         }
         .frame(height: 16)
-        .spoken(Spoken.heading(name, note: [note, aside].compactMap(\.self).joined(separator: ", ")))
+        .spoken(Spoken.heading(name, note: note, aside: aside))
         .accessibilityAddTraits(.isHeader)
     }
 

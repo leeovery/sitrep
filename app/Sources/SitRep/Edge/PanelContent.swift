@@ -76,7 +76,7 @@ final class PanelContent {
         list.frame = CGRect(x: 0, y: -scene.scroll, width: layer.bounds.width, height: shown.content.height)
         paint(head, panel.head)
         zip(items, panel.items).forEach(paint)
-        rows.values.forEach { $0.row.showAge(at: scene.now) }
+        rows.values.forEach { $0.row.showAge(at: scene.now, in: scene.calendar) }
         rows.forEach { $1.row.isPressed = $0 == panel.pressed }
         highlight(scene.hover.flatMap { shown.item($0)?.key })
     }

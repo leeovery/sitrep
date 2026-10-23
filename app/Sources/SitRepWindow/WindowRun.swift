@@ -11,8 +11,8 @@ public struct Read: Hashable, Sendable {
 
 /// The SitRep window as the app runs it, with nothing of the screen in it: the board from `watch`'s lines in the
 /// order it shows, what Lee picked and what the window opens on, the sessions' boards it reads for their detail, the
-/// asks of the page shown kept in place, the answers waiting out their two seconds, what a snooze or a wake pressed on a
-/// card came to, and finishing an away session. Every input comes through here, at the time given; the views draw what
+/// asks of the page shown kept in place, the answers waiting out their two seconds, what a snooze or a wake pressed
+/// on a card came to, and finishing an away session. Every input comes through here, at the time given; the views draw what
 /// it says, and the app runs what it asks for: a read of a session's board, an answer, a snooze, a finish, a jump.
 public final class WindowRun {
     /// The board as `watch` last printed it.
@@ -48,9 +48,10 @@ public final class WindowRun {
     private var filtering = Folds.open
     /// The pick was made while the filter held text, so it shows as the filter clears.
     private var isPickedWhileFiltering = false
-    /// The wall clock, against which a your-turn row passes the fold period, and the calendar its days are in.
+    /// The wall clock, against which a your-turn row passes the fold period, and the calendar its days are in, which
+    /// the window's wake times are worded on too.
     private let wall: () -> Date
-    private let calendar: Calendar
+    public let calendar: Calendar
     /// The list as `watch` gives it, before it is held.
     private var given = Listed()
     private var held = HeldOrder()
@@ -73,10 +74,11 @@ public final class WindowRun {
     private var openedItems: Set<Item> = []
 
     /// Opened on the session picked last, folded as Lee left it, a your-turn row folding into "N earlier" after the
-    /// period given, against this wall clock, its days in the Mac's own calendar, followed as its time zone changes.
+    /// period given, against this wall clock, its days in the Gregorian calendar in the Mac's time zone, followed as it
+    /// changes (`WakeTime.calendar`).
     public init(
         lastSession: String? = nil, folds: Folds = Folds(), period: FoldPeriod = .hour,
-        wall: @escaping () -> Date = Date.init, calendar: Calendar = .autoupdatingCurrent
+        wall: @escaping () -> Date = Date.init, calendar: Calendar = WakeTime.calendar
     ) {
         self.lastSession = lastSession
         self.folds = folds
@@ -561,7 +563,8 @@ public final class WindowRun {
         return SessionPage(
             id: session.id, projectKey: project.key, projectName: project.name, name: session.name,
             summary: session.summary, doing: session.doing, jumps: !isAway, waiting: session.waiting,
-            snoozed: session.snoozed, asks: cards(of: session, at: time), status: status, notes: notes, parked: parked, resolved: resolved,
+            snoozed: session.snoozed, asks: cards(of: session, at: time), status: status, notes: notes,
+            parked: parked, resolved: resolved,
             finish: isAway ? finishing[session.id] ?? .offered : nil,
             isRead: read != nil,
             failure: failed[session.id],

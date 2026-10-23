@@ -77,6 +77,17 @@ struct SelectedWordsTests {
         Self.expectGrey(try Self.drawn(Self.asking()).brightest(in: Self.title), 0.85)
     }
 
+    /// A Snoozed row's name, at 60% at rest, goes white on the selection as any row's words do.
+    @Test func aSnoozedRowsNameIsWhiteOnTheSelection() throws {
+        let asleep = Listed.Row(
+            id: "sr-1", name: "Name", project: "Mono", section: .snoozed, mark: .snoozed, isAway: false, since: Self.since,
+            lines: [Self.line("Name")], wakesAt: Self.now.addingTimeInterval(3600)
+        )
+
+        #expect(try Self.drawn(asleep, on: .increased).brightest(in: Self.title).isWhite)
+        Self.expectGrey(try Self.drawn(asleep).brightest(in: Self.title), 0.6)
+    }
+
     /// Board D's 80%, over the black here as over the accent.
     @Test(arguments: [project, age])
     func aNeedsYouRowsSecondLineAndAgesAreWhiteAt80PercentOnTheSelection(part: CGRect) throws {
@@ -149,10 +160,10 @@ struct SelectedWordsTests {
         #expect(try project(.increased).brightest(in: name).isWhite)
     }
 
-    /// A heading's name in white at 55%; its count, past the widest gap in its words, in orange for Needs you, else
-    /// white at 30%.
-    @Test(arguments: [BoardSection.needsYou, .working])
-    func aHeadingsCountIsOrangeForNeedsYouElseWhiteAt30Percent(section: BoardSection) throws {
+    /// A heading's name in white at 55%; its count, past the widest gap in its words, in orange for Needs you, white
+    /// at 35% for Snoozed, else white at 30%.
+    @Test(arguments: [BoardSection.needsYou, .working, .snoozed])
+    func aHeadingsCountIsOrangeForNeedsYouElseGrey(section: BoardSection) throws {
         let heading = FoldHeading(heading: Sidebar.Heading(fold: .section(section), count: 4, isFolded: false), isRuled: false)
             .environment(\.isStill, true)
         let drawn = try Drawn(heading, size: CGSize(width: 296, height: WindowStyle.headingGap + WindowStyle.headingHeight))
@@ -166,7 +177,7 @@ struct SelectedWordsTests {
         if section == .needsYou {
             #expect(count.redComponent > 0.85 && count.blueComponent < 0.35)
         } else {
-            Self.expectGrey(count, 0.3)
+            Self.expectGrey(count, section == .snoozed ? 0.35 : 0.3)
         }
     }
 

@@ -1,5 +1,6 @@
 import SitRepCore
 import enum SitRepPanel.SnoozeChoice
+import enum SitRepPanel.WakeTime
 import SitRepWindow
 import SwiftUI
 
@@ -38,6 +39,8 @@ extension EnvironmentValues {
     @Entry var windowActions = WindowActions()
     /// The button whose jump runs, which alone shows it; nil with none of the window's.
     @Entry var pressedJump: JumpPress?
+    /// The calendar wake times are worded and snoozes worked out on, the window's run's.
+    @Entry var wakeCalendar = WakeTime.calendar
 }
 
 /// The right of the window, beside the sidebar: the session or the project picked, Settings, or why there is none, on

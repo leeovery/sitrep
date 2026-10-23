@@ -16,6 +16,7 @@ struct CardView: View {
 
     @Environment(\.windowActions) private var act
     @Environment(\.pressedJump) private var pressedJump
+    @Environment(\.wakeCalendar) private var calendar
 
     var body: some View {
         drawn
@@ -152,7 +153,7 @@ struct CardView: View {
     /// Asleep, in its buttons' place: when it wakes, then Wake now, outlined.
     private func asleep(until wakes: Date) -> some View {
         HStack(spacing: 12) {
-            Text(Words.snoozedUntil(WakeTime.words(wakes, at: now, in: .autoupdatingCurrent)))
+            Text(Words.snoozedUntil(WakeTime.words(wakes, at: now, in: calendar)))
                 .font(WindowStyle.ui(12).monospacedDigit())
                 .foregroundStyle(WindowStyle.soft)
             Pill(words: Words.wakeNow, look: .outlined) { act.wake(card.id) }
@@ -179,6 +180,7 @@ struct SnoozeButton: View {
     let ask: AskAddress
 
     @Environment(\.windowActions) private var act
+    @Environment(\.wakeCalendar) private var calendar
     @State private var anchor = MenuAnchor()
     @State private var isOpen = false
 
@@ -198,16 +200,12 @@ struct SnoozeButton: View {
         .contentShape(.focusEffect, RoundedRectangle(cornerRadius: Pill.radius, style: .continuous))
     }
 
-    /// The menu drops once the pill has drawn, and the pill goes as it closes: AppKit tracks a menu in a loop of its
-    /// own, which draws nothing of SwiftUI's meanwhile.
+    /// The pill shows, the menu drops once it has drawn (`MenuAnchor.popUp`), and the pill goes as the menu closes.
     private func open() {
-        isOpen = true
-        Task { @MainActor in
-            let snooze = act.snooze, ask = ask
+        let snooze = act.snooze, ask = ask
 
-            anchor.popUp(SnoozeMenu(at: Date(), in: .autoupdatingCurrent) { snooze(ask, $0) })
-            isOpen = false
-        }
+        isOpen = true
+        anchor.popUp(SnoozeMenu(at: Date(), in: calendar) { snooze(ask, $0) }) { isOpen = false }
     }
 }
 
@@ -334,7 +332,7 @@ private struct CardLine: View {
 
     private var isFaint: Bool {
         switch line {
-        case .closed, .refused: false
+        case .closed, .refused, .notSnoozed, .notWoken: false
         default: true
         }
     }

@@ -146,21 +146,27 @@ struct CardSessionRowTests {
         #expect(row.opener.isHidden)
     }
 
-    /// Harness's two asks asleep, the sooner waking a day after the time the rows are drawn at.
-    private static let asleep = Session(
-        id: "sr-4g01a7", project: "Harness", name: name, kind: .snoozed,
-        lines: titles.prefix(2).enumerated().map { Session.Line(ask: "k\($0)", title: $1, since: 0) }, sub: "Harness",
-        wakesAt: 29 * 3_600_000
-    )
+    /// Harness's two asks asleep, the sooner waking a day after the time the rows are drawn at; away, or a window
+    /// holding it.
+    private static func asleep(away: Bool = false) -> Session {
+        Session(
+            id: "sr-4g01a7", project: "Harness", name: name, kind: .snoozed, away: away,
+            lines: titles.prefix(2).enumerated().map { Session.Line(ask: "k\($0)", title: $1, since: 0) }, sub: "Harness",
+            wakesAt: 29 * 3_600_000
+        )
+    }
 
-    /// A Snoozed row is a Needs you row quieted (board G): its dot 7 across with no glow, in its project's faint grey;
-    /// its name in the soft grey a Needs you row's project takes; and in its time's place, in the soft grey too, when
-    /// it wakes, its lane grown past the 36 to fit it, still ending at 334, the name cut short before it.
-    @Test func aSnoozedRowIsANeedsYouRowQuietedWithWhenItWakes() throws {
-        let drawn = try Drawn(Self.card(Self.asleep).layer), needs = try Drawn(Self.card(Self.harness(1)).layer)
+    /// A Snoozed row is a Needs you row quieted (board G), the same away or not: its dot 7 across with no glow, in its
+    /// project's faint grey; its name in the soft grey a Needs you row's project takes; and in its time's place, in the
+    /// soft grey too, when it wakes, its lane grown past the 36 to fit it, still ending at 334, the name cut short
+    /// before it.
+    @Test(arguments: [false, true])
+    func aSnoozedRowIsANeedsYouRowQuietedWithWhenItWakes(away: Bool) throws {
+        let asleep = Self.asleep(away: away)
+        let drawn = try Drawn(Self.card(asleep).layer), needs = try Drawn(Self.card(Self.harness(1)).layer)
         let dot = try #require(drawn.drawnBox(in: CGRect(x: 4, y: 10, width: 22, height: 18), ground: Self.ground))
         let wakes = try #require(drawn.drawnBox(in: CGRect(x: 250, y: 10, width: 94, height: 18), ground: Self.ground))
-        let words = TextLine.text(Self.asleep.timeText(at: 5 * 3_600_000, in: .autoupdatingCurrent), EdgeStyle.age, EdgeStyle.ink2)
+        let words = TextLine.text(asleep.timeText(at: 5 * 3_600_000, in: WakeTime.calendar), EdgeStyle.age, EdgeStyle.ink2)
         let name = CGRect(x: 32, y: 10, width: 100, height: 18), project = CGRect(x: 26, y: 28, width: 200, height: 16)
         let soft = try needs.brightest(in: project)
 
@@ -171,6 +177,20 @@ struct CardSessionRowTests {
         #expect(try drawn.brightest(in: wakes).isAlike(soft))
         #expect((332.5 ... 334.5).contains(wakes.maxX))
         #expect(abs(wakes.width - TextLine.width(words)) <= 1.5 && wakes.width > 36)
+    }
+
+    /// Its lane grown to fit when it wakes, its lines laid out again are drawn at the row's scale, as on Retina, the
+    /// line under its title among them.
+    @Test func aSnoozedRowsLinesLaidOutAgainAreAtItsScale() {
+        let row = SessionRow(Self.asleep(), size: CGSize(width: Self.width, height: Item.session(Self.asleep()).height - Item.rowGap))
+
+        rescale(row.layer, to: 2)
+        row.showAge(at: 5 * 3_600_000)
+
+        let lines = (row.layer.sublayers ?? []).filter { $0 is TextLine }
+
+        #expect(lines.count >= 3)
+        #expect(lines.allSatisfy { $0.contentsScale == 2 })
     }
 
     /// Off the row, its time in the lane ending at 334, as tall as its figures; under the pointer, the button's glyph

@@ -30,6 +30,8 @@ struct NotchScene {
     let now: Double
     /// The stage into the window: mirrored on the right edge.
     let mirror: CGAffineTransform
+    /// The calendar the rows' wake times are worded on, the run's.
+    var calendar = WakeTime.calendar
 }
 
 extension Frame.Panel {

@@ -43,16 +43,30 @@ struct ContextMenuArea: NSViewRepresentable {
 
 /// Where a button's AppKit menu drops down from: the view it stands on, which a press pops the menu up under.
 @MainActor
-final class MenuAnchor {
+final class MenuAnchor: NSObject {
     fileprivate weak var view: NSView?
+    private var dropping: (menu: NSMenu, closed: () -> Void)?
 
-    /// The menu under the anchor's view, left-aligned with it, 4 below it; returns once it has closed.
-    func popUp(_ menu: NSMenu) {
-        guard let view else {
+    /// The menu under the anchor's view, left-aligned with it, 4 below it, then `closed` as it closes. It drops on the
+    /// run loop's next turn, from a timer in the common modes, so what the press changed has drawn first; and a timer
+    /// fires outside any block of the main queue, so the menu's tracking loop goes on draining it, the main actor's work
+    /// with it, `watch`'s lines and every wait the window runs. Popped from a block of the main queue, as a `Task` on
+    /// the main actor is, the menu would hold it until it closed.
+    func popUp(_ menu: NSMenu, closed: @escaping () -> Void) {
+        dropping = (menu, closed)
+        perform(#selector(drop), with: nil, afterDelay: 0, inModes: [.common])
+    }
+
+    @objc private func drop() {
+        guard let (menu, closed) = dropping else {
             return
         }
 
-        menu.popUp(positioning: nil, at: NSPoint(x: 0, y: view.isFlipped ? view.bounds.maxY + 4 : -4), in: view)
+        dropping = nil
+        if let view {
+            menu.popUp(positioning: nil, at: NSPoint(x: 0, y: view.isFlipped ? view.bounds.maxY + 4 : -4), in: view)
+        }
+        closed()
     }
 }
 

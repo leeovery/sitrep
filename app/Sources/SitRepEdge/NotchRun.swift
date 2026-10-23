@@ -99,20 +99,21 @@ public final class NotchRun: Framed {
     private var book: RunBook
     /// Whether the panel was out at the last frame.
     private var wasOut = false
-    /// The wall clock, ms, against which a your-turn row passes the fold period, and the calendar its days are in.
+    /// The wall clock, ms, against which a your-turn row passes the fold period, and the calendar its days are in,
+    /// which the rows' wake times are worded on too.
     private let wall: () -> Double
-    private let calendar: Calendar
+    public let calendar: Calendar
     /// What the list was last laid out from, which its folds are told apart from, and when on the wall clock a
     /// your-turn row it shows next passes the fold period.
     private var laid: Laid
     private var nextRefold: Double?
 
-    /// The sections folded as kept, if they are, against this wall clock, ms, its days in the Mac's own calendar,
-    /// followed as its time zone changes.
+    /// The sections folded as kept, if they are, against this wall clock, ms, its days in the Gregorian calendar in
+    /// the Mac's time zone, followed as it changes (`WakeTime.calendar`).
     public init(
         at time: Double, in setting: Setting, kept: SavedSettings<CardSettings>? = nil,
         wall: @escaping () -> Double = { Date().timeIntervalSince1970 * 1000 },
-        calendar: Calendar = .autoupdatingCurrent
+        calendar: Calendar = WakeTime.calendar
     ) {
         book = RunBook(at: time)
         lit = time
@@ -354,18 +355,18 @@ public final class NotchRun: Framed {
         menuAt = nil
     }
 
-    /// The session whose row is at a point on the stage, away or not, while the panel shows it: what a right-click
-    /// there offers to open or jump to.
-    public func session(at point: CGPoint, in setting: Setting) -> Session? {
-        item(at: point, in: setting).flatMap { list.item($0)?.session }
+    /// The row at a point on the stage, away or not, while the panel shows it: what a right-click there offers to
+    /// open, jump to, snooze or wake.
+    public func row(at point: CGPoint, in setting: Setting) -> Item? {
+        item(at: point, in: setting).flatMap { list.item($0) }.flatMap { $0.session == nil ? nil : $0 }
     }
 
-    /// A jump to a session's row chosen from its menu: as a click on the row, its row pressed in, while it still
-    /// shows a row that jumps and jumps may run.
-    public func jump(to session: String, _ moment: Moment, mayJump: Bool) -> Press? {
+    /// A jump chosen from a row's menu, the row by its key: as a click on that row, it pressed in, while it still
+    /// shows, jumps and jumps may run. By its key, since a session in Snoozed has another row too.
+    public func jump(to row: String, _ moment: Moment, mayJump: Bool) -> Press? {
         upToNow(moment)
         let index = list.content.entries.indices.first { index in
-            !list.content.entries[index].isGoing && list.item(index)?.session?.id == session
+            !list.content.entries[index].isGoing && list.item(index)?.key == row
         }
 
         return index.flatMap { jump($0, mayJump: mayJump) }
