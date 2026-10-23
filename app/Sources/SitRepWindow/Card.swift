@@ -14,13 +14,15 @@ public struct Card: Equatable, Sendable, Identifiable {
         case inClaude(InClaude)
         /// Quiet grey text.
         case ignore
+        /// "Snooze ⌄", after Ignore, whose menu snoozes the ask until the time chosen.
+        case snooze
 
         /// The answer it gives, for those answered here.
         public var answer: Answer? {
             switch self {
             case let .yes(words), let .option(words): .words(words)
             case .ignore: .ignore
-            case .inClaude: nil
+            case .inClaude, .snooze: nil
             }
         }
 
@@ -28,7 +30,7 @@ public struct Card: Equatable, Sendable, Identifiable {
         public var isAnswer: Bool {
             switch self {
             case .yes, .option: true
-            case .inClaude, .ignore: false
+            case .inClaude, .ignore, .snooze: false
             }
         }
     }
@@ -50,6 +52,10 @@ public struct Card: Equatable, Sendable, Identifiable {
         case changedSince(String)
         /// `sitrep answer` refused the answer, in its words.
         case refused(String)
+        /// `sitrep snooze` refused the snooze chosen, in its words.
+        case notSnoozed(String)
+        /// `sitrep wake` refused Wake now, in its words.
+        case notWoken(String)
         /// No window holds the session: "Your answer waits in its inbox, and goes in when a window takes the session
         /// up again."
         case inbox
@@ -88,6 +94,8 @@ public struct Card: Equatable, Sendable, Identifiable {
     public let since: Date
     /// Faint, with no buttons, saying how it closed.
     public let isClosed: Bool
+    /// Asleep: when Lee's snooze wakes it, which its card says with Wake now in place of its buttons.
+    public let snoozedUntil: Date?
     public let buttons: [Button]
     public let lines: [Line]
     /// New while its session showed: washed orange from then (`Wash`).
@@ -96,11 +104,15 @@ public struct Card: Equatable, Sendable, Identifiable {
 
 extension Card {
     /// What the card says of an ask: closed while it showed, else its press if there is one, else the board's
-    /// `reply`. An answer pressed, sending or on its way bars a second, so the card offers no buttons; a comment on
-    /// its way bars nothing. Comment and words need Claude Code's prompt, which only a window holding the session
-    /// has.
-    init(_ ask: Board.Ask, of session: String, doing: Doing, pending: Pending?, closed: Closed?, washed: Date?) {
-        let offered = Self.buttons(ask, isAway: doing.isAway)
+    /// `reply`; and what a snooze or a wake pressed on it was refused with. An answer pressed, sending or on its way
+    /// bars a second, so the card offers no buttons; a comment on its way bars nothing. Comment and words need Claude
+    /// Code's prompt, which only a window holding the session has. Asleep, it offers none: waking it brings them back.
+    init(
+        _ ask: Board.Ask, of session: String, doing: Doing, pending: Pending?, closed: Closed?, washed: Date?,
+        unslept: Line? = nil
+    ) {
+        let snoozedUntil = closed == nil ? ask.snoozedUntil : nil
+        let offered = snoozedUntil == nil ? Self.buttons(ask, isAway: doing.isAway) : []
         let (buttons, lines) = if let closed {
             ([Button](), [Line.closed(closed)])
         } else if let pending {
@@ -112,8 +124,8 @@ extension Card {
 
         self.init(
             id: AskAddress(session: session, ask: ask.id), title: ask.title, where: ask.where, needs: ask.needs,
-            since: ask.at, isClosed: closed != nil, buttons: buttons, lines: lines + (inbox ? [.inbox] : []),
-            washed: washed
+            since: ask.at, isClosed: closed != nil, snoozedUntil: snoozedUntil, buttons: buttons,
+            lines: lines + (inbox ? [.inbox] : []) + (unslept.map { [$0] } ?? []), washed: washed
         )
     }
 
@@ -140,7 +152,8 @@ extension Card {
     }
 
     /// What an open ask offers: a yes in Claude's words, or each option, else Claude Code's prompt; a comment beside a
-    /// yes or a choice; ignore on every one. What needs the prompt is offered only while a window holds the session.
+    /// yes or a choice; ignore on every one; and Snooze on one waiting on Lee, with no reply of his on its way. What
+    /// needs the prompt is offered only while a window holds the session.
     private static func buttons(_ ask: Board.Ask, isAway: Bool) -> [Button] {
         let answers: [Button] = switch ask.wants {
         case .yes: [.yes(ask.yes ?? "yes")]
@@ -149,7 +162,9 @@ extension Card {
         }
         let prompt: [Button] = isAway ? [] : [.inClaude(answers.isEmpty ? .answer : .comment)]
 
-        return answers + prompt + [.ignore]
+        let snooze: [Button] = ask.state == .waiting && ask.reply?.standing != .onItsWay ? [.snooze] : []
+
+        return answers + prompt + [.ignore] + snooze
     }
 
     /// How a card lays out its buttons.

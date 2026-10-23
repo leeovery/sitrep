@@ -152,11 +152,11 @@ struct PanelBoardTests {
         #expect(board.sessions == [
             Session(
                 id: "sr-n0tch1", project: "SitRep", name: "Build the Mac app", letters: "SR", kind: .needs,
-                title: "Approve the caption", sub: "SitRep", since: 1_792_452_732_636
+                ask: "k1ap", title: "Approve the caption", sub: "SitRep", since: 1_792_452_732_636
             ),
             Session(
                 id: "sr-dash02", project: "Switchboard", name: "Dashboard memory", letters: "Sw", kind: .needs,
-                away: true, title: "Pick the cache size", sub: "No window holds it. Carry it on in Claude.",
+                away: true, ask: "k2pc", title: "Pick the cache size", sub: "No window holds it. Carry it on in Claude.",
                 since: 1_792_451_832_636
             ),
         ])

@@ -14,6 +14,9 @@ public struct Board: Versioned, Sendable, Equatable {
     public let head: Head
     /// The panel's, the strip's, the menu's and the sidebar's rows, a session each, in their order.
     public let rows: [Row]
+    /// The card's and the sidebar's Snoozed rows, a session each, the soonest to wake first: apart from `rows`, as a
+    /// session may have one in both. None from a CLI before Snooze.
+    public let snoozed: [SnoozedRow]
     /// Those with a current session, in the SitRep window's order.
     public let projects: [Project]
     /// Every live window, the longest attached first, a finished session's among them.
@@ -29,6 +32,24 @@ public struct Board: Versioned, Sendable, Equatable {
         let new = Set(self.new)
 
         return Set(rows.filter { $0.lines.contains { new.contains($0.key) } }.map(\.session))
+    }
+
+    public init(from decoder: any Decoder) throws {
+        let given = try decoder.container(keyedBy: CodingKeys.self)
+
+        at = try given.decode(Date.self, forKey: .at)
+        version = try given.decodeIfPresent(String.self, forKey: .version)
+        head = try given.decode(Head.self, forKey: .head)
+        rows = try given.decode([Row].self, forKey: .rows)
+        snoozed = try given.decodeIfPresent([SnoozedRow].self, forKey: .snoozed) ?? []
+        projects = try given.decode([Project].self, forKey: .projects)
+        windows = try given.decode([Window].self, forKey: .windows)
+        new = try given.decode([String].self, forKey: .new)
+        changed = try given.decode([String].self, forKey: .changed)
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case at, version, head, rows, snoozed, projects, windows, new, changed
     }
 
     /// How many lines need Lee, away ones among them, and how many sessions the rows hold.
@@ -140,12 +161,64 @@ public struct Board: Versioned, Sendable, Equatable {
         }
     }
 
+    /// A session's row in Snoozed: its asks Lee snoozed, a line each, the soonest to wake first, then the oldest; and
+    /// when the soonest wakes. Its session, project and names as a Needs you row's.
+    public struct SnoozedRow: Decodable, Sendable, Equatable, Identifiable {
+        /// One of its asks: its key, the one it has in Needs you; the ask by its id; its title; the instant its time
+        /// counts from; and when it wakes.
+        public struct Line: Decodable, Sendable, Equatable, Identifiable {
+            public let key: String
+            public let ask: String
+            public let first: Row.Words
+            public let since: Date
+            public let wakesAt: Date
+
+            public var id: String { key }
+        }
+
+        public let session: String
+        public let isAway: Bool
+        public let project: String
+        public let name: String
+        public let projectName: String
+        public let letters: String
+        public let lines: [Line]
+        public let second: String
+        /// When its soonest line wakes.
+        public let wakesAt: Date
+
+        public var id: String { session }
+
+        public init(from decoder: any Decoder) throws {
+            let given = try decoder.container(keyedBy: CodingKeys.self)
+
+            session = try given.decode(String.self, forKey: .session)
+            isAway = try given.decode(Bool.self, forKey: .isAway)
+            project = try given.decode(String.self, forKey: .project)
+            name = try given.decode(String.self, forKey: .name)
+            projectName = try given.decode(String.self, forKey: .projectName)
+            letters = try given.decode(String.self, forKey: .letters)
+            lines = try given.decode([Line].self, forKey: .lines)
+            second = try given.decode(String.self, forKey: .second)
+            wakesAt = try given.decode(Date.self, forKey: .wakesAt)
+            guard !lines.isEmpty else {
+                throw DecodingError.dataCorruptedError(forKey: .lines, in: given, debugDescription: "A row has a line.")
+            }
+        }
+
+        private enum CodingKeys: String, CodingKey {
+            case session, isAway, project, name, projectName, letters, lines, second, wakesAt
+        }
+    }
+
     public struct Project: Decodable, Sendable, Equatable, Identifiable {
         public let key: String
         public let name: String
         public let directory: String?
         public let open: Int
         public let waiting: Int
+        /// Its asks snoozed; none from a CLI before Snooze.
+        @Added public var snoozed: Int
         public let parked: Int
         public let updatedAt: Date
         public let sessions: [Session]
@@ -184,6 +257,8 @@ public struct Board: Versioned, Sendable, Equatable {
         public let next: String?
         public let isOpen: Bool
         public let waiting: Int
+        /// Its asks snoozed; none from a CLI before Snooze.
+        @Added public var snoozed: Int
         public let parked: Int
         public let updatedAt: Date
         public let state: State
@@ -218,6 +293,8 @@ public struct Board: Versioned, Sendable, Equatable {
         /// Where Lee's reply to it stands; nil with none sent, one gone void as it was edited under it, or only a
         /// comment Claude has.
         public let reply: Reply?
+        /// When Lee's snooze of it wakes it, while one holds on it as it waits on Lee; nil from a CLI before Snooze.
+        public let snoozedUntil: Date?
     }
 
     /// Where Lee's reply to an ask stands, as core's `replyState` says: on its way, in the session's inbox; with
@@ -298,5 +375,26 @@ public struct Board: Versioned, Sendable, Equatable {
         public let attachedAt: Date
 
         public var id: String { writer }
+    }
+}
+
+/// A count the CLI's JSON gained after its version was set, `v` unmoved: none in the output of a CLI from before it.
+@propertyWrapper
+public struct Added: Decodable, Sendable, Equatable {
+    public var wrappedValue: Int
+
+    public init(wrappedValue: Int) {
+        self.wrappedValue = wrappedValue
+    }
+
+    public init(from decoder: any Decoder) throws {
+        wrappedValue = try decoder.singleValueContainer().decode(Int.self)
+    }
+}
+
+extension KeyedDecodingContainer {
+    /// An added count, or none where the output is from before it.
+    func decode(_ type: Added.Type, forKey key: Key) throws -> Added {
+        try decodeIfPresent(type, forKey: key) ?? Added(wrappedValue: 0)
     }
 }

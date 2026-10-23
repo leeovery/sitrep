@@ -31,6 +31,29 @@ struct SectionsTests {
         items.compactMap { if case let .eyebrow(eyebrow) = $0 { eyebrow } else { nil } }
     }
 
+    /// Harness's two asks asleep, in Snoozed, beside its row in Needs you.
+    private static let asleep = session("harness", .snoozed, lines: 2)
+
+    /// Snoozed is the card's last section, under Your turn, 10 under it as Your turn is under Working, and folded at
+    /// first to its eyebrow, which counts the asks it holds.
+    @Test func snoozedIsTheLastSectionFoldedAtFirstCountingItsAsks() {
+        let items = Self.card(Self.board + [Self.asleep])
+        let snoozed = Self.eyebrows(items).last
+
+        #expect(items.map(\.key).suffix(2) == ["turn:folio", "eyebrow:snoozed"])
+        #expect(snoozed == Eyebrow(section: .snoozed, count: 2, isFolded: true, above: 10))
+    }
+
+    /// Unfolded, its rows are drawn whole, each a row of its own beside the session's row elsewhere.
+    @Test func unfoldedSnoozedsRowsAreOtherThanTheirSessionsRowsElsewhere() {
+        let items = Self.card(Self.board + [Self.asleep], folds: CardFolds(sections: []))
+
+        #expect(items.map(\.key).suffix(2) == ["eyebrow:snoozed", "snoozed:harness"])
+        #expect(items.map(\.key).contains("needs:harness"))
+        #expect(items.last == .session(Self.asleep))
+        #expect(Self.asleep.headline.more == "+1")
+    }
+
     @Test func eachSectionFollowsItsEyebrowInTheSectionsOrder() {
         #expect(Self.card().map(\.key) == [
             "eyebrow:needsYou", "needs:kit", "needs:harness", "divider",
@@ -133,12 +156,17 @@ struct SectionsTests {
     }
 
     @Test func aSectionFoldsAndUnfolds() {
-        var folds = CardFolds()
+        var folds = CardFolds(sections: [])
 
         folds.toggle(.working)
         #expect(folds.sections == [.working])
         folds.toggle(.working)
         #expect(folds.sections.isEmpty)
+    }
+
+    /// Snoozed starts folded, to its eyebrow and its count; the rest open.
+    @Test func atFirstOnlySnoozedIsFolded() {
+        #expect(CardFolds().sections == [.snoozed])
     }
 
     // MARK: The content

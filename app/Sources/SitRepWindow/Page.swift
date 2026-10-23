@@ -13,11 +13,22 @@ public enum Page: Equatable, Sendable {
 }
 
 /// What Lee picked to read on the right: a session or a project from the board's list, or Settings from the
-/// sidebar's foot.
+/// sidebar's foot. A session with asks snoozed has a row in Snoozed too, its own pick, which shows the session's page
+/// as its row beside it does.
 public enum Pick: Hashable, Sendable {
     case session(String)
+    /// A session's row in Snoozed.
+    case snoozed(String)
     case project(String)
     case settings
+
+    /// What it shows on the right, whichever of a session's rows holds it: the session.
+    public var page: Pick {
+        if case let .snoozed(id) = self {
+            return .session(id)
+        }
+        return self
+    }
 }
 
 /// A session at window size, as the pane's session view: its project above it, its name and summary, what its window
@@ -34,6 +45,9 @@ public struct SessionPage: Equatable, Sendable {
     public let jumps: Bool
     /// Its asks waiting on Lee.
     public let waiting: Int
+    /// Its asks asleep.
+    public let snoozed: Int
+    /// Those waiting first, then those asleep.
     public let asks: [Card]
     public let status: Status
     /// Its latest log lines, newest first.

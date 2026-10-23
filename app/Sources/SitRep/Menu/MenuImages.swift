@@ -49,7 +49,8 @@ enum MenuImages {
     static func mark(_ session: Session) -> NSImage {
         switch session.kind {
         case .needs: dot
-        case .turn: ring
+        // the menu is given no Snoozed row (`PanelBoard.sessions`)
+        case .turn, .snoozed: ring
         case .working: arc
         case .onItsWork: dotted
         }

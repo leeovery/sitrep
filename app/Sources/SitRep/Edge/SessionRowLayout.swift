@@ -24,14 +24,16 @@ struct SessionRowLayout {
     static let titleLine = 18.0
     private static let subLine = 16.0
 
-    init(size: CGSize) {
+    /// A row whose time is this wide: the 36 lane, or a Snoozed row's wider wake, which the lane grows to fit.
+    init(size: CGSize, time: Double = 0) {
+        let lane = max(Self.ageWidth, time)
         let textX = Self.pad.side + Self.markBox.width + Self.gap
-        let textWidth = size.width - textX - Self.gap - Self.ageWidth - Self.pad.side
+        let textWidth = size.width - textX - Self.gap - lane - Self.pad.side
         let top = Self.pad.top
 
         mark = CGPoint(x: Self.pad.side + Self.markBox.width / 2, y: top + Self.markBox.height / 2)
         title = CGRect(x: textX, y: top, width: textWidth, height: Self.titleLine)
-        age = CGRect(x: size.width - Self.pad.side - Self.ageWidth, y: top, width: Self.ageWidth, height: Self.titleLine)
+        age = CGRect(x: size.width - Self.pad.side - lane, y: top, width: lane, height: Self.titleLine)
         sub = CGRect(x: textX, y: title.maxY, width: textWidth, height: Self.subLine)
         opener = Opener.frame(in: size)
     }

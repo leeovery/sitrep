@@ -16,6 +16,10 @@ final class NotchController: NSObject {
     var onJump: (String, @escaping (Bool) -> Void) -> Void = { _, _ in }
     /// A row's button, or its menu's Open in SitRep: the session to open in the SitRep window.
     var onOpen: (String) -> Void = { _ in }
+    /// A row's menu's Snooze: the session, the asks its row showed, and the time chosen.
+    var onSnooze: (String, [String], SnoozeChoice) -> Void = { _, _, _ in }
+    /// A Snoozed row's menu's Wake now: the session, and the asks its row showed.
+    var onWake: (String, [String]) -> Void = { _, _ in }
     /// Whether a jump runs, from the panel, the menu or a banner.
     var isJumping: () -> Bool = { false }
     /// A drag let the notch go: the settings with its new place.
@@ -290,7 +294,8 @@ final class NotchController: NSObject {
         onJump(target) { [weak self] in self?.answered(jumped: $0, click: click) }
     }
 
-    /// A right-click on a row, away or not: its menu (`CardRowMenu`), which holds the card open while it shows.
+    /// A right-click on a row, away or not: its menu (`RowMenu`), which holds the card open while it shows. What it
+    /// snoozes or wakes is the asks the row showed.
     private func menu(at screenPoint: CGPoint) -> NSMenu? {
         guard let point = edge.stagePoint(screenPoint),
               let session = run.session(at: point, in: Self.setting(edge, settings, period))
@@ -298,25 +303,24 @@ final class NotchController: NSObject {
             return nil
         }
 
-        let menu = CardRowMenu.make(for: session, target: self, open: #selector(openFromMenu), jump: #selector(jumpFromMenu))
+        let id = session.id, asks = session.asks
+        let menu = RowMenu.make(
+            for: RowMenu.Row(session), at: Date(), in: .autoupdatingCurrent,
+            RowMenu.Actions(
+                open: { [unowned self] in onOpen(id) },
+                jump: { [unowned self] in jumpFromMenu(to: id) },
+                snooze: { [unowned self] in onSnooze(id, asks, $0) },
+                wake: { [unowned self] in onWake(id, asks) }
+            )
+        )
 
         menuAt = point
         menu.delegate = self
         return menu
     }
 
-    @objc private func openFromMenu(_ item: NSMenuItem) {
-        if let session = item.representedObject as? String {
-            onOpen(session)
-        }
-    }
-
     /// Jump to the window, as a click on the row would, its row pressed in, while it still shows.
-    @objc private func jumpFromMenu(_ item: NSMenuItem) {
-        guard let session = item.representedObject as? String else {
-            return
-        }
-
+    private func jumpFromMenu(to session: String) {
         if case let .jump(row, to: target, click: click) = run.jump(to: session, moment(), mayJump: !isJumping()) {
             jump(from: row, to: target, click: click)
         }

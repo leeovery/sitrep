@@ -33,6 +33,15 @@ public enum Lines {
     /// minutes off, its row first.
     public static let onItsWork = printed("watch-on-its-work.jsonl").trimmingCharacters(in: .newlines)
 
+    /// `sitrep watch`'s three lines over a board of its own, run on 23 October 2026: Harness's Finish the Harness
+    /// modernisation, away, three asks posted, k1 snoozed until five seconds on and k2 for an hour, k3 waiting, so the
+    /// session has a row in Needs you and one in Snoozed; then k1 woken at its time, new on the line; then k2 woken now
+    /// by `sitrep wake`, back in Needs you and new on no line.
+    public static let snoozed = printed("watch-snoozed.jsonl").split(separator: "\n").map(String.init)
+
+    /// `board --json` for Finish the Harness modernisation as `snoozed`'s first line has it.
+    public static let snoozedBoard = printed("board-snoozed.json")
+
     /// `board --json` for The Mac app, before anything was answered.
     public static let board = printed("board-macapp.json")
     /// The same, its yes answered and its words ask ignored, both on their way.

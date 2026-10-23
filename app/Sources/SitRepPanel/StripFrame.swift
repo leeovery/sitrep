@@ -245,7 +245,8 @@ extension Strip {
 
             let look: StripFrame.Mark.Look = switch s.kind {
             case .needs: s.away ? .away : .needs
-            case .turn: .turn
+            // the strip is given no Snoozed row (`PanelBoard.sessions`)
+            case .turn, .snoozed: .turn
             case .working: .working
             case .onItsWork: .onItsWork
             }

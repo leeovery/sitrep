@@ -69,7 +69,7 @@ struct TellTests {
 }
 
 /// A notch that only notes what it was told.
-private final class Told: Notch {
+final class Told: Notch {
     private(set) var told: [String] = []
 
     let phase = Phase.closed

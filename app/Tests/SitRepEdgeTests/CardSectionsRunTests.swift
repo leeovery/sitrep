@@ -110,14 +110,14 @@ struct CardSectionsRunTests {
         let run = Self.opened(Self.mixed)
 
         #expect(try Self.press("eyebrow:working", in: run) == .fold)
-        #expect(run.folded.sections == [.working])
+        #expect(run.folded.sections == [.working, .snoozed])
         #expect(Self.keys(run) == ["eyebrow:needsYou", "needs:sr-a", "needs:sr-b", "divider", "eyebrow:working", "eyebrow:yourTurn", "turn:sr-t"])
         #expect(!run.isFolding(at: run.time))
         #expect(run.list.content.entries.allSatisfy { $0.height == $0.item.height && $0.alpha == 1 })
         #expect(run.list.content.items.contains(.eyebrow(Eyebrow(section: .working, count: 1, isFolded: true, above: 0))))
 
         #expect(try Self.press("eyebrow:working", in: run) == .fold)
-        #expect(run.folded.sections.isEmpty)
+        #expect(run.folded.sections == [.snoozed])
         #expect(Self.keys(run).contains("sr-w"))
         #expect(!run.isFolding(at: run.time))
     }
@@ -156,7 +156,7 @@ struct CardSectionsRunTests {
         let run = Self.opened(Self.mixed)
 
         #expect(try Self.press("eyebrow:yourTurn", in: run, mayJump: false) == .fold)
-        #expect(run.folded.sections == [.yourTurn])
+        #expect(run.folded.sections == [.yourTurn, .snoozed])
     }
 
     /// A row holding a new line unfolds Needs you, its rows there at once, and the unfold is kept; the row arriving

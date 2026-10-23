@@ -259,7 +259,9 @@ private struct GlassHead: View {
 /// name, and its time; the line under them; laid out as the black's. Under the pointer, a row that jumps lifts, any
 /// row's time gives way to its button, and a click jumping from it presses it in with an arc spinning in its time's
 /// place. One on its own work is still, its subject plain or a wake's countdown. A your-turn row on the card is on one
-/// line: its ring, its words in regular, its project in the tertiary at the right of them, never cut, and its time.
+/// line: its ring, its words in regular, its project in the tertiary at the right of them, never cut, and its time. One
+/// in Snoozed is quieted, as the black's: its dot unlit, its name in the secondary, and when it wakes in its time's
+/// place.
 @available(macOS 26, *)
 struct GlassSessionRow: View {
     let session: Session
@@ -298,9 +300,9 @@ struct GlassSessionRow: View {
             } else if hovered {
                 GlassOpener().placed(in: at.opener)
             } else {
-                Text(session.ageText(at: now))
+                Text(time)
                     .font(.system(size: 12).monospacedDigit())
-                    .foregroundStyle(.tertiary)
+                    .foregroundStyle(session.isSnoozed ? .secondary : .tertiary)
                     .placed(in: at.age, alignment: .trailing)
             }
         }
@@ -313,13 +315,19 @@ struct GlassSessionRow: View {
     /// Under the pointer, a row that jumps lifts; an away one, which jumps nowhere, does not.
     private var lit: Bool { hovered && session.jumps }
 
-    /// The line under its title, and its "+2": dimmer while no window holds it.
-    private var soft: HierarchicalShapeStyle { session.away ? .tertiary : .secondary }
+    /// The line under its title, and its "+2": dimmer while no window holds it, or in Snoozed.
+    private var soft: HierarchicalShapeStyle { session.away || session.isSnoozed ? .tertiary : .secondary }
 
-    /// The black's layout: on one line, its project's lane as wide as the black sets its project.
+    /// What its time's place says: its age, or in Snoozed when it wakes.
+    private var time: String { session.timeText(at: now, in: .autoupdatingCurrent) }
+
+    /// The black's layout: on one line, its project's lane as wide as the black sets its project; in Snoozed, its
+    /// time's lane as wide as the black sets when it wakes.
     private var layout: SessionRowLayout {
         guard oneLine else {
-            return SessionRowLayout(size: size)
+            let wakes = session.isSnoozed ? TextLine.width(TextLine.text(time, EdgeStyle.age, EdgeStyle.ink2)) : 0
+
+            return SessionRowLayout(size: size, time: wakes)
         }
 
         return SessionRowLayout(turn: size, project: TextLine.width(TextLine.text(session.project, EdgeStyle.sub, EdgeStyle.ink3)))
@@ -331,7 +339,7 @@ struct GlassSessionRow: View {
     }
 
     /// Needs you an orange dot with its glow, away or not; your turn an open ring; working the arc turning; on its own
-    /// work the dotted ring, still.
+    /// work the dotted ring, still; in Snoozed a dot in the tertiary, unlit.
     @ViewBuilder private var mark: some View {
         switch session.kind {
         case .needs:
@@ -344,6 +352,8 @@ struct GlassSessionRow: View {
             spinner
         case .onItsWork:
             DottedRingView(ring: .card, ink: .secondary)
+        case .snoozed:
+            Circle().fill(.tertiary).frame(width: 7, height: 7)
         }
     }
 
@@ -362,7 +372,7 @@ struct GlassSessionRow: View {
             } else if session.kind == .onItsWork {
                 (lead(line) + subject(line) + plain(line)).foregroundStyle(.secondary).truncationMode(.tail)
             } else {
-                let style: HierarchicalShapeStyle = session.away ? .tertiary : .primary
+                let style: HierarchicalShapeStyle = session.away ? .tertiary : session.isSnoozed ? .secondary : .primary
                 (lead(line).foregroundStyle(style) + subject(line).foregroundStyle(style)).truncationMode(.tail)
             }
             if let more = line.more {

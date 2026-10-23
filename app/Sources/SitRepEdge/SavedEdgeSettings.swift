@@ -53,12 +53,13 @@ extension EdgeSettings: SavedValue {
     public static let key = "edge"
 }
 
-/// The card's sections Lee folded, kept across opens and launches as one value of its own under the key "card". "N
-/// earlier" open is not kept: it is folded each time the card comes out.
+/// The card's sections Lee folded, kept across opens and launches as one value of its own under the key "card": those
+/// folded, and those not, so a section folded at first, as Snoozed, which a value saved before it has no word of, reads
+/// folded. "N earlier" open is not kept: it is folded each time the card comes out.
 public struct CardSettings: SavedValue {
     public static let key = "card"
 
-    public var folded: Set<BoardSection> = []
+    public var folded = BoardSection.foldedAtFirst
 
     public init() {}
 
@@ -74,8 +75,17 @@ public struct CardSettings: SavedValue {
         }
 
         // one by one, so a section another version saved that this one doesn't know leaves the rest folded
-        let saved: [String] = given.value(.folded, or: [])
+        folded = BoardSection.folded(saved: given.value(.folded, or: []), unfolded: given.value(.unfolded, or: []))
+    }
 
-        folded = Set(saved.compactMap(BoardSection.init(rawValue:)))
+    public func encode(to encoder: any Encoder) throws {
+        var saved = encoder.container(keyedBy: CodingKeys.self)
+
+        try saved.encode(BoardSection.allCases.filter(folded.contains).map(\.rawValue), forKey: .folded)
+        try saved.encode(BoardSection.unfolded(folded), forKey: .unfolded)
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case folded, unfolded
     }
 }

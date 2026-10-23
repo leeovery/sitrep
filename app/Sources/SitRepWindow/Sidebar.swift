@@ -11,16 +11,18 @@ public enum Fold: Hashable, Sendable {
 }
 
 /// What is folded: the sections Lee folded and whether Projects is, kept across launches; and whether "N earlier" is
-/// open, never kept, as what it holds is stale. At first only Projects is folded.
+/// open, never kept, as what it holds is stale. At first only Snoozed and Projects are folded.
 public struct Folds: Codable, Equatable, Sendable {
-    public var sections: Set<BoardSection> = []
+    public var sections = BoardSection.foldedAtFirst
     public var projects = true
     public var isEarlierOpen = false
 
     /// Everything open, "N earlier" too: the list as it shows while the filter holds text.
     public static let open = Folds(sections: [], projects: false, isEarlierOpen: true)
 
-    public init(sections: Set<BoardSection> = [], projects: Bool = true, isEarlierOpen: Bool = false) {
+    public init(
+        sections: Set<BoardSection> = BoardSection.foldedAtFirst, projects: Bool = true, isEarlierOpen: Bool = false
+    ) {
         self.sections = sections
         self.projects = projects
         self.isEarlierOpen = isEarlierOpen
@@ -33,11 +35,18 @@ public struct Folds: Codable, Equatable, Sendable {
             return
         }
 
-        // one by one, so a section another version saved that this one doesn't know leaves the rest folded
-        let sections: [String] = given.value(.sections, or: [])
-
-        self.sections = Set(sections.compactMap(BoardSection.init(rawValue:)))
+        // one by one, so a section another version saved that this one doesn't know leaves the rest folded; and one
+        // folded at first, as Snoozed, that a value saved before it has no word of, folded
+        sections = BoardSection.folded(saved: given.value(.sections, or: []), unfolded: given.value(.unfolded, or: []))
         projects = given.value(.projects, or: defaults.projects)
+    }
+
+    public func encode(to encoder: any Encoder) throws {
+        var saved = encoder.container(keyedBy: CodingKeys.self)
+
+        try saved.encode(BoardSection.allCases.filter(sections.contains).map(\.rawValue), forKey: .sections)
+        try saved.encode(BoardSection.unfolded(sections), forKey: .unfolded)
+        try saved.encode(projects, forKey: .projects)
     }
 
     /// What of them is kept across launches: "N earlier" folded, as each time the window opens.
@@ -73,24 +82,26 @@ public struct Folds: Codable, Equatable, Sendable {
     }
 
     /// Unfolded wherever the list would hide the row showing this pick (`Listed.listedRow(showing:)`): a session's
-    /// section, and "N earlier" where its row is under it; Projects, for a project, or a session with no row of its
-    /// own.
+    /// section, or Snoozed for its row there, and "N earlier" where its row is under it; Projects, for a project, or a
+    /// session with no row of its own.
     mutating func unfold(toShow pick: Pick, in listed: Listed) {
         switch listed.listedRow(showing: pick) {
-        case let .session(id)?:
-            if let row = listed.rows.first(where: { $0.id == id }) {
+        case .project?:
+            unfold(.projects)
+        case let shown?:
+            if let row = listed.rows.first(where: { $0.pick == shown }) {
                 unfold(.section(row.section))
                 if row.isEarlier {
                     unfold(.earlier)
                 }
             }
-        case .project?: unfold(.projects)
-        case .settings?, nil: break
+        case nil:
+            break
         }
     }
 
     private enum CodingKeys: String, CodingKey {
-        case sections, projects
+        case sections, unfolded, projects
     }
 }
 
@@ -124,17 +135,17 @@ extension SavedSettings where Value == SidebarSettings {
     }
 }
 
-/// The sidebar's list as it shows, the card's list at the window's size: each section with rows, Needs you, Working
-/// and Your turn, under its heading, a session's row in one of them only; then Projects, every project on the board,
-/// under its own. A folded section shows its heading alone; Your turn's rows past the fold period sit under "N
+/// The sidebar's list as it shows, the card's list at the window's size: each section with rows, Needs you, Working,
+/// Your turn and Snoozed, under its heading, a session's row in one of the first three only, and in Snoozed beside it
+/// where it has asks asleep; then Projects, every project on the board, under its own. A folded section shows its heading alone; Your turn's rows past the fold period sit under "N
 /// earlier" at its end, shown only while it is open. While the filter holds text, the folds Lee set stand aside
 /// (`WindowRun.filter`).
 public struct Sidebar: Equatable, Sendable {
     /// A heading that folds what is under it, a section's or Projects': its count, and which way it is.
     public struct Heading: Equatable, Sendable {
         public let fold: Fold
-        /// Needs you's counts its lines waiting on Lee, the asks and stops; Working's and Your turn's their rows,
-        /// "N earlier"'s among them; Projects' its projects.
+        /// Needs you's counts its lines waiting on Lee, the asks and stops, and Snoozed's its asks asleep; Working's and
+        /// Your turn's their rows, "N earlier"'s among them; Projects' its projects.
         public let count: Int
         public let isFolded: Bool
 
@@ -212,7 +223,7 @@ public struct Sidebar: Equatable, Sendable {
         switch pick {
         case let .session(id)?: homes[id] ?? pick
         case .settings?, nil: nil
-        case .project?: pick
+        case .snoozed?, .project?: pick
         }
     }
 
@@ -233,7 +244,7 @@ public struct Sidebar: Equatable, Sendable {
         }
 
         let fold = Fold.section(section)
-        let count = section == .needsYou ? rows.map(\.lines.count).reduce(0, +) : rows.count
+        let count = section.countsLines ? rows.map(\.lines.count).reduce(0, +) : rows.count
         let heading = Line.heading(Heading(fold: fold, count: count, isFolded: folds.contains(fold)))
 
         if folds.contains(fold) {

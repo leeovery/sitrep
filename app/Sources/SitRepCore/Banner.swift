@@ -17,6 +17,16 @@ public struct Banner: Equatable, Sendable {
         refused("SitRep could not jump", why)
     }
 
+    /// A snooze from a row's menu that the CLI refused, in its words, as the pane says it.
+    public static func unsnoozed(_ why: String) -> Banner {
+        refused("Not snoozed", why)
+    }
+
+    /// A row's Wake now that the CLI refused, in its words.
+    public static func unwoken(_ why: String) -> Banner {
+        refused("Not woken", why)
+    }
+
     /// Something Lee chose that macOS refused, in its words.
     public static func refused(_ what: String, _ why: String) -> Banner {
         Banner(title: what, subtitle: nil, body: why, work: nil)

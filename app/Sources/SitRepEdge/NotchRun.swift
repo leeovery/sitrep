@@ -118,7 +118,7 @@ public final class NotchRun: Framed {
         lit = time
         style = setting.style
         self.kept = kept
-        folded = CardFolds(sections: kept?.read().folded ?? [])
+        folded = CardFolds(sections: kept?.read().folded ?? BoardSection.foldedAtFirst)
         laid = Laid(rows: [], folds: folded, now: wall(), period: setting.period)
         self.wall = wall
         self.calendar = calendar
@@ -204,7 +204,7 @@ public final class NotchRun: Framed {
         upToNow(moment)
         board.tell(notch, after: self.board)
         self.board = board
-        rows.take(board.sessions)
+        rows.take(board.cardSessions)
 
         if !board.new.isEmpty {
             folded.sections.remove(.needsYou)
@@ -323,9 +323,12 @@ public final class NotchRun: Framed {
     }
 
     /// When, after this wall time, the first of the shown rows' times, or a wake's countdown, next reads differently,
-    /// or a your-turn row folds into "N earlier"; nil with no rows.
+    /// or a Snoozed row's wake, at the next midnight, or a your-turn row folds into "N earlier"; nil with no rows.
     public func nextAgeChange(after now: Double) -> Double? {
-        (rows.shown.map { $0.changes(after: now) } + [nextRefold].compactMap(\.self)).min()
+        let midnight = WakeTime.changes(after: Date(timeIntervalSince1970: now / 1000), in: calendar)
+        let changes = rows.shown.map { $0.isSnoozed ? midnight.timeIntervalSince1970 * 1000 : $0.changes(after: now) }
+
+        return (changes + [nextRefold].compactMap(\.self)).min()
     }
 
     /// How long before this time the last new ask was, ms; nil when there has been none.
@@ -454,7 +457,7 @@ public final class NotchRun: Framed {
         }
         laid = Laid(rows: next.rows, folds: folded, now: next.now, period: next.period)
         nextRefold = next.nextRefold(in: calendar)
-        list.head = board.sessions.isEmpty || board.asOf != nil ? board.head : nil
+        list.head = board.isEmpty || board.asOf != nil ? board.head : nil
         list.content = folds.content(at: time, headed: list.head != nil)
     }
 

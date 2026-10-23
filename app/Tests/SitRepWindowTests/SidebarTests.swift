@@ -258,7 +258,7 @@ struct SidebarTests {
         folds.toggle(.section(.needsYou))
         folds.toggle(.projects)
         folds.toggle(.earlier)
-        #expect(folds == Folds(sections: [.needsYou], projects: false, isEarlierOpen: true))
+        #expect(folds == Folds(sections: [.needsYou, .snoozed], projects: false, isEarlierOpen: true))
         #expect(folds.contains(.section(.needsYou)) && !folds.contains(.projects) && !folds.contains(.earlier))
         folds.toggle(.section(.needsYou))
         #expect(!folds.contains(.section(.needsYou)))
@@ -297,12 +297,21 @@ struct SidebarSettingsTests {
         try test(defaults)
     }
 
-    @Test func nothingSavedIsProjectsFoldedAlone() {
+    @Test func nothingSavedIsSnoozedAndProjectsFoldedAlone() {
         Self.withDefaults { defaults in
             let folds = SavedSettings<SidebarSettings>(defaults).read().folds
 
             #expect(folds == Folds())
-            #expect(folds.projects && folds.sections.isEmpty && !folds.isEarlierOpen)
+            #expect(folds.projects && folds.sections == [.snoozed] && !folds.isEarlierOpen)
+        }
+    }
+
+    /// Snoozed unfolded is kept, as any fold is, by the value saying so.
+    @Test func snoozedUnfoldedIsReadBack() {
+        Self.withDefaults { defaults in
+            SavedSettings<SidebarSettings>(defaults).save(Folds(sections: [], projects: true))
+
+            #expect(SavedSettings<SidebarSettings>(defaults).read().folds.sections.isEmpty)
         }
     }
 
@@ -326,7 +335,7 @@ struct SidebarSettingsTests {
     }
 
     /// Round 7's saved view, round 8's projects folded by their keys, or a section this version doesn't know: what it
-    /// cannot read gives the defaults, the rest kept.
+    /// cannot read gives the defaults, the rest kept, Snoozed, of which a value saved before it says nothing, folded.
     @Test func whatItCannotReadIsTheDefaults() {
         Self.withDefaults { defaults in
             defaults.set(Data(#"{"sidebar":"needsYou"}"#.utf8), forKey: SidebarSettings.key)
@@ -336,7 +345,7 @@ struct SidebarSettingsTests {
             #expect(SavedSettings<SidebarSettings>(defaults).read().folds == Folds())
 
             defaults.set(Data(#"{"folds":{"sections":["working","later"],"projects":false}}"#.utf8), forKey: SidebarSettings.key)
-            #expect(SavedSettings<SidebarSettings>(defaults).read().folds == Folds(sections: [.working], projects: false))
+            #expect(SavedSettings<SidebarSettings>(defaults).read().folds == Folds(sections: [.working, .snoozed], projects: false))
         }
     }
 }

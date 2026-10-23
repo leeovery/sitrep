@@ -1,10 +1,13 @@
+import enum SitRepPanel.WakeTime
 import SitRepWindow
 import SwiftUI
 
 /// An ask as a card: its mark, title and time, after its session's name where it is a project's; where to look and
-/// what its words are; its buttons; and where Lee's answer is. One closed while it showed keeps its place, faint and
-/// without buttons, saying how it closed. Opened in place in a project's view, its head, and only its head, closes
-/// it again. To VoiceOver it is a container named by its title, which it says once, its buttons inside it.
+/// what its words are; its buttons, Snooze after them; and where Lee's answer is. One closed while it showed keeps its
+/// place, faint and without buttons, saying how it closed. One asleep is quieted, as Paper's board H draws it, on a
+/// darker card in a faint ring, its dot grey and unlit, its title soft, and in its buttons' place when it wakes, with
+/// Wake now. Opened in place in a project's view, its head, and only its head, closes it again. To VoiceOver it is a
+/// container named by its title, which it says once, its buttons inside it.
 struct CardView: View {
     let card: Card
     var session: String?
@@ -30,6 +33,9 @@ struct CardView: View {
                 if !card.buttons.isEmpty {
                     buttons
                 }
+                if let wakes = card.snoozedUntil {
+                    asleep(until: wakes)
+                }
                 ForEach(Array(card.lines.enumerated()), id: \.offset) { _, line in
                     CardLine(line: line, now: now)
                 }
@@ -39,8 +45,8 @@ struct CardView: View {
             .padding(.horizontal, 14)
             .frame(maxWidth: .infinity, alignment: .leading)
             .modifier(Washed(since: card.washed, now: now, radius: 14))
-            .background(RoundedRectangle(cornerRadius: 14).fill(card.isClosed ? .clear : WindowStyle.raise))
-            .overlay(RoundedRectangle(cornerRadius: 14).strokeBorder(WindowStyle.line, lineWidth: card.isClosed ? 1 : 0))
+            .background(RoundedRectangle(cornerRadius: 14).fill(fill))
+            .overlay(RoundedRectangle(cornerRadius: 14).strokeBorder(ring, lineWidth: card.isClosed || isAsleep ? 1 : 0))
         }
     }
 
@@ -62,14 +68,25 @@ struct CardView: View {
         .padding(.horizontal, 14)
     }
 
+    private var isAsleep: Bool { card.snoozedUntil != nil }
+
+    /// Behind it: the raise; nothing once closed, in its ring; asleep, the darker card in its faint ring.
+    private var fill: Color {
+        card.isClosed ? .clear : isAsleep ? WindowStyle.asleep : WindowStyle.raise
+    }
+
+    private var ring: Color {
+        isAsleep ? WindowStyle.asleepRing : WindowStyle.line
+    }
+
     private var title: some View {
         HStack(spacing: 10) {
             if card.isClosed {
                 ClosedTick()
             } else {
-                MarkView(mark: .needs)
+                MarkView(mark: isAsleep ? .snoozed : .needs)
             }
-            titled(card.isClosed ? WindowStyle.faint : WindowStyle.text)
+            titled(card.isClosed ? WindowStyle.faint : isAsleep ? WindowStyle.soft : WindowStyle.text)
                 .font(WindowStyle.ui(14, .semibold))
                 .spacing(-0.01, of: 14)
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -114,14 +131,31 @@ struct CardView: View {
         }
     }
 
-    /// Its buttons, on one line as pills or its answers as rows (`CardButtons`). Only the button whose jump runs
-    /// shows it; the others stay as they look, and the model starts no second jump while one runs.
+    /// Its buttons, on one line as pills or its answers as rows (`CardButtons`), Snooze among them its own. Only the
+    /// button whose jump runs shows it; the others stay as they look, and the model starts no second jump while one
+    /// runs.
     private var buttons: some View {
         CardButtons(buttons: card.buttons) {
             ForEach(card.buttons, id: \.self) { button in
-                Pill(words: Words.button(button), look: Self.look(button), fills: true) { act.press(button, card.id) }
-                    .disabled(pressedJump == .card(card.id, button))
+                if button == .snooze {
+                    SnoozeButton(ask: card.id)
+                } else {
+                    Pill(words: Words.button(button), look: Self.look(button), fills: true) { act.press(button, card.id) }
+                        .disabled(pressedJump == .card(card.id, button))
+                }
             }
+        }
+        .padding(.leading, 22)
+        .padding(.top, 4)
+    }
+
+    /// Asleep, in its buttons' place: when it wakes, then Wake now, outlined.
+    private func asleep(until wakes: Date) -> some View {
+        HStack(spacing: 12) {
+            Text(Words.snoozedUntil(WakeTime.words(wakes, at: now, in: .autoupdatingCurrent)))
+                .font(WindowStyle.ui(12).monospacedDigit())
+                .foregroundStyle(WindowStyle.soft)
+            Pill(words: Words.wakeNow, look: .outlined) { act.wake(card.id) }
         }
         .padding(.leading, 22)
         .padding(.top, 4)
@@ -134,7 +168,72 @@ struct CardView: View {
         case .yes, .inClaude(.answer): .white
         case .option: .option
         case .inClaude(.comment): .outlined
-        case .ignore: .quiet
+        case .ignore, .snooze: .quiet
+        }
+    }
+}
+
+/// A card's "Snooze ⌄", after Ignore: plain as Ignore is, in the soft grey with a small chevron, until a press drops
+/// its menu of times (`SnoozeMenu`), when it is a pill while the menu shows. A time chosen snoozes the card's ask.
+struct SnoozeButton: View {
+    let ask: AskAddress
+
+    @Environment(\.windowActions) private var act
+    @State private var anchor = MenuAnchor()
+    @State private var isOpen = false
+
+    var body: some View {
+        Button(action: open) {
+            HStack(spacing: 5) {
+                Text(Words.snooze)
+                SnoozeChevron().stroke(style: StrokeStyle(lineWidth: 1.25, lineCap: .round, lineJoin: .round))
+                    .frame(width: 8, height: 5)
+            }
+            .font(WindowStyle.ui(12, .medium))
+            .padding(.vertical, 6)
+            .padding(.horizontal, 8)
+        }
+        .buttonStyle(SnoozeStyle(isOpen: isOpen))
+        .background(MenuAnchorView(anchor: anchor))
+        .contentShape(.focusEffect, RoundedRectangle(cornerRadius: Pill.radius, style: .continuous))
+    }
+
+    /// The menu drops once the pill has drawn, and the pill goes as it closes: AppKit tracks a menu in a loop of its
+    /// own, which draws nothing of SwiftUI's meanwhile.
+    private func open() {
+        isOpen = true
+        Task { @MainActor in
+            let snooze = act.snooze, ask = ask
+
+            anchor.popUp(SnoozeMenu(at: Date(), in: .autoupdatingCurrent) { snooze(ask, $0) })
+            isOpen = false
+        }
+    }
+}
+
+/// Snooze's chevron, pointing down, 8 by 5.
+private struct SnoozeChevron: Shape {
+    func path(in rect: CGRect) -> Path {
+        Path { path in
+            path.move(to: CGPoint(x: rect.minX + 0.75, y: rect.minY + 0.75))
+            path.addLine(to: CGPoint(x: rect.midX, y: rect.maxY - 0.75))
+            path.addLine(to: CGPoint(x: rect.maxX - 0.75, y: rect.minY + 0.75))
+        }
+    }
+}
+
+/// Snooze's look: its words soft, the text's under the pointer; its menu open, a pill of white at 8%.
+private struct SnoozeStyle: ButtonStyle {
+    let isOpen: Bool
+
+    func makeBody(configuration: Configuration) -> some View {
+        Highlighted(isPressed: configuration.isPressed) { highlight in
+            let shape = RoundedRectangle(cornerRadius: Pill.radius, style: .continuous)
+
+            configuration.label
+                .foregroundStyle(highlight == .none ? WindowStyle.soft : WindowStyle.text)
+                .background(shape.fill(isOpen ? WindowStyle.menuOpen : .clear))
+                .contentShape(shape)
         }
     }
 }

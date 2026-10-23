@@ -72,9 +72,18 @@ struct CardSettingsTests {
         try test(defaults)
     }
 
-    @Test func nothingFoldedUntilLeeFoldsIt() {
+    @Test func onlySnoozedFoldedUntilLeeFoldsIt() {
         Self.withDefaults { defaults in
-            #expect(SavedSettings<CardSettings>(defaults).read().folded.isEmpty)
+            #expect(SavedSettings<CardSettings>(defaults).read().folded == [.snoozed])
+        }
+    }
+
+    /// Snoozed unfolded is kept as the others' folds are, by its saying so.
+    @Test func snoozedUnfoldedIsSavedAndReadBack() {
+        Self.withDefaults { defaults in
+            SavedSettings(defaults).save(CardSettings(folded: [.working]))
+
+            #expect(SavedSettings<CardSettings>(defaults).read().folded == [.working])
         }
     }
 
@@ -87,12 +96,13 @@ struct CardSettingsTests {
         }
     }
 
-    /// A section another version saved that this one doesn't know is passed over, and the folds it knows are kept.
+    /// A section another version saved that this one doesn't know is passed over, and the folds it knows are kept;
+    /// Snoozed, of which a value saved before it says nothing, folded.
     @Test func aSectionItDoesNotKnowIsPassedOverAndTheRestKept() {
         Self.withDefaults { defaults in
             defaults.set(Data(#"{"folded":["working","projects"]}"#.utf8), forKey: "card")
 
-            #expect(SavedSettings<CardSettings>(defaults).read().folded == [.working])
+            #expect(SavedSettings<CardSettings>(defaults).read().folded == [.working, .snoozed])
         }
     }
 }

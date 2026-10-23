@@ -1,4 +1,5 @@
 import struct SitRepPanel.Earlier
+import enum SitRepPanel.WakeTime
 import SitRepWindow
 import SwiftUI
 
@@ -19,8 +20,9 @@ struct SidebarLine: View {
             FoldHeading(heading: heading, isRuled: isRuled)
         case let .session(row):
             SidebarSessionRow(row: row, filter: filter, now: now)
+                .modifier(RowContextMenu(row: row))
                 .spoken(Spoken.row(row, at: now))
-                .modifier(SpokenJump(row: row))
+                .modifier(SpokenActions(row: row))
                 .sidebarRow(row.pick, picked: picked, washed: row.washed, now: now)
         case let .earlier(earlier):
             EarlierRow(earlier: earlier).sidebarRow(nil, picked: picked, now: now)
@@ -141,9 +143,10 @@ struct Chevron: View {
     }
 }
 
-/// A session's row as its section draws it, in the card's type: Needs you's session over its project; Working's verb
-/// and what it acts on over its project and session; Your turn's words on one line with its project. Under the
-/// pointer, a row a window holds gives its time's place to its button, which jumps there (`HoverJump`).
+/// A session's row as its section draws it, in the card's type: Needs you's session over its project, and Snoozed's
+/// quieted; Working's verb and what it acts on over its project and session; Your turn's words on one line with its
+/// project. Under the pointer, a row a window holds gives its time's place to its button, which jumps there
+/// (`HoverJump`).
 struct SidebarSessionRow: View {
     let row: Listed.Row
     let filter: Filter
@@ -152,7 +155,7 @@ struct SidebarSessionRow: View {
     var body: some View {
         Group {
             switch row.section {
-            case .needsYou: NeedsYouRow(row: row, filter: filter, now: now)
+            case .needsYou, .snoozed: NeedsYouRow(row: row, filter: filter, now: now)
             case .working: WorkingRow(row: row, filter: filter, now: now)
             case .yourTurn: TurnRow(row: row, filter: filter, now: now)
             }
@@ -165,7 +168,8 @@ struct SidebarSessionRow: View {
 /// slot; its session's name, medium, dim while no window holds it, and a quiet "+2" 5 after it for its lines waiting
 /// after the first, none for one; its age, its oldest line's, orange while a new line washes the row; then its project,
 /// 1 under. The asks are read on its page. On the accent of the pick its name goes white, the rest white at 80%; its
-/// dot stays orange.
+/// dot stays orange. A row in Snoozed is the same row quieted, as Paper's board H draws it: its dot faint and unlit,
+/// its name at 60%, its "+2" and its project at 35%, and in its age's place when its soonest ask wakes, soft.
 struct NeedsYouRow: View {
     let row: Listed.Row
     let filter: Filter
@@ -176,13 +180,13 @@ struct NeedsYouRow: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 1) {
             HStack(alignment: .top, spacing: WindowStyle.slotGap) {
-                SidebarMark(mark: .needs)
+                SidebarMark(mark: row.mark)
                 title
                     .frame(maxWidth: .infinity, minHeight: WindowStyle.titleLine, maxHeight: WindowStyle.titleLine, alignment: .leading)
-                SidebarAge(since: row.since, washed: row.lineWashed, now: now, onPick: onPick)
+                SidebarTime(time, washed: row.lineWashed, onPick: onPick)
                     .frame(height: WindowStyle.titleLine)
             }
-            SecondLine(row.project, filter: filter, onPick: onPick)
+            SecondLine(row.project, filter: filter, tone: isSnoozed ? .dim : .soft, onPick: onPick)
         }
         .padding(.top, WindowStyle.twoLineTop)
         .frame(height: WindowStyle.twoLineHeight, alignment: .top)
@@ -191,14 +195,21 @@ struct NeedsYouRow: View {
     /// Picked, on the accent: what its words and its soft words are drawn in.
     private var onPick: Bool { prominence == .increased }
 
+    private var isSnoozed: Bool { row.section == .snoozed }
+
+    /// Its oldest line's age, or in Snoozed when its soonest ask wakes.
+    private var time: String {
+        row.wakesAt.map { WakeTime.words($0, at: now, in: .autoupdatingCurrent) } ?? Words.age(row.since, at: now)
+    }
+
     /// Its session's name, cut short before its "+2", in tabular figures on the name's baseline.
     private var title: some View {
         HStack(alignment: .firstTextBaseline, spacing: WindowStyle.moreGap) {
-            Name(row.name, litBy: filter, tone: row.isAway ? .faint : .text, onPick: onPick)
+            Name(row.name, litBy: filter, tone: row.isAway ? .faint : isSnoozed ? .quiet : .text, onPick: onPick)
                 .font(WindowStyle.ui(WindowStyle.titleSize, .medium))
                 .spacing(WindowStyle.titleTracking, of: WindowStyle.titleSize)
             if let more = row.more {
-                Name(more, litBy: filter, tone: .soft, onPick: onPick)
+                Name(more, litBy: filter, tone: isSnoozed ? .dim : .soft, onPick: onPick)
                     .font(WindowStyle.ui(WindowStyle.moreSize, .medium).monospacedDigit())
                     .fixedSize()
             }
@@ -225,7 +236,7 @@ struct WorkingRow: View {
                 SidebarMark(mark: row.mark)
                 row.lines.first.map(doing)
                     .frame(maxWidth: .infinity, minHeight: WindowStyle.titleLine, maxHeight: WindowStyle.titleLine, alignment: .leading)
-                SidebarAge(since: row.since, washed: nil, now: now, onPick: onPick)
+                SidebarTime(Words.age(row.since, at: now), washed: nil, onPick: onPick)
                     .frame(height: WindowStyle.titleLine)
             }
             SecondLine("\(row.project) · \(row.name)", filter: filter, onPick: onPick)
@@ -278,7 +289,7 @@ struct TurnRow: View {
                 .lineLimit(1)
                 .fixedSize()
                 .padding(.leading, WindowStyle.turnProjectGap)
-            SidebarAge(since: row.since, washed: nil, now: now, onPick: onPick)
+            SidebarTime(Words.age(row.since, at: now), washed: nil, onPick: onPick)
                 .frame(width: WindowStyle.turnTimeLane, alignment: .trailing)
         }
         .frame(height: WindowStyle.oneLineHeight)
@@ -288,22 +299,24 @@ struct TurnRow: View {
 }
 
 /// A row's second line, under its first, from its words' edge: its project, and on Working its session, 11 in white at
-/// 55%.
+/// 55%, or in Snoozed at 35%.
 private struct SecondLine: View {
     let words: String
     let filter: Filter
+    let tone: Tone
     let onPick: Bool
 
-    init(_ words: String, filter: Filter, onPick: Bool) {
+    init(_ words: String, filter: Filter, tone: Tone = .soft, onPick: Bool) {
         self.words = words
         self.filter = filter
+        self.tone = tone
         self.onPick = onPick
     }
 
     var body: some View {
         HStack(spacing: WindowStyle.slotGap) {
             Color.clear.frame(width: WindowStyle.slot.width, height: WindowStyle.smallLine)
-            Name(words, litBy: filter, tone: .soft, onPick: onPick)
+            Name(words, litBy: filter, tone: tone, onPick: onPick)
                 .font(WindowStyle.ui(WindowStyle.smallSize))
                 .lineLimit(1)
                 .frame(height: WindowStyle.smallLine)
@@ -368,18 +381,23 @@ private struct ProjectRow: View {
     }
 }
 
-/// How long something has stood, in tabular figures: orange while its row washes, as what needs Lee stays orange; else
-/// soft, or on the accent of its row's pick, white at 80%.
-private struct SidebarAge: View {
-    let since: Date
+/// How long something has stood, or in Snoozed when it wakes, in tabular figures: orange while its row washes, as what
+/// needs Lee stays orange; else soft, or on the accent of its row's pick, white at 80%.
+private struct SidebarTime: View {
+    let text: String
     let washed: Date?
-    let now: Date
     let onPick: Bool
 
     @Environment(\.showsJump) private var showsJump
 
+    init(_ text: String, washed: Date?, onPick: Bool) {
+        self.text = text
+        self.washed = washed
+        self.onPick = onPick
+    }
+
     var body: some View {
-        Text(Words.age(since, at: now))
+        Text(text)
             .font(WindowStyle.ui(WindowStyle.ageSize).monospacedDigit())
             .foregroundStyle(ink)
             .opacity(showsJump ? 0 : 1)
@@ -435,8 +453,9 @@ private struct SidebarJump: View {
 }
 
 /// To VoiceOver, which reads the row as one element and never hovers it, a row a window holds offers its button as
-/// an action, "Jump to the window", which jumps as the button does, moving no pick.
-private struct SpokenJump: ViewModifier {
+/// an action, "Jump to the window", which jumps as the button does, moving no pick; and a row in Snoozed, its menu's
+/// Wake now.
+private struct SpokenActions: ViewModifier {
     let row: Listed.Row
 
     @Environment(\.windowActions) private var act
@@ -445,6 +464,32 @@ private struct SpokenJump: ViewModifier {
         content.accessibilityActions {
             if let jump = Spoken.jump(row) {
                 Button(jump) { act.jump(.row(row.id)) }
+            }
+            if let wake = Spoken.wake(row) {
+                Button(wake) { act.wakeRow(row) }
+            }
+        }
+    }
+}
+
+/// A session's row's right-click, or Control-click: its menu (`RowMenu`), as the card's row's but for Open in SitRep,
+/// which the row is already: Jump to the window, and Snooze on a row whose lines hold asks, or Wake now in Snoozed, for
+/// the asks the row shows.
+private struct RowContextMenu: ViewModifier {
+    let row: Listed.Row
+
+    @Environment(\.windowActions) private var act
+
+    func body(content: Content) -> some View {
+        content.overlay {
+            ContextMenuArea { [row, act] in
+                RowMenu.make(
+                    for: RowMenu.Row(jumps: row.jumps, asks: row.asks, isSnoozed: row.section == .snoozed),
+                    at: Date(), in: .autoupdatingCurrent,
+                    RowMenu.Actions(
+                        jump: { act.jump(.row(row.id)) }, snooze: { act.snoozeRow(row, $0) }, wake: { act.wakeRow(row) }
+                    )
+                )
             }
         }
     }
@@ -474,7 +519,8 @@ extension EnvironmentValues {
 }
 
 /// A session's mark in its slot, drawn still: needs you an orange dot; your turn a soft ring; working a still arc on
-/// its faint track; on its own work the dotted ring; away a faint dot.
+/// its faint track; on its own work the dotted ring; away a faint dot; in Snoozed a faint dot, a needs-you dot's size,
+/// unlit.
 struct SidebarMark: View {
     let mark: Mark
 
@@ -494,6 +540,7 @@ struct SidebarMark: View {
                 .frame(width: 8.5, height: 8.5)
             case .onItsWork: DottedRingView(ring: .sidebar, ink: WindowStyle.sidebarDotted)
             case .away: Circle().fill(.tertiary).frame(width: 5, height: 5)
+            case .snoozed: Circle().fill(.tertiary).frame(width: 7, height: 7)
             }
         }
         .frame(width: WindowStyle.slot.width, height: WindowStyle.slot.height)

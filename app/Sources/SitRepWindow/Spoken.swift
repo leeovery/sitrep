@@ -3,12 +3,14 @@ import SitRepPanel
 
 /// What VoiceOver reads of the window, in words, where its marks, counts and times would read as symbols.
 public enum Spoken {
-    /// A session's row in the sidebar, one element: under Needs you, as `needsYou(_:at:)` reads it; in Working or Your
-    /// turn, its line's words, its project, its session, its state and its time, as "Drawing the ledger schema,
-    /// Switchboard, Request ledger, your turn, 12 minutes".
-    public static func row(_ row: Listed.Row, at now: Date) -> String {
-        guard row.section != .needsYou else {
-            return needsYou(row, at: now)
+    /// A session's row in the sidebar, one element: under Needs you, as `needsYou(_:at:)` reads it; in Snoozed, as
+    /// `snoozed(_:at:in:)` does; in Working or Your turn, its line's words, its project, its session, its state and its
+    /// time, as "Drawing the ledger schema, Switchboard, Request ledger, your turn, 12 minutes".
+    public static func row(_ row: Listed.Row, at now: Date, in calendar: Calendar = .autoupdatingCurrent) -> String {
+        switch row.section {
+        case .needsYou: return needsYou(row, at: now)
+        case .snoozed: return snoozed(row, at: now, in: calendar)
+        case .working, .yourTurn: break
         }
 
         return (row.lines.map { $0.words(at: now) } + [row.project, row.name, mark(row.mark), age(row.since, at: now)])
@@ -27,6 +29,22 @@ public enum Spoken {
             .joined(separator: ", ")
     }
 
+    /// A session's row in Snoozed, one element, as a Needs you row reads, its time when it wakes: "2 asks, Review the
+    /// plan, Pick when stage 2 runs, Harness, Finish the Harness modernisation, wakes Saturday 09:00".
+    public static func snoozed(_ row: Listed.Row, at now: Date, in calendar: Calendar) -> String {
+        let count = row.lines.count > 1 ? [Words.count(row.lines.count, "ask")] : []
+        let away = row.isAway ? ["away"] : []
+        let wakes = row.wakesAt.map { ["wakes \(WakeTime.words($0, at: now, in: calendar, spoken: true))"] } ?? []
+
+        return (count + row.lines.map { $0.words(at: now) } + [row.project, row.name] + away + wakes)
+            .joined(separator: ", ")
+    }
+
+    /// The action VoiceOver offers on a row in Snoozed, which wakes its asks now, as its menu's Wake now does.
+    public static func wake(_ row: Listed.Row) -> String? {
+        row.section == .snoozed ? Words.wakeNow : nil
+    }
+
     /// The action VoiceOver offers on a session's row in the sidebar, which jumps to its window as the row's button
     /// under the pointer does, moving no pick: "Jump to the window" on a row a window holds; none on an away row.
     public static func jump(_ row: Listed.Row) -> String? {
@@ -41,6 +59,7 @@ public enum Spoken {
     public static func heading(_ heading: Sidebar.Heading) -> String {
         let count = switch heading.fold {
         case .section(.needsYou): Words.waiting(heading.count)
+        case .section(.snoozed): Words.count(heading.count, "ask")
         case .section: Words.count(heading.count, "session")
         case .projects, .earlier: Words.count(heading.count, "project")
         }
@@ -71,6 +90,7 @@ public enum Spoken {
         case .working: "working"
         case .onItsWork: "on its own work"
         case .away: "away"
+        case .snoozed: "snoozed"
         }
     }
 

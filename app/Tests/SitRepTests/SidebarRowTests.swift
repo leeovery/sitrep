@@ -107,6 +107,31 @@ struct SidebarRowTests {
         return lit.dropFirst().reduce(lit.first) { box, pixel in box?.union(pixel) }
     }
 
+    /// Harness's two asks asleep, the sooner waking tomorrow.
+    nonisolated static let asleep = Listed.Row(
+        id: "sr-4g01a7", name: "Harness modernisation", project: "Harness", section: .snoozed, mark: .snoozed,
+        isAway: false, since: now.addingTimeInterval(-3600),
+        lines: (0 ..< 2).map { Listed.Line(id: "ask:\($0)", ask: "k\($0)", lead: "Ask \($0)", code: nil, more: nil, since: now) },
+        wakesAt: now.addingTimeInterval(24 * 3600)
+    )
+
+    /// A Snoozed row is the Needs you row quieted (board H): its dot a neutral grey, fainter than its project; its name
+    /// dimmer; and in its time's place when it wakes, wider than an age, its right where an age's is, in the age's soft.
+    @Test func aSnoozedRowIsANeedsYouRowQuietedWithWhenItWakes() throws {
+        let asleep = try Self.drawn(Self.asleep), needs = try Self.drawn(Self.needs(lines: 2))
+        let slot = CGRect(x: 10, y: 4, width: 32, height: 16), title = CGRect(x: 42, y: 4, width: 120, height: 16)
+        let project = CGRect(x: 42, y: 21, width: 200, height: 14), time = CGRect(x: 210, y: 0, width: 86, height: 39)
+        let wakes = try #require(Self.brighter(than: 0.14, in: time, of: asleep))
+        let age = try #require(Self.brighter(than: 0.14, in: time, of: needs))
+        let dot = try asleep.brightest(in: slot)
+
+        #expect(abs(dot.redComponent - dot.blueComponent) < 0.02)
+        #expect(try dot.lightness < asleep.brightest(in: project).lightness - 0.1)
+        #expect(try asleep.brightest(in: title).lightness < needs.brightest(in: title).lightness - 0.3)
+        #expect(wakes.width > age.width + 10 && (278.5 ... 280.5).contains(wakes.maxX))
+        #expect(try asleep.brightest(in: wakes).isAlike(needs.brightest(in: age)))
+    }
+
     /// The button jumps to its session's window by itself, a press of its own, so the window's jump moves no pick.
     @Test func theButtonsJumpIsItsSessions() {
         #expect(JumpPress.row("sr-4g01a7").session == "sr-4g01a7")

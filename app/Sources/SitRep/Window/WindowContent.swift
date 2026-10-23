@@ -1,4 +1,5 @@
 import SitRepCore
+import enum SitRepPanel.SnoozeChoice
 import SitRepWindow
 import SwiftUI
 
@@ -14,6 +15,12 @@ struct WindowActions: Sendable {
     var toggleItem: @MainActor @Sendable (Item) -> Void = { _ in }
     /// To the session's window: "Open in Ghostty ↗", and a stop's "Answer in Claude ↗".
     var jump: @MainActor @Sendable (JumpPress) -> Void = { _ in }
+    /// A card's ask snoozed until the time chosen on its Snooze, or woken by its Wake now.
+    var snooze: @MainActor @Sendable (AskAddress, SnoozeChoice) -> Void = { _, _ in }
+    var wake: @MainActor @Sendable (AskAddress) -> Void = { _ in }
+    /// A sidebar row's asks, as it showed them, snoozed from its menu, or woken from a Snoozed row's.
+    var snoozeRow: @MainActor @Sendable (Listed.Row, SnoozeChoice) -> Void = { _, _ in }
+    var wakeRow: @MainActor @Sendable (Listed.Row) -> Void = { _ in }
     var askToFinish: @MainActor @Sendable (String) -> Void = { _ in }
     var cancelFinish: @MainActor @Sendable (String) -> Void = { _ in }
     var confirmFinish: @MainActor @Sendable (String) -> Void = { _ in }

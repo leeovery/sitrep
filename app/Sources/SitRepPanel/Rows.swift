@@ -1,15 +1,19 @@
 import CoreGraphics
 
 /// A session as the edge shows it: a row on the panel, a mark on the strip, and a mark's tab. One needing Lee has a
-/// line for each ask and stop waiting on Lee, the oldest first; any other has its one line.
+/// line for each ask and stop waiting on Lee, the oldest first; its row in Snoozed, on the card alone, a line for each
+/// ask asleep; any other has its one line.
 public struct Session: Equatable, Sendable {
-    /// Where it stands: its turn over but on its own work, which will wake it, among them.
+    /// Where it stands: its turn over but on its own work, which will wake it, among them; or, its row in Snoozed,
+    /// its asks asleep.
     public enum Kind: Sendable {
-        case needs, turn, working, onItsWork
+        case needs, turn, working, onItsWork, snoozed
     }
 
     /// One of its lines: its words, and its time.
     public struct Line: Equatable, Sendable {
+        /// The ask it is, by its id; nil for a window's stop or the session's turn.
+        public var ask: String?
         public var title: String
         /// Set in code type after the title, as in an ask to allow a command.
         public var code: String?
@@ -23,9 +27,10 @@ public struct Session: Equatable, Sendable {
         public var since: Double
 
         public init(
-            title: String, code: String? = nil, subject: String? = nil, until: Double? = nil, more: String? = nil,
-            since: Double
+            ask: String? = nil, title: String, code: String? = nil, subject: String? = nil, until: Double? = nil,
+            more: String? = nil, since: Double
         ) {
+            self.ask = ask
             self.title = title
             self.code = code
             self.subject = subject
@@ -93,10 +98,12 @@ public struct Session: Equatable, Sendable {
     public var lines: [Line]
     /// What its row says under its title.
     public var sub: String
+    /// Its row in Snoozed: when its soonest line wakes, ms on the wall clock, which the row shows in its time's place.
+    public var wakesAt: Double?
 
     public init(
         id: String, project: String, name: String = "", letters: String? = nil, kind: Kind, away: Bool = false,
-        lines: [Line], sub: String
+        lines: [Line], sub: String, wakesAt: Double? = nil
     ) {
         precondition(!lines.isEmpty, "a session's row has a line")
         self.id = id
@@ -107,25 +114,25 @@ public struct Session: Equatable, Sendable {
         self.away = away
         self.lines = lines
         self.sub = sub
+        self.wakesAt = wakesAt
     }
 
     /// A session of one line.
     public init(
         id: String, project: String, name: String = "", letters: String? = nil, kind: Kind, away: Bool = false,
-        title: String, code: String? = nil, subject: String? = nil, until: Double? = nil, more: String? = nil,
-        sub: String, since: Double
+        ask: String? = nil, title: String, code: String? = nil, subject: String? = nil, until: Double? = nil,
+        more: String? = nil, sub: String, since: Double
     ) {
-        self.init(
-            id: id, project: project, name: name, letters: letters, kind: kind, away: away,
-            lines: [Line(title: title, code: code, subject: subject, until: until, more: more, since: since)], sub: sub
-        )
+        let line = Line(ask: ask, title: title, code: code, subject: subject, until: until, more: more, since: since)
+
+        self.init(id: id, project: project, name: name, letters: letters, kind: kind, away: away, lines: [line], sub: sub)
     }
 
-    /// What its row says, on every surface, on one line with its time: needing Lee, its name, and "+2" for the two
-    /// lines after its first, none for one; else its one line. Its lines' words are read on its page in the SitRep
-    /// window, so a question's own "+2", which counts words not shown, shows nowhere on a row needing Lee.
+    /// What its row says, on every surface, on one line with its time: needing Lee, or in Snoozed, its name, and "+2"
+    /// for the two lines after its first, none for one; else its one line. Its lines' words are read on its page in the
+    /// SitRep window, so a question's own "+2", which counts words not shown, shows nowhere on a row needing Lee.
     public var headline: Line {
-        guard needsLee else {
+        guard needsLee || isSnoozed else {
             return lines[0]
         }
 
@@ -159,6 +166,12 @@ public struct Session: Equatable, Sendable {
 
     /// Whether it is among needs you, over the hairline.
     public var needsLee: Bool { kind == .needs }
+
+    /// Whether it is its row in Snoozed, its asks asleep.
+    public var isSnoozed: Bool { kind == .snoozed }
+
+    /// The asks its lines show, by their ids, a window's stops aside: what its row snoozes, or wakes.
+    public var asks: [String] { lines.compactMap(\.ask) }
 
     /// How long it has stood where it does at this time on the wall clock: its oldest line's time.
     public func ageText(at now: Double) -> String { headline.ageText(at: now) }
@@ -240,12 +253,14 @@ public enum Item: Equatable, Sendable {
         }
     }
 
-    /// What it is, the same for as long as it shows: a row by its session, marked as needs you or, on one line, as your
-    /// turn, so a row changing section folds away from one place and unfolds in the other, as two rows; an eyebrow by
-    /// its section; "N earlier" and the divider by themselves.
+    /// What it is, the same for as long as it shows: a row by its session, marked as needs you, as snoozed or, on one
+    /// line, as your turn, so a row changing section folds away from one place and unfolds in the other, as two rows,
+    /// and a session's row in Snoozed is another than its row beside it; an eyebrow by its section; "N earlier" and the
+    /// divider by themselves.
     public var key: String {
         switch self {
-        case let .session(session): session.needsLee ? "needs:\(session.id)" : session.id
+        case let .session(session):
+            session.isSnoozed ? "snoozed:\(session.id)" : session.needsLee ? "needs:\(session.id)" : session.id
         case let .turn(session): "turn:\(session.id)"
         case let .eyebrow(eyebrow): "eyebrow:\(eyebrow.section.rawValue)"
         case .earlier: "earlier"

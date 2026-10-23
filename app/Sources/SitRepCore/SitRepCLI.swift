@@ -19,7 +19,8 @@ public enum BoardAnswer: Sendable, Equatable {
     case failed(String)
 }
 
-/// What `sitrep answer` or `sitrep finish` came to: written, or refused in the CLI's words, with nothing written.
+/// What `sitrep answer`, `finish`, `snooze` or `wake` came to: written, or refused in the CLI's words, with nothing
+/// written.
 public enum WriteAnswer: Sendable, Equatable {
     case written
     case refused(String)
@@ -33,10 +34,11 @@ public enum Answer: Sendable, Hashable {
 }
 
 /// The plugin's CLI, `<plugin>/bin/sitrep`, run as a child with Lee's PATH.
-/// The app reads the board and jumps, and writes only what the board's own buttons do: Lee's answers and finishes.
+/// The app reads the board and jumps, and writes only what the board's own buttons do: Lee's answers, finishes,
+/// snoozes and wakes.
 public struct SitRepCLI: Sendable {
-    /// `list --json` answers in about 0.15s, and never hangs over tmux or `ps`; `board --json`, `answer` and
-    /// `finish` read and write one session's files, and run no program.
+    /// `list --json` answers in about 0.15s, and never hangs over tmux or `ps`; `board --json`, `answer`, `finish`,
+    /// `snooze` and `wake` read and write one session's files, and run no program.
     static let listLimit: TimeInterval = 10
     /// Only a backstop for a CLI that hangs, well above any realistic jump
     /// (cli/jump.ts, cli/ghostty.ts, cli/front.ts, cli/tmux.ts, cli/apps.ts):
@@ -121,6 +123,20 @@ public struct SitRepCLI: Sendable {
     /// Finishes a session no window holds.
     public func finish(_ session: String) async -> WriteAnswer {
         written(await sitrep(["finish", "--session", session], limit: Self.listLimit), by: "finish")
+    }
+
+    /// Snoozes asks of the session until the instant given, all of them or none. The asks come after `--`, as an
+    /// answer's do.
+    public func snooze(_ asks: [String], of session: String, until: Date) async -> WriteAnswer {
+        let until = String(Int64((until.timeIntervalSince1970 * 1000).rounded()))
+        let words = ["snooze", "--until", until, "--session", session, "--"] + asks
+
+        return written(await sitrep(words, limit: Self.listLimit), by: "snooze")
+    }
+
+    /// Wakes snoozed asks of the session now, all of them or none.
+    public func wake(_ asks: [String], of session: String) async -> WriteAnswer {
+        written(await sitrep(["wake", "--session", session, "--"] + asks, limit: Self.listLimit), by: "wake")
     }
 
     private func written(_ ended: Ended, by command: String) -> WriteAnswer {
