@@ -26,12 +26,12 @@ import { lookAround } from './around'
 import { fromTheTop } from './clip'
 import { takeBack } from './deliver'
 import { logFailure, type Host } from './host'
-import { writeInto } from './into'
+import { writeInto, writeOwnFile } from './into'
 import { closeBoard } from './pane'
 import { projectPlace } from './places'
 import { clearing, queuing, unqueuing } from './queue'
 import { send } from './send'
-import { attached, isHoldOn, post, refresh, serially } from './window'
+import { attached, post, serially } from './window'
 
 export type Actions = {
   /** Opens an item, or a log line, under its line; or closes it again. */
@@ -126,45 +126,41 @@ const finish = async (host: Host, at: SitrepSessionRef) => {
   await go(host, projectPlace(at.project))
 }
 
-/** What Lee's lines are made from: a session as it stands. */
-type LinesOf = (session: Session) => readonly Body[]
+/** Why a press on an ask wrote nothing, its session no longer there to write into. */
+const GONE = 'its session is no longer on the board.'
 
-/** The lines a check makes of a session as it stands; none where it refuses, a toast saying why. */
-const checkedLines =
-  (host: Host, refused: string, check: (session: Session) => Checked<readonly Body[]>): LinesOf =>
-  session => {
-    const checked = check(session)
-
-    if (!checked.ok) {
-      host.ui.toast(`${refused}: ${checked.error}`)
-    }
-
-    return checked.ok ? checked.value : []
-  }
+/** A check of Lee's press against an ask's session as it stands: the lines it writes, or why it is refused. */
+type Check = (session: Session) => Checked<readonly Body[]>
 
 /**
- * Writes through the hold, which keeps its file's text and would write a
- * line put beside it over: a change Claude did not make, so it rides into
- * its next turn. False when the session no longer folds, as `writeInto`.
+ * Writes what Lee's press makes of an ask's session as it stands into this
+ * window's own file there, as checked; through the hold, a change Claude
+ * did not make, so it rides into its next turn. A refusal, or a session no
+ * longer there, writes nothing, a toast saying why after `refused`. Another
+ * session is read again after.
  */
-const writeHeld = async (host: Host, linesOf: LinesOf) => {
-  const session = await refresh(host)
-  const lines = session === undefined ? [] : linesOf(session)
+const writeLee = async (host: Host, at: SitrepSessionRef, refused: string, check: Check) => {
+  const into = { project: at.project, session: at.session, writer: await host.conversation.id() }
+  const say = (why: string) => host.ui.toast(`${refused}: ${why}`)
+  const isThere = await writeOwnFile(
+    host,
+    into,
+    session => {
+      const checked = check(session)
 
-  if (lines.length > 0) {
-    await post(host, lines)
+      if (!checked.ok) {
+        say(checked.error)
+      }
+
+      return checked.ok ? checked.value : []
+    },
+    (session, lines) => post(host, lines),
+  )
+
+  if (!isThere) {
+    say(GONE)
   }
 
-  return session !== undefined
-}
-
-/** Writes Lee's lines into this window's own file in a session, through the hold where the window holds it, then has another session read again. */
-const writeLee = async (host: Host, at: SitrepSessionRef, linesOf: LinesOf) => {
-  const into = { project: at.project, session: at.session, writer: await host.conversation.id() }
-
-  await serially(() =>
-    isHoldOn(attached(), into) ? writeHeld(host, linesOf) : writeInto(host, into, linesOf),
-  )
   await readIfElsewhere(host, at)
 }
 
@@ -174,20 +170,12 @@ const snooze = async (host: Host, at: SitrepItemRef, when: SnoozeChoice) => {
   const input = { ask: [at.item], until: snoozeAt(when, now) }
 
   await changePane(host, () => ({ selected: null }))
-  await writeLee(
-    host,
-    at,
-    checkedLines(host, 'Not snoozed', session => checkSnooze(session, input, now)),
-  )
+  await writeLee(host, at, 'Not snoozed', session => checkSnooze(session, input, now))
 }
 
 /** Lee's waking of a snoozed ask, checked as the CLI checks it. */
 const wake = (host: Host, at: SitrepItemRef) =>
-  writeLee(
-    host,
-    at,
-    checkedLines(host, 'Not woken', session => checkWake(session, { ask: [at.item] })),
-  )
+  writeLee(host, at, 'Not woken', session => checkWake(session, { ask: [at.item] }))
 
 export const actionsOf = (host: Host): Actions => {
   const run = (what: string, act: () => Promise<unknown>) =>

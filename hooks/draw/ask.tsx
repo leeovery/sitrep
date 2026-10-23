@@ -120,11 +120,11 @@ const buttonsFor = (d: Drawing, at: SitrepItemRef, ask: Ask, verdict: Verdict) =
 /**
  * Where an ask stands as drawn: the reply it waits to send, or the one on
  * its way, whether Lee is answering it in the prompt, when it wakes while
- * snoozed, whether it can be snoozed, waiting on Lee and not snoozed, and
- * whether it is asking when to, opened still.
+ * snoozed, whether it can be snoozed, waiting on Lee in a session not
+ * finished and not snoozed, and whether it is asking when to, opened still.
  */
 const standingOf = (d: Drawing, asked: AskedAt) => {
-  const { ask, snoozedUntil } = asked
+  const { ask, snoozedUntil, isFinished } = asked
   const at = refOf(asked)
   const key = itemKey(at.session, ask.id)
   const queued = queuedOn(d.scene.queue, at.session, ask.id)
@@ -140,7 +140,7 @@ const standingOf = (d: Drawing, asked: AskedAt) => {
     isAnswering: isBeingAnswered(d, at),
     isClosed,
     snoozedUntil,
-    canSnooze: snoozedUntil === undefined && waitsOnLee(ask),
+    canSnooze: !isFinished && snoozedUntil === undefined && waitsOnLee(ask),
     isChoosing,
     isOpen: (selected === key && !isClosed) || isChoosing,
   }
@@ -281,8 +281,10 @@ const markOf = (d: Drawing, ask: Ask, { isClosed, snoozedUntil }: Standing) => {
 const drawAsk = (d: Drawing, asked: AskedAt, isLast: boolean, isNamed: boolean) => {
   const { ask, name } = asked
   const standing = standingOf(d, asked)
-  const { key, queued, isAnswering, isClosed, isOpen, snoozedUntil } = standing
+  const { key, queued, isAnswering, isClosed, isOpen, isChoosing, snoozedUntil } = standing
   const mark = markOf(d, ask, standing)
+  // `select` toggles the key it is given, so the title gives the one the pane holds: one press closes the ask from Snooze's question too.
+  const opener = isChoosing ? snoozeKey(key) : key
   const isAnswerable =
     isOpen && queued === undefined && ask.answerOnItsWay === undefined && !isAnswering
 
@@ -296,7 +298,7 @@ const drawAsk = (d: Drawing, asked: AskedAt, isLast: boolean, isNamed: boolean) 
       ? undefined
       : {
           key: `pick:${key}`,
-          onPress: () => d.act.select(key),
+          onPress: () => d.act.select(opener),
           isDim: snoozedUntil !== undefined,
         },
     branches: branchesOf(d, ask, mark.color, standing),

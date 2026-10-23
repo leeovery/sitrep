@@ -20,8 +20,18 @@ import { shownAsks, type Filed, type Scene } from './scene'
 
 export const EVERY_PROJECT: SitrepPlace = { level: 'all' }
 
-/** An ask a view lists, the session it is on, that session's name, and when it wakes while Lee has it snoozed. */
-export type AskedAt = { at: SitrepSessionRef; name: string; ask: Ask; snoozedUntil?: number }
+/**
+ * An ask a view lists: the session it is on, that session's name and
+ * whether it is finished, where nothing waits on Lee, and when the ask
+ * wakes while Lee has it snoozed.
+ */
+export type AskedAt = {
+  at: SitrepSessionRef
+  name: string
+  isFinished: boolean
+  ask: Ask
+  snoozedUntil?: number
+}
 
 type SnoozedAt = AskedAt & { snoozedUntil: number }
 
@@ -134,7 +144,13 @@ const askedAt = (
 ): AskedAt => {
   const snoozedUntil = snoozedUntilIn(session, ask)
 
-  return { at, name: session.name, ask, ...(snoozedUntil === undefined ? {} : { snoozedUntil }) }
+  return {
+    at,
+    name: session.name,
+    isFinished: session.isFinished,
+    ask,
+    ...(snoozedUntil === undefined ? {} : { snoozedUntil }),
+  }
 }
 
 /** A session's Asks: its open asks, and those Lee's send just closed, the newest first; then those snoozed. */

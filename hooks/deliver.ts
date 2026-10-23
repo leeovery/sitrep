@@ -32,11 +32,11 @@ import { deliveredMark, sentLines, type Body, type Session } from '../core'
 import type { SitrepInFlight, SitrepSource } from '../types'
 import { betweenTurns } from './activity'
 import { logFailure, type Host } from './host'
-import { writeInto } from './into'
+import { writeOwnFile } from './into'
 import { isCarried } from './queue'
 import { LINGER_MS, tickAfter } from './scene'
 import { postKnown } from './seen'
-import { attached, flightNow, isHoldOn, refresh, sayInFlight, serially } from './window'
+import { flightNow, refresh, sayInFlight, serially } from './window'
 
 /** The name Claude Code knows the mod by: what a prompt it submitted carries as its origin. */
 const PLUGIN = 'sitrep'
@@ -173,18 +173,6 @@ const linesOf = (session: Session, delivery: SitrepInFlight): Body[] =>
         delivery.replies.map(reply => reply.id),
       )
 
-/** Writes through the hold, so its own text stays in step: lines Claude knows of. False when the session no longer folds. */
-const writeHeld = async (host: Host, delivery: SitrepInFlight) => {
-  const session = await refresh(host)
-  const lines = session === undefined ? [] : linesOf(session, delivery)
-
-  if (session !== undefined && lines.length > 0) {
-    await postKnown(host, session, lines)
-  }
-
-  return session !== undefined
-}
-
 /**
  * Writes a taken message down in the session it went to, then ends it; what
  * follows its claim's end follows once, by whichever write ended it. Two loads
@@ -193,10 +181,12 @@ const writeHeld = async (host: Host, delivery: SitrepInFlight) => {
  * writes it again, finding its lines there or not.
  */
 const writeDown = async (host: Host, delivery: SitrepInFlight) => {
-  const isThere = await serially(() =>
-    isHoldOn(attached(), delivery)
-      ? writeHeld(host, delivery)
-      : writeInto(host, delivery, session => linesOf(session, delivery)),
+  // Through the hold, as lines Claude knows of: the replies it has just been sent.
+  const isThere = await writeOwnFile(
+    host,
+    delivery,
+    session => linesOf(session, delivery),
+    (session, lines) => postKnown(host, session, lines),
   )
 
   if (!isThere) {
