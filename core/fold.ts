@@ -91,6 +91,8 @@ type Fold = {
   log: Array<LogLine | Note>
   /** The replies carried in flight that reached their items on their way. */
   carried: Set<Reply>
+  /** When Lee's latest snooze of each ask wakes, by ask, until a line ends it. */
+  snoozes: Map<string, number>
 }
 
 type Handler<T extends Body['type']> = (fold: Fold, entry: Extract<Written, { type: T }>) => void
@@ -118,14 +120,15 @@ const post = (fold: Fold, item: Item) => {
   return true
 }
 
-/** Lee's reply settles an ask still open; one closing it says how, and leaves it no reason of Claude's. */
-const settleAsk = (ask: Ask, reply: Reply, at: number) => {
+/** Lee's reply settles an ask still open, and ends its snooze; one closing it says how, and leaves it no reason of Claude's. */
+const settleAsk = (fold: Fold, ask: Ask, reply: Reply, at: number) => {
   if (ask.closedBy !== undefined) {
     return
   }
 
   ask.state = askAfter(ask, reply.verdict)
   ask.answer = reply
+  fold.snoozes.delete(ask.id)
 
   if (!isOpen(ask)) {
     ask.closedAt = at
@@ -307,7 +310,7 @@ const deliver = (fold: Fold, reply: Reply, at: number) => {
   reply.voidedAt = undefined
 
   if (item.type === 'ask') {
-    settleAsk(item, reply, at)
+    settleAsk(fold, item, reply, at)
   } else {
     settleParked(fold, item, reply, at)
   }
@@ -359,7 +362,7 @@ const reshape = (ask: Ask, { wants, kind }: EditBody['changes']) => {
   fitShape(ask)
 }
 
-/** An item opening again: where it stood closed, every reply then settled, void or delivered, is history from here; one on its way stays live. */
+/** An item opening again, afresh, an ask's snooze ended: where it stood closed, every reply then settled, void or delivered, is history from here; one on its way stays live. */
 const reopen = (fold: Fold, item: Item, at: number) => {
   if (item.type !== 'note' && item.closedBy !== undefined) {
     for (const reply of item.replies.filter(each => !isPending(each) && isLine(fold, each))) {
@@ -367,6 +370,7 @@ const reopen = (fold: Fold, item: Item, at: number) => {
     }
   }
 
+  fold.snoozes.delete(item.id)
   item.openedAt = at
   item.closedAt = undefined
   item.closedBy = undefined
@@ -447,6 +451,7 @@ const HANDLERS: { [T in Body['type']]: Handler<T> } = {
     }
 
     item.reason = reason
+    fold.snoozes.delete(id)
 
     if (item.closedBy === undefined) {
       item.state = 'closed'
@@ -540,6 +545,18 @@ const HANDLERS: { [T in Body['type']]: Handler<T> } = {
 
   unfinish: fold => {
     fold.finished = undefined
+  },
+
+  snooze: (fold, { item: id, until }) => {
+    const item = fold.items.get(id)
+
+    if (item?.type === 'ask' && item.state === 'waiting') {
+      fold.snoozes.set(id, until)
+    }
+  },
+
+  wake: (fold, { item: id }) => {
+    fold.snoozes.delete(id)
   },
 }
 
@@ -685,6 +702,24 @@ const isAsk = (item: Item): item is Ask => item.type === 'ask'
 const isParked = (item: Item): item is Parked => item.type === 'park' && item.state === 'parked'
 
 /**
+ * An ask under Lee's latest snooze of it, as that stands at `now`: snoozed
+ * while its time is to come, woken at it once it has. Only an ask waiting
+ * as posted has one, since whatever moves it on ends it. The wall clock's
+ * instant, not a heartbeat's age: no pause holds it back.
+ */
+const standSnooze = (ask: Ask, until: number | undefined, now: number) => {
+  if (until === undefined) {
+    return
+  }
+
+  if (now < until) {
+    ask.snoozedUntil = until
+  } else {
+    ask.wokeAt = until
+  }
+}
+
+/**
  * A session as it stands at `now`; undefined when its session.json is
  * missing or bad. Only replies count from the inbox: a sender may answer
  * this session's items, never post to it. No heartbeat ages through
@@ -712,6 +747,7 @@ export const foldSession = (
     ids: new Set(),
     log: [],
     carried: new Set(),
+    snoozes: new Map(),
   }
   const letters = written(files.inbox ?? {}, 'letters').filter(entry => entry.type === 'reply')
   const lines = [...written(files.logs, 'file'), ...letters].sort(inOrder)
@@ -731,6 +767,10 @@ export const foldSession = (
   }
 
   const asks = items.filter(isAsk)
+
+  for (const ask of asks) {
+    standSnooze(ask, fold.snoozes.get(ask.id), now)
+  }
 
   return {
     id: meta.id,

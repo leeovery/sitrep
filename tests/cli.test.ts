@@ -9,7 +9,7 @@ import {
   VERSION,
   type SessionPaths,
 } from '../core'
-import { file, finish, META, MIN, note, status, T0, W1, yesAsk } from './support'
+import { file, finish, META, MIN, note, snooze, status, T0, W1, yesAsk, type Line } from './support'
 import { ENV, FIRST_ID, NEXT_ID, NOW, terminal } from './terminal'
 import { ELSEWHERE } from './world'
 
@@ -429,6 +429,139 @@ test('finish refuses a session a live window holds, which is finished there, and
   expect([held, done].some(paths => t.files.has(paths.log(WRITER)))).toBe(false)
 })
 
+/** When the snoozes under test wake: an hour after the CLI runs. */
+const WAKES = NOW + 60 * MIN
+
+/** The session's window posted three asks, and holds it. */
+const ASKED = {
+  seenAt: NOW,
+  lines: [
+    [T0, yesAsk('k1', 'Review round 1')],
+    [T0, yesAsk('k2', 'Ship it', 'Go')],
+    [T0, yesAsk('k3', 'Tag the release', 'Done')],
+  ] satisfies Line[],
+}
+
+test("snooze writes a line for each ask named, the ids after -- as answer's, to the CLI's own file, nothing in the inbox, and prints nothing; wake likewise", async () => {
+  const t = terminal()
+  const paths = t.seed(META, ASKED)
+
+  expect(await t.run('snooze', '--until', String(WAKES), ...SESSION, '--', 'k1', 'k2')).toEqual({
+    exit: EXIT.done,
+    out: '',
+    err: '',
+  })
+  expect(await t.run('wake', 'k2', ...SESSION)).toEqual({ exit: EXIT.done, out: '', err: '' })
+  expect(cliLines(t, paths)).toEqual([
+    { v: VERSION, at: NOW, seq: 1, type: 'snooze', item: 'k1', until: WAKES },
+    { v: VERSION, at: NOW, seq: 2, type: 'snooze', item: 'k2', until: WAKES },
+    { v: VERSION, at: NOW, seq: 3, type: 'wake', item: 'k2' },
+  ])
+  expect(t.files.has(paths.letters(WRITER)), 'nothing goes to its inbox').toBe(false)
+  expect(folded(t, paths).asks.map(ask => [ask.id, ask.snoozedUntil])).toEqual([
+    ['k1', WAKES],
+    ['k2', undefined],
+    ['k3', undefined],
+  ])
+})
+
+test('a snooze or a wake refused ends as refused, in the check’s words, and writes nothing, for any ask named; an unknown session is no such session', async () => {
+  const t = terminal()
+  const paths = t.seed(META, ASKED)
+  const refused = (error: string) => ({ exit: EXIT.refused, out: '', err: `sitrep: ${error}\n` })
+
+  expect(await t.run('snooze', 'k1', 'zz', '--until', String(WAKES), ...SESSION)).toEqual(
+    refused('There is no item zz on this board.'),
+  )
+  expect(await t.run('snooze', '--until', String(WAKES), ...SESSION)).toEqual(
+    refused('Name the asks by their ids, as the board lists them.'),
+  )
+  expect(await t.run('snooze', 'k1', 'k2', ...SESSION)).toEqual(
+    refused('A snooze needs its time: --until, in milliseconds since the epoch.'),
+  )
+  expect(await t.run('snooze', 'k1', '--until', String(NOW), ...SESSION)).toEqual(
+    refused('That time has come already: give one still to come.'),
+  )
+  expect(await t.run('wake', 'k1', ...SESSION)).toEqual(refused('k1 is not snoozed.'))
+  expect(t.files.has(paths.log(WRITER))).toBe(false)
+  expect(
+    (await t.run('snooze', 'k1', '--until', String(WAKES), '--session', 'sr-zzzzzz')).exit,
+  ).toBe(EXIT.noSession)
+  expect((await t.run('wake', 'k1', '--session', 'sr-zzzzzz')).exit).toBe(EXIT.noSession)
+})
+
+test('what the CLI prints says what is snoozed: each ask its snoozedUntil while it is, else null; each session and project how many in list --json and board --json, and plain list among its facts', async () => {
+  const t = terminal()
+
+  t.seed(META, ASKED)
+  await t.run('snooze', 'k1', 'k3', '--until', String(WAKES), ...SESSION)
+
+  const listed = JSON.parse((await t.run('list', '--json')).out) as {
+    projects: { waiting: number; snoozed: number; works: { waiting: number; snoozed: number }[] }[]
+  }
+  const board = JSON.parse((await t.run('board', '--json', ...SESSION)).out) as {
+    work: { waiting: number; snoozed: number }
+    asks: { id: string; snoozedUntil: number | null }[]
+  }
+
+  expect((await t.run('list')).out).toContain(
+    `${META.id}  ${META.name} (open, 1 waiting, 2 snoozed)`,
+  )
+  expect(listed.projects[0]).toMatchObject({
+    waiting: 1,
+    snoozed: 2,
+    works: [{ waiting: 1, snoozed: 2 }],
+  })
+  expect(board.work).toMatchObject({ waiting: 1, snoozed: 2 })
+  expect(board.asks.map(ask => [ask.id, ask.snoozedUntil])).toEqual([
+    ['k1', WAKES],
+    ['k2', null],
+    ['k3', WAKES],
+  ])
+})
+
+test("board --json gives no snooze where Lee's side has none: an ask Lee's answer is on its way to, and every ask of a finished session, their snoozes standing", async () => {
+  const t = terminal()
+  const lines: Line[] = [
+    ...ASKED.lines,
+    [T0 + MIN, snooze('k1', WAKES)],
+    [T0 + MIN, snooze('k2', WAKES)],
+  ]
+  const asksOf = async (id: string) => {
+    const board = JSON.parse((await t.run('board', '--json', '--session', id)).out) as {
+      work: { waiting: number; snoozed: number }
+      asks: { id: string; snoozedUntil: number | null }[]
+    }
+
+    const { waiting, snoozed } = board.work
+
+    return [{ waiting, snoozed }, board.asks.map(ask => [ask.id, ask.snoozedUntil])]
+  }
+
+  t.seed(META, { lines })
+
+  const lobby = t.seed(LOBBY, { lines: [...lines, [T0 + 2 * MIN, finish('lee')]] })
+
+  expect((await t.run('answer', 'k1', 'Approve', ...SESSION)).exit).toBe(EXIT.done)
+  expect(await asksOf(META.id)).toEqual([
+    { waiting: 1, snoozed: 1 },
+    [
+      ['k1', null],
+      ['k2', WAKES],
+      ['k3', null],
+    ],
+  ])
+  expect(await asksOf(LOBBY.id)).toEqual([
+    { waiting: 0, snoozed: 0 },
+    [
+      ['k1', null],
+      ['k2', null],
+      ['k3', null],
+    ],
+  ])
+  expect(folded(t, lobby).asks[1]?.snoozedUntil, 'standing, for a join to find').toBe(WAKES)
+})
+
 test('help: every command in brief, how a session is named, and the exit codes', async () => {
   const t = terminal()
   const { exit, out, err } = await t.run('--help')
@@ -437,7 +570,9 @@ test('help: every command in brief, how a session is named, and the exit codes',
   expect(out).toContain(
     '  sitrep ask <title> --wants yes|choice|words [--yes <label>] [--option <choice>]... [--needs <words>] [--where <words>] [--ref <ref>]\n',
   )
-  expect(out).toContain('  sitrep answer <ask> (<answer> | --ignore)\n  sitrep finish\n')
+  expect(out).toContain(
+    '  sitrep answer <ask> (<answer> | --ignore)\n  sitrep snooze <ask>... --until <ms>\n  sitrep wake <ask>...\n  sitrep finish\n',
+  )
   expect(out).toContain('  sitrep list [--project <name>] [--json]\n')
   expect(out).toContain('--session sr-xxxxxx, else $SITREP_SESSION')
   expect(out).toContain('2 no such session')

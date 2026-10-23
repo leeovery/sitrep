@@ -3,9 +3,12 @@
  * the board tool and for the context a turn takes when the board changed;
  * and every project's sessions with their ids, for the start of a
  * conversation. Undelivered replies are left out: Claude has not been told
- * them, so an ask with a reply of Lee's on its way still waits on Lee here.
+ * them, so an ask with a reply of Lee's on its way still waits on Lee here,
+ * or stays snoozed. A snoozed ask says until when, whole and local, so the
+ * words change only as the snooze does.
  */
 import { answerOf, isOpen, yesOf } from './replies'
+import { wholeTime } from './snooze'
 import type { Ask, Finished, Finisher, LogLine, Parked, Session } from './types'
 import { summarise, type ProjectSummary, type SessionSummary } from './views'
 
@@ -41,19 +44,24 @@ const wantsWords = (ask: Ask) => {
   }
 }
 
-const askLine = (ask: Ask) => {
-  const standing =
-    ask.state === 'replied' && ask.answer !== undefined
-      ? `${STANDING.replied} (${answerOf(ask, ask.answer)})`
-      : STANDING.waiting
+/** Where an open ask stands for Claude: replied, with Lee's reply; snoozed, by its time alone, whatever is on its way to it; else waiting on Lee. */
+const standingOf = (ask: Ask) => {
+  if (ask.state === 'replied' && ask.answer !== undefined) {
+    return `${STANDING.replied} (${answerOf(ask, ask.answer)})`
+  }
 
-  return `${ask.id} wants ${wantsWords(ask)}, ${standing}: ${withExtras(ask.title, {
+  return ask.snoozedUntil === undefined
+    ? STANDING.waiting
+    : `snoozed by Lee until ${wholeTime(ask.snoozedUntil)} (leave it until then)`
+}
+
+const askLine = (ask: Ask) =>
+  `${ask.id} wants ${wantsWords(ask)}, ${standingOf(ask)}: ${withExtras(ask.title, {
     options: ask.options?.join(' | '),
     needs: ask.needs,
     where: ask.where,
     ref: ask.ref,
   })}`
-}
 
 const parkedLine = (parked: Parked) =>
   `${parked.id}: ${withExtras(parked.title, { where: parked.where, ref: parked.ref })}`
@@ -80,17 +88,28 @@ export const boardText = (session: Session) => {
  * A session in brief as Claude knows it, for the first message's listing:
  * its asks waiting as posted count, a reply of Lee's on its way to one or
  * not, as its board text lists them, since Claude has not been told that
- * reply.
+ * reply; those snoozed apart from the rest.
  */
 export const toldSummary = (session: Session): SessionSummary => {
   const summary = summarise(session)
+  const snoozed =
+    session.finished === undefined
+      ? session.asks.filter(ask => ask.snoozedUntil !== undefined).length
+      : 0
 
-  return { ...summary, waiting: summary.asked }
+  return { ...summary, waiting: summary.asked - snoozed, snoozed }
 }
+
+/** What waits on Lee in a session, as the listing says it: those waiting, then those snoozed. */
+const waitingWords = ({ waiting, snoozed }: SessionSummary) =>
+  [
+    ...(waiting === 0 ? [] : [`, ${waiting} waiting on Lee`]),
+    ...(snoozed === 0 ? [] : [`, ${snoozed} snoozed by Lee`]),
+  ].join('')
 
 /** A session's line on the board: its project, its id and name, and what waits on Lee. */
 const boardLine = (project: string, session: SessionSummary) =>
-  `- ${project}: ${session.id} "${session.name}"${session.waiting === 0 ? '' : `, ${session.waiting} waiting on Lee`}`
+  `- ${project}: ${session.id} "${session.name}"${waitingWords(session)}`
 
 /** Every current session with its id, project by project in the order given, for Claude to join one by id. */
 export const onBoardText = (projects: readonly ProjectSummary[]) =>

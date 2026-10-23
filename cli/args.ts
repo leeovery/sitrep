@@ -7,8 +7,12 @@
  */
 import type { Checked } from '../core'
 
-/** An argument, by the field a check reads it as, and the switch given in its place, if one may be. */
-export type Arg = { field: string; about: string; or?: string }
+/**
+ * An argument, by the field a check reads it as, and the switch given in its
+ * place, if one may be. The last, `isMany`, takes the words left as a list,
+ * one each, not as one text.
+ */
+export type Arg = { field: string; about: string; or?: string; isMany?: true }
 
 /**
  * A flag: the field a check reads it as, and its form: one value, a value
@@ -109,7 +113,7 @@ const placed = (grammar: Grammar, words: readonly string[], fields: Fields): Che
     const taken = i === args.length - 1 ? words.slice(i) : words.slice(i, i + 1)
 
     if (taken.length > 0) {
-      fields[arg.field] = taken.join(' ')
+      fields[arg.field] = arg.isMany ? taken : taken.join(' ')
     }
   })
 

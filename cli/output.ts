@@ -1,7 +1,8 @@
 /**
  * What the CLI prints of the projects and of a session: lines to
  * read, or JSON for tools such as the tmux indicator; and the lines of
- * `watch`, the board as every surface shows it, for the SitRep app.
+ * `watch`, the board as every surface shows it, its Snoozed rows apart from
+ * its rows, for the SitRep app.
  *
  * The JSON is stable: every field is always there, a list empty and any
  * other value null where there is none, and `v`, the output's version,
@@ -18,6 +19,7 @@ import {
   projectAround,
   replyState,
   resolvedAsks,
+  snoozedUntilIn,
   type Ask,
   type Feed,
   type FeedProject,
@@ -33,6 +35,8 @@ import {
   type RowLine,
   type Session,
   type SessionSummary,
+  type SnoozedLine,
+  type SnoozedRow,
   type WindowState,
   type Where,
 } from '../core'
@@ -70,10 +74,11 @@ export const listing = (
   return { here, projects: listedProjects(chosen, cwd, now, keys) }
 }
 
-/** What a session holds that `list` tells: whether a window has it, and what waits and is parked. */
+/** What a session holds that `list` tells: whether a window has it, and what waits, is snoozed and is parked. */
 const factsOf = (session: SessionSummary) => [
   ...(session.isOpen ? ['open'] : []),
   ...(session.waiting > 0 ? [`${session.waiting} waiting`] : []),
+  ...(session.snoozed > 0 ? [`${session.snoozed} snoozed`] : []),
   ...(session.parked > 0 ? [`${session.parked} parked`] : []),
 ]
 
@@ -104,6 +109,7 @@ const sessionJson = (session: SessionSummary) => ({
   next: session.next ?? null,
   isOpen: session.isOpen,
   waiting: session.waiting,
+  snoozed: session.snoozed,
   parked: session.parked,
   updatedAt: session.updatedAt,
 })
@@ -113,6 +119,7 @@ const projectJson = (project: ProjectSummary, onScreen: ReadonlySet<string>) => 
   name: project.name,
   open: project.open,
   waiting: project.waiting,
+  snoozed: project.snoozed,
   parked: project.parked,
   updatedAt: project.updatedAt,
   works: project.sessions.map(session => ({
@@ -147,7 +154,8 @@ const replyJson = (ask: Ask) => {
       }
 }
 
-const askJson = (ask: Ask) => ({
+/** An ask of a session, as `board --json` and `watch` list it. */
+const askJson = (session: SessionSummary, ask: Ask) => ({
   id: ask.id,
   wants: ask.wants,
   yes: ask.wants === 'yes' ? (ask.yes ?? null) : null,
@@ -159,11 +167,12 @@ const askJson = (ask: Ask) => ({
   state: ask.state,
   at: ask.at,
   reply: replyJson(ask),
+  snoozedUntil: snoozedUntilIn(session, ask) ?? null,
 })
 
 /** A resolved ask: as an open one is, with when it closed, and Claude's reason, where Claude gave one as it resolved the ask. */
-const resolvedJson = (ask: Ask) => ({
-  ...askJson(ask),
+const resolvedJson = (session: SessionSummary, ask: Ask) => ({
+  ...askJson(session, ask),
   closedAt: ask.closedAt ?? null,
   reason: ask.reason ?? null,
 })
@@ -194,10 +203,10 @@ export const boardJson = (project: string, session: Session) => {
     v: OUTPUT.board,
     project: { key: project, name: session.project },
     work: sessionJson(summary),
-    asks: asks.map(askJson),
+    asks: asks.map(ask => askJson(summary, ask)),
     parked: parkedItems.map(parkedJson),
     log: log.map(logJson),
-    resolved: resolvedAsks(session).map(resolvedJson),
+    resolved: resolvedAsks(session).map(ask => resolvedJson(summary, ask)),
   })
 }
 
@@ -240,7 +249,27 @@ const feedSessionJson = (session: FeedSession) => ({
     line: lineJson(session.doing.line),
     since: session.doing.since,
   },
-  asks: session.asks.map(askJson),
+  asks: session.asks.map(ask => askJson(session, ask)),
+})
+
+const snoozedLineJson = (line: SnoozedLine) => ({
+  key: line.key,
+  ask: line.ask,
+  first: lineJson(line.first),
+  since: line.since,
+  wakesAt: line.wakesAt,
+})
+
+const snoozedRowJson = (row: SnoozedRow) => ({
+  session: row.session,
+  isAway: row.isAway,
+  project: row.project,
+  name: row.name,
+  projectName: row.projectName,
+  letters: row.letters,
+  lines: row.lines.map(snoozedLineJson),
+  second: row.second,
+  wakesAt: row.wakesAt,
 })
 
 const feedProjectJson = (project: FeedProject) => ({
@@ -249,6 +278,7 @@ const feedProjectJson = (project: FeedProject) => ({
   directory: project.directory ?? null,
   open: project.open,
   waiting: project.waiting,
+  snoozed: project.snoozed,
   parked: project.parked,
   updatedAt: project.updatedAt,
   sessions: project.sessions.map(feedSessionJson),
@@ -297,6 +327,7 @@ const feedFields = (feed: Feed, version: string | undefined) => ({
   version: version ?? null,
   head: { needYou: feed.head.needYou, sessions: feed.head.sessions },
   rows: feed.rows.map(rowJson),
+  snoozed: feed.snoozed.map(snoozedRowJson),
   projects: feed.projects.map(feedProjectJson),
   windows: feed.windows.map(windowJson),
 })

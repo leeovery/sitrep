@@ -136,9 +136,30 @@ export const barredBy = (item: Ask | Parked, verdict: Verdict): Barred | undefin
  */
 export const waitsOnLee = (ask: Ask) => ask.state === 'waiting' && replyOnItsWay(ask) === undefined
 
-/** A session's asks waiting on Lee, the oldest first; none once it is finished. */
+/** An ask snoozed, and when it wakes. */
+export type SnoozedAsk = Ask & { snoozedUntil: number }
+
+/**
+ * Whether an ask is snoozed, on Lee's side: waiting on Lee, with a snooze of
+ * Lee's holding on it. One Lee replied to while it slept waits on Lee no
+ * more, and is no longer snoozed either, though its snooze stands.
+ */
+export const isSnoozed = (ask: Ask): ask is SnoozedAsk =>
+  waitsOnLee(ask) && ask.snoozedUntil !== undefined
+
+/** A session's asks waiting on Lee, those snoozed aside, the oldest first; none once it is finished. */
 export const waitingOnLee = (session: Pick<Session, 'asks' | 'finished'>): Ask[] =>
-  session.finished === undefined ? session.asks.filter(waitsOnLee) : []
+  session.finished === undefined
+    ? session.asks.filter(ask => waitsOnLee(ask) && !isSnoozed(ask))
+    : []
+
+/** A session's asks snoozed, the oldest first; none once it is finished. */
+export const snoozedAsks = (session: Pick<Session, 'asks' | 'finished'>): SnoozedAsk[] =>
+  session.finished === undefined ? session.asks.filter(isSnoozed) : []
+
+/** When an ask wakes, where it is snoozed in its session, as `snoozedAsks` has it: none once the session is finished. */
+export const snoozedUntilIn = (session: { isFinished: boolean }, ask: Ask) =>
+  !session.isFinished && isSnoozed(ask) ? ask.snoozedUntil : undefined
 
 /**
  * Where Lee's reply to an ask stands: on its way, in its session's inbox

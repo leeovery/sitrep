@@ -1,5 +1,6 @@
 import { expect, test } from 'claude-code/testing'
 import {
+  ASLEEP,
   replyState,
   brief,
   CURRENT_MS,
@@ -17,6 +18,7 @@ import {
   nextExpiry,
   rowOf,
   sessionState,
+  snoozedRowOf,
   STALE_MS,
   type Feed,
   type Presence,
@@ -42,11 +44,13 @@ import {
   reopen,
   reply,
   resolve,
+  snooze,
   status,
   T0,
   W1,
   W2,
   W3,
+  wake,
   yesAsk,
   type Line,
 } from './support'
@@ -999,5 +1003,244 @@ test('the board next changes by time alone as the first live heartbeat goes stal
       NOW,
     ),
     'an answer on its way keeps its session current, as its ask did',
+  ).toBeUndefined()
+})
+
+/** When the snoozes under test wake: two hours after NOW, and three. */
+const WAKES = NOW + 120 * MIN
+const WAKES_LATER = NOW + 180 * MIN
+
+/** The review, posted at T0 and snoozed a minute after. */
+const SNOOZED_REVIEW: Line[] = [
+  [T0, yesAsk('k1', 'Review round 1')],
+  [T0 + MIN, snooze('k1', WAKES)],
+]
+
+const feedAt = (now: number, ...sessions: Session[]) =>
+  feedOf([{ project: SWITCHBOARD, sessions }], now)
+
+test('an ask Lee snoozed needs Lee no more: no line in Needs you, no count, nothing in the head; its session stands as its windows leave it, with a row in Snoozed', () => {
+  const held = sessionOf({ lines: SNOOZED_REVIEW, presence: windowOn(W1, yourTurn(T0)) })
+  const away = sessionOf({ lines: SNOOZED_REVIEW })
+  const feed = feedAt(NOW, held)
+
+  expect([held.waiting, sessionState(held, NOW), lines(held).map(each => each.key)]).toEqual([
+    0,
+    'yourTurn',
+    [`turn:${META.id}`],
+  ])
+  expect([sessionState(away, NOW), rowFor(away)]).toEqual(['away', undefined])
+  expect(feed.head).toEqual({ needYou: 0, sessions: 1 })
+  expect(feed.projects).toMatchObject([
+    { waiting: 0, snoozed: 1, sessions: [{ waiting: 0, snoozed: 1, asks: [{ id: 'k1' }] }] },
+  ])
+  expect(feedAt(NOW, away).snoozed).toEqual([
+    {
+      session: META.id,
+      isAway: true,
+      project: SWITCHBOARD.key,
+      name: META.name,
+      projectName: 'Switchboard',
+      letters: 'Sw',
+      lines: [
+        {
+          key: `ask:${META.id}:k1`,
+          ask: 'k1',
+          first: { lead: 'Review round 1' },
+          since: T0,
+          wakesAt: WAKES,
+        },
+      ],
+      second: 'No window holds it. Carry it on in Claude.',
+      wakesAt: WAKES,
+    },
+  ])
+  expect(feed.snoozed[0]).toMatchObject({
+    isAway: false,
+    second: 'Switchboard · Dashboard redesign',
+  })
+})
+
+test('a session with an ask snoozed and another waiting shows in both: its row in Needs you holds the one waiting, its row in Snoozed the one asleep', () => {
+  const session = sessionOf({
+    lines: [...SNOOZED_REVIEW, [T0 + 2 * MIN, yesAsk('k2', 'Ship it', 'Go')]],
+    presence: windowOn(W1, yourTurn(T0)),
+  })
+  const feed = feedAt(NOW, session)
+
+  expect(feed.rows.map(row => [row.session, row.section, row.lines.map(each => each.key)])).toEqual(
+    [[META.id, 'needsYou', [`ask:${META.id}:k2`]]],
+  )
+  expect(feed.snoozed.map(row => [row.session, row.lines.map(each => each.key)])).toEqual([
+    [META.id, [`ask:${META.id}:k1`]],
+  ])
+  expect(feed.head).toEqual({ needYou: 1, sessions: 1 })
+})
+
+test("Snoozed's rows go soonest to wake first, then the oldest, whatever their ids, and so do a row's lines; a row wakes as its soonest line; a finished session has none", () => {
+  const sessions = [
+    sessionOf({
+      meta: { id: 'sr-bbbbbb' },
+      lines: [
+        [T0, yesAsk('k1', 'Later')],
+        [T0 + 2 * MIN, yesAsk('k2', 'Sooner, newer')],
+        [T0 + MIN, yesAsk('k3', 'Sooner, older')],
+        [T0 + 3 * MIN, snooze('k1', WAKES_LATER)],
+        [T0 + 3 * MIN, snooze('k2', WAKES)],
+        [T0 + 3 * MIN, snooze('k3', WAKES)],
+      ],
+    }),
+    sessionOf({
+      meta: { id: 'sr-aaaaaa' },
+      lines: [
+        [T0 + 5 * MIN, yesAsk('k1', 'Newer row')],
+        [T0 + 6 * MIN, snooze('k1', WAKES)],
+      ],
+    }),
+    sessionOf({
+      meta: { id: 'sr-cccccc' },
+      lines: [
+        [T0 + 9 * MIN, yesAsk('k1', 'Soonest')],
+        [T0 + 9 * MIN, snooze('k1', NOW + MIN)],
+      ],
+    }),
+    sessionOf({
+      meta: { id: 'sr-dddddd' },
+      lines: [...SNOOZED_REVIEW, [T0 + 2 * MIN, finish('lee')]],
+    }),
+  ]
+  const snoozed = feedAt(NOW, ...sessions).snoozed
+
+  expect(
+    snoozed.map(row => [row.session, row.wakesAt, row.lines.map(each => [each.ask, each.wakesAt])]),
+  ).toEqual([
+    ['sr-cccccc', NOW + MIN, [['k1', NOW + MIN]]],
+    [
+      'sr-bbbbbb',
+      WAKES,
+      [
+        ['k3', WAKES],
+        ['k2', WAKES],
+        ['k1', WAKES_LATER],
+      ],
+    ],
+    ['sr-aaaaaa', WAKES, [['k1', WAKES]]],
+  ])
+  expect(snoozedRowOf(SWITCHBOARD, sessions[3]!, NOW)).toBeUndefined()
+})
+
+test("a Snoozed line counts from its ask's posting or reopening, as in Needs you", () => {
+  const session = sessionOf({
+    lines: [
+      [T0, yesAsk('k1', 'Review round 1')],
+      [T0 + MIN, resolve('k1')],
+      [T0 + 5 * MIN, reopen('k1')],
+      [T0 + 6 * MIN, snooze('k1', WAKES)],
+    ],
+  })
+
+  expect(snoozedRowOf(SWITCHBOARD, session, NOW)?.lines.map(each => each.since)).toEqual([
+    T0 + 5 * MIN,
+  ])
+})
+
+test('an ask back from its snooze at its time is a line in Needs you again, carrying when it woke; one Lee woke carries none', () => {
+  const woke = sessionOf({ lines: SNOOZED_REVIEW }, WAKES)
+  const woken = sessionOf({ lines: [...SNOOZED_REVIEW, [T0 + 2 * MIN, wake('k1')]] })
+
+  expect(lines(woke)).toEqual([
+    {
+      key: `ask:${META.id}:k1`,
+      is: 'ask',
+      ask: 'k1',
+      first: { lead: 'Review round 1' },
+      since: T0,
+      woke: WAKES,
+    },
+  ])
+  expect(lines(woken)[0]).not.toHaveProperty('woke')
+})
+
+test('a line in Snoozed is kept as shown however long it sleeps, its absence never making it new: woken at its time it is new, woken by Lee it is not', () => {
+  const key = `ask:${META.id}:k1`
+  const waiting = feedAt(NOW, sessionOf({ lines: [[T0, yesAsk('k1', 'Review round 1')]] }))
+  const asleep = feedAt(NOW, sessionOf({ lines: SNOOZED_REVIEW }))
+  const woke = feedAt(WAKES, sessionOf({ lines: SNOOZED_REVIEW }, WAKES))
+  const woken = feedAt(NOW, sessionOf({ lines: [...SNOOZED_REVIEW, [T0 + 2 * MIN, wake('k1')]] }))
+  const shown = newRows(newRows(undefined, waiting, 0).shown, asleep, 0)
+  const slept = newRows(shown.shown, asleep, 9 * FORGET_MS).shown
+
+  expect([shown.news, [...shown.shown]]).toEqual([[], [[key, ASLEEP]]])
+  expect([...slept]).toEqual([[key, ASLEEP]])
+  expect(newRows(slept, woke, 9 * FORGET_MS).news).toEqual([key])
+  expect(newRows(slept, woken, 9 * FORGET_MS).news).toEqual([])
+  expect(
+    newRows(newRows(undefined, asleep, 0).shown, woke, FORGET_MS).news,
+    'asleep since the watch began',
+  ).toEqual([key])
+  expect(newRows(newRows(slept, woke, 0).shown, woke, 0).news, 'new once').toEqual([])
+})
+
+test('an ask Lee replied to while asleep leaves Snoozed as a line gone; its reply taken back after its snooze ran out, it comes as shown, not new', () => {
+  const key = `ask:${META.id}:k1`
+  const answered = { [CLI]: file([T0 + 2 * MIN, reply('r1', 'k1', 'yes')]) }
+  const asleep = feedAt(NOW, sessionOf({ lines: SNOOZED_REVIEW }))
+  const onItsWay = feedAt(NOW, sessionOf({ lines: SNOOZED_REVIEW, inbox: answered }))
+  const takenBack = feedAt(WAKES, sessionOf({ lines: SNOOZED_REVIEW }, WAKES))
+  const gone = newRows(newRows(undefined, asleep, 0).shown, onItsWay, MIN)
+
+  expect([onItsWay.rows, onItsWay.snoozed, gone.news, [...gone.shown]]).toEqual([
+    [],
+    [],
+    [],
+    [[key, MIN]],
+  ])
+  expect(newRows(gone.shown, takenBack, 2 * MIN).news).toEqual([])
+})
+
+test('a snooze running out changes the board by time alone: its time is among the instants it next changes, but for an ask Lee replied to, or in a finished session', () => {
+  const read = (...sessions: Session[]): ProjectRead[] => [{ project: SWITCHBOARD, sessions }]
+
+  expect(nextExpiry(read(sessionOf({ lines: SNOOZED_REVIEW })), NOW)).toBe(WAKES)
+  expect(
+    nextExpiry(
+      read(
+        sessionOf({ lines: SNOOZED_REVIEW }),
+        sessionOf({
+          meta: { id: 'sr-bbbbbb' },
+          lines: [
+            [T0, yesAsk('k1', 'Sooner')],
+            [T0, snooze('k1', NOW + MIN)],
+          ],
+        }),
+      ),
+      NOW,
+    ),
+  ).toBe(NOW + MIN)
+  expect(
+    nextExpiry(
+      read(
+        sessionOf({
+          lines: SNOOZED_REVIEW,
+          presence: windowOn(W1, yourTurn(T0), { seenAt: NOW - MIN }),
+        }),
+      ),
+      NOW,
+    ),
+    'a heartbeat going stale first',
+  ).toBe(NOW - MIN + STALE_MS + 1)
+  expect(
+    nextExpiry(
+      read(
+        sessionOf({
+          lines: SNOOZED_REVIEW,
+          inbox: { [CLI]: file([T0 + 2 * MIN, reply('r1', 'k1', 'yes')]) },
+        }),
+      ),
+      NOW,
+    ),
+  ).toBeUndefined()
+  expect(
+    nextExpiry(read(sessionOf({ lines: [...SNOOZED_REVIEW, [T0 + 2 * MIN, finish('lee')]] })), NOW),
   ).toBeUndefined()
 })

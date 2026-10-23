@@ -73,6 +73,10 @@ export type SitrepAsk = SitrepPosted & {
   /** Lee's answer on its way to it: core's `answerOnItsWay`. */
   answerOnItsWay?: SitrepReply
   replies: SitrepReply[]
+  /** When Lee's snooze of it wakes, while it holds: core's `snoozedUntil`. */
+  snoozedUntil?: number
+  /** When Lee's snooze of it ran out: core's `wokeAt`. */
+  wokeAt?: number
 }
 
 export type SitrepNote = SitrepPosted & {
@@ -291,6 +295,7 @@ export type SitrepSummary = {
   isOpen: boolean
   isFinished: boolean
   waiting: number
+  snoozed: number
   asked: number
   parked: number
   updatedAt: number

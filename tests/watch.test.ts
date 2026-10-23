@@ -24,11 +24,13 @@ import {
   note,
   reply,
   SLOW,
+  snooze,
   status,
   T0,
   unfinish,
   W1,
   W2,
+  wake,
   yesAsk,
   type Line,
 } from './support'
@@ -56,8 +58,14 @@ type Printed = {
     isAway: boolean
     lines: { key: string; is: string; first: { lead: string } }[]
   }[]
+  snoozed: { session: string; lines: { key: string }[]; wakesAt: number }[]
   projects: {
-    sessions: { id: string; name: string; state: string; asks: { reply: unknown }[] }[]
+    sessions: {
+      id: string
+      name: string
+      state: string
+      asks: { reply: unknown; snoozedUntil: number | null }[]
+    }[]
   }[]
   windows: {
     writer: string
@@ -241,6 +249,7 @@ test('the first line is the board as every surface shows it, with nothing new an
           since: T0,
         },
       ],
+      snoozed: [],
       projects: [
         {
           key: PROJECT.key,
@@ -248,6 +257,7 @@ test('the first line is the board as every surface shows it, with nothing new an
           directory: REPO,
           open: 1,
           waiting: 1,
+          snoozed: 0,
           parked: 0,
           updatedAt: T0,
           sessions: [
@@ -259,6 +269,7 @@ test('the first line is the board as every surface shows it, with nothing new an
               next: null,
               isOpen: true,
               waiting: 1,
+              snoozed: 0,
               parked: 0,
               updatedAt: T0,
               state: 'needsYou',
@@ -287,6 +298,7 @@ test('the first line is the board as every surface shows it, with nothing new an
                   state: 'waiting',
                   at: T0,
                   reply: null,
+                  snoozedUntil: null,
                 },
               ],
             },
@@ -466,6 +478,66 @@ test(
     ])
   },
 )
+
+/** The keys of a watch line's Snoozed lines, its rows' in order. */
+const asleep = (line: Printed | undefined) =>
+  line?.snoozed.flatMap(row => row.lines.map(each => each.key))
+
+test('a snooze running out is a line the moment it does, though no file changed: its ask back in Needs you and new, its session changed', async () => {
+  const wakes = NOW + 2_500
+  const { t } = held([
+    [T0, yesAsk('k1', 'Review round 1')],
+    [T0 + MIN, snooze('k1', wakes)],
+  ])
+  const { lines } = await watched(t, looks(4))
+  const k1 = `ask:${META.id}:k1`
+
+  expect(lines.map(line => [line.at, keys(line), asleep(line), line.new, line.changed])).toEqual([
+    [NOW, [`turn:${META.id}`], [k1], [], []],
+    [wakes, [k1], [], [k1], [META.id]],
+  ])
+  expect(lines[0]?.snoozed, "the row as DESIGN's example prints it").toEqual([
+    {
+      session: META.id,
+      isAway: false,
+      project: PROJECT.key,
+      name: META.name,
+      projectName: PROJECT.name,
+      letters: 'Sw',
+      lines: [
+        {
+          key: k1,
+          ask: 'k1',
+          first: { lead: 'Review round 1', mono: null, subject: null, more: null, until: null },
+          since: T0,
+          wakesAt: wakes,
+        },
+      ],
+      second: 'Switchboard · Dashboard redesign',
+      wakesAt: wakes,
+    },
+  ])
+  expect(lines.map(line => line.projects[0]?.sessions[0]?.asks[0]?.snoozedUntil)).toEqual([
+    wakes,
+    null,
+  ])
+})
+
+test('a snooze posted is a line, its ask in Snoozed and nothing new; woken by Lee, it is back in Needs you, nothing new either', async () => {
+  const { t, paths } = held([[T0, yesAsk('k1', 'Review round 1')]])
+  const { lines } = await watched(t, [
+    () => post(t, paths, snooze('k1', NOW + 9 * HOUR)),
+    still,
+    () => post(t, paths, wake('k1')),
+  ])
+  const k1 = `ask:${META.id}:k1`
+
+  expect(lines.map(line => [line.at, keys(line), asleep(line), line.new, line.changed])).toEqual([
+    [NOW, [k1], [], [], []],
+    [NOW + POLL_MS, [`turn:${META.id}`], [k1], [], [META.id]],
+    [NOW + 3 * POLL_MS, [k1], [], [], [META.id]],
+  ])
+})
 
 test('a window stopping on Lee is new once; its prompt answered, the window working, is new no more', async () => {
   const { t, paths } = held()

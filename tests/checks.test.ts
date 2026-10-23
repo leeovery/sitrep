@@ -8,8 +8,10 @@ import {
   checkPark,
   checkReopen,
   checkResolve,
+  checkSnooze,
   checkStart,
   checkStatus,
+  checkWake,
   withId,
   type Checked,
 } from '../core'
@@ -27,6 +29,7 @@ import {
   resolve,
   scripted,
   SENDER,
+  snooze,
   T0,
   W1,
   wordsAsk,
@@ -413,4 +416,168 @@ test('an ask closed, or with an answer on its way, takes no answer, though a com
   expect(refusal(checkAnswer(finished, { ask: 'k1', answer: 'Approve' }))).toBe(
     'This session is finished: its asks wait on Lee no more.',
   )
+})
+
+/** When a snooze is checked, and a time still to come then. */
+const NOW = T0 + 10 * MIN
+const LATER = NOW + 60 * MIN
+
+/**
+ * A board for snoozing: an ask waiting on Lee, one snoozed already, one Lee
+ * commented on, one ignored, one closed, one with Lee's answer on its way,
+ * one with a comment on its way, one snoozed with Lee's answer on its way,
+ * a note and a parked item.
+ */
+const ASLEEP = fold(
+  {
+    logs: {
+      [W1]: file(
+        [T0, yesAsk('k1', 'Review round 1')],
+        [T0, choiceAsk('k2', 'Keep it, or drop it?', ['Keep it', 'Drop it'])],
+        [T0, yesAsk('k3', 'Try it on the iPad', 'It works')],
+        [T0, yesAsk('k4', 'Tag the release', 'Done')],
+        [T0, yesAsk('k5', 'Run the apply', 'Done')],
+        [T0, yesAsk('k6', 'Ship it', 'Go')],
+        [T0, yesAsk('k7', 'Read the plan')],
+        [T0, yesAsk('k8', 'Merge it', 'Go')],
+        [T0, note('n1', 'Merged')],
+        [T0, park('p1', 'Later')],
+        [T0 + MIN, snooze('k2', LATER)],
+        [T0 + MIN, snooze('k8', LATER)],
+        [T0 + MIN, reply('r1', 'k3', 'comment', { note: 'It fails' })],
+        [T0 + MIN, reply('r2', 'k4', 'ignore')],
+        [T0 + MIN, delivered('r1', 'r2')],
+        [T0 + MIN, resolve('k5')],
+      ),
+    },
+    inbox: {
+      [SENDER]: file(
+        [T0 + 2 * MIN, reply('r3', 'k6', 'yes')],
+        [T0 + 2 * MIN, reply('r4', 'k7', 'comment', { note: 'Shorter' })],
+        [T0 + 2 * MIN, reply('r5', 'k8', 'yes')],
+      ),
+    },
+  },
+  NOW,
+)
+
+const snoozeOf = (ask: unknown, until: unknown = LATER) => checkSnooze(ASLEEP, { ask, until }, NOW)
+
+/** A snooze naming asks with no time. */
+const untimed = (ask: unknown) => checkSnooze(ASLEEP, { ask }, NOW)
+
+test('a snooze is a line for each ask named, open and waiting on Lee as posted, until a time still to come; one snoozed already is snoozed again, to the new time', () => {
+  expect(value(snoozeOf(['k1', ' k2 ', 'k1']))).toEqual([
+    { type: 'snooze', item: 'k1', until: LATER },
+    { type: 'snooze', item: 'k2', until: LATER },
+  ])
+  expect(
+    value(snoozeOf('k2', String(LATER + MIN))),
+    'the time in digits, as the CLI gives it',
+  ).toEqual([{ type: 'snooze', item: 'k2', until: LATER + MIN }])
+  expect(value(snoozeOf(['k1'], NOW + 1)), 'a moment on').toEqual([
+    { type: 'snooze', item: 'k1', until: NOW + 1 },
+  ])
+  expect(value(snoozeOf(['k1'], 8.64e15)), 'the last time a Date holds').toEqual([
+    { type: 'snooze', item: 'k1', until: 8.64e15 },
+  ])
+})
+
+test("a snooze is refused, for every ask named, the first refusal in order saying why: the session finished; no ask named; an id no item or no ask; an ask closed or ignored, one Lee's reply is on its way to, one Lee commented on; then its time missing, none, or come already", () => {
+  const finished = fold({
+    logs: { [W1]: file([T0, yesAsk('k1', 'Review round 1')], [T0 + MIN, finish('lee')]) },
+  })
+
+  for (const [why, refused, error] of [
+    [
+      'finished',
+      checkSnooze(finished, { ask: [] }, NOW),
+      'This session is finished: its asks wait on Lee no more.',
+    ],
+    ['none named', untimed([]), 'Name the asks by their ids, as the board lists them.'],
+    [
+      'no ids at all',
+      checkSnooze(ASLEEP, {}, NOW),
+      'Name the asks by their ids, as the board lists them.',
+    ],
+    ['no item', snoozeOf(['k5', 'zz']), 'There is no item zz on this board.'],
+    ['no ask', snoozeOf(['k1', 'n1']), 'n1 is a note, not an ask.'],
+    ['a parked item', snoozeOf(['p1']), 'p1 is a parked item, not an ask.'],
+    ['ignored', snoozeOf(['k3', 'k4', 'k5']), 'k4 is already ignored.'],
+    ['closed', untimed(['k6', 'k5']), 'k5 is already closed.'],
+    ['closed, then ignored', snoozeOf(['k5', 'k4']), 'k5 is already closed.'],
+    [
+      'an answer on its way',
+      snoozeOf(['k3', 'k6']),
+      "Lee's reply to k6 is on its way: it waits on Lee no more.",
+    ],
+    [
+      'a comment on its way',
+      snoozeOf(['k7']),
+      "Lee's reply to k7 is on its way: it waits on Lee no more.",
+    ],
+    [
+      'commented',
+      snoozeOf(['k1', 'k3'], 'soon'),
+      "k3 waits on Claude: Lee's comment is Claude's to act on.",
+    ],
+    [
+      'no time',
+      untimed(['k1']),
+      'A snooze needs its time: --until, in milliseconds since the epoch.',
+    ],
+    [
+      'not a time',
+      snoozeOf(['k1'], 'tomorrow'),
+      'A snooze needs its time: --until, in milliseconds since the epoch.',
+    ],
+    [
+      'not a whole time',
+      snoozeOf(['k1'], `${LATER}.5`),
+      'A snooze needs its time: --until, in milliseconds since the epoch.',
+    ],
+    [
+      'a number not whole',
+      snoozeOf(['k1'], LATER + 0.5),
+      'A snooze needs its time: --until, in milliseconds since the epoch.',
+    ],
+    [
+      'digits past any time',
+      snoozeOf(['k1'], '99999999999999999999'),
+      'A snooze needs its time: --until, in milliseconds since the epoch.',
+    ],
+    [
+      'nanoseconds, as date +%s%N gives them',
+      snoozeOf(['k1'], `${LATER}000000`),
+      'A snooze needs its time: --until, in milliseconds since the epoch.',
+    ],
+    [
+      'just past what a Date holds',
+      snoozeOf(['k1'], 8.64e15 + 1),
+      'A snooze needs its time: --until, in milliseconds since the epoch.',
+    ],
+    ['come already', snoozeOf(['k1'], NOW), 'That time has come already: give one still to come.'],
+    [
+      'long gone',
+      snoozeOf(['k1'], String(T0)),
+      'That time has come already: give one still to come.',
+    ],
+  ] as const) {
+    expect(refusal(refused), why).toBe(error)
+  }
+})
+
+test("a wake is a line for each ask named, snoozed; refused, for every ask named, the session finished, none named, an id no item or no ask, or an ask not snoozed, one Lee's reply is on its way to among them", () => {
+  const wakeOf = (ask: unknown) => checkWake(ASLEEP, { ask })
+
+  expect(value(wakeOf(['k2']))).toEqual([{ type: 'wake', item: 'k2' }])
+  expect(
+    refusal(checkWake(fold({ logs: { [W1]: file([T0, finish('lee')]) } }), { ask: ['k1'] })),
+  ).toBe('This session is finished: its asks wait on Lee no more.')
+  expect(refusal(wakeOf([]))).toBe('Name the asks by their ids, as the board lists them.')
+  expect(refusal(wakeOf(['k1', 'zz']))).toBe('There is no item zz on this board.')
+  expect(refusal(wakeOf(['n1']))).toBe('n1 is a note, not an ask.')
+  expect(refusal(wakeOf(['k2', 'k1']))).toBe('k1 is not snoozed.')
+  expect(refusal(wakeOf(['k5']))).toBe('k5 is not snoozed.')
+  expect(refusal(wakeOf(['k8']))).toBe('k8 is not snoozed.')
 })

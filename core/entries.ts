@@ -54,9 +54,12 @@ export const parseVersioned = (text: string, upgrades: readonly Upgrade[]): Raw 
 export const isFilled = (value: unknown): value is string =>
   typeof value === 'string' && value !== ''
 
-/** Whether a value read from JSON is a time: a finite number. */
+/** The furthest a `Date` holds from the epoch, either side, in milliseconds. */
+const DATE_RANGE_MS = 8.64e15
+
+/** Whether a value read from JSON is a time: a number a `Date` holds, so it compares and words as one. */
 export const isTime = (value: unknown): value is number =>
-  typeof value === 'number' && Number.isFinite(value)
+  typeof value === 'number' && Math.abs(value) <= DATE_RANGE_MS
 
 /** Whether a value read from JSON is a count from one up. */
 export const isCount = (value: unknown): value is number =>
@@ -121,6 +124,8 @@ const SHAPES: { [T in Body['type']]: Record<string, Check> } = {
   delivered: { replies: isTexts },
   finish: { who: isFinisher, reason: maybe(isText) },
   unfinish: {},
+  snooze: { item: isText, until: isTime },
+  wake: { item: isText },
 }
 
 /** What a kind of line needs beyond its fields one by one: an ask says what it wants back, or, written before asks did, its kind. */
