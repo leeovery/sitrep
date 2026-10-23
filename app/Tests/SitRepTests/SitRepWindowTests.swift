@@ -10,8 +10,9 @@ struct SitRepWindowTests {
         SitRepWindow.split(sidebar: NSViewController.with(NSView()), page: NSViewController.with(NSView()))
     }
 
-    @Test func itOpensOnTheSpaceLeeIsOn() {
-        #expect(SitRepWindow.window(Self.split()).collectionBehavior.contains(.moveToActiveSpace))
+    /// It goes to the Space Lee is on only as SitRep brings it forward (`ForwardWindowTests`).
+    @Test func itStaysOnItsOwnSpaceTillSitRepBringsItForward() {
+        #expect(!SitRepWindow.window(Self.split()).collectionBehavior.contains(.moveToActiveSpace))
     }
 
     @Test func theBoardIsTheSystemsOwnSidebarAndThePageSitsBesideIt() {

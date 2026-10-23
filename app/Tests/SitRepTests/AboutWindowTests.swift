@@ -20,9 +20,13 @@ struct AboutWindowTests {
         #expect(!Self.window.validateMenuItem(NSMenuItem(title: "", action: #selector(NSWindow.performMiniaturize(_:)), keyEquivalent: "")))
     }
 
-    @Test func itShowsNoTitleAndOpensOnTheSpaceLeeIsOn() {
+    @Test func itShowsNoTitle() {
         #expect(Self.window.titleVisibility == .hidden)
-        #expect(Self.window.collectionBehavior.contains(.moveToActiveSpace))
+    }
+
+    /// It goes to the Space Lee is on only as SitRep brings it forward (`ForwardWindowTests`).
+    @Test func itStaysOnItsOwnSpaceTillSitRepBringsItForward() {
+        #expect(!Self.window.collectionBehavior.contains(.moveToActiveSpace))
     }
 
     @Test func itIsAsWideAsDrawnItsHeightFromWhatItShows() {

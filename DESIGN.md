@@ -2697,7 +2697,8 @@ that takes Lee to the window a session is in.
   Only the SitRep window answers, and only an ask that wants a yes or a
   choice (17 October 2026).
 - **Clicking** a session, an ask or a macOS notification takes Lee to the
-  Ghostty window showing that session, on whatever Space it is. A session no
+  Ghostty window showing that session, on whatever Space it is, and leaves
+  the SitRep window on its own Space (see "The SitRep window"). A session no
   window shows offers no jump: the app never opens a window (until stage 6).
 - **The app holds no sitrep logic.** It runs one `sitrep watch` as its
   child, which tells it the board as it changes, and each jump is a one-off
@@ -3694,10 +3695,18 @@ stands).
   picked last. There is one window: opening it again brings it forward,
   on the Space Lee is on: it moves to the active Space and comes forward
   there before SitRep activates, so the activation takes him to no other
-  Space. The menu opens it (see "The menu bar item"). ⌘, and the menu's
-  Settings… open it on Settings, or turn it there where it shows already;
-  ⌘, is a key of the app's main menu, which an accessory app never shows,
-  so it works while a SitRep window is key.
+  Space. It moves only as SitRep brings it forward: `.moveToActiveSpace`
+  holds from then until it is key, and otherwise it stays on its own Space.
+  A jump, from the window, the notch, the strip, the menu or a macOS
+  notification, and a pick made elsewhere leave it where it is, never
+  ordered front (Lee, 23 October 2026: "If it's open, it should stay where
+  it is"). Clicking a notification activates SitRep, and while the window
+  always moved to the active Space, it went to Lee's Space with that click,
+  before the jump took him back to its own. The menu opens it (see
+  "The menu bar item"). ⌘, and the menu's Settings… open it on Settings,
+  or turn it there where it shows already; ⌘, is a key of the app's main
+  menu, which an accessory app never shows, so it works while a SitRep
+  window is key.
 - **The frame is macOS's own** (Lee, 20 October 2026, of a sidebar of
   hand-made glass, its corners unlike the window's and the traffic lights
   on its corner: "It looks a mess"). Whatever macOS draws, SitRep does not
@@ -4278,7 +4287,8 @@ standard About panel, which draws its icon smaller.
 - **Nothing to change, and nothing more in it:** no title, no links, no
   licences, no update button; Check for Updates… stays in the menu. Only its
   close button is live, and it or ⌘W shuts it. It opens centred, in the
-  upper part of the screen, on the Space Lee is on.
+  upper part of the screen, on the Space Lee is on, and otherwise stays on
+  its own, as the SitRep window does.
 - **It opens from the menu's header**, which takes the menu's own highlight
   under the pointer, as any item does, and a click on it opens the window
   from anywhere. To VoiceOver the header is one button, "About SitRep". It is not in the app menu: an accessory app never shows
