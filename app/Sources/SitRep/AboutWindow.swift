@@ -6,10 +6,20 @@ import SwiftUI
 /// zooms, and has nothing to change.
 @MainActor
 final class AboutWindow {
-    private lazy var window = Self.window(NSHostingController(rootView: AboutView()))
+    private let make: @MainActor () -> ForwardWindow
+    private lazy var window = make()
+
+    /// `make` makes the window as it first opens: a seam, as a test never shows one.
+    init(make: @escaping @MainActor () -> ForwardWindow = AboutWindow.made) {
+        self.make = make
+    }
 
     func show() {
         window.comeForward()
+    }
+
+    private static func made() -> ForwardWindow {
+        window(NSHostingController(rootView: AboutView()))
     }
 
     /// The window: titled, so it has the system's frame and close button, but showing no title; closable alone, so the

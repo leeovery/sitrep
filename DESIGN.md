@@ -1302,9 +1302,9 @@ stay snoozed: that session shows in both, Snoozed being an exception to
   drawn in Paper.
 - **The pick in the sidebar** (**proposed**): a session in both Snoozed and
   another section has a row in each, and the row clicked holds the pick. A
-  pick from outside the list (the menu, a jump, a notification) lands on the
-  session's row outside Snoozed, and on its Snoozed row only when it has no
-  other.
+  pick from outside the list (Open in SitRep, a restore at launch) lands on
+  the session's row outside Snoozed, and on its Snoozed row only when it has
+  no other.
 - **Snooze, from a row:** a right-click on a card's or a sidebar row whose
   lines hold asks offers Snooze, then Later today, Tomorrow or Next week:
   `sitrep snooze` with the asks the row shows, by their ids, so an ask that
@@ -3696,17 +3696,17 @@ stands).
   on the Space Lee is on: it moves to the active Space and comes forward
   there before SitRep activates, so the activation takes him to no other
   Space. It moves only as SitRep brings it forward: `.moveToActiveSpace`
-  holds from then until it is key, and otherwise it stays on its own Space.
-  A jump, from the window, the notch, the strip, the menu or a macOS
-  notification, and a pick made elsewhere leave it where it is, never
-  ordered front (Lee, 23 October 2026: "If it's open, it should stay where
-  it is"). Clicking a notification activates SitRep, and while the window
-  always moved to the active Space, it went to Lee's Space with that click,
-  before the jump took him back to its own. The menu opens it (see
-  "The menu bar item"). ⌘, and the menu's Settings… open it on Settings,
-  or turn it there where it shows already; ⌘, is a key of the app's main
-  menu, which an accessory app never shows, so it works while a SitRep
-  window is key.
+  holds from then until it is key, or, never keyed, until Lee changes
+  Space, and otherwise it stays on its own Space. A jump, from the window,
+  the notch, the strip, the menu or a macOS notification, leaves it where
+  it is, never ordered front (Lee, 23 October 2026: "If it's open, it
+  should stay where it is"). Clicking a notification activates SitRep, and
+  while the window always moved to the active Space, it went to Lee's
+  Space with that click, ahead of the jump to the session's. The menu
+  opens it (see "The menu bar item"). ⌘, and the menu's Settings… open it
+  on Settings, or turn it there where it shows already; ⌘, is a key of the
+  app's main menu, which an accessory app never shows, so it works while a
+  SitRep window is key.
 - **The frame is macOS's own** (Lee, 20 October 2026, of a sidebar of
   hand-made glass, its corners unlike the window's and the traffic lights
   on its corner: "It looks a mess"). Whatever macOS draws, SitRep does not
@@ -3761,21 +3761,21 @@ stands).
   system would, its grey, or the accent while the list has the key window's
   focus, its words white on it, so a click on it selects it and opens the
   project's page.
-  A pick made outside the list, a restore at launch, the menu opening a
-  session, a jump, a project's name pressed on a session's page, unfolds
-  the section holding its row, Projects for a project or a session with no
-  row, and opens "N earlier" where its row is under it, so the pick shows;
-  the unfold is kept, as a click's is. While the filter holds text a pick
-  made outside the list unfolds only what the filter shows, until it
+  A pick made outside the list, a restore at launch, Open in SitRep from a
+  card's row or its menu, a project's name pressed on a session's page,
+  unfolds the section holding its row, Projects for a project or a session
+  with no row, and opens "N earlier" where its row is under it, so the pick
+  shows; the unfold is kept, as a click's is. While the filter holds text a
+  pick made outside the list unfolds only what the filter shows, until it
   clears; as it clears, every pick made meanwhile shows, one made by a
-  click, the keys or Return, or from outside the list, by a jump, the menu
-  or a notification, or picked afresh as the board drops the pick: whatever
-  of Lee's folds would hide it unfolds as for a pick made outside the list,
-  kept, and "N earlier" open for the run only, and everything else the
-  filter opened folds back. A pick made before the filter changes nothing
-  as it clears, Return on the row already picked included, and closing the
-  window, which clears the filter, shows nothing: opening it again picks
-  afresh.
+  click, the keys or Return, or from outside the list, by Open in SitRep,
+  Settings… or ⌘, or a project's name, or picked afresh as the board drops
+  the pick: whatever of Lee's folds would hide it unfolds as for a pick
+  made outside the list, kept, and "N earlier" open for the run only, and
+  everything else the filter opened folds back. A pick made before the
+  filter changes nothing as it clears, Return on the row already picked
+  included, and closing the window, which clears the filter, shows
+  nothing: opening it again picks afresh.
   A heading folded over the pick hides its row and keeps its page, the list
   then showing nothing picked, Projects folded over a project's page as
   any. The arrow keys move
@@ -3801,8 +3801,8 @@ stands).
   one, where `watch` has it. A resort slides the rows; a fold, or a row
   folding into "N earlier" as time passes, changes the list at once. The
   row picked scrolls into view, only as far as it needs, whenever the pick
-  or the order changes: a pick made elsewhere, by a jump, a notification
-  or the menu, or before the window shows, and a resort or a fold. The
+  or the order changes: a pick made elsewhere, by Open in SitRep or a
+  project's name, or before the window shows, and a resort or a fold. The
   Filter field stays put above the rows as they scroll.
 - **Under the pointer** (Lee, 20 October 2026: "When I hover down the
   left-hand side, nothing highlights"; then, of glass highlights over the

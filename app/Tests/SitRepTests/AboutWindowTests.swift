@@ -29,6 +29,15 @@ struct AboutWindowTests {
         #expect(!Self.window.collectionBehavior.contains(.moveToActiveSpace))
     }
 
+    /// Shown, it comes forward on the Space Lee is on, as SitRep brings any window of its own forward.
+    @Test func itShowsByComingForward() {
+        let window = RecordedWindow.made()
+
+        AboutWindow { window }.show()
+
+        #expect(window.steps == [.orderFront(movesToActiveSpace: true), .activate(movesToActiveSpace: true)])
+    }
+
     @Test func itIsAsWideAsDrawnItsHeightFromWhatItShows() {
         let window = AboutWindow.window(NSHostingController(rootView: AboutView()))
 
