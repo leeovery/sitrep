@@ -75,7 +75,7 @@ struct SessionPageTests {
 
         #expect(!away.jumps)
         #expect(away.finish == .offered)
-        #expect(away.asks.first { $0.id.ask == "k1" }?.buttons == [.yes("Approve"), .ignore])
+        #expect(away.asks.first { $0.id.ask == "k1" }?.buttons == [.yes("Approve"), .ignore, .snooze])
 
         let run = opened(on: heard(line(with: "sr-gs7kq2", doing: .yourTurn)))
 
@@ -98,28 +98,28 @@ struct SessionPageTests {
     @Test func aYesIsAPillInClaudesWordsBesideACommentInClaudeAndIgnore() throws {
         let yes = try Self.card("k1", opened())
 
-        #expect(yes.buttons == [.yes("Approve"), .inClaude(.comment), .ignore])
+        #expect(yes.buttons == [.yes("Approve"), .inClaude(.comment), .ignore, .snooze])
         #expect(yes.where == "In Paper: SitRep · side panel, page “The SitRep window”, artboards A to C")
         #expect(yes.lines.isEmpty)
     }
 
     @Test func aChoiceIsAPillPerOption() throws {
         #expect(try Self.card("k2", opened()).buttons == [
-            .option("Left, the notch's edge"), .option("Right"), .inClaude(.comment), .ignore,
+            .option("Left, the notch's edge"), .option("Right"), .inClaude(.comment), .ignore, .snooze,
         ])
     }
 
     @Test func aWordsAskIsAnsweredInClaudeAndSaysWhatItsWordsAre() throws {
         let words = try Self.card("k3", opened())
 
-        #expect(words.buttons == [.inClaude(.answer), .ignore])
+        #expect(words.buttons == [.inClaude(.answer), .ignore, .snooze])
         #expect(words.needs == "the command's output")
     }
 
     @Test func onAnAwaySessionAYesOrAChoiceWaitsInTheInboxAndNothingNeedsClaudesPrompt() throws {
         let choice = try Self.card("k1", Self.picked("sr-gs7kq2", boards: ["sr-gs7kq2": Lines.away]))
 
-        #expect(choice.buttons == [.option("Keep it"), .option("Drop it"), .ignore])
+        #expect(choice.buttons == [.option("Keep it"), .option("Drop it"), .ignore, .snooze])
         #expect(choice.lines == [.inbox])
     }
 
@@ -138,6 +138,8 @@ struct SessionPageTests {
         #expect(try Self.card("k1", run).lines == [.onItsWay("→ Approve", .window)])
     }
 
+    /// It bars no answer, so the buttons stay; but not Snooze, as an ask a reply of Lee's is on its way to waits on him
+    /// no more.
     @Test func aCommentOnItsWayBarsNoAnswerSoTheButtonsStay() throws {
         let comment = Lines.onItsWay
             .replacingOccurrences(of: #""isAnswer": true,"# + "\n" + #"        "words": "→ Approve""#, with: #""isAnswer": false,"# + "\n" + #"        "words": "comment: “Tighten it”""#)

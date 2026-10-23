@@ -134,7 +134,7 @@ struct WindowRunFoldsTests {
             .fold(.section(.needsYou)), .pick(.session("sr-dash02")), .fold(.section(.yourTurn)),
             .pick(.session("sr-rq7dgr")), .fold(.projects), .pick(.project("switchboard")),
         ])
-        #expect(run.folds == Folds(sections: [.yourTurn]))
+        #expect(run.folds == Folds(sections: [.yourTurn, .snoozed]))
         run.filter = Filter()
         #expect(!Self.ids(run).contains(.pick(.session("sr-rq7dgr"))))
         #expect(!Self.ids(run).contains(.pick(.project("switchboard"))))

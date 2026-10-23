@@ -130,16 +130,18 @@ struct NotchRunTests {
         }
     }
 
-    /// A right-click finds the session of the row under it, away or not; its menu's jump presses the row in as a
-    /// click does, and on an away row, which no window holds, jumps nowhere.
+    /// A right-click finds the row under it, away or not; its menu's jump presses that row in as a click does, and on
+    /// an away row, which no window holds, jumps nowhere.
     @Test func theMenusJumpIsAClickOnTheRow() throws {
         let run = Self.openedWithAway()
 
-        #expect(run.session(at: try Self.point(of: "needs:sr-k", in: run), in: Self.setting)?.id == "sr-k")
-        #expect(run.session(at: try Self.point(of: "needs:sr-a", in: run), in: Self.setting)?.id == "sr-a")
-        #expect(run.jump(to: "sr-k", Self.at(run.time), mayJump: true) == nil)
+        #expect(run.row(at: try Self.point(of: "needs:sr-k", in: run), in: Self.setting)?.session?.id == "sr-k")
+        #expect(run.row(at: try Self.point(of: "needs:sr-a", in: run), in: Self.setting)?.key == "needs:sr-a")
+        #expect(run.jump(to: "needs:sr-k", Self.at(run.time), mayJump: true) == nil)
 
-        guard case let .jump(session, to: target, click: click)? = run.jump(to: "sr-a", Self.at(run.time), mayJump: true)
+        guard case let .jump(session, to: target, click: click)? = run.jump(
+            to: "needs:sr-a", Self.at(run.time), mayJump: true
+        )
         else {
             Issue.record("the menu's jump did not jump")
             return
@@ -158,7 +160,7 @@ struct NotchRunTests {
         run.menuOpened(at: try Self.point(of: "needs:sr-a", in: run))
         Self.frames(run, for: 10_000, away)
         #expect(run.phase == .open)
-        guard case .jump? = run.jump(to: "sr-a", Self.at(run.time, away), mayJump: true) else {
+        guard case .jump? = run.jump(to: "needs:sr-a", Self.at(run.time, away), mayJump: true) else {
             Issue.record("the menu's jump found no row")
             return
         }

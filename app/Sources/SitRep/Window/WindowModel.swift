@@ -3,11 +3,12 @@ import Observation
 import SitRepCore
 import SitRepEdge
 import enum SitRepPanel.FoldPeriod
+import enum SitRepPanel.SnoozeChoice
 import SitRepWindow
 
 /// The SitRep window's run, as the views see it: what it lists and shows, kept current as the board, the clock and
 /// Lee's presses change it. It runs what the run asks for, each off the main thread: a session's board, an answer,
-/// a finish; and a jump, through the app's `Works`, one at a time.
+/// a finish; a snooze or a wake, through the app's `Snoozes`; and a jump, through the app's `Works`, one at a time.
 @MainActor
 @Observable
 final class WindowModel {
@@ -26,8 +27,11 @@ final class WindowModel {
     /// What the views' presses ask the model for.
     @ObservationIgnored private(set) var actions = WindowActions()
     @ObservationIgnored private let run: WindowRun
+    /// The calendar the window's wake times are worded on, its run's.
+    var calendar: Calendar { run.calendar }
     @ObservationIgnored private let plugin: Plugin
     @ObservationIgnored private let works: Works
+    @ObservationIgnored private let snoozes: Snoozes
     @ObservationIgnored private let defaults: UserDefaults
     @ObservationIgnored private let saved: SavedSettings<SidebarSettings>
     /// The folds as last saved, which are saved again as they change.
@@ -40,9 +44,10 @@ final class WindowModel {
     private static let tick: TimeInterval = 30
 
     /// `period`, how long a your-turn row stays before it folds into "N earlier", as Lee set it.
-    init(plugin: Plugin, works: Works, period: FoldPeriod, defaults: UserDefaults = .standard) {
+    init(plugin: Plugin, works: Works, snoozes: Snoozes, period: FoldPeriod, defaults: UserDefaults = .standard) {
         self.plugin = plugin
         self.works = works
+        self.snoozes = snoozes
         self.defaults = defaults
         let saved = SavedSettings<SidebarSettings>(defaults)
         let folds = saved.read().folds
@@ -57,6 +62,10 @@ final class WindowModel {
             toggle: { [weak self] in self?.toggle($0) },
             toggleItem: { [weak self] in self?.toggle($0) },
             jump: { [weak self] in self?.jump($0) },
+            snooze: { [weak self] in self?.snooze($0, $1) },
+            wake: { [weak self] in self?.wake($0) },
+            snoozeRow: { [weak self] in self?.snoozes.snoozeRow($0.asks, of: $0.id, $1) },
+            wakeRow: { [weak self] in self?.snoozes.wakeRow($0.asks, of: $0.id) },
             askToFinish: { [weak self] in self?.askToFinish($0) },
             cancelFinish: { [weak self] in self?.cancelFinish($0) },
             confirmFinish: { [weak self] in self?.confirmFinish($0) },
@@ -208,6 +217,30 @@ final class WindowModel {
             let finished = await plugin.ask({ await $0.finish(session) }, unrun: WriteAnswer.refused)
 
             run.finished(session, finished)
+            refresh()
+        }
+    }
+
+    /// A time chosen on a card's Snooze: the ask snoozed, its card saying any refusal.
+    private func snooze(_ ask: AskAddress, _ choice: SnoozeChoice) {
+        run.snoozing(ask)
+        refresh()
+        Task {
+            let written = await snoozes.snooze([ask.ask], of: ask.session, choice)
+
+            read(run.snoozed(ask, written))
+            refresh()
+        }
+    }
+
+    /// A card's Wake now: the ask woken, its card saying any refusal.
+    private func wake(_ ask: AskAddress) {
+        run.snoozing(ask)
+        refresh()
+        Task {
+            let written = await snoozes.wake([ask.ask], of: ask.session)
+
+            read(run.woke(ask, written))
             refresh()
         }
     }

@@ -5,8 +5,8 @@ import Testing
 
 /// A row on the black card as Paper's board F draws it, taken relative to the built row: a Needs you row is its
 /// session, one row of standard height whatever its count, its name over its project, a quiet "+2" 6 after the name for
-/// its lines after the first; under the pointer any row's time gives way to its button, 24 square on the row's middle,
-/// and its right-click menu offers to open it in SitRep or jump to its window. Read from its pixels at 2×.
+/// its lines after the first; under the pointer any row's time gives way to its button, 24 square on the row's middle
+/// (its right-click menu is `RowMenuTests`'). Read from its pixels at 2×.
 @MainActor
 struct CardSessionRowTests {
     private static let width = 344.0
@@ -146,6 +146,53 @@ struct CardSessionRowTests {
         #expect(row.opener.isHidden)
     }
 
+    /// Harness's two asks asleep, the sooner waking a day after the time the rows are drawn at; away, or a window
+    /// holding it.
+    private static func asleep(away: Bool = false) -> Session {
+        Session(
+            id: "sr-4g01a7", project: "Harness", name: name, kind: .snoozed, away: away,
+            lines: titles.prefix(2).enumerated().map { Session.Line(ask: "k\($0)", title: $1, since: 0) }, sub: "Harness",
+            wakesAt: 29 * 3_600_000
+        )
+    }
+
+    /// A Snoozed row is a Needs you row quieted (board G), the same away or not: its dot 7 across with no glow, in its
+    /// project's faint grey; its name in the soft grey a Needs you row's project takes; and in its time's place, in the
+    /// soft grey too, when it wakes, its lane grown past the 36 to fit it, still ending at 334, the name cut short
+    /// before it.
+    @Test(arguments: [false, true])
+    func aSnoozedRowIsANeedsYouRowQuietedWithWhenItWakes(away: Bool) throws {
+        let asleep = Self.asleep(away: away)
+        let drawn = try Drawn(Self.card(asleep).layer), needs = try Drawn(Self.card(Self.harness(1)).layer)
+        let dot = try #require(drawn.drawnBox(in: CGRect(x: 4, y: 10, width: 22, height: 18), ground: Self.ground))
+        let wakes = try #require(drawn.drawnBox(in: CGRect(x: 250, y: 10, width: 94, height: 18), ground: Self.ground))
+        let words = TextLine.text(asleep.timeText(at: 5 * 3_600_000, in: WakeTime.calendar), EdgeStyle.age, EdgeStyle.ink2)
+        let name = CGRect(x: 32, y: 10, width: 100, height: 18), project = CGRect(x: 26, y: 28, width: 200, height: 16)
+        let soft = try needs.brightest(in: project)
+
+        #expect(abs(dot.width - 7) <= 1 && abs(dot.height - 7) <= 1)
+        #expect(try drawn.brightest(in: dot).isAlike(drawn.brightest(in: project)))
+        #expect(try drawn.brightest(in: project).lightness < soft.lightness - 0.3)
+        #expect(try drawn.brightest(in: name).isAlike(soft))
+        #expect(try drawn.brightest(in: wakes).isAlike(soft))
+        #expect((332.5 ... 334.5).contains(wakes.maxX))
+        #expect(abs(wakes.width - TextLine.width(words)) <= 1.5 && wakes.width > 36)
+    }
+
+    /// Its lane grown to fit when it wakes, its lines laid out again are drawn at the row's scale, as on Retina, the
+    /// line under its title among them.
+    @Test func aSnoozedRowsLinesLaidOutAgainAreAtItsScale() {
+        let row = SessionRow(Self.asleep(), size: CGSize(width: Self.width, height: Item.session(Self.asleep()).height - Item.rowGap))
+
+        rescale(row.layer, to: 2)
+        row.showAge(at: 5 * 3_600_000)
+
+        let lines = (row.layer.sublayers ?? []).filter { $0 is TextLine }
+
+        #expect(lines.count >= 3)
+        #expect(lines.allSatisfy { $0.contentsScale == 2 })
+    }
+
     /// Off the row, its time in the lane ending at 334, as tall as its figures; under the pointer, the button's glyph
     /// alone on the button, the time gone from under it (`underThePointerTheButtonTakesTheTimesPlace`).
     @Test func offTheRowItsTimeShows() throws {
@@ -153,20 +200,5 @@ struct CardSessionRowTests {
         let time = try #require(drawn.drawnBox(in: CGRect(x: 290, y: 0, width: 54, height: 55), ground: Self.ground))
 
         #expect(time.height < 12 && abs(time.maxX - 334) <= 1.5)
-    }
-
-    /// The right-click menu: Open in SitRep, then Jump to the window, disabled on an away row; each for its session.
-    @Test(arguments: [false, true])
-    func theMenuOpensOrJumpsJumpingDisabledAway(away: Bool) {
-        let target = NSObject()
-        let menu = CardRowMenu.make(
-            for: Self.harness(1, away: away), target: target, open: #selector(NSObject.copy), jump: #selector(NSObject.mutableCopy)
-        )
-
-        #expect(menu.items.map(\.title) == ["Open in SitRep", "Jump to the window"])
-        #expect(menu.items.map(\.isEnabled) == [true, !away])
-        #expect(menu.items.map { $0.representedObject as? String } == ["sr-4g01a7", "sr-4g01a7"])
-        #expect(menu.items.map(\.action) == [#selector(NSObject.copy), #selector(NSObject.mutableCopy)])
-        #expect(menu.items.allSatisfy { $0.target === target })
     }
 }

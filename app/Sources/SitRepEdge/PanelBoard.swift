@@ -2,12 +2,14 @@ import Foundation
 import SitRepCore
 import SitRepPanel
 
-/// The board `watch` last printed, in the panel's terms: its rows as the panel's sessions, in core's order, its head,
-/// whether anything needs Lee, and what is new. Core decided every one of them; this decides nothing, and only says
-/// them as the panel does.
+/// The board `watch` last printed, in the panel's terms: its rows as the panel's sessions, in core's order, its
+/// Snoozed rows apart from them, its head, whether anything needs Lee, and what is new. Core decided every one of them;
+/// this decides nothing, and only says them as the panel does.
 public struct PanelBoard: Equatable, Sendable {
-    /// In core's order.
+    /// In core's order: the strip's and the menu's, and the card's but for Snoozed.
     public let sessions: [Session]
+    /// The card's Snoozed rows, the soonest to wake first, which the strip and the menu leave out.
+    public let snoozed: [Session]
     public let head: Head
     public let needsLee: Bool
     /// The rows holding a line needing Lee that is new on this board, by their sessions: the notch's swell, and each
@@ -30,7 +32,9 @@ public struct PanelBoard: Equatable, Sendable {
 
     /// With no `watch` to run, its head says why.
     public init(unrun why: String) {
-        self.init(sessions: [], head: Head(title: why, count: ""), needsLee: false, new: [], unread: why, asOf: nil)
+        self.init(
+            sessions: [], snoozed: [], head: Head(title: why, count: ""), needsLee: false, new: [], unread: why, asOf: nil
+        )
     }
 
     /// The board as last heard. While it is stale, its rows stay as they were and its head says when it was last
@@ -39,7 +43,7 @@ public struct PanelBoard: Equatable, Sendable {
         guard let board = last.board else {
             let head = last.stale == nil ? Self.looking : Self.unread
 
-            self.init(sessions: [], head: head, needsLee: false, new: [], unread: head.title, asOf: nil)
+            self.init(sessions: [], snoozed: [], head: head, needsLee: false, new: [], unread: head.title, asOf: nil)
             return
         }
 
@@ -48,6 +52,7 @@ public struct PanelBoard: Equatable, Sendable {
 
         self.init(
             sessions: board.rows.map(Session.init),
+            snoozed: board.snoozed.map(Session.init),
             head: asOf.map { Head(title: head.title, count: $0) } ?? head,
             needsLee: !board.head.isAllClear,
             // stale, the last line's new rows are not new again
@@ -57,8 +62,12 @@ public struct PanelBoard: Equatable, Sendable {
         )
     }
 
-    private init(sessions: [Session], head: Head, needsLee: Bool, new: Set<String>, unread: String?, asOf: String?) {
+    private init(
+        sessions: [Session], snoozed: [Session], head: Head, needsLee: Bool, new: Set<String>, unread: String?,
+        asOf: String?
+    ) {
         self.sessions = sessions
+        self.snoozed = snoozed
         self.head = head
         self.needsLee = needsLee
         self.new = new
@@ -81,6 +90,12 @@ public struct PanelBoard: Equatable, Sendable {
     public func jump(_ row: Session) -> String? {
         row.jumps ? row.id : nil
     }
+
+    /// The card's rows: core's, then Snoozed's.
+    public var cardSessions: [Session] { sessions + snoozed }
+
+    /// Nothing for the card to list: no row, nor any in Snoozed.
+    public var isEmpty: Bool { sessions.isEmpty && snoozed.isEmpty }
 }
 
 extension Session {
@@ -96,6 +111,17 @@ extension Session {
             sub: isNamed ? row.projectName : row.second
         )
     }
+
+    /// A Snoozed row as the card draws it, keyed by its session as a Needs you row is, and named as one is: its
+    /// project beneath its name, or for an away one, core's second line; when its soonest line wakes in its time's
+    /// place.
+    init(_ row: Board.SnoozedRow) {
+        self.init(
+            id: row.session, project: row.projectName, name: row.name, letters: row.letters, kind: .snoozed,
+            away: row.isAway, lines: row.lines.map(Line.init), sub: row.projectName,
+            wakesAt: row.wakesAt.timeIntervalSince1970 * 1000
+        )
+    }
 }
 
 private extension Session.Line {
@@ -106,10 +132,15 @@ private extension Session.Line {
         let isFollowed = words.mono != nil || words.subject != nil || words.until != nil
 
         self.init(
-            title: isFollowed ? words.lead + " " : words.lead, code: words.mono, subject: words.subject,
+            ask: line.ask, title: isFollowed ? words.lead + " " : words.lead, code: words.mono, subject: words.subject,
             until: words.until.map { $0.timeIntervalSince1970 * 1000 }, more: words.more,
             since: line.since.timeIntervalSince1970 * 1000
         )
+    }
+
+    /// An ask asleep, its title its words.
+    init(_ line: Board.SnoozedRow.Line) {
+        self.init(ask: line.ask, title: line.first.lead, since: line.since.timeIntervalSince1970 * 1000)
     }
 }
 

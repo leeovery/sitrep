@@ -8,6 +8,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let banners = Banners()
     private let plugin = Plugin()
     private lazy var works = Works(banners: banners, plugin: plugin)
+    private lazy var snoozes = Snoozes(plugin: plugin, banners: banners)
     private let feed = Feed()
     /// The plugin folder `watch` runs on; nil before it first starts.
     private var watching: String?
@@ -17,7 +18,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var edge: Edge?
     private let about = AboutWindow()
     private lazy var window = SitRepWindow(
-        plugin: plugin, works: works,
+        plugin: plugin, works: works, snoozes: snoozes,
         settings: SettingsModel(preferences: preferences, live: live, services: makeServices())
     )
 
@@ -33,7 +34,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             preferences,
             jump: { [works] session, answered in works.jump(to: session, answered: answered) },
             isJumping: { [works] in works.isJumping },
-            open: { [window] in window.open(on: .session($0)) }
+            open: { [window] in window.open(on: .session($0)) },
+            snoozes: snoozes
         )
         let menu = StatusMenu(
             works: works, preferences: preferences, openWindow: { [window] in window.open() },

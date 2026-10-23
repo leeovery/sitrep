@@ -43,6 +43,7 @@ public enum Words {
         case .inClaude(.comment): "Comment in Claude ↗"
         case .inClaude(.answer): "Answer in Claude ↗"
         case .ignore: "Ignore"
+        case .snooze: snooze
         }
     }
 
@@ -55,6 +56,8 @@ public enum Words {
         case let .commentOnItsWay(comment): (comment, "on its way")
         case let .changedSince(answer): (answer, "Claude has it, but the ask changed since: it waits on you again")
         case let .refused(why): (nil, why)
+        case let .notSnoozed(why): (nil, "Not snoozed: \(why)")
+        case let .notWoken(why): (nil, "Not woken: \(why)")
         case .inbox: (nil, "Your answer waits in its inbox, and goes in when a window takes the session up again.")
         case let .closed(how): (nil, closed(how))
         }
@@ -90,6 +93,20 @@ public enum Words {
     /// button under the pointer jumps; and the card's menu's way into the window.
     public static let jumpToWindow = "Jump to the window"
     public static let openInSitRep = "Open in SitRep"
+
+    /// A row's menu's way to snooze its asks, and a card's, before the times it offers; and its way to wake them.
+    public static let snooze = "Snooze"
+    public static let wakeNow = "Wake now"
+
+    /// A card asleep: when it wakes, as the wake's words say it.
+    public static func snoozedUntil(_ wakes: String) -> String {
+        "Snoozed until \(wakes)"
+    }
+
+    /// The Asks heading's words after those waiting: how many are asleep, none where none are.
+    public static func snoozed(_ count: Int) -> String? {
+        count > 0 ? "\(count) snoozed" : nil
+    }
 
     public static let finish = "✓ Finish this session"
     public static let finishWhy = "For a session left with things open when its window closed."

@@ -2,8 +2,8 @@ import SitRepWindow
 import SwiftUI
 
 /// A project, opened from its name: its sessions, each with what it is doing and what waits there; every session's
-/// asks, the newest first, each one line that a press opens in place into its card; their notes and their parked
-/// items in two columns. Each line names its session, where the project has several.
+/// asks, the newest first, each one line that a press opens in place into its card, one asleep quieted as its card is;
+/// their notes and their parked items in two columns. Each line names its session, where the project has several.
 struct ProjectPageView: View {
     let page: ProjectPage
     let now: Date
@@ -70,10 +70,10 @@ struct ProjectPageView: View {
                             if ask.card.isClosed {
                                 ClosedTick()
                             } else {
-                                MarkView(mark: .needs)
+                                MarkView(mark: ask.card.snoozedUntil == nil ? .needs : .snoozed)
                             }
                             Text(ask.card.title)
-                                .foregroundStyle(ask.card.isClosed ? WindowStyle.faint : WindowStyle.text)
+                                .foregroundStyle(Self.ink(ask.card))
                                 .led(by: ask.session)
                                 .font(WindowStyle.ui(13))
                                 .lineLimit(1)
@@ -89,6 +89,11 @@ struct ProjectPageView: View {
                 }
             }
         }
+    }
+
+    /// An ask's line's title: faint once closed, soft while asleep.
+    private static func ink(_ card: Card) -> Color {
+        card.isClosed ? WindowStyle.faint : card.snoozedUntil == nil ? WindowStyle.text : WindowStyle.soft
     }
 }
 

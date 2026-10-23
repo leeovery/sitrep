@@ -1195,8 +1195,9 @@ a call made then that Lee has not made himself.
   - Next week: 09:00 on the Monday after today, a week on from a Monday.
 
   Lee: "We can always improve and add new options there." Each is worked out
-  where it is pressed, on that Mac's calendar and in its time zone, so 09:00
-  is 09:00 across a change of the clocks: the app's in Swift, the pane's by
+  where it is pressed, on the Gregorian calendar in that Mac's time zone,
+  whatever calendar the Mac is set to, so 09:00 is 09:00 across a change of
+  the clocks and Monday is core's Monday: the app's in Swift, the pane's by
   core's `snoozeAt`, both to this rule (**proposed**: the day after today is
   the next calendar day, so Tomorrow pressed at 01:00 wakes 32 hours on).
   What is pressed is stored as the instant it comes to, in milliseconds since
@@ -2806,12 +2807,14 @@ eyebrow with it.
   it stood under the head.
 - **An eyebrow** is 28 tall: the section's name 10 in, 11 semibold in white
   at 55%; its count 6 after it, 11 semibold in tabular figures, in orange
-  for Needs you and white at 30% for the others; and at its right a
+  for Needs you, the faint grey (#5C5C63) for Snoozed and white at 30% for
+  the others; and at its right a
   chevron, 10 by 6 and stroked 1.5 in white at 25% with round caps, in a box
   15 by 24 that stands 7.5 in, so the chevron ends where a row's time does.
   Needs you counts its waiting lines, the asks and stops (Kit's one and
   Harness's three are 4); Working and Your turn count their rows, Your
-  turn's folded ones among them. The eyebrow after the hairline follows it
+  turn's folded ones among them; Snoozed counts its asks, as Needs you its
+  lines. The eyebrow after the hairline follows it
   straight on, Working's, or Your turn's where there is no Working; Your
   turn's under Working sits 10 under it, Working folded or not.
 - **The hairline** sits after Needs you only, as it did, whenever another
@@ -2821,7 +2824,10 @@ eyebrow with it.
   Either changes at once, with no motion, as the Settings card does (Lee,
   22 October 2026, of the motion there: "a bit jarring"). The folds are kept
   across opens and launches, a value of their own in the app's defaults
-  under "card". An arrival unfolds Needs you, at once: a row holding a line
+  under "card", each section saved folded or unfolded, so one added later
+  takes its own default: Snoozed, folded at first, reads folded from a value
+  saved before it was, and every other section open. An arrival unfolds
+  Needs you, at once: a row holding a line
   new to the board, as swells the notch, whether the session is new, comes
   to need Lee or gains a line. The unfold is kept, as a click's is: Needs
   you stays open until Lee folds it again. At once is for what the fold
@@ -2849,6 +2855,15 @@ eyebrow with it.
   under the line where it is open, the card drawn again at that moment
   as it is drawn again as a row's time changes, and nothing polls; the
   period changing refolds the card at once.
+- **Snoozed** (23 October 2026, Paper's board G; see "Snooze") is the
+  card's last section, under Your turn, 10 under it as Your turn is under
+  Working: a row for each session with asks Lee snoozed, its lines those
+  asks, the soonest to wake first, as `watch`'s `snoozed` has them. A
+  session with asks waiting too has a row in Needs you as well, as two rows
+  of the one session. It is folded at first, to its eyebrow and its count.
+  Its rows are the card's alone: the strip and the menu show none, nothing
+  in it lights or swells the notch, and none of its rows washes. With
+  nothing else to list, the card lists Snoozed with no head.
 
 **A row is a session**, on every surface (22 October 2026, Paper's board D,
 "One list, two sizes"). Lee, of a first draw that set a session's asks
@@ -2908,31 +2923,30 @@ on the strip leaves room for the widest it will read, so it never widens
 past its tab: "in 1h" becomes "in 59m". The row's time still counts from
 the turn's end, as every row's does, so the countdown never shows twice.
 
-Rows keep their places while the panel is open: a changed row moves only
-once it closes. Each section, Needs you, Working or Your turn, is held on
-its own and the sections follow in their order, so each stays together
-under its eyebrow however core reorders it meanwhile (22 October 2026, rows
-by session, then the card's sections). A row is kept by its session, so one
+Rows keep their places while the panel is open: a changed row moves only once
+it closes. Each section, Needs you, Working, Your turn or Snoozed, is held on
+its own and the sections follow in their order, so each stays together under
+its eyebrow however core reorders it meanwhile (22 October 2026, rows by
+session, then the card's sections). A row is kept by its session, so one
 gaining or losing a line in Needs you, as a second ask comes, is the same
 row, its "+N" changed where it stands, at once, as is one going from working
-to on its own work, both Working. A row changing section, its session coming to need Lee, its asks
-answered, or its turn ending, leaves its held place and takes its place in
-its new section: it folds away where it was and unfolds in the other, as
-two rows, as when each ask was a row of its own, washed where it arrives
-and never as it folds away. "N earlier" and the rows folded under it are
-Your turn's.
-Meanwhile a row gone folds away where it was, and a new one unfolds,
-washed if it needs Lee (20 October 2026). A row new to a section, new to
-the board or come from another, goes under the row core has above it in
-that section, or at the section's top where core has none there. A click
-on an away row does nothing; it is there, but there
-is no window to jump to; its button still opens it in the SitRep window
-(board F). What a click on it opens is open for Lee, decided later: for
-Lee, a new Ghostty window attached to the session's tmux session, where
-there is one (Lee, 16 October 2026, in place of "until the SitRep window
-exists; then it opens the session there"). This replaces the first list,
-needs you, your turn, working, quiet and not on screen: quiet was your
-turn, and not on screen is a fact about where a window is, for the jump.
+to on its own work, both Working. A row changing section, its session coming
+to need Lee, its asks answered, or its turn ending, leaves its held place and
+takes its place in its new section: it folds away where it was and unfolds in
+the other, as two rows, as when each ask was a row of its own, washed where
+it arrives and never as it folds away. "N earlier" and the rows folded under
+it are Your turn's. Meanwhile a row gone folds away where it was, and a new
+one unfolds, washed if it needs Lee (20 October 2026). A row new to a
+section, new to the board or come from another, goes under the row core has
+above it in that section, or at the section's top where core has none there.
+A click on an away row does nothing; it is there, but there is no window to
+jump to; its button still opens it in the SitRep window (board F). What a
+click on it opens is open for Lee, decided later: for Lee, a new Ghostty
+window attached to the session's tmux session, where there is one (Lee, 16
+October 2026, in place of "until the SitRep window exists; then it opens the
+session there"). This replaces the first list, needs you, your turn, working,
+quiet and not on screen: quiet was your turn, and not on screen is a fact
+about where a window is, for the jump.
 
 **How each row reads**, drawn in Paper's "Panel rows" (surfaces round 1,
 16 October 2026; Lee: "everything looks great"). A mark, two lines, and a
@@ -2971,6 +2985,18 @@ time on the right; one line each, cut short with an ellipsis:
   #8E8E95 after it, or a command in mono as working sets one; how long
   since its turn ended. Nothing of it runs: no shimmer, no turning, and only
   a wake's countdown is drawn again, as it reads differently.
+- **snoozed** (Paper's board G, 23 October 2026): a needs you row quieted.
+  Its dot 7 across in the faint grey, #5C5C63, with no glow; the session's
+  name in the soft grey, #98989F; its project, and its "+N", in the faint
+  grey. An away row is drawn the same, its project under its name, since an
+  ask Lee put off urges nothing until it wakes; it still jumps nowhere. In its
+  time's place, when it wakes, in the soft grey, 12 in tabular figures,
+  24-hour and local: today's time alone, "17:42"; within six days its
+  weekday, "Sat 09:00"; further out its date, "3 Nov 09:00". Its lane is the
+  time's 36, grown to fit the words where they are wider, still ending where
+  a time does, the name and project cut short before it. The words change
+  only at midnight, so the card is drawn again then for them, never each
+  minute.
 
 The shimmer stays neutral. Orange is for needs you only: the dot, the wash
 and a new row's "now". Lee had suggested working titles shimmer white or
@@ -3006,8 +3032,20 @@ disabled on an away row. While the menu shows, the card holds open as if
 the pointer rested where it was opened, wherever the pointer goes on the
 menu, and its grace starts only once the menu closes, so a choice made on it
 finds its row still there. While a row is pressed in, jumping, its spinner
-stands where the button was and the button takes no press. Snooze joins the
-menu with the snooze work. The card's rows are drawn layers, which VoiceOver
+stands where the button was and the button takes no press.
+
+On a row whose lines hold asks the menu goes on, after a separator, with
+Snooze (board G, 23 October 2026; see "Snooze"): a submenu of Later today,
+Tomorrow and Next week, each with the time it wakes on its right, worded as
+a Snoozed row words it, in white at 45%, at 70% on the highlighted item. A
+choice runs `sitrep snooze` with the ids of the asks the row showed, its
+time worked out at the press. A Snoozed row's menu ends with Wake now, in
+Snooze's place, which runs `sitrep wake` with its asks. A row of stops
+alone offers no Snooze. The CLI refusing either says why in a banner, "Not
+snoozed" or "Not woken" over the CLI's words, as a refused finish does. The
+system's menu sets a submenu's items as its own: the times are each item's
+second column, set on a tab stop past the widest name, and brighter as the
+item is highlighted. The card's rows are drawn layers, which VoiceOver
 does not read today, so neither the button nor the menu is offered to it.
 
 **The feel: Meniscus.** The edge is the surface of a liquid.
@@ -3283,7 +3321,10 @@ were settled in the browser spike (below, "How the strip moves").
   Needs you at once and its ring flashes twice, as a new one's does; one
   already on the Needs you side, a second ask come, flashes where it is.
   One whose asks are answered changes in place and moves at the re-sort,
-  as the prototype's answer does (below, "Too many").
+  as the prototype's answer does (below, "Too many"). The strip shows no
+  Snoozed (see "Snooze"): an ask asleep is no mark, and one its time wakes
+  arrives as a new one does, flashing its ring; one Lee wakes changes in
+  place.
 - **Too many.** The strip has as many places as Max gives it, or as the
   full height holds: about 30 (32 on a 1117pt screen, 27 on a 982pt one).
   Needs you takes them first, keeping one for your turn and working
@@ -3496,6 +3537,22 @@ stands).
       the moment it passes the period, the window drawn again then as for
       any change by time alone, nothing polling; the period changing refolds
       the list at once;
+    - **Snoozed** (23 October 2026, Paper's board H; see "Snooze") comes
+      after Your turn and before Projects: a row for each session with asks
+      Lee snoozed, its lines those asks, the soonest to wake first, beside the
+      session's row in Needs you where it has asks waiting too. It is folded
+      at first. Its rows are Needs you's quieted, away or not: the dot 7
+      across in white at 25%, with no glow; the name in white at 60%, white
+      on the pick as any row's words; "+N" and the project in
+      white at 35%; and in the age's place when it wakes, 12 in tabular
+      figures in white at 55%, worded as on the card, "17:42", "Sat 09:00" or
+      "3 Nov 09:00", its lane grown to fit and ending where an age does. None
+      of its rows washes: an ask its time wakes washes its row in Needs you;
+    - **a right-click on a row**, or a Control-click, brings up the card's
+      menu (see "The notch and its panel") but for Open in SitRep, which is
+      where it is: Jump to the window, disabled on an away row; then, where
+      the row's lines hold asks, Snooze with its three times, or on a Snoozed
+      row Wake now, each with the asks the row showed;
     - **Projects** ends it: every project on the board, quiet ones too, a
       row each in `watch`'s order, its name 13 regular in white at 85%
       starting where the heading's words do (Lee, 22 October 2026: the empty
@@ -3524,9 +3581,10 @@ stands).
       spacing", System Settings' sidebar his reference, its first item
       about 20 under its Search field). Its name is 11 semibold in white at
       55%, and 6 after it its count, 11 semibold in tabular figures, orange
-      for Needs you and white at 30% for the others: Needs you counts its
-      lines waiting, the asks and stops; Working and Your turn their rows,
-      "N earlier"'s among them; Projects its projects; each of what it
+      for Needs you, white at 35% for Snoozed and white at 30% for the
+      others: Needs you counts its lines waiting, the asks and stops; Working
+      and Your turn their rows, "N earlier"'s among them; Snoozed its asks;
+      Projects its projects; each of what it
       lists, filtered or not. Every heading folds, Needs you's too: a click
       anywhere on it folds what is under it to the heading alone, or
       unfolds it, at once, with no motion, as the card's eyebrows do, and
@@ -3537,7 +3595,9 @@ stands).
       are kept across launches, the sections folded and whether Projects
       is, in the window's saved value of its own, "window"; a round 8
       value, its projects folded by their keys, reads as the defaults,
-      Projects folded and nothing else. A picked row that moves into a
+      Projects folded and nothing else. Each section is saved folded or
+      unfolded, so a value saved before Snoozed was reads it folded, as it
+      is at first. A picked row that moves into a
       folded section, its turn ending under a folded Your turn, stays hidden
       there, and the arrow keys step from that section's heading, as from any
       pick a fold hides. While the filter holds text every section with a
@@ -3628,7 +3688,8 @@ stands).
   asks, the newest first; their notes; and their parked items, the oldest
   first. Each line names its session, unless the project has only the one,
   which it could only name. There is no Resolved. An ask there is one line,
-  and opens in place into its card.
+  and opens in place into its card. A snoozed ask is among them, its mark the
+  grey dot and its title soft, its card the session page's asleep one.
 - **It opens on** the oldest session that needs Lee; with none, on the one
   picked last. There is one window: opening it again brings it forward,
   on the Space Lee is on: it moves to the active Space and comes forward
@@ -3670,8 +3731,16 @@ stands).
   which said which of a doubled session's two rows showed it, gone with
   the doubled rows. A session keeps its selection as its row moves between
   sections, its asks coming or answered, its turn ending, its row the same
-  session's. The pick fills the whole row, whatever its kind, the
-  system's accent at radius 9, under which its words go white and the rest,
+  session's. Snoozed is the one exception (**proposed**, 23 October 2026;
+  see "Snooze"): a session in Snoozed and another section has a row in each,
+  and each is a pick of its own, which opens the same page. The row clicked
+  holds the pick, so the list selects the one Lee chose. A pick made outside
+  the list lands on the session's row outside Snoozed, and on its Snoozed
+  row only where it has no other, unfolding Snoozed to show it. As its row
+  goes, its last asks waiting snoozed or its last asleep woken, the pick
+  moves to the row the session has left, its page staying as it was. The
+  pick fills the whole row, whatever its kind, the system's accent at
+  radius 9, under which its words go white and the rest,
   its second line, its project, what it acts on and its ages, white at 80%;
   the orange stays orange. A project's page shows picked on its row in
   Projects, as a session's does on its own. A session with no row of its
@@ -3786,7 +3855,12 @@ stands).
     "Drawing the ledger schema, Switchboard, Request ledger, your turn, 12
     minutes". A heading reads its name and its count, as "Needs you, 4
     waiting", "Your turn, 3 sessions" or "Projects, 6 projects", and folded
-    says so, "Working, 2 sessions, folded"; "N earlier" reads how many and
+    says so, "Working, 2 sessions, folded", "Snoozed, 2 asks, folded"; a
+    Snoozed row reads as a Needs you row, then when it wakes, "wakes Saturday
+    09:00", weekday and month in whole words, and offers the action "Wake
+    now" after the jump; any other row whose lines hold asks offers its
+    menu's three snoozes after the jump, each saying when it would wake, as
+    "Snooze tomorrow, wakes Saturday 09:00"; "N earlier" reads how many and
     their projects, as "8 earlier, Switchboard, Fumi", and folded says so;
     a project's row reads "Kit, project". The Filter field reads as
     "Filter sessions", and the foot as one of the sidebar's choices, a radio
@@ -3794,7 +3868,7 @@ stands).
     selected, and announced as that changes;
   - the page's title, the eyebrow and the section headings carry the
     header trait, each heading read with the words on its right, as
-    "Asks, 3 waiting";
+    "Asks, 3 waiting", or "Asks, 1 waiting, 2 snoozed";
   - a card is a container labelled by its ask's title, after its
     session's name on a project's page, its buttons inside it. The title
     is said once, by the container; on a project's page its head, which
@@ -3849,6 +3923,21 @@ stands).
     puts the window in answering mode for the ask, its band saying "Your
     next Enter answers…". The mod cannot hear that from the app today;
   - **ignore** is quiet grey text.
+  - **Snooze ⌄** follows Ignore on an ask waiting on Lee (Paper's board H, 23
+    October 2026; see "Snooze"), none once Lee's reply is on its way: 12
+    medium in the soft grey, its chevron 8 by 5, plain at rest and a pill
+    in white at 8% while its menu is open. Its menu drops from it: Later
+    today, Tomorrow and Next week, each with its time on its right, as the
+    card's. A choice snoozes that one ask. Refused, the card says so, "Not
+    snoozed:" and the CLI's words, until it is pressed again.
+  - **Asks asleep** follow those waiting, the soonest to wake first, and the
+    heading says both, `1 waiting` in orange, then ` · 1 snoozed` in the faint
+    grey, only while any is. A card asleep is darker, #0C0C0D with a 1 inset
+    ring in white at 6%; its dot the faint grey and its title soft. Its
+    second line, 22 in, says "Snoozed until Sat 09:00", 12 in the soft grey
+    in tabular figures, then a Wake now pill, outlined in #2C2C31. It has no
+    answers. Wake now wakes that one ask; refused, the card says "Not
+    woken:" and the CLI's words.
 - **A permission prompt or a question** is the window's state, not an ask.
   It takes the state line's place, washed orange as the panel row that
   brought it, and says the tool and what it would run.

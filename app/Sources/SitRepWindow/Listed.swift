@@ -4,9 +4,10 @@ import SitRepEdge
 import SitRepPanel
 
 /// A session's mark, in the panel row's lane: needs you an orange dot, your turn an open ring, working the turning
-/// arc, on its own work the dotted ring, still; away, with nothing waiting, a faint dot.
+/// arc, on its own work the dotted ring, still; away, with nothing waiting, a faint dot; an ask asleep, or its row in
+/// Snoozed, a grey dot, unlit.
 public enum Mark: Sendable, Equatable {
-    case needs, turn, working, onItsWork, away
+    case needs, turn, working, onItsWork, away, snoozed
 
     init(_ state: Board.Session.State) {
         switch state {
@@ -30,8 +31,8 @@ public enum Mark: Sendable, Equatable {
 }
 
 /// The board down the window's left, as the card lists it: a row for each session core has one for, in its section,
-/// Needs you, Working or Your turn, in core's order, each session once; and every project, quiet ones too, for
-/// Projects at the list's foot.
+/// Needs you, Working or Your turn, in core's order, each session once; a row in Snoozed for each with asks asleep,
+/// beside any it has in another; and every project, quiet ones too, for Projects at the list's foot.
 public struct Listed: Equatable, Sendable {
     /// A project, a row of Projects, which opens its page: its sessions, those no window holds among them, and their
     /// notes as their boards are read.
@@ -44,7 +45,7 @@ public struct Listed: Equatable, Sendable {
 
     /// A session's row, in its section: under Needs you, its name and a count of its lines waiting on Lee over its
     /// project; in Working, its turn's line over its project and its name; in Your turn, what Claude left Lee, on one
-    /// line with its project.
+    /// line with its project; in Snoozed, as under Needs you, its asks asleep its lines, and when the soonest wakes.
     public struct Row: Equatable, Sendable, Identifiable {
         public let id: String
         public let name: String
@@ -56,20 +57,26 @@ public struct Listed: Equatable, Sendable {
         public let isAway: Bool
         /// When its oldest line began, which its time counts from: on Your turn, its turn's end.
         public let since: Date
-        /// Under Needs you, its asks and stops waiting on Lee, the oldest first, as core's row has them; else its
-        /// turn's one line.
+        /// Under Needs you, its asks and stops waiting on Lee, the oldest first, as core's row has them; in Snoozed,
+        /// its asks asleep, the soonest to wake first; else its turn's one line.
         public var lines: [Line] = []
+        /// In Snoozed, when its soonest ask wakes.
+        public var wakesAt: Date?
         /// New to needing Lee: washed orange from then (`Wash`).
         public var washed: Date?
         /// On Your turn, ended longer ago than the fold period: folded into "N earlier" (`WindowRun.listed(at:)`).
         public var isEarlier = false
 
-        public var pick: Pick { .session(id) }
+        /// What a click on it picks: its session, or in Snoozed, its row there, which shows the same page.
+        public var pick: Pick { section == .snoozed ? .snoozed(id) : .session(id) }
+
+        /// The asks its lines show, by their ids, a window's stops aside: what its menu snoozes, or wakes.
+        public var asks: [String] { lines.compactMap(\.ask) }
 
         /// A window holds it: its button under the pointer, and VoiceOver's "Jump to the window", jump there.
         public var jumps: Bool { !isAway }
 
-        /// Under Needs you, what follows its name: "+2" for its two lines after the first.
+        /// Under Needs you and in Snoozed, what follows its name: "+2" for its two lines after the first.
         public var more: String? { Session.more(over: lines.count) }
 
         /// When its newest line new to needing Lee began to wash, while one does: its age washes with it.
@@ -81,6 +88,8 @@ public struct Listed: Equatable, Sendable {
     public struct Line: Equatable, Sendable, Identifiable {
         /// Its key in core's row.
         public let id: String
+        /// The ask it is, by its id; nil for a window's stop or the session's turn.
+        public var ask: String?
         /// Its words, or a working line's verb.
         public let lead: String
         /// A command or a path, set in mono after the lead.
@@ -150,9 +159,20 @@ public struct Listed: Equatable, Sendable {
     /// Every session needing Lee, in core's order.
     public var needsYou: [Row] { rows(in: .needsYou) }
 
-    /// It has a row for the pick, a session's or a project's.
+    /// It has a row for the pick, a session's, a session's in Snoozed or a project's.
     func lists(_ pick: Pick) -> Bool {
         rows.contains { $0.pick == pick } || projects.contains { $0.pick == pick }
+    }
+
+    /// The pick as a row of its holds it: a session by its row outside Snoozed, and by its row in Snoozed only where it
+    /// has no other; the row in Snoozed it was picked by, while it lists it, else the session. A project, Settings,
+    /// and a session it lists no row of, as they are.
+    func held(_ pick: Pick) -> Pick {
+        switch pick {
+        case let .session(id) where !lists(pick) && lists(.snoozed(id)): .snoozed(id)
+        case let .snoozed(id) where !lists(pick): .session(id)
+        default: pick
+        }
     }
 
     /// The row it lists that shows a pick: its own; for a session with no row, its project's in Projects; none where
@@ -175,16 +195,17 @@ public struct Listed: Equatable, Sendable {
 
 extension Listed {
     /// A row for each of core's, with its lines, by its section, in the sections' order: within one, core's order,
-    /// Needs you's the oldest first by its oldest line, an away session's after the live ones.
+    /// Needs you's the oldest first by its oldest line, an away session's after the live ones; Snoozed's the soonest to
+    /// wake first.
     static func rows(_ board: Board) -> [Row] {
-        let rows = board.rows.map(Row.init)
+        let rows = board.rows.map(Row.init) + board.snoozed.map(Row.init)
 
         return BoardSection.allCases.flatMap { section in rows.filter { $0.section == section } }
     }
 
-    /// The board's sessions core has no row for, by their projects' keys.
+    /// The board's sessions core has no row for, in Snoozed or out of it, by their projects' keys.
     static func rowless(_ board: Board) -> [String: String] {
-        let rowed = Set(board.rows.map(\.session))
+        let rowed = Set(board.rows.map(\.session) + board.snoozed.map(\.session))
         let sessions = board.projects.flatMap { project in project.sessions.map { ($0.id, project.key) } }
 
         return Dictionary(sessions.filter { !rowed.contains($0.0) }) { first, _ in first }
@@ -199,14 +220,27 @@ extension Listed.Row {
             mark: Mark(row.oldest.kind), isAway: row.isAway, since: row.since, lines: row.lines.map(Listed.Line.init)
         )
     }
+
+    /// Core's Snoozed row, its asks asleep its lines, its time its oldest's, and when its soonest wakes.
+    init(_ row: Board.SnoozedRow) {
+        self.init(
+            id: row.session, name: row.name, project: row.projectName, section: .snoozed, mark: .snoozed,
+            isAway: row.isAway, since: row.lines.map(\.since).min()!, lines: row.lines.map(Listed.Line.init),
+            wakesAt: row.wakesAt
+        )
+    }
 }
 
 private extension Listed.Line {
     init(_ line: Board.Row.Line) {
         self.init(
-            id: line.key, lead: line.first.lead, code: line.first.mono, subject: line.first.subject,
+            id: line.key, ask: line.ask, lead: line.first.lead, code: line.first.mono, subject: line.first.subject,
             until: line.first.until, more: line.first.more, since: line.since
         )
+    }
+
+    init(_ line: Board.SnoozedRow.Line) {
+        self.init(id: line.key, ask: line.ask, lead: line.first.lead, code: nil, more: nil, since: line.since)
     }
 }
 

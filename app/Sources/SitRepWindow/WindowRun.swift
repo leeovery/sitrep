@@ -11,9 +11,9 @@ public struct Read: Hashable, Sendable {
 
 /// The SitRep window as the app runs it, with nothing of the screen in it: the board from `watch`'s lines in the
 /// order it shows, what Lee picked and what the window opens on, the sessions' boards it reads for their detail, the
-/// asks of the page shown kept in place, the answers waiting out their two seconds, and finishing an away session. Every
-/// input comes through here, at the time given; the views draw what it says, and the app runs what it asks for: a
-/// read of a session's board, an answer, a finish, a jump.
+/// asks of the page shown kept in place, the answers waiting out their two seconds, what a snooze or a wake pressed
+/// on a card came to, and finishing an away session. Every input comes through here, at the time given; the views draw what
+/// it says, and the app runs what it asks for: a read of a session's board, an answer, a snooze, a finish, a jump.
 public final class WindowRun {
     /// The board as `watch` last printed it.
     public private(set) var last = LastBoard()
@@ -48,9 +48,10 @@ public final class WindowRun {
     private var filtering = Folds.open
     /// The pick was made while the filter held text, so it shows as the filter clears.
     private var isPickedWhileFiltering = false
-    /// The wall clock, against which a your-turn row passes the fold period, and the calendar its days are in.
+    /// The wall clock, against which a your-turn row passes the fold period, and the calendar its days are in, which
+    /// the window's wake times are worded on too.
     private let wall: () -> Date
-    private let calendar: Calendar
+    public let calendar: Calendar
     /// The list as `watch` gives it, before it is held.
     private var given = Listed()
     private var held = HeldOrder()
@@ -64,16 +65,20 @@ public final class WindowRun {
     /// The asks of each session the page shows, kept in place while it stands.
     private var frozen: [String: Frozen] = [:]
     private var finishing: [String: Finish] = [:]
+    /// What `sitrep snooze` or `wake` refused, by the ask, for its card to say until it is pressed again or another
+    /// page is picked.
+    private var unslept: [AskAddress: Card.Line] = [:]
     /// The asks opened in place in a project's view.
     private var opened: Set<AskAddress> = []
     /// The items of Status, Notes, Parked and Resolved opened in place.
     private var openedItems: Set<Item> = []
 
     /// Opened on the session picked last, folded as Lee left it, a your-turn row folding into "N earlier" after the
-    /// period given, against this wall clock, its days in the Mac's own calendar, followed as its time zone changes.
+    /// period given, against this wall clock, its days in the Gregorian calendar in the Mac's time zone, followed as it
+    /// changes (`WakeTime.calendar`).
     public init(
         lastSession: String? = nil, folds: Folds = Folds(), period: FoldPeriod = .hour,
-        wall: @escaping () -> Date = Date.init, calendar: Calendar = .autoupdatingCurrent
+        wall: @escaping () -> Date = Date.init, calendar: Calendar = WakeTime.calendar
     ) {
         self.lastSession = lastSession
         self.folds = folds
@@ -130,9 +135,12 @@ public final class WindowRun {
         }
     }
 
+    /// The list as it now shows, and the pick on the row of it that holds it: a session's pick moves to its row in
+    /// Snoozed as its other goes, and back as that one goes, on the same page.
     private func take(_ given: Listed, moving: Set<String>) {
         self.given = given
         listed = held.take(given, moving: moving)
+        pick = pick.map(listed.held)
     }
 
     // MARK: Folding
@@ -210,7 +218,7 @@ public final class WindowRun {
             return false
         }
 
-        return pick == .settings || last.board?.has(pick) == true
+        return pick == .settings || last.board?.has(pick.page) == true
     }
 
     /// What the window opens on, picked afresh.
@@ -230,22 +238,24 @@ public final class WindowRun {
     }
 
     /// Lee picked a session, a project by its name, or Settings, from outside the list: what it shows is read, its
-    /// asks showing as last read until then; Settings reads nothing. Its row shows: the section holding it unfolds,
-    /// and "N earlier" opens where it is under it; Projects, for a project. Picking another lets go of the last page's
-    /// asks kept in place, of what its cards said of refusals, and of a finish asked about. The reads to run.
+    /// asks showing as last read until then; Settings reads nothing. A session lands on its row outside Snoozed, and
+    /// on its row in Snoozed only where it has no other. Its row shows: the section holding it unfolds, and "N earlier"
+    /// opens where it is under it; Projects, for a project. Picking another page lets go of the last page's asks kept
+    /// in place, of what its cards said of refusals, and of a finish asked about. The reads to run.
     public func pick(_ pick: Pick) -> [Read] {
         pickReads = PickReads()
 
-        let shown = choose(pick)
+        let held = listed.held(pick)
+        let shown = choose(held)
         let listed = earlier(given)
 
-        changeShownFolds { $0.unfold(toShow: pick, in: listed) }
+        changeShownFolds { $0.unfold(toShow: held, in: listed) }
         return reads(shown)
     }
 
     /// Lee picked a row of the list at this time, by a click or an arrow key: as any pick, the row picked showing it,
-    /// but the list's order held for a second after it, so no row moves between two presses of a key, and its reads
-    /// settled (`PickReads`). The reads to run now.
+    /// and holding it, a session's in Snoozed as its other; but the list's order held for a second after it, so no row
+    /// moves between two presses of a key, and its reads settled (`PickReads`). The reads to run now.
     public func pickInList(_ pick: Pick, at time: Date) -> [Read] {
         held.picked(at: time)
         return reads(pickReads.picked(choose(pick), at: time))
@@ -265,19 +275,22 @@ public final class WindowRun {
         isOpen ? reads(pickReads.due(at: time)) : []
     }
 
-    /// What is picked now, and the sessions it shows, to read.
+    /// What is picked now, and the sessions it shows, to read. A session's other row picked keeps its page as it was.
     private func choose(_ pick: Pick) -> [String] {
-        if pick != self.pick {
-            self.pick = pick
-            isPickedWhileFiltering = !filter.isEmpty
+        if pick.page != self.pick?.page {
             frozen = [:]
             opened = []
             openedItems = []
+            unslept = [:]
             answers.forgetRefusals()
             dropAskingToFinish()
-            if case let .session(id) = pick {
+            if case let .session(id) = pick.page {
                 lastSession = id
             }
+        }
+        if pick != self.pick {
+            self.pick = pick
+            isPickedWhileFiltering = !filter.isEmpty
         }
         keepShown()
         return shown
@@ -292,10 +305,10 @@ public final class WindowRun {
 
     /// The sessions the page shows, which are read.
     private var shown: [String] {
-        switch pick {
+        switch pick?.page {
         case let .session(id)?: [id]
         case let .project(key)?: last.board?.projects.first { $0.key == key }?.sessions.map(\.id) ?? []
-        case .settings?, nil: []
+        case .snoozed?, .settings?, nil: []
         }
     }
 
@@ -334,13 +347,14 @@ public final class WindowRun {
     // MARK: Answering
 
     /// A card's button pressed at this time: a yes, an option or ignore waits its two seconds; one that needs Claude
-    /// Code's prompt jumps instead. The session to jump to, for those.
+    /// Code's prompt jumps instead. The session to jump to, for those. Snooze is its menu's, which `snoozing` hears.
     public func press(_ button: Card.Button, on ask: AskAddress, at time: Date) -> String? {
-        guard let answer = button.answer else {
+        if case .inClaude = button {
             return ask.session
         }
-
-        answers.press(answer, on: ask, at: time)
+        if let answer = button.answer {
+            answers.press(answer, on: ask, at: time)
+        }
         return nil
     }
 
@@ -382,6 +396,33 @@ public final class WindowRun {
         if openedItems.remove(item) == nil {
             openedItems.insert(item)
         }
+    }
+
+    // MARK: Snoozing
+
+    /// A time chosen on a card's Snooze, or its Wake now pressed: what its card said of a refusal before gives way.
+    public func snoozing(_ ask: AskAddress) {
+        unslept[ask] = nil
+    }
+
+    /// What `sitrep snooze` came to for an ask of a card: written, its session is read again, if it shows, and the
+    /// card goes after those waiting, asleep; refused, the card says why. The reads to run.
+    public func snoozed(_ ask: AskAddress, _ written: WriteAnswer) -> [Read] {
+        slept(ask, written, refused: Card.Line.notSnoozed)
+    }
+
+    /// What `sitrep wake` came to for an ask of a card, as `snoozed` says it.
+    public func woke(_ ask: AskAddress, _ written: WriteAnswer) -> [Read] {
+        slept(ask, written, refused: Card.Line.notWoken)
+    }
+
+    private func slept(_ ask: AskAddress, _ written: WriteAnswer, refused: (String) -> Card.Line) -> [Read] {
+        guard case let .refused(why) = written else {
+            return reads(shown.filter { $0 == ask.session })
+        }
+
+        unslept[ask] = refused(why)
+        return []
     }
 
     // MARK: Finishing
@@ -431,6 +472,10 @@ public final class WindowRun {
         var shown = earlier(listed).narrowed(by: filter)
 
         shown.changeRows { row in
+            guard row.section != .snoozed else {
+                return
+            }
+
             row.washed = washed[row.id]
             row.lines.indices.forEach { row.lines[$0].washed = washed[row.lines[$0].id] }
         }
@@ -483,14 +528,14 @@ public final class WindowRun {
             return .empty(listed.head.title)
         }
 
-        switch pick {
+        switch pick?.page {
         case let .session(id)?:
             return board.session(id).map { .session(sessionPage($0.session, of: $0.project, at: time)) }
                 ?? .nothingOpen
         case let .project(key)?:
             return board.projects.first { $0.key == key }.map { .project(projectPage($0, on: board, at: time)) }
                 ?? .nothingOpen
-        case .settings?, nil:
+        case .snoozed?, .settings?, nil:
             return board.projects.isEmpty ? .nothingOpen : .empty(listed.head.title)
         }
     }
@@ -518,7 +563,8 @@ public final class WindowRun {
         return SessionPage(
             id: session.id, projectKey: project.key, projectName: project.name, name: session.name,
             summary: session.summary, doing: session.doing, jumps: !isAway, waiting: session.waiting,
-            asks: cards(of: session, at: time), status: status, notes: notes, parked: parked, resolved: resolved,
+            snoozed: session.snoozed, asks: cards(of: session, at: time), status: status, notes: notes,
+            parked: parked, resolved: resolved,
             finish: isAway ? finishing[session.id] ?? .offered : nil,
             isRead: read != nil,
             failure: failed[session.id],
@@ -568,17 +614,23 @@ public final class WindowRun {
         )
     }
 
-    /// A session's asks as cards: kept in place while the page stands, else as last read, the newest first.
+    /// A session's asks as cards: kept in place while the page stands, else as last read, the newest first; those
+    /// asleep after them, the soonest to wake first.
     private func cards(of session: Board.Session, at time: Date) -> [Card] {
         let kept = frozen[session.id]
         let asks = kept?.asks ?? (boards[session.id]?.asks.reversed() ?? []).map { ($0, nil) }
         let washes = Wash.live(kept?.washed ?? [:], at: time)
-
-        return asks.map { ask, closed in
+        let cards = asks.map { ask, closed in
             let address = AskAddress(session: session.id, ask: ask.id)
 
-            return Card(ask, of: session.id, doing: session.doing, pending: answers.pending[address], closed: closed, washed: washes[ask.id])
+            return Card(
+                ask, of: session.id, doing: session.doing, pending: answers.pending[address], closed: closed,
+                washed: washes[ask.id], unslept: unslept[address]
+            )
         }
+        let asleep = cards.compactMap { card in card.snoozedUntil.map { (card, $0) } }
+
+        return cards.filter { $0.snoozedUntil == nil } + asleep.sorted { $0.1 < $1.1 }.map(\.0)
     }
 
     /// How many of its latest notes a project's view lists, as many as a session's board carries.
@@ -625,7 +677,7 @@ extension Board {
     /// Whether it holds the session or project picked; Settings is no part of it.
     func has(_ pick: Pick) -> Bool {
         switch pick {
-        case let .session(id): session(id) != nil
+        case let .session(id), let .snoozed(id): session(id) != nil
         case let .project(key): projects.contains { $0.key == key }
         case .settings: false
         }

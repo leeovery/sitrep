@@ -87,12 +87,13 @@ public struct Filter: Equatable, Sendable {
 
 /// How bright a name's words are, of the sidebar's greys, brightest first: its own, with nothing typed; while the
 /// filter narrows the list, the rest of it no brighter than soft, and the words typed one step brighter than that.
+/// Quiet, a Snoozed row's name, sits between the text and soft, and lights as the text does.
 public enum Tone: Sendable, Equatable {
-    case text, soft, dim, faint
+    case text, quiet, soft, dim, faint
 
     /// The words of the name that the filter does not light.
     public var rest: Tone {
-        self == .text ? .soft : self
+        self == .text || self == .quiet ? .soft : self
     }
 
     /// The words the filter lights.

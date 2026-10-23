@@ -143,7 +143,7 @@ struct SelectionTests {
         run.filter = Filter("ledg")
         _ = run.pickInList(.session("sr-rq7dgr"), at: printedAt)
         run.filter = Filter()
-        #expect(run.folds == Folds(sections: [.needsYou], projects: true))
+        #expect(run.folds == Folds(sections: [.needsYou, .snoozed], projects: true))
     }
 
     /// An hour on, Request ledger's turn is under "N earlier": picked from the filtered list, it opens as the filter

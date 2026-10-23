@@ -89,8 +89,11 @@ struct SessionPageView: View {
 
     private var asks: some View {
         VStack(alignment: .leading, spacing: 8) {
-            SectionHeading(name: "Asks", note: page.waiting > 0 ? Words.waiting(page.waiting) : nil, isOrange: true)
-                .padding(.bottom, 4)
+            SectionHeading(
+                name: "Asks", note: page.waiting > 0 ? Words.waiting(page.waiting) : nil, isOrange: true,
+                aside: Words.snoozed(page.snoozed)
+            )
+            .padding(.bottom, 4)
             ForEach(page.asks) { card in
                 CardView(card: card, now: now)
             }

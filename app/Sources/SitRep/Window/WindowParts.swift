@@ -21,6 +21,7 @@ struct MarkView: View {
             case .working: TurningArc()
             case .onItsWork: DottedRingView(ring: .card, ink: WindowStyle.colour(WindowStyle.dotted, on: prominence))
             case .away: Circle().fill(WindowStyle.colour(WindowStyle.awayDot, on: prominence)).frame(width: 5, height: 5)
+            case .snoozed: Circle().fill(WindowStyle.faint).frame(width: 7, height: 7)
             }
         }
         .frame(width: WindowStyle.lane.width, height: WindowStyle.lane.height)
@@ -190,6 +191,8 @@ struct SectionHeading: View {
     let name: String
     var note: String?
     var isOrange = false
+    /// Faint after the note, " · " between them: Asks' asleep, "1 snoozed".
+    var aside: String?
 
     var body: some View {
         HStack(alignment: .firstTextBaseline) {
@@ -198,13 +201,18 @@ struct SectionHeading: View {
                 .spacing(0.08, of: 11)
                 .foregroundStyle(WindowStyle.soft)
             Spacer()
-            if let note {
-                Text(note).font(WindowStyle.ui(12)).foregroundStyle(isOrange ? WindowStyle.orange : WindowStyle.faint)
-            }
+            notes.font(WindowStyle.ui(12))
         }
         .frame(height: 16)
-        .spoken(Spoken.heading(name, note: note))
+        .spoken(Spoken.heading(name, note: note, aside: aside))
         .accessibilityAddTraits(.isHeader)
+    }
+
+    private var notes: Text {
+        let first = note.map { Text($0).foregroundStyle(isOrange ? WindowStyle.orange : WindowStyle.faint) }
+        let then = aside.map { Text(note == nil ? $0 : " · \($0)").foregroundStyle(WindowStyle.faint) }
+
+        return [first, then].compactMap(\.self).reduce(Text("")) { Text("\($0)\($1)") }
     }
 }
 

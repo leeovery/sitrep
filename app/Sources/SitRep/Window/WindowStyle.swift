@@ -35,6 +35,11 @@ enum WindowStyle {
     static let arc = Color(hex: 0xC9C9CF)
     /// On its own work, the card's dotted ring.
     static let dotted = Color(hex: 0x8E8E95)
+    /// An ask asleep's card, in place of the raise, and the ring inside its edge (board H).
+    static let asleep = Color(hex: 0x0C0C0D)
+    static let asleepRing = Color.white.opacity(Double(0x0F) / 255)
+    /// A card's Snooze with its menu open: a pill.
+    static let menuOpen = Color.white.opacity(Double(0x14) / 255)
     /// What is new, and a stop: washed orange in a ring of it.
     static let wash = orange.opacity(0.12)
     static let washRing = orange.opacity(0.28)
@@ -147,17 +152,18 @@ enum WindowStyle {
         }
     }
 
-    /// A row's words of a tone on the accent of its pick, as board D draws it: the words white, the rest, its second
-    /// line and its ages among them, white at 80%.
+    /// A row's words of a tone on the accent of its pick, as board D draws it: the words white, a Snoozed row's name
+    /// among them, the rest, its second line and its ages among them, white at 80%.
     static func picked(_ tone: Tone) -> Color {
-        tone == .text ? .white : .white.opacity(0.8)
+        tone == .text || tone == .quiet ? .white : .white.opacity(0.8)
     }
 
     /// The sidebar's words of a tone: in the system's label colours, white at 85%, 55% and 25%, and between the last
-    /// two board D's white at 35%.
+    /// two board D's white at 35%; between the first two board H's white at 60%, a Snoozed row's name.
     static func label(_ tone: Tone) -> AnyShapeStyle {
         switch tone {
         case .text: AnyShapeStyle(.primary)
+        case .quiet: AnyShapeStyle(quiet)
         case .soft: AnyShapeStyle(.secondary)
         case .dim: AnyShapeStyle(dim)
         case .faint: AnyShapeStyle(.tertiary)
@@ -168,6 +174,8 @@ enum WindowStyle {
     /// but Needs you's.
     static let dim = Color.white.opacity(0.35)
     static let count = Color.white.opacity(0.3)
+    /// Board H's white at 60%, a Snoozed row's name.
+    static let quiet = Color.white.opacity(Double(0x99) / 255)
 
     /// The working mark's track in the sidebar, as drawn.
     static let sidebarTrack = Color.white.opacity(0.15)

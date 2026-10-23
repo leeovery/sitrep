@@ -98,14 +98,14 @@ struct HeldRowsTests {
         #expect(HeldRows.section(rows.shown[3]) == .yourTurn)
     }
 
-    /// The sections' order: Needs you, then Working, on its own work among it, then Your turn.
+    /// The sections' order: Needs you, then Working, on its own work among it, then Your turn, then Snoozed.
     @Test func aRowsPlaceIsHeldInItsSection() {
         var waiting = Self.by("s4")[0]
         waiting.kind = .onItsWork
 
         #expect(Self.by("s1", "s4", "s3").map(HeldRows.section) == [.needsYou, .working, .yourTurn])
         #expect(HeldRows.section(waiting) == .working)
-        #expect(BoardSection.allCases.sorted() == [.needsYou, .working, .yourTurn])
+        #expect(BoardSection.allCases.sorted() == [.needsYou, .working, .yourTurn, .snoozed])
     }
 
     /// A place is held within its section: a row coming to need Lee, from your turn or from working, leaves its place

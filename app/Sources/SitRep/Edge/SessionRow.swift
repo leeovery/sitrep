@@ -7,7 +7,9 @@ import SitRepPanel
 /// first, over its project, or for an away one why a click does nothing. A working row's arc turns and its lead
 /// shimmers, its subject still, in the render server. A row on its own work is still: its dotted ring, and its title,
 /// a wake's countdown in it set again as it reads differently. A your-turn row on the card is on one line, as board D
-/// draws it: its ring, its words in regular, its project faint at the right of them, never cut, and its time. Under
+/// draws it: its ring, its words in regular, its project faint at the right of them, never cut, and its time. A row in
+/// Snoozed is a row needing Lee quieted, as Paper's board G draws it: its dot grey and unlit, its name soft, its "+2"
+/// and its project faint, and in its time's place when its soonest ask wakes, soft, the lane grown to fit it. Under
 /// the pointer any row's time gives way to its button, which opens its session in the SitRep window.
 @MainActor
 final class SessionRow {
@@ -16,7 +18,7 @@ final class SessionRow {
     let session: Session
     let isOneLine: Bool
 
-    private let at: SessionRowLayout
+    private var at: SessionRowLayout
     private let wash = CALayer()
     /// The arc that spins in the time's place while a click is jumping from it.
     private let spinner: Arc
@@ -25,8 +27,9 @@ final class SessionRow {
     /// Its time, and what it says, as last set.
     private var age: TextLine?
     private var ageText = ""
-    /// Its title's layers.
+    /// Its title's layers, and the line under it.
     private var titleLayers: [CALayer] = []
+    private var subLine = CALayer()
     /// What its title says after its verb, as last set: a wake's countdown changes it as the clock ticks.
     private var subject: String?
 
@@ -51,7 +54,8 @@ final class SessionRow {
         layer.addSublayer(wash)
         layer.addSublayer(mark(at: at.mark))
         showTitle()
-        layer.addSublayer(oneLine ? projectLine(project) : TextLine(TextLine.text(session.sub, EdgeStyle.sub, subColour), in: at.sub))
+        subLine = oneLine ? projectLine(project) : sub(in: at.sub)
+        layer.addSublayer(subLine)
         spinner.layer.isHidden = true
         layer.addSublayer(spinner.layer)
         opener.isHidden = true
@@ -108,14 +112,14 @@ final class SessionRow {
         }
     }
 
-    /// Its time at this moment on the wall clock, ms, and a wake's countdown, each drawn again only when it reads
-    /// differently.
-    func showAge(at now: Double) {
+    /// Its time at this moment on the wall clock, ms, or in Snoozed when it wakes, worded on this calendar, and a
+    /// wake's countdown, each drawn again only when it reads differently.
+    func showAge(at now: Double, in calendar: Calendar = WakeTime.calendar) {
         if session.until != nil, session.subject(at: now) != subject {
             subject = session.subject(at: now)
             showTitle()
         }
-        showAge(session.ageText(at: now))
+        showAge(session.timeText(at: now, in: calendar))
     }
 
     private func showAge(_ text: String) {
@@ -123,7 +127,13 @@ final class SessionRow {
             return
         }
 
-        let line = TextLine(TextLine.text(text, EdgeStyle.age, EdgeStyle.ink3), in: at.age, alignment: .right)
+        let words = TextLine.text(text, EdgeStyle.age, session.isSnoozed ? EdgeStyle.ink2 : EdgeStyle.ink3)
+
+        if session.isSnoozed {
+            fit(time: TextLine.width(words))
+        }
+
+        let line = TextLine(words, in: at.age, alignment: .right)
 
         line.contentsScale = layer.contentsScale
         line.isHidden = isPressed || isHighlighted
@@ -134,6 +144,30 @@ final class SessionRow {
         }
         age = line
         ageText = text
+    }
+
+    /// A row in Snoozed's lane fitted to when it wakes, its title and the line under it, cut short before it, laid out
+    /// again where it changed: the lane only narrows as the days go, from a date to a weekday to today's time.
+    private func fit(time width: CGFloat) {
+        let fitted = SessionRowLayout(size: layer.bounds.size, time: width)
+
+        guard fitted.age != at.age else {
+            return
+        }
+
+        at = fitted
+        showTitle()
+
+        let sub = sub(in: at.sub)
+
+        sub.contentsScale = layer.contentsScale
+        still { layer.replaceSublayer(subLine, with: sub) }
+        subLine = sub
+    }
+
+    /// The line under its title, whole: its project, or what core says there.
+    private func sub(in box: CGRect) -> TextLine {
+        TextLine(TextLine.text(session.sub, EdgeStyle.sub, subColour), in: box)
     }
 
     /// New on the board while the panel is out: washed orange (`Wash`) from this time, ms on the display's clock,
@@ -168,10 +202,12 @@ final class SessionRow {
         titleLayers = made
     }
 
-    /// An away row's words dim.
-    private var titleColour: CGColor { session.away ? EdgeStyle.off : EdgeStyle.ink }
+    /// An away row's words dim; a Snoozed row's are soft, away or not, its "+2" and its project faint.
+    private var titleColour: CGColor {
+        session.isSnoozed ? EdgeStyle.ink2 : session.away ? EdgeStyle.off : EdgeStyle.ink
+    }
 
-    private var subColour: CGColor { session.away ? EdgeStyle.ink3 : EdgeStyle.ink2 }
+    private var subColour: CGColor { session.away || session.isSnoozed ? EdgeStyle.ink3 : EdgeStyle.ink2 }
 
     /// Its title's layers: the title, and a session's "+2" after it, board F's, quiet in the second line's colour, 6
     /// after the name on its baseline, which the name is cut short to leave room for.
@@ -234,7 +270,7 @@ final class SessionRow {
     }
 
     /// Its mark: needs you an orange dot with its glow, away or not; your turn an open white ring, on one line board
-    /// D's 9; working the arc turning; on its own work the dotted ring, still.
+    /// D's 9; working the arc turning; on its own work the dotted ring, still; in Snoozed a faint dot, unlit.
     private func mark(at centre: CGPoint) -> CALayer {
         switch session.kind {
         case .needs:
@@ -252,6 +288,8 @@ final class SessionRow {
             return Self.arc(in: CGRect(x: centre.x - 5.5, y: centre.y - 5.5, width: 11, height: 11)).layer
         case .onItsWork:
             return DottedRing.card.layer(centredOn: centre, colour: EdgeStyle.grey)
+        case .snoozed:
+            return Self.disc(7, at: centre, fill: EdgeStyle.ink3)
         }
     }
 
