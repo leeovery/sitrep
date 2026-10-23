@@ -454,11 +454,8 @@ const quotedOr = (answers: readonly string[]) => inWords(answers.map(each => `â€
 /** A rule an ask Lee acts on from outside Claude Code keeps, broken where it says, with why. */
 type AskRule = readonly [breaks: (ask: Ask) => boolean, error: (ask: Ask) => string]
 
-/** What an ask needs to take an answer or a snooze: open still. */
-const OPEN_RULES: readonly AskRule[] = [
-  [ask => ask.state === 'ignored', ask => `${ask.id} is already ignored.`],
-  [ask => ask.state === 'closed', ask => `${ask.id} is already closed.`],
-]
+/** What an ask needs to take an answer or a snooze: open still, neither closed nor ignored. */
+const OPEN_RULES: readonly AskRule[] = [[isClosed, ask => `${ask.id} is already ${ask.state}.`]]
 
 /** What any answer from outside Claude Code needs of its ask. */
 const ANSWER_RULES: readonly AskRule[] = [
@@ -635,11 +632,11 @@ const asksNamed = (session: Session, fields: Fields, rules: readonly AskRule[]):
   return broken === undefined ? ok(asks) : refuse(broken)
 }
 
-/** When a snooze wakes, as given: milliseconds since the epoch, as a number or in digits; undefined where it is no time. */
+/** When a snooze wakes, as given: whole milliseconds since the epoch, as a number or in digits, that a `Date` holds; undefined where it is no time. */
 const timeIn = (value: unknown) => {
   const time = typeof value === 'string' && /^\d+$/.test(value.trim()) ? Number(value) : value
 
-  return isTime(time) ? time : undefined
+  return isTime(time) && Number.isInteger(time) ? time : undefined
 }
 
 /**

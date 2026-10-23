@@ -478,6 +478,9 @@ test('a snooze is a line for each ask named, open and waiting on Lee as posted, 
   expect(value(snoozeOf(['k1'], NOW + 1)), 'a moment on').toEqual([
     { type: 'snooze', item: 'k1', until: NOW + 1 },
   ])
+  expect(value(snoozeOf(['k1'], 8.64e15)), 'the last time a Date holds').toEqual([
+    { type: 'snooze', item: 'k1', until: 8.64e15 },
+  ])
 })
 
 test("a snooze is refused, for every ask named, the first refusal in order saying why: the session finished; no ask named; an id no item or no ask; an ask closed or ignored, one Lee's reply is on its way to, one Lee commented on; then its time missing, none, or come already", () => {
@@ -502,6 +505,7 @@ test("a snooze is refused, for every ask named, the first refusal in order sayin
     ['a parked item', snoozeOf(['p1']), 'p1 is a parked item, not an ask.'],
     ['ignored', snoozeOf(['k3', 'k4', 'k5']), 'k4 is already ignored.'],
     ['closed', untimed(['k6', 'k5']), 'k5 is already closed.'],
+    ['closed, then ignored', snoozeOf(['k5', 'k4']), 'k5 is already closed.'],
     [
       'an answer on its way',
       snoozeOf(['k3', 'k6']),
@@ -530,6 +534,26 @@ test("a snooze is refused, for every ask named, the first refusal in order sayin
     [
       'not a whole time',
       snoozeOf(['k1'], `${LATER}.5`),
+      'A snooze needs its time: --until, in milliseconds since the epoch.',
+    ],
+    [
+      'a number not whole',
+      snoozeOf(['k1'], LATER + 0.5),
+      'A snooze needs its time: --until, in milliseconds since the epoch.',
+    ],
+    [
+      'digits past any time',
+      snoozeOf(['k1'], '99999999999999999999'),
+      'A snooze needs its time: --until, in milliseconds since the epoch.',
+    ],
+    [
+      'nanoseconds, as date +%s%N gives them',
+      snoozeOf(['k1'], `${LATER}000000`),
+      'A snooze needs its time: --until, in milliseconds since the epoch.',
+    ],
+    [
+      'just past what a Date holds',
+      snoozeOf(['k1'], 8.64e15 + 1),
       'A snooze needs its time: --until, in milliseconds since the epoch.',
     ],
     ['come already', snoozeOf(['k1'], NOW), 'That time has come already: give one still to come.'],

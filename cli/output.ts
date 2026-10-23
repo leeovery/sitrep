@@ -15,11 +15,11 @@ import {
   answerOf,
   brief,
   isSameName,
-  isSnoozed,
   listedProjects,
   projectAround,
   replyState,
   resolvedAsks,
+  snoozedUntilIn,
   type Ask,
   type Feed,
   type FeedProject,
@@ -154,7 +154,8 @@ const replyJson = (ask: Ask) => {
       }
 }
 
-const askJson = (ask: Ask) => ({
+/** An ask of a session, as `board --json` and `watch` list it. */
+const askJson = (session: SessionSummary, ask: Ask) => ({
   id: ask.id,
   wants: ask.wants,
   yes: ask.wants === 'yes' ? (ask.yes ?? null) : null,
@@ -166,12 +167,12 @@ const askJson = (ask: Ask) => ({
   state: ask.state,
   at: ask.at,
   reply: replyJson(ask),
-  snoozedUntil: isSnoozed(ask) ? ask.snoozedUntil : null,
+  snoozedUntil: snoozedUntilIn(session, ask) ?? null,
 })
 
 /** A resolved ask: as an open one is, with when it closed, and Claude's reason, where Claude gave one as it resolved the ask. */
-const resolvedJson = (ask: Ask) => ({
-  ...askJson(ask),
+const resolvedJson = (session: SessionSummary, ask: Ask) => ({
+  ...askJson(session, ask),
   closedAt: ask.closedAt ?? null,
   reason: ask.reason ?? null,
 })
@@ -202,10 +203,10 @@ export const boardJson = (project: string, session: Session) => {
     v: OUTPUT.board,
     project: { key: project, name: session.project },
     work: sessionJson(summary),
-    asks: asks.map(askJson),
+    asks: asks.map(ask => askJson(summary, ask)),
     parked: parkedItems.map(parkedJson),
     log: log.map(logJson),
-    resolved: resolvedAsks(session).map(resolvedJson),
+    resolved: resolvedAsks(session).map(ask => resolvedJson(summary, ask)),
   })
 }
 
@@ -248,7 +249,7 @@ const feedSessionJson = (session: FeedSession) => ({
     line: lineJson(session.doing.line),
     since: session.doing.since,
   },
-  asks: session.asks.map(askJson),
+  asks: session.asks.map(ask => askJson(session, ask)),
 })
 
 const snoozedLineJson = (line: SnoozedLine) => ({

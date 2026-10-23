@@ -157,6 +157,10 @@ export const waitingOnLee = (session: Pick<Session, 'asks' | 'finished'>): Ask[]
 export const snoozedAsks = (session: Pick<Session, 'asks' | 'finished'>): SnoozedAsk[] =>
   session.finished === undefined ? session.asks.filter(isSnoozed) : []
 
+/** When an ask wakes, where it is snoozed in its session, as `snoozedAsks` has it: none once the session is finished. */
+export const snoozedUntilIn = (session: { isFinished: boolean }, ask: Ask) =>
+  !session.isFinished && isSnoozed(ask) ? ask.snoozedUntil : undefined
+
 /**
  * Where Lee's reply to an ask stands: on its way, in its session's inbox
  * until a window of the session delivers it, or in a live window's message

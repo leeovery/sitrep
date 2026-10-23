@@ -1369,11 +1369,14 @@ sitrep wake <ask>... [--session <id>]
   ignored.`), one Lee's reply is on its way to (`Lee's reply to k1 is on
   its way: it waits on Lee no more.`), one Lee commented on (`k1 waits on
   Claude: Lee's comment is Claude's to act on.`), then `--until` missing or
-  no time (`A snooze needs its time: --until, in milliseconds since the
-  epoch.`), or come already (`That time has come already: give one still
-  to come.`); for `wake`, an ask not snoozed (`k1 is not snoozed.`). Each
-  names the first ask, in the order given, that breaks it. One snoozed
+  no time, whole milliseconds a date holds (`A snooze needs its time:
+  --until, in milliseconds since the epoch.`), or come already (`That time
+  has come already: give one still to come.`); for `wake`, an ask not
+  snoozed (`k1 is not snoozed.`). Each names the first ask, in the order
+  given, that breaks it, closed and ignored being one refusal. One snoozed
   already is snoozed again, to the new time. An unknown session is exit 2.
+  A snooze line whose `until` no date holds is skipped as a bad line, as is
+  any line or heartbeat whose time no date holds (core's `isTime`).
 - The app calls `snooze` with one ask from the session page and with a
   row's asks from its right-click, and `wake` with one ask or a Snoozed
   row's, the ids after `--`, as `answer`'s.
@@ -1939,8 +1942,9 @@ truth. There is still no background service. None of it is built now. Lee:
 
   - It writes as the writer `cli`, appending to `<session>/cli.jsonl`, a
     snooze and a wake among its lines (see "Snooze"), and an answer to its
-    letters in the session's inbox, `<session>/inbox/cli.jsonl`, the same way: each file's count goes on from that file under both
-    layouts, a torn last line ended first, and nothing is rewritten. It never
+    letters in the session's inbox, `<session>/inbox/cli.jsonl`, the same
+    way: each file's count goes on from that file under both layouts, a
+    torn last line ended first, and nothing is rewritten. It never
     writes a delivered mark or a heartbeat: it is never a window on the
     session. Before a command reads the board, it moves the old layout into
     today's, once no window still writes it (see "Storage").
@@ -1998,10 +2002,11 @@ truth. There is still no background service. None of it is built now. Lee:
     of their kind; `list`'s stays 1. Each ask, open or resolved, carries
     `reply`, where Lee's reply to it stands (below, under `answer`), and
     `snoozedUntil`, when Lee's snooze of it wakes while it is snoozed, else
-    null (23 October 2026; see "Snooze"); a resolved one when it closed, by
-    Lee's answer or Claude's resolve, and Claude's reason where Claude
-    resolved it with one, Lee's answer having closed it first or not. `work`
-    carries `snoozed`, as `list`'s sessions do:
+    null, as for one Lee's reply is on its way to and for every ask of a
+    finished session (23 October 2026; see "Snooze"); a resolved one when
+    it closed, by Lee's answer or Claude's resolve, and Claude's reason
+    where Claude resolved it with one, Lee's answer having closed it first
+    or not. `work` carries `snoozed`, as `list`'s sessions do:
 
     ```
     { "id": "k1", "wants": "yes", "yes": "Go", "title": "Give the go for stage 3",
@@ -2218,20 +2223,19 @@ truth. There is still no background service. None of it is built now. Lee:
       (22 October 2026): a field added, `v` did not move.
     - A row's `lines`, never empty, are what it says: on Needs you one per
       ask waiting on Lee, not snoozed, permission prompt and question, the
-      oldest first; on any
-      other row one, its state's. A line's `key` names it for as long as it
-      stands (`ask:<session>:<ask>`, `stop:<session>:<window>:<since>`,
-      `turn:<session>`). `is` is what the line is (`ask`, `permission`,
-      `question`, `working`, `onItsWork` or `yourTurn`); then its `ask` or
-      its window (`writer`), its words (`first`), and its `since`, which the
-      app ticks: an ask's posting or reopening, a stop's showing, the turn's
-      end or, working, its start. `first` is in parts: `lead`, which a
-      working row shimmers; `mono`, the subject set in mono; `subject`, one
-      set plain, as on its own work's "3 agents"; `more`, a question's `+2`;
-      `until`, when the wake a row on its own work waits on is due, which
-      the app words as its countdown after the lead. `subject` and `until`
-      came in with on its own work (22 October 2026), null on every other
-      line.
+      oldest first; on any other row one, its state's. A line's `key` names
+      it for as long as it stands (`ask:<session>:<ask>`,
+      `stop:<session>:<window>:<since>`, `turn:<session>`). `is` is what the
+      line is (`ask`, `permission`, `question`, `working`, `onItsWork` or
+      `yourTurn`); then its `ask` or its window (`writer`), its words
+      (`first`), and its `since`, which the app ticks: an ask's posting or
+      reopening, a stop's showing, the turn's end or, working, its start.
+      `first` is in parts: `lead`, which a working row shimmers; `mono`, the
+      subject set in mono; `subject`, one set plain, as on its own work's "3
+      agents"; `more`, a question's `+2`; `until`, when the wake a row on its
+      own work waits on is due, which the app words as its countdown after
+      the lead. `subject` and `until` came in with on its own work (22
+      October 2026), null on every other line.
     - `head`: how many lines need Lee, away ones among them, and how many
       sessions the rows hold; none needing Lee is "All clear".
     - `snoozed` (23 October 2026): the Snoozed rows, a session each, apart

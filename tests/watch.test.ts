@@ -60,7 +60,12 @@ type Printed = {
   }[]
   snoozed: { session: string; lines: { key: string }[]; wakesAt: number }[]
   projects: {
-    sessions: { id: string; name: string; state: string; asks: { reply: unknown }[] }[]
+    sessions: {
+      id: string
+      name: string
+      state: string
+      asks: { reply: unknown; snoozedUntil: number | null }[]
+    }[]
   }[]
   windows: {
     writer: string
@@ -491,7 +496,31 @@ test('a snooze running out is a line the moment it does, though no file changed:
     [NOW, [`turn:${META.id}`], [k1], [], []],
     [wakes, [k1], [], [k1], [META.id]],
   ])
-  expect(lines[0]?.snoozed[0]?.wakesAt).toBe(wakes)
+  expect(lines[0]?.snoozed, "the row as DESIGN's example prints it").toEqual([
+    {
+      session: META.id,
+      isAway: false,
+      project: PROJECT.key,
+      name: META.name,
+      projectName: PROJECT.name,
+      letters: 'Sw',
+      lines: [
+        {
+          key: k1,
+          ask: 'k1',
+          first: { lead: 'Review round 1', mono: null, subject: null, more: null, until: null },
+          since: T0,
+          wakesAt: wakes,
+        },
+      ],
+      second: 'Switchboard · Dashboard redesign',
+      wakesAt: wakes,
+    },
+  ])
+  expect(lines.map(line => line.projects[0]?.sessions[0]?.asks[0]?.snoozedUntil)).toEqual([
+    wakes,
+    null,
+  ])
 })
 
 test('a snooze posted is a line, its ask in Snoozed and nothing new; woken by Lee, it is back in Needs you, nothing new either', async () => {

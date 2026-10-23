@@ -343,17 +343,59 @@ test('Next week is 09:00 the Monday after today: from a Monday, a week on; from 
   )
 })
 
-test("09:00 holds across the clocks going back, as Europe/London's do on 25 October 2026: worked out on the calendar, never by adding hours", () => {
-  const tomorrow = snoozeAt('tomorrow', local(2026, 10, 24, 10))
-  const week = snoozeAt('week', local(2026, 10, 24, 23))
-  const lateNight = local(2026, 10, 25, 0, 30)
+/** Whether the local zone changes its clocks between noon on a day and noon the next. */
+const isChangeAfter = (year: number, month: number, day: number) =>
+  new Date(year, month - 1, day, 12).getTimezoneOffset() !==
+  new Date(year, month - 1, day + 1, 12).getTimezoneOffset()
 
-  expect(tomorrow).toBe(local(2026, 10, 25, 9))
-  expect([new Date(tomorrow).getDate(), new Date(tomorrow).getHours()]).toEqual([25, 9])
-  expect(week).toBe(local(2026, 10, 26, 9))
-  expect([new Date(week).getDate(), new Date(week).getHours()]).toEqual([26, 9])
-  expect(snoozeAt('later', lateNight) - lateNight, 'three hours of the wall clock').toBe(3 * HOUR)
-})
+/**
+ * A case that tells the calendar from adding hours only across a change of
+ * the clocks, assuming Europe/London's, the Mac's own: the kit can set no
+ * time zone, so where the local zone changes none that night it is skipped,
+ * and says so, rather than passing for nothing.
+ */
+const acrossTheChange = (
+  name: string,
+  night: readonly [year: number, month: number, day: number],
+  body: () => void,
+) =>
+  isChangeAfter(...night)
+    ? test(name, body)
+    : test(`${name} (skipped: the local zone changes no clock that night)`, () => {})
+
+acrossTheChange(
+  "09:00 holds as Europe/London's clocks go back on 25 October 2026: Snooze's times are worked out on the calendar, and the pane counts calendar days, never hours",
+  [2026, 10, 24],
+  () => {
+    const lateNight = local(2026, 10, 25, 0, 30)
+
+    expect(snoozeAt('tomorrow', local(2026, 10, 24, 10))).toBe(local(2026, 10, 25, 9))
+    expect(snoozeAt('tomorrow', lateNight), 'pressed after midnight, before the change').toBe(
+      local(2026, 10, 26, 9),
+    )
+    expect(snoozeAt('week', local(2026, 10, 24, 23))).toBe(local(2026, 10, 26, 9))
+    expect(snoozeAt('later', lateNight) - lateNight, 'three hours of the wall clock').toBe(3 * HOUR)
+    expect(wakeWords(local(2026, 10, 26, 9), lateNight), 'a day of 25 hours is one').toBe(
+      'tomorrow 09:00',
+    )
+  },
+)
+
+acrossTheChange(
+  "09:00 holds as Europe/London's clocks go forward on 29 March 2026: Snooze's times are worked out on the calendar, and the pane counts calendar days, never hours",
+  [2026, 3, 28],
+  () => {
+    expect(snoozeAt('tomorrow', local(2026, 3, 28, 10))).toBe(local(2026, 3, 29, 9))
+    expect(snoozeAt('tomorrow', local(2026, 3, 29, 0, 30)), 'pressed after midnight').toBe(
+      local(2026, 3, 30, 9),
+    )
+    expect(snoozeAt('week', local(2026, 3, 28, 22))).toBe(local(2026, 3, 30, 9))
+    expect(
+      wakeWords(local(2026, 3, 30, 9), local(2026, 3, 28, 12)),
+      'a day of 23 hours is one',
+    ).toBe('Mon 09:00')
+  },
+)
 
 /** Friday 23 October 2026, 14:00, local time. */
 const FRIDAY = local(2026, 10, 23, 14)
@@ -372,10 +414,6 @@ test("the pane words a snooze's time at its now: today's time alone, tomorrow, a
   }
 
   expect(wakeWords(local(2026, 10, 24, 1, 30), local(2026, 10, 23, 23, 30))).toBe('tomorrow 01:30')
-  expect(
-    wakeWords(local(2026, 10, 26, 9), local(2026, 10, 25, 0, 30)),
-    'counted in calendar days across the clocks going back',
-  ).toBe('tomorrow 09:00')
 })
 
 test('Claude is told the time whole and local, never relative: its weekday, date and time', () => {

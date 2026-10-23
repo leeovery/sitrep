@@ -88,6 +88,8 @@ const EVERY_KIND: Body[] = [
     needs: "the command's output",
   },
   { type: 'edit', item: '01d0', changes: { kind: 'review' } },
+  { type: 'snooze', item: 'k3f9', until: T0 + 3 * 60 * 60_000 },
+  { type: 'wake', item: 'k3f9' },
 ]
 
 const entry = (at: number, seq: number, body: Body): Entry => ({ v: VERSION, at, seq, ...body })
@@ -135,6 +137,16 @@ for (const [why, line] of [
     `{"v":1,"at":${T0},"seq":1,"type":"reply","id":"r1","item":"k1","verdict":"maybe"}`,
   ],
   ['editing nothing', `{"v":1,"at":${T0},"seq":1,"type":"edit","item":"k1","changes":{}}`],
+  [
+    'stamped at no time a Date holds',
+    `{"v":1,"at":1e+23,"seq":1,"type":"note","id":"n1","text":"hi"}`,
+  ],
+  ['snoozing with no time', `{"v":1,"at":${T0},"seq":1,"type":"snooze","item":"k1"}`],
+  [
+    'snoozing until no time a Date holds',
+    `{"v":1,"at":${T0},"seq":1,"type":"snooze","item":"k1","until":1e+23}`,
+  ],
+  ['waking no item', `{"v":1,"at":${T0},"seq":1,"type":"wake"}`],
 ] as const) {
   test(`a line ${why} is skipped, and the rest stand`, () => {
     const good = entry(T0, 1, EVERY_KIND[2]!)

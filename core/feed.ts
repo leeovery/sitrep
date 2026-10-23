@@ -214,7 +214,7 @@ export type Shown = ReadonlyMap<string, Seen>
 export const newRows = (shown: Shown | undefined, feed: Feed, at: number) => {
   const lines = feed.rows.filter(needsYou).flatMap(row => row.lines)
   const asleep = feed.snoozed.flatMap(row => row.lines.map(line => line.key))
-  const isOn = new Set([...lines.map(line => line.key), ...asleep])
+  const isOn = new Set(lines.map(line => line.key))
   const isRemembered = (seen: Seen) => typeof seen !== 'number' || at - seen <= FORGET_MS
   const gone = [...(shown ?? [])].flatMap(([key, seen]): [string, number][] =>
     isOn.has(key) || !isRemembered(seen) ? [] : [[key, typeof seen === 'number' ? seen : at]],

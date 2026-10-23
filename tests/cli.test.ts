@@ -9,7 +9,7 @@ import {
   VERSION,
   type SessionPaths,
 } from '../core'
-import { file, finish, META, MIN, note, status, T0, W1, yesAsk, type Line } from './support'
+import { file, finish, META, MIN, note, snooze, status, T0, W1, yesAsk, type Line } from './support'
 import { ENV, FIRST_ID, NEXT_ID, NOW, terminal } from './terminal'
 import { ELSEWHERE } from './world'
 
@@ -518,6 +518,48 @@ test('what the CLI prints says what is snoozed: each ask its snoozedUntil while 
     ['k2', null],
     ['k3', WAKES],
   ])
+})
+
+test("board --json gives no snooze where Lee's side has none: an ask Lee's answer is on its way to, and every ask of a finished session, their snoozes standing", async () => {
+  const t = terminal()
+  const lines: Line[] = [
+    ...ASKED.lines,
+    [T0 + MIN, snooze('k1', WAKES)],
+    [T0 + MIN, snooze('k2', WAKES)],
+  ]
+  const asksOf = async (id: string) => {
+    const board = JSON.parse((await t.run('board', '--json', '--session', id)).out) as {
+      work: { waiting: number; snoozed: number }
+      asks: { id: string; snoozedUntil: number | null }[]
+    }
+
+    const { waiting, snoozed } = board.work
+
+    return [{ waiting, snoozed }, board.asks.map(ask => [ask.id, ask.snoozedUntil])]
+  }
+
+  t.seed(META, { lines })
+
+  const lobby = t.seed(LOBBY, { lines: [...lines, [T0 + 2 * MIN, finish('lee')]] })
+
+  expect((await t.run('answer', 'k1', 'Approve', ...SESSION)).exit).toBe(EXIT.done)
+  expect(await asksOf(META.id)).toEqual([
+    { waiting: 1, snoozed: 1 },
+    [
+      ['k1', null],
+      ['k2', WAKES],
+      ['k3', null],
+    ],
+  ])
+  expect(await asksOf(LOBBY.id)).toEqual([
+    { waiting: 0, snoozed: 0 },
+    [
+      ['k1', null],
+      ['k2', null],
+      ['k3', null],
+    ],
+  ])
+  expect(folded(t, lobby).asks[1]?.snoozedUntil, 'standing, for a join to find').toBe(WAKES)
 })
 
 test('help: every command in brief, how a session is named, and the exit codes', async () => {

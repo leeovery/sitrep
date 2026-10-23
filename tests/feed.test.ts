@@ -1,5 +1,6 @@
 import { expect, test } from 'claude-code/testing'
 import {
+  ASLEEP,
   replyState,
   brief,
   CURRENT_MS,
@@ -1076,10 +1077,10 @@ test('a session with an ask snoozed and another waiting shows in both: its row i
   expect(feed.head).toEqual({ needYou: 1, sessions: 1 })
 })
 
-test("Snoozed's rows go soonest to wake first, then the oldest, and so do a row's lines; a row wakes as its soonest line; a finished session has none", () => {
+test("Snoozed's rows go soonest to wake first, then the oldest, whatever their ids, and so do a row's lines; a row wakes as its soonest line; a finished session has none", () => {
   const sessions = [
     sessionOf({
-      meta: { id: 'sr-aaaaaa' },
+      meta: { id: 'sr-bbbbbb' },
       lines: [
         [T0, yesAsk('k1', 'Later')],
         [T0 + 2 * MIN, yesAsk('k2', 'Sooner, newer')],
@@ -1090,7 +1091,7 @@ test("Snoozed's rows go soonest to wake first, then the oldest, and so do a row'
       ],
     }),
     sessionOf({
-      meta: { id: 'sr-bbbbbb' },
+      meta: { id: 'sr-aaaaaa' },
       lines: [
         [T0 + 5 * MIN, yesAsk('k1', 'Newer row')],
         [T0 + 6 * MIN, snooze('k1', WAKES)],
@@ -1115,7 +1116,7 @@ test("Snoozed's rows go soonest to wake first, then the oldest, and so do a row'
   ).toEqual([
     ['sr-cccccc', NOW + MIN, [['k1', NOW + MIN]]],
     [
-      'sr-aaaaaa',
+      'sr-bbbbbb',
       WAKES,
       [
         ['k3', WAKES],
@@ -1123,9 +1124,24 @@ test("Snoozed's rows go soonest to wake first, then the oldest, and so do a row'
         ['k1', WAKES_LATER],
       ],
     ],
-    ['sr-bbbbbb', WAKES, [['k1', WAKES]]],
+    ['sr-aaaaaa', WAKES, [['k1', WAKES]]],
   ])
   expect(snoozedRowOf(SWITCHBOARD, sessions[3]!, NOW)).toBeUndefined()
+})
+
+test("a Snoozed line counts from its ask's posting or reopening, as in Needs you", () => {
+  const session = sessionOf({
+    lines: [
+      [T0, yesAsk('k1', 'Review round 1')],
+      [T0 + MIN, resolve('k1')],
+      [T0 + 5 * MIN, reopen('k1')],
+      [T0 + 6 * MIN, snooze('k1', WAKES)],
+    ],
+  })
+
+  expect(snoozedRowOf(SWITCHBOARD, session, NOW)?.lines.map(each => each.since)).toEqual([
+    T0 + 5 * MIN,
+  ])
 })
 
 test('an ask back from its snooze at its time is a line in Needs you again, carrying when it woke; one Lee woke carries none', () => {
@@ -1154,8 +1170,8 @@ test('a line in Snoozed is kept as shown however long it sleeps, its absence nev
   const shown = newRows(newRows(undefined, waiting, 0).shown, asleep, 0)
   const slept = newRows(shown.shown, asleep, 9 * FORGET_MS).shown
 
-  expect([shown.news, [...shown.shown]]).toEqual([[], [[key, 'asleep']]])
-  expect([...slept]).toEqual([[key, 'asleep']])
+  expect([shown.news, [...shown.shown]]).toEqual([[], [[key, ASLEEP]]])
+  expect([...slept]).toEqual([[key, ASLEEP]])
   expect(newRows(slept, woke, 9 * FORGET_MS).news).toEqual([key])
   expect(newRows(slept, woken, 9 * FORGET_MS).news).toEqual([])
   expect(
