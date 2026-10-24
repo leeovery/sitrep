@@ -3696,8 +3696,10 @@ stands).
   on the Space Lee is on: it moves to the active Space and comes forward
   there before SitRep activates, so the activation takes him to no other
   Space. It moves only as SitRep brings it forward: `.moveToActiveSpace`
-  holds from then until it is key, or, never keyed, until Lee changes
-  Space, and otherwise it stays on its own Space. A jump, from the window,
+  holds from then until Lee next changes Space, and otherwise it stays on
+  its own Space. While he stays, it is on his Space already, so nothing
+  moves it. Cleared as the activation keyed it, it opened on its last
+  Space, taking Lee there (24 October 2026). A jump, from the window,
   the notch, the strip, the menu or a macOS notification, leaves it where
   it is, never ordered front (Lee, 23 October 2026: "If it's open, it
   should stay where it is"). Clicking a notification activates SitRep, and

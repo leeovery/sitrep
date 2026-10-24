@@ -2,8 +2,9 @@ import AppKit
 @testable import SitRep
 import Testing
 
-/// A window of SitRep's own goes to the Space Lee is on only while SitRep brings it forward. Never shown, nor SitRep
-/// activated: each step `comeForward()` takes is recorded with whether the window moves to the active Space then.
+/// A window of SitRep's own goes to the Space Lee is on from when SitRep brings it forward until Lee next changes Space.
+/// Never shown, nor SitRep activated: each step `comeForward()` takes is recorded with whether the window moves to the
+/// active Space then.
 @MainActor
 struct ForwardWindowTests {
     /// What macOS posts as Lee changes Space, posted in this process alone.
@@ -30,89 +31,55 @@ struct ForwardWindowTests {
         #expect(window.steps.dropFirst().first == .orderFront(movesToActiveSpace: true))
     }
 
-    /// SitRep inactive, the window is keyed only as the activation lands, so it moves with Lee till then.
-    @Test func itKeepsToLeesSpaceTillTheActivationKeysIt() {
+    /// Cleared as the activation keyed it, macOS took Lee to the window's last Space all the same.
+    @Test func keyedAsTheActivationLandsItStillMovesToLeesSpace() {
         let window = RecordedWindow.made()
 
         window.comeForward()
-        #expect(window.movesToActiveSpace)
-
         window.becomeKey()
-        #expect(!window.movesToActiveSpace)
+
+        #expect(window.movesToActiveSpace)
     }
 
-    /// SitRep already active, the window is keyed as it orders front, so it keeps to its Space at once.
-    @Test func keyedAsItOrdersFrontItKeepsToItsSpaceOnceForward() {
+    @Test func keyedAsItOrdersFrontItStillMovesToLeesSpace() {
         let window = RecordedWindow.made()
 
         window.keysAsItOrders = true
         window.comeForward()
 
-        #expect(!window.movesToActiveSpace)
-    }
-
-    /// AppKit may key it before ordering it front, when it is not yet on Lee's Space.
-    @Test func keyedBeforeItOrdersFrontItStillOrdersFrontOnLeesSpace() {
-        let window = RecordedWindow.made()
-
-        window.keysBeforeOrdering = true
-        window.comeForward()
-
-        #expect(window.steps.first == .orderFront(movesToActiveSpace: true))
-        #expect(window.steps.last == .activate(movesToActiveSpace: true))
-        #expect(!window.movesToActiveSpace)
-    }
-
-    /// AppKit may key it as it comes out of the Dock, before it orders front.
-    @Test func keyedAsItRestoresItStillOrdersFrontOnLeesSpace() {
-        let window = RecordedWindow.made()
-
-        window.isMinimised = true
-        window.keysAsItRestores = true
-        window.comeForward()
-
-        #expect(window.steps.dropFirst().first == .orderFront(movesToActiveSpace: true))
-        #expect(!window.movesToActiveSpace)
-    }
-
-    /// The activation declined, or About SitRep keyed instead, the window is on Lee's Space and never keyed: it keeps
-    /// to that Space once he leaves it, so the next notification's click moves it nowhere.
-    @Test func neverKeyedItKeepsToItsSpaceOnceLeeChangesSpace() {
-        let window = RecordedWindow.made()
-
-        window.comeForward()
         #expect(window.movesToActiveSpace)
+    }
+
+    /// Once Lee leaves its Space, the next notification's click moves it nowhere.
+    @Test func itKeepsToItsSpaceOnceLeeChangesSpace() {
+        let window = RecordedWindow.made()
+
+        window.comeForward()
+        Self.changeSpace()
+
+        #expect(!window.movesToActiveSpace)
+    }
+
+    @Test func broughtForwardAgainItMovesToLeesSpaceAgainTillTheNextChange() {
+        let window = RecordedWindow.made()
+
+        window.comeForward()
+        Self.changeSpace()
+        window.steps = []
+        window.comeForward()
+        #expect(window.steps == [.orderFront(movesToActiveSpace: true), .activate(movesToActiveSpace: true)])
 
         Self.changeSpace()
         #expect(!window.movesToActiveSpace)
     }
 
-    @Test func broughtForwardAgainAfterAChangeOfSpaceItKeepsToItsSpaceAtTheNext() {
+    /// Closed by its red light on one Space and opened again from another, it opens on Lee's.
+    @Test func closedAndBroughtForwardAgainItMovesToLeesSpace() {
         let window = RecordedWindow.made()
 
         window.comeForward()
+        window.close()
         Self.changeSpace()
-        window.comeForward()
-        #expect(window.movesToActiveSpace)
-
-        Self.changeSpace()
-        #expect(!window.movesToActiveSpace)
-    }
-
-    @Test func alreadyKeyItKeepsToItsSpaceOnceForward() {
-        let window = RecordedWindow.made()
-
-        window.isKey = true
-        window.comeForward()
-
-        #expect(!window.movesToActiveSpace)
-    }
-
-    @Test func broughtForwardAgainItMovesToLeesSpaceAgain() {
-        let window = RecordedWindow.made()
-
-        window.comeForward()
-        window.becomeKey()
         window.steps = []
         window.comeForward()
 
