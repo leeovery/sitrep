@@ -15,8 +15,8 @@ final class EdgeWindow: NSPanel {
                 return
             }
 
-            // Clear rather than ordered out: proven live on 26 October 2026, the notch ordered out as Chrome went
-            // full screen and back in as it left was on that one Space from then on.
+            // Clear rather than ordered out: proven live on 26 October 2026, ordered out and back in round a
+            // full-screen Space, it came back on that one Space only.
             alphaValue = isShown ? 1 : 0
             letClicks()
             runsAnimations(isShown)
@@ -41,7 +41,9 @@ final class EdgeWindow: NSPanel {
         isReleasedWhenClosed = false
         level = NSWindow.Level(rawValue: NSWindow.Level.mainMenu.rawValue + 3)
         collectionBehavior = [.canJoinAllSpaces, .stationary, .ignoresCycle]
-        ignoresMouseEvents = true
+        // SitRep hidden would order it out and back in as it unhides, the round trip that pins it to one Space.
+        canHide = false
+        letClicks()
         acceptsMouseMovedEvents = true
         view.wantsLayer = true
         contentView = view

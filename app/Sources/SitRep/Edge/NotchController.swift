@@ -36,7 +36,8 @@ final class NotchController: NSObject {
     private var edge: ScreenEdge
     private let run: NotchRun
     private let surface = NotchSurface()
-    private let window: EdgeWindow
+    /// Its window: internal only for the tests, which read that it stays on the screen.
+    let window: EdgeWindow
     private var link: CADisplayLink?
     private var lightLink: CADisplayLink?
     /// While frames are idle with the panel out, its times drawn again as they next change.

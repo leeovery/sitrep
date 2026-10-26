@@ -23,7 +23,8 @@ final class StripController: NSObject {
     private var edge: ScreenEdge
     private let run: StripRun
     private let surface = StripSurface()
-    private let window: EdgeWindow
+    /// Its window: internal only for the tests, which read that it stays on the screen.
+    let window: EdgeWindow
     private var link: CADisplayLink?
     /// While frames are idle with a tab out, its time drawn again as it next changes.
     private var ages: Timer?
