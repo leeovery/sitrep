@@ -28,7 +28,7 @@ struct SavedEdgeSettingsTests {
 
         SavedEdgeSettings(defaults).save(EdgeSettings())
 
-        #expect(defaults.dictionaryRepresentation().keys.filter { $0 == SavedEdgeSettings.key }.count == 1)
+        #expect(Set(defaults.dictionaryRepresentation().keys) == [SavedEdgeSettings.key])
         #expect(defaults.data(forKey: SavedEdgeSettings.key) != nil)
     }
 

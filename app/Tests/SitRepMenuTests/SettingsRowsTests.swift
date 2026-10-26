@@ -252,7 +252,7 @@ struct AppSettingsTests {
         SavedEdgeSettings(defaults).save(EdgeSettings())
 
         #expect(SavedSettings<AppSettings>(defaults).read() == settings)
-        #expect(defaults.data(forKey: "app") != nil)
+        #expect(Set(defaults.dictionaryRepresentation().keys) == ["app", SavedEdgeSettings.key])
         #expect(SavedEdgeSettings(defaults).read() == EdgeSettings())
     }
 

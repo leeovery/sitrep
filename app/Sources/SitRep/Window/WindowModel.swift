@@ -20,7 +20,7 @@ final class WindowModel {
     /// The clock the pages are drawn at: ages, washes and an answer's wait.
     private(set) var now = Date()
     /// SitRep's own Reduce motion, or the Mac's, followed as either changes.
-    private(set) var reducesMotion = WindowModel.readReducesMotion()
+    private(set) var reducesMotion: Bool
     /// The window's jump under way, which only the button pressed shows.
     private(set) var jumping = Jumping()
 
@@ -49,6 +49,7 @@ final class WindowModel {
         self.works = works
         self.snoozes = snoozes
         self.defaults = defaults
+        reducesMotion = Self.readReducesMotion(defaults)
         let saved = SavedSettings<SidebarSettings>(defaults)
         let folds = saved.read().folds
 
@@ -77,15 +78,16 @@ final class WindowModel {
         listen()
     }
 
-    private static func readReducesMotion() -> Bool {
-        Displays.reducesMotion(SavedEdgeSettings().read())
+    private static func readReducesMotion(_ defaults: UserDefaults) -> Bool {
+        Displays.reducesMotion(SavedEdgeSettings(defaults).read())
     }
 
     /// SitRep's setting saved, or the Mac's changing, shows at once, as the edge follows the Mac's.
     private func listen() {
         let follow: @Sendable (Notification) -> Void = { [weak self] _ in
             MainActor.assumeIsolated {
-                self?.reducesMotion = Self.readReducesMotion()
+                guard let self else { return }
+                self.reducesMotion = Self.readReducesMotion(self.defaults)
             }
         }
 

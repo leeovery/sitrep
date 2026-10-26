@@ -25,6 +25,15 @@ struct MemoryDefaultsTests {
         #expect(defaults.data(forKey: "data") == nil)
     }
 
+    @Test func aPropertyListIsTaken() {
+        let defaults = MemoryDefaults()
+        let value: [String: Any] = ["words": "words", "number": 7, "data": Data([1]), "list": [true, 2.5]]
+
+        defaults.set(value, forKey: "plist")
+
+        #expect(defaults.dictionary(forKey: "plist") as NSDictionary? == value as NSDictionary)
+    }
+
     @Test func eachIsItsOwn() {
         let one = MemoryDefaults()
 
