@@ -92,7 +92,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             },
             hasGlass: Self.hasGlass,
             jump: { [works] in works.jump(to: $0) },
-            sendTest: { [banners, live] in banners.post(Notices.test(live.last)) },
+            sendTest: { [banners] in banners.post(Notices.test) },
             noticeLeave: { [banners] in await banners.leave() },
             askForNotices: { [banners] in await banners.ask() },
             login: { Leaves.login },

@@ -4287,8 +4287,11 @@ reference only.
   clock and the banner are, which the picture is there to show (spec round
   8 had it cropping at its right; at the narrowest column that dropped the
   clock and most of the banner). Under
-  it, its caption and Send Test, a push button, which sends what the test
-  always has: a real notification, its click jumping as any would. Then Notify me of a new ask, off by
+  it, its caption and Send Test, a push button, which sends a sample, "Test
+  notification", "This is what SitRep's notifications look like", naming no
+  session, so its click jumps nowhere and hands the front back (Lee, 26
+  October 2026: a test of a real project's took him to its session, which a
+  test should not). Then Notify me of a new ask, off by
   default, its line "Silent; a click on it jumps to the session"; and
   macOS's own answer, "Allowed by macOS, as banners", with Notification
   Settings… for SitRep's page in System Settings: the notices helper's,
@@ -5132,8 +5135,8 @@ reaches a window only while that pane is on show).
         line does not; its click jumps nowhere. Turning the switch on asks
         macOS for leave, unless Lee answered before. The switch's line says
         what tells Lee instead: the notch's swell, the strip's flash, or the
-        menu bar's light with Nothing. Send sends the board's first row a
-        window holds, which a click jumps to. Since 26 October 2026 the
+        menu bar's light with Nothing. Send sends a sample naming no
+        session, which a click jumps nowhere from. Since 26 October 2026 the
         notices helper posts them all (see "The menu bar").
       - **General.** The plugin's version is the CLI's, from the board; its
         line says where it runs from (step 9 made it each case's: "Installed

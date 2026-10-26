@@ -18,14 +18,10 @@ public enum Notices {
         }
     }
 
-    /// The test notification Settings sends: as a new ask's would be, of the board's first row a window holds, which a
-    /// click jumps to; with none, one that jumps nowhere.
-    public static func test(_ last: LastBoard) -> Banner {
-        guard let board = last.board, let row = board.rows.first(where: { !$0.isAway }) else {
-            return Banner(title: "SitRep", subtitle: nil, body: "A test notification. No window holds a session, so it jumps nowhere.", work: nil)
-        }
-
-        return Banner(title: row.oldest.first.lead, subtitle: placeOf(row), body: "A test notification. Click it to jump to this session.", work: row.session)
+    /// The test notification Settings sends: a sample, never a real session's, so a click on it jumps nowhere. Lee, 26
+    /// October 2026: one of a real project's took him to its session, which a test should not.
+    public static var test: Banner {
+        Banner(title: "Test notification", subtitle: nil, body: "This is what SitRep's notifications look like.", work: nil)
     }
 
     private static func newAsk(_ ask: Board.Row.Line, of row: Board.Row) -> Banner {
