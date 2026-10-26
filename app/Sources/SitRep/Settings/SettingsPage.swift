@@ -90,10 +90,21 @@ final class SettingsModel {
 
     private var isInSight: Bool { isShown && isKey }
 
-    /// What macOS says of SitRep's leaves.
+    /// What macOS says of SitRep's leaves, each row as its answer comes: the notices helper may take its time.
     func read() async {
         said.login = services.login()
+
+        async let notices: Void = readNotices()
+        async let ghostty: Void = readGhostty()
+
+        _ = await (notices, ghostty)
+    }
+
+    private func readNotices() async {
         said.notices = await services.noticeLeave()
+    }
+
+    private func readGhostty() async {
         said.ghostty = await services.ghostty()
     }
 

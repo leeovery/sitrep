@@ -13,7 +13,8 @@ public final class Relay<Out: Relayed, In: Relayed> {
         self.helper = helper
     }
 
-    /// Sent at once, as AppKit holds back a distributed notification from an app not active, and neither side is.
+    /// Delivered at once: AppKit suspends delivery to an app that is not active, as neither side is as a rule, and
+    /// `deliverImmediately` from the sender overrides that.
     public func send(_ letter: Letter<Out>) {
         center.postNotificationName(name(Out.self), object: nil, userInfo: letter.userInfo, deliverImmediately: true)
     }

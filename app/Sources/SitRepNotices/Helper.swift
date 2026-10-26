@@ -23,14 +23,16 @@ protocol SitRepApp {
 
 /// The helper's work, between SitRep and macOS's notifications. A click activates the helper, which has no window, so
 /// macOS has no Space to take Lee to; the helper relays it, and SitRep jumps as from any other click. A click that
-/// started the helper while SitRep was not running starts SitRep, and is held until SitRep says it listens. The helper
-/// quits as its SitRep ends.
+/// started the helper while SitRep was not running starts SitRep, and is held until SitRep says it listens. A click on
+/// a banner naming no session hands the front back, as nothing jumps. The helper quits as its SitRep ends.
 @MainActor
 final class Helper {
     private let notifications: Notifying
     private let sitRep: SitRepApp
     private let send: (Letter<ToSitRep>) -> Void
     private let quit: @MainActor () -> Void
+    /// The front given back to the app Lee was in, which the click's activation took it from.
+    private let handBack: () -> Void
     private let logger = Logger(helper: "notices")
     /// The pid of the SitRep it serves, once found or started.
     private var pid: Int32?
@@ -42,12 +44,14 @@ final class Helper {
 
     init(
         notifications: Notifying, sitRep: SitRepApp,
-        send: @escaping (Letter<ToSitRep>) -> Void, quit: @escaping @MainActor () -> Void
+        send: @escaping (Letter<ToSitRep>) -> Void, quit: @escaping @MainActor () -> Void,
+        handBack: @escaping () -> Void
     ) {
         self.notifications = notifications
         self.sitRep = sitRep
         self.send = send
         self.quit = quit
+        self.handBack = handBack
     }
 
     /// Finds SitRep, or starts it; watches for it ending; says the helper listens. With no SitRep, it quits.
@@ -82,8 +86,13 @@ final class Helper {
         }
     }
 
-    /// A banner clicked, naming a session: relayed to SitRep, or held until it listens.
-    func clicked(_ work: String) {
+    /// A banner clicked: one naming a session relayed to SitRep, or held until it listens; one naming none hands the
+    /// front back.
+    func clicked(_ work: String?) {
+        guard let work else {
+            return handBack()
+        }
+
         if isSitRepListening {
             relay(.clicked(work: work))
         } else {

@@ -97,16 +97,20 @@ struct HelperTests {
     }
 
     @MainActor
-    final class Quits {
-        var count = 0
+    final class Calls {
+        var quits = 0
+        var handBacks = 0
     }
 
     private let mac = Mac()
     private let sent = Sent()
-    private let quits = Quits()
+    private let calls = Calls()
 
     private func helper(_ sitRep: SitRep) -> Helper {
-        Helper(notifications: mac, sitRep: sitRep, send: sent.put) { [quits] in quits.count += 1 }
+        Helper(
+            notifications: mac, sitRep: sitRep, send: sent.put, quit: { [calls] in calls.quits += 1 },
+            handBack: { [calls] in calls.handBacks += 1 }
+        )
     }
 
     private static func fromSitRep(_ message: ToHelper, pid: Int32 = sitRep) -> Letter<ToHelper> {
@@ -131,10 +135,33 @@ struct HelperTests {
         let helper = helper(sitRep)
 
         await helper.start()
-        #expect(quits.count == 0)
+        #expect(calls.quits == 0)
         sitRep.end?()
 
-        #expect(quits.count == 1)
+        #expect(calls.quits == 1)
+    }
+
+    /// As "SitRep could not jump" or the test with no window holding a session: nothing jumps, so the front goes back
+    /// to the app Lee was in.
+    @Test func aClickOnABannerNamingNoSessionHandsTheFrontBack() async {
+        let helper = helper(SitRep(isRunning: true))
+
+        await helper.start()
+        helper.heard(Self.fromSitRep(.ready))
+        helper.clicked(nil)
+
+        #expect(calls.handBacks == 1)
+        #expect(sent.messages == [.ready, .ready])
+    }
+
+    @Test func aClickNamingASessionKeepsTheFrontForTheJump() async {
+        let helper = helper(SitRep(isRunning: true))
+
+        await helper.start()
+        helper.heard(Self.fromSitRep(.ready))
+        helper.clicked("sr-aw3bgs")
+
+        #expect(calls.handBacks == 0)
     }
 
     @Test func aClickIsRelayedToSitRep() async {
@@ -170,7 +197,7 @@ struct HelperTests {
 
         await helper.start()
 
-        #expect(quits.count == 1)
+        #expect(calls.quits == 1)
         #expect(sent.messages.isEmpty)
     }
 

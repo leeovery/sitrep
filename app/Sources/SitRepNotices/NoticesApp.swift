@@ -32,7 +32,8 @@ final class NoticesDelegate: NSObject, NSApplicationDelegate {
 
         self.relay = relay
         helper = Helper(
-            notifications: notifications, sitRep: OwnSitRep(), send: relay.send, quit: { NSApp.terminate(nil) }
+            notifications: notifications, sitRep: OwnSitRep(), send: relay.send, quit: { NSApp.terminate(nil) },
+            handBack: { NSApp.hide(nil) }
         )
     }
 
@@ -62,13 +63,22 @@ final class OwnSitRep: SitRepApp {
     private let logger = Logger(helper: "notices")
     private var watch: EndWatch?
 
+    /// The SitRep running from this bundle, not merely one with its bundle id: another copy may run beside it.
     func running() -> Int32? {
         guard let id = Bundle(url: bundle)?.bundleIdentifier else {
             return nil
         }
 
-        return NSRunningApplication.runningApplications(withBundleIdentifier: id).first { !$0.isTerminated }?
-            .processIdentifier
+        let apps = NSRunningApplication.runningApplications(withBundleIdentifier: id).filter { !$0.isTerminated }
+
+        return Self.pid(of: bundle, among: apps.map { (bundle: $0.bundleURL, pid: $0.processIdentifier) })
+    }
+
+    /// The pid of the app among these that runs from the bundle, however a path to it is written.
+    static func pid(of bundle: URL, among apps: [(bundle: URL?, pid: Int32)]) -> Int32? {
+        let place = { (url: URL) in url.standardizedFileURL.resolvingSymlinksInPath().path }
+
+        return apps.first { $0.bundle.map(place) == place(bundle) }?.pid
     }
 
     func launch() async -> Int32? {

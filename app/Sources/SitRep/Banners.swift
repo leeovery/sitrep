@@ -51,10 +51,14 @@ final class Banners {
         }
     }
 
-    /// The helper gone: what it had yet to answer is unknown, and what comes next waits for it, started again.
+    /// The helper gone: what it was asked and had yet to answer is unknown, and what comes next waits for it, started
+    /// again only then, so a helper that ends as it starts is not started over and over.
     func helperEnded() {
         isHelperListening = false
-        answers.keys.forEach { answer($0, nil) }
+
+        let unsent = Set(waiting.compactMap(\.request))
+
+        answers.keys.filter { !unsent.contains($0) }.forEach { answer($0, nil) }
         if !waiting.isEmpty {
             launch()
         }
@@ -80,6 +84,7 @@ final class Banners {
         if let within {
             Task {
                 try? await Task.sleep(for: within)
+                waiting.removeAll { $0.request == id }
                 answer(id, nil)
             }
         }
@@ -94,13 +99,15 @@ final class Banners {
         answers.removeValue(forKey: id)?.resume(returning: leave)
     }
 
-    /// The helper's first `ready` answered with SitRep's, as the helper may have missed it, and what waits sent.
+    /// The helper's first `ready` answered with SitRep's, as the helper may have missed it, and what waits sent. It is
+    /// watched for ending through `launch`, which finds it running, whoever started it: SitRep, or macOS for a click.
     private func helperListens() {
         guard !isHelperListening else {
             return
         }
 
         isHelperListening = true
+        launch()
         say(.ready)
         waiting.forEach(say)
         waiting = []
@@ -117,6 +124,16 @@ final class Banners {
 
     private func say(_ message: ToHelper) {
         send(Letter(message, pid: pid))
+    }
+}
+
+private extension ToHelper {
+    /// The id of a request, which its answer gives back.
+    var request: String? {
+        switch self {
+        case let .status(id), let .ask(id): id
+        case .ready, .post: nil
+        }
     }
 }
 
@@ -141,7 +158,8 @@ extension Banners {
     }
 }
 
-/// The notices helper as an app: started where it is not running, once at a time, and watched for ending.
+/// The notices helper as an app: started where it is not running, once at a time, and watched for ending. Opened
+/// where it runs already, as when it says it listens, it is the one running that is watched.
 @MainActor
 private final class HelperApp {
     var ended: () -> Void = {}

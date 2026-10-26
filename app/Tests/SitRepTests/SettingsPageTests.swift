@@ -34,12 +34,19 @@ struct SettingsModelTests {
         var allows = 0
         var opened: [Leaves.Place] = []
         var answer: CheckedContinuation<GhosttyLeave, Never>?
+        /// The notices helper slow to answer: each read of notifications held until `noticesAnswer` lets it go.
+        var holdsNotices = false
+        var noticesAnswer: CheckedContinuation<Void, Never>?
 
         func services() -> SettingsServices {
             SettingsServices(
                 displays: { self.displays += 1; return [] }, hasGlass: true, jump: { _ in }, sendTest: {},
                 noticeLeave: {
                     self.reads += 1
+                    if self.holdsNotices {
+                        await withCheckedContinuation { self.noticesAnswer = $0 }
+                    }
+
                     return .allowed(.banners)
                 },
                 askForNotices: {},
@@ -84,6 +91,29 @@ struct SettingsModelTests {
 
         await settings.read()
         #expect(settings.said == MacSays(notices: .allowed(.banners), login: LoginItem(.enabled), ghostty: .unasked))
+    }
+
+    /// The notices helper may take up to its 2 seconds; Ghostty's row is read meanwhile.
+    @Test func aSlowReadOfNotificationsHoldsUpNoOtherRow() async {
+        let mac = Mac()
+        let settings = Self.settings(mac)
+
+        mac.holdsNotices = true
+
+        let reading = Task { await settings.read() }
+
+        for _ in 0 ..< 100 where settings.said.ghostty == nil {
+            await Task.yield()
+        }
+        #expect(settings.said.ghostty == .unasked)
+        #expect(settings.said.notices == nil)
+
+        while mac.noticesAnswer == nil {
+            await Task.yield()
+        }
+        mac.noticesAnswer?.resume()
+        await reading.value
+        #expect(settings.said.notices == .allowed(.banners))
     }
 
     @Test(arguments: [true, false])

@@ -3,7 +3,8 @@ import SitRepRelay
 import UserNotifications
 
 /// macOS banners: silent, since each Claude window's own chime already plays, and shown even while the helper counts
-/// as the active app, as it does once a click activates it. A click on one that names a session is told to `onClick`.
+/// as the active app, as it does once a click activates it. A click on one's body is told to `onClick`, with the
+/// session it names, if any.
 @MainActor
 final class Notifications: NSObject, Notifying, UNUserNotificationCenterDelegate {
     /// The userInfo key carrying the id of the work a banner jumps to.
@@ -11,9 +12,9 @@ final class Notifications: NSObject, Notifying, UNUserNotificationCenterDelegate
 
     private let center = UNUserNotificationCenter.current()
     private let logger = Logger(helper: "banner")
-    private var onClick: (String) -> Void = { _ in }
+    private var onClick: (String?) -> Void = { _ in }
 
-    func listen(onClick: @escaping (String) -> Void) {
+    func listen(onClick: @escaping (String?) -> Void) {
         self.onClick = onClick
         center.delegate = self
     }
@@ -86,12 +87,11 @@ final class Notifications: NSObject, Notifying, UNUserNotificationCenterDelegate
     }
 
     nonisolated func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse) async {
-        guard
-            response.actionIdentifier == UNNotificationDefaultActionIdentifier,
-            let work = response.notification.request.content.userInfo[Self.workKey] as? String
-        else {
+        guard response.actionIdentifier == UNNotificationDefaultActionIdentifier else {
             return
         }
+
+        let work = response.notification.request.content.userInfo[Self.workKey] as? String
 
         await MainActor.run { onClick(work) }
     }

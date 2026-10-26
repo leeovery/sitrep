@@ -48,6 +48,11 @@ struct BannersTests {
         var works: [String] = []
     }
 
+    @MainActor
+    final class Asked {
+        var isDone = false
+    }
+
     private let helper = Helper()
     private let clicks = Clicks()
 
@@ -108,7 +113,6 @@ struct BannersTests {
         banners.post(Self.asked)
 
         #expect(helper.messages.count == 3)
-        #expect(helper.launches == 1)
     }
 
     /// The handler SitRep gives is the jump.
@@ -179,9 +183,89 @@ struct BannersTests {
 
         #expect(await leave == nil)
 
+        let launched = helper.launches
+
         banners.post(Self.asked)
 
         #expect(helper.messages.count == 3)
+        #expect(helper.launches == launched + 1)
+
+        banners.heard(Self.fromHelper(.ready))
+
+        #expect(helper.messages.dropFirst(3) == [.ready, .post(Notice(
+            title: "Pick a name", subtitle: "SitRep · Build the Mac app", body: "", work: "sr-aw3bgs"
+        ))])
+    }
+
+    /// Whoever started it, SitRep or macOS for a click, a helper that says it listens is watched for ending, through
+    /// the launch, which finds it running.
+    @Test func aHelperThatSaysItListensIsWatched() {
+        let banners = banners()
+
+        banners.heard(Self.fromHelper(.ready))
+
         #expect(helper.launches == 2)
+    }
+
+    /// Ended with nothing to say, the helper is not started again, so one that ends as it starts is not started over
+    /// and over; the next that says it listens, as macOS starts one for a click, is heard and watched.
+    @Test func aHelperStartedForAClickAfterOneEndedIsHeardAndWatched() {
+        let banners = banners()
+
+        banners.heard(Self.fromHelper(.ready))
+        banners.helperEnded()
+
+        #expect(helper.launches == 2)
+
+        banners.heard(Self.fromHelper(.ready))
+
+        #expect(helper.launches == 3)
+        #expect(helper.messages == [.ready, .ready, .ready])
+
+        banners.helperEnded()
+        banners.post(Self.asked)
+
+        #expect(helper.messages.count == 3)
+        #expect(helper.launches == 4)
+    }
+
+    /// Given up on, it is not sent to a helper that comes later, nor kept waiting for one that never does.
+    @Test func aReadGivenUpOnIsNotSentLater() async {
+        let banners = banners(answerWithin: .milliseconds(1))
+
+        #expect(await banners.leave() == nil)
+
+        banners.heard(Self.fromHelper(.ready))
+
+        #expect(helper.messages == [.ready, .ready])
+    }
+
+    /// An ask the helper that ended was never sent waits for the next, so Settings reads again only once Lee answers.
+    @Test func theHelperEndingLeavesAnAskNotYetSentForTheNext() async {
+        let banners = banners()
+        let asked = Asked()
+        let asking = Task {
+            await banners.ask()
+            asked.isDone = true
+        }
+
+        while helper.launches < 2 {
+            await Task.yield()
+        }
+        banners.helperEnded()
+        for _ in 0 ..< 10 {
+            await Task.yield()
+        }
+
+        #expect(!asked.isDone)
+
+        banners.heard(Self.fromHelper(.ready))
+
+        #expect(helper.messages.last == .ask(id: helper.lastId!))
+
+        banners.heard(Self.fromHelper(.status(.allowed(.banners), id: helper.lastId!)))
+        await asking.value
+
+        #expect(asked.isDone)
     }
 }

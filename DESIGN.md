@@ -2724,14 +2724,22 @@ that takes Lee to the window a session is in.
     not heard, nor heeds one. Each side says ready as it starts
     listening, and answers the other's first ready with its own, as the
     other may have started after it spoke. SitRep holds what it says
-    until the helper is ready, starting it again should it have ended;
-    a read of the leave the helper does not answer within 2 seconds is
-    unknown, and Settings' row then says no more than "Notifications in
-    macOS".
+    until the helper is ready. A read of the leave the helper does not
+    answer within 2 seconds is unknown, and dropped, so it is never sent
+    later; Settings' row then says no more than "Notifications in
+    macOS", and Settings reads its other rows meanwhile. A helper that
+    ends leaves what it was sent unanswered, as unknown; what was not
+    yet sent, an ask among it, waits for the next.
   - **Its life.** SitRep starts the helper as it starts
     (`NSWorkspace.openApplication`, not activated, not added to recent
-    items, the one running where it runs), and the helper quits as
-    SitRep ends, watching SitRep's `NSRunningApplication`. A click that
+    items, the one running where it runs), and watches whichever helper
+    says it is ready, SitRep's own or one macOS started for a click, for
+    its ending. The helper runs beside SitRep only until it ends: SitRep
+    starts it again only once it has something to say, so a helper that
+    ends as it starts is not started over and over, and a click on a
+    banner starts one of macOS's own. The helper serves the SitRep.app
+    it sits in, the copy running from that bundle, and quits as that
+    SitRep ends, watching its `NSRunningApplication`. A click that
     starts the helper while SitRep is not running starts SitRep, not
     activated, and is held until SitRep says it is ready.
 - **Answering stays in Claude Code:** the panel shows, and takes Lee there.
@@ -2740,7 +2748,10 @@ that takes Lee to the window a session is in.
 - **Clicking** a session, an ask or a macOS notification takes Lee to the
   Ghostty window showing that session, on whatever Space it is, and leaves
   the SitRep window on its own Space (see "The SitRep window"). A
-  notification's click activates the notices helper, not SitRep. A session no
+  notification's click activates the notices helper, not SitRep. A click
+  on a notification naming no session (a refusal, or the test with no
+  window holding one) hides the helper, handing the front back to the app
+  Lee was in, as nothing jumps. A session no
   window shows offers no jump: the app never opens a window (until stage 6).
 - **The app holds no sitrep logic.** It runs one `sitrep watch` as its
   child, which tells it the board as it changes, and each jump is a one-off
