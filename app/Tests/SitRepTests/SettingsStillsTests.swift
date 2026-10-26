@@ -39,7 +39,7 @@ struct SettingsStillsTests {
     }
 
     private static func preferences(_ change: (inout EdgeSettings) -> Void = { _ in }) -> Preferences {
-        let preferences = Preferences(UserDefaults(suiteName: "com.leeovery.sitrep.stills.\(UUID().uuidString)")!)
+        let preferences = Preferences(MemoryDefaults())
 
         preferences.edit(change)
         preferences.app.notifiesNewAsks = true

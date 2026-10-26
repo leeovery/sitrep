@@ -2,6 +2,7 @@ import AppKit
 import Foundation
 @testable import SitRep
 import SitRepEdge
+import SitRepLines
 import SitRepMenu
 import SitRepPanel
 import SwiftUI
@@ -23,13 +24,9 @@ struct FoldPeriodRowTests {
         try #require(hosted.all(NSPopUpButton.self).first { $0.accessibilityLabel() == "Your turn folds after" })
     }
 
-    private static func defaults() -> UserDefaults {
-        UserDefaults(suiteName: "com.leeovery.sitrep.period.\(UUID().uuidString)")!
-    }
-
     /// Its choices, an hour first and chosen, as Lee has set nothing.
     @Test func itOffersAnHourFourHoursTodayOrNeverAnHourChosen() async throws {
-        let (hosted, _) = await Self.page(Self.defaults())
+        let (hosted, _) = await Self.page(MemoryDefaults())
         let button = try Self.popUp(hosted)
 
         #expect(button.itemTitles == ["An hour", "Four hours", "Today", "Never"])
@@ -39,7 +36,7 @@ struct FoldPeriodRowTests {
     /// In General, under every control of What stays on screen and of Notifications, the last of which is Notification
     /// Settings…; at its widest choice's width, 10 in from the card's right, as the page's other controls.
     @Test func itIsInGeneralAtItsOwnWidth() async throws {
-        let (hosted, _) = await Self.page(Self.defaults())
+        let (hosted, _) = await Self.page(MemoryDefaults())
         let button = try Self.popUp(hosted)
         let frame = hosted.frame(of: button)
         let notifications = try #require(hosted.buttons().last)
@@ -50,7 +47,7 @@ struct FoldPeriodRowTests {
     }
 
     @Test func aChoiceIsSaved() async throws {
-        let defaults = Self.defaults()
+        let defaults = MemoryDefaults()
         let (hosted, page) = await Self.page(defaults)
         let button = try Self.popUp(hosted)
 

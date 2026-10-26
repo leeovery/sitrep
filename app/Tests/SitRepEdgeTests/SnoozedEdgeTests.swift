@@ -172,7 +172,7 @@ struct SnoozedEdgeTests {
     }()
 
     private static func kept(_ sections: Set<BoardSection>) -> SavedSettings<CardSettings> {
-        let kept = SavedSettings<CardSettings>(UserDefaults(suiteName: "com.leeovery.sitrep.card.\(UUID().uuidString)")!)
+        let kept = SavedSettings<CardSettings>(MemoryDefaults())
 
         kept.save(CardSettings(folded: sections))
         return kept

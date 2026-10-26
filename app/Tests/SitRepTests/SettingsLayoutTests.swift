@@ -2,6 +2,7 @@ import AppKit
 import Foundation
 @testable import SitRep
 @testable import SitRepCore
+import SitRepLines
 import SitRepMenu
 import SitRepPanel
 @testable import SitRepWindow
@@ -419,7 +420,7 @@ struct Hosted {
     /// Settings, its Mac saying `said`, read as the page reads it as it appears, with a second display.
     static func pageView(
         said: MacSays = allWell, live: LiveBoard = LiveBoard(),
-        defaults: UserDefaults = UserDefaults(suiteName: "com.leeovery.sitrep.layout.\(UUID().uuidString)")!,
+        defaults: UserDefaults = MemoryDefaults(),
         _ change: (inout EdgeSettings) -> Void = { _ in }
     ) async -> SettingsPage {
         let services = SettingsServices(
