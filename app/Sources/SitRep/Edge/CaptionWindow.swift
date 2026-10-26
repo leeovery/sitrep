@@ -15,7 +15,7 @@ final class CaptionWindow {
             if !mayShow {
                 pending = nil
                 pill.removeAllAnimations()
-                window.orderOut(nil)
+                window.isShown = false
             }
         }
     }
@@ -35,7 +35,7 @@ final class CaptionWindow {
         pill.shadowOffset = CGSize(width: 0, height: 8)
         pill.opacity = 0
         root.addSublayer(pill)
-        window = EdgeWindow(frame: .zero, view: StageHost(hosting: root))
+        window = EdgeWindow.onScreen(frame: .zero, view: StageHost(hosting: root))
     }
 
     /// A row's jump began, to a session on this project.
@@ -91,11 +91,11 @@ final class CaptionWindow {
             ))
             rescale(pill, to: window.backingScaleFactor)
         }
-        window.orderFrontRegardless()
+        window.isShown = true
         play(after: delay / 1000)
     }
 
-    /// The fade and the drift, sampled from `JumpCaption.look`; the window goes once it is over.
+    /// The fade and the drift, sampled from `JumpCaption.look`; the window hides once it is over.
     private func play(after delay: CFTimeInterval) {
         let steps = Int(JumpCaption.length / Self.sampled)
         let looks = (0 ... steps).map { JumpCaption.look(Double($0) * Self.sampled) }
@@ -119,7 +119,7 @@ final class CaptionWindow {
 
     private func ended() {
         if pill.animation(forKey: Self.key) == nil {
-            window.orderOut(nil)
+            window.isShown = false
         }
     }
 

@@ -4,9 +4,9 @@ import SitRepEdge
 import SitRepPanel
 import Testing
 
-/// The edge's other windows host their layers top-down, as the stage is, in windows never shown: the drag's ghost
-/// lands on the other edge where the stage puts it, not mirrored about the window's middle; and the jump's caption
-/// drifts up its window as it lifts.
+/// The edge's other windows host their layers top-down, as the stage is, in windows that never show, the ghost's never
+/// ordered in and the caption's clear: the drag's ghost lands on the other edge where the stage puts it, not mirrored
+/// about the window's middle; and the jump's caption drifts up its window as it lifts.
 @MainActor
 struct StageHostTests {
     private static let display = Display(
@@ -39,6 +39,7 @@ struct StageHostTests {
     @Test func theCaptionDriftsUpItsWindowAsItLifts() throws {
         let caption = CaptionWindow()
 
+        defer { caption.window.close() }
         caption.window.setFrame(CGRect(x: 0, y: 0, width: 200, height: 100), display: false)
         caption.window.displayIfNeeded()
 
