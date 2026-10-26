@@ -87,10 +87,11 @@ struct TurningArc: View {
     }
 }
 
-/// A button as a pill: an option, outlined on a fill; one that leaves for Claude outlined, its ↗ soft; the white
-/// pill, the brightest thing in the window; quiet, soft grey text. Each lifts under the pointer, and keeps the width of
-/// its words on one line. One that `wraps`, as a card's buttons laid out as rows, wraps its words from the left within
-/// the width it is given, never wider than they are, its ends still round.
+/// A button as a pill: an option, outlined on a fill; one that leaves for Claude outlined; the white pill, the
+/// brightest thing in the window; quiet, soft grey text. One that `leaves` SitRep has ↗ after its words, soft. Each
+/// lifts under the pointer, and keeps the width of its words on one line. One that `wraps`, as a card's buttons laid
+/// out as rows, wraps its words from the left within the width it is given, never wider than they are, its corners
+/// still 13.
 struct Pill: View {
     enum Look {
         case white, option, outlined, quiet
@@ -99,6 +100,7 @@ struct Pill: View {
     let words: String
     let look: Look
     var wraps = false
+    var leaves = false
     let action: () -> Void
 
     var body: some View {
@@ -114,15 +116,11 @@ struct Pill: View {
         .contentShape(.focusEffect, RoundedRectangle(cornerRadius: Self.radius, style: .continuous))
     }
 
-    private static let leaves = " ↗"
-
-    /// Its words, the ↗ of one that leaves SitRep in the soft grey.
     private var label: Text {
-        guard words.hasSuffix(Self.leaves) else {
+        guard leaves else {
             return Text(words)
         }
-
-        return Text(words.dropLast(Self.leaves.count)) + Text(Self.leaves).foregroundStyle(WindowStyle.soft)
+        return Text("\(words) \(Text(Words.leaves).foregroundStyle(WindowStyle.soft))")
     }
 
     static let radius: CGFloat = 13

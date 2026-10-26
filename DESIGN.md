@@ -4017,7 +4017,8 @@ stands).
     answers stand one under another, 6 apart, left-aligned, each as wide as
     its own words, never the card's, wrapping only past 480 or the card's
     width where that is narrower; Comment in Claude, Ignore and Snooze go on
-    a line after them, or every button is a row, again sized to its words,
+    a line 12 after them (the card's gap of 10, and 2), or every button is
+    a row, again sized to its words,
     where that line would not fit either. Lee, of options run the card's
     width: "I don't really like how the buttons in the middle are really
     long. I think it's unnecessary.";
@@ -5255,7 +5256,8 @@ reaches a window only while that pane is on show).
           buttons all follow it.
         - **A card.** Its buttons come from `wants`: a yes's white pill, an
           option's outlined pill each, "Comment in Claude ↗" beside them,
-          "Answer in Claude ↗" for words, white, and ignore; on an away
+          "Answer in Claude ↗" for words, white, and ignore (their looks
+          and widths since replaced by board I1; see "Answering"); on an away
           session nothing that needs Claude Code's prompt, and "Your answer
           waits in its inbox…" under a yes or a choice. A press, ignore
           among them, waits 2 seconds, its line draining, Escape taking back

@@ -5,7 +5,7 @@ import SwiftUI
 import Testing
 
 /// A card's buttons as Paper's board I1 ("Answer buttons") lays them out: on one line while they fit; else its answers
-/// one under another, each as wide as its words, wrapping only past 480 or the card, the rest on a line after them.
+/// one under another, each as wide as its words, wrapping only past 480 or the card, the rest on a line 12 after them.
 struct CardButtonsTests {
     private static let choice: [Card.Button] = [
         .option("Mint a token"), .option("Reuse"), .option("Ask each time"), .inClaude(.comment), .ignore, .snooze,
@@ -16,12 +16,9 @@ struct CardButtonsTests {
     }
 
     /// Its one-line size within a width it fits, else that width's lines, 4 short of it, 16 a line under the first.
-    private static func within(
-        _ ideal: [CGSize], asked: @escaping (CGFloat) -> Void = { _ in }
-    ) -> (Int, CGFloat) -> CGSize {
-        { offset, width in
-            asked(width)
-            let words = ideal[offset]
+    private static func within(_ ideal: [CGSize]) -> (Int, ProposedViewSize) -> CGSize {
+        { offset, proposal in
+            let words = ideal[offset], width = proposal.width ?? .infinity
 
             guard words.width > width else {
                 return words
@@ -30,14 +27,18 @@ struct CardButtonsTests {
         }
     }
 
-    private static func frames(_ buttons: [Card.Button], _ widths: [CGFloat], in width: CGFloat) -> [CGRect] {
+    private static func places(_ widths: [CGFloat], in width: CGFloat) -> [CardButtons.Place] {
         let ideal = ideal(widths)
 
-        return CardButtons(buttons: buttons).frames(width, ideal: ideal, within: within(ideal))
+        return CardButtons(buttons: choice).places(width, ideal: ideal, within: within(ideal))
+    }
+
+    private static func frames(_ widths: [CGFloat], in width: CGFloat) -> [CGRect] {
+        places(widths, in: width).map(\.frame)
     }
 
     @Test func buttonsThatFitSitSideBySideAtTheirOwnWidths() {
-        let frames = Self.frames(Self.choice, [90, 50, 100, 140, 50, 70], in: 700)
+        let frames = Self.frames([90, 50, 100, 140, 50, 70], in: 700)
 
         #expect(frames.map(\.minX) == [0, 98, 156, 264, 412, 470])
         #expect(frames.map(\.width) == [90, 50, 100, 140, 50, 70])
@@ -45,41 +46,46 @@ struct CardButtonsTests {
     }
 
     @Test func aLongChoicesAnswersStandOneUnderAnotherEachAsWideAsItsWords() {
-        let frames = Self.frames(Self.choice, [300, 120, 200, 140, 50, 70], in: 600)
+        let frames = Self.frames([300, 120, 200, 140, 50, 70], in: 600)
 
         #expect(frames[0 ..< 3].map(\.width) == [300, 120, 200])
         #expect(frames[0 ..< 3].map(\.minX) == [0, 0, 0])
         #expect(frames[0 ..< 3].map(\.minY) == [0, 32, 64])
     }
 
-    @Test func theRestGoOnALineAfterTheAnswersAtTheirOwnWidths() {
-        let frames = Self.frames(Self.choice, [300, 120, 200, 140, 50, 70], in: 600)
+    @Test func theRestGoOnALine12AfterTheAnswersAtTheirOwnWidths() {
+        let frames = Self.frames([300, 120, 200, 140, 50, 70], in: 600)
+        let line: CGFloat = 64 + 26 + 12
 
         #expect(frames[3...].map(\.minX) == [0, 148, 206])
         #expect(frames[3...].map(\.width) == [140, 50, 70])
-        let line: CGFloat = 64 + 26 + 8
-
         #expect(frames[3...].map(\.minY) == [line, line, line])
     }
 
     @Test func anAnswerWrapsOnlyPast480OnAWideCard() {
-        let ideal = Self.ideal([620, 120, 200, 140, 50, 70])
-        var asked: [CGFloat] = []
-        let frames = CardButtons(buttons: Self.choice).frames(700, ideal: ideal, within: Self.within(ideal) { asked.append($0) })
+        let places = Self.places([620, 120, 200, 140, 50, 70], in: 700)
 
-        #expect(asked == [480, 120, 200])
-        #expect(frames[0] == CGRect(x: 0, y: 0, width: 476, height: 42))
-        #expect(frames[1].minY == 48)
+        #expect(places[0].frame == CGRect(x: 0, y: 0, width: 476, height: 42))
+        #expect(places[1].frame.minY == 48)
+        #expect(places[0 ..< 3].map(\.proposal.width) == [480, 120, 200])
+    }
+
+    @Test func aRowIsPlacedWithTheWidthItWasMeasuredAtNotItsFrames() {
+        let places = Self.places([620, 120, 200, 140, 50, 70], in: 700)
+
+        #expect(places[0].proposal == ProposedViewSize(width: 480, height: nil))
+        #expect(places[3...].map(\.proposal) == Array(repeating: .unspecified, count: 3))
     }
 
     @Test func onANarrowCardAnAnswerWrapsAtTheCardsWidth() {
-        let frames = Self.frames(Self.choice, [450, 120, 200, 140, 50, 70], in: 400)
+        let places = Self.places([450, 120, 200, 140, 50, 70], in: 400)
 
-        #expect(frames[0] == CGRect(x: 0, y: 0, width: 396, height: 42))
+        #expect(places[0].frame == CGRect(x: 0, y: 0, width: 396, height: 42))
+        #expect(places[0].proposal.width == 400)
     }
 
     @Test func whereTheRestOverflowTooEveryButtonIsARowAsWideAsItsWords() {
-        let frames = Self.frames(Self.choice, [200, 120, 180, 140, 50, 70], in: 250)
+        let frames = Self.frames([200, 120, 180, 140, 50, 70], in: 250)
 
         #expect(frames.map(\.width) == [200, 120, 180, 140, 50, 70])
         #expect(frames.map(\.minX) == [0, 0, 0, 0, 0, 0])
@@ -118,10 +124,16 @@ struct WrappingPillTests {
         #expect(wrapped.width <= 300)
         #expect(wrapped.height > one.height)
     }
+
+    @Test func wrappedThenGivenItsOwnWidthBackItKeepsItsSize() {
+        let wrapped = Self.size(Self.long, in: 300)
+
+        #expect(Self.size(Self.long, in: wrapped.width) == wrapped)
+    }
 }
 
 /// One look per role, whatever the ask (board I1): an answer given here on the option's fill, what leaves for Claude
-/// outlined, Ignore in Snooze's soft grey.
+/// outlined with its ↗, Ignore in Snooze's soft grey.
 struct CardButtonLookTests {
     @Test func aYesAndAnOptionShareTheOptionsLook() {
         #expect(Pill.Look(.yes("Merge it")) == .option)
@@ -131,6 +143,13 @@ struct CardButtonLookTests {
     @Test func commentAndAnswerInClaudeShareTheOutlinedLook() {
         #expect(Pill.Look(.inClaude(.comment)) == .outlined)
         #expect(Pill.Look(.inClaude(.answer)) == .outlined)
+    }
+
+    @Test func onlyWhatLeavesForClaudeHasItsArrowWhateverAnAnswersWords() {
+        #expect(Card.Button.inClaude(.comment).leaves)
+        #expect(Card.Button.inClaude(.answer).leaves)
+        #expect(!Card.Button.option("Open it ↗").leaves)
+        #expect(!Card.Button.yes("Ship ↗").leaves)
     }
 
     @Test func ignoreRestsInTheSoftGreyAsSnoozeDoes() {

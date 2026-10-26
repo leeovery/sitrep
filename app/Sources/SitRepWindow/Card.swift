@@ -26,6 +26,11 @@ public struct Card: Equatable, Sendable, Identifiable {
             }
         }
 
+        /// Needs Claude Code's prompt, so it leaves SitRep for the session's window.
+        public var leaves: Bool {
+            if case .inClaude = self { true } else { false }
+        }
+
         /// A yes or an option: Lee's answer, given here, which waits in the inbox while no window holds the session.
         public var isAnswer: Bool {
             switch self {
