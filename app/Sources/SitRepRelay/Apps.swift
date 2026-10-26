@@ -31,7 +31,7 @@ public enum Apps {
 public final class EndWatch {
     /// Held for as long as it is observed: an app freed while observed crashed SitRep and the helper as they started.
     private let app: NSRunningApplication
-    private var observation: NSKeyValueObservation?
+    private let observation: NSKeyValueObservation
 
     public init(_ app: NSRunningApplication, ended: @escaping @MainActor () -> Void) {
         self.app = app
@@ -40,5 +40,11 @@ public final class EndWatch {
                 Task { @MainActor in ended() }
             }
         }
+    }
+
+    /// Observing stopped before the app is let go: left to the order its properties are released in, the app went
+    /// first and was freed still observed.
+    deinit {
+        observation.invalidate()
     }
 }

@@ -11,7 +11,7 @@ struct LetterTests {
     }
 
     @Test(arguments: [
-        ToHelper.ready, .post(notice), .post(Notice(title: "Not snoozed", subtitle: nil, body: "Gone", work: nil)),
+        ToHelper.ready, .handBack, .post(notice), .post(Notice(title: "Not snoozed", subtitle: nil, body: "Gone", work: nil)),
         .status(id: "a"), .ask(id: "b"),
     ])
     func eachMessageToTheHelperArrivesAsSent(message: ToHelper) {
@@ -20,7 +20,7 @@ struct LetterTests {
         #expect(Self.carried(letter) == letter)
     }
 
-    @Test(arguments: [ToSitRep.ready, .clicked(work: "sr-aw3bgs")] + NoticeLeave.all.map { ToSitRep.status($0, id: "c") })
+    @Test(arguments: [ToSitRep.ready(helper: 5150), .clicked(work: "sr-aw3bgs")] + NoticeLeave.all.map { ToSitRep.status($0, id: "c") })
     func eachMessageToSitRepArrivesAsSent(message: ToSitRep) {
         let letter = Letter(message, pid: 4012)
 
@@ -51,8 +51,13 @@ struct LetterTests {
         #expect(Letter<ToHelper>(userInfo: userInfo) == nil)
     }
 
-    @Test func aStatusWithALeaveNotKnownIsNoLetter() {
-        #expect(Letter<ToSitRep>(userInfo: ["kind": "status", "leave": "sometimes", "id": "c", "pid": "4012"]) == nil)
+    @Test(arguments: [
+        ["kind": "status", "leave": "sometimes", "id": "c", "pid": "4012"],
+        ["kind": "ready", "pid": "4012"],
+        ["kind": "ready", "helper": "not a pid", "pid": "4012"],
+    ])
+    func toSitRepAnythingElseIsNoLetter(userInfo: [String: String]) {
+        #expect(Letter<ToSitRep>(userInfo: userInfo) == nil)
     }
 
     @Test func aUserInfoNotAllStringsIsNoLetter() {

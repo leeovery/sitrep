@@ -24,15 +24,22 @@ protocol SitRepApp {
 /// The helper's work, between SitRep and macOS's notifications. A click activates the helper, which has no window, so
 /// macOS has no Space to take Lee to; the helper relays it, and SitRep jumps as from any other click. A click that
 /// started the helper while SitRep was not running starts SitRep, and is held until SitRep says it listens. A click on
-/// a banner naming no session hands the front back, as nothing jumps. The helper quits as its SitRep ends.
+/// a banner naming no session hands the front back, as nothing jumps, as does a click whose jump SitRep refused. The
+/// helper quits as its SitRep ends.
 @MainActor
 final class Helper {
+    /// The helper's own app.
+    struct Own {
+        let pid: Int32
+        let quit: @MainActor () -> Void
+        /// The front given back to the app Lee was in, which the click's activation took it from.
+        let handBack: () -> Void
+    }
+
     private let notifications: Notifying
     private let sitRep: SitRepApp
     private let send: (Letter<ToSitRep>) -> Void
-    private let quit: @MainActor () -> Void
-    /// The front given back to the app Lee was in, which the click's activation took it from.
-    private let handBack: () -> Void
+    private let own: Own
     private let logger = Logger(helper: "notices")
     /// The pid of the SitRep it serves, once found or started.
     private var pid: Int32?
@@ -42,16 +49,11 @@ final class Helper {
     /// The banner being posted, the next waiting on it, so they show in the order SitRep sent them.
     private var posting: Task<Void, Never>?
 
-    init(
-        notifications: Notifying, sitRep: SitRepApp,
-        send: @escaping (Letter<ToSitRep>) -> Void, quit: @escaping @MainActor () -> Void,
-        handBack: @escaping () -> Void
-    ) {
+    init(notifications: Notifying, sitRep: SitRepApp, send: @escaping (Letter<ToSitRep>) -> Void, own: Own) {
         self.notifications = notifications
         self.sitRep = sitRep
         self.send = send
-        self.quit = quit
-        self.handBack = handBack
+        self.own = own
     }
 
     /// Finds SitRep, or starts it; watches for it ending; says the helper listens. With no SitRep, it quits.
@@ -64,12 +66,12 @@ final class Helper {
         guard let pid else {
             logger.error("SitRep would not start: quitting")
 
-            return quit()
+            return own.quit()
         }
 
         self.pid = pid
-        sitRep.watch(pid, ended: quit)
-        relay(.ready)
+        sitRep.watch(pid, ended: own.quit)
+        relay(.ready(helper: own.pid))
     }
 
     /// A letter from SitRep; one from another SitRep, or before the helper knows its own, is passed over.
@@ -83,6 +85,7 @@ final class Helper {
         case let .post(notice): post(notice)
         case let .status(id): answer(id, notifications.leave)
         case let .ask(id): answer(id, notifications.ask)
+        case .handBack: own.handBack()
         }
     }
 
@@ -90,7 +93,7 @@ final class Helper {
     /// front back.
     func clicked(_ work: String?) {
         guard let work else {
-            return handBack()
+            return own.handBack()
         }
 
         if isSitRepListening {
@@ -107,7 +110,7 @@ final class Helper {
         }
 
         isSitRepListening = true
-        relay(.ready)
+        relay(.ready(helper: own.pid))
         held.forEach { relay(.clicked(work: $0)) }
         held = []
     }

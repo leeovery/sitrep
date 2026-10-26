@@ -7,6 +7,8 @@ import Testing
 @MainActor
 struct HelperTests {
     private static let sitRep: Int32 = 4012
+    private static let ownPid: Int32 = 5150
+    private static let ready = ToSitRep.ready(helper: ownPid)
 
     /// What the helper asks of macOS, the first post held until `release` lets it go.
     @MainActor
@@ -108,8 +110,10 @@ struct HelperTests {
 
     private func helper(_ sitRep: SitRep) -> Helper {
         Helper(
-            notifications: mac, sitRep: sitRep, send: sent.put, quit: { [calls] in calls.quits += 1 },
-            handBack: { [calls] in calls.handBacks += 1 }
+            notifications: mac, sitRep: sitRep, send: sent.put,
+            own: Helper.Own(
+                pid: Self.ownPid, quit: { [calls] in calls.quits += 1 }, handBack: { [calls] in calls.handBacks += 1 }
+            )
         )
     }
 
@@ -126,7 +130,7 @@ struct HelperTests {
 
         #expect(sitRep.launches == 0)
         #expect(sitRep.watched == Self.sitRep)
-        #expect(sent.messages == [.ready])
+        #expect(sent.messages == [Self.ready])
         #expect(sent.pids == [Self.sitRep])
     }
 
@@ -151,7 +155,7 @@ struct HelperTests {
         helper.clicked(nil)
 
         #expect(calls.handBacks == 1)
-        #expect(sent.messages == [.ready, .ready])
+        #expect(sent.messages == [Self.ready, Self.ready])
     }
 
     @Test func aClickNamingASessionKeepsTheFrontForTheJump() async {
@@ -160,6 +164,25 @@ struct HelperTests {
         await helper.start()
         helper.heard(Self.fromSitRep(.ready))
         helper.clicked("sr-aw3bgs")
+
+        #expect(calls.handBacks == 0)
+    }
+
+    /// SitRep refused the jump for a click the helper relayed: nothing jumps, so the front goes back.
+    @Test func itHandsTheFrontBackWhenSitRepSays() async {
+        let helper = helper(SitRep(isRunning: true))
+
+        await helper.start()
+        helper.heard(Self.fromSitRep(.handBack))
+
+        #expect(calls.handBacks == 1)
+    }
+
+    @Test func anotherSitRepCannotTakeTheFront() async {
+        let helper = helper(SitRep(isRunning: true))
+
+        await helper.start()
+        helper.heard(Self.fromSitRep(.handBack, pid: 977))
 
         #expect(calls.handBacks == 0)
     }
@@ -185,11 +208,11 @@ struct HelperTests {
 
         #expect(sitRep.launches == 1)
         #expect(sitRep.watched == Self.sitRep)
-        #expect(sent.messages == [.ready])
+        #expect(sent.messages == [Self.ready])
 
         helper.heard(Self.fromSitRep(.ready))
 
-        #expect(sent.messages == [.ready, .ready, .clicked(work: "sr-aw3bgs")])
+        #expect(sent.messages == [Self.ready, Self.ready, .clicked(work: "sr-aw3bgs")])
     }
 
     @Test func withNoSitRepToStartItQuits() async {
@@ -209,7 +232,7 @@ struct HelperTests {
         helper.heard(Self.fromSitRep(.ready))
         helper.heard(Self.fromSitRep(.ready))
 
-        #expect(sent.messages == [.ready, .ready])
+        #expect(sent.messages == [Self.ready, Self.ready])
     }
 
     @Test func aLetterFromAnotherSitRepIsPassedOver() async {
@@ -221,7 +244,7 @@ struct HelperTests {
         helper.clicked("sr-aw3bgs")
         await Task.yield()
 
-        #expect(sent.messages == [.ready])
+        #expect(sent.messages == [Self.ready])
         #expect(mac.posted.isEmpty)
     }
 

@@ -8,6 +8,10 @@ import Testing
 @MainActor
 struct BannersTests {
     private static let pid: Int32 = 4012
+    /// The first helper, and the one macOS starts for a click after it.
+    private static let first: Int32 = 5150
+    private static let second: Int32 = 5151
+    private static let ready = ToSitRep.ready(helper: first)
     private static let asked = Banner(title: "Pick a name", subtitle: "SitRep · Build the Mac app", body: "", work: "sr-aw3bgs")
 
     /// What SitRep sent the helper, waited on, and how often it started it.
@@ -46,6 +50,7 @@ struct BannersTests {
     @MainActor
     final class Clicks {
         var works: [String] = []
+        var refused: (() -> Void)?
     }
 
     @MainActor
@@ -59,7 +64,10 @@ struct BannersTests {
     private func banners(answerWithin: Duration = .seconds(60)) -> Banners {
         let banners = Banners(pid: Self.pid, send: helper.put, launch: { [helper] in helper.launches += 1 }, answerWithin: answerWithin)
 
-        banners.start { [clicks] in clicks.works.append($0) }
+        banners.start { [clicks] work, refused in
+            clicks.works.append(work)
+            clicks.refused = refused
+        }
 
         return banners
     }
@@ -87,7 +95,7 @@ struct BannersTests {
         #expect(helper.messages == [.ready])
         #expect(helper.launches == 3)
 
-        banners.heard(Self.fromHelper(.ready))
+        banners.heard(Self.fromHelper(Self.ready))
 
         #expect(helper.messages == [
             .ready, .ready,
@@ -100,8 +108,8 @@ struct BannersTests {
     @Test func itAnswersTheHelpersFirstReadyAlone() {
         let banners = banners()
 
-        banners.heard(Self.fromHelper(.ready))
-        banners.heard(Self.fromHelper(.ready))
+        banners.heard(Self.fromHelper(Self.ready))
+        banners.heard(Self.fromHelper(Self.ready))
 
         #expect(helper.messages == [.ready, .ready])
     }
@@ -109,7 +117,7 @@ struct BannersTests {
     @Test func onceTheHelperListensABannerGoesAtOnce() {
         let banners = banners()
 
-        banners.heard(Self.fromHelper(.ready))
+        banners.heard(Self.fromHelper(Self.ready))
         banners.post(Self.asked)
 
         #expect(helper.messages.count == 3)
@@ -127,7 +135,7 @@ struct BannersTests {
     @Test func aLetterForAnotherSitRepIsPassedOver() {
         let banners = banners()
 
-        banners.heard(Self.fromHelper(.ready, pid: 977))
+        banners.heard(Self.fromHelper(Self.ready, pid: 977))
         banners.heard(Self.fromHelper(.clicked(work: "sr-aw3bgs"), pid: 977))
         banners.post(Self.asked)
 
@@ -138,7 +146,7 @@ struct BannersTests {
     @Test func itReadsMacOSsLeaveThroughTheHelper() async {
         let banners = banners()
 
-        banners.heard(Self.fromHelper(.ready))
+        banners.heard(Self.fromHelper(Self.ready))
 
         async let leave = banners.leave()
         _ = await helper.first(3)
@@ -160,7 +168,7 @@ struct BannersTests {
     @Test func askingIsDoneOnceTheHelperAnswers() async {
         let banners = banners()
 
-        banners.heard(Self.fromHelper(.ready))
+        banners.heard(Self.fromHelper(Self.ready))
 
         async let asked: Void = banners.ask()
         _ = await helper.first(3)
@@ -175,11 +183,11 @@ struct BannersTests {
     @Test func theHelperEndingAnswersWhatItHadNotAndStartsItAgainForWhatComes() async {
         let banners = banners()
 
-        banners.heard(Self.fromHelper(.ready))
+        banners.heard(Self.fromHelper(Self.ready))
 
         async let leave = banners.leave()
         _ = await helper.first(3)
-        banners.helperEnded()
+        banners.helperEnded(Self.first)
 
         #expect(await leave == nil)
 
@@ -190,7 +198,7 @@ struct BannersTests {
         #expect(helper.messages.count == 3)
         #expect(helper.launches == launched + 1)
 
-        banners.heard(Self.fromHelper(.ready))
+        banners.heard(Self.fromHelper(.ready(helper: Self.second)))
 
         #expect(helper.messages.dropFirst(3) == [.ready, .post(Notice(
             title: "Pick a name", subtitle: "SitRep · Build the Mac app", body: "", work: "sr-aw3bgs"
@@ -202,7 +210,7 @@ struct BannersTests {
     @Test func aHelperThatSaysItListensIsWatched() {
         let banners = banners()
 
-        banners.heard(Self.fromHelper(.ready))
+        banners.heard(Self.fromHelper(Self.ready))
 
         #expect(helper.launches == 2)
     }
@@ -212,21 +220,78 @@ struct BannersTests {
     @Test func aHelperStartedForAClickAfterOneEndedIsHeardAndWatched() {
         let banners = banners()
 
-        banners.heard(Self.fromHelper(.ready))
-        banners.helperEnded()
+        banners.heard(Self.fromHelper(Self.ready))
+        banners.helperEnded(Self.first)
 
         #expect(helper.launches == 2)
 
-        banners.heard(Self.fromHelper(.ready))
+        banners.heard(Self.fromHelper(.ready(helper: Self.second)))
 
         #expect(helper.launches == 3)
         #expect(helper.messages == [.ready, .ready, .ready])
 
-        banners.helperEnded()
+        banners.helperEnded(Self.second)
         banners.post(Self.asked)
 
         #expect(helper.messages.count == 3)
         #expect(helper.launches == 4)
+    }
+
+    /// A helper that ends before it says it listens, as one crashing as it starts, is not started again for what
+    /// waits: only for what SitRep says next, so it is never started over and over.
+    @Test func aHelperEndingBeforeItSaidItListensIsNotStartedAgain() {
+        let banners = banners()
+
+        banners.post(Self.asked)
+        let launched = helper.launches
+
+        banners.helperEnded(Self.first)
+
+        #expect(helper.launches == launched)
+
+        banners.post(Self.asked)
+
+        #expect(helper.launches == launched + 1)
+    }
+
+    /// macOS started a second helper for a click on the first one's banner, and its ready came before the first one's
+    /// end was told: the second is heard, answered and watched, and the first one's end changes nothing of it.
+    @Test func aNewHelpersReadyBeforeTheLastOnesEndIsHeardAndTheLateEndPassedOver() async {
+        let banners = banners()
+
+        banners.heard(Self.fromHelper(Self.ready))
+
+        async let leave = banners.leave()
+        _ = await helper.first(3)
+        let launched = helper.launches
+
+        banners.heard(Self.fromHelper(.ready(helper: Self.second)))
+
+        #expect(await leave == nil)
+        #expect(helper.messages.last == .ready)
+        #expect(helper.launches == launched + 1)
+
+        banners.helperEnded(Self.first)
+        banners.post(Self.asked)
+
+        #expect(helper.launches == launched + 2)
+        #expect(helper.messages.last == .post(Notice(
+            title: "Pick a name", subtitle: "SitRep · Build the Mac app", body: "", work: "sr-aw3bgs"
+        )))
+    }
+
+    /// The jump for a relayed click refused, the helper is told to hand the front back.
+    @Test func aRefusedJumpForAClickHandsTheFrontBack() {
+        let banners = banners()
+
+        banners.heard(Self.fromHelper(Self.ready))
+        banners.heard(Self.fromHelper(.clicked(work: "sr-gone")))
+
+        #expect(helper.messages.last == .ready)
+
+        clicks.refused?()
+
+        #expect(helper.messages.last == .handBack)
     }
 
     /// Given up on, it is not sent to a helper that comes later, nor kept waiting for one that never does.
@@ -235,7 +300,7 @@ struct BannersTests {
 
         #expect(await banners.leave() == nil)
 
-        banners.heard(Self.fromHelper(.ready))
+        banners.heard(Self.fromHelper(Self.ready))
 
         #expect(helper.messages == [.ready, .ready])
     }
@@ -252,14 +317,14 @@ struct BannersTests {
         while helper.launches < 2 {
             await Task.yield()
         }
-        banners.helperEnded()
+        banners.helperEnded(Self.first)
         for _ in 0 ..< 10 {
             await Task.yield()
         }
 
         #expect(!asked.isDone)
 
-        banners.heard(Self.fromHelper(.ready))
+        banners.heard(Self.fromHelper(Self.ready))
 
         #expect(helper.messages.last == .ask(id: helper.lastId!))
 

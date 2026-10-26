@@ -78,6 +78,8 @@ public enum ToHelper: Relayed {
     case status(id: String)
     /// macOS asked for leave, unless Lee answered already, then answered as `status` is.
     case ask(id: String)
+    /// The front given back to the app Lee was in: the jump for a click the helper relayed was refused.
+    case handBack
 
     public static let way = "to-helper"
 
@@ -87,12 +89,14 @@ public enum ToHelper: Relayed {
         case let .post(notice): notice.fields.merging([kind: "post"]) { _, kind in kind }
         case let .status(id): [kind: "status", "id": id]
         case let .ask(id): [kind: "ask", "id": id]
+        case .handBack: [kind: "hand-back"]
         }
     }
 
     public init?(fields: [String: String]) {
         switch (fields[kind], fields["id"]) {
         case ("ready", _): self = .ready
+        case ("hand-back", _): self = .handBack
         case ("post", _):
             guard let notice = Notice(fields: fields) else {
                 return nil
@@ -108,8 +112,9 @@ public enum ToHelper: Relayed {
 
 /// The helper to SitRep.
 public enum ToSitRep: Relayed {
-    /// The helper listens: said once it knows its SitRep, and in answer to SitRep's first `ready`.
-    case ready
+    /// The helper with this pid listens: said once it knows its SitRep, and in answer to SitRep's first `ready`. Its
+    /// pid tells one helper from the next, as macOS may start one for a click before SitRep hears the last end.
+    case ready(helper: Int32)
     /// A banner clicked, naming the session it jumps to.
     case clicked(work: String)
     /// What macOS lets SitRep do, for the request with this id.
@@ -119,17 +124,20 @@ public enum ToSitRep: Relayed {
 
     public var fields: [String: String] {
         switch self {
-        case .ready: [kind: "ready"]
+        case let .ready(helper): [kind: "ready", "helper": String(helper)]
         case let .clicked(work): [kind: "clicked", "work": work]
         case let .status(leave, id): [kind: "status", "leave": leave.word, "id": id]
         }
     }
 
     public init?(fields: [String: String]) {
-        switch (fields[kind], fields["work"], fields["leave"].flatMap(NoticeLeave.init(word:)), fields["id"]) {
-        case ("ready", _, _, _): self = .ready
-        case let ("clicked", work?, _, _): self = .clicked(work: work)
-        case let ("status", _, leave?, id?): self = .status(leave, id: id)
+        let helper = fields["helper"].flatMap(Int32.init)
+        let leave = fields["leave"].flatMap(NoticeLeave.init(word:))
+
+        switch (fields[kind], helper, fields["work"], leave, fields["id"]) {
+        case let ("ready", helper?, _, _, _): self = .ready(helper: helper)
+        case let ("clicked", _, work?, _, _): self = .clicked(work: work)
+        case let ("status", _, _, leave?, id?): self = .status(leave, id: id)
         default: return nil
         }
     }

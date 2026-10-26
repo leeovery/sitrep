@@ -24,7 +24,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     /// The notices helper is listened to before launching ends, so a click that starts the app is heard.
     func applicationWillFinishLaunching(_ notification: Notification) {
-        banners.start { [works] work in works.jump(to: work) }
+        banners.start { [works] work, refused in works.jump(to: work, refused: refused) }
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {

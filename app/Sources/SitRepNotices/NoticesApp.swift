@@ -32,8 +32,11 @@ final class NoticesDelegate: NSObject, NSApplicationDelegate {
 
         self.relay = relay
         helper = Helper(
-            notifications: notifications, sitRep: OwnSitRep(), send: relay.send, quit: { NSApp.terminate(nil) },
-            handBack: { NSApp.hide(nil) }
+            notifications: notifications, sitRep: OwnSitRep(), send: relay.send,
+            own: Helper.Own(
+                pid: ProcessInfo.processInfo.processIdentifier, quit: { NSApp.terminate(nil) },
+                handBack: { NSApp.hide(nil) }
+            )
         )
     }
 

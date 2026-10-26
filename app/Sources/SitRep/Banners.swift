@@ -13,12 +13,13 @@ final class Banners {
     private let send: (Letter<ToHelper>) -> Void
     private let launch: () -> Void
     private let answerWithin: Duration
-    private var isHelperListening = false
-    /// What waits for the helper to listen, in order.
+    /// The pid of the helper listening, whose ready SitRep answered.
+    private var listening: Int32?
+    /// What waits for a helper to listen, in order. Nothing waits while one listens.
     private var waiting: [ToHelper] = []
     /// Requests the helper has yet to answer, by id.
     private var answers: [String: CheckedContinuation<NoticeLeave?, Never>] = [:]
-    private var onClick: (String) -> Void = { _ in }
+    private var onClick: (String, @escaping () -> Void) -> Void = { _, _ in }
 
     init(
         pid: Int32, send: @escaping (Letter<ToHelper>) -> Void, launch: @escaping () -> Void,
@@ -30,9 +31,10 @@ final class Banners {
         self.answerWithin = answerWithin
     }
 
-    /// Clicks told to `onClick`; SitRep says it listens, and starts the helper. Before launching ends, so a click that
-    /// started SitRep, held by the helper, is heard.
-    func start(onClick: @escaping (String) -> Void) {
+    /// Clicks told to `onClick`, with the session and what hands the front back should its jump be refused; SitRep
+    /// says it listens, and starts the helper. Before launching ends, so a click that started SitRep, held by the
+    /// helper, is heard.
+    func start(onClick: @escaping (_ work: String, _ refused: @escaping () -> Void) -> Void) {
         self.onClick = onClick
         say(.ready)
         launch()
@@ -45,23 +47,26 @@ final class Banners {
         }
 
         switch message {
-        case .ready: helperListens()
-        case let .clicked(work): onClick(work)
+        case let .ready(helper): helperListens(helper)
+        case let .clicked(work): onClick(work) { [weak self] in self?.deliver(.handBack) }
         case let .status(leave, id): answer(id, leave)
         }
     }
 
-    /// The helper gone: what it was asked and had yet to answer is unknown, and what comes next waits for it, started
-    /// again only then, so a helper that ends as it starts is not started over and over.
-    func helperEnded() {
-        isHelperListening = false
+    /// A helper ended. The one listening leaves what it was sent unanswered, as unknown, and what comes next waits for
+    /// another, started only then, so a helper that ends as it starts is not started over and over. Any other is one
+    /// SitRep no longer hears from, whose end was told after the next said it listens: that one is watched now.
+    func helperEnded(_ helper: Int32) {
+        guard helper == listening else {
+            if listening != nil {
+                launch()
+            }
 
-        let unsent = Set(waiting.compactMap(\.request))
-
-        answers.keys.filter { !unsent.contains($0) }.forEach { answer($0, nil) }
-        if !waiting.isEmpty {
-            launch()
+            return
         }
+
+        listening = nil
+        forgetAnswers()
     }
 
     func post(_ banner: Banner) {
@@ -99,14 +104,23 @@ final class Banners {
         answers.removeValue(forKey: id)?.resume(returning: leave)
     }
 
-    /// The helper's first `ready` answered with SitRep's, as the helper may have missed it, and what waits sent. It is
+    /// Every request unknown: each was sent to a helper now gone, as nothing waits while one listens.
+    private func forgetAnswers() {
+        answers.keys.forEach { answer($0, nil) }
+    }
+
+    /// A helper's first `ready` answered with SitRep's, as it may have missed SitRep's, and what waits sent. It is
     /// watched for ending through `launch`, which finds it running, whoever started it: SitRep, or macOS for a click.
-    private func helperListens() {
-        guard !isHelperListening else {
+    /// One that takes the place of another still thought listening leaves the other's requests unknown.
+    private func helperListens(_ helper: Int32) {
+        guard helper != listening else {
             return
         }
 
-        isHelperListening = true
+        if listening != nil {
+            forgetAnswers()
+        }
+        listening = helper
         launch()
         say(.ready)
         waiting.forEach(say)
@@ -114,7 +128,7 @@ final class Banners {
     }
 
     private func deliver(_ message: ToHelper) {
-        if isHelperListening {
+        if listening != nil {
             say(message)
         } else {
             waiting.append(message)
@@ -132,7 +146,7 @@ private extension ToHelper {
     var request: String? {
         switch self {
         case let .status(id), let .ask(id): id
-        case .ready, .post: nil
+        case .ready, .post, .handBack: nil
         }
     }
 }
@@ -151,8 +165,8 @@ extension Banners {
             pid: ProcessInfo.processInfo.processIdentifier, send: relay.send, launch: { app.open() }
         )
 
-        relay.listen { [unowned banners] in banners.heard($0) }
-        app.ended = { [unowned banners] in banners.helperEnded() }
+        relay.listen { [weak banners] in banners?.heard($0) }
+        app.ended = { [weak banners] in banners?.helperEnded($0) }
 
         return banners
     }
@@ -162,7 +176,8 @@ extension Banners {
 /// where it runs already, as when it says it listens, it is the one running that is watched.
 @MainActor
 private final class HelperApp {
-    var ended: () -> Void = {}
+    /// Told the pid of the helper that ended.
+    var ended: (Int32) -> Void = { _ in }
     private let bundle: URL
     private let logger = Logger(sitrep: "banner")
     private var isOpen = false
@@ -180,14 +195,20 @@ private final class HelperApp {
         isOpen = true
         Task {
             do {
-                watch = EndWatch(try await Apps.open(bundle)) { [self] in
-                    isOpen = false
-                    ended()
-                }
+                watching(try await Apps.open(bundle))
             } catch {
                 logger.error("Notices helper not started: \(error.localizedDescription, privacy: .public)")
                 isOpen = false
             }
+        }
+    }
+
+    private func watching(_ helper: NSRunningApplication) {
+        let pid = helper.processIdentifier
+
+        watch = EndWatch(helper) { [weak self] in
+            self?.isOpen = false
+            self?.ended(pid)
         }
     }
 }
