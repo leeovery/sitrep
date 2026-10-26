@@ -1,6 +1,7 @@
 import Foundation
 import SitRepCore
 import SitRepPanel
+import SitRepRelay
 
 /// A row of Settings' Notifications and General cards as it stands (DESIGN, "Settings"): its label, the line under it,
 /// and what sits in the controls' column. A dot when it's fine, a button when it's Lee's: all well, the row says so
@@ -171,20 +172,7 @@ extension SettingsRow {
     }
 }
 
-/// What macOS lets SitRep do with notifications, as its own settings say.
-public enum NoticeLeave: Equatable, Sendable {
-    /// Not asked yet: macOS asks as the switch goes on, or at the first notification.
-    case unasked
-    case denied
-    /// Allowed, delivered quietly to Notification Center until Lee says more.
-    case provisional
-    case allowed(Style)
-
-    /// How an allowed notification shows.
-    public enum Style: Sendable {
-        case banners, alerts, none
-    }
-
+extension NoticeLeave {
     /// macOS shows none of SitRep's notifications: not allowed, or allowed with neither banners nor alerts.
     var stops: Bool {
         self == .denied || self == .allowed(.none)

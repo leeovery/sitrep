@@ -1302,9 +1302,9 @@ stay snoozed: that session shows in both, Snoozed being an exception to
   drawn in Paper.
 - **The pick in the sidebar** (**proposed**): a session in both Snoozed and
   another section has a row in each, and the row clicked holds the pick. A
-  pick from outside the list (the menu, a jump, a notification) lands on the
-  session's row outside Snoozed, and on its Snoozed row only when it has no
-  other.
+  pick from outside the list (Open in SitRep, a restore at launch) lands on
+  the session's row outside Snoozed, and on its Snoozed row only when it has
+  no other.
 - **Snooze, from a row:** a right-click on a card's or a sidebar row whose
   lines hold asks offers Snooze, then Later today, Tomorrow or Next week:
   `sitrep snooze` with the asks the row shows, by their ids, so an ask that
@@ -2693,11 +2693,85 @@ that takes Lee to the window a session is in.
   chime already plays and Lee hears it once. They are off by default once
   the notch exists, since the notch swells and lights for a new ask, and a
   setting turns them on.
+  - **SitRep's notices helper posts them, never SitRep** (26 October
+    2026), so a click on one never activates SitRep. macOS activates the
+    app that posted a notification as Lee clicks its body, and with
+    "switch to a Space with open windows" on, which the jump needs (see
+    "The jump"), it goes first to a Space with one of that app's windows.
+    Lee had the SitRep window open on Space 13, and on Space 11 clicked
+    the notification for an ask from a session on Space 12: macOS took
+    him to 13, then the jump to 12 (24–26 October 2026). SitRep cannot
+    stop the activation. The helper is a windowless app inside
+    SitRep.app, so macOS has no Space to take Lee to; it hands the click
+    to SitRep, which jumps as from any other click. Lee chose it from
+    three routes.
+  - **The helper** is `SitRep.app/Contents/Helpers/SitRepNotices.app`,
+    its bundle id SitRep's and `.notices`, an `LSUIElement` app with
+    SitRep's icon and the name SitRep, so a banner's header still says
+    SitRep, and System Settings › Notifications lists it as an app of
+    its own named SitRep, asking Lee's leave once. It holds nothing of
+    SitRep's: macOS's notifications and the relay alone. Every use of
+    them is its: asking leave, posting (the test notification among
+    them), and reading the leave and alert style for Settings. SitRep
+    keeps the decisions, what to post and when (`Notices`).
+  - **The relay** is a distributed notification each way, named under
+    the helper's bundle id, its payload a plist of strings, local to the
+    Mac. SitRep to the helper: ready, post, a request for the leave, or
+    to ask for it first, each with an id its answer gives back, and hand
+    back the front. The helper to SitRep: ready, with its own pid,
+    clicked (the session's id), and the leave. Each carries SitRep's pid,
+    whichever way it goes, and each side reads only its own SitRep's, so
+    a helper left over from another SitRep is not heard, nor heeds one.
+    Each side says ready as it starts listening. The helper answers each
+    of SitRep's readies with its own; SitRep answers only the first of
+    each helper, by its pid, so the two stop, and a helper macOS starts
+    for a click whose ready comes before the last one's end is heard,
+    and that end, told late, changes nothing of it. SitRep takes a ready
+    only from a helper still running, as a ready and an end come by
+    different ways, in no order. SitRep holds what it says until a
+    helper is ready; while a helper it watches runs without having said
+    so, its ready perhaps lost, SitRep says its own again for each thing
+    held. A read of the leave the helper does not answer within 2
+    seconds is unknown, and dropped, so it is never sent later;
+    Settings' row then says no more than "Notifications in macOS", and
+    Settings reads its other rows meanwhile. A helper that ends leaves
+    what it was sent unanswered, as unknown; what was not yet sent, an
+    ask among it, waits for the next.
+  - **Its life.** SitRep starts the helper as it starts
+    (`NSWorkspace.openApplication`, not activated, not added to recent
+    items, the one running where it runs), and watches whichever helper
+    says it is ready, SitRep's own or one macOS started for a click, for
+    its ending, once the end of any watched before it is told. The
+    helper runs beside SitRep only until it ends: SitRep starts it again
+    only as it next has something to say, so a helper that ends as it
+    starts, before its ready, is not started over and over, and a click
+    on a banner starts one of macOS's own. The one exception: a helper
+    left running from the SitRep before, as when SitRep restarts at once
+    and is handed it, ends without a word for this one, and is followed
+    by one of this SitRep's own, once, where something waits.
+    `app/build` waits for the helper to quit after SitRep, stopping it
+    after two seconds, so the new SitRep is not handed the old one.
+    The helper serves the SitRep.app
+    it sits in, the copy running from that bundle, and quits as that
+    SitRep ends, watching its `NSRunningApplication`. A click that
+    starts the helper while SitRep is not running starts SitRep, not
+    activated, and is held until SitRep says it is ready.
 - **Answering stays in Claude Code:** the panel shows, and takes Lee there.
   Only the SitRep window answers, and only an ask that wants a yes or a
   choice (17 October 2026).
 - **Clicking** a session, an ask or a macOS notification takes Lee to the
-  Ghostty window showing that session, on whatever Space it is. A session no
+  Ghostty window showing that session, on whatever Space it is, and leaves
+  the SitRep window on its own Space (see "The SitRep window"). A
+  notification's click activates the notices helper, not SitRep. A click
+  on a notification naming no session (a refusal, or the test with no
+  window holding one) hides the helper, handing the front back to the app
+  Lee was in, as nothing jumps; so does a click whose jump SitRep refuses,
+  SitRep telling the helper that relayed it, while it listens, and no
+  later one. A click turned away as another jump runs leaves it, as that
+  jump brings its window forward. A click that starts the helper is told
+  as it launches, perhaps before macOS's activation lands, so the helper
+  not yet active hides as it next becomes active, within a second, and
+  an activation later than that, of its own, is never hidden. A session no
   window shows offers no jump: the app never opens a window (until stage 6).
 - **The app holds no sitrep logic.** It runs one `sitrep watch` as its
   child, which tells it the board as it changes, and each jump is a one-off
@@ -3694,10 +3768,23 @@ stands).
   picked last. There is one window: opening it again brings it forward,
   on the Space Lee is on: it moves to the active Space and comes forward
   there before SitRep activates, so the activation takes him to no other
-  Space. The menu opens it (see "The menu bar item"). ⌘, and the menu's
-  Settings… open it on Settings, or turn it there where it shows already;
-  ⌘, is a key of the app's main menu, which an accessory app never shows,
-  so it works while a SitRep window is key.
+  Space. It moves only as SitRep brings it forward: `.moveToActiveSpace`
+  holds from then until Lee next changes Space, and otherwise it stays on
+  its own Space. While he stays, it is on his Space already, so nothing
+  moves it. Cleared as the activation keyed it, it opened on its last
+  Space, taking Lee there (24 October 2026). A jump, from the window,
+  the notch, the strip, the menu or a macOS notification, leaves it where
+  it is, never ordered front (Lee, 23 October 2026: "If it's open, it
+  should stay where it is"). Clicking a notification activated SitRep
+  while SitRep posted them, and while the window always moved to the
+  active Space, it went to Lee's Space with that click, ahead of the jump
+  to the session's; kept to its own Space, the activation took Lee to it
+  instead, which is why the notices helper posts them (see "The menu
+  bar"). The menu
+  opens it (see "The menu bar item"). ⌘, and the menu's Settings… open it
+  on Settings, or turn it there where it shows already; ⌘, is a key of the
+  app's main menu, which an accessory app never shows, so it works while a
+  SitRep window is key.
 - **The frame is macOS's own** (Lee, 20 October 2026, of a sidebar of
   hand-made glass, its corners unlike the window's and the traffic lights
   on its corner: "It looks a mess"). Whatever macOS draws, SitRep does not
@@ -3752,21 +3839,21 @@ stands).
   system would, its grey, or the accent while the list has the key window's
   focus, its words white on it, so a click on it selects it and opens the
   project's page.
-  A pick made outside the list, a restore at launch, the menu opening a
-  session, a jump, a project's name pressed on a session's page, unfolds
-  the section holding its row, Projects for a project or a session with no
-  row, and opens "N earlier" where its row is under it, so the pick shows;
-  the unfold is kept, as a click's is. While the filter holds text a pick
-  made outside the list unfolds only what the filter shows, until it
+  A pick made outside the list, a restore at launch, Open in SitRep from a
+  card's row or its menu, a project's name pressed on a session's page,
+  unfolds the section holding its row, Projects for a project or a session
+  with no row, and opens "N earlier" where its row is under it, so the pick
+  shows; the unfold is kept, as a click's is. While the filter holds text a
+  pick made outside the list unfolds only what the filter shows, until it
   clears; as it clears, every pick made meanwhile shows, one made by a
-  click, the keys or Return, or from outside the list, by a jump, the menu
-  or a notification, or picked afresh as the board drops the pick: whatever
-  of Lee's folds would hide it unfolds as for a pick made outside the list,
-  kept, and "N earlier" open for the run only, and everything else the
-  filter opened folds back. A pick made before the filter changes nothing
-  as it clears, Return on the row already picked included, and closing the
-  window, which clears the filter, shows nothing: opening it again picks
-  afresh.
+  click, the keys or Return, or from outside the list, by Open in SitRep,
+  Settings… or ⌘, or a project's name, or picked afresh as the board drops
+  the pick: whatever of Lee's folds would hide it unfolds as for a pick
+  made outside the list, kept, and "N earlier" open for the run only, and
+  everything else the filter opened folds back. A pick made before the
+  filter changes nothing as it clears, Return on the row already picked
+  included, and closing the window, which clears the filter, shows
+  nothing: opening it again picks afresh.
   A heading folded over the pick hides its row and keeps its page, the list
   then showing nothing picked, Projects folded over a project's page as
   any. The arrow keys move
@@ -3792,8 +3879,8 @@ stands).
   one, where `watch` has it. A resort slides the rows; a fold, or a row
   folding into "N earlier" as time passes, changes the list at once. The
   row picked scrolls into view, only as far as it needs, whenever the pick
-  or the order changes: a pick made elsewhere, by a jump, a notification
-  or the menu, or before the window shows, and a resort or a fold. The
+  or the order changes: a pick made elsewhere, by Open in SitRep or a
+  project's name, or before the window shows, and a resort or a fold. The
   Filter field stays put above the rows as they scroll.
 - **Under the pointer** (Lee, 20 October 2026: "When I hover down the
   left-hand side, nothing highlights"; then, of glass highlights over the
@@ -4200,11 +4287,16 @@ reference only.
   clock and the banner are, which the picture is there to show (spec round
   8 had it cropping at its right; at the narrowest column that dropped the
   clock and most of the banner). Under
-  it, its caption and Send Test, a push button, which sends what the test
-  always has: a real notification, its click jumping as any would. Then Notify me of a new ask, off by
+  it, its caption and Send Test, a push button, which sends a sample, "Test
+  notification", "This is what SitRep's notifications look like", naming no
+  session, so its click jumps nowhere and hands the front back (Lee, 26
+  October 2026: a test of a real project's took him to its session, which a
+  test should not). Then Notify me of a new ask, off by
   default, its line "Silent; a click on it jumps to the session"; and
   macOS's own answer, "Allowed by macOS, as banners", with Notification
-  Settings… for SitRep's page in System Settings.
+  Settings… for SitRep's page in System Settings: the notices helper's,
+  which macOS lists as SitRep (see "The menu bar"). Each is read, asked
+  and sent through the helper.
 - **General:** first, "Your turn folds after", "Older ones fold into one
   line, which opens in place", a pop-up at its own width of An hour, the
   default, Four hours, Today or Never: how long a your-turn row stays on the
@@ -4278,7 +4370,8 @@ standard About panel, which draws its icon smaller.
 - **Nothing to change, and nothing more in it:** no title, no links, no
   licences, no update button; Check for Updates… stays in the menu. Only its
   close button is live, and it or ⌘W shuts it. It opens centred, in the
-  upper part of the screen, on the Space Lee is on.
+  upper part of the screen, on the Space Lee is on, and otherwise stays on
+  its own, as the SitRep window does.
 - **It opens from the menu's header**, which takes the menu's own highlight
   under the pointer, as any item does, and a click on it opens the window
   from anywhere. To VoiceOver the header is one button, "About SitRep". It is not in the app menu: an accessory app never shows
@@ -4584,6 +4677,12 @@ shape allows them. A jump made in Swift, in the app, stays parked too.
    focused terminal is the target by then; focusing again after the
    hand-back held, live. Nothing in the watch fails the jump, and
    lsappinfo giving no answer as the jump begins means no watch.
+
+   A notification's click begins its jump with the notices helper in
+   front, as macOS activated it (see "The menu bar"), where SitRep was
+   before: another app, as Finder is, so the watch runs, and a hand-back
+   to the helper brings Ghostty forward again. Nothing in the CLI names
+   SitRep or the helper (26 October 2026).
 
    It brings Ghostty forward with `open -b com.mitchellh.ghostty`, within
    2 seconds. First built with osascript telling Ghostty to `activate`, it
@@ -5036,8 +5135,9 @@ reaches a window only while that pane is on show).
         line does not; its click jumps nowhere. Turning the switch on asks
         macOS for leave, unless Lee answered before. The switch's line says
         what tells Lee instead: the notch's swell, the strip's flash, or the
-        menu bar's light with Nothing. Send sends the board's first row a
-        window holds, which a click jumps to.
+        menu bar's light with Nothing. Send sends a sample naming no
+        session, which a click jumps nowhere from. Since 26 October 2026 the
+        notices helper posts them all (see "The menu bar").
       - **General.** The plugin's version is the CLI's, from the board; its
         line says where it runs from (step 9 made it each case's: "Installed
         by SitRep", "From ~/Code/sitrep", "From GitHub, leeovery/sitrep"),

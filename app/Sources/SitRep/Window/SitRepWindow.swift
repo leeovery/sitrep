@@ -45,9 +45,6 @@ final class SitRepWindow: NSObject, NSWindowDelegate {
         } else if let pick {
             model.pick(pick)
         }
-        if window.isMiniaturized {
-            window.deminiaturize(nil)
-        }
         window.comeForward()
         if isAfresh || pick != nil {
             focus?.focusList()
@@ -74,7 +71,7 @@ final class SitRepWindow: NSObject, NSWindowDelegate {
         model.restored()
     }
 
-    private func make() -> NSWindow {
+    private func make() -> ForwardWindow {
         let sidebar = Self.side(over: model) { [model] in
             BoardColumn(
                 sidebar: model.sidebar, pick: model.pick, filter: model.filter, now: model.now
@@ -110,11 +107,11 @@ final class SitRepWindow: NSObject, NSWindowDelegate {
         return split
     }
 
-    /// The window, over its split, on the Space Lee is on whenever it opens (`comeForward()`). Its toolbar, empty,
-    /// gives it the titlebar by which macOS sets the traffic lights in from the sidebar's corner: on macOS 26 inside
-    /// its glass, as Finder's. Without one they sit on the glass's corner.
-    static func window(_ content: NSViewController) -> NSWindow {
-        let window = NSWindow(contentViewController: content)
+    /// The window, over its split, brought to the Space Lee is on whenever it opens and otherwise left on its own
+    /// (`ForwardWindow`). Its toolbar, empty, gives it the titlebar by which macOS sets the traffic lights in from the
+    /// sidebar's corner: on macOS 26 inside its glass, as Finder's. Without one they sit on the glass's corner.
+    static func window(_ content: NSViewController) -> ForwardWindow {
+        let window = ForwardWindow(contentViewController: content)
 
         window.styleMask = [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView]
         window.title = "SitRep"
@@ -126,7 +123,6 @@ final class SitRepWindow: NSObject, NSWindowDelegate {
         window.backgroundColor = .black
         window.appearance = NSAppearance(named: .darkAqua)
         window.isReleasedWhenClosed = false
-        window.collectionBehavior.insert(.moveToActiveSpace)
         window.setContentSize(WindowStyle.size)
         window.contentMinSize = WindowStyle.smallest
         window.center()
@@ -275,15 +271,5 @@ private struct WindowSide<Content: View>: View {
             .environment(\.wakeCalendar, model.calendar)
             .environment(\.reducesWindowMotion, model.reducesMotion)
             .environment(\.colorScheme, .dark)
-    }
-}
-
-extension NSWindow {
-    /// Brought forward on the Space Lee is on, and keyed: the window moves to that Space as it orders front, which
-    /// `.moveToActiveSpace` asks for, before SitRep activates, so the activation finds a window of SitRep's where Lee
-    /// is and takes him to no other Space. Activated first, macOS went to the Space the window was last on.
-    func comeForward() {
-        makeKeyAndOrderFront(nil)
-        NSApp.activate()
     }
 }

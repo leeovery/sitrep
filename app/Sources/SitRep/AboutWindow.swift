@@ -6,23 +6,33 @@ import SwiftUI
 /// zooms, and has nothing to change.
 @MainActor
 final class AboutWindow {
-    private lazy var window = Self.window(NSHostingController(rootView: AboutView()))
+    private let make: @MainActor () -> ForwardWindow
+    private lazy var window = make()
+
+    /// `make` makes the window as it first opens: a seam, as a test never shows one.
+    init(make: @escaping @MainActor () -> ForwardWindow = AboutWindow.made) {
+        self.make = make
+    }
 
     func show() {
         window.comeForward()
     }
 
+    private static func made() -> ForwardWindow {
+        window(NSHostingController(rootView: AboutView()))
+    }
+
     /// The window: titled, so it has the system's frame and close button, but showing no title; closable alone, so the
-    /// main menu's ⌘W reaches it (`AppMenu`); sized by what it shows; on the Space Lee is on whenever it opens.
-    static func window(_ content: NSViewController) -> NSWindow {
-        let window = NSWindow(contentViewController: content)
+    /// main menu's ⌘W reaches it (`AppMenu`); sized by what it shows; on the Space Lee is on whenever it opens, and
+    /// otherwise on its own (`ForwardWindow`).
+    static func window(_ content: NSViewController) -> ForwardWindow {
+        let window = ForwardWindow(contentViewController: content)
 
         window.title = "About SitRep"
         window.styleMask = [.titled, .closable, .fullSizeContentView]
         window.titleVisibility = .hidden
         window.titlebarAppearsTransparent = true
         window.isReleasedWhenClosed = false
-        window.collectionBehavior.insert(.moveToActiveSpace)
         window.setContentSize(content.view.fittingSize)
         window.center()
         return window

@@ -20,6 +20,16 @@ version=$(plutil -extract CFBundleShortVersionString raw -o - "$work/SitRep.app/
 if pkill -x SitRep; then
   while pgrep -x SitRep > /dev/null; do sleep 0.1; done
 fi
+# The notices helper quits as its SitRep ends; waited for, so the new SitRep
+# is not handed the old one, which serves the old SitRep and then quits. One
+# still there after two seconds is stopped too.
+for _ in {1..20}; do
+  pgrep -x SitRepNotices > /dev/null || break
+  sleep 0.1
+done
+if pkill -x SitRepNotices; then
+  while pgrep -x SitRepNotices > /dev/null; do sleep 0.1; done
+fi
 
 mkdir -p "$(dirname "$installed")"
 rm -rf "$installed"

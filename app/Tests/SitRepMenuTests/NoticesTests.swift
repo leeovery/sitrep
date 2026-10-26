@@ -61,18 +61,10 @@ struct NoticesTests {
         #expect(Notices.due(stale, isOn: true).isEmpty)
     }
 
-    @Test func theTestNoticeIsOfTheFirstRowAWindowHoldsAndJumpsToIt() {
-        let test = Notices.test(heard([.line(Watched.line())]))
-
-        #expect(test.title == "Choose how long the ledger keeps requests")
-        #expect(test.subtitle == "Switchboard · Usage")
-        #expect(test.work == "sr-ledger")
-    }
-
-    @Test func withNoRowAWindowHoldsTheTestNoticeJumpsNowhere() {
-        let test = Notices.test(heard([.line(Watched.line(rows: [Watched.rows[2]]))]))
-
-        #expect(test.work == nil)
-        #expect(test.body == "A test notification. No window holds a session, so it jumps nowhere.")
+    @Test func theTestNoticeIsASampleThatJumpsNowhere() {
+        #expect(Notices.test.title == "Test notification")
+        #expect(Notices.test.subtitle == nil)
+        #expect(Notices.test.body == "This is what SitRep's notifications look like.")
+        #expect(Notices.test.work == nil)
     }
 }

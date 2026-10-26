@@ -18,10 +18,12 @@ final class Works {
     var isJumping: Bool { oneJump.isRunning }
 
     /// Jumps to the work's window unless a jump is under way, and tells
-    /// `answered` whether it jumped. A jump that fails is told in a banner
-    /// once the next jump may run, as a banner may first wait on Lee allowing
-    /// banners at all.
-    func jump(to work: String, answered: @escaping (Bool) -> Void = { _ in }) {
+    /// `answered` whether it jumped. A jump that fails is told in a banner,
+    /// and to `refused`; one turned away for another running is not, as that
+    /// one brings its window forward.
+    func jump(
+        to work: String, answered: @escaping (Bool) -> Void = { _ in }, refused: @escaping () -> Void = {}
+    ) {
         Task {
             let answer = await oneJump.run({ await self.plugin.ask({ await $0.jump(to: work) }, unrun: JumpAnswer.refused) })
 
@@ -30,7 +32,8 @@ final class Works {
             case nil:
                 logger.notice("Jump to \(work, privacy: .public) refused: another jump is running")
             case let .refused(why):
-                await banners.post(.unjumped(why))
+                banners.post(.unjumped(why))
+                refused()
             case .jumped:
                 break
             }
