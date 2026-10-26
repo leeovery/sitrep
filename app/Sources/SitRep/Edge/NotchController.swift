@@ -60,7 +60,7 @@ final class NotchController: NSObject {
         self.period = period
         edge = ScreenEdge(display, settings)
         run = NotchRun(at: Displays.now, in: Self.setting(edge, settings, period), kept: SavedSettings(defaults))
-        window = EdgeWindow(frame: edge.window, view: surface)
+        window = EdgeWindow.onScreen(frame: edge.window, view: surface)
         super.init()
 
         surface.material = settings.material
@@ -88,13 +88,12 @@ final class NotchController: NSObject {
             }
 
             caption.mayShow = isShown
+            window.isShown = isShown
             if isShown {
                 run.catchUp(moment())
-                window.orderFrontRegardless()
                 wake()
             } else {
                 endDrag()
-                window.orderOut(nil)
                 link?.isPaused = true
                 lightLink?.isPaused = true
                 ages?.invalidate()
@@ -212,7 +211,7 @@ final class NotchController: NSObject {
             now: Displays.wallNow, mirror: edge.mirror, calendar: run.calendar
         ))
         drawLight(at: run.lightTime(time))
-        window.ignoresMouseEvents = run.drag == nil && !(pointer.map(frame.hits) ?? false)
+        window.takesClicks = run.drag != nil || (pointer.map(frame.hits) ?? false)
         pace(at: time)
     }
 
@@ -374,7 +373,7 @@ final class NotchController: NSObject {
         }
         ghost.hide()
         if run.endDrag(moment()) {
-            window.ignoresMouseEvents = true
+            window.takesClicks = false
         }
     }
 
@@ -411,7 +410,7 @@ final class NotchController: NSObject {
         if clickElsewhere, run.isOut {
             run.clickElsewhere(moment())
             took()
-        } else if !window.ignoresMouseEvents
+        } else if window.takesClicks
             || run.frame.wakes(from: run.seen, to: edge.stagePoint(NSEvent.mouseLocation), field: run.field)
         {
             wake()

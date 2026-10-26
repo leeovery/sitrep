@@ -37,7 +37,7 @@ final class StripController: NSObject {
         self.settings = settings
         edge = ScreenEdge(display, settings)
         run = StripRun(at: Displays.now, in: Self.setting(edge, settings), settings, measure: StripWordsLayer.measure)
-        window = EdgeWindow(frame: edge.stripWindow, view: surface)
+        window = EdgeWindow.onScreen(frame: edge.stripWindow, view: surface)
         super.init()
 
         surface.material = settings.material
@@ -64,13 +64,12 @@ final class StripController: NSObject {
             }
 
             caption.mayShow = isShown
+            window.isShown = isShown
             if isShown {
                 run.catchUp(moment())
-                window.orderFrontRegardless()
                 wake()
             } else {
                 endDrag()
-                window.orderOut(nil)
                 link?.isPaused = true
                 ages?.invalidate()
             }
@@ -153,7 +152,7 @@ final class StripController: NSObject {
             frame: frame, hoverRow: run.hoverRow, note: run.note, now: Displays.wallNow, mirror: edge.stripMirror,
             menu: edge.stripStage.menu, reducesMotion: Displays.reducesMotion(settings)
         ))
-        window.ignoresMouseEvents = !(frame.pointer.map(frame.hits) ?? false)
+        window.takesClicks = frame.pointer.map(frame.hits) ?? false
         pace(at: time)
     }
 
@@ -247,7 +246,7 @@ final class StripController: NSObject {
         }
         ghost.hide()
         if run.endDrag(moment()) {
-            window.ignoresMouseEvents = true
+            window.takesClicks = false
         }
     }
 
@@ -285,7 +284,7 @@ final class StripController: NSObject {
         if clickElsewhere {
             run.clickElsewhere(moment())
             took()
-        } else if !window.ignoresMouseEvents || run.frame.wakes(pointer: edge.stagePoint(NSEvent.mouseLocation)) {
+        } else if window.takesClicks || run.frame.wakes(pointer: edge.stagePoint(NSEvent.mouseLocation)) {
             wake()
         }
     }

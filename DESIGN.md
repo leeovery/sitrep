@@ -3302,8 +3302,9 @@ blurred.
 **The window**, from the research into edge and camera-notch apps:
 - an `NSPanel` subclass, borderless and non-activating;
 - at level `.mainMenu + 3`, on every Space (`.canJoinAllSpaces`,
-  `.stationary`, `.ignoresCycle`), and off the screen while a full-screen
-  app has its display (under "The strip", "Windows and full screen");
+  `.stationary`, `.ignoresCycle`), and hidden while a full-screen app has
+  its display: clear and letting every click through, never ordered out
+  (under "The strip", "Windows and full screen");
 - clicks pass through it except over the shape;
 - a global mouse monitor hears the approach, and while the panel is out,
   every move (see Stages, step 6);
@@ -3422,10 +3423,10 @@ were settled in the browser spike (below, "How the strip moves").
   hasn't said how that reads. Nothing of SitRep's goes over a full-screen
   window, the notch as well as the strip (Lee, 19 October 2026: "It should
   be hidden. Nothing should go over the top of a full screen window"): while
-  a full-screen app has the panel's display, the panel is off the screen,
-  and it comes back as the display leaves it. A maximised window doesn't
-  count, and each display is judged on its own. How SitRep tells, as the
-  spike found:
+  a full-screen app has the panel's display, the panel is hidden, clear and
+  letting every click through, and it shows again as the display leaves it.
+  A maximised window doesn't count, and each display is judged on its own.
+  How SitRep tells, as the spike found:
   - **Leaving the window off full-screen Spaces wasn't enough.** A
     non-activating panel on every Space still showed over Plex full screen.
   - **Bounds alone can't tell the two apart.** Under the built-in display's
@@ -3448,6 +3449,16 @@ were settled in the browser spike (below, "How the strip moves").
   directly. It was left out, as nothing guarantees it across macOS
   releases. In the Swift spike; Lee, putting Paper full screen and back:
   "It works".
+  - **Hidden is clear, never ordered out.** The edge was ordered out over
+    full screen and back in after, and came back on one Space only (26
+    October 2026): read through SkyLight, the notch's window was on all 18
+    Spaces as Chrome went full screen, and on the one it came back to once
+    ordered in again, until SitRep restarted. On every other Space it showed
+    for half a second as the Space slid in, then went. Lee: "It flashes,
+    it's there momentarily, and then it disappears". So the window is
+    ordered in once, as it is made, and never out: hidden, it is clear and
+    lets every click through, and the turns and sweeps Core Animation runs
+    for it in the render server are paused, to run again as it shows.
 - **Material:** Black, the bezel's, or Glass, macOS 26's Liquid Glass, for
   the strip and its tabs alike, as one shape (Lee, 18 October 2026: "I like
   the glass and the black, actually"). See Settings.
