@@ -33,6 +33,8 @@ struct WordsTests {
         #expect(Words.button(.inClaude(.comment)) == "Comment in Claude ↗")
         #expect(Words.button(.inClaude(.answer)) == "Answer in Claude ↗")
         #expect(Words.button(.ignore) == "Ignore")
+        #expect(Words.label(.inClaude(.comment)) == "Comment in Claude")
+        #expect(Words.label(.option("Open it ↗")) == "Open it ↗")
     }
 
     @Test func aCardSaysWhereItsAnswerIsInThePanesWords() {

@@ -35,13 +35,21 @@ public enum Words {
         }
     }
 
-    /// A button's words, as its pill shows them.
+    /// After the words of a button or a jump that leaves SitRep.
+    public static let leaves = "↗"
+
+    /// A button's words, as its pill shows them, ↗ after one that leaves SitRep.
     public static func button(_ button: Card.Button) -> String {
+        button.leaves ? "\(label(button)) \(leaves)" : label(button)
+    }
+
+    /// A button's own words, without the ↗ of one that leaves.
+    public static func label(_ button: Card.Button) -> String {
         switch button {
         case let .yes(words): "✓ \(words)"
         case let .option(words): words
-        case .inClaude(.comment): "Comment in Claude ↗"
-        case .inClaude(.answer): "Answer in Claude ↗"
+        case .inClaude(.comment): "Comment in Claude"
+        case .inClaude(.answer): "Answer in Claude"
         case .ignore: "Ignore"
         case .snooze: snooze
         }

@@ -48,7 +48,7 @@ struct SessionPageView: View {
         Button { act.jump(.open(page.id)) } label: {
             HStack(spacing: 6) {
                 Text(Words.jump).foregroundStyle(WindowStyle.text)
-                Text("↗").foregroundStyle(WindowStyle.soft).accessibilityHidden(true)
+                Text(Words.leaves).foregroundStyle(WindowStyle.soft).accessibilityHidden(true)
             }
             .font(WindowStyle.ui(12, .medium))
             .padding(.vertical, 5)
@@ -212,7 +212,9 @@ private struct StopCard: View {
                     .foregroundStyle(WindowStyle.soft)
                     .padding(.leading, 22)
             }
-            Pill(words: Words.button(.inClaude(.answer)), look: .white) { act.jump(.stop(session)) }
+            Pill(words: Words.label(.inClaude(.answer)), look: Pill.Look(.inClaude(.answer)), leaves: true) {
+                act.jump(.stop(session))
+            }
                 .disabled(pressedJump == .stop(session))
                 .padding(.leading, 22)
                 .padding(.top, 4)

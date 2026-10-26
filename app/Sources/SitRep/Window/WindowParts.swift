@@ -87,10 +87,11 @@ struct TurningArc: View {
     }
 }
 
-/// A button as a pill: the yes, white, the brightest thing in the window; an option, outlined on a fill; the rest
-/// outlined; ignore, quiet grey text. Each lifts under the pointer, and keeps the width of its words on one line. One
-/// that `fills`, as a card's buttons laid out as rows, takes the width it is given, its words from the left and
-/// wrapping, its ends still round.
+/// A button as a pill: an option, outlined on a fill; one that leaves for Claude outlined; the white pill, the
+/// brightest thing in the window; quiet, soft grey text. One that `leaves` SitRep has ↗ after its words, soft. Each
+/// lifts under the pointer, and keeps the width of its words on one line. One that `wraps`, as a card's buttons laid
+/// out as rows, wraps its words from the left within the width it is given, never wider than they are, its corners
+/// still 13.
 struct Pill: View {
     enum Look {
         case white, option, outlined, quiet
@@ -98,21 +99,28 @@ struct Pill: View {
 
     let words: String
     let look: Look
-    var fills = false
+    var wraps = false
+    var leaves = false
     let action: () -> Void
 
     var body: some View {
         Button(action: action) {
-            Text(words)
+            label
                 .font(WindowStyle.ui(12, look == .option || look == .white ? .semibold : .medium))
                 .multilineTextAlignment(.leading)
-                .fixedSize(horizontal: !fills, vertical: true)
+                .fixedSize(horizontal: !wraps, vertical: true)
                 .padding(.vertical, look == .white || look == .quiet ? 6 : 5)
                 .padding(.horizontal, padding)
-                .frame(maxWidth: fills ? .infinity : nil, alignment: .leading)
         }
         .buttonStyle(PillStyle(look: look))
         .contentShape(.focusEffect, RoundedRectangle(cornerRadius: Self.radius, style: .continuous))
+    }
+
+    private var label: Text {
+        guard leaves else {
+            return Text(words)
+        }
+        return Text("\(words) \(Text(Words.leaves).foregroundStyle(WindowStyle.soft))")
     }
 
     static let radius: CGFloat = 13
@@ -138,19 +146,11 @@ private struct PillStyle: ButtonStyle {
             let shape = RoundedRectangle(cornerRadius: Pill.radius, style: .continuous)
 
             configuration.label
-                .foregroundStyle(foreground(highlight))
+                .foregroundStyle(look.ink(highlight))
                 .background(shape.fill(fill(highlight)))
                 .overlay(shape.strokeBorder(ring(highlight), lineWidth: look == .outlined || look == .option ? 1 : 0))
                 .contentShape(shape)
                 .opacity(isEnabled ? 1 : 0.45)
-        }
-    }
-
-    private func foreground(_ highlight: Highlight) -> Color {
-        switch look {
-        case .white: WindowStyle.ink
-        case .option, .outlined: WindowStyle.text
-        case .quiet: highlight == .none ? WindowStyle.faint : WindowStyle.soft
         }
     }
 
@@ -169,6 +169,27 @@ private struct PillStyle: ButtonStyle {
         switch look {
         case .option: highlight == .none ? WindowStyle.optionRing : WindowStyle.ringLift
         default: highlight == .none ? WindowStyle.ring : WindowStyle.ringLift
+        }
+    }
+}
+
+extension Pill.Look {
+    /// A card's button's look, one per role: an answer given here, a yes or an option, on the option's fill; what
+    /// leaves for Claude outlined; Ignore quiet.
+    init(_ button: Card.Button) {
+        switch button {
+        case .yes, .option: self = .option
+        case .inClaude: self = .outlined
+        case .ignore, .snooze: self = .quiet
+        }
+    }
+
+    /// Its words' colour: quiet, Snooze's soft grey, the text's under the pointer.
+    func ink(_ highlight: Highlight) -> Color {
+        switch self {
+        case .white: WindowStyle.ink
+        case .option, .outlined: WindowStyle.text
+        case .quiet: highlight == .none ? WindowStyle.soft : WindowStyle.text
         }
     }
 }

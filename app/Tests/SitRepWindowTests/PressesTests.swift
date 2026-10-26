@@ -196,4 +196,14 @@ struct ArrangementTests {
     @Test func whereTheRestOverflowTheirLineTooEveryButtonIsARow() {
         #expect(Card.arrangement(of: Self.choice, widths: [400, 60, 200, 120], spacing: 8, in: 300) == .rows([0, 1, 2, 3]))
     }
+
+    @Test func aRowIsAsWideAsItsWordsNeverTheCards() {
+        #expect(Card.rowWidth(120, in: 700) == 120)
+        #expect(Card.rowWidth(480, in: 700) == 480)
+    }
+
+    @Test func aRowWrapsOnlyPast480OrTheCardWhereThatIsNarrower() {
+        #expect(Card.rowWidth(620, in: 700) == 480)
+        #expect(Card.rowWidth(450, in: 400) == 400)
+    }
 }
