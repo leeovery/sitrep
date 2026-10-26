@@ -3455,10 +3455,13 @@ were settled in the browser spike (below, "How the strip moves").
     Spaces as Chrome went full screen, and on the one it came back to once
     ordered in again, until SitRep restarted. On every other Space it showed
     for half a second as the Space slid in, then went. Lee: "It flashes,
-    it's there momentarily, and then it disappears". So the window is
-    ordered in once, as it is made, and never out: hidden, it is clear and
-    lets every click through, and the turns and sweeps Core Animation runs
-    for it in the render server are paused, to run again as it shows.
+    it's there momentarily, and then it disappears". Once pinned, a window
+    stayed pinned through later round trips: Lee, choosing the notch over
+    the strip, saw no notch until a restart. So the edge's window, and the
+    jump's caption's, which hid the same way, are ordered in once, as they
+    are made, and never out: hidden, each is clear and lets every click
+    through, and the turns and sweeps Core Animation runs for it in the
+    render server are paused, to run again as it shows.
 - **Material:** Black, the bezel's, or Glass, macOS 26's Liquid Glass, for
   the strip and its tabs alike, as one shape (Lee, 18 October 2026: "I like
   the glass and the black, actually"). See Settings.

@@ -1,7 +1,7 @@
 import AppKit
 
 /// An edge's window: a clear, borderless panel against the screen's edge, over the menu bar, on every Space. The
-/// notch's and the strip's stays on the screen once made (`onScreen`), hidden while a full-screen app has its display.
+/// notch's, the strip's and the caption's stay on the screen once made (`onScreen`), hidden while they don't show.
 /// It never takes the keyboard: borderless, it can't become key, and non-activating, a click on it never activates
 /// SitRep, so Lee's keys stay with the window that had them. Clicks pass through it but over the shape.
 @MainActor
@@ -47,7 +47,8 @@ final class EdgeWindow: NSPanel {
         contentView = view
     }
 
-    /// The notch's or the strip's window, on the screen from now on, hidden until it is shown, and never ordered out.
+    /// The notch's, the strip's or the caption's window, on the screen from now on, hidden until it is shown, and
+    /// never ordered out.
     static func onScreen(frame: CGRect, view: NSView) -> EdgeWindow {
         let window = EdgeWindow(frame: frame, view: view)
 
