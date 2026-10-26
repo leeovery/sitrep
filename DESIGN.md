@@ -2722,28 +2722,35 @@ that takes Lee to the window a session is in.
     clicked (the session's id), and the leave. Each carries SitRep's pid,
     whichever way it goes, and each side reads only its own SitRep's, so
     a helper left over from another SitRep is not heard, nor heeds one.
-    Each side says ready as it starts listening, and answers the other's
-    first ready with its own, as the other may have started after it
-    spoke: SitRep the first of each helper, by its pid, so a helper
-    macOS starts for a click whose ready comes before the last one's end
-    is heard, and that end, told late, changes nothing of it. SitRep
-    holds what it says until a helper is ready. A read of the leave the
-    helper does not answer within 2 seconds is unknown, and dropped, so
-    it is never sent later; Settings' row then says no more than
-    "Notifications in macOS", and Settings reads its other rows
-    meanwhile. A helper that
-    ends leaves what it was sent unanswered, as unknown; what was not
-    yet sent, an ask among it, waits for the next.
+    Each side says ready as it starts listening. The helper answers each
+    of SitRep's readies with its own; SitRep answers only the first of
+    each helper, by its pid, so the two stop, and a helper macOS starts
+    for a click whose ready comes before the last one's end is heard,
+    and that end, told late, changes nothing of it. SitRep takes a ready
+    only from a helper still running, as a ready and an end come by
+    different ways, in no order. SitRep holds what it says until a
+    helper is ready; while a helper it watches runs without having said
+    so, its ready perhaps lost, SitRep says its own again for each thing
+    held. A read of the leave the helper does not answer within 2
+    seconds is unknown, and dropped, so it is never sent later;
+    Settings' row then says no more than "Notifications in macOS", and
+    Settings reads its other rows meanwhile. A helper that ends leaves
+    what it was sent unanswered, as unknown; what was not yet sent, an
+    ask among it, waits for the next.
   - **Its life.** SitRep starts the helper as it starts
     (`NSWorkspace.openApplication`, not activated, not added to recent
     items, the one running where it runs), and watches whichever helper
     says it is ready, SitRep's own or one macOS started for a click, for
-    its ending. The helper runs beside SitRep only until it ends: SitRep
-    starts it again only as it next has something to say, never as one
-    ends, so a helper that ends as it starts, before its ready, is not
-    started over and over, and a click on a banner starts one of macOS's
-    own. `app/build` waits for the helper to quit after SitRep, stopping
-    it after two seconds, so the new SitRep is not handed the old one.
+    its ending, once the end of any watched before it is told. The
+    helper runs beside SitRep only until it ends: SitRep starts it again
+    only as it next has something to say, so a helper that ends as it
+    starts, before its ready, is not started over and over, and a click
+    on a banner starts one of macOS's own. The one exception: a helper
+    left running from the SitRep before, as when SitRep restarts at once
+    and is handed it, ends without a word for this one, and is followed
+    by one of this SitRep's own, once, where something waits.
+    `app/build` waits for the helper to quit after SitRep, stopping it
+    after two seconds, so the new SitRep is not handed the old one.
     The helper serves the SitRep.app
     it sits in, the copy running from that bundle, and quits as that
     SitRep ends, watching its `NSRunningApplication`. A click that
@@ -2759,8 +2766,12 @@ that takes Lee to the window a session is in.
   on a notification naming no session (a refusal, or the test with no
   window holding one) hides the helper, handing the front back to the app
   Lee was in, as nothing jumps; so does a click whose jump SitRep refuses,
-  SitRep telling the helper so. A click turned away as another jump runs
-  leaves it, as that jump brings its window forward. A session no
+  SitRep telling the helper that relayed it, while it listens, and no
+  later one. A click turned away as another jump runs leaves it, as that
+  jump brings its window forward. A click that starts the helper is told
+  as it launches, perhaps before macOS's activation lands, so the helper
+  not yet active hides as it next becomes active, within a second, and
+  an activation later than that, of its own, is never hidden. A session no
   window shows offers no jump: the app never opens a window (until stage 6).
 - **The app holds no sitrep logic.** It runs one `sitrep watch` as its
   child, which tells it the board as it changes, and each jump is a one-off

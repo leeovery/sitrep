@@ -224,15 +224,17 @@ struct HelperTests {
         #expect(sent.messages.isEmpty)
     }
 
-    /// SitRep may have missed the helper's ready, so its first is answered; no more, or the two would never stop.
-    @Test func itAnswersSitRepsFirstReadyAlone() async {
-        let helper = helper(SitRep(isRunning: true))
+    /// SitRep may have missed the helper's ready, so each of SitRep's is answered, as SitRep says it again while it has
+    /// not heard the helper; SitRep answers only the helper's first, so the two stop. A click held goes once.
+    @Test func itAnswersEachOfSitRepsReadies() async {
+        let helper = helper(SitRep(isRunning: false))
 
+        helper.clicked("sr-aw3bgs")
         await helper.start()
         helper.heard(Self.fromSitRep(.ready))
         helper.heard(Self.fromSitRep(.ready))
 
-        #expect(sent.messages == [Self.ready, Self.ready])
+        #expect(sent.messages == [Self.ready, Self.ready, .clicked(work: "sr-aw3bgs"), Self.ready])
     }
 
     @Test func aLetterFromAnotherSitRepIsPassedOver() async {

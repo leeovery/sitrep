@@ -18,10 +18,9 @@ final class Works {
     var isJumping: Bool { oneJump.isRunning }
 
     /// Jumps to the work's window unless a jump is under way, and tells
-    /// `answered` whether it jumped. A jump that fails is told in a banner
-    /// once the next jump may run, as a banner may first wait on Lee allowing
-    /// banners at all, and to `refused`; one turned away for another running
-    /// is not, as that one brings its window forward.
+    /// `answered` whether it jumped. A jump that fails is told in a banner,
+    /// and to `refused`; one turned away for another running is not, as that
+    /// one brings its window forward.
     func jump(
         to work: String, answered: @escaping (Bool) -> Void = { _ in }, refused: @escaping () -> Void = {}
     ) {

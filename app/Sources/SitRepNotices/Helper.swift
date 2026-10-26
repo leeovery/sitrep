@@ -33,7 +33,7 @@ final class Helper {
         let pid: Int32
         let quit: @MainActor () -> Void
         /// The front given back to the app Lee was in, which the click's activation took it from.
-        let handBack: () -> Void
+        let handBack: @MainActor () -> Void
     }
 
     private let notifications: Notifying
@@ -103,12 +103,10 @@ final class Helper {
         }
     }
 
-    /// SitRep's first `ready` answered with the helper's, as SitRep may have missed it, and the clicks held handed on.
+    /// SitRep's `ready` answered with the helper's, as SitRep may have missed it, and the clicks held handed on. Each
+    /// is answered, as SitRep says it again while it has not heard the helper; SitRep answers only a helper's first,
+    /// so the two stop.
     private func sitRepListens() {
-        guard !isSitRepListening else {
-            return
-        }
-
         isSitRepListening = true
         relay(.ready(helper: own.pid))
         held.forEach { relay(.clicked(work: $0)) }

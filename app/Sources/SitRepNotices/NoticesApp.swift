@@ -25,6 +25,7 @@ enum NoticesApp {
 final class NoticesDelegate: NSObject, NSApplicationDelegate {
     private let notifications = Notifications()
     private let relay: Relay<ToSitRep, ToHelper>
+    private let front = Front(isActive: { NSApp.isActive }, hide: { NSApp.hide(nil) })
     private let helper: Helper
 
     init(helper id: String) {
@@ -35,9 +36,13 @@ final class NoticesDelegate: NSObject, NSApplicationDelegate {
             notifications: notifications, sitRep: OwnSitRep(), send: relay.send,
             own: Helper.Own(
                 pid: ProcessInfo.processInfo.processIdentifier, quit: { NSApp.terminate(nil) },
-                handBack: { NSApp.hide(nil) }
+                handBack: { [front] in front.handBack() }
             )
         )
+    }
+
+    func applicationDidBecomeActive(_ notification: Notification) {
+        front.activated()
     }
 
     /// Clicks are listened to before launching ends, so the click that starts the helper is heard.
