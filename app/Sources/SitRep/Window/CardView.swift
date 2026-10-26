@@ -141,7 +141,7 @@ struct CardView: View {
                 if button == .snooze {
                     SnoozeButton(ask: card.id)
                 } else {
-                    Pill(words: Words.button(button), look: Self.look(button), fills: true) { act.press(button, card.id) }
+                    Pill(words: Words.button(button), look: Pill.Look(button), wraps: true) { act.press(button, card.id) }
                         .disabled(pressedJump == .card(card.id, button))
                 }
             }
@@ -160,17 +160,6 @@ struct CardView: View {
         }
         .padding(.leading, 22)
         .padding(.top, 4)
-    }
-
-    /// The yes, and an answer only Claude Code's prompt takes, white; an option on its fill; a comment outlined;
-    /// ignore, quiet.
-    private static func look(_ button: Card.Button) -> Pill.Look {
-        switch button {
-        case .yes, .inClaude(.answer): .white
-        case .option: .option
-        case .inClaude(.comment): .outlined
-        case .ignore, .snooze: .quiet
-        }
     }
 }
 
@@ -237,8 +226,8 @@ private struct SnoozeStyle: ButtonStyle {
 }
 
 /// A card's buttons, one subview each in the card's order: on one line as pills while they fit at their one-line
-/// widths, as measured; else rows as wide as the card, their words wrapping, then the rest on a line after them
-/// (`Card.arrangement`).
+/// widths, as measured; else rows, each as wide as its words, wrapping only past `Card.rowWidth`, then the rest on a
+/// line after them (`Card.arrangement`).
 struct CardButtons: Layout {
     let buttons: [Card.Button]
     var spacing: CGFloat = 8
@@ -260,11 +249,15 @@ struct CardButtons: Layout {
         }
     }
 
-    /// Each button's place, from the top left.
     private func frames(_ width: CGFloat?, _ subviews: Subviews) -> [CGRect] {
-        let ideal = subviews.map { $0.sizeThatFits(.unspecified) }
+        frames(width, ideal: subviews.map { $0.sizeThatFits(.unspecified) }) { offset, width in
+            subviews[offset].sizeThatFits(ProposedViewSize(width: width, height: nil))
+        }
+    }
 
-        guard let width, subviews.count == buttons.count,
+    /// Each button's place, from the top left, from its one-line size and its size within a width.
+    func frames(_ width: CGFloat?, ideal: [CGSize], within: (Int, CGFloat) -> CGSize) -> [CGRect] {
+        guard let width, ideal.count == buttons.count,
               case let .rows(rowed) = Card.arrangement(
                   of: buttons, widths: ideal.map { Double($0.width) }, spacing: spacing, in: width
               )
@@ -272,22 +265,25 @@ struct CardButtons: Layout {
             return line(ideal, top: 0)
         }
 
-        return rows(rowed, width, ideal, subviews)
+        return rows(rowed, width, ideal, within)
     }
 
-    /// These a row each, as wide as the card, then the rest on a line after them, each in its place.
-    private func rows(_ rowed: [Int], _ width: CGFloat, _ ideal: [CGSize], _ subviews: Subviews) -> [CGRect] {
-        var frames = [CGRect](repeating: .zero, count: subviews.count)
+    /// These a row each, as wide as its words up to the widest a row runs, then the rest on a line after them, each in
+    /// its place.
+    private func rows(
+        _ rowed: [Int], _ width: CGFloat, _ ideal: [CGSize], _ within: (Int, CGFloat) -> CGSize
+    ) -> [CGRect] {
+        var frames = [CGRect](repeating: .zero, count: ideal.count)
         var top: CGFloat = 0
 
         for offset in rowed {
-            let height = subviews[offset].sizeThatFits(ProposedViewSize(width: width, height: nil)).height
+            let size = within(offset, CGFloat(Card.rowWidth(Double(ideal[offset].width), in: Double(width))))
 
-            frames[offset] = CGRect(x: 0, y: top, width: width, height: height)
-            top += height + rowSpacing
+            frames[offset] = CGRect(origin: CGPoint(x: 0, y: top), size: size)
+            top += size.height + rowSpacing
         }
 
-        let rest = subviews.indices.filter { !rowed.contains($0) }
+        let rest = ideal.indices.filter { !rowed.contains($0) }
 
         for (offset, frame) in zip(rest, line(rest.map { ideal[$0] }, top: top - rowSpacing + spacing)) {
             frames[offset] = frame

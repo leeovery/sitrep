@@ -5,14 +5,14 @@ import SitRepCore
 /// under them saying where Lee's answer is, as its press and then the board's `reply` say.
 public struct Card: Equatable, Sendable, Identifiable {
     public enum Button: Hashable, Sendable {
-        /// A yes ask's yes, a white pill in Claude's words.
+        /// A yes ask's yes in Claude's words, a pill as an option is.
         case yes(String)
-        /// One of a choice ask's options, outlined.
+        /// One of a choice ask's options, a pill on its fill.
         case option(String)
-        /// Needs Claude Code's prompt, so it jumps to the session's window: "Comment in Claude ↗", "Answer in
-        /// Claude ↗".
+        /// Needs Claude Code's prompt, so it jumps to the session's window, outlined: "Comment in Claude ↗",
+        /// "Answer in Claude ↗".
         case inClaude(InClaude)
-        /// Quiet grey text.
+        /// Quiet text in the soft grey, as Snooze is.
         case ignore
         /// "Snooze ⌄", after Ignore, whose menu snoozes the ask until the time chosen.
         case snooze
@@ -171,9 +171,18 @@ extension Card {
     public enum Arrangement: Equatable, Sendable {
         /// On one line, each a pill.
         case pills
-        /// The buttons at these offsets a column of rows as wide as the card, their words wrapping; the rest on a line
+        /// The buttons at these offsets a column of rows, each as wide as its words (`rowWidth`); the rest on a line
         /// after them.
         case rows([Int])
+    }
+
+    /// The widest a row runs before its words wrap, where the card is wider.
+    public static let widestRow: Double = 480
+
+    /// A row's width: its words' one-line width, wrapping only past `widestRow`, or the card's width where that is
+    /// narrower.
+    public static func rowWidth(_ words: Double, in width: Double) -> Double {
+        min(words, widestRow, width)
     }
 
     /// Pills, while every button fits on one line at its one-line width, measured, with the space between; else its

@@ -212,7 +212,7 @@ private struct StopCard: View {
                     .foregroundStyle(WindowStyle.soft)
                     .padding(.leading, 22)
             }
-            Pill(words: Words.button(.inClaude(.answer)), look: .white) { act.jump(.stop(session)) }
+            Pill(words: Words.button(.inClaude(.answer)), look: Pill.Look(.inClaude(.answer))) { act.jump(.stop(session)) }
                 .disabled(pressedJump == .stop(session))
                 .padding(.leading, 22)
                 .padding(.top, 4)

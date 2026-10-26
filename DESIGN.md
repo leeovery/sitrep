@@ -4004,14 +4004,23 @@ stands).
     "I don't see really why we need it… Let's just sort of make them
     appear. Less is more."
 - **Answering.** A session's asks show opened, as cards with their buttons:
-  - **a yes** is a white pill in Claude's words, the brightest thing in the
-    window; **a choice** is one outlined pill per option. Both are answered
-    here;
+  - **one look per role, whatever the ask** (Paper's page "Answer buttons",
+    board I1, Lee's pick of 26 October 2026). An answer given here, **a
+    yes** in Claude's words or each of **a choice**'s options, is the option
+    pill: #1C1C1F in a #34343A ring, 12 semibold, 12 by 5 inside, corners of
+    13. What leaves for Claude, Comment in Claude and Answer in Claude, the
+    your-turn card's among them, is outlined, its ↗ in the soft grey. Lee,
+    of the white Answer in Claude beside grey options and a big white Go:
+    "I think we should be consistent there with our button approach";
   - **the buttons sit on one line** as pills while they fit at their
     one-line widths, measured. Past that, as Claude's long options are, the
-    answers lay out as a column of rows as wide as the card, left-aligned,
-    their words wrapping, with Comment in Claude and Ignore on a line after
-    them, or every button a row where that line would not fit either;
+    answers stand one under another, 6 apart, left-aligned, each as wide as
+    its own words, never the card's, wrapping only past 480 or the card's
+    width where that is narrower; Comment in Claude, Ignore and Snooze go on
+    a line after them, or every button is a row, again sized to its words,
+    where that line would not fit either. Lee, of options run the card's
+    width: "I don't really like how the buttons in the middle are really
+    long. I think it's unnecessary.";
   - **the answer waits 2 seconds**, a line draining under it, with Escape to
     undo (borrowed from One, in Lee's dex). Then it goes into the session's
     inbox, as the pane's replies to another session do (see "Delivery"), by
@@ -4026,7 +4035,9 @@ stands).
     ↗" and jump to the session's window. Proposed, and new: that jump also
     puts the window in answering mode for the ask, its band saying "Your
     next Enter answers…". The mod cannot hear that from the app today;
-  - **ignore** is quiet grey text.
+  - **ignore** is plain words in the soft grey, Snooze's colour, the text's
+    under the pointer; the faint grey had it look disabled. The finish
+    confirmation's Cancel is the same.
   - **Snooze ⌄** follows Ignore on an ask waiting on Lee (Paper's board H, 23
     October 2026; see "Snooze"), none once Lee's reply is on its way: 12
     medium in the soft grey, its chevron 8 by 5, plain at rest and a pill
