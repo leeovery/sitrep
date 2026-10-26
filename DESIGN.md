@@ -3027,8 +3027,11 @@ about where a window is, for the jump.
 time on the right; one line each, cut short with an ellipsis:
 - **needs you** (board F, 22 October 2026): an orange dot; the session's
   name, 14 medium; under it its project's name; how long its oldest line
-  has waited. One row of the standard 49 however many lines wait (55 until 26 October 2026, when Lee found the two-line rows too spaced against Your turn's one-line rows: 7 above the two lines and 8 below, not 10 and 11), an ask, a
-  permission prompt or a question alike. Its window may still be working:
+  has waited. One row of the standard 49 however many lines wait (55
+  until 26 October 2026, when Lee found the two-line rows too spaced
+  against Your turn's one-line rows: 7 above the two lines and 8 below,
+  not 10 and 11), an ask, a permission prompt or a question alike. Its
+  window may still be working:
   needs you wins, so nothing else shows. More than one line waiting adds
   "+N" after the name: 13, weight 500, in the second line's soft colour, in
   tabular figures, 6 after the name on its baseline; the name is cut short

@@ -43,7 +43,7 @@ struct CardSessionRowTests {
         #expect(Item.session(Self.harness(count)).height == 49 + Item.rowGap)
     }
 
-    /// Its dot at 16 by 19; its session's name from 32, medium, none of its asks' words; its project at 32 by 28; its
+    /// Its dot at 16 by 16; its session's name from 32, medium, none of its asks' words; its project at 32 by 25; its
     /// time in the lane ending at 334; nothing under the first line but the project.
     @Test func aRowNeedingLeeIsItsNameOverItsProject() throws {
         let drawn = try Drawn(Self.card(Self.harness(1)).layer)

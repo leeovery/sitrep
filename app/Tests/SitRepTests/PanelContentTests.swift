@@ -104,7 +104,7 @@ struct PanelContentTests {
         asking.lines[0].title = "Approve the plan"
         let crossing = Content(
             headHeight: 26,
-            entries: [Content.Entry(.session(asking), height: 0), Content.Entry(.session(rest), height: 59, isGoing: true)]
+            entries: [Content.Entry(.session(asking), height: 0), Content.Entry(.session(rest), height: 53, isGoing: true)]
         )
 
         content.show(Self.list(.session(rest)))
