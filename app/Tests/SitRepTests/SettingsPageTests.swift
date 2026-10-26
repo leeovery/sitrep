@@ -2,6 +2,7 @@ import AppKit
 import Foundation
 @testable import SitRep
 import SitRepCore
+import SitRepLines
 import SitRepMenu
 import SwiftUI
 import Testing
@@ -62,7 +63,7 @@ struct SettingsModelTests {
 
     private static func settings(_ mac: Mac) -> SettingsModel {
         SettingsModel(
-            preferences: Preferences(UserDefaults(suiteName: "com.leeovery.sitrep.tests.\(UUID().uuidString)")!),
+            preferences: Preferences(MemoryDefaults()),
             live: LiveBoard(), services: mac.services()
         )
     }

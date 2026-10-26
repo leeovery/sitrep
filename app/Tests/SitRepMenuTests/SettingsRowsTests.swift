@@ -1,6 +1,7 @@
 import Foundation
 @testable import SitRepCore
 @testable import SitRepEdge
+import SitRepLines
 @testable import SitRepMenu
 import SitRepPanel
 import SitRepRelay
@@ -236,77 +237,66 @@ struct GhosttyRowTests {
 }
 
 struct AppSettingsTests {
-    /// Defaults of their own, gone after the test.
-    private static func withDefaults(_ test: (UserDefaults) throws -> Void) rethrows {
-        let suite = "com.leeovery.sitrep.tests.\(UUID().uuidString)"
-        let defaults = UserDefaults(suiteName: suite)!
-
-        defer { defaults.removePersistentDomain(forName: suite) }
-        try test(defaults)
-    }
-
     @Test func notificationsAreOffByDefault() {
-        Self.withDefaults { defaults in
-            #expect(!SavedSettings<AppSettings>(defaults).read().notifiesNewAsks)
-        }
+        let defaults = MemoryDefaults()
+
+        #expect(!SavedSettings<AppSettings>(defaults).read().notifiesNewAsks)
     }
 
     @Test func itIsSavedBesideTheEdgesUnderItsOwnKey() {
-        Self.withDefaults { defaults in
-            var settings = AppSettings()
+        let defaults = MemoryDefaults()
+        var settings = AppSettings()
 
-            settings.notifiesNewAsks = true
-            SavedSettings(defaults).save(settings)
-            SavedEdgeSettings(defaults).save(EdgeSettings())
+        settings.notifiesNewAsks = true
+        SavedSettings(defaults).save(settings)
+        SavedEdgeSettings(defaults).save(EdgeSettings())
 
-            #expect(SavedSettings<AppSettings>(defaults).read() == settings)
-            #expect(defaults.data(forKey: "app") != nil)
-            #expect(SavedEdgeSettings(defaults).read() == EdgeSettings())
-        }
+        #expect(SavedSettings<AppSettings>(defaults).read() == settings)
+        #expect(Set(defaults.dictionaryRepresentation().keys) == ["app", SavedEdgeSettings.key])
+        #expect(SavedEdgeSettings(defaults).read() == EdgeSettings())
     }
 
     /// The separate Settings window saved the pane it last showed; that key is passed over.
     @Test func aValueSavedWithTheSettingsWindowsPaneStillReadsTheKeyIgnored() throws {
-        try Self.withDefaults { defaults in
-            defaults.set(Data(#"{"notifiesNewAsks":true,"pane":"general"}"#.utf8), forKey: "app")
+        let defaults = MemoryDefaults()
 
-            let read = SavedSettings<AppSettings>(defaults).read()
-            let saved = try JSONEncoder().encode(read)
-            let keys = try #require(try JSONSerialization.jsonObject(with: saved) as? [String: Any]).keys
+        defaults.set(Data(#"{"notifiesNewAsks":true,"pane":"general"}"#.utf8), forKey: "app")
 
-            #expect(read.notifiesNewAsks)
-            #expect(Set(keys) == ["notifiesNewAsks", "foldsAfter"])
-        }
+        let read = SavedSettings<AppSettings>(defaults).read()
+        let saved = try JSONEncoder().encode(read)
+        let keys = try #require(try JSONSerialization.jsonObject(with: saved) as? [String: Any]).keys
+
+        #expect(read.notifiesNewAsks)
+        #expect(Set(keys) == ["notifiesNewAsks", "foldsAfter"])
     }
 
     @Test func yourTurnFoldsAfterAnHourByDefault() {
-        Self.withDefaults { defaults in
-            #expect(SavedSettings<AppSettings>(defaults).read().foldsAfter == .hour)
-        }
+        let defaults = MemoryDefaults()
+
+        #expect(SavedSettings<AppSettings>(defaults).read().foldsAfter == .hour)
     }
 
     @Test(arguments: FoldPeriod.allCases)
     func theFoldPeriodIsSavedAndReadBack(period: FoldPeriod) {
-        Self.withDefaults { defaults in
-            var settings = AppSettings()
+        let defaults = MemoryDefaults()
+        var settings = AppSettings()
 
-            settings.foldsAfter = period
-            SavedSettings(defaults).save(settings)
+        settings.foldsAfter = period
+        SavedSettings(defaults).save(settings)
 
-            #expect(SavedSettings<AppSettings>(defaults).read().foldsAfter == period)
-        }
+        #expect(SavedSettings<AppSettings>(defaults).read().foldsAfter == period)
     }
 
     /// A period another version saved that this one doesn't know is the default, and keeps what else it can.
     @Test func aFoldPeriodItDoesNotKnowIsTheDefault() {
-        Self.withDefaults { defaults in
-            defaults.set(Data(#"{"notifiesNewAsks":true,"foldsAfter":"week"}"#.utf8), forKey: "app")
+        let defaults = MemoryDefaults()
 
-            let read = SavedSettings<AppSettings>(defaults).read()
+        defaults.set(Data(#"{"notifiesNewAsks":true,"foldsAfter":"week"}"#.utf8), forKey: "app")
 
-            #expect(read.foldsAfter == .hour)
-            #expect(read.notifiesNewAsks)
-        }
+        let read = SavedSettings<AppSettings>(defaults).read()
+
+        #expect(read.foldsAfter == .hour)
+        #expect(read.notifiesNewAsks)
     }
 
     @Test func settingsNamesEachPeriod() {
@@ -314,18 +304,18 @@ struct AppSettingsTests {
     }
 
     @Test func aValueAnotherVersionSavedKeepsWhatItCan() {
-        Self.withDefaults { defaults in
-            defaults.set(Data(#"{"notifiesNewAsks":"yes","sound":1}"#.utf8), forKey: "app")
+        let defaults = MemoryDefaults()
 
-            #expect(SavedSettings<AppSettings>(defaults).read() == AppSettings())
-        }
+        defaults.set(Data(#"{"notifiesNewAsks":"yes","sound":1}"#.utf8), forKey: "app")
+
+        #expect(SavedSettings<AppSettings>(defaults).read() == AppSettings())
     }
 
     @Test func anythingButAnObjectIsTheDefaults() {
-        Self.withDefaults { defaults in
-            defaults.set(Data("[1]".utf8), forKey: "app")
+        let defaults = MemoryDefaults()
 
-            #expect(SavedSettings<AppSettings>(defaults).read() == AppSettings())
-        }
+        defaults.set(Data("[1]".utf8), forKey: "app")
+
+        #expect(SavedSettings<AppSettings>(defaults).read() == AppSettings())
     }
 }
