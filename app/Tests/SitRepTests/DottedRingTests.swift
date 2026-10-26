@@ -15,20 +15,20 @@ struct DottedRingTests {
     )
 
     private static func card(_ session: Session) throws -> (row: SessionRow, drawn: Drawn) {
-        let row = SessionRow(session, size: CGSize(width: 344, height: 59))
+        let row = SessionRow(session, size: CGSize(width: 344, height: 53))
 
         return (row, try Drawn(row.layer))
     }
 
-    /// Its 4.5 radius and 1.5 stroke 10.5 across, on the mark's centre at 16 by 19, in #8E8E95, open in the middle.
+    /// Its 4.5 radius and 1.5 stroke 10.5 across, on the mark's centre at 16 by 16, in #8E8E95, open in the middle.
     @Test func theCardsRingIsCentredInItsLaneInGrey() throws {
         let drawn = try Self.card(Self.waiting).drawn
-        let ring = try #require(drawn.drawnBox(in: CGRect(x: 4, y: 8, width: 24, height: 22), ground: Self.cardGround))
+        let ring = try #require(drawn.drawnBox(in: CGRect(x: 4, y: 5, width: 24, height: 22), ground: Self.cardGround))
 
-        #expect(abs(ring.midX - 16) <= 0.5 && abs(ring.midY - 19) <= 0.5)
+        #expect(abs(ring.midX - 16) <= 0.5 && abs(ring.midY - 16) <= 0.5)
         #expect(abs(ring.width - 10.5) <= 1 && abs(ring.height - 10.5) <= 1)
         #expect(Self.colour(drawn, in: ring).isClose(to: 0x8E8E95))
-        #expect(drawn.drawnBox(in: CGRect(x: 15, y: 18, width: 2, height: 2), ground: Self.cardGround) == nil)
+        #expect(drawn.drawnBox(in: CGRect(x: 15, y: 15, width: 2, height: 2), ground: Self.cardGround) == nil)
     }
 
     /// Dashes of 1.6 with gaps of 2.12 go round seven and a half times, the last gap closed by the caps where the ring
@@ -36,7 +36,7 @@ struct DottedRingTests {
     @Test func theCardsRingIsDashed() throws {
         let waiting = try Self.card(Self.waiting).drawn
         let turn = try Self.card(Session(id: "a", project: "SitRep", kind: .turn, title: "Your turn", sub: "", since: 0))
-        let lane = CGRect(x: 4, y: 8, width: 24, height: 22)
+        let lane = CGRect(x: 4, y: 5, width: 24, height: 22)
 
         #expect(try Self.dashes(waiting, in: lane, ground: Self.cardGround) == 7)
         #expect(try Self.dashes(turn.drawn, in: lane, ground: Self.cardGround) == 1)
@@ -53,7 +53,7 @@ struct DottedRingTests {
     @Test func theCardsTitleSetsItsVerbBrighterThanItsSubject() throws {
         let drawn = try Self.card(Self.waiting).drawn
         let verb = TextLine.width(WaitingTitle.text(Self.waiting, subject: nil))
-        let title = SessionRowLayout(size: CGSize(width: 344, height: 59)).title
+        let title = SessionRowLayout(size: CGSize(width: 344, height: 53)).title
 
         #expect(Self.colour(drawn, in: CGRect(x: title.minX, y: title.minY, width: verb, height: title.height))
             .isClose(to: 0xB4B4BA))
@@ -64,8 +64,8 @@ struct DottedRingTests {
     /// The countdown is set again as it reads differently: "Wakes in 12m" narrows to "Wakes now" as the wake comes due.
     @Test func theCardsWakeCountsDownAsTheClockTicks() throws {
         let wake = Session(id: "a", project: "Kit", kind: .onItsWork, title: "Wakes ", until: 1_000_000, sub: "", since: 0)
-        let row = SessionRow(wake, size: CGSize(width: 344, height: 59))
-        let title = SessionRowLayout(size: CGSize(width: 344, height: 59)).title
+        let row = SessionRow(wake, size: CGSize(width: 344, height: 53))
+        let title = SessionRowLayout(size: CGSize(width: 344, height: 53)).title
 
         row.showAge(at: 1_000_000 - 690_000)
         let early = try #require(try Drawn(row.layer).drawnBox(in: title, ground: Self.cardGround))

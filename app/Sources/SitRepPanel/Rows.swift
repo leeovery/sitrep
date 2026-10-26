@@ -271,8 +271,8 @@ public enum Item: Equatable, Sendable {
     /// The gap below a row drawn whole, inside its item.
     public static let rowGap = 4.0
 
-    /// A row drawn whole, less the gap below it: 10, its two lines' 34, and 11.
-    public static let rowHeight = 55.0
+    /// A row drawn whole, less the gap below it: 7, its two lines' 34, and 8.
+    public static let rowHeight = 49.0
 
     /// Board D's: a your-turn row, with no gap, so the lifts of two meet; an eyebrow, under the room over it; and "N
     /// earlier", under the 2 over it.

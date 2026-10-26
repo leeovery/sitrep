@@ -37,38 +37,38 @@ struct CardSessionRowTests {
         TextLine.width(TextLine.text(name, EdgeStyle.title, EdgeStyle.ink, kern: EdgeStyle.tightKern(EdgeStyle.title)))
     }
 
-    /// 55 and the gap under it, however many lines wait.
+    /// 49 and the gap under it, however many lines wait.
     @Test(arguments: [1, 2, 3])
     func aRowIsOneRowOfStandardHeight(count: Int) {
-        #expect(Item.session(Self.harness(count)).height == 55 + Item.rowGap)
+        #expect(Item.session(Self.harness(count)).height == 49 + Item.rowGap)
     }
 
-    /// Its dot at 16 by 19; its session's name from 32, medium, none of its asks' words; its project at 32 by 28; its
+    /// Its dot at 16 by 16; its session's name from 32, medium, none of its asks' words; its project at 32 by 25; its
     /// time in the lane ending at 334; nothing under the first line but the project.
     @Test func aRowNeedingLeeIsItsNameOverItsProject() throws {
         let drawn = try Drawn(Self.card(Self.harness(1)).layer)
-        let dot = try #require(drawn.drawnBox(in: CGRect(x: 4, y: 10, width: 22, height: 18), ground: Self.ground))
-        let words = try #require(drawn.drawnBox(in: CGRect(x: 26, y: 8, width: 270, height: 22), ground: Self.ground))
-        let project = try #require(drawn.drawnBox(in: CGRect(x: 26, y: 28, width: 270, height: 16), ground: Self.ground))
+        let dot = try #require(drawn.drawnBox(in: CGRect(x: 4, y: 7, width: 22, height: 18), ground: Self.ground))
+        let words = try #require(drawn.drawnBox(in: CGRect(x: 26, y: 5, width: 270, height: 22), ground: Self.ground))
+        let project = try #require(drawn.drawnBox(in: CGRect(x: 26, y: 25, width: 270, height: 16), ground: Self.ground))
         let projectWidth = TextLine.width(TextLine.text("Harness", EdgeStyle.sub, EdgeStyle.ink2))
-        let age = try #require(drawn.drawnBox(in: CGRect(x: 290, y: 10, width: 54, height: 18), ground: Self.ground))
+        let age = try #require(drawn.drawnBox(in: CGRect(x: 290, y: 7, width: 54, height: 18), ground: Self.ground))
 
-        #expect(abs(dot.midX - 16) <= 0.5 && abs(dot.midY - 19) <= 0.5)
+        #expect(abs(dot.midX - 16) <= 0.5 && abs(dot.midY - 16) <= 0.5)
         #expect((32 ... 33.5).contains(words.minX))
         #expect(abs(words.width - Self.nameWidth()) <= 1.5)
         // drawn inside its set width by the glyphs' side bearings
         #expect((32 ... 33.5).contains(project.minX))
         #expect(project.width <= projectWidth + 0.5 && project.width >= projectWidth - 3)
         #expect((332.5 ... 334.5).contains(age.maxX))
-        #expect(drawn.drawnBox(in: CGRect(x: 4, y: 44, width: 340, height: 11), ground: Self.ground) == nil)
+        #expect(drawn.drawnBox(in: CGRect(x: 4, y: 41, width: 340, height: 8), ground: Self.ground) == nil)
     }
 
     /// "+2" for two lines after the first: 13 medium in tabular figures, 6 after the name, on its baseline.
     @Test func severalLinesShowACount6AfterTheNameOnItsBaseline() throws {
         let drawn = try Drawn(Self.card(Self.harness(3)).layer)
         let after = 32 + Self.nameWidth()
-        let name = try #require(drawn.drawnBox(in: CGRect(x: 26, y: 8, width: after - 26, height: 22), ground: Self.ground))
-        let count = try #require(drawn.drawnBox(in: CGRect(x: after + 2, y: 8, width: 40, height: 22), ground: Self.ground))
+        let name = try #require(drawn.drawnBox(in: CGRect(x: 26, y: 5, width: after - 26, height: 22), ground: Self.ground))
+        let count = try #require(drawn.drawnBox(in: CGRect(x: after + 2, y: 5, width: 40, height: 22), ground: Self.ground))
         let set = TextLine.width(TextLine.text("+2", EdgeStyle.count, EdgeStyle.ink2))
 
         #expect(abs(count.minX - (after + 6)) <= 1.5)
@@ -80,16 +80,16 @@ struct CardSessionRowTests {
     @Test func aLongNameIsCutShortBeforeItsCount() throws {
         let long = String(repeating: "Finish the Harness modernisation ", count: 3)
         let drawn = try Drawn(Self.card(Self.harness(2, name: long)).layer)
-        let line = try #require(drawn.drawnBox(in: CGRect(x: 26, y: 8, width: 270, height: 22), ground: Self.ground))
+        let line = try #require(drawn.drawnBox(in: CGRect(x: 26, y: 5, width: 270, height: 22), ground: Self.ground))
         let set = TextLine.width(TextLine.text("+1", EdgeStyle.count, EdgeStyle.ink2))
         let room = 256 - set - 6
         let cut = TextLine(
             TextLine.text(long, EdgeStyle.title, EdgeStyle.ink, kern: EdgeStyle.tightKern(EdgeStyle.title)),
             in: CGRect(x: 0, y: 0, width: room, height: 18)
         ).width
-        let name = try #require(drawn.drawnBox(in: CGRect(x: 26, y: 8, width: 6 + cut, height: 22), ground: Self.ground))
+        let name = try #require(drawn.drawnBox(in: CGRect(x: 26, y: 5, width: 6 + cut, height: 22), ground: Self.ground))
         let count = try #require(drawn.drawnBox(
-            in: CGRect(x: 32 + cut + 2, y: 8, width: 256 - cut, height: 22), ground: Self.ground
+            in: CGRect(x: 32 + cut + 2, y: 5, width: 256 - cut, height: 22), ground: Self.ground
         ))
 
         #expect(line.maxX <= 288.5)
@@ -108,13 +108,13 @@ struct CardSessionRowTests {
         row.isHighlighted = true
 
         let drawn = try Drawn(row.layer)
-        let button = try #require(drawn.drawnBox(in: CGRect(x: 290, y: 0, width: 54, height: 55), ground: Self.ground))
+        let button = try #require(drawn.drawnBox(in: CGRect(x: 290, y: 0, width: 54, height: 49), ground: Self.ground))
         let glyph = try #require(drawn.drawnBox(
             in: button.insetBy(dx: 2, dy: 2), ground: CGPoint(x: button.minX + 2, y: button.midY)
         ))
 
         #expect(abs(button.width - 24) <= 1 && abs(button.height - 24) <= 1)
-        #expect(abs(button.maxX - 334) <= 0.5 && abs(button.midY - 27.5) <= 0.5)
+        #expect(abs(button.maxX - 334) <= 0.5 && abs(button.midY - 24.5) <= 0.5)
         #expect(abs(glyph.width - 13) <= 1 && abs(glyph.height - 11) <= 1)
         #expect(abs(glyph.midX - button.midX) <= 0.5 && abs(glyph.midY - button.midY) <= 0.5)
     }
@@ -164,10 +164,10 @@ struct CardSessionRowTests {
     func aSnoozedRowIsANeedsYouRowQuietedWithWhenItWakes(away: Bool) throws {
         let asleep = Self.asleep(away: away)
         let drawn = try Drawn(Self.card(asleep).layer), needs = try Drawn(Self.card(Self.harness(1)).layer)
-        let dot = try #require(drawn.drawnBox(in: CGRect(x: 4, y: 10, width: 22, height: 18), ground: Self.ground))
-        let wakes = try #require(drawn.drawnBox(in: CGRect(x: 250, y: 10, width: 94, height: 18), ground: Self.ground))
+        let dot = try #require(drawn.drawnBox(in: CGRect(x: 4, y: 7, width: 22, height: 18), ground: Self.ground))
+        let wakes = try #require(drawn.drawnBox(in: CGRect(x: 250, y: 7, width: 94, height: 18), ground: Self.ground))
         let words = TextLine.text(asleep.timeText(at: 5 * 3_600_000, in: WakeTime.calendar), EdgeStyle.age, EdgeStyle.ink2)
-        let name = CGRect(x: 32, y: 10, width: 100, height: 18), project = CGRect(x: 26, y: 28, width: 200, height: 16)
+        let name = CGRect(x: 32, y: 7, width: 100, height: 18), project = CGRect(x: 26, y: 25, width: 200, height: 16)
         let soft = try needs.brightest(in: project)
 
         #expect(abs(dot.width - 7) <= 1 && abs(dot.height - 7) <= 1)
@@ -197,7 +197,7 @@ struct CardSessionRowTests {
     /// alone on the button, the time gone from under it (`underThePointerTheButtonTakesTheTimesPlace`).
     @Test func offTheRowItsTimeShows() throws {
         let drawn = try Drawn(Self.card(Self.harness(1, away: true)).layer)
-        let time = try #require(drawn.drawnBox(in: CGRect(x: 290, y: 0, width: 54, height: 55), ground: Self.ground))
+        let time = try #require(drawn.drawnBox(in: CGRect(x: 290, y: 0, width: 54, height: 49), ground: Self.ground))
 
         #expect(time.height < 12 && abs(time.maxX - 334) <= 1.5)
     }
