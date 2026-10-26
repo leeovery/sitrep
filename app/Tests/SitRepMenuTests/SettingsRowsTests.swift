@@ -3,6 +3,7 @@ import Foundation
 @testable import SitRepEdge
 @testable import SitRepMenu
 import SitRepPanel
+import SitRepRelay
 import Testing
 
 struct StaysOnScreenTests {

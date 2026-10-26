@@ -1,8 +1,9 @@
 #!/bin/bash
 # Builds SitRep.app into the folder given, signed as SitRep Local, carrying
-# the plugin: app/build runs it, then installs what it made. The folder must
-# be outside the repository, and the bundle gone once installed: a second
-# signed copy left about could be the one macOS launches by its bundle id.
+# the plugin and the notices helper: app/build runs it, then installs what it
+# made. The folder must be outside the repository, and the bundle gone once
+# installed: a second signed copy left about could be the one macOS launches
+# by its bundle id.
 set -euo pipefail
 
 if [[ $# -ne 1 ]]; then
@@ -45,6 +46,22 @@ cp "$app/Info.plist" "$info"
 plutil -insert CFBundleShortVersionString -string "$version" "$info"
 plutil -insert CFBundleVersion -string "$version" "$info"
 
+# The notices helper, which posts SitRep's banners: a click on one activates
+# the app that posted it, and the helper has no window, so macOS has no Space
+# to take Lee to, where SitRep's window would take him to its own ahead of the
+# jump. Its bundle id is SitRep's and .notices, as SitRep's NoticeHelper has
+# it, and its name SitRep, so a banner's header says SitRep. It takes SitRep's
+# version and the macOS it needs.
+helper="$bundle/Contents/Helpers/SitRepNotices.app"
+mkdir -p "$helper/Contents/MacOS" "$helper/Contents/Resources"
+cp "$binaries/SitRepNotices" "$helper/Contents/MacOS/SitRepNotices"
+helper_info="$helper/Contents/Info.plist"
+cp "$app/Notices/Info.plist" "$helper_info"
+plutil -insert CFBundleIdentifier -string "$(plutil -extract CFBundleIdentifier raw -o - "$info").notices" "$helper_info"
+plutil -insert CFBundleShortVersionString -string "$version" "$helper_info"
+plutil -insert CFBundleVersion -string "$version" "$helper_info"
+plutil -insert LSMinimumSystemVersion -string "$(plutil -extract LSMinimumSystemVersion raw -o - "$info")" "$helper_info"
+
 # The plugin the app installs, as Claude Code runs it from this checkout:
 # what the plugin loads (its manifests, the mod, the core, their types and its
 # sound), as the checkout stands, edits and files not yet committed among
@@ -70,19 +87,28 @@ git -C "$repo" ls-files -z --cached --others --exclude-standard -- .claude-plugi
 # The icon, compiled from its Icon Composer layers: Assets.car, from which
 # macOS makes the dark, clear and tinted looks, and an .icns for older
 # lookups, every size to 1024 (by default actool stops at 256). actool names
-# them, and its keys go into the Info.plist.
-xcrun actool "$app/Icon/SitRep.icon" --compile "$bundle/Contents/Resources" --platform macosx \
+# them, and its keys go into the Info.plist. The helper carries the same, so
+# its banners and its row in System Settings show SitRep's icon.
+icon="$work/icon"
+mkdir "$icon"
+xcrun actool "$app/Icon/SitRep.icon" --compile "$icon" --platform macosx \
   --minimum-deployment-target "$(plutil -extract LSMinimumSystemVersion raw -o - "$info")" \
   --app-icon SitRep --standalone-icon-behavior all --output-partial-info-plist "$work/icon.plist" \
   > "$work/actool.plist"
 # actool exits 0 having compiled nothing, as for an icon it cannot find, its
 # errors only in what it prints.
-if [[ ! -f "$bundle/Contents/Resources/Assets.car" ]]; then
+if [[ ! -f "$icon/Assets.car" ]]; then
   echo "actool compiled no icon from $app/Icon/SitRep.icon:" >&2
   cat "$work/actool.plist" >&2
   exit 1
 fi
-/usr/libexec/PlistBuddy -c "Merge $work/icon.plist" "$info" > /dev/null
-rm "$work/icon.plist" "$work/actool.plist"
+for each in "$bundle" "$helper"; do
+  cp "$icon"/* "$each/Contents/Resources"
+  /usr/libexec/PlistBuddy -c "Merge $work/icon.plist" "$each/Contents/Info.plist" > /dev/null
+done
+rm -r "$icon" "$work/icon.plist" "$work/actool.plist"
 
+# Inside out: the helper first, as SitRep's signature seals the helper's as it
+# stands. The helper sends no Apple Events, so it takes no entitlements.
+codesign --force --options runtime -s "$identity" "$helper"
 codesign --force --options runtime --entitlements "$app/SitRep.entitlements" -s "$identity" "$bundle"

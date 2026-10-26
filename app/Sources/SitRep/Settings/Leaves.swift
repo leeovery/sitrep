@@ -35,7 +35,7 @@ enum Leaves {
             }
         } catch {
             loginLog.error("Login item unchanged: \(error.localizedDescription, privacy: .public)")
-            Task { await banners.post(.refused("SitRep could not change starting at login", error.localizedDescription)) }
+            banners.post(.refused("SitRep could not change starting at login", error.localizedDescription))
         }
 
         let status = service.status
@@ -74,15 +74,15 @@ enum Leaves {
         }.value
     }
 
-    /// System Settings, where Lee changes what macOS lets SitRep do: SitRep's page in Notifications, Automation, and
-    /// Login Items, which macOS opens itself.
+    /// System Settings, where Lee changes what macOS lets SitRep do: the notices helper's page in Notifications, which
+    /// it lists as SitRep, Automation, and Login Items, which macOS opens itself.
     enum Place {
         case notifications, automation, loginItems
     }
 
     static func open(_ place: Place) {
         switch place {
-        case .notifications: open("x-apple.systempreferences:com.apple.Notifications-Settings.extension?id=com.leeovery.sitrep")
+        case .notifications: open("x-apple.systempreferences:com.apple.Notifications-Settings.extension?id=\(Banners.helper)")
         case .automation: open("x-apple.systempreferences:com.apple.preference.security?Privacy_Automation")
         case .loginItems: SMAppService.openSystemSettingsLoginItems()
         }

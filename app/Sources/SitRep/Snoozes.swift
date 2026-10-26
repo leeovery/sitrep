@@ -31,7 +31,7 @@ final class Snoozes {
     func snoozeRow(_ asks: [String], of session: String, _ choice: SnoozeChoice) {
         Task {
             if case let .refused(why) = await snooze(asks, of: session, choice) {
-                await banners.post(.unsnoozed(why))
+                banners.post(.unsnoozed(why))
             }
         }
     }
@@ -40,7 +40,7 @@ final class Snoozes {
     func wakeRow(_ asks: [String], of session: String) {
         Task {
             if case let .refused(why) = await wake(asks, of: session) {
-                await banners.post(.unwoken(why))
+                banners.post(.unwoken(why))
             }
         }
     }

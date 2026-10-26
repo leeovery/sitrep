@@ -1,0 +1,253 @@
+@testable import SitRepNotices
+import SitRepRelay
+import Testing
+
+/// The helper between SitRep and macOS's notifications, over a SitRep and a macOS of its own: nothing is posted,
+/// launched or relayed for real.
+@MainActor
+struct HelperTests {
+    private static let sitRep: Int32 = 4012
+
+    /// What the helper asks of macOS, the first post held until `release` lets it go.
+    @MainActor
+    final class Mac: Notifying {
+        var posted: [Notice] = []
+        var asks = 0
+        var leaveNow = NoticeLeave.allowed(.banners)
+        var leaveAsked = NoticeLeave.denied
+        var holdsFirstPost = false
+        private var held: CheckedContinuation<Void, Never>?
+
+        var isHolding: Bool { held != nil }
+
+        func post(_ notice: Notice) async {
+            if holdsFirstPost, posted.isEmpty, held == nil {
+                await withCheckedContinuation { held = $0 }
+            }
+            posted.append(notice)
+        }
+
+        func leave() async -> NoticeLeave {
+            leaveNow
+        }
+
+        func ask() async -> NoticeLeave {
+            asks += 1
+
+            return leaveAsked
+        }
+
+        func release() {
+            held?.resume()
+        }
+    }
+
+    /// The SitRep the helper serves: running, or started by it.
+    @MainActor
+    final class SitRep: SitRepApp {
+        var isRunning: Bool
+        var starts: Bool
+        var launches = 0
+        var watched: Int32?
+        var end: (@MainActor () -> Void)?
+
+        init(isRunning: Bool, starts: Bool = true) {
+            self.isRunning = isRunning
+            self.starts = starts
+        }
+
+        func running() -> Int32? {
+            isRunning ? HelperTests.sitRep : nil
+        }
+
+        func launch() async -> Int32? {
+            launches += 1
+
+            return starts ? HelperTests.sitRep : nil
+        }
+
+        func watch(_ pid: Int32, ended: @escaping @MainActor () -> Void) {
+            watched = pid
+            end = ended
+        }
+    }
+
+    /// What the helper sent SitRep, waited on.
+    @MainActor
+    final class Sent {
+        private(set) var messages: [ToSitRep] = []
+        private(set) var pids: Set<Int32> = []
+        private var waiter: CheckedContinuation<Void, Never>?
+
+        func put(_ letter: Letter<ToSitRep>) {
+            messages.append(letter.message)
+            pids.insert(letter.pid)
+            waiter?.resume()
+            waiter = nil
+        }
+
+        /// Once `count` messages are sent.
+        func first(_ count: Int) async -> [ToSitRep] {
+            while messages.count < count {
+                await withCheckedContinuation { waiter = $0 }
+            }
+
+            return messages
+        }
+    }
+
+    @MainActor
+    final class Quits {
+        var count = 0
+    }
+
+    private let mac = Mac()
+    private let sent = Sent()
+    private let quits = Quits()
+
+    private func helper(_ sitRep: SitRep) -> Helper {
+        Helper(notifications: mac, sitRep: sitRep, send: sent.put) { [quits] in quits.count += 1 }
+    }
+
+    private static func fromSitRep(_ message: ToHelper, pid: Int32 = sitRep) -> Letter<ToHelper> {
+        Letter(message, pid: pid)
+    }
+
+    /// Started by SitRep, it finds SitRep running and says it listens, under SitRep's pid.
+    @Test func itServesTheSitRepRunningAndSaysItListens() async {
+        let sitRep = SitRep(isRunning: true)
+        let helper = helper(sitRep)
+
+        await helper.start()
+
+        #expect(sitRep.launches == 0)
+        #expect(sitRep.watched == Self.sitRep)
+        #expect(sent.messages == [.ready])
+        #expect(sent.pids == [Self.sitRep])
+    }
+
+    @Test func itQuitsAsSitRepEnds() async {
+        let sitRep = SitRep(isRunning: true)
+        let helper = helper(sitRep)
+
+        await helper.start()
+        #expect(quits.count == 0)
+        sitRep.end?()
+
+        #expect(quits.count == 1)
+    }
+
+    @Test func aClickIsRelayedToSitRep() async {
+        let helper = helper(SitRep(isRunning: true))
+
+        await helper.start()
+        helper.heard(Self.fromSitRep(.ready))
+        helper.clicked("sr-aw3bgs")
+
+        #expect(sent.messages.last == .clicked(work: "sr-aw3bgs"))
+        #expect(sent.pids == [Self.sitRep])
+    }
+
+    /// The click that started the helper, with SitRep not running: SitRep is started, and the click waits for it.
+    @Test func aClickWithNoSitRepStartsItAndIsHandedOverOnceItListens() async {
+        let sitRep = SitRep(isRunning: false)
+        let helper = helper(sitRep)
+
+        helper.clicked("sr-aw3bgs")
+        await helper.start()
+
+        #expect(sitRep.launches == 1)
+        #expect(sitRep.watched == Self.sitRep)
+        #expect(sent.messages == [.ready])
+
+        helper.heard(Self.fromSitRep(.ready))
+
+        #expect(sent.messages == [.ready, .ready, .clicked(work: "sr-aw3bgs")])
+    }
+
+    @Test func withNoSitRepToStartItQuits() async {
+        let helper = helper(SitRep(isRunning: false, starts: false))
+
+        await helper.start()
+
+        #expect(quits.count == 1)
+        #expect(sent.messages.isEmpty)
+    }
+
+    /// SitRep may have missed the helper's ready, so its first is answered; no more, or the two would never stop.
+    @Test func itAnswersSitRepsFirstReadyAlone() async {
+        let helper = helper(SitRep(isRunning: true))
+
+        await helper.start()
+        helper.heard(Self.fromSitRep(.ready))
+        helper.heard(Self.fromSitRep(.ready))
+
+        #expect(sent.messages == [.ready, .ready])
+    }
+
+    @Test func aLetterFromAnotherSitRepIsPassedOver() async {
+        let helper = helper(SitRep(isRunning: true))
+
+        await helper.start()
+        helper.heard(Self.fromSitRep(.ready, pid: 977))
+        helper.heard(Self.fromSitRep(.post(Notice(title: "Stale", subtitle: nil, body: "", work: nil)), pid: 977))
+        helper.clicked("sr-aw3bgs")
+        await Task.yield()
+
+        #expect(sent.messages == [.ready])
+        #expect(mac.posted.isEmpty)
+    }
+
+    @Test func beforeItKnowsItsSitRepNoLetterIsHeard() {
+        let helper = helper(SitRep(isRunning: true))
+
+        helper.heard(Self.fromSitRep(.ready))
+
+        #expect(sent.messages.isEmpty)
+    }
+
+    @Test func itPostsInTheOrderSitRepSent() async {
+        let helper = helper(SitRep(isRunning: true))
+        let first = Notice(title: "First", subtitle: nil, body: "", work: "sr-1")
+        let second = Notice(title: "Second", subtitle: nil, body: "", work: "sr-2")
+
+        mac.holdsFirstPost = true
+        await helper.start()
+        helper.heard(Self.fromSitRep(.post(first)))
+        helper.heard(Self.fromSitRep(.post(second)))
+        while !mac.isHolding {
+            await Task.yield()
+        }
+        for _ in 0 ..< 10 {
+            await Task.yield()
+        }
+        #expect(mac.posted.isEmpty)
+
+        mac.release()
+        while mac.posted.count < 2 {
+            await Task.yield()
+        }
+
+        #expect(mac.posted == [first, second])
+    }
+
+    @Test func itAnswersAStatusWithMacOSsLeaveUnderItsId() async {
+        let helper = helper(SitRep(isRunning: true))
+
+        await helper.start()
+        helper.heard(Self.fromSitRep(.status(id: "a")))
+
+        #expect(await sent.first(2).last == .status(.allowed(.banners), id: "a"))
+        #expect(mac.asks == 0)
+    }
+
+    @Test func itAsksMacOSThenAnswersWithTheLeaveUnderItsId() async {
+        let helper = helper(SitRep(isRunning: true))
+
+        await helper.start()
+        helper.heard(Self.fromSitRep(.ask(id: "b")))
+
+        #expect(await sent.first(2).last == .status(.denied, id: "b"))
+        #expect(mac.asks == 1)
+    }
+}

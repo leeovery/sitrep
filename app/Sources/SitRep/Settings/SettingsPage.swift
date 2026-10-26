@@ -3,6 +3,7 @@ import Observation
 import SitRepCore
 import SitRepMenu
 import SitRepPanel
+import SitRepRelay
 import SwiftUI
 
 /// What Settings reads of the Mac and does for Lee, apart from what he sets: given whole, so the page can be drawn over
@@ -15,7 +16,8 @@ struct SettingsServices {
     var hasGlass: Bool
     var jump: (String) -> Void
     var sendTest: () -> Void
-    var noticeLeave: () async -> NoticeLeave
+    /// Nil when the notices helper does not answer.
+    var noticeLeave: () async -> NoticeLeave?
     /// macOS asked for leave to notify, as the switch goes on, unless Lee answered already.
     var askForNotices: () async -> Void
     var login: () -> LoginItem

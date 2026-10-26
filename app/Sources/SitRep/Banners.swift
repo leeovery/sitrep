@@ -1,123 +1,175 @@
+import AppKit
 import os
 import SitRepCore
-import SitRepMenu
-import UserNotifications
+import SitRepRelay
 
-/// macOS banners: silent, since each Claude window's own chime already
-/// plays, and shown even while SitRep counts as the active app. Clicking one
-/// that names a work jumps to it.
+/// macOS banners, which SitRep's notices helper posts (DESIGN, "The menu bar"). SitRep decides what to post and when;
+/// the helper, a windowless app inside SitRep.app, posts it, reads and asks macOS's leave, and relays a click on one
+/// that names a session, so the click activates the helper, never SitRep, whose window would take Lee to its own Space
+/// ahead of the jump. What SitRep says before the helper listens waits for it, the helper started.
 @MainActor
-final class Banners: NSObject, UNUserNotificationCenterDelegate {
-    /// The userInfo key carrying the id of the work a banner jumps to.
-    private nonisolated static let workKey = "work"
-
-    private let center = UNUserNotificationCenter.current()
-    private let logger = Logger(sitrep: "banner")
+final class Banners {
+    private let pid: Int32
+    private let send: (Letter<ToHelper>) -> Void
+    private let launch: () -> Void
+    private let answerWithin: Duration
+    private var isHelperListening = false
+    /// What waits for the helper to listen, in order.
+    private var waiting: [ToHelper] = []
+    /// Requests the helper has yet to answer, by id.
+    private var answers: [String: CheckedContinuation<NoticeLeave?, Never>] = [:]
     private var onClick: (String) -> Void = { _ in }
 
-    func listen(onClick: @escaping (String) -> Void) {
+    init(
+        pid: Int32, send: @escaping (Letter<ToHelper>) -> Void, launch: @escaping () -> Void,
+        answerWithin: Duration = .seconds(2)
+    ) {
+        self.pid = pid
+        self.send = send
+        self.launch = launch
+        self.answerWithin = answerWithin
+    }
+
+    /// Clicks told to `onClick`; SitRep says it listens, and starts the helper. Before launching ends, so a click that
+    /// started SitRep, held by the helper, is heard.
+    func start(onClick: @escaping (String) -> Void) {
         self.onClick = onClick
-        center.delegate = self
+        say(.ready)
+        launch()
     }
 
-    func post(_ banner: Banner) async {
-        guard await isAllowed() else {
-            return logger.notice("Banner not shown, as banners are not allowed: \(banner.body, privacy: .public)")
-        }
-
-        let content = UNMutableNotificationContent()
-
-        content.title = banner.title
-        content.subtitle = banner.subtitle ?? ""
-        content.body = banner.body
-        content.userInfo = banner.work.map { [Self.workKey: $0] } ?? [:]
-
-        do {
-            try await center.add(UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: nil))
-        } catch {
-            logger.error("Banner not posted: \(error.localizedDescription, privacy: .public)")
-        }
-    }
-
-    /// What macOS lets SitRep do with notifications, as its own settings say.
-    func leave() async -> NoticeLeave {
-        let settings = await center.notificationSettings()
-
-        return switch settings.authorizationStatus {
-        case .notDetermined: .unasked
-        case .denied: .denied
-        case .provisional, .ephemeral: .provisional
-        case .authorized: .allowed(settings.alertStyle.style)
-        @unknown default: .denied
-        }
-    }
-
-    /// Asks macOS for leave to show banners, unless Lee has answered already.
-    func ask() async {
-        _ = await isAllowed()
-    }
-
-    /// Whether banners may show; the first time, macOS asks Lee, for alerts alone: no sound, no badge.
-    private func isAllowed() async -> Bool {
-        let status = await center.notificationSettings().authorizationStatus
-
-        guard status == .notDetermined else {
-            logger.info("Banner permission: \(status.words, privacy: .public)")
-
-            return status == .authorized || status == .provisional
-        }
-
-        do {
-            let isGranted = try await center.requestAuthorization(options: [.alert])
-
-            logger.info("Banner permission asked: \(isGranted ? "granted" : "refused", privacy: .public)")
-
-            return isGranted
-        } catch {
-            logger.error("Banner permission not asked: \(error.localizedDescription, privacy: .public)")
-
-            return false
-        }
-    }
-
-    nonisolated func userNotificationCenter(
-        _ center: UNUserNotificationCenter,
-        willPresent notification: UNNotification
-    ) async -> UNNotificationPresentationOptions {
-        [.banner, .list]
-    }
-
-    nonisolated func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse) async {
-        guard
-            response.actionIdentifier == UNNotificationDefaultActionIdentifier,
-            let work = response.notification.request.content.userInfo[Self.workKey] as? String
-        else {
+    /// A letter from the helper; one for another SitRep is passed over.
+    func heard(_ letter: Letter<ToSitRep>) {
+        guard let message = letter.message(for: pid) else {
             return
         }
 
-        await MainActor.run { onClick(work) }
-    }
-}
-
-private extension UNAlertStyle {
-    var style: NoticeLeave.Style {
-        switch self {
-        case .banner: .banners
-        case .alert: .alerts
-        default: .none
+        switch message {
+        case .ready: helperListens()
+        case let .clicked(work): onClick(work)
+        case let .status(leave, id): answer(id, leave)
         }
     }
+
+    /// The helper gone: what it had yet to answer is unknown, and what comes next waits for it, started again.
+    func helperEnded() {
+        isHelperListening = false
+        answers.keys.forEach { answer($0, nil) }
+        if !waiting.isEmpty {
+            launch()
+        }
+    }
+
+    func post(_ banner: Banner) {
+        deliver(.post(Notice(title: banner.title, subtitle: banner.subtitle, body: banner.body, work: banner.work)))
+    }
+
+    /// What macOS lets SitRep do with notifications; nil when the helper does not answer in time.
+    func leave() async -> NoticeLeave? {
+        await request(within: answerWithin) { .status(id: $0) }
+    }
+
+    /// macOS asked for leave to show banners, unless Lee answered already: done once Lee has answered.
+    func ask() async {
+        _ = await request(within: nil) { .ask(id: $0) }
+    }
+
+    private func request(within: Duration?, _ message: (String) -> ToHelper) async -> NoticeLeave? {
+        let id = UUID().uuidString
+
+        if let within {
+            Task {
+                try? await Task.sleep(for: within)
+                answer(id, nil)
+            }
+        }
+
+        return await withCheckedContinuation {
+            answers[id] = $0
+            deliver(message(id))
+        }
+    }
+
+    private func answer(_ id: String, _ leave: NoticeLeave?) {
+        answers.removeValue(forKey: id)?.resume(returning: leave)
+    }
+
+    /// The helper's first `ready` answered with SitRep's, as the helper may have missed it, and what waits sent.
+    private func helperListens() {
+        guard !isHelperListening else {
+            return
+        }
+
+        isHelperListening = true
+        say(.ready)
+        waiting.forEach(say)
+        waiting = []
+    }
+
+    private func deliver(_ message: ToHelper) {
+        if isHelperListening {
+            say(message)
+        } else {
+            waiting.append(message)
+            launch()
+        }
+    }
+
+    private func say(_ message: ToHelper) {
+        send(Letter(message, pid: pid))
+    }
 }
 
-private extension UNAuthorizationStatus {
-    var words: String {
-        switch self {
-        case .notDetermined: "not asked"
-        case .denied: "denied"
-        case .authorized: "allowed"
-        case .provisional: "provisional"
-        case .ephemeral: "ephemeral"
-        @unknown default: "unknown (\(rawValue))"
+extension Banners {
+    /// The notices helper's bundle id, under which the relay's names go.
+    static var helper: String {
+        NoticeHelper.id(of: Bundle.main.bundleIdentifier ?? "com.leeovery.sitrep")
+    }
+
+    /// Banners through the helper in SitRep.app, over the relay.
+    static func live() -> Banners {
+        let relay = Relay<ToHelper, ToSitRep>(helper: helper)
+        let app = HelperApp(Bundle.main.bundleURL.appending(path: NoticeHelper.place))
+        let banners = Banners(
+            pid: ProcessInfo.processInfo.processIdentifier, send: relay.send, launch: { app.open() }
+        )
+
+        relay.listen { [unowned banners] in banners.heard($0) }
+        app.ended = { [unowned banners] in banners.helperEnded() }
+
+        return banners
+    }
+}
+
+/// The notices helper as an app: started where it is not running, once at a time, and watched for ending.
+@MainActor
+private final class HelperApp {
+    var ended: () -> Void = {}
+    private let bundle: URL
+    private let logger = Logger(sitrep: "banner")
+    private var isOpen = false
+    private var watch: EndWatch?
+
+    init(_ bundle: URL) {
+        self.bundle = bundle
+    }
+
+    func open() {
+        guard !isOpen else {
+            return
+        }
+
+        isOpen = true
+        Task {
+            do {
+                watch = EndWatch(try await Apps.open(bundle)) { [self] in
+                    isOpen = false
+                    ended()
+                }
+            } catch {
+                logger.error("Notices helper not started: \(error.localizedDescription, privacy: .public)")
+                isOpen = false
+            }
         }
     }
 }

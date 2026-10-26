@@ -5,7 +5,7 @@ import SitRepWindow
 
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
-    private let banners = Banners()
+    private let banners = Banners.live()
     private let plugin = Plugin()
     private lazy var works = Works(banners: banners, plugin: plugin)
     private lazy var snoozes = Snoozes(plugin: plugin, banners: banners)
@@ -22,9 +22,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         settings: SettingsModel(preferences: preferences, live: live, services: makeServices())
     )
 
-    /// Banners are listened to before launching ends, so a click that starts the app is heard.
+    /// The notices helper is listened to before launching ends, so a click that starts the app is heard.
     func applicationWillFinishLaunching(_ notification: Notification) {
-        banners.listen { [works] work in works.jump(to: work) }
+        banners.start { [works] work in works.jump(to: work) }
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -77,15 +77,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         menu?.show(last)
         window.show(last)
 
-        let notices = Notices.due(last, isOn: preferences.app.notifiesNewAsks)
-
-        if !notices.isEmpty {
-            Task { [banners] in
-                for notice in notices {
-                    await banners.post(notice)
-                }
-            }
-        }
+        Notices.due(last, isOn: preferences.app.notifiesNewAsks).forEach(banners.post)
     }
 
     /// ⌘,, through the main menu: the SitRep window forward on Settings.
@@ -100,7 +92,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             },
             hasGlass: Self.hasGlass,
             jump: { [works] in works.jump(to: $0) },
-            sendTest: { [banners, live] in Task { await banners.post(Notices.test(live.last)) } },
+            sendTest: { [banners, live] in banners.post(Notices.test(live.last)) },
             noticeLeave: { [banners] in await banners.leave() },
             askForNotices: { [banners] in await banners.ask() },
             login: { Leaves.login },

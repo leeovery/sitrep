@@ -30,7 +30,7 @@ final class Works {
             case nil:
                 logger.notice("Jump to \(work, privacy: .public) refused: another jump is running")
             case let .refused(why):
-                await banners.post(.unjumped(why))
+                banners.post(.unjumped(why))
             case .jumped:
                 break
             }
