@@ -29,9 +29,12 @@ public enum Apps {
 /// Told once a running app ends, however it ends, as its `isTerminated` says; at once for one ended already.
 @MainActor
 public final class EndWatch {
+    /// Held for as long as it is observed: an app freed while observed crashed SitRep and the helper as they started.
+    private let app: NSRunningApplication
     private var observation: NSKeyValueObservation?
 
     public init(_ app: NSRunningApplication, ended: @escaping @MainActor () -> Void) {
+        self.app = app
         observation = app.observe(\.isTerminated, options: [.initial, .new]) { app, _ in
             if app.isTerminated {
                 Task { @MainActor in ended() }
