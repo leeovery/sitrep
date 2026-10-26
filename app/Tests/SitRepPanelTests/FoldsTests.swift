@@ -32,7 +32,7 @@ struct FoldsTests {
         let content = folds.content(at: 1000)
 
         #expect(Self.keys(content) == ["a", "c"])
-        #expect(content.entries.allSatisfy { $0.height == 59 && $0.alpha == 1 && !$0.isGoing })
+        #expect(content.entries.allSatisfy { $0.height == 53 && $0.alpha == 1 && !$0.isGoing })
         #expect(!folds.isMoving(at: 1000))
     }
 
@@ -48,7 +48,7 @@ struct FoldsTests {
         let content = folds.content(at: 1000)
 
         #expect(Self.keys(content) == ["needs:a", "b"])
-        #expect(content.entries.map(\.height) == [59, 59])
+        #expect(content.entries.map(\.height) == [53, 53])
         #expect(content.entries.allSatisfy { $0.alpha == 1 && !$0.isGoing })
         #expect(!folds.isMoving(at: 1000))
     }
@@ -64,7 +64,7 @@ struct FoldsTests {
 
         let content = folds.content(at: 1000)
         #expect(Self.keys(content) == ["needs:a", "needs:b", "divider", "b", "c"])
-        #expect(content.entries.map(\.height) == [59, 0, 9, 59, 59])
+        #expect(content.entries.map(\.height) == [53, 0, 9, 53, 53])
         #expect(content.entries.map(\.isGoing) == [false, false, false, true, false])
         #expect(Self.keys(folds.content(at: 1260)) == ["needs:a", "needs:b", "divider", "c"])
     }
@@ -77,11 +77,11 @@ struct FoldsTests {
         let born = folds.content(at: 1000).entries[1]
         #expect(born.height == 0 && born.alpha == 0)
         let half = folds.content(at: 1130).entries[1]
-        #expect(abs(half.height - 59 * 0.5) < 1e-9)
+        #expect(abs(half.height - 53 * 0.5) < 1e-9)
         #expect(abs(half.alpha - (1 - pow(1 - 130.0 / 220, 3))) < 1e-9)
         #expect(folds.content(at: 1220).entries[1].alpha == 1)
         #expect(folds.isMoving(at: 1259))
-        #expect(folds.content(at: 1260).entries[1].height == 59)
+        #expect(folds.content(at: 1260).entries[1].height == 53)
         #expect(!folds.isMoving(at: 1260))
     }
 
@@ -93,7 +93,7 @@ struct FoldsTests {
         let going = folds.content(at: 1130)
         #expect(Self.keys(going) == ["a", "b", "c"])
         #expect(going.entries[1].isGoing)
-        #expect(abs(going.entries[1].height - 29.5) < 1e-9)
+        #expect(abs(going.entries[1].height - 26.5) < 1e-9)
         #expect(abs(going.entries[1].alpha - 0.5) < 1e-9)
         #expect(Self.keys(folds.content(at: 1260)) == ["a", "c"])
     }
@@ -114,7 +114,7 @@ struct FoldsTests {
 
         let back = folds.content(at: 1260).entries[1]
         #expect(!back.isGoing)
-        #expect(abs(back.height - 59 * 0.75) < 1e-9)
+        #expect(abs(back.height - 53 * 0.75) < 1e-9)
         #expect(back.alpha == 1)
     }
 
@@ -134,7 +134,7 @@ struct FoldsTests {
         folds.take([Self.a, Self.b], at: 1000, animating: true, reducesMotion: true)
 
         let half = folds.content(at: 1060).entries[1]
-        #expect(abs(half.height - 29.5) < 1e-9)
+        #expect(abs(half.height - 26.5) < 1e-9)
         #expect(half.alpha == 1)
         #expect(!folds.isMoving(at: 1120))
     }
@@ -163,8 +163,8 @@ struct FoldsTests {
         let heights = Dictionary(uniqueKeysWithValues: content.entries.map { ($0.item.key, $0.height) })
 
         #expect(Self.keys(content).sorted() == ["b", "c", "d"])
-        #expect(heights["c"] == 59)
-        #expect(heights["b"].map { $0 > 0 && $0 < 59 } == true)
-        #expect(heights["d"].map { $0 < 59 } == true)
+        #expect(heights["c"] == 53)
+        #expect(heights["b"].map { $0 > 0 && $0 < 53 } == true)
+        #expect(heights["d"].map { $0 < 53 } == true)
     }
 }

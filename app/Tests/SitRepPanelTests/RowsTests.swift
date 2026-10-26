@@ -62,16 +62,16 @@ struct RowsTests {
         #expect(staggered.changes(after: 70_000) == 120_000)
     }
 
-    /// A row of three lines is one row of one line's height, 55 and the 4 under it, the pointer anywhere on it over
+    /// A row of three lines is one row of one line's height, 49 and the 4 under it, the pointer anywhere on it over
     /// the one row.
     @Test func aRowOfSeveralLinesIsOneRowOfOneLinesHeight() {
         let content = Content(laying: [.session(Self.harness), .divider])
         let row = content.itemFrame(0)
 
-        #expect(row.height == 59)
-        #expect(content.height == 18 + 26 + 59 + 9 + 14)
-        #expect([1.0, 28, 54].allSatisfy { content.item(at: CGPoint(x: row.midX, y: row.minY + $0)) == 0 })
-        #expect(content.item(at: CGPoint(x: row.midX, y: row.minY + 56)) == nil)
+        #expect(row.height == 53)
+        #expect(content.height == 18 + 26 + 53 + 9 + 14)
+        #expect([1.0, 25, 48].allSatisfy { content.item(at: CGPoint(x: row.midX, y: row.minY + $0)) == 0 })
+        #expect(content.item(at: CGPoint(x: row.midX, y: row.minY + 51)) == nil)
     }
 
     /// Board F's button, 24 square, its right 10 in from the row's and on the row's middle, whole or on one line: a
@@ -80,12 +80,12 @@ struct RowsTests {
         let content = Content(laying: [.session(Self.harness), .turn(Self.harness)], headed: false)
         let width = content.itemFrame(0).width
 
-        #expect(Opener.frame(in: CGSize(width: width, height: 55)) == CGRect(x: width - 34, y: 15.5, width: 24, height: 24))
+        #expect(Opener.frame(in: CGSize(width: width, height: 49)) == CGRect(x: width - 34, y: 12.5, width: 24, height: 24))
         #expect(Opener.frame(in: CGSize(width: width, height: 30)) == CGRect(x: width - 34, y: 3, width: 24, height: 24))
 
         for index in 0 ..< 2 {
             let row = content.itemFrame(index)
-            let centre = CGPoint(x: row.maxX - 22, y: row.minY + (index == 0 ? 27.5 : 15))
+            let centre = CGPoint(x: row.maxX - 22, y: row.minY + (index == 0 ? 24.5 : 15))
 
             #expect(content.opens(index, at: centre))
             #expect(!content.opens(index, at: CGPoint(x: row.maxX - 36, y: centre.y)))
@@ -126,8 +126,13 @@ struct RowsTests {
         #expect(Head(needYou: 0, sessions: 4) == Head(title: "All clear", count: "4 sessions"))
     }
 
+    /// As the prototypes' CSS, but for each row 6 shorter, since Lee found them too spaced on 26 October 2026: 7 over
+    /// its two lines and 8 under them, not 10 and 11.
     @Test func thePanelsListIsLaidOutAsTheRowsAreDrawn() {
-        #expect(Content(laying: Item.prototype) == Content.css)
+        var drawn = Content.css
+
+        drawn.entries = drawn.entries.map { $0.item.session == nil ? $0 : Content.Entry($0.item, height: $0.height - 6) }
+        #expect(Content(laying: Item.prototype) == drawn)
     }
 
     /// The prototypes' list is 480 tall: in a panel showing 300 of it, it scrolls from its top to 180 down.

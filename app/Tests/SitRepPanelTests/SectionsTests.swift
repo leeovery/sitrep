@@ -108,7 +108,7 @@ struct SectionsTests {
         let items = Self.card()
 
         #expect(items.filter { if case .turn = $0 { true } else { false } }.map(\.height) == [30, 30])
-        #expect(Item.session(Self.board[0]).height == 59)
+        #expect(Item.session(Self.board[0]).height == 53)
         #expect(Item.turn(Self.board[4]).margins == (0, 0))
     }
 

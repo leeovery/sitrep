@@ -3,7 +3,7 @@ import SitRepPanel
 
 /// Where a session's row in the panel lays its parts, as the prototype's rows lay them out, the same in black and in
 /// glass: its mark at the left, its title beside it and its time at the right; then the line under them. A row fills
-/// the row's 55 of `Content(laying:)`: 10 above, the two lines' 34, and 11 below. Under the pointer its button takes
+/// the row's 49 of `Content(laying:)`: 7 above, the two lines' 34, and 8 below. Under the pointer its button takes
 /// its time's place (`Opener`).
 struct SessionRowLayout {
     /// The mark's centre: where a working row's arc turns.
@@ -19,7 +19,7 @@ struct SessionRowLayout {
     static let countGap = 6.0
     /// Between a your-turn row's words and its project.
     static let projectGap = 12.0
-    static let pad = (top: 10.0, side: 10.0), gap = 10.0
+    static let pad = (top: 7.0, side: 10.0), gap = 10.0
     static let markBox = CGSize(width: 12, height: 18), ageWidth = 36.0
     static let titleLine = 18.0
     private static let subLine = 16.0

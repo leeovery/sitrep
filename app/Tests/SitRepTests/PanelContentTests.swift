@@ -89,7 +89,7 @@ struct PanelContentTests {
         content.show(Self.scene(frame, hover: 0))
 
         #expect(content.rows["needs:a"]?.row.session == two)
-        #expect(content.rows["needs:a"]?.row.layer.bounds.height == 55)
+        #expect(content.rows["needs:a"]?.row.layer.bounds.height == 49)
         #expect(content.rows["needs:a"]?.row.isHighlighted == true)
         #expect(content.rows["b"]?.item.position.y == Content(laying: [.session(two), Self.row("b")]).itemFrame(1).midY)
     }
