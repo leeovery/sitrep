@@ -4,7 +4,9 @@
  * down from the shell, so a test that needs another zone puts a `Date` of
  * that zone in the global's place while it runs: its local fields and its
  * local constructor read the zone through `Intl`, as the real one reads the
- * Mac's, and everything else is the real `Date`'s.
+ * Mac's, and everything else is the real `Date`'s. Only what `snoozeAt` and
+ * `wakeWords` use is zoned: the seconds, the setters, `toString` and a local
+ * time given as a string still read the Mac's zone.
  */
 
 const RealDate = Date
@@ -14,18 +16,22 @@ const DAY_MS = 24 * 60 * 60_000
 const formats = new Map<string, Intl.DateTimeFormat>()
 
 const formatIn = (zone: string) => {
-  const format =
-    formats.get(zone) ??
-    new Intl.DateTimeFormat('en-GB', {
-      timeZone: zone,
-      hourCycle: 'h23',
-      year: 'numeric',
-      month: 'numeric',
-      day: 'numeric',
-      hour: 'numeric',
-      minute: 'numeric',
-      second: 'numeric',
-    })
+  const cached = formats.get(zone)
+
+  if (cached) {
+    return cached
+  }
+
+  const format = new Intl.DateTimeFormat('en-GB', {
+    timeZone: zone,
+    hourCycle: 'h23',
+    year: 'numeric',
+    month: 'numeric',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: 'numeric',
+    second: 'numeric',
+  })
 
   formats.set(zone, format)
   return format
@@ -114,14 +120,25 @@ const zonedDate = (zone: string) =>
 /** The Mac's own time zone, the one the kit runs in. */
 export const LOCAL_ZONE = Intl.DateTimeFormat().resolvedOptions().timeZone
 
-/** What `body` gives with local time the zone's, the real `Date` put back after. */
+/**
+ * What `body` gives with local time the zone's, the real `Date` put back
+ * after. The body is synchronous: the real `Date` would be back at an async
+ * one's first `await`, so a promise from it is refused.
+ */
 export const inZone = <T>(zone: string, body: () => T): T => {
   const global = globalThis as { Date: unknown }
+  let given: T
 
   global.Date = zonedDate(zone)
   try {
-    return body()
+    given = body()
   } finally {
     global.Date = RealDate
   }
+
+  if (typeof (given as { then?: unknown } | null | undefined)?.then === 'function') {
+    throw new Error(`inZone(${zone}) was given an async body: the real Date is back at its first await`)
+  }
+
+  return given
 }

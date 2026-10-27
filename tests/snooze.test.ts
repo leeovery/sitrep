@@ -43,6 +43,7 @@ import {
   yesAsk,
   type Line,
 } from './support'
+import { inZone } from './zoned'
 
 const HOUR = 60 * MIN
 
@@ -312,47 +313,17 @@ test("an old reader skips both kinds: lines at the format's version 1, of kinds 
 const local = (year: number, month: number, day: number, hour: number, minute = 0) =>
   new Date(year, month - 1, day, hour, minute).getTime()
 
-/** Whether the local zone changes its clocks between noon on a day and noon the next. */
-const isChangeAfter = (year: number, month: number, day: number) =>
-  new Date(year, month - 1, day, 12).getTimezoneOffset() !==
-  new Date(year, month - 1, day + 1, 12).getTimezoneOffset()
+test("the pane counts calendar days, never hours, across Europe/London's changes of the clocks in 2026, wherever the Mac is", () => {
+  const words = (until: Parameters<typeof local>, now: Parameters<typeof local>) =>
+    inZone('Europe/London', () => wakeWords(local(...until), local(...now)))
 
-/**
- * A case that tells calendar days from hours only across a change of the
- * clocks, assuming Europe/London's, the Mac's own: the kit can set no
- * time zone, so where the local zone changes none that night it is skipped,
- * and says so, rather than passing for nothing.
- */
-const acrossTheChange = (
-  name: string,
-  night: readonly [year: number, month: number, day: number],
-  body: () => void,
-) =>
-  isChangeAfter(...night)
-    ? test(name, body)
-    : test(`${name} (skipped: the local zone changes no clock that night)`, () => {})
-
-acrossTheChange(
-  "the pane counts calendar days, never hours, as Europe/London's clocks go back on 25 October 2026",
-  [2026, 10, 24],
-  () => {
-    expect(
-      wakeWords(local(2026, 10, 26, 9), local(2026, 10, 25, 0, 30)),
-      'a day of 25 hours is one',
-    ).toBe('tomorrow 09:00')
-  },
-)
-
-acrossTheChange(
-  "the pane counts calendar days, never hours, as Europe/London's clocks go forward on 29 March 2026",
-  [2026, 3, 28],
-  () => {
-    expect(
-      wakeWords(local(2026, 3, 30, 9), local(2026, 3, 28, 12)),
-      'a day of 23 hours is one',
-    ).toBe('Mon 09:00')
-  },
-)
+  expect(words([2026, 10, 26, 9], [2026, 10, 25, 0, 30]), 'going back, a day of 25 hours is one').toBe(
+    'tomorrow 09:00',
+  )
+  expect(words([2026, 3, 30, 9], [2026, 3, 28, 12]), 'going forward, a day of 23 hours is one').toBe(
+    'Mon 09:00',
+  )
+})
 
 /** Friday 23 October 2026, 14:00, local time. */
 const FRIDAY = local(2026, 10, 23, 14)

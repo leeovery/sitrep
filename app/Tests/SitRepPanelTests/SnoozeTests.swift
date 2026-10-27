@@ -27,7 +27,7 @@ struct SnoozeTests {
         let zone: String, choice: SnoozeChoice, pressed: Date, wakes: Date, words: String
 
         init(_ row: Substring) throws {
-            let fields = row.split(separator: " ")
+            let fields = row.split(whereSeparator: \.isWhitespace)
             let instant = { (field: Substring) in Date(timeIntervalSince1970: try #require(Double(field)) / 1000) }
 
             try #require(fields.count > 4, "a row of the table: \(row)")
@@ -46,7 +46,7 @@ struct SnoozeTests {
         let text = try String(contentsOf: file, encoding: .utf8)
         let rows = text[try #require(text.range(of: "const TABLE = `")).upperBound...].prefix { $0 != "`" }
 
-        return try rows.split(separator: "\n").filter { !$0.hasPrefix("#") }.map { try Wake($0) }
+        return try rows.split(whereSeparator: \.isNewline).filter { !$0.hasPrefix("#") }.map { try Wake($0) }
     }
 
     /// Every row wakes at its time, worked out on the Gregorian calendar in its zone.
