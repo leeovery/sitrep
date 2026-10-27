@@ -11,13 +11,17 @@
  *
  * Each session is read through a reader of its own, so only a file that
  * changed is read again, and folded again only once its files changed or
- * its fold changes by time alone, as `watch` keeps its own (core's
- * reading.ts). A session off the board is read only on a whole look, every
- * OFF_BOARD_MS, and folded from the files it last read otherwise; one read
- * in full is read at every look. Each project's folder is listed once a
- * look, its listing handed to each of its sessions' reads. What drawing
- * needs goes in `$.state` as plain data, put only when it changed; the held
- * session itself stays the watch's.
+ * its own fold changes by time alone (core's `nextFoldChange`). `watch`
+ * folds every session again as the board changes by time alone instead,
+ * which stands for what it prints; a window shares whole folds, `others`
+ * and the first message's listing among them, where a snooze the board
+ * leaves out still shows. A session off the board is read only on a whole
+ * look, every OFF_BOARD_MS as `watch` reads its own (core's reading.ts),
+ * and folded from the files it last read otherwise; one read in full is
+ * read at every look. Each project's folder is listed once a look, its
+ * listing handed to each of its sessions' reads. What drawing needs goes
+ * in `$.state` as plain data, put only when it changed; the held session
+ * itself stays the watch's.
  */
 import type { FsEntry, Timer } from 'claude-code'
 import {
@@ -78,8 +82,15 @@ const kept = new Map<string, Kept>()
 /** What the last look put in `$.state`, as JSON, so a look that changed nothing puts nothing. */
 const shown: { projects?: string; others?: string } = {}
 
-/** Whether a look at `now` is whole, reading the sessions off the board too: the window's first, and one every OFF_BOARD_MS. */
-const isWholeLook = every(OFF_BOARD_MS, -Infinity)
+/**
+ * Whether a look at `now` is whole, reading the sessions off the board too:
+ * the window's first, and one every OFF_BOARD_MS. A look reads the clock a
+ * little after its timer fires, later still behind a look on demand, so the
+ * pace allows half a look's slack: without it, a whole look read a few ms
+ * late leaves the one two looks on just short, and whole looks come every
+ * three.
+ */
+const isWholeLook = every(OFF_BOARD_MS - AROUND_MS / 2, -Infinity)
 
 let looking: Promise<unknown> = Promise.resolve()
 
@@ -130,20 +141,20 @@ const readAt = async (
 export const foldAt = (host: Host, root: string, at: SitrepSessionRef, now: number) =>
   readAt(host, root, at, now)
 
-/** A session's read, given its project folder's listing. */
-type Fold = (at: SitrepSessionRef, listing: readonly FsEntry[]) => Promise<Session | undefined>
+/** Reads a session filed under a project, given that project folder's listing: the session as it stands, undefined where it does not fold. */
+type ReadFiled = (at: SitrepSessionRef, listing: readonly FsEntry[]) => Promise<Session | undefined>
 
-/** Every session filed under a project but the one `except` names, each folded by `fold`, the project's folder listed once for them all. */
+/** Every session filed under a project but the one `except` names, each read by `readFiled`, the project's folder listed once for them all. */
 const foldFiled = async (
   host: Host,
   root: string,
   project: string,
-  fold: Fold,
+  readFiled: ReadFiled,
   except?: string,
 ) => {
   const { listing, sessions } = await filedIn(host, root, project)
   const folded = await Promise.all(
-    sessions.filter(id => id !== except).map(session => fold({ project, session }, listing)),
+    sessions.filter(id => id !== except).map(session => readFiled({ project, session }, listing)),
   )
 
   return folded.filter(session => session !== undefined)
@@ -177,7 +188,7 @@ const fullOf = (held: SitrepAttachment, pane: SitrepPane, around: Around) => {
  * last read from, its folders not listed.
  */
 const aroundAt =
-  (host: Host, root: string, now: number, isWhole: boolean, full: ReadonlySet<string>): Fold =>
+  (host: Host, root: string, now: number, isWhole: boolean, full: ReadonlySet<string>): ReadFiled =>
   async (at, listing) => {
     const { dir } = sessionPaths(root, at.project, at.session)
     const last = kept.get(dir)

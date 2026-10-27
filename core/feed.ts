@@ -18,7 +18,7 @@
  *   snooze ran out.
  * - When the board next changes by time alone: a heartbeat going stale, or
  *   a snooze running out, changes no file; and when a session's fold does,
- *   for a reader that keeps its folds (reading.ts).
+ *   for a window's look around, which keeps each session's (reading.ts).
  */
 import { isLive, STALE_MS } from './presence'
 import type { Project } from './project'

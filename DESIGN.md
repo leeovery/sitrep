@@ -1282,9 +1282,9 @@ at a later `now`. The mod folds the held session anew at each look, every 1.5
 seconds, and looks at the sessions around it every 5, folding one again once
 the `until` of a snooze standing on it has come (core's `nextFoldChange`), so
 a pane, a band and Claude's board text have it within a look; a CLI command
-folds as it runs; `watch`
-counts each snooze's `until` among the instants the board next changes by
-time alone (see "Expiry"), and folds every session afresh then.
+folds as it runs; `watch` counts each snooze's `until` among the instants the
+board next changes by time alone (see "Expiry"), and folds every session
+afresh then.
 
 **Where it counts.** A snoozed ask counts nowhere on Lee's surfaces: not in
 a session's or a project's waiting, on the pane's tabs or the band, in `list`
@@ -1745,29 +1745,35 @@ $XDG_STATE_HOME/sitrep/, else ~/.local/state/sitrep/
     is stale, and it writes neither `$.state` nor the heartbeat again.
 - Readers list and `stat` the folder every second or two (a mod cannot watch
   files) and read only what changed; each session's read lists its project's
-  folder too, or is handed the listing its look made of it, so a rename
-  shows on every pane within a look. A session's
-  heartbeats are read before its lines, its folder listed again after them
-  where it has any (22 October 2026: one more listing a look, so a send
-  handed from a heartbeat to the lines is never missed). The sessions
-  around the held one are read every 5 seconds, each through its reader:
-  they are glanced at, not watched. Every project is read, the pane open
-  or closed, for the band's `elsewhere` and the All projects tab: each look
-  lists each project's folder once, handing its listing to each of its
-  sessions' reads, which list the session's folders and read again only a
-  file that changed. The look keeps what it read as `watch` does, by core's
-  rules (27 October 2026): a session is folded again only once its files
-  changed, or once its fold changes by time alone (`nextFoldChange`: as its
-  part of the board does, and as any snooze standing on its asks runs out,
-  one over an ask Lee's reply is on its way to, or in a finished session,
-  among them). A session off the board, with no live window and finished
-  or idle past the views, is read only on a whole look, every 10 seconds
-  by the window's clock, its first look whole; between them it is folded
-  from the files it last read, so its folders are not listed. With
-  the pane open, the session it looks at and those replies wait for or
-  went to are read in full too, at every look whatever their state, and so
-  is the session of the item Lee is answering in the prompt, open or not,
-  read at once as the press begins answering it.
+  folder too, or is handed the listing its look made of it, so a rename shows
+  on every pane within a look. A session's heartbeats are read before its
+  lines, its folder listed again after them where it has any (22 October
+  2026: one more listing a look, so a send handed from a heartbeat to the
+  lines is never missed). The sessions around the held one are read every 5
+  seconds, each through its reader: they are glanced at, not watched. Every
+  project is read, the pane open or closed, for the band's `elsewhere` and
+  the All projects tab: each look lists each project's folder once, handing
+  its listing to each of its sessions' reads, which list the session's
+  folders and read again only a file that changed. A session is folded again
+  only once its files changed, or once its own fold changes by time alone
+  (core's `nextFoldChange`, 27 October 2026): as its part of the board does,
+  and as any snooze standing on its asks runs out, one over an ask Lee's
+  reply is on its way to, or in a finished session, among them. This is not
+  `watch`'s rule, which folds every session again as the board changes (see
+  "Expiry") and stands for what it prints; a window shares whole folds, its
+  `others` and the first message's listing among them, where a snooze the
+  board leaves out still shows. A session off the board, with no live window
+  and finished or idle past the views, is read only on a whole look, every 10
+  seconds as `watch` reads its own (core's `reading.ts`), its first look
+  whole; between them it is folded from the files it last read, so its
+  folders are not listed. The window's pace allows half a look's slack, as a
+  look reads the clock a little after its timer fires: without it, a whole
+  look read a few milliseconds late left the one two looks on just short, and
+  whole looks came every 15 seconds. With the pane open, the session it looks
+  at and those replies wait for or went to are read in full too, at every
+  look whatever their state, and so is the session of the item Lee is
+  answering in the prompt, open or not, read at once as the press begins
+  answering it.
 - The pane's last view lives in the window's `$.state` only: where it looks,
   the item opened there, and, apart from that, the session whose RESOLVED
   shows every closed ask, and where Claude Code last seated the pane on each

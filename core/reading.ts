@@ -1,10 +1,14 @@
 /**
- * How a reader that looks on and on keeps what it read: `sitrep watch`,
- * and each window's look at the sessions around the one it holds. A session
- * is folded again only once its files changed, or once its fold changes by
- * time alone (feed.ts's `nextFoldChange`); and one off the board, which
- * changes rarely and only a join or a post brings back, is read again only
- * every OFF_BOARD_MS.
+ * What the readers that look on and on share: `sitrep watch`, and each
+ * window's look at the sessions around the one it holds. Each folds a
+ * session again only once its files changed, or once time alone changes
+ * it, by a rule of its own (feed.ts): `watch` folds every session again as
+ * the board changes (`nextExpiry`), which stands for what it prints; a
+ * window folds each session again as its own fold changes
+ * (`nextFoldChange`), as it shares whole folds, where a snooze the board
+ * leaves out still shows. Both read a session off the board, which changes
+ * rarely and only a join or a post brings back, again only every
+ * OFF_BOARD_MS.
  */
 import type { SessionFiles } from './fold'
 import type { Session } from './types'

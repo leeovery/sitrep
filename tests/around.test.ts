@@ -14,10 +14,13 @@ import {
   finish,
   META,
   note,
+  reopen,
   reply,
+  resolve,
   snooze,
   T0,
   unfinish,
+  W1,
   W2,
   W3,
   yesAsk,
@@ -161,7 +164,7 @@ test('a session off the board that the board looks at is read at every look', as
   expect(w.state.others?.[0]?.board.finished).toBeUndefined()
 })
 
-test("a look lists each project's folder once for all its sessions, and a rename there shows within it", async ($, on) => {
+test("a look lists each project's folder once for all its sessions, and each session's own on the board, though the look is not whole; a rename there shows within it", async ($, on) => {
   const w = world($, on)
   const ids = ['sr-0rders', 'sr-2staff', 'sr-3teams']
   const goosemates = projectPaths(ROOT, ELSEWHERE.key).dir
@@ -169,18 +172,90 @@ test("a look lists each project's folder once for all its sessions, and a rename
 
   w.project(ELSEWHERE.key, { name: 'Goosemates', created: T0, by: W3 })
 
-  for (const id of ids) {
-    w.elsewhere(orders(id), ELSEWHERE.key).write(yesAsk('k1', 'Review the standing orders'))
+  const sessions = ids.map(id => w.elsewhere(orders(id), ELSEWHERE.key))
+
+  for (const session of sessions) {
+    session.write(yesAsk('k1', 'Review the standing orders'))
   }
 
   await w.begin()
 
   const before = projectListings()
+  const sessionsBefore = sessions.map(session => listings(w, session.paths))
 
   await w.clock.advance(AROUND_MS)
   expect(projectListings() - before).toBe(1)
+  expect(
+    sessions.map((session, i) => listings(w, session.paths) - (sessionsBefore[i] ?? 0)),
+    'each on the board, at a look that is not whole',
+  ).toEqual(ids.map(() => 1))
 
   w.project(ELSEWHERE.key, { name: 'Goose Mates', created: T0, by: W3 })
   await w.clock.advance(AROUND_MS)
   expect(ids.map(id => around(w, id)?.project)).toEqual(ids.map(() => 'Goose Mates'))
+})
+
+test('a look that reads the clock a few ms late, and the next two on time, leave a whole look every second look', async ($, on) => {
+  const w = world($, on)
+  const ledger = w.elsewhere(LEDGER)
+  const late = T0 + OFF_BOARD_MS
+
+  // Every read of the attachment as the look at `late` fires answers 8 ms on,
+  // so that look reads the clock then.
+  on('state.get', { plugin: 'sitrep', key: 'attachment' }, async ($, e, next) => {
+    if (w.clock.now() === late) {
+      await w.clock.sleep(8)
+    }
+
+    return next(e)
+  })
+  ledger.write(note('n1', 'Drew the schema'), finish('claude'))
+  await w.begin()
+  await w.clock.advance(AROUND_MS)
+
+  const before = listings(w, ledger.paths)
+
+  await w.clock.advance(AROUND_MS + 8)
+
+  const whole = listings(w, ledger.paths)
+
+  expect(whole, 'whole, read 8 ms late').toBeGreaterThan(before)
+
+  await w.clock.advance(AROUND_MS - 8)
+  expect(listings(w, ledger.paths), 'not whole').toBe(whole)
+
+  await w.clock.advance(AROUND_MS)
+  expect(listings(w, ledger.paths), 'whole, though 8 ms short of OFF_BOARD_MS').toBeGreaterThan(
+    whole,
+  )
+})
+
+test('a send and the first message read a session off the board afresh, at a look that is not whole', async ($, on) => {
+  const w = world($, on)
+  const ledger = w.elsewhere(LEDGER)
+
+  ledger.write(yesAsk('k3', 'Review the ledger schema'))
+  await w.begin()
+
+  const ui = await w.opened()
+
+  await toProject(ui)
+  await ui.press({ key: `go:${LEDGER.id}` })
+  await ui.press({ key: `pick:${LEDGER.id}:k3` })
+  await ui.press({ key: `yes:${LEDGER.id}:k3` })
+  ledger.write(resolve('k3'), finish('claude'))
+  await w.clock.advance(AROUND_MS)
+  expect(w.state.others?.[0]?.board.finished, 'off the board as last read').toBeDefined()
+
+  ledger.write(unfinish(), reopen('k3'))
+  await ui.press({ key: 'send' })
+  expect(w.files.has(ledger.paths.letters(W1)), 'the send found it open').toBe(true)
+
+  ledger.write(finish('claude'))
+  await w.clock.advance(AROUND_MS)
+  ledger.write(unfinish())
+
+  const [listing] = (await $.prompt.context({ blocks: [] })).blocks
+
+  expect(listing?.text, 'the first message found it open').toContain(LEDGER.id)
 })
