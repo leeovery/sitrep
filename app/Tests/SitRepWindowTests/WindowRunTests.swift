@@ -252,6 +252,7 @@ struct WindowRunTests {
     @Test func whatComesAndGoesAfterTheFirstReadIsWashedOrKeptInPlace() throws {
         let run = opened()
 
+        overTheAsks(run)
         _ = run.pick(.session("sr-dash02"))
         answer(run.pick(.session("sr-macapp")), in: run, with: ["sr-macapp": Lines.board])
         answer(run.pick(.session("sr-macapp")), in: run, with: ["sr-macapp": deliveredAndNew])

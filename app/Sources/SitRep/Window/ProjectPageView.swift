@@ -89,6 +89,7 @@ struct ProjectPageView: View {
                 }
             }
         }
+        .holdingAsks()
     }
 
     /// An ask's line's title: faint once closed, soft while asleep.

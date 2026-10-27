@@ -187,6 +187,12 @@ func opened(
     return run
 }
 
+/// The pointer over the page's asks, in the window key, from this time: an ask closing keeps its place.
+func overTheAsks(_ run: WindowRun, at time: Date = printedAt) {
+    run.window(isKey: true, at: time)
+    run.pointer(overAsks: true, at: time)
+}
+
 /// Each read answered with the board given for its session, if there is one.
 func answer(_ reads: [Read], in run: WindowRun, with boards: [String: String], at time: Date = printedAt) {
     for read in reads {

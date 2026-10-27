@@ -133,6 +133,7 @@ struct AnsweringTests {
         }
         #expect(try Self.card(Self.yes, run).lines == [.onItsWay("→ Approve", .turn)])
         #expect(try Self.card(Self.yes, run).buttons.isEmpty)
+        overTheAsks(run)
         answer(run.pick(.session("sr-macapp")), in: run, with: ["sr-macapp": Lines.delivered])
         #expect(run.answers.pending.isEmpty)
         #expect(try Self.card(Self.yes, run).lines == [.closed(.sent)])
@@ -219,13 +220,14 @@ struct AnsweringTests {
     }
 }
 
-/// The session open on the right never shifts while Lee reads it.
+/// The session open on the right never shifts under Lee's pointer.
 struct OpenSessionTests {
     private static let yes = AskAddress(session: "sr-macapp", ask: "k1")
 
     @Test func anAskClosedMeanwhileKeepsItsPlaceWithoutButtonsSayingHowItClosed() throws {
         let run = opened()
 
+        overTheAsks(run)
         answer(run.pick(.session("sr-macapp")), in: run, with: ["sr-macapp": Lines.delivered])
 
         let asks = try #require(run.page(at: printedAt).session?.asks)
@@ -240,6 +242,7 @@ struct OpenSessionTests {
     @Test func resolvedLeavesItToAsksWhileItKeepsItsPlace() throws {
         let run = opened()
 
+        overTheAsks(run)
         answer(run.pick(.session("sr-macapp")), in: run, with: ["sr-macapp": Lines.delivered])
         #expect(run.page(at: printedAt).session?.resolved.map(\.id) == ["k5", "k4"])
     }
@@ -247,6 +250,7 @@ struct OpenSessionTests {
     @Test func anotherSessionPickedTheClosedAskMovesToResolved() throws {
         let run = opened()
 
+        overTheAsks(run)
         answer(run.pick(.session("sr-macapp")), in: run, with: ["sr-macapp": Lines.delivered])
         _ = run.pick(.session("sr-dash02"))
         answer(run.pick(.session("sr-macapp")), in: run, with: ["sr-macapp": Lines.delivered])
@@ -264,6 +268,7 @@ struct OpenSessionTests {
         let run = opened()
 
         try #require(resolved.contains(#""id": "k9""#))
+        overTheAsks(run)
         answer(run.pick(.session("sr-macapp")), in: run, with: ["sr-macapp": resolved])
         #expect(run.page(at: printedAt).session?.asks.first { $0.id.ask == "k2" }?.lines == [.closed(.resolved("you said \"left\" in the chat"))])
     }
@@ -445,6 +450,7 @@ struct ProjectPageTests {
         let run = opened()
 
         answer(run.pick(.project("sitrep")), in: run, with: ["sr-macapp": Lines.board])
+        overTheAsks(run)
         answer(run.show(heard(line(0), line(2)), at: printedAt, reducesMotion: false), in: run, with: ["sr-macapp": Lines.delivered])
 
         let asks = try #require(run.page(at: printedAt).project?.asks)

@@ -27,6 +27,8 @@ struct WindowActions: Sendable {
     var confirmFinish: @MainActor @Sendable (String) -> Void = { _ in }
     /// The pointer came over the board's list, or left it.
     var pointer: @MainActor @Sendable (Bool) -> Void = { _ in }
+    /// The pointer came over the page's asks, or left them, which may go without a word as they do.
+    var pointerOverAsks: @MainActor @Sendable (Bool) -> Void = { _ in }
     /// A heading of the sidebar clicked, which folds or unfolds what is under it, or "N earlier", which opens or folds.
     var fold: @MainActor @Sendable (Fold) -> Void = { _ in }
     /// What the Filter field holds, as Lee types or clears it.
