@@ -5848,7 +5848,10 @@ reaches a window only while that pane is on show).
      204 from GitHub only says the dispatch was taken, so `app/release`
      then finds the run it started, the first of the tap's `update-formula`
      runs with a newer id than the last before it (an id, unlike a time,
-     doesn't hang on this Mac's clock), within a minute, logs its URL, and
+     doesn't hang on this Mac's clock) and named by the workflow's
+     `run-name` for this cask and version, "Update sitrep to v<version>",
+     so another tool's run started beside it isn't taken for it, within a
+     minute, logs its URL, and
      waits on it, bounded by the workflow's 5-minute timeout. A failed
      send, no run found, or a run that fails fails the release run, saying
      the command that sends it again and the run's URL; the upload stays.
