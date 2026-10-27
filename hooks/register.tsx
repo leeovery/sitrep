@@ -139,7 +139,6 @@ const hostOf = ($: EngineInterface): Host => ({
     panes: () => $.ui.panes(),
     redraw: () => $.ui.invalidate('ui.render'),
     toTop: () => $.ui.scroll({ in: PANE, to: 'start' }),
-    play: asset => $.audio.play({ asset }),
   },
   prompt: {
     submit: text => $.prompt.submit({ text, asUser: true }),

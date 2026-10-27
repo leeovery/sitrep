@@ -27,7 +27,7 @@ struct SettingsStillsTests {
                     DisplayChoice.Connected(id: "B", name: "Studio Display", isMain: false),
                 ]
             },
-            hasGlass: true, jump: { _ in }, sendTest: {},
+            hasGlass: true, jump: { _ in }, sendTest: {}, sounds: .silent,
             noticeLeave: { said.notices ?? .unasked }, askForNotices: {}, login: { said.login ?? LoginItem(.notFound) },
             chooseLogin: {}, ghostty: { said.ghostty ?? .unknown }, allowGhostty: { .allowed }, open: { _ in }
         )

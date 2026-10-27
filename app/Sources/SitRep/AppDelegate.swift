@@ -13,6 +13,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// The plugin folder `watch` runs on; nil before it first starts.
     private var watching: String?
     private let preferences = Preferences()
+    private let sounds = AlertSounds.live
     private let live = LiveBoard()
     private var menu: StatusMenu?
     private var edge: Edge?
@@ -69,14 +70,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         feed.stop()
     }
 
-    /// Each board, to everything that shows it, and a notification for each ask new on it, in core's order, while Lee
-    /// has them on.
+    /// Each board, to everything that shows it; the sound Lee chose, once for the asks new on it, and a notification
+    /// for each, in core's order, each while Lee has it on.
     private func heard(_ last: LastBoard) {
         live.last = last
         edge?.show(last)
         menu?.show(last)
         window.show(last)
 
+        Chime.due(last, preferences.app).map(sounds.play)
         Notices.due(last, isOn: preferences.app.notifiesNewAsks).forEach(banners.post)
     }
 
@@ -93,6 +95,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             hasGlass: Self.hasGlass,
             jump: { [works] in works.jump(to: $0) },
             sendTest: { [banners] in banners.post(Notices.test) },
+            sounds: sounds,
             noticeLeave: { [banners] in await banners.leave() },
             askForNotices: { [banners] in await banners.ask() },
             login: { Leaves.login },

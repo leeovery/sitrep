@@ -16,6 +16,8 @@ struct SettingsServices {
     var hasGlass: Bool
     var jump: (String) -> Void
     var sendTest: () -> Void
+    /// The sounds a new ask can play, for Sound, which plays the one chosen.
+    var sounds: AlertSounds
     /// Nil when the notices helper does not answer.
     var noticeLeave: () async -> NoticeLeave?
     /// macOS asked for leave to notify, as the switch goes on, unless Lee answered already.
@@ -119,6 +121,12 @@ final class SettingsModel {
         }
     }
 
+    /// A sound chosen for a new ask, saved and played once, as System Settings › Sound plays an alert sound chosen.
+    func choose(sound: String) {
+        preferences.app.sound = sound
+        services.sounds.play(sound)
+    }
+
     /// Open at login, flipped, and its real status read again.
     func chooseLogin() {
         services.chooseLogin()
@@ -181,7 +189,8 @@ struct SettingsPage: View {
     }
 
     /// The desktop corner a new ask's notification lands on, its caption and Send Test, then the switch and macOS's
-    /// own answer.
+    /// own answer; then the sound a new ask plays, which banners, silent, leave alone: its switch, and the sound,
+    /// greyed while the switch is off.
     private var notifications: some View {
         let said = settings.said
 
@@ -199,6 +208,15 @@ struct SettingsPage: View {
                 StatedRow(row: .notify(said.notices, show: settings.preferences.edge.show), isOn: notifies, fix: settings.fix)
                 CardSeparator()
                 StatedRow(row: .allowed(said.notices), fix: settings.fix)
+                CardSeparator()
+                CardRow(label: "Play a sound for a new ask", line: "Once, whichever session it lands in") {
+                    MiniSwitch(label: "Play a sound for a new ask", isOn: playsSound)
+                }
+                CardSeparator()
+                CardRow(label: "Sound") {
+                    PopUp(label: "Sound", sections: [settings.services.sounds.names], title: \.self, selection: sound)
+                }
+                .disabled(!settings.preferences.app.playsSound)
             }
         }
     }
@@ -223,6 +241,14 @@ struct SettingsPage: View {
 
     private var notifies: Binding<Bool> {
         Binding(get: { settings.preferences.app.notifiesNewAsks }, set: settings.notify)
+    }
+
+    private var playsSound: Binding<Bool> {
+        Binding(get: { settings.preferences.app.playsSound }, set: { settings.preferences.app.playsSound = $0 })
+    }
+
+    private var sound: Binding<String> {
+        Binding(get: { settings.preferences.app.sound }, set: settings.choose(sound:))
     }
 
     private var foldsAfter: Binding<FoldPeriod> {

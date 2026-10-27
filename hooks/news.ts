@@ -1,6 +1,7 @@
 /**
  * A new ask, whoever posted it, or one its snooze's time just woke: the ◆
- * pulses, a toast names it, a soft chime plays, and the board opens it.
+ * pulses, a toast names it, and the board opens it. SitRep, the Mac app,
+ * plays its sound (DESIGN, "Settings").
  * What counts as new is the window's to say (window.ts): an ask there when
  * it attached, or when the mod reloaded, is not, nor one Lee woke.
  */
@@ -9,9 +10,6 @@ import type { Ask } from '../core'
 import { logFailure, type Host } from './host'
 import { GLYPH } from './look'
 import { itemKey } from './places'
-
-/** The chime: macOS's Glass. */
-const CHIME = 'sounds/ask.aiff'
 
 const PULSE_FRAME_MS = 150
 const PULSE_FRAMES = 24
@@ -57,7 +55,7 @@ const pulse = async (host: Host, asks: readonly Ask[]) => {
   pulsing = timer
 }
 
-/** Tells Lee of asks that just landed in a session, or woke there, in one toast and one chime; the newest that landed opens, else the last that woke. */
+/** Tells Lee of asks that just landed in a session, or woke there, in one toast; the newest that landed opens, else the last that woke. */
 export const announce = async (host: Host, session: string, news: News) => {
   const asks = [...news.woken, ...news.landed]
   const newest = asks.at(-1)
@@ -67,7 +65,6 @@ export const announce = async (host: Host, session: string, news: News) => {
   }
 
   host.ui.toast(toastOf(news, newest))
-  void host.ui.play(CHIME).catch(logFailure(host, 'the chime'))
   await host.state.pane.update(pane => ({ ...pane, selected: itemKey(session, newest.id) }))
   await pulse(host, asks)
 }

@@ -893,8 +893,14 @@ the same order. With nothing else drawn there, the band is the whole tree,
 as before (11 October 2026: until then the band dropped everything beneath
 it once it had a session to show).
 
-When a new ask lands: the ◆ pulses, a toast names it, and a soft chime plays.
-So it is when an ask's snooze runs out in this session, the toast saying
+When a new ask lands: the ◆ pulses and a toast names it, and SitRep, the Mac
+app, plays its sound (see "Settings", under "The menu bar"). Until 27
+October 2026 the window played a soft chime, macOS's Glass, and only the
+window holding the ask's session did, so an ask from a session whose window
+was elsewhere (another Mac over SSH, or none) played nothing where Lee was.
+Lee, that day: "I do think we should move the sound into the app." A window
+still on the older mod chimes too, until its `/reload-plugins`. So it is
+when an ask's snooze runs out in this session, the toast saying
 `◆ Back from snooze: Review the plan`, and the pane opens it; not when Lee
 wakes it, from the pane or the app. Asks landing and waking together make
 one toast, the new asks' (see "Snooze"). Dropped for now (11 October 2026):
@@ -1353,8 +1359,10 @@ swell, as any line then.
   nothing, and a toast gives the CLI's words after `Not snoozed:` or
   `Not woken:`; one whose session is gone says so.
 - An ask its time wakes in the held session is announced as a new one is:
-  the `◆` pulses, a toast, `◆ Back from snooze: Review the plan`, the chime,
-  and it opens. One Lee wakes is not (**proposed**): it carries no `wokeAt`.
+  the `◆` pulses, a toast, `◆ Back from snooze: Review the plan`, and it
+  opens; SitRep plays its sound for it, as for a new ask (the window's chime
+  until 27 October 2026, see "Settings"). One Lee wakes is not
+  (**proposed**): it carries no `wokeAt`.
   The window keeps the asks it saw snoozed at its last look, and a load's
   first look announces nothing, so a reload over an ask asleep, or one woken
   as it reloaded, says nothing of it; one asleep through the reload is
@@ -2592,9 +2600,13 @@ How the app updates changed on 16 October 2026 (Sparkle, below).
   locally first: a feed served from this Mac, and two builds signed with
   the "SitRep Local" certificate. Until then, this Mac builds the app from
   the clone (below).
-- **Everyone else** (Linux, Windows, no menu bar wanted) installs the plugin
-  alone from the GitHub marketplace: `claude plugin marketplace add
-  leeovery/sitrep`, then `claude plugin install sitrep@sitrep`.
+- **Everyone else** (Linux, Windows, no menu bar wanted) was to install the
+  plugin alone from the GitHub marketplace: `claude plugin marketplace add
+  leeovery/sitrep`, then `claude plugin install sitrep@sitrep`. It still
+  installs that way, but since 27 October 2026 the plugin without the app is
+  no longer supported: the app carries some of what the board does, such as
+  the sound for a new ask (see "Settings"). Lee: "This isn't a supported
+  thing anymore. Although it's possible, they come as one."
 - **Ruled out:** the plugin first, its mod building the app whenever the
   plugin's version moved on (a Claude mod compiling a Mac app, and Xcode's
   tools wanted on every Mac); the Mac App Store, whose sandbox forbids
@@ -2689,8 +2701,11 @@ that takes Lee to the window a session is in.
 - **The menu bar item stays**, as a native menu: the panel's sessions with a
   click to each, what shows at the screen's edge, the SitRep window,
   Settings and quitting (17 October 2026; see "The menu bar item").
-- **macOS notifications for a new ask**, silent, since the window's own
-  chime already plays and Lee hears it once. They are off by default once
+- **macOS notifications for a new ask**, silent, since SitRep plays its own
+  sound for a new ask and Lee hears it once (the window's chime until 27
+  October 2026; see "Settings"). A banner's sound would follow the alert
+  volume, 0 on Lee's Mac, where SitRep's plays at the output volume. They
+  are off by default once
   the notch exists, since the notch swells and lights for a new ask, and a
   setting turns them on.
   - **SitRep's notices helper posts them, never SitRep** (26 October
@@ -4328,7 +4343,21 @@ reference only.
   macOS's own answer, "Allowed by macOS, as banners", with Notification
   Settings… for SitRep's page in System Settings: the notices helper's,
   which macOS lists as SitRep (see "The menu bar"). Each is read, asked
-  and sent through the helper.
+  and sent through the helper. Then Play a sound for a new ask, a switch,
+  on by default, its line "Once, whichever session it lands in"; and Sound,
+  a pop-up of macOS's alert sounds by name, read from `/System/Library/Sounds`
+  (Basso … Tink), Glass by default, the chime the windows played. Choosing
+  one plays it once, as System Settings › Sound does; it greys while the
+  switch is off. The sound is SitRep's since 27 October 2026, moved from
+  each window's mod (Lee: "It should be in the notification section, and it
+  should be toggleable. It might get annoying, and you might want to turn it
+  off. Also, you should be able to pick from a list of different sounds,
+  with the current one being the default."). It plays once for an ask that
+  lands or comes back from snooze, whichever session it lands in, whatever
+  shows at the edge, Nothing included, and whether or not banners are on,
+  which are silent. It plays as an ordinary sound, at the output volume,
+  never as a notification's or an alert sound, which follow the alert
+  volume.
 - **General:** first, "Your turn folds after", "Older ones fold into one
   line, which opens in place", a pop-up at its own width of An hour, the
   default, Four hours, Today or Never: how long a your-turn row stays on the
@@ -5142,7 +5171,8 @@ reaches a window only while that pane is on show).
       - **What Lee sets** is kept in one place (`Preferences`): the edge's
         settings, saved as one value as before, and beside them, under a
         key of their own and as leniently read, whether a new ask notifies
-        (off) and the pane ⌘, opens. The menu's Show and every control in
+        (off), whether it plays a sound (on) and which (Glass), and the pane
+        ⌘, opens. The menu's Show and every control in
         Settings save and the edge takes the change at once; a drag's move
         is saved there too, for Settings to show. Max's slider moves the
         strip as it is dragged and is saved once, as the drag ends. Settings
@@ -5170,6 +5200,15 @@ reaches a window only while that pane is on show).
         menu bar's light with Nothing. Send sends a sample naming no
         session, which a click jumps nowhere from. Since 26 October 2026 the
         notices helper posts them all (see "The menu bar").
+      - **The sound** (27 October 2026) keeps the same rule and guards, its
+        own switch in place of Notify me's: once for a line, however many
+        asks it brings, and none for a window's new stop. An ask its
+        snooze's time woke is among a line's `new` as one that landed is
+        (`newRows`, in core/feed.ts), so it plays too; one Lee woke is not.
+        `Chime.due` names the sound a line plays, and `AlertSounds` plays it
+        through `NSSound`, stopped first, so a sound chosen again as it
+        plays starts over; the player is given, so the tests play nothing.
+        The mod plays nothing: `host.ui.play` and `sounds/` are gone.
       - **General.** The plugin's version is the CLI's, from the board; its
         line says where it runs from (step 9 made it each case's: "Installed
         by SitRep", "From ~/Code/sitrep", "From GitHub, leeovery/sitrep"),
@@ -5342,7 +5381,8 @@ reaches a window only while that pane is on show).
       lives"). Built 20 October 2026, and reviewed twice the same day:
       - **The bundle carries the plugin**, in `Contents/Resources/Plugin`:
         `app/bundle` copies what Claude Code loads (`.claude-plugin`,
-        `hooks`, `core`, `types`, `sounds`) as the checkout stands, files
+        `hooks`, `core`, `types`; `sounds` too, until the sound became
+        SitRep's on 27 October 2026) as the checkout stands, files
         not yet committed among them but not the ignored ones, compiles the
         CLI into `bin/sitrep` with `bun build --compile`, and stamps it
         with a digest of its files (`.sitrep-build`); the app's source, the

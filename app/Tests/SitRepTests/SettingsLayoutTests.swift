@@ -35,9 +35,9 @@ struct SettingsLayoutTests {
         let pixel = 1 / hosted.scale
 
         #expect((Self.edge ... Self.edge + column).isWithinAPixel(of: card, at: hosted.scale))
-        // Edge, Display, Style, Material, Reduce motion; Send Test, Notify me, Notification Settings…; Your turn folds
-        // after, Open at login
-        #expect(controls.count == 10)
+        // Edge, Display, Style, Material, Reduce motion; Send Test, Notify me, Notification Settings…, Play a sound,
+        // Sound; Your turn folds after, Open at login
+        #expect(controls.count == 12)
         for control in controls {
             #expect(abs(control.maxX - (Self.edge + column - 10)) < pixel)
         }
@@ -53,8 +53,8 @@ struct SettingsLayoutTests {
         #expect(segmented.map { ($0.width * 2).rounded() / 2 } == [106, 155, 109])
         // to the window's half points, where the stock one, in none, rounds to whole ones
         #expect(abs(popUp.width - SystemControlsTests.stock(button.itemArray).intrinsicContentSize.width) <= 0.5)
-        // Reduce motion, Notify me of a new ask, Open at login
-        #expect(hosted.all(NSSwitch.self).count == 3)
+        // Reduce motion, Notify me of a new ask, Play a sound for a new ask, Open at login
+        #expect(hosted.all(NSSwitch.self).count == 4)
     }
 
     @Test func eachSegmentedControlsSegmentsAreEqual() async throws {
@@ -153,12 +153,12 @@ struct SettingsLayoutTests {
 
     /// Down the column, clear of the Show row's pictures, the page is black but for the cards and the desktop corner,
     /// Notch chosen: its card the Show row's 86 over the Notch's rows, 30 from a card to the next header, and the
-    /// caption's row of 42 between the corner and its card. Within a pixel at the screen's scale, which lays the page
+    /// caption's row of 42 between the corner and its card, whose four rows are 52, 52, 52 and 38. Within a pixel at the screen's scale, which lays the page
     /// out.
     @Test func thePagesCardsStandAtTheirHeights() async throws {
         let drawn = try await Hosted.drawn(width: Self.drawingsPage)
         let spans = drawn.litSpans(atX: Self.edge + 232)
-        let drawing: [ClosedRange<CGFloat>] = [146 ... 480.5, 536.5 ... 686.5, 728.5 ... 833, 889 ... 1084.5]
+        let drawing: [ClosedRange<CGFloat>] = [146 ... 480.5, 536.5 ... 686.5, 728.5 ... 924, 980 ... 1175.5]
 
         #expect(spans.count == drawing.count)
         for (span, expected) in zip(spans, drawing) {
@@ -167,12 +167,12 @@ struct SettingsLayoutTests {
     }
 
     /// Each header's line of 16 stands 10 over what it heads: What stays on screen's card at 146, the desktop corner
-    /// at 536.5 and General's card at 889, the first header's line 28 under the title's line of 34 (58 to 92). Each
+    /// at 536.5 and General's card at 980, the first header's line 28 under the title's line of 34 (58 to 92). Each
     /// header's capitals stand alike in their line, so the same distance over what each heads.
     @Test func eachHeaderStands10OverWhatItHeads() async throws {
         let drawn = try await Hosted.drawn(width: Self.drawingsPage)
         let first = try #require(drawn.litSpans(atX: Self.edge + 352).first)
-        let heads = [first.lowerBound, 536.5, 889]
+        let heads = [first.lowerBound, 536.5, 980]
         // the header's first word's first letters, which hang below no line: What, Noti, Gene
         let capitals = try heads.map { head in
             try #require(drawn.litRows(in: CGRect(x: Self.edge + 10, y: head - 30, width: 30, height: 24)))
@@ -225,7 +225,7 @@ struct SettingsLayoutTests {
         #expect(lines(704 - 5).isEmpty)
     }
 
-    @Test(arguments: [(EdgeSettings.Show.notch, 1124.5), (.strip, 1177.0)])
+    @Test(arguments: [(EdgeSettings.Show.notch, 1215.5), (.strip, 1268.0)])
     func thePageEnds40UnderGeneralsCard(show: EdgeSettings.Show, height: CGFloat) async {
         let page = await Hosted.pageView { $0.show = show }
         let size = NSHostingController(rootView: page).sizeThatFits(in: CGSize(width: 704, height: 10_000))
@@ -420,7 +420,7 @@ struct Hosted {
     /// Settings, its Mac saying `said`, read as the page reads it as it appears, with a second display.
     static func pageView(
         said: MacSays = allWell, live: LiveBoard = LiveBoard(),
-        defaults: UserDefaults = MemoryDefaults(),
+        defaults: UserDefaults = MemoryDefaults(), sounds: AlertSounds = .silent,
         _ change: (inout EdgeSettings) -> Void = { _ in }
     ) async -> SettingsPage {
         let services = SettingsServices(
@@ -430,7 +430,7 @@ struct Hosted {
                     DisplayChoice.Connected(id: "B", name: "Studio Display", isMain: false),
                 ]
             },
-            hasGlass: true, jump: { _ in }, sendTest: {},
+            hasGlass: true, jump: { _ in }, sendTest: {}, sounds: sounds,
             noticeLeave: { said.notices ?? .unasked }, askForNotices: {}, login: { said.login ?? LoginItem(.notFound) },
             chooseLogin: {}, ghostty: { said.ghostty ?? .unknown }, allowGhostty: { .allowed }, open: { _ in }
         )
