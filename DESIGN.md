@@ -5392,7 +5392,21 @@ reaches a window only while that pane is on show).
         it loads only the system's libraries. Signed so, it answered `list
         --json`, a note and `watch` from inside the bundle, against a
         scratch `XDG_STATE_HOME`. Its identifier is SitRep's
-        bundle id and `.cli`.
+        bundle id and `.cli`. A signature records when it was made, so
+        every build's digest is new and replaces the copy.
+      - **The copy is not quarantined.** A cask's download marks every file
+        it holds `com.apple.quarantine`, and copying keeps the mark, so
+        SitRep takes it off every file of its copy before swapping it in
+        (27 October 2026). The copy is SitRep's own sealed payload, approved
+        with SitRep, but its CLI runs outside the bundle, from Claude's hooks
+        and from the app, where macOS would judge a quarantined program with
+        no ticket stapled to it on its own, by a lookup online that could
+        refuse it offline at its first run.
+      - **The jump was proven live** from a build signed with the Developer
+        ID, 27 October 2026: it went as before, and macOS asked nothing.
+        TCC's stored leave to control Ghostty still named SitRep Local's
+        certificate, so that jump sent Ghostty no Apple Event or macOS kept
+        the leave; macOS may yet ask once more.
       - **The binary records the SDK it was built with**: `app/bundle`
         gives the release link the SDK as `-isysroot`. SwiftPM hands clang's
         link the SDK only as `--sysroot`, with no `SDKROOT`, and clang then
@@ -5526,7 +5540,8 @@ reaches a window only while that pane is on show).
      release's alike, and `app/make-certificate` went (stage 4). Its
      designated requirement is the bundle id and the team, so a build from
      the clone and a release share the leave, notifications and the login
-     item; the change itself asks once more, at the first jump after it.
+     item. The change may ask once more for leave to control Ghostty; Lee's
+     first jump after it went as before, with no prompt (step 9).
    - **`com.leeovery.sitrep`**, named SitRep, with no Dock icon.
    - **Its version is the plugin's**, read from `plugin.json` as it builds:
      one version covers both.
@@ -5586,32 +5601,45 @@ reaches a window only while that pane is on show).
      tests with, no certificate in GitHub, and no macOS runner's minutes.
      mint's `post_release` runs `app/release` once the tag and the release
      are pushed. It builds the app from the tag's tree, a git worktree in a
-     temporary folder, by the tag's own `app/bundle`; notarises it
-     (`app/notarize`); uploads `SitRep-<version>.zip` to the release,
-     replacing one there; and prints the asset's id and its sha256, which
-     the cask needs. mint only warns when `post_release` fails, so run again
-     by hand, with no mint environment, `app/release` releases the version
-     `plugin.json` names, tagged `v<version>`. A dry run does nothing.
+     temporary folder, by the tag's own `app/bundle --release`; notarises
+     it (`app/notarize`); uploads `SitRep-<version>.zip` to the release,
+     replacing one there; and gives the zip's sha256 and the asset's id,
+     which the cask needs. mint shows nothing of a hook that succeeds, and
+     only its stderr when it fails, so `app/release` writes everything to
+     stderr and to `~/Library/Logs/SitRep/release-<version>.log`, naming the
+     log as it starts and ends: the id and the sha256 are read there. mint
+     only warns when `post_release` fails, so run again by hand, with no
+     mint environment, `app/release` releases the version `plugin.json`
+     names, or the version given (`app/release 0.3.0`), tagged
+     `v<version>`. A re-run builds and notarises again, so its zip, and the
+     asset's id, are new. A dry run does nothing: mint runs no hooks then.
    - **Signed with Lee's Developer ID**, `Developer ID Application:
      PointsBox Limited (CQKZZ4FN6V)` in the login keychain, by `app/bundle`
      for every build, `app/build`'s too, so a build from the clone and a
-     release share macOS's leave (see step 3's "Signed with"). Inside out,
-     never with `--deep`: the CLI (step 9), the notices helper, then the
-     app, each under the hardened runtime and with a secure timestamp. The
-     timestamp needs the network: `codesign` fails without one, and
-     `app/bundle` with it. It then checks each part: signed by the
-     Developer ID, under the runtime, timestamped, and with exactly its
+     release share macOS's leave (see step 3's "Signed with"). It signs by
+     the identity's hash, and refuses, listing them, when the keychain
+     holds two of the name, as after a renewal. Inside out, never with
+     `--deep`: the CLI (step 9), the notices helper, then the app, each
+     under the hardened runtime. A release's carry a secure timestamp,
+     which notarising needs; getting one needs the network, and without it
+     `codesign` fails, and `app/bundle` with it. `app/build`'s carry none,
+     so it builds offline. It then checks each part: signed by the Developer ID,
+     under the runtime, a release's timestamped, and with exactly its
      entitlements, the app's Apple Events, the CLI's `allow-jit`, and none
-     for the helper.
+     for the helper; and verifies the CLI's own signature, which the app's
+     `--deep` checks only as a file it seals.
    - **Notarised and stapled for a release only.** `app/notarize` zips the
      app with `ditto`, sends it with `notarytool submit --wait` under the
-     keychain profile `sitrep`, prints `notarytool log` when Apple refuses
-     it, staples the ticket and validates it, and zips the stapled app for
-     download. Then Gatekeeper's verdict on that zip as a download: its app
-     unpacked, marked quarantined as Safari marks a download, and `spctl -a
-     -t exec` must say it is accepted, from a notarised Developer ID.
-     `app/build` doesn't notarise: a build installed from the clone is never
-     quarantined, and notarising would add minutes to every install.
+     keychain profile `sitrep`, waits again with `notarytool wait` when a
+     wait ends in progress, as a dropped connection leaves it, prints
+     `notarytool log` when Apple refuses it, staples the ticket and
+     validates it, and zips the stapled app for download. Then that zip as
+     a download: its app unpacked, its staple validated, since `spctl` alone
+     can pass by looking the ticket up online, then marked quarantined as
+     Safari marks a download, and `spctl -a -t exec` must say it is
+     accepted, from a notarised Developer ID. `app/build` doesn't notarise:
+     a build installed from the clone is never quarantined, and notarising
+     would add minutes to every install.
    - **Proven on 27 October 2026**, on a bundle in a temporary folder: the
      notary service accepted it at the first submission
      (`6d05e210-ae07-41b7-917d-ad3ebf4404f5`), its log listing no issues
@@ -5619,10 +5647,13 @@ reaches a window only while that pane is on show).
      was "accepted, source=Notarized Developer ID", where `app/build`'s,
      signed but not notarised, was "rejected, source=Unnotarized Developer
      ID". The CLI answered from inside the stapled bundle. Nothing was
-     uploaded: the first release is Lee's.
+     uploaded: the first release is Lee's. The jump from a build signed so
+     went as before, live, with no prompt (step 9); macOS may yet ask once
+     more for leave to control Ghostty.
    - **Still to come:** the cask, and with it the tap's update, which
      `app/release` will dispatch to `homebrew-tools` with the asset's id and
-     sha256 (its place is marked at the script's end). Then Lee's Macs
+     sha256 (its place is marked at the script's end), at every run that
+     uploads, since each changes both. Then Lee's Macs
      install the cask like anyone, kit's `[manual]` step gives way to it,
      and the clone stops being live: a script in the repository points the
      `sitrep` marketplace at the clone for a live test, and back. The app

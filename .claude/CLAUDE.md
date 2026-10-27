@@ -34,7 +34,7 @@ from the keychain; `app/build` runs it, installs the bundle to
 `~/Applications/SitRep.app` and starts it, replacing the one running.
 `app/release`, run by mint's `post_release` (`./release`), builds a release
 from its tag, notarizes it (`app/notarize`) and uploads it to the GitHub
-release.
+release, logging to `~/Library/Logs/SitRep/release-<version>.log`.
 
 ## Live tests
 

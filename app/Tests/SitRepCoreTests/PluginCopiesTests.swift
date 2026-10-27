@@ -89,6 +89,36 @@ struct PluginCopiesTests {
         #expect(FileManager.default.isExecutableFile(atPath: scratch.own.appending(path: "bin/sitrep").path))
     }
 
+    @Test func aCopyFromADownloadIsNoLongerQuarantinedButKeepsItsOtherAttributes() throws {
+        let scratch = Scratch()
+        let other = "com.leeovery.sitrep.test"
+
+        try scratch.plugin("0.2.0", at: scratch.carried)
+        let files = [scratch.carried, scratch.carried.appending(path: "bin"), scratch.carried.appending(path: "bin/sitrep")]
+        for file in files {
+            try Self.mark(file, PluginCopies.quarantine, "0081;6a0f5c2b;Safari;")
+            try Self.mark(file, other, "kept")
+        }
+        try scratch.copies.replace()
+
+        for file in [scratch.own, scratch.own.appending(path: "bin"), scratch.own.appending(path: "bin/sitrep")] {
+            #expect(!Self.marked(file, PluginCopies.quarantine))
+            #expect(Self.marked(file, other))
+        }
+    }
+
+    private static func mark(_ file: URL, _ name: String, _ value: String) throws {
+        let set = value.withCString { setxattr(file.path, name, $0, strlen($0), 0, XATTR_NOFOLLOW) }
+
+        if set != 0 {
+            throw POSIXError(POSIXErrorCode(rawValue: errno) ?? .EIO)
+        }
+    }
+
+    private static func marked(_ file: URL, _ name: String) -> Bool {
+        getxattr(file.path, name, nil, 0, 0, XATTR_NOFOLLOW) >= 0
+    }
+
     @Test func twoStartsCopyingAtOnceBothLeaveOneWholeCopy() async throws {
         let scratch = Scratch()
         let copies = scratch.copies
