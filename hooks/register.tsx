@@ -35,7 +35,14 @@ import { actionsOf } from './actions'
 import { captured, heardSurvey } from './answering'
 import { lookAround, lookEvery } from './around'
 import { clipOf, heardRows, revealFocus, scrollList } from './clip'
-import { carryOn, conversationEnded, heardTurn, isBoardMessage, takeUpDelivery } from './deliver'
+import {
+  carryOn,
+  conversationEnded,
+  heardTurn,
+  isBoardMessage,
+  keptInFlight,
+  takeUpDelivery,
+} from './deliver'
 import {
   heardAgentTurnEnd,
   heardCheck,
@@ -184,9 +191,9 @@ const hostOf = ($: EngineInterface): Host => ({
       update: change => update($, sent, change),
     },
     inFlight: {
-      read: () => read($, inFlight),
+      read: async () => keptInFlight(await read($, inFlight)),
       write: value => update($, inFlight, () => value),
-      update: change => update($, inFlight, change),
+      update: change => update($, inFlight, value => change(keptInFlight(value))),
     },
     pane: {
       read: () => read($, pane),

@@ -343,8 +343,8 @@ export const letGo = async (host: Host) => {
 /**
  * Holds the session `attaching` names, letting go of any other first: reads
  * the window's own file back, works out where the window is, writes its
- * heartbeat, saying the version it runs and what it is
- * doing as it stands, starts the beat and the watch, and folds the session.
+ * heartbeat, saying the version it runs and what it is doing as it stands,
+ * starts the beat and the watch, and folds the session.
  */
 export const attachTo = async (host: Host, root: string, attaching: SitrepAttachment) => {
   const { project, session, writer, attachedAt } = attaching

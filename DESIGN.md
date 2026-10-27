@@ -1513,12 +1513,19 @@ $XDG_STATE_HOME/sitrep/, else ~/.local/state/sitrep/
   Gone on 27 October 2026, with nothing of the old layout left on any Mac:
   this Mac's state folder held no `works/` and no `work.json`, the Mac mini
   no sitrep state at all, and no window says no `version` but those long
-  let go or stale. The dual reads, the move, `OLD_WINDOW_MS` and the old
-  windows' first claim on delivery went with it, and the files the CLI
-  could move and remove with them: every reader reads `sessions/` alone,
-  and the CLI's file system only reads, lists and appends. A window whose
-  manifest does not read, and so says no `version`, delivers as any window
-  does, by when it attached.
+  let go or stale. No Claude process is older than this Mac's boot on 22
+  October 2026, so no load and no `$.state` is left from before the words.
+  The dual reads, the move, `OLD_WINDOW_MS` and the old windows' first
+  claim on delivery went with it, and the files the CLI could move and
+  remove with them: every reader reads `sessions/` alone, and the CLI's
+  file system only reads, lists and appends. A window whose manifest does
+  not read, and so says no `version`, delivers as any window does, by when
+  it attached. A window still on the release before gives such a window,
+  live, the first claim to deliver, and this release does not: while the
+  two run side by side, its session's inbox can be delivered by two Claudes
+  or by none, until the older window reloads. That needs a manifest read to
+  fail, so it is rare, and a reload clears it; the next release's version
+  has `watch` list the windows to reload.
 - One file per writer, so there are no locks and no daemon. A mod's `$.fs` can
   only write whole files, so each mod rewrites its own file; the CLI appends.
   Runs of the CLI at once share its file: each run's line lands whole (tried
@@ -1606,27 +1613,27 @@ $XDG_STATE_HOME/sitrep/, else ~/.local/state/sitrep/
   and a mark makes any of those go in but the last, which it makes delivered
   and leaves void, settling nothing. Only replies count from an inbox.
 - **Presence:** a mod can't tell that its own window died, so each attached
-  window rewrites its heartbeat (`attachedAt`, `seenAt`) every 30 seconds,
-  and a session is open while a heartbeat is under 90 seconds old. A mod
-  can't delete a file either, so a window that lets go adds `leftAt`. Of
-  several windows on one session, the one attached longest submits its
-  inbox, so two never both do. A heartbeat also says `where` its window is, as far as that is
-  known (see "The menu bar"): `device`, `terminal`, and `tmux` with its
+  window rewrites its heartbeat (`attachedAt`, `seenAt`) every 30 seconds, and
+  a session is open while a heartbeat is under 90 seconds old. A mod can't
+  delete a file either, so a window that lets go adds `leftAt`. Of several
+  windows on one session, the one attached longest submits its inbox, so two
+  never both do. A heartbeat also says `where` its window is, as far as that
+  is known (see "The menu bar"): `device`, `terminal`, and `tmux` with its
   `socket` and `pane`. It is read field by field, a bad one dropped, and a
   heartbeat is never lost over it; one written before it reads as ever. It
   also says the sitrep `version` its window runs (19 October 2026): the
   `version` in the plugin's manifest, `.claude-plugin/plugin.json` under the
-  plugin's folder, read once as the mod loads and kept for the load, a
-  failure too, since the clone is the live plugin and the manifest on disk
-  may by then be a newer checkout's than the code the window runs. A
-  manifest that cannot be read leaves it out, says so once in the debug log,
-  and the heartbeat beats on; that window then reads as one needing a
-  reload, which is safe, and rare. It is read as `where` is, field by field;
-  a heartbeat with none is a window whose manifest did not read, or one on a
-  release from before heartbeats said it (see "Two layouts, side by side",
-  above). `sitrep watch` says which windows
-  need a reload, for the menu to list. It also says the window's `state`
-  (19 October 2026), with what the row shows of it, rewritten at once as it
+  plugin's folder, read once as the mod loads and kept for the load, a failure
+  too, since the clone is the live plugin and the manifest on disk may by then
+  be a newer checkout's than the code the window runs. A manifest that cannot
+  be read leaves it out, says so once in the debug log, and the heartbeat
+  beats on; that window then reads as one needing a reload, which is safe, and
+  rare. It is read as `where` is, field by field; a heartbeat with none, read
+  today, is a window whose manifest did not read: one on a release from before
+  heartbeats said it wrote under `works/`, which no reader reads any more (see
+  "Two layouts, side by side", above). `sitrep watch` says which windows need
+  a reload, for the menu to list. It also says the window's `state` (19
+  October 2026), with what the row shows of it, rewritten at once as it
   changes (how the mod hears it is under "A session's state"):
 
   ```
@@ -1789,8 +1796,13 @@ truth. There is still no background service. None of it is built now. Lee:
     changed left there (a session as its `work`, RESOLVED in full as
     `doneInFull`) was read in today's names (`hooks/older.ts`), so a window
     reloaded mid-session kept its session, its place on the pane and Ready
-    to send; that went on 27 October 2026, no window running a load from
-    before the words.
+    to send; that went on 27 October 2026, no Claude process being older
+    than this Mac's boot on 22 October. `older.ts` also read a message in
+    flight a load from before the window held messages (23 October 2026)
+    left without `isHeld` as not held; windows started since the boot may
+    still run such a load, so that stays: the slot reads a claim saying no
+    `isHeld` as not held, and a claim not held and not taken is let go
+    after its quiet time, whatever it says.
   - Drawing lives in modules of its own (`hooks/draw`): pure functions from
     a surface's element table and plain data to a tree, what a button does
     handed in as actions bound to the host. JSX's `h` is global in every
@@ -2249,25 +2261,24 @@ truth. There is still no background service. None of it is built now. Lee:
       its asks snoozed as `snoozed`, which `waiting` leaves out, and each ask
       carries `snoozedUntil`, as in `board --json`. Fields added: `v` did not
       move.
-    - `projects`: those with a current session, in the SitRep window's
-      order: a session where its row sits, those with none after, the
-      latest updated first; a project where its first session sits. Each
-      session is as `list --json` gives it, with its `state` (`needsYou`,
-      `working`, `onItsWork`, `yourTurn` or `away`), `since`, its row's
-      time, else its latest line's, `doing`, and its open asks, as `board --json` lists
-      them (core's `openAsks`): waiting, on Lee or on a window to deliver Lee's
-      reply, or replied, Claude's to act on, each with its `reply`, which
-      tells them apart. So a reply going into a session's inbox is a line,
-      the session among `changed`, and its mark is another. `doing` (20
-      October 2026) is what the session is doing, as the SitRep window's
-      line under its name says it, there for every session (core's
-      `doingOf`): a window's permission prompt or question, the one shown
-      first; else the window its turn row comes from; each as that row's
-      `is`, its `first` as `line`, and its `since`. With no window holding
-      it, `away`, "No window holds it. Carry it on in Claude.", since its
-      latest line. So a session needing Lee for its asks alone, which has
-      no row of its windows', still says what they do. A field added: `v`
-      did not move.
+    - `projects`: those with a current session, in the SitRep window's order:
+      a session where its row sits, those with none after, the latest updated
+      first; a project where its first session sits. Each session is as `list
+      --json` gives it, with its `state` (`needsYou`, `working`, `onItsWork`,
+      `yourTurn` or `away`), `since`, its row's time, else its latest line's,
+      `doing`, and its open asks, as `board --json` lists them (core's
+      `openAsks`): waiting, on Lee or on a window to deliver Lee's reply, or
+      replied, Claude's to act on, each with its `reply`, which tells them
+      apart. So a reply going into a session's inbox is a line, the session
+      among `changed`, and its mark is another. `doing` (20 October 2026) is
+      what the session is doing, as the SitRep window's line under its name
+      says it, there for every session (core's `doingOf`): a window's
+      permission prompt or question, the one shown first; else the window its
+      turn row comes from; each as that row's `is`, its `first` as `line`, and
+      its `since`. With no window holding it, `away`, "No window holds it.
+      Carry it on in Claude.", since its latest line. So a session needing Lee
+      for its asks alone, which has no row of its windows', still says what
+      they do. A field added: `v` did not move.
     - `windows`: every live window, the longest attached first, a finished
       session's among them, with its session's name and project, its
       `version`, and `needsReload` where it says none, or one behind the
@@ -2597,11 +2608,11 @@ read.
 - Writers write the current version.
 - A window not yet reloaded skips lines newer than it knows. Its
   heartbeat's version lets the app show which windows to reload.
-- The build's renames on disk (`works/`, `work.json`) are the first use:
-  readers read the old names and the new, writers write only the new, and
-  the old files move once no window runs an old version. A window not yet
-  reloaded reads only the old names, so it sees nothing written under the
-  new ones until it reloads, as with newer lines. Built 19 October 2026,
+- The build's renames on disk (`works/`, `work.json`) were the first use:
+  readers read the old names and the new, writers wrote only the new, and
+  the old files moved once no window ran an old version. A window not yet
+  reloaded read only the old names, so it saw nothing written under the new
+  ones until it reloaded, as with newer lines. Built 19 October 2026,
   `works/` to `sessions/` and `work.json` to `session.json`; the old names'
   reads and the move went on 27 October 2026, with nothing of the old layout
   left on any Mac (see "Storage").
@@ -5499,24 +5510,24 @@ reaches a window only while that pane is on show).
    - **Lee's login shell's PATH.** As it starts, the app asks the shell in
      Lee's user record, as a login and interactive shell, for its PATH
      printed between markers, since Oh My Zsh prints around it; about 0.3s.
-     Interactive, as step 2 needs `claude`, which only an interactive
-     shell's PATH has. The shell's answer is kept. With none it falls back
-     to Homebrew's folders, `~/.bun/bin` and the system's, logs it, and
-     asks the shell again at the next run, so a shell slow as Lee logs in
-     costs one run, not every run until a restart. Every child gets that
-     PATH and otherwise the app's own environment, and a time limit, only
-     a backstop for a CLI that hangs: 10 seconds for a run on one
-     session's files, `board --json` or a write, as for the `list --json`
-     the plain menu ran, and 180 for a jump, well above any realistic one. A jump takes under a second
-     as Ghostty answers, and one Ghostty does not answer at all, as with
-     the screen locked, is refused at its first question, after 5 seconds.
-     It is no true ceiling: the 5 seconds hold for each question to Ghostty,
-     each Apple Event, and a program sends several (a listing three a try,
-     a focus two, a find some 40), so a Ghostty answering every question
-     only just inside its 5 seconds could keep a jump going past 180, and
-     the app would then report that the jump did not answer. Raised from
-     120 when the jump began remembering terminals and watching the front,
-     14 October 2026.
+     Interactive, as step 2 needs `claude`, which only an interactive shell's
+     PATH has. The shell's answer is kept. With none it falls back to
+     Homebrew's folders, `~/.bun/bin` and the system's, logs it, and asks the
+     shell again at the next run, so a shell slow as Lee logs in costs one
+     run, not every run until a restart. Every child gets that PATH and
+     otherwise the app's own environment, and a time limit, only a backstop
+     for a CLI that hangs: 10 seconds for a run on one session's files,
+     `board --json` or a write, as for the `list --json` the plain menu ran,
+     and 180 for a jump, well above any realistic one. A jump takes under a
+     second as Ghostty answers, and one Ghostty does not answer at all, as
+     with the screen locked, is refused at its first question, after 5
+     seconds. It is no true ceiling: the 5 seconds hold for each question to
+     Ghostty, each Apple Event, and a program sends several (a listing three
+     a try, a focus two, a find some 40), so a Ghostty answering every
+     question only just inside its 5 seconds could keep a jump going past
+     180, and the app would then report that the jump did not answer. Raised
+     from 120 when the jump began remembering terminals and watching the
+     front, 14 October 2026.
    - **The main checkout's path stamped in.** `app/build` writes the folder
      of the repository's main checkout, the live plugin, into the app's
      Info.plist (`SitRepPlugin`), even when it builds in a worktree; the

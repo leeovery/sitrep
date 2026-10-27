@@ -8,6 +8,7 @@
  */
 import type { FsEntry } from 'claude-code'
 import {
+  isSessionId,
   LOG_SUFFIX,
   PRESENCE_SUFFIX,
   projectPaths,
@@ -45,11 +46,12 @@ export const foldersIn = async (host: Host, dir: string) => folderNames(await li
 const listedIn = (host: Host, dir: string, top: readonly FsEntry[], path: string) =>
   entryAt(top, dir, path, 'dir') === undefined ? [] : listed(host, path)
 
-/** The sessions a project files. */
+/** The sessions a project files: its folders of sessions named as a session id is. */
 export const sessionsFiled = async (host: Host, root: string, key: string) => {
   const { dir } = projectPaths(root, key)
+  const top = await listed(host, dir)
 
-  return folderNames(await listedIn(host, dir, await listed(host, dir), sessionsDir(root, key)))
+  return folderNames(await listedIn(host, dir, top, sessionsDir(root, key))).filter(isSessionId)
 }
 
 /** A file's text; undefined while it is not there, or cannot be read. */

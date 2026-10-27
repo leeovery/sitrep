@@ -1,6 +1,6 @@
 import type { On } from 'claude-code'
 import { expect, test, tier } from 'claude-code/testing'
-import { parseEntries, presenceText, type SessionMeta } from '../core'
+import { metaText, parseEntries, presenceText, type SessionMeta } from '../core'
 import { AROUND_MS } from '../hooks/around'
 import { WATCH_MS } from '../hooks/window'
 import type { SitrepAttachment } from '../types'
@@ -91,6 +91,22 @@ test('the first message lists the sessions filed in every project', async ($, on
   for (const id of ['sr-aaaaaa', 'sr-bbbbbb', 'sr-cccccc']) {
     expect(listing?.text, id).toContain(id)
   }
+})
+
+test('a folder under sessions/ not named as a session id is never listed as a session', async ($, on) => {
+  const w = world($, on)
+  const lobby = w.seed({ ...META, id: 'sr-aaaaaa', name: 'Lobby' })
+
+  w.put(
+    `${lobby.sessions}/undefined/session.json`,
+    metaText({ ...META, id: 'sr-zzzzzz', name: 'Not a session' }),
+  )
+  await $.session.start(CONVERSATION)
+
+  const [listing] = (await $.prompt.context({ blocks: [] })).blocks
+
+  expect(listing?.text).toContain('Lobby')
+  expect(listing?.text).not.toContain('Not a session')
 })
 
 test("the watch reads another writer's lines as they land", async ($, on) => {

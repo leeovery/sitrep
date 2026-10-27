@@ -15,7 +15,7 @@
  * watch's.
  */
 import type { Timer } from 'claude-code'
-import { brief, foldSession, isCurrent, isSessionId, sessionPaths } from '../core'
+import { brief, foldSession, isCurrent, sessionPaths } from '../core'
 import type {
   SitrepAnswering,
   SitrepAttachment,
@@ -70,9 +70,7 @@ export const sessionsIn = async (
   now: number,
   except?: string,
 ) => {
-  const ids = (await sessionsFiled(host, root, project)).filter(
-    id => isSessionId(id) && id !== except,
-  )
+  const ids = (await sessionsFiled(host, root, project)).filter(id => id !== except)
   const sessions = await Promise.all(
     ids.map(session => foldAt(host, root, { project, session }, now)),
   )

@@ -4,11 +4,11 @@
  * a line appended or a window brought forward, and the answer printed.
  *
  * It writes as the writer `cli`, appending to `<session>/cli.jsonl` and
- * never rewriting it, and an answer to its letters in
- * the session's inbox, `<session>/inbox/cli.jsonl`, the same way; each
- * file's count goes on from that file. It writes no delivered marks or
- * heartbeats: it is never a window on the session. `watch` runs on,
- * printing the board as it changes, until it is to end.
+ * never rewriting it, and an answer to its letters in the session's inbox,
+ * `<session>/inbox/cli.jsonl`, the same way; each file's count goes on from
+ * that file. It writes no delivered marks or heartbeats: it is never a
+ * window on the session. `watch` runs on, printing the board as it changes,
+ * until it is to end.
  */
 import {
   addition,

@@ -61,6 +61,14 @@ const UNWRITTEN = 'Claude has your replies, but the board could not write them d
 
 const NEVER_WENT_IN = 'the message never went in'
 
+/**
+ * The message in flight as `$.state` kept it, held only where it says so: a
+ * load from before the window held messages (23 October 2026) left its
+ * claim without `isHeld`, submitted as it was claimed.
+ */
+export const keptInFlight = (kept: SitrepInFlight | null): SitrepInFlight | null =>
+  kept === null ? null : { ...kept, isHeld: kept.isHeld === true }
+
 /** A message as its source hands it over, to be claimed. */
 type Outgoing = Omit<SitrepInFlight, 'claimedAt' | 'isHeld' | 'isTaken'>
 
@@ -321,7 +329,7 @@ export const carryOn = async (host: Host) => {
   const waiting = await flightNow(host)
   const isBetween = await betweenTurns(host)
 
-  if (waiting?.isHeld === false && !waiting.isTaken && isBetween()) {
+  if (waiting !== null && waiting.isHeld !== true && !waiting.isTaken && isBetween()) {
     quietFor(host, waiting)
   }
 }

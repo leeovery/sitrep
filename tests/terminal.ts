@@ -661,8 +661,8 @@ export function terminal(options: Options = {}) {
   }
 
   /**
-   * A window's heartbeat on a session: attached at `at`, seen then, `where` it is, and saying the `version` it
-   * runs and its `state`, if any.
+   * A window's heartbeat on a session: attached at `at`, seen then, `where`
+   * it is, and saying the `version` it runs and its `state`, if any.
    */
   const window = (
     paths: SessionPaths,
@@ -678,9 +678,9 @@ export function terminal(options: Options = {}) {
     })
 
   /**
-   * A session as the mod leaves it, filed under `project`: its meta, the lines its window wrote, and,
-   * given `seenAt`, that window's heartbeat, saying `where` it is and the
-   * `version` it runs.
+   * A session as the mod leaves it, filed under `project`: its meta, the
+   * lines its window wrote, and, given `seenAt`, that window's heartbeat,
+   * saying `where` it is and the `version` it runs.
    */
   const seed = (
     meta: SessionMeta,

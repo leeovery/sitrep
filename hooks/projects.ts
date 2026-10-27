@@ -8,7 +8,6 @@
  */
 import {
   isSafeName,
-  isSessionId,
   newProjectKey,
   parseMeta,
   parseProject,
@@ -47,9 +46,7 @@ const metaOf = async (host: Host, root: string, key: string, id: string) =>
 /** The meta of each session filed under a project, in the order listed; undefined for one that does not read. */
 const metasIn = async (host: Host, root: string, key: string) =>
   Promise.all(
-    (await sessionsFiled(host, root, key))
-      .filter(isSessionId)
-      .map(id => metaOf(host, root, key, id)),
+    (await sessionsFiled(host, root, key)).map(id => metaOf(host, root, key, id)),
   )
 
 /** A project as its folder has it; undefined for a folder with no file and no session. */
