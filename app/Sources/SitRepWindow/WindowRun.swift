@@ -62,7 +62,8 @@ public final class WindowRun {
     private var boards: [String: SessionBoard] = [:]
     private var failed: [String: String] = [:]
     private var tickets: [String: Int] = [:]
-    /// The asks of each session the page shows, kept in place while it stands.
+    /// The asks of each session the page shows, in the order they first showed while it stands, those closed kept in
+    /// their places while the page is held.
     private var frozen: [String: Frozen] = [:]
     /// The page held while the pointer is over it in the window key, and for a second after: only while it is does a
     /// closed ask keep its place, so nothing below it moves under the pointer either.

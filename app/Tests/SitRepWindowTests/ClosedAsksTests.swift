@@ -106,8 +106,45 @@ struct ClosedAsksTests {
         overThePage(run)
         Self.closing(run)
         run.window(isKey: false, at: Self.left)
+        run.settle(at: Self.left.addingTimeInterval(0.99))
+        #expect(Self.asks(run) == ["k1", "k3", "k2"])
         run.settle(at: Self.left.addingTimeInterval(1))
         #expect(Self.asks(run) == ["k2"])
+    }
+
+    @Test func theWindowKeyAgainWithinTheSecondKeepsThem() {
+        let run = opened()
+
+        overThePage(run)
+        Self.closing(run)
+        run.window(isKey: false, at: Self.left)
+        run.window(isKey: true, at: Self.left.addingTimeInterval(0.5))
+        run.settle(at: Self.left.addingTimeInterval(2))
+        #expect(Self.asks(run) == ["k1", "k3", "k2"])
+    }
+
+    /// A first click: the pointer comes over the page of a window not key, which the click then makes key.
+    @Test func thePointerOverThePageBeforeTheWindowIsKeyHoldsItOnceItIs() {
+        let run = opened()
+
+        run.pointer(overPage: true, from: pageRegion, at: printedAt)
+        run.window(isKey: true, at: printedAt)
+        Self.closing(run)
+        #expect(Self.asks(run) == ["k1", "k3", "k2"])
+    }
+
+    /// Let go, k1 and k3 are as new to the page should the board have them open again.
+    @Test func anAskLetGoAndOpenAgainComesBackNewAtTheTopWashed() {
+        let run = opened()
+        let later = printedAt.addingTimeInterval(5)
+
+        Self.closing(run)
+        answer(run.pick(.session("sr-macapp")), in: run, with: ["sr-macapp": Lines.board], at: later)
+
+        let asks = run.page(at: later).session?.asks
+
+        #expect(asks?.map(\.id.ask) == ["k1", "k3", "k2"])
+        #expect(asks?.map(\.washed) == [later, later, nil])
     }
 
     @Test func minimisedWithThePointerOverThePageTheClosedAsksLeave() {
@@ -166,6 +203,18 @@ struct ClosedAsksTests {
         run.settle(at: printedAt.addingTimeInterval(2))
         #expect(Self.asks(run) == ["k2"])
         #expect(Self.resolved(run) == ["k1", "k5", "k4"])
+    }
+
+    /// Escape takes back the press that kept k1: nothing keeps it now.
+    @Test func anAskClosedUnderAWaitingPressLeavesOnceThePressIsTakenBack() {
+        let run = opened()
+
+        _ = run.press(.yes("Approve"), on: Self.yes, at: printedAt)
+        Self.closing(run)
+        #expect(Self.asks(run) == ["k1", "k2"])
+        #expect(run.undo())
+        run.settle(at: printedAt.addingTimeInterval(1))
+        #expect(Self.asks(run) == ["k2"])
     }
 }
 

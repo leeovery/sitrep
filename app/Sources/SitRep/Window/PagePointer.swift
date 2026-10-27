@@ -22,15 +22,19 @@ struct PagePointer: NSViewRepresentable {
 
 /// Where the pointer is, told from AppKit's tracking, which hears the pointer cross in or out whether or not SitRep is
 /// active; and found by asking the window where the pointer is as the view moves into it, as the window becomes key,
-/// and as it comes back from the Dock, when AppKit sends no entry for a pointer that has not moved. Out of its window,
-/// the pointer is over it no longer. What it tells, it tells after AppKit's change, never inside one of SwiftUI's
-/// updates.
+/// comes back from the Dock or shows again, and as a menu closes, when AppKit sends no entry for a pointer that has
+/// not moved. Out of its window, or its window out of sight, the pointer is over it no longer. What it tells, it tells
+/// after AppKit's change, never inside one of SwiftUI's updates.
 final class PagePointerView: NSView {
-    var told: (Bool) -> Void = { _ in }
+    var told: @MainActor @Sendable (Bool) -> Void = { _ in }
     /// Where the pointer is in a window's coordinates: the window's word, unless a test gives one.
     var pointer: (NSWindow) -> NSPoint = { $0.mouseLocationOutsideOfEventStream }
 
-    private static let asked = [NSWindow.didBecomeKeyNotification, NSWindow.didDeminiaturizeNotification]
+    /// What its window posts that has it find the pointer.
+    private static let windowAsks = [NSWindow.didBecomeKeyNotification, NSWindow.didDeminiaturizeNotification]
+    private static let heard = windowAsks + [
+        NSWindow.didChangeOcclusionStateNotification, NSMenu.didEndTrackingNotification,
+    ]
 
     override init(frame: NSRect) {
         super.init(frame: frame)
@@ -61,20 +65,40 @@ final class PagePointerView: NSView {
 
     override func viewDidMoveToWindow() {
         super.viewDidMoveToWindow()
-        for name in Self.asked {
+        for name in Self.heard {
             NotificationCenter.default.removeObserver(self, name: name, object: nil)
         }
         guard let window else {
             return tell(false)
         }
-        for name in Self.asked {
-            NotificationCenter.default.addObserver(self, selector: #selector(windowAsked), name: name, object: window)
+
+        let center = NotificationCenter.default
+
+        for name in Self.windowAsks {
+            center.addObserver(self, selector: #selector(asked), name: name, object: window)
         }
+        center.addObserver(
+            self, selector: #selector(windowChangedOcclusion), name: NSWindow.didChangeOcclusionStateNotification,
+            object: window
+        )
+        // Any menu's, as a card's Snooze menu is no window's: the pointer may have left for it, and back from it, a
+        // pointer that has not moved since the menu closed sends no entry.
+        center.addObserver(self, selector: #selector(asked), name: NSMenu.didEndTrackingNotification, object: nil)
         findPointer()
     }
 
-    @objc private func windowAsked(_ notification: Notification) {
+    @objc private func asked(_ notification: Notification) {
         findPointer()
+    }
+
+    /// Out of sight, as on another Space, its window sends no exit: the pointer is over it no longer, until it shows
+    /// again.
+    @objc private func windowChangedOcclusion(_ notification: Notification) {
+        if window?.occlusionState.contains(.visible) == true {
+            findPointer()
+        } else {
+            tell(false)
+        }
     }
 
     /// Whether the pointer is over what of it shows, asked once the change under way has laid it out.
@@ -87,9 +111,12 @@ final class PagePointerView: NSView {
         }
     }
 
+    /// Told through what it tells to, not through the view, so the out of a view freed meanwhile still comes.
     private func tell(_ isOver: Bool) {
-        DispatchQueue.main.async { [weak self] in
-            self?.told(isOver)
+        let told = told
+
+        DispatchQueue.main.async {
+            told(isOver)
         }
     }
 }
