@@ -1,0 +1,31 @@
+# .mint.toml — mint configuration. Only keys that differ from mint's compiled
+# defaults are set; everything else rides on the defaults. Full key reference
+# and defaults: run `mint setup`.
+
+# Tracked churn that isn't what SitRep does: agent config, the design doc, and
+# the tests, which are the bulk of any change's diff and would crowd the
+# behaviour out of the notes.
+diff_exclude = [
+    '.claude/**',
+    '.worktreeinclude',
+    'DESIGN.md',
+    'tests/**',
+    'app/Tests/**',
+]
+
+[release]
+# One version covers the plugin and the app: app/bundle stamps plugin.json's
+# into the bundle.
+version_file = '.claude-plugin/plugin.json'
+version_pattern = '"version": "{version}"'
+
+[release.hooks]
+# No CI runs the tests, so every gate runs here, before the irreversible tag
+# and push.
+pre_tag = [
+    'claude plugin test .',
+    'bunx tsc -p .',
+    'bunx tsc -p cli/shell',
+    'swift build --package-path app -j 2',
+    'swift test --package-path app -j 2',
+]
