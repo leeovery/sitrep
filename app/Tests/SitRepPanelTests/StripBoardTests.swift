@@ -74,7 +74,7 @@ struct StripBoardTests {
         #expect(lab.wait(1000) { $0.model.mark(.session("s2"))!.arrived > -1e8 })
     }
 
-    /// As on a run's first line, or a resumed one: what needs Lee with nothing new comes in as the marks re-sort, and
+    /// As on any run's first line: what needs Lee with nothing new comes in as the marks re-sort, and
     /// nothing flashes.
     @Test func aNeedsYouWithNothingNewComesInUnflashedAsTheMarksReSort() {
         var lab = StripLab()

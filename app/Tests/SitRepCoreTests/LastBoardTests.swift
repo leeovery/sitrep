@@ -56,7 +56,7 @@ struct LastBoardTests {
         let last = Self.after(.line(watched), .line(#"{"v": 1}"#))
 
         #expect(last.board == (try Board.read(watched)))
-        #expect(last.stale?.description == "sitrep watch gave output version 1, and this SitRep reads version 2.")
+        #expect(last.stale?.description == "sitrep watch gave output version 1, and this SitRep reads version 3.")
     }
 
     @Test func aLineThatReadsAfterOneThatDidNotIsTheBoardNoLongerStale() throws {
@@ -143,26 +143,6 @@ struct LastBoardTests {
         #expect(changes == [true, false, true, false, true])
     }
 
-    @Test func onlyARunsFirstBoardAfterAnotherRunIsResumed() {
-        var last = LastBoard()
-        var resumed: [Bool] = []
-
-        func hear(_ heard: Heard) {
-            _ = last.hear(heard, at: Self.noon)
-            resumed.append(last.isResumed)
-        }
-
-        last.begin()
-        hear(.line(watchedEmpty))
-        hear(.line(watched))
-        last.begin()
-        hear(.line("{"))
-        hear(.line(watchedEmpty))
-        hear(.exited(.status(1), stderr: ""))
-
-        #expect(resumed == [false, false, false, true, false])
-    }
-
     @Test func everyRunsFirstLineIsItsFirstTheFirstRunsAmongThem() {
         var last = LastBoard()
         var first: [Bool] = []
@@ -183,14 +163,14 @@ struct LastBoardTests {
     }
 
     /// A first line that does not read is still the run's first, so the next that reads is no longer taken for it:
-    /// its `new` is news. It is the run's first board read, though, so it is resumed.
-    @Test func aRunsFirstLineThatDoesNotReadIsItsFirstAndTheNextThatReadsIsResumed() {
+    /// its `new` is news.
+    @Test func aRunsFirstLineThatDoesNotReadIsItsFirstAndTheNextThatReadsIsNot() {
         var last = LastBoard()
-        var heard: [(first: Bool, resumed: Bool)] = []
+        var first: [Bool] = []
 
         func hear(_ said: Heard) {
             _ = last.hear(said, at: Self.noon)
-            heard.append((last.isRunsFirst, last.isResumed))
+            first.append(last.isRunsFirst)
         }
 
         last.begin()
@@ -200,7 +180,6 @@ struct LastBoardTests {
         hear(.line(watched))
         hear(.line(watchedEmpty))
 
-        #expect(heard.map(\.first) == [true, true, false, false])
-        #expect(heard.map(\.resumed) == [false, false, true, false])
+        #expect(first == [true, true, false, false])
     }
 }

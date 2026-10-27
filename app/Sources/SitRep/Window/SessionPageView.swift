@@ -100,7 +100,7 @@ struct SessionPageView: View {
         }
     }
 
-    /// Its board's sections as last read, under why the latest read failed, if it did.
+    /// Its board's sections as last kept, under why the latest line to carry its board carried none, if it did.
     @ViewBuilder private var details: some View {
         if let failure = page.failure {
             Text(failure).font(WindowStyle.ui(12)).foregroundStyle(WindowStyle.faint).padding(.bottom, 20)

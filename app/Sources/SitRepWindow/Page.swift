@@ -58,9 +58,9 @@ public struct SessionPage: Equatable, Sendable {
     public let resolved: [Resolved]
     /// "✓ Finish this session", only while no window holds it.
     public let finish: Finish?
-    /// Its board has been read: its asks, Notes, Parked and Resolved show as last read.
+    /// A board of it has come: its asks, Notes, Parked and Resolved show as last kept.
     public let isRead: Bool
-    /// Why the latest read of its board failed, over what was read before, if anything was.
+    /// Why the latest line to carry its board carried none, over its board as last kept, if there is one.
     public let failure: String?
     /// The items of Status, Notes, Parked and Resolved opened in place.
     public let opened: Set<Item>

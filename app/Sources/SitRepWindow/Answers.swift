@@ -19,9 +19,10 @@ public struct Pending: Equatable, Sendable {
         case waiting
         /// Gone to `sitrep answer`, until it is written, or the board says it is on its way.
         case sending
-        /// Written, until a read of its session asked for since, after the read of this ticket, says where it is.
-        case written(after: Int)
-        /// Written, and the reads since have failed: on its way, as the write proved, until a read says more.
+        /// Written, until its session's next board says where it is.
+        case written
+        /// Written, and the line since carried no board of its session: on its way, as the write proved, until a
+        /// board says more.
         case onItsWay
         /// `sitrep answer` refused it, in these words: nothing was written.
         case refused(String)
@@ -87,14 +88,13 @@ public struct Answers: Equatable, Sendable {
         pending.values.filter { $0.stage == .waiting }.map { $0.pressed.addingTimeInterval(Self.wait) }.min()
     }
 
-    /// `sitrep answer` wrote the answer: the next read of its session asked for after the one of this ticket says
-    /// where it is.
-    mutating func written(_ ask: AskAddress, after ticket: Int) {
-        pending[ask]?.stage = .written(after: ticket)
+    /// `sitrep answer` wrote the answer: its session's next board says where it is.
+    mutating func written(_ ask: AskAddress) {
+        pending[ask]?.stage = .written
     }
 
     /// `sitrep answer` refused the answer: the card says why, its buttons back; unless its session's board as last
-    /// read, if it has been, has the ask settled, which bars them.
+    /// kept, if there is one, has the ask settled, which bars them.
     mutating func refused(_ ask: AskAddress, _ why: String, on asks: [Board.Ask]?) {
         if let asks, Self.isSettled(ask.ask, in: asks) {
             pending[ask] = nil
@@ -103,10 +103,9 @@ public struct Answers: Equatable, Sendable {
         }
     }
 
-    /// The session's open asks as a read of this ticket has them: an answer sending, or refused, gives way to the
-    /// board's word once the ask has settled; one written, to the first read asked for after it was; one on its way
-    /// after reads failed, to this one.
-    mutating func settle(_ asks: [Board.Ask], of session: String, read ticket: Int) {
+    /// The session's open asks as a board of it has them: an answer sending, or refused, gives way to the board's word
+    /// once the ask has settled; one written, or on its way, to this board, whatever it says.
+    mutating func settle(_ asks: [Board.Ask], of session: String) {
         pending = pending.filter { ask, pending in
             guard ask.session == session else {
                 return true
@@ -115,19 +114,15 @@ public struct Answers: Equatable, Sendable {
             switch pending.stage {
             case .waiting: return true
             case .sending, .refused: return !Self.isSettled(ask.ask, in: asks)
-            case let .written(after): return ticket <= after && !Self.isSettled(ask.ask, in: asks)
-            case .onItsWay: return false
+            case .written, .onItsWay: return false
             }
         }
     }
 
-    /// A read of the session, of this ticket, failed: an answer written before it was asked for is on its way, as
-    /// the write proved.
-    mutating func unread(_ session: String, read ticket: Int) {
-        for (ask, pending) in pending where ask.session == session {
-            if case let .written(after) = pending.stage, ticket > after {
-                self.pending[ask]?.stage = .onItsWay
-            }
+    /// A line carried no board of the session: an answer written is on its way, as the write proved.
+    mutating func noBoard(of session: String) {
+        for (ask, pending) in pending where ask.session == session && pending.stage == .written {
+            self.pending[ask]?.stage = .onItsWay
         }
     }
 

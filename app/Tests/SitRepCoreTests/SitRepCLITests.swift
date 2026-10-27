@@ -1,7 +1,6 @@
 import Foundation
 @testable import SitRepCore
 import os
-import SitRepLines
 import Testing
 
 struct SitRepCLITests {
@@ -25,14 +24,14 @@ struct SitRepCLITests {
     }
 
     @Test func aRunIsThePluginsCLIWithLeesPathAndTheAppsEnvironment() async {
-        let (cli, programs) = Self.cli(Self.exited(0, stdout: Lines.board))
+        let (cli, programs) = Self.cli(Self.exited(0))
 
-        _ = await cli.board(of: "sr-macapp")
+        _ = await cli.finish("sr-gs7kq2")
 
         #expect(programs.all == [
             Program(
                 executable: URL(fileURLWithPath: "/Users/lee/Code/sitrep/bin/sitrep"),
-                arguments: ["board", "--json", "--session", "sr-macapp"],
+                arguments: ["finish", "--session", "sr-gs7kq2"],
                 environment: ["HOME": "/Users/lee", "PATH": Self.path],
                 limit: SitRepCLI.sessionLimit
             ),
@@ -42,13 +41,13 @@ struct SitRepCLITests {
     @Test func aRunThatFailsSayingNothingGivesItsStatus() async {
         let (cli, _) = Self.cli(Self.exited(127, stderr: "  \n"))
 
-        #expect(await cli.board(of: "sr-macapp") == .failed("sitrep board ended with status 127."))
+        #expect(await cli.finish("sr-gs7kq2") == .refused("sitrep finish ended with status 127."))
     }
 
     @Test func aFailureNotFromTheCLIIsGivenWhole() async {
         let (cli, _) = Self.cli(Self.exited(127, stderr: "env: bun: No such file or directory\n"))
 
-        #expect(await cli.board(of: "sr-macapp") == .failed("env: bun: No such file or directory"))
+        #expect(await cli.finish("sr-gs7kq2") == .refused("env: bun: No such file or directory"))
     }
 
     @Test func ofAManyLinedFailureTheCLIsOwnLineIsGiven() async {
@@ -59,7 +58,7 @@ struct SitRepCLITests {
         """
         let (cli, _) = Self.cli(Self.exited(2, stderr: stderr))
 
-        #expect(await cli.board(of: "sr-zzzzzz") == .failed("There is no session sr-zzzzzz on the board, in any project."))
+        #expect(await cli.finish("sr-zzzzzz") == .refused("There is no session sr-zzzzzz on the board, in any project."))
     }
 
     @Test func ofAManyLinedFailureNotTheCLIsTheFirstLineWithAnythingOnItIsGiven() async {
@@ -71,7 +70,7 @@ struct SitRepCLITests {
         """
         let (cli, _) = Self.cli(Self.exited(1, stderr: stderr))
 
-        #expect(await cli.board(of: "sr-macapp") == .failed(#"error: Cannot find module "../cli/shell" from "/Users/lee/Code/sitrep/bin/sitrep""#))
+        #expect(await cli.finish("sr-gs7kq2") == .refused(#"error: Cannot find module "../cli/shell" from "/Users/lee/Code/sitrep/bin/sitrep""#))
     }
 
     @Test func thePathIsAskedForAtEachRun() async {
@@ -80,31 +79,19 @@ struct SitRepCLITests {
         let cli = SitRepCLI(plugin: Self.plugin, path: { paths.withLock { $0.removeFirst() } }, environment: [:]) { program in
             programs.add(program)
 
-            return Ran(status: 0, stdout: Lines.board, stderr: "")
+            return Ran(status: 0, stdout: "", stderr: "")
         }
 
-        _ = await cli.board(of: "sr-macapp")
-        _ = await cli.board(of: "sr-macapp")
+        _ = await cli.finish("sr-gs7kq2")
+        _ = await cli.finish("sr-gs7kq2")
 
         #expect(programs.all.map { $0.environment["PATH"] } == ["/usr/bin:/bin", Self.path])
-    }
-
-    @Test func aBoardThatIsNotJSONSaysSo() async {
-        let (cli, _) = Self.cli(Self.exited(0, stdout: "SitRep\n  sr-aw3bgs  Menu bar"))
-
-        #expect(await cli.board(of: "sr-macapp") == .failed("sitrep board gave output this SitRep cannot read."))
-    }
-
-    @Test func aBoardThatNeverEndsSaysSo() async {
-        let (cli, _) = Self.cli { program in throw RunError.timedOut(program.limit) }
-
-        #expect(await cli.board(of: "sr-macapp") == .failed("sitrep board did not answer within 10 seconds."))
     }
 
     @Test func aCLIThatCannotStartSaysSo() async {
         let (cli, _) = Self.cli { _ in throw RunError.unstartable("no such file") }
 
-        #expect(await cli.board(of: "sr-macapp") == .failed("sitrep board could not start: no such file."))
+        #expect(await cli.finish("sr-gs7kq2") == .refused("sitrep finish could not start: no such file."))
     }
 
     @Test func jumpRunsTheCLIOnTheWorkWithTimeForItsLongestJump() async {
@@ -130,26 +117,6 @@ struct SitRepCLITests {
         let (cli, _) = Self.cli { program in throw RunError.timedOut(program.limit) }
 
         #expect(await cli.jump(to: "sr-047c7y") == .refused("sitrep jump did not answer within 180 seconds."))
-    }
-
-    @Test func boardRunsBoardJSONOnTheSessionAndGivesItsBoard() async throws {
-        let (cli, programs) = Self.cli(Self.exited(0, stdout: Lines.board))
-
-        #expect(await cli.board(of: "sr-macapp") == .board(try SessionBoard.read(Lines.board)))
-        #expect(programs.all.map(\.arguments) == [["board", "--json", "--session", "sr-macapp"]])
-        #expect(programs.all.map(\.limit) == [10])
-    }
-
-    @Test func aBoardThatFailsGivesTheCLIsOwnWords() async {
-        let (cli, _) = Self.cli(Self.exited(2, stderr: "sitrep: There is no session sr-zzzzzz on the board, in any project.\n"))
-
-        #expect(await cli.board(of: "sr-zzzzzz") == .failed("There is no session sr-zzzzzz on the board, in any project."))
-    }
-
-    @Test func aBoardOfAnotherVersionSaysSo() async {
-        let (cli, _) = Self.cli(Self.exited(0, stdout: #"{"v":3}"#))
-
-        #expect(await cli.board(of: "sr-macapp") == .failed("sitrep board gave output version 3, and this SitRep reads version 2."))
     }
 
     @Test func anAnswerGivesTheAskAndTheButtonsWordsAfterTheFlagsEnd() async {

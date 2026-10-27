@@ -9,25 +9,25 @@ struct Frozen: Equatable, Sendable {
     let session: String
     /// Its asks by id, in the order they show.
     private var order: [String] = []
-    /// Each ask as last read: a closed one shows as it last stood.
+    /// Each ask as its board last had it: a closed one shows as it last stood.
     private var known: [String: Board.Ask] = [:]
     /// Those closed since they first showed, and how.
     private var closed: [String: Card.Closed] = [:]
     /// Those new since the session first showed, washed from when they came, until their washes end.
     private(set) var washed: [String: Date] = [:]
-    /// A read has landed since the page showed: what the seed showed is not compared against.
-    private var hasRead = false
+    /// A board has come since the page showed: what the seed showed is not compared against.
+    private var hasBoard = false
 
-    /// Its asks laid out from its board as last read, if it has been, until a fresh read lands, which lays them out
+    /// Its asks laid out from its board as last kept, if there is one, until its next board comes, which lays them out
     /// again.
-    init(session: String, read board: SessionBoard?) {
+    init(session: String, kept board: SessionBoard?) {
         self.session = session
         if let board {
             layOut(board)
         }
     }
 
-    /// The asks as they show: each as last read, and how it closed, if it has.
+    /// The asks as they show: each as its board last had it, and how it closed, if it has.
     var asks: [(ask: Board.Ask, closed: Card.Closed?)] {
         order.compactMap { id in known[id].map { ($0, closed[id]) } }
     }
@@ -35,12 +35,12 @@ struct Frozen: Equatable, Sendable {
     /// The asks closed since they showed, which Resolved leaves to Asks while they keep their places there.
     var kept: Set<String> { Set(closed.keys) }
 
-    /// The session's board as read, what is new washed from this time, if one is given. The first read since the
-    /// page showed lays its asks out, washing nothing and keeping nothing closed: Lee saw neither come nor go.
+    /// The session's board as a line carried it, what is new washed from this time, if one is given. The first board
+    /// since the page showed lays its asks out, washing nothing and keeping nothing closed: Lee saw neither come nor go.
     mutating func take(_ board: SessionBoard, washingAt time: Date?) {
-        guard hasRead else {
+        guard hasBoard else {
             layOut(board)
-            hasRead = true
+            hasBoard = true
             return
         }
 

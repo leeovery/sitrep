@@ -18,9 +18,9 @@ private let watchRows = [
 
 /// The first line the real `sitrep watch` printed on 20 October 2026, run once over a board seeded in a scratch
 /// `XDG_STATE_HOME`: SitRep's ask, which a window holds, and Switchboard's, which none does. Verbatim, but for the
-/// line breaks and its rows, grouped by session as version 2 prints them (`Lines`).
+/// line breaks, its rows, grouped by session as version 2 printed them, and its move to version 3 (`Lines`).
 let realLine = #"""
-    {"v":2,"at":1792453038194,"version":"0.1.0","head":{"needYou":2,"sessions":2},"rows":[{"session":"sr-n0tch1",\#
+    {"v":3,"at":1792453038194,"version":"0.1.0","head":{"needYou":2,"sessions":2},"rows":[{"session":"sr-n0tch1",\#
     "section":"needsYou","isAway":false,"project":"sitrep","name":"Build the Mac app","projectName":"SitRep",\#
     "letters":"SR","lines":[{"key":"ask:sr-n0tch1:k1ap",\#
     "is":"ask","ask":"k1ap","writer":null,"first":{"lead":"Approve the caption","mono":null,"more":null},\#
@@ -46,7 +46,7 @@ let realLine = #"""
     "where":null,"options":[],"needs":null,"ref":null,"state":"waiting","at":1792451832636}]}]}],\#
     "windows":[{"writer":"b1c2d3e4-0000-4000-8000-0000000000aa","session":"sr-n0tch1","name":"Build the Mac app",\#
     "project":"SitRep","version":null,"needsReload":true,"where":null,"state":null,"attachedAt":1792449432636}],\#
-    "new":[],"changed":[]}
+    "new":[],"boards":{}}
     """#
 
 /// One session working, nothing needing Lee.
@@ -59,9 +59,9 @@ let allClearLine = line(
 
 func line(needYou: Int, sessions: Int, new: [String], rows: [String]) -> String {
     """
-    {"v":2,"at":1792445574706,"version":"0.1.0","head":{"needYou":\(needYou),"sessions":\(sessions)},\
+    {"v":3,"at":1792445574706,"version":"0.1.0","head":{"needYou":\(needYou),"sessions":\(sessions)},\
     "rows":[\(rows.joined(separator: ","))],"projects":[],"windows":[],\
-    "new":[\(new.map { "\"\($0)\"" }.joined(separator: ","))],"changed":[]}
+    "new":[\(new.map { "\"\($0)\"" }.joined(separator: ","))],"boards":{}}
     """
 }
 

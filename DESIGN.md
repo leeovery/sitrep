@@ -3971,15 +3971,16 @@ stands).
   heading or "N earlier"; for a session with no row, its project's row, or
   Projects' heading folded over it; past either end the
   keys go nowhere, and with a modifier held they are the list's own; picks that
-  follow sooner than 150ms read only the last one's boards once they stop.
-  With the Mac's key repeat faster than that, holding ↓ reads the first
+  follow sooner than 150ms follow only the last one's sessions once they
+  stop, the window following meanwhile what it followed as they began.
+  With the Mac's key repeat faster than that, holding ↓ follows the first
   row, the second, as the Mac waits longer before a key repeats, and the
-  one it stops on; at a slower repeat each row reads. Only a read that
-  runs takes its place as a session's latest, so one let go never throws
-  away a read under way, and none waiting runs once the window closes or
-  is minimised. Each pick in the list holds the list's order for a second
-  after it, as the pointer over the list does, so no row moves between two
-  presses of a key; closing or minimising the window lets the hold go. Each
+  one it stops on; at a slower repeat each row is followed. A run of picks
+  waiting is let go once the window closes or is minimised, which follows
+  nothing until it shows again. Each pick in the list holds the list's
+  order for a second after it, as the pointer over the list does, so no
+  row moves between two presses of a key; closing or minimising the window
+  lets the hold go. Each
   section is held on its own, as on the card, and Projects too, so a row
   changing section leaves its held place and takes its place in its new
   one, where `watch` has it. A resort slides the rows; a fold, or a row
@@ -4116,9 +4117,9 @@ stands).
     undo (borrowed from One, in Lee's dex). Then it goes into the session's
     inbox, as the pane's replies to another session do (see "Delivery"), by
     `sitrep answer`. The card says "on its way", then "sent, and Claude has
-    it", then moves to Resolved, as each ask's `reply` in `board --json`
-    says (see "One engine, two front ends"). The board never closes an ask
-    on the press alone;
+    it", then moves to Resolved, as each ask's `reply` on the session's
+    board says, as `watch` carries it (see "One engine, two front ends").
+    The board never closes an ask on the press alone;
   - **a jump shows on the button pressed** alone, faint while it runs; the
     other cards stay as they look, and take no second jump while one runs;
   - **a comment, a words ask and a permission prompt** need Claude Code's
@@ -4258,6 +4259,18 @@ asked for the sessions back, and approved the redraw as it stands.
     or within a minute of the last renewal, is a failure, so a `watch` that
     keeps exiting cannot spin. A run's life counts from its child starting,
     not from asking Lee's shell for the PATH before it.
+  - **What the window follows** (27 October 2026) goes on `watch`'s
+    standard input, a pipe, as a follow line (see "Following", under
+    `watch`). The set outlives every run: each run is told it first, as it
+    starts, a run after a back-off or a renewal among them, so a new run
+    carries every board the window shows, each new to it; then the run
+    under way is told it again as it changes, and as the window asks for a
+    look now after a write of its own. The pipe is written on a queue of
+    its own, never on the main thread nor while the app waits on it, so a
+    `watch` that reads slowly, or not at all, holds up nothing; a write
+    after `watch` ended, or once it closed its standard input, is dropped,
+    the app ignoring the broken pipe (SIGPIPE) that would otherwise kill
+    it.
   - **The reason.** The last 20 lines of `watch`'s stderr are kept, each to
     1KB. The reason is the last that says anything: the CLI's own `sitrep:`
     line when it ended on its own error, else the error's own line when Bun
@@ -4268,14 +4281,20 @@ asked for the sessions back, and approved the redraw as it stands.
     holding it open does not hold up the exit.
   - **Stale since.** The board is stale from the instant the app heard the
     exit, the failed start, or a line that does not read (one longer than
-    1MB among them); the "as of" is that instant, not the board's own time,
-    since `watch` prints only on a change. A line that reads ends it.
-  - **The first board of a run after another** is marked as resumed: its
-    `new` and `changed` are empty, as on any run's first line, though the
-    board may have moved while `watch` was down, so the SitRep window reads
-    what it shows again in full. The app decides no rows of its own, so a
-    row that needed Lee and came while `watch` was down gets no swell or
-    flash: accepted.
+    16MB among them); the "as of" is that instant, not the board's own time,
+    since `watch` prints only on a change. A line that reads ends it. 16MB
+    leaves room enough: 81 sessions made a line of 626KB, and the largest
+    board is about 90KB, growing with its Resolved. The limit is that high
+    because `watch` counts a board as printed once written, so a refused
+    line would lose its boards until they next changed.
+  - **The first board of a run after another** is a run's first line: its
+    `new` is empty, as on any run's first line, though the board may have
+    moved while `watch` was down. The SitRep window needs nothing of its
+    own for it: the new run is told the set before anything else, every
+    session in it new to that run, so the line after its first look
+    carries each of their boards afresh. The app decides no rows of its
+    own, so a row that needed Lee and came while `watch` was down gets no
+    swell or flash: accepted.
 - **The icon** in the menu bar is the light's glyph (see "The icon"): white
   on a dark menu bar and black on a light one, its bar lit orange while
   anything needs Lee, since the notch is on one display and the menu bar on
@@ -5084,7 +5103,7 @@ reaches a window only while that pane is on show).
         ask into a turn in place: an ask answered goes, and its session's
         turn comes in.
       - **Its flash is `new`'s alone.** A needs you new to the strip but not
-        on the line's `new`, as on a first or a resumed line, comes in with
+        on the line's `new`, as on any run's first line, comes in with
         the rest, unflashed.
       - **The click**, on a mark or its tab, spins until the jump answers,
         450ms at most, as a panel row does, where the prototype always spins
@@ -5267,8 +5286,7 @@ reaches a window only while that pane is on show).
         `LastBoard.isRunsFirst`), nor for a board gone stale, whose `new` was
         told as it came. A run's first line is its first whether or not it
         reads, so after one that does not, the next that reads notifies as
-        usual, though it is still the run's first board, resumed, for the
-        window to read again in full. Several are sent in core's order.
+        usual. Several are sent in core's order.
         Each names the ask's project and session from the
         board's projects, so an away ask's says them too, where its second
         line does not; its click jumps nowhere. Turning the switch on asks
@@ -5349,17 +5367,29 @@ reaches a window only while that pane is on show).
         - **One `watch`.** The app's one `watch` feeds the edge and the
           window alike. The window lists `projects` in `watch`'s order and
           counts `head` as the panel does; a session's detail, its asks
-          among it, is its `board --json`, read as it is picked, for each
-          session of a project opened, again whenever `changed` names one
-          shown, and every one shown on a resumed board, only while the
-          window shows; of two reads of a session crossing, the one asked
-          for last is taken. Until a read lands, a session picked again, or
-          the window reopened on it, shows its board as last read, its asks
-          among it; that first read lays the asks out afresh, washing
+          among it, is its board as the last line that carried it gave it
+          (see "Following", under `watch`). The window follows the session
+          picked, or each session of a project opened, only while it shows:
+          minimised, hidden or closed, it follows nothing, and back it
+          follows its page again. The app writes the set followed to
+          `watch`'s standard input as it changes; again after each of the
+          window's own writes that lands (an answer, a snooze, a wake, a
+          finish), so `watch` looks at once; and to each run of `watch` as
+          it starts, before anything else (see "How the app keeps `watch`
+          running"). Until a session's board comes, a session picked again,
+          or the window reopened on it, shows its board as last kept, its
+          asks among it; that first board lays the asks out afresh, washing
           nothing and keeping nothing closed, as Lee saw neither come nor
-          go. A read that fails says why over what was read before, and
-          keeps it. Minimised, it reads nothing; brought back, its page
-          reads what it shows again.
+          go. A null in its place, `watch` finding no such session, says
+          "This session isn't on the board." over what was kept, and keeps
+          it. A board is taken as its line comes, never again from a board
+          gone stale. This took the place (27 October 2026, Lee's cleanup)
+          of a `board --json` run for each read: as a session was picked,
+          for each session of a project opened, again whenever `changed`
+          named one shown, after each write, and for every one shown on a
+          run's first board after another, of two reads crossing the one
+          asked for last taken. So there is no process per read, and a
+          session's board and its row come from one look.
         - **Its counts.** A project's orange count, and a project's
           session's "2 waiting", are its rows needing Lee, stops among them;
           Asks' "3 waiting" is the asks waiting on Lee, as `waiting` counts
@@ -5391,15 +5421,15 @@ reaches a window only while that pane is on show).
           the one pressed last on the page showing while it waits (one on a
           page left goes as it would); then it is "sending" until `reply`
           says on its way, as an answer, or, once `sitrep answer` has
-          written it, until the first read asked for after, whatever it
-          says (should every one fail, the card says on its way, as the
-          write proved); then the card takes `reply`'s word: "on its way: waits for
+          written it, until its session's next board, whatever it says (a
+          null in its place, the card says on its way, as the write
+          proved); then the card takes `reply`'s word: "on its way: waits for
           the turn to end" mid-turn, "waits in its inbox for a window" away.
           A comment on its way keeps the buttons. `sitrep answer`'s refusal
           shows on the card in its words, its buttons back, until another
-          session is picked, or a read has the ask closed or Lee's answer to
-          it on its way, which bars them. After a written answer the session
-          is read again at once.
+          session is picked, or a board has the ask closed or Lee's answer
+          to it on its way, which bars them. After a written answer `watch`
+          looks again at once, so its session's board comes straight after.
         - **Kept in place.** The asks of the page showing, a session's or
           each of a project's sessions', show the newest first, as the
           pane's. The page is held as the list is: while the pointer is
@@ -5415,8 +5445,8 @@ reaches a window only while that pane is on show).
           window stops being key or goes out of sight, as on another Space,
           as the list's does; at once as the window closes or minimises.
           Once it has let go, or with the pointer elsewhere, every closed
-          ask leaves the asks, at once or at the next read, and shows in
-          Resolved, as a page picked afresh shows it. An ask whose answer
+          ask leaves the asks, at once or at its session's next board, and
+          shows in Resolved, as a page picked afresh shows it. An ask whose answer
           waits its 2 seconds or is on its way is open, and stays; one
           Claude closed under a press still waiting stays until the press
           settles. A new ask lands at the top, washed; so does one let go
@@ -5653,9 +5683,10 @@ reaches a window only while that pane is on show).
      shell again at the next run, so a shell slow as Lee logs in costs one
      run, not every run until a restart. Every child gets that PATH and
      otherwise the app's own environment, and a time limit, only a backstop
-     for a CLI that hangs: 10 seconds for a run on one session's files,
-     `board --json` or a write, as for the `list --json` the plain menu ran,
-     and 180 for a jump, well above any realistic one. A jump takes under a
+     for a CLI that hangs: 10 seconds for a run on one session's files, a
+     write, as for the `list --json` the plain menu ran and the
+     `board --json` the window ran before it followed boards through
+     `watch`, and 180 for a jump, well above any realistic one. A jump takes under a
      second as Ghostty answers, and one Ghostty does not answer at all, as
      with the screen locked, is refused at its first question, after 5
      seconds. It is no true ceiling: the 5 seconds hold for each question to

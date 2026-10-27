@@ -219,8 +219,8 @@ private let stills = ProcessInfo.processInfo.environment["SITREP_STILLS"].map(UR
 /// A board for the stills: the menu drawing's sessions.
 private func stillsLine(windows: [String]) -> String {
     """
-    {"v":2,"at":1792445574706,"version":"0.2.0","head":{"needYou":1,"sessions":1},"rows":[],"projects":[],\
-    "windows":[\(windows.joined(separator: ","))],"new":[],"changed":[]}
+    {"v":3,"at":1792445574706,"version":"0.2.0","head":{"needYou":1,"sessions":1},"rows":[],"projects":[],\
+    "windows":[\(windows.joined(separator: ","))],"new":[],"boards":{}}
     """
 }
 

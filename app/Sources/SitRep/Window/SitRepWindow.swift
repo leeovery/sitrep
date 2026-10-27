@@ -15,9 +15,12 @@ final class SitRepWindow: NSObject, NSWindowDelegate {
     private var focus: SideFocus?
     private var keys: Any?
 
-    init(plugin: Plugin, works: Works, snoozes: Snoozes, settings: SettingsModel) {
+    /// `following`, what the app's one `watch` is told the window follows.
+    init(plugin: Plugin, works: Works, snoozes: Snoozes, following: Following, settings: SettingsModel) {
         let preferences = settings.preferences
-        let model = WindowModel(plugin: plugin, works: works, snoozes: snoozes, period: preferences.app.foldsAfter)
+        let model = WindowModel(
+            plugin: plugin, works: works, snoozes: snoozes, following: following, period: preferences.app.foldsAfter
+        )
 
         self.model = model
         self.settings = settings

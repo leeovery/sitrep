@@ -1,10 +1,10 @@
 {
-  "v": 2,
+  "v": 3,
   "project": {
     "key": "harness",
     "name": "Harness"
   },
-  "work": {
+  "session": {
     "id": "sr-4g01a7",
     "name": "Finish the Harness modernisation",
     "summary": "Move the harness to the new runner",

@@ -49,11 +49,11 @@ struct ChimeTests {
         #expect(Chime.due(heard([.line(Self.newAsk)]), Self.chosen()) == nil)
     }
 
-    @Test func aResumedBoardPlaysNothing() {
-        let resumed = heard([.line(Watched.line(rows: [])), .exited(.status(1), stderr: "")], [.line(Self.newAsk)])
+    @Test func theFirstBoardOfARunAfterAnotherPlaysNothing() {
+        let restarted = heard([.line(Watched.line(rows: [])), .exited(.status(1), stderr: "")], [.line(Self.newAsk)])
 
-        #expect(resumed.isResumed)
-        #expect(Chime.due(resumed, Self.chosen()) == nil)
+        #expect(restarted.isRunsFirst)
+        #expect(Chime.due(restarted, Self.chosen()) == nil)
     }
 
     @Test func aStaleBoardPlaysNothingAgain() {

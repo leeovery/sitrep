@@ -13,7 +13,17 @@ import Foundation
 /// over `bySession`'s board gave, field for field, what the real version 2 printed over it. Each row's `name` and
 /// `projectName`, which came after (22 October 2026, `v` unmoved), were set from its session and project on its own
 /// line.
+///
+/// Every line and board here printed before 27 October 2026 was moved to version 3 that day as the CLI moved, every
+/// other field as printed: a line's `changed` gave way to `boards`, `{}`, as nothing was followed; a board's `work`
+/// became its `session`. `following` is what the real version 3 printed.
 public enum Lines {
+    /// `sitrep watch`'s four lines at version 3 over a board of its own, run on 27 October 2026, its standard input a
+    /// fifo: Harness's Follow the boards, away, a yes (ayh1) and a choice (vx3g) waiting; then, after a follow line
+    /// naming it and sr-n0n3zz, which no project files, its board and a null for the other; then, a third ask (0rzx)
+    /// posted, new on the line, its board again; then, the yes answered, its board with the yes on its way.
+    public static let following = printed("watch-boards.jsonl").split(separator: "\n").map(String.init)
+
     /// `sitrep watch`'s first two lines at version 2, rows by session, over a board of its own run on 22 October 2026:
     /// Harness's Finish the Harness modernisation, its window working, three asks waiting; Switchboard's Dashboard
     /// redesign, a words ask and its window stopped on a permission prompt since; Goosemates' Onboarding, away, a
@@ -54,6 +64,19 @@ public enum Lines {
     /// permission prompt; Request ledger's, nothing waiting.
     public static let dashboard = printed("board-dash02.json")
     public static let ledger = printed("board-ledger.json")
+
+    /// A line of `watch` that carried no board, carrying these sessions' boards, each as `board --json` printed it, or
+    /// null, as a line carries them for the sessions the window follows.
+    public static func carrying(_ boards: [String: String?], on line: String) -> String {
+        let carried = boards.sorted { $0.key < $1.key }.map { "\"\($0.key)\":\($0.value ?? "null")" }
+        let carrying = line.replacingOccurrences(of: #""boards":{}"#, with: #""boards":{\#(carried.joined(separator: ","))}"#)
+
+        guard carrying != line || boards.isEmpty else {
+            fatalError("The line carries boards already")
+        }
+
+        return carrying
+    }
 
     private static func printed(_ name: String) -> String {
         guard let url = Bundle.module.url(forResource: "Printed/\(name)", withExtension: nil),

@@ -3,27 +3,29 @@ import Foundation
 import SitRepLines
 import Testing
 
-/// `board --json` and the asks on `watch`'s lines, read from what the real CLI printed (`Lines`).
+/// A session's board as a line of `watch` carries it, and the asks on `watch`'s lines, read from what the real CLI
+/// printed (`Lines`).
 struct SessionBoardTests {
-    private static func at(_ milliseconds: Double) -> Date {
-        Date(timeIntervalSince1970: milliseconds / 1000)
+    /// The Mac app's board, as `board --json` printed it, carried on a line.
+    private static func read(_ board: String) throws -> SessionBoard {
+        try carried(board, of: "sr-macapp")
     }
 
     @Test func aSessionsBoardGivesItsProjectAndTheSessionInBrief() throws {
-        let board = try SessionBoard.read(Lines.board)
+        let board = try Self.read(Lines.board)
 
         #expect(board.project == SessionBoard.Project(key: "sitrep", name: "SitRep"))
-        #expect(board.work.id == "sr-macapp")
-        #expect(board.work.name == "The Mac app")
-        #expect(board.work.now == ["Drawing round 3, the SitRep window, in Paper", "Keeping DESIGN.md in step on docs/surfaces"])
-        #expect(board.work.next == "round 4, the menu bar item and its menu")
-        #expect(board.work.isOpen)
-        #expect(board.work.waiting == 3)
-        #expect(board.work.parked == 1)
+        #expect(board.session.id == "sr-macapp")
+        #expect(board.session.name == "The Mac app")
+        #expect(board.session.now == ["Drawing round 3, the SitRep window, in Paper", "Keeping DESIGN.md in step on docs/surfaces"])
+        #expect(board.session.next == "round 4, the menu bar item and its menu")
+        #expect(board.session.isOpen)
+        #expect(board.session.waiting == 3)
+        #expect(board.session.parked == 1)
     }
 
     @Test func itsAsksComeOldestFirstEachWithWhatItWantsBackAndNoReplyBeforeOneIsSent() throws {
-        let asks = try SessionBoard.read(Lines.board).asks
+        let asks = try Self.read(Lines.board).asks
 
         #expect(asks.map(\.id) == ["k2", "k3", "k1"])
         #expect(asks.map(\.wants) == [.choice, .words, .yes])
@@ -35,7 +37,7 @@ struct SessionBoardTests {
     }
 
     @Test func anAnswerAndAnIgnoreInTheInboxAreOnTheirWayAsAnswersTheAskStillWaiting() throws {
-        let asks = try SessionBoard.read(Lines.onItsWay).asks
+        let asks = try Self.read(Lines.onItsWay).asks
 
         #expect(asks.map(\.state) == [.waiting, .waiting, .waiting])
         #expect(asks[1].reply?.standing == .onItsWay)
@@ -46,7 +48,7 @@ struct SessionBoardTests {
     }
 
     @Test func itsParkedItemsAndLatestLogLinesComeWithTheirTimes() throws {
-        let board = try SessionBoard.read(Lines.board)
+        let board = try Self.read(Lines.board)
 
         #expect(board.parked.map(\.title) == ["Try a shy notch"])
         #expect(board.log.map(\.kind) == [.note, .note, .status])
@@ -56,7 +58,7 @@ struct SessionBoardTests {
     }
 
     @Test func itsResolvedAsksComeNewestClosedFirstClosedByLeesAnswerOrByClaudeWithItsReason() throws {
-        let resolved = try SessionBoard.read(Lines.board).resolved
+        let resolved = try Self.read(Lines.board).resolved
 
         #expect(resolved.map(\.id) == ["k5", "k4"])
         #expect(resolved[0].reason == "you said \"left\" in the chat")
@@ -68,7 +70,7 @@ struct SessionBoardTests {
     }
 
     @Test func onceDeliveredTheYesIsResolvedByLeesAnswerAndTheIgnoredAskIsGone() throws {
-        let board = try SessionBoard.read(Lines.delivered)
+        let board = try Self.read(Lines.delivered)
 
         #expect(board.asks.map(\.id) == ["k2"])
         #expect(board.resolved.map(\.id) == ["k1", "k5", "k4"])
@@ -91,21 +93,15 @@ struct SessionBoardTests {
         #expect(throws: Unread.shape) { try Board.read(line) }
     }
 
-    @Test func aBoardOfAnotherVersionSaysSo() {
-        let older = Lines.board.replacingOccurrences(of: #""v": 2"#, with: #""v": 1"#)
-
-        #expect(throws: Unread.version(given: 1, read: 2)) { try SessionBoard.read(older) }
-    }
-
     @Test(arguments: [
         (#""is": "onItsWay""#, #""is": "underWay""#),
         (#""wants": "choice""#, #""wants": "pick""#),
         (#""kind": "status""#, #""kind": "edit""#),
     ])
     func aValueTheAppDoesNotKnowIsRefused(known: String, unknown: String) throws {
-        let line = Lines.onItsWay.replacingOccurrences(of: known, with: unknown)
+        let board = Lines.onItsWay.replacingOccurrences(of: known, with: unknown)
 
-        try #require(line != Lines.onItsWay)
-        #expect(throws: Unread.shape) { try SessionBoard.read(line) }
+        try #require(board != Lines.onItsWay)
+        #expect(throws: Unread.shape) { try Self.read(board) }
     }
 }

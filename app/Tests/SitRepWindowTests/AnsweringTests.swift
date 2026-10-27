@@ -70,83 +70,69 @@ struct AnsweringTests {
         #expect(!run.undo())
     }
 
-    @Test func writtenTheSessionIsReadAgainAndItsReplyOnItsWayIsTheCardsWord() throws {
+    @Test func writtenItAsksForALookNowAndItsSessionsNextBoardSaysWhereTheAnswerIs() throws {
         let run = opened()
 
         _ = run.press(.yes("Approve"), on: Self.yes, at: printedAt)
         _ = run.due(at: printedAt.addingTimeInterval(2))
-
-        let reads = run.answered(Self.yes, .written)
-
-        #expect(reads.map(\.session) == ["sr-macapp"])
+        #expect(run.answered(Self.yes, .written))
         #expect(try Self.card(Self.yes, run).lines == [.sending("→ Approve")])
-        answer(reads, in: run, with: ["sr-macapp": Lines.onItsWay])
+        take(["sr-macapp": Lines.onItsWay], in: run)
         #expect(try Self.card(Self.yes, run).lines == [.onItsWay("→ Approve", .turn)])
         #expect(run.answers.pending.isEmpty)
     }
 
-    @Test func aReadAskedForBeforeItWasWrittenLeavesItSendingTheFirstAfterSettlesItWhateverItSays() throws {
+    /// The answer's going is the change that board carries, so a board without it is one from before the write.
+    @Test func aBoardBeforeItIsWrittenLeavesItSendingTheFirstAfterSettlesItWhateverItSays() throws {
         let run = opened()
 
         _ = run.press(.yes("Approve"), on: Self.yes, at: printedAt)
         _ = run.due(at: printedAt.addingTimeInterval(2))
-
-        let before = run.pick(.session("sr-macapp"))
-        let after = run.answered(Self.yes, .written)
-
-        answer(before, in: run, with: ["sr-macapp": Lines.board])
+        take(["sr-macapp": Lines.board], in: run)
         #expect(try Self.card(Self.yes, run).lines == [.sending("→ Approve")])
-        answer(after, in: run, with: ["sr-macapp": Lines.board])
+        _ = run.answered(Self.yes, .written)
+        take(["sr-macapp": Lines.board], in: run)
         #expect(run.answers.pending.isEmpty)
         #expect(try Self.card(Self.yes, run).buttons.first == .yes("Approve"))
     }
 
-    @Test func writtenWhileAnotherPageShowsAReadStillOnItsWayFromBeforeLeavesItSending() throws {
+    @Test func writtenWhileAnotherPageShowsAnotherSessionsBoardLeavesItWritten() {
         let run = opened()
 
         _ = run.press(.yes("Approve"), on: Self.yes, at: printedAt)
         _ = run.due(at: printedAt.addingTimeInterval(2))
-
-        let inFlight = run.pick(.session("sr-macapp"))
-
-        _ = run.pick(.session("sr-dash02"))
-        #expect(run.answered(Self.yes, .written).isEmpty)
-        answer(inFlight, in: run, with: ["sr-macapp": Lines.board])
-        #expect(run.answers.pending[Self.yes]?.stage == .written(after: try #require(inFlight.first).ticket))
+        run.pick(.session("sr-dash02"))
+        #expect(run.answered(Self.yes, .written))
+        take(["sr-dash02": Lines.dashboard], in: run)
+        #expect(run.answers.pending[Self.yes]?.stage == .written)
     }
 
-    @Test func writtenAndEveryReadSinceFailedItIsOnItsWayAsTheWriteProvedUntilAReadSaysMore() throws {
+    @Test func writtenAndTheNextLineCarryingNoBoardOfItsSessionItIsOnItsWayAsTheWriteProvedUntilABoardSaysMore() throws {
         let run = opened()
 
         _ = run.press(.yes("Approve"), on: Self.yes, at: printedAt)
         _ = run.due(at: printedAt.addingTimeInterval(2))
-
-        let before = run.pick(.session("sr-macapp"))
-        let after = run.answered(Self.yes, .written)
-
-        for read in before {
-            run.read(read, gave: .failed("sitrep board ended with status 1."), at: printedAt, reducesMotion: false)
-        }
+        take(["sr-macapp": nil], in: run)
         #expect(try Self.card(Self.yes, run).lines == [.sending("→ Approve")])
-        for read in after {
-            run.read(read, gave: .failed("sitrep board ended with status 1."), at: printedAt, reducesMotion: false)
-        }
+        _ = run.answered(Self.yes, .written)
+        take(["sr-macapp": nil], in: run)
         #expect(try Self.card(Self.yes, run).lines == [.onItsWay("→ Approve", .turn)])
         #expect(try Self.card(Self.yes, run).buttons.isEmpty)
         overThePage(run)
-        answer(run.pick(.session("sr-macapp")), in: run, with: ["sr-macapp": Lines.delivered])
+        take(["sr-macapp": Lines.delivered], in: run)
         #expect(run.answers.pending.isEmpty)
         #expect(try Self.card(Self.yes, run).lines == [.closed(.sent)])
     }
 
-    @Test func writtenWhileAnotherPageShowsItIsSettledByTheReadAsItShowsAgain() throws {
+    @Test func writtenWhileAnotherPageShowsItIsSettledByItsBoardAsItShowsAgain() throws {
         let run = opened()
 
         _ = run.press(.yes("Approve"), on: Self.yes, at: printedAt)
         _ = run.due(at: printedAt.addingTimeInterval(2))
-        _ = run.pick(.session("sr-dash02"))
-        #expect(run.answered(Self.yes, .written).isEmpty)
-        answer(run.pick(.session("sr-macapp")), in: run, with: ["sr-macapp": Lines.onItsWay])
+        run.pick(.session("sr-dash02"))
+        _ = run.answered(Self.yes, .written)
+        run.pick(.session("sr-macapp"))
+        take(["sr-macapp": Lines.onItsWay], in: run)
         #expect(run.answers.pending.isEmpty)
         #expect(try Self.card(Self.yes, run).lines == [.onItsWay("→ Approve", .turn)])
     }
@@ -157,36 +143,36 @@ struct AnsweringTests {
         _ = refusedFirst.press(.yes("Approve"), on: Self.yes, at: printedAt)
         _ = refusedFirst.due(at: printedAt.addingTimeInterval(2))
         _ = refusedFirst.answered(Self.yes, .refused("An answer to k1 is on its way already."))
-        answer(refusedFirst.pick(.session("sr-macapp")), in: refusedFirst, with: ["sr-macapp": Lines.onItsWay])
+        take(["sr-macapp": Lines.onItsWay], in: refusedFirst)
         #expect(try Self.card(Self.yes, refusedFirst).lines == [.onItsWay("→ Approve", .turn)])
         #expect(try Self.card(Self.yes, refusedFirst).buttons.isEmpty)
 
-        let readFirst = opened()
+        let boardFirst = opened()
 
-        _ = readFirst.press(.yes("Approve"), on: Self.yes, at: printedAt)
-        answer(readFirst.pick(.session("sr-macapp")), in: readFirst, with: ["sr-macapp": Lines.onItsWay])
-        _ = readFirst.due(at: printedAt.addingTimeInterval(2))
-        _ = readFirst.answered(Self.yes, .refused("An answer to k1 is on its way already."))
-        #expect(try Self.card(Self.yes, readFirst).lines == [.onItsWay("→ Approve", .turn)])
-        #expect(try Self.card(Self.yes, readFirst).buttons.isEmpty)
+        _ = boardFirst.press(.yes("Approve"), on: Self.yes, at: printedAt)
+        take(["sr-macapp": Lines.onItsWay], in: boardFirst)
+        _ = boardFirst.due(at: printedAt.addingTimeInterval(2))
+        _ = boardFirst.answered(Self.yes, .refused("An answer to k1 is on its way already."))
+        #expect(try Self.card(Self.yes, boardFirst).lines == [.onItsWay("→ Approve", .turn)])
+        #expect(try Self.card(Self.yes, boardFirst).buttons.isEmpty)
     }
 
     @Test func escapeTakesBackOnlyAnAnswerOnThePageShowingOneOnAPageLeftGoesAsItWould() {
         let run = opened()
 
         _ = run.press(.yes("Approve"), on: Self.yes, at: printedAt)
-        _ = run.pick(.session("sr-dash02"))
+        run.pick(.session("sr-dash02"))
         #expect(!run.undo())
         #expect(run.due(at: printedAt.addingTimeInterval(2)).map(\.ask) == [Self.yes])
     }
 
-    @Test func refusedTheCardSaysWhyAndOffersItsButtonsAgain() throws {
+    @Test func refusedTheCardSaysWhyAndOffersItsButtonsAgainAskingForNoLook() throws {
         let run = opened()
         let why = "k2 wants a choice: answer it with “Left, the notch's edge” or “Right”."
 
         _ = run.press(.option("Upward"), on: Self.choice, at: printedAt)
         _ = run.due(at: printedAt.addingTimeInterval(2))
-        #expect(run.answered(Self.choice, .refused(why)).isEmpty)
+        #expect(!run.answered(Self.choice, .refused(why)))
 
         let card = try Self.card(Self.choice, run)
 
@@ -200,9 +186,25 @@ struct AnsweringTests {
         _ = run.press(.option("Upward"), on: Self.choice, at: printedAt)
         _ = run.due(at: printedAt.addingTimeInterval(2))
         _ = run.answered(Self.choice, .refused("No."))
-        _ = run.pick(.session("sr-dash02"))
-        answer(run.pick(.session("sr-macapp")), in: run, with: ["sr-macapp": Lines.board])
+        run.pick(.session("sr-dash02"))
+        run.pick(.session("sr-macapp"))
+        take(["sr-macapp": Lines.board], in: run)
         #expect(try Self.card(Self.choice, run).lines.isEmpty)
+    }
+
+    /// So the board `watch` carries next has the write, as soon as it can, whatever page shows.
+    @Test func eachOfTheWindowsWritesWrittenAsksForALookNowAndRefusedNone() {
+        let run = opened()
+
+        run.pick(.session("sr-dash02"))
+        #expect(run.answered(Self.yes, .written))
+        #expect(!run.answered(Self.yes, .refused("No.")))
+        #expect(run.snoozed(Self.yes, .written))
+        #expect(!run.snoozed(Self.yes, .refused("No.")))
+        #expect(run.woke(Self.yes, .written))
+        #expect(!run.woke(Self.yes, .refused("No.")))
+        #expect(run.finished("sr-gs7kq2", .written))
+        #expect(!run.finished("sr-gs7kq2", .refused("No.")))
     }
 
     @Test func aButtonNeedingClaudesPromptJumpsToTheSessionsWindowAndAnswersNothing() {
@@ -228,7 +230,7 @@ struct OpenSessionTests {
         let run = opened()
 
         overThePage(run)
-        answer(run.pick(.session("sr-macapp")), in: run, with: ["sr-macapp": Lines.delivered])
+        take(["sr-macapp": Lines.delivered], in: run)
 
         let asks = try #require(run.page(at: printedAt).session?.asks)
 
@@ -243,7 +245,7 @@ struct OpenSessionTests {
         let run = opened()
 
         overThePage(run)
-        answer(run.pick(.session("sr-macapp")), in: run, with: ["sr-macapp": Lines.delivered])
+        take(["sr-macapp": Lines.delivered], in: run)
         #expect(run.page(at: printedAt).session?.resolved.map(\.id) == ["k5", "k4"])
     }
 
@@ -251,9 +253,10 @@ struct OpenSessionTests {
         let run = opened()
 
         overThePage(run)
-        answer(run.pick(.session("sr-macapp")), in: run, with: ["sr-macapp": Lines.delivered])
-        _ = run.pick(.session("sr-dash02"))
-        answer(run.pick(.session("sr-macapp")), in: run, with: ["sr-macapp": Lines.delivered])
+        take(["sr-macapp": Lines.delivered], in: run)
+        run.pick(.session("sr-dash02"))
+        run.pick(.session("sr-macapp"))
+        take(["sr-macapp": Lines.delivered], in: run)
 
         let page = try #require(run.page(at: printedAt).session)
 
@@ -269,7 +272,7 @@ struct OpenSessionTests {
 
         try #require(resolved.contains(#""id": "k9""#))
         overThePage(run)
-        answer(run.pick(.session("sr-macapp")), in: run, with: ["sr-macapp": resolved])
+        take(["sr-macapp": resolved], in: run)
         #expect(run.page(at: printedAt).session?.asks.first { $0.id.ask == "k2" }?.lines == [.closed(.resolved("you said \"left\" in the chat"))])
     }
 
@@ -277,7 +280,7 @@ struct OpenSessionTests {
         let run = opened(boards: ["sr-macapp": Lines.delivered])
         let later = printedAt.addingTimeInterval(5)
 
-        answer(run.pick(.session("sr-macapp")), in: run, with: ["sr-macapp": Lines.board], at: later)
+        take(["sr-macapp": Lines.board], in: run, at: later)
 
         let asks = try #require(run.page(at: later).session?.asks)
 
@@ -289,9 +292,7 @@ struct OpenSessionTests {
     @Test func underReducedMotionANewAskIsNotWashed() throws {
         let run = opened(boards: ["sr-macapp": Lines.delivered])
 
-        for read in run.pick(.session("sr-macapp")) {
-            run.read(read, gave: board(Lines.board), at: printedAt, reducesMotion: true)
-        }
+        take(["sr-macapp": Lines.board], in: run, reducesMotion: true)
         #expect(run.page(at: printedAt).session?.asks.compactMap(\.washed) == [])
     }
 }
@@ -303,7 +304,8 @@ struct FinishTests {
     private static func run() -> WindowRun {
         let run = opened()
 
-        answer(run.pick(.session(away)), in: run, with: [away: Lines.away])
+        run.pick(.session(away))
+        take([away: Lines.away], in: run)
         return run
     }
 
@@ -331,7 +333,7 @@ struct FinishTests {
 
         run.askToFinish(Self.away)
         _ = run.confirmFinish(Self.away)
-        run.finished(Self.away, .refused("This session is already finished."))
+        #expect(!run.finished(Self.away, .refused("This session is already finished.")))
         #expect(run.page(at: printedAt).session?.finish == .refused("This session is already finished."))
     }
 
@@ -340,9 +342,9 @@ struct FinishTests {
 
         run.askToFinish(Self.away)
         _ = run.confirmFinish(Self.away)
-        run.finished(Self.away, .written)
+        #expect(run.finished(Self.away, .written))
         #expect(run.page(at: printedAt).session?.finish == .finishing)
-        _ = run.show(heard(line(0), line(3)), at: printedAt, reducesMotion: false)
+        run.show(heard(line(0), line(3)), at: printedAt, reducesMotion: false)
         #expect(run.pick == .session("sr-macapp"))
     }
 
@@ -360,16 +362,16 @@ struct FinishTests {
         let picked = Self.run()
 
         picked.askToFinish(Self.away)
-        _ = picked.pick(.session("sr-macapp"))
-        _ = picked.pick(.session(Self.away))
+        picked.pick(.session("sr-macapp"))
+        picked.pick(.session(Self.away))
         #expect(picked.page(at: printedAt).session?.finish == .offered)
 
         let closed = Self.run()
 
         closed.askToFinish(Self.away)
         closed.close()
-        _ = closed.open()
-        _ = closed.pick(.session(Self.away))
+        closed.open()
+        closed.pick(.session(Self.away))
         #expect(closed.page(at: printedAt).session?.finish == .offered)
     }
 
@@ -377,8 +379,8 @@ struct FinishTests {
         let run = Self.run()
 
         run.askToFinish(Self.away)
-        _ = run.show(heard(line(0), line(with: Self.away, doing: .yourTurn)), at: printedAt, reducesMotion: false)
-        _ = run.show(heard(line(0)), at: printedAt, reducesMotion: false)
+        run.show(heard(line(0), line(with: Self.away, doing: .yourTurn)), at: printedAt, reducesMotion: false)
+        run.show(heard(line(0)), at: printedAt, reducesMotion: false)
         #expect(run.page(at: printedAt).session?.finish == .offered)
     }
 }
@@ -388,14 +390,15 @@ struct ProjectPageTests {
     private static func page() throws -> ProjectPage {
         let run = opened()
 
-        answer(run.pick(.project("sitrep")), in: run, with: ["sr-macapp": Lines.board])
+        run.pick(.project("sitrep"))
+        take(["sr-macapp": Lines.board], in: run)
         return try #require(run.page(at: printedAt).project)
     }
 
     @Test func itListsItsSessionsEachWithWhatItIsDoingAndWhatWaitsThere() throws {
         let run = opened()
 
-        _ = run.pick(.project("switchboard"))
+        run.pick(.project("switchboard"))
 
         let page = try #require(run.page(at: printedAt).project)
 
@@ -418,7 +421,8 @@ struct ProjectPageTests {
     @Test func inAProjectOfSeveralSessionsEachLineNamesItsSession() throws {
         let run = opened()
 
-        answer(run.pick(.project("switchboard")), in: run, with: ["sr-dash02": Lines.dashboard, "sr-rq7dgr": Lines.ledger])
+        run.pick(.project("switchboard"))
+        take(["sr-dash02": Lines.dashboard, "sr-rq7dgr": Lines.ledger], in: run)
 
         let page = try #require(run.page(at: printedAt).project)
 
@@ -439,7 +443,8 @@ struct ProjectPageTests {
         let run = opened()
         let ask = AskAddress(session: "sr-macapp", ask: "k2")
 
-        answer(run.pick(.project("sitrep")), in: run, with: ["sr-macapp": Lines.board])
+        run.pick(.project("sitrep"))
+        take(["sr-macapp": Lines.board], in: run)
         run.toggle(ask)
         #expect(run.page(at: printedAt).project?.asks.filter(\.isOpened).map(\.id) == [ask])
         run.toggle(ask)
@@ -449,9 +454,10 @@ struct ProjectPageTests {
     @Test func anAskSentWhileTheProjectsViewStandsKeepsItsPlaceSayingClaudeHasIt() throws {
         let run = opened()
 
-        answer(run.pick(.project("sitrep")), in: run, with: ["sr-macapp": Lines.board])
+        run.pick(.project("sitrep"))
+        take(["sr-macapp": Lines.board], in: run)
         overThePage(run)
-        answer(run.show(heard(line(0), line(2)), at: printedAt, reducesMotion: false), in: run, with: ["sr-macapp": Lines.delivered])
+        take(["sr-macapp": Lines.delivered], in: run, on: line(2))
 
         let asks = try #require(run.page(at: printedAt).project?.asks)
 
