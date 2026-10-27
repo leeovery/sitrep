@@ -2,8 +2,8 @@ import Foundation
 import SitRepPanel
 import Testing
 
-/// Snooze's times, worked out on the calendar in London, where the clocks go back at 02:00 on Sunday 25 October 2026,
-/// to the cases core's `snoozeAt` is held to; and when a snooze wakes, in words.
+/// Snooze's times, worked out in each zone of the table of wake times core's `snoozeAt` is held to as well; and when a
+/// snooze wakes, in words, in London, where the clocks go back at 02:00 on Sunday 25 October 2026.
 struct SnoozeTests {
     private static let london: Calendar = {
         var calendar = Calendar(identifier: .gregorian)
@@ -21,32 +21,45 @@ struct SnoozeTests {
         choice.wakes(after: now, in: london)
     }
 
-    @Test func laterTodayIsThreeHoursOn() {
-        #expect(Self.wakes(.laterToday, after: Self.at(23, 14)) == Self.at(23, 17))
+    /// A row of the table of wake times core's `snoozeAt` is held to as well, in `tests/wakes.ts`: its zone, its
+    /// choice, when it was pressed and when it wakes, and the rest of its row in words, for a failure to name.
+    private struct Wake {
+        let zone: String, choice: SnoozeChoice, pressed: Date, wakes: Date, words: String
+
+        init(_ row: Substring) throws {
+            let fields = row.split(whereSeparator: \.isWhitespace)
+            let instant = { (field: Substring) in Date(timeIntervalSince1970: try #require(Double(field)) / 1000) }
+
+            try #require(fields.count > 4, "a row of the table: \(row)")
+            zone = String(fields[0])
+            choice = try #require(["later": .laterToday, "tomorrow": .tomorrow, "week": .nextWeek][fields[1]])
+            pressed = try instant(fields[2])
+            wakes = try instant(fields[3])
+            words = fields[4...].joined(separator: " ")
+        }
     }
 
-    /// Friday: Tomorrow is Saturday 09:00; Next week Monday 09:00, past the clocks going back, still 09:00.
-    @Test func fromAFridayTomorrowIsSaturdayAndNextWeekMondayAt0900() {
-        #expect(Self.wakes(.tomorrow, after: Self.at(23, 14)) == Self.at(24, 9))
-        #expect(Self.wakes(.nextWeek, after: Self.at(23, 14)) == Self.at(26, 9))
-        #expect(Self.at(26, 9).timeIntervalSince(Self.at(23, 14)) == (3 * 24 - 5 + 1) * 3600)
+    /// The table, read from the source tree, its rows between the backticks of `TABLE`, each line led by `#` a
+    /// group's heading.
+    private static func table() throws -> [Wake] {
+        let file = URL(fileURLWithPath: #filePath).deletingLastPathComponent().appending(path: "../../../tests/wakes.ts")
+        let text = try String(contentsOf: file, encoding: .utf8)
+        let rows = text[try #require(text.range(of: "const TABLE = `")).upperBound...].prefix { $0 != "`" }
+
+        return try rows.split(whereSeparator: \.isNewline).filter { !$0.hasPrefix("#") }.map { try Wake($0) }
     }
 
-    @Test func fromAMondayNextWeekIsAWeekOn() {
-        #expect(Self.wakes(.nextWeek, after: Self.at(26, 10)) == Self.at(2, 9, month: 11))
-        #expect(Self.wakes(.tomorrow, after: Self.at(26, 10)) == Self.at(27, 9))
-    }
+    /// Every row wakes at its time, worked out on the Gregorian calendar in its zone.
+    @Test func eachChoiceWakesAtTheTablesTimeInItsZone() throws {
+        let table = try Self.table()
 
-    @Test func fromASundayNextWeekIsTheMorning() {
-        #expect(Self.wakes(.nextWeek, after: Self.at(25, 12)) == Self.at(26, 9))
-    }
+        #expect(!table.isEmpty)
+        for wake in table {
+            var calendar = Calendar(identifier: .gregorian)
 
-    /// The day after today is the next calendar day: pressed at 01:00, Tomorrow wakes 32 hours on; pressed at 00:30 on
-    /// the night the clocks go back, Monday 09:00, 33 and a half hours on.
-    @Test func afterMidnightTomorrowIsTheNextCalendarDay() {
-        #expect(Self.wakes(.tomorrow, after: Self.at(23, 1)).timeIntervalSince(Self.at(23, 1)) == 32 * 3600)
-        #expect(Self.wakes(.tomorrow, after: Self.at(25, 0, 30)) == Self.at(26, 9))
-        #expect(Self.at(26, 9).timeIntervalSince(Self.at(25, 0, 30)) == 33.5 * 3600)
+            calendar.timeZone = try #require(TimeZone(identifier: wake.zone))
+            #expect(wake.choice.wakes(after: wake.pressed, in: calendar) == wake.wakes, "\(wake.zone) \(wake.words)")
+        }
     }
 
     // MARK: When it wakes, in words
