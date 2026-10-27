@@ -1,6 +1,8 @@
 #!/bin/bash
-# Builds SitRep, signed as SitRep Local and carrying the plugin (app/bundle),
-# installs it to ~/Applications and starts it, replacing the one running. The
+# Builds SitRep, signed with Lee's Developer ID and carrying the plugin
+# (app/bundle), installs it to ~/Applications and starts it, replacing the one
+# running. It isn't notarized: a build installed from here is never
+# quarantined, and notarizing would add minutes to every install. The
 # login item and macOS's permissions remember the app by where it is, so it
 # is always installed to the same place. As it starts, the app installs its
 # plugin, or leaves the sitrep marketplace as it is where it is not its own.

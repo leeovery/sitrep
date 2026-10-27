@@ -1,0 +1,52 @@
+#!/bin/bash
+# Notarizes a SitRep.app that app/bundle made, staples the ticket to it and
+# zips it for download: app/release runs it. notarytool's login is saved in
+# the keychain as the profile "sitrep".
+set -euo pipefail
+
+if [[ $# -ne 2 ]]; then
+  echo "Usage: app/notarize <SitRep.app> <zip>" >&2
+  exit 1
+fi
+
+profile=sitrep
+bundle=$1
+zip=$2
+
+work=$(mktemp -d)
+trap 'rm -rf "$work"' EXIT
+
+echo "Sending $bundle to Apple's notary service, and waiting for its verdict…"
+ditto -c -k --keepParent "$bundle" "$work/submission.zip"
+result=$(xcrun notarytool submit "$work/submission.zip" --keychain-profile "$profile" --wait --output-format json || true)
+id=$(plutil -extract id raw -o - - <<< "$result" 2> /dev/null || true)
+status=$(plutil -extract status raw -o - - <<< "$result" 2> /dev/null || true)
+if [[ -z $id ]]; then
+  echo "The notary service took no submission:" >&2
+  echo "$result" >&2
+  exit 1
+fi
+echo "Submission $id: $status"
+if [[ $status != Accepted ]]; then
+  xcrun notarytool log "$id" --keychain-profile "$profile" >&2
+  exit 1
+fi
+
+xcrun stapler staple "$bundle"
+xcrun stapler validate "$bundle"
+rm -f "$zip"
+ditto -c -k --keepParent "$bundle" "$zip"
+
+# Gatekeeper's verdict on the zip as a download: its app unpacked, marked
+# quarantined as Safari marks what it downloads, and assessed.
+download="$work/download"
+mkdir "$download"
+ditto -x -k "$zip" "$download"
+downloaded="$download/$(basename "$bundle")"
+xattr -w com.apple.quarantine "0081;$(printf %x "$(date +%s)");Safari;" "$downloaded"
+assessment=$(spctl -a -vvv -t exec "$downloaded" 2>&1 || true)
+echo "$assessment"
+if ! grep -q ": accepted$" <<< "$assessment" || ! grep -qx "source=Notarized Developer ID" <<< "$assessment"; then
+  echo "Gatekeeper doesn't accept $zip as a notarized download." >&2
+  exit 1
+fi

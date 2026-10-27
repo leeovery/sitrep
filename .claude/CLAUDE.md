@@ -29,10 +29,12 @@ git leaves out; `.worktreeinclude` copies them into a worktree.
 
 `app/` is a Swift package, no Xcode project: the menu bar app, which runs
 the plugin's CLI for the board and the jump. `app/bundle <folder>` makes the
-signed bundle, the plugin inside it, into a folder; `app/build` runs it,
-installs the bundle to `~/Applications/SitRep.app` and starts it, replacing
-the one running. `app/make-certificate` makes the "SitRep Local" signing
-identity, once per Mac.
+bundle, the plugin inside it, into a folder, signed with Lee's Developer ID
+from the keychain; `app/build` runs it, installs the bundle to
+`~/Applications/SitRep.app` and starts it, replacing the one running.
+`app/release`, run by mint's `post_release` (`./release`), builds a release
+from its tag, notarizes it (`app/notarize`) and uploads it to the GitHub
+release.
 
 ## Live tests
 

@@ -1,9 +1,9 @@
 #!/bin/bash
-# Builds SitRep.app into the folder given, signed as SitRep Local, carrying
-# the plugin and the notices helper: app/build runs it, then installs what it
-# made. The folder must be outside the repository, and the bundle gone once
-# installed: a second signed copy left about could be the one macOS launches
-# by its bundle id.
+# Builds SitRep.app into the folder given, signed with Lee's Developer ID,
+# carrying the plugin and the notices helper: app/build runs it, then installs
+# what it made, and app/release notarizes it. The folder must be outside the
+# repository, and the bundle gone once installed: a second signed copy left
+# about could be the one macOS launches by its bundle id.
 set -euo pipefail
 
 if [[ $# -ne 1 ]]; then
@@ -11,7 +11,10 @@ if [[ $# -ne 1 ]]; then
   exit 1
 fi
 
-identity="SitRep Local"
+# macOS ties the leave to control Ghostty, notifications and the login item to
+# the bundle id and the Developer ID's team, not to a build or a certificate,
+# so a build from here and a release share them.
+identity="Developer ID Application: PointsBox Limited (CQKZZ4FN6V)"
 app=$(cd "$(dirname "$0")" && pwd)
 repo=$(dirname "$app")
 work=$1
@@ -22,10 +25,16 @@ if [[ -e "$bundle" ]]; then
   exit 1
 fi
 
-if ! security find-identity -v -p codesigning | grep -q "\"$identity\""; then
-  echo "No \"$identity\" signing identity: run app/make-certificate once on this Mac." >&2
+if ! security find-identity -v -p codesigning | grep -qF "\"$identity\""; then
+  echo "No \"$identity\" signing identity in the keychain: SitRep is signed with it." >&2
   exit 1
 fi
+
+# Under the hardened runtime and with a secure timestamp, which notarizing
+# needs: codesign fails without one, as when Apple's server can't be reached.
+sign() {
+  codesign --force --options runtime --timestamp -s "$identity" "$@"
+}
 
 # One version covers the plugin and the app.
 version=$(plutil -extract version raw -o - "$repo/.claude-plugin/plugin.json")
@@ -79,9 +88,12 @@ git -C "$repo" ls-files -z --cached --others --exclude-standard -- .claude-plugi
   done
 # Bun makes the binary in the folder it runs in, then moves it; one it cannot
 # move, to another volume, it copies and leaves behind.
-(cd "$work" && bun build --compile "$repo/cli/shell/run.ts" --outfile "$plugin/bin/sitrep" > /dev/null)
-# Its build, a digest of its files, which the app compares with its own
-# copy's, so a build at the same version from other edits still replaces it.
+cli="$plugin/bin/sitrep"
+(cd "$work" && bun build --compile "$repo/cli/shell/run.ts" --outfile "$cli" > /dev/null)
+sign --identifier "$(plutil -extract CFBundleIdentifier raw -o - "$info").cli" --entitlements "$app/CLI.entitlements" "$cli"
+# Its build, a digest of its files, the CLI as signed among them, which the
+# app compares with its own copy's, so a build at the same version from other
+# edits still replaces it.
 (cd "$plugin" && find . -type f -print0 | sort -z | xargs -0 shasum -a 256 | shasum -a 256 | cut -c1-16) > "$plugin/.sitrep-build"
 
 # The icon, compiled from its Icon Composer layers: Assets.car, from which
@@ -108,7 +120,30 @@ for each in "$bundle" "$helper"; do
 done
 rm -r "$icon" "$work/icon.plist" "$work/actool.plist"
 
-# Inside out: the helper first, as SitRep's signature seals the helper's as it
-# stands. The helper sends no Apple Events, so it takes no entitlements.
-codesign --force --options runtime -s "$identity" "$helper"
-codesign --force --options runtime --entitlements "$app/SitRep.entitlements" -s "$identity" "$bundle"
+# Inside out, never with --deep: the CLI as it was made, then the helper, as
+# SitRep's signature seals the helper's as it stands. The helper sends no
+# Apple Events, so it takes no entitlements.
+sign "$helper"
+sign --entitlements "$app/SitRep.entitlements" "$bundle"
+
+# Each part as macOS will judge it: by the Developer ID, under the hardened
+# runtime, with a secure timestamp, and with the entitlements it was given and
+# no others.
+codesign --verify --deep --strict "$bundle"
+check() {
+  local part=$1 given=$2 details signed expected=""
+  details=$(codesign -dvv "$part" 2>&1)
+  # In one form, keys sorted as plutil writes them.
+  signed=$(codesign -d --entitlements - --xml "$part" 2> /dev/null | plutil -convert xml1 -o - - 2> /dev/null || true)
+  [[ -z $given ]] || expected=$(plutil -convert xml1 -o - "$given")
+  if ! grep -qF "Authority=$identity" <<< "$details" || ! grep -q "(runtime)" <<< "$details" ||
+    ! grep -q "^Timestamp=" <<< "$details" || [[ $signed != "$expected" ]]; then
+    echo "$part is not signed as app/bundle signs it:" >&2
+    echo "$details" >&2
+    codesign -d --entitlements - "$part" >&2
+    exit 1
+  fi
+}
+check "$cli" "$app/CLI.entitlements"
+check "$helper" ""
+check "$bundle" "$app/SitRep.entitlements"

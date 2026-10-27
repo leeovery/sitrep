@@ -1,0 +1,54 @@
+#!/bin/bash
+# Builds SitRep's release on this Mac and uploads it to the GitHub release:
+# mint's post_release runs it from the repository's root, once the tag and
+# the release are pushed. The app is built from the tagged tree (app/bundle),
+# notarized and stapled (app/notarize), and uploaded as SitRep-<version>.zip.
+# mint only warns when it fails, so it can be run again by hand: with no mint
+# environment, it releases the version plugin.json names, tagged v<version>,
+# and its upload replaces one already there.
+set -euo pipefail
+
+app=$(cd "$(dirname "$0")" && pwd)
+repo=$(dirname "$app")
+cd "$repo"
+
+if [[ ${MINT_DRY_RUN:-0} == 1 ]]; then
+  echo "A dry run: app/release builds and uploads nothing."
+  exit 0
+fi
+
+version=${MINT_NEW_VERSION:-$(plutil -extract version raw -o - .claude-plugin/plugin.json)}
+tag=${MINT_VERSION_TAG:-v$version}
+asset="SitRep-$version.zip"
+
+if ! git rev-parse -q --verify "refs/tags/$tag" > /dev/null; then
+  echo "No tag $tag: app/release builds a release from its tag." >&2
+  exit 1
+fi
+if ! gh release view "$tag" > /dev/null; then
+  echo "No GitHub release $tag to upload SitRep to." >&2
+  exit 1
+fi
+
+# Built outside the repository, from the tag's tree as git holds it, by the
+# tag's own app/bundle.
+work=$(mktemp -d)
+tree="$work/tree"
+trap 'rm -rf "$work"; git worktree prune' EXIT
+git worktree add --quiet --detach "$tree" "$tag"
+"$tree/app/bundle" "$work"
+built=$(plutil -extract CFBundleShortVersionString raw -o - "$work/SitRep.app/Contents/Info.plist")
+if [[ $built != "$version" ]]; then
+  echo "$tag builds SitRep $built, not $version." >&2
+  exit 1
+fi
+
+zip="$work/$asset"
+"$app/notarize" "$work/SitRep.app" "$zip"
+gh release upload "$tag" "$zip" --clobber
+id=$(gh api "repos/{owner}/{repo}/releases/tags/$tag" --jq ".assets[] | select(.name == \"$asset\") | .id")
+sha=$(shasum -a 256 "$zip" | cut -d ' ' -f 1)
+echo "Uploaded $asset to $tag: asset $id, sha256 $sha"
+
+# The tap's update, which hands the cask in leeovery/homebrew-tools this
+# version, the asset's id and its sha256, comes here with the cask.
