@@ -7,8 +7,8 @@
 #
 # mint shows nothing a hook prints when it goes well, and only what it prints
 # to stderr when it fails, so everything goes to stderr and to a log,
-# ~/Library/Logs/SitRep/release-<version>.log, where the asset's id and its
-# sha256 are read.
+# ~/Library/Logs/SitRep/release-<version>.log, which keeps the asset's id,
+# its sha256 and, when sending the cask fails, the command that sends it.
 #
 # mint only warns when it fails, so it can be run again by hand: with no mint
 # environment, it releases the version plugin.json names, or the one given,
@@ -83,13 +83,50 @@ echo "Uploaded $asset to $tag: asset $id, sha256 $sha"
 
 # The tap's update, which hands the cask in leeovery/homebrew-tools this
 # version, the asset's id and its sha256. Every run that uploads dispatches it
-# again: a new zip has another sha256, and its asset another id.
-dispatch=(gh api repos/leeovery/homebrew-tools/dispatches --silent
+# again: a new zip has another sha256, and its asset another id. Only for the
+# latest release: brew takes any other version than the one installed as an
+# upgrade, so the cask on an older one would downgrade every Mac.
+tap=leeovery/homebrew-tools
+dispatch=(gh api "repos/$tap/dispatches" --silent
   -f event_type=update-formula -f "client_payload[tool]=sitrep" -f "client_payload[version]=$version"
   -f "client_payload[sha256]=$sha" -f "client_payload[asset_id]=$id")
-if ! "${dispatch[@]}"; then
-  echo "Sending the cask $version failed, with $asset uploaded to $tag: send it again by hand with"
-  echo " $(printf ' %q' "${dispatch[@]}")"
+printf -v resend '%q ' "${dispatch[@]}"
+failed() {
+  echo "$1, with $asset uploaded to $tag. Send the cask $version by hand with"
+  echo "${resend% }"
   exit 1
+}
+if ! latest=$(gh release view --json tagName --jq .tagName); then
+  failed "Finding the latest release failed"
 fi
-echo "Sent leeovery/homebrew-tools the cask $version: asset $id, sha256 $sha"
+if [[ $tag != "$latest" ]]; then
+  echo "$tag is not the latest release, $latest, so the cask stays on $latest; $asset is uploaded to $tag alone."
+  exit 0
+fi
+
+# GitHub accepts a dispatch before any run starts, so the run it starts is
+# found and waited on: the first of the tap's update-formula runs newer than
+# the last before it, by id, which, unlike a time, doesn't hang on this Mac's
+# clock. The workflow's own timeout bounds the wait on it.
+runs=(gh run list -R "$tap" --workflow update-formula.yml --event repository_dispatch --limit 10 --json databaseId)
+if ! before=$("${runs[@]}" --jq '[.[].databaseId] | max // 0'); then
+  failed "Listing $tap's update-formula runs failed"
+fi
+if ! "${dispatch[@]}"; then
+  failed "Sending the cask $version failed"
+fi
+run=""
+for _ in {1..30}; do
+  run=$("${runs[@]}" --jq "[.[].databaseId | select(. > $before)] | min // empty" || true)
+  [[ -z $run ]] || break
+  sleep 2
+done
+if [[ -z $run ]]; then
+  failed "$tap started no update-formula run within a minute of the cask $version being sent"
+fi
+url="https://github.com/$tap/actions/runs/$run"
+echo "Sent $tap the cask $version: asset $id, sha256 $sha; its update is $url"
+if ! gh run watch "$run" -R "$tap" --exit-status --interval 5 > /dev/null; then
+  failed "$tap's update of the cask $version failed, at $url"
+fi
+echo "The cask is on $version, asset $id: $url"

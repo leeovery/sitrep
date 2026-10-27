@@ -55,9 +55,29 @@ Settings, under General and Notifications:
 brew upgrade --cask sitrep
 ```
 
-The new app refreshes its copy of the plugin as it starts, so the two never
-part; each Claude window runs the new plugin from its next
-`/reload-plugins`.
+The upgrade quits SitRep and doesn't start it again, so open it again
+from Applications. The new app refreshes its copy of the plugin as it
+starts, so the two never part; each Claude window runs the new plugin from
+its next `/reload-plugins`.
+
+## Uninstalling
+
+```bash
+brew uninstall --cask sitrep
+```
+
+That removes the app and nothing else: the plugin it installed stays
+installed in Claude Code, from `~/Library/Application Support/sitrep`, and
+keeps working in every window. `brew uninstall --zap --cask sitrep` also
+removes that folder and SitRep's preferences, so tell Claude Code the plugin
+is gone too:
+
+```bash
+claude plugin uninstall sitrep@sitrep
+claude plugin marketplace remove sitrep
+```
+
+Neither touches the board itself, `~/.local/state/sitrep`.
 
 ## Developing
 
@@ -95,21 +115,35 @@ A release is cut and built on this Mac, by mint:
 mint sets the version in `.claude-plugin/plugin.json`, which the app takes
 too, so one version covers the plugin and the app. Its `pre_tag` hook runs
 every gate above first, since no CI does; then it writes the notes, tags
-`v<version>`, pushes, and makes the GitHub release. Its `post_release` hook runs `app/release`,
-which:
+`v<version>`, pushes, and makes the GitHub release. Its `post_release` hook
+runs `app/release`, which:
 
 1. builds the app from the tag's tree, by the tag's own `app/bundle`;
 2. notarizes and staples it (`app/notarize`), and checks that Gatekeeper
    accepts the zip as a download;
 3. uploads `SitRep-<version>.zip` to the release, replacing one there;
-4. sends the cask in `leeovery/homebrew-tools` the version, the zip's
-   sha256 and the asset's id, whose workflow commits them.
+4. when the release is the latest, sends the cask in
+   `leeovery/homebrew-tools` the version, the zip's sha256 and the asset's
+   id, and waits for the tap's workflow to commit them. An older release's
+   rerun leaves the cask alone: Homebrew takes any other version as an
+   upgrade, so the cask on an older one would downgrade every Mac.
 
 `app/release` logs everything to
 `~/Library/Logs/SitRep/release-<version>.log`. mint only warns when it
 fails, so run it again by hand, `app/release` or `app/release 0.3.0`; a
-run builds, notarizes, uploads and sends the cask again. When only the
-sending failed, it says the command that sends it again.
+run builds, notarizes, uploads and sends the cask again. When the upload
+went and only the sending or the tap's update failed, it prints the
+command that sends the cask again, and the update's run.
+
+A rerun on the same version replaces the zip, and GitHub deletes the asset
+it replaces, so from its upload until the tap's workflow commits the new
+asset's id, about a minute, the cask names a deleted asset and installs
+fail. If the sending or the update fails in between, the cask stays broken
+until a rerun or the printed command sends it again.
+
+The tap's side, `Casks/sitrep.rb` and its workflow, must be merged in
+`leeovery/homebrew-tools` before the first release: until then the tap's
+workflow refuses `sitrep`, and the release's `app/release` fails.
 
 Once per Mac that releases:
 
