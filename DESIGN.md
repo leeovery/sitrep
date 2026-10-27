@@ -61,7 +61,7 @@ board's. The old words are left in two places until what holds them is
 rebuilt: the spike's `lip`, in its views only, since the model the build
 took from it says the notch (19 October 2026); and the app's Swift
 identifiers, until the edge and the menu rebuild the app, later in stage 3.
-The CLI's JSON kept its old names (`works`, `work`) until 28 October 2026,
+The CLI's JSON kept its old names (`works`, `work`) until 27 October 2026,
 when `list --json`'s projects came to hold `sessions` and `board --json` to
 give its session as `session`, their `v`s moving, as `watch` was made to
 carry boards (see "One engine, two front ends").
@@ -2021,7 +2021,7 @@ truth. There is still no background service. None of it is built now. Lee:
     ```
 
     Each project's `sessions` were its `works`, their name from before a
-    piece of work was called a session, until 28 October 2026, which moved
+    piece of work was called a session, until 27 October 2026, which moved
     `v` to 2.
 
     `snoozed` (23 October 2026) counts the asks Lee snoozed, which `waiting`
@@ -2040,7 +2040,7 @@ truth. There is still no background service. None of it is built now. Lee:
     log lines, and its resolved asks (20 October 2026), closed, the ignored
     aside, the newest closed first, as a session's Resolved lists them.
     `watch` carries it too, exactly so, for each session the app follows
-    (below). Its `v` is 3 since its session is `session` (28 October 2026),
+    (below). Its `v` is 3 since its session is `session` (27 October 2026),
     `work` before; 2 since its asks say what they want back (`wants`, `yes`,
     `needs`) in place of their kind. Each ask, open or resolved, carries
     `reply`, where Lee's reply to it stands (below, under `answer`), and
@@ -2182,7 +2182,7 @@ truth. There is still no background service. None of it is built now. Lee:
     state and its rows (`core/rows.ts`); the board as every surface shows
     it, what is new, and when the board next changes by time alone
     (`core/feed.ts`).
-    - **Two-way, 28 October 2026.** The SitRep window read a session's
+    - **Two-way, 27 October 2026.** The SitRep window read a session's
       detail by running `board --json`, a process for each read: as a
       session was picked, for each session of a project opened, again
       whenever the line named one shown changed, and after each of its own
@@ -2381,7 +2381,7 @@ truth. There is still no background service. None of it is built now. Lee:
       it starts; with none, `boards` is `{}`. A session's board changing
       prints a line where the session is followed; one nobody follows prints
       nothing unless the board every surface shows changed too. It took the
-      place of `changed` (28 October 2026), the ids of the sessions whose
+      place of `changed` (27 October 2026), the ids of the sessions whose
       `board --json` had changed since the last line, which the window ran
       `board --json` again for.
     - It is stable as `list --json` is: every field is always there (a list
@@ -2401,7 +2401,7 @@ truth. There is still no background service. None of it is built now. Lee:
       `writer`, `first` and its own `since`) became a line's; and `head`'s
       `needYou` counts lines. The app read 2 alone, so one built before
       it said it couldn't read the board until it was built again. `boards`
-      in place of `changed` moved `v` to 3 (28 October 2026), the app
+      in place of `changed` moved `v` to 3 (27 October 2026), the app
       reading 3 alone from then.
     - **The loop.** It looks every second, as the mod's readers do, and at
       once on a line on its standard input: a file is read again only once
@@ -2734,8 +2734,8 @@ Claude Code puts an enabled plugin's `bin/` on its Bash tool's PATH, and the
 app calls the copy of the plugin it installed, so nothing puts the CLI on
 Lee's shell's PATH: no project's folder goes on kit's `[paths]` (Lee, 14
 October 2026). The copy the app carries has it compiled
-(`bun build --compile`), so a Mac with the app needs no Bun; the plugin alone
-from GitHub runs it on Bun. Bun reads a file by its extension, so what it
+(`bun build --compile`), so a Mac with the app needs no Bun; a clone of the
+plugin, as this Mac's live one is, runs it on Bun. Bun reads a file by its extension, so what it
 compiles is `cli/shell/run.ts`, which `bin/sitrep` imports; compiled, the
 CLI finds its manifest from its binary's folder, since its own source's
 folder is then one inside the binary.
@@ -5739,8 +5739,9 @@ reaches a window only while that pane is on show).
      and the clone stops being live: a script in the repository points the
      `sitrep` marketplace at the clone for a live test, and back. The app
      and its CLI are arm64 only: an Intel Mac needs an x64 build beside
-     them. To settle: whether `claude plugin update` follows `main` or the
-     tags, for the plugin alone from GitHub.
+     them. Whether `claude plugin update` follows `main` or the tags was
+     left to settle for the plugin alone from GitHub, which went as the
+     plugin and the app came as one (27 October 2026).
 5. **Attention beyond asks**, in this build (decided with Lee on 16 October
    2026), built as stage 3's fourth step, the live feed, since the rows
    and the strip's rings need it. The mod hears what its window is doing,
