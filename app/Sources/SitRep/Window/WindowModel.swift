@@ -284,7 +284,7 @@ final class WindowModel {
             Task {
                 let written = await plugin.ask({ await $0.answer(ask.ask, of: ask.session, with: answer) }, unrun: WriteAnswer.refused)
 
-                lookNow(if: run.answered(ask, written))
+                lookNow(if: run.answered(ask, written, at: Date()))
             }
         }
     }

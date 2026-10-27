@@ -5372,7 +5372,7 @@ reaches a window only while that pane is on show).
           among it, is its board as the last line that carried it gave it
           (see "Following", under `watch`). The window follows the session
           picked, or each session of a project opened, only while it shows:
-          minimised, hidden or closed, it follows nothing, and back it
+          minimised or closed, it follows nothing, and back it
           follows its page again. The app writes the set followed to
           `watch`'s standard input as it changes; again after each of the
           window's own writes that lands (an answer, a snooze, a wake, a
@@ -5387,17 +5387,24 @@ reaches a window only while that pane is on show).
           page, or a run of picks ending where it stood, has that board for
           its first: the asks laid out from it at once, and what comes and
           goes after washed or kept in place. A session followed afresh,
-          picked again after another page, or the window reopened on it,
-          shows its board as last kept, its asks among it, until `watch`
-          carries it anew; that first board lays the asks out afresh,
-          washing nothing and keeping nothing closed, as Lee saw neither
-          come nor go. A restart of `watch` is no break: the next run
-          carries every board followed again, each a change from the board
-          kept, so what changed while it was down is washed or kept in
-          place, a page made meanwhile alike with one that showed
-          throughout. A null in a board's place, `watch` finding no such
-          session, says "This session isn't on the board." over what was
-          kept, and keeps it, no longer current. A board is taken as its
+          picked again after another page, or the window opened again on
+          what it opens on, shows its board as last kept, its asks among it,
+          until `watch` carries it anew; that first board lays the asks out
+          afresh, washing nothing and keeping nothing closed, as Lee saw
+          neither come nor go. A page that stood while the window was away,
+          back from the Dock, or the window opened again on the session it
+          closed on, by Open in SitRep from the menu or the notch, keeps its
+          asks as they stood, and the board `watch` carries anew is a change
+          from them, washed or kept in place. A restart of `watch` is no
+          break: the next run carries every board followed again, each a
+          change from the board kept, so what changed while it was down is
+          washed or kept in place, a page made meanwhile alike with one that
+          showed throughout. A null in a board's place, `watch` finding no
+          such session, says "This session isn't on the board." over what
+          was kept, and keeps it, no longer current; a board this app cannot
+          read says so the same way, for its session alone, each board on a
+          line read on its own, so the rest of the line, and the edge and
+          the menu with it, read as usual. A board is taken as its
           line comes, never again from a board gone stale. While the board
           is stale, no board can come, so a page with none kept says why, as
           the head says the board can't be read: "SitRep can't read the
@@ -5440,16 +5447,20 @@ reaches a window only while that pane is on show).
           the one pressed last on the page showing while it waits (one on a
           page left goes as it would); then it is "sending" until `reply`
           says on its way, as an answer, or, once `sitrep answer` has
-          written it, until a board of its session has it written: the ask
-          closed or gone, or Lee's answer to it since the press, on its way,
-          delivered or gone void. A board that shows it waiting with no such
-          reply was read before the write, by a look under way as
-          `sitrep answer` wrote, or on a line heard after the write's
-          answer, and leaves it as it was. A null in its place, or the
-          board going stale, has the card say on its way, as the write
-          proved, until a board has it written; then the card takes
-          `reply`'s word: "on its way: waits for the turn to end" mid-turn,
-          "waits in its inbox for a window" away.
+          written it, until a board of its session says where it is: the
+          first from a look `watch` began after the write answered, whatever
+          it says (a line's `at` is its look's start, on the Mac's clock, as
+          the app's time of the answer is), or an earlier one that shows the
+          answer, the ask closed or gone, or Lee's reply to it since the
+          press, as from a look under way as the write landed. An earlier
+          board with the ask waiting and no reply was read before the write,
+          and leaves it as it was. A later one may show the ask waiting with
+          no reply too, the answer voided by an edit of Claude's or the ask
+          reopened, and then the buttons come back. A null in its place, or
+          the board going stale, has the card say on its way, as the write
+          proved, until a board says more, settled the same way; then the
+          card takes `reply`'s word: "on its way: waits for the turn to end"
+          mid-turn, "waits in its inbox for a window" away.
           A comment on its way keeps the buttons. `sitrep answer`'s refusal
           shows on the card in its words, its buttons back, until another
           session is picked, or a board has the ask closed or Lee's answer

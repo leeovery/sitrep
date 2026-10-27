@@ -8,11 +8,14 @@ import Testing
 /// session's board as kept is current, so a page made for it has that board for its first, and what changes after is
 /// washed or kept in place; followed afresh, `watch` carries its board anew, and that first board lays its asks out.
 struct FollowedBoardsTests {
+    /// When k9 is posted, after the board was seeded, in milliseconds: the newest ask.
+    private static let posted = 1_792_486_500_000
+
     /// Dashboard redesign's words ask, k1, closed, and another, k9, posted.
     private static let changed = edited(Lines.dashboard) { board in
         let asks = board["asks"] as! [[String: Any]]
 
-        board["asks"] = [asks[0].merging(["id": "k9", "title": "Paste the second load test's output"]) { $1 }]
+        board["asks"] = [asks[0].merging(["id": "k9", "title": "Paste the second load test's output", "at": Self.posted]) { $1 }]
     }
 
     private static let later = printedAt.addingTimeInterval(5)
@@ -28,12 +31,14 @@ struct FollowedBoardsTests {
         return asks(watching.run)
     }
 
-    private static func asks(_ run: WindowRun) -> [String] {
-        let page = run.page(at: later)
+    /// A session's asks as the page shows them at this time, each by its id, and washed from then or closed where it
+    /// is.
+    private static func asks(_ run: WindowRun, of session: String = "sr-dash02", at time: Date = later) -> [String] {
+        let page = run.page(at: time)
         let cards = page.session?.asks ?? page.project?.asks.map(\.card) ?? []
 
-        return cards.filter { $0.id.session == "sr-dash02" }.map { card in
-            [card.id.ask, card.washed == later ? "washed" : nil, card.isClosed ? "closed" : nil]
+        return cards.filter { $0.id.session == session }.map { card in
+            [card.id.ask, card.washed == time ? "washed" : nil, card.isClosed ? "closed" : nil]
                 .compactMap { $0 }.joined(separator: " ")
         }
     }
@@ -79,6 +84,44 @@ struct FollowedBoardsTests {
         overThePage(watching.run, at: Self.later)
         watching.after({ $0.pick(.session("sr-dash02")) }, at: Self.later)
         #expect(Self.asks(watching.run) == ["k9"])
+    }
+
+    /// The Mac app's choice, k1, retitled; then k1 closed and another, k9, posted.
+    private static let retitled = Lines.board.replacingOccurrences(
+        of: #""title": "Look at round 3, the SitRep window, and approve it or comment""#,
+        with: #""title": "Look at round 4, the SitRep window, and approve it or comment""#
+    )
+    private static let replaced = edited(retitled) { board in
+        let asks = board["asks"] as! [[String: Any]]
+
+        board["asks"] = asks.filter { $0["id"] as? String != "k1" } + [asks[0].merging(["id": "k9", "at": Self.posted]) { $1 }]
+    }
+
+    /// `watch`'s first line with Dashboard redesign finished, off the board: in no row and no project.
+    private static let dashboardFinished = edited(Lines.watch[0]) { board in
+        board["rows"] = (board["rows"] as! [[String: Any]]).filter { $0["session"] as? String != "sr-dash02" }
+        board["projects"] = (board["projects"] as! [[String: Any]]).map { project in
+            project.merging(["sessions": (project["sessions"] as! [[String: Any]]).filter { $0["id"] as? String != "sr-dash02" }]) { $1 }
+        }
+    }
+
+    /// A line printed under a set the window has since left, heard after the set told in its place: the Mac app's
+    /// board on it came while the Mac app was not told, so it is not current, though the line has the window pick
+    /// the Mac app again, Dashboard redesign gone from the board. Its project's page, picked before `watch` carries
+    /// the Mac app anew, has no first board, and that board, changed since, lays its asks out.
+    @Test func aBoardOnALineHeardAfterItsSessionWasLetGoOfIsNotCurrent() {
+        let watching = Watching()
+
+        watching.after { $0.open(on: .session("sr-macapp")) }
+        watching.isHolding = true
+        watching.change("sr-macapp", to: Self.retitled, line: Self.dashboardFinished)
+        watching.after { $0.pick(.session("sr-dash02")) }
+        watching.change("sr-macapp", to: Self.replaced)
+        watching.lands(1)
+        watching.after { $0.pick(.project("sitrep")) }
+        overThePage(watching.run)
+        watching.lands()
+        #expect(Self.asks(watching.run, of: "sr-macapp", at: printedAt) == ["k9", "k3", "k2"])
     }
 
     /// `watch` down, its boards as kept stay current, so a page made meanwhile has its board as kept for its first,

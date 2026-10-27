@@ -158,13 +158,24 @@ struct BoardTests {
         let boards = try Lines.following.map { try Board.read($0).boards }
 
         #expect(boards.map { $0.keys.sorted() } == [[], ["sr-h4rn3s", "sr-n0n3zz"], ["sr-h4rn3s"], ["sr-h4rn3s"]])
-        #expect(boards[1]["sr-n0n3zz"] == .some(nil))
-        #expect(boards.map { $0["sr-h4rn3s"]??.asks.map(\.id) } == [nil, ["ayh1", "vx3g"], ["ayh1", "vx3g", "0rzx"], ["ayh1", "vx3g", "0rzx"]])
-        #expect(boards[3]["sr-h4rn3s"]??.asks.first?.reply?.standing == .onItsWay)
+        #expect(boards[1]["sr-n0n3zz"] == .notFound)
+        #expect(boards.map { $0["sr-h4rn3s"]?.board?.asks.map(\.id) } == [nil, ["ayh1", "vx3g"], ["ayh1", "vx3g", "0rzx"], ["ayh1", "vx3g", "0rzx"]])
+        #expect(boards[3]["sr-h4rn3s"]?.board?.asks.first?.reply?.standing == .onItsWay)
+    }
+
+    /// Each board is read on its own: one that does not read is unread alone, and the line, and the boards beside it,
+    /// read as usual.
+    @Test(arguments: [#"{"v":3}"#, Lines.dashboard.replacingOccurrences(of: #""session": {"#, with: #""work": {"#)])
+    func aBoardThatDoesNotReadIsUnreadAloneTheLineReadingAsUsual(_ unreadable: String) throws {
+        let line = try Board.read(Lines.carrying(["sr-dash02": unreadable, "sr-macapp": Lines.board], on: Lines.watch[0]))
+
+        #expect(line.boards["sr-dash02"] == .unread)
+        #expect(line.boards["sr-macapp"]?.board?.asks.map(\.id) == ["k2", "k3", "k1"])
+        #expect(line.rows == (try Board.read(Lines.watch[0])).rows)
     }
 
     @Test func aCarriedBoardIsTheSessionsBoardAsBoardJsonGivesIt() throws {
-        let board = try #require(try Board.read(Lines.following[1]).boards["sr-h4rn3s"] ?? nil)
+        let board = try #require(try Board.read(Lines.following[1]).boards["sr-h4rn3s"]?.board)
 
         #expect(board.project == SessionBoard.Project(key: "harness", name: "Harness"))
         #expect(board.session.id == "sr-h4rn3s")
@@ -221,8 +232,7 @@ struct BoardTests {
         watchedEmpty.replacingOccurrences(of: #""windows":[],"#, with: ""),
         watchedEmpty.replacingOccurrences(of: #","boards":{}"#, with: ""),
         watchedEmpty.replacingOccurrences(of: #""boards":{}"#, with: #""changed":[]"#),
-        watchedEmpty.replacingOccurrences(of: #""boards":{}"#, with: #""boards":{"sr-h4rn3s":{"v":3}}"#),
-        Lines.following[1].replacingOccurrences(of: #""session":{"id""#, with: #""work":{"id""#),
+        watchedEmpty.replacingOccurrences(of: #""boards":{}"#, with: #""boards":[]"#),
         watched.replacingOccurrences(of: #""is": "yourTurn""#, with: #""is": "napping""#),
         watched.replacingOccurrences(of: #""doing": {"# + "\n" + #"            "is": "permission""#, with: #""doing": {"# + "\n" + #"            "is": "napping""#),
         watched.replacingOccurrences(of: #""doing": {"#, with: #""doings": {"#),

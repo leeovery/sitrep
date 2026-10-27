@@ -30,6 +30,11 @@ func line(_ place: Int) -> Heard {
     .line(Lines.watch[place])
 }
 
+/// `watch`'s line at this place, its first unless another, from a look begun at the time given.
+func line(_ place: Int = 0, lookedAt time: Date) -> Heard {
+    .line(edited(Lines.watch[place]) { $0["at"] = Int64((time.timeIntervalSince1970 * 1000).rounded()) })
+}
+
 /// A line of `watch` with its `new` as given, the board as its first line had it.
 func line(new: [String], from place: Int = 0) -> Heard {
     .line(Lines.watch[place].replacingOccurrences(of: #""new":[]"#, with: #""new":[\#(quoted(new))]"#))

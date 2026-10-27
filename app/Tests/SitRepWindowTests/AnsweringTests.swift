@@ -70,64 +70,85 @@ struct AnsweringTests {
         #expect(!run.undo())
     }
 
+    /// When `sitrep answer` answered, two seconds after the press.
+    private static let wrote = printedAt.addingTimeInterval(2)
+
+    /// The line of `watch`'s next look after the write.
+    private static let lookAfter = line(lookedAt: wrote.addingTimeInterval(1))
+
+    /// The answer pressed, its wait out, and written.
+    private static func written() -> WindowRun {
+        let run = opened()
+
+        _ = run.press(.yes("Approve"), on: Self.yes, at: printedAt)
+        _ = run.due(at: Self.wrote)
+        _ = run.answered(Self.yes, .written, at: Self.wrote)
+        return run
+    }
+
     @Test func writtenItAsksForALookNowAndItsSessionsNextBoardSaysWhereTheAnswerIs() throws {
         let run = opened()
 
         _ = run.press(.yes("Approve"), on: Self.yes, at: printedAt)
-        _ = run.due(at: printedAt.addingTimeInterval(2))
-        #expect(run.answered(Self.yes, .written))
+        _ = run.due(at: Self.wrote)
+        #expect(run.answered(Self.yes, .written, at: Self.wrote))
         #expect(try Self.card(Self.yes, run).lines == [.sending("→ Approve")])
-        take(["sr-macapp": Lines.onItsWay], in: run)
+        take(["sr-macapp": Lines.onItsWay], in: run, on: Self.lookAfter)
         #expect(try Self.card(Self.yes, run).lines == [.onItsWay("→ Approve", .turn)])
         #expect(run.answers.pending.isEmpty)
     }
 
-    /// A board read before the write, by a look under way as `sitrep answer` wrote, or a line printed before it and
-    /// heard after: it shows the ask waiting with no reply, so the answer stays as it was, its buttons gone, and a
-    /// board that has it written settles it.
-    @Test func aBoardWithoutTheAnswerWrittenLeavesItWrittenUntilOneHasIt() throws {
-        let run = opened()
+    /// A board from a look begun before the write answered, as a look under way as `sitrep answer` wrote, or a line
+    /// printed before it and heard after: the ask waiting with no reply, it says nothing of the answer, which stays
+    /// as it was, its buttons gone.
+    @Test func aBoardFromALookBeforeTheWriteLeavesItSending() throws {
+        let run = Self.written()
 
-        _ = run.press(.yes("Approve"), on: Self.yes, at: printedAt)
-        _ = run.due(at: printedAt.addingTimeInterval(2))
-        _ = run.answered(Self.yes, .written)
         take(["sr-macapp": Lines.board], in: run)
-        #expect(run.answers.pending[Self.yes]?.stage == .written)
+        #expect(run.answers.pending[Self.yes]?.stage == .written(Self.wrote))
         #expect(try Self.card(Self.yes, run).lines == [.sending("→ Approve")])
         #expect(try Self.card(Self.yes, run).buttons.isEmpty)
+    }
+
+    /// The look that began as the write landed, the line heard after the write answered: its board shows Lee's
+    /// answer on its way, so it says where the answer is, as no later board of an unchanged session comes.
+    @Test func aBoardFromALookBeforeTheWriteThatShowsTheAnswerSaysWhereItIs() throws {
+        let run = Self.written()
+
         take(["sr-macapp": Lines.onItsWay], in: run)
         #expect(run.answers.pending.isEmpty)
         #expect(try Self.card(Self.yes, run).lines == [.onItsWay("→ Approve", .turn)])
     }
 
-    /// A reply of Lee's from before the press, gone void, is no sign of this answer; one gone void since is, and the
-    /// card takes its word.
-    @Test func onlyAReplySinceThePressHasTheAnswerWritten() throws {
-        let run = opened()
-        let void = { (since: Date) in
-            edited(Lines.board) { board in
-                board["asks"] = (board["asks"] as! [[String: Any]]).map { ask in
-                    guard ask["id"] as? String == "k1" else {
-                        return ask
-                    }
+    /// The first board from a look begun after the write says where the answer is, whatever it says: k1 waiting with
+    /// no reply, as an edit by Claude since, or the ask reopened, leaves it, offers its buttons again.
+    @Test func theFirstBoardFromALookAfterTheWriteSaysWhereTheAnswerIsWhateverItSays() throws {
+        let voided = Self.written()
 
-                    let reply: [String: Any] = [
-                        "is": "notDelivered", "isAnswer": true, "words": "→ Approve",
-                        "since": since.timeIntervalSince1970 * 1000,
-                    ]
+        take(["sr-macapp": Lines.board], in: voided, on: Self.lookAfter)
+        #expect(voided.answers.pending.isEmpty)
+        #expect(try Self.card(Self.yes, voided).lines.isEmpty)
+        #expect(try Self.card(Self.yes, voided).buttons.first == .yes("Approve"))
 
-                    return ask.merging(["reply": reply]) { $1 }
-                }
-            }
-        }
+        let onItsWay = Self.written()
 
-        _ = run.press(.yes("Approve"), on: Self.yes, at: printedAt)
-        _ = run.due(at: printedAt.addingTimeInterval(2))
-        _ = run.answered(Self.yes, .written)
-        take(["sr-macapp": void(printedAt.addingTimeInterval(-60))], in: run)
-        #expect(run.answers.pending[Self.yes]?.stage == .written)
-        take(["sr-macapp": void(printedAt.addingTimeInterval(3))], in: run)
+        take(["sr-macapp": Lines.onItsWay], in: onItsWay, on: Self.lookAfter)
+        #expect(onItsWay.answers.pending.isEmpty)
+        #expect(try Self.card(Self.yes, onItsWay).lines == [.onItsWay("→ Approve", .turn)])
+    }
+
+    /// On its way as a line carried no board of its session, an answer is settled as a written one is: a board from
+    /// a look before the write leaves it, and the first after says where it is, whatever it says.
+    @Test func onItsWayItIsSettledAsAWrittenAnswerIs() throws {
+        let run = Self.written()
+
+        take(["sr-macapp": nil], in: run)
+        take(["sr-macapp": Lines.board], in: run)
+        #expect(run.answers.pending[Self.yes]?.stage == .onItsWay(Self.wrote))
+        #expect(try Self.card(Self.yes, run).lines == [.onItsWay("→ Approve", .turn)])
+        take(["sr-macapp": Lines.board], in: run, on: Self.lookAfter)
         #expect(run.answers.pending.isEmpty)
+        #expect(try Self.card(Self.yes, run).buttons.first == .yes("Approve"))
     }
 
     /// Before the answer is written, a board is no sign of it either way: the answer is still sending.
@@ -150,7 +171,7 @@ struct AnsweringTests {
         _ = staleFirst.due(at: printedAt.addingTimeInterval(2))
         staleFirst.show(ended, at: printedAt, reducesMotion: false)
         #expect(try Self.card(Self.yes, staleFirst).lines == [.sending("→ Approve")])
-        _ = staleFirst.answered(Self.yes, .written)
+        _ = staleFirst.answered(Self.yes, .written, at: Self.wrote)
         #expect(try Self.card(Self.yes, staleFirst).lines == [.onItsWay("→ Approve", .turn)])
         take(["sr-macapp": Lines.onItsWay], in: staleFirst)
         #expect(staleFirst.answers.pending.isEmpty)
@@ -159,7 +180,7 @@ struct AnsweringTests {
 
         _ = writtenFirst.press(.yes("Approve"), on: Self.yes, at: printedAt)
         _ = writtenFirst.due(at: printedAt.addingTimeInterval(2))
-        _ = writtenFirst.answered(Self.yes, .written)
+        _ = writtenFirst.answered(Self.yes, .written, at: Self.wrote)
         writtenFirst.show(ended, at: printedAt, reducesMotion: false)
         #expect(try Self.card(Self.yes, writtenFirst).lines == [.onItsWay("→ Approve", .turn)])
     }
@@ -170,9 +191,9 @@ struct AnsweringTests {
         _ = run.press(.yes("Approve"), on: Self.yes, at: printedAt)
         _ = run.due(at: printedAt.addingTimeInterval(2))
         run.pick(.session("sr-dash02"))
-        #expect(run.answered(Self.yes, .written))
+        #expect(run.answered(Self.yes, .written, at: Self.wrote))
         take(["sr-dash02": Lines.dashboard], in: run)
-        #expect(run.answers.pending[Self.yes]?.stage == .written)
+        #expect(run.answers.pending[Self.yes]?.stage == .written(Self.wrote))
     }
 
     @Test func writtenAndTheNextLineCarryingNoBoardOfItsSessionItIsOnItsWayAsTheWriteProvedUntilABoardSaysMore() throws {
@@ -182,7 +203,7 @@ struct AnsweringTests {
         _ = run.due(at: printedAt.addingTimeInterval(2))
         take(["sr-macapp": nil], in: run)
         #expect(try Self.card(Self.yes, run).lines == [.sending("→ Approve")])
-        _ = run.answered(Self.yes, .written)
+        _ = run.answered(Self.yes, .written, at: Self.wrote)
         take(["sr-macapp": nil], in: run)
         #expect(try Self.card(Self.yes, run).lines == [.onItsWay("→ Approve", .turn)])
         #expect(try Self.card(Self.yes, run).buttons.isEmpty)
@@ -198,11 +219,27 @@ struct AnsweringTests {
         _ = run.press(.yes("Approve"), on: Self.yes, at: printedAt)
         _ = run.due(at: printedAt.addingTimeInterval(2))
         run.pick(.session("sr-dash02"))
-        _ = run.answered(Self.yes, .written)
+        _ = run.answered(Self.yes, .written, at: Self.wrote)
         run.pick(.session("sr-macapp"))
-        take(["sr-macapp": Lines.onItsWay], in: run)
+        take(["sr-macapp": Lines.onItsWay], in: run, on: Self.lookAfter)
         #expect(run.answers.pending.isEmpty)
         #expect(try Self.card(Self.yes, run).lines == [.onItsWay("→ Approve", .turn)])
+    }
+
+    /// Another session picked inside the two seconds, the write lands while the session is not followed, and
+    /// Claude edits k1 meanwhile, voiding the answer: back on its page, the board `watch` carries anew, from a look
+    /// after the write, shows k1 waiting with no reply, and its buttons come back.
+    @Test func writtenWhileAnotherPageShowsAndVoidedSinceItOffersItsButtonsAgainAsItShows() throws {
+        let run = opened()
+
+        _ = run.press(.yes("Approve"), on: Self.yes, at: printedAt)
+        run.pick(.session("sr-dash02"))
+        _ = run.due(at: Self.wrote)
+        _ = run.answered(Self.yes, .written, at: Self.wrote)
+        run.pick(.session("sr-macapp"))
+        take(["sr-macapp": Lines.board], in: run, on: Self.lookAfter)
+        #expect(run.answers.pending.isEmpty)
+        #expect(try Self.card(Self.yes, run).buttons.first == .yes("Approve"))
     }
 
     @Test func aRefusalGivesWayToABoardWithLeesAnswerOnItsWayEitherWayRoundTheyCome() throws {
@@ -210,7 +247,7 @@ struct AnsweringTests {
 
         _ = refusedFirst.press(.yes("Approve"), on: Self.yes, at: printedAt)
         _ = refusedFirst.due(at: printedAt.addingTimeInterval(2))
-        _ = refusedFirst.answered(Self.yes, .refused("An answer to k1 is on its way already."))
+        _ = refusedFirst.answered(Self.yes, .refused("An answer to k1 is on its way already."), at: Self.wrote)
         take(["sr-macapp": Lines.onItsWay], in: refusedFirst)
         #expect(try Self.card(Self.yes, refusedFirst).lines == [.onItsWay("→ Approve", .turn)])
         #expect(try Self.card(Self.yes, refusedFirst).buttons.isEmpty)
@@ -220,7 +257,7 @@ struct AnsweringTests {
         _ = boardFirst.press(.yes("Approve"), on: Self.yes, at: printedAt)
         take(["sr-macapp": Lines.onItsWay], in: boardFirst)
         _ = boardFirst.due(at: printedAt.addingTimeInterval(2))
-        _ = boardFirst.answered(Self.yes, .refused("An answer to k1 is on its way already."))
+        _ = boardFirst.answered(Self.yes, .refused("An answer to k1 is on its way already."), at: Self.wrote)
         #expect(try Self.card(Self.yes, boardFirst).lines == [.onItsWay("→ Approve", .turn)])
         #expect(try Self.card(Self.yes, boardFirst).buttons.isEmpty)
     }
@@ -240,7 +277,7 @@ struct AnsweringTests {
 
         _ = run.press(.option("Upward"), on: Self.choice, at: printedAt)
         _ = run.due(at: printedAt.addingTimeInterval(2))
-        #expect(!run.answered(Self.choice, .refused(why)))
+        #expect(!run.answered(Self.choice, .refused(why), at: Self.wrote))
 
         let card = try Self.card(Self.choice, run)
 
@@ -253,7 +290,7 @@ struct AnsweringTests {
 
         _ = run.press(.option("Upward"), on: Self.choice, at: printedAt)
         _ = run.due(at: printedAt.addingTimeInterval(2))
-        _ = run.answered(Self.choice, .refused("No."))
+        _ = run.answered(Self.choice, .refused("No."), at: Self.wrote)
         run.pick(.session("sr-dash02"))
         run.pick(.session("sr-macapp"))
         take(["sr-macapp": Lines.board], in: run)
@@ -265,8 +302,8 @@ struct AnsweringTests {
         let run = opened()
 
         run.pick(.session("sr-dash02"))
-        #expect(run.answered(Self.yes, .written))
-        #expect(!run.answered(Self.yes, .refused("No.")))
+        #expect(run.answered(Self.yes, .written, at: Self.wrote))
+        #expect(!run.answered(Self.yes, .refused("No."), at: Self.wrote))
         #expect(run.snoozed(Self.yes, .written))
         #expect(!run.snoozed(Self.yes, .refused("No.")))
         #expect(run.woke(Self.yes, .written))

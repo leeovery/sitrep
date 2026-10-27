@@ -169,7 +169,8 @@ struct SitRepWatchTests {
             break
         }
         gate.open()
-        // The stopped watch's loop runs on after its reader ends; this is time enough for it to begin a run.
+        // Nothing tells when the stopped watch's loop has run on past its PATH, as it begins nothing: one that began a
+        // run would within this, and one that begins none passes, however long the wait.
         try? await Task.sleep(for: .milliseconds(200))
         following.follow(["sr-y4d0qj"])
         running.cancel()

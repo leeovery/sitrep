@@ -11,7 +11,7 @@ import { parseEntries, parsePresence, type SessionPaths } from '../core'
 import { QUIET_MS } from '../hooks/deliver'
 import { WATCH_MS } from '../hooks/window'
 import type { SitrepInFlight } from '../types'
-import { file, MIN, reply, SENDER, W1 } from './support'
+import { file, MIN, reply, SENDER, SLOW, W1 } from './support'
 import { CONVERSATION, postedId, world } from './world'
 
 tier('user')
@@ -141,7 +141,7 @@ const writeDoor = (on: On) => {
 }
 
 for (const source of ['send', 'inbox'] as const) {
-  test(`${source}: claimed while Claude is mid-turn, the message is held, nothing submitted however long the turn runs; as it ends it goes in, written down once`, async ($, on) => {
+  test(`${source}: claimed while Claude is mid-turn, the message is held, nothing submitted however long the turn runs; as it ends it goes in, written down once`, SLOW, async ($, on) => {
     const w = world($, on)
     const { paths, claim } = await replying[source](w)
 

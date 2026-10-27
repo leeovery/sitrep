@@ -221,6 +221,25 @@ struct WindowRunTests {
         #expect(page.asks.isEmpty)
     }
 
+    /// A board this app cannot read, its session under `work`, says so for its session alone, over what was kept; the
+    /// board beside it on the line is taken, and the line's rows read as usual.
+    @Test func aBoardThatDoesNotReadSaysSoForItsSessionAloneTheRestOfItsLineTaken() throws {
+        let run = opened()
+        let unreadable = Lines.board.replacingOccurrences(of: #""session": {"#, with: #""work": {"#)
+
+        take(["sr-macapp": unreadable, "sr-dash02": Lines.dashboard], in: run)
+
+        let page = try #require(run.page(at: printedAt).session)
+
+        #expect(page.failure == "sitrep watch gave a board of this session that this SitRep cannot read.")
+        #expect(page.hasBoard)
+        #expect(page.asks.map(\.id.ask) == ["k1", "k3", "k2"])
+        #expect(run.listed(at: printedAt) == Listed(heard(line(0))))
+        run.pick(.session("sr-dash02"))
+        #expect(run.page(at: printedAt).session?.asks.map(\.id.ask) == ["k1"])
+        #expect(run.page(at: printedAt).session?.failure == nil)
+    }
+
     /// `watch` down, no board can come: a page with none kept says why in the head's words for the board stale; one
     /// with a board kept shows it, as the head says when it was last known current.
     @Test func whileTheBoardIsStaleAPageWithNoBoardKeptSaysWhy() throws {

@@ -198,7 +198,7 @@ struct ClosedAsksTests {
         #expect(Self.asks(run) == ["k1", "k2"])
         #expect(Self.resolved(run) == ["k5", "k4"])
         _ = run.due(at: printedAt.addingTimeInterval(2))
-        _ = run.answered(Self.yes, .refused("k1 is already closed."))
+        _ = run.answered(Self.yes, .refused("k1 is already closed."), at: printedAt.addingTimeInterval(2))
         run.settle(at: printedAt.addingTimeInterval(2))
         #expect(Self.asks(run) == ["k2"])
         #expect(Self.resolved(run) == ["k1", "k5", "k4"])

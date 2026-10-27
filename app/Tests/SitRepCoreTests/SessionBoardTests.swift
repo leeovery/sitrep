@@ -98,10 +98,11 @@ struct SessionBoardTests {
         (#""wants": "choice""#, #""wants": "pick""#),
         (#""kind": "status""#, #""kind": "edit""#),
     ])
-    func aValueTheAppDoesNotKnowIsRefused(known: String, unknown: String) throws {
+    func aValueTheAppDoesNotKnowLeavesTheBoardUnread(known: String, unknown: String) throws {
         let board = Lines.onItsWay.replacingOccurrences(of: known, with: unknown)
+        let line = try Board.read(Lines.carrying(["sr-macapp": board], on: Lines.watch[0]))
 
         try #require(board != Lines.onItsWay)
-        #expect(throws: Unread.shape) { try Self.read(board) }
+        #expect(line.boards["sr-macapp"] == .unread)
     }
 }

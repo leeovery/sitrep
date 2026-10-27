@@ -6,7 +6,7 @@ import Testing
 func carried(_ board: String, of session: String) throws -> SessionBoard {
     let line = try Board.read(Lines.carrying([session: board], on: Lines.watch[0]))
 
-    return try #require(line.boards[session] ?? nil)
+    return try #require(line.boards[session]?.board)
 }
 
 /// A line of `sitrep watch`, as cli/output.ts's `watchLine` prints it but

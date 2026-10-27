@@ -69,39 +69,35 @@ struct WatchProgramTests {
     }
 
     /// The pipe holds 64KB; a program that never reads leaves every write after that waiting on the writer's own
-    /// queue, holding up neither the caller nor the program's end. Its only child reads /dev/null and goes with it, so
-    /// nothing holds the pipe once it ends.
-    @Test func aProgramThatNeverReadsItsStdinHoldsUpNeitherTheLinesGivenNorItsEnd() async throws {
+    /// queue, holding up neither the caller nor the program's end: 1MB given, a caller or an end held up would wait
+    /// for good, past the suite's time limit. Its only child reads /dev/null and goes with it, so nothing holds the
+    /// pipe once it ends.
+    @Test func aProgramThatNeverReadsItsStdinHoldsUpNeitherTheLinesGivenNorItsEnd() async {
         let running = RunningChild()
         let (input, writing) = AsyncStream<String>.makeStream()
         let program = Self.sh("trap 'kill $!; exit 0' TERM; sleep 60 </dev/null & echo ready; wait")
         let line = String(repeating: "a", count: 1024)
-        let clock = ContinuousClock()
-        var given: Duration?
         var heard: [Heard] = []
 
         for await said in watchProgram(holding: running)(program, input) {
             heard.append(said)
 
             if said == .line("ready") {
-                let started = clock.now
-
                 for _ in 0 ..< 1024 {
                     writing.yield(line)
                 }
-                given = clock.now - started
                 running.terminate()
             }
         }
 
         writing.finish()
         #expect(heard == [.line("ready"), .exited(.status(0), stderr: "")])
-        #expect(try #require(given) < .seconds(1))
     }
 
-    /// The write the full pipe holds up waits until its reader goes, then fails with EPIPE, sending no SIGPIPE, which
-    /// would end the tests; the writes after it fail at once, and the writer runs on to its end.
-    @Test func aWriteHeldUpByAReaderThatNeverReadsFailsAsTheReaderGoesAndTheWriterEnds() async throws {
+    /// The reader takes what the pipe holds once and goes, most of the 1MB given still to write, far more than the
+    /// pipe holds: each write left fails with EPIPE, sending no SIGPIPE, which would end the tests, and the writer
+    /// runs on to its end.
+    @Test func aWriterWhoseReaderGoesFailsEachWriteLeftAndEnds() async throws {
         let writer = Writer()
         let (lines, writing) = AsyncStream<String>.makeStream()
         let line = String(repeating: "a", count: 1024)
@@ -111,8 +107,7 @@ struct WatchProgramTests {
             writing.yield(line)
         }
         writing.finish()
-        // Time enough to fill the pipe with some of the 1MB given, so a write is held up as the reader goes.
-        try await Task.sleep(for: .milliseconds(200))
+        #expect(!writer.pipe.fileHandleForReading.availableData.isEmpty)
         try writer.pipe.fileHandleForReading.close()
         await writes.value
     }
