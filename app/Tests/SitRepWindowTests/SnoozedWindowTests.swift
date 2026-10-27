@@ -197,6 +197,18 @@ struct SnoozedWindowTests {
         #expect((page.waiting, page.snoozed) == (1, 2))
     }
 
+    /// k3, the one waiting, closes with nothing holding the page: it leaves, and those asleep stay as they were.
+    @Test func anAskAsleepComesThroughTheClosedOnesLeavingAsItWas() throws {
+        let run = Self.opened()
+        let before = try #require(run.page(at: Self.now).session?.asks.filter { $0.snoozedUntil != nil })
+        let closed = edited(Lines.snoozedBoard) { board in
+            board["asks"] = (board["asks"] as! [[String: Any]]).filter { $0["id"] as? String != "k3" }
+        }
+
+        answer(run.pick(.session(Self.session)), in: run, with: [Self.session: closed], at: Self.now)
+        #expect(run.page(at: Self.now).session?.asks == before)
+    }
+
     @Test func aSnoozeOrAWakeRefusedIsSaidOnItsCardUntilPressedAgain() throws {
         let run = Self.opened()
         let k3 = AskAddress(session: Self.session, ask: "k3"), k1 = AskAddress(session: Self.session, ask: "k1")

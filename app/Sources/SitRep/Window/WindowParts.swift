@@ -242,24 +242,6 @@ extension View {
     func spoken(_ words: String) -> some View {
         accessibilityElement(children: .ignore).accessibilityLabel(words)
     }
-
-    /// A page's asks, whose closed ones keep their places while the pointer is over them, the gaps between them too.
-    func holdingAsks() -> some View {
-        modifier(AsksUnderPointer())
-    }
-}
-
-/// The pointer coming over a page's asks and leaving them, told to the model; their going from under it tells no exit,
-/// so it is told as one.
-private struct AsksUnderPointer: ViewModifier {
-    @Environment(\.windowActions) private var act
-
-    func body(content: Content) -> some View {
-        content
-            .contentShape(Rectangle())
-            .onHover { act.pointerOverAsks($0) }
-            .onDisappear { act.pointerOverAsks(false) }
-    }
 }
 
 extension Text {

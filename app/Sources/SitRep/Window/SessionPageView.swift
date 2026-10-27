@@ -98,7 +98,6 @@ struct SessionPageView: View {
                 CardView(card: card, now: now)
             }
         }
-        .holdingAsks()
     }
 
     /// Its board's sections as last read, under why the latest read failed, if it did.

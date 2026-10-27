@@ -3,15 +3,15 @@ import Foundation
 /// Held while the pointer is over what it holds and for a second after it leaves, as the strip holds its marks, so a
 /// change shows in place; and, after a pick made in it, for a second after the pick. The board's list holds its order
 /// so (`HeldOrder`), and a page its closed asks.
-public struct Hold: Equatable, Sendable {
+struct Hold: Equatable, Sendable {
     /// How long after the pointer leaves, or after the last pick, the hold lets go.
-    public static let settle: TimeInterval = 1
+    static let settle: TimeInterval = 1
 
     private var isPointerIn = false
     /// When the hold lets go, a second after the pointer left or after the last pick.
-    public private(set) var endsAt: Date?
+    private(set) var endsAt: Date?
 
-    public init() {}
+    init() {}
 
     /// Held, while the pointer is over it and until the second after it leaves or after a pick runs out.
     var isHeld: Bool { isPointerIn || endsAt != nil }

@@ -71,7 +71,7 @@ final class WindowModel {
             cancelFinish: { [weak self] in self?.cancelFinish($0) },
             confirmFinish: { [weak self] in self?.confirmFinish($0) },
             pointer: { [weak self] in self?.pointer(isIn: $0) },
-            pointerOverAsks: { [weak self] in self?.pointer(overAsks: $0) },
+            pointerOverPage: { [weak self] in self?.pointer(overPage: $0, from: $1) },
             fold: { [weak self] in self?.fold($0) },
             filter: { [weak self] in self?.narrow(to: $0) },
             openFirstMatch: { [weak self] in self?.openFirstMatch() }
@@ -185,8 +185,8 @@ final class WindowModel {
         refresh()
     }
 
-    private func pointer(overAsks isIn: Bool) {
-        run.pointer(overAsks: isIn, at: Date())
+    private func pointer(overPage isIn: Bool, from region: ObjectIdentifier) {
+        run.pointer(overPage: isIn, from: region, at: Date())
         refresh()
     }
 
