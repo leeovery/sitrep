@@ -60,7 +60,7 @@ const folded = async (t: Terminal, paths: SessionPaths) => {
 type ReplyStanding = { is: string; isAnswer: boolean; words: string; since: number } | null
 
 type Board = {
-  work: { waiting: number }
+  session: { waiting: number }
   asks: { id: string; state: string; reply: ReplyStanding }[]
   resolved: { id: string; reply: ReplyStanding; closedAt: number | null; reason: string | null }[]
 }
@@ -108,8 +108,8 @@ test('the board never closes an ask on the answer alone: it stays open, its answ
   expect(session.asks[0]?.answer).toBeUndefined()
   expect(session.replies).toMatchObject([{ id: FIRST_ID, by: WRITER, delivery: 'closed' }])
   expect(session.waiting).toBe(2)
-  expect(JSON.parse((await t.run('list', '--json')).out).projects[0].works[0].waiting).toBe(2)
-  expect((await boardOf(t)).work.waiting).toBe(2)
+  expect(JSON.parse((await t.run('list', '--json')).out).projects[0].sessions[0].waiting).toBe(2)
+  expect((await boardOf(t)).session.waiting).toBe(2)
   expect((await boardOf(t)).asks[0]).toMatchObject({
     id: 'k1',
     state: 'waiting',

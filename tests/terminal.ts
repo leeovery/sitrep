@@ -1,10 +1,11 @@
 /**
  * The CLI's world, for its tests: a file system in memory (the mod's test
  * world's own, when a test shares it), the folder the CLI runs in, the
- * environment, the clocks, which only waiting moves, random bytes, what it
- * prints and its closing, the plugin's manifest, and a fake tmux, `ps`,
- * lsappinfo, `open` and Ghostty behind the programs it runs and the devices
- * it writes to. Nothing touches a real folder, terminal or window.
+ * environment, the clocks, which only waiting moves, random bytes, its
+ * standard input, what it prints and its closing, the plugin's manifest,
+ * and a fake tmux, `ps`, lsappinfo, `open` and Ghostty behind the programs
+ * it runs and the devices it writes to. Nothing touches a real folder,
+ * terminal or window.
  */
 import { FRONT, GHOSTTY_BUNDLE } from '../cli/front'
 import { FIND_AND_FOCUS, FOCUS, LIST } from '../cli/ghostty'
@@ -203,6 +204,9 @@ const NO_BUNDLE = '"CFBundleIdentifier"=[ NULL ] '
 const asnAt = (place: number) => `ASN:0x0-0x${(place + 1).toString(16)}:`
 
 const ASN = /^ASN:0x0-0x([0-9a-f]+):$/
+
+/** A promise that never settles: a wait cancelled, as the shell's. */
+const never = () => new Promise<void>(() => {})
 
 /** A promise, and what settles it. */
 const latch = () => {
@@ -568,6 +572,8 @@ export function terminal(options: Options = {}) {
   const closing = latch()
   /** How many listenings for the run's end are not yet stopped. */
   let listening = 0
+  /** Standard input: what was written to it that nothing has heard yet, as a pipe holds it, and what hears it now. */
+  const stdin: { held: string[]; heard?: (text: string) => void } = { held: [] }
 
   /**
    * A folder's stat, as a real one's moves: its time stands for the names in
@@ -611,11 +617,27 @@ export function terminal(options: Options = {}) {
     now,
     uptime: () => awake() + waited(),
     wait: ms => {
+      let isCancelled = false
+
       waits.push(ms)
 
-      return Object.assign(Promise.resolve(), { cancel: () => {} })
+      return Object.assign(
+        Promise.resolve().then(() => (isCancelled ? never() : undefined)),
+        {
+          cancel: () => {
+            isCancelled = true
+          },
+        },
+      )
     },
     random: options.random ?? scripted([1, 2, 3, 4], [5, 6, 7, 8]),
+    input: heard => {
+      stdin.heard = heard
+
+      return () => {
+        stdin.heard = undefined
+      }
+    },
     out: text => {
       printed.out += text
     },
@@ -748,6 +770,26 @@ export function terminal(options: Options = {}) {
     run,
     close: closing.open,
     listening: () => listening,
+    /** Writes to the run's standard input, as the app does: heard at once while it listens, else held until it does and `arrives` gives it. */
+    send: (text: string) => {
+      if (stdin.heard === undefined) {
+        stdin.held.push(text)
+
+        return
+      }
+
+      stdin.heard(text)
+    },
+    /** What standard input held comes to what listens to it: as a pipe gives it, on a turn after the listening began, never in the call that began it. */
+    arrives: () => {
+      const { heard } = stdin
+
+      if (heard !== undefined) {
+        stdin.held.splice(0).forEach(heard)
+      }
+    },
+    /** Whether anything listens to standard input. */
+    isHearing: () => stdin.heard !== undefined,
     text,
     seed,
     window,

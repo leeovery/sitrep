@@ -1,10 +1,10 @@
 {
-  "v": 2,
+  "v": 3,
   "project": {
     "key": "switchboard",
     "name": "Switchboard"
   },
-  "work": {
+  "session": {
     "id": "sr-rq7dgr",
     "name": "Request ledger",
     "summary": "The request ledger",

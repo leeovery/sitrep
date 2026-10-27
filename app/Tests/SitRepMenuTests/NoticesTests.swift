@@ -41,17 +41,17 @@ struct NoticesTests {
         #expect(Notices.due(heard([.line(Self.newAsk)]), isOn: true).isEmpty)
     }
 
-    @Test func aResumedBoardSendsNothing() {
-        let resumed = heard([.line(Watched.line(rows: [])), .exited(.status(1), stderr: "")], [.line(Self.newAsk)])
+    @Test func theFirstBoardOfARunAfterAnotherSendsNothing() {
+        let restarted = heard([.line(Watched.line(rows: [])), .exited(.status(1), stderr: "")], [.line(Self.newAsk)])
 
-        #expect(resumed.isResumed)
-        #expect(Notices.due(resumed, isOn: true).isEmpty)
+        #expect(restarted.isRunsFirst)
+        #expect(Notices.due(restarted, isOn: true).isEmpty)
     }
 
     @Test func afterARunsFirstLineThatDidNotReadTheNextLinesNewAskIsSent() {
         let after = heard([.line(Watched.line(rows: [])), .exited(.status(1), stderr: "")], [.line("{"), .line(Self.newAsk)])
 
-        #expect(after.isResumed)
+        #expect(!after.isRunsFirst)
         #expect(Notices.due(after, isOn: true).map(\.work) == ["sr-ledger"])
     }
 

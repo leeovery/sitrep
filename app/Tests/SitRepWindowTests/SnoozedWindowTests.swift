@@ -13,19 +13,20 @@ struct SnoozedWindowTests {
     private static let session = "sr-4g01a7"
     /// When the real `watch` printed its first line here: 08:45 in London on Friday 23 October 2026.
     private static let now = Date(timeIntervalSince1970: 1_792_741_527.619)
-    private static let boards = [session: Lines.snoozedBoard]
+    private static let boards: [String: String?] = [session: Lines.snoozedBoard]
 
-    /// `watch`'s line at this place, heard on its own.
-    private static func line(_ place: Int) -> LastBoard {
-        heard(.line(Lines.snoozed[place]))
+    /// `watch`'s line at this place.
+    private static func line(_ place: Int) -> Heard {
+        .line(Lines.snoozed[place])
     }
 
-    /// A window open on `watch`'s first line, its session's board read.
-    private static func opened(_ last: LastBoard = line(0)) -> WindowRun {
+    /// A window open on `watch`'s first line, unless another, then its session's board, as the next line carries it.
+    private static func opened(_ line: Heard = line(0)) -> WindowRun {
         let run = WindowRun(wall: { Self.now })
 
-        _ = run.show(last, at: Self.now, reducesMotion: false)
-        answer(run.open(), in: run, with: boards)
+        run.show(heard(line), at: Self.now, reducesMotion: false)
+        run.open()
+        take(boards, in: run, on: line, at: Self.now)
         return run
     }
 
@@ -128,7 +129,7 @@ struct SnoozedWindowTests {
     @Test func aWakeAtItsTimeWashesItsRowInNeedsYouAndNotItsRowInSnoozed() throws {
         let run = Self.opened()
 
-        _ = run.show(heard(.line(Lines.snoozed[0]), .line(Lines.snoozed[1])), at: Self.now, reducesMotion: false)
+        run.show(heard(.line(Lines.snoozed[0]), .line(Lines.snoozed[1])), at: Self.now, reducesMotion: false)
         #expect(try Self.row(.session(Self.session), in: run).washed == Self.now)
         #expect(try Self.row(.snoozed(Self.session), in: run).washed == nil)
         #expect(try Self.row(.snoozed(Self.session), in: run).lines.allSatisfy { $0.washed == nil })
@@ -141,8 +142,8 @@ struct SnoozedWindowTests {
         let run = Self.opened()
 
         #expect(run.pick == .session(Self.session))
-        _ = run.pickInList(.snoozed(Self.session), at: Self.now)
-        _ = run.pick(.session(Self.session))
+        run.pickInList(.snoozed(Self.session), at: Self.now)
+        run.pick(.session(Self.session))
         #expect(run.pick == .session(Self.session))
     }
 
@@ -152,7 +153,7 @@ struct SnoozedWindowTests {
         let k3 = AskAddress(session: Self.session, ask: "k3")
 
         _ = run.snoozed(k3, .refused("k3 is already closed."))
-        _ = run.pickInList(.snoozed(Self.session), at: Self.now)
+        run.pickInList(.snoozed(Self.session), at: Self.now)
 
         let page = try #require(run.page(at: Self.now).session)
 
@@ -166,7 +167,7 @@ struct SnoozedWindowTests {
     @Test func withNoOtherRowAPickLandsOnTheSnoozedRow() {
         let run = Self.opened(Self.snoozedAlone())
 
-        _ = run.pick(.session(Self.session))
+        run.pick(.session(Self.session))
         #expect(run.pick == .snoozed(Self.session))
         #expect(!run.folds.sections.contains(.snoozed))
         #expect(Self.ids(run).contains(.pick(.snoozed(Self.session))))
@@ -177,9 +178,9 @@ struct SnoozedWindowTests {
     @Test func thePickMovesToTheRowLeftAsItsRowGoes() {
         let run = Self.opened()
 
-        _ = run.show(Self.snoozedAlone(), at: Self.now, reducesMotion: false)
+        run.show(heard(Self.snoozedAlone()), at: Self.now, reducesMotion: false)
         #expect(run.pick == .snoozed(Self.session))
-        _ = run.show(Self.line(2), at: Self.now, reducesMotion: false)
+        run.show(heard(Self.line(2)), at: Self.now, reducesMotion: false)
         #expect(run.pick == .session(Self.session))
     }
 
@@ -205,7 +206,7 @@ struct SnoozedWindowTests {
             board["asks"] = (board["asks"] as! [[String: Any]]).filter { $0["id"] as? String != "k3" }
         }
 
-        answer(run.pick(.session(Self.session)), in: run, with: [Self.session: closed], at: Self.now)
+        take([Self.session: closed], in: run, on: Self.line(0), at: Self.now)
         #expect(run.page(at: Self.now).session?.asks == before)
     }
 
@@ -214,8 +215,8 @@ struct SnoozedWindowTests {
         let k3 = AskAddress(session: Self.session, ask: "k3"), k1 = AskAddress(session: Self.session, ask: "k1")
         let lines = { (ask: AskAddress) in run.page(at: Self.now).session?.asks.first { $0.id == ask }?.lines }
 
-        #expect(run.snoozed(k3, .refused("Lee's reply to k3 is on its way: it waits on Lee no more.")).isEmpty)
-        #expect(run.woke(k1, .refused("k1 is not snoozed.")).isEmpty)
+        #expect(!run.snoozed(k3, .refused("Lee's reply to k3 is on its way: it waits on Lee no more.")))
+        #expect(!run.woke(k1, .refused("k1 is not snoozed.")))
         #expect(lines(k3) == [.inbox, .notSnoozed("Lee's reply to k3 is on its way: it waits on Lee no more.")])
         #expect(lines(k1) == [.notWoken("k1 is not snoozed.")])
 
@@ -223,19 +224,20 @@ struct SnoozedWindowTests {
         #expect(lines(k3) == [.inbox])
     }
 
-    /// Written, the session is read again, for its card to go asleep or wake.
-    @Test func aSnoozeWrittenReadsTheSessionAgain() {
+    /// Written, `watch` looks at once, for its card to go asleep or wake on the board it carries next.
+    @Test func aSnoozeOrAWakeWrittenAsksForALookNow() {
         let run = Self.opened()
 
-        #expect(run.snoozed(AskAddress(session: Self.session, ask: "k3"), .written).map(\.session) == [Self.session])
-        #expect(run.woke(AskAddress(session: Self.session, ask: "k1"), .written).map(\.session) == [Self.session])
+        #expect(run.snoozed(AskAddress(session: Self.session, ask: "k3"), .written))
+        #expect(run.woke(AskAddress(session: Self.session, ask: "k1"), .written))
     }
 
     /// A project's page lists the asks asleep among its asks.
     @Test func aProjectsPageListsItsAsksAsleepAmongItsAsks() throws {
         let run = Self.opened()
 
-        answer(run.pick(.project("harness")), in: run, with: Self.boards)
+        run.pick(.project("harness"))
+        take(Self.boards, in: run, on: Self.line(0), at: Self.now)
 
         let page = try #require(run.page(at: Self.now).project)
 
@@ -256,10 +258,10 @@ struct SnoozedWindowTests {
     }
 
     /// The first line with its Needs you row gone, as its last waiting ask snoozed would leave it.
-    private static func snoozedAlone() -> LastBoard {
-        heard(.line(edited(Lines.snoozed[0]) { board in
+    private static func snoozedAlone() -> Heard {
+        .line(edited(Lines.snoozed[0]) { board in
             board["rows"] = []
             board["head"] = ["needYou": 0, "sessions": 0]
-        }))
+        })
     }
 }

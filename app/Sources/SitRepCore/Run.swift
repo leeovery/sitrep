@@ -1,7 +1,7 @@
 import Foundation
 import os
 
-/// A program to run as a child process: no shell between, stdin from /dev/null.
+/// A program to run as a child process, with no shell between.
 public struct Program: Sendable, Equatable {
     public let executable: URL
     public let arguments: [String]
@@ -59,8 +59,9 @@ public let runProgram: Runner = { program in
 /// How long output is read after the program ends: a child it left behind may hold its output open.
 let drainSeconds: TimeInterval = 0.5
 
-/// Runs the program to its end or its limit. One still running at the limit is
-/// killed outright: an interactive shell ignores SIGTERM.
+/// Runs the program to its end or its limit, its stdin /dev/null. One still
+/// running at the limit is killed outright: an interactive shell ignores
+/// SIGTERM.
 private func runWaiting(_ program: Program) throws -> Ran {
     let process = Process()
     let stdout = Output()

@@ -106,30 +106,28 @@ struct WindowStillsTests {
                 _ = run.press(.yes("Approve"), on: AskAddress(session: "sr-macapp", ask: "k1"), at: now)
                 return (run, now.addingTimeInterval(0.76))
             case .onItsWay:
-                Self.heard(Lines.watch[1], in: run, board: Lines.onItsWay)
+                Self.heard(Lines.watch[1], in: run, boards: ["sr-macapp": Lines.onItsWay])
             case .claudeHasIt:
-                Self.heard(Lines.watch[2], in: run, board: Lines.delivered)
+                Self.heard(Lines.watch[2], in: run, boards: ["sr-macapp": Lines.delivered])
             case .closedWhileRead:
-                Self.pick(.session("sr-macapp"), in: run, board: Self.resolvedByClaude)
+                Self.pick(.session("sr-macapp"), in: run, boards: ["sr-macapp": Self.resolvedByClaude])
             case .newAsk:
-                _ = run.show(Self.heard(Lines.watch[0], Self.withNew), at: now, reducesMotion: false)
+                run.show(Self.heard(Lines.watch[0], Self.withNew), at: now, reducesMotion: false)
                 return (run, now.addingTimeInterval(0.3))
             case .allClear:
-                _ = run.show(Self.heard(Self.nothingNeedingLee), at: now, reducesMotion: false)
-                Self.pick(.session("sr-rq7dgr"), in: run)
+                run.show(Self.heard(Self.nothingNeedingLee), at: now, reducesMotion: false)
+                Self.pick(.session("sr-rq7dgr"), in: run, on: Self.nothingNeedingLee)
             case .hovered:
                 break
             case .quietProject:
                 Self.pick(.project("kit"), in: run)
             case .openedItems:
-                Self.pick(.session("sr-macapp"), in: run, board: Self.withLongItems)
+                Self.pick(.session("sr-macapp"), in: run, boards: ["sr-macapp": Self.withLongItems])
                 [.note("sr-macapp:n2"), .parked("p1"), .resolved("k4"), .resolved("k5")].forEach(run.toggle)
             case .longOptions:
-                Self.pick(.session("sr-macapp"), in: run, board: Self.withLongOptions)
+                Self.pick(.session("sr-macapp"), in: run, boards: ["sr-macapp": Self.withLongOptions])
             case .projectItemOpened:
-                for read in run.pick(.project("switchboard")) {
-                    Self.answer([read], in: run, board: read.session == "sr-rq7dgr" ? Self.longLedger : nil)
-                }
+                Self.pick(.project("switchboard"), in: run, boards: ["sr-rq7dgr": Self.longLedger])
                 if case let .project(page) = run.page(at: now), let note = page.notes.first {
                     run.toggle(.note(note.id))
                 }
@@ -150,26 +148,35 @@ struct WindowStillsTests {
         private static func opened(_ line: String) -> WindowRun {
             let run = WindowRun(wall: { printed })
 
-            _ = run.show(heard(line), at: printed, reducesMotion: false)
-            answer(run.open(), in: run)
+            run.show(heard(line), at: printed, reducesMotion: false)
+            run.open()
+            take(in: run, on: line)
             return run
         }
 
-        private static func pick(_ pick: Pick, in run: WindowRun, board: String? = nil) {
-            answer(run.pick(pick), in: run, board: board)
+        /// Picked on the line given, `watch`'s first unless another, which then carries the boards it follows.
+        private static func pick(
+            _ pick: Pick, in run: WindowRun, on line: String = Lines.watch[0], boards given: [String: String] = [:]
+        ) {
+            run.pick(pick)
+            take(in: run, on: line, boards: given)
         }
 
-        /// `watch`'s first line, then this one, the session it says changed read as `board` has it.
-        private static func heard(_ line: String, in run: WindowRun, board: String) {
-            answer(run.show(heard(Lines.watch[0], line), at: printed, reducesMotion: false), in: run, board: board)
+        /// `watch`'s first line, then this one, carrying the boards the window follows.
+        private static func heard(_ line: String, in run: WindowRun, boards given: [String: String]) {
+            run.show(heard(Lines.watch[0], carrying(run, on: line, given)), at: printed, reducesMotion: false)
         }
 
-        private static func answer(_ reads: [Read], in run: WindowRun, board: String? = nil) {
-            for read in reads {
-                if let text = board ?? boards[read.session] {
-                    run.read(read, gave: .board(try! SessionBoard.read(text)), at: printed, reducesMotion: false)
-                }
-            }
+        private static func take(in run: WindowRun, on line: String, boards given: [String: String] = [:]) {
+            run.show(heard(carrying(run, on: line, given)), at: printed, reducesMotion: false)
+        }
+
+        /// The line given carrying the board of each session the window follows, as given, or else as the real CLI
+        /// printed it.
+        private static func carrying(_ run: WindowRun, on line: String, _ given: [String: String]) -> String {
+            let followed = boards.merging(given) { $1 }.filter { run.following.contains($0.key) }
+
+            return Lines.carrying(followed.mapValues(Optional.some), on: line)
         }
 
         private static func heard(_ lines: String...) -> LastBoard {

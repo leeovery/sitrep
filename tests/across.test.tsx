@@ -83,7 +83,7 @@ const answer = async (ui: Board, session: string, item: string) => {
 const repliesIn = (w: World, path: string) =>
   parseEntries(w.text(path)).flatMap(line => (line.type === 'reply' ? [line] : []))
 
-test('Ready to send groups the replies by where each goes, this session first, at the foot of every view', async ($, on) => {
+test('Ready to send groups the replies by where each goes, this session first, at the foot of every view', SLOW, async ($, on) => {
   const w = world($, on)
   const { asked, ui } = await threeSessions(w)
 
@@ -104,7 +104,7 @@ test('Ready to send groups the replies by where each goes, this session first, a
   }
 })
 
-test("send writes another session's replies into its inbox as this window's letters, and they leave the queue", async ($, on) => {
+test("send writes another session's replies into its inbox as this window's letters, and they leave the queue", SLOW, async ($, on) => {
   const w = world($, on)
   const { asked, paths, ui } = await threeSessions(w)
 

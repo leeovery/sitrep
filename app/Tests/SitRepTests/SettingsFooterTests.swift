@@ -202,7 +202,7 @@ struct SettingsFooterTests {
     private static func onSettings() -> WindowRun {
         let run = HostedSidebar.opened()
 
-        _ = run.pick(.settings)
+        run.pick(.settings)
         return run
     }
 

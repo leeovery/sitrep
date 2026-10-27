@@ -17,6 +17,7 @@ import {
   reopen,
   reply,
   resolve,
+  SLOW,
   snooze,
   T0,
   unfinish,
@@ -63,7 +64,7 @@ test('a line posted in a session around shows within a look', async ($, on) => {
   expect(around(w, LEDGER.id)?.asks.map(ask => ask.id)).toEqual(['k3', 'k4'])
 })
 
-test('a window around going stale shows within a look, though no file changed', async ($, on) => {
+test('a window around going stale shows within a look, though no file changed', SLOW, async ($, on) => {
   const w = world($, on)
 
   w.elsewhere(LEDGER).beat()

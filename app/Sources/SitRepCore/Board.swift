@@ -1,11 +1,13 @@
 import Foundation
+import os
 
 /// The board as every surface shows it: a line of `sitrep watch`, which
-/// prints one at its start and another whenever the board changes
-/// (cli/output.ts's `watchLine`). Finished sessions are not on it; away
-/// ones are, their asks still counting.
+/// prints one at its start and another whenever the board changes or it
+/// carries a board of a session the window follows (cli/output.ts's
+/// `watchLine`). Finished sessions are not on it; away ones are, their asks
+/// still counting.
 public struct Board: Versioned, Sendable, Equatable {
-    static let version = 2
+    static let version = 3
 
     /// When the line was printed.
     public let at: Date
@@ -24,8 +26,10 @@ public struct Board: Versioned, Sendable, Equatable {
     /// The keys of the lines needing Lee that the last line had not, an ask's or a window's stop: the notch's swell,
     /// the strip's flash. None on the first line.
     public let new: [String]
-    /// The sessions whose `board --json` changed since the last line, for the SitRep window to read again.
-    public let changed: [String]
+    /// By session id, the board of each session the window follows that is new to what it follows or changed since
+    /// the watch last printed it, folded as the line is. Each is printed once, so only the line that carries it says
+    /// it.
+    public let boards: [String: Carried]
 
     /// The rows holding a line new on this board, by their sessions.
     public var newRows: Set<String> {
@@ -45,11 +49,43 @@ public struct Board: Versioned, Sendable, Equatable {
         projects = try given.decode([Project].self, forKey: .projects)
         windows = try given.decode([Window].self, forKey: .windows)
         new = try given.decode([String].self, forKey: .new)
-        changed = try given.decode([String].self, forKey: .changed)
+        boards = try given.decode([String: Carried].self, forKey: .boards)
     }
 
     private enum CodingKeys: String, CodingKey {
-        case at, version, head, rows, snoozed, projects, windows, new, changed
+        case at, version, head, rows, snoozed, projects, windows, new, boards
+    }
+
+    /// A session's board as a line carries it, each read on its own, so one this app cannot read leaves the rest of
+    /// the line to read.
+    public enum Carried: Decodable, Sendable, Equatable {
+        case board(SessionBoard)
+        /// The watch finds no such session: none a project files, or one whose `session.json` does not fold.
+        case notFound
+        /// A board this app cannot read.
+        case unread
+
+        /// The board, where it was found and reads.
+        public var board: SessionBoard? {
+            if case let .board(board) = self {
+                return board
+            }
+            return nil
+        }
+
+        public init(from decoder: any Decoder) throws {
+            if try decoder.singleValueContainer().decodeNil() {
+                self = .notFound
+                return
+            }
+
+            do {
+                self = .board(try SessionBoard(from: decoder))
+            } catch {
+                Logger.watch.error("sitrep watch carried a board this SitRep cannot read: \(error, privacy: .public)")
+                self = .unread
+            }
+        }
     }
 
     /// How many lines need Lee, away ones among them, and how many sessions the rows hold.
@@ -269,7 +305,7 @@ public struct Board: Versioned, Sendable, Equatable {
         public let asks: [Ask]
     }
 
-    /// An ask as `board --json` gives it.
+    /// An ask as a session's board gives it.
     public struct Ask: Decodable, Sendable, Equatable, Identifiable {
         public enum Wants: String, Decodable, Sendable {
             case yes, choice, words

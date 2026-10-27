@@ -15,10 +15,11 @@ struct SessionPageTests {
         try #require(page(run, at: time).asks.first { $0.id.ask == ask })
     }
 
-    private static func picked(_ session: String, boards: [String: String]) -> WindowRun {
+    private static func picked(_ session: String, boards: [String: String?]) -> WindowRun {
         let run = opened(boards: boards)
 
-        answer(run.pick(.session(session)), in: run, with: boards)
+        run.pick(.session(session))
+        take(boards, in: run)
         return run
     }
 
@@ -62,30 +63,32 @@ struct SessionPageTests {
         #expect(page.finish == .offered)
     }
 
-    @Test func beforeItsBoardIsReadItSaysSoAndShowsNoAsks() throws {
+    @Test func beforeItsBoardComesItSaysSoAndShowsNoAsks() throws {
         let page = try Self.page(opened(boards: [:]))
 
-        #expect(!page.isRead)
+        #expect(!page.hasBoard)
         #expect(page.failure == nil)
         #expect(page.asks.isEmpty)
     }
 
     @Test func itsJumpItsFinishAndItsButtonsFollowWhatWatchSaysItIsDoingTheOneFactOfAway() throws {
-        let away = try Self.page(opened(on: heard(line(with: "sr-macapp", doing: .away))))
+        let away = try Self.page(opened(on: line(with: "sr-macapp", doing: .away)))
 
         #expect(!away.jumps)
         #expect(away.finish == .offered)
         #expect(away.asks.first { $0.id.ask == "k1" }?.buttons == [.yes("Approve"), .ignore, .snooze])
 
-        let run = opened(on: heard(line(with: "sr-gs7kq2", doing: .yourTurn)))
+        let held = line(with: "sr-gs7kq2", doing: .yourTurn)
+        let run = opened(on: held)
 
-        answer(run.pick(.session("sr-gs7kq2")), in: run, with: ["sr-gs7kq2": Lines.away])
+        run.pick(.session("sr-gs7kq2"))
+        take(["sr-gs7kq2": Lines.away], in: run, on: held)
 
-        let held = try Self.page(run)
+        let page = try Self.page(run)
 
-        #expect(held.jumps)
-        #expect(held.finish == nil)
-        #expect(held.asks.first?.buttons.contains(.inClaude(.comment)) == true)
+        #expect(page.jumps)
+        #expect(page.finish == nil)
+        #expect(page.asks.first?.buttons.contains(.inClaude(.comment)) == true)
         #expect(run.listed(at: printedAt).rows.first { $0.id == "sr-gs7kq2" }?.isAway == false)
     }
 
@@ -133,7 +136,7 @@ struct SessionPageTests {
 
     @Test func onAnAwaySessionAnAnswerOnItsWayWaitsForAWindow() throws {
         let windowless = Lines.watch[0].replacingOccurrences(of: #""doing":{"is":"working""#, with: #""doing":{"is":"away""#)
-        let run = opened(on: heard(.line(windowless)), boards: ["sr-macapp": Lines.onItsWay])
+        let run = opened(on: .line(windowless), boards: ["sr-macapp": Lines.onItsWay])
 
         #expect(try Self.card("k1", run).lines == [.onItsWay("→ Approve", .window)])
     }

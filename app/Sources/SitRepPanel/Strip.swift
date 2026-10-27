@@ -229,7 +229,7 @@ public final class Strip {
     /// - one arriving off the needs you side, new to the strip or already on it, moves in at once, pointer or not, and
     ///   its ring flashes, or its count's; one arriving on the needs you side flashes where it is;
     /// - any other new to the strip comes in as the marks re-sort at once, unflashed: needs you with nothing new among
-    ///   them, as on a first or a resumed board.
+    ///   them, as on any run's first board.
     ///
     /// `reworded`, what the tabs say of the board changed with it, as when it goes stale: each open tab that says it
     /// takes its new words. A tab takes them once, though its row changed too.

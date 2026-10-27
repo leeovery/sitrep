@@ -364,7 +364,7 @@ private struct Sides {
 
         last.begin()
         _ = last.hear(.line(Lines.watch[0]), at: Date())
-        _ = run.show(last, at: Date(), reducesMotion: false)
+        run.show(last, at: Date(), reducesMotion: false)
         return run.sidebar(at: Date())
     }()
 

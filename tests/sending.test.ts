@@ -134,7 +134,7 @@ const askIn = (session: Session, id: string) => {
 const needingLee = (session: Session) => {
   const listed = listing([{ project: SWITCHBOARD, sessions: [summarise(session)] }], '/', NOW)
   const board = JSON.parse(boardJson(SWITCHBOARD.key, session)) as {
-    work: { waiting: number }
+    session: { waiting: number }
     asks: { id: string; reply: { is: string; isAnswer: boolean; words: string } | null }[]
   }
 
@@ -145,7 +145,7 @@ const needingLee = (session: Session) => {
       .map(line => line.ask),
     head: feedOf([{ project: SWITCHBOARD, sessions: [session] }], NOW).head.needYou,
     list: listed.projects.map(project => [project.waiting, project.sessions[0]?.waiting]),
-    board: board.work.waiting,
+    board: board.session.waiting,
   }
 }
 

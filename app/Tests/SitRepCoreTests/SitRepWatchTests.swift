@@ -7,24 +7,32 @@ import Testing
 struct SitRepWatchTests {
     private static let path = "/Users/lee/.bun/bin:/opt/homebrew/bin:/usr/bin:/bin"
 
-    /// The watch over the runs given, on their clock, Lee's PATH taking as long as given to find.
-    private static func watch(_ runs: Runs, pathTakes: Duration = .zero) -> SitRepWatch<TestClock> {
+    /// The watch over the runs given, on their clock, Lee's PATH taking as long as given to find, and held back by the
+    /// gate given, if one is, each run told what is followed.
+    private static func watch(
+        _ runs: Runs, following: Following = Following(), pathTakes: Duration = .zero, pathWaitsOn gate: Gate? = nil
+    ) -> SitRepWatch<TestClock> {
         let clock = runs.clock
         let cli = SitRepCLI(plugin: URL(fileURLWithPath: "/Users/lee/Code/sitrep"), path: {
+            await gate?.wait()
             clock.advance(by: pathTakes)
 
             return path
         }, environment: ["HOME": "/Users/lee"])
 
-        return SitRepWatch(cli: cli, watcher: runs.watcher, clock: clock, now: { clock.date })
+        return SitRepWatch(cli: cli, following: following, watcher: runs.watcher, clock: clock, now: { clock.date })
     }
 
-    /// The first boards the watch publishes; the reading stops after them.
-    private static func boards(_ count: Int, of runs: Runs, pathTakes: Duration = .zero) async -> [LastBoard] {
+    /// The first boards the watch publishes, each heard as given; the reading stops after them.
+    private static func boards(
+        _ count: Int, of runs: Runs, following: Following = Following(), pathTakes: Duration = .zero,
+        hearing: (LastBoard) -> Void = { _ in }
+    ) async -> [LastBoard] {
         var boards: [LastBoard] = []
 
-        for await board in watch(runs, pathTakes: pathTakes).boards() {
+        for await board in watch(runs, following: following, pathTakes: pathTakes).boards() {
             boards.append(board)
+            hearing(board)
 
             if boards.count == count {
                 break
@@ -32,6 +40,10 @@ struct SitRepWatchTests {
         }
 
         return boards
+    }
+
+    private static func follow(_ sessions: [String]) -> String {
+        #"{"follow":[\#(sessions.map { "\"\($0)\"" }.joined(separator: ","))]}"#
     }
 
     private static func exited(_ status: Int32, lives: Duration = .zero) -> Run {
@@ -89,15 +101,81 @@ struct SitRepWatchTests {
         #expect(runs.programs.count == 2)
     }
 
-    @Test func eachRunsFirstBoardAfterTheFirstRunIsResumed() async {
+    /// So a run started after a back-off or a renewal follows what the window shows: the set as the run starts, the
+    /// window's change as the first run began among it.
+    @Test func eachRunIsToldTheSetFollowedBeforeAnythingElseAfterABackOffAndARenewalToo() async {
+        let following = Following()
         let runs = Runs([
-            Run(says: [.line(watchedEmpty), .line(watched), .exited(.status(1), stderr: "")]),
-            Run(says: [.line(watchedEmpty), .line(watched)], ends: false),
+            Run(says: [.line(watched), .exited(.status(1), stderr: "")]),
+            Run(lives: .seconds(5), says: [.line(watched), .exited(.status(0), stderr: "")]),
+            Run(says: [.line(watchedEmpty)], ends: false),
+        ]) { run in
+            if run == 0 {
+                following.follow(["sr-y4d0qj", "sr-7e68fj"])
+            }
+        }
+
+        following.follow(["sr-y4d0qj"])
+        _ = await Self.boards(4, of: runs, following: following)
+
+        #expect(runs.clock.slept == [.seconds(1)])
+        #expect(await runs.told() == [
+            [Self.follow(["sr-y4d0qj"]), Self.follow(["sr-7e68fj", "sr-y4d0qj"])],
+            [Self.follow(["sr-7e68fj", "sr-y4d0qj"])],
+            [Self.follow(["sr-7e68fj", "sr-y4d0qj"])],
         ])
+    }
 
-        let boards = await Self.boards(5, of: runs)
+    @Test func theRunUnderWayIsToldTheSetAsItChangesAndAgainForALookNow() async {
+        let following = Following()
+        let runs = Runs([Run(says: [.line(watchedEmpty), .line(watched)], ends: false)])
 
-        #expect(boards.map(\.isResumed) == [false, false, false, true, false])
+        _ = await Self.boards(2, of: runs, following: following) { last in
+            if last.board == (try? Board.read(watchedEmpty)) {
+                following.follow(["sr-y4d0qj"])
+                following.follow(["sr-y4d0qj"])
+                following.lookNow()
+                following.follow([])
+            }
+        }
+
+        #expect(await runs.told() == [
+            [Self.follow([]), Self.follow(["sr-y4d0qj"]), Self.follow(["sr-y4d0qj"]), Self.follow([])],
+        ])
+    }
+
+    /// `Feed` starting a watch again while the last waits on Lee's PATH, as it may as SitRep settles on a plugin: the
+    /// last, stopped, resumes after the next began, and begins no run of its own, so the next stays the one told.
+    @Test func aWatchStoppedWhileItWaitsOnLeesPathBeginsNoRunSoTheNextStaysTold() async {
+        let following = Following()
+        let gate = Gate()
+        let stopped = Runs([Self.watching])
+        let next = Runs([Self.watching])
+        let first = Task {
+            for await _ in Self.watch(stopped, following: following, pathWaitsOn: gate).boards() {}
+        }
+
+        await gate.asked()
+        first.cancel()
+
+        let (heard, hearing) = AsyncStream<Void>.makeStream()
+        let running = Task {
+            for await _ in Self.watch(next, following: following).boards() {
+                hearing.yield()
+            }
+        }
+
+        for await _ in heard {
+            break
+        }
+        gate.open()
+        // Nothing tells when the stopped watch's loop has run on past its PATH, as it begins nothing: one that began a
+        // run would within this, and one that begins none passes, however long the wait.
+        try? await Task.sleep(for: .milliseconds(200))
+        following.follow(["sr-y4d0qj"])
+        running.cancel()
+        #expect(await next.told() == [[Self.follow([]), Self.follow(["sr-y4d0qj"])]])
+        #expect(stopped.programs.isEmpty)
     }
 
     @Test func watchThatCannotStartIsTriedAgain() async {
@@ -126,7 +204,6 @@ struct SitRepWatchTests {
 
         #expect(boards.map(\.board) == [try Board.read(watched), try Board.read(watchedEmpty)])
         #expect(boards.map(\.stale) == [nil, nil])
-        #expect(boards.map(\.isResumed) == [false, true])
         #expect(runs.clock.slept == [])
         #expect(runs.programs.count == 2)
     }
@@ -199,26 +276,47 @@ private struct Run {
     var ends = true
 }
 
-/// `watch` run as the script gives, a run each time it is started; once
-/// the script runs out, a run says nothing and never ends.
+/// `watch` run as the script gives, a run each time it is started, by its
+/// place among those started, what each is told on its standard input kept;
+/// once the script runs out, a run says nothing and never ends.
 private final class Runs: Sendable {
     let clock = TestClock()
 
     private let script: OSAllocatedUnfairLock<[Run]>
+    private let starting: @Sendable (Int) -> Void
     private let started = OSAllocatedUnfairLock<[Program]>(initialState: [])
+    private let telling = OSAllocatedUnfairLock<[Task<[String], Never>]>(initialState: [])
     private let stops: AsyncStream<Void>
     private let stop: AsyncStream<Void>.Continuation
 
-    init(_ script: [Run]) {
+    init(_ script: [Run], starting: @escaping @Sendable (Int) -> Void = { _ in }) {
         self.script = OSAllocatedUnfairLock(initialState: script)
+        self.starting = starting
         (stops, stop) = AsyncStream.makeStream()
     }
 
     var programs: [Program] { started.withLock { $0 } }
 
+    /// What each run was told, a line at a time, once each has been told all it will be.
+    func told() async -> [[String]] {
+        var told: [[String]] = []
+
+        for telling in telling.withLock({ $0 }) {
+            told.append(await telling.value)
+        }
+
+        return told
+    }
+
     var watcher: Watcher {
-        { [self] program in
-            started.withLock { $0.append(program) }
+        { [self] program, input in
+            let place = started.withLock { started in
+                started.append(program)
+                return started.count - 1
+            }
+
+            telling.withLock { $0.append(Task { await input.reduce(into: []) { $0.append($1) } }) }
+            starting(place)
 
             let run = script.withLock { $0.isEmpty ? Run(says: [], ends: false) : $0.removeFirst() }
             let left = OSAllocatedUnfairLock(initialState: (lives: run.lives, says: run.says))
@@ -250,6 +348,34 @@ private final class Runs: Sendable {
     func stopped() async {
         for await _ in stops {
             return
+        }
+    }
+}
+
+/// Lee's PATH held back until the test lets it go, as a login shell slow to answer holds it, deaf to cancellation as
+/// that ask is.
+private final class Gate: Sendable {
+    private let waiting = OSAllocatedUnfairLock<CheckedContinuation<Void, Never>?>(initialState: nil)
+    private let (asking, isAsked) = AsyncStream<Void>.makeStream()
+
+    func wait() async {
+        await withCheckedContinuation { waiting in
+            self.waiting.withLock { $0 = waiting }
+            isAsked.yield()
+        }
+    }
+
+    /// Once the PATH has been asked for.
+    func asked() async {
+        for await _ in asking {
+            return
+        }
+    }
+
+    func open() {
+        waiting.withLock { waiting in
+            waiting?.resume()
+            waiting = nil
         }
     }
 }

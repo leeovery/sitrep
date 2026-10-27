@@ -1,10 +1,21 @@
+@testable import SitRepCore
+import SitRepLines
+import Testing
+
+/// A session's board as `board --json` printed it, read as a line of `watch` carries it.
+func carried(_ board: String, of session: String) throws -> SessionBoard {
+    let line = try Board.read(Lines.carrying([session: board], on: Lines.watch[0]))
+
+    return try #require(line.boards[session]?.board)
+}
+
 /// A line of `sitrep watch`, as cli/output.ts's `watchLine` prints it but
 /// pretty: Lee's board of 19 October 2026 cut to three sessions, an ask, a
 /// permission prompt and a turn, the prompt new on it. Every field always
 /// there, null where there is none.
 let watched = """
 {
-  "v": 2,
+  "v": 3,
   "at": 1792445574706,
   "version": "0.1.0",
   "head": { "needYou": 2, "sessions": 3 },
@@ -224,9 +235,9 @@ let watched = """
     }
   ],
   "new": ["stop:sr-y4d0qj:6c847b5b-722d-4343-88e0-42ece4662e7d:1792445500000"],
-  "changed": ["sr-y4d0qj"]
+  "boards": {}
 }
 """
 
 /// The first line of `sitrep watch` over an empty board, on one line as it prints it.
-let watchedEmpty = #"{"v":2,"at":1792445580000,"version":"0.1.0","head":{"needYou":0,"sessions":0},"rows":[],"projects":[],"windows":[],"new":[],"changed":[]}"#
+let watchedEmpty = #"{"v":3,"at":1792445580000,"version":"0.1.0","head":{"needYou":0,"sessions":0},"rows":[],"projects":[],"windows":[],"new":[],"boards":{}}"#

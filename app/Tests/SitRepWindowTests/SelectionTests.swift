@@ -14,7 +14,7 @@ struct SelectionTests {
     @Test func theRowClickedIsThePickAndItsSessionsPageOpens() {
         let run = opened()
 
-        _ = run.pickInList(.session("sr-rq7dgr"), at: printedAt)
+        run.pickInList(.session("sr-rq7dgr"), at: printedAt)
         #expect(run.pick == .session("sr-rq7dgr"))
         #expect(run.page(at: printedAt).session?.id == "sr-rq7dgr")
         #expect(run.sidebar(at: printedAt).picks.contains(.session("sr-rq7dgr")))
@@ -24,8 +24,8 @@ struct SelectionTests {
     @Test func aSessionKeepsItsPickAsItMovesBetweenSections() throws {
         let run = opened()
 
-        _ = run.pickInList(.session("sr-rq7dgr"), at: printedAt)
-        _ = run.show(heard(line(0), asked("sr-rq7dgr")), at: printedAt, reducesMotion: false)
+        run.pickInList(.session("sr-rq7dgr"), at: printedAt)
+        run.show(heard(line(0), asked("sr-rq7dgr")), at: printedAt, reducesMotion: false)
 
         let ids = Self.ids(run)
         let row = try #require(ids.firstIndex(of: .pick(.session("sr-rq7dgr"))))
@@ -42,7 +42,7 @@ struct SelectionTests {
 
         run.toggle(.section(.yourTurn))
         #expect(!Self.ids(run).contains(.pick(.session("sr-rq7dgr"))))
-        _ = run.pick(.session("sr-rq7dgr"))
+        run.pick(.session("sr-rq7dgr"))
         #expect(!run.folds.contains(.section(.yourTurn)))
         #expect(Self.ids(run).contains(.pick(.session("sr-rq7dgr"))))
     }
@@ -55,8 +55,8 @@ struct SelectionTests {
 
         let run = WindowRun(folds: folds, wall: { printedAt })
 
-        _ = run.show(heard(line(0)), at: printedAt, reducesMotion: false)
-        _ = run.open()
+        run.show(heard(line(0)), at: printedAt, reducesMotion: false)
+        run.open()
         #expect(run.pick == .session("sr-macapp"))
         #expect(!run.folds.contains(.section(.needsYou)))
     }
@@ -67,7 +67,7 @@ struct SelectionTests {
 
         #expect(Self.ids(run).contains(.fold(.earlier)))
         #expect(!Self.ids(run).contains(.pick(.session("sr-rq7dgr"))))
-        _ = run.pick(.session("sr-rq7dgr"))
+        run.pick(.session("sr-rq7dgr"))
         #expect(run.folds.isEarlierOpen)
         #expect(Self.ids(run).contains(.pick(.session("sr-rq7dgr"))))
     }
@@ -77,7 +77,7 @@ struct SelectionTests {
         let run = opened()
 
         #expect(run.folds.projects)
-        _ = run.pick(.project("switchboard"))
+        run.pick(.project("switchboard"))
         #expect(!run.folds.projects)
         #expect(run.sidebar(at: printedAt).lines.contains { $0.pick == run.pick })
         #expect(run.page(at: printedAt).project?.key == "switchboard")
@@ -88,7 +88,7 @@ struct SelectionTests {
         let run = opened()
 
         #expect(run.folds.projects)
-        _ = run.pick(.session("sr-k7t001"))
+        run.pick(.session("sr-k7t001"))
         #expect(!run.folds.projects)
         #expect(run.sidebar(at: printedAt).row(showing: run.pick) == .project("kit"))
         #expect(Self.ids(run).contains(.pick(.project("kit"))))
@@ -98,7 +98,7 @@ struct SelectionTests {
         let run = opened()
 
         run.toggle(.projects)
-        _ = run.pickInList(.project("kit"), at: printedAt)
+        run.pickInList(.project("kit"), at: printedAt)
         #expect(run.pick == .project("kit"))
         #expect(run.page(at: printedAt).project?.key == "kit")
     }
@@ -107,13 +107,13 @@ struct SelectionTests {
     @Test func foldingTheSectionThatHoldsThePickKeepsThePage() {
         let run = opened()
 
-        _ = run.pickInList(.session("sr-rq7dgr"), at: printedAt)
+        run.pickInList(.session("sr-rq7dgr"), at: printedAt)
         run.toggle(.section(.yourTurn))
         #expect(!Self.ids(run).contains(.pick(.session("sr-rq7dgr"))))
         #expect(run.pick == .session("sr-rq7dgr"))
         #expect(run.page(at: printedAt).session?.id == "sr-rq7dgr")
 
-        _ = run.pick(.project("kit"))
+        run.pick(.project("kit"))
         run.toggle(.projects)
         #expect(!run.sidebar(at: printedAt).lines.contains { $0.pick == .project("kit") })
         #expect(run.page(at: printedAt).project?.key == "kit")
@@ -125,7 +125,7 @@ struct SelectionTests {
         let run = opened()
 
         run.filter = Filter("kit")
-        _ = run.openFirstMatch()
+        run.openFirstMatch()
         #expect(run.pick == .project("kit"))
         #expect(run.folds.projects)
         run.filter = Filter()
@@ -141,7 +141,7 @@ struct SelectionTests {
         run.toggle(.section(.needsYou))
         run.toggle(.section(.yourTurn))
         run.filter = Filter("ledg")
-        _ = run.pickInList(.session("sr-rq7dgr"), at: printedAt)
+        run.pickInList(.session("sr-rq7dgr"), at: printedAt)
         run.filter = Filter()
         #expect(run.folds == Folds(sections: [.needsYou, .snoozed], projects: true))
     }
@@ -153,7 +153,7 @@ struct SelectionTests {
 
         run.toggle(.section(.yourTurn))
         run.filter = Filter("ledg")
-        _ = run.pickInList(.session("sr-rq7dgr"), at: printedAt)
+        run.pickInList(.session("sr-rq7dgr"), at: printedAt)
         run.filter = Filter()
         #expect(!run.folds.contains(.section(.yourTurn)))
         #expect(run.folds.isEarlierOpen)
@@ -167,14 +167,14 @@ struct SelectionTests {
     func aPickMadeBeforeTheFilterChangesNothingAsItClears(returnOnIt: Bool) {
         let run = opened()
 
-        _ = run.pickInList(.session("sr-rq7dgr"), at: printedAt)
+        run.pickInList(.session("sr-rq7dgr"), at: printedAt)
         run.toggle(.section(.yourTurn))
 
         let folds = run.folds
 
         run.filter = Filter("ledg")
         if returnOnIt {
-            _ = run.openFirstMatch()
+            run.openFirstMatch()
             #expect(run.pick == .session("sr-rq7dgr"))
         }
         run.filter = Filter()
@@ -188,7 +188,7 @@ struct SelectionTests {
 
         run.toggle(.section(.yourTurn))
         run.filter = Filter("kit")
-        _ = run.pick(.session("sr-rq7dgr"))
+        run.pick(.session("sr-rq7dgr"))
         #expect(run.folds.contains(.section(.yourTurn)))
         run.filter = Filter()
         #expect(!run.folds.contains(.section(.yourTurn)))
@@ -199,7 +199,7 @@ struct SelectionTests {
     @Test func withNoPickTheFilterClearingChangesNothing() {
         let run = WindowRun(folds: Folds(sections: [.yourTurn]), wall: { printedAt })
 
-        _ = run.show(heard(line(0)), at: printedAt, reducesMotion: false)
+        run.show(heard(line(0)), at: printedAt, reducesMotion: false)
         run.filter = Filter("ledg")
         run.filter = Filter()
         #expect(run.pick == nil)
@@ -213,10 +213,10 @@ struct SelectionTests {
 
         run.toggle(.section(.yourTurn))
         run.filter = Filter("ledg")
-        _ = run.pickInList(.session("sr-rq7dgr"), at: printedAt)
+        run.pickInList(.session("sr-rq7dgr"), at: printedAt)
         run.close()
         #expect(run.folds.contains(.section(.yourTurn)))
-        _ = run.open()
+        run.open()
         #expect(run.pick == .session("sr-macapp"))
         #expect(run.folds.contains(.section(.yourTurn)))
     }
@@ -225,7 +225,7 @@ struct SelectionTests {
         let run = opened()
         let folds = run.folds
 
-        _ = run.pickInList(.session("sr-dash02"), at: printedAt)
+        run.pickInList(.session("sr-dash02"), at: printedAt)
         #expect(run.folds == folds)
     }
 
@@ -235,7 +235,7 @@ struct SelectionTests {
 
         run.unrun("SitRep can't read the board")
         #expect(run.pick == .session("sr-macapp"))
-        _ = run.show(heard(line(0)), at: printedAt, reducesMotion: false)
+        run.show(heard(line(0)), at: printedAt, reducesMotion: false)
         #expect(run.pick == .session("sr-macapp"))
     }
 }

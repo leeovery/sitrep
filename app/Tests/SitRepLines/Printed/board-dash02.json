@@ -1,10 +1,10 @@
 {
-  "v": 2,
+  "v": 3,
   "project": {
     "key": "switchboard",
     "name": "Switchboard"
   },
-  "work": {
+  "session": {
     "id": "sr-dash02",
     "name": "Dashboard redesign",
     "summary": "Redesign the dashboard, area by area in Paper",

@@ -7,12 +7,6 @@ public enum JumpAnswer: Sendable, Equatable {
     case refused(String)
 }
 
-/// What `sitrep board --json` came to: the session's board, or why there is none to show, in words.
-public enum BoardAnswer: Sendable, Equatable {
-    case board(SessionBoard)
-    case failed(String)
-}
-
 /// What `sitrep answer`, `finish`, `snooze` or `wake` came to: written, or refused in the CLI's words, with nothing
 /// written.
 public enum WriteAnswer: Sendable, Equatable {
@@ -28,10 +22,10 @@ public enum Answer: Sendable, Hashable {
 }
 
 /// The plugin's CLI, `<plugin>/bin/sitrep`, run as a child with Lee's PATH.
-/// The app reads the board and jumps, and writes only what the board's own buttons do: Lee's answers, finishes,
+/// The app watches the board and jumps, and writes only what the board's own buttons do: Lee's answers, finishes,
 /// snoozes and wakes.
 public struct SitRepCLI: Sendable {
-    /// `board --json`, `answer`, `finish`, `snooze` and `wake` read and write one session's files, and run no program.
+    /// `answer`, `finish`, `snooze` and `wake` read and write one session's files, and run no program.
     static let sessionLimit: TimeInterval = 10
     /// Only a backstop for a CLI that hangs, well above any realistic jump
     /// (cli/jump.ts, cli/ghostty.ts, cli/front.ts, cli/tmux.ts, cli/apps.ts):
@@ -73,19 +67,6 @@ public struct SitRepCLI: Sendable {
             .jumped
         case let .failure(unanswered):
             .refused(unanswered.complaint(of: "jump"))
-        }
-    }
-
-    public func board(of session: String) async -> BoardAnswer {
-        switch await sitrep(["board", "--json", "--session", session], limit: Self.sessionLimit) {
-        case let .failure(unanswered):
-            return .failed(unanswered.complaint(of: "board"))
-        case let .success(ran):
-            do {
-                return .board(try SessionBoard.read(ran.stdout))
-            } catch {
-                return .failed("sitrep board \(error).")
-            }
         }
     }
 

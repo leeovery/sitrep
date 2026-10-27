@@ -19,7 +19,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var edge: Edge?
     private let about = AboutWindow()
     private lazy var window = SitRepWindow(
-        plugin: plugin, works: works, snoozes: snoozes,
+        plugin: plugin, works: works, snoozes: snoozes, following: feed.following,
         settings: SettingsModel(preferences: preferences, live: live, services: makeServices())
     )
 

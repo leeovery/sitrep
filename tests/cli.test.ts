@@ -526,10 +526,10 @@ test('what the CLI prints says what is snoozed: each ask its snoozedUntil while 
   await t.run('snooze', 'k1', 'k3', '--until', String(WAKES), ...SESSION)
 
   const listed = JSON.parse((await t.run('list', '--json')).out) as {
-    projects: { waiting: number; snoozed: number; works: { waiting: number; snoozed: number }[] }[]
+    projects: { waiting: number; snoozed: number; sessions: { waiting: number; snoozed: number }[] }[]
   }
   const board = JSON.parse((await t.run('board', '--json', ...SESSION)).out) as {
-    work: { waiting: number; snoozed: number }
+    session: { waiting: number; snoozed: number }
     asks: { id: string; snoozedUntil: number | null }[]
   }
 
@@ -539,9 +539,9 @@ test('what the CLI prints says what is snoozed: each ask its snoozedUntil while 
   expect(listed.projects[0]).toMatchObject({
     waiting: 1,
     snoozed: 2,
-    works: [{ waiting: 1, snoozed: 2 }],
+    sessions: [{ waiting: 1, snoozed: 2 }],
   })
-  expect(board.work).toMatchObject({ waiting: 1, snoozed: 2 })
+  expect(board.session).toMatchObject({ waiting: 1, snoozed: 2 })
   expect(board.asks.map(ask => [ask.id, ask.snoozedUntil])).toEqual([
     ['k1', WAKES],
     ['k2', null],
@@ -558,11 +558,11 @@ test("board --json gives no snooze where Lee's side has none: an ask Lee's answe
   ]
   const asksOf = async (id: string) => {
     const board = JSON.parse((await t.run('board', '--json', '--session', id)).out) as {
-      work: { waiting: number; snoozed: number }
+      session: { waiting: number; snoozed: number }
       asks: { id: string; snoozedUntil: number | null }[]
     }
 
-    const { waiting, snoozed } = board.work
+    const { waiting, snoozed } = board.session
 
     return [{ waiting, snoozed }, board.asks.map(ask => [ask.id, ask.snoozedUntil])]
   }

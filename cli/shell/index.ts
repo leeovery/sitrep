@@ -1,8 +1,9 @@
 /**
  * The CLI bound to Bun: the file system, the environment and the folder it
- * runs in, the clocks and waiting on them, random bytes, standard output and
- * error and when the run is to end, the plugin's manifest, programs and
- * terminal devices, and the exit code. bin/sitrep runs it.
+ * runs in, the clocks and waiting on them, random bytes, standard input,
+ * standard output and error and when the run is to end, the plugin's
+ * manifest, programs and terminal devices, and the exit code. bin/sitrep
+ * runs it.
  */
 import { constants, readdirSync, readFileSync, statSync } from 'node:fs'
 import { appendFile, mkdir, open } from 'node:fs/promises'
@@ -133,6 +134,21 @@ const wait = (ms: number): Waiting => {
   return Object.assign(waited, { cancel: () => clearTimeout(timer) })
 }
 
+/** Pausing standard input once nothing listens lets the run end with the pipe still open (probed on Bun 1.4.3). */
+const input = (heard: (text: string) => void) => {
+  if (process.stdin.isTTY === true) {
+    return () => {}
+  }
+
+  process.stdin.setEncoding('utf8')
+  process.stdin.on('data', heard)
+
+  return () => {
+    process.stdin.off('data', heard)
+    process.stdin.pause()
+  }
+}
+
 const signals: Signals = {
   parent: () => process.ppid,
   onTerm: heard => {
@@ -165,6 +181,7 @@ const io: Io = {
   uptime: () => performance.now(),
   wait,
   random: count => crypto.getRandomValues(new Uint8Array(count)),
+  input,
   out: text => void process.stdout.write(text),
   err: text => void process.stderr.write(text),
   ending: () => endOf(signals, PARENT),

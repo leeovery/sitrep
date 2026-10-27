@@ -64,7 +64,8 @@ struct QuietProjectTests {
         let run = opened()
         let pick = try #require(run.listed(at: printedAt).projects.first { $0.name == "Kit" }?.pick)
 
-        #expect(run.pick(pick).map(\.session) == ["sr-k7t001"])
+        run.pick(pick)
+        #expect(run.following == ["sr-k7t001"])
 
         let page = try #require(run.page(at: printedAt).project)
 
@@ -98,9 +99,9 @@ struct OpenedItemsTests {
         let rewritten = Lines.watch[0].replacingOccurrences(of: Self.drawing, with: "Drawing round 4")
 
         run.toggle(.status(0, Self.drawing))
-        _ = run.show(heard(.line(rewritten)), at: printedAt, reducesMotion: false)
+        run.show(heard(.line(rewritten)), at: printedAt, reducesMotion: false)
         #expect(try #require(run.page(at: printedAt).session).opened.isEmpty)
-        _ = run.show(heard(line(0)), at: printedAt, reducesMotion: false)
+        run.show(heard(line(0)), at: printedAt, reducesMotion: false)
         #expect(try #require(run.page(at: printedAt).session).status.now.first == Self.drawing)
         #expect(try #require(run.page(at: printedAt).session).opened.isEmpty)
     }
@@ -115,14 +116,14 @@ struct OpenedItemsTests {
         let run = opened()
 
         run.toggle(.parked("p1"))
-        _ = run.pick(.project("sitrep"))
+        run.pick(.project("sitrep"))
         #expect(try #require(run.page(at: printedAt).project).opened.isEmpty)
     }
 
     @Test func aProjectsPageOpensItsItemsToo() throws {
         let run = opened()
 
-        _ = run.pick(.project("sitrep"))
+        run.pick(.project("sitrep"))
         run.toggle(.parked("sr-macapp:p1"))
         #expect(try #require(run.page(at: printedAt).project).opened == [.parked("sr-macapp:p1")])
     }

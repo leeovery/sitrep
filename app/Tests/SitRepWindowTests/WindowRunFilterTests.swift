@@ -27,14 +27,16 @@ struct WindowRunFilterTests {
     }
 
     /// The first row of the list: Goosemates' ask under Needs you comes before Request ledger under Your turn.
-    @Test func returnOpensTheFirstMatchInTheListAndReadsIt() {
+    @Test func returnOpensTheFirstMatchInTheListAndFollowsIt() {
         let run = opened()
 
         run.filter = Filter("le")
-        #expect(run.openFirstMatch().map(\.session) == ["sr-gs7kq2"])
+        run.openFirstMatch()
         #expect(run.pick == .session("sr-gs7kq2"))
+        #expect(run.following == ["sr-gs7kq2"])
         run.filter = Filter("ledg")
-        #expect(run.openFirstMatch().map(\.session) == ["sr-rq7dgr"])
+        run.openFirstMatch()
+        #expect(run.following == ["sr-rq7dgr"])
     }
 
     /// Your turn folded while the field holds "ledg", Request ledger's row, its one match, hidden inside it: Return
@@ -45,12 +47,13 @@ struct WindowRunFilterTests {
 
         run.filter = Filter("ledg")
         run.toggle(.section(.yourTurn))
-        #expect(run.openFirstMatch().isEmpty)
+        run.openFirstMatch()
         #expect(run.pick == .session("sr-macapp"))
         run.filter = Filter("switch")
         run.toggle(.section(.needsYou))
-        #expect(run.openFirstMatch().map(\.session) == ["sr-dash02", "sr-rq7dgr"])
+        run.openFirstMatch()
         #expect(run.pick == .project("switchboard"))
+        #expect(run.following == ["sr-dash02", "sr-rq7dgr"])
     }
 
     @Test(arguments: ["", "zzz"])
@@ -58,7 +61,7 @@ struct WindowRunFilterTests {
         let run = opened()
 
         run.filter = Filter(typed)
-        #expect(run.openFirstMatch().isEmpty)
+        run.openFirstMatch()
         #expect(run.pick == .session("sr-macapp"))
     }
 
@@ -69,7 +72,7 @@ struct WindowRunFilterTests {
         run.filter = Filter("ledg")
         run.close()
         #expect(run.filter.isEmpty)
-        _ = run.open()
+        run.open()
         #expect(run.listed(at: printedAt).rows.map(\.id).contains("sr-macapp"))
     }
 
@@ -77,10 +80,10 @@ struct WindowRunFilterTests {
     @Test func returnWhileSettingsShowsOpensTheFirstMatchAndLeavesSettings() {
         let run = opened()
 
-        _ = run.pick(.settings)
+        run.pick(.settings)
         run.filter = Filter("ledg")
         #expect(run.page(at: printedAt) == .settings)
-        #expect(run.openFirstMatch().map(\.session) == ["sr-rq7dgr"])
+        run.openFirstMatch()
         #expect(run.pick == .session("sr-rq7dgr"))
         #expect(run.page(at: printedAt).session?.id == "sr-rq7dgr")
     }
@@ -90,7 +93,7 @@ struct WindowRunFilterTests {
 
         run.filter = Filter("ledg")
         run.minimise()
-        _ = run.restore()
+        run.restore()
         #expect(run.filter == Filter("ledg"))
     }
 }
@@ -113,7 +116,7 @@ struct WindowRunFoldsTests {
     @Test func aHeadingFoldsAndUnfoldsItsRowsAndThePickStays() {
         let run = opened()
 
-        _ = run.pickInList(.session("sr-dash02"), at: printedAt)
+        run.pickInList(.session("sr-dash02"), at: printedAt)
         run.toggle(.section(.needsYou))
         #expect(run.folds.contains(.section(.needsYou)))
         #expect(!Self.ids(run).contains(.pick(.session("sr-dash02"))))
@@ -196,8 +199,8 @@ struct WindowRunPeriodTests {
     private static func run(_ wall: Wall, period: FoldPeriod = .hour) -> WindowRun {
         let run = WindowRun(period: period, wall: { wall.now })
 
-        _ = run.show(heard(turned(["sr-macapp": 30, "sr-dash02": 90])), at: printedAt, reducesMotion: false)
-        _ = run.open()
+        run.show(heard(turned(["sr-macapp": 30, "sr-dash02": 90])), at: printedAt, reducesMotion: false)
+        run.open()
         return run
     }
 
@@ -247,7 +250,7 @@ struct WindowRunPeriodTests {
         let midnight = calendar.startOfDay(for: printedAt)
         let run = WindowRun(period: .today, wall: { wall.now }, calendar: calendar)
 
-        _ = run.show(heard(line(0)), at: printedAt, reducesMotion: false)
+        run.show(heard(line(0)), at: printedAt, reducesMotion: false)
         wall.now = midnight.addingTimeInterval(24 * 3600 - 1)
         #expect(!Self.ids(run).contains(.fold(.earlier)))
         wall.now = midnight.addingTimeInterval(24 * 3600)
@@ -260,7 +263,7 @@ struct WindowRunPeriodTests {
         run.toggle(.earlier)
         #expect(Self.ids(run).suffix(3) == [.fold(.earlier), .pick(.session("sr-dash02")), .fold(.projects)])
         run.close()
-        _ = run.open()
+        run.open()
         #expect(!Self.ids(run).contains(.pick(.session("sr-dash02"))))
     }
 
@@ -269,7 +272,7 @@ struct WindowRunPeriodTests {
         let run = Self.run(Wall())
 
         run.toggle(.earlier)
-        _ = run.show(heard(line(0)), at: printedAt, reducesMotion: false)
+        run.show(heard(line(0)), at: printedAt, reducesMotion: false)
         #expect(!Self.ids(run).contains(.fold(.earlier)))
         #expect(!run.folds.isEarlierOpen)
     }

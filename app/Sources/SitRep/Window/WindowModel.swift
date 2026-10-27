@@ -7,8 +7,9 @@ import enum SitRepPanel.SnoozeChoice
 import SitRepWindow
 
 /// The SitRep window's run, as the views see it: what it lists and shows, kept current as the board, the clock and
-/// Lee's presses change it. It runs what the run asks for, each off the main thread: a session's board, an answer,
-/// a finish; a snooze or a wake, through the app's `Snoozes`; and a jump, through the app's `Works`, one at a time.
+/// Lee's presses change it. It runs what the run asks for: the sessions it follows, and a look now, told to the app's
+/// one `watch`; and off the main thread an answer, a finish; a snooze or a wake, through the app's `Snoozes`; and a
+/// jump, through the app's `Works`, one at a time.
 @MainActor
 @Observable
 final class WindowModel {
@@ -32,6 +33,7 @@ final class WindowModel {
     @ObservationIgnored private let plugin: Plugin
     @ObservationIgnored private let works: Works
     @ObservationIgnored private let snoozes: Snoozes
+    @ObservationIgnored private let following: Following
     @ObservationIgnored private let defaults: UserDefaults
     @ObservationIgnored private let saved: SavedSettings<SidebarSettings>
     /// The folds as last saved, which are saved again as they change.
@@ -44,10 +46,14 @@ final class WindowModel {
     private static let tick: TimeInterval = 30
 
     /// `period`, how long a your-turn row stays before it folds into "N earlier", as Lee set it.
-    init(plugin: Plugin, works: Works, snoozes: Snoozes, period: FoldPeriod, defaults: UserDefaults = .standard) {
+    init(
+        plugin: Plugin, works: Works, snoozes: Snoozes, following: Following, period: FoldPeriod,
+        defaults: UserDefaults = .standard
+    ) {
         self.plugin = plugin
         self.works = works
         self.snoozes = snoozes
+        self.following = following
         self.defaults = defaults
         reducesMotion = Self.readReducesMotion(defaults)
         let saved = SavedSettings<SidebarSettings>(defaults)
@@ -106,7 +112,7 @@ final class WindowModel {
     // MARK: Inputs
 
     func show(_ last: LastBoard) {
-        read(run.show(last, at: Date(), reducesMotion: reducesMotion))
+        run.show(last, at: Date(), reducesMotion: reducesMotion)
         refresh()
     }
 
@@ -117,7 +123,7 @@ final class WindowModel {
 
     /// The window opens, on the pick given, else on what it opens on.
     func opened(on pick: Pick? = nil) {
-        read(run.open(on: pick))
+        run.open(on: pick)
         refresh()
     }
 
@@ -132,7 +138,7 @@ final class WindowModel {
     }
 
     func restored() {
-        read(run.restore())
+        run.restore()
         refresh()
     }
 
@@ -143,11 +149,13 @@ final class WindowModel {
     }
 
     func pick(_ pick: Pick) {
-        picked(run.pick(pick))
+        run.pick(pick)
+        picked()
     }
 
     private func pickInList(_ pick: Pick) {
-        picked(run.pickInList(pick, at: Date()))
+        run.pickInList(pick, at: Date())
+        picked()
     }
 
     /// Lee set how long a your-turn row stays before it folds into "N earlier": the list refolds at once.
@@ -156,9 +164,8 @@ final class WindowModel {
         refresh()
     }
 
-    /// A pick's reads run, and the session picked kept as the one the window opens on.
-    private func picked(_ reads: [Read]) {
-        read(reads)
+    /// A pick made: the session picked kept as the one the window opens on.
+    private func picked() {
         defaults.set(run.lastSession, forKey: Self.lastSessionKey)
         refresh()
     }
@@ -208,7 +215,8 @@ final class WindowModel {
     }
 
     private func openFirstMatch() {
-        picked(run.openFirstMatch())
+        run.openFirstMatch()
+        picked()
     }
 
     private func askToFinish(_ session: String) {
@@ -230,8 +238,7 @@ final class WindowModel {
         Task {
             let finished = await plugin.ask({ await $0.finish(session) }, unrun: WriteAnswer.refused)
 
-            run.finished(session, finished)
-            refresh()
+            lookNow(if: run.finished(session, finished))
         }
     }
 
@@ -242,8 +249,7 @@ final class WindowModel {
         Task {
             let written = await snoozes.snooze([ask.ask], of: ask.session, choice)
 
-            read(run.snoozed(ask, written))
-            refresh()
+            lookNow(if: run.snoozed(ask, written))
         }
     }
 
@@ -254,8 +260,7 @@ final class WindowModel {
         Task {
             let written = await snoozes.wake([ask.ask], of: ask.session)
 
-            read(run.woke(ask, written))
-            refresh()
+            lookNow(if: run.woke(ask, written))
         }
     }
 
@@ -273,35 +278,33 @@ final class WindowModel {
 
     // MARK: Running what the run asks for
 
-    private func read(_ reads: [Read]) {
-        for read in reads {
-            Task {
-                let answer = await plugin.ask({ await $0.board(of: read.session) }, unrun: BoardAnswer.failed)
-
-                run.read(read, gave: answer, at: Date(), reducesMotion: reducesMotion)
-                refresh()
-            }
-        }
-    }
-
     /// The answers whose two seconds ran out, each to `sitrep answer`.
     private func send() {
         for (ask, answer) in run.due(at: Date()) {
             Task {
                 let written = await plugin.ask({ await $0.answer(ask.ask, of: ask.session, with: answer) }, unrun: WriteAnswer.refused)
 
-                read(run.answered(ask, written))
-                refresh()
+                lookNow(if: run.answered(ask, written, at: Date()))
             }
         }
     }
 
-    /// What the views show, at this moment; then the next moment it changes by time alone is waited for.
+    /// After one of the window's own writes: `watch` is told the set followed as it now stands, then, where the run
+    /// asks it to, looks at once, so the board it carries next has the write.
+    private func lookNow(if isAsked: Bool) {
+        refresh()
+        if isAsked {
+            following.lookNow()
+        }
+    }
+
+    /// What the views show, at this moment, and what the window follows; then the next moment it changes by time alone
+    /// is waited for.
     private func refresh() {
         let time = Date()
 
         run.settle(at: time)
-        read(run.settledReads(at: time))
+        following.follow(run.follow())
         send()
         now = time
         sidebar = run.sidebar(at: time)

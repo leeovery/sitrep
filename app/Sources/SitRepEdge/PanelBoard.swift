@@ -22,8 +22,8 @@ public struct PanelBoard: Equatable, Sendable {
 
     /// Until `watch` prints its first line.
     static let looking = Head(title: "Looking for sessions…", count: "")
-    /// `watch` stopped before it printed any.
-    static let unread = Head(title: "SitRep can't read the board", count: "")
+    /// `watch` stopped before it printed any; the SitRep window's page says it too while the board is stale.
+    public static let unread = Head(title: "SitRep can't read the board", count: "")
 
     /// Before `watch` prints its first line.
     public init() {

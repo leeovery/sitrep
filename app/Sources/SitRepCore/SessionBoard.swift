@@ -1,18 +1,16 @@
 import Foundation
 
-/// One session's board, as `sitrep board --json` prints it (cli/output.ts's `boardJson`): the session in brief, its
-/// open asks, what it parked, its latest log lines and its resolved asks. The SitRep window reads it for a session's
-/// detail, which a line of `watch` leaves out.
-public struct SessionBoard: Versioned, Sendable, Equatable {
-    static let version = 2
-
+/// One session's board, as `sitrep board --json` prints it (cli/output.ts's `boardJson`), its `v` 3: the session in
+/// brief, its open asks, what it parked, its latest log lines and its resolved asks. A line of `watch` carries it for
+/// each session the SitRep window follows, as the window's detail of a session, under the line's own `v`.
+public struct SessionBoard: Decodable, Sendable, Equatable {
     public struct Project: Decodable, Sendable, Equatable {
         public let key: String
         public let name: String
     }
 
     /// The session in brief, as `list --json` gives it.
-    public struct Work: Decodable, Sendable, Equatable {
+    public struct Session: Decodable, Sendable, Equatable {
         public let id: String
         public let name: String
         public let summary: String
@@ -60,7 +58,7 @@ public struct SessionBoard: Versioned, Sendable, Equatable {
     }
 
     public let project: Project
-    public let work: Work
+    public let session: Session
     /// Its open asks, oldest first: waiting, on Lee or on a window to deliver Lee's reply, or replied.
     public let asks: [Board.Ask]
     /// Oldest first.

@@ -46,7 +46,7 @@ struct SnoozedTests {
         let asks = try #require(try Self.line(0).projects.first?.sessions.first?.asks)
 
         #expect(asks.map(\.snoozedUntil) == [Self.at(1_792_741_532_000), Self.at(1_792_745_127_000), nil])
-        #expect(try SessionBoard.read(Lines.snoozedBoard).asks.map(\.snoozedUntil) == asks.map(\.snoozedUntil))
+        #expect(try carried(Lines.snoozedBoard, of: "sr-4g01a7").asks.map(\.snoozedUntil) == asks.map(\.snoozedUntil))
     }
 
     @Test func aSessionAndItsProjectCountTheirAsksAsleepApartFromThoseWaiting() throws {
@@ -77,6 +77,6 @@ struct SnoozedTests {
         #expect(board.snoozed.isEmpty)
         #expect(board.projects.allSatisfy { $0.snoozed == 0 && $0.sessions.allSatisfy { $0.snoozed == 0 } })
         #expect(board.projects.flatMap(\.sessions).flatMap(\.asks).allSatisfy { $0.snoozedUntil == nil })
-        #expect(try SessionBoard.read(Lines.board).asks.allSatisfy { $0.snoozedUntil == nil })
+        #expect(try carried(Lines.board, of: "sr-macapp").asks.allSatisfy { $0.snoozedUntil == nil })
     }
 }

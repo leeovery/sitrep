@@ -1,10 +1,10 @@
 {
-  "v": 2,
+  "v": 3,
   "project": {
     "key": "goosemates",
     "name": "Goosemates"
   },
-  "work": {
+  "session": {
     "id": "sr-gs7kq2",
     "name": "Settle the older open questions",
     "summary": "Go through the questions left open, and close or keep each",

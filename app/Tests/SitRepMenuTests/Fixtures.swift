@@ -25,10 +25,10 @@ enum Watched {
         needYou: Int = 3, rows: [String] = rows, new: [String] = [], windows: [String] = [], version: String? = "0.2.0"
     ) -> String {
         """
-        {"v":2,"at":1792445574706,"version":\(json(version)),"head":{"needYou":\(needYou),"sessions":\(rows.count)},\
+        {"v":3,"at":1792445574706,"version":\(json(version)),"head":{"needYou":\(needYou),"sessions":\(rows.count)},\
         "rows":[\(rows.joined(separator: ","))],"projects":[\(projects.joined(separator: ","))],\
         "windows":[\(windows.joined(separator: ","))],\
-        "new":[\(new.map { "\"\($0)\"" }.joined(separator: ","))],"changed":[]}
+        "new":[\(new.map { "\"\($0)\"" }.joined(separator: ","))],"boards":{}}
         """
     }
 

@@ -5,37 +5,42 @@ import SitRepPanel
 @testable import SitRepWindow
 import Testing
 
-/// What the window opens on, what it reads and when, over the lines the real `watch` printed.
+/// What the window opens on, what it follows and when, and the boards the lines carry, over the lines the real `watch`
+/// printed.
 struct WindowRunTests {
-    @Test func itOpensOnTheOldestSessionThatNeedsLeeAndReadsItsBoard() {
+    @Test func itOpensOnTheOldestSessionThatNeedsLeeAndFollowsIt() {
         let run = WindowRun(lastSession: "sr-rq7dgr")
 
-        _ = run.show(heard(line(0)), at: printedAt, reducesMotion: false)
-        #expect(run.open().map(\.session) == ["sr-macapp"])
+        run.show(heard(line(0)), at: printedAt, reducesMotion: false)
+        #expect(run.following.isEmpty)
+        run.open()
         #expect(run.pick == .session("sr-macapp"))
+        #expect(run.following == ["sr-macapp"])
     }
 
     @Test func withNothingNeedingLeeItOpensOnTheSessionPickedLast() {
         let run = WindowRun(lastSession: "sr-rq7dgr")
 
-        _ = run.show(heard(Self.allClear), at: printedAt, reducesMotion: false)
-        #expect(run.open().map(\.session) == ["sr-rq7dgr"])
+        run.show(heard(Self.allClear), at: printedAt, reducesMotion: false)
+        run.open()
+        #expect(run.following == ["sr-rq7dgr"])
     }
 
     @Test func withNothingNeedingLeeAndNonePickedItOpensOnTheFirstSessionListed() {
         let run = WindowRun(lastSession: "sr-zzzzzz")
 
-        _ = run.show(heard(Self.allClear), at: printedAt, reducesMotion: false)
-        #expect(run.open().map(\.session) == ["sr-macapp"])
+        run.show(heard(Self.allClear), at: printedAt, reducesMotion: false)
+        run.open()
+        #expect(run.following == ["sr-macapp"])
     }
 
     @Test func pickingASessionMakesItTheOnePickedLast() {
         let run = opened()
 
-        _ = run.pick(.session("sr-rq7dgr"))
+        run.pick(.session("sr-rq7dgr"))
         run.close()
-        _ = run.show(heard(Self.allClear), at: printedAt, reducesMotion: false)
-        _ = run.open()
+        run.show(heard(Self.allClear), at: printedAt, reducesMotion: false)
+        run.open()
         #expect(run.pick == .session("sr-rq7dgr"))
         #expect(run.lastSession == "sr-rq7dgr")
     }
@@ -43,156 +48,230 @@ struct WindowRunTests {
     @Test func beforeTheFirstBoardItOpensOnNothingAndPicksOnceTheBoardComes() {
         let run = WindowRun()
 
-        #expect(run.open().isEmpty)
+        run.open()
+        #expect(run.following.isEmpty)
         #expect(run.page(at: printedAt) == .empty("Looking for sessions…"))
-        #expect(run.show(heard(line(0)), at: printedAt, reducesMotion: false).map(\.session) == ["sr-macapp"])
+        run.show(heard(line(0)), at: printedAt, reducesMotion: false)
+        #expect(run.following == ["sr-macapp"])
     }
 
-    @Test func closedItReadsNothing() {
+    @Test func aSessionPickedIsFollowedInPlaceOfTheLastAndSettingsFollowsNothing() {
+        let run = opened()
+
+        run.pick(.session("sr-dash02"))
+        #expect(run.following == ["sr-dash02"])
+        run.pick(.snoozed("sr-dash02"))
+        #expect(run.following == ["sr-dash02"])
+        run.pick(.settings)
+        #expect(run.following.isEmpty)
+    }
+
+    @Test func aProjectOpenedFollowsEachOfItsSessions() {
+        let run = opened()
+
+        run.pick(.project("switchboard"))
+        #expect(run.following == ["sr-dash02", "sr-rq7dgr"])
+    }
+
+    @Test func closedItFollowsNothingAndOpenedAgainItFollowsWhatItShows() {
         let run = opened()
 
         run.close()
-        #expect(run.show(heard(line(0), line(1)), at: printedAt, reducesMotion: false).isEmpty)
+        #expect(run.following.isEmpty)
+        run.show(heard(line(0)), at: printedAt, reducesMotion: false)
+        #expect(run.following.isEmpty)
+        run.open()
+        #expect(run.following == ["sr-macapp"])
     }
 
-    @Test func aSessionShownIsReadAgainWhenWatchSaysItsBoardChanged() {
+    @Test func minimisedItFollowsNothingAndBackFromTheDockItFollowsItsPageAgain() {
         let run = opened()
 
-        #expect(run.show(heard(line(0), line(changed: ["sr-macapp"])), at: printedAt, reducesMotion: false).map(\.session) == ["sr-macapp"])
-        #expect(run.show(heard(line(0), line(changed: ["sr-dash02"])), at: printedAt, reducesMotion: false).isEmpty)
-    }
-
-    @Test func onABoardResumedAfterWatchWasDownEverySessionShownIsReadAgain() {
-        let run = opened()
-
-        _ = run.pick(.project("switchboard"))
-        #expect(run.show(heard(line(0), runs: 2), at: printedAt, reducesMotion: false).map(\.session) == ["sr-dash02", "sr-rq7dgr"])
-    }
-
-    @Test func aRunOfPicksInTheListReadsTheLastPicksSessionsOnceThePicksStop() {
-        let run = opened()
-
-        #expect(run.pickInList(.session("sr-dash02"), at: printedAt).map(\.session) == ["sr-dash02"])
-        #expect(run.pickInList(.session("sr-rq7dgr"), at: printedAt.addingTimeInterval(0.1)).isEmpty)
-        #expect(run.settledReads(at: printedAt.addingTimeInterval(1)).map(\.session) == ["sr-rq7dgr"])
-    }
-
-    /// Only the reads that run take a ticket, so a read under way still lands.
-    @Test func aReadDroppedInARunOfPicksLeavesTheReadUnderWayForItsSessionToLand() throws {
-        let run = WindowRun()
-
-        _ = run.show(heard(line(0)), at: printedAt, reducesMotion: false)
-
-        let underWay = try #require(run.open().first)
-
-        #expect(underWay.session == "sr-macapp")
-        _ = run.pickInList(.session("sr-dash02"), at: printedAt)
-        #expect(run.pickInList(.session("sr-macapp"), at: printedAt.addingTimeInterval(0.05)).isEmpty)
-        _ = run.pickInList(.session("sr-dash02"), at: printedAt.addingTimeInterval(0.1))
-        run.read(underWay, gave: board(Lines.board), at: printedAt, reducesMotion: false)
-        _ = run.pick(.session("sr-macapp"))
-        #expect(run.page(at: printedAt).session?.isRead == true)
-    }
-
-    @Test func aRunOfPicksReadsNothingWhileTheWindowIsClosed() {
-        let run = opened()
-
-        _ = run.pickInList(.session("sr-dash02"), at: printedAt)
-        _ = run.pickInList(.session("sr-rq7dgr"), at: printedAt.addingTimeInterval(0.1))
-        run.close()
-        #expect(run.settledReads(at: printedAt.addingTimeInterval(1)).isEmpty)
-    }
-
-    /// Back from the Dock, the page is read again, so the run's waiting reads are let go.
-    @Test func aRunOfPicksReadsNothingOnceTheWindowIsBackFromTheDock() {
-        let run = opened()
-
-        _ = run.pickInList(.session("sr-dash02"), at: printedAt)
-        _ = run.pickInList(.session("sr-rq7dgr"), at: printedAt.addingTimeInterval(0.1))
+        run.pick(.project("switchboard"))
         run.minimise()
-        _ = run.restore()
-        #expect(run.settledReads(at: printedAt.addingTimeInterval(1)).isEmpty)
+        #expect(run.following.isEmpty)
+        run.show(heard(line(0), line(1)), at: printedAt, reducesMotion: false)
+        #expect(run.following.isEmpty)
+        run.restore()
+        #expect(run.pick == .project("switchboard"))
+        #expect(run.following == ["sr-dash02", "sr-rq7dgr"])
     }
 
-    @Test func theRunsReadsFallingDueIsTheNextChange() {
+    @Test func aRunOfPicksInTheListFollowsWhatItFollowedAsItBeganUntilThePicksStopThenTheLastPick() {
+        let run = opened()
+
+        run.pickInList(.session("sr-dash02"), at: printedAt)
+        #expect(run.following == ["sr-dash02"])
+        run.pickInList(.session("sr-rq7dgr"), at: printedAt.addingTimeInterval(0.1))
+        run.pickInList(.project("sitrep"), at: printedAt.addingTimeInterval(0.2))
+        #expect(run.following == ["sr-dash02"])
+        run.settle(at: printedAt.addingTimeInterval(0.3))
+        #expect(run.following == ["sr-dash02"])
+        run.settle(at: printedAt.addingTimeInterval(0.2 + PickFollows.settle))
+        #expect(run.following == ["sr-macapp"])
+    }
+
+    @Test func aPickFromOutsideTheListEndsARunOfPicksAndIsFollowedAtOnce() {
+        let run = opened()
+
+        run.pickInList(.session("sr-dash02"), at: printedAt)
+        run.pickInList(.session("sr-rq7dgr"), at: printedAt.addingTimeInterval(0.1))
+        run.pick(.project("switchboard"))
+        #expect(run.following == ["sr-dash02", "sr-rq7dgr"])
+        #expect(run.nextChange != printedAt.addingTimeInterval(0.1 + PickFollows.settle))
+    }
+
+    /// Back from the Dock, the window follows its page at once.
+    @Test func aRunOfPicksWaitingIsLetGoAsTheWindowMinimises() {
+        let run = opened()
+
+        run.pickInList(.session("sr-dash02"), at: printedAt)
+        run.pickInList(.session("sr-rq7dgr"), at: printedAt.addingTimeInterval(0.1))
+        run.minimise()
+        run.restore()
+        #expect(run.following == ["sr-rq7dgr"])
+    }
+
+    @Test func theRunOfPicksSettlingIsTheNextChange() {
         let run = opened()
         let last = printedAt.addingTimeInterval(0.1)
 
-        _ = run.pickInList(.session("sr-dash02"), at: printedAt)
-        _ = run.pickInList(.session("sr-rq7dgr"), at: last)
-        #expect(run.nextChange == last.addingTimeInterval(PickReads.settle))
+        run.pickInList(.session("sr-dash02"), at: printedAt)
+        run.pickInList(.session("sr-rq7dgr"), at: last)
+        #expect(run.nextChange == last.addingTimeInterval(PickFollows.settle))
     }
 
     /// So no row moves between two presses of an arrow key, the pointer elsewhere.
     @Test func aPickInTheListHoldsItsOrder() {
         let run = opened()
 
-        _ = run.pickInList(.session("sr-dash02"), at: printedAt)
-        _ = run.show(heard(.line(projects(["goosemates", "sitrep", "switchboard", "kit"]))), at: printedAt, reducesMotion: false)
+        run.pickInList(.session("sr-dash02"), at: printedAt)
+        run.show(heard(.line(projects(["goosemates", "sitrep", "switchboard", "kit"]))), at: printedAt, reducesMotion: false)
         #expect(run.listed(at: printedAt).projects.map(\.id) == ["sitrep", "switchboard", "goosemates", "kit"])
     }
 
-    @Test func aProjectsViewReadsEachOfItsSessions() {
-        let run = opened()
-
-        #expect(run.pick(.project("switchboard")).map(\.session) == ["sr-dash02", "sr-rq7dgr"])
-    }
-
-    @Test func onlyTheLatestReadAskedForASessionIsTaken() throws {
+    /// The real CLI's lines (`Lines.following`): no board on the first, then the board the follow line's look carried,
+    /// beside a null for sr-n0n3zz, which no project files, said of that session alone.
+    @Test func aSessionsDetailIsItsBoardFromTheLastLineThatCarriedIt() throws {
         let run = WindowRun()
 
-        _ = run.show(heard(line(0)), at: printedAt, reducesMotion: false)
+        run.show(heard(.line(Lines.following[0])), at: printedAt, reducesMotion: false)
+        run.open()
+        #expect(run.following == ["sr-h4rn3s"])
+        #expect(run.page(at: printedAt).session?.hasBoard == false)
+        #expect(run.page(at: printedAt).session?.asks.isEmpty == true)
+        run.show(heard(.line(Lines.following[1])), at: printedAt, reducesMotion: false)
 
-        let earlier = try #require(run.open().first)
-        let later = try #require(run.pick(.session("sr-macapp")).first)
+        let page = try #require(run.page(at: printedAt).session)
 
-        run.read(later, gave: board(Lines.delivered), at: printedAt, reducesMotion: false)
-        run.read(earlier, gave: board(Lines.board), at: printedAt, reducesMotion: false)
+        #expect(page.hasBoard)
+        #expect(page.failure == nil)
+        #expect(page.asks.map(\.id.ask) == ["vx3g", "ayh1"])
+        #expect(page.parked.map(\.title) == ["Measure the line on a copy of Lee's board"])
+        #expect(page.notes.map(\.text).contains("The watch hears what the window follows"))
+    }
+
+    /// The real CLI's lines (`Lines.following`): the third ask posted comes on the line after, washed at the top.
+    @Test func aLaterLinesBoardChangesTheDetailInPlace() throws {
+        let run = WindowRun()
+        let later = printedAt.addingTimeInterval(2)
+
+        run.show(heard(.line(Lines.following[0])), at: printedAt, reducesMotion: false)
+        run.open()
+        run.show(heard(.line(Lines.following[1])), at: printedAt, reducesMotion: false)
+        run.show(heard(.line(Lines.following[2])), at: later, reducesMotion: false)
+
+        let asks = try #require(run.page(at: later).session?.asks)
+
+        #expect(asks.map(\.id.ask) == ["0rzx", "vx3g", "ayh1"])
+        #expect(asks.map(\.washed) == [later, nil, nil])
+    }
+
+    /// A board a line carried is said once; the line kept as `watch` goes stale says nothing again.
+    @Test func aBoardKeptStaleIsNotTakenAgain() {
+        let run = opened(boards: ["sr-macapp": Lines.delivered])
+
+        run.show(
+            heard(carrying(["sr-macapp": Lines.board]), .exited(.status(1), stderr: "")), at: printedAt,
+            reducesMotion: false
+        )
         #expect(run.page(at: printedAt).session?.asks.map(\.id.ask) == ["k2"])
     }
 
-    @Test func aReadThatFailsSaysWhyUntilOneReadsAndKeepsWhatWasReadBefore() throws {
-        let run = WindowRun()
-
-        _ = run.show(heard(line(0)), at: printedAt, reducesMotion: false)
-
-        let first = try #require(run.open().first)
-
-        run.read(first, gave: .failed("sitrep board did not answer within 10 seconds."), at: printedAt, reducesMotion: false)
-        #expect(run.page(at: printedAt).session?.failure == "sitrep board did not answer within 10 seconds.")
-        #expect(run.page(at: printedAt).session?.isRead == false)
-
-        let second = try #require(run.pick(.session("sr-macapp")).first)
-
-        run.read(second, gave: board(Lines.board), at: printedAt, reducesMotion: false)
-        #expect(run.page(at: printedAt).session?.failure == nil)
-        #expect(run.page(at: printedAt).session?.isRead == true)
-
-        let third = try #require(run.pick(.session("sr-macapp")).first)
-
-        run.read(third, gave: .failed("sitrep board ended with status 1."), at: printedAt, reducesMotion: false)
-        #expect(run.page(at: printedAt).session?.asks.count == 3)
-        #expect(run.page(at: printedAt).session?.failure == "sitrep board ended with status 1.")
-    }
-
-    @Test func aSessionPickedAgainShowsItsAsksAsLastReadUntilItsReadLandsAndKeepsThemIfItFails() throws {
+    @Test func aNullBoardSaysTheSessionIsNotOnTheBoardOverWhatWasShownAndKeepsIt() throws {
         let run = opened()
 
-        _ = run.pick(.session("sr-dash02"))
+        take(["sr-macapp": nil], in: run)
 
-        let again = try #require(run.pick(.session("sr-macapp")).first)
+        let page = try #require(run.page(at: printedAt).session)
 
-        #expect(run.page(at: printedAt).session?.asks.map(\.id.ask) == ["k1", "k3", "k2"])
-        run.read(again, gave: .failed("sitrep board ended with status 1."), at: printedAt, reducesMotion: false)
-        #expect(run.page(at: printedAt).session?.asks.map(\.id.ask) == ["k1", "k3", "k2"])
-        #expect(run.page(at: printedAt).session?.failure == "sitrep board ended with status 1.")
+        #expect(page.failure == "This session isn't on the board.")
+        #expect(page.hasBoard)
+        #expect(page.asks.map(\.id.ask) == ["k1", "k3", "k2"])
+        take(["sr-macapp": Lines.board], in: run)
+        #expect(run.page(at: printedAt).session?.failure == nil)
     }
 
-    @Test func reopenedItShowsTheSessionsAsksAsLastReadUntilItsReadLands() {
+    @Test func aNullBoardFirstSaysSoWithNothingShown() throws {
+        let run = opened(boards: ["sr-macapp": nil])
+        let page = try #require(run.page(at: printedAt).session)
+
+        #expect(page.failure == "This session isn't on the board.")
+        #expect(!page.hasBoard)
+        #expect(page.asks.isEmpty)
+    }
+
+    /// A board this app cannot read, its session under `work`, says so for its session alone, over what was kept; the
+    /// board beside it on the line is taken, and the line's rows read as usual.
+    @Test func aBoardThatDoesNotReadSaysSoForItsSessionAloneTheRestOfItsLineTaken() throws {
+        let run = opened()
+        let unreadable = Lines.board.replacingOccurrences(of: #""session": {"#, with: #""work": {"#)
+
+        take(["sr-macapp": unreadable, "sr-dash02": Lines.dashboard], in: run)
+
+        let page = try #require(run.page(at: printedAt).session)
+
+        #expect(page.failure == "sitrep watch gave a board of this session that this SitRep cannot read.")
+        #expect(page.hasBoard)
+        #expect(page.asks.map(\.id.ask) == ["k1", "k3", "k2"])
+        #expect(run.listed(at: printedAt) == Listed(heard(line(0))))
+        run.pick(.session("sr-dash02"))
+        #expect(run.page(at: printedAt).session?.asks.map(\.id.ask) == ["k1"])
+        #expect(run.page(at: printedAt).session?.failure == nil)
+    }
+
+    /// `watch` down, no board can come: a page with none kept says why in the head's words for the board stale; one
+    /// with a board kept shows it, as the head says when it was last known current.
+    @Test func whileTheBoardIsStaleAPageWithNoBoardKeptSaysWhy() throws {
+        let run = opened()
+
+        run.show(heard(line(0), .exited(.status(1), stderr: "")), at: printedAt, reducesMotion: false)
+        #expect(run.page(at: printedAt).session?.failure == nil)
+        run.pick(.session("sr-dash02"))
+
+        let page = try #require(run.page(at: printedAt).session)
+
+        #expect(page.failure == "SitRep can't read the board. sitrep watch ended with status 1.")
+        #expect(!page.hasBoard)
+        run.show(heard(line(0)), at: printedAt, reducesMotion: false)
+        #expect(run.page(at: printedAt).session?.failure == nil)
+    }
+
+    @Test func aSessionPickedAgainShowsItsAsksAsLastKeptUntilItsBoardComes() throws {
+        let run = opened()
+
+        run.pick(.session("sr-dash02"))
+        run.pick(.session("sr-macapp"))
+        #expect(run.page(at: printedAt).session?.asks.map(\.id.ask) == ["k1", "k3", "k2"])
+        take(["sr-macapp": nil], in: run)
+        #expect(run.page(at: printedAt).session?.asks.map(\.id.ask) == ["k1", "k3", "k2"])
+    }
+
+    @Test func reopenedItShowsTheSessionsAsksAsLastKeptUntilItsBoardComes() {
         let run = opened()
 
         run.close()
-        _ = run.open()
+        run.open()
         #expect(run.page(at: printedAt).session?.asks.count == 3)
     }
 
@@ -201,11 +280,11 @@ struct WindowRunTests {
         let run = opened()
 
         run.pointer(isIn: true, at: printedAt)
-        _ = run.show(heard(.line(projects(["goosemates", "sitrep", "switchboard", "kit"]))), at: printedAt, reducesMotion: false)
+        run.show(heard(.line(projects(["goosemates", "sitrep", "switchboard", "kit"]))), at: printedAt, reducesMotion: false)
         run.minimise()
         #expect(run.listed(at: printedAt).projects.map(\.id) == ["goosemates", "sitrep", "switchboard", "kit"])
-        _ = run.restore()
-        _ = run.show(heard(line(0)), at: printedAt, reducesMotion: false)
+        run.restore()
+        run.show(heard(line(0)), at: printedAt, reducesMotion: false)
         #expect(run.listed(at: printedAt).projects.map(\.id) == ["sitrep", "switchboard", "goosemates", "kit"])
     }
 
@@ -213,20 +292,21 @@ struct WindowRunTests {
         let run = opened()
 
         run.pointer(isIn: true, at: printedAt)
-        _ = run.show(heard(.line(projects(["goosemates", "sitrep", "switchboard", "kit"]))), at: printedAt, reducesMotion: false)
+        run.show(heard(.line(projects(["goosemates", "sitrep", "switchboard", "kit"]))), at: printedAt, reducesMotion: false)
         run.close()
         #expect(run.listed(at: printedAt).projects.map(\.id) == ["goosemates", "sitrep", "switchboard", "kit"])
-        _ = run.open()
-        _ = run.show(heard(line(0)), at: printedAt, reducesMotion: false)
+        run.open()
+        run.show(heard(line(0)), at: printedAt, reducesMotion: false)
         #expect(run.listed(at: printedAt).projects.map(\.id) == ["sitrep", "switchboard", "goosemates", "kit"])
         #expect(run.nextChange == Self.ledgerFolds)
     }
 
-    @Test func whatCameAndWentWhileLeeWasOnAnotherPageIsTheFirstReadsLayoutNotWashedNorKept() throws {
+    @Test func whatCameAndWentWhileLeeWasOnAnotherPageIsTheFirstBoardsLayoutNotWashedNorKept() throws {
         let run = opened()
 
-        _ = run.pick(.session("sr-dash02"))
-        answer(run.pick(.session("sr-macapp")), in: run, with: ["sr-macapp": deliveredAndNew])
+        run.pick(.session("sr-dash02"))
+        run.pick(.session("sr-macapp"))
+        take(["sr-macapp": deliveredAndNew], in: run)
 
         let page = try #require(run.page(at: printedAt).session)
 
@@ -236,11 +316,12 @@ struct WindowRunTests {
         #expect(run.nextChange == Self.ledgerFolds)
     }
 
-    @Test func whatCameAndWentWhileTheWindowWasClosedIsTheFirstReadsLayoutNotWashedNorKept() throws {
+    @Test func whatCameAndWentWhileTheWindowWasClosedIsTheFirstBoardsLayoutNotWashedNorKept() throws {
         let run = opened()
 
         run.close()
-        answer(run.open(), in: run, with: ["sr-macapp": deliveredAndNew])
+        run.open()
+        take(["sr-macapp": deliveredAndNew], in: run)
 
         let page = try #require(run.page(at: printedAt).session)
 
@@ -249,13 +330,14 @@ struct WindowRunTests {
         #expect(page.resolved.map(\.id).contains("k1"))
     }
 
-    @Test func whatComesAndGoesAfterTheFirstReadIsWashedOrKeptInPlace() throws {
+    @Test func whatComesAndGoesAfterTheFirstBoardIsWashedOrKeptInPlace() throws {
         let run = opened()
 
         overThePage(run)
-        _ = run.pick(.session("sr-dash02"))
-        answer(run.pick(.session("sr-macapp")), in: run, with: ["sr-macapp": Lines.board])
-        answer(run.pick(.session("sr-macapp")), in: run, with: ["sr-macapp": deliveredAndNew])
+        run.pick(.session("sr-dash02"))
+        run.pick(.session("sr-macapp"))
+        take(["sr-macapp": Lines.board], in: run)
+        take(["sr-macapp": deliveredAndNew], in: run)
 
         let page = try #require(run.page(at: printedAt).session)
 
@@ -264,14 +346,21 @@ struct WindowRunTests {
         #expect(page.asks.filter(\.isClosed).map(\.id.ask) == ["k1", "k3"])
     }
 
-    @Test func minimisedNothingIsReadBroughtBackThePageReadsWhatItShowsAgain() {
+    /// Back from the Dock the page keeps its asks as they stood, so what changed meanwhile, on the board `watch`
+    /// carries as the window follows the session again, is washed or kept in place.
+    @Test func whatCameWhileTheWindowWasMinimisedIsWashedOrKeptInPlaceAsItShowsAgain() throws {
         let run = opened()
 
+        overThePage(run)
         run.minimise()
-        #expect(run.show(heard(line(0), line(1)), at: printedAt, reducesMotion: false).isEmpty)
-        #expect(run.show(heard(line(0), runs: 2), at: printedAt, reducesMotion: false).isEmpty)
-        #expect(run.restore().map(\.session) == ["sr-macapp"])
-        #expect(run.pick == .session("sr-macapp"))
+        run.restore()
+        overThePage(run)
+        take(["sr-macapp": deliveredAndNew], in: run)
+
+        let page = try #require(run.page(at: printedAt).session)
+
+        #expect(page.asks.map(\.id.ask) == ["k4", "k1", "k3", "k2"])
+        #expect(page.asks.first?.washed == printedAt)
     }
 
     @Test func twoLinesWithoutIdsOfOneKindInOneMillisecondHaveIdsOfTheirOwnWhichStayAsLinesCome() throws {
@@ -283,7 +372,7 @@ struct WindowRunTests {
             board["log"] = [status.merging(["text": "Status: now drawing round 4"]) { $1 }, status, status] + log
         }
 
-        answer(run.pick(.session("sr-macapp")), in: run, with: ["sr-macapp": twins])
+        take(["sr-macapp": twins], in: run)
 
         let before = try #require(run.page(at: printedAt).session?.notes)
         let more = edited(twins) { board in
@@ -291,7 +380,7 @@ struct WindowRunTests {
                 + (board["log"] as! [[String: Any]])
         }
 
-        answer(run.pick(.session("sr-macapp")), in: run, with: ["sr-macapp": more])
+        take(["sr-macapp": more], in: run)
 
         let after = try #require(run.page(at: printedAt).session?.notes)
 
@@ -306,10 +395,7 @@ struct WindowRunTests {
         let log = board["log"] as! [[String: Any]]
 
         board["log"] = [log[0].merging(["id": "n3", "text": "Round 4 drawn"]) { $1 }] + log
-        answer(
-            run.pick(.session("sr-macapp")), in: run,
-            with: ["sr-macapp": String(decoding: try JSONSerialization.data(withJSONObject: board), as: UTF8.self)]
-        )
+        take(["sr-macapp": String(decoding: try JSONSerialization.data(withJSONObject: board), as: UTF8.self)], in: run)
 
         let after = try #require(run.page(at: printedAt).session?.notes)
 
@@ -322,15 +408,16 @@ struct WindowRunTests {
     @Test func aPickGoneFromTheBoardGivesWayToWhatTheWindowOpensOn() {
         let run = opened()
 
-        _ = run.pick(.session("sr-gs7kq2"))
-        #expect(run.show(heard(line(0), line(3)), at: printedAt, reducesMotion: false).map(\.session) == ["sr-macapp"])
+        run.pick(.session("sr-gs7kq2"))
+        run.show(heard(line(0), line(3)), at: printedAt, reducesMotion: false)
         #expect(run.pick == .session("sr-macapp"))
+        #expect(run.following == ["sr-macapp"])
     }
 
     @Test func aSessionNewToNeedingLeeIsWashedForTwoSeconds() {
         let run = opened()
 
-        _ = run.show(heard(line(0), line(new: ["ask:sr-gs7kq2:k1"])), at: printedAt, reducesMotion: false)
+        run.show(heard(line(0), line(new: ["ask:sr-gs7kq2:k1"])), at: printedAt, reducesMotion: false)
         #expect(run.listed(at: printedAt.addingTimeInterval(1.99)).rows.compactMap(\.washed) == [printedAt])
         #expect(run.listed(at: printedAt.addingTimeInterval(1.99)).needsYou.compactMap(\.washed) == [printedAt])
         #expect(run.listed(at: printedAt.addingTimeInterval(2)).rows.compactMap(\.washed).isEmpty)
@@ -341,7 +428,7 @@ struct WindowRunTests {
     @Test func ofARowsLinesOnlyTheNewOneIsWashed() throws {
         let run = opened()
 
-        _ = run.show(heard(line(0), line(new: ["ask:sr-macapp:k3"])), at: printedAt, reducesMotion: false)
+        run.show(heard(line(0), line(new: ["ask:sr-macapp:k3"])), at: printedAt, reducesMotion: false)
 
         let row = try #require(run.listed(at: printedAt.addingTimeInterval(1)).needsYou.first { $0.id == "sr-macapp" })
         #expect(row.washed == printedAt)
@@ -352,7 +439,7 @@ struct WindowRunTests {
     @Test func underReducedMotionNothingIsWashed() {
         let run = opened()
 
-        _ = run.show(heard(line(0), line(new: ["ask:sr-gs7kq2:k1"])), at: printedAt, reducesMotion: true)
+        run.show(heard(line(0), line(new: ["ask:sr-gs7kq2:k1"])), at: printedAt, reducesMotion: true)
         #expect(run.listed(at: printedAt).rows.compactMap(\.washed).isEmpty)
         #expect(run.listed(at: printedAt).needsYou.flatMap(\.lines).allSatisfy { $0.washed == nil })
     }
@@ -361,7 +448,7 @@ struct WindowRunTests {
         let run = opened()
         let stale = heard(line(0), line(new: ["ask:sr-gs7kq2:k1"]), .exited(.status(1), stderr: ""))
 
-        _ = run.show(stale, at: printedAt, reducesMotion: false)
+        run.show(stale, at: printedAt, reducesMotion: false)
         #expect(run.listed(at: printedAt).rows.compactMap(\.washed).isEmpty)
         #expect(run.listed(at: printedAt).head.count.hasPrefix("as of "))
     }
@@ -369,7 +456,7 @@ struct WindowRunTests {
     @Test func aWashEndingIsTheNextChange() {
         let run = opened()
 
-        _ = run.show(heard(line(0), line(new: ["ask:sr-gs7kq2:k1"])), at: printedAt, reducesMotion: false)
+        run.show(heard(line(0), line(new: ["ask:sr-gs7kq2:k1"])), at: printedAt, reducesMotion: false)
         #expect(run.nextChange == printedAt.addingTimeInterval(2))
     }
 
@@ -377,7 +464,7 @@ struct WindowRunTests {
         let run = opened()
 
         run.pointer(isIn: true, at: printedAt)
-        _ = run.show(heard(.line(projects(["goosemates", "sitrep", "switchboard", "kit"]))), at: printedAt, reducesMotion: false)
+        run.show(heard(.line(projects(["goosemates", "sitrep", "switchboard", "kit"]))), at: printedAt, reducesMotion: false)
         #expect(run.listed(at: printedAt).projects.map(\.id) == ["sitrep", "switchboard", "goosemates", "kit"])
         run.pointer(isIn: false, at: printedAt)
         #expect(run.nextChange == printedAt.addingTimeInterval(1))
@@ -398,10 +485,10 @@ struct WindowRunTests {
 
     @Test func withNoSessionOpenAtAllThePageSaysSo() {
         let run = WindowRun()
-        let empty = #"{"v":2,"at":1792486421238,"version":"0.2.0","head":{"needYou":0,"sessions":0},"rows":[],"projects":[],"windows":[],"new":[],"changed":[]}"#
+        let empty = #"{"v":3,"at":1792486421238,"version":"0.2.0","head":{"needYou":0,"sessions":0},"rows":[],"projects":[],"windows":[],"new":[],"boards":{}}"#
 
-        _ = run.show(heard(.line(empty)), at: printedAt, reducesMotion: false)
-        _ = run.open()
+        run.show(heard(.line(empty)), at: printedAt, reducesMotion: false)
+        run.open()
         #expect(run.page(at: printedAt) == .empty("No session is open."))
     }
 

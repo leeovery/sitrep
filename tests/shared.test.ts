@@ -276,7 +276,7 @@ test("while the window's send waits out Claude's turn, the CLI reads its answer 
     resolved: [],
   })
   expect(JSON.parse((await besideWindows(w).run('list', '--json')).out)).toMatchObject({
-    projects: [{ waiting: 0, works: [{ waiting: 0 }] }],
+    projects: [{ waiting: 0, sessions: [{ waiting: 0 }] }],
   })
 
   const second = await cli('answer', asked, 'Drop it')

@@ -1,10 +1,10 @@
 {
-  "v": 2,
+  "v": 3,
   "project": {
     "key": "sitrep",
     "name": "SitRep"
   },
-  "work": {
+  "session": {
     "id": "sr-macapp",
     "name": "The Mac app",
     "summary": "SitRep, the menu bar app: the notch, the strip and this window",

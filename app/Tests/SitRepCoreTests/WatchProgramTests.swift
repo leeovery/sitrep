@@ -8,10 +8,20 @@ struct WatchProgramTests {
         Program(executable: URL(fileURLWithPath: "/bin/sh"), arguments: ["-c", script], environment: environment, limit: .infinity)
     }
 
-    private static func heard(_ program: Program) async -> [Heard] {
-        var heard: [Heard] = []
+    /// Nothing to write to a program's standard input.
+    private static var nothing: AsyncStream<String> {
+        AsyncStream { $0.finish() }
+    }
 
-        for await said in watchProgram(program) {
+    /// What the program says, these lines written to its standard input, which then ends.
+    private static func heard(_ program: Program, writing lines: [String] = []) async -> [Heard] {
+        var heard: [Heard] = []
+        let input = AsyncStream<String> { input in
+            lines.forEach { input.yield($0) }
+            input.finish()
+        }
+
+        for await said in watchProgram(program, input) {
             heard.append(said)
         }
 
@@ -24,10 +34,82 @@ struct WatchProgramTests {
         #expect(heard == [.line("one"), .line("two"), .exited(.status(3), stderr: "err")])
     }
 
-    @Test func theProgramGetsOnlyTheEnvironmentGivenAndAnEmptyStdin() async {
-        let heard = await Self.heard(Self.sh(#"/bin/cat; printf '%s|%s\n' "$PATH" "${HOME-unset}""#, environment: ["PATH": "/lee/bin"]))
+    @Test func theProgramGetsOnlyTheEnvironmentGivenAndOnItsStdinEachLineWrittenUntilTheyEnd() async {
+        let heard = await Self.heard(
+            Self.sh(#"/bin/cat; printf '%s|%s\n' "$PATH" "${HOME-unset}""#, environment: ["PATH": "/lee/bin"]),
+            writing: [#"{"follow":["sr-k3f9qa"]}"#, #"{"follow":[]}"#]
+        )
 
-        #expect(heard == [.line("/lee/bin|unset"), .exited(.status(0), stderr: "")])
+        #expect(heard == [
+            .line(#"{"follow":["sr-k3f9qa"]}"#), .line(#"{"follow":[]}"#), .line("/lee/bin|unset"),
+            .exited(.status(0), stderr: ""),
+        ])
+    }
+
+    /// A program that stops reading its stdin, as `watch` does as it ends: the write finds the pipe closed, and the
+    /// app is sent no SIGPIPE, which would end it.
+    @Test func aWriteFindingTheProgramsStdinClosedIsDropped() async {
+        let running = RunningChild()
+        let (input, writing) = AsyncStream<String>.makeStream()
+        let program = Self.sh("trap 'kill $!; exit 0' TERM; exec 0<&-; sleep 60 & echo closed; wait")
+        var heard: [Heard] = []
+
+        for await said in watchProgram(holding: running)(program, input) {
+            heard.append(said)
+
+            if said == .line("closed") {
+                writing.yield(#"{"follow":[]}"#)
+                try? await Task.sleep(for: .milliseconds(200))
+                running.terminate()
+            }
+        }
+
+        writing.finish()
+        #expect(heard == [.line("closed"), .exited(.status(0), stderr: "")])
+    }
+
+    /// The pipe holds 64KB; a program that never reads leaves every write after that waiting on the writer's own
+    /// queue, holding up neither the caller nor the program's end: 1MB given, a caller or an end held up would wait
+    /// for good, past the suite's time limit. Its only child reads /dev/null and goes with it, so nothing holds the
+    /// pipe once it ends.
+    @Test func aProgramThatNeverReadsItsStdinHoldsUpNeitherTheLinesGivenNorItsEnd() async {
+        let running = RunningChild()
+        let (input, writing) = AsyncStream<String>.makeStream()
+        let program = Self.sh("trap 'kill $!; exit 0' TERM; sleep 60 </dev/null & echo ready; wait")
+        let line = String(repeating: "a", count: 1024)
+        var heard: [Heard] = []
+
+        for await said in watchProgram(holding: running)(program, input) {
+            heard.append(said)
+
+            if said == .line("ready") {
+                for _ in 0 ..< 1024 {
+                    writing.yield(line)
+                }
+                running.terminate()
+            }
+        }
+
+        writing.finish()
+        #expect(heard == [.line("ready"), .exited(.status(0), stderr: "")])
+    }
+
+    /// The reader takes what the pipe holds once and goes, most of the 1MB given still to write, far more than the
+    /// pipe holds: each write left fails with EPIPE, sending no SIGPIPE, which would end the tests, and the writer
+    /// runs on to its end.
+    @Test func aWriterWhoseReaderGoesFailsEachWriteLeftAndEnds() async throws {
+        let writer = Writer()
+        let (lines, writing) = AsyncStream<String>.makeStream()
+        let line = String(repeating: "a", count: 1024)
+        let writes = writer.write(lines)
+
+        for _ in 0 ..< 1024 {
+            writing.yield(line)
+        }
+        writing.finish()
+        #expect(!writer.pipe.fileHandleForReading.availableData.isEmpty)
+        try writer.pipe.fileHandleForReading.close()
+        await writes.value
     }
 
     @Test func ofALongStderrOnlyTheLastLinesAreKept() async {
@@ -49,10 +131,16 @@ struct WatchProgramTests {
         #expect(clock.now - started < .seconds(3))
     }
 
-    @Test func aLinePastTheLongestIsCutThere() async {
-        let heard = await Self.heard(Self.sh("head -c \(longestLine + 100) /dev/zero | tr '\\0' a; echo; echo next"))
+    /// A line carries the boards of the sessions followed, which run far past a megabyte: read whole to 16MB, and cut
+    /// there.
+    @Test func aLineIsReadWholeTo16MBAndCutThere() async {
+        let longest = 16 << 20
+        let heard = await Self.heard(Self.sh("head -c \(longest + 100) /dev/zero | tr '\\0' a; echo; echo next"))
+        let lines = heard.compactMap { said in if case let .line(line) = said { line } else { nil } }
 
-        #expect(heard == [.line(String(repeating: "a", count: longestLine)), .line("next"), .exited(.status(0), stderr: "")])
+        #expect(lines.map(\.utf8.count) == [longest, 4])
+        #expect(lines.first?.utf8.allSatisfy { $0 == UInt8(ascii: "a") } == true)
+        #expect(heard.last == .exited(.status(0), stderr: ""))
     }
 
     @Test func aLineOfStderrPastTheLongestKeptIsCutThere() async {
@@ -81,7 +169,7 @@ struct WatchProgramTests {
 
         let script = "trap 'touch \"\(stopped.path)\"; exit 0' TERM; echo ready; while :; do sleep 0.05; done"
 
-        for await said in watchProgram(Self.sh(script)) {
+        for await said in watchProgram(Self.sh(script), Self.nothing) {
             #expect(said == .line("ready"))
             break
         }
@@ -103,7 +191,7 @@ struct WatchProgramTests {
         let running = RunningChild()
         var heard: [Heard] = []
 
-        for await said in watchProgram(holding: running)(Self.sh("sleep 60 & trap 'exit 0' TERM; echo ready; wait")) {
+        for await said in watchProgram(holding: running)(Self.sh("sleep 60 & trap 'exit 0' TERM; echo ready; wait"), Self.nothing) {
             heard.append(said)
 
             if said == .line("ready") {
@@ -119,7 +207,7 @@ struct WatchProgramTests {
         var heard: [Heard] = []
 
         running.terminate()
-        for await said in watchProgram(holding: running)(Self.sh("exec sleep 5")) {
+        for await said in watchProgram(holding: running)(Self.sh("exec sleep 5"), Self.nothing) {
             heard.append(said)
         }
 

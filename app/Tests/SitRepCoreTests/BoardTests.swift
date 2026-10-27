@@ -145,12 +145,45 @@ struct BoardTests {
         ))
     }
 
-    @Test func aLineSaysWhatIsNewOnItAndWhichSessionsChanged() throws {
+    @Test func aLineSaysWhatIsNewOnIt() throws {
         let board = try Board.read(watched)
 
         #expect(board.new == ["stop:sr-y4d0qj:6c847b5b-722d-4343-88e0-42ece4662e7d:1792445500000"])
         #expect(board.newRows == ["sr-y4d0qj"])
-        #expect(board.changed == ["sr-y4d0qj"])
+    }
+
+    /// The real CLI's lines (`Lines.following`): none carried before the follow line, then the session followed and a
+    /// null for the one no project files, then only the board that changed.
+    @Test func aLineCarriesTheBoardsOfTheSessionsFollowedNewOrChangedAndANullForOneNotFound() throws {
+        let boards = try Lines.following.map { try Board.read($0).boards }
+
+        #expect(boards.map { $0.keys.sorted() } == [[], ["sr-h4rn3s", "sr-n0n3zz"], ["sr-h4rn3s"], ["sr-h4rn3s"]])
+        #expect(boards[1]["sr-n0n3zz"] == .notFound)
+        #expect(boards.map { $0["sr-h4rn3s"]?.board?.asks.map(\.id) } == [nil, ["ayh1", "vx3g"], ["ayh1", "vx3g", "0rzx"], ["ayh1", "vx3g", "0rzx"]])
+        #expect(boards[3]["sr-h4rn3s"]?.board?.asks.first?.reply?.standing == .onItsWay)
+    }
+
+    /// Each board is read on its own: one that does not read is unread alone, and the line, and the boards beside it,
+    /// read as usual.
+    @Test(arguments: [#"{"v":3}"#, Lines.dashboard.replacingOccurrences(of: #""session": {"#, with: #""work": {"#)])
+    func aBoardThatDoesNotReadIsUnreadAloneTheLineReadingAsUsual(_ unreadable: String) throws {
+        let line = try Board.read(Lines.carrying(["sr-dash02": unreadable, "sr-macapp": Lines.board], on: Lines.watch[0]))
+
+        #expect(line.boards["sr-dash02"] == .unread)
+        #expect(line.boards["sr-macapp"]?.board?.asks.map(\.id) == ["k2", "k3", "k1"])
+        #expect(line.rows == (try Board.read(Lines.watch[0])).rows)
+    }
+
+    @Test func aCarriedBoardIsTheSessionsBoardAsBoardJsonGivesIt() throws {
+        let board = try #require(try Board.read(Lines.following[1]).boards["sr-h4rn3s"]?.board)
+
+        #expect(board.project == SessionBoard.Project(key: "harness", name: "Harness"))
+        #expect(board.session.id == "sr-h4rn3s")
+        #expect(board.session.name == "Follow the boards")
+        #expect(board.session.now == ["Following the boards through the watch"])
+        #expect(board.parked.map(\.title) == ["Measure the line on a copy of Lee's board"])
+        #expect(board.log.map(\.text).contains("The watch hears what the window follows"))
+        #expect(board.resolved.isEmpty)
     }
 
     /// The real CLI's line (`Lines.onItsWork`): Kit's window waiting on a wake, its row first, and SitRep's on three
@@ -182,10 +215,14 @@ struct BoardTests {
         #expect(board.rows.isEmpty)
     }
 
-    /// Version 1, a row per ask or stop, is the plugin before rows by session, which this app reads no more.
+    /// Version 1, a row per ask or stop, is the plugin before rows by session; version 2, `changed` in place of
+    /// `boards`, the plugin before the watch carried them: this app reads neither.
     @Test func aLineOfAnotherVersionIsNamedAsSuchWhateverItsShape() {
-        #expect(throws: Unread.version(given: 1, read: 2)) { try Board.read(#"{"v": 1, "feed": {}}"#) }
-        #expect(throws: Unread.version(given: 3, read: 2)) { try Board.read(#"{"v": 3, "feed": {}}"#) }
+        #expect(throws: Unread.version(given: 1, read: 3)) { try Board.read(#"{"v": 1, "feed": {}}"#) }
+        #expect(throws: Unread.version(given: 2, read: 3)) {
+            try Board.read(watchedEmpty.replacingOccurrences(of: #""v":3"#, with: #""v":2"#))
+        }
+        #expect(throws: Unread.version(given: 4, read: 3)) { try Board.read(#"{"v": 4, "feed": {}}"#) }
     }
 
     @Test(arguments: [
@@ -193,6 +230,9 @@ struct BoardTests {
         "{\"v\":1,\"at\":17924455",
         #"{"head": {"needYou": 0, "sessions": 0}}"#,
         watchedEmpty.replacingOccurrences(of: #""windows":[],"#, with: ""),
+        watchedEmpty.replacingOccurrences(of: #","boards":{}"#, with: ""),
+        watchedEmpty.replacingOccurrences(of: #""boards":{}"#, with: #""changed":[]"#),
+        watchedEmpty.replacingOccurrences(of: #""boards":{}"#, with: #""boards":[]"#),
         watched.replacingOccurrences(of: #""is": "yourTurn""#, with: #""is": "napping""#),
         watched.replacingOccurrences(of: #""doing": {"# + "\n" + #"            "is": "permission""#, with: #""doing": {"# + "\n" + #"            "is": "napping""#),
         watched.replacingOccurrences(of: #""doing": {"#, with: #""doings": {"#),

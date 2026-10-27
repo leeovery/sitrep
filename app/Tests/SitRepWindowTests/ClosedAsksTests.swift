@@ -10,9 +10,9 @@ struct ClosedAsksTests {
     private static let yes = AskAddress(session: "sr-macapp", ask: "k1")
     private static let left = printedAt.addingTimeInterval(3)
 
-    /// The session's page read again, its board having k1 sent and k3 ignored.
+    /// The session's next board, which has k1 sent and k3 ignored.
     private static func closing(_ run: WindowRun, to board: String = Lines.delivered) {
-        answer(run.pick(.session("sr-macapp")), in: run, with: ["sr-macapp": board])
+        take(["sr-macapp": board], in: run)
     }
 
     private static func asks(_ run: WindowRun) -> [String]? {
@@ -80,7 +80,7 @@ struct ClosedAsksTests {
         #expect(Self.resolved(run) == ["k1", "k5", "k4"])
     }
 
-    /// The read that lets a closed ask go lands a new one at the top, washed, all the same.
+    /// The board that lets a closed ask go lands a new one at the top, washed, all the same.
     @Test func withNothingHeldANewAskLandsAtTheTopWashedAsTheClosedOnesLeave() {
         let run = opened()
 
@@ -139,7 +139,7 @@ struct ClosedAsksTests {
         let later = printedAt.addingTimeInterval(5)
 
         Self.closing(run)
-        answer(run.pick(.session("sr-macapp")), in: run, with: ["sr-macapp": Lines.board], at: later)
+        take(["sr-macapp": Lines.board], in: run, at: later)
 
         let asks = run.page(at: later).session?.asks
 
@@ -172,12 +172,10 @@ struct ClosedAsksTests {
 
         overThePage(run)
         Self.closing(run)
-        answer(run.pick(.project("sitrep")), in: run, with: ["sr-macapp": Lines.board])
+        run.pick(.project("sitrep"))
+        take(["sr-macapp": Lines.board], in: run)
         #expect(run.page(at: printedAt).project?.asks.map(\.card.isClosed) == [false, false, false])
-        answer(
-            run.show(heard(line(0), line(2)), at: printedAt, reducesMotion: false), in: run,
-            with: ["sr-macapp": Lines.delivered]
-        )
+        take(["sr-macapp": Lines.delivered], in: run, on: line(2))
         #expect(run.page(at: printedAt).project?.asks.map(\.card.isClosed) == [true, true, false])
     }
 
@@ -185,7 +183,8 @@ struct ClosedAsksTests {
     @Test func aPickInTheListLeavesThePageUnheld() {
         let run = opened()
 
-        answer(run.pickInList(.session("sr-macapp"), at: printedAt), in: run, with: ["sr-macapp": Lines.delivered])
+        run.pickInList(.session("sr-macapp"), at: printedAt)
+        take(["sr-macapp": Lines.delivered], in: run)
         #expect(Self.asks(run) == ["k2"])
     }
 
@@ -199,7 +198,7 @@ struct ClosedAsksTests {
         #expect(Self.asks(run) == ["k1", "k2"])
         #expect(Self.resolved(run) == ["k5", "k4"])
         _ = run.due(at: printedAt.addingTimeInterval(2))
-        _ = run.answered(Self.yes, .refused("k1 is already closed."))
+        _ = run.answered(Self.yes, .refused("k1 is already closed."), at: printedAt.addingTimeInterval(2))
         run.settle(at: printedAt.addingTimeInterval(2))
         #expect(Self.asks(run) == ["k2"])
         #expect(Self.resolved(run) == ["k1", "k5", "k4"])
@@ -222,17 +221,14 @@ struct ClosedAsksTests {
 struct ProjectClosedAsksTests {
     private static let left = printedAt.addingTimeInterval(3)
 
-    /// The project's page, its session's board read, then read again, on `watch`'s word, having k1 sent and k3
-    /// ignored.
+    /// The project's page, its session's board come, then its next, having k1 sent and k3 ignored.
     private static func closing(_ run: WindowRun, overThePage isOver: Bool) {
-        answer(run.pick(.project("sitrep")), in: run, with: ["sr-macapp": Lines.board])
+        run.pick(.project("sitrep"))
+        take(["sr-macapp": Lines.board], in: run)
         if isOver {
             overThePage(run)
         }
-        answer(
-            run.show(heard(line(0), line(2)), at: printedAt, reducesMotion: false), in: run,
-            with: ["sr-macapp": Lines.delivered]
-        )
+        take(["sr-macapp": Lines.delivered], in: run, on: line(2))
     }
 
     private static func asks(_ run: WindowRun) -> [String]? {

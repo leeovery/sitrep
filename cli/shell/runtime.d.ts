@@ -40,6 +40,14 @@ declare const process: {
   exitCode: number | undefined
   on(event: 'SIGTERM', listener: () => void): void
   off(event: 'SIGTERM', listener: () => void): void
+  stdin: {
+    /** True on a terminal; undefined on a pipe or a file. */
+    readonly isTTY: boolean | undefined
+    setEncoding(encoding: 'utf8'): void
+    on(event: 'data', listener: (text: string) => void): void
+    off(event: 'data', listener: (text: string) => void): void
+    pause(): void
+  }
   stdout: {
     write(text: string): boolean
     on(event: 'error', listener: () => void): void

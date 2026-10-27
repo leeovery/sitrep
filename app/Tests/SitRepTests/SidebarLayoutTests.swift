@@ -322,7 +322,7 @@ struct SidebarLayoutTests {
     @Test func aNeedsYouRowIsItsSessionOnOneLineOverItsProject() throws {
         let run = Self.opened()
 
-        _ = run.pickInList(.session("sr-macapp"), at: HostedSidebar.printed)
+        run.pickInList(.session("sr-macapp"), at: HostedSidebar.printed)
 
         let side = try HostedSidebar(run, listAlone: true)
         let drawn = try side.drawn()
@@ -349,7 +349,7 @@ struct SidebarLayoutTests {
     func thePickFillsTheWholeRowWhateverItsKind(pick: Pick) throws {
         let run = Self.opened()
 
-        _ = run.pick(pick)
+        run.pick(pick)
 
         let side = try HostedSidebar(run, listAlone: true)
         let place = try #require(run.sidebar(at: HostedSidebar.printed).lines.firstIndex { $0.pick == pick })
@@ -366,7 +366,7 @@ struct SidebarLayoutTests {
     @Test func projectsListsEveryProjectItsPageShowingPicked() throws {
         let run = Self.opened()
 
-        _ = run.pick(.project("sitrep"))
+        run.pick(.project("sitrep"))
 
         let side = try HostedSidebar(run)
         let projects = Array(run.sidebar(at: HostedSidebar.printed).lines.suffix(6))
@@ -379,7 +379,7 @@ struct SidebarLayoutTests {
     @Test func withProjectsFoldedOverItsPageNothingShowsPicked() throws {
         let run = Self.opened()
 
-        _ = run.pick(.project("sitrep"))
+        run.pick(.project("sitrep"))
         run.toggle(.projects)
         #expect(try HostedSidebar(run).board.selectedRow == -1)
     }
@@ -389,7 +389,7 @@ struct SidebarLayoutTests {
     @Test func theSelectionStaysOnASessionMovingBetweenSections() throws {
         let run = Self.opened()
 
-        _ = run.pickInList(.session("sr-macapp"), at: HostedSidebar.printed)
+        run.pickInList(.session("sr-macapp"), at: HostedSidebar.printed)
 
         let side = try HostedSidebar(run, listAlone: true)
         let board = run.listed(at: HostedSidebar.printed)
@@ -414,7 +414,7 @@ struct SidebarLayoutTests {
     @Test func aPickMadeOutsideTheListShowsItsRowUnfolded() throws {
         let run = Self.opened(folds: Folds(sections: [.working]))
 
-        _ = run.pick(.session("sr-macapp"))
+        run.pick(.session("sr-macapp"))
         #expect(try HostedSidebar(run).board.selectedRow == Row.macApp.rawValue)
     }
 
@@ -435,7 +435,7 @@ struct SidebarLayoutTests {
     @Test func theArrowKeysSkipAFoldedSectionsRows() throws {
         let run = Self.opened(folds: Folds(sections: [.working]))
 
-        _ = run.pickInList(.session("sr-gs7kq2"), at: HostedSidebar.printed)
+        run.pickInList(.session("sr-gs7kq2"), at: HostedSidebar.printed)
 
         let pressed = try Self.pressed(Self.downArrow, on: run)
 
@@ -449,7 +449,7 @@ struct SidebarLayoutTests {
         let run = Self.opened(folds: Folds(projects: false))
         let listed = Self.withEarlier(run)
 
-        _ = run.pickInList(.project("harness"), at: HostedSidebar.printed)
+        run.pickInList(.project("harness"), at: HostedSidebar.printed)
 
         let picked = Picked()
         let side = try HostedSidebar(run, actions: WindowActions(pickInList: { picked.picks.append($0) }), listed: listed)
@@ -464,7 +464,7 @@ struct SidebarLayoutTests {
     func fromAPickAFoldHidesTheArrowKeysGoFromItsHeading(key: UInt16, to pick: Pick) throws {
         let run = Self.opened()
 
-        _ = run.pickInList(.session("sr-macapp"), at: HostedSidebar.printed)
+        run.pickInList(.session("sr-macapp"), at: HostedSidebar.printed)
         run.toggle(.section(.working))
         #expect(try Self.pressed(key, on: run).picks == [pick])
     }
@@ -485,7 +485,7 @@ struct SidebarLayoutTests {
     @Test func fromAHiddenPickAnArrowWithAModifierIsTheListsOwn() throws {
         let run = Self.opened()
 
-        _ = run.pickInList(.session("sr-macapp"), at: HostedSidebar.printed)
+        run.pickInList(.session("sr-macapp"), at: HostedSidebar.printed)
         run.toggle(.section(.working))
         #expect(try Self.pressed(Self.downArrow, with: .command, on: run).picks != [.session("sr-v3t7a0")])
     }
@@ -497,7 +497,7 @@ struct SidebarLayoutTests {
     func aSessionWithNoRowShowsPickedOnItsProjectsRow(project: String) throws {
         let run = HostedSidebar.opened()
 
-        _ = run.pick(.session("sr-k7t001"))
+        run.pick(.session("sr-k7t001"))
 
         let listed = Self.rowless(run, in: project)
         let side = try HostedSidebar(run, listAlone: true, listed: listed)
@@ -516,7 +516,7 @@ struct SidebarLayoutTests {
     @Test func aPickedSessionLosingItsRowStandsAtItsProjectsRow() throws {
         let run = HostedSidebar.opened(folds: Folds(projects: false))
 
-        _ = run.pickInList(.session("sr-rq7dgr"), at: HostedSidebar.printed)
+        run.pickInList(.session("sr-rq7dgr"), at: HostedSidebar.printed)
 
         let side = try HostedSidebar(run, listAlone: true)
         let own = run.sidebar(at: HostedSidebar.printed).lines.firstIndex { $0.pick == .session("sr-rq7dgr") }
@@ -545,7 +545,7 @@ struct SidebarLayoutTests {
     ) async throws {
         let run = HostedSidebar.opened()
 
-        _ = run.pick(.session("sr-k7t001"))
+        run.pick(.session("sr-k7t001"))
 
         let side = try HostedSidebar(run, listAlone: true, isKey: isKey)
         let isEmphasized = isKey && isFocused
@@ -570,7 +570,7 @@ struct SidebarLayoutTests {
     @Test func aClickOnTheRowStandingInForASessionPicksItsProject() throws {
         let run = HostedSidebar.opened()
 
-        _ = run.pick(.session("sr-k7t001"))
+        run.pick(.session("sr-k7t001"))
 
         let picked = Picked()
         let side = try HostedSidebar(run, actions: WindowActions(pickInList: { picked.picks.append($0) }))
@@ -592,7 +592,7 @@ struct SidebarLayoutTests {
     func fromASessionWithNoRowTheArrowKeysGoFromItsProjectsRow(project: String, key: UInt16, to picks: [Pick]) throws {
         let run = HostedSidebar.opened()
 
-        _ = run.pick(.session("sr-k7t001"))
+        run.pick(.session("sr-k7t001"))
         #expect(try Self.pressed(key, on: run, listed: Self.rowless(run, in: project)).picks == picks)
     }
 
@@ -601,7 +601,7 @@ struct SidebarLayoutTests {
     func fromASessionWithNoRowUnderProjectsFoldedTheArrowKeysGoFromItsHeading(key: UInt16, to picks: [Pick]) throws {
         let run = HostedSidebar.opened()
 
-        _ = run.pick(.session("sr-k7t001"))
+        run.pick(.session("sr-k7t001"))
         run.toggle(.projects)
 
         let pressed = try Self.pressed(key, on: run)

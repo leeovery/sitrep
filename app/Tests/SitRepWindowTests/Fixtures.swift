@@ -14,13 +14,11 @@ func minutes(before minutes: Double) -> Date {
 /// When the real `watch` printed its first line.
 let printedAt = Date(timeIntervalSince1970: 1_792_486_421.238)
 
-/// What `watch` said, in order, each heard a second after the last, and a run's first line for each run begun.
-func heard(_ said: Heard..., runs: Int = 1) -> LastBoard {
+/// What a run of `watch` said, in order, each heard a second after the last.
+func heard(_ said: Heard...) -> LastBoard {
     var last = LastBoard()
 
-    for _ in 0 ..< runs {
-        last.begin()
-    }
+    last.begin()
     for (second, heard) in said.enumerated() {
         _ = last.hear(heard, at: printedAt.addingTimeInterval(Double(second)))
     }
@@ -32,14 +30,33 @@ func line(_ place: Int) -> Heard {
     .line(Lines.watch[place])
 }
 
-/// A line of `watch` with its `new` and `changed` as given, the board as its first line had it.
-func line(new: [String] = [], changed: [String] = [], from place: Int = 0) -> Heard {
-    .line(
-        Lines.watch[place]
-            .replacingOccurrences(of: #""new":[]"#, with: #""new":[\#(quoted(new))]"#)
-            .replacingOccurrences(of: #""changed":["sr-macapp"]"#, with: #""changed":[]"#)
-            .replacingOccurrences(of: #""changed":[]"#, with: #""changed":[\#(quoted(changed))]"#)
-    )
+/// `watch`'s line at this place, its first unless another, from a look begun at the time given.
+func line(_ place: Int = 0, lookedAt time: Date) -> Heard {
+    .line(edited(Lines.watch[place]) { $0["at"] = Int64((time.timeIntervalSince1970 * 1000).rounded()) })
+}
+
+/// A line of `watch` with its `new` as given, the board as its first line had it.
+func line(new: [String], from place: Int = 0) -> Heard {
+    .line(Lines.watch[place].replacingOccurrences(of: #""new":[]"#, with: #""new":[\#(quoted(new))]"#))
+}
+
+/// The line given, `watch`'s first unless another, carrying these sessions' boards, each as the real CLI printed it, or
+/// null.
+func carrying(_ boards: [String: String?], on line: Heard = line(0)) -> Heard {
+    guard case let .line(text) = line else {
+        return line
+    }
+
+    return .line(Lines.carrying(boards, on: text))
+}
+
+/// The window hears a line carrying these sessions' boards, its board otherwise as the line given has it, `watch`'s
+/// first unless another, as the line after the window follows them carries them.
+func take(
+    _ boards: [String: String?], in run: WindowRun, on line: Heard = line(0), at time: Date = printedAt,
+    reducesMotion: Bool = false
+) {
+    run.show(heard(carrying(boards, on: line)), at: time, reducesMotion: reducesMotion)
 }
 
 /// `watch`'s first line with its projects in this order, by their keys, as a change in what needs Lee would order them.
@@ -169,21 +186,18 @@ func turned(_ ended: [String: Double]) -> Heard {
     })
 }
 
-/// A session's board as the real CLI printed it.
-func board(_ text: String) -> BoardAnswer {
-    .board(try! SessionBoard.read(text))
-}
-
-/// A window open on the board `watch` first printed, with every read it asked for answered as given, its wall clock
-/// at the moment `watch` printed it unless given another.
+/// A window open on the line given, `watch`'s first unless another, then hearing that line again carrying the boards
+/// given, as the next line carries those of the sessions it follows, its wall clock at the moment `watch` printed its
+/// first line unless given another.
 func opened(
-    on last: LastBoard = heard(line(0)), boards: [String: String] = ["sr-macapp": Lines.board],
+    on line: Heard = line(0), boards: [String: String?] = ["sr-macapp": Lines.board],
     wall: @escaping () -> Date = { printedAt }
 ) -> WindowRun {
     let run = WindowRun(wall: wall)
 
-    _ = run.show(last, at: printedAt, reducesMotion: false)
-    answer(run.open(), in: run, with: boards)
+    run.show(heard(line), at: printedAt, reducesMotion: false)
+    run.open()
+    take(boards, in: run, on: line)
     return run
 }
 
@@ -199,15 +213,6 @@ let otherRegion = ObjectIdentifier(regions.1)
 func overThePage(_ run: WindowRun, at time: Date = printedAt) {
     run.window(isKey: true, at: time)
     run.pointer(overPage: true, from: pageRegion, at: time)
-}
-
-/// Each read answered with the board given for its session, if there is one.
-func answer(_ reads: [Read], in run: WindowRun, with boards: [String: String], at time: Date = printedAt) {
-    for read in reads {
-        if let text = boards[read.session] {
-            run.read(read, gave: board(text), at: time, reducesMotion: false)
-        }
-    }
 }
 
 extension Page {
