@@ -2589,7 +2589,19 @@ October 2026 went back to `brew upgrade` while the repository is private.
   app was to update itself; while the repository is private it is `brew
   upgrade` (27 October 2026). The cask is private as the repository is, and
   the app it downloads is quarantined, so a release is signed with Lee's
-  Developer ID and notarized (stage 4).
+  Developer ID and notarized (stage 4). The cask exists since 27 October
+  2026, `Casks/sitrep.rb` in `leeovery/homebrew-tools`: `brew install
+  --cask leeovery/tools/sitrep`, with `HOMEBREW_GITHUB_API_TOKEN` set to a
+  token that can read the repository. It downloads the release's zip
+  through GitHub's API by the asset's id, the token in the url's headers,
+  and fails naming `HOMEBREW_GITHUB_API_TOKEN` when it is not set, rather
+  than with GitHub's 401. It leaves `auto_updates` unset, so `brew upgrade`
+  updates the app, and skips livecheck, which can't read a private
+  repository. Its zap takes SitRep's preferences, caches, saved state,
+  `~/Library/Logs/SitRep` and its copy of the plugin, never the board's
+  folder. The tap's `update-formula` workflow writes each release's
+  version, sha256 and asset id into it, sent by `app/release`. Its version
+  and sha256 are placeholders until the first release.
 - **The app installs the Claude plugin**, at each start that finds nothing
   of sitrep in either of Claude's lists. It copies the plugin it carries to
   `~/Library/Application Support/sitrep/`, outside its own bundle, since
@@ -2691,7 +2703,8 @@ clone, `~/Code/sitrep`, as a folder marketplace, so an edit plus
 `/reload-plugins` is a change, and the clone's checkout is the code every
 window runs: work happens in a worktree. The app is built locally, by
 `app/build` (stage 3). kit's `[manual]` step installs the plugin from the
-GitHub marketplace on any other Mac until the cask exists.
+GitHub marketplace on any other Mac until kit declares the cask, which
+exists since 27 October 2026 and waits on the first release.
 
 **Versions side by side.** Neither the app nor a mod can reload a Claude
 window (the engine's types offer no way): each window takes a new plugin up
@@ -5813,15 +5826,25 @@ reaches a window only while that pane is on show).
      uploaded: the first release is Lee's. The jump from a build signed so
      went as before, live, with no prompt (step 9); macOS may yet ask once
      more for leave to control Ghostty.
-   - **Still to come:** the cask, and with it the tap's update, which
-     `app/release` will dispatch to `homebrew-tools` with the asset's id and
-     sha256 (its place is marked at the script's end), at every run that
-     uploads, since each changes both. Then Lee's Macs
-     install the cask like anyone, kit's `[manual]` step gives way to it,
-     and the clone stops being live: a script in the repository points the
-     `sitrep` marketplace at the clone for a live test, and back. The app
-     and its CLI are arm64 only: an Intel Mac needs an x64 build beside
-     them. Whether `claude plugin update` follows `main` or the tags was
+   - **The cask and the tap's update**, built 27 October 2026. The cask,
+     `Casks/sitrep.rb` in `leeovery/homebrew-tools`, downloads the release's
+     zip through GitHub's API by its asset id (see "Installing and
+     updating"); it needs macOS 14 and an arm64 Mac, as the app and its CLI
+     are arm64 only, so an Intel Mac needs an x64 build beside them. Once
+     it has uploaded, `app/release` sends the tap's `update-formula`
+     workflow, through `gh api`, the event `update-formula` with `tool`
+     `sitrep`, the version, the zip's sha256 and the asset's id, which the
+     workflow writes into the cask and commits. It sends at every run that
+     uploads, since each changes both. A failed send fails the run, saying
+     the command that sends it again; the upload stays. Unlike Stitch's
+     formula, with its table of asset ids by version, the cask holds only
+     the current one.
+   - **Still to come:** the first release, Lee's `./release --set-version`,
+     whose dispatch replaces the cask's placeholders. Then this Mac
+     installs the cask like any other and the clone stops being live: a
+     script in the repository points the `sitrep` marketplace at the clone
+     for a live test, and back, which is a change of its own. And kit
+     declares the cask, its `[manual]` step giving way to it. Whether `claude plugin update` follows `main` or the tags was
      left to settle for the plugin alone from GitHub, which went as the
      plugin and the app came as one (27 October 2026).
 5. **Attention beyond asks**, in this build (decided with Lee on 16 October

@@ -2,7 +2,8 @@
 # Builds SitRep's release on this Mac and uploads it to the GitHub release:
 # mint's post_release runs it from the repository's root, once the tag and
 # the release are pushed. The app is built from the tagged tree (app/bundle),
-# notarized and stapled (app/notarize), and uploaded as SitRep-<version>.zip.
+# notarized and stapled (app/notarize), and uploaded as SitRep-<version>.zip,
+# and the cask in leeovery/homebrew-tools is sent the new zip.
 #
 # mint shows nothing a hook prints when it goes well, and only what it prints
 # to stderr when it fails, so everything goes to stderr and to a log,
@@ -81,6 +82,14 @@ fi
 echo "Uploaded $asset to $tag: asset $id, sha256 $sha"
 
 # The tap's update, which hands the cask in leeovery/homebrew-tools this
-# version, the asset's id and its sha256, comes here with the cask. Every run
-# that uploads must dispatch it again: a new zip has another sha256, and its
-# asset another id.
+# version, the asset's id and its sha256. Every run that uploads dispatches it
+# again: a new zip has another sha256, and its asset another id.
+dispatch=(gh api repos/leeovery/homebrew-tools/dispatches --silent
+  -f event_type=update-formula -f "client_payload[tool]=sitrep" -f "client_payload[version]=$version"
+  -f "client_payload[sha256]=$sha" -f "client_payload[asset_id]=$id")
+if ! "${dispatch[@]}"; then
+  echo "Sending the cask $version failed, with $asset uploaded to $tag: send it again by hand with"
+  echo " $(printf ' %q' "${dispatch[@]}")"
+  exit 1
+fi
+echo "Sent leeovery/homebrew-tools the cask $version: asset $id, sha256 $sha"
