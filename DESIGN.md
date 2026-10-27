@@ -4005,7 +4005,8 @@ stands).
     appear. Less is more."
 - **Answering.** A session's asks show opened, as cards with their buttons:
   - **one look per role, whatever the ask** (Paper's page "Answer buttons",
-    board I1, Lee's pick of 26 October 2026). An answer given here, **a
+    board I1, Lee's pick of 26 October 2026, and live on the 27th: "I think
+    they look fine."). An answer given here, **a
     yes** in Claude's words or each of **a choice**'s options, is the option
     pill: #1C1C1F in a #34343A ring, 12 semibold, 12 by 5 inside, corners of
     13. What leaves for Claude, Comment in Claude and Answer in Claude, the
@@ -5303,13 +5304,15 @@ reaches a window only while that pane is on show).
           becomes key, comes back from the Dock or shows again, and as a
           menu closes, a card's Snooze among them. The pane keeps its own
           rule, an ask its send closed kept for a moment; only the window's
-          changed. Each page opens at its top. Until 27 October 2026 the window kept every
-          closed ask until the pick changed; that day Lee had left a
-          session's page open about three hours while Claude worked, a dozen
-          closed asks piled up among its asks, and he said: "If I've ignored
-          them or dismissed them, it's because I don't want to answer them.
-          I don't understand why all of them are still sitting there… that
-          should update in real time." He chose the list's hold for them, so
+          changed. Each page opens at its top. Until 27 October 2026 the
+          window kept every closed ask until the pick changed; that day Lee
+          had left a session's page open about three hours while Claude
+          worked, a dozen closed asks piled up among its asks, and he said:
+          "If I've ignored them or dismissed them, it's because I don't want
+          to answer them. I don't understand why all of them are still
+          sitting there… that should update in real time." He chose the
+          list's hold for them, over the asks; it was widened to the whole
+          page in review, as the asks going moved what lies below them, so
           nothing still moves under his pointer.
         - **The list.** Held while the pointer is over it and for a second
           after, in a window key or not, as only the page's hold needs the
