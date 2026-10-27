@@ -21,8 +21,8 @@ import {
   type ProjectFile,
   type Random,
   type Where,
-  type SessionFolder,
   type SessionMeta,
+  type SessionPaths,
   type WindowState,
 } from '../core'
 import { beat, file, MIN, scripted, T0, type Line } from './support'
@@ -145,12 +145,8 @@ const processLine = (pid: number, parent: number, command: string) =>
 
 const isUnder = (dir: string, path: string) => path.startsWith(`${dir}/`)
 
-/** The files and folders directly in `dir`: as the files under it imply them, and the folders standing empty. */
-const entriesIn = (
-  files: ReadonlyMap<string, File>,
-  folders: ReadonlySet<string>,
-  dir: string,
-): Listed[] => {
+/** The files and folders directly in `dir`, as the files under it imply them. */
+const entriesIn = (files: ReadonlyMap<string, File>, dir: string): Listed[] => {
   const entries = new Map<string, Listed['kind']>()
   const under = (path: string) => path.slice(dir.length + 1).split('/')
 
@@ -160,18 +156,7 @@ const entriesIn = (
     entries.set(name, deeper.length > 0 ? 'dir' : 'file')
   }
 
-  for (const folder of [...folders].filter(each => isUnder(dir, each))) {
-    entries.set(under(folder)[0] ?? '', 'dir')
-  }
-
   return [...entries].map(([name, kind]) => ({ name, kind }))
-}
-
-/** Every folder a path sits in, the outermost first. */
-const foldersAbove = (path: string) => {
-  const parts = path.split('/').slice(1, -1)
-
-  return parts.map((_, i) => `/${parts.slice(0, i + 1).join('/')}`)
 }
 
 type Options = {
@@ -577,8 +562,6 @@ export function terminal(options: Options = {}) {
   const waited = () => waits.reduce((sum, ms) => sum + ms, 0)
   const now = () => clock() + waited()
   const shown = screen(options)
-  /** Folders standing with no file in them: a real one outlives its last file until it is removed. */
-  const folders = new Set<string>()
   let printed = { out: '', err: '' }
   let gate: (() => Promise<void>) | undefined
   /** Standard output closing, as the app that started a run quitting closes it. */
@@ -592,19 +575,11 @@ export function terminal(options: Options = {}) {
    * Undefined for a folder not there.
    */
   const folderStat = (dir: string) => {
-    const names = entriesIn(files, folders, dir).map(entry => `${entry.kind}:${entry.name}`)
-    const isThere = folders.has(dir) || names.length > 0
+    const names = entriesIn(files, dir).map(entry => `${entry.kind}:${entry.name}`)
 
-    return isThere
+    return names.length > 0
       ? { size: names.length, mtimeMs: Number.parseInt(digestOf(names.sort().join('/')), 36) }
       : undefined
-  }
-
-  /** A file gone from `path`, its folders standing after it. */
-  const unfile = (path: string) => {
-    if (files.delete(path)) {
-      foldersAbove(path).forEach(folder => folders.add(folder))
-    }
   }
 
   const io: Io = {
@@ -618,7 +593,7 @@ export function terminal(options: Options = {}) {
 
         return held.text
       },
-      list: async dir => entriesIn(files, folders, dir),
+      list: async dir => entriesIn(files, dir),
       stat: async path => {
         const held = files.get(path)
 
@@ -629,36 +604,6 @@ export function terminal(options: Options = {}) {
       append: async (path, text) => {
         await gate?.()
         files.set(path, { text: (files.get(path)?.text ?? '') + text, mtimeMs: now() })
-      },
-      moveIn: async (from, to) => {
-        const held = files.get(from)
-
-        if (held === undefined) {
-          return true
-        }
-
-        if (files.has(to)) {
-          return false
-        }
-
-        files.set(to, held)
-        unfile(from)
-
-        return true
-      },
-      replace: async (from, to) => {
-        const held = files.get(from)
-
-        if (held !== undefined) {
-          files.set(to, held)
-          unfile(from)
-        }
-      },
-      remove: async path => unfile(path),
-      removeFolder: async dir => {
-        if (![...files.keys(), ...folders].some(path => isUnder(dir, path))) {
-          folders.delete(dir)
-        }
       },
     },
     env: options.env ?? ENV,
@@ -716,26 +661,24 @@ export function terminal(options: Options = {}) {
   }
 
   /**
-   * A window's heartbeat on a session, in its folder under either layout:
-   * attached at `at`, seen then, `where` it is, and saying the `version` it
+   * A window's heartbeat on a session: attached at `at`, seen then, `where` it is, and saying the `version` it
    * runs and its `state`, if any.
    */
   const window = (
-    folder: SessionFolder,
+    paths: SessionPaths,
     writer: string,
     at: number,
     where?: Where,
     version?: string,
     state?: WindowState,
   ) =>
-    files.set(folder.heartbeat(writer), {
+    files.set(paths.heartbeat(writer), {
       text: beat(writer, { attachedAt: at, seenAt: at, where, version, state }),
       mtimeMs: at,
     })
 
   /**
-   * A session as the mod leaves it, filed under `project`, in today's
-   * layout or, `isOld`, the old: its meta, the lines its window wrote, and,
+   * A session as the mod leaves it, filed under `project`: its meta, the lines its window wrote, and,
    * given `seenAt`, that window's heartbeat, saying `where` it is and the
    * `version` it runs.
    */
@@ -747,24 +690,21 @@ export function terminal(options: Options = {}) {
       seenAt,
       where,
       version,
-      isOld = false,
     }: {
       project?: string
       lines?: Line[]
       seenAt?: number
       where?: Where
       version?: string
-      isOld?: boolean
     } = {},
   ) => {
     const paths = sessionPaths(ROOT, project, meta.id)
-    const folder = isOld ? paths.old : paths
 
-    files.set(folder.meta, { text: metaText(meta), mtimeMs: meta.created })
-    files.set(folder.log(meta.by), { text: file(...lines), mtimeMs: meta.created })
+    files.set(paths.meta, { text: metaText(meta), mtimeMs: meta.created })
+    files.set(paths.log(meta.by), { text: file(...lines), mtimeMs: meta.created })
 
     if (seenAt !== undefined) {
-      window(folder, meta.by, seenAt, where, version)
+      window(paths, meta.by, seenAt, where, version)
     }
 
     return paths
@@ -804,7 +744,6 @@ export function terminal(options: Options = {}) {
 
   return {
     files,
-    folders,
     io,
     run,
     close: closing.open,

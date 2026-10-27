@@ -95,7 +95,7 @@ struct LivePluginSetupTests {
         let state = world.folder.appending(path: "state")
         let cli = SitRepCLI(plugin: world.own, path: { [path = world.path] in path }, environment: world.environment.merging(["XDG_STATE_HOME": state.path]) { $1 })
 
-        #expect(await cli.list() == .works([]))
+        #expect(await cli.board(of: "sr-zzzzzz") == .failed("There is no session sr-zzzzzz on the board, in any project."))
     }
 
     /// The first reviewer's state: Claude's record of its marketplaces gone, so `marketplace list` says `[]`, while

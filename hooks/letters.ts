@@ -1,8 +1,7 @@
 /**
  * Lee's replies to other sessions, written into each session's inbox as
  * this window's letters: `inbox/<writer>.jsonl`, the window its single
- * writer, rewriting the whole file under today's layout as it adds to it,
- * from its letters there under either. Written, a reply has
+ * writer, rewriting the whole file as it adds to it. Written, a reply has
  * left the queue: sent, not yet delivered, until the window delivering for
  * that session marks it. Ready to send shows where each went meanwhile.
  */
@@ -45,7 +44,7 @@ const write = async (
 ) => {
   const path = paths.letters(writer)
   const { text } = append(
-    texts.get(path) ?? (await ownText(host, paths, folder => folder.letters(writer))),
+    texts.get(path) ?? (await ownText(host, path)),
     bodies,
     await host.clock.now(),
   )

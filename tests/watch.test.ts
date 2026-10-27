@@ -1,7 +1,7 @@
 import { expect, test } from 'claude-code/testing'
 import type { Io } from '../cli/io'
 import { EXIT, main } from '../cli/main'
-import { MOVE_MS, OFF_BOARD_MS, POLL_MS, watch } from '../cli/watch'
+import { OFF_BOARD_MS, POLL_MS } from '../cli/watch'
 import {
   append,
   metaText,
@@ -84,8 +84,8 @@ const looks = (count: number): Step[] => Array.from({ length: count }, () => sti
 
 /**
  * `sitrep watch` over the terminal's files, `fs` standing in for any of its
- * file system's calls, `ending` for the listening for its end and `move` for
- * its move of the old layout, the steps taken in turn, one at each wait, and
+ * file system's calls and `ending` for the listening for its end, the steps
+ * taken in turn, one at each wait, and
  * then its standard output closed, the wait under way then never ending
  * unless cancelled: how it ended, what it told on standard error, each line
  * it printed, read back, and whether it left that wait holding the run.
@@ -93,11 +93,7 @@ const looks = (count: number): Step[] => Array.from({ length: count }, () => sti
 const watched = async (
   t: Terminal,
   steps: readonly Step[],
-  {
-    fs = {},
-    ending = t.io.ending,
-    move,
-  }: { fs?: Partial<Io['fs']>; ending?: Io['ending']; move?: () => Promise<void> } = {},
+  { fs = {}, ending = t.io.ending }: { fs?: Partial<Io['fs']>; ending?: Io['ending'] } = {},
 ) => {
   const queue = [...steps]
   let out = ''
@@ -137,7 +133,7 @@ const watched = async (
       })
     },
   }
-  const exit = move === undefined ? await main(['watch'], io) : (await watch(io, move), EXIT.done)
+  const exit = await main(['watch'], io)
   const lines = out
     .split('\n')
     .filter(line => line !== '')
@@ -652,36 +648,6 @@ test('a session off the board is read again every 10 seconds: a finished one joi
   ])
 })
 
-test(
-  'watch moves the old layout every 10 minutes, once no window still writes it, and the board reads the same',
-  SLOW,
-  async () => {
-    const t = terminal()
-    const paths = t.seed(META, { isOld: true, seenAt: NOW })
-    const reloaded = () => beatOn(t, paths, W1, undefined, { attachedAt: NOW })
-    /** When each look after the first ended, and whether the old layout still held the session then. */
-    const probed: [at: number, isOld: boolean][] = []
-    const probe = () => {
-      probed.push([t.io.now(), t.files.has(paths.old.meta)])
-    }
-    const { lines } = await watched(t, [
-      reloaded,
-      ...Array.from({ length: MOVE_MS / POLL_MS + 5 }, () => probe),
-    ])
-
-    expect(probed.filter(([at, isOld]) => at <= NOW + MOVE_MS && !isOld)).toEqual([])
-    expect(probed.at(-1)).toEqual([expect.any(Number), false])
-    expect(t.text(paths.meta)).toContain(META.id)
-    expect(
-      lines.map(line => [line.at, line.windows.map(window => window.needsReload), line.changed]),
-    ).toEqual([
-      [NOW, [true], []],
-      [NOW + POLL_MS, [false], []],
-      [NOW + POLL_MS + STALE_MS + 1, [], [META.id]],
-    ])
-  },
-)
-
 test('a folder it cannot look in ends the watch with a sitrep: line, for the app to start it again', async () => {
   const { t } = held()
   const projects = projectsDir(ROOT)
@@ -813,29 +779,6 @@ test(
     expect(lines.map(line => [line.at, keys(line)])).toEqual([
       [NOW, [`turn:${META.id}`]],
       [NOW + STALE_MS + 1 + 5_000, []],
-    ])
-  },
-)
-
-test(
-  'a look after a slow move is at the instant the move ended, not the one before it',
-  SLOW,
-  async () => {
-    let moved = 0
-    const t = terminal({ now: () => NOW + moved, uptime: () => moved })
-
-    t.project(PROJECT.key, { name: PROJECT.name, directory: REPO, created: T0, by: W1 })
-
-    const paths = t.seed(META)
-    const move = async () => {
-      moved += 3_000
-      post(t, paths, yesAsk('k2', 'Try it'))
-    }
-    const { lines } = await watched(t, looks(MOVE_MS / POLL_MS + 1), { move })
-
-    expect(lines.map(line => [line.at, keys(line)])).toEqual([
-      [NOW, []],
-      [NOW + MOVE_MS + 3_000, [`ask:${META.id}:k2`]],
     ])
   },
 )

@@ -484,8 +484,8 @@ const OLD_WINDOW =
 /**
  * Whether the window that delivers the session's inbox runs a sitrep behind
  * `version`, the CLI's, and needs `/reload-plugins`, as `watch` tells it
- * (`needsReload`): one from before today's layout would never see an answer
- * the CLI writes, and one from before answers would give Claude two at once.
+ * (`needsReload`): it delivers by its release's rules, and one from before
+ * second answers were voided would give Claude two at once.
  */
 const isDeliveredByOld = (session: Session, version: string | undefined) => {
   const window = session.presence.find(each => each.writer === session.deliverer)

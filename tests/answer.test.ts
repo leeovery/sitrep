@@ -46,7 +46,7 @@ const POSTED: Line[] = [
 /** The CLI's letters in the session's inbox, as lines. */
 const letters = (t: Terminal, paths: SessionPaths) => parseEntries(t.text(paths.letters(WRITER)))
 
-/** The session as the CLI reads it, under either layout, its inbox among its files. */
+/** The session as the CLI reads it, its inbox among its files. */
 const folded = async (t: Terminal, paths: SessionPaths) => {
   const session = foldSession(await readSession(t.io, paths), NOW)
 
@@ -271,36 +271,16 @@ test('its letters count on from what they hold, a torn last line ended first, an
   ])
 })
 
-/** Another session, whose window runs a release from before today's layout, and so keeps the old layout from moving. */
-const OLD_WINDOWED = { ...META, id: 'sr-1edger', name: 'Request ledger', by: W2 }
-
-test('while a window on an old version keeps the old layout, the letters go under sessions/ alone, counting on from those under works/', async () => {
-  const t = terminal()
-  const paths = t.seed(META, { isOld: true, lines: POSTED, seenAt: NOW, version: CLI_VERSION })
-
-  t.seed(OLD_WINDOWED, { isOld: true, seenAt: NOW })
-
-  const before = file([T0, reply('r1', 'k2', 'choose', { option: 'Keep it' })])
-
-  t.files.set(paths.old.letters(WRITER), { text: before, mtimeMs: T0 })
-
-  expect((await t.run('answer', 'k1', 'Go', ...SESSION)).exit).toBe(EXIT.done)
-  expect(letters(t, paths).map(line => [line.seq, line.type === 'reply' && line.item])).toEqual([
-    [2, 'k1'],
-  ])
-  expect(t.text(paths.old.letters(WRITER))).toBe(before)
-})
-
 test("an answer is refused while the window delivering the session runs a sitrep behind the CLI's, as watch's needsReload tells it, until that window reloads", async () => {
   const t = terminal()
-  const paths = t.seed(META, { isOld: true, lines: POSTED, seenAt: NOW })
+  const paths = t.seed(META, { lines: POSTED, seenAt: NOW })
   const refused = {
     exit: EXIT.refused,
     out: '',
     err: 'sitrep: A window holding this session runs an older sitrep: run /reload-plugins in it first.\n',
   }
 
-  expect(await t.run('answer', 'k1', 'Go', ...SESSION), "before today's layout").toEqual(refused)
+  expect(await t.run('answer', 'k1', 'Go', ...SESSION), 'saying no version').toEqual(refused)
   expect((await t.run('answer', 'k9', 'Go', ...SESSION)).err, 'no such item, first').toBe(
     'sitrep: There is no item k9 on this board.\n',
   )

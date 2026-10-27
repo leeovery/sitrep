@@ -1,11 +1,11 @@
 /**
  * Writing into a writer's own file in a session. Into a session the window
- * does not hold: to the end of the file there, read back under either
- * layout and written whole under today's, since a mod's `$.fs` writes only
- * whole files. Into the one it holds as that writer: through the hold, which
- * keeps the file's text and would write a line put beside it over. What it
- * writes is made from the session as it stands with that file, so a line
- * already there is not written again.
+ * does not hold: to the end of the file there, read back and written whole,
+ * since a mod's `$.fs` writes only whole files. Into the one it holds as
+ * that writer: through the hold, which keeps the file's text and would
+ * write a line put beside it over. What it writes is made from the session
+ * as it stands with that file, so a line already there is not written
+ * again.
  */
 import { append, foldSession, sessionPaths, type Body, type Session } from '../core'
 import type { SitrepSessionRef } from '../types'
@@ -30,7 +30,7 @@ export const writeInto = async (
 ) => {
   const paths = sessionPaths(await rootFor(host), project, id)
   const [text, files, now] = await Promise.all([
-    ownText(host, paths, folder => folder.log(writer)),
+    ownText(host, paths.log(writer)),
     createReader()(host, paths),
     host.clock.now(),
   ])

@@ -170,13 +170,9 @@ const decode = (line: string): Entry | undefined => {
 export const parseSentReply = (value: unknown): SentReply | undefined =>
   isObject(value) ? (fieldsIn(SHAPES.reply, value) as SentReply | undefined) : undefined
 
-/**
- * Every entry a file's text holds, in file order. A line it holds twice,
- * byte for byte, is one entry: two runs of the CLI moving the old layout at
- * once may both append it (see layouts.ts).
- */
+/** Every entry a file's text holds, in file order. */
 export const parseEntries = (text: string): Entry[] =>
-  [...new Set(text.split('\n'))].map(decode).filter(entry => entry !== undefined)
+  text.split('\n').map(decode).filter(entry => entry !== undefined)
 
 /** An entry as one line of its file, newline included. */
 export const serialise = (entry: Entry) => `${JSON.stringify(entry)}\n`

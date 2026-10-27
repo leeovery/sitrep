@@ -30,8 +30,7 @@ const versionIn = (text: string) => {
  * asks first): the clone is the live plugin, so a manifest read later may be
  * a newer checkout's than the code this load runs. Undefined when the
  * manifest does not give one, which the debug log says once; the window
- * then reads as one on an old version, holding the move and delivering
- * first, which is safe, and rare.
+ * then reads as one needing a reload, which is safe, and rare.
  */
 export const versionNow = (host: Host) => {
   loaded ??= host.plugin

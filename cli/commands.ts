@@ -50,18 +50,11 @@ export type SessionCommand = About & {
   act: (filed: Filed, input: Fields, given: Given) => Checked<Outcome>
 }
 
-/** What a command on the projects is given: every one read, with its sessions, from the folder the CLI runs in, at `now`, and the ids of the sessions on screen. */
-export type Projects = {
-  read: readonly ProjectSessions[]
-  cwd: string
-  now: number
-  onScreen: ReadonlySet<string>
-}
+/** What a command on the projects is given: every one read, with its sessions, from the folder the CLI runs in, at `now`. */
+export type Projects = { read: readonly ProjectSessions[]; cwd: string; now: number }
 
 export type ProjectsCommand = About & {
   on: 'projects'
-  /** Whether it tells which sessions are on screen: only then is tmux asked, and `onScreen` filled. */
-  looks: (input: Fields) => boolean
   act: (projects: Projects, input: Fields) => Checked<string>
 }
 
@@ -320,8 +313,7 @@ const list: ProjectsCommand = {
     },
   },
   on: 'projects',
-  looks: input => input.json === true,
-  act: ({ read, cwd, now, onScreen }, input) => {
+  act: ({ read, cwd, now }, input) => {
     const named = typeof input.project === 'string' ? input.project : undefined
     const listed = listing(read, cwd, now, named)
 
@@ -331,7 +323,7 @@ const list: ProjectsCommand = {
 
     return {
       ok: true,
-      value: input.json === true ? listJson(listed, onScreen) : listText(listed.projects),
+      value: input.json === true ? listJson(listed) : listText(listed.projects),
     }
   },
 }

@@ -566,19 +566,12 @@ test('a window gone quiet or let go hands delivery to the next oldest; with none
   expect(inboxed({ [W1]: quiet }).deliverer).toBeUndefined()
 })
 
-test('while a live window on an old version is on a session, the longest attached of those delivers, and the rest wait', () => {
+test('a live window saying no version delivers as any window does: by when it attached', () => {
   const versioned = beat(W1, { attachedAt: T0, seenAt: NOW, version: '0.1.0' })
-  const old = { attachedAt: T0 + 30 * MIN, seenAt: NOW }
+  const unversioned = beat(W2, { attachedAt: T0 + 30 * MIN, seenAt: NOW })
 
-  expect(inboxed({ [W1]: versioned, [W2]: beat(W2, old) }).deliverer).toBe(W2)
-  expect(
-    inboxed({ [W1]: versioned, [W2]: seen(W2, NOW - STALE_MS - 1) }).deliverer,
-    'the old one gone quiet',
-  ).toBe(W1)
-  expect(
-    inboxed({ [W1]: versioned, [W2]: beat(W2, { ...old, leftAt: NOW }) }).deliverer,
-    'the old one let go',
-  ).toBe(W1)
+  expect(inboxed({ [W1]: versioned, [W2]: unversioned }).deliverer).toBe(W1)
+  expect(inboxed({ [W2]: unversioned }).deliverer).toBe(W2)
 })
 
 test('windows attached at the same moment elect by writer, the same way in every reader', () => {

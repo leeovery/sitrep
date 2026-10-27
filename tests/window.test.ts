@@ -262,7 +262,7 @@ for (const [why, manifest] of [
   })
 }
 
-test("another window's heartbeat saying no version, as one on an older version writes it, reads as ever, and that window delivers while it is live", async ($, on) => {
+test("another window's heartbeat saying no version, as one whose manifest gave none writes it, reads as ever, and delivers by when it attached", async ($, on) => {
   const w = world($, on)
   const { id } = await w.begin()
 
@@ -273,7 +273,7 @@ test("another window's heartbeat saying no version, as one on an older version w
     [W1, PLUGIN_VERSION],
     [W2, undefined],
   ])
-  expect(w.state.board?.deliverer).toBe(W2)
+  expect(w.state.board?.deliverer).toBe(W1)
 })
 
 test('outside tmux, the heartbeat holds the device and the terminal, and no tmux', async ($, on) => {

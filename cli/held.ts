@@ -10,7 +10,7 @@
  * again, so nothing drops off the board for a look and comes back as new;
  * one that will not read keeps it until it reads. One never read whole is
  * not there. What a folder's listing no longer shows is let go, and all
- * under it, as every file of the old layout once the move has run.
+ * under it.
  * - A JSON file is torn while it does not parse: a meta, a project's file,
  *   a heartbeat, caught mid-rewrite.
  * - A writer's lines are torn while they hold only the start of what was

@@ -7,7 +7,7 @@
  */
 import type { FsEntry } from 'claude-code'
 import { expect, test } from 'claude-code/testing'
-import { readFolders } from '../cli/files'
+import { readFolder } from '../cli/files'
 import type { Io } from '../cli/io'
 import {
   foldSession,
@@ -136,7 +136,7 @@ test("the CLI's reader reads the heartbeats before the lines: a send handed over
   const { io } = terminal({ files })
   const handed: Io = { ...io, fs: { ...io.fs, read: handingOver(files, io.fs.read) } }
 
-  expect(standing(await readFolders(handed, PATHS)).waiting).toBe(0)
+  expect(standing(await readFolder(handed, PATHS)).waiting).toBe(0)
 })
 
 test('read again, either reader finds the reply delivered and the ask closed', async () => {
@@ -150,5 +150,5 @@ test('read again, either reader finds the reply delivered and the ask closed', a
     waiting: 0,
     state: 'closed',
   })
-  expect(standing(await readFolders(io, PATHS))).toEqual({ waiting: 0, state: 'closed' })
+  expect(standing(await readFolder(io, PATHS))).toEqual({ waiting: 0, state: 'closed' })
 })

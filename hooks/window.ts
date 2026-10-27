@@ -342,8 +342,8 @@ export const letGo = async (host: Host) => {
 
 /**
  * Holds the session `attaching` names, letting go of any other first: reads
- * the window's own file back, under either layout, works out where the
- * window is, writes its heartbeat, saying the version it runs and what it is
+ * the window's own file back, works out where the window is, writes its
+ * heartbeat, saying the version it runs and what it is
  * doing as it stands, starts the beat and the watch, and folds the session.
  */
 export const attachTo = async (host: Host, root: string, attaching: SitrepAttachment) => {
@@ -358,7 +358,7 @@ export const attachTo = async (host: Host, root: string, attaching: SitrepAttach
   const hold: Hold = {
     attachment: attaching,
     paths,
-    text: await ownText(host, paths, folder => folder.log(writer)),
+    text: await ownText(host, paths.log(writer)),
     presence: attach(writer, attachedAt, { where, version, ...doing, loadedAt }),
     read: createReader(),
     timers: [],
@@ -395,7 +395,7 @@ export const resume = async (host: Host) => {
   await attachTo(host, await rootFor(host), kept)
 }
 
-/** Writes lines to the end of the window's own file, the whole file at once under today's layout, and folds the session again. */
+/** Writes lines to the end of the window's own file, the whole file at once, and folds the session again. */
 export const post = async (host: Host, bodies: readonly Body[]) => {
   const hold = current
 

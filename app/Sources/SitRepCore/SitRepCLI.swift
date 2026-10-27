@@ -1,12 +1,6 @@
 import Foundation
 import os
 
-/// What `sitrep list` came to: the works on screen, or why there are none to show, in words.
-public enum ListAnswer: Sendable, Equatable {
-    case works([OnScreen])
-    case failed(String)
-}
-
 /// What `sitrep jump` came to: the window brought forward, or why not, in the CLI's words.
 public enum JumpAnswer: Sendable, Equatable {
     case jumped
@@ -37,9 +31,8 @@ public enum Answer: Sendable, Hashable {
 /// The app reads the board and jumps, and writes only what the board's own buttons do: Lee's answers, finishes,
 /// snoozes and wakes.
 public struct SitRepCLI: Sendable {
-    /// `list --json` answers in about 0.15s, and never hangs over tmux or `ps`; `board --json`, `answer`, `finish`,
-    /// `snooze` and `wake` read and write one session's files, and run no program.
-    static let listLimit: TimeInterval = 10
+    /// `board --json`, `answer`, `finish`, `snooze` and `wake` read and write one session's files, and run no program.
+    static let sessionLimit: TimeInterval = 10
     /// Only a backstop for a CLI that hangs, well above any realistic jump
     /// (cli/jump.ts, cli/ghostty.ts, cli/front.ts, cli/tmux.ts, cli/apps.ts):
     /// one takes under a second as Ghostty answers, and one Ghostty does not
@@ -74,19 +67,6 @@ public struct SitRepCLI: Sendable {
         self.run = run
     }
 
-    public func list() async -> ListAnswer {
-        switch await sitrep(["list", "--json"], limit: Self.listLimit) {
-        case let .failure(unanswered):
-            return .failed(unanswered.complaint(of: "list"))
-        case let .success(ran):
-            do {
-                return .works(try Listing.read(ran.stdout).onScreen)
-            } catch {
-                return .failed("sitrep list \(error).")
-            }
-        }
-    }
-
     public func jump(to work: String) async -> JumpAnswer {
         switch await sitrep(["jump", "--session", work], limit: Self.jumpLimit) {
         case .success:
@@ -97,7 +77,7 @@ public struct SitRepCLI: Sendable {
     }
 
     public func board(of session: String) async -> BoardAnswer {
-        switch await sitrep(["board", "--json", "--session", session], limit: Self.listLimit) {
+        switch await sitrep(["board", "--json", "--session", session], limit: Self.sessionLimit) {
         case let .failure(unanswered):
             return .failed(unanswered.complaint(of: "board"))
         case let .success(ran):
@@ -117,12 +97,12 @@ public struct SitRepCLI: Sendable {
         case .ignore: ["--session", session, "--ignore", "--", ask]
         }
 
-        return written(await sitrep(["answer"] + words, limit: Self.listLimit), by: "answer")
+        return written(await sitrep(["answer"] + words, limit: Self.sessionLimit), by: "answer")
     }
 
     /// Finishes a session no window holds.
     public func finish(_ session: String) async -> WriteAnswer {
-        written(await sitrep(["finish", "--session", session], limit: Self.listLimit), by: "finish")
+        written(await sitrep(["finish", "--session", session], limit: Self.sessionLimit), by: "finish")
     }
 
     /// Snoozes asks of the session until the instant given, all of them or none. The asks come after `--`, as an
@@ -131,12 +111,12 @@ public struct SitRepCLI: Sendable {
         let until = String(Int64((until.timeIntervalSince1970 * 1000).rounded()))
         let words = ["snooze", "--until", until, "--session", session, "--"] + asks
 
-        return written(await sitrep(words, limit: Self.listLimit), by: "snooze")
+        return written(await sitrep(words, limit: Self.sessionLimit), by: "snooze")
     }
 
     /// Wakes snoozed asks of the session now, all of them or none.
     public func wake(_ asks: [String], of session: String) async -> WriteAnswer {
-        written(await sitrep(["wake", "--session", session, "--"] + asks, limit: Self.listLimit), by: "wake")
+        written(await sitrep(["wake", "--session", session, "--"] + asks, limit: Self.sessionLimit), by: "wake")
     }
 
     private func written(_ ended: Ended, by command: String) -> WriteAnswer {
