@@ -3,14 +3,12 @@
  * and, where a command needs it, the screen, then the command's rules, then
  * a line appended or a window brought forward, and the answer printed.
  *
- * It writes as the writer `cli`, appending to `<session>/cli.jsonl` under
- * today's layout and never rewriting it, and an answer to its letters in
- * the session's inbox, `<session>/inbox/cli.jsonl`, the same way; each
- * file's count goes on from that file under either layout. It writes no
- * delivered marks or heartbeats: it is never a window on the session.
- * Before a command reads the board, the old layout is moved into today's,
- * once no window still writes it. `watch` runs on, printing the board as it
- * changes, until it is to end.
+ * It writes as the writer `cli`, appending to `<session>/cli.jsonl` and
+ * never rewriting it, and an answer to its letters in the session's inbox,
+ * `<session>/inbox/cli.jsonl`, the same way; each file's count goes on from
+ * that file. It writes no delivered marks or heartbeats: it is never a
+ * window on the session. `watch` runs on, printing the board as it changes,
+ * until it is to end.
  */
 import {
   addition,
@@ -32,8 +30,7 @@ import {
 import { findSession, readProjects, textAt, type Found } from './files'
 import { commandHelp, HELP } from './help'
 import type { Env, Io } from './io'
-import { jump, sessionsOnScreen } from './jump'
-import { moveOldLayout } from './move'
+import { jump } from './jump'
 import { windowsOf } from './screen'
 import { watch } from './watch'
 
@@ -94,13 +91,15 @@ const sessionIdOf = (input: Fields, env: Env): Checked<string> => {
 }
 
 /**
- * Appends the lines to a writer's file, their count going on from `held`,
- * its lines under both layouts; never a rewrite, so runs at once both land.
- * A torn last line is ended in the file appended to, as it stands.
+ * Appends the lines to a writer's file, their count going on from the file
+ * as it stands, a torn last line ended first; never a rewrite, so runs at
+ * once both land.
  */
-const post = async (io: Io, path: string, held: string, bodies: readonly Body[], now: number) => {
+const post = async (io: Io, path: string, bodies: readonly Body[], now: number) => {
   if (bodies.length > 0) {
-    await io.fs.append(path, addition((await textAt(io, path)) ?? '', stamp(held, bodies, now)))
+    const text = (await textAt(io, path)) ?? ''
+
+    await io.fs.append(path, addition(text, stamp(text, bodies, now)))
   }
 }
 
@@ -131,11 +130,9 @@ const told = (io: Io, acted: Checked<string>) => {
   return EXIT.done
 }
 
-/** The file a command's lines go to, and its lines under both layouts: the CLI's own, or its letters in the session's inbox. */
-const fileFor = ({ paths, files }: Found, command: SessionCommand) =>
-  command.into === 'inbox'
-    ? { path: paths.letters(WRITER), held: files.inbox?.[WRITER] ?? '' }
-    : { path: paths.log(WRITER), held: files.logs[WRITER] ?? '' }
+/** The file a command's lines go to: the CLI's own, or its letters in the session's inbox. */
+const fileFor = ({ paths }: Found, command: SessionCommand) =>
+  command.into === 'inbox' ? paths.letters(WRITER) : paths.log(WRITER)
 
 /** A command on a session: the session read, its checks, and its lines appended, dated as they are written. */
 const onSession = async (io: Io, command: SessionCommand, input: Fields) => {
@@ -153,9 +150,7 @@ const onSession = async (io: Io, command: SessionCommand, input: Fields) => {
     return fail(io, EXIT.refused, acted.error)
   }
 
-  const { path, held } = fileFor(found, command)
-
-  await post(io, path, held, acted.value.post, io.now())
+  await post(io, fileFor(found, command), acted.value.post, io.now())
   print(io, acted.value.print)
 
   return EXIT.done
@@ -163,10 +158,9 @@ const onSession = async (io: Io, command: SessionCommand, input: Fields) => {
 
 const onProjects = async (io: Io, command: ProjectsCommand, input: Fields) => {
   const now = io.now()
-  const { projects, windows } = await readProjects(io, rootOf(io.env), now)
-  const onScreen = command.looks(input) ? await sessionsOnScreen(io, windows) : new Set<string>()
+  const read = await readProjects(io, rootOf(io.env), now)
 
-  return told(io, command.act({ read: projects, cwd: io.cwd, now, onScreen }, input))
+  return told(io, command.act({ read, cwd: io.cwd, now }, input))
 }
 
 const onWindow = async (io: Io, command: WindowCommand, input: Fields) => {
@@ -176,19 +170,6 @@ const onWindow = async (io: Io, command: WindowCommand, input: Fields) => {
   return typeof found === 'number'
     ? found
     : told(io, command.act(found, await jump(io, windowsOf(found.session, now))))
-}
-
-/**
- * Moves the old layout into today's before a command reads the board. A
- * move that fails is told, and the command runs on: readers read both
- * layouts, and the next run moves what is left.
- */
-const moveFirst = async (io: Io) => {
-  const root = rootOf(io.env)
-
-  await moveOldLayout(io, root, io.now()).catch((error: unknown) => {
-    io.err(`sitrep: moving the old layout failed: ${messageOf(error)}\n`)
-  })
 }
 
 /** A command on the rest of its words: its help, or its run once they read. */
@@ -203,8 +184,6 @@ const runCommand = async (io: Io, command: Command, words: readonly string[]) =>
     return fail(io, EXIT.refused, `${input.error} sitrep ${command.name} --help says more.`)
   }
 
-  await moveFirst(io)
-
   switch (command.on) {
     case 'session':
       return onSession(io, command, input.value)
@@ -213,7 +192,7 @@ const runCommand = async (io: Io, command: Command, words: readonly string[]) =>
     case 'window':
       return onWindow(io, command, input.value)
     case 'feed':
-      await watch(io, () => moveFirst(io))
+      await watch(io)
 
       return EXIT.done
   }

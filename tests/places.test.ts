@@ -2,17 +2,15 @@ import { expect, test } from 'claude-code/testing'
 import {
   isSessionId,
   LOG_SUFFIX,
-  movedTo,
   newItemId,
   newSessionId,
-  oldSessionsDir,
   PRESENCE_SUFFIX,
   projectPaths,
   rootOf,
   sessionPaths,
   sessionsDir,
   writerOf,
-  type SessionFolder,
+  type SessionPaths,
 } from '../core'
 import { scripted, W1 } from './support'
 
@@ -42,7 +40,7 @@ const folderAt = (sessions: string, meta: string) => {
   }
 }
 
-const placesOf = (folder: SessionFolder) => ({
+const placesOf = (folder: SessionPaths) => ({
   places: [folder.sessions, folder.dir, folder.meta, folder.inbox, folder.presence],
   files: [folder.log(W1), folder.letters('cli'), folder.heartbeat(W1)],
 })
@@ -57,24 +55,6 @@ test("a session's files sit in its folder under sessions/: session.json, one fil
   expect(placesOf(paths)).toEqual(folderAt(`${project}/sessions`, 'session.json'))
 })
 
-test('under the old layout, the same files sat under works/, the meta as work.json', () => {
-  const paths = sessionPaths(ROOT, 'switchboard-1a2b3c4d', 'sr-k3f9qa')
-  const project = `${ROOT}/projects/switchboard-1a2b3c4d`
-
-  expect(oldSessionsDir(ROOT, 'switchboard-1a2b3c4d')).toBe(`${project}/works`)
-  expect(placesOf(paths.old)).toEqual(folderAt(`${project}/works`, 'work.json'))
-})
-
-test("a file of a session's old folder moves to the same place in today's, its work.json as session.json", () => {
-  const paths = sessionPaths(ROOT, 'switchboard', 'sr-k3f9qa')
-
-  expect(movedTo(paths, paths.old.meta)).toBe(paths.meta)
-  expect(movedTo(paths, paths.old.log(W1))).toBe(paths.log(W1))
-  expect(movedTo(paths, paths.old.letters('cli'))).toBe(paths.letters('cli'))
-  expect(movedTo(paths, paths.old.heartbeat(W1))).toBe(paths.heartbeat(W1))
-  expect(movedTo(paths, `${paths.old.dir}/.DS_Store`)).toBe(`${paths.dir}/.DS_Store`)
-})
-
 test('a name that could climb out of its folder is refused', () => {
   expect(() => sessionPaths(ROOT, 'switchboard', '../../etc')).toThrow(
     'Not a name sitrep files under',
@@ -82,14 +62,12 @@ test('a name that could climb out of its folder is refused', () => {
   expect(() => projectPaths(ROOT, '..')).toThrow('Not a name sitrep files under')
   expect(() => sessionPaths(ROOT, 'switchboard', 'sr-k3f9qa').log('a/b')).toThrow()
   expect(() => sessionsDir(ROOT, '')).toThrow()
-  expect(() => oldSessionsDir(ROOT, '..')).toThrow()
 })
 
 test("a listed file gives its writer by its folder's suffix; any other file gives none", () => {
   expect(writerOf(`${W1}.jsonl`, LOG_SUFFIX)).toBe(W1)
   expect(writerOf('cli.jsonl', LOG_SUFFIX)).toBe('cli')
   expect(writerOf('session.json', LOG_SUFFIX)).toBeUndefined()
-  expect(writerOf('work.json', LOG_SUFFIX)).toBeUndefined()
   expect(writerOf(`${W1}.json`, PRESENCE_SUFFIX)).toBe(W1)
   expect(writerOf('.jsonl', LOG_SUFFIX)).toBeUndefined()
   expect(writerOf('.DS_Store', LOG_SUFFIX)).toBeUndefined()

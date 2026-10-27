@@ -18,7 +18,6 @@ import type {
 import { mock, type Engine, type Mounted } from 'claude-code/testing'
 import {
   metaText,
-  movedTo,
   presenceText,
   projectPaths,
   projectText,
@@ -28,7 +27,6 @@ import {
   type Project,
   type ProjectFile,
   type Where,
-  type SessionFolder,
   type SessionMeta,
   type SessionPaths,
 } from '../core'
@@ -561,17 +559,9 @@ export function world(engine: Engine, on: On, options: Options = {}) {
     return { value: [...entries].map(([name, entry]) => ({ name, ...entry, isLink: false })) }
   }
 
-  /** Runs `act` once, right after the mod's next look of the kind at `path` is answered: as a run of the CLI moving the old layout at that moment. */
+  /** Runs `act` once, right after the mod's next look of the kind at `path` is answered: as another writer writing at that moment. */
   const after = (look: Look, path: string, act: () => void | Promise<void>) =>
     afterwards.push({ look, path, act })
-
-  /** A session's old folder moved into today's at once, as the CLI moves it, each file renamed into a place none holds. */
-  const moveOld = (paths: SessionPaths) => {
-    for (const [path, held] of [...files].filter(([path]) => isUnder(paths.old.dir, path))) {
-      files.set(movedTo(paths, path), held)
-      files.delete(path)
-    }
-  }
 
   /** Writes a file as another writer would: a window elsewhere, the CLI, Lee's board. */
   const put = (path: string, text: string) => files.set(path, { text, mtimeMs: clock.now() })
@@ -587,15 +577,11 @@ export function world(engine: Engine, on: On, options: Options = {}) {
     return file.text
   }
 
-  /** A session started by another window, filed under `project`. */
-  const seed = (meta: SessionMeta, project = PROJECT.key) =>
-    put(sessionPaths(ROOT, project, meta.id).meta, metaText(meta))
-
-  /** A session started by a window on a version that filed it under the old layout, `works/<id>/work.json`: its paths. */
-  const seedOld = (meta: SessionMeta, project = PROJECT.key) => {
+  /** A session started by another window, filed under `project`: its paths. */
+  const seed = (meta: SessionMeta, project = PROJECT.key) => {
     const paths = sessionPaths(ROOT, project, meta.id)
 
-    put(paths.old.meta, metaText(meta))
+    put(paths.meta, metaText(meta))
 
     return paths
   }
@@ -608,13 +594,13 @@ export function world(engine: Engine, on: On, options: Options = {}) {
   const beat = (id: string, presence: Presence, project = PROJECT.key) =>
     put(sessionPaths(ROOT, project, id).heartbeat(presence.writer), presenceText(presence))
 
-  /** Another window's file in a session's folder, under either layout: each call writes lines to it as that window does, at the time. */
-  const writer = (folder: SessionFolder, name = W2) => {
+  /** Another window's file in a session's folder: each call writes lines to it as that window does, at the time. */
+  const writer = (paths: SessionPaths, name = W2) => {
     const lines: Line[] = []
 
     return (...bodies: Body[]) => {
       lines.push(...bodies.map((body): Line => [clock.now(), body]))
-      put(folder.log(name), file(...lines))
+      put(paths.log(name), file(...lines))
     }
   }
 
@@ -764,10 +750,8 @@ export function world(engine: Engine, on: On, options: Options = {}) {
     walkGives,
     manifestGives,
     after,
-    moveOld,
     leaveUnread,
     seed,
-    seedOld,
     project,
     beat,
     writer,

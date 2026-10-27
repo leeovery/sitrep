@@ -24,47 +24,31 @@ struct SitRepCLITests {
         { _ in Ran(status: status, stdout: stdout, stderr: stderr) }
     }
 
-    @Test func listRunsThePluginsCLIWithLeesPathAndTheAppsEnvironment() async {
-        let (cli, programs) = Self.cli(Self.exited(0, stdout: listedEmpty))
+    @Test func aRunIsThePluginsCLIWithLeesPathAndTheAppsEnvironment() async {
+        let (cli, programs) = Self.cli(Self.exited(0, stdout: Lines.board))
 
-        _ = await cli.list()
+        _ = await cli.board(of: "sr-macapp")
 
         #expect(programs.all == [
             Program(
                 executable: URL(fileURLWithPath: "/Users/lee/Code/sitrep/bin/sitrep"),
-                arguments: ["list", "--json"],
+                arguments: ["board", "--json", "--session", "sr-macapp"],
                 environment: ["HOME": "/Users/lee", "PATH": Self.path],
-                limit: SitRepCLI.listLimit
+                limit: SitRepCLI.sessionLimit
             ),
         ])
     }
 
-    @Test func listGivesTheWorksOnScreen() async {
-        let (cli, _) = Self.cli(Self.exited(0, stdout: listed))
-
-        #expect(await cli.list() == .works([
-            OnScreen(id: "sr-047c7y", project: "Fumi", name: "Management window discussion"),
-            OnScreen(id: "sr-sa13jv", project: "Fumi", name: "Commercialization discussion"),
-            OnScreen(id: "sr-y4d0qj", project: "Switchboard", name: "Milestone 7 stages 4 to 14"),
-        ]))
-    }
-
-    @Test func aListThatFailsGivesTheCLIsOwnWords() async {
-        let (cli, _) = Self.cli(Self.exited(1, stderr: "sitrep: EACCES: permission denied, scandir '/Users/lee/.local/state/sitrep'\n"))
-
-        #expect(await cli.list() == .failed("EACCES: permission denied, scandir '/Users/lee/.local/state/sitrep'"))
-    }
-
-    @Test func aListThatFailsSayingNothingGivesItsStatus() async {
+    @Test func aRunThatFailsSayingNothingGivesItsStatus() async {
         let (cli, _) = Self.cli(Self.exited(127, stderr: "  \n"))
 
-        #expect(await cli.list() == .failed("sitrep list ended with status 127."))
+        #expect(await cli.board(of: "sr-macapp") == .failed("sitrep board ended with status 127."))
     }
 
     @Test func aFailureNotFromTheCLIIsGivenWhole() async {
         let (cli, _) = Self.cli(Self.exited(127, stderr: "env: bun: No such file or directory\n"))
 
-        #expect(await cli.list() == .failed("env: bun: No such file or directory"))
+        #expect(await cli.board(of: "sr-macapp") == .failed("env: bun: No such file or directory"))
     }
 
     @Test func ofAManyLinedFailureTheCLIsOwnLineIsGiven() async {
@@ -75,7 +59,7 @@ struct SitRepCLITests {
         """
         let (cli, _) = Self.cli(Self.exited(2, stderr: stderr))
 
-        #expect(await cli.list() == .failed("There is no session sr-zzzzzz on the board, in any project."))
+        #expect(await cli.board(of: "sr-zzzzzz") == .failed("There is no session sr-zzzzzz on the board, in any project."))
     }
 
     @Test func ofAManyLinedFailureNotTheCLIsTheFirstLineWithAnythingOnItIsGiven() async {
@@ -87,7 +71,7 @@ struct SitRepCLITests {
         """
         let (cli, _) = Self.cli(Self.exited(1, stderr: stderr))
 
-        #expect(await cli.list() == .failed(#"error: Cannot find module "../cli/shell" from "/Users/lee/Code/sitrep/bin/sitrep""#))
+        #expect(await cli.board(of: "sr-macapp") == .failed(#"error: Cannot find module "../cli/shell" from "/Users/lee/Code/sitrep/bin/sitrep""#))
     }
 
     @Test func thePathIsAskedForAtEachRun() async {
@@ -96,37 +80,31 @@ struct SitRepCLITests {
         let cli = SitRepCLI(plugin: Self.plugin, path: { paths.withLock { $0.removeFirst() } }, environment: [:]) { program in
             programs.add(program)
 
-            return Ran(status: 0, stdout: listedEmpty, stderr: "")
+            return Ran(status: 0, stdout: Lines.board, stderr: "")
         }
 
-        _ = await cli.list()
-        _ = await cli.list()
+        _ = await cli.board(of: "sr-macapp")
+        _ = await cli.board(of: "sr-macapp")
 
         #expect(programs.all.map { $0.environment["PATH"] } == ["/usr/bin:/bin", Self.path])
     }
 
-    @Test func aListOfAnotherVersionSaysSo() async {
-        let (cli, _) = Self.cli(Self.exited(0, stdout: #"{"v": 2, "projects": []}"#))
-
-        #expect(await cli.list() == .failed("sitrep list gave output version 2, and this SitRep reads version 1."))
-    }
-
-    @Test func aListThatIsNotJSONSaysSo() async {
+    @Test func aBoardThatIsNotJSONSaysSo() async {
         let (cli, _) = Self.cli(Self.exited(0, stdout: "SitRep\n  sr-aw3bgs  Menu bar"))
 
-        #expect(await cli.list() == .failed("sitrep list gave output this SitRep cannot read."))
+        #expect(await cli.board(of: "sr-macapp") == .failed("sitrep board gave output this SitRep cannot read."))
     }
 
-    @Test func aListThatNeverEndsSaysSo() async {
+    @Test func aBoardThatNeverEndsSaysSo() async {
         let (cli, _) = Self.cli { program in throw RunError.timedOut(program.limit) }
 
-        #expect(await cli.list() == .failed("sitrep list did not answer within 10 seconds."))
+        #expect(await cli.board(of: "sr-macapp") == .failed("sitrep board did not answer within 10 seconds."))
     }
 
     @Test func aCLIThatCannotStartSaysSo() async {
         let (cli, _) = Self.cli { _ in throw RunError.unstartable("no such file") }
 
-        #expect(await cli.list() == .failed("sitrep list could not start: no such file."))
+        #expect(await cli.board(of: "sr-macapp") == .failed("sitrep board could not start: no such file."))
     }
 
     @Test func jumpRunsTheCLIOnTheWorkWithTimeForItsLongestJump() async {

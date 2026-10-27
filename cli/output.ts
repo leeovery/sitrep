@@ -114,7 +114,7 @@ const sessionJson = (session: SessionSummary) => ({
   updatedAt: session.updatedAt,
 })
 
-const projectJson = (project: ProjectSummary, onScreen: ReadonlySet<string>) => ({
+const projectJson = (project: ProjectSummary) => ({
   key: project.key,
   name: project.name,
   open: project.open,
@@ -122,23 +122,12 @@ const projectJson = (project: ProjectSummary, onScreen: ReadonlySet<string>) => 
   snoozed: project.snoozed,
   parked: project.parked,
   updatedAt: project.updatedAt,
-  works: project.sessions.map(session => ({
-    ...sessionJson(session),
-    onScreen: onScreen.has(session.id),
-  })),
+  works: project.sessions.map(sessionJson),
 })
 
-/**
- * `list --json`: the project the CLI runs in, by its key, else null, and the
- * projects as `listing` gives them, each session saying whether a jump can
- * reach it.
- */
-export const listJson = ({ here, projects }: Listing, onScreen: ReadonlySet<string>) =>
-  json({
-    v: OUTPUT.list,
-    here: here?.key ?? null,
-    projects: projects.map(project => projectJson(project, onScreen)),
-  })
+/** `list --json`: the project the CLI runs in, by its key, else null, and the projects as `listing` gives them. */
+export const listJson = ({ here, projects }: Listing) =>
+  json({ v: OUTPUT.list, here: here?.key ?? null, projects: projects.map(projectJson) })
 
 /** Where Lee's reply to an ask stands, whether it is Lee's answer, which bars another, and its words as the board shows them on one row; null where `replyState` gives none. */
 const replyJson = (ask: Ask) => {

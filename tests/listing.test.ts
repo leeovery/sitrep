@@ -1,8 +1,6 @@
 import { expect, test } from 'claude-code/testing'
-import { LOOK_MS } from '../cli/look'
 import { EXIT } from '../cli/main'
-import { PS } from '../cli/screen'
-import type { Where, SessionMeta } from '../core'
+import type { SessionMeta } from '../core'
 import {
   choiceAsk,
   finish,
@@ -18,7 +16,7 @@ import {
   wordsAsk,
   yesAsk,
 } from './support'
-import { ghosttyClient, NOW, phoneClient, SOCKET, sshClient, terminal } from './terminal'
+import { NOW, SOCKET, terminal } from './terminal'
 import { ELSEWHERE, HOME, PROJECT, REPO } from './world'
 
 const DAY = 24 * 60 * MIN
@@ -132,7 +130,6 @@ test('list --json: the project the CLI runs in, and each project with its curren
             snoozed: 0,
             parked: 1,
             updatedAt: T0,
-            onScreen: false,
           },
           {
             id: LOBBY.id,
@@ -145,7 +142,6 @@ test('list --json: the project the CLI runs in, and each project with its curren
             snoozed: 0,
             parked: 0,
             updatedAt: T0,
-            onScreen: false,
           },
           {
             id: OLD_WAITING.id,
@@ -158,7 +154,6 @@ test('list --json: the project the CLI runs in, and each project with its curren
             snoozed: 0,
             parked: 0,
             updatedAt: OLD_WAITING.created,
-            onScreen: false,
           },
         ],
       },
@@ -166,178 +161,25 @@ test('list --json: the project the CLI runs in, and each project with its curren
   })
 })
 
-const SESSION_SOCKET = '/private/tmp/tmux-501/session'
-const GONE_SOCKET = '/private/tmp/tmux-501/gone'
+test('list runs no program, plain or --json, whatever windows its sessions are in', async () => {
+  const t = terminal()
 
-const inTmux = (socket: string, pane: string): Where => ({
-  device: '/dev/ttys043',
-  terminal: 'tmux',
-  tmux: { socket, pane },
-})
-
-/**
- * Sessions each with a live window: in tmux on two servers and a third gone,
- * their tmux sessions shown by a Ghostty window, by the phone alone, or by a
- * Ghostty on another Mac over ssh; and one in a Ghostty window of its own.
- */
-const onScreens = (options: Parameters<typeof terminal>[0] = {}) => {
-  const t = terminal({
-    tmux: {
-      [SOCKET]: {
-        panes: [
-          ['%1', '@1'],
-          ['%2', '@2'],
-          ['%3', '@3'],
-        ],
-        clients: [
-          ghosttyClient('/dev/ttys000', '@1'),
-          phoneClient('/dev/ttys067', '@2'),
-          sshClient('/dev/ttys080', '@3'),
-        ],
-      },
-      [SESSION_SOCKET]: {
-        panes: [['%9', '@9']],
-        clients: [ghosttyClient('/dev/ttys010', '@9')],
-      },
-    },
-    ...options,
+  t.seed(META, {
+    seenAt: NOW,
+    where: { device: '/dev/ttys043', terminal: 'tmux', tmux: { socket: SOCKET, pane: '%1' } },
   })
-
-  t.seed(META, { seenAt: NOW, where: inTmux(SOCKET, '%1') })
-  t.seed(LOBBY, { seenAt: NOW, where: inTmux(SOCKET, '%2') })
-  t.seed(OLD_WAITING, { seenAt: NOW, where: inTmux(SOCKET, '%3') })
-  t.seed(GOOSE, { project: ELSEWHERE.key, seenAt: NOW, where: inTmux(SESSION_SOCKET, '%9') })
   t.seed(QUIETLY, {
     project: QUIET.key,
     seenAt: NOW,
     where: { device: '/dev/ttys020', terminal: 'ghostty' },
   })
-  t.seed(STALE_SESSION, { project: STALE.key, seenAt: NOW, where: inTmux(GONE_SOCKET, '%1') })
 
-  return t
-}
-
-/** Whether each listed session is on screen, by its id. */
-const onScreenOf = (out: string) => {
-  const listed = JSON.parse(out) as { projects: { works: { id: string; onScreen: boolean }[] }[] }
-
-  return Object.fromEntries(
-    listed.projects.flatMap(project =>
-      project.works.map(session => [session.id, session.onScreen]),
-    ),
-  )
-}
-
-test('list --json says whether a jump can reach each session, a Ghostty window of this Mac showing it, asking tmux twice a socket and ps once however many sessions, and knocking on nothing', async () => {
-  const t = onScreens()
-  const { exit, out } = await t.run('list', '--json')
-
-  expect(exit).toBe(EXIT.done)
-  expect(onScreenOf(out)).toEqual({
-    [META.id]: true,
-    [LOBBY.id]: false,
-    [OLD_WAITING.id]: false,
-    [GOOSE.id]: true,
-    [QUIETLY.id]: true,
-    [STALE_SESSION.id]: false,
-  })
-  const tmuxRuns = t.screen.ran.filter(([name]) => name === 'tmux')
-
-  expect(tmuxRuns.map(([name, , , socket, command]) => [name, socket, command]).sort()).toEqual([
-    ['tmux', SOCKET, 'list-clients'],
-    ['tmux', SOCKET, 'list-panes'],
-    ['tmux', GONE_SOCKET, 'list-clients'],
-    ['tmux', GONE_SOCKET, 'list-panes'],
-    ['tmux', SESSION_SOCKET, 'list-clients'],
-    ['tmux', SESSION_SOCKET, 'list-panes'],
-  ])
-  expect(t.screen.ran.filter(([name]) => name !== 'tmux')).toEqual([PS])
-  expect(t.screen.written).toEqual([])
-  expect(t.screen.focused).toEqual([])
-})
-
-test('list --json still lists, every session in tmux off screen, when tmux or ps is not on PATH or does not answer', async () => {
-  for (const options of [
-    { missing: ['tmux'] },
-    { slow: ['tmux'] },
-    { missing: ['ps'] },
-    { slow: ['ps'] },
-  ]) {
-    const why = JSON.stringify(options)
-    const t = onScreens(options)
-    const { exit, out, err } = await t.run('list', '--json')
-
-    expect([exit, err], why).toEqual([EXIT.done, ''])
-    expect(onScreenOf(out), why).toEqual({
-      [META.id]: false,
-      [LOBBY.id]: false,
-      [OLD_WAITING.id]: false,
-      [GOOSE.id]: false,
-      [QUIETLY.id]: true,
-      [STALE_SESSION.id]: false,
-    })
-    expect(
-      t.screen.limits.every(each => each.limitMs === LOOK_MS),
-      `${why}: tmux and ps are given the limit`,
-    ).toBe(true)
+  for (const words of [['list'], ['list', '--json']]) {
+    expect((await t.run(...words)).exit, words.join(' ')).toBe(EXIT.done)
   }
-})
 
-test('list --json asks tmux and ps nothing when no window runs in tmux', async () => {
-  const t = terminal()
-
-  t.seed(QUIETLY, { seenAt: NOW, where: { device: '/dev/ttys020', terminal: 'ghostty' } })
-  t.seed(META, { seenAt: NOW })
-
-  expect(onScreenOf((await t.run('list', '--json')).out)).toEqual({
-    [META.id]: false,
-    [QUIETLY.id]: true,
-  })
   expect(t.screen.ran).toEqual([])
-})
-
-test('list --json counts a session on screen where a jump can reach it: a pane whose window tmux would select for a Ghostty window, or a window in a terminal app with no driver; and selects and opens nothing', async () => {
-  const t = terminal({
-    tmux: {
-      [SOCKET]: {
-        panes: [
-          ['%1', '@1', '$1'],
-          ['%2', '@2', '$1'],
-          ['%3', '@3', '$3'],
-        ],
-        clients: [{ ...ghosttyClient('/dev/ttys000', '@2'), session: '$1' }],
-      },
-    },
-  })
-
-  t.seed(META, { seenAt: NOW, where: inTmux(SOCKET, '%1') })
-  t.seed(LOBBY, { seenAt: NOW, where: inTmux(SOCKET, '%3') })
-  t.seed(OLD_WAITING, { seenAt: NOW, where: { device: '/dev/ttys021', terminal: 'Unknown' } })
-  t.seed(QUIETLY, {
-    project: QUIET.key,
-    seenAt: NOW,
-    where: { device: '/dev/ttys020', terminal: 'iTerm.app' },
-  })
-
-  const { exit, out } = await t.run('list', '--json')
-
-  expect(exit).toBe(EXIT.done)
-  expect(JSON.parse(out).v).toBe(1)
-  expect(onScreenOf(out)).toEqual({
-    [META.id]: true,
-    [LOBBY.id]: false,
-    [OLD_WAITING.id]: false,
-    [QUIETLY.id]: true,
-  })
-  expect(t.screen.ran.filter(([name]) => name !== 'tmux')).toEqual([PS])
-  expect(t.screen.ran.filter(words => words.includes('select-window'))).toEqual([])
-})
-
-test('plain list runs no program at all, whatever windows its sessions are in', async () => {
-  const t = onScreens()
-
-  expect((await t.run('list')).exit).toBe(EXIT.done)
-  expect(t.screen.ran).toEqual([])
+  expect(t.screen.written).toEqual([])
 })
 
 test('list: every project, the one the CLI runs in first, then the busiest, the idle last; one with no current session is left out', async () => {

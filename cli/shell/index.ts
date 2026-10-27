@@ -5,16 +5,13 @@
  * terminal devices, and the exit code. bin/sitrep runs it.
  */
 import { constants, readdirSync, readFileSync, statSync } from 'node:fs'
-import { appendFile, link, mkdir, open, rename, rmdir, unlink } from 'node:fs/promises'
+import { appendFile, mkdir, open } from 'node:fs/promises'
 import { endOf, type Signals } from '../ending'
 import type { Io, Listed, Ran, Waiting } from '../io'
 import { main } from '../main'
 
 /** Errors a listing means "not there" by: the folder is missing, or is a file. */
 const ABSENT = ['ENOENT', 'ENOTDIR']
-
-/** Errors a folder's removal leaves it by: it holds something (macOS says ENOTEMPTY, POSIX allows EEXIST). */
-const NOT_EMPTY = ['ENOTEMPTY', 'EEXIST']
 
 const folderOf = (path: string) => path.slice(0, path.lastIndexOf('/'))
 
@@ -66,29 +63,6 @@ const statOf = async (path: string) => {
 const append = async (path: string, text: string) => {
   await mkdir(folderOf(path), { recursive: true })
   await appendFile(path, text)
-}
-
-/** A hard link, then the old name unlinked: unlike a rename, a link never lands over a file. */
-const moveIn = async (from: string, to: string) => {
-  await mkdir(folderOf(to), { recursive: true })
-
-  try {
-    await link(from, to)
-  } catch (error) {
-    if (isAbsent(error)) {
-      return true
-    }
-
-    if (hasCode(error, ['EEXIST'])) {
-      return false
-    }
-
-    throw error
-  }
-
-  await unlink(from).catch(allowing(ABSENT))
-
-  return true
 }
 
 const list = async (dir: string): Promise<Listed[]> => {
@@ -184,10 +158,6 @@ const io: Io = {
     list,
     stat: statOf,
     append,
-    moveIn,
-    replace: (from, to) => rename(from, to).catch(allowing(ABSENT)),
-    remove: path => unlink(path).catch(allowing(ABSENT)),
-    removeFolder: dir => rmdir(dir).catch(allowing([...ABSENT, ...NOT_EMPTY])),
   },
   env: Bun.env,
   cwd: process.cwd(),

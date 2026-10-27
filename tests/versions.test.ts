@@ -1,8 +1,6 @@
 import { expect, test } from 'claude-code/testing'
 import {
   attach,
-  heartbeat,
-  isMoveHeld,
   leave,
   metaText,
   parseEntries,
@@ -10,14 +8,13 @@ import {
   parsePresence,
   parseProject,
   presenceText,
-  OLD_WINDOW_MS,
   projectText,
   upgraded,
   VERSION,
   versionOf,
   type Upgrade,
 } from '../core'
-import { META, MIN, T0, W1, W2 } from './support'
+import { META, MIN, T0, W1 } from './support'
 
 /** A made-up past: at version 1, an ask's title was its `heading`. */
 const headingToTitle: Upgrade = ({ heading, ...rest }) => ({ ...rest, title: heading })
@@ -124,44 +121,4 @@ test('a bad version is dropped and the heartbeat kept', () => {
 
     expect(read, JSON.stringify(version)).toEqual({ writer: W1, attachedAt: T0, seenAt: T0 })
   }
-})
-
-test('the move waits a week on a window on an old version: a heartbeat saying no version, not let go, seen within OLD_WINDOW_MS', () => {
-  const now = T0 + 30 * 24 * 60 * MIN
-  const old = (seenAt: number) => heartbeat(attach(W1, T0), seenAt)
-
-  expect(OLD_WINDOW_MS).toBe(7 * 24 * 60 * MIN)
-  expect(isMoveHeld([], [], now)).toBe(false)
-  expect(isMoveHeld([old(now - 6 * 24 * 60 * MIN)], [], now), 'asleep six days').toBe(true)
-  expect(isMoveHeld([old(now - OLD_WINDOW_MS)], [], now), 'a week to the moment').toBe(true)
-  expect(isMoveHeld([old(now - OLD_WINDOW_MS - 1)], [], now), 'past the week').toBe(false)
-  expect(isMoveHeld([leave(old(now - MIN), now - MIN)], [], now), 'let go').toBe(false)
-  expect(
-    isMoveHeld([heartbeat(attach(W1, T0, { version: '0.1.0' }), now)], [], now),
-    'saying its version',
-  ).toBe(false)
-})
-
-test("a window's later heartbeat stands for its earlier ones: one saying its version, as after a reload, frees the move; one saying none still holds it", () => {
-  const now = T0 + 60 * MIN
-  const before = heartbeat(attach(W1, T0), now - 10 * MIN)
-  const reloaded = heartbeat(attach(W1, T0, { version: '0.1.0' }), now)
-
-  expect(isMoveHeld([before, reloaded], [], now)).toBe(false)
-  expect(isMoveHeld([reloaded, before], [], now), 'whatever their order').toBe(false)
-  expect(
-    isMoveHeld([{ ...before, writer: W2 }, reloaded], [], now),
-    "another window's is its own",
-  ).toBe(true)
-  expect(
-    isMoveHeld([heartbeat(reloaded, now - 10 * MIN), heartbeat(before, now)], [], now),
-    'the later saying none',
-  ).toBe(true)
-})
-
-test('a heartbeat file that does not read holds the move while it was written within OLD_WINDOW_MS', () => {
-  const now = T0 + 30 * 24 * 60 * MIN
-
-  expect(isMoveHeld([], [now - MIN], now)).toBe(true)
-  expect(isMoveHeld([], [now - OLD_WINDOW_MS - 1], now)).toBe(false)
 })

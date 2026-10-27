@@ -35,7 +35,14 @@ import { actionsOf } from './actions'
 import { captured, heardSurvey } from './answering'
 import { lookAround, lookEvery } from './around'
 import { clipOf, heardRows, revealFocus, scrollList } from './clip'
-import { carryOn, conversationEnded, heardTurn, isBoardMessage, takeUpDelivery } from './deliver'
+import {
+  carryOn,
+  conversationEnded,
+  heardTurn,
+  isBoardMessage,
+  keptInFlight,
+  takeUpDelivery,
+} from './deliver'
 import {
   heardAgentTurnEnd,
   heardCheck,
@@ -51,7 +58,6 @@ import { drawPane } from './draw/board'
 import { drawToolResult, drawToolRow, toolLine } from './draw/tool-row'
 import { logFailure, TOAST_MS, type Host } from './host'
 import { loadedNow } from './load'
-import { fromOlder } from './older'
 import {
   BAND_KEYS,
   boardClosed,
@@ -147,13 +153,12 @@ const hostOf = ($: EngineInterface): Host => ({
     clear: () => $.prompt.fill({ text: '', mode: 'replace' }),
   },
   // Each slot spelled out: validate reads every atom's reads and writes off this
-  // file, and refused them passed through a shared helper. A slot an older load
-  // named otherwise is read in today's names (older.ts).
+  // file, and refused them passed through a shared helper.
   state: {
     attachment: {
-      read: async () => fromOlder.attachment(await read($, attachment)),
+      read: () => read($, attachment),
       write: value => update($, attachment, () => value),
-      update: change => update($, attachment, value => change(fromOlder.attachment(value))),
+      update: change => update($, attachment, change),
     },
     board: {
       read: () => read($, board),
@@ -166,9 +171,9 @@ const hostOf = ($: EngineInterface): Host => ({
       update: change => update($, seen, change),
     },
     projects: {
-      read: async () => fromOlder.projects(await read($, projects)),
+      read: () => read($, projects),
       write: value => update($, projects, () => value),
-      update: change => update($, projects, value => change(fromOlder.projects(value))),
+      update: change => update($, projects, change),
     },
     others: {
       read: () => read($, others),
@@ -176,34 +181,34 @@ const hostOf = ($: EngineInterface): Host => ({
       update: change => update($, others, change),
     },
     queue: {
-      read: async () => fromOlder.queue(await read($, queue)),
+      read: () => read($, queue),
       write: value => update($, queue, () => value),
-      update: change => update($, queue, value => change(fromOlder.queue(value))),
+      update: change => update($, queue, change),
     },
     sent: {
-      read: async () => fromOlder.sent(await read($, sent)),
+      read: () => read($, sent),
       write: value => update($, sent, () => value),
-      update: change => update($, sent, value => change(fromOlder.sent(value))),
+      update: change => update($, sent, change),
     },
     inFlight: {
-      read: async () => fromOlder.inFlight(await read($, inFlight)),
+      read: async () => keptInFlight(await read($, inFlight)),
       write: value => update($, inFlight, () => value),
-      update: change => update($, inFlight, value => change(fromOlder.inFlight(value))),
+      update: change => update($, inFlight, value => change(keptInFlight(value))),
     },
     pane: {
-      read: async () => fromOlder.pane(await read($, pane)),
+      read: () => read($, pane),
       write: value => update($, pane, () => value),
-      update: change => update($, pane, value => change(fromOlder.pane(value))),
+      update: change => update($, pane, change),
     },
     scroll: {
-      read: async () => fromOlder.scroll(await read($, scroll)),
+      read: () => read($, scroll),
       write: value => update($, scroll, () => value),
-      update: change => update($, scroll, value => change(fromOlder.scroll(value))),
+      update: change => update($, scroll, change),
     },
     answering: {
-      read: async () => fromOlder.answering(await read($, answering)),
+      read: () => read($, answering),
       write: value => update($, answering, () => value),
-      update: change => update($, answering, value => change(fromOlder.answering(value))),
+      update: change => update($, answering, change),
     },
     pulse: {
       read: () => read($, pulse),

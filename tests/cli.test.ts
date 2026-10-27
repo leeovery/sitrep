@@ -9,7 +9,20 @@ import {
   VERSION,
   type SessionPaths,
 } from '../core'
-import { file, finish, META, MIN, note, snooze, status, T0, W1, yesAsk, type Line } from './support'
+import {
+  file,
+  finish,
+  META,
+  MIN,
+  note,
+  snooze,
+  status,
+  T0,
+  W1,
+  W2,
+  yesAsk,
+  type Line,
+} from './support'
 import { ENV, FIRST_ID, NEXT_ID, NOW, terminal } from './terminal'
 import { ELSEWHERE } from './world'
 
@@ -284,6 +297,22 @@ test('a line left torn in its file is ended first, so the torn line stays the on
     [1, 'Whole'],
     [2, 'After the tear'],
   ])
+})
+
+test('a file listed that will not read is not there, and the run goes on', async () => {
+  const t = terminal()
+  const paths = t.seed(META, { lines: [[T0, yesAsk('k1', 'Review round 1')]] })
+  const { read } = t.io.fs
+
+  t.files.set(paths.log(W2), { text: file([T0, note('n2', 'Drew round 2')]), mtimeMs: T0 })
+  t.io.fs.read = async path =>
+    path === paths.log(W2) ? Promise.reject(new Error(`EACCES: ${path}`)) : read(path)
+
+  const run = await t.run('board', ...SESSION)
+
+  expect(run.exit).toBe(EXIT.done)
+  expect(run.out).toContain('Review round 1')
+  expect(run.out).not.toContain('Drew round 2')
 })
 
 test('two runs at once, each reading the file before either wrote, both land, with one count', async () => {

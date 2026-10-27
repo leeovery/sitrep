@@ -30,15 +30,6 @@ export type Jumped =
 const FOCUSED: Jumped = { is: 'focused' }
 const OFF_SCREEN: Jumped = { is: 'off screen' }
 
-/** The ids of the sessions a jump can reach, from the windows each is in; nothing is selected or knocked on. */
-export const sessionsOnScreen = async (io: Io, windows: ReadonlyMap<string, readonly Where[]>) => {
-  const screen = await readScreen(io, [...windows.values()].flat())
-
-  return new Set(
-    [...windows].flatMap(([id, each]) => (placesShowing(each, screen).length > 0 ? [id] : [])),
-  )
-}
-
 /** Each app's bringing forward, started at its first place and kept for the jump. */
 const bringing = (io: Io, front: FrontAtStart) => {
   const started = new Map<App, Bring>()

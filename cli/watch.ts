@@ -4,11 +4,11 @@
  * starts it again should it end (see "One engine, two front ends" in
  * DESIGN.md).
  *
- * - It looks at the state folder every second, under both layouts as every
- *   reader does, reading again only a file that changed (held.ts) and
- *   folding again only a session whose files did. A session off the board,
- *   finished or idle past the views, is read again every 10 seconds: it
- *   changes rarely, and only a join or a post brings it back.
+ * - It looks at the state folder every second, reading again only a file
+ *   that changed (held.ts) and folding again only a session whose files
+ *   did. A session off the board, finished or idle past the views, is read
+ *   again every 10 seconds: it changes rarely, and only a join or a post
+ *   brings it back.
  * - It looks again the moment core says the board changes by time alone,
  *   as when a heartbeat goes stale, which changes no file. Time the Mac
  *   slept, told by its two clocks, ages no heartbeat (core's pauses.ts):
@@ -16,7 +16,6 @@
  *   through is live still.
  * - A line is printed at the start, and then only when what it would print
  *   differs from the last, its own time aside.
- * - Every 10 minutes it moves the old layout, as each run does at its start.
  * - It ends once the program that started it has gone, a line finds its
  *   standard output closed, or SIGTERM comes (ending.ts), and as the
  *   plugin's manifest comes to say another version, for the app to start
@@ -41,7 +40,7 @@ import {
   type SessionFiles,
   type Shown,
 } from '../core'
-import { readBoard, readFolders, type SessionRead, type SessionReader } from './files'
+import { readBoard, readFolder, type SessionRead, type SessionReader } from './files'
 import { heldReads } from './held'
 import type { Io } from './io'
 import { boardJson, feedText, watchLine } from './output'
@@ -51,9 +50,6 @@ export const POLL_MS = 1_000
 
 /** How often it reads again the sessions off the board. */
 export const OFF_BOARD_MS = 10_000
-
-/** How often it moves the old layout, once no window still writes it. */
-export const MOVE_MS = 10 * 60_000
 
 /** A session as last read: its files, what they fold to, its board as `board --json` prints it, and whether it is off the board, with no window to hear. */
 type Kept = SessionRead & { board?: string; isOff: boolean }
@@ -114,11 +110,11 @@ const boardReader = (io: Io, root: string) => {
     const read: SessionReader = async (key, id, project) => {
       const at = `${key}/${id}`
       const last = kept.get(at)
-      const folders =
+      const folder =
         last?.isOff === true && !isWhole
           ? last.files
-          : await readFolders(io, sessionPaths(root, key, id))
-      const files = { ...folders, project }
+          : await readFolder(io, sessionPaths(root, key, id))
+      const files = { ...folder, project }
       const standing =
         last !== undefined && !isDue && isSameFiles(last.files, files)
           ? last
@@ -246,40 +242,31 @@ const releaseOf = (io: Io, held: Io) => {
 
 /**
  * Watches the board until the run is to end, or the plugin's manifest says
- * a version other than the one it started on, `move` moving the old layout
- * as every run does. A file that does not read is passed over for the look;
- * anything else that fails ends it, for the app to start it again. However
- * it ends, it stops listening for its end, which would hold the run open.
+ * a version other than the one it started on. A file that does not read is
+ * passed over for the look; anything else that fails ends it, for the app
+ * to start it again. However it ends, it stops listening for its end, which
+ * would hold the run open.
  */
-export const watch = async (io: Io, move: () => Promise<void>) => {
+export const watch = async (io: Io) => {
   const run = untilEnded(io)
 
   try {
-    await watchUntil(io, move, run)
+    await watchUntil(io, run)
   } finally {
     run.stop()
   }
 }
 
-const watchUntil = async (
-  io: Io,
-  move: () => Promise<void>,
-  run: ReturnType<typeof untilEnded>,
-) => {
+const watchUntil = async (io: Io, run: ReturnType<typeof untilEnded>) => {
   const held = heldReads(io)
   const release = releaseOf(io, held)
   const reader = boardReader(held, rootOf(io.env))
-  const isMoveDue = every(MOVE_MS, io.now())
   const isWholeLook = every(OFF_BOARD_MS, -Infinity)
   let last: Printed | undefined
   let clock: Clock | undefined
   let expiry: number | undefined
 
   while (!run.isEnded() && !(await release.isMoved())) {
-    if (isMoveDue(io.now())) {
-      await move()
-    }
-
     const now = io.now()
     const version = release.version()
 

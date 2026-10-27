@@ -11,7 +11,7 @@ public struct SessionBoard: Versioned, Sendable, Equatable {
         public let name: String
     }
 
-    /// The session in brief, as `list --json` gives it but `onScreen`.
+    /// The session in brief, as `list --json` gives it.
     public struct Work: Decodable, Sendable, Equatable {
         public let id: String
         public let name: String

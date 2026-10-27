@@ -322,6 +322,46 @@ test('send refused: the heartbeat keeps no claim, and the ask waits on Lee again
   expect(await asksOnBand(w, '1 ask')).toBeDefined()
 })
 
+test('a claim a load from before held messages left, saying no isHeld, is let go once the window was quiet a while', async ($, on) => {
+  let isOlder = false
+
+  // What such a load left in $.state: its message submitted as claimed, saying no hold.
+  on('state.get', { plugin: 'sitrep', key: ['inFlight'] }, async ($, e, next) => {
+    const got = (await next(e)) as { value?: { value: { isHeld?: boolean } | null } }
+    const kept = got.value?.value
+
+    if (!isOlder || kept === null || kept === undefined) {
+      return got as never
+    }
+
+    const { isHeld: _, ...older } = kept
+
+    return { value: { ...got.value, value: older } } as never
+  })
+
+  const w = world($, on)
+  const { submit } = await replying.send(w)
+  const turn = w.holdPrompts()
+
+  submit()
+  await turn.arrived
+  turn.lose()
+  isOlder = true
+  await $.session.start(CONVERSATION)
+  // A turn of another message, so no wait this module began before the reload stands;
+  // and a beat, reading the claim afresh, as a fresh load's first read would.
+  await w.turnStarts('Carry on.')
+  await w.clock.advance(HEARTBEAT_MS)
+  await w.turnEnds()
+  await w.clock.advance(QUIET_MS + WATCH_MS)
+
+  expect(w.state.inFlight).toBeNull()
+  expect(w.toasts).toContain(
+    'Not sent: the message never went in. Your replies are still on the board.',
+  )
+  expect(w.state.queue).toHaveLength(1)
+})
+
 test('send never taken: let go once the window was quiet a while, the heartbeat drops it, and the ask waits on Lee again', async ($, on) => {
   const w = world($, on)
   const { paths } = await sentHeld(w)

@@ -155,17 +155,6 @@ for (const [why, line] of [
   })
 }
 
-test('a line a file holds twice, byte for byte, reads once; the same line at another time is its own', () => {
-  const once = entry(T0, 1, EVERY_KIND[2]!)
-  const later = { ...once, at: T0 + 1 }
-
-  expect(parseEntries(`${serialise(once)}${serialise(once)}`)).toEqual([once])
-  expect(parseEntries(`${serialise(once)}${serialise(later)}${serialise(once)}`)).toEqual([
-    once,
-    later,
-  ])
-})
-
 test('fields a line has beyond its kind are dropped', () => {
   const [read] = parseEntries(
     `{"v":1,"at":${T0},"seq":1,"type":"park","id":"p1","title":"Later","colour":"red"}\n`,
