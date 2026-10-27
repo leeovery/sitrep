@@ -23,16 +23,18 @@
  */
 import {
   clockAt,
+  every,
   feedOf,
   foldSession,
-  isCurrent,
+  isOffBoard,
+  isSameFiles,
   manifestVersion,
   newRows,
   nextExpiry,
+  OFF_BOARD_MS,
   ownTime,
   rootOf,
   sessionPaths,
-  summarise,
   type Clock,
   type Feed,
   type Pause,
@@ -48,8 +50,8 @@ import { boardJson, feedText, watchLine } from './output'
 /** How often it looks at the folder: as the mod's readers do. */
 export const POLL_MS = 1_000
 
-/** How often it reads again the sessions off the board. */
-export const OFF_BOARD_MS = 10_000
+/** How often it reads again the sessions off the board, as every reader does. */
+export { OFF_BOARD_MS }
 
 /** A session as last read: its files, what they fold to, its board as `board --json` prints it, and whether it is off the board, with no window to hear. */
 type Kept = SessionRead & { board?: string; isOff: boolean }
@@ -65,20 +67,6 @@ type Printed = {
   shown: Shown
 }
 
-const isSameTexts = (
-  a: Readonly<Record<string, string>> = {},
-  b: Readonly<Record<string, string>> = {},
-) =>
-  Object.keys(a).length === Object.keys(b).length &&
-  Object.entries(a).every(([name, text]) => b[name] === text)
-
-const isSameFiles = (a: SessionFiles, b: SessionFiles) =>
-  a.meta === b.meta &&
-  a.project === b.project &&
-  isSameTexts(a.logs, b.logs) &&
-  isSameTexts(a.inbox, b.inbox) &&
-  isSameTexts(a.presence, b.presence)
-
 const folded = (key: string, files: SessionFiles, now: number, pauses: readonly Pause[]): Kept => {
   const session = foldSession(files, now, pauses)
 
@@ -86,7 +74,7 @@ const folded = (key: string, files: SessionFiles, now: number, pauses: readonly 
     files,
     session,
     board: session === undefined ? undefined : boardJson(key, session),
-    isOff: session !== undefined && !session.isOpen && !isCurrent(summarise(session), now),
+    isOff: isOffBoard(session, now),
   }
 }
 
@@ -134,21 +122,6 @@ const boardReader = (io: Io, root: string) => {
   }
 
   return { look, boardOf: (key: string, id: string) => kept.get(`${key}/${id}`)?.board ?? '' }
-}
-
-/** Whether something done every `ms` is due at `now`, counted from `from`; each time it is, the count starts again. */
-const every = (ms: number, from: number) => {
-  let last = from
-
-  return (now: number) => {
-    if (now - last < ms) {
-      return false
-    }
-
-    last = now
-
-    return true
-  }
 }
 
 /**

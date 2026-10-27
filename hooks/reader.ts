@@ -1,7 +1,8 @@
 /**
  * Reading a session's files, and its project's. A mod cannot watch files,
- * so each read lists the session's folders and its project's, and reads
- * again only a file whose size or time moved since it was last read. A file
+ * so each read lists the session's folders and its project's, or is handed
+ * the project's listing where a look listed it already, and reads again
+ * only a file whose size or time moved since it was last read. A file
  * listed that does not read by its read is not there. Also the folders
  * sitrep files projects and sessions under, a file's text where it is
  * there, and a file the window writes itself, as it stands.
@@ -19,8 +20,12 @@ import {
 } from '../core'
 import type { Host } from './host'
 
-/** A session's files as they stand, each read again only once it changed. */
-export type Reader = (host: Host, paths: SessionPaths) => Promise<SessionFiles>
+/** A session's files as they stand, each read again only once it changed; `listing` its project folder's, where the caller has it. */
+export type Reader = (
+  host: Host,
+  paths: SessionPaths,
+  listing?: readonly FsEntry[],
+) => Promise<SessionFiles>
 
 /** A file's text, and the size and time it had when read. */
 type Held = { size: number; mtimeMs: number; text: string }
@@ -46,13 +51,18 @@ export const foldersIn = async (host: Host, dir: string) => folderNames(await li
 const listedIn = (host: Host, dir: string, top: readonly FsEntry[], path: string) =>
   entryAt(top, dir, path, 'dir') === undefined ? [] : listed(host, path)
 
-/** The sessions a project files: its folders of sessions named as a session id is. */
-export const sessionsFiled = async (host: Host, root: string, key: string) => {
+/** A project folder's listing, and the sessions it files: its folders of sessions named as a session id is. */
+export const filedIn = async (host: Host, root: string, key: string) => {
   const { dir } = projectPaths(root, key)
-  const top = await listed(host, dir)
+  const listing = await listed(host, dir)
+  const sessions = folderNames(await listedIn(host, dir, listing, sessionsDir(root, key)))
 
-  return folderNames(await listedIn(host, dir, top, sessionsDir(root, key))).filter(isSessionId)
+  return { listing, sessions: sessions.filter(isSessionId) }
 }
+
+/** The sessions a project files. */
+export const sessionsFiled = async (host: Host, root: string, key: string) =>
+  (await filedIn(host, root, key)).sessions
 
 /** A file's text; undefined while it is not there, or cannot be read. */
 export const textAt = (host: Host, path: string) =>
@@ -141,8 +151,8 @@ export const createReader = (): Reader => {
     }
   }
 
-  return async (host, paths): Promise<SessionFiles> => {
-    const upper = await listed(host, paths.project.dir)
+  return async (host, paths, listing): Promise<SessionFiles> => {
+    const upper = listing ?? (await listed(host, paths.project.dir))
     const first =
       entryAt(upper, paths.project.dir, paths.sessions, 'dir') === undefined
         ? []

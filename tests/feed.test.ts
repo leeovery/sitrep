@@ -15,7 +15,9 @@ import {
   metaText,
   needsReload,
   newRows,
+  nextBoardChange,
   nextExpiry,
+  nextFoldChange,
   rowOf,
   sessionState,
   snoozedRowOf,
@@ -1243,4 +1245,50 @@ test('a snooze running out changes the board by time alone: its time is among th
   expect(
     nextExpiry(read(sessionOf({ lines: [...SNOOZED_REVIEW, [T0 + 2 * MIN, finish('lee')]] })), NOW),
   ).toBeUndefined()
+})
+
+test("a session's part of the board next changes by time alone at the first of its own instants, and the board's at the first session's", () => {
+  const stale = sessionOf({
+    lines: SNOOZED_REVIEW,
+    presence: windowOn(W1, yourTurn(T0), { seenAt: NOW - MIN }),
+  })
+  const idle = sessionOf({ meta: { id: 'sr-bbbbbb' }, lines: [[T0 + MIN, status(['Idle'])]] })
+  const finished = sessionOf({ lines: [...SNOOZED_REVIEW, [T0 + 2 * MIN, finish('lee')]] })
+
+  expect(nextBoardChange(stale, NOW), 'its heartbeat going stale, before its snooze').toBe(
+    NOW - MIN + STALE_MS + 1,
+  )
+  expect(nextBoardChange(sessionOf({ lines: SNOOZED_REVIEW }), NOW)).toBe(WAKES)
+  expect(nextBoardChange(idle, NOW)).toBe(T0 + MIN + CURRENT_MS + 1)
+  expect(nextBoardChange(finished, NOW)).toBeUndefined()
+  expect(nextExpiry([{ project: SWITCHBOARD, sessions: [idle, stale, finished] }], NOW)).toBe(
+    NOW - MIN + STALE_MS + 1,
+  )
+})
+
+test("a session's fold next changes by time alone as its board does, and as any snooze standing on its asks runs out: over an ask Lee's reply is on its way to, or in a finished session", () => {
+  const replied = (now: number) =>
+    sessionOf(
+      { lines: SNOOZED_REVIEW, inbox: { [CLI]: file([T0 + 2 * MIN, reply('r1', 'k1', 'yes')]) } },
+      now,
+    )
+  const finished = (now: number) =>
+    sessionOf({ lines: [...SNOOZED_REVIEW, [T0 + 2 * MIN, finish('lee')]] }, now)
+  const stale = sessionOf({
+    lines: SNOOZED_REVIEW,
+    presence: windowOn(W1, yourTurn(T0), { seenAt: NOW - MIN }),
+  })
+
+  for (const [fold, why] of [
+    [replied, "Lee's reply on its way"],
+    [finished, 'finished'],
+  ] as const) {
+    expect(nextBoardChange(fold(NOW), NOW), why).toBeUndefined()
+    expect(nextFoldChange(fold(NOW), NOW), why).toBe(WAKES)
+    expect(fold(WAKES - 1), `${why}: folded the same until then`).toEqual(fold(NOW))
+    expect(fold(WAKES), `${why}: folded otherwise then`).not.toEqual(fold(NOW))
+  }
+
+  expect(nextFoldChange(stale, NOW), 'its board changing first').toBe(NOW - MIN + STALE_MS + 1)
+  expect(nextFoldChange(sessionOf({ lines: [[T0, yesAsk('k1', 'Keep me')]] }), NOW)).toBeUndefined()
 })

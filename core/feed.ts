@@ -17,7 +17,8 @@
  *   day of its own time; or one it showed asleep, in Snoozed, back as its
  *   snooze ran out.
  * - When the board next changes by time alone: a heartbeat going stale, or
- *   a snooze running out, changes no file.
+ *   a snooze running out, changes no file; and when a session's fold does,
+ *   for a window's look around, which keeps each session's (reading.ts).
  */
 import { isLive, STALE_MS } from './presence'
 import type { Project } from './project'
@@ -242,26 +243,48 @@ const isAging = (session: Session) => {
   return !summary.isFinished && isIdle(summary)
 }
 
-/**
- * When the board next changes by time alone, after `now`: the earliest a
- * live heartbeat goes stale, a snooze runs out, or an idle session drops
- * out of the views. None changes a file, so `watch` looks again then. A
- * heartbeat goes stale as its session was folded: aged only while the watch
- * ran (pauses.ts); a snooze runs out on the wall clock. Undefined while
- * none will.
- */
-export const nextExpiry = (read: readonly ProjectRead[], now: number) => {
-  const instants = read
-    .flatMap(({ sessions }) =>
-      sessions.flatMap(session => [
-        ...session.presence
-          .filter(each => isLive(each, now))
-          .map(each => each.seenAt + STALE_MS + 1),
-        ...snoozedAsks(session).map(ask => ask.snoozedUntil),
-        ...(isAging(session) ? [session.updatedAt + CURRENT_MS + 1] : []),
-      ]),
-    )
-    .filter(at => at > now)
+/** The earliest of `instants` after `now`; undefined while none is. */
+const earliestAfter = (instants: readonly (number | undefined)[], now: number) => {
+  const after = instants.filter((at): at is number => at !== undefined && at > now)
 
-  return instants.length === 0 ? undefined : Math.min(...instants)
+  return after.length === 0 ? undefined : Math.min(...after)
 }
+
+/**
+ * When a session's part of the board next changes by time alone, after
+ * `now`: the earliest one of its live heartbeats goes stale, a snooze of an
+ * ask snoozed runs out, or it drops out of the views, idle. None changes a
+ * file. A heartbeat goes stale as the session was folded: aged only while
+ * its reader ran (pauses.ts); a snooze runs out on the wall clock.
+ * Undefined while none will.
+ */
+export const nextBoardChange = (session: Session, now: number) =>
+  earliestAfter(
+    [
+      ...session.presence.filter(each => isLive(each, now)).map(each => each.seenAt + STALE_MS + 1),
+      ...snoozedAsks(session).map(ask => ask.snoozedUntil),
+      isAging(session) ? session.updatedAt + CURRENT_MS + 1 : undefined,
+    ],
+    now,
+  )
+
+/**
+ * When a session folded at `now` is next to be folded again, no file
+ * changed: as its part of the board changes, and as any snooze standing on
+ * its asks runs out. That counts the snoozes the board leaves out: over an
+ * ask Lee's reply is on its way to, or in a finished session, an ask still
+ * goes from `snoozedUntil` to `wokeAt`. Undefined while none will.
+ */
+export const nextFoldChange = (session: Session, now: number) =>
+  earliestAfter([nextBoardChange(session, now), ...session.asks.map(ask => ask.snoozedUntil)], now)
+
+/**
+ * When the board next changes by time alone, after `now`: the earliest any
+ * session's part of it does (`nextBoardChange`). `watch` looks again then.
+ * Undefined while none will.
+ */
+export const nextExpiry = (read: readonly ProjectRead[], now: number) =>
+  earliestAfter(
+    read.flatMap(({ sessions }) => sessions.map(session => nextBoardChange(session, now))),
+    now,
+  )
