@@ -1217,6 +1217,17 @@ a call made then that Lee has not made himself.
   the epoch, as every time on the board is; nothing reads it as a local time
   again but to word it.
 
+  The time is worked out in two places, core's `snoozeAt` and the app's
+  `SnoozeChoice`, since SitRep's Snooze menus show each choice's wake time
+  before the press, with nothing run. Both copies are checked against one
+  table of wake times, `tests/wakes.ts`, which core's tests and the app's
+  both read (Lee's choice, 27 October 2026): each choice in London, New York,
+  Auckland and Kolkata, either side of a Monday, after midnight, and across
+  each zone's changes of the clocks in 2026. The kit runs core's tests in the
+  Mac's own zone and can set no other, so they run each row with a `Date` of
+  its zone in the global's place (`tests/zoned.ts`), proven the real one in
+  the Mac's own zone.
+
 **Where a snooze lives.** Two kinds of line, the format's version staying 1:
 
 ```
