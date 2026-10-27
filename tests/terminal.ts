@@ -205,6 +205,9 @@ const asnAt = (place: number) => `ASN:0x0-0x${(place + 1).toString(16)}:`
 
 const ASN = /^ASN:0x0-0x([0-9a-f]+):$/
 
+/** A promise that never settles: a wait cancelled, as the shell's. */
+const never = () => new Promise<void>(() => {})
+
 /** A promise, and what settles it. */
 const latch = () => {
   let open = () => {}
@@ -614,14 +617,22 @@ export function terminal(options: Options = {}) {
     now,
     uptime: () => awake() + waited(),
     wait: ms => {
+      let isCancelled = false
+
       waits.push(ms)
 
-      return Object.assign(Promise.resolve(), { cancel: () => {} })
+      return Object.assign(
+        Promise.resolve().then(() => (isCancelled ? never() : undefined)),
+        {
+          cancel: () => {
+            isCancelled = true
+          },
+        },
+      )
     },
     random: options.random ?? scripted([1, 2, 3, 4], [5, 6, 7, 8]),
     input: heard => {
       stdin.heard = heard
-      stdin.held.splice(0).forEach(heard)
 
       return () => {
         stdin.heard = undefined
@@ -759,7 +770,7 @@ export function terminal(options: Options = {}) {
     run,
     close: closing.open,
     listening: () => listening,
-    /** Writes to the run's standard input, as the app does: heard at once while it listens, else held until it does. */
+    /** Writes to the run's standard input, as the app does: heard at once while it listens, else held until it does and `arrives` gives it. */
     send: (text: string) => {
       if (stdin.heard === undefined) {
         stdin.held.push(text)
@@ -768,6 +779,14 @@ export function terminal(options: Options = {}) {
       }
 
       stdin.heard(text)
+    },
+    /** What standard input held comes to what listens to it: as a pipe gives it, on a turn after the listening began, never in the call that began it. */
+    arrives: () => {
+      const { heard } = stdin
+
+      if (heard !== undefined) {
+        stdin.held.splice(0).forEach(heard)
+      }
     },
     /** Whether anything listens to standard input. */
     isHearing: () => stdin.heard !== undefined,

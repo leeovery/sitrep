@@ -2039,8 +2039,8 @@ truth. There is still no background service. None of it is built now. Lee:
     the session as `list` gives it, its open asks, what it parked, its latest
     log lines, and its resolved asks (20 October 2026), closed, the ignored
     aside, the newest closed first, as a session's Resolved lists them.
-    `watch` carries it too, exactly so, for each session the app follows
-    (below). Its `v` is 3 since its session is `session` (27 October 2026),
+    `watch` carries it too, in this shape, for each session the app follows,
+    folded as the watch folds (below). Its `v` is 3 since its session is `session` (27 October 2026),
     `work` before; 2 since its asks say what they want back (`wants`, `yes`,
     `needs`) in place of their kind. Each ask, open or resolved, carries
     `reply`, where Lee's reply to it stands (below, under `answer`), and
@@ -2362,7 +2362,8 @@ truth. There is still no background service. None of it is built now. Lee:
       window follows now, in place of the set last given. Every such line,
       its set changed or not, wakes the watch for a look at once, cutting its
       wait short, or, heard while a look is under way, making the next come
-      at once: so the app has it look straight after a write of its own. A
+      at once: so the app has it look straight after a write of its own.
+      Several heard at once wake one look, the last one's set standing. A
       line is whole at its newline; one that does not read (not JSON, no
       `follow`, or a `follow` that is not a list of text) is passed over,
       changing and waking nothing. Standard input ending changes nothing:
@@ -2372,13 +2373,27 @@ truth. There is still no background service. None of it is built now. Lee:
       prints as it did before it heard any (`cli/follow.ts`).
     - `boards`: by session id, the board of each session followed that is
       new to the set or whose board changed since the watch last printed
-      it, as `board --json` prints it, parsed, not as text; null where the
+      it, in `board --json`'s shape, parsed, not as text; null where the
       watch finds no such session, as one no project files or one whose
-      `session.json` does not fold. A null is printed once, as the change it
-      is, like any other. A session dropped from the set is let go of, so
-      followed again it is new, though dropped and followed again before a
-      look. The first line carries the boards of the sessions followed as
-      it starts; with none, `boards` is `{}`. A session's board changing
+      `session.json` does not fold. Where two projects file one id, it is
+      the first's, as `board --json` finds it. It is folded as the line's
+      own `projects` and rows are, in the same look, heartbeats aged without
+      the time the Mac slept (**Pauses**, below), so it always agrees with
+      them; `board --json` folds with no pauses, so run just after a sleep
+      longer than a heartbeat's 90 seconds it can say a session's window
+      gone (`isOpen` false) where the carried board, and the line, say it
+      live until the window beats again. A null is printed once, as the
+      change it is, like any other. A session dropped from the set is let
+      go of, so followed again it is new, though dropped and followed again
+      before a look. The boards of the sessions followed come on the line
+      the look after their follow line prints, which for a follow line
+      written before the watch started is the second, not the first: the
+      first look runs before the watch hears anything on its standard
+      input, so the app never counts on the first line carrying them (live,
+      27 October 2026: a follow line written into a fifo before the watch
+      started was carried on the second line, 6 to 45 ms after the first).
+      With none to carry, `boards` is `{}`. A
+      session's board changing
       prints a line where the session is followed; one nobody follows prints
       nothing unless the board every surface shows changed too. It took the
       place of `changed` (27 October 2026), the ids of the sessions whose

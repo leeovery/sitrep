@@ -198,6 +198,15 @@ export const boardFields = (project: string, session: Session) => {
 
 export type BoardFields = ReturnType<typeof boardFields>
 
+/** A session's board as `watch` holds it: its fields, and their text, which tells it from another. */
+export type HeldBoard = { fields: BoardFields; text: string }
+
+export const heldBoard = (project: string, session: Session): HeldBoard => {
+  const fields = boardFields(project, session)
+
+  return { fields, text: JSON.stringify(fields) }
+}
+
 /** `board --json`: the session's board. */
 export const boardJson = (project: string, session: Session) => json(boardFields(project, session))
 

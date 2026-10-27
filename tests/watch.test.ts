@@ -35,14 +35,15 @@ import {
   type Line,
 } from './support'
 import { CLI_VERSION, MANIFEST, manifestText, NOW, terminal } from './terminal'
-import { PROJECT, REPO, ROOT, WHERE } from './world'
+import { ELSEWHERE, PROJECT, REPO, ROOT, WHERE } from './world'
 
 type Terminal = ReturnType<typeof terminal>
 
 /** A session's board as a watch line carries it: the fields the tests look at. */
 type Board = {
   v: number
-  session: { id: string; name: string }
+  project: { key: string }
+  session: { id: string; name: string; isOpen: boolean }
   log: { id: string | null; text: string }[]
 }
 
@@ -75,6 +76,7 @@ type Printed = {
     sessions: {
       id: string
       name: string
+      isOpen: boolean
       state: string
       asks: { reply: unknown; snoozedUntil: number | null }[]
     }[]
@@ -94,13 +96,18 @@ const still = () => {}
 /** Steps that change nothing, a look each. */
 const looks = (count: number) => Array.from({ length: count }, () => still)
 
+/** A wait that never ends: one cancelled, as the shell's never ends once cancelled, or the last. */
+const never = () => new Promise<void>(() => {})
+
 /**
  * `sitrep watch` over the terminal's files, `fs` standing in for any of its
  * file system's calls and `ending` for the listening for its end, the steps
- * taken in turn, one at each wait, and
- * then its standard output closed, the wait under way then never ending
- * unless cancelled: how it ended, what it told on standard error, each line
- * it printed, read back, and whether it left that wait holding the run.
+ * taken in turn, one at each wait, and then its standard output closed, the
+ * wait under way then never ending unless cancelled. What its standard input
+ * held comes in at each wait, before its step, as a pipe's does on a turn
+ * after the run began to listen; a wait it cuts short takes no step. How it
+ * ended, what it told on standard error, each line it printed, read back,
+ * and whether it left that wait holding the run.
  */
 const watched = async (
   t: Terminal,
@@ -112,14 +119,20 @@ const watched = async (
   let err = ''
   let last: { isCancelled: boolean } | undefined
   const waited = async (ms: number, waiting: { isCancelled: boolean }) => {
+    await Promise.resolve()
+    t.arrives()
+
+    if (waiting.isCancelled) {
+      return never()
+    }
+
     const step = queue.shift()
 
     if (step !== undefined && 'atOnce' in step) {
-      await Promise.resolve()
       step.atOnce()
 
       if (waiting.isCancelled) {
-        return
+        return never()
       }
     }
 
@@ -129,12 +142,14 @@ const watched = async (
       last = waiting
       t.close()
 
-      return new Promise<void>(() => {})
+      return never()
     }
 
     if (typeof step === 'function') {
       step()
     }
+
+    return waiting.isCancelled ? never() : undefined
   }
   const io: Io = {
     ...t.io,
@@ -418,6 +433,7 @@ test('a post is a line at the next look, its board carried; a new ask is new on 
   ])
 
   expect(lines.map(line => [line.at, keys(line), line.new, carried(line)])).toEqual([
+    [NOW, [`turn:${META.id}`], [], []],
     [NOW, [`turn:${META.id}`], [], [META.id]],
     [NOW + POLL_MS, [`ask:${META.id}:k2`], [`ask:${META.id}:k2`], [META.id]],
     [NOW + 3 * POLL_MS, [`ask:${META.id}:k2`], [], [META.id]],
@@ -441,11 +457,13 @@ test("an answer going into the session's inbox is a line, its ask on its way, ne
   )
 
   expect(lines.map(line => [line.at, keys(line), line.head, carried(line)])).toEqual([
+    [NOW, [`ask:${META.id}:k1`], { needYou: 1, sessions: 1 }, []],
     [NOW, [`ask:${META.id}:k1`], { needYou: 1, sessions: 1 }, [META.id]],
     [NOW + POLL_MS, [`turn:${META.id}`], { needYou: 0, sessions: 1 }, [META.id]],
     [NOW + 3 * POLL_MS, [`turn:${META.id}`], { needYou: 0, sessions: 1 }, [META.id]],
   ])
   expect(replies).toEqual([
+    [null],
     [null],
     [{ is: 'onItsWay', isAnswer: true, words: '→ Go', since: NOW + POLL_MS }],
     [],
@@ -507,6 +525,7 @@ test(
         carried(line),
       ]),
     ).toEqual([
+      [NOW, [`turn:${META.id}`], 'yourTurn', [W1], []],
       [NOW, [`turn:${META.id}`], 'yourTurn', [W1], [META.id]],
       [NOW + STALE_MS + 1, [], 'away', [], [META.id]],
     ])
@@ -530,6 +549,7 @@ test('a snooze running out is a line the moment it does, though no file changed:
   const k1 = `ask:${META.id}:k1`
 
   expect(lines.map(line => [line.at, keys(line), asleep(line), line.new, carried(line)])).toEqual([
+    [NOW, [`turn:${META.id}`], [k1], [], []],
     [NOW, [`turn:${META.id}`], [k1], [], [META.id]],
     [wakes, [k1], [], [k1], [META.id]],
   ])
@@ -556,6 +576,7 @@ test('a snooze running out is a line the moment it does, though no file changed:
   ])
   expect(lines.map(line => line.projects[0]?.sessions[0]?.asks[0]?.snoozedUntil)).toEqual([
     wakes,
+    wakes,
     null,
   ])
 })
@@ -573,6 +594,7 @@ test('a snooze posted is a line, its ask in Snoozed and nothing new; woken by Le
   const k1 = `ask:${META.id}:k1`
 
   expect(lines.map(line => [line.at, keys(line), asleep(line), line.new, carried(line)])).toEqual([
+    [NOW, [k1], [], [], []],
     [NOW, [k1], [], [], [META.id]],
     [NOW + POLL_MS, [`turn:${META.id}`], [k1], [], [META.id]],
     [NOW + 3 * POLL_MS, [k1], [], [], [META.id]],
@@ -998,18 +1020,21 @@ const nameIn = (line: Printed | undefined, id: string) => {
 const logOf = (line: Printed | undefined, id: string) =>
   line?.boards[id]?.log.map(each => each.text)
 
-test('the first line carries the board of each session followed as the watch starts, as board --json gives it', async () => {
+test("the boards of the sessions followed as the watch starts come on the line their follow line's look prints: standard input is heard only after the first look, so the first line carries none", async () => {
   const { t } = held()
   const board = await boardJsonOf(t, META.id)
 
   follow(t, META.id)
 
-  const [first] = (await watched(t, [])).lines
+  const { lines } = await watched(t, [])
 
-  expect(first?.boards).toEqual({ [META.id]: board })
+  expect(lines.map(line => [line.at, line.boards])).toEqual([
+    [NOW, {}],
+    [NOW, { [META.id]: board }],
+  ])
 })
 
-test('a follow line prints the boards of the sessions new to the set at once, exactly as board --json gives them; a line is whole at its newline, however it comes', async () => {
+test('a follow line prints the boards of the sessions new to the set at once, as board --json gives them; a line is whole at its newline, however it comes', async () => {
   const { t } = held()
 
   t.seed(LOBBY)
@@ -1033,6 +1058,56 @@ test('a follow line prints the boards of the sessions new to the set at once, ex
   ])
 })
 
+test('several follow lines heard at once wake one look, the last one’s set standing', async () => {
+  const { t } = held()
+  const projects = projectsDir(ROOT)
+  const looksBefore: number[] = []
+  let looked = 0
+  const stat: Io['fs']['stat'] = async path => {
+    looked += path === projects ? 1 : 0
+
+    return t.io.fs.stat(path)
+  }
+
+  t.seed(LOBBY)
+
+  const { lines } = await watched(
+    t,
+    [
+      {
+        atOnce: () =>
+          t.send(
+            `${JSON.stringify({ follow: [META.id] })}\n${JSON.stringify({ follow: [LOBBY.id] })}\n`,
+          ),
+      },
+      () => looksBefore.push(looked),
+    ],
+    { fs: { stat } },
+  )
+
+  expect(lines.map(line => [line.at, carried(line)])).toEqual([
+    [NOW, []],
+    [NOW, [LOBBY.id]],
+  ])
+  expect(looksBefore, 'the first look, and the one the lines woke').toEqual([2])
+})
+
+test('a session two projects file under one id is carried as board --json gives it: the first project’s', async () => {
+  const { t } = held()
+
+  t.project(ELSEWHERE.key, { name: ELSEWHERE.name, created: T0, by: W1 })
+  t.seed({ ...META, name: 'A copy elsewhere' }, { project: ELSEWHERE.key })
+
+  const board = await boardJsonOf(t, META.id)
+
+  follow(t, META.id)
+
+  const { lines } = await watched(t, [])
+
+  expect([board.project.key, board.session.name]).toEqual([PROJECT.key, META.name])
+  expect(lines[1]?.boards[META.id]).toEqual(board)
+})
+
 test("a followed session's board changing is printed though the board every surface shows does not; an unfollowed one's changing prints nothing", async () => {
   const { t, paths } = held()
   const lobby = t.seed(LOBBY)
@@ -1048,10 +1123,39 @@ test("a followed session's board changing is printed though the board every surf
   const { lines } = await watched(t, [noted(lobby), noted(paths)])
 
   expect(lines.map(line => [line.at, carried(line), logOf(line, META.id)])).toEqual([
+    [NOW, [], undefined],
     [NOW, [META.id], []],
     [NOW + 2 * POLL_MS, [META.id], ['Round 3 drawn']],
   ])
 })
+
+test(
+  'a carried board is folded as the line is, no heartbeat aged by the Mac’s sleep: after a sleep it agrees with the line’s own session, where board --json run then does not',
+  SLOW,
+  async () => {
+    let slept = 0
+    const { t, paths } = held([], { now: () => NOW + slept })
+
+    follow(t, META.id)
+
+    const { lines } = await watched(t, [
+      () => {
+        slept = HOUR
+      },
+      () => post(t, paths, note('n1', 'After the sleep')),
+    ])
+    const woken = lines.at(-1)
+    const run = await boardJsonOf(t, META.id)
+
+    expect([
+      woken?.at,
+      logOf(woken, META.id)?.[0],
+      woken?.boards[META.id]?.session.isOpen,
+      woken?.projects[0]?.sessions[0]?.isOpen,
+      run.session.isOpen,
+    ]).toEqual([NOW + HOUR + 2 * POLL_MS, 'After the sleep', true, true, false])
+  },
+)
 
 test('a followed session the watch finds none of is null, printed once: one no project files, or one whose session.json does not fold; once it folds, its board', async () => {
   const { t } = held()
@@ -1088,6 +1192,7 @@ test('a followed session gone is null, printed once', async () => {
   const { lines } = await watched(t, [gone, ...looks(2)])
 
   expect(lines.map(line => [line.at, carried(line), nameIn(line, LOBBY.id)])).toEqual([
+    [NOW, [], undefined],
     [NOW, [LOBBY.id], LOBBY.name],
     [NOW + POLL_MS, [LOBBY.id], null],
   ])
@@ -1132,6 +1237,7 @@ test("a follow line naming the set it had wakes a look at once: the board a writ
   ])
 
   expect(lines.map(line => [line.at, logOf(line, META.id)])).toEqual([
+    [NOW, undefined],
     [NOW, []],
     [NOW, ['Merged']],
   ])
@@ -1156,6 +1262,7 @@ test('a line that does not read is passed over: the set stands, and it wakes not
   ])
 
   expect(lines.map(line => [line.at, logOf(line, META.id)])).toEqual([
+    [NOW, undefined],
     [NOW, []],
     [NOW + 2 * POLL_MS, ['Merged']],
   ])
@@ -1174,6 +1281,7 @@ test('standard input ending changes nothing: the set last given stands, a piece 
 
   expect(exit).toBe(EXIT.done)
   expect(lines.map(line => [line.at, logOf(line, META.id)])).toEqual([
+    [NOW, undefined],
     [NOW, []],
     [NOW + 3 * POLL_MS, ['Merged']],
   ])
@@ -1187,9 +1295,10 @@ test('a followed session off the board is read at every look, not with the sessi
 
   const { lines } = await watched(t, [() => post(t, paths, note('n1', 'After the finish'))])
 
-  expect(lines.map(line => [line.at, logOf(line, META.id)?.at(-1)])).toEqual([
-    [NOW, undefined],
-    [NOW + POLL_MS, 'After the finish'],
+  expect(lines.map(line => [line.at, carried(line), logOf(line, META.id)?.[0]])).toEqual([
+    [NOW, [], undefined],
+    [NOW, [META.id], undefined],
+    [NOW + POLL_MS, [META.id], 'After the finish'],
   ])
 })
 
@@ -1210,6 +1319,7 @@ test('a session dropped from the set and followed again is new, its board printe
   ])
 
   expect(lines.map(line => [line.at, carried(line)])).toEqual([
+    [NOW, []],
     [NOW, [META.id]],
     [NOW, [META.id]],
     [NOW, [META.id]],

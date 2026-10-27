@@ -40,18 +40,16 @@ import {
   rootOf,
   sessionPaths,
   type Clock,
-  type Feed,
   type Pause,
   type ProjectRead,
-  type Session,
   type SessionFiles,
   type Shown,
 } from '../core'
 import { readBoard, readFolder, type SessionRead, type SessionReader } from './files'
-import { following, type Board } from './follow'
+import { following } from './follow'
 import { heldReads } from './held'
 import type { Io } from './io'
-import { boardFields, feedText, watchLine, type BoardFields } from './output'
+import { feedText, heldBoard, watchLine, type BoardFields, type HeldBoard } from './output'
 
 /** How often it looks at the folder: as the mod's readers do. */
 export const POLL_MS = 1_000
@@ -60,7 +58,7 @@ export const POLL_MS = 1_000
 export { OFF_BOARD_MS }
 
 /** A session as last read: its files, what they fold to, its board, and whether it is off the board, with no window to hear. */
-type Kept = SessionRead & { board: Board; isOff: boolean }
+type Kept = SessionRead & { board: HeldBoard | undefined; isOff: boolean }
 
 /** What a look is to read: a session off the board only on a look `isWhole` says, or one `followed`; and what it is to fold again: a session whose files changed, or every one once, `isDue`, the time core said the board would change came. */
 type Look = {
@@ -74,14 +72,11 @@ type Look = {
 /** What a look found: every project and its sessions, and whether each session stood as at the last look, none folded anew. */
 type Looked = { read: ProjectRead[]; isSame: boolean }
 
+/** What a look gives to print: what it found, when, and the version the watch ran. */
+type Seen = Looked & { now: number; version: string | undefined }
+
 /** What the last line showed: the board as text, the version it ran, and the rows needing Lee shown so far. */
 type Printed = { text: string; version: string | undefined; shown: Shown }
-
-const boardOf = (key: string, session: Session): Board => {
-  const fields = boardFields(key, session)
-
-  return { fields, text: JSON.stringify(fields) }
-}
 
 const folded = (key: string, files: SessionFiles, now: number, pauses: readonly Pause[]): Kept => {
   const session = foldSession(files, now, pauses)
@@ -89,7 +84,7 @@ const folded = (key: string, files: SessionFiles, now: number, pauses: readonly 
   return {
     files,
     session,
-    board: session === undefined ? undefined : boardOf(key, session),
+    board: session === undefined ? undefined : heldBoard(key, session),
     isOff: isOffBoard(session, now),
   }
 }
@@ -101,12 +96,12 @@ const folded = (key: string, files: SessionFiles, now: number, pauses: readonly 
  */
 const boardReader = (io: Io, root: string) => {
   let kept = new Map<string, Kept>()
-  let boards = new Map<string, Board>()
+  let byId = new Map<string, HeldBoard | undefined>()
 
   const look = async ({ now, clock, isWhole, isDue, followed }: Look): Promise<Looked> => {
     const looked = new Map<string, Kept>()
     let isSame = true
-    const read: SessionReader = async (key, id, project) => {
+    const readSession: SessionReader = async (key, id, project) => {
       const at = `${key}/${id}`
       const last = kept.get(at)
       const folder =
@@ -124,40 +119,48 @@ const boardReader = (io: Io, root: string) => {
 
       return standing
     }
-    const board = await readBoard(io, root, read)
+    const read = await readBoard(io, root, readSession)
 
     isSame &&= looked.size === kept.size
     kept = looked
-    boards = new Map()
+    byId = new Map()
 
-    for (const { project, sessions } of board) {
-      for (const { id } of sessions.filter(each => !boards.has(each.id))) {
-        boards.set(id, kept.get(`${project.key}/${id}`)?.board)
+    for (const { project, sessions } of read) {
+      for (const { id } of sessions.filter(each => !byId.has(each.id))) {
+        byId.set(id, kept.get(`${project.key}/${id}`)?.board)
       }
     }
 
-    return { read: board, isSame }
+    return { read, isSame }
   }
 
-  return { look, boardOf: (id: string) => boards.get(id) }
+  return { look, boardById: (id: string) => byId.get(id) }
 }
 
 /**
  * Prints the board's line at `clock`'s look where it differs from the last,
  * its own time aside, or where it carries `boards`: with what the watch has
- * not shown. Gives what was last printed.
+ * not shown. Where nothing was folded anew, on the version last printed,
+ * and it carries none, the board is not even made. Gives what was last
+ * printed.
  */
 const print = (
   io: Io,
   last: Printed | undefined,
-  feed: Feed,
+  { read, isSame, now, version }: Seen,
   boards: Readonly<Record<string, BoardFields | null>>,
   clock: Clock,
-  version: string | undefined,
 ): Printed => {
+  const isCarrying = Object.keys(boards).length > 0
+
+  if (last !== undefined && !isCarrying && isSame && version === last.version) {
+    return last
+  }
+
+  const feed = feedOf(read, now, version)
   const text = feedText(feed, version)
 
-  if (last !== undefined && text === last.text && Object.keys(boards).length === 0) {
+  if (last !== undefined && !isCarrying && text === last.text) {
     return last
   }
 
@@ -171,10 +174,11 @@ const print = (
 /**
  * The run's end, and its waits: each cut short by the end or by a wake, a
  * wake with no wait under way ending the next at once. A wait cut short
- * has its timer let go, so that nothing holds the run open, and stopping
- * stops the listening for the end. That end is listened to once, not raced
- * at every wait: each race would leave it a reaction, held for as long as
- * the run goes on.
+ * has its timer let go, so that nothing holds the run open, and a wait's
+ * end acts only while that wait is the one under way. Stopping stops the
+ * listening for the end. That end is listened to once, not raced at every
+ * wait: each race would leave it a reaction, held for as long as the run
+ * goes on.
  */
 const untilEnded = (io: Io) => {
   const { ended, stop } = io.ending()
@@ -197,24 +201,26 @@ const untilEnded = (io: Io) => {
     wake,
     wait: (ms: number) =>
       new Promise<void>(resolve => {
-        const done = () => {
-          cut = undefined
-          resolve()
-        }
-
         if (isWoken) {
           isWoken = false
-          done()
+          resolve()
 
           return
         }
 
         const waiting = io.wait(ms)
-
-        cut = () => {
+        const done = () => {
+          if (cut === own) {
+            cut = undefined
+            resolve()
+          }
+        }
+        const own = () => {
           waiting.cancel()
           done()
         }
+
+        cut = own
         void waiting.then(done)
       }),
     stop,
@@ -284,18 +290,10 @@ const watchUntil = async (
     const isWhole = isWholeLook(now)
     const isDue = expiry !== undefined && now >= expiry
     const { read, isSame } = await reader.look({ now, clock, isWhole, isDue, followed })
-    const boards = follows.unprinted(followed, reader.boardOf)
+    const boards = follows.unprinted(followed, reader.boardById)
 
     expiry = nextExpiry(read, now)
-
-    if (
-      last === undefined ||
-      !isSame ||
-      version !== last.version ||
-      Object.keys(boards).length > 0
-    ) {
-      last = print(io, last, feedOf(read, now, version), boards, clock, version)
-    }
+    last = print(io, last, { read, isSame, now, version }, boards, clock)
 
     await run.wait(Math.min(POLL_MS, (expiry ?? Infinity) - now))
   }
