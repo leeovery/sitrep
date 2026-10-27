@@ -1279,8 +1279,10 @@ and with it a session's `waiting` and everything counted from that.
 
 No file changes as a snooze runs out, so a reader learns it by folding again
 at a later `now`. The mod folds the held session anew at each look, every 1.5
-seconds, and the sessions around it every 5, so a pane, a band and Claude's
-board text have it within a look; a CLI command folds as it runs; `watch`
+seconds, and looks at the sessions around it every 5, folding one again once
+the `until` of a snooze standing on it has come (core's `nextFoldChange`), so
+a pane, a band and Claude's board text have it within a look; a CLI command
+folds as it runs; `watch`
 counts each snooze's `until` among the instants the board next changes by
 time alone (see "Expiry"), and folds every session afresh then.
 
@@ -1743,18 +1745,29 @@ $XDG_STATE_HOME/sitrep/, else ~/.local/state/sitrep/
     is stale, and it writes neither `$.state` nor the heartbeat again.
 - Readers list and `stat` the folder every second or two (a mod cannot watch
   files) and read only what changed; each session's read lists its project's
-  folder too, so a rename shows on every pane within a look. A session's
+  folder too, or is handed the listing its look made of it, so a rename
+  shows on every pane within a look. A session's
   heartbeats are read before its lines, its folder listed again after them
   where it has any (22 October 2026: one more listing a look, so a send
   handed from a heartbeat to the lines is never missed). The sessions
   around the held one are read every 5 seconds, each through its reader:
   they are glanced at, not watched. Every project is read, the pane open
   or closed, for the band's `elsewhere` and the All projects tab: each look
-  lists every session's folders and reads again only a file that changed. With
+  lists each project's folder once, handing its listing to each of its
+  sessions' reads, which list the session's folders and read again only a
+  file that changed. The look keeps what it read as `watch` does, by core's
+  rules (27 October 2026): a session is folded again only once its files
+  changed, or once its fold changes by time alone (`nextFoldChange`: as its
+  part of the board does, and as any snooze standing on its asks runs out,
+  one over an ask Lee's reply is on its way to, or in a finished session,
+  among them). A session off the board, with no live window and finished
+  or idle past the views, is read only on a whole look, every 10 seconds
+  by the window's clock, its first look whole; between them it is folded
+  from the files it last read, so its folders are not listed. With
   the pane open, the session it looks at and those replies wait for or
-  went to are read in full too, and so is the session of the item Lee is
-  answering in the prompt, open or not, read at once as the press begins
-  answering it.
+  went to are read in full too, at every look whatever their state, and so
+  is the session of the item Lee is answering in the prompt, open or not,
+  read at once as the press begins answering it.
 - The pane's last view lives in the window's `$.state` only: where it looks,
   the item opened there, and, apart from that, the session whose RESOLVED
   shows every closed ask, and where Claude Code last seated the pane on each
@@ -5198,7 +5211,8 @@ reaches a window only while that pane is on show).
         `Chime.due` names the sound a line plays, and `AlertSounds` plays it
         through `NSSound`, stopped first, so a sound chosen again as it
         plays starts over; the player is given, so the tests play nothing.
-        The mod plays nothing: `host.ui.play` and `sounds/` are gone.
+        The mod plays nothing: `host.ui.play` and `sounds/` are gone. Lee
+        heard it live the same day, with Submarine chosen.
       - **General.** The plugin's version is the CLI's, from the board; its
         line says where it runs from (step 9 made it each case's: "Installed
         by SitRep", "From ~/Code/sitrep", "From GitHub, leeovery/sitrep"),
@@ -5342,7 +5356,8 @@ reaches a window only while that pane is on show).
           sitting there… that should update in real time." He chose the
           list's hold for them, over the asks; it was widened to the whole
           page in review, as the asks going moved what lies below them, so
-          nothing still moves under his pointer.
+          nothing still moves under his pointer. Lee tried it live the same
+          day: "It worked."
         - **The list.** Held while the pointer is over it and for a second
           after, in a window key or not, as only the page's hold needs the
           key window, a change showing in place; a session new to needing Lee

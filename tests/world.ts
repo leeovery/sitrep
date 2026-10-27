@@ -312,6 +312,8 @@ export function world(engine: Engine, on: On, options: Options = {}) {
   /** How many times each of the mod's values was put in `$.state`. */
   const writes: Partial<Record<keyof Sitrep, number>> = {}
   const logs: string[] = []
+  /** Every folder the mod listed, in the order listed. */
+  const listed: string[] = []
   /** Every folder the mod listed that was not there: each a line in the engine's debug log. */
   const unlisted: string[] = []
   const registered: { name: string; isDeferred?: boolean }[] = []
@@ -527,7 +529,11 @@ export function world(engine: Engine, on: On, options: Options = {}) {
     }),
   )
 
-  on('fs.list', ($, e) => answered('list', e.path, listing(e.path)))
+  on('fs.list', ($, e) => {
+    listed.push(e.path)
+
+    return answered('list', e.path, listing(e.path))
+  })
 
   /** A folder's listing, as the engine gives it. */
   const listing = (dir: string) => {
@@ -739,6 +745,7 @@ export function world(engine: Engine, on: On, options: Options = {}) {
     boards,
     writes,
     logs,
+    listed,
     unlisted,
     runs,
     written,
