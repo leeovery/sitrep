@@ -4005,7 +4005,8 @@ stands).
     appear. Less is more."
 - **Answering.** A session's asks show opened, as cards with their buttons:
   - **one look per role, whatever the ask** (Paper's page "Answer buttons",
-    board I1, Lee's pick of 26 October 2026). An answer given here, **a
+    board I1, Lee's pick of 26 October 2026, and live on the 27th: "I think
+    they look fine."). An answer given here, **a
     yes** in Claude's words or each of **a choice**'s options, is the option
     pill: #1C1C1F in a #34343A ring, 12 semibold, 12 by 5 inside, corners of
     13. What leaves for Claude, Comment in Claude and Answer in Claude, the
@@ -4082,9 +4083,11 @@ stands).
     washed orange for two seconds.
   - Any other change shows in place, and the list re-sorts a second after
     the pointer leaves it, as on the strip.
-  - The session open on the right never shifts while Lee reads it: an ask
-    closed meanwhile keeps its place, faint and without buttons, saying how
-    it closed, until another session is picked.
+  - The session open on the right never shifts under Lee's pointer: while
+    the pointer is anywhere over the page, in the window key, an ask closed
+    meanwhile keeps its place, faint and without buttons, saying how it
+    closed, until a second after the pointer leaves the page or the window
+    stops being key (since 27 October 2026; see "Kept in place").
   - The window never comes forward or takes focus by itself; the notch or
     the strip tells Lee.
 
@@ -5275,16 +5278,45 @@ reaches a window only while that pane is on show).
           is read again at once.
         - **Kept in place.** The asks of the page showing, a session's or
           each of a project's sessions', show the newest first, as the
-          pane's; one that leaves meanwhile keeps its place, faint, saying
-          how: "sent, and Claude has it" where Lee's answer closed it,
-          "resolved by Claude: …" with Claude's reason, "ignored" for one
-          gone without a place in Resolved; Resolved leaves it out until
-          another page is picked. A new ask lands at the top, washed. Where
-          the pane keeps an ask its send closed for a moment, the window
-          keeps every closed ask until the pick changes, as its own rule
-          says, the stricter of the two. Each page opens at its top.
+          pane's. The page is held as the list is: while the pointer is
+          anywhere over it, its whole visible part of the column and not
+          only its asks, and for a second after, but only in the window
+          key, as a pointer resting on a window Lee is not using would hold
+          its closed asks for as long as it rests. An ask that leaves while
+          the page is held keeps its place, faint, saying how: "sent, and
+          Claude has it" where Lee's answer closed it, "resolved by Claude:
+          …" with Claude's reason, "ignored" for one gone without a place in
+          Resolved; Resolved leaves it out, and nothing below it moves. The
+          hold lets go a second after the pointer leaves the page, or the
+          window stops being key or goes out of sight, as on another Space,
+          as the list's does; at once as the window closes or minimises.
+          Once it has let go, or with the pointer elsewhere, every closed
+          ask leaves the asks, at once or at the next read, and shows in
+          Resolved, as a page picked afresh shows it. An ask whose answer
+          waits its 2 seconds or is on its way is open, and stays; one
+          Claude closed under a press still waiting stays until the press
+          settles. A new ask lands at the top, washed; so does one let go
+          and then open on the board again, as new. The pointer over the
+          page is AppKit's word, a tracking area behind the whole column,
+          which hears the pointer cross whether or not SitRep is active; and
+          as a pointer that has not moved sends no entry, the area asks
+          where the pointer is as it moves into the window, as the window
+          becomes key, comes back from the Dock or shows again, and as a
+          menu closes, a card's Snooze among them. The pane keeps its own
+          rule, an ask its send closed kept for a moment; only the window's
+          changed. Each page opens at its top. Until 27 October 2026 the
+          window kept every closed ask until the pick changed; that day Lee
+          had left a session's page open about three hours while Claude
+          worked, a dozen closed asks piled up among its asks, and he said:
+          "If I've ignored them or dismissed them, it's because I don't want
+          to answer them. I don't understand why all of them are still
+          sitting there… that should update in real time." He chose the
+          list's hold for them, over the asks; it was widened to the whole
+          page in review, as the asks going moved what lies below them, so
+          nothing still moves under his pointer.
         - **The list.** Held while the pointer is over it and for a second
-          after, a change showing in place; a session new to needing Lee
+          after, in a window key or not, as only the page's hold needs the
+          key window, a change showing in place; a session new to needing Lee
           (`new`) moves in at once to `watch`'s place, after the nearest of
           those `watch` has before it, its project with it, washed for the
           panel's 2 seconds, within its fill. Stale, nothing is new. A close

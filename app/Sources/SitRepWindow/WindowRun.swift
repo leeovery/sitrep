@@ -62,8 +62,16 @@ public final class WindowRun {
     private var boards: [String: SessionBoard] = [:]
     private var failed: [String: String] = [:]
     private var tickets: [String: Int] = [:]
-    /// The asks of each session the page shows, kept in place while it stands.
+    /// The asks of each session the page shows, in the order they first showed while it stands, those closed kept in
+    /// their places while the page is held.
     private var frozen: [String: Frozen] = [:]
+    /// The page held while the pointer is over it in the window key, and for a second after: only while it is does a
+    /// closed ask keep its place, so nothing below it moves under the pointer either.
+    private var pageHeld = Hold()
+    /// The page's regions saying the pointer is over them: each says so under its own identity, so one going as another
+    /// comes cannot cross the two.
+    private var regionsUnderPointer: Set<ObjectIdentifier> = []
+    private var isKey = false
     private var finishing: [String: Finish] = [:]
     /// What `sitrep snooze` or `wake` refused, by the ask, for its card to say until it is pressed again or another
     /// page is picked.
@@ -127,11 +135,48 @@ public final class WindowRun {
         held.pointer(isIn: isIn, at: time)
     }
 
-    /// The second after the pointer left the list, or after the last pick made in it, has run out by this time: it
-    /// takes `watch`'s order.
+    /// A region of the page found the pointer over it, or not, at this time: the page is held while any region has it.
+    public func pointer(overPage isIn: Bool, from region: ObjectIdentifier, at time: Date) {
+        if isIn {
+            regionsUnderPointer.insert(region)
+        } else {
+            regionsUnderPointer.remove(region)
+        }
+        holdPage(at: time)
+    }
+
+    /// The window became key, or stopped being, at this time: in a window not key the pointer holds no page, as a
+    /// pointer resting on a window Lee is not using would hold its closed asks for as long as it rests.
+    public func window(isKey: Bool, at time: Date) {
+        self.isKey = isKey
+        holdPage(at: time)
+    }
+
+    private func holdPage(at time: Date) {
+        pageHeld.pointer(isIn: !regionsUnderPointer.isEmpty && isKey, at: time)
+    }
+
+    /// What has run out by this time: the second after the pointer left the list, or after the last pick made in it,
+    /// and it takes `watch`'s order; the second after it left the page, and the closed asks leave it.
     public func settle(at time: Date) {
         if held.settle(at: time) {
             take(given, moving: [])
+        }
+        pageHeld.settle(at: time)
+        letGoOfClosedAsks()
+    }
+
+    /// Unless the page is held, the closed asks leave it, for Resolved; one with Lee's press on it still pending stays
+    /// until the press settles.
+    private func letGoOfClosedAsks() {
+        guard !pageHeld.isHeld else {
+            return
+        }
+
+        let answering = Dictionary(grouping: answers.pending.keys, by: \.session).mapValues { Set($0.map(\.ask)) }
+
+        for session in frozen.keys {
+            frozen[session]?.letGoOfClosed(but: answering[session] ?? [])
         }
     }
 
@@ -174,30 +219,35 @@ public final class WindowRun {
         return pick.map { self.pick($0) } ?? repick()
     }
 
-    /// The window closes: the list's hold lets go, as the pointer leaves with it, a finish asked about lapses, and the
-    /// filter clears, as what it holds is not kept, showing nothing picked while it held text, as opening the window
-    /// picks afresh. The reads a run of picks left waiting never run: nothing is read while the window is closed.
+    /// The window closes: the holds of the list and the page let go, as the pointer leaves with it, a finish asked
+    /// about lapses, and the filter clears, as what it holds is not kept, showing nothing picked while it held text, as
+    /// opening the window picks afresh. The reads a run of picks left waiting never run: nothing is read while the
+    /// window is closed.
     public func close() {
         isOpen = false
         isPickedWhileFiltering = false
         filter = Filter()
-        letGoOfTheList()
+        letGoOfHolds()
         dropAskingToFinish()
     }
 
-    /// The window minimised: it shows no more, so nothing is read, and the list's hold lets go, as the pointer leaves
-    /// with it, but it keeps its page. The reads a run of picks left waiting are let go, as coming back from the Dock
-    /// reads the page again.
+    /// The window minimised: it shows no more, so nothing is read, and the holds of the list and the page let go, as
+    /// the pointer leaves with it, but it keeps its page. The reads a run of picks left waiting are let go, as coming
+    /// back from the Dock reads the page again.
     public func minimise() {
         isOpen = false
-        letGoOfTheList()
+        letGoOfHolds()
         pickReads = PickReads()
     }
 
-    /// The pointer gone with the window, which tells no exit: the list's hold lets go, and it takes `watch`'s order.
-    private func letGoOfTheList() {
+    /// The pointer gone with the window, which tells no exit: the list's hold lets go, and it takes `watch`'s order;
+    /// the page's too, and the closed asks leave it.
+    private func letGoOfHolds() {
         held.release()
         take(given, moving: [])
+        regionsUnderPointer = []
+        pageHeld.release()
+        letGoOfClosedAsks()
     }
 
     /// The window back from the Dock, on the page it had, which reads what it shows again, unless its pick has gone
@@ -338,6 +388,7 @@ public final class WindowRun {
             failed[read.session] = nil
             answers.settle(board.asks, of: read.session, read: read.ticket)
             frozen[read.session]?.take(board, washingAt: reducesMotion ? nil : time)
+            letGoOfClosedAsks()
         case let .failed(why):
             failed[read.session] = why
             answers.unread(read.session, read: read.ticket)
@@ -541,13 +592,14 @@ public final class WindowRun {
     }
 
     /// The next time something the window shows changes by time alone: an answer's wait running out, the list
-    /// settling after the pointer left or a pick, a wash ending, a run of picks' reads falling due, a your-turn row
-    /// folding into "N earlier".
+    /// settling after the pointer left or a pick, the closed asks leaving a second after the pointer left the page, a
+    /// wash ending, a run of picks' reads falling due, a your-turn row folding into "N earlier".
     public var nextChange: Date? {
         let washes = (Array(washed.values) + frozen.values.flatMap(\.washed.values))
             .map { $0.addingTimeInterval(Wash.length / 1000) }
+        let due = [answers.nextDue, held.resortsAt, pageHeld.endsAt, pickReads.dueAt, nextRefold]
 
-        return ([answers.nextDue, held.resortsAt, pickReads.dueAt, nextRefold].compactMap { $0 } + washes).min()
+        return (due.compactMap { $0 } + washes).min()
     }
 
     private func sessionPage(_ session: Board.Session, of project: Board.Project, at time: Date) -> SessionPage {
@@ -614,8 +666,8 @@ public final class WindowRun {
         )
     }
 
-    /// A session's asks as cards: kept in place while the page stands, else as last read, the newest first; those
-    /// asleep after them, the soonest to wake first.
+    /// A session's asks as cards: in the order they first showed on the page, those closed while it was held kept in
+    /// their places, else as last read, the newest first; those asleep after them, the soonest to wake first.
     private func cards(of session: Board.Session, at time: Date) -> [Card] {
         let kept = frozen[session.id]
         let asks = kept?.asks ?? (boards[session.id]?.asks.reversed() ?? []).map { ($0, nil) }

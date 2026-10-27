@@ -187,6 +187,20 @@ func opened(
     return run
 }
 
+/// A region of the page, which says where the pointer is under its own identity.
+final class Region: Sendable {}
+
+/// Two regions, alive throughout, so neither's identity can be another's.
+private let regions = (Region(), Region())
+let pageRegion = ObjectIdentifier(regions.0)
+let otherRegion = ObjectIdentifier(regions.1)
+
+/// The pointer over the page, in the window key, from this time: an ask closing keeps its place.
+func overThePage(_ run: WindowRun, at time: Date = printedAt) {
+    run.window(isKey: true, at: time)
+    run.pointer(overPage: true, from: pageRegion, at: time)
+}
+
 /// Each read answered with the board given for its session, if there is one.
 func answer(_ reads: [Read], in run: WindowRun, with boards: [String: String], at time: Date = printedAt) {
     for read in reads {

@@ -27,6 +27,8 @@ struct WindowActions: Sendable {
     var confirmFinish: @MainActor @Sendable (String) -> Void = { _ in }
     /// The pointer came over the board's list, or left it.
     var pointer: @MainActor @Sendable (Bool) -> Void = { _ in }
+    /// A region of the page found the pointer over it, or not, saying so under its own identity (`PagePointer`).
+    var pointerOverPage: @MainActor @Sendable (Bool, ObjectIdentifier) -> Void = { _, _ in }
     /// A heading of the sidebar clicked, which folds or unfolds what is under it, or "N earlier", which opens or folds.
     var fold: @MainActor @Sendable (Fold) -> Void = { _ in }
     /// What the Filter field holds, as Lee types or clears it.
@@ -46,15 +48,23 @@ extension EnvironmentValues {
 /// The right of the window, beside the sidebar: the session or the project picked, Settings, or why there is none, on
 /// the panel's black, starting under the empty band beside the traffic lights. It draws what it is given, at the time
 /// given, so it renders the same on the screen and off it, as the sidebar's `BoardColumn` does; Settings, by
-/// `settings`, which reads what it shows for itself.
+/// `settings`, which reads what it shows for itself. On screen, the pointer anywhere over it holds the page
+/// (`PagePointer`).
 struct PageColumn<Settings: View>: View {
     let page: Page
     let now: Date
     @ViewBuilder let settings: () -> Settings
 
+    @Environment(\.isStill) private var isStill
+
     var body: some View {
         pages
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+            .background {
+                if !isStill {
+                    PagePointer()
+                }
+            }
             .ignoresSafeArea(.container, edges: .top)
             .background(WindowStyle.black.ignoresSafeArea())
     }

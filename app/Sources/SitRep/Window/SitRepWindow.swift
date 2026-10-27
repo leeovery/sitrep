@@ -57,10 +57,12 @@ final class SitRepWindow: NSObject, NSWindowDelegate {
 
     func windowDidBecomeKey(_ notification: Notification) {
         settings.keys(true)
+        model.window(isKey: true)
     }
 
     func windowDidResignKey(_ notification: Notification) {
         settings.keys(false)
+        model.window(isKey: false)
     }
 
     func windowDidMiniaturize(_ notification: Notification) {

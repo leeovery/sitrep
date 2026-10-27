@@ -71,6 +71,7 @@ final class WindowModel {
             cancelFinish: { [weak self] in self?.cancelFinish($0) },
             confirmFinish: { [weak self] in self?.confirmFinish($0) },
             pointer: { [weak self] in self?.pointer(isIn: $0) },
+            pointerOverPage: { [weak self] in self?.pointer(overPage: $0, from: $1) },
             fold: { [weak self] in self?.fold($0) },
             filter: { [weak self] in self?.narrow(to: $0) },
             openFirstMatch: { [weak self] in self?.openFirstMatch() }
@@ -181,6 +182,17 @@ final class WindowModel {
 
     private func pointer(isIn: Bool) {
         run.pointer(isIn: isIn, at: Date())
+        refresh()
+    }
+
+    private func pointer(overPage isIn: Bool, from region: ObjectIdentifier) {
+        run.pointer(overPage: isIn, from: region, at: Date())
+        refresh()
+    }
+
+    /// The window became key, or stopped being.
+    func window(isKey: Bool) {
+        run.window(isKey: isKey, at: Date())
         refresh()
     }
 

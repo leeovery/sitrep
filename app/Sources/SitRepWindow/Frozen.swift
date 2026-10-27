@@ -4,7 +4,7 @@ import SitRepPanel
 
 /// The asks of a session the page shows, kept in place while Lee reads it: in the order they first showed, the
 /// newest first, as the pane's Asks list them; an ask closed meanwhile keeps its place, saying how it closed, until
-/// another page is picked; a new one lands at the top, washed.
+/// it is let go; a new one lands at the top, washed.
 struct Frozen: Equatable, Sendable {
     let session: String
     /// Its asks by id, in the order they show.
@@ -57,6 +57,19 @@ struct Frozen: Equatable, Sendable {
         order = new + order
         if let time {
             new.forEach { washed[$0] = time }
+        }
+    }
+
+    /// The asks closed since they showed let go, but for those named, so they leave the asks for Resolved, as a page
+    /// picked afresh shows them.
+    mutating func letGoOfClosed(but staying: Set<String>) {
+        let leaving = Set(closed.keys).subtracting(staying)
+
+        order.removeAll(where: leaving.contains)
+        for ask in leaving {
+            known[ask] = nil
+            closed[ask] = nil
+            washed[ask] = nil
         }
     }
 

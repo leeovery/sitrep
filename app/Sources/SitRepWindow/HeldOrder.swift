@@ -8,26 +8,21 @@ import SitRepPanel
 /// one, where `watch` has it; a session new to needing Lee moves in at once, to where `watch` has it, the rows below
 /// sliding. Projects is held alike.
 public struct HeldOrder: Equatable, Sendable {
-    /// How long after the pointer leaves the list, or after the last pick made in it, it takes `watch`'s order.
-    public static let settle: TimeInterval = 1
-
     private var sections: [BoardSection: [String]] = [:]
     private var projects: [String] = []
-    private var isPointerIn = false
-    /// When the list takes `watch`'s order, a second after the pointer left it or the last pick made in it.
-    public private(set) var resortsAt: Date?
+    private var hold = Hold()
 
     public init() {}
 
-    /// Held, while the pointer is over the list and until the second after it leaves or after a pick runs out.
-    var isHeld: Bool { isPointerIn || resortsAt != nil }
+    /// When the list takes `watch`'s order, a second after the pointer left it or the last pick made in it.
+    public var resortsAt: Date? { hold.endsAt }
 
     /// The list in the order it shows, after taking this one: `watch`'s, or while held the order it showed, the
     /// sessions moving in at their places in `watch`'s, as anything new to the list does.
     public mutating func take(_ listed: Listed, moving: Set<String>) -> Listed {
         let core = Self.order(of: listed)
 
-        if isHeld {
+        if hold.isHeld {
             sections = core.sections.reduce(into: [:]) { held, section in
                 held[section.key] = Self.merge(sections[section.key] ?? [], into: section.value, moving: moving)
             }
@@ -40,37 +35,24 @@ public struct HeldOrder: Equatable, Sendable {
 
     /// The pointer came over the list, or left it at this time.
     public mutating func pointer(isIn: Bool, at time: Date) {
-        guard isIn != isPointerIn else {
-            return
-        }
-
-        isPointerIn = isIn
-        resortsAt = isIn ? nil : time.addingTimeInterval(Self.settle)
+        hold.pointer(isIn: isIn, at: time)
     }
 
     /// A pick made in the list at this time, by a click or an arrow key: held until the second after it runs out,
     /// or, with the pointer over the list, for as long as the pointer holds it.
     public mutating func picked(at time: Date) {
-        if !isPointerIn {
-            resortsAt = max(resortsAt ?? time, time.addingTimeInterval(Self.settle))
-        }
+        hold.picked(at: time)
     }
 
     /// The second after the pointer left, or after the last pick, has run out by this time: the list is no longer
     /// held, and the next take gives `watch`'s order. Whether it ran out now.
     public mutating func settle(at time: Date) -> Bool {
-        guard let due = resortsAt, time >= due, !isPointerIn else {
-            return false
-        }
-
-        resortsAt = nil
-        return true
+        hold.settle(at: time)
     }
 
     /// The pointer gone with the list, as when the window closes under it, which tells no exit: held no more.
     public mutating func release() {
-        isPointerIn = false
-        resortsAt = nil
+        hold.release()
     }
 
     /// The list in the order held.
