@@ -192,7 +192,7 @@ private final class Reader: Sendable {
 /// never sends SIGPIPE, which would end the app: a write that finds the
 /// program gone, its end of the pipe closed, fails with EPIPE, and is
 /// dropped.
-private final class Writer: Sendable {
+final class Writer: Sendable {
     let pipe = Pipe()
     private let queue = DispatchQueue(label: "com.leeovery.sitrep.watch.input")
     /// Only `queue` reads or sets it, so no write crosses the close.
@@ -202,8 +202,9 @@ private final class Writer: Sendable {
         _ = fcntl(pipe.fileHandleForWriting.fileDescriptor, F_SETNOSIGPIPE, 1)
     }
 
-    /// Writes each line given, with its newline, then closes once they end.
-    func write(_ lines: AsyncStream<String>) {
+    /// Writes each line given, with its newline, then closes once they end: the writing, done once it has.
+    @discardableResult
+    func write(_ lines: AsyncStream<String>) -> Task<Void, Never> {
         Task {
             for await line in lines {
                 await write(Data("\(line)\n".utf8))

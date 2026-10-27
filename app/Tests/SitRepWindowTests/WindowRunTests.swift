@@ -158,13 +158,13 @@ struct WindowRunTests {
         run.show(heard(.line(Lines.following[0])), at: printedAt, reducesMotion: false)
         run.open()
         #expect(run.following == ["sr-h4rn3s"])
-        #expect(run.page(at: printedAt).session?.isRead == false)
+        #expect(run.page(at: printedAt).session?.hasBoard == false)
         #expect(run.page(at: printedAt).session?.asks.isEmpty == true)
         run.show(heard(.line(Lines.following[1])), at: printedAt, reducesMotion: false)
 
         let page = try #require(run.page(at: printedAt).session)
 
-        #expect(page.isRead)
+        #expect(page.hasBoard)
         #expect(page.failure == nil)
         #expect(page.asks.map(\.id.ask) == ["vx3g", "ayh1"])
         #expect(page.parked.map(\.title) == ["Measure the line on a copy of Lee's board"])
@@ -206,7 +206,7 @@ struct WindowRunTests {
         let page = try #require(run.page(at: printedAt).session)
 
         #expect(page.failure == "This session isn't on the board.")
-        #expect(page.isRead)
+        #expect(page.hasBoard)
         #expect(page.asks.map(\.id.ask) == ["k1", "k3", "k2"])
         take(["sr-macapp": Lines.board], in: run)
         #expect(run.page(at: printedAt).session?.failure == nil)
@@ -217,8 +217,25 @@ struct WindowRunTests {
         let page = try #require(run.page(at: printedAt).session)
 
         #expect(page.failure == "This session isn't on the board.")
-        #expect(!page.isRead)
+        #expect(!page.hasBoard)
         #expect(page.asks.isEmpty)
+    }
+
+    /// `watch` down, no board can come: a page with none kept says why in the head's words for the board stale; one
+    /// with a board kept shows it, as the head says when it was last known current.
+    @Test func whileTheBoardIsStaleAPageWithNoBoardKeptSaysWhy() throws {
+        let run = opened()
+
+        run.show(heard(line(0), .exited(.status(1), stderr: "")), at: printedAt, reducesMotion: false)
+        #expect(run.page(at: printedAt).session?.failure == nil)
+        run.pick(.session("sr-dash02"))
+
+        let page = try #require(run.page(at: printedAt).session)
+
+        #expect(page.failure == "SitRep can't read the board. sitrep watch ended with status 1.")
+        #expect(!page.hasBoard)
+        run.show(heard(line(0)), at: printedAt, reducesMotion: false)
+        #expect(run.page(at: printedAt).session?.failure == nil)
     }
 
     @Test func aSessionPickedAgainShowsItsAsksAsLastKeptUntilItsBoardComes() throws {

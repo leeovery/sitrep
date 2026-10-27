@@ -112,8 +112,8 @@ struct HostedSidebar {
 
         last.begin()
         _ = last.hear(.line(line), at: at)
-        _ = run.show(last, at: at, reducesMotion: false)
-        _ = run.open()
+        run.show(last, at: at, reducesMotion: false)
+        run.open()
         return run
     }
 

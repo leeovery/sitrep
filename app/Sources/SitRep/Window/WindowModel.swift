@@ -304,7 +304,7 @@ final class WindowModel {
         let time = Date()
 
         run.settle(at: time)
-        following.follow(run.following)
+        following.follow(run.follow())
         send()
         now = time
         sidebar = run.sidebar(at: time)

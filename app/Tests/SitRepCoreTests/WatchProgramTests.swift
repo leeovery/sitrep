@@ -51,7 +51,7 @@ struct WatchProgramTests {
     @Test func aWriteFindingTheProgramsStdinClosedIsDropped() async {
         let running = RunningChild()
         let (input, writing) = AsyncStream<String>.makeStream()
-        let program = Self.sh("trap 'exit 0' TERM; exec 0<&-; sleep 60 & echo closed; wait")
+        let program = Self.sh("trap 'kill $!; exit 0' TERM; exec 0<&-; sleep 60 & echo closed; wait")
         var heard: [Heard] = []
 
         for await said in watchProgram(holding: running)(program, input) {
@@ -69,11 +69,12 @@ struct WatchProgramTests {
     }
 
     /// The pipe holds 64KB; a program that never reads leaves every write after that waiting on the writer's own
-    /// queue, holding up neither the caller nor the program's end.
+    /// queue, holding up neither the caller nor the program's end. Its only child reads /dev/null and goes with it, so
+    /// nothing holds the pipe once it ends.
     @Test func aProgramThatNeverReadsItsStdinHoldsUpNeitherTheLinesGivenNorItsEnd() async throws {
         let running = RunningChild()
         let (input, writing) = AsyncStream<String>.makeStream()
-        let program = Self.sh("sleep 60 & trap 'exit 0' TERM; echo ready; wait")
+        let program = Self.sh("trap 'kill $!; exit 0' TERM; sleep 60 </dev/null & echo ready; wait")
         let line = String(repeating: "a", count: 1024)
         let clock = ContinuousClock()
         var given: Duration?
@@ -96,6 +97,24 @@ struct WatchProgramTests {
         writing.finish()
         #expect(heard == [.line("ready"), .exited(.status(0), stderr: "")])
         #expect(try #require(given) < .seconds(1))
+    }
+
+    /// The write the full pipe holds up waits until its reader goes, then fails with EPIPE, sending no SIGPIPE, which
+    /// would end the tests; the writes after it fail at once, and the writer runs on to its end.
+    @Test func aWriteHeldUpByAReaderThatNeverReadsFailsAsTheReaderGoesAndTheWriterEnds() async throws {
+        let writer = Writer()
+        let (lines, writing) = AsyncStream<String>.makeStream()
+        let line = String(repeating: "a", count: 1024)
+        let writes = writer.write(lines)
+
+        for _ in 0 ..< 1024 {
+            writing.yield(line)
+        }
+        writing.finish()
+        // Time enough to fill the pipe with some of the 1MB given, so a write is held up as the reader goes.
+        try await Task.sleep(for: .milliseconds(200))
+        try writer.pipe.fileHandleForReading.close()
+        await writes.value
     }
 
     @Test func ofALongStderrOnlyTheLastLinesAreKept() async {

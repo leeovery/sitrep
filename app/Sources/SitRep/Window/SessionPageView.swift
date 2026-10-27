@@ -105,7 +105,7 @@ struct SessionPageView: View {
         if let failure = page.failure {
             Text(failure).font(WindowStyle.ui(12)).foregroundStyle(WindowStyle.faint).padding(.bottom, 20)
         }
-        if page.isRead {
+        if page.hasBoard {
             TwoColumns {
                 VStack(alignment: .leading, spacing: 26) {
                     StatusSection(status: page.status, opened: page.opened, now: now)

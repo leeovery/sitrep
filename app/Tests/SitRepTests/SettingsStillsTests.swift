@@ -79,7 +79,7 @@ struct SettingsStillsTests {
         _ page: SettingsPage, _ name: String, width: CGFloat = WindowStyle.size.width,
         height: CGFloat = WindowStyle.size.height, run: WindowRun = WindowRun()
     ) throws {
-        _ = run.pick(.settings)
+        run.pick(.settings)
         try render(stillWindow(run, at: Date()) { page }, name, size: CGSize(width: width, height: height))
     }
 
@@ -98,7 +98,7 @@ struct SettingsStillsTests {
 
         last.begin()
         _ = last.hear(.line(Lines.watch[0]), at: Date())
-        _ = run.show(last, at: Date(), reducesMotion: false)
+        run.show(last, at: Date(), reducesMotion: false)
         run.filter = Filter("le")
         try Self.window(page, "settings-under-a-filter", run: run)
     }
@@ -145,7 +145,7 @@ struct SettingsStillsTests {
     @Test func theFootInTheWindow() throws {
         let run = HostedSidebar.opened()
 
-        _ = run.pick(.settings)
+        run.pick(.settings)
 
         let drawing = try HostedSidebar(run).drawn().bitmap
         let rect = NSRect(x: 0, y: 0, width: drawing.pixelsWide, height: drawing.pixelsHigh)

@@ -61,6 +61,13 @@ public struct SitRepWatch<C: Clock>: Sendable where C.Duration == Duration {
 
         while !Task.isCancelled {
             let program = await cli.program(["watch"], limit: .infinity)
+
+            // Stopped while Lee's PATH was asked for, a run begun now would take what is followed from the watch
+            // started in this one's place.
+            guard !Task.isCancelled else {
+                break
+            }
+
             let input = following.begin()
             let run = watcher(program, input.lines)
             let started = clock.now

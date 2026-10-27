@@ -19,10 +19,10 @@ public struct Pending: Equatable, Sendable {
         case waiting
         /// Gone to `sitrep answer`, until it is written, or the board says it is on its way.
         case sending
-        /// Written, until its session's next board says where it is.
+        /// Written, until a board of its session has it written and says where it is.
         case written
-        /// Written, and the line since carried no board of its session: on its way, as the write proved, until a
-        /// board says more.
+        /// Written, and since then a line carried no board of its session, or `watch` went down: on its way, as the
+        /// write proved, until a board has it written and says more.
         case onItsWay
         /// `sitrep answer` refused it, in these words: nothing was written.
         case refused(String)
@@ -104,7 +104,8 @@ public struct Answers: Equatable, Sendable {
     }
 
     /// The session's open asks as a board of it has them: an answer sending, or refused, gives way to the board's word
-    /// once the ask has settled; one written, or on its way, to this board, whatever it says.
+    /// once the ask has settled; one written, or on its way, once the board has it written, as a board read before
+    /// the write does not.
     mutating func settle(_ asks: [Board.Ask], of session: String) {
         pending = pending.filter { ask, pending in
             guard ask.session == session else {
@@ -114,16 +115,38 @@ public struct Answers: Equatable, Sendable {
             switch pending.stage {
             case .waiting: return true
             case .sending, .refused: return !Self.isSettled(ask.ask, in: asks)
-            case .written, .onItsWay: return false
+            case .written, .onItsWay: return !Self.hasWritten(ask.ask, pressed: pending.pressed, in: asks)
             }
         }
     }
 
-    /// A line carried no board of the session: an answer written is on its way, as the write proved.
+    /// A line carried no board of the session: an answer written to it is on its way, as the write proved.
     mutating func noBoard(of session: String) {
-        for (ask, pending) in pending where ask.session == session && pending.stage == .written {
+        writtenOnItsWay { $0 == session }
+    }
+
+    /// No `watch` runs to carry boards: every answer written is on its way, as the write proved.
+    mutating func unwatched() {
+        writtenOnItsWay { _ in true }
+    }
+
+    private mutating func writtenOnItsWay(_ isOf: (String) -> Bool) {
+        for (ask, pending) in pending where isOf(ask.session) && pending.stage == .written {
             self.pending[ask]?.stage = .onItsWay
         }
+    }
+
+    /// The board has Lee's answer written: the ask closed, gone from the open asks, or Lee's answer to it since the
+    /// press, on its way, delivered or gone void.
+    private static func hasWritten(_ ask: String, pressed: Date, in asks: [Board.Ask]) -> Bool {
+        guard let now = asks.first(where: { $0.id == ask }) else {
+            return true
+        }
+        guard let reply = now.reply else {
+            return false
+        }
+
+        return reply.isAnswer && reply.since >= pressed
     }
 
     /// Settled, so that no answer may go to it: closed, gone from the open asks, or Lee's answer to it on its way.

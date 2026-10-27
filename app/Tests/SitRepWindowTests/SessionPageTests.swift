@@ -66,7 +66,7 @@ struct SessionPageTests {
     @Test func beforeItsBoardComesItSaysSoAndShowsNoAsks() throws {
         let page = try Self.page(opened(boards: [:]))
 
-        #expect(!page.isRead)
+        #expect(!page.hasBoard)
         #expect(page.failure == nil)
         #expect(page.asks.isEmpty)
     }

@@ -82,18 +82,86 @@ struct AnsweringTests {
         #expect(run.answers.pending.isEmpty)
     }
 
-    /// The answer's going is the change that board carries, so a board without it is one from before the write.
-    @Test func aBoardBeforeItIsWrittenLeavesItSendingTheFirstAfterSettlesItWhateverItSays() throws {
+    /// A board read before the write, by a look under way as `sitrep answer` wrote, or a line printed before it and
+    /// heard after: it shows the ask waiting with no reply, so the answer stays as it was, its buttons gone, and a
+    /// board that has it written settles it.
+    @Test func aBoardWithoutTheAnswerWrittenLeavesItWrittenUntilOneHasIt() throws {
+        let run = opened()
+
+        _ = run.press(.yes("Approve"), on: Self.yes, at: printedAt)
+        _ = run.due(at: printedAt.addingTimeInterval(2))
+        _ = run.answered(Self.yes, .written)
+        take(["sr-macapp": Lines.board], in: run)
+        #expect(run.answers.pending[Self.yes]?.stage == .written)
+        #expect(try Self.card(Self.yes, run).lines == [.sending("→ Approve")])
+        #expect(try Self.card(Self.yes, run).buttons.isEmpty)
+        take(["sr-macapp": Lines.onItsWay], in: run)
+        #expect(run.answers.pending.isEmpty)
+        #expect(try Self.card(Self.yes, run).lines == [.onItsWay("→ Approve", .turn)])
+    }
+
+    /// A reply of Lee's from before the press, gone void, is no sign of this answer; one gone void since is, and the
+    /// card takes its word.
+    @Test func onlyAReplySinceThePressHasTheAnswerWritten() throws {
+        let run = opened()
+        let void = { (since: Date) in
+            edited(Lines.board) { board in
+                board["asks"] = (board["asks"] as! [[String: Any]]).map { ask in
+                    guard ask["id"] as? String == "k1" else {
+                        return ask
+                    }
+
+                    let reply: [String: Any] = [
+                        "is": "notDelivered", "isAnswer": true, "words": "→ Approve",
+                        "since": since.timeIntervalSince1970 * 1000,
+                    ]
+
+                    return ask.merging(["reply": reply]) { $1 }
+                }
+            }
+        }
+
+        _ = run.press(.yes("Approve"), on: Self.yes, at: printedAt)
+        _ = run.due(at: printedAt.addingTimeInterval(2))
+        _ = run.answered(Self.yes, .written)
+        take(["sr-macapp": void(printedAt.addingTimeInterval(-60))], in: run)
+        #expect(run.answers.pending[Self.yes]?.stage == .written)
+        take(["sr-macapp": void(printedAt.addingTimeInterval(3))], in: run)
+        #expect(run.answers.pending.isEmpty)
+    }
+
+    /// Before the answer is written, a board is no sign of it either way: the answer is still sending.
+    @Test func aBoardBeforeTheWriteLeavesItSending() throws {
         let run = opened()
 
         _ = run.press(.yes("Approve"), on: Self.yes, at: printedAt)
         _ = run.due(at: printedAt.addingTimeInterval(2))
         take(["sr-macapp": Lines.board], in: run)
         #expect(try Self.card(Self.yes, run).lines == [.sending("→ Approve")])
-        _ = run.answered(Self.yes, .written)
-        take(["sr-macapp": Lines.board], in: run)
-        #expect(run.answers.pending.isEmpty)
-        #expect(try Self.card(Self.yes, run).buttons.first == .yes("Approve"))
+    }
+
+    /// `watch` down, no board can come, so the answer written is on its way, as the write proved, whichever comes
+    /// first; the next run's board says more.
+    @Test func writtenWhileTheBoardIsStaleItIsOnItsWayEitherWayRoundTheyCome() throws {
+        let staleFirst = opened()
+        let ended = heard(line(0), .exited(.status(1), stderr: ""))
+
+        _ = staleFirst.press(.yes("Approve"), on: Self.yes, at: printedAt)
+        _ = staleFirst.due(at: printedAt.addingTimeInterval(2))
+        staleFirst.show(ended, at: printedAt, reducesMotion: false)
+        #expect(try Self.card(Self.yes, staleFirst).lines == [.sending("→ Approve")])
+        _ = staleFirst.answered(Self.yes, .written)
+        #expect(try Self.card(Self.yes, staleFirst).lines == [.onItsWay("→ Approve", .turn)])
+        take(["sr-macapp": Lines.onItsWay], in: staleFirst)
+        #expect(staleFirst.answers.pending.isEmpty)
+
+        let writtenFirst = opened()
+
+        _ = writtenFirst.press(.yes("Approve"), on: Self.yes, at: printedAt)
+        _ = writtenFirst.due(at: printedAt.addingTimeInterval(2))
+        _ = writtenFirst.answered(Self.yes, .written)
+        writtenFirst.show(ended, at: printedAt, reducesMotion: false)
+        #expect(try Self.card(Self.yes, writtenFirst).lines == [.onItsWay("→ Approve", .turn)])
     }
 
     @Test func writtenWhileAnotherPageShowsAnotherSessionsBoardLeavesItWritten() {

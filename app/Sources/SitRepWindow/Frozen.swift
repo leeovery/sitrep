@@ -15,15 +15,17 @@ struct Frozen: Equatable, Sendable {
     private var closed: [String: Card.Closed] = [:]
     /// Those new since the session first showed, washed from when they came, until their washes end.
     private(set) var washed: [String: Date] = [:]
-    /// A board has come since the page showed: what the seed showed is not compared against.
+    /// Its first board has come: the boards after it are compared against it.
     private var hasBoard = false
 
-    /// Its asks laid out from its board as last kept, if there is one, until its next board comes, which lays them out
-    /// again.
-    init(session: String, kept board: SessionBoard?) {
+    /// Its asks laid out from its board as last kept, if there is one. A current board, its session followed without
+    /// a break since it came, is its first, as `watch` carries no other until it changes; else its next board to come
+    /// is, and lays them out again.
+    init(session: String, kept board: SessionBoard?, isCurrent: Bool) {
         self.session = session
         if let board {
             layOut(board)
+            hasBoard = isCurrent
         }
     }
 
@@ -35,8 +37,8 @@ struct Frozen: Equatable, Sendable {
     /// The asks closed since they showed, which Resolved leaves to Asks while they keep their places there.
     var kept: Set<String> { Set(closed.keys) }
 
-    /// The session's board as a line carried it, what is new washed from this time, if one is given. The first board
-    /// since the page showed lays its asks out, washing nothing and keeping nothing closed: Lee saw neither come nor go.
+    /// The session's board as a line carried it, what is new washed from this time, if one is given. Its first board
+    /// lays its asks out, washing nothing and keeping nothing closed: Lee saw neither come nor go.
     mutating func take(_ board: SessionBoard, washingAt time: Date?) {
         guard hasBoard else {
             layOut(board)

@@ -1,5 +1,6 @@
 import Foundation
 import SitRepCore
+import struct SitRepEdge.PanelBoard
 import SitRepPanel
 
 /// The SitRep window as the app runs it, with nothing of the screen in it: the board from `watch`'s lines in the
@@ -55,6 +56,11 @@ public final class WindowRun {
     private var washed: [String: Date] = [:]
     /// Each session's board as a line last carried it, kept while it is not followed, so it shows again as last kept.
     private var boards: [String: SessionBoard] = [:]
+    /// The sessions `watch` was last told to follow.
+    private var told: Set<String> = []
+    /// The sessions told without a break since their boards as kept came, a restart of `watch` no break: `watch`
+    /// carries each again only as it changes, so a page made for one has its board as kept for its first.
+    private var current: Set<String> = []
     /// Why the latest line to carry a session's board carried none, over its board as last kept.
     private var failed: [String: String] = [:]
     /// The asks of each session the page shows, in the order they first showed while it stands, those closed kept in
@@ -95,7 +101,7 @@ public final class WindowRun {
     /// The board as `watch` last printed it, heard at this time: the list takes it, held or not, a session new to
     /// needing Lee moving in at once, washed unless motion is reduced. A pick gone from the board gives way to what the
     /// window opens on; Settings stays. Then the sessions' boards the line carries are taken, each printed once, so
-    /// only as the line comes, never again from the board kept stale.
+    /// only as the line comes, never again from the board kept stale; and stale, every answer written is on its way.
     public func show(_ last: LastBoard, at time: Date, reducesMotion: Bool) {
         let fresh = last.stale == nil ? last.board : nil
         let moving = fresh?.newRows ?? []
@@ -113,6 +119,14 @@ public final class WindowRun {
         }
         for (session, board) in fresh?.boards ?? [:] {
             take(board, of: session, at: reducesMotion ? nil : time)
+        }
+        keepOnItsWayUnwatched()
+    }
+
+    /// While the board is stale no board can come, so an answer written is on its way, as the write proved.
+    private func keepOnItsWayUnwatched() {
+        if last.stale != nil {
+            answers.unwatched()
         }
     }
 
@@ -342,10 +356,11 @@ public final class WindowRun {
         keepShown()
     }
 
-    /// Each session the page shows keeps its asks in place, from its board as last kept.
+    /// Each session the page shows keeps its asks in place, from its board as last kept, which is its first where it
+    /// is current.
     private func keepShown() {
         for session in shown where frozen[session] == nil {
-            frozen[session] = Frozen(session: session, kept: boards[session])
+            frozen[session] = Frozen(session: session, kept: boards[session], isCurrent: current.contains(session))
         }
     }
 
@@ -366,18 +381,38 @@ public final class WindowRun {
         isOpen ? picks.standing ?? Set(shown) : []
     }
 
+    /// The sessions the window follows, as `watch` is to be told them now, after each change to the window: those
+    /// left out break their spans, so their boards as kept are no longer current, as `watch` carries each afresh once
+    /// it is followed again.
+    public func follow() -> Set<String> {
+        told = following
+        current.formIntersection(told)
+        return told
+    }
+
     /// What a session's page says where a line carries no board of it, `watch` finding no such session.
     static let notOnTheBoard = "This session isn't on the board."
 
-    /// A session's board as a line carried it, what is new on it washed from this time, if one is given; or none, as
-    /// `watch` found no such session, which says so over its board as last kept, and keeps it.
+    /// What a session's page with no board kept says while the board is stale, so no board can come: the head's
+    /// words for it, and why.
+    private var unwatched: String? {
+        last.stale.map { "\(PanelBoard.unread.title). \($0)" }
+    }
+
+    /// A session's board as a line carried it, what is new on it washed from this time, if one is given, and current
+    /// while it is followed; or none, as `watch` found no such session, which says so over its board as last kept, and
+    /// keeps it, no longer current.
     private func take(_ board: SessionBoard?, of session: String, at time: Date?) {
         guard let board else {
             failed[session] = Self.notOnTheBoard
+            current.remove(session)
             answers.noBoard(of: session)
             return
         }
 
+        if told.contains(session) {
+            current.insert(session)
+        }
         boards[session] = board
         failed[session] = nil
         answers.settle(board.asks, of: session)
@@ -410,13 +445,15 @@ public final class WindowRun {
         answers.due(at: time)
     }
 
-    /// What `sitrep answer` came to: written, the card takes the word of its session's next board, for where the
-    /// answer is; refused, the card says why, unless its board as last kept has the ask settled. Whether `watch` is to
-    /// look now, as it is after anything written, so that board comes at once.
+    /// What `sitrep answer` came to: written, the card takes the word of the first board of its session to have it
+    /// written, for where the answer is, and is on its way meanwhile while the board is stale; refused, the card says
+    /// why, unless its board as last kept has the ask settled. Whether `watch` is to look now, as it is after anything
+    /// written, so that board comes at once.
     public func answered(_ ask: AskAddress, _ written: WriteAnswer) -> Bool {
         switch written {
         case .written:
             answers.written(ask)
+            keepOnItsWayUnwatched()
             return true
         case let .refused(why):
             answers.refused(ask, why, on: boards[ask.session]?.asks)
@@ -611,8 +648,8 @@ public final class WindowRun {
             snoozed: session.snoozed, asks: cards(of: session, at: time), status: status, notes: notes,
             parked: parked, resolved: resolved,
             finish: isAway ? finishing[session.id] ?? .offered : nil,
-            isRead: kept != nil,
-            failure: failed[session.id],
+            hasBoard: kept != nil,
+            failure: failed[session.id] ?? (kept == nil ? unwatched : nil),
             opened: keepOpen(items)
         )
     }

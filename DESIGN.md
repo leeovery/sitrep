@@ -2386,16 +2386,15 @@ truth. There is still no background service. None of it is built now. Lee:
       change it is, like any other. A session dropped from the set is let
       go of, so followed again it is new, though dropped and followed again
       before a look. The boards of the sessions followed come on the line
-      the look after their follow line prints, which for a follow line
-      written before the watch started is the second, not the first: the
-      first look runs before the watch hears anything on its standard
-      input, so the app never counts on the first line carrying them (live,
-      27 October 2026: a follow line written into a fifo before the watch
-      started was carried on the second line, 6 to 45 ms after the first).
-      With none to carry, `boards` is `{}`. A
-      session's board changing
-      prints a line where the session is followed; one nobody follows prints
-      nothing unless the board every surface shows changed too. It took the
+      the look after their follow line prints. For a follow line written
+      before the watch started, the first line need not carry them, as
+      nothing orders the first look against the watch hearing its standard
+      input, so the app never counts on it (live, 27 October 2026: a
+      follow line written into a fifo before the watch started was carried
+      on the second line, 6 to 45 ms after the first). With none to carry,
+      `boards` is `{}`. A session's board changing prints a line where the
+      session is followed; one nobody follows prints nothing unless the
+      board every surface shows changed too. It took the
       place of `changed` (27 October 2026), the ids of the sessions whose
       `board --json` had changed since the last line, which the window ran
       `board --json` again for.
@@ -4270,7 +4269,9 @@ asked for the sessions back, and approved the redraw as it stands.
     `watch` that reads slowly, or not at all, holds up nothing; a write
     after `watch` ended, or once it closed its standard input, is dropped,
     the app ignoring the broken pipe (SIGPIPE) that would otherwise kill
-    it.
+    it. A run stopped while it waits on Lee's PATH, as SitRep starts
+    another on the plugin it settles on, begins nothing once the PATH
+    comes, so it never takes the set from the run started in its place.
   - **The reason.** The last 20 lines of `watch`'s stderr are kept, each to
     1KB. The reason is the last that says anything: the CLI's own `sitrep:`
     line when it ended on its own error, else the error's own line when Bun
@@ -4292,9 +4293,10 @@ asked for the sessions back, and approved the redraw as it stands.
     moved while `watch` was down. The SitRep window needs nothing of its
     own for it: the new run is told the set before anything else, every
     session in it new to that run, so the line after its first look
-    carries each of their boards afresh. The app decides no rows of its
-    own, so a row that needed Lee and came while `watch` was down gets no
-    swell or flash: accepted.
+    carries each of their boards afresh, each a change from the board the
+    window kept where its session was followed throughout (see "One
+    `watch`"). The app decides no rows of its own, so a row that needed Lee
+    and came while `watch` was down gets no swell or flash: accepted.
 - **The icon** in the menu bar is the light's glyph (see "The icon"): white
   on a dark menu bar and black on a light one, its bar lit orange while
   anything needs Lee, since the notch is on one display and the menu bar on
@@ -5376,20 +5378,37 @@ reaches a window only while that pane is on show).
           window's own writes that lands (an answer, a snooze, a wake, a
           finish), so `watch` looks at once; and to each run of `watch` as
           it starts, before anything else (see "How the app keeps `watch`
-          running"). Until a session's board comes, a session picked again,
-          or the window reopened on it, shows its board as last kept, its
-          asks among it; that first board lays the asks out afresh, washing
-          nothing and keeping nothing closed, as Lee saw neither come nor
-          go. A null in its place, `watch` finding no such session, says
-          "This session isn't on the board." over what was kept, and keeps
-          it. A board is taken as its line comes, never again from a board
-          gone stale. This took the place (27 October 2026, Lee's cleanup)
-          of a `board --json` run for each read: as a session was picked,
-          for each session of a project opened, again whenever `changed`
-          named one shown, after each write, and for every one shown on a
-          run's first board after another, of two reads crossing the one
-          asked for last taken. So there is no process per read, and a
-          session's board and its row come from one look.
+          running"). A session's first board is tied to its span of being
+          followed, not to its page: `watch` carries a board once as the
+          session joins the set, and then only as it changes, so a board
+          kept is current while the session has been followed without a
+          break since it came. A page made for a session followed so, as
+          one picked from its project's page, its project opened from its
+          page, or a run of picks ending where it stood, has that board for
+          its first: the asks laid out from it at once, and what comes and
+          goes after washed or kept in place. A session followed afresh,
+          picked again after another page, or the window reopened on it,
+          shows its board as last kept, its asks among it, until `watch`
+          carries it anew; that first board lays the asks out afresh,
+          washing nothing and keeping nothing closed, as Lee saw neither
+          come nor go. A restart of `watch` is no break: the next run
+          carries every board followed again, each a change from the board
+          kept, so what changed while it was down is washed or kept in
+          place, a page made meanwhile alike with one that showed
+          throughout. A null in a board's place, `watch` finding no such
+          session, says "This session isn't on the board." over what was
+          kept, and keeps it, no longer current. A board is taken as its
+          line comes, never again from a board gone stale. While the board
+          is stale, no board can come, so a page with none kept says why, as
+          the head says the board can't be read: "SitRep can't read the
+          board. sitrep watch ended with status 1." This took the place
+          (27 October 2026, Lee's cleanup) of a `board --json` run for each
+          read: as a session was picked, for each session of a project
+          opened, again whenever `changed` named one shown, after each
+          write, and for every one shown on a run's first board after
+          another, of two reads crossing the one asked for last taken. So
+          there is no process per read, and a session's board and its row
+          come from one look.
         - **Its counts.** A project's orange count, and a project's
           session's "2 waiting", are its rows needing Lee, stops among them;
           Asks' "3 waiting" is the asks waiting on Lee, as `waiting` counts
@@ -5421,10 +5440,16 @@ reaches a window only while that pane is on show).
           the one pressed last on the page showing while it waits (one on a
           page left goes as it would); then it is "sending" until `reply`
           says on its way, as an answer, or, once `sitrep answer` has
-          written it, until its session's next board, whatever it says (a
-          null in its place, the card says on its way, as the write
-          proved); then the card takes `reply`'s word: "on its way: waits for
-          the turn to end" mid-turn, "waits in its inbox for a window" away.
+          written it, until a board of its session has it written: the ask
+          closed or gone, or Lee's answer to it since the press, on its way,
+          delivered or gone void. A board that shows it waiting with no such
+          reply was read before the write, by a look under way as
+          `sitrep answer` wrote, or on a line heard after the write's
+          answer, and leaves it as it was. A null in its place, or the
+          board going stale, has the card say on its way, as the write
+          proved, until a board has it written; then the card takes
+          `reply`'s word: "on its way: waits for the turn to end" mid-turn,
+          "waits in its inbox for a window" away.
           A comment on its way keeps the buttons. `sitrep answer`'s refusal
           shows on the card in its words, its buttons back, until another
           session is picked, or a board has the ask closed or Lee's answer
