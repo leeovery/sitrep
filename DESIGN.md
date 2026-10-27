@@ -2593,9 +2593,10 @@ October 2026 went back to `brew upgrade` while the repository is private.
   2026, `Casks/sitrep.rb` in `leeovery/homebrew-tools`: `brew install
   --cask leeovery/tools/sitrep`, with `HOMEBREW_GITHUB_API_TOKEN` set to a
   token that can read the repository. It downloads the release's zip
-  through GitHub's API by the asset's id, the token in the url's headers,
-  and fails naming `HOMEBREW_GITHUB_API_TOKEN` when it is not set, rather
-  than with GitHub's 401. It leaves `auto_updates` unset, so `brew upgrade`
+  through GitHub's API by the asset's id. Its download strategy adds the
+  token only as it fetches, so `brew info --json` never shows it, and fails
+  naming `HOMEBREW_GITHUB_API_TOKEN` when it is not set, rather than with
+  GitHub's 401. It leaves `auto_updates` unset, so `brew upgrade`
   updates the app, and skips livecheck, which can't read a private
   repository. Its zap takes SitRep's preferences, caches, saved state,
   `~/Library/Logs/SitRep` and its copy of the plugin, never the board's
