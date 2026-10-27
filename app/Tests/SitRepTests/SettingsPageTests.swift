@@ -34,6 +34,8 @@ struct SettingsModelTests {
         var reads = 0
         var allows = 0
         var opened: [Leaves.Place] = []
+        /// The sounds played, by name, none of them aloud.
+        var played: [String] = []
         var answer: CheckedContinuation<GhosttyLeave, Never>?
         /// The notices helper slow to answer: each read of notifications held until `noticesAnswer` lets it go.
         var holdsNotices = false
@@ -42,6 +44,7 @@ struct SettingsModelTests {
         func services() -> SettingsServices {
             SettingsServices(
                 displays: { self.displays += 1; return [] }, hasGlass: true, jump: { _ in }, sendTest: {},
+                sounds: AlertSounds(names: ["Basso", "Glass", "Tink"]) { self.played.append($0) },
                 noticeLeave: {
                     self.reads += 1
                     if self.holdsNotices {
@@ -176,6 +179,16 @@ struct SettingsModelTests {
             await Task.yield()
         }
         #expect(settings.said.ghostty == .allowed)
+    }
+
+    /// As System Settings › Sound plays an alert sound chosen.
+    @Test func aSoundChosenIsSavedAndPlayedOnce() {
+        let mac = Mac()
+        let settings = Self.settings(mac)
+
+        settings.choose(sound: "Tink")
+        #expect(settings.preferences.app.sound == "Tink")
+        #expect(mac.played == ["Tink"])
     }
 
     @Test func eachButtonOpensItsPlace() {

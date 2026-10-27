@@ -70,7 +70,7 @@ plutil -insert LSMinimumSystemVersion -string "$(plutil -extract LSMinimumSystem
 # stay behind.
 plugin="$bundle/Contents/Resources/Plugin"
 mkdir "$plugin"
-git -C "$repo" ls-files -z --cached --others --exclude-standard -- .claude-plugin hooks core types sounds |
+git -C "$repo" ls-files -z --cached --others --exclude-standard -- .claude-plugin hooks core types |
   while IFS= read -r -d '' file; do
     if [[ -e "$repo/$file" ]]; then
       mkdir -p "$plugin/$(dirname "$file")"

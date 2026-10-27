@@ -267,7 +267,31 @@ struct AppSettingsTests {
         let keys = try #require(try JSONSerialization.jsonObject(with: saved) as? [String: Any]).keys
 
         #expect(read.notifiesNewAsks)
-        #expect(Set(keys) == ["notifiesNewAsks", "foldsAfter"])
+        #expect(read.playsSound)
+        #expect(read.sound == "Glass")
+        #expect(Set(keys) == ["notifiesNewAsks", "playsSound", "sound", "foldsAfter"])
+    }
+
+    /// As each window played Glass before SitRep played the sound.
+    @Test func aNewAskPlaysGlassByDefault() {
+        let read = SavedSettings<AppSettings>(MemoryDefaults()).read()
+
+        #expect(read.playsSound)
+        #expect(read.sound == "Glass")
+    }
+
+    @Test func theSoundAndItsSwitchAreSavedAndReadBack() {
+        let defaults = MemoryDefaults()
+        var settings = AppSettings()
+
+        settings.playsSound = false
+        settings.sound = "Tink"
+        SavedSettings(defaults).save(settings)
+
+        let read = SavedSettings<AppSettings>(defaults).read()
+
+        #expect(!read.playsSound)
+        #expect(read.sound == "Tink")
     }
 
     @Test func yourTurnFoldsAfterAnHourByDefault() {

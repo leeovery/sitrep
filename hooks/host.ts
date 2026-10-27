@@ -96,8 +96,6 @@ export type Host = {
     redraw: () => void
     /** Puts the engine's window over the board at the board's top. */
     toTop: () => Promise<unknown>
-    /** Plays a sound file of the mod's, by its path in the mod's folder. */
-    play: (asset: string) => Promise<void>
   }
   prompt: {
     /** Submits text as Lee's own message: the prompt that entered, or why it did not. */
