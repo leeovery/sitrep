@@ -2,20 +2,24 @@
  * `sitrep watch`: the board as every surface shows it, a line of JSON each
  * time it changes, for the SitRep app, which runs one as its child and
  * starts it again should it end (see "One engine, two front ends" in
- * DESIGN.md).
+ * DESIGN.md). Each line carries the boards, as `board --json` gives them,
+ * of the sessions the app follows that are new to its set or changed since
+ * last printed (follow.ts).
  *
  * - It looks at the state folder every second, reading again only a file
  *   that changed (held.ts) and folding again only a session whose files
  *   did. A session off the board, finished or idle past the views, is read
- *   again every 10 seconds: it changes rarely, and only a join or a post
- *   brings it back.
+ *   again every 10 seconds, unless it is followed: it changes rarely, and
+ *   only a join or a post brings it back.
+ * - It looks again the moment a line on its standard input says what the
+ *   app follows.
  * - It looks again the moment core says the board changes by time alone,
  *   as when a heartbeat goes stale, which changes no file. Time the Mac
  *   slept, told by its two clocks, ages no heartbeat (core's pauses.ts):
  *   folded again at the instant it was to go stale, a window the Mac slept
  *   through is live still.
- * - A line is printed at the start, and then only when what it would print
- *   differs from the last, its own time aside.
+ * - A line is printed at the start, and then only when the board it shows
+ *   differs from the last's, its own time aside, or it carries a board.
  * - It ends once the program that started it has gone, a line finds its
  *   standard output closed, or SIGTERM comes (ending.ts), and as the
  *   plugin's manifest comes to say another version, for the app to start
@@ -39,13 +43,15 @@ import {
   type Feed,
   type Pause,
   type ProjectRead,
+  type Session,
   type SessionFiles,
   type Shown,
 } from '../core'
 import { readBoard, readFolder, type SessionRead, type SessionReader } from './files'
+import { following, type Board } from './follow'
 import { heldReads } from './held'
 import type { Io } from './io'
-import { boardJson, feedText, watchLine } from './output'
+import { boardFields, feedText, watchLine, type BoardFields } from './output'
 
 /** How often it looks at the folder: as the mod's readers do. */
 export const POLL_MS = 1_000
@@ -53,18 +59,28 @@ export const POLL_MS = 1_000
 /** How often it reads again the sessions off the board, as every reader does. */
 export { OFF_BOARD_MS }
 
-/** A session as last read: its files, what they fold to, its board as `board --json` prints it, and whether it is off the board, with no window to hear. */
-type Kept = SessionRead & { board?: string; isOff: boolean }
+/** A session as last read: its files, what they fold to, its board, and whether it is off the board, with no window to hear. */
+type Kept = SessionRead & { board: Board; isOff: boolean }
+
+/** What a look is to read: a session off the board only on a look `isWhole` says, or one `followed`; and what it is to fold again: a session whose files changed, or every one once, `isDue`, the time core said the board would change came. */
+type Look = {
+  now: number
+  clock: Clock
+  isWhole: boolean
+  isDue: boolean
+  followed: ReadonlySet<string>
+}
 
 /** What a look found: every project and its sessions, and whether each session stood as at the last look, none folded anew. */
 type Looked = { read: ProjectRead[]; isSame: boolean }
 
-/** What the last line showed: the board as text, the version it ran, each session's `board --json` then, and the rows needing Lee shown so far. */
-type Printed = {
-  text: string
-  version: string | undefined
-  boards: ReadonlyMap<string, string>
-  shown: Shown
+/** What the last line showed: the board as text, the version it ran, and the rows needing Lee shown so far. */
+type Printed = { text: string; version: string | undefined; shown: Shown }
+
+const boardOf = (key: string, session: Session): Board => {
+  const fields = boardFields(key, session)
+
+  return { fields, text: JSON.stringify(fields) }
 }
 
 const folded = (key: string, files: SessionFiles, now: number, pauses: readonly Pause[]): Kept => {
@@ -73,33 +89,28 @@ const folded = (key: string, files: SessionFiles, now: number, pauses: readonly 
   return {
     files,
     session,
-    board: session === undefined ? undefined : boardJson(key, session),
+    board: session === undefined ? undefined : boardOf(key, session),
     isOff: isOffBoard(session, now),
   }
 }
 
 /**
- * The board, read at each look again only where it changed: a session off
- * the board read only on a look `isWhole` says, and folded again only once
- * its files changed or, `isDue`, the time core said it would change came.
- * No heartbeat ages through `clock`'s pauses.
+ * The board, read at each look again only where it changed, as the look
+ * says. No heartbeat ages through `clock`'s pauses. A session's board is
+ * found by its id alone, in the first project filing one by it that folds.
  */
 const boardReader = (io: Io, root: string) => {
   let kept = new Map<string, Kept>()
+  let boards = new Map<string, Board>()
 
-  const look = async (
-    now: number,
-    clock: Clock,
-    isWhole: boolean,
-    isDue: boolean,
-  ): Promise<Looked> => {
+  const look = async ({ now, clock, isWhole, isDue, followed }: Look): Promise<Looked> => {
     const looked = new Map<string, Kept>()
     let isSame = true
     const read: SessionReader = async (key, id, project) => {
       const at = `${key}/${id}`
       const last = kept.get(at)
       const folder =
-        last?.isOff === true && !isWhole
+        last?.isOff === true && !isWhole && !followed.has(id)
           ? last.files
           : await readFolder(io, sessionPaths(root, key, id))
       const files = { ...folder, project }
@@ -117,59 +128,64 @@ const boardReader = (io: Io, root: string) => {
 
     isSame &&= looked.size === kept.size
     kept = looked
+    boards = new Map()
+
+    for (const { project, sessions } of board) {
+      for (const { id } of sessions.filter(each => !boards.has(each.id))) {
+        boards.set(id, kept.get(`${project.key}/${id}`)?.board)
+      }
+    }
 
     return { read: board, isSame }
   }
 
-  return { look, boardOf: (key: string, id: string) => kept.get(`${key}/${id}`)?.board ?? '' }
+  return { look, boardOf: (id: string) => boards.get(id) }
 }
 
 /**
  * Prints the board's line at `clock`'s look where it differs from the last,
- * its own time aside, or where a session's `board --json` changed since:
- * what the watch has not shown with it, and those sessions. Gives what was
- * last printed.
+ * its own time aside, or where it carries `boards`: with what the watch has
+ * not shown. Gives what was last printed.
  */
 const print = (
   io: Io,
   last: Printed | undefined,
   feed: Feed,
-  boardOf: (key: string, id: string) => string,
+  boards: Readonly<Record<string, BoardFields | null>>,
   clock: Clock,
   version: string | undefined,
 ): Printed => {
   const text = feedText(feed, version)
-  const boards = new Map(
-    feed.projects.flatMap(project =>
-      project.sessions.map(session => [session.id, boardOf(project.key, session.id)] as const),
-    ),
-  )
-  const changed =
-    last === undefined
-      ? []
-      : [...boards].filter(([id, board]) => last.boards.get(id) !== board).map(([id]) => id)
 
-  if (last !== undefined && text === last.text && changed.length === 0) {
+  if (last !== undefined && text === last.text && Object.keys(boards).length === 0) {
     return last
   }
 
   const { news, shown } = newRows(last?.shown, feed, ownTime(clock))
 
-  io.out(`${watchLine(feed, version, clock.at, news, changed)}\n`)
+  io.out(`${watchLine(feed, version, clock.at, news, boards)}\n`)
 
-  return { text, version, boards, shown }
+  return { text, version, shown }
 }
 
 /**
- * The run's end, a wait it cuts short, its timer let go so that nothing
- * holds the run open, and the listening stopped. Its end is listened to
- * once, not raced at every wait: each race would leave it a reaction, held
- * for as long as the run goes on.
+ * The run's end, and its waits: each cut short by the end or by a wake, a
+ * wake with no wait under way ending the next at once. A wait cut short
+ * has its timer let go, so that nothing holds the run open, and stopping
+ * stops the listening for the end. That end is listened to once, not raced
+ * at every wait: each race would leave it a reaction, held for as long as
+ * the run goes on.
  */
 const untilEnded = (io: Io) => {
   const { ended, stop } = io.ending()
   let isEnded = false
-  let wake = () => {}
+  let isWoken = false
+  let cut: (() => void) | undefined
+
+  const wake = () => {
+    isWoken = cut === undefined
+    cut?.()
+  }
 
   void ended.then(() => {
     isEnded = true
@@ -178,15 +194,28 @@ const untilEnded = (io: Io) => {
 
   return {
     isEnded: () => isEnded,
+    wake,
     wait: (ms: number) =>
       new Promise<void>(resolve => {
-        const waiting = io.wait(ms)
-
-        wake = () => {
-          waiting.cancel()
+        const done = () => {
+          cut = undefined
           resolve()
         }
-        void waiting.then(resolve)
+
+        if (isWoken) {
+          isWoken = false
+          done()
+
+          return
+        }
+
+        const waiting = io.wait(ms)
+
+        cut = () => {
+          waiting.cancel()
+          done()
+        }
+        void waiting.then(done)
       }),
     stop,
   }
@@ -217,20 +246,26 @@ const releaseOf = (io: Io, held: Io) => {
  * Watches the board until the run is to end, or the plugin's manifest says
  * a version other than the one it started on. A file that does not read is
  * passed over for the look; anything else that fails ends it, for the app
- * to start it again. However it ends, it stops listening for its end, which
- * would hold the run open.
+ * to start it again. However it ends, it stops listening for its end and to
+ * its standard input, either of which would hold the run open.
  */
 export const watch = async (io: Io) => {
   const run = untilEnded(io)
+  const follows = following(io, run.wake)
 
   try {
-    await watchUntil(io, run)
+    await watchUntil(io, run, follows)
   } finally {
+    follows.stop()
     run.stop()
   }
 }
 
-const watchUntil = async (io: Io, run: ReturnType<typeof untilEnded>) => {
+const watchUntil = async (
+  io: Io,
+  run: ReturnType<typeof untilEnded>,
+  follows: ReturnType<typeof following>,
+) => {
   const held = heldReads(io)
   const release = releaseOf(io, held)
   const reader = boardReader(held, rootOf(io.env))
@@ -245,13 +280,21 @@ const watchUntil = async (io: Io, run: ReturnType<typeof untilEnded>) => {
 
     clock = clockAt(clock, now, io.uptime())
 
+    const followed = follows.followed()
+    const isWhole = isWholeLook(now)
     const isDue = expiry !== undefined && now >= expiry
-    const { read, isSame } = await reader.look(now, clock, isWholeLook(now), isDue)
+    const { read, isSame } = await reader.look({ now, clock, isWhole, isDue, followed })
+    const boards = follows.unprinted(followed, reader.boardOf)
 
     expiry = nextExpiry(read, now)
 
-    if (last === undefined || !isSame || version !== last.version) {
-      last = print(io, last, feedOf(read, now, version), reader.boardOf, clock, version)
+    if (
+      last === undefined ||
+      !isSame ||
+      version !== last.version ||
+      Object.keys(boards).length > 0
+    ) {
+      last = print(io, last, feedOf(read, now, version), boards, clock, version)
     }
 
     await run.wait(Math.min(POLL_MS, (expiry ?? Infinity) - now))

@@ -61,8 +61,10 @@ board's. The old words are left in two places until what holds them is
 rebuilt: the spike's `lip`, in its views only, since the model the build
 took from it says the notch (19 October 2026); and the app's Swift
 identifiers, until the edge and the menu rebuild the app, later in stage 3.
-The CLI's JSON keeps its names (`works`, `work`), as "Versions side by
-side" has it.
+The CLI's JSON kept its old names (`works`, `work`) until 28 October 2026,
+when `list --json`'s projects came to hold `sessions` and `board --json` to
+give its session as `session`, their `v`s moving, as `watch` was made to
+carry boards (see "One engine, two front ends").
 
 ## Sessions outlive their windows
 
@@ -1431,7 +1433,7 @@ sitrep wake <ask>... [--session <id>]
   meaning only counts fewer):
   - each ask, in `board --json` and `watch`: `snoozedUntil`, while it is
     snoozed, else null;
-  - each session and project, in `list --json`, `board --json`'s `work` and
+  - each session and project, in `list --json`, `board --json`'s session and
     `watch`'s `projects`: `snoozed`, its asks snoozed;
   - `watch`: `snoozed`, the Snoozed rows.
 
@@ -2008,15 +2010,19 @@ truth. There is still no background service. None of it is built now. Lee:
     `--project` leaves it out.
 
     ```
-    { "v": 1, "here": "switchboard",
+    { "v": 2, "here": "switchboard",
       "projects": [ { "key": "switchboard", "name": "Switchboard",
                       "open": 1, "waiting": 2, "snoozed": 1, "parked": 1,
                       "updatedAt": 1760000000000,
-                      "works": [ { "id": "sr-k3f9qa", "name": "Dashboard redesign",
-                                   "summary": "...", "now": ["..."], "next": null,
-                                   "isOpen": true, "waiting": 1, "snoozed": 1,
-                                   "parked": 1, "updatedAt": 1760000000000 } ] } ] }
+                      "sessions": [ { "id": "sr-k3f9qa", "name": "Dashboard redesign",
+                                      "summary": "...", "now": ["..."], "next": null,
+                                      "isOpen": true, "waiting": 1, "snoozed": 1,
+                                      "parked": 1, "updatedAt": 1760000000000 } ] } ] }
     ```
+
+    Each project's `sessions` were its `works`, their name from before a
+    piece of work was called a session, until 28 October 2026, which moved
+    `v` to 2.
 
     `snoozed` (23 October 2026) counts the asks Lee snoozed, which `waiting`
     leaves out (see "Snooze"); plain `list` says it among a session's facts,
@@ -2029,19 +2035,21 @@ truth. There is still no background service. None of it is built now. Lee:
     is left to trip on the field's going.
 
     `board --json` is
-    `{ v, project: { key, name }, work, asks, parked, log, resolved }`: the
-    session as `list` gives it, its open asks, what it parked, its latest log
-    lines, and its resolved asks (20 October 2026), closed, the ignored aside,
-    the newest closed first, as a session's Resolved lists them. Its `v` is 2
-    since its asks say what they want back (`wants`, `yes`, `needs`) in place
-    of their kind; `list`'s stays 1. Each ask, open or resolved, carries
+    `{ v, project: { key, name }, session, asks, parked, log, resolved }`:
+    the session as `list` gives it, its open asks, what it parked, its latest
+    log lines, and its resolved asks (20 October 2026), closed, the ignored
+    aside, the newest closed first, as a session's Resolved lists them.
+    `watch` carries it too, exactly so, for each session the app follows
+    (below). Its `v` is 3 since its session is `session` (28 October 2026),
+    `work` before; 2 since its asks say what they want back (`wants`, `yes`,
+    `needs`) in place of their kind. Each ask, open or resolved, carries
     `reply`, where Lee's reply to it stands (below, under `answer`), and
     `snoozedUntil`, when Lee's snooze of it wakes while it is snoozed, else
     null, as for one Lee's reply is on its way to and for every ask of a
     finished session (23 October 2026; see "Snooze"); a resolved one when
     it closed, by Lee's answer or Claude's resolve, and Claude's reason
     where Claude resolved it with one, Lee's answer having closed it first
-    or not. `work` carries `snoozed`, as `list`'s sessions do:
+    or not. `session` carries `snoozed`, as `list`'s sessions do:
 
     ```
     { "id": "k1", "wants": "yes", "yes": "Go", "title": "Give the go for stage 3",
@@ -2167,16 +2175,28 @@ truth. There is still no background service. None of it is built now. Lee:
   - `watch`, designed 16 October 2026 and built 19 October 2026, is how the
     SitRep app hears the board: one per Mac, which the app starts as its
     child, so it stops with the app, and the app starts it again if it
-    exits: no daemon. It takes no words but `--help`. It reads the one
-    folder that holds every project and session (see Storage), and what it
-    prints is core's: a session's state and its rows (`core/rows.ts`); the
-    board as every surface shows it, what is new, and when the board next
-    changes by time alone (`core/feed.ts`).
+    exits: no daemon. It takes no words but `--help`; on its standard input
+    it hears which sessions the app follows, whose boards its lines carry
+    (below, **Following**). It reads the one folder that holds every project
+    and session (see Storage), and what it prints is core's: a session's
+    state and its rows (`core/rows.ts`); the board as every surface shows
+    it, what is new, and when the board next changes by time alone
+    (`core/feed.ts`).
+    - **Two-way, 28 October 2026.** The SitRep window read a session's
+      detail by running `board --json`, a process for each read: as a
+      session was picked, for each session of a project opened, again
+      whenever the line named one shown changed, and after each of its own
+      writes. Each run read and folded again a session the app's one
+      `watch` held folded already. So the app tells the watch what the
+      window follows, and the watch prints those boards in its lines: no
+      process per read, and a session's board and its row always come from
+      the same look.
     - **A line per change.** A line of JSON at its start, then one only when
-      what it would print differs from the last, its own time aside, each
-      written whole and at once. A finished session is in no row and no
-      project, though a window still live on it is among the windows; an
-      away session is in both, its asks still counting. It carries no
+      the board it shows differs from the last line's, its own time aside,
+      or it carries a board (below, `boards`), each written whole and at
+      once. A finished session is in no row and no project, though a
+      window still live on it is among the windows; an away session is in
+      both, its asks still counting. It carries no
       project without a current session, nor does `list --json`, so the
       SitRep window's Projects is every project it carries, those with
       nothing open among them (see "The SitRep window"). A state folder not there yet, as
@@ -2184,7 +2204,7 @@ truth. There is still no background service. None of it is built now. Lee:
       comes into it shows.
 
       ```
-      { "v": 2, "at": 1760000060000, "version": "0.2.0",
+      { "v": 3, "at": 1760000060000, "version": "0.2.0",
         "head": { "needYou": 2, "sessions": 1 },
         "rows": [
           { "session": "sr-k3f9qa", "section": "needsYou",
@@ -2236,7 +2256,14 @@ truth. There is still no background service. None of it is built now. Lee:
                        "tool": { "name": "Read", "subject": "..." },
                        "question": null },
             "attachedAt": 1760000000000 } ],
-        "new": [], "changed": [] }
+        "new": [],
+        "boards": {
+          "sr-k3f9qa": { "v": 3,
+                         "project": { "key": "switchboard", "name": "Switchboard" },
+                         "session": { "id": "sr-k3f9qa", ... },
+                         "asks": [ ... ], "parked": [], "log": [ ... ],
+                         "resolved": [] },
+          "sr-zzzzzz": null } }
       ```
 
     - `rows` are the panel's, the strip's and the menu's, in their order
@@ -2288,8 +2315,9 @@ truth. There is still no background service. None of it is built now. Lee:
       `doing`, and its open asks, as `board --json` lists them (core's
       `openAsks`): waiting, on Lee or on a window to deliver Lee's reply, or
       replied, Claude's to act on, each with its `reply`, which tells them
-      apart. So a reply going into a session's inbox is a line, the session
-      among `changed`, and its mark is another. `doing` (20 October 2026) is
+      apart. So a reply going into a session's inbox is a line, its board
+      among `boards` where the app follows it, and its mark is another.
+      `doing` (20 October 2026) is
       what the session is doing, as the SitRep window's line under its name
       says it, there for every session (core's `doingOf`): a window's
       permission prompt or question, the one shown first; else the window its
@@ -2329,9 +2357,33 @@ truth. There is still no background service. None of it is built now. Lee:
       "Snooze"). One that leaves Snoozed for nowhere, as when Lee replies to
       it, is a line gone as any is, so taken back after its time it is not
       new.
-    - `changed`: the sessions on the line whose `board --json` changed since
-      the last, one new to the line among them, for the SitRep window to
-      read again; none on the first.
+    - **Following.** Each line `watch` reads on its standard input is JSON,
+      `{"follow": ["sr-k3f9qa", ...]}`: the whole set of sessions the SitRep
+      window follows now, in place of the set last given. Every such line,
+      its set changed or not, wakes the watch for a look at once, cutting its
+      wait short, or, heard while a look is under way, making the next come
+      at once: so the app has it look straight after a write of its own. A
+      line is whole at its newline; one that does not read (not JSON, no
+      `follow`, or a `follow` that is not a list of text) is passed over,
+      changing and waking nothing. Standard input ending changes nothing:
+      the set last given stands, a piece with no newline after it passed
+      over, and the watch ends only as under **Ending**. Run by hand, its
+      standard input a terminal or `/dev/null`, it follows nothing, and
+      prints as it did before it heard any (`cli/follow.ts`).
+    - `boards`: by session id, the board of each session followed that is
+      new to the set or whose board changed since the watch last printed
+      it, as `board --json` prints it, parsed, not as text; null where the
+      watch finds no such session, as one no project files or one whose
+      `session.json` does not fold. A null is printed once, as the change it
+      is, like any other. A session dropped from the set is let go of, so
+      followed again it is new, though dropped and followed again before a
+      look. The first line carries the boards of the sessions followed as
+      it starts; with none, `boards` is `{}`. A session's board changing
+      prints a line where the session is followed; one nobody follows prints
+      nothing unless the board every surface shows changed too. It took the
+      place of `changed` (28 October 2026), the ids of the sessions whose
+      `board --json` had changed since the last line, which the window ran
+      `board --json` again for.
     - It is stable as `list --json` is: every field is always there (a list
       empty, any other value null where there is none), and `v` moves only
       with a change a reader would trip on. A new value in a field that
@@ -2347,18 +2399,24 @@ truth. There is still no background service. None of it is built now. Lee:
       October 2026): a row became a session holding its lines, keyed by the
       session, with its section; what was a row's (its key, `is`, `ask`,
       `writer`, `first` and its own `since`) became a line's; and `head`'s
-      `needYou` counts lines. The app reads 2 alone, so one built before
-      it says it can't read the board until it is built again.
-    - **The loop.** It looks every second, as the mod's readers do: a file
-      is read again only once its size or time moved, a folder listed again
-      only once its time moved, as an entry made, removed or renamed there
-      moves it, and a session folded again only once its files changed
-      (`cli/held.ts`). A session off the board, finished or idle past the
+      `needYou` counts lines. The app read 2 alone, so one built before
+      it said it couldn't read the board until it was built again. `boards`
+      in place of `changed` moved `v` to 3 (28 October 2026), the app
+      reading 3 alone from then.
+    - **The loop.** It looks every second, as the mod's readers do, and at
+      once on a line on its standard input: a file is read again only once
+      its size or time moved, a folder listed again only once its time
+      moved, as an entry made, removed or renamed there moves it, and a
+      session folded again only once its files changed (`cli/held.ts`). A
+      session's board is made as it is folded, so carrying one costs no
+      fold of its own. A session off the board, finished or idle past the
       views, is read every 10 seconds: it changes rarely, and only a join or
       a post brings it back. A finished one a live window still holds is
-      read at every look, so the window's state is heard at once. The shell
-      lists, stats and reads at once, not through a promise's round trip to
-      a thread, at about a tenth of the cost (measured on Bun 1.4). At rest
+      read at every look, so the window's state is heard at once, and so is
+      one followed, off the board or not, so its board is never a look
+      behind. The shell lists, stats and reads at once, not through a
+      promise's round trip to a thread, at about a tenth of the cost
+      (measured on Bun 1.4). At rest
       it costs about half a percent of a core over a copy of Lee's board (50
       sessions, 13 of them current, 11 windows beating), 0.15% over a board
       of three. Polling, not the
@@ -2425,8 +2483,10 @@ truth. There is still no background service. None of it is built now. Lee:
       as it starts is no move. A folder it cannot look in ends it with a
       `sitrep:` line on stderr and exit 1, for the app to start it again.
       However it ends, a failure among them, it stops listening for its end
-      and lets go of the wait under way, either of which would otherwise
-      hold the process open.
+      and to its standard input, and lets go of the wait under way, any of
+      which would otherwise hold the process open: Bun lets a run end with
+      its standard input's pipe still open once nothing listens and it is
+      paused (probed on Bun 1.4.3).
     - Tried live (19 October 2026) over a state folder of its own: an ask
       and a note posted with the CLI, and heartbeats written by hand with a
       working tool, a permission prompt and a question, each became a line
@@ -2600,11 +2660,11 @@ October 2026 went back to `brew upgrade` while the repository is private.
   from the clone (below).
 - **Everyone else** (Linux, Windows, no menu bar wanted) was to install the
   plugin alone from the GitHub marketplace: `claude plugin marketplace add
-  leeovery/sitrep`, then `claude plugin install sitrep@sitrep`. It still
-  installs that way, but since 27 October 2026 the plugin without the app is
-  no longer supported: the app carries some of what the board does, such as
-  the sound for a new ask (see "Settings"). Lee: "This isn't a supported
-  thing anymore. Although it's possible, they come as one."
+  leeovery/sitrep`, then `claude plugin install sitrep@sitrep`. Since 27
+  October 2026 the plugin and the app come as one, and there is no
+  everyone else: the app carries some of what the board does, such as the
+  sound for a new ask (see "Settings"). Lee: "This isn't a supported thing
+  anymore. Although it's possible, they come as one."
 - **Ruled out:** the plugin first, its mod building the app whenever the
   plugin's version moved on (a Claude mod compiling a Mac app, and Xcode's
   tools wanted on every Mac); the Mac App Store, whose sandbox forbids

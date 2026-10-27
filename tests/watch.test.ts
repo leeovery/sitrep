@@ -39,13 +39,25 @@ import { PROJECT, REPO, ROOT, WHERE } from './world'
 
 type Terminal = ReturnType<typeof terminal>
 
+/** A session's board as a watch line carries it: the fields the tests look at. */
+type Board = {
+  v: number
+  session: { id: string; name: string }
+  log: { id: string | null; text: string }[]
+}
+
 const HOUR = 60 * MIN
 
 /** Another session of Switchboard's, no window holding it. */
 const LOBBY = { ...META, id: 'sr-bbbbbb', name: 'Lobby' }
 
-/** What a test does to the files at one of the watch's waits. */
-type Step = () => void
+/**
+ * What a test does at one of the watch's waits: to the files, or to its
+ * standard input, once the wait's time has passed; or, `atOnce`, as the wait
+ * is under way, before any of its time passes, the wait then going on
+ * unless what it did cut it short.
+ */
+type Step = (() => void) | { atOnce: () => void }
 
 /** A watch line, as read back: the fields the tests look at. */
 type Printed = {
@@ -74,13 +86,13 @@ type Printed = {
     state: { is: string } | null
   }[]
   new: string[]
-  changed: string[]
+  boards: Record<string, Board | null>
 }
 
-const still: Step = () => {}
+const still = () => {}
 
 /** Steps that change nothing, a look each. */
-const looks = (count: number): Step[] => Array.from({ length: count }, () => still)
+const looks = (count: number) => Array.from({ length: count }, () => still)
 
 /**
  * `sitrep watch` over the terminal's files, `fs` standing in for any of its
@@ -100,9 +112,18 @@ const watched = async (
   let err = ''
   let last: { isCancelled: boolean } | undefined
   const waited = async (ms: number, waiting: { isCancelled: boolean }) => {
-    await t.io.wait(ms)
-
     const step = queue.shift()
+
+    if (step !== undefined && 'atOnce' in step) {
+      await Promise.resolve()
+      step.atOnce()
+
+      if (waiting.isCancelled) {
+        return
+      }
+    }
+
+    await t.io.wait(ms)
 
     if (step === undefined) {
       last = waiting
@@ -111,7 +132,9 @@ const watched = async (
       return new Promise<void>(() => {})
     }
 
-    step()
+    if (typeof step === 'function') {
+      step()
+    }
   }
   const io: Io = {
     ...t.io,
@@ -176,6 +199,12 @@ const keys = (line: Printed | undefined) =>
 /** A watch line's first row's first line. */
 const firstLine = (line: Printed | undefined) => line?.rows[0]?.lines[0]
 
+/** The app following these sessions, a line on the watch's standard input. */
+const follow = (t: Terminal, ...ids: string[]) => t.send(`${JSON.stringify({ follow: ids })}\n`)
+
+/** The sessions whose boards a watch line carries. */
+const carried = (line: Printed | undefined) => Object.keys(line?.boards ?? {})
+
 /** Switchboard, living in REPO, and the session under test there holding `lines`, its window W1 on screen and on your turn. */
 const held = (lines: Line[] = [], options: Parameters<typeof terminal>[0] = {}) => {
   const t = terminal(options)
@@ -189,7 +218,7 @@ const held = (lines: Line[] = [], options: Parameters<typeof terminal>[0] = {}) 
   return { t, paths }
 }
 
-test('the first line is the board as every surface shows it, with nothing new and nothing changed, and no load stamp', async () => {
+test('the first line is the board as every surface shows it, with nothing new, no board while nothing is followed, and no load stamp', async () => {
   const t = terminal()
 
   t.project(PROJECT.key, { name: PROJECT.name, directory: REPO, created: T0, by: W1 })
@@ -218,7 +247,7 @@ test('the first line is the board as every surface shows it, with nothing new an
   expect({ exit, err }).toEqual({ exit: EXIT.done, err: '' })
   expect(lines).toEqual([
     {
-      v: 2,
+      v: 3,
       at: NOW,
       version: CLI_VERSION,
       head: { needYou: 1, sessions: 1 },
@@ -320,7 +349,7 @@ test('the first line is the board as every surface shows it, with nothing new an
         },
       ],
       new: [],
-      changed: [],
+      boards: {},
     },
   ])
 })
@@ -377,23 +406,29 @@ test("a window on its own work is a row of that kind after working, its line say
   expect(line?.windows.map(window => window.state?.is)).toEqual(['onItsWork', 'onItsWork'])
 })
 
-test('a post is a line at the next look, its session changed; a new ask is new on that line alone', async () => {
+test('a post is a line at the next look, its board carried; a new ask is new on that line alone', async () => {
   const { t, paths } = held()
+
+  follow(t, META.id)
+
   const { lines } = await watched(t, [
     () => post(t, paths, yesAsk('k2', 'Try it on the iPad', 'It works')),
     still,
     () => post(t, paths, note('n1', 'Round 3 drawn')),
   ])
 
-  expect(lines.map(line => [line.at, keys(line), line.new, line.changed])).toEqual([
-    [NOW, [`turn:${META.id}`], [], []],
+  expect(lines.map(line => [line.at, keys(line), line.new, carried(line)])).toEqual([
+    [NOW, [`turn:${META.id}`], [], [META.id]],
     [NOW + POLL_MS, [`ask:${META.id}:k2`], [`ask:${META.id}:k2`], [META.id]],
     [NOW + 3 * POLL_MS, [`ask:${META.id}:k2`], [], [META.id]],
   ])
 })
 
-test("an answer going into the session's inbox is a line, its ask on its way, needing Lee no more, and its session changed; the window's mark is another, the ask gone", async () => {
+test("an answer going into the session's inbox is a line, its ask on its way, needing Lee no more, and its board carried; the window's mark is another, the ask gone", async () => {
   const { t, paths } = held([[T0, yesAsk('k1', 'Give the go for stage 3', 'Go')]])
+
+  follow(t, META.id)
+
   const { lines } = await watched(t, [
     () => appendTo(t, paths.letters('cli'), reply('r1', 'k1', 'yes')),
     still,
@@ -405,8 +440,8 @@ test("an answer going into the session's inbox is a line, its ask on its way, ne
       .flatMap(session => session.asks.map(ask => ask.reply)),
   )
 
-  expect(lines.map(line => [line.at, keys(line), line.head, line.changed])).toEqual([
-    [NOW, [`ask:${META.id}:k1`], { needYou: 1, sessions: 1 }, []],
+  expect(lines.map(line => [line.at, keys(line), line.head, carried(line)])).toEqual([
+    [NOW, [`ask:${META.id}:k1`], { needYou: 1, sessions: 1 }, [META.id]],
     [NOW + POLL_MS, [`turn:${META.id}`], { needYou: 0, sessions: 1 }, [META.id]],
     [NOW + 3 * POLL_MS, [`turn:${META.id}`], { needYou: 0, sessions: 1 }, [META.id]],
   ])
@@ -458,6 +493,9 @@ test(
   SLOW,
   async () => {
     const { t } = held()
+
+    follow(t, META.id)
+
     const { lines } = await watched(t, looks(100))
 
     expect(
@@ -466,10 +504,10 @@ test(
         keys(line),
         line.projects[0]?.sessions[0]?.state,
         line.windows.map(window => window.writer),
-        line.changed,
+        carried(line),
       ]),
     ).toEqual([
-      [NOW, [`turn:${META.id}`], 'yourTurn', [W1], []],
+      [NOW, [`turn:${META.id}`], 'yourTurn', [W1], [META.id]],
       [NOW + STALE_MS + 1, [], 'away', [], [META.id]],
     ])
   },
@@ -479,17 +517,20 @@ test(
 const asleep = (line: Printed | undefined) =>
   line?.snoozed.flatMap(row => row.lines.map(each => each.key))
 
-test('a snooze running out is a line the moment it does, though no file changed: its ask back in Needs you and new, its session changed', async () => {
+test('a snooze running out is a line the moment it does, though no file changed: its ask back in Needs you and new, its board carried', async () => {
   const wakes = NOW + 2_500
   const { t } = held([
     [T0, yesAsk('k1', 'Review round 1')],
     [T0 + MIN, snooze('k1', wakes)],
   ])
+
+  follow(t, META.id)
+
   const { lines } = await watched(t, looks(4))
   const k1 = `ask:${META.id}:k1`
 
-  expect(lines.map(line => [line.at, keys(line), asleep(line), line.new, line.changed])).toEqual([
-    [NOW, [`turn:${META.id}`], [k1], [], []],
+  expect(lines.map(line => [line.at, keys(line), asleep(line), line.new, carried(line)])).toEqual([
+    [NOW, [`turn:${META.id}`], [k1], [], [META.id]],
     [wakes, [k1], [], [k1], [META.id]],
   ])
   expect(lines[0]?.snoozed, "the row as DESIGN's example prints it").toEqual([
@@ -521,6 +562,9 @@ test('a snooze running out is a line the moment it does, though no file changed:
 
 test('a snooze posted is a line, its ask in Snoozed and nothing new; woken by Lee, it is back in Needs you, nothing new either', async () => {
   const { t, paths } = held([[T0, yesAsk('k1', 'Review round 1')]])
+
+  follow(t, META.id)
+
   const { lines } = await watched(t, [
     () => post(t, paths, snooze('k1', NOW + 9 * HOUR)),
     still,
@@ -528,8 +572,8 @@ test('a snooze posted is a line, its ask in Snoozed and nothing new; woken by Le
   ])
   const k1 = `ask:${META.id}:k1`
 
-  expect(lines.map(line => [line.at, keys(line), asleep(line), line.new, line.changed])).toEqual([
-    [NOW, [k1], [], [], []],
+  expect(lines.map(line => [line.at, keys(line), asleep(line), line.new, carried(line)])).toEqual([
+    [NOW, [k1], [], [], [META.id]],
     [NOW + POLL_MS, [`turn:${META.id}`], [k1], [], [META.id]],
     [NOW + 3 * POLL_MS, [k1], [], [], [META.id]],
   ])
@@ -937,4 +981,258 @@ test('a finished session’s live window is heard at each look, not with the ses
     [NOW, ['yourTurn']],
     [NOW + POLL_MS, ['working']],
   ])
+})
+
+/** A session's board as `board --json` prints it, as the clock stands. */
+const boardJsonOf = async (t: Terminal, id: string) =>
+  JSON.parse((await t.run('board', '--json', '--session', id)).out) as Board
+
+/** The name on a session's board a watch line carries: null where it carries null, undefined where it carries none. */
+const nameIn = (line: Printed | undefined, id: string) => {
+  const board = line?.boards[id]
+
+  return board === null ? null : board?.session.name
+}
+
+/** The texts of the log lines of a session's board a watch line carries. */
+const logOf = (line: Printed | undefined, id: string) =>
+  line?.boards[id]?.log.map(each => each.text)
+
+test('the first line carries the board of each session followed as the watch starts, as board --json gives it', async () => {
+  const { t } = held()
+  const board = await boardJsonOf(t, META.id)
+
+  follow(t, META.id)
+
+  const [first] = (await watched(t, [])).lines
+
+  expect(first?.boards).toEqual({ [META.id]: board })
+})
+
+test('a follow line prints the boards of the sessions new to the set at once, exactly as board --json gives them; a line is whole at its newline, however it comes', async () => {
+  const { t } = held()
+
+  t.seed(LOBBY)
+
+  const dashboard = await boardJsonOf(t, META.id)
+  const lobby = await boardJsonOf(t, LOBBY.id)
+  const { lines } = await watched(t, [
+    {
+      atOnce: () => {
+        t.send('{"follow":')
+        t.send(`["${META.id}"]}\n`)
+      },
+    },
+    { atOnce: () => follow(t, META.id, LOBBY.id) },
+  ])
+
+  expect(lines.map(line => [line.at, line.boards])).toEqual([
+    [NOW, {}],
+    [NOW, { [META.id]: dashboard }],
+    [NOW, { [LOBBY.id]: lobby }],
+  ])
+})
+
+test("a followed session's board changing is printed though the board every surface shows does not; an unfollowed one's changing prints nothing", async () => {
+  const { t, paths } = held()
+  const lobby = t.seed(LOBBY)
+  /** A note dated as its session's last line, so that its board changes and nothing else does. */
+  const noted = (at: SessionPaths) => () =>
+    t.files.set(at.log('cli'), {
+      text: append('', [note('n1', 'Round 3 drawn')], T0).text,
+      mtimeMs: t.io.now(),
+    })
+
+  follow(t, META.id)
+
+  const { lines } = await watched(t, [noted(lobby), noted(paths)])
+
+  expect(lines.map(line => [line.at, carried(line), logOf(line, META.id)])).toEqual([
+    [NOW, [META.id], []],
+    [NOW + 2 * POLL_MS, [META.id], ['Round 3 drawn']],
+  ])
+})
+
+test('a followed session the watch finds none of is null, printed once: one no project files, or one whose session.json does not fold; once it folds, its board', async () => {
+  const { t } = held()
+  const lobby = t.seed(LOBBY)
+  const whole = t.text(lobby.meta)
+  const unknown = 'sr-zzzzzz'
+
+  t.files.set(lobby.meta, { text: whole.slice(0, 10), mtimeMs: T0 })
+
+  const { lines } = await watched(t, [
+    { atOnce: () => follow(t, unknown, LOBBY.id) },
+    still,
+    () => t.files.set(lobby.meta, { text: whole, mtimeMs: t.io.now() }),
+  ])
+
+  expect(lines.map(line => [line.at, nameIn(line, unknown), nameIn(line, LOBBY.id)])).toEqual([
+    [NOW, undefined, undefined],
+    [NOW, null, null],
+    [NOW + 2 * POLL_MS, undefined, LOBBY.name],
+  ])
+})
+
+test('a followed session gone is null, printed once', async () => {
+  const { t } = held()
+  const lobby = t.seed(LOBBY)
+  const gone = () => {
+    for (const path of [...t.files.keys()].filter(each => each.startsWith(`${lobby.dir}/`))) {
+      t.files.delete(path)
+    }
+  }
+
+  follow(t, LOBBY.id)
+
+  const { lines } = await watched(t, [gone, ...looks(2)])
+
+  expect(lines.map(line => [line.at, carried(line), nameIn(line, LOBBY.id)])).toEqual([
+    [NOW, [LOBBY.id], LOBBY.name],
+    [NOW + POLL_MS, [LOBBY.id], null],
+  ])
+})
+
+test('a follow line heard while a look is under way, too late for it, has the next look come at once', async () => {
+  const { t } = held()
+  const projects = projectsDir(ROOT)
+  let stats = 0
+  const stat: Io['fs']['stat'] = async path => {
+    stats += path === projects ? 1 : 0
+
+    if (path === projects && stats === 2) {
+      follow(t, LOBBY.id)
+    }
+
+    return t.io.fs.stat(path)
+  }
+
+  t.seed(LOBBY)
+
+  const { lines } = await watched(t, looks(2), { fs: { stat } })
+
+  expect(lines.map(line => [line.at, carried(line)])).toEqual([
+    [NOW, []],
+    [NOW + POLL_MS, [LOBBY.id]],
+  ])
+})
+
+test("a follow line naming the set it had wakes a look at once: the board a write of the app's own changed is printed then, not a second later", async () => {
+  const { t, paths } = held()
+
+  follow(t, META.id)
+
+  const { lines } = await watched(t, [
+    {
+      atOnce: () => {
+        post(t, paths, note('n1', 'Merged'))
+        follow(t, META.id)
+      },
+    },
+  ])
+
+  expect(lines.map(line => [line.at, logOf(line, META.id)])).toEqual([
+    [NOW, []],
+    [NOW, ['Merged']],
+  ])
+})
+
+test('a line that does not read is passed over: the set stands, and it wakes nothing', async () => {
+  const { t, paths } = held()
+  const unread = [
+    'not json',
+    '',
+    '[]',
+    '{"follows":[]}',
+    `{"follow":"${META.id}"}`,
+    `{"follow":["${META.id}",7]}`,
+  ]
+
+  follow(t, META.id)
+
+  const { lines } = await watched(t, [
+    { atOnce: () => unread.forEach(line => t.send(`${line}\n`)) },
+    () => post(t, paths, note('n1', 'Merged')),
+  ])
+
+  expect(lines.map(line => [line.at, logOf(line, META.id)])).toEqual([
+    [NOW, []],
+    [NOW + 2 * POLL_MS, ['Merged']],
+  ])
+})
+
+test('standard input ending changes nothing: the set last given stands, a piece with no newline after it passed over, and the watch runs on', async () => {
+  const { t, paths } = held()
+
+  follow(t, META.id)
+  t.send('{"follow":[]}')
+
+  const { exit, lines } = await watched(t, [
+    ...looks(2),
+    () => post(t, paths, note('n1', 'Merged')),
+  ])
+
+  expect(exit).toBe(EXIT.done)
+  expect(lines.map(line => [line.at, logOf(line, META.id)])).toEqual([
+    [NOW, []],
+    [NOW + 3 * POLL_MS, ['Merged']],
+  ])
+})
+
+test('a followed session off the board is read at every look, not with the sessions off the board', async () => {
+  const t = terminal()
+  const paths = t.seed(META, { lines: [[T0, finish('claude')]] })
+
+  follow(t, META.id)
+
+  const { lines } = await watched(t, [() => post(t, paths, note('n1', 'After the finish'))])
+
+  expect(lines.map(line => [line.at, logOf(line, META.id)?.at(-1)])).toEqual([
+    [NOW, undefined],
+    [NOW + POLL_MS, 'After the finish'],
+  ])
+})
+
+test('a session dropped from the set and followed again is new, its board printed again, though dropped and followed again before a look', async () => {
+  const { t } = held()
+
+  follow(t, META.id)
+
+  const { lines } = await watched(t, [
+    { atOnce: () => follow(t) },
+    { atOnce: () => follow(t, META.id) },
+    {
+      atOnce: () => {
+        follow(t)
+        follow(t, META.id)
+      },
+    },
+  ])
+
+  expect(lines.map(line => [line.at, carried(line)])).toEqual([
+    [NOW, [META.id]],
+    [NOW, [META.id]],
+    [NOW, [META.id]],
+  ])
+})
+
+test('however the watch ends, it stops listening to its standard input, which would hold the run open: its end come, another version, a failure', async () => {
+  const ended = held()
+  const updated = held()
+  const failing = held()
+  const stat: Io['fs']['stat'] = async path => {
+    if (path === projectsDir(ROOT)) {
+      throw new Error(`EACCES: permission denied, stat '${path}'`)
+    }
+
+    return failing.t.io.fs.stat(path)
+  }
+
+  await watched(ended.t, looks(2))
+  await watched(updated.t, [
+    () => updated.t.files.set(MANIFEST, { text: manifestText('0.3.0'), mtimeMs: NOW }),
+  ])
+  await watched(failing.t, looks(2), { fs: { stat } })
+
+  expect([ended, updated, failing].map(({ t }) => t.isHearing())).toEqual([false, false, false])
 })

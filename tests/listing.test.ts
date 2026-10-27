@@ -107,7 +107,7 @@ test('list --json: the project the CLI runs in, and each project with its curren
 
   expect(exit).toBe(EXIT.done)
   expect(JSON.parse(out)).toEqual({
-    v: 1,
+    v: 2,
     here: PROJECT.key,
     projects: [
       {
@@ -118,7 +118,7 @@ test('list --json: the project the CLI runs in, and each project with its curren
         snoozed: 0,
         parked: 1,
         updatedAt: T0,
-        works: [
+        sessions: [
           {
             id: META.id,
             name: META.name,
@@ -185,9 +185,9 @@ test('list runs no program, plain or --json, whatever windows its sessions are i
 test('list: every project, the one the CLI runs in first, then the busiest, the idle last; one with no current session is left out', async () => {
   const t = everywhere()
   const { out } = await t.run('list', '--json')
-  const projects = JSON.parse(out).projects as { key: string; name: string; works: unknown[] }[]
+  const projects = JSON.parse(out).projects as { key: string; name: string; sessions: unknown[] }[]
 
-  expect(projects.map(project => [project.name, project.works.length])).toEqual([
+  expect(projects.map(project => [project.name, project.sessions.length])).toEqual([
     ['Switchboard', 3],
     ['Goosemates', 1],
     ['Quiet', 1],
@@ -233,7 +233,7 @@ test('list --project gives only that project, its name matched as start matches 
     ['Goosemates', '  sr-eeeeee  Onboarding (2 waiting)', ''].join('\n'),
   )
   expect(JSON.parse((await t.run('list', '--project=STALE', '--json')).out)).toEqual({
-    v: 1,
+    v: 2,
     here: null,
     projects: [
       {
@@ -244,7 +244,7 @@ test('list --project gives only that project, its name matched as start matches 
         snoozed: 0,
         parked: 0,
         updatedAt: 0,
-        works: [],
+        sessions: [],
       },
     ],
   })
@@ -296,7 +296,7 @@ test('list names the project the CLI runs in even with nothing current in it, an
 
   expect((await t.run('list')).out).toBe('No current sessions on the board.\n')
   expect(JSON.parse((await t.run('list', '--json')).out)).toEqual({
-    v: 1,
+    v: 2,
     here: null,
     projects: [],
   })
@@ -313,7 +313,7 @@ test('list names the project the CLI runs in even with nothing current in it, an
       snoozed: 0,
       parked: 0,
       updatedAt: 0,
-      works: [],
+      sessions: [],
     },
   ])
 })
@@ -338,9 +338,9 @@ test('board --json: the session as list gives it, its open asks, what it parked,
 
   expect(exit).toBe(EXIT.done)
   expect(JSON.parse(out)).toEqual({
-    v: 2,
+    v: 3,
     project: { key: PROJECT.key, name: 'Switchboard' },
-    work: {
+    session: {
       id: META.id,
       name: META.name,
       summary: META.summary,

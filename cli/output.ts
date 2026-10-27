@@ -2,14 +2,11 @@
  * What the CLI prints of the projects and of a session: lines to
  * read, or JSON for tools such as the tmux indicator; and the lines of
  * `watch`, the board as every surface shows it, its Snoozed rows apart from
- * its rows, for the SitRep app.
+ * its rows, with the boards of the sessions the SitRep app follows.
  *
  * The JSON is stable: every field is always there, a list empty and any
  * other value null where there is none, and `v`, the output's version,
- * moves only with a change a reader would trip on. So its fields keep the
- * names they had before a piece of work was called a session: `list`'s
- * projects hold `works`, and `board` gives its session as `work`. `watch`,
- * newer than the words, says sessions.
+ * moves only with a change a reader would trip on.
  */
 import {
   answerOf,
@@ -42,7 +39,7 @@ import {
 } from '../core'
 
 /** The JSON's version, by command; why each stands where it does is DESIGN.md's ("One engine, two front ends"). */
-const OUTPUT = { list: 1, board: 2, watch: 2 } as const
+const OUTPUT = { list: 2, board: 3, watch: 3 } as const
 
 /** What `list` gives: the project the CLI runs in, if it runs in one, and the projects listed. */
 export type Listing = { here?: Project; projects: ProjectSummary[] }
@@ -122,7 +119,7 @@ const projectJson = (project: ProjectSummary) => ({
   snoozed: project.snoozed,
   parked: project.parked,
   updatedAt: project.updatedAt,
-  works: project.sessions.map(sessionJson),
+  sessions: project.sessions.map(sessionJson),
 })
 
 /** `list --json`: the project the CLI runs in, by its key, else null, and the projects as `listing` gives them. */
@@ -184,20 +181,25 @@ const logJson = (line: LogLine) => ({
   at: line.at,
 })
 
-/** `board --json`: the session in brief, as `list` gives it, with its open asks, what it parked, its latest log lines, and its resolved asks, the newest closed first. */
-export const boardJson = (project: string, session: Session) => {
+/** A session's board, as `board --json` prints it and `watch` carries it: the session in brief, as `list` gives it, with its open asks, what it parked, its latest log lines, and its resolved asks, the newest closed first. */
+export const boardFields = (project: string, session: Session) => {
   const { log, parkedItems, asks, ...summary } = brief(session)
 
-  return json({
+  return {
     v: OUTPUT.board,
     project: { key: project, name: session.project },
-    work: sessionJson(summary),
+    session: sessionJson(summary),
     asks: asks.map(ask => askJson(summary, ask)),
     parked: parkedItems.map(parkedJson),
     log: log.map(logJson),
     resolved: resolvedAsks(session).map(ask => resolvedJson(summary, ask)),
-  })
+  }
 }
+
+export type BoardFields = ReturnType<typeof boardFields>
+
+/** `board --json`: the session's board. */
+export const boardJson = (project: string, session: Session) => json(boardFields(project, session))
 
 const lineJson = (line: RowLine) => ({
   lead: line.lead,
@@ -311,7 +313,7 @@ const windowJson = (window: FeedWindow) => ({
   attachedAt: window.attachedAt,
 })
 
-/** The board a watch line shows: all of it but the line's own time, what is new and what changed. */
+/** The board a watch line shows: all of it but the line's own time, what is new and the boards it carries. */
 const feedFields = (feed: Feed, version: string | undefined) => ({
   version: version ?? null,
   head: { needYou: feed.head.needYou, sessions: feed.head.sessions },
@@ -327,13 +329,14 @@ export const feedText = (feed: Feed, version: string | undefined) =>
 
 /**
  * A line of `watch`, on one line: the board at `at`, the keys of the lines
- * needing Lee new since the last line, and the ids of the sessions whose `board --json`
- * has changed since then.
+ * needing Lee new since the last line, and, by session id, the board of
+ * each session followed that is new to the set or changed since it was last
+ * printed, null for one the watch finds none of.
  */
 export const watchLine = (
   feed: Feed,
   version: string | undefined,
   at: number,
   news: readonly string[],
-  changed: readonly string[],
-) => JSON.stringify({ v: OUTPUT.watch, at, ...feedFields(feed, version), new: news, changed })
+  boards: Readonly<Record<string, BoardFields | null>>,
+) => JSON.stringify({ v: OUTPUT.watch, at, ...feedFields(feed, version), new: news, boards })

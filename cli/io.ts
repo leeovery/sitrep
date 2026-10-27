@@ -1,9 +1,10 @@
 /**
  * What the CLI asks of the world: its file system, the environment and the
- * folder it runs in, the clocks and waiting on them, random bytes, somewhere to
- * print and when that is gone, the plugin's manifest, and, for the jump,
- * programs to run and terminal devices to write to. cli/shell binds it to
- * Bun; a test binds it to memory, with a fake tmux and Ghostty.
+ * folder it runs in, the clocks and waiting on them, random bytes, standard
+ * input, somewhere to print and when that is gone, the plugin's manifest,
+ * and, for the jump, programs to run and terminal devices to write to.
+ * cli/shell binds it to Bun; a test binds it to memory, with a fake tmux and
+ * Ghostty.
  *
  * The file system appends and never rewrites: the CLI's file may be written
  * by another run of it at the same moment, and an append keeps both runs'
@@ -48,6 +49,13 @@ export type Io = {
   /** Waits `ms` milliseconds: the pause between the jump's looks at which app is in front, and between `watch`'s looks. */
   wait: (ms: number) => Waiting
   random: Random
+  /**
+   * Listens to standard input, hearing its text as it comes, in whatever
+   * pieces, and nothing of its end; nothing while it is a terminal. Asked
+   * only by `watch`, which stops the listening however it ends. Gives what
+   * stops it.
+   */
+  input: (heard: (text: string) => void) => () => void
   /** Writes to standard output, as given. */
   out: (text: string) => void
   /** Writes to standard error, as given. */
