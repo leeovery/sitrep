@@ -25,6 +25,28 @@ struct AlertSoundsTests {
         #expect(names.contains("Glass"))
         #expect(names == names.sorted())
     }
+
+    @Test func aFolderListsItsSoundFilesAlone() throws {
+        let folder = FileManager.default.temporaryDirectory.appending(path: "sounds-\(UUID().uuidString)")
+
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: folder) }
+        for file in ["Tink.aiff", "Pop.caf", "Basso.aiff", "notes.txt", ".hidden.aiff"] {
+            try Data().write(to: folder.appending(path: file))
+        }
+
+        #expect(AlertSounds.names(in: folder) == ["Basso", "Pop", "Tink"])
+    }
+
+    /// A name edited by hand, saved on another Mac or dropped by a later macOS.
+    @Test func aSavedNameMacOSLacksPlaysGlass() {
+        var played: [String] = []
+        let sounds = AlertSounds(names: ["Basso", "Glass", "Tink"]) { played.append($0) }
+
+        sounds.play("Gone")
+        sounds.play("Tink")
+        #expect(played == ["Glass", "Tink"])
+    }
 }
 
 /// Settings' "Play a sound for a new ask" and "Sound", in Notifications after macOS's answer.
@@ -82,6 +104,36 @@ struct SoundRowsTests {
 
         #expect(SavedSettings<AppSettings>(defaults).read().sound == "Tink")
         #expect(played.names == ["Tink"])
+    }
+
+    @Test func aSavedNameMacOSLacksShowsAsGlass() async throws {
+        let defaults = MemoryDefaults()
+        var gone = AppSettings()
+
+        gone.sound = "Gone"
+        SavedSettings(defaults).save(gone)
+
+        let (hosted, _) = await Self.page(defaults, Played())
+
+        #expect(try Self.popUp(hosted).titleOfSelectedItem == "Glass")
+    }
+
+    /// The pop-up follows the switch as Lee flips it, off then on.
+    @Test func theSoundGreysAndComesBackAsTheSwitchFlips() async throws {
+        let (hosted, page) = await Self.page(MemoryDefaults(), Played())
+        let flipped = { (isOn: Bool) in
+            let control = try Self.soundSwitch(hosted)
+
+            control.state = isOn ? .on : .off
+            _ = control.sendAction(control.action, to: control.target)
+            #expect(page.settings.preferences.app.playsSound == isOn)
+            await Task.yield()
+            hosted.hosting.layoutSubtreeIfNeeded()
+            return try Self.popUp(hosted).isEnabled
+        }
+
+        #expect(try await !flipped(false))
+        #expect(try await flipped(true))
     }
 
     @Test func theSoundIsGreyedWhileTheSwitchIsOff() async throws {

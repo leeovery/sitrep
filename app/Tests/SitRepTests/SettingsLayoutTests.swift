@@ -153,8 +153,8 @@ struct SettingsLayoutTests {
 
     /// Down the column, clear of the Show row's pictures, the page is black but for the cards and the desktop corner,
     /// Notch chosen: its card the Show row's 86 over the Notch's rows, 30 from a card to the next header, and the
-    /// caption's row of 42 between the corner and its card, whose four rows are 52, 52, 52 and 38. Within a pixel at the screen's scale, which lays the page
-    /// out.
+    /// caption's row of 42 between the corner and its card, whose four rows are 52, 52, 52 and 38. Within a pixel at
+    /// the screen's scale, which lays the page out.
     @Test func thePagesCardsStandAtTheirHeights() async throws {
         let drawn = try await Hosted.drawn(width: Self.drawingsPage)
         let spans = drawn.litSpans(atX: Self.edge + 232)

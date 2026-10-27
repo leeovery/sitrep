@@ -26,12 +26,13 @@ struct ChimeTests {
         #expect(Chime.due(both, Self.chosen()) == "Glass")
     }
 
-    /// Core's `new` carries an ask its snooze's time woke as it carries one that landed (tests/watch.test.ts, "a snooze
-    /// running out is a line the moment it does").
-    @Test func anAskItsSnoozesTimeWokePlaysIt() {
-        let woken = heard([.line(Watched.line(rows: [])), .line(Watched.line(new: ["ask:sr-plan:k2"]))])
+    /// Whichever session it lands in, an away one's too. Core's `new` carries an ask its snooze's time woke as it
+    /// carries one that landed (tests/watch.test.ts, "a snooze running out is a line the moment it does"), so this
+    /// covers a wake.
+    @Test func anyAskInNewPlaysIt() {
+        let away = heard([.line(Watched.line(rows: [])), .line(Watched.line(new: ["ask:sr-plan:k2"]))])
 
-        #expect(Chime.due(woken, Self.chosen()) == "Glass")
+        #expect(Chime.due(away, Self.chosen()) == "Glass")
     }
 
     @Test func withTheSwitchOffNothingPlays() {
@@ -46,6 +47,13 @@ struct ChimeTests {
 
     @Test func aRunsFirstBoardPlaysNothingThoughItCarriedNew() {
         #expect(Chime.due(heard([.line(Self.newAsk)]), Self.chosen()) == nil)
+    }
+
+    @Test func aResumedBoardPlaysNothing() {
+        let resumed = heard([.line(Watched.line(rows: [])), .exited(.status(1), stderr: "")], [.line(Self.newAsk)])
+
+        #expect(resumed.isResumed)
+        #expect(Chime.due(resumed, Self.chosen()) == nil)
     }
 
     @Test func aStaleBoardPlaysNothingAgain() {

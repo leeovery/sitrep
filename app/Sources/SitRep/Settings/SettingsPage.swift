@@ -248,7 +248,9 @@ struct SettingsPage: View {
     }
 
     private var sound: Binding<String> {
-        Binding(get: { settings.preferences.app.sound }, set: settings.choose(sound:))
+        Binding(
+            get: { settings.services.sounds.chosen(settings.preferences.app.sound) }, set: settings.choose(sound:)
+        )
     }
 
     private var foldsAfter: Binding<FoldPeriod> {

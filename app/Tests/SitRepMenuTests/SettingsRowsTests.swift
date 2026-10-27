@@ -267,6 +267,8 @@ struct AppSettingsTests {
         let keys = try #require(try JSONSerialization.jsonObject(with: saved) as? [String: Any]).keys
 
         #expect(read.notifiesNewAsks)
+        #expect(read.playsSound)
+        #expect(read.sound == "Glass")
         #expect(Set(keys) == ["notifiesNewAsks", "playsSound", "sound", "foldsAfter"])
     }
 

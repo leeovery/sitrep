@@ -29,7 +29,6 @@ struct PopUp<Value: Hashable>: NSViewRepresentable {
         }
         context.coordinator.choose = { selection.wrappedValue = values[$0] }
         button.selectItem(withTag: values.firstIndex(of: self.selection) ?? -1)
-        button.isEnabled = context.environment.isEnabled
     }
 
     /// The menu's items, each tagged with its place among every choice.

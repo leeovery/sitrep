@@ -899,8 +899,11 @@ October 2026 the window played a soft chime, macOS's Glass, and only the
 window holding the ask's session did, so an ask from a session whose window
 was elsewhere (another Mac over SSH, or none) played nothing where Lee was.
 Lee, that day: "I do think we should move the sound into the app." A window
-still on the older mod chimes too, until its `/reload-plugins`. So it is
-when an ask's snooze runs out in this session, the toast saying
+still on the older mod plays nothing either: it played `sounds/ask.aiff` from
+the plugin's folder, the clone on this Mac or the app's copy, which an update
+replaces, and with no `sounds/` there its play fails, logging "sitrep: the
+chime failed" to the debug log, so no window doubles SitRep's sound. So it
+is when an ask's snooze runs out in this session, the toast saying
 `◆ Back from snooze: Review the plan`, and the pane opens it; not when Lee
 wakes it, from the pane or the app. Asks landing and waking together make
 one toast, the new asks' (see "Snooze"). Dropped for now (11 October 2026):
@@ -5205,6 +5208,13 @@ reaches a window only while that pane is on show).
         asks it brings, and none for a window's new stop. An ask its
         snooze's time woke is among a line's `new` as one that landed is
         (`newRows`, in core/feed.ts), so it plays too; one Lee woke is not.
+        An ask that lands or wakes while `watch` is not running plays
+        nothing, as it sends no banner: a run's first line counts all it
+        shows as shown, so the app starting, a restart after a crash's
+        backoff and a renewal play nothing for what came before.
+        `AlertSounds` reads a saved name macOS lacks (one edited by hand,
+        saved on another Mac, or dropped by a later macOS) as Glass, so the
+        pop-up and the sound played agree.
         `Chime.due` names the sound a line plays, and `AlertSounds` plays it
         through `NSSound`, stopped first, so a sound chosen again as it
         plays starts over; the player is given, so the tests play nothing.

@@ -2,8 +2,8 @@ import os
 import SitRepRelay
 import UserNotifications
 
-/// macOS banners: silent, since each Claude window's own chime already plays, and shown even while the helper counts
-/// as the active app, as it does once a click activates it. A click on one's body is told to `onClick`, with the
+/// macOS banners: silent, since SitRep plays its own sound for a new ask, and shown even while the helper counts as
+/// the active app, as it does once a click activates it. A click on one's body is told to `onClick`, with the
 /// session it names, if any.
 @MainActor
 final class Notifications: NSObject, Notifying, UNUserNotificationCenterDelegate {
