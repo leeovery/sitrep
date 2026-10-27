@@ -29,3 +29,7 @@ pre_tag = [
     'swift build --package-path app -j 2',
     'swift test --package-path app -j 2',
 ]
+# Once the tag and the release are pushed: the app built on this Mac,
+# notarized, and uploaded to the release. A failure here only warns, and
+# app/release, run again by hand, finishes it.
+post_release = ['app/release']

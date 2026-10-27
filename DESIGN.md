@@ -2487,12 +2487,16 @@ The whole repository is the plugin, so a plugin installed from GitHub
 carries `app/` too; it is small, and accepted.
 
 **Installing and updating**, decided with Lee on 14 October 2026: app first.
-How the app updates changed on 16 October 2026 (Sparkle, below).
+How the app updates changed on 16 October 2026 (Sparkle, below), and on 27
+October 2026 went back to `brew upgrade` while the repository is private.
 
 - **On a Mac, sitrep is the app**, from a Homebrew cask in `homebrew-tools`,
   and from nowhere else (no download of its own), so every install updates
-  the same way. That way was `brew upgrade` until 16 October 2026; now the
-  app updates itself.
+  the same way. That way was `brew upgrade` until 16 October 2026, when the
+  app was to update itself; while the repository is private it is `brew
+  upgrade` (27 October 2026). The cask is private as the repository is, and
+  the app it downloads is quarantined, so a release is signed with Lee's
+  Developer ID and notarized (stage 4).
 - **The app installs the Claude plugin**, at each start that finds nothing
   of sitrep in either of Claude's lists. It copies the plugin it carries to
   `~/Library/Application Support/sitrep/`, outside its own bundle, since
@@ -2545,13 +2549,16 @@ How the app updates changed on 16 October 2026 (Sparkle, below).
   second later, the wait doubling to half a minute, as `watch`'s back-off
   does, until a look goes well; `watch` starts again only when the folder
   it settles on is another.
-- **The app updates itself, with Sparkle** (16 October 2026). Its feed is
-  published with each GitHub release. The cask stays the way to install,
-  marked `auto_updates true`, so brew leaves updates to the app: one
-  updater. Sparkle was ruled out on 14 October, since `brew upgrade` already
-  updates a cask. That was reversed because `brew upgrade` reaches only
-  those who run it, where an app that updates itself reaches everyone, and
-  knows when the plugin changed.
+- **The app is to update itself, with Sparkle**, once the repository is
+  public (16 October 2026). Its feed is to be published with each GitHub
+  release. The cask stays the way to install, marked `auto_updates true`, so
+  brew leaves updates to the app: one updater. Sparkle was ruled out on 14
+  October, since `brew upgrade` already updates a cask. That was reversed
+  because `brew upgrade` reaches only those who run it, where an app that
+  updates itself reaches everyone, and knows when the plugin changed. It
+  waits while the repository is private (27 October 2026): the feed, and
+  the zips it names, would need GitHub's authentication. Until then `brew
+  upgrade` updates the app.
 - **After an update** the app refreshes its copy of the plugin, so one
   update moves both, and their versions never part. Windows on the old mod
   show as needing `/reload-plugins` (see "Versions side by side"). First
@@ -2567,11 +2574,11 @@ How the app updates changed on 16 October 2026 (Sparkle, below).
   marketplace loads in place, so the copy is what each window takes up at
   its next `/reload-plugins`; the two updates keep Claude's record of it
   current. With all the same, it does nothing.
-- **Built at the first public release**, which waits for a Developer ID
-  (stage 4); Lee will get one before going public. It must be testable
-  locally first: a feed served from this Mac, and two builds signed with
-  the "SitRep Local" certificate. Until then, this Mac builds the app from
-  the clone (below).
+- **Sparkle is built at the first public release.** It first waited on a
+  Developer ID too, which Lee had by 27 October 2026 (stage 4). It must be
+  testable locally first: a feed served from this Mac, and two builds signed
+  with the Developer ID. Until the first release, this Mac builds the app
+  from the clone (below).
 - **Everyone else** (Linux, Windows, no menu bar wanted) was to install the
   plugin alone from the GitHub marketplace: `claude plugin marketplace add
   leeovery/sitrep`, then `claude plugin install sitrep@sitrep`. It still
@@ -4112,7 +4119,8 @@ asked for the sessions back, and approved the redraw as it stands.
     SitRep window carry the board, and the glyph still lights for needs
     you;
   - **Settings… ⌘,**, the SitRep window on Settings (see "Settings");
-    **Check for Updates…**, with Sparkle, from the first public release;
+    **Check for Updates…**, with Sparkle, from the first public release
+    (see "Installing and updating");
     **Quit SitRep ⌘Q**.
 - **About Spaceman's width, a little wider** (Lee, 20 October 2026): the
   whole menu is 340 points, the one number to tune. A native menu is as
@@ -5372,6 +5380,33 @@ reaches a window only while that pane is on show).
         signature verifies with it inside (`codesign --verify --deep
         --strict`). `app/bundle` refuses a folder that already holds a
         bundle. The Info.plist's `SitRepPlugin` is gone.
+      - **The compiled CLI is signed with the Developer ID** since 27
+        October 2026, first of the bundle's parts, before the digest, so
+        the digest is of the CLI as it ships; until then it kept Bun's ad
+        hoc signature. It runs under the hardened runtime with
+        `allow-jit` alone (`app/CLI.entitlements`), found by trial that
+        day on Bun 1.4.3: with no entitlements it still answered, but
+        JavaScriptCore ran with its JIT off, a hot loop four times slower;
+        `allow-jit` gave the JIT back. `allow-unsigned-executable-memory`,
+        which allows more, and `disable-library-validation` are not needed:
+        it loads only the system's libraries. Signed so, it answered `list
+        --json`, a note and `watch` from inside the bundle, against a
+        scratch `XDG_STATE_HOME`. Its identifier is SitRep's
+        bundle id and `.cli`. A signature records when it was made, so
+        every build's digest is new and replaces the copy.
+      - **The copy is not quarantined.** A cask's download marks every file
+        it holds `com.apple.quarantine`, and copying keeps the mark, so
+        SitRep takes it off every file of its copy before swapping it in
+        (27 October 2026). The copy is SitRep's own sealed payload, approved
+        with SitRep, but its CLI runs outside the bundle, from Claude's hooks
+        and from the app, where macOS would judge a quarantined program with
+        no ticket stapled to it on its own, by a lookup online that could
+        refuse it offline at its first run.
+      - **The jump was proven live** from a build signed with the Developer
+        ID, 27 October 2026: it went as before, and macOS asked nothing.
+        TCC's stored leave to control Ghostty still named SitRep Local's
+        certificate, so that jump sent Ghostty no Apple Event or macOS kept
+        the leave; macOS may yet ask once more.
       - **The binary records the SDK it was built with**: `app/bundle`
         gives the release link the SDK as `-isysroot`. SwiftPM hands clang's
         link the SDK only as `--sysroot`, with no `SDKROOT`, and clang then
@@ -5495,12 +5530,18 @@ reaches a window only while that pane is on show).
      app by where it is. It stops a running SitRep with a signal, since
      asking it to quit by an Apple Event would itself want leave to control
      it.
-   - **Signed with "SitRep Local"**, a certificate `app/make-certificate`
-     makes once per Mac and trusts for code signing. macOS ties the leave to
-     control Ghostty to the app's signature, and an ad hoc signature changes
-     with every build, so each rebuild would ask again; this one stays put,
-     its designated requirement the bundle id and the certificate. A
-     Developer ID replaces it at stage 4, which asks once more.
+   - **Signed with "SitRep Local"** until 27 October 2026, a self-signed
+     certificate `app/make-certificate` made once per Mac and trusted for
+     code signing. macOS ties the leave to control Ghostty to the app's
+     signature, and an ad hoc signature changes with every build, so each
+     rebuild would ask again; that one stayed put, its designated
+     requirement the bundle id and the certificate. Lee's Developer ID
+     replaced it on 27 October 2026 for every build, `app/build`'s and a
+     release's alike, and `app/make-certificate` went (stage 4). Its
+     designated requirement is the bundle id and the team, so a build from
+     the clone and a release share the leave, notifications and the login
+     item. The change may ask once more for leave to control Ghostty; Lee's
+     first jump after it went as before, with no prompt (step 9).
    - **`com.leeovery.sitrep`**, named SitRep, with no Dock icon.
    - **Its version is the plugin's**, read from `plugin.json` as it builds:
      one version covers both.
@@ -5546,24 +5587,79 @@ reaches a window only while that pane is on show).
      as a macOS notification. The menu bar item is AppKit's `NSStatusItem`,
      not SwiftUI's `MenuBarExtra`, whose menu style says nothing as the
      menu opens.
-4. **Releases**, once sitrep is stable: a release is its version, in
-   `plugin.json`, the marketplace entry and the app, and a tag
-   (`claude plugin tag`); a GitHub Action on a macOS runner builds the app
-   with the plugin inside it, its CLI compiled, publishes the app's update
-   feed, and updates the cask in `homebrew-tools` (Sparkle, under
-   "Installing and updating"). Lee's Macs then install the cask like
-   anyone, kit's `[manual]` step gives way to the cask, and the clone stops
-   being live: a script in the repository points the `sitrep` marketplace
-   at the clone for a live test, and back. Going public needs the app
-   signed with a Developer ID and notarised, since Homebrew quarantines
-   what a cask downloads, as macOS does any download. The compiled CLI the
-   bundle carries keeps Bun's ad hoc signature and is arm64 only (step 9):
-   notarising needs it signed with the Developer ID, the hardened runtime
-   and a timestamp, likely with Bun's `allow-jit` and
-   `allow-unsigned-executable-memory` entitlements, and an Intel Mac needs
-   an x64 build beside it. To settle then: whether
-   `claude plugin update` follows `main` or the tags, for the plugin alone
-   from GitHub.
+4. **Releases**, decided with Lee on 27 October 2026. First planned as a
+   GitHub Action on a macOS runner that built the app, published Sparkle's
+   feed and updated the cask, once sitrep was stable and public.
+   - **The repository stays private**, and the cask with it: a new Mac
+     gets SitRep from a private cask in `leeovery/homebrew-tools`. Sparkle
+     waits until the repository is public, and `brew upgrade` updates the
+     app meanwhile (see "Installing and updating").
+   - **mint cuts a release** (`./release`): the version, in `plugin.json`,
+     which the app takes, the tag `v<version>`, and the GitHub release. Its
+     `pre_tag` runs every gate, since no CI does.
+   - **Built on this Mac, not in CI** (Lee's choice): with the Xcode Lee
+     tests with, no certificate in GitHub, and no macOS runner's minutes.
+     mint's `post_release` runs `app/release` once the tag and the release
+     are pushed. It builds the app from the tag's tree, a git worktree in a
+     temporary folder, by the tag's own `app/bundle --release`; notarises
+     it (`app/notarize`); uploads `SitRep-<version>.zip` to the release,
+     replacing one there; and gives the zip's sha256 and the asset's id,
+     which the cask needs. mint shows nothing of a hook that succeeds, and
+     only its stderr when it fails, so `app/release` writes everything to
+     stderr and to `~/Library/Logs/SitRep/release-<version>.log`, naming the
+     log as it starts and ends: the id and the sha256 are read there. mint
+     only warns when `post_release` fails, so run again by hand, with no
+     mint environment, `app/release` releases the version `plugin.json`
+     names, or the version given (`app/release 0.3.0`), tagged
+     `v<version>`. A re-run builds and notarises again, so its zip, and the
+     asset's id, are new. A dry run does nothing: mint runs no hooks then.
+   - **Signed with Lee's Developer ID**, `Developer ID Application:
+     PointsBox Limited (CQKZZ4FN6V)` in the login keychain, by `app/bundle`
+     for every build, `app/build`'s too, so a build from the clone and a
+     release share macOS's leave (see step 3's "Signed with"). It signs by
+     the identity's hash, and refuses, listing them, when the keychain
+     holds two of the name, as after a renewal. Inside out, never with
+     `--deep`: the CLI (step 9), the notices helper, then the app, each
+     under the hardened runtime. A release's carry a secure timestamp,
+     which notarising needs; getting one needs the network, and without it
+     `codesign` fails, and `app/bundle` with it. `app/build`'s carry none,
+     so it builds offline. It then checks each part: signed by the Developer ID,
+     under the runtime, a release's timestamped, and with exactly its
+     entitlements, the app's Apple Events, the CLI's `allow-jit`, and none
+     for the helper; and verifies the CLI's own signature, which the app's
+     `--deep` checks only as a file it seals.
+   - **Notarised and stapled for a release only.** `app/notarize` zips the
+     app with `ditto`, sends it with `notarytool submit --wait` under the
+     keychain profile `sitrep`, waits again with `notarytool wait` when a
+     wait ends in progress, as a dropped connection leaves it, prints
+     `notarytool log` when Apple refuses it, staples the ticket and
+     validates it, and zips the stapled app for download. Then that zip as
+     a download: its app unpacked, its staple validated, since `spctl` alone
+     can pass by looking the ticket up online, then marked quarantined as
+     Safari marks a download, and `spctl -a -t exec` must say it is
+     accepted, from a notarised Developer ID. `app/build` doesn't notarise:
+     a build installed from the clone is never quarantined, and notarising
+     would add minutes to every install.
+   - **Proven on 27 October 2026**, on a bundle in a temporary folder: the
+     notary service accepted it at the first submission
+     (`6d05e210-ae07-41b7-917d-ad3ebf4404f5`), its log listing no issues
+     and the CLI among the ticket's contents; stapled, the quarantined copy
+     was "accepted, source=Notarized Developer ID", where `app/build`'s,
+     signed but not notarised, was "rejected, source=Unnotarized Developer
+     ID". The CLI answered from inside the stapled bundle. Nothing was
+     uploaded: the first release is Lee's. The jump from a build signed so
+     went as before, live, with no prompt (step 9); macOS may yet ask once
+     more for leave to control Ghostty.
+   - **Still to come:** the cask, and with it the tap's update, which
+     `app/release` will dispatch to `homebrew-tools` with the asset's id and
+     sha256 (its place is marked at the script's end), at every run that
+     uploads, since each changes both. Then Lee's Macs
+     install the cask like anyone, kit's `[manual]` step gives way to it,
+     and the clone stops being live: a script in the repository points the
+     `sitrep` marketplace at the clone for a live test, and back. The app
+     and its CLI are arm64 only: an Intel Mac needs an x64 build beside
+     them. To settle: whether `claude plugin update` follows `main` or the
+     tags, for the plugin alone from GitHub.
 5. **Attention beyond asks**, in this build (decided with Lee on 16 October
    2026), built as stage 3's fourth step, the live feed, since the rows
    and the strip's rings need it. The mod hears what its window is doing,

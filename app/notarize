@@ -1,0 +1,72 @@
+#!/bin/bash
+# Notarizes a SitRep.app that app/bundle made, staples the ticket to it and
+# zips it for download: app/release runs it. notarytool's login is saved in
+# the keychain as the profile "sitrep".
+set -euo pipefail
+
+if [[ $# -ne 2 ]]; then
+  echo "Usage: app/notarize <SitRep.app> <zip>" >&2
+  exit 1
+fi
+
+profile=sitrep
+bundle=$1
+zip=$2
+
+work=$(mktemp -d)
+trap 'rm -rf "$work"' EXIT
+
+# A field of notarytool's JSON answer; nothing when it has none.
+field() {
+  plutil -extract "$1" raw -o - - <<< "$2" 2> /dev/null || true
+}
+
+echo "Sending $bundle to Apple's notary service, and waiting for its verdict…"
+ditto -c -k --keepParent "$bundle" "$work/submission.zip"
+result=$(xcrun notarytool submit "$work/submission.zip" --keychain-profile "$profile" --wait --output-format json || true)
+id=$(field id "$result")
+status=$(field status "$result")
+if [[ -z $id ]]; then
+  echo "The notary service took no submission:" >&2
+  echo "$result" >&2
+  exit 1
+fi
+# A wait cut short, as by a dropped connection, ends in progress, or ends with
+# no answer at all: waited for again, a few times, since the log isn't ready
+# until the verdict is.
+for _ in 1 2 3; do
+  [[ $status == "In Progress" ]] || break
+  echo "Submission $id: in progress; waiting again…"
+  status=$(field status "$(xcrun notarytool wait "$id" --keychain-profile "$profile" --output-format json || true)")
+  status=${status:-In Progress}
+done
+echo "Submission $id: $status"
+if [[ $status == "In Progress" ]]; then
+  echo "No verdict yet: xcrun notarytool wait $id --keychain-profile $profile says when there is." >&2
+  exit 1
+fi
+if [[ $status != Accepted ]]; then
+  xcrun notarytool log "$id" --keychain-profile "$profile" >&2
+  exit 1
+fi
+
+xcrun stapler staple "$bundle"
+xcrun stapler validate "$bundle"
+rm -f "$zip"
+ditto -c -k --keepParent "$bundle" "$zip"
+
+# The zip as a download: its app unpacked, its ticket stapled, as spctl alone
+# can pass by looking the ticket up online; and Gatekeeper's verdict on it,
+# marked quarantined as Safari marks what it downloads.
+download="$work/download"
+mkdir "$download"
+ditto -x -k "$zip" "$download"
+downloaded="$download/$(basename "$bundle")"
+xcrun stapler validate "$downloaded"
+xattr -w com.apple.quarantine "0081;$(printf %x "$(date +%s)");Safari;" "$downloaded"
+assessment=$(spctl -a -vvv -t exec "$downloaded" 2>&1 || true)
+echo "$assessment"
+if ! grep -q ": accepted$" <<< "$assessment" || ! grep -qx "source=Notarized Developer ID" <<< "$assessment"; then
+  echo "Gatekeeper doesn't accept $zip as a notarized download." >&2
+  exit 1
+fi

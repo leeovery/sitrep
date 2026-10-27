@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+The CLI's, compiled by Bun, under the hardened runtime: allow-jit, so that
+JavaScriptCore can map memory for its JIT. Without it the CLI still answers,
+its JIT off and a hot loop four times slower. Proven 27 October 2026 on Bun
+1.4.3, signed as app/bundle signs it: allow-jit alone gave the JIT back.
+allow-unsigned-executable-memory, which allows more, is not needed, nor
+disable-library-validation, as it loads only the system's libraries.
+-->
+<plist version="1.0">
+<dict>
+	<key>com.apple.security.cs.allow-jit</key>
+	<true/>
+</dict>
+</plist>

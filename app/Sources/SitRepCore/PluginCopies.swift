@@ -49,12 +49,30 @@ public struct PluginCopies: Sendable {
         do {
             try files.createDirectory(at: own.deletingLastPathComponent(), withIntermediateDirectories: true)
             try files.copyItem(at: carried, to: incoming)
+            try Self.unquarantine(incoming)
             if files.fileExists(atPath: own.path) || (try? files.moveItem(at: incoming, to: own)) == nil {
                 _ = try files.replaceItemAt(own, withItemAt: incoming)
             }
         } catch {
             try? files.removeItem(at: incoming)
             throw .failed("Copying it to \(own.path) failed: \(error.localizedDescription)")
+        }
+    }
+
+    /// The mark macOS puts on every file of a download, and checks a program by as it first runs.
+    static let quarantine = "com.apple.quarantine"
+
+    /// Takes the mark off every file of a copy: copying keeps extended attributes, so a copy from a downloaded SitRep
+    /// carries it. The copy is SitRep's own sealed payload, approved with SitRep, but its CLI runs from outside the
+    /// bundle, where macOS judges a quarantined program with no ticket stapled to it on its own, by a lookup online
+    /// that could refuse it offline.
+    static func unquarantine(_ folder: URL) throws {
+        let inside = FileManager.default.enumerator(at: folder, includingPropertiesForKeys: nil)?.allObjects.compactMap { $0 as? URL }
+
+        for file in [folder] + (inside ?? []) {
+            if removexattr(file.path, quarantine, XATTR_NOFOLLOW) != 0, errno != ENOATTR {
+                throw POSIXError(POSIXErrorCode(rawValue: errno) ?? .EIO)
+            }
         }
     }
 
