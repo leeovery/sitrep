@@ -33,8 +33,10 @@ bundle, the plugin inside it, into a folder, signed with Lee's Developer ID
 from the keychain; `app/build` runs it, installs the bundle to
 `~/Applications/SitRep.app` and starts it, replacing the one running.
 `app/release`, run by mint's `post_release` (`./release`), builds a release
-from its tag, notarizes it (`app/notarize`) and uploads it to the GitHub
-release, logging to `~/Library/Logs/SitRep/release-<version>.log`.
+from its tag, notarizes it (`app/notarize`), uploads it to the GitHub
+release and, for the latest release, sends the cask in
+`leeovery/homebrew-tools` the new zip and waits on the tap's update,
+logging to `~/Library/Logs/SitRep/release-<version>.log`.
 
 ## Live tests
 
