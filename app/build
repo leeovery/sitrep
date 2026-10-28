@@ -1,14 +1,18 @@
 #!/bin/bash
 # Builds SitRep, signed with Lee's Developer ID and carrying the plugin
-# (app/bundle), installs it to ~/Applications and starts it, replacing the one
-# running. It isn't notarized: a build installed from here is never
-# quarantined, and notarizing would add minutes to every install. The
-# login item and macOS's permissions remember the app by where it is, so it
-# is always installed to the same place. As it starts, the app installs its
-# plugin, or leaves the sitrep marketplace as it is where it is not its own.
+# (app/bundle), installs it to /Applications over the cask's copy and starts
+# it, replacing the one running. The login item and macOS's permissions
+# remember the app by where it is, so a build goes where the release is: both
+# are kept, and there is never a second bundle with SitRep's id. It isn't
+# notarized: a build installed from here is never quarantined, and
+# notarizing would add minutes to every install. As it starts, the build
+# refreshes SitRep's copy of the plugin with the one it carries, or leaves
+# the sitrep marketplace as it is where it is not SitRep's own (app/plugin).
+# `brew reinstall --cask sitrep` puts the release back, and the next
+# `brew upgrade` replaces the build too.
 set -euo pipefail
 
-installed="$HOME/Applications/SitRep.app"
+installed=/Applications/SitRep.app
 app=$(cd "$(dirname "$0")" && pwd)
 
 # Put together outside the repository, and gone once installed.
@@ -17,25 +21,10 @@ trap 'rm -rf "$work"' EXIT
 "$app/bundle" "$work"
 version=$(plutil -extract CFBundleShortVersionString raw -o - "$work/SitRep.app/Contents/Info.plist")
 
-# Stopped by a signal: asking it to quit by an Apple Event would itself want
-# leave to control SitRep.
-if pkill -x SitRep; then
-  while pgrep -x SitRep > /dev/null; do sleep 0.1; done
-fi
-# The notices helper quits as its SitRep ends; waited for, so the new SitRep
-# is not handed the old one, which serves the old SitRep and then quits. One
-# still there after two seconds is stopped too.
-for _ in {1..20}; do
-  pgrep -x SitRepNotices > /dev/null || break
-  sleep 0.1
-done
-if pkill -x SitRepNotices; then
-  while pgrep -x SitRepNotices > /dev/null; do sleep 0.1; done
-fi
+"$app/quit"
 
-mkdir -p "$(dirname "$installed")"
 rm -rf "$installed"
 ditto "$work/SitRep.app" "$installed"
 open "$installed"
 
-echo "SitRep $version installed to $installed"
+echo "SitRep $version installed to $installed; brew reinstall --cask sitrep puts the release back"

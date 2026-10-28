@@ -41,7 +41,7 @@ export HOMEBREW_GITHUB_API_TOKEN=...   # in your shell's profile, to keep it
 brew install --cask leeovery/tools/sitrep
 ```
 
-Open SitRep from Applications; macOS asks once whether to open an app downloaded from the internet. At its first start SitRep copies the plugin it carries to `~/Library/Application Support/sitrep` and installs it there through `claude plugin`. It leaves alone a sitrep it didn't install, such as a clone registered as the `sitrep` marketplace, and runs that one's CLI instead. It needs the `claude` CLI where Claude Code's installers put it, or on your login shell's PATH. Should the plugin's install fail, the menu bar item's menu says why under its header, and so does the Claude Code plugin row in Settings › General.
+The install starts SitRep; macOS asks once whether to open an app downloaded from the internet. At its first start SitRep copies the plugin it carries to `~/Library/Application Support/sitrep` and installs it there through `claude plugin`. It leaves alone a sitrep it didn't install, such as a clone registered as the `sitrep` marketplace, and runs that one's CLI instead. It needs the `claude` CLI where Claude Code's installers put it, or on your login shell's PATH. Should the plugin's install fail, the menu bar item's menu says why under its header, and so does the Claude Code plugin row in Settings › General.
 
 The install asks macOS for nothing. What SitRep can use, it asks for in Settings, under General and Notifications:
 
@@ -144,7 +144,7 @@ The CLI is `bin/sitrep` in the plugin's folder; the app's copy is `~/Library/App
 brew upgrade --cask sitrep
 ```
 
-The upgrade quits SitRep and doesn't start it again, so open it from Applications. As it starts, the new app refreshes its copy of the plugin, so the two never part; each Claude window runs the new plugin from its next `/reload-plugins`.
+The upgrade quits SitRep, swaps it and starts it again. As it starts, the new app refreshes its copy of the plugin, so the two never part; each Claude window runs the new plugin from its next `/reload-plugins`.
 
 ## Uninstalling
 
@@ -163,17 +163,21 @@ Neither touches the board itself, `~/.local/state/sitrep`.
 
 ## Developing
 
-A clone registered as the `sitrep` marketplace is what a development Mac runs: whatever the checkout holds is what every Claude window runs at its next `/reload-plugins`. So keep that clone on `main`, and work in a worktree. [DESIGN.md](DESIGN.md) is the design, and the record of what was decided and proven live.
+A development Mac runs SitRep from the cask and the plugin from SitRep's own copy, as any Mac does, so a merge to `main` reaches no Claude window until a release. Keep the clone on `main`, and work in a worktree. [DESIGN.md](DESIGN.md) is the design, and the record of what was decided and proven live.
 
 ```bash
-claude plugin marketplace add ~/Code/sitrep   # the clone, as the sitrep marketplace
-claude plugin install sitrep@sitrep
+app/plugin here   # this checkout as the sitrep plugin, for a live test
+app/plugin app    # SitRep's own copy again
+app/plugin        # which one Claude Code has now
 ```
+
+A switch reaches each Claude window at its next `/reload-plugins`, and starts SitRep again where it is running, since SitRep looks at the plugin only as it starts.
 
 It needs:
 
-- **Bun**: the clone's `bin/sitrep` runs on it, the gates run `bunx`, and `app/bundle` compiles the app's CLI with `bun build --compile`;
+- **Bun**: the `bin/sitrep` of a checkout under `app/plugin here` runs on it, the gates run `bunx`, and `app/bundle` compiles the app's CLI with `bun build --compile`;
 - **Xcode**, for Swift 6 and the `actool` that compiles the icon;
+- **jq**, which `app/plugin` reads Claude Code's lists with;
 - **the Developer ID certificate**, `Developer ID Application: PointsBox Limited (CQKZZ4FN6V)`, in the login keychain: `app/bundle` signs with it, and stops without it.
 
 The repository holds the mod (`hooks/`), the core (`core/`), the CLI (`cli/`) and the app (`app/`, a Swift package with no Xcode project), under one version. The engine's types live in `.claude-plugin/types/`, which git leaves out; `.worktreeinclude` copies them into a worktree.
@@ -188,7 +192,7 @@ swift build --package-path app    # the app
 swift test --package-path app     # the app's tests
 ```
 
-`app/build` builds the app, signs it with the Developer ID, installs it to `~/Applications/SitRep.app` and starts it, replacing the one running. It doesn't notarize: a build installed from the clone is never quarantined.
+`app/build` builds the app, signs it with the Developer ID, installs it to `/Applications/SitRep.app` over the cask's copy and starts it, replacing the one running, so the login item and macOS's permissions carry over. It doesn't notarize: a build installed from a checkout is never quarantined. `brew reinstall --cask sitrep` puts the release back, and the next `brew upgrade` replaces the build too.
 
 ## Releasing
 

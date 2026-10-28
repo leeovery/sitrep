@@ -1,0 +1,102 @@
+#!/bin/bash
+# Says where Claude Code's sitrep plugin comes from, or switches it:
+#   app/plugin here   the checkout this script is in, a worktree or the clone,
+#                     for a live test of the plugin
+#   app/plugin app    SitRep's own copy, ~/Library/Application Support/sitrep
+# Every Claude window runs the plugin switched to from its next
+# /reload-plugins. SitRep looks at the plugin only as it starts, so a switch
+# starts it again where it is running, for it to run the new plugin's CLI;
+# back on its own copy, that start also refreshes the copy.
+set -euo pipefail
+
+usage="Usage: app/plugin [here | app]"
+marketplace=sitrep
+plugin=sitrep@sitrep
+own="$HOME/Library/Application Support/sitrep"
+installed=/Applications/SitRep.app
+app=$(cd "$(dirname "$0")" && pwd)
+checkout=$(dirname "$app")
+
+# A claude command, quiet unless it fails.
+claude_quietly() {
+  local said
+  if ! said=$(claude "$@" 2>&1); then
+    echo "claude $* failed:" >&2
+    echo "$said" >&2
+    exit 1
+  fi
+}
+
+# The sitrep marketplace's folder, or its source where it is not a folder;
+# nothing with no sitrep marketplace.
+source_now() {
+  claude plugin marketplace list --json |
+    jq -r --arg name "$marketplace" \
+      '.[] | select(.name == $name) | if .source == "directory" then .path else (.repo // .url // .source) end'
+}
+
+# A folder as Lee would write it.
+written() {
+  case $1 in
+    "$HOME"/*) echo "~${1#"$HOME"}" ;;
+    *) echo "$1" ;;
+  esac
+}
+
+say_where() {
+  local now
+  now=$(source_now)
+  case $now in
+    "") echo "Claude Code has no sitrep marketplace" ;;
+    "$own") echo "The sitrep plugin comes from SitRep's own copy, $(written "$own")" ;;
+    "$checkout") echo "The sitrep plugin comes from this checkout, $(written "$checkout")" ;;
+    *) echo "The sitrep plugin comes from $(written "$now")" ;;
+  esac
+}
+
+is_installed() {
+  claude plugin list --json | jq -e --arg id "$plugin" 'any(.[]; .id == $id)' > /dev/null
+}
+
+# The marketplace re-pointed at the folder, an add over the registration
+# there being one, and Claude's record of the plugin brought up to it.
+switch_to() {
+  local folder=$1
+  if [[ ! -f "$folder/.claude-plugin/marketplace.json" ]]; then
+    echo "No sitrep marketplace in $(written "$folder")" >&2
+    exit 1
+  fi
+
+  claude_quietly plugin marketplace add "$folder"
+  claude_quietly plugin marketplace update "$marketplace"
+  if is_installed; then
+    claude_quietly plugin update "$plugin"
+  else
+    claude_quietly plugin install "$plugin"
+  fi
+  say_where
+  echo "Each Claude window runs it from its next /reload-plugins"
+}
+
+restart_sitrep() {
+  if ! pgrep -x SitRep > /dev/null; then
+    echo "SitRep isn't running; it runs this plugin's CLI from its next start"
+    return
+  fi
+
+  echo "Starting SitRep again, for it to run this plugin's CLI"
+  "$app/quit"
+  open "$installed"
+}
+
+if [[ $# -gt 1 ]]; then
+  echo "$usage" >&2
+  exit 1
+fi
+
+case "${1-}" in
+  "") say_where ;;
+  here) switch_to "$checkout"; restart_sitrep ;;
+  app) switch_to "$own"; restart_sitrep ;;
+  *) echo "$usage" >&2; exit 1 ;;
+esac

@@ -5,12 +5,19 @@ sitrep is Lee's board inside Claude Code: a mod (`hooks/`), a pure core
 `DESIGN.md` is the design and the record of what was decided and proven
 live; read the sections a change touches first.
 
-## This clone is the live plugin
+## The live plugin
 
-On Lee's Mac, Claude Code reads the `sitrep` marketplace straight from this
-folder, so whatever the checkout holds is what every Claude window runs at
-its next `/reload-plugins`. Keep the checkout on `main`, and work in a
-worktree.
+Lee's Mac runs SitRep from the Homebrew cask, at `/Applications/SitRep.app`,
+and the plugin from SitRep's own copy, `~/Library/Application Support/sitrep`.
+So a merge to `main` reaches no Claude window until a release. Keep the
+clone on `main`, and work in a worktree.
+
+- `app/plugin here` makes the checkout it is in the live plugin, for a live
+  test: every Claude window runs it from its next `/reload-plugins`, and
+  SitRep, started again, runs its CLI. `app/plugin app` puts SitRep's copy
+  back, and `app/plugin` says which it is.
+- `app/build` installs a build over the cask's copy; `brew reinstall --cask
+  sitrep` puts the release back.
 
 ## Gates
 
@@ -31,7 +38,8 @@ git leaves out; `.worktreeinclude` copies them into a worktree.
 the plugin's CLI for the board and the jump. `app/bundle <folder>` makes the
 bundle, the plugin inside it, into a folder, signed with Lee's Developer ID
 from the keychain; `app/build` runs it, installs the bundle to
-`~/Applications/SitRep.app` and starts it, replacing the one running.
+`/Applications/SitRep.app` over the cask's copy and starts it, replacing the
+one running.
 `app/release`, run by mint's `post_release` (`./release`), builds a release
 from its tag, notarizes it (`app/notarize`), uploads it to the GitHub
 release and, for the latest release, sends the cask in

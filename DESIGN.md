@@ -904,8 +904,8 @@ window holding the ask's session did, so an ask from a session whose window
 was elsewhere (another Mac over SSH, or none) played nothing where Lee was.
 Lee, that day: "I do think we should move the sound into the app." A window
 still on the older mod plays nothing either: it played `sounds/ask.aiff` from
-the plugin's folder, the clone on this Mac or the app's copy, which an update
-replaces, and with no `sounds/` there its play fails, logging "sitrep: the
+the plugin's folder, the app's copy or a checkout, which an update or a
+checkout replaces, and with no `sounds/` there its play fails, logging "sitrep: the
 chime failed" to the debug log, so no window doubles SitRep's sound. So it
 is when an ask's snooze runs out in this session, the toast saying
 `◆ Back from snooze: Review the plan`, and the pane opens it; not when Lee
@@ -1640,8 +1640,8 @@ $XDG_STATE_HOME/sitrep/, else ~/.local/state/sitrep/
   also says the sitrep `version` its window runs (19 October 2026): the
   `version` in the plugin's manifest, `.claude-plugin/plugin.json` under the
   plugin's folder, read once as the mod loads and kept for the load, a failure
-  too, since the clone is the live plugin and the manifest on disk may by then
-  be a newer checkout's than the code the window runs. A manifest that cannot
+  too, since a checkout can be the live plugin (`app/plugin here`) and the
+  manifest on disk may by then be a newer checkout's than the code the window runs. A manifest that cannot
   be read leaves it out, says so once in the debug log, and the heartbeat
   beats on; that window then reads as one needing a reload, which is safe, and
   rare. It is read as `where` is, field by field; a heartbeat with none, read
@@ -2618,7 +2618,20 @@ October 2026 went back to `brew upgrade` while the repository is private.
   a Mac that releases. A zap leaves Claude Code with the plugin registered
   from the folder it removed, so the README says to uninstall it there. The tap's `update-formula` workflow writes each release's
   version, sha256 and asset id into it, sent by `app/release`. All three
-  are placeholders until the first release.
+  were placeholders until the first release, 0.3.0 on 28 October 2026.
+- **The cask starts SitRep after every install and upgrade** (28 October
+  2026): its `postflight` opens `/Applications/SitRep.app`. An upgrade
+  quits SitRep to swap the bundle, and nothing else would start it again,
+  so the new app's start refreshes its copy of the plugin straight away
+  (see "After an update"), and the two never part. The open is tried up to
+  three times, a second apart, since an `open` straight after a bundle is
+  moved in has failed once with LaunchServices error -600 (seen with
+  `app/build`, 14 October 2026); and it never fails the install, as when
+  there is no screen to open it on. Leaving SitRep running through an
+  upgrade, to notice its newer self on disk, was weighed and ruled out:
+  brew would remove the bundle from under a running app and its notices
+  helper. Lee asked for it that day, since he restarts his Mac rarely and
+  the app and the plugin must never drift.
 - **The app installs the Claude plugin**, at each start that finds nothing
   of sitrep in either of Claude's lists. It copies the plugin it carries to
   `~/Library/Application Support/sitrep/`, outside its own bundle, since
@@ -2639,8 +2652,8 @@ October 2026 went back to `brew upgrade` while the repository is private.
   only when neither shows anything of sitrep: no `sitrep` marketplace, and
   no installed plugin named `sitrep` from any marketplace. It refreshes
   only its own copy, the `sitrep` marketplace being a folder marketplace of
-  that very folder. A `sitrep` marketplace anywhere else (Lee's clone, the
-  GitHub one), or any installed `sitrep` not from its own copy
+  that very folder. A `sitrep` marketplace anywhere else (a checkout of Lee's,
+  as `app/plugin here` makes it, the GitHub one), or any installed `sitrep` not from its own copy
   (`sitrep@kit`, since sitrep began in kit's marketplace), is foreign: it
   is never removed, replaced or re-pointed, no second sitrep is installed
   beside it, which would leave each window running two mods, and SitRep
@@ -2660,9 +2673,10 @@ October 2026 went back to `brew upgrade` while the repository is private.
   `claude plugin marketplace add` over an existing `sitrep` registration
   re-points it without complaint, which is why an empty marketplace list
   alone is not enough to add one: with Claude's record of its marketplaces
-  gone, the list says `[]` while the plugin still loads from the clone. On
-  this Mac, until the first release, the app changes nothing and runs the
-  clone's CLI.
+  gone, the list says `[]` while the plugin still loads from a checkout.
+  Under `app/plugin here` (below) the app changes nothing and runs the
+  checkout's CLI; until the first release, so it ran the clone's on this
+  Mac.
 - **Trouble does not leave SitRep without a board.** SitRep remembers the
   plugin folder of the last look that went well. A look that meets trouble
   (no `claude`, a list that fails, times out or does not read, a step that
@@ -2699,8 +2713,8 @@ October 2026 went back to `brew upgrade` while the repository is private.
 - **Sparkle is built at the first public release.** It first waited on a
   Developer ID too, which Lee had by 27 October 2026 (stage 4). It must be
   testable locally first: a feed served from this Mac, and two builds signed
-  with the Developer ID. Until the first release, this Mac builds the app
-  from the clone (below).
+  with the Developer ID. Since the first release (28 October 2026) this Mac
+  runs the cask's SitRep, and builds over it (below).
 - **Everyone else** (Linux, Windows, no menu bar wanted) was to install the
   plugin alone from the GitHub marketplace: `claude plugin marketplace add
   leeovery/sitrep`, then `claude plugin install sitrep@sitrep`. Since 27
@@ -2715,13 +2729,36 @@ October 2026 went back to `brew upgrade` while the repository is private.
   writing Claude's settings. Sparkle was ruled out here too, and taken back
   on 16 October 2026 (above).
 
-**Until the first release** (stage 4): this Mac reads the plugin from the
-clone, `~/Code/sitrep`, as a folder marketplace, so an edit plus
-`/reload-plugins` is a change, and the clone's checkout is the code every
-window runs: work happens in a worktree. The app is built locally, by
-`app/build` (stage 3). kit's `[manual]` step installs the plugin from the
-GitHub marketplace on any other Mac until kit declares the cask, which
-exists since 27 October 2026 and waits on the first release.
+**On this Mac**, since the first release (28 October 2026), as on any
+other: SitRep from the cask, at `/Applications/SitRep.app`, and the plugin
+from SitRep's own copy, so a merge to `main` reaches no window until a
+release. Until then this Mac read the plugin from the clone,
+`~/Code/sitrep`, as a folder marketplace, so an edit plus `/reload-plugins`
+was a change and the clone's checkout the code every window ran, and
+`app/build` (stage 3) installed the app to `~/Applications/SitRep.app`.
+Work happens in a worktree, the clone kept on `main`.
+- **`app/plugin` switches where the plugin comes from**, for a live test.
+  `app/plugin here` points the `sitrep` marketplace at the checkout it is
+  in, a worktree or the clone, by `claude plugin marketplace add` over the
+  registration, then `claude plugin marketplace update sitrep` and `claude
+  plugin update sitrep@sitrep` (an install where it is not installed), so
+  Claude's record follows. `app/plugin app` points it back at SitRep's copy,
+  and `app/plugin` alone says which it is. Each window takes a switch up at
+  its next `/reload-plugins`. SitRep looks at the plugin only as it starts,
+  its looks ending at the first that runs, so a switch quits a running
+  SitRep as `app/build` does and opens `/Applications/SitRep.app`: on a
+  checkout, it finds a marketplace not its own and runs that checkout's
+  CLI, on Bun; back on its copy, it refreshes the copy. Tested against the
+  real `claude`, its config (`CLAUDE_CONFIG_DIR`) and the home in a scratch
+  folder, with `pgrep`, `pkill` and `open` stood in for.
+- **`app/build` installs over the cask's copy**, at
+  `/Applications/SitRep.app`. The login item and macOS's permissions
+  remember the app by where it is, so a build there keeps both, and there
+  is never a second bundle with the id `com.leeovery.sitrep`. `brew
+  reinstall --cask sitrep` puts the release back, and the next `brew
+  upgrade` replaces the build too.
+- kit's `[manual]` step installs the plugin from the GitHub marketplace on
+  any other Mac until kit declares the cask.
 
 **Versions side by side.** Neither the app nor a mod can reload a Claude
 window (the engine's types offer no way): each window takes a new plugin up
@@ -2778,8 +2815,8 @@ Claude Code puts an enabled plugin's `bin/` on its Bash tool's PATH, and the
 app calls the copy of the plugin it installed, so nothing puts the CLI on
 Lee's shell's PATH: no project's folder goes on kit's `[paths]` (Lee, 14
 October 2026). The copy the app carries has it compiled
-(`bun build --compile`), so a Mac with the app needs no Bun; a clone of the
-plugin, as this Mac's live one is, runs it on Bun. Bun reads a file by its extension, so what it
+(`bun build --compile`), so a Mac with the app needs no Bun; a checkout of the
+plugin, as `app/plugin here` makes one live, runs it on Bun. Bun reads a file by its extension, so what it
 compiles is `cli/shell/run.ts`, which `bin/sitrep` imports; compiled, the
 CLI finds its manifest from its binary's folder, since its own source's
 folder is then one inside the binary.
@@ -4980,7 +5017,9 @@ reaches a window only while that pane is on show).
 
       The clone is the live plugin: each is proven by the CLI run live over
       a state folder of its own, and reaches Lee's windows as it merges, at
-      their next `/reload-plugins`.
+      their next `/reload-plugins` (until the first release, 28 October
+      2026; since, a window takes it up from a release, or from
+      `app/plugin here`).
    5. **The jump's two layers**, in the CLI (see "The jump"):
       - a driver per terminal, Ghostty's from today's jump;
       - one tmux layer under every driver, which also selects the pane's
@@ -5715,8 +5754,9 @@ reaches a window only while that pane is on show).
      `SitRep`, and a library beside it holding what can be tested without a
      screen. macOS 14 and later, Swift 6.
    - **`app/build`** builds it, makes `SitRep.app`, signs it, installs it to
-     `~/Applications/SitRep.app`, replacing what is there, and starts it.
-     Since step 9 `app/bundle` makes the signed bundle, into a folder given,
+     `~/Applications/SitRep.app`, replacing what is there, and starts it;
+     since 28 October 2026 to `/Applications/SitRep.app`, over the cask's
+     copy (stage 4). Since step 9 `app/bundle` makes the signed bundle, into a folder given,
      and `app/build` installs what it made.
      Always that place: the login item and macOS's permissions remember an
      app by where it is. It stops a running SitRep with a signal, since
@@ -5731,7 +5771,7 @@ reaches a window only while that pane is on show).
      replaced it on 27 October 2026 for every build, `app/build`'s and a
      release's alike, and `app/make-certificate` went (stage 4). Its
      designated requirement is the bundle id and the team, so a build from
-     the clone and a release share the leave, notifications and the login
+     a checkout and a release share the leave, notifications and the login
      item. The change may ask once more for leave to control Ghostty; Lee's
      first jump after it went as before, with no prompt (step 9).
    - **`com.leeovery.sitrep`**, named SitRep, with no Dock icon.
@@ -5767,7 +5807,8 @@ reaches a window only while that pane is on show).
      Info.plist (`SitRepPlugin`), even when it builds in a worktree; the
      app runs that folder's `bin/sitrep`. Step 9 took it out (20 October
      2026): the app runs the CLI of the plugin the `sitrep` marketplace
-     names, which on this Mac is still the main checkout, from any build.
+     names, which on this Mac was the main checkout until the first release
+     and is SitRep's own copy since (stage 4), from any build.
    - **A plain menu**, until the notch and its panel are built (replaced by
      "The menu bar item", 17 October 2026, rather than slimmed as first
      planned): the sessions on screen, a jump each; a test
@@ -5792,6 +5833,9 @@ reaches a window only while that pane is on show).
      `pre_tag` runs every gate, since no CI does.
    - **Built on this Mac, not in CI** (Lee's choice): with the Xcode Lee
      tests with, no certificate in GitHub, and no macOS runner's minutes.
+     It builds on a Mac only because the Developer ID's key and the notary
+     login live in this Mac's keychain; Lee's other tools rightly build in
+     CI (28 October 2026).
      mint's `post_release` runs `app/release` once the tag and the release
      are pushed. It builds the app from the tag's tree, a git worktree in a
      temporary folder, by the tag's own `app/bundle --release`; notarises
@@ -5809,7 +5853,7 @@ reaches a window only while that pane is on show).
      asset's id, are new. A dry run does nothing: mint runs no hooks then.
    - **Signed with Lee's Developer ID**, `Developer ID Application:
      PointsBox Limited (CQKZZ4FN6V)` in the login keychain, by `app/bundle`
-     for every build, `app/build`'s too, so a build from the clone and a
+     for every build, `app/build`'s too, so a build from a checkout and a
      release share macOS's leave (see step 3's "Signed with"). It signs by
      the identity's hash, and refuses, listing them, when the keychain
      holds two of the name, as after a renewal. Inside out, never with
@@ -5832,7 +5876,7 @@ reaches a window only while that pane is on show).
      can pass by looking the ticket up online, then marked quarantined as
      Safari marks a download, and `spctl -a -t exec` must say it is
      accepted, from a notarised Developer ID. `app/build` doesn't notarise:
-     a build installed from the clone is never quarantined, and notarising
+     a build installed from a checkout is never quarantined, and notarising
      would add minutes to every install.
    - **Proven on 27 October 2026**, on a bundle in a temporary folder: the
      notary service accepted it at the first submission
@@ -5872,23 +5916,27 @@ reaches a window only while that pane is on show).
      id, about a minute, or until a rerun or the command sends it, if the
      send or the update fails. Unlike Stitch's formula, with its table of
      asset ids by version, the cask holds only the current one.
-   - **Still to come:** the first release, Lee's `./release
-     --set-version`, once the tap's branch with the cask and the workflow's
-     `sitrep` has merged in `leeovery/homebrew-tools`: until then the
-     workflow refuses `sitrep`, and the release's `app/release` fails. Its
-     dispatch replaces the cask's placeholders, its version, sha256 and
-     asset id. Then this Mac moves onto the cask and the clone stops being
-     live, a change of its own: first `app/build`'s
-     `~/Applications/SitRep.app` goes, since two copies with one bundle id
-     let Launch Services, the login item and a banner's click pick either;
-     then the cask installs SitRep like any other Mac's, and a script in
-     the repository points the `sitrep` marketplace at the clone for a live
-     test, and back. What `app/build` does from then on, beside the cask's
-     copy, is settled with that step. And kit declares the cask, its
-     `[manual]` step giving way to it. Whether `claude plugin update`
-     follows `main` or the tags was left to settle for the plugin alone
-     from GitHub, which went as the plugin and the app came as one (27
-     October 2026).
+   - **Where the build runs** (Lee, 28 October 2026): in `post_release`,
+     after the tag and the push, as built. A failure there leaves the
+     release without its zip and the cask on the last version, and
+     `app/release <version>` run again fixes it. Moving the build and the
+     notarising into `pre_tag`, so a failure stops the release before its
+     tag, was weighed and not taken.
+   - **The first release:** 0.3.0, cut on 28 October 2026, once the tap's
+     branch with the cask and the workflow's `sitrep` had merged in
+     `leeovery/homebrew-tools`; its dispatch replaced the cask's
+     placeholders. Then this Mac moved onto the cask: `app/build`'s
+     `~/Applications/SitRep.app` went first, since two copies with one
+     bundle id let Launch Services, the login item and a banner's click
+     pick either, and the clone stopped being the marketplace; the cask
+     installed SitRep like any other Mac's, and the plugin comes from
+     SitRep's copy. `app/build` installs over `/Applications/SitRep.app`,
+     and `app/plugin` points the `sitrep` marketplace at a checkout for a
+     live test, and back (see "Where it lives"). Still to come: kit
+     declares the cask, its `[manual]` step giving way to it. Whether
+     `claude plugin update` follows `main` or the tags was left to settle
+     for the plugin alone from GitHub, which went as the plugin and the
+     app came as one (27 October 2026).
 5. **Attention beyond asks**, in this build (decided with Lee on 16 October
    2026), built as stage 3's fourth step, the live feed, since the rows
    and the strip's rings need it. The mod hears what its window is doing,
