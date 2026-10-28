@@ -31,7 +31,7 @@ struct PluginPlanTests {
     private static let cloneMarketplace = ClaudeLists.list(ClaudeLists.folderMarketplace(path: clone))
     private static let cloneInstalled = ClaudeLists.list(ClaudeLists.plugin(readFrom: clone))
 
-    // MARK: Lee's Mac, its sitrep marketplace the clone
+    // MARK: A sitrep marketplace that is a checkout
 
     @Test(arguments: [("0.2.0", nil), ("0.3.0", nil), ("0.2.0", "0.1.0"), (nil, nil)] as [(String?, String?)])
     func onLeesMacTheClonesMarketplaceIsLeftAsItIsWhateverSitRepCarries(carried: String?, copied: String?) {

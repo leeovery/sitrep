@@ -4,7 +4,7 @@ import Foundation
 public enum PluginSource: Equatable, Sendable {
     /// SitRep's own copy, which it installed and keeps up to date.
     case own
-    /// A folder of Lee's, as he would write it: `~/Code/sitrep`, the clone, until the first release.
+    /// A folder of Lee's, as he would write it: `~/Code/sitrep`, as a checkout under `app/plugin here` is.
     case folder(String)
     /// A repository on GitHub: `leeovery/sitrep`.
     case github(String)
