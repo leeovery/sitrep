@@ -12,7 +12,7 @@ Claude keeps a board as it works: where each session stands, what it needs from 
 [![Swift](https://img.shields.io/badge/Swift-6.0+-F05138.svg)](https://www.swift.org)
 [![Claude Code plugin](https://img.shields.io/badge/Claude%20Code-plugin-D97757.svg)](#claude-and-sitrep)
 
-[Install](#install) · [Quick start](#quick-start) · [How it works](#how-it-works) · [Claude and sitrep](#claude-and-sitrep) · [SitRep, the app](#sitrep-the-app) · [Commands](#commands) · [Developing](#developing)
+[Install](#install) · [Quick start](#quick-start) · [How it works](#how-it-works) · [Claude and sitrep](#claude-and-sitrep) · [The board in Claude Code](#the-board-in-claude-code) · [SitRep, the app](#sitrep-the-app) · [Commands](#commands) · [Developing](#developing)
 
 </div>
 
@@ -41,7 +41,7 @@ export HOMEBREW_GITHUB_API_TOKEN=...   # in your shell's profile, to keep it
 brew install --cask leeovery/tools/sitrep
 ```
 
-Open SitRep from Applications; macOS asks once whether to open an app downloaded from the internet. At its first start SitRep copies the plugin it carries to `~/Library/Application Support/sitrep` and installs it there through `claude plugin`. It leaves alone a sitrep it didn't install, such as a clone registered as the `sitrep` marketplace, and runs that one's CLI instead.
+Open SitRep from Applications; macOS asks once whether to open an app downloaded from the internet. At its first start SitRep copies the plugin it carries to `~/Library/Application Support/sitrep` and installs it there through `claude plugin`. It leaves alone a sitrep it didn't install, such as a clone registered as the `sitrep` marketplace, and runs that one's CLI instead. It needs the `claude` CLI where Claude Code's installers put it, or on your login shell's PATH. Should the plugin's install fail, the menu bar item's menu says why under its header, and so does the Claude Code plugin row in Settings › General.
 
 The install asks macOS for nothing. What SitRep can use, it asks for in Settings, under General and Notifications:
 
@@ -53,9 +53,9 @@ The install asks macOS for nothing. What SitRep can use, it asks for in Settings
 
 1. Open SitRep, then run `/reload-plugins` in each Claude Code window already open.
 2. Work as you do. When the work will run across several turns or will need you, Claude starts a session and keeps its board.
-3. Watch the line above the prompt, `◆ 1 ask   2 elsewhere   ▸ show board`: each count opens the board.
+3. Watch the line above the prompt, `◆ 1 ask  2 elsewhere  ▸ show board`: each count opens the board.
 4. Run `/sitrep`, or press `show board`, to open the board in Claude Code. Answer an ask, then press **send to Claude**.
-5. Move the pointer onto SitRep's notch at the edge of the screen to see every session, and click one to jump to its window.
+5. Move the pointer onto SitRep's notch, at the left edge of the main display a little above the middle, to see every session, and click one to jump to its window.
 
 ## How it works
 
@@ -69,8 +69,9 @@ Claude Code window ──tools──▶ the mod ──writes──▶ ~/.local/s
 - **The mod runs in every Claude Code window.** It registers Claude's tools, draws the board in the window, and writes what Claude posts into the board's folder.
 - **The folder is the state.** `~/.local/state/sitrep` (or `$XDG_STATE_HOME/sitrep`) holds every project and session, a file for each writer. No database, no server, no background service.
 - **The core holds the rules**, shared by the mod and the CLI: what a reply does to an ask, what counts as waiting, what folds away.
-- **SitRep holds no sitrep logic.** It runs one `sitrep watch`, which prints the board as it changes, and calls the CLI for each answer, snooze and jump.
-- **Your replies arrive as your own message.** A reply for this session is sent as you, marked "From the board:"; while Claude is mid-turn it waits for the turn to end, and you can take it back until then. A reply for another session goes into that session's inbox, and its window sends it on, now or once a window takes the session up.
+- **SitRep leaves the board's rules to the core**, and changes the board only through the CLI. It runs one `sitrep watch`, which prints the board as it changes, and calls the CLI for each answer, snooze, wake, finish and jump.
+- **Your replies arrive as your own message.** A reply for this session is sent as you, marked "From the board:"; while Claude is mid-turn it waits for the turn to end, and you can take it back until then.
+- **A reply for another session goes into its inbox.** That session's window sends it on, now or once a window takes the session up.
 
 The board has its own words: a **project**, roughly a repository, named as you'd say it; its **sessions**; and in each a **status**, **asks** (what only you can do or decide), **notes** (what you'd want to know later), **parked** items (put off, to come back to), **resolved** items and **snoozed** asks. A session Claude or you **finished** leaves the board.
 
@@ -90,27 +91,30 @@ The mod gives Claude these tools. Only the main conversation can call them; a su
 | `project` | Renames the session's project, or says where it lives |
 | `board` | Reads the board back, so Claude can check and repair it |
 
-- **Each conversation's first message tells Claude how to keep the board**, and lists every session on it with its id, so Claude can join one you carry on with, or start a new one.
+- **Each conversation's first message tells Claude how to keep the board**, and lists every current session on it with its id, so Claude can join one you carry on with, or start a new one.
 - **Claude asks only when it needs you**, says it in the chat as well, and picks the shape by what you give back. A yes's button is the verb you're giving: `✓ Go`, `✓ Approve`, `✓ It works`.
-- **Drift gets noticed.** When the board changes, its open items ride into Claude's next turn, and a join hands Claude the whole board to correct anything stale.
-- **Only you snooze.** Claude has no tool for it.
+- **Drift gets noticed.** When the board changes, its open items ride into Claude's next turn, and a join hands Claude the board as it stands (its status, open asks, parked items and latest notes) to correct anything stale.
+- **Claude has no tool for snoozing.** Snoozing an ask is yours.
 
 ## The board in Claude Code
 
 - **The pane**, opened by `/sitrep` or the band, has two tabs: this session, and All projects. A session shows its asks first, then its status, notes, parked items and resolved asks. All projects opens each project, and each project its sessions.
 - **The band** is the line above the prompt: this session's asks, what waits elsewhere, and the pane's show or hide. A new ask pulses it and shows a toast.
-- **Ready to send.** Everything you do on the pane queues at its foot, grouped by the session it goes to, until you press **send to Claude** or **cancel all**. A words ask's answer, or a comment, is written in Claude Code's prompt.
+- **Ready to send.** Your replies queue at the pane's foot, grouped by the session each goes to, until you press **send to Claude** or **cancel all**. A words ask's answer, or a comment, is written in Claude Code's prompt. A snooze, a wake or a finish takes effect at once.
 
 ## SitRep, the app
 
-A menu bar app with no Dock icon, on every Space.
+A menu bar app with no Dock icon, on every Space. The notch and the strip step off the screen while a full-screen app has their display, and come back as it leaves.
 
 - **The notch** sits at the screen's left or right edge, a little above the middle, and opens on hover into a panel of your sessions: Needs you, Working, Your turn and Snoozed. It swells and lights when something needs you, and never takes the keyboard. Drag it along the edge, or across the middle to the other side.
 - **The strip** can stand in its place: a narrow column along the edge, a mark for each session, that grows with what's on it or runs the screen's height.
-- **The SitRep window** shows the whole board: every session in one list down the left, and its page on the right, with its asks, notes, parked items and resolved asks. It answers asks that want a yes or a choice, snoozes and wakes them, and finishes a session no window holds.
-- **The menu bar item** lists the panel's sessions with a click to each, then Open SitRep Window, Show (Notch, Strip or Nothing), Settings… and Quit SitRep. It says first when a window needs `/reload-plugins`, or when SitRep can't read the board.
-- **Settings**, a page of the SitRep window (⌘,): what stays on screen, with its edge, display, style, length, Black or Glass (from macOS 26) and Reduce motion; Notifications, with a test notification and the sound for a new ask; and General, with how soon Your turn folds, the plugin's state, Open at login and the leave to control Ghostty.
-- **A new ask** plays SitRep's sound once, whichever session it lands in, and, with notifications on, posts a silent macOS notification whose click jumps to the session.
+- **The SitRep window** shows the whole board. Down the left, the panel's sections in one list, then Projects, which folds and opens each project's page. On the right, a session's page: its asks, status, notes, parked items and resolved asks. It answers asks that want a yes or a choice, ignores any ask, snoozes and wakes them, and finishes a session no window holds.
+- **The menu bar item** lists the panel's sessions with a click to each, an away session's shown but not clickable, up to twelve rows and then "N more…"; then Open SitRep Window, Show (Notch, Strip or Nothing), Settings… and Quit SitRep. It speaks up first, in this order, when the plugin is in trouble, when a window needs `/reload-plugins`, and when SitRep can't read the board.
+- **Settings**, a page of the SitRep window (⌘,):
+  - What stays on screen: Show, Notch, Strip or Nothing; its edge and display; for the notch, Style, Meniscus or Card; for the strip, Length, Grows or Full, and a Max slider at Grows; Black or Glass (from macOS 26); and Reduce motion.
+  - Notifications: a test notification, Notify me of a new ask, and Play a sound for a new ask, on by default, with the sound picked from macOS's alert sounds, Glass by default.
+  - General: how soon Your turn folds, the plugin's state, Open at login and the leave to control Ghostty.
+- **A new ask** plays the sound once, whichever session it lands in, and, with notifications on, posts a silent macOS notification whose click jumps to the session.
 - **The jump** brings forward the Ghostty window showing a session, selecting the session's tmux window where no client shows it. A terminal with no driver is brought forward whole.
 
 ## Commands
@@ -161,6 +165,17 @@ Neither touches the board itself, `~/.local/state/sitrep`.
 
 A clone registered as the `sitrep` marketplace is what a development Mac runs: whatever the checkout holds is what every Claude window runs at its next `/reload-plugins`. So keep that clone on `main`, and work in a worktree. [DESIGN.md](DESIGN.md) is the design, and the record of what was decided and proven live.
 
+```bash
+claude plugin marketplace add ~/Code/sitrep   # the clone, as the sitrep marketplace
+claude plugin install sitrep@sitrep
+```
+
+It needs:
+
+- **Bun**: the clone's `bin/sitrep` runs on it, the gates run `bunx`, and `app/bundle` compiles the app's CLI with `bun build --compile`;
+- **Xcode**, for Swift 6 and the `actool` that compiles the icon;
+- **the Developer ID certificate**, `Developer ID Application: PointsBox Limited (CQKZZ4FN6V)`, in the login keychain: `app/bundle` signs with it, and stops without it.
+
 The repository holds the mod (`hooks/`), the core (`core/`), the CLI (`cli/`) and the app (`app/`, a Swift package with no Xcode project), under one version. The engine's types live in `.claude-plugin/types/`, which git leaves out; `.worktreeinclude` copies them into a worktree.
 
 Every change passes the gates:
@@ -184,15 +199,19 @@ A release is cut and built on a Mac, by mint:
 ./release --dry-run    # the plan, with nothing changed and no hooks run
 ```
 
-mint sets the version in `.claude-plugin/plugin.json`, which the app takes too. Its `pre_tag` hook runs every gate above, since no CI does; then it writes the notes, tags `v<version>`, pushes, and makes the GitHub release. Its `post_release` hook runs `app/release`, which builds the app from the tag's tree, notarizes and staples it, uploads `SitRep-<version>.zip` to the release and, when the release is the latest, sends the cask in `leeovery/homebrew-tools` the version, the zip's sha256 and the asset's id, then waits for the tap's workflow to commit them. A rerun for an older release leaves the cask alone, since the cask on an older version would downgrade every Mac.
+mint sets the version in `.claude-plugin/plugin.json`, which the app takes too. Its `pre_tag` hook runs every gate above, since no CI does; then it writes the notes, tags `v<version>`, pushes, and makes the GitHub release. Its `post_release` hook runs `app/release`, which:
 
-`app/release` logs everything to `~/Library/Logs/SitRep/release-<version>.log`. mint only warns when it fails, so run it again by hand, `app/release` or `app/release <version>`: it builds, notarizes, uploads and sends the cask again. When the upload went and only the sending or the tap's update failed, it prints the command that sends the cask again.
+1. builds the app from the tag's tree, by the tag's own `app/bundle`;
+2. notarizes and staples it (`app/notarize`), and checks that Gatekeeper accepts the zip as a download;
+3. uploads `SitRep-<version>.zip` to the release, replacing one there;
+4. when the release is the latest, sends the cask in `leeovery/homebrew-tools` the version, the zip's sha256 and the asset's id, and waits for the tap's workflow to commit them. A rerun for an older release leaves the cask alone, since the cask on an older version would downgrade every Mac.
 
-A rerun replaces the zip, and GitHub deletes the asset it replaces, so until the tap's workflow commits the new asset's id, about a minute, installs fail. If the sending or the update fails in between, the cask stays broken until a rerun or the printed command sends it again.
+`app/release` logs everything to `~/Library/Logs/SitRep/release-<version>.log`. mint only warns when it fails, so run it again by hand, `app/release` or `app/release <version>`: it builds, notarizes, uploads and sends the cask again. When the upload fails, it says a rerun builds and notarizes again. When the upload went and a step before the tap's run failed (finding the latest release, listing the tap's runs, sending the cask) or the tap started no run within a minute, it prints the command that sends the cask again. When the tap's run started, it prints the run's URL, and if that run fails, the URL and the command.
 
-Once per Mac that releases:
+A rerun replaces the zip, and GitHub deletes the asset it replaces. Until the tap's workflow commits the new asset's id, about a minute later, the cask names a deleted asset, so installs fail; if the sending or the update fails in between, the cask stays broken until a rerun or the printed command sends it again.
 
-- the Developer ID certificate, `Developer ID Application: PointsBox Limited (CQKZZ4FN6V)`, in the login keychain;
+Once per Mac that releases, beside the Developer ID certificate:
+
 - notarytool's login saved in the keychain as the profile `sitrep`: `xcrun notarytool store-credentials sitrep`;
 - `gh` logged in as an account that can upload to this repository's releases and dispatch to `leeovery/homebrew-tools`;
 - mint: `brew install leeovery/tools/mint`.
