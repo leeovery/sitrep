@@ -1,6 +1,6 @@
 {
   "name": "sitrep",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "A small window onto where a session stands and what it needs from Lee: Claude jots status, asks, notes and parked items; Lee answers from the board.",
   "author": {
     "name": "Lee Overy"
