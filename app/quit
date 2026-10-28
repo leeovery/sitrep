@@ -1,8 +1,10 @@
 #!/bin/bash
 # Quits Lee's SitRep and its notices helper, and waits until both have
 # ended, for app/build and app/plugin to start SitRep again (app/open).
-# Nothing running is no trouble; one still running after five seconds is,
-# said rather than waited on for ever.
+# Nothing running is no trouble. SitRep gets five seconds after its signal;
+# the helper two to quit as SitRep ends, then five after its own, about
+# seven in all. One still running then is said, rather than waited on for
+# ever.
 set -euo pipefail
 
 # Waits for this user's program of the name to end, failing after five

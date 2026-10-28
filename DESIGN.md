@@ -904,12 +904,12 @@ window holding the ask's session did, so an ask from a session whose window
 was elsewhere (another Mac over SSH, or none) played nothing where Lee was.
 Lee, that day: "I do think we should move the sound into the app." A window
 still on the older mod plays nothing either: it played `sounds/ask.aiff` from
-the plugin's folder, and once an update, or a checkout under `app/plugin
-here` moving on, has taken `sounds/` out of that folder, its play fails,
-logging "sitrep: the chime failed" to the debug log, so no window doubles SitRep's sound. So it
-is when an ask's snooze runs out in this session, the toast saying
-`◆ Back from snooze: Review the plan`, and the pane opens it; not when Lee
-wakes it, from the pane or the app. Asks landing and waking together make
+the plugin's folder, and once an update, or a checkout under `app/plugin here`
+moving on, has taken `sounds/` out of that folder, its play fails, logging
+"sitrep: the chime failed" to the debug log, so no window doubles SitRep's
+sound. So it is when an ask's snooze runs out in this session, the toast
+saying `◆ Back from snooze: Review the plan`, and the pane opens it; not when
+Lee wakes it, from the pane or the app. Asks landing and waking together make
 one toast, the new asks' (see "Snooze"). Dropped for now (11 October 2026):
 a macOS notification for asks. Back on 13 October 2026, from the menu bar
 app (see "The menu bar").
@@ -1641,17 +1641,17 @@ $XDG_STATE_HOME/sitrep/, else ~/.local/state/sitrep/
   `version` in the plugin's manifest, `.claude-plugin/plugin.json` under the
   plugin's folder, read once as the mod loads and kept for the load, a failure
   too, since the manifest on disk may by then be newer than the code the
-  window runs: SitRep replaces its copy whole at an update, under windows
-  not yet reloaded, and a checkout under `app/plugin here` moves on. A
-  manifest that cannot be read leaves it out, says so once in the debug log, and the heartbeat
-  beats on; that window then reads as one needing a reload, which is safe, and
-  rare. It is read as `where` is, field by field; a heartbeat with none, read
-  today, is a window whose manifest did not read: one on a release from before
-  heartbeats said it wrote under `works/`, which no reader reads any more (see
-  "Two layouts, side by side", above). `sitrep watch` says which windows need
-  a reload, for the menu to list. It also says the window's `state` (19
-  October 2026), with what the row shows of it, rewritten at once as it
-  changes (how the mod hears it is under "A session's state"):
+  window runs: SitRep replaces its copy whole at an update, under windows not
+  yet reloaded, and a checkout under `app/plugin here` moves on. A manifest
+  that cannot be read leaves it out, says so once in the debug log, and the
+  heartbeat beats on; that window then reads as one needing a reload, which is
+  safe, and rare. It is read as `where` is, field by field; a heartbeat with
+  none, read today, is a window whose manifest did not read: one on a release
+  from before heartbeats said it wrote under `works/`, which no reader reads
+  any more (see "Two layouts, side by side", above). `sitrep watch` says which
+  windows need a reload, for the menu to list. It also says the window's
+  `state` (19 October 2026), with what the row shows of it, rewritten at once
+  as it changes (how the mod hears it is under "A session's state"):
 
   ```
   "state": { "is": "permission", "since": 1760000005000,
@@ -2654,11 +2654,11 @@ October 2026 went back to `brew upgrade` while the repository is private.
   no installed plugin named `sitrep` from any marketplace. It refreshes
   only its own copy, the `sitrep` marketplace being a folder marketplace of
   that very folder. A `sitrep` marketplace anywhere else (a checkout of Lee's,
-  as `app/plugin here` makes it, the GitHub one), or any installed `sitrep` not from its own copy
-  (`sitrep@kit`, since sitrep began in kit's marketplace), is foreign: it
-  is never removed, replaced or re-pointed, no second sitrep is installed
-  beside it, which would leave each window running two mods, and SitRep
-  runs that plugin's CLI from where Claude loads it:
+  as `app/plugin here` makes it, the GitHub one), or any installed `sitrep`
+  not from its own copy (`sitrep@kit`, since sitrep began in kit's
+  marketplace), is foreign: it is never removed, replaced or re-pointed, no
+  second sitrep is installed beside it, which would leave each window running
+  two mods, and SitRep runs that plugin's CLI from where Claude loads it:
   - from a folder marketplace, its folder and the plugin's place in it, as
     the folder's own `marketplace.json` says (`./` for sitrep's), never
     Claude's cached copy, which is as stale as the install (Claude drops
@@ -2743,26 +2743,38 @@ Work happens in a worktree, the clone kept on `main`.
   registration, then `claude plugin marketplace update sitrep` and `claude
   plugin update sitrep@sitrep` (an install where it is not installed), so
   Claude's record follows. `app/plugin app` points it back at SitRep's copy,
-  and `app/plugin` alone says which it is, or that the marketplace's folder
-  is gone. Each window takes a switch up at its next `/reload-plugins`.
-  SitRep looks at the plugin only as it starts, its looks ending at the
-  first that runs, so `here` quits a running SitRep (`app/quit`, as
-  `app/build` does) and starts it again: it finds a marketplace not its own
-  and runs the checkout's CLI, on Bun. `app` starts SitRep whether or not
-  it was running, since its start is what refreshes the copy, which an
-  update or `app/build` left at its old build while a checkout was the
-  plugin. A switch to where the plugin already comes from, installed at the
-  folder's version, changes nothing and starts nothing. It keeps SitRep's
-  rule: with a `sitrep` installed from another marketplace (`sitrep@kit`)
-  it refuses, naming it, rather than put a second beside it. It quits
-  nothing before it knows `/Applications/SitRep.app` is there to start, so
-  a switch never leaves SitRep down.
+  and `app/plugin` alone says which it is: or that the marketplace's folder
+  is gone, that `sitrep@sitrep` is not installed or is disabled, or that a
+  `sitrep` from another marketplace is. Each window takes a switch up at
+  its next `/reload-plugins`. SitRep looks at the plugin only as it starts,
+  its looks ending at the first that runs, so either form ends with SitRep
+  running, as the cask's install always leaves it: started where it is not
+  running, and quit (`app/quit`, as `app/build` does) and started again
+  where the switch changed anything. On a checkout, SitRep finds a
+  marketplace not its own and runs the checkout's CLI, on Bun; back on its
+  copy, its start refreshes the copy, which an update or `app/build` left
+  at its old build while a checkout was the plugin. A switch to where the
+  plugin already comes from, installed at the folder's version, leaves
+  Claude Code as it is, and only starts a SitRep that is not running, so a
+  run after an open that failed, or a quit that gave up, is retried by
+  running it again. Nothing is switched or quit before `app/open --check`
+  finds `/Applications/SitRep.app` there to start. It keeps SitRep's rule:
+  with a `sitrep` installed from another marketplace (`sitrep@kit`) it
+  refuses, naming it, rather than put a second beside it.
+  - With SitRep's copy gone (a zap, or a removal by hand) while a checkout
+    is the plugin, SitRep cannot make it again, since it leaves a
+    marketplace not its own as it is. So `app/plugin app` then uninstalls
+    `sitrep@sitrep` and removes the `sitrep` marketplace, saying so, and
+    starts SitRep, whose start, with nothing of sitrep in either list,
+    copies, adds and installs its plugin as at its first start.
   - A worktree removed while it is the plugin leaves the marketplace naming
     a folder that is gone: windows load no sitrep at their next
     `/reload-plugins`, and SitRep meets trouble and never re-points it. So
     `app/plugin app` comes before a live worktree's removal.
   - `app/quit` stops only Lee's own SitRep and notices helper, and gives up,
-    saying so, on one still running five seconds after its signal.
+    saying so, on one still running: SitRep five seconds after its signal,
+    the helper after two seconds' grace to quit as SitRep ends and five
+    after its own, about seven in all.
     `app/open` starts `/Applications/SitRep.app` for both scripts, three
     tries a second apart, as the cask's `postflight` does.
   - Tested against the real `claude`, its config (`CLAUDE_CONFIG_DIR`) and
@@ -2834,12 +2846,12 @@ The CLI is `bin/sitrep`, an executable Bun script, the only file in `bin/`.
 Claude Code puts an enabled plugin's `bin/` on its Bash tool's PATH, and the
 app calls the copy of the plugin it installed, so nothing puts the CLI on
 Lee's shell's PATH: no project's folder goes on kit's `[paths]` (Lee, 14
-October 2026). The copy the app carries has it compiled
-(`bun build --compile`), so a Mac with the app needs no Bun; a checkout of the
-plugin, as `app/plugin here` makes one live, runs it on Bun. Bun reads a file by its extension, so what it
-compiles is `cli/shell/run.ts`, which `bin/sitrep` imports; compiled, the
-CLI finds its manifest from its binary's folder, since its own source's
-folder is then one inside the binary.
+October 2026). The copy the app carries has it compiled (`bun build
+--compile`), so a Mac with the app needs no Bun; a checkout of the plugin, as
+`app/plugin here` makes one live, runs it on Bun. Bun reads a file by its
+extension, so what it compiles is `cli/shell/run.ts`, which `bin/sitrep`
+imports; compiled, the CLI finds its manifest from its binary's folder, since
+its own source's folder is then one inside the binary.
 
 The engine's types sit in `.claude-plugin/types/`, kept out of git by their
 own `.gitignore`; `.worktreeinclude` copies them into a worktree. The mod's
@@ -5774,9 +5786,9 @@ reaches a window only while that pane is on show).
      screen. macOS 14 and later, Swift 6.
    - **`app/build`** builds it, makes `SitRep.app`, signs it, installs it to
      `~/Applications/SitRep.app`, replacing what is there, and starts it;
-     since 28 October 2026 to `/Applications/SitRep.app`, over the cask's
-     copy (stage 4). Since step 9 `app/bundle` makes the signed bundle, into a folder given,
-     and `app/build` installs what it made.
+     since 28 October 2026 to `/Applications/SitRep.app`, over the cask's copy
+     (stage 4). Since step 9 `app/bundle` makes the signed bundle, into a
+     folder given, and `app/build` installs what it made.
      Always that place: the login item and macOS's permissions remember an
      app by where it is. It stops a running SitRep with a signal, since
      asking it to quit by an Apple Event would itself want leave to control

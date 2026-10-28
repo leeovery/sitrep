@@ -14,7 +14,7 @@
 set -euo pipefail
 
 installed=/Applications/SitRep.app
-app=$(cd "$(dirname "$0")" && pwd)
+app=$(cd "$(dirname "$0")" && pwd -P)
 
 # Put together outside the repository, and gone once installed.
 work=$(mktemp -d)

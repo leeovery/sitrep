@@ -171,7 +171,7 @@ app/plugin app    # SitRep's own copy again
 app/plugin        # which one Claude Code has now
 ```
 
-A switch reaches each Claude window at its next `/reload-plugins`. SitRep looks at the plugin only as it starts, so `here` starts a running SitRep again, and `app` starts it either way, since its start refreshes its copy. A switch to where the plugin already comes from changes nothing, and none puts a second sitrep beside one from another marketplace. Run `app/plugin app` before removing a worktree that is the live plugin: with its folder gone, windows load no sitrep at their next `/reload-plugins`, and SitRep never re-points the marketplace itself.
+A switch reaches each Claude window at its next `/reload-plugins`. SitRep looks at the plugin only as it starts, so either form ends with SitRep running: started where it isn't, and started again where the switch changed anything. On its copy, that start refreshes the copy, and makes it again if it's gone. A switch to where the plugin already comes from leaves Claude Code as it is and only starts a SitRep that isn't running, so running it again retries a start that failed. None puts a second sitrep beside one from another marketplace. Run `app/plugin app` before removing a worktree that is the live plugin: with its folder gone, windows load no sitrep at their next `/reload-plugins`, and SitRep never re-points the marketplace itself.
 
 It needs:
 

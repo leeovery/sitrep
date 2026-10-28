@@ -14,8 +14,10 @@ clone on `main`, and work in a worktree.
 
 - `app/plugin here` makes the checkout it is in the live plugin, for a live
   test: every Claude window runs it from its next `/reload-plugins`, and
-  SitRep, started again, runs its CLI. `app/plugin app` puts SitRep's copy
-  back, and `app/plugin` says which it is. Run `app/plugin app` before
+  SitRep, started, runs its CLI. `app/plugin app` puts SitRep's copy back,
+  and `app/plugin` says which it is. Either form ends with SitRep running,
+  started again where the switch changed anything, so a run whose start
+  failed is retried by running it again. Run `app/plugin app` before
   removing a worktree that is the live plugin: with its folder gone, windows
   load no sitrep at their next `/reload-plugins`, and SitRep never re-points
   the marketplace itself.
