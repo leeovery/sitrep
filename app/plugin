@@ -4,17 +4,20 @@
 #                     for a live test of the plugin
 #   app/plugin app    SitRep's own copy, ~/Library/Application Support/sitrep
 # Every Claude window runs the plugin switched to from its next
-# /reload-plugins. SitRep looks at the plugin only as it starts, so a switch
-# starts it again where it is running, for it to run the new plugin's CLI;
-# back on its own copy, that start also refreshes the copy.
+# /reload-plugins. SitRep looks at the plugin only as it starts, so `here`
+# starts a running SitRep again, for it to run the checkout's CLI. `app`
+# starts SitRep whether or not it was running, since its start is what
+# refreshes the copy, left at its old build by any update or app/build made
+# while a checkout was the plugin. A switch to where the plugin already
+# comes from, installed and current, changes nothing. As SitRep does, it
+# never puts a second sitrep beside one from another marketplace
+# (DESIGN, "Anything of sitrep SitRep did not install").
 set -euo pipefail
 
-usage="Usage: app/plugin [here | app]"
 marketplace=sitrep
 plugin=sitrep@sitrep
 own="$HOME/Library/Application Support/sitrep"
-installed=/Applications/SitRep.app
-app=$(cd "$(dirname "$0")" && pwd)
+app=$(cd "$(dirname "$0")" && pwd -P)
 checkout=$(dirname "$app")
 
 # A claude command, quiet unless it fails.
@@ -27,12 +30,9 @@ claude_quietly() {
   fi
 }
 
-# The sitrep marketplace's folder, or its source where it is not a folder;
-# nothing with no sitrep marketplace.
-source_now() {
-  claude plugin marketplace list --json |
-    jq -r --arg name "$marketplace" \
-      '.[] | select(.name == $name) | if .source == "directory" then .path else (.repo // .url // .source) end'
+# A folder with its links followed; one that isn't there as given.
+real() {
+  (cd "$1" 2> /dev/null && pwd -P) || echo "$1"
 }
 
 # A folder as Lee would write it.
@@ -43,60 +43,139 @@ written() {
   esac
 }
 
-say_where() {
-  local now
-  now=$(source_now)
-  case $now in
-    "") echo "Claude Code has no sitrep marketplace" ;;
-    "$own") echo "The sitrep plugin comes from SitRep's own copy, $(written "$own")" ;;
-    "$checkout") echo "The sitrep plugin comes from this checkout, $(written "$checkout")" ;;
-    *) echo "The sitrep plugin comes from $(written "$now")" ;;
-  esac
+# Whether the folder is a marketplace named sitrep offering the plugin.
+is_sitrep_marketplace() {
+  jq -e --arg name "$marketplace" '.name == $name and any(.plugins[]?; .name == $name)' \
+    "$1/.claude-plugin/marketplace.json" > /dev/null 2>&1
 }
 
-is_installed() {
-  claude plugin list --json | jq -e --arg id "$plugin" 'any(.[]; .id == $id)' > /dev/null
+# The sitrep marketplace's folder, or its source where it is not a folder;
+# nothing with no sitrep marketplace.
+source_now() {
+  claude plugin marketplace list --json |
+    jq -r --arg name "$marketplace" \
+      '.[] | select(.name == $name) | if .source == "directory" then .path else (.repo // .url // .source) end'
+}
+
+# Every installed plugin named sitrep from another marketplace than sitrep's,
+# from Claude's list of plugins: `sitrep@kit`.
+foreign_in() {
+  jq -r --arg id "$plugin" \
+    '[.[] | .id | select(split("@")[0] == ($id | split("@")[0]) and . != $id)] | join(", ")' <<< "$1"
+}
+
+say_where() {
+  local now foreign
+  now=$(source_now)
+  foreign=$(foreign_in "$(claude plugin list --json)")
+
+  if [[ -n $foreign ]]; then
+    echo "The sitrep plugin comes from another marketplace, $foreign, which app/plugin puts no second sitrep beside"
+  elif [[ -z $now ]]; then
+    echo "Claude Code has no sitrep marketplace"
+  elif [[ $now == /* ]] && ! is_sitrep_marketplace "$now"; then
+    echo "The sitrep marketplace is $(written "$now"), which is gone: windows load no sitrep at their next /reload-plugins. app/plugin app puts SitRep's copy back"
+  elif [[ $(real "$now") == $(real "$own") ]]; then
+    echo "The sitrep plugin comes from SitRep's own copy, $(written "$own")"
+  elif [[ $(real "$now") == $(real "$checkout") ]]; then
+    echo "The sitrep plugin comes from this checkout, $(written "$checkout")"
+  else
+    echo "The sitrep plugin comes from $(written "$now")"
+  fi
+}
+
+# Whether the marketplace is the folder, and sitrep@sitrep is installed from
+# it at its version, given Claude's list of plugins.
+is_current() {
+  local folder=$1 plugins=$2 now version installed
+  now=$(source_now)
+  version=$(jq -r .version "$folder/.claude-plugin/plugin.json")
+  installed=$(jq -r --arg id "$plugin" --arg version "$version" \
+    '.[] | select(.id == $id and .version == $version) | .readFromFolder // empty' <<< "$plugins")
+
+  [[ -n $now && -n $installed && $(real "$now") == "$folder" && $(real "$installed") == "$folder" ]]
 }
 
 # The marketplace re-pointed at the folder, an add over the registration
-# there being one, and Claude's record of the plugin brought up to it.
+# there being one, and Claude's record of the plugin brought up to it;
+# `switched` false where it already was, with nothing changed.
+switched=false
 switch_to() {
-  local folder=$1
-  if [[ ! -f "$folder/.claude-plugin/marketplace.json" ]]; then
+  local folder plugins foreign
+  folder=$(real "$1")
+  if ! is_sitrep_marketplace "$folder"; then
     echo "No sitrep marketplace in $(written "$folder")" >&2
     exit 1
   fi
 
+  plugins=$(claude plugin list --json)
+  foreign=$(foreign_in "$plugins")
+  if [[ -n $foreign ]]; then
+    echo "Claude Code has sitrep from another marketplace, $foreign, so app/plugin puts no second sitrep beside it" >&2
+    exit 1
+  fi
+  if is_current "$folder" "$plugins"; then
+    echo "The sitrep plugin already comes from $(written "$folder"), installed and current"
+    return
+  fi
+
   claude_quietly plugin marketplace add "$folder"
   claude_quietly plugin marketplace update "$marketplace"
-  if is_installed; then
+  if jq -e --arg id "$plugin" 'any(.[]; .id == $id)' <<< "$plugins" > /dev/null; then
     claude_quietly plugin update "$plugin"
   else
     claude_quietly plugin install "$plugin"
   fi
+  switched=true
   say_where
   echo "Each Claude window runs it from its next /reload-plugins"
 }
 
-restart_sitrep() {
-  if ! pgrep -x SitRep > /dev/null; then
-    echo "SitRep isn't running; it runs this plugin's CLI from its next start"
-    return
-  fi
+is_running() {
+  pgrep -U "$UID" -x SitRep > /dev/null
+}
 
-  echo "Starting SitRep again, for it to run this plugin's CLI"
+# SitRep quit and started again, once it is sure to start.
+restart_sitrep() {
+  "$app/open" --check
+  echo "Starting SitRep again, for it to $1"
   "$app/quit"
-  open "$installed"
+  "$app/open"
 }
 
 if [[ $# -gt 1 ]]; then
-  echo "$usage" >&2
+  echo "Usage: app/plugin [here | app]" >&2
   exit 1
 fi
 
 case "${1-}" in
-  "") say_where ;;
-  here) switch_to "$checkout"; restart_sitrep ;;
-  app) switch_to "$own"; restart_sitrep ;;
-  *) echo "$usage" >&2; exit 1 ;;
+  "")
+    say_where
+    ;;
+  here)
+    switch_to "$checkout"
+    if ! $switched; then
+      exit 0
+    elif is_running; then
+      restart_sitrep "run this checkout's CLI"
+    else
+      echo "SitRep isn't running; it runs this checkout's CLI from its next start"
+    fi
+    ;;
+  app)
+    switch_to "$own"
+    if ! $switched; then
+      exit 0
+    elif is_running; then
+      restart_sitrep "refresh its copy and run it"
+    else
+      "$app/open" --check
+      echo "Starting SitRep, for it to refresh its copy"
+      "$app/open"
+    fi
+    ;;
+  *)
+    echo "Usage: app/plugin [here | app]" >&2
+    exit 1
+    ;;
 esac

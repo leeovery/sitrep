@@ -27,10 +27,11 @@ const versionIn = (text: string) => {
 
 /**
  * The version this window runs, read once, as the mod loads (session.start
- * asks first): the clone is the live plugin, so a manifest read later may be
- * a newer checkout's than the code this load runs. Undefined when the
- * manifest does not give one, which the debug log says once; the window
- * then reads as one needing a reload, which is safe, and rare.
+ * asks first): a manifest read later may be newer than the code this load
+ * runs, SitRep's copy replaced whole at an update, or a checkout under
+ * `app/plugin here` checked out anew. Undefined when the manifest does not
+ * give one, which the debug log says once; the window then reads as one
+ * needing a reload, which is safe, and rare.
  */
 export const versionNow = (host: Host) => {
   loaded ??= host.plugin

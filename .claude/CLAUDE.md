@@ -15,9 +15,16 @@ clone on `main`, and work in a worktree.
 - `app/plugin here` makes the checkout it is in the live plugin, for a live
   test: every Claude window runs it from its next `/reload-plugins`, and
   SitRep, started again, runs its CLI. `app/plugin app` puts SitRep's copy
-  back, and `app/plugin` says which it is.
-- `app/build` installs a build over the cask's copy; `brew reinstall --cask
-  sitrep` puts the release back.
+  back, and `app/plugin` says which it is. Run `app/plugin app` before
+  removing a worktree that is the live plugin: with its folder gone, windows
+  load no sitrep at their next `/reload-plugins`, and SitRep never re-points
+  the marketplace itself.
+- `app/build` installs a build over the cask's copy, and changes the plugin
+  too: while SitRep's copy is the plugin, the build's start refreshes the
+  copy from what the build carries, so every window runs the building
+  checkout's mod from its next `/reload-plugins`. `brew reinstall --cask
+  sitrep` puts the release back, and the next release's `brew upgrade`
+  replaces the build.
 
 ## Gates
 
@@ -39,7 +46,8 @@ the plugin's CLI for the board and the jump. `app/bundle <folder>` makes the
 bundle, the plugin inside it, into a folder, signed with Lee's Developer ID
 from the keychain; `app/build` runs it, installs the bundle to
 `/Applications/SitRep.app` over the cask's copy and starts it, replacing the
-one running.
+one running; `app/quit` and `app/open` stop and start SitRep for it and for
+`app/plugin`.
 `app/release`, run by mint's `post_release` (`./release`), builds a release
 from its tag, notarizes it (`app/notarize`), uploads it to the GitHub
 release and, for the latest release, sends the cask in

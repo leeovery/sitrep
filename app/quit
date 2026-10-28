@@ -1,21 +1,33 @@
 #!/bin/bash
-# Quits SitRep and its notices helper, and waits until both have ended, for
-# app/build and app/plugin to start SitRep again. Nothing running is no
-# trouble.
+# Quits Lee's SitRep and its notices helper, and waits until both have
+# ended, for app/build and app/plugin to start SitRep again (app/open).
+# Nothing running is no trouble; one still running after five seconds is,
+# said rather than waited on for ever.
 set -euo pipefail
+
+# Waits for this user's program of the name to end, failing after five
+# seconds.
+wait_gone() {
+  for _ in {1..50}; do
+    pgrep -U "$UID" -x "$1" > /dev/null || return 0
+    sleep 0.1
+  done
+  echo "$1 is still running five seconds after it was stopped" >&2
+  exit 1
+}
 
 # Stopped by a signal: asking it to quit by an Apple Event would itself want
 # leave to control SitRep.
-if pkill -x SitRep; then
-  while pgrep -x SitRep > /dev/null; do sleep 0.1; done
+if pkill -U "$UID" -x SitRep; then
+  wait_gone SitRep
 fi
 # The notices helper quits as its SitRep ends; waited for, so the new SitRep
 # is not handed the old one, which serves the old SitRep and then quits. One
 # still there after two seconds is stopped too.
 for _ in {1..20}; do
-  pgrep -x SitRepNotices > /dev/null || break
+  pgrep -U "$UID" -x SitRepNotices > /dev/null || break
   sleep 0.1
 done
-if pkill -x SitRepNotices; then
-  while pgrep -x SitRepNotices > /dev/null; do sleep 0.1; done
+if pkill -U "$UID" -x SitRepNotices; then
+  wait_gone SitRepNotices
 fi

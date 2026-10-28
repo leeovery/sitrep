@@ -2,14 +2,15 @@
 # Builds SitRep, signed with Lee's Developer ID and carrying the plugin
 # (app/bundle), installs it to /Applications over the cask's copy and starts
 # it, replacing the one running. The login item and macOS's permissions
-# remember the app by where it is, so a build goes where the release is: both
-# are kept, and there is never a second bundle with SitRep's id. It isn't
-# notarized: a build installed from here is never quarantined, and
-# notarizing would add minutes to every install. As it starts, the build
-# refreshes SitRep's copy of the plugin with the one it carries, or leaves
-# the sitrep marketplace as it is where it is not SitRep's own (app/plugin).
-# `brew reinstall --cask sitrep` puts the release back, and the next
-# `brew upgrade` replaces the build too.
+# remember the app by where it is, so a build goes where the release is and
+# keeps the login item and the permissions, and there is never a second
+# bundle with SitRep's id. It isn't notarized: a build installed from here
+# is never quarantined, and notarizing would add minutes to every install.
+# As it starts, the build refreshes SitRep's copy of the plugin with the one
+# it carries, so every Claude window runs this checkout's mod from its next
+# /reload-plugins; or it leaves the sitrep marketplace as it is where it is
+# not SitRep's own (app/plugin). `brew reinstall --cask sitrep` puts the
+# release back, and the next release's `brew upgrade` replaces the build.
 set -euo pipefail
 
 installed=/Applications/SitRep.app
@@ -25,6 +26,6 @@ version=$(plutil -extract CFBundleShortVersionString raw -o - "$work/SitRep.app/
 
 rm -rf "$installed"
 ditto "$work/SitRep.app" "$installed"
-open "$installed"
+"$app/open"
 
 echo "SitRep $version installed to $installed; brew reinstall --cask sitrep puts the release back"

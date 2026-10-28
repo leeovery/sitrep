@@ -1,0 +1,27 @@
+#!/bin/bash
+# Starts SitRep from /Applications/SitRep.app, for app/build and app/plugin,
+# trying three times a second apart, as the cask's postflight does: an open
+# straight after a bundle is moved in has failed with LaunchServices' -600.
+# With --check, only says whether it is there to start, for a caller to ask
+# before it quits SitRep, so nothing leaves SitRep down.
+set -euo pipefail
+
+installed=/Applications/SitRep.app
+
+if [[ $# -gt 1 || ( $# -eq 1 && $1 != --check ) ]]; then
+  echo "Usage: app/open [--check]" >&2
+  exit 1
+fi
+
+if [[ ! -d "$installed" ]]; then
+  echo "There is no $installed to start" >&2
+  exit 1
+fi
+[[ $# -eq 0 ]] || exit 0
+
+for try in 1 2 3; do
+  open "$installed" && exit 0
+  [[ $try -eq 3 ]] || sleep 1
+done
+echo "macOS wouldn't open $installed, three times over" >&2
+exit 1

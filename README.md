@@ -144,7 +144,7 @@ The CLI is `bin/sitrep` in the plugin's folder; the app's copy is `~/Library/App
 brew upgrade --cask sitrep
 ```
 
-The upgrade quits SitRep, swaps it and starts it again. As it starts, the new app refreshes its copy of the plugin, so the two never part; each Claude window runs the new plugin from its next `/reload-plugins`.
+The upgrade quits SitRep, swaps it and starts the new one, whether or not it was running. As it starts, the new app refreshes its copy of the plugin, so the two never part; each Claude window runs the new plugin from its next `/reload-plugins`.
 
 ## Uninstalling
 
@@ -171,7 +171,7 @@ app/plugin app    # SitRep's own copy again
 app/plugin        # which one Claude Code has now
 ```
 
-A switch reaches each Claude window at its next `/reload-plugins`, and starts SitRep again where it is running, since SitRep looks at the plugin only as it starts.
+A switch reaches each Claude window at its next `/reload-plugins`. SitRep looks at the plugin only as it starts, so `here` starts a running SitRep again, and `app` starts it either way, since its start refreshes its copy. A switch to where the plugin already comes from changes nothing, and none puts a second sitrep beside one from another marketplace. Run `app/plugin app` before removing a worktree that is the live plugin: with its folder gone, windows load no sitrep at their next `/reload-plugins`, and SitRep never re-points the marketplace itself.
 
 It needs:
 
@@ -192,7 +192,7 @@ swift build --package-path app    # the app
 swift test --package-path app     # the app's tests
 ```
 
-`app/build` builds the app, signs it with the Developer ID, installs it to `/Applications/SitRep.app` over the cask's copy and starts it, replacing the one running, so the login item and macOS's permissions carry over. It doesn't notarize: a build installed from a checkout is never quarantined. `brew reinstall --cask sitrep` puts the release back, and the next `brew upgrade` replaces the build too.
+`app/build` builds the app, signs it with the Developer ID, installs it to `/Applications/SitRep.app` over the cask's copy and starts it, replacing the one running, so the login item and macOS's permissions carry over. It doesn't notarize: a build installed from a checkout is never quarantined. It changes the plugin too: while SitRep's copy is the plugin, the build's start refreshes the copy from what the build carries, so every Claude window runs the building checkout's mod from its next `/reload-plugins`. `brew reinstall --cask sitrep` puts the release back, and the next release's `brew upgrade` replaces the build.
 
 ## Releasing
 
