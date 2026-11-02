@@ -3905,10 +3905,8 @@ stands).
       filtering hides. × or Escape clears it and gives the whole board back;
       Escape in it empty does nothing, and with an answer waiting, Escape
       takes the answer back first, as anywhere in the window. The window
-      opens with focus on what holds the pick, the board's list or Settings
-      at the foot, not the field, and focus moves there too whenever opening
-      it turns it to a pick, as ⌘, and the menu's Settings… do. What it
-      holds is not kept: closing the window clears it;
+      opens with focus on the board's list, not the field. What it holds
+      is not kept: closing the window clears it;
     - **decided for round 7** (21 October 2026, as the design pointed):
       a filter that keeps nothing anywhere says so in one centred line, "No
       sessions match “ledg”", the field's text in the quotes, and an empty
@@ -3916,7 +3914,9 @@ stands).
       words it; and the field carries no "⌘F" hint, which the system's
       field does not draw.
     - **its foot is Settings**, a row with the system's gear in the accent,
-      fixed under a rule at the list's foot (see "Settings"): the rule 0.5
+      fixed under a rule at the list's foot, that opens the Settings window
+      (see "Settings"; until 2 November 2026 it opened Settings as a page
+      of this window): the rule 0.5
       tall in the separator colour, inside the sidebar's 10 either side, 8
       under it the row, 32 tall, then 10 to the glass's foot. The list ends
       at the rule, its last row 12 over it, and its rows fade out at its own
@@ -3932,18 +3932,13 @@ stands).
       foot, no rule to be seen and the list's rows showing under it
       (fd54b60). So the foot is SitRep's own, the column's last part under
       the list, laid out by SitRep alone, with no inset, safe area or bar for
-      the live window to move. Picked, Settings shows on the right, where a
-      session would, and the board's list holds no selection while it shows;
-      SitRep draws the foot's selection itself, in the system's selection
-      colours, shaped as the list's: 276 wide, 10 in, its corners 9, the
-      accent while it has the key window's focus, its gear and word white,
-      else the system's grey. Under the pointer, and not
-      picked, it shows a row's quiet fill, gone as the pointer leaves or the
-      window goes out of sight. A click anywhere across it opens Settings, in
-      a window not key too, and takes focus there, as a click on a list's row
-      does; a Control-click, the Mac's right-click, opens nothing. A click on
-      a session or a project leaves Settings for it, and a board changing
-      under it leaves it showing.
+      the live window to move. It is never picked: the board's list keeps
+      its selection and the page what it shows. Under the pointer it shows
+      a row's quiet fill, shaped as the list's selection, 276 wide, 10 in,
+      its corners 9, gone as the pointer leaves or the window goes out of
+      sight. A click anywhere across it opens the Settings window, from a
+      window not key too; a Control-click, the Mac's right-click, opens
+      nothing.
   - **the session** Lee picks, on the right: the pane's session view at
     window size. Its project's name is an eyebrow over its name, about 15
     points semibold in the secondary colour, smaller than a title and more
@@ -3957,7 +3952,7 @@ stands).
     then Asks, Status, Notes, Parked and Resolved, in the pane's order, the
     last four in two columns so a session fits without scrolling.
   - **the band under the toolbar**, beside the traffic lights, stays
-    empty on every page, a session's, a project's and Settings': nothing
+    empty on every page, a session's and a project's: nothing
     of the page sits in it.
 - **A session's row is the card's row at the window's size:** the same
   marks in the same lanes, the same words, and the panel row's time.
@@ -3985,10 +3980,10 @@ stands).
   to the session's; kept to its own Space, the activation took Lee to it
   instead, which is why the notices helper posts them (see "The menu
   bar"). The menu
-  opens it (see "The menu bar item"). ⌘, and the menu's Settings… open it
-  on Settings, or turn it there where it shows already; ⌘, is a key of the
-  app's main menu, which an accessory app never shows, so it works while a
-  SitRep window is key.
+  opens it (see "The menu bar item"). ⌘, and the menu's Settings… open the
+  Settings window (see "Settings"); ⌘, is a key of the app's main menu,
+  which an accessory app never shows, so it works while a SitRep window is
+  key.
 - **The frame is macOS's own** (Lee, 20 October 2026, of a sidebar of
   hand-made glass, its corners unlike the window's and the traffic lights
   on its corner: "It looks a mess"). Whatever macOS draws, SitRep does not
@@ -4117,20 +4112,17 @@ stands).
   the arrows inside it, then its foot, Settings,
   then the page's buttons. With Keyboard navigation off, Tab stops at the
   field, the board's list and the foot alone. The foot is one stop, which
-  shows focus as a list's row does: picked, by its selection in the accent,
-  with no ring; not picked, as Tab reaches it, by the system's focus ring
-  in the selection's shape. The arrows go
-  nowhere from it, as from either end of the board's list, and Space or
-  Return on it opens Settings, focus staying there, and with a modifier held
-  does nothing. Two keys move between the
+  shows focus as Tab reaches it by the system's focus ring in a row's
+  shape. The arrows go nowhere from it, as from either end of the board's
+  list, and Space or Return on it opens the Settings window, and with a
+  modifier held does nothing. Two keys move between the
   sides, through AppKit's key views: Return in the sidebar, anywhere but
-  the Filter field, whose Return is its own, and the foot while Settings is
-  not open, moves focus into the page, to
+  the Filter field, whose Return is its own, and the foot, whose Return
+  opens Settings, moves focus into the page, to
   its first button, as Tab from the foot would; with Keyboard navigation
   off nothing there takes it, so Return leaves focus where it was, never
   passing through the field, and does nothing more. Escape in the page, with no answer waiting to take back, moves it
-  to what holds the pick, the board's list or the foot, and to the
-  board's list when neither does.
+  to the board's list.
 - **VoiceOver reads words, never symbols.**
   - a sidebar row is one element. A Needs you row reads what waits first:
     how many where there are several, "2 asks", then each line's words; then
@@ -4155,9 +4147,8 @@ stands).
     "Snooze tomorrow, wakes Saturday 09:00"; "N earlier" reads how many and
     their projects, as "8 earlier, Switchboard, Fumi", and folded says so;
     a project's row reads "Kit, project". The Filter field reads as
-    "Filter sessions", and the foot as one of the sidebar's choices, a radio
-    button, "Settings", selected while Settings shows, as a list's row reads
-    selected, and announced as that changes;
+    "Filter sessions", and the foot as a button, "Settings", which opens
+    the Settings window;
   - the page's title, the eyebrow and the section headings carry the
     header trait, each heading read with the words on its right, as
     "Asks, 3 waiting", or "Asks, 1 waiting, 2 snoozed";
@@ -4313,7 +4304,7 @@ asked for the sessions back, and approved the redraw as it stands.
     you;
   - **Welcome…**, the welcome window at its first step (see "The welcome
     window");
-  - **Settings… ⌘,**, the SitRep window on Settings (see "Settings");
+  - **Settings… ⌘,**, the Settings window (see "Settings");
     **Check for Updates…**, with Sparkle, from the first public release
     (see "Installing and updating");
     **Quit SitRep ⌘Q**.
@@ -4466,7 +4457,7 @@ does; the boards first drew it on a band of black.
      Meniscus or Card; Material, Black or Glass (from macOS 26, as in
      Settings); and Edge, Left or Right. At Strip, Length, Grows or Full,
      takes Style's place in a cross-fade, one row for another, so the form
-     keeps its height and holds only what applies. Settings' Show card
+     keeps its height and holds only what applies. Settings' Edge pane
      changes at once instead, as its height changes with it (Lee found its
      motion jarring). Nothing, neither shape, stays in Settings: a welcome
      is no place to offer turning SitRep off. Each press sets the setting
@@ -4526,57 +4517,64 @@ does; the boards first drew it on a band of black.
 
 ### Settings
 
-Settings is a page of the SitRep window, drawn in Paper's "Settings in the
-window" (surfaces round 7, 21 October 2026; Lee: "Yes, I really like what
-you've done there. Let's go ahead and build it"). It replaces round 5's
-separate Settings window and its three panes (Paper's "Settings", 17
-October 2026; Lee: "nice", once the dials for how the notch moves were
-taken out), so there is one SitRep window. Lee asked for macOS 26's Liquid
-Glass, modern and led by content, with Spaceman's preferences as a
-reference only.
-- **Where it opens:** the sidebar's foot, a row of its own, or ⌘, and the
-  menu's Settings…, which bring the window forward on it (see "The SitRep
-  window"). It shows on the right, where a session or a project would;
-  nothing on the board is picked while it shows, and a click on a session
-  or a project leaves it for that. A board changing under it leaves it
-  showing.
-- **One page, set as System Settings sets its grouped form** (Paper's
-  "Round 8 · sidebar and Settings", boards E and F, 21 October 2026; Lee:
-  "all the settings look good", after he found round 7's "don't look very
-  Mac… the text is too big"): the title in a project's page's place and
-  size, with nothing under it, then What stays on screen, Notifications and
-  General, each headed in sentence case, 13 semibold in the label colour,
-  10 in from its card's edge and 10 over it, the sections 30 apart. They
-  sit in a column that fills the page less 44 on each side, as a session's
-  and a project's pages do, at the title's edge, so the title stays where a
-  project's is. It has no cap: round 8 drew it at most 704, the width System
-  Settings caps its own form at, until Lee, seeing it live on 21 October:
-  "why isnt the settings content dynamically sizing to the width? its weird
-  to have a large wide margin on the rigth when the window is widened". At
-  any width the controls keep their own widths against the card's right and
-  the labels take what's left, wrapping before a control moves. At the
-  narrowest window, a column of 476, every General row that needs
-  something wraps its line beside its button, the plugin's beside Show
-  Windows included. The page scrolls as one, as the window's other pages scroll, its toolbar's
-  scroll edge hidden as theirs is. Rows sit on the ask cards' raise, radius
-  14, split by the system's separator, half a point, 10 in from both ends,
-  one box deep: rows of SitRep's own at the form's metrics, not SwiftUI's
-  grouped Form, whose sections draw their own fill and insets, scroll on
-  their own and draw nothing as a still. A row's label is 13, its line
-  under it 11 in the secondary colour; a row is at least 52 tall with a
-  line, 38 without, its words and its control 10 in from the card's edges,
-  and a line wraps, growing the row, before its control gives up any width.
-  The controls are the system's, never redrawn, each at the regular size
-  and its own width against the card's right: segmented controls, their
-  segments equal, as SwiftUI's picker sets them (Meniscus · Card is 155,
-  where Paper drew 160: its widths were Inter's, and the control's are SF's);
-  a pop-up as wide as its widest choice, as every Mac pop-up is; bordered
-  push buttons and a pull-down; and the mini switch, 36 by 16, as the HIG
-  gives a grouped form. Orange stays for needs you, so it appears only inside the pictures
-  and the glyph.
-- **What stays on screen**, named for the choice it makes, true for all
-  three, Nothing included (Lee's alternative, if he prefers it later: "Show
-  on screen"). One card, opening on the **Show row**, set as System
+Settings is a window of its own, laid out as Xcode 27's Settings, drawn in
+Paper's "Settings window", boards A to D, from Lee's screenshots of Xcode
+27 (27 October 2026: "I wonder if we could make our settings like this. In
+hindsight, do you think maybe it was a mistake to build settings into the
+window, and that they should have been two separate things?"); Lee approved
+the boards as drawn on 2 November 2026. It replaces round 7's page of the
+SitRep window (Paper's "Settings in the window", 21 October 2026), which had
+replaced round 5's window of three panes (Paper's "Settings", 17 October
+2026). A Mac app's Settings is a window of its own that ⌘, opens; a setting
+is often changed while watching the edge, with no need for the board; and
+Settings had grown past what one page of the board's window held well. The
+rows inside are rounds 8 and 9's, as Lee approved them: only where they
+live changed, and how they group.
+- **Where it opens:** the menu's Settings…, ⌘, while any SitRep window is
+  key, and the Settings row at the foot of the SitRep window's sidebar,
+  which opens this window, no longer a page (see "The SitRep window").
+  There is one: opening it again brings it forward. It opens centred in the
+  upper part of the screen on the Space Lee is on, and otherwise stays on
+  its own Space, as About SitRep does; ⌘W or its close button shuts it. It
+  opens on the pane it last showed, General the first time.
+- **Xcode 27's frame** (Paper's boards A to D): 820 by 620 to start, and
+  resizable. A sidebar floats 8 in from the window's edges, 180 wide, with
+  the traffic lights on it, listing the four panes as rows 32 tall, each
+  with its symbol, General's gear, Edge's screen with the notch at its
+  side, Notifications' bell and Claude Code's terminal. The pane shown is
+  the accent while the window is key and the system's grey when not. The
+  toolbar holds back and forward in one capsule, which step through the
+  panes shown, and the pane's name beside it, 15 bold. A pane is sections:
+  each a header, 13 semibold in the label colour, 10 in from its card's
+  edge and 10 over it, then its card; the sections 26 apart, in a column
+  from 20 past the sidebar to 20 from the window's right, with no cap. A
+  pane longer than the window scrolls under the toolbar, with the system's
+  scroll edge; a short one leaves the rest of the window empty, as Xcode's
+  do. The window's colours are the system's: Paper drew them as Lee's
+  screenshots show them on his Mac, the window #292D3A, the sidebar
+  #252831, a card #323541, the accent #2E70D4, not the SitRep window's
+  black. The window has a least size at which every row's control keeps
+  its place beside its words.
+- **Its rows:** cards at radius 12, as Xcode's, split by the system's
+  separator, half a point, 10 in from both ends, one box deep: rows of
+  SitRep's own at the form's metrics, not SwiftUI's grouped Form, whose
+  sections draw their own fill and insets, scroll on their own and draw
+  nothing as a still. A row's label is 13, its line under it 11 in the
+  secondary colour; a row is at least 52 tall with a line, 38 without, its
+  words and its control 10 in from the card's edges, and a line wraps,
+  growing the row, before its control gives up any width. The controls are
+  the system's, never redrawn, each at the regular size and its own width
+  against the card's right: segmented controls, their segments equal, as
+  SwiftUI's picker sets them (Meniscus · Card is 155, where Paper drew 156:
+  its widths were Inter's, and the control's are SF's); a pop-up as wide as
+  its widest choice, as every Mac pop-up is; bordered push buttons; and the
+  mini switch, 36 by 16, as the HIG gives a grouped form. Orange stays for
+  needs you, so it appears only inside the pictures and the glyph. The
+  panes, top to bottom in the sidebar: General, Edge, Notifications and
+  Claude Code.
+- **Edge**, round 9's What stays on screen, named in the sidebar for
+  where it all goes, opens on a card of its own, the **Show row**, set as
+  Xcode's Appearance pane opens on its own and as System
   Settings sets its Appearance row on macOS 26, measured from a capture of
   it (round 9, 21 October 2026). Round 8 put three large pictures over the
   card, filling the column; once the column filled the page they grew with
@@ -4612,22 +4610,26 @@ reference only.
   "in Mac settings, hovering an item doesn't actually hover in the boxes
   for appearance. Auto light and dark doesn't change the appearance at
   all, actually").
-- **The rows under Show**, in the same card, are the ones that apply to the
-  choice, in this order. They change at once, always, with no motion: as
-  the choice changes, or Length with Max, the rows arrive and leave and the
-  card takes its new height in the frame the tiles change in (Lee, 22
-  October 2026, of the system's transition there: "the animation on the
-  panel when switching the notch mode is a bit jarring"):
+- **The rows under Show** are the ones that apply to the choice, in a
+  section named for it, Notch or Strip, so its header says what they tune,
+  then Reduce motion in a section of its own, Motion, as it is about how
+  SitRep moves whichever shape is at the edge. They change at once, always,
+  with no motion: as the choice changes, or Length with Max, the section's
+  name and rows change and the pane takes its new height in the frame the
+  pictures change in (Lee, 22 October 2026, of the system's transition
+  there: "the animation on the panel when switching the notch mode is a bit
+  jarring"):
   - **Notch:** Edge, Left or Right ("or drag it across the middle");
-    Display, the main one unless another is chosen; Style, Meniscus or Card;
-    Material; Reduce motion.
+    Display, the main one unless another is chosen; Style, Meniscus or Card
+    ("Meniscus pours, Card slides"); Material. Then Motion.
   - **Strip:** Edge; Display; Length, Grows or Full ("grows with what's on
     it, or runs the screen's height"); Max, only at Grows, a slider 160
-    wide whose right end is Full ("how long it grows"); Material; Reduce
-    motion.
-  - **Nothing:** none; the card is the Show row alone, and Show has a line
-    under it, as a row's line is set, saying the menu and the SitRep window
-    carry the board. Under the notch or the strip, Show has no line.
+    wide whose right end is Full ("how long it grows"); Material. Then
+    Motion.
+  - **Nothing:** neither section; the pane is the Show row's card alone,
+    and Show has a line under it, as a row's line is set, saying the menu
+    and the SitRep window carry the board. Under the notch or the strip,
+    Show has no line.
 
   Material is Black or Glass, for the notch and the strip alike, Black by
   default, from macOS 26 (before it, Black and no row). Reduce motion is
@@ -4650,12 +4652,13 @@ reference only.
   notification", "This is what SitRep's notifications look like", naming no
   session, so its click jumps nowhere and hands the front back (Lee, 26
   October 2026: a test of a real project's took him to its session, which a
-  test should not). Then Notify me of a new ask, off by
-  default, its line "Silent; a click on it jumps to the session"; and
+  test should not). Then two sections. **Banners:** Notify me of a new
+  ask, off by default, its line "Silent; a click on it jumps to the
+  session"; and
   macOS's own answer, "Allowed by macOS, as banners", with Notification
   Settings… for SitRep's page in System Settings: the notices helper's,
   which macOS lists as SitRep (see "The menu bar"). Each is read, asked
-  and sent through the helper. Then Play a sound for a new ask, a switch,
+  and sent through the helper. **Sound:** Play a sound for a new ask, a switch,
   on by default, its line "Once, whichever session it lands in"; and Sound,
   a pop-up of macOS's alert sounds by name, read from `/System/Library/Sounds`
   (Basso … Tink), Glass by default, the chime the windows played. Choosing
@@ -4670,25 +4673,38 @@ reference only.
   which are silent. It plays as an ordinary sound, at the output volume,
   never as a notification's or an alert sound, which follow the alert
   volume.
-- **General:** first, "Your turn folds after", "Older ones fold into one
-  line, which opens in place", a pop-up at its own width of An hour, the
+- **General**, in three sections. **Startup:** Open at login, its line
+  "SitRep is only of use while it runs". **Sessions:** "Your turn folds
+  after", "Older ones fold into one line, which opens in place", a pop-up
+  at its own width of An hour, the
   default, Four hours, Today or Never: how long a your-turn row stays on the
   card, and in the SitRep window's sidebar, before it folds into "N earlier"
   (see "The sections", under "The notch and its panel", and "The SitRep
   window"), measured from its turn's end, "Today" folding what
   ended before local midnight and "Never" folding nothing. It is in General,
-  not under What stays on screen, as that card is the Show row alone at
-  Nothing and the period governs the SitRep window's sidebar too (22
-  October 2026). It is saved with the rest of what Lee sets beyond the edge, under
-  "app", and the card and the sidebar refold as it changes. Then the Claude Code plugin,
-  "Puts each Claude Code session on the board", up to date; Open at login;
-  and the leave to control Ghostty,
-  worded as macOS words a permission, by what SitRep can do with it: "Bring
-  a session's Ghostty window to the front", "So a click on a session jumps
-  to it". No row carries an icon. The plugin's folder, its version and its
-  windows are gone from it: the version is About SitRep's, and the windows come back only when
-  some need reloading. Update automatically and Check Now come with the
-  first public release.
+  not under Edge, as that pane is the Show row alone at Nothing and the
+  period governs the SitRep window's sidebar too (22 October 2026). It is
+  saved with the rest of what Lee sets beyond the edge, under "app", and
+  the card and the sidebar refold as it changes. **Ghostty:** the leave to
+  control it, worded as macOS words a permission, by what SitRep can do
+  with it: "Bring a session's Ghostty window to the front", "So a click on
+  a session jumps to it". No row carries an icon. Update automatically and
+  Check Now join General with the first public release.
+- **Claude Code**, the plugin's pane. **Plugin:** the Claude Code plugin,
+  "Puts each Claude Code session on the board", up to date; with every
+  window current, that row is the pane. The plugin's folder and its version
+  are not in it: the version is About SitRep's. **Needs /reload-plugins**,
+  only while some Claude Code windows run an older plugin than SitRep's:
+  each such window a row, its session over its project and the version it
+  runs ("SitRep · 0.3.0"), with Show, a push button that jumps to it as the
+  menu's item for it does; under the card, "Type /reload-plugins in each; a
+  new window needs nothing", the command in the monospaced face, with Copy,
+  since SitRep cannot reload a window. A window leaves the list as it
+  reloads, and the last takes the section with it. While any is behind,
+  the pane's row in the sidebar carries their number on its right, as
+  System Settings counts its updates, so the window points here from any
+  pane. Round 8 listed them in Show Windows, a pull-down on the plugin's
+  row.
 - **A dot when it's fine, a button when it's yours.** Each row says its state
   where its control goes. All well, that is a green dot, 7, and a word, Up
   to date or Allowed, in the secondary colour, with nothing to press. When
@@ -4697,10 +4713,10 @@ reference only.
   its ellipsis saying it opens somewhere else. No blue
   words and no ↗: blue is left to the switches, the menu's highlight and
   the chosen picture.
-  - **Windows on an older plugin:** "Updated to 0.2.0. 3 windows run 0.1.0
-    until /reload-plugins", and Show Windows, a pull-down listing each by
-    the menu's words for it, its project and session, a click jumping to
-    it. Once every window runs the new one, the row is up to date again.
+  - **Windows on an older plugin:** "Updated to 0.3.1. 3 windows run 0.3.0
+    until /reload-plugins", with no control of its own: the windows are
+    the rows of Needs /reload-plugins under it. Once every window runs the
+    new one, the row is up to date again.
   - **A plugin that failed or can't be found:** the line says what failed,
     in the menu's words, with no dot. A button comes only where SitRep has
     something to do about it; it has none today, as it looks again after
@@ -4717,17 +4733,17 @@ reference only.
   - **Waiting on Lee's approval to open at login:** the switch gives way to
     Login Items Settings….
 
-  What macOS says is read as the page comes into sight, showing in the
-  SitRep window while the window is key: each time that window comes
-  forward on it, as Lee may have changed it in System Settings, and once
-  as the window opens on it. About SitRep, or any other window, coming
-  forward reads nothing.
+  What macOS says is read as a pane comes into sight while the Settings
+  window is key: each time the window comes forward on it, as Lee may have
+  changed it in System Settings, and as Lee turns to it. About SitRep, or
+  any other window, coming forward reads nothing.
 - **How the notch moves is not a setting.** It ships fixed (see "The app
   ships these values fixed", under "The notch and its panel"). A first
   drawing had a Feel pane with the prototype's dials; Lee took it out.
-- **Borrowed**, from Lee's saved references: Dockset's native controls in a
-  styled frame, a live picture leading each step, and leaves named by what
-  they give.
+- **Borrowed:** Xcode 27's Settings for the frame, the sidebar and the
+  sections, from Lee's screenshots; and from Lee's saved references,
+  Dockset's native controls in a styled frame, a live picture leading each
+  step, and leaves named by what they give.
 
 ### About SitRep
 
@@ -6086,10 +6102,10 @@ reaches a window only while that pane is on show).
      for the plugin alone from GitHub, which went as the plugin and the
      app came as one (27 October 2026).
    - **A new Mac's first start:** the welcome window (see "The welcome
-     window"), approved on 2 November 2026. It is built once the Settings
-     window is drawn, Settings moving out of the SitRep window into a
-     window of its own laid out as Xcode 27's (Lee, 27 October 2026), as
-     its steps hand on to Settings.
+     window"), approved on 2 November 2026. It is built with the Settings
+     window, approved the same day, Settings moving out of the SitRep
+     window into a window of its own laid out as Xcode 27's (see
+     "Settings"), as the welcome's steps hand on to it.
 5. **Attention beyond asks**, in this build (decided with Lee on 16 October
    2026), built as stage 3's fourth step, the live feed, since the rows
    and the strip's rings need it. The mod hears what its window is doing,
