@@ -14,7 +14,7 @@ struct MenuEntriesTests {
             "heading:sessions", "row:sr-ledger", "row:sr-dash", "row:sr-plan",
             "separator:hairline", "row:sr-boot", "row:sr-diff", "separator:sessions",
             "openWindow", "separator:window",
-            "heading:show", "show:notch", "show:strip", "show:nothing", "separator:show",
+            "heading:show", "show:notch", "show:strip", "show:nothing", "separator:show", "welcome",
             "settings", "separator:settings", "quit",
         ])
     }

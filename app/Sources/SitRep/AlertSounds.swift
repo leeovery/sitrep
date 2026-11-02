@@ -9,15 +9,22 @@ struct AlertSounds {
     /// Their names, as Settings' pop-up lists them.
     let names: [String]
     private let player: (String) -> Void
+    private let stopper: () -> Void
 
-    init(names: [String], play: @escaping (String) -> Void) {
+    /// `stop` stops the sound these last played, if it still plays.
+    init(names: [String], play: @escaping (String) -> Void, stop: @escaping () -> Void = {}) {
         self.names = names
         player = play
+        stopper = stop
     }
 
     /// The sounds macOS keeps, played through `NSSound`.
     static var live: AlertSounds {
-        AlertSounds(names: names(in: URL(filePath: "/System/Library/Sounds")), play: playFromTheStart)
+        let playing = Playing()
+
+        return AlertSounds(
+            names: names(in: URL(filePath: "/System/Library/Sounds")), play: playing.play, stop: playing.stop
+        )
     }
 
     /// The sound files in a folder by name, in Finder's order.
@@ -43,13 +50,29 @@ struct AlertSounds {
         player(chosen(saved))
     }
 
-    /// `NSSound(named:)` gives back the one sound for a name, which a play while it sounds would leave unheard.
-    private static func playFromTheStart(_ name: String) {
-        guard let sound = NSSound(named: name) else {
-            return
+    /// The sound these sounds last played stopped, if it still plays, as the welcome stops its own as it closes.
+    func stop() {
+        stopper()
+    }
+
+    /// Each set of sounds plays copies of its own, so stopping one set's never cuts off another's: the welcome's
+    /// stop leaves a new ask's chime playing. A sound played stops the one before it, as System Settings › Sound does.
+    @MainActor
+    private final class Playing {
+        private var sound: NSSound?
+
+        func play(_ name: String) {
+            guard let sound = NSSound(named: name)?.copy() as? NSSound else {
+                return
+            }
+
+            stop()
+            sound.play()
+            self.sound = sound
         }
 
-        sound.stop()
-        sound.play()
+        func stop() {
+            sound?.stop()
+        }
     }
 }

@@ -1,12 +1,13 @@
 import AppKit
+import SitRepMenu
 import SwiftUI
 
 /// A top-right corner of a Mac's screen, drawn by SitRep, with the notification a new ask sends landing on it: the
 /// wallpaper, the see-through menu bar with the glyph lit and its clock telling the time now, a Claude window behind,
-/// and the banner as macOS 26 draws one, with SitRep's own icon. Its words are a sample. As wide as the column and 150
-/// tall, nothing in it stretched or scaled: wider than its drawing, the wallpaper and the menu bar run on, the window
-/// behind keeping its place at the left and the menu bar's items and the banner theirs at the right; narrower, it crops
-/// at its left, keeping the clock and the banner. To VoiceOver, one image.
+/// and the banner as macOS 26 draws one, with SitRep's own icon. Its words are placeholders (`Sample`). As wide as the
+/// column and 150 tall, nothing in it stretched or scaled: wider than its drawing, the wallpaper and the menu bar run
+/// on, the window behind keeping its place at the left and the menu bar's items and the banner theirs at the right;
+/// narrower, it crops at its left, keeping the clock and the banner. To VoiceOver, one image.
 struct DesktopCorner: View {
     private static let shape = RoundedRectangle(cornerRadius: 12, style: .continuous)
     /// As Paper draws it.
@@ -129,7 +130,7 @@ private struct WindowBehind: View {
                 ForEach([0xFF5F57, 0xFEBC2E, 0x28C840], id: \.self) { light in
                     Circle().fill(Color(hex: UInt32(light))).frame(width: 9, height: 9)
                 }
-                Text("switchboard · claude")
+                Text(Sample.terminal)
                     .font(.system(size: 11))
                     .foregroundStyle(Self.grey)
                     .frame(maxWidth: .infinity)
@@ -140,7 +141,7 @@ private struct WindowBehind: View {
             .background(Color(hex: 0x1F1F23))
             VStack(alignment: .leading, spacing: 4) {
                 Text("✻ Claude Code").foregroundStyle(WindowStyle.orange)
-                Text("● How long should the ledger keep requests?").foregroundStyle(Self.grey)
+                Text(Sample.terminalAsk).foregroundStyle(Self.grey)
             }
             .font(WindowStyle.mono(11))
             .lineLimit(1)
@@ -166,13 +167,13 @@ private struct Banner: View {
             Image(nsImage: AppIcon.banner).resizable().frame(width: 34, height: 34)
             VStack(alignment: .leading, spacing: 1) {
                 HStack(spacing: 8) {
-                    Text("Choose how long the ledger keeps requests")
+                    Text(Sample.ask)
                         .font(.system(size: 13, weight: .semibold))
                         .foregroundStyle(Color(hex: 0xF5F5F7))
                     Spacer(minLength: 0)
                     Text("now").font(.system(size: 12)).foregroundStyle(Self.words.opacity(0.55))
                 }
-                Text("Switchboard · Usage").font(.system(size: 13)).foregroundStyle(Self.words.opacity(0.7))
+                Text(Sample.place).font(.system(size: 13)).foregroundStyle(Self.words.opacity(0.7))
             }
             .lineLimit(1)
         }

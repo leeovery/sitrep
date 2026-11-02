@@ -5,8 +5,9 @@ import SitRepPanel
 
 /// The menu bar item and its native menu (DESIGN, "The menu bar item"): the header, a click opening About SitRep; what
 /// it speaks up with; the panel's sessions from the app's one `watch`, a click jumping to each; the SitRep window;
-/// Show; Settings and quitting. Its glyph lights while anything needs Lee. Each board, and each opening, patches the
-/// menu in place (`MenuChanges`), so an open menu keeps the item under the pointer; while it is open its times tick.
+/// Show; the welcome, Settings and quitting. Its glyph lights while anything needs Lee. Each board, and each opening,
+/// patches the menu in place (`MenuChanges`), so an open menu keeps the item under the pointer; while it is open its
+/// times tick.
 ///
 /// An NSStatusItem rather than SwiftUI's MenuBarExtra: a menu-style MenuBarExtra tells nothing as its menu opens, and
 /// NSMenuDelegate does.
@@ -17,6 +18,7 @@ final class StatusMenu: NSObject, NSMenuDelegate {
     private let openWindow: () -> Void
     private let openSettings: () -> Void
     private let openAbout: () -> Void
+    private let openWelcome: () -> Void
     private let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
     private let menu = NSMenu()
     private lazy var header = MenuHeaderView()
@@ -30,16 +32,18 @@ final class StatusMenu: NSObject, NSMenuDelegate {
     /// The item under the pointer, whose words take the highlight's own ink.
     private weak var highlighted: NSMenuItem?
 
-    /// `openWindow` opens the SitRep window, `openSettings` the Settings window, `openAbout` About SitRep.
+    /// `openWindow` opens the SitRep window, `openSettings` the Settings window, `openAbout` About SitRep,
+    /// `openWelcome` the welcome window at its first step.
     init(
         works: Works, preferences: Preferences, openWindow: @escaping () -> Void, openSettings: @escaping () -> Void,
-        openAbout: @escaping () -> Void
+        openAbout: @escaping () -> Void, openWelcome: @escaping () -> Void
     ) {
         self.works = works
         self.preferences = preferences
         self.openWindow = openWindow
         self.openSettings = openSettings
         self.openAbout = openAbout
+        self.openWelcome = openWelcome
         super.init()
 
         menu.delegate = self
@@ -183,6 +187,8 @@ final class StatusMenu: NSObject, NSMenuDelegate {
             command(item, show.title, nil, #selector(choose(_:)))
             item.image = MenuImages.tick(isTicked)
             item.representedObject = show.rawValue
+        case .welcome:
+            command(item, "Welcome…", "hand.wave", #selector(welcome))
         case .settings:
             command(item, "Settings…", "gearshape", #selector(settings), key: ",")
         case .quit:
@@ -252,6 +258,10 @@ final class StatusMenu: NSObject, NSMenuDelegate {
 
     @objc private func openTheWindow() {
         openWindow()
+    }
+
+    @objc private func welcome() {
+        openWelcome()
     }
 
     @objc private func settings() {

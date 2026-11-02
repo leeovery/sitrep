@@ -138,6 +138,23 @@ struct MiniSwitch: View {
     }
 }
 
+/// The system's segmented picker, its segments equal, each as wide as the widest word makes it: Edge's and the
+/// welcome's.
+struct Segments<Value: Hashable>: View {
+    let label: String
+    @Binding var value: Value
+    let values: [Value]
+    let title: (Value) -> String
+
+    var body: some View {
+        Picker(label, selection: $value) {
+            ForEach(values, id: \.self) { Text(title($0)).tag($0) }
+        }
+        .pickerStyle(.segmented)
+        .labelsHidden()
+    }
+}
+
 /// A row from what it says of itself (`SettingsRow`): its state where its control goes. A green dot and a word when
 /// it's fine; a push button, its ellipsis saying it opens somewhere else, when the fix is Lee's, greyed while `isBusy`
 /// says the fix is under way; or the switch, bound to `isOn`.

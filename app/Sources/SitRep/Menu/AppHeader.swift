@@ -37,6 +37,10 @@ enum AppIcon {
     static let banner = image(34)
     /// In About SitRep.
     static let about = image(112)
+    /// At the welcome's first step.
+    static let welcome = image(56)
+    /// In macOS's notice on the welcome's stage.
+    static let notice = image(22)
 
     private static func image(_ size: CGFloat) -> NSImage {
         let icon = NSWorkspace.shared.icon(forFile: Bundle.main.bundlePath)

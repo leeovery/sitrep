@@ -37,7 +37,7 @@ final class StripController: NSObject {
     init(_ settings: EdgeSettings, on display: Display) {
         self.settings = settings
         edge = ScreenEdge(display, settings)
-        run = StripRun(at: Displays.now, in: Self.setting(edge, settings), settings, measure: StripWordsLayer.measure)
+        run = StripRun(at: Displays.now, in: .on(edge, settings), settings, measure: StripWordsLayer.measure)
         window = EdgeWindow.onScreen(frame: edge.stripWindow, view: surface)
         super.init()
 
@@ -109,12 +109,8 @@ final class StripController: NSObject {
     private func moment(at time: Double = Displays.now, pointer: CGPoint? = nil) -> StripRun.Moment {
         StripRun.Moment(
             time: time, pointer: pointer ?? edge.stagePoint(NSEvent.mouseLocation), pointerAt: Displays.now,
-            isShown: isShown, setting: Self.setting(edge, settings)
+            isShown: isShown, setting: .on(edge, settings)
         )
-    }
-
-    private static func setting(_ edge: ScreenEdge, _ settings: EdgeSettings) -> StripRun.Setting {
-        StripRun.Setting(stage: edge.stripStage, reducesMotion: Displays.reducesMotion(settings))
     }
 
     @objc private func tick(_ link: CADisplayLink) {
@@ -149,10 +145,7 @@ final class StripController: NSObject {
         if let drained = shown.jumpDrained {
             caption.drained(at: drained)
         }
-        surface.show(StripScene(
-            frame: frame, hoverRow: run.hoverRow, note: run.note, now: Displays.wallNow, mirror: edge.stripMirror,
-            menu: edge.stripStage.menu, reducesMotion: Displays.reducesMotion(settings)
-        ))
+        surface.draw(run, in: .on(edge, settings), mirror: edge.stripMirror)
         window.takesClicks = frame.pointer.map(frame.hits) ?? false
         pace(at: time)
     }

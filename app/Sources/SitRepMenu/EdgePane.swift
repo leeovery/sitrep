@@ -33,6 +33,23 @@ public enum EdgePane {
     }
 }
 
+extension EdgeSettings.Edge {
+    /// As Settings and the welcome name it.
+    public var title: String { self == .left ? "Left" : "Right" }
+}
+
+extension NotchStyle {
+    public var title: String { self == .meniscus ? "Meniscus" : "Card" }
+}
+
+extension StripLength {
+    public var title: String { self == .grows ? "Grows" : "Full" }
+}
+
+extension EdgeSettings.Material {
+    public var title: String { self == .black ? "Black" : "Glass" }
+}
+
 /// A display Lee can choose for the edge, by the id the edge knows it by; nil for the main display, whichever that is.
 public struct DisplayChoice: Equatable, Sendable, Identifiable, Hashable {
     public let id: String?

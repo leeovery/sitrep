@@ -60,7 +60,7 @@ final class NotchController: NSObject {
         self.settings = settings
         self.period = period
         edge = ScreenEdge(display, settings)
-        run = NotchRun(at: Displays.now, in: Self.setting(edge, settings, period), kept: SavedSettings(defaults))
+        run = NotchRun(at: Displays.now, in: .on(edge, settings, period: period), kept: SavedSettings(defaults))
         window = EdgeWindow.onScreen(frame: edge.window, view: surface)
         super.init()
 
@@ -139,14 +139,7 @@ final class NotchController: NSObject {
     private func moment(at time: Double = Displays.now, pointer: CGPoint? = nil) -> NotchRun.Moment {
         NotchRun.Moment(
             time: time, pointer: pointer ?? edge.stagePoint(NSEvent.mouseLocation), pointerAt: Displays.now,
-            isShown: isShown, setting: Self.setting(edge, settings, period)
-        )
-    }
-
-    private static func setting(_ edge: ScreenEdge, _ settings: EdgeSettings, _ period: FoldPeriod) -> NotchRun.Setting {
-        NotchRun.Setting(
-            stage: edge.stage, mirror: edge.mirror, style: settings.style,
-            reducesMotion: Displays.reducesMotion(settings), period: period
+            isShown: isShown, setting: .on(edge, settings, period: period)
         )
     }
 
@@ -196,8 +189,8 @@ final class NotchController: NSObject {
     /// The run's latest frame drawn: the edge it swapped to saved, the caption told the panel drained, and the clocks
     /// paced.
     private func draw() {
-        let frame = run.frame, time = run.time, pointer = run.seen, setting = Self.setting(edge, settings, period)
-        let shown = run.takeShown()
+        let frame = run.frame, time = run.time, pointer = run.seen
+        let setting = NotchRun.Setting.on(edge, settings, period: period), shown = run.takeShown()
 
         if shown.swappedEdge, let crossing {
             self.crossing = nil
@@ -206,20 +199,13 @@ final class NotchController: NSObject {
         if let drained = shown.jumpDrained {
             caption.drained(at: drained)
         }
-        surface.show(run.list)
-        surface.show(NotchScene(
-            frame: frame, hover: pointer.flatMap { run.item(at: $0, in: setting) }, scroll: run.scroll, time: time,
-            now: Displays.wallNow, mirror: edge.mirror, calendar: run.calendar
-        ))
-        drawLight(at: run.lightTime(time))
+        surface.draw(run, in: setting, mirror: edge.mirror)
         window.takesClicks = run.drag != nil || (pointer.map(frame.hits) ?? false)
         pace(at: time)
     }
 
     private func drawLight(at time: Double) {
-        surface.showLight(run.frame.light, outline: run.frame.outline, colours: LiveLight(
-            time: time, sinceAsk: run.sinceAsk(at: time), reducesMotion: Displays.reducesMotion(settings)
-        ))
+        surface.drawLight(run, at: time, reducesMotion: Displays.reducesMotion(settings))
     }
 
     /// Frames run while something moves; otherwise only the light's slow refresh, while it is lit and moves, and with
@@ -239,8 +225,7 @@ final class NotchController: NSObject {
 
     /// Whether the light, shown and lit, changes from moment to moment (`LiveLight.moves`).
     private func lightMoves(at time: Double) -> Bool {
-        isShown && run.frame.light.level > 0.001
-            && LiveLight.moves(sinceAsk: run.sinceAsk(at: time), reducesMotion: Displays.reducesMotion(settings))
+        isShown && run.lightMoves(at: time, reducesMotion: Displays.reducesMotion(settings))
     }
 
     /// A new row's wash, which glass draws a frame at a time.
@@ -298,7 +283,7 @@ final class NotchController: NSObject {
     /// snoozes or wakes is the asks the row showed.
     private func menu(at screenPoint: CGPoint) -> NSMenu? {
         guard let point = edge.stagePoint(screenPoint),
-              let row = run.row(at: point, in: Self.setting(edge, settings, period)), let session = row.session
+              let row = run.row(at: point, in: .on(edge, settings, period: period)), let session = row.session
         else {
             return nil
         }
