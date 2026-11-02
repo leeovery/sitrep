@@ -11,7 +11,7 @@ struct AlertSounds {
     private let player: (String) -> Void
     private let stopper: () -> Void
 
-    /// `stop` stops the sound playing, if one is.
+    /// `stop` stops the sound these last played, if it still plays.
     init(names: [String], play: @escaping (String) -> Void, stop: @escaping () -> Void = {}) {
         self.names = names
         player = play
@@ -50,23 +50,23 @@ struct AlertSounds {
         player(chosen(saved))
     }
 
-    /// The sound playing stopped, as the welcome stops one as it closes.
+    /// The sound these sounds last played stopped, if it still plays, as the welcome stops its own as it closes.
     func stop() {
         stopper()
     }
 
-    /// The last sound played, which `stop` stops.
+    /// Each set of sounds plays copies of its own, so stopping one set's never cuts off another's: the welcome's
+    /// stop leaves a new ask's chime playing. A sound played stops the one before it, as System Settings › Sound does.
     @MainActor
     private final class Playing {
         private var sound: NSSound?
 
-        /// `NSSound(named:)` gives back the one sound for a name, which a play while it sounds would leave unheard.
         func play(_ name: String) {
-            guard let sound = NSSound(named: name) else {
+            guard let sound = NSSound(named: name)?.copy() as? NSSound else {
                 return
             }
 
-            sound.stop()
+            stop()
             sound.play()
             self.sound = sound
         }

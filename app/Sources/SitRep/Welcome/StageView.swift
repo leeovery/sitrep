@@ -29,7 +29,7 @@ struct StageView: View {
             GhosttyWindow()
                 .offset(x: isRight ? WelcomeStyle.stage.width - 178 - GhosttyWindow.size.width : 178, y: 58)
             EdgeHost(edge: edge, play: welcome.step.stage, chimes: welcome.chimes)
-            overlay(isRight: isRight)
+            overlays
         }
         .frame(width: WelcomeStyle.stage.width, height: WelcomeStyle.stage.height)
         .clipShape(Self.shape)
@@ -39,21 +39,22 @@ struct StageView: View {
         .accessibilityAddTraits(.isImage)
     }
 
-    @ViewBuilder private func overlay(isRight: Bool) -> some View {
-        if welcome.step == .sound, welcome.login.isOn {
+    /// macOS's notice while this visit's registration is the one it tells of; the callout where the stage places it.
+    @ViewBuilder private var overlays: some View {
+        if welcome.step == .sound, welcome.login.isOn, welcome.announcesNotice {
             BackgroundItemsNotice()
                 .padding(.top, 28)
                 .padding(.trailing, 10)
                 .frame(maxWidth: .infinity, alignment: .trailing)
         } else if welcome.step == .ready {
-            let callout = edge.callout
+            let place = edge.callout.place
 
             // as tall as twice its middle, so centred there
-            NotchCallout(isRight: isRight)
+            NotchCallout(isRight: place.isRight)
                 .fixedSize()
-                .padding(isRight ? .trailing : .leading, callout.inset)
-                .frame(maxWidth: .infinity, alignment: isRight ? .trailing : .leading)
-                .frame(height: callout.middle * 2)
+                .padding(place.isRight ? .trailing : .leading, place.inset)
+                .frame(maxWidth: .infinity, alignment: place.isRight ? .trailing : .leading)
+                .frame(height: place.middle * 2)
         }
     }
 }
@@ -100,7 +101,7 @@ private struct StageMenuBar: View {
     }
 }
 
-/// A Claude Code session in Ghostty, asking.
+/// A Claude Code session in Ghostty, asking, in placeholder words (`Sample`).
 private struct GhosttyWindow: View {
     static let size = CGSize(width: 292, height: 318)
 
@@ -110,7 +111,7 @@ private struct GhosttyWindow: View {
                 ForEach([0xFF5F57, 0xFEBC2E, 0x28C840], id: \.self) { light in
                     Circle().fill(Color(hex: UInt32(light))).frame(width: 7, height: 7)
                 }
-                Text("switchboard · claude")
+                Text(Sample.terminal)
                     .font(.system(size: 9))
                     .foregroundStyle(Color(hex: 0x8A8A90))
                     .frame(maxWidth: .infinity)
@@ -121,8 +122,7 @@ private struct GhosttyWindow: View {
             .background(Color(hex: 0x222226))
             VStack(alignment: .leading, spacing: 6) {
                 Text("✻ Claude Code").foregroundStyle(WindowStyle.orange)
-                Text("● Shall the ledger keep requests for").foregroundStyle(Color(hex: 0xC8C8CC))
-                Text("a year, or ninety days?").foregroundStyle(Color(hex: 0xC8C8CC)).padding(.leading, 10)
+                Text(Sample.terminalAsk).foregroundStyle(Color(hex: 0xC8C8CC))
                 Text("⎿ sitrep · ask").foregroundStyle(WelcomeStyle.faint)
             }
             .font(WindowStyle.mono(9))

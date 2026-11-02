@@ -1,4 +1,5 @@
 import AppKit
+import SitRepEdge
 import SitRepPanel
 
 /// The strip's window content, drawn in the material chosen: the last frame, replayed into a new drawing.
@@ -13,6 +14,15 @@ final class StripSurface: EdgeSurface<any StripDrawing> {
     func show(_ scene: StripScene) {
         self.scene = scene
         drawing.show(scene)
+    }
+
+    /// The run's latest frame, as it runs in `setting`, through the edge's mirror, hung from the menu bar its window
+    /// starts under. The real strip draws through here, and the welcome's stage.
+    func draw(_ run: StripRun, in setting: StripRun.Setting, mirror: CGAffineTransform) {
+        show(StripScene(
+            frame: run.frame, hoverRow: run.hoverRow, note: run.note, now: Displays.wallNow, mirror: mirror,
+            menu: setting.stage.menu, reducesMotion: setting.reducesMotion
+        ))
     }
 
     override func replay() {

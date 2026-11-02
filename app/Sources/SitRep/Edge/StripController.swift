@@ -149,10 +149,7 @@ final class StripController: NSObject {
         if let drained = shown.jumpDrained {
             caption.drained(at: drained)
         }
-        surface.show(StripScene(
-            frame: frame, hoverRow: run.hoverRow, note: run.note, now: Displays.wallNow, mirror: edge.stripMirror,
-            menu: edge.stripStage.menu, reducesMotion: Displays.reducesMotion(settings)
-        ))
+        surface.draw(run, in: Self.setting(edge, settings), mirror: edge.stripMirror)
         window.takesClicks = frame.pointer.map(frame.hits) ?? false
         pace(at: time)
     }

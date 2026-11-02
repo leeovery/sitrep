@@ -196,7 +196,7 @@ final class NotchController: NSObject {
     /// The run's latest frame drawn: the edge it swapped to saved, the caption told the panel drained, and the clocks
     /// paced.
     private func draw() {
-        let frame = run.frame, time = run.time, pointer = run.seen, setting = Self.setting(edge, settings, period)
+        let frame = run.frame, time = run.time, pointer = run.seen
         let shown = run.takeShown()
 
         if shown.swappedEdge, let crossing {
@@ -206,20 +206,13 @@ final class NotchController: NSObject {
         if let drained = shown.jumpDrained {
             caption.drained(at: drained)
         }
-        surface.show(run.list)
-        surface.show(NotchScene(
-            frame: frame, hover: pointer.flatMap { run.item(at: $0, in: setting) }, scroll: run.scroll, time: time,
-            now: Displays.wallNow, mirror: edge.mirror, calendar: run.calendar
-        ))
-        drawLight(at: run.lightTime(time))
+        surface.draw(run, in: Self.setting(edge, settings, period))
         window.takesClicks = run.drag != nil || (pointer.map(frame.hits) ?? false)
         pace(at: time)
     }
 
     private func drawLight(at time: Double) {
-        surface.showLight(run.frame.light, outline: run.frame.outline, colours: LiveLight(
-            time: time, sinceAsk: run.sinceAsk(at: time), reducesMotion: Displays.reducesMotion(settings)
-        ))
+        surface.drawLight(run, at: time, reducesMotion: Displays.reducesMotion(settings))
     }
 
     /// Frames run while something moves; otherwise only the light's slow refresh, while it is lit and moves, and with

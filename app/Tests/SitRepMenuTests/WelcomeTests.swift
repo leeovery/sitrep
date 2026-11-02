@@ -174,6 +174,16 @@ struct WelcomeSoundsTests {
         #expect(sounds.names == ["Pop", "Tink", "Basso"])
         #expect(sounds.aside(at: 3) == nil)
     }
+
+    /// The list scrolls as it appears only to a sound chosen past the four that show.
+    @Test func itScrollsToASoundChosenAScrollAway() {
+        let sounds = WelcomeSounds(Self.macOS)
+
+        #expect(sounds.scrolledTo("Tink") == nil)
+        #expect(sounds.scrolledTo("Basso") == "Basso")
+        #expect(sounds.scrolledTo("Submarine") == "Submarine")
+        #expect(sounds.scrolledTo("Gone") == nil)
+    }
 }
 
 /// Step 3's form under the pictures.
@@ -266,9 +276,9 @@ struct WelcomeStagePlayTests {
         let landing = WelcomeBoard.asked(at: 0, isNew: true), lit = WelcomeBoard.asked(at: 0, isNew: false)
 
         #expect(landing.needsLee)
-        #expect(landing.sessions.map(\.title) == [
-            "Keep a year of requests?", "Running ", "Writing ", "Review the picker's themes",
-        ])
+        #expect(landing.sessions.map(\.title) == [Sample.needsYou, "Running ", "Writing ", Sample.yourTurn])
+        #expect(landing.sessions.map(\.code) == [nil, "the tests", "DESIGN.md", nil])
+        #expect(landing.sessions.allSatisfy { $0.sub == "Project · Session" })
         #expect(landing.new == [WelcomeBoard.asking])
         #expect(lit.needsLee && lit.new.isEmpty)
     }
@@ -292,5 +302,71 @@ struct WelcomeStagePlayTests {
         #expect(try #require(present.first).x > 200)
         #expect(present.map(\.x).min() == 4)
         #expect(WelcomeLoop.pointer(at: WelcomeLoop.lands, notchY: notchY) == nil)
+    }
+
+    /// Once the panel has poured, the pointer moves from the notch onto the ask's row, and rests there until it leaves.
+    @Test func afterThePourThePointerMovesOntoTheAsksRow() throws {
+        let notchY = 300.0, row = CGPoint(x: 150, y: 120)
+        let path = stride(from: 0, to: WelcomeLoop.length, by: 100).compactMap {
+            WelcomeLoop.pointer(at: $0, notchY: notchY, row: row)
+        }
+        let onNotch = try #require(path.firstIndex(of: CGPoint(x: 4, y: notchY)))
+        let onRow = try #require(path.firstIndex(of: row))
+
+        #expect(onNotch < onRow)
+        #expect(try #require(path.lastIndex(of: CGPoint(x: 4, y: notchY))) < onRow)
+        #expect(path.filter { $0 == row }.count >= 20)
+    }
+
+    /// The panel looks for the ask's row from the pointer's setting off for it until the pointer is gone.
+    @Test func thePanelFindsTheRowOnlyWhileThePointerGoesToIt() throws {
+        let times = stride(from: 0, to: WelcomeLoop.length, by: 100)
+        let finding = times.filter(WelcomeLoop.findsRow(at:))
+        let pointing = times.filter { WelcomeLoop.pointer(at: $0, notchY: 300, row: CGPoint(x: 150, y: 120)) != nil }
+        let first = try #require(finding.first)
+
+        #expect(Set(finding).isSubset(of: Set(pointing)))
+        #expect(WelcomeLoop.pointer(at: first - 100, notchY: 300) == CGPoint(x: 4, y: 300))
+    }
+
+    /// Frames sleep between the pointer's glides: it moves only on its way to the notch, to the row, and away.
+    @Test func thePointerMovesOnlyWhileItGlides() {
+        let times = stride(from: 0, to: WelcomeLoop.length, by: 50)
+
+        for time in times {
+            let before = WelcomeLoop.pointer(at: time, notchY: 300, row: CGPoint(x: 150, y: 120))
+            let after = WelcomeLoop.pointer(at: time + 50, notchY: 300, row: CGPoint(x: 150, y: 120))
+
+            if before != nil, after != nil, before != after {
+                #expect(WelcomeLoop.pointerMoves(at: time), "at \(time)")
+            }
+            if before == after {
+                #expect(!WelcomeLoop.pointerMoves(at: time) || before == nil, "at \(time)")
+            }
+        }
+    }
+
+    /// Asleep, the stage wakes at the loop's next beat: the ask landing, the pointer setting off, or the loop again.
+    @Test func theLoopsNextBeatIsWhenItNextChangesOfItself() {
+        #expect(WelcomeLoop.next(after: 0) == WelcomeLoop.lands)
+        #expect(WelcomeLoop.next(after: WelcomeLoop.lands) > WelcomeLoop.lands)
+        #expect(WelcomeLoop.pointerMoves(at: WelcomeLoop.next(after: WelcomeLoop.lands)))
+        #expect(WelcomeLoop.next(after: WelcomeLoop.length + 10) == WelcomeLoop.length + WelcomeLoop.lands)
+        #expect(WelcomeLoop.next(after: WelcomeLoop.length - 1) == WelcomeLoop.length)
+    }
+}
+
+/// The words SitRep makes up where it shows what a place will hold.
+struct SampleTests {
+    /// Lee's real projects never stand in for a sample: Settings' notification, the welcome's terminal and its board.
+    @Test func noSampleNamesARealProject() {
+        let board = WelcomeBoard.asked(at: 0, isNew: true).sessions
+        let words = [Sample.ask, Sample.project, Sample.place, Sample.terminal, Sample.terminalAsk, Sample.needsYou]
+            + [Sample.running, Sample.writing].flatMap { [$0.title, $0.code] } + [Sample.yourTurn]
+            + board.flatMap { [$0.id, $0.project, $0.name, $0.sub] + $0.lines.flatMap { [$0.ask, $0.title, $0.code] }.compactMap(\.self) }
+
+        for real in ["Switchboard", "Kit", "Portal", "Fabric", "SitRep", "ledger"] {
+            #expect(!words.contains { $0.localizedCaseInsensitiveContains(real) }, "\(real)")
+        }
     }
 }

@@ -189,6 +189,11 @@ public struct WelcomeSounds: Equatable, Sendable {
     /// How many are a scroll away.
     public var more: Int { max(0, names.count - Self.shown) }
 
+    /// The sound to scroll to as the list appears: the one chosen, where it sits a scroll away; else none.
+    public func scrolledTo(_ chosen: String) -> String? {
+        names.firstIndex(of: chosen).map { $0 >= Self.shown } == true ? chosen : nil
+    }
+
     /// What a row says at its right: "and 10 more" on the last that shows, while any are a scroll away.
     public func aside(at index: Int) -> String? {
         index == Self.shown - 1 && more > 0 ? "and \(more) more" : nil

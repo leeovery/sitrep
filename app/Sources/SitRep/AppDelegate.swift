@@ -22,9 +22,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private lazy var settings = SettingsWindow(
         settings: SettingsModel(preferences: preferences, live: live, services: services)
     )
-    private lazy var welcome = WelcomeWindow(
-        welcome: WelcomeModel(preferences: preferences, live: live, services: services)
-    )
+    /// Made as Welcome… first opens it, so SitRep quitting never makes one only to close it.
+    private var welcome: WelcomeWindow?
     private lazy var window = SitRepWindow(
         plugin: plugin, works: works, snoozes: snoozes, following: feed.following, preferences: preferences,
         openSettings: { [unowned self] in settings.show() }
@@ -48,7 +47,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let menu = StatusMenu(
             works: works, preferences: preferences, openWindow: { [window] in window.open() },
             openSettings: { [unowned self] in settings.show() }, openAbout: { [about] in about.show() },
-            openWelcome: { [unowned self] in welcome.show() }
+            openWelcome: { [unowned self] in openWelcome() }
         )
 
         self.edge = edge
@@ -73,9 +72,29 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
-    /// `watch` stops with the app.
+    /// `watch` stops with the app, and a welcome open closes as its close button would close it, which quitting
+    /// never tells it.
     func applicationWillTerminate(_ notification: Notification) {
         feed.stop()
+        welcome?.closeIfOpen()
+    }
+
+    /// The welcome at its first step.
+    private func openWelcome() {
+        let welcome = welcome ?? WelcomeWindow(
+            welcome: WelcomeModel(preferences: preferences, live: live, services: welcomeServices())
+        )
+
+        self.welcome = welcome
+        welcome.show()
+    }
+
+    /// Settings' services, with sounds of the welcome's own, so stopping them never cuts off a new ask's.
+    private func welcomeServices() -> SettingsServices {
+        var services = services
+
+        services.sounds = .live
+        return services
     }
 
     /// Each board, to everything that shows it; the sound Lee chose, once for the asks new on it, and a notification

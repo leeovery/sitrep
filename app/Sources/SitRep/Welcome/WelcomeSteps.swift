@@ -163,12 +163,19 @@ private struct SoundList: View {
         let sounds = welcome.sounds, chosen = welcome.sound
 
         VStack(spacing: 0) {
-            ScrollView {
-                VStack(spacing: 0) {
-                    ForEach(Array(sounds.names.enumerated()), id: \.element) { place, name in
-                        SoundRow(name: name, aside: sounds.aside(at: place), isChosen: name == chosen) {
-                            welcome.choose(sound: name)
+            ScrollViewReader { list in
+                ScrollView {
+                    VStack(spacing: 0) {
+                        ForEach(Array(sounds.names.enumerated()), id: \.element) { place, name in
+                            SoundRow(name: name, aside: sounds.aside(at: place), isChosen: name == chosen) {
+                                welcome.choose(sound: name)
+                            }
                         }
+                    }
+                }
+                .onAppear {
+                    if let shown = chosen.flatMap(sounds.scrolledTo) {
+                        list.scrollTo(shown, anchor: .bottom)
                     }
                 }
             }
@@ -201,12 +208,13 @@ private struct SoundRow: View {
                     .font(.system(size: 13, weight: isChosen ? .medium : .regular))
                     .foregroundStyle(isQuiet && !isChosen ? WelcomeStyle.soft : WelcomeStyle.text)
                     .frame(maxWidth: .infinity, alignment: .leading)
+                if let aside {
+                    Text(aside).font(.system(size: 11)).foregroundStyle(WelcomeStyle.faint)
+                }
                 if isChosen {
                     Image(systemName: "checkmark")
                         .font(.system(size: 11, weight: .bold))
                         .foregroundStyle(Color.accentColor)
-                } else if let aside {
-                    Text(aside).font(.system(size: 11)).foregroundStyle(WelcomeStyle.faint)
                 }
             }
             .foregroundStyle(WelcomeStyle.text)
@@ -221,18 +229,19 @@ private struct SoundRow: View {
     }
 }
 
-/// Open SitRep at login: the switch, as General's, its line warning of macOS's notice; while macOS waits on Lee's
-/// approval, General's words and the way to it.
+/// Open SitRep at login: the switch, as General's, its line warning of macOS's notice while the notice is this visit's,
+/// else General's line; while macOS waits on Lee's approval, General's words and the way to it.
 private struct LoginCard: View {
     let welcome: WelcomeModel
 
     var body: some View {
         let row = welcome.loginRow
+        let warns = row.side == .toggle(isEnabled: true) && welcome.announcesNotice
 
         HStack(spacing: 10) {
             VStack(alignment: .leading, spacing: 2) {
                 Text("Open SitRep at login").font(.system(size: 13)).foregroundStyle(WelcomeStyle.text)
-                Text(row.side == .toggle(isEnabled: true) ? "macOS confirms it with a notice" : row.line ?? "")
+                Text(warns ? "macOS confirms it with a notice" : row.line ?? "")
                     .font(.system(size: 11))
                     .foregroundStyle(WelcomeStyle.soft)
                     .fixedSize(horizontal: false, vertical: true)
@@ -250,7 +259,7 @@ private struct LoginCard: View {
     }
 
     private var opensAtLogin: Binding<Bool> {
-        Binding(get: { welcome.login.isOn }, set: { _ in welcome.pressLogin() })
+        Binding(get: { welcome.login.isOn }, set: welcome.setLogin)
     }
 }
 

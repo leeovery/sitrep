@@ -32,6 +32,25 @@ final class NotchSurface: EdgeSurface<any NotchDrawing> {
         drawing.wash(rows, at: time)
     }
 
+    /// The run's latest frame, as it runs in `setting`: the panel's list, the shape and the content through the
+    /// edge's mirror, the row under the pointer as the frame saw it, and the light. The real notch draws through here,
+    /// and the welcome's stage.
+    func draw(_ run: NotchRun, in setting: NotchRun.Setting) {
+        show(run.list)
+        show(NotchScene(
+            frame: run.frame, hover: run.seen.flatMap { run.item(at: $0, in: setting) }, scroll: run.scroll,
+            time: run.time, now: Displays.wallNow, mirror: setting.mirror, calendar: run.calendar
+        ))
+        drawLight(run, at: run.lightTime(run.time), reducesMotion: setting.reducesMotion)
+    }
+
+    /// The run's light at this time on its own clock, round the frame's outline.
+    func drawLight(_ run: NotchRun, at time: Double, reducesMotion: Bool) {
+        showLight(run.frame.light, outline: run.frame.outline, colours: LiveLight(
+            time: time, sinceAsk: run.sinceAsk(at: time), reducesMotion: reducesMotion
+        ))
+    }
+
     override func replay() {
         list.map(drawing.show)
         scene.map(drawing.show)
