@@ -19,6 +19,8 @@ public enum MenuEntry: Equatable, Sendable {
     case more(String)
     case openWindow
     case show(EdgeSettings.Show, isTicked: Bool)
+    /// The welcome window, at its first step.
+    case welcome
     case settings
     case quit
 
@@ -35,6 +37,7 @@ public enum MenuEntry: Equatable, Sendable {
         case .more: "more"
         case .openWindow: "openWindow"
         case let .show(show, _): "show:\(show.rawValue)"
+        case .welcome: "welcome"
         case .settings: "settings"
         case .quit: "quit"
         }
@@ -43,12 +46,12 @@ public enum MenuEntry: Equatable, Sendable {
 
 extension MenuBoard {
     /// The whole menu, top to bottom, with this shown at the edge: the header; what it speaks up with; the sessions
-    /// under their heading, the hairline among them and "N more…" past twelve; the SitRep window; Show; Settings and
-    /// Quit.
+    /// under their heading, the hairline among them and "N more…" past twelve; the SitRep window; Show; the welcome,
+    /// Settings and Quit.
     public func entries(showing shown: EdgeSettings.Show) -> [MenuEntry] {
         let commands: [MenuEntry] = [.openWindow, .separator("window"), .heading("show", title: "Show")]
             + EdgeSettings.Show.allCases.map { .show($0, isTicked: $0 == shown) }
-            + [.separator("show"), .settings, .separator("settings"), .quit]
+            + [.separator("show"), .welcome, .settings, .separator("settings"), .quit]
 
         return [.header, .separator("header")] + speakingUp + sessionEntries + commands
     }

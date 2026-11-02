@@ -101,31 +101,27 @@ struct EdgePaneView: View {
         })
     }
 
-    /// The system's segmented picker, its segments equal, each as wide as the widest word makes it.
     private func segmented<Value: Hashable>(
         _ label: String, _ setting: WritableKeyPath<EdgeSettings, Value>, _ values: [Value],
         _ title: @escaping (Value) -> String
     ) -> some View {
-        Picker(label, selection: preferences.binding(setting)) {
+        Segments(label: label, value: preferences.binding(setting), values: values, title: title)
+    }
+}
+
+/// The system's segmented picker, its segments equal, each as wide as the widest word makes it: Edge's and the
+/// welcome's.
+struct Segments<Value: Hashable>: View {
+    let label: String
+    @Binding var value: Value
+    let values: [Value]
+    let title: (Value) -> String
+
+    var body: some View {
+        Picker(label, selection: $value) {
             ForEach(values, id: \.self) { Text(title($0)).tag($0) }
         }
         .pickerStyle(.segmented)
         .labelsHidden()
     }
-}
-
-extension EdgeSettings.Edge {
-    var title: String { self == .left ? "Left" : "Right" }
-}
-
-extension NotchStyle {
-    var title: String { self == .meniscus ? "Meniscus" : "Card" }
-}
-
-extension StripLength {
-    var title: String { self == .grows ? "Grows" : "Full" }
-}
-
-extension EdgeSettings.Material {
-    var title: String { self == .black ? "Black" : "Glass" }
 }

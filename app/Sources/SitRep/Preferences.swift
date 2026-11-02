@@ -8,7 +8,7 @@ import SitRepPanel
 /// What Lee sets, the one place it is kept: the edge's settings, which the menu's Show, Settings and a drag change, and
 /// the rest beside them, each saved as one value as it changes. The edge follows every change Lee makes at once; a
 /// drag's move it made itself. The pane the Settings window last showed is kept here too, on its own, so no follower
-/// hears a turn to a pane.
+/// hears a turn to a pane, and whether a welcome has closed on this Mac.
 @MainActor
 @Observable
 final class Preferences {
@@ -31,6 +31,15 @@ final class Preferences {
         }
     }
 
+    /// Whether a welcome has closed on this Mac, set as one closes: one opened after it changes nothing until pressed.
+    var welcomed: Bool {
+        didSet {
+            if welcomed != oldValue {
+                savedWelcome.save(WelcomeSettings(welcomed: welcomed))
+            }
+        }
+    }
+
     /// The edge, told of each change Lee makes in the menu or Settings.
     @ObservationIgnored var onEdge: (EdgeSettings) -> Void = { _ in }
     /// The card and the SitRep window, each told of every change Lee makes to the rest, for the fold period.
@@ -38,6 +47,7 @@ final class Preferences {
     @ObservationIgnored private let savedEdge: SavedEdgeSettings
     @ObservationIgnored private let savedApp: SavedSettings<AppSettings>
     @ObservationIgnored private let savedSettingsWindow: SavedSettings<SettingsWindowSettings>
+    @ObservationIgnored private let savedWelcome: SavedSettings<WelcomeSettings>
 
     init(_ defaults: UserDefaults = .standard) {
         savedEdge = SavedEdgeSettings(defaults)
@@ -46,6 +56,8 @@ final class Preferences {
         app = savedApp.read()
         savedSettingsWindow = SavedSettings(defaults)
         settingsPane = savedSettingsWindow.read().pane
+        savedWelcome = SavedSettings(defaults)
+        welcomed = savedWelcome.read().welcomed
     }
 
     /// Told of each change Lee makes to the rest, from now on.

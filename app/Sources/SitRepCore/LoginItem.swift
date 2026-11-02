@@ -1,9 +1,9 @@
 import ServiceManagement
 
 /// General's "Open at login", from the login item's real status.
-public struct LoginItem: Equatable {
+public struct LoginItem: Equatable, Sendable {
     /// What choosing the item does.
-    public enum Choice: Equatable {
+    public enum Choice: Equatable, Sendable {
         case register
         case unregister
         /// macOS wants Lee's approval, which only System Settings' Login Items gives.

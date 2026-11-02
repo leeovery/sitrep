@@ -18,8 +18,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var menu: StatusMenu?
     private var edge: Edge?
     private let about = AboutWindow()
+    private lazy var services = makeServices()
     private lazy var settings = SettingsWindow(
-        settings: SettingsModel(preferences: preferences, live: live, services: makeServices())
+        settings: SettingsModel(preferences: preferences, live: live, services: services)
+    )
+    private lazy var welcome = WelcomeWindow(
+        welcome: WelcomeModel(preferences: preferences, live: live, services: services)
     )
     private lazy var window = SitRepWindow(
         plugin: plugin, works: works, snoozes: snoozes, following: feed.following, preferences: preferences,
@@ -43,7 +47,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         )
         let menu = StatusMenu(
             works: works, preferences: preferences, openWindow: { [window] in window.open() },
-            openSettings: { [unowned self] in settings.show() }, openAbout: { [about] in about.show() }
+            openSettings: { [unowned self] in settings.show() }, openAbout: { [about] in about.show() },
+            openWelcome: { [unowned self] in welcome.show() }
         )
 
         self.edge = edge

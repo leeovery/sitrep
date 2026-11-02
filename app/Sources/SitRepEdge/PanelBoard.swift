@@ -62,6 +62,17 @@ public struct PanelBoard: Equatable, Sendable {
         )
     }
 
+    /// A board of these rows, in this order, none in Snoozed, as a picture of the edge shows one: its head from their
+    /// counts, and the rows new on it by their sessions.
+    public init(rows: [Session], new: Set<String> = []) {
+        let needYou = rows.filter(\.needsLee).count
+
+        self.init(
+            sessions: rows, snoozed: [], head: Head(needYou: needYou, sessions: rows.count), needsLee: needYou > 0,
+            new: new, unread: nil, asOf: nil
+        )
+    }
+
     private init(
         sessions: [Session], snoozed: [Session], head: Head, needsLee: Bool, new: Set<String>, unread: String?,
         asOf: String?

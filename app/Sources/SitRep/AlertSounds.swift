@@ -9,15 +9,22 @@ struct AlertSounds {
     /// Their names, as Settings' pop-up lists them.
     let names: [String]
     private let player: (String) -> Void
+    private let stopper: () -> Void
 
-    init(names: [String], play: @escaping (String) -> Void) {
+    /// `stop` stops the sound playing, if one is.
+    init(names: [String], play: @escaping (String) -> Void, stop: @escaping () -> Void = {}) {
         self.names = names
         player = play
+        stopper = stop
     }
 
     /// The sounds macOS keeps, played through `NSSound`.
     static var live: AlertSounds {
-        AlertSounds(names: names(in: URL(filePath: "/System/Library/Sounds")), play: playFromTheStart)
+        let playing = Playing()
+
+        return AlertSounds(
+            names: names(in: URL(filePath: "/System/Library/Sounds")), play: playing.play, stop: playing.stop
+        )
     }
 
     /// The sound files in a folder by name, in Finder's order.
@@ -43,13 +50,29 @@ struct AlertSounds {
         player(chosen(saved))
     }
 
-    /// `NSSound(named:)` gives back the one sound for a name, which a play while it sounds would leave unheard.
-    private static func playFromTheStart(_ name: String) {
-        guard let sound = NSSound(named: name) else {
-            return
+    /// The sound playing stopped, as the welcome stops one as it closes.
+    func stop() {
+        stopper()
+    }
+
+    /// The last sound played, which `stop` stops.
+    @MainActor
+    private final class Playing {
+        private var sound: NSSound?
+
+        /// `NSSound(named:)` gives back the one sound for a name, which a play while it sounds would leave unheard.
+        func play(_ name: String) {
+            guard let sound = NSSound(named: name) else {
+                return
+            }
+
+            sound.stop()
+            sound.play()
+            self.sound = sound
         }
 
-        sound.stop()
-        sound.play()
+        func stop() {
+            sound?.stop()
+        }
     }
 }
