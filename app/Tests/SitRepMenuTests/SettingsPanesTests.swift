@@ -161,8 +161,7 @@ struct SettingsSidebarRowTests {
 
 /// The pane the Settings window last showed, saved on its own and read leniently.
 struct SettingsWindowSettingsTests {
-    /// General the first time; then the pane by its name, round 5's window's edge, notifications and general among them;
-    /// General for a name no pane has.
+    /// General the first time; then the pane by its name; General for a name no pane has.
     @Test(arguments: [
         (nil, SettingsPane.general), ("claudeCode", .claudeCode), ("edge", .edge), ("notifications", .notifications),
         ("general", .general), ("gone", .general),

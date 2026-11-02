@@ -125,8 +125,7 @@ public struct SettingsSidebarRow: Equatable, Sendable, Identifiable {
 }
 
 /// The pane the Settings window last showed, which it opens on, saved on its own so a turn to a pane touches nothing
-/// else Lee sets. Read leniently: a pane by its name, as round 5's window named its edge, notifications and general;
-/// General the first time, or for a name no pane has.
+/// else Lee sets. Read leniently: a pane by its name; General the first time, or for a name no pane has.
 public struct SettingsWindowSettings: SavedValue {
     public static let key = "settingsWindow"
 
