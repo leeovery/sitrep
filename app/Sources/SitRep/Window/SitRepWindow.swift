@@ -5,25 +5,26 @@ import SwiftUI
 
 /// The SitRep window: one, which the app owns, made the first time Lee opens it and kept after it closes. Opening it
 /// again brings it forward. It comes forward and takes focus only when Lee opens it, never by itself, as the notch or
-/// the strip tells Lee what changed; with no Dock icon, the app activates only then. Its page is a session, a project,
-/// or Settings, drawn from `settings`.
+/// the strip tells Lee what changed; with no Dock icon, the app activates only then. Its page is a session or a
+/// project; Settings at its sidebar's foot opens the Settings window.
 @MainActor
 final class SitRepWindow: NSObject, NSWindowDelegate {
     private let model: WindowModel
-    private let settings: SettingsModel
     private lazy var window = make()
     private var focus: SideFocus?
     private var keys: Any?
 
-    /// `following`, what the app's one `watch` is told the window follows.
-    init(plugin: Plugin, works: Works, snoozes: Snoozes, following: Following, settings: SettingsModel) {
-        let preferences = settings.preferences
+    /// `following`, what the app's one `watch` is told the window follows; `openSettings`, the Settings window.
+    init(
+        plugin: Plugin, works: Works, snoozes: Snoozes, following: Following, preferences: Preferences,
+        openSettings: @escaping @MainActor @Sendable () -> Void
+    ) {
         let model = WindowModel(
-            plugin: plugin, works: works, snoozes: snoozes, following: following, period: preferences.app.foldsAfter
+            plugin: plugin, works: works, snoozes: snoozes, following: following, period: preferences.app.foldsAfter,
+            openSettings: openSettings
         )
 
         self.model = model
-        self.settings = settings
         preferences.follow { model.period($0.foldsAfter) }
     }
 
@@ -38,8 +39,8 @@ final class SitRepWindow: NSObject, NSWindowDelegate {
     }
 
     /// Lee opens it: shown afresh, on the pick given or else on what it opens on; or, where it shows already or was
-    /// minimised, brought forward as it was, turned to the pick given. Keyboard focus goes to the list holding the pick
-    /// as it opens afresh or turns to one; brought forward as it was, it stays where it was.
+    /// minimised, brought forward as it was, turned to the pick given. Keyboard focus goes to the board's list as it
+    /// opens afresh or turns to a pick; brought forward as it was, it stays where it was.
     func open(on pick: Pick? = nil) {
         let isAfresh = !window.isMiniaturized && !window.isVisible
 
@@ -59,12 +60,10 @@ final class SitRepWindow: NSObject, NSWindowDelegate {
     }
 
     func windowDidBecomeKey(_ notification: Notification) {
-        settings.keys(true)
         model.window(isKey: true)
     }
 
     func windowDidResignKey(_ notification: Notification) {
-        settings.keys(false)
         model.window(isKey: false)
     }
 
@@ -82,14 +81,14 @@ final class SitRepWindow: NSObject, NSWindowDelegate {
                 sidebar: model.sidebar, pick: model.pick, filter: model.filter, now: model.now
             )
         }
-        let page = Self.side(over: model) { [model, settings] in
-            PageColumn(page: model.page, now: model.now) { SettingsPage(settings: settings) }
+        let page = Self.side(over: model) { [model] in
+            PageColumn(page: model.page, now: model.now)
         }
         let window = Self.window(Self.split(sidebar: sidebar, page: page))
 
         window.delegate = self
         window.setFrameAutosaveName("SitRepWindow")
-        let focus = SideFocus(window: window, sidebar: sidebar.view, page: page.view) { [model] in model.pick }
+        let focus = SideFocus(window: window, sidebar: sidebar.view, page: page.view)
 
         self.focus = focus
         listenForKeys(in: window, focus: focus)
@@ -166,17 +165,14 @@ final class SitRepWindow: NSObject, NSWindowDelegate {
 
 /// Keyboard focus moved by a key, through AppKit's key views: ⌘F into the sidebar's Filter field, from anywhere;
 /// Return in the sidebar into the page, to its first control, which with the Mac's Keyboard navigation off has none,
-/// so Return there leaves focus where it is; Escape in the page back to what holds the pick, the board's list or
-/// Settings at its foot. Tab and the arrows keep the Mac's own order. In the Filter field Return and Escape are the
-/// field's own (`FilterField`), and on Settings at the foot, while it is not the pick, Return is its own, which opens
-/// it (`SettingsFootControl`).
+/// so Return there leaves focus where it is; Escape in the page back to the board's list. Tab and the arrows keep the
+/// Mac's own order. In the Filter field Return and Escape are the field's own (`FilterField`), and on Settings at the
+/// foot Return is its own, which opens the Settings window (`SettingsFootControl`).
 @MainActor
 struct SideFocus {
     let window: NSWindow
     let sidebar: NSView
     let page: NSView
-    /// What the window shows, which the sidebar shows only after SwiftUI's next pass.
-    let pick: () -> Pick?
 
     /// A key in the window, taken before what has focus hears it: Escape takes back the answer pressed last while it
     /// waits, as the drawing's "Esc to undo" says, wherever focus is, the Filter field too; with none waiting, the
@@ -188,12 +184,12 @@ struct SideFocus {
         return move(event)
     }
 
-    /// Focus on what holds the pick, as the window opens afresh or turns to a pick, where AppKit would give it to the
+    /// Focus on the board's list, as the window opens afresh or turns to a pick, where AppKit would give it to the
     /// first of its key views, the Filter field above the list. The sidebar is laid out first, as SwiftUI makes the
-    /// list's table and the foot's control only then.
+    /// list's table only then.
     func focusList() {
         window.contentView?.layoutSubtreeIfNeeded()
-        window.makeFirstResponder(holder ?? sidebar)
+        window.makeFirstResponder(list ?? sidebar)
     }
 
     /// The move this key makes from where focus is, made; false where it makes none.
@@ -210,7 +206,7 @@ struct SideFocus {
             return true
         }
         if event.keyCode == Self.escape, focus.isDescendant(of: page) {
-            return window.makeFirstResponder(holder ?? sidebar)
+            return window.makeFirstResponder(list ?? sidebar)
         }
         return false
     }
@@ -226,20 +222,16 @@ struct SideFocus {
     private var focus: NSView? { window.firstResponder as? NSView }
     private var filterField: NSView? { sidebar.descendants(NSSearchField.self).first }
 
-    /// What in the sidebar holds the pick: Settings at the foot while it shows; else the board's list, as SwiftUI hosts
-    /// it in AppKit's table, with nothing picked too.
-    private var holder: NSView? {
-        pick() == .settings ? foot : sidebar.descendants(NSTableView.self).first
-    }
+    /// The board's list, as SwiftUI hosts it in AppKit's table, with nothing picked too.
+    private var list: NSView? { sidebar.descendants(NSTableView.self).first }
 
     private var foot: SettingsFootControl? { sidebar.descendants(SettingsFootControl.self).first }
 
-    /// Focus where Return is its own: in the Filter field, its field editor inside it, or on Settings at the foot
-    /// while it is not the pick.
+    /// Focus where Return is its own: in the Filter field, its field editor inside it, or on Settings at the foot.
     private func keepsReturn(_ focus: NSView) -> Bool {
         let isInField = filterField.map(focus.isDescendant(of:)) ?? false
 
-        return isInField || (focus === foot && pick() != .settings)
+        return isInField || focus === foot
     }
 
     /// ⌘F, whatever Caps Lock says.

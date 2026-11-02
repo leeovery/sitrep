@@ -165,8 +165,8 @@ public struct Listed: Equatable, Sendable {
     }
 
     /// The pick as a row of its holds it: a session by its row outside Snoozed, and by its row in Snoozed only where it
-    /// has no other; the row in Snoozed it was picked by, while it lists it, else the session. A project, Settings,
-    /// and a session it lists no row of, as they are.
+    /// has no other; the row in Snoozed it was picked by, while it lists it, else the session. A project, and a
+    /// session it lists no row of, as they are.
     func held(_ pick: Pick) -> Pick {
         switch pick {
         case let .session(id) where !lists(pick) && lists(.snoozed(id)): .snoozed(id)

@@ -1,23 +1,33 @@
 import SitRepPanel
 
-/// What stays on screen (DESIGN, "Settings"): the rows of its card under the Show row that apply to the choice, in
-/// their order. With Nothing there are none, and the Show row's line says what carries the board instead.
-public enum StaysOnScreen {
-    /// A row of the card.
+/// Settings' Edge pane (DESIGN, "Settings"): under the Show row's card, the sections that apply to the choice, in
+/// their order. A section named for the shape, Notch or Strip, holds the rows that tune it; Motion holds Reduce motion,
+/// as it is about how SitRep moves whichever shape is at the edge. With Nothing there are none, and the Show row's line
+/// says what carries the board instead.
+public enum EdgePane {
+    /// A row of a section.
     public enum Row: Hashable, Sendable {
         case edge, display, style, length, max, material, reduceMotion
     }
 
+    /// A section: its header, and its card's rows.
+    public struct Section: Hashable, Sendable {
+        public let name: String
+        public let rows: [Row]
+    }
+
     public static let menuCarries = "The menu and the SitRep window carry the board."
 
-    /// The rows for what Lee set: Style for the notch, Length and Max for the strip, Max only at Grows; Material only
-    /// from macOS 26, before which the edge is black and there is no row.
-    public static func rows(_ settings: EdgeSettings, hasGlass: Bool) -> [Row] {
-        let look: [Row] = (hasGlass ? [.material] : []) + [.reduceMotion]
+    /// The sections for what Lee set: Style for the notch, Length and Max for the strip, Max only at Grows; Material
+    /// only from macOS 26, before which the edge is black and there is no row.
+    public static func sections(_ settings: EdgeSettings, hasGlass: Bool) -> [Section] {
+        let material: [Row] = hasGlass ? [.material] : []
+        let max: [Row] = settings.length == .grows ? [.max] : []
+        let motion = Section(name: "Motion", rows: [.reduceMotion])
 
         return switch settings.show {
-        case .notch: [.edge, .display, .style] + look
-        case .strip: [.edge, .display, .length] + (settings.length == .grows ? [.max] : []) + look
+        case .notch: [Section(name: "Notch", rows: [.edge, .display, .style] + material), motion]
+        case .strip: [Section(name: "Strip", rows: [.edge, .display, .length] + max + material), motion]
         case .nothing: []
         }
     }

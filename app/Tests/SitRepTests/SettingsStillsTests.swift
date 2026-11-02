@@ -10,7 +10,7 @@ import SitRepPanel
 import SwiftUI
 import Testing
 
-/// Settings' page, About SitRep and the menu's images drawn offscreen into PNGs, to read beside Paper's drawings: only
+/// Settings' panes, About SitRep and the menu's images drawn offscreen into PNGs, to read beside Paper's drawings: only
 /// when `SITREP_STILLS` names a folder for them, so a run of the tests writes nothing.
 @MainActor
 @Suite(.enabled(if: stills != nil))
@@ -18,24 +18,15 @@ struct SettingsStillsTests {
 
     private static let fine = MacSays(notices: .allowed(.banners), login: LoginItem(.enabled), ghostty: .allowed)
 
-    /// The page over a Mac that says this, read as the page reads it as it appears.
-    private static func page(_ preferences: Preferences, windows: [String], said: MacSays = fine) async -> SettingsPage {
-        let services = SettingsServices(
-            displays: {
-                [
-                    DisplayChoice.Connected(id: "A", name: "Built-in Retina Display", isMain: true),
-                    DisplayChoice.Connected(id: "B", name: "Studio Display", isMain: false),
-                ]
-            },
-            hasGlass: true, jump: { _ in }, sendTest: {}, sounds: .silent,
-            noticeLeave: { said.notices ?? .unasked }, askForNotices: {}, login: { said.login ?? LoginItem(.notFound) },
-            chooseLogin: {}, ghostty: { said.ghostty ?? .unknown }, allowGhostty: { .allowed }, open: { _ in }
+    /// Settings over a Mac that says this, read as the window reads it as a pane comes into sight.
+    private static func settings(_ preferences: Preferences, windows: [String], said: MacSays = fine) async -> SettingsModel {
+        let settings = SettingsModel(
+            preferences: preferences, live: live(windows: windows), services: Hosted.services(said: said)
         )
-        let settings = SettingsModel(preferences: preferences, live: live(windows: windows), services: services)
 
         settings.readDisplays()
         await settings.read()
-        return SettingsPage(settings: settings)
+        return settings
     }
 
     private static func preferences(_ change: (inout EdgeSettings) -> Void = { _ in }) -> Preferences {
@@ -73,81 +64,56 @@ struct SettingsStillsTests {
             .write(to: try #require(stills).appending(path: "\(name).png"))
     }
 
-    /// The window on Settings, the sidebar's stand-in with Settings picked at its foot, over the board `run` holds, as
-    /// tall as `height`.
-    private static func window(
-        _ page: SettingsPage, _ name: String, width: CGFloat = WindowStyle.size.width,
-        height: CGFloat = WindowStyle.size.height, run: WindowRun = WindowRun()
+    /// A pane as the window shows it beside the sidebar, unscrolled, on the window's background, at the window's first
+    /// size unless `width` says.
+    private static func pane(
+        _ pane: SettingsPane, _ settings: SettingsModel, _ name: String,
+        width: CGFloat = SettingsWindow.size.width - 188
     ) throws {
-        run.pick(.settings)
-        try render(stillWindow(run, at: Date()) { page }, name, size: CGSize(width: width, height: height))
-    }
-
-    @Test(arguments: EdgeSettings.Show.allCases)
-    func theWindowOnSettings(show: EdgeSettings.Show) async throws {
-        let page = await Self.page(Self.preferences { $0.show = show }, windows: [Watched.window("w2", needsReload: false)])
-
-        try Self.window(page, "settings-\(show.title.lowercased())")
-    }
-
-    /// The foot under a filter: the board narrowed above it, Settings still picked.
-    @Test func theWindowOnSettingsUnderAFilter() async throws {
-        let page = await Self.page(Self.preferences(), windows: [Watched.window("w2", needsReload: false)])
-        let run = WindowRun()
-        var last = LastBoard()
-
-        last.begin()
-        _ = last.hear(.line(Lines.watch[0]), at: Date())
-        run.show(last, at: Date(), reducesMotion: false)
-        run.filter = Filter("le")
-        try Self.window(page, "settings-under-a-filter", run: run)
-    }
-
-    @Test func theWholePage() async throws {
-        let page = await Self.page(Self.preferences(), windows: [Watched.window("w2", needsReload: false)])
-
-        try Self.window(page, "settings-whole", height: 1500)
-    }
-
-    /// A dot when it's fine, a button when it's Lee's: windows on an older plugin, Ghostty not asked, banners off.
-    @Test func whenARowNeedsSomething() async throws {
-        let old = Watched.window("w1", needsReload: true)
-        let said = MacSays(notices: .denied, login: LoginItem(.requiresApproval), ghostty: .unasked)
-        let page = await Self.page(Self.preferences(), windows: [old, old], said: said)
-
-        try Self.window(page, "settings-needs-lee", height: 1500)
-    }
-
-    /// What stays on screen at the drawing's column, its card opening on the Show row: the notch chosen, with the
-    /// rows that follow it, and Nothing, the Show row alone. In a window, which lays it out to the screen's pixels.
-    @Test(arguments: [(EdgeSettings.Show.notch, 400.0), (.nothing, 150)])
-    func theShowRow(show: EdgeSettings.Show, height: CGFloat) async throws {
-        let page = await Self.page(Self.preferences { $0.show = show }, windows: [Watched.window("w2", needsReload: false)])
-        let section = StaysOnScreenSection(settings: page.settings)
-            .padding(20)
+        let view = SettingsPaneContent(pane: pane, settings: settings)
             .frame(maxHeight: .infinity, alignment: .top)
-            .background(WindowStyle.black)
-        let drawn = try Drawn(Hosted(section, size: CGSize(width: 744, height: height)).hosting)
+            .background(Color(nsColor: .windowBackgroundColor))
 
-        try #require(drawn.bitmap.representation(using: .png, properties: [:]))
-            .write(to: try #require(stills).appending(path: show == .notch ? "show-row.png" : "show-row-nothing.png"))
+        try render(view, "settings-\(name)", size: CGSize(width: width, height: SettingsWindow.size.height))
     }
 
-    /// The window wider than drawn, its column filling the wider page.
-    @Test func theWindowOnSettingsWide() async throws {
-        let page = await Self.page(Self.preferences(), windows: [Watched.window("w2", needsReload: false)])
+    private static let current = [Watched.window("w2", needsReload: false)]
 
-        try Self.window(page, "settings-wide", width: 1500)
+    @Test(arguments: SettingsPane.allCases)
+    func eachPane(pane: SettingsPane) async throws {
+        try Self.pane(pane, await Self.settings(Self.preferences(), windows: Self.current), pane.rawValue)
     }
 
-    /// The sidebar's foot as the window lays it out, Settings picked: the system's own list in the list's bar, over
-    /// black where the glass would be, which nothing offscreen draws.
+    @Test(arguments: [EdgeSettings.Show.strip, .nothing])
+    func edgeAtEachChoice(show: EdgeSettings.Show) async throws {
+        let settings = await Self.settings(Self.preferences { $0.show = show }, windows: Self.current)
+
+        try Self.pane(.edge, settings, "edge-\(show.title.lowercased())")
+    }
+
+    /// A dot when it's fine, a button when it's Lee's: Ghostty not asked, opening at login waiting, banners off, and
+    /// windows on an older plugin.
+    @Test(arguments: [SettingsPane.general, .notifications, .claudeCode])
+    func whenARowNeedsSomething(pane: SettingsPane) async throws {
+        let old = [Watched.window("w1", needsReload: true), Watched.window("w3", needsReload: true)]
+        let said = MacSays(notices: .denied, login: LoginItem(.requiresApproval), ghostty: .unasked)
+        let settings = await Self.settings(Self.preferences(), windows: old, said: said)
+
+        try Self.pane(pane, settings, "\(pane.rawValue)-needs-lee")
+    }
+
+    /// At the window's least width.
+    @Test(arguments: SettingsPane.allCases)
+    func eachPaneAtItsNarrowest(pane: SettingsPane) async throws {
+        let settings = await Self.settings(Self.preferences(), windows: Self.current)
+
+        try Self.pane(pane, settings, "\(pane.rawValue)-narrowest", width: SettingsWindow.smallest.width - 188)
+    }
+
+    /// The sidebar's foot as the window lays it out: the system's own list in the list's bar, over black where the
+    /// glass would be, which nothing offscreen draws.
     @Test func theFootInTheWindow() throws {
-        let run = HostedSidebar.opened()
-
-        run.pick(.settings)
-
-        let drawing = try HostedSidebar(run).drawn().bitmap
+        let drawing = try HostedSidebar(HostedSidebar.opened()).drawn().bitmap
         let rect = NSRect(x: 0, y: 0, width: drawing.pixelsWide, height: drawing.pixelsHigh)
         let still = try #require(NSBitmapImageRep(
             bitmapDataPlanes: nil, pixelsWide: drawing.pixelsWide, pixelsHigh: drawing.pixelsHigh, bitsPerSample: 8,

@@ -18,9 +18,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var menu: StatusMenu?
     private var edge: Edge?
     private let about = AboutWindow()
-    private lazy var window = SitRepWindow(
-        plugin: plugin, works: works, snoozes: snoozes, following: feed.following,
+    private lazy var settings = SettingsWindow(
         settings: SettingsModel(preferences: preferences, live: live, services: makeServices())
+    )
+    private lazy var window = SitRepWindow(
+        plugin: plugin, works: works, snoozes: snoozes, following: feed.following, preferences: preferences,
+        openSettings: { [unowned self] in settings.show() }
     )
 
     /// The notices helper is listened to before launching ends, so a click that starts the app is heard.
@@ -40,7 +43,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         )
         let menu = StatusMenu(
             works: works, preferences: preferences, openWindow: { [window] in window.open() },
-            openSettings: { [window] in window.open(on: .settings) }, openAbout: { [about] in about.show() }
+            openSettings: { [unowned self] in settings.show() }, openAbout: { [about] in about.show() }
         )
 
         self.edge = edge
@@ -82,9 +85,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         Notices.due(last, isOn: preferences.app.notifiesNewAsks).forEach(banners.post)
     }
 
-    /// ⌘,, through the main menu: the SitRep window forward on Settings.
+    /// ⌘,, through the main menu: the Settings window.
     @objc func showSettings(_ sender: Any?) {
-        window.open(on: .settings)
+        settings.show()
     }
 
     private func makeServices() -> SettingsServices {
@@ -95,6 +98,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             hasGlass: Self.hasGlass,
             jump: { [works] in works.jump(to: $0) },
             sendTest: { [banners] in banners.post(Notices.test) },
+            copy: { words in
+                NSPasteboard.general.clearContents()
+                NSPasteboard.general.setString(words, forType: .string)
+            },
             sounds: sounds,
             noticeLeave: { [banners] in await banners.leave() },
             askForNotices: { [banners] in await banners.ask() },

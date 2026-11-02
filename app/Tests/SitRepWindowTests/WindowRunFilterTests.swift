@@ -76,18 +76,6 @@ struct WindowRunFilterTests {
         #expect(run.listed(at: printedAt).rows.map(\.id).contains("sr-macapp"))
     }
 
-    /// Settings shows, its foot picked, and Return in the field opens the first match over it.
-    @Test func returnWhileSettingsShowsOpensTheFirstMatchAndLeavesSettings() {
-        let run = opened()
-
-        run.pick(.settings)
-        run.filter = Filter("ledg")
-        #expect(run.page(at: printedAt) == .settings)
-        run.openFirstMatch()
-        #expect(run.pick == .session("sr-rq7dgr"))
-        #expect(run.page(at: printedAt).session?.id == "sr-rq7dgr")
-    }
-
     @Test func minimisingTheWindowKeepsTheFilter() {
         let run = opened()
 

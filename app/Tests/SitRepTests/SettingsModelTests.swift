@@ -2,6 +2,7 @@ import AppKit
 import Foundation
 @testable import SitRep
 import SitRepCore
+import SitRepEdge
 import SitRepLines
 import SitRepMenu
 import SwiftUI
@@ -43,7 +44,7 @@ struct SettingsModelTests {
 
         func services() -> SettingsServices {
             SettingsServices(
-                displays: { self.displays += 1; return [] }, hasGlass: true, jump: { _ in }, sendTest: {},
+                displays: { self.displays += 1; return [] }, hasGlass: true, jump: { _ in }, sendTest: {}, copy: { _ in },
                 sounds: AlertSounds(names: ["Basso", "Glass", "Tink"]) { self.played.append($0) },
                 noticeLeave: {
                     self.reads += 1
@@ -64,15 +65,12 @@ struct SettingsModelTests {
         }
     }
 
-    private static func settings(_ mac: Mac) -> SettingsModel {
-        SettingsModel(
-            preferences: Preferences(MemoryDefaults()),
-            live: LiveBoard(), services: mac.services()
-        )
+    private static func settings(_ mac: Mac, _ defaults: UserDefaults = MemoryDefaults()) -> SettingsModel {
+        SettingsModel(preferences: Preferences(defaults), live: LiveBoard(), services: mac.services())
     }
 
     /// So Open at login never draws greyed for a frame before it is read.
-    @Test func itKnowsWhetherSitRepOpensAtLoginBeforeThePageFirstDraws() {
+    @Test func itKnowsWhetherSitRepOpensAtLoginBeforeAPaneFirstDraws() {
         let mac = Mac()
         let settings = Self.settings(mac)
 
@@ -120,27 +118,23 @@ struct SettingsModelTests {
         #expect(settings.said.notices == .allowed(.banners))
     }
 
-    @Test(arguments: [true, false])
-    func itReadsWhatMacOSSaysOnceAsTheWindowOpensOnThePage(showsFirst: Bool) async {
+    /// The window keyed as it opens reads once, however often it is told it is key.
+    @Test func itReadsWhatMacOSSaysOnceAsTheWindowOpens() async {
         let mac = Mac()
         let settings = Self.settings(mac)
 
-        if showsFirst {
-            settings.shows(true)
-            settings.keys(true)
-        } else {
-            settings.keys(true)
-            settings.shows(true)
-        }
+        settings.keys(true)
+        await settings.reading?.value
+        settings.keys(true)
         await settings.reading?.value
         #expect(mac.reads == 1)
     }
 
-    @Test func itReadsAgainEachTimeTheWindowComesForwardOnThePage() async {
+    /// Lee may have changed it in System Settings meanwhile.
+    @Test func itReadsAgainEachTimeTheWindowComesForward() async {
         let mac = Mac()
         let settings = Self.settings(mac)
 
-        settings.shows(true)
         settings.keys(true)
         await settings.reading?.value
         settings.keys(false)
@@ -149,18 +143,55 @@ struct SettingsModelTests {
         #expect(mac.reads == 2)
     }
 
-    /// As where About SitRep or another app's window takes the keyboard, or the window shows another page.
-    @Test func itReadsNothingWhileThePageIsAwayOrItsWindowIsNotKey() {
+    /// A pane comes into sight as Lee turns to it, by the sidebar or by back and forward; the pane shown, picked again,
+    /// stays in sight.
+    @Test func itReadsAsLeeTurnsToAPaneWhileTheWindowIsKey() async {
         let mac = Mac()
         let settings = Self.settings(mac)
 
         settings.keys(true)
+        await settings.reading?.value
+        settings.turn(to: .notifications)
+        await settings.reading?.value
+        settings.goBack()
+        await settings.reading?.value
+        settings.goForward()
+        await settings.reading?.value
+        settings.turn(to: .notifications)
+        await settings.reading?.value
+        #expect(mac.reads == 4)
+    }
+
+    /// As where About SitRep or another app's window takes the keyboard.
+    @Test func itReadsNothingWhileTheWindowIsNotKey() {
+        let mac = Mac()
+        let settings = Self.settings(mac)
+
         settings.keys(false)
-        settings.shows(true)
-        settings.shows(false)
-        settings.keys(true)
+        settings.turn(to: .general)
+        settings.turn(to: .edge)
+        settings.goBack()
         #expect(settings.reading == nil)
         #expect(mac.reads == 0)
+    }
+
+    @Test func itOpensOnGeneralTheFirstTime() {
+        #expect(Self.settings(Mac()).pane == .general)
+    }
+
+    /// The pane turned to is saved, by the sidebar or by back and forward, and the window opens on it next.
+    @Test func itOpensOnThePaneItLastShowed() {
+        let defaults = MemoryDefaults()
+        let settings = Self.settings(Mac(), defaults)
+
+        settings.turn(to: .claudeCode)
+        #expect(Self.settings(Mac(), defaults).pane == .claudeCode)
+        settings.turn(to: .edge)
+        settings.goBack()
+        #expect(settings.pane == .claudeCode)
+        settings.goForward()
+        #expect(SavedSettings<AppSettings>(defaults).read().pane == .edge)
+        #expect(Self.settings(Mac(), defaults).pane == .edge)
     }
 
     @Test func allowIsPressedOnceWhileMacOSsPromptIsUp() async {
@@ -189,6 +220,19 @@ struct SettingsModelTests {
         settings.choose(sound: "Tink")
         #expect(settings.preferences.app.sound == "Tink")
         #expect(mac.played == ["Tink"])
+    }
+
+    /// Show on a window behind jumps to its session, as the menu's item for it does; Copy puts the command each
+    /// needs on the pasteboard.
+    @Test func showJumpsToTheWindowBehindAndCopyCopiesTheCommand() async throws {
+        let asked = Hosted.Asked()
+        let settings = await Hosted.settings(live: Hosted.live(needsReload: true), asked: asked)
+        let reload = try #require(ClaudeCodePane(settings.live.last, plugin: settings.live.plugin).reloads.first)
+
+        settings.show(reload)
+        settings.copyReloadCommand()
+        #expect(asked.jumps == ["sr-aw3bgs"])
+        #expect(asked.copies == ["/reload-plugins"])
     }
 
     @Test func eachButtonOpensItsPlace() {

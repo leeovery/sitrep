@@ -218,18 +218,17 @@ public struct Sidebar: Equatable, Sendable {
     }
 
     /// The row that shows the pick, drawn picked: its own; for a session with no row of its own, its project's in
-    /// Projects, which stands in for it; none for Settings, at the foot. A pick it lists nowhere stands for itself,
-    /// showing on no row.
+    /// Projects, which stands in for it. A pick it lists nowhere stands for itself, showing on no row.
     public func row(showing pick: Pick?) -> Pick? {
         switch pick {
         case let .session(id)?: homes[id] ?? pick
-        case .settings?, nil: nil
+        case nil: nil
         case .snoozed?, .project?: pick
         }
     }
 
     /// The list's selection for the pick: the pick itself, the row it has; none where a project's row stands in for
-    /// it, so a click on that row picks the project, nor for Settings.
+    /// it, so a click on that row picks the project.
     public func selection(for pick: Pick?) -> Pick? {
         row(showing: pick) == pick ? pick : nil
     }

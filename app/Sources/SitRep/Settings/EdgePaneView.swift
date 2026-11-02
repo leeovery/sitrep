@@ -1,31 +1,43 @@
+import AppKit
 import SitRepMenu
 import SitRepPanel
 import SwiftUI
 
-/// What stays on screen: one card, the Show row, then the rows that apply to the choice (`StaysOnScreen`), each
-/// arriving and leaving at once, the card taking its new height with them; with Nothing, the Show row alone.
-struct StaysOnScreenSection: View {
+/// Edge (DESIGN, "Settings"): the Show row's card, then the sections that apply to the choice (`EdgePane`), the
+/// shape's and Motion, each arriving and leaving at once, the pane taking its new height with them; with Nothing, the
+/// Show row's card alone. It reads the displays as it appears and as they change, for Display.
+struct EdgePaneView: View {
     let settings: SettingsModel
 
     @State private var isSliding = false
 
     var body: some View {
-        let rows = StaysOnScreen.rows(preferences.edge, hasGlass: settings.services.hasGlass)
+        let sections = EdgePane.sections(preferences.edge, hasGlass: settings.services.hasGlass)
 
-        SettingsSection(name: "What stays on screen") {
+        VStack(alignment: .leading, spacing: SettingsStyle.sectionGap) {
             SettingsCard {
                 ShowRow(show: preferences.binding(\.show))
-                ForEach(rows, id: \.self) { row in
-                    VStack(spacing: 0) {
-                        CardSeparator()
-                        self.row(row)
+            }
+            ForEach(sections, id: \.self) { section in
+                SettingsSection(name: section.name) {
+                    SettingsCard {
+                        ForEach(Array(section.rows.enumerated()), id: \.element) { place, row in
+                            if place > 0 {
+                                CardSeparator()
+                            }
+                            self.row(row)
+                        }
                     }
                 }
             }
         }
+        .onAppear(perform: settings.readDisplays)
+        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didChangeScreenParametersNotification)) { _ in
+            settings.readDisplays()
+        }
     }
 
-    @ViewBuilder private func row(_ row: StaysOnScreen.Row) -> some View {
+    @ViewBuilder private func row(_ row: EdgePane.Row) -> some View {
         switch row {
         case .edge:
             CardRow(label: "Edge", line: "Or drag it across the middle") {

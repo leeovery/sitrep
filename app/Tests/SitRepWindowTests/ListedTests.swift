@@ -72,7 +72,6 @@ struct ListedTests {
         #expect(Self.listed.listedRow(showing: .session("sr-rq7dgr")) == .session("sr-rq7dgr"))
         #expect(Self.listed.listedRow(showing: .project("kit")) == .project("kit"))
         #expect(Self.listed.listedRow(showing: .session("sr-gone")) == nil)
-        #expect(Self.listed.listedRow(showing: .settings) == nil)
         #expect(unlisted.listedRow(showing: .session("sr-k7t001")) == nil)
     }
 

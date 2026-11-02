@@ -75,7 +75,7 @@ struct BoardList: View {
     }
 
     /// The pick as the list's selection holds it: a session's row or a project's; none for a session a project's row
-    /// stands in for, nor for Settings, at the foot.
+    /// stands in for.
     private var selectable: Pick? {
         sidebar.selection(for: pick)
     }

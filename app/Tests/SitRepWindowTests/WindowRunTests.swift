@@ -55,15 +55,13 @@ struct WindowRunTests {
         #expect(run.following == ["sr-macapp"])
     }
 
-    @Test func aSessionPickedIsFollowedInPlaceOfTheLastAndSettingsFollowsNothing() {
+    @Test func aSessionPickedIsFollowedInPlaceOfTheLast() {
         let run = opened()
 
         run.pick(.session("sr-dash02"))
         #expect(run.following == ["sr-dash02"])
         run.pick(.snoozed("sr-dash02"))
         #expect(run.following == ["sr-dash02"])
-        run.pick(.settings)
-        #expect(run.following.isEmpty)
     }
 
     @Test func aProjectOpenedFollowsEachOfItsSessions() {

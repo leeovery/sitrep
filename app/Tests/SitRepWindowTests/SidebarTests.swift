@@ -195,7 +195,6 @@ struct SidebarTests {
         #expect(sidebar.row(showing: .session("sr-k7t001")) == .project("kit"))
         #expect(sidebar.row(showing: .session("sr-rq7dgr")) == .session("sr-rq7dgr"))
         #expect(sidebar.row(showing: .project("goosemates")) == .project("goosemates"))
-        #expect(sidebar.row(showing: .settings) == nil)
         #expect(sidebar.row(showing: nil) == nil)
         #expect(Sidebar(unlisted, folds: Folds()).row(showing: .session("sr-k7t001")) == .session("sr-k7t001"))
     }
@@ -208,7 +207,6 @@ struct SidebarTests {
         #expect(sidebar.selection(for: .session("sr-k7t001")) == nil)
         #expect(sidebar.selection(for: .project("kit")) == .project("kit"))
         #expect(sidebar.selection(for: .session("sr-rq7dgr")) == .session("sr-rq7dgr"))
-        #expect(sidebar.selection(for: .settings) == nil)
     }
 
     /// Kit's away session stands at Kit's row, the list's last, which the list does not select: from it ↑ goes to
@@ -248,7 +246,6 @@ struct SidebarTests {
 
         #expect(sidebar.step(from: .session("sr-dash02"), down: true) == .listsOwn)
         #expect(sidebar.step(from: .session("sr-gone"), down: true) == .listsOwn)
-        #expect(sidebar.step(from: .settings, down: true) == .listsOwn)
         #expect(sidebar.step(from: nil, down: true) == .listsOwn)
     }
 

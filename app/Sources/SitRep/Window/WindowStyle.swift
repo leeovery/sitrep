@@ -182,7 +182,7 @@ enum WindowStyle {
     /// On its own work, the sidebar's dotted ring, from Paper's board D.
     static let sidebarDotted = Color.white.opacity(0.45)
 
-    /// The system's selection, as SitRep draws it where no list does, on Settings at the foot (`SettingsFooter`): the
+    /// The system's selection, as SitRep draws it where the list does not, on a row standing in for the pick: the
     /// accent's while it has the key window's focus, else the system's grey; drawn as a still, the stand-in.
     static func selection(isEmphasized: Bool, isStill: Bool) -> Color {
         if isStill {
