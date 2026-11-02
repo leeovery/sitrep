@@ -44,9 +44,9 @@ public struct MenuBoard: Equatable, Sendable {
             session = window.session
         }
 
-        /// The windows of the board that run an old sitrep, the longest attached first, as `watch` lists them.
+        /// The windows of the board that run an old sitrep (`WindowsBehind`).
         static func windows(of board: Board?) -> [Reload] {
-            (board?.windows ?? []).filter(\.needsReload).map(Reload.init)
+            WindowsBehind(board).windows.map(Reload.init)
         }
     }
 

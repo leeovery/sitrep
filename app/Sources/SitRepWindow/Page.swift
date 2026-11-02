@@ -1,7 +1,8 @@
 import Foundation
 import SitRepCore
 
-/// What the right of the window shows: the session or the project Lee picked; else a line saying why there is none, as the head does before the board is read, or that no session is open at all.
+/// What the right of the window shows: the session or the project Lee picked; else a line saying why there is none,
+/// as the head does before the board is read, or that no session is open at all.
 public enum Page: Equatable, Sendable {
     case empty(String)
     case session(SessionPage)
@@ -10,8 +11,8 @@ public enum Page: Equatable, Sendable {
     static let nothingOpen = Page.empty("No session is open.")
 }
 
-/// What Lee picked to read on the right: a session or a project from the board's list. A session with asks snoozed has a row in Snoozed too, its own pick, which shows the session's page
-/// as its row beside it does.
+/// What Lee picked to read on the right: a session or a project from the board's list. A session with asks snoozed
+/// has a row in Snoozed too, its own pick, which shows the session's page as its row beside it does.
 public enum Pick: Hashable, Sendable {
     case session(String)
     /// A session's row in Snoozed.

@@ -71,18 +71,20 @@ extension SettingsRow {
             return SettingsRow(label: pluginLabel, line: pluginLine, side: .none)
         }
 
-        guard board.windows.contains(where: \.needsReload) else {
+        let behind = WindowsBehind(board)
+
+        guard !behind.isEmpty else {
             return SettingsRow(label: pluginLabel, line: pluginLine, side: .fine("Up to date"))
         }
 
-        return SettingsRow(label: pluginLabel, line: behind(board), side: .none)
+        return SettingsRow(label: pluginLabel, line: line(behind, updatedTo: board.version), side: .none)
     }
 
     /// "Updated to 0.2.0. 3 windows run 0.1.0 until /reload-plugins": the version they run where they share one.
-    private static func behind(_ board: Board) -> String {
-        let old = board.windows.filter(\.needsReload)
+    private static func line(_ behind: WindowsBehind, updatedTo version: String?) -> String {
+        let old = behind.windows
         let shared = Set(old.map(\.version)).count == 1 ? old.first?.version : nil
-        let updated = board.version.map { "Updated to \($0). " } ?? ""
+        let updated = version.map { "Updated to \($0). " } ?? ""
         let windows = old.count == 1 ? "1 window runs" : "\(old.count) windows run"
 
         return "\(updated)\(windows) \(shared ?? "an older version") until /reload-plugins"

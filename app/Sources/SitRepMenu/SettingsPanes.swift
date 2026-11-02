@@ -1,4 +1,5 @@
 import SitRepCore
+import SitRepEdge
 
 /// The Settings window's panes, as its sidebar lists them, top to bottom (DESIGN, "Settings").
 public enum SettingsPane: String, Codable, CaseIterable, Sendable, Identifiable {
@@ -73,8 +74,7 @@ public struct PaneHistory: Equatable, Sendable {
 }
 
 /// The Claude Code pane (DESIGN, "Settings"): the plugin's row, and while some windows run an older plugin than
-/// SitRep's, Needs /reload-plugins, each such window a row with Show, as the menu lists them; their number is the
-/// pane's count in the sidebar.
+/// SitRep's, Needs /reload-plugins, each such window a row with Show, as the menu lists them (`WindowsBehind`).
 public struct ClaudeCodePane: Equatable, Sendable {
     public let plugin: SettingsRow
     /// The windows behind, the longest attached first, as `watch` lists them; none while every window is current.
@@ -104,9 +104,47 @@ public struct ClaudeCodePane: Equatable, Sendable {
     /// The plugin SitRep runs, nil while it looks, and the board `watch` last printed.
     public init(_ last: LastBoard, plugin: PluginStanding?) {
         self.plugin = .plugin(last, plugin: plugin)
-        reloads = (last.board?.windows ?? []).filter(\.needsReload).map(Reload.init)
+        reloads = WindowsBehind(last.board).windows.map(Reload.init)
+    }
+}
+
+/// A row of the Settings window's sidebar: its pane, and the count on its right, nil for none.
+public struct SettingsSidebarRow: Equatable, Sendable, Identifiable {
+    public let pane: SettingsPane
+    public let count: Int?
+
+    public var id: SettingsPane { pane }
+
+    /// The four panes, Claude Code alone counting, and only while some windows are behind on the plugin, as System
+    /// Settings counts its updates.
+    public static func rows(_ behind: WindowsBehind) -> [SettingsSidebarRow] {
+        SettingsPane.allCases.map { pane in
+            SettingsSidebarRow(pane: pane, count: pane == .claudeCode && !behind.isEmpty ? behind.count : nil)
+        }
+    }
+}
+
+/// The pane the Settings window last showed, which it opens on, saved on its own so a turn to a pane touches nothing
+/// else Lee sets. Read leniently: a pane by its name, as round 5's window named its edge, notifications and general;
+/// General the first time, or for a name no pane has.
+public struct SettingsWindowSettings: SavedValue {
+    public static let key = "settingsWindow"
+
+    public var pane = SettingsPane.general
+
+    public init() {}
+
+    public init(pane: SettingsPane) {
+        self.pane = pane
     }
 
-    /// The sidebar's count on the pane's row: how many windows are behind.
-    public var behind: Int { reloads.count }
+    public init(from decoder: any Decoder) {
+        let defaults = SettingsWindowSettings()
+        guard let given = try? decoder.container(keyedBy: CodingKeys.self) else {
+            self = defaults
+            return
+        }
+
+        pane = given.value(.pane, or: defaults.pane)
+    }
 }

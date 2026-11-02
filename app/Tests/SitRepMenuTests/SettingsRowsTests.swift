@@ -264,11 +264,12 @@ struct AppSettingsTests {
         #expect(SavedEdgeSettings(defaults).read() == EdgeSettings())
     }
 
-    /// A key another version saved is passed over, the rest read.
-    @Test func aKeyAnotherVersionSavedIsPassedOver() throws {
+    /// The separate Settings window of round 5 saved the pane it last showed here; that key is passed over, as the
+    /// pane is saved on its own now (`SettingsWindowSettings`).
+    @Test func aValueSavedWithTheSettingsWindowsPaneStillReadsTheKeyIgnored() throws {
         let defaults = MemoryDefaults()
 
-        defaults.set(Data(#"{"notifiesNewAsks":true,"edgeAtLaunch":true}"#.utf8), forKey: "app")
+        defaults.set(Data(#"{"notifiesNewAsks":true,"pane":"general"}"#.utf8), forKey: "app")
 
         let read = SavedSettings<AppSettings>(defaults).read()
         let saved = try JSONEncoder().encode(read)
@@ -277,20 +278,7 @@ struct AppSettingsTests {
         #expect(read.notifiesNewAsks)
         #expect(read.playsSound)
         #expect(read.sound == "Glass")
-        #expect(Set(keys) == ["notifiesNewAsks", "playsSound", "sound", "foldsAfter", "pane"])
-    }
-
-    /// General the first time; then the pane the window last showed, round 5's window's saved pane among them.
-    @Test(arguments: [
-        (nil, SettingsPane.general), ("claudeCode", .claudeCode), ("edge", .edge), ("notifications", .notifications),
-        ("gone", .general),
-    ])
-    func theSettingsWindowOpensOnThePaneItLastShowed(saved: String?, pane: SettingsPane) {
-        let defaults = MemoryDefaults()
-        let json = saved.map { #"{"pane":"\#($0)"}"# } ?? "{}"
-
-        defaults.set(Data(json.utf8), forKey: "app")
-        #expect(SavedSettings<AppSettings>(defaults).read().pane == pane)
+        #expect(Set(keys) == ["notifiesNewAsks", "playsSound", "sound", "foldsAfter"])
     }
 
     /// As each window played Glass before SitRep played the sound.

@@ -175,6 +175,52 @@ struct SettingsModelTests {
         #expect(mac.reads == 0)
     }
 
+    /// A click on a row of the window not key keys it, then turns it: one read, as a read takes in every pane.
+    @Test func aClickOnARowOfTheWindowNotKeyReadsOnce() async {
+        let mac = Mac()
+        let settings = Self.settings(mac)
+
+        settings.keys(true)
+        settings.select(.notifications)
+        await settings.reading?.value
+        #expect(mac.reads == 1)
+    }
+
+    /// A turn to a pane touches nothing else Lee sets: the SitRep window and the edge, which follow it, hear nothing,
+    /// and "app" is not saved again.
+    @Test func aTurnToAPaneTellsNoFollower() {
+        let defaults = MemoryDefaults()
+        let settings = Self.settings(Mac(), defaults)
+        var heard = 0
+
+        settings.preferences.follow { _ in heard += 1 }
+        settings.turn(to: .edge)
+        settings.goBack()
+        settings.goForward()
+        #expect(heard == 0)
+        #expect(defaults.object(forKey: AppSettings.key) == nil)
+        #expect(settings.preferences.settingsPane == .edge)
+    }
+
+    /// A click on the sidebar's empty space picks no pane, and leaves the one shown; a row's turns to its own.
+    @Test func theSidebarsSelectionTurnsThePaneAndNothingLeavesItShown() {
+        let settings = Self.settings(Mac())
+
+        settings.select(.claudeCode)
+        #expect(settings.pane == .claudeCode)
+        settings.select(nil)
+        #expect(settings.pane == .claudeCode)
+    }
+
+    /// Claude Code's row counts the windows behind as the board stands, and no other row counts.
+    @Test func theSidebarCountsTheWindowsBehindOnClaudeCode() async {
+        let behind = await Hosted.settings(live: Hosted.live(needsReload: true))
+        let current = await Hosted.settings(live: Hosted.live(needsReload: false))
+
+        #expect(behind.sidebar.map(\.count) == [nil, nil, nil, 2])
+        #expect(current.sidebar.allSatisfy { $0.count == nil })
+    }
+
     @Test func itOpensOnGeneralTheFirstTime() {
         #expect(Self.settings(Mac()).pane == .general)
     }
@@ -190,7 +236,7 @@ struct SettingsModelTests {
         settings.goBack()
         #expect(settings.pane == .claudeCode)
         settings.goForward()
-        #expect(SavedSettings<AppSettings>(defaults).read().pane == .edge)
+        #expect(SavedSettings<SettingsWindowSettings>(defaults).read().pane == .edge)
         #expect(Self.settings(Mac(), defaults).pane == .edge)
     }
 

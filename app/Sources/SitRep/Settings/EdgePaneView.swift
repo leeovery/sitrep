@@ -18,7 +18,8 @@ struct EdgePaneView: View {
             SettingsCard {
                 ShowRow(show: preferences.binding(\.show))
             }
-            ForEach(sections, id: \.self) { section in
+            // By name alone: Max coming or going at Strip keeps the section, and Length with it, its focus too.
+            ForEach(sections, id: \.name) { section in
                 SettingsSection(name: section.name) {
                     SettingsCard {
                         ForEach(Array(section.rows.enumerated()), id: \.element) { place, row in

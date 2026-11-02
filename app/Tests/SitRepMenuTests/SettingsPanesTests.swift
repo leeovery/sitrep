@@ -1,5 +1,6 @@
 import Foundation
 @testable import SitRepCore
+import SitRepEdge
 import SitRepLines
 @testable import SitRepMenu
 import Testing
@@ -90,24 +91,97 @@ struct ClaudeCodePaneTests {
         #expect(reloads.map(\.name) == ["The bootstrap", "Plan the tool"])
         #expect(reloads.map(\.line) == ["Kit · 0.1.0", "Terrace"])
         #expect(reloads.map(\.session) == ["sr-boot", "sr-plan"])
-        #expect(Self.pane(Self.windows).behind == 2)
     }
 
-    /// With every window current, the plugin's row is the pane, and the sidebar counts nothing.
-    @Test func withEveryWindowCurrentThereAreNoRowsAndNoCount() {
+    /// With every window current, the plugin's row is the pane.
+    @Test func withEveryWindowCurrentThereAreNoRows() {
         let pane = Self.pane([Self.windows[1]])
 
         #expect(pane.reloads.isEmpty)
-        #expect(pane.behind == 0)
         #expect(pane.plugin.side == .fine("Up to date"))
-    }
-
-    @Test func beforeAnyBoardThereIsNothingBehind() {
-        #expect(ClaudeCodePane(LastBoard(), plugin: nil).behind == 0)
     }
 
     @Test func copyPutsTheCommandEachWindowNeeds() {
         #expect(ClaudeCodePane.command == "/reload-plugins")
         #expect(ClaudeCodePane.reloadTitle == "Needs /reload-plugins")
+    }
+}
+
+/// The windows behind on the plugin, read once for the menu, the plugin's row, the pane and the sidebar's count.
+struct WindowsBehindTests {
+    private static let windows = [
+        Watched.window("w1", session: "sr-boot", name: "The bootstrap", project: "Kit", version: "0.1.0", needsReload: true),
+        Watched.window("w2", session: "sr-diff", name: "Diff", project: "Mint", version: "0.2.0", needsReload: false),
+        Watched.window("w3", session: "sr-plan", name: "Plan the tool", project: "Terrace", version: nil, needsReload: true),
+    ]
+
+    @Test func theyAreTheWindowsThatNeedReloadingInWatchsOrder() {
+        let behind = WindowsBehind(heard([.line(Watched.line(windows: Self.windows))]).board)
+
+        #expect(behind.windows.map(\.writer) == ["w1", "w3"])
+        #expect(behind.count == 2)
+    }
+
+    @Test func beforeAnyBoardThereAreNone() {
+        #expect(WindowsBehind(nil).isEmpty)
+    }
+
+    /// The menu's Needs /reload-plugins, the plugin's row and the pane all list the same windows.
+    @Test func theMenuThePluginsRowAndThePaneAgree() {
+        let last = heard([.line(Watched.line(windows: Self.windows))])
+        let clone = PluginStanding.running(.folder("~/Code/sitrep"), folder: "/Users/lee/Code/sitrep")
+
+        #expect(MenuBoard(last).reloads.map(\.session) == ["sr-boot", "sr-plan"])
+        #expect(ClaudeCodePane(last, plugin: clone).reloads.map(\.session) == ["sr-boot", "sr-plan"])
+        #expect(SettingsRow.plugin(last, plugin: clone).line?.hasPrefix("Updated to 0.2.0. 2 windows run") == true)
+    }
+}
+
+/// The sidebar's rows: the four panes, Claude Code alone counting the windows behind, and only while there are some.
+struct SettingsSidebarRowTests {
+    private static func behind(_ count: Int) -> WindowsBehind {
+        let windows = (0 ..< count).map { place in
+            Watched.window("w\(place)", session: "sr-\(place)", name: "S", project: "P", version: "0.1.0", needsReload: true)
+        }
+
+        return WindowsBehind(heard([.line(Watched.line(windows: windows))]).board)
+    }
+
+    @Test func claudeCodeAloneCountsTheWindowsBehind() {
+        let rows = SettingsSidebarRow.rows(Self.behind(3))
+
+        #expect(rows.map(\.pane) == SettingsPane.allCases)
+        #expect(rows.map(\.count) == [nil, nil, nil, 3])
+    }
+
+    @Test func withNoneBehindNoRowCounts() {
+        #expect(SettingsSidebarRow.rows(Self.behind(0)).allSatisfy { $0.count == nil })
+    }
+}
+
+/// The pane the Settings window last showed, saved on its own and read leniently.
+struct SettingsWindowSettingsTests {
+    /// General the first time; then the pane by its name, round 5's window's edge, notifications and general among them;
+    /// General for a name no pane has.
+    @Test(arguments: [
+        (nil, SettingsPane.general), ("claudeCode", .claudeCode), ("edge", .edge), ("notifications", .notifications),
+        ("general", .general), ("gone", .general),
+    ])
+    func itReadsThePaneByItsName(saved: String?, pane: SettingsPane) {
+        let defaults = MemoryDefaults()
+
+        if let saved {
+            defaults.set(Data(#"{"pane":"\#(saved)"}"#.utf8), forKey: SettingsWindowSettings.key)
+        }
+        #expect(SavedSettings<SettingsWindowSettings>(defaults).read().pane == pane)
+    }
+
+    /// Under a key of its own, so nothing else Lee sets is saved again as he turns to a pane.
+    @Test func itIsSavedUnderAKeyOfItsOwn() {
+        let defaults = MemoryDefaults()
+
+        SavedSettings(defaults).save(SettingsWindowSettings(pane: .edge))
+        #expect(Set(defaults.dictionaryRepresentation().keys) == ["settingsWindow"])
+        #expect(SavedSettings<SettingsWindowSettings>(defaults).read().pane == .edge)
     }
 }

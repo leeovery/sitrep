@@ -134,6 +134,22 @@ struct SettingsWindowTests {
     }
 }
 
+/// The sidebar as the window hosts it: the system's list of the four panes, the one shown selected.
+@MainActor
+struct SettingsSidebarTests {
+    @Test func itListsTheFourPanesTheOneShownSelected() async throws {
+        let settings = await Hosted.settings()
+
+        settings.turn(to: .notifications)
+
+        let hosted = Hosted(SettingsSidebar(settings: settings), size: CGSize(width: 180, height: 620))
+        let list = try #require(hosted.all(NSTableView.self).first)
+
+        #expect(list.numberOfRows == SettingsPane.allCases.count)
+        #expect(list.selectedRow == SettingsPane.allCases.firstIndex(of: .notifications))
+    }
+}
+
 /// Claude Code's pane as the window draws it: the windows behind, each with Show, then Copy; none of it while every
 /// window is current.
 @MainActor

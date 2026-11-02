@@ -307,10 +307,10 @@ public final class WindowRun {
     }
 
     /// Lee picked a session or a project by its name, from outside the list: what it shows is followed at once, its
-    /// asks showing as last kept until its board comes. A session lands on its row
-    /// outside Snoozed, and on its row in Snoozed only where it has no other. Its row shows: the section holding it
-    /// unfolds, and "N earlier" opens where it is under it; Projects, for a project. Picking another page lets go of
-    /// the last page's asks kept in place, of what its cards said of refusals, and of a finish asked about.
+    /// asks showing as last kept until its board comes. A session lands on its row outside Snoozed, and on its row in
+    /// Snoozed only where it has no other. Its row shows: the section holding it unfolds, and "N earlier" opens where
+    /// it is under it; Projects, for a project. Picking another page lets go of the last page's asks kept in place, of
+    /// what its cards said of refusals, and of a finish asked about.
     public func pick(_ pick: Pick) {
         picks = PickFollows()
 

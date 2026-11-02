@@ -57,6 +57,7 @@ final class SettingsModel {
     private(set) var isAllowing = false
     /// The read of what macOS says begun last, as a pane came into sight.
     @ObservationIgnored private(set) var reading: Task<Void, Never>?
+    @ObservationIgnored private var isReading = false
     @ObservationIgnored private var isKey = false
 
     init(preferences: Preferences, live: LiveBoard, services: SettingsServices) {
@@ -64,11 +65,16 @@ final class SettingsModel {
         self.live = live
         self.services = services
         said = MacSays(login: services.login())
-        history = PaneHistory(preferences.app.pane)
+        history = PaneHistory(preferences.settingsPane)
     }
 
     /// The pane shown.
     var pane: SettingsPane { history.shown }
+
+    /// The sidebar's rows, Claude Code's counting the windows behind on the plugin as the board stands.
+    var sidebar: [SettingsSidebarRow] {
+        SettingsSidebarRow.rows(WindowsBehind(live.last.board))
+    }
 
     /// The displays connected, as Edge appears and as the Mac's screens change.
     func readDisplays() {
@@ -86,7 +92,14 @@ final class SettingsModel {
         }
     }
 
-    /// A pane picked in the sidebar.
+    /// The sidebar's selection: a pane picked turns to it; a click on its empty space, which picks none, leaves the
+    /// pane shown.
+    func select(_ pane: SettingsPane?) {
+        if let pane {
+            turn(to: pane)
+        }
+    }
+
     func turn(to pane: SettingsPane) {
         step { $0.show(pane) }
     }
@@ -110,14 +123,24 @@ final class SettingsModel {
             return
         }
 
-        preferences.app.pane = pane
+        preferences.settingsPane = pane
         if isKey {
             readInSight()
         }
     }
 
+    /// A read, unless one is under way: it reads every leaf, whichever pane is in sight, so a click on a row of the
+    /// window not key, which keys it and then turns it, reads once.
     private func readInSight() {
-        reading = Task { await read() }
+        guard !isReading else {
+            return
+        }
+
+        isReading = true
+        reading = Task {
+            await read()
+            isReading = false
+        }
     }
 
     /// What macOS says of SitRep's leaves, each row as its answer comes: the notices helper may take its time.

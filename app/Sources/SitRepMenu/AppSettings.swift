@@ -2,8 +2,8 @@ import SitRepEdge
 import SitRepPanel
 
 /// What Lee sets beyond the edge, saved beside its settings as one value and read as leniently: whether a new ask
-/// sends a notification, whether it plays a sound and which, how long a your-turn row stays before it folds into
-/// "N earlier", and the pane the Settings window last showed. A key another version saved is passed over.
+/// sends a notification, whether it plays a sound and which, and how long a your-turn row stays before it folds into
+/// "N earlier". A key another version saved, as the Settings pane it last showed, is passed over.
 public struct AppSettings: SavedValue {
     public static let key = "app"
 
@@ -16,9 +16,6 @@ public struct AppSettings: SavedValue {
     public var sound = "Glass"
     /// An hour by default (DESIGN, "Settings").
     public var foldsAfter = FoldPeriod.hour
-    /// The pane the Settings window opens on: the one it last showed, General the first time. Round 5's window saved
-    /// its own under this key, its edge, notifications and general read as these panes.
-    public var pane = SettingsPane.general
 
     public init() {}
 
@@ -33,7 +30,6 @@ public struct AppSettings: SavedValue {
         playsSound = given.value(.playsSound, or: defaults.playsSound)
         sound = given.value(.sound, or: defaults.sound)
         foldsAfter = given.value(.foldsAfter, or: defaults.foldsAfter)
-        pane = given.value(.pane, or: defaults.pane)
     }
 }
 
