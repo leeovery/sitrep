@@ -4311,6 +4311,8 @@ asked for the sessions back, and approved the redraw as it stands.
     pinning the strip takes one click. With Nothing, the menu and the
     SitRep window carry the board, and the glyph still lights for needs
     you;
+  - **Welcome…**, the welcome window at its first step (see "The welcome
+    window");
   - **Settings… ⌘,**, the SitRep window on Settings (see "Settings");
     **Check for Updates…**, with Sparkle, from the first public release
     (see "Installing and updating");
@@ -4406,6 +4408,121 @@ asked for the sessions back, and approved the redraw as it stands.
 This replaces the 13 October plan, a menu slimmed to Settings and quitting
 with the plain list of sessions kept as a fallback, and round 4's first
 drawing, which left the sessions to the SitRep window.
+
+### The welcome window
+
+What SitRep's first start opens: one window that shows what SitRep does,
+sets the first few settings and asks macOS for what it needs. Drawn in
+Paper's "Welcome window", boards A to F (28 October 2026), from Lee's
+brief: pictures, what it does at a high level, the notch in its forms and
+that it moves, an ask answered, the board, the first settings (the notch's
+style, the sound, open at login) and the permissions. Lee, 2 November 2026:
+"All those designs in paper look really good", once the stage's notch sat
+flush with the screen's edge, running up to the menu bar, as the real one
+does; the boards first drew it on a band of black.
+- **When it opens:** on its own once, at SitRep's first start on a Mac
+  where it has never shown, beside the plugin's first install (step 9 of
+  stage 3, under "Stages"), Lee's Mac included, at the build that brings
+  it. However it closes, it never opens on its own again. The menu's
+  Welcome… opens it at its first step at any time.
+- **One shape for every step:** a window of SitRep's own, 840 by 540, never
+  resized, black, at radius 14, opening centred on the Space Lee is on, as
+  About SitRep does. The words sit on the left in a column of 330: a
+  headline of two lines at most, one grey paragraph, then the step's
+  controls. The rest is **the stage**, a small desktop inset at the right,
+  with a menu bar, a Ghostty window and SitRep's edge down its left. A
+  footer never moves: a back chevron, six dashes for the steps, the one
+  Lee is on long and blue, then Skip setup and Continue ↵, a white pill
+  that Return presses. Blue is for the choice and the progress; orange
+  stays for needs you, so it appears only on the stage. Paper holds the
+  sizes, colours and spacing.
+- **The stage is SitRep's own views** at the stage's size, the notch, the
+  strip, the panel and its rows, fed a made-up board, never a video, so the
+  pictures cannot drift from the app. It loops what its step says, and
+  pauses while the window is not in front. Under Reduce motion, the Mac's
+  or SitRep's, its states cross-fade.
+- **The steps**, each a headline over the words in Paper:
+  1. **Hello, from the edge:** "Every session, at the edge of your screen."
+     SitRep's icon, a line on what it is, and an aside, "About a minute.
+     Everything here is in Settings later." The stage's panel is open on
+     Needs you, Working and Your turn, and the loop plays the notch at
+     rest, an ask landing, the swell twice and the light, the pour into
+     the panel and the close. Continue reads Show me.
+  2. **An ask, from Claude to you:** "Claude asks. You answer." Three rows,
+     one open at a time, each driving the stage, as Dockset's do: An ask
+     lands (the notch swells twice and lights, and the sound plays once);
+     Answer it from the panel (the pointer reaches the notch, it pours
+     open, a choice is pressed); See the whole board (the SitRep window
+     slides in on the session's page). The panel is in its own words, a
+     choice's options equal and outlined, the one under the pointer white,
+     In Claude ↗ for anything that wants words. **Send a test ask**, in
+     the second row, puts one on the real edge too, from "SitRep", so the
+     first ask Lee meets is one he made. Answering it closes it; it never
+     reaches Claude or the board's files. It is the step's only sound, and
+     plays only as it's pressed. Nothing on this step needs macOS's leave.
+  3. **Your edge:** "Choose what sits at your edge." Notch or Strip as
+     Settings' own pictures, at the window's size, the one chosen ringed in
+     the accent; under them a grouped form in System Settings' rows: Style,
+     Meniscus or Card; Material, Black or Glass (from macOS 26, as in
+     Settings); and Edge, Left or Right. At Strip, Length, Grows or Full,
+     takes Style's place in a cross-fade, one row for another, so the form
+     keeps its height and holds only what applies. Settings' Show card
+     changes at once instead, as its height changes with it (Lee found its
+     motion jarring). Nothing, neither shape, stays in Settings: a welcome
+     is no place to offer turning SitRep off. Each press sets the setting
+     itself, so the stage and the real edge, at full size beside the
+     window, move at once. The stage's notch is lit, as for needs you,
+     since at rest it is 7 points of black a first look would miss.
+  4. **Its sound, and its start:** "Hear it when Claude needs you." A list
+     of macOS's alert sounds, Glass first and chosen, four shown and the
+     rest a scroll away, and No sound last, after a hairline, which turns
+     off Settings' Play a sound for a new ask. A click on a row plays it
+     once and swells the stage's notch with it, so the sound and the light
+     are learnt together. Arriving plays nothing, and closing the window
+     stops a sound. Then Open SitRep at login, a switch, on by default, as
+     SitRep is only of use while it runs. Its line, "macOS confirms it
+     with a notice", warns of the one surprise, and the stage shows
+     "Background Items Added" as it will come. Sound and start share a
+     step, keeping the welcome at six.
+  5. **What it asks of macOS:** "Two things to allow, both optional."
+     Asked last, once Lee has seen what each is for, each row's reason one
+     clause about something he watched. Notifications turns on Notify me
+     of a new ask, off by default as in Settings, and asks macOS through
+     the notices helper; the stage shows the banner as it will come.
+     Control Ghostty is the jump's leave. macOS asks for it only while
+     Ghostty runs, so where it isn't running Allow… opens it first. A row
+     has four states: to ask, a button named for what it does, Turn On…
+     or Allow…, never dressed as macOS's own dialog; asking, a spinner,
+     and after ten seconds a line saying where macOS put its prompt; on, a
+     green check; refused, Open System Settings…, for Notifications or
+     Privacy & Security › Automation. They are read again each time the
+     window comes forward. Neither holds Continue back, and both stay in
+     Settings.
+  6. **Ready, and what's left:** "You're set. One thing in Claude Code."
+     `/reload-plugins` first, in Geist Mono with a Copy button, since a
+     Claude Code window already open keeps the mod it loaded until then;
+     new windows need nothing. Then Lee's choices played back in four
+     rows, in what-happens words, not settings' names: At the edge, A new
+     ask, At login, A click, each with its fix in place where something was
+     left off, as Allow… for Ghostty. Skip setup goes, with nothing left
+     to skip, and Continue reads Done. **Done closes the window**, and the
+     real notch, at rest, shows the stage's callout beside it once, "Your
+     notch. Point at it." over "It lights up when a session needs you";
+     the first hover takes it away for good. The strip, if chosen, shows
+     it as the notch would.
+- **Leaving early:** Skip setup, ⌘W or the close button keep what Lee set
+  and the defaults for the rest: the notch on the left, Meniscus, Black,
+  Glass, and open at login, macOS's notice with it. Nothing is asked of
+  macOS.
+- **Borrowed**, from Lee's saved references and what was looked at:
+  Dockset's one window with a live picture leading each step, its
+  dependent rows swapped in place, and its constant footer (the dex, 17
+  September 2026); One's choices previewed on a stage as they are made (7
+  October 2026); Ice's and Wispr Flow's permissions asked last, each with
+  its reason, never blocking; and Linear's closing playback.
+- **Left for the build:** what step 6 says when the plugin's first install
+  failed, in Settings' words for the plugin's row, in place of
+  `/reload-plugins`.
 
 ### Settings
 
@@ -5968,6 +6085,11 @@ reaches a window only while that pane is on show).
      `claude plugin update` follows `main` or the tags was left to settle
      for the plugin alone from GitHub, which went as the plugin and the
      app came as one (27 October 2026).
+   - **A new Mac's first start:** the welcome window (see "The welcome
+     window"), approved on 2 November 2026. It is built once the Settings
+     window is drawn, Settings moving out of the SitRep window into a
+     window of its own laid out as Xcode 27's (Lee, 27 October 2026), as
+     its steps hand on to Settings.
 5. **Attention beyond asks**, in this build (decided with Lee on 16 October
    2026), built as stage 3's fourth step, the live feed, since the rows
    and the strip's rings need it. The mod hears what its window is doing,
