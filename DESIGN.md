@@ -4511,9 +4511,32 @@ does; the boards first drew it on a band of black.
   September 2026); One's choices previewed on a stage as they are made (7
   October 2026); Ice's and Wispr Flow's permissions asked last, each with
   its reason, never blocking; and Linear's closing playback.
-- **Left for the build:** what step 6 says when the plugin's first install
-  failed, in Settings' words for the plugin's row, in place of
-  `/reload-plugins`.
+- **Settled in the build** (its first PR, 2 November 2026):
+  - **The stage's edge** runs SitRep's own run and surfaces on a made-up
+    screen of the stage's, drawn by the same call as the real edge's, so
+    it cannot drift from it. It is at 0.7 of its size on step 1, where the
+    panel needs the room, and at its real size on steps 3, 4 and 6, where
+    the notch is the subject. It sleeps while nothing on it moves, stops
+    while the window is behind, and still draws a setting changed then.
+  - **Placeholders, never Lee's projects:** every sample says what goes
+    there, "The ask, in Claude's words" over "Project · Session", in a
+    terminal titled "project · claude", and Settings' Notifications preview
+    takes the same words, from one place (Lee, 2 November 2026: "use
+    placeholders to indicate what the notification will show, not real
+    projects of mine"). The boards in Paper were changed to match.
+  - **The login item** is the switch, as General's is. The first welcome
+    registers SitRep as Lee reaches step 4, or as the window closes if he
+    never does, quitting SitRep included; it never registers one already
+    on or waiting on his approval, and a press makes it his. A welcome
+    opened again changes nothing until pressed, and promises macOS's
+    notice only while one is still to come. Welcome… while the window
+    shows goes back to the first step and keeps the visit.
+  - **Step 6 when the plugin's first install failed:** Settings' words for
+    the plugin's row, in place of `/reload-plugins`.
+  - **The playback where nothing is set:** "Silent", for a new ask with
+    neither sound nor notification; "Doesn't open SitRep", with Turn On;
+    "Waits for your approval", with Login Items Settings…; and "The menu
+    bar's light alone", for Show at Nothing.
 
 ### Settings
 
