@@ -4,16 +4,16 @@ import SitRepPanel
 import SwiftUI
 import Testing
 
-/// What stays on screen's Show row, set as System Settings sets Appearance's on macOS 26: on the real page, as the
-/// window lays it out (`Hosted`), and its tiles' edges, each in a window of its own.
+/// Edge's Show row, set as System Settings sets Appearance's on macOS 26: on the real pane, as the window lays it
+/// out (`Hosted`), and its tiles' edges, each in a window of its own.
 @MainActor
 struct ShowRowTests {
-    /// What stays on screen's card's top, under the title and the header, at any width.
-    private static let top: CGFloat = 146
+    /// The Show row's card's top, the pane's first, 13 under the toolbar, at any width.
+    private static let top: CGFloat = 13
 
-    /// The card's right at a page's width: the page less 44.
+    /// The card's right at a pane's width: the pane less 20.
     private static func right(_ page: CGFloat) -> CGFloat {
-        page - 44
+        page - 20
     }
 
     /// The pictures' lefts, Notch, Strip and Nothing: 67 wide, 15 apart, the last 13.5 in from the card's right.
@@ -21,11 +21,18 @@ struct ShowRowTests {
         [2.0, 1, 0].map { right(page) - 13.5 - 67 - $0 * 82 }
     }
 
-    /// The page drawn, Notch chosen unless `change` says, in a window (`atTwice()`).
+    /// The ground these pictures were measured over: under the card's fill, the white at 4.7% of the system's
+    /// tertiary fill, it brings the card to the SitRep window's raise, #141416, on which round 9 measured them. Over
+    /// black, a notch's edge fades through the card's colour; over the window's grey, an unchosen picture's shadow
+    /// darkens the card past what `spans` counts as the card, as Appearance's does.
+    private static let raiseGround = Color(.sRGB, red: 8.4 / 255, green: 8.4 / 255, blue: 10.5 / 255)
+
+    /// Edge drawn, Notch chosen unless `change` says, over the raise's ground unless `ground` says, in a window
+    /// (`atTwice()`).
     private static func page(
-        _ width: CGFloat, _ change: (inout EdgeSettings) -> Void = { _ in }
+        _ width: CGFloat, over ground: Color = raiseGround, _ change: (inout EdgeSettings) -> Void = { _ in }
     ) async throws -> Drawn {
-        try await Hosted.drawn(width: width, change).atTwice()
+        try await Hosted.drawn(.edge, width: width, over: ground, change).atTwice()
     }
 
     /// A view in a window over `ground`, laid out as the page is (`atTwice()`).
@@ -34,7 +41,7 @@ struct ShowRowTests {
     }
 
     /// Where the Show row draws nothing but the card's raise: under its label, clear of a line.
-    private static let raisePoint = CGPoint(x: 54, y: top + 70)
+    private static let raisePoint = CGPoint(x: 30, y: top + 70)
 
     /// The card's raise.
     private static func raise(_ drawn: Drawn) throws -> NSColor {
@@ -44,7 +51,7 @@ struct ShowRowTests {
     /// Across the pictures' middle, Notch chosen: its ring, 3 wide past a gap of the raise, 0.5, round its picture,
     /// then Strip's and Nothing's, each 67 wide, 15 apart, the last 13.5 in from the card's right, whatever the
     /// width.
-    @Test(arguments: [564.0, 956, 1400])
+    @Test(arguments: [516.0, 744, 1200])
     func thePicturesKeepTheirSizeAndPlaceAtAnyWidth(page: CGFloat) async throws {
         let drawn = try await Self.page(page)
         let lefts = Self.lefts(page)
@@ -65,15 +72,15 @@ struct ShowRowTests {
     /// A choice changes the tiles at once, as Appearance's do: drawn as soon as Show is the strip, the ring is whole
     /// round the strip's picture and gone from the notch's.
     @Test func aChoiceChangesTheTilesAtOnce() async throws {
-        let page = await Hosted.pageView()
-        let hosted = Hosted(PageColumn(page: .settings, now: Date()) { page }, size: CGSize(width: 956, height: 1069))
-        let lefts = Self.lefts(956)
+        let settings = await Hosted.settings()
+        let hosted = Hosted(Hosted.content(.edge, settings, over: Self.raiseGround), size: CGSize(width: 744, height: 620))
+        let lefts = Self.lefts(744)
         var accent = NSColor.controlAccentColor
 
         NSAppearance(named: .darkAqua)?.performAsCurrentDrawingAppearance {
             accent = NSColor.controlAccentColor.usingColorSpace(.sRGB) ?? accent
         }
-        page.settings.preferences.edit { $0.show = .strip }
+        settings.preferences.edit { $0.show = .strip }
         await Task.yield()
         hosted.hosting.layoutSubtreeIfNeeded()
 
@@ -93,9 +100,9 @@ struct ShowRowTests {
     /// Down the chosen picture, clear of its corners and its name: the ring's top 10 under the card's, over its
     /// picture, 44 tall, and under it.
     @Test func theChosenPictureIs44TallInItsRing() async throws {
-        let drawn = try await Self.page(956)
+        let drawn = try await Self.page(744)
         let down = drawn.spans(
-            atX: Self.lefts(956)[0] + 14, unlike: Self.raisePoint, from: Self.top + 1, to: Self.top + 85
+            atX: Self.lefts(744)[0] + 14, unlike: Self.raisePoint, from: Self.top + 1, to: Self.top + 85
         )
         let picture = Self.top + 13.5 ... Self.top + 57.5
         let expected = [Self.top + 10 ... Self.top + 13, picture, Self.top + 58 ... Self.top + 61]
@@ -108,8 +115,8 @@ struct ShowRowTests {
 
     /// The ring is drawn in the accent, the system's, as Appearance's is.
     @Test func theRingIsTheAccent() async throws {
-        let drawn = try await Self.page(956)
-        let ring = try #require(drawn.colour(at: CGPoint(x: Self.lefts(956)[0] - 2, y: Self.top + 35)))
+        let drawn = try await Self.page(744)
+        let ring = try #require(drawn.colour(at: CGPoint(x: Self.lefts(744)[0] - 2, y: Self.top + 35)))
         var accent = NSColor.controlAccentColor
 
         NSAppearance(named: .darkAqua)?.performAsCurrentDrawingAppearance {
@@ -126,11 +133,11 @@ struct ShowRowTests {
     /// line and the word stand on whole pixels alike, so nothing but the type can part them.
     @Test(arguments: EdgeSettings.Show.allCases)
     func theChosenNameIsSemiboldInTheLabelColour(chosen: EdgeSettings.Show) async throws {
-        let drawn = try await Self.page(956) { $0.show = chosen }
+        let drawn = try await Self.page(744) { $0.show = chosen }
         let raise = try Self.raise(drawn)
         let pixel = 1 / drawn.scale
 
-        for (choice, left) in zip(EdgeSettings.Show.allCases, Self.lefts(956)) {
+        for (choice, left) in zip(EdgeSettings.Show.allCases, Self.lefts(744)) {
             let isChosen = choice == chosen
             let line = CGRect(x: left - 3.5, y: Self.top + 62, width: 74, height: 14)
             let word = try Self.word(
@@ -148,22 +155,22 @@ struct ShowRowTests {
     }
 
     /// A word, 11 at `weight` in `colour`, centred in a line of 74 by 14 over the card's raise, drawn in a window as
-    /// the page is.
+    /// the pane is.
     private static func word(_ word: String, _ weight: Font.Weight, _ colour: NSColor) throws -> Drawn {
         let size = CGSize(width: 74, height: 14)
         let words = Text(word)
             .font(.subheadline.weight(weight))
             .foregroundStyle(Color(nsColor: colour))
             .frame(width: size.width, height: size.height)
-            .background(WindowStyle.raise)
+            .background(SettingsStyle.card)
 
-        return try inAWindow(words, size: size)
+        return try inAWindow(words, size: size, over: raiseGround)
     }
 
     /// Show stands at the top of its row, in a label's line 10 under the card's top, as Appearance's label does.
     @Test func showStandsAtTheTopOfItsRow() async throws {
-        let drawn = try await Self.page(956)
-        let show = try #require(drawn.ink(in: CGRect(x: 54, y: Self.top, width: 60, height: 86), over: Self.raise(drawn)))
+        let drawn = try await Self.page(744)
+        let show = try #require(drawn.ink(in: CGRect(x: 30, y: Self.top, width: 60, height: 86), over: Self.raise(drawn)))
 
         #expect(show.minY >= Self.top + 10)
         #expect(show.maxY <= Self.top + 26)
@@ -171,15 +178,15 @@ struct ShowRowTests {
 
     /// With Nothing chosen, the card is the Show row alone, 86 tall, its line under Show in the secondary colour saying
     /// what carries the board; with the notch or the strip, Show has no line.
-    @Test(arguments: [564.0, 956])
+    @Test(arguments: [516.0, 744])
     func withNothingTheCardIsTheShowRowWithItsLine(page: CGFloat) async throws {
-        let nothing = try await Self.page(page) { $0.show = .nothing }
-        let strip = try await Self.page(page) { $0.show = .strip }
+        let nothing = try await Self.page(page, over: .black) { $0.show = .nothing }
+        let strip = try await Self.page(page, over: .black) { $0.show = .strip }
         // down the gap between the row's words and its pictures
         let x = Self.right(page) - 256
         let card = try #require(nothing.litSpans(atX: x).first)
         // the line's place, under Show's line of 16 and the 2 between
-        let line = CGRect(x: 54, y: Self.top + 28, width: 100, height: 14)
+        let line = CGRect(x: 30, y: Self.top + 28, width: 100, height: 14)
         let pixel = 1 / nothing.scale
 
         #expect(abs(card.lowerBound - Self.top) < pixel)

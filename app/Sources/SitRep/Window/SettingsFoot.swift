@@ -1,20 +1,14 @@
 import AppKit
-import SitRepWindow
 import SwiftUI
 
 /// Settings at the sidebar's foot, fixed under the list (spec 2.5): a rule, 8 of space, its row of 32, and 10 to the
-/// glass's bottom, every part of it SitRep's own. Picked, its row takes the selection, which SitRep draws as no list
-/// does here, in the system's selection colours (`WindowStyle.selection(isEmphasized:isStill:)`), shaped as the list's;
-/// under the pointer and not picked, a session row's quiet fill. Its row is a stop of its own in the window's key loop
-/// (`SettingsFootControl`). Drawn as a still, it lays out as it does on screen.
+/// glass's bottom, every part of it SitRep's own. It opens the Settings window, and is never picked: under the pointer
+/// its row shows a session row's quiet fill, shaped as the list's selection. Its row is a stop of its own in the
+/// window's key loop (`SettingsFootControl`). Drawn as a still, it lays out as it does on screen.
 struct SettingsFooter: View {
-    let pick: Pick?
-
     @Environment(\.windowActions) private var act
     @Environment(\.isStill) private var isStill
     @Environment(\.isHoveredStill) private var isHoveredStill
-    @Environment(\.controlActiveState) private var activeState
-    @State private var isFocused = false
     @State private var isHovered = false
 
     var body: some View {
@@ -25,47 +19,28 @@ struct SettingsFooter: View {
     }
 
     @ViewBuilder private var row: some View {
-        let isPicked = pick == .settings
-        let drawn = SettingsFootRow(fill: fill(isPicked: isPicked), isEmphasized: isPicked && isEmphasized)
+        let drawn = SettingsFootRow(fill: fill)
 
         if isStill {
             drawn
         } else {
             drawn.allowsHitTesting(false).background {
-                FootControl(
-                    isPicked: isPicked, press: open, focused: { isFocused = $0 }, hovered: { isHovered = $0 }
-                )
+                FootControl(press: act.openSettings, hovered: { isHovered = $0 })
             }
         }
     }
 
-    /// The selection while picked, which SitRep draws here as no list does; else a sidebar row's.
-    private func fill(isPicked: Bool) -> Color? {
-        if isPicked {
-            return WindowStyle.selection(isEmphasized: isEmphasized, isStill: isStill)
-        }
-        return WindowStyle.sidebarFill(
+    /// A sidebar row's quiet fill under the pointer.
+    private var fill: Color? {
+        WindowStyle.sidebarFill(
             Highlight.of(isPicked: false, isPressed: false, isHovered: isHovered || isHoveredStill), isStill: isStill
         )
     }
-
-    /// Its row has the key window's focus, so a selection on it shows in the accent.
-    private var isEmphasized: Bool {
-        isFocused && activeState == .key
-    }
-
-    private func open() {
-        if pick != .settings {
-            act.pick(.settings)
-        }
-    }
 }
 
-/// Settings' row as drawn: the gear, in the accent, and its word, on `fill`, shaped as the selection; on the
-/// emphasized selection, both white.
+/// Settings' row as drawn: the gear, in the accent, and its word, on `fill`, shaped as the selection.
 private struct SettingsFootRow: View {
     let fill: Color?
-    let isEmphasized: Bool
 
     var body: some View {
         HStack(spacing: WindowStyle.slotGap) {
@@ -73,7 +48,7 @@ private struct SettingsFootRow: View {
                 .resizable()
                 .scaledToFit()
                 .frame(width: 15, height: 15)
-                .foregroundStyle(WindowStyle.colour(Color.accentColor, on: prominence))
+                .foregroundStyle(Color.accentColor)
                 .frame(width: WindowStyle.slot.width, height: WindowStyle.slot.height)
             Text(SettingsFootControl.words)
                 .font(WindowStyle.ui(WindowStyle.titleSize))
@@ -88,20 +63,13 @@ private struct SettingsFootRow: View {
                 SelectionShaped(fill: fill, radius: WindowStyle.rowRadius)
             }
         }
-        .environment(\.backgroundProminence, prominence)
         .accessibilityHidden(true)
-    }
-
-    private var prominence: BackgroundProminence {
-        isEmphasized ? .increased : .standard
     }
 }
 
 /// The row's control, behind what it draws.
 private struct FootControl: NSViewRepresentable {
-    let isPicked: Bool
     let press: () -> Void
-    let focused: (Bool) -> Void
     let hovered: (Bool) -> Void
 
     func makeNSView(context: Context) -> SettingsFootControl {
@@ -112,35 +80,20 @@ private struct FootControl: NSViewRepresentable {
     }
 
     func updateNSView(_ control: SettingsFootControl, context: Context) {
-        control.isPicked = isPicked
         control.press = press
-        control.focused = focused
         control.hovered = hovered
     }
 }
 
 /// Settings' row at the foot as AppKit knows it: a stop in the window's key loop after the board's list, as a list is,
-/// whether or not the Mac's Keyboard navigation is on. Picked, it shows focus as a list's row does, by its selection
-/// in the accent, with no ring; not picked, by the system's focus ring in the selection's shape. A click, Space or
-/// Return opens Settings; while it shows, Return is the sidebar's, into the page (`SideFocus`). The arrows go nowhere
-/// from it, as from either end of the board's list. VoiceOver reads it as one of the sidebar's choices, a radio
-/// button, selected while Settings shows, as a list's row reads selected.
+/// whether or not the Mac's Keyboard navigation is on, showing focus by the system's focus ring in a row's shape. A
+/// click, Space or Return opens the Settings window; the arrows go nowhere from it, as from either end of the board's
+/// list. VoiceOver reads it as a button, "Settings".
 ///
-/// What it tells SwiftUI of its focus and of the pointer it tells after AppKit's change, never inside one of SwiftUI's
-/// updates, which can move focus or take the control out of its window.
+/// What it tells SwiftUI of the pointer it tells after AppKit's change, never inside one of SwiftUI's updates, which can
+/// take the control out of its window.
 final class SettingsFootControl: NSView {
-    var isPicked = false {
-        didSet {
-            guard isPicked != oldValue else {
-                return
-            }
-            focusRingType = isPicked ? .none : .default
-            noteFocusRingMaskChanged()
-            NSAccessibility.post(element: self, notification: .valueChanged)
-        }
-    }
     var press: () -> Void = {}
-    var focused: (Bool) -> Void = { _ in }
     var hovered: (Bool) -> Void = { _ in }
 
     /// Its word, drawn and read.
@@ -148,6 +101,7 @@ final class SettingsFootControl: NSView {
 
     override init(frame: NSRect) {
         super.init(frame: frame)
+        focusRingType = .default
         // Once: `inVisibleRect` follows its bounds, and an area added again with the pointer inside hears no entry.
         addTrackingArea(NSTrackingArea(
             rect: .zero, options: [.mouseEnteredAndExited, .activeAlways, .inVisibleRect], owner: self
@@ -160,29 +114,14 @@ final class SettingsFootControl: NSView {
 
     override var acceptsFirstResponder: Bool { true }
 
-    override func becomeFirstResponder() -> Bool {
-        let becomes = super.becomeFirstResponder()
-
-        tellFocus()
-        return becomes
-    }
-
-    override func resignFirstResponder() -> Bool {
-        let resigns = super.resignFirstResponder()
-
-        tellFocus()
-        return resigns
-    }
-
-    /// A click in a window not key picks it there and then, as it does a row of the board's list.
+    /// A click in a window not key opens Settings there and then, as it picks a row of the board's list.
     override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
 
-    /// A click picks it and gives it focus; a Control-click is the Mac's right-click, which picks nothing.
+    /// A click opens Settings; a Control-click is the Mac's right-click, which opens nothing.
     override func mouseDown(with event: NSEvent) {
         guard !event.modifierFlags.contains(.control) else {
             return super.rightMouseDown(with: event)
         }
-        window?.makeFirstResponder(self)
         press()
     }
 
@@ -236,11 +175,11 @@ final class SettingsFootControl: NSView {
     }
 
     override var focusRingMaskBounds: NSRect {
-        selection.bounds
+        rowShape.bounds
     }
 
     override func drawFocusRingMask() {
-        selection.fill()
+        rowShape.fill()
     }
 
     override func setFrameSize(_ size: NSSize) {
@@ -249,23 +188,12 @@ final class SettingsFootControl: NSView {
     }
 
     override func isAccessibilityElement() -> Bool { true }
-    override func accessibilityRole() -> NSAccessibility.Role? { .radioButton }
+    override func accessibilityRole() -> NSAccessibility.Role? { .button }
     override func accessibilityLabel() -> String? { Self.words }
-    override func accessibilityValue() -> Any? { NSNumber(value: isPicked) }
-    override func isAccessibilitySelected() -> Bool { isPicked }
 
     override func accessibilityPerformPress() -> Bool {
         press()
         return true
-    }
-
-    private func tellFocus() {
-        DispatchQueue.main.async { [weak self] in
-            guard let self else {
-                return
-            }
-            focused(window?.firstResponder === self)
-        }
     }
 
     private func tellHover(_ isOver: Bool) {
@@ -274,8 +202,8 @@ final class SettingsFootControl: NSView {
         }
     }
 
-    /// The selection's shape, in from the sidebar's edges, its corners continuous as the fill's.
-    private var selection: NSBezierPath {
+    /// A row's shape, the selection's, in from the sidebar's edges, its corners continuous as the fill's.
+    private var rowShape: NSBezierPath {
         let shape = RoundedRectangle(cornerRadius: WindowStyle.rowRadius, style: .continuous)
 
         return NSBezierPath(cgPath: shape.path(in: bounds.insetBy(dx: WindowStyle.selectionInset, dy: 0)).cgPath)

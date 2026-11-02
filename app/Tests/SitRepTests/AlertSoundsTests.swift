@@ -49,7 +49,7 @@ struct AlertSoundsTests {
     }
 }
 
-/// Settings' "Play a sound for a new ask" and "Sound", in Notifications after macOS's answer.
+/// Settings' "Play a sound for a new ask" and "Sound", in Notifications' Sound, after Banners.
 @MainActor
 struct SoundRowsTests {
     /// What the page played, none of it aloud.
@@ -62,10 +62,10 @@ struct SoundRowsTests {
         }
     }
 
-    private static func page(_ defaults: UserDefaults, _ played: Played) async -> (Hosted, SettingsPage) {
-        let page = await Hosted.pageView(defaults: defaults, sounds: played.sounds)
+    private static func page(_ defaults: UserDefaults, _ played: Played) async -> (Hosted, SettingsModel) {
+        let settings = await Hosted.settings(defaults: defaults, sounds: played.sounds)
 
-        return (Hosted(PageColumn(page: .settings, now: Date()) { page }, size: CGSize(width: 956, height: 1400)), page)
+        return (Hosted(Hosted.content(.notifications, settings), size: CGSize(width: 744, height: 620)), settings)
     }
 
     private static func popUp(_ hosted: Hosted) throws -> NSPopUpButton {
@@ -120,13 +120,13 @@ struct SoundRowsTests {
 
     /// The pop-up follows the switch as Lee flips it, off then on.
     @Test func theSoundGreysAndComesBackAsTheSwitchFlips() async throws {
-        let (hosted, page) = await Self.page(MemoryDefaults(), Played())
+        let (hosted, settings) = await Self.page(MemoryDefaults(), Played())
         let flipped = { (isOn: Bool) in
             let control = try Self.soundSwitch(hosted)
 
             control.state = isOn ? .on : .off
             _ = control.sendAction(control.action, to: control.target)
-            #expect(page.settings.preferences.app.playsSound == isOn)
+            #expect(settings.preferences.app.playsSound == isOn)
             await Task.yield()
             hosted.hosting.layoutSubtreeIfNeeded()
             return try Self.popUp(hosted).isEnabled

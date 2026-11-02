@@ -7,7 +7,8 @@ import SitRepPanel
 
 /// What Lee sets, the one place it is kept: the edge's settings, which the menu's Show, Settings and a drag change, and
 /// the rest beside them, each saved as one value as it changes. The edge follows every change Lee makes at once; a
-/// drag's move it made itself.
+/// drag's move it made itself. The pane the Settings window last showed is kept here too, on its own, so no follower
+/// hears a turn to a pane.
 @MainActor
 @Observable
 final class Preferences {
@@ -21,18 +22,30 @@ final class Preferences {
         }
     }
 
+    /// The pane the Settings window opens on.
+    var settingsPane: SettingsPane {
+        didSet {
+            if settingsPane != oldValue {
+                savedSettingsWindow.save(SettingsWindowSettings(pane: settingsPane))
+            }
+        }
+    }
+
     /// The edge, told of each change Lee makes in the menu or Settings.
     @ObservationIgnored var onEdge: (EdgeSettings) -> Void = { _ in }
     /// The card and the SitRep window, each told of every change Lee makes to the rest, for the fold period.
     @ObservationIgnored private var appFollowers: [(AppSettings) -> Void] = []
     @ObservationIgnored private let savedEdge: SavedEdgeSettings
     @ObservationIgnored private let savedApp: SavedSettings<AppSettings>
+    @ObservationIgnored private let savedSettingsWindow: SavedSettings<SettingsWindowSettings>
 
     init(_ defaults: UserDefaults = .standard) {
         savedEdge = SavedEdgeSettings(defaults)
         savedApp = SavedSettings(defaults)
         edge = savedEdge.read()
         app = savedApp.read()
+        savedSettingsWindow = SavedSettings(defaults)
+        settingsPane = savedSettingsWindow.read().pane
     }
 
     /// Told of each change Lee makes to the rest, from now on.

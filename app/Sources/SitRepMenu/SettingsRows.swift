@@ -3,10 +3,10 @@ import SitRepCore
 import SitRepPanel
 import SitRepRelay
 
-/// A row of Settings' Notifications and General cards as it stands (DESIGN, "Settings"): its label, the line under it,
-/// and what sits in the controls' column. A dot when it's fine, a button when it's Lee's: all well, the row says so
-/// with a green dot and a word, and nothing to press; when something wants Lee, its line says what is wrong and a push
-/// button takes him to the fix.
+/// A row of Settings' General, Notifications and Claude Code panes as it stands (DESIGN, "Settings"): its label, the
+/// line under it, and what sits in the controls' column. A dot when it's fine, a button when it's Lee's: all well, the
+/// row says so with a green dot and a word, and nothing to press; when something wants Lee, its line says what is
+/// wrong and a push button takes him to the fix.
 public struct SettingsRow: Equatable, Sendable {
     public let label: String
     public let line: String?
@@ -22,8 +22,6 @@ public struct SettingsRow: Equatable, Sendable {
         case button(String, Fix)
         /// The switch, greyed while it can't take effect.
         case toggle(isEnabled: Bool)
-        /// "Show Windows", listing the windows on an older plugin, a click jumping to each.
-        case windows([MenuBoard.Reload])
     }
 
     /// Where a row's button takes Lee.
@@ -51,8 +49,9 @@ extension SettingsRow {
     private static let looking = "Looking for Claude Code's sitrep plugin…"
 
     /// The plugin SitRep runs, as SitRep found it, nil while it looks, and the board `watch` last printed: up to date
-    /// while every window runs it; the windows on an older one listed; or what went wrong, in the menu's words, with
-    /// no dot. SitRep looks again after trouble by itself, so no button.
+    /// while every window runs it; how many windows run an older one, with no control of its own, as the windows are
+    /// the rows of Needs /reload-plugins under it (`ClaudeCodePane`); or what went wrong, in the menu's words, with no
+    /// dot. SitRep looks again after trouble by itself, so no button.
     public static func plugin(_ last: LastBoard, plugin: PluginStanding?) -> SettingsRow {
         switch plugin {
         case nil:
@@ -72,20 +71,20 @@ extension SettingsRow {
             return SettingsRow(label: pluginLabel, line: pluginLine, side: .none)
         }
 
-        let reloads = MenuBoard.Reload.windows(of: board)
+        let behind = WindowsBehind(board)
 
-        guard !reloads.isEmpty else {
+        guard !behind.isEmpty else {
             return SettingsRow(label: pluginLabel, line: pluginLine, side: .fine("Up to date"))
         }
 
-        return SettingsRow(label: pluginLabel, line: behind(board), side: .windows(reloads))
+        return SettingsRow(label: pluginLabel, line: line(behind, updatedTo: board.version), side: .none)
     }
 
     /// "Updated to 0.2.0. 3 windows run 0.1.0 until /reload-plugins": the version they run where they share one.
-    private static func behind(_ board: Board) -> String {
-        let old = board.windows.filter(\.needsReload)
+    private static func line(_ behind: WindowsBehind, updatedTo version: String?) -> String {
+        let old = behind.windows
         let shared = Set(old.map(\.version)).count == 1 ? old.first?.version : nil
-        let updated = board.version.map { "Updated to \($0). " } ?? ""
+        let updated = version.map { "Updated to \($0). " } ?? ""
         let windows = old.count == 1 ? "1 window runs" : "\(old.count) windows run"
 
         return "\(updated)\(windows) \(shared ?? "an older version") until /reload-plugins"
@@ -95,7 +94,9 @@ extension SettingsRow {
     /// Lee's approval, the way to it.
     public static func login(_ login: LoginItem?) -> SettingsRow {
         guard let login, login.needsApproval else {
-            return SettingsRow(label: "Open at login", line: nil, side: .toggle(isEnabled: login != nil))
+            return SettingsRow(
+                label: "Open at login", line: "SitRep is only of use while it runs", side: .toggle(isEnabled: login != nil)
+            )
         }
 
         return SettingsRow(

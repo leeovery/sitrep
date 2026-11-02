@@ -2,21 +2,27 @@ import AppKit
 import SitRepMenu
 import SwiftUI
 
-/// Settings set as System Settings sets its grouped form, measured on macOS 26 (spec round 8, 4): its words in the
-/// system's own roles and text styles, its rows at the form's heights.
+/// Settings set as System Settings sets its grouped form, measured on macOS 26 (spec round 8, 4), in Xcode 27's frame:
+/// its words in the system's own roles and text styles, its rows at the form's heights, its cards the system's fill.
 enum SettingsStyle {
     static let label = Color(nsColor: .labelColor)
     static let secondary = Color(nsColor: .secondaryLabelColor)
     static let separator = Color(nsColor: .separatorColor)
+    /// A card, on the window's own background, at Xcode's radius.
+    static let card = Color(nsColor: .tertiarySystemFill)
+    static let cardRadius: CGFloat = 12
     /// A row's words and its control, in from the card's edges; a section header and the line where a card would
     /// be, in as far.
     static let inset: CGFloat = 10
     /// Over and under what a row holds, its words or the Show row's pictures: the drawing's 52 less a row's two lines,
     /// 16 and 14, and the 2 between, which is what a wrapped line grows the row by.
     static let rowMargin: CGFloat = 10
-    /// Between a section's header and what it heads, and between a card and the next section.
+    /// Between a section's header and what it heads.
     static let headerGap: CGFloat = 10
-    static let sectionGap: CGFloat = 30
+    /// Between a section and the next.
+    static let sectionGap: CGFloat = 26
+    /// The panes' column, in from the sidebar and from the window's right.
+    static let paneInset: CGFloat = 20
     /// A row at least as tall as the form's: with a line under its label, or without.
     static let twoLineRow: CGFloat = 52
     static let oneLineRow: CGFloat = 38
@@ -40,15 +46,32 @@ struct SettingsSection<Content: View>: View {
     }
 }
 
-/// Settings' rows on the ask cards' raise, at their radius, one box deep: rows of SitRep's own at the form's metrics,
-/// not SwiftUI's grouped Form, whose sections draw their own fill and insets, scroll on their own and draw nothing as a
-/// still.
+/// Settings' rows on a card, one box deep: rows of SitRep's own at the form's metrics, not SwiftUI's grouped Form,
+/// whose sections draw their own fill and insets, scroll on their own and draw nothing as a still.
 struct SettingsCard<Content: View>: View {
     @ViewBuilder let content: Content
 
     var body: some View {
         VStack(spacing: 0) { content }
-            .background(WindowStyle.raise, in: .rect(cornerRadius: 14, style: .continuous))
+            .background(SettingsStyle.card, in: .rect(cornerRadius: SettingsStyle.cardRadius, style: .continuous))
+    }
+}
+
+/// Words under what a section shows, in its line's style, with a push button against the column's right: the desktop
+/// corner's caption and Send Test, and Needs /reload-plugins' note and Copy.
+struct CaptionRow: View {
+    let words: Text
+    let button: String
+    let action: () -> Void
+
+    var body: some View {
+        HStack(spacing: 16) {
+            words.font(.subheadline).foregroundStyle(SettingsStyle.secondary)
+            Spacer(minLength: 0)
+            Button(button, action: action).buttonStyle(.bordered).fixedSize()
+        }
+        .padding(.top, 8)
+        .padding(.horizontal, SettingsStyle.inset)
     }
 }
 
@@ -117,13 +140,12 @@ struct MiniSwitch: View {
 
 /// A row from what it says of itself (`SettingsRow`): its state where its control goes. A green dot and a word when
 /// it's fine; a push button, its ellipsis saying it opens somewhere else, when the fix is Lee's, greyed while `isBusy`
-/// says the fix is under way; the switch, bound to `isOn`; or Show Windows, a click on a window jumping to it.
+/// says the fix is under way; or the switch, bound to `isOn`.
 struct StatedRow: View {
     let row: SettingsRow
     var isOn: Binding<Bool> = .constant(false)
     var isBusy = false
     let fix: (SettingsRow.Fix) -> Void
-    var jump: (String) -> Void = { _ in }
 
     var body: some View {
         CardRow(label: row.label, line: row.line) { side }
@@ -140,13 +162,6 @@ struct StatedRow: View {
             Button(title) { self.fix(fix) }.buttonStyle(.bordered).disabled(isBusy)
         case .toggle:
             MiniSwitch(label: row.label, isOn: isOn)
-        case let .windows(windows):
-            Menu("Show Windows") {
-                ForEach(windows) { window in
-                    Button(window.label) { jump(window.session) }
-                }
-            }
-            .menuStyle(.button)
         }
     }
 }

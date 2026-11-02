@@ -5,9 +5,8 @@ import SwiftUI
 /// at the window's size, Needs you, Working and Your turn, each under a heading that folds, then Projects under its
 /// own. The filter narrows it in place, the words typed lit where they appear; with nothing kept, one line says so, and
 /// an empty board says how the board stands. A project's row opens the project. A row under the pointer that is not
-/// the one picked shows a quiet fill behind it. Settings sits at the sidebar's foot, which never scrolls, under the list, whose rows fade out
-/// at its own bottom edge, over the foot's rule, its last row 12 over it; while Settings shows, nothing on the board is
-/// picked.
+/// the one picked shows a quiet fill behind it. Settings sits at the sidebar's foot, which never scrolls, under the
+/// list, whose rows fade out at its own bottom edge, over the foot's rule, its last row 12 over it.
 struct BoardColumn: View {
     let sidebar: Sidebar
     let pick: Pick?
@@ -27,7 +26,7 @@ struct BoardColumn: View {
                         ListNote(words: note)
                     }
                 }
-                SettingsFooter(pick: pick)
+                SettingsFooter()
             }
             // A window on screen gives the sidebar a bottom safe area, which an offscreen one does not: ignored, the
             // foot sits on the glass's bottom.
@@ -70,7 +69,7 @@ struct BoardColumn: View {
                 list
                 Spacer(minLength: 0)
             }
-            SettingsFooter(pick: pick)
+            SettingsFooter()
         }
         .background(WindowStyle.black)
         .overlay(alignment: .trailing) { Rectangle().fill(WindowStyle.line).frame(width: 1) }

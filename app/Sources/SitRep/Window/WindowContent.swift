@@ -35,6 +35,8 @@ struct WindowActions: Sendable {
     var filter: @MainActor @Sendable (String) -> Void = { _ in }
     /// Return in the Filter field.
     var openFirstMatch: @MainActor @Sendable () -> Void = {}
+    /// Settings at the sidebar's foot pressed: the Settings window.
+    var openSettings: @MainActor @Sendable () -> Void = {}
 }
 
 extension EnvironmentValues {
@@ -45,15 +47,13 @@ extension EnvironmentValues {
     @Entry var wakeCalendar = WakeTime.calendar
 }
 
-/// The right of the window, beside the sidebar: the session or the project picked, Settings, or why there is none, on
-/// the panel's black, starting under the empty band beside the traffic lights. It draws what it is given, at the time
-/// given, so it renders the same on the screen and off it, as the sidebar's `BoardColumn` does; Settings, by
-/// `settings`, which reads what it shows for itself. On screen, the pointer anywhere over it holds the page
-/// (`PagePointer`).
-struct PageColumn<Settings: View>: View {
+/// The right of the window, beside the sidebar: the session or the project picked, or why there is none, on the
+/// panel's black, starting under the empty band beside the traffic lights. It draws what it is given, at the time
+/// given, so it renders the same on the screen and off it, as the sidebar's `BoardColumn` does. On screen, the pointer
+/// anywhere over it holds the page (`PagePointer`).
+struct PageColumn: View {
     let page: Page
     let now: Date
-    @ViewBuilder let settings: () -> Settings
 
     @Environment(\.isStill) private var isStill
 
@@ -82,16 +82,6 @@ struct PageColumn<Settings: View>: View {
         case let .project(project):
             Scrolling { ProjectPageView(page: project, now: now).padding(.horizontal, WindowStyle.pageInset) }
                 .id(Pick.project(project.key))
-        case .settings:
-            Scrolling { settings().padding(.horizontal, WindowStyle.pageInset) }
-                .id(Pick.settings)
         }
-    }
-}
-
-extension PageColumn where Settings == EmptyView {
-    /// The page with no Settings to draw.
-    init(page: Page, now: Date) {
-        self.init(page: page, now: now) { EmptyView() }
     }
 }

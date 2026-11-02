@@ -30,7 +30,7 @@ final class StatusMenu: NSObject, NSMenuDelegate {
     /// The item under the pointer, whose words take the highlight's own ink.
     private weak var highlighted: NSMenuItem?
 
-    /// `openWindow` opens the SitRep window, `openSettings` the window on Settings, `openAbout` About SitRep.
+    /// `openWindow` opens the SitRep window, `openSettings` the Settings window, `openAbout` About SitRep.
     init(
         works: Works, preferences: Preferences, openWindow: @escaping () -> Void, openSettings: @escaping () -> Void,
         openAbout: @escaping () -> Void

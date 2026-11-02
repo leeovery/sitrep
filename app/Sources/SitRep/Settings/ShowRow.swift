@@ -2,7 +2,7 @@ import SitRepMenu
 import SitRepPanel
 import SwiftUI
 
-/// What stays on screen's first row, set as System Settings sets Appearance's on macOS 26: Show at its left, and at
+/// Edge's first row, on a card of its own, as System Settings sets Appearance's on macOS 26: Show at its left, and at
 /// its right the three pictures of the screen's edge, each named under it: the notch and its light, the strip and its
 /// rings, or only the menu bar's glyph, lit. The one chosen is ringed in the accent; a click on another chooses it. It
 /// is the menu's Show. With Nothing, the line under Show says what carries the board instead. Nothing in the row
@@ -12,7 +12,7 @@ struct ShowRow: View {
 
     var body: some View {
         HStack(alignment: .top, spacing: 16) {
-            RowWords(label: "Show", line: show == .nothing ? StaysOnScreen.menuCarries : nil)
+            RowWords(label: "Show", line: show == .nothing ? EdgePane.menuCarries : nil)
             HStack(spacing: TileFace.apart) {
                 ForEach(EdgeSettings.Show.allCases, id: \.self) { choice in
                     Button { show = choice } label: {

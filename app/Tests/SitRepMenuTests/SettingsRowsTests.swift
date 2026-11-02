@@ -7,37 +7,46 @@ import SitRepPanel
 import SitRepRelay
 import Testing
 
-struct StaysOnScreenTests {
-    private static func rows(_ show: EdgeSettings.Show, length: StripLength = .grows, hasGlass: Bool = true) -> [StaysOnScreen.Row] {
+/// Edge's sections under the Show row's card: one named for the shape, holding the rows that tune it, then Motion.
+struct EdgePaneTests {
+    private static func sections(
+        _ show: EdgeSettings.Show, length: StripLength = .grows, hasGlass: Bool = true
+    ) -> [EdgePane.Section] {
         var settings = EdgeSettings()
 
         settings.show = show
         settings.length = length
 
-        return StaysOnScreen.rows(settings, hasGlass: hasGlass)
+        return EdgePane.sections(settings, hasGlass: hasGlass)
     }
 
-    @Test func theNotchsCardIsEdgeDisplayStyleMaterialAndReduceMotion() {
-        #expect(Self.rows(.notch) == [.edge, .display, .style, .material, .reduceMotion])
+    private static let motion = EdgePane.Section(name: "Motion", rows: [.reduceMotion])
+
+    @Test func theNotchsSectionIsEdgeDisplayStyleAndMaterialThenMotion() {
+        #expect(Self.sections(.notch) == [
+            EdgePane.Section(name: "Notch", rows: [.edge, .display, .style, .material]), Self.motion,
+        ])
     }
 
-    @Test func theStripsCardIsEdgeDisplayLengthMaxMaterialAndReduceMotion() {
-        #expect(Self.rows(.strip) == [.edge, .display, .length, .max, .material, .reduceMotion])
+    @Test func theStripsSectionIsEdgeDisplayLengthMaxAndMaterialThenMotion() {
+        #expect(Self.sections(.strip) == [
+            EdgePane.Section(name: "Strip", rows: [.edge, .display, .length, .max, .material]), Self.motion,
+        ])
     }
 
     @Test func maxIsForGrowsAlone() {
-        #expect(Self.rows(.strip, length: .full) == [.edge, .display, .length, .material, .reduceMotion])
-        #expect(!Self.rows(.notch, length: .grows).contains(.max))
+        #expect(Self.sections(.strip, length: .full).first?.rows == [.edge, .display, .length, .material])
+        #expect(!Self.sections(.notch, length: .grows).contains { $0.rows.contains(.max) })
     }
 
-    @Test func withNothingThereIsNoCardAndOneLineSaysWhatCarriesTheBoard() {
-        #expect(Self.rows(.nothing).isEmpty)
-        #expect(StaysOnScreen.menuCarries == "The menu and the SitRep window carry the board.")
+    @Test func withNothingThereIsNoSectionAndOneLineSaysWhatCarriesTheBoard() {
+        #expect(Self.sections(.nothing).isEmpty)
+        #expect(EdgePane.menuCarries == "The menu and the SitRep window carry the board.")
     }
 
-    @Test func materialIsFromMacOS26AloneAndReduceMotionStaysBeforeIt() {
-        #expect(Self.rows(.notch, hasGlass: false) == [.edge, .display, .style, .reduceMotion])
-        #expect(Self.rows(.strip, hasGlass: false).last == .reduceMotion)
+    @Test func materialIsFromMacOS26AloneAndMotionStaysBeforeIt() {
+        #expect(Self.sections(.notch, hasGlass: false).first?.rows == [.edge, .display, .style])
+        #expect(Self.sections(.strip, hasGlass: false).last == Self.motion)
     }
 }
 
@@ -135,16 +144,13 @@ struct PluginRowTests {
         #expect(row == SettingsRow(label: Self.label, line: Self.line, side: .fine("Up to date")))
     }
 
-    @Test func windowsOnAnOlderPluginAreCountedWithTheirVersionAndListedToJumpTo() {
+    /// The windows are the rows of Needs /reload-plugins under it (`ClaudeCodePaneTests`), so the row has no control.
+    @Test func windowsOnAnOlderPluginAreCountedWithTheirVersionWithNoControl() {
         let row = SettingsRow.plugin(heard([.line(Watched.line(windows: Self.windows))]), plugin: Self.clone)
 
-        #expect(row.line == "Updated to 0.2.0. 2 windows run 0.1.0 until /reload-plugins")
-        guard case let .windows(windows) = row.side else {
-            Issue.record("Show Windows, not \(row.side)")
-            return
-        }
-        #expect(windows.map(\.label) == ["Kit · The bootstrap", "Terrace · Plan the tool"])
-        #expect(windows.map(\.session) == ["sr-boot", "sr-plan"])
+        #expect(row == SettingsRow(
+            label: Self.label, line: "Updated to 0.2.0. 2 windows run 0.1.0 until /reload-plugins", side: .none
+        ))
     }
 
     @Test func oneWindowBehindIsSaidAsOneAndWindowsOnSeveralVersionsAsOlder() {
@@ -191,7 +197,9 @@ struct PluginRowTests {
 
 struct LoginRowTests {
     @Test func itIsTheSwitchOnceReadAndGreyBefore() {
-        #expect(SettingsRow.login(LoginItem(.enabled)) == SettingsRow(label: "Open at login", line: nil, side: .toggle(isEnabled: true)))
+        #expect(SettingsRow.login(LoginItem(.enabled)) == SettingsRow(
+            label: "Open at login", line: "SitRep is only of use while it runs", side: .toggle(isEnabled: true)
+        ))
         #expect(SettingsRow.login(LoginItem(.notRegistered)).side == .toggle(isEnabled: true))
         #expect(SettingsRow.login(nil).side == .toggle(isEnabled: false))
     }
@@ -256,7 +264,8 @@ struct AppSettingsTests {
         #expect(SavedEdgeSettings(defaults).read() == EdgeSettings())
     }
 
-    /// The separate Settings window saved the pane it last showed; that key is passed over.
+    /// The separate Settings window of round 5 saved the pane it last showed here; that key is passed over, as the
+    /// pane is saved on its own now (`SettingsWindowSettings`).
     @Test func aValueSavedWithTheSettingsWindowsPaneStillReadsTheKeyIgnored() throws {
         let defaults = MemoryDefaults()
 

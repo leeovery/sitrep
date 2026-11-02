@@ -5,46 +5,54 @@ import Foundation
 import SitRepLines
 import SitRepMenu
 import SitRepPanel
-@testable import SitRepWindow
 import SwiftUI
 import Testing
 
-/// Settings as the window lays it out, against spec round 8, 4: the real page, its rows and the system's own controls,
-/// hosted offscreen in a window never shown, their frames measured.
+/// Settings' panes as the window lays them out, against spec round 8, 4 and Paper's "Settings window": the real panes,
+/// their rows and the system's own controls, hosted offscreen in a window never shown, their frames measured. A pane's
+/// width is the window's right of the sidebar.
 @MainActor
 struct SettingsLayoutTests {
-    /// The column's left, at the title's edge, in the page's points.
-    private static let edge = CGFloat(44)
-    /// The page whose column is the drawing's 704.
-    private static let drawingsPage = CGFloat(704 + 88)
+    /// The column's left, 20 in from the sidebar.
+    private static let edge = CGFloat(20)
+    /// The pane whose column is the drawing's 704.
+    private static let drawingsPane = CGFloat(704 + 40)
+    /// The pane at the window's least width, beside the sidebar's 188: a column of 476.
+    nonisolated private static let narrowest = SettingsWindow.smallest.width - 188
 
-    /// The column at a page's width: the page less 44 on each side, as a session's and a project's are, with no cap.
-    private static func column(_ page: CGFloat) -> CGFloat {
-        page - 2 * edge
+    /// The column at a pane's width: the pane less 20 on each side, with no cap.
+    private static func column(_ pane: CGFloat) -> CGFloat {
+        pane - 2 * edge
     }
 
-    /// The column fills the page, less its insets, at any width: Notch's card spans it, and every control at a row's
-    /// right stands 10 in from the card's.
-    @Test(arguments: [(564.0, 476.0), (956.0, 868.0), (1003.0, 915.0), (1400.0, 1312.0)])
-    func theColumnFillsThePageLessItsInsets(page: CGFloat, column: CGFloat) async throws {
-        let hosted = await Hosted.page(width: page)
-        let drawn = try Drawn(hosted.hosting)
-        let popUp = try hosted.frame(of: #require(hosted.all(NSPopUpButton.self).first))
-        let card = try #require(drawn.litSpans(atY: popUp.midY).first)
-        let controls = hosted.trailingControls()
-        let pixel = 1 / hosted.scale
+    /// Each pane's controls at its rows' right, top to bottom: Open at login, Your turn folds after; Edge, Display,
+    /// Style, Material, Reduce motion; Send Test, Notify me, Notification Settings…, Play a sound, Sound; the two
+    /// windows' Show and Copy.
+    private static let controls: [(SettingsPane, Int)] = [(.general, 2), (.edge, 5), (.notifications, 5), (.claudeCode, 3)]
 
-        #expect((Self.edge ... Self.edge + column).isWithinAPixel(of: card, at: hosted.scale))
-        // Edge, Display, Style, Material, Reduce motion; Send Test, Notify me, Notification Settings…, Play a sound,
-        // Sound; Your turn folds after, Open at login
-        #expect(controls.count == 12)
-        for control in controls {
-            #expect(abs(control.maxX - (Self.edge + column - 10)) < pixel)
+    /// The column fills the pane, less its insets, at any width: each card spans it, and every control at a row's
+    /// right stands 10 in from the card's.
+    @Test(arguments: [narrowest, 744, 1200])
+    func theColumnFillsThePaneLessItsInsets(width: CGFloat) async throws {
+        for (pane, count) in Self.controls {
+            let hosted = await Hosted.pane(pane, width: width, live: Hosted.live(needsReload: true))
+            let drawn = try Drawn(hosted.hosting)
+            let controls = hosted.trailingControls()
+            // across a pop-up's row, or where a pane has none, the first control's
+            let row = try #require(hosted.all(NSPopUpButton.self).first.map(hosted.frame(of:)) ?? controls.first)
+            let card = try #require(drawn.litSpans(atY: row.midY).first)
+            let pixel = 1 / hosted.scale
+
+            #expect((Self.edge ... Self.edge + Self.column(width)).isWithinAPixel(of: card, at: hosted.scale))
+            #expect(controls.count == count)
+            for control in controls {
+                #expect(abs(control.maxX - (Self.edge + Self.column(width) - 10)) < pixel)
+            }
         }
     }
 
     @Test func theControlsKeepTheirOwnWidths() async throws {
-        let hosted = await Hosted.page(width: 956)
+        let hosted = await Hosted.pane(.edge, width: 744)
         let segmented = hosted.all(NSSegmentedControl.self).map(hosted.frame(of:))
         let button = try #require(hosted.all(NSPopUpButton.self).first)
         let popUp = hosted.frame(of: button)
@@ -53,12 +61,22 @@ struct SettingsLayoutTests {
         #expect(segmented.map { ($0.width * 2).rounded() / 2 } == [106, 155, 109])
         // to the window's half points, where the stock one, in none, rounds to whole ones
         #expect(abs(popUp.width - SystemControlsTests.stock(button.itemArray).intrinsicContentSize.width) <= 0.5)
-        // Reduce motion, Notify me of a new ask, Play a sound for a new ask, Open at login
-        #expect(hosted.all(NSSwitch.self).count == 4)
+    }
+
+    /// Open at login; Reduce motion; Notify me of a new ask and Play a sound for a new ask.
+    @Test(arguments: [(SettingsPane.general, 1), (.edge, 1), (.notifications, 2), (.claudeCode, 0)])
+    func eachSwitchIsTheMiniSwitch36By16(pane: SettingsPane, switches: Int) async throws {
+        let hosted = await Hosted.pane(pane, width: 744)
+
+        #expect(hosted.all(NSSwitch.self).count == switches)
+        for control in hosted.all(NSSwitch.self) {
+            #expect(control.controlSize == .mini)
+            #expect(hosted.frame(of: control).size == CGSize(width: 36, height: 16))
+        }
     }
 
     @Test func eachSegmentedControlsSegmentsAreEqual() async throws {
-        let hosted = await Hosted.page(width: 956)
+        let hosted = await Hosted.pane(.edge, width: 744)
 
         for control in hosted.all(NSSegmentedControl.self) {
             #expect(control.segmentDistribution == .fillEqually)
@@ -66,30 +84,21 @@ struct SettingsLayoutTests {
         }
     }
 
-    @Test func aSwitchIsTheMiniSwitch36By16() async throws {
-        let hosted = await Hosted.page(width: 956)
-
-        for control in hosted.all(NSSwitch.self) {
-            #expect(control.controlSize == .mini)
-            #expect(hosted.frame(of: control).size == CGSize(width: 36, height: 16))
-        }
-    }
-
     @Test func withTheStripLengthIsGrowsOrFullAndMaxASlider160Wide() async throws {
-        let hosted = await Hosted.page(width: 956) { $0.show = .strip }
+        let hosted = await Hosted.pane(.edge, width: 744) { $0.show = .strip }
         let segmented = hosted.all(NSSegmentedControl.self).map { hosted.frame(of: $0).width }
         let slider = try hosted.frame(of: #require(hosted.all(NSSlider.self).first))
 
         // Edge, Length, Material
         #expect(segmented.map { ($0 * 2).rounded() / 2 } == [106, 117, 109])
         #expect(slider.size == CGSize(width: 160, height: 16))
-        #expect(abs(slider.maxX - (Self.edge + Self.column(956) - 10)) < 0.5)
+        #expect(abs(slider.maxX - (Self.edge + Self.column(744) - 10)) < 0.5)
     }
 
-    /// The page's push buttons at their own widths, as measured in a form, against the right: Send Test 84.5, and
+    /// Notifications' push buttons at their own widths, as measured in a form, against the right: Send Test 84.5, and
     /// Notification Settings… 158.
-    @Test func thePagesPushButtonsKeepTheirOwnWidths() async throws {
-        let hosted = await Hosted.page(width: 956)
+    @Test func notificationsPushButtonsKeepTheirOwnWidths() async throws {
+        let hosted = await Hosted.pane(.notifications, width: 744)
         let buttons = hosted.buttons()
         let pixel = 1 / hosted.scale
 
@@ -97,24 +106,23 @@ struct SettingsLayoutTests {
         for (button, width) in zip(buttons, [84.5, 158]) {
             #expect(abs(button.width - width) < pixel)
             #expect(button.height == 24)
-            #expect(abs(button.maxX - (Self.edge + Self.column(956) - 10)) < pixel)
+            #expect(abs(button.maxX - (Self.edge + Self.column(744) - 10)) < pixel)
         }
     }
 
     /// At the narrowest column, 476, in each state whose control is widest, the control keeps its own width, 10 in from
-    /// the card's right, and the row's line wraps, growing the row past 52, where it no longer fits beside it: windows
-    /// on an older plugin, Ghostty not allowed and opening at login waiting on Lee.
-    @Test(arguments: [(General.plugin, 139.5), (.login, 158), (.ghostty, 169.5)])
+    /// the card's right, and the row's line wraps, growing the row past 52, where it no longer fits beside it: opening
+    /// at login waiting on Lee and Ghostty not allowed.
+    @Test(arguments: [(General.login, 158.0), (.ghostty, 169.5)])
     func aRowThatNeedsSomethingWrapsItsLineBeforeItsButtonShrinks(row: General, width: CGFloat) async throws {
-        let hosted = await Hosted.page(width: 564, height: 1400, said: Hosted.needsLee, live: Hosted.live(needsReload: true))
+        let hosted = await Hosted.pane(.general, width: Self.narrowest, said: Hosted.needsLee)
         let drawn = try Drawn(hosted.hosting)
-        // General's rows are the page's last
-        let controls = hosted.trailingControls()
-        let control = controls[controls.count - 3 + row.rawValue]
+        // Open at login's button, Your turn folds after's pop-up, Ghostty's button
+        let control = hosted.trailingControls()[row.rawValue]
         let pixel = 1 / hosted.scale
 
         #expect(abs(control.width - width) < pixel)
-        #expect(abs(control.maxX - (Self.edge + Self.column(564) - 10)) < pixel)
+        #expect(abs(control.maxX - (Self.edge + Self.column(Self.narrowest) - 10)) < pixel)
 
         let height = try drawn.row(around: control).upperBound - drawn.row(around: control).lowerBound
 
@@ -151,14 +159,19 @@ struct SettingsLayoutTests {
         #expect(abs(narrow.control.maxX - (300 - 10)) < 0.5)
     }
 
-    /// Down the column, clear of the Show row's pictures, the page is black but for the cards and the desktop corner,
-    /// Notch chosen: its card the Show row's 86 over the Notch's rows, 30 from a card to the next header, and the
-    /// caption's row of 42 between the corner and its card, whose four rows are 52, 52, 52 and 38. Within a pixel at
-    /// the screen's scale, which lays the page out.
-    @Test func thePagesCardsStandAtTheirHeights() async throws {
-        let drawn = try await Hosted.drawn(width: Self.drawingsPage)
+    /// Down the column, each pane is black but for its cards and the desktop corner, its first 13 under the toolbar:
+    /// a section's header's line of 16 and 10 over its card, the sections 26 apart. General's three cards a row of 52
+    /// each; Edge's the Show row's 86, then Notch's four, 52, 38, 52 and 52, then Motion's 52; Notifications' corner of
+    /// 150 and the caption's row of 32, then Banners' two rows of 52 and Sound's 52 and 38. Within a pixel at the
+    /// screen's scale, which lays the pane out.
+    @Test(arguments: [
+        (SettingsPane.general, [39 ... 91, 143 ... 195, 247 ... 299]),
+        (.edge, [13 ... 99, 151 ... 346.5, 398.5 ... 450.5]),
+        (.notifications, [13 ... 163, 247 ... 351.5, 403.5 ... 494]),
+    ] as [(SettingsPane, [ClosedRange<CGFloat>])])
+    func eachPanesCardsStandAtTheirHeights(pane: SettingsPane, drawing: [ClosedRange<CGFloat>]) async throws {
+        let drawn = try await Hosted.drawn(pane, width: Self.drawingsPane)
         let spans = drawn.litSpans(atX: Self.edge + 232)
-        let drawing: [ClosedRange<CGFloat>] = [146 ... 480.5, 536.5 ... 686.5, 728.5 ... 924, 980 ... 1175.5]
 
         #expect(spans.count == drawing.count)
         for (span, expected) in zip(spans, drawing) {
@@ -166,20 +179,17 @@ struct SettingsLayoutTests {
         }
     }
 
-    /// Each header's line of 16 stands 10 over what it heads: What stays on screen's card at 146, the desktop corner
-    /// at 536.5 and General's card at 980, the first header's line 28 under the title's line of 34 (58 to 92). Each
-    /// header's capitals stand alike in their line, so the same distance over what each heads.
+    /// Each header's line of 16 stands 10 over its card: General's Startup, Sessions and Ghostty. Each header's
+    /// capitals stand alike in their line, so the same distance over what each heads.
     @Test func eachHeaderStands10OverWhatItHeads() async throws {
-        let drawn = try await Hosted.drawn(width: Self.drawingsPage)
-        let first = try #require(drawn.litSpans(atX: Self.edge + 352).first)
-        let heads = [first.lowerBound, 536.5, 980]
-        // the header's first word's first letters, which hang below no line: What, Noti, Gene
+        let drawn = try await Hosted.drawn(.general, width: Self.drawingsPane)
+        let heads: [CGFloat] = [39, 143, 247]
+        // the header's first word's first letters, which hang below no line: Star, Sess, Ghos
         let capitals = try heads.map { head in
             try #require(drawn.litRows(in: CGRect(x: Self.edge + 10, y: head - 30, width: 30, height: 24)))
         }
         let pixel = 1 / drawn.scale
 
-        #expect(abs(first.lowerBound - 146) < pixel)
         for (head, capital) in zip(heads, capitals) {
             // inside the line of 16 that ends 10 over the head
             #expect(capital.lowerBound >= head - 10 - 16)
@@ -188,29 +198,13 @@ struct SettingsLayoutTests {
         }
     }
 
-    /// The title's glyphs, Settings' and a project's of the same name, drawn to the same pixels in the same place, so
-    /// the title holds still as Lee goes between the pages.
-    @Test func theTitleStandsWhereAProjectsStands() async throws {
-        let project = ProjectPage(
-            key: "settings", name: "Settings", waiting: 0, open: 0, sessions: [], asksWaiting: 0, asks: [], notes: [],
-            parked: [], opened: []
-        )
-        let projectPage = PageColumn(page: .project(project), now: Date()).environment(\.isStill, true)
-        let drawn = try Drawn(Hosted(projectPage, size: CGSize(width: 956, height: 1300)).hosting)
-        // the title's line, 58 to 91, clear of the project's line under it
-        let title = CGRect(x: Self.edge, y: 50, width: 200, height: 44)
-
-        #expect(drawn.pixels(in: title).contains { $0.lightness > 2 })
-        #expect(try await Hosted.drawn(width: 956).pixels(in: title) == drawn.pixels(in: title))
-    }
-
-    /// The Notch's card, Show, Edge, Display, Style, Material and Reduce motion: a hairline of 0.5 between each two
-    /// rows, none at its top or its foot, 10 in from both its ends. Within a pixel at the screen's scale.
+    /// Notch's card, Edge, Display, Style and Material: a hairline of 0.5 between each two rows, none at its top or its
+    /// foot, 10 in from both its ends. Within a pixel at the screen's scale.
     @Test func aCardsHairlinesAreHalfAPointBetweenItsRowsOnly() async throws {
-        let drawn = try await Hosted.drawn(width: Self.drawingsPage)
-        let card = try #require(drawn.litSpans(atX: Self.edge + 232).first)
+        let drawn = try await Hosted.drawn(.edge, width: Self.drawingsPane)
+        let card = try #require(drawn.litSpans(atX: Self.edge + 232).dropFirst().first)
         let lines = { (x: CGFloat) in drawn.lines(atX: Self.edge + x, in: card) }
-        let rows: [CGFloat] = [86, 52, 38, 52, 52]
+        let rows: [CGFloat] = [52, 38, 52]
         let drawing = rows.indices.map { row in
             let top = card.lowerBound + rows[...row].reduce(0, +) + CGFloat(row) * 0.5
 
@@ -225,10 +219,12 @@ struct SettingsLayoutTests {
         #expect(lines(704 - 5).isEmpty)
     }
 
-    @Test(arguments: [(EdgeSettings.Show.notch, 1215.5), (.strip, 1268.0)])
-    func thePageEnds40UnderGeneralsCard(show: EdgeSettings.Show, height: CGFloat) async {
-        let page = await Hosted.pageView { $0.show = show }
-        let size = NSHostingController(rootView: page).sizeThatFits(in: CGSize(width: 704, height: 10_000))
+    /// Edge ends 20 under Motion's card: the notch's four rows in its card, the strip's five, Max among them.
+    @Test(arguments: [(EdgeSettings.Show.notch, 470.5), (.strip, 523.0)])
+    func edgeEnds20UnderItsLastCard(show: EdgeSettings.Show, height: CGFloat) async {
+        let settings = await Hosted.settings { $0.show = show }
+        let pane = SettingsPaneContent(pane: .edge, settings: settings)
+        let size = NSHostingController(rootView: pane).sizeThatFits(in: CGSize(width: Self.drawingsPane, height: 10_000))
 
         #expect(abs(size.height - height) <= 0.5)
     }
@@ -301,9 +297,9 @@ struct SettingsLayoutTests {
     }
 }
 
-/// General's rows, top to bottom.
+/// General's rows with a control, top to bottom.
 enum General: Int, Sendable {
-    case plugin, login, ghostty
+    case login, foldsAfter, ghostty
 }
 
 /// Settings over a world of its own, as the window hosts it.
@@ -335,7 +331,7 @@ struct Hosted {
         view.subviews.flatMap { ($0 as? View).map { [$0] } ?? all(kind, in: $0) }
     }
 
-    /// The page's push buttons, top to bottom: SwiftUI draws them itself, so each is found by the focus ring AppKit
+    /// The pane's push buttons, top to bottom: SwiftUI draws them itself, so each is found by the focus ring AppKit
     /// keeps for it, as tall as the button.
     func buttons() -> [CGRect] {
         Self.all(NSView.self, in: hosting, where: { String(describing: type(of: $0)) == "_FocusRingView" })
@@ -349,7 +345,7 @@ struct Hosted {
         let controls = all(NSSegmentedControl.self).map(frame(of:)) + all(NSPopUpButton.self).map(frame(of:))
             + all(NSSwitch.self).map(frame(of:)) + all(NSSlider.self).map(frame(of:))
 
-        // a pull-down keeps a focus ring of its own too
+        // a pop-up keeps a focus ring of its own too
         let all = (controls + buttons()).reduce(into: [CGRect]()) { found, frame in
             if !found.contains(frame) {
                 found.append(frame)
@@ -372,25 +368,35 @@ struct Hosted {
         )
     }
 
-    /// The window's page on Settings, `width` wide, as tall as Lee's window unless `height` says.
-    static func page(
-        width: CGFloat, height: CGFloat = 1069, said: MacSays = allWell, live: LiveBoard = LiveBoard(),
-        _ change: (inout EdgeSettings) -> Void = { _ in }
+    /// A pane, `width` wide, as tall as the window starts unless `height` says, over Settings as given.
+    static func pane(
+        _ pane: SettingsPane, width: CGFloat, height: CGFloat = SettingsWindow.size.height, said: MacSays = allWell,
+        live: LiveBoard = LiveBoard(), _ change: (inout EdgeSettings) -> Void = { _ in }
     ) async -> Hosted {
-        let page = await pageView(said: said, live: live, change)
+        let settings = await settings(said: said, live: live, change)
 
-        return Hosted(PageColumn(page: .settings, now: Date()) { page }, size: CGSize(width: width, height: height))
+        return Hosted(content(pane, settings), size: CGSize(width: width, height: height))
     }
 
-    /// The window's page on Settings drawn, Notch chosen unless `change` says, `width` wide and 1300 tall: as a still,
-    /// so the whole page draws, but in a window, which lays it out to the screen's pixels, as the window on screen
-    /// does.
-    static func drawn(width: CGFloat, _ change: (inout EdgeSettings) -> Void = { _ in }) async throws -> Drawn {
-        let page = await pageView(change)
-        let still = PageColumn(page: .settings, now: Date()) { page }.environment(\.isStill, true)
+    /// A pane drawn, Notch chosen unless `change` says, `width` wide and 900 tall, all of it, over `ground`, in a
+    /// window, which lays it out to the screen's pixels, as the window on screen does.
+    static func drawn(
+        _ pane: SettingsPane, width: CGFloat, over ground: Color = .black,
+        _ change: (inout EdgeSettings) -> Void = { _ in }
+    ) async throws -> Drawn {
+        let settings = await settings(change)
 
-        return try Drawn(Hosted(still, size: CGSize(width: width, height: 1300)).hosting)
+        return try Drawn(Hosted(content(pane, settings, over: ground), size: CGSize(width: width, height: 900)).hosting)
     }
+
+    /// A pane's sections from the window's top, as they stand under the toolbar, unscrolled, over black unless
+    /// `ground` says, so its cards and words read lit against it.
+    static func content(_ pane: SettingsPane, _ settings: SettingsModel, over ground: Color = .black) -> some View {
+        SettingsPaneContent(pane: pane, settings: settings)
+            .frame(maxHeight: .infinity, alignment: .top)
+            .background(ground)
+    }
+
 
     static let allWell = MacSays(notices: .allowed(.banners), login: LoginItem(.enabled), ghostty: .allowed)
     /// Every General row's widest want: Ghostty not allowed, opening at login waiting on Lee's approval.
@@ -399,14 +405,16 @@ struct Hosted {
     /// The plugin running, its board printed, with two windows on it, on an older plugin or not.
     static func live(needsReload: Bool) -> LiveBoard {
         let live = LiveBoard()
-        let window = """
-            {"writer":"w","session":"sr-aw3bgs","name":"The Mac app","project":"SitRep",\
+        let window = { (writer: String) in
+            """
+            {"writer":"\(writer)","session":"sr-aw3bgs","name":"The Mac app","project":"SitRep",\
             "version":"\(needsReload ? "0.1.0" : "0.2.0")","needsReload":\(needsReload),"where":null,"state":null,\
             "attachedAt":1792440000000}
             """
+        }
         let line = """
             {"v":3,"at":1792445574706,"version":"0.2.0","head":{"needYou":0,"sessions":1},"rows":[],"projects":[],\
-            "windows":[\(window),\(window)],"new":[],"boards":{}}
+            "windows":[\(window("w1")),\(window("w2"))],"new":[],"boards":{}}
             """
         var last = LastBoard()
 
@@ -417,30 +425,45 @@ struct Hosted {
         return live
     }
 
-    /// Settings, its Mac saying `said`, read as the page reads it as it appears, with a second display.
-    static func pageView(
-        said: MacSays = allWell, live: LiveBoard = LiveBoard(),
-        defaults: UserDefaults = MemoryDefaults(), sounds: AlertSounds = .silent,
-        _ change: (inout EdgeSettings) -> Void = { _ in }
-    ) async -> SettingsPage {
-        let services = SettingsServices(
+    /// The Mac's own services for Settings, saying `said`, with a second display, the sounds given, and what Show and
+    /// Copy were asked kept in `asked`.
+    static func services(said: MacSays = allWell, sounds: AlertSounds = .silent, asked: Asked = Asked()) -> SettingsServices {
+        SettingsServices(
             displays: {
                 [
                     DisplayChoice.Connected(id: "A", name: "Built-in Retina Display", isMain: true),
                     DisplayChoice.Connected(id: "B", name: "Studio Display", isMain: false),
                 ]
             },
-            hasGlass: true, jump: { _ in }, sendTest: {}, sounds: sounds,
-            noticeLeave: { said.notices ?? .unasked }, askForNotices: {}, login: { said.login ?? LoginItem(.notFound) },
-            chooseLogin: {}, ghostty: { said.ghostty ?? .unknown }, allowGhostty: { .allowed }, open: { _ in }
+            hasGlass: true, jump: { asked.jumps.append($0) }, sendTest: {}, copy: { asked.copies.append($0) },
+            sounds: sounds, noticeLeave: { said.notices ?? .unasked }, askForNotices: {},
+            login: { said.login ?? LoginItem(.notFound) }, chooseLogin: {}, ghostty: { said.ghostty ?? .unknown },
+            allowGhostty: { .allowed }, open: { _ in }
         )
+    }
+
+    /// What Settings asked of the Mac.
+    @MainActor
+    final class Asked {
+        var jumps: [String] = []
+        var copies: [String] = []
+    }
+
+    /// Settings, its Mac saying `said`, read as the window reads it as a pane comes into sight, its displays read as
+    /// Edge reads them as it appears.
+    static func settings(
+        said: MacSays = allWell, live: LiveBoard = LiveBoard(), defaults: UserDefaults = MemoryDefaults(),
+        sounds: AlertSounds = .silent, asked: Asked = Asked(), _ change: (inout EdgeSettings) -> Void = { _ in }
+    ) async -> SettingsModel {
         let preferences = Preferences(defaults)
-        let settings = SettingsModel(preferences: preferences, live: live, services: services)
+        let settings = SettingsModel(
+            preferences: preferences, live: live, services: services(said: said, sounds: sounds, asked: asked)
+        )
 
         preferences.edit(change)
         settings.readDisplays()
         await settings.read()
-        return SettingsPage(settings: settings)
+        return settings
     }
 }
 

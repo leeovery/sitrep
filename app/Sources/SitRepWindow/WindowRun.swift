@@ -100,7 +100,7 @@ public final class WindowRun {
 
     /// The board as `watch` last printed it, heard at this time: the list takes it, held or not, a session new to
     /// needing Lee moving in at once, washed unless motion is reduced. A pick gone from the board gives way to what the
-    /// window opens on; Settings stays. Then the sessions' boards the line carries are taken, each printed once, so
+    /// window opens on. Then the sessions' boards the line carries are taken, each printed once, so
     /// only as the line comes, never again from the board kept stale; and stale, every answer written is on its way.
     public func show(_ last: LastBoard, at time: Date, reducesMotion: Bool) {
         let fresh = last.stale == nil ? last.board : nil
@@ -220,8 +220,8 @@ public final class WindowRun {
 
     // MARK: Opening and picking
 
-    /// The window opens: on the pick given, as ⌘, opens it on Settings; else on the oldest session that needs Lee,
-    /// and with none, on the one picked last.
+    /// The window opens: on the pick given, as the edge opens it on a session; else on the oldest session that needs
+    /// Lee, and with none, on the one picked last.
     public func open(on pick: Pick? = nil) {
         isOpen = true
         folds.isEarlierOpen = false
@@ -279,13 +279,13 @@ public final class WindowRun {
         }
     }
 
-    /// The pick still stands: Settings whatever the board, a session or a project while the board has it.
+    /// The pick still stands: a session or a project while the board has it.
     private func stands(_ pick: Pick?) -> Bool {
         guard let pick else {
             return false
         }
 
-        return pick == .settings || last.board?.has(pick.page) == true
+        return last.board?.has(pick.page) == true
     }
 
     /// What the window opens on, picked afresh.
@@ -306,11 +306,11 @@ public final class WindowRun {
         return listed.rows.first?.pick
     }
 
-    /// Lee picked a session, a project by its name, or Settings, from outside the list: what it shows is followed at
-    /// once, its asks showing as last kept until its board comes; Settings follows nothing. A session lands on its row
-    /// outside Snoozed, and on its row in Snoozed only where it has no other. Its row shows: the section holding it
-    /// unfolds, and "N earlier" opens where it is under it; Projects, for a project. Picking another page lets go of
-    /// the last page's asks kept in place, of what its cards said of refusals, and of a finish asked about.
+    /// Lee picked a session or a project by its name, from outside the list: what it shows is followed at once, its
+    /// asks showing as last kept until its board comes. A session lands on its row outside Snoozed, and on its row in
+    /// Snoozed only where it has no other. Its row shows: the section holding it unfolds, and "N earlier" opens where
+    /// it is under it; Projects, for a project. Picking another page lets go of the last page's asks kept in place, of
+    /// what its cards said of refusals, and of a finish asked about.
     public func pick(_ pick: Pick) {
         picks = PickFollows()
 
@@ -371,7 +371,7 @@ public final class WindowRun {
         switch pick?.page {
         case let .session(id)?: [id]
         case let .project(key)?: last.board?.projects.first { $0.key == key }?.sessions.map(\.id) ?? []
-        case .snoozed?, .settings?, nil: []
+        case .snoozed?, nil: []
         }
     }
 
@@ -607,9 +607,6 @@ public final class WindowRun {
         for session in frozen.keys {
             frozen[session]?.prune(at: time)
         }
-        if pick == .settings {
-            return .settings
-        }
         guard let board = last.board else {
             return .empty(listed.head.title)
         }
@@ -621,7 +618,7 @@ public final class WindowRun {
         case let .project(key)?:
             return board.projects.first { $0.key == key }.map { .project(projectPage($0, on: board, at: time)) }
                 ?? .nothingOpen
-        case .snoozed?, .settings?, nil:
+        case .snoozed?, nil:
             return board.projects.isEmpty ? .nothingOpen : .empty(listed.head.title)
         }
     }
@@ -761,12 +758,11 @@ extension Board {
         projects.lazy.compactMap { project in project.sessions.first { $0.id == id }.map { ($0, project) } }.first
     }
 
-    /// Whether it holds the session or project picked; Settings is no part of it.
+    /// Whether it holds the session or project picked.
     func has(_ pick: Pick) -> Bool {
         switch pick {
         case let .session(id), let .snoozed(id): session(id) != nil
         case let .project(key): projects.contains { $0.key == key }
-        case .settings: false
         }
     }
 }
