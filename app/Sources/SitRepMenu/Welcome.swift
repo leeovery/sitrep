@@ -136,13 +136,23 @@ public struct WelcomeSettings: SavedValue {
 /// What the welcome does to the login item, which is SitRep's real one, as General's switch is. In the first welcome,
 /// none having closed before it, Open SitRep at login is on by default: SitRep is registered as Lee arrives at its
 /// step, so macOS's notice comes as the stage shows it, or as the window closes if he never got there. Once he presses
-/// the switch, or the welcome has registered it, it is his. A welcome opened again changes nothing until pressed.
+/// the switch, the welcome has registered it, or it is found on, or changed since it was last read, as Lee may change
+/// it in Settings › General, it is his. A welcome opened again changes nothing until pressed.
 public struct WelcomeLogin: Equatable, Sendable {
     public let isFirst: Bool
     public private(set) var isSettled = false
+    private var last: LoginItem?
 
     public init(isFirst: Bool) {
         self.isFirst = isFirst
+    }
+
+    /// The item as macOS says it now: found on, or changed from the last read, it is Lee's.
+    public mutating func read(_ item: LoginItem) {
+        if item.isOn || last.map({ $0 != item }) == true {
+            isSettled = true
+        }
+        last = item
     }
 
     /// Arrived at the switch's step, the item as it stands: whether to register SitRep now.
@@ -163,6 +173,7 @@ public struct WelcomeLogin: Equatable, Sendable {
     /// Registered only once, in the first welcome, where nothing settled it and it is not registered already; never
     /// while macOS waits on Lee's approval.
     private mutating func registers(_ item: LoginItem) -> Bool {
+        read(item)
         defer { isSettled = true }
         return isFirst && !isSettled && item.choice == .register
     }

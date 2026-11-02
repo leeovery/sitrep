@@ -48,8 +48,8 @@ final class WelcomeModel {
 
         isVisiting = true
         registeredThisVisit = false
-        readLogin()
         plan = WelcomeLogin(isFirst: !preferences.welcomed)
+        readLogin()
     }
 
     /// Continue: the next step, or at the last, Done, which closes the window.
@@ -86,9 +86,10 @@ final class WelcomeModel {
     }
 
     /// The login item as macOS says it now: before every act on it, and each time the window comes forward, as Lee
-    /// may have changed it, or approved it, in System Settings.
+    /// may have changed it, or approved it, in System Settings. Found on or changed, it is his (`WelcomeLogin.read`).
     func readLogin() {
         login = services.login()
+        plan.read(login)
     }
 
     /// At the sound's step, the first welcome registers SitRep, so macOS's notice comes as the stage shows it.

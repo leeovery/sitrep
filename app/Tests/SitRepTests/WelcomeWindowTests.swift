@@ -61,10 +61,11 @@ struct WelcomeWindowTests {
         let window: WelcomeWindow
         let recorded = RecordedWindow.made()
 
-        init(welcomed: Bool = false, plugin: PluginStanding? = nil) {
+        init(welcomed: Bool = false, plugin: PluginStanding? = nil, login: LoginItem = LoginItem(.notRegistered)) {
             let live = LiveBoard()
 
             live.plugin = plugin
+            mac.login = login
             preferences = Preferences(MemoryDefaults())
             preferences.welcomed = welcomed
             welcome = WelcomeModel(preferences: preferences, live: live, services: mac.services())
@@ -89,11 +90,13 @@ struct WelcomeWindowTests {
             window.windowWillClose(Notification(name: NSWindow.willCloseNotification, object: recorded))
         }
 
-        /// What the window shows, laid out once SwiftUI has heard what changed.
+        /// What the window shows, laid out once SwiftUI has heard what changed, and what the layout told after it, the
+        /// callout's place, told.
         func settled() async -> NSView {
             await Task.yield()
             await Task.yield()
             recorded.contentView?.layoutSubtreeIfNeeded()
+            await Task.yield()
             return recorded.contentView ?? NSView()
         }
     }
@@ -113,8 +116,10 @@ struct WelcomeWindowTests {
     @Test func itClosesByItsButtonAndCommandWButNeitherMinimisesNorZooms() {
         let window = Made().recorded
 
-        #expect(window.validateMenuItem(NSMenuItem(title: "", action: #selector(NSWindow.performClose(_:)), keyEquivalent: "")))
-        #expect(!window.validateMenuItem(NSMenuItem(title: "", action: #selector(NSWindow.performMiniaturize(_:)), keyEquivalent: "")))
+        let item = { (action: Selector) in NSMenuItem(title: "", action: action, keyEquivalent: "") }
+
+        #expect(window.validateMenuItem(item(#selector(NSWindow.performClose(_:)))))
+        #expect(!window.validateMenuItem(item(#selector(NSWindow.performMiniaturize(_:)))))
         #expect(window.standardWindowButton(.zoomButton)?.isEnabled != true)
     }
 
@@ -374,6 +379,27 @@ struct WelcomeWindowTests {
         #expect(made.welcome.login.isOn)
     }
 
+    /// Lee's own Mac: SitRep registered before any welcome closed. Turned off in Settings › General, Skip setup leaves
+    /// it off.
+    @Test func anItemFoundOnIsLeesSoSkipNeverTurnsItBackOn() {
+        let made = Made(login: LoginItem(.enabled))
+
+        made.mac.login = LoginItem(.notRegistered)
+        made.welcome.skip()
+        #expect(made.mac.registers == 0 && !made.welcome.login.isOn)
+    }
+
+    /// Changed elsewhere since the welcome last read it, it is Lee's: off again as the window closes, it stays off.
+    @Test func anItemFoundChangedIsLeesSoClosingLeavesIt() {
+        let made = Made()
+
+        made.mac.login = LoginItem(.requiresApproval)
+        Self.key(made)
+        made.mac.login = LoginItem(.notRegistered)
+        made.welcome.skip()
+        #expect(made.mac.registers == 0)
+    }
+
     /// While macOS waits on Lee's approval, arriving registers nothing and the row is General's.
     @Test func arrivingWhileMacOSWaitsOnApprovalChangesNothing() {
         let made = Made()
@@ -527,27 +553,79 @@ struct WelcomeWindowTests {
         }
     }
 
-    /// Frames draw only while the window is in front, the link paused behind it and gone once it closes; the next
-    /// time it comes forward, frames run again.
-    @Test func theStagesFramesStopWhileTheWindowIsBehind() async {
+    /// In front, frames run as things move, the light alone on its slow refresh; behind, none for the light alone;
+    /// closed, the link gone, made anew as the window next comes forward.
+    @Test func theStagesFramesStopWhileTheWindowIsBehind() async throws {
         let made = Made()
         let stage = made.window.stage
 
         made.at(.edge)
         _ = await made.settled()
-        #expect(!stage.isDrawing)
-        made.window.windowDidBecomeKey(Notification(name: NSWindow.didBecomeKeyNotification))
-        #expect(stage.isRunning && stage.isDrawing)
+        #expect(stage.link == nil)
+        Self.key(made)
+        #expect(stage.standing == .inFront && stage.isDrawing)
+        Self.settle(stage, from: Displays.now)
+        #expect(stage.isDrawing == (stage.lastPace == .light))
         made.window.windowDidResignKey(Notification(name: NSWindow.didResignKeyNotification))
-        #expect(!stage.isRunning && !stage.isDrawing)
+        #expect(stage.standing == .behind && !stage.isDrawing)
+
+        let link = try #require(stage.link)
+
         made.recorded.close()
+        #expect(stage.standing == .closed && stage.link == nil)
         made.window.show()
         stage.play = .chime
-        made.window.windowDidBecomeKey(Notification(name: NSWindow.didBecomeKeyNotification))
+        Self.key(made)
         stage.chime(1)
-        #expect(stage.isDrawing)
+        #expect(stage.isDrawing && stage.link !== link)
         made.closeAgain()
+        #expect(stage.link == nil)
+    }
+
+    /// Step 1 at rest sleeps, its next beat pending at the loop's next change, the ask landing; a beat re-arms it, and
+    /// at that time in the loop, the ask lands and frames run.
+    @Test func onStepOneTheStageSleepsUntilTheLoopsNextBeat() throws {
+        let made = Made()
+        let stage = made.window.stage
+
+        Self.settle(stage, from: Displays.now)
+        Self.key(made)
+
+        let beat = try #require(stage.beat)
+        let wait = (WelcomeLoop.next(after: stage.loopTime) - stage.loopTime) / 1000
+
         #expect(!stage.isDrawing)
+        #expect(WelcomeLoop.next(after: stage.loopTime) == WelcomeLoop.lands)
+        #expect(abs(beat.fireDate.timeIntervalSinceNow - wait) < 0.1)
+        beat.fire()
+        #expect(stage.beat != nil && stage.beat !== beat)
+
+        let time = Displays.now
+
+        stage.step(at: time)
+        stage.step(at: time + WelcomeLoop.lands - stage.loopTime)
+        #expect(stage.isDrawing && stage.beat == nil)
+    }
+
+    /// Closing stops the frames for good: the link invalidated and the pending beat with it.
+    @Test func closingDropsTheLinkAndTheBeat() throws {
+        let made = Made()
+        let stage = made.window.stage
+
+        Self.settle(stage, from: Displays.now)
+        Self.key(made)
+
+        let time = Displays.now
+
+        stage.step(at: time)
+        stage.step(at: time + WelcomeLoop.lands - stage.loopTime)
+        Self.settle(stage, from: time + WelcomeLoop.lands)
+
+        let beat = try #require(stage.beat)
+
+        #expect(stage.link != nil)
+        made.recorded.close()
+        #expect(stage.link == nil && stage.beat == nil && !beat.isValid)
     }
 
     /// A change Lee makes in Settings while the welcome is behind is drawn at once, the callout moving with the notch.
@@ -557,13 +635,76 @@ struct WelcomeWindowTests {
 
         made.at(.ready)
         _ = await made.settled()
+        Self.key(made)
+        made.window.windowDidResignKey(Notification(name: NSWindow.didResignKeyNotification))
         #expect(!stage.callout.place.isRight)
         made.preferences.edit { $0.edge = .right }
-        await Task.yield()
-        await Task.yield()
-        #expect(!stage.isDrawing)
+        _ = await made.settled()
         #expect(stage.callout.place.isRight)
         #expect(stage.surface.frame.maxX == stage.edge.frame.maxX)
+    }
+
+    /// One that sets the shape moving runs frames behind until it settles, then sleeps, the loop's clock held.
+    @Test func aChangeMadeBehindRunsFramesUntilItSettles() async {
+        let made = Made()
+        let stage = made.window.stage
+
+        Self.settle(stage, from: Displays.now)
+        Self.key(made)
+        made.window.windowDidResignKey(Notification(name: NSWindow.didResignKeyNotification))
+
+        let loopTime = stage.loopTime
+
+        made.preferences.edit { $0.show = .strip }
+        _ = await made.settled()
+        #expect(stage.lastPace == .moving && stage.isDrawing)
+        Self.settle(stage, from: Displays.now)
+        #expect(stage.lastPace != .moving && !stage.isDrawing)
+        #expect(stage.loopTime == loopTime)
+    }
+
+    /// The ask's row is found again on the shape as it now stands: another style's panel lays it elsewhere, and the
+    /// strip has none. Frames on a clock of the test's own, never awaiting, so no frame on the display's clock comes
+    /// between them.
+    @Test func theLoopsPointerFindsTheRowAgainAfterAChange() throws {
+        let made = Made()
+        let stage = made.window.stage
+
+        Self.settle(stage, from: Displays.now)
+        Self.key(made)
+
+        var time = Displays.now
+
+        while stage.row == nil, stage.loopTime < WelcomeLoop.length - 100 {
+            time += 1000 / 60
+            stage.step(at: time)
+        }
+
+        let meniscus = try #require(stage.row)
+
+        made.preferences.edit { $0.style = .card }
+        for _ in 0 ..< 30 {
+            time += 1000 / 60
+            stage.step(at: time)
+        }
+        #expect(stage.row != meniscus)
+        made.preferences.edit { $0.show = .strip }
+        stage.step(at: time + 1000 / 60)
+        #expect(stage.row == nil)
+    }
+
+    /// The strip centres where the notch sits on the stage, Paper's place, wherever Lee dragged his own, so the
+    /// callout points at it.
+    @Test func theStagesStripCentresWhereTheCalloutPoints() async {
+        let made = Made()
+        let stage = made.window.stage
+
+        made.preferences.edit { $0.show = .strip; $0.along = 0.1 }
+        made.at(.ready)
+        _ = await made.settled()
+        #expect(stage.surface is StripSurface)
+        #expect(abs(stage.callout.place.middle - StageEdge.stillNotchY) < 1e-9)
+        #expect(abs(stage.resting.midY * stage.scale - stage.callout.place.middle) < 4)
     }
 
     @Test func eachStepTellsTheStageWhatToPlay() async {
@@ -578,8 +719,13 @@ struct WelcomeWindowTests {
 
     // MARK: Helpers
 
-    /// The stage stepped a 60th at a time, behind, from this time, until nothing moves or ten seconds pass: when it
-    /// stopped.
+    /// The window come forward, as AppKit tells its delegate.
+    private static func key(_ made: Made) {
+        made.window.windowDidBecomeKey(Notification(name: NSWindow.didBecomeKeyNotification))
+    }
+
+    /// The stage stepped a 60th at a time from this time, until nothing moves or ten seconds pass: when it stopped.
+    @discardableResult
     private static func settle(_ stage: StageEdge, from start: Double) -> Double {
         var time = start
 
@@ -613,6 +759,8 @@ struct WelcomeWindowTests {
 
     /// The form's segmented controls by their first segment's word, each at its height in the window.
     private static func rows(in view: NSView) -> [String: CGFloat] {
-        Dictionary(segments(in: view).map { ($0.label(forSegment: 0) ?? "", $0.convert($0.bounds, to: nil).midY) }) { $1 }
+        let rows = segments(in: view).map { ($0.label(forSegment: 0) ?? "", $0.convert($0.bounds, to: nil).midY) }
+
+        return Dictionary(rows) { $1 }
     }
 }

@@ -4,10 +4,10 @@ import SwiftUI
 
 /// A top-right corner of a Mac's screen, drawn by SitRep, with the notification a new ask sends landing on it: the
 /// wallpaper, the see-through menu bar with the glyph lit and its clock telling the time now, a Claude window behind,
-/// and the banner as macOS 26 draws one, with SitRep's own icon. Its words are placeholders (`Sample`). As wide as the column and 150
-/// tall, nothing in it stretched or scaled: wider than its drawing, the wallpaper and the menu bar run on, the window
-/// behind keeping its place at the left and the menu bar's items and the banner theirs at the right; narrower, it crops
-/// at its left, keeping the clock and the banner. To VoiceOver, one image.
+/// and the banner as macOS 26 draws one, with SitRep's own icon. Its words are placeholders (`Sample`). As wide as the
+/// column and 150 tall, nothing in it stretched or scaled: wider than its drawing, the wallpaper and the menu bar run
+/// on, the window behind keeping its place at the left and the menu bar's items and the banner theirs at the right;
+/// narrower, it crops at its left, keeping the clock and the banner. To VoiceOver, one image.
 struct DesktopCorner: View {
     private static let shape = RoundedRectangle(cornerRadius: 12, style: .continuous)
     /// As Paper draws it.

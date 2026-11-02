@@ -123,7 +123,7 @@ private struct GhosttyWindow: View {
             VStack(alignment: .leading, spacing: 6) {
                 Text("✻ Claude Code").foregroundStyle(WindowStyle.orange)
                 Text(Sample.terminalAsk).foregroundStyle(Color(hex: 0xC8C8CC))
-                Text("⎿ sitrep · ask").foregroundStyle(WelcomeStyle.faint)
+                Text(Sample.terminalTool).foregroundStyle(WelcomeStyle.faint)
             }
             .font(WindowStyle.mono(9))
             .lineLimit(1)

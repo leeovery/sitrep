@@ -5,7 +5,8 @@ import SwiftUI
 /// its first step, bringing it forward again where it shows. It opens centred on the Space Lee is on, and otherwise
 /// stays on its own (`ForwardWindow`), as About SitRep does. 840 by 540, never resized, black, in the system's frame:
 /// its close button and ⌘W close it, however far Lee got, keeping what he set; it neither minimises nor zooms. Its
-/// stage plays only while it is in front, and what macOS says of the login item is read each time it comes forward.
+/// stage plays while it is in front, behind only settling what a change set moving, and what macOS says of the login
+/// item is read each time it comes forward.
 @MainActor
 final class WelcomeWindow: NSObject, NSWindowDelegate {
     private let welcome: WelcomeModel
@@ -41,11 +42,11 @@ final class WelcomeWindow: NSObject, NSWindowDelegate {
 
     func windowDidBecomeKey(_ notification: Notification) {
         welcome.readLogin()
-        stage.isRunning = true
+        stage.standing = .inFront
     }
 
     func windowDidResignKey(_ notification: Notification) {
-        stage.isRunning = false
+        stage.standing = .behind
     }
 
     func windowWillClose(_ notification: Notification) {

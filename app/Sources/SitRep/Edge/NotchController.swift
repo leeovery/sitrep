@@ -60,7 +60,7 @@ final class NotchController: NSObject {
         self.settings = settings
         self.period = period
         edge = ScreenEdge(display, settings)
-        run = NotchRun(at: Displays.now, in: Self.setting(edge, settings, period), kept: SavedSettings(defaults))
+        run = NotchRun(at: Displays.now, in: .on(edge, settings, period: period), kept: SavedSettings(defaults))
         window = EdgeWindow.onScreen(frame: edge.window, view: surface)
         super.init()
 
@@ -139,14 +139,7 @@ final class NotchController: NSObject {
     private func moment(at time: Double = Displays.now, pointer: CGPoint? = nil) -> NotchRun.Moment {
         NotchRun.Moment(
             time: time, pointer: pointer ?? edge.stagePoint(NSEvent.mouseLocation), pointerAt: Displays.now,
-            isShown: isShown, setting: Self.setting(edge, settings, period)
-        )
-    }
-
-    private static func setting(_ edge: ScreenEdge, _ settings: EdgeSettings, _ period: FoldPeriod) -> NotchRun.Setting {
-        NotchRun.Setting(
-            stage: edge.stage, mirror: edge.mirror, style: settings.style,
-            reducesMotion: Displays.reducesMotion(settings), period: period
+            isShown: isShown, setting: .on(edge, settings, period: period)
         )
     }
 
@@ -197,7 +190,7 @@ final class NotchController: NSObject {
     /// paced.
     private func draw() {
         let frame = run.frame, time = run.time, pointer = run.seen
-        let shown = run.takeShown()
+        let setting = NotchRun.Setting.on(edge, settings, period: period), shown = run.takeShown()
 
         if shown.swappedEdge, let crossing {
             self.crossing = nil
@@ -206,7 +199,7 @@ final class NotchController: NSObject {
         if let drained = shown.jumpDrained {
             caption.drained(at: drained)
         }
-        surface.draw(run, in: Self.setting(edge, settings, period))
+        surface.draw(run, in: setting, mirror: edge.mirror)
         window.takesClicks = run.drag != nil || (pointer.map(frame.hits) ?? false)
         pace(at: time)
     }
@@ -232,8 +225,7 @@ final class NotchController: NSObject {
 
     /// Whether the light, shown and lit, changes from moment to moment (`LiveLight.moves`).
     private func lightMoves(at time: Double) -> Bool {
-        isShown && run.frame.light.level > 0.001
-            && LiveLight.moves(sinceAsk: run.sinceAsk(at: time), reducesMotion: Displays.reducesMotion(settings))
+        isShown && run.lightMoves(at: time, reducesMotion: Displays.reducesMotion(settings))
     }
 
     /// A new row's wash, which glass draws a frame at a time.
@@ -291,7 +283,7 @@ final class NotchController: NSObject {
     /// snoozes or wakes is the asks the row showed.
     private func menu(at screenPoint: CGPoint) -> NSMenu? {
         guard let point = edge.stagePoint(screenPoint),
-              let row = run.row(at: point, in: Self.setting(edge, settings, period)), let session = row.session
+              let row = run.row(at: point, in: .on(edge, settings, period: period)), let session = row.session
         else {
             return nil
         }

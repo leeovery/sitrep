@@ -142,9 +142,39 @@ struct WelcomeLoginTests {
         #expect(Self.registers(WelcomeLogin(isFirst: true), [(.close, Self.waiting)]) == [false])
     }
 
+    /// As on Lee's own Mac, SitRep registered before any welcome closed: found on, it is his, so turned off in
+    /// Settings › General, closing leaves it off.
+    @Test func anItemFoundOnIsLeesAndClosingNeverTurnsItBackOn() {
+        var login = WelcomeLogin(isFirst: true)
+
+        login.read(Self.on)
+        #expect(Self.registers(login, [(.close, Self.off)]) == [false])
+    }
+
+    /// Found changed from the last read, Lee changed it elsewhere: it is his.
+    @Test func anItemFoundChangedIsLees() {
+        var login = WelcomeLogin(isFirst: true)
+
+        login.read(Self.off)
+        login.read(Self.waiting)
+        #expect(login.isSettled)
+        #expect(Self.registers(login, [(.close, Self.off)]) == [false])
+    }
+
+    /// Read off, and off as it closes, it is still the welcome's to register.
+    @Test func anItemReadOffAndStillOffIsStillTheWelcomes() {
+        var login = WelcomeLogin(isFirst: true)
+
+        login.read(Self.off)
+        login.read(Self.off)
+        #expect(Self.registers(login, [(.close, Self.off)]) == [true])
+    }
+
     /// So a later Welcome… never undoes Lee's choice in General.
     @Test func aWelcomeOpenedAgainChangesNothingUntilPressed() {
-        #expect(Self.registers(WelcomeLogin(isFirst: false), [(.arrive, Self.off), (.close, Self.off)]) == [false, false])
+        let again = WelcomeLogin(isFirst: false)
+
+        #expect(Self.registers(again, [(.arrive, Self.off), (.close, Self.off)]) == [false, false])
     }
 }
 
@@ -157,8 +187,8 @@ struct WelcomeSoundsTests {
 
     @Test func glassLeadsTheFourMostDistinctThenTheRestInFindersOrder() {
         #expect(WelcomeSounds(Self.macOS).names == [
-            "Glass", "Ping", "Pop", "Tink", "Basso", "Blow", "Bottle", "Frog", "Funk", "Hero", "Morse", "Purr", "Sosumi",
-            "Submarine",
+            "Glass", "Ping", "Pop", "Tink", "Basso", "Blow", "Bottle", "Frog", "Funk", "Hero", "Morse", "Purr",
+            "Sosumi", "Submarine",
         ])
     }
 
@@ -221,7 +251,10 @@ struct WelcomePlaybackTests {
         #expect(WelcomePlayback.atTheEdge(Self.edge { $0.show = .nothing }) == "The menu bar's light alone")
     }
 
-    @Test(arguments: [(true, true, "Pop, and a notification"), (true, false, "Pop"), (false, true, "A notification"), (false, false, "Silent")])
+    @Test(arguments: [
+        (true, true, "Pop, and a notification"), (true, false, "Pop"), (false, true, "A notification"),
+        (false, false, "Silent"),
+    ])
     func aNewAskSaysItsSoundAndItsNotification(plays: Bool, notifies: Bool, words: String) {
         var app = AppSettings()
 
@@ -231,13 +264,17 @@ struct WelcomePlaybackTests {
     }
 
     @Test func atLoginHasItsFixInPlaceWhereItIsOff() {
-        #expect(WelcomePlayback.atLogin(LoginItem(.enabled)) == .init(label: "At login", words: "Opens SitRep", fix: nil))
+        #expect(
+            WelcomePlayback.atLogin(LoginItem(.enabled)) == .init(label: "At login", words: "Opens SitRep", fix: nil)
+        )
         #expect(WelcomePlayback.atLogin(LoginItem(.notRegistered)).fix == .turnOnLogin)
         #expect(WelcomePlayback.atLogin(LoginItem(.requiresApproval)).fix == .loginItems)
     }
 
     @Test func theFourRowsInTheirOrder() {
-        let rows = WelcomePlayback.rows(edge: EdgeSettings(), app: AppSettings(), sound: "Glass", login: LoginItem(.enabled))
+        let rows = WelcomePlayback.rows(
+            edge: EdgeSettings(), app: AppSettings(), sound: "Glass", login: LoginItem(.enabled)
+        )
 
         #expect(rows.map(\.label) == ["At the edge", "A new ask", "At login", "A click"])
         #expect(rows.map(\.words) == ["Meniscus notch, left", "Glass", "Opens SitRep", "Opens Ghostty"])
@@ -257,7 +294,8 @@ struct WelcomeReloadTests {
 
         #expect(WelcomeReload(standing) == .trouble(.plugin(LastBoard(), plugin: standing)))
         #expect(WelcomeReload(standing) == .trouble(SettingsRow(
-            label: "Claude Code plugin", line: "SitRep couldn't set up its plugin. marketplace add exited 1", side: .none
+            label: "Claude Code plugin", line: "SitRep couldn't set up its plugin. marketplace add exited 1",
+            side: .none
         )))
     }
 }
@@ -359,14 +397,20 @@ struct WelcomeStagePlayTests {
 /// The words SitRep makes up where it shows what a place will hold.
 struct SampleTests {
     /// Lee's real projects never stand in for a sample: Settings' notification, the welcome's terminal and its board.
+    /// The ask's tool keeps the plugin's own name, sitrep, and names no project.
     @Test func noSampleNamesARealProject() {
         let board = WelcomeBoard.asked(at: 0, isNew: true).sessions
+        let lines = board.flatMap(\.lines).flatMap { [$0.ask, $0.title, $0.code].compactMap(\.self) }
         let words = [Sample.ask, Sample.project, Sample.place, Sample.terminal, Sample.terminalAsk, Sample.needsYou]
             + [Sample.running, Sample.writing].flatMap { [$0.title, $0.code] } + [Sample.yourTurn]
-            + board.flatMap { [$0.id, $0.project, $0.name, $0.sub] + $0.lines.flatMap { [$0.ask, $0.title, $0.code] }.compactMap(\.self) }
+            + board.flatMap { [$0.id, $0.project, $0.name, $0.sub] } + lines
+        let projects = ["Switchboard", "Kit", "Portal", "Fabric", "ledger"]
 
-        for real in ["Switchboard", "Kit", "Portal", "Fabric", "SitRep", "ledger"] {
+        for real in projects + ["SitRep"] {
             #expect(!words.contains { $0.localizedCaseInsensitiveContains(real) }, "\(real)")
+        }
+        for real in projects {
+            #expect(!Sample.terminalTool.localizedCaseInsensitiveContains(real), "\(real)")
         }
     }
 }

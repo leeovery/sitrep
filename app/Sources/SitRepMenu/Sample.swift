@@ -18,6 +18,8 @@ public enum Sample {
     public static let terminal = "project · claude"
     /// The ask as Claude Code's window shows it.
     public static let terminalAsk = "● \(ask)"
+    /// The tool the ask went through under it: the plugin's own, never a project's.
+    public static let terminalTool = "⎿ sitrep · ask"
 
     /// The rows of a board, by the kind of row each is: Needs you's, two working, and Your turn's.
     public static let needsYou = "An ask that needs you"
