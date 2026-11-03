@@ -121,8 +121,8 @@ public struct StripFrame {
     public struct Mark {
         public enum Look: Sendable {
             /// Orange, with the panel dot's glow, the letters white; away, the letters dim; your turn, white; working,
-            /// a grey track with a pale arc turning; on its own work, the working mark held still, its arc never
-            /// turning; the grey count, a grey ring; needs you's count, orange with its glow, the letters white.
+            /// a grey track with a pale arc turning; on its own work, the dotted ring round the letters, still, in
+            /// working's grey; the grey count, a grey ring; needs you's count, orange with its glow, the letters white.
             case needs, away, turn, working, onItsWork, count, needsCount
         }
 

@@ -35,6 +35,10 @@ final class Arc {
         arc.path = quarter
     }
 
+    var isTurning: Bool {
+        layer.animation(forKey: Self.key) != nil
+    }
+
     /// Held still, its quarter where it starts: its turn taken off, so nothing of it runs.
     func hold() {
         period = nil

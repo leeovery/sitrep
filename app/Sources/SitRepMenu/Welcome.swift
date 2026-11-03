@@ -90,7 +90,7 @@ public struct WelcomeSteps: Equatable, Sendable {
         index = max(index - 1, 0)
     }
 
-    /// Back to the first step, as the menu's Welcome… opens it.
+    /// Back to the first step, as the menu's Show Welcome Window opens it.
     public mutating func restart() {
         index = 0
     }

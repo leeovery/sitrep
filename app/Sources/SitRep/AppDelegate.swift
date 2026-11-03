@@ -22,13 +22,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private lazy var settings = SettingsWindow(
         settings: SettingsModel(preferences: preferences, live: live, services: services)
     )
-    /// Made as it first opens: by itself at the first start, on a Mac where none has closed, or from Welcome…. A Mac
-    /// long welcomed makes none until Lee asks for it.
+    /// Made as it first opens: by itself at the first start, on a Mac where none has closed, or from Show Welcome
+    /// Window. A Mac long welcomed makes none until Lee asks for it.
     private var welcome: WelcomeWindow?
     private var quitOnSignal: QuitOnSignal?
     private lazy var window = SitRepWindow(
-        plugin: plugin, works: works, snoozes: snoozes, following: feed.following, preferences: preferences,
-        openSettings: { [unowned self] in settings.show() }
+        plugin: plugin, works: works, snoozes: snoozes, following: feed.following, preferences: preferences
     )
 
     /// The notices helper is listened to before launching ends, so a click that starts the app is heard; and a SIGTERM

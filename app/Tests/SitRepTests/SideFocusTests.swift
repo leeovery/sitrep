@@ -8,8 +8,8 @@ import Testing
 
 /// ⌘F moves keyboard focus into the Filter field; Return on the sidebar's list moves it into the page, to its first
 /// control, and Escape in the page moves it back to the board's list, in the SitRep window's split over the sidebar
-/// as the window draws it, the board's list with Settings at its foot, and two buttons, made, never shown. A page's
-/// buttons take focus only while the Mac's Keyboard navigation setting is on, so what needs them runs only then.
+/// as the window draws it, and two buttons, made, never shown. A page's buttons take focus only while the Mac's
+/// Keyboard navigation setting is on, so what needs them runs only then.
 @MainActor
 struct SideFocusTests {
     @Test(.enabled { await keyboardNavigation() })
@@ -29,14 +29,9 @@ struct SideFocusTests {
         #expect(sides.focused === sides.firstControl)
     }
 
-    /// From the page, however focus came there, past the foot too.
-    @Test(arguments: [false, true])
-    func escapeInThePageMovesFocusBackToTheBoardsList(fromTheFoot: Bool) throws {
+    @Test func escapeInThePageMovesFocusBackToTheBoardsList() throws {
         let sides = try Sides()
 
-        if fromTheFoot {
-            sides.window.makeFirstResponder(sides.foot)
-        }
         sides.window.makeFirstResponder(sides.focus.page)
         #expect(sides.press(SideFocus.escape))
         #expect(sides.window.firstResponder === sides.board)
@@ -174,64 +169,30 @@ struct SideFocusTests {
         #expect(sides.window.firstResponder === sides.board)
     }
 
-    /// The foot is the stop after the board's list, as Tab and Shift-Tab step, whether Keyboard navigation is on or
-    /// not, in the key loop as a window on screen has it.
-    @Test func tabFromTheBoardsListGoesToSettingsAtTheFootAndShiftTabComesBack() throws {
-        let sides = try Sides()
-
-        sides.window.recalculateKeyViewLoop()
-        sides.send(Sides.tab, typing: "\t")
-        #expect(sides.window.firstResponder === sides.foot)
-        sides.send(Sides.tab, with: .shift, typing: "\u{19}")
-        #expect(sides.window.firstResponder === sides.board)
-    }
-
+    /// The sidebar has no stop of its own after the board's list, its Settings foot gone: Tab from the list leaves the
+    /// sidebar for the page's first control, in the key loop as a window on screen has it.
     @Test(.enabled { await keyboardNavigation() })
-    func tabFromTheFootGoesToThePagesFirstControl() throws {
+    func tabFromTheBoardsListGoesToThePagesFirstControl() throws {
         let sides = try Sides()
 
-        sides.window.makeFirstResponder(sides.foot)
         sides.window.recalculateKeyViewLoop()
         sides.send(Sides.tab, typing: "\t")
         #expect(sides.focused === sides.firstControl)
     }
 
-    /// Return as the window's monitor leaves it to the foot, which opens the Settings window, picking nothing, rather
-    /// than moving into the page.
-    @Test(arguments: [(Sides.space, " "), (SideFocus.return, "\r"), (SideFocus.enter, "\u{3}")])
-    func spaceOrReturnOnTheFootOpensTheSettingsWindow(key: UInt16, typing characters: String) throws {
-        let sides = try Sides()
+    /// With nothing in the page to take focus, Tab from the list wraps round to the Filter field, and Shift-Tab comes
+    /// back.
+    @Test func tabFromTheBoardsListWithNothingInThePageWrapsToTheFilterField() throws {
+        let sides = try Sides(hasButtons: false)
 
-        sides.window.makeFirstResponder(sides.foot)
-        #expect(!sides.pressThrough(key, typing: characters))
-        #expect(sides.asked.opens == 1)
-        #expect(sides.asked.picks.isEmpty)
-        #expect(sides.window.firstResponder === sides.foot)
+        sides.window.recalculateKeyViewLoop()
+        sides.send(Sides.tab, typing: "\t")
+        #expect(sides.isInField)
+        sides.send(Sides.tab, with: .shift, typing: "\u{19}")
+        #expect(sides.window.firstResponder === sides.board)
     }
 
-    /// With a modifier held, Return on the foot is neither the window's nor the foot's, as on the board's list.
-    @Test func returnWithAModifierOnTheFootOpensNothing() throws {
-        let sides = try Sides()
-
-        sides.window.makeFirstResponder(sides.foot)
-        #expect(!sides.pressThrough(SideFocus.return, with: .shift))
-        #expect(sides.asked.opens == 0)
-        #expect(sides.window.firstResponder === sides.foot)
-    }
-
-    /// Past either end of what holds focus, the arrows go nowhere: the board's last row keeps focus, and so does the
-    /// foot, picking and opening nothing.
-    @Test(arguments: [Sides.downArrow, Sides.upArrow])
-    func theArrowsGoNowhereFromTheFoot(key: UInt16) throws {
-        let sides = try Sides()
-
-        sides.window.makeFirstResponder(sides.foot)
-        sides.send(arrow: key)
-        #expect(sides.window.firstResponder === sides.foot)
-        #expect(sides.asked.picks.isEmpty)
-        #expect(sides.asked.opens == 0)
-    }
-
+    /// Past the list's last row, ↓ goes nowhere: the board keeps focus, picking nothing.
     @Test func downFromTheBoardsLastRowStaysOnTheBoard() throws {
         let sides = try Sides(pick: .project("kit"))
 
@@ -264,9 +225,7 @@ func keyboardNavigation() async -> Bool {
 private struct Sides {
     let window: NSWindow
     let focus: SideFocus
-    /// The board's list, and Settings at its foot.
     let board: NSTableView
-    let foot: SettingsFootControl
     /// What the sidebar asked the window for.
     let asked: Asked
     private let sidebar: NSHostingController<Column>
@@ -296,7 +255,6 @@ private struct Sides {
         self.asked = asked
 
         board = try #require(Self.views(NSTableView.self, in: sidebar.view).first)
-        foot = try #require(Self.views(SettingsFootControl.self, in: sidebar.view).first)
         if focusingList {
             window.makeFirstResponder(board)
         }
@@ -382,10 +340,9 @@ private struct Sides {
         send(key, with: [.numericPad, .function], typing: key == Self.downArrow ? "\u{F701}" : "\u{F700}")
     }
 
-    /// The F key, Tab, Space and the arrows.
+    /// The F key, Tab and the arrows.
     nonisolated static let f: UInt16 = 3
     nonisolated static let tab: UInt16 = 48
-    nonisolated static let space: UInt16 = 49
     nonisolated static let downArrow: UInt16 = 125
     nonisolated static let upArrow: UInt16 = 126
 
@@ -403,16 +360,14 @@ private struct Column: View {
     var body: some View {
         BoardColumn(sidebar: Sides.sidebar, pick: pick, filter: filter, now: Date())
             .environment(\.windowActions, WindowActions(
-                pick: { [asked] in asked.picks.append($0) }, openFirstMatch: { [asked] in asked.matches += 1 },
-                openSettings: { [asked] in asked.opens += 1 }
+                pick: { [asked] in asked.picks.append($0) }, openFirstMatch: { [asked] in asked.matches += 1 }
             ))
     }
 }
 
-/// What the sidebar asked the window for: the Filter field's first match, a pick, or the Settings window.
+/// What the sidebar asked the window for: the Filter field's first match, or a pick.
 @MainActor
 private final class Asked {
     var matches = 0
     var picks: [Pick] = []
-    var opens = 0
 }

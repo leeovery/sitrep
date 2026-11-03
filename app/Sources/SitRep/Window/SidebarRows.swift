@@ -177,11 +177,12 @@ struct SidebarSessionRow: View {
 }
 
 /// A session's row under Needs you, as Paper's board F draws it, in the system's two-line row: its dot in the mark's
-/// slot; its session's name, medium, dim while no window holds it, and a quiet "+2" 5 after it for its lines waiting
-/// after the first, none for one; its age, its oldest line's, orange while a new line washes the row; then its project,
-/// 1 under. The asks are read on its page. On the accent of the pick its name goes white, the rest white at 80%; its
-/// dot stays orange. A row in Snoozed is the same row quieted, as Paper's board H draws it: its dot faint and unlit,
-/// its name at 60%, its "+2" and its project at 35%, and in its age's place when its soonest ask wakes, soft.
+/// slot; its session's name, medium, and a quiet "+2" 5 after it for its lines waiting after the first, none for one;
+/// its age, its oldest line's, orange while a new line washes the row; then its project, 1 under. The asks are read on
+/// its page. While no window holds it, its mark is the away ring and its two lines dim as one (`Away`). On the accent
+/// of the pick its name goes white, the rest white at 80%, away or not; its mark stays orange. A row in Snoozed is the
+/// same row quieted, as Paper's board H draws it: its dot faint and unlit, its name at 60%, its "+2" and its project at
+/// 35%, and in its age's place when its soonest ask wakes, soft.
 struct NeedsYouRow: View {
     let row: Listed.Row
     let filter: Filter
@@ -196,10 +197,12 @@ struct NeedsYouRow: View {
                 SidebarMark(mark: row.mark)
                 title
                     .frame(maxWidth: .infinity, minHeight: WindowStyle.titleLine, maxHeight: WindowStyle.titleLine, alignment: .leading)
+                    .opacity(awayDim)
                 SidebarTime(time, washed: row.lineWashed, onPick: onPick)
                     .frame(height: WindowStyle.titleLine)
             }
             SecondLine(row.project, filter: filter, tone: isSnoozed ? .dim : .soft, onPick: onPick)
+                .opacity(awayDim)
         }
         .padding(.top, WindowStyle.twoLineTop)
         .frame(height: WindowStyle.twoLineHeight, alignment: .top)
@@ -210,6 +213,12 @@ struct NeedsYouRow: View {
 
     private var isSnoozed: Bool { row.section == .snoozed }
 
+    /// Its two lines, each dimmed by the one factor while no window holds it; not in Snoozed, quieted already, nor on
+    /// the accent of the pick, whose whites are the system's.
+    private var awayDim: Double {
+        row.isAway && !isSnoozed && !onPick ? Away.dim : 1
+    }
+
     /// Its oldest line's age, or in Snoozed when its soonest ask wakes.
     private var time: String {
         row.wakesAt.map { WakeTime.words($0, at: now, in: calendar) } ?? Words.age(row.since, at: now)
@@ -218,7 +227,7 @@ struct NeedsYouRow: View {
     /// Its session's name, cut short before its "+2", in tabular figures on the name's baseline.
     private var title: some View {
         HStack(alignment: .firstTextBaseline, spacing: WindowStyle.moreGap) {
-            Name(row.name, litBy: filter, tone: isSnoozed ? .quiet : row.isAway ? .faint : .text, onPick: onPick)
+            Name(row.name, litBy: filter, tone: isSnoozed ? .quiet : .text, onPick: onPick)
                 .font(WindowStyle.ui(WindowStyle.titleSize, .medium))
                 .spacing(WindowStyle.titleTracking, of: WindowStyle.titleSize)
             if let more = row.more {
@@ -232,10 +241,10 @@ struct NeedsYouRow: View {
 }
 
 /// A session's row under Working, as board D draws it, two lines in the system's two-line row: its mark, the working
-/// arc or on its own work's dotted ring, still; its verb, medium in white at 55%, and what it acts on 5 after it, a
-/// command in mono at 11, anything else at 13, both in white at 35%; how long its turn has run, or since it ended; then
-/// its project and session. It needs nothing of Lee, so it is greyer than the rest. On the accent of the pick its verb
-/// goes white, the rest white at 80%.
+/// arc turning, or on its own work's dotted ring, still; its verb, medium in white at 55%, shimmering while it works,
+/// as the panel's, and what it acts on 5 after it, a command in mono at 11, anything else at 13, both in white at 35%;
+/// how long its turn has run, or since it ended; then its project and session. It needs nothing of Lee, so it is
+/// greyer than the rest. On the accent of the pick its verb goes white, the rest white at 80%.
 struct WorkingRow: View {
     let row: Listed.Row
     let filter: Filter
@@ -264,9 +273,11 @@ struct WorkingRow: View {
     /// plain.
     private func doing(_ line: Listed.Line) -> some View {
         HStack(alignment: .firstTextBaseline, spacing: WindowStyle.verbGap) {
-            Name(line.lead, litBy: filter, tone: onPick ? .text : .soft, onPick: onPick)
-                .font(WindowStyle.ui(WindowStyle.titleSize, .medium))
-                .spacing(WindowStyle.titleTracking, of: WindowStyle.titleSize)
+            if row.mark == .working {
+                ShimmeringLead { isLit in verb(line, isLit: isLit) }
+            } else {
+                verb(line, isLit: false)
+            }
             if let code = line.code {
                 Name(code, litBy: filter, tone: .dim, onPick: onPick).font(WindowStyle.mono(WindowStyle.smallSize))
             } else if let subject = line.subject(at: now) {
@@ -276,6 +287,14 @@ struct WorkingRow: View {
             }
         }
         .lineLimit(1)
+    }
+
+    /// Its verb, soft, or lit by the shimmer's light; white on the accent of the pick.
+    private func verb(_ line: Listed.Line, isLit: Bool) -> some View {
+        Name(line.lead, litBy: filter, tone: isLit || onPick ? .text : .soft, onPick: onPick)
+            .font(WindowStyle.ui(WindowStyle.titleSize, .medium))
+            .spacing(WindowStyle.titleTracking, of: WindowStyle.titleSize)
+            .lineLimit(1)
     }
 }
 
@@ -539,26 +558,28 @@ extension EnvironmentValues {
     @Entry var showsJump = false
 }
 
-/// A session's mark in its slot, drawn still: needs you an orange dot; your turn a soft ring; working a still arc on
-/// its faint track; on its own work the dotted ring; away a faint dot; in Snoozed a faint dot, a needs-you dot's size,
-/// unlit.
+/// A session's mark in its slot: needs you an orange dot, and away a hollow orange ring; your turn a soft ring; working
+/// the arc turning on its faint track; on its own work the dotted ring, still; away with nothing waiting a faint dot;
+/// in Snoozed a faint dot, a needs-you dot's size, unlit.
 struct SidebarMark: View {
     let mark: Mark
+
+    @Environment(\.backgroundProminence) private var prominence
 
     var body: some View {
         Group {
             switch mark {
             case .needs: Circle().fill(WindowStyle.orange).frame(width: 7, height: 7)
+            case .awayAsk: AwayRing(ink: WindowStyle.orange)
             case .turn: Circle().stroke(.secondary, lineWidth: 1.5).frame(width: 7.5, height: 7.5)
             case .working:
-                ZStack {
-                    Circle().stroke(WindowStyle.sidebarTrack, lineWidth: 1.5)
-                    Circle()
-                        .trim(from: 0, to: 1 / 3)
-                        .stroke(.secondary, style: StrokeStyle(lineWidth: 1.5, lineCap: .round))
-                        .rotationEffect(.degrees(-90))
-                }
-                .frame(width: 8.5, height: 8.5)
+                TurningArc(
+                    radius: 4.25,
+                    track: WindowStyle.colour(
+                        WindowStyle.sidebarTrack, on: prominence, selected: WindowStyle.selectedTrack
+                    ),
+                    arc: WindowStyle.colour(WindowStyle.sidebarArc, on: prominence)
+                )
             case .onItsWork: DottedRingView(ring: .sidebar, ink: WindowStyle.sidebarDotted)
             case .away: Circle().fill(.tertiary).frame(width: 5, height: 5)
             case .snoozed: Circle().fill(.tertiary).frame(width: 7, height: 7)

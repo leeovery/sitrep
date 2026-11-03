@@ -75,7 +75,7 @@ struct StripMarkLayerTests {
         #expect(layer.letters.mask !== glyphs)
     }
 
-    /// Shown as it is: its arc on the track, held still, so nothing of it runs.
+    /// Shown as each of these in turn.
     private static func shown(_ marks: StripFrame.Mark...) -> StripMarkLayer {
         let layer = StripMarkLayer()
 
@@ -83,12 +83,34 @@ struct StripMarkLayerTests {
         return layer
     }
 
-    @Test func aMarkOnItsOwnWorkShowsTheWorkingArcHeldStill() {
+    /// On its own work, the dotted ring the panel, the menu and the window mark it with, round the letters in the 24pt
+    /// ring's place, in working's grey, still; no arc, so it never reads as a spinner stopped.
+    @Test func aMarkOnItsOwnWorkShowsTheDottedRingAndNoArc() throws {
         let layer = Self.shown(Self.mark(.onItsWork))
+        let path = try #require(layer.dotted.path)
 
-        #expect(layer.spinner.layer.opacity == 1)
-        #expect(layer.spinner.layer.animationKeys() == nil)
+        #expect(layer.dotted.opacity == 1)
+        #expect(layer.dotted.lineDashPattern == [1.6, 2.12])
+        #expect(layer.dotted.strokeColor == EdgeStyle.grey)
+        #expect(layer.dotted.frame.midX == 12 && layer.dotted.frame.midY == 12)
+        #expect(path.boundingBox.width == 22.5 && path.boundingBox.height == 22.5)
+        #expect(layer.dotted.animationKeys() == nil)
+        #expect(layer.spinner.layer.opacity == 0)
         #expect(layer.ring.borderColor == nil)
+    }
+
+    @Test(arguments: [StripFrame.Mark.Look.working, .needs, .turn, .away])
+    func noOtherMarkShowsTheDottedRing(look: StripFrame.Mark.Look) {
+        #expect(Self.shown(Self.mark(look)).dotted.opacity == 0)
+    }
+
+    /// A click's jump turns an arc on it as on any mark, the dotted ring gone while it does, and back after.
+    @Test func aMarkOnItsOwnWorkJumpingTurnsTheArcInTheRingsPlace() {
+        let jumping = Self.shown(Self.mark(.onItsWork), Self.mark(.onItsWork, jumping: true))
+        let after = Self.shown(Self.mark(.onItsWork, jumping: true), Self.mark(.onItsWork))
+
+        #expect(jumping.spinner.layer.opacity == 1 && jumping.dotted.opacity == 0)
+        #expect(after.spinner.layer.opacity == 0 && after.dotted.opacity == 1)
     }
 
     @Test func aWorkingMarkComingToItsOwnWorkStopsTurning() {

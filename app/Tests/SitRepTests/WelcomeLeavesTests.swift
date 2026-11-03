@@ -390,8 +390,8 @@ struct WelcomeAfterTests {
 
     // MARK: The first start
 
-    /// At SitRep's first start on a Mac where no welcome has closed, it opens by itself, as Welcome… opens it; however
-    /// it closes, it never opens by itself again.
+    /// At SitRep's first start on a Mac where no welcome has closed, it opens by itself, as Show Welcome Window opens
+    /// it; however it closes, it never opens by itself again.
     @Test func itOpensByItselfOnceAtTheFirstStartAndNeverAgain() {
         let closes: [(Made) -> Void] = [
             { $0.welcome.skip() }, { $0.recorded.performClose(nil) }, { $0.window.closeIfOpen() },
@@ -414,7 +414,7 @@ struct WelcomeAfterTests {
         }
     }
 
-    /// Opened by Welcome… and closed since #67, Lee's Mac has had its welcome.
+    /// Opened by Show Welcome Window and closed since #67, Lee's Mac has had its welcome.
     @Test func aMacWhoseWelcomeHasClosedOpensNoneByItself() {
         #expect(!WelcomeWindow.opensAtStart(Made(welcomed: true).preferences))
     }

@@ -274,7 +274,7 @@ struct WelcomeLoginTests {
         #expect(Self.registers(login, [(.close, Self.off)]) == [true])
     }
 
-    /// So a later Welcome… never undoes Lee's choice in General.
+    /// So a later Show Welcome Window never undoes Lee's choice in General.
     @Test func aWelcomeOpenedAgainChangesNothingUntilPressed() {
         let again = WelcomeLogin(isFirst: false)
 

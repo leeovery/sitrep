@@ -515,6 +515,19 @@ struct ProjectPageTests {
         #expect(page.sessions.map(\.mark) == [.needs, .turn])
     }
 
+    /// Goosemates' session, which no window holds, with its ask waiting: the away ring, on its line and its ask's.
+    @Test func aSessionNoWindowHoldsWithAnAskTakesTheAwayRing() throws {
+        let run = opened()
+
+        run.pick(.project("goosemates"))
+        take(["sr-gs7kq2": Lines.away], in: run)
+
+        let page = try #require(run.page(at: printedAt).project)
+
+        #expect(page.sessions.map(\.mark) == [.awayAsk])
+        #expect(page.asks.map(\.card.mark) == [.awayAsk])
+    }
+
     @Test func itsAsksComeTheNewestFirstClosedUntilOpened() throws {
         let page = try Self.page()
 

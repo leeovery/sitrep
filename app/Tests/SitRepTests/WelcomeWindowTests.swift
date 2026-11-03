@@ -246,7 +246,7 @@ struct WelcomeWindowTests {
         ])
     }
 
-    /// The menu's Welcome… opens it at its first step, wherever it was left.
+    /// The menu's Show Welcome Window opens it at its first step, wherever it was left.
     @Test func itOpensAtItsFirstStep() {
         let made = Made()
 

@@ -105,6 +105,14 @@ public struct Card: Equatable, Sendable, Identifiable {
     public let lines: [Line]
     /// New while its session showed: washed orange from then (`Wash`).
     public let washed: Date?
+    /// No window holds its session.
+    public let isAway: Bool
+
+    /// Its mark while it is open: asleep, unlit; waiting in a session no window holds, the away ring; else needs you's
+    /// dot.
+    public var mark: Mark {
+        snoozedUntil != nil ? .snoozed : isAway ? .awayAsk : .needs
+    }
 }
 
 extension Card {
@@ -130,7 +138,8 @@ extension Card {
         self.init(
             id: AskAddress(session: session, ask: ask.id), title: ask.title, where: ask.where, needs: ask.needs,
             since: ask.at, isClosed: closed != nil, snoozedUntil: snoozedUntil, buttons: buttons,
-            lines: lines + (inbox ? [.inbox] : []) + (unslept.map { [$0] } ?? []), washed: washed
+            lines: lines + (inbox ? [.inbox] : []) + (unslept.map { [$0] } ?? []), washed: washed,
+            isAway: doing.isAway
         )
     }
 

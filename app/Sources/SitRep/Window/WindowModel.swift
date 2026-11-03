@@ -45,11 +45,10 @@ final class WindowModel {
     /// How often the ages are drawn again while nothing else changes.
     private static let tick: TimeInterval = 30
 
-    /// `period`, how long a your-turn row stays before it folds into "N earlier", as Lee set it; `openSettings`, the
-    /// Settings window, which the sidebar's foot opens.
+    /// `period`, how long a your-turn row stays before it folds into "N earlier", as Lee set it.
     init(
         plugin: Plugin, works: Works, snoozes: Snoozes, following: Following, period: FoldPeriod,
-        openSettings: @escaping @MainActor @Sendable () -> Void, defaults: UserDefaults = .standard
+        defaults: UserDefaults = .standard
     ) {
         self.plugin = plugin
         self.works = works
@@ -81,8 +80,7 @@ final class WindowModel {
             pointerOverPage: { [weak self] in self?.pointer(overPage: $0, from: $1) },
             fold: { [weak self] in self?.fold($0) },
             filter: { [weak self] in self?.narrow(to: $0) },
-            openFirstMatch: { [weak self] in self?.openFirstMatch() },
-            openSettings: openSettings
+            openFirstMatch: { [weak self] in self?.openFirstMatch() }
         )
         listen()
     }

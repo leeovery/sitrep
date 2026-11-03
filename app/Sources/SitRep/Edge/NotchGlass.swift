@@ -296,7 +296,7 @@ struct GlassSessionRow: View {
                 Text(session.project).font(.system(size: 12)).foregroundStyle(.tertiary)
                     .placed(in: at.sub.offsetBy(dx: 0, dy: TextLine.drop(of: EdgeStyle.sub, to: EdgeStyle.line, lineHeight: at.sub.height)))
             } else {
-                Text(session.sub).font(.system(size: 12)).foregroundStyle(soft)
+                Text(session.sub).font(.system(size: 12)).foregroundStyle(soft).opacity(awayDim)
                     .placed(in: at.sub)
             }
             if pressed {
@@ -319,8 +319,12 @@ struct GlassSessionRow: View {
     /// Under the pointer, a row that jumps lifts; an away one, which jumps nowhere, does not.
     private var lit: Bool { hovered && session.jumps }
 
-    /// The line under its title, and its "+2": dimmer while no window holds it, or in Snoozed.
-    private var soft: HierarchicalShapeStyle { session.away || session.isSnoozed ? .tertiary : .secondary }
+    /// The line under its title, and its "+2": dimmer in Snoozed.
+    private var soft: HierarchicalShapeStyle { session.isSnoozed ? .tertiary : .secondary }
+
+    /// Its title and the line under it, dimmed by the one factor while no window holds it, but in Snoozed, quieted
+    /// already.
+    private var awayDim: Double { session.away && !session.isSnoozed ? Away.dim : 1 }
 
     /// What its time's place says: its age, or in Snoozed when it wakes.
     private var time: String { session.timeText(at: now, in: calendar) }
@@ -342,10 +346,12 @@ struct GlassSessionRow: View {
         Spinner(track: .quaternaryLabelColor, arc: .labelColor, period: 1).frame(width: 11, height: 11)
     }
 
-    /// Needs you an orange dot with its glow, away or not; your turn an open ring; working the arc turning; on its own
-    /// work the dotted ring, still; in Snoozed a dot in the tertiary, unlit.
+    /// Needs you an orange dot with its glow, and away a hollow orange ring, unlit (`Away`); your turn an open ring;
+    /// working the arc turning; on its own work the dotted ring, still; in Snoozed a dot in the tertiary, unlit.
     @ViewBuilder private var mark: some View {
         switch session.kind {
+        case .needs where session.away:
+            AwayRing(ink: GlassInk.orange)
         case .needs:
             Circle().fill(GlassInk.orange).frame(width: 7, height: 7)
                 .shadow(color: GlassInk.orange.opacity(0.75), radius: 2)
@@ -363,7 +369,7 @@ struct GlassSessionRow: View {
 
     /// Its title in a box this wide, cut short before a session's "+2", which sits 6 after it on its baseline: a
     /// working one shimmering along its lead, its subject still; one on its own work still, its subject plain where it
-    /// is no command; an away one dim.
+    /// is no command; an away one dim, its "+2" with it.
     private func title(width: Double) -> some View {
         let line = session.headline
 
@@ -376,7 +382,7 @@ struct GlassSessionRow: View {
             } else if session.kind == .onItsWork {
                 (lead(line) + subject(line) + plain(line)).foregroundStyle(.secondary).truncationMode(.tail)
             } else {
-                let style: HierarchicalShapeStyle = session.isSnoozed ? .secondary : session.away ? .tertiary : .primary
+                let style: HierarchicalShapeStyle = session.isSnoozed ? .secondary : .primary
                 (lead(line).foregroundStyle(style) + subject(line).foregroundStyle(style)).truncationMode(.tail)
             }
             if let more = line.more {
@@ -385,6 +391,7 @@ struct GlassSessionRow: View {
             }
         }
         .lineLimit(1)
+        .opacity(awayDim)
     }
 
     private func lead(_ line: Session.Line) -> Text { Text(line.title).font(titleFont).kerning(oneLine ? -0.13 : -0.14) }

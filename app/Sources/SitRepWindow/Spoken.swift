@@ -105,6 +105,7 @@ public enum Spoken {
     public static func mark(_ mark: Mark) -> String {
         switch mark {
         case .needs: "needs you"
+        case .awayAsk: "needs you, away"
         case .turn: "your turn"
         case .working: "working"
         case .onItsWork: "on its own work"

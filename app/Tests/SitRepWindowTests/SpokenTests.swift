@@ -136,8 +136,8 @@ struct SpokenTests {
     }
 
     @Test(arguments: [
-        (Mark.needs, "needs you"), (.turn, "your turn"), (.working, "working"), (.onItsWork, "on its own work"),
-        (.away, "away"),
+        (Mark.needs, "needs you"), (.awayAsk, "needs you, away"), (.turn, "your turn"), (.working, "working"),
+        (.onItsWork, "on its own work"), (.away, "away"),
     ])
     func aMarkReadsAsWhatItMeans(mark: Mark, words: String) {
         #expect(Spoken.mark(mark) == words)

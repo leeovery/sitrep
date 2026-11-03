@@ -9,7 +9,6 @@ enum EdgeStyle {
     static let ink = srgb(0xF5F5F7)
     static let ink2 = srgb(0x98989F)
     static let ink3 = srgb(0x5C5C63)
-    static let off = srgb(0x6E6E76)
     static let hover = srgb(0x141416)
     /// A row a click is jumping from, pressed in.
     static let press = srgb(0x1C1C20)

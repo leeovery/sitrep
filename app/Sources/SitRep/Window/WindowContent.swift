@@ -35,8 +35,6 @@ struct WindowActions: Sendable {
     var filter: @MainActor @Sendable (String) -> Void = { _ in }
     /// Return in the Filter field.
     var openFirstMatch: @MainActor @Sendable () -> Void = {}
-    /// Settings at the sidebar's foot pressed: the Settings window.
-    var openSettings: @MainActor @Sendable () -> Void = {}
 }
 
 extension EnvironmentValues {

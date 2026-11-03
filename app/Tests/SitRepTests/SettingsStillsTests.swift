@@ -110,9 +110,9 @@ struct SettingsStillsTests {
         try Self.pane(pane, settings, "\(pane.rawValue)-narrowest", width: SettingsWindow.smallest.width - 188)
     }
 
-    /// The sidebar's foot as the window lays it out: the system's own list in the list's bar, over black where the
-    /// glass would be, which nothing offscreen draws.
-    @Test func theFootInTheWindow() throws {
+    /// The sidebar as the window lays it out, its list running to the glass's foot, over black where the glass would
+    /// be, which nothing offscreen draws.
+    @Test func theSidebarInTheWindow() throws {
         let drawing = try HostedSidebar(HostedSidebar.opened()).drawn().bitmap
         let rect = NSRect(x: 0, y: 0, width: drawing.pixelsWide, height: drawing.pixelsHigh)
         let still = try #require(NSBitmapImageRep(
@@ -127,7 +127,7 @@ struct SettingsStillsTests {
         drawing.draw(in: rect, from: .zero, operation: .sourceOver, fraction: 1, respectFlipped: false, hints: nil)
         NSGraphicsContext.restoreGraphicsState()
         try #require(still.representation(using: .png, properties: [:]))
-            .write(to: try #require(stills).appending(path: "foot-in-the-window.png"))
+            .write(to: try #require(stills).appending(path: "sidebar-in-the-window.png"))
     }
 
     @Test func aboutSitRep() throws {

@@ -119,6 +119,15 @@ struct SessionPageTests {
         #expect(words.needs == "the command's output")
     }
 
+    /// An ask whose session no window holds is marked with the away ring; one a window holds, needs you's dot.
+    @Test func anAwaySessionsAskTakesTheAwayRing() throws {
+        let away = try Self.card("k1", Self.picked("sr-gs7kq2", boards: ["sr-gs7kq2": Lines.away]))
+        let held = try Self.card("k1", opened())
+
+        #expect(away.isAway && away.mark == .awayAsk)
+        #expect(!held.isAway && held.mark == .needs)
+    }
+
     @Test func onAnAwaySessionAYesOrAChoiceWaitsInTheInboxAndNothingNeedsClaudesPrompt() throws {
         let choice = try Self.card("k1", Self.picked("sr-gs7kq2", boards: ["sr-gs7kq2": Lines.away]))
 

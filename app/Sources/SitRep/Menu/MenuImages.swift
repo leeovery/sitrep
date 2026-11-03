@@ -43,15 +43,16 @@ enum MenuImages {
     static let glyphSide: CGFloat = 18
     static let glyphHousing = NSRect(x: 5.9, y: 2.5, width: 6.2, height: 13)
 
-    /// A session's mark: an orange dot for needs you, an away one's too; an open ring for your turn; a turning arc's
-    /// still, for working, and the dotted ring, for on its own work, each fainter than the rest. All but the dot are
-    /// template images, so they take the menu's ink, highlighted or not.
-    static func mark(_ session: Session) -> NSImage {
+    /// A session's mark: an orange dot for needs you, and for an away one a hollow orange ring; an open ring for your
+    /// turn; the arc, for working, at this frame of its turn, and the dotted ring, for on its own work, each fainter
+    /// than the rest. The orange marks are no template images, so a disabled item does not grey them to nothing; the
+    /// rest are, so they take the menu's ink, highlighted or not.
+    static func mark(_ session: Session, turn frame: Int = 0) -> NSImage {
         switch session.kind {
-        case .needs: dot
+        case .needs: session.away ? awayRing : dot
         // the menu is given no Snoozed row (`PanelBoard.sessions`)
         case .turn, .snoozed: ring
-        case .working: arc
+        case .working: arc[frame % arc.count]
         case .onItsWork: dotted
         }
     }
@@ -66,6 +67,16 @@ enum MenuImages {
         NSBezierPath(ovalIn: NSRect(x: 4.5, y: 4.5, width: 7, height: 7)).fill()
     }
 
+    /// An away ask's: the needs dot's footprint, hollow, unlit (`Away`).
+    private static let awayRing = drawn(isTemplate: false) {
+        let side = Away.ringSide - Away.ringLine, inset = (lane.width - side) / 2
+        let ring = NSBezierPath(ovalIn: NSRect(x: inset, y: inset, width: side, height: side))
+
+        ring.lineWidth = Away.ringLine
+        orange.setStroke()
+        ring.stroke()
+    }
+
     private static let ring = drawn {
         let ring = NSBezierPath(ovalIn: NSRect(x: 4.25, y: 4.25, width: 7.5, height: 7.5))
 
@@ -74,18 +85,24 @@ enum MenuImages {
         ring.stroke()
     }
 
-    private static let arc = drawn {
-        let track = NSBezierPath(ovalIn: NSRect(x: 3.5, y: 3.5, width: 9, height: 9))
-        let turn = NSBezierPath()
+    /// Working's arc round its track, a frame for each step of its turn, drawn once: the first, from the top, is the
+    /// still one, and shown in turn, one each `MenuTurn.step`, they turn it clockwise once a second, as the panel's.
+    static let arc = (0 ..< MenuTurn.frames).map { frame in
+        drawn {
+            let track = NSBezierPath(ovalIn: NSRect(x: 3.5, y: 3.5, width: 9, height: 9))
+            let turn = NSBezierPath()
+            let start = 270 + 360 * CGFloat(frame) / CGFloat(MenuTurn.frames)
 
-        track.lineWidth = 1.5
-        NSColor.black.withAlphaComponent(0.15).setStroke()
-        track.stroke()
-        turn.appendArc(withCenter: NSPoint(x: 8, y: 8), radius: 4.5, startAngle: 270, endAngle: 0)
-        turn.lineWidth = 1.5
-        turn.lineCapStyle = .round
-        NSColor.black.withAlphaComponent(0.6).setStroke()
-        turn.stroke()
+            track.lineWidth = 1.5
+            NSColor.black.withAlphaComponent(0.15).setStroke()
+            track.stroke()
+            // y runs down, so the angles run clockwise
+            turn.appendArc(withCenter: NSPoint(x: 8, y: 8), radius: 4.5, startAngle: start, endAngle: start + 90)
+            turn.lineWidth = 1.5
+            turn.lineCapStyle = .round
+            NSColor.black.withAlphaComponent(0.6).setStroke()
+            turn.stroke()
+        }
     }
 
     /// The card's dotted ring, as faint as the arc.

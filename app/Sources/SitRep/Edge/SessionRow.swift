@@ -202,12 +202,18 @@ final class SessionRow {
         titleLayers = made
     }
 
-    /// An away row's words dim; a Snoozed row's are soft, away or not, its "+2" and its project faint.
+    /// A Snoozed row's words are soft, away or not, its "+2" and its project faint; an away row's title and the line
+    /// under it dim as one (`Away`).
     private var titleColour: CGColor {
-        session.isSnoozed ? EdgeStyle.ink2 : session.away ? EdgeStyle.off : EdgeStyle.ink
+        session.isSnoozed ? EdgeStyle.ink2 : awayDimmed(EdgeStyle.ink)
     }
 
-    private var subColour: CGColor { session.away || session.isSnoozed ? EdgeStyle.ink3 : EdgeStyle.ink2 }
+    private var subColour: CGColor { session.isSnoozed ? EdgeStyle.ink3 : awayDimmed(EdgeStyle.ink2) }
+
+    /// A colour of its words, dimmed by `Away.dim` on an away row, over the black.
+    private func awayDimmed(_ colour: CGColor) -> CGColor {
+        session.away ? colour.copy(alpha: Away.dim) ?? colour : colour
+    }
 
     /// Its title's layers: the title, and a session's "+2" after it, board F's, quiet in the second line's colour, 6
     /// after the name on its baseline, which the name is cut short to leave room for.
@@ -269,10 +275,13 @@ final class SessionRow {
         return text
     }
 
-    /// Its mark: needs you an orange dot with its glow, away or not; your turn an open white ring, on one line board
-    /// D's 9; working the arc turning; on its own work the dotted ring, still; in Snoozed a faint dot, unlit.
+    /// Its mark: needs you an orange dot with its glow, and away a hollow orange ring, unlit (`Away`); your turn an
+    /// open white ring, on one line board D's 9; working the arc turning; on its own work the dotted ring, still; in
+    /// Snoozed a faint dot, unlit.
     private func mark(at centre: CGPoint) -> CALayer {
         switch session.kind {
+        case .needs where session.away:
+            return Self.ring(Away.ringSide, at: centre, colour: EdgeStyle.orange)
         case .needs:
             let dot = Self.disc(7, at: centre, fill: EdgeStyle.orange)
 
@@ -310,7 +319,7 @@ final class SessionRow {
         arc(in: CGRect(x: lane.maxX - 11, y: lane.midY - 5.5, width: 11, height: 11))
     }
 
-    /// An open ring this wide, its stroke 1.5 inside it: your turn's, and "N earlier"'s.
+    /// An open ring this wide, its stroke 1.5 inside it: your turn's, an away ask's, and "N earlier"'s.
     static func ring(_ size: CGFloat, at centre: CGPoint, colour: CGColor) -> CALayer {
         let ring = disc(size, at: centre, fill: CGColor.clear)
 

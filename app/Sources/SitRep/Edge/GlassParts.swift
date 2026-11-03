@@ -32,10 +32,9 @@ enum GlassInk {
     static let orangeArc = NSColor(cgColor: EdgeStyle.color(LiveLight.orange)) ?? .systemOrange
 }
 
-/// An arc turning round a track, once in a period, or held still with none: a working row's mark.
-/// Black's arc, turned by Core Animation in the render server: the app does no work as it turns, and no update of the
-/// views round it, animated or not, restarts it.
-@available(macOS 26, *)
+/// An arc turning round a track, once in a period, or held still with none: a working row's mark, on the glass and in
+/// the SitRep window. Black's arc, turned by Core Animation in the render server: the app does no work as it turns, and
+/// no update of the views round it, animated or not, restarts it.
 struct Spinner: NSViewRepresentable {
     /// In the label colours, which the view resolves for the glass's appearance.
     let track: NSColor?
@@ -68,6 +67,10 @@ final class SpinnerView: NSView {
     }
 
     override var isFlipped: Bool { true }
+
+    var isTurning: Bool {
+        spinner.isTurning
+    }
 
     func show(track: NSColor?, arc: NSColor, period: Double?) {
         colours = (track, arc)
@@ -127,9 +130,8 @@ struct Shimmering: View {
     }
 }
 
-/// The lit title in a view of its own, masked by the band of light.
-@available(macOS 26, *)
-private struct Sweep: NSViewRepresentable {
+/// The lit title in a view of its own, masked by the band of light: on the glass, and in the SitRep window.
+struct Sweep: NSViewRepresentable {
     let lit: AnyView
     let width: Double
 
@@ -140,9 +142,8 @@ private struct Sweep: NSViewRepresentable {
     }
 }
 
-@available(macOS 26, *)
 @MainActor
-private final class SweepView: NSView {
+final class SweepView: NSView {
     private let lit = NSHostingView(rootView: AnyView(EmptyView()))
     private var band: ShimmerBand?
 
@@ -159,6 +160,10 @@ private final class SweepView: NSView {
     }
 
     override var isFlipped: Bool { true }
+
+    var isSweeping: Bool {
+        band?.layer.animation(forKey: Self.key) != nil
+    }
 
     func show(_ title: AnyView, width: Double) {
         lit.rootView = AnyView(title.frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading))
