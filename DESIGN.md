@@ -4576,6 +4576,20 @@ does; the boards first drew it on a band of black.
     a new ask; while macOS refuses, A new ask's playback promises no
     notification and carries that fix.
   - **Step 6's A click** with the leave: "Opens the session's window".
+- **Settled in the build** (Lee's notes on the live welcome, 3 November
+  2026):
+  - **Keyboard focus** rests on nothing as the window opens, as in the
+    Mac's own setup assistants, and Return presses Continue. Lee: "I don't
+    like that 'skip setup' is focused by default, and that I don't seem to
+    be able to change that focus. That's odd Mac behaviour." AppKit, ordering
+    the window in with Keyboard navigation on, gave focus to its first key
+    view, Skip setup at step 1, which has no controls. Tab and Shift-Tab go
+    through the step's controls in reading order, the footer last; where
+    the control holding focus goes with its step, focus goes back to
+    nothing. Continue's focus ring is a pill and back's a circle.
+  - **At Nothing on step 4,** the stage's menu bar item rests until a
+    sound is chosen there, then stays lit, as a real ask lights it;
+    leaving the step and coming back puts it to rest again.
 
 ### Settings
 
