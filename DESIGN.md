@@ -4470,8 +4470,14 @@ does; the boards first drew it on a band of black.
      takes Style's place in a cross-fade, one row for another, so the form
      keeps its height and holds only what applies. Settings' Edge pane
      changes at once instead, as its height changes with it (Lee found its
-     motion jarring). Nothing, neither shape, stays in Settings: a welcome
-     is no place to offer turning SitRep off. Each press sets the setting
+     motion jarring). Under the form, a quiet text button, Show nothing
+     at the edge, sets Show to Nothing (Lee, 3 November 2026: "I think I
+     should be able to say nothing"): neither tile is ringed, the rows
+     stay but dim, the line "Only the menu bar's light. Choose Notch or
+     Strip to bring it back." takes the button's place, and the stage
+     shows no edge from here on, step 4's chime lighting its menu bar
+     item instead; steps 1 and 2 still show the notch, which they teach.
+     The drawn boards left Nothing to Settings. Each press sets the setting
      itself, so the stage and the real edge, at full size beside the
      window, move at once. The stage's notch is lit, as for needs you,
      since at rest it is 7 points of black a first look would miss.
