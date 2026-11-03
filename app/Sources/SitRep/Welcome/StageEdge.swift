@@ -200,7 +200,8 @@ final class StageEdge: NSView {
             tell(due, isNew: due)
         }
 
-        let pointer = play.loop?.pointer(at: loopTime, notchY: edge.stage.notchY, row: row)
+        let edge = edge
+        let pointer = play.loop?.pointer(at: loopTime, home: shape.home(of: WelcomeBoard.asking, on: edge), row: row)
 
         shape.step(at: time, pointer: pointer, edge, staged)
         press(at: time)
@@ -533,6 +534,8 @@ protocol StageShape: AnyObject {
     func resting(on edge: ScreenEdge) -> CGRect
     /// The middle of a session's row on the stage, while the shape shows it.
     func middle(of session: String, on edge: ScreenEdge, _ settings: EdgeSettings) -> CGPoint?
+    /// Where the loop's pointer touches the shape and rests while it pours, lighting no session but this one.
+    func home(of session: String, on edge: ScreenEdge) -> CGPoint
     func apply(_ settings: EdgeSettings, at time: Double, _ edge: ScreenEdge)
     func show(_ board: PanelBoard, at time: Double, _ edge: ScreenEdge, _ settings: EdgeSettings)
     /// One frame, the pointer where the stage puts it, drawn as the real edge draws it.
@@ -574,6 +577,8 @@ final class StageNotch: StageShape {
 
         return on.first.map { CGPoint(x: x, y: ($0 + on[on.count - 1]) / 2) }
     }
+
+    func home(of session: String, on edge: ScreenEdge) -> CGPoint { edge.notchHome }
 
     func apply(_ settings: EdgeSettings, at time: Double, _ edge: ScreenEdge) {
         notch.material = settings.material
@@ -678,9 +683,14 @@ final class StageStrip: StageShape {
         CGRect(x: 0, y: edge.stage.notchY, width: Strip.restingWidth, height: 0)
     }
 
-    /// The strip has no panel: the pointer rests on its mark.
+    /// The strip has no panel: the pointer rests on its mark (`home`).
     func middle(of session: String, on edge: ScreenEdge, _ settings: EdgeSettings) -> CGPoint? {
         nil
+    }
+
+    /// On the session's mark, so only its own tab pours: every point along the marks is near enough one to pour it.
+    func home(of session: String, on edge: ScreenEdge) -> CGPoint {
+        run?.frame.marks.first { $0.key == .session(session) }?.centre ?? edge.notchHome
     }
 
     func apply(_ settings: EdgeSettings, at time: Double, _ edge: ScreenEdge) {
@@ -746,6 +756,8 @@ final class StageNoEdge: StageShape {
 
     func middle(of session: String, on edge: ScreenEdge, _ settings: EdgeSettings) -> CGPoint? { nil }
 
+    func home(of session: String, on edge: ScreenEdge) -> CGPoint { edge.notchHome }
+
     func apply(_ settings: EdgeSettings, at time: Double, _ edge: ScreenEdge) {}
 
     func show(_ board: PanelBoard, at time: Double, _ edge: ScreenEdge, _ settings: EdgeSettings) {}
@@ -759,4 +771,9 @@ final class StageNoEdge: StageShape {
     func drawLight(at time: Double, _ settings: EdgeSettings) {}
 
     func pace(at time: Double, _ settings: EdgeSettings) -> StagePace { .still }
+}
+
+private extension ScreenEdge {
+    /// On the notch at its home, in the panel's side padding as it pours, which no row covers.
+    var notchHome: CGPoint { CGPoint(x: 4, y: stage.notchY) }
 }

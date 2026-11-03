@@ -514,59 +514,75 @@ struct WelcomeStagePlayTests {
         #expect(!WelcomeLoop.hello.asks(at: WelcomeLoop.hello.length + 1))
     }
 
+    private static let home = CGPoint(x: 4, y: 300), row = CGPoint(x: 150, y: 120)
+
     /// The pointer comes to the notch, rests on the panel it pours, and leaves, so it closes.
     @Test func thePointerComesToTheNotchRestsAndLeaves() throws {
-        let notchY = 300.0
-        let path = stride(from: 0, to: WelcomeLoop.hello.length, by: 100).map { WelcomeLoop.hello.pointer(at: $0, notchY: notchY) }
+        let path = stride(from: 0, to: WelcomeLoop.hello.length, by: 100).map {
+            WelcomeLoop.hello.pointer(at: $0, home: Self.home)
+        }
         let present = path.compactMap(\.self)
 
         #expect(path.first == .some(nil))
         #expect(path.last == .some(nil))
-        #expect(present.contains(CGPoint(x: 4, y: notchY)))
+        #expect(present.contains(Self.home))
         #expect(try #require(present.first).x > 200)
-        #expect(present.map(\.x).min() == 4)
-        #expect(WelcomeLoop.hello.pointer(at: WelcomeLoop.hello.lands, notchY: notchY) == nil)
+        #expect(present.map(\.x).min() == Self.home.x)
+        #expect(WelcomeLoop.hello.pointer(at: WelcomeLoop.hello.lands, home: Self.home) == nil)
     }
 
-    /// Once the panel has poured, the pointer moves from the notch onto the ask's row, and rests there until it leaves.
-    @Test func afterThePourThePointerMovesOntoTheAsksRow() throws {
-        let notchY = 300.0, row = CGPoint(x: 150, y: 120)
+    /// Once the panel has poured, the pointer steps from the notch onto the ask's row, and rests there until it leaves.
+    @Test func afterThePourThePointerStepsOntoTheAsksRow() throws {
         let path = stride(from: 0, to: WelcomeLoop.hello.length, by: 100).compactMap {
-            WelcomeLoop.hello.pointer(at: $0, notchY: notchY, row: row)
+            WelcomeLoop.hello.pointer(at: $0, home: Self.home, row: Self.row)
         }
-        let onNotch = try #require(path.firstIndex(of: CGPoint(x: 4, y: notchY)))
-        let onRow = try #require(path.firstIndex(of: row))
+        let onRow = try #require(path.firstIndex(of: Self.row))
 
-        #expect(onNotch < onRow)
-        #expect(try #require(path.lastIndex(of: CGPoint(x: 4, y: notchY))) < onRow)
-        #expect(path.filter { $0 == row }.count >= 20)
+        #expect(try #require(path.lastIndex(of: Self.home)) == onRow - 1)
+        #expect(path[onRow...].allSatisfy { $0 == Self.row })
+        #expect(path.filter { $0 == Self.row }.count >= 20)
+        #expect(WelcomeLoop.hello.pointer(at: WelcomeLoop.hello.onRow, home: Self.home, row: Self.row) == Self.row)
+    }
+
+    /// From the moment it touches the edge, in both loops, the pointer is only ever at home, which no row covers, or
+    /// on the ask's row: never between them, where it would light another row as it passed, nor on its way off.
+    @Test(arguments: [WelcomeLoop.hello, .ask])
+    func onTheEdgeThePointerIsOnlyAtHomeOrOnTheRow(_ loop: WelcomeLoop) {
+        for time in stride(from: loop.arrive, to: loop.length, by: 10) {
+            let pointer = loop.pointer(at: time, home: Self.home, row: Self.row)
+
+            #expect(pointer == nil || pointer == Self.home || pointer == Self.row, "at \(time)")
+            if loop.findsRow(at: time) {
+                #expect(pointer != nil, "at \(time)")
+            }
+        }
+        #expect(loop.pointer(at: loop.leave - 1, home: Self.home, row: Self.row) == Self.row)
+        #expect(loop.pointer(at: loop.leave, home: Self.home, row: Self.row) == nil)
     }
 
     /// The panel looks for the ask's row from the pointer's setting off for it until the pointer is gone.
     @Test func thePanelFindsTheRowOnlyWhileThePointerGoesToIt() throws {
         let times = stride(from: 0, to: WelcomeLoop.hello.length, by: 100)
         let finding = times.filter(WelcomeLoop.hello.findsRow(at:))
-        let pointing = times.filter { WelcomeLoop.hello.pointer(at: $0, notchY: 300, row: CGPoint(x: 150, y: 120)) != nil }
+        let pointing = times.filter { WelcomeLoop.hello.pointer(at: $0, home: Self.home, row: Self.row) != nil }
         let first = try #require(finding.first)
 
         #expect(Set(finding).isSubset(of: Set(pointing)))
-        #expect(WelcomeLoop.hello.pointer(at: first - 100, notchY: 300) == CGPoint(x: 4, y: 300))
+        #expect(WelcomeLoop.hello.pointer(at: first - 100, home: Self.home) == Self.home)
+        #expect(WelcomeLoop.hello.pointer(at: first, home: Self.home, row: Self.row) == Self.home)
     }
 
-    /// Frames sleep between the pointer's glides: it moves only on its way to the notch, to the row, and away.
+    /// Frames sleep but for the pointer's one glide, on its way to the notch: its step onto the row is a beat.
     @Test func thePointerMovesOnlyWhileItGlides() {
         let times = stride(from: 0, to: WelcomeLoop.hello.length, by: 50)
 
         for time in times {
-            let before = WelcomeLoop.hello.pointer(at: time, notchY: 300, row: CGPoint(x: 150, y: 120))
-            let after = WelcomeLoop.hello.pointer(at: time + 50, notchY: 300, row: CGPoint(x: 150, y: 120))
+            let before = WelcomeLoop.hello.pointer(at: time, home: Self.home, row: Self.row)
+            let after = WelcomeLoop.hello.pointer(at: time + 50, home: Self.home, row: Self.row)
+            let steps = before == Self.home && after == Self.row
+            let glides = before != nil && after != nil && before != after && !steps
 
-            if before != nil, after != nil, before != after {
-                #expect(WelcomeLoop.hello.pointerMoves(at: time), "at \(time)")
-            }
-            if before == after {
-                #expect(!WelcomeLoop.hello.pointerMoves(at: time) || before == nil, "at \(time)")
-            }
+            #expect(WelcomeLoop.hello.pointerMoves(at: time) == glides, "at \(time)")
         }
     }
 
@@ -577,6 +593,7 @@ struct WelcomeStagePlayTests {
         #expect(WelcomeLoop.hello.pointerMoves(at: WelcomeLoop.hello.next(after: WelcomeLoop.hello.lands)))
         #expect(WelcomeLoop.hello.next(after: WelcomeLoop.hello.length + 10) == WelcomeLoop.hello.length + WelcomeLoop.hello.lands)
         #expect(WelcomeLoop.hello.next(after: WelcomeLoop.hello.length - 1) == WelcomeLoop.hello.length)
+        #expect(WelcomeLoop.hello.next(after: WelcomeLoop.hello.toRow) == WelcomeLoop.hello.onRow)
     }
 
     /// Step 1's loop shows no session and lights no words: the ask stays to its end and no row is clicked.
@@ -620,17 +637,17 @@ struct WelcomeAskLoopTests {
     }
 
     /// The pointer reaches the notch, which pours, then the row, and presses it there until the jump lands; then it
-    /// goes into the session's window.
+    /// leaves the stage, into the session's window.
     @Test func thePointerPressesTheRowItRestsOn() throws {
-        let row = CGPoint(x: 150, y: 120)
+        let home = CGPoint(x: 4, y: 300), row = CGPoint(x: 150, y: 120)
         let presses = try #require(Self.span(Self.loop.presses(at:)))
 
         #expect(presses.lowerBound == Self.loop.clicks)
         for time in Self.times where Self.loop.presses(at: time) {
-            #expect(Self.loop.pointer(at: time, notchY: 300, row: row) == row, "at \(time)")
+            #expect(Self.loop.pointer(at: time, home: home, row: row) == row, "at \(time)")
         }
-        #expect(Self.loop.pointer(at: presses.upperBound + 50, notchY: 300, row: row) == row)
-        #expect(Self.loop.pointer(at: Self.loop.lands, notchY: 300, row: row) == nil)
+        #expect(Self.loop.pointer(at: presses.upperBound + 50, home: home, row: row) == nil)
+        #expect(Self.loop.pointer(at: Self.loop.lands, home: home, row: row) == nil)
         #expect(Self.loop.findsRow(at: presses.lowerBound))
     }
 
