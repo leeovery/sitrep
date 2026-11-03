@@ -538,30 +538,47 @@ struct WelcomeStagePlayTests {
         }
         let onRow = try #require(path.firstIndex(of: Self.row))
 
+        let left = try #require(path.lastIndex(of: Self.row))
+
         #expect(try #require(path.lastIndex(of: Self.home)) == onRow - 1)
-        #expect(path[onRow...].allSatisfy { $0 == Self.row })
-        #expect(path.filter { $0 == Self.row }.count >= 20)
+        #expect(path[onRow ... left].allSatisfy { $0 == Self.row })
+        #expect(path[onRow ... left].count >= 20)
         #expect(WelcomeLoop.hello.pointer(at: WelcomeLoop.hello.onRow, home: Self.home, row: Self.row) == Self.row)
     }
 
-    /// From the moment it touches the edge, in both loops, the pointer is only ever at home, which no row covers, or
-    /// on the ask's row: never between them, where it would light another row as it passed, nor on its way off.
+    /// From the moment it touches the edge, in both loops, the pointer is only ever at home, which no row covers, on
+    /// the ask's row, or level with the row going out from it: never between home and the row, where it would light
+    /// another row as it passed, nor off the row's height on its way out.
     @Test(arguments: [WelcomeLoop.hello, .ask])
-    func onTheEdgeThePointerIsOnlyAtHomeOrOnTheRow(_ loop: WelcomeLoop) {
+    func onTheEdgeThePointerIsAtHomeOnTheRowOrLevelWithItGoingOut(_ loop: WelcomeLoop) {
         for time in stride(from: loop.arrive, to: loop.length, by: 10) {
             let pointer = loop.pointer(at: time, home: Self.home, row: Self.row)
+            let goesOut = pointer.map { $0.y == Self.row.y && $0.x >= Self.row.x } ?? true
 
-            #expect(pointer == nil || pointer == Self.home || pointer == Self.row, "at \(time)")
+            #expect(pointer == Self.home || goesOut, "at \(time)")
             if loop.findsRow(at: time) {
                 #expect(pointer != nil, "at \(time)")
             }
         }
         #expect(loop.pointer(at: loop.leave - 1, home: Self.home, row: Self.row) == Self.row)
-        #expect(loop.pointer(at: loop.leave, home: Self.home, row: Self.row) == nil)
+        #expect(loop.pointer(at: loop.gone ?? loop.leave, home: Self.home, row: Self.row) == nil)
     }
 
-    /// The panel looks for the ask's row from the pointer's setting off for it until the pointer is gone.
-    @Test func thePanelFindsTheRowOnlyWhileThePointerGoesToIt() throws {
+    /// Step 1's pointer glides off the row past the panel's front, 372 deep, so the notch closes as a hand leaving it
+    /// closes it; with no row found, it leaves at once from home, as a glide from there would cross the rows. Step
+    /// 2's leaves at once, as the jump takes Lee into the session.
+    @Test func onlyStepOnesPointerGlidesOffTheRow() throws {
+        let hello = WelcomeLoop.hello, gone = try #require(hello.gone)
+        let out = try #require(hello.pointer(at: gone - 1, home: Self.home, row: Self.row))
+
+        #expect(out.y == Self.row.y && out.x > 372)
+        #expect(hello.pointerMoves(at: hello.leave))
+        #expect(hello.pointer(at: hello.leave, home: Self.home) == nil)
+        #expect(WelcomeLoop.ask.gone == nil && !WelcomeLoop.ask.pointerMoves(at: WelcomeLoop.ask.leave))
+    }
+
+    /// The stage looks for the ask's row from once the panel has poured until the pointer leaves the row.
+    @Test func theStageLooksForTheRowFromThePourUntilThePointerLeavesIt() throws {
         let times = stride(from: 0, to: WelcomeLoop.hello.length, by: 100)
         let finding = times.filter(WelcomeLoop.hello.findsRow(at:))
         let pointing = times.filter { WelcomeLoop.hello.pointer(at: $0, home: Self.home, row: Self.row) != nil }
@@ -570,9 +587,10 @@ struct WelcomeStagePlayTests {
         #expect(Set(finding).isSubset(of: Set(pointing)))
         #expect(WelcomeLoop.hello.pointer(at: first - 100, home: Self.home) == Self.home)
         #expect(WelcomeLoop.hello.pointer(at: first, home: Self.home, row: Self.row) == Self.home)
+        #expect(!WelcomeLoop.hello.findsRow(at: WelcomeLoop.hello.leave))
     }
 
-    /// Frames sleep but for the pointer's one glide, on its way to the notch: its step onto the row is a beat.
+    /// Frames sleep but for the pointer's glides, to the notch and off the row: its step onto the row is a beat.
     @Test func thePointerMovesOnlyWhileItGlides() {
         let times = stride(from: 0, to: WelcomeLoop.hello.length, by: 50)
 
@@ -580,9 +598,13 @@ struct WelcomeStagePlayTests {
             let before = WelcomeLoop.hello.pointer(at: time, home: Self.home, row: Self.row)
             let after = WelcomeLoop.hello.pointer(at: time + 50, home: Self.home, row: Self.row)
             let steps = before == Self.home && after == Self.row
-            let glides = before != nil && after != nil && before != after && !steps
 
-            #expect(WelcomeLoop.hello.pointerMoves(at: time) == glides, "at \(time)")
+            if before != nil, after != nil, before != after, !steps {
+                #expect(WelcomeLoop.hello.pointerMoves(at: time), "at \(time)")
+            }
+            if before == after || steps {
+                #expect(!WelcomeLoop.hello.pointerMoves(at: time), "at \(time)")
+            }
         }
     }
 
@@ -593,7 +615,7 @@ struct WelcomeStagePlayTests {
         #expect(WelcomeLoop.hello.pointerMoves(at: WelcomeLoop.hello.next(after: WelcomeLoop.hello.lands)))
         #expect(WelcomeLoop.hello.next(after: WelcomeLoop.hello.length + 10) == WelcomeLoop.hello.length + WelcomeLoop.hello.lands)
         #expect(WelcomeLoop.hello.next(after: WelcomeLoop.hello.length - 1) == WelcomeLoop.hello.length)
-        #expect(WelcomeLoop.hello.next(after: WelcomeLoop.hello.toRow) == WelcomeLoop.hello.onRow)
+        #expect(WelcomeLoop.hello.next(after: WelcomeLoop.hello.seeks) == WelcomeLoop.hello.onRow)
     }
 
     /// Step 1's loop shows no session and lights no words: the ask stays to its end and no row is clicked.

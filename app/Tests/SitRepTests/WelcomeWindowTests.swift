@@ -780,7 +780,7 @@ struct WelcomeWindowTests {
     }
 
     /// The ask's row is found again on the shape as it now stands: another style's panel lays it elsewhere, and the
-    /// strip has none. Frames on a clock of the test's own, never awaiting, so no frame on the display's clock comes
+    /// strip's is its mark, in the strip's depth. Frames on a clock of the test's own, never awaiting, so no frame on the display's clock comes
     /// between them.
     @Test func theLoopsPointerFindsTheRowAgainAfterAChange() throws {
         let made = Made()
@@ -806,7 +806,7 @@ struct WelcomeWindowTests {
         #expect(stage.row != meniscus)
         made.preferences.edit { $0.show = .strip }
         stage.step(at: time + 1000 / 60)
-        #expect(stage.row == nil)
+        #expect(try #require(stage.row).x < Strip.restingWidth)
     }
 
     /// The strip centres where the notch sits on the stage, Paper's place, wherever Lee dragged his own, so the

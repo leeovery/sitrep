@@ -42,10 +42,13 @@ public struct WelcomeLoop: Equatable, Sendable {
     public let length: Double
     /// When the ask lands.
     public let lands: Double
-    /// The pointer sets off for the edge and reaches it; the panel, poured, is searched for the ask's row; the pointer
-    /// is on the row; then it leaves the stage.
-    public let approach, arrive, toRow, onRow, leave: Double
-    /// When the pointer presses the ask's row; the jump lands as it sets off away. Nil where it only rests on the row.
+    /// The pointer sets off for the edge and reaches it; the stage starts to look for the ask's row on the poured
+    /// panel; the pointer is on the row; then it leaves it.
+    public let approach, arrive, seeks, onRow, leave: Double
+    /// When it is gone, once it has glided off the row out through the panel's front, so the notch closes as it does
+    /// when a hand leaves it; nil where it leaves the stage at once, as the jump takes Lee into the session.
+    public let gone: Double?
+    /// When the pointer presses the ask's row; the jump lands as it leaves. Nil where it only rests on the row.
     public let clicks: Double?
     /// When the answer shows in the session's terminal, and when the ask leaves the board: nil where it stays to the
     /// loop's end.
@@ -54,18 +57,20 @@ public struct WelcomeLoop: Equatable, Sendable {
 
     /// Step 1's: the ask lands, the panel pours, its row lit, and the pointer leaves.
     public static let hello = WelcomeLoop(
-        length: 10_000, lands: 1_500, approach: 4_000, arrive: 4_700, toRow: 5_300, onRow: 5_700, leave: 8_200,
-        clicks: nil, answers: nil, resolves: nil
+        length: 10_000, lands: 1_500, approach: 4_000, arrive: 4_700, seeks: 5_300, onRow: 5_700, leave: 8_200,
+        gone: 8_700, clicks: nil, answers: nil, resolves: nil
     )
 
     /// Step 2's: the ask lands, the panel pours, its row clicked, the answer given in its session, and the ask gone.
     public static let ask = WelcomeLoop(
-        length: 12_000, lands: 1_000, approach: 2_800, arrive: 3_500, toRow: 4_100, onRow: 4_500, leave: 5_600,
-        clicks: 5_300, answers: 7_300, resolves: 8_800
+        length: 12_000, lands: 1_000, approach: 2_800, arrive: 3_500, seeks: 4_100, onRow: 4_500, leave: 5_600,
+        gone: nil, clicks: 5_300, answers: 7_300, resolves: 8_800
     )
 
-    /// Where the pointer sets off from, out from where it touches the edge.
+    /// Where the pointer sets off from, out from where it touches the edge; and where it glides off the ask's row to,
+    /// at the row's own height, past the panel's front.
     static func from(_ home: CGPoint) -> CGPoint { CGPoint(x: 240, y: home.y + 60) }
+    static func away(_ row: CGPoint) -> CGPoint { CGPoint(x: 520, y: row.y) }
 
     /// This far into its time, the loop's own.
     public func phase(_ time: Double) -> Double {
@@ -79,9 +84,10 @@ public struct WelcomeLoop: Equatable, Sendable {
         (lands ..< (resolves ?? length)).contains(phase(time))
     }
 
-    /// Whether the panel is out to find the ask's row on, at this time into the loop.
+    /// Whether the stage looks for the ask's row at this time into the loop: on the panel poured, until the pointer
+    /// leaves the row, which it leaves from where it last found it.
     public func findsRow(at time: Double) -> Bool {
-        (toRow ..< leave).contains(phase(time))
+        (seeks ..< leave).contains(phase(time))
     }
 
     /// Whether the ask's row is pressed in at this time into the loop: from the click until the jump lands.
@@ -90,9 +96,10 @@ public struct WelcomeLoop: Equatable, Sendable {
     }
 
     /// The pointer on the stage at this time into the loop: gliding to where it touches the edge, `home`, and resting
-    /// there as the panel pours; then on the ask's row's middle where the panel shows it, else still at home; nil
-    /// while it is elsewhere, off the stage. Only its glide moves it: it steps onto the row, and off the stage, at
-    /// once, so it crosses no other row on the way, which would light as if a hidden pointer passed over it.
+    /// there as the panel pours; then on the ask's row's middle where the panel shows it, else still at home; then
+    /// gliding off the row at its own height, or with no row or no glide, gone at once; nil while it is elsewhere,
+    /// off the stage. It steps onto the row rather than gliding to it, and leaves level with it, so it crosses no
+    /// other row, which would light as if a hidden pointer passed over it.
     public func pointer(at time: Double, home: CGPoint, row: CGPoint? = nil) -> CGPoint? {
         let time = phase(time)
 
@@ -100,14 +107,18 @@ public struct WelcomeLoop: Equatable, Sendable {
         case approach ..< arrive: Self.glide(Self.from(home), home, share(time, approach, arrive))
         case arrive ..< onRow: home
         case onRow ..< leave: row ?? home
+        case leaving: row.map { Self.glide($0, Self.away($0), share(time, leaving.lowerBound, leaving.upperBound)) }
         default: nil
         }
     }
 
-    /// Whether the pointer moves at this time into the loop.
+    /// Whether the pointer moves at this time into the loop: on its way to the edge, and off the row.
     public func pointerMoves(at time: Double) -> Bool {
-        (approach ..< arrive).contains(phase(time))
+        [approach ..< arrive, leaving].contains { $0.contains(phase(time)) }
     }
+
+    /// The pointer's glide off the row: none where it leaves at once.
+    private var leaving: Range<Double> { leave ..< (gone ?? leave) }
 
     /// The desktop at this time into the loop: the ask landing lit until the pointer sets off for the notch; opening
     /// it until the click; answering it until the ask leaves; Lee in the session from the jump on, the answer in its
@@ -131,7 +142,7 @@ public struct WelcomeLoop: Equatable, Sendable {
     /// When, after this time into the loop, it next changes of itself: a beat, or the loop starting again.
     public func next(after time: Double) -> Double {
         let phase = phase(time)
-        let beats = [lands, approach, toRow, onRow, clicks, leave, answers, resolves, length].compactMap(\.self)
+        let beats = [lands, approach, seeks, onRow, clicks, leave, answers, resolves, length].compactMap(\.self)
 
         return time + (beats.filter { $0 > phase }.min() ?? length) - phase
     }

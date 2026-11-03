@@ -174,10 +174,13 @@ final class StageEdge: NSView {
         chimeEnds = nil
     }
 
-    /// A frame, or while only the light breathes, the light alone, as the real notch redraws it.
     @objc private func tick(_ link: CADisplayLink) {
-        let time = link.targetTimestamp * 1000
+        frame(at: link.targetTimestamp * 1000)
+    }
 
+    /// A frame at this time on the display's clock, or while only the light breathes, the light alone, as the real
+    /// notch redraws it: internal only for the tests, which drive the stage's own pacing on a clock of their own.
+    func frame(at time: Double) {
         guard lastPace == .light, shape.pace(at: time, staged) == .light else {
             return step(at: time)
         }
@@ -200,12 +203,13 @@ final class StageEdge: NSView {
             tell(due, isNew: due)
         }
 
-        let edge = edge
-        let pointer = play.loop?.pointer(at: loopTime, home: shape.home(of: WelcomeBoard.asking, on: edge), row: row)
+        findRow(at: time)
+
+        let edge = edge, home = shape.home(of: WelcomeBoard.asking, on: edge)
+        let pointer = home.flatMap { play.loop?.pointer(at: loopTime, home: $0, row: row) }
 
         shape.step(at: time, pointer: pointer, edge, staged)
         press(at: time)
-        findRow(at: time)
         if play == .callout {
             placeCallout()
         }
@@ -214,8 +218,8 @@ final class StageEdge: NSView {
         pace(at: time)
     }
 
-    /// The ask's row, found on the panel as the frame just drawn lays it out, while the loop's pointer goes to it:
-    /// first, again once a change has moved it, and each frame the shape moves.
+    /// The ask's row, found on the panel as the last frame laid it out, before the pointer is placed on it, while the
+    /// loop's pointer goes to it: first, again once a change has moved it, and each frame the shape moves.
     private func findRow(at time: Double) {
         guard play.loop?.findsRow(at: loopTime) == true,
               row == nil || rowIsStale || shape.pace(at: time, staged) == .moving
@@ -414,8 +418,8 @@ final class StageEdge: NSView {
     }
 
     /// Lee's settings, as they stand: the other shape where he chose it, its board told afresh; else the edge, the
-    /// place, the material and the style, which the runs take each frame. A style or an edge moves the ask's row, so
-    /// the loop's pointer finds it again.
+    /// place, the material and the style, which the runs take each frame. A style or an edge moves the ask's row, and
+    /// the strip's length or Max its mark, so the loop's pointer finds it again before it next goes to it.
     private func follow(_ settings: EdgeSettings) {
         guard settings != self.settings else {
             return
@@ -428,7 +432,10 @@ final class StageEdge: NSView {
             replace(with: Self.shape(settings.show, play))
             return
         }
-        if settings.style != last.style || settings.edge != last.edge {
+        let movesRow = settings.style != last.style || settings.edge != last.edge
+            || settings.length != last.length || settings.maxLength != last.maxLength
+
+        if movesRow {
             rowIsStale = true
         }
         place(shape)
@@ -534,8 +541,9 @@ protocol StageShape: AnyObject {
     func resting(on edge: ScreenEdge) -> CGRect
     /// The middle of a session's row on the stage, while the shape shows it.
     func middle(of session: String, on edge: ScreenEdge, _ settings: EdgeSettings) -> CGPoint?
-    /// Where the loop's pointer touches the shape and rests while it pours, lighting no session but this one.
-    func home(of session: String, on edge: ScreenEdge) -> CGPoint
+    /// Where the loop's pointer touches the shape and rests while it pours, lighting no session but this one; nil
+    /// where there is no such place yet.
+    func home(of session: String, on edge: ScreenEdge) -> CGPoint?
     func apply(_ settings: EdgeSettings, at time: Double, _ edge: ScreenEdge)
     func show(_ board: PanelBoard, at time: Double, _ edge: ScreenEdge, _ settings: EdgeSettings)
     /// One frame, the pointer where the stage puts it, drawn as the real edge draws it.
@@ -578,7 +586,7 @@ final class StageNotch: StageShape {
         return on.first.map { CGPoint(x: x, y: ($0 + on[on.count - 1]) / 2) }
     }
 
-    func home(of session: String, on edge: ScreenEdge) -> CGPoint { edge.notchHome }
+    func home(of session: String, on edge: ScreenEdge) -> CGPoint? { edge.notchHome }
 
     func apply(_ settings: EdgeSettings, at time: Double, _ edge: ScreenEdge) {
         notch.material = settings.material
@@ -683,14 +691,16 @@ final class StageStrip: StageShape {
         CGRect(x: 0, y: edge.stage.notchY, width: Strip.restingWidth, height: 0)
     }
 
-    /// The strip has no panel: the pointer rests on its mark (`home`).
+    /// The strip has no panel: its row is the session's mark, where the layout puts it, never a place it slides
+    /// through, which may be by another's.
     func middle(of session: String, on edge: ScreenEdge, _ settings: EdgeSettings) -> CGPoint? {
-        nil
+        run?.markTarget(of: session)
     }
 
-    /// On the session's mark, so only its own tab pours: every point along the marks is near enough one to pour it.
-    func home(of session: String, on edge: ScreenEdge) -> CGPoint {
-        run?.frame.marks.first { $0.key == .session(session) }?.centre ?? edge.notchHome
+    /// On the session's mark too, so only its own tab pours: every point along the marks is near enough one to pour
+    /// it, so with no mark of its own, nowhere.
+    func home(of session: String, on edge: ScreenEdge) -> CGPoint? {
+        run?.markTarget(of: session)
     }
 
     func apply(_ settings: EdgeSettings, at time: Double, _ edge: ScreenEdge) {
@@ -720,7 +730,7 @@ final class StageStrip: StageShape {
         draw(run, edge, settings)
     }
 
-    /// The strip has no row to press: its loop's pointer rests on the notch's place, and Ghostty comes forward alone.
+    /// The strip has no row to press: its loop's pointer rests on the ask's mark, and Ghostty comes forward alone.
     func press(at time: Double, pointer: CGPoint, _ edge: ScreenEdge, _ settings: EdgeSettings) {}
 
     func jumped(at time: Double, _ edge: ScreenEdge, _ settings: EdgeSettings) {}
@@ -756,7 +766,7 @@ final class StageNoEdge: StageShape {
 
     func middle(of session: String, on edge: ScreenEdge, _ settings: EdgeSettings) -> CGPoint? { nil }
 
-    func home(of session: String, on edge: ScreenEdge) -> CGPoint { edge.notchHome }
+    func home(of session: String, on edge: ScreenEdge) -> CGPoint? { edge.notchHome }
 
     func apply(_ settings: EdgeSettings, at time: Double, _ edge: ScreenEdge) {}
 

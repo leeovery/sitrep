@@ -399,6 +399,13 @@ extension Strip {
         }
     }
 
+    /// Where a session's own mark is going, by the layout, never a place it slides through on the way: half the
+    /// strip's depth in, at its place's height. Nil while it has no place of its own, folded into a count or not yet
+    /// on the strip.
+    public func markTarget(of id: String) -> CGPoint? {
+        layout.y(of: id).map { CGPoint(x: front / 2, y: $0) }
+    }
+
     /// The mark under the pointer's height: the nearest centre, within `near`.
     func keyAt(_ y: Double) -> MarkKey? {
         let sessions = layout.places.map { (MarkKey.session($0.id), $0.y) }
