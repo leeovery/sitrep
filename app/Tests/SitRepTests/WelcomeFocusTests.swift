@@ -11,14 +11,23 @@ struct WelcomeFocusTests {
     typealias Made = WelcomeWindowTests.Made
 
     /// Where AppKit, as the window orders in, gives focus to its first key view, Skip setup at the first step.
+    /// Laid out and keyed, focus stays there.
     @Test(.enabled { await keyboardNavigation() })
-    func itOpensWithFocusOnNothing() throws {
+    func itOpensWithFocusOnNothing() async throws {
         let made = Made(focusing: true)
         let content = try #require(made.recorded.contentView)
 
         #expect(made.recorded.firstResponder === content)
-        made.recorded.makeKeyAndOrderFront(nil)
-        #expect(Self.focused(made)?.isDescendant(of: content) == true)
+        _ = await made.settled()
+        made.recorded.becomeKey()
+        #expect(made.recorded.firstResponder === content)
+    }
+
+    /// With Keyboard navigation off, AppKit gives no view focus as the window orders in: it is on nothing all the same.
+    @Test func itOpensWithFocusOnTheContentWhateverKeyboardNavigationSays() {
+        let made = Made()
+
+        #expect(made.recorded.firstResponder === made.recorded.contentView)
     }
 
     @Test(.enabled { await keyboardNavigation() })
@@ -31,6 +40,21 @@ struct WelcomeFocusTests {
         made.recorded.close()
         made.window.show()
         #expect(made.recorded.firstResponder === made.recorded.contentView)
+    }
+
+    /// Welcome… while it shows brings it forward at its first step, a visit under way going on: focus stays where Lee
+    /// put it.
+    @Test(.enabled { await keyboardNavigation() })
+    func shownAgainWhileOpenFocusStaysWhereItWas() async throws {
+        let made = Made(focusing: true)
+
+        _ = await made.settled()
+        Self.tab(made)
+
+        let focused = try #require(Self.focused(made))
+
+        made.window.show()
+        #expect(made.recorded.firstResponder === focused)
     }
 
     /// The chevron, dimmed at the first step, takes no focus there.
@@ -143,9 +167,8 @@ struct WelcomeFocusTests {
         return stops
     }
 
-    /// Tab, or Shift-Tab, as the window sends it to what has focus, its key loop as a window on screen has it.
+    /// Tab, or Shift-Tab, as the window sends it to what has focus.
     private static func tab(_ made: Made, back: Bool = false) {
-        made.recorded.recalculateKeyViewLoop()
         key(48, with: back ? .shift : [], typing: back ? "\u{19}" : "\t", in: made).map(made.recorded.sendEvent)
     }
 

@@ -14,6 +14,8 @@ final class WelcomeWindow: NSObject, NSWindowDelegate {
     private let frame: @MainActor (NSViewController) -> ForwardWindow
     private lazy var window = make()
     private var focusWatch: NSKeyValueObservation?
+    /// Focus being put on nothing, which the watch on focus hears too.
+    private var isFocusingNothing = false
     /// SitRep's edge on the stage: internal only for the tests, which read what it hosts.
     private(set) lazy var stage = StageEdge(
         size: WelcomeStyle.stage, menuBar: WelcomeStyle.stageMenuBar, preferences: welcome.preferences
@@ -35,7 +37,7 @@ final class WelcomeWindow: NSObject, NSWindowDelegate {
         welcome.open()
         window.comeForward()
         if opens {
-            focusNothing()
+            focusNothing(in: window)
         }
     }
 
@@ -69,7 +71,7 @@ final class WelcomeWindow: NSObject, NSWindowDelegate {
     }
 
     private func make() -> ForwardWindow {
-        let content = NSHostingController(rootView: WelcomeView(welcome: welcome, stage: stage))
+        let content = WelcomeHosting(rootView: WelcomeView(welcome: welcome, stage: stage))
 
         content.sizingOptions = []
 
@@ -80,7 +82,7 @@ final class WelcomeWindow: NSObject, NSWindowDelegate {
         focusWatch = window.observe(\.firstResponder) { [weak self] window, _ in
             MainActor.assumeIsolated {
                 if window.firstResponder === window {
-                    self?.focusNothing()
+                    self?.focusNothing(in: window)
                 }
             }
         }
@@ -90,9 +92,15 @@ final class WelcomeWindow: NSObject, NSWindowDelegate {
     /// Keyboard focus on the window's content, which draws no ring, and from which Tab and Shift-Tab go to the first
     /// and the last of its controls. AppKit, as the window orders in with the Mac's Keyboard navigation on, gives focus
     /// to the first of its key views, Skip setup at the first step; and where the control holding focus goes with its
-    /// step, AppKit leaves focus on the window itself, from which Tab, in a window made offscreen, went nowhere.
-    private func focusNothing() {
-        window.makeFirstResponder(window.contentView)
+    /// step, AppKit leaves the window itself first responder.
+    private func focusNothing(in window: NSWindow) {
+        guard !isFocusingNothing, let content = window.contentView else {
+            return
+        }
+
+        isFocusingNothing = true
+        window.makeFirstResponder(content)
+        isFocusingNothing = false
     }
 
     /// The window: titled, so it has the system's frame and close button, its content running under a clear title bar
@@ -110,5 +118,16 @@ final class WelcomeWindow: NSObject, NSWindowDelegate {
         window.setContentSize(WelcomeStyle.size)
         window.center()
         return window
+    }
+}
+
+/// The welcome's content, its window's key view loop worked out afresh after each layout, so Tab follows the step's
+/// controls. SwiftUI's buttons join the loop through key views of its own, which come and go with a step unseen by
+/// AppKit's own recalculation as views change: in a window made offscreen, back, enabled at step 2, stayed out of
+/// Tab's reach.
+private final class WelcomeHosting: NSHostingController<WelcomeView> {
+    override func viewDidLayout() {
+        super.viewDidLayout()
+        view.window?.recalculateKeyViewLoop()
     }
 }

@@ -257,8 +257,8 @@ struct WelcomeWindowTests {
 
     // MARK: The footer
 
-    /// The footer as drawn: at the first step, Skip setup between the dashes and Continue; at the
-    /// last, nothing between them, and Done, a narrower pill, against the window's right, 16 in.
+    /// The footer as drawn: at the first step, Skip setup between the dashes and Continue; at the last, nothing between
+    /// them, and Done, a narrower pill, against the window's right, 16 in.
     @Test func atTheLastStepContinueReadsDoneAndSkipSetupGoes() throws {
         let made = Made()
         let first = try Self.footer(made)

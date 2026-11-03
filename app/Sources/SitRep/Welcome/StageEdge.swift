@@ -30,6 +30,9 @@ final class StageEdge: NSView {
     /// and F's.
     static let loopNotchY = 226.0
     static let stillNotchY = 230.0
+    /// A sound chosen lights SitRep's item for as long as the notch swells with it (ms): its two swells, 450 apart, and
+    /// the second's way back.
+    static let chimeLight = 900.0
     /// The slow refresh the light breathes on while nothing else moves, as the real notch's.
     private static let lightRate = CAFrameRateRange(minimum: 20, maximum: 30, preferred: 30)
 
@@ -64,6 +67,8 @@ final class StageEdge: NSView {
     private(set) var link: CADisplayLink?
     /// The loop's next beat, while frames sleep in front: internal only for the tests.
     private(set) var beat: Timer?
+    /// The end of a chime's light on SitRep's item, while it is lit: internal only for the tests.
+    private(set) var chimeEnds: Timer?
 
     private let preferences: Preferences
     private let size: CGSize
@@ -75,16 +80,16 @@ final class StageEdge: NSView {
     /// The ask on the board as last told.
     private var asks = false
     private var chimes = 0
-    /// A sound chosen since the play began.
-    private var chimed = false
+    /// When the last sound was chosen, on the display's clock, while the play is the chime's.
+    private var chimedAt: Double?
     /// The ask's row's middle on the stage, once the loop's panel shows it: internal only for the tests.
     private(set) var row: CGPoint?
     /// A style or an edge changed since the row was found: the pointer keeps to it until it is found again.
     private var rowIsStale = false
     /// The callout's place as last told the desktop.
     private var placed: StageCallout.Place?
-    /// Whether SitRep's item was last told lit.
-    private var toldItem = true
+    /// Whether SitRep's item was last told lit: internal only for the tests.
+    private(set) var toldItem = true
     /// Whether the loop has the ask's row pressed in: internal only for the tests.
     private(set) var isPressing = false
     /// The scene as last told the desktop: internal only for the tests.
@@ -142,8 +147,8 @@ final class StageEdge: NSView {
     /// The shape at rest on the edge's screen, x into it from its edge, y down from its top.
     var resting: CGRect { shape.resting(on: edge) }
 
-    /// A sound was chosen: the notch swells with it, as for an ask that lands; with no edge, SitRep's item in the
-    /// menu bar lights in its place.
+    /// A sound was chosen: the notch swells with it, as for an ask that lands, and SitRep's item in the menu bar
+    /// lights for as long.
     func chime(_ count: Int) {
         guard count != chimes else {
             return
@@ -151,9 +156,10 @@ final class StageEdge: NSView {
 
         chimes = count
         if play == .chime {
-            chimed = true
+            chimedAt = Displays.now
             tell(asks(at: loopTime), isNew: true)
             step(at: Displays.now)
+            wakeAsTheChimeEnds()
         }
     }
 
@@ -164,6 +170,8 @@ final class StageEdge: NSView {
         link = nil
         beat?.invalidate()
         beat = nil
+        chimeEnds?.invalidate()
+        chimeEnds = nil
     }
 
     /// A frame, or while only the light breathes, the light alone, as the real notch redraws it.
@@ -201,7 +209,7 @@ final class StageEdge: NSView {
             placeCallout()
         }
         tellScene()
-        tellItem()
+        tellItem(at: time)
         pace(at: time)
     }
 
@@ -253,10 +261,11 @@ final class StageEdge: NSView {
         }
     }
 
-    /// SitRep's item in the menu bar lit, as for needs you; but with no edge at the sound's step, at rest until a sound
-    /// is chosen there. Told as `tellScene` tells.
-    private func tellItem() {
-        let isLit = !(shape is StageNoEdge && play == .chime) || chimed
+    /// SitRep's item in the menu bar lit while the board has its ask, as the real one lights for needs you, and for a
+    /// chime's length after each sound chosen. Told as `tellScene` tells.
+    private func tellItem(at time: Double) {
+        let chimeLights = chimedAt.map { time - $0 < Self.chimeLight } ?? false
+        let isLit = asks(at: loopTime) || chimeLights
 
         guard isLit != toldItem else {
             return
@@ -291,7 +300,9 @@ final class StageEdge: NSView {
         loopTime = 0
         lastTime = nil
         isPressing = false
-        chimed = false
+        chimedAt = nil
+        chimeEnds?.invalidate()
+        chimeEnds = nil
         content.setBoundsSize(edge.frame.size)
         replace(with: Self.shape(settings.show, play))
         step(at: Displays.now)
@@ -344,6 +355,21 @@ final class StageEdge: NSView {
         self.beat = beat
     }
 
+    /// A frame as a chime's light on SitRep's item ends, which may have no other frame to end it.
+    private func wakeAsTheChimeEnds() {
+        chimeEnds?.invalidate()
+
+        let ends = Timer(timeInterval: Self.chimeLight / 1000, repeats: false) { [weak self] _ in
+            MainActor.assumeIsolated {
+                self?.chimeEnds = nil
+                self?.step(at: Displays.now)
+            }
+        }
+
+        RunLoop.main.add(ends, forMode: .common)
+        chimeEnds = ends
+    }
+
     private func makeLink() -> CADisplayLink {
         let link = displayLink(target: self, selector: #selector(tick))
 
@@ -353,12 +379,13 @@ final class StageEdge: NSView {
     }
 
     /// Whether the ask is on the board for the play, at this time into the loop: from its landing until the loop ends
-    /// or it is answered, and throughout while the notch is lit; never at rest, beside the callout.
+    /// or it is answered, and throughout while the notch is lit; never at rest, beside the callout, nor at the sound's
+    /// step with no edge, where only each chime lights SitRep's item.
     private func asks(at loopTime: Double) -> Bool {
         if let loop = play.loop {
             return loop.asks(at: loopTime)
         }
-        return play != .callout
+        return play != .callout && !(play == .chime && shape is StageNoEdge)
     }
 
     /// The made-up board told to the edge, the ask on it new as it lands, which swells the notch. With the ask gone,
@@ -436,12 +463,12 @@ final class StageEdge: NSView {
         )
     }
 
-    /// The shape the stage shows for what Lee chose, as the step plays it: the notch, the strip, or no edge at Nothing.
-    /// Steps 1 and 2's loops show the notch at Nothing too, as they teach what it does before step 3 offers the choice.
     private enum Kind {
         case notch, strip, none
     }
 
+    /// The shape the stage shows for what Lee chose, as the step plays it: the notch, the strip, or no edge at Nothing.
+    /// Steps 1 and 2's loops show the notch at Nothing too, as they teach what it does before step 3 offers the choice.
     private static func kind(_ show: EdgeSettings.Show, _ play: WelcomeStage) -> Kind {
         switch show {
         case .strip: .strip

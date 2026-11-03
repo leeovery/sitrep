@@ -121,18 +121,25 @@ struct CalloutSettingsTests {
 
     @Test func itShowsOnlyOnceDoneHasClosedAWelcome() {
         #expect(!CalloutSettings().shows)
-        #expect(Self.after { $0.done() } == .due)
+        #expect(Self.after { $0.done(.notch) } == .due)
         #expect(CalloutSettings(.due).shows)
     }
 
     @Test func theFirstHoverTakesItAwayForGood() {
-        #expect(Self.after { $0.done(); $0.pointedAt() } == .gone)
-        #expect(Self.after { $0.done(); $0.pointedAt(); $0.done() } == .gone)
+        #expect(Self.after { $0.done(.notch); $0.pointedAt() } == .gone)
+        #expect(Self.after { $0.done(.notch); $0.pointedAt(); $0.done(.notch) } == .gone)
+    }
+
+    /// Done at Nothing arms nothing: a shape picked later meets no callout. One already due still waits for a shape.
+    @Test func doneAtNothingLeavesItAsItStood() {
+        #expect(Self.after { $0.done(.nothing) } == .unshown)
+        #expect(Self.after { $0.done(.nothing); $0.done(.strip) } == .due)
+        #expect(Self.after { $0.done(.notch); $0.done(.nothing) } == .due)
     }
 
     /// Pointed at before any Done, there is nothing to take away: the next Done still shows it.
     @Test func aHoverBeforeDoneLeavesItToShow() {
-        #expect(Self.after { $0.pointedAt(); $0.done() } == .due)
+        #expect(Self.after { $0.pointedAt(); $0.done(.notch) } == .due)
     }
 
     /// Apart from what Lee sets, as whether a welcome has closed is.

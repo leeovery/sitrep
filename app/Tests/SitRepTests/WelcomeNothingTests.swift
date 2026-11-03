@@ -44,6 +44,17 @@ struct WelcomeNothingTests {
         #expect(Self.segments(in: await made.settled()).allSatisfy { $0.isEnabled })
     }
 
+    /// Done at Nothing leaves no callout waiting for a shape picked later; Done with a shape does.
+    @Test(arguments: [(EdgeSettings.Show.nothing, CalloutSettings.Standing.unshown), (.notch, .due), (.strip, .due)])
+    func doneArmsTheCalloutOnlyWithAShape(show: EdgeSettings.Show, standing: CalloutSettings.Standing) {
+        let made = Made()
+
+        made.preferences.edit { $0.show = show }
+        made.at(.ready)
+        made.welcome.goOn()
+        #expect(made.preferences.callout.standing == standing)
+    }
+
     // MARK: The stage
 
     /// Steps 1 and 2 teach what the notch does, so show it at Nothing too; from step 3, the stage shows no edge.
@@ -89,33 +100,85 @@ struct WelcomeNothingTests {
         #expect(stage.surface is NotchSurface)
     }
 
-    /// With no notch to swell, a sound chosen lights SitRep's item in the stage's menu bar, at rest until then.
-    @Test func atNothingASoundChosenLightsTheMenuBarsItem() async {
+    // MARK: The stage's menu bar
+
+    /// SitRep's item lit while the stage's board has its ask, whatever the shape: as the notch is lit from step 3, but
+    /// at rest beside the callout; with no edge, at rest at the sound's step until a sound is chosen.
+    @Test(arguments: [EdgeSettings.Show.notch, .strip, .nothing])
+    func theMenuBarsItemIsLitWhileTheBoardHasItsAsk(show: EdgeSettings.Show) async {
         let made = Made()
         let scene = made.window.stage.scene
+
+        made.preferences.edit { $0.show = show }
+        for step in [WelcomeStep.edge, .sound, .permissions, .ready] {
+            made.at(step)
+            _ = await made.settled()
+            #expect(scene.isItemLit == (step != .ready && !(show == .nothing && step == .sound)), "\(step)")
+        }
+    }
+
+    /// Step 1's loop: at rest until the ask lands, then lit.
+    @Test func onStepOneTheItemLightsAsTheAskLands() async {
+        let made = Made()
+        let stage = made.window.stage
+
+        _ = await made.settled()
+        #expect(!stage.scene.isItemLit)
+        stage.standing = .inFront
+
+        let time = Displays.now
+
+        stage.step(at: time)
+        stage.step(at: time + WelcomeLoop.hello.lands + 100)
+        _ = await made.settled()
+        #expect(stage.scene.isItemLit)
+    }
+
+    /// With no notch to swell, each sound chosen lights the item for as long as the notch would swell, then it rests
+    /// again, a frame woken as the light ends.
+    @Test func atNothingEachSoundChosenLightsTheItemForAChimesLength() async throws {
+        let made = Made()
+        let stage = made.window.stage
 
         made.preferences.edit { $0.show = .nothing }
         made.at(.sound)
         _ = await made.settled()
-        #expect(!scene.isItemLit)
-        made.welcome.choose(sound: "Pop")
-        _ = await made.settled()
-        #expect(scene.isItemLit)
-        made.at(.ready)
-        _ = await made.settled()
-        made.welcome.goBack()
-        made.welcome.goBack()
-        _ = await made.settled()
-        #expect(made.welcome.step == .sound && !scene.isItemLit)
+        #expect(!stage.scene.isItemLit)
+        for sound in ["Pop", "Tink"] {
+            let before = Displays.now
+
+            // the chime told the stage at once, as the view's update would tell it, so no wait comes between
+            made.welcome.choose(sound: sound)
+            stage.chime(made.welcome.chimes)
+
+            let after = Displays.now
+            let ends = try #require(stage.chimeEnds)
+
+            #expect(stage.toldItem, "\(sound)")
+            #expect(abs(ends.fireDate.timeIntervalSinceNow - StageEdge.chimeLight / 1000) < 0.1)
+            stage.step(at: before + StageEdge.chimeLight - 50)
+            #expect(stage.toldItem, "\(sound)")
+            stage.step(at: after + StageEdge.chimeLight + 50)
+            #expect(!stage.toldItem, "\(sound)")
+            _ = await made.settled()
+            #expect(!stage.scene.isItemLit, "\(sound)")
+        }
     }
 
-    /// With the notch, the item stays lit throughout, as for needs you.
-    @Test func withTheNotchTheMenuBarsItemIsLit() async {
+    /// Show changed in Settings while the welcome is at the sound's step: the item follows the board at once.
+    @Test func theItemFollowsAShapeChangedMidStep() async {
         let made = Made()
+        let stage = made.window.stage
 
         made.at(.sound)
         _ = await made.settled()
-        #expect(made.window.stage.scene.isItemLit)
+        #expect(stage.scene.isItemLit)
+        made.preferences.edit { $0.show = .nothing }
+        _ = await made.settled()
+        #expect(!stage.scene.isItemLit)
+        made.preferences.edit { $0.show = .strip }
+        _ = await made.settled()
+        #expect(stage.scene.isItemLit)
     }
 
     // MARK: Helpers

@@ -344,7 +344,7 @@ public enum WelcomePlayback {
         }
     }
 
-    /// "Meniscus notch, left", "Strip, right"; with Nothing, set in Settings, the menu bar's light.
+    /// "Meniscus notch, left", "Strip, right"; with Nothing, the menu bar's light.
     public static func atTheEdge(_ settings: EdgeSettings) -> String {
         let edge = settings.edge.title.lowercased()
 
@@ -513,9 +513,11 @@ public struct CalloutSettings: SavedValue {
     /// Whether it shows beside the edge.
     public var shows: Bool { standing == .due }
 
-    /// Done: due, unless it has shown and gone, as it shows once.
-    public mutating func done() {
-        if standing == .unshown {
+    /// Done, with this shape at the edge: due, unless it has shown and gone, as it shows once. Done at Nothing leaves
+    /// it as it stood, so one who chose to show nothing never meets it the day he picks a shape; one already due still
+    /// waits for a shape.
+    public mutating func done(_ show: EdgeSettings.Show) {
+        if standing == .unshown, show != .nothing {
             standing = .due
         }
     }
