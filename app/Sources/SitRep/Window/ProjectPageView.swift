@@ -70,7 +70,7 @@ struct ProjectPageView: View {
                             if ask.card.isClosed {
                                 ClosedTick()
                             } else {
-                                MarkView(mark: ask.card.snoozedUntil == nil ? .needs : .snoozed)
+                                MarkView(mark: ask.card.mark)
                             }
                             Text(ask.card.title)
                                 .foregroundStyle(Self.ink(ask.card))
@@ -97,8 +97,10 @@ struct ProjectPageView: View {
     }
 }
 
-/// A project's session: its mark, its name, and what it is doing beneath; what waits there in orange, else its time.
-private struct ProjectSessionRow: View {
+/// A project's session: its mark, its name, and what it is doing beneath, a working one's lead shimmering as its
+/// sidebar row's does; what waits there in orange, else its time. While no window holds it, its name and what it is
+/// doing dim as one (`Away`).
+struct ProjectSessionRow: View {
     let session: ProjectPage.Session
     let now: Date
 
@@ -109,9 +111,10 @@ private struct ProjectSessionRow: View {
                 Text(session.name)
                     .font(WindowStyle.ui(14, .semibold))
                     .spacing(-0.01, of: 14)
-                    .foregroundStyle(session.isAway ? WindowStyle.faint : WindowStyle.text)
+                    .foregroundStyle(WindowStyle.text)
                 doing.font(WindowStyle.ui(12)).foregroundStyle(WindowStyle.soft).lineLimit(1)
             }
+            .opacity(awayDim)
             .frame(maxWidth: .infinity, alignment: .leading)
             Group {
                 if session.waiting > 0 {
@@ -127,9 +130,20 @@ private struct ProjectSessionRow: View {
         .contentShape(Rectangle())
     }
 
+    private var awayDim: Double {
+        Away.dimming(session.isAway)
+    }
+
     private var doing: some View {
         HStack(spacing: 6) {
-            Text(session.doing.line.lead)
+            if session.doing.kind == .working {
+                ShimmeringLead { isLit in
+                    Text(session.doing.line.lead).font(WindowStyle.ui(12)).lineLimit(1)
+                        .foregroundStyle(isLit ? WindowStyle.text : WindowStyle.soft)
+                }
+            } else {
+                Text(session.doing.line.lead)
+            }
             if let mono = session.doing.line.mono {
                 Text(mono).font(WindowStyle.mono(12))
             } else if let subject = Words.subject(session.doing.line, at: now) {

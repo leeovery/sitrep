@@ -3,15 +3,16 @@ import SitRepCore
 import SitRepEdge
 import SitRepPanel
 
-/// A session's mark, in the panel row's lane: needs you an orange dot, your turn an open ring, working the turning
-/// arc, on its own work the dotted ring, still; away, with nothing waiting, a faint dot; an ask asleep, or its row in
-/// Snoozed, a grey dot, unlit.
+/// A session's mark, in the panel row's lane: needs you an orange dot, and an ask waiting in a session no window holds
+/// a hollow orange ring; your turn an open ring, working the turning arc, on its own work the dotted ring, still; away,
+/// with nothing waiting, a faint dot; an ask asleep, or its row in Snoozed, a grey dot, unlit.
 public enum Mark: Sendable, Equatable {
-    case needs, turn, working, onItsWork, away, snoozed
+    case needs, awayAsk, turn, working, onItsWork, away, snoozed
 
-    init(_ state: Board.Session.State) {
+    /// A session's, by its state, and whether a window holds it.
+    init(_ state: Board.Session.State, isAway: Bool) {
         switch state {
-        case .needsYou: self = .needs
+        case .needsYou: self = isAway ? .awayAsk : .needs
         case .yourTurn: self = .turn
         case .working: self = .working
         case .onItsWork: self = .onItsWork
@@ -19,10 +20,10 @@ public enum Mark: Sendable, Equatable {
         }
     }
 
-    /// A row's, by its first line: an ask or a window's stop needs Lee.
-    init(_ line: Board.Row.Line.Kind) {
+    /// A row's, by its first line, and whether a window holds its session: an ask or a window's stop needs Lee.
+    init(_ line: Board.Row.Line.Kind, isAway: Bool) {
         switch line {
-        case .ask, .permission, .question: self = .needs
+        case .ask, .permission, .question: self = isAway ? .awayAsk : .needs
         case .yourTurn: self = .turn
         case .working: self = .working
         case .onItsWork: self = .onItsWork
@@ -217,7 +218,8 @@ extension Listed.Row {
     init(_ row: Board.Row) {
         self.init(
             id: row.session, name: row.name, project: row.projectName, section: BoardSection(row.section),
-            mark: Mark(row.oldest.kind), isAway: row.isAway, since: row.since, lines: row.lines.map(Listed.Line.init)
+            mark: Mark(row.oldest.kind, isAway: row.isAway), isAway: row.isAway, since: row.since,
+            lines: row.lines.map(Listed.Line.init)
         )
     }
 

@@ -7,7 +7,7 @@ import SitRepPanel
 /// it speaks up with; the panel's sessions from the app's one `watch`, a click jumping to each; the SitRep window;
 /// Show; the welcome, Settings and quitting. Its glyph lights while anything needs Lee. Each board, and each opening,
 /// patches the menu in place (`MenuChanges`), so an open menu keeps the item under the pointer; while it is open its
-/// times tick.
+/// times tick and its working arcs turn (`MenuTurn`).
 ///
 /// An NSStatusItem rather than SwiftUI's MenuBarExtra: a menu-style MenuBarExtra tells nothing as its menu opens, and
 /// NSMenuDelegate does.
@@ -29,6 +29,7 @@ final class StatusMenu: NSObject, NSMenuDelegate {
     private var entries: [MenuEntry] = []
     private var isOpen = false
     private var ticking: Timer?
+    private lazy var turn = MenuTurn(menu)
     /// The item under the pointer, whose words take the highlight's own ink.
     private weak var highlighted: NSMenuItem?
 
@@ -92,6 +93,7 @@ final class StatusMenu: NSObject, NSMenuDelegate {
         header.isHighlighted = false
         ticking?.invalidate()
         ticking = nil
+        turn.stop()
     }
 
     func menu(_ menu: NSMenu, willHighlight item: NSMenuItem?) {
@@ -111,7 +113,8 @@ final class StatusMenu: NSObject, NSMenuDelegate {
     }
 
     /// The glyph, and the menu patched to what it should show: items gone taken out, those come put in, and those
-    /// kept set again where they changed. Open, its times are set for the rows now showing.
+    /// kept set again where they changed. Open, its times are set for the rows now showing, and its working arcs turn
+    /// while it has any.
     private func draw() {
         item.button?.image = MenuImages.glyph(board.glyph)
 
@@ -130,6 +133,7 @@ final class StatusMenu: NSObject, NSMenuDelegate {
             }
         }
         entries = next
+        turn.follow(next, isOpen: isOpen, reducesMotion: Displays.reducesMotion(preferences.edge))
         if isOpen {
             tick()
         }
@@ -177,7 +181,8 @@ final class StatusMenu: NSObject, NSMenuDelegate {
             let now = Displays.wallNow
 
             MenuWords.row(
-                item, session, jump: jump, age: session.ageText(at: now), now: now, isHighlighted: item === highlighted
+                item, session, jump: jump, age: session.ageText(at: now), now: now, isHighlighted: item === highlighted,
+                turn: turn.frame
             )
         case let .more(title):
             command(item, title, "ellipsis", #selector(openTheWindow))
@@ -188,7 +193,7 @@ final class StatusMenu: NSObject, NSMenuDelegate {
             item.image = MenuImages.tick(isTicked)
             item.representedObject = show.rawValue
         case .welcome:
-            command(item, "Welcome…", "hand.wave", #selector(welcome))
+            command(item, MenuBoard.welcomeTitle, "hand.wave", #selector(welcome))
         case .settings:
             command(item, "Settings…", "gearshape", #selector(settings), key: ",")
         case .quit:

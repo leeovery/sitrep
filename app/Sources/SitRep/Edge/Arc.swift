@@ -35,13 +35,19 @@ final class Arc {
         arc.path = quarter
     }
 
+    /// Internal only for the tests, which read it.
+    var isTurning: Bool {
+        layer.animation(forKey: Self.key) != nil
+    }
+
     /// Held still, its quarter where it starts: its turn taken off, so nothing of it runs.
     func hold() {
         period = nil
         layer.removeAnimation(forKey: Self.key)
     }
 
-    /// Turning once in this many seconds, from a phase of its own: added only when it isn't already turning so.
+    /// Turning once in this many seconds, from the phase the clock gives that period, so every arc turning at it
+    /// turns in step, on every surface: added only when it isn't already turning so.
     func turn(every seconds: Double) {
         guard seconds != period || layer.animation(forKey: Self.key) == nil else {
             return
@@ -53,8 +59,13 @@ final class Arc {
         turn.toValue = 2 * Double.pi
         turn.duration = seconds
         turn.repeatCount = .infinity
-        turn.timeOffset = Double.random(in: 0 ..< seconds)
+        turn.timeOffset = Self.phase(every: seconds)
         layer.add(turn, forKey: Self.key)
+    }
+
+    /// Where in its turn an arc turning once in this many seconds is now, by the clock every surface shares.
+    static func phase(every seconds: Double, at now: Double = CACurrentMediaTime()) -> Double {
+        now.truncatingRemainder(dividingBy: seconds)
     }
 
     private static let key = "spin"

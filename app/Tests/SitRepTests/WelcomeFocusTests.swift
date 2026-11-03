@@ -42,8 +42,8 @@ struct WelcomeFocusTests {
         #expect(made.recorded.firstResponder === made.recorded.contentView)
     }
 
-    /// Welcome… while it shows brings it forward at its first step, a visit under way going on: focus stays where Lee
-    /// put it.
+    /// Show Welcome Window while it shows brings it forward at its first step, a visit under way going on: focus stays
+    /// where Lee put it.
     @Test(.enabled { await keyboardNavigation() })
     func shownAgainWhileOpenFocusStaysWhereItWas() async throws {
         let made = Made(focusing: true)

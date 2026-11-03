@@ -61,6 +61,12 @@ public struct SessionPage: Equatable, Sendable {
     public let failure: String?
     /// The items of Status, Notes, Parked and Resolved opened in place.
     public let opened: Set<Item>
+
+    /// Its mark beside what it is doing: with asks waiting while no window holds it, the away ring, as its row's and
+    /// its cards'; else what it is doing's.
+    public var mark: Mark {
+        doing.isAway && waiting > 0 ? .awayAsk : doing.mark
+    }
 }
 
 /// An item of Status, Notes, Parked or Resolved, which a press opens in place to the whole of it, and closes again.

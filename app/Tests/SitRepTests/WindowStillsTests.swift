@@ -9,7 +9,8 @@ import Testing
 /// The SitRep window's key states, drawn offscreen over what the real CLI printed, as Paper's drawing has them: the
 /// session, a permission prompt, an away session and its finish, a project, and the moments of an answer and of a
 /// board changing under Lee; a session's long name, and the window as narrow as it goes; the sidebar with a section
-/// folded, filtered, and a filter that keeps nothing. Each draws whole at the window's size, or at its narrowest.
+/// folded, filtered, and a filter that keeps nothing; and the sidebar as the window itself lays it out. Each draws whole
+/// at the window's size, or at its narrowest.
 /// With `SITREP_WINDOW_STILLS` naming a folder, each is kept there as a PNG, to read beside the drawing; nothing opens
 /// on the screen.
 /// When the real `watch` printed its first line.
@@ -38,6 +39,26 @@ struct WindowStillsTests {
         #expect(image.width == Int(still.width * 2))
         #expect(image.height == 1440)
         try keep(image, as: still.rawValue)
+    }
+
+    /// The sidebar as the window lays it out, its list running to the glass's foot, over black where the glass would
+    /// be, which nothing offscreen draws.
+    @Test func theSidebarInTheWindow() throws {
+        let drawing = try HostedSidebar(HostedSidebar.opened()).drawn().bitmap
+        let rect = NSRect(x: 0, y: 0, width: drawing.pixelsWide, height: drawing.pixelsHigh)
+        let still = try #require(NSBitmapImageRep(
+            bitmapDataPlanes: nil, pixelsWide: drawing.pixelsWide, pixelsHigh: drawing.pixelsHigh, bitsPerSample: 8,
+            samplesPerPixel: 4, hasAlpha: true, isPlanar: false, colorSpaceName: .deviceRGB, bytesPerRow: 0,
+            bitsPerPixel: 0
+        ))
+
+        NSGraphicsContext.saveGraphicsState()
+        NSGraphicsContext.current = NSGraphicsContext(bitmapImageRep: still)
+        NSColor.black.setFill()
+        rect.fill()
+        drawing.draw(in: rect, from: .zero, operation: .sourceOver, fraction: 1, respectFlipped: false, hints: nil)
+        NSGraphicsContext.restoreGraphicsState()
+        try keep(try #require(still.cgImage), as: "sidebar-in-the-window")
     }
 
     private func keep(_ image: CGImage, as name: String) throws {

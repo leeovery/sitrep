@@ -82,11 +82,11 @@ enum WindowStyle {
     static let listInset: CGFloat = 10
     static let selectionInset: CGFloat = 10
     static let rowInset: CGFloat = 16
-    /// The sidebar's rule, 0.5 tall, over its foot and after Needs you; after Needs you, 11.5 under its last row, so
-    /// the rule ends on a whole point and every row after it starts on one.
+    /// The sidebar's rule after Needs you, 0.5 tall, 11.5 under its last row, so the rule ends on a whole point and
+    /// every row after it starts on one.
     static let rule: CGFloat = 0.5
     static let ruleGap: CGFloat = 11.5
-    /// The list's last row, 12 over the foot's rule.
+    /// The list's last row, 12 over the glass's foot.
     static let listBottom: CGFloat = 12
     /// A row of Needs you or Working, the system's two-line row, its words 4 from its top; a row of one line, as board D
     /// sets Your turn's, "N earlier" and a project's; a heading's row, 10 under what is before it: the list's top, the
@@ -129,10 +129,6 @@ enum WindowStyle {
     static let ageSize: CGFloat = 12
     static let titleLine: CGFloat = 16
     static let smallLine: CGFloat = 14
-    /// The sidebar's foot, as spec 2.5 draws it: its rule, then 8 above its row of 32 and 10 below it.
-    static let footerTop: CGFloat = 8
-    static let footerRow: CGFloat = 32
-    static let footerBottom: CGFloat = 10
     /// A mark's lane, as the panel row's.
     static let lane = CGSize(width: 12, height: 18)
     /// Where a page line's words start, past its mark's lane.
@@ -177,8 +173,9 @@ enum WindowStyle {
     /// Board H's white at 60%, a Snoozed row's name.
     static let quiet = Color.white.opacity(Double(0x99) / 255)
 
-    /// The working mark's track in the sidebar, as drawn.
+    /// The working mark's track in the sidebar, and its arc, as drawn.
     static let sidebarTrack = Color.white.opacity(0.15)
+    static let sidebarArc = Color.white.opacity(0.55)
     /// On its own work, the sidebar's dotted ring, from Paper's board D.
     static let sidebarDotted = Color.white.opacity(0.45)
 

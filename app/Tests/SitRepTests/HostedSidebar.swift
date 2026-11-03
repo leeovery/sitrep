@@ -11,26 +11,25 @@ import Testing
 /// Paper's drawing gives them: x from the glass's left, y from the window's top.
 ///
 /// The list scrolls through macOS 26's soft scroll edge, which draws its rows where nothing offscreen
-/// reads them: the drawing shows the foot, and the list's frames are AppKit's. So what the rows draw is read from the
-/// real list hosted alone (`listAlone`), under the accessory's 47 as in the column, the foot the only thing gone.
+/// reads them: the list's frames are AppKit's. So what the rows draw is read from the real list hosted alone
+/// (`listAlone`), under the accessory's 47 as in the column.
 /// (Touching the titlebar's band, the list would scroll through the toolbar's soft edge, which reads as blank too.)
 @MainActor
 struct HostedSidebar {
     let window: NSWindow
     let view: NSView
-    /// The board's list, and Settings at its foot.
+    /// The board's list.
     let board: NSTableView
-    let foot: SettingsFootControl?
     let field: NSSearchField?
     private let host: NSHostingController<AnyView>
     private let made: (Sidebar) -> AnyView
 
     /// `bottomSafeArea` gives the sidebar the bottom safe area a window on screen has, which an offscreen one does not;
     /// `isKey` tells it its window is key, which one never shown never is; `listed`, a board shown in place of the
-    /// run's, as one the real `watch` never printed, folded as the run's.
+    /// run's, as one the real `watch` never printed, folded as the run's; `reducesMotion`, SitRep's Reduce motion on.
     init(
         _ run: WindowRun, height: CGFloat = 1069, bottomSafeArea: CGFloat = 0, actions: WindowActions = WindowActions(),
-        listAlone: Bool = false, isKey: Bool = false, listed: Listed? = nil
+        listAlone: Bool = false, isKey: Bool = false, listed: Listed? = nil, reducesMotion: Bool = false
     ) throws {
         let now = run.last.board?.at ?? Self.printed
         let made = { (shown: Sidebar) in
@@ -42,7 +41,10 @@ struct HostedSidebar {
                 : AnyView(BoardColumn(sidebar: shown, pick: run.pick, filter: run.filter, now: now))
             let keyed = isKey ? AnyView(side.environment(\.controlActiveState, .key)) : side
 
-            return AnyView(keyed.environment(\.windowActions, actions).environment(\.colorScheme, .dark))
+            return AnyView(
+                keyed.environment(\.windowActions, actions).environment(\.reducesWindowMotion, reducesMotion)
+                    .environment(\.colorScheme, .dark)
+            )
         }
         let sidebar = NSHostingController(
             rootView: made(listed.map { Sidebar($0, folds: run.folds) } ?? run.sidebar(at: now))
@@ -58,7 +60,6 @@ struct HostedSidebar {
         self.made = made
 
         board = try #require(Self.views(NSTableView.self, in: view).first)
-        foot = Self.views(SettingsFootControl.self, in: view).first
         field = Self.views(NSSearchField.self, in: view).first
     }
 
@@ -81,11 +82,6 @@ struct HostedSidebar {
     /// The board's rows, in order.
     var rows: [CGRect] {
         (0 ..< board.numberOfRows).map { frame(of: board, board.rect(ofRow: $0)) }
-    }
-
-    /// Settings' row at the foot.
-    func footRow() throws -> CGRect {
-        frame(of: try #require(foot))
     }
 
     /// The glass's bottom, from the window's top.
@@ -120,7 +116,7 @@ struct HostedSidebar {
     /// When the real `watch` printed its first line.
     static let printed = try! Board.read(Lines.watch[0]).at
 
-    private static func views<Kind: NSView>(_ kind: Kind.Type, in view: NSView) -> [Kind] {
+    static func views<Kind: NSView>(_ kind: Kind.Type, in view: NSView) -> [Kind] {
         view.subviews.flatMap { ($0 as? Kind).map { [$0] } ?? views(kind, in: $0) }
     }
 }

@@ -69,8 +69,9 @@ final class WelcomeModel {
 
     var step: WelcomeStep { steps.current }
 
-    /// The menu's Welcome…: the first step, whenever it opens. A visit begins only where none is under way, with the
-    /// login item read afresh, and the first welcome only while none has closed; one under way keeps what it did.
+    /// The menu's Show Welcome Window: the first step, whenever it opens. A visit begins only where none is under way,
+    /// with the login item read afresh, and the first welcome only while none has closed; one under way keeps what it
+    /// did.
     func open() {
         steps.restart()
         guard !isVisiting else {

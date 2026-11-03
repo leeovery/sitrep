@@ -6,7 +6,7 @@ import SwiftUI
 /// The SitRep window: one, which the app owns, made the first time Lee opens it and kept after it closes. Opening it
 /// again brings it forward. It comes forward and takes focus only when Lee opens it, never by itself, as the notch or
 /// the strip tells Lee what changed; with no Dock icon, the app activates only then. Its page is a session or a
-/// project; Settings at its sidebar's foot opens the Settings window.
+/// project; ⌘, opens the Settings window from it, through the app's menu (`AppMenu`).
 @MainActor
 final class SitRepWindow: NSObject, NSWindowDelegate {
     private let model: WindowModel
@@ -14,14 +14,10 @@ final class SitRepWindow: NSObject, NSWindowDelegate {
     private var focus: SideFocus?
     private var keys: Any?
 
-    /// `following`, what the app's one `watch` is told the window follows; `openSettings`, the Settings window.
-    init(
-        plugin: Plugin, works: Works, snoozes: Snoozes, following: Following, preferences: Preferences,
-        openSettings: @escaping @MainActor @Sendable () -> Void
-    ) {
+    /// `following`, what the app's one `watch` is told the window follows.
+    init(plugin: Plugin, works: Works, snoozes: Snoozes, following: Following, preferences: Preferences) {
         let model = WindowModel(
-            plugin: plugin, works: works, snoozes: snoozes, following: following, period: preferences.app.foldsAfter,
-            openSettings: openSettings
+            plugin: plugin, works: works, snoozes: snoozes, following: following, period: preferences.app.foldsAfter
         )
 
         self.model = model
@@ -166,8 +162,7 @@ final class SitRepWindow: NSObject, NSWindowDelegate {
 /// Keyboard focus moved by a key, through AppKit's key views: ⌘F into the sidebar's Filter field, from anywhere;
 /// Return in the sidebar into the page, to its first control, which with the Mac's Keyboard navigation off has none,
 /// so Return there leaves focus where it is; Escape in the page back to the board's list. Tab and the arrows keep the
-/// Mac's own order. In the Filter field Return and Escape are the field's own (`FilterField`), and on Settings at the
-/// foot Return is its own, which opens the Settings window (`SettingsFootControl`).
+/// Mac's own order. In the Filter field Return and Escape are the field's own (`FilterField`).
 @MainActor
 struct SideFocus {
     let window: NSWindow
@@ -201,7 +196,7 @@ struct SideFocus {
             return false
         }
 
-        if [Self.return, Self.enter].contains(event.keyCode), focus.isDescendant(of: sidebar), !keepsReturn(focus) {
+        if [Self.return, Self.enter].contains(event.keyCode), focus.isDescendant(of: sidebar), !isInField(focus) {
             intoThePage()
             return true
         }
@@ -225,13 +220,9 @@ struct SideFocus {
     /// The board's list, as SwiftUI hosts it in AppKit's table, with nothing picked too.
     private var list: NSView? { sidebar.descendants(NSTableView.self).first }
 
-    private var foot: SettingsFootControl? { sidebar.descendants(SettingsFootControl.self).first }
-
-    /// Focus where Return is its own: in the Filter field, its field editor inside it, or on Settings at the foot.
-    private func keepsReturn(_ focus: NSView) -> Bool {
-        let isInField = filterField.map(focus.isDescendant(of:)) ?? false
-
-        return isInField || focus === foot
+    /// Focus in the Filter field, its field editor inside it, where Return is the field's own.
+    private func isInField(_ focus: NSView) -> Bool {
+        filterField.map(focus.isDescendant(of:)) ?? false
     }
 
     /// ⌘F, whatever Caps Lock says.

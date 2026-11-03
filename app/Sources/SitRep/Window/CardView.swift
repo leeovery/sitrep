@@ -85,7 +85,7 @@ struct CardView: View {
             if card.isClosed {
                 ClosedTick()
             } else {
-                MarkView(mark: isAsleep ? .snoozed : .needs)
+                MarkView(mark: card.mark)
             }
             titled(card.isClosed ? WindowStyle.faint : isAsleep ? WindowStyle.soft : WindowStyle.text)
                 .font(WindowStyle.ui(14, .semibold))

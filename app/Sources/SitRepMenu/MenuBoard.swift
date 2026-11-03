@@ -52,6 +52,9 @@ public struct MenuBoard: Equatable, Sendable {
 
     public static let unreadTitle = "SitRep can't read the board"
     public static let reloadTitle = "Needs /reload-plugins"
+    /// The command that opens the welcome window at its first step: it opens a window and asks nothing, so it has no
+    /// ellipsis.
+    public static let welcomeTitle = "Show Welcome Window"
 
     /// The board as last heard, and any trouble with the plugin.
     public init(_ last: LastBoard, trouble: PluginTrouble? = nil, clock: Date.FormatStyle = .init(date: .omitted, time: .shortened)) {

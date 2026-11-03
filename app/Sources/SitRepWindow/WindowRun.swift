@@ -681,7 +681,8 @@ public final class WindowRun {
             key: project.key, name: project.name, waiting: waiting(needs), open: project.open,
             sessions: project.sessions.map { session in
                 ProjectPage.Session(
-                    id: session.id, name: session.name, mark: Mark(session.state), isAway: session.doing.isAway,
+                    id: session.id, name: session.name, mark: Mark(session.state, isAway: session.doing.isAway),
+                    isAway: session.doing.isAway,
                     doing: session.doing,
                     waiting: waiting(needs.filter { $0.session == session.id }), since: session.since
                 )

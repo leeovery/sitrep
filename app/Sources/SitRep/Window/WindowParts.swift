@@ -2,9 +2,10 @@ import enum SitRepPanel.Wash
 import SitRepWindow
 import SwiftUI
 
-/// A session's mark in its lane, as the panel row draws it: the orange dot with its glow, the open ring, the turning
-/// arc, the dotted ring, still, an away session's faint dot. On the accent of a selection in the list that has the window's focus, its greys
-/// go white, as the system's own rows' icons do; its orange stays orange.
+/// A session's mark in its lane, as the panel row draws it: the orange dot with its glow, an away ask's hollow orange
+/// ring, the open ring, the turning arc, the dotted ring, still, an away session's faint dot. On the accent of a
+/// selection in the list that has the window's focus, its greys go white, as the system's own rows' icons do; its
+/// orange stays orange.
 struct MarkView: View {
     let mark: Mark
 
@@ -14,11 +15,17 @@ struct MarkView: View {
         Group {
             switch mark {
             case .needs: NeedsDot()
+            case .awayAsk: AwayRing(ink: WindowStyle.orange)
             case .turn:
                 Circle()
                     .strokeBorder(WindowStyle.colour(WindowStyle.text, on: prominence), lineWidth: 1.5)
                     .frame(width: 9, height: 9)
-            case .working: TurningArc()
+            case .working:
+                TurningArc(
+                    radius: 4.5,
+                    track: WindowStyle.colour(WindowStyle.track, on: prominence, selected: WindowStyle.selectedTrack),
+                    arc: WindowStyle.colour(WindowStyle.arc, on: prominence)
+                )
             case .onItsWork: DottedRingView(ring: .card, ink: WindowStyle.colour(WindowStyle.dotted, on: prominence))
             case .away: Circle().fill(WindowStyle.colour(WindowStyle.awayDot, on: prominence)).frame(width: 5, height: 5)
             case .snoozed: Circle().fill(WindowStyle.faint).frame(width: 7, height: 7)
@@ -51,38 +58,56 @@ struct NeedsDot: View {
     }
 }
 
-/// The prototype's 11-point arc, turning once a second; still under reduced motion. On the accent of a selection, its
-/// arc white over a dimmer white track.
+/// Working's arc, a quarter of a ring of this radius from its top, round its track, both stroked 1.5: turning once a
+/// second, as the panel's, by Core Animation in the render server (`Spinner`), so nothing that draws the list or the
+/// page again, a board, a scroll, the window closing and opening, stops or restarts it. Held still under reduced
+/// motion; drawn as a still, which renders no AppKit view, in SwiftUI.
 struct TurningArc: View {
-    @Environment(\.backgroundProminence) private var prominence
+    let radius: CGFloat
+    let track: Color
+    let arc: Color
+
     @Environment(\.reducesWindowMotion) private var reducesMotion
-    @State private var isTurning = false
+    @Environment(\.isStill) private var isStill
 
     var body: some View {
-        ZStack {
-            Circle().stroke(
-                WindowStyle.colour(WindowStyle.track, on: prominence, selected: WindowStyle.selectedTrack),
-                lineWidth: 1.5
-            )
-            Circle()
-                .trim(from: 0, to: 0.25)
-                .stroke(
-                    WindowStyle.colour(WindowStyle.arc, on: prominence),
-                    style: StrokeStyle(lineWidth: 1.5, lineCap: .round)
-                )
-                .rotationEffect(.degrees(isTurning ? 270 : -90))
+        if isStill {
+            ZStack {
+                Circle().stroke(track, lineWidth: Self.line)
+                Circle()
+                    .trim(from: 0, to: 0.25)
+                    .stroke(arc, style: StrokeStyle(lineWidth: Self.line, lineCap: .round))
+                    .rotationEffect(.degrees(-90))
+            }
+            .frame(width: 2 * radius, height: 2 * radius)
+        } else {
+            Spinner(track: NSColor(track), arc: NSColor(arc), period: reducesMotion ? nil : 1)
+                .frame(width: 2 * radius + Self.line, height: 2 * radius + Self.line)
         }
-        .frame(width: 9, height: 9)
-        .onAppear(perform: follow)
-        .onChange(of: reducesMotion, follow)
     }
 
-    /// Turning, or held still the moment motion is reduced.
-    private func follow() {
-        if reducesMotion {
-            withTransaction(\.disablesAnimations, true) { isTurning = false }
+    private static let line: CGFloat = 1.5
+}
+
+/// A working line's lead, grey with a light sweeping along it every 2.5s, as Claude Code's own and the panel's: the
+/// words again, lit, shown through a band of light Core Animation carries along them in the render server (`Sweep`),
+/// so nothing that draws the list or the page again stops or restarts it. Still under reduced motion, and drawn as a
+/// still, the words grey alone. `words` draws them, grey or lit.
+struct ShimmeringLead<Words: View>: View {
+    @ViewBuilder let words: (_ isLit: Bool) -> Words
+
+    @Environment(\.reducesWindowMotion) private var reducesMotion
+    @Environment(\.isStill) private var isStill
+
+    var body: some View {
+        if reducesMotion || isStill {
+            words(false)
         } else {
-            withAnimation(.linear(duration: 1).repeatForever(autoreverses: false)) { isTurning = true }
+            words(false).overlay(alignment: .leading) {
+                GeometryReader { size in
+                    Sweep(lit: AnyView(words(true)), width: size.size.width)
+                }
+            }
         }
     }
 }

@@ -246,7 +246,7 @@ struct WelcomeWindowTests {
         ])
     }
 
-    /// The menu's Welcome… opens it at its first step, wherever it was left.
+    /// The menu's Show Welcome Window opens it at its first step, wherever it was left.
     @Test func itOpensAtItsFirstStep() {
         let made = Made()
 
@@ -471,7 +471,8 @@ struct WelcomeWindowTests {
         #expect(!made.welcome.isVisiting)
     }
 
-    /// So a later Welcome… never undoes Lee's choice in General, and shows no notice for an item on for months.
+    /// So a later Show Welcome Window never undoes Lee's choice in General, and shows no notice for an item on for
+    /// months.
     @Test func aWelcomeOpenedAgainChangesNothingUntilPressed() {
         let made = Made(welcomed: true)
 

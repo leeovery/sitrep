@@ -5,8 +5,8 @@ import SwiftUI
 /// at the window's size, Needs you, Working and Your turn, each under a heading that folds, then Projects under its
 /// own. The filter narrows it in place, the words typed lit where they appear; with nothing kept, one line says so, and
 /// an empty board says how the board stands. A project's row opens the project. A row under the pointer that is not
-/// the one picked shows a quiet fill behind it. Settings sits at the sidebar's foot, which never scrolls, under the
-/// list, whose rows fade out at its own bottom edge, over the foot's rule, its last row 12 over it.
+/// the one picked shows a quiet fill behind it. The list runs to the glass's foot, where its rows fade out, its last
+/// row 12 over it.
 struct BoardColumn: View {
     let sidebar: Sidebar
     let pick: Pick?
@@ -26,10 +26,9 @@ struct BoardColumn: View {
                         ListNote(words: note)
                     }
                 }
-                SettingsFooter()
             }
             // A window on screen gives the sidebar a bottom safe area, which an offscreen one does not: ignored, the
-            // foot sits on the glass's bottom.
+            // list runs to the glass's foot.
             .ignoresSafeArea(.container, edges: .bottom)
         }
     }
@@ -69,7 +68,6 @@ struct BoardColumn: View {
                 list
                 Spacer(minLength: 0)
             }
-            SettingsFooter()
         }
         .background(WindowStyle.black)
         .overlay(alignment: .trailing) { Rectangle().fill(WindowStyle.line).frame(width: 1) }
@@ -120,8 +118,8 @@ extension View {
 }
 
 private extension View {
-    /// A list whose rows fade out at its bottom edge, over the foot's rule: on macOS 26 by the system's soft scroll
-    /// edge (spec 2.5's fade, the sidebar's glass where Paper drew a gradient); before it, with no fade.
+    /// A list whose rows fade out at its bottom edge, the glass's foot: on macOS 26 by the system's soft scroll edge
+    /// (spec 2.5's fade, the sidebar's glass where Paper drew a gradient); before it, with no fade.
     @ViewBuilder func fadingAtItsFoot() -> some View {
         if #available(macOS 26, *) {
             scrollEdgeEffectStyle(.soft, for: .bottom)

@@ -63,6 +63,17 @@ struct SessionPageTests {
         #expect(page.finish == .offered)
     }
 
+    /// With asks waiting while no window holds it, its mark beside what it is doing is the away ring, as its row's and
+    /// its cards'; held, what it is doing's.
+    @Test func anAwaySessionWithAsksWaitingIsMarkedWithTheAwayRing() throws {
+        let away = try Self.page(Self.picked("sr-gs7kq2", boards: ["sr-gs7kq2": Lines.away]))
+        let held = try Self.page(opened())
+
+        try #require(away.waiting > 0 && held.waiting > 0)
+        #expect(away.mark == .awayAsk)
+        #expect(held.mark == held.doing.mark && held.mark != .awayAsk)
+    }
+
     @Test func beforeItsBoardComesItSaysSoAndShowsNoAsks() throws {
         let page = try Self.page(opened(boards: [:]))
 
@@ -117,6 +128,15 @@ struct SessionPageTests {
 
         #expect(words.buttons == [.inClaude(.answer), .ignore, .snooze])
         #expect(words.needs == "the command's output")
+    }
+
+    /// An ask whose session no window holds is marked with the away ring; one a window holds, needs you's dot.
+    @Test func anAwaySessionsAskTakesTheAwayRing() throws {
+        let away = try Self.card("k1", Self.picked("sr-gs7kq2", boards: ["sr-gs7kq2": Lines.away]))
+        let held = try Self.card("k1", opened())
+
+        #expect(away.isAway && away.mark == .awayAsk)
+        #expect(!held.isAway && held.mark == .needs)
     }
 
     @Test func onAnAwaySessionAYesOrAChoiceWaitsInTheInboxAndNothingNeedsClaudesPrompt() throws {

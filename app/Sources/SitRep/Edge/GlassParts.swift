@@ -32,10 +32,9 @@ enum GlassInk {
     static let orangeArc = NSColor(cgColor: EdgeStyle.color(LiveLight.orange)) ?? .systemOrange
 }
 
-/// An arc turning round a track, once in a period, or held still with none: a working row's mark.
-/// Black's arc, turned by Core Animation in the render server: the app does no work as it turns, and no update of the
-/// views round it, animated or not, restarts it.
-@available(macOS 26, *)
+/// An arc turning round a track, once in a period, or held still with none: a working row's mark, on the glass and in
+/// the SitRep window. Black's arc, turned by Core Animation in the render server: the app does no work as it turns, and
+/// no update of the views round it, animated or not, restarts it.
 struct Spinner: NSViewRepresentable {
     /// In the label colours, which the view resolves for the glass's appearance.
     let track: NSColor?
@@ -49,7 +48,8 @@ struct Spinner: NSViewRepresentable {
     }
 }
 
-/// The spinner's view: the arc in a layer of its own, as big as the view.
+/// The spinner's view: the arc in a layer of its own, as big as the view. Decoration: a click passes through it to
+/// what it sits in, a list's row or a button.
 @MainActor
 final class SpinnerView: NSView {
     private let spinner = Arc()
@@ -68,6 +68,13 @@ final class SpinnerView: NSView {
     }
 
     override var isFlipped: Bool { true }
+
+    override func hitTest(_: NSPoint) -> NSView? { nil }
+
+    /// Internal only for the tests, which read it.
+    var isTurning: Bool {
+        spinner.isTurning
+    }
 
     func show(track: NSColor?, arc: NSColor, period: Double?) {
         colours = (track, arc)
@@ -127,9 +134,8 @@ struct Shimmering: View {
     }
 }
 
-/// The lit title in a view of its own, masked by the band of light.
-@available(macOS 26, *)
-private struct Sweep: NSViewRepresentable {
+/// The lit title in a view of its own, masked by the band of light: on the glass, and in the SitRep window.
+struct Sweep: NSViewRepresentable {
     let lit: AnyView
     let width: Double
 
@@ -140,10 +146,11 @@ private struct Sweep: NSViewRepresentable {
     }
 }
 
-@available(macOS 26, *)
+/// The lit title's view. Decoration, as the arc's is: a click passes through it to what it sits in, and VoiceOver
+/// reads the title once, from the words under it.
 @MainActor
-private final class SweepView: NSView {
-    private let lit = NSHostingView(rootView: AnyView(EmptyView()))
+final class SweepView: NSView {
+    private let lit = Unheard(rootView: AnyView(EmptyView()))
     private var band: ShimmerBand?
 
     init() {
@@ -160,8 +167,21 @@ private final class SweepView: NSView {
 
     override var isFlipped: Bool { true }
 
+    override func hitTest(_: NSPoint) -> NSView? { nil }
+
+    override func isAccessibilityElement() -> Bool { false }
+
+    override func accessibilityChildren() -> [Any]? { [] }
+
+    /// Internal only for the tests, which read it.
+    var isSweeping: Bool {
+        band?.layer.animation(forKey: Self.key) != nil
+    }
+
     func show(_ title: AnyView, width: Double) {
-        lit.rootView = AnyView(title.frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading))
+        lit.rootView = AnyView(
+            title.frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading).accessibilityHidden(true)
+        )
         if band.map({ $0.layer.bounds.width != 3 * width }) ?? true {
             light(width)
         }
@@ -192,6 +212,15 @@ private final class SweepView: NSView {
     }
 
     private static let key = "sweep"
+}
+
+/// The lit words, which take no click and say nothing to VoiceOver.
+private final class Unheard: NSHostingView<AnyView> {
+    override func hitTest(_: NSPoint) -> NSView? { nil }
+
+    override func isAccessibilityElement() -> Bool { false }
+
+    override func accessibilityChildren() -> [Any]? { [] }
 }
 
 extension View {

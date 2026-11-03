@@ -1,13 +1,13 @@
 import AppKit
 import SwiftUI
 
-/// The welcome window (DESIGN, "The welcome window"): one, made as it first opens, which the menu's Welcome… opens at
-/// its first step, bringing it forward again where it shows. It opens centred on the Space Lee is on, and otherwise
-/// stays on its own (`ForwardWindow`), as About SitRep does. 840 by 540, never resized, black, in the system's frame:
-/// its close button and ⌘W close it, however far Lee got, keeping what he set; it neither minimises nor zooms. Its
-/// stage plays while it is in front, behind only settling what a change set moving, and what macOS says of the login
-/// item and the two leaves is read each time it comes forward. Keyboard focus is on nothing as it opens, as in the
-/// Mac's own setup assistants, and Return presses Continue; Tab takes it into the controls in reading order.
+/// The welcome window (DESIGN, "The welcome window"): one, made as it first opens, which the menu's Show Welcome
+/// Window opens at its first step, bringing it forward again where it shows. It opens centred on the Space Lee is on,
+/// and otherwise stays on its own (`ForwardWindow`), as About SitRep does. 840 by 540, never resized, black, in the
+/// system's frame: its close button and ⌘W close it, however far Lee got, keeping what he set; it neither minimises
+/// nor zooms. Its stage plays while it is in front, behind only settling what a change set moving, and what macOS says
+/// of the login item and the two leaves is read each time it comes forward. Keyboard focus is on nothing as it opens,
+/// as in the Mac's own setup assistants, and Return presses Continue; Tab takes it into the controls in reading order.
 @MainActor
 final class WelcomeWindow: NSObject, NSWindowDelegate {
     private let welcome: WelcomeModel
@@ -49,8 +49,8 @@ final class WelcomeWindow: NSObject, NSWindowDelegate {
         }
     }
 
-    /// Whether SitRep, starting, opens it by itself, as Welcome… opens it: only on a Mac where none has ever closed.
-    /// However it closes, quitting included, it is done with, so it never opens by itself again.
+    /// Whether SitRep, starting, opens it by itself, as Show Welcome Window opens it: only on a Mac where none has ever
+    /// closed. However it closes, quitting included, it is done with, so it never opens by itself again.
     static func opensAtStart(_ preferences: Preferences) -> Bool {
         !preferences.welcomed
     }

@@ -19,6 +19,11 @@ struct MenuEntriesTests {
         ])
     }
 
+    /// What the welcome's command does, said: it opens a window and asks nothing, so it has no ellipsis.
+    @Test func theWelcomesCommandSaysItShowsTheWelcomeWindow() {
+        #expect(MenuBoard.welcomeTitle == "Show Welcome Window")
+    }
+
     @Test func itSpeaksUpFirstUnderTheHeader() {
         let window = Watched.window("w1", session: "sr-boot", name: "The bootstrap", project: "Kit", version: nil, needsReload: true)
         let last = heard([.line(Watched.line(windows: [window])), .exited(.status(1), stderr: "")])

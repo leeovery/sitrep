@@ -11,9 +11,13 @@ enum MenuWords {
         MainActor.assumeIsolated { MenuFonts.measure(text, face) }
     }
 
-    /// A session's row: its mark, its time as its badge, and its words at this time on the wall clock, ms.
-    static func row(_ item: NSMenuItem, _ session: Session, jump: String?, age: String, now: Double, isHighlighted: Bool) {
-        item.image = MenuImages.mark(session)
+    /// A session's row: its mark, a working one's arc at this frame of its turn, its time as its badge, and its words
+    /// at this time on the wall clock, ms.
+    static func row(
+        _ item: NSMenuItem, _ session: Session, jump: String?, age: String, now: Double, isHighlighted: Bool,
+        turn frame: Int = 0
+    ) {
+        item.image = MenuImages.mark(session, turn: frame)
         item.badge = NSMenuItemBadge(string: age)
         describe(item, session, jump: jump, now: now, isHighlighted: isHighlighted)
     }
@@ -62,19 +66,32 @@ enum MenuWords {
         let isCut = plain != whole || subtitle != line
 
         if #available(macOS 15, *) {
-            item.attributedTitle = title
-            item.subtitle = subtitle
+            retitle(item, subtitle: subtitle, isSame: item.attributedTitle == title) { $0.attributedTitle = title }
             item.toolTip = isCut ? all : nil
         } else if #available(macOS 14.4, *) {
-            item.attributedTitle = nil
-            item.title = plain
-            item.subtitle = subtitle
+            retitle(item, subtitle: subtitle, isSame: item.attributedTitle == nil && item.title == plain) {
+                $0.attributedTitle = nil
+                $0.title = plain
+            }
             item.toolTip = isCut ? all : nil
         } else {
             item.attributedTitle = nil
             item.title = plain
             item.toolTip = all
         }
+    }
+
+    /// Its title set by `set` where it reads differently, and the line under it after. On macOS 26 the menu as it
+    /// shows draws the line again only as the line itself changes: a title set, even to the one it has, leaves the row
+    /// its two lines' height with the second blank, and the same line set again puts nothing back. So the title is
+    /// set only where it changed, and then the line is taken off and put back (measured on the menu's own item views).
+    @available(macOS 14.4, *)
+    private static func retitle(_ item: NSMenuItem, subtitle: String, isSame: Bool, _ set: (NSMenuItem) -> Void) {
+        if !isSame {
+            set(item)
+            item.subtitle = nil
+        }
+        item.subtitle = subtitle
     }
 }
 

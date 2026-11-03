@@ -21,8 +21,9 @@ struct ListedTests {
         #expect(Self.bySession.needsYou.map(\.id) == ["sr-4g01a7", "sr-dash02", "sr-gs7kq2"])
     }
 
+    /// Goosemates' ask, which no window holds, takes the away ring.
     @Test func aRowTakesItsMarkFromItsLineAndNamesItsProject() {
-        #expect(Self.bySession.rows.map(\.mark) == [.needs, .needs, .needs, .working, .onItsWork, .turn])
+        #expect(Self.bySession.rows.map(\.mark) == [.needs, .needs, .awayAsk, .working, .onItsWork, .turn])
         #expect(Self.bySession.rows.map(\.isAway) == [false, false, true, false, false, false])
         #expect(Self.bySession.rows.map(\.project) == ["Harness", "Switchboard", "Goosemates", "SitRep", "Kit", "Fumi"])
     }

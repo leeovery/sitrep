@@ -2,11 +2,11 @@ import AppKit
 import SitRepPanel
 
 /// One mark on the strip in black, drawn as the prototype's `.mk`: the project's letters in a 24pt ring whose colour
-/// carries the state, a glow outside it while it needs Lee, the working arc turning round it, or held still on its own
-/// work, lifted under the pointer, and pressed in with its arc turning while a click on it jumps. Just arrived, it is
-/// washed orange and its ring flashes, and its lift eases as the model eases it, a frame at a time; any other change of
-/// look eases over 240ms, the letters' colour among it, as the prototype's transitions do, and the pressed fill over
-/// 110.
+/// carries the state, a glow outside it while it needs Lee, the working arc turning round it, or on its own work the
+/// dotted ring in the ring's place, still, lifted under the pointer, and pressed in with its arc turning while a click
+/// on it jumps. Just arrived, it is washed orange and its ring flashes, and its lift eases as the model eases it, a
+/// frame at a time; any other change of look eases over 240ms, the letters' colour among it, as the prototype's
+/// transitions do, and the pressed fill over 110.
 @MainActor
 final class StripMarkLayer {
     let layer = CALayer()
@@ -16,6 +16,8 @@ final class StripMarkLayer {
     let ring = CALayer()
     /// The arc: internal only for the tests, which read its fade.
     let spinner = Arc(line: StripMarkLayer.line)
+    /// On its own work's dotted ring: internal only for the tests, which read it.
+    let dotted: CAShapeLayer
     /// The letters: their colour, filled through their glyphs, so a change of look eases it as the ring's; internal
     /// only for the tests, which read its ease.
     let letters = CALayer()
@@ -41,6 +43,8 @@ final class StripMarkLayer {
         let box = CGRect(x: 0, y: 0, width: Self.size, height: Self.size)
         let outside = CALayer()
 
+        dotted = DottedRing.strip.layer(centredOn: CGPoint(x: box.midX, y: box.midY), colour: EdgeStyle.grey)
+        dotted.opacity = 0
         layer.bounds = box
         glow.frame = box
         glow.shadowOffset = .zero
@@ -54,6 +58,7 @@ final class StripMarkLayer {
         letters.frame = box
         layer.addSublayer(outside)
         layer.addSublayer(ring)
+        layer.addSublayer(dotted)
         layer.addSublayer(spinner.layer)
         layer.addSublayer(letters)
     }
@@ -106,6 +111,7 @@ final class StripMarkLayer {
         glow.shadowRadius = Self.blur / 2
         glow.shadowOpacity = glows ? Float(Self.glowAlpha) : 0
         letters.backgroundColor = Self.letterColour(kind)
+        dotted.opacity = kind == .onItsWork && !look.jumping ? 1 : 0
         spinner.track.strokeColor = look.jumping ? nil : EdgeStyle.track
         spinner.arc.strokeColor = look.jumping && kind == .needs ? EdgeStyle.orange
             : look.jumping && kind == .turn ? EdgeStyle.ink : EdgeStyle.arc
@@ -114,7 +120,7 @@ final class StripMarkLayer {
         CATransaction.begin()
         CATransaction.setDisableActions(!eased)
         CATransaction.setAnimationDuration(Self.arcFade(jumping: look.jumping))
-        spinner.layer.opacity = kind == .working || kind == .onItsWork || look.jumping ? 1 : 0
+        spinner.layer.opacity = kind == .working || look.jumping ? 1 : 0
         CATransaction.commit()
 
         if look.text != self.look?.text {

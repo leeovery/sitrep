@@ -64,14 +64,16 @@ struct SessionPageView: View {
             StopCard(stop: page.doing, session: page.id, now: now).padding(.top, 20).padding(.bottom, 28)
         } else {
             HStack(spacing: 8) {
-                MarkView(mark: page.doing.mark)
+                MarkView(mark: page.mark)
                 switch page.doing.kind {
                 case .away:
                     Text(page.doing.line.lead).font(WindowStyle.ui(13)).foregroundStyle(WindowStyle.faint)
                 case .onItsWork:
                     Text(page.doing.line.lead).font(WindowStyle.ui(13, .medium)).foregroundStyle(WindowStyle.soft)
+                case .working:
+                    ShimmeringLead { isLit in lead.foregroundStyle(isLit ? WindowStyle.text : WindowStyle.soft) }
                 default:
-                    ShimmeringLead(text: page.doing.line.lead, isOn: page.doing.kind == .working)
+                    lead.foregroundStyle(WindowStyle.text)
                 }
                 if let mono = page.doing.line.mono {
                     Text(mono).font(WindowStyle.mono(12)).foregroundStyle(WindowStyle.soft).lineLimit(1)
@@ -85,6 +87,11 @@ struct SessionPageView: View {
             .padding(.top, 14)
             .padding(.bottom, 26)
         }
+    }
+
+    /// What its window is doing, as the line's lead.
+    private var lead: some View {
+        Text(page.doing.line.lead).font(WindowStyle.ui(13, .medium)).lineLimit(1)
     }
 
     private var asks: some View {
@@ -128,51 +135,6 @@ struct SessionPageView: View {
             }
         }
     }
-}
-
-/// A working line's lead, grey with a slow sweep of white along it, as Claude Code's own; your turn's, still and
-/// white. Still, as under reduced motion, the sweep holds where the drawing has it, a little before the middle.
-struct ShimmeringLead: View {
-    let text: String
-    let isOn: Bool
-
-    @Environment(\.reducesWindowMotion) private var reducesMotion
-    /// Where the sweep's band starts, in widths of the words: off them at -0.6 and at 1.
-    @State private var sweep = Self.still
-
-    var body: some View {
-        let words = Text(text).font(WindowStyle.ui(13, .medium)).lineLimit(1)
-
-        if isOn {
-            words
-                .foregroundStyle(WindowStyle.soft)
-                .overlay {
-                    GeometryReader { size in
-                        words
-                            .foregroundStyle(WindowStyle.text)
-                            .mask(alignment: .leading) {
-                                LinearGradient(colors: [.clear, .white, .clear], startPoint: .leading, endPoint: .trailing)
-                                    .frame(width: size.size.width * 0.6)
-                                    .offset(x: sweep * size.size.width)
-                            }
-                    }
-                }
-                .onAppear(perform: follow)
-                .onChange(of: reducesMotion, follow)
-        } else {
-            words.foregroundStyle(WindowStyle.text)
-        }
-    }
-
-    /// Sweeping, or held where the drawing has it the moment motion is reduced.
-    private func follow() {
-        withTransaction(\.disablesAnimations, true) { sweep = reducesMotion ? Self.still : -0.6 }
-        if !reducesMotion {
-            withAnimation(.linear(duration: 2).repeatForever(autoreverses: false)) { sweep = 1 }
-        }
-    }
-
-    private static let still = 0.12
 }
 
 /// A permission prompt or a question, in the state line's place, washed orange as the panel row that brought it: the

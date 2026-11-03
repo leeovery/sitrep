@@ -38,6 +38,25 @@ struct SidebarLayoutTests {
         #expect(side.rows.first?.minY == 113)
     }
 
+    /// With no foot under it, the list runs to the glass's foot, whatever bottom safe area a window on screen gives the
+    /// sidebar: in a window too short for the board, scrolled to its end, its last row 12 over the glass's foot.
+    @Test(arguments: [0, 10, 27.5])
+    func theListRunsToTheGlasssFootItsLastRow12OverIt(bottomSafeArea: CGFloat) throws {
+        let side = try HostedSidebar(HostedSidebar.opened(), height: 300, bottomSafeArea: bottomSafeArea)
+        let scroll = try #require(side.board.enclosingScrollView)
+        let clip = scroll.contentView
+
+        try #require(side.board.frame.height > clip.bounds.height)
+        clip.scroll(to: NSPoint(x: 0, y: side.board.frame.height - clip.bounds.height + scroll.contentInsets.bottom))
+        scroll.reflectScrolledClipView(clip)
+
+        let last = try #require(side.rows.last)
+
+        #expect(side.frame(of: scroll).maxY == side.glassBottom)
+        #expect(side.glassBottom - last.maxY == WindowStyle.listBottom)
+        #expect(WindowStyle.listBottom == 12)
+    }
+
     /// Every heading 10 under what is before it, then 24, the one after Needs you carrying its rule, 11.5 and 0.5 more
     /// over that; a Needs you row 39, the system's two-line row, however many lines wait, Harness's three asks as
     /// Goosemates' one; a working row 39; a your-turn row 28.
@@ -94,7 +113,7 @@ struct SidebarLayoutTests {
         #expect(first.maxY - 24 - field.maxY == 20)
     }
 
-    /// The foot's rule after Needs you: 0.5 in the separator's colour, 276 wide and 10 in, 11.5 under the last ask's row;
+    /// The rule after Needs you: 0.5 in the separator's colour, 276 wide and 10 in, 11.5 under the last ask's row;
     /// Working's heading 10 under it, its words inside the heading's 24.
     @Test func aRuleSits11AndAHalfUnderNeedsYouTheNextHeading10UnderIt() throws {
         let side = try HostedSidebar(Self.opened(), listAlone: true)
@@ -105,14 +124,10 @@ struct SidebarLayoutTests {
         let rule = try #require(drawn.drawnBox(in: gap, ground: Self.ground(heading)))
         let words = CGRect(x: 0, y: rule.maxY, width: 200, height: heading.maxY - rule.maxY)
         let name = try #require(drawn.drawnBox(in: words, ground: Self.ground(heading)))
-        let column = try HostedSidebar(Self.opened())
-        let footRule = try column.footRow().minY - column.glassTop - WindowStyle.footerTop - WindowStyle.rule
-        let footPixel = try #require(try column.drawn().pixel(at: CGPoint(x: 148, y: footRule)))
 
         #expect(rule == CGRect(x: 10, y: last.maxY + 11.5, width: 276, height: 0.5))
         #expect(heading.maxY - 24 - rule.maxY == 10)
         #expect(name.minY > heading.maxY - 24)
-        #expect(try #require(drawn.pixel(at: CGPoint(x: 148, y: rule.minY))) == footPixel)
     }
 
     /// Needs you folded: its heading alone, the rule still after it.
