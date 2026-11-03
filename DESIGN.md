@@ -4442,7 +4442,9 @@ does; the boards first drew it on a band of black.
      asked… Can you remove that line?"). The stage's panel is open on
      Needs you, Working and Your turn, and the loop plays the notch at
      rest, an ask landing, the swell twice and the light, the pour into
-     the panel and the close. Continue reads Show me.
+     the panel and the close. Continue reads Continue here too; the
+     board's "Show me" went in the build, as Lee couldn't tell what it did
+     (3 November 2026).
   2. **An ask, from Claude to you:** "Claude asks. You answer." One soft
      loop on the stage, with nothing to press (Lee, 3 November 2026: "I
      don't want it interactive in that way… Soft animation in the
