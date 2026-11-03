@@ -4496,7 +4496,13 @@ does; the boards first drew it on a band of black.
      session, each lit as the loop plays it. The drawn board's three rows,
      its Send a test ask on the real edge and the SitRep window's slide-in
      went with the change. Nothing on this step sounds, sends anything or
-     needs macOS's leave.
+     needs macOS's leave. No pointer is drawn, so in both loops, step 1's
+     and this one, the only row the stage lights is the ask's (Lee, 3
+     November 2026, of working rows lit "as if there's an invisible mouse
+     moving up through the card"): the unseen pointer rests at the notch's
+     home in the panel's side padding while it pours, steps onto the ask's
+     row at once, and leaves the stage at once, so it never crosses
+     another row. On the strip it rests on the ask's own mark.
   3. **Your edge:** "Choose what sits at your edge." Notch or Strip as
      Settings' own pictures, at the window's size, the one chosen ringed in
      the accent; under them a grouped form in System Settings' rows: Style,
