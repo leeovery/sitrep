@@ -29,7 +29,7 @@ final class StatusMenu: NSObject, NSMenuDelegate {
     private var entries: [MenuEntry] = []
     private var isOpen = false
     private var ticking: Timer?
-    private lazy var turn = MenuTurn { [weak self] in self?.turnArcs() }
+    private lazy var turn = MenuTurn(menu)
     /// The item under the pointer, whose words take the highlight's own ink.
     private weak var highlighted: NSMenuItem?
 
@@ -81,11 +81,10 @@ final class StatusMenu: NSObject, NSMenuDelegate {
         draw()
     }
 
-    /// Show may have changed in Settings since it was drawn. Open, its working arcs turn.
+    /// Show may have changed in Settings since it was drawn.
     func menuWillOpen(_ menu: NSMenu) {
         isOpen = true
         draw()
-        turn.start(reducesMotion: Displays.reducesMotion(preferences.edge))
     }
 
     func menuDidClose(_ menu: NSMenu) {
@@ -114,7 +113,8 @@ final class StatusMenu: NSObject, NSMenuDelegate {
     }
 
     /// The glyph, and the menu patched to what it should show: items gone taken out, those come put in, and those
-    /// kept set again where they changed. Open, its times are set for the rows now showing.
+    /// kept set again where they changed. Open, its times are set for the rows now showing, and its working arcs turn
+    /// while it has any.
     private func draw() {
         item.button?.image = MenuImages.glyph(board.glyph)
 
@@ -133,6 +133,7 @@ final class StatusMenu: NSObject, NSMenuDelegate {
             }
         }
         entries = next
+        turn.follow(next, isOpen: isOpen, reducesMotion: Displays.reducesMotion(preferences.edge))
         if isOpen {
             tick()
         }
@@ -245,15 +246,6 @@ final class StatusMenu: NSObject, NSMenuDelegate {
 
             RunLoop.main.add(timer, forMode: .common)
             return timer
-        }
-    }
-
-    /// The working rows' arcs at the frame their turn has reached.
-    private func turnArcs() {
-        for (offset, entry) in entries.enumerated() {
-            if case let .row(session, _) = entry, session.kind == .working, let item = menu.item(at: offset) {
-                item.image = MenuImages.mark(session, turn: turn.frame)
-            }
         }
     }
 

@@ -1,23 +1,28 @@
 import AppKit
 @testable import SitRep
+import SitRepMenu
 import SitRepPanel
 import Testing
 
-/// The menu's session rows as the status menu sets them: a working row's arc turning while the menu is open, from its
-/// frames drawn once; an away ask's hollow ring; and the line under a row's title kept showing as its title is set
-/// again. Each image read from its pixels at 2×.
+/// The menu's session rows as the status menu sets them: a working row's arc turning while the menu is open with a
+/// working row in it, from its frames drawn once; an away ask's hollow ring; and the line under a row's title kept
+/// showing as its title, its time and its arc are set again. Each image read from its pixels at 2×.
 @MainActor
 struct MenuRowsTests {
     private static let working = Session(
-        id: "sr-macapp", project: "SitRep", kind: .working, title: "Writing ", code: "Sample.swift",
-        sub: "SitRep · The Mac app", since: 0
+        id: "sr-work01", project: Sample.project, kind: .working, title: Sample.writing.title,
+        code: Sample.writing.code, sub: Sample.place, since: 0
     )
     private static func asking(away: Bool) -> Session {
         Session(
-            id: "sr-kit", project: "Kit", name: "The bootstrap", kind: .needs, away: away,
-            lines: [Session.Line(title: "Which edge?", since: 0)], sub: "Kit"
+            id: "sr-ask001", project: Sample.project, name: "Session", kind: .needs, away: away,
+            lines: [Session.Line(title: Sample.needsYou, since: 0)], sub: Sample.project
         )
     }
+
+    private static let yourTurn = Session(
+        id: "sr-turn01", project: Sample.project, kind: .turn, title: Sample.yourTurn, sub: Sample.place, since: 0
+    )
 
     // MARK: The arc
 
@@ -41,40 +46,99 @@ struct MenuRowsTests {
     @Test func aWorkingRowShowsTheFrameItsTurnHasReached() {
         let item = NSMenuItem()
 
-        MenuWords.row(item, Self.working, jump: "sr-macapp", age: "2m", now: 0, isHighlighted: false, turn: 7)
+        MenuWords.row(item, Self.working, jump: "sr-work01", age: "2m", now: 0, isHighlighted: false, turn: 7)
         #expect(item.image === MenuImages.arc[7])
         #expect(MenuImages.mark(Self.working) === MenuImages.arc[0])
     }
 
-    /// Opened, it steps through the frames, showing each; closed, it stops, still again at the first frame.
-    @Test func itTurnsFromTheMenuOpeningToItsClosing() {
-        var shown = 0
-        let turn = MenuTurn { shown += 1 }
+    /// Its frame is the clock's, as every arc's turn is (`Arc.phase`): a second's thirty steps, round again each
+    /// second, so the menu's arcs turn in step with the panel's.
+    @Test func theFrameIsTheClocksPlaceInASecond() {
+        #expect(MenuTurn.frame(at: 1000) == 0)
+        #expect(MenuTurn.frame(at: 1000.5) == 15)
+        #expect(MenuTurn.frame(at: 1000 + 7.5 / 30) == 7)
+        #expect(MenuTurn.frame(at: 1001.999) == 29)
+        #expect(Arc.phase(every: 1.2, at: 1000.9) == 1000.9.truncatingRemainder(dividingBy: 1.2))
+    }
 
-        turn.start(reducesMotion: false)
+    /// Open with a working row in it, it turns; closed, it stops, its arcs still again at the first frame.
+    @Test func itTurnsWhileTheMenuIsOpenWithAWorkingRow() {
+        let (menu, entries) = Self.menu(Self.working, Self.asking(away: false))
+        let turn = MenuTurn(menu)
+
+        turn.follow(entries, isOpen: true, reducesMotion: false)
         #expect(turn.isTurning)
-        turn.step()
-        turn.step()
-        #expect(turn.frame == 2 && shown == 2)
+
+        turn.step(at: 1000.5)
+        #expect(menu.item(at: 0)?.image === MenuImages.arc[15])
 
         turn.stop()
         #expect(!turn.isTurning)
-        #expect(turn.frame == 0 && shown == 3)
+        #expect(turn.frame == 0)
+        #expect(menu.item(at: 0)?.image === MenuImages.arc[0])
     }
 
-    @Test func aTurnGoesRoundToTheFirstFrameAgain() {
-        let turn = MenuTurn {}
+    /// With no working row, nothing runs, open or not: the timer starts only for an arc to turn.
+    @Test func withNoWorkingRowItNeverStarts() {
+        let (menu, entries) = Self.menu(Self.asking(away: false), Self.yourTurn)
+        let turn = MenuTurn(menu)
 
-        (0 ..< MenuTurn.frames).forEach { _ in turn.step() }
-        #expect(turn.frame == 0)
+        turn.follow(entries, isOpen: true, reducesMotion: false)
+        #expect(!turn.isTurning)
+    }
+
+    /// Drawn again as rows come and go while it is open: a working row come starts it, the last one gone stops it,
+    /// and the menu drawn closed stops it too.
+    @Test func itStartsAndStopsAsWorkingRowsComeAndGo() {
+        let (menu, withWorking) = Self.menu(Self.working, Self.asking(away: false))
+        let without = Array(withWorking.dropFirst())
+        let turn = MenuTurn(menu)
+
+        turn.follow(without, isOpen: true, reducesMotion: false)
+        #expect(!turn.isTurning)
+        turn.follow(withWorking, isOpen: true, reducesMotion: false)
+        #expect(turn.isTurning)
+        turn.follow(without, isOpen: true, reducesMotion: false)
+        #expect(!turn.isTurning)
+        turn.follow(withWorking, isOpen: true, reducesMotion: false)
+        turn.follow(withWorking, isOpen: false, reducesMotion: false)
+        #expect(!turn.isTurning)
     }
 
     @Test func underReducedMotionItNeverStarts() {
-        let turn = MenuTurn {}
+        let (menu, entries) = Self.menu(Self.working)
+        let turn = MenuTurn(menu)
 
-        turn.start(reducesMotion: true)
+        turn.follow(entries, isOpen: true, reducesMotion: true)
         #expect(!turn.isTurning)
         #expect(turn.frame == 0)
+    }
+
+    /// A step sets only the working rows' images; every other row's is left as it was set.
+    @Test func aStepSwapsOnlyTheWorkingRowsArcs() {
+        let (menu, entries) = Self.menu(Self.asking(away: false), Self.working, Self.yourTurn)
+        let others = [0, 2].map { menu.item(at: $0)?.image }
+        let turn = MenuTurn(menu)
+
+        turn.follow(entries, isOpen: true, reducesMotion: false)
+        turn.step(at: 1000.5)
+        #expect(menu.item(at: 1)?.image === MenuImages.arc[15])
+        #expect(menu.item(at: 0)?.image === others[0] && menu.item(at: 2)?.image === others[1])
+        turn.stop()
+    }
+
+    /// A menu of these sessions' rows, set as the status menu sets them, and its entries.
+    private static func menu(_ sessions: Session...) -> (NSMenu, [MenuEntry]) {
+        let menu = NSMenu()
+        let entries = sessions.map { MenuEntry.row($0, jump: $0.id) }
+
+        for session in sessions {
+            let item = NSMenuItem()
+
+            MenuWords.row(item, session, jump: session.id, age: "2m", now: 0, isHighlighted: false)
+            menu.addItem(item)
+        }
+        return (menu, entries)
     }
 
     /// The arc's quarter, its strokes' middle as an angle from the image's centre, y down, so the angles run
@@ -139,10 +203,10 @@ struct MenuRowsTests {
     @Test func aRowSetAgainAsItWasKeepsItsTitle() {
         let item = Recorded()
 
-        MenuWords.row(item, Self.asking(away: false), jump: "sr-kit", age: "1h", now: 0, isHighlighted: false)
+        MenuWords.row(item, Self.asking(away: false), jump: "sr-ask001", age: "1h", now: 0, isHighlighted: false)
         item.sets = []
-        MenuWords.describe(item, Self.asking(away: false), jump: "sr-kit", now: 0, isHighlighted: true)
-        #expect(item.sets == ["subtitle Kit"])
+        MenuWords.describe(item, Self.asking(away: false), jump: "sr-ask001", now: 0, isHighlighted: true)
+        #expect(item.sets == ["subtitle \(Sample.project)"])
     }
 
     /// A working row under the pointer takes its title's grey off, which sets its title: the line under it is taken
@@ -151,11 +215,115 @@ struct MenuRowsTests {
     @Test func aRowWhoseTitleChangesHasItsLinePutBackAfter() {
         let item = Recorded()
 
-        MenuWords.row(item, Self.working, jump: "sr-macapp", age: "2m", now: 0, isHighlighted: false)
+        MenuWords.row(item, Self.working, jump: "sr-work01", age: "2m", now: 0, isHighlighted: false)
         item.sets = []
-        MenuWords.describe(item, Self.working, jump: "sr-macapp", now: 0, isHighlighted: true)
-        #expect(item.sets == ["title", "subtitle nil", "subtitle SitRep · The Mac app"])
-        #expect(item.subtitle == "SitRep · The Mac app")
+        MenuWords.describe(item, Self.working, jump: "sr-work01", now: 0, isHighlighted: true)
+        #expect(item.sets == ["title", "subtitle nil", "subtitle \(Sample.place)"])
+        #expect(item.subtitle == Sample.place)
+    }
+
+    /// The line under a row's title as the open menu shows it, in the view it makes for the row, kept as the row's
+    /// time and arc are set again, each as an open menu passes it on, the two on the one row in the one pass: the
+    /// status menu sets them while open and never sets the line again after. A title set, as the view is told of it,
+    /// does blank the line, so the view read here is one that shows the loss.
+    @Test(.enabled(if: ShownItem.isReachable)) func aRowsTimeAndArcSetAgainKeepTheLineUnderItsTitle() throws {
+        let (menu, _) = Self.menu(Self.working, Self.asking(away: false))
+        let shown = try #require(ShownItem(menu, at: 0))
+        let item = try #require(menu.item(at: 0))
+
+        #expect(shown.words.contains(Sample.place))
+        for round in 0 ..< 3 {
+            shown.set(item, badge: NSMenuItemBadge(string: "\(round)m"))
+            shown.set(item, image: MenuImages.arc[round + 1])
+        }
+        #expect(shown.words.contains(Sample.place))
+        shown.highlight(true)
+        shown.set(item, image: MenuImages.arc[9])
+        shown.highlight(false)
+        #expect(shown.words.contains(Sample.place))
+
+        shown.set(item, title: NSAttributedString(string: "Reading "))
+        #expect(!shown.words.contains(Sample.place))
+    }
+
+    /// A row of a menu in the view the menu shows it in, made offscreen as the menu makes it as it opens, through
+    /// AppKit's own private calls, which this macOS has (`isReachable`); each change to the row passed on to the view
+    /// as an open menu passes it.
+    @MainActor
+    private struct ShownItem {
+        let view: NSView
+        /// Never ordered in: the view's only for it to lay out in, offscreen.
+        private let window: NSWindow
+
+        nonisolated static var isReachable: Bool {
+            NSMenu.instancesRespond(to: NSSelectorFromString("_menuImpl"))
+        }
+
+        init?(_ menu: NSMenu, at index: Int) {
+            typealias Make = @convention(c) (AnyObject, Selector, Int, AnyObject?) -> NSView?
+            let make = NSSelectorFromString("makeViewForMenuItemAtIndex:withFilterQuery:")
+
+            menu.update()
+            guard let impl = menu.perform(NSSelectorFromString("_menuImpl"))?.takeUnretainedValue() as? NSObject,
+                  impl.responds(to: make),
+                  let view = unsafeBitCast(impl.method(for: make), to: Make.self)(impl, make, index, nil)
+            else {
+                return nil
+            }
+
+            let window = NSWindow(
+                contentRect: NSRect(x: -5000, y: -5000, width: 340, height: 44), styleMask: [.borderless],
+                backing: .buffered, defer: true
+            )
+
+            window.contentView = NSView(frame: NSRect(x: 0, y: 0, width: 340, height: 44))
+            view.frame = NSRect(x: 0, y: 0, width: 340, height: 44)
+            window.contentView?.addSubview(view)
+            self.view = view
+            self.window = window
+        }
+
+        /// The title and the line under it as the view shows them.
+        var words: String {
+            view.layoutSubtreeIfNeeded()
+            return (view.value(forKey: "_titleTextField") as? NSTextField)?.stringValue ?? ""
+        }
+
+        /// Under the pointer or not, as the menu shows it.
+        func highlight(_ isHighlighted: Bool) {
+            typealias Set = @convention(c) (AnyObject, Selector, Bool) -> Void
+            let selector = NSSelectorFromString("setHighlighted:")
+
+            unsafeBitCast(view.method(for: selector), to: Set.self)(view, selector, isHighlighted)
+        }
+
+        func set(_ item: NSMenuItem, badge: NSMenuItemBadge) {
+            let was = item.badge
+
+            item.badge = badge
+            changed("Badge", from: was, to: badge)
+        }
+
+        func set(_ item: NSMenuItem, image: NSImage) {
+            let was = item.image
+
+            item.image = image
+            changed("Image", from: was, to: image)
+        }
+
+        func set(_ item: NSMenuItem, title: NSAttributedString) {
+            let was = item.attributedTitle
+
+            item.attributedTitle = title
+            changed("AttributedTitle", from: was, to: title)
+        }
+
+        private func changed(_ what: String, from was: AnyObject?, to now: AnyObject?) {
+            typealias Change = @convention(c) (AnyObject, Selector, AnyObject?, AnyObject?) -> Void
+            let selector = NSSelectorFromString("_didChange\(what)From:to:")
+
+            unsafeBitCast(view.method(for: selector), to: Change.self)(view, selector, was, now)
+        }
     }
 
     /// A menu item that notes each title and line under it set on it, in order.

@@ -17,9 +17,7 @@ enum EdgeStyle {
     static let rule = srgb(0x232327)
     static let track = srgb(0x2C2C31)
     static let shim = srgb(0x9A9AA1)
-    /// The strip's (strip.html's `--p-` colours beyond the panel's): an away ask's words, a working mark's letters, and
-    /// its arc.
-    static let quiet = srgb(0x8A8A92)
+    /// The strip's (strip.html's `--p-` colours beyond the panel's): a working mark's letters, and its arc.
     static let grey = srgb(0x8E8E95)
     static let arc = srgb(0xC9C9CF)
     /// A row on its own work's verb, from Paper's board D; its subject and its dotted ring are `grey`.

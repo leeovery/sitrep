@@ -205,15 +205,10 @@ final class SessionRow {
     /// A Snoozed row's words are soft, away or not, its "+2" and its project faint; an away row's title and the line
     /// under it dim as one (`Away`).
     private var titleColour: CGColor {
-        session.isSnoozed ? EdgeStyle.ink2 : awayDimmed(EdgeStyle.ink)
+        session.isSnoozed ? EdgeStyle.ink2 : Away.dimmed(EdgeStyle.ink, session.away)
     }
 
-    private var subColour: CGColor { session.isSnoozed ? EdgeStyle.ink3 : awayDimmed(EdgeStyle.ink2) }
-
-    /// A colour of its words, dimmed by `Away.dim` on an away row, over the black.
-    private func awayDimmed(_ colour: CGColor) -> CGColor {
-        session.away ? colour.copy(alpha: Away.dim) ?? colour : colour
-    }
+    private var subColour: CGColor { session.isSnoozed ? EdgeStyle.ink3 : Away.dimmed(EdgeStyle.ink2, session.away) }
 
     /// Its title's layers: the title, and a session's "+2" after it, board F's, quiet in the second line's colour, 6
     /// after the name on its baseline, which the name is cut short to leave room for.

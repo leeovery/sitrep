@@ -100,7 +100,7 @@ struct ProjectPageView: View {
 /// A project's session: its mark, its name, and what it is doing beneath, a working one's lead shimmering as its
 /// sidebar row's does; what waits there in orange, else its time. While no window holds it, its name and what it is
 /// doing dim as one (`Away`).
-private struct ProjectSessionRow: View {
+struct ProjectSessionRow: View {
     let session: ProjectPage.Session
     let now: Date
 
@@ -131,7 +131,7 @@ private struct ProjectSessionRow: View {
     }
 
     private var awayDim: Double {
-        session.isAway ? Away.dim : 1
+        Away.dimming(session.isAway)
     }
 
     private var doing: some View {

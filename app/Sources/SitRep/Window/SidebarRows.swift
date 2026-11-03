@@ -179,7 +179,7 @@ struct SidebarSessionRow: View {
 /// A session's row under Needs you, as Paper's board F draws it, in the system's two-line row: its dot in the mark's
 /// slot; its session's name, medium, and a quiet "+2" 5 after it for its lines waiting after the first, none for one;
 /// its age, its oldest line's, orange while a new line washes the row; then its project, 1 under. The asks are read on
-/// its page. While no window holds it, its mark is the away ring and its two lines dim as one (`Away`). On the accent
+/// its page. While no window holds it, its mark is the away ring and its words dim as one (`Away`). On the accent
 /// of the pick its name goes white, the rest white at 80%, away or not; its mark stays orange. A row in Snoozed is the
 /// same row quieted, as Paper's board H draws it: its dot faint and unlit, its name at 60%, its "+2" and its project at
 /// 35%, and in its age's place when its soonest ask wakes, soft.
@@ -200,6 +200,7 @@ struct NeedsYouRow: View {
                     .opacity(awayDim)
                 SidebarTime(time, washed: row.lineWashed, onPick: onPick)
                     .frame(height: WindowStyle.titleLine)
+                    .opacity(awayDim)
             }
             SecondLine(row.project, filter: filter, tone: isSnoozed ? .dim : .soft, onPick: onPick)
                 .opacity(awayDim)
@@ -213,10 +214,11 @@ struct NeedsYouRow: View {
 
     private var isSnoozed: Bool { row.section == .snoozed }
 
-    /// Its two lines, each dimmed by the one factor while no window holds it; not in Snoozed, quieted already, nor on
-    /// the accent of the pick, whose whites are the system's.
+    /// Its words, each dimmed by the one factor while no window holds it, its time too, which would otherwise read
+    /// brighter than its name; not in Snoozed, quieted already, nor on the accent of the pick, whose whites are the
+    /// system's.
     private var awayDim: Double {
-        row.isAway && !isSnoozed && !onPick ? Away.dim : 1
+        Away.dimming(row.isAway && !isSnoozed && !onPick)
     }
 
     /// Its oldest line's age, or in Snoozed when its soonest ask wakes.

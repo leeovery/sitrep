@@ -63,6 +63,17 @@ struct SessionPageTests {
         #expect(page.finish == .offered)
     }
 
+    /// With asks waiting while no window holds it, its mark beside what it is doing is the away ring, as its row's and
+    /// its cards'; held, what it is doing's.
+    @Test func anAwaySessionWithAsksWaitingIsMarkedWithTheAwayRing() throws {
+        let away = try Self.page(Self.picked("sr-gs7kq2", boards: ["sr-gs7kq2": Lines.away]))
+        let held = try Self.page(opened())
+
+        try #require(away.waiting > 0 && held.waiting > 0)
+        #expect(away.mark == .awayAsk)
+        #expect(held.mark == held.doing.mark && held.mark != .awayAsk)
+    }
+
     @Test func beforeItsBoardComesItSaysSoAndShowsNoAsks() throws {
         let page = try Self.page(opened(boards: [:]))
 

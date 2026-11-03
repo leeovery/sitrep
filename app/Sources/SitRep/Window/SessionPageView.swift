@@ -64,7 +64,7 @@ struct SessionPageView: View {
             StopCard(stop: page.doing, session: page.id, now: now).padding(.top, 20).padding(.bottom, 28)
         } else {
             HStack(spacing: 8) {
-                MarkView(mark: page.doing.mark)
+                MarkView(mark: page.mark)
                 switch page.doing.kind {
                 case .away:
                     Text(page.doing.line.lead).font(WindowStyle.ui(13)).foregroundStyle(WindowStyle.faint)

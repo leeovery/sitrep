@@ -471,7 +471,8 @@ struct WelcomeWindowTests {
         #expect(!made.welcome.isVisiting)
     }
 
-    /// So a later Welcome… never undoes Lee's choice in General, and shows no notice for an item on for months.
+    /// So a later Show Welcome Window never undoes Lee's choice in General, and shows no notice for an item on for
+    /// months.
     @Test func aWelcomeOpenedAgainChangesNothingUntilPressed() {
         let made = Made(welcomed: true)
 

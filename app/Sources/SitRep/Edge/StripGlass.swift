@@ -136,7 +136,7 @@ private struct StripGlassBody: View {
 /// the prototype's timing: the ring, its glow and the letters over 240ms, the pressed fill over 110, and the arc in
 /// over 60 as a click's jump starts and out over 240 (`StripMarkLayer`).
 @available(macOS 26, *)
-private struct GlassMark: View {
+struct GlassMark: View {
     let mark: StripFrame.Mark
 
     private static let size = StripFrame.Mark.size, line = 1.5
@@ -276,7 +276,7 @@ private struct GlassTab: View {
 
 /// A session's row: its title, the line under it and its time, laid out as the black's are.
 @available(macOS 26, *)
-private struct GlassRow: View {
+struct GlassRow: View {
     let session: Session
     let size: CGSize
     let pressed: Bool
@@ -289,6 +289,7 @@ private struct GlassRow: View {
             Text(session.sub)
                 .font(.system(size: 12))
                 .foregroundStyle(.secondary)
+                .opacity(Away.dimming(session.away))
                 .placed(in: at.sub)
             if pressed {
                 Spinner(track: .quaternaryLabelColor, arc: .labelColor, period: 1)
@@ -310,15 +311,16 @@ private struct GlassRow: View {
         if session.kind == .working, !scene.reducesMotion {
             Shimmering(text: text, width: box.width).placed(in: box)
         } else {
-            let isDim = session.away || session.kind == .onItsWork
-            text.foregroundStyle(isDim ? AnyShapeStyle(.secondary) : AnyShapeStyle(.primary)).placed(in: box)
+            text.foregroundStyle(session.kind == .onItsWork ? AnyShapeStyle(.secondary) : AnyShapeStyle(.primary))
+                .opacity(Away.dimming(session.away))
+                .placed(in: box)
         }
     }
 }
 
 /// A count's rows: each the session's title and core's second line, lifting under the pointer but for an away ask's.
 @available(macOS 26, *)
-private struct GlassRows: View {
+struct GlassRows: View {
     let sessions: [Session]
     let width: Double
     let lit: String?
@@ -334,7 +336,9 @@ private struct GlassRows: View {
                     RoundedRectangle(cornerRadius: StripRowsLayout.radius)
                         .fill(.primary.opacity(isLit ? (pressed ? 0.14 : 0.08) : 0))
                     GlassWords.rowTitle(session, at: now).placed(in: at.title)
-                    Text(session.sub).font(.system(size: 11)).foregroundStyle(.secondary).placed(in: at.sub)
+                    Text(session.sub).font(.system(size: 11)).foregroundStyle(.secondary)
+                        .opacity(Away.dimming(session.away))
+                        .placed(in: at.sub)
                 }
                 .frame(width: at.box.width, height: at.box.height, alignment: .topLeading)
                 .scaleEffect(isLit && pressed ? 0.985 : 1)
@@ -381,15 +385,15 @@ private enum GlassWords {
     }
 
     /// One of the count's rows' titles at this time on the wall clock: your turn and needs you in the primary label
-    /// colour, the rest dimmer.
+    /// colour, an away ask's dimmed with its second line (`Away`), working and on its own work in the secondary.
     static func rowTitle(_ s: Session, at now: Double) -> some View {
         let size = 13.0
         let text = Text(s.title).font(.system(size: size, weight: .medium))
         let isDim = s.kind == .working || s.kind == .onItsWork
-        let ink: AnyShapeStyle = s.away ? AnyShapeStyle(.tertiary)
-            : isDim ? AnyShapeStyle(.secondary) : AnyShapeStyle(.primary)
+        let ink: AnyShapeStyle = isDim ? AnyShapeStyle(.secondary) : AnyShapeStyle(.primary)
 
         return (text + subject(s, size: size, at: now) + more(s, size: size)).foregroundStyle(ink)
+            .opacity(Away.dimming(s.away))
     }
 
     /// Its subject in code type; else, plain at the title's size, what it waits on, or a wake's countdown in tabular

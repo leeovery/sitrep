@@ -308,14 +308,15 @@ final class StripWordsLayer {
         }
 
         let font = EdgeStyle.title
-        let ink = colour ?? (s.away ? EdgeStyle.quiet : EdgeStyle.ink)
+        let ink = colour ?? Away.dimmed(EdgeStyle.ink, s.away)
         let text = TextLine.text(s.title, font, ink, kern: EdgeStyle.tightKern(font))
 
         append(s, to: text, ink, more: EdgeStyle.title)
         return text
     }
 
-    /// A title's subject in code type after it, and its "+2" (`more`), dim, 6 further on.
+    /// A title's subject in code type after it, and its "+2" (`more`), dim, 6 further on, an away ask's dimmed with
+    /// it.
     private static func append(_ s: Session, to text: NSMutableAttributedString, _ ink: CGColor, more font: NSFont) {
         if let code = s.code {
             text.append(TextLine.text(code, EdgeStyle.code, ink))
@@ -324,14 +325,14 @@ final class StripWordsLayer {
             if text.length > 0 {
                 text.addAttribute(.kern, value: 6, range: NSRange(location: text.length - 1, length: 1))
             }
-            text.append(TextLine.text(more, font, EdgeStyle.ink3))
+            text.append(TextLine.text(more, font, Away.dimmed(EdgeStyle.ink3, s.away)))
         }
     }
 
     /// Its second line (`Session.sub`): needing Lee, its project, or with no window holding it, why a click does
-    /// nothing; else its project and session.
+    /// nothing, dimmed with its title (`Away`); else its project and session.
     private static func sub(_ s: Session) -> NSAttributedString {
-        TextLine.text(s.sub, EdgeStyle.sub, EdgeStyle.ink2)
+        TextLine.text(s.sub, EdgeStyle.sub, Away.dimmed(EdgeStyle.ink2, s.away))
     }
 
     /// One of a count's rows' titles at this time on the wall clock.
@@ -340,10 +341,10 @@ final class StripWordsLayer {
     }
 
     /// One of a count's rows' titles saying this after its verb, where it has no command: needs you and your turn in
-    /// ink, an away ask's quiet, and working and on its own work grey, a wake's countdown in tabular figures.
+    /// ink, an away ask's dimmed (`Away`), and working and on its own work grey, a wake's countdown in tabular figures.
     private static func rowTitle(_ s: Session, saying subject: String?) -> NSAttributedString {
         let isGrey = s.kind == .working || s.kind == .onItsWork
-        let ink = s.away ? EdgeStyle.quiet : isGrey ? EdgeStyle.grey : EdgeStyle.ink
+        let ink = isGrey ? EdgeStyle.grey : Away.dimmed(EdgeStyle.ink, s.away)
         let font = EdgeStyle.rowTitle
         let text = TextLine.text(s.title, font, ink)
 
@@ -355,7 +356,7 @@ final class StripWordsLayer {
     }
 
     private static func rowSub(_ s: Session) -> NSAttributedString {
-        TextLine.text(s.sub, EdgeStyle.rowSub, EdgeStyle.ink2)
+        TextLine.text(s.sub, EdgeStyle.rowSub, Away.dimmed(EdgeStyle.ink2, s.away))
     }
 
     private static func idleTitle(_ note: StripNote) -> NSAttributedString {

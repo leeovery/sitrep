@@ -48,7 +48,8 @@ struct Spinner: NSViewRepresentable {
     }
 }
 
-/// The spinner's view: the arc in a layer of its own, as big as the view.
+/// The spinner's view: the arc in a layer of its own, as big as the view. Decoration: a click passes through it to
+/// what it sits in, a list's row or a button.
 @MainActor
 final class SpinnerView: NSView {
     private let spinner = Arc()
@@ -68,6 +69,9 @@ final class SpinnerView: NSView {
 
     override var isFlipped: Bool { true }
 
+    override func hitTest(_: NSPoint) -> NSView? { nil }
+
+    /// Internal only for the tests, which read it.
     var isTurning: Bool {
         spinner.isTurning
     }
@@ -142,9 +146,11 @@ struct Sweep: NSViewRepresentable {
     }
 }
 
+/// The lit title's view. Decoration, as the arc's is: a click passes through it to what it sits in, and VoiceOver
+/// reads the title once, from the words under it.
 @MainActor
 final class SweepView: NSView {
-    private let lit = NSHostingView(rootView: AnyView(EmptyView()))
+    private let lit = Unheard(rootView: AnyView(EmptyView()))
     private var band: ShimmerBand?
 
     init() {
@@ -161,12 +167,21 @@ final class SweepView: NSView {
 
     override var isFlipped: Bool { true }
 
+    override func hitTest(_: NSPoint) -> NSView? { nil }
+
+    override func isAccessibilityElement() -> Bool { false }
+
+    override func accessibilityChildren() -> [Any]? { [] }
+
+    /// Internal only for the tests, which read it.
     var isSweeping: Bool {
         band?.layer.animation(forKey: Self.key) != nil
     }
 
     func show(_ title: AnyView, width: Double) {
-        lit.rootView = AnyView(title.frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading))
+        lit.rootView = AnyView(
+            title.frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading).accessibilityHidden(true)
+        )
         if band.map({ $0.layer.bounds.width != 3 * width }) ?? true {
             light(width)
         }
@@ -197,6 +212,15 @@ final class SweepView: NSView {
     }
 
     private static let key = "sweep"
+}
+
+/// The lit words, which take no click and say nothing to VoiceOver.
+private final class Unheard: NSHostingView<AnyView> {
+    override func hitTest(_: NSPoint) -> NSView? { nil }
+
+    override func isAccessibilityElement() -> Bool { false }
+
+    override func accessibilityChildren() -> [Any]? { [] }
 }
 
 extension View {

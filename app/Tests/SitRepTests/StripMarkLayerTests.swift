@@ -1,6 +1,7 @@
 import QuartzCore
 @testable import SitRep
 @testable import SitRepPanel
+import SwiftUI
 import Testing
 
 /// A mark in black, eased as the prototype's `.mk` eases it: its arc in over 60ms as a click's jump starts, so a quick
@@ -84,19 +85,57 @@ struct StripMarkLayerTests {
     }
 
     /// On its own work, the dotted ring the panel, the menu and the window mark it with, round the letters in the 24pt
-    /// ring's place, in working's grey, still; no arc, so it never reads as a spinner stopped.
+    /// ring's place, in working's grey, still; no arc, so it never reads as a spinner stopped. Its dashes the card's
+    /// grown: eight going round evenly, a gap of 1.6 showing between their round caps.
     @Test func aMarkOnItsOwnWorkShowsTheDottedRingAndNoArc() throws {
         let layer = Self.shown(Self.mark(.onItsWork))
         let path = try #require(layer.dotted.path)
+        let dash = try #require(layer.dotted.lineDashPattern?.map(\.doubleValue))
+        let round = 2 * Double.pi * 11.25, gap = dash.last.map { $0 - Double(layer.dotted.lineWidth) } ?? 0
 
         #expect(layer.dotted.opacity == 1)
-        #expect(layer.dotted.lineDashPattern == [1.6, 2.12])
+        #expect(dash.count == 2)
+        #expect(abs(8 * dash.reduce(0, +) - round) < 0.001)
+        #expect(abs(gap - 1.6) < 0.001)
         #expect(layer.dotted.strokeColor == EdgeStyle.grey)
         #expect(layer.dotted.frame.midX == 12 && layer.dotted.frame.midY == 12)
         #expect(path.boundingBox.width == 22.5 && path.boundingBox.height == 22.5)
         #expect(layer.dotted.animationKeys() == nil)
         #expect(layer.spinner.layer.opacity == 0)
         #expect(layer.ring.borderColor == nil)
+    }
+
+    /// Read round it, its eight dashes show, a gap between each, on the black and on glass alike.
+    @Test func itsDottedRingReadsAsEightDashesOnTheBlack() throws {
+        let layer = StripMarkLayer()
+
+        layer.show(Self.mark(.onItsWork), at: CGPoint(x: 12, y: 12))
+        #expect(try Self.dashes(Drawn(layer.layer)) == 8)
+    }
+
+    @available(macOS 26, *)
+    @Test func itsDottedRingReadsAsEightDashesOnGlass() throws {
+        let side = StripFrame.Mark.size
+
+        #expect(try Self.dashes(Drawn(GlassMark(mark: Self.mark(.onItsWork)), size: CGSize(width: side, height: side)))
+            == 8)
+        #expect(try Self.dashes(Drawn(GlassMark(mark: Self.mark(.turn)), size: CGSize(width: side, height: side))) == 1)
+    }
+
+    /// The runs of ink met going once round a mark's ring, 11.25 from its centre: a ring whole is one.
+    private static func dashes(_ drawn: Drawn) throws -> Int {
+        let centre = StripFrame.Mark.size / 2, radius = (StripFrame.Mark.size - 1.5) / 2
+        let round = (0 ..< 720).map { step in
+            let angle = Double(step) * .pi / 360
+
+            return drawn.pixel(at: CGPoint(x: centre + radius * cos(angle), y: centre + radius * sin(angle)))?
+                .lightness ?? 0
+        }
+        let lit = try #require(round.max()) / 2
+        let inked = round.map { $0 > lit }
+        let starts = inked.indices.filter { inked[$0] && !inked[($0 + inked.count - 1) % inked.count] }
+
+        return inked.allSatisfy(\.self) ? 1 : starts.count
     }
 
     @Test(arguments: [StripFrame.Mark.Look.working, .needs, .turn, .away])
@@ -111,6 +150,22 @@ struct StripMarkLayerTests {
 
         #expect(jumping.spinner.layer.opacity == 1 && jumping.dotted.opacity == 0)
         #expect(after.spinner.layer.opacity == 0 && after.dotted.opacity == 1)
+    }
+
+    /// Every arc turning at a period turns in step with every other, on every surface, however long after them it
+    /// starts: its turn starts where the clock is in that period.
+    @Test(arguments: [1.0, 1.2, 0.9])
+    func everyArcTurnsInStepByTheClock(period: Double) throws {
+        let arc = Arc()
+        let now = CACurrentMediaTime()
+
+        arc.turn(every: period)
+
+        let key = try #require(arc.layer.animationKeys()?.first)
+        let offset = try #require(arc.layer.animation(forKey: key)?.timeOffset)
+        let drift = abs(offset - Arc.phase(every: period, at: now))
+
+        #expect(drift < 0.01 || drift > period - 0.01)
     }
 
     @Test func aWorkingMarkComingToItsOwnWorkStopsTurning() {

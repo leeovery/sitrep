@@ -324,7 +324,7 @@ struct GlassSessionRow: View {
 
     /// Its title and the line under it, dimmed by the one factor while no window holds it, but in Snoozed, quieted
     /// already.
-    private var awayDim: Double { session.away && !session.isSnoozed ? Away.dim : 1 }
+    private var awayDim: Double { Away.dimming(session.away && !session.isSnoozed) }
 
     /// What its time's place says: its age, or in Snoozed when it wakes.
     private var time: String { session.timeText(at: now, in: calendar) }
