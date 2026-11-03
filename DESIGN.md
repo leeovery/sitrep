@@ -3223,10 +3223,27 @@ time on the right; one line each, cut short with an ellipsis:
   "+N" after the name: 13, weight 500, in the second line's soft colour, in
   tabular figures, 6 after the name on its baseline; the name is cut short
   before it, never the count;
-- **away, with an ask**: the dot stays orange and the words dim. Under the
-  pointer it doesn't lift, its title is still the session's name, and its
-  second line says "No window holds it. Carry it on in Claude." in place of
-  its project;
+- **away, with an ask** (3 November 2026): its mark is a hollow orange ring,
+  7 across, its stroke 1.5 inside it, with no glow, on every surface: the
+  card, the strip, the menu, the SitRep window's sidebar, its pages and
+  their cards. The filled dot and its glow stay for an ask whose window is
+  there. Orange says an ask waits on Lee; hollow, that no window holds it,
+  as Slack and Teams mark someone away. Lee: "Rather than the orange circle,
+  we need a better icon to indicate that it's an ask, but there's no window
+  open." Until then the dot stayed orange. Its words dim as one: its title,
+  its "+N", the line under it and, where it would read brighter than its
+  title, its time, each to 0.61 of its ink, so the title stays the brighter
+  of its two lines and both sit below the rows round them. Lee: "The title
+  and the project should be dimmed at the same ratio so that they're
+  different to each other, but then dimmed relative to their siblings."
+  0.61 is the least that keeps the black card's second line, its soft grey
+  dimmed, at the faint grey (#5C5C63) or brighter, about 3:1 on the black.
+  Until then each surface dimmed its own way: the card its title to #6E6E76
+  and the line under it to the faint grey, the sidebar its name alone, its
+  project left brighter than it, and the strip its words to #8A8A92. Under
+  the pointer it doesn't lift, its title is still the session's name, and
+  its second line says "No window holds it. Carry it on in Claude." in place
+  of its project;
 - **your turn**, on one line (board B's, in board D, 22 October 2026; Lee:
   "B's flattened, one-line turn"): 30 tall, inset 10, an open white ring 9
   across with a stroke of 1.5 in the 12 mark lane, so its shape differs
@@ -3241,6 +3258,11 @@ time on the right; one line each, cut short with an ellipsis:
   line, as Claude Code's own; while a tool runs, the line is the tool (the
   verb shimmers, a path stays still in mono), else the board's "now"; how
   long the turn has run. It is greyer than the rest: it needs nothing.
+  Every arc turns in step (3 November 2026): on every surface, the card, the
+  strip, the menu and the SitRep window, each turns from the one clock, the
+  phase it starts at the clock's time within its period, so two arcs turning
+  at one pace are at one angle however far apart they started. Each had
+  started at a phase of its own until then.
 - **on its own work** (Paper's board D, "One list, two sizes", 22 October
   2026): the working row's layout, all of it still. Its mark is a ring of
   round-capped dashes that never turns, #8E8E95, centred in the working
@@ -3556,9 +3578,14 @@ were settled in the browser spike (below, "How the strip moves").
   - **your turn**: white;
   - **working**: a grey track with a pale arc turning round it, the letters
     grey;
-  - **on its own work** (22 October 2026): working's mark held still, its
-    arc never turning and nothing of it running, until a click's jump turns
-    it as it turns any mark's.
+  - **on its own work** (3 November 2026): the dotted ring round the
+    letters in the 24pt ring's place, in working's grey, eight round-capped
+    dashes going round evenly, 1.6 showing between their caps, never
+    turning, so it reads as the card's ring grown; the card's own dashes
+    there would be nineteen dots. From 22 October 2026 it was working's mark
+    held still, which read as a frozen spinner (Lee: "four items that are
+    showing with a frozen spinner"). A click's jump still turns an arc on
+    it, in the ring's place, as on any mark, and the ring comes back after.
 
   One hairline sits under needs you, as in the panel. The letters are the
   project's capitals where it has two (SitRep SR, DocMan DM), else its first
@@ -3576,7 +3603,9 @@ were settled in the browser spike (below, "How the strip moves").
   for the lines after the first, set dim 6 after the name, as a question's
   "+2" was (board F, 22 October 2026, after the proposal Lee agreed: "a row
   is a session on every surface"). An away one's name sits over "No window
-  holds it. Carry it on in Claude.".
+  holds it. Carry it on in Claude.", its words dimming as one, as the
+  panel's (see "The rows"; 3 November 2026), on the black and on glass, in
+  a tab and in a count's rows alike.
 - **Moving.** The strip never shuts, so the panel's "a changed row moves only
   once it closes" becomes: a needs you arriving moves in at once, the marks
   below sliding down to make room; any other change shows in place, and the
@@ -3759,30 +3788,34 @@ stands).
       oldest line, an away session's after the live ones, as core's rows
       have them. A row is the session, as on the card (board F, 22 October
       2026): its dot (7) in the 26 slot, the session's name 13 medium in
-      white at 85%, dim while no window holds it, and its oldest line's age
-      12 in tabular figures; then its project's name at 11 in white at 55%,
-      1 under, aligned with the name. More than one line waiting adds "+N"
-      after the name: 12, weight 500, in tabular figures, 5 after it on its
-      baseline, in the second line's colour, and on the accent of the pick
-      white at 80%, as the project's line is. The row is inset 4 at its top,
-      the system's two-line row, 39 tall, however many lines wait. As the row
-      washes, a new ask's coming, its age goes orange;
-    - **the rule** after it sets it off from what follows, the foot's own:
-      0.5 tall in the separator colour, inside the sidebar's 10 either side,
-      11.5 under Needs you's last row, or its heading where it is folded, so
-      it ends on a whole point and every row after it starts on one, the
-      next heading 10 under it as every heading sits. It shows only while
-      Needs you shows and a heading follows it, filtered or not. It is drawn
-      behind the heading after it, on that heading's row, so the list holds
-      no line of its own for it, whose insets a live window could move as it
-      moved the foot's: nothing picks it, the pointer lights nothing on it,
-      the arrow keys pass over it with the heading, and VoiceOver reads
-      nothing there. Lee, 22 October 2026: "we should separate the 'Needs
-      you' from the rest of the project list … we already said we would
-      have a rule, but it also needs just a little bit of space";
+      white at 85%, and its oldest line's age 12 in tabular figures; then its
+      project's name at 11 in white at 55%, 1 under, aligned with the name.
+      While no window holds it, its mark is the away ring and its words dim
+      as one, its age with them, as the panel's (see "The rows"; 3 November
+      2026), but on the accent of the pick, whose whites are the system's.
+      More than one line waiting adds "+N" after the name: 12, weight 500,
+      in tabular figures, 5 after it on its baseline, in the second line's
+      colour, and on the accent of the pick white at 80%, as the project's
+      line is. The row is inset 4 at its top, the system's two-line row, 39
+      tall, however many lines wait. As the row washes, a new ask's coming,
+      its age goes orange;
+    - **the rule** after it sets it off from what follows: 0.5 tall in the
+      separator colour, inside the sidebar's 10 either side, 11.5 under
+      Needs you's last row, or its heading where it is folded, so it ends on
+      a whole point and every row after it starts on one, the next heading
+      10 under it as every heading sits. It shows only while Needs you shows
+      and a heading follows it, filtered or not. It is drawn behind the
+      heading after it, on that heading's row, so the list holds no line of
+      its own for it, whose insets a live window could move, as it once
+      moved a list's at the sidebar's foot: nothing picks it, the pointer
+      lights nothing on it, the arrow keys pass over it with the heading,
+      and VoiceOver reads nothing there. Lee, 22 October 2026: "we should
+      separate the 'Needs you' from the rest of the project list … we
+      already said we would have a rule, but it also needs just a little bit
+      of space";
     - **Working** follows: the sessions whose turn runs, the longest running
       first, then those on their own work. Its rows are Needs you's one-line
-      shape, two lines, 39 tall: the working mark, its still arc on a faint
+      shape, two lines, 39 tall: the working mark, a quarter arc on a faint
       track (r 4.25, white at 55% on white at 15%), or on its own work's
       ring of round-capped dashes in white at 45% (r 4.25, its stroke 1.5,
       dashes 1.5 with gaps of 2.0); the verb 13 medium in white at 55%, and
@@ -3790,7 +3823,14 @@ stands).
       anything else at 13, a wake's countdown among them; how long its turn
       has run, or since it ended, 12 in white at 55%; then "project ·
       session" under them. It needs nothing of Lee, so it is greyer than the
-      rest. Nothing in the sidebar turns;
+      rest. A working row's arc turns and its verb shimmers, as the panel's
+      do, through the panel's own Core Animation views, in the render
+      server, so no drawing of the list stops them and the app does no work
+      as they move; under Reduce motion both hold still, and a row on its
+      own work never moves (3 November 2026). Lee: "We need symmetry there
+      across all the surfaces." Until then nothing in the sidebar turned,
+      its arc a still one. Both are decoration: a click on either lands on
+      the row under it, and VoiceOver reads the verb once;
     - **Your turn**: the sessions waiting on Lee with nothing posted, the
       newest first, each on one line, 28 tall, inset 6, its parts 4 apart:
       the open ring, 10 across, r 3.75, its stroke 1.5, in white at 55%;
@@ -3886,7 +3926,7 @@ stands).
       whites (Lee, 22 October 2026, approving board D: ask lines medium,
       working verbs medium, your-turn lines regular). Paper draws in Inter
       and the app in SF, so the built metrics stand, the headings, the
-      two-line rows, the rule and the foot, and board D's are taken relative
+      two-line rows and the rule, and board D's are taken relative
       to them;
     - **the filter** narrows the list in place, every section by one rule.
       A session stays while every word typed appears, anywhere, in its
@@ -3913,32 +3953,15 @@ stands).
       board says how the board stands in the same place, as the panel's head
       words it; and the field carries no "⌘F" hint, which the system's
       field does not draw.
-    - **its foot is Settings**, a row with the system's gear in the accent,
-      fixed under a rule at the list's foot, that opens the Settings window
-      (see "Settings"; until 2 November 2026 it opened Settings as a page
-      of this window): the rule 0.5
-      tall in the separator colour, inside the sidebar's 10 either side, 8
-      under it the row, 32 tall, then 10 to the glass's foot. The list ends
-      at the rule, its last row 12 over it, and its rows fade out at its own
-      bottom edge, just over the rule, by the system's soft scroll edge, on
-      macOS 26 only, never a drawn gradient over the glass; no row ever
-      passes behind the Settings row. Settled after three live failures, 21
-      October 2026: a window on screen gives the sidebar a bottom safe area
-      that one offscreen does not, and while the foot was a list of its one
-      row in the system's bar over the board's list, which ran on under it,
-      it rose by it live in three builds running, every offscreen test
-      passing: round 7's 24.5 under its hairline and 20 over the glass's
-      foot; with the safe area ignored, its row still 20 over the glass's
-      foot, no rule to be seen and the list's rows showing under it
-      (fd54b60). So the foot is SitRep's own, the column's last part under
-      the list, laid out by SitRep alone, with no inset, safe area or bar for
-      the live window to move. It is never picked: the board's list keeps
-      its selection and the page what it shows. Under the pointer it shows
-      a row's quiet fill, shaped as the list's selection, 276 wide, 10 in,
-      its corners 9, gone as the pointer leaves or the window goes out of
-      sight. A click anywhere across it opens the Settings window, from a
-      window not key too; a Control-click, the Mac's right-click, opens
-      nothing.
+    - **the list runs to the sidebar's foot** (3 November 2026), its last
+      row, scrolled to the end, 12 over the glass's foot, and its rows fade
+      out at that edge by the system's soft scroll edge, on macOS 26 only,
+      never a drawn gradient over the glass. A window on screen gives the
+      sidebar a bottom safe area that one offscreen does not, so the column
+      ignores it, and the list runs to the foot live as offscreen. Until
+      then the foot was a Settings row under a rule, from round 7, the list
+      ending over it; Lee: "That could be removed, we don't need that there
+      anymore." The menu's Settings… and ⌘, open Settings (see "Settings").
   - **the session** Lee picks, on the right: the pane's session view at
     window size. Its project's name is an eyebrow over its name, about 15
     points semibold in the secondary colour, smaller than a title and more
@@ -3956,6 +3979,15 @@ stands).
     of the page sits in it.
 - **A session's row is the card's row at the window's size:** the same
   marks in the same lanes, the same words, and the panel row's time.
+- **On a session's page and a project's** (3 November 2026), a working
+  session's mark beside what it is doing is the same turning arc, and its
+  verb the same shimmer, as its sidebar row's and the panel's, through the
+  same Core Animation views, held still under Reduce motion; a click on
+  either lands on the row or button under it. An away session with asks
+  waiting takes the away ring beside what it is doing, as its row and its
+  cards do; with none waiting, the away mark. On a project's page an away
+  session's name and what it is doing dim as one, as the panel's (see "The
+  rows"), its time in the faint grey staying under its name.
 - **A project**, opened from its name or its row in Projects, is the pane's project view: its open
   sessions, each with what it is doing and what waits there; every session's
   asks, the newest first; their notes; and their parked items, the oldest
@@ -4109,20 +4141,14 @@ stands).
   the option, which is not very Mac-like at all"; before it, the system's
   blue square ring, where SitRep had made every button take focus. The
   order is the Mac's own: the Filter field first, then the board's list,
-  the arrows inside it, then its foot, Settings,
-  then the page's buttons. With Keyboard navigation off, Tab stops at the
-  field, the board's list and the foot alone. The foot is one stop, which
-  shows focus as Tab reaches it by the system's focus ring in a row's
-  shape. The arrows go nowhere from it, as from either end of the board's
-  list, and Space or Return on it opens the Settings window, and with a
-  modifier held does nothing. Two keys move between the
-  sides, through AppKit's key views: Return in the sidebar, anywhere but
-  the Filter field, whose Return is its own, and the foot, whose Return
-  opens Settings, moves focus into the page, to
-  its first button, as Tab from the foot would; with Keyboard navigation
-  off nothing there takes it, so Return leaves focus where it was, never
-  passing through the field, and does nothing more. Escape in the page, with no answer waiting to take back, moves it
-  to the board's list.
+  the arrows inside it, then the page's buttons. With Keyboard navigation
+  off, Tab stops at the field and the board's list alone. Two keys move
+  between the sides, through AppKit's key views: Return in the sidebar,
+  anywhere but the Filter field, whose Return is its own, moves focus into
+  the page, to its first button, as Tab from the list would; with Keyboard
+  navigation off nothing there takes it, so Return leaves focus where it
+  was, never passing through the field, and does nothing more. Escape in the
+  page, with no answer waiting to take back, moves it to the board's list.
 - **VoiceOver reads words, never symbols.**
   - a sidebar row is one element. A Needs you row reads what waits first:
     how many where there are several, "2 asks", then each line's words; then
@@ -4147,8 +4173,7 @@ stands).
     "Snooze tomorrow, wakes Saturday 09:00"; "N earlier" reads how many and
     their projects, as "8 earlier, Switchboard, Fumi", and folded says so;
     a project's row reads "Kit, project". The Filter field reads as
-    "Filter sessions", and the foot as a button, "Settings", which opens
-    the Settings window;
+    "Filter sessions";
   - the page's title, the eyebrow and the section headings carry the
     header trait, each heading read with the words on its right, as
     "Asks, 3 waiting", or "Asks, 1 waiting, 2 snoozed";
@@ -4292,18 +4317,27 @@ asked for the sessions back, and approved the redraw as it stands.
     badge. An item is a session, as a row is, with room for one line: one
     needing Lee shows its name over its project, its oldest line's time,
     and with several waiting "+N" for the lines after the first, as the
-    strip's tab does (board F, 22 October 2026). A row on its own work is faint, as a working row is, its mark
-    the dotted ring, and a wake's countdown is set again as it ticks, with
-    the badges. A separator sits where the panel's hairline is. A click
-    jumps;
+    strip's tab does (board F, 22 October 2026). The line under each row
+    shows at rest, not only under the pointer (3 November 2026; Lee:
+    "default for the project name to show on all the menu items"; see the
+    build's note on the rows, under "Stages"). A working row's arc turns
+    while the menu is open, once a second as the panel's and in step with
+    it, but only while a working row shows: nothing runs with none, and
+    under Reduce motion it holds still (3 November 2026). A row on its own
+    work is faint, as a working row is, its mark the dotted ring, and a
+    wake's countdown is set again as it ticks, with the badges. An away
+    ask's mark is the away ring (see "The rows"). A separator sits where
+    the panel's hairline is. A click jumps;
   - **Open SitRep Window**, after the list, for what the list leaves out:
     away sessions with nothing waiting, notes, parked and resolved;
   - **Show**: Notch, Strip or Nothing, inline, the one in use ticked, so
     pinning the strip takes one click. With Nothing, the menu and the
     SitRep window carry the board, and the glyph still lights for needs
     you;
-  - **Welcome…**, the welcome window at its first step (see "The welcome
-    window");
+  - **Show Welcome Window**, the welcome window at its first step (see "The
+    welcome window"); "Welcome…" until 3 November 2026. Lee: "'Welcome'
+    doesn't mean anything… If that's meant to be the 'show welcome' or
+    'show onboarding' again, then say so.";
   - **Settings… ⌘,**, the Settings window (see "Settings");
     **Check for Updates…**, with Sparkle, from the first public release
     (see "Installing and updating");
@@ -4321,10 +4355,11 @@ asked for the sessions back, and approved the redraw as it stands.
   until SitRep starts again. A row cut short has its whole words as its
   tooltip.
 - **An away session** is disabled, with no window to jump to: its words
-  dim, and its dot with them, as macOS dims a disabled item's image and
-  AppKit has no switch for it, where the panel keeps the dot orange
-  (accepted, 20 October 2026). **Past twelve rows** the list
-  ends with "4 more…", which opens the SitRep window.
+  dim, and its ring with them, as macOS dims a disabled item's image and
+  AppKit has no switch for it, where the panel keeps the ring orange
+  (accepted, 20 October 2026, of the dot it had until 3 November 2026).
+  **Past twelve rows** the list ends with "4 more…", which opens the SitRep
+  window.
 - **One lane on the left** holds the marks, the tick and an SF Symbol for
   each command, as macOS 26's own menus carry icons. The tick is drawn as
   the item's image, so the menu has no state column.
@@ -4416,8 +4451,8 @@ does; the boards first drew it on a band of black.
   stage 3, under "Stages"), Lee's Mac included, at the build that brings
   it. However it closes, quitting SitRep included, it never opens on its
   own again; a crash or a Force Quit while it shows, which close nothing,
-  leave it to open at the next start. The menu's Welcome… opens it at its
-  first step at any time.
+  leave it to open at the next start. The menu's Show Welcome Window opens
+  it at its first step at any time.
 - **One shape for every step:** a window of SitRep's own, 840 by 540, never
   resized, black, at radius 14, opening centred on the Space Lee is on, as
   About SitRep does. The words sit on the left in a column of 330: a
@@ -4546,8 +4581,8 @@ does; the boards first drew it on a band of black.
     never does, quitting SitRep included; it never registers one already
     on or waiting on his approval, and a press makes it his. A welcome
     opened again changes nothing until pressed, and promises macOS's
-    notice only while one is still to come. Welcome… while the window
-    shows goes back to the first step and keeps the visit.
+    notice only while one is still to come. Show Welcome Window while the
+    window shows goes back to the first step and keeps the visit.
   - **Step 6 when the plugin's first install failed:** Settings' words for
     the plugin's row, in place of `/reload-plugins`.
   - **The playback where nothing is set:** "Silent", for a new ask with
@@ -4616,9 +4651,9 @@ is often changed while watching the edge, with no need for the board; and
 Settings had grown past what one page of the board's window held well. The
 rows inside are rounds 8 and 9's, as Lee approved them: only where they
 live changed, and how they group.
-- **Where it opens:** the menu's Settings…, ⌘, while any SitRep window is
-  key, and the Settings row at the foot of the SitRep window's sidebar,
-  which opens this window, no longer a page (see "The SitRep window").
+- **Where it opens:** the menu's Settings…, and ⌘, while any SitRep window
+  is key. Until 3 November 2026 a Settings row at the foot of the SitRep
+  window's sidebar opened it too (see "The SitRep window").
   There is one: opening it again brings it forward. It opens centred in the
   upper part of the screen on the Space Lee is on, and otherwise stays on
   its own Space, as About SitRep does; ⌘W or its close button shuts it. It
@@ -5552,12 +5587,24 @@ reaches a window only while that pane is on show).
         the secondary label colour, its arc fainter than the other marks;
         under the pointer the colour is taken off, through the menu
         delegate's `willHighlight`, so the highlight's own ink shows. An away
-        row has no action, so macOS draws it disabled, dimming its dot with
-        its words, its title in the disabled ink. An item with an attributed
-        title shows no subtitle before macOS 15, so before it a row's title
-        is plain, and before 14.4, which has no subtitles, the second line
-        is its tooltip. The marks, the tick and the commands' symbols are
-        each the item's 16-point image, the state column turned off.
+        row has no action, so macOS draws it disabled, dimming its mark with
+        its words, its title in the disabled ink. The line under a row went
+        missing at rest on macOS 26, showing only under the pointer, found 3
+        November 2026: `willHighlight` set the rows the pointer left and
+        reached again, and setting an open menu item's attributed title, even
+        to the one it has, tells the menu it changed, which draws the item
+        again without its subtitle; setting the same subtitle again tells it
+        nothing, so brings nothing back. A row's title is now set only where
+        it differs, and then its subtitle is taken off and set again after
+        it, so the line shows again, at rest and under the pointer alike. Its
+        image and its badge, set while the menu is open as the arc turns and
+        the time ticks, tell the menu only of themselves and keep the line,
+        as read offscreen from the view the menu makes for the item. An item
+        with an attributed title shows no subtitle before macOS 15, so
+        before it a row's title is plain, and before 14.4, which has no
+        subtitles, the second line is its tooltip. The marks, the tick and
+        the commands' symbols are each the item's 16-point image, the state
+        column turned off.
       - **The header** is a view, not an item, so it never highlights: the
         app icon at 30, the name in semibold, the version, made once.
         Round 7 changed this: the header is now an item's view that takes
@@ -5579,7 +5626,12 @@ reaches a window only while that pane is on show).
         changed (`MenuChanges`). So an open menu keeps the item under the
         pointer, highlighted, however often the board moves. While it is
         open the rows' times tick, each change setting the timer for the
-        rows then showing.
+        rows then showing, and while a working row shows its arc turns (3
+        November 2026): its image swapped each 30th of a second for one of
+        thirty frames drawn once, the frame the clock's place in the second,
+        by a timer in the menu's tracking mode that starts only with a
+        working row in the menu and stops as the last goes or the menu
+        closes (`MenuTurn`).
       - **Open SitRep Window** and "N more…" open the SitRep window.
       - **The glyph** is drawn from the icon drawing's SVG: at rest a
         template; lit, its housing drawn in the ink of the bar it is drawn
