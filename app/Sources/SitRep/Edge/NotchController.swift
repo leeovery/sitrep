@@ -24,8 +24,8 @@ final class NotchController: NSObject, CalloutShape {
     var isJumping: () -> Bool = { false }
     /// A drag let the notch go: the settings with its new place.
     var onMoved: (EdgeMove) -> Void = { _ in }
-    /// The pointer over the notch, or its panel, in a frame: told each frame it is.
-    var onPointedAt: () -> Void = {}
+    /// Each frame drawn, with whether the pointer is over the notch, or its panel.
+    var onDrawn: ((_ isPointedAt: Bool) -> Void)?
 
     /// How long a your-turn row stays before it folds into "N earlier": the card refolds at once as it changes.
     var period: FoldPeriod {
@@ -206,9 +206,7 @@ final class NotchController: NSObject, CalloutShape {
         let isPointedAt = pointer.map(frame.hits) ?? false
 
         window.takesClicks = run.drag != nil || isPointedAt
-        if isPointedAt {
-            onPointedAt()
-        }
+        onDrawn?(isPointedAt)
         pace(at: time)
     }
 

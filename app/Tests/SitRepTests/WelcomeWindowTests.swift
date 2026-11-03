@@ -42,7 +42,8 @@ struct WelcomeWindowTests {
         var answersGhostty = GhosttyLeave.allowed
         var allows: [Bool] = []
         var ghosttyRuns = false
-        /// What opening Ghostty comes to, and how many times it was opened.
+        /// What opening Ghostty comes to, Ghostty installed unless it comes to not installed, and how many times it was
+        /// opened.
         var opening = GhosttyOpening.runs
         var opensGhostty = 0
         /// The waits begun: on a prompt, while `holdsWait` is set, each held until `waitEnds` is called, else over at
@@ -94,7 +95,7 @@ struct WelcomeWindowTests {
 
         func welcome() -> WelcomeMac {
             WelcomeMac(
-                ghosttyRuns: { self.ghosttyRuns },
+                ghosttyInstalled: { self.opening != .notInstalled }, ghosttyRuns: { self.ghosttyRuns },
                 openGhostty: {
                     self.opensGhostty += 1
                     self.ghosttyRuns = self.opening == .runs

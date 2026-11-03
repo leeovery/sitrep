@@ -177,6 +177,21 @@ struct WelcomePermissionTests {
         #expect([GhosttyLeave.unasked, .unknown].map(WelcomeLeave.ghostty) == [.toAsk, .toAsk])
         #expect(WelcomeLeave.ghostty(nil) == .toAsk)
     }
+
+    /// Under the reason: where macOS asked, once Lee has waited on it; to ask, what went wrong with the last ask;
+    /// with no Ghostty to open, why; else nothing.
+    @Test func theLineUnderARowsReasonSaysWhatItShould() {
+        let ghostty = WelcomePermission.ghostty, notifications = WelcomePermission.notifications
+
+        #expect(ghostty.line(.asking(waitedLong: false), hitch: nil) == nil)
+        #expect(ghostty.line(.asking(waitedLong: true), hitch: nil) == ghostty.whereAsked)
+        #expect(notifications.line(.asking(waitedLong: true), hitch: nil) == notifications.whereAsked)
+        #expect(ghostty.line(.toAsk, hitch: nil) == nil)
+        #expect(ghostty.line(.toAsk, hitch: .didNotOpen) == "Ghostty didn't open, so macOS couldn't ask")
+        #expect(notifications.line(.toAsk, hitch: .noAnswer) == "SitRep couldn't get macOS's answer")
+        #expect(ghostty.line(.unavailable, hitch: .notInstalled) == "Ghostty isn't installed")
+        #expect(ghostty.line(.on, hitch: nil) == nil && ghostty.line(.refused, hitch: nil) == nil)
+    }
 }
 
 /// What the welcome does to the login item.
@@ -342,7 +357,25 @@ struct WelcomePlaybackTests {
 
         app.playsSound = plays
         app.notifiesNewAsks = notifies
-        #expect(WelcomePlayback.newAsk(app, sound: "Pop") == words)
+        #expect(WelcomePlayback.newAsk(app, sound: "Pop") == .init(label: "A new ask", words: words, fix: nil))
+    }
+
+    /// While macOS shows none of SitRep's notifications, A new ask promises none and has step 5's Open System
+    /// Settings… in place; with Notify me off, it promised none, so it has nothing to fix.
+    @Test(arguments: [(true, "Pop"), (false, "Silent")])
+    func aNewAskPromisesNoNotificationMacOSRefuses(plays: Bool, words: String) {
+        var app = AppSettings()
+
+        app.playsSound = plays
+        app.notifiesNewAsks = true
+        #expect(WelcomePlayback.newAsk(app, sound: "Pop", notices: .refused) == .init(
+            label: "A new ask", words: words, fix: .notifications
+        ))
+        #expect(WelcomePlayback.Fix.notifications.title == "Open System Settings…")
+        app.notifiesNewAsks = false
+        #expect(WelcomePlayback.newAsk(app, sound: "Pop", notices: .refused).fix == nil)
+        app.notifiesNewAsks = true
+        #expect(WelcomePlayback.newAsk(app, sound: "Pop", notices: .on).fix == nil)
     }
 
     @Test func atLoginHasItsFixInPlaceWhereItIsOff() {
@@ -355,7 +388,8 @@ struct WelcomePlaybackTests {
 
     @Test func theFourRowsInTheirOrder() {
         let rows = WelcomePlayback.rows(
-            edge: EdgeSettings(), app: AppSettings(), sound: "Glass", login: LoginItem(.enabled), ghostty: .on
+            edge: EdgeSettings(), app: AppSettings(), sound: "Glass", notices: .toAsk, login: LoginItem(.enabled),
+            ghostty: .on
         )
 
         #expect(rows.map(\.label) == ["At the edge", "A new ask", "At login", "A click"])
@@ -382,10 +416,10 @@ struct WelcomePlaybackTests {
         #expect(WelcomePlayback.aClick(.asking(waitedLong: true)).line == WelcomePermission.ghostty.whereAsked)
     }
 
-    /// With no Ghostty to open, the row says so, with nothing to press.
-    @Test func aClickWithNoGhosttySaysSo() {
-        #expect(WelcomePlayback.aClick(.unavailable) == .init(
-            label: "A click", words: "Ghostty isn't installed", fix: nil
+    /// With no Ghostty to open, what a click needs, in what-happens words, with nothing to press.
+    @Test func aClickWithNoGhosttyNeedsIt() {
+        #expect(WelcomePlayback.aClick(.unavailable, hitch: .notInstalled) == .init(
+            label: "A click", words: "Needs Ghostty", fix: nil
         ))
     }
 }
@@ -572,9 +606,15 @@ struct WelcomeAskLoopTests {
         #expect(loop.scene(at: loop.lands).moment == .lands)
         #expect(loop.scene(at: try #require(loop.clicks)).moment == .answers)
         #expect(loop.scene(at: try #require(loop.resolves)).moment == nil)
-        #expect(WelcomeLoop.Moment.allCases.map(\.words) == [
+    }
+
+    /// The middle line names the shape the stage shows: the strip where Lee chose it, else the notch.
+    @Test func itsWordsNameTheShapeTheStageShows() {
+        #expect(WelcomeLoop.Moment.allCases.map { $0.words(.notch) } == [
             "An ask lands", "Open it from the notch", "Answer it in its session",
         ])
+        #expect(WelcomeLoop.Moment.opens.words(.strip) == "Open it from the strip")
+        #expect(WelcomeLoop.Moment.opens.words(.nothing) == "Open it from the notch")
     }
 
     /// The session's window comes forward as the jump lands, and the answer shows in it once given, both until the

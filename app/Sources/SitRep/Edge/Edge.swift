@@ -52,10 +52,7 @@ final class Edge {
 
     /// The board as `watch` last printed it, for the notch and the strip.
     func show(_ last: LastBoard) {
-        let board = PanelBoard(last)
-
-        notch.show(board)
-        strip.show(board)
+        tell(PanelBoard(last))
     }
 
     /// A drag let the notch or the strip go: where it left it lands on the settings as they stand, is kept, and both
@@ -70,10 +67,15 @@ final class Edge {
 
     /// With no `watch` to run, the notch's head says why, and the strip's notch at rest.
     func unrun(_ why: String) {
-        let board = PanelBoard(unrun: why)
+        tell(PanelBoard(unrun: why))
+    }
 
+    /// A board to both, and the callout beside the shape as it now rests: an ask moves the notch's front out at once,
+    /// where the last one going takes the notch's next frame, which the callout hears of itself.
+    private func tell(_ board: PanelBoard) {
         notch.show(board)
         strip.show(board)
+        callout.refresh()
     }
 
     /// What Lee changed in Settings or the menu, at once.

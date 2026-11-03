@@ -26,8 +26,9 @@ struct HelloStep: View {
 }
 
 /// Step 2, An ask, from Claude to you: the step's words, then the loop's three moments, each lit as the stage plays
-/// it. Nothing here is pressed: the stage shows it all.
+/// it, in the words of the shape it shows. Nothing here is pressed: the stage shows it all.
 struct AskStep: View {
+    let show: EdgeSettings.Show
     /// The moment the stage is at, if any.
     let lit: WelcomeLoop.Moment?
 
@@ -36,7 +37,7 @@ struct AskStep: View {
             StepWords(step: .ask)
             VStack(alignment: .leading, spacing: 14) {
                 ForEach(WelcomeLoop.Moment.allCases, id: \.self) { moment in
-                    MomentLine(words: moment.words, isLit: moment == lit)
+                    MomentLine(words: moment.words(show), isLit: moment == lit)
                 }
             }
         }
@@ -355,16 +356,6 @@ private struct PermissionRow: View {
     let hitch: WelcomeHitch?
     let press: () -> Void
 
-    /// The line under the reason, if the row has one.
-    private var note: String? {
-        switch leave {
-        case .asking(waitedLong: true): permission.whereAsked
-        case .toAsk: hitch?.words
-        case .unavailable: WelcomeHitch.notInstalled.words
-        case .asking, .on, .refused: nil
-        }
-    }
-
     var body: some View {
         HStack(alignment: .center, spacing: 12) {
             PermissionIcon(permission: permission)
@@ -375,8 +366,8 @@ private struct PermissionRow: View {
                 Text(permission.reason)
                     .font(.system(size: 11))
                     .foregroundStyle(WelcomeStyle.soft)
-                if let note {
-                    Text(note)
+                if let line = permission.line(leave, hitch: hitch) {
+                    Text(line)
                         .font(.system(size: 11))
                         .foregroundStyle(WelcomeStyle.text)
                         .padding(.top, 2)

@@ -74,7 +74,7 @@ private struct WelcomeColumn: View {
     @ViewBuilder private var step: some View {
         switch welcome.step {
         case .hello: HelloStep()
-        case .ask: AskStep(lit: scene.now.moment)
+        case .ask: AskStep(show: welcome.preferences.edge.show, lit: scene.now.moment)
         case .edge: EdgeStep(welcome: welcome)
         case .sound: SoundStep(welcome: welcome)
         case .permissions: PermissionsStep(welcome: welcome)

@@ -1,6 +1,6 @@
 /// The words SitRep shows where it makes up what a place will hold: Settings' notification, the welcome's terminal, the
-/// answer given in it, and its stage's board. Each is a placeholder saying what the place will show, never a real project's or session's name
-/// (Lee, 2 November 2026); kept here alone, so none drifts back to one.
+/// answer given in it, and its stage's board. Each is a placeholder saying what the place will show, never a real
+/// project's or session's name (Lee, 2 November 2026); kept here alone, so none drifts back to one.
 public enum Sample {
     /// A row's working line: its word, then what, in code type.
     public struct Working: Equatable, Sendable {

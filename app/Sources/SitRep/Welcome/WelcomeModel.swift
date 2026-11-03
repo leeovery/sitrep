@@ -5,18 +5,19 @@ import SitRepMenu
 import SitRepPanel
 import SitRepRelay
 
-/// What the welcome does to the Mac beyond Settings' services: whether Ghostty runs, Ghostty opened for Allow…, as
-/// macOS asks for its leave only while it runs, and the waits on a prompt: before the row says where it is, and before
-/// Turn On… gives up on the notices helper.
+/// What the welcome does to the Mac beyond Settings' services: whether Ghostty is installed, and runs, Ghostty opened
+/// for Allow…, as macOS asks for its leave only while it runs, and the waits on a prompt: before the row says where it
+/// is, and before Turn On… gives up on the notices helper.
 @MainActor
 struct WelcomeMac {
+    var ghosttyInstalled: () -> Bool
     var ghosttyRuns: () -> Bool
     var openGhostty: () async -> GhosttyOpening
     var wait: (Duration) async -> Void
 
     static let live = WelcomeMac(
-        ghosttyRuns: { Leaves.ghosttyRuns }, openGhostty: { await Leaves.openGhostty() },
-        wait: { try? await Task.sleep(for: $0) }
+        ghosttyInstalled: { Leaves.ghosttyInstalled }, ghosttyRuns: { Leaves.ghosttyRuns },
+        openGhostty: { await Leaves.openGhostty() }, wait: { try? await Task.sleep(for: $0) }
     )
 }
 
@@ -207,8 +208,12 @@ final class WelcomeModel {
     // MARK: What it asks of macOS
 
     /// What macOS says of both leaves, each row as its answer comes: each time the window comes forward, as Lee may
-    /// have changed them in System Settings, and as he arrives at a step that shows them. Reading asks macOS nothing.
+    /// have changed them in System Settings, and as he arrives at a step that shows them, with Ghostty, once installed
+    /// since Allow… found it wasn't, to ask again. Reading asks macOS nothing.
     func readLeaves() {
+        if hitches[.ghostty] == .notInstalled, mac.ghosttyInstalled() {
+            hitches[.ghostty] = nil
+        }
         reading?.cancel()
         WelcomePermission.allCases.forEach(outdate)
         reading = Task {
@@ -302,32 +307,60 @@ final class WelcomeModel {
         }
     }
 
-    /// Turn On…: Notify me of a new ask on, and macOS asked through the notices helper, as Settings' switch asks, for
-    /// no longer than the limit; then what macOS says read. Still unanswered, or the helper silent, SitRep couldn't get
-    /// macOS's answer.
+    /// Turn On…: Notify me of a new ask on, and macOS asked through the notices helper, as Settings' switch asks; then
+    /// what macOS says read. Past the limit, what macOS says is read without the helper: still unasked, its prompt is
+    /// up, so the row waits on it, saying where it is; else that stands, and once the helper does return, macOS is read
+    /// again, so a late answer shows without the window coming forward. Nothing to read, from the helper silent or
+    /// gone, or still unasked once the helper returns, SitRep couldn't get macOS's answer.
     private func turnOnNotifications() async -> WelcomeHitch? {
         preferences.app.notifiesNewAsks = true
 
-        let (ends, end) = AsyncStream<Void>.makeStream()
-        let limit = Task {
-            await mac.wait(WelcomePermission.limit)
-            end.yield()
-        }
+        let prompt = Task { await services.askForNotices() }
 
-        Task {
-            await services.askForNotices()
-            end.yield()
+        if await outlasts(prompt) {
+            notices = await services.noticeLeave()
+            guard notices == .unasked else {
+                Task {
+                    await prompt.value
+                    outdate(.notifications)
+                    await readNotices()
+                }
+                return notices == nil ? .noAnswer : nil
+            }
+
+            asking[.notifications] = true
+            await prompt.value
         }
-        for await _ in ends {
-            break
-        }
-        limit.cancel()
         notices = await services.noticeLeave()
         return notices == nil || notices == .unasked ? .noAnswer : nil
     }
 
+    /// Whether the notices helper is still asking at the limit, so a helper that never answers can't leave the row
+    /// spinning.
+    private func outlasts(_ prompt: Task<Void, Never>) async -> Bool {
+        let (ends, end) = AsyncStream<Bool>.makeStream()
+        let limit = Task {
+            await mac.wait(WelcomePermission.limit)
+            end.yield(true)
+        }
+        let answer = Task {
+            await prompt.value
+            end.yield(false)
+        }
+
+        defer {
+            limit.cancel()
+            answer.cancel()
+        }
+        for await outlasted in ends {
+            return outlasted
+        }
+        return false
+    }
+
     /// Allow…: Ghostty opened first where it isn't running, as macOS asks only while it runs; then macOS's prompt. Not
-    /// installed, or not opening, there is nothing for macOS to ask about.
+    /// installed, or not opening, there is nothing for macOS to ask about; with neither Allow nor Don't Allow from
+    /// macOS, as where Ghostty quit before it asked, SitRep couldn't get its answer.
     private func allowGhostty() async -> WelcomeHitch? {
         if !mac.ghosttyRuns() {
             switch await mac.openGhostty() {
@@ -337,7 +370,7 @@ final class WelcomeModel {
             }
         }
         ghostty = await services.allowGhostty()
-        return nil
+        return ghostty == .allowed || ghostty == .denied ? nil : .noAnswer
     }
 
     /// Refused: the leave's page in System Settings. Notifications' row is still about the switch, so it goes on, for
@@ -360,7 +393,7 @@ final class WelcomeModel {
     var playback: [WelcomePlayback.Row] {
         WelcomePlayback.rows(
             edge: preferences.edge, app: preferences.app, sound: services.sounds.chosen(preferences.app.sound),
-            login: login, ghostty: leave(.ghostty), hitch: hitch(.ghostty)
+            notices: leave(.notifications), login: login, ghostty: leave(.ghostty), hitch: hitch(.ghostty)
         )
     }
 
@@ -374,6 +407,7 @@ final class WelcomeModel {
         case .turnOnLogin: setLogin(true)
         case .loginItems: services.open(.loginItems)
         case .allowGhostty, .automation: press(.ghostty)
+        case .notifications: press(.notifications)
         }
     }
 }

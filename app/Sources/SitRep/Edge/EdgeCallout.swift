@@ -2,22 +2,23 @@ import AppKit
 import SitRepMenu
 import SwiftUI
 
-/// The notch or the strip, as the callout beside it sees it: whether it shows, where it rests, and the pointer over it.
+/// The notch or the strip, as the callout beside it sees it: whether it shows, where it rests, and each frame it draws.
 @MainActor
 protocol CalloutShape: AnyObject {
     var isShown: Bool { get }
     /// The shape at rest, from the edge to its front, level with the notch's home, on the screen: from the targets it
     /// moves to, never a frame it moves through.
     var restingBand: CGRect { get }
-    /// The pointer over the shape, told each frame it is.
-    var onPointedAt: () -> Void { get set }
+    /// Each frame the shape draws, while set, with whether the pointer is over it.
+    var onDrawn: ((_ isPointedAt: Bool) -> Void)? { get set }
 }
 
 /// The callout a welcome's Done leaves beside the real notch, or the strip, at rest (DESIGN, "The welcome window"):
 /// the stage's own, "Your notch. Point at it.", beside whichever shape shows, while it is due. Due while neither shows,
 /// at Nothing or under a full-screen app, it waits for one to show. The first hover over the shape takes it away for
-/// good, saved, so it shows once; from then on the shapes tell it nothing. Where it stands is told to `place`, a seam,
-/// as a test never shows a window.
+/// good, saved, so it shows once. The shapes tell it of their frames only while it is due, so it follows the notch's
+/// front as it lights and goes dark, which the notch takes in its next frame. Where it stands is told to `place`, a
+/// seam, as a test never shows a window.
 @MainActor
 final class EdgeCallout {
     /// The shape it stands beside, from the edge to the shape's front on the screen, and whether that is the right
@@ -42,11 +43,15 @@ final class EdgeCallout {
         self.shapes = shapes
         self.isRight = isRight
         self.place = place
-        preferences.onCallout = { [weak self] _ in self?.refresh() }
+        preferences.onCallout = { [weak self] _ in
+            self?.listen()
+            self?.refresh()
+        }
         listen()
     }
 
-    /// The shapes as they now stand: the callout beside the one showing while it is due, else nowhere.
+    /// The shapes as they now stand: the callout beside the one showing while it is due, else nowhere. Told with each
+    /// board and, while due, each frame: only a change is placed.
     func refresh() {
         let shape = shapes.first(where: \.isShown)
         let beside = preferences.callout.shows ? shape.map { Beside(band: $0.restingBand, isRight: isRight()) } : nil
@@ -59,22 +64,21 @@ final class EdgeCallout {
         place(beside)
     }
 
-    /// The pointer over the shape: the callout, while it shows, gone for good, and the shapes told to stop telling.
-    private func pointedAt() {
-        guard preferences.callout.shows else {
-            return
-        }
-
-        preferences.callout.pointedAt()
-        listen()
-    }
-
-    /// The shapes tell of the pointer only while the callout may yet show.
+    /// The shapes tell of their frames only while the callout is due: the first with the pointer over one takes it
+    /// away for good; any other may have moved the shape's front.
     private func listen() {
-        let listens = preferences.callout.standing != .gone
+        let hook: ((Bool) -> Void)? = preferences.callout.shows ? { [weak self] in self?.drawn(isPointedAt: $0) } : nil
 
         for shape in shapes {
-            shape.onPointedAt = listens ? { [weak self] in self?.pointedAt() } : {}
+            shape.onDrawn = hook
+        }
+    }
+
+    private func drawn(isPointedAt: Bool) {
+        if isPointedAt {
+            preferences.callout.pointedAt()
+        } else {
+            refresh()
         }
     }
 }

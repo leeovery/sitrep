@@ -1,4 +1,5 @@
 import CoreGraphics
+import SitRepPanel
 
 /// A loop the stage plays, on its own clock, ms from its start, its beats as data: the notch at rest; an ask landing,
 /// which swells it twice and lights it; the pointer coming to it, so it pours into the panel, then moving onto the
@@ -11,10 +12,11 @@ public struct WelcomeLoop: Equatable, Sendable {
     public enum Moment: CaseIterable, Sendable {
         case lands, opens, answers
 
-        public var words: String {
+        /// In the words of the shape the stage shows, the strip where Lee chose it, else the notch.
+        public func words(_ show: EdgeSettings.Show) -> String {
             switch self {
             case .lands: "An ask lands"
-            case .opens: "Open it from the notch"
+            case .opens: show == .strip ? "Open it from the strip" : "Open it from the notch"
             case .answers: "Answer it in its session"
             }
         }

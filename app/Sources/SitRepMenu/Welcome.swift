@@ -273,27 +273,29 @@ public enum WelcomePlayback {
         case allowGhostty
         /// System Settings' Automation, where Lee turns back on the leave he refused.
         case automation
+        /// System Settings' Notifications, where Lee allows the notifications macOS shows none of.
+        case notifications
 
         public var title: String {
             switch self {
             case .turnOnLogin: "Turn On"
             case .loginItems: "Login Items Settings…"
             case .allowGhostty: "Allow…"
-            case .automation: "Open System Settings…"
+            case .automation, .notifications: "Open System Settings…"
             }
         }
     }
 
     /// At the edge, A new ask, At login and A click, with `sound` the one a new ask plays, as `AlertSounds` reads it,
-    /// and `ghostty` where the leave to control Ghostty stands, as step 5's row shows it, with what went wrong with its
-    /// last ask.
+    /// and `notices` and `ghostty` where the two leaves stand, as step 5's rows show them, with what went wrong with
+    /// Ghostty's last ask.
     public static func rows(
-        edge: EdgeSettings, app: AppSettings, sound: String, login: LoginItem, ghostty: WelcomeLeave,
-        hitch: WelcomeHitch? = nil
+        edge: EdgeSettings, app: AppSettings, sound: String, notices: WelcomeLeave, login: LoginItem,
+        ghostty: WelcomeLeave, hitch: WelcomeHitch? = nil
     ) -> [Row] {
         [
             Row(label: "At the edge", words: atTheEdge(edge), fix: nil),
-            Row(label: "A new ask", words: newAsk(app, sound: sound), fix: nil),
+            newAsk(app, sound: sound, notices: notices),
             atLogin(login),
             aClick(ghostty, hitch: hitch),
         ]
@@ -302,20 +304,16 @@ public enum WelcomePlayback {
     /// "Opens the session's window" with the leave; else "Opens Ghostty", as a click without it brings Ghostty forward
     /// but to none of its windows, with step 5's row in place: Allow…, and what went wrong with its last ask; its
     /// spinner while macOS asks, and where it asked once Lee has waited on it; once refused, the way to Automation;
-    /// and with no Ghostty to open, nothing to press.
+    /// and with no Ghostty to open, "Needs Ghostty", with nothing to press.
     public static func aClick(_ ghostty: WelcomeLeave, hitch: WelcomeHitch? = nil) -> Row {
-        let label = "A click", opens = "Opens Ghostty"
+        let label = "A click", opens = "Opens Ghostty", line = WelcomePermission.ghostty.line(ghostty, hitch: hitch)
 
         return switch ghostty {
         case .on: Row(label: label, words: "Opens the session's window", fix: nil)
         case .refused: Row(label: label, words: opens, fix: .automation)
-        case .toAsk: Row(label: label, words: opens, fix: .allowGhostty, line: hitch?.words)
-        case let .asking(waitedLong):
-            Row(
-                label: label, words: opens, fix: nil, isAsking: true,
-                line: waitedLong ? WelcomePermission.ghostty.whereAsked : nil
-            )
-        case .unavailable: Row(label: label, words: WelcomeHitch.notInstalled.words, fix: nil)
+        case .toAsk: Row(label: label, words: opens, fix: .allowGhostty, line: line)
+        case .asking: Row(label: label, words: opens, fix: nil, isAsking: true, line: line)
+        case .unavailable: Row(label: label, words: "Needs Ghostty", fix: nil)
         }
     }
 
@@ -330,14 +328,19 @@ public enum WelcomePlayback {
         }
     }
 
-    /// "Glass, and a notification", "Glass", "A notification", or for neither, "Silent".
-    public static func newAsk(_ app: AppSettings, sound: String) -> String {
-        switch (app.playsSound, app.notifiesNewAsks) {
+    /// "Glass, and a notification", "Glass", "A notification", or for neither, "Silent", with `notices` where step 5's
+    /// row stands: while macOS shows none of SitRep's notifications, one Notify me promises is dropped, and the row
+    /// has that row's Open System Settings… in place.
+    public static func newAsk(_ app: AppSettings, sound: String, notices: WelcomeLeave = .toAsk) -> Row {
+        let isRefused = app.notifiesNewAsks && notices == .refused
+        let words = switch (app.playsSound, app.notifiesNewAsks && !isRefused) {
         case (true, true): "\(sound), and a notification"
         case (true, false): sound
         case (false, true): "A notification"
         case (false, false): "Silent"
         }
+
+        return Row(label: "A new ask", words: words, fix: isRefused ? .notifications : nil)
     }
 
     /// "Opens SitRep"; off, with Turn On; waiting on Lee's approval, with Login Items Settings…, as General has it.
@@ -358,7 +361,7 @@ public enum WelcomePermission: CaseIterable, Sendable {
     /// How long a prompt goes unanswered before the row says where macOS put it.
     public static let patience: Duration = .seconds(10)
     /// How long Turn On… waits on the notices helper for macOS's answer before reading what macOS says instead, so a
-    /// helper that never answers can't leave the row spinning.
+    /// helper that never answers keeps the row spinning only while macOS's prompt is up.
     public static let limit: Duration = .seconds(60)
 
     public var title: String {
@@ -388,6 +391,17 @@ public enum WelcomePermission: CaseIterable, Sendable {
         switch self {
         case .notifications: "macOS asks in a notification, at the top right of your screen"
         case .ghostty: "macOS asks in a dialog, which may be behind Ghostty's window"
+        }
+    }
+
+    /// The line under the row's reason, as the row stands: once Lee has waited on macOS's prompt, where it is; to ask,
+    /// what went wrong with the last ask; with no Ghostty to open, why.
+    public func line(_ leave: WelcomeLeave, hitch: WelcomeHitch?) -> String? {
+        switch leave {
+        case .asking(waitedLong: true): whereAsked
+        case .toAsk: hitch?.words
+        case .unavailable: WelcomeHitch.notInstalled.words
+        case .asking, .on, .refused: nil
         }
     }
 }
@@ -421,9 +435,9 @@ public enum WelcomeLeave: Equatable, Sendable {
     }
 }
 
-/// What went wrong with a row's last ask, said under it: Ghostty not installed, so the row offers nothing; Ghostty not
-/// opening, so macOS couldn't ask; or no answer from macOS through the notices helper. Either of the last two leaves
-/// the row's button to try again.
+/// What went wrong with a row's last ask, said under it: Ghostty not installed, so the row offers nothing until it is;
+/// Ghostty not opening, so macOS couldn't ask; or no answer from macOS, through the notices helper or for Ghostty.
+/// Either of the last two leaves the row's button to try again.
 public enum WelcomeHitch: Equatable, Sendable {
     case notInstalled, didNotOpen, noAnswer
 

@@ -2,22 +2,62 @@ import Foundation
 @testable import SitRep
 import Testing
 
-/// A signal to stop, as `app/quit` sends, quitting as Quit SitRep does.
+/// A signal to stop, as `app/quit` sends, quitting as Quit SitRep does. SIGUSR2 stands in for SIGTERM, which, ignored
+/// for the source's sake, would leave the tests' runner deaf to its own. One at a time, as both set the one signal.
+@Suite(.serialized)
 @MainActor
 struct QuitOnSignalTests {
-    /// Heard, it quits through the seam, so the welcome's close and `watch`'s stop run as for Quit SitRep. SIGUSR2
-    /// stands in for SIGTERM, which, ignored for the source's sake, would leave the tests' runner deaf to its own.
-    @Test func aSignalToStopQuitsAsQuitDoes() async {
-        var quits = 0
-        let quitting = QuitOnSignal(SIGUSR2) { quits += 1 }
+    /// Ignored, 1; at its default, 0, as `SIG_IGN` and `SIG_DFL` are.
+    private static func handler(of number: Int32) -> Int {
+        var now = sigaction()
+
+        sigaction(number, nil, &now)
+        return unsafeBitCast(now.__sigaction_u.__sa_handler, to: Int.self)
+    }
+
+    /// Heard, it quits through the seam, so the welcome's close and `watch`'s stop run as for Quit SitRep; the signal's
+    /// default is back at once, so a second one ends SitRep, and, the grace over, SitRep is ended in any case.
+    @Test func aSignalToStopQuitsAsQuitDoesAndEndsItAfterItsGrace() async {
+        let quits = Quits()
+        let ends = Ends()
+        let quitting = QuitOnSignal(SIGUSR2, grace: .milliseconds(20)) { quits.count += 1 } end: { ends.add($0) }
         var turns = 0
 
+        defer { quitting.stop() }
+        #expect(Self.handler(of: SIGUSR2) == 1)
         kill(getpid(), SIGUSR2)
-        while quits == 0, turns < 200 {
+        while quits.count == 0 || ends.all.isEmpty, turns < 300 {
             try? await Task.sleep(for: .milliseconds(10))
             turns += 1
         }
-        #expect(quits == 1)
+        #expect(quits.count == 1)
+        #expect(ends.all == [SIGUSR2])
+        #expect(Self.handler(of: SIGUSR2) == 0)
+    }
+
+    /// Stopped, as a test stops it, it leaves the signal at its default, never ignored.
+    @Test func stoppedItLeavesTheSignalAtItsDefault() {
+        let quitting = QuitOnSignal(SIGUSR2) {} end: { _ in }
+
+        #expect(Self.handler(of: SIGUSR2) == 1)
         quitting.stop()
+        #expect(Self.handler(of: SIGUSR2) == 0)
+    }
+
+    @MainActor
+    private final class Quits {
+        var count = 0
+    }
+
+    /// The signals `end` was given, from the queue it runs on.
+    private final class Ends: @unchecked Sendable {
+        private let lock = NSLock()
+        private var ended: [Int32] = []
+
+        var all: [Int32] { lock.withLock { ended } }
+
+        func add(_ number: Int32) {
+            lock.withLock { ended.append(number) }
+        }
     }
 }

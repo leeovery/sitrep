@@ -132,7 +132,35 @@ struct WelcomeLeavesTests {
         #expect(made.mac.allows.isEmpty)
         made.welcome.press(.ghostty)
         #expect(made.mac.opensGhostty == 1)
-        #expect(made.welcome.playback[3] == .init(label: "A click", words: "Ghostty isn't installed", fix: nil))
+        #expect(made.welcome.playback[3] == .init(label: "A click", words: "Needs Ghostty", fix: nil))
+    }
+
+    /// Ghostty installed since, the row offers Allow… again as the window next comes forward.
+    @Test func withGhosttyInstalledSinceAllowIsBack() async {
+        let made = await Self.atPermissions { $0.opening = .notInstalled }
+
+        await Self.press(.ghostty, on: made)
+        await made.key()
+        #expect(made.welcome.leave(.ghostty) == .unavailable)
+        made.mac.opening = .runs
+        await made.key()
+        #expect(made.welcome.leave(.ghostty) == .toAsk && made.welcome.hitch(.ghostty) == nil)
+        await Self.press(.ghostty, on: made)
+        #expect(made.welcome.leave(.ghostty) == .on)
+    }
+
+    /// Ghostty running but macOS answering neither way, as where Ghostty quit before macOS asked, a line says SitRep
+    /// couldn't get its answer, and Allow… stays, to try again.
+    @Test func allowWithNoAnswerFromMacOSSaysSo() async {
+        let made = await Self.atPermissions { $0.answersGhostty = .unknown }
+
+        await Self.press(.ghostty, on: made)
+        #expect(made.mac.allows == [true])
+        #expect(made.welcome.leave(.ghostty) == .toAsk && made.welcome.hitch(.ghostty) == .noAnswer)
+        #expect(made.welcome.playback[3].line == WelcomeHitch.noAnswer.words)
+        made.mac.answersGhostty = .allowed
+        await Self.press(.ghostty, on: made)
+        #expect(made.welcome.leave(.ghostty) == .on)
     }
 
     /// Ghostty not opening, a line says so and Allow… stays, to try again.
@@ -150,10 +178,12 @@ struct WelcomeLeavesTests {
         #expect(made.welcome.hitch(.ghostty) == nil)
     }
 
-    /// The notices helper never answering, Turn On… gives up at its limit, reads what macOS says, and with no answer
-    /// there either, says so and leaves Turn On… to try again.
+    /// The notices helper never answering, Turn On… gives up at its limit and reads what macOS says; with no answer
+    /// there either, it says so and leaves Turn On… to try again. Once the helper does return, macOS is read again,
+    /// so a late answer shows without the window coming forward.
     @Test func turnOnGivesUpOnASilentHelperAndSaysSo() async {
         let made = await Self.atPermissions {
+            $0.notices = nil
             $0.holdsPrompt = true
             $0.limitRunsOut = true
         }
@@ -163,6 +193,27 @@ struct WelcomeLeavesTests {
         #expect(made.welcome.leave(.notifications) == .toAsk)
         #expect(made.welcome.hitch(.notifications) == .noAnswer)
         made.mac.answer()
+        await Self.until { made.welcome.leave(.notifications) == .on }
+        #expect(made.welcome.hitch(.notifications) == nil)
+    }
+
+    /// Still unasked at the limit, macOS's prompt is up: the row waits on it, saying where it is, and takes Lee's
+    /// answer once he gives it.
+    @Test func turnOnPastItsLimitWaitsOnAPromptStillUp() async {
+        let made = await Self.atPermissions {
+            $0.holdsPrompt = true
+            $0.holdsWait = true
+            $0.limitRunsOut = true
+        }
+
+        made.welcome.press(.notifications)
+        await Self.until { made.welcome.leave(.notifications) == .asking(waitedLong: true) }
+        #expect(made.mac.waits.contains(WelcomePermission.limit) && made.mac.isPrompting)
+        made.mac.waitEnds()
+        made.mac.answer()
+        await made.welcome.asks[.notifications]?.value
+        #expect(made.welcome.leave(.notifications) == .on)
+        #expect(made.welcome.hitch(.notifications) == nil)
     }
 
     /// The helper gone, its ask ends at once with nothing to read: the row says so, rather than nothing.
@@ -284,6 +335,25 @@ struct WelcomeLeavesTests {
         made.welcome.fix(.automation)
         #expect(made.mac.opened == [.automation] && made.mac.allows.isEmpty)
     }
+
+    // MARK: A new ask, on Ready
+
+    /// While macOS shows none of SitRep's notifications, A new ask promises none, and has step 5's Open System
+    /// Settings… in place.
+    @Test func aNewAskPromisesNoNotificationMacOSRefuses() async {
+        let made = Made()
+
+        made.preferences.app.notifiesNewAsks = true
+        made.mac.notices = .denied
+        made.at(.ready)
+        await made.welcome.reading?.value
+        #expect(made.welcome.playback[1] == .init(label: "A new ask", words: "Glass", fix: .notifications))
+        made.welcome.fix(.notifications)
+        #expect(made.mac.opened == [.notifications] && made.mac.asksForNotices == 0)
+        made.mac.notices = .allowed(.banners)
+        await made.key()
+        #expect(made.welcome.playback[1] == .init(label: "A new ask", words: "Glass, and a notification", fix: nil))
+    }
 }
 
 /// The callout a welcome's Done leaves beside the real edge, and the welcome opening by itself at the first start.
@@ -317,7 +387,6 @@ struct WelcomeAfterTests {
             #expect(made.preferences.welcomed, "\(place)")
         }
     }
-
 
     // MARK: The first start
 

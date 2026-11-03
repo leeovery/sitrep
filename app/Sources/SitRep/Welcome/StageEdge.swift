@@ -187,7 +187,7 @@ final class StageEdge: NSView {
         let pointer = play.loop?.pointer(at: loopTime, notchY: edge.stage.notchY, row: row)
 
         shape.step(at: time, pointer: pointer, edge, staged)
-        press(at: time, pointer: pointer)
+        press(at: time)
         findRow(at: time)
         if play == .callout {
             placeCallout()
@@ -211,19 +211,21 @@ final class StageEdge: NSView {
 
     /// Step 2's click on the ask's row, pressed as the real notch takes a click, so the row presses in; then the jump
     /// landing, so the panel drains as the real one does once Ghostty has the session's window in front. Nothing is
-    /// told anywhere: the stage's run has no one to jump.
-    private func press(at time: Double, pointer: CGPoint?) {
+    /// told anywhere: the stage's run has no one to jump. Pressed only on the row, once found, as a press anywhere
+    /// else on the notch would start a drag nothing lets go.
+    private func press(at time: Double) {
         let presses = play.loop?.presses(at: loopTime) == true
 
         guard presses != isPressing else {
             return
         }
 
-        isPressing = presses
         if !presses {
+            isPressing = false
             shape.jumped(at: time, edge, staged)
-        } else if let pointer {
-            shape.press(at: time, pointer: pointer, edge, staged)
+        } else if let row {
+            isPressing = true
+            shape.press(at: time, pointer: row, edge, staged)
         }
     }
 

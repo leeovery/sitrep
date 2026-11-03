@@ -58,6 +58,15 @@ enum Leaves {
 
     nonisolated private static let ghosttyID = "com.mitchellh.ghostty"
 
+    /// Whether Ghostty is installed, as Launch Services finds it.
+    static var ghosttyInstalled: Bool {
+        ghosttyApp != nil
+    }
+
+    private static var ghosttyApp: URL? {
+        NSWorkspace.shared.urlForApplication(withBundleIdentifier: ghosttyID)
+    }
+
     /// Whether Ghostty runs, so macOS can ask for the leave to control it.
     static var ghosttyRuns: Bool {
         !NSRunningApplication.runningApplications(withBundleIdentifier: ghosttyID).isEmpty
@@ -67,7 +76,7 @@ enum Leaves {
     /// it has finished launching; not opened if it fails to, or is still launching after five seconds; at once, not
     /// installed.
     static func openGhostty() async -> GhosttyOpening {
-        guard let app = NSWorkspace.shared.urlForApplication(withBundleIdentifier: ghosttyID) else {
+        guard let app = ghosttyApp else {
             return .notInstalled
         }
 
