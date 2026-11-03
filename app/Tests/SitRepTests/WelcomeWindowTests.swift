@@ -152,7 +152,7 @@ struct WelcomeWindowTests {
     }
 
     /// The welcome, shown, its window's frame a recorded one, which never orders front, over defaults of its own unless
-    /// given some.
+    /// given some; focusing, it gives focus to its first key view as it orders front, as AppKit does.
     @MainActor
     struct Made {
         let mac = Mac()
@@ -163,10 +163,11 @@ struct WelcomeWindowTests {
 
         init(
             welcomed: Bool = false, plugin: PluginStanding? = nil, login: LoginItem = LoginItem(.notRegistered),
-            defaults: UserDefaults = MemoryDefaults()
+            defaults: UserDefaults = MemoryDefaults(), focusing: Bool = false
         ) {
             let live = LiveBoard()
 
+            recorded.focusesAsItOrders = focusing
             live.plugin = plugin
             mac.login = login
             preferences = Preferences(defaults)
@@ -256,8 +257,8 @@ struct WelcomeWindowTests {
 
     // MARK: The footer
 
-    /// The footer as drawn: at the first step, Skip setup between the dashes and Continue, which reads Show me; at the
-    /// last, nothing between them, and Done, a narrower pill, against the window's right, 16 in.
+    /// The footer as drawn: at the first step, Skip setup between the dashes and Continue; at the last, nothing between
+    /// them, and Done, a narrower pill, against the window's right, 16 in.
     @Test func atTheLastStepContinueReadsDoneAndSkipSetupGoes() throws {
         let made = Made()
         let first = try Self.footer(made)
@@ -751,10 +752,10 @@ struct WelcomeWindowTests {
         _ = await made.settled()
         Self.key(made)
         made.window.windowDidResignKey(Notification(name: NSWindow.didResignKeyNotification))
-        #expect(!stage.callout.place.isRight)
+        #expect(stage.callout.place?.isRight == false)
         made.preferences.edit { $0.edge = .right }
         _ = await made.settled()
-        #expect(stage.callout.place.isRight)
+        #expect(stage.callout.place?.isRight == true)
         #expect(stage.surface.frame.maxX == stage.edge.frame.maxX)
     }
 
@@ -809,7 +810,7 @@ struct WelcomeWindowTests {
 
     /// The strip centres where the notch sits on the stage, Paper's place, wherever Lee dragged his own, so the
     /// callout points at it.
-    @Test func theStagesStripCentresWhereTheCalloutPoints() async {
+    @Test func theStagesStripCentresWhereTheCalloutPoints() async throws {
         let made = Made()
         let stage = made.window.stage
 
@@ -817,8 +818,11 @@ struct WelcomeWindowTests {
         made.at(.ready)
         _ = await made.settled()
         #expect(stage.surface is StripSurface)
-        #expect(abs(stage.callout.place.middle - StageEdge.stillNotchY) < 1e-9)
-        #expect(abs(stage.resting.midY * stage.scale - stage.callout.place.middle) < 4)
+
+        let place = try #require(stage.callout.place)
+
+        #expect(abs(place.middle - StageEdge.stillNotchY) < 1e-9)
+        #expect(abs(stage.resting.midY * stage.scale - place.middle) < 4)
     }
 
     @Test func eachStepTellsTheStageWhatToPlay() async {

@@ -1,0 +1,194 @@
+import AppKit
+@testable import SitRep
+import SitRepMenu
+import SitRepPanel
+import Testing
+
+/// Nothing at the edge, from the welcome: step 3 at Nothing, and the stage with no edge from step 3 on, made, never
+/// shown.
+@MainActor
+struct WelcomeNothingTests {
+    typealias Made = WelcomeWindowTests.Made
+
+    // MARK: Your edge
+
+    /// The form's rows stay in their place, taking no presses, as Show nothing at the edge sets it.
+    @Test func atNothingTheFormsRowsStayInTheirPlaceDisabled() async {
+        let made = Made()
+
+        made.at(.edge)
+
+        let notch = await made.settled()
+        let rows = Self.rows(in: notch)
+
+        #expect(Self.segments(in: notch).allSatisfy { $0.isEnabled })
+        made.welcome.choose(.nothing)
+        #expect(made.preferences.edge.show == .nothing)
+
+        let nothing = await made.settled()
+
+        #expect(Self.segments(in: nothing).count == 3)
+        #expect(Self.segments(in: nothing).allSatisfy { !$0.isEnabled })
+        #expect(Self.rows(in: nothing) == rows)
+    }
+
+    @Test(arguments: [EdgeSettings.Show.notch, .strip])
+    func aTileBringsItsShapeBack(show: EdgeSettings.Show) async {
+        let made = Made()
+
+        made.preferences.edit { $0.show = .nothing }
+        made.at(.edge)
+        _ = await made.settled()
+        made.welcome.choose(show)
+        #expect(made.preferences.edge.show == show)
+        #expect(Self.segments(in: await made.settled()).allSatisfy { $0.isEnabled })
+    }
+
+    /// Done at Nothing leaves no callout waiting for a shape picked later; Done with a shape does.
+    @Test(arguments: [(EdgeSettings.Show.nothing, CalloutSettings.Standing.unshown), (.notch, .due), (.strip, .due)])
+    func doneArmsTheCalloutOnlyWithAShape(show: EdgeSettings.Show, standing: CalloutSettings.Standing) {
+        let made = Made()
+
+        made.preferences.edit { $0.show = show }
+        made.at(.ready)
+        made.welcome.goOn()
+        #expect(made.preferences.callout.standing == standing)
+    }
+
+    // MARK: The stage
+
+    /// Steps 1 and 2 teach what the notch does, so show it at Nothing too; from step 3, the stage shows no edge.
+    @Test func atNothingTheStageShowsNoEdgeFromStepThree() async {
+        let made = Made()
+        let stage = made.window.stage
+
+        made.preferences.edit { $0.show = .nothing }
+        for step in WelcomeSteps.all {
+            made.at(step)
+            _ = await made.settled()
+            #expect((stage.surface is NotchSurface) == [.hello, .ask].contains(step), "\(step)")
+            #expect(!(stage.surface is StripSurface), "\(step)")
+        }
+    }
+
+    /// At the last step, no callout, with nothing for it to point at.
+    @Test func atNothingTheLastStepShowsNoCallout() async throws {
+        let made = Made()
+        let stage = made.window.stage
+
+        made.at(.ready)
+        _ = await made.settled()
+        try #require(stage.callout.place != nil)
+        made.preferences.edit { $0.show = .nothing }
+        _ = await made.settled()
+        #expect(stage.callout.place == nil)
+    }
+
+    /// Chosen at step 3, the stage's edge goes at once; a tile brings it back.
+    @Test func choosingNothingTakesTheStagesEdgeAway() async {
+        let made = Made()
+        let stage = made.window.stage
+
+        made.at(.edge)
+        _ = await made.settled()
+        #expect(stage.surface is NotchSurface)
+        made.welcome.choose(.nothing)
+        stage.step(at: Displays.now)
+        #expect(!(stage.surface is NotchSurface))
+        made.welcome.choose(.notch)
+        stage.step(at: Displays.now)
+        #expect(stage.surface is NotchSurface)
+    }
+
+    // MARK: The stage's menu bar
+
+    /// SitRep's item lit while the stage's board has its ask, whatever the shape: as the notch is lit from step 3, but
+    /// at rest beside the callout; with no edge, at rest at the sound's step until a sound is chosen.
+    @Test(arguments: [EdgeSettings.Show.notch, .strip, .nothing])
+    func theMenuBarsItemIsLitWhileTheBoardHasItsAsk(show: EdgeSettings.Show) async {
+        let made = Made()
+        let scene = made.window.stage.scene
+
+        made.preferences.edit { $0.show = show }
+        for step in [WelcomeStep.edge, .sound, .permissions, .ready] {
+            made.at(step)
+            _ = await made.settled()
+            #expect(scene.isItemLit == (step != .ready && !(show == .nothing && step == .sound)), "\(step)")
+        }
+    }
+
+    /// Step 1's loop: at rest until the ask lands, then lit.
+    @Test func onStepOneTheItemLightsAsTheAskLands() async {
+        let made = Made()
+        let stage = made.window.stage
+
+        _ = await made.settled()
+        #expect(!stage.scene.isItemLit)
+        stage.standing = .inFront
+
+        let time = Displays.now
+
+        stage.step(at: time)
+        stage.step(at: time + WelcomeLoop.hello.lands + 100)
+        _ = await made.settled()
+        #expect(stage.scene.isItemLit)
+    }
+
+    /// With no notch to swell, each sound chosen lights the item for as long as the notch would swell, then it rests
+    /// again, a frame woken as the light ends.
+    @Test func atNothingEachSoundChosenLightsTheItemForAChimesLength() async throws {
+        let made = Made()
+        let stage = made.window.stage
+
+        made.preferences.edit { $0.show = .nothing }
+        made.at(.sound)
+        _ = await made.settled()
+        #expect(!stage.scene.isItemLit)
+        for sound in ["Pop", "Tink"] {
+            let before = Displays.now
+
+            // the chime told the stage at once, as the view's update would tell it, so no wait comes between
+            made.welcome.choose(sound: sound)
+            stage.chime(made.welcome.chimes)
+
+            let after = Displays.now
+            let ends = try #require(stage.chimeEnds)
+
+            #expect(stage.toldItem, "\(sound)")
+            #expect(abs(ends.fireDate.timeIntervalSinceNow - StageEdge.chimeLight / 1000) < 0.1)
+            stage.step(at: before + StageEdge.chimeLight - 50)
+            #expect(stage.toldItem, "\(sound)")
+            stage.step(at: after + StageEdge.chimeLight + 50)
+            #expect(!stage.toldItem, "\(sound)")
+            _ = await made.settled()
+            #expect(!stage.scene.isItemLit, "\(sound)")
+        }
+    }
+
+    /// Show changed in Settings while the welcome is at the sound's step: the item follows the board at once.
+    @Test func theItemFollowsAShapeChangedMidStep() async {
+        let made = Made()
+        let stage = made.window.stage
+
+        made.at(.sound)
+        _ = await made.settled()
+        #expect(stage.scene.isItemLit)
+        made.preferences.edit { $0.show = .nothing }
+        _ = await made.settled()
+        #expect(!stage.scene.isItemLit)
+        made.preferences.edit { $0.show = .strip }
+        _ = await made.settled()
+        #expect(stage.scene.isItemLit)
+    }
+
+    // MARK: Helpers
+
+    private static func segments(in view: NSView) -> [NSSegmentedControl] {
+        view.subviews.flatMap { ($0 as? NSSegmentedControl).map { [$0] } ?? segments(in: $0) }
+    }
+
+    /// The form's rows' heights in the window, from the bottom.
+    private static func rows(in view: NSView) -> [CGFloat] {
+        segments(in: view).map { $0.convert($0.bounds, to: nil).midY }.sorted()
+    }
+}

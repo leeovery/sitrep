@@ -4436,11 +4436,15 @@ does; the boards first drew it on a band of black.
   or SitRep's, its states cross-fade.
 - **The steps**, each a headline over the words in Paper:
   1. **Hello, from the edge:** "Every session, at the edge of your screen."
-     SitRep's icon, a line on what it is, and an aside, "About a minute.
-     Everything here is in Settings later." The stage's panel is open on
+     SitRep's icon and a line on what it is; the board's aside, "About a
+     minute. Everything here is in Settings later.", went in the build
+     (Lee, 3 November 2026: "It's like answering a question that nobody
+     asked… Can you remove that line?"). The stage's panel is open on
      Needs you, Working and Your turn, and the loop plays the notch at
      rest, an ask landing, the swell twice and the light, the pour into
-     the panel and the close. Continue reads Show me.
+     the panel and the close. Continue reads Continue here too; the
+     board's "Show me" went in the build, as Lee couldn't tell what it did
+     (3 November 2026).
   2. **An ask, from Claude to you:** "Claude asks. You answer." One soft
      loop on the stage, with nothing to press (Lee, 3 November 2026: "I
      don't want it interactive in that way… Soft animation in the
@@ -4466,8 +4470,14 @@ does; the boards first drew it on a band of black.
      takes Style's place in a cross-fade, one row for another, so the form
      keeps its height and holds only what applies. Settings' Edge pane
      changes at once instead, as its height changes with it (Lee found its
-     motion jarring). Nothing, neither shape, stays in Settings: a welcome
-     is no place to offer turning SitRep off. Each press sets the setting
+     motion jarring). Under the form, a quiet text button, Show nothing
+     at the edge, sets Show to Nothing (Lee, 3 November 2026: "I think I
+     should be able to say nothing"): neither tile is ringed, the rows
+     stay but dim, the line "Only the menu bar's light. Choose Notch or
+     Strip to bring it back." takes the button's place, and the stage
+     shows no edge from here on, step 4's chime lighting its menu bar
+     item instead; steps 1 and 2 still show the notch, which they teach.
+     The drawn boards left Nothing to Settings. Each press sets the setting
      itself, so the stage and the real edge, at full size beside the
      window, move at once. The stage's notch is lit, as for needs you,
      since at rest it is 7 points of black a first look would miss.
@@ -4566,6 +4576,30 @@ does; the boards first drew it on a band of black.
     a new ask; while macOS refuses, A new ask's playback promises no
     notification and carries that fix.
   - **Step 6's A click** with the leave: "Opens the session's window".
+- **Settled in the build** (Lee's notes on the live welcome, 3 November
+  2026):
+  - **Keyboard focus** rests on nothing as the window opens, as in the
+    Mac's own setup assistants, and Return presses Continue. Lee: "I don't
+    like that 'skip setup' is focused by default, and that I don't seem to
+    be able to change that focus. That's odd Mac behaviour." AppKit, ordering
+    the window in with Keyboard navigation on, gave focus to its first key
+    view, Skip setup at step 1, which has no controls. Tab and Shift-Tab go
+    through the step's controls in reading order, the footer last; where
+    the control holding focus goes with its step, focus goes back to
+    nothing. The key view loop is worked out again after each layout of
+    the window's content, as SwiftUI's buttons join and leave it unseen by
+    AppKit, which left Tab on a step gone (offscreen, 3 November 2026).
+    Brought forward while open, the window keeps focus where it was.
+    Continue's focus ring is a pill and back's a circle.
+  - **The stage's menu bar item** is lit while the stage's board has an
+    ask, as the real glyph lights for needs you, and on step 4 each chime
+    lights it for as long as the notch swells, whatever the shape. So at
+    Nothing it rests as step 4 opens, lights for every sound chosen, and
+    rests on step 6, where the board is calm.
+  - **Done at Nothing** leaves the real callout unarmed: someone who chose
+    to show nothing at the edge never meets "Your notch. Point at it."
+    weeks later, the day they pick a shape. A callout armed by an earlier
+    Done still waits for a shape, as above.
 
 ### Settings
 

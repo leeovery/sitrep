@@ -3,25 +3,17 @@ import SitRepMenu
 import SitRepPanel
 import SwiftUI
 
-/// Step 1, Hello, from the edge: SitRep's icon over the step's words, in the column's middle, and the aside at its
-/// foot.
+/// Step 1, Hello, from the edge: SitRep's icon over the step's words, in the column's middle.
 struct HelloStep: View {
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            VStack(alignment: .leading, spacing: 18) {
-                Image(nsImage: AppIcon.welcome)
-                    .resizable()
-                    .frame(width: 56, height: 56)
-                    .accessibilityHidden(true)
-                StepWords(step: .hello)
-            }
-            .padding(.bottom, 8)
-            .frame(maxHeight: .infinity)
-            Text("About a minute. Everything here is in Settings later.")
-                .font(.system(size: 11))
-                .foregroundStyle(WelcomeStyle.faint)
-                .padding(.bottom, 4)
+        VStack(alignment: .leading, spacing: 18) {
+            Image(nsImage: AppIcon.welcome)
+                .resizable()
+                .frame(width: 56, height: 56)
+                .accessibilityHidden(true)
+            StepWords(step: .hello)
         }
+        .frame(maxHeight: .infinity)
     }
 }
 
@@ -69,7 +61,8 @@ private struct MomentLine: View {
 
 /// Step 3, Your edge: Notch or Strip as Settings' own pictures, the one chosen ringed in the accent, then a grouped
 /// form: Style, or at Strip Length in its place, cross-fading so the form keeps its height; Material, from macOS 26;
-/// and Edge. Each press sets the setting itself.
+/// and Edge; then Show nothing at the edge. Each press sets the setting itself. At Nothing neither picture is ringed,
+/// and the form stays in its place, dimmed, taking no presses.
 struct EdgeStep: View {
     let welcome: WelcomeModel
 
@@ -84,21 +77,25 @@ struct EdgeStep: View {
             StepWords(step: .edge)
             HStack(spacing: 10) {
                 ForEach([EdgeSettings.Show.notch, .strip], id: \.self) { show in
-                    ShapeTile(show: show, isChosen: edge.show == show) { welcome.choose(show) }
+                    ShapeTile(show: show, isChosen: WelcomeEdgeForm.chosen(edge) == show) { welcome.choose(show) }
                 }
             }
-            WelcomeCard {
-                // one row for another in the one place, so the form keeps its height as they cross-fade
-                ZStack {
-                    FormRow(row: rows[0], preferences: welcome.preferences)
-                        .id(rows[0])
-                        .transition(.opacity)
+            VStack(alignment: .leading, spacing: 12) {
+                WelcomeCard {
+                    // one row for another in the one place, so the form keeps its height as they cross-fade
+                    ZStack {
+                        FormRow(row: rows[0], preferences: welcome.preferences)
+                            .id(rows[0])
+                            .transition(.opacity)
+                    }
+                    .animation(.easeInOut(duration: 0.2), value: rows[0])
+                    ForEach(rows.dropFirst(), id: \.self) { row in
+                        Hairline()
+                        FormRow(row: row, preferences: welcome.preferences)
+                    }
                 }
-                .animation(.easeInOut(duration: 0.2), value: rows[0])
-                ForEach(rows.dropFirst(), id: \.self) { row in
-                    Hairline()
-                    FormRow(row: row, preferences: welcome.preferences)
-                }
+                .disabled(!WelcomeEdgeForm.takesPresses(edge))
+                UnderTheForm(under: WelcomeEdgeForm.under(edge)) { welcome.choose(.nothing) }
             }
         }
         .padding(.top, 40)
@@ -138,16 +135,40 @@ private struct ShapeTile: View {
     }
 }
 
-/// A row of step 3's form: its label, and the system's segmented control against the card's right.
+/// Under step 3's form: Show nothing at the edge, a quiet grey link, which sets Nothing as Settings' Nothing does; at
+/// Nothing, the line in its place.
+private struct UnderTheForm: View {
+    let under: WelcomeEdgeForm.Under
+    let chooseNothing: () -> Void
+
+    var body: some View {
+        Group {
+            switch under {
+            case .showNothing:
+                Button(under.words, action: chooseNothing)
+                    .buttonStyle(.plain)
+            case .nothingShown:
+                Text(under.words)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .font(.system(size: 12))
+        .foregroundStyle(WelcomeStyle.soft)
+    }
+}
+
+/// A row of step 3's form: its label, and the system's segmented control against the card's right; disabled, the
+/// label faint, as the control dims itself.
 private struct FormRow: View {
     let row: WelcomeEdgeForm.Row
     let preferences: Preferences
+    @Environment(\.isEnabled) private var isEnabled
 
     var body: some View {
         HStack(spacing: 8) {
             Text(label)
                 .font(.system(size: 13))
-                .foregroundStyle(WelcomeStyle.text)
+                .foregroundStyle(isEnabled ? WelcomeStyle.text : WelcomeStyle.faint)
                 .frame(maxWidth: .infinity, alignment: .leading)
             control.fixedSize()
         }

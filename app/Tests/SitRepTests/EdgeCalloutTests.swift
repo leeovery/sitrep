@@ -65,7 +65,7 @@ struct EdgeCalloutTests {
 
         made.show(made.notch)
         #expect(made.placed.isEmpty)
-        made.preferences.callout.done()
+        made.preferences.callout.done(.notch)
         #expect(made.placed == [made.beside(made.notch)])
     }
 
@@ -87,7 +87,7 @@ struct EdgeCalloutTests {
         let made = Made()
 
         made.show(nil)
-        made.preferences.callout.done()
+        made.preferences.callout.done(.notch)
         #expect(made.placed.isEmpty)
         made.show(made.strip)
         #expect(made.placed == [made.beside(made.strip)])
@@ -113,7 +113,7 @@ struct EdgeCalloutTests {
 
         made.show(made.notch)
         #expect(!made.notch.isHooked && !made.strip.isHooked)
-        made.preferences.callout.done()
+        made.preferences.callout.done(.notch)
         #expect(made.notch.isHooked && made.strip.isHooked)
         #expect(made.placed == [made.beside(made.notch)])
     }

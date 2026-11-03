@@ -84,10 +84,10 @@ final class WelcomeModel {
     }
 
     /// Continue: the next step, or at the last, Done, which closes the window and leaves the callout beside the real
-    /// edge, as no other close does.
+    /// edge, as no other close does; at Nothing, none (`CalloutSettings.done`).
     func goOn() {
         guard !steps.isLast else {
-            preferences.callout.done()
+            preferences.callout.done(preferences.edge.show)
             closeWindow()
             return
         }
@@ -155,7 +155,7 @@ final class WelcomeModel {
 
     // MARK: Your edge
 
-    /// Notch or Strip, set at once: the stage and the real edge take it.
+    /// Notch, Strip or Nothing, set at once: the stage and the real edge take it.
     func choose(_ show: EdgeSettings.Show) {
         preferences.edit { $0.show = show }
     }

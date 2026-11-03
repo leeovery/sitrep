@@ -1,0 +1,193 @@
+import AppKit
+@testable import SitRep
+import SitRepMenu
+import Testing
+
+/// Keyboard focus in the welcome window, made, never shown: on nothing as it opens, so nothing shows a ring and Return
+/// presses Continue; Tab and Shift-Tab stepping through the controls in reading order, the footer's last. Its buttons
+/// take focus only while the Mac's Keyboard navigation setting is on, so what needs them runs only then.
+@MainActor
+struct WelcomeFocusTests {
+    typealias Made = WelcomeWindowTests.Made
+
+    /// Where AppKit, as the window orders in, gives focus to its first key view, Skip setup at the first step.
+    /// Laid out and keyed, focus stays there.
+    @Test(.enabled { await keyboardNavigation() })
+    func itOpensWithFocusOnNothing() async throws {
+        let made = Made(focusing: true)
+        let content = try #require(made.recorded.contentView)
+
+        #expect(made.recorded.firstResponder === content)
+        _ = await made.settled()
+        made.recorded.becomeKey()
+        #expect(made.recorded.firstResponder === content)
+    }
+
+    /// With Keyboard navigation off, AppKit gives no view focus as the window orders in: it is on nothing all the same.
+    @Test func itOpensWithFocusOnTheContentWhateverKeyboardNavigationSays() {
+        let made = Made()
+
+        #expect(made.recorded.firstResponder === made.recorded.contentView)
+    }
+
+    @Test(.enabled { await keyboardNavigation() })
+    func itOpensAgainWithFocusOnNothing() async throws {
+        let made = Made(focusing: true)
+
+        _ = await made.settled()
+        Self.tab(made)
+        Self.tab(made)
+        made.recorded.close()
+        made.window.show()
+        #expect(made.recorded.firstResponder === made.recorded.contentView)
+    }
+
+    /// Welcome… while it shows brings it forward at its first step, a visit under way going on: focus stays where Lee
+    /// put it.
+    @Test(.enabled { await keyboardNavigation() })
+    func shownAgainWhileOpenFocusStaysWhereItWas() async throws {
+        let made = Made(focusing: true)
+
+        _ = await made.settled()
+        Self.tab(made)
+
+        let focused = try #require(Self.focused(made))
+
+        made.window.show()
+        #expect(made.recorded.firstResponder === focused)
+    }
+
+    /// The chevron, dimmed at the first step, takes no focus there.
+    @Test(.enabled { await keyboardNavigation() })
+    func atTheFirstStepTabGoesToSkipSetupThenContinueAndRoundAgain() async throws {
+        let made = Made()
+
+        _ = await made.settled()
+        let stops = Self.stops(made)
+
+        #expect(stops.count == 2)
+        #expect(stops.allSatisfy { $0.maxY <= WelcomeStyle.footer })
+        #expect(stops.map(\.midX) == stops.map(\.midX).sorted())
+        #expect(abs((stops.last?.maxX ?? 0) - 824) <= 0.5)
+    }
+
+    /// At a step with no controls of its own, the footer's alone: back, Skip setup and Continue, left to right; Tab past
+    /// Continue goes round to back, and Shift-Tab from back to Continue.
+    @Test(.enabled { await keyboardNavigation() })
+    func tabGoesThroughTheFootersControlsInOrderAndShiftTabComesBack() async throws {
+        let made = Made()
+
+        made.at(.ask)
+        _ = await made.settled()
+        let stops = Self.stops(made)
+
+        #expect(stops.count == 3)
+        #expect(stops.allSatisfy { $0.maxY <= WelcomeStyle.footer })
+        #expect(stops.map(\.midX) == stops.map(\.midX).sorted())
+        #expect(stops.first?.size == CGSize(width: 28, height: 28))
+        #expect(abs((stops.last?.maxX ?? 0) - 824) <= 0.5)
+
+        try #require(Self.frame(made) == stops.first)
+        Self.tab(made, back: true)
+        #expect(Self.frame(made) == stops.last)
+    }
+
+    /// Your edge: the two tiles, the form's rows from the top, Show nothing at the edge, then the footer.
+    @Test(.enabled { await keyboardNavigation() })
+    func tabGoesThroughAStepsControlsInReadingOrderThenTheFooters() async throws {
+        let made = Made()
+
+        made.at(.edge)
+        _ = await made.settled()
+        let stops = Self.stops(made)
+        let reading = stops.sorted { ($1.midY, $0.minX) < ($0.midY, $1.minX) }
+
+        #expect(stops.count == 9)
+        #expect(stops == reading)
+        #expect(stops.suffix(3).allSatisfy { $0.maxY <= WelcomeStyle.footer })
+    }
+
+    /// At Nothing, the form's rows take no presses and a line stands in Show nothing at the edge's place: Tab goes from
+    /// the tiles to the footer.
+    @Test(.enabled { await keyboardNavigation() })
+    func atNothingTabGoesFromTheTilesToTheFooter() async throws {
+        let made = Made()
+
+        made.preferences.edit { $0.show = .nothing }
+        made.at(.edge)
+        _ = await made.settled()
+
+        let stops = Self.stops(made)
+
+        #expect(stops.count == 5)
+        #expect(stops.prefix(2).allSatisfy { $0.maxX < WelcomeStyle.column && $0.minY > WelcomeStyle.footer })
+        #expect(stops.suffix(3).allSatisfy { $0.maxY <= WelcomeStyle.footer })
+    }
+
+    /// Focus on a tile, and the step it was on gone: focus goes to nothing, rather than staying on the window, and Tab
+    /// goes on from the next step's first control.
+    @Test(.enabled { await keyboardNavigation() })
+    func aStepGoneWithTheControlFocusedLeavesFocusOnNothing() async throws {
+        let made = Made()
+
+        made.at(.edge)
+        _ = await made.settled()
+        made.recorded.makeFirstResponder(made.recorded.contentView)
+        Self.tab(made)
+        try #require(Self.frame(made).map { $0.maxX < WelcomeStyle.column } == true)
+        made.welcome.goOn()
+        _ = await made.settled()
+        #expect(made.recorded.firstResponder === made.recorded.contentView)
+        Self.tab(made)
+        #expect(Self.frame(made).map { $0.maxX < WelcomeStyle.column } == true)
+    }
+
+    @Test func returnPressesContinueWithFocusOnNothing() async throws {
+        let made = Made()
+
+        _ = await made.settled()
+        #expect(made.recorded.performKeyEquivalent(with: try #require(Self.key(36, typing: "\r", in: made))))
+        #expect(made.welcome.step == .ask)
+    }
+
+    // MARK: Helpers
+
+    /// Where Tab stops from nothing, in turn, until it comes round again, each in the window's points.
+    private static func stops(_ made: Made) -> [CGRect] {
+        var stops: [CGRect] = []
+
+        made.recorded.makeFirstResponder(made.recorded.contentView)
+        while stops.count < 20 {
+            tab(made)
+            guard let frame = frame(made), !stops.contains(frame) else {
+                break
+            }
+            stops.append(frame)
+        }
+        return stops
+    }
+
+    /// Tab, or Shift-Tab, as the window sends it to what has focus.
+    private static func tab(_ made: Made, back: Bool = false) {
+        key(48, with: back ? .shift : [], typing: back ? "\u{19}" : "\t", in: made).map(made.recorded.sendEvent)
+    }
+
+    private static func key(
+        _ code: UInt16, with modifiers: NSEvent.ModifierFlags = [], typing characters: String, in made: Made
+    ) -> NSEvent? {
+        NSEvent.keyEvent(
+            with: .keyDown, location: .zero, modifierFlags: modifiers, timestamp: 0,
+            windowNumber: made.recorded.windowNumber, context: nil, characters: characters,
+            charactersIgnoringModifiers: characters, isARepeat: false, keyCode: code
+        )
+    }
+
+    /// The control with focus: a view in the content, never the content itself.
+    private static func focused(_ made: Made) -> NSView? {
+        (made.recorded.firstResponder as? NSView).flatMap { $0 === made.recorded.contentView ? nil : $0 }
+    }
+
+    private static func frame(_ made: Made) -> CGRect? {
+        focused(made).map { $0.convert($0.bounds, to: nil) }
+    }
+}

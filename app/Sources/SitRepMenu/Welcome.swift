@@ -100,7 +100,7 @@ public struct WelcomeSteps: Equatable, Sendable {
         WelcomeFooter(
             canGoBack: !isFirst,
             dashes: steps.indices.map { $0 < index ? .done : $0 == index ? .current : .ahead },
-            continueTitle: isLast ? "Done" : isFirst ? "Show me" : "Continue",
+            continueTitle: isLast ? "Done" : "Continue",
             showsSkip: !isLast
         )
     }
@@ -108,7 +108,7 @@ public struct WelcomeSteps: Equatable, Sendable {
 
 /// The footer, which never moves: the back chevron, dimmed at the first step; a dash for each step, the one Lee is on
 /// long and blue, those behind lit; Skip setup, gone at the last step with nothing left to skip; and Continue ↵, which
-/// reads Show me at the first and Done at the last.
+/// reads Done at the last.
 public struct WelcomeFooter: Equatable, Sendable {
     public enum Dash: Equatable, Sendable {
         case done, current, ahead
@@ -230,14 +230,41 @@ public struct WelcomeSounds: Equatable, Sendable {
 }
 
 /// Step 3's grouped form under the two pictures: Style for the notch, or Length for the strip in its place, so the
-/// form keeps its height; then Material, from macOS 26 only; then Edge. Nothing, neither shape, stays in Settings.
+/// form keeps its height; then Material, from macOS 26 only; then Edge; and under it, Show nothing at the edge. At
+/// Nothing neither picture is chosen, and the rows stay in their place, taking no presses.
 public enum WelcomeEdgeForm {
     public enum Row: Hashable, Sendable {
         case style, length, material, edge
     }
 
+    /// Under the form: Show nothing at the edge, a link that sets Nothing; at Nothing, a line in its place, saying what
+    /// is left and how to bring the edge back.
+    public enum Under: Equatable, Sendable {
+        case showNothing, nothingShown
+
+        public var words: String {
+            switch self {
+            case .showNothing: "Show nothing at the edge"
+            case .nothingShown: "Only the menu bar's light. Choose Notch or Strip to bring it back."
+            }
+        }
+    }
+
     public static func rows(_ settings: EdgeSettings, hasGlass: Bool) -> [Row] {
         [settings.show == .strip ? .length : .style] + (hasGlass ? [.material] : []) + [.edge]
+    }
+
+    /// The picture ringed: the shape Lee chose, none at Nothing.
+    public static func chosen(_ settings: EdgeSettings) -> EdgeSettings.Show? {
+        settings.show == .nothing ? nil : settings.show
+    }
+
+    public static func takesPresses(_ settings: EdgeSettings) -> Bool {
+        settings.show != .nothing
+    }
+
+    public static func under(_ settings: EdgeSettings) -> Under {
+        settings.show == .nothing ? .nothingShown : .showNothing
     }
 }
 
@@ -317,7 +344,7 @@ public enum WelcomePlayback {
         }
     }
 
-    /// "Meniscus notch, left", "Strip, right"; with Nothing, set in Settings, the menu bar's light.
+    /// "Meniscus notch, left", "Strip, right"; with Nothing, the menu bar's light.
     public static func atTheEdge(_ settings: EdgeSettings) -> String {
         let edge = settings.edge.title.lowercased()
 
@@ -486,9 +513,11 @@ public struct CalloutSettings: SavedValue {
     /// Whether it shows beside the edge.
     public var shows: Bool { standing == .due }
 
-    /// Done: due, unless it has shown and gone, as it shows once.
-    public mutating func done() {
-        if standing == .unshown {
+    /// Done, with this shape at the edge: due, unless it has shown and gone, as it shows once. Done at Nothing leaves
+    /// it as it stood, so one who chose to show nothing never meets it the day he picks a shape; one already due still
+    /// waits for a shape.
+    public mutating func done(_ show: EdgeSettings.Show) {
+        if standing == .unshown, show != .nothing {
             standing = .due
         }
     }
