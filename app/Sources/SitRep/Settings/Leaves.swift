@@ -63,18 +63,19 @@ enum Leaves {
         !NSRunningApplication.runningApplications(withBundleIdentifier: ghosttyID).isEmpty
     }
 
-    /// Ghostty opened behind the window Lee is in, for macOS to ask for the leave: done once it has finished
-    /// launching, or after five seconds of waiting on it; at once where it isn't installed.
-    static func openGhostty() async {
+    /// Ghostty opened behind the window Lee is in, for macOS to ask for the leave, and what that came to: running once
+    /// it has finished launching; not opened if it fails to, or is still launching after five seconds; at once, not
+    /// installed.
+    static func openGhostty() async -> GhosttyOpening {
         guard let app = NSWorkspace.shared.urlForApplication(withBundleIdentifier: ghosttyID) else {
-            return
+            return .notInstalled
         }
 
         let configuration = NSWorkspace.OpenConfiguration()
 
         configuration.activates = false
         guard let ghostty = try? await NSWorkspace.shared.openApplication(at: app, configuration: configuration) else {
-            return
+            return .didNotOpen
         }
 
         let deadline = ContinuousClock.now + .seconds(5)
@@ -82,6 +83,7 @@ enum Leaves {
         while !ghostty.isFinishedLaunching, ContinuousClock.now < deadline {
             try? await Task.sleep(for: .milliseconds(100))
         }
+        return ghostty.isFinishedLaunching ? .runs : .didNotOpen
     }
 
     /// The leave, for a harmless event, Get Data: macOS gives it for Ghostty, whatever the event. Off the main thread,

@@ -27,23 +27,29 @@ struct WelcomeWindowTests {
         /// Jumps to a session, and test notifications sent.
         var jumps: [String] = []
         var tests = 0
-        /// What macOS says of notifications, and what Lee answers its prompt.
+        /// What macOS says of notifications, and what Lee answers its prompt: nil, the helper silent.
         var notices: NoticeLeave? = .unasked
-        var answersNotices = NoticeLeave.allowed(.banners)
+        var answersNotices: NoticeLeave? = .allowed(.banners)
         var asksForNotices = 0
         /// While set, macOS's prompt waits on Lee until `answer` is called.
         var holdsPrompt = false
         private var prompt: CheckedContinuation<Void, Never>?
+        /// While set, a read of notifications waits until `readEnds` is called, then says what macOS said as it began.
+        var holdsRead = false
+        private var read: CheckedContinuation<Void, Never>?
         /// Whether SitRep may control Ghostty, what Lee answers its prompt, and whether Ghostty runs as it is asked.
         var ghostty = GhosttyLeave.unknown
         var answersGhostty = GhosttyLeave.allowed
         var allows: [Bool] = []
         var ghosttyRuns = false
+        /// What opening Ghostty comes to, and how many times it was opened.
+        var opening = GhosttyOpening.runs
         var opensGhostty = 0
-        /// The waits begun on a prompt; while `holdsWait` is set, each held until `waitEnds` is called, else over at
-        /// once.
+        /// The waits begun: on a prompt, while `holdsWait` is set, each held until `waitEnds` is called, else over at
+        /// once; on the notices helper, over only once `limitRunsOut` is set, else until the ask no longer waits.
         var waits: [Duration] = []
         var holdsWait = false
+        var limitRunsOut = false
         private var waiting: CheckedContinuation<Void, Never>?
 
         /// Choosing the login item flips it, as `Leaves.chooseLogin` does; waiting on Lee's approval, it opens Login
@@ -56,7 +62,14 @@ struct WelcomeWindowTests {
                 sounds: AlertSounds(
                     names: AlertSounds.live.names, play: { self.played.append($0) }, stop: { self.stops += 1 }
                 ),
-                noticeLeave: { self.notices },
+                noticeLeave: {
+                    let said = self.notices
+
+                    if self.holdsRead {
+                        await withCheckedContinuation { self.read = $0 }
+                    }
+                    return said
+                },
                 askForNotices: {
                     self.asksForNotices += 1
                     if self.holdsPrompt {
@@ -84,11 +97,16 @@ struct WelcomeWindowTests {
                 ghosttyRuns: { self.ghosttyRuns },
                 openGhostty: {
                     self.opensGhostty += 1
-                    self.ghosttyRuns = true
+                    self.ghosttyRuns = self.opening == .runs
+                    return self.opening
                 },
                 wait: { duration in
                     self.waits.append(duration)
-                    if self.holdsWait {
+                    if duration == WelcomePermission.limit {
+                        if !self.limitRunsOut {
+                            try? await Task.sleep(for: .seconds(3600))
+                        }
+                    } else if self.holdsWait {
                         await withCheckedContinuation { self.waiting = $0 }
                     }
                 }
@@ -100,6 +118,17 @@ struct WelcomeWindowTests {
             prompt?.resume()
             prompt = nil
         }
+
+        /// The read held ends.
+        func readEnds() {
+            read?.resume()
+            read = nil
+        }
+
+        /// Whether macOS's prompt, a read or a wait on a prompt is held now.
+        var isPrompting: Bool { prompt != nil }
+        var isReading: Bool { read != nil }
+        var isWaiting: Bool { waiting != nil }
 
         /// The wait on a prompt runs out.
         func waitEnds() {
@@ -121,8 +150,8 @@ struct WelcomeWindowTests {
         }
     }
 
-    /// The welcome, its window's frame a recorded one, which never orders front; shown, unless made for SitRep's first
-    /// start, over defaults of its own unless given some.
+    /// The welcome, shown, its window's frame a recorded one, which never orders front, over defaults of its own unless
+    /// given some.
     @MainActor
     struct Made {
         let mac = Mac()
@@ -133,7 +162,7 @@ struct WelcomeWindowTests {
 
         init(
             welcomed: Bool = false, plugin: PluginStanding? = nil, login: LoginItem = LoginItem(.notRegistered),
-            defaults: UserDefaults = MemoryDefaults(), shows: Bool = true
+            defaults: UserDefaults = MemoryDefaults()
         ) {
             let live = LiveBoard()
 
@@ -149,9 +178,7 @@ struct WelcomeWindowTests {
                 recorded.contentViewController = content
                 return recorded
             }
-            if shows {
-                window.show()
-            }
+            window.show()
         }
 
         /// The window come forward, as AppKit tells its delegate, and what it read then read.

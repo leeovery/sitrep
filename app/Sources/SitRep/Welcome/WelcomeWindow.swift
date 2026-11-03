@@ -40,12 +40,10 @@ final class WelcomeWindow: NSObject, NSWindowDelegate {
         }
     }
 
-    /// SitRep's first start on a Mac where no welcome has ever closed: it opens by itself, as Welcome… opens it.
+    /// Whether SitRep, starting, opens it by itself, as Welcome… opens it: only on a Mac where none has ever closed.
     /// However it closes, quitting included, it is done with, so it never opens by itself again.
-    func showAtFirstStart() {
-        if !welcome.preferences.welcomed {
-            show()
-        }
+    static func opensAtStart(_ preferences: Preferences) -> Bool {
+        !preferences.welcomed
     }
 
     func windowDidBecomeKey(_ notification: Notification) {

@@ -13,8 +13,11 @@ final class Edge {
     private var settings: EdgeSettings
     private let notch: NotchController
     private let strip: StripController
-    private let calloutWindow = CalloutWindow()
-    private lazy var callout = EdgeCallout(preferences) { [calloutWindow] in calloutWindow.place($0) }
+    /// Made only once the callout is first due, so a Mac long past it never has one.
+    private var calloutWindow: CalloutWindow?
+    private lazy var callout = EdgeCallout(
+        preferences, shapes: [notch, strip], isRight: { [unowned self] in settings.edge == .right }
+    ) { [unowned self] in placeCallout($0) }
     private lazy var fullScreen = FullScreenWatch { [unowned self] in Displays.bounds(of: settings) }
     private var observers: [any NSObjectProtocol] = []
 
@@ -40,8 +43,6 @@ final class Edge {
         strip.isJumping = isJumping
         notch.onMoved = { [unowned self] in moved($0) }
         strip.onMoved = { [unowned self] in moved($0) }
-        notch.onPointedAt = { [unowned self] in callout.pointedAt() }
-        strip.onPointedAt = { [unowned self] in callout.pointedAt() }
         fullScreen.onChange = { [unowned self] in show() }
         preferences.onEdge = { [unowned self] in apply($0) }
         preferences.follow { [unowned self] in notch.period = $0.foldsAfter }
@@ -55,7 +56,6 @@ final class Edge {
 
         notch.show(board)
         strip.show(board)
-        placeCallout()
     }
 
     /// A drag let the notch or the strip go: where it left it lands on the settings as they stand, is kept, and both
@@ -90,7 +90,7 @@ final class Edge {
         self.settings = settings
         notch.apply(settings, on: display)
         strip.apply(settings, on: display)
-        placeCallout()
+        callout.refresh()
     }
 
     /// The notch or the strip, as Lee chose, unless he chose Nothing, or a full-screen app has the display.
@@ -99,14 +99,15 @@ final class Edge {
 
         notch.isShown = shows && settings.show == .notch
         strip.isShown = shows && settings.show == .strip
-        placeCallout()
+        callout.refresh()
     }
 
-    /// The callout beside whichever shows, at rest; with neither showing, nowhere.
-    private func placeCallout() {
-        let resting = notch.isShown ? notch.resting : strip.isShown ? strip.resting : nil
-
-        callout.beside(resting.map { EdgeCallout.Beside(resting: $0, isRight: settings.edge == .right) })
+    /// The callout's window, made as the callout is first placed.
+    private func placeCallout(_ beside: EdgeCallout.Beside?) {
+        if beside != nil, calloutWindow == nil {
+            calloutWindow = CalloutWindow()
+        }
+        calloutWindow?.place(beside)
     }
 
     /// The screens changing moves the edge to the display chosen, or the main one where that is gone; the Mac's

@@ -301,6 +301,9 @@ public final class Strip {
         }
     }
 
+    /// How far into the screen the strip reaches at rest, whatever its length, as what stands beside it is placed.
+    public static let restingWidth = StripTuning.width
+
     /// How far into the screen the black can reach: the strip and its widest tab, overshooting as the springs that
     /// carry its depth do, and a few points spare.
     public static let depth: Double = {

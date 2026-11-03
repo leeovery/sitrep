@@ -141,7 +141,7 @@ struct CalloutSettingsTests {
 
         SavedSettings<CalloutSettings>(defaults).save(CalloutSettings(.gone))
         #expect(SavedSettings<CalloutSettings>(defaults).read().standing == .gone)
-        #expect(defaults.data(forKey: "callout") != nil)
+        #expect(defaults.data(forKey: "notchCallout") != nil)
         #expect(defaults.data(forKey: AppSettings.key) == nil && defaults.data(forKey: WelcomeSettings.key) == nil)
         #expect(try JSONDecoder().decode(CalloutSettings.self, from: Data(#"{"other": 1}"#.utf8)) == CalloutSettings())
     }
@@ -362,14 +362,31 @@ struct WelcomePlaybackTests {
         #expect(rows.map(\.words) == ["Meniscus notch, left", "Glass", "Opens SitRep", "Opens the session's window"])
     }
 
-    /// Without the leave a click brings Ghostty forward, to none of its windows: step 5's Allow… in place, or once
-    /// refused, the way to Automation.
+    /// Without the leave a click brings Ghostty forward, to none of its windows: step 5's Allow… in place, with what
+    /// went wrong with its last ask, or once refused, the way to Automation.
     @Test func aClickHasStepFivesAskInPlaceWhileGhosttysLeaveIsntGranted() {
         #expect(WelcomePlayback.aClick(.on) == .init(label: "A click", words: "Opens the session's window", fix: nil))
         #expect(WelcomePlayback.aClick(.toAsk) == .init(label: "A click", words: "Opens Ghostty", fix: .allowGhostty))
-        #expect(WelcomePlayback.aClick(.asking(waitedLong: false)).fix == .allowGhostty)
+        #expect(WelcomePlayback.aClick(.toAsk, hitch: .didNotOpen).line == "Ghostty didn't open, so macOS couldn't ask")
         #expect(WelcomePlayback.aClick(.refused) == .init(label: "A click", words: "Opens Ghostty", fix: .automation))
         #expect(WelcomePlayback.Fix.allowGhostty.title == "Allow…")
+        #expect(WelcomePlayback.Fix.automation.title == "Open System Settings…")
+    }
+
+    /// While its ask is under way, step 5's row: a spinner in the fix's place, and where macOS asked once Lee has
+    /// waited on it.
+    @Test func aClickWhileItsAskIsUnderWayShowsStepFivesSpinner() {
+        #expect(WelcomePlayback.aClick(.asking(waitedLong: false)) == .init(
+            label: "A click", words: "Opens Ghostty", fix: nil, isAsking: true
+        ))
+        #expect(WelcomePlayback.aClick(.asking(waitedLong: true)).line == WelcomePermission.ghostty.whereAsked)
+    }
+
+    /// With no Ghostty to open, the row says so, with nothing to press.
+    @Test func aClickWithNoGhosttySaysSo() {
+        #expect(WelcomePlayback.aClick(.unavailable) == .init(
+            label: "A click", words: "Ghostty isn't installed", fix: nil
+        ))
     }
 }
 

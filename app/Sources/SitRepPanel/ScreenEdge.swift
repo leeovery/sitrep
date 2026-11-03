@@ -65,6 +65,12 @@ public struct ScreenEdge: Equatable, Sendable {
         )
     }
 
+    /// The band from the edge to this far into the screen, level with the notch's home, on the screen: what stands
+    /// beside the notch or the strip at rest stands past its front, wherever either is moving to.
+    public func homeBand(reaching front: Double) -> CGRect {
+        screenRect(CGRect(x: 0, y: stage.notchY, width: front, height: 0))
+    }
+
     /// The window: against the edge, the screen's full height, and `depth` into the screen. Its flipped content is
     /// the stage, mirrored on the right (`mirror`).
     public var window: CGRect { against(depth: Self.depth, height: frame.height) }

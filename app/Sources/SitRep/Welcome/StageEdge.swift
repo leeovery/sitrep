@@ -455,7 +455,8 @@ protocol StageShape: AnyObject {
     var surface: NSView { get }
     /// Where its window stands on a screen, in the screen's coordinates.
     func window(on edge: ScreenEdge) -> CGRect
-    /// The shape at rest on the edge's screen, x into it from its edge, y down from its top.
+    /// The shape at rest at the notch's home on the edge's screen, x into it from its edge, y down from its top: from
+    /// the targets it moves to, never a frame it moves through.
     func resting(on edge: ScreenEdge) -> CGRect
     /// The middle of a session's row on the stage, while the shape shows it.
     func middle(of session: String, on edge: ScreenEdge, _ settings: EdgeSettings) -> CGPoint?
@@ -599,8 +600,9 @@ final class StageStrip: StageShape {
 
     func window(on edge: ScreenEdge) -> CGRect { edge.stripWindow }
 
+    /// Its resting width at the notch's home, as the real strip places its callout, however far it has grown.
     func resting(on edge: ScreenEdge) -> CGRect {
-        run.map { $0.frame.strip.boundingBox } ?? .zero
+        CGRect(x: 0, y: edge.stage.notchY, width: Strip.restingWidth, height: 0)
     }
 
     /// The strip has no panel: the pointer rests on its mark.

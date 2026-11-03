@@ -244,16 +244,22 @@ public enum WelcomeEdgeForm {
 /// The last step's playback: Lee's choices in four rows, in what-happens words, read from the real settings, each with
 /// its fix in place where something was left off.
 public enum WelcomePlayback {
-    /// A row: what it is about, what happens, and the button that fixes what was left off, if anything was.
+    /// A row: what it is about, what happens, and the button that fixes what was left off, if anything was; while the
+    /// fix's ask is under way, a spinner in its place; and a line under it, saying where macOS asked or what went
+    /// wrong.
     public struct Row: Equatable, Sendable {
         public let label: String
         public let words: String
         public let fix: Fix?
+        public let isAsking: Bool
+        public let line: String?
 
-        public init(label: String, words: String, fix: Fix?) {
+        public init(label: String, words: String, fix: Fix?, isAsking: Bool = false, line: String? = nil) {
             self.label = label
             self.words = words
             self.fix = fix
+            self.isAsking = isAsking
+            self.line = line
         }
     }
 
@@ -273,31 +279,43 @@ public enum WelcomePlayback {
             case .turnOnLogin: "Turn On"
             case .loginItems: "Login Items Settings…"
             case .allowGhostty: "Allow…"
-            case .automation: "System Settings…"
+            case .automation: "Open System Settings…"
             }
         }
     }
 
     /// At the edge, A new ask, At login and A click, with `sound` the one a new ask plays, as `AlertSounds` reads it,
-    /// and `ghostty` where the leave to control Ghostty stands, as step 5's row shows it.
+    /// and `ghostty` where the leave to control Ghostty stands, as step 5's row shows it, with what went wrong with its
+    /// last ask.
     public static func rows(
-        edge: EdgeSettings, app: AppSettings, sound: String, login: LoginItem, ghostty: WelcomeLeave
+        edge: EdgeSettings, app: AppSettings, sound: String, login: LoginItem, ghostty: WelcomeLeave,
+        hitch: WelcomeHitch? = nil
     ) -> [Row] {
         [
             Row(label: "At the edge", words: atTheEdge(edge), fix: nil),
             Row(label: "A new ask", words: newAsk(app, sound: sound), fix: nil),
             atLogin(login),
-            aClick(ghostty),
+            aClick(ghostty, hitch: hitch),
         ]
     }
 
     /// "Opens the session's window" with the leave; else "Opens Ghostty", as a click without it brings Ghostty forward
-    /// but to none of its windows, with step 5's Allow…, or once refused, the way to Automation.
-    public static func aClick(_ ghostty: WelcomeLeave) -> Row {
-        switch ghostty {
-        case .on: Row(label: "A click", words: "Opens the session's window", fix: nil)
-        case .refused: Row(label: "A click", words: "Opens Ghostty", fix: .automation)
-        case .toAsk, .asking: Row(label: "A click", words: "Opens Ghostty", fix: .allowGhostty)
+    /// but to none of its windows, with step 5's row in place: Allow…, and what went wrong with its last ask; its
+    /// spinner while macOS asks, and where it asked once Lee has waited on it; once refused, the way to Automation;
+    /// and with no Ghostty to open, nothing to press.
+    public static func aClick(_ ghostty: WelcomeLeave, hitch: WelcomeHitch? = nil) -> Row {
+        let label = "A click", opens = "Opens Ghostty"
+
+        return switch ghostty {
+        case .on: Row(label: label, words: "Opens the session's window", fix: nil)
+        case .refused: Row(label: label, words: opens, fix: .automation)
+        case .toAsk: Row(label: label, words: opens, fix: .allowGhostty, line: hitch?.words)
+        case let .asking(waitedLong):
+            Row(
+                label: label, words: opens, fix: nil, isAsking: true,
+                line: waitedLong ? WelcomePermission.ghostty.whereAsked : nil
+            )
+        case .unavailable: Row(label: label, words: WelcomeHitch.notInstalled.words, fix: nil)
         }
     }
 
@@ -339,6 +357,9 @@ public enum WelcomePermission: CaseIterable, Sendable {
 
     /// How long a prompt goes unanswered before the row says where macOS put it.
     public static let patience: Duration = .seconds(10)
+    /// How long Turn On… waits on the notices helper for macOS's answer before reading what macOS says instead, so a
+    /// helper that never answers can't leave the row spinning.
+    public static let limit: Duration = .seconds(60)
 
     public var title: String {
         switch self {
@@ -372,12 +393,13 @@ public enum WelcomePermission: CaseIterable, Sendable {
 }
 
 /// Where one of step 5's rows stands: to ask, a button; asking, a spinner, and once Lee has waited on it, where macOS
-/// put its prompt; on, a green check; refused, the way to System Settings.
+/// put its prompt; on, a green check; refused, the way to System Settings; or, with no Ghostty to open, nothing to ask.
 public enum WelcomeLeave: Equatable, Sendable {
     case toAsk
     case asking(waitedLong: Bool)
     case on
     case refused
+    case unavailable
 
     /// Notifications: on only with Notify me of a new ask on and macOS showing them; refused while macOS shows none,
     /// whatever the switch, as no press here would bring its prompt back; else, not yet read included, to ask.
@@ -399,11 +421,31 @@ public enum WelcomeLeave: Equatable, Sendable {
     }
 }
 
+/// What went wrong with a row's last ask, said under it: Ghostty not installed, so the row offers nothing; Ghostty not
+/// opening, so macOS couldn't ask; or no answer from macOS through the notices helper. Either of the last two leaves
+/// the row's button to try again.
+public enum WelcomeHitch: Equatable, Sendable {
+    case notInstalled, didNotOpen, noAnswer
+
+    public var words: String {
+        switch self {
+        case .notInstalled: "Ghostty isn't installed"
+        case .didNotOpen: "Ghostty didn't open, so macOS couldn't ask"
+        case .noAnswer: "SitRep couldn't get macOS's answer"
+        }
+    }
+}
+
+/// What opening Ghostty for Allow… came to: it runs, it isn't installed, or it didn't finish opening.
+public enum GhosttyOpening: Equatable, Sendable {
+    case runs, notInstalled, didNotOpen
+}
+
 /// The callout Done leaves beside the real notch, or the strip, at rest: due once Done closes a welcome, never by any
 /// other close, and gone for good once Lee first points at the edge. Saved apart from what Lee sets, as whether a
 /// welcome has closed is.
 public struct CalloutSettings: SavedValue {
-    public static let key = "callout"
+    public static let key = "notchCallout"
 
     public enum Standing: String, Codable, Sendable {
         case unshown, due, gone

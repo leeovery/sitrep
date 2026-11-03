@@ -317,7 +317,9 @@ struct PermissionsStep: View {
                     if place > 0 {
                         Hairline()
                     }
-                    PermissionRow(permission: permission, leave: welcome.leave(permission)) {
+                    PermissionRow(
+                        permission: permission, leave: welcome.leave(permission), hitch: welcome.hitch(permission)
+                    ) {
                         welcome.press(permission)
                     }
                 }
@@ -343,13 +345,25 @@ struct PermissionsStep: View {
     }
 }
 
-/// A leave's row: its icon, its name over its reason, and where it stands. To ask, a button named for what it does;
-/// asking, a spinner, then where macOS put its prompt under the reason; on, a green check; refused, Open System
-/// Settings… under the reason, as the column has no room for it beside the words.
+/// A leave's row: its icon, its name over its reason, and where it stands. To ask, a button named for what it does,
+/// and what went wrong with the last ask under the reason; asking, a spinner, then where macOS put its prompt; on, a
+/// green check; refused, Open System Settings… under the reason, as the column has no room for it beside the words;
+/// with no Ghostty to open, the reason why and nothing to press.
 private struct PermissionRow: View {
     let permission: WelcomePermission
     let leave: WelcomeLeave
+    let hitch: WelcomeHitch?
     let press: () -> Void
+
+    /// The line under the reason, if the row has one.
+    private var note: String? {
+        switch leave {
+        case .asking(waitedLong: true): permission.whereAsked
+        case .toAsk: hitch?.words
+        case .unavailable: WelcomeHitch.notInstalled.words
+        case .asking, .on, .refused: nil
+        }
+    }
 
     var body: some View {
         HStack(alignment: .center, spacing: 12) {
@@ -361,8 +375,8 @@ private struct PermissionRow: View {
                 Text(permission.reason)
                     .font(.system(size: 11))
                     .foregroundStyle(WelcomeStyle.soft)
-                if leave == .asking(waitedLong: true) {
-                    Text(permission.whereAsked)
+                if let note {
+                    Text(note)
                         .font(.system(size: 11))
                         .foregroundStyle(WelcomeStyle.text)
                         .padding(.top, 2)
@@ -395,7 +409,7 @@ private struct PermissionRow: View {
                     .accessibilityHidden(true)
                 Text("On").font(.system(size: 12)).foregroundStyle(WelcomeStyle.text)
             }
-        case .refused:
+        case .refused, .unavailable:
             EmptyView()
         }
     }
@@ -545,20 +559,41 @@ private struct Playback: View {
                 if place > 0 {
                     Hairline()
                 }
-                HStack(spacing: 10) {
-                    Text(row.label).foregroundStyle(WelcomeStyle.soft).frame(width: 76, alignment: .leading)
-                    Text(row.words).foregroundStyle(WelcomeStyle.text).frame(maxWidth: .infinity, alignment: .leading)
-                    if let fix = row.fix {
-                        Button(fix.title) { self.fix(fix) }
-                            .buttonStyle(.plain)
-                            .fontWeight(.medium)
-                            .foregroundStyle(Color.accentColor)
+                VStack(alignment: .leading, spacing: 0) {
+                    HStack(spacing: 10) {
+                        Text(row.label).foregroundStyle(WelcomeStyle.soft).frame(width: 76, alignment: .leading)
+                        Text(row.words)
+                            .foregroundStyle(WelcomeStyle.text)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                        side(row)
+                    }
+                    .lineLimit(1)
+                    .frame(height: 30)
+                    if let line = row.line {
+                        Text(line)
+                            .font(.system(size: 11))
+                            .foregroundStyle(WelcomeStyle.soft)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .padding(.leading, 86)
+                            .padding(.bottom, 8)
                     }
                 }
                 .font(.system(size: 12))
-                .lineLimit(1)
-                .frame(height: 30)
             }
+        }
+    }
+
+    /// The row's fix, or while its ask is under way, a spinner in its place.
+    @ViewBuilder private func side(_ row: WelcomePlayback.Row) -> some View {
+        if row.isAsking {
+            ProgressView()
+                .controlSize(.small)
+                .accessibilityLabel("Waiting on macOS")
+        } else if let fix = row.fix {
+            Button(fix.title) { self.fix(fix) }
+                .buttonStyle(.plain)
+                .fontWeight(.medium)
+                .foregroundStyle(Color.accentColor)
         }
     }
 }

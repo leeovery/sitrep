@@ -27,11 +27,15 @@ struct WelcomeLeavesTests {
         await made.welcome.asks[permission]?.value
     }
 
-    /// Until macOS answers: the yields an ask's tasks take to reach its prompt, and the wait on it.
-    private static func yields() async {
-        for _ in 0 ..< 5 {
+    /// The welcome's tasks let run until this holds, or, failing, a thousand turns have passed.
+    private static func until(_ holds: () -> Bool) async {
+        var turns = 0
+
+        while !holds(), turns < 1000 {
             await Task.yield()
+            turns += 1
         }
+        #expect(holds())
     }
 
     // MARK: To ask
@@ -82,12 +86,11 @@ struct WelcomeLeavesTests {
             }
 
             made.welcome.press(permission)
-            await Self.yields()
+            await Self.until { made.mac.isPrompting && made.mac.isWaiting }
             #expect(made.welcome.leave(permission) == .asking(waitedLong: false), "\(permission)")
-            #expect(made.mac.waits == [.seconds(10)], "\(permission)")
+            #expect(made.mac.waits.contains(.seconds(10)), "\(permission)")
             made.mac.waitEnds()
-            await Self.yields()
-            #expect(made.welcome.leave(permission) == .asking(waitedLong: true), "\(permission)")
+            await Self.until { made.welcome.leave(permission) == .asking(waitedLong: true) }
             made.mac.answer()
             await made.welcome.asks[permission]?.value
             #expect(made.welcome.leave(permission) == .on, "\(permission)")
@@ -99,8 +102,9 @@ struct WelcomeLeavesTests {
         let made = await Self.atPermissions { $0.holdsWait = true }
 
         await Self.press(.notifications, on: made)
+        await Self.until { made.mac.isWaiting }
         made.mac.waitEnds()
-        await Self.yields()
+        await Task.yield()
         #expect(made.welcome.leave(.notifications) == .on)
     }
 
@@ -109,12 +113,101 @@ struct WelcomeLeavesTests {
         let made = await Self.atPermissions { $0.holdsPrompt = true }
 
         made.welcome.press(.ghostty)
-        await Self.yields()
+        await Self.until { made.mac.isPrompting }
         made.welcome.press(.ghostty)
-        await Self.yields()
+        await Task.yield()
         #expect(made.mac.allows.count == 1)
         made.mac.answer()
         await made.welcome.asks[.ghostty]?.value
+    }
+
+    // MARK: When the ask can't be made
+
+    /// With no Ghostty to open, the row says so and offers nothing; macOS is asked nothing.
+    @Test func withGhosttyNotInstalledTheRowSaysSoAndOffersNothing() async {
+        let made = await Self.atPermissions { $0.opening = .notInstalled }
+
+        await Self.press(.ghostty, on: made)
+        #expect(made.welcome.leave(.ghostty) == .unavailable)
+        #expect(made.mac.allows.isEmpty)
+        made.welcome.press(.ghostty)
+        #expect(made.mac.opensGhostty == 1)
+        #expect(made.welcome.playback[3] == .init(label: "A click", words: "Ghostty isn't installed", fix: nil))
+    }
+
+    /// Ghostty not opening, a line says so and Allow… stays, to try again.
+    @Test func withGhosttyNotOpeningALineSaysSoAndAllowStays() async {
+        let made = await Self.atPermissions { $0.opening = .didNotOpen }
+
+        await Self.press(.ghostty, on: made)
+        #expect(made.welcome.leave(.ghostty) == .toAsk && made.welcome.hitch(.ghostty) == .didNotOpen)
+        #expect(made.mac.allows.isEmpty)
+        #expect(made.welcome.playback[3].fix == .allowGhostty)
+        #expect(made.welcome.playback[3].line == WelcomeHitch.didNotOpen.words)
+        made.mac.opening = .runs
+        await Self.press(.ghostty, on: made)
+        #expect(made.mac.opensGhostty == 2 && made.welcome.leave(.ghostty) == .on)
+        #expect(made.welcome.hitch(.ghostty) == nil)
+    }
+
+    /// The notices helper never answering, Turn On… gives up at its limit, reads what macOS says, and with no answer
+    /// there either, says so and leaves Turn On… to try again.
+    @Test func turnOnGivesUpOnASilentHelperAndSaysSo() async {
+        let made = await Self.atPermissions {
+            $0.holdsPrompt = true
+            $0.limitRunsOut = true
+        }
+
+        await Self.press(.notifications, on: made)
+        #expect(made.mac.waits.contains(WelcomePermission.limit))
+        #expect(made.welcome.leave(.notifications) == .toAsk)
+        #expect(made.welcome.hitch(.notifications) == .noAnswer)
+        made.mac.answer()
+    }
+
+    /// The helper gone, its ask ends at once with nothing to read: the row says so, rather than nothing.
+    @Test func turnOnWithTheHelperGoneSaysSo() async {
+        let made = await Self.atPermissions {
+            $0.notices = nil
+            $0.answersNotices = nil
+        }
+
+        await Self.press(.notifications, on: made)
+        #expect(made.welcome.hitch(.notifications) == .noAnswer)
+        #expect(made.welcome.leave(.notifications) == .toAsk)
+    }
+
+    // MARK: Reads
+
+    /// A read begun before Lee answered, ending after the ask's own, is older than it, so it writes nothing.
+    @Test func aStaleReadNeverUndoesAnAnswer() async {
+        let made = await Self.atPermissions()
+
+        made.mac.holdsRead = true
+        made.window.windowDidBecomeKey(Notification(name: NSWindow.didBecomeKeyNotification))
+        await Self.until { made.mac.isReading }
+        made.mac.holdsRead = false
+        await Self.press(.notifications, on: made)
+        #expect(made.welcome.leave(.notifications) == .on)
+        made.mac.readEnds()
+        await made.welcome.reading?.value
+        #expect(made.welcome.leave(.notifications) == .on)
+    }
+
+    /// Of two reads, only the later writes: arriving at a step as the window comes forward reads twice.
+    @Test func ofTwoReadsTheLaterWrites() async {
+        let made = await Self.atPermissions()
+
+        made.mac.holdsRead = true
+        made.window.windowDidBecomeKey(Notification(name: NSWindow.didBecomeKeyNotification))
+        await Self.until { made.mac.isReading }
+        made.mac.holdsRead = false
+        made.mac.notices = .denied
+        await made.key()
+        #expect(made.welcome.leave(.notifications) == .refused)
+        made.mac.readEnds()
+        await Task.yield()
+        #expect(made.welcome.leave(.notifications) == .refused)
     }
 
     // MARK: Refused
@@ -225,56 +318,6 @@ struct WelcomeAfterTests {
         }
     }
 
-    /// Beside the shape while it shows, following it; the first hover takes it away for good, saved, so a later Done
-    /// never brings it back.
-    @Test func theFirstHoverTakesTheCalloutAwayForGood() {
-        let defaults = MemoryDefaults(), preferences = Preferences(defaults)
-        var placed: [EdgeCallout.Beside?] = []
-        let callout = EdgeCallout(preferences) { placed.append($0) }
-        let notch = EdgeCallout.Beside(resting: CGRect(x: 0, y: 400, width: 7, height: 60), isRight: false)
-
-        callout.beside(notch)
-        #expect(placed.isEmpty)
-        preferences.callout.done()
-        #expect(placed == [notch])
-        callout.pointedAt()
-        #expect(placed == [notch, nil])
-        #expect(Preferences(defaults).callout.standing == .gone)
-        preferences.callout.done()
-        callout.beside(notch)
-        #expect(placed == [notch, nil])
-    }
-
-    /// The strip, or the notch dragged, takes it along; neither showing, as at Nothing or under a full-screen app,
-    /// hides it until one shows again.
-    @Test func itFollowsTheShapeAndHidesWhileNeitherShows() {
-        let preferences = Preferences(MemoryDefaults())
-        var placed: [EdgeCallout.Beside?] = []
-        let callout = EdgeCallout(preferences) { placed.append($0) }
-        let notch = EdgeCallout.Beside(resting: CGRect(x: 0, y: 400, width: 7, height: 60), isRight: false)
-        let strip = EdgeCallout.Beside(resting: CGRect(x: 1476, y: 300, width: 36, height: 300), isRight: true)
-
-        preferences.callout.done()
-        callout.beside(notch)
-        callout.beside(nil)
-        callout.beside(strip)
-        callout.beside(strip)
-        #expect(placed == [notch, nil, strip])
-    }
-
-    /// Its near side 14 past the shape's front, room for its shadow round it, its middle level with the shape's.
-    @Test func itStandsFourteenPastTheShapesFront() {
-        let size = CGSize(width: 260, height: 90), room = CalloutWindow.room
-        let left = CalloutWindow.frame(
-            .init(resting: CGRect(x: 0, y: 400, width: 7, height: 60), isRight: false), size: size
-        )
-        let right = CalloutWindow.frame(
-            .init(resting: CGRect(x: 1505, y: 400, width: 7, height: 60), isRight: true), size: size
-        )
-
-        #expect(left.minX + room == 7 + 14 && left.midY == 430 && left.size == size)
-        #expect(right.maxX - room == 1505 - 14 && right.midY == 430)
-    }
 
     // MARK: The first start
 
@@ -291,25 +334,19 @@ struct WelcomeAfterTests {
 
         for (place, close) in closes.enumerated() {
             let defaults = MemoryDefaults()
-            let first = Made(defaults: defaults, shows: false)
 
-            first.window.showAtFirstStart()
-            #expect(first.recorded.steps.first == .orderFront(movesToActiveSpace: true), "\(place)")
+            #expect(WelcomeWindow.opensAtStart(Preferences(defaults)), "\(place)")
+
+            let first = Made(defaults: defaults)
+
             #expect(first.welcome.step == .hello, "\(place)")
             close(first)
-
-            let next = Made(defaults: defaults, shows: false)
-
-            next.window.showAtFirstStart()
-            #expect(next.recorded.steps.isEmpty, "\(place)")
+            #expect(!WelcomeWindow.opensAtStart(Preferences(defaults)), "\(place)")
         }
     }
 
     /// Opened by Welcome… and closed since #67, Lee's Mac has had its welcome.
     @Test func aMacWhoseWelcomeHasClosedOpensNoneByItself() {
-        let made = Made(welcomed: true, shows: false)
-
-        made.window.showAtFirstStart()
-        #expect(made.recorded.steps.isEmpty)
+        #expect(!WelcomeWindow.opensAtStart(Made(welcomed: true).preferences))
     }
 }

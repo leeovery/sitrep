@@ -11,7 +11,7 @@ import SitRepPanel
 /// hand, goes to the run, which brings the strip up to now first; each is drawn, and frames show what it did. Its
 /// window is click-through but over the strip and an open tab.
 @MainActor
-final class StripController: NSObject {
+final class StripController: NSObject, CalloutShape {
     /// A click on a mark or a tab: the session to jump to, and what to tell once the jump answers, whether it jumped.
     var onJump: (String, @escaping (Bool) -> Void) -> Void = { _, _ in }
     /// Whether a jump runs, from the strip, the menu or a banner.
@@ -155,9 +155,10 @@ final class StripController: NSObject {
         pace(at: time)
     }
 
-    /// The strip as it stands, on the screen, for what stands beside it.
-    var resting: CGRect {
-        edge.screenRect(run.frame.strip.boundingBox)
+    /// The strip at rest, from the edge to its front, level with the notch's home, on the screen, for what stands
+    /// beside it, as it would beside the notch: whatever its length, and however far it has grown.
+    var restingBand: CGRect {
+        edge.homeBand(reaching: Strip.restingWidth)
     }
 
     /// Frames run while something moves; otherwise, with a tab out, a frame as its time next changes. Hidden, none.

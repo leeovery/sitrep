@@ -6,11 +6,12 @@ import SitRepPanel
 import SitRepRelay
 
 /// What the welcome does to the Mac beyond Settings' services: whether Ghostty runs, Ghostty opened for Allow…, as
-/// macOS asks for its leave only while it runs, and the wait on a prompt before the row says where it is.
+/// macOS asks for its leave only while it runs, and the waits on a prompt: before the row says where it is, and before
+/// Turn On… gives up on the notices helper.
 @MainActor
 struct WelcomeMac {
     var ghosttyRuns: () -> Bool
-    var openGhostty: () async -> Void
+    var openGhostty: () async -> GhosttyOpening
     var wait: (Duration) async -> Void
 
     static let live = WelcomeMac(
@@ -39,6 +40,10 @@ final class WelcomeModel {
     private(set) var ghostty: GhosttyLeave?
     /// The rows whose ask is under way, each with whether Lee has waited long on its prompt.
     private(set) var asking: [WelcomePermission: Bool] = [:]
+    /// What went wrong with each row's last ask.
+    private(set) var hitches: [WelcomePermission: WelcomeHitch] = [:]
+    /// Each row's reads, counted, so a read outdated while it waited writes nothing.
+    @ObservationIgnored private var reads: [WelcomePermission: Int] = [:]
     /// Each row's ask, and the last read of both leaves: internal only for the tests, which await them.
     @ObservationIgnored private(set) var asks: [WelcomePermission: Task<Void, Never>] = [:]
     @ObservationIgnored private(set) var reading: Task<Void, Never>?
@@ -204,6 +209,8 @@ final class WelcomeModel {
     /// What macOS says of both leaves, each row as its answer comes: each time the window comes forward, as Lee may
     /// have changed them in System Settings, and as he arrives at a step that shows them. Reading asks macOS nothing.
     func readLeaves() {
+        reading?.cancel()
+        WelcomePermission.allCases.forEach(outdate)
         reading = Task {
             async let notices: Void = readNotices()
             async let ghostty: Void = readGhostty()
@@ -212,18 +219,42 @@ final class WelcomeModel {
         }
     }
 
+    /// Each read written only where nothing has outdated it while it waited on macOS, a later read or an ask begun or
+    /// ended, and no ask is under way, whose own read, after macOS answers, is the one that counts.
     private func readNotices() async {
-        notices = await services.noticeLeave()
+        let read = reads[.notifications]
+        let leave = await services.noticeLeave()
+
+        if isCurrent(read, of: .notifications) {
+            notices = leave
+        }
     }
 
     private func readGhostty() async {
-        ghostty = await services.ghostty()
+        let read = reads[.ghostty]
+        let leave = await services.ghostty()
+
+        if isCurrent(read, of: .ghostty) {
+            ghostty = leave
+        }
     }
 
-    /// Where a row stands: its ask under way, else as macOS last said it.
+    /// Any read of the row's leave under way is too old to write.
+    private func outdate(_ permission: WelcomePermission) {
+        reads[permission, default: 0] += 1
+    }
+
+    private func isCurrent(_ read: Int?, of permission: WelcomePermission) -> Bool {
+        reads[permission] == read && asking[permission] == nil
+    }
+
+    /// Where a row stands: its ask under way; with no Ghostty to open, nothing to ask; else as macOS last said it.
     func leave(_ permission: WelcomePermission) -> WelcomeLeave {
         if let waitedLong = asking[permission] {
             return .asking(waitedLong: waitedLong)
+        }
+        if hitches[permission] == .notInstalled {
+            return .unavailable
         }
 
         return switch permission {
@@ -232,16 +263,23 @@ final class WelcomeModel {
         }
     }
 
+    /// What went wrong with a row's last ask, said while the row is to ask again.
+    func hitch(_ permission: WelcomePermission) -> WelcomeHitch? {
+        leave(permission) == .toAsk ? hitches[permission] : nil
+    }
+
     /// A row's button, as the row stands: to ask, macOS asked; refused, System Settings, at the leave's page.
     func press(_ permission: WelcomePermission) {
         switch leave(permission) {
         case .toAsk: ask(permission)
         case .refused: openSettings(for: permission)
-        case .asking, .on: break
+        case .asking, .on, .unavailable: break
         }
     }
 
-    /// The ask, its spinner showing until macOS answers, and once Lee has waited long, where macOS put its prompt.
+    /// The ask, its spinner showing until it ends, and once Lee has waited long, where macOS put its prompt; what
+    /// went wrong with it, if anything, kept for the row to say. Reads begun before it, or while it ran, are older
+    /// than what it learnt, so none of them writes.
     private func ask(_ permission: WelcomePermission) {
         let waits = Task {
             await mac.wait(WelcomePermission.patience)
@@ -250,30 +288,56 @@ final class WelcomeModel {
             }
         }
 
+        hitches[permission] = nil
+        outdate(permission)
         asking[permission] = false
         asks[permission] = Task {
-            switch permission {
+            hitches[permission] = switch permission {
             case .notifications: await turnOnNotifications()
             case .ghostty: await allowGhostty()
             }
             waits.cancel()
+            outdate(permission)
             asking[permission] = nil
         }
     }
 
-    /// Turn On…: Notify me of a new ask on, and macOS asked through the notices helper, as Settings' switch asks.
-    private func turnOnNotifications() async {
+    /// Turn On…: Notify me of a new ask on, and macOS asked through the notices helper, as Settings' switch asks, for
+    /// no longer than the limit; then what macOS says read. Still unanswered, or the helper silent, SitRep couldn't get
+    /// macOS's answer.
+    private func turnOnNotifications() async -> WelcomeHitch? {
         preferences.app.notifiesNewAsks = true
-        await services.askForNotices()
-        await readNotices()
+
+        let (ends, end) = AsyncStream<Void>.makeStream()
+        let limit = Task {
+            await mac.wait(WelcomePermission.limit)
+            end.yield()
+        }
+
+        Task {
+            await services.askForNotices()
+            end.yield()
+        }
+        for await _ in ends {
+            break
+        }
+        limit.cancel()
+        notices = await services.noticeLeave()
+        return notices == nil || notices == .unasked ? .noAnswer : nil
     }
 
-    /// Allow…: Ghostty opened first where it isn't running, as macOS asks only while it runs; then macOS's prompt.
-    private func allowGhostty() async {
+    /// Allow…: Ghostty opened first where it isn't running, as macOS asks only while it runs; then macOS's prompt. Not
+    /// installed, or not opening, there is nothing for macOS to ask about.
+    private func allowGhostty() async -> WelcomeHitch? {
         if !mac.ghosttyRuns() {
-            await mac.openGhostty()
+            switch await mac.openGhostty() {
+            case .runs: break
+            case .notInstalled: return .notInstalled
+            case .didNotOpen: return .didNotOpen
+            }
         }
         ghostty = await services.allowGhostty()
+        return nil
     }
 
     /// Refused: the leave's page in System Settings. Notifications' row is still about the switch, so it goes on, for
@@ -296,7 +360,7 @@ final class WelcomeModel {
     var playback: [WelcomePlayback.Row] {
         WelcomePlayback.rows(
             edge: preferences.edge, app: preferences.app, sound: services.sounds.chosen(preferences.app.sound),
-            login: login, ghostty: leave(.ghostty)
+            login: login, ghostty: leave(.ghostty), hitch: hitch(.ghostty)
         )
     }
 
