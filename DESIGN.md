@@ -4587,9 +4587,15 @@ does; the boards first drew it on a band of black.
     through the step's controls in reading order, the footer last; where
     the control holding focus goes with its step, focus goes back to
     nothing. Continue's focus ring is a pill and back's a circle.
-  - **At Nothing on step 4,** the stage's menu bar item rests until a
-    sound is chosen there, then stays lit, as a real ask lights it;
-    leaving the step and coming back puts it to rest again.
+  - **The stage's menu bar item** is lit while the stage's board has an
+    ask, as the real glyph lights for needs you, and on step 4 each chime
+    lights it for as long as the notch swells, whatever the shape. So at
+    Nothing it rests as step 4 opens, lights for every sound chosen, and
+    rests on step 6, where the board is calm.
+  - **Done at Nothing** leaves the real callout unarmed: someone who chose
+    to show nothing at the edge never meets "Your notch. Point at it."
+    weeks later, the day they pick a shape. A callout armed by an earlier
+    Done still waits for a shape, as above.
 
 ### Settings
 
