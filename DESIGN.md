@@ -4586,7 +4586,11 @@ does; the boards first drew it on a band of black.
     view, Skip setup at step 1, which has no controls. Tab and Shift-Tab go
     through the step's controls in reading order, the footer last; where
     the control holding focus goes with its step, focus goes back to
-    nothing. Continue's focus ring is a pill and back's a circle.
+    nothing. The key view loop is worked out again after each layout of
+    the window's content, as SwiftUI's buttons join and leave it unseen by
+    AppKit, which left Tab on a step gone (offscreen, 3 November 2026).
+    Brought forward while open, the window keeps focus where it was.
+    Continue's focus ring is a pill and back's a circle.
   - **The stage's menu bar item** is lit while the stage's board has an
     ask, as the real glyph lights for needs you, and on step 4 each chime
     lights it for as long as the notch swells, whatever the shape. So at
