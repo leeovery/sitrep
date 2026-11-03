@@ -4436,8 +4436,10 @@ does; the boards first drew it on a band of black.
   or SitRep's, its states cross-fade.
 - **The steps**, each a headline over the words in Paper:
   1. **Hello, from the edge:** "Every session, at the edge of your screen."
-     SitRep's icon, a line on what it is, and an aside, "About a minute.
-     Everything here is in Settings later." The stage's panel is open on
+     SitRep's icon and a line on what it is; the board's aside, "About a
+     minute. Everything here is in Settings later.", went in the build
+     (Lee, 3 November 2026: "It's like answering a question that nobody
+     asked… Can you remove that line?"). The stage's panel is open on
      Needs you, Working and Your turn, and the loop plays the notch at
      rest, an ask landing, the swell twice and the light, the pour into
      the panel and the close. Continue reads Show me.

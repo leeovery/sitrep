@@ -3,25 +3,17 @@ import SitRepMenu
 import SitRepPanel
 import SwiftUI
 
-/// Step 1, Hello, from the edge: SitRep's icon over the step's words, in the column's middle, and the aside at its
-/// foot.
+/// Step 1, Hello, from the edge: SitRep's icon over the step's words, in the column's middle.
 struct HelloStep: View {
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            VStack(alignment: .leading, spacing: 18) {
-                Image(nsImage: AppIcon.welcome)
-                    .resizable()
-                    .frame(width: 56, height: 56)
-                    .accessibilityHidden(true)
-                StepWords(step: .hello)
-            }
-            .padding(.bottom, 8)
-            .frame(maxHeight: .infinity)
-            Text("About a minute. Everything here is in Settings later.")
-                .font(.system(size: 11))
-                .foregroundStyle(WelcomeStyle.faint)
-                .padding(.bottom, 4)
+        VStack(alignment: .leading, spacing: 18) {
+            Image(nsImage: AppIcon.welcome)
+                .resizable()
+                .frame(width: 56, height: 56)
+                .accessibilityHidden(true)
+            StepWords(step: .hello)
         }
+        .frame(maxHeight: .infinity)
     }
 }
 
