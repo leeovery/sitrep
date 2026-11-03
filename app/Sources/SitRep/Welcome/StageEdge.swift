@@ -53,6 +53,8 @@ final class StageEdge: NSView {
 
     /// Where the callout stands, for the desktop to place it.
     let callout = StageCallout()
+    /// What the desktop and the words show at this time into step 2's loop.
+    let scene = StageScene()
     /// How the last frame paced the stage: internal only for the tests, which read that a chime swells the notch.
     private(set) var lastPace = StagePace.still
     /// The loop's own clock, ms, which runs only while the window is in front: internal only for the tests.
@@ -78,6 +80,10 @@ final class StageEdge: NSView {
     private var rowIsStale = false
     /// The callout's place as last told the desktop.
     private var placed: StageCallout.Place?
+    /// Whether the loop has the ask's row pressed in: internal only for the tests.
+    private(set) var isPressing = false
+    /// The scene as last told the desktop: internal only for the tests.
+    private(set) var told = WelcomeLoop.Scene.rest
 
     /// The stage this big in its points, under a menu bar this tall, its settings Lee's.
     init(size: CGSize, menuBar: Double, preferences: Preferences) {
@@ -110,13 +116,16 @@ final class StageEdge: NSView {
     /// Whether frames are drawing a refresh at a time: internal only for the tests.
     var isDrawing: Bool { link.map { !$0.isPaused } ?? false }
 
+    /// Whether the notch's panel is out: internal only for the tests, which read that step 2's click drains it.
+    var isOut: Bool { (shape as? StageNotch)?.isOut ?? false }
+
     /// The edge's points to the stage's, as the step plays it.
-    var scale: Double { play == .loop ? Self.loopScale : Self.stillScale }
+    var scale: Double { play.loop == nil ? Self.stillScale : Self.loopScale }
 
     /// The screen the edge runs on, the stage's own at the edge's scale, its notch's home where Paper puts it.
     var edge: ScreenEdge {
         let screen = CGRect(origin: .zero, size: CGSize(width: size.width / scale, height: size.height / scale))
-        let notchY = play == .loop ? Self.loopNotchY : Self.stillNotchY
+        let notchY = play.loop == nil ? Self.stillNotchY : Self.loopNotchY
 
         return ScreenEdge(
             frame: screen, visible: CGRect(x: 0, y: 0, width: screen.width, height: screen.height - menuBar / scale),
@@ -175,22 +184,22 @@ final class StageEdge: NSView {
             tell(due, isNew: due)
         }
 
-        let pointer = play == .loop
-            ? WelcomeLoop.pointer(at: loopTime, notchY: edge.stage.notchY, row: row)
-            : nil
+        let pointer = play.loop?.pointer(at: loopTime, notchY: edge.stage.notchY, row: row)
 
         shape.step(at: time, pointer: pointer, edge, staged)
+        press(at: time)
         findRow(at: time)
         if play == .callout {
             placeCallout()
         }
+        tellScene()
         pace(at: time)
     }
 
     /// The ask's row, found on the panel as the frame just drawn lays it out, while the loop's pointer goes to it:
     /// first, again once a change has moved it, and each frame the shape moves.
     private func findRow(at time: Double) {
-        guard play == .loop, WelcomeLoop.findsRow(at: loopTime),
+        guard play.loop?.findsRow(at: loopTime) == true,
               row == nil || rowIsStale || shape.pace(at: time, staged) == .moving
         else {
             return
@@ -198,6 +207,41 @@ final class StageEdge: NSView {
 
         row = shape.middle(of: WelcomeBoard.asking, on: edge, staged)
         rowIsStale = false
+    }
+
+    /// Step 2's click on the ask's row, pressed as the real notch takes a click, so the row presses in; then the jump
+    /// landing, so the panel drains as the real one does once Ghostty has the session's window in front. Nothing is
+    /// told anywhere: the stage's run has no one to jump. Pressed only on the row, once found, as a press anywhere
+    /// else on the notch would start a drag nothing lets go.
+    private func press(at time: Double) {
+        let presses = play.loop?.presses(at: loopTime) == true
+
+        guard presses != isPressing else {
+            return
+        }
+
+        if !presses {
+            isPressing = false
+            shape.jumped(at: time, edge, staged)
+        } else if let row {
+            isPressing = true
+            shape.press(at: time, pointer: row, edge, staged)
+        }
+    }
+
+    /// Where step 2's loop stands, told the desktop and the words as it changes, after the view update that may have
+    /// brought the frame, never during it.
+    private func tellScene() {
+        let now = play.loop?.scene(at: loopTime) ?? .rest
+
+        guard now != told else {
+            return
+        }
+
+        told = now
+        Task { @MainActor [scene] in
+            scene.now = now
+        }
     }
 
     /// Beside the shape at rest, 14 past its front, level with the notch's home; told the desktop only as it moves,
@@ -222,6 +266,7 @@ final class StageEdge: NSView {
     private func restage() {
         loopTime = 0
         lastTime = nil
+        isPressing = false
         content.setBoundsSize(edge.frame.size)
         replace(with: Self.shape(settings.show))
         step(at: Displays.now)
@@ -229,7 +274,7 @@ final class StageEdge: NSView {
 
     /// Frames for what moves, as the window stands; in front, between frames, the loop's next beat.
     private func pace(at time: Double) {
-        let pointerMoves = standing == .inFront && play == .loop && WelcomeLoop.pointerMoves(at: loopTime)
+        let pointerMoves = standing == .inFront && play.loop?.pointerMoves(at: loopTime) == true
 
         lastPace = pointerMoves ? .moving : shape.pace(at: time, staged)
         beat?.invalidate()
@@ -261,11 +306,11 @@ final class StageEdge: NSView {
     }
 
     private func wakeAtTheNextBeat() {
-        guard play == .loop else {
+        guard let loop = play.loop else {
             return
         }
 
-        let wait = (WelcomeLoop.next(after: loopTime) - loopTime) / 1000
+        let wait = (loop.next(after: loopTime) - loopTime) / 1000
         let beat = Timer(timeInterval: wait, repeats: false) { [weak self] _ in
             MainActor.assumeIsolated { self?.step(at: Displays.now) }
         }
@@ -282,14 +327,13 @@ final class StageEdge: NSView {
         return link
     }
 
-    /// Whether the ask is on the board for the play, at this time into the loop: through the loop's last part, and
-    /// throughout while the notch is lit; never at rest, beside the callout.
+    /// Whether the ask is on the board for the play, at this time into the loop: from its landing until the loop ends
+    /// or it is answered, and throughout while the notch is lit; never at rest, beside the callout.
     private func asks(at loopTime: Double) -> Bool {
-        switch play {
-        case .loop: WelcomeLoop.asks(at: loopTime)
-        case .lit, .chime: true
-        case .callout: false
+        if let loop = play.loop {
+            return loop.asks(at: loopTime)
         }
+        return play != .callout
     }
 
     /// The made-up board told to the edge, the ask on it new as it lands, which swells the notch. With the ask gone,
@@ -394,6 +438,13 @@ final class StageCallout {
     var place = Place(inset: 0, middle: 0, isRight: false)
 }
 
+/// Where step 2's loop stands, for the desktop round the stage and the words beside it to show as it changes.
+@MainActor
+@Observable
+final class StageScene {
+    var now = WelcomeLoop.Scene.rest
+}
+
 /// What moves on the stage: the shape or the pointer, a refresh at a time; only the light, which breathes on a slow
 /// refresh; or nothing.
 enum StagePace {
@@ -406,7 +457,8 @@ protocol StageShape: AnyObject {
     var surface: NSView { get }
     /// Where its window stands on a screen, in the screen's coordinates.
     func window(on edge: ScreenEdge) -> CGRect
-    /// The shape at rest on the edge's screen, x into it from its edge, y down from its top.
+    /// The shape at rest at the notch's home on the edge's screen, x into it from its edge, y down from its top: from
+    /// the targets it moves to, never a frame it moves through.
     func resting(on edge: ScreenEdge) -> CGRect
     /// The middle of a session's row on the stage, while the shape shows it.
     func middle(of session: String, on edge: ScreenEdge, _ settings: EdgeSettings) -> CGPoint?
@@ -414,6 +466,10 @@ protocol StageShape: AnyObject {
     func show(_ board: PanelBoard, at time: Double, _ edge: ScreenEdge, _ settings: EdgeSettings)
     /// One frame, the pointer where the stage puts it, drawn as the real edge draws it.
     func step(at time: Double, pointer: CGPoint?, _ edge: ScreenEdge, _ settings: EdgeSettings)
+    /// A click where the pointer is, taken as the real edge takes one.
+    func press(at time: Double, pointer: CGPoint, _ edge: ScreenEdge, _ settings: EdgeSettings)
+    /// The jump a click asked for answered, as the real edge hears it.
+    func jumped(at time: Double, _ edge: ScreenEdge, _ settings: EdgeSettings)
     /// Its light alone, at this time, as the real notch redraws it while nothing else moves.
     func drawLight(at time: Double, _ settings: EdgeSettings)
     /// What moves at this time, as the real edge paces its frames.
@@ -477,6 +533,29 @@ final class StageNotch: StageShape {
         draw(run, edge, settings)
     }
 
+    /// On a row, it presses in and asks for a jump, which the stage's run answers itself, as there is no one to jump.
+    func press(at time: Double, pointer: CGPoint, _ edge: ScreenEdge, _ settings: EdgeSettings) {
+        guard let run else {
+            return
+        }
+
+        _ = run.press(Self.moment(time, pointer, edge, settings), mayJump: true)
+        draw(run, edge, settings)
+    }
+
+    /// The row pressed in drains the panel, as Ghostty's window comes forward.
+    func jumped(at time: Double, _ edge: ScreenEdge, _ settings: EdgeSettings) {
+        guard let run else {
+            return
+        }
+
+        run.jumpAnswered(Self.moment(time, nil, edge, settings))
+        draw(run, edge, settings)
+    }
+
+    /// Whether the panel is out: internal only for the tests.
+    var isOut: Bool { run?.isOut ?? false }
+
     func drawLight(at time: Double, _ settings: EdgeSettings) {
         if let run {
             notch.drawLight(run, at: run.lightTime(time), reducesMotion: Displays.reducesMotion(settings))
@@ -523,8 +602,9 @@ final class StageStrip: StageShape {
 
     func window(on edge: ScreenEdge) -> CGRect { edge.stripWindow }
 
+    /// Its resting width at the notch's home, as the real strip places its callout, however far it has grown.
     func resting(on edge: ScreenEdge) -> CGRect {
-        run.map { $0.frame.strip.boundingBox } ?? .zero
+        CGRect(x: 0, y: edge.stage.notchY, width: Strip.restingWidth, height: 0)
     }
 
     /// The strip has no panel: the pointer rests on its mark.
@@ -558,6 +638,11 @@ final class StageStrip: StageShape {
         run.step(Self.moment(time, pointer, edge, settings))
         draw(run, edge, settings)
     }
+
+    /// The strip has no row to press: its loop's pointer rests on the notch's place, and Ghostty comes forward alone.
+    func press(at time: Double, pointer: CGPoint, _ edge: ScreenEdge, _ settings: EdgeSettings) {}
+
+    func jumped(at time: Double, _ edge: ScreenEdge, _ settings: EdgeSettings) {}
 
     /// The strip's marks light with their frames: no light of its own.
     func drawLight(at time: Double, _ settings: EdgeSettings) {}

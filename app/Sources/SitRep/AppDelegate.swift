@@ -22,15 +22,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private lazy var settings = SettingsWindow(
         settings: SettingsModel(preferences: preferences, live: live, services: services)
     )
-    /// Made as Welcome… first opens it, so SitRep quitting never makes one only to close it.
+    /// Made as it first opens: by itself at the first start, on a Mac where none has closed, or from Welcome…. A Mac
+    /// long welcomed makes none until Lee asks for it.
     private var welcome: WelcomeWindow?
+    private var quitOnSignal: QuitOnSignal?
     private lazy var window = SitRepWindow(
         plugin: plugin, works: works, snoozes: snoozes, following: feed.following, preferences: preferences,
         openSettings: { [unowned self] in settings.show() }
     )
 
-    /// The notices helper is listened to before launching ends, so a click that starts the app is heard.
+    /// The notices helper is listened to before launching ends, so a click that starts the app is heard; and a SIGTERM
+    /// quits as Quit SitRep does.
     func applicationWillFinishLaunching(_ notification: Notification) {
+        quitOnSignal = QuitOnSignal()
         banners.start { [works] work, refused in works.jump(to: work, refused: refused) }
     }
 
@@ -53,6 +57,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         self.edge = edge
         self.menu = menu
         plugin.start { [unowned self] in settled($0) }
+        if WelcomeWindow.opensAtStart(preferences) {
+            openWelcome()
+        }
     }
 
     /// Each look at the plugin: `watch` started on its folder, again only as the folder moves, and the menu speaking
@@ -79,10 +86,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         welcome?.closeIfOpen()
     }
 
-    /// The welcome at its first step.
+    /// The welcome at its first step, made as it first opens.
     private func openWelcome() {
         let welcome = welcome ?? WelcomeWindow(
-            welcome: WelcomeModel(preferences: preferences, live: live, services: welcomeServices())
+            welcome: WelcomeModel(preferences: preferences, live: live, services: welcomeServices(), mac: .live)
         )
 
         self.welcome = welcome

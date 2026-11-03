@@ -4412,10 +4412,12 @@ style, the sound, open at login) and the permissions. Lee, 2 November 2026:
 flush with the screen's edge, running up to the menu bar, as the real one
 does; the boards first drew it on a band of black.
 - **When it opens:** on its own once, at SitRep's first start on a Mac
-  where it has never shown, beside the plugin's first install (step 9 of
+  where none has closed yet, beside the plugin's first install (step 9 of
   stage 3, under "Stages"), Lee's Mac included, at the build that brings
-  it. However it closes, it never opens on its own again. The menu's
-  Welcome… opens it at its first step at any time.
+  it. However it closes, quitting SitRep included, it never opens on its
+  own again; a crash or a Force Quit while it shows, which close nothing,
+  leave it to open at the next start. The menu's Welcome… opens it at its
+  first step at any time.
 - **One shape for every step:** a window of SitRep's own, 840 by 540, never
   resized, black, at radius 14, opening centred on the Space Lee is on, as
   About SitRep does. The words sit on the left in a column of 330: a
@@ -4439,18 +4441,23 @@ does; the boards first drew it on a band of black.
      Needs you, Working and Your turn, and the loop plays the notch at
      rest, an ask landing, the swell twice and the light, the pour into
      the panel and the close. Continue reads Show me.
-  2. **An ask, from Claude to you:** "Claude asks. You answer." Three rows,
-     one open at a time, each driving the stage, as Dockset's do: An ask
-     lands (the notch swells twice and lights, and the sound plays once);
-     Answer it from the panel (the pointer reaches the notch, it pours
-     open, a choice is pressed); See the whole board (the SitRep window
-     slides in on the session's page). The panel is in its own words, a
-     choice's options equal and outlined, the one under the pointer white,
-     In Claude ↗ for anything that wants words. **Send a test ask**, in
-     the second row, puts one on the real edge too, from "SitRep", so the
-     first ask Lee meets is one he made. Answering it closes it; it never
-     reaches Claude or the board's files. It is the step's only sound, and
-     plays only as it's pressed. Nothing on this step needs macOS's leave.
+  2. **An ask, from Claude to you:** "Claude asks. You answer." One soft
+     loop on the stage, with nothing to press (Lee, 3 November 2026: "I
+     don't want it interactive in that way… Soft animation in the
+     walkthrough is enough to demonstrate what it does… just keep it
+     simple"): an ask lands, the notch swells twice and lights; the
+     pointer reaches the notch and the panel pours open on the ask's row;
+     a click on the row takes it to the session, the stage's Ghostty
+     window coming forward with the ask in it; the ask is answered there,
+     a line of the answer under it; then the light goes out, the ask
+     leaves, and the loop rests. The panel is the real one's, so it shows
+     no answers: answering from the panel is still later (above, "The
+     notch and its panel"). Beside the paragraph, three lines name the
+     moments, An ask lands, Open it from the notch, Answer it in its
+     session, each lit as the loop plays it. The drawn board's three rows,
+     its Send a test ask on the real edge and the SitRep window's slide-in
+     went with the change. Nothing on this step sounds, sends anything or
+     needs macOS's leave.
   3. **Your edge:** "Choose what sits at your edge." Notch or Strip as
      Settings' own pictures, at the window's size, the one chosen ringed in
      the accent; under them a grouped form in System Settings' rows: Style,
@@ -4537,6 +4544,28 @@ does; the boards first drew it on a band of black.
     neither sound nor notification; "Doesn't open SitRep", with Turn On;
     "Waits for your approval", with Login Items Settings…; and "The menu
     bar's light alone", for Show at Nothing.
+- **Settled in the build** (its second PR, 3 November 2026):
+  - **The callout** stands 14 points past the shape's resting front,
+    level with the notch's home, for the notch and the strip alike, as the
+    stage shows it; it is placed from where the shape rests, never from a
+    frame still moving, and placed again as the notch lights or goes dark.
+    Due while no shape shows (Show at Nothing, or a full-screen app), it
+    waits for one. It never takes a click, and only while it is due does
+    the edge tell it of a hover.
+  - **Quitting:** a SIGTERM, as `app/quit` sends, quits SitRep as Quit
+    SitRep does, so the welcome closes as its close button would, and is
+    done with. A SitRep stuck past three seconds of that, or sent a second
+    SIGTERM, ends anyway, so `app/quit` can always stop it.
+  - **Step 5's rows when macOS can't answer:** Ghostty not installed, the
+    row says so and offers nothing until it is installed; Ghostty not
+    opening, or not answering once open, a line says so and Allow… stays.
+    Turn On… keeps asking while macOS's prompt is up, however long Lee
+    leaves it, and says so only when the notices helper gives no answer.
+    Step 6's A click shows the same states, a spinner while it asks.
+    "Open System Settings…" for Notifications also turns on Notify me of
+    a new ask; while macOS refuses, A new ask's playback promises no
+    notification and carries that fix.
+  - **Step 6's A click** with the leave: "Opens the session's window".
 
 ### Settings
 

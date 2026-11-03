@@ -1,18 +1,21 @@
 import SitRepCore
 import SitRepEdge
 import SitRepPanel
+import SitRepRelay
 
 /// A step of the welcome window (DESIGN, "The welcome window"): its headline, the grey paragraph under it, and what
 /// its stage plays.
 public enum WelcomeStep: String, Sendable {
-    case hello, edge, sound, ready
+    case hello, ask, edge, sound, permissions, ready
 
     /// Two lines at most, in the column's 330.
     public var headline: String {
         switch self {
         case .hello: "Every session, at the edge of your screen."
+        case .ask: "Claude asks. You answer."
         case .edge: "Choose what sits at your edge."
         case .sound: "Hear it when Claude needs you."
+        case .permissions: "Two things to allow, both optional."
         case .ready: "You're set. One thing in Claude Code."
         }
     }
@@ -22,8 +25,12 @@ public enum WelcomeStep: String, Sendable {
         case .hello:
             "Claude keeps a board as it works. SitRep keeps it beside you, lights up when a session needs you, and "
                 + "takes you to the window it's in."
+        case .ask:
+            "When a session needs you, the notch lights. Open it, pick the ask, and you're in the session's window "
+                + "to answer."
         case .edge: "Watch it change as you choose. It's all in Settings later."
         case .sound: "Once per new ask, whichever session it lands in. Pick one to hear it."
+        case .permissions: "SitRep works without either. Each one turns on one thing."
         case .ready: "Windows already open join the board at their next reload. New ones join by themselves."
         }
     }
@@ -32,23 +39,34 @@ public enum WelcomeStep: String, Sendable {
     public var stage: WelcomeStage {
         switch self {
         case .hello: .loop
-        case .edge: .lit
+        case .ask: .answer
+        case .edge, .permissions: .lit
         case .sound: .chime
         case .ready: .callout
         }
     }
 }
 
-/// What the stage plays for a step: the notch's whole story on a loop; the notch lit, as for needs you; lit, swelling
-/// with each sound chosen; or at rest, with the callout beside it.
+/// What the stage plays for a step: the notch's whole story on a loop; an ask landing and answered in its session, on
+/// a loop; the notch lit, as for needs you; lit, swelling with each sound chosen; or at rest, with the callout beside
+/// it.
 public enum WelcomeStage: Equatable, Sendable {
-    case loop, lit, chime, callout
+    case loop, answer, lit, chime, callout
+
+    /// The loop it plays, if it plays one.
+    public var loop: WelcomeLoop? {
+        switch self {
+        case .loop: .hello
+        case .answer: .ask
+        case .lit, .chime, .callout: nil
+        }
+    }
 }
 
 /// The welcome's steps, in their order, and the one Lee is on. The list is data: a step comes or goes in `all` alone.
 public struct WelcomeSteps: Equatable, Sendable {
     /// Every step, first to last.
-    public static let all: [WelcomeStep] = [.hello, .edge, .sound, .ready]
+    public static let all: [WelcomeStep] = [.hello, .ask, .edge, .sound, .permissions, .ready]
 
     public let steps: [WelcomeStep]
     public private(set) var index = 0
@@ -226,16 +244,22 @@ public enum WelcomeEdgeForm {
 /// The last step's playback: Lee's choices in four rows, in what-happens words, read from the real settings, each with
 /// its fix in place where something was left off.
 public enum WelcomePlayback {
-    /// A row: what it is about, what happens, and the button that fixes what was left off, if anything was.
+    /// A row: what it is about, what happens, and the button that fixes what was left off, if anything was; while the
+    /// fix's ask is under way, a spinner in its place; and a line under it, saying where macOS asked or what went
+    /// wrong.
     public struct Row: Equatable, Sendable {
         public let label: String
         public let words: String
         public let fix: Fix?
+        public let isAsking: Bool
+        public let line: String?
 
-        public init(label: String, words: String, fix: Fix?) {
+        public init(label: String, words: String, fix: Fix?, isAsking: Bool = false, line: String? = nil) {
             self.label = label
             self.words = words
             self.fix = fix
+            self.isAsking = isAsking
+            self.line = line
         }
     }
 
@@ -245,23 +269,52 @@ public enum WelcomePlayback {
         case turnOnLogin
         /// System Settings' Login Items, where macOS waits on Lee's approval.
         case loginItems
+        /// Step 5's Allow… for Ghostty, which opens it first where it isn't running.
+        case allowGhostty
+        /// System Settings' Automation, where Lee turns back on the leave he refused.
+        case automation
+        /// System Settings' Notifications, where Lee allows the notifications macOS shows none of.
+        case notifications
 
         public var title: String {
             switch self {
             case .turnOnLogin: "Turn On"
             case .loginItems: "Login Items Settings…"
+            case .allowGhostty: "Allow…"
+            case .automation, .notifications: "Open System Settings…"
             }
         }
     }
 
-    /// At the edge, A new ask, At login and A click, with `sound` the one a new ask plays, as `AlertSounds` reads it.
-    public static func rows(edge: EdgeSettings, app: AppSettings, sound: String, login: LoginItem) -> [Row] {
+    /// At the edge, A new ask, At login and A click, with `sound` the one a new ask plays, as `AlertSounds` reads it,
+    /// and `notices` and `ghostty` where the two leaves stand, as step 5's rows show them, with what went wrong with
+    /// Ghostty's last ask.
+    public static func rows(
+        edge: EdgeSettings, app: AppSettings, sound: String, notices: WelcomeLeave, login: LoginItem,
+        ghostty: WelcomeLeave, hitch: WelcomeHitch? = nil
+    ) -> [Row] {
         [
             Row(label: "At the edge", words: atTheEdge(edge), fix: nil),
-            Row(label: "A new ask", words: newAsk(app, sound: sound), fix: nil),
+            newAsk(app, sound: sound, notices: notices),
             atLogin(login),
-            Row(label: "A click", words: "Opens Ghostty", fix: nil),
+            aClick(ghostty, hitch: hitch),
         ]
+    }
+
+    /// "Opens the session's window" with the leave; else "Opens Ghostty", as a click without it brings Ghostty forward
+    /// but to none of its windows, with step 5's row in place: Allow…, and what went wrong with its last ask; its
+    /// spinner while macOS asks, and where it asked once Lee has waited on it; once refused, the way to Automation;
+    /// and with no Ghostty to open, "Needs Ghostty", with nothing to press.
+    public static func aClick(_ ghostty: WelcomeLeave, hitch: WelcomeHitch? = nil) -> Row {
+        let label = "A click", opens = "Opens Ghostty", line = WelcomePermission.ghostty.line(ghostty, hitch: hitch)
+
+        return switch ghostty {
+        case .on: Row(label: label, words: "Opens the session's window", fix: nil)
+        case .refused: Row(label: label, words: opens, fix: .automation)
+        case .toAsk: Row(label: label, words: opens, fix: .allowGhostty, line: line)
+        case .asking: Row(label: label, words: opens, fix: nil, isAsking: true, line: line)
+        case .unavailable: Row(label: label, words: "Needs Ghostty", fix: nil)
+        }
     }
 
     /// "Meniscus notch, left", "Strip, right"; with Nothing, set in Settings, the menu bar's light.
@@ -275,14 +328,19 @@ public enum WelcomePlayback {
         }
     }
 
-    /// "Glass, and a notification", "Glass", "A notification", or for neither, "Silent".
-    public static func newAsk(_ app: AppSettings, sound: String) -> String {
-        switch (app.playsSound, app.notifiesNewAsks) {
+    /// "Glass, and a notification", "Glass", "A notification", or for neither, "Silent", with `notices` where step 5's
+    /// row stands: while macOS shows none of SitRep's notifications, one Notify me promises is dropped, and the row
+    /// has that row's Open System Settings… in place.
+    public static func newAsk(_ app: AppSettings, sound: String, notices: WelcomeLeave = .toAsk) -> Row {
+        let isRefused = app.notifiesNewAsks && notices == .refused
+        let words = switch (app.playsSound, app.notifiesNewAsks && !isRefused) {
         case (true, true): "\(sound), and a notification"
         case (true, false): sound
         case (false, true): "A notification"
         case (false, false): "Silent"
         }
+
+        return Row(label: "A new ask", words: words, fix: isRefused ? .notifications : nil)
     }
 
     /// "Opens SitRep"; off, with Turn On; waiting on Lee's approval, with Login Items Settings…, as General has it.
@@ -291,6 +349,154 @@ public enum WelcomePlayback {
         case .unregister: Row(label: "At login", words: "Opens SitRep", fix: nil)
         case .register: Row(label: "At login", words: "Doesn't open SitRep", fix: .turnOnLogin)
         case .openSettings: Row(label: "At login", words: "Waits for your approval", fix: .loginItems)
+        }
+    }
+}
+
+/// Step 5's two rows: what each asks macOS for, its reason in one clause about something Lee watched, the button that
+/// asks, and where macOS puts its prompt, said once Lee has waited on it.
+public enum WelcomePermission: CaseIterable, Sendable {
+    case notifications, ghostty
+
+    /// How long a prompt goes unanswered before the row says where macOS put it.
+    public static let patience: Duration = .seconds(10)
+    /// How long Turn On… waits on the notices helper for macOS's answer before reading what macOS says instead, so a
+    /// helper that never answers keeps the row spinning only while macOS's prompt is up.
+    public static let limit: Duration = .seconds(60)
+
+    public var title: String {
+        switch self {
+        case .notifications: "Notifications"
+        case .ghostty: "Control Ghostty"
+        }
+    }
+
+    public var reason: String {
+        switch self {
+        case .notifications: "So an ask reaches you when the edge is out of sight"
+        case .ghostty: "So a click takes you to the session's window"
+        }
+    }
+
+    /// Named for what it does, never dressed as macOS's own dialog.
+    public var ask: String {
+        switch self {
+        case .notifications: "Turn On…"
+        case .ghostty: "Allow…"
+        }
+    }
+
+    /// Where macOS put its prompt: a notification of its own for SitRep's, a dialog for the Automation leave.
+    public var whereAsked: String {
+        switch self {
+        case .notifications: "macOS asks in a notification, at the top right of your screen"
+        case .ghostty: "macOS asks in a dialog, which may be behind Ghostty's window"
+        }
+    }
+
+    /// The line under the row's reason, as the row stands: once Lee has waited on macOS's prompt, where it is; to ask,
+    /// what went wrong with the last ask; with no Ghostty to open, why.
+    public func line(_ leave: WelcomeLeave, hitch: WelcomeHitch?) -> String? {
+        switch leave {
+        case .asking(waitedLong: true): whereAsked
+        case .toAsk: hitch?.words
+        case .unavailable: WelcomeHitch.notInstalled.words
+        case .asking, .on, .refused: nil
+        }
+    }
+}
+
+/// Where one of step 5's rows stands: to ask, a button; asking, a spinner, and once Lee has waited on it, where macOS
+/// put its prompt; on, a green check; refused, the way to System Settings; or, with no Ghostty to open, nothing to ask.
+public enum WelcomeLeave: Equatable, Sendable {
+    case toAsk
+    case asking(waitedLong: Bool)
+    case on
+    case refused
+    case unavailable
+
+    /// Notifications: on only with Notify me of a new ask on and macOS showing them; refused while macOS shows none,
+    /// whatever the switch, as no press here would bring its prompt back; else, not yet read included, to ask.
+    public static func notifications(_ leave: NoticeLeave?, isOn: Bool) -> WelcomeLeave {
+        switch leave {
+        case .denied?, .allowed(.none)?: .refused
+        case .allowed?, .provisional?: isOn ? .on : .toAsk
+        case .unasked?, nil: .toAsk
+        }
+    }
+
+    /// Control Ghostty: macOS says only while Ghostty runs, so one it can't say of is to ask, as Allow… opens it.
+    public static func ghostty(_ leave: GhosttyLeave?) -> WelcomeLeave {
+        switch leave {
+        case .allowed?: .on
+        case .denied?: .refused
+        case .unasked?, .unknown?, nil: .toAsk
+        }
+    }
+}
+
+/// What went wrong with a row's last ask, said under it: Ghostty not installed, so the row offers nothing until it is;
+/// Ghostty not opening, so macOS couldn't ask; or no answer from macOS, through the notices helper or for Ghostty.
+/// Either of the last two leaves the row's button to try again.
+public enum WelcomeHitch: Equatable, Sendable {
+    case notInstalled, didNotOpen, noAnswer
+
+    public var words: String {
+        switch self {
+        case .notInstalled: "Ghostty isn't installed"
+        case .didNotOpen: "Ghostty didn't open, so macOS couldn't ask"
+        case .noAnswer: "SitRep couldn't get macOS's answer"
+        }
+    }
+}
+
+/// What opening Ghostty for Allow… came to: it runs, it isn't installed, or it didn't finish opening.
+public enum GhosttyOpening: Equatable, Sendable {
+    case runs, notInstalled, didNotOpen
+}
+
+/// The callout Done leaves beside the real notch, or the strip, at rest: due once Done closes a welcome, never by any
+/// other close, and gone for good once Lee first points at the edge. Saved apart from what Lee sets, as whether a
+/// welcome has closed is.
+public struct CalloutSettings: SavedValue {
+    public static let key = "notchCallout"
+
+    public enum Standing: String, Codable, Sendable {
+        case unshown, due, gone
+    }
+
+    public private(set) var standing = Standing.unshown
+
+    public init() {}
+
+    public init(_ standing: Standing) {
+        self.standing = standing
+    }
+
+    public init(from decoder: any Decoder) {
+        let defaults = CalloutSettings()
+        guard let given = try? decoder.container(keyedBy: CodingKeys.self) else {
+            self = defaults
+            return
+        }
+
+        standing = given.value(.standing, or: defaults.standing)
+    }
+
+    /// Whether it shows beside the edge.
+    public var shows: Bool { standing == .due }
+
+    /// Done: due, unless it has shown and gone, as it shows once.
+    public mutating func done() {
+        if standing == .unshown {
+            standing = .due
+        }
+    }
+
+    /// The first hover over the edge while it shows: gone for good.
+    public mutating func pointedAt() {
+        if standing == .due {
+            standing = .gone
         }
     }
 }

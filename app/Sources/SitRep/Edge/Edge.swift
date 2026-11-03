@@ -5,13 +5,19 @@ import SitRepPanel
 
 /// What shows at the screen's edge, as Lee set it: the notch or the strip on the chosen display, following each change
 /// Lee makes at once and keeping where a drag moves either, the Mac's Reduce motion followed as it changes, and
-/// nothing over a full-screen app. Both take every board, so whichever Lee chooses shows it.
+/// nothing over a full-screen app. Both take every board, so whichever Lee chooses shows it, and either shows the
+/// callout a welcome's Done leaves until Lee first points at it.
 @MainActor
 final class Edge {
     private let preferences: Preferences
     private var settings: EdgeSettings
     private let notch: NotchController
     private let strip: StripController
+    /// Made only once the callout is first due, so a Mac long past it never has one.
+    private var calloutWindow: CalloutWindow?
+    private lazy var callout = EdgeCallout(
+        preferences, shapes: [notch, strip], isRight: { [unowned self] in settings.edge == .right }
+    ) { [unowned self] in placeCallout($0) }
     private lazy var fullScreen = FullScreenWatch { [unowned self] in Displays.bounds(of: settings) }
     private var observers: [any NSObjectProtocol] = []
 
@@ -46,10 +52,7 @@ final class Edge {
 
     /// The board as `watch` last printed it, for the notch and the strip.
     func show(_ last: LastBoard) {
-        let board = PanelBoard(last)
-
-        notch.show(board)
-        strip.show(board)
+        tell(PanelBoard(last))
     }
 
     /// A drag let the notch or the strip go: where it left it lands on the settings as they stand, is kept, and both
@@ -64,10 +67,15 @@ final class Edge {
 
     /// With no `watch` to run, the notch's head says why, and the strip's notch at rest.
     func unrun(_ why: String) {
-        let board = PanelBoard(unrun: why)
+        tell(PanelBoard(unrun: why))
+    }
 
+    /// A board to both, and the callout beside the shape as it now rests: an ask moves the notch's front out at once,
+    /// where the last one going takes the notch's next frame, which the callout hears of itself.
+    private func tell(_ board: PanelBoard) {
         notch.show(board)
         strip.show(board)
+        callout.refresh()
     }
 
     /// What Lee changed in Settings or the menu, at once.
@@ -84,6 +92,7 @@ final class Edge {
         self.settings = settings
         notch.apply(settings, on: display)
         strip.apply(settings, on: display)
+        callout.refresh()
     }
 
     /// The notch or the strip, as Lee chose, unless he chose Nothing, or a full-screen app has the display.
@@ -92,6 +101,15 @@ final class Edge {
 
         notch.isShown = shows && settings.show == .notch
         strip.isShown = shows && settings.show == .strip
+        callout.refresh()
+    }
+
+    /// The callout's window, made as the callout is first placed.
+    private func placeCallout(_ beside: EdgeCallout.Beside?) {
+        if beside != nil, calloutWindow == nil {
+            calloutWindow = CalloutWindow()
+        }
+        calloutWindow?.place(beside)
     }
 
     /// The screens changing moves the edge to the display chosen, or the main one where that is gone; the Mac's

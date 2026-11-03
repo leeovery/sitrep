@@ -6,23 +6,33 @@ import SitRepEdge
 import SitRepLines
 import SitRepMenu
 import SitRepPanel
+import SitRepRelay
 import Testing
 
 /// The welcome's steps and its footer at each (DESIGN, "The welcome window").
 struct WelcomeStepsTests {
-    @Test func itRunsHelloYourEdgeItsSoundThenReady() {
-        #expect(WelcomeSteps().steps == [.hello, .edge, .sound, .ready])
+    /// An ask, from Claude to you, after Hello; What it asks of macOS last but for Ready, once Lee has seen what each
+    /// leave is for.
+    @Test func itRunsHelloAnAskYourEdgeItsSoundWhatItAsksOfMacOSThenReady() {
+        #expect(WelcomeSteps().steps == [.hello, .ask, .edge, .sound, .permissions, .ready])
     }
 
+    /// Step 2 plays its own loop; the notch lit at What it asks of macOS, as for needs you, the banner it asks for
+    /// beside it.
     @Test func eachStepPlaysItsOwnStage() {
-        #expect(WelcomeSteps.all.map(\.stage) == [.loop, .lit, .chime, .callout])
+        #expect(WelcomeSteps.all.map(\.stage) == [.loop, .answer, .lit, .chime, .lit, .callout])
+        #expect(WelcomeSteps.all.map(\.stage.loop) == [.hello, .ask, nil, nil, nil, nil])
     }
 
     @Test func eachHeadlineIsPapers() {
         #expect(WelcomeSteps.all.map(\.headline) == [
-            "Every session, at the edge of your screen.", "Choose what sits at your edge.",
-            "Hear it when Claude needs you.", "You're set. One thing in Claude Code.",
+            "Every session, at the edge of your screen.", "Claude asks. You answer.", "Choose what sits at your edge.",
+            "Hear it when Claude needs you.", "Two things to allow, both optional.",
+            "You're set. One thing in Claude Code.",
         ])
+        #expect(WelcomeStep.ask.paragraph == "When a session needs you, the notch lights. Open it, pick the ask, and "
+            + "you're in the session's window to answer.")
+        #expect(WelcomeStep.permissions.paragraph == "SitRep works without either. Each one turns on one thing.")
     }
 
     @Test func backAndContinueStopAtEitherEnd() {
@@ -30,7 +40,7 @@ struct WelcomeStepsTests {
 
         steps.back()
         #expect(steps.current == .hello)
-        for _ in 0 ..< 5 {
+        for _ in 0 ..< 7 {
             steps.next()
         }
         #expect(steps.current == .ready && steps.isLast)
@@ -38,10 +48,11 @@ struct WelcomeStepsTests {
         #expect(steps.current == .hello && steps.isFirst)
     }
 
-    /// The chevron dimmed, the first dash long, Continue reading Show me, and Skip setup there.
+    /// The chevron dimmed, the first of six dashes long, Continue reading Show me, and Skip setup there.
     @Test func atTheFirstStepContinueReadsShowMe() {
         #expect(WelcomeSteps().footer == WelcomeFooter(
-            canGoBack: false, dashes: [.current, .ahead, .ahead, .ahead], continueTitle: "Show me", showsSkip: true
+            canGoBack: false, dashes: [.current] + Array(repeating: .ahead, count: 5), continueTitle: "Show me",
+            showsSkip: true
         ))
     }
 
@@ -51,7 +62,8 @@ struct WelcomeStepsTests {
         steps.next()
         steps.next()
         #expect(steps.footer == WelcomeFooter(
-            canGoBack: true, dashes: [.done, .done, .current, .ahead], continueTitle: "Continue", showsSkip: true
+            canGoBack: true, dashes: [.done, .done, .current, .ahead, .ahead, .ahead], continueTitle: "Continue",
+            showsSkip: true
         ))
     }
 
@@ -59,11 +71,12 @@ struct WelcomeStepsTests {
     @Test func atTheLastStepItReadsDoneAndSkipSetupGoes() {
         var steps = WelcomeSteps()
 
-        steps.next()
-        steps.next()
-        steps.next()
+        for _ in 0 ..< 5 {
+            steps.next()
+        }
         #expect(steps.footer == WelcomeFooter(
-            canGoBack: true, dashes: [.done, .done, .done, .current], continueTitle: "Done", showsSkip: false
+            canGoBack: true, dashes: Array(repeating: .done, count: 5) + [.current], continueTitle: "Done",
+            showsSkip: false
         ))
     }
 
@@ -94,6 +107,90 @@ struct WelcomeSettingsTests {
         let saved = try JSONDecoder().decode(WelcomeSettings.self, from: Data(#"{"other": 1}"#.utf8))
 
         #expect(saved == WelcomeSettings())
+    }
+}
+
+/// The callout beside the real edge: due only as Done closes a welcome, and gone for good at the first hover.
+struct CalloutSettingsTests {
+    private static func after(_ moves: (inout CalloutSettings) -> Void) -> CalloutSettings.Standing {
+        var callout = CalloutSettings()
+
+        moves(&callout)
+        return callout.standing
+    }
+
+    @Test func itShowsOnlyOnceDoneHasClosedAWelcome() {
+        #expect(!CalloutSettings().shows)
+        #expect(Self.after { $0.done() } == .due)
+        #expect(CalloutSettings(.due).shows)
+    }
+
+    @Test func theFirstHoverTakesItAwayForGood() {
+        #expect(Self.after { $0.done(); $0.pointedAt() } == .gone)
+        #expect(Self.after { $0.done(); $0.pointedAt(); $0.done() } == .gone)
+    }
+
+    /// Pointed at before any Done, there is nothing to take away: the next Done still shows it.
+    @Test func aHoverBeforeDoneLeavesItToShow() {
+        #expect(Self.after { $0.pointedAt(); $0.done() } == .due)
+    }
+
+    /// Apart from what Lee sets, as whether a welcome has closed is.
+    @Test func itIsKeptUnderAKeyOfItsOwn() throws {
+        let defaults = MemoryDefaults()
+
+        SavedSettings<CalloutSettings>(defaults).save(CalloutSettings(.gone))
+        #expect(SavedSettings<CalloutSettings>(defaults).read().standing == .gone)
+        #expect(defaults.data(forKey: "notchCallout") != nil)
+        #expect(defaults.data(forKey: AppSettings.key) == nil && defaults.data(forKey: WelcomeSettings.key) == nil)
+        #expect(try JSONDecoder().decode(CalloutSettings.self, from: Data(#"{"other": 1}"#.utf8)) == CalloutSettings())
+    }
+}
+
+/// Step 5's rows, and where each stands as macOS says.
+struct WelcomePermissionTests {
+    @Test func eachRowHasItsReasonInOneClauseAndAButtonNamedForWhatItDoes() {
+        #expect(WelcomePermission.allCases.map(\.title) == ["Notifications", "Control Ghostty"])
+        #expect(WelcomePermission.allCases.map(\.reason) == [
+            "So an ask reaches you when the edge is out of sight", "So a click takes you to the session's window",
+        ])
+        #expect(WelcomePermission.allCases.map(\.ask) == ["Turn On…", "Allow…"])
+        #expect(WelcomePermission.patience == .seconds(10))
+    }
+
+    /// On only with the switch on and macOS showing them; refused while macOS shows none, whatever the switch.
+    @Test func notificationsStandAsMacOSAndTheSwitchSay() {
+        #expect(WelcomeLeave.notifications(nil, isOn: true) == .toAsk)
+        #expect(WelcomeLeave.notifications(.unasked, isOn: true) == .toAsk)
+        #expect(WelcomeLeave.notifications(.allowed(.banners), isOn: false) == .toAsk)
+        #expect(WelcomeLeave.notifications(.allowed(.banners), isOn: true) == .on)
+        #expect(WelcomeLeave.notifications(.allowed(.alerts), isOn: true) == .on)
+        #expect(WelcomeLeave.notifications(.provisional, isOn: true) == .on)
+        #expect(WelcomeLeave.notifications(.denied, isOn: false) == .refused)
+        #expect(WelcomeLeave.notifications(.allowed(.none), isOn: true) == .refused)
+    }
+
+    /// One macOS can't say of, as Ghostty isn't running, is to ask: Allow… opens Ghostty first.
+    @Test func ghosttyStandsAsMacOSSays() {
+        #expect(WelcomeLeave.ghostty(.allowed) == .on)
+        #expect(WelcomeLeave.ghostty(.denied) == .refused)
+        #expect([GhosttyLeave.unasked, .unknown].map(WelcomeLeave.ghostty) == [.toAsk, .toAsk])
+        #expect(WelcomeLeave.ghostty(nil) == .toAsk)
+    }
+
+    /// Under the reason: where macOS asked, once Lee has waited on it; to ask, what went wrong with the last ask;
+    /// with no Ghostty to open, why; else nothing.
+    @Test func theLineUnderARowsReasonSaysWhatItShould() {
+        let ghostty = WelcomePermission.ghostty, notifications = WelcomePermission.notifications
+
+        #expect(ghostty.line(.asking(waitedLong: false), hitch: nil) == nil)
+        #expect(ghostty.line(.asking(waitedLong: true), hitch: nil) == ghostty.whereAsked)
+        #expect(notifications.line(.asking(waitedLong: true), hitch: nil) == notifications.whereAsked)
+        #expect(ghostty.line(.toAsk, hitch: nil) == nil)
+        #expect(ghostty.line(.toAsk, hitch: .didNotOpen) == "Ghostty didn't open, so macOS couldn't ask")
+        #expect(notifications.line(.toAsk, hitch: .noAnswer) == "SitRep couldn't get macOS's answer")
+        #expect(ghostty.line(.unavailable, hitch: .notInstalled) == "Ghostty isn't installed")
+        #expect(ghostty.line(.on, hitch: nil) == nil && ghostty.line(.refused, hitch: nil) == nil)
     }
 }
 
@@ -260,7 +357,25 @@ struct WelcomePlaybackTests {
 
         app.playsSound = plays
         app.notifiesNewAsks = notifies
-        #expect(WelcomePlayback.newAsk(app, sound: "Pop") == words)
+        #expect(WelcomePlayback.newAsk(app, sound: "Pop") == .init(label: "A new ask", words: words, fix: nil))
+    }
+
+    /// While macOS shows none of SitRep's notifications, A new ask promises none and has step 5's Open System
+    /// Settings… in place; with Notify me off, it promised none, so it has nothing to fix.
+    @Test(arguments: [(true, "Pop"), (false, "Silent")])
+    func aNewAskPromisesNoNotificationMacOSRefuses(plays: Bool, words: String) {
+        var app = AppSettings()
+
+        app.playsSound = plays
+        app.notifiesNewAsks = true
+        #expect(WelcomePlayback.newAsk(app, sound: "Pop", notices: .refused) == .init(
+            label: "A new ask", words: words, fix: .notifications
+        ))
+        #expect(WelcomePlayback.Fix.notifications.title == "Open System Settings…")
+        app.notifiesNewAsks = false
+        #expect(WelcomePlayback.newAsk(app, sound: "Pop", notices: .refused).fix == nil)
+        app.notifiesNewAsks = true
+        #expect(WelcomePlayback.newAsk(app, sound: "Pop", notices: .on).fix == nil)
     }
 
     @Test func atLoginHasItsFixInPlaceWhereItIsOff() {
@@ -273,11 +388,39 @@ struct WelcomePlaybackTests {
 
     @Test func theFourRowsInTheirOrder() {
         let rows = WelcomePlayback.rows(
-            edge: EdgeSettings(), app: AppSettings(), sound: "Glass", login: LoginItem(.enabled)
+            edge: EdgeSettings(), app: AppSettings(), sound: "Glass", notices: .toAsk, login: LoginItem(.enabled),
+            ghostty: .on
         )
 
         #expect(rows.map(\.label) == ["At the edge", "A new ask", "At login", "A click"])
-        #expect(rows.map(\.words) == ["Meniscus notch, left", "Glass", "Opens SitRep", "Opens Ghostty"])
+        #expect(rows.map(\.words) == ["Meniscus notch, left", "Glass", "Opens SitRep", "Opens the session's window"])
+    }
+
+    /// Without the leave a click brings Ghostty forward, to none of its windows: step 5's Allow… in place, with what
+    /// went wrong with its last ask, or once refused, the way to Automation.
+    @Test func aClickHasStepFivesAskInPlaceWhileGhosttysLeaveIsntGranted() {
+        #expect(WelcomePlayback.aClick(.on) == .init(label: "A click", words: "Opens the session's window", fix: nil))
+        #expect(WelcomePlayback.aClick(.toAsk) == .init(label: "A click", words: "Opens Ghostty", fix: .allowGhostty))
+        #expect(WelcomePlayback.aClick(.toAsk, hitch: .didNotOpen).line == "Ghostty didn't open, so macOS couldn't ask")
+        #expect(WelcomePlayback.aClick(.refused) == .init(label: "A click", words: "Opens Ghostty", fix: .automation))
+        #expect(WelcomePlayback.Fix.allowGhostty.title == "Allow…")
+        #expect(WelcomePlayback.Fix.automation.title == "Open System Settings…")
+    }
+
+    /// While its ask is under way, step 5's row: a spinner in the fix's place, and where macOS asked once Lee has
+    /// waited on it.
+    @Test func aClickWhileItsAskIsUnderWayShowsStepFivesSpinner() {
+        #expect(WelcomePlayback.aClick(.asking(waitedLong: false)) == .init(
+            label: "A click", words: "Opens Ghostty", fix: nil, isAsking: true
+        ))
+        #expect(WelcomePlayback.aClick(.asking(waitedLong: true)).line == WelcomePermission.ghostty.whereAsked)
+    }
+
+    /// With no Ghostty to open, what a click needs, in what-happens words, with nothing to press.
+    @Test func aClickWithNoGhosttyNeedsIt() {
+        #expect(WelcomePlayback.aClick(.unavailable, hitch: .notInstalled) == .init(
+            label: "A click", words: "Needs Ghostty", fix: nil
+        ))
     }
 }
 
@@ -322,16 +465,16 @@ struct WelcomeStagePlayTests {
     }
 
     @Test func theAskLandsPartWayThroughTheLoopAndIsGoneAsItStartsAgain() {
-        #expect(!WelcomeLoop.asks(at: 0))
-        #expect(WelcomeLoop.asks(at: WelcomeLoop.lands))
-        #expect(WelcomeLoop.asks(at: WelcomeLoop.length - 1))
-        #expect(!WelcomeLoop.asks(at: WelcomeLoop.length + 1))
+        #expect(!WelcomeLoop.hello.asks(at: 0))
+        #expect(WelcomeLoop.hello.asks(at: WelcomeLoop.hello.lands))
+        #expect(WelcomeLoop.hello.asks(at: WelcomeLoop.hello.length - 1))
+        #expect(!WelcomeLoop.hello.asks(at: WelcomeLoop.hello.length + 1))
     }
 
     /// The pointer comes to the notch, rests on the panel it pours, and leaves, so it closes.
     @Test func thePointerComesToTheNotchRestsAndLeaves() throws {
         let notchY = 300.0
-        let path = stride(from: 0, to: WelcomeLoop.length, by: 100).map { WelcomeLoop.pointer(at: $0, notchY: notchY) }
+        let path = stride(from: 0, to: WelcomeLoop.hello.length, by: 100).map { WelcomeLoop.hello.pointer(at: $0, notchY: notchY) }
         let present = path.compactMap(\.self)
 
         #expect(path.first == .some(nil))
@@ -339,14 +482,14 @@ struct WelcomeStagePlayTests {
         #expect(present.contains(CGPoint(x: 4, y: notchY)))
         #expect(try #require(present.first).x > 200)
         #expect(present.map(\.x).min() == 4)
-        #expect(WelcomeLoop.pointer(at: WelcomeLoop.lands, notchY: notchY) == nil)
+        #expect(WelcomeLoop.hello.pointer(at: WelcomeLoop.hello.lands, notchY: notchY) == nil)
     }
 
     /// Once the panel has poured, the pointer moves from the notch onto the ask's row, and rests there until it leaves.
     @Test func afterThePourThePointerMovesOntoTheAsksRow() throws {
         let notchY = 300.0, row = CGPoint(x: 150, y: 120)
-        let path = stride(from: 0, to: WelcomeLoop.length, by: 100).compactMap {
-            WelcomeLoop.pointer(at: $0, notchY: notchY, row: row)
+        let path = stride(from: 0, to: WelcomeLoop.hello.length, by: 100).compactMap {
+            WelcomeLoop.hello.pointer(at: $0, notchY: notchY, row: row)
         }
         let onNotch = try #require(path.firstIndex(of: CGPoint(x: 4, y: notchY)))
         let onRow = try #require(path.firstIndex(of: row))
@@ -358,39 +501,141 @@ struct WelcomeStagePlayTests {
 
     /// The panel looks for the ask's row from the pointer's setting off for it until the pointer is gone.
     @Test func thePanelFindsTheRowOnlyWhileThePointerGoesToIt() throws {
-        let times = stride(from: 0, to: WelcomeLoop.length, by: 100)
-        let finding = times.filter(WelcomeLoop.findsRow(at:))
-        let pointing = times.filter { WelcomeLoop.pointer(at: $0, notchY: 300, row: CGPoint(x: 150, y: 120)) != nil }
+        let times = stride(from: 0, to: WelcomeLoop.hello.length, by: 100)
+        let finding = times.filter(WelcomeLoop.hello.findsRow(at:))
+        let pointing = times.filter { WelcomeLoop.hello.pointer(at: $0, notchY: 300, row: CGPoint(x: 150, y: 120)) != nil }
         let first = try #require(finding.first)
 
         #expect(Set(finding).isSubset(of: Set(pointing)))
-        #expect(WelcomeLoop.pointer(at: first - 100, notchY: 300) == CGPoint(x: 4, y: 300))
+        #expect(WelcomeLoop.hello.pointer(at: first - 100, notchY: 300) == CGPoint(x: 4, y: 300))
     }
 
     /// Frames sleep between the pointer's glides: it moves only on its way to the notch, to the row, and away.
     @Test func thePointerMovesOnlyWhileItGlides() {
-        let times = stride(from: 0, to: WelcomeLoop.length, by: 50)
+        let times = stride(from: 0, to: WelcomeLoop.hello.length, by: 50)
 
         for time in times {
-            let before = WelcomeLoop.pointer(at: time, notchY: 300, row: CGPoint(x: 150, y: 120))
-            let after = WelcomeLoop.pointer(at: time + 50, notchY: 300, row: CGPoint(x: 150, y: 120))
+            let before = WelcomeLoop.hello.pointer(at: time, notchY: 300, row: CGPoint(x: 150, y: 120))
+            let after = WelcomeLoop.hello.pointer(at: time + 50, notchY: 300, row: CGPoint(x: 150, y: 120))
 
             if before != nil, after != nil, before != after {
-                #expect(WelcomeLoop.pointerMoves(at: time), "at \(time)")
+                #expect(WelcomeLoop.hello.pointerMoves(at: time), "at \(time)")
             }
             if before == after {
-                #expect(!WelcomeLoop.pointerMoves(at: time) || before == nil, "at \(time)")
+                #expect(!WelcomeLoop.hello.pointerMoves(at: time) || before == nil, "at \(time)")
             }
         }
     }
 
     /// Asleep, the stage wakes at the loop's next beat: the ask landing, the pointer setting off, or the loop again.
     @Test func theLoopsNextBeatIsWhenItNextChangesOfItself() {
-        #expect(WelcomeLoop.next(after: 0) == WelcomeLoop.lands)
-        #expect(WelcomeLoop.next(after: WelcomeLoop.lands) > WelcomeLoop.lands)
-        #expect(WelcomeLoop.pointerMoves(at: WelcomeLoop.next(after: WelcomeLoop.lands)))
-        #expect(WelcomeLoop.next(after: WelcomeLoop.length + 10) == WelcomeLoop.length + WelcomeLoop.lands)
-        #expect(WelcomeLoop.next(after: WelcomeLoop.length - 1) == WelcomeLoop.length)
+        #expect(WelcomeLoop.hello.next(after: 0) == WelcomeLoop.hello.lands)
+        #expect(WelcomeLoop.hello.next(after: WelcomeLoop.hello.lands) > WelcomeLoop.hello.lands)
+        #expect(WelcomeLoop.hello.pointerMoves(at: WelcomeLoop.hello.next(after: WelcomeLoop.hello.lands)))
+        #expect(WelcomeLoop.hello.next(after: WelcomeLoop.hello.length + 10) == WelcomeLoop.hello.length + WelcomeLoop.hello.lands)
+        #expect(WelcomeLoop.hello.next(after: WelcomeLoop.hello.length - 1) == WelcomeLoop.hello.length)
+    }
+
+    /// Step 1's loop shows no session and lights no words: the ask stays to its end and no row is clicked.
+    @Test func stepOnesLoopClicksNothingAndHasNoScene() {
+        let loop = WelcomeLoop.hello
+        let times = stride(from: 0, to: loop.length, by: 100)
+
+        #expect(times.allSatisfy { loop.scene(at: $0) == .rest && !loop.presses(at: $0) })
+    }
+}
+
+/// Step 2's loop: the ask lands, the panel pours, the row is clicked, the ask is answered in its session, and it goes.
+struct WelcomeAskLoopTests {
+    private static let loop = WelcomeLoop.ask
+    private static let times = Array(stride(from: 0, to: loop.length, by: 50))
+
+    /// The times at which this holds, as one span, first to last.
+    private static func span(_ holds: (Double) -> Bool) -> ClosedRange<Double>? {
+        let held = times.filter(holds)
+
+        return held.first.map { $0 ... held[held.count - 1] }
+    }
+
+    /// Its beats in their order, and a rest at the end before it starts again.
+    @Test func itsBeatsComeInTheirOrder() throws {
+        let loop = Self.loop
+        let clicks = try #require(loop.clicks), answers = try #require(loop.answers)
+        let resolves = try #require(loop.resolves)
+
+        #expect(loop.lands < clicks && clicks < answers && answers < resolves && resolves < loop.length)
+        #expect(loop.length - resolves >= 2_000)
+    }
+
+    /// The ask on the board from its landing until it is answered, so the notch lights and its light goes out.
+    @Test func theAskIsOnTheBoardFromItsLandingUntilItIsAnswered() throws {
+        let asks = try #require(Self.span(Self.loop.asks(at:)))
+
+        #expect(asks.lowerBound == Self.loop.lands)
+        #expect(asks.upperBound == (Self.loop.resolves ?? 0) - 50)
+        #expect(!Self.loop.asks(at: Self.loop.length + 10))
+    }
+
+    /// The pointer reaches the notch, which pours, then the row, and presses it there until the jump lands; then it
+    /// goes into the session's window.
+    @Test func thePointerPressesTheRowItRestsOn() throws {
+        let row = CGPoint(x: 150, y: 120)
+        let presses = try #require(Self.span(Self.loop.presses(at:)))
+
+        #expect(presses.lowerBound == Self.loop.clicks)
+        for time in Self.times where Self.loop.presses(at: time) {
+            #expect(Self.loop.pointer(at: time, notchY: 300, row: row) == row, "at \(time)")
+        }
+        #expect(Self.loop.pointer(at: presses.upperBound + 50, notchY: 300, row: row) == row)
+        #expect(Self.loop.pointer(at: Self.loop.lands, notchY: 300, row: row) == nil)
+        #expect(Self.loop.findsRow(at: presses.lowerBound))
+    }
+
+    /// The three lines lit in step: the landing until the pointer sets off, opening it until the click, answering it
+    /// until the ask goes; then none, through the rest.
+    @Test func theThreeMomentsAreLitInStepWithTheLoop() throws {
+        let loop = Self.loop
+        let moments = Self.times.map { loop.scene(at: $0).moment }
+        let order = moments.reduce(into: [WelcomeLoop.Moment?]()) { order, moment in
+            if order.last != moment {
+                order.append(moment)
+            }
+        }
+
+        #expect(order == [nil, .lands, .opens, .answers, nil])
+        #expect(loop.scene(at: loop.lands).moment == .lands)
+        #expect(loop.scene(at: try #require(loop.clicks)).moment == .answers)
+        #expect(loop.scene(at: try #require(loop.resolves)).moment == nil)
+    }
+
+    /// The middle line names the shape the stage shows: the strip where Lee chose it, else the notch.
+    @Test func itsWordsNameTheShapeTheStageShows() {
+        #expect(WelcomeLoop.Moment.allCases.map { $0.words(.notch) } == [
+            "An ask lands", "Open it from the notch", "Answer it in its session",
+        ])
+        #expect(WelcomeLoop.Moment.opens.words(.strip) == "Open it from the strip")
+        #expect(WelcomeLoop.Moment.opens.words(.nothing) == "Open it from the notch")
+    }
+
+    /// The session's window comes forward as the jump lands, and the answer shows in it once given, both until the
+    /// loop starts again.
+    @Test func theSessionComesForwardAndTheAnswerShowsInIt() throws {
+        let loop = Self.loop
+        let inSession = try #require(Self.span { loop.scene(at: $0).isInSession })
+        let answered = try #require(Self.span { loop.scene(at: $0).isAnswered })
+
+        #expect(inSession.lowerBound > (loop.clicks ?? 0) && inSession.upperBound == loop.length - 50)
+        #expect(answered.lowerBound == loop.answers && answered.upperBound == loop.length - 50)
+        #expect(loop.scene(at: 0) == .rest)
+    }
+
+    /// Asleep between beats, it wakes at each: the click, the answer and the ask going among them.
+    @Test func itWakesAtEachBeat() throws {
+        let loop = Self.loop
+
+        for beat in try [loop.lands, #require(loop.clicks), #require(loop.answers), #require(loop.resolves)] {
+            #expect(loop.next(after: beat - 1) == beat, "\(beat)")
+        }
     }
 }
 
@@ -403,6 +648,7 @@ struct SampleTests {
         let lines = board.flatMap(\.lines).flatMap { [$0.ask, $0.title, $0.code].compactMap(\.self) }
         let words = [Sample.ask, Sample.project, Sample.place, Sample.terminal, Sample.terminalAsk, Sample.needsYou]
             + [Sample.running, Sample.writing].flatMap { [$0.title, $0.code] } + [Sample.yourTurn]
+            + [Sample.answer, Sample.terminalAnswer]
             + board.flatMap { [$0.id, $0.project, $0.name, $0.sub] } + lines
         let projects = ["Switchboard", "Kit", "Portal", "Fabric", "ledger"]
 

@@ -11,7 +11,7 @@ import SitRepPanel
 /// panel's times, drawn again as they change. Whatever comes between frames, a board or Lee's hand, goes to the run,
 /// which brings the notch up to now first; each is drawn, and frames show what it did.
 @MainActor
-final class NotchController: NSObject {
+final class NotchController: NSObject, CalloutShape {
     /// A click on a row: the session to jump to, and what to tell once the jump answers, whether it jumped.
     var onJump: (String, @escaping (Bool) -> Void) -> Void = { _, _ in }
     /// A row's button, or its menu's Open in SitRep: the session to open in the SitRep window.
@@ -24,6 +24,8 @@ final class NotchController: NSObject {
     var isJumping: () -> Bool = { false }
     /// A drag let the notch go: the settings with its new place.
     var onMoved: (EdgeMove) -> Void = { _ in }
+    /// Each frame drawn, with whether the pointer is over the notch, or its panel.
+    var onDrawn: ((_ isPointedAt: Bool) -> Void)?
 
     /// How long a your-turn row stays before it folds into "N earlier": the card refolds at once as it changes.
     var period: FoldPeriod {
@@ -200,8 +202,18 @@ final class NotchController: NSObject {
             caption.drained(at: drained)
         }
         surface.draw(run, in: setting, mirror: edge.mirror)
-        window.takesClicks = run.drag != nil || (pointer.map(frame.hits) ?? false)
+
+        let isPointedAt = pointer.map(frame.hits) ?? false
+
+        window.takesClicks = run.drag != nil || isPointedAt
+        onDrawn?(isPointedAt)
         pace(at: time)
+    }
+
+    /// The notch at rest at its home, from the edge to its front, on the screen, for what stands beside it: at the home
+    /// the settings give, as the run may not have stepped there yet.
+    var restingBand: CGRect {
+        edge.homeBand(reaching: run.restingOutline(at: edge.stage.notchY).boundingBox.maxX)
     }
 
     private func drawLight(at time: Double) {

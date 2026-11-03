@@ -6,13 +6,15 @@ import SitRepEdge
 import SitRepLines
 import SitRepMenu
 import SitRepPanel
+import SitRepRelay
 import SwiftUI
 import Testing
 
-/// The welcome window, made, never shown, over a Mac of its own: nothing is registered with macOS, copied or played.
+/// The welcome window, made, never shown, over a Mac of its own: nothing is registered with macOS, asked of it, opened,
+/// copied or played.
 @MainActor
 struct WelcomeWindowTests {
-    /// What the welcome asked of the Mac, and the login item as macOS would say it.
+    /// What the welcome asked of the Mac, and the login item and the leaves as macOS would say them.
     @MainActor
     final class Mac {
         var login = LoginItem(.notRegistered)
@@ -22,20 +24,117 @@ struct WelcomeWindowTests {
         var stops = 0
         var copies: [String] = []
         var opened: [Leaves.Place] = []
+        /// Jumps to a session, and test notifications sent.
+        var jumps: [String] = []
+        var tests = 0
+        /// What macOS says of notifications, and what Lee answers its prompt: nil, the helper silent.
+        var notices: NoticeLeave? = .unasked
+        var answersNotices: NoticeLeave? = .allowed(.banners)
+        var asksForNotices = 0
+        /// While set, macOS's prompt waits on Lee until `answer` is called.
+        var holdsPrompt = false
+        private var prompt: CheckedContinuation<Void, Never>?
+        /// While set, a read of notifications waits until `readEnds` is called, then says what macOS said as it began.
+        var holdsRead = false
+        private var read: CheckedContinuation<Void, Never>?
+        /// Whether SitRep may control Ghostty, what Lee answers its prompt, and whether Ghostty runs as it is asked.
+        var ghostty = GhosttyLeave.unknown
+        var answersGhostty = GhosttyLeave.allowed
+        var allows: [Bool] = []
+        var ghosttyRuns = false
+        /// What opening Ghostty comes to, Ghostty installed unless it comes to not installed, and how many times it was
+        /// opened.
+        var opening = GhosttyOpening.runs
+        var opensGhostty = 0
+        /// The waits begun: on a prompt, while `holdsWait` is set, each held until `waitEnds` is called, else over at
+        /// once; on the notices helper, over only once `limitRunsOut` is set, else until the ask no longer waits.
+        var waits: [Duration] = []
+        var holdsWait = false
+        var limitRunsOut = false
+        private var waiting: CheckedContinuation<Void, Never>?
 
         /// Choosing the login item flips it, as `Leaves.chooseLogin` does; waiting on Lee's approval, it opens Login
-        /// Items and changes nothing.
+        /// Items and changes nothing. Asked, macOS takes Lee's answer, once he gives it while the prompt is held;
+        /// macOS can say of Ghostty only while it runs.
         func services() -> SettingsServices {
             SettingsServices(
-                displays: { [] }, hasGlass: true, jump: { _ in }, sendTest: {}, copy: { self.copies.append($0) },
+                displays: { [] }, hasGlass: true, jump: { self.jumps.append($0) }, sendTest: { self.tests += 1 },
+                copy: { self.copies.append($0) },
                 sounds: AlertSounds(
                     names: AlertSounds.live.names, play: { self.played.append($0) }, stop: { self.stops += 1 }
                 ),
-                noticeLeave: { nil }, askForNotices: {},
+                noticeLeave: {
+                    let said = self.notices
+
+                    if self.holdsRead {
+                        await withCheckedContinuation { self.read = $0 }
+                    }
+                    return said
+                },
+                askForNotices: {
+                    self.asksForNotices += 1
+                    if self.holdsPrompt {
+                        await withCheckedContinuation { self.prompt = $0 }
+                    }
+                    self.notices = self.answersNotices
+                },
                 login: { self.login },
                 chooseLogin: { self.choose() },
-                ghostty: { .unknown }, allowGhostty: { .unknown }, open: { self.opened.append($0) }
+                ghostty: { self.ghostty },
+                allowGhostty: {
+                    self.allows.append(self.ghosttyRuns)
+                    if self.holdsPrompt {
+                        await withCheckedContinuation { self.prompt = $0 }
+                    }
+                    self.ghostty = self.ghosttyRuns ? self.answersGhostty : .unknown
+                    return self.ghostty
+                },
+                open: { self.opened.append($0) }
             )
+        }
+
+        func welcome() -> WelcomeMac {
+            WelcomeMac(
+                ghosttyInstalled: { self.opening != .notInstalled }, ghosttyRuns: { self.ghosttyRuns },
+                openGhostty: {
+                    self.opensGhostty += 1
+                    self.ghosttyRuns = self.opening == .runs
+                    return self.opening
+                },
+                wait: { duration in
+                    self.waits.append(duration)
+                    if duration == WelcomePermission.limit {
+                        if !self.limitRunsOut {
+                            try? await Task.sleep(for: .seconds(3600))
+                        }
+                    } else if self.holdsWait {
+                        await withCheckedContinuation { self.waiting = $0 }
+                    }
+                }
+            )
+        }
+
+        /// Lee answers macOS's prompt.
+        func answer() {
+            prompt?.resume()
+            prompt = nil
+        }
+
+        /// The read held ends.
+        func readEnds() {
+            read?.resume()
+            read = nil
+        }
+
+        /// Whether macOS's prompt, a read or a wait on a prompt is held now.
+        var isPrompting: Bool { prompt != nil }
+        var isReading: Bool { read != nil }
+        var isWaiting: Bool { waiting != nil }
+
+        /// The wait on a prompt runs out.
+        func waitEnds() {
+            waiting?.resume()
+            waiting = nil
         }
 
         private func choose() {
@@ -52,29 +151,41 @@ struct WelcomeWindowTests {
         }
     }
 
-    /// The welcome, its window's frame a recorded one, which never orders front.
+    /// The welcome, shown, its window's frame a recorded one, which never orders front, over defaults of its own unless
+    /// given some.
     @MainActor
-    private struct Made {
+    struct Made {
         let mac = Mac()
         let preferences: Preferences
         let welcome: WelcomeModel
         let window: WelcomeWindow
         let recorded = RecordedWindow.made()
 
-        init(welcomed: Bool = false, plugin: PluginStanding? = nil, login: LoginItem = LoginItem(.notRegistered)) {
+        init(
+            welcomed: Bool = false, plugin: PluginStanding? = nil, login: LoginItem = LoginItem(.notRegistered),
+            defaults: UserDefaults = MemoryDefaults()
+        ) {
             let live = LiveBoard()
 
             live.plugin = plugin
             mac.login = login
-            preferences = Preferences(MemoryDefaults())
-            preferences.welcomed = welcomed
-            welcome = WelcomeModel(preferences: preferences, live: live, services: mac.services())
+            preferences = Preferences(defaults)
+            if welcomed {
+                preferences.welcomed = true
+            }
+            welcome = WelcomeModel(preferences: preferences, live: live, services: mac.services(), mac: mac.welcome())
             let recorded = recorded
             window = WelcomeWindow(welcome: welcome) { content in
                 recorded.contentViewController = content
                 return recorded
             }
             window.show()
+        }
+
+        /// The window come forward, as AppKit tells its delegate, and what it read then read.
+        func key() async {
+            window.windowDidBecomeKey(Notification(name: NSWindow.didBecomeKeyNotification))
+            await welcome.reading?.value
         }
 
         /// The welcome at this step, from its first.
@@ -168,8 +279,9 @@ struct WelcomeWindowTests {
         let made = Made()
         let dashes = try Self.footer(made).filter { $0.lowerBound > 60 && $0.upperBound < 200 }
 
-        #expect(dashes.count == 4)
-        #expect(zip(dashes.map(Self.width), [22.0, 10, 10, 10]).allSatisfy { abs($0 - $1) <= 0.5 })
+        #expect(dashes.count == WelcomeSteps.all.count)
+        #expect(dashes.count == 6)
+        #expect(zip(dashes.map(Self.width), [22.0, 10, 10, 10, 10, 10]).allSatisfy { abs($0 - $1) <= 0.5 })
     }
 
     @Test func continueGoesOnAndDoneClosesTheWindow() {
@@ -178,7 +290,7 @@ struct WelcomeWindowTests {
 
         made.welcome.closeWindow = { closes += 1 }
         made.welcome.goOn()
-        #expect(made.welcome.step == .edge)
+        #expect(made.welcome.step == .ask)
         made.at(.ready)
         made.welcome.goOn()
         #expect(closes == 1)
@@ -304,7 +416,9 @@ struct WelcomeWindowTests {
         let mac = Mac(), preferences = Preferences(MemoryDefaults())
         var made = 0
         let window = WelcomeWindow(
-            welcome: WelcomeModel(preferences: preferences, live: LiveBoard(), services: mac.services())
+            welcome: WelcomeModel(
+                preferences: preferences, live: LiveBoard(), services: mac.services(), mac: mac.welcome()
+            )
         ) { content in
             made += 1
             return RecordedWindow.made()
@@ -526,7 +640,7 @@ struct WelcomeWindowTests {
         #expect(stage.scale == StageEdge.loopScale)
         #expect(stage.edge.frame.size == CGSize(width: size.width / 0.7, height: size.height / 0.7))
         #expect(abs(stage.edge.stage.notchY * stage.scale - StageEdge.loopNotchY) < 1e-9)
-        for step in [WelcomeStep.edge, .sound, .ready] {
+        for step in [WelcomeStep.edge, .sound, .permissions, .ready] {
             made.at(step)
             _ = await made.settled()
             #expect(stage.scale == StageEdge.stillScale, "\(step)")
@@ -592,10 +706,10 @@ struct WelcomeWindowTests {
         Self.key(made)
 
         let beat = try #require(stage.beat)
-        let wait = (WelcomeLoop.next(after: stage.loopTime) - stage.loopTime) / 1000
+        let wait = (WelcomeLoop.hello.next(after: stage.loopTime) - stage.loopTime) / 1000
 
         #expect(!stage.isDrawing)
-        #expect(WelcomeLoop.next(after: stage.loopTime) == WelcomeLoop.lands)
+        #expect(WelcomeLoop.hello.next(after: stage.loopTime) == WelcomeLoop.hello.lands)
         #expect(abs(beat.fireDate.timeIntervalSinceNow - wait) < 0.1)
         beat.fire()
         #expect(stage.beat != nil && stage.beat !== beat)
@@ -603,7 +717,7 @@ struct WelcomeWindowTests {
         let time = Displays.now
 
         stage.step(at: time)
-        stage.step(at: time + WelcomeLoop.lands - stage.loopTime)
+        stage.step(at: time + WelcomeLoop.hello.lands - stage.loopTime)
         #expect(stage.isDrawing && stage.beat == nil)
     }
 
@@ -618,8 +732,8 @@ struct WelcomeWindowTests {
         let time = Displays.now
 
         stage.step(at: time)
-        stage.step(at: time + WelcomeLoop.lands - stage.loopTime)
-        Self.settle(stage, from: time + WelcomeLoop.lands)
+        stage.step(at: time + WelcomeLoop.hello.lands - stage.loopTime)
+        Self.settle(stage, from: time + WelcomeLoop.hello.lands)
 
         let beat = try #require(stage.beat)
 
@@ -675,7 +789,7 @@ struct WelcomeWindowTests {
 
         var time = Displays.now
 
-        while stage.row == nil, stage.loopTime < WelcomeLoop.length - 100 {
+        while stage.row == nil, stage.loopTime < WelcomeLoop.hello.length - 100 {
             time += 1000 / 60
             stage.step(at: time)
         }

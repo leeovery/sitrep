@@ -29,6 +29,20 @@ struct ScreenEdgeTests {
         #expect(Self.studio.stagePoint(point) == nil)
     }
 
+    /// A box on the stage back on the screen, the way back from `stagePoint`: down from the screen's top, in from its
+    /// edge, mirrored on the right.
+    @Test func aBoxOnTheStageIsBackOnTheScreen() {
+        let screen = CGRect(x: 2560, y: -581, width: 1728, height: 1117)
+        let box = CGRect(x: 2, y: 400, width: 7, height: 60)
+        let left = ScreenEdge(frame: screen, visible: .zero, edge: .left).screenRect(box)
+        let right = ScreenEdge(frame: screen, visible: .zero, edge: .right).screenRect(box)
+
+        #expect(left == CGRect(x: 2562, y: 536 - 460, width: 7, height: 60))
+        #expect(right == CGRect(x: 4288 - 9, y: 536 - 460, width: 7, height: 60))
+        #expect(ScreenEdge(frame: screen, visible: .zero).stagePoint(CGPoint(x: left.minX, y: left.maxY))
+            == CGPoint(x: 2, y: 400))
+    }
+
     @Test func theStudioDisplaysRightmostColumnIsStillOnIt() {
         #expect(Self.studio.stagePoint(CGPoint(x: 2559.5, y: 400)) == CGPoint(x: 2559.5, y: 1040))
     }

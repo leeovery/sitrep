@@ -25,6 +25,48 @@ struct HelloStep: View {
     }
 }
 
+/// Step 2, An ask, from Claude to you: the step's words, then the loop's three moments, each lit as the stage plays
+/// it, in the words of the shape it shows. Nothing here is pressed: the stage shows it all.
+struct AskStep: View {
+    let show: EdgeSettings.Show
+    /// The moment the stage is at, if any.
+    let lit: WelcomeLoop.Moment?
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 26) {
+            StepWords(step: .ask)
+            VStack(alignment: .leading, spacing: 14) {
+                ForEach(WelcomeLoop.Moment.allCases, id: \.self) { moment in
+                    MomentLine(words: moment.words(show), isLit: moment == lit)
+                }
+            }
+        }
+        .padding(.top, 40)
+    }
+}
+
+/// One of step 2's moments: a dot and its words, in the accent and the label colour while the stage plays it, else
+/// faint.
+private struct MomentLine: View {
+    let words: String
+    let isLit: Bool
+
+    var body: some View {
+        let fade = Animation.easeInOut(duration: 0.3)
+
+        HStack(spacing: 10) {
+            Circle()
+                .animation(fade) { $0.foregroundStyle(isLit ? Color.accentColor : .white.opacity(0x2E / 255)) }
+                .frame(width: 6, height: 6)
+            Text(words)
+                .font(.system(size: 13, weight: .medium))
+                .animation(fade) { $0.foregroundStyle(isLit ? WelcomeStyle.text : WelcomeStyle.faint) }
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityAddTraits(isLit ? .isSelected : [])
+    }
+}
+
 /// Step 3, Your edge: Notch or Strip as Settings' own pictures, the one chosen ringed in the accent, then a grouped
 /// form: Style, or at Strip Length in its place, cross-fading so the form keeps its height; Material, from macOS 26;
 /// and Edge. Each press sets the setting itself.
@@ -263,6 +305,176 @@ private struct LoginCard: View {
     }
 }
 
+/// Step 5, What it asks of macOS: Notifications and Control Ghostty, each with its reason and its state, then the aside
+/// on Allow… and the way back from a refusal. Neither holds Continue back.
+struct PermissionsStep: View {
+    let welcome: WelcomeModel
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 18) {
+            StepWords(step: .permissions)
+            WelcomeCard(inset: 12) {
+                ForEach(Array(WelcomePermission.allCases.enumerated()), id: \.offset) { place, permission in
+                    if place > 0 {
+                        Hairline()
+                    }
+                    PermissionRow(
+                        permission: permission, leave: welcome.leave(permission), hitch: welcome.hitch(permission)
+                    ) {
+                        welcome.press(permission)
+                    }
+                }
+            }
+            HStack(alignment: .top, spacing: 8) {
+                Image(systemName: "info.circle")
+                    .font(.system(size: 11))
+                    .foregroundStyle(WelcomeStyle.faint)
+                    .padding(.top, 2)
+                    .accessibilityHidden(true)
+                Text(
+                    "Allow… opens Ghostty if it isn't running: macOS only asks while it is. Refused? A button here "
+                        + "opens the right page of System Settings."
+                )
+                .font(.system(size: 11))
+                .lineSpacing(2)
+                .foregroundStyle(WelcomeStyle.soft)
+                .fixedSize(horizontal: false, vertical: true)
+            }
+            .padding(.horizontal, 2)
+        }
+        .padding(.top, 36)
+    }
+}
+
+/// A leave's row: its icon, its name over its reason, and where it stands. To ask, a button named for what it does,
+/// and what went wrong with the last ask under the reason; asking, a spinner, then where macOS put its prompt; on, a
+/// green check; refused, Open System Settings… under the reason, as the column has no room for it beside the words;
+/// with no Ghostty to open, the reason why and nothing to press.
+private struct PermissionRow: View {
+    let permission: WelcomePermission
+    let leave: WelcomeLeave
+    let hitch: WelcomeHitch?
+    let press: () -> Void
+
+    var body: some View {
+        HStack(alignment: .center, spacing: 12) {
+            PermissionIcon(permission: permission)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(permission.title)
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundStyle(WelcomeStyle.text)
+                Text(permission.reason)
+                    .font(.system(size: 11))
+                    .foregroundStyle(WelcomeStyle.soft)
+                if let line = permission.line(leave, hitch: hitch) {
+                    Text(line)
+                        .font(.system(size: 11))
+                        .foregroundStyle(WelcomeStyle.text)
+                        .padding(.top, 2)
+                }
+                if leave == .refused {
+                    PermissionButton(title: "Open System Settings…", action: press).padding(.top, 6)
+                }
+            }
+            .fixedSize(horizontal: false, vertical: true)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            side
+        }
+        .padding(.vertical, 12)
+        .accessibilityElement(children: .contain)
+    }
+
+    @ViewBuilder private var side: some View {
+        switch leave {
+        case .toAsk:
+            PermissionButton(title: permission.ask, action: press)
+        case .asking:
+            ProgressView()
+                .controlSize(.small)
+                .accessibilityLabel("Waiting on macOS")
+        case .on:
+            HStack(spacing: 5) {
+                Image(systemName: "checkmark.circle.fill")
+                    .font(.system(size: 14))
+                    .foregroundStyle(.white, Color(hex: 0x30D158))
+                    .accessibilityHidden(true)
+                Text("On").font(.system(size: 12)).foregroundStyle(WelcomeStyle.text)
+            }
+        case .refused, .unavailable:
+            EmptyView()
+        }
+    }
+}
+
+/// A row's button, as Paper draws it: SitRep's own, never macOS's dialog's.
+private struct PermissionButton: View {
+    let title: String
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Text(title)
+                .font(.system(size: 12, weight: .medium))
+                .foregroundStyle(WelcomeStyle.text)
+                .padding(.horizontal, 10)
+                .frame(height: 24)
+                .background(.white.opacity(0x24 / 255), in: .rect(cornerRadius: 6))
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .fixedSize()
+    }
+}
+
+/// Notifications' red tile and its bell; Ghostty's dark one and its prompt.
+private struct PermissionIcon: View {
+    let permission: WelcomePermission
+
+    var body: some View {
+        let shape = RoundedRectangle(cornerRadius: 7, style: .continuous)
+
+        Group {
+            switch permission {
+            case .notifications:
+                Image(systemName: "bell.fill")
+                    .font(.system(size: 13))
+                    .foregroundStyle(.white)
+                    .frame(width: 28, height: 28)
+                    .background(Color(hex: 0xFF3B30), in: shape)
+            case .ghostty:
+                Prompt()
+                    .stroke(WelcomeStyle.text, style: StrokeStyle(lineWidth: 1.5, lineCap: .round, lineJoin: .round))
+                    .frame(width: 14, height: 12)
+                    .frame(width: 28, height: 28)
+                    .background(
+                        LinearGradient(
+                            colors: [Color(hex: 0x2B2D33), Color(hex: 0x121316)], startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        ),
+                        in: shape
+                    )
+                    .overlay(shape.strokeBorder(.white.opacity(0x1F / 255), lineWidth: 1))
+            }
+        }
+        .accessibilityHidden(true)
+    }
+
+    /// A shell's prompt, `>_`, as Paper draws it in a box of 14 by 12.
+    private struct Prompt: Shape {
+        func path(in rect: CGRect) -> Path {
+            var path = Path()
+            let x = rect.width / 14, y = rect.height / 12
+
+            path.move(to: CGPoint(x: 2 * x, y: 2.5 * y))
+            path.addLine(to: CGPoint(x: 5.5 * x, y: 6 * y))
+            path.addLine(to: CGPoint(x: 2 * x, y: 9.5 * y))
+            path.move(to: CGPoint(x: 7.5 * x, y: 9.5 * y))
+            path.addLine(to: CGPoint(x: 12 * x, y: 9.5 * y))
+            return path
+        }
+    }
+}
+
 /// Step 6, Ready, and what's left: `/reload-plugins` with Copy, or where the plugin's first install failed, what
 /// failed; then Lee's choices played back.
 struct ReadyStep: View {
@@ -338,20 +550,41 @@ private struct Playback: View {
                 if place > 0 {
                     Hairline()
                 }
-                HStack(spacing: 10) {
-                    Text(row.label).foregroundStyle(WelcomeStyle.soft).frame(width: 76, alignment: .leading)
-                    Text(row.words).foregroundStyle(WelcomeStyle.text).frame(maxWidth: .infinity, alignment: .leading)
-                    if let fix = row.fix {
-                        Button(fix.title) { self.fix(fix) }
-                            .buttonStyle(.plain)
-                            .fontWeight(.medium)
-                            .foregroundStyle(Color.accentColor)
+                VStack(alignment: .leading, spacing: 0) {
+                    HStack(spacing: 10) {
+                        Text(row.label).foregroundStyle(WelcomeStyle.soft).frame(width: 76, alignment: .leading)
+                        Text(row.words)
+                            .foregroundStyle(WelcomeStyle.text)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                        side(row)
+                    }
+                    .lineLimit(1)
+                    .frame(height: 30)
+                    if let line = row.line {
+                        Text(line)
+                            .font(.system(size: 11))
+                            .foregroundStyle(WelcomeStyle.soft)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .padding(.leading, 86)
+                            .padding(.bottom, 8)
                     }
                 }
                 .font(.system(size: 12))
-                .lineLimit(1)
-                .frame(height: 30)
             }
+        }
+    }
+
+    /// The row's fix, or while its ask is under way, a spinner in its place.
+    @ViewBuilder private func side(_ row: WelcomePlayback.Row) -> some View {
+        if row.isAsking {
+            ProgressView()
+                .controlSize(.small)
+                .accessibilityLabel("Waiting on macOS")
+        } else if let fix = row.fix {
+            Button(fix.title) { self.fix(fix) }
+                .buttonStyle(.plain)
+                .fontWeight(.medium)
+                .foregroundStyle(Color.accentColor)
         }
     }
 }

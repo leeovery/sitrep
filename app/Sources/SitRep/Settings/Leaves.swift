@@ -4,8 +4,8 @@ import ServiceManagement
 import SitRepCore
 import SitRepMenu
 
-/// What macOS lets SitRep do, read for Settings and changed only where Lee chooses: starting at login, and the leave
-/// to control Ghostty, which the CLI's first jump asks for, or Allow… before it.
+/// What macOS lets SitRep do, read for Settings and the welcome and changed only where Lee chooses: starting at login,
+/// and the leave to control Ghostty, which the CLI's first jump asks for, or Allow… before it, Ghostty opened for it.
 @MainActor
 enum Leaves {
     private static let loginLog = Logger(sitrep: "login")
@@ -56,11 +56,50 @@ enum Leaves {
         await ghosttyLeave(asking: true)
     }
 
+    nonisolated private static let ghosttyID = "com.mitchellh.ghostty"
+
+    /// Whether Ghostty is installed, as Launch Services finds it.
+    static var ghosttyInstalled: Bool {
+        ghosttyApp != nil
+    }
+
+    private static var ghosttyApp: URL? {
+        NSWorkspace.shared.urlForApplication(withBundleIdentifier: ghosttyID)
+    }
+
+    /// Whether Ghostty runs, so macOS can ask for the leave to control it.
+    static var ghosttyRuns: Bool {
+        !NSRunningApplication.runningApplications(withBundleIdentifier: ghosttyID).isEmpty
+    }
+
+    /// Ghostty opened behind the window Lee is in, for macOS to ask for the leave, and what that came to: running once
+    /// it has finished launching; not opened if it fails to, or is still launching after five seconds; at once, not
+    /// installed.
+    static func openGhostty() async -> GhosttyOpening {
+        guard let app = ghosttyApp else {
+            return .notInstalled
+        }
+
+        let configuration = NSWorkspace.OpenConfiguration()
+
+        configuration.activates = false
+        guard let ghostty = try? await NSWorkspace.shared.openApplication(at: app, configuration: configuration) else {
+            return .didNotOpen
+        }
+
+        let deadline = ContinuousClock.now + .seconds(5)
+
+        while !ghostty.isFinishedLaunching, ContinuousClock.now < deadline {
+            try? await Task.sleep(for: .milliseconds(100))
+        }
+        return ghostty.isFinishedLaunching ? .runs : .didNotOpen
+    }
+
     /// The leave, for a harmless event, Get Data: macOS gives it for Ghostty, whatever the event. Off the main thread,
     /// which a prompt would hold up. The descriptor is held for the call, as its `aeDesc` points into it.
     private static func ghosttyLeave(asking: Bool) async -> GhosttyLeave {
         await Task.detached {
-            let ghostty = NSAppleEventDescriptor(bundleIdentifier: "com.mitchellh.ghostty")
+            let ghostty = NSAppleEventDescriptor(bundleIdentifier: ghosttyID)
 
             return withExtendedLifetime(ghostty) {
                 guard let target = ghostty.aeDesc else {
