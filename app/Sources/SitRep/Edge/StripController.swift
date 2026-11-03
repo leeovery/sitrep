@@ -18,6 +18,8 @@ final class StripController: NSObject {
     var isJumping: () -> Bool = { false }
     /// A drag let the strip go: the settings with its new place.
     var onMoved: (EdgeMove) -> Void = { _ in }
+    /// The pointer over the strip, or a tab out, in a frame: told each frame it is.
+    var onPointedAt: () -> Void = {}
 
     private var settings: EdgeSettings
     private var edge: ScreenEdge
@@ -147,7 +149,15 @@ final class StripController: NSObject {
         }
         surface.draw(run, in: .on(edge, settings), mirror: edge.stripMirror)
         window.takesClicks = frame.pointer.map(frame.hits) ?? false
+        if window.takesClicks {
+            onPointedAt()
+        }
         pace(at: time)
+    }
+
+    /// The strip as it stands, on the screen, for what stands beside it.
+    var resting: CGRect {
+        edge.screenRect(run.frame.strip.boundingBox)
     }
 
     /// Frames run while something moves; otherwise, with a tab out, a frame as its time next changes. Hidden, none.

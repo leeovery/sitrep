@@ -74,6 +74,7 @@ private struct WelcomeColumn: View {
         case .hello: HelloStep()
         case .edge: EdgeStep(welcome: welcome)
         case .sound: SoundStep(welcome: welcome)
+        case .permissions: PermissionsStep(welcome: welcome)
         case .ready: ReadyStep(welcome: welcome)
         }
     }

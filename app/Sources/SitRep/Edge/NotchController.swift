@@ -24,6 +24,8 @@ final class NotchController: NSObject {
     var isJumping: () -> Bool = { false }
     /// A drag let the notch go: the settings with its new place.
     var onMoved: (EdgeMove) -> Void = { _ in }
+    /// The pointer over the notch, or its panel, in a frame: told each frame it is.
+    var onPointedAt: () -> Void = {}
 
     /// How long a your-turn row stays before it folds into "N earlier": the card refolds at once as it changes.
     var period: FoldPeriod {
@@ -200,8 +202,19 @@ final class NotchController: NSObject {
             caption.drained(at: drained)
         }
         surface.draw(run, in: setting, mirror: edge.mirror)
-        window.takesClicks = run.drag != nil || (pointer.map(frame.hits) ?? false)
+
+        let isPointedAt = pointer.map(frame.hits) ?? false
+
+        window.takesClicks = run.drag != nil || isPointedAt
+        if isPointedAt {
+            onPointedAt()
+        }
         pace(at: time)
+    }
+
+    /// The notch at rest at its home, on the screen, for what stands beside it.
+    var resting: CGRect {
+        edge.screenRect(run.restingOutline(at: run.notchY).boundingBox)
     }
 
     private func drawLight(at time: Double) {

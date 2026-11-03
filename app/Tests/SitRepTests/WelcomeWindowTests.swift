@@ -6,13 +6,15 @@ import SitRepEdge
 import SitRepLines
 import SitRepMenu
 import SitRepPanel
+import SitRepRelay
 import SwiftUI
 import Testing
 
-/// The welcome window, made, never shown, over a Mac of its own: nothing is registered with macOS, copied or played.
+/// The welcome window, made, never shown, over a Mac of its own: nothing is registered with macOS, asked of it, opened,
+/// copied or played.
 @MainActor
 struct WelcomeWindowTests {
-    /// What the welcome asked of the Mac, and the login item as macOS would say it.
+    /// What the welcome asked of the Mac, and the login item and the leaves as macOS would say them.
     @MainActor
     final class Mac {
         var login = LoginItem(.notRegistered)
@@ -22,20 +24,83 @@ struct WelcomeWindowTests {
         var stops = 0
         var copies: [String] = []
         var opened: [Leaves.Place] = []
+        /// What macOS says of notifications, and what Lee answers its prompt.
+        var notices: NoticeLeave? = .unasked
+        var answersNotices = NoticeLeave.allowed(.banners)
+        var asksForNotices = 0
+        /// While set, macOS's prompt waits on Lee until `answer` is called.
+        var holdsPrompt = false
+        private var prompt: CheckedContinuation<Void, Never>?
+        /// Whether SitRep may control Ghostty, what Lee answers its prompt, and whether Ghostty runs as it is asked.
+        var ghostty = GhosttyLeave.unknown
+        var answersGhostty = GhosttyLeave.allowed
+        var allows: [Bool] = []
+        var ghosttyRuns = false
+        var opensGhostty = 0
+        /// The waits begun on a prompt; while `holdsWait` is set, each held until `waitEnds` is called, else over at
+        /// once.
+        var waits: [Duration] = []
+        var holdsWait = false
+        private var waiting: CheckedContinuation<Void, Never>?
 
         /// Choosing the login item flips it, as `Leaves.chooseLogin` does; waiting on Lee's approval, it opens Login
-        /// Items and changes nothing.
+        /// Items and changes nothing. Asked, macOS takes Lee's answer, once he gives it while the prompt is held;
+        /// macOS can say of Ghostty only while it runs.
         func services() -> SettingsServices {
             SettingsServices(
                 displays: { [] }, hasGlass: true, jump: { _ in }, sendTest: {}, copy: { self.copies.append($0) },
                 sounds: AlertSounds(
                     names: AlertSounds.live.names, play: { self.played.append($0) }, stop: { self.stops += 1 }
                 ),
-                noticeLeave: { nil }, askForNotices: {},
+                noticeLeave: { self.notices },
+                askForNotices: {
+                    self.asksForNotices += 1
+                    if self.holdsPrompt {
+                        await withCheckedContinuation { self.prompt = $0 }
+                    }
+                    self.notices = self.answersNotices
+                },
                 login: { self.login },
                 chooseLogin: { self.choose() },
-                ghostty: { .unknown }, allowGhostty: { .unknown }, open: { self.opened.append($0) }
+                ghostty: { self.ghostty },
+                allowGhostty: {
+                    self.allows.append(self.ghosttyRuns)
+                    if self.holdsPrompt {
+                        await withCheckedContinuation { self.prompt = $0 }
+                    }
+                    self.ghostty = self.ghosttyRuns ? self.answersGhostty : .unknown
+                    return self.ghostty
+                },
+                open: { self.opened.append($0) }
             )
+        }
+
+        func welcome() -> WelcomeMac {
+            WelcomeMac(
+                ghosttyRuns: { self.ghosttyRuns },
+                openGhostty: {
+                    self.opensGhostty += 1
+                    self.ghosttyRuns = true
+                },
+                wait: { duration in
+                    self.waits.append(duration)
+                    if self.holdsWait {
+                        await withCheckedContinuation { self.waiting = $0 }
+                    }
+                }
+            )
+        }
+
+        /// Lee answers macOS's prompt.
+        func answer() {
+            prompt?.resume()
+            prompt = nil
+        }
+
+        /// The wait on a prompt runs out.
+        func waitEnds() {
+            waiting?.resume()
+            waiting = nil
         }
 
         private func choose() {
@@ -52,29 +117,43 @@ struct WelcomeWindowTests {
         }
     }
 
-    /// The welcome, its window's frame a recorded one, which never orders front.
+    /// The welcome, its window's frame a recorded one, which never orders front; shown, unless made for SitRep's first
+    /// start, over defaults of its own unless given some.
     @MainActor
-    private struct Made {
+    struct Made {
         let mac = Mac()
         let preferences: Preferences
         let welcome: WelcomeModel
         let window: WelcomeWindow
         let recorded = RecordedWindow.made()
 
-        init(welcomed: Bool = false, plugin: PluginStanding? = nil, login: LoginItem = LoginItem(.notRegistered)) {
+        init(
+            welcomed: Bool = false, plugin: PluginStanding? = nil, login: LoginItem = LoginItem(.notRegistered),
+            defaults: UserDefaults = MemoryDefaults(), shows: Bool = true
+        ) {
             let live = LiveBoard()
 
             live.plugin = plugin
             mac.login = login
-            preferences = Preferences(MemoryDefaults())
-            preferences.welcomed = welcomed
-            welcome = WelcomeModel(preferences: preferences, live: live, services: mac.services())
+            preferences = Preferences(defaults)
+            if welcomed {
+                preferences.welcomed = true
+            }
+            welcome = WelcomeModel(preferences: preferences, live: live, services: mac.services(), mac: mac.welcome())
             let recorded = recorded
             window = WelcomeWindow(welcome: welcome) { content in
                 recorded.contentViewController = content
                 return recorded
             }
-            window.show()
+            if shows {
+                window.show()
+            }
+        }
+
+        /// The window come forward, as AppKit tells its delegate, and what it read then read.
+        func key() async {
+            window.windowDidBecomeKey(Notification(name: NSWindow.didBecomeKeyNotification))
+            await welcome.reading?.value
         }
 
         /// The welcome at this step, from its first.
@@ -168,8 +247,8 @@ struct WelcomeWindowTests {
         let made = Made()
         let dashes = try Self.footer(made).filter { $0.lowerBound > 60 && $0.upperBound < 200 }
 
-        #expect(dashes.count == 4)
-        #expect(zip(dashes.map(Self.width), [22.0, 10, 10, 10]).allSatisfy { abs($0 - $1) <= 0.5 })
+        #expect(dashes.count == WelcomeSteps.all.count)
+        #expect(zip(dashes.map(Self.width), [22.0, 10, 10, 10, 10]).allSatisfy { abs($0 - $1) <= 0.5 })
     }
 
     @Test func continueGoesOnAndDoneClosesTheWindow() {
@@ -304,7 +383,9 @@ struct WelcomeWindowTests {
         let mac = Mac(), preferences = Preferences(MemoryDefaults())
         var made = 0
         let window = WelcomeWindow(
-            welcome: WelcomeModel(preferences: preferences, live: LiveBoard(), services: mac.services())
+            welcome: WelcomeModel(
+                preferences: preferences, live: LiveBoard(), services: mac.services(), mac: mac.welcome()
+            )
         ) { content in
             made += 1
             return RecordedWindow.made()
@@ -526,7 +607,7 @@ struct WelcomeWindowTests {
         #expect(stage.scale == StageEdge.loopScale)
         #expect(stage.edge.frame.size == CGSize(width: size.width / 0.7, height: size.height / 0.7))
         #expect(abs(stage.edge.stage.notchY * stage.scale - StageEdge.loopNotchY) < 1e-9)
-        for step in [WelcomeStep.edge, .sound, .ready] {
+        for step in [WelcomeStep.edge, .sound, .permissions, .ready] {
             made.at(step)
             _ = await made.settled()
             #expect(stage.scale == StageEdge.stillScale, "\(step)")

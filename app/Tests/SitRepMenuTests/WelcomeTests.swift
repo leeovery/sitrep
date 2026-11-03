@@ -6,23 +6,28 @@ import SitRepEdge
 import SitRepLines
 import SitRepMenu
 import SitRepPanel
+import SitRepRelay
 import Testing
 
 /// The welcome's steps and its footer at each (DESIGN, "The welcome window").
 struct WelcomeStepsTests {
-    @Test func itRunsHelloYourEdgeItsSoundThenReady() {
-        #expect(WelcomeSteps().steps == [.hello, .edge, .sound, .ready])
+    /// What it asks of macOS comes last but for Ready, once Lee has seen what each leave is for.
+    @Test func itRunsHelloYourEdgeItsSoundWhatItAsksOfMacOSThenReady() {
+        #expect(WelcomeSteps().steps == [.hello, .edge, .sound, .permissions, .ready])
     }
 
+    /// The notch lit at What it asks of macOS, as for needs you, the banner it asks for beside it.
     @Test func eachStepPlaysItsOwnStage() {
-        #expect(WelcomeSteps.all.map(\.stage) == [.loop, .lit, .chime, .callout])
+        #expect(WelcomeSteps.all.map(\.stage) == [.loop, .lit, .chime, .lit, .callout])
     }
 
     @Test func eachHeadlineIsPapers() {
         #expect(WelcomeSteps.all.map(\.headline) == [
             "Every session, at the edge of your screen.", "Choose what sits at your edge.",
-            "Hear it when Claude needs you.", "You're set. One thing in Claude Code.",
+            "Hear it when Claude needs you.", "Two things to allow, both optional.",
+            "You're set. One thing in Claude Code.",
         ])
+        #expect(WelcomeStep.permissions.paragraph == "SitRep works without either. Each one turns on one thing.")
     }
 
     @Test func backAndContinueStopAtEitherEnd() {
@@ -30,7 +35,7 @@ struct WelcomeStepsTests {
 
         steps.back()
         #expect(steps.current == .hello)
-        for _ in 0 ..< 5 {
+        for _ in 0 ..< 6 {
             steps.next()
         }
         #expect(steps.current == .ready && steps.isLast)
@@ -41,7 +46,8 @@ struct WelcomeStepsTests {
     /// The chevron dimmed, the first dash long, Continue reading Show me, and Skip setup there.
     @Test func atTheFirstStepContinueReadsShowMe() {
         #expect(WelcomeSteps().footer == WelcomeFooter(
-            canGoBack: false, dashes: [.current, .ahead, .ahead, .ahead], continueTitle: "Show me", showsSkip: true
+            canGoBack: false, dashes: [.current, .ahead, .ahead, .ahead, .ahead], continueTitle: "Show me",
+            showsSkip: true
         ))
     }
 
@@ -51,7 +57,8 @@ struct WelcomeStepsTests {
         steps.next()
         steps.next()
         #expect(steps.footer == WelcomeFooter(
-            canGoBack: true, dashes: [.done, .done, .current, .ahead], continueTitle: "Continue", showsSkip: true
+            canGoBack: true, dashes: [.done, .done, .current, .ahead, .ahead], continueTitle: "Continue",
+            showsSkip: true
         ))
     }
 
@@ -59,11 +66,11 @@ struct WelcomeStepsTests {
     @Test func atTheLastStepItReadsDoneAndSkipSetupGoes() {
         var steps = WelcomeSteps()
 
-        steps.next()
-        steps.next()
-        steps.next()
+        for _ in 0 ..< 4 {
+            steps.next()
+        }
         #expect(steps.footer == WelcomeFooter(
-            canGoBack: true, dashes: [.done, .done, .done, .current], continueTitle: "Done", showsSkip: false
+            canGoBack: true, dashes: [.done, .done, .done, .done, .current], continueTitle: "Done", showsSkip: false
         ))
     }
 
@@ -94,6 +101,75 @@ struct WelcomeSettingsTests {
         let saved = try JSONDecoder().decode(WelcomeSettings.self, from: Data(#"{"other": 1}"#.utf8))
 
         #expect(saved == WelcomeSettings())
+    }
+}
+
+/// The callout beside the real edge: due only as Done closes a welcome, and gone for good at the first hover.
+struct CalloutSettingsTests {
+    private static func after(_ moves: (inout CalloutSettings) -> Void) -> CalloutSettings.Standing {
+        var callout = CalloutSettings()
+
+        moves(&callout)
+        return callout.standing
+    }
+
+    @Test func itShowsOnlyOnceDoneHasClosedAWelcome() {
+        #expect(!CalloutSettings().shows)
+        #expect(Self.after { $0.done() } == .due)
+        #expect(CalloutSettings(.due).shows)
+    }
+
+    @Test func theFirstHoverTakesItAwayForGood() {
+        #expect(Self.after { $0.done(); $0.pointedAt() } == .gone)
+        #expect(Self.after { $0.done(); $0.pointedAt(); $0.done() } == .gone)
+    }
+
+    /// Pointed at before any Done, there is nothing to take away: the next Done still shows it.
+    @Test func aHoverBeforeDoneLeavesItToShow() {
+        #expect(Self.after { $0.pointedAt(); $0.done() } == .due)
+    }
+
+    /// Apart from what Lee sets, as whether a welcome has closed is.
+    @Test func itIsKeptUnderAKeyOfItsOwn() throws {
+        let defaults = MemoryDefaults()
+
+        SavedSettings<CalloutSettings>(defaults).save(CalloutSettings(.gone))
+        #expect(SavedSettings<CalloutSettings>(defaults).read().standing == .gone)
+        #expect(defaults.data(forKey: "callout") != nil)
+        #expect(defaults.data(forKey: AppSettings.key) == nil && defaults.data(forKey: WelcomeSettings.key) == nil)
+        #expect(try JSONDecoder().decode(CalloutSettings.self, from: Data(#"{"other": 1}"#.utf8)) == CalloutSettings())
+    }
+}
+
+/// Step 5's rows, and where each stands as macOS says.
+struct WelcomePermissionTests {
+    @Test func eachRowHasItsReasonInOneClauseAndAButtonNamedForWhatItDoes() {
+        #expect(WelcomePermission.allCases.map(\.title) == ["Notifications", "Control Ghostty"])
+        #expect(WelcomePermission.allCases.map(\.reason) == [
+            "So an ask reaches you when the edge is out of sight", "So a click takes you to the session's window",
+        ])
+        #expect(WelcomePermission.allCases.map(\.ask) == ["Turn On…", "Allow…"])
+        #expect(WelcomePermission.patience == .seconds(10))
+    }
+
+    /// On only with the switch on and macOS showing them; refused while macOS shows none, whatever the switch.
+    @Test func notificationsStandAsMacOSAndTheSwitchSay() {
+        #expect(WelcomeLeave.notifications(nil, isOn: true) == .toAsk)
+        #expect(WelcomeLeave.notifications(.unasked, isOn: true) == .toAsk)
+        #expect(WelcomeLeave.notifications(.allowed(.banners), isOn: false) == .toAsk)
+        #expect(WelcomeLeave.notifications(.allowed(.banners), isOn: true) == .on)
+        #expect(WelcomeLeave.notifications(.allowed(.alerts), isOn: true) == .on)
+        #expect(WelcomeLeave.notifications(.provisional, isOn: true) == .on)
+        #expect(WelcomeLeave.notifications(.denied, isOn: false) == .refused)
+        #expect(WelcomeLeave.notifications(.allowed(.none), isOn: true) == .refused)
+    }
+
+    /// One macOS can't say of, as Ghostty isn't running, is to ask: Allow… opens Ghostty first.
+    @Test func ghosttyStandsAsMacOSSays() {
+        #expect(WelcomeLeave.ghostty(.allowed) == .on)
+        #expect(WelcomeLeave.ghostty(.denied) == .refused)
+        #expect([GhosttyLeave.unasked, .unknown].map(WelcomeLeave.ghostty) == [.toAsk, .toAsk])
+        #expect(WelcomeLeave.ghostty(nil) == .toAsk)
     }
 }
 
@@ -273,11 +349,21 @@ struct WelcomePlaybackTests {
 
     @Test func theFourRowsInTheirOrder() {
         let rows = WelcomePlayback.rows(
-            edge: EdgeSettings(), app: AppSettings(), sound: "Glass", login: LoginItem(.enabled)
+            edge: EdgeSettings(), app: AppSettings(), sound: "Glass", login: LoginItem(.enabled), ghostty: .on
         )
 
         #expect(rows.map(\.label) == ["At the edge", "A new ask", "At login", "A click"])
-        #expect(rows.map(\.words) == ["Meniscus notch, left", "Glass", "Opens SitRep", "Opens Ghostty"])
+        #expect(rows.map(\.words) == ["Meniscus notch, left", "Glass", "Opens SitRep", "Opens the session's window"])
+    }
+
+    /// Without the leave a click brings Ghostty forward, to none of its windows: step 5's Allow… in place, or once
+    /// refused, the way to Automation.
+    @Test func aClickHasStepFivesAskInPlaceWhileGhosttysLeaveIsntGranted() {
+        #expect(WelcomePlayback.aClick(.on) == .init(label: "A click", words: "Opens the session's window", fix: nil))
+        #expect(WelcomePlayback.aClick(.toAsk) == .init(label: "A click", words: "Opens Ghostty", fix: .allowGhostty))
+        #expect(WelcomePlayback.aClick(.asking(waitedLong: false)).fix == .allowGhostty)
+        #expect(WelcomePlayback.aClick(.refused) == .init(label: "A click", words: "Opens Ghostty", fix: .automation))
+        #expect(WelcomePlayback.Fix.allowGhostty.title == "Allow…")
     }
 }
 

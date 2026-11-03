@@ -263,6 +263,172 @@ private struct LoginCard: View {
     }
 }
 
+/// Step 5, What it asks of macOS: Notifications and Control Ghostty, each with its reason and its state, then the aside
+/// on Allow… and the way back from a refusal. Neither holds Continue back.
+struct PermissionsStep: View {
+    let welcome: WelcomeModel
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 18) {
+            StepWords(step: .permissions)
+            WelcomeCard(inset: 12) {
+                ForEach(Array(WelcomePermission.allCases.enumerated()), id: \.offset) { place, permission in
+                    if place > 0 {
+                        Hairline()
+                    }
+                    PermissionRow(permission: permission, leave: welcome.leave(permission)) {
+                        welcome.press(permission)
+                    }
+                }
+            }
+            HStack(alignment: .top, spacing: 8) {
+                Image(systemName: "info.circle")
+                    .font(.system(size: 11))
+                    .foregroundStyle(WelcomeStyle.faint)
+                    .padding(.top, 2)
+                    .accessibilityHidden(true)
+                Text(
+                    "Allow… opens Ghostty if it isn't running: macOS only asks while it is. Refused? A button here "
+                        + "opens the right page of System Settings."
+                )
+                .font(.system(size: 11))
+                .lineSpacing(2)
+                .foregroundStyle(WelcomeStyle.soft)
+                .fixedSize(horizontal: false, vertical: true)
+            }
+            .padding(.horizontal, 2)
+        }
+        .padding(.top, 36)
+    }
+}
+
+/// A leave's row: its icon, its name over its reason, and where it stands. To ask, a button named for what it does;
+/// asking, a spinner, then where macOS put its prompt under the reason; on, a green check; refused, Open System
+/// Settings… under the reason, as the column has no room for it beside the words.
+private struct PermissionRow: View {
+    let permission: WelcomePermission
+    let leave: WelcomeLeave
+    let press: () -> Void
+
+    var body: some View {
+        HStack(alignment: .center, spacing: 12) {
+            PermissionIcon(permission: permission)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(permission.title)
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundStyle(WelcomeStyle.text)
+                Text(permission.reason)
+                    .font(.system(size: 11))
+                    .foregroundStyle(WelcomeStyle.soft)
+                if leave == .asking(waitedLong: true) {
+                    Text(permission.whereAsked)
+                        .font(.system(size: 11))
+                        .foregroundStyle(WelcomeStyle.text)
+                        .padding(.top, 2)
+                }
+                if leave == .refused {
+                    PermissionButton(title: "Open System Settings…", action: press).padding(.top, 6)
+                }
+            }
+            .fixedSize(horizontal: false, vertical: true)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            side
+        }
+        .padding(.vertical, 12)
+        .accessibilityElement(children: .contain)
+    }
+
+    @ViewBuilder private var side: some View {
+        switch leave {
+        case .toAsk:
+            PermissionButton(title: permission.ask, action: press)
+        case .asking:
+            ProgressView()
+                .controlSize(.small)
+                .accessibilityLabel("Waiting on macOS")
+        case .on:
+            HStack(spacing: 5) {
+                Image(systemName: "checkmark.circle.fill")
+                    .font(.system(size: 14))
+                    .foregroundStyle(.white, Color(hex: 0x30D158))
+                    .accessibilityHidden(true)
+                Text("On").font(.system(size: 12)).foregroundStyle(WelcomeStyle.text)
+            }
+        case .refused:
+            EmptyView()
+        }
+    }
+}
+
+/// A row's button, as Paper draws it: SitRep's own, never macOS's dialog's.
+private struct PermissionButton: View {
+    let title: String
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Text(title)
+                .font(.system(size: 12, weight: .medium))
+                .foregroundStyle(WelcomeStyle.text)
+                .padding(.horizontal, 10)
+                .frame(height: 24)
+                .background(.white.opacity(0x24 / 255), in: .rect(cornerRadius: 6))
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .fixedSize()
+    }
+}
+
+/// Notifications' red tile and its bell; Ghostty's dark one and its prompt.
+private struct PermissionIcon: View {
+    let permission: WelcomePermission
+
+    var body: some View {
+        let shape = RoundedRectangle(cornerRadius: 7, style: .continuous)
+
+        Group {
+            switch permission {
+            case .notifications:
+                Image(systemName: "bell.fill")
+                    .font(.system(size: 13))
+                    .foregroundStyle(.white)
+                    .frame(width: 28, height: 28)
+                    .background(Color(hex: 0xFF3B30), in: shape)
+            case .ghostty:
+                Prompt()
+                    .stroke(WelcomeStyle.text, style: StrokeStyle(lineWidth: 1.5, lineCap: .round, lineJoin: .round))
+                    .frame(width: 14, height: 12)
+                    .frame(width: 28, height: 28)
+                    .background(
+                        LinearGradient(
+                            colors: [Color(hex: 0x2B2D33), Color(hex: 0x121316)], startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        ),
+                        in: shape
+                    )
+                    .overlay(shape.strokeBorder(.white.opacity(0x1F / 255), lineWidth: 1))
+            }
+        }
+        .accessibilityHidden(true)
+    }
+
+    /// A shell's prompt, `>_`, as Paper draws it in a box of 14 by 12.
+    private struct Prompt: Shape {
+        func path(in rect: CGRect) -> Path {
+            var path = Path()
+            let x = rect.width / 14, y = rect.height / 12
+
+            path.move(to: CGPoint(x: 2 * x, y: 2.5 * y))
+            path.addLine(to: CGPoint(x: 5.5 * x, y: 6 * y))
+            path.addLine(to: CGPoint(x: 2 * x, y: 9.5 * y))
+            path.move(to: CGPoint(x: 7.5 * x, y: 9.5 * y))
+            path.addLine(to: CGPoint(x: 12 * x, y: 9.5 * y))
+            return path
+        }
+    }
+}
+
 /// Step 6, Ready, and what's left: `/reload-plugins` with Copy, or where the plugin's first install failed, what
 /// failed; then Lee's choices played back.
 struct ReadyStep: View {

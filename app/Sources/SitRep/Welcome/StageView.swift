@@ -6,7 +6,8 @@ import SwiftUI
 /// The stage: a small desktop, drawn as in Paper, its menu bar holding Ghostty's menus, SitRep's item lit and the time
 /// now; a Ghostty window with Claude Code's ask in it, on the side away from the edge; and SitRep's own edge
 /// (`StageEdge`) down the edge Lee chose. At the sound's step, while SitRep opens at login, macOS's "Background Items
-/// Added" shows as it will come; at the last, the callout stands beside the notch.
+/// Added" shows as it will come; at the step asking for notifications, a new ask's banner; at the last, the callout
+/// stands beside the notch.
 struct StageView: View {
     let welcome: WelcomeModel
     let edge: StageEdge
@@ -39,13 +40,13 @@ struct StageView: View {
         .accessibilityAddTraits(.isImage)
     }
 
-    /// macOS's notice while this visit's registration is the one it tells of; the callout where the stage places it.
+    /// macOS's notice while this visit's registration is the one it tells of; a new ask's banner as it will come, at
+    /// the step that asks for them; the callout where the stage places it.
     @ViewBuilder private var overlays: some View {
         if welcome.step == .sound, welcome.login.isOn, welcome.announcesNotice {
-            BackgroundItemsNotice()
-                .padding(.top, 28)
-                .padding(.trailing, 10)
-                .frame(maxWidth: .infinity, alignment: .trailing)
+            Self.corner(StageNotice.backgroundItems)
+        } else if welcome.step == .permissions {
+            Self.corner(StageNotice.newAsk)
         } else if welcome.step == .ready {
             let place = edge.callout.place
 
@@ -56,6 +57,14 @@ struct StageView: View {
                 .frame(maxWidth: .infinity, alignment: place.isRight ? .trailing : .leading)
                 .frame(height: place.middle * 2)
         }
+    }
+
+    /// A notice where macOS puts one, under the menu bar at the desktop's right.
+    private static func corner(_ notice: StageNotice) -> some View {
+        notice
+            .padding(.top, 28)
+            .padding(.trailing, 10)
+            .frame(maxWidth: .infinity, alignment: .trailing)
     }
 }
 
@@ -138,16 +147,28 @@ private struct GhosttyWindow: View {
     }
 }
 
-/// macOS's notice as SitRep registers to open at login, as it will come (Paper's board D).
-private struct BackgroundItemsNotice: View {
+/// A notice on the stage's desktop as it will come, SitRep's icon beside it: macOS's as SitRep registers to open at
+/// login (Paper's board D), or a new ask's banner (board E).
+private struct StageNotice: View {
+    let title: String
+    let line: String
+
+    /// macOS's notice as SitRep registers to open at login.
+    static let backgroundItems = StageNotice(
+        title: "Background Items Added",
+        line: "“SitRep” can run in the background. You can manage this in Login Items Settings."
+    )
+    /// A new ask's banner, in placeholder words.
+    static let newAsk = StageNotice(title: Sample.ask, line: Sample.place)
+
     var body: some View {
         HStack(alignment: .top, spacing: 8) {
             Image(nsImage: AppIcon.notice).resizable().frame(width: 22, height: 22)
             VStack(alignment: .leading, spacing: 1) {
-                Text("Background Items Added")
+                Text(title)
                     .font(.system(size: 10, weight: .semibold))
                     .foregroundStyle(WelcomeStyle.text)
-                Text("“SitRep” can run in the background. You can manage this in Login Items Settings.")
+                Text(line)
                     .font(.system(size: 9.5))
                     .foregroundStyle(Color(hex: 0xB8B8BE))
                     .fixedSize(horizontal: false, vertical: true)

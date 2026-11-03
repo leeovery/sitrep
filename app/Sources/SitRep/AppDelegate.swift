@@ -22,7 +22,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private lazy var settings = SettingsWindow(
         settings: SettingsModel(preferences: preferences, live: live, services: services)
     )
-    /// Made as Welcome… first opens it, so SitRep quitting never makes one only to close it.
+    /// Made at the first start, or as Welcome… first opens it; its window only as it first shows, so SitRep quitting
+    /// never makes one only to close it.
     private var welcome: WelcomeWindow?
     private lazy var window = SitRepWindow(
         plugin: plugin, works: works, snoozes: snoozes, following: feed.following, preferences: preferences,
@@ -53,6 +54,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         self.edge = edge
         self.menu = menu
         plugin.start { [unowned self] in settled($0) }
+        welcomeWindow().showAtFirstStart()
     }
 
     /// Each look at the plugin: `watch` started on its folder, again only as the folder moves, and the menu speaking
@@ -81,12 +83,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     /// The welcome at its first step.
     private func openWelcome() {
+        welcomeWindow().show()
+    }
+
+    /// The welcome's window, made as it is first wanted: its NSWindow only as it first opens.
+    private func welcomeWindow() -> WelcomeWindow {
         let welcome = welcome ?? WelcomeWindow(
-            welcome: WelcomeModel(preferences: preferences, live: live, services: welcomeServices())
+            welcome: WelcomeModel(preferences: preferences, live: live, services: welcomeServices(), mac: .live)
         )
 
         self.welcome = welcome
-        welcome.show()
+        return welcome
     }
 
     /// Settings' services, with sounds of the welcome's own, so stopping them never cuts off a new ask's.
