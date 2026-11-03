@@ -6,12 +6,13 @@ import SitRepRelay
 /// A step of the welcome window (DESIGN, "The welcome window"): its headline, the grey paragraph under it, and what
 /// its stage plays.
 public enum WelcomeStep: String, Sendable {
-    case hello, edge, sound, permissions, ready
+    case hello, ask, edge, sound, permissions, ready
 
     /// Two lines at most, in the column's 330.
     public var headline: String {
         switch self {
         case .hello: "Every session, at the edge of your screen."
+        case .ask: "Claude asks. You answer."
         case .edge: "Choose what sits at your edge."
         case .sound: "Hear it when Claude needs you."
         case .permissions: "Two things to allow, both optional."
@@ -24,6 +25,9 @@ public enum WelcomeStep: String, Sendable {
         case .hello:
             "Claude keeps a board as it works. SitRep keeps it beside you, lights up when a session needs you, and "
                 + "takes you to the window it's in."
+        case .ask:
+            "When a session needs you, the notch lights. Open it, pick the ask, and you're in the session's window "
+                + "to answer."
         case .edge: "Watch it change as you choose. It's all in Settings later."
         case .sound: "Once per new ask, whichever session it lands in. Pick one to hear it."
         case .permissions: "SitRep works without either. Each one turns on one thing."
@@ -35,6 +39,7 @@ public enum WelcomeStep: String, Sendable {
     public var stage: WelcomeStage {
         switch self {
         case .hello: .loop
+        case .ask: .answer
         case .edge, .permissions: .lit
         case .sound: .chime
         case .ready: .callout
@@ -42,16 +47,26 @@ public enum WelcomeStep: String, Sendable {
     }
 }
 
-/// What the stage plays for a step: the notch's whole story on a loop; the notch lit, as for needs you; lit, swelling
-/// with each sound chosen; or at rest, with the callout beside it.
+/// What the stage plays for a step: the notch's whole story on a loop; an ask landing and answered in its session, on
+/// a loop; the notch lit, as for needs you; lit, swelling with each sound chosen; or at rest, with the callout beside
+/// it.
 public enum WelcomeStage: Equatable, Sendable {
-    case loop, lit, chime, callout
+    case loop, answer, lit, chime, callout
+
+    /// The loop it plays, if it plays one.
+    public var loop: WelcomeLoop? {
+        switch self {
+        case .loop: .hello
+        case .answer: .ask
+        case .lit, .chime, .callout: nil
+        }
+    }
 }
 
 /// The welcome's steps, in their order, and the one Lee is on. The list is data: a step comes or goes in `all` alone.
 public struct WelcomeSteps: Equatable, Sendable {
     /// Every step, first to last.
-    public static let all: [WelcomeStep] = [.hello, .edge, .sound, .permissions, .ready]
+    public static let all: [WelcomeStep] = [.hello, .ask, .edge, .sound, .permissions, .ready]
 
     public let steps: [WelcomeStep]
     public private(set) var index = 0

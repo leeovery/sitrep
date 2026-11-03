@@ -25,6 +25,47 @@ struct HelloStep: View {
     }
 }
 
+/// Step 2, An ask, from Claude to you: the step's words, then the loop's three moments, each lit as the stage plays
+/// it. Nothing here is pressed: the stage shows it all.
+struct AskStep: View {
+    /// The moment the stage is at, if any.
+    let lit: WelcomeLoop.Moment?
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 26) {
+            StepWords(step: .ask)
+            VStack(alignment: .leading, spacing: 14) {
+                ForEach(WelcomeLoop.Moment.allCases, id: \.self) { moment in
+                    MomentLine(words: moment.words, isLit: moment == lit)
+                }
+            }
+        }
+        .padding(.top, 40)
+    }
+}
+
+/// One of step 2's moments: a dot and its words, in the accent and the label colour while the stage plays it, else
+/// faint.
+private struct MomentLine: View {
+    let words: String
+    let isLit: Bool
+
+    var body: some View {
+        let fade = Animation.easeInOut(duration: 0.3)
+
+        HStack(spacing: 10) {
+            Circle()
+                .animation(fade) { $0.foregroundStyle(isLit ? Color.accentColor : .white.opacity(0x2E / 255)) }
+                .frame(width: 6, height: 6)
+            Text(words)
+                .font(.system(size: 13, weight: .medium))
+                .animation(fade) { $0.foregroundStyle(isLit ? WelcomeStyle.text : WelcomeStyle.faint) }
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityAddTraits(isLit ? .isSelected : [])
+    }
+}
+
 /// Step 3, Your edge: Notch or Strip as Settings' own pictures, the one chosen ringed in the accent, then a grouped
 /// form: Style, or at Strip Length in its place, cross-fading so the form keeps its height; Material, from macOS 26;
 /// and Edge. Each press sets the setting itself.

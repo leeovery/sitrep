@@ -5,7 +5,8 @@ import SwiftUI
 
 /// The stage: a small desktop, drawn as in Paper, its menu bar holding Ghostty's menus, SitRep's item lit and the time
 /// now; a Ghostty window with Claude Code's ask in it, on the side away from the edge; and SitRep's own edge
-/// (`StageEdge`) down the edge Lee chose. At the sound's step, while SitRep opens at login, macOS's "Background Items
+/// (`StageEdge`) down the edge Lee chose. At step 2 the Ghostty window waits behind until the loop's click brings it
+/// forward, and the answer comes into it. At the sound's step, while SitRep opens at login, macOS's "Background Items
 /// Added" shows as it will come; at the step asking for notifications, a new ask's banner; at the last, the callout
 /// stands beside the notch.
 struct StageView: View {
@@ -27,7 +28,7 @@ struct StageView: View {
                 startPoint: .top, endPoint: .bottom
             )
             StageMenuBar()
-            GhosttyWindow()
+            GhosttyWindow(session: session)
                 .offset(x: isRight ? WelcomeStyle.stage.width - 178 - GhosttyWindow.size.width : 178, y: 58)
             EdgeHost(edge: edge, play: welcome.step.stage, chimes: welcome.chimes)
             overlays
@@ -38,6 +39,12 @@ struct StageView: View {
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("SitRep's edge, on a desktop")
         .accessibilityAddTraits(.isImage)
+    }
+
+    /// The session's window as step 2's loop has it, behind until the click takes Lee to it; at every other step, in
+    /// front with the ask waiting.
+    private var session: WelcomeLoop.Scene {
+        welcome.step == .ask ? edge.scene.now : WelcomeLoop.Scene(isInSession: true)
     }
 
     /// macOS's notice while this visit's registration is the one it tells of; a new ask's banner as it will come, at
@@ -110,15 +117,23 @@ private struct StageMenuBar: View {
     }
 }
 
-/// A Claude Code session in Ghostty, asking, in placeholder words (`Sample`).
+/// A Claude Code session in Ghostty, asking, in placeholder words (`Sample`): behind, dimmed with its traffic lights
+/// grey, as macOS draws a window not in front, until a click on its row brings it forward; then, once answered, the
+/// answer under the ask. Each change cross-fades, and only its colours and fades move, never its place.
 private struct GhosttyWindow: View {
     static let size = CGSize(width: 292, height: 318)
+    private static let lights: [UInt32] = [0xFF5F57, 0xFEBC2E, 0x28C840]
+    private static let fade = Animation.easeInOut(duration: 0.35)
+
+    let session: WelcomeLoop.Scene
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(spacing: 5) {
-                ForEach([0xFF5F57, 0xFEBC2E, 0x28C840], id: \.self) { light in
-                    Circle().fill(Color(hex: UInt32(light))).frame(width: 7, height: 7)
+                ForEach(Self.lights, id: \.self) { light in
+                    Circle()
+                        .animation(Self.fade) { $0.foregroundStyle(Color(hex: session.isInSession ? light : 0x4A4A4E)) }
+                        .frame(width: 7, height: 7)
                 }
                 Text(Sample.terminal)
                     .font(.system(size: 9))
@@ -133,17 +148,22 @@ private struct GhosttyWindow: View {
                 Text("✻ Claude Code").foregroundStyle(WindowStyle.orange)
                 Text(Sample.terminalAsk).foregroundStyle(Color(hex: 0xC8C8CC))
                 Text(Sample.terminalTool).foregroundStyle(WelcomeStyle.faint)
+                Text(Sample.terminalAnswer)
+                    .foregroundStyle(WelcomeStyle.text)
+                    .padding(.top, 4)
+                    .animation(Self.fade) { $0.opacity(session.isAnswered ? 1 : 0) }
             }
             .font(WindowStyle.mono(9))
             .lineLimit(1)
             .padding(.vertical, 10)
             .padding(.horizontal, 12)
+            .animation(Self.fade) { $0.opacity(session.isInSession ? 1 : 0.55) }
             Spacer(minLength: 0)
         }
         .frame(width: Self.size.width, height: Self.size.height)
         .background(Color(hex: 0x19191C))
         .clipShape(.rect(cornerRadius: 8))
-        .shadow(color: .black.opacity(0.3), radius: 15, y: 12)
+        .animation(Self.fade) { $0.shadow(color: .black.opacity(session.isInSession ? 0.3 : 0.15), radius: 15, y: 12) }
     }
 }
 

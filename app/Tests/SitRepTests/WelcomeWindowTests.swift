@@ -24,6 +24,9 @@ struct WelcomeWindowTests {
         var stops = 0
         var copies: [String] = []
         var opened: [Leaves.Place] = []
+        /// Jumps to a session, and test notifications sent.
+        var jumps: [String] = []
+        var tests = 0
         /// What macOS says of notifications, and what Lee answers its prompt.
         var notices: NoticeLeave? = .unasked
         var answersNotices = NoticeLeave.allowed(.banners)
@@ -48,7 +51,8 @@ struct WelcomeWindowTests {
         /// macOS can say of Ghostty only while it runs.
         func services() -> SettingsServices {
             SettingsServices(
-                displays: { [] }, hasGlass: true, jump: { _ in }, sendTest: {}, copy: { self.copies.append($0) },
+                displays: { [] }, hasGlass: true, jump: { self.jumps.append($0) }, sendTest: { self.tests += 1 },
+                copy: { self.copies.append($0) },
                 sounds: AlertSounds(
                     names: AlertSounds.live.names, play: { self.played.append($0) }, stop: { self.stops += 1 }
                 ),
@@ -248,7 +252,8 @@ struct WelcomeWindowTests {
         let dashes = try Self.footer(made).filter { $0.lowerBound > 60 && $0.upperBound < 200 }
 
         #expect(dashes.count == WelcomeSteps.all.count)
-        #expect(zip(dashes.map(Self.width), [22.0, 10, 10, 10, 10]).allSatisfy { abs($0 - $1) <= 0.5 })
+        #expect(dashes.count == 6)
+        #expect(zip(dashes.map(Self.width), [22.0, 10, 10, 10, 10, 10]).allSatisfy { abs($0 - $1) <= 0.5 })
     }
 
     @Test func continueGoesOnAndDoneClosesTheWindow() {
@@ -257,7 +262,7 @@ struct WelcomeWindowTests {
 
         made.welcome.closeWindow = { closes += 1 }
         made.welcome.goOn()
-        #expect(made.welcome.step == .edge)
+        #expect(made.welcome.step == .ask)
         made.at(.ready)
         made.welcome.goOn()
         #expect(closes == 1)
@@ -673,10 +678,10 @@ struct WelcomeWindowTests {
         Self.key(made)
 
         let beat = try #require(stage.beat)
-        let wait = (WelcomeLoop.next(after: stage.loopTime) - stage.loopTime) / 1000
+        let wait = (WelcomeLoop.hello.next(after: stage.loopTime) - stage.loopTime) / 1000
 
         #expect(!stage.isDrawing)
-        #expect(WelcomeLoop.next(after: stage.loopTime) == WelcomeLoop.lands)
+        #expect(WelcomeLoop.hello.next(after: stage.loopTime) == WelcomeLoop.hello.lands)
         #expect(abs(beat.fireDate.timeIntervalSinceNow - wait) < 0.1)
         beat.fire()
         #expect(stage.beat != nil && stage.beat !== beat)
@@ -684,7 +689,7 @@ struct WelcomeWindowTests {
         let time = Displays.now
 
         stage.step(at: time)
-        stage.step(at: time + WelcomeLoop.lands - stage.loopTime)
+        stage.step(at: time + WelcomeLoop.hello.lands - stage.loopTime)
         #expect(stage.isDrawing && stage.beat == nil)
     }
 
@@ -699,8 +704,8 @@ struct WelcomeWindowTests {
         let time = Displays.now
 
         stage.step(at: time)
-        stage.step(at: time + WelcomeLoop.lands - stage.loopTime)
-        Self.settle(stage, from: time + WelcomeLoop.lands)
+        stage.step(at: time + WelcomeLoop.hello.lands - stage.loopTime)
+        Self.settle(stage, from: time + WelcomeLoop.hello.lands)
 
         let beat = try #require(stage.beat)
 
@@ -756,7 +761,7 @@ struct WelcomeWindowTests {
 
         var time = Displays.now
 
-        while stage.row == nil, stage.loopTime < WelcomeLoop.length - 100 {
+        while stage.row == nil, stage.loopTime < WelcomeLoop.hello.length - 100 {
             time += 1000 / 60
             stage.step(at: time)
         }

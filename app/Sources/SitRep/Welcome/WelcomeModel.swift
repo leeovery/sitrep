@@ -130,7 +130,7 @@ final class WelcomeModel {
             }
         case .permissions, .ready:
             readLeaves()
-        case .hello, .edge:
+        case .hello, .ask, .edge:
             break
         }
     }

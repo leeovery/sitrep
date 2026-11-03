@@ -36,7 +36,7 @@ struct WelcomeView: View {
     var body: some View {
         VStack(spacing: 0) {
             HStack(spacing: 0) {
-                WelcomeColumn(welcome: welcome)
+                WelcomeColumn(welcome: welcome, scene: stage.scene)
                     .frame(width: WelcomeStyle.column)
                 StageView(welcome: welcome, edge: stage)
                     .frame(width: WelcomeStyle.stage.width, height: WelcomeStyle.stage.height)
@@ -56,6 +56,8 @@ struct WelcomeView: View {
 /// The left column: under the traffic lights' row, the step's words and its controls.
 private struct WelcomeColumn: View {
     let welcome: WelcomeModel
+    /// Where the stage's loop stands, for step 2's words to light in step with it.
+    let scene: StageScene
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -72,6 +74,7 @@ private struct WelcomeColumn: View {
     @ViewBuilder private var step: some View {
         switch welcome.step {
         case .hello: HelloStep()
+        case .ask: AskStep(lit: scene.now.moment)
         case .edge: EdgeStep(welcome: welcome)
         case .sound: SoundStep(welcome: welcome)
         case .permissions: PermissionsStep(welcome: welcome)
