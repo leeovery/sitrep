@@ -4412,10 +4412,12 @@ style, the sound, open at login) and the permissions. Lee, 2 November 2026:
 flush with the screen's edge, running up to the menu bar, as the real one
 does; the boards first drew it on a band of black.
 - **When it opens:** on its own once, at SitRep's first start on a Mac
-  where it has never shown, beside the plugin's first install (step 9 of
+  where none has closed yet, beside the plugin's first install (step 9 of
   stage 3, under "Stages"), Lee's Mac included, at the build that brings
-  it. However it closes, it never opens on its own again. The menu's
-  Welcome… opens it at its first step at any time.
+  it. However it closes, quitting SitRep included, it never opens on its
+  own again; a crash or a Force Quit while it shows, which close nothing,
+  leave it to open at the next start. The menu's Welcome… opens it at its
+  first step at any time.
 - **One shape for every step:** a window of SitRep's own, 840 by 540, never
   resized, black, at radius 14, opening centred on the Space Lee is on, as
   About SitRep does. The words sit on the left in a column of 330: a
@@ -4546,18 +4548,23 @@ does; the boards first drew it on a band of black.
   - **The callout** stands 14 points past the shape's resting front,
     level with the notch's home, for the notch and the strip alike, as the
     stage shows it; it is placed from where the shape rests, never from a
-    frame still moving. Due while no shape shows (Show at Nothing, or a
-    full-screen app), it waits for one. It never takes a click, and once
-    gone, nothing of it runs on the edge.
+    frame still moving, and placed again as the notch lights or goes dark.
+    Due while no shape shows (Show at Nothing, or a full-screen app), it
+    waits for one. It never takes a click, and only while it is due does
+    the edge tell it of a hover.
   - **Quitting:** a SIGTERM, as `app/quit` sends, quits SitRep as Quit
     SitRep does, so the welcome closes as its close button would, and is
-    done with. A crash leaves it to open again at the next start.
+    done with. A SitRep stuck past three seconds of that, or sent a second
+    SIGTERM, ends anyway, so `app/quit` can always stop it.
   - **Step 5's rows when macOS can't answer:** Ghostty not installed, the
-    row says so and offers nothing; Ghostty not opening, it says so and
-    Allow… stays. Turn On… waits at most a minute for macOS, then reads
-    again, and says when it couldn't get macOS's answer. Step 6's A click
-    shows the same states, a spinner while it asks. "Open System
-    Settings…" for Notifications also turns on Notify me of a new ask.
+    row says so and offers nothing until it is installed; Ghostty not
+    opening, or not answering once open, a line says so and Allow… stays.
+    Turn On… keeps asking while macOS's prompt is up, however long Lee
+    leaves it, and says so only when the notices helper gives no answer.
+    Step 6's A click shows the same states, a spinner while it asks.
+    "Open System Settings…" for Notifications also turns on Notify me of
+    a new ask; while macOS refuses, A new ask's playback promises no
+    notification and carries that fix.
   - **Step 6's A click** with the leave: "Opens the session's window".
 
 ### Settings
