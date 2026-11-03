@@ -5,8 +5,9 @@ import SitRepPanel
 /// The notch's window content, drawn in the material chosen: what it was told last, replayed into a new drawing.
 @MainActor
 final class NotchSurface: EdgeSurface<any NotchDrawing> {
-    private var list: PanelList?
-    private var scene: NotchScene?
+    /// The list and the frame it was last told to draw, each internal only for the tests.
+    private(set) var list: PanelList?
+    private(set) var scene: NotchScene?
     private var light: (placed: Frame.Light, outline: CGPath, colours: LiveLight)?
 
     init() {

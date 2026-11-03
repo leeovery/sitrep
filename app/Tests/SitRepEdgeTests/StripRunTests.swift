@@ -507,4 +507,24 @@ struct StripRunTests {
         #expect(run.note.asOf != nil)
         #expect(run.nextAgeChange(after: now) == nil)
     }
+
+    /// A mark's target is where the layout puts it, at once, half the strip's depth in, while the drawn mark slides
+    /// there through the others' places; none for a session with no mark.
+    @Test func aMarksTargetIsWhereTheLayoutPutsItNeverWhereItIsDrawn() {
+        let run = Self.shown(["a", "b", "c", "d"], Self.settings(.full))
+        var slid = false
+
+        #expect(run.markTarget(of: "sr-none") == nil)
+        run.place(Self.settings(.grows), Self.at(run.time))
+        Self.frames(run, for: 3000, nil) {
+            let target = run.markTarget(of: "sr-d"), drawn = run.frame.marks.first { $0.key == .session("sr-d") }
+
+            #expect(target.map { Double($0.y) } == run.strip.yOf(.session("sr-d")))
+            #expect(target?.x == drawn?.centre.x)
+            slid = slid || target?.y != drawn?.centre.y
+            return !run.frame.isMoving
+        }
+        #expect(slid)
+        #expect(run.markTarget(of: "sr-d") == run.frame.marks.first { $0.key == .session("sr-d") }?.centre)
+    }
 }

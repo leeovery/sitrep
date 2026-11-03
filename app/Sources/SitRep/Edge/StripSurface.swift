@@ -5,7 +5,8 @@ import SitRepPanel
 /// The strip's window content, drawn in the material chosen: the last frame, replayed into a new drawing.
 @MainActor
 final class StripSurface: EdgeSurface<any StripDrawing> {
-    private var scene: StripScene?
+    /// What it was last told to draw: internal only for the tests.
+    private(set) var scene: StripScene?
 
     init() {
         super.init(make: Self.drawing, view: { $0 })

@@ -114,6 +114,11 @@ public final class StripRun: Framed {
         strip.show(board.sessions, new: board.new, reworded: reworded)
     }
 
+    /// Where a session's own mark is going on the strip, while it has a place of its own (`Strip.markTarget`).
+    public func markTarget(of id: String) -> CGPoint? {
+        strip.markTarget(of: id)
+    }
+
     /// Lee's settings for the strip: its length, Max, and where along the edge it sits.
     public func place(_ settings: EdgeSettings, _ moment: Moment) {
         upToNow(moment)
