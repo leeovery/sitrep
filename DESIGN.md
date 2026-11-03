@@ -4500,9 +4500,13 @@ does; the boards first drew it on a band of black.
      and this one, the only row the stage lights is the ask's (Lee, 3
      November 2026, of working rows lit "as if there's an invisible mouse
      moving up through the card"): the unseen pointer rests at the notch's
-     home in the panel's side padding while it pours, steps onto the ask's
-     row at once, and leaves the stage at once, so it never crosses
-     another row. On the strip it rests on the ask's own mark.
+     home in the panel's side padding while it pours and steps onto the
+     ask's row at once. In step 1's loop it then glides off the row at the
+     row's own height, out past the panel's front, so the meniscus closes
+     with its tongue; in this one it leaves with the jump, which drains the
+     panel. It never crosses another row. On the strip it rests on the
+     ask's own mark, where the layout puts it, never a drawn centre still
+     sliding, and with no mark yet there is no pointer at all.
   3. **Your edge:** "Choose what sits at your edge." Notch or Strip as
      Settings' own pictures, at the window's size, the one chosen ringed in
      the accent; under them a grouped form in System Settings' rows: Style,
