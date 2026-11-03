@@ -155,7 +155,7 @@ final class WelcomeModel {
 
     // MARK: Your edge
 
-    /// Notch or Strip, set at once: the stage and the real edge take it.
+    /// Notch, Strip or Nothing, set at once: the stage and the real edge take it.
     func choose(_ show: EdgeSettings.Show) {
         preferences.edit { $0.show = show }
     }

@@ -253,8 +253,8 @@ struct SideFocusTests {
     }
 }
 
-/// The Mac's Keyboard navigation setting, by which a page's buttons take focus.
-private func keyboardNavigation() async -> Bool {
+/// The Mac's Keyboard navigation setting, by which buttons take focus.
+func keyboardNavigation() async -> Bool {
     await MainActor.run { NSApplication.shared.isFullKeyboardAccessEnabled }
 }
 

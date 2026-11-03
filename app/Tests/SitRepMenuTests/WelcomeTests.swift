@@ -48,10 +48,10 @@ struct WelcomeStepsTests {
         #expect(steps.current == .hello && steps.isFirst)
     }
 
-    /// The chevron dimmed, the first of six dashes long, Continue reading Show me, and Skip setup there.
-    @Test func atTheFirstStepContinueReadsShowMe() {
+    /// The chevron dimmed, the first of six dashes long, Continue, and Skip setup there.
+    @Test func atTheFirstStepTheChevronIsDimmed() {
         #expect(WelcomeSteps().footer == WelcomeFooter(
-            canGoBack: false, dashes: [.current] + Array(repeating: .ahead, count: 5), continueTitle: "Show me",
+            canGoBack: false, dashes: [.current] + Array(repeating: .ahead, count: 5), continueTitle: "Continue",
             showsSkip: true
         ))
     }
@@ -325,6 +325,42 @@ struct WelcomeEdgeFormTests {
 
         strip.show = .strip
         #expect(WelcomeEdgeForm.rows(strip, hasGlass: true) == [.length, .material, .edge])
+    }
+
+    /// The notch's rows stay in their place at Nothing, so the form keeps its height, taking no presses.
+    @Test func atNothingTheNotchsRowsStayTakingNoPresses() {
+        var nothing = EdgeSettings()
+
+        nothing.show = .nothing
+        #expect(WelcomeEdgeForm.rows(nothing, hasGlass: true) == [.style, .material, .edge])
+        #expect(!WelcomeEdgeForm.takesPresses(nothing))
+    }
+
+    @Test(arguments: [EdgeSettings.Show.notch, .strip])
+    func eachShapeIsChosenAndTakesPresses(show: EdgeSettings.Show) {
+        var settings = EdgeSettings()
+
+        settings.show = show
+        #expect(WelcomeEdgeForm.chosen(settings) == show)
+        #expect(WelcomeEdgeForm.takesPresses(settings))
+        #expect(WelcomeEdgeForm.under(settings) == .showNothing)
+    }
+
+    /// Neither picture ringed, and the line in Show nothing at the edge's place.
+    @Test func atNothingNeitherShapeIsChosenAndTheLineShows() {
+        var nothing = EdgeSettings()
+
+        nothing.show = .nothing
+        #expect(WelcomeEdgeForm.chosen(nothing) == nil)
+        #expect(WelcomeEdgeForm.under(nothing) == .nothingShown)
+    }
+
+    @Test func underTheFormItSaysWhatItDoes() {
+        #expect(WelcomeEdgeForm.Under.showNothing.words == "Show nothing at the edge")
+        #expect(
+            WelcomeEdgeForm.Under.nothingShown.words
+                == "Only the menu bar's light. Choose Notch or Strip to bring it back."
+        )
     }
 
     @Test func beforeMacOS26ThereIsNoMaterial() {

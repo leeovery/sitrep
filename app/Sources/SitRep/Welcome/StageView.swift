@@ -3,12 +3,12 @@ import SitRepMenu
 import SitRepPanel
 import SwiftUI
 
-/// The stage: a small desktop, drawn as in Paper, its menu bar holding Ghostty's menus, SitRep's item lit and the time
+/// The stage: a small desktop, drawn as in Paper, its menu bar holding Ghostty's menus, SitRep's item and the time
 /// now; a Ghostty window with Claude Code's ask in it, on the side away from the edge; and SitRep's own edge
-/// (`StageEdge`) down the edge Lee chose. At step 2 the Ghostty window waits behind until the loop's click brings it
-/// forward, and the answer comes into it. At the sound's step, while SitRep opens at login, macOS's "Background Items
-/// Added" shows as it will come; at the step asking for notifications, a new ask's banner; at the last, the callout
-/// stands beside the notch.
+/// (`StageEdge`) down the edge Lee chose, or none at Nothing. At step 2 the Ghostty window waits behind until the loop's
+/// click brings it forward, and the answer comes into it. At the sound's step, while SitRep opens at login, macOS's
+/// "Background Items Added" shows as it will come; at the step asking for notifications, a new ask's banner; at the
+/// last, the callout stands beside the notch, where there is one.
 struct StageView: View {
     let welcome: WelcomeModel
     let edge: StageEdge
@@ -27,7 +27,7 @@ struct StageView: View {
                 ],
                 startPoint: .top, endPoint: .bottom
             )
-            StageMenuBar()
+            StageMenuBar(isLit: edge.scene.isItemLit)
             GhosttyWindow(session: session)
                 .offset(x: isRight ? WelcomeStyle.stage.width - 178 - GhosttyWindow.size.width : 178, y: 58)
             EdgeHost(edge: edge, play: welcome.step.stage, chimes: welcome.chimes)
@@ -54,9 +54,7 @@ struct StageView: View {
             Self.corner(StageNotice.backgroundItems)
         } else if welcome.step == .permissions {
             Self.corner(StageNotice.newAsk)
-        } else if welcome.step == .ready {
-            let place = edge.callout.place
-
+        } else if welcome.step == .ready, let place = edge.callout.place {
             // as tall as twice its middle, so centred there
             NotchCallout(isRight: place.isRight)
                 .fixedSize()
@@ -95,17 +93,24 @@ private struct EdgeHost: NSViewRepresentable {
     }
 }
 
-/// The menu bar across the stage's top: Ghostty's menus, then SitRep's item lit, and the time now, a minute at a time.
+/// The menu bar across the stage's top: Ghostty's menus, then SitRep's item, lit or at rest, and the time now, a minute
+/// at a time.
 private struct StageMenuBar: View {
     private static let ink = Color(hex: 0x1D1D1F)
-    private static let glyph = MenuImages.glyph(.lit, ink: NSColor(ink))
+    private static let lit = MenuImages.glyph(.lit, ink: NSColor(ink))
+    private static let rest = MenuImages.glyph(.rest)
+
+    let isLit: Bool
 
     var body: some View {
         HStack(spacing: 12) {
             Text("Ghostty").fontWeight(.bold)
             ForEach(["Shell", "Edit", "View"], id: \.self) { Text($0) }
             Spacer(minLength: 0)
-            Image(nsImage: Self.glyph).resizable().frame(width: 12, height: 12)
+            Image(nsImage: isLit ? Self.lit : Self.rest)
+                .resizable()
+                .foregroundStyle(Self.ink)
+                .frame(width: 12, height: 12)
             TimelineView(.everyMinute) { Text(DesktopCorner.clock($0.date)) }
         }
         .font(.system(size: 9.5))

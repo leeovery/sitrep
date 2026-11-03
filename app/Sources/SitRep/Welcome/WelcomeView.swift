@@ -104,8 +104,8 @@ struct StepWords: View {
     }
 }
 
-/// The footer: the back chevron, dimmed at the first step; a dash for each step, the one Lee is on long and blue;
-/// Skip setup, but at the last step; and Continue ↵, a white pill that Return presses.
+/// The footer: the back chevron, dimmed at the first step, its focus ring a circle; a dash for each step, the one Lee
+/// is on long and blue; Skip setup, but at the last step; and Continue ↵, a white pill that Return presses.
 struct WelcomeFooterView: View {
     let welcome: WelcomeModel
     let footer: WelcomeFooter
@@ -120,6 +120,7 @@ struct WelcomeFooterView: View {
                     .background(Circle().fill(.white.opacity(0x0F / 255)))
             }
             .buttonStyle(.plain)
+            .contentShape(.focusEffect, Circle())
             .opacity(footer.canGoBack ? 1 : 0.35)
             .disabled(!footer.canGoBack)
             .accessibilityLabel("Back")
@@ -164,7 +165,7 @@ private struct Dashes: View {
     }
 }
 
-/// Continue ↵: a white pill, its key cap showing Return, which presses it.
+/// Continue ↵: a white pill, its key cap showing Return, which presses it, and its focus ring a pill.
 private struct ContinuePill: View {
     let title: String
     let action: () -> Void
@@ -188,6 +189,7 @@ private struct ContinuePill: View {
             .background(WelcomeStyle.text, in: Capsule())
         }
         .buttonStyle(.plain)
+        .contentShape(.focusEffect, Capsule())
         .keyboardShortcut(.defaultAction)
     }
 }

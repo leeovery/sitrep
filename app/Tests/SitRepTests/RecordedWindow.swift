@@ -14,6 +14,9 @@ final class RecordedWindow: ForwardWindow {
     var isMinimised = false
     /// Keyed as it orders front, as AppKit does while SitRep is active.
     var keysAsItOrders = false
+    /// Focus given to the first of its key views as it orders front, as AppKit gives it with the Mac's Keyboard
+    /// navigation on, where no view was made its initial first responder.
+    var focusesAsItOrders = false
 
     static func made() -> RecordedWindow {
         let window = RecordedWindow(contentRect: .zero, styleMask: [.titled], backing: .buffered, defer: true)
@@ -34,6 +37,11 @@ final class RecordedWindow: ForwardWindow {
         steps.append(.orderFront(movesToActiveSpace: movesToActiveSpace))
         if keysAsItOrders {
             becomeKey()
+        }
+        if focusesAsItOrders, let content = contentView {
+            content.layoutSubtreeIfNeeded()
+            recalculateKeyViewLoop()
+            selectKeyView(following: content)
         }
     }
 
