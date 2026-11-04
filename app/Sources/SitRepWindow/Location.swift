@@ -171,8 +171,8 @@ public enum Location: Hashable, Codable, Sendable {
     }
 
     /// Where an open of a session from outside the window lands, as "Open in SitRep" on its card or the menu: Needs
-    /// you, its oldest line picked, where it needs Lee; else Your turn or Working, its row picked, under "N earlier"
-    /// as it may be (`PlaceList.folds(_:)`); else, its only lines asleep or none, its session's page pushed over its
+    /// you, its newest line picked, where it needs Lee, by the lines' times and not by core's order of them; else Your
+    /// turn or Working, its row picked, under "N earlier" as it may be (`PlaceList.folds(_:)`); else, its only lines asleep or none, its session's page pushed over its
     /// project's, which `History.land(_:)` makes two steps, so Back goes to the project's page.
     public static func opening(session id: String, on listed: Listed) -> Landing {
         guard listed.hasBoard else {
@@ -184,12 +184,12 @@ public enum Location: Hashable, Codable, Sendable {
 
         let row = listed.rows.first { $0.id == id && $0.section != .snoozed }
         guard let row, let place = Place.allCases.first(where: { $0.section == row.section }),
-              let oldest = row.lines.min(by: { $0.since < $1.since })
+              let newest = row.lines.max(by: { $0.isOlder(than: $1) })
         else {
             return .location(.session(id, from: .project(project)))
         }
 
-        let pick: ListPick = place == .needsYou ? .line(oldest.id) : .session(id)
+        let pick: ListPick = place == .needsYou ? .line(newest.id) : .session(id)
 
         return .location(.place(place, picked: PlaceList(place, in: listed, isFoldOpen: true).selection(of: pick)))
     }
@@ -235,6 +235,13 @@ private extension Selection {
             return self
         }
         return Selection(pick: .line(key), session: session)
+    }
+}
+
+private extension Listed.Line {
+    /// Older than the other, or as old and after it by key, as Needs you orders its lines newest first.
+    func isOlder(than other: Listed.Line) -> Bool {
+        (since, other.id) < (other.since, id)
     }
 }
 

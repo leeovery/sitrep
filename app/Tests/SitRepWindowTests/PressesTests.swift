@@ -54,13 +54,13 @@ struct JumpingTests {
     }
 }
 
-/// A quiet project's row in Projects: it opens its project, as any project's does.
+/// A quiet project's row in the sidebar: it opens its project, as any project's does.
 struct QuietProjectTests {
     @Test func aQuietProjectOpensOnItsSessionsNoneOfThemInAWindow() throws {
         let run = opened()
-        let pick = try #require(run.listed(at: printedAt).projects.first { $0.name == "Kit" }?.pick)
+        let kit = try #require(run.places.projects.first { $0.name == "Kit" })
 
-        run.pick(pick)
+        run.click(.project(kit.id))
         #expect(run.following == ["sr-k7t001"])
 
         let page = try #require(run.page(at: printedAt).project)
@@ -112,14 +112,14 @@ struct OpenedItemsTests {
         let run = opened()
 
         run.toggle(.parked("p1"))
-        run.pick(.project("sitrep"))
+        run.click(.project("sitrep"))
         #expect(try #require(run.page(at: printedAt).project).opened.isEmpty)
     }
 
     @Test func aProjectsPageOpensItsItemsToo() throws {
         let run = opened()
 
-        run.pick(.project("sitrep"))
+        run.click(.project("sitrep"))
         run.toggle(.parked("sr-macapp:p1"))
         #expect(try #require(run.page(at: printedAt).project).opened == [.parked("sr-macapp:p1")])
     }

@@ -6,10 +6,11 @@ import SitRepLines
 import SwiftUI
 import Testing
 
-/// The SitRep window's key states, drawn offscreen over what the real CLI printed, as Paper's drawing has them: the
-/// session, a permission prompt, an away session and its finish, a project, and the moments of an answer and of a
-/// board changing under Lee; a session's long name, and the window as narrow as it goes; the sidebar with a section
-/// folded, filtered, and a filter that keeps nothing; and the sidebar as the window itself lays it out. Each draws whole
+/// The SitRep window's key states, drawn offscreen over what the real CLI printed, as Paper's drawing has them: a line
+/// of Needs you and its session beside it, a permission prompt, an away session and its finish, a project, a session
+/// pushed from it, and the moments of an answer and of a board changing under Lee; a session's long name, and the
+/// window as narrow as it goes; Your turn, Working, the asks asleep opened, filtered, and a filter that keeps nothing;
+/// and the sidebar as the window itself lays it out. Each draws whole
 /// at the window's size, or at its narrowest.
 /// With `SITREP_WINDOW_STILLS` naming a folder, each is kept there as a PNG, to read beside the drawing; nothing opens
 /// on the screen.
@@ -93,7 +94,10 @@ struct WindowStillsTests {
         case longTitleNarrow = "e2-a-long-title-narrow"
         case narrow = "e3-the-mac-app-narrow"
         case projectNarrow = "e4-a-project-narrow"
-        case folded = "f1-a-section-folded"
+        case sessionFromProject = "b4-a-session-from-its-project"
+        case yourTurn = "f1-your-turn"
+        case working = "f3-working"
+        case snoozedOpen = "f5-snoozed-opened"
         case filtered = "f2-filtered"
         case noMatch = "f4-no-match"
 
@@ -108,11 +112,11 @@ struct WindowStillsTests {
         /// The window's run in the state, and the time it is drawn at.
         func run() -> (WindowRun, Date) {
             let now = printed
-            let run = Self.opened(self == .longTitle || self == .longTitleNarrow ? Self.longName : Lines.watch[0])
+            let run = Self.opened(Self.line(of: self))
 
             switch self {
             case .session, .longTitle, .longTitleNarrow, .narrow:
-                break
+                Self.pick(.session("sr-macapp"), in: run, on: Self.line(of: self))
             case .permission:
                 Self.pick(.session("sr-dash02"), in: run)
             case .away:
@@ -155,15 +159,31 @@ struct WindowStillsTests {
             case .projectOfOne:
                 Self.pick(.project("sitrep"), in: run)
                 run.toggle(.note("sr-macapp:n2"))
-            case .folded:
-                run.toggle(.section(.needsYou))
+            case .sessionFromProject:
                 Self.pick(.project("switchboard"), in: run)
+                run.go(to: .session("sr-rq7dgr", from: .project("switchboard")), by: .projectSession)
+                Self.take(in: run, on: Lines.watch[0])
+            case .yourTurn:
+                run.click(.place(.yourTurn))
+            case .working:
+                run.click(.place(.working))
+            case .snoozedOpen:
+                run.toggleFold(of: .needsYou)
             case .filtered:
                 run.filter = Filter("switchboard")
             case .noMatch:
                 run.filter = Filter("ledgr")
             }
             return (run, now)
+        }
+
+        /// The line the state is drawn on: `watch`'s first, the Mac app's name long, or with asks asleep.
+        private static func line(of still: Still) -> String {
+            switch still {
+            case .longTitle, .longTitleNarrow: longName
+            case .snoozedOpen: Lines.snoozed[0]
+            default: Lines.watch[0]
+            }
         }
 
         private static func opened(_ line: String) -> WindowRun {
@@ -175,11 +195,15 @@ struct WindowStillsTests {
             return run
         }
 
-        /// Picked on the line given, `watch`'s first unless another, which then carries the boards it follows.
+        /// Landed on a session, as Open in SitRep lands, or on a project's page, as its row in the sidebar opens it,
+        /// on the line given, `watch`'s first unless another, which then carries the boards it follows.
         private static func pick(
             _ pick: Pick, in run: WindowRun, on line: String = Lines.watch[0], boards given: [String: String] = [:]
         ) {
-            run.pick(pick)
+            switch pick {
+            case let .session(session): run.land(session)
+            case let .project(project): run.click(.project(project))
+            }
             take(in: run, on: line, boards: given)
         }
 

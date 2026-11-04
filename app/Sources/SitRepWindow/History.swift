@@ -56,18 +56,40 @@ public struct History: Equatable, Sendable {
     }
 
     /// Where an open of a session from outside lands, as Lee would go there himself: a session's page pushed over its
-    /// project's is two steps, the project's page and then the session's, so Back goes to the project's page. Whether
-    /// it landed: a landing awaiting a board is tried again once one is heard.
+    /// project's is two steps, the project's page and then the session's, so Back goes to the project's page; but
+    /// where the window is on that page, or on the session's already, no step is made for it, as going where the
+    /// window is makes none. Whether it landed: a landing awaiting a board is tried again once one is heard.
     @discardableResult
     public mutating func land(_ landing: Landing) -> Bool {
         guard case let .location(location) = landing else {
             return false
         }
 
-        if case let .session(_, root) = location {
+        if case let .session(_, root) = location, self.location != location {
             go(to: root.location, by: .outside)
         }
         go(to: location, by: .outside)
+        return true
+    }
+
+    /// Where an open of a session from outside lands, the window opening afresh onto it: there, with no step back to
+    /// where the window would have opened, which Lee never saw; but a session's page is pushed over its project's, as
+    /// `land(_:)` pushes it, so Back goes to the project's page. Whether it landed.
+    @discardableResult
+    public mutating func open(onto landing: Landing) -> Bool {
+        guard case let .location(location) = landing else {
+            return false
+        }
+
+        back = []
+        forward = []
+        isOpenedOnABoard = true
+        if case let .session(_, root) = location {
+            self.location = root.location
+            go(to: location, by: .outside)
+        } else {
+            self.location = location
+        }
         return true
     }
 

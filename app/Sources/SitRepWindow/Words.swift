@@ -148,13 +148,13 @@ public enum Words {
         "\(count) resolved"
     }
 
-    /// The heading over every project, at the foot of the sidebar's list.
+    /// The heading over every project, in the sidebar under the places.
     public static let projects = "Projects"
 
     /// The Filter field's placeholder.
     public static let filter = "Filter"
 
-    /// The sidebar's one line in its list's place where the filter keeps nothing, the field's text in the quotes.
+    /// The list's one line in its place where the filter keeps nothing, the field's text in the quotes.
     public static func noMatch(_ filter: Filter) -> String {
         "No sessions match “\(filter.text.trimmingCharacters(in: .whitespacesAndNewlines))”"
     }

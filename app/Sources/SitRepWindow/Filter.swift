@@ -1,8 +1,9 @@
 import Foundation
 
-/// What Lee types in the sidebar's Filter field, which narrows the list in place: a session stays while every
-/// word typed appears, anywhere, in its name, its project's or its lines' words, whatever their case and accents, so
-/// typing a project's name lists its sessions; a project stays in Projects while its name holds every word.
+/// What Lee types in the sidebar's Filter field, which narrows the list beside the page and the projects in place
+/// (`PlaceList`, `Places`): a row stays while every word typed appears, anywhere, in the words it is kept by, whatever
+/// their case and accents, so typing a project's name lists its sessions' rows; a project stays while its name holds
+/// every word.
 public struct Filter: Equatable, Sendable {
     /// A piece of a name, lit where a word typed appears in it, soft elsewhere.
     public struct Run: Equatable, Sendable {
@@ -99,21 +100,5 @@ public enum Tone: Sendable, Equatable {
     /// The words the filter lights.
     public var lit: Tone {
         rest == .soft ? .text : .soft
-    }
-}
-
-extension Listed {
-    /// The list narrowed to what the filter keeps: the sessions that match, by their names, their projects' and their
-    /// lines' words, each in its section; the projects whose names match.
-    public func narrowed(by filter: Filter) -> Listed {
-        guard !filter.isEmpty else {
-            return self
-        }
-
-        var narrowed = self
-
-        narrowed.rows = rows.filter { filter.matches([$0.name, $0.project] + $0.lines.map(\.words)) }
-        narrowed.projects = projects.filter { filter.matches($0.name) }
-        return narrowed
     }
 }

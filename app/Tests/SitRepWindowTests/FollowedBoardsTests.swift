@@ -47,8 +47,8 @@ struct FollowedBoardsTests {
     @Test func aSessionPickedFromItsProjectsPageHasItsBoardAsKeptForItsFirst() {
         let watching = Watching()
 
-        watching.after { $0.open(on: .project("switchboard")) }
-        watching.after { $0.pick(.session("sr-dash02")) }
+        watching.after { $0.open(); $0.click(.project("switchboard")) }
+        watching.after { $0.go(to: .session("sr-dash02", from: .project("switchboard")), by: .projectSession) }
         #expect(Self.asksAsTheyChange(watching) == Self.washedAndKept)
     }
 
@@ -56,8 +56,8 @@ struct FollowedBoardsTests {
     @Test func aSessionsProjectOpenedFromItsPageHasItsBoardAsKeptForItsFirst() {
         let watching = Watching()
 
-        watching.after { $0.open(on: .session("sr-dash02")) }
-        watching.after { $0.pick(.project("switchboard")) }
+        watching.after { $0.open(); $0.land("sr-dash02") }
+        watching.after { $0.click(.project("switchboard")) }
         #expect(Self.asksAsTheyChange(watching) == Self.washedAndKept)
     }
 
@@ -65,10 +65,10 @@ struct FollowedBoardsTests {
     @Test func aRunOfPicksInTheListEndingOnTheSessionItStoodOnHasItsBoardAsKeptForItsFirst() {
         let watching = Watching()
 
-        watching.after { $0.open(on: .session("sr-macapp")) }
-        watching.after { $0.pickInList(.session("sr-dash02"), at: printedAt) }
-        watching.after { $0.pickInList(.session("sr-rq7dgr"), at: printedAt.addingTimeInterval(0.1)) }
-        watching.after { $0.pickInList(.session("sr-dash02"), at: printedAt.addingTimeInterval(0.2)) }
+        watching.after { $0.open(); $0.land("sr-macapp") }
+        watching.after { $0.pickInList(.line("ask:sr-dash02:k1"), at: printedAt) }
+        watching.after { $0.pickInList(.line("ask:sr-macapp:k2"), at: printedAt.addingTimeInterval(0.1)) }
+        watching.after { $0.pickInList(.line("ask:sr-dash02:k1"), at: printedAt.addingTimeInterval(0.2)) }
         watching.after { $0.settle(at: printedAt.addingTimeInterval(0.2 + PickFollows.settle)) }
         #expect(Self.asksAsTheyChange(watching) == Self.washedAndKept)
     }
@@ -78,11 +78,11 @@ struct FollowedBoardsTests {
     @Test func aSessionFollowedAgainHasTheBoardWatchCarriesAnewForItsFirst() {
         let watching = Watching()
 
-        watching.after { $0.open(on: .session("sr-dash02")) }
-        watching.after { $0.pick(.session("sr-macapp")) }
+        watching.after { $0.open(); $0.land("sr-dash02") }
+        watching.after { $0.land("sr-macapp") }
         watching.change("sr-dash02", to: Self.changed)
         overThePage(watching.run, at: Self.later)
-        watching.after({ $0.pick(.session("sr-dash02")) }, at: Self.later)
+        watching.after({ $0.land("sr-dash02") }, at: Self.later)
         #expect(Self.asks(watching.run) == ["k9"])
     }
 
@@ -112,13 +112,13 @@ struct FollowedBoardsTests {
     @Test func aBoardOnALineHeardAfterItsSessionWasLetGoOfIsNotCurrent() {
         let watching = Watching()
 
-        watching.after { $0.open(on: .session("sr-macapp")) }
+        watching.after { $0.open(); $0.land("sr-macapp") }
         watching.isHolding = true
         watching.change("sr-macapp", to: Self.retitled, line: Self.dashboardFinished)
-        watching.after { $0.pick(.session("sr-dash02")) }
+        watching.after { $0.land("sr-dash02") }
         watching.change("sr-macapp", to: Self.replaced)
         watching.lands(1)
-        watching.after { $0.pick(.project("sitrep")) }
+        watching.after { $0.click(.project("sitrep")) }
         overThePage(watching.run)
         watching.lands()
         #expect(Self.asks(watching.run, of: "sr-macapp", at: printedAt) == ["k9", "k3", "k2"])
@@ -130,9 +130,9 @@ struct FollowedBoardsTests {
     @Test func aBoardKeptFromTheRunBeforeIsCurrentUntilTheNextRunCarriesItAgain() {
         let watching = Watching()
 
-        watching.after { $0.open(on: .project("switchboard")) }
+        watching.after { $0.open(); $0.click(.project("switchboard")) }
         watching.ends(at: printedAt)
-        watching.after { $0.pick(.session("sr-dash02")) }
+        watching.after { $0.land("sr-dash02") }
         watching.change("sr-dash02", to: Self.changed)
         overThePage(watching.run, at: Self.later)
         watching.startsAgain(at: Self.later)

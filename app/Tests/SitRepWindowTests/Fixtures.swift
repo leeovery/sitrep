@@ -186,9 +186,9 @@ func turned(_ ended: [String: Double]) -> Heard {
     })
 }
 
-/// A window open on the line given, `watch`'s first unless another, then hearing that line again carrying the boards
-/// given, as the next line carries those of the sessions it follows, its wall clock at the moment `watch` printed its
-/// first line unless given another.
+/// A window open on the line given, `watch`'s first unless another, landed on the Mac app as "Open in SitRep" lands,
+/// on its newest line in Needs you, then hearing that line again carrying the boards given, as the next line carries
+/// those of the sessions it follows, its wall clock at the moment `watch` printed its first line unless given another.
 func opened(
     on line: Heard = line(0), boards: [String: String?] = ["sr-macapp": Lines.board],
     wall: @escaping () -> Date = { printedAt }
@@ -197,9 +197,18 @@ func opened(
 
     run.show(heard(line), at: printedAt, reducesMotion: false)
     run.open()
+    run.land("sr-macapp")
     take(boards, in: run, on: line)
     return run
 }
+
+/// The Mac app's newest line in `watch`'s first, which the window landed on it picks, and the rest of Needs you's,
+/// newest first, as the window lists them.
+let macAppK1 = ListPick.line("ask:sr-macapp:k1")
+let needsYouLines: [ListPick] = [
+    .line("stop:sr-dash02:w2:1792486361000"), macAppK1, .line("ask:sr-dash02:k1"), .line("ask:sr-macapp:k3"),
+    .line("ask:sr-macapp:k2"), .line("ask:sr-gs7kq2:k1"),
+]
 
 /// A region of the page, which says where the pointer is under its own identity.
 final class Region: Sendable {}
@@ -215,12 +224,23 @@ func overThePage(_ run: WindowRun, at time: Date = printedAt) {
     run.pointer(overPage: true, from: pageRegion, at: time)
 }
 
-extension Page {
-    var session: SessionPage? {
-        if case let .session(page) = self {
-            return page
+extension PlaceList.Row {
+    /// The line it is, in Needs you or under "N snoozed"; none for a session's row.
+    var lineRow: PlaceList.LineRow? {
+        if case let .line(line) = self {
+            return line
         }
         return nil
+    }
+}
+
+extension Page {
+    /// A session's page, beside the list or filling the window.
+    var session: SessionPage? {
+        switch self {
+        case let .detail(page), let .session(page): page
+        case .empty, .project: nil
+        }
     }
 
     var project: ProjectPage? {

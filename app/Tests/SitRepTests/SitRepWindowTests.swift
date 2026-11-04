@@ -7,7 +7,10 @@ import Testing
 @MainActor
 struct SitRepWindowTests {
     private static func split() -> NSSplitViewController {
-        SitRepWindow.split(sidebar: NSViewController.with(NSView()), page: NSViewController.with(NSView()))
+        SitRepWindow.split(
+            sidebar: NSViewController.with(NSView()), list: NSViewController.with(NSView()),
+            page: NSViewController.with(NSView())
+        )
     }
 
     /// It goes to the Space Lee is on only as SitRep brings it forward (`ForwardWindowTests`).
@@ -15,29 +18,54 @@ struct SitRepWindowTests {
         #expect(!SitRepWindow.window(Self.split()).collectionBehavior.contains(.moveToActiveSpace))
     }
 
-    @Test func theBoardIsTheSystemsOwnSidebarAndThePageSitsBesideIt() {
-        #expect(Self.split().splitViewItems.map(\.behavior) == [.sidebar, .default])
+    @Test func theSidebarIsTheSystemsOwnTheListItsContentListAndThePageBesideThem() {
+        #expect(Self.split().splitViewItems.map(\.behavior) == [.sidebar, .contentList, .default])
     }
 
-    /// With no toggle to bring it back, it can neither be dragged shut nor shut by the window narrowing.
-    @Test func theSidebarNeverCollapses() throws {
-        let sidebar = try #require(Self.split().splitViewItems.first)
+    /// With no toggle to bring them back, neither the sidebar nor the list can be dragged shut nor shut by the window
+    /// narrowing.
+    @Test(arguments: [0, 1])
+    func theSidebarAndTheListNeverCollapseByLee(item: Int) throws {
+        let side = Self.split().splitViewItems[item]
 
-        #expect(!sidebar.canCollapse)
-        #expect(!sidebar.canCollapseFromWindowResize)
+        #expect(!side.canCollapse)
+        #expect(!side.canCollapseFromWindowResize)
     }
 
-    @Test func theSidebarKeepsTheDrawingsWidth() throws {
+    @Test(arguments: [(0, WindowStyle.boardWidth), (1, WindowStyle.listWidth)])
+    func theSidebarAndTheListKeepTheDrawingsWidths(item: Int, width: CGFloat) throws {
         let split = Self.split()
         let window = SitRepWindow.window(split)
 
         window.layoutIfNeeded()
 
-        let sidebar = try #require(split.splitViewItems.first)
+        let side = split.splitViewItems[item]
 
-        #expect(sidebar.minimumThickness == WindowStyle.boardWidth)
-        #expect(sidebar.maximumThickness == WindowStyle.boardWidth)
-        #expect(sidebar.viewController.view.frame.width == WindowStyle.boardWidth)
+        #expect(side.minimumThickness == width)
+        #expect(side.maximumThickness == width)
+        #expect(side.viewController.view.frame.width == width)
+        #expect(WindowStyle.boardWidth == 236 && WindowStyle.listWidth == 300)
+    }
+
+    /// A project's page and a session's fill the window, the list folded away; a place brings it back.
+    @Test func theListFoldsAwayWhileThePageFillsTheWindow() throws {
+        let split = Self.split()
+        let window = SitRepWindow.window(split)
+        let list = split.splitViewItems[1]
+        let page = try #require(split.splitViewItems.last).viewController.view
+
+        window.layoutIfNeeded()
+        let beside = page.frame.width
+        SitRepWindow.fold(list, isFullPage: true)
+        window.layoutIfNeeded()
+        let filling = page.frame.width
+
+        #expect(list.isCollapsed)
+        #expect(filling - beside >= WindowStyle.listWidth)
+        SitRepWindow.fold(list, isFullPage: false)
+        window.layoutIfNeeded()
+        #expect(!list.isCollapsed)
+        #expect(page.frame.width == beside)
     }
 
     /// The toolbar's titlebar is what macOS 26 sets the traffic lights inside the sidebar's glass by, which only the

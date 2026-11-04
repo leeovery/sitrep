@@ -18,7 +18,7 @@ struct SessionPageTests {
     private static func picked(_ session: String, boards: [String: String?]) -> WindowRun {
         let run = opened(boards: boards)
 
-        run.pick(.session(session))
+        run.land(session)
         take(boards, in: run)
         return run
     }
@@ -92,7 +92,7 @@ struct SessionPageTests {
         let held = line(with: "sr-gs7kq2", doing: .yourTurn)
         let run = opened(on: held)
 
-        run.pick(.session("sr-gs7kq2"))
+        run.land("sr-gs7kq2")
         take(["sr-gs7kq2": Lines.away], in: run, on: held)
 
         let page = try Self.page(run)
@@ -100,7 +100,7 @@ struct SessionPageTests {
         #expect(page.jumps)
         #expect(page.finish == nil)
         #expect(page.asks.first?.buttons.contains(.inClaude(.comment)) == true)
-        #expect(run.listed(at: printedAt).rows.first { $0.id == "sr-gs7kq2" }?.isAway == false)
+        #expect(run.list(at: printedAt)?.rows.first { $0.session == "sr-gs7kq2" }?.row.isAway == false)
     }
 
     // MARK: The cards

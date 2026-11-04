@@ -278,22 +278,27 @@ struct LocationTests {
         return nil
     }
 
-    /// SitRep's session needs Lee: Needs you, its oldest line, k2, picked; Switchboard's dashboard its ask, older
-    /// than its stop.
-    @Test func anOpenOfASessionNeedingLeeLandsOnItsOldestLine() {
-        #expect(Self.landing("sr-macapp") == .place(.needsYou, picked: Self.macapp))
-        #expect(Self.landing("sr-dash02")
-            == .place(.needsYou, picked: Selection(pick: .line("ask:sr-dash02:k1"), session: "sr-dash02")))
+    /// SitRep's session needs Lee: Needs you, its newest line by its time, k1, picked; Switchboard's dashboard its
+    /// stop, newer than its ask.
+    @Test func anOpenOfASessionNeedingLeeLandsOnItsNewestLine() {
+        #expect(Self.landing("sr-macapp")
+            == .place(.needsYou, picked: Selection(pick: .line("ask:sr-macapp:k1"), session: "sr-macapp")))
+        #expect(Self.landing("sr-dash02") == .place(
+            .needsYou, picked: Selection(pick: .line("stop:sr-dash02:w2:1792486361000"), session: "sr-dash02")
+        ))
         #expect(Self.landing("sr-gs7kq2") == .place(.needsYou, picked: Self.goose))
     }
 
-    /// Core lists a row's lines the newest first: the open still lands on the oldest by its time, k1, 60 minutes old,
-    /// not on k0, the first listed, 5 minutes old.
-    @Test func anOpenLandsOnTheOldestLineByItsTimeWhereverCoreListsIt() {
+    /// The open lands on the newest line by its time, k0, 5 minutes old, wherever the row lists it: here last, after
+    /// k1, 60 minutes old.
+    @Test func anOpenLandsOnTheNewestLineByItsTimeWhereverTheRowListsIt() {
         let northwind = Built(id: "s1", project: "northwind", waiting: [5, 60])
+        var listed = Built.listed([northwind])
 
-        #expect(Self.landing("s1", on: Built.listed([northwind]))
-            == .place(.needsYou, picked: Selection(pick: .line(northwind.line(1)), session: "s1")))
+        listed.rows[0].lines.sort { $0.since < $1.since }
+        #expect(listed.rows[0].lines.last?.id == northwind.line(0))
+        #expect(Self.landing("s1", on: listed)
+            == .place(.needsYou, picked: Selection(pick: .line(northwind.line(0)), session: "s1")))
     }
 
     /// Harness's session has k3 waiting and k1 and k2 asleep: its waiting line.
