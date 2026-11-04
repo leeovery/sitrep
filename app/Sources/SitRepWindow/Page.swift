@@ -15,8 +15,8 @@ public enum Page: Equatable, Sendable {
     static let nothingOpen = Page.empty("No session is open.")
 }
 
-/// Which page shows, a session's or a project's, whichever way the window came to it: what turning to another lets
-/// go of the last one's asks kept in place, and what the page is drawn afresh by.
+/// Which page shows, a session's or a project's, whichever way the window came to it: what the page is drawn afresh
+/// by, and with where it shows, what turning to another lets go of the last one's asks kept in place by (`Leaf`).
 public enum Pick: Hashable, Sendable {
     case session(String)
     case project(String)
@@ -34,7 +34,21 @@ extension Location {
     }
 }
 
-/// An item of Status, Notes, Parked or Resolved, which a press opens in place to the whole of it, and closes again.
+/// A page as turning goes: which page shows, and whether it fills the window, so a session's page beside the list and
+/// the same session's filling the window are two pages, Back or Forward between them turning from one to the other.
+struct Leaf: Equatable {
+    let page: Pick?
+    let fillsWindow: Bool
+}
+
+extension Location {
+    var leaf: Leaf {
+        Leaf(page: page, fillsWindow: place == nil)
+    }
+}
+
+/// An item that opens in place to the whole of it, and closes again: a line of a session's Now, a line of its log or
+/// an ask in What happened, a line of a project's notes, a project's parked item, an ask a session resolved.
 public enum Item: Hashable, Sendable {
     /// A line of the status, by its place and its words, so a line rewritten is another item, closed, and two lines
     /// alike are two items.
@@ -42,8 +56,12 @@ public enum Item: Hashable, Sendable {
     /// The status's next, by its words.
     case next(String)
     case note(String)
+    /// An ask of What happened, "Asked …".
+    case asked(AskAddress)
     case parked(String)
     case resolved(String)
+    /// "N resolved" at the end of a session's What happened, which opens to its resolved asks.
+    case resolvedFold
 }
 
 /// A line of a session's log, and in a project's view the session it is from; opened, its detail under it.

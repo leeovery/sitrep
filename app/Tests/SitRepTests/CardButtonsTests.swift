@@ -97,7 +97,7 @@ struct CardButtonsTests {
 @MainActor
 struct WrappingPillTests {
     private static func size(_ words: String, in width: CGFloat) -> CGSize {
-        NSHostingController(rootView: Pill(words: words, look: .option, wraps: true) {})
+        NSHostingController(rootView: Pill(words: words, look: .white, wraps: true) {})
             .sizeThatFits(in: CGSize(width: width, height: 1000))
     }
 
@@ -132,12 +132,12 @@ struct WrappingPillTests {
     }
 }
 
-/// One look per role, whatever the ask (board I1): an answer given here on the option's fill, what leaves for Claude
-/// outlined with its ↗, Ignore in Snooze's soft grey.
+/// One look per role, whatever the ask (board I1, drawn again by A1 and A2 revised): an answer given here white,
+/// what leaves for Claude outlined with its ↗, Ignore in Snooze's soft grey.
 struct CardButtonLookTests {
-    @Test func aYesAndAnOptionShareTheOptionsLook() {
-        #expect(Pill.Look(.yes("Merge it")) == .option)
-        #expect(Pill.Look(.option("Left")) == .option)
+    @Test func aYesAndAnOptionShareTheWhiteLook() {
+        #expect(Pill.Look(.yes("Merge it")) == .white)
+        #expect(Pill.Look(.option("Left")) == .white)
     }
 
     @Test func commentAndAnswerInClaudeShareTheOutlinedLook() {

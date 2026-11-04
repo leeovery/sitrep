@@ -23,14 +23,14 @@ struct WindowActions: Sendable {
     var openSession: @MainActor @Sendable (String) -> Void = { _ in }
     /// A session page's project, in its breadcrumb: the project's page.
     var openProject: @MainActor @Sendable (String) -> Void = { _ in }
-    /// A session's "later · N parked" or a project's "N parked": Parked, narrowed to it.
+    /// A session's "later N parked" or a project's "N parked": Parked, narrowed to it.
     var openParked: @MainActor @Sendable (ParkedScope) -> Void = { _ in }
     /// A parked item's "Back to its session": the session's page, pushed from Parked.
     var backToSession: @MainActor @Sendable (String) -> Void = { _ in }
     var press: @MainActor @Sendable (Card.Button, AskAddress) -> Void = { _, _ in }
     /// A project's ask opened in place, or closed back.
     var toggle: @MainActor @Sendable (AskAddress) -> Void = { _ in }
-    /// An item of Status, Notes, Parked or Resolved opened in place, or closed again.
+    /// An item opened in place, or closed again (`Item`).
     var toggleItem: @MainActor @Sendable (Item) -> Void = { _ in }
     /// To the session's window: "Open in Ghostty ↗", and a stop's "Answer in Claude ↗".
     var jump: @MainActor @Sendable (JumpPress) -> Void = { _ in }
@@ -90,7 +90,10 @@ struct PageColumn: View {
                 .font(WindowStyle.ui(14))
                 .foregroundStyle(WindowStyle.faint)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-        case let .detail(session), let .session(session):
+        case let .detail(session):
+            Scrolling { SessionPageView(page: session, now: now).padding(.horizontal, WindowStyle.detailInset) }
+                .id(Pick.session(session.id))
+        case let .session(session):
             Scrolling { SessionPageView(page: session, now: now).padding(.horizontal, WindowStyle.pageInset) }
                 .id(Pick.session(session.id))
         case let .project(project):

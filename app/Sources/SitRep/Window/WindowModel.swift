@@ -231,7 +231,7 @@ final class WindowModel {
         go(to: .session(session, from: run.location.root), by: .projectSession)
     }
 
-    /// Parked, narrowed to a session, from its "later · N parked", or a project, from its "N parked".
+    /// Parked, narrowed to a session, from its "later N parked", or a project, from its "N parked".
     private func openParked(_ scope: ParkedScope) {
         let way: History.Way = switch scope {
         case .session: .sessionParked

@@ -11,7 +11,7 @@ public struct History: Equatable, Sendable {
         case projectSession
         /// A link in a page's breadcrumb.
         case breadcrumb
-        /// A session's "later · N parked".
+        /// A session's "later N parked".
         case sessionParked
         /// A project's "N parked".
         case projectParked

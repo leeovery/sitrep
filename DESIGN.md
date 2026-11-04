@@ -2171,12 +2171,17 @@ truth. There is still no background service. None of it is built now. Lee:
     - `--json`, `v` 1, the sessions by id, and `unanswered` naming what gave
       no answer, `tmux`, `ps`, or neither; plain `screen` says the same a line
       each (`sr-k3f9qa  Dashboard redesign: on screen`, `not on screen`, `not
-      known`), then what gave no answer.
+      known`), then what gave no answer. Each session on screen names the
+      app showing it, the first place a jump would bring forward, as
+      `"Ghostty"`: in tmux the app its client descends from, which
+      `$TERM_PROGRAM`, `tmux` there, cannot tell; `null` where it is not on
+      screen (4 November 2026, for the session page's meta line; added to
+      `v` 1, which a reader that ignores it reads as before).
 
       ```
       { "v": 1,
-        "sessions": [ { "id": "sr-k3f9qa", "is": "on" },
-                      { "id": "sr-bbbbbb", "is": "unknown" } ],
+        "sessions": [ { "id": "sr-k3f9qa", "is": "on", "app": "Ghostty" },
+                      { "id": "sr-bbbbbb", "is": "unknown", "app": null } ],
         "unanswered": ["tmux"] }
       ```
 
@@ -4138,21 +4143,105 @@ stands).
     "No sessions match “ledg”", the field's text in the quotes; and the
     field carries no "⌘F" hint, which the system's field does not draw.
   - **the page**, on the right: beside the list, the session of the row
-    picked, its page as a session's page shows it, or with nothing picked
-    how the board stands; filling the window, a project's page or a
-    session's pushed from a project. A session's page is the pane's session
-    view at window size. Its project's name is an eyebrow over its name,
-    about 15 points semibold in the secondary colour, smaller than a title
-    and more than a caption, and a press opens the project. It starts at
-    the top a project's title starts at, so going from a project into one
-    of its sessions keeps the project's name in place (Lee, 20 October
-    2026, of the name as a small button up by the toolbar: it "suddenly
-    gets really small and tucked up right close to the top… It almost sits
-    inside the header of the page"). Its name sits close under the eyebrow,
-    then its summary; what its window is doing now, the panel row's second
-    line; then Asks, Status, Notes, Parked and Resolved, in the pane's
-    order, the last four in two columns so a session fits without
-    scrolling.
+    picked, its detail, or with nothing picked how the board stands;
+    filling the window, a project's page or a session's pushed from a
+    project. A session's page (4 November 2026, A1 and A2 revised) is one
+    column: what needs Lee, then Now, then What happened. Until then it
+    was the pane's session view at window size: its summary under its
+    name, then Asks under a heading counting those waiting and asleep, then
+    Status, Notes, Parked and Resolved in two columns, Resolved's latest
+    three until "show all N":
+    - **beside the list**, the detail, 36 in from its edges: under the band
+      a context row, "Northwind › Fix the login redirect", 13 medium, the
+      project in white at 65%, a press opening its page as a step Back
+      returns from, a chevron in white at 35%, then the session in white
+      at 85%; "Open in Ghostty ↗" trails it while a window holds the
+      session. Under it what its window is doing (below), then, in Needs
+      you, the picked line's card leading: an ask's card larger than a
+      page's, its title 18 semibold, its mark and age on its first line,
+      its `where` 13, 18 inside its edges;
+      an ask asleep under "N snoozed" its card asleep; a window's stop its
+      stop card at the same size, from the line picked, so of a session
+      two windows hold it is the stop of the window picked, gone with its
+      line. Its "Answer in Claude ↗" jumps to the session, as every jump
+      does, so of two windows stopped it brings forward the one a jump goes
+      to first, the latest stopped, which need not be the one picked:
+      `sitrep jump` takes a session, not a window. Before the board has
+      the ask the feed named, its card is made from the feed's asks, so it
+      leads at once, an answer waiting or a snooze refused on it as on any
+      card; answered before the session's own board comes, it holds closed
+      and faint as any card answered. The session's other lines
+      are rows of their own, so the detail shows the picked one alone. A
+      picked ask answered keeps leading, closed and faint, while the page
+      holds, then nothing leads, nothing taking its place. In Working or
+      Your turn the detail has no lead;
+    - **filling the window**, 40 in: its project's name an eyebrow over its
+      name, 15 semibold in the secondary colour, a press opening the
+      project. It starts at the top a project's title starts at, so going
+      from a project into one of its sessions keeps the project's name in
+      place (Lee, 20 October 2026, of the name as a small button up by the
+      toolbar: it "suddenly gets really small and tucked up right close to
+      the top… It almost sits inside the header of the page"). Its name,
+      28 bold, sits close under it, "Open in Ghostty ↗" on its row (see
+      "The jump"); under it the meta line, 12 in white at 35%: the app
+      showing its window, as the screen's reading names it (see "On
+      screen"), else its window's terminal by `$TERM_PROGRAM` where that
+      names an app sitrep knows (`ghostty` reads "Ghostty"), never `tmux`,
+      which names no app, nor an editor's terminal (`vscode`), so under
+      tmux with no reading it names none; "on screen" or "not on screen"
+      as the last look said, nothing where it gave no answer or there is
+      no reading; then when it started, from `watch`'s `created`,
+      "started today, 09:12", "yesterday", a weekday within the week,
+      else "3 Nov", "3 Nov 2025" in another year: as "Ghostty, on screen
+      · started today, 09:12", its first word capitalised where no app
+      leads, "On screen · started …". Of several windows, it is the window
+      a jump goes to first. Away, the away line takes its place, the away
+      mark or ring before it, "No window holds it. Carry it on in
+      Claude.". Then
+      what its window is doing, or a stop's card in its place; then every
+      ask's card, its title 15 semibold and its `where` 13 (14 and 12
+      until then), those waiting, the newest first, then those asleep, 10
+      apart. Newest first though A2 draws them oldest first: Lee chose
+      newest first for every Needs you list on 4 November 2026, after A2
+      was drawn (see "The notch and its panel");
+    - **what its window is doing** (kept, as Lee asked on 3 November that
+      a working session look the same on every surface, though A1 and A2
+      draw none), in the meta line's place beside the list and under it
+      filling the window: its mark, the turning arc and the shimmering
+      verb of a working session, what it acts on, and how long its turn
+      has run, as before. A window stopped shows its stop's card in this
+      place, unless a stop leads, which says it already; so beside the
+      list, an ask of a session whose window is stopped leads under the
+      stop's card. Away and filling the window, the meta line says it, so
+      there is none;
+    - **Now**, only while it has a line, a next or a parked item under
+      it, a heading 13 semibold in white at 85%, and on its right
+      "updated 1h ago", 12 in white at 35%, from its log's newest status
+      line, gone once that line is past the 8 newest its board carries;
+      under it, 14 in, a filled bullet per line of its status; "◦ next
+      …", a stroked ring, the word quieter; and "◇ later 2 parked ›"
+      while it parked any, which opens Parked narrowed to the session;
+      each line in a row of 28 beside the list, 26 filling the window;
+    - **What happened**, one thread, the newest first, 14 in: its log's
+      lines, notes and status lines alike, each on a dot; filling the
+      window, the asks its cards show too, "Asked Approve the schema
+      change", the word quieter, on a hollow mark, merged by their times,
+      an ask before a line as old, so an ask answered while the page
+      holds stays with its card. Beside the list the log alone, as the
+      session's asks are rows of their own. Each mark ringed in the
+      page's black on a line down them, white at 12%; its age in a lane
+      of 30; each line in a row of 28 beside the list, 26 filling the
+      window, its words and its age one element to VoiceOver; each opens
+      in place, an ask's as a line's, while it is cut short. A board
+      carries the 8 newest lines, so once the log holds 8, an ask older
+      than its oldest line is cut, as what happened between may be gone.
+      At its end "N resolved ›",
+      folded each time a page shows, opens in place to its resolved asks,
+      the newest closed first, each opening to how it closed. A session's
+      page beside the list and the same session's filling the window are
+      two pages: Back or Forward between them folds it again, closes what
+      was opened and lets refusals go, as any page turned to; another line
+      of the same session picked turns no page;
   - **the toolbar** fills the band beside the traffic lights (4 November
     2026, A1 to A3 revised; until then it stayed empty on every page,
     nothing of the page in it). On a place: past the sidebar, **Back and
@@ -4314,7 +4403,8 @@ stands).
   - on the page, a line that opens, a project's session or ask, and a
     card's head show the panel's fills behind them;
   - every button shows a hover: the pills, the jump, the project's name
-    above a session, "show all".
+    above a session or in its breadcrumb, "later N parked", "N
+    resolved".
 - **Keyboard focus is the system's.** In either list the selection is the
   focus. The page's buttons take focus, each showing
   the system's own ring, shaped to it, a pill's ring a pill, only while the
@@ -4372,9 +4462,12 @@ stands).
     element at all; the window's title names the place, or the page
     filling the window; a press on a side from VoiceOver or the keyboard
     with no side selected goes nowhere;
-  - the page's title, the eyebrow and the section headings carry the
-    header trait, each heading read with the words on its right, as
-    "Asks, 3 waiting", or "Asks, 1 waiting, 2 snoozed";
+  - the page's title, the eyebrow, the breadcrumb's session and the
+    section headings carry the header trait, each heading read with the
+    words on its right, as "Now, updated 1 hour ago"; the meta line reads
+    its parts as one, "Ghostty, on screen, started today, 09:12"; an age
+    in What happened in whole words; "N resolved" says "collapsed" or
+    "expanded" as its value;
   - a card is a container labelled by its ask's title, after its
     session's name on a project's page, its buttons inside it. The title
     is said once, by the container; on a project's page its head, which
@@ -4391,8 +4484,8 @@ stands).
   button, and takes no keyboard stop. Lee, 20 October 2026, of an opened
   item with a box behind it, its title in a narrow column hanging from its
   session's name and its detail under the bullet: "a bit shit". So every
-  line of Status, Notes, Parked and Resolved, opened or closed, keeps one
-  grid:
+  line of a session's Now, What happened and resolved asks, and of a
+  project's Notes and Parked, opened or closed, keeps one grid:
   - the marker in its lane, then the words, then the time on the first line;
   - a session's name is a quieter lead-in in the words' own flow, wrapping
     to their left edge, never a column of its own;
@@ -4409,12 +4502,15 @@ stands).
   - **one look per role, whatever the ask** (Paper's page "Answer buttons",
     board I1, Lee's pick of 26 October 2026, and live on the 27th: "I think
     they look fine."). An answer given here, **a
-    yes** in Claude's words or each of **a choice**'s options, is the option
-    pill: #1C1C1F in a #34343A ring, 12 semibold, 12 by 5 inside, corners of
-    13. What leaves for Claude, Comment in Claude and Answer in Claude, the
-    your-turn card's among them, is outlined, its ↗ in the soft grey. Lee,
-    of the white Answer in Claude beside grey options and a big white Go:
-    "I think we should be consistent there with our button approach";
+    yes** in Claude's words or each of **a choice**'s options, is the white
+    pill, 13 semibold, 14 by 6 inside, corners of 8, as A1 and A2 revised
+    draw a card's (4 November 2026; until then the option pill, #1C1C1F in
+    a #34343A ring, 12 semibold, corners of 13). What leaves for Claude,
+    Comment in Claude and Answer in Claude, the your-turn card's among
+    them, is outlined, 13 medium, its ↗ in the soft grey. The window's
+    cards alone: the panel's keep their own. Lee, of the white Answer in
+    Claude beside grey options and a big white Go: "I think we should be
+    consistent there with our button approach";
   - **the buttons sit on one line** as pills while they fit at their
     one-line widths, measured. Past that, as Claude's long options are, the
     answers stand one under another, 6 apart, left-aligned, each as wide as
@@ -4426,7 +4522,9 @@ stands).
     width: "I don't really like how the buttons in the middle are really
     long. I think it's unnecessary.";
   - **the answer waits 2 seconds**, a line draining under it, with Escape to
-    undo (borrowed from One, in Lee's dex). Then it goes into the session's
+    undo (borrowed from One, in Lee's dex): beside the list only the
+    answer on the card leading, as another of the session's, its line
+    picked since, shows nowhere; filling the window, any on its cards. Then it goes into the session's
     inbox, as the pane's replies to another session do (see "Delivery"), by
     `sitrep answer`. The card says "on its way", then "sent, and Claude has
     it", then moves to Resolved, as each ask's `reply` on the session's
@@ -4451,29 +4549,33 @@ stands).
     today, Tomorrow and Next week, each with its time on its right, as the
     card's. A choice snoozes that one ask. Refused, the card says so, "Not
     snoozed:" and the CLI's words, until it is pressed again.
-  - **Asks asleep** follow those waiting, the soonest to wake first, and the
-    heading says both, `1 waiting` in orange, then ` · 1 snoozed` in the faint
-    grey, only while any is. A card asleep is darker, #0C0C0D with a 1 inset
-    ring in white at 6%; its dot the faint grey and its title soft. Its
+  - **Asks asleep** follow those waiting, the soonest to wake first (until
+    4 November 2026 under a heading saying both, `1 waiting` in orange, then
+    ` · 1 snoozed` in the faint grey). A card asleep is darker, #0C0C0D
+    with a 1 inset ring in white at 6%; its dot the faint grey and its
+    title soft. Its
     second line, 22 in, says "Snoozed until Sat 09:00", 12 in the soft grey
     in tabular figures, then a Wake now pill, outlined in #2C2C31. It has no
     answers. Wake now wakes that one ask; refused, the card says "Not
     woken:" and the CLI's words.
 - **A permission prompt or a question** is the window's state, not an ask.
   It takes the state line's place, washed orange as the panel row that
-  brought it, and says the tool and what it would run.
+  brought it, and says the tool and what it would run. Picked as its line in
+  Needs you, it leads the detail beside the list in its place.
 - **The jump** is "Open in Ghostty ↗", shown only while a window holds the
   session, and only on a session's page. ↗ marks anything that leaves
-  SitRep. It sits on the row of the session's name, trailing, centred on
-  its first line, while the name wraps to no more lines beside it than
-  across the whole width, as measured; on a window too narrow for that, it
-  goes under the name, leading. Lee, 20 October 2026, of it above the
+  SitRep. It sits on the row of the session's name, or of the detail's
+  breadcrumb, trailing, centred on its first line, while the name wraps to
+  no more lines beside it than across the whole width, as measured; on a
+  window too narrow for that, it goes under the name, leading. It is
+  outlined, 28 tall, its corners 8, in a hairline of #3A3A40, filled only
+  under the pointer (A1 and A2 revised; until then a raised chip). Lee, 20 October 2026, of it above the
   name, by the toolbar: "Hierarchy-wise, that shouldn't be there… it's
   opening the session in Ghostty. Doesn't make sense to have it above,
   this is like basic UI principles."
 - **Away**, a session no window holds:
   - there is no jump, and the state line says "No window holds it. Carry it
-    on in Claude.";
+    on in Claude.", filling the window as its meta line;
   - its yes and choice asks can still be answered: the answer waits in its
     inbox and goes in when a window takes the session up again. A comment or
     words wait for that window;
@@ -4485,10 +4587,11 @@ stands).
   or unknown, where tmux or `ps` gave no answer for its windows. With no
   reading yet, after a run that failed, or for a session the reading does
   not list, as no window holds it, the window says nothing of it, which is
-  not unknown: an away session gets no mark at all. What draws it (a pip on
-  a Needs you row not on screen, "· not on screen" on a project's page, "on
-  screen" in a session page's meta line) comes with the window's rebuild;
-  until then the window reads it and draws nothing of it.
+  not unknown: an away session gets no mark at all. A session's page
+  filling the window says it in its meta line, "on screen" or "not on
+  screen", unknown saying nothing, after the app the reading names as
+  showing it; the pip on a Needs you row not on
+  screen and "· not on screen" on a project's page come with later changes.
   - It cannot ride `watch`: it changes with Lee's tmux and Ghostty, not
     with the board. So the window runs `screen` on its own cadence, only
     while it shows, macOS saying it is visible: at once as it opens, comes
@@ -4530,9 +4633,9 @@ stands).
   day (see "Three columns"): the sidebar's places and projects, the list
   beside the page and the page are drawn from it, and every way the window
   moves goes through it, the toolbar's Back and Forward, its position and
-  its up and down among it (see "Three columns"). The session page's body,
-  the project page's, and Parked's list and its item come with later
-  changes.
+  its up and down among it (see "Three columns"). The project page's body,
+  and Parked's list and its item, come with later changes. The session
+  page's body came the same day (see "the page", under "Three columns").
   - **Four places, then the projects.** The sidebar holds the Filter field,
     then Needs you, Your turn, Working and Parked, then every project on the
     board, quiet ones too. Your turn sits above Working because it waits on
@@ -4647,7 +4750,7 @@ stands).
     main menu, under Go, as Finder's are, which go only while the SitRep
     window is key and only where the toolbar's side is not dimmed: a
     sidebar click, a session opened from a project's page, a breadcrumb
-    link, a session's "later · N parked", a project's "N parked", "Back to
+    link, a session's "later N parked", a project's "N parked", "Back to
     its session" and an open from outside each make a step; another row
     picked within the list, by a click, an arrow or the toolbar's up and
     down, replaces the step, so Back skips the rows Lee stepped through, to

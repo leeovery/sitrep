@@ -2,41 +2,39 @@ import SitRepCore
 import SitRepWindow
 import SwiftUI
 
-/// The session picked, at window size, under the empty band beside the traffic lights: its project's name as an
-/// eyebrow, where a project's page has its title, which a press opens; its name, and "Open in Ghostty ↗" on its row
-/// while a window holds it; its summary; what its window is doing, or the stop that takes that line's place; then
-/// Asks, and Status, Notes, Parked and Resolved in two columns; and, away, finishing it.
+/// A session's page under the empty band beside the traffic lights (Paper's "Window redesign", A1 and A2 revised).
+/// Beside a place's list, the detail: "Project › Session" as a breadcrumb, its project's part opening the project's
+/// page, and "Open in Ghostty ↗" trailing it while a window holds the session; what its window is doing; the picked
+/// line's card leading. Filling the window: its project's name as an eyebrow, where a project's page has its title,
+/// which a press opens; its name, "Open in Ghostty ↗" on its row; the meta line, where its window is and when it
+/// started; what its window is doing, or the stop in that line's place; every ask's card. Then on both Now and What
+/// happened, and, away, finishing it.
 struct SessionPageView: View {
     let page: SessionPage
     let now: Date
 
     @Environment(\.windowActions) private var act
     @Environment(\.pressedJump) private var pressedJump
+    @Environment(\.wakeCalendar) private var calendar
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             Color.clear.frame(height: WindowStyle.barHeight)
-            VStack(alignment: .leading, spacing: 6) {
-                VStack(alignment: .leading, spacing: 2) {
-                    Button(page.projectName) { act.openProject(page.projectKey) }
-                        .wordsButton()
-                        .font(WindowStyle.ui(15, .semibold))
-                        .accessibilityAddTraits(.isHeader)
-                    TitleRow {
-                        PageTitle(words: page.name)
-                        if page.jumps {
-                            jump
-                        }
-                    }
-                }
-                Text(page.summary).font(WindowStyle.ui(14)).foregroundStyle(WindowStyle.soft)
+            switch page.mode {
+            case .detail: breadcrumb
+            case .full: head
             }
-            .padding(.top, 6)
             doing
-            if !page.asks.isEmpty {
-                asks.padding(.bottom, 28)
+            cards
+            if let failure = page.failure {
+                Text(failure).font(WindowStyle.ui(12)).foregroundStyle(WindowStyle.faint).padding(.top, 20)
             }
-            details
+            if page.hasNow {
+                NowSection(page: page, now: now).padding(.top, WindowStyle.sectionGap)
+            }
+            if page.hasBoard, !page.happened.isEmpty || !page.resolved.isEmpty {
+                HappenedSection(page: page, now: now).padding(.top, WindowStyle.sectionGap)
+            }
             if let finish = page.finish {
                 FinishFoot(session: page.id, name: page.name, finish: finish).padding(.top, 30)
             }
@@ -44,48 +42,121 @@ struct SessionPageView: View {
         .padding(.bottom, 34)
     }
 
+    /// Beside the list: "Project › Session", the project's part a link to its page, and the jump trailing.
+    private var breadcrumb: some View {
+        TitleRow {
+            HStack(spacing: 7) {
+                Button(page.projectName) { act.openProject(page.projectKey) }
+                    .wordsButton(WindowStyle.crumb)
+                Chevron(isFolded: true).foregroundStyle(WindowStyle.dim)
+                Text(page.name).foregroundStyle(WindowStyle.headingText).accessibilityAddTraits(.isHeader)
+            }
+            .font(WindowStyle.ui(13, .medium))
+            if page.jumps {
+                jump
+            }
+        }
+        .padding(.top, 6)
+        .padding(.bottom, 14)
+    }
+
+    /// Filling the window: the eyebrow, its name with the jump on its row, and the meta line, away its mark before it,
+    /// as no doing line under it says it.
+    private var head: some View {
+        VStack(alignment: .leading, spacing: 3) {
+            Button(page.projectName) { act.openProject(page.projectKey) }
+                .wordsButton()
+                .font(WindowStyle.ui(15, .semibold))
+                .accessibilityAddTraits(.isHeader)
+            TitleRow {
+                PageTitle(words: page.name)
+                if page.jumps {
+                    jump
+                }
+            }
+            if let meta = page.meta, let words = Words.meta(meta, at: now, in: calendar) {
+                HStack(spacing: 8) {
+                    if meta.away != nil {
+                        MarkView(mark: page.mark)
+                    }
+                    Text(words)
+                        .font(WindowStyle.ui(12))
+                        .foregroundStyle(WindowStyle.dim)
+                        .accessibilityLabel(Spoken.meta(meta, at: now, in: calendar))
+                }
+                .padding(.top, 3)
+            }
+        }
+        .padding(.top, 2)
+        .padding(.bottom, 14)
+    }
+
     private var jump: some View {
         Button { act.jump(.open(page.id)) } label: {
-            HStack(spacing: 6) {
+            HStack(spacing: 5) {
                 Text(Words.jump).foregroundStyle(WindowStyle.text)
                 Text(Words.leaves).foregroundStyle(WindowStyle.soft).accessibilityHidden(true)
             }
             .font(WindowStyle.ui(12, .medium))
-            .padding(.vertical, 5)
-            .padding(.leading, 11)
-            .padding(.trailing, 10)
+            .frame(height: 28)
+            .padding(.horizontal, 11)
         }
         .jumpButton()
         .disabled(pressedJump == .open(page.id))
     }
 
     @ViewBuilder private var doing: some View {
-        if page.doing.isStopped {
-            StopCard(stop: page.doing, session: page.id, now: now).padding(.top, 20).padding(.bottom, 28)
-        } else {
-            HStack(spacing: 8) {
-                MarkView(mark: page.mark)
-                switch page.doing.kind {
-                case .away:
-                    Text(page.doing.line.lead).font(WindowStyle.ui(13)).foregroundStyle(WindowStyle.faint)
-                case .onItsWork:
-                    Text(page.doing.line.lead).font(WindowStyle.ui(13, .medium)).foregroundStyle(WindowStyle.soft)
-                case .working:
-                    ShimmeringLead { isLit in lead.foregroundStyle(isLit ? WindowStyle.text : WindowStyle.soft) }
-                default:
-                    lead.foregroundStyle(WindowStyle.text)
-                }
-                if let mono = page.doing.line.mono {
-                    Text(mono).font(WindowStyle.mono(12)).foregroundStyle(WindowStyle.soft).lineLimit(1)
-                } else if let subject = Words.subject(page.doing.line, at: now) {
-                    Text(subject).font(WindowStyle.ui(13)).foregroundStyle(WindowStyle.soft).lineLimit(1)
-                }
-                if let time = Words.turn(page.doing, at: now) {
-                    Text(time).font(WindowStyle.ui(13)).foregroundStyle(WindowStyle.faint).fixedSize()
+        switch page.doingLine {
+        case .line: DoingLine(page: page, now: now).padding(.bottom, 16)
+        case let .stop(stop): StopCard(stop: stop, session: page.id, now: now).padding(.bottom, 10)
+        case .none: EmptyView()
+        }
+    }
+
+    /// Beside the list, the picked line's card, larger; filling the window, every ask's.
+    @ViewBuilder private var cards: some View {
+        switch page.lead {
+        case let .ask(card): CardView(card: card, now: now, leads: true).id(card.id)
+        case let .stop(stop): StopCard(stop: stop, session: page.id, now: now, leads: true)
+        case nil:
+            if !page.cards.isEmpty {
+                VStack(alignment: .leading, spacing: 10) {
+                    ForEach(page.cards) { card in
+                        CardView(card: card, now: now)
+                    }
                 }
             }
-            .padding(.top, 14)
-            .padding(.bottom, 26)
+        }
+    }
+}
+
+/// What a session's window is doing, its mark beside it, a working lead turning and shimmering as its row's, then what
+/// it acts on and how long its turn has run or since it ended; a stop's words where a stop's card leads elsewhere.
+private struct DoingLine: View {
+    let page: SessionPage
+    let now: Date
+
+    var body: some View {
+        HStack(spacing: 8) {
+            MarkView(mark: page.mark)
+            switch page.doing.kind {
+            case .away:
+                Text(page.doing.line.lead).font(WindowStyle.ui(13)).foregroundStyle(WindowStyle.faint)
+            case .onItsWork:
+                Text(page.doing.line.lead).font(WindowStyle.ui(13, .medium)).foregroundStyle(WindowStyle.soft)
+            case .working:
+                ShimmeringLead { isLit in lead.foregroundStyle(isLit ? WindowStyle.text : WindowStyle.soft) }
+            default:
+                lead.foregroundStyle(WindowStyle.text)
+            }
+            if let mono = page.doing.line.mono {
+                Text(mono).font(WindowStyle.mono(12)).foregroundStyle(WindowStyle.soft).lineLimit(1)
+            } else if let subject = Words.subject(page.doing.line, at: now) {
+                Text(subject).font(WindowStyle.ui(13)).foregroundStyle(WindowStyle.soft).lineLimit(1)
+            }
+            if let time = Words.turn(page.doing, at: now) {
+                Text(time).font(WindowStyle.ui(13)).foregroundStyle(WindowStyle.faint).fixedSize()
+            }
         }
     }
 
@@ -93,56 +164,16 @@ struct SessionPageView: View {
     private var lead: some View {
         Text(page.doing.line.lead).font(WindowStyle.ui(13, .medium)).lineLimit(1)
     }
-
-    private var asks: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            SectionHeading(
-                name: "Asks", note: page.waiting > 0 ? Words.waiting(page.waiting) : nil, isOrange: true,
-                aside: Words.snoozed(page.snoozed)
-            )
-            .padding(.bottom, 4)
-            ForEach(page.asks) { card in
-                CardView(card: card, now: now)
-            }
-        }
-    }
-
-    /// Its board's sections as last kept, under why the latest line to carry its board carried none, if it did.
-    @ViewBuilder private var details: some View {
-        if let failure = page.failure {
-            Text(failure).font(WindowStyle.ui(12)).foregroundStyle(WindowStyle.faint).padding(.bottom, 20)
-        }
-        if page.hasBoard {
-            TwoColumns {
-                VStack(alignment: .leading, spacing: 26) {
-                    StatusSection(status: page.status, opened: page.opened, now: now)
-                    if !page.notes.isEmpty {
-                        NotesSection(notes: page.notes, opened: page.opened, now: now)
-                    }
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                if !page.parked.isEmpty || !page.resolved.isEmpty {
-                    VStack(alignment: .leading, spacing: 26) {
-                        if !page.parked.isEmpty {
-                            ParkedSection(parked: page.parked, opened: page.opened, now: now)
-                        }
-                        if !page.resolved.isEmpty {
-                            ResolvedSection(resolved: page.resolved, opened: page.opened, now: now)
-                        }
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                }
-            }
-        }
-    }
 }
 
-/// A permission prompt or a question, in the state line's place, washed orange as the panel row that brought it: the
-/// tool and what it would run, that it is answered in Claude Code, and the jump there.
+/// A permission prompt or a question, washed orange as the panel row that brought it: the tool and what it would run,
+/// that it is answered in Claude Code, and the jump there. Filling the window it stands in the state line's place;
+/// beside the list, as the line picked, it leads, larger, as an ask's card does.
 private struct StopCard: View {
-    let stop: Doing
+    let stop: SessionPage.Stop
     let session: String
     let now: Date
+    var leads = false
 
     @Environment(\.windowActions) private var act
     @Environment(\.pressedJump) private var pressedJump
@@ -152,15 +183,15 @@ private struct StopCard: View {
             HStack(spacing: 10) {
                 MarkView(mark: .needs)
                 Text(stop.line.lead)
-                    .font(WindowStyle.ui(14, .semibold))
-                    .spacing(-0.01, of: 14)
+                    .font(WindowStyle.ui(titleSize, .semibold))
+                    .spacing(-0.01, of: titleSize)
                     .foregroundStyle(WindowStyle.text)
                     .lineLimit(1)
                 Group {
                     if let mono = stop.line.mono {
-                        Text(mono).font(WindowStyle.mono(12))
+                        Text(mono).font(WindowStyle.mono(leads ? 14 : 12))
                     } else if let more = stop.line.more {
-                        Text(more).font(WindowStyle.ui(14, .semibold))
+                        Text(more).font(WindowStyle.ui(titleSize, .semibold))
                     }
                 }
                 .foregroundStyle(WindowStyle.soft)
@@ -170,7 +201,7 @@ private struct StopCard: View {
             }
             if let stopped = Words.stopped(stop.kind) {
                 Text(stopped)
-                    .font(WindowStyle.ui(12))
+                    .font(WindowStyle.ui(13))
                     .foregroundStyle(WindowStyle.soft)
                     .padding(.leading, 22)
             }
@@ -181,12 +212,16 @@ private struct StopCard: View {
                 .padding(.leading, 22)
                 .padding(.top, 4)
         }
-        .padding(.top, 13)
-        .padding(.bottom, 14)
-        .padding(.horizontal, 14)
+        .padding(.top, leads ? 18 : 13)
+        .padding(.bottom, leads ? 18 : 14)
+        .padding(.leading, leads ? 18 : 14)
+        .padding(.trailing, leads ? 20 : 14)
         .background(RoundedRectangle(cornerRadius: 14).fill(WindowStyle.wash))
         .overlay(RoundedRectangle(cornerRadius: 14).strokeBorder(WindowStyle.washRing, lineWidth: 1))
     }
+
+    /// Its title's size, as an ask's card's (`CardView`).
+    private var titleSize: CGFloat { leads ? 18 : 15 }
 }
 
 /// An away session's foot: "✓ Finish this session", which asks first, in place, then runs `sitrep finish`.
@@ -223,4 +258,27 @@ private struct FinishFoot: View {
     private func note(_ words: String, colour: Color = WindowStyle.faint) -> some View {
         Text(words).font(WindowStyle.ui(12)).foregroundStyle(colour)
     }
+}
+
+extension WindowStyle {
+    // MARK: A session's page (A1 and A2 revised)
+
+    /// The detail beside the list, in from its edges.
+    static let detailInset: CGFloat = 36
+    /// Above Now and above What happened.
+    static let sectionGap: CGFloat = 26
+    /// A section's lines in from its heading.
+    static let sectionIndent: CGFloat = 14
+    /// A section's heading, white at 85%, and the breadcrumb's session.
+    static let headingText = Color.white.opacity(Double(0xD9) / 255)
+    /// The breadcrumb's project, white at 65%.
+    static let crumb = Color.white.opacity(Double(0xA6) / 255)
+    /// What happened's words, white at 70%; its marks, and the line down them, white at 12%.
+    static let threadText = Color.white.opacity(Double(0xB3) / 255)
+    static let threadMark = Color(hex: 0x8E8E95)
+    static let threadRule = Color.white.opacity(Double(0x1F) / 255)
+    /// Now's marks: its lines' dot, next's ring, later's diamond in white at 45%.
+    static let nowMark = Color(hex: 0xA8A8AF)
+    static let nextMark = Color(hex: 0x6E6E76)
+    static let laterMark = Color.white.opacity(0.45)
 }

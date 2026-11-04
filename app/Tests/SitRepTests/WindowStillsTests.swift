@@ -7,11 +7,11 @@ import SwiftUI
 import Testing
 
 /// The SitRep window's key states, drawn offscreen over what the real CLI printed, as Paper's drawing has them: a line
-/// of Needs you and its session beside it, a permission prompt, an away session and its finish, a project, a session
-/// pushed from it, and the moments of an answer and of a board changing under Lee; a session's long name, and the
-/// window as narrow as it goes; Your turn, Working, the asks asleep opened, filtered, and a filter that keeps nothing;
-/// and the sidebar as the window itself lays it out. Each draws whole
-/// at the window's size, or at its narrowest.
+/// of Needs you and its session beside it, its ask's card leading, a permission prompt leading as the line picked, an
+/// away session and its finish, a project, a session pushed from it, a session's page with its meta line, and the
+/// moments of an answer and of a board changing under Lee; a session's long name, and the window as narrow as it goes;
+/// Your turn, Working, the asks asleep opened and one leading, filtered, and a filter that keeps nothing; and the
+/// sidebar as the window itself lays it out. Each draws whole at the window's size, or at its narrowest.
 /// With `SITREP_WINDOW_STILLS` naming a folder, each is kept there as a PNG, to read beside the drawing; nothing opens
 /// on the screen.
 /// When the real `watch` printed its first line.
@@ -95,9 +95,11 @@ struct WindowStillsTests {
         case narrow = "e3-the-mac-app-narrow"
         case projectNarrow = "e4-a-project-narrow"
         case sessionFromProject = "b4-a-session-from-its-project"
+        case sessionPage = "b5-a-session-page-on-screen"
         case yourTurn = "f1-your-turn"
         case working = "f3-working"
         case snoozedOpen = "f5-snoozed-opened"
+        case asleepLeads = "f6-an-ask-asleep-leading"
         case filtered = "f2-filtered"
         case noMatch = "f4-no-match"
 
@@ -148,7 +150,7 @@ struct WindowStillsTests {
                 Self.pick(.project("kit"), in: run)
             case .openedItems:
                 Self.pick(.session("sr-macapp"), in: run, boards: ["sr-macapp": Self.withLongItems])
-                [.note("sr-macapp:n2"), .parked("p1"), .resolved("k4"), .resolved("k5")].forEach(run.toggle)
+                [.note("sr-macapp:n2"), .resolvedFold, .resolved("k4"), .resolved("k5")].forEach(run.toggle)
             case .longOptions:
                 Self.pick(.session("sr-macapp"), in: run, boards: ["sr-macapp": Self.withLongOptions])
             case .projectItemOpened:
@@ -163,12 +165,21 @@ struct WindowStillsTests {
                 Self.pick(.project("switchboard"), in: run)
                 run.go(to: .session("sr-rq7dgr", from: .project("switchboard")), by: .projectSession)
                 Self.take(in: run, on: Lines.watch[0])
+            case .sessionPage:
+                Self.pick(.project("sitrep"), in: run, on: Self.startedInTmux)
+                run.go(to: .session("sr-macapp", from: .project("sitrep")), by: .projectSession)
+                Self.take(in: run, on: Self.startedInTmux)
+                Self.looked(on: "sr-macapp", in: run, at: now)
             case .yourTurn:
                 run.click(.place(.yourTurn))
             case .working:
                 run.click(.place(.working))
             case .snoozedOpen:
                 run.toggleFold(of: .needsYou)
+            case .asleepLeads:
+                run.toggleFold(of: .needsYou)
+                run.pickInList(.snoozed("ask:sr-4g01a7:k1"), at: now)
+                Self.take(in: run, on: Lines.snoozed[0], boards: ["sr-4g01a7": Lines.snoozedBoard])
             case .filtered:
                 run.filter = Filter("switchboard")
             case .noMatch:
@@ -181,7 +192,8 @@ struct WindowStillsTests {
         private static func line(of still: Still) -> String {
             switch still {
             case .longTitle, .longTitleNarrow: longName
-            case .snoozedOpen: Lines.snoozed[0]
+            case .sessionPage: startedInTmux
+            case .snoozedOpen, .asleepLeads: Lines.snoozed[0]
             default: Lines.watch[0]
             }
         }
@@ -257,6 +269,29 @@ struct WindowStillsTests {
         /// The first board, the Mac app named as long as a session's name runs.
         private static let longName = Lines.watch[0]
             .replacingOccurrences(of: #""name":"The Mac app""#, with: #""name":"Build the Mac app's window, its sidebar on the system's own glass, and its two pages""#)
+
+        /// The first board, the Mac app started five hours before it, its window in tmux, whose `$TERM_PROGRAM` names
+        /// no app.
+        private static let startedInTmux = Lines.watch[0]
+            .replacingOccurrences(
+                of: #""id":"sr-macapp","name":"The Mac app""#,
+                with: #""id":"sr-macapp","created":\#(Int64((printed.timeIntervalSince1970 - 5 * 3600) * 1000)),"name":"The Mac app""#
+            )
+            .replacingOccurrences(
+                of: #""session":"sr-macapp","name":"The Mac app","project":"SitRep","version":"0.2.0","needsReload":false,"where":{"device":"/dev/ttys001","terminal":"ghostty","tmux":null}"#,
+                with: #""session":"sr-macapp","name":"The Mac app","project":"SitRep","version":"0.2.0","needsReload":false,"where":{"device":"/dev/ttys004","terminal":"tmux","tmux":{"socket":"/private/tmp/tmux-501/default","pane":"%3"}}"#
+            )
+
+        /// The window's look at the screen, which found the session's window on screen in Ghostty, as the CLI tells it
+        /// in tmux.
+        private static func looked(on session: String, in run: WindowRun, at now: Date) {
+            let reading = #"{"v":1,"sessions":[{"id":"\#(session)","is":"on","app":"Ghostty"}],"unanswered":[]}"#
+
+            run.window(isVisible: true)
+            if let look = run.looksAtScreen(at: now) {
+                _ = run.looked(.read(try! ScreenReading.read(reading)), of: look, at: now)
+            }
+        }
 
         /// The first board, Goosemates' ask new on it.
         private static let withNew = Lines.watch[0]

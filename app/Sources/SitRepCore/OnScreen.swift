@@ -7,13 +7,17 @@ public enum OnScreen: String, Decodable, Sendable {
 }
 
 /// Which sessions show on screen, as `sitrep screen --json` prints it (cli/output.ts's `screenJson`), its `v` 1: each
-/// session a live window holds, by its id, and the programs asked that gave no answer.
+/// session a live window holds, by its id, with the terminal app showing it, and the programs asked that gave no
+/// answer.
 public struct ScreenReading: Versioned, Sendable, Equatable {
     static let version = 1
 
     public struct Session: Decodable, Sendable, Equatable {
         public let id: String
         public let `is`: OnScreen
+        /// The terminal app showing it, `Ghostty`, in tmux the app its client is in; none where it is not on screen, or
+        /// from a CLI before the reading said it.
+        public let app: String?
     }
 
     public let sessions: [Session]
@@ -23,5 +27,10 @@ public struct ScreenReading: Versioned, Sendable, Equatable {
     /// Whether a jump could reach the session; none for one not listed, as no window holds it.
     public func onScreen(of session: String) -> OnScreen? {
         sessions.first { $0.id == session }?.is
+    }
+
+    /// The terminal app showing the session; none where none is known to.
+    public func app(of session: String) -> String? {
+        sessions.first { $0.id == session }?.app
     }
 }
