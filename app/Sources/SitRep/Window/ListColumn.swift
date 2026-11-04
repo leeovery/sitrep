@@ -81,8 +81,9 @@ private struct PlaceListView: View {
                     selection = shown
                     return
                 }
-                if selected != shown {
-                    act.pickInList(selected)
+                // a row a board has just dropped picks nothing: the selection goes back to the page's
+                if selected != shown, !act.pickInList(selected) {
+                    selection = shown
                 }
             }
             .onChange(of: shown, initial: true) {

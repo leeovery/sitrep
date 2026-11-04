@@ -14,8 +14,8 @@ final class SitRepWindow: NSObject, NSWindowDelegate {
     private lazy var window = make()
     private var focus: SideFocus?
     private var keys: Any?
-    /// The split's content list, which folds away while the page fills the window.
-    private var listItem: NSSplitViewItem?
+    /// The list beside the page as the model says.
+    private var following: ListFollowing?
 
     /// `following`, what the app's one `watch` is told the window follows.
     init(plugin: Plugin, works: Works, snoozes: Snoozes, following: Following, preferences: Preferences) {
@@ -40,8 +40,8 @@ final class SitRepWindow: NSObject, NSWindowDelegate {
     /// Lee opens it: shown afresh, on what it opens on; or, where it shows already or was minimised, brought forward as
     /// it was. Opened on a session, "Open in SitRep" from the card or the menu, it lands there, as Lee would go there
     /// himself (`WindowRun.land(_:)`), or opening afresh, opens there. Keyboard focus goes to the list as it opens
-    /// afresh or lands, the list folded away or shown first, as the model now says, so focus finds it as it stands;
-    /// brought forward as it was, it stays where it was.
+    /// afresh or lands, the list folded away or shown already as the model took the change (`ListFollowing`), so focus
+    /// finds it as it stands; brought forward as it was, it stays where it was.
     func open(session: String? = nil) {
         let isAfresh = !window.isMiniaturized && !window.isVisible
 
@@ -52,8 +52,8 @@ final class SitRepWindow: NSObject, NSWindowDelegate {
         }
         window.comeForward()
         tellVisible(window)
-        if isAfresh || session != nil, let focus, let listItem {
-            focus.focusList(folding: listItem, isFullPage: model.isFullPage)
+        if isAfresh || session != nil {
+            focus?.focusList()
         }
     }
 
@@ -94,10 +94,30 @@ final class SitRepWindow: NSObject, NSWindowDelegate {
     }
 
     private func make() -> ForwardWindow {
-        let sidebar = Self.side(over: model) { [model] in
+        let columns = Self.columns(over: model)
+        let split = Self.split(sidebar: columns.sidebar, list: columns.list, page: columns.page)
+        let window = Self.window(split)
+
+        window.delegate = self
+        window.setFrameAutosaveName("SitRepWindow")
+        let focus = SideFocus(
+            window: window, sidebar: columns.sidebar.view, list: columns.list.view, page: columns.page.view
+        )
+
+        self.focus = focus
+        listenForKeys(in: window, focus: focus)
+        following = ListFollowing(model: model, list: split.splitViewItems[1], focus: focus)
+        return window
+    }
+
+    /// The window's three columns over the model: the sidebar, the list beside the page, and the page.
+    static func columns(
+        over model: WindowModel
+    ) -> (sidebar: NSViewController, list: NSViewController, page: NSViewController) {
+        let sidebar = side(over: model) { [model] in
             SidebarColumn(places: model.places, root: model.location.root, filter: model.filter)
         }
-        let list = Self.side(over: model) { [model] in
+        let list = side(over: model) { [model] in
             if let list = model.list {
                 ListColumn(
                     list: list, picked: model.location.picked?.pick, head: model.head, filter: model.filter,
@@ -105,43 +125,11 @@ final class SitRepWindow: NSObject, NSWindowDelegate {
                 )
             }
         }
-        let page = Self.side(over: model) { [model] in
+        let page = side(over: model) { [model] in
             PageColumn(page: model.page, now: model.now)
         }
-        let split = Self.split(sidebar: sidebar, list: list, page: page)
-        let window = Self.window(split)
 
-        window.delegate = self
-        window.setFrameAutosaveName("SitRepWindow")
-        let focus = SideFocus(window: window, sidebar: sidebar.view, list: list.view, page: page.view)
-
-        self.focus = focus
-        listenForKeys(in: window, focus: focus)
-        listItem = split.splitViewItems[1]
-        followTheList(focusWasOnIt: false)
-        return window
-    }
-
-    /// The list folded away while the page fills the window, and back as a place shows, as the model says; and focus,
-    /// where the list held it as it changed, kept off a list gone, folded away or emptied to its one line. Whether focus
-    /// was on the list is read as the model changes, before the views take the change, as a table gone takes focus
-    /// with it.
-    private func followTheList(focusWasOnIt: Bool) {
-        if let listItem {
-            Self.fold(listItem, isFullPage: model.isFullPage)
-        }
-        if focusWasOnIt {
-            focus?.keepOffTheList()
-        }
-        withObservationTracking {
-            _ = (model.isFullPage, model.list)
-        } onChange: { [weak self] in
-            MainActor.assumeIsolated {
-                let wasOnIt = self?.focus?.isOnTheList ?? false
-
-                Task { @MainActor in self?.followTheList(focusWasOnIt: wasOnIt) }
-            }
-        }
+        return (sidebar, list, page)
     }
 
     /// The window's three columns in macOS's own split: the sidebar, which macOS 26 draws as Liquid Glass floating
@@ -254,13 +242,6 @@ struct SideFocus {
     func focusList() {
         window.contentView?.layoutSubtreeIfNeeded()
         window.makeFirstResponder(placeList ?? sidebarList ?? sidebar)
-    }
-
-    /// Focus on the list, as `focusList()`, once the list is folded away or shown as the page says: an open or a
-    /// landing may have changed which, and the fold the model asks for otherwise comes a moment later.
-    func focusList(folding list: NSSplitViewItem, isFullPage: Bool) {
-        SitRepWindow.fold(list, isFullPage: isFullPage)
-        focusList()
     }
 
     /// Keyboard focus is on the list beside the page.

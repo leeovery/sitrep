@@ -4001,7 +4001,8 @@ stands).
       each row's turn's end against the wall clock: as time passes a row
       folds in the moment it passes the period, the window drawn again then
       as for any change by time alone, nothing polling; the period changing
-      refolds the list at once;
+      refolds the list at once. The row picked, folding in so, opens the
+      fold, as the clock is not Lee folding it over his pick;
     - **Parked** lists nothing yet: its list and its items come with a
       later change;
     - **a fold**, "N snoozed" or "N earlier", is a row of the list the list
@@ -4163,7 +4164,9 @@ stands).
     project's, and the project's still while a session pushed from it
     shows; never Projects' heading. A row clicked goes there, a step Back
     returns from; the arrow keys are the list's own there, each row they
-    select gone to as a click goes; past either end they go nowhere.
+    select gone to as a click goes; past either end they go nowhere. The row
+    showing scrolls into view whenever it changes, only as far as it
+    needs, as a project far down does on Open in SitRep.
   - **The list's selection is its pick**: a line, an ask asleep or a
     session's row, the page beside it on the pick's session. A pick the
     list no longer shows, its ask answered or a fold closed over it, shows
@@ -4182,8 +4185,11 @@ stands).
     between two presses of a key; the projects hold apart from it, under
     the pointer over the sidebar; closing or minimising the window lets the
     holds go, and the list's pointer goes with the list as the page fills
-    the window, as no view is left to say it left. A resort slides the rows; a fold, or a row folding into "N
-    earlier" as time passes, changes the list at once. The row picked
+    the window, as no view is left to say it left. A resort slides the
+    rows; a fold, or a row folding into "N earlier" as time passes, changes
+    the list at once. The list folds away or shows with the change that
+    fills the window or brings a place, never a moment after it, so no
+    empty column shows beside the page. The row picked
     scrolls into view, only as far as it needs, whenever the pick or the
     order changes: a pick made elsewhere, by Open in SitRep, or before the
     window shows, and a resort or a fold. The Filter field stays put above
@@ -4507,15 +4513,19 @@ stands).
     in a list. "Where it stood" holds only while the window is open.
   - **Open in SitRep** on a session lands on Needs you, its newest line by
     its time picked (4 November 2026; first drawn as its oldest), where it
-    needs Lee, the filter cleared, as it could hide the row; else on Your turn or Working, its row
-    picked, "N earlier" opening where it is under it; else, its only asks
+    needs Lee, the filter cleared as it is asked for, as it could hide the
+    row; else on Your turn or Working, its row picked, "N earlier" opening where it is under it; else, its only asks
     asleep or none, on its project's page and then the session's pushed
     over it, two steps, as if Lee had gone there himself, so Back goes to
     the project's page. Opening the window afresh, it opens there, with no
     step back to where the window would have opened, a page Lee never saw;
     a session's page still over its project's. Before a board is heard it
     lands once one is, unless Lee has gone somewhere meanwhile, by a click,
-    a pick, Back or Forward.
+    a pick, Back or Forward, or typed in the Filter field, which it then
+    leaves as he typed it; landing then, it puts focus on the list. A
+    second asked for meanwhile replaces the first, opening afresh where the
+    first did. On the page already showing it makes no step, and from a
+    session's project's page only the one to the session's.
   - **A click in the sidebar** on the place or the project already showing
     changes nothing, its pick kept, as Mail does for the mailbox already
     open; on Parked narrowed to a project it clears the narrowing.
@@ -4527,7 +4537,9 @@ stands).
     from. Going where the window already is makes no step. As the board
     changes every step is kept as it stands, one that no longer stands goes,
     and steps that come to be the same are one, so neither Back nor Forward
-    ever stays put or lands on a session gone. Not kept across launches.
+    ever stays put or lands on a session gone. A step gone back or forward
+    to whose pick sits under a closed fold opens the fold, so the pick
+    shows. Not kept across launches.
 
 ### The menu bar item
 

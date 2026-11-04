@@ -203,7 +203,11 @@ private final class Asked {
 
     var actions: WindowActions {
         WindowActions(
-            pickInList: { [unowned self] in picks.append($0) }, step: { [unowned self] in steps.append($0) }
+            pickInList: { [unowned self] in
+                picks.append($0)
+                return true
+            },
+            step: { [unowned self] in steps.append($0) }
         )
     }
 }

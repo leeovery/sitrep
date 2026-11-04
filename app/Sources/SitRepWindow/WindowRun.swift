@@ -24,20 +24,35 @@ public final class WindowRun {
     public var answers: Answers { details.answers }
     /// How long a your-turn row stays in Your turn before it folds into "N earlier": the list refolds at once as it
     /// changes.
-    public var period: FoldPeriod
+    public var period: FoldPeriod {
+        didSet { keepTheList() }
+    }
     /// What the Filter field holds, which narrows the list and the projects and never moves where the window is. A
     /// fold at the list's foot shows open while it holds text, and a click on it then changes nothing; as it clears,
-    /// the folds are as they were, but the fold holding the pick opens, so the pick shows.
+    /// the folds are as they were, but the fold holding the pick opens, so the pick shows. Lee typing in it is Lee
+    /// doing something himself, so a session opened from outside waiting on the first board lands no more.
     public var filter = Filter() {
         didSet {
-            if filter.isEmpty, !oldValue.isEmpty {
+            guard filter != oldValue else {
+                return
+            }
+
+            landing = nil
+            if filter.isEmpty {
                 openTheFoldOverThePick()
             }
+            keepTheList()
         }
     }
     /// The places whose fold at the list's foot is open, "N snoozed" or "N earlier": never kept, each folded as the
     /// window opens.
     private var openFolds: Set<Place> = []
+    /// The pick was a your-turn row under "N earlier" as the window last settled: one the clock folds in since opens
+    /// the fold, as the clock is not Lee closing it over his pick.
+    private var pickWasEarlier = false
+    /// How many times a session opened from outside while no board had come has landed, on the board that came: the
+    /// window puts focus on the list for each, as for any open from outside.
+    public private(set) var landedLater = 0
     /// The wall clock, against which a your-turn row passes the fold period, and the calendar its days are in, which
     /// the window's wake times are worded on too.
     private let wall: () -> Date
@@ -84,6 +99,7 @@ public final class WindowRun {
     /// kept stale; and stale, every answer written is on its way.
     public func show(_ last: LastBoard, at time: Date, reducesMotion: Bool) {
         let fresh = last.stale == nil ? last.board : nil
+        let isFirstBoard = !given.hasBoard
 
         self.last = last
         take(Listed(last))
@@ -93,7 +109,7 @@ public final class WindowRun {
         if let board = last.board {
             details.keepFinishingAway(on: board)
         }
-        keepOnTheBoard()
+        keepOnTheBoard(isFirstBoard: isFirstBoard)
         if let fresh {
             for (session, carried) in fresh.boards {
                 details.take(carried, of: session, lookedAt: fresh.at, washingAt: reducesMotion ? nil : time)
@@ -144,9 +160,9 @@ public final class WindowRun {
 
     /// What has run out by this time: the second after the pointer left a column, or after the last pick made in it,
     /// and it takes `watch`'s order; the second after it left the page, and the closed asks leave it; a run of picks
-    /// in the list stopped, and its last is followed.
-    /// A wash ended is let go here, wherever the window is, so no wash that ended is waited for. With no list showing,
-    /// as a page fills the window, the pointer is over no list, whose view, gone, says nothing of it.
+    /// in the list stopped, and its last is followed; a wash ended, let go wherever the window is, so no wash that
+    /// ended is waited for; a your-turn row passing the fold period, the fold opening where it folds the pick in. With
+    /// no list showing, as a page fills the window, the pointer is over no list, whose view, gone, says nothing of it.
     public func settle(at time: Date) {
         washed = Wash.live(washed, at: time)
         if location.place == nil {
@@ -157,38 +173,51 @@ public final class WindowRun {
         }
         details.settle(at: time)
         picks.settle(at: time)
+        openTheFoldTheClockClosedOverThePick()
+        keepTheList()
     }
 
-    /// The board in the order the columns show it, the folds gone from the board closed, and the pick standing where
-    /// its list now shows it.
+    /// The pick folded into "N earlier" by the clock since the window last settled: the fold opens, so it shows.
+    private func openTheFoldTheClockClosedOverThePick() {
+        let isEarlier = location.place == .yourTurn && PlaceList(.yourTurn, in: listed).folds(location.picked?.pick)
+
+        if isEarlier, !pickWasEarlier {
+            openFolds.insert(.yourTurn)
+        }
+        pickWasEarlier = isEarlier
+    }
+
+    /// The board in the order the columns show it (`keepTheList()`).
     private func take(_ given: Listed) {
         self.given = given
         held.take(given)
-        closeTheFoldsGone()
+        keepTheList()
+    }
+
+    /// The lists as they now show, after anything that changes them: each place's fold gone from its list, its rows
+    /// gone, closed, so it never comes back already open; and the pick standing where its list shows it.
+    private func keepTheList() {
+        let listed = listed
+
+        openFolds = openFolds.filter { PlaceList($0, in: listed).fold != nil }
         if let place = location.place {
             history?.stand(in: arranged(place))
         }
     }
 
-    /// Each place's fold that has gone from its list, its rows gone, closed, so it never comes back already open.
-    private func closeTheFoldsGone() {
-        let listed = listed
-
-        openFolds = openFolds.filter { PlaceList($0, in: listed).fold != nil }
-    }
-
-    /// Where the window is, and every step back and forward, as each stands on the board; then a session opened from
-    /// outside before a board was heard, landed.
-    private func keepOnTheBoard() {
+    /// Where the window is, and every step back and forward, as each stands on the board, the fold over the pick
+    /// opening where the board moved it, or on the first board, which the pick was waiting on; then a session opened
+    /// from outside before a board was heard, landed, the list to take focus.
+    private func keepOnTheBoard(isFirstBoard: Bool) {
         let listed = listed
         let before = location
 
         move { $0.keep(on: listed, arranged: { self.arranged($0) }) }
-        if location != before {
+        if location != before || isFirstBoard {
             openTheFoldOverThePick()
         }
-        if let landing {
-            land(landing.session, isAfresh: landing.isAfresh)
+        if let landing, land(landing.session, isAfresh: landing.isAfresh) {
+            landedLater += 1
         }
     }
 
@@ -207,6 +236,7 @@ public final class WindowRun {
         turned(from: page)
         openTheFoldOverThePick()
         if let session {
+            filter = Filter()
             land(session, isAfresh: true)
         }
     }
@@ -255,27 +285,30 @@ public final class WindowRun {
 
     /// "Open in SitRep" on a session, from the card or the menu, while the window is open: where
     /// `Location.opening(session:on:)` says, as Lee would go there himself, the fold over its row opening and the
-    /// filter cleared, which could hide its row; before a board is heard, on the first one, unless Lee goes somewhere
-    /// first. Its page is followed at once.
+    /// filter cleared as it is asked for, which could hide its row; before a board is heard, on the first one, unless
+    /// Lee goes somewhere first. A second asked for while the first waits replaces it, the window still opening onto
+    /// it where it opened afresh for the first. Its page is followed at once.
     public func land(_ session: String) {
-        land(session, isAfresh: false)
+        let isAfresh = landing?.isAfresh ?? false
+
+        filter = Filter()
+        land(session, isAfresh: isAfresh)
     }
 
-    /// Landed as a step, or, the window opening afresh onto it, as where it opens (`History.open(onto:)`).
-    private func land(_ session: String, isAfresh: Bool) {
+    /// Landed as a step, or, the window opening afresh onto it, as where it opens (`History.open(onto:)`). Whether it
+    /// landed; with no board heard, it waits for the first.
+    @discardableResult
+    private func land(_ session: String, isAfresh: Bool) -> Bool {
         let landing = Location.opening(session: session, on: listed)
+        var landed = false
 
         self.landing = history != nil && landing == .awaitingBoard ? (session, isAfresh) : nil
         picks = PickFollows()
-        filter = Filter()
         move { history in
-            if isAfresh {
-                history.open(onto: landing)
-            } else {
-                history.land(landing)
-            }
+            landed = isAfresh ? history.open(onto: landing) : history.land(landing)
         }
         openTheFoldOverThePick()
+        return landed
     }
 
     /// A row of the sidebar clicked, a place or a project: there, as a step Back returns from, unless it is there
@@ -297,12 +330,14 @@ public final class WindowRun {
     public func goBack() {
         wentSomewhere()
         move { $0.goBack() }
+        openTheFoldOverThePick()
     }
 
     /// Forward a step, where Back left one.
     public func goForward() {
         wentSomewhere()
         move { $0.goForward() }
+        openTheFoldOverThePick()
     }
 
     /// Lee went somewhere himself: a run of picks waiting is let go, and so is a session opened from outside waiting
@@ -314,11 +349,16 @@ public final class WindowRun {
 
     /// Lee picked a row of the list at this time, by a click: it replaces the step the window is on, making none, the
     /// list's order held for a second after it, so no row moves between two presses of a key, and what it follows
-    /// settled (`PickFollows`).
-    public func pickInList(_ pick: ListPick, at time: Date) {
-        if let place = location.place, let selection = arranged(place).selection(of: pick) {
-            pickInList(selection, at: time)
+    /// settled (`PickFollows`). Whether it picked it: a row a board has just dropped, which the list still drew, picks
+    /// nothing.
+    @discardableResult
+    public func pickInList(_ pick: ListPick, at time: Date) -> Bool {
+        guard let place = location.place, let selection = arranged(place).selection(of: pick) else {
+            return false
         }
+
+        pickInList(selection, at: time)
+        return true
     }
 
     /// ↓, or ↑, in the list at this time: the row after the pick, or before it, as the list shows it, from where the pick
@@ -357,6 +397,7 @@ public final class WindowRun {
     public func toggleFold(of place: Place) {
         if filter.isEmpty {
             openFolds.formSymmetricDifference([place])
+            keepTheList()
         }
     }
 
@@ -373,6 +414,7 @@ public final class WindowRun {
         change(&history)
         self.history = history
         turned(from: page)
+        keepTheList()
     }
 
     private func turned(from page: Pick?) {
@@ -537,21 +579,15 @@ public final class WindowRun {
 
     /// The list beside the page at this time, where the window is on a place, in the order it shows, narrowed by the
     /// filter, its washes under way, Your turn's rows past the fold period by the wall clock under "N earlier"; none
-    /// for a project's page or a session's, which fill the window. A fold open folds as its line goes, so it never comes
-    /// back already open; the pick stands where the list shows it.
+    /// for a project's page or a session's, which fill the window.
     public func list(at time: Date) -> PlaceList? {
-        washed = Wash.live(washed, at: time)
-        closeTheFoldsGone()
         guard let place = location.place else {
             return nil
         }
 
-        let list = held.arranged(
-            PlaceList(place, in: washing(listed), filter: filter, isFoldOpen: openFolds.contains(place))
+        return held.arranged(
+            PlaceList(place, in: washing(listed, at: time), filter: filter, isFoldOpen: openFolds.contains(place))
         )
-
-        history?.stand(in: list)
-        return list
     }
 
     /// A place's list as it shows, held, filtered and folded, with no washes.
@@ -559,13 +595,15 @@ public final class WindowRun {
         held.arranged(PlaceList(place, in: listed, filter: filter, isFoldOpen: openFolds.contains(place)))
     }
 
-    /// The board with its washes under way: each line new on the board, outside Snoozed, whose rows never wash.
-    private func washing(_ listed: Listed) -> Listed {
+    /// The board with its washes under way at this time: each line new on the board, outside Snoozed, whose rows
+    /// never wash.
+    private func washing(_ listed: Listed, at time: Date) -> Listed {
+        let live = Wash.live(washed, at: time)
         var shown = listed
 
         shown.changeRows { row in
             if row.section != .snoozed {
-                row.lines.indices.forEach { row.lines[$0].washed = washed[row.lines[$0].id] }
+                row.lines.indices.forEach { row.lines[$0].washed = live[row.lines[$0].id] }
             }
         }
         return shown

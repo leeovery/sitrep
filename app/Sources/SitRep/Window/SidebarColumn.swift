@@ -57,8 +57,8 @@ struct SidebarColumn: View {
 /// The sidebar's list, whose selection is where the window is, a place or a project, drawn by the system, which the
 /// pointer and the arrow keys move alike, each a step Back returns from, and which never empties. A click on the row
 /// already picked goes there too, as a session's page pushed from a project goes back to the project's page
-/// (`Location.clicking(_:)`). The pointer over it holds the projects' order. Drawn as a still, its rows one under
-/// another, as the list sets them.
+/// (`Location.clicking(_:)`). The row showing scrolls into view whenever it changes, only as far as it needs. The
+/// pointer over it holds the projects' order. Drawn as a still, its rows one under another, as the list sets them.
 ///
 /// The system's list sets its first row 10 under its top, so it starts 10 higher, over the accessory's last 10, for its
 /// first row to start at the accessory's foot (measured offscreen).
@@ -77,22 +77,27 @@ struct SidebarList: View {
         if isStill {
             VStack(alignment: .leading, spacing: 0) { rows }
         } else {
-            List(selection: $selection) { rows }
-                .sidebarList()
-                .padding(.top, -WindowStyle.listInset)
-                // The list's own bottom inset, 10, and 2 more: its content margins it ignores (measured offscreen).
-                .safeAreaPadding(.bottom, WindowStyle.listBottom - WindowStyle.listInset)
-                .onHover { act.pointer(.projects, $0) }
-                .onChange(of: selection) { _, selected in
-                    guard let selected else {
+            ScrollViewReader { scroller in
+                List(selection: $selection) { rows }
+                    .sidebarList()
+                    .padding(.top, -WindowStyle.listInset)
+                    // The list's own bottom inset, 10, and 2 more: its content margins it ignores (measured offscreen).
+                    .safeAreaPadding(.bottom, WindowStyle.listBottom - WindowStyle.listInset)
+                    .onHover { act.pointer(.projects, $0) }
+                    .onChange(of: selection) { _, selected in
+                        guard let selected else {
+                            selection = root
+                            return
+                        }
+                        if selected != root {
+                            act.click(selected)
+                        }
+                    }
+                    .onChange(of: root, initial: true) {
                         selection = root
-                        return
+                        scroller.scrollTo(root)
                     }
-                    if selected != root {
-                        act.click(selected)
-                    }
-                }
-                .onChange(of: root, initial: true) { selection = root }
+            }
         }
     }
 
@@ -101,12 +106,14 @@ struct SidebarList: View {
             PlaceRow(place: place, count: places.count(of: place))
                 .spoken(Spoken.place(place, count: places.count(of: place)))
                 .sidebarRow(.place(place), root: root)
+                .id(Root.place(place))
         }
         ProjectsHeading()
         ForEach(places.projects) { project in
             ProjectRow(project: project, filter: filter)
                 .spoken(Spoken.project(project))
                 .sidebarRow(.project(project.id), root: root)
+                .id(Root.project(project.id))
         }
     }
 }

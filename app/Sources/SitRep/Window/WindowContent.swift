@@ -9,8 +9,9 @@ import SwiftUI
 struct WindowActions: Sendable {
     /// A row of the sidebar clicked, a place or a project (`WindowRun.click(_:)`).
     var click: @MainActor @Sendable (Root) -> Void = { _ in }
-    /// A row of the list beside the page picked, by a click (`WindowRun.pickInList(_:at:)`).
-    var pickInList: @MainActor @Sendable (ListPick) -> Void = { _ in }
+    /// A row of the list beside the page picked, by a click (`WindowRun.pickInList(_:at:)`). Whether it was: a row a
+    /// board has just dropped picks nothing.
+    var pickInList: @MainActor @Sendable (ListPick) -> Bool = { _ in false }
     /// ↓, true, or ↑, false, in the list, or the toolbar's down or up (`WindowRun.step(down:at:)`).
     var step: @MainActor @Sendable (Bool) -> Void = { _ in }
     /// The fold at a place's list's foot clicked, "N snoozed" or "N earlier", which opens or folds.

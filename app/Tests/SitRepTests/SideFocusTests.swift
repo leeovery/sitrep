@@ -230,26 +230,6 @@ struct SideFocusTests {
         #expect(sides.window.firstResponder === sides.places)
     }
 
-    /// Opening or landing where the list is folded away, the list beside the page held focus before: the list folds
-    /// first, so focus finds the sidebar's list, not a list going.
-    @Test func focusingTheListAsItFoldsAwayFindsTheSidebarsList() throws {
-        let sides = try Sides(focusingList: false)
-
-        sides.focus.focusList(folding: sides.split.splitViewItems[1], isFullPage: true)
-        #expect(sides.split.splitViewItems[1].isCollapsed)
-        #expect(sides.window.firstResponder === sides.places)
-    }
-
-    /// Opening or landing on a place, the list folded away before: it shows first, so focus finds it.
-    @Test func focusingTheListAsItComesBackFindsIt() throws {
-        let sides = try Sides(focusingList: false)
-
-        sides.foldTheList()
-        sides.focus.focusList(folding: sides.split.splitViewItems[1], isFullPage: false)
-        #expect(!sides.split.splitViewItems[1].isCollapsed)
-        #expect(sides.window.firstResponder === sides.board)
-    }
-
     /// The list holding focus folds away, as a project's name pressed on the page fills the window: focus goes to the
     /// sidebar's list.
     @Test func theListFoldingAwayUnderFocusGivesItToTheSidebarsList() throws {

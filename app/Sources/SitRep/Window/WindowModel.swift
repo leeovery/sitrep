@@ -24,6 +24,9 @@ final class WindowModel {
     private(set) var location = Location.place(.needsYou)
     /// The page fills the window, with no list beside it: the content list folds away.
     private(set) var isFullPage = false
+    /// A list shows beside the page with rows in it, not folded away nor emptied to its one line: what the window's
+    /// focus follows.
+    private(set) var showsRows = true
     /// What the Filter field holds, never saved.
     private(set) var filter = Filter()
     /// The clock the pages are drawn at: ages, washes and an answer's wait.
@@ -35,6 +38,11 @@ final class WindowModel {
 
     /// What the views' presses ask the model for.
     @ObservationIgnored private(set) var actions = WindowActions()
+    /// Told, as each change is taken, whether the page fills the window, so the list folds away or shows with the
+    /// change and not a moment after it; and whether a session opened from outside before any board has just landed,
+    /// on the board come, which puts focus on the list.
+    @ObservationIgnored var arrange: (_ isFullPage: Bool, _ landed: Bool) -> Void = { _, _ in }
+    @ObservationIgnored private var landedLater = 0
     @ObservationIgnored private let run: WindowRun
     /// The calendar the window's wake times are worded on, its run's.
     var calendar: Calendar { run.calendar }
@@ -73,7 +81,7 @@ final class WindowModel {
     private func makeActions() -> WindowActions {
         WindowActions(
             click: { [weak self] in self?.click($0) },
-            pickInList: { [weak self] in self?.pickInList($0) },
+            pickInList: { [weak self] in self?.pickInList($0) ?? false },
             step: { [weak self] in self?.step(down: $0) },
             toggleFold: { [weak self] in self?.toggleFold(of: $0) },
             back: { [weak self] in self?.goBack() },
@@ -109,10 +117,17 @@ final class WindowModel {
         let follow: @Sendable (Notification) -> Void = { [weak self] _ in
             MainActor.assumeIsolated {
                 guard let self else { return }
-                self.reducesMotion = Self.readReducesMotion(self.defaults)
+
+                let reduces = Self.readReducesMotion(self.defaults)
+
+                if reduces != self.reducesMotion {
+                    self.reducesMotion = reduces
+                }
             }
         }
 
+        // a change of any default comes here, the window's own place saved as it moves among them, so only a change
+        // of the setting is taken
         observers = [
             NotificationCenter.default.addObserver(
                 forName: UserDefaults.didChangeNotification, object: defaults, queue: .main, using: follow
@@ -178,9 +193,9 @@ final class WindowModel {
         refresh()
     }
 
-    private func pickInList(_ pick: ListPick) {
-        run.pickInList(pick, at: Date())
-        refresh()
+    private func pickInList(_ pick: ListPick) -> Bool {
+        defer { refresh() }
+        return run.pickInList(pick, at: Date())
     }
 
     private func step(down: Bool) {
@@ -407,6 +422,11 @@ final class WindowModel {
         if isFullPage != (list == nil) {
             isFullPage = list == nil
         }
+        if showsRows != (list.map { !$0.isEmpty } ?? false) {
+            showsRows.toggle()
+        }
+        arrange(isFullPage, run.landedLater != landedLater)
+        landedLater = run.landedLater
         keepWhereLeft()
         schedule(after: time)
     }
