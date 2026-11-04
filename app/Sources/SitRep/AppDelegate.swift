@@ -44,7 +44,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             preferences,
             jump: { [works] session, answered in works.jump(to: session, answered: answered) },
             isJumping: { [works] in works.isJumping },
-            open: { [window] in window.open(on: .session($0)) },
+            open: { [window] in window.open(session: $0) },
             snoozes: snoozes
         )
         let menu = StatusMenu(

@@ -61,11 +61,13 @@ enum WindowStyle {
         .system(size: size, design: .monospaced)
     }
 
-    /// The window as drawn: its two columns and their insides.
+    /// The window as drawn: its three columns and their insides.
     static let size = CGSize(width: 1100, height: 720)
-    /// As small as the window goes.
-    static let smallest = CGSize(width: 860, height: 520)
-    static let boardWidth: CGFloat = 296
+    /// As small as the window goes: the sidebar and the list leave the detail beside them 404.
+    static let smallest = CGSize(width: 940, height: 520)
+    /// The sidebar, and the list beside the page, as Paper's "Window redesign" draws them (A1 revised).
+    static let boardWidth: CGFloat = 236
+    static let listWidth: CGFloat = 300
     static let pageInset: CGFloat = 44
     /// The band under the window's toolbar, beside the traffic lights, which the toolbar sets 26 points down: empty on
     /// the page, which starts under it.
@@ -82,33 +84,31 @@ enum WindowStyle {
     static let listInset: CGFloat = 10
     static let selectionInset: CGFloat = 10
     static let rowInset: CGFloat = 16
-    /// The sidebar's rule after Needs you, 0.5 tall, 11.5 under its last row, so the rule ends on a whole point and
-    /// every row after it starts on one.
-    static let rule: CGFloat = 0.5
-    static let ruleGap: CGFloat = 11.5
     /// The list's last row, 12 over the glass's foot.
     static let listBottom: CGFloat = 12
-    /// A row of Needs you or Working, the system's two-line row, its words 4 from its top; a row of one line, as board D
-    /// sets Your turn's, "N earlier" and a project's; a heading's row, 10 under what is before it: the list's top, the
-    /// rows before it, or the rule after Needs you.
+    /// A place's row in the sidebar and a project's, 32 tall (A1 revised); Projects' heading over them, 16 under the
+    /// places, and a row's count in a lane of 26 at its end.
+    static let placeHeight: CGFloat = 32
+    static let projectsGap: CGFloat = 16
+    static let countLane: CGFloat = 26
+    /// A line's row in Needs you, 54 tall, its words 10 from its top, 2 between its two lines (A1 revised).
+    static let lineHeight: CGFloat = 54
+    static let lineTop: CGFloat = 10
+    static let lineGap: CGFloat = 2
+    /// A row of Working, the system's two-line row, its words 4 from its top; a row of one line, as board D sets Your
+    /// turn's and "N earlier"; a heading's row.
     static let twoLineHeight: CGFloat = 39
     static let twoLineTop: CGFloat = 4
     static let oneLineHeight: CGFloat = 28
     static let headingHeight: CGFloat = 24
-    static let headingGap: CGFloat = 10
-    /// A heading's words, and "N earlier"'s chevron, end 2 inside the selection, 4 past a row's.
+    /// "N earlier"'s chevron ends 2 inside the selection, 4 past a row's.
     static let headingTrailing: CGFloat = 2
-    /// A heading's count, 2 more after its name than the row's gap, so 6.
-    static let countGap: CGFloat = 2
-    /// A row's mark, in its slot, the gap after it to the words, and a heading's chevron in its slot.
+    /// A row's mark, in its slot, the gap after it to the words, and a fold's chevron in its slot.
     static let slot = CGSize(width: 26, height: 16)
     static let slotGap: CGFloat = 4
     static let chevronSlot = CGSize(width: 15, height: 24)
     /// A working row's verb, and what it acts on 5 after it.
     static let verbGap: CGFloat = 5
-    /// A Needs you row's "+2", 5 after its session's name, in 12 (board F).
-    static let moreGap: CGFloat = 5
-    static let moreSize: CGFloat = 12
     /// A row's button in its time's place under the pointer, which jumps to its session's window: 22 square, its
     /// corners 6, white at 10% (board F).
     static let jumpSide: CGFloat = 22
@@ -122,7 +122,8 @@ enum WindowStyle {
     static let earlierProjectsGap: CGFloat = 5
     /// The selection's corners, as drawn.
     static let rowRadius: CGFloat = 9
-    /// The sidebar's words: a title's, 13 with its tracking; a heading's, a row's project line and a count's, 11.
+    /// The words of the sidebar and the list: a title's, 13 with its tracking; a heading's and a row's project line, 11;
+    /// an age's and a count's, 12.
     static let titleSize: CGFloat = 13
     static let titleTracking: CGFloat = -0.01
     static let smallSize: CGFloat = 11
@@ -137,9 +138,9 @@ enum WindowStyle {
     /// headings.
     static let reach: CGFloat = 8
 
-    /// What a sidebar row draws behind its words: under the pointer, a quiet fill, never on the row picked, which
-    /// keeps the system's selection; drawn as a still, which renders no list, a stand-in for that selection. A
-    /// heading draws none.
+    /// What a row of the sidebar or the list draws behind its words: under the pointer, a quiet fill, never on the row
+    /// picked, which keeps the system's selection; drawn as a still, which renders no list, a stand-in for that
+    /// selection. A heading draws none.
     static func sidebarFill(_ highlight: Highlight, isStill: Bool) -> Color? {
         switch highlight {
         case .hover: sidebarHover
@@ -166,10 +167,9 @@ enum WindowStyle {
         }
     }
 
-    /// Board D's white at 35%, a your-turn row's project and a working row's subject; and at 30%, a heading's count,
-    /// but Needs you's.
+    /// Board D's white at 35%, a your-turn row's project, a working row's subject, and a count in the sidebar but
+    /// Needs you's.
     static let dim = Color.white.opacity(0.35)
-    static let count = Color.white.opacity(0.3)
     /// Board H's white at 60%, a Snoozed row's name.
     static let quiet = Color.white.opacity(Double(0x99) / 255)
 
@@ -178,21 +178,6 @@ enum WindowStyle {
     static let sidebarArc = Color.white.opacity(0.55)
     /// On its own work, the sidebar's dotted ring, from Paper's board D.
     static let sidebarDotted = Color.white.opacity(0.45)
-
-    /// The system's selection, as SitRep draws it where the list does not, on a row standing in for the pick: the
-    /// accent's while it has the key window's focus, else the system's grey; drawn as a still, the stand-in.
-    static func selection(isEmphasized: Bool, isStill: Bool) -> Color {
-        if isStill {
-            return stillSelection
-        }
-
-        let system: NSColor = isEmphasized ? .selectedContentBackgroundColor : .unemphasizedSelectedContentBackgroundColor
-
-        return Color(nsColor: system)
-    }
-
-    /// The sidebar's rule's colour.
-    static let separator = Color(nsColor: .separatorColor)
 }
 
 extension Color {
