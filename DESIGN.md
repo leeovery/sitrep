@@ -1992,6 +1992,7 @@ truth. There is still no background service. None of it is built now. Lee:
   sitrep finish
   sitrep board [--json]
   sitrep list [--project <name>] [--json]
+  sitrep screen [--json]
   sitrep jump
   sitrep watch
   ```
@@ -2057,7 +2058,58 @@ truth. There is still no background service. None of it is built now. Lee:
     2026, whether a jump could reach it (see "The jump", step 2), which only
     `--json` worked out, asking tmux twice per socket; the app's plain menu
     was its only reader, and it went with the menu. `v` stayed 1: no reader
-    is left to trip on the field's going.
+    is left to trip on the field's going. It came back on 4 November 2026 as
+    a command of its own, `screen` (below), for the SitRep window.
+  - `screen` (4 November 2026) says whether each session a window holds is
+    on screen: whether a jump could reach it, a terminal window of this Mac
+    showing it or tmux able to make one show it, exactly as the jump finds
+    it (see "The jump", step 2), by the same reading. It is the SitRep
+    window's, whose rows and pages say whether a session is on screen.
+    - Three states, never two: `on`, a place shows the session or a select
+      would make one; `off`, none does, every program asked of its windows
+      having answered; `unknown`, none found, as tmux gave no answer for a
+      socket one of its windows runs under, or `ps` none where that server
+      has clients, whose apps it tells. A jump that could not tell says so
+      rather than calling the session off screen, and so does `screen`:
+      unknown is never off. A window outside tmux asks neither, so is never
+      unknown; a live window saying not where it is is off, as no jump can
+      reach it.
+    - Only the sessions a live window holds are listed: one no window holds
+      is away, which the board says already. A finished session a window
+      still holds is listed with the rest. Each session's heartbeats are
+      read first, and only one with a live window is read past them and
+      folded, so a run costs what the open sessions do, not the board's
+      history.
+    - One reading for the run, over every listed session's windows: tmux
+      asked twice for each socket and `ps` once, beside it, each given 2
+      seconds, as for a jump, however many sessions run under them. Nothing
+      fails the run: what gives no answer makes its sessions unknown, and is
+      named. It selects, writes and focuses nothing. Over a copy of Lee's
+      board (4 November 2026: 107 sessions, 18 held) a run took 0.2 seconds
+      of CPU, against 0.27 while it folded every session, and 0.3 to 0.55
+      seconds' wall on a Mac at a load of 230; Bun's start is 0.02 of it.
+    - `--json`, `v` 1, the sessions by id, and `unanswered` naming what gave
+      no answer, `tmux`, `ps`, or neither; plain `screen` says the same a line
+      each (`sr-k3f9qa  Dashboard redesign: on screen`, `not on screen`, `not
+      known`), then what gave no answer.
+
+      ```
+      { "v": 1,
+        "sessions": [ { "id": "sr-k3f9qa", "is": "on" },
+                      { "id": "sr-bbbbbb", "is": "unknown" } ],
+        "unanswered": ["tmux"] }
+      ```
+
+    - A command of its own, not a field of `list` or of `watch`'s lines:
+      on screen changes with Lee's tmux and terminal windows, which write
+      nothing to the folder, so no change of the board would carry it, and
+      `watch`, which runs for the app's whole life, would ask tmux and `ps`
+      at every look, the window shut or not, for the one window that shows
+      it. `list` runs no program, and keeps so. The app
+      asks for it on its own cadence, only while its window shows (see "The
+      SitRep window", "On screen"). The reading stays in the CLI's
+      `screen.ts`, one place, which a jump reads too, so zmx, should Lee move
+      to it, comes in there behind the same states.
 
     `board --json` is
     `{ v, project: { key, name }, session, asks, parked, log, resolved }`:
@@ -4358,6 +4410,35 @@ stands).
     words wait for that window;
   - its foot has "✓ Finish this session", which asks first, in place, as the
     pane's does, then runs `sitrep finish`.
+- **On screen** (4 November 2026): whether a terminal window of this Mac
+  shows a session, or tmux can make one show it, which the window reads
+  from `sitrep screen --json` (see "One engine, two front ends"): on, off,
+  or unknown, where tmux or `ps` gave no answer for its windows. With no
+  reading yet, after a run that failed, or for a session the reading does
+  not list, as no window holds it, the window says nothing of it, which is
+  not unknown: an away session gets no mark at all. What draws it (a pip on
+  a Needs you row not on screen, "· not on screen" on a project's page, "on
+  screen" in a session page's meta line) comes with the window's rebuild;
+  until then the window reads it and draws nothing of it.
+  - It cannot ride `watch`: it changes with Lee's tmux and Ghostty, not
+    with the board. So the window runs `screen` on its own cadence, only
+    while it shows, macOS saying it is visible: at once as it opens, comes
+    back from the Dock, or comes out from under other windows or onto Lee's
+    Space; at once as it becomes key, where its reading is more than a
+    second old, so switching between SitRep and a terminal runs nothing new;
+    then 5 seconds after each run ends, so never two at once. Covered, on
+    another Space, minimised or closed, it runs none. Whether it is visible
+    is asked of macOS as it comes forward or back from the Dock, not
+    assumed: one that comes still covered, by a full-screen app or a locked
+    screen, may see no change to tell it.
+  - During a run, a look asked for at once (the window opening again, back
+    from the Dock, uncovered) is made as that run ends, one more at once; the
+    window becoming key during a run is answered by that run.
+  - The last reading stands while the window is minimised or covered, so
+    coming back shows it at once, and the run that starts then corrects it.
+    Closing lets it go, as the window opens afresh. A run begun before the
+    close is let go as it ends, though the window opened again meanwhile,
+    and the reopened window's run is made then, at once.
 - **One colour.** Orange is for needs you only: the dots, the counts,
   "2 waiting". Parked and resolved stay grey, not the pane's purple and
   green.
@@ -4373,6 +4454,119 @@ stands).
     stops being key (since 27 October 2026; see "Kept in place").
   - The window never comes forward or takes focus by itself; the notch or
     the strip tells Lee.
+- **The rebuild's places, lists and way around** (4 November 2026). Lee
+  approved Paper's "Window redesign", A1 to A4 revised: "Build it as
+  drawn." What follows is the model the rebuilt window draws from, its
+  rules and their tests, not yet the window: a later change wires it in and
+  rewrites the entries above that it replaces. Until then the window is as
+  described above.
+  - **Four places, then the projects.** The sidebar holds the Filter field,
+    then Needs you, Your turn, Working and Parked, then every project on the
+    board, quiet ones too. Your turn sits above Working because it waits on
+    Lee and Working doesn't (Lee, 4 November 2026, for every surface). The
+    places are the window's own: the card's
+    sections, which the notch, the strip and the menu share, are unchanged.
+    Needs you counts each line waiting on Lee, every ask and every window's
+    stop, so its count says how much there is to do, not how many sessions;
+    Working and Your turn count their rows, those under "N earlier" too;
+    Parked counts every item parked. The counts are the whole board's
+    whatever the filter holds, as Mail's are whatever its search finds, so
+    typing never makes the orange count look smaller than the work.
+  - **A project's mark** is the orange dot while a line of a session a
+    window holds waits on Lee; the away ring while only lines of sessions no
+    window holds wait, as an away row's mark is; else the quiet grey dot.
+    Its grey count is its current sessions. It is **quiet**, its name soft
+    and its count hidden, only with nothing open, waiting, asleep or parked,
+    as core folds a project: an ask asleep keeps a project current, so such
+    a project keeps the grey dot, nothing waiting on Lee now, but its name
+    bright and its count shown.
+  - **Needs you is a row per line**, every ask and every window's stop, in
+    the window only (A1 shows one session twice): core's rows, a row per
+    session, are unchanged, and the card, the strip and the menu draw them
+    as before, "+N" and all. The lines are the newest first, so a new ask
+    comes in at the top, as Lee asked earlier (4 November 2026, for every
+    surface, the card's rows to follow on their own); those of sessions a
+    window holds before those of sessions none does, the newest first among
+    those too; two as old as each other by their keys. At its foot,
+    "N snoozed" counts the asks asleep and folds them, a row per ask, the
+    soonest to wake first, then the oldest, then by key, as core orders
+    them. Your turn's rows past the fold period sit under "N earlier" at its
+    foot, as now. A fold opens in place, is never kept, and shows open while
+    the filter holds text. A line row offers only its own ask to snooze or
+    wake, never its session's others, which have rows of their own.
+  - **The filter** keeps a line while every word typed appears in its
+    session's name, its project's or its own words, so typing what an ask
+    says finds that ask, not every line of its session; a Working or Your
+    turn row by today's rule; a project by its name.
+  - **Position.** Beside the list, the picked row's place among the rows
+    shown, "3 / 6", which VoiceOver reads "3 of 6"; an open fold's rows
+    count, a closed one's don't, and with nothing shown picked there is no
+    position.
+  - **↑ and ↓** step through the rows shown, a fold no row of its own. A
+    pick the list no longer shows, an ask answered or a row a fold closed
+    over, stands where it last showed, after the nearest row then above it
+    that the list still shows: so after the picked ask is answered nothing
+    is picked, the page staying on its session, and ↓ goes to the row after
+    it, not back to the top. With nothing picked, ↓ goes to the first row
+    and ↑ nowhere. Where the pick stood is kept through every way a pick is
+    made, a click, an arrow, an open from outside, and through every step,
+    taken from the list as it shows, held or filtered, not as `watch`
+    orders it; Back returns to it as it last stood, so ↓ after Back goes on
+    from there too.
+  - **A pick follows its ask.** Core gives an ask one key in Needs you and in
+    Snoozed, so a snoozed ask picked and woken is picked as its line in
+    Needs you. The picked line snoozed stays picked as it was, gone from the
+    list as an answered one is, and ↓ goes on from it: snoozing is putting
+    it out of the way.
+  - **Held still.** The middle list and the projects each hold their order
+    under the pointer and for a second after it leaves, and the list for a
+    second after each pick in it, as the sidebar does now; Needs you by its
+    lines, so a line answered leaves the rest where they were, and a line
+    new on the board comes in at once where `watch` has it. The two columns
+    hold apart, so the pointer over the projects never holds the list.
+  - **Where the window is**: a place, with what its list picked, and for
+    Parked the project or the session its list is narrowed to; a project's
+    page; or a session's page pushed from a place or a project, which stays
+    picked in the sidebar. The page follows the picked row's session, every
+    session of a project, or the session pushed.
+  - **As the board changes** the window stays where it is wherever that
+    still stands. A picked line leaving Needs you keeps it there, the page
+    on its session. A pick whose session left the board drops, the place
+    staying; Parked's narrowing falls back to every item as its project or
+    session leaves; a session's page whose session left gives way to where
+    it was pushed from; a project's page whose project left opens the window
+    afresh. With no board heard, before `watch` prints its first line or
+    with no `watch` to run, nothing has left the board, so the window stays
+    where it is: `watch` stopping never sends Lee elsewhere.
+  - **It opens on** Needs you's first line; with none, where it was left,
+    as that stands on the board, a pick its list no longer lists dropped, as
+    the list it stood in is gone (closed on a line since answered, it opens
+    on Needs you, nothing picked, not on an empty list beside that line's
+    page); else Needs you, nothing picked. Until Parked lists its items, a
+    Parked pick is kept as it was. Opened before `watch`'s first line, it
+    opens where it was left, then, with the first board, as that board says,
+    unless Lee has gone somewhere meanwhile: a window opened on a project's
+    page a moment before the board comes still opens on what needs Lee.
+    Where it was left is kept across launches, but not where its pick stood
+    in a list. "Where it stood" holds only while the window is open.
+  - **Open in SitRep** on a session lands on Needs you, its oldest line
+    picked, where it needs Lee; else on Your turn or Working, its row
+    picked, "N earlier" opening where it is under it; else, its only asks
+    asleep or none, on its project's page and then the session's pushed
+    over it, two steps, as if Lee had gone there himself, so Back goes to
+    the project's page. Before a board is heard it lands once one is.
+  - **A click in the sidebar** on the place or the project already showing
+    changes nothing, its pick kept, as Mail does for the mailbox already
+    open; on Parked narrowed to a project it clears the narrowing.
+  - **Back and Forward** (⌘[ and ⌘]): a sidebar click, a session opened
+    from a project's page, a breadcrumb link, a session's "later · N
+    parked", a project's "N parked", "Back to its session" and an open from
+    outside each make a step; another row picked within the list replaces
+    the step, so Back skips the rows Lee stepped through, to where he came
+    from. Going where the window already is makes no step. As the board
+    changes every step is kept as it stands, one that no longer stands goes,
+    and steps that come to be the same are one, so neither Back nor Forward
+    ever stays put or lands on a session gone. Not kept across launches.
 
 ### The menu bar item
 
@@ -5088,7 +5282,8 @@ shape allows them. A jump made in Swift, in the app, stays parked too.
    stayed as they were before the select (19 October 2026), so a reader that
    took `true` to mean a jump could reach it read it as before. It went on
    27 October 2026, the plain menu its only reader (see "One engine, two
-   front ends").
+   front ends"), and came back on 4 November 2026 as `sitrep screen`, with
+   unknown beside on and off, for the SitRep window.
 
    **Selecting the pane's window** (19 October 2026). Where no client a jump
    can reach has the pane's tmux window current, the tmux layer makes it

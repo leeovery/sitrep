@@ -1,6 +1,7 @@
 import Foundation
 @testable import SitRepCore
 import os
+import SitRepLines
 import Testing
 
 struct SitRepCLITests {
@@ -117,6 +118,36 @@ struct SitRepCLITests {
         let (cli, _) = Self.cli { program in throw RunError.timedOut(program.limit) }
 
         #expect(await cli.jump(to: "sr-047c7y") == .refused("sitrep jump did not answer within 180 seconds."))
+    }
+
+    @Test func screenRunsScreenForJSONAndReadsIt() async throws {
+        let (cli, programs) = Self.cli(Self.exited(0, stdout: Lines.screen))
+
+        #expect(await cli.screen() == .read(try ScreenReading.read(Lines.screen)))
+        #expect(programs.all.map(\.arguments) == [["screen", "--json"]])
+        #expect(programs.all.map(\.limit) == [SitRepCLI.screenLimit])
+    }
+
+    @Test func aScreenThatFailsGivesTheCLIsWordsAndNoReading() async {
+        let (cli, _) = Self.cli(Self.exited(1, stderr: "sitrep: There is no command screen. sitrep --help lists them.\n"))
+        let answer = await cli.screen()
+
+        #expect(answer == .failed("There is no command screen. sitrep --help lists them."))
+        #expect(answer.reading == nil)
+    }
+
+    @Test func aScreenThatNeverEndsSaysSo() async {
+        let (cli, _) = Self.cli { program in throw RunError.timedOut(program.limit) }
+
+        #expect(await cli.screen() == .failed("sitrep screen did not answer within 10 seconds."))
+    }
+
+    @Test func aScreenWhoseOutputDoesNotReadSaysSo() async {
+        let (cli, _) = Self.cli(Self.exited(0, stdout: #"{"v": 2}"#))
+
+        #expect(
+            await cli.screen() == .failed("sitrep screen gave output version 2, and this SitRep reads version 1.")
+        )
     }
 
     @Test func anAnswerGivesTheAskAndTheButtonsWordsAfterTheFlagsEnd() async {

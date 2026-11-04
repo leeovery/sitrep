@@ -1,8 +1,9 @@
 /**
  * What the CLI prints of the projects and of a session: lines to
- * read, or JSON for tools such as the tmux indicator; and the lines of
- * `watch`, the board as every surface shows it, its Snoozed rows apart from
- * its rows, with the boards of the sessions the SitRep app follows.
+ * read, or JSON for tools such as the tmux indicator; which sessions show on
+ * screen; and the lines of `watch`, the board as every surface shows it, its
+ * Snoozed rows apart from its rows, with the boards of the sessions the
+ * SitRep app follows.
  *
  * The JSON is stable: every field is always there, a list empty and any
  * other value null where there is none, and `v`, the output's version,
@@ -11,6 +12,8 @@
 import {
   answerOf,
   brief,
+  compareText,
+  inWords,
   isSameName,
   listedProjects,
   projectAround,
@@ -37,9 +40,10 @@ import {
   type WindowState,
   type Where,
 } from '../core'
+import type { OnScreen, Shown } from './screen'
 
 /** The JSON's version, by command; why each stands where it does is DESIGN.md's ("One engine, two front ends"). */
-const OUTPUT = { list: 2, board: 3, watch: 3 } as const
+const OUTPUT = { list: 2, board: 3, watch: 3, screen: 1 } as const
 
 /** What `list` gives: the project the CLI runs in, if it runs in one, and the projects listed. */
 export type Listing = { here?: Project; projects: ProjectSummary[] }
@@ -126,6 +130,43 @@ const projectJson = (project: ProjectSummary) => ({
 /** `list --json`: the project the CLI runs in, by its key, else null, and the projects as `listing` gives them. */
 export const listJson = ({ here, projects }: Listing) =>
   json({ v: OUTPUT.list, here: here?.key ?? null, projects: projects.map(projectJson) })
+
+/** Whether a jump could reach a session, as `screen --json` says it. */
+const SCREEN_JSON = { 'on screen': 'on', 'off screen': 'off', unknown: 'unknown' } as const
+
+/** Whether a jump could reach a session, in words. */
+const SCREEN_WORDS = {
+  'on screen': 'on screen',
+  'off screen': 'not on screen',
+  unknown: 'not known',
+} as const
+
+/** The sessions shown, by their ids. */
+const byId = (shown: readonly Shown[]) =>
+  [...shown].sort((a, b) => compareText(a.session.id, b.session.id))
+
+/**
+ * `screen --json`: each session a live window holds, by its id, saying
+ * whether a jump could reach it, `on`, `off` or `unknown`; and what gave no
+ * answer, by name.
+ */
+export const screenJson = ({ shown, unanswered }: OnScreen) =>
+  json({
+    v: OUTPUT.screen,
+    sessions: byId(shown).map(({ session, is }) => ({ id: session.id, is: SCREEN_JSON[is] })),
+    unanswered,
+  })
+
+/** Each session a live window holds, a line each: its id, its name and whether it is on screen; then what gave no answer. */
+export const screenText = ({ shown, unanswered }: OnScreen) =>
+  shown.length === 0
+    ? 'No session is open in a window.'
+    : [
+        ...byId(shown).map(
+          ({ session, is }) => `${session.id}  ${session.status.name}: ${SCREEN_WORDS[is]}`,
+        ),
+        ...(unanswered.length === 0 ? [] : [`${inWords(unanswered)} gave no answer.`]),
+      ].join('\n')
 
 /** Where Lee's reply to an ask stands, whether it is Lee's answer, which bars another, and its words as the board shows them on one row; null where `replyState` gives none. */
 const replyJson = (ask: Ask) => {

@@ -1,0 +1,18 @@
+{
+  "v": 1,
+  "sessions": [
+    {
+      "id": "sr-0nscrn",
+      "is": "on"
+    },
+    {
+      "id": "sr-n0pane",
+      "is": "off"
+    },
+    {
+      "id": "sr-n0srvr",
+      "is": "off"
+    }
+  ],
+  "unanswered": []
+}
