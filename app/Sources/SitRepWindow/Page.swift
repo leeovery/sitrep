@@ -52,14 +52,23 @@ public struct Note: Equatable, Sendable, Identifiable {
     public var hasMore: Bool { !detail.isEmpty }
 }
 
-/// Something parked, and opened, where it was parked from.
-public struct Parked: Equatable, Sendable, Identifiable {
-    public let id: String
-    public let session: String?
-    public let title: String
-    public let `where`: String?
-    public let at: Date
+extension Note {
+    /// A session's log lines as notes, each by an id that stays as lines come: its session's and its own; for a line
+    /// without one, its kind, time, writer and words, and among lines alike in all of those, which of them it is,
+    /// counted from the oldest, as new lines come at the top. In a project's view of several sessions each names its
+    /// session.
+    static func notes(_ log: [SessionBoard.Line], of session: Board.Session, named: Bool) -> [Note] {
+        var seen: [String: Int] = [:]
+        let ids = log.reversed().map { line in
+            let own = line.id ?? "\(line.kind.rawValue)@\(line.at.timeIntervalSince1970):\(line.by):\(line.text)"
+            let repeats = seen[own, default: 0]
 
-    /// It opens to more than its line: where it was parked from. Without, it opens only while its line is cut short.
-    public var hasMore: Bool { `where` != nil }
+            seen[own] = repeats + 1
+            return repeats == 0 ? own : "\(own)#\(repeats)"
+        }
+
+        return zip(log, ids.reversed()).map { line, own in
+            Note(id: "\(session.id):\(own)", session: named ? session.name : nil, text: line.text, detail: line.detail, at: line.at)
+        }
+    }
 }

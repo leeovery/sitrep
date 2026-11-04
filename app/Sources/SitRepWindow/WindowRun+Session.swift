@@ -8,8 +8,8 @@ extension WindowRun {
         let kept = details.board(of: session.id)
         let isAway = session.doing.isAway
         let status = Status(now: session.now, next: session.next, updated: kept?.log.first { $0.kind == .status }?.at)
-        let notes = kept.map { Details.notes($0.log, of: session, named: false) } ?? []
-        let parked = kept?.parked.map { Parked(id: $0.id, session: nil, title: $0.title, where: $0.where, at: $0.at) } ?? []
+        let notes = kept.map { Note.notes($0.log, of: session, named: false) } ?? []
+        let parked = kept.map(Parked.items) ?? []
         let resolved = details.resolved(of: session.id)
         let items = status.now.enumerated().map { Item.status($0.offset, $0.element) } + (status.next.map { [Item.next($0)] } ?? [])
             + notes.map { .note($0.id) } + parked.map { .parked($0.id) } + resolved.map { .resolved($0.id) }

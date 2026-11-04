@@ -5,9 +5,10 @@ import SitRepPanel
 /// The detail of the sessions the window's page shows, as `WindowRun` keeps it: each session's board as a line last
 /// carried it, the sessions told to `watch` and those current since, why a line carried none, the asks of the page
 /// kept in place while it is held, the answers waiting out their two seconds, finishing an away session, what a snooze
-/// or a wake pressed on a card came to, and what is opened in place; and from these, a session's asks as cards, its
-/// notes and what it resolved.
-struct Details {
+/// or a wake pressed on a card came to, and what is opened in place; and from these, a session's asks as cards and
+/// what it resolved.
+struct Details: Equatable, Sendable {
+    /// The answers waiting out their two seconds.
     private(set) var answers = Answers()
     /// Each session's board as a line last carried it, kept while it is not followed, so it shows again as last kept.
     private var boards: [String: SessionBoard] = [:]
@@ -49,7 +50,8 @@ struct Details {
         holdPage(at: time)
     }
 
-    /// The window became key, or stopped being, at this time: in a window not key the pointer holds no page.
+    /// The window became key, or stopped being, at this time: in a window not key the pointer holds no page, as a
+    /// pointer resting on a window Lee is not using would hold its closed asks for as long as it rests.
     mutating func window(isKey: Bool, at time: Date) {
         self.isKey = isKey
         holdPage(at: time)
@@ -224,6 +226,7 @@ struct Details {
         }
     }
 
+    /// Whether an ask in a project's view is opened in place into its card.
     func isOpened(_ ask: AskAddress) -> Bool {
         opened.contains(ask)
     }
@@ -325,25 +328,6 @@ struct Details {
     /// A session's resolved asks as last kept, those still keeping their place among its asks aside.
     func resolved(of session: String) -> [Resolved] {
         boards[session].map { Self.resolved($0, leaving: frozen[session]?.kept ?? []) } ?? []
-    }
-
-    /// A session's log lines as notes, each by an id that stays as lines come: its session's and its own; for a line
-    /// without one, its kind, time, writer and words, and among lines alike in all of those, which of them it is,
-    /// counted from the oldest, as new lines come at the top. In a project's view of several sessions each names its
-    /// session.
-    static func notes(_ log: [SessionBoard.Line], of session: Board.Session, named: Bool) -> [Note] {
-        var seen: [String: Int] = [:]
-        let ids = log.reversed().map { line in
-            let own = line.id ?? "\(line.kind.rawValue)@\(line.at.timeIntervalSince1970):\(line.by):\(line.text)"
-            let repeats = seen[own, default: 0]
-
-            seen[own] = repeats + 1
-            return repeats == 0 ? own : "\(own)#\(repeats)"
-        }
-
-        return zip(log, ids.reversed()).map { line, own in
-            Note(id: "\(session.id):\(own)", session: named ? session.name : nil, text: line.text, detail: line.detail, at: line.at)
-        }
     }
 
     private static func resolved(_ board: SessionBoard, leaving kept: Set<String>) -> [Resolved] {

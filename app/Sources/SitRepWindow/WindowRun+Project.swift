@@ -11,15 +11,8 @@ extension WindowRun {
         let waiting = { (rows: [Board.Row]) in rows.map(\.lines.count).reduce(0, +) }
         let kept = project.sessions.compactMap { session in details.board(of: session.id).map { (session, $0) } }
         let named = project.sessions.count > 1
-        let notes = Array(kept.flatMap { Details.notes($1.log, of: $0, named: named) }.sorted { $0.at > $1.at }.prefix(Self.projectNotes))
-        let parked = kept.flatMap { session, board in
-            board.parked.map {
-                Parked(
-                    id: "\(session.id):\($0.id)", session: named ? session.name : nil, title: $0.title, where: $0.where,
-                    at: $0.at
-                )
-            }
-        }.sorted { $0.at < $1.at }
+        let notes = Array(kept.flatMap { Note.notes($1.log, of: $0, named: named) }.sorted { $0.at > $1.at }.prefix(Self.projectNotes))
+        let parked = kept.flatMap { Parked.items(of: $1, from: $0, named: named) }.sorted { $0.at < $1.at }
 
         return ProjectPage(
             key: project.key, name: project.name, waiting: waiting(needs), open: project.open,
