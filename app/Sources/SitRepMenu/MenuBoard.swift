@@ -19,7 +19,7 @@ public struct MenuBoard: Equatable, Sendable {
     /// The sessions' heading, in the panel head's words, with when the board was last current while it is stale:
     /// "4 need you · as of 12:04". Nil with no board to list, while the menu speaks up instead.
     public let heading: String?
-    /// The first twelve sessions, with the panel's hairline under the needs you that lead them.
+    /// The first twelve sessions, with the panel's hairline under what waits on Lee that leads them.
     public let items: [Item]
     /// How many sessions there are past the twelve, which "N more…" opens the SitRep window for.
     public let more: Int

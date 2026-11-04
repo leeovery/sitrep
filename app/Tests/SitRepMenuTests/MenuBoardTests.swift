@@ -10,8 +10,8 @@ struct MenuBoardTests {
 
     private static let board = menu(heard([.line(Watched.line())]))
 
-    @Test func itListsThePanelsSessionsInCoresOrderWithTheHairlineUnderTheNeedsYou() {
-        #expect(Self.board.items.map(\.key) == ["needs:sr-ledger", "needs:sr-dash", "needs:sr-plan", "divider", "sr-boot", "sr-diff"])
+    @Test func itListsThePanelsSessionsInCoresOrderWithTheHairlineUnderWhatWaitsOnLee() {
+        #expect(Self.board.items.map(\.key) == ["needs:sr-ledger", "needs:sr-dash", "needs:sr-plan", "turn:sr-boot", "divider", "sr-diff"])
     }
 
     @Test func eachRowCarriesThePanelsMark() {

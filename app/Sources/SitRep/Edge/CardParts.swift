@@ -39,7 +39,7 @@ enum CardParts {
         let drop = TextLine.drop(of: EdgeStyle.sub, to: font, lineHeight: box.height)
 
         layer.frame = CGRect(origin: .zero, size: size)
-        layer.cornerRadius = SessionRowLayout.turnRadius
+        layer.cornerRadius = SessionRowLayout.lineRadius
         layer.addSublayer(SessionRow.ring(9, at: EarlierLayout.mark(in: size), colour: EdgeStyle.earlierRing))
         layer.addSublayer(title)
         layer.addSublayer(TextLine(

@@ -1,5 +1,5 @@
 /// The panel's sessions as it shows them: core's order while the panel is in; while it is out, each row keeps the
-/// place it had in its section, Needs you, Working, Your turn or Snoozed, so a changed row moves only once the panel
+/// place it had in its section, Needs you, Your turn, Working or Snoozed, so a changed row moves only once the panel
 /// closes (DESIGN, "The rows"), and each section stays together under its eyebrow. Core decides the rows and their
 /// order; this decides only when a new order shows.
 public struct HeldRows: Equatable, Sendable {
@@ -53,7 +53,7 @@ public struct HeldRows: Equatable, Sendable {
         }
     }
 
-    /// The section a row's place is held in, by the sections' order: Needs you, Working, Your turn, Snoozed.
+    /// The section a row's place is held in, by the sections' order: Needs you, Your turn, Working, Snoozed.
     static func section(_ session: Session) -> BoardSection {
         session.section
     }

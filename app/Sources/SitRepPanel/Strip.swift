@@ -322,7 +322,7 @@ public enum MarkKey: Hashable, Sendable {
     case session(String)
     /// The grey count, of your turn and working past their places, ...
     case more
-    /// ... and needs you's own orange one, of the newest asks past its.
+    /// ... and needs you's own orange one, of the asks past its room, the oldest and away ones.
     case moreNeeds
     case empty
 

@@ -714,7 +714,7 @@ test('a mod’s file caught mid-rewrite, holding only the start of its lines, is
 
   expect(lines.map(line => [keys(line), line.new])).toEqual([
     [[`ask:${META.id}:k1`, `ask:${META.id}:k2`], []],
-    [[`ask:${META.id}:k1`, `ask:${META.id}:k2`, `ask:${META.id}:k3`], [`ask:${META.id}:k3`]],
+    [[`ask:${META.id}:k3`, `ask:${META.id}:k1`, `ask:${META.id}:k2`], [`ask:${META.id}:k3`]],
   ])
 })
 

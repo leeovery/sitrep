@@ -23,10 +23,12 @@ struct NoticesTests {
         #expect(Notices.due(stopped, isOn: true).isEmpty)
     }
 
-    @Test func eachNewAskSendsItsOwn() {
+    /// Each its own, the oldest first, so Notification Center stacks the newest on top: Terrace's ask, older, though
+    /// core lists it after Switchboard's.
+    @Test func eachNewAskSendsItsOwnTheOldestFirst() {
         let both = heard([.line(Watched.line(rows: [])), .line(Watched.line(new: ["ask:sr-ledger:k1", "ask:sr-plan:k2"]))])
 
-        #expect(Notices.due(both, isOn: true).map(\.title) == ["Choose how long the ledger keeps requests", "Pick the plan's shape"])
+        #expect(Notices.due(both, isOn: true).map(\.title) == ["Pick the plan's shape", "Choose how long the ledger keeps requests"])
     }
 
     @Test func anAwayAsksNoticeNamesItsSessionAndJumpsNowhere() {

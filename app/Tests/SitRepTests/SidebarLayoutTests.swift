@@ -14,9 +14,9 @@ import Testing
 @MainActor
 struct SidebarLayoutTests {
     /// The lines of `watch`'s board by session: Harness's three asks, Switchboard's ask and prompt and Goosemates' away
-    /// ask; SitRep working, Kit on its own work; Fumi's turn; Projects, folded.
+    /// ask; Fumi's turn; SitRep working, Kit on its own work; Projects, folded.
     enum Row: Int, Sendable {
-        case needsYou, harness, dashboard, goosemates, working, macApp, bootstrap, yourTurn, licensing, projects
+        case needsYou, harness, dashboard, goosemates, yourTurn, licensing, working, macApp, bootstrap, projects
     }
 
     /// A heading's row with no rule: 10 over its 24; with the rule after Needs you, 11.5, the rule's 0.5, then those.
@@ -74,9 +74,9 @@ struct SidebarLayoutTests {
 
         #expect(sidebar.lines.count == Row.projects.rawValue + 1)
         #expect(side.rows.map(\.height) == heights)
-        #expect(heights == [34, 39, 39, 39, 46, 39, 39, 34, 28, 34])
+        #expect(heights == [34, 39, 39, 39, 46, 28, 34, 39, 39, 34])
         #expect(zip(side.rows, side.rows.dropFirst()).allSatisfy { $0.maxY == $1.minY })
-        #expect(side.rows[Row.working.rawValue].minY == 264)
+        #expect(side.rows[Row.yourTurn.rawValue].minY == 264)
         #expect(side.rows.allSatisfy { $0.minY == $0.minY.rounded() })
     }
 
@@ -92,7 +92,7 @@ struct SidebarLayoutTests {
         #expect(side.rows[project].height == 28)
     }
 
-    /// The first heading, Needs you's or with no ask Working's, 10 under the list's top as every heading sits 10 under
+    /// The first heading, Needs you's or with no ask Your turn's, 10 under the list's top as every heading sits 10 under
     /// what is before it: its row 10 under the Filter field, its 24 another 10 down.
     @Test(arguments: [true, false])
     func theFirstHeadingSits10UnderWhatIsBeforeIt(hasAsks: Bool) throws {
@@ -107,19 +107,19 @@ struct SidebarLayoutTests {
         let field = side.frame(of: try #require(side.field))
         let first = try #require(side.rows.first)
 
-        #expect(Sidebar(listed, folds: Folds()).lines.first?.id == .fold(.section(hasAsks ? .needsYou : .working)))
+        #expect(Sidebar(listed, folds: Folds()).lines.first?.id == .fold(.section(hasAsks ? .needsYou : .yourTurn)))
         #expect(first.minY - field.maxY == 10)
         #expect(first.height == Self.headingRow)
         #expect(first.maxY - 24 - field.maxY == 20)
     }
 
     /// The rule after Needs you: 0.5 in the separator's colour, 276 wide and 10 in, 11.5 under the last ask's row;
-    /// Working's heading 10 under it, its words inside the heading's 24.
+    /// Your turn's heading 10 under it, its words inside the heading's 24.
     @Test func aRuleSits11AndAHalfUnderNeedsYouTheNextHeading10UnderIt() throws {
         let side = try HostedSidebar(Self.opened(), listAlone: true)
         let drawn = try side.drawn()
         let last = Self.inDrawing(side.rows[Row.goosemates.rawValue], of: side)
-        let heading = Self.inDrawing(side.rows[Row.working.rawValue], of: side)
+        let heading = Self.inDrawing(side.rows[Row.yourTurn.rawValue], of: side)
         let gap = CGRect(x: 0, y: last.maxY, width: 296, height: 11.5 + 0.5 + 10)
         let rule = try #require(drawn.drawnBox(in: gap, ground: Self.ground(heading)))
         let words = CGRect(x: 0, y: rule.maxY, width: 200, height: heading.maxY - rule.maxY)
@@ -155,21 +155,21 @@ struct SidebarLayoutTests {
         try Self.expectRuled(side, showing: listed)
     }
 
-    /// A board changing under a list already showing: the first ask comes, Working goes so Your turn follows Needs
-    /// you, then Working again, and the last ask goes. Each time the heading after Needs you, and only it, grows to
+    /// A board changing under a list already showing: the first ask comes, Your turn goes so Working follows Needs
+    /// you, then Your turn again, and the last ask goes. Each time the heading after Needs you, and only it, grows to
     /// carry the rule, and gives it back.
     @Test func theRuleFollowsTheBoardOnAListAlreadyShowing() throws {
         let run = Self.opened()
         let board = run.listed(at: HostedSidebar.printed)
         var noAsk = board
-        var noWorking = board
+        var noTurn = board
 
         noAsk.rows = board.rows.filter { $0.section != .needsYou }
-        noWorking.rows = board.rows.filter { $0.section != .working }
+        noTurn.rows = board.rows.filter { $0.section != .yourTurn }
 
         let side = try HostedSidebar(run, listAlone: true, listed: noAsk)
 
-        for listed in [noAsk, board, noWorking, board, noAsk] {
+        for listed in [noAsk, board, noTurn, board, noAsk] {
             side.show(listed)
             // the list first hosted, still showing, not one made anew
             #expect(side.board.window === side.window)
@@ -222,7 +222,7 @@ struct SidebarLayoutTests {
 
     /// Each heading's name at 16, its count 6 after it, and its chevron in the 15 by 24 slot at 269 to 284: down while
     /// open, 10 by 6; right while folded, 6 by 10, as Projects is at first.
-    @Test(arguments: [Row.needsYou, .working, .yourTurn, .projects])
+    @Test(arguments: [Row.needsYou, .yourTurn, .working, .projects])
     func aHeadingHasItsNameItsCountAndItsChevronInTheirPlaces(row: Row) throws {
         let side = try HostedSidebar(Self.opened(), listAlone: true)
         let drawn = try side.drawn()
@@ -433,7 +433,7 @@ struct SidebarLayoutTests {
         #expect(try HostedSidebar(run).board.selectedRow == Row.macApp.rawValue)
     }
 
-    /// The window opens on Harness's asks; ↓ walks the rows in order, past the rule and Working's heading.
+    /// The window opens on Harness's asks; ↓ walks the rows in order, past the rule and Your turn's heading.
     @Test func theArrowKeysWalkTheRowsInOrderPastTheHeadings() throws {
         let picked = Picked()
         let side = try HostedSidebar(Self.opened(), actions: WindowActions(pickInList: { picked.picks.append($0) }))
@@ -443,28 +443,28 @@ struct SidebarLayoutTests {
             side.window.sendEvent(try #require(Self.arrow(Self.downArrow, in: side.window)))
             side.window.contentView?.layoutSubtreeIfNeeded()
         }
-        #expect(picked.picks == [.session("sr-dash02"), .session("sr-gs7kq2"), .session("sr-macapp")])
+        #expect(picked.picks == [.session("sr-dash02"), .session("sr-gs7kq2"), .session("sr-v3t7a0")])
     }
 
-    /// Working folded: ↓ from Goosemates' ask skips its rows, to Fumi's turn.
+    /// Your turn folded: ↓ from Goosemates' ask skips its rows, to the Mac app.
     @Test func theArrowKeysSkipAFoldedSectionsRows() throws {
-        let run = Self.opened(folds: Folds(sections: [.working]))
+        let run = Self.opened(folds: Folds(sections: [.yourTurn]))
 
         run.pickInList(.session("sr-gs7kq2"), at: HostedSidebar.printed)
 
         let pressed = try Self.pressed(Self.downArrow, on: run)
 
-        // Working's heading alone, then Your turn's: Fumi's row is the list's seventh line
-        #expect(pressed.picks == [.session("sr-v3t7a0")])
+        // Your turn's heading alone, then Working's: the Mac app's row is the list's seventh line
+        #expect(pressed.picks == [.session("sr-macapp")])
         #expect(pressed.selectedRow == 6)
     }
 
-    /// ↑ from the first project passes Projects' heading and "N earlier", to the last row of Your turn.
+    /// ↑ from Working's first row passes its heading and "N earlier", to the last row of Your turn.
     @Test func theArrowKeysPassNEarlier() throws {
-        let run = Self.opened(folds: Folds(projects: false))
+        let run = Self.opened()
         let listed = Self.withEarlier(run)
 
-        run.pickInList(.project("harness"), at: HostedSidebar.printed)
+        run.pickInList(.session("sr-macapp"), at: HostedSidebar.printed)
 
         let picked = Picked()
         let side = try HostedSidebar(run, actions: WindowActions(pickInList: { picked.picks.append($0) }), listed: listed)
@@ -474,13 +474,13 @@ struct SidebarLayoutTests {
         #expect(picked.picks == [.session("sr-v3t7a0")])
     }
 
-    /// The Mac app picked, then Working folded over it: the pick stands at Working's heading.
-    @Test(arguments: [(downArrow, Pick.session("sr-v3t7a0")), (upArrow, .session("sr-gs7kq2"))])
+    /// Fumi's turn picked, then Your turn folded over it: the pick stands at Your turn's heading.
+    @Test(arguments: [(downArrow, Pick.session("sr-macapp")), (upArrow, .session("sr-gs7kq2"))])
     func fromAPickAFoldHidesTheArrowKeysGoFromItsHeading(key: UInt16, to pick: Pick) throws {
         let run = Self.opened()
 
-        run.pickInList(.session("sr-macapp"), at: HostedSidebar.printed)
-        run.toggle(.section(.working))
+        run.pickInList(.session("sr-v3t7a0"), at: HostedSidebar.printed)
+        run.toggle(.section(.yourTurn))
         #expect(try Self.pressed(key, on: run).picks == [pick])
     }
 
@@ -500,9 +500,9 @@ struct SidebarLayoutTests {
     @Test func fromAHiddenPickAnArrowWithAModifierIsTheListsOwn() throws {
         let run = Self.opened()
 
-        run.pickInList(.session("sr-macapp"), at: HostedSidebar.printed)
-        run.toggle(.section(.working))
-        #expect(try Self.pressed(Self.downArrow, with: .command, on: run).picks != [.session("sr-v3t7a0")])
+        run.pickInList(.session("sr-v3t7a0"), at: HostedSidebar.printed)
+        run.toggle(.section(.yourTurn))
+        #expect(try Self.pressed(Self.downArrow, with: .command, on: run).picks != [.session("sr-macapp")])
     }
 
     /// Kit's away session, with no row of its own, picked from Kit's page on `watch`'s first board: Projects unfolds,

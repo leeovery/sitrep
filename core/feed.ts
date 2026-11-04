@@ -31,6 +31,7 @@ import {
   inPanelOrder,
   inSnoozedOrder,
   needsYou,
+  oldestOf,
   rowOf,
   sessionState,
   snoozedRowOf,
@@ -59,7 +60,7 @@ export type ProjectRead = { project: Project; sessions: readonly Session[] }
 
 export type FeedSession = SessionSummary & {
   state: SessionState
-  /** When its state began: its row's time; with no row, its latest line's. */
+  /** When its state began: its row's oldest line's, as Needs you's first line came; with no row, its latest line's. */
   since: number
   /** What it is doing, as the line under its name says it. */
   doing: Doing
@@ -106,6 +107,10 @@ const placesOf = (rows: readonly Row[]): Places =>
 
 const placeOf = (places: Places, id: string | undefined) => places.get(id ?? '')?.place ?? NO_ROW
 
+/** When a session's state began: its row's oldest line, as a row's own time is its newest's; with no row, its latest line. */
+const sinceOf = (row: Row | undefined, session: Session) =>
+  row === undefined ? session.updatedAt : oldestOf(row)
+
 /** A project's current sessions as the feed holds them: where their rows sit, those with none after, the latest updated first. */
 const feedProject = (
   { project, sessions }: ProjectRead,
@@ -118,7 +123,7 @@ const feedProject = (
     .map(({ session, summary }): FeedSession => ({
       ...summary,
       state: sessionState(session, now),
-      since: places.get(session.id)?.row.since ?? session.updatedAt,
+      since: sinceOf(places.get(session.id)?.row, session),
       doing: doingOf(project, session, now),
       asks: openAsks(session),
       parkedItems: session.parked,

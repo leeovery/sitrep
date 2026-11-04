@@ -287,6 +287,15 @@ struct LocationTests {
         #expect(Self.landing("sr-gs7kq2") == .place(.needsYou, picked: Self.goose))
     }
 
+    /// Core lists a row's lines the newest first: the open still lands on the oldest by its time, k1, 60 minutes old,
+    /// not on k0, the first listed, 5 minutes old.
+    @Test func anOpenLandsOnTheOldestLineByItsTimeWhereverCoreListsIt() {
+        let northwind = Built(id: "s1", project: "northwind", waiting: [5, 60])
+
+        #expect(Self.landing("s1", on: Built.listed([northwind]))
+            == .place(.needsYou, picked: Selection(pick: .line(northwind.line(1)), session: "s1")))
+    }
+
     /// Harness's session has k3 waiting and k1 and k2 asleep: its waiting line.
     @Test func anOpenOfASessionWithLinesWaitingAndAsleepLandsOnItsWaitingLine() {
         let snoozed = Listed(heard(.line(Lines.snoozed[0])))

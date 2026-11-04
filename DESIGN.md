@@ -427,6 +427,11 @@ and named it in internal shorthand):
   needed (said in the chat as well), a note for what Lee would want later,
   never running commentary; resolve what's done; finish the session once it
   is complete, with nothing left on it.
+- A turn that ends on a decision or a question for Lee posts it as an ask,
+  so it shows in Needs you, never only in the status; plain conversation
+  needs none (4 November 2026: two sessions ended turns with "Put to Lee:
+  …" in their status line instead of posting an ask, so Lee's card showed
+  them under Your turn, not Needs you).
 
 Wording rules, in the tool descriptions:
 
@@ -449,7 +454,8 @@ Claude to correct anything on it that is stale against what it knows.
 Dropped: a `/sitrep check` command, since the `board` tool already reads the
 board back to repair it and Lee can ask for that in the chat; and a turn-end
 check for an ask Claude forgot to post. The board is best effort, and in use
-Claude has not drifted or forgotten.
+Claude has not drifted or forgotten, but for the turns that put a question
+to Lee in the status (above), met with a line of guidance, not a check.
 
 ## Lee's side
 
@@ -2341,14 +2347,17 @@ truth. There is still no background service. None of it is built now. Lee:
     - `rows` are the panel's, the strip's and the menu's, in their order
       (see "The rows"), a row a session (`v` 2, 22 October 2026). A row is
       its `session`, which names it for as long as it stands, so the app
-      keeps a row's place by it; its `section` (`needsYou`, `working` or
-      `yourTurn`; on its own work is in `working`, at its end), and
+      keeps a row's place by it; its `section` (`needsYou`, `yourTurn` or
+      `working`; on its own work is in `working`, at its end), and
       `isAway`, a Needs you row of a session no window holds; its project's
       key, its session's `name` and its project's (`projectName`), the
       strip's two `letters` (the project's capitals where it has two, else
       its first two), its `lines`, its `second` line, and `since`, the
-      instant its time counts from: its oldest line's on Needs you, else its
-      one line's. `second` is the project and the session, or, for an away
+      instant its time counts from: its newest line's on Needs you, else its
+      one line's. Needs you's newest first, and Your turn above Working,
+      changed only the order and that instant (4 November 2026): `v` did not
+      move, as no reader trips on them. `second` is the project and the
+      session, or, for an away
       row, "No window holds it. Carry it on in Claude.", which the app shows
       as it comes, under a Working or Your turn row's line and an away row's
       name. A Needs you row a window holds shows its `name` over its
@@ -2356,7 +2365,8 @@ truth. There is still no background service. None of it is built now. Lee:
       (22 October 2026): a field added, `v` did not move.
     - A row's `lines`, never empty, are what it says: on Needs you one per
       ask waiting on Lee, not snoozed, permission prompt and question, the
-      oldest first; on any other row one, its state's. A line's `key` names
+      newest first (the oldest first until 4 November 2026); on any other
+      row one, its state's. A line's `key` names
       it for as long as it stands (`ask:<session>:<ask>`,
       `stop:<session>:<window>:<since>`, `turn:<session>`). `is` is what the
       line is (`ask`, `permission`, `question`, `working`, `onItsWork` or
@@ -2383,8 +2393,10 @@ truth. There is still no background service. None of it is built now. Lee:
       a session where its row sits, those with none after, the latest updated
       first; a project where its first session sits. Each session is as `list
       --json` gives it, with its `state` (`needsYou`, `working`, `onItsWork`,
-      `yourTurn` or `away`), `since`, its row's time, else its latest line's,
-      `doing`, and its open asks, as `board --json` lists them (core's
+      `yourTurn` or `away`), `since`, when its state began, its row's oldest
+      line's (its row's own `since` its newest's, since 4 November 2026),
+      else its latest line's, `doing`, and its open asks, as `board --json`
+      lists them (core's
       `openAsks`): waiting, on Lee or on a window to deliver Lee's reply, or
       replied, Claude's to act on, each with its `reply`, which tells them
       apart. So a reply going into a session's inbox is a line, its board
@@ -2945,7 +2957,11 @@ that takes Lee to the window a session is in.
   volume, 0 on Lee's Mac, where SitRep's plays at the output volume. They
   are off by default once
   the notch exists, since the notch swells and lights for a new ask, and a
-  setting turns them on.
+  setting turns them on. Asks landing on one board post the oldest first,
+  so Notification Center, which stacks the last posted on top, shows the
+  newest there, as Needs you does (4 November 2026; core's order until
+  then, which with Needs you newest first would have stacked the oldest on
+  top).
   - **SitRep's notices helper posts them, never SitRep** (26 October
     2026), so a click on one never activates SitRep. macOS activates the
     app that posted a notification as Lee clicks its body, and with
@@ -3107,24 +3123,34 @@ black background", with a little happening inside: subtle, and narrower.
 Lee, away ones included, and every session a window holds, working, on its
 own work or your turn (see "A session's state"). An away session with
 nothing waiting stays off it, for the SitRep window to show. In this order:
-1. needs you, oldest first, with away ones last, oldest first among them;
-2. working, longest running first;
-3. on its own work: those waiting on a wake first, the soonest due first,
-   then the rest, the longest waiting first;
-4. your turn, newest first.
+1. needs you, newest first, by each row's newest line, with away ones
+   last, newest first among them;
+2. your turn, newest first;
+3. working, longest running first;
+4. on its own work: those waiting on a wake first, the soonest due first,
+   then the rest, the longest waiting first.
 
-Working and on its own work came above your turn with on its own work (22
-October 2026): board A, the base of the card's sections, puts Working above
-Your turn, and on its own work at Working's end. Your turn was second until
-then.
+Your turn came up under Needs you, over the hairline, on every surface (4
+November 2026, Paper's board I, "Yours, above the line"). Lee: a your-turn
+session waits on him as much as an ask does, and a working one doesn't, so
+Your turn belongs up with Needs you and Working lower; and the less
+important section had the taller rows. Of the plan: "I'm happy to go with
+your recommendation"; of the board: "Yea, this looks great." Working and on
+its own work had come above your turn with on its own work (22 October
+2026), as board A, the base of the card's sections, put Working above Your
+turn; Your turn was second before that. Needs you went newest first the
+same day, on every surface together, at Lee's earlier asking, so a new ask
+comes in at the top; it was oldest first, by each row's oldest line, until
+4 November 2026.
 
 **The sections** (22 October 2026, Paper's board D, "One list, two sizes",
 from boards A, B and C). Lee, of the three boards: "A is kind of the base,
 but using B's flattened, one-line turn, and then using C's collapsing turns
-that move outside of the period." So the card lists its rows in three
-sections, each under an eyebrow: Needs you, Working (on its own work at its
-end) and Your turn, in that order. A section with no rows is left out, its
-eyebrow with it.
+that move outside of the period." So the card lists its rows in sections,
+each under an eyebrow: Needs you, Your turn, Working (on its own work at
+its end), then Snoozed, in that order since 4 November 2026 (board I; see
+"The rows"). Working came before Your turn until then. A section with no
+rows is left out, its eyebrow with it.
 - **The head goes.** "4 need you · 6 sessions" told what the eyebrows now
   carry. It stays only where there is nothing to list, as the empty card's
   "All clear", "Looking for sessions…" or why SitRep can't read the board,
@@ -3139,13 +3165,19 @@ eyebrow with it.
   chevron, 10 by 6 and stroked 1.5 in white at 25% with round caps, in a box
   15 by 24 that stands 7.5 in, so the chevron ends where a row's time does.
   Needs you counts its waiting lines, the asks and stops (Kit's one and
-  Harness's three are 4); Working and Your turn count their rows, Your
+  Harness's three are 4); Your turn and Working count their rows, Your
   turn's folded ones among them; Snoozed counts its asks, as Needs you its
   lines. The eyebrow after the hairline follows it
-  straight on, Working's, or Your turn's where there is no Working; Your
-  turn's under Working sits 10 under it, Working folded or not.
-- **The hairline** sits after Needs you only, as it did, whenever another
-  section follows, Needs you folded or not.
+  straight on, Working's, or Snoozed's where there is no Working; Your
+  turn's sits 10 under Needs you's last row, or its eyebrow where it is
+  folded, and Snoozed's 10 under Working (board I, 4 November 2026). Until
+  then the hairline came after Needs you, Working's eyebrow followed it,
+  and Your turn's sat 10 under Working.
+- **The hairline** divides what waits on Lee from what doesn't (board I,
+  4 November 2026): it sits after Your turn, "N earlier" included,
+  whenever another section follows; with no Your turn, after Needs you;
+  with neither, there is none. Either section folded or not. It sat after
+  Needs you only until then.
 - **Folding.** A click on an eyebrow folds its section to the eyebrow
   alone, its chevron pointing right (6 by 10); a click again unfolds it.
   Either changes at once, with no motion, as the Settings card does (Lee,
@@ -3161,8 +3193,12 @@ eyebrow with it.
   changes only, the section's rows coming or going; every other row keeps
   its own motion, one folding away finishing and one arriving, the new
   ask's own row among them, folding in.
-- **Your turn's rows are one line**, 30 tall, with no gap between them (see
-  "How each row reads").
+- **Two lines above the hairline, one below** (board I, 4 November 2026):
+  Needs you's and Your turn's rows are drawn whole, two lines, 49 tall;
+  Working's and Snoozed's are one line, 30 tall, with no gap between them
+  (see "How each row reads"). From 22 October 2026 until then Your turn's
+  rows were the one line and Working's two, so the less important section
+  had the taller rows.
 - **"N earlier."** Your-turn sessions whose turn ended longer ago than the
   fold period (Settings' "Your turn folds after", an hour unless Lee sets
   four hours, today or never) fold into one line at Your turn's end, shown
@@ -3183,8 +3219,9 @@ eyebrow with it.
   as it is drawn again as a row's time changes, and nothing polls; the
   period changing refolds the card at once.
 - **Snoozed** (23 October 2026, Paper's board G; see "Snooze") is the
-  card's last section, under Your turn, 10 under it as Your turn is under
-  Working: a row for each session with asks Lee snoozed, its lines those
+  card's last section, under Working since 4 November 2026 (under Your
+  turn until then), 10 under it: a row for each session with asks Lee
+  snoozed, its lines those
   asks, the soonest to wake first, as `watch`'s `snoozed` has them. A
   session with asks waiting too has a row in Needs you as well, as two rows
   of the one session. It is folded at first, to its eyebrow and its count.
@@ -3197,11 +3234,12 @@ eyebrow with it.
 under a line of its own: "It shouldn't look different if a session has
 multiple asks." So a row has lines, and one shape serves every section: a
 Needs you row has a line for each ask waiting and each permission prompt or
-question its windows are stopped on, the oldest first; any other row has
-one, its state's. It is one row: one lift, one press, one pick, and a click
-anywhere on it jumps to the session. Needs you sorts by each row's oldest
-line, and its count, on its eyebrow, is of lines: the asks and stops
-waiting, not the sessions.
+question its windows are stopped on, the newest first (the oldest first
+until 4 November 2026); any other row has one, its state's. It is one row:
+one lift, one press, one pick, and a click anywhere on it jumps to the
+session. Needs you sorts by each row's newest line, newest first (by its
+oldest, oldest first, until 4 November 2026), and its count, on its
+eyebrow, is of lines: the asks and stops waiting, not the sessions.
 
 **A Needs you row shows the session, not its asks** (22 October 2026,
 Paper's board F, "The session, and +2", which Lee approved, superseding
@@ -3222,7 +3260,10 @@ last, else on its own work where any is, else your turn, each the one whose
 turn ended last. Each line says what it is, its words as below, and the
 instant its time counts from: an ask's posting, or its reopening; a stop's
 showing; the turn's end on your turn and on its own work; the turn's start
-while working. A row's time is its oldest line's. While a tool runs, a working row
+while working. A row's time is its newest line's (its oldest's until 4
+November 2026), what it shows and what orders it; what says how long a
+session has needed Lee, as `watch`'s session `since`, keeps its oldest
+line's. While a tool runs, a working row
 leads with its verb (Read Reading; Edit, MultiEdit and NotebookEdit Editing;
 Write Writing; Bash Running; Grep and WebSearch Searching; Glob Finding;
 WebFetch Fetching; Skill Using; LSP Checking), its subject after it, a
@@ -3251,7 +3292,7 @@ past its tab: "in 1h" becomes "in 59m". The row's time still counts from
 the turn's end, as every row's does, so the countdown never shows twice.
 
 Rows keep their places while the panel is open: a changed row moves only once
-it closes. Each section, Needs you, Working, Your turn or Snoozed, is held on
+it closes. Each section, Needs you, Your turn, Working or Snoozed, is held on
 its own and the sections follow in their order, so each stays together under
 its eyebrow however core reorders it meanwhile (22 October 2026, rows by
 session, then the card's sections). A row is kept by its session, so one
@@ -3277,10 +3318,13 @@ about where a window is, for the jump.
 
 **How each row reads**, drawn in Paper's "Panel rows" (surfaces round 1,
 16 October 2026; Lee: "everything looks great"). A mark, two lines, and a
-time on the right; one line each, cut short with an ellipsis:
+time on the right; one line each, cut short with an ellipsis. Since board I
+(4 November 2026) a row above the hairline has the two lines and a row
+below it one, its project in a lane at its right:
 - **needs you** (board F, 22 October 2026): an orange dot; the session's
-  name, 14 medium; under it its project's name; how long its oldest line
-  has waited. One row of the standard 49 however many lines wait (55
+  name, 14 medium; under it its project's name; how long its newest line
+  has waited (its oldest until 4 November 2026). One row of the standard
+  49 however many lines wait (55
   until 26 October 2026, when Lee found the two-line rows too spaced
   against Your turn's one-line rows: 7 above the two lines and 8 below,
   not 10 and 11), an ask, a permission prompt or a question alike. Its
@@ -3310,58 +3354,73 @@ time on the right; one line each, cut short with an ellipsis:
   the pointer it doesn't lift, its title is still the session's name, and
   its second line says "No window holds it. Carry it on in Claude." in place
   of its project;
-- **your turn**, on one line (board B's, in board D, 22 October 2026; Lee:
-  "B's flattened, one-line turn"): 30 tall, inset 10, an open white ring 9
-  across with a stroke of 1.5 in the 12 mark lane, so its shape differs
-  from the dot, not only its colour; then what Claude left Lee, the board's
-  "now", 13 regular in white, cut short with an ellipsis; its session's
-  project in a lane at the right of it, 12 in the faint grey, on its
+- **your turn**, on two lines (board I, 4 November 2026): 49 tall like a
+  Needs you row, 7 above its lines and 8 below, inset 10; an open white
+  ring 9 across with a stroke of 1.5 in the 12 mark lane, on the first
+  line, so its shape differs from the dot, not only its colour; what Claude
+  left Lee, the board's "now", 14 regular in the text colour, cut short,
+  regular so Needs you keeps the heavier title; under it "project ·
+  session", 12 in the soft grey, cut short; how long it has waited, faint,
+  in the 36 time lane on the first line. It lifts, presses, jumps and
+  washes as any row does, its lift radius 14, a row drawn whole's, as
+  board I draws it (10 on one line until then). From 22 October 2026 until
+  then it was one line, 30 tall (board B's, in board D; Lee: "B's
+  flattened, one-line turn"), what Claude left Lee 13 regular with its
+  project in a lane at its right, the shape Working's row now takes;
+- **working**, on one line (board I, 4 November 2026; two lines until
+  then): 30 tall, inset 10, a turning arc in the mark lane, and a slow
+  grey-to-white shimmer along its verb, as Claude Code's own; while a tool
+  runs, the verb, 13 medium, and 6 after it what it acts on, 13 regular in
+  #8E8E95, or a path or command in mono 12, still; else the board's "now";
+  its project in a lane at its right, 12 in the faint grey, on its
   baseline, its own width and never cut, 12 after the words at the least;
-  how long it has waited, in the 36 time lane. It lifts, presses, jumps and
-  washes as any row does, its lift radius 10. The two-line your-turn row is
-  gone from the card;
-- **working**: a turning arc, and a slow grey-to-white shimmer along the
-  line, as Claude Code's own; while a tool runs, the line is the tool (the
-  verb shimmers, a path stays still in mono), else the board's "now"; how
-  long the turn has run. It is greyer than the rest: it needs nothing.
+  how long the turn has run, in the 36 lane. The session's name is not on
+  the row. It is greyer than the rest: it needs nothing. Its lift radius is
+  10, as every row on one line, Snoozed's and "N earlier" too, so two lifts
+  side by side meet, as board D's did (14 until 4 November 2026).
   Every arc turns in step (3 November 2026): on every surface, the card, the
   strip, the menu and the SitRep window, each turns from the one clock, the
   phase it starts at the clock's time within its period, so two arcs turning
   at one pace are at one angle however far apart they started. Each had
   started at a phase of its own until then.
 - **on its own work** (Paper's board D, "One list, two sizes", 22 October
-  2026): the working row's layout, all of it still. Its mark is a ring of
-  round-capped dashes that never turns, #8E8E95, centred in the working
-  mark's 11-wide lane (r 4.5, its stroke 1.5, dashes 1.6 with gaps of
-  2.12); its verb 14 medium in #B4B4BA, what it waits on 14 regular in
-  #8E8E95 after it, or a command in mono as working sets one; how long
-  since its turn ended. Nothing of it runs: no shimmer, no turning, and only
-  a wake's countdown is drawn again, as it reads differently.
-- **snoozed** (Paper's board G, 23 October 2026): a needs you row quieted.
-  Its dot 7 across in the faint grey, #5C5C63, with no glow; the session's
-  name in the soft grey, #98989F; its project, and its "+N", in the faint
-  grey. An away row is drawn the same, its project under its name, since an
-  ask Lee put off urges nothing until it wakes; it still jumps nowhere. In its
-  time's place, when it wakes, in the soft grey, 12 in tabular figures,
-  24-hour and local: today's time alone, "17:42"; within six days its
-  weekday, "Sat 09:00"; further out its date, "3 Nov 09:00". Its lane is the
-  time's 36, grown to fit the words where they are wider, still ending where
-  a time does, the name and project cut short before it. The words change
-  only at midnight, so the card is drawn again then for them, never each
-  minute.
+  2026): the working row's layout, all of it still, on one line since board
+  I. Its mark is a ring of round-capped dashes that never turns, #8E8E95,
+  centred in the working mark's 11-wide lane (r 4.5, its stroke 1.5, dashes
+  1.6 with gaps of 2.12); its verb 13 medium in #B4B4BA, what it waits on 13
+  regular in #8E8E95 6 after it, or a command in mono 12 as working sets
+  one (14 and the command's 13 on two lines, until 4 November 2026); its
+  project at its right as working's; how long since its turn ended.
+  Nothing of it runs: no shimmer, no turning, and only a wake's countdown
+  is drawn again, as it reads differently.
+- **snoozed** (Paper's board G, 23 October 2026): a needs you row quieted,
+  on one line since board I (4 November 2026), 30 tall. Its dot 7 across in
+  the faint grey, #5C5C63, with no glow; the session's name 13 in the soft
+  grey, #98989F, cut short, its "+N" faint after it; its project in a lane
+  at its right, 12 in the faint grey. An away row is drawn the same, since
+  an ask Lee put off urges nothing until it wakes; it still jumps nowhere.
+  In its time's place, when it wakes, in the soft grey, 12 in tabular
+  figures, 24-hour and local: today's time alone, "17:42"; within six days
+  its weekday, "Sat 09:00"; further out its date, "3 Nov 09:00". Its lane is
+  the time's 36, grown to fit the words where they are wider, still ending
+  where a time does, the name and project cut short before it. The words
+  change only at midnight, so the card is drawn again then for them, never
+  each minute. Until board I it had two lines, its project under its
+  name.
 
 The shimmer stays neutral. Orange is for needs you only: the dot, the wash
 and a new row's "now". Lee had suggested working titles shimmer white or
 grey to orange, then left it to Claude; it can change after a test. One hairline
-sits after Needs you; the sections under it are told apart by their
-eyebrows, and their rows by their marks. A row, or "N earlier", under the
-pointer lifts to #141416, with no ⏎ hint, since the panel never takes the
-keyboard; an eyebrow never lifts. With nothing waiting, the hairline goes,
-and the notch rests with no light; with nothing at all, the head reads "All
-clear".
+sits after what waits on Lee, Your turn's rows or, with none, Needs you's
+(after Needs you alone until 4 November 2026); the sections on either side
+of it are told apart by their eyebrows, and their rows by their marks. A
+row, or "N earlier", under the pointer lifts to #141416, with no ⏎ hint,
+since the panel never takes the keyboard; an eyebrow never lifts. With
+nothing needing Lee, the notch rests with no light; with nothing waiting on
+Lee, the hairline goes; with nothing at all, the head reads "All clear".
 
 Each row drawn whole says what it is, with its project and session beneath,
-or a Needs you row's project; a your-turn row, its project at its right. A
+or a Needs you row's project; a row on one line, its project at its right. A
 click jumps: the row presses in and spins for up to 450ms in its time lane,
 the panel drains, and a caption says where it jumped. A new ask
 makes the notch over-swell twice, to 25 deep, about 450ms apart, as each
@@ -3653,7 +3712,12 @@ were settled in the browser spike (below, "How the strip moves").
     showing with a frozen spinner"). A click's jump still turns an arc on
     it, in the ring's place, as on any mark, and the ring comes back after.
 
-  One hairline sits under needs you, as in the panel. The letters are the
+  One hairline sits under needs you. Since 4 November 2026 the marks take
+  the panel's new order, your turn's under it and above working's, as the
+  prototype had them when its timelines were recorded; the card's hairline
+  moved under Your turn (board I), but the strip's stays under needs you,
+  where its places for needs you, its orange count among them, end, and
+  where every recording of the strip's motion has it. The letters are the
   project's capitals where it has two (SitRep SR, DocMan DM), else its first
   two (Switchboard Sw, agntc ag); two sessions of one project share them.
   A session with several lines waiting is still one mark.
@@ -3665,7 +3729,8 @@ were settled in the browser spike (below, "How the strip moves").
   says "No window holds it. Carry it on in Claude." and neither it nor the
   mark takes a click. A click on the count opens its tab. A tab, or a
   count's row, has room for one line: a session needing Lee shows its name
-  over its project, its oldest line's time, and with several waiting "+N"
+  over its project, its newest line's time (its oldest's until 4 November
+  2026), and with several waiting "+N"
   for the lines after the first, set dim 6 after the name, as a question's
   "+2" was (board F, 22 October 2026, after the proposal Lee agreed: "a row
   is a session on every surface"). An away one's name sits over "No window
@@ -3688,8 +3753,10 @@ were settled in the browser spike (below, "How the strip moves").
 - **Too many.** The strip has as many places as Max gives it, or as the
   full height holds: about 30 (32 on a 1117pt screen, 27 on a 982pt one).
   Needs you takes them first, keeping one for your turn and working
-  whenever there are any. Past its room, the newest sessions needing Lee
-  fold into a count of their own: an orange "+N" ring, the needs-you group's last place, over
+  whenever there are any. Past its room, the sessions needing Lee last in
+  its order, the oldest since Needs you went newest first (4 November 2026;
+  the newest until then), fold into a count of their own: an orange "+N"
+  ring, the needs-you group's last place, over
   the hairline; away asks fold first (Lee, 19 October 2026: "new asks
   should collapse into a number of collapsed icons... in the bottom of
   their own panel"). Your turn and working take the places left, and past
@@ -3850,11 +3917,12 @@ stands).
     has one (see "The rows"), so an away session with nothing waiting is
     reached by its project; then Projects:
     - **Needs you** heads it: every session with an ask or a window
-      stopped on a permission prompt or a question, the oldest first, by its
-      oldest line, an away session's after the live ones, as core's rows
-      have them. A row is the session, as on the card (board F, 22 October
+      stopped on a permission prompt or a question, the newest first, by its
+      newest line, an away session's after the live ones, as core's rows
+      have them (the oldest first, by its oldest line, until 4 November
+      2026). A row is the session, as on the card (board F, 22 October
       2026): its dot (7) in the 26 slot, the session's name 13 medium in
-      white at 85%, and its oldest line's age 12 in tabular figures; then its
+      white at 85%, and its newest line's age 12 in tabular figures; then its
       project's name at 11 in white at 55%, 1 under, aligned with the name.
       While no window holds it, its mark is the away ring and its words dim
       as one, its age with them, as the panel's (see "The rows"; 3 November
@@ -3879,8 +3947,11 @@ stands).
       separate the 'Needs you' from the rest of the project list … we
       already said we would have a rule, but it also needs just a little bit
       of space";
-    - **Working** follows: the sessions whose turn runs, the longest running
-      first, then those on their own work. Its rows are Needs you's one-line
+    - **Working**: the sessions whose turn runs, the longest running first,
+      then those on their own work. Since 4 November 2026 it follows Your
+      turn, as on the card (see "The rows"), the rule still after Needs you,
+      its shapes as they were, for the sidebar's rebuild to come; it
+      followed the rule until then. Its rows are Needs you's one-line
       shape, two lines, 39 tall: the working mark, a quarter arc on a faint
       track (r 4.25, white at 55% on white at 15%), or on its own work's
       ring of round-capped dashes in white at 45% (r 4.25, its stroke 1.5,
@@ -3897,8 +3968,9 @@ stands).
       across all the surfaces." Until then nothing in the sidebar turned,
       its arc a still one. Both are decoration: a click on either lands on
       the row under it, and VoiceOver reads the verb once;
-    - **Your turn**: the sessions waiting on Lee with nothing posted, the
-      newest first, each on one line, 28 tall, inset 6, its parts 4 apart:
+    - **Your turn**, over Working since 4 November 2026: the sessions
+      waiting on Lee with nothing posted, the newest first, each on one
+      line, 28 tall, inset 6, its parts 4 apart:
       the open ring, 10 across, r 3.75, its stroke 1.5, in white at 55%;
       what Claude left Lee, 13 regular in white at 85%, cut short; its
       project at its right, 11 in white at 35%, its own width, never cut, 10
@@ -4061,7 +4133,9 @@ stands).
   which it could only name. There is no Resolved. An ask there is one line,
   and opens in place into its card. A snoozed ask is among them, its mark the
   grey dot and its title soft, its card the session page's asleep one.
-- **It opens on** the oldest session that needs Lee; with none, on the one
+- **It opens on** the top of Needs you, the session with the newest line
+  waiting on Lee, as a new ask is where Lee goes (the oldest until 4
+  November 2026, when Needs you went newest first); with none, on the one
   picked last. There is one window: opening it again brings it forward,
   on the Space Lee is on: it moves to the active Space and comes forward
   there before SitRep activates, so the activation takes him to no other
@@ -4218,8 +4292,9 @@ stands).
 - **VoiceOver reads words, never symbols.**
   - a sidebar row is one element. A Needs you row reads what waits first:
     how many where there are several, "2 asks", then each line's words; then
-    its project and session, "away" where no window holds it, and the
-    oldest's age, as "2 asks, Paste the load test's output, Allow Bash gh
+    its project and session, "away" where no window holds it, and its
+    newest line's age, the time the row shows (the oldest's until 4
+    November 2026), as "2 asks, Paste the load test's output, Allow Bash gh
     pr create, Switchboard, Dashboard redesign, 3 hours" (22 October 2026);
     it reads its lines' words still, since board F, though the row shows
     its session's name in their place. Every row a window holds, in any
@@ -4523,7 +4598,7 @@ asked for the sessions back, and approved the redraw as it stands.
     clear". Each is a native item with a subtitle (macOS 14.4): what it is,
     then its project and session, and its time on the right as the item's
     badge. An item is a session, as a row is, with room for one line: one
-    needing Lee shows its name over its project, its oldest line's time,
+    needing Lee shows its name over its project, its newest line's time,
     and with several waiting "+N" for the lines after the first, as the
     strip's tab does (board F, 22 October 2026). The line under each row
     shows at rest, not only under the pointer (3 November 2026; Lee:
@@ -4685,7 +4760,8 @@ does; the boards first drew it on a band of black.
      minute. Everything here is in Settings later.", went in the build
      (Lee, 3 November 2026: "It's like answering a question that nobody
      asked… Can you remove that line?"). The stage's panel is open on
-     Needs you, Working and Your turn, and the loop plays the notch at
+     Needs you, Your turn and Working (Working before Your turn until 4
+     November 2026), and the loop plays the notch at
      rest, an ask landing, the swell twice and the light, the pour into
      the panel and the close. Continue reads Continue here too; the
      board's "Show me" went in the build, as Lee couldn't tell what it did
@@ -5813,8 +5889,8 @@ reaches a window only while that pane is on show).
       - **The rows**, each a native item: its title the row's first line,
         set as attributed text, its words in the menu's font and its subject
         in the system's mono, a question's "+2" after (since rows by session,
-        a row's oldest line, and "+N" for its other lines in its place; since
-        board F, a Needs you row's session's name and its "+N", its project
+        a row's newest line, its oldest until 4 November 2026, and "+N" for
+        its other lines in its place; since board F, a Needs you row's session's name and its "+N", its project
         as its subtitle); core's second line as
         its subtitle; its time as its badge. A working row's words are in
         the secondary label colour, its arc fainter than the other marks;
@@ -6027,7 +6103,8 @@ reaches a window only while that pane is on show).
         - **Quiet projects** are those `watch` carries with nothing open: no
           window, no ask waiting and nothing parked, as core folds a project
           into All projects' line. `list --json` carries no others either.
-        - **It opens on** the first row needing Lee, `watch`'s oldest; with
+        - **It opens on** the first row needing Lee, `watch`'s newest (its
+          oldest until 4 November 2026); with
           none, on the session picked last, kept across launches; with none
           of those on the board, the first listed. A pick gone from the
           board gives way to that. Opening it again while it shows only

@@ -105,14 +105,14 @@ struct CardSectionsRunTests {
         return run.press(at(run.time, point), mayJump: mayJump)
     }
 
-    private static let mixed = [ask("sr-a"), ask("sr-b"), working("sr-w"), turn("sr-t", ago: 5)]
+    private static let mixed = [ask("sr-a"), ask("sr-b"), turn("sr-t", ago: 5), working("sr-w")]
 
     @Test func aClickOnAnEyebrowFoldsItsSectionToTheEyebrowAloneAtOnce() throws {
         let run = Self.opened(Self.mixed)
 
         #expect(try Self.press("eyebrow:working", in: run) == .fold)
         #expect(run.folded.sections == [.working, .snoozed])
-        #expect(Self.keys(run) == ["eyebrow:needsYou", "needs:sr-a", "needs:sr-b", "divider", "eyebrow:working", "eyebrow:yourTurn", "turn:sr-t"])
+        #expect(Self.keys(run) == ["eyebrow:needsYou", "needs:sr-a", "needs:sr-b", "eyebrow:yourTurn", "turn:sr-t", "divider", "eyebrow:working"])
         #expect(!run.isFolding(at: run.time))
         #expect(run.list.content.entries.allSatisfy { $0.height == $0.item.height && $0.alpha == 1 })
         #expect(run.list.content.items.contains(.eyebrow(Eyebrow(section: .working, count: 1, isFolded: true, above: 0))))
@@ -123,21 +123,23 @@ struct CardSectionsRunTests {
         #expect(!run.isFolding(at: run.time))
     }
 
-    /// Needs you folded, the hairline still follows its eyebrow.
-    @Test func theHairlineStaysAfterNeedsYouFolded() throws {
+    /// Needs you folded, the hairline still follows Your turn; Your turn folded, it follows its eyebrow.
+    @Test func theHairlineStaysAfterYourTurnFoldedOrNot() throws {
         let run = Self.opened(Self.mixed)
 
         _ = try Self.press("eyebrow:needsYou", in: run)
+        #expect(Self.keys(run).prefix(5) == ["eyebrow:needsYou", "eyebrow:yourTurn", "turn:sr-t", "divider", "eyebrow:working"])
 
-        #expect(Self.keys(run).prefix(3) == ["eyebrow:needsYou", "divider", "eyebrow:working"])
+        _ = try Self.press("eyebrow:yourTurn", in: run)
+        #expect(Self.keys(run).prefix(4) == ["eyebrow:needsYou", "eyebrow:yourTurn", "divider", "eyebrow:working"])
     }
 
     /// Folds Lee left are where the run starts: its eyebrow alone, pointing right.
     @Test func theFoldsSavedAreRestored() {
         let run = Self.opened(Self.mixed, kept: Self.kept([.yourTurn]))
 
-        #expect(Self.keys(run).last == "eyebrow:yourTurn")
-        #expect(run.list.content.items.last == .eyebrow(Eyebrow(section: .yourTurn, count: 1, isFolded: true, above: 10)))
+        #expect(Self.keys(run).suffix(4) == ["eyebrow:yourTurn", "divider", "eyebrow:working", "sr-w"])
+        #expect(run.list.content.items.contains(.eyebrow(Eyebrow(section: .yourTurn, count: 1, isFolded: true, above: 10))))
     }
 
     /// A click on an eyebrow keeps the fold, and a click again keeps it unfolded.
@@ -198,9 +200,9 @@ struct CardSectionsRunTests {
     /// "N earlier": only what the fold changes changes at once.
     @Test func aRowFoldingAwayKeepsFoldingAsAnotherSectionFoldsOrARowRefolds() throws {
         let wall = Wall()
-        let run = Self.opened([Self.ask("sr-a"), Self.ask("sr-b"), Self.working("sr-w"), Self.turn("sr-t", ago: 59)], wall: wall)
+        let run = Self.opened([Self.ask("sr-a"), Self.ask("sr-b"), Self.turn("sr-t", ago: 59), Self.working("sr-w")], wall: wall)
 
-        _ = run.show(Self.board([Self.ask("sr-a"), Self.working("sr-w"), Self.turn("sr-t", ago: 59)]), Self.at(run.time))
+        _ = run.show(Self.board([Self.ask("sr-a"), Self.turn("sr-t", ago: 59), Self.working("sr-w")]), Self.at(run.time))
         Self.frames(run, for: 50, Self.onTheNotch)
         _ = try Self.press("eyebrow:working", in: run)
 
@@ -211,7 +213,7 @@ struct CardSectionsRunTests {
         Self.frames(run, for: Self.frameMS, Self.onTheNotch)
 
         let still = try #require(run.list.content.entries.first { $0.item.key == "needs:sr-b" })
-        #expect(Self.keys(run).suffix(2) == ["eyebrow:yourTurn", "earlier"])
+        #expect(Self.keys(run).suffix(4) == ["eyebrow:yourTurn", "earlier", "divider", "eyebrow:working"])
         #expect(still.isGoing && still.height > 0)
     }
 
@@ -280,7 +282,7 @@ struct CardSectionsRunTests {
         let run = Self.opened([Self.turn("sr-new", ago: 50), Self.turn("sr-old", ago: 90)], wall: wall)
 
         _ = try Self.press("earlier", in: run)
-        _ = run.show(Self.board([Self.working("sr-old"), Self.turn("sr-new", ago: 50)]), Self.at(run.time))
+        _ = run.show(Self.board([Self.turn("sr-new", ago: 50), Self.working("sr-old")]), Self.at(run.time))
 
         #expect(!run.folded.isEarlierOpen)
         #expect(!Self.shown(run).contains("earlier"))
@@ -288,7 +290,7 @@ struct CardSectionsRunTests {
         wall.now += 10 * Double(Self.minute)
         Self.frames(run, for: Self.frameMS, Self.onTheNotch)
 
-        #expect(Self.shown(run).suffix(2) == ["eyebrow:yourTurn", "earlier"])
+        #expect(Self.shown(run).prefix(4) == ["eyebrow:yourTurn", "earlier", "divider", "eyebrow:working"])
         #expect(!run.folded.isEarlierOpen)
     }
 
@@ -334,9 +336,9 @@ struct CardSectionsRunTests {
     /// A row whose turn ends while the card is out leaves its place in Working, folding away there, and folds in at
     /// its place in Your turn.
     @Test func aRowMovingFromWorkingToYourTurnFoldsOutAndIn() throws {
-        let run = Self.opened([Self.working("sr-w"), Self.working("sr-x"), Self.turn("sr-t", ago: 5)])
+        let run = Self.opened([Self.turn("sr-t", ago: 5), Self.working("sr-w"), Self.working("sr-x")])
 
-        _ = run.show(Self.board([Self.working("sr-x"), Self.turn("sr-w", ago: 0), Self.turn("sr-t", ago: 5)]), Self.at(run.time))
+        _ = run.show(Self.board([Self.turn("sr-w", ago: 0), Self.turn("sr-t", ago: 5), Self.working("sr-x")]), Self.at(run.time))
         Self.frames(run, for: 100, Self.onTheNotch)
 
         let entries = run.list.content.entries

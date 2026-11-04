@@ -31,7 +31,8 @@ struct Built {
     func asleep(_ place: Int) -> String { "ask:\(id):k\(waiting.count + place)" }
 
     /// `watch`'s line over these sessions, its projects in the order they first come, its rows in core's: Needs you
-    /// by its oldest line, those a window holds first; Working; Your turn, the newest first.
+    /// by its newest line, the newest first, those a window holds first, each row's lines the newest first; Your turn,
+    /// the newest first; Working.
     static func printed(_ sessions: [Built], new: [String] = []) -> Heard {
         let needing = sessions.filter { !$0.waiting.isEmpty }.sorted { $0.coreOrder < $1.coreOrder }
         let turning = sessions.filter { $0.waiting.isEmpty && !$0.isAway }
@@ -45,8 +46,8 @@ struct Built {
         let board: [String: Any] = [
             "v": 3, "at": ms(0), "version": "0.2.0",
             "head": ["needYou": sessions.map(\.waiting.count).reduce(0, +), "sessions": sessions.count],
-            "rows": needing.map { $0.row(.needsYou) } + working.map { $0.row(.working) }
-                + turns.map { $0.row(.yourTurn) },
+            "rows": needing.map { $0.row(.needsYou) } + turns.map { $0.row(.yourTurn) }
+                + working.map { $0.row(.working) },
             "snoozed": sessions.filter { !$0.snoozed.isEmpty }.map(\.asleepRow),
             "projects": keys.map { key in project(key, sessions.filter { $0.project == key }) },
             "windows": [], "new": new, "boards": [:],
@@ -55,8 +56,8 @@ struct Built {
         return .line(String(decoding: try! JSONSerialization.data(withJSONObject: board), as: UTF8.self))
     }
 
-    /// Core's order in Needs you: those a window holds first, then by the oldest line.
-    private var coreOrder: (Int, Double) { (isAway ? 1 : 0, -waiting[0]) }
+    /// Core's order in Needs you: those a window holds first, then the newest first, by the newest line.
+    private var coreOrder: (Int, Double) { (isAway ? 1 : 0, waiting.min()!) }
 
     private static func project(_ key: String, _ sessions: [Built]) -> [String: Any] {
         [
@@ -79,7 +80,8 @@ struct Built {
 
     private func row(_ section: Board.Row.Section) -> [String: Any] {
         let lines = section == .needsYou
-            ? waiting.indices.map { lineOf(key: line($0), is: "ask", "Ask \($0) of \(id)", age: waiting[$0]) }
+            ? waiting.indices.sorted { waiting[$0] < waiting[$1] }
+                .map { lineOf(key: line($0), is: "ask", "Ask \($0) of \(id)", age: waiting[$0]) }
             : [lineOf(key: "turn:\(id)", is: section == .working ? "working" : "yourTurn", "Turn of \(id)", age: turn)]
 
         return [

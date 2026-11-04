@@ -10,8 +10,8 @@ import Testing
 struct PanelContentTests {
     private static let stage = Stage(height: 982, visibleTop: 24, visibleBottom: 982, notchY: 491)
 
-    private static func row(_ id: String, _ title: String = "Your turn") -> Item {
-        .session(Session(id: id, project: "SitRep", kind: .turn, title: title, sub: "SitRep · Build", since: 0))
+    private static func row(_ id: String, _ title: String = "Running the tests") -> Item {
+        .session(Session(id: id, project: "SitRep", kind: .working, title: title, sub: "SitRep · Build", since: 0))
     }
 
     private static func list(_ items: Item...) -> PanelList {
@@ -112,7 +112,8 @@ struct PanelContentTests {
         content.show(PanelList(head: Head(needYou: 1, sessions: 1), content: crossing))
 
         #expect(content.rows["needs:x"]?.row.washing != nil)
-        #expect(content.rows["x"]?.row.washing == nil)
+        #expect(content.rows["turn:x"]?.row.washing == nil)
+        #expect(content.rows["turn:x"] != nil)
     }
 
     @Test func aRowMadeAnewUnderThePointerLifts() {

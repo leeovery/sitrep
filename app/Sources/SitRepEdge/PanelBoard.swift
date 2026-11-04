@@ -118,7 +118,7 @@ extension Session {
 
         self.init(
             id: row.session, project: row.projectName, name: row.name, letters: row.letters,
-            kind: Kind(row.oldest.kind), away: row.isAway, lines: row.lines.map(Line.init),
+            kind: Kind(row.newest.kind), away: row.isAway, lines: row.lines.map(Line.init),
             sub: isNamed ? row.projectName : row.second
         )
     }

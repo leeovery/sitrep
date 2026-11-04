@@ -492,16 +492,16 @@ struct WelcomeStagePlayTests {
         let board = WelcomeBoard.calm(at: 0)
 
         #expect(!board.needsLee)
-        #expect(board.sessions.map(\.kind) == [.working, .working, .turn])
+        #expect(board.sessions.map(\.kind) == [.turn, .working, .working])
     }
 
-    /// Needs you 1, Working 2 and Your turn 1, as Paper's board A lists them.
+    /// Needs you 1, Your turn 1 and Working 2, in core's order.
     @Test func theAskLandsInNeedsYouNewAsItLands() {
         let landing = WelcomeBoard.asked(at: 0, isNew: true), lit = WelcomeBoard.asked(at: 0, isNew: false)
 
         #expect(landing.needsLee)
-        #expect(landing.sessions.map(\.title) == [Sample.needsYou, "Running ", "Writing ", Sample.yourTurn])
-        #expect(landing.sessions.map(\.code) == [nil, "the tests", "DESIGN.md", nil])
+        #expect(landing.sessions.map(\.title) == [Sample.needsYou, Sample.yourTurn, "Running ", "Writing "])
+        #expect(landing.sessions.map(\.code) == [nil, nil, "the tests", "DESIGN.md"])
         #expect(landing.sessions.allSatisfy { $0.sub == "Project · Session" })
         #expect(landing.new == [WelcomeBoard.asking])
         #expect(lit.needsLee && lit.new.isEmpty)
