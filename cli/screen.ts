@@ -270,8 +270,13 @@ export const windowsOf = (session: Session, now: number): Where[] =>
     .sort(byJump)
     .flatMap(each => (each.where === undefined ? [] : [each.where]))
 
-/** A session a live window holds, and whether a jump could reach it. */
-export type Shown = { session: Session; is: Reach['is'] }
+/**
+ * A session a live window holds, whether a jump could reach it, and the
+ * terminal app showing it, the first place a jump would bring forward: in
+ * tmux the app its client descends from, which `$TERM_PROGRAM`, `tmux`
+ * there, cannot tell. None where it is not on screen.
+ */
+export type Shown = { session: Session; is: Reach['is']; app?: string }
 
 /** Which sessions a live window holds show on screen, and what gave no answer. */
 export type OnScreen = { shown: Shown[]; unanswered: readonly string[] }
@@ -293,7 +298,13 @@ export const readOnScreen = async (
   const screen = await readScreen(io, held.flatMap(({ windows }) => windows))
 
   return {
-    shown: held.map(({ session, windows }) => ({ session, is: reachOf(windows, screen).is })),
+    shown: held.map(({ session, windows }) => {
+      const reach = reachOf(windows, screen)
+
+      return reach.is === 'on screen'
+        ? { session, is: reach.is, app: reach.places[0]?.app.name }
+        : { session, is: reach.is }
+    }),
     unanswered: screen.unanswered,
   }
 }

@@ -5,14 +5,20 @@ import SwiftUI
 
 /// The SitRep window: one, which the app owns, made the first time Lee opens it and kept after it closes. Opening it
 /// again brings it forward. It comes forward and takes focus only when Lee opens it, never by itself, as the notch or
-/// the strip tells Lee what changed; with no Dock icon, the app activates only then. Its page is a session or a
-/// project; ⌘, opens the Settings window from it, through the app's menu (`AppMenu`).
+/// the strip tells Lee what changed; with no Dock icon, the app activates only then. Three columns: the sidebar, a
+/// place's list, and the page beside it, a session's; or the sidebar and a project's page or a session's, filling the
+/// window. Its toolbar has Back and Forward, and over a place's list its title, its position and up and down
+/// (`WindowToolbar`). ⌘, opens the Settings window from it, and ⌘[ and ⌘] go back and forward, through the app's menu
+/// (`AppMenu`).
 @MainActor
-final class SitRepWindow: NSObject, NSWindowDelegate {
+final class SitRepWindow: NSObject, NSWindowDelegate, NSMenuItemValidation {
     private let model: WindowModel
     private lazy var window = make()
     private var focus: SideFocus?
     private var keys: Any?
+    /// The list beside the page as the model says.
+    private var following: ListFollowing?
+    private var toolbar: WindowToolbar?
 
     /// `following`, what the app's one `watch` is told the window follows.
     init(plugin: Plugin, works: Works, snoozes: Snoozes, following: Following) {
@@ -29,20 +35,22 @@ final class SitRepWindow: NSObject, NSWindowDelegate {
         model.unrun(why)
     }
 
-    /// Lee opens it: shown afresh, on the pick given or else on what it opens on; or, where it shows already or was
-    /// minimised, brought forward as it was, turned to the pick given. Keyboard focus goes to the board's list as it
-    /// opens afresh or turns to a pick; brought forward as it was, it stays where it was.
-    func open(on pick: Pick? = nil) {
+    /// Lee opens it: shown afresh, on what it opens on; or, where it shows already or was minimised, brought forward as
+    /// it was. Opened on a session, "Open in SitRep" from the card or the menu, it lands there, as Lee would go there
+    /// himself (`WindowRun.land(_:)`), or opening afresh, opens there. Keyboard focus goes to the list as it opens
+    /// afresh or lands, the list folded away or shown already as the model took the change (`ListFollowing`), so focus
+    /// finds it as it stands; brought forward as it was, it stays where it was.
+    func open(session: String? = nil) {
         let isAfresh = !window.isMiniaturized && !window.isVisible
 
         if isAfresh {
-            model.opened(on: pick)
-        } else if let pick {
-            model.pick(pick)
+            model.opened(landing: session)
+        } else if let session {
+            model.land(session)
         }
         window.comeForward()
         tellVisible(window)
-        if isAfresh || pick != nil {
+        if isAfresh || session != nil {
             focus?.focusList()
         }
     }
@@ -83,51 +91,105 @@ final class SitRepWindow: NSObject, NSWindowDelegate {
         model.window(isVisible: window.occlusionState.contains(.visible))
     }
 
-    private func make() -> ForwardWindow {
-        let sidebar = Self.side(over: model) { [model] in
-            BoardColumn(
-                sidebar: model.sidebar, pick: model.pick, filter: model.filter, now: model.now
-            )
-        }
-        let page = Self.side(over: model) { [model] in
-            PageColumn(page: model.page, now: model.now)
-        }
-        let window = Self.window(Self.split(sidebar: sidebar, page: page))
+    /// ⌘[, through the app's menu, while the window is key.
+    @objc func goBack(_ sender: Any?) {
+        model.actions.back()
+    }
 
+    /// ⌘].
+    @objc func goForward(_ sender: Any?) {
+        model.actions.forward()
+    }
+
+    /// Back and Forward each only with a step to go to, as the toolbar shows them (`WindowToolbar.validate(_:)`).
+    func validateMenuItem(_ item: NSMenuItem) -> Bool {
+        toolbar?.validate(item) ?? true
+    }
+
+    private func make() -> ForwardWindow {
+        let columns = Self.columns(over: model)
+        let split = Self.split(sidebar: columns.sidebar, list: columns.list, page: columns.page)
+        let toolbar = WindowToolbar(splitView: split.splitView, actions: model.actions)
+        let window = Self.window(split, toolbar: toolbar.toolbar)
+
+        self.toolbar = toolbar
+        model.showToolbar = { [weak window] bar in
+            if let window {
+                toolbar.show(bar, in: window)
+            }
+        }
         window.delegate = self
         window.setFrameAutosaveName("SitRepWindow")
-        let focus = SideFocus(window: window, sidebar: sidebar.view, page: page.view)
+        let focus = SideFocus(
+            window: window, sidebar: columns.sidebar.view, list: columns.list.view, page: columns.page.view
+        )
 
         self.focus = focus
         listenForKeys(in: window, focus: focus)
+        following = ListFollowing(model: model, list: split.splitViewItems[1], focus: focus)
         return window
     }
 
-    /// The window's two sides in macOS's own split: the board as its sidebar, which macOS 26 draws as Liquid Glass
-    /// floating inside the window, its corners following the window's, and earlier macOS in its sidebar material; the
-    /// page beside it. The sidebar keeps the drawing's width, and never collapses, as there is no toggle to bring it
-    /// back: SwiftUI's `NavigationSplitView` pins neither.
-    static func split(sidebar: NSViewController, page: NSViewController) -> NSSplitViewController {
+    /// The window's three columns over the model: the sidebar, the list beside the page, and the page.
+    static func columns(
+        over model: WindowModel
+    ) -> (sidebar: NSViewController, list: NSViewController, page: NSViewController) {
+        let sidebar = side(over: model) { [model] in
+            SidebarColumn(places: model.places, root: model.location.root, filter: model.filter)
+        }
+        let list = side(over: model) { [model] in
+            if let list = model.list {
+                ListColumn(
+                    list: list, picked: model.location.picked?.pick, head: model.head, filter: model.filter,
+                    now: model.now
+                )
+            }
+        }
+        let page = side(over: model) { [model] in
+            PageColumn(page: model.page, now: model.now)
+        }
+
+        return (sidebar, list, page)
+    }
+
+    /// The window's three columns in macOS's own split: the sidebar, which macOS 26 draws as Liquid Glass floating
+    /// inside the window, its corners following the window's, and earlier macOS in its sidebar material; the list
+    /// beside the page, in the split's content list; and the page. The sidebar and the list keep the drawing's widths;
+    /// the sidebar never collapses, as there is no toggle to bring it back, and the list only as the page fills the
+    /// window (`fold(_:isFullPage:)`), never by a drag or the window narrowing: SwiftUI's `NavigationSplitView` pins
+    /// neither.
+    static func split(sidebar: NSViewController, list: NSViewController, page: NSViewController) -> NSSplitViewController {
         let split = NSSplitViewController()
         let board = NSSplitViewItem(sidebarWithViewController: sidebar)
+        let listed = NSSplitViewItem(contentListWithViewController: list)
 
-        board.canCollapse = false
-        board.canCollapseFromWindowResize = false
-        board.minimumThickness = WindowStyle.boardWidth
-        board.maximumThickness = WindowStyle.boardWidth
-        split.splitViewItems = [board, NSSplitViewItem(viewController: page)]
+        for (item, width) in [(board, WindowStyle.boardWidth), (listed, WindowStyle.listWidth)] {
+            item.canCollapse = false
+            item.canCollapseFromWindowResize = false
+            item.minimumThickness = width
+            item.maximumThickness = width
+        }
+        split.splitViewItems = [board, listed, NSSplitViewItem(viewController: page)]
         return split
     }
 
+    /// The list folded away, or shown, at once: a project's page and a session's fill the window.
+    static func fold(_ list: NSSplitViewItem, isFullPage: Bool) {
+        if list.isCollapsed != isFullPage {
+            list.isCollapsed = isFullPage
+        }
+    }
+
     /// The window, over its split, brought to the Space Lee is on whenever it opens and otherwise left on its own
-    /// (`ForwardWindow`). Its toolbar, empty, gives it the titlebar by which macOS sets the traffic lights in from the
-    /// sidebar's corner: on macOS 26 inside its glass, as Finder's. Without one they sit on the glass's corner.
-    static func window(_ content: NSViewController) -> ForwardWindow {
+    /// (`ForwardWindow`). Its toolbar, unified, gives it the titlebar by which macOS sets the traffic lights in from
+    /// the sidebar's corner: on macOS 26 inside its glass, as Finder's. Without one they sit on the glass's corner. Its
+    /// title shows only as the toolbar shows it, a place's name.
+    static func window(_ content: NSViewController, toolbar: NSToolbar) -> ForwardWindow {
         let window = ForwardWindow(contentViewController: content)
 
         window.styleMask = [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView]
         window.title = "SitRep"
-        window.toolbar = Self.toolbar()
+        window.toolbar = toolbar
         window.toolbarStyle = .unified
         window.titlebarAppearsTransparent = true
         window.titlebarSeparatorStyle = .none
@@ -151,15 +213,6 @@ final class SitRepWindow: NSObject, NSWindowDelegate {
         return hosting
     }
 
-    /// The toolbar, empty, and with nothing to customise, so a right-click on the titlebar offers no Customize
-    /// Toolbar.
-    private static func toolbar() -> NSToolbar {
-        let toolbar = NSToolbar(identifier: "SitRepWindow")
-
-        toolbar.allowsUserCustomization = false
-        return toolbar
-    }
-
     /// The window's keys, before what has focus hears them (`SideFocus.take`).
     private func listenForKeys(in window: NSWindow, focus: SideFocus) {
         keys = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self, weak window] event in
@@ -171,14 +224,18 @@ final class SitRepWindow: NSObject, NSWindowDelegate {
     }
 }
 
-/// Keyboard focus moved by a key, through AppKit's key views: ⌘F into the sidebar's Filter field, from anywhere;
-/// Return in the sidebar into the page, to its first control, which with the Mac's Keyboard navigation off has none,
-/// so Return there leaves focus where it is; Escape in the page back to the board's list. Tab and the arrows keep the
-/// Mac's own order. In the Filter field Return and Escape are the field's own (`FilterField`).
+/// Keyboard focus moved by a key across the window's three regions, through AppKit's key views: ⌘F into the sidebar's
+/// Filter field, from anywhere; Return a region to the right, from the sidebar into the list beside the page, or with
+/// none, as the page fills the window, into the page, and from the list into the page, to its first control, which with
+/// the Mac's Keyboard navigation off has none, so Return there leaves focus where it is; Escape a region to the left,
+/// from the page back to the list, or with none to the sidebar's, and from the list to the sidebar's. Tab and the
+/// arrows keep the Mac's own order. In the Filter field Return and Escape are the field's own (`FilterField`).
 @MainActor
 struct SideFocus {
     let window: NSWindow
     let sidebar: NSView
+    /// The list beside the page, in the split's content list, folded away while the page fills the window.
+    let list: NSView
     let page: NSView
 
     /// A key in the window, taken before what has focus hears it: Escape takes back the answer pressed last while it
@@ -191,12 +248,26 @@ struct SideFocus {
         return move(event)
     }
 
-    /// Focus on the board's list, as the window opens afresh or turns to a pick, where AppKit would give it to the
-    /// first of its key views, the Filter field above the list. The sidebar is laid out first, as SwiftUI makes the
-    /// list's table only then.
+    /// Focus on the list beside the page, or with none on the sidebar's, as the window opens afresh or lands on a
+    /// session, where AppKit would give it to the first of its key views, the Filter field. The window is laid out
+    /// first, as SwiftUI makes a list's table only then.
     func focusList() {
         window.contentView?.layoutSubtreeIfNeeded()
-        window.makeFirstResponder(list ?? sidebar)
+        window.makeFirstResponder(placeList ?? sidebarList ?? sidebar)
+    }
+
+    /// Keyboard focus is on the list beside the page.
+    var isOnTheList: Bool {
+        focus?.isDescendant(of: list) ?? false
+    }
+
+    /// The list that held focus, gone, folded away as the page fills the window or emptied to its one line: focus to
+    /// the sidebar's list, as Escape from the list takes it, so the keys still reach a list.
+    func keepOffTheList() {
+        window.contentView?.layoutSubtreeIfNeeded()
+        if placeList == nil {
+            window.makeFirstResponder(sidebarList ?? sidebar)
+        }
     }
 
     /// The move this key makes from where focus is, made; false where it makes none.
@@ -208,12 +279,40 @@ struct SideFocus {
             return false
         }
 
-        if [Self.return, Self.enter].contains(event.keyCode), focus.isDescendant(of: sidebar), !isInField(focus) {
+        if [Self.return, Self.enter].contains(event.keyCode) {
+            return rightward(from: focus)
+        }
+        if event.keyCode == Self.escape {
+            return leftward(from: focus)
+        }
+        return false
+    }
+
+    /// Return: from the sidebar, but its Filter field, into the list, or with none into the page; from the list into
+    /// the page.
+    private func rightward(from focus: NSView) -> Bool {
+        if focus.isDescendant(of: sidebar), !isInField(focus) {
+            if let placeList {
+                window.makeFirstResponder(placeList)
+            } else {
+                intoThePage()
+            }
+            return true
+        }
+        if focus.isDescendant(of: list) {
             intoThePage()
             return true
         }
-        if event.keyCode == Self.escape, focus.isDescendant(of: page) {
-            return window.makeFirstResponder(list ?? sidebar)
+        return false
+    }
+
+    /// Escape: from the page back to the list, or with none to the sidebar's; from the list to the sidebar's.
+    private func leftward(from focus: NSView) -> Bool {
+        if focus.isDescendant(of: page) {
+            return window.makeFirstResponder(placeList ?? sidebarList ?? sidebar)
+        }
+        if focus.isDescendant(of: list) {
+            return window.makeFirstResponder(sidebarList ?? sidebar)
         }
         return false
     }
@@ -229,8 +328,10 @@ struct SideFocus {
     private var focus: NSView? { window.firstResponder as? NSView }
     private var filterField: NSView? { sidebar.descendants(NSSearchField.self).first }
 
-    /// The board's list, as SwiftUI hosts it in AppKit's table, with nothing picked too.
-    private var list: NSView? { sidebar.descendants(NSTableView.self).first }
+    /// The sidebar's list, and the list beside the page while it shows, each as SwiftUI hosts it in AppKit's table,
+    /// with nothing picked too.
+    private var sidebarList: NSView? { sidebar.descendants(NSTableView.self).first }
+    private var placeList: NSView? { list.isHiddenOrHasHiddenAncestor ? nil : list.descendants(NSTableView.self).first }
 
     /// Focus in the Filter field, its field editor inside it, where Return is the field's own.
     private func isInField(_ focus: NSView) -> Bool {

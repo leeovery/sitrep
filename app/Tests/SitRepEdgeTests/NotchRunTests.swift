@@ -73,7 +73,7 @@ struct NotchRunTests {
         #expect(Self.keys(run) == ["needs:sr-c", "needs:sr-a", "needs:sr-b"])
 
         let onA = try Self.point(of: "needs:sr-a", in: run)
-        let pressed = run.press(Self.at(run.time, onA), mayJump: true)
+        let pressed = run.press(Self.at(run.time, onA))
 
         guard case let .jump(session, to: target, click: click) = pressed else {
             Issue.record("pressed \(String(describing: pressed))")
@@ -117,14 +117,14 @@ struct NotchRunTests {
     @Test func aPressOnARowsButtonOpensItsSessionAwayOrNot() throws {
         let run = Self.openedWithAway()
 
-        #expect(run.press(Self.at(run.time, try Self.opener(of: "needs:sr-a", in: run)), mayJump: true) == .open("sr-a"))
-        #expect(run.press(Self.at(run.time, try Self.opener(of: "needs:sr-k", in: run)), mayJump: false) == .open("sr-k"))
+        #expect(run.press(Self.at(run.time, try Self.opener(of: "needs:sr-a", in: run))) == .open("sr-a"))
+        #expect(run.press(Self.at(run.time, try Self.opener(of: "needs:sr-k", in: run))) == .open("sr-k"))
         #expect(!run.isLatest(1))
         run.step(Self.at(run.time + Self.frameMS))
         #expect(run.frame.panel?.pressed == nil)
 
-        #expect(run.press(Self.at(run.time, try Self.point(of: "needs:sr-k", in: run)), mayJump: true) == nil)
-        guard case .jump? = run.press(Self.at(run.time, try Self.point(of: "needs:sr-a", in: run)), mayJump: true) else {
+        #expect(run.press(Self.at(run.time, try Self.point(of: "needs:sr-k", in: run))) == nil)
+        guard case .jump? = run.press(Self.at(run.time, try Self.point(of: "needs:sr-a", in: run))) else {
             Issue.record("a press beside the button did not jump")
             return
         }
@@ -137,10 +137,10 @@ struct NotchRunTests {
 
         #expect(run.row(at: try Self.point(of: "needs:sr-k", in: run), in: Self.setting)?.session?.id == "sr-k")
         #expect(run.row(at: try Self.point(of: "needs:sr-a", in: run), in: Self.setting)?.key == "needs:sr-a")
-        #expect(run.jump(to: "needs:sr-k", Self.at(run.time), mayJump: true) == nil)
+        #expect(run.jump(to: "needs:sr-k", Self.at(run.time)) == nil)
 
         guard case let .jump(session, to: target, click: click)? = run.jump(
-            to: "needs:sr-a", Self.at(run.time), mayJump: true
+            to: "needs:sr-a", Self.at(run.time)
         )
         else {
             Issue.record("the menu's jump did not jump")
@@ -160,7 +160,7 @@ struct NotchRunTests {
         run.menuOpened(at: try Self.point(of: "needs:sr-a", in: run))
         Self.frames(run, for: 10_000, away)
         #expect(run.phase == .open)
-        guard case .jump? = run.jump(to: "needs:sr-a", Self.at(run.time, away), mayJump: true) else {
+        guard case .jump? = run.jump(to: "needs:sr-a", Self.at(run.time, away)) else {
             Issue.record("the menu's jump found no row")
             return
         }
@@ -179,26 +179,16 @@ struct NotchRunTests {
     @Test func aPressOnAJumpingRowsSpinnerOpensNothing() throws {
         let run = Self.openedWithAway()
 
-        _ = run.press(Self.at(run.time, try Self.point(of: "needs:sr-a", in: run)), mayJump: true)
+        _ = run.press(Self.at(run.time, try Self.point(of: "needs:sr-a", in: run)))
         run.step(Self.at(run.time + Self.frameMS))
         #expect(run.frame.panel?.pressed == "needs:sr-a")
-        #expect(run.press(Self.at(run.time, try Self.opener(of: "needs:sr-a", in: run)), mayJump: true) != .open("sr-a"))
-    }
-
-    @Test func noPressJumpsWhileAJumpRunsAndNoneIsCounted() throws {
-        let run = Self.opened(["a", "b"])
-
-        let pressed = run.press(Self.at(run.time, try Self.point(of: "needs:sr-b", in: run)), mayJump: false)
-
-        #expect(pressed == nil)
-        #expect(run.frame.panel?.pressed == nil)
-        #expect(!run.isLatest(1))
+        #expect(run.press(Self.at(run.time, try Self.opener(of: "needs:sr-a", in: run))) != .open("sr-a"))
     }
 
     @Test func onlyTheLatestClicksAnswerIsHeard() throws {
         let run = Self.opened(["a", "b"])
 
-        _ = run.press(Self.at(run.time, try Self.point(of: "needs:sr-a", in: run)), mayJump: true)
+        _ = run.press(Self.at(run.time, try Self.point(of: "needs:sr-a", in: run)))
 
         #expect(run.isLatest(1))
         #expect(!run.isLatest(0) && !run.isLatest(2))
@@ -210,7 +200,7 @@ struct NotchRunTests {
         let notch = CGPoint(x: 2, y: 491)
 
         run.step(at(run.time + frameMS))
-        #expect(run.press(at(run.time, notch), mayJump: true) == .carry)
+        #expect(run.press(at(run.time, notch)) == .carry)
         _ = run.moved(width: width, at(run.time + frameMS, CGPoint(x: 1000, y: 491)))
         let dropped = run.release(EdgeSettings(), height: height, at(run.time + frameMS))
         #expect(dropped?.isAcross == true)
@@ -222,7 +212,7 @@ struct NotchRunTests {
 
         Self.frames(run, for: 100, nil)
 
-        #expect(run.press(Self.at(run.time, CGPoint(x: 2, y: 491)), mayJump: true) == nil)
+        #expect(run.press(Self.at(run.time, CGPoint(x: 2, y: 491))) == nil)
     }
 
     @Test func aPressTakesTheNotchHomeOnTheOtherEdgeThoughNoFrameHasSeenItThereYet() {
@@ -230,7 +220,7 @@ struct NotchRunTests {
 
         Self.frames(run, for: 400, nil)
 
-        #expect(run.press(Self.at(run.time + 40, CGPoint(x: 2, y: 491)), mayJump: true) == .carry)
+        #expect(run.press(Self.at(run.time + 40, CGPoint(x: 2, y: 491))) == .carry)
     }
 
     /// Pressed on the notch and dragged 200 up the edge, the notch carried there.
@@ -238,7 +228,7 @@ struct NotchRunTests {
         let run = NotchRun(at: 1000, in: setting)
 
         run.step(at(run.time + frameMS))
-        _ = run.press(at(run.time, CGPoint(x: 2, y: 491)), mayJump: true)
+        _ = run.press(at(run.time, CGPoint(x: 2, y: 491)))
         _ = run.moved(width: width, at(run.time + frameMS, CGPoint(x: 2, y: 291)))
         return run
     }
@@ -279,7 +269,7 @@ struct NotchRunTests {
         func take(_ run: NotchRun, _ moment: NotchRun.Moment) {
             switch self {
             case .board: _ = run.show(PanelBoard(), moment)
-            case .press: _ = run.press(moment, mayJump: true)
+            case .press: _ = run.press(moment)
             case .moved: _ = run.moved(width: NotchRunTests.width, moment)
             case .release: _ = run.release(EdgeSettings(), height: NotchRunTests.height, moment)
             case .endDrag: _ = run.endDrag(moment)
@@ -307,7 +297,7 @@ struct NotchRunTests {
         var places: [Double] = [], swappedAt: Int?
 
         run.step(at(run.time + frameMS))
-        _ = run.press(at(run.time, CGPoint(x: 2, y: 491)), mayJump: true)
+        _ = run.press(at(run.time, CGPoint(x: 2, y: 491)))
         for k in 1 ... 60 {
             let read = 1000 + Double(k) * frameMS
             for move in 1 ... movesPerRefresh {
@@ -449,7 +439,7 @@ struct NotchRunTests {
     @Test func aClicksDrainIsLatchedOnceAsThePanelGoesIn() throws {
         let run = Self.opened(["a", "b"])
 
-        _ = run.press(Self.at(run.time, try Self.point(of: "needs:sr-a", in: run)), mayJump: true)
+        _ = run.press(Self.at(run.time, try Self.point(of: "needs:sr-a", in: run)))
         _ = run.takeShown()
         run.jumpAnswered(Self.at(run.time + Self.frameMS))
         run.step(Self.at(run.time + Self.frameMS))

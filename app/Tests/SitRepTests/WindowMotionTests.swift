@@ -8,26 +8,27 @@ import SwiftUI
 import Testing
 
 /// What moves in the SitRep window moves as the panel's does, by Core Animation in the render server: a working mark's
-/// arc turning once a second, and a working line's lead shimmering, in the sidebar's list and on a page alike; nothing
-/// that draws them again stops them; under Reduce motion both hold still. Both are decoration: a click on either
-/// lands on the row under it. Made, never shown.
+/// arc turning once a second, and a working line's lead shimmering, in Working's list and on a page alike; nothing
+/// that draws them again stops them; under Reduce motion both hold still. The sidebar's Working mark is a place's, and
+/// holds still. Both are decoration: a click on either lands on the row under it. Made, never shown.
 @MainActor
 struct WindowMotionTests {
-    /// The board `watch` printed by session, SitRep working among it, open.
+    /// The board `watch` printed by session, SitRep working among it, open on Working.
     private static func opened() -> WindowRun {
-        HostedSidebar.opened(Lines.bySession[0])
+        let run = HostedSidebar.opened(Lines.bySession[0])
+
+        run.click(.place(.working))
+        return run
     }
 
-    /// The working rows of the board, as the sidebar lists it.
+    /// The working rows of the board, as Working lists them.
     private static func working(in run: WindowRun) -> Int {
-        run.sidebar(at: HostedSidebar.printed).lines.filter { line in
-            if case let .session(row) = line { row.mark == .working } else { false }
-        }.count
+        run.list(at: HostedSidebar.printed)?.rows.filter { $0.row.mark == .working }.count ?? 0
     }
 
-    @Test func theSidebarsWorkingRowsTurnAndShimmer() throws {
+    @Test func workingsRowsTurnAndShimmer() throws {
         let run = Self.opened()
-        let side = try HostedSidebar(run, listAlone: true)
+        let side = try HostedSidebar(run, column: .list)
         let count = Self.working(in: run)
 
         try #require(count > 0)
@@ -38,24 +39,33 @@ struct WindowMotionTests {
     /// A board coming in draws the list again: its working rows turn and shimmer on.
     @Test func aBoardDrawingTheListAgainLeavesThemTurning() throws {
         let run = Self.opened()
-        let side = try HostedSidebar(run, listAlone: true)
+        let side = try HostedSidebar(run, column: .list)
         let count = Self.working(in: run)
 
-        side.show(run.listed(at: HostedSidebar.printed), folds: run.folds)
-        side.show(run.listed(at: HostedSidebar.printed.addingTimeInterval(60)), folds: run.folds)
+        side.show(run, at: HostedSidebar.printed)
+        side.show(run, at: HostedSidebar.printed.addingTimeInterval(60))
         #expect(Self.turning(in: side.view) == count)
         #expect(Self.sweeping(in: side.view) == count)
     }
 
-    @Test func underReduceMotionTheSidebarHoldsStill() throws {
-        let side = try HostedSidebar(Self.opened(), listAlone: true, reducesMotion: true)
+    @Test func underReduceMotionTheListHoldsStill() throws {
+        let side = try HostedSidebar(Self.opened(), column: .list, reducesMotion: true)
 
         #expect(!HostedSidebar.views(SpinnerView.self, in: side.view).isEmpty)
         #expect(Self.turning(in: side.view) == 0)
         #expect(Self.sweeping(in: side.view) == 0)
     }
 
-    /// A page's working mark and lead, as the sidebar's.
+    /// Working's place holds its arc still, whatever is working: the place is where Lee goes, not what moves.
+    @Test func theSidebarsWorkingMarkHoldsStill() throws {
+        let side = try HostedSidebar(Self.opened())
+
+        #expect(!HostedSidebar.views(SpinnerView.self, in: side.view).isEmpty)
+        #expect(Self.turning(in: side.view) == 0)
+        #expect(Self.sweeping(in: side.view) == 0)
+    }
+
+    /// A page's working mark and lead, as the list's.
     @Test(arguments: [false, true])
     func aPagesWorkingMarkAndLeadMoveButUnderReduceMotion(reducesMotion: Bool) throws {
         let window = Self.hosted(HStack {
@@ -96,8 +106,8 @@ struct WindowMotionTests {
     /// A click on a working row's arc or its lit lead lands on the list's row under it, in the row's own cell, never on
     /// either, so the list takes it as a click on the row. (No click made offscreen reaches a list or a button, its
     /// window never key: where it lands is what can be read.)
-    @Test func aClickOnASidebarRowsArcOrLeadLandsOnTheRow() throws {
-        let side = try HostedSidebar(Self.opened())
+    @Test func aClickOnAListRowsArcOrLeadLandsOnTheRow() throws {
+        let side = try HostedSidebar(Self.opened(), column: .list)
         let decoration = Self.decoration(in: side.view)
 
         try #require(!decoration.isEmpty)
@@ -122,7 +132,7 @@ struct WindowMotionTests {
         let page = try #require(window.contentView)
         let decoration = Self.decoration(in: page)
 
-        try #require(decoration.count == 2)
+        try #require(decoration.count == 3)
         for view in decoration {
             let point = view.convert(CGPoint(x: view.bounds.midX, y: view.bounds.midY), to: nil)
 
@@ -130,18 +140,17 @@ struct WindowMotionTests {
         }
     }
 
-    /// A project of one session, working.
+    /// A project of one session, working: its row's arc and lead, and its card's arc in Now.
     private static let project = ProjectPage(
-        key: "project", name: Sample.project, waiting: 0, open: 1,
+        key: "project", name: Sample.project,
         sessions: [ProjectPage.Session(
-            id: "sr-work01", name: "Session", mark: .working, isAway: false,
-            doing: Doing(
-                kind: .working, line: Board.Row.Words(lead: Sample.writing.title, mono: Sample.writing.code, more: nil),
-                since: Date(timeIntervalSince1970: 0)
+            id: "sr-work01", name: "Session", mark: .working, isAway: false, isOffScreen: false,
+            standing: .doing(
+                .working, Board.Row.Words(lead: Sample.writing.title, mono: Sample.writing.code, more: nil)
             ),
-            waiting: 0, since: Date(timeIntervalSince1970: 0)
+            since: Date(timeIntervalSince1970: 0), now: nil, next: nil, updated: Date(timeIntervalSince1970: 0), log: []
         )],
-        asksWaiting: 0, asks: [], notes: [], parked: [], opened: []
+        waiting: [], parked: 0
     )
 
     /// The arcs and lit leads in a view.

@@ -172,18 +172,18 @@ struct ClosedAsksTests {
 
         overThePage(run)
         Self.closing(run)
-        run.pick(.project("sitrep"))
+        run.click(.project("sitrep"))
         take(["sr-macapp": Lines.board], in: run)
-        #expect(run.page(at: printedAt).project?.asks.map(\.card.isClosed) == [false, false, false])
+        #expect(run.page(at: printedAt).project?.waiting.map(\.isClosed) == [false, false, false])
         take(["sr-macapp": Lines.delivered], in: run, on: line(2))
-        #expect(run.page(at: printedAt).project?.asks.map(\.card.isClosed) == [true, true, false])
+        #expect(run.page(at: printedAt).project?.waiting.map(\.isClosed) == [true, true, false])
     }
 
     /// A pick in the list holds the list's order for a second, not the page.
     @Test func aPickInTheListLeavesThePageUnheld() {
         let run = opened()
 
-        run.pickInList(.session("sr-macapp"), at: printedAt)
+        run.pickInList(macAppK1, at: printedAt)
         take(["sr-macapp": Lines.delivered], in: run)
         #expect(Self.asks(run) == ["k2"])
     }
@@ -217,13 +217,14 @@ struct ClosedAsksTests {
     }
 }
 
-/// A project's page holds its sessions' closed asks as a session's page does.
+/// A project's page holds its sessions' closed asks in Waiting on you, each faint in its place, as a session's page
+/// holds its cards.
 struct ProjectClosedAsksTests {
     private static let left = printedAt.addingTimeInterval(3)
 
     /// The project's page, its session's board come, then its next, having k1 sent and k3 ignored.
     private static func closing(_ run: WindowRun, overThePage isOver: Bool) {
-        run.pick(.project("sitrep"))
+        run.click(.project("sitrep"))
         take(["sr-macapp": Lines.board], in: run)
         if isOver {
             overThePage(run)
@@ -231,20 +232,42 @@ struct ProjectClosedAsksTests {
         take(["sr-macapp": Lines.delivered], in: run, on: line(2))
     }
 
+    /// Waiting on you's lines, each by its ask, and closed where it is.
     private static func asks(_ run: WindowRun) -> [String]? {
-        run.page(at: printedAt).project?.asks.map(\.card.id.ask)
+        run.page(at: printedAt).project?.waiting.map { line in
+            [line.line.ask, line.isClosed ? "closed" : nil].compactMap { $0 }.joined(separator: " ")
+        }
     }
 
     @Test func aSecondAfterThePointerLeavesThePageTheClosedAsksLeave() {
         let run = opened()
 
         Self.closing(run, overThePage: true)
-        #expect(Self.asks(run) == ["k1", "k3", "k2"])
+        #expect(Self.asks(run) == ["k1 closed", "k3 closed", "k2"])
         run.pointer(overPage: false, from: pageRegion, at: Self.left)
         #expect(run.nextChange == Self.left.addingTimeInterval(1))
         run.settle(at: Self.left.addingTimeInterval(1))
         #expect(Self.asks(run) == ["k2"])
     }
+
+    /// Every line closed under the pointer: Waiting on you shows no count, not an orange 0, as the header leaves it out.
+    @Test func everyLineClosedUnderThePointerLeavesNoCount() throws {
+        let run = opened()
+
+        run.click(.project("sitrep"))
+        take(["sr-macapp": Lines.board], in: run)
+        overThePage(run)
+        take(["sr-macapp": Self.noneOpen], in: run, on: answered("sr-macapp"))
+
+        let page = try #require(run.page(at: printedAt).project)
+
+        #expect(Self.asks(run) == ["k1 closed", "k3 closed", "k2 closed"])
+        #expect(page.waitingBadge == nil)
+        #expect(page.counts == ["1 session", "1 parked"])
+    }
+
+    /// The Mac app's board with none of its asks open.
+    private static let noneOpen = edited(Lines.board) { $0["asks"] = [Any]() }
 
     @Test func withThePointerNeverOverThePageAnAskClosingLeavesAtOnce() {
         let run = opened()

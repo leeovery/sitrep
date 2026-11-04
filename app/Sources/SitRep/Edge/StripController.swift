@@ -1,4 +1,5 @@
 import AppKit
+import SitRepCore
 import SitRepEdge
 import SitRepPanel
 
@@ -14,8 +15,6 @@ import SitRepPanel
 final class StripController: NSObject, CalloutShape {
     /// A click on a mark or a tab: the session to jump to, and what to tell once the jump answers, whether it jumped.
     var onJump: (String, @escaping (Bool) -> Void) -> Void = { _, _ in }
-    /// Whether a jump runs, from the strip, the menu or a banner.
-    var isJumping: () -> Bool = { false }
     /// A drag let the strip go: the settings with its new place.
     var onMoved: (EdgeMove) -> Void = { _ in }
     /// Each frame drawn, with whether the pointer is over the strip, or a tab out.
@@ -208,11 +207,11 @@ final class StripController: NSObject, CalloutShape {
         took()
     }
 
-    /// The press let go where the pointer is: a click jumps, or opens a count's tab, but none while a jump runs, as
-    /// the menu's works are disabled then; and once the jump has jumped, the caption says where. A drag leaves the
-    /// strip where it took it, saved, and across the screen's middle saved as it swaps edges.
+    /// The press let go where the pointer is: a click jumps, in place of any jump under way, or opens a count's tab;
+    /// and once the jump has jumped, the caption says where. A drag leaves the strip where it took it, saved, and
+    /// across the screen's middle saved as it swaps edges.
     private func release() {
-        switch run.release(settings, mayJump: !isJumping(), moment()) {
+        switch run.release(settings, moment()) {
         case let .jump(session, to: target, click: click):
             caption.jumping(to: session.project)
             onJump(target) { [weak self] in self?.answered(jumped: $0, click: click) }
@@ -227,6 +226,11 @@ final class StripController: NSObject, CalloutShape {
             break
         }
         took()
+    }
+
+    /// A jump's news, whichever surface asked for it, for the caption.
+    func heard(_ news: JumpNews) {
+        caption.heard(news)
     }
 
     /// The jump a click asked for answered; an answer to an earlier click changes nothing.

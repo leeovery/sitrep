@@ -161,20 +161,20 @@ extension Strip {
     }
 
     /// The press let go: the end of a drag, the pointer not opening the mark it is left on until it leaves it, and past
-    /// the screen's middle the strip crossing to the other edge (`cross`); or else a click, unless it `clicks` not, as
-    /// while a jump runs. A press refused, or given up, lets go on nothing.
+    /// the screen's middle the strip crossing to the other edge (`cross`); or else a click. A press refused, or given
+    /// up, lets go on nothing.
     @discardableResult
-    public func release(at point: CGPoint, clicks: Bool = true) -> StripRelease {
+    public func release(at point: CGPoint) -> StripRelease {
         let onTab = pressesTab
 
         pressesTab = false
         guard let held = press else {
-            return onTab ? clicked(at: point, clicks) : .nothing
+            return onTab ? clicked(at: point) : .nothing
         }
 
         press = nil
         guard held.isCarrying else {
-            return clicked(at: point, clicks)
+            return clicked(at: point)
         }
 
         dragging = false
@@ -186,8 +186,8 @@ extension Strip {
         return .dropped(along: length == .grows ? centre / stage.height : nil, across: held.isAcross)
     }
 
-    private func clicked(at point: CGPoint, _ clicks: Bool) -> StripRelease {
-        clicks ? click(at: point).map(StripRelease.jump) ?? .nothing : .nothing
+    private func clicked(at point: CGPoint) -> StripRelease {
+        click(at: point).map(StripRelease.jump) ?? .nothing
     }
 
     /// The open tab under a point, and its words as last drawn.

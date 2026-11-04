@@ -63,11 +63,11 @@ public struct Answers: Equatable, Sendable {
         pending[ask] = Pending(answer: answer, pressed: time, stage: .waiting)
     }
 
-    /// Escape: the answer pressed last of those still waiting on these sessions' asks is taken back. The ask it was
+    /// Escape: the answer pressed last of those still waiting on the asks it can reach is taken back. The ask it was
     /// on, if there was one.
-    mutating func undo(on sessions: Set<String>) -> AskAddress? {
+    mutating func undo(where reaches: (AskAddress) -> Bool) -> AskAddress? {
         let latest = pending
-            .filter { sessions.contains($0.key.session) && $0.value.stage == .waiting }
+            .filter { reaches($0.key) && $0.value.stage == .waiting }
             .max { $0.value.pressed < $1.value.pressed }?.key
 
         latest.map { pending[$0] = nil }

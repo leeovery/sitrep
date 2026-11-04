@@ -101,6 +101,9 @@ public struct Card: Equatable, Sendable, Identifiable {
     public let isClosed: Bool
     /// Asleep: when Lee's snooze wakes it, which its card says with Wake now in place of its buttons.
     public let snoozedUntil: Date?
+    /// When Lee's snooze would wake it, as its ask last stood, kept once it closes: one closed asleep stays among the
+    /// asks asleep, and was never waiting on Lee.
+    public let wakesAt: Date?
     public let buttons: [Button]
     public let lines: [Line]
     /// New while its session showed: washed orange from then (`Wash`).
@@ -137,7 +140,8 @@ extension Card {
 
         self.init(
             id: AskAddress(session: session, ask: ask.id), title: ask.title, where: ask.where, needs: ask.needs,
-            since: ask.at, isClosed: closed != nil, snoozedUntil: snoozedUntil, buttons: buttons,
+            since: ask.at, isClosed: closed != nil, snoozedUntil: snoozedUntil, wakesAt: ask.snoozedUntil,
+            buttons: buttons,
             lines: lines + (inbox ? [.inbox] : []) + (unslept.map { [$0] } ?? []), washed: washed,
             isAway: doing.isAway
         )

@@ -111,23 +111,11 @@ public enum Words {
         "Snoozed until \(wakes)"
     }
 
-    /// The Asks heading's words after those waiting: how many are asleep, none where none are.
-    public static func snoozed(_ count: Int) -> String? {
-        count > 0 ? "\(count) snoozed" : nil
-    }
-
     public static let finish = "✓ Finish this session"
     public static let finishWhy = "For a session left with things open when its window closed."
 
     public static func finishing(_ name: String) -> String {
         "Finish \(name)? Its open asks stop counting."
-    }
-
-    /// Under a project's name: what waits on Lee there, and how many of its sessions a window holds.
-    public static func project(waiting: Int, open: Int) -> String {
-        let waits = waiting == 0 ? "Nothing waiting on you" : "\(waiting) waiting on you"
-
-        return open == 0 ? "\(waits), and no session open" : "\(waits), in \(count(open, "open session"))"
     }
 
     public static func waiting(_ count: Int) -> String {
@@ -140,21 +128,17 @@ public enum Words {
         return age == "now" ? "updated just now" : "updated \(age) ago"
     }
 
-    public static func parked(_ count: Int) -> String {
-        "\(count) to come back to"
-    }
-
     public static func resolved(_ count: Int) -> String {
         "\(count) resolved"
     }
 
-    /// The heading over every project, at the foot of the sidebar's list.
+    /// The heading over every project, in the sidebar under the places.
     public static let projects = "Projects"
 
     /// The Filter field's placeholder.
     public static let filter = "Filter"
 
-    /// The sidebar's one line in its list's place where the filter keeps nothing, the field's text in the quotes.
+    /// The list's one line in its place where the filter keeps nothing, the field's text in the quotes.
     public static func noMatch(_ filter: Filter) -> String {
         "No sessions match “\(filter.text.trimmingCharacters(in: .whitespacesAndNewlines))”"
     }

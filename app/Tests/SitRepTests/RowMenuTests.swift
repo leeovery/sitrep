@@ -1,9 +1,7 @@
 import AppKit
 @testable import SitRep
-@testable import SitRepCore
-import SitRepLines
+import SitRepCore
 import SitRepPanel
-import SitRepWindow
 import Testing
 
 /// A row's right-click menu, on the card and in the sidebar (Paper's boards F, G, H and I): Open in SitRep on the card;
@@ -155,21 +153,5 @@ struct RowMenuTests {
         #expect(RowMenu.Row(asleep) == RowMenu.Row(jumps: true, snoozable: .asks(["k1"]), isSnoozed: true))
         #expect(RowMenu.Row(turn) == RowMenu.Row(jumps: true, snoozable: .turn(ended: Self.ended), isSnoozed: false))
         #expect(RowMenu.Row(turnAsleep) == RowMenu.Row(jumps: true, snoozable: .turn(ended: Self.ended), isSnoozed: true))
-    }
-
-    /// The sidebar's row offers the same, over what the real CLI printed (`Lines.snoozedTurn`): a your-turn row's turn,
-    /// and each turn in Snoozed, by the turn's end.
-    @Test func theSidebarsRowOffersWhatItShows() {
-        var last = LastBoard()
-
-        _ = last.hear(.line(Lines.snoozedTurn[0]), at: .now)
-
-        let ended = { (seconds: TimeInterval) in Snoozable.turn(ended: Date(timeIntervalSince1970: seconds)) }
-
-        #expect(Listed(last).rows.map { RowMenu.Row($0) } == [
-            RowMenu.Row(jumps: true, snoozable: ended(1_793_817_590), isSnoozed: false),
-            RowMenu.Row(jumps: true, snoozable: ended(1_793_819_270), isSnoozed: true),
-            RowMenu.Row(jumps: true, snoozable: ended(1_793_818_490), isSnoozed: true),
-        ])
     }
 }

@@ -41,8 +41,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let edge = Edge(
             preferences,
             jump: { [works] session, answered in works.jump(to: session, answered: answered) },
-            isJumping: { [works] in works.isJumping },
-            open: { [window] in window.open(on: .session($0)) },
+            open: { [window] in window.open(session: $0) },
             snoozes: snoozes
         )
         let menu = StatusMenu(
@@ -51,6 +50,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             openWelcome: { [unowned self] in openWelcome() }
         )
 
+        works.heard = { [weak edge] in edge?.heard($0) }
         self.edge = edge
         self.menu = menu
         plugin.start { [unowned self] in settled($0) }

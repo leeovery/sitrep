@@ -21,8 +21,6 @@ final class NotchController: NSObject, CalloutShape {
     var onSnooze: (String, Snoozable, SnoozeTime) -> Void = { _, _, _ in }
     /// A Snoozed row's menu's Wake now: the session, and what its row showed asleep, its asks or its turn.
     var onWake: (String, Snoozable) -> Void = { _, _ in }
-    /// Whether a jump runs, from the panel, the menu or a banner.
-    var isJumping: () -> Bool = { false }
     /// A drag let the notch go: the settings with its new place.
     var onMoved: (EdgeMove) -> Void = { _ in }
     /// Each frame drawn, with whether the pointer is over the notch, or its panel.
@@ -259,14 +257,15 @@ final class NotchController: NSObject, CalloutShape {
     }
 
     /// A press on a row's button opens its session in the SitRep window; on a row that jumps, presses it in and jumps
-    /// to its session, and once the jump has jumped, the caption says where; on an eyebrow, its section folds or
-    /// unfolds, kept; anywhere else on the black, it may become a drag (`NotchRun.press`).
+    /// to its session, in place of any jump under way, and once the jump has jumped, the caption says where; on an
+    /// eyebrow, its section folds or unfolds, kept; anywhere else on the black, it may become a drag
+    /// (`NotchRun.press`).
     private func press(at screenPoint: CGPoint) {
         guard let point = edge.stagePoint(screenPoint) else {
             return
         }
 
-        switch run.press(moment(pointer: point), mayJump: !isJumping()) {
+        switch run.press(moment(pointer: point)) {
         case let .open(session)?:
             onOpen(session)
         case let .jump(session, to: target, click: click)?:
@@ -310,10 +309,15 @@ final class NotchController: NSObject, CalloutShape {
 
     /// Jump to the window, as a click on the row would, the row the menu is for pressed in, while it still shows.
     private func jumpFromMenu(to row: String) {
-        if case let .jump(session, to: target, click: click) = run.jump(to: row, moment(), mayJump: !isJumping()) {
+        if case let .jump(session, to: target, click: click) = run.jump(to: row, moment()) {
             jump(from: session, to: target, click: click)
         }
         took()
+    }
+
+    /// A jump's news, whichever surface asked for it, for the caption.
+    func heard(_ news: JumpNews) {
+        caption.heard(news)
     }
 
     /// The jump a click asked for answered; an answer to an earlier click changes nothing.

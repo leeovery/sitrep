@@ -52,12 +52,6 @@ struct WordsTests {
         #expect(Words.closed(.ignored) == "ignored")
     }
 
-    @Test func aProjectSaysWhatWaitsThereAndHowManyOfItsSessionsAreOpen() {
-        #expect(Words.project(waiting: 2, open: 2) == "2 waiting on you, in 2 open sessions")
-        #expect(Words.project(waiting: 0, open: 1) == "Nothing waiting on you, in 1 open session")
-        #expect(Words.project(waiting: 1, open: 0) == "1 waiting on you, and no session open")
-    }
-
     @Test func finishingAsksFirstNamingTheSession() {
         #expect(Words.finishing("Settle the older open questions") == "Finish Settle the older open questions? Its open asks stop counting.")
     }

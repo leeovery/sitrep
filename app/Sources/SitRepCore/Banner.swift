@@ -17,6 +17,9 @@ public struct Banner: Equatable, Sendable {
         refused("SitRep could not jump", why)
     }
 
+    /// A jump that gave no answer in time: the caption's words, under the title that says it could not jump.
+    public static let tooBusy = unjumped("The Mac is too busy to jump.")
+
     /// A snooze from a row's menu that the CLI refused, in its words, as the pane says it.
     public static func unsnoozed(_ why: String) -> Banner {
         refused("Not snoozed", why)
@@ -30,5 +33,17 @@ public struct Banner: Equatable, Sendable {
     /// Something Lee chose that macOS refused, in its words.
     public static func refused(_ what: String, _ why: String) -> Banner {
         Banner(title: what, subtitle: nil, body: why, work: nil)
+    }
+}
+
+extension JumpAnswer {
+    /// The banner a jump that came to this posts: a refusal in the CLI's words, no answer in time as the Mac too busy;
+    /// none for one that jumped, nor for one a later click stopped, as that one goes on.
+    public var banner: Banner? {
+        switch self {
+        case .jumped, .stopped: nil
+        case let .refused(why): .unjumped(why)
+        case .unanswered: .tooBusy
+        }
     }
 }

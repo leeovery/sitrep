@@ -84,13 +84,13 @@ struct CardSectionsRunTests {
     }
 
     /// A press in the middle of the item drawn under this key.
-    private static func press(_ key: String, in run: NotchRun, mayJump: Bool = true) throws -> NotchRun.Press? {
+    private static func press(_ key: String, in run: NotchRun) throws -> NotchRun.Press? {
         let panel = try #require(run.frame.panel)
         let index = try #require(run.list.content.entries.firstIndex { $0.item.key == key })
         let item = run.list.content.itemFrame(index), drawn = run.list.content.entries[index].item.box(width: item.width)
         let point = CGPoint(x: panel.frame.minX + item.midX, y: panel.frame.minY + item.minY + drawn.midY - run.scroll)
 
-        return run.press(at(run.time, point), mayJump: mayJump)
+        return run.press(at(run.time, point))
     }
 
     private static let mixed = [ask("sr-a"), ask("sr-b"), turn("sr-t", ago: 5), working("sr-w")]
@@ -141,14 +141,6 @@ struct CardSectionsRunTests {
 
         _ = try Self.press("eyebrow:working", in: run)
         #expect(kept.read().folded.isEmpty)
-    }
-
-    /// While a jump runs no row jumps, but an eyebrow still folds.
-    @Test func anEyebrowFoldsWhileAJumpRuns() throws {
-        let run = Self.opened(Self.mixed)
-
-        #expect(try Self.press("eyebrow:yourTurn", in: run, mayJump: false) == .fold)
-        #expect(run.folded.sections == [.yourTurn, .snoozed])
     }
 
     /// A row holding a new line unfolds Needs you, its rows there at once, and the unfold is kept; the row arriving

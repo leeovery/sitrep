@@ -71,12 +71,15 @@ extension RowMenu.Row {
         )
     }
 
-    /// A row in the sidebar, as the card's.
-    init(_ row: Listed.Row) {
-        self.init(
-            jumps: row.jumps, snoozable: .of(isTurn: row.isTurn, ended: row.since, asks: row.asks),
-            isSnoozed: row.section == .snoozed
-        )
+    /// A row of the window's list: a line that is an ask, its one ask, waiting or asleep; none for a window's stop, nor
+    /// for a session's row.
+    init(_ row: PlaceList.Row) {
+        guard case let .line(line) = row, !line.asks.isEmpty else {
+            self.init(jumps: row.jumps, snoozable: nil, isSnoozed: false)
+            return
+        }
+
+        self.init(jumps: row.jumps, snoozable: .asks(line.asks), isSnoozed: line.isAsleep)
     }
 }
 

@@ -203,10 +203,10 @@ public final class NotchRun: Framed {
 
     /// A press at the pointer. The model takes a frame first, so the row under the press and the row it presses in
     /// are found in the one list, the list as drawn, even when the board changed it since the model's last frame. On
-    /// a row's button in its time's place, its session opens in the SitRep window; on a row that jumps, while jumps
-    /// may run, the model presses it in; on an eyebrow, its section folds or unfolds; anywhere else on the black, a
-    /// drag may begin, unless the notch is still crossing to the other edge.
-    public func press(_ moment: Moment, mayJump: Bool) -> Press? {
+    /// a row's button in its time's place, its session opens in the SitRep window; on a row that jumps, the model
+    /// presses it in, whatever jump runs, as the latest click wins; on an eyebrow, its section folds or unfolds;
+    /// anywhere else on the black, a drag may begin, unless the notch is still crossing to the other edge.
+    public func press(_ moment: Moment) -> Press? {
         upToNow(moment)
         guard let point = moment.pointer else {
             return nil
@@ -216,7 +216,7 @@ public final class NotchRun: Framed {
             if let session = list.item(index)?.session, opens(index, at: point, in: moment.setting) {
                 return .open(session.id)
             }
-            return click(index, mayJump: mayJump, in: moment.setting)
+            return click(index, in: moment.setting)
         }
         guard frame.hits(point), notch.mayCarry else {
             return nil
@@ -348,14 +348,14 @@ public final class NotchRun: Framed {
     }
 
     /// A jump chosen from a row's menu, the row by its key: as a click on that row, it pressed in, while it still
-    /// shows, jumps and jumps may run. By its key, since a session in Snoozed has another row too.
-    public func jump(to row: String, _ moment: Moment, mayJump: Bool) -> Press? {
+    /// shows and jumps. By its key, since a session in Snoozed has another row too.
+    public func jump(to row: String, _ moment: Moment) -> Press? {
         upToNow(moment)
         let index = list.content.entries.indices.first { index in
             !list.content.entries[index].isGoing && list.item(index)?.key == row
         }
 
-        return index.flatMap { jump($0, mayJump: mayJump) }
+        return index.flatMap { jump($0) }
     }
 
     /// A point on the stage in the content's own frame, while the panel shows it there.
@@ -378,9 +378,9 @@ public final class NotchRun: Framed {
     }
 
     /// A click on an item: an eyebrow folds its section or unfolds it, at once; a row jumps.
-    private func click(_ index: Int, mayJump: Bool, in setting: Setting) -> Press? {
+    private func click(_ index: Int, in setting: Setting) -> Press? {
         guard case let .eyebrow(eyebrow)? = list.item(index) else {
-            return jump(index, mayJump: mayJump)
+            return jump(index)
         }
 
         folded.toggle(eyebrow.section)
@@ -388,10 +388,10 @@ public final class NotchRun: Framed {
         return .fold
     }
 
-    private func jump(_ index: Int, mayJump: Bool) -> Press? {
+    private func jump(_ index: Int) -> Press? {
         let items = notch.items
 
-        guard mayJump, items.indices.contains(index), let session = items[index].session,
+        guard items.indices.contains(index), let session = items[index].session,
               let target = board.jump(session), notch.clickRow(index)
         else {
             return nil

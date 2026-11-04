@@ -1,18 +1,18 @@
 import Foundation
 @testable import SitRepCore
+import SitRepLines
 import enum SitRepPanel.BoardSection
-import struct SitRepPanel.Earlier
 @testable import SitRepWindow
 import Testing
 
 /// What VoiceOver reads of the window: words for its marks, counts and times, never their symbols.
 struct SpokenTests {
     /// A row of Working or Your turn, its one line as given.
-    private static func row(_ section: BoardSection, _ mark: Mark, _ line: Listed.Line) -> Listed.Row {
-        Listed.Row(
+    private static func row(_ section: BoardSection, _ mark: Mark, _ line: Listed.Line) -> PlaceList.Row {
+        .session(Listed.Row(
             id: "sr-macapp", name: "The Mac app", project: "SitRep", section: section, mark: mark, isAway: false,
             since: minutes(before: 300), lines: [line]
-        )
+        ))
     }
 
     private static func said(_ lead: String, code: String? = nil, subject: String? = nil, until: Date? = nil) -> Listed.Line {
@@ -20,6 +20,17 @@ struct SpokenTests {
             id: "turn:sr-macapp", lead: lead, code: code, subject: subject, until: until, more: nil,
             since: minutes(before: 300)
         )
+    }
+
+    /// A line of a session in Needs you, its session a window holds or not.
+    private static func asking(_ words: String, isAway: Bool = false, since: Date = minutes(before: 90)) -> PlaceList.Row {
+        let line = Listed.Line(id: "ask:sr-1:k1", ask: "k1", lead: words, code: nil, more: nil, since: since)
+        let session = Listed.Row(
+            id: "sr-1", name: "The bootstrap", project: "Kit", section: .needsYou, mark: .needs, isAway: isAway,
+            since: minutes(before: 300), lines: [line]
+        )
+
+        return .line(PlaceList.LineRow(session: session, line: line))
     }
 
     @Test(arguments: [
@@ -37,58 +48,34 @@ struct SpokenTests {
         #expect(Spoken.row(Self.row(section, mark, line), at: printedAt) == words)
     }
 
-    /// Every row a window holds offers VoiceOver its button as an action, "Jump to the window", whatever its section;
-    /// an away row, none.
-    @Test func aRowAWindowHoldsOffersTheJumpAsAnActionAndAnAwayRowNone() {
-        let working = Self.row(.working, .working, Self.said("Running", code: "swift test"))
-        let turn = Self.row(.yourTurn, .turn, Self.said("Drawing round 3"))
-        let needs = Listed.Row(
-            id: "sr-dash02", name: "Dashboard redesign", project: "Switchboard", section: .needsYou, mark: .needs,
-            isAway: false, since: minutes(before: 300), lines: [Self.said("Paste the load test's output")]
-        )
-        let away = Listed.Row(
-            id: "sr-gs7kq2", name: "Onboarding", project: "Goosemates", section: .needsYou, mark: .needs,
-            isAway: true, since: minutes(before: 300), lines: [Self.said("Keep the invite flow?")]
-        )
-
-        #expect([working, turn, needs].map(Spoken.jump) == ["Jump to the window", "Jump to the window", "Jump to the window"])
-        #expect(Spoken.jump(away) == nil)
-    }
-
-    @Test func aNeedsYouRowReadsAsNeedsYouSaysIt() throws {
-        let asking = try #require(Listed(heard(line(0))).needsYou.first)
-
-        #expect(Spoken.row(asking, at: printedAt) == Spoken.needsYou(asking, at: printedAt))
-    }
-
-    /// What waits first, how many and each line's words, then its project and session and the oldest's time.
-    @Test func aNeedsYouRowReadsItsLinesThenItsProjectAndSession() throws {
-        let listed = Listed(heard(line(0)))
-        let asking = try #require(listed.needsYou.first { $0.id == "sr-dash02" })
-        let age = Spoken.age(asking.since, at: printedAt)
-
-        #expect(
-            Spoken.needsYou(asking, at: printedAt)
-                == "2 asks, Paste the load test's output for the Usage area, Allow Bash gh pr create --draft --base main, "
-                + "Switchboard, Dashboard redesign, \(age)"
-        )
-    }
-
-    /// One line reads with no count; away, it says so before its time.
+    /// A line reads its own words, never its session's other lines, then its project and session, and its own age;
+    /// away, it says so before its age.
     @Test(arguments: [false, true])
-    func aNeedsYouRowOfOneLineReadsNoCountAndAwaySaysSo(isAway: Bool) {
-        let since = minutes(before: 90)
-        let asking = Listed.Row(
-            id: "sr-1", name: "The bootstrap", project: "Kit", section: .needsYou, mark: .needs, isAway: isAway,
-            since: since, lines: [Listed.Line(id: "ask:sr-1:k1", lead: "Which edge?", code: nil, more: "+2", since: since)]
-        )
-
+    func aLineReadsItsWordsItsProjectItsSessionAndItsAgeAndAwaySaysSo(isAway: Bool) {
         #expect(
-            Spoken.needsYou(asking, at: printedAt)
+            Spoken.row(Self.asking("Which edge?", isAway: isAway), at: printedAt)
                 == (isAway ? "Which edge?, Kit, The bootstrap, away, 1 hour" : "Which edge?, Kit, The bootstrap, 1 hour")
         )
     }
 
+    /// Over the real board: Switchboard's stop reads its own words, not its ask's beside it.
+    @Test func aLineOfTheRealBoardReadsItsOwnWordsAlone() throws {
+        let list = PlaceList(.needsYou, in: Listed(heard(line(0))))
+        let stop = try #require(list.row(needsYouLines[0]))
+        let age = Spoken.age(Date(timeIntervalSince1970: 1_792_486_361), at: printedAt)
+
+        #expect(Spoken.row(stop, at: printedAt) == "Allow Bash gh pr create --draft --base main, Switchboard, Dashboard redesign, \(age)")
+    }
+
+    /// Every row of a session a window holds offers VoiceOver its button as an action, "Jump to the window", whatever
+    /// its place; an away one, none.
+    @Test func aRowAWindowHoldsOffersTheJumpAsAnActionAndAnAwayRowNone() {
+        let working = Self.row(.working, .working, Self.said("Running", code: "swift test"))
+        let turn = Self.row(.yourTurn, .turn, Self.said("Drawing round 3"))
+
+        #expect([working, turn, Self.asking("Which edge?")].map(Spoken.jump) == Array(repeating: "Jump to the window", count: 3))
+        #expect(Spoken.jump(Self.asking("Which edge?", isAway: true)) == nil)
+    }
 
     @Test func theFilterFieldReadsAsWhatItDoes() {
         #expect(Spoken.filter == "Filter sessions")
@@ -103,32 +90,41 @@ struct SpokenTests {
         #expect(Spoken.age(minutes(before: 48 * 60), at: printedAt) == "2 days")
     }
 
-    @Test func aSidebarHeadingReadsItsNameItsCountAndWhetherItIsFolded() {
-        let heading = { (fold: Fold, count: Int, isFolded: Bool) in
-            Spoken.heading(Sidebar.Heading(fold: fold, count: count, isFolded: isFolded))
-        }
-
-        #expect(heading(.section(.needsYou), 4, false) == "Needs you, 4 waiting")
-        #expect(heading(.section(.working), 1, true) == "Working, 1 session, folded")
-        #expect(heading(.section(.yourTurn), 3, false) == "Your turn, 3 sessions")
-        #expect(heading(.projects, 6, true) == "Projects, 6 projects, folded")
+    /// A place reads its name and its count in words: Needs you its lines waiting, Working and Your turn their
+    /// sessions, Parked its items.
+    @Test func aPlaceReadsItsNameAndItsCount() {
+        #expect(Spoken.place(.needsYou, count: 4) == "Needs you, 4 waiting")
+        #expect(Spoken.place(.yourTurn, count: 1) == "Your turn, 1 session")
+        #expect(Spoken.place(.working, count: 3) == "Working, 3 sessions")
+        #expect(Spoken.place(.parked, count: 12) == "Parked, 12 items")
     }
 
-    @Test func nEarlierReadsHowManyAndTheirProjectsAndWhetherItIsFolded() {
-        #expect(Spoken.earlier(Earlier(projects: ["Kit", "Fumi", "Kit"], isOpen: false)) == "3 earlier, Kit, Fumi, folded")
-        #expect(Spoken.earlier(Earlier(projects: ["Kit"], isOpen: true)) == "1 earlier, Kit")
+    /// A project reads as one, what waits on Lee there, and its sessions, but where it is quiet.
+    @Test func aProjectsRowReadsWhatItsMarkAndCountSay() throws {
+        let places = Places(Listed(heard(line(0))))
+        let project = { (key: String) in try #require(places.projects.first { $0.id == key }) }
+
+        #expect(Spoken.project(try project("switchboard")) == "Switchboard, project, needs you, 2 sessions")
+        #expect(Spoken.project(try project("goosemates")) == "Goosemates, project, needs you, away, 1 session")
+        #expect(Spoken.project(try project("kit")) == "Kit, project")
     }
 
-    @Test func aProjectsRowReadsAsAProject() {
-        #expect(Spoken.project(Listed.Project(id: "kit", name: "Kit")) == "Kit, project")
+    /// A fold reads how many, "N earlier" its projects too, and folded says so.
+    @Test func aFoldReadsHowManyAndWhetherItIsFolded() throws {
+        let snoozed = try #require(PlaceList(.needsYou, in: Listed(heard(.line(Lines.snoozed[0])))).fold)
+        let earlier = try #require(PlaceList(.yourTurn, in: Self.earlier, isFoldOpen: true).fold)
+
+        #expect(Spoken.fold(snoozed) == "2 snoozed, folded")
+        #expect(Spoken.fold(earlier) == "1 earlier, Switchboard")
     }
 
-    @Test func aCardIsLabelledByItsAsksTitleAfterItsSessionsNameInAProject() throws {
-        let card = try #require(opened().page(at: printedAt).session?.asks.first)
+    /// The first board, Request ledger's turn past the fold period.
+    private static let earlier: Listed = {
+        var listed = Listed(heard(line(0)))
 
-        #expect(Spoken.card(card, session: nil) == card.title)
-        #expect(Spoken.card(card, session: "The Mac app") == "The Mac app: \(card.title)")
-    }
+        listed.changeRows { $0.isEarlier = $0.section == .yourTurn }
+        return listed
+    }()
 
     @Test func aHeadingReadsItsNameAndTheWordsOnItsRight() {
         #expect(Spoken.heading("Asks", note: "3 waiting") == "Asks, 3 waiting")
@@ -137,7 +133,7 @@ struct SpokenTests {
 
     @Test(arguments: [
         (Mark.needs, "needs you"), (.awayAsk, "needs you, away"), (.turn, "your turn"), (.working, "working"),
-        (.onItsWork, "on its own work"), (.away, "away"),
+        (.onItsWork, "on its own work"), (.away, "away"), (.snoozed, "snoozed"),
     ])
     func aMarkReadsAsWhatItMeans(mark: Mark, words: String) {
         #expect(Spoken.mark(mark) == words)
