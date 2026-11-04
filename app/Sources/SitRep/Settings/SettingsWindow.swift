@@ -15,7 +15,7 @@ final class SettingsWindow: NSObject, NSWindowDelegate, NSToolbarDelegate {
     private let frame: @MainActor (NSViewController) -> ForwardWindow
     private lazy var window = make()
     /// Back and forward, in one capsule.
-    let steps = SettingsWindow.backAndForward()
+    let steps = NSSegmentedControl.steps([("chevron.left", "Back"), ("chevron.right", "Forward")])
 
     /// 820 by 620 to start, as Paper's boards are.
     nonisolated static let size = CGSize(width: 820, height: 620)
@@ -157,19 +157,5 @@ final class SettingsWindow: NSObject, NSWindowDelegate, NSToolbarDelegate {
         item.isNavigational = true
         item.autovalidates = false
         return item
-    }
-
-    /// The system's back and forward: a segmented control of the two chevrons, each its own button, VoiceOver reading
-    /// each by its name.
-    private static func backAndForward() -> NSSegmentedControl {
-        let images = [("chevron.left", "Back"), ("chevron.right", "Forward")].map { symbol, name in
-            NSImage(systemSymbolName: symbol, accessibilityDescription: name) ?? NSImage()
-        }
-        let control = NSSegmentedControl(images: images, trackingMode: .momentary, target: nil, action: nil)
-
-        control.segmentStyle = .separated
-        control.setToolTip("Back", forSegment: back)
-        control.setToolTip("Forward", forSegment: forward)
-        return control
     }
 }

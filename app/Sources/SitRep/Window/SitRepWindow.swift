@@ -7,15 +7,18 @@ import SwiftUI
 /// again brings it forward. It comes forward and takes focus only when Lee opens it, never by itself, as the notch or
 /// the strip tells Lee what changed; with no Dock icon, the app activates only then. Three columns: the sidebar, a
 /// place's list, and the page beside it, a session's; or the sidebar and a project's page or a session's, filling the
-/// window. ⌘, opens the Settings window from it, through the app's menu (`AppMenu`).
+/// window. Its toolbar has Back and Forward, and over a place's list its title, its position and up and down
+/// (`WindowToolbar`). ⌘, opens the Settings window from it, and ⌘[ and ⌘] go back and forward, through the app's menu
+/// (`AppMenu`).
 @MainActor
-final class SitRepWindow: NSObject, NSWindowDelegate {
+final class SitRepWindow: NSObject, NSWindowDelegate, NSMenuItemValidation {
     private let model: WindowModel
     private lazy var window = make()
     private var focus: SideFocus?
     private var keys: Any?
     /// The list beside the page as the model says.
     private var following: ListFollowing?
+    private var toolbar: WindowToolbar?
 
     /// `following`, what the app's one `watch` is told the window follows.
     init(plugin: Plugin, works: Works, snoozes: Snoozes, following: Following, preferences: Preferences) {
@@ -93,11 +96,37 @@ final class SitRepWindow: NSObject, NSWindowDelegate {
         model.window(isVisible: window.occlusionState.contains(.visible))
     }
 
+    /// ⌘[, through the app's menu, while the window is key.
+    @objc func goBack(_ sender: Any?) {
+        model.actions.back()
+    }
+
+    /// ⌘].
+    @objc func goForward(_ sender: Any?) {
+        model.actions.forward()
+    }
+
+    /// Back and Forward each only with a step to go to, as the toolbar shows them.
+    func validateMenuItem(_ item: NSMenuItem) -> Bool {
+        switch item.action {
+        case #selector(goBack(_:)): toolbar?.shown.canGoBack ?? false
+        case #selector(goForward(_:)): toolbar?.shown.canGoForward ?? false
+        default: true
+        }
+    }
+
     private func make() -> ForwardWindow {
         let columns = Self.columns(over: model)
         let split = Self.split(sidebar: columns.sidebar, list: columns.list, page: columns.page)
-        let window = Self.window(split)
+        let toolbar = WindowToolbar(splitView: split.splitView, actions: model.actions)
+        let window = Self.window(split, toolbar: toolbar.toolbar)
 
+        self.toolbar = toolbar
+        model.showToolbar = { [weak window] bar in
+            if let window {
+                toolbar.show(bar, in: window)
+            }
+        }
         window.delegate = self
         window.setFrameAutosaveName("SitRepWindow")
         let focus = SideFocus(
@@ -161,14 +190,15 @@ final class SitRepWindow: NSObject, NSWindowDelegate {
     }
 
     /// The window, over its split, brought to the Space Lee is on whenever it opens and otherwise left on its own
-    /// (`ForwardWindow`). Its toolbar, empty, gives it the titlebar by which macOS sets the traffic lights in from the
-    /// sidebar's corner: on macOS 26 inside its glass, as Finder's. Without one they sit on the glass's corner.
-    static func window(_ content: NSViewController) -> ForwardWindow {
+    /// (`ForwardWindow`). Its toolbar, unified, gives it the titlebar by which macOS sets the traffic lights in from
+    /// the sidebar's corner: on macOS 26 inside its glass, as Finder's. Without one they sit on the glass's corner. Its
+    /// title shows only as the toolbar shows it, a place's name.
+    static func window(_ content: NSViewController, toolbar: NSToolbar) -> ForwardWindow {
         let window = ForwardWindow(contentViewController: content)
 
         window.styleMask = [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView]
         window.title = "SitRep"
-        window.toolbar = Self.toolbar()
+        window.toolbar = toolbar
         window.toolbarStyle = .unified
         window.titlebarAppearsTransparent = true
         window.titlebarSeparatorStyle = .none
@@ -190,15 +220,6 @@ final class SitRepWindow: NSObject, NSWindowDelegate {
 
         hosting.sizingOptions = []
         return hosting
-    }
-
-    /// The toolbar, empty, and with nothing to customise, so a right-click on the titlebar offers no Customize
-    /// Toolbar.
-    private static func toolbar() -> NSToolbar {
-        let toolbar = NSToolbar(identifier: "SitRepWindow")
-
-        toolbar.allowsUserCustomization = false
-        return toolbar
     }
 
     /// The window's keys, before what has focus hears them (`SideFocus.take`).
