@@ -160,6 +160,9 @@ test('a conversation starts knowing how to keep the board, every session on it b
   expect(guide).toContain('say it in the chat as well')
   expect(guide).toContain('when Lee answers it in the chat, resolve the ask')
   expect(guide).toContain(
+    'a turn that ends on a decision or a question for Lee posts it as an ask, so it shows in Needs you, never only in the status; plain conversation needs none',
+  )
+  expect(guide).toContain(
     'Touch the board only once it is clear which project the work is on: the project being discussed, whatever folder this window started in.',
   )
   expect(guide).toContain(

@@ -7,7 +7,7 @@ import Testing
 /// easeInOut (120 under reduced motion), a new one fading in over 220, one gone folding away where it was.
 struct FoldsTests {
     private static func row(_ id: String) -> Item {
-        .session(Session(id: id, project: "SitRep", kind: .turn, title: id, sub: "", since: 0))
+        .session(Session(id: id, project: "SitRep", kind: .working, title: id, sub: "", since: 0))
     }
 
     private static let a = row("a"), b = row("b"), c = row("c")

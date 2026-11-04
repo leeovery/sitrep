@@ -113,6 +113,21 @@ struct SelectionTests {
         #expect(run.location == .session("sr-rq7dgr", from: .project("switchboard")))
     }
 
+    /// Two sessions need Lee, each a window holds: the window opens on the top of Needs you, the newest line,
+    /// Contoso's ask 5 minutes old, over Northwind's, whose newest is 20 minutes old though its oldest, 90, is the
+    /// oldest of all.
+    @Test func theWindowOpensOnTheTopOfNeedsYouTheNewestLine() {
+        let run = WindowRun(wall: { printedAt })
+        let contoso = Built(id: "s2", project: "contoso", waiting: [5])
+
+        run.show(heard(Built.printed([
+            Built(id: "s1", project: "northwind", waiting: [90, 60, 20]), contoso,
+        ])), at: printedAt, reducesMotion: false)
+        run.open()
+        #expect(run.location.place == .needsYou)
+        #expect(run.location.picked?.pick == .line(contoso.line(0)))
+    }
+
     // MARK: Opened from outside
 
     /// "Open in SitRep" on the Mac app picks its newest line by its time, k1, though core lists it last of its three.

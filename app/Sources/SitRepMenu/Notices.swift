@@ -25,18 +25,21 @@ public enum Notices {
 }
 
 extension LastBoard {
-    /// The asks new on this board, with their rows, in core's order: an ask that landed or that its snooze's time woke,
-    /// as core's `new` has both. None for a board that is a run's first, which counts what it shows as shown, nor for
-    /// a stale one, the last line kept, whose new asks were told as it came; and only asks, not a window's new stop.
+    /// The asks new on this board, with their rows, the oldest first, so Notification Center, which stacks the last
+    /// posted on top, shows the newest there, as Needs you does: an ask that landed or that its snooze's time woke, as
+    /// core's `new` has both. None for a board that is a run's first, which counts what it shows as shown, nor for a
+    /// stale one, the last line kept, whose new asks were told as it came; and only asks, not a window's new stop.
     var newAsks: [(ask: Board.Row.Line, row: Board.Row)] {
         guard stale == nil, !isRunsFirst, let board else {
             return []
         }
 
         let new = Set(board.new)
-
-        return board.rows.flatMap { row in
-            row.lines.filter { $0.kind == .ask && new.contains($0.key) }.map { ($0, row) }
+        let asks = board.rows.flatMap { row in
+            row.lines.filter { $0.kind == .ask && new.contains($0.key) }.map { (ask: $0, row: row) }
         }
+
+        return asks.enumerated().sorted { ($0.element.ask.since, $0.offset) < ($1.element.ask.since, $1.offset) }
+            .map(\.element)
     }
 }

@@ -1,7 +1,7 @@
 import CoreGraphics
 
 /// A session as the edge shows it: a row on the panel, a mark on the strip, and a mark's tab. One needing Lee has a
-/// line for each ask and stop waiting on Lee, the oldest first; its row in Snoozed, on the card alone, a line for each
+/// line for each ask and stop waiting on Lee, the newest first; its row in Snoozed, on the card alone, a line for each
 /// ask asleep; any other has its one line.
 public struct Session: Equatable, Sendable {
     /// Where it stands: its turn over but on its own work, which will wake it, among them; or, its row in Snoozed,
@@ -94,7 +94,7 @@ public struct Session: Equatable, Sendable {
     public var kind: Kind
     /// Needing Lee with no window holding it: its row and its tab say so, and a click on them jumps nowhere.
     public var away: Bool
-    /// The oldest first; never none.
+    /// Needing Lee, the newest first, as core has them; in Snoozed, the soonest to wake first; never none.
     public var lines: [Line]
     /// What its row says under its title.
     public var sub: String
@@ -129,8 +129,9 @@ public struct Session: Equatable, Sendable {
     }
 
     /// What its row says, on every surface, on one line with its time: needing Lee, or in Snoozed, its name, and "+2"
-    /// for the two lines after its first, none for one; else its one line. Its lines' words are read on its page in the
-    /// SitRep window, so a question's own "+2", which counts words not shown, shows nowhere on a row needing Lee.
+    /// for the two lines after its first, none for one, its time its first line's, needing Lee the newest; else its one
+    /// line. Its lines' words are read on its page in the SitRep window, so a question's own "+2", which counts words
+    /// not shown, shows nowhere on a row needing Lee.
     public var headline: Line {
         guard needsLee || isSnoozed else {
             return lines[0]
@@ -151,7 +152,7 @@ public struct Session: Equatable, Sendable {
     public var until: Double? { headline.until }
     public var more: String? { headline.more }
 
-    /// When it came to stand where it does: its oldest line's time.
+    /// The time its row counts from: needing Lee, its newest line's; else its one line's.
     public var since: Double { headline.since }
 
     /// A project's letters as the prototypes have them, where none are given: its two capitals where it has two
@@ -164,7 +165,7 @@ public struct Session: Equatable, Sendable {
     /// A click on it jumps, unless no window holds it.
     public var jumps: Bool { !away }
 
-    /// Whether it is among needs you, over the hairline.
+    /// Whether it is among needs you.
     public var needsLee: Bool { kind == .needs }
 
     /// Whether it is its row in Snoozed, its asks asleep.
@@ -173,7 +174,7 @@ public struct Session: Equatable, Sendable {
     /// The asks its lines show, by their ids, a window's stops aside: what its row snoozes, or wakes.
     public var asks: [String] { lines.compactMap(\.ask) }
 
-    /// How long it has stood where it does at this time on the wall clock: its oldest line's time.
+    /// How long its row has stood at this time on the wall clock, from its headline's time.
     public func ageText(at now: Double) -> String { headline.ageText(at: now) }
 
     /// What its row waits on, set plain after its title at this time on the wall clock.
@@ -224,23 +225,23 @@ public enum Age: Equatable, Sendable {
     }
 }
 
-/// One item in the panel's list, below any head: a session's row, drawn whole or, in Your turn on the card, on one line;
-/// a section's eyebrow; Your turn's "N earlier"; or the hairline after what needs Lee.
+/// One item in the panel's list, below any head: a session's row, drawn whole or, on the card in Working and Snoozed,
+/// on one line; a section's eyebrow; Your turn's "N earlier"; or the hairline after what waits on Lee.
 public enum Item: Equatable, Sendable {
     case session(Session)
-    /// A your-turn row on the card, on one line.
-    case turn(Session)
+    /// A row on the card below the hairline, Working's or Snoozed's, on one line.
+    case line(Session)
     case eyebrow(Eyebrow)
     case earlier(Earlier)
     case divider
 
-    /// The panel's list of these sessions, in the order given, which is core's: the hairline under the needs you that
-    /// lead it, when anything follows them. The menu's; the card's is `card`.
+    /// The panel's list of these sessions, in the order given, which is core's: the hairline under what waits on Lee
+    /// that leads it, needs you and your turn, when anything follows them. The menu's; the card's is `card`.
     public static func list(_ sessions: [Session]) -> [Item] {
-        let needs = sessions.prefix(while: \.needsLee).count
+        let waiting = sessions.prefix(while: \.section.waitsOnLee).count
         var items = sessions.map(Item.session)
-        if needs > 0, needs < items.count {
-            items.insert(.divider, at: needs)
+        if waiting > 0, waiting < items.count {
+            items.insert(.divider, at: waiting)
         }
         return items
     }
@@ -248,23 +249,29 @@ public enum Item: Equatable, Sendable {
     /// The session its row shows; nil for any other item.
     public var session: Session? {
         switch self {
-        case let .session(session), let .turn(session): session
+        case let .session(session), let .line(session): session
         case .eyebrow, .earlier, .divider: nil
         }
     }
 
-    /// What it is, the same for as long as it shows: a row by its session, marked as needs you, as snoozed or, on one
-    /// line, as your turn, so a row changing section folds away from one place and unfolds in the other, as two rows,
-    /// and a session's row in Snoozed is another than its row beside it; an eyebrow by its section; "N earlier" and the
-    /// divider by themselves.
+    /// What it is, the same for as long as it shows: a row by its session, marked by its section but for Working's, so
+    /// a row changing section folds away from one place and unfolds in the other, as two rows, and a session's row in
+    /// Snoozed is another than its row beside it; an eyebrow by its section; "N earlier" and the divider by themselves.
     public var key: String {
         switch self {
-        case let .session(session):
-            session.isSnoozed ? "snoozed:\(session.id)" : session.needsLee ? "needs:\(session.id)" : session.id
-        case let .turn(session): "turn:\(session.id)"
+        case let .session(session), let .line(session): Self.key(of: session)
         case let .eyebrow(eyebrow): "eyebrow:\(eyebrow.section.rawValue)"
         case .earlier: "earlier"
         case .divider: "divider"
+        }
+    }
+
+    private static func key(of session: Session) -> String {
+        switch session.section {
+        case .needsYou: "needs:\(session.id)"
+        case .yourTurn: "turn:\(session.id)"
+        case .working: session.id
+        case .snoozed: "snoozed:\(session.id)"
         }
     }
 
@@ -274,17 +281,16 @@ public enum Item: Equatable, Sendable {
     /// A row drawn whole, less the gap below it: 7, its two lines' 34, and 8.
     public static let rowHeight = 49.0
 
-    /// Board D's: a your-turn row, with no gap, so the lifts of two meet; an eyebrow, under the room over it; and "N
+    /// Board D's: a row on one line, with no gap, so the lifts of two meet; an eyebrow, under the room over it; and "N
     /// earlier", under the 2 over it.
-    public static let turnHeight = 30.0, eyebrowHeight = 28.0, earlierHeight = 34.0, earlierAbove = 2.0
+    public static let lineHeight = 30.0, eyebrowHeight = 28.0, earlierHeight = 34.0, earlierAbove = 2.0
 
-    /// Its height, unfolded, as it is drawn: a row whole, however many lines it holds, and the gap below it; a
-    /// your-turn row's 30; an eyebrow's 28 under its room; "N earlier"'s 34 under its 2; the divider's 1 between 2
-    /// and 6.
+    /// Its height, unfolded, as it is drawn: a row whole, however many lines it holds, and the gap below it; a row on
+    /// one line's 30; an eyebrow's 28 under its room; "N earlier"'s 34 under its 2; the divider's 1 between 2 and 6.
     public var height: Double {
         switch self {
         case .session: Self.rowHeight + Self.rowGap
-        case .turn: Self.turnHeight
+        case .line: Self.lineHeight
         case let .eyebrow(eyebrow): eyebrow.above + Self.eyebrowHeight
         case .earlier: Self.earlierAbove + Self.earlierHeight
         case .divider: 9
@@ -295,7 +301,7 @@ public enum Item: Equatable, Sendable {
     public var margins: (above: Double, below: Double) {
         switch self {
         case .session: (0, Self.rowGap)
-        case .turn, .divider: (0, 0)
+        case .line, .divider: (0, 0)
         case let .eyebrow(eyebrow): (eyebrow.above, 0)
         case .earlier: (Self.earlierAbove, 0)
         }

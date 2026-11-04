@@ -13,16 +13,22 @@ struct SessionRowLayout {
     let opener: CGRect
 
     static let radius = 14.0
-    /// A your-turn row's on one line, board D's.
-    static let turnRadius = 10.0
+    /// A row on one line's, board D's, so the lifts of two meet, and "N earlier"'s.
+    static let lineRadius = 10.0
     /// Between a session's name and its "+2", board F's.
     static let countGap = 6.0
-    /// Between a your-turn row's words and its project.
+    /// Between a row on one line's words and its project.
     static let projectGap = 12.0
     static let pad = (top: 7.0, side: 10.0), gap = 10.0
     static let markBox = CGSize(width: 12, height: 18), ageWidth = 36.0
     static let titleLine = 18.0
     private static let subLine = 16.0
+
+    /// The lift's corners of a row by its shape: on one line 10, board D's; drawn whole 14, as board I draws Your
+    /// turn's.
+    static func radius(oneLine: Bool) -> Double {
+        oneLine ? lineRadius : radius
+    }
 
     /// A row whose time is this wide: the 36 lane, or a Snoozed row's wider wake, which the lane grows to fit.
     init(size: CGSize, time: Double = 0) {
@@ -38,18 +44,20 @@ struct SessionRowLayout {
         opener = Opener.frame(in: size)
     }
 
-    /// A your-turn row on one line, as board D lays it out on the card: its mark, its words, its project in a lane
-    /// at the right of them, its own width and 12 after the words, never cut while the words are, and its time in the
-    /// 36 lane, each in a line of 18 on the row's middle. `sub` is the project's lane.
-    init(turn size: CGSize, project: Double) {
+    /// A row on one line, Working's or Snoozed's, as board I lays it out on the card (board D's your-turn row): its
+    /// mark, its words, its project in a lane at the right of them, its own width and 12 after the words, never cut
+    /// while the words are, and its time in the 36 lane, or a Snoozed row's wider wake, which the lane grows to fit,
+    /// each in a line of 18 on the row's middle. `sub` is the project's lane.
+    init(line size: CGSize, project: Double, time: Double = 0) {
+        let lane = max(Self.ageWidth, time)
         let top = (size.height - Self.titleLine) / 2
         let textX = Self.pad.side + Self.markBox.width + Self.gap
-        let middle = size.width - textX - Self.gap - Self.ageWidth - Self.pad.side
+        let middle = max(0, size.width - textX - Self.gap - lane - Self.pad.side)
         let project = min(project, middle)
 
         mark = CGPoint(x: Self.pad.side + Self.markBox.width / 2, y: size.height / 2)
         title = CGRect(x: textX, y: top, width: max(0, middle - project - Self.projectGap), height: Self.titleLine)
-        age = CGRect(x: size.width - Self.pad.side - Self.ageWidth, y: top, width: Self.ageWidth, height: Self.titleLine)
+        age = CGRect(x: size.width - Self.pad.side - lane, y: top, width: lane, height: Self.titleLine)
         sub = CGRect(x: textX + middle - project, y: top, width: project, height: Self.titleLine)
         opener = Opener.frame(in: size)
     }

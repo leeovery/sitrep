@@ -237,7 +237,7 @@ test("a session with an ask is a row in Needs you, the ask a line of it, its tit
   })
 })
 
-test("a session with several asks is one row, a line for each, the oldest first; the row's time is its oldest line's", () => {
+test("a session with several asks is one row, a line for each, the newest first; the row's time is its newest line's", () => {
   const session = sessionOf({
     lines: [
       [T0 + 3 * MIN, yesAsk('k3', 'Approve the second fix batch')],
@@ -249,9 +249,9 @@ test("a session with several asks is one row, a line for each, the oldest first;
   const row = rowFor(session, { key: 'harness', name: 'Harness' })
 
   expect(row?.lines.map(line => [line.key, line.first.lead, line.since])).toEqual([
-    [`ask:${META.id}:k1`, 'Approve the first fix batch', T0 + MIN],
-    [`ask:${META.id}:k2`, 'Choose the release branch', T0 + 2 * MIN],
     [`ask:${META.id}:k3`, 'Approve the second fix batch', T0 + 3 * MIN],
+    [`ask:${META.id}:k2`, 'Choose the release branch', T0 + 2 * MIN],
+    [`ask:${META.id}:k1`, 'Approve the first fix batch', T0 + MIN],
   ])
   expect(row).toMatchObject({
     session: META.id,
@@ -259,11 +259,11 @@ test("a session with several asks is one row, a line for each, the oldest first;
     name: 'Dashboard redesign',
     projectName: 'Harness',
     second: 'Harness · Dashboard redesign',
-    since: T0 + MIN,
+    since: T0 + 3 * MIN,
   })
 })
 
-test('a session with an ask and a window stopped on a permission prompt is one row of two lines, the oldest first', () => {
+test('a session with an ask and a window stopped on a permission prompt is one row of two lines, the newest first', () => {
   const session = sessionOf({
     lines: [[T0 + 2 * MIN, yesAsk('k1', 'Review round 1')]],
     presence: windowOn(W1, permission(T0 + MIN, 'Bash', 'gh pr create')),
@@ -272,6 +272,7 @@ test('a session with an ask and a window stopped on a permission prompt is one r
   expect(
     lines(session).map(line => [line.key, line.is, line.ask, line.writer, line.first]),
   ).toEqual([
+    [`ask:${META.id}:k1`, 'ask', 'k1', undefined, { lead: 'Review round 1' }],
     [
       `stop:${META.id}:${W1}:${T0 + MIN}`,
       'permission',
@@ -279,9 +280,8 @@ test('a session with an ask and a window stopped on a permission prompt is one r
       W1,
       { lead: 'Allow Bash', mono: 'gh pr create' },
     ],
-    [`ask:${META.id}:k1`, 'ask', 'k1', undefined, { lead: 'Review round 1' }],
   ])
-  expect(rowFor(session)?.since).toBe(T0 + MIN)
+  expect(rowFor(session)?.since).toBe(T0 + 2 * MIN)
 })
 
 test('a reopened ask waits since its reopening; a closed one is no row', () => {
@@ -341,9 +341,9 @@ test("each stopped window is a line; a session needing Lee shows only its waitin
   })
 
   expect(lines(session).map(line => [line.is, line.writer])).toEqual([
-    ['ask', undefined],
-    ['permission', W2],
     ['question', W3],
+    ['permission', W2],
+    ['ask', undefined],
   ])
 })
 
@@ -665,7 +665,7 @@ const SECTIONS: Record<RowKind, Row['section']> = {
   yourTurn: 'yourTurn',
 }
 
-/** A session's row in its section, of lines of the kind given at these times, its time the oldest's; the rest made up. */
+/** A session's row in its section, of lines of the kind given at these times, its time the newest's; the rest made up. */
 const row = (session: string, is: RowKind, since: number | number[], isAway = false): Row => {
   const times = [since].flat()
 
@@ -679,11 +679,11 @@ const row = (session: string, is: RowKind, since: number | number[], isAway = fa
     letters: 'Pp',
     lines: times.map(at => ({ key: `${is}:${session}:${at}`, is, first: { lead: session }, since: at })),
     second: 'P · s',
-    since: Math.min(...times),
+    since: Math.max(...times),
   }
 }
 
-test('the rows in order: needs you oldest first, away ones last; then working, longest running first; then on its own work, soonest to wake first, else oldest first; then your turn, newest first', () => {
+test('the rows in order: needs you newest first, away ones last; then your turn, newest first; then working, longest running first; then on its own work, soonest to wake first, else oldest first', () => {
   const shuffled = [
     row('working-new', 'working', T0 + 5 * MIN),
     row('turn-old', 'yourTurn', T0 + MIN),
@@ -701,30 +701,31 @@ test('the rows in order: needs you oldest first, away ones last; then working, l
   ]
 
   expect(inPanelOrder(shuffled).map(each => each.session)).toEqual([
-    'permission-old',
-    'question',
     'ask-new',
-    'away-old',
+    'question',
+    'permission-old',
     'away-new',
+    'away-old',
+    'turn-new',
+    'turn-old',
     'working-old',
     'working-new',
     'wakes-soon',
     'wakes-later',
     'own-old',
     'own-new',
-    'turn-new',
-    'turn-old',
   ])
 })
 
-test("Needs you's rows in order by their oldest lines, whatever their newer ones, away sessions last", () => {
+test("Needs you's rows in order by their newest lines, whatever their older ones, away sessions last, newest first among them", () => {
   expect(
     inPanelOrder([
-      row('newer', 'ask', [T0 + MIN, T0 + 2 * MIN]),
-      row('away', 'ask', [T0 - MIN, T0 + 3 * MIN], true),
-      row('older', 'ask', [T0 + 9 * MIN, T0]),
+      row('older', 'ask', [T0 + MIN, T0 + 2 * MIN]),
+      row('away-older', 'ask', [T0 - 9 * MIN, T0 + 3 * MIN], true),
+      row('newer', 'ask', [T0 + 9 * MIN, T0]),
+      row('away-newer', 'ask', [T0 + 4 * MIN], true),
     ]).map(each => each.session),
-  ).toEqual(['older', 'newer', 'away'])
+  ).toEqual(['newer', 'older', 'away-newer', 'away-older'])
 })
 
 test('the head counts the lines needing Lee, away ones among them, and the rows, a session each', () => {
@@ -818,6 +819,29 @@ test('the feed: each project with its current sessions in the rows order, a fini
       ],
     ],
   ])
+})
+
+test("a Needs you row's time is its newest line's, while its session's state still counts from its oldest, as its first line came", () => {
+  const feed = feedOf(
+    [
+      {
+        project: SWITCHBOARD,
+        sessions: [
+          sessionOf({
+            lines: [
+              [T0 + MIN, yesAsk('k1', 'Review round 1')],
+              [T0 + 4 * MIN, yesAsk('k2', 'Try it')],
+            ],
+            presence: windowOn(W1, permission(T0 + 2 * MIN, 'Bash', 'ls')),
+          }),
+        ],
+      },
+    ],
+    NOW,
+  )
+
+  expect(feed.rows[0]?.since, "the row's shown time, and what orders it").toBe(T0 + 4 * MIN)
+  expect(feed.projects[0]?.sessions[0]?.since, 'how long the session has needed Lee').toBe(T0 + MIN)
 })
 
 test('every session in the feed carries what it parked, oldest first, and when it started, whether or not it has a row', () => {
@@ -964,8 +988,8 @@ test('what is new: a line needing Lee the watch has not shown, by its key; nothi
   expect(first.news).toEqual([])
   expect(newRows(first.shown, before, NOW).news).toEqual([])
   expect(newRows(first.shown, after, NOW).news).toEqual([
-    'ask:sr-eeeeee:k3',
     `stop:sr-eeeeee:${W3}:${NOW}`,
+    'ask:sr-eeeeee:k3',
   ])
 })
 

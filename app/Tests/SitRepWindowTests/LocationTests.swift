@@ -289,6 +289,18 @@ struct LocationTests {
         #expect(Self.landing("sr-gs7kq2") == .place(.needsYou, picked: Self.goose))
     }
 
+    /// The open lands on the newest line by its time, k0, 5 minutes old, wherever the row lists it: here last, after
+    /// k1, 60 minutes old.
+    @Test func anOpenLandsOnTheNewestLineByItsTimeWhereverTheRowListsIt() {
+        let northwind = Built(id: "s1", project: "northwind", waiting: [5, 60])
+        var listed = Built.listed([northwind])
+
+        listed.rows[0].lines.sort { $0.since < $1.since }
+        #expect(listed.rows[0].lines.last?.id == northwind.line(0))
+        #expect(Self.landing("s1", on: listed)
+            == .place(.needsYou, picked: Selection(pick: .line(northwind.line(0)), session: "s1")))
+    }
+
     /// Harness's session has k3 waiting and k1 and k2 asleep: its waiting line.
     @Test func anOpenOfASessionWithLinesWaitingAndAsleepLandsOnItsWaitingLine() {
         let snoozed = Listed(heard(.line(Lines.snoozed[0])))

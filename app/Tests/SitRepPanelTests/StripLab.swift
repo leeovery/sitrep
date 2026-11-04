@@ -73,8 +73,9 @@ struct StripLab {
 
     /// The rows in the order core gave them as the prototype's timelines were recorded, which the recordings hold
     /// them to: needs you, oldest first, away ones last; your turn, newest first; working, longest running first; on
-    /// its own work, which they never had, last; on a tie, as they were. Core has since put working, then on its own
-    /// work, before your turn (`core/rows.ts`), which the strip draws as it comes.
+    /// its own work, which they never had, last; on a tie, as they were. Core has since put needs you newest first,
+    /// and working before your turn from 22 October to 4 November 2026 (`core/rows.ts`), which the strip draws as it
+    /// comes.
     static func core(_ sessions: [Session]) -> [Session] {
         func key(_ row: (offset: Int, element: Session)) -> (Int, Double, Int) {
             let s = row.element

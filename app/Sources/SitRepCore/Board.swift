@@ -159,17 +159,17 @@ public struct Board: Versioned, Sendable, Equatable {
         public let projectName: String
         /// The strip's two letters for its project.
         public let letters: String
-        /// The oldest first.
+        /// Needing Lee, the newest first; else its one.
         public let lines: [Line]
         /// The project and the session, under a Working or Your turn row's line; an away row's says no window holds it.
         public let second: String
-        /// The instant its time counts from, its oldest line's, which the views tick.
+        /// The instant its time counts from, its newest line's, which the views tick.
         public let since: Date
 
         public var id: String { session }
 
-        /// Its oldest line, which a surface with room for one line shows.
-        public var oldest: Line { lines[0] }
+        /// Its newest line, which a surface with room for one line shows.
+        public var newest: Line { lines[0] }
 
         /// In Needs you: its lines are asks, permission prompts or questions.
         public var needsLee: Bool { section == .needsYou }
@@ -300,7 +300,7 @@ public struct Board: Versioned, Sendable, Equatable {
         public let created: Date?
         public let updatedAt: Date
         public let state: State
-        /// When its state began: its first row's time, else its latest line's.
+        /// When its state began: its row's oldest line's time, else its latest line's.
         public let since: Date
         public let doing: Doing
         /// Oldest first.

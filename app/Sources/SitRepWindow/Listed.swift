@@ -32,7 +32,7 @@ public enum Mark: Sendable, Equatable {
 }
 
 /// The board as the window takes it, as the card lists it: a row for each session core has one for, in its section,
-/// Needs you, Working or Your turn, in core's order, each session once; a row in Snoozed for each with asks asleep,
+/// Needs you, Your turn or Working, in core's order, each session once; a row in Snoozed for each with asks asleep,
 /// beside any it has in another; and every project, quiet ones too. The window's places and projects are drawn from it
 /// (`Places`, `PlaceList`).
 public struct Listed: Equatable, Sendable {
@@ -65,9 +65,10 @@ public struct Listed: Equatable, Sendable {
         public let mark: Mark
         /// No window holds it: its words are faint, whatever its mark.
         public let isAway: Bool
-        /// When its oldest line began, which its time counts from: on Your turn, its turn's end.
+        /// When the line its time counts from began: under Needs you, its newest's; on Your turn, its turn's end; in
+        /// Snoozed, its oldest's.
         public let since: Date
-        /// Under Needs you, its asks and stops waiting on Lee, the oldest first, as core's row has them; in Snoozed,
+        /// Under Needs you, its asks and stops waiting on Lee, the newest first, as core's row has them; in Snoozed,
         /// its asks asleep, the soonest to wake first; else its turn's one line.
         public var lines: [Line] = []
         /// In Snoozed, when its soonest ask wakes.
@@ -170,7 +171,7 @@ public struct Listed: Equatable, Sendable {
 
 extension Listed {
     /// A row for each of core's, with its lines, by its section, in the sections' order: within one, core's order,
-    /// Needs you's the oldest first by its oldest line, an away session's after the live ones; Snoozed's the soonest to
+    /// Needs you's the newest first by its newest line, an away session's after the live ones; Snoozed's the soonest to
     /// wake first.
     static func rows(_ board: Board) -> [Row] {
         let rows = board.rows.map(Row.init) + board.snoozed.map(Row.init)
@@ -201,7 +202,7 @@ extension Listed.Row {
     init(_ row: Board.Row) {
         self.init(
             id: row.session, name: row.name, project: row.projectName, section: BoardSection(row.section),
-            mark: Mark(row.oldest.kind, isAway: row.isAway), isAway: row.isAway, since: row.since,
+            mark: Mark(row.newest.kind, isAway: row.isAway), isAway: row.isAway, since: row.since,
             lines: row.lines.map(Listed.Line.init)
         )
     }
