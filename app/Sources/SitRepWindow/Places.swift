@@ -1,9 +1,10 @@
 import SitRepPanel
 
 /// A place in the sidebar, above the projects: what the middle column lists. The window's own, apart from the card's
-/// sections (`BoardSection`), which the panel and the menu share.
+/// sections (`BoardSection`), which the panel and the menu share. In their order: Needs you, Your turn, Working,
+/// Parked, Your turn above Working as it waits on Lee and Working doesn't (Lee, 4 November 2026).
 public enum Place: String, CaseIterable, Codable, Hashable, Sendable {
-    case needsYou, working, yourTurn, parked
+    case needsYou, yourTurn, working, parked
 
     public var title: String {
         section?.title ?? "Parked"

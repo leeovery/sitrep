@@ -12,8 +12,8 @@ public enum ListPick: Hashable, Codable, Sendable {
 }
 
 /// A place's list, the middle column. Needs you is a row per line waiting on Lee, each ask and each window's stop, not
-/// per session: the oldest first, those of sessions a window holds before those of sessions none does; then
-/// "N snoozed", its asks asleep, the soonest to wake first. Working and Your turn are a row per session, in core's
+/// per session: the newest first, those of sessions a window holds before those of sessions none does; then
+/// "N snoozed", its asks asleep, the soonest to wake first. Your turn and Working are a row per session, in core's
 /// order, Your turn's past the fold period under "N earlier". A fold at the list's foot shows its rows only while it is
 /// open, and always while the filter holds text. The filter keeps a line while every word typed appears in its
 /// session's name, its project's or its own words; a session's row while every word appears in its name, its project's
@@ -218,21 +218,21 @@ public struct PlaceList: Equatable, Sendable {
 
     /// Where ↓, or ↑, goes from the selection: the row after its pick, or before it; for a pick it no longer shows,
     /// from where it stood, after the nearest of the rows above it that it still shows; with nothing picked, ↓ to the
-    /// first row and ↑ nowhere. None where no row lies that way.
-    public func step(from selection: Selection?, down: Bool) -> ListPick? {
+    /// first row and ↑ nowhere. None where no row lies that way. What it picks stands where the list shows it.
+    public func step(from selection: Selection?, down: Bool) -> Selection? {
         let picks = picks
         let at = picks.firstIndex { $0 == selection?.pick }
         let after = at.map { $0 + 1 } ?? selection?.standing(among: picks) ?? 0
         let to = down ? after : (at ?? after) - 1
 
-        return picks.indices.contains(to) ? picks[to] : nil
+        return picks.indices.contains(to) ? self.selection(of: picks[to]) : nil
     }
 }
 
 private extension PlaceList.LineRow {
-    /// Needs you's order, as core's: a session a window holds before one none does, then the oldest first, then by
-    /// key.
-    var first: (Int, Date, String) { (session.isAway ? 1 : 0, line.since, line.id) }
+    /// Needs you's order: a session a window holds before one none does, then the newest first, so a new ask comes
+    /// in at the top (Lee, 4 November 2026), then by key.
+    var first: (Int, TimeInterval, String) { (session.isAway ? 1 : 0, -line.since.timeIntervalSince1970, line.id) }
 
     /// Snoozed's, as core's: the soonest to wake first, then the oldest, then by key.
     var soonest: (Date, Date, String) { (line.wakesAt ?? .distantFuture, line.since, line.id) }

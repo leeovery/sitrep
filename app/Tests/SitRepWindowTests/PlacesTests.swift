@@ -16,14 +16,15 @@ struct PlacesTests {
         Place.allCases.map(places.count(of:))
     }
 
-    @Test func thePlacesAreNeedsYouWorkingYourTurnAndParked() {
-        #expect(Place.allCases.map(\.title) == ["Needs you", "Working", "Your turn", "Parked"])
+    /// Your turn above Working, as it waits on Lee and Working doesn't.
+    @Test func thePlacesAreNeedsYouYourTurnWorkingAndParked() {
+        #expect(Place.allCases.map(\.title) == ["Needs you", "Your turn", "Working", "Parked"])
     }
 
     /// Needs you counts each line waiting, not each session: SitRep's three, Switchboard's two, Goosemates' one.
     @Test func needsYouCountsLinesWorkingAndYourTurnCountRowsParkedCountsItems() {
-        #expect(Self.counts(Places(Self.listed)) == [6, 0, 1, 1])
-        #expect(Self.counts(Places(Self.bySession)) == [6, 2, 1, 0])
+        #expect(Self.counts(Places(Self.listed)) == [6, 1, 0, 1])
+        #expect(Self.counts(Places(Self.bySession)) == [6, 1, 2, 0])
     }
 
     /// A row past the fold period, under "N earlier", still counts in Your turn.
@@ -101,7 +102,7 @@ struct PlacesTests {
         let places = Places(Self.listed, filter: Filter("SWITCH"))
 
         #expect(places.projects.map(\.id) == ["switchboard"])
-        #expect(Self.counts(places) == [6, 0, 1, 1])
+        #expect(Self.counts(places) == [6, 1, 0, 1])
     }
 
     @Test func beforeTheFirstLineEveryCountIsNoneAndNoProjectIsListed() {

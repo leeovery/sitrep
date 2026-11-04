@@ -100,9 +100,11 @@ struct LocationTests {
 
     // MARK: Where it opens
 
-    /// Needs you's first line, SitRep's oldest ask, whatever was left before.
+    /// Needs you's first line, Switchboard's stop, the newest, whatever was left before.
     @Test func itOpensOnNeedsYousFirstLine() {
-        #expect(Location.opening(on: Self.listed, remembered: .project("kit")) == .place(.needsYou, picked: Self.macapp))
+        let stop = Selection(pick: .line("stop:sr-dash02:w2:1792486361000"), session: "sr-dash02")
+
+        #expect(Location.opening(on: Self.listed, remembered: .project("kit")) == .place(.needsYou, picked: stop))
     }
 
     /// With nothing waiting on Lee, where it was left, as that stands on the board; else Needs you, nothing picked.
@@ -180,7 +182,7 @@ struct LocationTests {
             held.take(before)
             held.pointer(over: .list, isIn: isHeld, at: printedAt)
             held.take(after)
-            #expect(held.arranged(PlaceList(.needsYou, in: after)).position(of: kept.picked?.pick)?.text == "2 / 2")
+            #expect(held.arranged(PlaceList(.needsYou, in: after)).position(of: kept.picked?.pick)?.text == "1 / 2")
         }
     }
 
@@ -210,7 +212,7 @@ struct LocationTests {
             let list = held.arranged(PlaceList(.needsYou, in: after))
 
             #expect(list.position(of: kept.picked?.pick) == nil)
-            #expect(list.step(from: kept.picked, down: true) == .line(northwind.line(1)))
+            #expect(list.step(from: kept.picked, down: true)?.pick == .line(northwind.line(0)))
         }
     }
 
@@ -230,7 +232,22 @@ struct LocationTests {
 
     /// A scope means something only on Parked: elsewhere it falls away.
     @Test func aScopeOnAnotherPlaceFallsAway() {
+        let scoped = Location.place(.needsYou, scope: .project("kit"))
+
         #expect(Location.place(.working, scope: .project("kit")).kept(on: Self.listed) == .place(.working))
+        #expect(scoped.picking(Self.macapp) == .place(.needsYou, picked: Self.macapp))
+        #expect(Location.place(.needsYou, picked: Self.macapp, scope: .project("kit")).clicking(.place(.needsYou)) == nil)
+        #expect(Location.place(.parked, scope: .project("kit")).picking(nil) == .place(.parked, scope: .project("kit")))
+    }
+
+    /// Until Parked lists its items, a remembered Parked pick passes a fresh open as it is.
+    @Test func aRememberedParkedPickSurvivesAFreshOpen() {
+        let parked = Location.place(
+            .parked, picked: Selection(pick: .parked(session: "w1", id: "p1"), session: "w1"), scope: .session("w1")
+        )
+        let quiet = Built.listed([Built(id: "w1", project: "northwind", parked: 1)])
+
+        #expect(Location.opening(on: quiet, remembered: parked) == parked)
     }
 
     // MARK: Kept across launches
@@ -248,8 +265,8 @@ struct LocationTests {
         let gone = PlaceList(.needsYou, in: Listed(heard(answered("sr-dash02"))))
 
         #expect(read == locations)
-        #expect(gone.step(from: dash, down: true) == .line("ask:sr-macapp:k1"))
-        #expect(gone.step(from: read[0].picked, down: true) == .line("ask:sr-macapp:k2"))
+        #expect(gone.step(from: dash, down: true)?.pick == .line("ask:sr-macapp:k3"))
+        #expect(gone.step(from: read[0].picked, down: true)?.pick == .line("ask:sr-macapp:k1"))
     }
 
     // MARK: An open from outside

@@ -7,8 +7,8 @@ import Testing
 /// A place's list, the middle column: Needs you a row per line, Working and Your turn a row per session, each with
 /// its fold; filtered, its position, and ↑/↓ through it.
 struct PlaceListTests {
-    /// SitRep's three asks (k2, k3, k1, oldest first), Switchboard's ask and stop, Goosemates' away ask; Request ledger
-    /// on Lee's turn.
+    /// SitRep's three asks (k2, k3, k1, oldest first), Switchboard's ask and stop, Goosemates' away ask; Request
+    /// ledger on Lee's turn.
     private static let listed = Listed(heard(line(0)))
     private static let needsYou = PlaceList(.needsYou, in: listed)
 
@@ -21,13 +21,22 @@ struct PlaceListTests {
 
     // MARK: Needs you
 
-    /// SitRep's oldest two, then Switchboard's ask, older than SitRep's third, then the stop; Goosemates' ask, the
-    /// oldest of all, last, as no window holds its session.
-    @Test func needsYouIsARowPerLineOldestFirstLiveBeforeAway() {
-        #expect(Self.needsYou.picks == [Self.k2, Self.k3, Self.dash, Self.k1, Self.stop, Self.goose])
+    /// Switchboard's stop, the newest, then SitRep's third, then Switchboard's ask, newer than SitRep's oldest two;
+    /// Goosemates' ask last, as no window holds its session.
+    @Test func needsYouIsARowPerLineNewestFirstLiveBeforeAway() {
+        #expect(Self.needsYou.picks == [Self.stop, Self.k1, Self.dash, Self.k3, Self.k2, Self.goose])
         #expect(Self.needsYou.rows.map(\.session) == [
-            "sr-macapp", "sr-macapp", "sr-dash02", "sr-macapp", "sr-dash02", "sr-gs7kq2",
+            "sr-dash02", "sr-macapp", "sr-dash02", "sr-macapp", "sr-macapp", "sr-gs7kq2",
         ])
+    }
+
+    /// Among the away ones too, the newest first.
+    @Test func awayLinesAreNewestFirstAfterTheLiveOnes() {
+        let live = Built(id: "s1", project: "northwind", waiting: [50])
+        let older = Built(id: "a1", project: "contoso", isAway: true, waiting: [40])
+        let newer = Built(id: "a2", project: "fabrikam", isAway: true, waiting: [10])
+
+        #expect(Self.needsYou(older, live, newer).picks == [.line(live.line(0)), .line(newer.line(0)), .line(older.line(0))])
     }
 
     @Test func aLineRowCarriesItsSessionsNamesAndMarkAndItsOwnWords() throws {
@@ -121,9 +130,9 @@ struct PlaceListTests {
     @Test func theFilterKeepsALineByItsOwnWordsAndItsSessionsNames() {
         let filtered = { (text: String) in PlaceList(.needsYou, in: Self.listed, filter: Filter(text)).picks }
 
-        #expect(filtered("load TEST") == [Self.k3, Self.dash])
-        #expect(filtered("switchboard") == [Self.dash, Self.stop])
-        #expect(filtered("mac app") == [Self.k2, Self.k3, Self.k1])
+        #expect(filtered("load TEST") == [Self.dash, Self.k3])
+        #expect(filtered("switchboard") == [Self.stop, Self.dash])
+        #expect(filtered("mac app") == [Self.k1, Self.k3, Self.k2])
         #expect(filtered("gh pr") == [Self.stop])
         #expect(filtered("nowhere").isEmpty)
     }
@@ -151,7 +160,7 @@ struct PlaceListTests {
     // MARK: Position
 
     @Test func aPicksPositionCountsTheRowsShown() {
-        #expect(Self.needsYou.position(of: Self.k2)?.text == "1 / 6")
+        #expect(Self.needsYou.position(of: Self.stop)?.text == "1 / 6")
         #expect(Self.needsYou.position(of: Self.goose)?.text == "6 / 6")
         #expect(Self.needsYou.position(of: .line("ask:sr-gone:k1")) == nil)
         #expect(Self.needsYou.position(of: nil) == nil)
@@ -169,22 +178,22 @@ struct PlaceListTests {
     // MARK: ↑ and ↓
 
     private static func step(_ list: PlaceList, from pick: ListPick?, down: Bool) -> ListPick? {
-        list.step(from: pick.flatMap(list.selection(of:)), down: down)
+        list.step(from: pick.flatMap(list.selection(of:)), down: down)?.pick
     }
 
     @Test func anArrowGoesToTheRowAfterOrBeforeThePick() {
-        #expect(Self.step(Self.needsYou, from: Self.dash, down: true) == Self.k1)
-        #expect(Self.step(Self.needsYou, from: Self.dash, down: false) == Self.k3)
+        #expect(Self.step(Self.needsYou, from: Self.dash, down: true) == Self.k3)
+        #expect(Self.step(Self.needsYou, from: Self.dash, down: false) == Self.k1)
     }
 
     /// Up is dimmed on the first row, and down on the last.
     @Test func noRowLiesBeyondTheEnds() {
-        #expect(Self.step(Self.needsYou, from: Self.k2, down: false) == nil)
+        #expect(Self.step(Self.needsYou, from: Self.stop, down: false) == nil)
         #expect(Self.step(Self.needsYou, from: Self.goose, down: true) == nil)
     }
 
     @Test func withNothingPickedDownGoesToTheFirstRowAndUpNowhere() {
-        #expect(Self.step(Self.needsYou, from: nil, down: true) == Self.k2)
+        #expect(Self.step(Self.needsYou, from: nil, down: true) == Self.stop)
         #expect(Self.step(Self.needsYou, from: nil, down: false) == nil)
         #expect(Self.step(PlaceList(.working, in: Self.listed), from: nil, down: true) == nil)
     }
@@ -223,17 +232,17 @@ struct PlaceListTests {
         let spot = try before.picked(picked)
         let after = Self.needsYou(Self.northwind, Self.answered(Self.contoso))
 
-        #expect(before.picks == [.line(Self.northwind.line(0)), picked, .line(Self.northwind.line(1))])
+        #expect(before.picks == [.line(Self.northwind.line(1)), picked, .line(Self.northwind.line(0))])
         #expect(after.position(of: picked) == nil)
         #expect(after.row(picked) == nil)
-        #expect(after.step(from: spot, down: true) == .line(Self.northwind.line(1)))
-        #expect(after.step(from: spot, down: false) == .line(Self.northwind.line(0)))
+        #expect(after.step(from: spot, down: true)?.pick == .line(Self.northwind.line(0)))
+        #expect(after.step(from: spot, down: false)?.pick == .line(Self.northwind.line(1)))
     }
 
     /// Standing in each list as it shows keeps the selection up to date: a line come in just above the pick since it
     /// was made is what ↑ goes to once the pick leaves.
     @Test func aSelectionStandsWhereEachListShowsIt() throws {
-        let fabrikam = Built(id: "s3", project: "fabrikam", waiting: [27])
+        let fabrikam = Built(id: "s3", project: "fabrikam", waiting: [22])
         let picked = ListPick.line(Self.contoso.line(0))
         var spot = try Self.needsYou(Self.northwind, Self.contoso).picked(picked)
 
@@ -241,22 +250,22 @@ struct PlaceListTests {
 
         let after = Self.needsYou(Self.northwind, Self.answered(Self.contoso), fabrikam)
 
-        #expect(after.picks == [.line(Self.northwind.line(0)), .line(fabrikam.line(0)), .line(Self.northwind.line(1))])
-        #expect(after.step(from: spot, down: false) == .line(fabrikam.line(0)))
-        #expect(after.step(from: spot, down: true) == .line(Self.northwind.line(1)))
+        #expect(after.picks == [.line(Self.northwind.line(1)), .line(fabrikam.line(0)), .line(Self.northwind.line(0))])
+        #expect(after.step(from: spot, down: false)?.pick == .line(fabrikam.line(0)))
+        #expect(after.step(from: spot, down: true)?.pick == .line(Self.northwind.line(0)))
     }
 
     /// With every row above it gone, it stands at the top: ↓ to the first row, ↑ nowhere.
     @Test func aPickWhoseRowsAboveAllLeftStandsAtTheTop() throws {
-        let spot = try Self.needsYou(Self.northwind, Self.contoso).picked(.line(Self.northwind.line(1)))
+        let spot = try Self.needsYou(Self.northwind, Self.contoso).picked(.line(Self.northwind.line(0)))
         let answered = [Self.answered(Self.northwind), Self.answered(Self.contoso)]
         let fabrikam = Built(id: "s4", project: "fabrikam", waiting: [5])
         let empty = PlaceList(.needsYou, in: Built.listed(answered))
         let later = PlaceList(.needsYou, in: Built.listed(answered + [fabrikam]))
 
-        #expect(empty.step(from: spot, down: true) == nil)
-        #expect(later.step(from: spot, down: true) == .line(fabrikam.line(0)))
-        #expect(later.step(from: spot, down: false) == nil)
+        #expect(empty.step(from: spot, down: true)?.pick == nil)
+        #expect(later.step(from: spot, down: true)?.pick == .line(fabrikam.line(0)))
+        #expect(later.step(from: spot, down: false)?.pick == nil)
     }
 
     /// A snoozed row picked, then its fold closed: the fold holds it, and it stands after the last line.
@@ -268,13 +277,13 @@ struct PlaceListTests {
 
         #expect(closed.folds(z2))
         #expect(!closed.folds(.line("ask:sr-4g01a7:k3")))
-        #expect(closed.step(from: spot, down: false) == .line("ask:sr-4g01a7:k3"))
-        #expect(closed.step(from: spot, down: true) == nil)
+        #expect(closed.step(from: spot, down: false)?.pick == .line("ask:sr-4g01a7:k3"))
+        #expect(closed.step(from: spot, down: true)?.pick == nil)
     }
 
     // MARK: Lee's board
 
-    /// 13 lines of 7 live sessions, oldest first, then the 2 away asks, oldest first; ↓ from nothing walks every row
+    /// 13 lines of 7 live sessions, newest first, then the 2 away asks, newest first; ↓ from nothing walks every row
     /// once, to the last.
     @Test func aBoardTheSizeOfLeesListsAndStepsEveryLine() throws {
         let list = PlaceList(.needsYou, in: Built.listed(Built.leesSize))
@@ -283,14 +292,14 @@ struct PlaceListTests {
         var spot: Selection?
 
         while let next = list.step(from: spot, down: true) {
-            walked.append(next)
-            spot = list.selection(of: next)
+            walked.append(next.pick)
+            spot = next
         }
 
         #expect(list.rows.count == 15)
         #expect(ages.map(\.0) == Array(repeating: false, count: 13) + [true, true])
-        #expect(ages.prefix(13).map(\.1) == ages.prefix(13).map(\.1).sorted())
-        #expect(ages.suffix(2).map(\.1) == ages.suffix(2).map(\.1).sorted())
+        #expect(ages.prefix(13).map(\.1) == ages.prefix(13).map(\.1).sorted(by: >))
+        #expect(ages.suffix(2).map(\.1) == ages.suffix(2).map(\.1).sorted(by: >))
         #expect(walked == list.picks)
         #expect(list.position(of: walked.last)?.text == "15 / 15")
         #expect(PlaceList(.working, in: Built.listed(Built.leesSize)).rows.count == 6)
@@ -324,10 +333,10 @@ struct PlaceListTests {
     @Test func aFilteredListsPositionAndStepsAreItsOwn() {
         let filtered = PlaceList(.needsYou, in: Self.listed, filter: Filter("load test"))
 
-        #expect(filtered.position(of: Self.dash)?.text == "2 / 2")
-        #expect(Self.step(filtered, from: Self.k3, down: true) == Self.dash)
-        #expect(Self.step(filtered, from: Self.dash, down: true) == nil)
-        #expect(Self.step(filtered, from: nil, down: true) == Self.k3)
+        #expect(filtered.position(of: Self.k3)?.text == "2 / 2")
+        #expect(Self.step(filtered, from: Self.dash, down: true) == Self.k3)
+        #expect(Self.step(filtered, from: Self.k3, down: true) == nil)
+        #expect(Self.step(filtered, from: nil, down: true) == Self.dash)
     }
 
     /// A pick under a closed fold still has its selection, for an open from outside, which opens the fold.

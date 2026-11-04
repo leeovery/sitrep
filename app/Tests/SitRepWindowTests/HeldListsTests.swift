@@ -6,10 +6,10 @@ import Testing
 struct HeldListsTests {
     private static let now = Date(timeIntervalSince1970: 1_792_486_421)
 
-    /// Three lines, one a session each, the oldest first.
-    private static let one = Built(id: "s1", project: "northwind", waiting: [30])
+    /// Three lines, one a session each, the newest first.
+    private static let one = Built(id: "s1", project: "northwind", waiting: [10])
     private static let two = Built(id: "s2", project: "contoso", waiting: [20])
-    private static let three = Built(id: "s3", project: "fabrikam", waiting: [10])
+    private static let three = Built(id: "s3", project: "fabrikam", waiting: [30])
     /// The three, Northwind's session's window gone, so its line goes after the live ones, and its project after
     /// theirs.
     private static let moved = Built.listed([three, two, away(one)])

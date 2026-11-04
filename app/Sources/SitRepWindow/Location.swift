@@ -1,6 +1,7 @@
 /// What a place's list has picked: the row's pick, and the session it shows, kept as the row leaves the list, so the
 /// page beside it stays on the session, as when the picked ask is answered; and where the row last stood in the list,
-/// so ↑ and ↓ go on from there, Back returning to it as it was.
+/// so ↑ and ↓ go on from there, Back returning to it as it was. One comes only from a list
+/// (`PlaceList.selection(of:)`, `step(from:down:)`), so it always stands somewhere.
 public struct Selection: Hashable, Codable, Sendable {
     public let pick: ListPick
     public let session: String
@@ -8,7 +9,7 @@ public struct Selection: Hashable, Codable, Sendable {
     /// of what it equals, and not kept across launches, as the list it stood in is gone by then.
     private var above: [ListPick] = []
 
-    public init(pick: ListPick, session: String) {
+    init(pick: ListPick, session: String) {
         self.pick = pick
         self.session = session
     }
@@ -93,7 +94,7 @@ public enum Location: Hashable, Codable, Sendable {
     /// history. A page with no list stays as it is.
     public func picking(_ selection: Selection?) -> Location {
         if case let .place(place, _, scope) = self {
-            return .place(place, picked: selection, scope: scope)
+            return .place(place, picked: selection, scope: scope.on(place))
         }
         return self
     }
@@ -103,12 +104,12 @@ public enum Location: Hashable, Codable, Sendable {
         picking(picked?.standing(in: list))
     }
 
-    /// Where a click on this row of the sidebar goes: nowhere, where it is the place the window is on, its scope all,
-    /// or the project whose page shows, so the pick stays and no step is made, as Mail does for the mailbox already
-    /// open; else the place, nothing picked and its scope all, or the project's page.
+    /// Where a click on this row of the sidebar goes: nowhere, where it is the place the window is on, Parked
+    /// narrowed to nothing, or the project whose page shows, so the pick stays and no step is made, as Mail does for
+    /// the mailbox already open; else the place, nothing picked and Parked narrowed to nothing, or the project's page.
     public func clicking(_ root: Root) -> Location? {
         switch (self, root) {
-        case let (.place(place, _, .all), .place(clicked)) where place == clicked: nil
+        case let (.place(place, _, scope), .place(clicked)) where place == clicked && scope.on(place) == .all: nil
         case let (.project(key), .project(clicked)) where key == clicked: nil
         default: root.location
         }
@@ -144,7 +145,7 @@ public enum Location: Hashable, Codable, Sendable {
         case let .place(place, picked, scope):
             let picked = picked.flatMap { listed.has($0.session) ? $0.waking(on: listed) : nil }
 
-            return .place(place, picked: picked, scope: place == .parked ? scope.kept(on: listed) : .all)
+            return .place(place, picked: picked, scope: scope.on(place).kept(on: listed))
         case let .project(key):
             return listed.projects.contains { $0.id == key } ? self : nil
         case let .session(id, root):
@@ -152,15 +153,16 @@ public enum Location: Hashable, Codable, Sendable {
         }
     }
 
-    /// Where the window opens on this board: Needs you, its first line picked; with none, where it was left, as it
-    /// stands on the board now, a pick its list no longer lists dropped, as the list it stood in is gone; else Needs
-    /// you, nothing picked. With no board heard yet, where it was left, as it was.
-    public static func opening(on listed: Listed, remembered: Location?) -> Location {
+    /// Where the window opens on this board: Needs you, its first line as shown picked, in the list given, as it
+    /// shows, else as `watch` orders it; with none, where it was left, as it stands on the board now, a pick its list
+    /// no longer lists dropped, as the list it stood in is gone; else Needs you, nothing picked. With no board heard
+    /// yet, where it was left, as it was, until the first board comes (`History.keep(on:arranged:)`).
+    public static func opening(on listed: Listed, remembered: Location?, needsYou shown: PlaceList? = nil) -> Location {
         guard listed.hasBoard else {
             return remembered ?? .place(.needsYou)
         }
 
-        let needsYou = PlaceList(.needsYou, in: listed)
+        let needsYou = shown ?? PlaceList(.needsYou, in: listed)
 
         if let first = needsYou.rows.first {
             return .place(.needsYou, picked: needsYou.selection(of: first.pick))
@@ -169,9 +171,9 @@ public enum Location: Hashable, Codable, Sendable {
     }
 
     /// Where an open of a session from outside the window lands, as "Open in SitRep" on its card or the menu: Needs
-    /// you, its oldest line picked, where it needs Lee; else Working or Your turn, its row picked, under "N earlier"
-    /// as it may be (`PlaceList.folds(_:)`); else, its only lines asleep or none, its project's page, the session's
-    /// pushed over it.
+    /// you, its oldest line picked, where it needs Lee; else Your turn or Working, its row picked, under "N earlier"
+    /// as it may be (`PlaceList.folds(_:)`); else, its only lines asleep or none, its session's page pushed over its
+    /// project's, which `History.land(_:)` makes two steps, so Back goes to the project's page.
     public static func opening(session id: String, on listed: Listed) -> Landing {
         guard listed.hasBoard else {
             return .awaitingBoard
@@ -189,12 +191,13 @@ public enum Location: Hashable, Codable, Sendable {
 
         let pick: ListPick = place == .needsYou ? .line(oldest.id) : .session(id)
 
-        return .location(.place(place, picked: Selection(pick: pick, session: id)))
+        return .location(.place(place, picked: PlaceList(place, in: listed, isFoldOpen: true).selection(of: pick)))
     }
 
-    /// A place with its pick dropped where its list, folds open, lists no row for it.
+    /// A place with its pick dropped where its list, folds open, lists no row for it. Parked's passes as it is, as its
+    /// list lists no items yet.
     private func listing(on listed: Listed) -> Location {
-        guard case let .place(place, picked?, scope) = self else {
+        guard case let .place(place, picked?, scope) = self, place != .parked else {
             return self
         }
 
@@ -236,6 +239,11 @@ private extension Selection {
 }
 
 private extension ParkedScope {
+    /// As it is on this place: itself on Parked, all on any other, where a scope means nothing.
+    func on(_ place: Place) -> ParkedScope {
+        place == .parked ? self : .all
+    }
+
     /// As it stands on this board: all, where its project or its session left it.
     func kept(on listed: Listed) -> ParkedScope {
         switch self {

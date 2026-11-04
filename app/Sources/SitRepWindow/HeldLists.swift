@@ -103,7 +103,8 @@ private extension Array {
     /// In the order given, by each element's key; any the order lacks after those it has, as they were.
     func held<Key: Hashable>(by order: [Key], _ key: (Element) -> Key) -> [Element] {
         let rank = Dictionary(order.enumerated().map { ($1, $0) }) { first, _ in first }
+        let ranked = enumerated().map { (rank: (rank[key($1)] ?? order.count, $0), element: $1) }
 
-        return sorted { (rank[key($0)] ?? order.count) < (rank[key($1)] ?? order.count) }
+        return ranked.sorted { $0.rank < $1.rank }.map(\.element)
     }
 }
