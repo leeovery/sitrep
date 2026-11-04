@@ -75,7 +75,8 @@ struct QuietProjectTests {
     }
 }
 
-/// An item of Status, Notes, Parked or Resolved opens in place to the whole of it, and closes again.
+/// An item of a session's Now or What happened, its resolved asks, or a project's notes or parked items, opens in place
+/// to the whole of it, and closes again.
 struct OpenedItemsTests {
     @Test func aPressOpensAnItemAndASecondClosesIt() throws {
         let run = opened()
@@ -115,7 +116,7 @@ struct OpenedItemsTests {
     @Test func pickingAnotherPageClosesThemAll() throws {
         let run = opened()
 
-        run.toggle(.parked("p1"))
+        run.toggle(.note("sr-macapp:n2"))
         run.click(.project("sitrep"))
         #expect(try #require(run.page(at: printedAt).project).opened.isEmpty)
     }
@@ -151,14 +152,21 @@ struct OpenedItemsTests {
         let page = try #require(opened(boards: ["sr-macapp": Self.parkedWithAPlace]).page(at: printedAt).session)
 
         #expect(page.notes.map(\.hasMore) == [true, false, true])
-        #expect(page.parked.map(\.hasMore) == [true])
         #expect(page.resolved.map(\.hasMore) == [true, true])
+        #expect(try Self.projectsParked(Self.parkedWithAPlace).map(\.hasMore) == [true])
     }
 
     @Test func aParkedItemWithNoPlaceOpensToNothingMore() throws {
-        let page = try #require(opened().page(at: printedAt).session)
+        #expect(try Self.projectsParked(Lines.board).map(\.hasMore) == [false])
+    }
 
-        #expect(page.parked.map(\.hasMore) == [false])
+    /// The parked items on the Mac app's project's page, its board as given.
+    private static func projectsParked(_ board: String) throws -> [Parked] {
+        let run = opened()
+
+        run.click(.project("sitrep"))
+        take(["sr-macapp": board], in: run)
+        return try #require(run.page(at: printedAt).project).parked
     }
 
     private static let parkedWithAPlace = Lines.board
