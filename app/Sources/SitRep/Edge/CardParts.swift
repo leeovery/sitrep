@@ -1,8 +1,8 @@
 import AppKit
 import SitRepPanel
 
-/// The card's parts beside its rows, in black, as Paper's board D draws them: a section's eyebrow, and Your turn's "N
-/// earlier". Each is drawn once, in a box the size of what its item draws.
+/// The card's parts beside its rows, in black, as Paper's board D draws them: a section's eyebrow, and a row's button.
+/// Each is drawn once, in a box the size of what its item draws.
 @MainActor
 enum CardParts {
     /// An eyebrow: its name in white at 55%, its count 6 after it, in orange for Needs you, the faint grey for Snoozed
@@ -25,29 +25,6 @@ enum CardParts {
         layer.addSublayer(chevron(isOpen: !eyebrow.isFolded, in: EyebrowLayout.chevron(in: size)))
 
         return layer
-    }
-
-    /// "N earlier": its ring at white 35%, "8 earlier" in the soft grey, the projects faint after it, cut short, and
-    /// its chevron, right while it is folded and down while it is open; on a box that lifts as a row does.
-    static func earlier(_ earlier: Earlier, size: CGSize) -> EarlierLine {
-        let line = EarlierLine(), layer = line.layer, box = EarlierLayout.words(in: size)
-        let font = EdgeStyle.line
-        let words = TextLine.text(earlier.title, font, EdgeStyle.ink2, kern: EdgeStyle.tightKern(font))
-        let title = TextLine(words, in: box)
-        let projects = TextLine.text(earlier.projects.joined(separator: ", "), EdgeStyle.sub, EdgeStyle.ink3)
-        let x = box.minX + title.width + EarlierLayout.gap
-        let drop = TextLine.drop(of: EdgeStyle.sub, to: font, lineHeight: box.height)
-
-        layer.frame = CGRect(origin: .zero, size: size)
-        layer.cornerRadius = SessionRowLayout.lineRadius
-        layer.addSublayer(SessionRow.ring(9, at: EarlierLayout.mark(in: size), colour: EdgeStyle.earlierRing))
-        layer.addSublayer(title)
-        layer.addSublayer(TextLine(
-            projects, in: CGRect(x: x, y: box.minY + drop, width: max(0, box.maxX - x), height: box.height)
-        ))
-        layer.addSublayer(chevron(isOpen: earlier.isOpen, in: EarlierLayout.chevron(in: size)))
-
-        return line
     }
 
     /// A row's button that opens its session in the SitRep window, board F's: white at 10%, its corners 7, its glyph
@@ -80,25 +57,5 @@ enum CardParts {
         chevron.lineJoin = .round
 
         return chevron
-    }
-}
-
-/// What lifts under the pointer on the black card: a row, or "N earlier".
-@MainActor
-protocol Lifting: AnyObject {
-    var isHighlighted: Bool { get set }
-}
-
-extension SessionRow: Lifting {}
-
-/// "N earlier" in black, which lifts under the pointer as a row does.
-@MainActor
-final class EarlierLine: Lifting {
-    let layer = CALayer()
-
-    var isHighlighted = false {
-        didSet {
-            layer.backgroundColor = isHighlighted ? EdgeStyle.hover : nil
-        }
     }
 }

@@ -22,12 +22,10 @@ enum EdgeStyle {
     static let arc = srgb(0xC9C9CF)
     /// A row on its own work's verb, from Paper's board D; its subject and its dotted ring are `grey`.
     static let waitingVerb = srgb(0xB4B4BA)
-    /// Board D's eyebrows: a section's name, its count where it is not needs you's orange, and its chevron; and "N
-    /// earlier"'s ring.
+    /// Board D's eyebrows: a section's name, its count where it is not needs you's orange, and its chevron.
     static let eyebrow = white(0.55)
     static let eyebrowCount = white(0.30)
     static let chevron = white(0.25)
-    static let earlierRing = white(0.35)
     static let orange = color(LiveLight.orange)
     /// A new row's wash, and the ring round it (the prototype's `--wash-bg` and `--wash-ring`).
     static let wash = color(LiveLight.orange, alpha: 0.12)
@@ -35,9 +33,8 @@ enum EdgeStyle {
 
     /// A row's title, an ask's among them (board D: every ask's line medium, as Lee approved it).
     static let title = NSFont.systemFont(ofSize: 14, weight: .medium)
-    /// Regular at a title's size: a your-turn row's words on the card (board I), and in a tab a row on its own work's
-    /// subject, where it is no command; a wake's countdown in its tabular figures, so a row can leave room for every
-    /// reading it will take (`Session.countdownRoom`).
+    /// Regular at a title's size: in a tab a row on its own work's subject, where it is no command; a wake's countdown
+    /// in its tabular figures, so a row can leave room for every reading it will take (`Session.countdownRoom`).
     static let subject = NSFont.systemFont(ofSize: 14, weight: .regular)
     static let countdown = NSFont.monospacedDigitSystemFont(ofSize: 14, weight: .regular)
     static let code = NSFont.monospacedSystemFont(ofSize: 13, weight: .medium)
@@ -53,11 +50,12 @@ enum EdgeStyle {
     /// An eyebrow's name, and its count in tabular figures.
     static let eyebrowTitle = NSFont.systemFont(ofSize: 11, weight: .semibold)
     static let eyebrowFigures = NSFont.monospacedDigitSystemFont(ofSize: 11, weight: .semibold)
-    /// A row on one line's plain words, a Working row's subject and a Snoozed row's name (board I), and "8 earlier":
-    /// regular (board D, as Lee approved it).
+    /// A card row's plain words: a your-turn row's, a Working row's subject and a Snoozed row's name (board J), regular
+    /// (board D, as Lee approved it).
     static let line = NSFont.systemFont(ofSize: 13, weight: .regular)
-    /// A Working row's verb on one line, its command in mono after it, and a wake's countdown in tabular figures.
-    static let lineVerb = NSFont.systemFont(ofSize: 13, weight: .medium)
+    /// A card row's medium words: a Needs you row's name, and a Working row's verb, its command in mono after it, and a
+    /// wake's countdown in tabular figures.
+    static let lineMedium = NSFont.systemFont(ofSize: 13, weight: .medium)
     static let lineCode = NSFont.monospacedSystemFont(ofSize: 12, weight: .medium)
     static let lineCountdown = NSFont.monospacedDigitSystemFont(ofSize: 13, weight: .regular)
     /// A mark's letters, and a count's rows, needs you's bolder.

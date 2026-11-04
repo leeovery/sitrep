@@ -20,7 +20,7 @@ public enum BoardSection: String, CaseIterable, Codable, Comparable, Sendable {
         }
     }
 
-    /// Waiting on Lee, above the hairline: Needs you, and Your turn, Lee's to write in.
+    /// Waiting on Lee, above the menu's separator: Needs you, and Your turn, Lee's to write in.
     public var waitsOnLee: Bool { self == .needsYou || self == .yourTurn }
 
     /// Counted by its lines, the asks and stops waiting or the asks asleep, not its rows.
@@ -64,7 +64,8 @@ public struct Eyebrow: Equatable, Sendable {
     /// rows.
     public let count: Int
     public let isFolded: Bool
-    /// The room over its 28: 4 under the card's top, none straight after the hairline, 10 under the section before.
+    /// The room over its 28: 4 under the card's top, else 14 under the row or the eyebrow above it, which is all that
+    /// tells the sections apart (board J).
     public let above: Double
 
     public init(section: BoardSection, count: Int, isFolded: Bool, above: Double) {
@@ -73,10 +74,13 @@ public struct Eyebrow: Equatable, Sendable {
         self.isFolded = isFolded
         self.above = above
     }
+
+    /// The room over the first eyebrow, under the card's top, and over each after it.
+    public static let first = 4.0, after = 14.0
 }
 
-/// Your turn's "N earlier": the sessions whose turn ended longer ago than the fold period, in one line, which opens in
-/// place to show them.
+/// Your turn's "N earlier" in the SitRep window's sidebar: the sessions whose turn ended longer ago than the fold
+/// period, in one line, which opens in place to show them. The card shows every your-turn row (board J).
 public struct Earlier: Equatable, Sendable {
     public let count: Int
     /// Their projects, each once, in the rows' order.
@@ -102,7 +106,7 @@ public struct Earlier: Equatable, Sendable {
     public var title: String { "\(count) earlier" }
 }
 
-/// How long a your-turn row stays on the card before it folds into "N earlier": Settings' "Your turn folds after".
+/// How long a your-turn row stays in the SitRep window's sidebar before it folds into "N earlier".
 public enum FoldPeriod: String, CaseIterable, Codable, Sendable {
     case hour, fourHours, today, never
 
@@ -131,14 +135,12 @@ public enum FoldPeriod: String, CaseIterable, Codable, Sendable {
     }
 }
 
-/// What Lee folded on the card: the sections folded to their eyebrows, and whether "N earlier" is open.
+/// What Lee folded on the card: the sections folded to their eyebrows.
 public struct CardFolds: Equatable, Sendable {
     public var sections: Set<BoardSection>
-    public var isEarlierOpen: Bool
 
-    public init(sections: Set<BoardSection> = BoardSection.foldedAtFirst, isEarlierOpen: Bool = false) {
+    public init(sections: Set<BoardSection> = BoardSection.foldedAtFirst) {
         self.sections = sections
-        self.isEarlierOpen = isEarlierOpen
     }
 
     /// A section folded, or unfolded.
@@ -151,45 +153,23 @@ public struct CardFolds: Equatable, Sendable {
 
 extension Item {
     /// The card's list of these sessions, in the order given: each section with any rows, in the sections' order,
-    /// under its eyebrow, or its eyebrow alone where it is folded; the hairline after the last section that waits on
-    /// Lee, Your turn or, with none, Needs you, where another section follows, folded or not. Above the hairline the rows
-    /// are drawn whole, Your turn's past the fold period, as `isEarlier` says, under "N earlier" at its end, shown under
-    /// it only while it is open; below it, Working's and Snoozed's, on one line each.
-    public static func card(
-        _ sessions: [Session], folds: CardFolds, isEarlier: (Session) -> Bool
-    ) -> [Item] {
-        let sections = BoardSection.allCases.map { section in (section, sessions.filter { $0.section == section }) }
+    /// under its eyebrow, or its eyebrow alone where it is folded, every row on one line, Your turn's every one. Only
+    /// the room over each eyebrow tells the sections apart, with no hairline (board J).
+    public static func card(_ sessions: [Session], folds: CardFolds) -> [Item] {
+        BoardSection.allCases.map { section in (section, sessions.filter { $0.section == section }) }
             .filter { !$0.1.isEmpty }
-        let ruled = sections.last { $0.0.waitsOnLee }?.0
+            .enumerated()
+            .flatMap { index, shown in
+                let (section, rows) = shown
+                let isFolded = folds.sections.contains(section)
+                let above = index == 0 ? Eyebrow.first : Eyebrow.after
+                let eyebrow = Eyebrow(section: section, count: count(rows, in: section), isFolded: isFolded, above: above)
 
-        return sections.enumerated().flatMap { index, shown in
-            let (section, rows) = shown
-            let above = index == 0 ? 4.0 : sections[index - 1].0 == ruled ? 0 : 10
-            let isFolded = folds.sections.contains(section)
-            let eyebrow = Item.eyebrow(Eyebrow(section: section, count: count(rows, in: section), isFolded: isFolded, above: above))
-            let after: [Item] = section == ruled && index < sections.count - 1 ? [.divider] : []
-
-            return [eyebrow] + (isFolded ? [] : items(rows, in: section, folds: folds, isEarlier: isEarlier)) + after
-        }
+                return [Item.eyebrow(eyebrow)] + (isFolded ? [] : rows.map(Item.line))
+            }
     }
 
     private static func count(_ rows: [Session], in section: BoardSection) -> Int {
         section.countsLines ? rows.map(\.lines.count).reduce(0, +) : rows.count
-    }
-
-    private static func items(
-        _ rows: [Session], in section: BoardSection, folds: CardFolds, isEarlier: (Session) -> Bool
-    ) -> [Item] {
-        guard section.waitsOnLee else {
-            return rows.map(Item.line)
-        }
-        guard section == .yourTurn else {
-            return rows.map(Item.session)
-        }
-
-        let earlier = rows.filter(isEarlier)
-        let line = earlier.isEmpty ? [] : [Item.earlier(Earlier(earlier, isOpen: folds.isEarlierOpen))]
-
-        return rows.filter { !isEarlier($0) }.map(Item.session) + line + (folds.isEarlierOpen ? earlier.map(Item.session) : [])
     }
 }

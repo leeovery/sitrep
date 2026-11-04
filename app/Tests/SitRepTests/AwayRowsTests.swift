@@ -9,22 +9,27 @@ import SwiftUI
 import Testing
 
 /// A session no window holds with an ask waiting, alike on every surface (`Away`): its mark a hollow orange ring 7
-/// across, unglowed, where a held one's is the orange dot; its title and the line under it dimmed by the one factor,
-/// so the title stays the brighter of the two, and its time never brighter than its title. On the black card and the
-/// strip's, on glass, in the window's sidebar and on its pages, each read from its pixels at 2×.
+/// across, unglowed, where a held one's is the orange dot; its title and the line under it, or on the card's one line
+/// its "+N", dimmed by the one factor, so the title stays the brighter of the two, and its time, and on the card its
+/// project, never brighter than its title. On the black card and the strip's, on glass, in the window's sidebar and on
+/// its pages, each read from its pixels at 2×.
 @MainActor
 struct AwayRowsTests {
-    private static func asking(away: Bool) -> Session {
+    private static func asking(away: Bool, lines: Int = 1) -> Session {
         Session(
             id: "sr-ask001", project: Sample.project, name: "Session", kind: .needs, away: away,
-            lines: [Session.Line(title: Sample.needsYou, since: 0)], sub: Sample.project
+            lines: (0 ..< lines).map { Session.Line(ask: "k\($0)", title: Sample.needsYou, since: 0) }, sub: Sample.project
         )
     }
 
-    private static let cardSize = CGSize(width: 344, height: Item.session(asking(away: false)).height - Item.rowGap)
-    /// A card row's title, short of its time, the line under it, and its time.
-    private static let cardTitle = CGRect(x: 30, y: 6, width: 160, height: 18)
-    private static let cardSub = CGRect(x: 30, y: 26, width: 60, height: 14)
+    /// The card's row, on one line (board J).
+    private static let cardSize = CGSize(width: 344, height: Item.lineHeight)
+    /// The session's name, 13 medium, as the card sets it.
+    private static let named = TextLine.width(TextLine.text("Session", EdgeStyle.lineMedium, EdgeStyle.ink))
+    /// A card row's title, its "+1" 6 after it, its project at the right, and its time.
+    private static let cardTitle = CGRect(x: 30, y: 6, width: 2 + named, height: 18)
+    private static let cardCount = CGRect(x: 32 + named + 3, y: 6, width: 20, height: 18)
+    private static let cardProject = CGRect(x: 200, y: 6, width: 88, height: 18)
     private static let cardTime = CGRect(x: 290, y: 6, width: 50, height: 18)
 
     // MARK: The black card
@@ -32,15 +37,18 @@ struct AwayRowsTests {
     @Test func onTheBlackCardAnAwayAskIsAHollowOrangeRing() throws {
         let away = try Self.black(Self.asking(away: true)), held = try Self.black(Self.asking(away: false))
 
-        try Self.expectRing(away, centre: CGPoint(x: 16, y: 16))
-        try Self.expectDot(held, centre: CGPoint(x: 16, y: 16))
+        try Self.expectRing(away, centre: CGPoint(x: 16, y: 15))
+        try Self.expectDot(held, centre: CGPoint(x: 16, y: 15))
     }
 
-    @Test func onTheBlackCardAnAwayRowsTwoLinesDimAsOne() throws {
-        let away = try Self.black(Self.asking(away: true)), held = try Self.black(Self.asking(away: false))
+    /// Its name and its "+1" dim as one; its project and its time, faint, are never brighter than its name.
+    @Test func onTheBlackCardAnAwayRowsWordsDimAsOne() throws {
+        let away = try Self.black(Self.asking(away: true, lines: 2))
+        let held = try Self.black(Self.asking(away: false, lines: 2))
 
-        try Self.expectDimmedAsOne(away, held, title: Self.cardTitle, sub: Self.cardSub)
+        try Self.expectDimmedAsOne(away, held, title: Self.cardTitle, sub: Self.cardCount)
         try Self.expectTimeNoBrighter(away, title: Self.cardTitle, time: Self.cardTime)
+        try Self.expectTimeNoBrighter(away, title: Self.cardTitle, time: Self.cardProject)
     }
 
     /// A card's row, its time a minute on.
@@ -95,19 +103,20 @@ struct AwayRowsTests {
     // MARK: Glass
 
     @available(macOS 26, *)
-    @Test func onGlassAnAwayAskIsAHollowOrangeRingAndItsTwoLinesDimAsOne() throws {
-        let away = try Self.glass(Self.asking(away: true)), held = try Self.glass(Self.asking(away: false))
+    @Test func onGlassAnAwayAskIsAHollowOrangeRingAndItsWordsDimAsOne() throws {
+        let away = try Self.glass(Self.asking(away: true, lines: 2))
+        let held = try Self.glass(Self.asking(away: false, lines: 2))
 
-        try Self.expectRing(away, centre: CGPoint(x: 16, y: 16))
-        try Self.expectDot(held, centre: CGPoint(x: 16, y: 16))
-        try Self.expectDimmedAsOne(away, held, title: Self.cardTitle, sub: Self.cardSub)
+        try Self.expectRing(away, centre: CGPoint(x: 16, y: 15))
+        try Self.expectDot(held, centre: CGPoint(x: 16, y: 15))
+        try Self.expectDimmedAsOne(away, held, title: Self.cardTitle, sub: Self.cardCount)
         try Self.expectTimeNoBrighter(away, title: Self.cardTitle, time: Self.cardTime)
     }
 
     @available(macOS 26, *)
     private static func glass(_ session: Session) throws -> Drawn {
         let row = GlassSessionRow(
-            session: session, size: cardSize, oneLine: false, hovered: false, pressed: false, now: 60_000, wash: 0
+            session: session, size: cardSize, hovered: false, pressed: false, now: 60_000, wash: 0
         )
 
         return try Drawn(row, size: cardSize)

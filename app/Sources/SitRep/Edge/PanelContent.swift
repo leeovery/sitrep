@@ -20,10 +20,8 @@ final class PanelContent {
     /// The rows by their items' keys, each in its item's layer: a row changing section is two while it folds out of
     /// one place and into the other.
     private(set) var rows: [String: (item: CALayer, row: SessionRow)] = [:]
-    /// "N earlier", by its item's key, while it shows.
-    private(set) var earlier: (key: String, line: EarlierLine)?
-    /// The row or "N earlier" lifted under the pointer.
-    private var hovered: (any Lifting)?
+    /// The row lifted under the pointer.
+    private var hovered: SessionRow?
     /// When each row's wash began, by its item's key: a row made anew mid-wash carries it on.
     private var washed: [String: Double] = [:]
     private var scale: CGFloat = 1
@@ -98,14 +96,13 @@ final class PanelContent {
         highlight(nil)
     }
 
-    /// An item for each, in their order: a row kept where its session reads the same, else made anew; an eyebrow, "N
-    /// earlier" and the divider drawn anew. A row kept stays in the tree, never taken out and put back, so nothing it
-    /// runs is cut short.
+    /// An item for each, in their order: a row kept where its session reads the same, else made anew; an eyebrow drawn
+    /// anew. A row kept stays in the tree, never taken out and put back, so nothing it runs is cut short. The card
+    /// lists no divider, the menu's alone, so one holds nothing.
     private func lay(_ content: Content) {
         var kept: [String: (item: CALayer, row: SessionRow)] = [:]
         let was = items, width = content.headFrame.width
 
-        earlier = nil
         items = content.items.map { item in
             let box = item.box(width: width)
 
@@ -117,13 +114,8 @@ final class PanelContent {
                 return row.item
             case let .eyebrow(eyebrow):
                 return Self.item(holding: CardParts.eyebrow(eyebrow, size: box.size), at: box)
-            case let .earlier(folded):
-                let line = CardParts.earlier(folded, size: box.size)
-
-                earlier = (item.key, line)
-                return Self.item(holding: line.layer, at: box)
             case .divider:
-                return Self.divider(width: width)
+                return CALayer()
             }
         }
         was.filter { old in !items.contains { $0 === old } }.forEach { $0.removeFromSuperlayer() }
@@ -131,9 +123,9 @@ final class PanelContent {
         rows = kept
     }
 
-    /// A row made anew, whole or on one line, its wash, if one is under way, carried on from when it began.
+    /// A row made anew, its wash, if one is under way, carried on from when it began.
     private func made(_ session: Session, _ item: Item, _ box: CGRect) -> (item: CALayer, row: SessionRow) {
-        let row = SessionRow(session, size: box.size, oneLine: item == .line(session))
+        let row = SessionRow(session, size: box.size)
 
         if let began = washed[item.key] {
             row.washes(since: began)
@@ -157,10 +149,10 @@ final class PanelContent {
         layer.transform = CATransform3DMakeTranslation(0, paint.rise, 0)
     }
 
-    /// The row or "N earlier" under the pointer lifts, and the one lifted before comes down, kept or made anew since:
-    /// the lift comes and goes in 110ms, as the prototype's does. An eyebrow never lifts.
+    /// The row under the pointer lifts, and the one lifted before comes down, kept or made anew since: the lift comes
+    /// and goes in 110ms, as the prototype's does. An eyebrow never lifts.
     private func highlight(_ key: String?) {
-        let lift: (any Lifting)? = key.flatMap { key in rows[key]?.row ?? (earlier?.key == key ? earlier?.line : nil) }
+        let lift = key.flatMap { rows[$0]?.row }
 
         guard lift !== hovered else {
             return
@@ -206,20 +198,5 @@ final class PanelContent {
         ))
 
         return layer
-    }
-
-    /// The rule between what needs Lee and the rest.
-    private static func divider(width: Double) -> CALayer {
-        let rule = CALayer()
-
-        rule.frame = DividerLayout.rule(width: width)
-        rule.backgroundColor = EdgeStyle.rule
-
-        let item = CALayer()
-
-        item.masksToBounds = true
-        item.addSublayer(rule)
-
-        return item
     }
 }

@@ -3165,19 +3165,29 @@ rows is left out, its eyebrow with it.
   chevron, 10 by 6 and stroked 1.5 in white at 25% with round caps, in a box
   15 by 24 that stands 7.5 in, so the chevron ends where a row's time does.
   Needs you counts its waiting lines, the asks and stops (Kit's one and
-  Harness's three are 4); Your turn and Working count their rows, Your
-  turn's folded ones among them; Snoozed counts its asks, as Needs you its
-  lines. The eyebrow after the hairline follows it
-  straight on, Working's, or Snoozed's where there is no Working; Your
-  turn's sits 10 under Needs you's last row, or its eyebrow where it is
-  folded, and Snoozed's 10 under Working (board I, 4 November 2026). Until
-  then the hairline came after Needs you, Working's eyebrow followed it,
-  and Your turn's sat 10 under Working.
-- **The hairline** divides what waits on Lee from what doesn't (board I,
-  4 November 2026): it sits after Your turn, "N earlier" included,
-  whenever another section follows; with no Your turn, after Needs you;
-  with neither, there is none. Either section folded or not. It sat after
-  Needs you only until then.
+  Harness's three are 4); Your turn and Working count their rows; Snoozed
+  counts its asks, as Needs you its lines. Every eyebrow after the first
+  sits 14 under the last row above it, or the eyebrow above where that
+  section is folded: the space alone tells the sections apart (board J2,
+  4 November 2026; see "No hairline"). Earlier that day, from board I, the
+  eyebrow after the hairline followed it straight on, Your turn's sat 10
+  under Needs you's last row and Snoozed's 10 under Working; until board I
+  the hairline came after Needs you, Working's eyebrow followed it, and
+  Your turn's sat 10 under Working.
+- **No hairline** (4 November 2026, Paper's board J2, "One shape, no
+  rules"): the card draws no rule between its sections, only the 14 over
+  each eyebrow after the first. Lee, of board I's card live: "I don't
+  really like the difference in design. We've got a horizontal rule
+  between Your Turn and Working, but there's no rule between Working and
+  Snoozed and no rule between Needs You and Your Turn… I'm leaning towards
+  not and just using the spacing." A rule at one of three boundaries made
+  the sections look unlike each other. The menu bar's menu keeps its
+  separator, a menu's own idiom (see "The menu bar item"), and the strip
+  is unchanged. From board I that morning the hairline divided what waits
+  on Lee from what doesn't:
+  it sat after Your turn, "N earlier" included, whenever another section
+  followed; with no Your turn, after Needs you; with neither, there was
+  none. Until board I it sat after Needs you only.
 - **Folding.** A click on an eyebrow folds its section to the eyebrow
   alone, its chevron pointing right (6 by 10); a click again unfolds it.
   Either changes at once, with no motion, as the Settings card does (Lee,
@@ -3193,34 +3203,37 @@ rows is left out, its eyebrow with it.
   changes only, the section's rows coming or going; every other row keeps
   its own motion, one folding away finishing and one arriving, the new
   ask's own row among them, folding in.
-- **Two lines above the hairline, one below** (board I, 4 November 2026):
-  Needs you's and Your turn's rows are drawn whole, two lines, 49 tall;
-  Working's and Snoozed's are one line, 30 tall, with no gap between them
-  (see "How each row reads"). From 22 October 2026 until then Your turn's
-  rows were the one line and Working's two, so the less important section
-  had the taller rows.
-- **"N earlier."** Your-turn sessions whose turn ended longer ago than the
-  fold period (Settings' "Your turn folds after", an hour unless Lee sets
-  four hours, today or never) fold into one line at Your turn's end, shown
-  only while at least one has: 34 tall, 2 under the row above, its ring at
-  white 35%, "8 earlier" in 13 regular in the soft grey, then 7 after it
-  their projects, 12 in the faint grey, comma-separated, each once in the
-  rows' order, cut short with an ellipsis, and a right chevron. A click
-  opens it in place: the earlier sessions show under it as ordinary
-  your-turn rows, the line staying as their eyebrow with its chevron
-  pointing down; a click again folds them, each at once. Whether it is open
-  is never kept: it is folded each time the card comes out, since what it
-  holds is stale, and as the line goes, its last row starting a turn, so it
-  never comes back already open. The period is measured from each row's time, its turn's
-  end, against the wall clock: "today" folds what ended before local
-  midnight, and "never" shows no "N earlier". As time passes a row folds in
-  where it passes the period, at once, the rest keeping their motion, and
-  under the line where it is open, the card drawn again at that moment
-  as it is drawn again as a row's time changes, and nothing polls; the
-  period changing refolds the card at once.
+- **One shape** (board J2, 4 November 2026): every row is one line, 30
+  tall, inset 10, its lift's corners 10, with no gap between rows, in black
+  and on glass alike (see "How each row reads"). Lee, of board I's card,
+  its rows of two heights: they "look a little odd". From board I that
+  morning Needs you's and Your turn's rows were drawn whole, two lines, 49
+  tall, and Working's and Snoozed's one line; from 22 October 2026 until
+  board I Your turn's rows were the one line and Working's two, so the less
+  important section had the taller rows.
+- **No "N earlier"** (board J2, 4 November 2026): Your turn shows every
+  row, however long ago its turn ended. Lee: "Your Turn shouldn't have
+  Earlier. It should just be expanded." Settings' "Your turn folds after"
+  went with it; a value saved for it is read and passed over, as a retired
+  key is. Until then, your-turn sessions whose turn ended longer ago than
+  the fold period (an hour unless Lee set four hours, today or never)
+  folded into one line at Your turn's end, shown only while at least one
+  had: 34 tall, 2 under the row above, its ring at white 35%, "8 earlier"
+  in 13 regular in the soft grey, then 7 after it their projects, 12 in the
+  faint grey, comma-separated, each once in the rows' order, cut short with
+  an ellipsis, and a right chevron. A click opened it in place, the earlier
+  sessions under it as ordinary your-turn rows, the line staying as their
+  eyebrow with its chevron pointing down; a click again folded them, each
+  at once. Whether it was open was never kept: it was folded each time the
+  card came out, since what it held was stale. The period was measured
+  from each row's time, its turn's end, against the wall clock: "today"
+  folded what ended before local midnight, and "never" showed no "N
+  earlier". As time passed a row folded in where it passed the period, at
+  once, the card drawn again at that moment, and nothing polled.
 - **Snoozed** (23 October 2026, Paper's board G; see "Snooze") is the
   card's last section, under Working since 4 November 2026 (under Your
-  turn until then), 10 under it: a row for each session with asks Lee
+  turn until then), 14 under it as every eyebrow after the first (10 from
+  board I until board J2, that day): a row for each session with asks Lee
   snoozed, its lines those
   asks, the soonest to wake first, as `watch`'s `snoozed` has them. A
   session with asks waiting too has a row in Needs you as well, as two rows
@@ -3302,8 +3315,7 @@ to on its own work, both Working. A row changing section, its session coming
 to need Lee, its asks answered, or its turn ending, leaves its held place and
 takes its place in its new section: it folds away where it was and unfolds in
 the other, as two rows, as when each ask was a row of its own, washed where
-it arrives and never as it folds away. "N earlier" and the rows folded under
-it are Your turn's. Meanwhile a row gone folds away where it was, and a new
+it arrives and never as it folds away. Meanwhile a row gone folds away where it was, and a new
 one unfolds, washed if it needs Lee (20 October 2026). A row new to a
 section, new to the board or come from another, goes under the row core has
 above it in that section, or at the section's top where core has none there.
@@ -3317,22 +3329,27 @@ quiet and not on screen: quiet was your turn, and not on screen is a fact
 about where a window is, for the jump.
 
 **How each row reads**, drawn in Paper's "Panel rows" (surfaces round 1,
-16 October 2026; Lee: "everything looks great"). A mark, two lines, and a
-time on the right; one line each, cut short with an ellipsis. Since board I
-(4 November 2026) a row above the hairline has the two lines and a row
-below it one, its project in a lane at its right:
-- **needs you** (board F, 22 October 2026): an orange dot; the session's
-  name, 14 medium; under it its project's name; how long its newest line
-  has waited (its oldest until 4 November 2026). One row of the standard
-  49 however many lines wait (55
-  until 26 October 2026, when Lee found the two-line rows too spaced
-  against Your turn's one-line rows: 7 above the two lines and 8 below,
-  not 10 and 11), an ask, a permission prompt or a question alike. Its
-  window may still be working:
-  needs you wins, so nothing else shows. More than one line waiting adds
-  "+N" after the name: 13, weight 500, in the second line's soft colour, in
-  tabular figures, 6 after the name on its baseline; the name is cut short
-  before it, never the count;
+16 October 2026; Lee: "everything looks great"). Since board J2 (4
+November 2026; see "One shape") every row on the card is one line, 30
+tall: a mark, its words cut short with an ellipsis, its project in a lane
+at their right, 12 in the faint grey on their baseline, its own width and
+never cut, 12 after the words at the least, and a time on the right in the
+36 lane. From board I that morning a row above the hairline had two lines
+and a row below it one; until board I a mark, two lines, and a time on the
+right, Your turn's row alone on one line from 22 October 2026:
+- **needs you** (board F, 22 October 2026; one line since board J2, 4
+  November 2026): an orange dot with its glow; the session's name, 13
+  medium in the text colour, cut short; its project at its right; how long
+  its newest line has waited (its oldest until 4 November 2026). One row
+  of 30 however many lines wait, an ask, a permission prompt or a question
+  alike. Its window may still be working: needs you wins, so nothing else
+  shows. More than one line waiting adds "+N" after the name: 13, weight
+  500, in the soft grey, in tabular figures, 6 after the name on its
+  baseline; the name is cut short before it, never the count. Until board
+  J2 it was drawn whole, 49 tall, the name 14 medium with its project's
+  name under it (55 until 26 October 2026, when Lee found the two-line rows
+  too spaced against Your turn's one-line rows: 7 above the two lines and 8
+  below, not 10 and 11);
 - **away, with an ask** (3 November 2026): its mark is a hollow orange ring,
   7 across, its stroke 1.5 inside it, with no glow, on every surface: the
   card, the strip, the menu, the SitRep window's sidebar, its pages and
@@ -3351,22 +3368,22 @@ below it one, its project in a lane at its right:
   Until then each surface dimmed its own way: the card its title to #6E6E76
   and the line under it to the faint grey, the sidebar its name alone, its
   project left brighter than it, and the strip its words to #8A8A92. Under
-  the pointer it doesn't lift, its title is still the session's name, and
-  its second line says "No window holds it. Carry it on in Claude." in place
-  of its project;
-- **your turn**, on two lines (board I, 4 November 2026): 49 tall like a
-  Needs you row, 7 above its lines and 8 below, inset 10; an open white
-  ring 9 across with a stroke of 1.5 in the 12 mark lane, on the first
-  line, so its shape differs from the dot, not only its colour; what Claude
-  left Lee, the board's "now", 14 regular in the text colour, cut short,
-  regular so Needs you keeps the heavier title; under it "project ·
-  session", 12 in the soft grey, cut short; how long it has waited, faint,
-  in the 36 time lane on the first line. It lifts, presses, jumps and
-  washes as any row does, its lift radius 14, a row drawn whole's, as
-  board I draws it (10 on one line until then). From 22 October 2026 until
-  then it was one line, 30 tall (board B's, in board D; Lee: "B's
-  flattened, one-line turn"), what Claude left Lee 13 regular with its
-  project in a lane at its right, the shape Working's row now takes;
+  the pointer it doesn't lift, and its title is still the session's name.
+  On the card's one line since board J2 (4 November 2026) its project at
+  its right is left in the faint grey, which the dimmed second line came to,
+  and the ring alone says no window holds it; until then its second line
+  said "No window holds it. Carry it on in Claude." in place of its
+  project;
+- **your turn**, on one line (board B's, in board D, 22 October 2026;
+  Lee: "B's flattened, one-line turn"): an open white ring 9 across with a
+  stroke of 1.5 in the 12 mark lane, so its shape differs from the dot,
+  not only its colour; what Claude left Lee, the board's "now", 13 regular
+  in the text colour, cut short, regular so Needs you keeps the heavier
+  title; its project at its right; how long it has waited, faint, in the
+  36 lane. It lifts, presses, jumps and washes as any row does. From board
+  I that morning until board J2 (4 November 2026) it was drawn whole, 49
+  tall, its words 14 regular with "project · session" under them, 12 in
+  the soft grey, its lift radius 14;
 - **working**, on one line (board I, 4 November 2026; two lines until
   then): 30 tall, inset 10, a turning arc in the mark lane, and a slow
   grey-to-white shimmer along its verb, as Claude Code's own; while a tool
@@ -3376,8 +3393,8 @@ below it one, its project in a lane at its right:
   baseline, its own width and never cut, 12 after the words at the least;
   how long the turn has run, in the 36 lane. The session's name is not on
   the row. It is greyer than the rest: it needs nothing. Its lift radius is
-  10, as every row on one line, Snoozed's and "N earlier" too, so two lifts
-  side by side meet, as board D's did (14 until 4 November 2026).
+  10, as every row's on one line, so two lifts side by side meet, as board
+  D's did (14 until 4 November 2026).
   Every arc turns in step (3 November 2026): on every surface, the card, the
   strip, the menu and the SitRep window, each turns from the one clock, the
   phase it starts at the clock's time within its period, so two arcs turning
@@ -3410,17 +3427,17 @@ below it one, its project in a lane at its right:
 
 The shimmer stays neutral. Orange is for needs you only: the dot, the wash
 and a new row's "now". Lee had suggested working titles shimmer white or
-grey to orange, then left it to Claude; it can change after a test. One hairline
-sits after what waits on Lee, Your turn's rows or, with none, Needs you's
-(after Needs you alone until 4 November 2026); the sections on either side
-of it are told apart by their eyebrows, and their rows by their marks. A
-row, or "N earlier", under the pointer lifts to #141416, with no ⏎ hint,
-since the panel never takes the keyboard; an eyebrow never lifts. With
-nothing needing Lee, the notch rests with no light; with nothing waiting on
-Lee, the hairline goes; with nothing at all, the head reads "All clear".
+grey to orange, then left it to Claude; it can change after a test. The
+sections are told apart by the space over their eyebrows and the eyebrows
+themselves, and their rows by their marks (board J2, 4 November 2026; a
+hairline sat after what waited on Lee until then). A row under the pointer
+lifts to #141416, with no ⏎ hint, since the panel never takes the
+keyboard; an eyebrow never lifts. With nothing needing Lee, the notch rests
+with no light; with nothing at all, the head reads "All clear".
 
-Each row drawn whole says what it is, with its project and session beneath,
-or a Needs you row's project; a row on one line, its project at its right. A
+Each row says what it is, its project at its right (and drawn whole, with
+its project and session beneath, or a Needs you row's project, until 4
+November 2026). A
 click jumps: the row presses in and spins for up to 450ms in its time lane,
 the panel drains, and a caption says where it jumped. A new ask
 makes the notch over-swell twice, to 25 deep, about 450ms apart, as each
@@ -3715,7 +3732,8 @@ were settled in the browser spike (below, "How the strip moves").
   One hairline sits under needs you. Since 4 November 2026 the marks take
   the panel's new order, your turn's under it and above working's, as the
   prototype had them when its timelines were recorded; the card's hairline
-  moved under Your turn (board I), but the strip's stays under needs you,
+  moved under Your turn (board I) and went that day (board J2), but the
+  strip's stays under needs you,
   where its places for needs you, its orange count among them, end, and
   where every recording of the strip's motion has it. The letters are the
   project's capitals where it has two (SitRep SR, DocMan DM), else its first
@@ -3992,7 +4010,11 @@ stands).
       row's turn's end against the wall clock: as time passes a row folds in
       the moment it passes the period, the window drawn again then as for
       any change by time alone, nothing polling; the period changing refolds
-      the list at once;
+      the list at once. Since 4 November 2026, with Settings' "Your turn
+      folds after" gone with the card's "N earlier" (board J2; see "The
+      sections"), the sidebar folds none either: it is given the period
+      Never, so Your turn shows every row and "N earlier" never shows,
+      until the window's rebuild settles its own lists;
     - **Snoozed** (23 October 2026, Paper's board H; see "Snooze") comes
       after Your turn and before Projects: a row for each session with asks
       Lee snoozed, its lines those asks, the soonest to wake first, beside the
@@ -4609,8 +4631,10 @@ asked for the sessions back, and approved the redraw as it stands.
     under Reduce motion it holds still (3 November 2026). A row on its own
     work is faint, as a working row is, its mark the dotted ring, and a
     wake's countdown is set again as it ticks, with the badges. An away
-    ask's mark is the away ring (see "The rows"). A separator sits where
-    the panel's hairline is. A click jumps;
+    ask's mark is the away ring (see "The rows"). A separator sits after
+    what waits on Lee, where the panel's hairline was until board J2 (4
+    November 2026), which took it off the card; the menu keeps it, a
+    menu's own idiom. A click jumps;
   - **Open SitRep Window**, after the list, for what the list leaves out:
     away sessions with nothing waiting, notes, parked and resolved;
   - **Show**: Notch, Strip or Nothing, inline, the one in use ticked, so
@@ -5102,19 +5126,16 @@ live changed, and how they group.
   which are silent. It plays as an ordinary sound, at the output volume,
   never as a notification's or an alert sound, which follow the alert
   volume.
-- **General**, in three sections. **Startup:** Open at login, its line
-  "SitRep is only of use while it runs". **Sessions:** "Your turn folds
-  after", "Older ones fold into one line, which opens in place", a pop-up
-  at its own width of An hour, the
-  default, Four hours, Today or Never: how long a your-turn row stays on the
-  card, and in the SitRep window's sidebar, before it folds into "N earlier"
-  (see "The sections", under "The notch and its panel", and "The SitRep
-  window"), measured from its turn's end, "Today" folding what
-  ended before local midnight and "Never" folding nothing. It is in General,
-  not under Edge, as that pane is the Show row alone at Nothing and the
-  period governs the SitRep window's sidebar too (22 October 2026). It is
-  saved with the rest of what Lee sets beyond the edge, under "app", and
-  the card and the sidebar refold as it changes. **Ghostty:** the leave to
+- **General**, in two sections. **Startup:** Open at login, its line
+  "SitRep is only of use while it runs". Until 4 November 2026 a third,
+  **Sessions**, held "Your turn folds after", "Older ones fold into one
+  line, which opens in place", a pop-up of An hour, the default, Four
+  hours, Today or Never: how long a your-turn row stayed on the card, and
+  in the SitRep window's sidebar, before it folded into "N earlier",
+  saved under "app" as `foldsAfter` (22 October 2026). It went with "N
+  earlier" (board J2; see "The sections"): a value saved for it is read
+  and passed over, as the separate Settings window's `pane` is, and is
+  not written again. **Ghostty:** the leave to
   control it, worded as macOS words a permission, by what SitRep can do
   with it: "Bring a session's Ghostty window to the front", "So a click on
   a session jumps to it". No row carries an icon. Update automatically and

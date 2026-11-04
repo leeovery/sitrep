@@ -1,0 +1,20 @@
+import AppKit
+@testable import SitRep
+import Testing
+
+/// A line of the card's words cut short with an ellipsis fits its box: Core Text's own cut runs past the width it is
+/// given by up to the ellipsis at many widths, so a name cut short before its "+2" or its project would run into them.
+@MainActor
+struct TextLineTests {
+    private static let long = TextLine.text(
+        String(repeating: "Finish the Harness modernisation ", count: 3), EdgeStyle.lineMedium, EdgeStyle.ink,
+        kern: EdgeStyle.tightKern(EdgeStyle.lineMedium)
+    )
+
+    @Test(arguments: Array(stride(from: 160.0, through: 190.0, by: 1)))
+    func aLineCutShortFitsItsBox(width: Double) {
+        let line = TextLine(Self.long, in: CGRect(x: 0, y: 0, width: width, height: 18))
+
+        #expect(line.width <= width && line.width > width - 12)
+    }
+}

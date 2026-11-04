@@ -7,16 +7,10 @@ import SitRepLines
 import Testing
 
 /// The card's sections as the notch runs them: a click on an eyebrow folds its section at once and is kept, an
-/// arrival unfolds Needs you, "N earlier" opens in place and is folded each time the card comes out, the rows past the
-/// fold period fold into it as the wall clock passes it, and the head shows only with nothing to list or a stale
-/// board.
+/// arrival unfolds Needs you, every your-turn row stays however old, no hairline comes as sections fold, and the head
+/// shows only with nothing to list or a stale board.
 @MainActor
 struct CardSectionsRunTests {
-    /// A wall clock the test moves, ms.
-    final class Wall {
-        var now = 1_792_445_574_706.0
-    }
-
     private static let setting = NotchRun.Setting(
         stage: Stage(height: 982, visibleTop: 24, visibleBottom: 982, notchY: 491), mirror: .identity,
         style: .meniscus, reducesMotion: false
@@ -26,10 +20,8 @@ struct CardSectionsRunTests {
     private static let away = CGPoint(x: 900, y: 491)
     private static let minute = 60_000
 
-    private static func at(_ time: Double, _ pointer: CGPoint? = nil, period: FoldPeriod = .hour) -> NotchRun.Moment {
-        var setting = setting
-        setting.period = period
-        return NotchRun.Moment(time: time, pointer: pointer, setting: setting)
+    private static func at(_ time: Double, _ pointer: CGPoint? = nil) -> NotchRun.Moment {
+        NotchRun.Moment(time: time, pointer: pointer, setting: setting)
     }
 
     private static func ask(_ id: String) -> String {
@@ -40,14 +32,12 @@ struct CardSectionsRunTests {
         row("work:\(id)", "working", session: id, lead: "Running the tests", second: "DocMan · \(id)", since: 1_792_445_000_000)
     }
 
-    /// A your turn whose turn ended this many minutes before the wall clock's start.
+    /// A your turn whose turn ended this many minutes before 1_792_445_574_706, ms on the wall clock.
     private static func turn(_ id: String, ago minutes: Int) -> String {
-        turn(id, since: 1_792_445_574_706 - minutes * minute)
-    }
-
-    /// A your turn whose turn ended at this time on the wall clock, ms.
-    private static func turn(_ id: String, since: Int) -> String {
-        row("turn:\(id)", "yourTurn", session: id, lead: "Your turn", second: "SitRep · \(id)", since: since)
+        row(
+            "turn:\(id)", "yourTurn", session: id, lead: "Your turn", second: "SitRep · \(id)",
+            since: 1_792_445_574_706 - minutes * minute
+        )
     }
 
     private static func board(_ rows: [String], new: [String] = []) -> PanelBoard {
@@ -57,23 +47,21 @@ struct CardSectionsRunTests {
         return PanelBoard(last)
     }
 
-    private static func frames(_ run: NotchRun, for ms: Double, _ pointer: CGPoint?, period: FoldPeriod = .hour, until done: () -> Bool = { false }) {
+    private static func frames(_ run: NotchRun, for ms: Double, _ pointer: CGPoint?, until done: () -> Bool = { false }) {
         let end = run.time + ms
 
         while run.time + frameMS <= end + 1e-9, !done() {
-            run.step(at(run.time + frameMS, pointer, period: period))
+            run.step(at(run.time + frameMS, pointer))
         }
     }
 
-    /// A run over this board, its folds kept in `kept`, the wall clock `wall` in London's calendar, its panel opened
-    /// by the pointer held on the notch.
-    private static func opened(
-        _ rows: [String], kept: SavedSettings<CardSettings>? = nil, wall: Wall = Wall(), period: FoldPeriod = .hour
-    ) -> NotchRun {
-        let run = NotchRun(at: 1000, in: setting, kept: kept, wall: { wall.now }, calendar: london)
+    /// A run over this board, its folds kept in `kept`, in London's calendar, its panel opened by the pointer held on
+    /// the notch.
+    private static func opened(_ rows: [String], kept: SavedSettings<CardSettings>? = nil) -> NotchRun {
+        let run = NotchRun(at: 1000, in: setting, kept: kept, calendar: london)
 
-        _ = run.show(board(rows), at(run.time, period: period))
-        frames(run, for: 3000, onTheNotch, period: period) { run.phase == .open }
+        _ = run.show(board(rows), at(run.time))
+        frames(run, for: 3000, onTheNotch) { run.phase == .open }
         return run
     }
 
@@ -112,10 +100,10 @@ struct CardSectionsRunTests {
 
         #expect(try Self.press("eyebrow:working", in: run) == .fold)
         #expect(run.folded.sections == [.working, .snoozed])
-        #expect(Self.keys(run) == ["eyebrow:needsYou", "needs:sr-a", "needs:sr-b", "eyebrow:yourTurn", "turn:sr-t", "divider", "eyebrow:working"])
+        #expect(Self.keys(run) == ["eyebrow:needsYou", "needs:sr-a", "needs:sr-b", "eyebrow:yourTurn", "turn:sr-t", "eyebrow:working"])
         #expect(!run.isFolding(at: run.time))
         #expect(run.list.content.entries.allSatisfy { $0.height == $0.item.height && $0.alpha == 1 })
-        #expect(run.list.content.items.contains(.eyebrow(Eyebrow(section: .working, count: 1, isFolded: true, above: 0))))
+        #expect(run.list.content.items.contains(.eyebrow(Eyebrow(section: .working, count: 1, isFolded: true, above: 14))))
 
         #expect(try Self.press("eyebrow:working", in: run) == .fold)
         #expect(run.folded.sections == [.snoozed])
@@ -123,23 +111,24 @@ struct CardSectionsRunTests {
         #expect(!run.isFolding(at: run.time))
     }
 
-    /// Needs you folded, the hairline still follows Your turn; Your turn folded, it follows its eyebrow.
-    @Test func theHairlineStaysAfterYourTurnFoldedOrNot() throws {
+    /// Folded or not, no section brings a hairline: each eyebrow follows what is above it.
+    @Test func noHairlineAsSectionsFold() throws {
         let run = Self.opened(Self.mixed)
 
         _ = try Self.press("eyebrow:needsYou", in: run)
-        #expect(Self.keys(run).prefix(5) == ["eyebrow:needsYou", "eyebrow:yourTurn", "turn:sr-t", "divider", "eyebrow:working"])
+        #expect(Self.keys(run).prefix(4) == ["eyebrow:needsYou", "eyebrow:yourTurn", "turn:sr-t", "eyebrow:working"])
 
         _ = try Self.press("eyebrow:yourTurn", in: run)
-        #expect(Self.keys(run).prefix(4) == ["eyebrow:needsYou", "eyebrow:yourTurn", "divider", "eyebrow:working"])
+        #expect(Self.keys(run).prefix(3) == ["eyebrow:needsYou", "eyebrow:yourTurn", "eyebrow:working"])
+        #expect(!run.list.content.items.contains(.divider))
     }
 
     /// Folds Lee left are where the run starts: its eyebrow alone, pointing right.
     @Test func theFoldsSavedAreRestored() {
         let run = Self.opened(Self.mixed, kept: Self.kept([.yourTurn]))
 
-        #expect(Self.keys(run).suffix(4) == ["eyebrow:yourTurn", "divider", "eyebrow:working", "sr-w"])
-        #expect(run.list.content.items.contains(.eyebrow(Eyebrow(section: .yourTurn, count: 1, isFolded: true, above: 10))))
+        #expect(Self.keys(run).suffix(3) == ["eyebrow:yourTurn", "eyebrow:working", "sr-w"])
+        #expect(run.list.content.items.contains(.eyebrow(Eyebrow(section: .yourTurn, count: 1, isFolded: true, above: 14))))
     }
 
     /// A click on an eyebrow keeps the fold, and a click again keeps it unfolded.
@@ -196,11 +185,10 @@ struct CardSectionsRunTests {
         #expect(run.isFolding(at: run.time))
     }
 
-    /// A row folding away, its ask answered, finishes folding as Lee folds another section, and as a row folds into
-    /// "N earlier": only what the fold changes changes at once.
-    @Test func aRowFoldingAwayKeepsFoldingAsAnotherSectionFoldsOrARowRefolds() throws {
-        let wall = Wall()
-        let run = Self.opened([Self.ask("sr-a"), Self.ask("sr-b"), Self.turn("sr-t", ago: 59), Self.working("sr-w")], wall: wall)
+    /// A row folding away, its ask answered, finishes folding as Lee folds another section: only what the fold changes
+    /// changes at once.
+    @Test func aRowFoldingAwayKeepsFoldingAsAnotherSectionFolds() throws {
+        let run = Self.opened([Self.ask("sr-a"), Self.ask("sr-b"), Self.turn("sr-t", ago: 59), Self.working("sr-w")])
 
         _ = run.show(Self.board([Self.ask("sr-a"), Self.turn("sr-t", ago: 59), Self.working("sr-w")]), Self.at(run.time))
         Self.frames(run, for: 50, Self.onTheNotch)
@@ -208,127 +196,19 @@ struct CardSectionsRunTests {
 
         let going = try #require(run.list.content.entries.first { $0.item.key == "needs:sr-b" })
         #expect(going.isGoing && going.height > 0 && going.height < going.item.height)
-
-        wall.now += Double(Self.minute)
-        Self.frames(run, for: Self.frameMS, Self.onTheNotch)
-
-        let still = try #require(run.list.content.entries.first { $0.item.key == "needs:sr-b" })
-        #expect(Self.keys(run).suffix(4) == ["eyebrow:yourTurn", "earlier", "divider", "eyebrow:working"])
-        #expect(still.isGoing && still.height > 0)
+        #expect(Self.keys(run).suffix(3) == ["eyebrow:yourTurn", "turn:sr-t", "eyebrow:working"])
     }
 
-    // MARK: N earlier
+    /// Your turn shows every row, however long ago its turn ended, each on one line, and keeps showing them as the
+    /// panel stays out: no "N earlier".
+    @Test func yourTurnShowsEveryRowHoweverOld() {
+        let run = Self.opened([Self.turn("sr-new", ago: 5), Self.turn("sr-old", ago: 90), Self.turn("sr-older", ago: 3000)])
+        let shown = ["eyebrow:yourTurn", "turn:sr-new", "turn:sr-old", "turn:sr-older"]
 
-    private static let turns = [turn("sr-new", ago: 5), turn("sr-old", ago: 90), turn("sr-older", ago: 300)]
-
-    @Test func aClickOnNEarlierOpensItInPlaceAndAgainFoldsIt() throws {
-        let run = Self.opened(Self.turns)
-
-        #expect(Self.keys(run) == ["eyebrow:yourTurn", "turn:sr-new", "earlier"])
-        #expect(try Self.press("earlier", in: run) == .fold)
-        #expect(Self.keys(run) == ["eyebrow:yourTurn", "turn:sr-new", "earlier", "turn:sr-old", "turn:sr-older"])
-        #expect(!run.isFolding(at: run.time))
-
-        _ = try Self.press("earlier", in: run)
-        #expect(Self.keys(run) == ["eyebrow:yourTurn", "turn:sr-new", "earlier"])
-    }
-
-    /// Open is never kept: the card comes out with "N earlier" folded again, as what it holds is stale.
-    @Test func nEarlierIsFoldedAgainEachTimeTheCardComesOut() throws {
-        let run = Self.opened(Self.turns)
-
-        _ = try Self.press("earlier", in: run)
-        run.clickElsewhere(Self.at(run.time))
-        Self.frames(run, for: 5000, Self.away) { run.phase == .closed }
-        Self.frames(run, for: 3000, Self.onTheNotch) { run.phase == .open }
-
-        #expect(run.phase == .open)
-        #expect(!run.folded.isEarlierOpen)
-        #expect(Self.keys(run) == ["eyebrow:yourTurn", "turn:sr-new", "earlier"])
-    }
-
-    /// The next redraw is due as the first shown row passes the period; past it, the row folds in, at once.
-    @Test func aRowFoldsIntoNEarlierAsItPassesThePeriod() {
-        let wall = Wall()
-        let run = Self.opened([Self.turn("sr-a", ago: 50), Self.turn("sr-b", ago: 20)], wall: wall)
-        let due = wall.now + 10 * Double(Self.minute)
-
-        #expect(Self.keys(run) == ["eyebrow:yourTurn", "turn:sr-a", "turn:sr-b"])
-        #expect(run.nextAgeChange(after: wall.now).map { $0 <= due } == true)
-        #expect(run.nextAgeChange(after: due - 1) == due)
-
-        wall.now = due
-        Self.frames(run, for: Self.frameMS, Self.onTheNotch)
-
-        #expect(Self.keys(run) == ["eyebrow:yourTurn", "turn:sr-b", "earlier"])
-        #expect(!run.isFolding(at: run.time))
-    }
-
-    /// The period changing refolds the card at once: never shows no "N earlier".
-    @Test func aNewPeriodRefoldsTheCardAtOnce() {
-        let run = Self.opened(Self.turns)
-
-        Self.frames(run, for: Self.frameMS, Self.onTheNotch, period: .never)
-        #expect(Self.keys(run) == ["eyebrow:yourTurn", "turn:sr-new", "turn:sr-old", "turn:sr-older"])
-
-        Self.frames(run, for: Self.frameMS, Self.onTheNotch, period: .fourHours)
-        #expect(Self.keys(run) == ["eyebrow:yourTurn", "turn:sr-new", "turn:sr-old", "earlier"])
-    }
-
-    /// Open, "N earlier" closes as the line goes: its one row's session starts a turn, and a row passing the period
-    /// later in the same opening brings it back folded.
-    @Test func nEarlierClosesAsTheLineGoes() throws {
-        let wall = Wall()
-        let run = Self.opened([Self.turn("sr-new", ago: 50), Self.turn("sr-old", ago: 90)], wall: wall)
-
-        _ = try Self.press("earlier", in: run)
-        _ = run.show(Self.board([Self.turn("sr-new", ago: 50), Self.working("sr-old")]), Self.at(run.time))
-
-        #expect(!run.folded.isEarlierOpen)
-        #expect(!Self.shown(run).contains("earlier"))
-
-        wall.now += 10 * Double(Self.minute)
-        Self.frames(run, for: Self.frameMS, Self.onTheNotch)
-
-        #expect(Self.shown(run).prefix(4) == ["eyebrow:yourTurn", "earlier", "divider", "eyebrow:working"])
-        #expect(!run.folded.isEarlierOpen)
-    }
-
-    /// The keys of the items staying, not folding away.
-    private static func shown(_ run: NotchRun) -> [String] {
-        run.list.content.entries.filter { !$0.isGoing }.map(\.item.key)
-    }
-
-    /// Open, a row passing the period moves under "N earlier" at once, its count with it.
-    @Test func aRowPassingThePeriodWhileNEarlierIsOpenMovesUnderIt() throws {
-        let wall = Wall()
-        let run = Self.opened([Self.turn("sr-new", ago: 50), Self.turn("sr-old", ago: 90)], wall: wall)
-
-        _ = try Self.press("earlier", in: run)
-        wall.now += 10 * Double(Self.minute)
-        Self.frames(run, for: Self.frameMS, Self.onTheNotch)
-
-        #expect(Self.keys(run) == ["eyebrow:yourTurn", "earlier", "turn:sr-new", "turn:sr-old"])
-        #expect(run.folded.isEarlierOpen)
-        #expect(run.list.content.entries.allSatisfy { $0.height == $0.item.height })
-        #expect(!run.isFolding(at: run.time))
-    }
-
-    /// Today, through the run: a turn ended at 23:59:30 in London stays out until midnight, the next redraw due then,
-    /// before the row's time next ticks, and folds in as the clock passes it.
-    @Test func todayFoldsATurnAtLocalMidnight() {
-        let wall = Wall(), midnight = 1_792_710_000_000 // 23 October 2026, 00:00 BST
-
-        wall.now = Double(midnight) - 10_000
-        let run = Self.opened([Self.turn("sr-late", since: midnight - 30_000)], wall: wall, period: .today)
-
-        #expect(Self.keys(run) == ["eyebrow:yourTurn", "turn:sr-late"])
-        #expect(run.nextAgeChange(after: wall.now) == Double(midnight))
-
-        wall.now = Double(midnight)
-        Self.frames(run, for: Self.frameMS, Self.onTheNotch, period: .today)
-
-        #expect(Self.keys(run) == ["eyebrow:yourTurn", "earlier"])
+        #expect(Self.keys(run) == shown)
+        Self.frames(run, for: 2000, Self.onTheNotch)
+        #expect(Self.keys(run) == shown)
+        #expect(run.list.content.items.dropFirst().allSatisfy { if case .line = $0 { true } else { false } })
     }
 
     // MARK: Held places

@@ -27,13 +27,6 @@ final class NotchController: NSObject, CalloutShape {
     /// Each frame drawn, with whether the pointer is over the notch, or its panel.
     var onDrawn: ((_ isPointedAt: Bool) -> Void)?
 
-    /// How long a your-turn row stays before it folds into "N earlier": the card refolds at once as it changes.
-    var period: FoldPeriod {
-        didSet {
-            wake()
-        }
-    }
-
     private var settings: EdgeSettings
     private var edge: ScreenEdge
     private let run: NotchRun
@@ -58,11 +51,10 @@ final class NotchController: NSObject, CalloutShape {
     /// The slow refresh the light breathes on while frames are idle.
     private static let lightRate = CAFrameRateRange(minimum: 20, maximum: 30, preferred: 30)
 
-    init(_ settings: EdgeSettings, period: FoldPeriod, on display: Display, defaults: UserDefaults = .standard) {
+    init(_ settings: EdgeSettings, on display: Display, defaults: UserDefaults = .standard) {
         self.settings = settings
-        self.period = period
         edge = ScreenEdge(display, settings)
-        run = NotchRun(at: Displays.now, in: .on(edge, settings, period: period), kept: SavedSettings(defaults))
+        run = NotchRun(at: Displays.now, in: .on(edge, settings), kept: SavedSettings(defaults))
         window = EdgeWindow.onScreen(frame: edge.window, view: surface)
         super.init()
 
@@ -141,7 +133,7 @@ final class NotchController: NSObject, CalloutShape {
     private func moment(at time: Double = Displays.now, pointer: CGPoint? = nil) -> NotchRun.Moment {
         NotchRun.Moment(
             time: time, pointer: pointer ?? edge.stagePoint(NSEvent.mouseLocation), pointerAt: Displays.now,
-            isShown: isShown, setting: .on(edge, settings, period: period)
+            isShown: isShown, setting: .on(edge, settings)
         )
     }
 
@@ -192,7 +184,7 @@ final class NotchController: NSObject, CalloutShape {
     /// paced.
     private func draw() {
         let frame = run.frame, time = run.time, pointer = run.seen
-        let setting = NotchRun.Setting.on(edge, settings, period: period), shown = run.takeShown()
+        let setting = NotchRun.Setting.on(edge, settings), shown = run.takeShown()
 
         if shown.swappedEdge, let crossing {
             self.crossing = nil
@@ -245,8 +237,7 @@ final class NotchController: NSObject, CalloutShape {
         NotchSurface.drawn(settings.material) == .glass && washed.map { time - $0 < Wash.length } == true
     }
 
-    /// A frame as the first of the open panel's times next reads differently, or a your-turn row folds into "N
-    /// earlier", menus tracking or not.
+    /// A frame as the first of the open panel's times next reads differently, menus tracking or not.
     private func agesChange() {
         guard let wait = Self.wait(for: run, at: Displays.wallNow) else {
             return
@@ -295,7 +286,7 @@ final class NotchController: NSObject, CalloutShape {
     /// snoozes or wakes is the asks the row showed.
     private func menu(at screenPoint: CGPoint) -> NSMenu? {
         guard let point = edge.stagePoint(screenPoint),
-              let row = run.row(at: point, in: .on(edge, settings, period: period)), let session = row.session
+              let row = run.row(at: point, in: .on(edge, settings)), let session = row.session
         else {
             return nil
         }

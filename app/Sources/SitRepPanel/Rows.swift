@@ -225,14 +225,13 @@ public enum Age: Equatable, Sendable {
     }
 }
 
-/// One item in the panel's list, below any head: a session's row, drawn whole or, on the card in Working and Snoozed,
-/// on one line; a section's eyebrow; Your turn's "N earlier"; or the hairline after what waits on Lee.
+/// One item in the panel's list, below any head: a session's row, drawn whole, as the menu's list and the prototypes'
+/// have it, or on the card on one line; a section's eyebrow; or the menu's hairline after what waits on Lee.
 public enum Item: Equatable, Sendable {
     case session(Session)
-    /// A row on the card below the hairline, Working's or Snoozed's, on one line.
+    /// A row on the card, on one line, whatever its section (board J).
     case line(Session)
     case eyebrow(Eyebrow)
-    case earlier(Earlier)
     case divider
 
     /// The panel's list of these sessions, in the order given, which is core's: the hairline under what waits on Lee
@@ -250,18 +249,17 @@ public enum Item: Equatable, Sendable {
     public var session: Session? {
         switch self {
         case let .session(session), let .line(session): session
-        case .eyebrow, .earlier, .divider: nil
+        case .eyebrow, .divider: nil
         }
     }
 
     /// What it is, the same for as long as it shows: a row by its session, marked by its section but for Working's, so
     /// a row changing section folds away from one place and unfolds in the other, as two rows, and a session's row in
-    /// Snoozed is another than its row beside it; an eyebrow by its section; "N earlier" and the divider by themselves.
+    /// Snoozed is another than its row beside it; an eyebrow by its section; the divider by itself.
     public var key: String {
         switch self {
         case let .session(session), let .line(session): Self.key(of: session)
         case let .eyebrow(eyebrow): "eyebrow:\(eyebrow.section.rawValue)"
-        case .earlier: "earlier"
         case .divider: "divider"
         }
     }
@@ -281,18 +279,16 @@ public enum Item: Equatable, Sendable {
     /// A row drawn whole, less the gap below it: 7, its two lines' 34, and 8.
     public static let rowHeight = 49.0
 
-    /// Board D's: a row on one line, with no gap, so the lifts of two meet; an eyebrow, under the room over it; and "N
-    /// earlier", under the 2 over it.
-    public static let lineHeight = 30.0, eyebrowHeight = 28.0, earlierHeight = 34.0, earlierAbove = 2.0
+    /// Board D's: a row on one line, with no gap, so the lifts of two meet; and an eyebrow, under the room over it.
+    public static let lineHeight = 30.0, eyebrowHeight = 28.0
 
     /// Its height, unfolded, as it is drawn: a row whole, however many lines it holds, and the gap below it; a row on
-    /// one line's 30; an eyebrow's 28 under its room; "N earlier"'s 34 under its 2; the divider's 1 between 2 and 6.
+    /// one line's 30; an eyebrow's 28 under its room; the divider's 1 between 2 and 6.
     public var height: Double {
         switch self {
         case .session: Self.rowHeight + Self.rowGap
         case .line: Self.lineHeight
         case let .eyebrow(eyebrow): eyebrow.above + Self.eyebrowHeight
-        case .earlier: Self.earlierAbove + Self.earlierHeight
         case .divider: 9
         }
     }
@@ -303,7 +299,6 @@ public enum Item: Equatable, Sendable {
         case .session: (0, Self.rowGap)
         case .line, .divider: (0, 0)
         case let .eyebrow(eyebrow): (eyebrow.above, 0)
-        case .earlier: (Self.earlierAbove, 0)
         }
     }
 
@@ -402,8 +397,8 @@ public struct Content: Equatable, Sendable {
         return CGRect(x: Self.paddingSide, y: top + above, width: Self.width, height: entries[index].height)
     }
 
-    /// The item a click at a point in the content's own frame acts on, where it is drawn: a row, an eyebrow or "N
-    /// earlier"; never the divider, nor the room round an item, nor an item folding away.
+    /// The item a click at a point in the content's own frame acts on, where it is drawn: a row or an eyebrow; never
+    /// the divider, nor the room round an item, nor an item folding away.
     public func item(at point: CGPoint) -> Int? {
         entries.indices.first { i in
             let item = entries[i].item

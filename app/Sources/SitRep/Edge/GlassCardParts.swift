@@ -22,31 +22,6 @@ struct GlassEyebrow: View {
     }
 }
 
-/// "N earlier" on glass, laid out as the black's: its ring and its projects in the tertiary, "8 earlier" in the
-/// secondary, and its chevron; lifting under the pointer as a row does.
-struct GlassEarlier: View {
-    let earlier: Earlier
-    let size: CGSize
-    let lit: Bool
-
-    var body: some View {
-        let words = EarlierLayout.words(in: size)
-        ZStack(alignment: .topLeading) {
-            RoundedRectangle(cornerRadius: SessionRowLayout.lineRadius).fill(.primary.opacity(lit ? 0.08 : 0))
-            Circle().strokeBorder(.tertiary, lineWidth: 1.5).frame(width: 9, height: 9)
-                .position(EarlierLayout.mark(in: size))
-            HStack(alignment: .firstTextBaseline, spacing: EarlierLayout.gap) {
-                Text(earlier.title).font(.system(size: 13)).kerning(-0.13).foregroundStyle(.secondary).fixedSize()
-                Text(earlier.projects.joined(separator: ", ")).font(.system(size: 12)).foregroundStyle(.tertiary)
-            }
-            .placed(in: words)
-            GlassChevron(isOpen: earlier.isOpen, box: EarlierLayout.chevron(in: size))
-        }
-        .frame(width: size.width, height: size.height, alignment: .topLeading)
-        .animation(.easeOut(duration: 0.11), value: lit)
-    }
-}
-
 /// The black's chevron in its box, in the tertiary label colour.
 private struct GlassChevron: View {
     let isOpen: Bool

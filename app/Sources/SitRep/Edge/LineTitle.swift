@@ -13,7 +13,7 @@ enum LineTitle {
     /// wake's countdown, as `subject` says it at the time.
     static func text(_ s: Session, verb ink: CGColor, subject: String?, isFollowed: Bool = true) -> NSMutableAttributedString {
         let follows = isFollowed ? after(s, subject: subject) : nil
-        let font = EdgeStyle.lineVerb
+        let font = EdgeStyle.lineMedium
         let verb = TextLine.text(follows == nil ? s.title : lead(s.title), font, ink, kern: EdgeStyle.tightKern(font))
 
         if let follows, verb.length > 0 {

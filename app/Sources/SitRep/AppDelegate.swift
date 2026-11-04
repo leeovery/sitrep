@@ -26,9 +26,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// Window. A Mac long welcomed makes none until Lee asks for it.
     private var welcome: WelcomeWindow?
     private var quitOnSignal: QuitOnSignal?
-    private lazy var window = SitRepWindow(
-        plugin: plugin, works: works, snoozes: snoozes, following: feed.following, preferences: preferences
-    )
+    private lazy var window = SitRepWindow(plugin: plugin, works: works, snoozes: snoozes, following: feed.following)
 
     /// The notices helper is listened to before launching ends, so a click that starts the app is heard; and a SIGTERM
     /// quits as Quit SitRep does.

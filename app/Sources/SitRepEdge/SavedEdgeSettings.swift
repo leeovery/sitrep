@@ -55,7 +55,7 @@ extension EdgeSettings: SavedValue {
 
 /// The card's sections Lee folded, kept across opens and launches as one value of its own under the key "card": those
 /// folded, and those not, so a section folded at first, as Snoozed, which a value saved before it has no word of, reads
-/// folded. "N earlier" open is not kept: it is folded each time the card comes out.
+/// folded.
 public struct CardSettings: SavedValue {
     public static let key = "card"
 
