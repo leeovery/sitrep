@@ -38,6 +38,7 @@ import {
 import {
   beat,
   CLI,
+  delivered,
   file,
   finish,
   META,
@@ -865,6 +866,24 @@ test('every session in the feed carries what it parked, oldest first, and when i
       ],
     ],
   ])
+})
+
+test("an item picked up or closed leaves the feed's parked items, and its count", () => {
+  const session = sessionOf({
+    lines: [
+      [T0, park('p1', 'A tmux indicator')],
+      [T0, park('p2', 'Retry the export')],
+      [T0, park('p3', 'Tidy the copy')],
+      [T0 + MIN, reply('r1', 'p1', 'pickup')],
+      [T0 + MIN, delivered('r1')],
+      [T0 + 2 * MIN, resolve('p2')],
+    ],
+  })
+  const [fed] = feedOf([{ project: SWITCHBOARD, sessions: [session] }], NOW).projects.flatMap(
+    project => project.sessions,
+  )
+
+  expect([fed?.parked, fed?.parkedItems.map(parked => parked.id)]).toEqual([1, ['p3']])
 })
 
 test('the feed lists every live window, the longest attached first, those behind the CLI needing a reload', () => {

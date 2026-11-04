@@ -1,6 +1,12 @@
+import Foundation
 @testable import SitRepCore
 import SitRepLines
 import Testing
+
+/// An instant as the CLI prints it, in milliseconds since 1970.
+func at(_ milliseconds: Double) -> Date {
+    Date(timeIntervalSince1970: milliseconds / 1000)
+}
 
 /// A session's board as `board --json` printed it, read as a line of `watch` carries it.
 func carried(_ board: String, of session: String) throws -> SessionBoard {

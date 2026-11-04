@@ -29,9 +29,18 @@ struct SessionBoardTests {
     @Test func theSessionInBriefSaysWhenItStartedWhereTheCLISaysIt() throws {
         let board = try #require(try Board.read(Lines.parked[1]).boards["sr-nwdgr4"]?.board)
 
-        #expect(board.session.created == Date(timeIntervalSince1970: 1_793_792_455))
-        #expect(board.parked.map(\.id) == ["77k4", "3k0a"])
+        #expect(board.session.created == at(1_793_792_455_000))
         #expect(try Self.read(Lines.board).session.created == nil)
+    }
+
+    /// The line's session lists what it parked as its board does, item for item.
+    @Test func aSessionsParkedItemsOnTheLineAreItsBoardsParked() throws {
+        let line = try Board.read(Lines.parked[1])
+        let board = try #require(line.boards["sr-nwdgr4"]?.board)
+        let session = try #require(line.projects.flatMap(\.sessions).first { $0.id == "sr-nwdgr4" })
+
+        #expect(board.parked.count == 2)
+        #expect(session.parkedItems == board.parked)
     }
 
     @Test func itsAsksComeOldestFirstEachWithWhatItWantsBackAndNoReplyBeforeOneIsSent() throws {
