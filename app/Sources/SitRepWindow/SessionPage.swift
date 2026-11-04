@@ -1,38 +1,105 @@
 import Foundation
 import SitRepCore
 
-/// A session at window size, as the pane's session view: its project above it, its name and summary, what its window
-/// is doing, then Asks, Status, Notes, Parked and Resolved.
+/// A session's page, beside a place's list, the detail, or filling the window (Paper's "Window redesign", A1 and A2
+/// revised): its project and its name; filling the window, a line saying where its window is and when it started;
+/// what its window is doing; beside the list, the picked line's card leading, or filling the window, every ask's card;
+/// then Now, and What happened.
 public struct SessionPage: Equatable, Sendable {
+    /// Where it shows: beside a place's list, the detail of the row picked, or filling the window.
+    public enum Mode: Sendable {
+        case detail, full
+    }
+
+    /// What leads the detail: the card of the line picked in Needs you, an ask's, asleep or closed while the page holds
+    /// as it may be, or a window's stop.
+    public enum Lead: Equatable, Sendable {
+        case ask(Card)
+        case stop
+    }
+
+    /// What stands under the page's head for what its window is doing.
+    public enum DoingLine: Sendable {
+        /// The line, its mark beside it.
+        case line
+        /// A window's stop, as its card, washed orange, in the line's place.
+        case stop
+        /// Nothing: the meta line says it is away, or the stop leads the detail already.
+        case none
+    }
+
+    /// Filling the window, under its name: its terminal and whether a window of it is on screen, and when it started;
+    /// or, away, that no window holds it.
+    public struct Meta: Equatable, Sendable {
+        /// The terminal its window is in, as `$TERM_PROGRAM` names it: `ghostty`, `tmux`, `iTerm.app`.
+        public let terminal: String?
+        /// Whether a jump could reach it, as the last look at the screen said; none with no reading of it.
+        public let onScreen: OnScreen?
+        public let started: Date?
+        /// No window holds it: the away line, in place of the rest.
+        public let away: String?
+    }
+
+    /// An ask still open, in What happened: "Asked …", by when it was asked.
+    public struct Asked: Equatable, Sendable {
+        public let id: AskAddress
+        public let title: String
+        public let at: Date
+    }
+
+    /// An entry of What happened: an ask still open, or a line of its log, a note or a status line.
+    public enum Happened: Equatable, Sendable, Identifiable {
+        case asked(Asked)
+        case line(Note)
+
+        public var id: String {
+            switch self {
+            case let .asked(asked): "asked:\(asked.id.ask)"
+            case let .line(note): note.id
+            }
+        }
+
+        public var at: Date {
+            switch self {
+            case let .asked(asked): asked.at
+            case let .line(note): note.at
+            }
+        }
+    }
+
     public let id: String
+    public let mode: Mode
     /// Its project, by its key, and its name, which opens the project.
     public let projectKey: String
     public let projectName: String
     public let name: String
-    public let summary: String
+    public let meta: Meta
     public let doing: Doing
     /// "Open in Ghostty ↗": only while a window holds it.
     public let jumps: Bool
     /// Its asks waiting on Lee.
     public let waiting: Int
-    /// Its asks asleep.
-    public let snoozed: Int
-    /// Those waiting first, then those asleep.
+    /// Beside Needs you's list, the picked line's card; none filling the window, nor for a session's row.
+    public let lead: Lead?
+    /// Its asks as cards, those waiting first, then those asleep: filling the window, each shows; beside the list, only
+    /// the lead's, as the session's other lines are rows of their own.
     public let asks: [Card]
+    /// Now: what is under way, and what comes next.
     public let status: Status
-    /// Its latest log lines, newest first.
-    public let notes: [Note]
-    /// Oldest first.
-    public let parked: [Parked]
-    /// The newest closed first, those still keeping their place in Asks aside.
+    /// "later · N parked ›": how many items it parked, none at nought.
+    public let parked: Int
+    /// What happened, the newest first: its log's lines, as many as its board carries, and its asks still open.
+    public let happened: [Happened]
+    /// The newest closed first, those still keeping their place among its cards aside: "N resolved", folded at the end
+    /// of What happened.
     public let resolved: [Resolved]
     /// "✓ Finish this session", only while no window holds it.
     public let finish: Finish?
-    /// A board of it is kept: its asks, Notes, Parked and Resolved show as last kept.
+    /// A board of it is kept: its cards, its log and what it resolved show as last kept.
     public let hasBoard: Bool
     /// Why the latest line to carry its board carried none, over its board as last kept, if there is one.
     public let failure: String?
-    /// The items of Status, Notes, Parked and Resolved opened in place.
+    /// The lines of Now, What happened and its resolved asks opened in place.
     public let opened: Set<Item>
 
     /// Its mark beside what it is doing: with asks waiting while no window holds it, the away ring, as its row's and
@@ -40,12 +107,59 @@ public struct SessionPage: Equatable, Sendable {
     public var mark: Mark {
         doing.isAway && waiting > 0 ? .awayAsk : doing.mark
     }
+
+    /// What stands under its head for what its window is doing: filling the window, a stop's card in the line's place,
+    /// and nothing while away, as its meta line says so; beside the list, the line, but nothing where the stop leads.
+    public var doingLine: DoingLine {
+        switch mode {
+        case .full: doing.isStopped ? .stop : doing.isAway ? .none : .line
+        case .detail: lead == .stop ? .none : .line
+        }
+    }
+
+    /// The cards the page draws: filling the window, every ask's; beside the list, none but the lead's, which leads.
+    public var cards: [Card] {
+        mode == .full ? asks : []
+    }
+}
+
+extension SessionPage {
+    /// How many of a session's latest log lines its board carries (core's `BRIEF_LOG_LINES`).
+    static let logLines = 8
+
+    /// What happened, the newest first: the log's lines in its own order, and among them the asks still open, the
+    /// newest first, each before the first line older than it, so before a line as old. With the log as full as a
+    /// board carries it, the asks older than its oldest line are cut, as the lines between them are gone.
+    static func happened(_ log: [Note], asks: [Board.Ask], of session: String) -> [Happened] {
+        let oldest = log.count >= logLines ? log.last?.at : nil
+        let newest = asks.filter { ask in oldest.map { ask.at >= $0 } ?? true }
+            .enumerated().sorted { ($1.element.at, $0.offset) < ($0.element.at, $1.offset) }.map(\.element)
+        var asked = ArraySlice(newest.map { Asked(id: AskAddress(session: session, ask: $0.id), title: $0.title, at: $0.at) })
+        var happened: [Happened] = []
+
+        for line in log {
+            while let ask = asked.first, ask.at >= line.at {
+                happened.append(.asked(ask))
+                asked.removeFirst()
+            }
+            happened.append(.line(line))
+        }
+        return happened + asked.map(Happened.asked)
+    }
+}
+
+extension Card {
+    /// Its line's key in core's rows, the same in Needs you and Snoozed (core/rows.ts's `askKey`).
+    var key: String {
+        "ask:\(id.session):\(id.ask)"
+    }
 }
 
 public struct Status: Equatable, Sendable {
     public let now: [String]
     public let next: String?
-    /// When its status last changed, as its log has it.
+    /// When its status last changed, as the newest status line of its log has it; none once that line is past the
+    /// lines its board carries.
     public let updated: Date?
 }
 

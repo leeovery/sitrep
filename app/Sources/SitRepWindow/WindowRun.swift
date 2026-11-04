@@ -522,8 +522,7 @@ public final class WindowRun {
         details.toggle(ask)
     }
 
-    /// An item of Status, Notes, Parked or Resolved opened in place to the whole of it, or closed again. Another page
-    /// turned to closes them all.
+    /// An item opened in place to the whole of it, or closed again (`Item`). Another page turned to closes them all.
     public func toggle(_ item: Item) {
         details.toggle(item)
     }
@@ -632,8 +631,9 @@ public final class WindowRun {
         date.timeIntervalSince1970 * 1000
     }
 
-    /// The page at this time, its washes under way: beside a place's list, the session its pick shows, or with nothing
-    /// picked how the board stands; filling the window, a project's page or a session's.
+    /// The page at this time, its washes under way: beside a place's list, the session its pick shows, led by the
+    /// picked line's card, or with nothing picked how the board stands; filling the window, a project's page or a
+    /// session's.
     public func page(at time: Date) -> Page {
         details.prune(at: time)
         guard let board = last.board else {
@@ -645,12 +645,18 @@ public final class WindowRun {
             guard let id = picked?.session else {
                 return board.projects.isEmpty ? .nothingOpen : .empty(given.head.title)
             }
-            return board.session(id).map { .detail(sessionPage($0.session, of: $0.project, at: time)) } ?? .nothingOpen
+            return board.session(id).map { found in
+                .detail(sessionPage(found.session, of: found.project, on: board, as: .detail, leading: picked?.pick, at: time))
+            }
+                ?? .nothingOpen
         case let .project(key):
             return board.projects.first { $0.key == key }.map { .project(projectPage($0, on: board, at: time)) }
                 ?? .nothingOpen
         case let .session(id, _):
-            return board.session(id).map { .session(sessionPage($0.session, of: $0.project, at: time)) } ?? .nothingOpen
+            return board.session(id).map { found in
+                .session(sessionPage(found.session, of: found.project, on: board, as: .full, at: time))
+            }
+                ?? .nothingOpen
         }
     }
 

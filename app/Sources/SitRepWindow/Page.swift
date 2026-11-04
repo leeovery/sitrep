@@ -34,7 +34,8 @@ extension Location {
     }
 }
 
-/// An item of Status, Notes, Parked or Resolved, which a press opens in place to the whole of it, and closes again.
+/// An item that opens in place to the whole of it, and closes again: a line of a session's Now, a line of its log in
+/// What happened or of a project's notes, a project's parked item, an ask a session resolved.
 public enum Item: Hashable, Sendable {
     /// A line of the status, by its place and its words, so a line rewritten is another item, closed, and two lines
     /// alike are two items.
@@ -44,6 +45,8 @@ public enum Item: Hashable, Sendable {
     case note(String)
     case parked(String)
     case resolved(String)
+    /// "N resolved" at the end of a session's What happened, which opens to its resolved asks.
+    case resolvedFold
 }
 
 /// A line of a session's log, and in a project's view the session it is from; opened, its detail under it.

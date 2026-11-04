@@ -111,11 +111,6 @@ public enum Words {
         "Snoozed until \(wakes)"
     }
 
-    /// The Asks heading's words after those waiting: how many are asleep, none where none are.
-    public static func snoozed(_ count: Int) -> String? {
-        count > 0 ? "\(count) snoozed" : nil
-    }
-
     public static let finish = "✓ Finish this session"
     public static let finishWhy = "For a session left with things open when its window closed."
 

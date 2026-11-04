@@ -35,7 +35,7 @@ struct Details: Equatable, Sendable {
     private var unslept: [AskAddress: Card.Line] = [:]
     /// The asks opened in place in a project's view.
     private var opened: Set<AskAddress> = []
-    /// The items of Status, Notes, Parked and Resolved opened in place.
+    /// The items opened in place (`Item`).
     private var openedItems: Set<Item> = []
 
     // MARK: Holding the page
@@ -219,7 +219,7 @@ struct Details: Equatable, Sendable {
         }
     }
 
-    /// An item of Status, Notes, Parked or Resolved opened in place to the whole of it, or closed again.
+    /// An item opened in place to the whole of it, or closed again.
     mutating func toggle(_ item: Item) {
         if openedItems.remove(item) == nil {
             openedItems.insert(item)
