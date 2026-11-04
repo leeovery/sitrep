@@ -4291,11 +4291,14 @@ stands).
     row's does and what it acts on, a command in mono, or on its own work
     what it waits on, "Waiting on 3 agents", a wake counted down; else "Your
     turn", or away "No window holds it". Then "· not on screen", only where
-    the last look says off. Its asks are its lines in Needs you that are
-    asks, so the header, Sessions and Waiting on you agree, an answer on its
-    way not among them. While no window holds it its name and where it stands
-    dim as one, its time staying (see "The rows");
-  - **Waiting on you**, its count after it in orange, 22 under Sessions: a
+    the last look says off and a window holds it, kept whole as the rest is
+    cut short, as a working line's verb is, its subject cut first. Its asks
+    are its lines in Needs you that are asks, so the header, Sessions and
+    Waiting on you agree, an answer on its way and an ask asleep not among
+    them. While no window holds it its name and where it stands dim as one,
+    its time staying (see "The rows");
+  - **Waiting on you**, its count after it in orange, none at nought, 22
+    under Sessions: a
     row per line, every ask and every window's stop, 32 tall: its mark, the
     orange dot or the away ring, with the pip; its words 13 in white at 85%,
     a command in mono at 12, in the lane of 280; its session in white at 45%;
@@ -4304,17 +4307,26 @@ stands).
     sits as it does there. An ask new on its session's board washes, as its
     card would. While the page is held (see "Kept in place") an ask closed
     meanwhile keeps its place, faint, the tick for its mark, until a second
-    after the pointer leaves;
+    after the pointer leaves; not one that closed asleep, never listed. A
+    window's stop that ends under the hold leaves at once: it mostly ends as
+    Lee answers it in the terminal, while SitRep isn't key;
+  - **held still**: while the page is held, Sessions, Now and Log keep the
+    order the page last listed its sessions in, a session new since at the
+    end and one gone since dropped, as nothing of it is left to draw; a
+    second after the pointer leaves they take the board's order, which moves
+    a session up as it needs Lee or changes;
   - **a press** on a session's row or a line pushes that session's page over
     the project's, a step Back returns from, the project still picked in the
     sidebar;
   - **Now**, a card per session in the sessions' order, 22 under: the raise,
     #141416, its corners 12, a ring inside its edge of 0.5 in white at 5%,
     12 above, 14 beside and 13 below inside, its lines 6 apart: its mark and
-    name, 13 semibold, cut short; its now lines, 13 in white at 70%; "next
-    …", 12 in white at 45%, "next" at 30%; and when its status changed, 11
-    in white at 30%, "1h ago", from its newest status line as its board last
-    kept it, else when the session last changed;
+    name, 13 semibold, cut short; its first now line, 13 in white at 70%, as
+    A3 draws it (a session's page keeps them all); "next …", 12 in white at
+    45%, "next" at 30%; and when its status changed, 11 in white at 30%, "1h
+    ago", from its newest status line as its board last kept it, else when
+    the session last changed. While no window holds it its name and lines dim
+    as one, its time staying, as its row's;
   - **Log**, 22 under, each session's three newest log lines under its card,
     14 in, each 22 tall: its words, 12 in white at 60%, cut short, and how
     long ago, 11 in white at 30% in a lane of 28. It shows once a board has a
@@ -4453,7 +4465,7 @@ stands).
     orange, in the selection's shape. There is no
     glass highlight anywhere;
   - on the page, a line that opens, a project's session or line waiting,
-    its "N parked", and a card's head show the panel's fills behind them;
+    and its "N parked" show the panel's fills behind them;
   - every button shows a hover: the pills, the jump, the project's name
     above a session or in its breadcrumb, "later N parked", "N
     resolved".
@@ -4528,8 +4540,9 @@ stands).
     stands, "not on screen", and its time, as "Tidy the test fixtures,
     Stopped on a prompt, not on screen, 3 minutes"; a line of Waiting on you
     its words, its session, "away", "not on screen", "closed" where it
-    closed while the page held, and its age; a card of Now its name, its now
-    lines, "next …" and "updated 1 hour ago"; each log line its words and
+    closed while the page held, and its age; a card of Now its name, "away"
+    where no window holds it, its now line, "next …" and "updated 1 hour
+    ago"; each log line its words and
     its age, in a group named for its session;
   - a mark reads its meaning, a closed ask's tick "closed"; a section's
     bullets, which say what its heading says, are not read, nor the ↗ of
@@ -4651,8 +4664,10 @@ stands).
   screen", unknown saying nothing, after the app the reading names as
   showing it. A project's page draws only off: "· not on screen" where its
   session stands, and a pip on the corner of its mark, in its row, its
-  lines and its card, white at 65% in a ring of what is behind it 1.5 wide
-  (the marks sheet's "Not on screen", the corner pip). The pip on a Needs
+  lines and its card, white at 65%, a ring 1.5 wide cut out of the mark
+  round it, so it reads apart on a hover fill, a wash or a card alike (the
+  marks sheet's "Not on screen", the corner pip); none for an away session,
+  which no terminal could show. The pip on a Needs
   you row comes with a later change.
   - It cannot ride `watch`: it changes with Lee's tmux and Ghostty, not
     with the board. So the window runs `screen` on its own cadence, only

@@ -17,8 +17,8 @@ public struct ProjectPage: Equatable, Sendable {
         public let standing: Standing
         /// When its state began, its row's time.
         public let since: Date
-        /// Its status's now lines, and what comes next.
-        public let now: [String]
+        /// Its status's first now line, as A3 draws its card, and what comes next.
+        public let now: String?
         public let next: String?
         /// When its status last changed: its newest status line as its board last kept it, else when the session last
         /// changed.
@@ -64,6 +64,12 @@ public struct ProjectPage: Equatable, Sendable {
     /// The lines still waiting on Lee, those closed while the page is held aside.
     public var waitingCount: Int {
         waiting.filter { !$0.isClosed }.count
+    }
+
+    /// Waiting on you's count after its heading, in orange: none, not 0, where every line has closed while the page
+    /// held.
+    public var waitingBadge: Int? {
+        waitingCount > 0 ? waitingCount : nil
     }
 
     /// Under its title: its sessions, what waits on Lee and what it parked, each left out where it is none.
@@ -176,11 +182,13 @@ extension Spoken {
             .joined(separator: ", ")
     }
 
-    /// A session's card in Now, one element: its name, its now lines, what comes next and when its status changed.
+    /// A session's card in Now, one element: its name, "away" where no window holds it, its now line, what comes next
+    /// and when its status changed.
     public static func nowCard(_ session: ProjectPage.Session, at now: Date) -> String {
-        let next = session.next.map { ["next \($0)"] } ?? []
+        let next = session.next.map { "next \($0)" }
 
-        return ([session.name] + session.now + next + [updated(session.updated, at: now)]).joined(separator: ", ")
+        return ([session.name, session.isAway ? "away" : nil, session.now, next].compactMap { $0 }
+            + [updated(session.updated, at: now)]).joined(separator: ", ")
     }
 
     /// A line of a session's group in Log, one element: its words and how long ago.

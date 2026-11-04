@@ -35,6 +35,8 @@ struct Details: Equatable, Sendable {
     private var unslept: [AskAddress: Card.Line] = [:]
     /// The items opened in place (`Item`).
     private var openedItems: Set<Item> = []
+    /// A project's sessions in the order its page last listed them, which it keeps while the page is held.
+    private var sessionOrder: [String] = []
 
     // MARK: Holding the page
 
@@ -92,6 +94,7 @@ struct Details: Equatable, Sendable {
     /// cards said of refusals, and of a finish asked about.
     mutating func turnPage() {
         frozen = [:]
+        sessionOrder = []
         openedItems = []
         unslept = [:]
         answers.forgetRefusals()
@@ -104,6 +107,21 @@ struct Details: Equatable, Sendable {
         for session in shown where frozen[session] == nil {
             frozen[session] = Frozen(session: session, kept: boards[session], isCurrent: current.contains(session))
         }
+    }
+
+    /// A project's sessions, by their ids, in the order its page lists them: as the board orders them, but while the
+    /// page is held as it last listed them, so no row moves under the pointer, a session new since at the end and one
+    /// gone since dropped, as nothing of it is left to draw.
+    mutating func order(_ sessions: [String]) -> [String] {
+        if pageHeld.isHeld {
+            let present = Set(sessions)
+            let shown = Set(sessionOrder)
+
+            sessionOrder = sessionOrder.filter(present.contains) + sessions.filter { !shown.contains($0) }
+        } else {
+            sessionOrder = sessions
+        }
+        return sessionOrder
     }
 
     /// The washes ended by this time let go.
@@ -295,15 +313,16 @@ struct Details: Equatable, Sendable {
     // MARK: Building
 
     /// A session's asks as cards: in the order they first showed on the page, those closed while it was held kept in
-    /// their places, else as last kept, the newest first; those asleep after them, the soonest to wake first.
+    /// their places, else as last kept, the newest first; those asleep after them, the soonest to wake first, one that
+    /// closed asleep among them.
     func cards(of session: Board.Session, at time: Date) -> [Card] {
         let kept = frozen[session.id]
         let asks = kept?.asks ?? (boards[session.id]?.asks.reversed() ?? []).map { ($0, nil) }
         let washes = Wash.live(kept?.washed ?? [:], at: time)
         let cards = asks.map { ask, closed in card(ask, of: session, closed: closed, washed: washes[ask.id]) }
-        let asleep = cards.compactMap { card in card.snoozedUntil.map { (card, $0) } }
+        let asleep = cards.compactMap { card in card.wakesAt.map { (card, $0) } }
 
-        return cards.filter { $0.snoozedUntil == nil } + asleep.sorted { $0.1 < $1.1 }.map(\.0)
+        return cards.filter { $0.wakesAt == nil } + asleep.sorted { $0.1 < $1.1 }.map(\.0)
     }
 
     /// An ask of the session as its card, with Lee's answer waiting or on its way, and what its card said of a

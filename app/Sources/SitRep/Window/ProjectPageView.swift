@@ -37,11 +37,7 @@ struct ProjectPageView: View {
 
     private var header: some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text(page.name)
-                .font(WindowStyle.ui(34, .bold))
-                .spacing(-0.03, of: 34)
-                .foregroundStyle(WindowStyle.text)
-                .accessibilityAddTraits(.isHeader)
+            PageTitle(words: page.name, size: 34)
             if !page.counts.isEmpty {
                 Text(page.counts.joined(separator: " · "))
                     .font(WindowStyle.ui(13))
@@ -64,12 +60,13 @@ struct ProjectPageView: View {
 
     private var waiting: some View {
         VStack(alignment: .leading, spacing: 0) {
-            ProjectHeading(name: "Waiting on you", count: page.waitingCount)
+            ProjectHeading(name: "Waiting on you", count: page.waitingBadge)
             ForEach(page.waiting) { line in
-                lineButton(spoken: Spoken.waiting(line, at: now)) { act.openSession(line.session) } label: {
+                lineButton(spoken: Spoken.waiting(line, at: now), washed: line.line.washed) {
+                    act.openSession(line.session)
+                } label: {
                     WaitingRow(line: line, now: now)
                 }
-                .modifier(Washed(since: line.line.washed, now: now, radius: Self.radius))
             }
         }
     }
@@ -110,14 +107,15 @@ struct ProjectPageView: View {
         }
     }
 
-    /// A line of the page that a press acts on, its hover fill reaching past the column's edges so its words keep
-    /// their place under the headings; to VoiceOver one element, a button, read as given.
+    /// A line of the page that a press acts on, its hover fill, and a wash where it is new, reaching past the column's
+    /// edges so its words keep their place under the headings; to VoiceOver one element, a button, read as given.
     private func lineButton(
-        spoken: String, action: @escaping () -> Void, @ViewBuilder label: () -> some View
+        spoken: String, washed: Date? = nil, action: @escaping () -> Void, @ViewBuilder label: () -> some View
     ) -> some View {
         Button(action: action) {
             label()
                 .padding(.horizontal, WindowStyle.reach)
+                .modifier(Washed(since: washed, now: now, radius: Self.radius))
                 .contentShape(Rectangle())
                 .spoken(spoken)
         }
@@ -178,22 +176,25 @@ struct ProjectSessionRow: View {
     }
 }
 
-/// A working or on its own work's line: its lead, shimmering while it works; then what it acts on, a command in mono, a
-/// wake counted down.
+/// A working or on its own work's line: its lead, shimmering while it works, kept whole; then what it acts on, a command
+/// in mono, a wake counted down, cut short where the row is narrow.
 private struct DoingLine: View {
     let kind: Doing.Kind
     let line: Board.Row.Words
     let now: Date
 
     var body: some View {
-        HStack(spacing: 5) {
-            if kind == .working {
-                ShimmeringLead { isLit in
-                    Text(line.lead).foregroundStyle(isLit ? WindowStyle.text : Ink.rest)
+        HStack(spacing: 4) {
+            Group {
+                if kind == .working {
+                    ShimmeringLead { isLit in
+                        Text(line.lead).foregroundStyle(isLit ? WindowStyle.text : Ink.rest)
+                    }
+                } else {
+                    Text(line.lead)
                 }
-            } else {
-                Text(line.lead)
             }
+            .layoutPriority(1)
             if let mono = line.mono {
                 Text(mono).font(WindowStyle.mono(12))
             } else if let subject = Words.subject(line, at: now) {
@@ -260,7 +261,8 @@ private struct PageRow<Content: View>: View {
     }
 }
 
-/// A session's card in Now: its mark and name; its now lines; what comes next; and when its status last changed.
+/// A session's card in Now: its mark and name; its first now line; what comes next; and when its status last changed.
+/// While no window holds it its name and lines dim as one, its time staying, as its row's.
 private struct NowCard: View {
     let session: ProjectPage.Session
     let now: Date
@@ -268,29 +270,32 @@ private struct NowCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack(spacing: 8) {
-                PageMark(mark: session.mark, isOffScreen: session.isOffScreen, ground: WindowStyle.raise)
+                PageMark(mark: session.mark, isOffScreen: session.isOffScreen)
                 Text(session.name)
                     .font(WindowStyle.ui(13, .semibold))
                     .spacing(-0.01, of: 13)
                     .foregroundStyle(WindowStyle.text)
                     .lineLimit(1)
+                    .opacity(Away.dimming(session.isAway))
             }
             .frame(height: 16)
-            ForEach(Array(session.now.enumerated()), id: \.offset) { _, line in
-                Text(line).font(WindowStyle.ui(13)).foregroundStyle(Ink.now).lineLimit(2)
+            Group {
+                if let line = session.now {
+                    Text(line).font(WindowStyle.ui(13)).foregroundStyle(Ink.now).lineLimit(2)
+                }
+                if let next = session.next {
+                    Text("\(Text("next ").foregroundStyle(Ink.faint))\(next)")
+                        .font(WindowStyle.ui(12))
+                        .foregroundStyle(Ink.rest)
+                        .lineLimit(2)
+                }
             }
-            if let next = session.next {
-                Text("\(Text("next ").foregroundStyle(Ink.faint))\(next)")
-                    .font(WindowStyle.ui(12))
-                    .foregroundStyle(Ink.rest)
-                    .lineLimit(2)
-            }
+            .opacity(Away.dimming(session.isAway))
             Text(Words.ago(session.updated, at: now))
                 .font(WindowStyle.ui(11))
                 .foregroundStyle(Ink.faint)
                 .padding(.top, 2)
         }
-        .opacity(Away.dimming(session.isAway))
         .padding(.top, 12)
         .padding(.horizontal, 14)
         .padding(.bottom, 13)
@@ -359,23 +364,28 @@ private struct ProjectHeading: View {
     }
 }
 
-/// A session's mark, with a pip on its corner where no terminal shows the session: white at 65% in a ring of what is
-/// behind it, so it reads apart from the mark (the marks sheet's "Not on screen", a corner pip).
+/// A session's mark, with a pip on its corner where no terminal shows the session: white at 65%, a ring 1.5 wide cut
+/// out of the mark round it, so it reads apart from the mark on whatever is behind, a fill, a wash or a card (the
+/// marks sheet's "Not on screen", a corner pip).
 private struct PageMark: View {
     let mark: Mark
     let isOffScreen: Bool
-    var ground = WindowStyle.black
 
     var body: some View {
-        MarkView(mark: mark).overlay {
-            if isOffScreen {
-                Circle()
-                    .fill(Ink.pip)
-                    .frame(width: 5, height: 5)
-                    .background(Circle().fill(ground).frame(width: 8, height: 8))
-                    .offset(x: 3, y: 3)
+        if isOffScreen {
+            ZStack {
+                MarkView(mark: mark)
+                Self.pip(8).blendMode(.destinationOut)
             }
+            .compositingGroup()
+            .overlay { Self.pip(5).foregroundStyle(Ink.pip) }
+        } else {
+            MarkView(mark: mark)
         }
+    }
+
+    private static func pip(_ side: CGFloat) -> some View {
+        Circle().frame(width: side, height: side).offset(x: 3, y: 3)
     }
 }
 

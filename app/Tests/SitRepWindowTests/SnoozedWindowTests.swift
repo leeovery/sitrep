@@ -262,6 +262,42 @@ struct SnoozedWindowTests {
 
         #expect(page.waiting.map(\.line.ask) == ["k3"])
         #expect(page.sessions.map { $0.standing.parts(at: Self.now) } == [["1 ask waiting"]])
+        #expect(page.counts == ["1 session", "1 waiting on you"])
+    }
+
+    /// k2, asleep, closes under the pointer: never waiting on Lee, it shows in Waiting on you neither open nor faint.
+    @Test func anAskAsleepClosingUnderThePointerNeverShowsInWaitingOnYou() throws {
+        let run = Self.opened()
+
+        run.click(.project("harness"))
+        take(Self.boards, in: run, on: Self.line(0), at: Self.now)
+        overThePage(run, at: Self.now)
+        take([Self.session: Self.k2Closed], in: run, on: Self.line(0), at: Self.now)
+
+        let page = try #require(run.page(at: Self.now).project)
+
+        #expect(page.waiting.map(\.line.ask) == ["k3"])
+        #expect(page.waitingCount == 1)
+    }
+
+    /// k2, asleep, closes under the pointer: its card keeps its place among those asleep, after k1, closed, and never
+    /// moves up among those waiting.
+    @Test func anAskAsleepClosingUnderThePointerKeepsItsPlaceAmongThoseAsleep() throws {
+        let run = Self.opened()
+
+        overThePage(run, at: Self.now)
+        take([Self.session: Self.k2Closed], in: run, on: Self.line(0), at: Self.now)
+
+        let page = try #require(run.page(at: Self.now).session)
+
+        #expect(page.asks.map(\.id.ask) == ["k3", "k1", "k2"])
+        #expect(page.asks.map(\.isClosed) == [false, false, true])
+        #expect(page.waiting == 1)
+    }
+
+    /// The board with k2, asleep, closed.
+    private static let k2Closed = edited(Lines.snoozedBoard) { board in
+        board["asks"] = (board["asks"] as! [[String: Any]]).filter { $0["id"] as? String != "k2" }
     }
 
     @Test func itsWords() {

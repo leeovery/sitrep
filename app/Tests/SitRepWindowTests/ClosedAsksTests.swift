@@ -250,6 +250,25 @@ struct ProjectClosedAsksTests {
         #expect(Self.asks(run) == ["k2"])
     }
 
+    /// Every line closed under the pointer: Waiting on you shows no count, not an orange 0, as the header leaves it out.
+    @Test func everyLineClosedUnderThePointerLeavesNoCount() throws {
+        let run = opened()
+
+        run.click(.project("sitrep"))
+        take(["sr-macapp": Lines.board], in: run)
+        overThePage(run)
+        take(["sr-macapp": Self.noneOpen], in: run, on: answered("sr-macapp"))
+
+        let page = try #require(run.page(at: printedAt).project)
+
+        #expect(Self.asks(run) == ["k1 closed", "k3 closed", "k2 closed"])
+        #expect(page.waitingBadge == nil)
+        #expect(page.counts == ["1 session", "1 parked"])
+    }
+
+    /// The Mac app's board with none of its asks open.
+    private static let noneOpen = edited(Lines.board) { $0["asks"] = [Any]() }
+
     @Test func withThePointerNeverOverThePageAnAskClosingLeavesAtOnce() {
         let run = opened()
 

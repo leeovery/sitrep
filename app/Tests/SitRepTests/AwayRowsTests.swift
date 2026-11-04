@@ -200,7 +200,7 @@ struct AwayRowsTests {
     private static func projectRow(away: Bool) throws -> Drawn {
         let session = ProjectPage.Session(
             id: "sr-ask001", name: "Session", mark: away ? .awayAsk : .needs, isAway: away, isOffScreen: false,
-            standing: .waits(stop: nil, asks: 2), since: Date(timeIntervalSince1970: 0), now: [], next: nil,
+            standing: .waits(stop: nil, asks: 2), since: Date(timeIntervalSince1970: 0), now: nil, next: nil,
             updated: Date(timeIntervalSince1970: 0), log: []
         )
 

@@ -8,7 +8,7 @@ import Testing
 
 /// The SitRep window's key states, drawn offscreen over what the real CLI printed, as Paper's drawing has them: a line
 /// of Needs you and its session beside it, its ask's card leading, a permission prompt leading as the line picked, an
-/// away session and its finish, a project, a session pushed from it, a session's page with its meta line, and the
+/// away session and its finish, a project, and one with a session of each kind, a session pushed from it, a session's page with its meta line, and the
 /// moments of an answer and of a board changing under Lee; a session's long name, and the window as narrow as it goes;
 /// Your turn, Working, the asks asleep opened and one leading, filtered, and a filter that keeps nothing; and the
 /// sidebar as the window itself lays it out. Each draws whole at the window's size, or at its narrowest.
@@ -93,6 +93,8 @@ struct WindowStillsTests {
         case longTitleNarrow = "e2-a-long-title-narrow"
         case narrow = "e3-the-mac-app-narrow"
         case projectNarrow = "e4-a-project-narrow"
+        case busyProject = "b6-a-busy-project"
+        case busyProjectNarrow = "e5-a-busy-project-narrow"
         case sessionFromProject = "b4-a-session-from-its-project"
         case sessionPage = "b5-a-session-page-on-screen"
         case yourTurn = "f1-your-turn"
@@ -105,7 +107,7 @@ struct WindowStillsTests {
         /// The window's width: as drawn, or as narrow as it goes.
         var width: CGFloat {
             switch self {
-            case .longTitleNarrow, .narrow, .projectNarrow: WindowStyle.smallest.width
+            case .longTitleNarrow, .narrow, .projectNarrow, .busyProjectNarrow: WindowStyle.smallest.width
             default: WindowStyle.size.width
             }
         }
@@ -127,6 +129,9 @@ struct WindowStillsTests {
                 run.askToFinish("sr-gs7kq2")
             case .project, .projectNarrow:
                 Self.pick(.project("switchboard"), in: run)
+                Self.lookedAtScreen(run)
+            case .busyProject, .busyProjectNarrow:
+                Self.pick(.project("switchboard"), in: run, on: Self.busyLine)
                 Self.lookedAtScreen(run)
             case .pressed:
                 _ = run.press(.yes("Approve"), on: AskAddress(session: "sr-macapp", ask: "k1"), at: now)
@@ -187,6 +192,7 @@ struct WindowStillsTests {
             case .longTitle, .longTitleNarrow: longName
             case .sessionPage: startedInTmux
             case .snoozedOpen, .asleepLeads: Lines.snoozed[0]
+            case .busyProject, .busyProjectNarrow: busyLine
             default: Lines.watch[0]
             }
         }
@@ -292,6 +298,55 @@ struct WindowStillsTests {
             run.window(isVisible: true)
             if let look = run.looksAtScreen(at: now) {
                 _ = run.looked(.read(try! ScreenReading.read(reading)), of: look, at: now)
+            }
+        }
+
+        /// The first board with Switchboard holding a session of each kind, as A3 draws a project: Dashboard redesign
+        /// stopped on a prompt, an ask waiting; the Mac app, moved in, its three asks waiting; Request ledger working;
+        /// and Kit's bootstrap, moved in, on its own work; four items parked.
+        private static let busyLine = {
+            var line = try! JSONSerialization.jsonObject(with: Data(Lines.watch[0].utf8)) as! [String: Any]
+            let projects = line["projects"] as! [[String: Any]]
+            let all: [[String: Any]] = projects.flatMap { $0["sessions"] as! [[String: Any]] }
+            let session = { (id: String) -> [String: Any] in all.first { $0["id"] as? String == id }! }
+            var switchboard = projects.first { $0["key"] as? String == "switchboard" }!
+            let working = doing("working", "Drawing the ledger schema", subject: nil, since: 1_792_486_301_000)
+            let onItsWork = doing("onItsWork", "Waiting on", subject: "3 agents", since: 1_792_486_001_000)
+
+            switchboard["parked"] = 4
+            switchboard["sessions"] = [
+                session("sr-dash02"), session("sr-macapp"),
+                session("sr-rq7dgr").merging(["state": "working", "doing": working]) { $1 },
+                session("sr-k7t001").merging([
+                    "state": "onItsWork", "isOpen": true, "doing": onItsWork, "since": 1_792_486_001_000,
+                    "updatedAt": 1_792_486_001_000, "now": ["Running the bootstrap's checks"],
+                ]) { $1 },
+            ]
+            line["projects"] = [switchboard] + projects.filter { $0["key"] as? String == "goosemates" }
+            line["rows"] = (line["rows"] as! [[String: Any]]).map(Self.movedIn)
+            return String(decoding: try! JSONSerialization.data(withJSONObject: line), as: UTF8.self)
+        }()
+
+        /// A session's `doing`, as `watch` prints it.
+        private static func doing(_ kind: String, _ lead: String, subject: String?, since: Int64) -> [String: Any] {
+            let words: [String: Any] = [
+                "lead": lead, "mono": NSNull(), "subject": subject.map { $0 as Any } ?? NSNull(), "more": NSNull(), "until": NSNull(),
+            ]
+
+            return ["is": kind, "line": words, "since": since]
+        }
+
+        /// A row of the busy project's: the Mac app's under Switchboard, and Request ledger's working.
+        private static func movedIn(_ row: [String: Any]) -> [String: Any] {
+            switch row["session"] as? String {
+            case "sr-macapp":
+                return row.merging(["project": "switchboard", "projectName": "Switchboard", "letters": "Sw"]) { $1 }
+            case "sr-rq7dgr":
+                let lines = (row["lines"] as! [[String: Any]]).map { $0.merging(["is": "working"]) { $1 } }
+
+                return row.merging(["section": "working", "lines": lines]) { $1 }
+            default:
+                return row
             }
         }
 

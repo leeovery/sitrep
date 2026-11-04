@@ -148,7 +148,7 @@ struct WindowMotionTests {
             standing: .doing(
                 .working, Board.Row.Words(lead: Sample.writing.title, mono: Sample.writing.code, more: nil)
             ),
-            since: Date(timeIntervalSince1970: 0), now: [], next: nil, updated: Date(timeIntervalSince1970: 0), log: []
+            since: Date(timeIntervalSince1970: 0), now: nil, next: nil, updated: Date(timeIntervalSince1970: 0), log: []
         )],
         waiting: [], parked: 0
     )
