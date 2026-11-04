@@ -8,7 +8,8 @@ public struct Program: Sendable, Equatable {
     public let environment: [String: String]
     /// How long it may run before it is killed: `.infinity` for one watched, which runs for the app's life.
     public let limit: TimeInterval
-    /// How it is ended at its limit, or as its task is cancelled.
+    /// How it is ended at its limit, or as its task is cancelled, by `runProgram`. `WatchProgram`, which runs `watch`
+    /// for the app's life and ends it its own way, does not read it.
     public let stopping: Stopping
 
     public init(
@@ -23,11 +24,12 @@ public struct Program: Sendable, Equatable {
     }
 }
 
-/// How a program is ended early, outright (SIGKILL), as an interactive shell ignores SIGTERM.
+/// How a program is ended early: killed outright (SIGKILL), as an interactive shell ignores SIGTERM; or, gently, told
+/// to end first.
 public enum Stopping: Sendable, Equatable {
-    /// It alone, as a login shell is: what its startup files started, an ssh-agent among it, is not its to end.
+    /// It alone, killed, as a login shell is: what its startup files started, an ssh-agent among it, is not its to end.
     case alone
-    /// With its process group, every program it started: the CLI's tmux, `ps` and osascript.
+    /// Killed with its process group, every program it started: the CLI's tmux, `ps` and osascript.
     case group
     /// Its process group told to end first (SIGTERM), so the CLI may put back what it changed, then killed once the
     /// grace has passed: a jump, whose knock's marker is put back.
@@ -148,6 +150,7 @@ final class Running: Sendable {
         var pid: pid_t?
         var isStopped = false
         var hasEnded = false
+        var isEnding = false
     }
 
     private let stopping: Stopping
@@ -177,10 +180,20 @@ final class Running: Sendable {
         end()
     }
 
-    /// Ends it as its `Stopping` says, while it runs: a gentle stop kills its group once the grace has passed, without
-    /// waiting on it. The group is killed then though its leader has ended, as what it started may not have: a pid is
-    /// not given out again while a group of that id has members, and an empty group takes no signal.
+    /// Ends it as its `Stopping` says, while it runs, once however many ask, a stop and the limit together: a gentle
+    /// stop kills its group once the grace has passed, without waiting on it. The group is killed then though its
+    /// leader has ended, as what it started may not have: a pid is not given out again while a group of that id has
+    /// members, and an empty group takes no signal.
     func end() {
+        let isFirst = state.withLock { state in
+            defer { state.isEnding = state.isEnding || state.pid != nil }
+            return !state.isEnding
+        }
+
+        guard isFirst else {
+            return
+        }
+
         switch stopping {
         case .alone:
             signal(SIGKILL, group: false)

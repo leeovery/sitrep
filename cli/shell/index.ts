@@ -171,11 +171,19 @@ const signals: Signals = {
 /** What SIGTERM does before the run ends, while anything is held; listened for only then, so `watch`'s own end is as ever. */
 const undos = new Set<() => Promise<void>>()
 
+let isEnding = false
+
+/** Once, though SIGTERM comes again while the undos run. */
 const undoAndEnd = () => {
+  if (isEnding) {
+    return
+  }
+
+  isEnding = true
   void Promise.allSettled([...undos].map(undo => undo())).then(() => process.exit(143))
 }
 
-const atTerm = (undo: () => Promise<void>) => {
+export const atTerm = (undo: () => Promise<void>) => {
   const held = () => undo()
 
   if (undos.size === 0) {

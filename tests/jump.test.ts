@@ -282,6 +282,32 @@ test('a terminal taking the marker only after the find gave up is put back all t
   expect(t.screen.directories()).toEqual({ [late.id]: ODD_FOLDER })
 })
 
+test('a terminal taking the marker only after the listing that follows the find is put back to $HOME, straight to its device', async () => {
+  const later = { id: 'LATER-TERMINAL', device: WINDOW, directory: ODD_FOLDER, lateBy: 2 }
+  const t = oneWindow(IN_TMUX, { tmux: SHOWN, ghostty: [later] })
+
+  expect((await t.run('jump', ...SESSION)).exit).toBe(EXIT.refused)
+  expect(runsOf(t, 'osascript').map(words => words[2])).toEqual([LIST, FIND_AND_FOCUS, LIST])
+  expect(t.screen.written).toEqual([
+    { device: WINDOW, text: reportText(MARKER) },
+    { device: WINDOW, text: reportText(HOME) },
+  ])
+  expect(t.screen.directories()).toEqual({ [later.id]: HOME })
+})
+
+test('a listing after a find that gave up, killed at its limit, puts $HOME straight back and leaves the jump unanswered', async () => {
+  const later = { id: 'LATER-TERMINAL', device: WINDOW, directory: ODD_FOLDER, lateBy: 2 }
+  const t = oneWindow(IN_TMUX, { tmux: SHOWN, ghostty: [later], stalls: run => run === 3 })
+
+  expect(await t.run('jump', ...SESSION)).toEqual({
+    exit: EXIT.unanswered,
+    out: '',
+    err: `sitrep: Ghostty did not answer within ${PROGRAM_MS / 1_000} seconds: most likely the Mac is too busy.\n`,
+  })
+  expect(t.screen.written.at(-1)).toEqual({ device: WINDOW, text: reportText(HOME) })
+  expect(t.screen.directories()).toEqual({ [later.id]: HOME })
+})
+
 test('a terminal that reported no directory is put back to $HOME', async () => {
   const blank = { id: 'BLANK-TERMINAL', device: WINDOW, directory: '' }
   const t = oneWindow(IN_TMUX, { tmux: SHOWN, ghostty: [blank] })
@@ -390,20 +416,6 @@ test('a find that fails once the terminal took the marker puts the terminal back
   expect(t.screen.directories()).toEqual(PUT_BACK_HOME)
 })
 
-test('when the listing after a failed find fails too, the find’s failure is the one told', async () => {
-  const t = oneWindow(IN_TMUX, {
-    tmux: SHOWN,
-    ghostty: TERMINALS,
-    refused: run => ({ 2: REFUSAL, 3: 'the listing broke as well' })[run],
-  })
-
-  expect(await t.run('jump', ...SESSION)).toEqual({
-    exit: EXIT.refused,
-    out: '',
-    err: `sitrep: osascript: ${REFUSAL}\n`,
-  })
-})
-
 /** What osascript says when Ghostty does not answer in time, as it does with the screen locked. */
 const TIMED_OUT = '131:133: execution error: Ghostty got an error: AppleEvent timed out. (-1712)'
 
@@ -473,6 +485,43 @@ test('told to end while its marker is out, the jump puts it back straight to the
   expect(t.screen.directories()).toEqual(PUT_BACK_HOME)
 })
 
+test('told to end while the marker is still being written, the jump puts it back once the write lands', async () => {
+  const t = oneWindow(IN_TMUX, { tmux: SHOWN, ghostty: TERMINALS, hangs: run => run === 2 })
+  const marking = t.screen.holdWrite(text => text === reportText(MARKER))
+
+  void t.run('jump', ...SESSION)
+  await marking.arrived
+  expect(t.held()).toBe(1)
+
+  const ending = t.term()
+
+  marking.release()
+  await ending
+
+  expect(t.screen.written).toEqual([
+    { device: WINDOW, text: reportText(MARKER) },
+    { device: WINDOW, text: reportText(HOME) },
+  ])
+  expect(t.screen.directories()).toEqual(PUT_BACK_HOME)
+})
+
+test('told to end once the find has answered, the jump leaves the terminal on the directory its put-back writes, never $HOME', async () => {
+  const t = oneWindow(IN_TMUX)
+  const puttingBack = t.screen.holdWrite(text => text === reportText(ODD_FOLDER))
+  const running = t.run('jump', ...SESSION)
+
+  await puttingBack.arrived
+
+  const ending = t.term()
+
+  puttingBack.release()
+  await ending
+
+  expect(await running).toEqual({ exit: EXIT.done, out: '', err: '' })
+  expect(t.screen.written.map(each => each.text)).toEqual([reportText(MARKER), reportText(ODD_FOLDER)])
+  expect(t.screen.directories()).toEqual(DIRECTORIES)
+})
+
 test('a jump holds nothing to undo once its knock is over, so SIGTERM after it ends the run as ever', async () => {
   const t = oneWindow(IN_TMUX)
 
@@ -495,7 +544,7 @@ test('each Ghostty program asks Ghostty within the time limit, its running check
   }
 })
 
-test('a Ghostty device that does not answer is passed over for the next, which does; Ghostty is listed once before the knocks', async () => {
+test('a Ghostty device that does not answer is passed over for the next, which does, $HOME put straight back to it; Ghostty is listed once before the knocks', async () => {
   const SILENT = '/dev/ttys099'
   const t = oneWindow(IN_TMUX, {
     tmux: serverShowing(ghosttyClient(SILENT, CLAUDES), ghosttyClient(WINDOW, CLAUDES)),
@@ -511,7 +560,12 @@ test('a Ghostty device that does not answer is passed over for the next, which d
     ['osascript', '-e', LIST],
     ['osascript', '-e', FIND_AND_FOCUS, NEXT_MARKER],
   ])
-  expect(t.screen.written.map(each => each.device)).toEqual([SILENT, WINDOW, WINDOW])
+  expect(t.screen.written).toEqual([
+    { device: SILENT, text: reportText(MARKER) },
+    { device: SILENT, text: reportText(HOME) },
+    { device: WINDOW, text: reportText(NEXT_MARKER) },
+    { device: WINDOW, text: reportText(ODD_FOLDER) },
+  ])
 })
 
 test('a put-back that fails does not stop the jump: the next device is knocked on', async () => {

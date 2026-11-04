@@ -51,8 +51,10 @@ public struct SitRepCLI: Sendable {
     /// too busy for a jump to land while Lee still wants it. It was 180s, a backstop, until a jump under a load of 250
     /// ran all of it, and every click behind it waited.
     static let jumpLimit: TimeInterval = 15
-    /// How long a jump told to end has to put back its knock's marker, a write to a device, before it is killed.
-    static let jumpGrace: TimeInterval = 0.3
+    /// How long a jump told to end has to put back its knock's marker, a write to a device, before it is killed. A CLI
+    /// holding the marker out exits once it is put back, and one holding nothing dies at the signal, so the grace costs
+    /// time only for a CLI stuck; under a load of 250, Bun can take longer than 300ms to run its listener and write.
+    static let jumpGrace: TimeInterval = 1
     /// How the CLI says an app gave a jump no answer in time, as when the Mac is too busy (cli/main.ts).
     static let unansweredStatus: Int32 = 3
 

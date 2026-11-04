@@ -155,6 +155,41 @@ struct OneJumpTests {
         #expect(second.news.isEmpty)
     }
 
+    /// A joined pair, then a click on another session: both clicks of the pair hear the jump stopped.
+    @Test func bothClicksOfAJoinedPairHearItStopped() async {
+        let (oneJump, clock) = Self.made()
+        let jumps = Jumps(), first = Heard(), second = Heard(), other = Heard()
+
+        oneJump.run(to: "sr-a", jumps.jump(1), told: first.add)
+        await Self.until { jumps.started == [1] && clock.asked.count == 1 }
+        oneJump.run(to: "sr-a", jumps.jump(2), told: second.add)
+        oneJump.run(to: "sr-b", jumps.jump(3), told: other.add)
+        await Self.until { jumps.started == [1, 3] && second.news.count == 1 }
+
+        #expect(first.news == [.ended(.stopped)])
+        #expect(second.news == [.ended(.stopped)])
+        #expect(other.news.isEmpty)
+    }
+
+    /// Stops in a chain, A then B then C: each waits on the one before, B never runs, and C runs once A has ended.
+    @Test func aChainOfStopsEachWaitsOnTheOneBefore() async {
+        let (oneJump, _) = Self.made()
+        let jumps = Jumps(lingering: [1]), a = Heard(), b = Heard(), c = Heard()
+
+        oneJump.run(to: "sr-a", jumps.jump(1), told: a.add)
+        await Self.until { jumps.started == [1] }
+        oneJump.run(to: "sr-b", jumps.jump(2), told: b.add)
+        oneJump.run(to: "sr-c", jumps.jump(3), told: c.add)
+        await Self.settle()
+        #expect(jumps.started == [1])
+
+        jumps.answer(1, .stopped)
+        await Self.until { jumps.started == [1, 3] && b.news.count == 1 }
+        #expect(a.news == [.ended(.stopped)])
+        #expect(b.news == [.ended(.stopped)])
+        #expect(c.news.isEmpty)
+    }
+
     /// A CLI that answers stopped, its run killed, ends the jump stopped, which no surface tells as a failure.
     @Test func aJumpWhoseCLIIsStoppedEndsStopped() async {
         let (oneJump, _) = Self.made()

@@ -82,9 +82,16 @@ type HeldServer = {
 /**
  * A Ghostty terminal: its id, the device it is on, and the working directory
  * it reports. One `isLate` takes a report only once the next Ghostty program
- * has answered, as a terminal slower than the find would.
+ * has answered, as a terminal slower than the find would; one `lateBy` only
+ * once that many have, as one slower than the listing after it too would.
  */
-export type FakeTerminal = { id: string; device: string; directory: string; isLate?: boolean }
+export type FakeTerminal = {
+  id: string
+  device: string
+  directory: string
+  isLate?: boolean
+  lateBy?: number
+}
 
 /** The tmux server's socket a window runs under, unless a test says otherwise. */
 export const SOCKET = '/private/tmp/tmux-501/default'
@@ -234,7 +241,8 @@ const latch = () => {
  */
 function screen(options: Options) {
   const terminals = options.ghostty?.map(each => ({ ...each }))
-  const late = new Map<FakeTerminal, string>()
+  /** The report each late terminal takes, and how many more Ghostty programs answer before it does. */
+  const late = new Map<FakeTerminal, { directory: string; programs: number }>()
   /** tmux's servers as they stand, a select changing which window a client shows. */
   const servers = new Map<string, HeldServer>(
     Object.entries(options.tmux ?? {}).map(([socket, server]) => [
@@ -267,16 +275,22 @@ function screen(options: Options) {
   const holds = new Map<string, { arrive: () => void; released: Promise<void> }>()
   /** Open once an osascript run that hangs has begun. */
   const hung = latch()
+  /** Writes that wait, by what they write, until the test lets them land. */
+  const writeHolds: { matches: (text: string) => boolean; arrive: () => void; released: Promise<void> }[] =
+    []
 
   const pidOf = (client: Required<FakeClient>) => 1000 + clients.indexOf(client)
 
-  /** Late terminals take the reports they were given. */
-  const settle = () => {
-    for (const [terminal, directory] of late) {
-      terminal.directory = directory
-    }
+  /** A Ghostty program answered: late terminals whose time has come take the reports they were given; with `all`, every one does. */
+  const settle = (all = false) => {
+    for (const [terminal, report] of late) {
+      report.programs -= 1
 
-    late.clear()
+      if (all || report.programs <= 0) {
+        terminal.directory = report.directory
+        late.delete(terminal)
+      }
+    }
   }
 
   /** Makes the window current in the session, for every client attached to it; refused for a session not holding it. */
@@ -534,20 +548,40 @@ function screen(options: Options) {
       throw new Error(`ENXIO: no such device or address, open '${device}'`)
     }
 
+    const held = writeHolds.find(each => each.matches(text))
+
+    if (held !== undefined) {
+      writeHolds.splice(writeHolds.indexOf(held), 1)
+      held.arrive()
+      await held.released
+    }
+
     written.push({ device, text })
 
     for (const terminal of (terminals ?? []).filter(each => each.device === device)) {
-      if (terminal.isLate === true) {
-        late.set(terminal, decodeURIComponent(path))
+      const programs = terminal.lateBy ?? (terminal.isLate === true ? 1 : 0)
+
+      if (programs > 0) {
+        late.set(terminal, { directory: decodeURIComponent(path), programs })
       } else {
         terminal.directory = decodeURIComponent(path)
       }
     }
   }
 
+  /** The next write whose text matches waits until `release()`, landing then; `arrived` once it has begun. */
+  const holdWrite = (matches: (text: string) => boolean) => {
+    const arrival = latch()
+    const release = latch()
+
+    writeHolds.push({ matches, arrive: arrival.open, released: release.opened })
+
+    return { arrived: arrival.opened, release: release.open }
+  }
+
   /** Each terminal's id and directory once every report has landed. */
   const directories = () => {
-    settle()
+    settle(true)
 
     return Object.fromEntries((terminals ?? []).map(each => [each.id, each.directory]))
   }
@@ -568,7 +602,18 @@ function screen(options: Options) {
     }
   }
 
-  return { run, writeTo, ran, limits, written, focused, directories, hold, hanging: hung.opened }
+  return {
+    run,
+    writeTo,
+    ran,
+    limits,
+    written,
+    focused,
+    directories,
+    hold,
+    holdWrite,
+    hanging: hung.opened,
+  }
 }
 
 export function terminal(options: Options = {}) {

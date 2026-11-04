@@ -106,7 +106,7 @@ struct SitRepCLITests {
     }
 
     /// Stopped at its limit or by a later click, a jump is told to end, so it puts back its knock's marker, and is
-    /// killed with every program it started 300ms on; every other run of the CLI is killed with its group at once.
+    /// killed with every program it started a second on; every other run of the CLI is killed with its group at once.
     @Test func aJumpIsStoppedGentlyAndEveryOtherRunWithItsGroup() async {
         let (cli, programs) = Self.cli(Self.exited(0))
 
@@ -114,7 +114,7 @@ struct SitRepCLITests {
         _ = await cli.wake(["k2"], of: "sr-4g01a7")
         _ = await cli.screen()
 
-        #expect(programs.all.map(\.stopping) == [.gently(grace: 0.3), .group, .group])
+        #expect(programs.all.map(\.stopping) == [.gently(grace: 1), .group, .group])
     }
 
     /// The CLI's own words for an app that gave no answer in time, as Ghostty killed at its 8 seconds, exiting 3: told

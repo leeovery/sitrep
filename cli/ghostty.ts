@@ -250,60 +250,98 @@ const bestEffort = (session: Promise<unknown>) =>
 const putBackHome = (io: Io, device: string) =>
   io.writeTo(device, reportText(directoryAfter(undefined, io.env.HOME ?? '/')))
 
-/** Lists the terminals once more, and puts back any now reporting the marker. */
-const putBackMarked = async (
-  io: Io,
-  device: string,
-  before: readonly Terminal[],
-  marker: string,
-) => {
-  const marked = (await terminals(io)).find(each => each.directory === marker)
-
-  if (marked !== undefined) {
-    await putBack(io, device, before, marked.id)
-  }
-}
-
-/**
- * Knocks on the device and focuses the Ghostty terminal that answers; its
- * id, or undefined when none did. A device that will not take the knock, a
- * closed one (EIO, ENXIO), answers nothing and has nothing to put back. A
- * terminal taking the marker is put back whatever comes of the find: the
- * one found, to the directory it reported before; one that took it after
- * the find gave up, as far as listing again can tell, else straight to the
- * device; and, the find failing, or the run told to end while the marker is
- * out, straight to the device, asking Ghostty nothing more.
- */
-const knock = async (io: Io, device: string, before: readonly Terminal[]) => {
-  const marker = markerOf(io.random)
-  const isWritten = await io.writeTo(device, reportText(marker)).then(
+/** Whether a write landed. */
+const landed = (write: Promise<unknown>) =>
+  write.then(
     () => true,
     () => false,
   )
 
-  if (!isWritten) {
-    return undefined
-  }
+/**
+ * Knocks on the device and focuses the Ghostty terminal that answers; its
+ * id, or undefined when none did. A device that will not take the knock, a
+ * closed one (EIO, ENXIO), answers nothing and has nothing to put back.
+ *
+ * A terminal taking the marker is put back whatever comes of the find: the
+ * one found, to the directory it reported before. A find that gave up lists
+ * the terminals again: one on the marker goes back to the directory it
+ * reported; with none on it, or the listing failing, $HOME goes straight to
+ * the device, as under load Ghostty can take the marker after the listing,
+ * and the device keeps the order of its writes. A find that fails puts
+ * $HOME straight to the device, asking Ghostty nothing more.
+ *
+ * Told to end (SIGTERM) from the moment the marker is written, the run puts
+ * $HOME straight to the device before it ends, once the marker's write has
+ * landed, unless the put-back the knock chose is under way and lands.
+ */
+const knock = async (io: Io, device: string, before: readonly Terminal[]) => {
+  const marker = markerOf(io.random)
+  const writing = landed(io.writeTo(device, reportText(marker)))
+  let puttingBack: Promise<boolean> | undefined
+  const putting = (write: Promise<void>) => {
+    puttingBack = landed(write)
 
-  const letGo = io.atTerm(() => bestEffort(putBackHome(io, device)))
+    return puttingBack
+  }
+  const letGo = io.atTerm(async () => {
+    if ((await writing) && !(await puttingBack)) {
+      await bestEffort(putBackHome(io, device))
+    }
+  })
 
   try {
+    if (!(await writing)) {
+      return undefined
+    }
+
     const found = await ghostty(io, FIND_AND_FOCUS, marker).catch(async (error: unknown) => {
-      await bestEffort(putBackHome(io, device))
+      await putting(putBackHome(io, device))
 
       throw error
     })
     const focused = found.trim()
 
-    await bestEffort(
-      focused === ''
-        ? putBackMarked(io, device, before, marker).catch(() => putBackHome(io, device))
-        : putBack(io, device, before, focused),
-    )
+    if (focused === '') {
+      await putBackAfterGivingUp(io, device, before, marker, putting)
 
-    return focused === '' ? undefined : focused
+      return undefined
+    }
+
+    await putting(putBack(io, device, before, focused))
+
+    return focused
   } finally {
     letGo()
+  }
+}
+
+/**
+ * After a find that gave up, lists the terminals once more: one on the
+ * marker is put back to the directory it reported, else $HOME goes straight
+ * to the device. A listing killed at its limit is thrown once the put-back
+ * is made, so the jump ends unanswered; any other failure of it is the
+ * put-back's alone.
+ */
+const putBackAfterGivingUp = async (
+  io: Io,
+  device: string,
+  before: readonly Terminal[],
+  marker: string,
+  putting: (write: Promise<void>) => Promise<boolean>,
+) => {
+  const listed = await terminals(io).then(
+    listing => ({ marked: listing.find(each => each.directory === marker) }),
+    (error: unknown) => ({ marked: undefined, error }),
+  )
+
+  await putting(
+    listed.marked === undefined
+      ? putBackHome(io, device)
+      : putBack(io, device, before, listed.marked.id),
+  )
+
+  if ('error' in listed && listed.error instanceof Unanswered) {
+    throw listed.error
   }
 }
 

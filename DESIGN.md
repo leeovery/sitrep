@@ -5414,12 +5414,18 @@ shape allows them. A jump made in Swift, in the app, stays parked too.
    - The old directory is written back however the find ends, `$HOME` for a
      terminal that reported none, or another jump's marker. A terminal that
      took the marker after the find gave up is put back too, as far as
-     listing again can tell. Since 4 November 2026 a find that fails, or a
-     listing after it that fails, and a jump told to end while its marker
-     is out, write `$HOME` straight to the device, asking Ghostty nothing:
-     only that device's terminal takes it, and nothing a jump reads says
-     the directory that terminal reported. Only a jump killed outright,
-     past its grace, leaves the marker (below, "The latest click wins").
+     listing again can tell. Since 4 November 2026 `$HOME` goes straight to
+     the device, asking Ghostty nothing, for a find that fails; for one
+     that gave up where the listing after it finds no terminal on the
+     marker, or fails, as under load Ghostty can take the marker after the
+     listing, and the device keeps its writes in order; and for a jump
+     told to end from the moment its marker is written, once that write
+     lands, unless the put-back the jump chose is under way and lands. Only
+     that device's terminal takes it, and nothing a jump reads says the
+     directory that terminal reported. Only a jump killed outright, past
+     its grace, leaves the marker (below, "The latest click wins"). A
+     listing after a find that gave up, killed at its 8 seconds, ends the
+     jump unanswered once `$HOME` is put back.
    - The listing reads ids, directories, then ids again, and is read again
      (three tries at most) while terminals open or close under it, so no
      directory is paired with the wrong terminal.
@@ -5571,8 +5577,13 @@ took 180, so some step ran unbounded. Lee's go, the same day: "Build it".
   or stopped by a click, the CLI's process group is told to end (SIGTERM):
   the CLI, and osascript, tmux, `ps`, lsappinfo and `open`, which share its
   group. The CLI, holding a knock's marker out, writes `$HOME` straight to
-  the device before it exits (step 3), and 300ms on the group is killed
-  (SIGKILL), whatever is left of it. `Process` makes each child the leader
+  the device before it exits (step 3), and a second on the group is killed
+  (SIGKILL), whatever is left of it. A CLI holding a marker out exits as
+  soon as it is put back, and one holding none dies at the signal, so the
+  grace costs time only for a CLI stuck; under a load of 250, Bun can take
+  longer than the 300ms first built to run its listener and write the
+  device. The next jump waits for the stopped one to end: at most the
+  grace, and the half second SitRep gives a run's output to drain. `Process` makes each child the leader
   of a group of its own, and Bun's children stay in it (both checked on
   this Mac the same day); a group not the child's own, which would be
   SitRep's, is never signalled. Chosen over the CLI ending its own children
@@ -5590,7 +5601,9 @@ took 180, so some step ran unbounded. Lee's go, the same day: "Build it".
   read among it, where it was 180, a backstop. A jump takes under a second
   as Ghostty answers, and one Ghostty does not answer is refused at its
   first question, after 5 seconds; past 15, the Mac is too busy for a jump
-  to land while Lee still wants it. The CLI's own limits stand: 2 seconds
+  to land while Lee still wants it. The 15 run from the CLI's start, so
+  they do not count the wait for a jump it stopped to end. The CLI's own
+  limits stand: 2 seconds
   for each of tmux, `ps`, lsappinfo and `open`, and 5 for each question to
   Ghostty. A listing and a find may each take up to their 8 seconds
   (below), past the 15; the gentle stop puts the marker back all the same.

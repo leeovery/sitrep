@@ -167,6 +167,37 @@ struct RunTests {
         #expect(!FileManager.default.fileExists(atPath: touched.path))
     }
 
+    /// Told to end, the leader goes at once while what it started ignores it: that is killed once the grace has
+    /// passed, with the group, though its leader has ended.
+    @Test func whatALeaderLeftIgnoringTheSignalIsKilledAfterTheGrace() async throws {
+        let pidFile = Self.scratch()
+        let script = "trap 'exit 0' TERM; (trap '' TERM; sleep 30) & echo $! > '\(pidFile.path)'; wait"
+        let (ended, _) = await Self.timed(Self.sh(script, limit: 0.3, stopping: .gently(grace: 0.3)))
+
+        #expect(throws: RunError.timedOut(0.3)) { try ended.get() }
+        #expect(try await Self.isGone(Self.pid(in: pidFile)))
+    }
+
+    /// A stop and the limit together tell the program to end once.
+    @Test func aProgramIsToldToEndOnceHoweverManyAsk() async throws {
+        let told = Self.scratch()
+        let process = Process()
+        let running = Running(.gently(grace: 30))
+
+        process.executableURL = URL(fileURLWithPath: "/bin/sh")
+        process.arguments = ["-c", "trap 'echo told >> \"\(told.path)\"' TERM; while :; do sleep 0.05; done"]
+        try process.run()
+        defer { kill(-process.processIdentifier, SIGKILL) }
+        try await Task.sleep(for: .milliseconds(300))
+
+        running.started(process.processIdentifier)
+        running.stop()
+        running.end()
+        try await Task.sleep(for: .milliseconds(500))
+
+        #expect(String(decoding: try Data(contentsOf: told), as: UTF8.self) == "told\n")
+    }
+
     /// A file of the test's own, not there yet.
     private static func scratch() -> URL {
         FileManager.default.temporaryDirectory.appending(path: "sitrep-run-\(UUID().uuidString)")
