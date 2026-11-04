@@ -23,61 +23,29 @@ struct FilterTests {
         #expect(!Filter("ledg kit").matches("Request ledger", "Switchboard"))
     }
 
+    /// Nothing but spaces narrows nothing: every place's list, and every project, as with nothing typed.
     @Test func nothingButSpacesIsNoFilter() {
         #expect(Filter("   ").isEmpty)
-        #expect(Self.listed.narrowed(by: Filter("  ")) == Self.listed)
-    }
-
-    /// A session by its name and its project's, in its section; typing a project's name lists its sessions.
-    @Test func aSessionIsFoundByItsNameAndItsProjectsInItsSection() {
-        let ledger = Self.listed.narrowed(by: Filter("ledg"))
-        let switchboard = Self.listed.narrowed(by: Filter("switchboard"))
-
-        #expect(ledger.rows.map(\.id) == ["sr-rq7dgr"])
-        #expect(ledger.rows(in: .yourTurn).map(\.id) == ["sr-rq7dgr"])
-        #expect(switchboard.rows.map(\.id) == ["sr-dash02", "sr-rq7dgr"])
-    }
-
-    /// A session by its lines' words too: the Mac app's ask about the strip's edge, Dashboard redesign's prompt to run
-    /// `gh pr create`, Request ledger's turn drawing its schema.
-    @Test func aSessionIsFoundByAnyOfItsLinesWords() {
-        #expect(Self.listed.narrowed(by: Filter("strip edge")).rows.map(\.id) == ["sr-macapp"])
-        #expect(Self.listed.narrowed(by: Filter("gh pr")).rows.map(\.id) == ["sr-dash02"])
-        #expect(Self.listed.narrowed(by: Filter("schema")).rows.map(\.id) == ["sr-rq7dgr"])
+        for place in Place.allCases {
+            #expect(PlaceList(place, in: Self.listed, filter: Filter("  ")) == PlaceList(place, in: Self.listed))
+        }
+        #expect(Places(Self.listed, filter: Filter("  ")) == Places(Self.listed))
     }
 
     /// A working row by what it acts on, as `watch` printed it: Kit's "Waiting on 3 agents".
     @Test func aWorkingSessionIsFoundByWhatItActsOn() {
         let listed = Listed(heard(.line(Lines.bySession[0])))
 
-        #expect(listed.narrowed(by: Filter("3 agents")).rows.map(\.id) == ["sr-k7bt2s"])
-    }
-
-    @Test func eachSectionFiltersByTheSameRuleItsMatchesInTheirOrder() {
-        #expect(Self.listed.narrowed(by: Filter("e")).needsYou.map(\.id) == ["sr-macapp", "sr-dash02", "sr-gs7kq2"])
-        #expect(Self.listed.narrowed(by: Filter("le")).rows.map(\.id) == ["sr-gs7kq2", "sr-rq7dgr"])
-        #expect(Self.listed.narrowed(by: Filter("ledg")).needsYou.isEmpty)
-    }
-
-    /// A section with no match goes, heading and all.
-    @Test func aSectionWithNoMatchGoesFromTheList() {
-        let sidebar = Sidebar(Self.listed.narrowed(by: Filter("ledg")), folds: .open)
-
-        #expect(sidebar.lines.map(\.id) == [.fold(.section(.yourTurn)), .pick(.session("sr-rq7dgr"))])
+        #expect(PlaceList(.working, in: listed, filter: Filter("3 agents")).picks == [.session("sr-k7bt2s")])
     }
 
     /// A project by its name alone: Kit's, whose session is The bootstrap, but not by that.
-    @Test func aProjectShowsInProjectsWhileItsNameHoldsEveryWord() {
-        #expect(Self.listed.narrowed(by: Filter("kit")).projects.map(\.name) == ["Kit"])
-        #expect(Self.listed.narrowed(by: Filter("kit")).rows.isEmpty)
-        #expect(Self.listed.narrowed(by: Filter("boot")).projects.isEmpty)
-        #expect(Self.listed.narrowed(by: Filter("kit ledg")).projects.isEmpty)
-    }
+    @Test func aProjectStaysWhileItsNameHoldsEveryWord() {
+        let projects = { (text: String) in Places(Self.listed, filter: Filter(text)).projects.map(\.name) }
 
-    /// "No sessions match" shows only where nothing matches anywhere in the list.
-    @Test func theListIsEmptyOnlyWithNothingMatchingAnywhere() {
-        #expect(Sidebar(Self.listed.narrowed(by: Filter("zzz")), folds: .open).isEmpty)
-        #expect(!Sidebar(Self.listed.narrowed(by: Filter("kit")), folds: .open).isEmpty)
+        #expect(projects("kit") == ["Kit"])
+        #expect(projects("boot").isEmpty)
+        #expect(projects("kit ledg").isEmpty)
     }
 
     @Test(arguments: ["ledg", "LÉDG"])

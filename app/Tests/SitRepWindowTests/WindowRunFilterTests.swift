@@ -4,68 +4,56 @@ import struct SitRepPanel.Earlier
 @testable import SitRepWindow
 import Testing
 
-/// The sidebar's filter and folds as the window runs them: the filter narrows the list it shows, every section alike,
-/// Return opens the first match, and neither the filter nor a fold ever moves the pick.
+/// The sidebar's filter as the window runs it: it narrows the list beside the page and the projects, never the
+/// places' counts, Return opens the first match, and it never moves where the window is.
 struct WindowRunFilterTests {
-    @Test func theFilterNarrowsTheListItShowsAndClearedGivesTheWholeBoardBack() {
+    @Test func theFilterNarrowsTheListAndTheProjectsAndClearedGivesTheWholeBoardBack() throws {
         let run = opened()
 
         run.filter = Filter("dash")
-        #expect(run.listed(at: printedAt).rows.map(\.id) == ["sr-dash02"])
-        #expect(run.listed(at: printedAt).projects.isEmpty)
+        #expect(run.list(at: printedAt)?.picks == [needsYouLines[0], needsYouLines[2]])
+        #expect(run.places.projects.isEmpty)
+        #expect(run.places.count(of: .needsYou) == 6)
         run.filter = Filter()
-        #expect(run.listed(at: printedAt) == Listed(heard(line(0))))
+        #expect(run.list(at: printedAt)?.picks == needsYouLines)
+        #expect(run.places.projects.count == 4)
     }
 
-    @Test func filteringNeverMovesThePickEvenWithThePickedSessionFilteredOut() {
+    @Test func filteringNeverMovesThePickEvenWithThePickedLineFilteredOut() {
         let run = opened()
         let page = run.page(at: printedAt)
 
         run.filter = Filter("ledg")
-        #expect(run.pick == .session("sr-macapp"))
+        #expect(run.location.picked?.pick == macAppK1)
+        #expect(run.list(at: printedAt)?.row(macAppK1) == nil)
         #expect(run.page(at: printedAt) == page)
     }
 
-    /// The first row of the list: Goosemates' ask under Needs you comes before Request ledger under Your turn.
-    @Test func returnOpensTheFirstMatchInTheListAndFollowsIt() {
+    /// The list's first match picked, a step replaced; with none in the list, the first project that matches opened.
+    @Test func returnOpensTheFirstMatchInTheListElseTheFirstProject() {
         let run = opened()
 
-        run.filter = Filter("le")
+        run.filter = Filter("goose")
         run.openFirstMatch()
-        #expect(run.pick == .session("sr-gs7kq2"))
+        #expect(run.location.picked?.pick == .line("ask:sr-gs7kq2:k1"))
         #expect(run.following == ["sr-gs7kq2"])
-        run.filter = Filter("ledg")
+        run.filter = Filter("kit")
         run.openFirstMatch()
-        #expect(run.following == ["sr-rq7dgr"])
-    }
-
-    /// Your turn folded while the field holds "ledg", Request ledger's row, its one match, hidden inside it: Return
-    /// opens nothing. Then with "switch", Needs you folded too: Return opens the first row that shows, Switchboard's
-    /// under Projects.
-    @Test func returnOpensOnlyWhatTheListShows() {
-        let run = opened()
-
-        run.filter = Filter("ledg")
-        run.toggle(.section(.yourTurn))
-        run.openFirstMatch()
-        #expect(run.pick == .session("sr-macapp"))
-        run.filter = Filter("switch")
-        run.toggle(.section(.needsYou))
-        run.openFirstMatch()
-        #expect(run.pick == .project("switchboard"))
-        #expect(run.following == ["sr-dash02", "sr-rq7dgr"])
+        #expect(run.location == .project("kit"))
+        #expect(run.following == ["sr-k7t001"])
     }
 
     @Test(arguments: ["", "zzz"])
     func returnWithNoFilterOrNoMatchOpensNothing(_ typed: String) {
         let run = opened()
+        let location = run.location
 
         run.filter = Filter(typed)
         run.openFirstMatch()
-        #expect(run.pick == .session("sr-macapp"))
+        #expect(run.location == location)
     }
 
-    /// What the filter holds is not kept: reopened, the window lists the whole board, its pick's row among it.
+    /// What the filter holds is not kept: reopened, the window lists the whole board.
     @Test func closingTheWindowClearsTheFilter() {
         let run = opened()
 
@@ -73,7 +61,7 @@ struct WindowRunFilterTests {
         run.close()
         #expect(run.filter.isEmpty)
         run.open()
-        #expect(run.listed(at: printedAt).rows.map(\.id).contains("sr-macapp"))
+        #expect(run.list(at: printedAt)?.picks == needsYouLines)
     }
 
     @Test func minimisingTheWindowKeepsTheFilter() {
@@ -86,120 +74,36 @@ struct WindowRunFilterTests {
     }
 }
 
-/// The sidebar's folds as the window runs them: a heading folds and unfolds what is under it, the folds Lee leaves
-/// kept, and while the filter holds text every section with a match shows open, "N earlier" too, its fold coming back
-/// as the field clears.
-struct WindowRunFoldsTests {
-    private static func ids(_ run: WindowRun) -> [Sidebar.Line.ID] {
-        run.sidebar(at: printedAt).lines.map(\.id)
-    }
-
-    @Test func itOpensWithTheFoldsItWasGiven() {
-        let folds = Folds(sections: [.yourTurn], projects: false)
-
-        #expect(WindowRun(folds: folds).folds == folds)
-        #expect(WindowRun().folds == Folds())
-    }
-
-    @Test func aHeadingFoldsAndUnfoldsItsRowsAndThePickStays() {
-        let run = opened()
-
-        run.pickInList(.session("sr-dash02"), at: printedAt)
-        run.toggle(.section(.needsYou))
-        #expect(run.folds.contains(.section(.needsYou)))
-        #expect(!Self.ids(run).contains(.pick(.session("sr-dash02"))))
-        #expect(run.pick == .session("sr-dash02"))
-        #expect(run.page(at: printedAt).session?.id == "sr-dash02")
-        run.toggle(.section(.needsYou))
-        #expect(Self.ids(run).contains(.pick(.session("sr-dash02"))))
-    }
-
-    /// Projects folded as it is at first, Your turn folded by Lee: typing "switch" opens both, Lee's folds as he left
-    /// them; cleared, they fold again.
-    @Test func whileTheFilterHoldsTextEverySectionWithAMatchShowsOpenAndItsFoldComesBackAsItClears() {
-        let run = opened()
-
-        run.toggle(.section(.yourTurn))
-        run.filter = Filter("switch")
-        #expect(Self.ids(run) == [
-            .fold(.section(.needsYou)), .pick(.session("sr-dash02")), .fold(.section(.yourTurn)),
-            .pick(.session("sr-rq7dgr")), .fold(.projects), .pick(.project("switchboard")),
-        ])
-        #expect(run.folds == Folds(sections: [.yourTurn, .snoozed]))
-        run.filter = Filter()
-        #expect(!Self.ids(run).contains(.pick(.session("sr-rq7dgr"))))
-        #expect(!Self.ids(run).contains(.pick(.project("switchboard"))))
-    }
-
-    /// An hour on, Request ledger's turn has passed the fold period; typing its name shows it under "N earlier".
-    @Test func whileTheFilterHoldsTextNEarliersMatchingRowsShow() {
-        let run = opened(wall: { printedAt.addingTimeInterval(3600) })
-
-        run.filter = Filter("ledg")
-        #expect(Self.ids(run) == [.fold(.section(.yourTurn)), .fold(.earlier), .pick(.session("sr-rq7dgr"))])
-        run.filter = Filter()
-        #expect(Self.ids(run).contains(.fold(.earlier)))
-        #expect(!Self.ids(run).contains(.pick(.session("sr-rq7dgr"))))
-    }
-
-    /// A heading clicked while the field holds text folds only until the field clears, leaving Lee's folds as they were.
-    @Test func aFoldMadeWhileFilteringLastsUntilTheFieldClears() {
-        let run = opened()
-
-        run.filter = Filter("ledg")
-        run.toggle(.section(.yourTurn))
-        #expect(!Self.ids(run).contains(.pick(.session("sr-rq7dgr"))))
-        run.filter = Filter("ledge")
-        #expect(!Self.ids(run).contains(.pick(.session("sr-rq7dgr"))))
-        #expect(run.folds == Folds())
-        run.filter = Filter()
-        run.filter = Filter("ledg")
-        #expect(Self.ids(run).contains(.pick(.session("sr-rq7dgr"))))
-    }
-
-    @Test func projectsStartsFoldedAndOpensToEveryProject() {
-        let run = opened()
-
-        #expect(Self.ids(run).last == .fold(.projects))
-        run.toggle(.projects)
-        #expect(!run.folds.projects)
-        #expect(Self.ids(run).suffix(4) == [
-            .pick(.project("sitrep")), .pick(.project("switchboard")), .pick(.project("goosemates")),
-            .pick(.project("kit")),
-        ])
-    }
-}
-
 /// Your turn's rows fold into "N earlier" as they pass the fold period, by the wall clock, and refold as time passes
-/// and as the period changes, nothing polling: the next row to pass it is the window's next change.
+/// and as the period changes, nothing polling: the next row to pass it is the window's next change. The fold opens in
+/// place, shows open while the filter holds text, and is never kept.
 struct WindowRunPeriodTests {
     /// The wall clock, moved on by the test.
     private final class Wall {
         var now = printedAt
     }
 
-    private static func ids(_ run: WindowRun) -> [Sidebar.Line.ID] {
-        run.sidebar(at: printedAt).lines.map(\.id)
+    private static func ids(_ run: WindowRun) -> [PlaceList.Item.ID] {
+        run.list(at: printedAt)?.items.map(\.id) ?? []
     }
 
-    /// The Mac app's and Dashboard redesign's turns ended 30 and 90 minutes before the board was seeded, Request
-    /// ledger's 12: Dashboard redesign's is past the hour.
+    /// On Your turn: the Mac app's and Dashboard redesign's turns ended 30 and 90 minutes before the board was seeded,
+    /// Request ledger's 12: Dashboard redesign's is past the hour.
     private static func run(_ wall: Wall, period: FoldPeriod = .hour) -> WindowRun {
         let run = WindowRun(period: period, wall: { wall.now })
 
         run.show(heard(turned(["sr-macapp": 30, "sr-dash02": 90])), at: printedAt, reducesMotion: false)
         run.open()
+        run.click(.place(.yourTurn))
         return run
     }
 
     @Test func aRowPastThePeriodFoldsIntoNEarlierTheRestShowing() throws {
         let run = Self.run(Wall())
-        let sidebar = run.sidebar(at: printedAt)
+        let fold = try #require(run.list(at: printedAt)?.fold)
 
-        #expect(Array(sidebar.lines.map(\.id).drop { $0 != .fold(.section(.yourTurn)) }.prefix(4)) == [
-            .fold(.section(.yourTurn)), .pick(.session("sr-rq7dgr")), .pick(.session("sr-macapp")), .fold(.earlier),
-        ])
-        #expect(sidebar.lines.contains(.earlier(Earlier(projects: ["Switchboard"], isOpen: false))))
+        #expect(Self.ids(run) == [.pick(.session("sr-rq7dgr")), .pick(.session("sr-macapp")), .fold(.earlier)])
+        #expect(fold.earlier == Earlier(projects: ["Switchboard"], isOpen: false))
     }
 
     /// The Mac app's turn passes the hour 30 minutes on, at which the window is drawn again, folding it in.
@@ -213,7 +117,7 @@ struct WindowRunPeriodTests {
         #expect(Self.ids(run).contains(.pick(.session("sr-macapp"))))
         wall.now = passes
         #expect(!Self.ids(run).contains(.pick(.session("sr-macapp"))))
-        #expect(run.sidebar(at: printedAt).lines.contains(.earlier(Earlier(projects: ["SitRep", "Switchboard"], isOpen: false))))
+        #expect(run.list(at: printedAt)?.fold?.earlier == Earlier(projects: ["SitRep", "Switchboard"], isOpen: false))
     }
 
     @Test func thePeriodChangingRefoldsAtOnce() {
@@ -239,6 +143,8 @@ struct WindowRunPeriodTests {
         let run = WindowRun(period: .today, wall: { wall.now }, calendar: calendar)
 
         run.show(heard(line(0)), at: printedAt, reducesMotion: false)
+        run.open()
+        run.click(.place(.yourTurn))
         wall.now = midnight.addingTimeInterval(24 * 3600 - 1)
         #expect(!Self.ids(run).contains(.fold(.earlier)))
         wall.now = midnight.addingTimeInterval(24 * 3600)
@@ -248,8 +154,8 @@ struct WindowRunPeriodTests {
     @Test func nEarlierOpensInPlaceAndFoldsAgainEachTimeTheWindowOpens() {
         let run = Self.run(Wall())
 
-        run.toggle(.earlier)
-        #expect(Self.ids(run).suffix(3) == [.fold(.earlier), .pick(.session("sr-dash02")), .fold(.projects)])
+        run.toggleFold(of: .yourTurn)
+        #expect(Self.ids(run).suffix(2) == [.fold(.earlier), .pick(.session("sr-dash02"))])
         run.close()
         run.open()
         #expect(!Self.ids(run).contains(.pick(.session("sr-dash02"))))
@@ -257,11 +163,38 @@ struct WindowRunPeriodTests {
 
     /// Its last row starting a turn, the line goes, and closes: a row passing the period later shows it folded.
     @Test func nEarlierFoldsAsItsLineGoes() {
-        let run = Self.run(Wall())
+        let wall = Wall()
+        let run = Self.run(wall)
 
-        run.toggle(.earlier)
+        run.toggleFold(of: .yourTurn)
         run.show(heard(line(0)), at: printedAt, reducesMotion: false)
         #expect(!Self.ids(run).contains(.fold(.earlier)))
-        #expect(!run.folds.isEarlierOpen)
+        wall.now = printedAt.addingTimeInterval(3600)
+        #expect(Self.ids(run) == [.fold(.earlier)])
+    }
+
+    /// An hour on, Request ledger's turn has passed the fold period; typing its name shows it under "N earlier", open,
+    /// which folds again as the field clears.
+    @Test func whileTheFilterHoldsTextNEarliersMatchingRowsShow() {
+        let wall = Wall()
+        let run = Self.run(wall)
+
+        wall.now = printedAt.addingTimeInterval(3600)
+        run.filter = Filter("ledg")
+        #expect(Self.ids(run) == [.fold(.earlier), .pick(.session("sr-rq7dgr"))])
+        run.filter = Filter()
+        #expect(!Self.ids(run).contains(.pick(.session("sr-rq7dgr"))))
+    }
+
+    /// A row picked while the filter shows it under "N earlier" shows still as the field clears: the fold opens.
+    @Test func aPickUnderNEarlierMadeWhileFilteringShowsAsTheFilterClears() {
+        let wall = Wall()
+        let run = Self.run(wall)
+
+        run.filter = Filter("dash")
+        run.openFirstMatch()
+        #expect(run.location.picked?.pick == .session("sr-dash02"))
+        run.filter = Filter()
+        #expect(Self.ids(run).suffix(2) == [.fold(.earlier), .pick(.session("sr-dash02"))])
     }
 }

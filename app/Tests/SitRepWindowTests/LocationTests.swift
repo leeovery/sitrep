@@ -278,12 +278,14 @@ struct LocationTests {
         return nil
     }
 
-    /// SitRep's session needs Lee: Needs you, its oldest line, k2, picked; Switchboard's dashboard its ask, older
-    /// than its stop.
-    @Test func anOpenOfASessionNeedingLeeLandsOnItsOldestLine() {
-        #expect(Self.landing("sr-macapp") == .place(.needsYou, picked: Self.macapp))
-        #expect(Self.landing("sr-dash02")
-            == .place(.needsYou, picked: Selection(pick: .line("ask:sr-dash02:k1"), session: "sr-dash02")))
+    /// SitRep's session needs Lee: Needs you, its newest line by its time, k1, picked; Switchboard's dashboard its
+    /// stop, newer than its ask.
+    @Test func anOpenOfASessionNeedingLeeLandsOnItsNewestLine() {
+        #expect(Self.landing("sr-macapp")
+            == .place(.needsYou, picked: Selection(pick: .line("ask:sr-macapp:k1"), session: "sr-macapp")))
+        #expect(Self.landing("sr-dash02") == .place(
+            .needsYou, picked: Selection(pick: .line("stop:sr-dash02:w2:1792486361000"), session: "sr-dash02")
+        ))
         #expect(Self.landing("sr-gs7kq2") == .place(.needsYou, picked: Self.goose))
     }
 

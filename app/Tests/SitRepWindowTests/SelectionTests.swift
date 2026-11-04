@@ -1,241 +1,232 @@
 import Foundation
+@testable import SitRepCore
+import SitRepLines
 @testable import SitRepWindow
 import Testing
 
-/// The sidebar's selection: each session shows once, so the pick is its row, which keeps it as it moves between
-/// sections; a pick made outside the list unfolds what would hide it, so it shows, as one made while filtering does
-/// once the filter clears; a session with no row shows at its project's; a fold made over the pick hides its row and
-/// keeps its page.
+/// Where the window is as Lee moves, over the first line the real `watch` printed: a row picked in the list, the
+/// arrows through it, a place or a project clicked in the sidebar, a session opened from a project's page or from
+/// outside, and Back and Forward.
 struct SelectionTests {
-    private static func ids(_ run: WindowRun) -> [Sidebar.Line.ID] {
-        run.sidebar(at: printedAt).lines.map(\.id)
+    /// A row clicked is the list's pick, its session's page beside the list; it replaces the step, making none.
+    @Test func aRowClickedIsThePickItsSessionsPageBesideTheList() throws {
+        let run = opened()
+        let back = run.canGoBack
+
+        run.pickInList(needsYouLines[2], at: printedAt)
+        #expect(run.location.picked?.pick == needsYouLines[2])
+        #expect(run.list(at: printedAt)?.position(of: run.location.picked?.pick)?.text == "3 / 6")
+        #expect(try #require(run.page(at: printedAt).detail).id == "sr-dash02")
+        #expect(run.canGoBack == back)
     }
 
-    @Test func theRowClickedIsThePickAndItsSessionsPageOpens() {
+    @Test func aRowTheListDoesNotHoldPicksNothing() {
         let run = opened()
 
         run.pickInList(.session("sr-rq7dgr"), at: printedAt)
-        #expect(run.pick == .session("sr-rq7dgr"))
-        #expect(run.page(at: printedAt).session?.id == "sr-rq7dgr")
-        #expect(run.sidebar(at: printedAt).picks.contains(.session("sr-rq7dgr")))
+        #expect(run.location.picked?.pick == macAppK1)
     }
 
-    /// Request ledger's turn ends on an ask: its row leaves Your turn for Needs you, the same row, still picked.
-    @Test func aSessionKeepsItsPickAsItMovesBetweenSections() throws {
+    /// ↓ and ↑ walk the rows as the list shows them, and nowhere past either end.
+    @Test func theArrowsWalkTheListAndGoNowherePastItsEnds() {
         let run = opened()
 
-        run.pickInList(.session("sr-rq7dgr"), at: printedAt)
-        run.show(heard(line(0), asked("sr-rq7dgr")), at: printedAt, reducesMotion: false)
-
-        let ids = Self.ids(run)
-        let row = try #require(ids.firstIndex(of: .pick(.session("sr-rq7dgr"))))
-
-        #expect(run.pick == .session("sr-rq7dgr"))
-        #expect(row < ids.firstIndex(of: .fold(.projects))!)
-        #expect(!ids.contains(.fold(.section(.yourTurn))))
-        #expect(run.page(at: printedAt).session?.id == "sr-rq7dgr")
+        run.step(down: false, at: printedAt)
+        #expect(run.location.picked?.pick == needsYouLines[0])
+        run.step(down: false, at: printedAt)
+        #expect(run.location.picked?.pick == needsYouLines[0])
+        (0 ..< 9).forEach { _ in run.step(down: true, at: printedAt) }
+        #expect(run.location.picked?.pick == needsYouLines[5])
     }
 
-    /// As the menu, a jump or a restore at launch picks it.
-    @Test func aPickMadeOutsideTheListUnfoldsTheSectionHoldingIt() {
+    /// The Mac app's lines answered: nothing shows picked, the page staying on its session; ↓ goes on from where its
+    /// line stood, under Switchboard's stop, not from the top.
+    @Test func fromALineAnsweredDownGoesOnFromWhereItStood() {
         let run = opened()
 
-        run.toggle(.section(.yourTurn))
-        #expect(!Self.ids(run).contains(.pick(.session("sr-rq7dgr"))))
-        run.pick(.session("sr-rq7dgr"))
-        #expect(!run.folds.contains(.section(.yourTurn)))
-        #expect(Self.ids(run).contains(.pick(.session("sr-rq7dgr"))))
+        run.show(heard(answered("sr-macapp")), at: printedAt, reducesMotion: false)
+        #expect(run.list(at: printedAt)?.row(run.location.picked?.pick) == nil)
+        #expect(run.page(at: printedAt).session?.id == "sr-macapp")
+        run.step(down: true, at: printedAt)
+        #expect(run.location.picked?.pick == needsYouLines[2])
     }
 
-    /// The window opening on the oldest session needing Lee, Needs you folded when it last closed.
-    @Test func theWindowOpeningOnASessionUnfoldsItsSection() {
-        var folds = Folds()
+    @Test func withNothingPickedDownGoesToTheFirstRowAndUpNowhere() {
+        let run = opened()
 
-        folds.toggle(.section(.needsYou))
+        run.click(.place(.yourTurn))
+        run.step(down: false, at: printedAt)
+        #expect(run.location == .place(.yourTurn))
+        run.step(down: true, at: printedAt)
+        #expect(run.location.picked?.pick == .session("sr-rq7dgr"))
+    }
 
-        let run = WindowRun(folds: folds, wall: { printedAt })
+    /// A place clicked shows its list, nothing picked, as a step Back returns from.
+    @Test func aPlaceClickedShowsItsListAsAStep() {
+        let run = opened()
+        let before = run.location
 
-        run.show(heard(line(0)), at: printedAt, reducesMotion: false)
+        run.click(.place(.yourTurn))
+        #expect(run.location == .place(.yourTurn))
+        #expect(run.list(at: printedAt)?.picks == [.session("sr-rq7dgr")])
+        run.goBack()
+        #expect(run.location == before)
+    }
+
+    /// As Mail does for the mailbox already open: its pick stays, and no step is made.
+    @Test func aClickOnThePlaceShowingChangesNothing() {
+        let run = opened()
+        let before = run.location
+        let back = run.canGoBack
+
+        run.click(.place(.needsYou))
+        #expect(run.location == before)
+        #expect(run.canGoBack == back)
+    }
+
+    /// A project's page fills the window, no list beside it, the project picked in the sidebar.
+    @Test func aProjectClickedFillsTheWindowWithItsPage() throws {
+        let run = opened()
+
+        run.click(.project("switchboard"))
+        #expect(run.location.root == .project("switchboard"))
+        #expect(run.list(at: printedAt) == nil)
+        #expect(try #require(run.page(at: printedAt).project).key == "switchboard")
+    }
+
+    /// From a project's page a session's page is pushed over it, the project still picked in the sidebar; a click on
+    /// the project's row goes back to its page; the session page's project, its breadcrumb, opens it as a step too.
+    @Test func aSessionOpenedFromItsProjectIsPushedTheProjectPickedInTheSidebar() throws {
+        let run = opened()
+
+        run.click(.project("switchboard"))
+        run.go(to: .session("sr-rq7dgr", from: .project("switchboard")), by: .projectSession)
+        #expect(run.location.root == .project("switchboard"))
+        #expect(run.list(at: printedAt) == nil)
+        #expect(try #require(run.page(at: printedAt).fullSession).id == "sr-rq7dgr")
+        run.click(.project("switchboard"))
+        #expect(run.location == .project("switchboard"))
+        run.goBack()
+        run.go(to: .project("switchboard"), by: .breadcrumb)
+        #expect(run.location == .project("switchboard"))
+        run.goBack()
+        #expect(run.location == .session("sr-rq7dgr", from: .project("switchboard")))
+    }
+
+    // MARK: Opened from outside
+
+    /// "Open in SitRep" on the Mac app picks its newest line by its time, k1, though core lists it last of its three.
+    @Test func openedFromOutsideASessionNeedingLeeLandsOnItsNewestLine() {
+        let run = opened()
+
+        run.click(.project("kit"))
+        run.land("sr-macapp")
+        #expect(run.location.picked?.pick == macAppK1)
+        #expect(run.following == ["sr-macapp"])
+        run.goBack()
+        #expect(run.location == .project("kit"))
+    }
+
+    @Test func openedFromOutsideASessionOnItsTurnLandsOnItsRow() {
+        let run = opened()
+
+        run.land("sr-rq7dgr")
+        #expect(run.location.picked?.pick == .session("sr-rq7dgr"))
+        #expect(run.location.place == .yourTurn)
+    }
+
+    /// Kit's away session, nothing waiting, has no row: its project's page, then its own pushed over it, two steps.
+    @Test func openedFromOutsideASessionWithNoRowPushesItsPageOverItsProjects() {
+        let run = opened()
+
+        run.land("sr-k7t001")
+        #expect(run.location == .session("sr-k7t001", from: .project("kit")))
+        run.goBack()
+        #expect(run.location == .project("kit"))
+    }
+
+    /// Under "N earlier", its row shows: the fold opens for it.
+    @Test func openedFromOutsideARowUnderNEarlierOpensTheFold() {
+        let run = opened(wall: { printedAt.addingTimeInterval(3600) })
+
+        run.land("sr-rq7dgr")
+        #expect(run.list(at: printedAt)?.row(.session("sr-rq7dgr")) != nil)
+        #expect(run.list(at: printedAt)?.fold?.isOpen == true)
+    }
+
+    /// Before a board is heard the open waits, and lands on the first one.
+    @Test func openedFromOutsideBeforeABoardLandsOnTheFirst() {
+        let run = WindowRun()
+
         run.open()
-        #expect(run.pick == .session("sr-macapp"))
-        #expect(!run.folds.contains(.section(.needsYou)))
-    }
-
-    /// An hour on, Request ledger's turn has passed the fold period.
-    @Test func aPickMadeOutsideTheListUnderNEarlierOpensIt() {
-        let run = opened(wall: { printedAt.addingTimeInterval(3600) })
-
-        #expect(Self.ids(run).contains(.fold(.earlier)))
-        #expect(!Self.ids(run).contains(.pick(.session("sr-rq7dgr"))))
-        run.pick(.session("sr-rq7dgr"))
-        #expect(run.folds.isEarlierOpen)
-        #expect(Self.ids(run).contains(.pick(.session("sr-rq7dgr"))))
-    }
-
-    /// A project's name pressed on a session's page: Projects unfolds, and the project's row is the pick.
-    @Test func aProjectsPageShowsPickedOnItsRowInProjects() {
-        let run = opened()
-
-        #expect(run.folds.projects)
-        run.pick(.project("switchboard"))
-        #expect(!run.folds.projects)
-        #expect(run.sidebar(at: printedAt).lines.contains { $0.pick == run.pick })
-        #expect(run.page(at: printedAt).project?.key == "switchboard")
-    }
-
-    /// Kit's away session, with no row of its own, picked from Kit's page: Projects unfolds, Kit's row showing it.
-    @Test func aPickMadeOutsideTheListOfASessionWithNoRowUnfoldsProjects() {
-        let run = opened()
-
-        #expect(run.folds.projects)
-        run.pick(.session("sr-k7t001"))
-        #expect(!run.folds.projects)
-        #expect(run.sidebar(at: printedAt).row(showing: run.pick) == .project("kit"))
-        #expect(Self.ids(run).contains(.pick(.project("kit"))))
-    }
-
-    @Test func aProjectsRowClickedOpensItsPage() {
-        let run = opened()
-
-        run.toggle(.projects)
-        run.pickInList(.project("kit"), at: printedAt)
-        #expect(run.pick == .project("kit"))
-        #expect(run.page(at: printedAt).project?.key == "kit")
-    }
-
-    /// Projects folded over a project's page: nothing in the list shows the pick, and the page stays.
-    @Test func foldingTheSectionThatHoldsThePickKeepsThePage() {
-        let run = opened()
-
-        run.pickInList(.session("sr-rq7dgr"), at: printedAt)
-        run.toggle(.section(.yourTurn))
-        #expect(!Self.ids(run).contains(.pick(.session("sr-rq7dgr"))))
-        #expect(run.pick == .session("sr-rq7dgr"))
-        #expect(run.page(at: printedAt).session?.id == "sr-rq7dgr")
-
-        run.pick(.project("kit"))
-        run.toggle(.projects)
-        #expect(!run.sidebar(at: printedAt).lines.contains { $0.pick == .project("kit") })
-        #expect(run.page(at: printedAt).project?.key == "kit")
-    }
-
-    /// "kit" typed, Return opening Kit's page, then Escape: Lee's folds stand while the filter holds text, and as it
-    /// clears Projects unfolds, Kit's row showing picked.
-    @Test func aPickMadeWhileFilteringShowsOnceTheFilterClears() {
-        let run = opened()
-
-        run.filter = Filter("kit")
-        run.openFirstMatch()
-        #expect(run.pick == .project("kit"))
-        #expect(run.folds.projects)
-        run.filter = Filter()
-        #expect(!run.folds.projects)
-        #expect(Self.ids(run).contains(.pick(.project("kit"))))
-    }
-
-    /// Needs you and Your turn folded, Request ledger picked from the filtered list: as the filter clears Your turn
-    /// unfolds to show it, and Needs you and Projects, which the filter opened, fold back.
-    @Test func asTheFilterClearsOnlyWhatHidesThePickUnfolds() {
-        let run = opened()
-
-        run.toggle(.section(.needsYou))
-        run.toggle(.section(.yourTurn))
-        run.filter = Filter("ledg")
-        run.pickInList(.session("sr-rq7dgr"), at: printedAt)
-        run.filter = Filter()
-        #expect(run.folds == Folds(sections: [.needsYou, .snoozed], projects: true))
-    }
-
-    /// An hour on, Request ledger's turn is under "N earlier": picked from the filtered list, it opens as the filter
-    /// clears, for the run only.
-    @Test func aPickMadeWhileFilteringUnderNEarlierOpensItAsTheFilterClears() {
-        let run = opened(wall: { printedAt.addingTimeInterval(3600) })
-
-        run.toggle(.section(.yourTurn))
-        run.filter = Filter("ledg")
-        run.pickInList(.session("sr-rq7dgr"), at: printedAt)
-        run.filter = Filter()
-        #expect(!run.folds.contains(.section(.yourTurn)))
-        #expect(run.folds.isEarlierOpen)
-        #expect(!run.folds.kept.isEarlierOpen)
-        #expect(Self.ids(run).contains(.pick(.session("sr-rq7dgr"))))
-    }
-
-    /// Request ledger picked, then Your turn folded over it: a filter typed and cleared leaves it folded, as does
-    /// Return on its row, already picked, in between.
-    @Test(arguments: [false, true])
-    func aPickMadeBeforeTheFilterChangesNothingAsItClears(returnOnIt: Bool) {
-        let run = opened()
-
-        run.pickInList(.session("sr-rq7dgr"), at: printedAt)
-        run.toggle(.section(.yourTurn))
-
-        let folds = run.folds
-
-        run.filter = Filter("ledg")
-        if returnOnIt {
-            run.openFirstMatch()
-            #expect(run.pick == .session("sr-rq7dgr"))
-        }
-        run.filter = Filter()
-        #expect(run.folds == folds)
-    }
-
-    /// A jump to Request ledger while the filter holds "kit", Your turn folded: it unfolds only what the filter shows,
-    /// and Your turn as the filter clears.
-    @Test func aPickMadeOutsideTheListWhileFilteringShowsOnceTheFilterClears() {
-        let run = opened()
-
-        run.toggle(.section(.yourTurn))
-        run.filter = Filter("kit")
-        run.pick(.session("sr-rq7dgr"))
-        #expect(run.folds.contains(.section(.yourTurn)))
-        run.filter = Filter()
-        #expect(!run.folds.contains(.section(.yourTurn)))
-        #expect(Self.ids(run).contains(.pick(.session("sr-rq7dgr"))))
-    }
-
-    /// Nothing picked, as before the window first opens: the filter clearing changes none of the folds.
-    @Test func withNoPickTheFilterClearingChangesNothing() {
-        let run = WindowRun(folds: Folds(sections: [.yourTurn]), wall: { printedAt })
-
+        run.land("sr-rq7dgr")
+        #expect(run.location == .place(.needsYou))
         run.show(heard(line(0)), at: printedAt, reducesMotion: false)
-        run.filter = Filter("ledg")
-        run.filter = Filter()
-        #expect(run.pick == nil)
-        #expect(run.folds == Folds(sections: [.yourTurn]))
+        #expect(run.location.picked?.pick == .session("sr-rq7dgr"))
+        #expect(run.following == ["sr-rq7dgr"])
     }
 
-    /// Your turn folded, Request ledger picked from the filtered list, then ⌘W: closing clears the filter but shows
-    /// nothing, so Your turn stays folded, opening again on the Mac app.
-    @Test func closingTheWindowOnAPickMadeWhileFilteringUnfoldsNothing() {
+    @Test func aSessionNotOnTheBoardOpensNothing() {
+        let run = opened()
+        let before = run.location
+
+        run.land("sr-gone")
+        #expect(run.location == before)
+    }
+
+    // MARK: Back and Forward
+
+    /// Back returns through the steps, rows picked within the list replacing theirs; Forward goes again.
+    @Test func backSkipsTheRowsSteppedThroughForwardGoesAgain() {
         let run = opened()
 
-        run.toggle(.section(.yourTurn))
-        run.filter = Filter("ledg")
-        run.pickInList(.session("sr-rq7dgr"), at: printedAt)
+        run.click(.project("kit"))
+        run.click(.place(.needsYou))
+        run.pickInList(needsYouLines[1], at: printedAt)
+        run.pickInList(needsYouLines[3], at: printedAt)
+        run.goBack()
+        #expect(run.location == .project("kit"))
+        #expect(run.canGoForward)
+        run.goForward()
+        #expect(run.location.picked?.pick == needsYouLines[3])
+        #expect(!run.canGoForward)
+    }
+
+    /// Back returns to a pick as it last stood, so ↓ after Back goes on from there.
+    @Test func afterBackDownGoesOnFromWhereThePickStood() {
+        let run = opened()
+
+        run.pickInList(needsYouLines[3], at: printedAt)
+        run.click(.project("kit"))
+        run.goBack()
+        run.step(down: true, at: printedAt)
+        #expect(run.location.picked?.pick == needsYouLines[4])
+    }
+
+    /// Closed and opened again, the window starts its history afresh.
+    @Test func backIsForTheWindowOpenNotKeptAcrossACloseOrALaunch() {
+        let run = opened()
+
+        run.click(.project("kit"))
         run.close()
-        #expect(run.folds.contains(.section(.yourTurn)))
         run.open()
-        #expect(run.pick == .session("sr-macapp"))
-        #expect(run.folds.contains(.section(.yourTurn)))
+        #expect(!run.canGoBack)
+        #expect(!WindowRun().canGoBack)
+    }
+}
+
+private extension Page {
+    var detail: SessionPage? {
+        if case let .detail(page) = self {
+            return page
+        }
+        return nil
     }
 
-    @Test func aPickInTheListUnfoldsNothing() {
-        let run = opened()
-        let folds = run.folds
-
-        run.pickInList(.session("sr-dash02"), at: printedAt)
-        #expect(run.folds == folds)
-    }
-
-    /// With no `watch` to run nothing has cleared, so the pick stays, and is there still when the board comes back.
-    @Test func whenTheBoardGoesThePickStays() {
-        let run = opened()
-
-        run.unrun("SitRep can't read the board")
-        #expect(run.pick == .session("sr-macapp"))
-        run.show(heard(line(0)), at: printedAt, reducesMotion: false)
-        #expect(run.pick == .session("sr-macapp"))
+    var fullSession: SessionPage? {
+        if case let .session(page) = self {
+            return page
+        }
+        return nil
     }
 }

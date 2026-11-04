@@ -6,10 +6,12 @@ import SitRepLines
 import SwiftUI
 import Testing
 
-/// ⌘F moves keyboard focus into the Filter field; Return on the sidebar's list moves it into the page, to its first
-/// control, and Escape in the page moves it back to the board's list, in the SitRep window's split over the sidebar
-/// as the window draws it, and two buttons, made, never shown. A page's buttons take focus only while the Mac's
-/// Keyboard navigation setting is on, so what needs them runs only then.
+/// ⌘F moves keyboard focus into the Filter field; Return moves it a region to the right, from the sidebar's list into
+/// the list beside the page and from there into the page, to its first control; Escape a region to the left, from the
+/// page to the list and from the list to the sidebar's; with the list folded away, as the page fills the window, each
+/// passes it by. In the SitRep window's split over the sidebar and the list as the window draws them, and two buttons,
+/// made, never shown. A page's buttons take focus only while the Mac's Keyboard navigation setting is on, so what
+/// needs them runs only then.
 @MainActor
 struct SideFocusTests {
     @Test(.enabled { await keyboardNavigation() })
@@ -29,7 +31,34 @@ struct SideFocusTests {
         #expect(sides.focused === sides.firstControl)
     }
 
-    @Test func escapeInThePageMovesFocusBackToTheBoardsList() throws {
+    @Test func returnOnTheSidebarsListMovesFocusToTheList() throws {
+        let sides = try Sides()
+
+        sides.window.makeFirstResponder(sides.places)
+        #expect(sides.press(SideFocus.return))
+        #expect(sides.window.firstResponder === sides.board)
+    }
+
+    /// As where the window first opened before SwiftUI had made the sidebar's table, and focus fell to the sidebar.
+    @Test func returnFromTheSidebarOutsideItsListMovesFocusToTheList() throws {
+        let sides = try Sides(focusingList: false)
+
+        try #require(sides.window.makeFirstResponder(sides.focus.sidebar))
+        #expect(sides.press(SideFocus.return))
+        #expect(sides.window.firstResponder === sides.board)
+    }
+
+    @Test(.enabled { await keyboardNavigation() })
+    func withTheListFoldedReturnOnTheSidebarMovesFocusToThePage() throws {
+        let sides = try Sides()
+
+        sides.foldTheList()
+        sides.window.makeFirstResponder(sides.places)
+        #expect(sides.press(SideFocus.return))
+        #expect(sides.focused === sides.firstControl)
+    }
+
+    @Test func escapeInThePageMovesFocusBackToTheList() throws {
         let sides = try Sides()
 
         sides.window.makeFirstResponder(sides.focus.page)
@@ -37,22 +66,44 @@ struct SideFocusTests {
         #expect(sides.window.firstResponder === sides.board)
     }
 
-    @Test func escapeOnTheListAndReturnInThePageAreLeftAlone() throws {
+    @Test func escapeOnTheListMovesFocusToTheSidebarsList() throws {
         let sides = try Sides()
 
+        #expect(sides.press(SideFocus.escape))
+        #expect(sides.window.firstResponder === sides.places)
+    }
+
+    @Test func withTheListFoldedEscapeInThePageMovesFocusToTheSidebarsList() throws {
+        let sides = try Sides()
+
+        sides.foldTheList()
+        sides.window.makeFirstResponder(sides.focus.page)
+        #expect(sides.press(SideFocus.escape))
+        #expect(sides.window.firstResponder === sides.places)
+    }
+
+    /// The list folds away, as the page fills the window, by the window alone: Lee can neither drag it nor narrow it
+    /// away.
+    @Test func theListFoldsAwayAndBack() throws {
+        let sides = try Sides()
+        let list = sides.split.splitViewItems[1]
+
+        sides.foldTheList()
+        #expect(list.isCollapsed)
+        #expect(sides.focus.list.isHiddenOrHasHiddenAncestor)
+        SitRepWindow.fold(list, isFullPage: false)
+        sides.window.contentView?.layoutSubtreeIfNeeded()
+        #expect(!list.isCollapsed)
+        #expect(!sides.focus.list.isHiddenOrHasHiddenAncestor)
+    }
+
+    @Test func escapeOnTheSidebarAndReturnInThePageAreLeftAlone() throws {
+        let sides = try Sides()
+
+        sides.window.makeFirstResponder(sides.places)
         #expect(!sides.press(SideFocus.escape))
         sides.window.makeFirstResponder(sides.focus.page)
         #expect(!sides.press(SideFocus.return))
-    }
-
-    /// As where the window first opened before SwiftUI had made the list's table, and focus fell to the sidebar.
-    @Test(.enabled { await keyboardNavigation() })
-    func returnFromTheSidebarOutsideTheListMovesFocusToThePage() throws {
-        let sides = try Sides(focusingList: false)
-
-        try #require(sides.window.makeFirstResponder(sides.focus.sidebar))
-        #expect(sides.press(SideFocus.return))
-        #expect(sides.focused === sides.firstControl)
     }
 
     /// With nothing in the page to take focus, AppKit's key loop wraps round to the Filter field, whose Return would
@@ -152,12 +203,14 @@ struct SideFocusTests {
         #expect(sides.isInField)
     }
 
-    @Test func escapeOnTheListTakesBackAnAnswerWaitingAndElseIsLeftAlone() throws {
+    /// Escape on the list takes back an answer waiting, focus staying; with none, it moves focus to the sidebar.
+    @Test func escapeOnTheListTakesBackAnAnswerWaitingBeforeMovingFocus() throws {
         let sides = try Sides()
 
         #expect(sides.take(SideFocus.escape) { true })
-        #expect(!sides.take(SideFocus.escape) { false })
         #expect(sides.window.firstResponder === sides.board)
+        #expect(sides.take(SideFocus.escape) { false })
+        #expect(sides.window.firstResponder === sides.places)
     }
 
     /// Where AppKit would give the window's first focus to the field, the first of its key views.
@@ -169,10 +222,17 @@ struct SideFocusTests {
         #expect(sides.window.firstResponder === sides.board)
     }
 
-    /// The sidebar has no stop of its own after the board's list, its Settings foot gone: Tab from the list leaves the
-    /// sidebar for the page's first control, in the key loop as a window on screen has it.
+    @Test func openingAfreshWithTheListFoldedPutsFocusOnTheSidebarsList() throws {
+        let sides = try Sides(focusingList: false)
+
+        sides.foldTheList()
+        sides.focus.focusList()
+        #expect(sides.window.firstResponder === sides.places)
+    }
+
+    /// Tab from the list leaves it for the page's first control, in the key loop as a window on screen has it.
     @Test(.enabled { await keyboardNavigation() })
-    func tabFromTheBoardsListGoesToThePagesFirstControl() throws {
+    func tabFromTheListGoesToThePagesFirstControl() throws {
         let sides = try Sides()
 
         sides.window.recalculateKeyViewLoop()
@@ -182,7 +242,7 @@ struct SideFocusTests {
 
     /// With nothing in the page to take focus, Tab from the list wraps round to the Filter field, and Shift-Tab comes
     /// back.
-    @Test func tabFromTheBoardsListWithNothingInThePageWrapsToTheFilterField() throws {
+    @Test func tabFromTheListWithNothingInThePageWrapsToTheFilterField() throws {
         let sides = try Sides(hasButtons: false)
 
         sides.window.recalculateKeyViewLoop()
@@ -192,18 +252,19 @@ struct SideFocusTests {
         #expect(sides.window.firstResponder === sides.board)
     }
 
-    /// Past the list's last row, ↓ goes nowhere: the board keeps focus, picking nothing.
-    @Test func downFromTheBoardsLastRowStaysOnTheBoard() throws {
-        let sides = try Sides(pick: .project("kit"))
+    /// Before the sidebar's first row, ↑ goes nowhere: the sidebar keeps focus, going nowhere.
+    @Test func upFromTheSidebarsFirstRowStaysOnIt() throws {
+        let sides = try Sides()
 
-        try #require(sides.board.selectedRow == sides.board.numberOfRows - 1)
-        sides.send(arrow: Sides.downArrow)
-        #expect(sides.window.firstResponder === sides.board)
-        #expect(sides.asked.picks.isEmpty)
+        try #require(sides.places.selectedRow == 0)
+        sides.window.makeFirstResponder(sides.places)
+        sides.send(arrow: Sides.upArrow)
+        #expect(sides.window.firstResponder === sides.places)
+        #expect(sides.asked.clicks.isEmpty)
     }
 
-    @Test func withNothingPickedFocusGoesToTheBoardsList() throws {
-        let sides = try Sides(pick: nil, focusingList: false)
+    @Test func withNothingPickedFocusGoesToTheList() throws {
+        let sides = try Sides(isPicked: false, focusingList: false)
 
         #expect(sides.board.selectedRow < 0)
         sides.focus.focusList()
@@ -219,57 +280,70 @@ func keyboardNavigation() async -> Bool {
     await MainActor.run { NSApplication.shared.isFullKeyboardAccessEnabled }
 }
 
-/// The window's split over the sidebar, on the board `watch` first printed with this picked, and two buttons, its
-/// focus on the list holding the pick.
+/// The window's split over the sidebar and the list, on the board `watch` first printed, the window open on Needs you,
+/// and two buttons, its focus on the list holding the pick.
 @MainActor
 private struct Sides {
     let window: NSWindow
+    let split: NSSplitViewController
     let focus: SideFocus
+    /// The list beside the page.
     let board: NSTableView
-    /// What the sidebar asked the window for.
+    /// The sidebar's list.
+    let places: NSTableView
+    /// What the sidebar and the list asked the window for.
     let asked: Asked
-    private let sidebar: NSHostingController<Column>
 
     /// A page of buttons, or of words alone, as a page is with Keyboard navigation off: nothing in it takes focus.
     init(
-        pick: Pick? = .session("sr-macapp"), hasButtons: Bool = true, focusingList: Bool = true, filter: String = ""
+        isPicked: Bool = true, hasButtons: Bool = true, focusingList: Bool = true, filter: String = ""
     ) throws {
+        let run = HostedSidebar.opened()
+        let now = HostedSidebar.printed
         let filter = Filter(filter)
         let asked = Asked()
-        let sidebar = NSHostingController(rootView: Column(pick: pick, filter: filter, asked: asked))
-        let page = NSHostingController(rootView: VStack {
+        let list = try #require(run.list(at: now))
+        let picked = isPicked ? run.location.picked?.pick : nil
+        let sidebar = Self.hosted(SidebarColumn(places: run.places, root: run.location.root, filter: filter), asked)
+        let listed = Self.hosted(ListColumn(list: list, picked: picked, head: run.head, filter: filter, now: now), asked)
+        let page = NSHostingController(rootView: AnyView(VStack {
             if hasButtons {
                 Button("One") {}
                 Button("Two") {}
             } else {
                 Text("One")
             }
-        })
+        }))
 
-        sidebar.sizingOptions = []
         page.sizingOptions = []
-        window = SitRepWindow.window(SitRepWindow.split(sidebar: sidebar, page: page))
+        split = SitRepWindow.split(sidebar: sidebar, list: listed, page: page)
+        window = SitRepWindow.window(split)
         window.contentView?.layoutSubtreeIfNeeded()
-        focus = SideFocus(window: window, sidebar: sidebar.view, page: page.view)
-        self.sidebar = sidebar
+        focus = SideFocus(window: window, sidebar: sidebar.view, list: listed.view, page: page.view)
         self.asked = asked
 
-        board = try #require(Self.views(NSTableView.self, in: sidebar.view).first)
+        board = try #require(Self.views(NSTableView.self, in: listed.view).first)
+        places = try #require(Self.views(NSTableView.self, in: sidebar.view).first)
         if focusingList {
             window.makeFirstResponder(board)
         }
     }
 
-    /// The board's list as the real `watch` first printed it, Projects open, Kit's row its last.
-    fileprivate static let sidebar = {
-        var last = LastBoard()
-        let run = WindowRun(folds: Folds(projects: false), wall: { HostedSidebar.printed })
+    /// A column as the window draws it, what it asks for heard.
+    private static func hosted(_ column: some View, _ asked: Asked) -> NSViewController {
+        let hosting = NSHostingController(rootView: AnyView(column.environment(\.windowActions, WindowActions(
+            click: { [asked] in asked.clicks.append($0) }, openFirstMatch: { [asked] in asked.matches += 1 }
+        ))))
 
-        last.begin()
-        _ = last.hear(.line(Lines.watch[0]), at: Date())
-        run.show(last, at: Date(), reducesMotion: false)
-        return run.sidebar(at: Date())
-    }()
+        hosting.sizingOptions = []
+        return hosting
+    }
+
+    /// The list folded away, as the page fills the window.
+    func foldTheList() {
+        SitRepWindow.fold(split.splitViewItems[1], isFullPage: true)
+        window.contentView?.layoutSubtreeIfNeeded()
+    }
 
     /// Keyboard focus is in the Filter field, its field editor inside it.
     var isInField: Bool {
@@ -351,23 +425,9 @@ private struct Sides {
     }
 }
 
-/// The sidebar as the window draws it, its presses heard.
-private struct Column: View {
-    let pick: Pick?
-    let filter: Filter
-    let asked: Asked
-
-    var body: some View {
-        BoardColumn(sidebar: Sides.sidebar, pick: pick, filter: filter, now: Date())
-            .environment(\.windowActions, WindowActions(
-                pick: { [asked] in asked.picks.append($0) }, openFirstMatch: { [asked] in asked.matches += 1 }
-            ))
-    }
-}
-
-/// What the sidebar asked the window for: the Filter field's first match, or a pick.
+/// What the sidebar and the list asked the window for: the Filter field's first match, or a row of the sidebar.
 @MainActor
 private final class Asked {
     var matches = 0
-    var picks: [Pick] = []
+    var clicks: [Root] = []
 }
