@@ -91,7 +91,6 @@ final class WindowModel {
             openParked: { [weak self] in self?.openParked($0) },
             backToSession: { [weak self] in self?.go(to: .session($0, from: .place(.parked)), by: .backToSession) },
             press: { [weak self] in self?.press($0, on: $1) },
-            toggle: { [weak self] in self?.toggle($0) },
             toggleItem: { [weak self] in self?.toggle($0) },
             jump: { [weak self] in self?.jump($0) },
             snooze: { [weak self] in self?.snooze($0, $1) },
@@ -249,11 +248,6 @@ final class WindowModel {
         if run.press(button, on: ask, at: Date()) != nil {
             jump(.card(ask, button))
         }
-        refresh()
-    }
-
-    private func toggle(_ ask: AskAddress) {
-        run.toggle(ask)
         refresh()
     }
 

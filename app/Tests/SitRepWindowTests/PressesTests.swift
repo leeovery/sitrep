@@ -70,7 +70,6 @@ struct QuietProjectTests {
         let page = try #require(run.page(at: printedAt).project)
 
         #expect(page.name == "Kit")
-        #expect(page.open == 0)
         #expect(page.sessions.map(\.isAway) == [true])
     }
 }
@@ -117,15 +116,8 @@ struct OpenedItemsTests {
 
         run.toggle(.parked("p1"))
         run.click(.project("sitrep"))
-        #expect(try #require(run.page(at: printedAt).project).opened.isEmpty)
-    }
-
-    @Test func aProjectsPageOpensItsItemsToo() throws {
-        let run = opened()
-
-        run.click(.project("sitrep"))
-        run.toggle(.parked("sr-macapp:p1"))
-        #expect(try #require(run.page(at: printedAt).project).opened == [.parked("sr-macapp:p1")])
+        run.goBack()
+        #expect(try #require(run.page(at: printedAt).session).opened.isEmpty)
     }
 
     @Test func aNoteOpenedShowsItsDetail() throws {

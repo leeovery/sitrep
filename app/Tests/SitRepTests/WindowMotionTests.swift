@@ -132,7 +132,7 @@ struct WindowMotionTests {
         let page = try #require(window.contentView)
         let decoration = Self.decoration(in: page)
 
-        try #require(decoration.count == 2)
+        try #require(decoration.count == 3)
         for view in decoration {
             let point = view.convert(CGPoint(x: view.bounds.midX, y: view.bounds.midY), to: nil)
 
@@ -140,18 +140,17 @@ struct WindowMotionTests {
         }
     }
 
-    /// A project of one session, working.
+    /// A project of one session, working: its row's arc and lead, and its card's arc in Now.
     private static let project = ProjectPage(
-        key: "project", name: Sample.project, waiting: 0, open: 1,
+        key: "project", name: Sample.project,
         sessions: [ProjectPage.Session(
-            id: "sr-work01", name: "Session", mark: .working, isAway: false,
-            doing: Doing(
-                kind: .working, line: Board.Row.Words(lead: Sample.writing.title, mono: Sample.writing.code, more: nil),
-                since: Date(timeIntervalSince1970: 0)
+            id: "sr-work01", name: "Session", mark: .working, isAway: false, isOffScreen: false,
+            standing: .doing(
+                .working, Board.Row.Words(lead: Sample.writing.title, mono: Sample.writing.code, more: nil)
             ),
-            waiting: 0, since: Date(timeIntervalSince1970: 0)
+            since: Date(timeIntervalSince1970: 0), now: [], next: nil, updated: Date(timeIntervalSince1970: 0), log: []
         )],
-        asksWaiting: 0, asks: [], notes: [], parked: [], opened: []
+        waiting: [], parked: 0
     )
 
     /// The arcs and lit leads in a view.

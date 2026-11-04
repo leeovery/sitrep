@@ -194,16 +194,14 @@ struct AwayRowsTests {
         try Self.expectDot(Drawn(MarkView(mark: .needs), size: size), centre: centre, glows: false)
     }
 
-    private static let projectRowSize = CGSize(width: 400, height: 54)
+    private static let projectRowSize = CGSize(width: 600, height: 32)
 
+    /// A session with two asks waiting, its window there or not, so the words where it stands are the same either way.
     private static func projectRow(away: Bool) throws -> Drawn {
-        let doing = Doing(
-            kind: away ? .away : .yourTurn, line: Board.Row.Words(lead: Sample.yourTurn, mono: nil, more: nil),
-            since: Date(timeIntervalSince1970: 0)
-        )
         let session = ProjectPage.Session(
-            id: "sr-ask001", name: "Session", mark: away ? .away : .turn, isAway: away, doing: doing, waiting: 0,
-            since: Date(timeIntervalSince1970: 0)
+            id: "sr-ask001", name: "Session", mark: away ? .awayAsk : .needs, isAway: away, isOffScreen: false,
+            standing: .waits(stop: nil, asks: 2), since: Date(timeIntervalSince1970: 0), now: [], next: nil,
+            updated: Date(timeIntervalSince1970: 0), log: []
         )
 
         return try Drawn(
@@ -211,17 +209,17 @@ struct AwayRowsTests {
         )
     }
 
-    /// A project page's row of a session no window holds: its name and what it is doing, each by the one factor; its
+    /// A project page's row of a session no window holds: its name and where it stands, each by the one factor; its
     /// time, in the faint ink, never brighter than its name.
-    @Test func onAProjectPageAnAwayRowsTwoLinesDimAsOne() throws {
-        let title = CGRect(x: 30, y: 9, width: 120, height: 16)
+    @Test func onAProjectPageAnAwayRowsNameAndStandingDimAsOne() throws {
+        let title = CGRect(x: 22, y: 8, width: 60, height: 16)
 
         try Self.expectDimmedAsOne(
             Self.projectRow(away: true), Self.projectRow(away: false),
-            title: title, sub: CGRect(x: 30, y: 29, width: 100, height: 14)
+            title: title, sub: CGRect(x: 312, y: 8, width: 100, height: 16)
         )
         try Self.expectTimeNoBrighter(
-            Self.projectRow(away: true), title: title, time: CGRect(x: 360, y: 9, width: 40, height: 16)
+            Self.projectRow(away: true), title: title, time: CGRect(x: 560, y: 8, width: 40, height: 16)
         )
     }
 

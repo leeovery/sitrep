@@ -28,8 +28,6 @@ struct WindowActions: Sendable {
     /// A parked item's "Back to its session": the session's page, pushed from Parked.
     var backToSession: @MainActor @Sendable (String) -> Void = { _ in }
     var press: @MainActor @Sendable (Card.Button, AskAddress) -> Void = { _, _ in }
-    /// A project's ask opened in place, or closed back.
-    var toggle: @MainActor @Sendable (AskAddress) -> Void = { _ in }
     /// An item of Status, Notes, Parked or Resolved opened in place, or closed again.
     var toggleItem: @MainActor @Sendable (Item) -> Void = { _ in }
     /// To the session's window: "Open in Ghostty ↗", and a stop's "Answer in Claude ↗".

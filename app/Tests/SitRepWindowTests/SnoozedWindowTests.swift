@@ -233,8 +233,9 @@ struct SnoozedWindowTests {
         #expect(run.woke(AskAddress(session: Self.session, ask: "k1"), .written))
     }
 
-    /// A project's page lists the asks asleep among its asks.
-    @Test func aProjectsPageListsItsAsksAsleepAmongItsAsks() throws {
+    /// A project's page leaves the asks asleep out of Waiting on you, as Needs you folds them away: they wait on no
+    /// one until they wake.
+    @Test func aProjectsPageLeavesItsAsksAsleepOutOfWaitingOnYou() throws {
         let run = Self.opened()
 
         run.click(.project("harness"))
@@ -242,8 +243,8 @@ struct SnoozedWindowTests {
 
         let page = try #require(run.page(at: Self.now).project)
 
-        #expect(Set(page.asks.map(\.card.id.ask)) == ["k1", "k2", "k3"])
-        #expect(page.asks.filter { $0.card.snoozedUntil != nil }.map(\.card.id.ask).sorted() == ["k1", "k2"])
+        #expect(page.waiting.map(\.line.ask) == ["k3"])
+        #expect(page.sessions.map { $0.standing.parts(at: Self.now) } == [["1 ask waiting"]])
     }
 
     @Test func itsWords() {

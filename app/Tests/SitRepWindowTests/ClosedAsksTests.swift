@@ -174,9 +174,9 @@ struct ClosedAsksTests {
         Self.closing(run)
         run.click(.project("sitrep"))
         take(["sr-macapp": Lines.board], in: run)
-        #expect(run.page(at: printedAt).project?.asks.map(\.card.isClosed) == [false, false, false])
+        #expect(run.page(at: printedAt).project?.waiting.map(\.isClosed) == [false, false, false])
         take(["sr-macapp": Lines.delivered], in: run, on: line(2))
-        #expect(run.page(at: printedAt).project?.asks.map(\.card.isClosed) == [true, true, false])
+        #expect(run.page(at: printedAt).project?.waiting.map(\.isClosed) == [true, true, false])
     }
 
     /// A pick in the list holds the list's order for a second, not the page.
@@ -217,7 +217,8 @@ struct ClosedAsksTests {
     }
 }
 
-/// A project's page holds its sessions' closed asks as a session's page does.
+/// A project's page holds its sessions' closed asks in Waiting on you, each faint in its place, as a session's page
+/// holds its cards.
 struct ProjectClosedAsksTests {
     private static let left = printedAt.addingTimeInterval(3)
 
@@ -231,15 +232,18 @@ struct ProjectClosedAsksTests {
         take(["sr-macapp": Lines.delivered], in: run, on: line(2))
     }
 
+    /// Waiting on you's lines, each by its ask, and closed where it is.
     private static func asks(_ run: WindowRun) -> [String]? {
-        run.page(at: printedAt).project?.asks.map(\.card.id.ask)
+        run.page(at: printedAt).project?.waiting.map { line in
+            [line.line.ask, line.isClosed ? "closed" : nil].compactMap { $0 }.joined(separator: " ")
+        }
     }
 
     @Test func aSecondAfterThePointerLeavesThePageTheClosedAsksLeave() {
         let run = opened()
 
         Self.closing(run, overThePage: true)
-        #expect(Self.asks(run) == ["k1", "k3", "k2"])
+        #expect(Self.asks(run) == ["k1 closed", "k3 closed", "k2"])
         run.pointer(overPage: false, from: pageRegion, at: Self.left)
         #expect(run.nextChange == Self.left.addingTimeInterval(1))
         run.settle(at: Self.left.addingTimeInterval(1))

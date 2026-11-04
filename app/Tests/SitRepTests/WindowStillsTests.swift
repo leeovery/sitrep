@@ -88,7 +88,6 @@ struct WindowStillsTests {
         case quietProject = "d2-a-quiet-project-picked"
         case openedItems = "d3-items-opened"
         case longOptions = "d4-long-options-as-rows"
-        case projectItemOpened = "d5-a-project-its-note-opened"
         case projectOfOne = "d6-a-project-of-one-session"
         case longTitle = "e1-a-long-title"
         case longTitleNarrow = "e2-a-long-title-narrow"
@@ -126,7 +125,7 @@ struct WindowStillsTests {
                 run.askToFinish("sr-gs7kq2")
             case .project, .projectNarrow:
                 Self.pick(.project("switchboard"), in: run)
-                run.toggle(AskAddress(session: "sr-dash02", ask: "k1"))
+                Self.lookedAtScreen(run)
             case .pressed:
                 _ = run.press(.yes("Approve"), on: AskAddress(session: "sr-macapp", ask: "k1"), at: now)
                 return (run, now.addingTimeInterval(0.76))
@@ -151,14 +150,8 @@ struct WindowStillsTests {
                 [.note("sr-macapp:n2"), .parked("p1"), .resolved("k4"), .resolved("k5")].forEach(run.toggle)
             case .longOptions:
                 Self.pick(.session("sr-macapp"), in: run, boards: ["sr-macapp": Self.withLongOptions])
-            case .projectItemOpened:
-                Self.pick(.project("switchboard"), in: run, boards: ["sr-rq7dgr": Self.longLedger])
-                if case let .project(page) = run.page(at: now), let note = page.notes.first {
-                    run.toggle(.note(note.id))
-                }
             case .projectOfOne:
                 Self.pick(.project("sitrep"), in: run)
-                run.toggle(.note("sr-macapp:n2"))
             case .sessionFromProject:
                 Self.pick(.project("switchboard"), in: run)
                 run.go(to: .session("sr-rq7dgr", from: .project("switchboard")), by: .projectSession)
@@ -207,6 +200,19 @@ struct WindowStillsTests {
             take(in: run, on: line, boards: given)
         }
 
+        /// The window shows, and its look at the screen says no terminal shows Dashboard redesign, as A3 draws a session
+        /// "not on screen", and Request ledger on screen: the real CLI's reading, its sessions renamed.
+        private static func lookedAtScreen(_ run: WindowRun) {
+            let reading = Lines.screen
+                .replacingOccurrences(of: "sr-0nscrn", with: "sr-rq7dgr")
+                .replacingOccurrences(of: "sr-n0pane", with: "sr-dash02")
+
+            run.window(isVisible: true)
+            if let look = run.looksAtScreen(at: printed) {
+                _ = run.looked(.read(try! ScreenReading.read(reading)), of: look, at: printed)
+            }
+        }
+
         /// `watch`'s first line, then this one, carrying the boards the window follows.
         private static func heard(_ line: String, in run: WindowRun, boards given: [String: String]) {
             run.show(heard(Lines.watch[0], carrying(run, on: line, given)), at: printed, reducesMotion: false)
@@ -249,10 +255,6 @@ struct WindowStillsTests {
         private static let withLongItems = Lines.delivered
             .replacingOccurrences(of: #""text": "The strip written into DESIGN.md""#, with: #""text": "The strip written into DESIGN.md, with its rings, its two lengths and how it carries the board while the notch hides""#)
             .replacingOccurrences(of: #""title": "Try a shy notch",\#n      "where": null"#, with: #""title": "Try a shy notch that hides until the pointer comes near the top of the screen",\#n      "where": "Under \"The notch\", in DESIGN.md""#)
-
-        /// Request ledger's status as long as it often runs.
-        private static let longLedger = Lines.ledger
-            .replacingOccurrences(of: #""text": "Status: now drawing the ledger schema""#, with: #""text": "Status: now drawing the ledger schema, its entries keyed by request and its totals rolled up by the hour""#)
 
         /// The first board, the Mac app named as long as a session's name runs.
         private static let longName = Lines.watch[0]

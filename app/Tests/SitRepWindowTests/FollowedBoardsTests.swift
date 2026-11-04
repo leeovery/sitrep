@@ -34,8 +34,7 @@ struct FollowedBoardsTests {
     /// A session's asks as the page shows them at this time, each by its id, and washed from then or closed where it
     /// is.
     private static func asks(_ run: WindowRun, of session: String = "sr-dash02", at time: Date = later) -> [String] {
-        let page = run.page(at: time)
-        let cards = page.session?.asks ?? page.project?.asks.map(\.card) ?? []
+        let cards = run.page(at: time).session?.asks ?? []
 
         return cards.filter { $0.id.session == session }.map { card in
             [card.id.ask, card.washed == time ? "washed" : nil, card.isClosed ? "closed" : nil]
@@ -52,12 +51,14 @@ struct FollowedBoardsTests {
         #expect(Self.asksAsTheyChange(watching) == Self.washedAndKept)
     }
 
-    /// The project's page follows its other session too, which `watch` carries, and nothing more of the one picked.
+    /// The project's page follows its other session too, which `watch` carries, and nothing more of the one picked, so
+    /// the session pushed from it again has its board as kept for its first.
     @Test func aSessionsProjectOpenedFromItsPageHasItsBoardAsKeptForItsFirst() {
         let watching = Watching()
 
         watching.after { $0.open(); $0.land("sr-dash02") }
         watching.after { $0.click(.project("switchboard")) }
+        watching.after { $0.go(to: .session("sr-dash02", from: .project("switchboard")), by: .projectSession) }
         #expect(Self.asksAsTheyChange(watching) == Self.washedAndKept)
     }
 
@@ -108,7 +109,8 @@ struct FollowedBoardsTests {
     /// A line printed under a set the window has since left, heard after the set told in its place: the Mac app's
     /// board on it came while the Mac app was not told, so it is not current, though the line has the window pick
     /// the Mac app again, Dashboard redesign gone from the board. Its project's page, picked before `watch` carries
-    /// the Mac app anew, has no first board, and that board, changed since, lays its asks out.
+    /// the Mac app anew, has no first board, nor has the Mac app pushed from it, and that board, changed since, lays its
+    /// asks out.
     @Test func aBoardOnALineHeardAfterItsSessionWasLetGoOfIsNotCurrent() {
         let watching = Watching()
 
@@ -119,6 +121,7 @@ struct FollowedBoardsTests {
         watching.change("sr-macapp", to: Self.replaced)
         watching.lands(1)
         watching.after { $0.click(.project("sitrep")) }
+        watching.after { $0.go(to: .session("sr-macapp", from: .project("sitrep")), by: .projectSession) }
         overThePage(watching.run)
         watching.lands()
         #expect(Self.asks(watching.run, of: "sr-macapp", at: printedAt) == ["k9", "k3", "k2"])
