@@ -28,7 +28,15 @@ public struct PlaceList: Equatable, Sendable {
         public var id: String { line.id }
 
         public var pick: ListPick {
-            session.section == .snoozed ? .snoozed(line.id) : .line(line.id)
+            isAsleep ? .snoozed(line.id) : .line(line.id)
+        }
+
+        /// An ask asleep, under "N snoozed".
+        public var isAsleep: Bool { session.section == .snoozed }
+
+        /// Its mark: asleep, the snoozed mark; else the orange dot, or the away ring while no window holds its session.
+        public var mark: Mark {
+            isAsleep ? .snoozed : session.isAway ? .awayAsk : .needs
         }
 
         /// The ask it is, by its id, none for a window's stop: all its menu snoozes or wakes, and VoiceOver speaks of,
@@ -51,13 +59,19 @@ public struct PlaceList: Equatable, Sendable {
             }
         }
 
-        /// The session it shows, which the page beside the list follows.
-        public var session: String {
+        /// The session's row it is of, or is.
+        public var row: Listed.Row {
             switch self {
-            case let .line(line): line.session.id
-            case let .session(row): row.id
+            case let .line(line): line.session
+            case let .session(row): row
             }
         }
+
+        /// A window holds its session: its button under the pointer, and VoiceOver's "Jump to the window", jump there.
+        public var jumps: Bool { row.jumps }
+
+        /// The session it shows, which the page beside the list follows.
+        public var session: String { row.id }
 
         /// What the filter reads of it.
         fileprivate var words: [String] {
@@ -88,7 +102,7 @@ public struct PlaceList: Equatable, Sendable {
 
         /// As the card's "N earlier" has it: its rows' projects.
         public var earlier: Earlier {
-            Earlier(projects: rows.map { $0.project }, isOpen: isOpen)
+            Earlier(projects: rows.map(\.row.project), isOpen: isOpen)
         }
     }
 
@@ -236,14 +250,4 @@ private extension PlaceList.LineRow {
 
     /// Snoozed's, as core's: the soonest to wake first, then the oldest, then by key.
     var soonest: (Date, Date, String) { (line.wakesAt ?? .distantFuture, line.since, line.id) }
-}
-
-private extension PlaceList.Row {
-    /// Its session's project's name.
-    var project: String {
-        switch self {
-        case let .line(line): line.session.project
-        case let .session(row): row.project
-        }
-    }
 }
