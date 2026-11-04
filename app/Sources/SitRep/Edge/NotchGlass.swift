@@ -210,9 +210,9 @@ private struct GlassPanel: View {
         let box = item.box(width: width)
 
         switch item {
-        case let .session(session), let .turn(session):
+        case let .session(session), let .line(session):
             GlassSessionRow(
-                session: session, size: box.size, oneLine: item == .turn(session), hovered: lit, pressed: pressed,
+                session: session, size: box.size, oneLine: item == .line(session), hovered: lit, pressed: pressed,
                 now: scene.now, wash: wash(item.key), calendar: scene.calendar
             )
             .offset(y: box.minY)
@@ -257,18 +257,19 @@ private struct GlassHead: View {
     }
 }
 
-/// A session's row on glass: its mark, its title (`Session.headline`) with its subject, a session's "+2" after its
-/// name, and its time; the line under them; laid out as the black's. Under the pointer, a row that jumps lifts, any
-/// row's time gives way to its button, and a click jumping from it presses it in with an arc spinning in its time's
-/// place. One on its own work is still, its subject plain or a wake's countdown. A your-turn row on the card is on one
-/// line: its ring, its words in regular, its project in the tertiary at the right of them, never cut, and its time. One
-/// in Snoozed is quieted, as the black's: its dot unlit, its name in the secondary, and when it wakes in its time's
-/// place.
+/// A session's row on glass: its mark, its title (`Session.headline`), a session's "+2" after its name, and its time;
+/// whole, the line under them, or on one line its project in the tertiary at the right of its words, never cut; laid
+/// out as the black's (board I). Under the pointer, a row that jumps lifts, any row's time gives way to its button, and
+/// a click jumping from it presses it in with an arc spinning in its time's place. Over the hairline a row needing Lee
+/// is its name, in medium, and a your-turn row its ring and its words, in regular. Under it a Working row is its verb,
+/// then what follows it 6 on, shimmering while it works and still on its own work, its subject plain or a wake's
+/// countdown; one in Snoozed is quieted, as the black's: its dot unlit, its name in the secondary, and when it wakes
+/// in its time's place.
 @available(macOS 26, *)
 struct GlassSessionRow: View {
     let session: Session
     let size: CGSize
-    /// A your-turn row on the card, on one line, as the black's.
+    /// A row under the card's hairline, on one line, as the black's.
     let oneLine: Bool
     /// Under the pointer.
     let hovered: Bool
@@ -281,7 +282,7 @@ struct GlassSessionRow: View {
     var calendar = WakeTime.calendar
 
     var body: some View {
-        let at = layout, radius = oneLine ? SessionRowLayout.turnRadius : SessionRowLayout.radius
+        let at = layout, radius = SessionRowLayout.radius(of: session.kind)
         ZStack(alignment: .topLeading) {
             RoundedRectangle(cornerRadius: radius)
                 .fill(.primary.opacity(pressed ? 0.12 : lit ? 0.08 : 0))
@@ -332,13 +333,15 @@ struct GlassSessionRow: View {
     /// The black's layout: on one line, its project's lane as wide as the black sets its project; in Snoozed, its
     /// time's lane as wide as the black sets when it wakes.
     private var layout: SessionRowLayout {
-        guard oneLine else {
-            let wakes = session.isSnoozed ? TextLine.width(TextLine.text(time, EdgeStyle.age, EdgeStyle.ink2)) : 0
+        let wakes = session.isSnoozed ? TextLine.width(TextLine.text(time, EdgeStyle.age, EdgeStyle.ink2)) : 0
 
+        guard oneLine else {
             return SessionRowLayout(size: size, time: wakes)
         }
 
-        return SessionRowLayout(turn: size, project: TextLine.width(TextLine.text(session.project, EdgeStyle.sub, EdgeStyle.ink3)))
+        let project = TextLine.width(TextLine.text(session.project, EdgeStyle.sub, EdgeStyle.ink3))
+
+        return SessionRowLayout(line: size, project: project, time: wakes)
     }
 
     /// The arc turning once a second, as a working row's mark.
@@ -356,8 +359,7 @@ struct GlassSessionRow: View {
             Circle().fill(GlassInk.orange).frame(width: 7, height: 7)
                 .shadow(color: GlassInk.orange.opacity(0.75), radius: 2)
         case .turn:
-            let ring = oneLine ? 9.0 : 7.0
-            Circle().strokeBorder(.primary, lineWidth: 1.5).frame(width: ring, height: ring)
+            Circle().strokeBorder(.primary, lineWidth: 1.5).frame(width: 9, height: 9)
         case .working:
             spinner
         case .onItsWork:
@@ -368,22 +370,25 @@ struct GlassSessionRow: View {
     }
 
     /// Its title in a box this wide, cut short before a session's "+2", which sits 6 after it on its baseline: a
-    /// working one shimmering along its lead, its subject still; one on its own work still, its subject plain where it
-    /// is no command; an away one dim, its "+2" with it.
+    /// Working one its verb, then 6 after it what follows it, which is cut short first, the verb shimmering while it
+    /// works and still on its own work; an away one dim, its "+2" with it.
     private func title(width: Double) -> some View {
         let line = session.headline
 
         return HStack(alignment: .firstTextBaseline, spacing: SessionRowLayout.countGap) {
-            if session.kind == .working {
-                HStack(spacing: 0) {
-                    Shimmering(text: lead(line), width: width)
-                    subject(line).foregroundStyle(.secondary)
+            switch session.kind {
+            case .working, .onItsWork:
+                HStack(alignment: .firstTextBaseline, spacing: LineTitle.gap) {
+                    if session.kind == .working {
+                        Shimmering(text: verb(line), width: width).layoutPriority(1)
+                    } else {
+                        verb(line).foregroundStyle(.secondary).layoutPriority(1)
+                    }
+                    after(line).foregroundStyle(.secondary).truncationMode(.tail)
                 }
-            } else if session.kind == .onItsWork {
-                (lead(line) + subject(line) + plain(line)).foregroundStyle(.secondary).truncationMode(.tail)
-            } else {
-                let style: HierarchicalShapeStyle = session.isSnoozed ? .secondary : .primary
-                (lead(line).foregroundStyle(style) + subject(line).foregroundStyle(style)).truncationMode(.tail)
+            case .needs, .turn, .snoozed:
+                Text(line.title).font(titleFont).kerning(oneLine ? -0.13 : -0.14)
+                    .foregroundStyle(session.isSnoozed ? .secondary : .primary).truncationMode(.tail)
             }
             if let more = line.more {
                 Text(more).font(Font(EdgeStyle.count)).foregroundStyle(soft)
@@ -394,22 +399,28 @@ struct GlassSessionRow: View {
         .opacity(awayDim)
     }
 
-    private func lead(_ line: Session.Line) -> Text { Text(line.title).font(titleFont).kerning(oneLine ? -0.13 : -0.14) }
-
-    private var titleFont: Font { oneLine ? .system(size: 13) : .system(size: 14, weight: .medium) }
-
-    /// Its subject in mono, after the title.
-    private func subject(_ line: Session.Line) -> Text {
-        Text(line.code ?? "").font(.system(size: 13, weight: .medium, design: .monospaced))
+    /// Needing Lee, its name in medium; your turn, its words in regular; on one line, regular at 13.
+    private var titleFont: Font {
+        oneLine ? .system(size: 13) : .system(size: 14, weight: session.kind == .needs ? .medium : .regular)
     }
 
-    /// What it waits on, plain, after the title: its subject, or a wake's countdown in tabular figures, as the
-    /// black's.
-    private func plain(_ line: Session.Line) -> Text {
-        let font = Font.system(size: 14)
+    /// A Working row's verb, 13 medium, less the space core's line ends it with where something follows.
+    private func verb(_ line: Session.Line) -> Text {
+        let lead = line.title.hasSuffix(" ") ? String(line.title.dropLast()) : line.title
 
-        return Text(line.subject(at: now) ?? "").font(line.until == nil ? font : font.monospacedDigit())
-            .kerning(-0.14)
+        return Text(lead).font(.system(size: 13, weight: .medium)).kerning(-0.13)
+    }
+
+    /// What follows a Working row's verb: its command in mono 12, or its subject or a wake's countdown in tabular
+    /// figures, 13 regular, as the black's.
+    @ViewBuilder private func after(_ line: Session.Line) -> some View {
+        if let code = line.code {
+            Text(code).font(.system(size: 12, weight: .medium, design: .monospaced))
+        } else if let subject = line.subject(at: now) {
+            let font = Font.system(size: 13)
+
+            Text(subject).font(line.until == nil ? font : font.monospacedDigit()).kerning(-0.13)
+        }
     }
 }
 

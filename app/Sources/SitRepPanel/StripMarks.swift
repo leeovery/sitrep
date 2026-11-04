@@ -78,7 +78,7 @@ struct StripLayout {
 extension Strip {
     /// The strip's places: what the full height holds, or Max, in Grows, if fewer, Max's slider running from five to
     /// what it holds; never under two. Needs you gets them first, but for one for your turn and working when there are
-    /// any. Past its room, its first marks and, in its last place, its own count of the rest, newest and away ones
+    /// any. Past its room, its first marks and, in its last place, its own count of the rest, the oldest and away ones
     /// last; then your turn and working, past theirs, their marks and the grey count in the last place.
     func allot(asks: Int, others: Int) -> StripAllotment {
         let full = fullPlaces(hairline: asks > 0 && others > 0)

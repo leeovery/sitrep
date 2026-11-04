@@ -110,7 +110,7 @@ final class PanelContent {
             let box = item.box(width: width)
 
             switch item {
-            case let .session(session), let .turn(session):
+            case let .session(session), let .line(session):
                 let row = rows[item.key].flatMap { $0.row.session == session ? $0 : nil } ?? made(session, item, box)
 
                 kept[item.key] = row
@@ -133,7 +133,7 @@ final class PanelContent {
 
     /// A row made anew, whole or on one line, its wash, if one is under way, carried on from when it began.
     private func made(_ session: Session, _ item: Item, _ box: CGRect) -> (item: CALayer, row: SessionRow) {
-        let row = SessionRow(session, size: box.size, oneLine: item == .turn(session))
+        let row = SessionRow(session, size: box.size, oneLine: item == .line(session))
 
         if let began = washed[item.key] {
             row.washes(since: began)

@@ -12,7 +12,7 @@ struct MenuEntriesTests {
         #expect(Self.entries().map(\.key) == [
             "header", "separator:header",
             "heading:sessions", "row:sr-ledger", "row:sr-dash", "row:sr-plan",
-            "separator:hairline", "row:sr-boot", "row:sr-diff", "separator:sessions",
+            "row:sr-boot", "separator:hairline", "row:sr-diff", "separator:sessions",
             "openWindow", "separator:window",
             "heading:show", "show:notch", "show:strip", "show:nothing", "separator:show", "welcome",
             "settings", "separator:settings", "quit",
@@ -69,7 +69,7 @@ struct MenuEntriesTests {
 
         #expect(changes.removals.isEmpty)
         #expect(changes.insertions.isEmpty)
-        #expect(changes.changes == [MenuChanges.Placed(7, new[7])])
+        #expect(changes.changes == [MenuChanges.Placed(6, new[6])])
     }
 
     @Test func aRowComeIsPutInAtItsPlaceAlone() {
@@ -81,7 +81,7 @@ struct MenuEntriesTests {
         let changes = MenuChanges(from: Self.entries(), to: new)
 
         #expect(changes.removals.isEmpty)
-        #expect(changes.insertions == [MenuChanges.Placed(8, new[8])])
+        #expect(changes.insertions == [MenuChanges.Placed(7, new[7])])
         #expect(changes.changes.isEmpty)
     }
 

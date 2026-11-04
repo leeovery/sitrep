@@ -13,19 +13,20 @@ struct ListedTests {
     /// Fumi's turn.
     private static let bySession = Listed(heard(.line(Lines.bySession[0])))
 
+    /// Each section in the sections' order, Your turn above Working, each section's rows in core's order.
     @Test func eachSessionHasOneRowInItsSectionInCoresOrder() {
         #expect(Self.bySession.rows.map(\.id) == [
-            "sr-4g01a7", "sr-dash02", "sr-gs7kq2", "sr-macapp", "sr-k7bt2s", "sr-v3t7a0",
+            "sr-4g01a7", "sr-dash02", "sr-gs7kq2", "sr-v3t7a0", "sr-macapp", "sr-k7bt2s",
         ])
-        #expect(Self.bySession.rows.map(\.section) == [.needsYou, .needsYou, .needsYou, .working, .working, .yourTurn])
+        #expect(Self.bySession.rows.map(\.section) == [.needsYou, .needsYou, .needsYou, .yourTurn, .working, .working])
         #expect(Self.bySession.needsYou.map(\.id) == ["sr-4g01a7", "sr-dash02", "sr-gs7kq2"])
     }
 
     /// Goosemates' ask, which no window holds, takes the away ring.
     @Test func aRowTakesItsMarkFromItsLineAndNamesItsProject() {
-        #expect(Self.bySession.rows.map(\.mark) == [.needs, .needs, .awayAsk, .working, .onItsWork, .turn])
+        #expect(Self.bySession.rows.map(\.mark) == [.needs, .needs, .awayAsk, .turn, .working, .onItsWork])
         #expect(Self.bySession.rows.map(\.isAway) == [false, false, true, false, false, false])
-        #expect(Self.bySession.rows.map(\.project) == ["Harness", "Switchboard", "Goosemates", "SitRep", "Kit", "Fumi"])
+        #expect(Self.bySession.rows.map(\.project) == ["Harness", "Switchboard", "Goosemates", "Fumi", "SitRep", "Kit"])
     }
 
     /// A working row's verb and what it acts on, a your-turn row's words, each its one line.
@@ -33,9 +34,9 @@ struct ListedTests {
         let rows = Self.bySession.rows
 
         #expect(rows.map(\.lines.count) == [3, 2, 1, 1, 1, 1])
-        #expect(rows[3].lines.map(\.words) == ["Grouping the rows by session"])
-        #expect(rows[4].lines.map(\.words) == ["Waiting on 3 agents"])
-        #expect(rows[5].lines.map(\.words) == ["Comparing licence servers"])
+        #expect(rows[4].lines.map(\.words) == ["Grouping the rows by session"])
+        #expect(rows[5].lines.map(\.words) == ["Waiting on 3 agents"])
+        #expect(rows[3].lines.map(\.words) == ["Comparing licence servers"])
         #expect(rows[1].lines.map(\.words) == ["Paste the load test's output", "Allow Bash gh pr create --draft"])
     }
 

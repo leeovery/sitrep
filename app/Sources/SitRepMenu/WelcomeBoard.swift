@@ -1,8 +1,8 @@
 import SitRepEdge
 import SitRepPanel
 
-/// The made-up board the welcome's stage shows on SitRep's own edge, laid out as Paper's board A lists it: an ask in
-/// Needs you, two sessions working, and one whose turn it is, each in placeholder words (`Sample`). Each row is made
+/// The made-up board the welcome's stage shows on SitRep's own edge, in core's order (DESIGN, "The rows"): an ask in
+/// Needs you, one whose turn it is, and two sessions working, each in placeholder words (`Sample`). Each row is made
 /// on its own, so no literal grows large.
 public enum WelcomeBoard {
     /// The session whose ask lands.
@@ -10,13 +10,13 @@ public enum WelcomeBoard {
 
     /// Before the ask lands: nothing needs Lee, so the notch rests.
     public static func calm(at now: Double) -> PanelBoard {
-        PanelBoard(rows: [running(at: now), writing(at: now), review(at: now)])
+        PanelBoard(rows: [review(at: now), running(at: now), writing(at: now)])
     }
 
     /// The ask on it: new as it lands, which swells the notch; else lit, as for needs you, with no swell.
     public static func asked(at now: Double, isNew: Bool) -> PanelBoard {
         PanelBoard(
-            rows: [ask(at: now), running(at: now), writing(at: now), review(at: now)], new: isNew ? [asking] : []
+            rows: [ask(at: now), review(at: now), running(at: now), writing(at: now)], new: isNew ? [asking] : []
         )
     }
 

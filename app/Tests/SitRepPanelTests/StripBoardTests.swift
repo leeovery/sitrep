@@ -20,6 +20,23 @@ struct StripBoardTests {
         #expect(lab.model.mark(.session("s9"))!.sc.x < 1)
     }
 
+    /// The marks are core's rows in core's order as it comes: needs you, the newest first, then your turn, then working
+    /// (4 November 2026). The hairline stays under needs you, where needs you's places end.
+    @Test func theMarksTakeCoresOrderYourTurnAboveWorkingTheHairlineUnderNeedsYou() throws {
+        let order = ["s3", "s2", "s1", "s4", "s5", "s6", "s7", "s8"]
+        let sessions = try order.map { id in try #require(StripLab.prototype.first { $0.id == id }) }
+        let input = StripInput(time: 1000, pointer: nil, stage: StripLab.stage, reducesMotion: false)
+        let strip = Strip(
+            feel: .lees, length: .full, maxLength: .full, sessions: sessions, measure: StripLab.measure, input
+        )
+        let y = { (id: String) in try #require(strip.layout.y(of: id)) }
+        let hair = try #require(strip.layout.hair)
+
+        #expect(strip.display == order)
+        #expect(try y("s4") < hair && hair < y("s5"))
+        #expect(try y("s6") < y("s7"))
+    }
+
     @Test func aNeedsYouNewOnTheLineFlashesTwice() {
         var lab = StripLab()
 

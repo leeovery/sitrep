@@ -1,16 +1,17 @@
 import AppKit
 import SitRepPanel
 
-/// One session's row in black, as the prototype draws it: its mark, its title (`Session.headline`), its subject in
-/// mono after it, and its time at the right; the line under them; the lift under the pointer, and a new row's wash. A
-/// row needing Lee is its session, as Paper's board F draws it: its name, and a quiet "+2" for its lines after the
-/// first, over its project, or for an away one why a click does nothing. A working row's arc turns and its lead
-/// shimmers, its subject still, in the render server. A row on its own work is still: its dotted ring, and its title,
-/// a wake's countdown in it set again as it reads differently. A your-turn row on the card is on one line, as board D
-/// draws it: its ring, its words in regular, its project faint at the right of them, never cut, and its time. A row in
-/// Snoozed is a row needing Lee quieted, as Paper's board G draws it: its dot grey and unlit, its name soft, its "+2"
-/// and its project faint, and in its time's place when its soonest ask wakes, soft, the lane grown to fit it. Under
-/// the pointer any row's time gives way to its button, which opens its session in the SitRep window.
+/// One session's row in black, as the prototype draws it: its mark, its title (`Session.headline`), and its time at the
+/// right; the lift under the pointer, and a new row's wash. Over the hairline a row is drawn whole, its title over a
+/// second line, as Paper's board I draws the card: a row needing Lee is its session, as board F draws it, its name and
+/// a quiet "+2" for its lines after the first, over its project, or for an away one why a click does nothing; a
+/// your-turn row its open ring, what Claude left Lee in regular, over its project and session. Under the hairline a row
+/// is on one line, its project faint at the right of its words, never cut: a Working row its verb, then what it acts
+/// on or waits on, an arc turning and its verb shimmering in the render server, or on its own work its dotted ring and
+/// its words still, a wake's countdown set again as it reads differently; a row in Snoozed a row needing Lee quieted,
+/// as board G draws it, its dot grey and unlit, its name soft, its "+2" faint, and in its time's place when its
+/// soonest ask wakes, soft, the lane grown to fit it. Under the pointer any row's time gives way to its button, which
+/// opens its session in the SitRep window.
 @MainActor
 final class SessionRow {
     /// The row's box: the item less the gap below it.
@@ -27,19 +28,21 @@ final class SessionRow {
     /// Its time, and what it says, as last set.
     private var age: TextLine?
     private var ageText = ""
-    /// Its title's layers, and the line under it.
+    /// Its title's layers, and the line under it, or on one line its project.
     private var titleLayers: [CALayer] = []
     private var subLine = CALayer()
     /// What its title says after its verb, as last set: a wake's countdown changes it as the clock ticks.
     private var subject: String?
+    /// On one line, its project at the right of its words.
+    private let project: NSAttributedString
 
     init(_ session: Session, size: CGSize, oneLine: Bool = false) {
-        let project = TextLine.text(session.project, EdgeStyle.sub, EdgeStyle.ink3)
-        let radius = oneLine ? SessionRowLayout.turnRadius : SessionRowLayout.radius
+        let radius = SessionRowLayout.radius(of: session.kind)
 
         self.session = session
         isOneLine = oneLine
-        at = oneLine ? SessionRowLayout(turn: size, project: TextLine.width(project)) : SessionRowLayout(size: size)
+        project = TextLine.text(session.project, EdgeStyle.sub, EdgeStyle.ink3)
+        at = Self.layout(size, oneLine: oneLine, project: TextLine.width(project))
         spinner = Self.arc(right: at.age)
         opener = CardParts.opener(in: at.opener)
         subject = session.subject
@@ -54,7 +57,7 @@ final class SessionRow {
         layer.addSublayer(wash)
         layer.addSublayer(mark(at: at.mark))
         showTitle()
-        subLine = oneLine ? projectLine(project) : sub(in: at.sub)
+        subLine = second()
         layer.addSublayer(subLine)
         spinner.layer.isHidden = true
         layer.addSublayer(spinner.layer)
@@ -62,8 +65,18 @@ final class SessionRow {
         layer.addSublayer(opener)
     }
 
-    /// A one-line row's project in its lane, on its words' baseline.
-    private func projectLine(_ project: NSAttributedString) -> TextLine {
+    /// Laid out whole or on one line, its time's lane this wide at the least.
+    private static func layout(_ size: CGSize, oneLine: Bool, project: CGFloat, time: Double = 0) -> SessionRowLayout {
+        oneLine ? SessionRowLayout(line: size, project: project, time: time) : SessionRowLayout(size: size, time: time)
+    }
+
+    /// What it draws beside its title: whole, the line under it, its project or what core says there; on one line,
+    /// its project in its lane, on its words' baseline.
+    private func second() -> TextLine {
+        guard isOneLine else {
+            return TextLine(TextLine.text(session.sub, EdgeStyle.sub, subColour), in: at.sub)
+        }
+
         let drop = TextLine.drop(of: EdgeStyle.sub, to: EdgeStyle.line, lineHeight: at.sub.height)
 
         return TextLine(project, in: at.sub.offsetBy(dx: 0, dy: drop))
@@ -146,10 +159,10 @@ final class SessionRow {
         ageText = text
     }
 
-    /// A row in Snoozed's lane fitted to when it wakes, its title and the line under it, cut short before it, laid out
-    /// again where it changed: the lane only narrows as the days go, from a date to a weekday to today's time.
+    /// A row in Snoozed's lane fitted to when it wakes, its title and its project cut short before it, laid out again
+    /// where it changed: the lane only narrows as the days go, from a date to a weekday to today's time.
     private func fit(time width: CGFloat) {
-        let fitted = SessionRowLayout(size: layer.bounds.size, time: width)
+        let fitted = Self.layout(layer.bounds.size, oneLine: isOneLine, project: TextLine.width(project), time: width)
 
         guard fitted.age != at.age else {
             return
@@ -158,16 +171,11 @@ final class SessionRow {
         at = fitted
         showTitle()
 
-        let sub = sub(in: at.sub)
+        let sub = second()
 
         sub.contentsScale = layer.contentsScale
         still { layer.replaceSublayer(subLine, with: sub) }
         subLine = sub
-    }
-
-    /// The line under its title, whole: its project, or what core says there.
-    private func sub(in box: CGRect) -> TextLine {
-        TextLine(TextLine.text(session.sub, EdgeStyle.sub, subColour), in: box)
     }
 
     /// New on the board while the panel is out: washed orange (`Wash`) from this time, ms on the display's clock,
@@ -210,8 +218,8 @@ final class SessionRow {
 
     private var subColour: CGColor { session.isSnoozed ? EdgeStyle.ink3 : Away.dimmed(EdgeStyle.ink2, session.away) }
 
-    /// Its title's layers: the title, and a session's "+2" after it, board F's, quiet in the second line's colour, 6
-    /// after the name on its baseline, which the name is cut short to leave room for.
+    /// Its title's layers: the title, and a session's "+2" after it, board F's, quiet in the second line's colour, in
+    /// Snoozed faint, 6 after the name on its baseline, which the name is cut short to leave room for.
     private func title() -> [CALayer] {
         let box = at.title
 
@@ -226,53 +234,46 @@ final class SessionRow {
         cut.size.width -= width + gap
 
         let line = titleLine(in: cut)
-        let drop = TextLine.drop(of: EdgeStyle.count, to: EdgeStyle.title, lineHeight: box.height)
+        let drop = TextLine.drop(of: EdgeStyle.count, to: titleFont, lineHeight: box.height)
         let after = CGRect(x: cut.minX + line.width + gap, y: cut.minY + drop, width: width, height: cut.height)
 
         return [line.layer, TextLine(count, in: after)]
     }
 
-    /// Its title in its box, and how wide it is drawn there. A working title is grey, its lead lit by the sweep and
-    /// its subject left still; one on its own work is still.
+    /// Its title in its box, and how wide it is drawn there. A working title is grey, its verb lit by the sweep and
+    /// what follows it left still; one on its own work is still (`LineTitle`).
     private func titleLine(in box: CGRect) -> (layer: CALayer, width: CGFloat) {
-        let line = session.headline
+        switch session.kind {
+        case .onItsWork:
+            let drawn = TextLine(LineTitle.text(session, verb: EdgeStyle.waitingVerb, subject: subject), in: box)
 
-        if session.kind == .onItsWork {
-            let drawn = TextLine(WaitingTitle.text(session, subject: subject), in: box)
+            return (drawn, drawn.width)
+        case .working:
+            let shimmer = Shimmer(
+                grey: LineTitle.text(session, verb: EdgeStyle.shim, subject: subject),
+                lit: LineTitle.text(session, verb: EdgeStyle.ink, subject: subject, isFollowed: false), in: box
+            )
+
+            shimmer.band.add(shimmer.sweep, forKey: "sweep")
+
+            return (shimmer.layer, shimmer.width)
+        case .needs, .turn, .snoozed:
+            let font = titleFont
+            let drawn = TextLine(TextLine.text(session.title, font, titleColour, kern: EdgeStyle.tightKern(font)), in: box)
 
             return (drawn, drawn.width)
         }
-
-        guard session.kind == .working else {
-            let drawn = TextLine(titleText(line, titleColour), in: box)
-
-            return (drawn, drawn.width)
-        }
-
-        let shimmer = Shimmer(
-            grey: titleText(line, EdgeStyle.shim), lit: titleText(line, EdgeStyle.ink, subject: false), in: box
-        )
-
-        shimmer.band.add(shimmer.sweep, forKey: "sweep")
-
-        return (shimmer.layer, shimmer.width)
     }
 
-    /// A line's title in a colour, its subject in mono after it: in medium, or on one line in regular.
-    private func titleText(_ line: Session.Line, _ colour: CGColor, subject: Bool = true) -> NSAttributedString {
-        let font = isOneLine ? EdgeStyle.line : EdgeStyle.title
-        let text = TextLine.text(line.title, font, colour, kern: EdgeStyle.tightKern(font))
-
-        if subject, let code = line.code {
-            text.append(TextLine.text(code, EdgeStyle.code, colour))
-        }
-
-        return text
+    /// Its title's type: needing Lee, its name in medium; your turn, its words in regular, as Needs you keeps the
+    /// heavier title (board I); on one line, regular at 13.
+    private var titleFont: NSFont {
+        isOneLine ? EdgeStyle.line : session.kind == .needs ? EdgeStyle.title : EdgeStyle.subject
     }
 
     /// Its mark: needs you an orange dot with its glow, and away a hollow orange ring, unlit (`Away`); your turn an
-    /// open white ring, on one line board D's 9; working the arc turning; on its own work the dotted ring, still; in
-    /// Snoozed a faint dot, unlit.
+    /// open white ring, board D's 9; working the arc turning; on its own work the dotted ring, still; in Snoozed a
+    /// faint dot, unlit.
     private func mark(at centre: CGPoint) -> CALayer {
         switch session.kind {
         case .needs where session.away:
@@ -287,7 +288,7 @@ final class SessionRow {
 
             return dot
         case .turn:
-            return Self.ring(isOneLine ? 9 : 7, at: centre, colour: EdgeStyle.ink)
+            return Self.ring(9, at: centre, colour: EdgeStyle.ink)
         case .working:
             return Self.arc(in: CGRect(x: centre.x - 5.5, y: centre.y - 5.5, width: 11, height: 11)).layer
         case .onItsWork:

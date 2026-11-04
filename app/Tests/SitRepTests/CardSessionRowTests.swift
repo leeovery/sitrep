@@ -119,10 +119,10 @@ struct CardSessionRowTests {
         #expect(abs(glyph.midX - button.midX) <= 0.5 && abs(glyph.midY - button.midY) <= 0.5)
     }
 
-    /// Board F's button on a one-line your-turn row too, on its 30's middle.
+    /// Board F's button on a row on one line too, on its 30's middle.
     @Test func aOneLineRowsButtonSitsOnItsMiddle() {
-        let turn = Session(id: "t", project: "Fumi", kind: .turn, title: "Sketched", sub: "", since: 0)
-        let row = SessionRow(turn, size: CGSize(width: Self.width, height: Item.turnHeight), oneLine: true)
+        let working = Session(id: "w", project: "Fumi", kind: .working, title: "Sketching", sub: "", since: 0)
+        let row = Self.line(working)
 
         #expect(row.opener.frame == CGRect(x: 310, y: 3, width: 24, height: 24))
         #expect(row.opener.cornerRadius == 7 && row.opener.backgroundColor == EdgeStyle.opener)
@@ -146,6 +146,14 @@ struct CardSessionRowTests {
         #expect(row.opener.isHidden)
     }
 
+    /// A row on one line, as the card lays one out under its hairline.
+    private static func line(_ session: Session) -> SessionRow {
+        let row = SessionRow(session, size: CGSize(width: width, height: Item.lineHeight), oneLine: true)
+
+        row.showAge(at: 5 * 3_600_000)
+        return row
+    }
+
     /// Harness's two asks asleep, the sooner waking a day after the time the rows are drawn at; away, or a window
     /// holding it.
     private static func asleep(away: Bool = false) -> Session {
@@ -156,33 +164,41 @@ struct CardSessionRowTests {
         )
     }
 
-    /// A Snoozed row is a Needs you row quieted (board G), the same away or not: its dot 7 across with no glow, in its
-    /// project's faint grey; its name in the soft grey a Needs you row's project takes; and in its time's place, in the
-    /// soft grey too, when it wakes, its lane grown past the 36 to fit it, still ending at 334, the name cut short
-    /// before it.
+    /// A Snoozed row is a Needs you row quieted (board G), on one line under the hairline (board I), the same away or
+    /// not: its dot 7 across with no glow, on the row's middle, in the faint grey its project takes; its name 13 in the
+    /// soft grey a Needs you row's project takes; its project in a lane at its right, ending 10 before the time's; and
+    /// in its time's place, in the soft grey too, when it wakes, its lane grown past the 36 to fit it, still ending at
+    /// 334.
     @Test(arguments: [false, true])
-    func aSnoozedRowIsANeedsYouRowQuietedWithWhenItWakes(away: Bool) throws {
+    func aSnoozedRowIsANeedsYouRowQuietedOnOneLineWithWhenItWakes(away: Bool) throws {
         let asleep = Self.asleep(away: away)
-        let drawn = try Drawn(Self.card(asleep).layer), needs = try Drawn(Self.card(Self.harness(1)).layer)
-        let dot = try #require(drawn.drawnBox(in: CGRect(x: 4, y: 7, width: 22, height: 18), ground: Self.ground))
-        let wakes = try #require(drawn.drawnBox(in: CGRect(x: 250, y: 7, width: 94, height: 18), ground: Self.ground))
+        let row = Self.line(asleep)
+        let drawn = try Drawn(row.layer), needs = try Drawn(Self.card(Self.harness(1)).layer)
         let words = TextLine.text(asleep.timeText(at: 5 * 3_600_000, in: WakeTime.calendar), EdgeStyle.age, EdgeStyle.ink2)
-        let name = CGRect(x: 32, y: 7, width: 100, height: 18), project = CGRect(x: 26, y: 25, width: 200, height: 16)
-        let soft = try needs.brightest(in: project)
+        let wide = TextLine.width(words)
+        let projectWidth = TextLine.width(TextLine.text("Harness", EdgeStyle.sub, EdgeStyle.ink3))
+        let lane = CGRect(x: 324 - wide - projectWidth - 1, y: 4, width: projectWidth + 2, height: 22)
+        let dot = try #require(drawn.drawnBox(in: CGRect(x: 4, y: 4, width: 22, height: 22), ground: Self.ground))
+        let wakes = try #require(drawn.drawnBox(in: CGRect(x: 330 - wide, y: 4, width: wide + 14, height: 22), ground: Self.ground))
+        let project = try #require(drawn.drawnBox(in: lane, ground: Self.ground))
+        let name = CGRect(x: 32, y: 6, width: 100, height: 18)
+        let soft = try needs.brightest(in: CGRect(x: 26, y: 25, width: 200, height: 16))
 
-        #expect(abs(dot.width - 7) <= 1 && abs(dot.height - 7) <= 1)
+        #expect(row.layer.bounds.height == 30)
+        #expect(abs(dot.width - 7) <= 1 && abs(dot.height - 7) <= 1 && abs(dot.midY - 15) <= 0.5)
         #expect(try drawn.brightest(in: dot).isAlike(drawn.brightest(in: project)))
         #expect(try drawn.brightest(in: project).lightness < soft.lightness - 0.3)
+        #expect(abs(project.maxX - (324 - wide)) <= 1)
         #expect(try drawn.brightest(in: name).isAlike(soft))
         #expect(try drawn.brightest(in: wakes).isAlike(soft))
         #expect((332.5 ... 334.5).contains(wakes.maxX))
-        #expect(abs(wakes.width - TextLine.width(words)) <= 1.5 && wakes.width > 36)
+        #expect(abs(wakes.width - wide) <= 1.5 && wakes.width > 36)
     }
 
-    /// Its lane grown to fit when it wakes, its lines laid out again are drawn at the row's scale, as on Retina, the
-    /// line under its title among them.
+    /// Its lane grown to fit when it wakes, its words laid out again are drawn at the row's scale, as on Retina, its
+    /// project among them.
     @Test func aSnoozedRowsLinesLaidOutAgainAreAtItsScale() {
-        let row = SessionRow(Self.asleep(), size: CGSize(width: Self.width, height: Item.session(Self.asleep()).height - Item.rowGap))
+        let row = SessionRow(Self.asleep(), size: CGSize(width: Self.width, height: Item.lineHeight), oneLine: true)
 
         rescale(row.layer, to: 2)
         row.showAge(at: 5 * 3_600_000)

@@ -5,24 +5,24 @@ import Testing
 struct RowsTests {
     private static let minute = 60_000.0
 
-    /// Harness's three asks, an hour apart, the oldest first.
+    /// Harness's three asks, an hour apart, the newest first, as core has them.
     private static let harness = Session(
         id: "sr-4g01a7", project: "Harness", name: "Finish the Harness modernisation", kind: .needs,
         lines: [
-            Session.Line(title: "Approve the first fix batch", since: 0),
-            Session.Line(title: "Choose the release notes' grouping", since: 60 * minute),
             Session.Line(title: "Which branch?", more: "+1", since: 120 * minute),
+            Session.Line(title: "Choose the release notes' grouping", since: 60 * minute),
+            Session.Line(title: "Approve the first fix batch", since: 0),
         ],
         sub: "Harness"
     )
 
-    /// A row needing Lee says its session, on every surface: its name, its oldest line's time, and "+2" for the two
+    /// A row needing Lee says its session, on every surface: its name, its newest line's time, and "+2" for the two
     /// lines after it; none of its lines' words.
     @Test func aRowNeedingLeeShowsItsSessionsNameThenHowManyMore() {
         #expect(Self.harness.title == "Finish the Harness modernisation")
         #expect(Self.harness.code == nil && Self.harness.subject == nil)
-        #expect(Self.harness.since == 0)
-        #expect(Self.harness.ageText(at: 180 * Self.minute) == "3h")
+        #expect(Self.harness.since == 120 * Self.minute)
+        #expect(Self.harness.ageText(at: 180 * Self.minute) == "1h")
         #expect(Self.harness.more == "+2")
     }
 
@@ -53,10 +53,11 @@ struct RowsTests {
         #expect(working.title == "Editing " && working.code == "app/Kit.swift" && working.more == nil)
     }
 
-    /// Only its time shows: the row may next read differently as its oldest line's ticks, not its others'.
+    /// Only its time shows: the row may next read differently as its newest line's ticks, not its others'.
     @Test func aRowsWordsMayNextReadDifferentlyAsItsTimeTicks() {
         var staggered = Self.harness
 
+        staggered.lines[0].since = 0
         staggered.lines[1].since = 30_000
         #expect(staggered.changes(after: 40_000) == 60_000)
         #expect(staggered.changes(after: 70_000) == 120_000)
@@ -77,7 +78,7 @@ struct RowsTests {
     /// Board F's button, 24 square, its right 10 in from the row's and on the row's middle, whole or on one line: a
     /// press on it opens the session, one beside it on the row does not.
     @Test func aRowsButtonIs24SquareAtItsRightOnItsMiddle() {
-        let content = Content(laying: [.session(Self.harness), .turn(Self.harness)], headed: false)
+        let content = Content(laying: [.session(Self.harness), .line(Self.harness)], headed: false)
         let width = content.itemFrame(0).width
 
         #expect(Opener.frame(in: CGSize(width: width, height: 49)) == CGRect(x: width - 34, y: 12.5, width: 24, height: 24))
@@ -104,20 +105,21 @@ struct RowsTests {
         #expect(Session.ageText(minutes * Self.minute) == shown)
     }
 
-    /// Core orders the rows: the panel keeps them as given, the hairline under the needs you that lead.
+    /// Core orders the rows: the panel keeps them as given, the hairline under what waits on Lee that leads them, the
+    /// needs you and your turn.
     @Test func thePanelListsItsSessionsInTheOrderGiven() {
         let sessions = Item.prototype.compactMap(\.session).reversed()
 
         let ids = Item.list(Array(sessions)).map { $0.session?.id ?? "divider" }
 
-        #expect(ids == ["s7", "divider", "s6", "s5", "s4", "s3", "s2", "s1"])
+        #expect(ids == ["s7", "s6", "divider", "s5", "s4", "s3", "s2", "s1"])
     }
 
-    @Test func noHairlineWithoutBothNeedsYouAndTheRest() {
+    @Test func noHairlineWithoutBothWhatWaitsOnLeeAndTheRest() {
         let sessions = Item.prototype.compactMap(\.session)
 
-        #expect(!Item.list(sessions.filter { $0.kind == .needs }).contains(.divider))
-        #expect(!Item.list(sessions.filter { $0.kind != .needs }).contains(.divider))
+        #expect(!Item.list(sessions.filter { $0.kind != .working }).contains(.divider))
+        #expect(!Item.list(sessions.filter { $0.kind == .working }).contains(.divider))
     }
 
     @Test func theHeadSaysHowManyNeedLeeAndHowManySessionsThereAre() {
@@ -271,6 +273,6 @@ struct RowsTests {
     }
 
     @Test func eachItemIsKeyedBySessionTheHairlineByItself() {
-        #expect(Content.css.items.map(\.key) == ["needs:s1", "needs:s2", "divider", "s3", "s4", "s5", "s6", "needs:s7"])
+        #expect(Content.css.items.map(\.key) == ["needs:s1", "needs:s2", "divider", "turn:s3", "s4", "s5", "turn:s6", "needs:s7"])
     }
 }

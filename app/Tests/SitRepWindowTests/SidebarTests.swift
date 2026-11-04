@@ -7,7 +7,7 @@ import struct SitRepPanel.Earlier
 @testable import SitRepWindow
 import Testing
 
-/// The sidebar's one list, the card's sections at the window's size: Needs you, Working and Your turn, each under a
+/// The sidebar's one list, the card's sections at the window's size: Needs you, Your turn and Working, each under a
 /// heading with its count, each session once; then Projects; and the folds, kept across launches.
 struct SidebarTests {
     /// Harness's three asks, Switchboard's ask and prompt and Goosemates' away ask; SitRep working, Kit on its own work;
@@ -30,11 +30,11 @@ struct SidebarTests {
     private static let projects = Sidebar.Line.ID.fold(.projects)
     private static let earlier = Sidebar.Line.ID.fold(.earlier)
 
-    @Test func theListIsNeedsYouThenWorkingThenYourTurnThenProjectsFolded() {
+    @Test func theListIsNeedsYouThenYourTurnThenWorkingThenProjectsFolded() {
         #expect(Self.ids() == [
             Self.needsYou, Self.session("sr-4g01a7"), Self.session("sr-dash02"), Self.session("sr-gs7kq2"),
-            Self.working, Self.session("sr-macapp"), Self.session("sr-k7bt2s"),
             Self.yourTurn, Self.session("sr-v3t7a0"),
+            Self.working, Self.session("sr-macapp"), Self.session("sr-k7bt2s"),
             Self.projects,
         ])
     }
@@ -58,9 +58,9 @@ struct SidebarTests {
     @Test func eachHeadingCountsWhatItHolds() {
         let headings = Self.headings(Sidebar(Self.bySession, folds: Folds()))
 
-        #expect(headings.map(\.fold) == [.section(.needsYou), .section(.working), .section(.yourTurn), .projects])
-        #expect(headings.map(\.count) == [6, 2, 1, 6])
-        #expect(headings.map(\.title) == ["Needs you", "Working", "Your turn", "Projects"])
+        #expect(headings.map(\.fold) == [.section(.needsYou), .section(.yourTurn), .section(.working), .projects])
+        #expect(headings.map(\.count) == [6, 1, 2, 6])
+        #expect(headings.map(\.title) == ["Needs you", "Your turn", "Working", "Projects"])
         #expect(headings.map(\.isNeedsYou) == [true, false, false, false])
     }
 
@@ -83,7 +83,7 @@ struct SidebarTests {
         ])
     }
 
-    @Test(arguments: [BoardSection.needsYou, .working, .yourTurn])
+    @Test(arguments: [BoardSection.needsYou, .yourTurn, .working])
     func everySectionFoldsToItsHeadingAlone(section: BoardSection) {
         let sidebar = Sidebar(Self.bySession, folds: Folds(sections: [section]))
         let hidden = Self.bySession.rows(in: section).map(\.pick)
@@ -94,8 +94,8 @@ struct SidebarTests {
     }
 
     @Test func theRuleSitsOverTheHeadingAfterNeedsYouFoldedOrNot() {
-        #expect(Sidebar(Self.bySession, folds: Folds()).ruled == Self.working)
-        #expect(Sidebar(Self.bySession, folds: Folds(sections: [.needsYou])).ruled == Self.working)
+        #expect(Sidebar(Self.bySession, folds: Folds()).ruled == Self.yourTurn)
+        #expect(Sidebar(Self.bySession, folds: Folds(sections: [.needsYou])).ruled == Self.yourTurn)
         #expect(Sidebar(Self.first, folds: Folds()).ruled == Self.yourTurn)
     }
 
@@ -116,7 +116,7 @@ struct SidebarTests {
     @Test func yourTurnsRowsPastThePeriodFoldIntoNEarlierAtItsEnd() throws {
         var listed = Self.first
 
-        listed.rows.append(try #require(Self.bySession.rows.last))
+        listed.rows.append(try #require(Self.bySession.rows(in: .yourTurn).last))
 
         let sidebar = Sidebar(Self.marked(listed, earlier: ["sr-rq7dgr"]), folds: Folds())
         let line = try #require(sidebar.lines.first { $0.id == Self.earlier })
@@ -160,7 +160,7 @@ struct SidebarTests {
     /// What Return in the Filter field opens: the first row that picks, never a heading, nor a row a fold hides.
     @Test func theListsFirstRowThatPicksIsTheFirstItShows() {
         #expect(Sidebar(Self.bySession, folds: Folds()).first == .session("sr-4g01a7"))
-        #expect(Sidebar(Self.bySession, folds: Folds(sections: [.needsYou])).first == .session("sr-macapp"))
+        #expect(Sidebar(Self.bySession, folds: Folds(sections: [.needsYou])).first == .session("sr-v3t7a0"))
         #expect(Sidebar(Self.bySession, folds: Folds(sections: [.needsYou, .working, .yourTurn])).first == nil)
         #expect(
             Sidebar(Self.bySession, folds: Folds(sections: [.needsYou, .working, .yourTurn], projects: false)).first
@@ -170,17 +170,17 @@ struct SidebarTests {
 
     /// A pick a fold hides stands at the line it is folded under: its section's heading.
     @Test func fromAPickAFoldHidesAStepGoesFromItsHeading() {
-        let sidebar = Sidebar(Self.bySession, folds: Folds(sections: [.working]))
+        let sidebar = Sidebar(Self.bySession, folds: Folds(sections: [.yourTurn]))
 
-        #expect(sidebar.step(from: .session("sr-k7bt2s"), down: true) == .to(.session("sr-v3t7a0")))
-        #expect(sidebar.step(from: .session("sr-k7bt2s"), down: false) == .to(.session("sr-gs7kq2")))
+        #expect(sidebar.step(from: .session("sr-v3t7a0"), down: true) == .to(.session("sr-macapp")))
+        #expect(sidebar.step(from: .session("sr-v3t7a0"), down: false) == .to(.session("sr-gs7kq2")))
     }
 
     /// A project's page shows while Projects is folded: it stands at Projects' heading, the list's last line.
     @Test func fromAProjectFoldedUnderProjectsUpGoesToTheLastRowAndDownStays() {
         let sidebar = Sidebar(Self.bySession, folds: Folds())
 
-        #expect(sidebar.step(from: .project("kit"), down: false) == .to(.session("sr-v3t7a0")))
+        #expect(sidebar.step(from: .project("kit"), down: false) == .to(.session("sr-k7bt2s")))
         #expect(sidebar.step(from: .project("kit"), down: true) == .stays)
     }
 

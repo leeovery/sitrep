@@ -35,8 +35,9 @@ enum EdgeStyle {
 
     /// A row's title, an ask's among them (board D: every ask's line medium, as Lee approved it).
     static let title = NSFont.systemFont(ofSize: 14, weight: .medium)
-    /// A row on its own work's subject, where it is no command; a wake's countdown in its tabular figures, so a row
-    /// can leave room for every reading it will take (`Session.countdownRoom`).
+    /// Regular at a title's size: a your-turn row's words on the card (board I), and in a tab a row on its own work's
+    /// subject, where it is no command; a wake's countdown in its tabular figures, so a row can leave room for every
+    /// reading it will take (`Session.countdownRoom`).
     static let subject = NSFont.systemFont(ofSize: 14, weight: .regular)
     static let countdown = NSFont.monospacedDigitSystemFont(ofSize: 14, weight: .regular)
     static let code = NSFont.monospacedSystemFont(ofSize: 13, weight: .medium)
@@ -52,8 +53,13 @@ enum EdgeStyle {
     /// An eyebrow's name, and its count in tabular figures.
     static let eyebrowTitle = NSFont.systemFont(ofSize: 11, weight: .semibold)
     static let eyebrowFigures = NSFont.monospacedDigitSystemFont(ofSize: 11, weight: .semibold)
-    /// A your-turn row's words on one line, and "8 earlier": regular (board D, as Lee approved it).
+    /// A row on one line's plain words, a Working row's subject and a Snoozed row's name (board I), and "8 earlier":
+    /// regular (board D, as Lee approved it).
     static let line = NSFont.systemFont(ofSize: 13, weight: .regular)
+    /// A Working row's verb on one line, its command in mono after it, and a wake's countdown in tabular figures.
+    static let lineVerb = NSFont.systemFont(ofSize: 13, weight: .medium)
+    static let lineCode = NSFont.monospacedSystemFont(ofSize: 12, weight: .medium)
+    static let lineCountdown = NSFont.monospacedDigitSystemFont(ofSize: 13, weight: .regular)
     /// A mark's letters, and a count's rows, needs you's bolder.
     static let letters = NSFont.systemFont(ofSize: 9.5, weight: .semibold)
     static let rowTitle = NSFont.systemFont(ofSize: 13, weight: .medium)

@@ -12,9 +12,9 @@ struct HeldRowsTests {
         ids.map { id in sessions.first { $0.id == id }! }
     }
 
-    /// Needs you together over the hairline: the hairline right under the last of them.
+    /// Needs you together at the top: none of them after a row of another section.
     private static func needsYouIsTogether(_ rows: HeldRows) -> Bool {
-        Item.list(rows.shown).firstIndex(of: .divider) == rows.shown.count(where: \.needsLee)
+        rows.shown.prefix(while: \.needsLee).count == rows.shown.count(where: \.needsLee)
     }
 
     /// Held while the panel is out, then this board taken.
@@ -72,40 +72,40 @@ struct HeldRowsTests {
     /// Working to on its own work is a change within a section, Working: in place.
     @Test func whileItIsOutAChangedRowChangesInPlace() {
         var rows = HeldRows()
-        rows.take(Self.by("s1", "s2", "s4", "s5", "s3"))
+        rows.take(Self.by("s1", "s2", "s3", "s4", "s5"))
         rows.hold(true)
         var waiting = Self.by("s4")[0]
         waiting.kind = .onItsWork
         waiting.lines[0].title = "Waiting on "
         waiting.lines[0].subject = "3 agents"
 
-        let changed = rows.take(Self.by("s1", "s2", "s5") + [waiting] + Self.by("s3"))
+        let changed = rows.take(Self.by("s1", "s2", "s3", "s5") + [waiting])
 
         #expect(changed)
-        #expect(rows.shown == Self.by("s1", "s2") + [waiting] + Self.by("s5", "s3"))
+        #expect(rows.shown == Self.by("s1", "s2", "s3") + [waiting] + Self.by("s5"))
     }
 
-    /// Working to your turn crosses from one section to the next: the row leaves its place in Working for one in Your
-    /// turn, under the your turn core has above it, or at its top.
+    /// Working to your turn crosses from one section to the one above it: the row leaves its place in Working for one
+    /// in Your turn, under the your turn core has above it, or at its top.
     @Test func whileItIsOutARowWhoseTurnEndsTakesItsPlaceInYourTurn() {
         var rows = HeldRows()
-        rows.take(Self.by("s1", "s4", "s5", "s3", "s6"))
+        rows.take(Self.by("s1", "s3", "s6", "s4", "s5"))
         rows.hold(true)
 
-        rows.take(Self.by("s1", "s4") + Self.by("s3") + [Self.answered(Self.by("s5")[0])] + Self.by("s6"))
+        rows.take(Self.by("s1", "s3") + [Self.answered(Self.by("s5")[0])] + Self.by("s6", "s4"))
 
-        #expect(Self.ids(rows) == ["s1", "s4", "s3", "s5", "s6"])
-        #expect(HeldRows.section(rows.shown[3]) == .yourTurn)
+        #expect(Self.ids(rows) == ["s1", "s3", "s5", "s6", "s4"])
+        #expect(HeldRows.section(rows.shown[2]) == .yourTurn)
     }
 
-    /// The sections' order: Needs you, then Working, on its own work among it, then Your turn, then Snoozed.
+    /// The sections' order: Needs you, then Your turn, then Working, on its own work among it, then Snoozed.
     @Test func aRowsPlaceIsHeldInItsSection() {
         var waiting = Self.by("s4")[0]
         waiting.kind = .onItsWork
 
-        #expect(Self.by("s1", "s4", "s3").map(HeldRows.section) == [.needsYou, .working, .yourTurn])
+        #expect(Self.by("s1", "s3", "s4").map(HeldRows.section) == [.needsYou, .yourTurn, .working])
         #expect(HeldRows.section(waiting) == .working)
-        #expect(BoardSection.allCases.sorted() == [.needsYou, .working, .yourTurn, .snoozed])
+        #expect(BoardSection.allCases.sorted() == [.needsYou, .yourTurn, .working, .snoozed])
     }
 
     /// A place is held within its section: a row coming to need Lee, from your turn or from working, leaves its place
@@ -113,17 +113,17 @@ struct HeldRowsTests {
     @Test(arguments: ["s3", "s4"])
     func whileItIsOutARowComingToNeedLeeTakesItsPlaceInNeedsYou(id: String) {
         var rows = HeldRows()
-        rows.take(Self.by("s1", "s2", "s4", "s5", "s3"))
+        rows.take(Self.by("s1", "s2", "s3", "s4", "s5"))
         rows.hold(true)
         var asking = Self.by(id)[0]
         asking.kind = .needs
         asking.lines[0].title = "Approve the plan"
-        let rest = Self.by("s4", "s5", "s3").filter { $0.id != id }
+        let rest = Self.by("s3", "s4", "s5").filter { $0.id != id }
 
         rows.take(Self.by("s1") + [asking] + Self.by("s2") + rest)
 
         #expect(Self.ids(rows) == ["s1", id, "s2"] + rest.map(\.id))
-        #expect(Item.list(rows.shown).firstIndex(of: .divider) == 3)
+        #expect(Self.needsYouIsTogether(rows))
     }
 
     /// A needs you whose asks are answered leaves its place there, the first or one between, for its place in Your
@@ -131,17 +131,17 @@ struct HeldRowsTests {
     @Test(arguments: ["s1", "s2"])
     func whileItIsOutANeedsYouAnsweredLeavesNeedsYouTogether(id: String) {
         var rows = HeldRows()
-        rows.take(Self.by("s1", "s2", "s7", "s4", "s3"))
+        rows.take(Self.by("s1", "s2", "s7", "s3", "s4"))
         rows.hold(true)
         var answered = Self.by(id)[0]
         answered.kind = .turn
         answered.lines[0].title = "Your turn"
         let needs = Self.by("s1", "s2", "s7").filter { $0.id != id }
 
-        rows.take(needs + Self.by("s4") + [answered] + Self.by("s3"))
+        rows.take(needs + [answered] + Self.by("s3", "s4"))
 
-        #expect(Self.ids(rows) == needs.map(\.id) + ["s4", id, "s3"])
-        #expect(Item.list(rows.shown).firstIndex(of: .divider) == 2)
+        #expect(Self.ids(rows) == needs.map(\.id) + [id, "s3", "s4"])
+        #expect(Self.needsYouIsTogether(rows))
     }
 
     /// A row is its session: one gaining a line, as a second ask comes, is the same row, changed in its place.
@@ -175,9 +175,9 @@ struct HeldRowsTests {
     @Test func whileItIsOutAnAnsweredRowComesInAmongTheRestThoughNeedsYouMoved() {
         let s1 = Self.answered(Self.by("s1")[0])
 
-        let rows = Self.held(Self.by("s1", "s2", "s7", "s4", "s3"), taking: Self.by("s7", "s2", "s4") + [s1] + Self.by("s3"))
+        let rows = Self.held(Self.by("s1", "s2", "s7", "s3", "s4"), taking: Self.by("s7", "s2") + [s1] + Self.by("s3", "s4"))
 
-        #expect(Self.ids(rows) == ["s2", "s7", "s4", "s1", "s3"])
+        #expect(Self.ids(rows) == ["s2", "s7", "s1", "s3", "s4"])
         #expect(Self.needsYouIsTogether(rows))
     }
 

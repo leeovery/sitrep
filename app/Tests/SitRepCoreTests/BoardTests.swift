@@ -16,7 +16,7 @@ struct BoardTests {
 
     @Test func theRowsComeInTheLinesOrderASessionEachInItsSectionEachLineWhatItIsAndOfAnAskOrAWindow() throws {
         let rows = try Board.read(watched).rows
-        let lines = rows.map(\.oldest)
+        let lines = rows.map(\.newest)
 
         #expect(rows.map(\.id) == ["sr-7e68fj", "sr-y4d0qj", "sr-aw3bgs"])
         #expect(rows.map(\.section) == [.needsYou, .needsYou, .yourTurn])
@@ -35,7 +35,7 @@ struct BoardTests {
         let stop = try Board.read(watched).rows[1]
 
         #expect(stop.lines.map(\.first) == [Board.Row.Words(lead: "Allow Bash", mono: "gh pr create", more: nil)])
-        #expect(stop.oldest.since == at(1_792_445_500_000))
+        #expect(stop.newest.since == at(1_792_445_500_000))
         #expect(stop.second == "Switchboard · Dashboard memory and snags")
         #expect(stop.since == at(1_792_445_500_000))
         #expect(stop.letters == "Sw")
@@ -72,11 +72,11 @@ struct BoardTests {
             "Paste the failing test's output",
         ])
         #expect(board.rows[0].lines.map(\.since) == board.rows[0].lines.map(\.since).sorted())
-        #expect(board.rows[0].since == board.rows[0].oldest.since)
+        #expect(board.rows[0].since == board.rows[0].newest.since)
         #expect(board.rows[0].second == "Harness · Finish the Harness modernisation")
         #expect(board.rows[1].lines.map(\.kind) == [.ask, .permission])
         #expect(board.rows[1].lines.map(\.first.mono) == [nil, "gh pr create --draft"])
-        #expect(board.rows[4].oldest.kind == .onItsWork)
+        #expect(board.rows[4].newest.kind == .onItsWork)
         #expect(board.head.needYou == 6)
         #expect(board.head.sessions == 6)
     }
@@ -219,16 +219,16 @@ struct BoardTests {
         #expect(board.head.isAllClear)
         #expect(board.rows.map(\.id) == ["sr-k7bt2s", "sr-macapp"])
         #expect(board.rows.map(\.section) == [.working, .working])
-        #expect(board.rows.map(\.oldest.id) == ["turn:sr-k7bt2s", "turn:sr-macapp"])
-        #expect(board.rows.map(\.oldest.kind) == [.onItsWork, .onItsWork])
-        #expect(board.rows.map(\.oldest.first) == [
+        #expect(board.rows.map(\.newest.id) == ["turn:sr-k7bt2s", "turn:sr-macapp"])
+        #expect(board.rows.map(\.newest.kind) == [.onItsWork, .onItsWork])
+        #expect(board.rows.map(\.newest.first) == [
             Board.Row.Words(lead: "Wakes", until: at(1_792_670_195_432)),
             Board.Row.Words(lead: "Waiting on", subject: "3 agents"),
         ])
         #expect(board.rows.map(\.since) == [at(1_792_669_295_432), at(1_792_669_295_432)])
         #expect(sessions.map(\.state) == [.onItsWork, .onItsWork])
         #expect(sessions.map(\.doing.kind) == [.onItsWork, .onItsWork])
-        #expect(sessions.map(\.doing.line) == board.rows.map(\.oldest.first))
+        #expect(sessions.map(\.doing.line) == board.rows.map(\.newest.first))
         #expect(board.windows.map(\.state?.kind) == [.onItsWork, .onItsWork])
     }
 
