@@ -51,4 +51,18 @@ struct Hold: Equatable, Sendable {
         isPointerIn = false
         endsAt = nil
     }
+
+    /// An order held, taking `watch`'s: what `watch` no longer has gone, and what is moving or new to it put where
+    /// `watch` has it, after the nearest of those `watch` has before it that the held order already holds.
+    static func merge<Key: Hashable>(_ held: [Key], into core: [Key], moving: Set<Key>) -> [Key] {
+        let kept = Set(core)
+        var merged = held.filter { kept.contains($0) && !moving.contains($0) }
+
+        for (place, key) in core.enumerated() where !merged.contains(key) {
+            let after = core[..<place].last(where: merged.contains).flatMap(merged.firstIndex(of:))
+
+            merged.insert(key, at: after.map { $0 + 1 } ?? 0)
+        }
+        return merged
+    }
 }

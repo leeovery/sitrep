@@ -40,6 +40,16 @@ public struct Listed: Equatable, Sendable {
     public struct Project: Equatable, Sendable, Identifiable {
         public let id: String
         public let name: String
+        /// Its current sessions.
+        public var sessions = 0
+        /// Its sessions a window holds.
+        public var open = 0
+        /// Its asks waiting, on Lee or on a window to deliver Lee's reply.
+        public var waiting = 0
+        /// Its asks snoozed.
+        public var snoozed = 0
+        /// The items its sessions parked.
+        public var parked = 0
 
         public var pick: Pick { .project(id) }
     }
@@ -102,6 +112,8 @@ public struct Listed: Equatable, Sendable {
         /// A question's "+2".
         public let more: String?
         public let since: Date
+        /// In Snoozed, when it wakes.
+        public var wakesAt: Date?
         /// New on the board: its time washed orange from then (`Wash`), which tells the new one among its row's.
         public var washed: Date?
 
@@ -128,6 +140,11 @@ public struct Listed: Equatable, Sendable {
     public var projects: [Project]
     /// The sessions on the board with no row, as an away one with nothing waiting, each by its project's key.
     public var rowless: [String: String]
+    /// Every session on the board, each by its project's key.
+    public var homes: [String: String]
+    /// A board was heard, stale or not: without one, before `watch` prints its first line or with no `watch` to run,
+    /// the list says nothing of what is on the board, so nothing has left it.
+    public let hasBoard: Bool
 
     /// Before `watch` prints its first line.
     public init() {
@@ -140,16 +157,20 @@ public struct Listed: Equatable, Sendable {
         rows = []
         projects = []
         rowless = [:]
+        homes = [:]
+        hasBoard = false
     }
 
     /// The board as last heard, its head as the panel's says it, stale or not.
     public init(_ last: LastBoard) {
         let board = last.board
 
+        hasBoard = board != nil
         head = PanelBoard(last).head
         rows = board.map(Self.rows) ?? []
-        projects = board?.projects.map { Project(id: $0.key, name: $0.name) } ?? []
+        projects = board?.projects.map(Project.init) ?? []
         rowless = board.map(Self.rowless) ?? [:]
+        homes = board.map(Self.homes) ?? [:]
     }
 
     /// A section's rows, in their order.
@@ -207,9 +228,25 @@ extension Listed {
     /// The board's sessions core has no row for, in Snoozed or out of it, by their projects' keys.
     static func rowless(_ board: Board) -> [String: String] {
         let rowed = Set(board.rows.map(\.session) + board.snoozed.map(\.session))
+
+        return homes(board).filter { !rowed.contains($0.key) }
+    }
+
+    /// The board's sessions, by their projects' keys.
+    static func homes(_ board: Board) -> [String: String] {
         let sessions = board.projects.flatMap { project in project.sessions.map { ($0.id, project.key) } }
 
-        return Dictionary(sessions.filter { !rowed.contains($0.0) }) { first, _ in first }
+        return Dictionary(sessions) { first, _ in first }
+    }
+}
+
+extension Listed.Project {
+    /// The board's project, with its counts.
+    init(_ project: Board.Project) {
+        self.init(
+            id: project.key, name: project.name, sessions: project.sessions.count, open: project.open,
+            waiting: project.waiting, snoozed: project.snoozed, parked: project.parked
+        )
     }
 }
 
@@ -242,7 +279,10 @@ private extension Listed.Line {
     }
 
     init(_ line: Board.SnoozedRow.Line) {
-        self.init(id: line.key, ask: line.ask, lead: line.first.lead, code: nil, more: nil, since: line.since)
+        self.init(
+            id: line.key, ask: line.ask, lead: line.first.lead, code: nil, more: nil, since: line.since,
+            wakesAt: line.wakesAt
+        )
     }
 }
 
