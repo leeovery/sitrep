@@ -666,7 +666,7 @@ struct SessionPageTests {
 
     @Test func anAskAsOldAsALineComesBeforeIt() {
         let at = minutes(before: 30)
-        let line = Note(id: "n1", session: nil, text: "A note", detail: [], at: at)
+        let line = Note(id: "n1", text: "A note", detail: [], at: at)
         let happened = SessionPage.happened([line], asks: [Self.ask("k1", at: at)])
 
         #expect(happened.map(\.id) == ["asked:k1", "n1"])
@@ -676,7 +676,7 @@ struct SessionPageTests {
     /// every ask stays, as nothing is missing between them.
     @Test(arguments: [8, 7])
     func asksOlderThanAFullLogsOldestLineAreCut(lines: Int) {
-        let log = (0 ..< lines).map { Note(id: "l\($0)", session: nil, text: "Line \($0)", detail: [], at: minutes(before: Double(10 + $0))) }
+        let log = (0 ..< lines).map { Note(id: "l\($0)", text: "Line \($0)", detail: [], at: minutes(before: Double(10 + $0))) }
         let asks = [Self.ask("k1", at: minutes(before: 60)), Self.ask("k2", at: minutes(before: 5))]
         let lineIDs = (0 ..< lines).map { "l\($0)" }
 

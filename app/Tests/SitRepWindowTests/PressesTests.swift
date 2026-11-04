@@ -66,7 +66,6 @@ struct QuietProjectTests {
         let page = try #require(run.page(at: printedAt).project)
 
         #expect(page.name == "Kit")
-        #expect(page.open == 0)
         #expect(page.sessions.map(\.isAway) == [true])
     }
 }
@@ -114,15 +113,8 @@ struct OpenedItemsTests {
 
         run.toggle(.note("sr-macapp:n2"))
         run.click(.project("sitrep"))
-        #expect(try #require(run.page(at: printedAt).project).opened.isEmpty)
-    }
-
-    @Test func aProjectsPageOpensItsItemsToo() throws {
-        let run = opened()
-
-        run.click(.project("sitrep"))
-        run.toggle(.parked("sr-macapp:p1"))
-        #expect(try #require(run.page(at: printedAt).project).opened == [.parked("sr-macapp:p1")])
+        run.goBack()
+        #expect(try #require(run.page(at: printedAt).session).opened.isEmpty)
     }
 
     @Test func aNoteOpenedShowsItsDetail() throws {
@@ -144,29 +136,12 @@ struct OpenedItemsTests {
 
     /// An item with more than its line is a button; one with nothing more is one only while its line is cut short,
     /// which only its layout knows.
-    @Test func aNoteWithDetailAParkedItemWithAPlaceAndEveryResolvedAskOpenToMore() throws {
-        let page = try #require(opened(boards: ["sr-macapp": Self.parkedWithAPlace]).page(at: printedAt).session)
+    @Test func aNoteWithDetailAndEveryResolvedAskOpenToMore() throws {
+        let page = try #require(opened().page(at: printedAt).session)
 
         #expect(page.notes.map(\.hasMore) == [true, false, true])
         #expect(page.resolved.map(\.hasMore) == [true, true])
-        #expect(try Self.projectsParked(Self.parkedWithAPlace).map(\.hasMore) == [true])
     }
-
-    @Test func aParkedItemWithNoPlaceOpensToNothingMore() throws {
-        #expect(try Self.projectsParked(Lines.board).map(\.hasMore) == [false])
-    }
-
-    /// The parked items on the Mac app's project's page, its board as given.
-    private static func projectsParked(_ board: String) throws -> [Parked] {
-        let run = opened()
-
-        run.click(.project("sitrep"))
-        take(["sr-macapp": board], in: run)
-        return try #require(run.page(at: printedAt).project).parked
-    }
-
-    private static let parkedWithAPlace = Lines.board
-        .replacingOccurrences(of: #""title": "Try a shy notch",\#n      "where": null"#, with: #""title": "Try a shy notch",\#n      "where": "In DESIGN.md, under The notch""#)
 }
 
 /// A card's buttons as pills on one line while they fit at their one-line width, else its answers as rows.

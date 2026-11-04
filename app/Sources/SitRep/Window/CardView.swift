@@ -2,19 +2,16 @@ import enum SitRepPanel.WakeTime
 import SitRepWindow
 import SwiftUI
 
-/// An ask as a card: its mark, title and time, after its session's name where it is a project's; where to look and
+/// An ask as a card: its mark, title and time; where to look and
 /// what its words are; its buttons, Snooze after them; and where Lee's answer is. One closed while it showed keeps its
 /// place, faint and without buttons, saying how it closed. One asleep is quieted, as Paper's board H draws it, on a
 /// darker card in a faint ring, its dot grey and unlit, its title soft, and in its buttons' place when it wakes, with
-/// Wake now. Opened in place in a project's view, its head, and only its head, closes it again. Leading the detail
-/// beside the list, as the line picked, it is larger (A1 revised). To VoiceOver it is a container named by its title,
+/// Wake now. Leading the detail beside the list, as the line picked, it is larger (A1 revised). To VoiceOver it is a container named by its title,
 /// which it says once, its buttons inside it.
 struct CardView: View {
     let card: Card
-    var session: String?
     let now: Date
     var leads = false
-    var closesBack: (() -> Void)?
 
     @Environment(\.windowActions) private var act
     @Environment(\.pressedJump) private var pressedJump
@@ -23,15 +20,15 @@ struct CardView: View {
     var body: some View {
         drawn
             .accessibilityElement(children: .contain)
-            .accessibilityLabel(Spoken.card(card, session: session))
+            .accessibilityLabel(card.title)
     }
 
     @ViewBuilder private var drawn: some View {
         if card.lines == [.closed(.sent)] {
-            head(sent)
+            sent
         } else {
             VStack(alignment: .leading, spacing: card.isClosed ? 8 : 10) {
-                head(title)
+                title
                 details
                 if !card.buttons.isEmpty {
                     buttons
@@ -112,24 +109,9 @@ struct CardView: View {
         }
     }
 
-    /// Its head, which closes it back to its line where it can.
-    @ViewBuilder private func head(_ content: some View) -> some View {
-        if let closesBack {
-            Button(action: closesBack) {
-                content.padding(.vertical, 4).padding(.horizontal, 6).contentShape(Rectangle())
-            }
-            .rowButton()
-            .accessibilityLabel(Spoken.closeCard)
-            .padding(.vertical, -4)
-            .padding(.horizontal, -6)
-        } else {
-            content
-        }
-    }
-
-    /// Its title in this colour, after its session's name where it is a project's.
+    /// Its title in this colour.
     private func titled(_ colour: Color) -> Text {
-        Text(card.title).foregroundStyle(colour).led(by: session)
+        Text(card.title).foregroundStyle(colour)
     }
 
     @ViewBuilder private var details: some View {

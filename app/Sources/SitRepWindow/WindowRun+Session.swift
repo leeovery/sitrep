@@ -12,7 +12,7 @@ extension WindowRun {
         let kept = details.board(of: session.id)
         let isAway = session.doing.isAway
         let status = Status(now: session.now, next: session.next, updated: kept?.log.first { $0.kind == .status }?.at)
-        let notes = kept.map { Note.notes($0.log, of: session, named: false) } ?? []
+        let notes = kept.map { Note.notes($0.log, of: session) } ?? []
         let cards = details.cards(of: session, at: time)
         let asked = mode == .full ? cards.map(SessionPage.Asked.init) : []
         let happened = SessionPage.happened(notes, asks: asked)

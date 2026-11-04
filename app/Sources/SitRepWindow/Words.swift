@@ -118,13 +118,6 @@ public enum Words {
         "Finish \(name)? Its open asks stop counting."
     }
 
-    /// Under a project's name: what waits on Lee there, and how many of its sessions a window holds.
-    public static func project(waiting: Int, open: Int) -> String {
-        let waits = waiting == 0 ? "Nothing waiting on you" : "\(waiting) waiting on you"
-
-        return open == 0 ? "\(waits), and no session open" : "\(waits), in \(count(open, "open session"))"
-    }
-
     public static func waiting(_ count: Int) -> String {
         "\(count) waiting"
     }
@@ -133,10 +126,6 @@ public enum Words {
         let age = age(since, at: now)
 
         return age == "now" ? "updated just now" : "updated \(age) ago"
-    }
-
-    public static func parked(_ count: Int) -> String {
-        "\(count) to come back to"
     }
 
     public static func resolved(_ count: Int) -> String {

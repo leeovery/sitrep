@@ -1,9 +1,11 @@
+import SitRepCore
 import SitRepWindow
 import SwiftUI
 
-/// A project, opened from its name: its sessions, each with what it is doing and what waits there; every session's
-/// asks, the newest first, each one line that a press opens in place into its card, one asleep quieted as its card is;
-/// their notes and their parked items in two columns. Each line names its session, where the project has several.
+/// A project, filling the window, as A3 revised draws it, under the band beside the traffic lights: its title and its
+/// counts; Sessions, a row each, where it stands in the middle; Waiting on you, a row per line across them; Now, a card
+/// per session; Log, each session's newest lines under its card; and, under a rule, what it parked. A press on a
+/// session's row or a line pushes the session's page; on "N parked", Parked narrowed to the project.
 struct ProjectPageView: View {
     let page: ProjectPage
     let now: Date
@@ -13,142 +15,452 @@ struct ProjectPageView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             Color.clear.frame(height: WindowStyle.barHeight)
-            VStack(alignment: .leading, spacing: 6) {
-                PageTitle(words: page.name)
-                Text(Words.project(waiting: page.waiting, open: page.open))
-                    .font(WindowStyle.ui(14))
-                    .foregroundStyle(WindowStyle.soft)
+            header.padding(.bottom, Self.sectionGap)
+            if !page.sessions.isEmpty {
+                sessions
             }
-            .padding(.top, 6)
-            .padding(.bottom, 26)
-            sessions.padding(.bottom, 26)
-            if !page.asks.isEmpty {
-                asks.padding(.bottom, 26)
+            if !page.waiting.isEmpty {
+                waiting.padding(.top, Self.sectionGap)
             }
-            TwoColumns {
-                VStack(alignment: .leading) {
-                    if !page.notes.isEmpty {
-                        NotesSection(notes: page.notes, opened: page.opened, now: now)
-                    }
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                if !page.parked.isEmpty {
-                    ParkedSection(parked: page.parked, opened: page.opened, now: now)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                }
+            if !page.sessions.isEmpty {
+                nowCards.padding(.top, Self.sectionGap)
+            }
+            if page.hasLog {
+                log.padding(.top, Self.sectionGap)
+            }
+            if let parkedRow = page.parkedRow {
+                parked(parkedRow).padding(.top, Self.parkedGap)
             }
         }
         .padding(.bottom, 34)
     }
 
+    private var header: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            PageTitle(words: page.name, size: 34)
+            if !page.counts.isEmpty {
+                Text(page.counts.joined(separator: " · "))
+                    .font(WindowStyle.ui(13))
+                    .foregroundStyle(Ink.rest)
+                    .spoken(Spoken.counts(page))
+            }
+        }
+    }
+
     private var sessions: some View {
         VStack(alignment: .leading, spacing: 0) {
-            SectionHeading(name: "Sessions", note: "\(page.open) open").padding(.bottom, 8)
+            ProjectHeading(name: "Sessions")
             ForEach(page.sessions) { session in
-                Button { act.openSession(session.id) } label: {
-                    ProjectSessionRow(session: session, now: now).padding(.horizontal, WindowStyle.reach)
+                lineButton(spoken: Spoken.session(session, at: now)) { act.openSession(session.id) } label: {
+                    ProjectSessionRow(session: session, now: now)
                 }
-                .rowButton()
-                .padding(.horizontal, -WindowStyle.reach)
             }
         }
     }
 
-    private var asks: some View {
+    private var waiting: some View {
         VStack(alignment: .leading, spacing: 0) {
-            SectionHeading(
-                name: "Asks", note: page.asksWaiting > 0 ? Words.waiting(page.asksWaiting) : nil, isOrange: true
-            )
-            .padding(.bottom, 8)
-            ForEach(page.asks) { ask in
-                if ask.isOpened {
-                    CardView(card: ask.card, session: ask.session, now: now) { act.toggle(ask.id) }
-                        .padding(.vertical, 4)
-                } else {
-                    Button { act.toggle(ask.id) } label: {
-                        HStack(spacing: 10) {
-                            if ask.card.isClosed {
-                                ClosedTick()
-                            } else {
-                                MarkView(mark: ask.card.mark)
-                            }
-                            Text(ask.card.title)
-                                .foregroundStyle(Self.ink(ask.card))
-                                .led(by: ask.session)
-                                .font(WindowStyle.ui(13))
-                                .lineLimit(1)
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                            Text(Words.age(ask.card.since, at: now)).font(WindowStyle.ui(12)).foregroundStyle(WindowStyle.faint)
-                        }
-                        .padding(.vertical, 4)
-                        .padding(.horizontal, WindowStyle.reach)
-                        .contentShape(Rectangle())
-                    }
-                    .rowButton(radius: 6)
-                    .padding(.horizontal, -WindowStyle.reach)
+            ProjectHeading(name: "Waiting on you", count: page.waitingBadge)
+            ForEach(page.waiting) { line in
+                lineButton(spoken: Spoken.waiting(line, at: now), washed: line.line.washed) {
+                    act.openSession(line.session)
+                } label: {
+                    WaitingRow(line: line, now: now)
                 }
             }
         }
     }
 
-    /// An ask's line's title: faint once closed, soft while asleep.
-    private static func ink(_ card: Card) -> Color {
-        card.isClosed ? WindowStyle.faint : card.snoozedUntil == nil ? WindowStyle.text : WindowStyle.soft
+    private var nowCards: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            ProjectHeading(name: "Now", under: Self.gridHeadingGap)
+            PageGrid {
+                ForEach(page.sessions) { NowCard(session: $0, now: now) }
+            }
+        }
     }
+
+    private var log: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            ProjectHeading(name: "Log", under: Self.gridHeadingGap)
+            PageGrid {
+                ForEach(page.sessions) { LogGroup(session: $0, now: now) }
+            }
+        }
+    }
+
+    /// A rule, then "◇ N parked ›".
+    private func parked(_ words: String) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Rectangle().fill(Ink.rule).frame(height: 1)
+            lineButton(spoken: words) { act.openParked(.project(page.key)) } label: {
+                HStack(spacing: Self.gap) {
+                    Diamond()
+                        .stroke(Ink.mark, style: StrokeStyle(lineWidth: 1.4, lineJoin: .round))
+                        .frame(width: 8, height: 8)
+                        .frame(width: WindowStyle.lane.width)
+                    Text(words).font(WindowStyle.ui(13)).foregroundStyle(Ink.parked)
+                    Chevron(isFolded: true).foregroundStyle(Ink.chevron)
+                }
+                .frame(height: 26)
+            }
+        }
+    }
+
+    /// A line of the page that a press acts on, its hover fill, and a wash where it is new, reaching past the column's
+    /// edges so its words keep their place under the headings; to VoiceOver one element, a button, read as given.
+    private func lineButton(
+        spoken: String, washed: Date? = nil, action: @escaping () -> Void, @ViewBuilder label: () -> some View
+    ) -> some View {
+        Button(action: action) {
+            label()
+                .padding(.horizontal, WindowStyle.reach)
+                .modifier(Washed(since: washed, now: now, radius: Self.radius))
+                .contentShape(Rectangle())
+                .spoken(spoken)
+        }
+        .rowButton(radius: Self.radius)
+        .padding(.horizontal, -WindowStyle.reach)
+    }
+
+    static let sectionGap: CGFloat = 22
+    static let gridHeadingGap: CGFloat = 8
+    static let parkedGap: CGFloat = 14
+    static let gap: CGFloat = 10
+    static let radius: CGFloat = 8
+    /// A row of Sessions or Waiting on you, 32 tall: its first words, the session's name or the line's, in a lane of
+    /// their own, so the next words line up; its time in a lane of 30.
+    static let rowHeight: CGFloat = 32
+    static let nameLane: CGFloat = 280
+    static let ageLane: CGFloat = 30
 }
 
-/// A project's session: its mark, its name, and what it is doing beneath, a working one's lead shimmering as its
-/// sidebar row's does; what waits there in orange, else its time. While no window holds it, its name and what it is
-/// doing dim as one (`Away`).
+/// A session's row in Sessions, 32 tall: its mark, the pip where no terminal shows it; its name in a lane of 280; where
+/// it stands, a working line's lead shimmering as its list row's does, and "not on screen" where no terminal shows it;
+/// and its time. While no window holds it, its name and where it stands dim as one (`Away`), its time staying.
 struct ProjectSessionRow: View {
     let session: ProjectPage.Session
     let now: Date
 
     var body: some View {
-        HStack(alignment: .top, spacing: 10) {
-            MarkView(mark: session.mark)
-            VStack(alignment: .leading, spacing: 2) {
-                Text(session.name)
-                    .font(WindowStyle.ui(14, .semibold))
-                    .spacing(-0.01, of: 14)
-                    .foregroundStyle(WindowStyle.text)
-                doing.font(WindowStyle.ui(12)).foregroundStyle(WindowStyle.soft).lineLimit(1)
-            }
-            .opacity(awayDim)
-            .frame(maxWidth: .infinity, alignment: .leading)
+        PageRow(age: Words.age(session.since, at: now)) {
+            PageMark(mark: session.mark, isOffScreen: session.isOffScreen)
             Group {
-                if session.waiting > 0 {
-                    Text(Words.waiting(session.waiting)).foregroundStyle(WindowStyle.orange)
-                } else {
-                    Text(Words.age(session.since, at: now)).foregroundStyle(WindowStyle.faint)
-                }
+                Text(session.name)
+                    .font(WindowStyle.ui(13, .medium))
+                    .spacing(-0.01, of: 13)
+                    .foregroundStyle(Ink.words)
+                    .lineLimit(1)
+                    .frame(width: ProjectPageView.nameLane, alignment: .leading)
+                standing.frame(maxWidth: .infinity, alignment: .leading)
             }
-            .font(WindowStyle.ui(12))
-            .frame(height: 18)
+            .opacity(Away.dimming(session.isAway))
         }
-        .padding(.vertical, 8)
-        .contentShape(Rectangle())
     }
 
-    private var awayDim: Double {
-        Away.dimming(session.isAway)
-    }
-
-    private var doing: some View {
-        HStack(spacing: 6) {
-            if session.doing.kind == .working {
-                ShimmeringLead { isLit in
-                    Text(session.doing.line.lead).font(WindowStyle.ui(12)).lineLimit(1)
-                        .foregroundStyle(isLit ? WindowStyle.text : WindowStyle.soft)
-                }
+    private var standing: some View {
+        HStack(spacing: 0) {
+            if case let .doing(kind, line) = session.standing {
+                DoingLine(kind: kind, line: line, now: now)
             } else {
-                Text(session.doing.line.lead)
+                Text(session.standing.parts(at: now).joined(separator: " · "))
             }
-            if let mono = session.doing.line.mono {
+            if session.isOffScreen {
+                // kept whole as the rest is cut short: it says a jump to the session would fail
+                Text(" · \(Words.notOnScreen)").layoutPriority(1)
+            }
+        }
+        .font(WindowStyle.ui(13))
+        .foregroundStyle(Ink.rest)
+        .lineLimit(1)
+    }
+}
+
+/// A working or on its own work's line: its lead, shimmering while it works, kept whole; then what it acts on, a command
+/// in mono, a wake counted down, cut short where the row is narrow.
+private struct DoingLine: View {
+    let kind: Doing.Kind
+    let line: Board.Row.Words
+    let now: Date
+
+    var body: some View {
+        HStack(spacing: 4) {
+            Group {
+                if kind == .working {
+                    ShimmeringLead { isLit in
+                        Text(line.lead).foregroundStyle(isLit ? WindowStyle.text : Ink.rest)
+                    }
+                } else {
+                    Text(line.lead)
+                }
+            }
+            .layoutPriority(1)
+            if let mono = line.mono {
                 Text(mono).font(WindowStyle.mono(12))
-            } else if let subject = Words.subject(session.doing.line, at: now) {
+            } else if let subject = Words.subject(line, at: now) {
                 Text(subject)
             }
         }
     }
+}
+
+/// A line of Waiting on you, 32 tall: its mark; its words in a lane of 280, a command in mono; its session; and how
+/// long it has waited. Dimmed as one where no window holds its session; faint, a tick for its mark, where it closed
+/// while the page held.
+private struct WaitingRow: View {
+    let line: ProjectPage.Line
+    let now: Date
+
+    var body: some View {
+        PageRow(age: Words.age(line.line.since, at: now)) {
+            if line.isClosed {
+                ClosedTick(colour: WindowStyle.faint)
+            } else {
+                PageMark(mark: line.mark, isOffScreen: line.isOffScreen)
+            }
+            Group {
+                words
+                    .spacing(-0.01, of: 13)
+                    .foregroundStyle(line.isClosed ? WindowStyle.faint : Ink.words)
+                    .lineLimit(1)
+                    .frame(width: ProjectPageView.nameLane, alignment: .leading)
+                Text(line.sessionName)
+                    .font(WindowStyle.ui(13))
+                    .foregroundStyle(line.isClosed ? WindowStyle.faint : Ink.rest)
+                    .lineLimit(1)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .opacity(Away.dimming(line.isAway))
+        }
+    }
+
+    private var words: Text {
+        let lead = Text(line.line.lead).font(WindowStyle.ui(13))
+        let code = line.line.code.map { Text(" \($0)").font(WindowStyle.mono(12)) }
+        let subject = line.line.subject(at: now).map { Text(" \($0)").font(WindowStyle.ui(13)) }
+
+        return [code, subject].compactMap(\.self).reduce(lead) { Text("\($0)\($1)") }
+    }
+}
+
+/// A row of Sessions or Waiting on you: its parts 10 apart, then its time, 12 in tabular figures.
+private struct PageRow<Content: View>: View {
+    let age: String
+    @ViewBuilder let content: Content
+
+    var body: some View {
+        HStack(spacing: ProjectPageView.gap) {
+            content
+            Text(age)
+                .font(WindowStyle.ui(12))
+                .monospacedDigit()
+                .foregroundStyle(Ink.age)
+                .frame(width: ProjectPageView.ageLane, alignment: .trailing)
+        }
+        .frame(height: ProjectPageView.rowHeight)
+    }
+}
+
+/// A session's card in Now: its mark and name; its first now line; what comes next; and when its status last changed.
+/// While no window holds it its name and lines dim as one, its time staying, as its row's.
+private struct NowCard: View {
+    let session: ProjectPage.Session
+    let now: Date
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 8) {
+                PageMark(mark: session.mark, isOffScreen: session.isOffScreen)
+                Text(session.name)
+                    .font(WindowStyle.ui(13, .semibold))
+                    .spacing(-0.01, of: 13)
+                    .foregroundStyle(WindowStyle.text)
+                    .lineLimit(1)
+                    .opacity(Away.dimming(session.isAway))
+            }
+            .frame(height: 16)
+            Group {
+                if let line = session.now {
+                    Text(line).font(WindowStyle.ui(13)).foregroundStyle(Ink.now).lineLimit(2)
+                }
+                if let next = session.next {
+                    Text("\(Text("next ").foregroundStyle(Ink.faint))\(next)")
+                        .font(WindowStyle.ui(12))
+                        .foregroundStyle(Ink.rest)
+                        .lineLimit(2)
+                }
+            }
+            .opacity(Away.dimming(session.isAway))
+            Text(Words.ago(session.updated, at: now))
+                .font(WindowStyle.ui(11))
+                .foregroundStyle(Ink.faint)
+                .padding(.top, 2)
+        }
+        .padding(.top, 12)
+        .padding(.horizontal, 14)
+        .padding(.bottom, 13)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .background {
+            let shape = RoundedRectangle(cornerRadius: 12, style: .continuous)
+
+            shape.fill(WindowStyle.raise).overlay(shape.strokeBorder(Ink.cardRing, lineWidth: 0.5))
+        }
+        .spoken(Spoken.nowCard(session, at: now))
+    }
+}
+
+/// A session's newest log lines, under its card in Now, 22 tall each: its words, cut short, and how long ago. To
+/// VoiceOver a group named for its session, each line one element.
+private struct LogGroup: View {
+    let session: ProjectPage.Session
+    let now: Date
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            ForEach(session.log) { note in
+                HStack(spacing: 8) {
+                    Text(note.text)
+                        .font(WindowStyle.ui(12))
+                        .foregroundStyle(Ink.log)
+                        .lineLimit(1)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    Text(Words.age(note.at, at: now))
+                        .font(WindowStyle.ui(11))
+                        .monospacedDigit()
+                        .foregroundStyle(Ink.faint)
+                        .frame(width: 28, alignment: .trailing)
+                }
+                .frame(height: 22)
+                .spoken(Spoken.log(note, at: now))
+            }
+        }
+        .padding(.horizontal, 14)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel(session.name)
+    }
+}
+
+/// A heading of the page, 13 semibold, and Waiting on you's count in orange after it, the one count that needs Lee;
+/// to VoiceOver one heading, as "Waiting on you, 3".
+private struct ProjectHeading: View {
+    let name: String
+    var count: Int?
+    var under: CGFloat = 6
+
+    var body: some View {
+        HStack(spacing: 6) {
+            Text(name).foregroundStyle(Ink.words)
+            if let count {
+                Text("\(count)").monospacedDigit().foregroundStyle(WindowStyle.orange)
+            }
+        }
+        .font(WindowStyle.ui(13, .semibold))
+        .spacing(-0.005, of: 13)
+        .frame(height: 16)
+        .padding(.bottom, under)
+        .spoken(Spoken.heading(name, note: count.map(String.init)))
+        .accessibilityAddTraits(.isHeader)
+    }
+}
+
+/// A session's mark, with a pip on its corner where no terminal shows the session: white at 65%, a ring 1.5 wide cut
+/// out of the mark round it, so it reads apart from the mark on whatever is behind, a fill, a wash or a card (the
+/// marks sheet's "Not on screen", a corner pip).
+private struct PageMark: View {
+    let mark: Mark
+    let isOffScreen: Bool
+
+    var body: some View {
+        if isOffScreen {
+            ZStack {
+                MarkView(mark: mark)
+                Self.pip(8).blendMode(.destinationOut)
+            }
+            .compositingGroup()
+            .overlay { Self.pip(5).foregroundStyle(Ink.pip) }
+        } else {
+            MarkView(mark: mark)
+        }
+    }
+
+    private static func pip(_ side: CGFloat) -> some View {
+        Circle().frame(width: side, height: side).offset(x: 3, y: 3)
+    }
+}
+
+/// Now's cards and Log's groups: as many across as fit in the width (`ProjectPage.columns(across:)`), so the two
+/// always agree and a session's log sits under its card; the columns as wide as each other, each row as tall as its
+/// tallest, every cell given that height.
+private struct PageGrid: Layout {
+    private static let gap = CGFloat(ProjectPage.gridGap)
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache _: inout ()) -> CGSize {
+        let width = TitleRow.finite(proposal.width) ?? Self.widest
+        let heights = rowHeights(width, subviews)
+
+        return CGSize(width: width, height: heights.reduce(0, +) + Self.gap * CGFloat(max(heights.count - 1, 0)))
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal _: ProposedViewSize, subviews: Subviews, cache _: inout ()) {
+        let columns = Self.columns(bounds.width)
+        let cell = Self.cell(bounds.width)
+        var y = bounds.minY
+
+        for (row, height) in rowHeights(bounds.width, subviews).enumerated() {
+            for (column, index) in (row * columns ..< min((row + 1) * columns, subviews.count)).enumerated() {
+                subviews[index].place(
+                    at: CGPoint(x: bounds.minX + CGFloat(column) * (cell + Self.gap), y: y),
+                    proposal: ProposedViewSize(width: cell, height: height)
+                )
+            }
+            y += height + Self.gap
+        }
+    }
+
+    /// Each row's height: its tallest cell's, at the column's width.
+    private func rowHeights(_ width: CGFloat, _ subviews: Subviews) -> [CGFloat] {
+        let columns = Self.columns(width)
+        let cell = ProposedViewSize(width: Self.cell(width), height: nil)
+
+        return stride(from: 0, to: subviews.count, by: columns).map { start in
+            subviews[start ..< min(start + columns, subviews.count)].map { $0.sizeThatFits(cell).height }.max() ?? 0
+        }
+    }
+
+    private static func columns(_ width: CGFloat) -> Int {
+        ProjectPage.columns(across: Double(width))
+    }
+
+    private static func cell(_ width: CGFloat) -> CGFloat {
+        let columns = CGFloat(columns(width))
+
+        return (width - gap * (columns - 1)) / columns
+    }
+
+    /// With no width given: three across, each at its narrowest.
+    private static var widest: CGFloat {
+        CGFloat(ProjectPage.narrowestCard) * 3 + gap * 2
+    }
+}
+
+/// The page's inks, as A3 revised draws them, in white over its black.
+private enum Ink {
+    /// A session's name, a line's words, a heading.
+    static let words = Color.white.opacity(0.85)
+    /// Where a session stands, a line's session, the header's counts, what comes next.
+    static let rest = Color.white.opacity(0.45)
+    static let age = Color.white.opacity(0.35)
+    /// A card's now lines.
+    static let now = Color.white.opacity(0.7)
+    /// A log line.
+    static let log = Color.white.opacity(0.6)
+    /// "next", a card's time and a log line's.
+    static let faint = Color.white.opacity(0.3)
+    static let parked = Color.white.opacity(0.55)
+    static let mark = Color.white.opacity(0.45)
+    static let chevron = Color.white.opacity(0.3)
+    static let rule = Color.white.opacity(0.08)
+    static let cardRing = Color.white.opacity(0.05)
+    static let pip = Color.white.opacity(0.65)
 }

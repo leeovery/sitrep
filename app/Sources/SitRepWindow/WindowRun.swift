@@ -533,11 +533,6 @@ public final class WindowRun {
         }
     }
 
-    /// An ask in a project's view opened in place into its card, or closed back to its line.
-    public func toggle(_ ask: AskAddress) {
-        details.toggle(ask)
-    }
-
     /// An item opened in place to the whole of it, or closed again (`Item`). Another page turned to closes them all.
     public func toggle(_ item: Item) {
         details.toggle(item)
@@ -666,7 +661,7 @@ public final class WindowRun {
             }
                 ?? .nothingOpen
         case let .project(key):
-            return board.projects.first { $0.key == key }.map { .project(projectPage($0, on: board, at: time)) }
+            return board.projects.first { $0.key == key }.map { .project(projectPage($0, at: time)) }
                 ?? .nothingOpen
         case let .session(id, _):
             return board.session(id).map { found in

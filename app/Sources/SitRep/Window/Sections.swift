@@ -261,19 +261,6 @@ extension MarkedLine where Detail == EmptyView {
     }
 }
 
-/// Later's diamond, its corners on its frame's edges' middles.
-private struct Diamond: Shape {
-    func path(in rect: CGRect) -> Path {
-        Path { path in
-            path.addLines([
-                CGPoint(x: rect.midX, y: rect.minY), CGPoint(x: rect.maxX, y: rect.midY),
-                CGPoint(x: rect.midX, y: rect.maxY), CGPoint(x: rect.minX, y: rect.midY),
-            ])
-            path.closeSubpath()
-        }
-    }
-}
-
 /// The thread's line down a line of What happened's marks, from the top of its row, or from its mark at this height,
 /// to the foot of its row, or to its mark.
 private struct ThreadRule: Shape {
@@ -325,52 +312,6 @@ private extension Text {
             return self
         }
         return Text("\(Text(word).foregroundStyle(WindowStyle.dim)) \(self)")
-    }
-}
-
-/// What happened: the log's latest lines, the newest first, each led by its session's name in a project's view, and
-/// opening in place to the whole of it and its detail.
-struct NotesSection: View {
-    let notes: [Note]
-    let opened: Set<Item>
-    let now: Date
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            SectionHeading(name: "Notes", note: "what happened").padding(.bottom, 8)
-            ForEach(notes) { note in
-                Opening(item: .note(note.id), opened: opened, hasMore: note.hasMore) { isOpen in
-                    SectionLine(bullet: "•", lead: note.session, text: note.text, time: Words.age(note.at, at: now), isOpen: isOpen) {
-                        ForEach(Array(note.detail.enumerated()), id: \.offset) { _, line in
-                            Text(line)
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
-/// What was parked to come back to, the oldest first, in grey: the window has one colour. Each opens in place to the
-/// whole of it and where it was parked from.
-struct ParkedSection: View {
-    let parked: [Parked]
-    let opened: Set<Item>
-    let now: Date
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            SectionHeading(name: "Parked", note: Words.parked(parked.count)).padding(.bottom, 8)
-            ForEach(parked) { item in
-                Opening(item: .parked(item.id), opened: opened, hasMore: item.hasMore) { isOpen in
-                    SectionLine(bullet: "◇", lead: item.session, text: item.title, time: Words.age(item.at, at: now), isOpen: isOpen) {
-                        if let place = item.where {
-                            Text(place)
-                        }
-                    }
-                }
-            }
-        }
     }
 }
 
@@ -426,14 +367,12 @@ private struct Opening<Line: View>: View {
     }
 }
 
-/// A line of a section, on the one grid every line of Status, Notes, Parked and Resolved keeps, opened or closed: its
-/// bullet in a lane, then its words, then its time on the first line. Its session's name, where it is a project's,
-/// leads its words, quieter, in their own flow, so a line that wraps comes back to the words' edge. Opened, its words
-/// wrap whole, and its detail sits close under them from the same edge, a size smaller, in the secondary colour.
+/// A line of a section, on the one grid every line that opens keeps, opened or closed: its bullet in a lane, then its
+/// words, then its time on the first line. Opened, its words wrap whole, and its detail sits close under them from the
+/// same edge, a size smaller, in the secondary colour.
 struct SectionLine<Detail: View>: View {
     let bullet: String
     var bulletColour = WindowStyle.soft
-    var lead: String?
     let text: String
     var textColour = WindowStyle.text
     var time: String?
@@ -448,7 +387,7 @@ struct SectionLine<Detail: View>: View {
                 .frame(width: WindowStyle.lane.width)
                 .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 3) {
-                Text(text).foregroundStyle(textColour).led(by: lead)
+                Text(text).foregroundStyle(textColour)
                     .font(WindowStyle.ui(13))
                     .lineLimit(isOpen ? nil : 1)
                     .fixedSize(horizontal: false, vertical: isOpen)
@@ -470,11 +409,11 @@ struct SectionLine<Detail: View>: View {
 
 extension SectionLine where Detail == EmptyView {
     init(
-        bullet: String, bulletColour: Color = WindowStyle.soft, lead: String? = nil, text: String,
+        bullet: String, bulletColour: Color = WindowStyle.soft, text: String,
         textColour: Color = WindowStyle.text, time: String? = nil, isOpen: Bool = false
     ) {
         self.init(
-            bullet: bullet, bulletColour: bulletColour, lead: lead, text: text, textColour: textColour, time: time,
+            bullet: bullet, bulletColour: bulletColour, text: text, textColour: textColour, time: time,
             isOpen: isOpen
         ) { EmptyView() }
     }

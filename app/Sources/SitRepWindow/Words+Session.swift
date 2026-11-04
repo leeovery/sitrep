@@ -83,7 +83,8 @@ extension Words {
     /// Before Now's "N parked", quieter.
     public static let later = "later"
 
-    /// Now's parked items, which open Parked narrowed to the session.
+    /// Now's parked items, which open Parked narrowed to the session; a project's, in its header and at its page's
+    /// foot, which open Parked narrowed to the project.
     public static func parkedCount(_ count: Int) -> String {
         "\(count) parked"
     }

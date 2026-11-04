@@ -215,14 +215,16 @@ extension Pill.Look {
     }
 }
 
-/// A page's title, a session's, a project's or Settings': the biggest words in the window, to VoiceOver a heading.
+/// A page's title, a session's, a project's or Settings': the biggest words in the window, a project's the biggest of
+/// them (A3 revised draws it at 34), to VoiceOver a heading.
 struct PageTitle: View {
     let words: String
+    var size: CGFloat = 28
 
     var body: some View {
         Text(words)
-            .font(WindowStyle.ui(28, .bold))
-            .spacing(-0.03, of: 28)
+            .font(WindowStyle.ui(size, .bold))
+            .spacing(-0.03, of: size)
             .foregroundStyle(WindowStyle.text)
             .accessibilityAddTraits(.isHeader)
     }
@@ -262,17 +264,6 @@ extension View {
     /// One element to VoiceOver, read as these words in place of what it draws.
     func spoken(_ words: String) -> some View {
         accessibilityElement(children: .ignore).accessibilityLabel(words)
-    }
-}
-
-extension Text {
-    /// These words after their session's name, where there is one: quieter, and in the words' own flow, so a line
-    /// that wraps comes back to the words' edge, never to a column of the name's.
-    func led(by session: String?) -> Text {
-        guard let session else {
-            return self
-        }
-        return Text("\(Text("\(session):").foregroundStyle(WindowStyle.soft)) \(self)")
     }
 }
 

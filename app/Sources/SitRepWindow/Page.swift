@@ -48,7 +48,7 @@ extension Location {
 }
 
 /// An item that opens in place to the whole of it, and closes again: a line of a session's Now, a line of its log or
-/// an ask in What happened, a line of a project's notes, a project's parked item, an ask a session resolved.
+/// an ask in What happened, an ask a session resolved.
 public enum Item: Hashable, Sendable {
     /// A line of the status, by its place and its words, so a line rewritten is another item, closed, and two lines
     /// alike are two items.
@@ -58,16 +58,14 @@ public enum Item: Hashable, Sendable {
     case note(String)
     /// An ask of What happened, "Asked …".
     case asked(AskAddress)
-    case parked(String)
     case resolved(String)
     /// "N resolved" at the end of a session's What happened, which opens to its resolved asks.
     case resolvedFold
 }
 
-/// A line of a session's log, and in a project's view the session it is from; opened, its detail under it.
+/// A line of a session's log; opened, its detail under it.
 public struct Note: Equatable, Sendable, Identifiable {
     public let id: String
-    public let session: String?
     public let text: String
     public let detail: [String]
     public let at: Date
@@ -79,9 +77,8 @@ public struct Note: Equatable, Sendable, Identifiable {
 extension Note {
     /// A session's log lines as notes, each by an id that stays as lines come: its session's and its own; for a line
     /// without one, its kind, time, writer and words, and among lines alike in all of those, which of them it is,
-    /// counted from the oldest, as new lines come at the top. In a project's view of several sessions each names its
-    /// session.
-    static func notes(_ log: [SessionBoard.Line], of session: Board.Session, named: Bool) -> [Note] {
+    /// counted from the oldest, as new lines come at the top.
+    static func notes(_ log: [SessionBoard.Line], of session: Board.Session) -> [Note] {
         var seen: [String: Int] = [:]
         let ids = log.reversed().map { line in
             let own = line.id ?? "\(line.kind.rawValue)@\(line.at.timeIntervalSince1970):\(line.by):\(line.text)"
@@ -92,7 +89,7 @@ extension Note {
         }
 
         return zip(log, ids.reversed()).map { line, own in
-            Note(id: "\(session.id):\(own)", session: named ? session.name : nil, text: line.text, detail: line.detail, at: line.at)
+            Note(id: "\(session.id):\(own)", text: line.text, detail: line.detail, at: line.at)
         }
     }
 }
