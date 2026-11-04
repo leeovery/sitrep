@@ -74,6 +74,13 @@ export type Io = {
    * and stops the listening however it ends (ending.ts).
    */
   ending: () => Ending
+  /**
+   * Holds `undo` while what it undoes is out, as a knock's marker is: told
+   * to end (SIGTERM) meanwhile, the run does every undo held, then ends,
+   * exiting 143. With nothing held, SIGTERM ends the run as ever. Gives
+   * what lets it go.
+   */
+  atTerm: (undo: () => Promise<void>) => () => void
   /** Where the plugin's manifest is, `.claude-plugin/plugin.json`, in the copy of the plugin the CLI runs from: it says the version the CLI runs. */
   manifest: string
   /**

@@ -58,7 +58,7 @@ struct CaptionWindowTests {
         #expect(caption.says == "Still jumping…")
 
         caption.heard(.ended(.unanswered))
-        #expect(caption.says == "Couldn't jump: the Mac is too busy to reach Ghostty.")
+        #expect(caption.says == "Couldn't jump: the Mac is too busy.")
     }
 
     /// A jump stopped by a later one shows nothing of its own: no failure, no caption.
@@ -82,6 +82,20 @@ struct CaptionWindowTests {
         caption.heard(.still)
         caption.answered(jumped: true, at: 2000)
         caption.heard(.ended(.jumped))
+
+        #expect(caption.says == "Jumped to SitRep's window")
+    }
+
+    /// An earlier jump's stop, heard after a row's click began its own, leaves that row's "Jumped to…" waiting for its
+    /// own answer: a stale stop is no answer to the click under way.
+    @Test func aStaleStopLeavesARowsJumpedToWaiting() {
+        let caption = Self.shown()
+
+        defer { caption.window.close() }
+        caption.jumping(to: "SitRep")
+        caption.drained(at: 0)
+        caption.heard(.ended(.stopped))
+        caption.answered(jumped: true, at: 500)
 
         #expect(caption.says == "Jumped to SitRep's window")
     }

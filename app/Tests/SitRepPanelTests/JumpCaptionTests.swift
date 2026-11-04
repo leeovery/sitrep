@@ -54,17 +54,32 @@ struct JumpCaptionTests {
 
     @Test func aJumpWithNoAnswerSaysItIsStillJumpingAndAtItsLimitThatTheMacIsTooBusy() {
         #expect(JumpCaption.still == "Still jumping…")
-        #expect(JumpCaption.tooBusy == "Couldn't jump: the Mac is too busy to reach Ghostty.")
+        #expect(JumpCaption.tooBusy == "Couldn't jump: the Mac is too busy.")
     }
 
-    /// A caption plays whole, or held until its jump ends only coming in; in place of one showing, from its hold, so
-    /// the pill never blinks out; held there, it plays nothing. A held caption goes as a caption ends.
-    @Test func aCaptionPlaysThePartOfItsLookItsPlaceCallsFor() {
-        #expect(JumpCaption.part(holding: false, inPlaceOfOne: false) == 0 ... 1600)
-        #expect(JumpCaption.part(holding: true, inPlaceOfOne: false) == 0 ... 160)
-        #expect(JumpCaption.part(holding: false, inPlaceOfOne: true) == 160 ... 1600)
-        #expect(JumpCaption.part(holding: true, inPlaceOfOne: true) == 160 ... 160)
-        #expect(JumpCaption.going == 1350 ... 1600)
+    /// A caption plays whole over a clear pill, or held until its jump ends only coming in; over a pill already part
+    /// opaque, coming in or going, from the moment its coming in is as opaque, so it never jumps; over one whole, from
+    /// its hold, where held it plays nothing.
+    @Test func aCaptionComesInFromThePillsOpacity() {
+        #expect(JumpCaption.part(holding: false, from: 0) == 0 ... 1600)
+        #expect(JumpCaption.part(holding: true, from: 0) == 0 ... 160)
+        #expect(JumpCaption.part(holding: false, from: 1) == 160 ... 1600)
+        #expect(JumpCaption.part(holding: true, from: 1) == 160 ... 160)
+
+        let half = JumpCaption.part(holding: false, from: 0.5).lowerBound
+
+        #expect(abs(JumpCaption.look(half).alpha - 0.5) < 1e-9)
+    }
+
+    /// A held caption goes from the opacity it has: whole, from the caption's own going; cut short coming in, from as
+    /// far into the going as matches it, so it never flashes whole first.
+    @Test func aHeldCaptionGoesFromItsOpacity() {
+        #expect(JumpCaption.going(from: 1) == 1350 ... 1600)
+        #expect(JumpCaption.going(from: 0) == 1600 ... 1600)
+
+        let half = JumpCaption.going(from: 0.5).lowerBound
+
+        #expect(abs(JumpCaption.look(half).alpha - 0.5) < 1e-9)
     }
 
     @Test func itFadesInDroppingIntoPlaceHoldsAndRisesAsItFades() {

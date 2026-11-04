@@ -2,15 +2,16 @@ import os
 @testable import SitRepCore
 import Testing
 
-/// One jump at a time, the latest click winning: a jump asked for while one runs stops it and runs; a jump with no
-/// answer two seconds on says it is still jumping, on a clock the test moves.
+/// One jump at a time, the latest click winning: a jump asked for while one runs stops it and runs once it has ended,
+/// but a click on the same session before it says it is still jumping joins it; a jump with no answer two seconds on
+/// says it is still jumping, on a clock the test moves.
 @MainActor
 struct OneJumpTests {
     @Test func aJumpTellsHowItEnded() async {
         let (oneJump, _) = Self.made()
         let jumps = Jumps(), heard = Heard()
 
-        oneJump.run(jumps.jump(1), told: heard.add)
+        oneJump.run(to: "sr-a", jumps.jump(1), told: heard.add)
         await Self.until { jumps.started == [1] }
         jumps.answer(1, .refused("Fumi is not on screen."))
         await Self.until { !heard.news.isEmpty }
@@ -22,7 +23,7 @@ struct OneJumpTests {
         let (oneJump, clock) = Self.made()
         let jumps = Jumps(), heard = Heard()
 
-        oneJump.run(jumps.jump(1), told: heard.add)
+        oneJump.run(to: "sr-a", jumps.jump(1), told: heard.add)
         await Self.until { clock.asked.count == 1 }
         #expect(clock.asked == [.seconds(2)])
         #expect(heard.news.isEmpty)
@@ -40,7 +41,7 @@ struct OneJumpTests {
         let (oneJump, clock) = Self.made()
         let jumps = Jumps(), heard = Heard()
 
-        oneJump.run(jumps.jump(1), told: heard.add)
+        oneJump.run(to: "sr-a", jumps.jump(1), told: heard.add)
         await Self.until { jumps.started == [1] && clock.asked.count == 1 }
         jumps.answer(1, .jumped)
         await Self.until { !heard.news.isEmpty }
@@ -50,16 +51,16 @@ struct OneJumpTests {
         #expect(heard.news == [.ended(.jumped)])
     }
 
-    /// The first is stopped, its CLI killed as its task is cancelled, and ends stopped whatever its CLI answers after,
-    /// with no word of still jumping; the second runs, and alone says it is still jumping.
-    @Test func aSecondJumpStopsTheFirstAndRunsInItsPlace() async {
+    /// The first is stopped, its CLI told to end as its task is cancelled, and ends stopped whatever its CLI answers
+    /// after, with no word of still jumping; the second, to another session, runs, and alone says it is still jumping.
+    @Test func aJumpToAnotherSessionStopsTheFirstAndRunsInItsPlace() async {
         let (oneJump, clock) = Self.made()
         let jumps = Jumps(), first = Heard(), second = Heard()
 
-        oneJump.run(jumps.jump(1), told: first.add)
+        oneJump.run(to: "sr-a", jumps.jump(1), told: first.add)
         await Self.until { jumps.started == [1] && clock.asked.count == 1 }
 
-        oneJump.run(jumps.jump(2), told: second.add)
+        oneJump.run(to: "sr-b", jumps.jump(2), told: second.add)
         await Self.until { jumps.started == [1, 2] && !first.news.isEmpty }
         #expect(jumps.stopped == [1])
         #expect(first.news == [.ended(.stopped)])
@@ -76,12 +77,90 @@ struct OneJumpTests {
         #expect(jumps.stopped == [1])
     }
 
+    /// The CLI stopped takes its grace to put back its knock's marker: the next jump runs only once it has ended, so
+    /// the two never knock at once.
+    @Test func aJumpRunsOnlyOnceTheOneItStoppedHasEnded() async {
+        let (oneJump, _) = Self.made()
+        let jumps = Jumps(lingering: [1]), first = Heard(), second = Heard()
+
+        oneJump.run(to: "sr-a", jumps.jump(1), told: first.add)
+        await Self.until { jumps.started == [1] }
+        oneJump.run(to: "sr-b", jumps.jump(2), told: second.add)
+        await Self.until { jumps.stopped == [1] }
+        await Self.settle()
+        #expect(jumps.started == [1])
+
+        jumps.answer(1, .stopped)
+        await Self.until { jumps.started == [1, 2] }
+        #expect(first.news == [.ended(.stopped)])
+    }
+
+    /// A double-click, or a quick second click on the session, joins the jump under way: no second CLI, and both
+    /// clicks hear its news, which is told once a jump.
+    @Test func aClickOnTheSameSessionBeforeStillJumpingJoinsTheJump() async {
+        let (oneJump, clock) = Self.made()
+        let jumps = Jumps(), first = Heard(), second = Heard(), once = Heard()
+
+        oneJump.heard = once.add
+        oneJump.run(to: "sr-a", jumps.jump(1), told: first.add)
+        await Self.until { jumps.started == [1] && clock.asked.count == 1 }
+        oneJump.run(to: "sr-a", jumps.jump(2), told: second.add)
+        await Self.settle()
+        #expect(jumps.started == [1])
+        #expect(jumps.stopped.isEmpty)
+
+        clock.pass()
+        await Self.until { once.news == [.still] }
+        jumps.answer(1, .jumped)
+        await Self.until { once.news.count == 2 }
+
+        #expect(first.news == [.still, .ended(.jumped)])
+        #expect(second.news == [.still, .ended(.jumped)])
+        #expect(once.news == [.still, .ended(.jumped)])
+        #expect(clock.asked == [.seconds(2)])
+    }
+
+    /// Once the jump says it is still jumping, a click on its session is Lee trying again: it starts over.
+    @Test func aClickOnTheSameSessionOnceStillJumpingStartsItOver() async {
+        let (oneJump, clock) = Self.made()
+        let jumps = Jumps(), first = Heard(), second = Heard()
+
+        oneJump.run(to: "sr-a", jumps.jump(1), told: first.add)
+        await Self.until { jumps.started == [1] && clock.asked.count == 1 }
+        clock.pass()
+        await Self.until { first.news == [.still] }
+
+        oneJump.run(to: "sr-a", jumps.jump(2), told: second.add)
+        await Self.until { jumps.started == [1, 2] }
+        #expect(jumps.stopped == [1])
+        #expect(first.news == [.still, .ended(.stopped)])
+
+        jumps.answer(2, .jumped)
+        await Self.until { !second.news.isEmpty }
+        #expect(second.news == [.ended(.jumped)])
+    }
+
+    /// A click on another session wins at once, before the jump under way says it is still jumping.
+    @Test func aClickOnAnotherSessionWinsAtOnce() async {
+        let (oneJump, clock) = Self.made()
+        let jumps = Jumps(), first = Heard(), second = Heard()
+
+        oneJump.run(to: "sr-a", jumps.jump(1), told: first.add)
+        await Self.until { jumps.started == [1] && clock.asked.count == 1 }
+        oneJump.run(to: "sr-b", jumps.jump(2), told: second.add)
+        await Self.until { jumps.started == [1, 2] }
+
+        #expect(jumps.stopped == [1])
+        #expect(first.news == [.ended(.stopped)])
+        #expect(second.news.isEmpty)
+    }
+
     /// A CLI that answers stopped, its run killed, ends the jump stopped, which no surface tells as a failure.
     @Test func aJumpWhoseCLIIsStoppedEndsStopped() async {
         let (oneJump, _) = Self.made()
         let jumps = Jumps(), heard = Heard()
 
-        oneJump.run(jumps.jump(1), told: heard.add)
+        oneJump.run(to: "sr-a", jumps.jump(1), told: heard.add)
         await Self.until { jumps.started == [1] }
         jumps.answer(1, .stopped)
         await Self.until { !heard.news.isEmpty }
@@ -150,7 +229,8 @@ private final class TestClock: Sendable {
 }
 
 /// Jumps the test answers, each by its number: one waits until answered, or until its task is cancelled, when it
-/// answers stopped, as the CLI killed then does.
+/// answers stopped, as the CLI killed then does; one lingering waits on, as a CLI putting back its marker does, until
+/// the test answers it.
 private final class Jumps: Sendable {
     private struct State {
         var started: [Int] = []
@@ -159,6 +239,11 @@ private final class Jumps: Sendable {
     }
 
     private let state = OSAllocatedUnfairLock(initialState: State())
+    private let lingering: Set<Int>
+
+    init(lingering: Set<Int> = []) {
+        self.lingering = lingering
+    }
 
     var started: [Int] { state.withLock(\.started) }
     var stopped: [Int] { state.withLock(\.stopped) }
@@ -173,13 +258,15 @@ private final class Jumps: Sendable {
                         return state.stopped.contains(number)
                     }
 
-                    if isStopped {
+                    if isStopped, !lingering.contains(number) {
                         answer(number, .stopped)
                     }
                 }
             } onCancel: {
                 state.withLock { $0.stopped.append(number) }
-                answer(number, .stopped)
+                if !lingering.contains(number) {
+                    answer(number, .stopped)
+                }
             }
         }
     }

@@ -10,7 +10,7 @@
  * spliced into the text.
  */
 import type { Random } from '../core'
-import type { Brought, Driver, FrontAtStart } from './driver'
+import { Unanswered, type Brought, type Driver, type FrontAtStart } from './driver'
 import { keepInFront } from './front'
 import { TimedOut, type Io, type Ran } from './io'
 import { readRemembered, remember, type Remembered } from './remembered'
@@ -192,7 +192,7 @@ const runGhostty = <T>(
 ): Promise<Ran | T> =>
   io.run(['osascript', '-e', ...words], PROGRAM_MS).catch((error: unknown) => {
     if (error instanceof TimedOut) {
-      throw new Error(TOO_SLOW)
+      throw new Unanswered(TOO_SLOW)
     }
 
     return otherwise(error)
@@ -240,6 +240,16 @@ const bestEffort = (session: Promise<unknown>) =>
     () => undefined,
   )
 
+/**
+ * Writes back, straight to the device, the directory its terminal goes back
+ * to when which terminal took the marker is not known: $HOME, as neither a
+ * window's heartbeat nor the board says what directory its terminal
+ * reports. Only the device's own terminal takes it, and Ghostty is asked
+ * nothing, so it lands however busy Ghostty is.
+ */
+const putBackHome = (io: Io, device: string) =>
+  io.writeTo(device, reportText(directoryAfter(undefined, io.env.HOME ?? '/')))
+
 /** Lists the terminals once more, and puts back any now reporting the marker. */
 const putBackMarked = async (
   io: Io,
@@ -258,9 +268,11 @@ const putBackMarked = async (
  * Knocks on the device and focuses the Ghostty terminal that answers; its
  * id, or undefined when none did. A device that will not take the knock, a
  * closed one (EIO, ENXIO), answers nothing and has nothing to put back. A
- * terminal taking the marker is put back whatever comes of the find: one
- * that took it after the find gave up, and one that took it before the find
- * failed, as far as listing again can tell.
+ * terminal taking the marker is put back whatever comes of the find: the
+ * one found, to the directory it reported before; one that took it after
+ * the find gave up, as far as listing again can tell, else straight to the
+ * device; and, the find failing, or the run told to end while the marker is
+ * out, straight to the device, asking Ghostty nothing more.
  */
 const knock = async (io: Io, device: string, before: readonly Terminal[]) => {
   const marker = markerOf(io.random)
@@ -273,20 +285,26 @@ const knock = async (io: Io, device: string, before: readonly Terminal[]) => {
     return undefined
   }
 
-  const found = await ghostty(io, FIND_AND_FOCUS, marker).catch(async (error: unknown) => {
-    await bestEffort(putBackMarked(io, device, before, marker))
+  const letGo = io.atTerm(() => bestEffort(putBackHome(io, device)))
 
-    throw error
-  })
-  const focused = found.trim()
+  try {
+    const found = await ghostty(io, FIND_AND_FOCUS, marker).catch(async (error: unknown) => {
+      await bestEffort(putBackHome(io, device))
 
-  await bestEffort(
-    focused === ''
-      ? putBackMarked(io, device, before, marker)
-      : putBack(io, device, before, focused),
-  )
+      throw error
+    })
+    const focused = found.trim()
 
-  return focused === '' ? undefined : focused
+    await bestEffort(
+      focused === ''
+        ? putBackMarked(io, device, before, marker).catch(() => putBackHome(io, device))
+        : putBack(io, device, before, focused),
+    )
+
+    return focused === '' ? undefined : focused
+  } finally {
+    letGo()
+  }
 }
 
 /**

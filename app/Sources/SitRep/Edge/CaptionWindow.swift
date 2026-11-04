@@ -102,12 +102,12 @@ final class CaptionWindow {
     }
 
     /// The caption, this many ms from now, played whole, or held once in until the jump ends. One taking the place of a
-    /// caption showing plays from its hold, so the pill never blinks out between them.
+    /// caption showing comes in from the pill's opacity as it is, so it never jumps.
     private func show(_ caption: String, after delay: Double = 0, holding: Bool = false) {
         let text = TextLine.text(caption, Self.font, EdgeStyle.ink, kern: EdgeStyle.tightKern(Self.font))
         let size = CGSize(width: TextLine.width(text).rounded(.up) + 2 * Self.pad.x, height: Self.line + 2 * Self.pad.y)
         let room = Self.room, visible = over
-        let part = JumpCaption.part(holding: holding, inPlaceOfOne: says != nil)
+        let part = JumpCaption.part(holding: holding, from: opacity)
 
         window.setFrame(CGRect(
             x: visible.midX - size.width / 2 - room, y: visible.maxY - Self.top - size.height - room,
@@ -140,15 +140,24 @@ final class CaptionWindow {
         }
 
         holds = false
-        play(JumpCaption.going, after: 0)
+        play(JumpCaption.going(from: opacity), after: 0)
+    }
+
+    /// How opaque the pill shows now, mid-animation or not; clear while it shows nothing.
+    private var opacity: Double {
+        says == nil ? 0 : Double(pill.presentation()?.opacity ?? pill.opacity)
     }
 
     /// The fade and the drift over a part of the look, sampled from `JumpCaption.look`, the pill left as the part ends:
     /// clear once a caption has gone, the window hidden then; whole while one holds. A part with no length, a caption
-    /// held from the hold of the one it takes the place of, plays nothing.
+    /// held over one already whole, or one going that is already clear, plays nothing.
     private func play(_ part: ClosedRange<Double>, after delay: CFTimeInterval) {
         guard part.upperBound > part.lowerBound else {
-            return still { pill.opacity = Float(JumpCaption.look(part.lowerBound).alpha) }
+            still {
+                pill.removeAnimation(forKey: Self.key)
+                pill.opacity = Float(JumpCaption.look(part.lowerBound).alpha)
+            }
+            return ended()
         }
 
         let steps = max(1, Int((part.upperBound - part.lowerBound) / Self.sampled))

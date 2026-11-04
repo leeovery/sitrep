@@ -69,6 +69,9 @@ const TERMINALS: FakeTerminal[] = [
 
 const DIRECTORIES = Object.fromEntries(TERMINALS.map(each => [each.id, each.directory]))
 
+/** A terminal put back straight to its device, Ghostty asked nothing more: to $HOME, as nothing says its own directory. */
+const PUT_BACK_HOME = { ...DIRECTORIES, 'SWITCHBOARD-TERMINAL': HOME }
+
 /** The session's tmux server: its tmux session shown by the clients given, and another beside it. */
 const serverShowing = (...clients: FakeServer['clients']): Record<string, FakeServer> => ({
   [SOCKET]: {
@@ -370,7 +373,7 @@ test('macOS refusing control of Ghostty is told in osascript’s words, and noth
   expect(t.screen.written).toEqual([])
 })
 
-test('a find that fails once the terminal took the marker puts the terminal back, and tells the failure', async () => {
+test('a find that fails once the terminal took the marker puts the terminal back straight to its device, and tells the failure', async () => {
   const t = oneWindow(IN_TMUX, {
     tmux: SHOWN,
     ghostty: TERMINALS,
@@ -384,7 +387,7 @@ test('a find that fails once the terminal took the marker puts the terminal back
   })
   expect(t.screen.focused).toEqual([])
   expect(t.screen.written.map(each => each.device)).toEqual([WINDOW, WINDOW])
-  expect(t.screen.directories()).toEqual(DIRECTORIES)
+  expect(t.screen.directories()).toEqual(PUT_BACK_HOME)
 })
 
 test('when the listing after a failed find fails too, the find’s failure is the one told', async () => {
@@ -414,7 +417,7 @@ test('Ghostty not answering the listing in time is refused in plain words, befor
   expect(t.screen.focused).toEqual([])
 })
 
-test('Ghostty not answering the find in time is refused in plain words, and the terminal put back', async () => {
+test('Ghostty not answering the find in time is refused in plain words, and the terminal put back straight to its device, with no listing', async () => {
   const t = oneWindow(IN_TMUX, {
     tmux: SHOWN,
     ghostty: TERMINALS,
@@ -422,8 +425,12 @@ test('Ghostty not answering the find in time is refused in plain words, and the 
   })
 
   expect(await t.run('jump', ...SESSION)).toEqual({ exit: EXIT.refused, out: '', err: NO_ANSWER })
-  expect(t.screen.written.map(each => each.device)).toEqual([WINDOW, WINDOW])
-  expect(t.screen.directories()).toEqual(DIRECTORIES)
+  expect(runsOf(t, 'osascript').map(words => words[2])).toEqual([LIST, FIND_AND_FOCUS])
+  expect(t.screen.written).toEqual([
+    { device: WINDOW, text: reportText(MARKER) },
+    { device: WINDOW, text: reportText(HOME) },
+  ])
+  expect(t.screen.directories()).toEqual(PUT_BACK_HOME)
 })
 
 const TOO_SLOW = `sitrep: Ghostty did not answer within ${PROGRAM_MS / 1_000} seconds: most likely the Mac is too busy.\n`
@@ -431,18 +438,46 @@ const TOO_SLOW = `sitrep: Ghostty did not answer within ${PROGRAM_MS / 1_000} se
 test('a listing that never ends, as osascript under heavy load, is killed at its limit and refused in plain words, before anything is written or focused', async () => {
   const t = oneWindow(IN_TMUX, { tmux: SHOWN, ghostty: TERMINALS, stalls: () => true })
 
-  expect(await t.run('jump', ...SESSION)).toEqual({ exit: EXIT.refused, out: '', err: TOO_SLOW })
+  expect(await t.run('jump', ...SESSION)).toEqual({ exit: EXIT.unanswered, out: '', err: TOO_SLOW })
   expect(runsOf(t, 'osascript')).toEqual([['osascript', '-e', LIST]])
   expect(t.screen.written).toEqual([])
   expect(t.screen.focused).toEqual([])
 })
 
-test('a find that never ends is killed at its limit and refused in plain words, and the terminal put back', async () => {
+test('a find that never ends is killed at its limit, the jump unanswered, and the terminal put back straight to its device, with no listing', async () => {
   const t = oneWindow(IN_TMUX, { tmux: SHOWN, ghostty: TERMINALS, stalls: run => run === 2 })
 
-  expect(await t.run('jump', ...SESSION)).toEqual({ exit: EXIT.refused, out: '', err: TOO_SLOW })
-  expect(runsOf(t, 'osascript').map(words => words[2])).toEqual([LIST, FIND_AND_FOCUS, LIST])
-  expect(t.screen.directories()).toEqual(DIRECTORIES)
+  expect(await t.run('jump', ...SESSION)).toEqual({ exit: EXIT.unanswered, out: '', err: TOO_SLOW })
+  expect(runsOf(t, 'osascript').map(words => words[2])).toEqual([LIST, FIND_AND_FOCUS])
+  expect(t.screen.written.at(-1)).toEqual({ device: WINDOW, text: reportText(HOME) })
+  expect(t.screen.directories()).toEqual(PUT_BACK_HOME)
+})
+
+/**
+ * A listing and a find may each take up to their 8 seconds, past the 15 the
+ * app gives a whole jump, which then tells the run to end: the marker out is
+ * put back straight to the device, though the find never answers.
+ */
+test('told to end while its marker is out, the jump puts it back straight to the device before it ends, asking Ghostty nothing more', async () => {
+  const t = oneWindow(IN_TMUX, { tmux: SHOWN, ghostty: TERMINALS, hangs: run => run === 2 })
+
+  void t.run('jump', ...SESSION)
+  await t.screen.hanging
+  expect(t.held()).toBe(1)
+  expect(t.screen.directories()['SWITCHBOARD-TERMINAL']).toBe(MARKER)
+
+  await t.term()
+
+  expect(runsOf(t, 'osascript').map(words => words[2])).toEqual([LIST, FIND_AND_FOCUS])
+  expect(t.screen.written.at(-1)).toEqual({ device: WINDOW, text: reportText(HOME) })
+  expect(t.screen.directories()).toEqual(PUT_BACK_HOME)
+})
+
+test('a jump holds nothing to undo once its knock is over, so SIGTERM after it ends the run as ever', async () => {
+  const t = oneWindow(IN_TMUX)
+
+  expect(await t.run('jump', ...SESSION)).toEqual({ exit: EXIT.done, out: '', err: '' })
+  expect(t.held()).toBe(0)
 })
 
 test('each Ghostty program asks Ghostty within the time limit, its running checked first', () => {
@@ -650,7 +685,7 @@ test('a focus of a remembered terminal that never ends is killed at its limit an
     stalls: () => true,
   })
 
-  expect(await t.run('jump', ...SESSION)).toEqual({ exit: EXIT.refused, out: '', err: TOO_SLOW })
+  expect(await t.run('jump', ...SESSION)).toEqual({ exit: EXIT.unanswered, out: '', err: TOO_SLOW })
   expect(runsOf(t, 'osascript')).toEqual([['osascript', '-e', FOCUS, 'SWITCHBOARD-TERMINAL']])
   expect(t.screen.limits.filter(each => each.name === 'osascript')).toEqual([
     { name: 'osascript', limitMs: PROGRAM_MS },

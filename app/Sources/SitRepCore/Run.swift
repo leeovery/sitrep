@@ -8,13 +8,30 @@ public struct Program: Sendable, Equatable {
     public let environment: [String: String]
     /// How long it may run before it is killed: `.infinity` for one watched, which runs for the app's life.
     public let limit: TimeInterval
+    /// How it is ended at its limit, or as its task is cancelled.
+    public let stopping: Stopping
 
-    public init(executable: URL, arguments: [String], environment: [String: String], limit: TimeInterval) {
+    public init(
+        executable: URL, arguments: [String], environment: [String: String], limit: TimeInterval,
+        stopping: Stopping = .alone
+    ) {
         self.executable = executable
         self.arguments = arguments
         self.environment = environment
         self.limit = limit
+        self.stopping = stopping
     }
+}
+
+/// How a program is ended early, outright (SIGKILL), as an interactive shell ignores SIGTERM.
+public enum Stopping: Sendable, Equatable {
+    /// It alone, as a login shell is: what its startup files started, an ssh-agent among it, is not its to end.
+    case alone
+    /// With its process group, every program it started: the CLI's tmux, `ps` and osascript.
+    case group
+    /// Its process group told to end first (SIGTERM), so the CLI may put back what it changed, then killed once the
+    /// grace has passed: a jump, whose knock's marker is put back.
+    case gently(grace: TimeInterval)
 }
 
 /// How a program ended: its exit status, and what it printed.
@@ -52,9 +69,9 @@ public enum RunError: Error, Equatable, CustomStringConvertible {
 public typealias Runner = @Sendable (Program) async throws -> Ran
 
 /// The runner for real programs. The wait blocks, so it waits on a thread of its own, never the main one nor Swift's.
-/// Its task cancelled, the program is killed, and every program it started with it.
+/// Its task cancelled, the program is ended as its `Stopping` says.
 public let runProgram: Runner = { program in
-    let running = Running()
+    let running = Running(program.stopping)
 
     return try await withTaskCancellationHandler {
         try await withCheckedThrowingContinuation { continuation in
@@ -71,9 +88,8 @@ public let runProgram: Runner = { program in
 let drainSeconds: TimeInterval = 0.5
 
 /// Runs the program to its end, its limit or its stop, its stdin /dev/null.
-/// One still running at the limit, or stopped, is killed outright, with
-/// every program it started (`Running`): an interactive shell ignores
-/// SIGTERM.
+/// One still running at the limit, or stopped, is ended as its `Stopping`
+/// says (`Running`).
 private func runWaiting(_ program: Program, _ running: Running) throws -> Ran {
     let process = Process()
     let stdout = Output()
@@ -103,7 +119,7 @@ private func runWaiting(_ program: Program, _ running: Running) throws -> Ran {
 
     running.started(process.processIdentifier)
     guard exited.wait(timeout: .now() + program.limit) == .success else {
-        running.kill()
+        running.end()
         process.waitUntilExit()
         stdout.stop()
         stderr.stop()
@@ -120,13 +136,13 @@ private func runWaiting(_ program: Program, _ running: Running) throws -> Ran {
     return ran
 }
 
-/// A program as it runs, which a stop from another thread kills: before it starts, it is never started; once it has
-/// ended, nothing is signalled, so no pid reused since is.
+/// A program as it runs, which a stop from another thread ends as its `Stopping` says: before it starts, it is never
+/// started; once it has ended, it is told nothing, so no pid reused since is.
 ///
-/// A kill takes its process group, so nothing it started outlives it: the CLI's osascript, tmux and `ps` share its
-/// group, and an osascript left running could bring a window forward late. `Process` makes each child the leader of a
-/// group of its own (checked on macOS 26, 4 November 2026); a group not the child's own, which would be SitRep's, is
-/// never signalled, and the child alone is killed.
+/// A group stop takes its process group, so nothing it started outlives it: the CLI's osascript, tmux and `ps` share
+/// its group, and an osascript left running could send Ghostty a question late. `Process` makes each child the leader
+/// of a group of its own (checked on macOS 26, 4 November 2026); a group not the child's own, which would be SitRep's,
+/// is never signalled, and the child alone is.
 final class Running: Sendable {
     private struct State {
         var pid: pid_t?
@@ -134,11 +150,16 @@ final class Running: Sendable {
         var hasEnded = false
     }
 
+    private let stopping: Stopping
     private let state = OSAllocatedUnfairLock(initialState: State())
+
+    init(_ stopping: Stopping) {
+        self.stopping = stopping
+    }
 
     var isStopped: Bool { state.withLock(\.isStopped) }
 
-    /// It started as this process; one stopped before is killed at once.
+    /// It started as this process; one stopped before is ended at once.
     func started(_ pid: pid_t) {
         let isStopped = state.withLock { state in
             state.pid = pid
@@ -146,29 +167,57 @@ final class Running: Sendable {
         }
 
         if isStopped {
-            kill()
+            end()
         }
     }
 
-    /// It is to end: killed now if it runs, and never started if it has not.
+    /// It is to end: ended now if it runs, and never started if it has not.
     func stop() {
         state.withLock { $0.isStopped = true }
-        kill()
+        end()
     }
 
-    /// Kills it and its group, while it runs.
-    func kill() {
-        state.withLock { state in
-            guard let pid = state.pid, !state.hasEnded else {
+    /// Ends it as its `Stopping` says, while it runs: a gentle stop kills its group once the grace has passed, without
+    /// waiting on it. The group is killed then though its leader has ended, as what it started may not have: a pid is
+    /// not given out again while a group of that id has members, and an empty group takes no signal.
+    func end() {
+        switch stopping {
+        case .alone:
+            signal(SIGKILL, group: false)
+        case .group:
+            signal(SIGKILL, group: true)
+        case let .gently(grace):
+            guard let group = signal(SIGTERM, group: true) else {
                 return
             }
 
-            _ = Darwin.kill(getpgid(pid) == pid ? -pid : pid, SIGKILL)
+            DispatchQueue.global().asyncAfter(deadline: .now() + grace) { [self] in
+                if group < 0 {
+                    _ = Darwin.kill(group, SIGKILL)
+                } else {
+                    signal(SIGKILL, group: false)
+                }
+            }
         }
     }
 
     func ended() {
         state.withLock { $0.hasEnded = true }
+    }
+
+    /// Signals it, or its group where the group is its own, while it runs: what was signalled, nil for nothing.
+    @discardableResult
+    private func signal(_ signal: Int32, group: Bool) -> pid_t? {
+        state.withLock { state in
+            guard let pid = state.pid, !state.hasEnded else {
+                return nil
+            }
+
+            let target = group && getpgid(pid) == pid ? -pid : pid
+
+            _ = Darwin.kill(target, signal)
+            return target
+        }
     }
 }
 

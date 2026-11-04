@@ -168,6 +168,29 @@ const signals: Signals = {
   },
 }
 
+/** What SIGTERM does before the run ends, while anything is held; listened for only then, so `watch`'s own end is as ever. */
+const undos = new Set<() => Promise<void>>()
+
+const undoAndEnd = () => {
+  void Promise.allSettled([...undos].map(undo => undo())).then(() => process.exit(143))
+}
+
+const atTerm = (undo: () => Promise<void>) => {
+  const held = () => undo()
+
+  if (undos.size === 0) {
+    process.on('SIGTERM', undoAndEnd)
+  }
+
+  undos.add(held)
+
+  return () => {
+    if (undos.delete(held) && undos.size === 0) {
+      process.off('SIGTERM', undoAndEnd)
+    }
+  }
+}
+
 const io: Io = {
   fs: {
     read: async path => readFileSync(path, 'utf8'),
@@ -185,6 +208,7 @@ const io: Io = {
   out: text => void process.stdout.write(text),
   err: text => void process.stderr.write(text),
   ending: () => endOf(signals, PARENT),
+  atTerm,
   manifest: MANIFEST,
   run,
   writeTo,

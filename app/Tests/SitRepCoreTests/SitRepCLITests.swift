@@ -34,7 +34,8 @@ struct SitRepCLITests {
                 executable: URL(fileURLWithPath: "/Users/lee/Code/sitrep/bin/sitrep"),
                 arguments: ["finish", "--session", "sr-gs7kq2"],
                 environment: ["HOME": "/Users/lee", "PATH": Self.path],
-                limit: SitRepCLI.sessionLimit
+                limit: SitRepCLI.sessionLimit,
+                stopping: .group
             ),
         ])
     }
@@ -102,6 +103,39 @@ struct SitRepCLITests {
         #expect(await cli.jump(to: "sr-047c7y") == .jumped)
         #expect(programs.all.map(\.arguments) == [["jump", "--session", "sr-047c7y"]])
         #expect(programs.all.map(\.limit) == [15])
+    }
+
+    /// Stopped at its limit or by a later click, a jump is told to end, so it puts back its knock's marker, and is
+    /// killed with every program it started 300ms on; every other run of the CLI is killed with its group at once.
+    @Test func aJumpIsStoppedGentlyAndEveryOtherRunWithItsGroup() async {
+        let (cli, programs) = Self.cli(Self.exited(0))
+
+        _ = await cli.jump(to: "sr-047c7y")
+        _ = await cli.wake(["k2"], of: "sr-4g01a7")
+        _ = await cli.screen()
+
+        #expect(programs.all.map(\.stopping) == [.gently(grace: 0.3), .group, .group])
+    }
+
+    /// The CLI's own words for an app that gave no answer in time, as Ghostty killed at its 8 seconds, exiting 3: told
+    /// as the limit is, not as a refusal.
+    @Test func aJumpTheCLISaysWentUnansweredIsUnanswered() async {
+        let words = "Ghostty did not answer within 8 seconds: most likely the Mac is too busy."
+        let (cli, _) = Self.cli(Self.exited(3, stderr: "sitrep: \(words)\n"))
+
+        #expect(await cli.jump(to: "sr-047c7y") == .unanswered)
+    }
+
+    /// A jump whose task is cancelled before its CLI runs, as a later click lands while the plugin is still being
+    /// looked at, never starts its CLI, and ends stopped.
+    @Test func aJumpCancelledBeforeItsCLIRunsNeverStartsIt() async {
+        let cli = SitRepCLI(plugin: URL(fileURLWithPath: "/no/such/sitrep"), path: { Self.path }, environment: [:])
+        let jump = Task {
+            withUnsafeCurrentTask { $0?.cancel() }
+            return await cli.jump(to: "sr-047c7y")
+        }
+
+        #expect(await jump.value == .stopped)
     }
 
     @Test(arguments: [

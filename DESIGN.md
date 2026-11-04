@@ -5414,7 +5414,12 @@ shape allows them. A jump made in Swift, in the app, stays parked too.
    - The old directory is written back however the find ends, `$HOME` for a
      terminal that reported none, or another jump's marker. A terminal that
      took the marker after the find gave up is put back too, as far as
-     listing again can tell.
+     listing again can tell. Since 4 November 2026 a find that fails, or a
+     listing after it that fails, and a jump told to end while its marker
+     is out, write `$HOME` straight to the device, asking Ghostty nothing:
+     only that device's terminal takes it, and nothing a jump reads says
+     the directory that terminal reported. Only a jump killed outright,
+     past its grace, leaves the marker (below, "The latest click wins").
    - The listing reads ids, directories, then ids again, and is read again
      (three tries at most) while terminals open or close under it, so no
      directory is paired with the wrong terminal.
@@ -5552,30 +5557,43 @@ gave tmux and `ps` 2 seconds and each question to Ghostty 5, yet the run
 took 180, so some step ran unbounded. Lee's go, the same day: "Build it".
 - **A click while a jump runs stops it, and jumps in its place**, from any
   surface: Lee clicked again, so he has changed his mind, or the first is
-  stuck. The jump's CLI is killed with its process group, so everything it
-  started goes with it, osascript, tmux, `ps`, lsappinfo and `open`, and no
-  AppleScript is left running to focus a window late. `Process` makes each
-  child the leader of a group of its own, and Bun's children stay in it
-  (both checked on this Mac the same day); a group not the child's own,
-  which would be SitRep's, is never signalled. A kill at the limit takes
-  the group too, for every program SitRep runs. Chosen over the CLI ending
-  its own children on SIGTERM: a group kill needs nothing of the CLI, works
-  while Bun is still starting or stuck, and comes as SIGKILL, which nothing
-  stuck can ignore. The kill is sent before the next jump starts, so two
-  still never knock at once; an Apple Event already sent is Ghostty's to
-  finish. A jump killed mid-knock can leave its terminal reporting the
-  knock's marker until the next knock there puts it back, as for a marker
-  another jump left (step 3). A jump a click stopped says nothing: no
-  banner, no caption. Until 4 November 2026 a click while a jump ran
-  started none: the menu's jump items were disabled, and the card's, the
-  strip's and the window's clicks refused.
+  stuck. The new jump runs once the one it stopped has ended, so two never
+  knock at once. A click on the session the jump runs to, before it says
+  it is still jumping (below), joins it: a double-click, or a quick second
+  click, would otherwise kill it mid-knock and add a whole start of Bun,
+  and both clicks hear how it ends. Once it says it is still jumping, a
+  click on its session is Lee trying again, and starts it over; a click on
+  another session always wins at once. A jump a click stopped says
+  nothing: no banner, no caption. Until 4 November 2026 a click while a
+  jump ran started none: the menu's jump items were disabled, and the
+  card's, the strip's and the window's clicks refused.
+- **A jump is stopped gently, with everything it started.** At the limit,
+  or stopped by a click, the CLI's process group is told to end (SIGTERM):
+  the CLI, and osascript, tmux, `ps`, lsappinfo and `open`, which share its
+  group. The CLI, holding a knock's marker out, writes `$HOME` straight to
+  the device before it exits (step 3), and 300ms on the group is killed
+  (SIGKILL), whatever is left of it. `Process` makes each child the leader
+  of a group of its own, and Bun's children stay in it (both checked on
+  this Mac the same day); a group not the child's own, which would be
+  SitRep's, is never signalled. Chosen over the CLI ending its own children
+  on SIGTERM: a group signal needs nothing of the CLI, works while Bun is
+  still starting or stuck, and the SIGKILL after it nothing stuck can
+  ignore. Every other run of the CLI is killed with its group at once; a
+  login shell, asked for Lee's PATH, is killed alone, as before, so
+  whatever its startup files launched, an ssh-agent among it, is left be.
+  Only a CLI killed past its grace leaves a marker out. Killing osascript
+  recalls no Apple Event already sent: a starved Ghostty can still focus a
+  terminal late. And a program killed after Ghostty focused but before its
+  reply refuses a jump that landed, with no watch of the front after it;
+  accepted, as both need Ghostty answering only just too late.
 - **The whole jump gives up after 15 seconds**, Bun's start and the board's
   read among it, where it was 180, a backstop. A jump takes under a second
   as Ghostty answers, and one Ghostty does not answer is refused at its
   first question, after 5 seconds; past 15, the Mac is too busy for a jump
   to land while Lee still wants it. The CLI's own limits stand: 2 seconds
   for each of tmux, `ps`, lsappinfo and `open`, and 5 for each question to
-  Ghostty.
+  Ghostty. A listing and a find may each take up to their 8 seconds
+  (below), past the 15; the gentle stop puts the marker back all the same.
 - **The step that ran unbounded: each Ghostty program.** osascript ran with
   no limit of its own, only each Apple Event in it waiting at most 5
   seconds. Its own start, finding Ghostty and reading its terms, none of it
@@ -5585,27 +5603,33 @@ took 180, so some step ran unbounded. Lee's go, the same day: "Build it".
   starved of the CPU. Each program is now killed at 8 seconds in all: time
   for one question to go unanswered, so a Ghostty not answering is still
   told in its own words, and for osascript's start under load. One killed
-  refuses the jump in plain words, "Ghostty did not answer within 8
+  ends the jump unanswered, exiting 3 with "Ghostty did not answer within 8
   seconds: most likely the Mac is too busy.", the focus of a remembered
-  terminal included, with no knock after it, as for a question timing out.
-  Bun's start and the board's read stay outside every step's limit, inside
-  the 15 seconds. Which step ran the 180 seconds is not known, the log
-  saying only that the CLI did not answer; osascript was the one program
-  the jump ran without a limit of its own.
+  terminal included, with no knock after it, as for a question timing out;
+  SitRep tells exit 3 as it tells its own limit. Bun's start and the
+  board's read stay outside every step's limit, inside the 15 seconds.
+  Which step ran the 180 seconds is not known, the log saying only that the
+  CLI did not answer; osascript was the one program the jump ran without a
+  limit of its own.
 - **The caption says what is happening**, for a jump from anywhere, the
   card, the strip, the menu, the SitRep window or a banner, in the
   caption's look and place, on the edge's screen while the edge shows.
   "Still jumping…" once a jump has run 2 seconds with no answer: it comes
   in as a caption does, and holds until the jump ends; then a row's
-  "Jumped to SitRep's window" takes its place from its hold, or it goes as
-  a caption does. At the limit, "Couldn't jump: the Mac is too busy to
-  reach Ghostty.", played as a caption is. A jump a later click stopped
-  leaves the caption as it is, the later one running on. Every failed jump
-  is still told in a banner, the limit's saying "The Mac is too busy to
-  reach Ghostty." under "SitRep could not jump", so the menu and the
-  window, which have no caption of their own, and an edge hidden or set to
-  Nothing, still say it. VoiceOver announces each caption as it shows;
-  until 4 November 2026 it announced none, the edge being drawn layers.
+  "Jumped to SitRep's window" takes its place, or it goes as a caption
+  does. A jump given no answer in time, at SitRep's limit or a program's,
+  says "Couldn't jump: the Mac is too busy.", played as a caption is: the
+  15 seconds cover Bun, the board, tmux, `ps`, lsappinfo and `open`, and an
+  app with no driver involves no Ghostty, so the words name none. Each
+  caption comes in, or goes, from the pill's opacity as it is, so one
+  taking another's place, or an answer cutting a coming in short, never
+  jumps. A jump a later click stopped leaves the caption as it is, the
+  later one running on. Every failed jump is still told in a banner, the
+  too busy one saying "The Mac is too busy to jump." under "SitRep could
+  not jump", so the menu and the window, which have no caption of their
+  own, and an edge hidden or set to Nothing, still say it. VoiceOver
+  announces each caption as it shows; until 4 November 2026 it announced
+  none, the edge being drawn layers.
 
 Why tmux comes in at all: walking up the processes never reaches the window.
 Claude's chain is `launchd → tmux server → zsh → claude`, the window's is

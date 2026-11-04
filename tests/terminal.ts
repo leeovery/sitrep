@@ -183,6 +183,8 @@ type Options = {
   slow?: string[]
   /** osascript's runs that never end, by their count from 1, as under heavy load: one with a limit is killed at it. */
   stalls?: (run: number) => boolean
+  /** osascript's runs that hang until the run is told to end, by their count from 1: `hanging` once one has begun. */
+  hangs?: (run: number) => boolean
   /** How tmux answers a select: in these words, as it refuses one, or never, as a select that hangs; done, unless a test says otherwise. */
   select?: { said: string } | 'slow'
   /** Devices gone, a write to which fails as a closed pty's does. */
@@ -263,6 +265,8 @@ function screen(options: Options) {
   const apps: string[] = []
   /** Programs whose runs wait, by name, until the test lets them answer. */
   const holds = new Map<string, { arrive: () => void; released: Promise<void> }>()
+  /** Open once an osascript run that hangs has begun. */
+  const hung = latch()
 
   const pidOf = (client: Required<FakeClient>) => 1000 + clients.indexOf(client)
 
@@ -482,6 +486,11 @@ function screen(options: Options) {
       throw unended(name, limitMs)
     }
 
+    if (name === 'osascript' && options.hangs?.(osascriptRuns()) === true) {
+      hung.open()
+      await never()
+    }
+
     if (name === 'tmux') {
       // As a tmux 3.8 server does for a client with no UTF-8 locale and no `$TMUX`, as SitRep runs the CLI: a
       // format's tabs come back as `_` unless the client says it takes UTF-8.
@@ -559,7 +568,7 @@ function screen(options: Options) {
     }
   }
 
-  return { run, writeTo, ran, limits, written, focused, directories, hold }
+  return { run, writeTo, ran, limits, written, focused, directories, hold, hanging: hung.opened }
 }
 
 export function terminal(options: Options = {}) {
@@ -579,6 +588,8 @@ export function terminal(options: Options = {}) {
   const closing = latch()
   /** How many listenings for the run's end are not yet stopped. */
   let listening = 0
+  /** What the run holds to undo should it be told to end (SIGTERM), as the shell holds it. */
+  const undos = new Set<() => Promise<void>>()
   /** Standard input: what was written to it that nothing has heard yet, as a pipe holds it, and what hears it now. */
   const stdin: { held: string[]; heard?: (text: string) => void } = { held: [] }
 
@@ -662,6 +673,15 @@ export function terminal(options: Options = {}) {
           listening -= isStopped ? 0 : 1
           isStopped = true
         },
+      }
+    },
+    atTerm: undo => {
+      const held = () => undo()
+
+      undos.add(held)
+
+      return () => {
+        undos.delete(held)
       }
     },
     manifest: MANIFEST,
@@ -777,6 +797,10 @@ export function terminal(options: Options = {}) {
     run,
     close: closing.open,
     listening: () => listening,
+    /** The run told to end (SIGTERM), as the app stopping a jump tells it: every undo it holds is done, as the shell does them before it exits. */
+    term: () => Promise.allSettled([...undos].map(undo => undo())),
+    /** How many undos the run holds now. */
+    held: () => undos.size,
     /** Writes to the run's standard input, as the app does: heard at once while it listens, else held until it does and `arrives` gives it. */
     send: (text: string) => {
       if (stdin.heard === undefined) {
