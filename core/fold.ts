@@ -41,6 +41,7 @@ import {
   type Reply,
   type SentReply,
   type Status,
+  type TurnSnooze,
   type Session,
   type Voided,
 } from './types'
@@ -93,6 +94,8 @@ type Fold = {
   carried: Set<Reply>
   /** When Lee's latest snooze of each ask wakes, by ask, until a line ends it. */
   snoozes: Map<string, number>
+  /** Lee's latest snooze of the session's turn, until Lee wakes it. */
+  turnSnooze?: TurnSnooze
 }
 
 type Handler<T extends Body['type']> = (fold: Fold, entry: Extract<Written, { type: T }>) => void
@@ -558,6 +561,16 @@ const HANDLERS: { [T in Body['type']]: Handler<T> } = {
   wake: (fold, { item: id }) => {
     fold.snoozes.delete(id)
   },
+
+  snoozeTurn: (fold, { turn, until }) => {
+    fold.turnSnooze = until === undefined ? { turn } : { turn, until }
+  },
+
+  wakeTurn: (fold, { turn }) => {
+    if (fold.turnSnooze?.turn === turn) {
+      fold.turnSnooze = undefined
+    }
+  },
 }
 
 /**
@@ -701,6 +714,11 @@ const presenceOf = (files: Readonly<Record<string, string>>, pauses: readonly Pa
 const isAsk = (item: Item): item is Ask => item.type === 'ask'
 const isParked = (item: Item): item is Parked => item.type === 'park' && item.state === 'parked'
 
+/** Lee's snoozes and wakes of a turn are never told to Claude, so they leave a session as recent as it was. */
+const UNTOLD: ReadonlySet<Body['type']> = new Set(['snoozeTurn', 'wakeTurn'])
+
+const isTold = (entry: Written) => !UNTOLD.has(entry.type)
+
 /**
  * An ask under Lee's latest snooze of it, as that stands at `now`: snoozed
  * while its time is to come, woken at it once it has. Only an ask waiting
@@ -752,7 +770,7 @@ export const foldSession = (
   const letters = written(files.inbox ?? {}, 'letters').filter(entry => entry.type === 'reply')
   const lines = [...written(files.logs, 'file'), ...letters].sort(inOrder)
 
-  const updatedAt = Math.max(meta.created, lines.at(-1)?.at ?? 0)
+  const updatedAt = Math.max(meta.created, lines.findLast(isTold)?.at ?? 0)
 
   for (const entry of [...lines, ...carriedIn(presence, lines, now)].sort(inOrder)) {
     take(fold, entry)
@@ -789,6 +807,7 @@ export const foldSession = (
     deliverer: deliverer(presence, now),
     waiting: waitingOnLee({ asks, finished: fold.finished }).length,
     finished: fold.finished,
+    turnSnooze: fold.turnSnooze,
     ids: fold.ids,
     updatedAt,
   }

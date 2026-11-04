@@ -1,5 +1,5 @@
 import struct SitRepPanel.Earlier
-import enum SitRepPanel.SnoozeChoice
+import enum SitRepPanel.SnoozeTime
 import enum SitRepPanel.WakeTime
 import SitRepWindow
 import SwiftUI
@@ -221,9 +221,13 @@ struct NeedsYouRow: View {
         Away.dimming(row.isAway && !isSnoozed && !onPick)
     }
 
-    /// Its newest line's age, or in Snoozed when its soonest ask wakes.
+    /// Its newest line's age, or in Snoozed when its soonest ask wakes, or its turn, or that the turn waits until it
+    /// moves.
     private var time: String {
-        row.wakesAt.map { WakeTime.words($0, at: now, in: calendar) } ?? Words.age(row.since, at: now)
+        if let wakes = row.wakesAt {
+            return WakeTime.words(wakes, at: now, in: calendar)
+        }
+        return isSnoozed && row.isTurn ? WakeTime.untilItMoves : Words.age(row.since, at: now)
     }
 
     /// Its session's name, cut short before its "+2", in tabular figures on the name's baseline.
@@ -488,7 +492,7 @@ private struct SidebarJump: View {
 
 /// To VoiceOver, which reads the row as one element and never hovers it, a row a window holds offers its button as
 /// an action, "Jump to the window", which jumps as the button does, moving no pick; a row in Snoozed, its menu's Wake
-/// now; and any other whose lines hold asks, its menu's three snoozes (`Spoken.snooze`).
+/// now; and any other whose lines hold asks, or a your-turn row, its menu's snoozes (`Spoken.snooze`).
 private struct SpokenActions: ViewModifier {
     let row: Listed.Row
     let now: Date
@@ -501,12 +505,14 @@ private struct SpokenActions: ViewModifier {
             if let jump = Spoken.jump(row) {
                 Button(jump) { act.jump(.row(row.id)) }
             }
-            if let wake = Spoken.wake(row) {
-                Button(wake) { act.wakeRow(row) }
-            }
-            ForEach(SnoozeChoice.allCases, id: \.self) { choice in
-                if let snooze = Spoken.snooze(choice, of: row, at: now, in: calendar) {
-                    Button(snooze) { act.snoozeRow(row, choice) }
+            if let snoozable = RowMenu.Row(row).snoozable {
+                if let wake = Spoken.wake(row) {
+                    Button(wake) { act.wakeRow(row.id, snoozable) }
+                }
+                ForEach(SnoozeTime.offered(forTurn: true), id: \.self) { time in
+                    if let snooze = Spoken.snooze(time, of: row, at: now, in: calendar) {
+                        Button(snooze) { act.snoozeRow(row.id, snoozable, time) }
+                    }
                 }
             }
         }
@@ -514,8 +520,8 @@ private struct SpokenActions: ViewModifier {
 }
 
 /// A session's row's right-click, or Control-click: its menu (`RowMenu`), as the card's row's but for Open in SitRep,
-/// which the row is already: Jump to the window, and Snooze on a row whose lines hold asks, or Wake now in Snoozed, for
-/// the asks the row shows.
+/// which the row is already: Jump to the window, and Snooze on a row whose lines hold asks or a your-turn row, or Wake
+/// now in Snoozed, for what the row shows.
 private struct RowContextMenu: ViewModifier {
     let row: Listed.Row
 
@@ -526,10 +532,10 @@ private struct RowContextMenu: ViewModifier {
         content.overlay {
             ContextMenuArea { [row, act, calendar] in
                 RowMenu.make(
-                    for: RowMenu.Row(jumps: row.jumps, asks: row.asks, isSnoozed: row.section == .snoozed),
-                    at: Date(), in: calendar,
+                    for: RowMenu.Row(row), at: Date(), in: calendar,
                     RowMenu.Actions(
-                        jump: { act.jump(.row(row.id)) }, snooze: { act.snoozeRow(row, $0) }, wake: { act.wakeRow(row) }
+                        jump: { act.jump(.row(row.id)) }, snooze: { act.snoozeRow(row.id, $0, $1) },
+                        wake: { act.wakeRow(row.id, $0) }
                     )
                 )
             }

@@ -315,7 +315,7 @@ struct GlassSessionRow: View {
     /// Its title and its "+2", dimmed by the one factor while no window holds it, but in Snoozed, quieted already.
     private var awayDim: Double { Away.dimming(session.away && !session.isSnoozed) }
 
-    /// What its time's place says: its age, or in Snoozed when it wakes.
+    /// What its time's place says: its age, or in Snoozed when it wakes, or that it waits until it moves.
     private var time: String { session.timeText(at: now, in: calendar) }
 
     /// The black's layout: its project's lane as wide as the black sets its project; in Snoozed, its time's lane as
@@ -333,7 +333,8 @@ struct GlassSessionRow: View {
     }
 
     /// Needs you an orange dot with its glow, and away a hollow orange ring, unlit (`Away`); your turn an open ring;
-    /// working the arc turning; on its own work the dotted ring, still; in Snoozed a dot in the tertiary, unlit.
+    /// working the arc turning; on its own work the dotted ring, still; in Snoozed a dot in the tertiary, unlit, and a
+    /// turn there a ring in it.
     @ViewBuilder private var mark: some View {
         switch session.kind {
         case .needs where session.away:
@@ -349,6 +350,8 @@ struct GlassSessionRow: View {
             DottedRingView(ring: .card, ink: .secondary)
         case .snoozed:
             Circle().fill(.tertiary).frame(width: 7, height: 7)
+        case .snoozedTurn:
+            Circle().strokeBorder(.tertiary, lineWidth: 1.5).frame(width: 9, height: 9)
         }
     }
 
@@ -369,7 +372,7 @@ struct GlassSessionRow: View {
                     }
                     after(line).foregroundStyle(.secondary).truncationMode(.tail)
                 }
-            case .needs, .turn, .snoozed:
+            case .needs, .turn, .snoozed, .snoozedTurn:
                 Text(line.title).font(titleFont).kerning(-0.13)
                     .foregroundStyle(session.isSnoozed ? .secondary : .primary).truncationMode(.tail)
             }

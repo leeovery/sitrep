@@ -4,13 +4,15 @@
  * holding what its shape takes: a yes its button's words, a choice its
  * options, words what they are. A refusal says what to fix, in words Claude
  * can act on. Lee's answer to an ask from outside Claude Code, as the CLI
- * gives it, is checked here too, and Lee's snooze and waking of asks.
+ * gives it, is checked here too, and Lee's snooze and waking of asks and
+ * of a turn.
  */
 import { isTime } from './entries'
 import { isSessionId, newItemId, type Random } from './ids'
 import { directoryOf, isNameable } from './project'
 import { needsReload } from './release'
 import { isSnoozed, replyOnItsWay, yesOf } from './replies'
+import { snoozedTurnOf, turnEndOf } from './rows'
 import { WANTS } from './shapes'
 import type { StatusFields } from './status'
 import { inWords, oneLine } from './text'
@@ -29,8 +31,10 @@ import {
   type ReplyBody,
   type ResolveBody,
   type SnoozeBody,
+  type SnoozeTurnBody,
   type StatusBody,
   type WakeBody,
+  type WakeTurnBody,
   type Wants,
   type Session,
 } from './types'
@@ -674,4 +678,80 @@ export const checkWake = (session: Session, input: unknown): Checked<WakeBody[]>
   const asks = asksNamed(session, fieldsOf(input), WAKE_RULES)
 
   return asks.ok ? ok(asks.value.map((ask): WakeBody => ({ type: 'wake', item: ask.id }))) : asks
+}
+
+/** The turn a snooze or a wake of a turn names, by its end; or a refusal, where none is named or asks are named with it. */
+const turnNamed = (fields: Fields): Checked<number> => {
+  const turn = timeIn(fields.turn)
+
+  if (turn === undefined) {
+    return refuse(
+      "Name the turn by its end: --turn, in milliseconds since the epoch, as watch gives its row's since.",
+    )
+  }
+
+  return (lines(fields.ask) ?? []).length > 0
+    ? refuse('Name the asks or the turn, not both.')
+    : ok(turn)
+}
+
+/**
+ * Lee's snooze of the session's turn, as the CLI gives it: the turn the
+ * session stands at your turn on at `now`, named by its end, until a time
+ * still to come, or with none until the session takes another turn.
+ */
+export const checkSnoozeTurn = (
+  session: Session,
+  input: unknown,
+  now: number,
+): Checked<SnoozeTurnBody> => {
+  const fields = fieldsOf(input)
+  const turn = turnNamed(fields)
+
+  if (!turn.ok) {
+    return turn
+  }
+
+  const end = turnEndOf(session, now)
+
+  if (end === undefined) {
+    return refuse(
+      `${session.status.name} is not waiting on Lee's message: only a turn Claude has ended snoozes.`,
+    )
+  }
+
+  if (end !== turn.value) {
+    return refuse('That turn is over: the session has taken another since.')
+  }
+
+  if (fields.until === undefined) {
+    return ok({ type: 'snoozeTurn', turn: turn.value })
+  }
+
+  const until = timeIn(fields.until)
+
+  if (until === undefined) {
+    return refuse('A snooze wakes at a time in milliseconds since the epoch.')
+  }
+
+  return until > now
+    ? ok({ type: 'snoozeTurn', turn: turn.value, until })
+    : refuse('That time has come already: give one still to come.')
+}
+
+/** Lee's waking now of the session's turn Lee snoozed, named by its end: a snooze of it holds at `now`, or nothing is woken. */
+export const checkWakeTurn = (
+  session: Session,
+  input: unknown,
+  now: number,
+): Checked<WakeTurnBody> => {
+  const turn = turnNamed(fieldsOf(input))
+
+  if (!turn.ok) {
+    return turn
+  }
+
+  return snoozedTurnOf(session, now)?.turn === turn.value
+    ? ok({ type: 'wakeTurn', turn: turn.value })
+    : refuse('That turn is not snoozed.')
 }

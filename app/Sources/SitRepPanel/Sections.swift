@@ -52,7 +52,7 @@ extension Session {
         case .needs: .needsYou
         case .working, .onItsWork: .working
         case .turn: .yourTurn
-        case .snoozed: .snoozed
+        case .snoozed, .snoozedTurn: .snoozed
         }
     }
 }

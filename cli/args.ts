@@ -8,7 +8,7 @@
 import type { Checked } from '../core'
 
 /**
- * An argument, by the field a check reads it as, and the switch given in its
+ * An argument, by the field a check reads it as, and the flag given in its
  * place, if one may be. The last, `isMany`, takes the words left as a list,
  * one each, not as one text.
  */

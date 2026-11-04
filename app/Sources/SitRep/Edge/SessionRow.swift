@@ -9,7 +9,8 @@ import SitRepPanel
 /// shimmering in the render server, or on its own work its dotted ring and its words still, a wake's countdown set
 /// again as it reads differently; a row in Snoozed a row needing Lee quieted, as board G draws it, its dot grey and
 /// unlit, its name soft, its "+2" faint, and in its time's place when its soonest ask wakes, soft, the lane grown to
-/// fit it. Under the pointer any row's time gives way to its button, which opens its session in the SitRep window.
+/// fit it; a turn there the same, its mark the faint ring, and with no time, "until it moves". Under the pointer any
+/// row's time gives way to its button, which opens its session in the SitRep window.
 @MainActor
 final class SessionRow {
     /// The row's box: its item's.
@@ -241,7 +242,7 @@ final class SessionRow {
             shimmer.band.add(shimmer.sweep, forKey: "sweep")
 
             return (shimmer.layer, shimmer.width)
-        case .needs, .turn, .snoozed:
+        case .needs, .turn, .snoozed, .snoozedTurn:
             let font = titleFont
             let drawn = TextLine(TextLine.text(session.title, font, titleColour, kern: EdgeStyle.tightKern(font)), in: box)
 
@@ -256,7 +257,7 @@ final class SessionRow {
 
     /// Its mark: needs you an orange dot with its glow, and away a hollow orange ring, unlit (`Away`); your turn an
     /// open white ring, board D's 9; working the arc turning; on its own work the dotted ring, still; in Snoozed a
-    /// faint dot, unlit.
+    /// faint dot, unlit, and a turn there the faint ring.
     private func mark(at centre: CGPoint) -> CALayer {
         switch session.kind {
         case .needs where session.away:
@@ -278,6 +279,8 @@ final class SessionRow {
             return DottedRing.card.layer(centredOn: centre, colour: EdgeStyle.grey)
         case .snoozed:
             return Self.disc(7, at: centre, fill: EdgeStyle.ink3)
+        case .snoozedTurn:
+            return Self.ring(9, at: centre, colour: EdgeStyle.ink3)
         }
     }
 

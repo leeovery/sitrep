@@ -353,4 +353,22 @@ struct CardSectionsDrawnTests {
 
         #expect(medium.width - regular.width > 1)
     }
+
+    /// On glass, a turn snoozed is a ring 9 across, hollow, at 16 by 15, where a snoozed ask's is a dot; "until it
+    /// moves" in its time's place, ending at 334.
+    @available(macOS 26, *)
+    @Test func onGlassASnoozedTurnIsAHollowRingUntilItMoves() throws {
+        let turn = Session(id: "t", project: "Fumi", name: "Licensing", kind: .snoozedTurn, title: "Settled", sub: "Fumi", since: 0)
+        let drawn = try Self.glass(turn)
+        let ring = try #require(drawn.drawnBox(in: CGRect(x: 4, y: 2, width: 24, height: 26), ground: Self.ground))
+        let hole = CGRect(x: ring.midX - 1, y: ring.midY - 1, width: 2, height: 2)
+        let wide = TextLine.width(TextLine.text(WakeTime.untilItMoves, EdgeStyle.age, EdgeStyle.ink2))
+        let time = try #require(drawn.drawnBox(in: CGRect(x: 330 - wide, y: 4, width: wide + 14, height: 22), ground: Self.ground))
+        let stroke = try drawn.brightest(in: ring), inside = try drawn.brightest(in: hole)
+
+        #expect(abs(ring.width - 9) <= 1 && abs(ring.height - 9) <= 1)
+        #expect(abs(ring.midX - 16) <= 0.5 && abs(ring.midY - 15) <= 0.5)
+        #expect(inside.lightness < stroke.lightness - 0.3)
+        #expect(abs(time.maxX - 334) <= 1.5 && abs(time.width - wide) <= 3)
+    }
 }

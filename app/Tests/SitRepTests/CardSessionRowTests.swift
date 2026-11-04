@@ -188,6 +188,42 @@ struct CardSessionRowTests {
         #expect(abs(wakes.width - wide) <= 1.5 && wakes.width > 36)
     }
 
+    /// Harness's turn snoozed, until it moves, or waking a day after the time the rows are drawn at.
+    private static func turnAsleep(wakesAt: Double?) -> Session {
+        Session(
+            id: "sr-4g01a7", project: "Harness", name: name, kind: .snoozedTurn,
+            lines: [Session.Line(title: "Stage 2 is in", since: 0)], sub: "Harness", wakesAt: wakesAt
+        )
+    }
+
+    /// A turn snoozed, as board I draws it: a ring 9 across, its stroke 1.5, hollow, in the faint grey its project
+    /// takes; its session's name 13 in the soft grey; its project in the lane at its right; and in its time's place, in
+    /// the soft grey too, when it wakes, or "until it moves", its lane grown to fit, still ending at 334.
+    @Test(arguments: [nil, 29 * 3_600_000.0])
+    func aSnoozedTurnIsAFaintRingItsNameSoftAndWhenItWakesOrUntilItMoves(wakesAt: Double?) throws {
+        let asleep = Self.turnAsleep(wakesAt: wakesAt)
+        let drawn = try Drawn(Self.card(asleep).layer), needs = try Drawn(Self.card(Self.harness(2)).layer)
+        let time = asleep.timeText(at: 5 * 3_600_000, in: WakeTime.calendar)
+        let wide = TextLine.width(TextLine.text(time, EdgeStyle.age, EdgeStyle.ink2))
+        let lane = CGRect(x: 324 - wide - Self.projectWidth - 1, y: 4, width: Self.projectWidth + 2, height: 22)
+        let ring = try #require(drawn.drawnBox(in: CGRect(x: 4, y: 4, width: 22, height: 22), ground: Self.ground))
+        let hole = CGRect(x: ring.midX - 1, y: ring.midY - 1, width: 2, height: 2)
+        let project = try #require(drawn.drawnBox(in: lane, ground: Self.ground))
+        let wakes = try #require(drawn.drawnBox(in: CGRect(x: 330 - wide, y: 4, width: wide + 14, height: 22), ground: Self.ground))
+        let soft = try needs.brightest(in: CGRect(x: 32 + Self.nameWidth() + 3, y: 4, width: 30, height: 22))
+
+        #expect((time == WakeTime.untilItMoves) == (wakesAt == nil))
+        #expect(abs(ring.width - 9) <= 1 && abs(ring.height - 9) <= 1)
+        #expect(abs(ring.midX - 16) <= 0.5 && abs(ring.midY - 15) <= 0.5)
+        #expect(try drawn.brightest(in: hole).lightness < 0.1)
+        #expect(try drawn.brightest(in: ring).isAlike(drawn.brightest(in: project)))
+        #expect(abs(project.maxX - (324 - wide)) <= 1)
+        #expect(try drawn.brightest(in: CGRect(x: 32, y: 6, width: 100, height: 18)).isAlike(soft))
+        #expect(try drawn.brightest(in: wakes).isAlike(soft))
+        #expect((332.5 ... 334.5).contains(wakes.maxX))
+        #expect(abs(wakes.width - wide) <= 1.5)
+    }
+
     /// Its lane grown to fit when it wakes, its words laid out again are drawn at the row's scale, as on Retina, its
     /// project among them.
     @Test func aSnoozedRowsLinesLaidOutAgainAreAtItsScale() {

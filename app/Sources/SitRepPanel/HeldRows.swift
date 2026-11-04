@@ -40,16 +40,17 @@ public struct HeldRows: Equatable, Sendable {
 
     /// Each section on its own, in the sections' order: its rows showing, in their places, each as it now is, those
     /// gone from it left out; a row new to it, new to the board or come from another section, in under the row core
-    /// has above it in the section, or at the section's top where core has none there.
+    /// has above it in the section, or at the section's top where core has none there. Each row is known by its key,
+    /// so a session's asks and its turn in Snoozed are two rows.
     private func kept(_ sessions: [Session]) -> [Session] {
         let core = Dictionary(grouping: sessions, by: Self.section)
         let held = Dictionary(grouping: shown, by: Self.section)
 
         return core.keys.sorted().flatMap { section in
             let rows = core[section] ?? []
-            let now = Dictionary(rows.map { ($0.id, $0) }) { first, _ in first }
+            let now = Dictionary(rows.map { (Item.key(of: $0), $0) }) { first, _ in first }
 
-            return (held[section] ?? []).compactMap { now[$0.id] }.merging(rows, by: \.id)
+            return (held[section] ?? []).compactMap { now[Item.key(of: $0)] }.merging(rows, by: Item.key(of:))
         }
     }
 

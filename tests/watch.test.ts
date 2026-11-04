@@ -26,6 +26,7 @@ import {
   reply,
   SLOW,
   snooze,
+  snoozeTurn,
   status,
   T0,
   unfinish,
@@ -613,6 +614,7 @@ test('a snooze running out is a line the moment it does, though no file changed:
       lines: [
         {
           key: k1,
+          is: 'ask',
           ask: 'k1',
           first: { lead: 'Review round 1', mono: null, subject: null, more: null, until: null },
           since: T0,
@@ -647,6 +649,47 @@ test('a snooze posted is a line, its ask in Snoozed and nothing new; woken by Le
     [NOW, [k1], [], [], [META.id]],
     [NOW + POLL_MS, [`turn:${META.id}`], [k1], [], [META.id]],
     [NOW + 3 * POLL_MS, [k1], [], [], [META.id]],
+  ])
+})
+
+test("a turn snoozed is a line, its row leaving the rows for one of its own in Snoozed, nothing new; the window's next turn ends it, back in the rows", async () => {
+  const { t, paths } = held()
+  const turn = `turn:${META.id}`
+  const { lines } = await watched(t, [
+    () => post(t, paths, snoozeTurn(T0)),
+    () => beatOn(t, paths, W1, { is: 'working', since: NOW + 2 * POLL_MS }),
+    () => beatOn(t, paths, W1, { is: 'yourTurn', since: NOW + 3 * POLL_MS }),
+  ])
+
+  expect(
+    lines.map(line => [line.rows.map(row => row.section), keys(line), asleep(line), line.new]),
+  ).toEqual([
+    [['yourTurn'], [turn], [], []],
+    [[], [], [turn], []],
+    [['working'], [turn], [], []],
+    [['yourTurn'], [turn], [], []],
+  ])
+  expect(lines[1]?.snoozed, 'a turn snoozed until it moves, as DESIGN prints it').toEqual([
+    {
+      session: META.id,
+      isAway: false,
+      project: PROJECT.key,
+      name: META.name,
+      projectName: PROJECT.name,
+      letters: 'Sw',
+      lines: [
+        {
+          key: turn,
+          is: 'yourTurn',
+          ask: null,
+          first: { lead: META.summary, mono: null, subject: null, more: null, until: null },
+          since: T0,
+          wakesAt: null,
+        },
+      ],
+      second: 'Switchboard · Dashboard redesign',
+      wakesAt: null,
+    },
   ])
 })
 

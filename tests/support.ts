@@ -150,6 +150,13 @@ export const snooze = (item: string, until: number): Body => ({ type: 'snooze', 
 /** Lee's waking of a snoozed ask now. */
 export const wake = (item: string): Body => ({ type: 'wake', item })
 
+/** Lee's snooze of the session's turn that ended at `turn`, until `until`, or with none until it moves. */
+export const snoozeTurn = (turn: number, until?: number): Body =>
+  until === undefined ? { type: 'snoozeTurn', turn } : { type: 'snoozeTurn', turn, until }
+
+/** Lee's waking now of the session's turn that ended at `turn`. */
+export const wakeTurn = (turn: number): Body => ({ type: 'wakeTurn', turn })
+
 /** Random bytes from a script: each draw takes the next list of bytes, the last list repeating. */
 export const scripted = (...draws: number[][]): Random => {
   let next = 0

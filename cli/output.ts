@@ -297,10 +297,11 @@ const feedSessionJson = (session: FeedSession) => ({
 
 const snoozedLineJson = (line: SnoozedLine) => ({
   key: line.key,
-  ask: line.ask,
+  is: line.is,
+  ask: line.ask ?? null,
   first: lineJson(line.first),
   since: line.since,
-  wakesAt: line.wakesAt,
+  wakesAt: line.wakesAt ?? null,
 })
 
 const snoozedRowJson = (row: SnoozedRow) => ({
@@ -312,7 +313,7 @@ const snoozedRowJson = (row: SnoozedRow) => ({
   letters: row.letters,
   lines: row.lines.map(snoozedLineJson),
   second: row.second,
-  wakesAt: row.wakesAt,
+  wakesAt: row.wakesAt ?? null,
 })
 
 const feedProjectJson = (project: FeedProject) => ({

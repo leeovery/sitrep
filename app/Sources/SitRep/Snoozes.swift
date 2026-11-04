@@ -15,31 +15,32 @@ final class Snoozes {
         self.banners = banners
     }
 
-    /// The asks of a session snoozed until the time chosen, worked out now: what it came to.
-    func snooze(_ asks: [String], of session: String, _ choice: SnoozeChoice) async -> WriteAnswer {
-        let until = choice.wakes(after: Date(), in: WakeTime.calendar)
+    /// What is named of a session, its asks or its turn, snoozed until the time chosen, worked out now: what it came to.
+    func snooze(_ named: Snoozable, of session: String, _ time: SnoozeTime) async -> WriteAnswer {
+        let until = time.wakes(after: Date(), in: WakeTime.calendar)
 
-        return await plugin.ask({ await $0.snooze(asks, of: session, until: until) }, unrun: WriteAnswer.refused)
+        return await plugin.ask({ await $0.snooze(named, of: session, until: until) }, unrun: WriteAnswer.refused)
     }
 
-    /// The asks of a session woken now: what it came to.
-    func wake(_ asks: [String], of session: String) async -> WriteAnswer {
-        await plugin.ask({ await $0.wake(asks, of: session) }, unrun: WriteAnswer.refused)
+    /// What is named of a session, its asks or its turn, woken now: what it came to.
+    func wake(_ named: Snoozable, of session: String) async -> WriteAnswer {
+        await plugin.ask({ await $0.wake(named, of: session) }, unrun: WriteAnswer.refused)
     }
 
-    /// A row's asks snoozed, a refusal told in a banner.
-    func snoozeRow(_ asks: [String], of session: String, _ choice: SnoozeChoice) {
+    /// What a row showed snoozed, its asks or its turn, until the time chosen, worked out now, a refusal told in a
+    /// banner.
+    func snoozeRow(_ named: Snoozable, of session: String, _ time: SnoozeTime) {
         Task {
-            if case let .refused(why) = await snooze(asks, of: session, choice) {
+            if case let .refused(why) = await snooze(named, of: session, time) {
                 banners.post(.unsnoozed(why))
             }
         }
     }
 
-    /// A row's asks woken, a refusal told in a banner.
-    func wakeRow(_ asks: [String], of session: String) {
+    /// What a row showed asleep, its asks or its turn, woken, a refusal told in a banner.
+    func wakeRow(_ named: Snoozable, of session: String) {
         Task {
-            if case let .refused(why) = await wake(asks, of: session) {
+            if case let .refused(why) = await wake(named, of: session) {
                 banners.post(.unwoken(why))
             }
         }

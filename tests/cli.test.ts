@@ -519,6 +519,58 @@ test('a snooze or a wake refused ends as refused, in the check’s words, and wr
   expect((await t.run('wake', 'k1', '--session', 'sr-zzzzzz')).exit).toBe(EXIT.noSession)
 })
 
+test("snooze --turn writes Lee's snooze of the session's turn, named by its end, to the CLI's own file, until a time or with none until it moves, nothing in the inbox, and prints nothing; wake --turn likewise", async () => {
+  const t = terminal()
+  const paths = t.seed(META, { seenAt: NOW })
+  const turn = ['--turn', String(NOW)]
+  const done = { exit: EXIT.done, out: '', err: '' }
+
+  expect(await t.run('snooze', ...turn, ...SESSION)).toEqual(done)
+  expect(folded(t, paths).turnSnooze).toEqual({ turn: NOW })
+  expect(await t.run('snooze', ...turn, '--until', String(WAKES), ...SESSION)).toEqual(done)
+  expect(folded(t, paths).turnSnooze).toEqual({ turn: NOW, until: WAKES })
+  expect(await t.run('wake', ...turn, ...SESSION)).toEqual(done)
+  expect(folded(t, paths).turnSnooze).toBeUndefined()
+  expect(cliLines(t, paths)).toEqual([
+    { v: VERSION, at: NOW, seq: 1, type: 'snoozeTurn', turn: NOW },
+    { v: VERSION, at: NOW, seq: 2, type: 'snoozeTurn', turn: NOW, until: WAKES },
+    { v: VERSION, at: NOW, seq: 3, type: 'wakeTurn', turn: NOW },
+  ])
+  expect(t.files.has(paths.letters(WRITER)), 'nothing goes to its inbox').toBe(false)
+})
+
+test("a snooze or a wake of a turn refused ends as refused, in the check's words, and writes nothing: no turn, asks with it, a turn over, a time come, a turn not snoozed, a session not waiting on Lee's message", async () => {
+  const t = terminal()
+  const paths = t.seed(META, { seenAt: NOW })
+  const refused = (error: string) => ({ exit: EXIT.refused, out: '', err: `sitrep: ${error}\n` })
+
+  t.seed(LOBBY)
+  expect(await t.run('snooze', '--turn', 'soon', ...SESSION)).toEqual(
+    refused(
+      "Name the turn by its end: --turn, in milliseconds since the epoch, as watch gives its row's since.",
+    ),
+  )
+  expect(await t.run('snooze', 'k1', '--turn', String(NOW), ...SESSION)).toEqual(
+    refused('Name the asks or the turn, not both.'),
+  )
+  expect(await t.run('snooze', '--turn', String(NOW - MIN), ...SESSION)).toEqual(
+    refused('That turn is over: the session has taken another since.'),
+  )
+  expect(await t.run('snooze', '--turn', String(NOW), '--until', 'soon', ...SESSION)).toEqual(
+    refused('A snooze wakes at a time in milliseconds since the epoch.'),
+  )
+  expect(await t.run('snooze', '--turn', String(NOW), '--until', String(NOW), ...SESSION)).toEqual(
+    refused('That time has come already: give one still to come.'),
+  )
+  expect(await t.run('wake', '--turn', String(NOW), ...SESSION)).toEqual(
+    refused('That turn is not snoozed.'),
+  )
+  expect(await t.run('snooze', '--turn', String(NOW), '--session', LOBBY.id)).toEqual(
+    refused("Lobby is not waiting on Lee's message: only a turn Claude has ended snoozes."),
+  )
+  expect(t.files.has(paths.log(WRITER))).toBe(false)
+})
+
 test('what the CLI prints says what is snoozed: each ask its snoozedUntil while it is, else null; each session and project how many in list --json and board --json, and plain list among its facts', async () => {
   const t = terminal()
 
@@ -600,7 +652,7 @@ test('help: every command in brief, how a session is named, and the exit codes',
     '  sitrep ask <title> --wants yes|choice|words [--yes <label>] [--option <choice>]... [--needs <words>] [--where <words>] [--ref <ref>]\n',
   )
   expect(out).toContain(
-    '  sitrep answer <ask> (<answer> | --ignore)\n  sitrep snooze <ask>... --until <ms>\n  sitrep wake <ask>...\n  sitrep finish\n',
+    '  sitrep answer <ask> (<answer> | --ignore)\n  sitrep snooze (<ask>... | --turn <ms>) [--until <ms>]\n  sitrep wake (<ask>... | --turn <ms>)\n  sitrep finish\n',
   )
   expect(out).toContain('  sitrep list [--project <name>] [--json]\n  sitrep screen [--json]\n')
   expect(out).toContain('--session sr-xxxxxx, else $SITREP_SESSION')

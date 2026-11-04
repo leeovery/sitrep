@@ -4,7 +4,8 @@
  * in DESIGN.md), and what decides when it does.
  *
  * - The rows, a session each, in the panel's order, and the head (rows.ts);
- *   and, apart from them, the Snoozed rows, soonest to wake first.
+ *   and, apart from them, the Snoozed rows, a session's asks and its turn
+ *   each a row, soonest to wake first.
  * - Each project with a current session, and those sessions, away ones
  *   among them and never a finished one, each with its state, what it is
  *   doing as the line under its name says it, its open asks, as
@@ -34,12 +35,14 @@ import {
   oldestOf,
   rowOf,
   sessionState,
-  snoozedRowOf,
+  snoozedRowsOf,
+  snoozedTurnOf,
   type Doing,
   type Head,
   type Line,
   type Row,
   type SessionState,
+  type SnoozedLine,
   type SnoozedRow,
 } from './rows'
 import { compareText } from './text'
@@ -180,7 +183,7 @@ export const feedOf = (read: readonly ProjectRead[], now: number, own?: string):
     rows,
     snoozed: inSnoozedOrder(
       read.flatMap(({ project, sessions }) =>
-        sessions.flatMap(session => snoozedRowOf(project, session, now) ?? []),
+        sessions.flatMap(session => snoozedRowsOf(project, session, now)),
       ),
     ),
     projects: read
@@ -206,6 +209,9 @@ export const FORGET_MS = 24 * 60 * 60_000
 /** How a watch has shown an ask's line in Snoozed: asleep, kept however long it sleeps. */
 export const ASLEEP = 'asleep'
 
+/** Whether a Snoozed line is an ask's, which will need Lee as it wakes; a turn's never does. */
+const isAsk = (line: SnoozedLine) => line.is === 'ask'
+
 /** How a watch has shown a line needing Lee: when it went, in its own time; undefined while it is on the board; or asleep, in Snoozed. */
 type Seen = number | undefined | typeof ASLEEP
 
@@ -223,7 +229,7 @@ export type Shown = ReadonlyMap<string, Seen>
  */
 export const newRows = (shown: Shown | undefined, feed: Feed, at: number) => {
   const lines = feed.rows.filter(needsYou).flatMap(row => row.lines)
-  const asleep = feed.snoozed.flatMap(row => row.lines.map(line => line.key))
+  const asleep = feed.snoozed.flatMap(row => row.lines.filter(isAsk).map(line => line.key))
   const isOn = new Set(lines.map(line => line.key))
   const isRemembered = (seen: Seen) => typeof seen !== 'number' || at - seen <= FORGET_MS
   const gone = [...(shown ?? [])].flatMap(([key, seen]): [string, number][] =>
@@ -262,8 +268,8 @@ const earliestAfter = (instants: readonly (number | undefined)[], now: number) =
 /**
  * When a session's part of the board next changes by time alone, after
  * `now`: the earliest one of its live heartbeats goes stale, a snooze of an
- * ask snoozed runs out, or it drops out of the views, idle. None changes a
- * file. A heartbeat goes stale as the session was folded: aged only while
+ * ask snoozed or of its turn runs out, or it drops out of the views, idle.
+ * None changes a file. A heartbeat goes stale as the session was folded: aged only while
  * its reader ran (pauses.ts); a snooze runs out on the wall clock.
  * Undefined while none will.
  */
@@ -272,6 +278,7 @@ export const nextBoardChange = (session: Session, now: number) =>
     [
       ...session.presence.filter(each => isLive(each, now)).map(each => each.seenAt + STALE_MS + 1),
       ...snoozedAsks(session).map(ask => ask.snoozedUntil),
+      snoozedTurnOf(session, now)?.until,
       isAging(session) ? session.updatedAt + CURRENT_MS + 1 : undefined,
     ],
     now,

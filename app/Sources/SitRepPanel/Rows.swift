@@ -2,12 +2,12 @@ import CoreGraphics
 
 /// A session as the edge shows it: a row on the panel, a mark on the strip, and a mark's tab. One needing Lee has a
 /// line for each ask and stop waiting on Lee, the newest first; its row in Snoozed, on the card alone, a line for each
-/// ask asleep; any other has its one line.
+/// ask asleep, or its turn's alone; any other has its one line.
 public struct Session: Equatable, Sendable {
-    /// Where it stands: its turn over but on its own work, which will wake it, among them; or, its row in Snoozed,
-    /// its asks asleep.
+    /// Where it stands: its turn over but on its own work, which will wake it, among them; or, a row in Snoozed, its
+    /// asks asleep, or its turn Lee snoozed.
     public enum Kind: Sendable {
-        case needs, turn, working, onItsWork, snoozed
+        case needs, turn, working, onItsWork, snoozed, snoozedTurn
     }
 
     /// One of its lines: its words, and its time.
@@ -98,7 +98,8 @@ public struct Session: Equatable, Sendable {
     public var lines: [Line]
     /// What its row says under its title.
     public var sub: String
-    /// Its row in Snoozed: when its soonest line wakes, ms on the wall clock, which the row shows in its time's place.
+    /// A row in Snoozed: when its soonest line wakes, ms on the wall clock, which the row shows in its time's place;
+    /// nil for a turn snoozed until it moves.
     public var wakesAt: Double?
 
     public init(
@@ -168,8 +169,12 @@ public struct Session: Equatable, Sendable {
     /// Whether it is among needs you.
     public var needsLee: Bool { kind == .needs }
 
-    /// Whether it is its row in Snoozed, its asks asleep.
-    public var isSnoozed: Bool { kind == .snoozed }
+    /// Whether it is a row in Snoozed, its asks asleep or its turn.
+    public var isSnoozed: Bool { kind == .snoozed || kind == .snoozedTurn }
+
+    /// Whether it is its session's turn, waiting on Lee's message or snoozed: what its row's Snooze puts off, by the
+    /// turn's end, its time.
+    public var isTurn: Bool { kind == .turn || kind == .snoozedTurn }
 
     /// The asks its lines show, by their ids, a window's stops aside: what its row snoozes, or wakes.
     public var asks: [String] { lines.compactMap(\.ask) }
@@ -255,7 +260,8 @@ public enum Item: Equatable, Sendable {
 
     /// What it is, the same for as long as it shows: a row by its session, marked by its section but for Working's, so
     /// a row changing section folds away from one place and unfolds in the other, as two rows, and a session's row in
-    /// Snoozed is another than its row beside it; an eyebrow by its section; the divider by itself.
+    /// Snoozed is another than its row beside it, and its turn's row there another than its asks'; an eyebrow by its
+    /// section; the divider by itself.
     public var key: String {
         switch self {
         case let .session(session), let .line(session): Self.key(of: session)
@@ -264,12 +270,12 @@ public enum Item: Equatable, Sendable {
         }
     }
 
-    private static func key(of session: Session) -> String {
+    static func key(of session: Session) -> String {
         switch session.section {
         case .needsYou: "needs:\(session.id)"
         case .yourTurn: "turn:\(session.id)"
         case .working: session.id
-        case .snoozed: "snoozed:\(session.id)"
+        case .snoozed: session.isTurn ? "snoozedTurn:\(session.id)" : "snoozed:\(session.id)"
         }
     }
 

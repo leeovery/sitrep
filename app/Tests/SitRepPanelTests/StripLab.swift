@@ -83,7 +83,7 @@ struct StripLab {
             case .needs: (s.away ? 1 : 0, s.since, row.offset)
             case .turn: (2, -s.since, row.offset)
             case .working: (3, s.since, row.offset)
-            case .onItsWork, .snoozed: (4, s.since, row.offset)
+            case .onItsWork, .snoozed, .snoozedTurn: (4, s.since, row.offset)
             }
         }
         return sessions.enumerated().sorted { key($0) < key($1) }.map(\.element)

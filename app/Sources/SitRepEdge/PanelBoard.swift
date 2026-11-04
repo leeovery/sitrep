@@ -123,14 +123,13 @@ extension Session {
         )
     }
 
-    /// A Snoozed row as the card draws it, keyed by its session as a Needs you row is, and named as one is: its
-    /// project beneath its name, or for an away one, core's second line; when its soonest line wakes in its time's
-    /// place.
+    /// A Snoozed row as the card draws it, its asks' or its turn's, named as a Needs you row is: its project beneath
+    /// its name; when its soonest line wakes in its time's place, none for a turn snoozed until it moves.
     init(_ row: Board.SnoozedRow) {
         self.init(
-            id: row.session, project: row.projectName, name: row.name, letters: row.letters, kind: .snoozed,
-            away: row.isAway, lines: row.lines.map(Line.init), sub: row.projectName,
-            wakesAt: row.wakesAt.timeIntervalSince1970 * 1000
+            id: row.session, project: row.projectName, name: row.name, letters: row.letters,
+            kind: row.isTurn ? .snoozedTurn : .snoozed, away: row.isAway, lines: row.lines.map(Line.init),
+            sub: row.projectName, wakesAt: row.wakesAt.map { $0.timeIntervalSince1970 * 1000 }
         )
     }
 }
@@ -149,7 +148,7 @@ private extension Session.Line {
         )
     }
 
-    /// An ask asleep, its title its words.
+    /// An ask asleep, or a turn, its title its words, its time from `since`.
     init(_ line: Board.SnoozedRow.Line) {
         self.init(ask: line.ask, title: line.first.lead, since: line.since.timeIntervalSince1970 * 1000)
     }

@@ -1,4 +1,5 @@
 import AppKit
+import SitRepCore
 import SitRepEdge
 import SitRepPanel
 
@@ -16,10 +17,10 @@ final class NotchController: NSObject, CalloutShape {
     var onJump: (String, @escaping (Bool) -> Void) -> Void = { _, _ in }
     /// A row's button, or its menu's Open in SitRep: the session to open in the SitRep window.
     var onOpen: (String) -> Void = { _ in }
-    /// A row's menu's Snooze: the session, the asks its row showed, and the time chosen.
-    var onSnooze: (String, [String], SnoozeChoice) -> Void = { _, _, _ in }
-    /// A Snoozed row's menu's Wake now: the session, and the asks its row showed.
-    var onWake: (String, [String]) -> Void = { _, _ in }
+    /// A row's menu's Snooze: the session, what its row showed to snooze, its asks or its turn, and the time chosen.
+    var onSnooze: (String, Snoozable, SnoozeTime) -> Void = { _, _, _ in }
+    /// A Snoozed row's menu's Wake now: the session, and what its row showed asleep, its asks or its turn.
+    var onWake: (String, Snoozable) -> Void = { _, _ in }
     /// Whether a jump runs, from the panel, the menu or a banner.
     var isJumping: () -> Bool = { false }
     /// A drag let the notch go: the settings with its new place.
@@ -283,7 +284,7 @@ final class NotchController: NSObject, CalloutShape {
     }
 
     /// A right-click on a row, away or not: its menu (`RowMenu`), which holds the card open while it shows. What it
-    /// snoozes or wakes is the asks the row showed.
+    /// snoozes or wakes is what the row showed: its asks, or its turn.
     private func menu(at screenPoint: CGPoint) -> NSMenu? {
         guard let point = edge.stagePoint(screenPoint),
               let row = run.row(at: point, in: .on(edge, settings)), let session = row.session
@@ -291,14 +292,14 @@ final class NotchController: NSObject, CalloutShape {
             return nil
         }
 
-        let id = session.id, asks = session.asks, key = row.key
+        let id = session.id, key = row.key
         let menu = RowMenu.make(
             for: RowMenu.Row(session), at: Date(), in: run.calendar,
             RowMenu.Actions(
                 open: { [unowned self] in onOpen(id) },
                 jump: { [unowned self] in jumpFromMenu(to: key) },
-                snooze: { [unowned self] in onSnooze(id, asks, $0) },
-                wake: { [unowned self] in onWake(id, asks) }
+                snooze: { [unowned self] in onSnooze(id, $0, $1) },
+                wake: { [unowned self] in onWake(id, $0) }
             )
         )
 

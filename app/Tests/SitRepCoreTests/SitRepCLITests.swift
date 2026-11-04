@@ -204,7 +204,7 @@ struct SitRepCLITests {
         let (cli, programs) = Self.cli(Self.exited(0))
         let until = Date(timeIntervalSince1970: 1_792_745_127)
 
-        #expect(await cli.snooze(["k1", "k3"], of: "sr-4g01a7", until: until) == .written)
+        #expect(await cli.snooze(.asks(["k1", "k3"]), of: "sr-4g01a7", until: until) == .written)
         #expect(programs.all.map(\.arguments) == [
             ["snooze", "--until", "1792745127000", "--session", "sr-4g01a7", "--", "k1", "k3"],
         ])
@@ -214,8 +214,25 @@ struct SitRepCLITests {
     @Test func wakeRunsWakeWithTheAsksAfterTheirDashes() async {
         let (cli, programs) = Self.cli(Self.exited(0))
 
-        #expect(await cli.wake(["k2"], of: "sr-4g01a7") == .written)
+        #expect(await cli.wake(.asks(["k2"]), of: "sr-4g01a7") == .written)
         #expect(programs.all.map(\.arguments) == [["wake", "--session", "sr-4g01a7", "--", "k2"]])
+    }
+
+    /// A turn is named by its end, in whole milliseconds since the epoch, as is its time; snoozed until it moves, with
+    /// none.
+    @Test func aTurnIsSnoozedAndWokenByItsEnd() async {
+        let (cli, programs) = Self.cli(Self.exited(0))
+        let ended = Date(timeIntervalSince1970: 1_792_741_527.619)
+        let until = Date(timeIntervalSince1970: 1_792_745_127)
+
+        #expect(await cli.snooze(.turn(ended: ended), of: "sr-4g01a7", until: until) == .written)
+        #expect(await cli.snooze(.turn(ended: ended), of: "sr-4g01a7", until: nil) == .written)
+        #expect(await cli.wake(.turn(ended: ended), of: "sr-4g01a7") == .written)
+        #expect(programs.all.map(\.arguments) == [
+            ["snooze", "--until", "1792745127000", "--session", "sr-4g01a7", "--turn", "1792741527619"],
+            ["snooze", "--session", "sr-4g01a7", "--turn", "1792741527619"],
+            ["wake", "--session", "sr-4g01a7", "--turn", "1792741527619"],
+        ])
     }
 
     @Test(arguments: [
@@ -224,8 +241,8 @@ struct SitRepCLITests {
     func aSnoozeOrAWakeRefusedGivesTheCLIsWords(words: String) async {
         let (cli, _) = Self.cli(Self.exited(1, stderr: "sitrep: \(words)\n"))
 
-        #expect(await cli.wake(["k1"], of: "sr-4g01a7") == .refused(words))
-        #expect(await cli.snooze(["k1"], of: "sr-4g01a7", until: Date()) == .refused(words))
+        #expect(await cli.wake(.asks(["k1"]), of: "sr-4g01a7") == .refused(words))
+        #expect(await cli.snooze(.asks(["k1"]), of: "sr-4g01a7", until: Date()) == .refused(words))
     }
 }
 

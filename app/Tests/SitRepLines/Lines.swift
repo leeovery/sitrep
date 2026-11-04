@@ -49,6 +49,13 @@ public enum Lines {
     /// by `sitrep wake`, back in Needs you and new on no line.
     public static let snoozed = printed("watch-snoozed.jsonl").split(separator: "\n").map(String.init)
 
+    /// `sitrep watch`'s three lines over a board of its own, run on 4 November 2026 at 19:19, each session's window at
+    /// Lee's turn: Northwind's Ledger export, its turn snoozed until it moves by `sitrep snooze --turn`; Contoso's
+    /// Onboarding flow, its turn snoozed until 09:00 tomorrow; Fabrikam's Release notes, its turn not snoozed. Then
+    /// Contoso's woken by `sitrep wake --turn`, back on Your turn; then Northwind's window at a new turn, which ends its
+    /// snooze, back on Your turn at the top.
+    public static let snoozedTurn = printed("watch-snoozed-turn.jsonl").split(separator: "\n").map(String.init)
+
     /// `sitrep watch`'s two lines over a board of its own, run on 4 November 2026, its standard input a fifo, each
     /// session carrying when it started and what it parked: Northwind's Ledger export, away, two items parked, one with
     /// its where and ref; Contoso's Onboarding flow, away, a choice waiting and an item parked; Fabrikam's Release

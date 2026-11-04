@@ -97,8 +97,8 @@ struct SnoozedWindowTests {
         #expect(Spoken.wake(try Self.row(.session(Self.session), in: run)) == nil)
     }
 
-    /// A row whose lines hold asks offers its menu's three snoozes, each saying when it would wake; a Snoozed row and
-    /// a row of stops alone offer none.
+    /// A row whose lines hold asks offers its menu's three snoozes, each saying when it would wake, never until it
+    /// moves, a turn's alone; a Snoozed row and a row of stops alone offer none.
     @Test func voiceOverOffersARowOfAsksItsSnoozes() throws {
         let run = Self.opened()
         let waiting = try Self.row(.session(Self.session), in: run)
@@ -107,7 +107,7 @@ struct SnoozedWindowTests {
             lines: [Listed.Line(id: "stop:sr-kit:w1", lead: "Allow Bash", code: "gh pr create", more: nil, since: Self.now)]
         )
         let snoozes = { (row: Listed.Row) in
-            SnoozeChoice.allCases.compactMap { Spoken.snooze($0, of: row, at: Self.now, in: Self.london) }
+            SnoozeTime.offered(forTurn: true).compactMap { Spoken.snooze($0, of: row, at: Self.now, in: Self.london) }
         }
 
         #expect(snoozes(waiting) == [
