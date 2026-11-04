@@ -2,40 +2,52 @@ import Foundation
 import os
 import SitRepCore
 
-/// The jump to a session's window, one at a time, through the plugin's CLI.
+/// The jump to a session's window, through the plugin's CLI: one at a time, the latest click winning (`OneJump`).
 @MainActor
 final class Works {
     private let logger = Logger(sitrep: "jump")
-    private let banners: Banners
     private let oneJump = OneJump()
     private let plugin: Plugin
 
+    /// Every jump's news, once a jump, whichever surface asked for it, after each click's own `answered`: the edge's
+    /// caption.
+    var heard: (JumpNews) -> Void = { _ in }
+
+    /// A jump that fails is told in a banner (`JumpAnswer.banner`).
     init(banners: Banners, plugin: Plugin) {
-        self.banners = banners
         self.plugin = plugin
+        oneJump.heard = { [weak self, logger] news in
+            guard let self else {
+                return
+            }
+
+            if case let .ended(answer) = news {
+                if let banner = answer.banner {
+                    banners.post(banner)
+                }
+                if answer == .stopped {
+                    logger.notice("A jump was stopped: a later one took its place")
+                }
+            }
+            heard(news)
+        }
     }
 
-    var isJumping: Bool { oneJump.isRunning }
-
-    /// Jumps to the work's window unless a jump is under way, and tells
-    /// `answered` whether it jumped. A jump that fails is told in a banner,
-    /// and to `refused`; one turned away for another running is not, as that
-    /// one brings its window forward.
+    /// Jumps to the work's window, in place of any jump under way but one to the same work not yet still jumping, which
+    /// this joins; tells `answered` whether it jumped once it ends, and `refused` when it failed, as its banner says.
     func jump(
         to work: String, answered: @escaping (Bool) -> Void = { _ in }, refused: @escaping () -> Void = {}
     ) {
-        Task {
-            let answer = await oneJump.run({ await self.plugin.ask({ await $0.jump(to: work) }, unrun: JumpAnswer.refused) })
+        let jump: @Sendable () async -> JumpAnswer = { [plugin] in
+            await plugin.ask({ await $0.jump(to: work) }, unrun: JumpAnswer.refused)
+        }
 
-            answered(answer == .jumped)
-            switch answer {
-            case nil:
-                logger.notice("Jump to \(work, privacy: .public) refused: another jump is running")
-            case let .refused(why):
-                banners.post(.unjumped(why))
-                refused()
-            case .jumped:
-                break
+        oneJump.run(to: work, jump) { news in
+            if case let .ended(answer) = news {
+                answered(answer == .jumped)
+                if answer.banner != nil {
+                    refused()
+                }
             }
         }
     }

@@ -22,11 +22,11 @@ final class Edge {
     private var observers: [any NSObjectProtocol] = []
 
     /// What Lee set, followed as it changes; `jump` jumps to a session, and tells once it answers whether it jumped;
-    /// `isJumping` says whether one runs; `open` opens a session in the SitRep window, from a row on the card; `snoozes`
-    /// snoozes and wakes a row's asks from its menu.
+    /// `open` opens a session in the SitRep window, from a row on the card; `snoozes` snoozes and wakes a row's asks
+    /// from its menu.
     init(
         _ preferences: Preferences, jump: @escaping (String, @escaping (Bool) -> Void) -> Void,
-        isJumping: @escaping () -> Bool, open: @escaping (String) -> Void, snoozes: Snoozes
+        open: @escaping (String) -> Void, snoozes: Snoozes
     ) {
         let settings = preferences.edge, display = Displays.chosen(settings)
 
@@ -39,8 +39,6 @@ final class Edge {
         notch.onSnooze = { snoozes.snoozeRow($1, of: $0, $2) }
         notch.onWake = { snoozes.wakeRow($1, of: $0) }
         strip.onJump = jump
-        notch.isJumping = isJumping
-        strip.isJumping = isJumping
         notch.onMoved = { [unowned self] in moved($0) }
         strip.onMoved = { [unowned self] in moved($0) }
         fullScreen.onChange = { [unowned self] in show() }
@@ -63,6 +61,12 @@ final class Edge {
 
         preferences.moved(settings)
         place(settings)
+    }
+
+    /// A jump's news, whichever surface asked for it: the caption of whichever shows says it.
+    func heard(_ news: JumpNews) {
+        notch.heard(news)
+        strip.heard(news)
     }
 
     /// With no `watch` to run, the notch's head says why, and the strip's notch at rest.

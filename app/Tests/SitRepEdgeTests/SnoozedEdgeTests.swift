@@ -134,7 +134,7 @@ struct SnoozedEdgeTests {
             run.step(NotchRun.Moment(time: run.time + 1000 / 60, pointer: onTheNotch, setting: Self.setting))
         }
         #expect(Self.keys(run).contains("needs:sr-4g01a7"))
-        guard case .jump? = run.jump(to: "snoozed:sr-4g01a7", Self.at(run.time), mayJump: true) else {
+        guard case .jump? = run.jump(to: "snoozed:sr-4g01a7", Self.at(run.time)) else {
             Issue.record("the menu's jump found no row")
             return
         }

@@ -4,51 +4,47 @@ import SitRepLines
 @testable import SitRepWindow
 import Testing
 
-/// Which of the window's buttons shows a jump under way: only the one pressed, one jump at a time.
+/// Which of the window's buttons shows a jump under way: only the one pressed, the latest press winning.
 struct JumpingTests {
     private static let first = JumpPress.card(AskAddress(session: "sr-boot", ask: "k1"), .inClaude(.comment))
     private static let second = JumpPress.card(AskAddress(session: "sr-boot", ask: "k2"), .inClaude(.comment))
 
     @Test func onlyTheButtonPressedShowsTheJump() {
         var jumping = Jumping()
-        let jumped = jumping.press(Self.first, isJumping: false)
 
-        #expect(jumped)
+        _ = jumping.press(Self.first)
+
         #expect(jumping.pressed == Self.first)
         #expect(jumping.pressed != Self.second)
     }
 
-    @Test func aSecondPressWhileTheJumpRunsStartsNoneAndLeavesTheFirstShowing() {
+    @Test func aSecondPressWhileTheJumpRunsShowsInItsPlace() {
         var jumping = Jumping()
+        let first = jumping.press(Self.first)
+        let second = jumping.press(Self.second)
 
-        _ = jumping.press(Self.first, isJumping: false)
+        #expect(second != first)
+        #expect(jumping.pressed == Self.second)
+    }
 
-        let beforeItRuns = jumping.press(Self.second, isJumping: false)
-        let whileItRuns = jumping.press(Self.second, isJumping: true)
+    @Test func theFirstPresssAnswerLeavesTheSecondShowing() {
+        var jumping = Jumping()
+        let first = jumping.press(Self.first)
+        let second = jumping.press(Self.first)
 
-        #expect(!beforeItRuns)
-        #expect(!whileItRuns)
+        jumping.answered(first)
         #expect(jumping.pressed == Self.first)
-    }
 
-    @Test func aPressWhileAnotherSurfacesJumpRunsStartsNoneAndShowsNothing() {
-        var jumping = Jumping()
-        let jumped = jumping.press(.open("sr-boot"), isJumping: true)
-
-        #expect(!jumped)
+        jumping.answered(second)
         #expect(jumping.pressed == nil)
     }
 
-    @Test func theJumpAnsweredTheButtonShowsAsItDidAndTheNextPressJumps() {
+    @Test func theJumpAnsweredTheButtonShowsAsItDid() {
         var jumping = Jumping()
 
-        _ = jumping.press(Self.first, isJumping: false)
-        jumping.answered()
+        jumping.answered(jumping.press(Self.first))
+
         #expect(jumping.pressed == nil)
-
-        let next = jumping.press(.stop("sr-boot"), isJumping: false)
-
-        #expect(next)
     }
 
     @Test func eachPressJumpsToItsSession() {
