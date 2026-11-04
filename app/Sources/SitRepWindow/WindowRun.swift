@@ -595,7 +595,7 @@ public final class WindowRun {
     }
 
     /// A place's list as it shows, held, filtered and folded, with no washes.
-    private func arranged(_ place: Place) -> PlaceList {
+    func arranged(_ place: Place) -> PlaceList {
         held.arranged(PlaceList(place, in: listed, filter: filter, isFoldOpen: openFolds.contains(place)))
     }
 

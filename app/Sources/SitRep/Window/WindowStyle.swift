@@ -68,8 +68,8 @@ enum WindowStyle {
     static let boardWidth: CGFloat = 236
     static let listWidth: CGFloat = 300
     static let pageInset: CGFloat = 40
-    /// The band under the window's toolbar, beside the traffic lights, which the toolbar sets 26 points down: empty on
-    /// the page, which starts under it.
+    /// The band of the window's toolbar, beside the traffic lights, which the toolbar sets 26 points down: nothing of
+    /// the page sits in it, the page starting under it.
     static let barHeight: CGFloat = 52
     /// The sidebar, as Paper's round 8 draws it (board C, "Option B, one list"). The accessory over the list: the
     /// Filter field, the system's at its large size, 28 tall, 9 under the titlebar's band and 10 over the list.

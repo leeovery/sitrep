@@ -62,9 +62,9 @@ extension EnvironmentValues {
 }
 
 /// The page: beside the list, the session its row picked; filling the window, a project's page or a session's; or why
-/// there is none, on the panel's black, starting under the empty band beside the traffic lights. It draws what it is
-/// given, at the time given, so it renders the same on the screen and off it, as the columns beside it do. On screen,
-/// the pointer anywhere over it holds the page (`PagePointer`).
+/// there is none, on the panel's black, starting under the toolbar's band. It draws what it is given, at the time
+/// given, so it renders the same on the screen and off it, as the columns beside it do. On screen, the pointer
+/// anywhere over it holds the page (`PagePointer`).
 struct PageColumn: View {
     let page: Page
     let now: Date

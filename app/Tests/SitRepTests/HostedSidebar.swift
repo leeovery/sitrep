@@ -52,7 +52,7 @@ struct HostedSidebar {
         split = column == .sidebar
             ? SitRepWindow.split(sidebar: hosted, list: blank(), page: blank())
             : SitRepWindow.split(sidebar: blank(), list: hosted, page: blank())
-        window = SitRepWindow.window(split)
+        window = SitRepWindow.window(split, toolbar: NSToolbar())
         window.setContentSize(CGSize(width: 1260, height: height))
         hosted.view.additionalSafeAreaInsets = NSEdgeInsets(top: 0, left: 0, bottom: bottomSafeArea, right: 0)
         window.contentView?.layoutSubtreeIfNeeded()

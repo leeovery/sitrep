@@ -4226,9 +4226,25 @@ stands).
       At its end "N resolved ›",
       folded each time a page shows, opens in place to its resolved asks,
       the newest closed first, each opening to how it closed.
-  - **the band under the toolbar**, beside the traffic lights, stays
-    empty on every page, a session's and a project's: nothing
-    of the page sits in it.
+  - **the toolbar** fills the band beside the traffic lights (4 November
+    2026, A1 to A3 revised; until then it stayed empty on every page,
+    nothing of the page in it). On a place: past the sidebar, **Back and
+    Forward**, one capsule of two chevrons, each side dimmed while it has
+    no step to go to; beside them the place's name, Needs you, Your turn,
+    Working or Parked, as the window's title, which macOS draws there and
+    keeps over the list by the list's divider, tracked; then trailing
+    over the page **the position**, "1 / 5", 13 in tabular figures in the
+    secondary colour, and **up and down**, a capsule of two chevrons, up
+    dimmed on the first row and down on the last. A page filling the
+    window, a project's or a session's pushed from it, has Back and
+    Forward alone, at its leading edge, no title shown and no position;
+    the window's title is still the page's, the project's name or the
+    session's, so Mission Control, App Exposé and VoiceOver name what the
+    window shows, as Finder names its folder's window. The items change
+    with the list folding away or showing, never a moment after it, each
+    item made afresh as it comes back. Where the toolbar is too narrow
+    for them, each side of a capsule is an item of its own in the
+    toolbar's overflow menu. Nothing of the page sits in the band.
 - **A session's row is the card's row at the window's size:** the same
   marks in the same lanes, the same words, and the panel row's time.
 - **On a session's page and a project's** (3 November 2026), a working
@@ -4288,11 +4304,18 @@ stands).
     away only as the window says, while a project's page or a session's
     fills it. That is why the window is not SwiftUI's
     `NavigationSplitView`: it pins neither;
-  - the window carries an empty toolbar, unified. Its taller titlebar is
-    what sets the traffic lights inside the glass, 11 points in from its
-    corner as Finder's; without one macOS puts them on the corner, a point
-    in. Their middle is 26 points down, in the middle of the empty band the
-    page starts under;
+  - the window carries a toolbar, unified, of macOS's own parts: Back and
+    Forward the toolbar's navigational item, AppKit's segmented pair
+    (`NSToolbarItemGroup`, momentary) of two chevrons as Finder's and
+    Safari's, as the Settings window's are; up and down another; the title
+    the window's own, shown only on a place;
+    the list's divider tracked by `NSTrackingSeparatorToolbarItem`, as the
+    sidebar's is by the system's. macOS 26 sets them on Liquid Glass by
+    itself, so SitRep draws no capsule of its own. Nothing to customise.
+    Its taller titlebar is what sets the traffic lights inside the glass,
+    11 points in from its corner as Finder's; without one macOS puts them
+    on the corner, a point in. Their middle is 26 points down, in the
+    middle of the band the page starts under;
   - macOS draws an app in the design of the SDK its binary records, so the
     glass shows only in a build that records macOS 26's, as `app/bundle`
     sets it. Offscreen, the window's parts can be read, the sidebar item
@@ -4417,6 +4440,12 @@ stands).
     tomorrow, wakes Saturday 09:00"; a fold reads how many, and "N earlier"
     its projects, as "2 snoozed" or "8 earlier, Switchboard, Fumi", and
     folded says so. The Filter field reads as "Filter sessions";
+  - the toolbar's chevrons read "Back" and "Forward", "Previous" and
+    "Next", each its side's tooltip too; the position reads "3 of 5", once,
+    as its value, never "3 / 5" too, and with no row picked it is no
+    element at all; the window's title names the place, or the page
+    filling the window; a press on a side from VoiceOver or the keyboard
+    with no side selected goes nowhere;
   - the page's title, the eyebrow, the breadcrumb's session and the
     section headings carry the header trait, each heading read with the
     words on its right, as "Now, updated 1 hour ago"; the meta line reads
@@ -4584,10 +4613,10 @@ stands).
   rules and their tests, wired in by the switch to three columns the same
   day (see "Three columns"): the sidebar's places and projects, the list
   beside the page and the page are drawn from it, and every way the window
-  moves goes through it. The toolbar's Back and Forward, its position and
-  its up and down, the project page's body, and Parked's list and its item
-  come with later changes; ⌘[ and ⌘] with the toolbar. The session page's
-  body came the same day (see "the page", under "Three columns").
+  moves goes through it, the toolbar's Back and Forward, its position and
+  its up and down among it (see "Three columns"). The project page's body,
+  and Parked's list and its item, come with later changes. The session
+  page's body came the same day (see "the page", under "Three columns").
   - **Four places, then the projects.** The sidebar holds the Filter field,
     then Needs you, Your turn, Working and Parked, then every project on the
     board, quiet ones too. Your turn sits above Working because it waits on
@@ -4626,10 +4655,13 @@ stands).
     session's name, its project's or its own words, so typing what an ask
     says finds that ask, not every line of its session; a Working or Your
     turn row by today's rule; a project by its name.
-  - **Position.** Beside the list, the picked row's place among the rows
-    shown, "3 / 6", which VoiceOver reads "3 of 6"; an open fold's rows
-    count, a closed one's don't, and with nothing shown picked there is no
-    position.
+  - **Position.** In the toolbar over the page, the picked row's place
+    among the rows shown, "3 / 6", which VoiceOver reads "3 of 6"; an open
+    fold's rows count, a closed one's don't, and with nothing shown picked
+    there is no position: the toolbar's words go, while up and down stay,
+    acting from where the pick stood. The toolbar's up and down step the
+    list exactly as ↑ and ↓ do, each pick replacing the step, and each is
+    dimmed where its arrow would go nowhere.
   - **↑ and ↓** step through the rows shown, a fold no row of its own. A
     pick the list no longer shows, an ask answered or a row a fold closed
     over, stands where it last showed, after the nearest row then above it
@@ -4695,17 +4727,20 @@ stands).
   - **A click in the sidebar** on the place or the project already showing
     changes nothing, its pick kept, as Mail does for the mailbox already
     open; on Parked narrowed to a project it clears the narrowing.
-  - **Back and Forward** (⌘[ and ⌘]): a sidebar click, a session opened
-    from a project's page, a breadcrumb link, a session's "later · N
-    parked", a project's "N parked", "Back to its session" and an open from
-    outside each make a step; another row picked within the list replaces
-    the step, so Back skips the rows Lee stepped through, to where he came
-    from. Going where the window already is makes no step. As the board
-    changes every step is kept as it stands, one that no longer stands goes,
-    and steps that come to be the same are one, so neither Back nor Forward
-    ever stays put or lands on a session gone. A step gone back or forward
-    to whose pick sits under a closed fold opens the fold, so the pick
-    shows. Not kept across launches.
+  - **Back and Forward**, the toolbar's, and ⌘[ and ⌘], keys of the app's
+    main menu, under Go, as Finder's are, which go only while the SitRep
+    window is key and only where the toolbar's side is not dimmed: a
+    sidebar click, a session opened from a project's page, a breadcrumb
+    link, a session's "later · N parked", a project's "N parked", "Back to
+    its session" and an open from outside each make a step; another row
+    picked within the list, by a click, an arrow or the toolbar's up and
+    down, replaces the step, so Back skips the rows Lee stepped through, to
+    where he came from. Going where the window already is makes no step. As
+    the board changes every step is kept as it stands, one that no longer
+    stands goes, and steps that come to be the same are one, so neither
+    Back nor Forward ever stays put or lands on a session gone. A step gone
+    back or forward to whose pick sits under a closed fold opens the fold,
+    so the pick shows. Not kept across launches.
 
 ### The menu bar item
 
@@ -5102,7 +5137,9 @@ live changed, and how they group.
   side, Notifications' bell and Claude Code's terminal. The pane shown is
   the accent while the window is key and the system's grey when not. The
   toolbar holds back and forward in one capsule, which step through the
-  panes shown, and the pane's name beside it, 15 bold. A pane is sections:
+  panes shown, as ⌘[ and ⌘] do while it is key, the app's Go menu's, as
+  System Settings' do; and the pane's name beside it, 15 bold. A pane is
+  sections:
   each a header, 13 semibold in the label colour, 10 in from its card's
   edge and 10 over it, then its card; the sections 26 apart, in a column
   from 20 past the sidebar to 20 from the window's right, with no cap. A

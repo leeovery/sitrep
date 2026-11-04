@@ -97,32 +97,63 @@ struct SettingsWindowTests {
 
         #expect(toolbar.items.map(\.itemIdentifier).first == .sidebarTrackingSeparator)
         #expect(steps.isNavigational)
-        #expect(steps.view is NSSegmentedControl)
+        #expect((steps as? NSToolbarItemGroup)?.subitems.map(\.label) == ["Back", "Forward"])
         #expect(!toolbar.allowsUserCustomization)
     }
 
-    /// Each greyed where there is no pane to step to; a press steps. A momentary control holds the segment pressed only
-    /// while a click sends its action, so a press is sent from a control holding it.
-    @Test func backAndForwardStepThroughThePanesShown() async {
+    /// Each greyed where there is no pane to step to; a press steps, pressed as AppKit presses a side, through its
+    /// menu form, as the toolbar's overflow shows it.
+    @Test func backAndForwardStepThroughThePanesShown() async throws {
         let made = await Made()
         let steps = made.window.steps
-        let press = { (segment: Int) in
-            let pressed = NSSegmentedControl(labels: ["", ""], trackingMode: .selectOne, target: nil, action: nil)
+        let enabled = { steps.subitems.map(\.isEnabled) }
+        let press = { (side: Int) in
+            let menu = try #require(steps.subitems[side].menuFormRepresentation)
 
-            pressed.selectedSegment = segment
-            _ = pressed.sendAction(steps.action, to: steps.target)
+            NSApplication.shared.sendAction(try #require(menu.action), to: menu.target, from: menu)
         }
 
-        #expect(!steps.isEnabled(forSegment: 0) && !steps.isEnabled(forSegment: 1))
+        #expect(enabled() == [false, false])
         made.settings.turn(to: .edge)
         await made.settled()
-        #expect(steps.isEnabled(forSegment: 0) && !steps.isEnabled(forSegment: 1))
-        press(0)
+        #expect(enabled() == [true, false])
+        try press(0)
         await made.settled()
         #expect(made.settings.pane == .general)
-        #expect(!steps.isEnabled(forSegment: 0) && steps.isEnabled(forSegment: 1))
-        press(1)
+        #expect(enabled() == [false, true])
+        try press(1)
         #expect(made.settings.pane == .edge)
+    }
+
+    /// A press with no side selected, as VoiceOver or the keyboard can send a momentary control, steps nowhere.
+    @Test func aPressWithNoSideSelectedStepsNowhere() async throws {
+        let made = await Made()
+        let steps = made.window.steps
+
+        made.settings.turn(to: .edge)
+        made.settings.goBack()
+        steps.selectedIndex = -1
+        NSApplication.shared.sendAction(try #require(steps.action), to: steps.target, from: steps)
+        #expect(made.settings.pane == .general)
+    }
+
+    /// ⌘[ and ⌘], the Go menu's, step back and forward as the toolbar does, each only where it has a pane to step to;
+    /// any other item stays enabled.
+    @Test func theGoMenusBackAndForwardStepThroughThePanesShown() async {
+        let made = await Made()
+        let item = { (action: Selector) in NSMenuItem(title: "", action: action, keyEquivalent: "") }
+        let back = item(#selector(SettingsWindow.goBack(_:)))
+        let forward = item(#selector(SettingsWindow.goForward(_:)))
+
+        #expect(!made.window.validateMenuItem(back) && !made.window.validateMenuItem(forward))
+        made.settings.turn(to: .edge)
+        #expect(made.window.validateMenuItem(back) && !made.window.validateMenuItem(forward))
+        made.window.goBack(back)
+        #expect(made.settings.pane == .general)
+        #expect(!made.window.validateMenuItem(back) && made.window.validateMenuItem(forward))
+        made.window.goForward(forward)
+        #expect(made.settings.pane == .edge)
+        #expect(made.window.validateMenuItem(item(#selector(NSWindow.performClose(_:)))))
     }
 
     /// What macOS says is read as the window keys, as it comes forward.
