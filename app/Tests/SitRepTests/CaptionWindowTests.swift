@@ -1,5 +1,6 @@
 import AppKit
 @testable import SitRep
+import SitRepCore
 import Testing
 
 /// The jump's caption stays on the screen, and so on every Space, from the moment it is made, as the notch's window
@@ -41,6 +42,95 @@ struct CaptionWindowTests {
         }
         #expect(caption.window.alphaValue == 0)
         #expect(caption.window.isVisible)
+    }
+
+    /// A jump from anywhere with no answer two seconds on says so, held while it runs, though a later jump stops it;
+    /// at its limit, the limit's words take its place.
+    @Test func aJumpWithNoAnswerSaysItIsStillJumpingUntilItsLimitSaysTheMacIsTooBusy() {
+        let caption = Self.shown()
+
+        defer { caption.window.close() }
+        caption.heard(.still)
+        #expect(caption.says == "Still jumping…")
+        #expect(caption.window.alphaValue == 1)
+
+        caption.heard(.ended(.stopped))
+        #expect(caption.says == "Still jumping…")
+
+        caption.heard(.ended(.unanswered))
+        #expect(caption.says == "Couldn't jump: the Mac is too busy.")
+    }
+
+    /// A jump stopped by a later one shows nothing of its own: no failure, no caption.
+    @Test func aJumpStoppedByALaterOneShowsNothing() {
+        let caption = Self.shown()
+
+        defer { caption.window.close() }
+        caption.heard(.ended(.stopped))
+        #expect(caption.says == nil)
+        #expect(caption.window.alphaValue == 0)
+    }
+
+    /// A row's jump that jumps after saying it was still jumping: "Jumped to…" takes the pill's place, and the jump's
+    /// end leaves it.
+    @Test func aRowsJumpedToTakesThePlaceOfStillJumping() {
+        let caption = Self.shown()
+
+        defer { caption.window.close() }
+        caption.jumping(to: "SitRep")
+        caption.drained(at: 0)
+        caption.heard(.still)
+        caption.answered(jumped: true, at: 2000)
+        caption.heard(.ended(.jumped))
+
+        #expect(caption.says == "Jumped to SitRep's window")
+    }
+
+    /// An earlier jump's stop, heard after a row's click began its own, leaves that row's "Jumped to…" waiting for its
+    /// own answer: a stale stop is no answer to the click under way.
+    @Test func aStaleStopLeavesARowsJumpedToWaiting() {
+        let caption = Self.shown()
+
+        defer { caption.window.close() }
+        caption.jumping(to: "SitRep")
+        caption.drained(at: 0)
+        caption.heard(.ended(.stopped))
+        caption.answered(jumped: true, at: 500)
+
+        #expect(caption.says == "Jumped to SitRep's window")
+    }
+
+    /// A jump refused after saying it was still jumping lets the pill go, as a caption ends; its banner says why.
+    @Test func aJumpRefusedLetsStillJumpingGo() async throws {
+        let caption = Self.shown()
+
+        defer { caption.window.close() }
+        caption.heard(.still)
+        caption.heard(.ended(.refused("Fumi is not on screen.")))
+        for _ in 0 ..< 40 where caption.says != nil {
+            try await Task.sleep(for: .milliseconds(100))
+        }
+        #expect(caption.says == nil)
+        #expect(caption.window.alphaValue == 0)
+    }
+
+    @Test func keptFromShowingAJumpWithNoAnswerShowsNothing() {
+        let caption = Self.shown()
+
+        defer { caption.window.close() }
+        caption.mayShow = false
+        caption.heard(.still)
+        caption.heard(.ended(.unanswered))
+        #expect(caption.says == nil)
+        #expect(caption.window.alphaValue == 0)
+    }
+
+    private static func shown() -> CaptionWindow {
+        let caption = CaptionWindow()
+
+        caption.over = over
+        caption.mayShow = true
+        return caption
     }
 
     /// A caption on its way, due 90ms from now as a jump from a row answers at once.

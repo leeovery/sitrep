@@ -31,12 +31,17 @@ import {
 import { findSession, readHeldSessions, readProjects, textAt, type Found } from './files'
 import { commandHelp, HELP } from './help'
 import type { Env, Io } from './io'
+import { Unanswered } from './driver'
 import { jump } from './jump'
 import { readOnScreen, windowsOf } from './screen'
 import { watch } from './watch'
 
-/** How a run ends: done; a usage error, a refused input or a failure; or no such session. */
-export const EXIT = { done: 0, refused: 1, noSession: 2 } as const
+/**
+ * How a run ends: done; a usage error, a refused input or a failure; no
+ * such session; or a jump an app gave no answer to in time, as when the Mac
+ * is too busy, which SitRep tells as it tells its own limit.
+ */
+export const EXIT = { done: 0, refused: 1, noSession: 2, unanswered: 3 } as const
 
 export type Exit = (typeof EXIT)[keyof typeof EXIT]
 
@@ -226,11 +231,11 @@ const answer = async (io: Io, words: readonly string[]): Promise<Exit> => {
   return command === undefined ? unknown(io, name) : runCommand(io, command, rest)
 }
 
-/** Runs the CLI on its words; a failure the files or the world threw is told, and ends it as refused. */
+/** Runs the CLI on its words; a failure the files or the world threw is told, and ends it as refused, or as unanswered for an app that gave no answer in time. */
 export const main = async (words: readonly string[], io: Io): Promise<Exit> => {
   try {
     return await answer(io, words)
   } catch (error) {
-    return fail(io, EXIT.refused, messageOf(error))
+    return fail(io, error instanceof Unanswered ? EXIT.unanswered : EXIT.refused, messageOf(error))
   }
 }

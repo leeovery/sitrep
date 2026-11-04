@@ -10,9 +10,9 @@
  * spliced into the text.
  */
 import type { Random } from '../core'
-import type { Brought, Driver, FrontAtStart } from './driver'
+import { Unanswered, type Brought, type Driver, type FrontAtStart } from './driver'
 import { keepInFront } from './front'
-import type { Io } from './io'
+import { TimedOut, type Io, type Ran } from './io'
 import { readRemembered, remember, type Remembered } from './remembered'
 
 /** A Ghostty terminal: its id, and the working directory it reports, empty when it reports none. */
@@ -28,6 +28,18 @@ const UNLESS_RUNNING = 'if application "Ghostty" is not running then return ""'
  * AppleScript's own limit is two minutes.
  */
 export const ANSWER_SECONDS = 5
+
+/**
+ * How long a Ghostty program may run in all, from osascript's start to its
+ * end: long enough for one question to go unanswered, so a Ghostty that
+ * does not answer is told in its own words, with time over for osascript to
+ * start, find Ghostty and read its terms, which under heavy load is slow and
+ * which no `with timeout` covers. Until 4 November 2026 a program had no
+ * limit of its own, only each question in it, so its start, and the sum of
+ * a find's twenty tries or a listing's three questions each answered just
+ * in time, could hold a jump for minutes.
+ */
+export const PROGRAM_MS = 8_000
 
 /** A program's lines that ask Ghostty, within the time it may take to answer each. */
 const askGhostty = (...lines: string[]) => [
@@ -168,11 +180,31 @@ const LIST_TRIES = 3
 
 const NO_ANSWER = `Ghostty did not answer within ${ANSWER_SECONDS} seconds: most likely the screen is locked, or macOS is asking whether sitrep may control Ghostty.`
 
+const TOO_SLOW = `Ghostty did not answer within ${PROGRAM_MS / 1_000} seconds: most likely the Mac is too busy.`
+
 const UNSETTLED = "Ghostty's windows kept opening or closing as they were listed. Try again."
+
+/** A Ghostty program run within its limit: one killed at it is thrown in plain words, and any other failure to run as `otherwise` makes of it. */
+const runGhostty = <T>(
+  io: Io,
+  words: readonly string[],
+  otherwise: (error: unknown) => T,
+): Promise<Ran | T> =>
+  io.run(['osascript', '-e', ...words], PROGRAM_MS).catch((error: unknown) => {
+    if (error instanceof TimedOut) {
+      throw new Unanswered(TOO_SLOW)
+    }
+
+    return otherwise(error)
+  })
+
+const rethrow = (error: unknown): never => {
+  throw error
+}
 
 /** What a Ghostty program prints. Ghostty not answering in time is thrown in plain words; any other failure, such as macOS refusing control of Ghostty, in osascript's. */
 const ghostty = async (io: Io, program: string, ...args: string[]) => {
-  const ran = await io.run(['osascript', '-e', program, ...args])
+  const ran = await runGhostty(io, [program, ...args], rethrow)
 
   if (ran.exitCode !== 0) {
     throw new Error(isTimedOut(ran.stderr) ? NO_ANSWER : `osascript: ${ran.stderr.trim()}`)
@@ -208,63 +240,119 @@ const bestEffort = (session: Promise<unknown>) =>
     () => undefined,
   )
 
-/** Lists the terminals once more, and puts back any now reporting the marker. */
-const putBackMarked = async (
-  io: Io,
-  device: string,
-  before: readonly Terminal[],
-  marker: string,
-) => {
-  const marked = (await terminals(io)).find(each => each.directory === marker)
-
-  if (marked !== undefined) {
-    await putBack(io, device, before, marked.id)
-  }
-}
-
 /**
- * Knocks on the device and focuses the Ghostty terminal that answers; its
- * id, or undefined when none did. A device that will not take the knock, a
- * closed one (EIO, ENXIO), answers nothing and has nothing to put back. A
- * terminal taking the marker is put back whatever comes of the find: one
- * that took it after the find gave up, and one that took it before the find
- * failed, as far as listing again can tell.
+ * Writes back, straight to the device, the directory its terminal goes back
+ * to when which terminal took the marker is not known: $HOME, as neither a
+ * window's heartbeat nor the board says what directory its terminal
+ * reports. Only the device's own terminal takes it, and Ghostty is asked
+ * nothing, so it lands however busy Ghostty is.
  */
-const knock = async (io: Io, device: string, before: readonly Terminal[]) => {
-  const marker = markerOf(io.random)
-  const isWritten = await io.writeTo(device, reportText(marker)).then(
+const putBackHome = (io: Io, device: string) =>
+  io.writeTo(device, reportText(directoryAfter(undefined, io.env.HOME ?? '/')))
+
+/** Whether a write landed. */
+const landed = (write: Promise<unknown>) =>
+  write.then(
     () => true,
     () => false,
   )
 
-  if (!isWritten) {
-    return undefined
+/**
+ * Knocks on the device and focuses the Ghostty terminal that answers; its
+ * id, or undefined when none did. A device that will not take the knock, a
+ * closed one (EIO, ENXIO), answers nothing and has nothing to put back.
+ *
+ * A terminal taking the marker is put back whatever comes of the find: the
+ * one found, to the directory it reported before. A find that gave up lists
+ * the terminals again: one on the marker goes back to the directory it
+ * reported; with none on it, or the listing failing, $HOME goes straight to
+ * the device, as under load Ghostty can take the marker after the listing,
+ * and the device keeps the order of its writes. A find that fails puts
+ * $HOME straight to the device, asking Ghostty nothing more.
+ *
+ * Told to end (SIGTERM) from the moment the marker is written, the run puts
+ * $HOME straight to the device before it ends, once the marker's write has
+ * landed, unless the put-back the knock chose is under way and lands.
+ */
+const knock = async (io: Io, device: string, before: readonly Terminal[]) => {
+  const marker = markerOf(io.random)
+  const writing = landed(io.writeTo(device, reportText(marker)))
+  let puttingBack: Promise<boolean> | undefined
+  const putting = (write: Promise<void>) => {
+    puttingBack = landed(write)
+
+    return puttingBack
   }
-
-  const found = await ghostty(io, FIND_AND_FOCUS, marker).catch(async (error: unknown) => {
-    await bestEffort(putBackMarked(io, device, before, marker))
-
-    throw error
+  const letGo = io.atTerm(async () => {
+    if ((await writing) && !(await puttingBack)) {
+      await bestEffort(putBackHome(io, device))
+    }
   })
-  const focused = found.trim()
 
-  await bestEffort(
-    focused === ''
-      ? putBackMarked(io, device, before, marker)
-      : putBack(io, device, before, focused),
+  try {
+    if (!(await writing)) {
+      return undefined
+    }
+
+    const found = await ghostty(io, FIND_AND_FOCUS, marker).catch(async (error: unknown) => {
+      await putting(putBackHome(io, device))
+
+      throw error
+    })
+    const focused = found.trim()
+
+    if (focused === '') {
+      await putBackAfterGivingUp(io, device, before, marker, putting)
+
+      return undefined
+    }
+
+    await putting(putBack(io, device, before, focused))
+
+    return focused
+  } finally {
+    letGo()
+  }
+}
+
+/**
+ * After a find that gave up, lists the terminals once more: one on the
+ * marker is put back to the directory it reported, else $HOME goes straight
+ * to the device. A listing killed at its limit is thrown once the put-back
+ * is made, so the jump ends unanswered; any other failure of it is the
+ * put-back's alone.
+ */
+const putBackAfterGivingUp = async (
+  io: Io,
+  device: string,
+  before: readonly Terminal[],
+  marker: string,
+  putting: (write: Promise<void>) => Promise<boolean>,
+) => {
+  const listed = await terminals(io).then(
+    listing => ({ marked: listing.find(each => each.directory === marker) }),
+    (error: unknown) => ({ marked: undefined, error }),
   )
 
-  return focused === '' ? undefined : focused
+  await putting(
+    listed.marked === undefined
+      ? putBackHome(io, device)
+      : putBack(io, device, before, listed.marked.id),
+  )
+
+  if ('error' in listed && listed.error instanceof Unanswered) {
+    throw listed.error
+  }
 }
 
 /**
  * Focuses the terminal remembered for a device, by its id; whether it did.
- * Ghostty not answering in time is thrown in plain words, as for every
- * question to it; no terminal having the id, or any other failure, is a
- * miss, for a knock to settle.
+ * Ghostty not answering in time, or the program outliving its limit, is
+ * thrown in plain words, as for every question to it; no terminal having
+ * the id, or any other failure, is a miss, for a knock to settle.
  */
 const focusRemembered = async (io: Io, id: string) => {
-  const ran = await io.run(['osascript', '-e', FOCUS, id]).catch(() => undefined)
+  const ran = await runGhostty(io, [FOCUS, id], () => undefined)
 
   if (ran !== undefined && ran.exitCode !== 0 && isTimedOut(ran.stderr)) {
     throw new Error(NO_ANSWER)

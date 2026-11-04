@@ -831,7 +831,13 @@ and cancel all were, `⧗ Waiting for Claude's turn to end.`, with
 their asks say `on its way`. Taking it back lets go of its claim: its
 replies are in the queue as they were before the send, each with its `✕`,
 `↺ undo` and `✎ edit` again, its asks wait on Lee again at once, and send
-sends them again. Once the window has submitted it, it is Claude Code's,
+sends them again. While Claude's turn only waits on its background work
+(4 November 2026; see Delivery), the line says so in that one's place,
+wrapped beside `↺ take back`, or over it where that takes fewer rows:
+`⧗ Claude is waiting on its background work: this goes in when that ends.
+Type your answer in the prompt to reach Claude now.`; in one row,
+`⧗ Waiting on Claude's background work.`, where the rows Ready to send has
+do not hold that. Once the window has submitted it, it is Claude Code's,
 and nothing takes it back out of Claude Code's queue: the line says
 `⧗ Sending.` and the take-back is gone. The inbox's message offers none:
 Lee sent its replies from elsewhere.
@@ -1000,6 +1006,80 @@ app (see "The menu bar").
     awaited there, started its own turn about 13 ms later; a hook awaiting
     its own submit never ends. So the window submits a held message from the
     hook and waits on none of it there.
+  - **While the turn only waits on its background work** (4 November
+    2026). Seen live twice that day: Lee answered an ask, and its window
+    held the reply under `⧗ Waiting for Claude's turn to end.` for as long
+    as an hour after Claude had finished replying, Claude Code's own line
+    reading `✳ Waiting for 2 background agents to finish`. Claude Code holds
+    a turn open while background agents its main loop sent off still run,
+    though that loop has finished: each agent's notification goes into the
+    turn, Claude answers it, and the turn waits again. So the window heard a
+    turn running all along, and held the message. Lee's own prompts got in
+    meanwhile: Claude Code delivers a prompt typed mid-turn into the turn.
+
+    What the engine allows, by its types: nothing of a plugin's goes into a
+    running turn as Lee's own message. `$.prompt.submit` is "a turn of its
+    own, once the session is idle", and `prompt.submit`'s `turnId` is
+    "Absent for a prompt submitted while the session was idle, and for a
+    plugin's own (`$.prompt.submit`), which runs once it is idle". What
+    goes into a running turn is the engine's own: a prompt typed over it, a
+    task's notification ("delivered into a running turn (`turnId` set)"),
+    and a peer's message ("A queued delivery (a peer session's message)
+    reaches the model inside a running turn"). A plugin sends the last only
+    by `$.session.send`, "framed at the receiver as a peer's", which Claude
+    reads as another session's message, not Lee's (refused above);
+    `$.session.append` keeps "a user-role row the person does not see as
+    typed", which Lee never sees and which wakes nothing; and
+    `prompt.attachment` rewrites only what the engine injects "on its own".
+    `$.turn.abort` would end the wait, but by cancelling Claude's turn on the
+    mod's own say: not taken. A submit while the turn waits would only wait
+    in Claude Code's queue for its end, beyond taking back, so the window
+    holds the message as ever, and the board says what is true.
+
+    The window hears it from its model's requests (`turn.step`), each as it
+    goes and, the main loop's, as it is answered. The turn only waits on its
+    background work while three things hold (core's `waitsOnWork`): it runs;
+    its main loop is done inside it, its latest request in the turn answered
+    asking for no tool; and a subagent's loop runs, heard from its first
+    request until its own `turn.complete` and named `running` or `waiting`
+    by the engine's list of the session's agents (`$.agent.list()`). A
+    subagent run by a call of the main loop's is real work: the main loop's
+    request asked for that call.
+    - The main loop is done only from an answer in the turn it runs: its
+      `turnId` the one the turn's `turn.start` gave. A request cut short
+      (its stream's signal aborted) is no answer, nor is one answering for
+      another turn, as a request cut short by Esc can once Lee's next turn
+      began. The next request clears it, so a request whose answer fails
+      leaves the main loop at work.
+    - The list is asked whenever a change would leave the three holding,
+      newly or over other loops, and each loop it does not name so drops
+      out: the engine's own forks (compaction, memory) "carry ids no list
+      names", and a subagent whose end went unheard is listed ended, or not
+      at all. A list that fails counts nothing. A load that finds the three
+      holding in what the load before kept asks the list before it goes on,
+      and draws the board again, which may have drawn before it loaded. A
+      Stop whose list (`background_tasks`) names tasks but no subagent ends
+      every loop.
+    - No state shows it, the heartbeat still saying working, and only a
+      change writes the window's state: a request that leaves what the
+      window heard as it was writes nothing, so no request and no tool call
+      writes `$.state` for it. The board reads it from the window's memory,
+      not `$.state`, whose every write would draw the board again; a change
+      of whether the three hold draws the board again itself.
+
+    Then Ready to send's line says `⧗ Claude is waiting on its background
+    work: this goes in when that ends. Type your answer in the prompt to
+    reach Claude now.`, wrapped beside its take-back, or across the box with
+    the take-back on a row under it where that takes fewer rows; where the
+    rows a docked board gives Ready to send do not hold that once the replies
+    that fit have theirs, it says `⧗ Waiting on Claude's background work.`
+    in one row. Claude at work again, as a notification sets it going, the
+    line says the turn's end again. Known limits: background work no
+    subagent runs (a shell), and a workflow's agents, which the list leaves
+    out, do not count, and the line says the turn's end; a subagent ended
+    unheard while the three hold counts until the next change asks the list.
+    Whatever acts on the three, beyond what the board says, should ask the
+    list again as it acts.
   - **Taken back.** While the window holds Lee's send, Ready to send offers
     to take it back (see "Ready to send"): its claim is let go, its replies
     stay in the queue as they were, the heartbeat says them no more, and
@@ -4379,7 +4459,9 @@ stands).
     board says, as `watch` carries it (see "One engine, two front ends").
     The board never closes an ask on the press alone;
   - **a jump shows on the button pressed** alone, faint while it runs; the
-    other cards stay as they look, and take no second jump while one runs;
+    other cards stay as they look, and a press on one jumps in its place,
+    the latest click winning (see "The jump"); until 4 November 2026 they
+    took no second jump while one ran;
   - **a comment, a words ask and a permission prompt** need Claude Code's
     prompt, so their buttons read "Comment in Claude ↗" or "Answer in Claude
     ↗" and jump to the session's window. Proposed, and new: that jump also
@@ -5434,7 +5516,18 @@ shape allows them. A jump made in Swift, in the app, stays parked too.
    - The old directory is written back however the find ends, `$HOME` for a
      terminal that reported none, or another jump's marker. A terminal that
      took the marker after the find gave up is put back too, as far as
-     listing again can tell.
+     listing again can tell. Since 4 November 2026 `$HOME` goes straight to
+     the device, asking Ghostty nothing, for a find that fails; for one
+     that gave up where the listing after it finds no terminal on the
+     marker, or fails, as under load Ghostty can take the marker after the
+     listing, and the device keeps its writes in order; and for a jump
+     told to end from the moment its marker is written, once that write
+     lands, unless the put-back the jump chose is under way and lands. Only
+     that device's terminal takes it, and nothing a jump reads says the
+     directory that terminal reported. Only a jump killed outright, past
+     its grace, leaves the marker (below, "The latest click wins"). A
+     listing after a find that gave up, killed at its 8 seconds, ends the
+     jump unanswered once `$HOME` is put back.
    - The listing reads ids, directories, then ids again, and is read again
      (three tries at most) while terminals open or close under it, so no
      directory is paired with the wrong terminal.
@@ -5444,7 +5537,9 @@ shape allows them. A jump made in Swift, in the app, stays parked too.
      would launch it.
    - Each question to Ghostty, each Apple Event a program sends, waits at
      most 5 seconds: AppleScript's `with timeout` holds for each event, not
-     for the program around them. With the screen locked, Ghostty still answers a trivial question at once but nothing
+     for the program around them. Since 4 November 2026 each program is
+     killed at 8 seconds in all (below, "The latest click wins"). With the
+     screen locked, Ghostty still answers a trivial question at once but nothing
      about its terminals, and AppleScript's own limit is two minutes
      (found live, 13 October). The jump then refuses in plain words; the
      listing, or the focus of a remembered terminal, comes before any
@@ -5559,6 +5654,97 @@ shape allows them. A jump made in Swift, in the app, stays parked too.
    ended at 1.8 seconds, the window forward long before. With another app
    in front, the CLI stays up to a second more, watching, the window
    already forward.
+
+**The latest click wins** (4 November 2026). With the Mac's load near
+250 from parallel Swift builds, Lee could reach no Ghostty window by a jump
+for three minutes. SitRep's log: `sitrep jump --session sr-nq7651: did not
+answer within 180 seconds` (16:11:04). SitRep ran one jump at a time and
+took no click while one ran, so every click in those minutes waited behind
+the stuck one, and Lee saw the row spin for 450ms, then nothing. The CLI
+gave tmux and `ps` 2 seconds and each question to Ghostty 5, yet the run
+took 180, so some step ran unbounded. Lee's go, the same day: "Build it".
+- **A click while a jump runs stops it, and jumps in its place**, from any
+  surface: Lee clicked again, so he has changed his mind, or the first is
+  stuck. The new jump runs once the one it stopped has ended, so two never
+  knock at once. A click on the session the jump runs to, before it says
+  it is still jumping (below), joins it: a double-click, or a quick second
+  click, would otherwise kill it mid-knock and add a whole start of Bun,
+  and both clicks hear how it ends. Once it says it is still jumping, a
+  click on its session is Lee trying again, and starts it over; a click on
+  another session always wins at once. A jump a click stopped says
+  nothing: no banner, no caption. Until 4 November 2026 a click while a
+  jump ran started none: the menu's jump items were disabled, and the
+  card's, the strip's and the window's clicks refused.
+- **A jump is stopped gently, with everything it started.** At the limit,
+  or stopped by a click, the CLI's process group is told to end (SIGTERM):
+  the CLI, and osascript, tmux, `ps`, lsappinfo and `open`, which share its
+  group. The CLI, holding a knock's marker out, writes `$HOME` straight to
+  the device before it exits (step 3), and a second on the group is killed
+  (SIGKILL), whatever is left of it. A CLI holding a marker out exits as
+  soon as it is put back, and one holding none dies at the signal, so the
+  grace costs time only for a CLI stuck; under a load of 250, Bun can take
+  longer than the 300ms first built to run its listener and write the
+  device. The next jump waits for the stopped one to end: at most the
+  grace, and the half second SitRep gives a run's output to drain. `Process` makes each child the leader
+  of a group of its own, and Bun's children stay in it (both checked on
+  this Mac the same day); a group not the child's own, which would be
+  SitRep's, is never signalled. Chosen over the CLI ending its own children
+  on SIGTERM: a group signal needs nothing of the CLI, works while Bun is
+  still starting or stuck, and the SIGKILL after it nothing stuck can
+  ignore. Every other run of the CLI is killed with its group at once; a
+  login shell, asked for Lee's PATH, is killed alone, as before, so
+  whatever its startup files launched, an ssh-agent among it, is left be.
+  Only a CLI killed past its grace leaves a marker out. Killing osascript
+  recalls no Apple Event already sent: a starved Ghostty can still focus a
+  terminal late. And a program killed after Ghostty focused but before its
+  reply refuses a jump that landed, with no watch of the front after it;
+  accepted, as both need Ghostty answering only just too late.
+- **The whole jump gives up after 15 seconds**, Bun's start and the board's
+  read among it, where it was 180, a backstop. A jump takes under a second
+  as Ghostty answers, and one Ghostty does not answer is refused at its
+  first question, after 5 seconds; past 15, the Mac is too busy for a jump
+  to land while Lee still wants it. The 15 run from the CLI's start, so
+  they do not count the wait for a jump it stopped to end. The CLI's own
+  limits stand: 2 seconds
+  for each of tmux, `ps`, lsappinfo and `open`, and 5 for each question to
+  Ghostty. A listing and a find may each take up to their 8 seconds
+  (below), past the 15; the gentle stop puts the marker back all the same.
+- **The step that ran unbounded: each Ghostty program.** osascript ran with
+  no limit of its own, only each Apple Event in it waiting at most 5
+  seconds. Its own start, finding Ghostty and reading its terms, none of it
+  an event, fell outside every limit, and so did the sum of a program's
+  events: a find tries 20 times, a listing asks three questions a try and
+  is tried three times, each answered just inside 5 seconds by a Ghostty
+  starved of the CPU. Each program is now killed at 8 seconds in all: time
+  for one question to go unanswered, so a Ghostty not answering is still
+  told in its own words, and for osascript's start under load. One killed
+  ends the jump unanswered, exiting 3 with "Ghostty did not answer within 8
+  seconds: most likely the Mac is too busy.", the focus of a remembered
+  terminal included, with no knock after it, as for a question timing out;
+  SitRep tells exit 3 as it tells its own limit. Bun's start and the
+  board's read stay outside every step's limit, inside the 15 seconds.
+  Which step ran the 180 seconds is not known, the log saying only that the
+  CLI did not answer; osascript was the one program the jump ran without a
+  limit of its own.
+- **The caption says what is happening**, for a jump from anywhere, the
+  card, the strip, the menu, the SitRep window or a banner, in the
+  caption's look and place, on the edge's screen while the edge shows.
+  "Still jumping…" once a jump has run 2 seconds with no answer: it comes
+  in as a caption does, and holds until the jump ends; then a row's
+  "Jumped to SitRep's window" takes its place, or it goes as a caption
+  does. A jump given no answer in time, at SitRep's limit or a program's,
+  says "Couldn't jump: the Mac is too busy.", played as a caption is: the
+  15 seconds cover Bun, the board, tmux, `ps`, lsappinfo and `open`, and an
+  app with no driver involves no Ghostty, so the words name none. Each
+  caption comes in, or goes, from the pill's opacity as it is, so one
+  taking another's place, or an answer cutting a coming in short, never
+  jumps. A jump a later click stopped leaves the caption as it is, the
+  later one running on. Every failed jump is still told in a banner, the
+  too busy one saying "The Mac is too busy to jump." under "SitRep could
+  not jump", so the menu and the window, which have no caption of their
+  own, and an edge hidden or set to Nothing, still say it. VoiceOver
+  announces each caption as it shows; until 4 November 2026 it announced
+  none, the edge being drawn layers.
 
 Why tmux comes in at all: walking up the processes never reaches the window.
 Claude's chain is `launchd → tmux server → zsh → claude`, the window's is
@@ -5729,15 +5915,19 @@ reaches a window only while that pane is on show).
         leave doesn't close the panel: it rings, and the panel stays out
         for the jump. A click elsewhere still closes it at once, as it
         always does. Only an open or opening panel takes a click, as in the
-        prototypes, and none while a jump runs, from the panel, the menu or
-        a banner, as the menu's works are disabled then; a row folding away
+        prototypes; one while a jump runs, from anywhere, jumps in its
+        place, the latest click winning (see "The jump"), where until 4
+        November 2026 none was taken while a jump ran, from the panel, the
+        menu or a banner, the menu's works disabled then; a row folding away
         takes none either. Once the jump has jumped, "Jumped to SitRep's
         window" shows 90ms into the drain, or as the jump answers if that is
         later, and never once its moment has passed. The CLI's answer names
         no place, so the caption names the row's project. It sits at the
         top of the notch's screen, centred, 22 under the menu bar, where the
         prototypes put it 22 under their stage's top, with no blur behind
-        it. A jump refused leaves no caption, and its banner says why.
+        it. A jump refused leaves no caption, and its banner says why. A
+        jump from anywhere still running 2 seconds on, or given up at its
+        limit, says so in it (4 November 2026; see "The jump").
       - **Rows fold**, as the prototypes': while the panel is out, a new
         row unfolds over 260ms and fades in over 220, and a row gone folds
         away where it was, fading with its fold; under reduced motion a fold
@@ -5801,9 +5991,9 @@ reaches a window only while that pane is on show).
         turning working. The ring, its glow and the letters' colour ease over
         240 and the pressed fill over 110, each on its own, in black and in
         glass. The caption is the panel's, over the strip's screen, once the
-        spin is over. As the panel's, none is
-        taken while a jump runs, from
-        anywhere; an answer to an earlier click changes nothing; and the
+        spin is over. As the panel's, a click while a jump runs, from
+        anywhere, jumps in its place (none was taken until 4 November 2026);
+        an answer to an earlier click changes nothing; and the
         session jumped to is the one the strip pressed in. A click is a
         press and its mouse-up, as the prototype's is: a press on the strip,
         which may drag, or on an open tab, which only clicks. A mouse-up
@@ -6223,9 +6413,10 @@ reaches a window only while that pane is on show).
           the session coming back open lets lapse; Yes pressed, it shows
           finishing, Cancel with it, until `watch` takes the session off;
           refused, it says why there.
-        - **Jumps** go through the app's `Works`: none while one runs, from
-          the window, the notch or the menu, and the window's jumps wait
-          while one does.
+        - **Jumps** go through the app's `Works`, one at a time, from the
+          window, the notch or the menu, the latest click stopping the one
+          running (see "The jump"); until 4 November 2026 none while one
+          ran, and the window's jumps waited while one did.
         - **For now** it opens from "Open SitRep Window" in today's menu,
           which the menu bar item's phase rebuilds; the quiet projects' line
           is a line, opening nothing; Resolved's rows do not open to how
@@ -6360,7 +6551,9 @@ reaches a window only while that pane is on show).
    runs the CLI with Lee's; and its first jump asks macOS for leave to
    control Ghostty. It runs one jump at a time: two knocking on one
    terminal at once can leave it reporting `$HOME`, as the later one takes
-   the earlier one's marker for a directory it cannot know.
+   the earlier one's marker for a directory it cannot know. Since 4
+   November 2026 the latest click wins, stopping the one running (see "The
+   jump").
 
    The bare app was built on 14 October 2026, and proved live with Lee the
    same day:
@@ -6435,7 +6628,8 @@ reaches a window only while that pane is on show).
      question only just inside its 5 seconds could keep a jump going past
      180, and the app would then report that the jump did not answer. Raised
      from 120 when the jump began remembering terminals and watching the
-     front, 14 October 2026.
+     front, 14 October 2026, and cut to 15 on 4 November 2026, after a jump
+     ran all 180 (see "The jump").
    - **The main checkout's path stamped in.** `app/build` writes the folder
      of the repository's main checkout, the live plugin, into the app's
      Info.plist (`SitRepPlugin`), even when it builds in a worktree; the

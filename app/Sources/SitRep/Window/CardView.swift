@@ -139,8 +139,7 @@ struct CardView: View {
     }
 
     /// Its buttons, on one line as pills or its answers as rows (`CardButtons`), Snooze among them its own. Only the
-    /// button whose jump runs shows it; the others stay as they look, and the model starts no second jump while one
-    /// runs.
+    /// button whose jump runs shows it; the others stay as they look, and a press on one jumps in its place.
     private var buttons: some View {
         CardButtons(buttons: card.buttons) {
             ForEach(card.buttons, id: \.self) { button in

@@ -17,6 +17,12 @@ import type { Io } from './io'
  */
 export type Brought = 'forward' | 'none open' | undefined
 
+/**
+ * What a driver throws when its app gave no answer in time, as when the Mac
+ * is too busy to reach it: a jump refused so ends unanswered, not refused.
+ */
+export class Unanswered extends Error {}
+
 /** Brings forward the window on a device, for one jump; a driver finds none on a device not known, and an app with no driver needs none. */
 export type Bring = (device: string | undefined) => Promise<Brought>
 

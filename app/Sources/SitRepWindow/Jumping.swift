@@ -16,26 +16,26 @@ public enum JumpPress: Hashable, Sendable {
 }
 
 /// The window's jump under way: only the button it was pressed from shows it, while every other stays as it looks.
-/// One jump runs at a time, so a press while any runs, the window's or the notch's, the strip's or the menu's, starts
-/// none and changes nothing shown.
+/// A press while any jump runs, the window's or the notch's, the strip's or the menu's, jumps in its place, the latest
+/// click winning (4 November 2026): the button pressed shows it, and an answer to an earlier press changes nothing.
 public struct Jumping: Equatable, Sendable {
     /// The button whose jump runs, nil with none of the window's.
     public private(set) var pressed: JumpPress?
+    private var presses = 0
 
     public init() {}
 
-    /// A press, while a jump of the app's runs or not: whether it starts a jump.
-    public mutating func press(_ press: JumpPress, isJumping: Bool) -> Bool {
-        guard pressed == nil, !isJumping else {
-            return false
-        }
-
+    /// A press: it jumps, whatever jump runs. Which press it is, for its answer.
+    public mutating func press(_ press: JumpPress) -> Int {
         pressed = press
-        return true
+        presses += 1
+        return presses
     }
 
-    /// The jump answered: the button shows as it did.
-    public mutating func answered() {
-        pressed = nil
+    /// The jump of this press answered: the button shows as it did, unless a later press jumps now.
+    public mutating func answered(_ press: Int) {
+        if press == presses {
+            pressed = nil
+        }
     }
 }
