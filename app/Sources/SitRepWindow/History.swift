@@ -71,6 +71,27 @@ public struct History: Equatable, Sendable {
         return true
     }
 
+    /// Where an open of a session from outside lands, the window opening afresh onto it: there, with no step back to
+    /// where the window would have opened, which Lee never saw; but a session's page is pushed over its project's, as
+    /// `land(_:)` pushes it, so Back goes to the project's page. Whether it landed.
+    @discardableResult
+    public mutating func open(onto landing: Landing) -> Bool {
+        guard case let .location(location) = landing else {
+            return false
+        }
+
+        back = []
+        forward = []
+        isOpenedOnABoard = true
+        if case let .session(_, root) = location {
+            self.location = root.location
+            go(to: location, by: .outside)
+        } else {
+            self.location = location
+        }
+        return true
+    }
+
     /// Another row picked within the list, or none, by a click, an arrow key or the toolbar's up or down: the step
     /// the window is on changes, and no step is made. A page with no list has nothing to pick.
     public mutating func pick(_ selection: Selection?) {

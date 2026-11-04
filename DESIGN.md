@@ -4008,9 +4008,11 @@ stands).
       never selects: a click anywhere on it opens its rows in place under
       it, its chevron down, and a click again folds them, each at once; under
       the pointer it shows a row's quiet fill. Whether it is open is never
-      kept: it is folded each time the window opens, and as its rows go, so
-      it never comes back already open; it shows open while the filter
-      holds text, and folds again as it clears, unless the pick is under it;
+      kept: it is folded each time the window opens, but where the pick is
+      under it, and as its rows go, on any place, so it never comes back
+      already open; it shows open while the filter holds text, a click on
+      it then changing nothing, and is as it was as the filter clears, but
+      open where the pick is under it;
     - **a right-click on a row**, or a Control-click, brings up the card's
       menu (see "The notch and its panel") but for Open in SitRep, which is
       where it is: Jump to the window, disabled on an away row; then, on a
@@ -4179,7 +4181,8 @@ stands).
     second after it, as the pointer over the list does, so no row moves
     between two presses of a key; the projects hold apart from it, under
     the pointer over the sidebar; closing or minimising the window lets the
-    holds go. A resort slides the rows; a fold, or a row folding into "N
+    holds go, and the list's pointer goes with the list as the page fills
+    the window, as no view is left to say it left. A resort slides the rows; a fold, or a row folding into "N
     earlier" as time passes, changes the list at once. The row picked
     scrolls into view, only as far as it needs, whenever the pick or the
     order changes: a pick made elsewhere, by Open in SitRep, or before the
@@ -4225,7 +4228,10 @@ stands).
   back: from the page to the list, or with the list folded away to the
   sidebar's, and from the list to the sidebar's. The window opens with
   focus on the list, or with it folded away on the sidebar's, and lands
-  there on Open in SitRep.
+  there on Open in SitRep, the list folded away or shown first as where it
+  lands says. The list going while it holds focus, folded away as the page
+  fills the window or emptied to its one centred line, gives focus to the
+  sidebar's list, as Escape would, so the keys still reach a list.
 - **VoiceOver reads words, never symbols.**
   - a row of either list is one element. A line of Needs you reads its
     words first, then its session's project and name, "away" where no
@@ -4501,11 +4507,15 @@ stands).
     in a list. "Where it stood" holds only while the window is open.
   - **Open in SitRep** on a session lands on Needs you, its newest line by
     its time picked (4 November 2026; first drawn as its oldest), where it
-    needs Lee; else on Your turn or Working, its row
+    needs Lee, the filter cleared, as it could hide the row; else on Your turn or Working, its row
     picked, "N earlier" opening where it is under it; else, its only asks
     asleep or none, on its project's page and then the session's pushed
     over it, two steps, as if Lee had gone there himself, so Back goes to
-    the project's page. Before a board is heard it lands once one is.
+    the project's page. Opening the window afresh, it opens there, with no
+    step back to where the window would have opened, a page Lee never saw;
+    a session's page still over its project's. Before a board is heard it
+    lands once one is, unless Lee has gone somewhere meanwhile, by a click,
+    a pick, Back or Forward.
   - **A click in the sidebar** on the place or the project already showing
     changes nothing, its pick kept, as Mail does for the mailbox already
     open; on Parked narrowed to a project it clears the narrowing.

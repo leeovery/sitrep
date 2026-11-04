@@ -38,22 +38,22 @@ final class SitRepWindow: NSObject, NSWindowDelegate {
     }
 
     /// Lee opens it: shown afresh, on what it opens on; or, where it shows already or was minimised, brought forward as
-    /// it was. Opened on a session, "Open in SitRep" from the card or the menu, it then lands there, as Lee would go
-    /// there himself (`WindowRun.land(_:)`). Keyboard focus goes to the list as it opens afresh or lands; brought
-    /// forward as it was, it stays where it was.
+    /// it was. Opened on a session, "Open in SitRep" from the card or the menu, it lands there, as Lee would go there
+    /// himself (`WindowRun.land(_:)`), or opening afresh, opens there. Keyboard focus goes to the list as it opens
+    /// afresh or lands, the list folded away or shown first, as the model now says, so focus finds it as it stands;
+    /// brought forward as it was, it stays where it was.
     func open(session: String? = nil) {
         let isAfresh = !window.isMiniaturized && !window.isVisible
 
         if isAfresh {
-            model.opened()
-        }
-        if let session {
+            model.opened(landing: session)
+        } else if let session {
             model.land(session)
         }
         window.comeForward()
         tellVisible(window)
-        if isAfresh || session != nil {
-            focus?.focusList()
+        if isAfresh || session != nil, let focus, let listItem {
+            focus.focusList(folding: listItem, isFullPage: model.isFullPage)
         }
     }
 
@@ -118,18 +118,29 @@ final class SitRepWindow: NSObject, NSWindowDelegate {
         self.focus = focus
         listenForKeys(in: window, focus: focus)
         listItem = split.splitViewItems[1]
-        foldTheList()
+        followTheList(focusWasOnIt: false)
         return window
     }
 
-    /// The list folded away while the page fills the window, and back as a place shows, at once, as the model says.
-    private func foldTheList() {
+    /// The list folded away while the page fills the window, and back as a place shows, as the model says; and focus,
+    /// where the list held it as it changed, kept off a list gone, folded away or emptied to its one line. Whether focus
+    /// was on the list is read as the model changes, before the views take the change, as a table gone takes focus
+    /// with it.
+    private func followTheList(focusWasOnIt: Bool) {
+        if let listItem {
+            Self.fold(listItem, isFullPage: model.isFullPage)
+        }
+        if focusWasOnIt {
+            focus?.keepOffTheList()
+        }
         withObservationTracking {
-            if let listItem {
-                Self.fold(listItem, isFullPage: model.isFullPage)
-            }
+            _ = (model.isFullPage, model.list)
         } onChange: { [weak self] in
-            Task { @MainActor in self?.foldTheList() }
+            MainActor.assumeIsolated {
+                let wasOnIt = self?.focus?.isOnTheList ?? false
+
+                Task { @MainActor in self?.followTheList(focusWasOnIt: wasOnIt) }
+            }
         }
     }
 
@@ -243,6 +254,27 @@ struct SideFocus {
     func focusList() {
         window.contentView?.layoutSubtreeIfNeeded()
         window.makeFirstResponder(placeList ?? sidebarList ?? sidebar)
+    }
+
+    /// Focus on the list, as `focusList()`, once the list is folded away or shown as the page says: an open or a
+    /// landing may have changed which, and the fold the model asks for otherwise comes a moment later.
+    func focusList(folding list: NSSplitViewItem, isFullPage: Bool) {
+        SitRepWindow.fold(list, isFullPage: isFullPage)
+        focusList()
+    }
+
+    /// Keyboard focus is on the list beside the page.
+    var isOnTheList: Bool {
+        focus?.isDescendant(of: list) ?? false
+    }
+
+    /// The list that held focus, gone, folded away as the page fills the window or emptied to its one line: focus to
+    /// the sidebar's list, as Escape from the list takes it, so the keys still reach a list.
+    func keepOffTheList() {
+        window.contentView?.layoutSubtreeIfNeeded()
+        if placeList == nil {
+            window.makeFirstResponder(sidebarList ?? sidebar)
+        }
     }
 
     /// The move this key makes from where focus is, made; false where it makes none.

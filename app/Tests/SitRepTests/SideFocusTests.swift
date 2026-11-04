@@ -230,6 +230,55 @@ struct SideFocusTests {
         #expect(sides.window.firstResponder === sides.places)
     }
 
+    /// Opening or landing where the list is folded away, the list beside the page held focus before: the list folds
+    /// first, so focus finds the sidebar's list, not a list going.
+    @Test func focusingTheListAsItFoldsAwayFindsTheSidebarsList() throws {
+        let sides = try Sides(focusingList: false)
+
+        sides.focus.focusList(folding: sides.split.splitViewItems[1], isFullPage: true)
+        #expect(sides.split.splitViewItems[1].isCollapsed)
+        #expect(sides.window.firstResponder === sides.places)
+    }
+
+    /// Opening or landing on a place, the list folded away before: it shows first, so focus finds it.
+    @Test func focusingTheListAsItComesBackFindsIt() throws {
+        let sides = try Sides(focusingList: false)
+
+        sides.foldTheList()
+        sides.focus.focusList(folding: sides.split.splitViewItems[1], isFullPage: false)
+        #expect(!sides.split.splitViewItems[1].isCollapsed)
+        #expect(sides.window.firstResponder === sides.board)
+    }
+
+    /// The list holding focus folds away, as a project's name pressed on the page fills the window: focus goes to the
+    /// sidebar's list.
+    @Test func theListFoldingAwayUnderFocusGivesItToTheSidebarsList() throws {
+        let sides = try Sides()
+
+        #expect(sides.focus.isOnTheList)
+        sides.foldTheList()
+        sides.focus.keepOffTheList()
+        #expect(sides.window.firstResponder === sides.places)
+    }
+
+    /// The list holding focus empties to its one centred line, its table gone: focus goes to the sidebar's list.
+    @Test func theListEmptyingUnderFocusGivesItToTheSidebarsList() throws {
+        let sides = try Sides()
+
+        #expect(sides.focus.isOnTheList)
+        sides.emptyTheList()
+        sides.focus.keepOffTheList()
+        #expect(sides.window.firstResponder === sides.places)
+    }
+
+    /// The list changing under focus while its table stays leaves focus where it is.
+    @Test func theListChangingUnderFocusKeepsIt() throws {
+        let sides = try Sides()
+
+        sides.focus.keepOffTheList()
+        #expect(sides.window.firstResponder === sides.board)
+    }
+
     /// Tab from the list leaves it for the page's first control, in the key loop as a window on screen has it.
     @Test(.enabled { await keyboardNavigation() })
     func tabFromTheListGoesToThePagesFirstControl() throws {
@@ -293,6 +342,9 @@ private struct Sides {
     let places: NSTableView
     /// What the sidebar and the list asked the window for.
     let asked: Asked
+    private let listed: NSHostingController<AnyView>
+    /// The list as it draws with nothing in it: its one line.
+    private let emptied: AnyView
 
     /// A page of buttons, or of words alone, as a page is with Keyboard navigation off: nothing in it takes focus.
     init(
@@ -305,6 +357,7 @@ private struct Sides {
         let list = try #require(run.list(at: now))
         let picked = isPicked ? run.location.picked?.pick : nil
         let sidebar = Self.hosted(SidebarColumn(places: run.places, root: run.location.root, filter: filter), asked)
+        let note = Self.hosted(ListNote(words: run.head.title), asked)
         let listed = Self.hosted(ListColumn(list: list, picked: picked, head: run.head, filter: filter, now: now), asked)
         let page = NSHostingController(rootView: AnyView(VStack {
             if hasButtons {
@@ -321,6 +374,8 @@ private struct Sides {
         window.contentView?.layoutSubtreeIfNeeded()
         focus = SideFocus(window: window, sidebar: sidebar.view, list: listed.view, page: page.view)
         self.asked = asked
+        self.listed = listed
+        emptied = note.rootView
 
         board = try #require(Self.views(NSTableView.self, in: listed.view).first)
         places = try #require(Self.views(NSTableView.self, in: sidebar.view).first)
@@ -330,13 +385,19 @@ private struct Sides {
     }
 
     /// A column as the window draws it, what it asks for heard.
-    private static func hosted(_ column: some View, _ asked: Asked) -> NSViewController {
+    private static func hosted(_ column: some View, _ asked: Asked) -> NSHostingController<AnyView> {
         let hosting = NSHostingController(rootView: AnyView(column.environment(\.windowActions, WindowActions(
             click: { [asked] in asked.clicks.append($0) }, openFirstMatch: { [asked] in asked.matches += 1 }
         ))))
 
         hosting.sizingOptions = []
         return hosting
+    }
+
+    /// The list emptied to its one line, as its last row leaves it.
+    func emptyTheList() {
+        listed.rootView = emptied
+        window.contentView?.layoutSubtreeIfNeeded()
     }
 
     /// The list folded away, as the page fills the window.

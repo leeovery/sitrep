@@ -15,8 +15,9 @@ public final class WindowRun {
     private var history: History?
     /// Where the window was left, which it opens on when nothing needs Lee.
     private var remembered: Location?
-    /// A session opened from outside the window before a board was heard, landed on the first board.
-    private var landing: String?
+    /// A session opened from outside the window before a board was heard, landed on the first board unless Lee goes
+    /// somewhere first; and whether the window opened afresh onto it.
+    private var landing: (session: String, isAfresh: Bool)?
     /// The window shows: only then does it follow sessions.
     public private(set) var isOpen = false
     /// The answers waiting out their two seconds.
@@ -25,8 +26,8 @@ public final class WindowRun {
     /// changes.
     public var period: FoldPeriod
     /// What the Filter field holds, which narrows the list and the projects and never moves where the window is. A
-    /// fold at the list's foot shows open while it holds text; as it clears, the fold holding the pick stays open, so
-    /// the pick shows.
+    /// fold at the list's foot shows open while it holds text, and a click on it then changes nothing; as it clears,
+    /// the folds are as they were, but the fold holding the pick opens, so the pick shows.
     public var filter = Filter() {
         didSet {
             if filter.isEmpty, !oldValue.isEmpty {
@@ -144,7 +145,13 @@ public final class WindowRun {
     /// What has run out by this time: the second after the pointer left a column, or after the last pick made in it,
     /// and it takes `watch`'s order; the second after it left the page, and the closed asks leave it; a run of picks
     /// in the list stopped, and its last is followed.
+    /// A wash ended is let go here, wherever the window is, so no wash that ended is waited for. With no list showing,
+    /// as a page fills the window, the pointer is over no list, whose view, gone, says nothing of it.
     public func settle(at time: Date) {
+        washed = Wash.live(washed, at: time)
+        if location.place == nil {
+            held.pointer(over: .list, isIn: false, at: time)
+        }
         if held.settle(at: time) {
             take(given)
         }
@@ -152,31 +159,45 @@ public final class WindowRun {
         picks.settle(at: time)
     }
 
-    /// The board in the order the columns show it, and the pick standing where its list now shows it.
+    /// The board in the order the columns show it, the folds gone from the board closed, and the pick standing where
+    /// its list now shows it.
     private func take(_ given: Listed) {
         self.given = given
         held.take(given)
+        closeTheFoldsGone()
         if let place = location.place {
             history?.stand(in: arranged(place))
         }
+    }
+
+    /// Each place's fold that has gone from its list, its rows gone, closed, so it never comes back already open.
+    private func closeTheFoldsGone() {
+        let listed = listed
+
+        openFolds = openFolds.filter { PlaceList($0, in: listed).fold != nil }
     }
 
     /// Where the window is, and every step back and forward, as each stands on the board; then a session opened from
     /// outside before a board was heard, landed.
     private func keepOnTheBoard() {
         let listed = listed
+        let before = location
 
         move { $0.keep(on: listed, arranged: { self.arranged($0) }) }
+        if location != before {
+            openTheFoldOverThePick()
+        }
         if let landing {
-            land(landing)
+            land(landing.session, isAfresh: landing.isAfresh)
         }
     }
 
     // MARK: Opening and closing
 
     /// The window opens afresh, where `History(opening:remembered:)` says: on Needs you's first line, else where it was
-    /// left, its folds closed, with no step to go back to.
-    public func open() {
+    /// left, its folds closed but the one over the pick, with no step to go back to. Opened by "Open in SitRep" on a
+    /// session, it opens onto where that lands instead, with no step back to a page Lee never saw.
+    public func open(landing session: String? = nil) {
         let page = location.page
 
         isOpen = true
@@ -184,6 +205,10 @@ public final class WindowRun {
         openFolds = []
         history = History(opening: listed, remembered: location)
         turned(from: page)
+        openTheFoldOverThePick()
+        if let session {
+            land(session, isAfresh: true)
+        }
     }
 
     /// The window closes: it follows nothing, and reads nothing of the screen, letting its reading go; where it is
@@ -229,14 +254,27 @@ public final class WindowRun {
     // MARK: Going somewhere
 
     /// "Open in SitRep" on a session, from the card or the menu, while the window is open: where
-    /// `Location.opening(session:on:)` says, as Lee would go there himself, the fold over its row opening; before a
-    /// board is heard, on the first one. Its page is followed at once.
+    /// `Location.opening(session:on:)` says, as Lee would go there himself, the fold over its row opening and the
+    /// filter cleared, which could hide its row; before a board is heard, on the first one, unless Lee goes somewhere
+    /// first. Its page is followed at once.
     public func land(_ session: String) {
+        land(session, isAfresh: false)
+    }
+
+    /// Landed as a step, or, the window opening afresh onto it, as where it opens (`History.open(onto:)`).
+    private func land(_ session: String, isAfresh: Bool) {
         let landing = Location.opening(session: session, on: listed)
 
-        self.landing = history != nil && landing == .awaitingBoard ? session : nil
+        self.landing = history != nil && landing == .awaitingBoard ? (session, isAfresh) : nil
         picks = PickFollows()
-        move { $0.land(landing) }
+        filter = Filter()
+        move { history in
+            if isAfresh {
+                history.open(onto: landing)
+            } else {
+                history.land(landing)
+            }
+        }
         openTheFoldOverThePick()
     }
 
@@ -251,20 +289,27 @@ public final class WindowRun {
     /// To the location, the way given, as a step Back returns from: a session opened from a project's page, a project
     /// from a session's, Parked narrowed to a session or a project, a parked item's session.
     public func go(to location: Location, by way: History.Way) {
-        picks = PickFollows()
+        wentSomewhere()
         move { $0.go(to: location, by: way) }
     }
 
     /// Back a step, where there is one.
     public func goBack() {
-        picks = PickFollows()
+        wentSomewhere()
         move { $0.goBack() }
     }
 
     /// Forward a step, where Back left one.
     public func goForward() {
-        picks = PickFollows()
+        wentSomewhere()
         move { $0.goForward() }
+    }
+
+    /// Lee went somewhere himself: a run of picks waiting is let go, and so is a session opened from outside waiting
+    /// on the first board, which would otherwise take him from where he went.
+    private func wentSomewhere() {
+        picks = PickFollows()
+        landing = nil
     }
 
     /// Lee picked a row of the list at this time, by a click: it replaces the step the window is on, making none, the
@@ -286,6 +331,7 @@ public final class WindowRun {
     }
 
     private func pickInList(_ selection: Selection, at time: Date) {
+        landing = nil
         held.picked(in: .list, at: time)
         picks.picked(at: time, following: following)
         move { $0.pick(selection) }
@@ -299,16 +345,19 @@ public final class WindowRun {
         }
 
         if let place = location.place, let first = arranged(place).shown.first {
-            picks = PickFollows()
+            wentSomewhere()
             move { $0.pick(arranged(place).selection(of: first.pick)) }
         } else if let project = places.projects.first {
             go(to: .project(project.id), by: .sidebar)
         }
     }
 
-    /// The fold at a place's list's foot clicked, "N snoozed" or "N earlier": it opens in place, or folds.
+    /// The fold at a place's list's foot clicked, "N snoozed" or "N earlier": it opens in place, or folds; while the
+    /// filter holds text, which shows it open, nothing changes.
     public func toggleFold(of place: Place) {
-        openFolds.formSymmetricDifference([place])
+        if filter.isEmpty {
+            openFolds.formSymmetricDifference([place])
+        }
     }
 
     /// The history moved as given, while the window is open or minimised. Another page turned to lets go of the last
@@ -491,19 +540,16 @@ public final class WindowRun {
     /// for a project's page or a session's, which fill the window. A fold open folds as its line goes, so it never comes
     /// back already open; the pick stands where the list shows it.
     public func list(at time: Date) -> PlaceList? {
+        washed = Wash.live(washed, at: time)
+        closeTheFoldsGone()
         guard let place = location.place else {
             return nil
         }
-
-        washed = Wash.live(washed, at: time)
 
         let list = held.arranged(
             PlaceList(place, in: washing(listed), filter: filter, isFoldOpen: openFolds.contains(place))
         )
 
-        if filter.isEmpty, list.fold == nil {
-            openFolds.remove(place)
-        }
         history?.stand(in: list)
         return list
     }

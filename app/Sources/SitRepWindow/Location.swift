@@ -171,9 +171,8 @@ public enum Location: Hashable, Codable, Sendable {
     }
 
     /// Where an open of a session from outside the window lands, as "Open in SitRep" on its card or the menu: Needs
-    /// you, its newest line picked, where it needs Lee, by the lines' times and not by core's order of them, as the
-    /// line that came last is the one Lee was told of; else Your turn or Working, its row picked, under "N earlier" as
-    /// it may be (`PlaceList.folds(_:)`); else, its only lines asleep or none, its session's page pushed over its
+    /// you, its newest line picked, where it needs Lee, by the lines' times and not by core's order of them; else Your
+    /// turn or Working, its row picked, under "N earlier" as it may be (`PlaceList.folds(_:)`); else, its only lines asleep or none, its session's page pushed over its
     /// project's, which `History.land(_:)` makes two steps, so Back goes to the project's page.
     public static func opening(session id: String, on listed: Listed) -> Landing {
         guard listed.hasBoard else {

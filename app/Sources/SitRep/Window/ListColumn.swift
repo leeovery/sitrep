@@ -14,6 +14,7 @@ struct ListColumn: View {
     let now: Date
 
     @Environment(\.isStill) private var isStill
+    @Environment(\.windowActions) private var act
 
     var body: some View {
         Group {
@@ -31,6 +32,8 @@ struct ListColumn: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .background(WindowStyle.black.ignoresSafeArea())
+        // on the column, not the list, so the pointer leaving is heard as the list empties to its one line under it
+        .onHover { act.pointer(.list, $0) }
     }
 
     /// The one line in the list's place where it lists nothing.
@@ -49,8 +52,8 @@ struct ListColumn: View {
 /// system, and which never empties while a row of it is picked. A click picks a row as a step replacing the last; ↓
 /// and ↑, bare, step through the rows as the window's run says (`WindowRun.step(down:at:)`), from where the pick stood
 /// where the list no longer shows it, and nowhere past either end; with a modifier held they are the list's own. The
-/// row picked is scrolled into view whenever it or the order changes, only as far as it needs. The pointer over it
-/// holds its order.
+/// row picked is scrolled into view whenever it or the order changes, only as far as it needs. The pointer over its
+/// column holds its order (`ListColumn`).
 private struct PlaceListView: View {
     let list: PlaceList
     let picked: ListPick?
@@ -72,7 +75,6 @@ private struct PlaceListView: View {
             .scrollContentBackground(.hidden)
             // keyed on the rows' order alone, so a resort slides them and a fold changes the list at once
             .animation(reducesMotion ? nil : .easeInOut(duration: 0.25), value: order)
-            .onHover { act.pointer(.list, $0) }
             .onKeyPress(keys: [.downArrow, .upArrow], action: step)
             .onChange(of: selection) { _, selected in
                 guard let selected else {

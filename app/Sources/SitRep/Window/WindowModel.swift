@@ -136,9 +136,9 @@ final class WindowModel {
         refresh()
     }
 
-    /// The window opens afresh, where `WindowRun.open()` says.
-    func opened() {
-        run.open()
+    /// The window opens afresh, where `WindowRun.open(landing:)` says, onto a session opened from outside where given.
+    func opened(landing session: String? = nil) {
+        run.open(landing: session)
         refresh()
         lookAtScreen()
     }
