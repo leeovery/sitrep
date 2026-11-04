@@ -3,7 +3,10 @@ import AppKit
 
 /// A window whose steps are recorded rather than taken: it is never ordered front, and SitRep never activates. It says
 /// it is visible from its order front until it closes, and as it orders in from hidden, works out its key view loop, as
-/// AppKit does for a window with no initial first responder.
+/// AppKit does for a window with no initial first responder. It becomes key only as a test keys it, as SitRep's
+/// activation keys a window only after it has ordered in, its delegate told as AppKit tells it. What it can't show is
+/// SwiftUI's own focus, which moves no responder, nor Tab from the window itself, which a window never keyed for real
+/// ignores: only a live run shows those.
 @MainActor
 final class RecordedWindow: ForwardWindow {
     enum Step: Equatable {
@@ -17,9 +20,12 @@ final class RecordedWindow: ForwardWindow {
     /// Keyed as it orders front, as AppKit does while SitRep is active.
     var keysAsItOrders = false
     /// Focus given to the first of its key views as it orders in from hidden, as AppKit gives it with the Mac's
-    /// Keyboard navigation on, where no view was made its initial first responder: only from the window itself or a
-    /// view outside the key view loop, never from a key view that has it, nor as a window showing comes forward.
+    /// Keyboard navigation on, where no view was made its initial first responder; and with `focusesAsItKeys`, as it
+    /// becomes key, before its delegate hears, as AppKit gave it to Skip setup in the window reused live, which this
+    /// does on every key, as a worst case. Only from the window itself or a view outside the key view loop, never from
+    /// a key view that has it, nor as a window showing comes forward.
     var focusesAsItOrders = false
+    var focusesAsItKeys = false
     private var isOrderedIn = false
 
     static func made() -> RecordedWindow {
@@ -49,15 +55,25 @@ final class RecordedWindow: ForwardWindow {
         }
     }
 
+    /// `NSWindow`'s own tells the delegate.
+    override func becomeKey() {
+        if focusesAsItKeys {
+            focusFirstKeyView()
+        }
+        super.becomeKey()
+    }
+
     private func orderIn() {
         isOrderedIn = true
-        guard let content = contentView else {
-            return
-        }
-
-        content.layoutSubtreeIfNeeded()
+        contentView?.layoutSubtreeIfNeeded()
         recalculateKeyViewLoop()
-        if focusesAsItOrders, (firstResponder as? NSView)?.canBecomeKeyView != true {
+        if focusesAsItOrders {
+            focusFirstKeyView()
+        }
+    }
+
+    private func focusFirstKeyView() {
+        if let content = contentView, (firstResponder as? NSView)?.canBecomeKeyView != true {
             selectKeyView(following: content)
         }
     }

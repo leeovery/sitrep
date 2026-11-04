@@ -4626,16 +4626,28 @@ does; the boards first drew it on a band of black.
   - **Keyboard focus** rests on nothing as the window opens, as in the
     Mac's own setup assistants, and Return presses Continue. Lee: "I don't
     like that 'skip setup' is focused by default, and that I don't seem to
-    be able to change that focus. That's odd Mac behaviour." AppKit, ordering
-    the window in with Keyboard navigation on, gave focus to its first key
-    view, Skip setup at step 1, which has no controls. Tab and Shift-Tab go
-    through the step's controls in reading order, the footer last; where
-    the control holding focus goes with its step, focus goes back to
-    nothing. The key view loop is worked out again after each layout of
-    the window's content, as SwiftUI's buttons join and leave it unseen by
-    AppKit, which left Tab on a step gone (offscreen, 3 November 2026).
-    Brought forward while open, the window keeps focus where it was.
-    Continue's focus ring is a pill and back's a circle.
+    be able to change that focus. That's odd Mac behaviour." Nothing is the
+    window itself as first responder: put there as it orders in, and again
+    whenever it keys having opened or gone behind on nothing, since AppKit,
+    keying a window, may give focus to a control (4 November 2026). Live,
+    with the window's content as first responder, SwiftUI gave its own focus
+    to its first control at once, Skip setup at step 1, key window or not,
+    and drew its ring as the window keyed; accessibility named only the
+    content as focused throughout, so only a capture tells. The window made
+    once and reused also carried a visit's focus into the next open, after
+    its close button, so each open makes the window afresh: centred again,
+    its stage's loop from the start. Tab from nothing rings Skip setup, then
+    Continue; Tab and Shift-Tab go through the step's controls in reading
+    order, the footer last; where the control holding focus goes with its
+    step, focus goes back to nothing. The key view loop is worked out again
+    after each layout of the window's content, as SwiftUI's buttons join and
+    leave it unseen by AppKit, which left Tab on a step gone (offscreen, 3
+    November 2026). Brought forward while open, or keyed again after going
+    behind, the window keeps focus Lee gave, while its control stays.
+    Left: ⌘-Tab away and back with focus on nothing still rings Skip setup
+    live, though the window is put back as first responder as it keys
+    (Lee's try, 4 November 2026); "good enough", and parked. Continue's
+    focus ring is a pill and back's a circle.
   - **The stage's menu bar item** is lit while the stage's board has an
     ask, as the real glyph lights for needs you, and on step 4 each chime
     lights it for as long as the notch swells, whatever the shape. So at

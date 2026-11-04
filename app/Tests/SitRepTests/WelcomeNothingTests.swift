@@ -58,9 +58,9 @@ struct WelcomeNothingTests {
     // MARK: The stage
 
     /// Steps 1 and 2 teach what the notch does, so show it at Nothing too; from step 3, the stage shows no edge.
-    @Test func atNothingTheStageShowsNoEdgeFromStepThree() async {
+    @Test func atNothingTheStageShowsNoEdgeFromStepThree() async throws {
         let made = Made()
-        let stage = made.window.stage
+        let stage = try made.stage
 
         made.preferences.edit { $0.show = .nothing }
         for step in WelcomeSteps.all {
@@ -74,7 +74,7 @@ struct WelcomeNothingTests {
     /// At the last step, no callout, with nothing for it to point at.
     @Test func atNothingTheLastStepShowsNoCallout() async throws {
         let made = Made()
-        let stage = made.window.stage
+        let stage = try made.stage
 
         made.at(.ready)
         _ = await made.settled()
@@ -85,9 +85,9 @@ struct WelcomeNothingTests {
     }
 
     /// Chosen at step 3, the stage's edge goes at once; a tile brings it back.
-    @Test func choosingNothingTakesTheStagesEdgeAway() async {
+    @Test func choosingNothingTakesTheStagesEdgeAway() async throws {
         let made = Made()
-        let stage = made.window.stage
+        let stage = try made.stage
 
         made.at(.edge)
         _ = await made.settled()
@@ -105,9 +105,9 @@ struct WelcomeNothingTests {
     /// SitRep's item lit while the stage's board has its ask, whatever the shape: as the notch is lit from step 3, but
     /// at rest beside the callout; with no edge, at rest at the sound's step until a sound is chosen.
     @Test(arguments: [EdgeSettings.Show.notch, .strip, .nothing])
-    func theMenuBarsItemIsLitWhileTheBoardHasItsAsk(show: EdgeSettings.Show) async {
+    func theMenuBarsItemIsLitWhileTheBoardHasItsAsk(show: EdgeSettings.Show) async throws {
         let made = Made()
-        let scene = made.window.stage.scene
+        let scene = try made.stage.scene
 
         made.preferences.edit { $0.show = show }
         for step in [WelcomeStep.edge, .sound, .permissions, .ready] {
@@ -118,9 +118,9 @@ struct WelcomeNothingTests {
     }
 
     /// Step 1's loop: at rest until the ask lands, then lit.
-    @Test func onStepOneTheItemLightsAsTheAskLands() async {
+    @Test func onStepOneTheItemLightsAsTheAskLands() async throws {
         let made = Made()
-        let stage = made.window.stage
+        let stage = try made.stage
 
         _ = await made.settled()
         #expect(!stage.scene.isItemLit)
@@ -138,7 +138,7 @@ struct WelcomeNothingTests {
     /// again, a frame woken as the light ends.
     @Test func atNothingEachSoundChosenLightsTheItemForAChimesLength() async throws {
         let made = Made()
-        let stage = made.window.stage
+        let stage = try made.stage
 
         made.preferences.edit { $0.show = .nothing }
         made.at(.sound)
@@ -166,9 +166,9 @@ struct WelcomeNothingTests {
     }
 
     /// Show changed in Settings while the welcome is at the sound's step: the item follows the board at once.
-    @Test func theItemFollowsAShapeChangedMidStep() async {
+    @Test func theItemFollowsAShapeChangedMidStep() async throws {
         let made = Made()
-        let stage = made.window.stage
+        let stage = try made.stage
 
         made.at(.sound)
         _ = await made.settled()

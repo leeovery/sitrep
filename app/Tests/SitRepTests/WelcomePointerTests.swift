@@ -61,7 +61,7 @@ struct WelcomePointerTests {
     @Test(arguments: [WelcomeStep.hello, .ask], Look.all)
     func onlyTheAsksRowIsEverLit(_ step: WelcomeStep, _ look: Look) async throws {
         let made = await Self.made(at: step, look)
-        let stage = made.window.stage, loop = try #require(stage.play.loop)
+        let stage = try made.stage, loop = try #require(stage.play.loop)
         var time = Displays.now, lit: Set<String> = []
 
         while stage.loopTime < loop.length - 20 {
@@ -76,7 +76,7 @@ struct WelcomePointerTests {
     @Test(arguments: [WelcomeStep.hello, .ask], Change.all)
     func aChangeMidLoopLightsOnlyTheAsksRow(_ step: WelcomeStep, _ change: Change) async throws {
         let made = await Self.made(at: step, change.from)
-        let stage = made.window.stage, loop = try #require(stage.play.loop)
+        let stage = try made.stage, loop = try #require(stage.play.loop)
         var time = Displays.now, lit: Set<String> = [], changed = false
 
         while stage.loopTime < loop.length - 20 {
@@ -99,7 +99,7 @@ struct WelcomePointerTests {
     })
     func pacedAsItPacesItselfTheRowLightsAsThePointerStepsOntoIt(_ step: WelcomeStep, _ look: Look) async throws {
         let made = await Self.made(at: step, look)
-        let stage = made.window.stage, loop = try #require(stage.play.loop)
+        let stage = try made.stage, loop = try #require(stage.play.loop)
         var paced = Paced(stage), firstLit: Double?
 
         while stage.loopTime < loop.length - 20 {
@@ -115,7 +115,7 @@ struct WelcomePointerTests {
     @Test(arguments: [WelcomeStep.hello, .ask], Look.all)
     func asThePointerLeavesWhatPouredGoesBackIn(_ step: WelcomeStep, _ look: Look) async throws {
         let made = await Self.made(at: step, look)
-        let stage = made.window.stage, loop = try #require(stage.play.loop)
+        let stage = try made.stage, loop = try #require(stage.play.loop)
         var time = Displays.now, wasOut = false
 
         while stage.loopTime < loop.length - 20 {
@@ -136,7 +136,7 @@ struct WelcomePointerTests {
         made.preferences.edit(look.set)
         made.at(step)
         _ = await made.settled()
-        made.window.windowDidBecomeKey(Notification(name: NSWindow.didBecomeKeyNotification))
+        made.window.windowDidBecomeKey(Notification(name: NSWindow.didBecomeKeyNotification, object: made.recorded))
         return made
     }
 
