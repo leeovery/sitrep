@@ -1,6 +1,5 @@
 import Foundation
 import SitRepCore
-import struct SitRepEdge.PanelBoard
 import SitRepPanel
 
 /// The SitRep window as the app runs it, with nothing of the screen in it: the board from `watch`'s lines in the
@@ -17,7 +16,8 @@ public final class WindowRun {
     public private(set) var lastSession: String?
     /// The window shows: only then does it follow sessions.
     public private(set) var isOpen = false
-    public private(set) var answers = Answers()
+    /// The answers waiting out their two seconds.
+    public var answers: Answers { details.answers }
     /// What Lee folded, its sections and Projects kept across launches; "N earlier" open, never kept.
     public private(set) var folds: Folds
     /// How long a your-turn row stays in Your turn before it folds into "N earlier": the list refolds at once as it
@@ -54,33 +54,8 @@ public final class WindowRun {
     private var listed = Listed()
     /// Sessions new to needing Lee, by their ids, and the lines new on them, by their keys, washed from when they came.
     private var washed: [String: Date] = [:]
-    /// Each session's board as a line last carried it, kept while it is not followed, so it shows again as last kept.
-    private var boards: [String: SessionBoard] = [:]
-    /// The sessions `watch` was last told to follow.
-    private var told: Set<String> = []
-    /// The sessions told without a break since their boards as kept came, a restart of `watch` no break: `watch`
-    /// carries each again only as it changes, so a page made for one has its board as kept for its first.
-    private var current: Set<String> = []
-    /// Why the latest line to carry a session's board carried none, over its board as last kept.
-    private var failed: [String: String] = [:]
-    /// The asks of each session the page shows, in the order they first showed while it stands, those closed kept in
-    /// their places while the page is held.
-    private var frozen: [String: Frozen] = [:]
-    /// The page held while the pointer is over it in the window key, and for a second after: only while it is does a
-    /// closed ask keep its place, so nothing below it moves under the pointer either.
-    private var pageHeld = Hold()
-    /// The page's regions saying the pointer is over them: each says so under its own identity, so one going as another
-    /// comes cannot cross the two.
-    private var regionsUnderPointer: Set<ObjectIdentifier> = []
-    private var isKey = false
-    private var finishing: [String: Finish] = [:]
-    /// What `sitrep snooze` or `wake` refused, by the ask, for its card to say until it is pressed again or another
-    /// page is picked.
-    private var unslept: [AskAddress: Card.Line] = [:]
-    /// The asks opened in place in a project's view.
-    private var opened: Set<AskAddress> = []
-    /// The items of Status, Notes, Parked and Resolved opened in place.
-    private var openedItems: Set<Item> = []
+    /// The detail of the sessions the page shows, which the page builders read and keep.
+    var details = Details()
 
     /// Opened on the session picked last, folded as Lee left it, a your-turn row folding into "N earlier" after the
     /// period given, against this wall clock, its days in the Gregorian calendar in the Mac's time zone, followed as it
@@ -112,14 +87,14 @@ public final class WindowRun {
             (Array(moving) + (fresh?.new ?? [])).forEach { washed[$0] = time }
         }
         if let board = last.board {
-            finishing = finishing.filter { board.session($0.key)?.session.doing.isAway ?? false }
+            details.keepFinishingAway(on: board)
             if isOpen {
                 keepShownOrRepick()
             }
         }
         if let fresh {
             for (session, carried) in fresh.boards {
-                take(carried, of: session, lookedAt: fresh.at, washingAt: reducesMotion ? nil : time)
+                details.take(carried, of: session, lookedAt: fresh.at, washingAt: reducesMotion ? nil : time)
             }
         }
         keepOnItsWayUnwatched()
@@ -128,7 +103,7 @@ public final class WindowRun {
     /// While the board is stale no board can come, so an answer written is on its way, as the write proved.
     private func keepOnItsWayUnwatched() {
         if last.stale != nil {
-            answers.unwatched()
+            details.unwatched()
         }
     }
 
@@ -144,23 +119,13 @@ public final class WindowRun {
 
     /// A region of the page found the pointer over it, or not, at this time: the page is held while any region has it.
     public func pointer(overPage isIn: Bool, from region: ObjectIdentifier, at time: Date) {
-        if isIn {
-            regionsUnderPointer.insert(region)
-        } else {
-            regionsUnderPointer.remove(region)
-        }
-        holdPage(at: time)
+        details.pointer(overPage: isIn, from: region, at: time)
     }
 
     /// The window became key, or stopped being, at this time: in a window not key the pointer holds no page, as a
     /// pointer resting on a window Lee is not using would hold its closed asks for as long as it rests.
     public func window(isKey: Bool, at time: Date) {
-        self.isKey = isKey
-        holdPage(at: time)
-    }
-
-    private func holdPage(at time: Date) {
-        pageHeld.pointer(isIn: !regionsUnderPointer.isEmpty && isKey, at: time)
+        details.window(isKey: isKey, at: time)
     }
 
     /// What has run out by this time: the second after the pointer left the list, or after the last pick made in it,
@@ -170,23 +135,8 @@ public final class WindowRun {
         if held.settle(at: time) {
             take(given, moving: [])
         }
-        pageHeld.settle(at: time)
-        letGoOfClosedAsks()
+        details.settle(at: time)
         picks.settle(at: time)
-    }
-
-    /// Unless the page is held, the closed asks leave it, for Resolved; one with Lee's press on it still pending stays
-    /// until the press settles.
-    private func letGoOfClosedAsks() {
-        guard !pageHeld.isHeld else {
-            return
-        }
-
-        let answering = Dictionary(grouping: answers.pending.keys, by: \.session).mapValues { Set($0.map(\.ask)) }
-
-        for session in frozen.keys {
-            frozen[session]?.letGoOfClosed(but: answering[session] ?? [])
-        }
     }
 
     /// The list as it now shows, and the pick on the row of it that holds it: a session's pick moves to its row in
@@ -240,7 +190,7 @@ public final class WindowRun {
         isPickedWhileFiltering = false
         filter = Filter()
         letGoOfHolds()
-        dropAskingToFinish()
+        details.dropAskingToFinish()
     }
 
     /// The window minimised: it shows no more, so it follows nothing, a run of picks waiting let go, as back from the
@@ -257,9 +207,7 @@ public final class WindowRun {
     private func letGoOfHolds() {
         held.release()
         take(given, moving: [])
-        regionsUnderPointer = []
-        pageHeld.release()
-        letGoOfClosedAsks()
+        details.letGoOfHold()
     }
 
     /// The window back from the Dock, on the page it had, which follows what it shows again, unless its pick has gone
@@ -341,12 +289,7 @@ public final class WindowRun {
     /// page as it was.
     private func choose(_ pick: Pick) {
         if pick.page != self.pick?.page {
-            frozen = [:]
-            opened = []
-            openedItems = []
-            unslept = [:]
-            answers.forgetRefusals()
-            dropAskingToFinish()
+            details.turnPage()
             if case let .session(id) = pick.page {
                 lastSession = id
             }
@@ -361,9 +304,7 @@ public final class WindowRun {
     /// Each session the page shows keeps its asks in place, from its board as last kept, which is its first where it
     /// is current.
     private func keepShown() {
-        for session in shown where frozen[session] == nil {
-            frozen[session] = Frozen(session: session, kept: boards[session], isCurrent: current.contains(session))
-        }
+        details.keep(shown)
     }
 
     /// The sessions the page shows.
@@ -387,42 +328,7 @@ public final class WindowRun {
     /// left out break their spans, so their boards as kept are no longer current, as `watch` carries each afresh once
     /// it is followed again.
     public func follow() -> Set<String> {
-        told = following
-        current.formIntersection(told)
-        return told
-    }
-
-    /// What a session's page says where a line carries no board of it, `watch` finding no such session.
-    static let notOnTheBoard = "This session isn't on the board."
-
-    /// What a session's page with no board kept says while the board is stale, so no board can come: the head's
-    /// words for it, and why.
-    private var unwatched: String? {
-        last.stale.map { "\(PanelBoard.unread.title). \($0)" }
-    }
-
-    /// What a session's page says where a line carries a board of it this app cannot read.
-    static let unreadBoard = "sitrep watch gave a board of this session that this SitRep cannot read."
-
-    /// A session's board as a line carried it, from a look `watch` began at this time, what is new on it washed from
-    /// this other time, if one is given, and current while it is followed. Or none, as `watch` found no such session,
-    /// or none this app can read: either says so over its board as last kept, and keeps it, no longer current.
-    private func take(_ carried: Board.Carried, of session: String, lookedAt look: Date, washingAt time: Date?) {
-        guard case let .board(board) = carried else {
-            failed[session] = carried == .notFound ? Self.notOnTheBoard : Self.unreadBoard
-            current.remove(session)
-            answers.noBoard(of: session)
-            return
-        }
-
-        if told.contains(session) {
-            current.insert(session)
-        }
-        boards[session] = board
-        failed[session] = nil
-        answers.settle(board.asks, of: session, lookedAt: look)
-        frozen[session]?.take(board, washingAt: time)
-        letGoOfClosedAsks()
+        details.follow(following)
     }
 
     // MARK: Answering
@@ -430,24 +336,18 @@ public final class WindowRun {
     /// A card's button pressed at this time: a yes, an option or ignore waits its two seconds; one that needs Claude
     /// Code's prompt jumps instead. The session to jump to, for those. Snooze is its menu's, which `snoozing` hears.
     public func press(_ button: Card.Button, on ask: AskAddress, at time: Date) -> String? {
-        if case .inClaude = button {
-            return ask.session
-        }
-        if let answer = button.answer {
-            answers.press(answer, on: ask, at: time)
-        }
-        return nil
+        details.press(button, on: ask, at: time)
     }
 
     /// Escape: the answer pressed last on the page showing, still waiting, is taken back; one waiting on a page
     /// left goes as it would. Whether there was one.
     public func undo() -> Bool {
-        answers.undo(on: Set(shown)) != nil
+        details.undo(on: Set(shown)) != nil
     }
 
     /// The answers whose two seconds have run out by this time, for `sitrep answer`.
     public func due(at time: Date) -> [(ask: AskAddress, answer: Answer)] {
-        answers.due(at: time)
+        details.due(at: time)
     }
 
     /// What `sitrep answer` came to, answering at this time: written, the card takes the word of the first board of
@@ -457,95 +357,65 @@ public final class WindowRun {
     public func answered(_ ask: AskAddress, _ written: WriteAnswer, at time: Date) -> Bool {
         switch written {
         case .written:
-            answers.written(ask, at: time)
+            details.written(ask, at: time)
             keepOnItsWayUnwatched()
             return true
         case let .refused(why):
-            answers.refused(ask, why, on: boards[ask.session]?.asks)
+            details.refused(ask, why)
             return false
         }
     }
 
     /// An ask in a project's view opened in place into its card, or closed back to its line.
     public func toggle(_ ask: AskAddress) {
-        if opened.remove(ask) == nil {
-            opened.insert(ask)
-        }
+        details.toggle(ask)
     }
 
     /// An item of Status, Notes, Parked or Resolved opened in place to the whole of it, or closed again. Picking
     /// another page closes them all.
     public func toggle(_ item: Item) {
-        if openedItems.remove(item) == nil {
-            openedItems.insert(item)
-        }
+        details.toggle(item)
     }
 
     // MARK: Snoozing
 
     /// A time chosen on a card's Snooze, or its Wake now pressed: what its card said of a refusal before gives way.
     public func snoozing(_ ask: AskAddress) {
-        unslept[ask] = nil
+        details.snoozing(ask)
     }
 
     /// What `sitrep snooze` came to for an ask of a card: written, the card goes after those waiting, asleep, as its
     /// session's next board has it; refused, the card says why. Whether `watch` is to look now.
     public func snoozed(_ ask: AskAddress, _ written: WriteAnswer) -> Bool {
-        slept(ask, written, refused: Card.Line.notSnoozed)
+        details.slept(ask, written, refused: Card.Line.notSnoozed)
     }
 
     /// What `sitrep wake` came to for an ask of a card, as `snoozed` says it.
     public func woke(_ ask: AskAddress, _ written: WriteAnswer) -> Bool {
-        slept(ask, written, refused: Card.Line.notWoken)
-    }
-
-    private func slept(_ ask: AskAddress, _ written: WriteAnswer, refused: (String) -> Card.Line) -> Bool {
-        guard case let .refused(why) = written else {
-            return true
-        }
-
-        unslept[ask] = refused(why)
-        return false
+        details.slept(ask, written, refused: Card.Line.notWoken)
     }
 
     // MARK: Finishing
 
     /// "✓ Finish this session" pressed: it asks first, in place.
     public func askToFinish(_ session: String) {
-        finishing[session] = .asking
+        details.askToFinish(session)
     }
 
     /// Cancel: the offer comes back, unless `sitrep finish` runs already.
     public func cancelFinish(_ session: String) {
-        if finishing[session] != .finishing {
-            finishing[session] = nil
-        }
+        details.cancelFinish(session)
     }
 
     /// "Yes, finish it": `sitrep finish` runs, unless it already does.
     public func confirmFinish(_ session: String) -> Bool {
-        guard finishing[session] == .asking else {
-            return false
-        }
-
-        finishing[session] = .finishing
-        return true
+        details.confirmFinish(session)
     }
 
     /// What `sitrep finish` came to: written, it shows finishing until `watch`'s next line takes the session off the
     /// board; refused, it says why in place. Whether `watch` is to look now.
     public func finished(_ session: String, _ written: WriteAnswer) -> Bool {
-        guard case let .refused(why) = written else {
-            return true
-        }
-
-        finishing[session] = .refused(why)
-        return false
-    }
-
-    /// A finish asked about, or refused, lapses as the page changes; one running goes on.
-    private func dropAskingToFinish() {
-        finishing = finishing.filter { $0.value == .finishing }
+        details.finished(session, written)
     }
 
     // MARK: What it shows
@@ -604,9 +474,7 @@ public final class WindowRun {
 
     /// The right of the window at this time, its washes under way.
     public func page(at time: Date) -> Page {
-        for session in frozen.keys {
-            frozen[session]?.prune(at: time)
-        }
+        details.prune(at: time)
         guard let board = last.board else {
             return .empty(listed.head.title)
         }
@@ -627,130 +495,11 @@ public final class WindowRun {
     /// settling after the pointer left or a pick, the closed asks leaving a second after the pointer left the page, a
     /// wash ending, a run of picks in the list settling, a your-turn row folding into "N earlier".
     public var nextChange: Date? {
-        let washes = (Array(washed.values) + frozen.values.flatMap(\.washed.values))
-            .map { $0.addingTimeInterval(Wash.length / 1000) }
-        let due = [answers.nextDue, held.resortsAt, pageHeld.endsAt, picks.dueAt, nextRefold]
+        let washes = washed.values.map { $0.addingTimeInterval(Wash.length / 1000) }
+        let due = [details.nextChange, held.resortsAt, picks.dueAt, nextRefold]
 
         return (due.compactMap { $0 } + washes).min()
     }
-
-    private func sessionPage(_ session: Board.Session, of project: Board.Project, at time: Date) -> SessionPage {
-        let kept = boards[session.id]
-        let isAway = session.doing.isAway
-        let status = Status(now: session.now, next: session.next, updated: kept?.log.first { $0.kind == .status }?.at)
-        let notes = kept.map { Self.notes($0.log, of: session, named: false) } ?? []
-        let parked = kept?.parked.map { Parked(id: $0.id, session: nil, title: $0.title, where: $0.where, at: $0.at) } ?? []
-        let resolved = kept.map { Self.resolved($0, leaving: frozen[session.id]?.kept ?? []) } ?? []
-        let items = status.now.enumerated().map { Item.status($0.offset, $0.element) } + (status.next.map { [Item.next($0)] } ?? [])
-            + notes.map { .note($0.id) } + parked.map { .parked($0.id) } + resolved.map { .resolved($0.id) }
-
-        return SessionPage(
-            id: session.id, projectKey: project.key, projectName: project.name, name: session.name,
-            summary: session.summary, doing: session.doing, jumps: !isAway, waiting: session.waiting,
-            snoozed: session.snoozed, asks: cards(of: session, at: time), status: status, notes: notes,
-            parked: parked, resolved: resolved,
-            finish: isAway ? finishing[session.id] ?? .offered : nil,
-            hasBoard: kept != nil,
-            failure: failed[session.id] ?? (kept == nil ? unwatched : nil),
-            opened: keepOpen(items)
-        )
-    }
-
-    /// The items opened that the page still shows, the rest let go, so one gone cannot open again by its key.
-    private func keepOpen(_ shown: [Item]) -> Set<Item> {
-        openedItems.formIntersection(shown)
-        return openedItems
-    }
-
-    private func projectPage(_ project: Board.Project, on board: Board, at time: Date) -> ProjectPage {
-        let needs = board.rows.filter { $0.project == project.key && $0.needsLee }
-        let waiting = { (rows: [Board.Row]) in rows.map(\.lines.count).reduce(0, +) }
-        let kept = project.sessions.compactMap { session in boards[session.id].map { (session, $0) } }
-        let named = project.sessions.count > 1
-        let notes = Array(kept.flatMap { Self.notes($1.log, of: $0, named: named) }.sorted { $0.at > $1.at }.prefix(Self.projectNotes))
-        let parked = kept.flatMap { session, board in
-            board.parked.map {
-                Parked(
-                    id: "\(session.id):\($0.id)", session: named ? session.name : nil, title: $0.title, where: $0.where,
-                    at: $0.at
-                )
-            }
-        }.sorted { $0.at < $1.at }
-
-        return ProjectPage(
-            key: project.key, name: project.name, waiting: waiting(needs), open: project.open,
-            sessions: project.sessions.map { session in
-                ProjectPage.Session(
-                    id: session.id, name: session.name, mark: Mark(session.state, isAway: session.doing.isAway),
-                    isAway: session.doing.isAway,
-                    doing: session.doing,
-                    waiting: waiting(needs.filter { $0.session == session.id }), since: session.since
-                )
-            },
-            asksWaiting: project.sessions.map(\.waiting).reduce(0, +),
-            asks: project.sessions.flatMap { session in
-                cards(of: session, at: time).map { card in
-                    ProjectPage.Ask(session: named ? session.name : nil, card: card, isOpened: opened.contains(card.id))
-                }
-            }.sorted { $0.card.since > $1.card.since },
-            notes: notes,
-            parked: parked,
-            opened: keepOpen(notes.map { .note($0.id) } + parked.map { .parked($0.id) })
-        )
-    }
-
-    /// A session's asks as cards: in the order they first showed on the page, those closed while it was held kept in
-    /// their places, else as last kept, the newest first; those asleep after them, the soonest to wake first.
-    private func cards(of session: Board.Session, at time: Date) -> [Card] {
-        let kept = frozen[session.id]
-        let asks = kept?.asks ?? (boards[session.id]?.asks.reversed() ?? []).map { ($0, nil) }
-        let washes = Wash.live(kept?.washed ?? [:], at: time)
-        let cards = asks.map { ask, closed in
-            let address = AskAddress(session: session.id, ask: ask.id)
-
-            return Card(
-                ask, of: session.id, doing: session.doing, pending: answers.pending[address], closed: closed,
-                washed: washes[ask.id], unslept: unslept[address]
-            )
-        }
-        let asleep = cards.compactMap { card in card.snoozedUntil.map { (card, $0) } }
-
-        return cards.filter { $0.snoozedUntil == nil } + asleep.sorted { $0.1 < $1.1 }.map(\.0)
-    }
-
-    /// How many of its latest notes a project's view lists, as many as a session's board carries.
-    private static let projectNotes = 8
-
-    /// A session's log lines as notes, each by an id that stays as lines come: its session's and its own; for a line
-    /// without one, its kind, time, writer and words, and among lines alike in all of those, which of them it is,
-    /// counted from the oldest, as new lines come at the top. In a project's view of several sessions each names its
-    /// session.
-    private static func notes(_ log: [SessionBoard.Line], of session: Board.Session, named: Bool) -> [Note] {
-        var seen: [String: Int] = [:]
-        let ids = log.reversed().map { line in
-            let own = line.id ?? "\(line.kind.rawValue)@\(line.at.timeIntervalSince1970):\(line.by):\(line.text)"
-            let repeats = seen[own, default: 0]
-
-            seen[own] = repeats + 1
-            return repeats == 0 ? own : "\(own)#\(repeats)"
-        }
-
-        return zip(log, ids.reversed()).map { line, own in
-            Note(id: "\(session.id):\(own)", session: named ? session.name : nil, text: line.text, detail: line.detail, at: line.at)
-        }
-    }
-
-    private static func resolved(_ board: SessionBoard, leaving kept: Set<String>) -> [Resolved] {
-        board.resolved.filter { !kept.contains($0.id) }.map { resolved in
-            let how = Card.closed(resolved.id, in: board)
-
-            return Resolved(
-                id: resolved.id, title: resolved.ask.title, closed: resolved.closedAt ?? resolved.ask.at, how: how,
-                answer: how == .sent ? resolved.ask.reply?.words : nil
-            )
-        }
-    }
-
 }
 
 extension Board {
