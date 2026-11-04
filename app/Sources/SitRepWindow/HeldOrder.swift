@@ -24,9 +24,9 @@ public struct HeldOrder: Equatable, Sendable {
 
         if hold.isHeld {
             sections = core.sections.reduce(into: [:]) { held, section in
-                held[section.key] = Self.merge(sections[section.key] ?? [], into: section.value, moving: moving)
+                held[section.key] = HeldLists.merge(sections[section.key] ?? [], into: section.value, moving: moving)
             }
-            projects = Self.merge(projects, into: core.projects, moving: [])
+            projects = HeldLists.merge(projects, into: core.projects, moving: [])
         } else {
             (sections, projects) = core
         }
@@ -71,20 +71,6 @@ public struct HeldOrder: Equatable, Sendable {
             Dictionary(uniqueKeysWithValues: BoardSection.allCases.map { ($0, listed.rows(in: $0).map(\.id)) }),
             listed.projects.map(\.id)
         )
-    }
-
-    /// The held order with what `watch` no longer has gone, and what is moving or new to it put where `watch` has
-    /// it: after the nearest of those `watch` has before it that the list already holds.
-    static func merge(_ held: [String], into core: [String], moving: Set<String>) -> [String] {
-        let kept = Set(core)
-        var merged = held.filter { kept.contains($0) && !moving.contains($0) }
-
-        for (place, key) in core.enumerated() where !merged.contains(key) {
-            let after = core[..<place].last(where: merged.contains).flatMap(merged.firstIndex(of:))
-
-            merged.insert(key, at: after.map { $0 + 1 } ?? 0)
-        }
-        return merged
     }
 }
 
