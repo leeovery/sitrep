@@ -4294,6 +4294,107 @@ stands).
     stops being key (since 27 October 2026; see "Kept in place").
   - The window never comes forward or takes focus by itself; the notch or
     the strip tells Lee.
+- **The rebuild's places, lists and way around** (4 November 2026). Lee
+  approved Paper's "Window redesign", A1 to A4 revised: "Build it as
+  drawn." What follows is the model the rebuilt window draws from, its
+  rules and their tests, not yet the window: a later change wires it in and
+  rewrites the entries above that it replaces. Until then the window is as
+  described above.
+  - **Four places, then the projects.** The sidebar holds the Filter field,
+    then Needs you, Working, Your turn and Parked, then every project on the
+    board, quiet ones too. The places are the window's own: the card's
+    sections, which the notch, the strip and the menu share, are unchanged.
+    Needs you counts each line waiting on Lee, every ask and every window's
+    stop, so its count says how much there is to do, not how many sessions;
+    Working and Your turn count their rows, those under "N earlier" too;
+    Parked counts every item parked. The counts are the whole board's
+    whatever the filter holds, as Mail's are whatever its search finds, so
+    typing never makes the orange count look smaller than the work.
+  - **A project's mark** is the orange dot while a line of a session a
+    window holds waits on Lee; the away ring while only lines of sessions no
+    window holds wait, as an away row's mark is; else the quiet grey dot.
+    Its grey count is its current sessions. It is **quiet**, its name soft
+    and its count hidden, only with nothing open, waiting, asleep or parked,
+    as core folds a project: an ask asleep keeps a project current, so such
+    a project keeps the grey dot, nothing waiting on Lee now, but its name
+    bright and its count shown.
+  - **Needs you is a row per line**, every ask and every window's stop, in
+    the window only (A1 shows one session twice): core's rows, a row per
+    session, are unchanged, and the card, the strip and the menu draw them
+    as before, "+N" and all. The lines are the oldest first, those of
+    sessions a window holds before those of sessions none does, two as old
+    as each other by their keys, as core orders lines. At its foot,
+    "N snoozed" counts the asks asleep and folds them, a row per ask, the
+    soonest to wake first, then the oldest, then by key, as core orders
+    them. Your turn's rows past the fold period sit under "N earlier" at its
+    foot, as now. A fold opens in place, is never kept, and shows open while
+    the filter holds text. A line row offers only its own ask to snooze or
+    wake, never its session's others, which have rows of their own.
+  - **The filter** keeps a line while every word typed appears in its
+    session's name, its project's or its own words, so typing what an ask
+    says finds that ask, not every line of its session; a Working or Your
+    turn row by today's rule; a project by its name.
+  - **Position.** Beside the list, the picked row's place among the rows
+    shown, "3 / 6", which VoiceOver reads "3 of 6"; an open fold's rows
+    count, a closed one's don't, and with nothing shown picked there is no
+    position.
+  - **↑ and ↓** step through the rows shown, a fold no row of its own. A
+    pick the list no longer shows, an ask answered or a row a fold closed
+    over, stands where it last showed, after the nearest row then above it
+    that the list still shows: so after the picked ask is answered nothing
+    is picked, the page staying on its session, and ↓ goes to the row after
+    it, not back to the top. With nothing picked, ↓ goes to the first row
+    and ↑ nowhere. Where the pick stood goes back and forward with it, so
+    Back returns to it as it was.
+  - **A pick follows its ask.** Core gives an ask one key in Needs you and in
+    Snoozed, so a snoozed ask picked and woken is picked as its line in
+    Needs you. The picked line snoozed stays picked as it was, gone from the
+    list as an answered one is, and ↓ goes on from it: snoozing is putting
+    it out of the way.
+  - **Held still.** The middle list and the projects each hold their order
+    under the pointer and for a second after it leaves, and the list for a
+    second after each pick in it, as the sidebar does now; Needs you by its
+    lines, so a line answered leaves the rest where they were, and a line
+    new on the board comes in at once where `watch` has it. The two columns
+    hold apart, so the pointer over the projects never holds the list.
+  - **Where the window is**: a place, with what its list picked, and for
+    Parked the project or the session its list is narrowed to; a project's
+    page; or a session's page pushed from a place or a project, which stays
+    picked in the sidebar. The page follows the picked row's session, every
+    session of a project, or the session pushed.
+  - **As the board changes** the window stays where it is wherever that
+    still stands. A picked line leaving Needs you keeps it there, the page
+    on its session. A pick whose session left the board drops, the place
+    staying; Parked's narrowing falls back to every item as its project or
+    session leaves; a session's page whose session left gives way to where
+    it was pushed from; a project's page whose project left opens the window
+    afresh. With no board heard, before `watch` prints its first line or
+    with no `watch` to run, nothing has left the board, so the window stays
+    where it is: `watch` stopping never sends Lee elsewhere.
+  - **It opens on** Needs you's first line; with none, where it was left,
+    as that stands on the board, a pick its list no longer lists dropped, as
+    the list it stood in is gone (closed on a line since answered, it opens
+    on Needs you, nothing picked, not on an empty list beside that line's
+    page); else Needs you, nothing picked. Where it was left is kept across
+    launches, but not where its pick stood in a list. "Where it stood"
+    holds only while the window is open.
+  - **Open in SitRep** on a session lands on Needs you, its oldest line
+    picked, where it needs Lee; else on Working or Your turn, its row picked,
+    "N earlier" opening where it is under it; else, its only asks asleep or
+    none, on its project's page with the session's pushed over it. Before a
+    board is heard it lands once one is.
+  - **A click in the sidebar** on the place or the project already showing
+    changes nothing, its pick kept, as Mail does for the mailbox already
+    open; on Parked narrowed to a project it clears the narrowing.
+  - **Back and Forward** (⌘[ and ⌘]): a sidebar click, a session opened
+    from a project's page, a breadcrumb link, a session's "later · N
+    parked", a project's "N parked", "Back to its session" and an open from
+    outside each make a step; another row picked within the list replaces
+    the step, so Back skips the rows Lee stepped through, to where he came
+    from. Going where the window already is makes no step. As the board
+    changes every step is kept as it stands, one that no longer stands goes,
+    and steps that come to be the same are one, so neither Back nor Forward
+    ever stays put or lands on a session gone. Not kept across launches.
 
 ### The menu bar item
 
