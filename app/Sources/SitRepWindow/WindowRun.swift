@@ -129,7 +129,7 @@ public final class WindowRun {
     public func window(isKey: Bool, at time: Date) {
         details.window(isKey: isKey, at: time)
         if isKey {
-            looks.key()
+            looks.key(at: time)
         }
     }
 
@@ -348,20 +348,21 @@ public final class WindowRun {
 
     // MARK: On screen
 
-    /// Whether a jump could reach the session, as the last look at the screen says: unknown before the first, after
-    /// one that failed, and for a session it did not list, as no window holds it.
-    public func onScreen(of session: String) -> OnScreen {
+    /// Whether a jump could reach the session, as the last look at the screen says, unknown where tmux or `ps` gave no
+    /// answer for its windows; none before the first look, after one that failed, and for a session it did not list, as
+    /// no window holds it.
+    public func onScreen(of session: String) -> OnScreen? {
         looks.onScreen(of: session)
     }
 
-    /// Whether to run `sitrep screen` at this time: the window shows, and a look is due with none under way.
-    public func looksAtScreen(at time: Date) -> Bool {
+    /// The run of `sitrep screen` to make at this time, where the window shows and a look is due with none under way.
+    public func looksAtScreen(at time: Date) -> ScreenLook? {
         looks.look(at: time)
     }
 
-    /// What `sitrep screen` came to, heard at this time. Whether what the window knows of the screen changed.
-    public func looked(_ answer: ScreenAnswer, at time: Date) -> Bool {
-        looks.looked(answer, at: time)
+    /// What that run came to, heard at this time. Whether what the window knows of the screen changed.
+    public func looked(_ answer: ScreenAnswer, of look: ScreenLook, at time: Date) -> Bool {
+        looks.looked(answer, of: look, at: time)
     }
 
     /// When the next look at the screen is due; none while one runs, or while the window does not show.

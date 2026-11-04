@@ -2064,13 +2064,18 @@ truth. There is still no background service. None of it is built now. Lee:
       reach it.
     - Only the sessions a live window holds are listed: one no window holds
       is away, which the board says already. A finished session a window
-      still holds is listed with the rest.
+      still holds is listed with the rest. Each session's heartbeats are
+      read first, and only one with a live window is read past them and
+      folded, so a run costs what the open sessions do, not the board's
+      history.
     - One reading for the run, over every listed session's windows: tmux
       asked twice for each socket and `ps` once, beside it, each given 2
       seconds, as for a jump, however many sessions run under them. Nothing
       fails the run: what gives no answer makes its sessions unknown, and is
-      named. It selects, writes and focuses nothing. Live, it answers in
-      under half a second.
+      named. It selects, writes and focuses nothing. Over a copy of Lee's
+      board (4 November 2026: 107 sessions, 18 held) a run took 0.2 seconds
+      of CPU, against 0.27 while it folded every session, and 0.3 to 0.55
+      seconds' wall on a Mac at a load of 230; Bun's start is 0.02 of it.
     - `--json`, `v` 1, the sessions by id, and `unanswered` naming what gave
       no answer, `tmux`, `ps`, or neither; plain `screen` says the same a line
       each (`sr-k3f9qa  Dashboard redesign: on screen`, `not on screen`, `not
@@ -4329,22 +4334,32 @@ stands).
 - **On screen** (4 November 2026): whether a terminal window of this Mac
   shows a session, or tmux can make one show it, which the window reads
   from `sitrep screen --json` (see "One engine, two front ends"): on, off,
-  or unknown, unknown too before the first reading, after a run that
-  failed, and for a session it does not list. What draws it (a pip on a
-  Needs you row not on screen, "· not on screen" on a project's page, "on
+  or unknown, where tmux or `ps` gave no answer for its windows. With no
+  reading yet, after a run that failed, or for a session the reading does
+  not list, as no window holds it, the window says nothing of it, which is
+  not unknown: an away session gets no mark at all. What draws it (a pip on
+  a Needs you row not on screen, "· not on screen" on a project's page, "on
   screen" in a session page's meta line) comes with the window's rebuild;
   until then the window reads it and draws nothing of it.
   - It cannot ride `watch`: it changes with Lee's tmux and Ghostty, not
     with the board. So the window runs `screen` on its own cadence, only
-    while it shows: at once as it opens, comes back from the Dock, comes
-    out from under other windows or onto Lee's Space, or becomes key; then
-    5 seconds after each run ends, so never two at once; a key change
-    during a run is answered by that run. Covered, on another Space,
-    minimised or closed, it runs none.
+    while it shows, macOS saying it is visible: at once as it opens, comes
+    back from the Dock, or comes out from under other windows or onto Lee's
+    Space; at once as it becomes key, where its reading is more than a
+    second old, so switching between SitRep and a terminal runs nothing new;
+    then 5 seconds after each run ends, so never two at once. Covered, on
+    another Space, minimised or closed, it runs none. Whether it is visible
+    is asked of macOS as it comes forward or back from the Dock, not
+    assumed: one that comes still covered, by a full-screen app or a locked
+    screen, may see no change to tell it.
+  - During a run, a look asked for at once (the window opening again, back
+    from the Dock, uncovered) is made as that run ends, one more at once; the
+    window becoming key during a run is answered by that run.
   - The last reading stands while the window is minimised or covered, so
     coming back shows it at once, and the run that starts then corrects it.
-    Closing lets it go, as the window opens afresh, and a run that ends
-    after the close is not kept.
+    Closing lets it go, as the window opens afresh. A run begun before the
+    close is let go as it ends, though the window opened again meanwhile,
+    and the reopened window's run is made then, at once.
 - **One colour.** Orange is for needs you only: the dots, the counts,
   "2 waiting". Parked and resolved stay grey, not the pane's purple and
   green.

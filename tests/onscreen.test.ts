@@ -1,7 +1,7 @@
 import { expect, test } from 'claude-code/testing'
 import { EXIT } from '../cli/main'
 import { PS } from '../cli/screen'
-import type { SessionMeta, Where } from '../core'
+import { STALE_MS, type SessionMeta, type Where } from '../core'
 import { META, W2 } from './support'
 import { ghosttyClient, NOW, phoneClient, SOCKET, sshClient, terminal } from './terminal'
 import { ELSEWHERE } from './world'
@@ -29,13 +29,15 @@ const QUIETLY: SessionMeta = { ...GOOSE, id: 'sr-ffffff', name: 'Tidying' }
 const GONE: SessionMeta = { ...GOOSE, id: 'sr-gggggg', name: 'Gone server' }
 const UNSAID: SessionMeta = { ...GOOSE, id: 'sr-hhhhhh', name: 'Not saying where' }
 const AWAY: SessionMeta = { ...META, id: 'sr-aaaaaa', name: 'Away' }
+const STALE: SessionMeta = { ...META, id: 'sr-ssssss', name: 'Window gone quiet' }
 
 /**
  * Sessions each with a live window: three in tmux on one server, their tmux
  * windows shown by a Ghostty window, by the phone alone, and by a Ghostty on
  * another Mac over ssh; one on a second server a Ghostty window shows; one in
  * a Ghostty window of its own; one on a server gone; one whose window says
- * not where it is; and one away, no window holding it.
+ * not where it is; one whose window has gone quiet past its heartbeats; and
+ * one away, no window holding it.
  */
 const onScreens = (options: Parameters<typeof terminal>[0] = {}) => {
   const t = terminal({
@@ -71,6 +73,7 @@ const onScreens = (options: Parameters<typeof terminal>[0] = {}) => {
   })
   t.seed(GONE, { project: ELSEWHERE.key, seenAt: NOW, where: inTmux(GONE_SOCKET, '%1') })
   t.seed(UNSAID, { project: ELSEWHERE.key, seenAt: NOW })
+  t.seed(STALE, { seenAt: NOW - STALE_MS - 1, where: inTmux(SOCKET, '%1') })
   t.seed(AWAY)
 
   return t
@@ -101,6 +104,27 @@ test('screen --json says, by id, whether a jump could reach each session a windo
     ],
     unanswered: [],
   })
+})
+
+test('a session no live window holds is read no further than its heartbeats', async () => {
+  const t = onScreens()
+  const read: string[] = []
+  const { read: readFile } = t.io.fs
+
+  t.io.fs.read = path => {
+    read.push(path)
+
+    return readFile(path)
+  }
+  await t.run('screen', '--json')
+
+  for (const away of [AWAY.id, STALE.id]) {
+    expect(
+      read.filter(path => path.includes(`/${away}/`) && !path.includes('/presence/')),
+      away,
+    ).toEqual([])
+  }
+  expect(read.some(path => path.includes(`/${META.id}/`) && !path.includes('/presence/'))).toBe(true)
 })
 
 test('screen asks tmux twice for each socket and ps once, however many sessions run under them, and selects, writes and focuses nothing', async () => {

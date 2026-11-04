@@ -5,10 +5,12 @@
  */
 import {
   foldSession,
+  isLive,
   isSafeName,
   isSessionId,
   LOG_SUFFIX,
   parseMeta,
+  parsePresence,
   parseProject,
   PRESENCE_SUFFIX,
   projectFrom,
@@ -178,6 +180,38 @@ export const readProjects = async (
     sessions: sessions.map(summarise),
   }))
 
-/** Every session on the board, whole, as it stands at `now`. */
-export const readSessions = async (io: Io, root: string, now: number): Promise<Session[]> =>
-  (await readBoard(io, root, readAt(io, root, now))).flatMap(({ sessions }) => sessions)
+/** Whether a window holds the session at `now`: a heartbeat of its live, read before anything else of it. */
+const isHeld = async (io: Io, paths: SessionPaths, now: number) => {
+  const beats = await byWriter(io, paths.presence, await io.fs.list(paths.presence), PRESENCE_SUFFIX)
+
+  return Object.entries(beats).some(([writer, text]) => {
+    const beat = parsePresence(text, writer)
+
+    return beat !== undefined && isLive(beat, now)
+  })
+}
+
+/** A project's sessions a window holds at `now`, read whole; its file read only where it has any. */
+const heldIn = async (io: Io, root: string, key: string, now: number) => {
+  const ids = await sessionsFiled(io, root, key)
+  const held = await Promise.all(ids.map(id => isHeld(io, sessionPaths(root, key, id), now)))
+  const heldIds = ids.filter((_, i) => held[i])
+
+  if (heldIds.length === 0) {
+    return []
+  }
+
+  const read = readAt(io, root, now)
+  const text = await textAt(io, projectPaths(root, key).file)
+  const sessions = await Promise.all(heldIds.map(id => read(key, id, text)))
+
+  return sessions.flatMap(each => each.session ?? [])
+}
+
+/**
+ * Every session a window holds, whole, as it stands at `now`. Only a session
+ * whose heartbeats say a live window is read past them, so the cost follows
+ * the sessions open, not the board's history.
+ */
+export const readHeldSessions = async (io: Io, root: string, now: number): Promise<Session[]> =>
+  (await Promise.all((await projectKeys(io, root)).map(key => heldIn(io, root, key, now)))).flat()

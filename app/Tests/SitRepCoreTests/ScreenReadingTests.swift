@@ -13,8 +13,8 @@ struct ScreenReadingTests {
         #expect(reading.unanswered.isEmpty)
     }
 
-    @Test func aSessionNotListedIsUnknown() throws {
-        #expect(try ScreenReading.read(Lines.screen).onScreen(of: "sr-awayyy") == .unknown)
+    @Test func aSessionNotListedHasNoAnswerNotUnknown() throws {
+        #expect(try ScreenReading.read(Lines.screen).onScreen(of: "sr-awayyy") == nil)
     }
 
     @Test func whereTmuxGaveNoAnswerItsSessionsAreUnknownAndItIsNamed() throws {

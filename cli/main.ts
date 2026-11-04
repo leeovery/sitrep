@@ -28,7 +28,7 @@ import {
   type WindowCommand,
   type SessionCommand,
 } from './commands'
-import { findSession, readProjects, readSessions, textAt, type Found } from './files'
+import { findSession, readHeldSessions, readProjects, textAt, type Found } from './files'
 import { commandHelp, HELP } from './help'
 import type { Env, Io } from './io'
 import { jump } from './jump'
@@ -166,7 +166,7 @@ const onProjects = async (io: Io, command: ProjectsCommand, input: Fields) => {
 
 const onScreen = async (io: Io, command: ScreenCommand, input: Fields) => {
   const now = io.now()
-  const sessions = await readSessions(io, rootOf(io.env), now)
+  const sessions = await readHeldSessions(io, rootOf(io.env), now)
 
   return told(io, command.act(await readOnScreen(io, sessions, now), input))
 }

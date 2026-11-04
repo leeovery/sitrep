@@ -294,17 +294,19 @@ final class WindowModel {
     /// `sitrep screen`, where the run says a look is due, its answer told to the run, and drawn where it changed what
     /// the window knows; then the next look waited for.
     private func lookAtScreen() {
-        if run.looksAtScreen(at: Date()) {
-            Task {
-                let answer = await plugin.ask({ await $0.screen() }, unrun: ScreenAnswer.failed)
-
-                if run.looked(answer, at: Date()) {
-                    refresh()
-                }
-                lookAtScreen()
-            }
+        if let look = run.looksAtScreen(at: Date()) {
+            Task { [weak self] in await self?.runScreen(look) }
         }
         scheduleScreen()
+    }
+
+    private func runScreen(_ look: ScreenLook) async {
+        let answer = await plugin.ask({ await $0.screen() }, unrun: ScreenAnswer.failed)
+
+        if run.looked(answer, of: look, at: Date()) {
+            refresh()
+        }
+        lookAtScreen()
     }
 
     private func scheduleScreen() {

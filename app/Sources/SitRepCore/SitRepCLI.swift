@@ -38,8 +38,8 @@ public enum Answer: Sendable, Hashable {
 public struct SitRepCLI: Sendable {
     /// `answer`, `finish`, `snooze` and `wake` read and write one session's files, and run no program.
     static let sessionLimit: TimeInterval = 10
-    /// `screen --json` reads the board and asks tmux and `ps`, each given 2s and asked at once: under half a second
-    /// live, and never hanging over them.
+    /// `screen --json` reads the sessions a window holds and asks tmux and `ps`, each given 2s and asked at once: about
+    /// 0.2s of CPU over Lee's board, and never hanging over them.
     static let screenLimit: TimeInterval = 10
     /// Only a backstop for a CLI that hangs, well above any realistic jump
     /// (cli/jump.ts, cli/ghostty.ts, cli/front.ts, cli/tmux.ts, cli/apps.ts):

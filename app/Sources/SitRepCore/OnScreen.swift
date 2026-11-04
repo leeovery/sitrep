@@ -1,7 +1,7 @@
 import Foundation
 
-/// Whether a jump could reach a session: a terminal window of this Mac shows it, or tmux can make one show it; none
-/// does; or not known, as tmux or `ps` gave no answer for its windows, or nothing has said.
+/// Whether a jump could reach a session a window holds: a terminal window of this Mac shows it, or tmux can make one
+/// show it; none does; or not known, as tmux or `ps` gave no answer for its windows.
 public enum OnScreen: String, Decodable, Sendable {
     case on, off, unknown
 }
@@ -20,8 +20,8 @@ public struct ScreenReading: Versioned, Sendable, Equatable {
     /// `tmux`, `ps`, or neither.
     public let unanswered: [String]
 
-    /// Whether a jump could reach the session; unknown for one not listed, as no window holds it.
-    public func onScreen(of session: String) -> OnScreen {
-        sessions.first { $0.id == session }?.is ?? .unknown
+    /// Whether a jump could reach the session; none for one not listed, as no window holds it.
+    public func onScreen(of session: String) -> OnScreen? {
+        sessions.first { $0.id == session }?.is
     }
 }
