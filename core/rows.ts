@@ -8,9 +8,11 @@
  * A row is a session, which shows once, in one row.
  * - A session needing Lee is a row in Needs you, with a line for each ask
  *   waiting on Lee and each live window stopped on a permission prompt or a
- *   question, the oldest first; dimmed while no window holds it.
+ *   question, the newest first; dimmed while no window holds it.
  * - Else a session a window holds is a row of one line: working, where any
  *   of its windows is, else on its own work, both in Working; else your turn.
+ *   Your turn's section follows Needs you's, above the hairline, since it waits
+ *   on Lee too; Working's follows it.
  * - A session no window holds, with nothing waiting, has none: the SitRep
  *   window shows it. Nor has a finished one.
  *
@@ -37,8 +39,8 @@ export type SessionState = 'needsYou' | 'working' | 'onItsWork' | 'yourTurn' | '
 /** What a row's line is: an ask, a window's permission prompt or question, or a session whose window works, is on its own work, or waits on Lee's message. */
 export type RowKind = 'ask' | 'permission' | 'question' | 'working' | 'onItsWork' | 'yourTurn'
 
-/** Where a row sits: needing Lee; its window working or on its own work; or waiting on Lee's message. */
-export type Section = 'needsYou' | 'working' | 'yourTurn'
+/** Where a row sits: needing Lee; waiting on Lee's message; or its window working or on its own work. */
+export type Section = 'needsYou' | 'yourTurn' | 'working'
 
 /**
  * A line's words, in parts: what leads it, which a working line shimmers;
@@ -85,9 +87,9 @@ type Named = {
 
 export type Row = Named & {
   section: Section
-  /** In Needs you, a line for each ask and stop waiting on Lee, the oldest first; else the one of its turn. */
+  /** In Needs you, a line for each ask and stop waiting on Lee, the newest first; else the one of its turn. */
   lines: Line[]
-  /** When it began: its oldest line's. */
+  /** The instant its time counts from, which orders it in its section: its newest line's. */
   since: number
   /** On its own work, the soonest wake its window waits on, which orders it among the rest. */
   wakeAt?: number
@@ -335,8 +337,8 @@ const namedRow = (project: Project, session: Session, isAway: boolean): Named =>
   }
 }
 
-/** Lines, the oldest first. */
-const byAge = (a: Line, b: Line) => a.since - b.since || compareText(a.key, b.key)
+/** Lines, the newest first. */
+const byRecency = (a: Line, b: Line) => b.since - a.since || compareText(a.key, b.key)
 
 /**
  * A session's row at `now`: in Needs you, its asks waiting on Lee and its
@@ -362,15 +364,15 @@ export const rowOf = (project: Project, session: Session, now: number): Row | un
     ...held
       .filter(isStopped)
       .map(each => windowLine(`stop:${session.id}:${each.writer}:${each.state.since}`, each)),
-  ].sort(byAge)
-  const [oldest] = needs
+  ].sort(byRecency)
+  const [newest] = needs
 
-  if (oldest !== undefined) {
+  if (newest !== undefined) {
     return {
       ...namedRow(project, session, held.length === 0),
       section: 'needsYou',
       lines: needs,
-      since: oldest.since,
+      since: newest.since,
     }
   }
 
@@ -428,8 +430,9 @@ export const snoozedRowOf = (
       }
 }
 
-/** A Snoozed row's oldest line's time. */
-const oldestOf = (row: SnoozedRow) => Math.min(...row.lines.map(line => line.since))
+/** A row's oldest line's time: how long it has waited, in Needs you or Snoozed. */
+export const oldestOf = (row: { lines: readonly { since: number }[] }) =>
+  Math.min(...row.lines.map(line => line.since))
 
 /** Snoozed's rows, the soonest to wake first, then the oldest. */
 export const inSnoozedOrder = (rows: readonly SnoozedRow[]) =>
@@ -455,15 +458,15 @@ export const doingOf = (project: Project, session: Session, now: number): Doing 
 /** Whether a row in Working is on its own work, not working. */
 const isOwnWork = (row: Row) => row.lines[0]?.is === 'onItsWork'
 
-/** A row's group, in the panel's order: needing Lee, an away session's after; working, on its own work at its end; your turn. */
+/** A row's group, in the panel's order: needing Lee, an away session's after; your turn; working, on its own work at its end. */
 const groupOf = (row: Row) => {
   switch (row.section) {
     case 'needsYou':
       return row.isAway ? 1 : 0
-    case 'working':
-      return isOwnWork(row) ? 3 : 2
     case 'yourTurn':
-      return 4
+      return 2
+    case 'working':
+      return isOwnWork(row) ? 4 : 3
   }
 }
 
@@ -474,12 +477,12 @@ const byWake = (a: Row, b: Row) =>
     : a.wakeAt - b.wakeAt
 
 /**
- * Your turn's rows newest first; on its own work's soonest to wake first,
- * then oldest first; every other group's oldest first, so Needs you's by its
- * oldest line, and working's the longest running first.
+ * Needs you's rows newest first, by their newest lines, and your turn's;
+ * on its own work's soonest to wake first, then oldest first; working's the
+ * longest running first.
  */
 const bySince = (a: Row, b: Row) => {
-  if (a.section === 'yourTurn') {
+  if (a.section !== 'working') {
     return b.since - a.since
   }
 
