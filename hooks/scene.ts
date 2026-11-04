@@ -2,10 +2,8 @@
  * What the board and the band are drawn from, as plain data: the held
  * session, the sessions around it as last read, the window's own state, and
  * the time. Read inside a render hook, each read subscribes the drawing, so
- * a write draws it again. Whether Claude's turn only waits on its background
- * work is read from what the window has heard as this load holds it, not
- * from `$.state`, which every tool call writes: its change draws the board
- * again itself (doing.ts).
+ * a write draws it again; all but `waitsOnWork`, read from memory, which
+ * subscribes nothing: its changes draw the board again themselves.
  */
 import type { Timer } from 'claude-code'
 import { closingReply, isOpen, resolvedAsks, waitsOnWork, type Ask, type Session } from '../core'

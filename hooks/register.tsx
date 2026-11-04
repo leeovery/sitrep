@@ -136,6 +136,7 @@ const hostOf = ($: EngineInterface): Host => ({
     },
     tty: () => $.process.run(['/bin/sh', '-c', TTY_WALK], { timeoutMs: TTY_WALK_MS }),
   },
+  agents: () => $.agent.list(),
   plugin: {
     manifest: () => $.fs.read(`${$.plugin.root}/${MANIFEST}`),
   },
@@ -297,7 +298,7 @@ export const register: Register = on => {
   on('turn.start', async ($, e, next) => {
     const host = hostOf($)
 
-    await heardTurnStart(host)
+    await heardTurnStart(host, e.turnId)
     await heardTurn(host, e.text)
 
     return next(e)
@@ -321,6 +322,7 @@ export const register: Register = on => {
 
   // Every model request, the window's own loop's and its subagents', heard
   // as it goes, and the window's own as it is answered, passed on as it came.
+  // One cut short is no answer: it may settle after the next turn began.
   on('turn.step', async function* ($, e, next) {
     const host = hostOf($)
 
@@ -328,11 +330,9 @@ export const register: Register = on => {
 
     const response = yield* next(e)
 
-    if (e.agentId === undefined) {
-      await heardAnswer(host, response.toolUses)
+    if (e.agentId === undefined && !next.signal.aborted) {
+      await heardAnswer(host, e.turnId, response.toolUses.length > 0)
     }
-
-    return response
   })
 
   // Every call, the window's own and its subagents', sitrep's among them,

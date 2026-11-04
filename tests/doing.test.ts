@@ -3,7 +3,7 @@ import { expect, test, tier } from 'claude-code/testing'
 import { HEARTBEAT_MS, metaText, parsePresence, sessionPaths, type SessionPaths } from '../core'
 import { rewriteAt, STATE_MS } from '../hooks/doing'
 import type { SitrepActivity, SitrepAttachment } from '../types'
-import { META, T0, W1, W2 } from './support'
+import { AGENT, META, T0, W1, W2 } from './support'
 import { CONVERSATION, DASHBOARD, PROJECT, ROOT, startedId, world } from './world'
 
 tier('user')
@@ -49,9 +49,6 @@ const QUESTIONS = {
 }
 
 const REVIEW = { description: 'Review the diff', prompt: 'Review the change on this branch.' }
-
-/** A subagent's loop. */
-const AGENT = 'a1b2c3d4'
 
 test('a window that has had no turn yet is your turn since it attached', async ($, on) => {
   const w = world($, on)
@@ -513,6 +510,37 @@ test('a change that comes back to what the heartbeat says writes nothing', async
   await later(w)
 
   expect(beats(w, paths)).toBe(before)
+})
+
+test("model requests that leave what the window heard as it was, Claude's own at work and a subagent's after its first, write nothing and draw nothing again, at work or only waiting on that work", async ($, on) => {
+  const w = world($, on)
+  const heard = () => ({ writes: w.writes.activity, redraws: w.redraws() })
+
+  await w.begin()
+  w.lists(AGENT)
+  await w.turnStarts('Carry on.')
+  await w.steps({ tools: ['Agent'] })
+  await w.steps({ agentId: AGENT })
+  await w.clock.settle()
+
+  const atWork = heard()
+
+  await w.steps({ tools: ['Read'] })
+  await w.steps({ tools: ['Bash'] })
+  await w.steps({ agentId: AGENT })
+  await w.steps({ agentId: AGENT })
+  await w.clock.settle()
+  expect(heard(), 'at work').toEqual(atWork)
+
+  await w.steps()
+  await w.clock.settle()
+
+  const waiting = heard()
+
+  await w.steps({ agentId: AGENT })
+  await w.steps({ agentId: AGENT })
+  await w.clock.settle()
+  expect(heard(), 'only waiting on its background work').toEqual(waiting)
 })
 
 test('the beat says the state as it stands, every 30 seconds as before', async ($, on) => {

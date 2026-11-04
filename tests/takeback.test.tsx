@@ -7,15 +7,16 @@
  * work, which Claude Code holds open until that work ends, Ready to send
  * says so.
  */
-import type { On, SessionEndReason } from 'claude-code'
+import type { On, RenderPropsOf, SessionEndReason } from 'claude-code'
 import { expect, test, tier, type Mounted } from 'claude-code/testing'
 import { parseEntries, parsePresence, type SessionPaths } from '../core'
 import { QUIET_MS } from '../hooks/deliver'
 import { WATCH_MS } from '../hooks/window'
 import type { SitrepInFlight } from '../types'
 import { rowsOf } from './drawn'
-import { file, MIN, reply, SENDER, SLOW, W1 } from './support'
-import { ACROSS, CONVERSATION, postedId, world } from './world'
+import { HELD, sendingRows, sendingSays, WAITS_ON_WORK, WAITS_ON_WORK_SHORT } from './holding'
+import { AGENT, file, FORK, MIN, reply, SENDER, SLOW, W1 } from './support'
+import { ACROSS, CONVERSATION, DOCKED, postedId, world } from './world'
 
 tier('user')
 
@@ -27,24 +28,34 @@ const REVIEW = { wants: 'yes', yes: 'Approve', title: 'Review Sessions & Runway,
 
 const MESSAGE = 'From the board:\n- Review Sessions & Runway, round 1 → Approve'
 
-const HELD = "⧗ Waiting for Claude's turn to end."
-
-const WAITS_ON_WORK =
-  '⧗ Claude is waiting on its background work: this goes in when that ends. Type your answer in the prompt to reach Claude now.'
-
 const TAKE_BACK = 'take-back'
 
+const TAKE_BACK_LABEL = '↺ take back'
+
 /** The cells across a held send's line has on a docked board: Ready to send's border and padding, each side, and its take-back and the gap before it taken. */
-const BESIDE_TAKE_BACK = ACROSS - 4 - '↺ take back'.length - 1
+const BESIDE_TAKE_BACK = ACROSS - 4 - TAKE_BACK_LABEL.length - 1
 
-/** A subagent's loop. */
-const AGENT = 'a1b2c3d4'
+/** The rows Ready to send takes besides its lines: its border. */
+const BORDER = 2
 
-/** The rows of what Ready to send says of the send on its way, none with none. */
-const sendingRows = async (ui: Pick<Mounted, 'find'>) => rowsOf(await ui.find({ key: 'sending' }))
+/** The rows a docked board's header takes: the tabs, their rule, and the way back's row. */
+const HEADER = 3
 
-/** What Ready to send says of the send on its way, its rows joined. */
-const sendingSays = async (ui: Pick<Mounted, 'find'>) => (await sendingRows(ui)).join(' ')
+/** The board docked over a window `bodyRows` down and `bodyColumns` across. */
+const docked = (bodyRows: number, bodyColumns: number): RenderPropsOf['Pane'] => ({
+  ...DOCKED,
+  bodyColumns,
+  scroll: { offset: 0, bodyRows },
+})
+
+/** The most rows of a docked board's window Ready to send takes: under half. */
+const readyCap = (bodyRows: number) => Math.floor((bodyRows - 1) / 2)
+
+/** The rows of a docked board's list, between its header and Ready to send. */
+const listRows = async (ui: Pick<Mounted, 'findAll'>) =>
+  Number(
+    (await ui.findAll({ type: 'Box' })).find(box => box.props.overflow === 'hidden')?.props.height,
+  )
 
 /** What the window's own file holds once the message is written down, by its source. */
 const WRITTEN: Record<Source, string[]> = {
@@ -121,6 +132,7 @@ const turnEnded = async (w: World, how?: Parameters<World['turnEnds']>[0]) => {
 
 /** Claude's turn started, a subagent sent off from it into the background and at work, and Claude done: its turn only waits on that work. */
 const waitsOnItsWork = async (w: World) => {
+  w.lists(AGENT)
   await w.turnStarts('Carry on.')
   await w.steps({ tools: ['Agent'] })
   await w.steps({ agentId: AGENT })
@@ -341,7 +353,7 @@ test("send: while held, Ready to send says it waits for Claude's turn to end, wi
 
   expectHeld(w, 'send')
   expect(await ui.find({ type: 'Text', text: HELD }), 'what it waits for').toBeDefined()
-  expect(await ui.find({ key: TAKE_BACK, text: '↺ take back' }), 'its take-back').toBeDefined()
+  expect(await ui.find({ key: TAKE_BACK, text: TAKE_BACK_LABEL }), 'its take-back').toBeDefined()
   expect(await ui.find({ type: 'Text', text: '· on its way' }), 'its reply, on its way').toBeDefined()
   expect(await ui.find({ key: `unready:${key}` }), 'frozen while it goes').toBeUndefined()
   expect(await ui.find({ key: 'send' })).toBeUndefined()
@@ -383,7 +395,7 @@ test("send: held while Claude's turn only waits on its background work, Ready to
     (await sendingRows(ui)).filter(row => row.length > BESIDE_TAKE_BACK),
     'each row fits beside the take-back',
   ).toEqual([])
-  expect(await ui.find({ key: TAKE_BACK, text: '↺ take back' })).toBeDefined()
+  expect(await ui.find({ key: TAKE_BACK, text: TAKE_BACK_LABEL })).toBeDefined()
 
   await w.steps({ tools: ['Read'] })
   expect(await sendingSays(ui), 'a request of its own, as a delivery into the turn sets going').toBe(
@@ -414,6 +426,157 @@ test("send: Claude at work through a subagent of its own call, or done with noth
   await w.steps({ agentId: AGENT })
   expect(await sendingSays(ui), 'its own call runs the subagent').toBe(HELD)
   expectHeld(w, 'send')
+})
+
+test("send: a loop no list of the session's agents names, as the engine's own forks carry, is no background work: Claude done, the send waits for the turn to end", async ($, on) => {
+  const w = world($, on)
+  const { ui, claim } = await replying.send(w)
+
+  await w.turnStarts('Carry on.')
+  await w.steps({ agentId: FORK })
+  await w.steps()
+  await claim()
+  await w.clock.settle()
+
+  expect(await sendingSays(ui)).toBe(HELD)
+  expect(w.state.activity?.loops, 'counted for nothing').toEqual([])
+})
+
+const UNHEARD_ENDS = {
+  'lists it as killed': (w: World) => w.lists(AGENT, 'killed'),
+  'lists it no more': (w: World) => w.lists(AGENT, null),
+}
+
+for (const [ended, unlists] of Object.entries(UNHEARD_ENDS)) {
+  test(`send: a subagent whose end went unheard, the engine ${ended}, counts no more once Claude is done again: the send waits for the turn to end`, async ($, on) => {
+    const w = world($, on)
+    const { ui, claim } = await replying.send(w)
+
+    await waitsOnItsWork(w)
+    await claim()
+    expect(await sendingSays(ui)).toBe(WAITS_ON_WORK)
+
+    unlists(w)
+    await w.steps({ tools: ['Read'] })
+    await w.steps()
+    await w.clock.settle()
+    expect(await sendingSays(ui)).toBe(HELD)
+    expect(w.state.activity?.loops).toEqual([])
+  })
+}
+
+test("send: an answer to Claude's own request cut short as Lee stopped its turn, coming once the next turn runs, says nothing of that turn: the send waits for it to end", async ($, on) => {
+  const w = world($, on)
+  const { ui, claim } = await replying.send(w)
+  let answer = () => {}
+  const until = new Promise<void>(resolve => {
+    answer = resolve
+  })
+
+  w.lists(AGENT)
+  await w.turnStarts('Carry on.')
+
+  const late = w.steps({ until })
+
+  await w.turnEnds({ isAborted: true })
+  await w.turnStarts('Carry on.')
+  await w.steps({ tools: ['Agent'] })
+  await w.steps({ agentId: AGENT })
+  await w.steps({ tools: ['Read'] })
+  await claim()
+  expect(await sendingSays(ui)).toBe(HELD)
+
+  answer()
+  await late
+  await w.clock.settle()
+  expect(await sendingSays(ui), 'Claude still at work').toBe(HELD)
+  expect(w.state.activity?.isDone).toBeUndefined()
+})
+
+test("send: a request of Claude's own whose answer fails leaves Claude at work, not done: the send waits for the turn to end", async ($, on) => {
+  const w = world($, on)
+  const { ui, claim } = await replying.send(w)
+
+  await waitsOnItsWork(w)
+  await claim()
+  await w.steps({ fails: 'overloaded' }).catch(() => {})
+  await w.clock.settle()
+
+  expect(await sendingSays(ui)).toBe(HELD)
+  expect(w.state.activity?.isDone).toBeUndefined()
+})
+
+test("send: whether Claude's turn only waits on its background work, changed, draws the board again of itself, nothing written but the window's own state", async ($, on) => {
+  const w = world($, on)
+  const { ui, claim } = await replying.send(w)
+
+  w.lists(AGENT)
+  await w.turnStarts('Carry on.')
+  await w.steps({ tools: ['Agent'] })
+  await w.steps({ agentId: AGENT })
+  await claim()
+  await w.clock.settle()
+  expect(await sendingSays(ui)).toBe(HELD)
+
+  for (const [plan, says] of [
+    [{}, WAITS_ON_WORK],
+    [{ tools: ['Read'] }, HELD],
+  ] as const) {
+    const before = { writes: { ...w.writes }, redraws: w.redraws() }
+
+    await w.steps(plan)
+    await w.clock.settle()
+    expect(await sendingSays(ui)).toBe(says)
+    expect({ writes: w.writes, redraws: w.redraws() }, says).toEqual({
+      writes: { ...before.writes, activity: (before.writes.activity ?? 0) + 1 },
+      redraws: before.redraws + 1,
+    })
+  }
+})
+
+/**
+ * Docked windows, tall and short, as wide as the tests' own and narrower,
+ * and how a held send's line reads in each while Claude's turn only waits on
+ * its background work: whole beside its take-back, whole over it, or short.
+ */
+const ROOMS = [
+  { bodyRows: 30, bodyColumns: 56, says: WAITS_ON_WORK, isBelow: false },
+  { bodyRows: 20, bodyColumns: 56, says: WAITS_ON_WORK_SHORT, isBelow: false },
+  { bodyRows: 14, bodyColumns: 56, says: WAITS_ON_WORK_SHORT, isBelow: false },
+  { bodyRows: 30, bodyColumns: 32, says: WAITS_ON_WORK, isBelow: true },
+  { bodyRows: 30, bodyColumns: 26, says: WAITS_ON_WORK_SHORT, isBelow: false },
+  { bodyRows: 40, bodyColumns: 26, says: WAITS_ON_WORK, isBelow: true },
+  { bodyRows: 14, bodyColumns: 26, says: WAITS_ON_WORK_SHORT, isBelow: false },
+]
+
+test("send: held while Claude's turn only waits on its background work, Ready to send keeps to the rows a docked board gives it: its line whole where they hold it, its take-back under it where that takes fewer rows, else short; the list keeps rows of its own", async ($, on) => {
+  const w = world($, on)
+  const { ui, claim } = await replying.send(w)
+
+  await waitsOnItsWork(w)
+  await claim()
+
+  for (const { bodyRows, bodyColumns, says, isBelow } of ROOMS) {
+    const room = `${bodyColumns} across, ${bodyRows} down`
+
+    await ui.redraw(docked(bodyRows, bodyColumns))
+
+    const drawn = rowsOf(await ui.find({ key: 'ready' }))
+    const list = await listRows(ui)
+
+    expect(await sendingSays(ui), room).toBe(says)
+    expect(drawn.length + BORDER, `${room}: Ready to send's rows`).toBeLessThanOrEqual(
+      readyCap(bodyRows),
+    )
+    expect(list, `${room}: the list's rows`).toBeGreaterThan(0)
+    expect(bodyRows - HEADER - list, `${room}: the rows Ready to send is given`).toBe(
+      drawn.length + BORDER,
+    )
+    expect(
+      drawn.some(row => row.trim() === TAKE_BACK_LABEL),
+      `${room}: the take-back on a row of its own`,
+    ).toBe(isBelow)
+  }
 })
 
 test("send: taken back while Claude's turn only waits on its background work, its replies are back in Ready to send, and nothing goes as the turn ends", async ($, on) => {

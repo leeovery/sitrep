@@ -164,6 +164,8 @@ export type SitrepStop = { call: string; at: number; agentId?: string } & (
 export type SitrepActivity = {
   loadedAt?: number
   turnAt?: number
+  /** The running turn's id, as its start gave it. */
+  turnId?: string
   endedAt?: number
   tools: { call: string; tool: SitrepToolShown }[]
   asked: { call: string; tool: string; input: { [argument: string]: string }; agentId?: string }[]

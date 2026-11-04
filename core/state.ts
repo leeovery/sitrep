@@ -30,18 +30,13 @@
  * ending clears that subagent's, so one whose end the window never heard (a
  * reload while it waited) cannot hold it for ever, and one loop's turn
  * never clears another's stop.
- *
- * Its model's requests say whether the turn only waits on background work
- * (`waitsOnWork`), which no state shows: a subagent's first request says
- * its loop runs, until its turn ends; a request of the window's own loop
- * answered asking for no tool leaves that loop done inside its turn, until
- * a request of its own goes or asks for a tool, or the turn ends.
  */
 import { isCount, isFilled, isObject, isTime } from './entries'
 import { QUESTION_TOOL, questionShown, toolShown } from './subject'
 import { compareText } from './text'
 import type { QuestionShown, StateKind, ToolShown, WindowState, Work } from './types'
 import {
+  isAgentTask,
   parseWatch,
   parseWork,
   watchesLeft,
@@ -69,6 +64,8 @@ export type Asked = { call: string; tool: string; input: Digests; agentId?: stri
 export type Activity = {
   /** When the running turn began; none between turns. */
   turnAt?: number
+  /** The running turn's id, as its start gave it; none between turns. */
+  turnId?: string
   /** When the last turn ended; none before the first. */
   endedAt?: number
   /** The tools the window's own loop runs, the latest started last. */
@@ -81,7 +78,7 @@ export type Activity = {
   work?: Work
   /** The monitors heard started, as far as a Stop lists them still running. */
   watches: Watch[]
-  /** The subagents' loops heard running: each from its first request until its turn ends. */
+  /** The subagents' loops heard running, each from its first request until its turn ends, as far as the engine lists them running when it matters (`waitsOnWork`). */
   loops: string[]
   /** The window's own loop done inside its running turn: its latest request answered asked for no tool, and none has gone since. */
   isDone?: true
@@ -102,9 +99,10 @@ const others = (activity: Activity, agentId: string | undefined) => ({
   stops: activity.stops.filter(stop => stop.agentId !== agentId),
 })
 
-/** The window's turn starting: its own loop's tools, candidates and stops are cleared, a subagent's kept, and what was pending is done with: it woke the window, or Lee did. */
-export const turnStarted = (activity: Activity, at: number): Activity => ({
+/** The window's turn starting, with its id where given: its own loop's tools, candidates and stops are cleared, a subagent's kept, and what was pending is done with: it woke the window, or Lee did. */
+export const turnStarted = (activity: Activity, at: number, turnId?: string): Activity => ({
   turnAt: at,
+  ...(turnId === undefined ? {} : { turnId }),
   tools: [],
   ...others(activity, undefined),
   watches: activity.watches,
@@ -143,8 +141,17 @@ export const stepStarted = (activity: Activity, agentId?: string): Activity => {
     : { ...activity, loops: [...activity.loops, agentId] }
 }
 
-/** A request of the window's own loop answered: asking for a tool, the loop is at work; for none, done inside its turn. The activity itself where nothing changes. */
-export const stepAnswered = (activity: Activity, isAsking: boolean): Activity => {
+/**
+ * A request of the window's own loop answered, in the turn `turnId` names:
+ * asking for a tool, the loop is at work; for none, done inside its turn.
+ * One of another turn, as a request cut short answers after the next turn
+ * began, changes nothing. The activity itself where nothing changes.
+ */
+export const stepAnswered = (activity: Activity, turnId: string, isAsking: boolean): Activity => {
+  if (turnId !== activity.turnId) {
+    return activity
+  }
+
   if (isAsking) {
     return atWork(activity)
   }
@@ -152,11 +159,20 @@ export const stepAnswered = (activity: Activity, isAsking: boolean): Activity =>
   return activity.isDone === true ? activity : { ...activity, isDone: true }
 }
 
+/** The subagents' loops the engine lists as running, of those heard: the activity itself where it lists them all. */
+export const loopsRunning = (activity: Activity, running: readonly string[]): Activity =>
+  activity.loops.every(loop => running.includes(loop))
+    ? activity
+    : { ...activity, loops: activity.loops.filter(loop => running.includes(loop)) }
+
 /**
  * Whether the main conversation's turn only waits on its background work:
- * it runs, its own loop done, while a subagent's loop runs. Claude Code
- * holds such a turn open until that work ends, and a prompt the mod
- * submits goes in only then.
+ * it runs, its own loop is done (its latest request in the turn answered
+ * asking for no tool), and a subagent's loop runs (heard from its first
+ * request until its own turn ends, and listed by the engine as running
+ * whenever this comes to hold or its loops change). Claude Code holds such
+ * a turn open until that work ends, and a prompt the mod submits goes in
+ * only then.
  */
 export const waitsOnWork = (activity: Activity) =>
   activity.turnAt !== undefined && activity.isDone === true && activity.loops.length > 0
@@ -164,16 +180,19 @@ export const waitsOnWork = (activity: Activity) =>
 /**
  * The window's turn stopping, its Stop not blocked, at `at`: what it lists
  * pending replaces what was, and nothing pending clears it; the monitors it
- * no longer lists are done with.
+ * no longer lists are done with, and the subagents' loops too where it
+ * lists no subagent at all.
  */
 export const turnStopped = (activity: Activity, pending: Pending, at: number): Activity => {
   const { work: _, ...rest } = activity
   const work = workOf(pending, activity.watches, at)
+  const isAgentLeft = pending.tasks === undefined || pending.tasks.some(isAgentTask)
 
   return {
     ...rest,
     ...(work === undefined ? {} : { work }),
     watches: watchesLeft(activity.watches, pending),
+    loops: isAgentLeft ? activity.loops : [],
   }
 }
 
@@ -444,6 +463,7 @@ export const parseActivity = (raw: unknown): Activity => {
 
   return {
     ...(isTime(raw.turnAt) ? { turnAt: raw.turnAt } : {}),
+    ...(isFilled(raw.turnId) ? { turnId: raw.turnId } : {}),
     ...(isTime(raw.endedAt) ? { endedAt: raw.endedAt } : {}),
     tools: listOf(raw.tools, parseRunning),
     asked: listOf(raw.asked, parseAsked),

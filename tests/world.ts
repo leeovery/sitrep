@@ -5,6 +5,7 @@
  * folder.
  */
 import type {
+  AgentStatus,
   ClassicEventOf,
   ClassicResultOf,
   ElementTable,
@@ -136,6 +137,9 @@ type File = { text: string; mtimeMs: number }
 
 /** The kinds of look the mod takes at a path. */
 type Look = 'read' | 'exists' | 'list'
+
+/** How the model answers a request: asking for the tools named, once `until` settles where given, or failing for `fails`. */
+type Plan = { tools: readonly string[]; until?: Promise<void>; fails?: string }
 
 const MISSING = (path: string) => ({ deny: `ENOENT: no such file or directory, ${path}` })
 
@@ -371,12 +375,20 @@ export function world(engine: Engine, on: On, options: Options = {}) {
   on('turn.start', ($, e) => ({ turnId: e.turnId }))
   on('turn.complete', ($, e) => ({ text: e.answer }))
 
-  /** The tools the model asks for at its next request. */
-  let asking: readonly string[] = []
+  /** How the model answers each request, by its index: the tools it asks for, what it waits on first, or why it fails instead. */
+  const plans = new Map<number, Plan>()
 
-  // The model: each request answered whole, asking for the tools a test gives.
+  // The model: each request answered whole, as its plan has it.
   on('turn.step', async function* ($, e) {
-    const toolUses = asking.map(name => ({ name, input: {} }))
+    const plan = plans.get(e.index) ?? { tools: [] }
+
+    await plan.until
+
+    if (plan.fails !== undefined) {
+      throw new Error(plan.fails)
+    }
+
+    const toolUses = plan.tools.map(name => ({ name, input: {} }))
 
     return {
       turnId: e.turnId,
@@ -387,6 +399,27 @@ export function world(engine: Engine, on: On, options: Options = {}) {
       usage: null,
     }
   })
+
+  /** The session's agents as the engine lists them: where each one's loop stands, by its id. */
+  const agents = new Map<string, AgentStatus>()
+
+  on('agent.list', () => ({
+    value: [...agents].map(([id, status]) => ({
+      id,
+      description: 'Review the diff',
+      type: 'general-purpose',
+      status,
+    })),
+  }))
+
+  /** The engine lists the agent from here on as standing so: given no status, as running; given null, not at all. */
+  const lists = (agentId: string, status: AgentStatus | null = 'running') => {
+    if (status === null) {
+      agents.delete(agentId)
+    } else {
+      agents.set(agentId, status)
+    }
+  }
 
   on('classic.SessionStart', () => ({}))
   on('prompt.context', ($, e) => ({ blocks: e.blocks }))
@@ -403,6 +436,15 @@ export function world(engine: Engine, on: On, options: Options = {}) {
     logs.push(e.text)
 
     return { value: undefined }
+  })
+
+  /** How many times the mod had the board and the band drawn again of itself, as a change no `$.state` write draws needs. */
+  let redraws = 0
+
+  on('ui.invalidate', ($, e, next) => {
+    redraws += e.event === 'ui.render' ? 1 : 0
+
+    return next(e)
   })
 
   on('state.set', ($, input, next) => {
@@ -725,17 +767,20 @@ export function world(engine: Engine, on: On, options: Options = {}) {
   }
 
   /**
-   * A model request of the main conversation's turn, or of a subagent's
-   * given its id, sent and answered whole, asking for the tools named: with
-   * none, the loop has nothing more to do.
+   * A model request of the main conversation's turn as it stands, or of a
+   * subagent's given its id, sent and answered whole as `how` plans it:
+   * asking for the tools named, with none the loop having nothing more to
+   * do; once `until` settles, as an answer cut short comes late; or failing.
    */
   let requests = 0
-  const steps = async (how: { tools?: readonly string[]; agentId?: string } = {}) => {
-    asking = how.tools ?? []
+  const steps = async (how: Partial<Plan> & { agentId?: string } = {}) => {
+    const index = requests++
+
+    plans.set(index, { tools: how.tools ?? [], until: how.until, fails: how.fails })
 
     const response = engine.turn.step({
       turnId: `turn-${turns}`,
-      index: requests++,
+      index,
       model: 'claude-opus-5-5',
       messageCount: 1,
       ...(how.agentId === undefined ? {} : { agentId: how.agentId }),
@@ -786,6 +831,7 @@ export function world(engine: Engine, on: On, options: Options = {}) {
     state,
     boards,
     writes,
+    redraws: () => redraws,
     logs,
     listed,
     unlisted,
@@ -814,6 +860,7 @@ export function world(engine: Engine, on: On, options: Options = {}) {
     become,
     turnStarts,
     steps,
+    lists,
     turnEnds,
     opened,
     pane,

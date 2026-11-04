@@ -45,6 +45,9 @@ const HELD = "⧗ Waiting for Claude's turn to end."
 const WAITS_ON_WORK =
   '⧗ Claude is waiting on its background work: this goes in when that ends. Type your answer in the prompt to reach Claude now.'
 
+/** The same, in a row, where Ready to send has no room for the whole. */
+const WAITS_ON_WORK_SHORT = "⧗ Waiting on Claude's background work."
+
 /** A send submitted, beyond taking back. */
 const SENDING = '⧗ Sending.'
 
@@ -115,8 +118,15 @@ type Listed = Queued | Sent
 /** One destination: the session, where the replies sent to it stand there, and the replies listed for it. */
 type Group = { filed: Filed; standing?: Delivery; listed: Listed[] }
 
-/** The line saying a send of Lee's is on its way, as the rows it takes, and whether the window holds it for Claude's turn to end, to be taken back. */
-type Sending = { rows: readonly string[]; isHeld: boolean }
+/**
+ * The line saying a send of Lee's is on its way, as the rows it takes, and,
+ * while the window holds it for Claude's turn to end, where its take-back
+ * sits: beside its rows, or on a row of its own under them.
+ */
+type Sending = { rows: readonly string[]; takeBack?: 'beside' | 'below' }
+
+/** The line saying a send is on its way as it reads where room is short, and as it reads whole where that is longer. */
+type SendingForms = { short: Sending; whole?: Sending }
 
 /** Ready to send as the box draws it. */
 export type Ready = {
@@ -183,12 +193,15 @@ const listedIn = (groups: readonly Group[]) =>
 const groupRows = (groups: readonly Group[]) =>
   groups.length * GROUP_ROWS + listedIn(groups) * REPLY_ROWS
 
+/** The rows a line saying a send is on its way takes: its own, and its take-back's under them. */
+const sendingRows = ({ rows, takeBack }: Sending) => rows.length + (takeBack === 'below' ? 1 : 0)
+
 const controlsRows = ({ waiting, sending }: Ready) => {
   if (waiting === 0) {
     return 0
   }
 
-  return GAP_ROWS + (sending?.rows.length ?? 1)
+  return GAP_ROWS + (sending === undefined ? 1 : sendingRows(sending))
 }
 
 /** The rows the box takes: each of its lines one, and its border. */
@@ -230,29 +243,61 @@ const fitted = (groups: readonly Group[], room: number) => {
   return kept
 }
 
+/** Words wrapped beside a held send's take-back, or across the box over it, whichever takes fewer rows. */
+const heldWrapped = (text: string, width: number): Sending => {
+  const beside: Sending = {
+    rows: wrapped(text, width - BOX_SIDES - TAKE_BACK_CELLS),
+    takeBack: 'beside',
+  }
+  const below: Sending = { rows: wrapped(text, width - BOX_SIDES), takeBack: 'below' }
+
+  return sendingRows(below) < sendingRows(beside) ? below : beside
+}
+
 /**
- * The line saying a send of Lee's is on its way: held, beside its take-back,
- * one row cut short, or, while Claude's turn only waits on its background
- * work, wrapped; submitted, wrapped. None with no send on its way.
+ * The line saying a send of Lee's is on its way: held, one row cut short
+ * beside its take-back, and, while Claude's turn only waits on its
+ * background work, its whole words wrapped as well; submitted, wrapped.
+ * None with no send on its way.
  */
-const sendingOf = ({ inFlight, waitsOnWork }: Scene, width: number): Sending | undefined => {
+const sendingOf = ({ inFlight, waitsOnWork }: Scene, width: number): SendingForms | undefined => {
   if (inFlight?.source !== 'send') {
     return undefined
   }
 
   if (!inFlight.isHeld) {
-    return { rows: wrapped(SENDING, width - BOX_SIDES), isHeld: false }
+    return { short: { rows: wrapped(SENDING, width - BOX_SIDES) } }
   }
 
   return waitsOnWork
-    ? { rows: wrapped(WAITS_ON_WORK, width - BOX_SIDES - TAKE_BACK_CELLS), isHeld: true }
-    : { rows: [HELD], isHeld: true }
+    ? {
+        short: { rows: [WAITS_ON_WORK_SHORT], takeBack: 'beside' },
+        whole: heldWrapped(WAITS_ON_WORK, width),
+      }
+    : { short: { rows: [HELD], takeBack: 'beside' } }
+}
+
+/** Ready to send in at most `rows` rows, the line saying a send is on its way as given: the groups that fit. */
+const fittedIn = (groups: readonly Group[], sending: Sending | undefined, rows: number): Ready => {
+  const frame: Ready = {
+    groups: [],
+    waiting: groups.reduce(
+      (sum, group) => sum + group.listed.filter(listed => 'queued' in listed).length,
+      0,
+    ),
+    more: 0,
+    sending,
+  }
+  const kept = fitted(groups, rows - readyRows(frame))
+
+  return { ...frame, groups: kept, more: listedIn(groups) - listedIn(kept) }
 }
 
 /**
  * Ready to send as it draws `width` cells across in at most `rows` rows,
- * however few: its heading and buttons always show. Undefined while
- * nothing waits in it or is on its way.
+ * however few: its heading and buttons always show. A send's line reads
+ * whole only in the rows left once the replies that fit have theirs.
+ * Undefined while nothing waits in it or is on its way.
  */
 export const readyOf = (scene: Scene, width: number, rows = Infinity): Ready | undefined => {
   const groups = groupsOf(scene)
@@ -261,18 +306,16 @@ export const readyOf = (scene: Scene, width: number, rows = Infinity): Ready | u
     return undefined
   }
 
-  const frame: Ready = {
-    groups: [],
-    waiting: groups.reduce(
-      (sum, group) => sum + group.listed.filter(listed => 'queued' in listed).length,
-      0,
-    ),
-    more: 0,
-    sending: sendingOf(scene, width),
-  }
-  const kept = fitted(groups, rows - readyRows(frame))
+  const sending = sendingOf(scene, width)
+  const ready = fittedIn(groups, sending?.short, rows)
 
-  return { ...frame, groups: kept, more: listedIn(groups) - listedIn(kept) }
+  if (sending?.whole === undefined) {
+    return ready
+  }
+
+  const grown = readyRows(ready) - sendingRows(sending.short) + sendingRows(sending.whole)
+
+  return grown <= rows ? { ...ready, sending: sending.whole } : ready
 }
 
 /** A line of the box, cut short at the edge. */
@@ -385,12 +428,16 @@ const drawGroup = (d: Drawing, { filed, standing, listed }: Group) => {
   )
 }
 
-/** The line saying a send is on its way, in the controls' place, its rows one under another; held, its take-back beside it. */
-const drawSending = (d: Drawing, { rows, isHeld }: Sending) => {
+/** The line saying a send is on its way, in the controls' place, its rows one under another; held, its take-back beside them or under them. */
+const drawSending = (d: Drawing, { rows, takeBack }: Sending) => {
   const { Box, Text, Button } = d.els
 
   return (
-    <Box flexDirection="row" columnGap={1} paddingTop={GAP_ROWS}>
+    <Box
+      flexDirection={takeBack === 'below' ? 'column' : 'row'}
+      columnGap={1}
+      paddingTop={GAP_ROWS}
+    >
       <Box key={SENDING_KEY} flexDirection="column" flexGrow={1} flexShrink={1}>
         {rows.map((row, i) => (
           <Text key={`${SENDING_KEY}:${i}`} color={C.grey} italic wrap="truncate-end">
@@ -398,7 +445,7 @@ const drawSending = (d: Drawing, { rows, isHeld }: Sending) => {
           </Text>
         ))}
       </Box>
-      {isHeld && (
+      {takeBack !== undefined && (
         <Button
           key={TAKE_BACK}
           plain

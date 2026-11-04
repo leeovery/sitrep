@@ -12,11 +12,28 @@
  * load last saw. A miss is another load's write: an earlier load's is
  * written over, and a later load's means this load is stale (load.ts), and
  * writes no more.
+ *
+ * An earlier load that left the turn only waiting on background work left
+ * subagents' loops that may have ended since: the engine's list says which
+ * still run, and the board, which may have drawn before this loaded, is
+ * drawn again.
  */
-import { isBetweenTurns, isTime, parseActivity, QUIET, type Activity } from '../core'
+import type { AgentStatus } from 'claude-code'
+import {
+  isBetweenTurns,
+  isTime,
+  loopsRunning,
+  parseActivity,
+  QUIET,
+  waitsOnWork,
+  type Activity,
+} from '../core'
 import type { SitrepActivity } from '../types'
 import { logFailure, type Host } from './host'
 import { isLater, isSuperseded, loadedNow, supersede } from './load'
+
+/** Where an agent's loop stands while it runs: at a turn, or on background work of its own. */
+const RUNNING: ReadonlySet<AgentStatus> = new Set(['running', 'waiting'])
 
 let known: Activity | undefined
 
@@ -31,11 +48,30 @@ const see = ({ value, version }: { value?: SitrepActivity; version: number }) =>
   seen = { version, loadedAt: isTime(value?.loadedAt) ? value.loadedAt : undefined }
 }
 
+/** The agents the engine lists as running, by id: none where it cannot list them, so nothing it does not vouch for counts. */
+export const runningAgents = async (host: Host) => {
+  try {
+    return (await host.agents()).filter(agent => RUNNING.has(agent.status)).map(agent => agent.id)
+  } catch (error) {
+    logFailure(host, 'listing the agents')(error)
+
+    return []
+  }
+}
+
+/** What an earlier load heard, its loops as the engine lists them where it left the turn only waiting on background work. */
+const takenUp = async (host: Host, kept: Activity) =>
+  waitsOnWork(kept) ? loopsRunning(kept, await runningAgents(host)) : kept
+
 const load = (host: Host) =>
   (loading ??= host.state.activity.get().then(
-    read => {
+    async read => {
       see(read)
-      known ??= parseActivity(read.value)
+      known ??= await takenUp(host, parseActivity(read.value))
+
+      if (waitsOnWork(known)) {
+        host.ui.redraw()
+      }
     },
     (error: unknown) => {
       logFailure(host, "reading the window's state")(error)
