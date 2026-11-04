@@ -68,9 +68,12 @@ private struct WordsStyle: ButtonStyle {
     }
 }
 
-/// A raised chip in a hairline, lifted under the pointer; faint while its jump runs.
+/// Outlined in a hairline, as A1 and A2 revised draw it, filled and lifted under the pointer; faint while its jump
+/// runs.
 private struct JumpStyle: ButtonStyle {
-    static let radius: CGFloat = 7
+    static let radius: CGFloat = 8
+    /// Its hairline at rest.
+    private static let ring = Color(hex: 0x3A3A40)
 
     @Environment(\.isEnabled) private var isEnabled
 
@@ -79,8 +82,8 @@ private struct JumpStyle: ButtonStyle {
             let shape = RoundedRectangle(cornerRadius: Self.radius)
 
             configuration.label
-                .background(shape.fill(highlight == .none ? WindowStyle.raise : WindowStyle.option))
-                .overlay(shape.strokeBorder(highlight == .none ? WindowStyle.line : WindowStyle.ringLift, lineWidth: 1))
+                .background(shape.fill(highlight == .none ? Color.clear : WindowStyle.option))
+                .overlay(shape.strokeBorder(highlight == .none ? Self.ring : WindowStyle.ringLift, lineWidth: 1))
                 .contentShape(shape)
                 .opacity(isEnabled ? 1 : 0.45)
         }

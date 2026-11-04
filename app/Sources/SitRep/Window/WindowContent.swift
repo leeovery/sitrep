@@ -30,7 +30,7 @@ struct WindowActions: Sendable {
     var press: @MainActor @Sendable (Card.Button, AskAddress) -> Void = { _, _ in }
     /// A project's ask opened in place, or closed back.
     var toggle: @MainActor @Sendable (AskAddress) -> Void = { _ in }
-    /// An item of Status, Notes, Parked or Resolved opened in place, or closed again.
+    /// An item opened in place, or closed again (`Item`).
     var toggleItem: @MainActor @Sendable (Item) -> Void = { _ in }
     /// To the session's window: "Open in Ghostty ↗", and a stop's "Answer in Claude ↗".
     var jump: @MainActor @Sendable (JumpPress) -> Void = { _ in }
@@ -90,7 +90,10 @@ struct PageColumn: View {
                 .font(WindowStyle.ui(14))
                 .foregroundStyle(WindowStyle.faint)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-        case let .detail(session), let .session(session):
+        case let .detail(session):
+            Scrolling { SessionPageView(page: session, now: now).padding(.horizontal, WindowStyle.detailInset) }
+                .id(Pick.session(session.id))
+        case let .session(session):
             Scrolling { SessionPageView(page: session, now: now).padding(.horizontal, WindowStyle.pageInset) }
                 .id(Pick.session(session.id))
         case let .project(project):

@@ -68,7 +68,7 @@ enum WindowStyle {
     /// The sidebar, and the list beside the page, as Paper's "Window redesign" draws them (A1 revised).
     static let boardWidth: CGFloat = 236
     static let listWidth: CGFloat = 300
-    static let pageInset: CGFloat = 44
+    static let pageInset: CGFloat = 40
     /// The band under the window's toolbar, beside the traffic lights, which the toolbar sets 26 points down: empty on
     /// the page, which starts under it.
     static let barHeight: CGFloat = 52

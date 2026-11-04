@@ -6,12 +6,14 @@ import SwiftUI
 /// what its words are; its buttons, Snooze after them; and where Lee's answer is. One closed while it showed keeps its
 /// place, faint and without buttons, saying how it closed. One asleep is quieted, as Paper's board H draws it, on a
 /// darker card in a faint ring, its dot grey and unlit, its title soft, and in its buttons' place when it wakes, with
-/// Wake now. Opened in place in a project's view, its head, and only its head, closes it again. To VoiceOver it is a
-/// container named by its title, which it says once, its buttons inside it.
+/// Wake now. Opened in place in a project's view, its head, and only its head, closes it again. Leading the detail
+/// beside the list, as the line picked, it is larger (A1 revised). To VoiceOver it is a container named by its title,
+/// which it says once, its buttons inside it.
 struct CardView: View {
     let card: Card
     var session: String?
     let now: Date
+    var leads = false
     var closesBack: (() -> Void)?
 
     @Environment(\.windowActions) private var act
@@ -41,9 +43,10 @@ struct CardView: View {
                     CardLine(line: line, now: now)
                 }
             }
-            .padding(.top, 13)
-            .padding(.bottom, 14)
-            .padding(.horizontal, 14)
+            .padding(.top, leads ? 18 : 13)
+            .padding(.bottom, leads ? 18 : 14)
+            .padding(.leading, leads ? 18 : 14)
+            .padding(.trailing, leads ? 20 : 14)
             .frame(maxWidth: .infinity, alignment: .leading)
             .modifier(Washed(since: card.washed, now: now, radius: 14))
             .background(RoundedRectangle(cornerRadius: 14).fill(fill))
@@ -56,8 +59,8 @@ struct CardView: View {
         HStack(spacing: 10) {
             ClosedTick(colour: WindowStyle.text)
             titled(WindowStyle.faint)
-                .font(WindowStyle.ui(14, .semibold))
-                .spacing(-0.01, of: 14)
+                .font(WindowStyle.ui(titleSize, .semibold))
+                .spacing(-0.01, of: titleSize)
                 .lineLimit(1)
                 .accessibilityHidden(true)
             Text(Words.closed(.sent))
@@ -70,6 +73,9 @@ struct CardView: View {
     }
 
     private var isAsleep: Bool { card.snoozedUntil != nil }
+
+    /// Its title's size: as A2 revised draws a card, or larger leading the detail, as A1 revised draws it.
+    private var titleSize: CGFloat { leads ? 18 : 15 }
 
     /// Behind it: the raise; nothing once closed, in its ring; asleep, the darker card in its faint ring.
     private var fill: Color {
@@ -88,8 +94,8 @@ struct CardView: View {
                 MarkView(mark: card.mark)
             }
             titled(card.isClosed ? WindowStyle.faint : isAsleep ? WindowStyle.soft : WindowStyle.text)
-                .font(WindowStyle.ui(14, .semibold))
-                .spacing(-0.01, of: 14)
+                .font(WindowStyle.ui(titleSize, .semibold))
+                .spacing(-0.01, of: titleSize)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .accessibilityHidden(true)
             Text(Words.age(card.since, at: now)).font(WindowStyle.ui(12)).foregroundStyle(WindowStyle.faint)
@@ -123,11 +129,11 @@ struct CardView: View {
                     Text("needs:").foregroundStyle(WindowStyle.faint)
                     Text(needs).foregroundStyle(WindowStyle.soft)
                 }
-                .font(WindowStyle.ui(12))
+                .font(WindowStyle.ui(13))
                 .padding(.leading, 22)
             }
             if let place = card.where {
-                Text(place).font(WindowStyle.ui(12)).foregroundStyle(WindowStyle.soft).padding(.leading, 22)
+                Text(place).font(WindowStyle.ui(13)).foregroundStyle(WindowStyle.soft).padding(.leading, 22)
             }
         }
     }
