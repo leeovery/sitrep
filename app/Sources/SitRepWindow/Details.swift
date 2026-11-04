@@ -33,8 +33,6 @@ struct Details: Equatable, Sendable {
     /// What `sitrep snooze` or `wake` refused, by the ask, for its card to say until it is pressed again or another
     /// page is picked.
     private var unslept: [AskAddress: Card.Line] = [:]
-    /// The asks opened in place in a project's view.
-    private var opened: Set<AskAddress> = []
     /// The items of Status, Notes, Parked and Resolved opened in place.
     private var openedItems: Set<Item> = []
 
@@ -94,7 +92,6 @@ struct Details: Equatable, Sendable {
     /// cards said of refusals, and of a finish asked about.
     mutating func turnPage() {
         frozen = [:]
-        opened = []
         openedItems = []
         unslept = [:]
         answers.forgetRefusals()
@@ -212,23 +209,11 @@ struct Details: Equatable, Sendable {
 
     // MARK: Opening in place
 
-    /// An ask in a project's view opened in place into its card, or closed back to its line.
-    mutating func toggle(_ ask: AskAddress) {
-        if opened.remove(ask) == nil {
-            opened.insert(ask)
-        }
-    }
-
     /// An item of Status, Notes, Parked or Resolved opened in place to the whole of it, or closed again.
     mutating func toggle(_ item: Item) {
         if openedItems.remove(item) == nil {
             openedItems.insert(item)
         }
-    }
-
-    /// Whether an ask in a project's view is opened in place into its card.
-    func isOpened(_ ask: AskAddress) -> Bool {
-        opened.contains(ask)
     }
 
     /// The items opened that the page still shows, the rest let go, so one gone cannot open again by its key.
