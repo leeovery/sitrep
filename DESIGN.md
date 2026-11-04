@@ -1415,8 +1415,9 @@ stay snoozed: that session shows in both, Snoozed being an exception to
   it is kept as any is; unfolded, each row says when it wakes. The strip and
   the menu show none. How it looks is drawn in Paper.
 - **In the window** (4 November 2026) it is no section: Needs you's list
-  ends in "N snoozed", which folds the asks asleep, a row per ask, and is
-  never kept (see "The SitRep window"). An ask asleep picked is its own
+  ends in "N snoozed", which folds the asks asleep, a row per ask, and the
+  turns asleep, a row per turn (see "A turn snoozes too"), and is never
+  kept (see "The SitRep window"). An ask asleep picked is its own
   row's pick, and woken it is picked as its line in Needs you. Until then
   the sidebar had Snoozed above Projects, a session in it and another
   section a row in each.
@@ -1618,9 +1619,16 @@ aside. The rules for asks above stand beside this one, unchanged.
   - VoiceOver reads it as it reads a snoozed ask, its time "until it moves"
     where it has none, and offers Wake now; a your-turn row's actions are
     its menu's snoozes, "Snooze until it moves" last.
-  - In the SitRep window, until its rebuild settles its own lists, its row
-    in Snoozed is marked as an ask asleep is, by the grey dot, and a session
-    with its asks and its turn both asleep lists two rows under one id.
+  - In the SitRep window it is a row under Needs you's "N snoozed", among
+    the asks asleep in Snoozed's order and counted with them, an ask asleep
+    quieted as the list draws one, but for its mark, your turn's ring in
+    the tertiary, its words what Claude left Lee, and "until it moves" in
+    its time's place where it has no time. Its pick is its own key,
+    `turn:<session>`, so a session with its asks and its turn both asleep
+    has a row for each, no two alike. Its menu and VoiceOver offer Wake
+    now, and a Your turn row's offer Snooze with Until it moves, as the
+    card's do. Woken, its row goes back to Your turn, and a pick on it is
+    let go, as any pick whose row leaves the list.
 - **The CLI:** `snooze` and `wake` name the turn by `--turn <ms>`, its end as
   `watch` gives its row's `since`, in place of asks:
 
@@ -4176,8 +4184,12 @@ stands).
       figures in white at 55%, worded as on the card, "17:42", "Sat 09:00"
       or "3 Nov 09:00", its lane grown to fit and ending where an age does.
       None of them washes: an ask its time wakes washes its line in Needs
-      you. With nothing waiting and nothing filtered, the list says how the
-      board stands, in one centred line, as the panel's head words it;
+      you. A turn asleep has a row there too, among the asks, its mark your
+      turn's ring in the tertiary and "until it moves" in its time's place
+      where it has no time (see "A turn snoozes too"), and "N snoozed"
+      counts it with them. With nothing waiting and nothing filtered, the
+      list says how the board stands, in one centred line, as the panel's
+      head words it;
     - **Working**: the sessions whose turn runs, the longest running first,
       then those on their own work, each two lines, the system's two-line
       row, 39 tall, inset 4: the working mark, a quarter arc on a faint
@@ -4202,18 +4214,21 @@ stands).
       project at its right, 11 in white at 35%, its own width, never cut, 10
       after the words at the least (board D's 6 of padding after the row's 4);
       its time 12 in white at 55%, tabular, in a 30 lane. Those whose turn
-      ended longer ago than the fold period (Settings' "Your turn folds
-      after", an hour unless Lee sets four hours, today or never) fold into
-      **"N earlier"** at its end, as on the card, shown only while at least
-      one has: 28 tall, its ring in white at 25%, "8 earlier" 13 regular in
-      white at 55%, its sessions' projects 9 after it, 11 in white at 25%,
-      each once in the rows' order, comma-separated and cut short, and a
-      chevron at its end, right while folded. The period is measured from
-      each row's turn's end against the wall clock: as time passes a row
-      folds in the moment it passes the period, the window drawn again then
-      as for any change by time alone, nothing polling; the period changing
-      refolds the list at once. The row picked, folding in so, opens the
-      fold, as the clock is not Lee folding it over his pick;
+      ended longer ago than the fold period, an hour, fold into **"N
+      earlier"** at its end, shown only while at least one has. The period
+      is the window's own: until 4 November 2026 it was Settings' "Your turn
+      folds after", an hour unless Lee set four hours, today or never, which
+      the card's "N earlier" read too; with the card's gone (board J2; see
+      "The sections") the setting went, and the window kept its fold at the
+      setting's default. "N earlier" is 28 tall, its ring in white at 25%,
+      "8 earlier" 13 regular in white at 55%, its sessions' projects 9 after
+      it, 11 in white at 25%, each once in the rows' order, comma-separated
+      and cut short, and a chevron at its end, right while folded. The
+      period is measured from each row's turn's end against the wall clock:
+      as time passes a row folds in the moment it passes the period, the
+      window drawn again then as for any change by time alone, nothing
+      polling. The row picked, folding in so, opens the fold, as the clock
+      is not Lee folding it over his pick;
     - **Parked** lists nothing yet: its list and its items come with a
       later change;
     - **a fold**, "N snoozed" or "N earlier", is a row of the list the list
@@ -4230,7 +4245,9 @@ stands).
       where it is: Jump to the window, disabled on an away row; then, on a
       line that is an ask, Snooze with its three times, or on an ask asleep
       Wake now, each for that one ask, never its session's others, which
-      have rows of their own;
+      have rows of their own; on a Your turn row, Snooze with its three
+      times and Until it moves, for its turn by its end, and on a turn
+      asleep Wake now (see "A turn snoozes too");
   - **under the pointer**, a row of a session a window holds, in any list,
     gives its age's place to a button that jumps to its window (board F, 22
     October 2026): 22 square, its corners 6, white at 10% (#FFFFFF1A), its
@@ -4870,7 +4887,7 @@ stands).
     those too; two as old as each other by their keys. At its foot,
     "N snoozed" counts the asks asleep and folds them, a row per ask, the
     soonest to wake first, then the oldest, then by key, as core orders
-    them. Your turn's rows past the fold period sit under "N earlier" at its
+    them; and the turns asleep among them, since 4 November 2026. Your turn's rows past the fold period sit under "N earlier" at its
     foot, as now. A fold opens in place, is never kept, and shows open while
     the filter holds text. A line row offers only its own ask to snooze or
     wake, never its session's others, which have rows of their own.

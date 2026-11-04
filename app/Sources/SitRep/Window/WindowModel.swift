@@ -64,9 +64,10 @@ final class WindowModel {
     /// How often the ages are drawn again while nothing else changes.
     private static let tick: TimeInterval = 30
 
-    /// `period`, how long a your-turn row stays before it folds into "N earlier", as Lee set it.
+    /// `period`, how long a your-turn row stays before it folds into "N earlier": the window's own, an hour, since
+    /// Settings' "Your turn folds after" went with the card's "N earlier" (board J2, 4 November 2026).
     init(
-        plugin: Plugin, works: Works, snoozes: Snoozes, following: Following, period: FoldPeriod,
+        plugin: Plugin, works: Works, snoozes: Snoozes, following: Following, period: FoldPeriod = .hour,
         defaults: UserDefaults = .standard
     ) {
         self.plugin = plugin
@@ -98,8 +99,8 @@ final class WindowModel {
             jump: { [weak self] in self?.jump($0) },
             snooze: { [weak self] in self?.snooze($0, $1) },
             wake: { [weak self] in self?.wake($0) },
-            snoozeLine: { [weak self] in self?.snoozes.snoozeRow(.asks($0.asks), of: $0.session.id, $1) },
-            wakeLine: { [weak self] in self?.snoozes.wakeRow(.asks($0.asks), of: $0.session.id) },
+            snoozeRow: { [weak self] in self?.snoozes.snoozeRow($1, of: $0, $2) },
+            wakeRow: { [weak self] in self?.snoozes.wakeRow($1, of: $0) },
             askToFinish: { [weak self] in self?.askToFinish($0) },
             cancelFinish: { [weak self] in self?.cancelFinish($0) },
             confirmFinish: { [weak self] in self?.confirmFinish($0) },
@@ -239,12 +240,6 @@ final class WindowModel {
         }
 
         go(to: .place(.parked, scope: scope), by: way)
-    }
-
-    /// Lee set how long a your-turn row stays before it folds into "N earlier": the list refolds at once.
-    func period(_ period: FoldPeriod) {
-        run.period = period
-        refresh()
     }
 
     private func press(_ button: Card.Button, on ask: AskAddress) {

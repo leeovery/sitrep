@@ -5,9 +5,10 @@ import SitRepPanel
 
 /// A session's mark, in the panel row's lane: needs you an orange dot, and an ask waiting in a session no window holds
 /// a hollow orange ring; your turn an open ring, working the turning arc, on its own work the dotted ring, still; away,
-/// with nothing waiting, a faint dot; an ask asleep, the clock, faint and unlit (A1 revised).
+/// with nothing waiting, a faint dot; an ask asleep, the clock, faint and unlit (A1 revised); a turn asleep, your turn's
+/// ring, faint, as the card's (board I).
 public enum Mark: Sendable, Equatable {
-    case needs, awayAsk, turn, working, onItsWork, away, snoozed
+    case needs, awayAsk, turn, working, onItsWork, away, snoozed, snoozedTurn
 
     /// A session's, by its state, and whether a window holds it.
     init(_ state: Board.Session.State, isAway: Bool) {

@@ -35,9 +35,10 @@ struct WindowActions: Sendable {
     /// A card's ask snoozed until the time chosen on its Snooze, or woken by its Wake now.
     var snooze: @MainActor @Sendable (AskAddress, SnoozeTime) -> Void = { _, _ in }
     var wake: @MainActor @Sendable (AskAddress) -> Void = { _ in }
-    /// A line's one ask snoozed from its row's menu, or woken from an ask asleep's.
-    var snoozeLine: @MainActor @Sendable (PlaceList.LineRow, SnoozeTime) -> Void = { _, _ in }
-    var wakeLine: @MainActor @Sendable (PlaceList.LineRow) -> Void = { _ in }
+    /// What a row of the list showed, a line's one ask or a session's turn, snoozed from its menu, or woken from a row
+    /// asleep's: its session, what it showed, and the time chosen.
+    var snoozeRow: @MainActor @Sendable (String, Snoozable, SnoozeTime) -> Void = { _, _, _ in }
+    var wakeRow: @MainActor @Sendable (String, Snoozable) -> Void = { _, _ in }
     var askToFinish: @MainActor @Sendable (String) -> Void = { _ in }
     var cancelFinish: @MainActor @Sendable (String) -> Void = { _ in }
     var confirmFinish: @MainActor @Sendable (String) -> Void = { _ in }

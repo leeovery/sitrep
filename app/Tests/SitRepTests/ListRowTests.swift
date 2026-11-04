@@ -143,6 +143,33 @@ struct ListRowTests {
         #expect(try asleep.brightest(in: wakes).isAlike(needs.brightest(in: age)))
     }
 
+    /// Harness's turn asleep until it moves, its line what Claude left Lee.
+    nonisolated static let turnAsleep: PlaceList.Row = {
+        let line = Listed.Line(id: "turn:sr-4g01a7", lead: "Stage 2 is in", code: nil, more: nil, since: now)
+        let session = Listed.Row(
+            id: "sr-4g01a7", name: "Harness modernisation", project: "Harness", section: .snoozed, mark: .snoozed,
+            isAway: false, since: now, lines: [line], isTurn: true
+        )
+
+        return .line(PlaceList.LineRow(session: session, line: line))
+    }()
+
+    /// A turn asleep is a line asleep whose mark is your turn's ring, faint (board I): hollow, in the clock's neutral
+    /// grey; and in its time's place "until it moves", its right where an age's is.
+    @Test func aTurnAsleepIsALineAsleepMarkedByTheFaintRingUntilItMoves() throws {
+        let drawn = try Self.drawn(Self.turnAsleep)
+        let ring = try #require(drawn.drawnBox(in: CGRect(x: 16, y: 10, width: 26, height: 16), ground: Self.ground))
+        let stroke = try drawn.brightest(in: ring)
+        let hole = try drawn.brightest(in: CGRect(x: ring.midX - 0.5, y: ring.midY - 0.5, width: 1, height: 1))
+        let time = try #require(Self.brighter(than: 0.14, in: CGRect(x: 205, y: 8, width: 95, height: 20), of: drawn))
+
+        #expect(abs(ring.width - 9) <= 1 && abs(ring.height - 9) <= 1)
+        #expect(hole.lightness < stroke.lightness - 0.2)
+        #expect(abs(stroke.redComponent - stroke.blueComponent) < 0.02)
+        #expect((282.5 ... 284.5).contains(time.maxX))
+        #expect(time.width > 50)
+    }
+
     /// The button jumps to its session's window by itself, a press of its own, so the window's jump moves no pick.
     @Test func theButtonsJumpIsItsSessions() {
         #expect(JumpPress.row("sr-4g01a7").session == "sr-4g01a7")

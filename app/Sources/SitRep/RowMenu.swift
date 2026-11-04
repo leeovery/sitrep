@@ -3,13 +3,14 @@ import SitRepCore
 import SitRepPanel
 import SitRepWindow
 
-/// The menu a right-click on a session's row brings up, on the card as Paper's boards F and G have it, and in the
-/// sidebar as board H's: Open in SitRep, on the card, which opens the session in the SitRep window as its button does;
-/// Jump to the window, as a click on the card's row does, disabled on an away row, which no window holds; then, after a
-/// separator, Snooze and its times on a row whose lines hold asks, those and Until it moves on a your-turn row, as
-/// board I's menu has it, or Wake now on a row in Snoozed. A row of stops alone, or a working one, offers neither. What
-/// it snoozes or wakes is what the row showed as it was drawn, never read again: its asks, so an ask that landed since
-/// is never snoozed unseen, or its turn by the turn's end, so a turn ended since is never snoozed in its place.
+/// The menu a right-click on a session's row brings up, on the card as Paper's boards F and G have it, and on a row of
+/// the SitRep window's list as board H's: Open in SitRep, on the card, which opens the session in the SitRep window as
+/// its button does; Jump to the window, as a click on the card's row does, disabled on an away row, which no window
+/// holds; then, after a separator, Snooze and its times on a row whose lines hold asks, those and Until it moves on a
+/// your-turn row, as board I's menu has it, or Wake now on a row in Snoozed. A row of stops alone, or a working one,
+/// offers neither. What it snoozes or wakes is what the row showed as it was drawn, never read again: its asks, so an
+/// ask that landed since is never snoozed unseen, or its turn by the turn's end, so a turn ended since is never snoozed
+/// in its place.
 @MainActor
 enum RowMenu {
     /// What a row offers.
@@ -71,15 +72,10 @@ extension RowMenu.Row {
         )
     }
 
-    /// A row of the window's list: a line that is an ask, its one ask, waiting or asleep; none for a window's stop, nor
-    /// for a session's row.
+    /// A row of the window's list: a line that is an ask, its one ask, waiting or asleep; a Your turn row's turn, or a
+    /// turn asleep, by the turn's end; none for a window's stop, nor a Working row (`PlaceList.Row.snoozable`).
     init(_ row: PlaceList.Row) {
-        guard case let .line(line) = row, !line.asks.isEmpty else {
-            self.init(jumps: row.jumps, snoozable: nil, isSnoozed: false)
-            return
-        }
-
-        self.init(jumps: row.jumps, snoozable: .asks(line.asks), isSnoozed: line.isAsleep)
+        self.init(jumps: row.jumps, snoozable: row.snoozable, isSnoozed: row.isAsleep)
     }
 }
 

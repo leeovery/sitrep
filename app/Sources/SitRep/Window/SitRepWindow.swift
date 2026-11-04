@@ -22,7 +22,7 @@ final class SitRepWindow: NSObject, NSWindowDelegate, NSMenuItemValidation {
 
     /// `following`, what the app's one `watch` is told the window follows.
     init(plugin: Plugin, works: Works, snoozes: Snoozes, following: Following) {
-        model = WindowModel(plugin: plugin, works: works, snoozes: snoozes, following: following, period: .never)
+        model = WindowModel(plugin: plugin, works: works, snoozes: snoozes, following: following)
     }
 
     /// The board as `watch` last printed it.

@@ -111,7 +111,7 @@ struct SitRepCLITests {
         let (cli, programs) = Self.cli(Self.exited(0))
 
         _ = await cli.jump(to: "sr-047c7y")
-        _ = await cli.wake(["k2"], of: "sr-4g01a7")
+        _ = await cli.wake(.asks(["k2"]), of: "sr-4g01a7")
         _ = await cli.screen()
 
         #expect(programs.all.map(\.stopping) == [.gently(grace: 1), .group, .group])
