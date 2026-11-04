@@ -3,7 +3,17 @@ import { EXIT } from '../cli/main'
 import { PS } from '../cli/screen'
 import { STALE_MS, type SessionMeta, type Where } from '../core'
 import { META, W2 } from './support'
-import { ghosttyClient, NOW, phoneClient, SOCKET, sshClient, terminal } from './terminal'
+import {
+  appClient,
+  type FakeClient,
+  ghosttyClient,
+  NOW,
+  phoneClient,
+  SOCKET,
+  sshClient,
+  TERMINAL_APP,
+  terminal,
+} from './terminal'
 import { ELSEWHERE } from './world'
 
 const SESSION_SOCKET = '/private/tmp/tmux-501/session'
@@ -124,6 +134,20 @@ test('screen --json names the terminal app showing each session on screen: in tm
     [META.id]: null,
     [QUIETLY.id]: 'Ghostty',
   })
+})
+
+test('screen --json names, of two apps whose tmux clients show a session, the one a jump would bring forward first, the first client as tmux lists them', async () => {
+  const appWith = async (clients: FakeClient[]) => {
+    const t = terminal({ tmux: { [SOCKET]: { panes: [['%1', '@1']], clients } } })
+
+    t.seed(META, { seenAt: NOW, where: inTmux(SOCKET, '%1') })
+    return printed((await t.run('screen', '--json')).out).sessions.map(({ app }) => app)
+  }
+  const inTerminal = appClient('/dev/ttys030', '@1', TERMINAL_APP)
+  const inGhostty = ghosttyClient('/dev/ttys000', '@1')
+
+  expect(await appWith([inTerminal, inGhostty])).toEqual(['Terminal'])
+  expect(await appWith([inGhostty, inTerminal])).toEqual(['Ghostty'])
 })
 
 test('a session no live window holds is read no further than its heartbeats', async () => {

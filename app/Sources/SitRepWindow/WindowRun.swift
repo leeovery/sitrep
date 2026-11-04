@@ -227,13 +227,13 @@ public final class WindowRun {
     /// left, its folds closed but the one over the pick, with no step to go back to. Opened by "Open in SitRep" on a
     /// session, it opens onto where that lands instead, with no step back to a page Lee never saw.
     public func open(landing session: String? = nil) {
-        let page = location.page
+        let leaf = location.leaf
 
         isOpen = true
         looks.open()
         openFolds = []
         history = History(opening: listed, remembered: location)
-        turned(from: page)
+        turned(from: leaf)
         openTheFoldOverThePick()
         if let session {
             filter = Filter()
@@ -409,16 +409,16 @@ public final class WindowRun {
             return
         }
 
-        let page = history.location.page
+        let leaf = history.location.leaf
 
         change(&history)
         self.history = history
-        turned(from: page)
+        turned(from: leaf)
         keepTheList()
     }
 
-    private func turned(from page: Pick?) {
-        if location.page != page {
+    private func turned(from leaf: Leaf) {
+        if location.leaf != leaf {
             details.turnPage()
         }
         keepShown()
@@ -492,13 +492,24 @@ public final class WindowRun {
     /// A card's button pressed at this time: a yes, an option or ignore waits its two seconds; one that needs Claude
     /// Code's prompt jumps instead. The session to jump to, for those. Snooze is its menu's, which `snoozing` hears.
     public func press(_ button: Card.Button, on ask: AskAddress, at time: Date) -> String? {
-        details.press(button, on: ask, at: time)
+        let carried = last.board?.session(ask.session)?.session.asks.first { $0.id == ask.ask }
+
+        return details.press(button, on: ask, carried: carried, at: time)
     }
 
     /// Escape: the answer pressed last on the page showing, still waiting, is taken back; one waiting on a page
     /// left goes as it would. Whether there was one.
     public func undo() -> Bool {
-        details.undo(on: shown) != nil
+        details.undo(where: undoes) != nil
+    }
+
+    /// Whether Escape reaches an answer on this ask: beside a place's list, only on the card leading, as the session's
+    /// other asks are rows of their own, not on screen; filling the window, on any ask of the sessions it shows.
+    private func undoes(_ ask: AskAddress) -> Bool {
+        guard location.place != nil else {
+            return shown.contains(ask.session)
+        }
+        return location.picked?.pick.lineKey == ask.key
     }
 
     /// The answers whose two seconds have run out by this time, for `sitrep answer`.

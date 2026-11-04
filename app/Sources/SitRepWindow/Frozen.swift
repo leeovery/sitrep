@@ -17,6 +17,8 @@ struct Frozen: Equatable, Sendable {
     private(set) var washed: [String: Date] = [:]
     /// Its first board has come: the boards after it are compared against it.
     private var hasBoard = false
+    /// The asks answered as the board carried them before its first board came, kept in place for it.
+    private var seeded: Set<String> = []
 
     /// Its asks laid out from its board as last kept, if there is one. A current board, its session followed without
     /// a break since it came, is its first, as `watch` carries no other until it changes; else its next board to come
@@ -38,11 +40,11 @@ struct Frozen: Equatable, Sendable {
     var kept: Set<String> { Set(closed.keys) }
 
     /// The session's board as a line carried it, what is new washed from this time, if one is given. Its first board
-    /// lays its asks out, washing nothing and keeping nothing closed: Lee saw neither come nor go.
+    /// lays its asks out, washing nothing and keeping nothing closed, Lee seeing neither come nor go, but an ask he
+    /// answered before it came (`seed(_:)`).
     mutating func take(_ board: SessionBoard, washingAt time: Date?) {
         guard hasBoard else {
-            layOut(board)
-            hasBoard = true
+            layOutFirst(board)
             return
         }
 
@@ -73,6 +75,35 @@ struct Frozen: Equatable, Sendable {
             closed[ask] = nil
             washed[ask] = nil
         }
+    }
+
+    /// An ask as the board carries it, answered before its first board came: it shows in place until that board
+    /// comes, which closes it where it no longer has it open. Once that board has come, or with the ask laid out
+    /// already, nothing changes.
+    mutating func seed(_ ask: Board.Ask) {
+        guard !hasBoard, known[ask.id] == nil else {
+            return
+        }
+
+        order.insert(ask.id, at: 0)
+        known[ask.id] = ask
+        seeded.insert(ask.id)
+    }
+
+    /// Its first board laid out, the asks seeded before it that it has closed kept at the top, closed as it says.
+    private mutating func layOutFirst(_ board: SessionBoard) {
+        let isOpen = Set(board.asks.map(\.id))
+        let gone = order.filter { seeded.contains($0) && !isOpen.contains($0) }
+        let seededAsks = known
+
+        layOut(board)
+        order = gone + order
+        for ask in gone {
+            known[ask] = seededAsks[ask]
+            closed[ask] = Card.closed(ask, in: board)
+        }
+        seeded = []
+        hasBoard = true
     }
 
     /// Its asks as this board has them, the newest first.

@@ -249,6 +249,48 @@ struct SessionPageTests {
         #expect(card.buttons == [.yes("Approve"), .inClaude(.comment), .ignore, .snooze])
     }
 
+    /// A snooze refused on the card built from the board's ask says so there, as on any card.
+    @Test func beforeItsBoardComesARefusedSnoozeShowsOnTheLeadingCard() throws {
+        let run = opened(boards: [:])
+        let k1 = AskAddress(session: "sr-macapp", ask: "k1")
+
+        _ = run.snoozed(k1, .refused("No."))
+        #expect(try Self.leading(run).lines == [.notSnoozed("No.")])
+    }
+
+    /// Answered on the card built from the board's ask, the session's own board coming in its wait: the card it gives
+    /// way to is the same ask, unwashed, its answer still waiting, and the answer goes to that ask.
+    @Test func theCardBuiltBeforeItsBoardGivesWayToTheBoardsWithItsAnswerWaiting() throws {
+        let run = opened(boards: [:])
+        let k1 = AskAddress(session: "sr-macapp", ask: "k1")
+
+        _ = run.press(.yes("Approve"), on: k1, at: printedAt)
+        take(["sr-macapp": Lines.board], in: run)
+
+        let card = try Self.leading(run)
+
+        #expect(try Self.page(run).hasBoard)
+        #expect(card.id == k1)
+        #expect(card.washed == nil)
+        #expect(card.lines.map { if case let .waiting(pending) = $0 { pending.words } else { "" } } == ["→ Approve"])
+        #expect(run.due(at: printedAt.addingTimeInterval(2)).map(\.ask) == [k1])
+    }
+
+    /// Answered before its board comes, with the pointer over the page: the board that comes, the ask closed on it,
+    /// leaves the card leading closed and faint while the page holds, as an ask answered on its own board's card.
+    @Test func answeredBeforeItsBoardComesTheLeadingCardHoldsClosed() throws {
+        let run = opened(boards: [:])
+        let k1 = AskAddress(session: "sr-macapp", ask: "k1")
+
+        overThePage(run)
+        _ = run.press(.yes("Approve"), on: k1, at: printedAt)
+        _ = run.due(at: printedAt.addingTimeInterval(2))
+        _ = run.answered(k1, .written, at: printedAt.addingTimeInterval(2))
+        take(["sr-macapp": Lines.delivered], in: run, on: line(2))
+        #expect(try Self.leading(run).id == k1)
+        #expect(try Self.leading(run).isClosed)
+    }
+
     /// Two sessions each with an ask k1: the one picked is its own session's, never the other's.
     @Test func theSameAskIdInAnotherSessionNeverLeads() throws {
         let run = opened()
@@ -256,6 +298,55 @@ struct SessionPageTests {
         run.pickInList(.line("ask:sr-dash02:k1"), at: printedAt)
         #expect(try Self.leading(run).id == AskAddress(session: "sr-dash02", ask: "k1"))
         #expect(try Self.leading(run).title != (try Self.card("k1", opened())).title)
+    }
+
+    /// Dashboard redesign held by a second window, stopped before the first: the stop picked is the second's, and leads
+    /// as its own line says it, though a jump goes first to the window stopped since.
+    @Test func ofTwoWindowsStoppedThePickedOneLeadsThoughAJumpGoesFirstToTheOther() throws {
+        let since = 1_792_486_000_000.0
+        let key = "stop:sr-dash02:w9:1792486000000"
+        let line = edited(Lines.watch[0]) { board in
+            var windows = board["windows"] as! [[String: Any]]
+            var other = windows[1]
+            var state = other["state"] as! [String: Any]
+
+            state["since"] = since
+            other["writer"] = "w9"
+            other["state"] = state
+            windows.append(other)
+            board["windows"] = windows
+            board["rows"] = (board["rows"] as! [[String: Any]]).map { row in
+                guard row["session"] as? String == "sr-dash02" else {
+                    return row
+                }
+
+                var row = row
+                var lines = row["lines"] as! [[String: Any]]
+                var stop = lines[1]
+
+                stop["key"] = key
+                stop["writer"] = "w9"
+                stop["since"] = since
+                stop["first"] = ["lead": "Allow Edit", "mono": "DESIGN.md", "subject": NSNull(), "more": NSNull(), "until": NSNull()]
+                lines.append(stop)
+                row["lines"] = lines
+                return row
+            }
+        }
+        let run = opened(on: .line(line))
+
+        try #require(run.pickInList(.line(key), at: printedAt))
+
+        let page = try Self.page(run)
+
+        guard case let .stop(stop) = page.lead else {
+            Issue.record("No stop leads")
+            return
+        }
+        #expect((stop.line.lead, stop.line.mono) == ("Allow Edit", "DESIGN.md"))
+        #expect(stop.since == Date(timeIntervalSince1970: since / 1000))
+        #expect(page.doing.line.lead == "Allow Bash")
+        #expect(page.doingLine == SessionPage.DoingLine.none)
     }
 
     @Test(arguments: [(Place.yourTurn, Lines.watch[0]), (.working, Lines.onItsWork)])
@@ -306,14 +397,14 @@ struct SessionPageTests {
     /// Its terminal, from the board's windows, and when it started, from `watch`; nothing of the screen before a look.
     @Test func theMetaLineSaysItsTerminalAndWhenItStarted() throws {
         let start = minutes(before: 60)
-        let meta = try Self.page(Self.full("sr-macapp", on: Self.started(start))).meta
+        let meta = try #require(Self.page(Self.full("sr-macapp", on: Self.started(start))).meta)
 
         #expect(meta == SessionPage.Meta(terminal: "ghostty", app: nil, onScreen: nil, started: start, away: nil))
         #expect(Words.meta(meta, at: printedAt, in: Self.utc) == "Ghostty · started today, 07:53")
     }
 
     @Test func withNoStartFromWatchTheMetaLineSaysOnlyWhereItsWindowIs() throws {
-        let meta = try Self.page(Self.full("sr-macapp")).meta
+        let meta = try #require(Self.page(Self.full("sr-macapp")).meta)
 
         #expect(meta.started == nil)
         #expect(Words.meta(meta, at: printedAt, in: Self.utc) == "Ghostty")
@@ -326,7 +417,7 @@ struct SessionPageTests {
 
         try Self.looked(run, at: "sr-macapp", is: state)
 
-        let meta = try Self.page(run).meta
+        let meta = try #require(Self.page(run).meta)
 
         #expect(meta.onScreen == state)
         #expect(Words.meta(meta, at: printedAt, in: Self.utc) == words)
@@ -339,36 +430,46 @@ struct SessionPageTests {
 
         try Self.looked(run, at: "sr-macapp", is: .on, in: "Ghostty")
 
-        let meta = try Self.page(run).meta
+        let meta = try #require(Self.page(run).meta)
 
         #expect((meta.terminal, meta.app) == ("tmux", "Ghostty"))
         #expect(Words.meta(meta, at: printedAt, in: Self.utc) == "Ghostty, on screen")
     }
 
-    /// Two windows on one session, each stopped: the meta line names the one the picked line is of.
-    @Test func theMetaLineIsOfTheWindowThePickedLineIsOf() throws {
+    /// The Mac app held by a second window, in iTerm2, besides its first, working: the meta line names the window a
+    /// jump goes to first, the one working before one on its turn, one stopped on Lee before either.
+    @Test(arguments: [("yourTurn", "ghostty"), ("permission", "iTerm.app")])
+    func ofTwoWindowsTheMetaLineIsOfTheOneAJumpGoesToFirst(state: String, terminal: String) throws {
         let line = edited(Lines.watch[0]) { board in
             var windows = board["windows"] as! [[String: Any]]
-            var other = windows[1]
+            var other = windows[0]
+            var doing = other["state"] as! [String: Any]
 
+            doing["is"] = state
+            doing["since"] = (doing["since"] as! Double) + 1000
             other["writer"] = "w9"
             other["where"] = ["device": "/dev/ttys002", "terminal": "iTerm.app", "tmux": NSNull()]
-            other["attachedAt"] = (other["attachedAt"] as! Double) + 1000
+            other["state"] = doing
             windows.append(other)
             board["windows"] = windows
         }
-        let run = opened(on: .line(line))
 
-        run.pickInList(.line(Self.dashStop), at: printedAt)
-        #expect(try Self.page(run).meta.terminal == "ghostty")
+        #expect(try Self.page(Self.full("sr-macapp", on: .line(line))).meta?.terminal == terminal)
+    }
+
+    /// Beside the list the page draws no meta line, so it has none.
+    @Test func besideTheListThereIsNoMetaLine() throws {
+        #expect(try Self.page(opened()).meta == nil)
     }
 
     /// Away, the away line in its place, and no doing line under it to say it again.
     @Test func awayTheAwayLineIsTheMetaLine() throws {
         let page = try Self.page(Self.full("sr-gs7kq2", boards: ["sr-gs7kq2": Lines.away]))
 
-        #expect(page.meta.away == "No window holds it. Carry it on in Claude.")
-        #expect(Words.meta(page.meta, at: printedAt, in: Self.utc) == "No window holds it. Carry it on in Claude.")
+        let meta = try #require(page.meta)
+
+        #expect(meta.away == "No window holds it. Carry it on in Claude.")
+        #expect(Words.meta(meta, at: printedAt, in: Self.utc) == "No window holds it. Carry it on in Claude.")
         #expect(page.doingLine == SessionPage.DoingLine.none)
     }
 
@@ -385,9 +486,12 @@ struct SessionPageTests {
         #expect(words(SessionPage.Meta(terminal: "tmux", app: nil, onScreen: .off, started: nil, away: nil))
             == "Not on screen")
         #expect(words(SessionPage.Meta(terminal: "tmux", app: nil, onScreen: nil, started: nil, away: nil)) == nil)
+        #expect(words(SessionPage.Meta(terminal: "vscode", app: nil, onScreen: .on, started: started, away: nil))
+            == "On screen · started Sat, 08:53")
         #expect(Words.started(minutes(before: 60 * 24 * 400), at: printedAt, in: Self.utc) == "started 15 Sep 2025, 08:53")
         #expect(Words.terminal("ghostty") == "Ghostty")
-        #expect(Words.terminal("tmux") == "tmux")
+        #expect(Words.terminal("tmux") == nil)
+        #expect(Words.terminal("vscode") == nil)
         #expect(Words.started(minutes(before: 60 * 16), at: printedAt, in: Self.utc) == "started yesterday, 16:53")
         #expect(Words.started(minutes(before: 60 * 24 * 6), at: printedAt, in: Self.utc) == "started Wed, 08:53")
         #expect(Words.started(minutes(before: 60 * 24 * 7), at: printedAt, in: Self.utc) == "started 13 Oct, 08:53")
@@ -490,6 +594,26 @@ struct SessionPageTests {
         #expect(try Self.page(Self.picked("sr-rq7dgr", boards: [:])).parked == 0)
     }
 
+    /// With no status, no next and nothing parked, Now has nothing to say, so shows no heading; any one of them, it
+    /// does.
+    @Test func nowShowsOnlyWithSomethingUnderIt() throws {
+        let line = edited(Lines.watch[0]) { board in
+            board["projects"] = (board["projects"] as! [[String: Any]]).map { project in
+                var project = project
+
+                project["sessions"] = (project["sessions"] as! [[String: Any]]).map { session in
+                    session["id"] as? String == "sr-macapp"
+                        ? session.merging(["now": [String](), "next": NSNull(), "parked": 0]) { $1 } : session
+                }
+                return project
+            }
+        }
+
+        #expect(try !Self.page(opened(on: .line(line))).hasNow)
+        #expect(try Self.page(opened()).hasNow)
+        #expect(try Self.page(Self.picked("sr-rq7dgr", boards: [:])).hasNow)
+    }
+
     // MARK: What happened
 
     /// Filling the window, its asks, "Asked …", among its log's lines, all by their times, the newest first.
@@ -531,6 +655,15 @@ struct SessionPageTests {
         #expect(try asked() == ["asked:k2"])
     }
 
+    /// An ask's entry opens in place, as every other line of What happened does.
+    @Test func anAsksEntryOpensInPlace() throws {
+        let run = Self.full("sr-macapp")
+        let k1 = AskAddress(session: "sr-macapp", ask: "k1")
+
+        run.toggle(.asked(k1))
+        #expect(try Self.page(run).opened == [.asked(k1)])
+    }
+
     @Test func anAskAsOldAsALineComesBeforeIt() {
         let at = minutes(before: 30)
         let line = Note(id: "n1", session: nil, text: "A note", detail: [], at: at)
@@ -568,6 +701,23 @@ struct SessionPageTests {
         #expect(try Self.page(run).opened.contains(.resolvedFold))
         run.pickInList(.line("ask:sr-dash02:k1"), at: printedAt)
         run.pickInList(macAppK1, at: printedAt)
+        #expect(try !Self.page(run).opened.contains(.resolvedFold))
+    }
+
+    /// From the session's page beside the list to the same session's filling the window, and Back, are page turns:
+    /// "N resolved" is folded again on each. Another line of the same session picked is no turn, and keeps it open.
+    @Test func goingBetweenTheDetailAndTheSessionsFullPageTurnsThePage() throws {
+        let run = opened()
+
+        run.toggle(.resolvedFold)
+        run.pickInList(.line("ask:sr-macapp:k3"), at: printedAt)
+        #expect(try Self.page(run).opened.contains(.resolvedFold))
+        run.go(to: .session("sr-macapp", from: .project("sitrep")), by: .projectSession)
+        #expect(try Self.page(run).mode == .full)
+        #expect(try !Self.page(run).opened.contains(.resolvedFold))
+        run.toggle(.resolvedFold)
+        run.goBack()
+        #expect(try Self.page(run).mode == .detail)
         #expect(try !Self.page(run).opened.contains(.resolvedFold))
     }
 

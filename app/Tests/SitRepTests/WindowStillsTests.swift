@@ -166,9 +166,9 @@ struct WindowStillsTests {
                 run.go(to: .session("sr-rq7dgr", from: .project("switchboard")), by: .projectSession)
                 Self.take(in: run, on: Lines.watch[0])
             case .sessionPage:
-                Self.pick(.project("sitrep"), in: run, on: Self.started)
+                Self.pick(.project("sitrep"), in: run, on: Self.startedInTmux)
                 run.go(to: .session("sr-macapp", from: .project("sitrep")), by: .projectSession)
-                Self.take(in: run, on: Self.started)
+                Self.take(in: run, on: Self.startedInTmux)
                 Self.looked(on: "sr-macapp", in: run, at: now)
             case .yourTurn:
                 run.click(.place(.yourTurn))
@@ -192,7 +192,7 @@ struct WindowStillsTests {
         private static func line(of still: Still) -> String {
             switch still {
             case .longTitle, .longTitleNarrow: longName
-            case .sessionPage: started
+            case .sessionPage: startedInTmux
             case .snoozedOpen, .asleepLeads: Lines.snoozed[0]
             default: Lines.watch[0]
             }
@@ -270,15 +270,22 @@ struct WindowStillsTests {
         private static let longName = Lines.watch[0]
             .replacingOccurrences(of: #""name":"The Mac app""#, with: #""name":"Build the Mac app's window, its sidebar on the system's own glass, and its two pages""#)
 
-        /// The first board, the Mac app started five hours before it.
-        private static let started = Lines.watch[0].replacingOccurrences(
-            of: #""id":"sr-macapp","name":"The Mac app""#,
-            with: #""id":"sr-macapp","created":\#(Int64((printed.timeIntervalSince1970 - 5 * 3600) * 1000)),"name":"The Mac app""#
-        )
+        /// The first board, the Mac app started five hours before it, its window in tmux, whose `$TERM_PROGRAM` names
+        /// no app.
+        private static let startedInTmux = Lines.watch[0]
+            .replacingOccurrences(
+                of: #""id":"sr-macapp","name":"The Mac app""#,
+                with: #""id":"sr-macapp","created":\#(Int64((printed.timeIntervalSince1970 - 5 * 3600) * 1000)),"name":"The Mac app""#
+            )
+            .replacingOccurrences(
+                of: #""session":"sr-macapp","name":"The Mac app","project":"SitRep","version":"0.2.0","needsReload":false,"where":{"device":"/dev/ttys001","terminal":"ghostty","tmux":null}"#,
+                with: #""session":"sr-macapp","name":"The Mac app","project":"SitRep","version":"0.2.0","needsReload":false,"where":{"device":"/dev/ttys004","terminal":"tmux","tmux":{"socket":"/private/tmp/tmux-501/default","pane":"%3"}}"#
+            )
 
-        /// The window's look at the screen, which found the session's window on screen.
+        /// The window's look at the screen, which found the session's window on screen in Ghostty, as the CLI tells it
+        /// in tmux.
         private static func looked(on session: String, in run: WindowRun, at now: Date) {
-            let reading = #"{"v":1,"sessions":[{"id":"\#(session)","is":"on"}],"unanswered":[]}"#
+            let reading = #"{"v":1,"sessions":[{"id":"\#(session)","is":"on","app":"Ghostty"}],"unanswered":[]}"#
 
             run.window(isVisible: true)
             if let look = run.looksAtScreen(at: now) {

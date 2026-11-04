@@ -38,7 +38,8 @@ public struct SessionPage: Equatable, Sendable {
     /// Filling the window, under its name: the terminal app its window is in and whether a window of it is on screen,
     /// and when it started; or, away, that no window holds it.
     public struct Meta: Equatable, Sendable {
-        /// The terminal its window is in, as its `$TERM_PROGRAM` names it: `ghostty`, `iTerm.app`; in tmux, `tmux`.
+        /// The terminal its window is in, as its `$TERM_PROGRAM` names it: `ghostty`, `iTerm.app`; in tmux, `tmux`; in an
+    /// editor's terminal, the editor, `vscode`.
         public let terminal: String?
         /// The terminal app showing it, as the last look at the screen said, which tells the app in tmux too.
         public let app: String?
@@ -82,7 +83,8 @@ public struct SessionPage: Equatable, Sendable {
     public let projectKey: String
     public let projectName: String
     public let name: String
-    public let meta: Meta
+    /// Filling the window, its meta line; none beside the list, which draws none.
+    public let meta: Meta?
     public let doing: Doing
     /// "Open in Ghostty ↗": only while a window holds it.
     public let jumps: Bool
@@ -95,7 +97,7 @@ public struct SessionPage: Equatable, Sendable {
     public let asks: [Card]
     /// Now: what is under way, and what comes next.
     public let status: Status
-    /// "later · N parked ›": how many items it parked, none at nought.
+    /// "later N parked ›": how many items it parked, none at nought.
     public let parked: Int
     /// What happened, the newest first: its log's lines, as many as its board carries, and its asks still open.
     public let happened: [Happened]
@@ -128,6 +130,11 @@ public struct SessionPage: Equatable, Sendable {
             return .stop(stop)
         }
         return mode == .full && doing.isAway ? .none : .line
+    }
+
+    /// Now has something to say: a line of its status, its next, or the items it parked. Without, it shows no heading.
+    public var hasNow: Bool {
+        !status.now.isEmpty || status.next != nil || parked > 0
     }
 
     /// The cards the page draws: filling the window, every ask's; beside the list, none but the lead's, which leads.

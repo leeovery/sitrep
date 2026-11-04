@@ -4163,8 +4163,14 @@ stands).
       an ask asleep under "N snoozed" its card asleep; a window's stop its
       stop card at the same size, from the line picked, so of a session
       two windows hold it is the stop of the window picked, gone with its
-      line. Before the board has the ask the feed named, its card is made
-      from the feed's asks, so it leads at once. The session's other lines
+      line. Its "Answer in Claude ↗" jumps to the session, as every jump
+      does, so of two windows stopped it brings forward the one a jump goes
+      to first, the latest stopped, which need not be the one picked:
+      `sitrep jump` takes a session, not a window. Before the board has
+      the ask the feed named, its card is made from the feed's asks, so it
+      leads at once, an answer waiting or a snooze refused on it as on any
+      card; answered before the session's own board comes, it holds closed
+      and faint as any card answered. The session's other lines
       are rows of their own, so the detail shows the picked one alone. A
       picked ask answered keeps leading, closed and faint, while the page
       holds, then nothing leads, nothing taking its place. In Working or
@@ -4179,21 +4185,25 @@ stands).
       28 bold, sits close under it, "Open in Ghostty ↗" on its row (see
       "The jump"); under it the meta line, 12 in white at 35%: the app
       showing its window, as the screen's reading names it (see "On
-      screen"), else its window's terminal by `$TERM_PROGRAM` (`ghostty`
-      reads "Ghostty"), but never `tmux`, which names no app, so under
+      screen"), else its window's terminal by `$TERM_PROGRAM` where that
+      names an app sitrep knows (`ghostty` reads "Ghostty"), never `tmux`,
+      which names no app, nor an editor's terminal (`vscode`), so under
       tmux with no reading it names none; "on screen" or "not on screen"
       as the last look said, nothing where it gave no answer or there is
       no reading; then when it started, from `watch`'s `created`,
       "started today, 09:12", "yesterday", a weekday within the week,
       else "3 Nov", "3 Nov 2025" in another year: as "Ghostty, on screen
       · started today, 09:12", its first word capitalised where no app
-      leads, "On screen · started …". Its window is the one of the line
-      picked, else the one a jump goes to. Away, the away line
-      takes its place, "No window holds it. Carry it on in Claude.". Then
+      leads, "On screen · started …". Of several windows, it is the window
+      a jump goes to first. Away, the away line takes its place, the away
+      mark or ring before it, "No window holds it. Carry it on in
+      Claude.". Then
       what its window is doing, or a stop's card in its place; then every
       ask's card, its title 15 semibold and its `where` 13 (14 and 12
       until then), those waiting, the newest first, then those asleep, 10
-      apart;
+      apart. Newest first though A2 draws them oldest first: Lee chose
+      newest first for every Needs you list on 4 November 2026, after A2
+      was drawn (see "The notch and its panel");
     - **what its window is doing** (kept, as Lee asked on 3 November that
       a working session look the same on every surface, though A1 and A2
       draw none), in the meta line's place beside the list and under it
@@ -4204,11 +4214,12 @@ stands).
       list, an ask of a session whose window is stopped leads under the
       stop's card. Away and filling the window, the meta line says it, so
       there is none;
-    - **Now**, a heading 13 semibold in white at 85%, and on its right
+    - **Now**, only while it has a line, a next or a parked item under
+      it, a heading 13 semibold in white at 85%, and on its right
       "updated 1h ago", 12 in white at 35%, from its log's newest status
       line, gone once that line is past the 8 newest its board carries;
       under it, 14 in, a filled bullet per line of its status; "◦ next
-      …", a stroked ring, the word quieter; and "◇ later · 2 parked ›"
+      …", a stroked ring, the word quieter; and "◇ later 2 parked ›"
       while it parked any, which opens Parked narrowed to the session;
       each line in a row of 28 beside the list, 26 filling the window;
     - **What happened**, one thread, the newest first, 14 in: its log's
@@ -4220,12 +4231,17 @@ stands).
       session's asks are rows of their own. Each mark ringed in the
       page's black on a line down them, white at 12%; its age in a lane
       of 30; each line in a row of 28 beside the list, 26 filling the
-      window, its words and its age one element to VoiceOver. A board
+      window, its words and its age one element to VoiceOver; each opens
+      in place, an ask's as a line's, while it is cut short. A board
       carries the 8 newest lines, so once the log holds 8, an ask older
       than its oldest line is cut, as what happened between may be gone.
       At its end "N resolved ›",
       folded each time a page shows, opens in place to its resolved asks,
-      the newest closed first, each opening to how it closed.
+      the newest closed first, each opening to how it closed. A session's
+      page beside the list and the same session's filling the window are
+      two pages: Back or Forward between them folds it again, closes what
+      was opened and lets refusals go, as any page turned to; another line
+      of the same session picked turns no page;
   - **the toolbar** fills the band beside the traffic lights (4 November
     2026, A1 to A3 revised; until then it stayed empty on every page,
     nothing of the page in it). On a place: past the sidebar, **Back and
@@ -4387,7 +4403,7 @@ stands).
   - on the page, a line that opens, a project's session or ask, and a
     card's head show the panel's fills behind them;
   - every button shows a hover: the pills, the jump, the project's name
-    above a session or in its breadcrumb, "later · N parked", "N
+    above a session or in its breadcrumb, "later N parked", "N
     resolved".
 - **Keyboard focus is the system's.** In either list the selection is the
   focus. The page's buttons take focus, each showing
@@ -4450,7 +4466,8 @@ stands).
     section headings carry the header trait, each heading read with the
     words on its right, as "Now, updated 1 hour ago"; the meta line reads
     its parts as one, "Ghostty, on screen, started today, 09:12"; an age
-    in What happened in whole words; "N resolved" says so while folded;
+    in What happened in whole words; "N resolved" says "collapsed" or
+    "expanded" as its value;
   - a card is a container labelled by its ask's title, after its
     session's name on a project's page, its buttons inside it. The title
     is said once, by the container; on a project's page its head, which
@@ -4505,7 +4522,9 @@ stands).
     width: "I don't really like how the buttons in the middle are really
     long. I think it's unnecessary.";
   - **the answer waits 2 seconds**, a line draining under it, with Escape to
-    undo (borrowed from One, in Lee's dex). Then it goes into the session's
+    undo (borrowed from One, in Lee's dex): beside the list only the
+    answer on the card leading, as another of the session's, its line
+    picked since, shows nowhere; filling the window, any on its cards. Then it goes into the session's
     inbox, as the pane's replies to another session do (see "Delivery"), by
     `sitrep answer`. The card says "on its way", then "sent, and Claude has
     it", then moves to Resolved, as each ask's `reply` on the session's
@@ -4731,7 +4750,7 @@ stands).
     main menu, under Go, as Finder's are, which go only while the SitRep
     window is key and only where the toolbar's side is not dimmed: a
     sidebar click, a session opened from a project's page, a breadcrumb
-    link, a session's "later · N parked", a project's "N parked", "Back to
+    link, a session's "later N parked", a project's "N parked", "Back to
     its session" and an open from outside each make a step; another row
     picked within the list, by a click, an arrow or the toolbar's up and
     down, replaces the step, so Back skips the rows Lee stepped through, to

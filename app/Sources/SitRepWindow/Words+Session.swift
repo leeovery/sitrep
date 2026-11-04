@@ -13,13 +13,13 @@ extension Words {
 
     /// The meta line's parts: where its window is, and when it started, the first a capital where it is one of these
     /// words and not an app's name; away, the away line alone. Its app is the one the last look at the screen saw
-    /// showing it, else the one its `$TERM_PROGRAM` names, but never tmux, which says only that the app is unknown.
+    /// showing it, else the one its `$TERM_PROGRAM` names, where that is an app's (`terminal(_:)`).
     static func metaParts(_ meta: SessionPage.Meta, at now: Date, in calendar: Calendar) -> [String] {
         if let away = meta.away {
             return [away]
         }
 
-        let app = meta.app ?? meta.terminal.flatMap { $0 == "tmux" ? nil : terminal($0) }
+        let app = meta.app ?? meta.terminal.flatMap(terminal)
         let window = [app, meta.onScreen.flatMap(onScreen)].compactMap(\.self)
         let started = meta.started.map { self.started($0, at: now, in: calendar) }
 
@@ -42,10 +42,11 @@ extension Words {
         }
     }
 
-    /// A terminal as its `$TERM_PROGRAM` names it, by its app's name, as the jump's drivers name them (cli/apps.ts);
-    /// one unknown, as named.
-    public static func terminal(_ program: String) -> String {
-        terminals[program] ?? program
+    /// A terminal as its `$TERM_PROGRAM` names it, by its app's name, as the jump's drivers name them (cli/apps.ts).
+    /// None for any other program, as tmux, which names no app, or an editor's terminal, `vscode`, which would lead
+    /// the line in its own lower case.
+    public static func terminal(_ program: String) -> String? {
+        terminals[program]
     }
 
     private static let terminals = [

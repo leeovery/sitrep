@@ -23,7 +23,7 @@ struct WindowActions: Sendable {
     var openSession: @MainActor @Sendable (String) -> Void = { _ in }
     /// A session page's project, in its breadcrumb: the project's page.
     var openProject: @MainActor @Sendable (String) -> Void = { _ in }
-    /// A session's "later · N parked" or a project's "N parked": Parked, narrowed to it.
+    /// A session's "later N parked" or a project's "N parked": Parked, narrowed to it.
     var openParked: @MainActor @Sendable (ParkedScope) -> Void = { _ in }
     /// A parked item's "Back to its session": the session's page, pushed from Parked.
     var backToSession: @MainActor @Sendable (String) -> Void = { _ in }

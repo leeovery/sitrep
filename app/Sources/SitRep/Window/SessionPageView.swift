@@ -29,7 +29,9 @@ struct SessionPageView: View {
             if let failure = page.failure {
                 Text(failure).font(WindowStyle.ui(12)).foregroundStyle(WindowStyle.faint).padding(.top, 20)
             }
-            NowSection(page: page, now: now).padding(.top, WindowStyle.sectionGap)
+            if page.hasNow {
+                NowSection(page: page, now: now).padding(.top, WindowStyle.sectionGap)
+            }
             if page.hasBoard, !page.happened.isEmpty || !page.resolved.isEmpty {
                 HappenedSection(page: page, now: now).padding(.top, WindowStyle.sectionGap)
             }
@@ -58,7 +60,8 @@ struct SessionPageView: View {
         .padding(.bottom, 14)
     }
 
-    /// Filling the window: the eyebrow, its name with the jump on its row, and the meta line.
+    /// Filling the window: the eyebrow, its name with the jump on its row, and the meta line, away its mark before it,
+    /// as no doing line under it says it.
     private var head: some View {
         VStack(alignment: .leading, spacing: 3) {
             Button(page.projectName) { act.openProject(page.projectKey) }
@@ -71,12 +74,17 @@ struct SessionPageView: View {
                     jump
                 }
             }
-            if let meta = Words.meta(page.meta, at: now, in: calendar) {
-                Text(meta)
-                    .font(WindowStyle.ui(12))
-                    .foregroundStyle(WindowStyle.dim)
-                    .padding(.top, 3)
-                    .accessibilityLabel(Spoken.meta(page.meta, at: now, in: calendar))
+            if let meta = page.meta, let words = Words.meta(meta, at: now, in: calendar) {
+                HStack(spacing: 8) {
+                    if meta.away != nil {
+                        MarkView(mark: page.mark)
+                    }
+                    Text(words)
+                        .font(WindowStyle.ui(12))
+                        .foregroundStyle(WindowStyle.dim)
+                        .accessibilityLabel(Spoken.meta(meta, at: now, in: calendar))
+                }
+                .padding(.top, 3)
             }
         }
         .padding(.top, 2)

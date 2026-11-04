@@ -43,7 +43,7 @@ struct NowSection: View {
         LineSize(line: 18, row: page.mode == .detail ? 28 : 26)
     }
 
-    /// "later · N parked ›", which opens Parked narrowed to the session.
+    /// "later N parked ›", which opens Parked narrowed to the session.
     private var later: some View {
         Button { act.openParked(.session(page.id)) } label: {
             HStack(spacing: 8) {
@@ -110,10 +110,12 @@ struct HappenedSection: View {
     @ViewBuilder private func line(_ entry: SessionPage.Happened, along thread: OnThread) -> some View {
         switch entry {
         case let .asked(asked):
-            MarkedLine(
-                mark: .asked, word: Words.asked, text: asked.title, textColour: WindowStyle.threadText, size: size,
-                at: asked.at, now: now, thread: thread
-            )
+            Opening(item: .asked(asked.id), opened: page.opened) { isOpen in
+                MarkedLine(
+                    mark: .asked, word: Words.asked, text: asked.title, textColour: WindowStyle.threadText, size: size,
+                    at: asked.at, now: now, thread: thread, isOpen: isOpen
+                )
+            }
         case let .line(note):
             Opening(item: .note(note.id), opened: page.opened, hasMore: note.hasMore) { isOpen in
                 MarkedLine(
@@ -147,9 +149,8 @@ struct HappenedSection: View {
         }
         .rowButton(radius: 6)
         .padding(.horizontal, -WindowStyle.reach)
-        .accessibilityLabel(
-            showsResolved ? Words.resolved(page.resolved.count) : "\(Words.resolved(page.resolved.count)), folded"
-        )
+        .accessibilityLabel(Words.resolved(page.resolved.count))
+        .accessibilityValue(showsResolved ? "expanded" : "collapsed")
     }
 }
 
