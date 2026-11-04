@@ -7,10 +7,11 @@
  *   and, apart from them, the Snoozed rows, soonest to wake first.
  * - Each project with a current session, and those sessions, away ones
  *   among them and never a finished one, each with its state, what it is
- *   doing as the line under its name says it, and its open asks, as
- *   `board --json` lists them (`openAsks`). They are in the SitRep window's
- *   order, the rows': a session where its row sits, those with none after,
- *   the latest updated first; a project where its first session sits.
+ *   doing as the line under its name says it, its open asks, as
+ *   `board --json` lists them (`openAsks`), and what it parked. They are in
+ *   the SitRep window's order, the rows': a session where its row sits,
+ *   those with none after, the latest updated first; a project where its
+ *   first session sits.
  * - Every live window: its session, the version it runs, and whether that
  *   is behind the CLI's own.
  * - What is new: a line needing Lee the watch has not shown, or not within a
@@ -41,7 +42,7 @@ import {
   type SnoozedRow,
 } from './rows'
 import { compareText } from './text'
-import type { Ask, Session, WindowState, Where } from './types'
+import type { Ask, Parked, Session, WindowState, Where } from './types'
 import {
   CURRENT_MS,
   isCurrent,
@@ -64,6 +65,8 @@ export type FeedSession = SessionSummary & {
   doing: Doing
   /** Its open asks, oldest first: waiting, on Lee or on a reply of Lee's going in, or replied, Claude's to act on. */
   asks: Ask[]
+  /** What it parked, oldest first. */
+  parkedItems: Parked[]
 }
 
 export type FeedProject = Omit<ProjectSummary, 'sessions'> & { sessions: FeedSession[] }
@@ -118,6 +121,7 @@ const feedProject = (
       since: places.get(session.id)?.row.since ?? session.updatedAt,
       doing: doingOf(project, session, now),
       asks: openAsks(session),
+      parkedItems: session.parked,
     }))
     .sort(
       (a, b) =>

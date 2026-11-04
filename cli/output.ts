@@ -108,6 +108,7 @@ const sessionJson = (session: SessionSummary) => ({
   waiting: session.waiting,
   snoozed: session.snoozed,
   parked: session.parked,
+  created: session.created,
   updatedAt: session.updatedAt,
 })
 
@@ -250,6 +251,7 @@ const feedSessionJson = (session: FeedSession) => ({
     since: session.doing.since,
   },
   asks: session.asks.map(ask => askJson(session, ask)),
+  parkedItems: session.parkedItems.map(parkedJson),
 })
 
 const snoozedLineJson = (line: SnoozedLine) => ({

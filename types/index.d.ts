@@ -298,6 +298,7 @@ export type SitrepSummary = {
   snoozed: number
   asked: number
   parked: number
+  created: number
   updatedAt: number
 }
 

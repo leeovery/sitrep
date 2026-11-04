@@ -24,6 +24,25 @@ struct SessionBoardTests {
         #expect(board.session.parked == 1)
     }
 
+    /// The real CLI's board of Ledger export (`Lines.parked`) says when the session started; one from before it said
+    /// that, none.
+    @Test func theSessionInBriefSaysWhenItStartedWhereTheCLISaysIt() throws {
+        let board = try #require(try Board.read(Lines.parked[1]).boards["sr-nwdgr4"]?.board)
+
+        #expect(board.session.created == at(1_793_792_455_000))
+        #expect(try Self.read(Lines.board).session.created == nil)
+    }
+
+    /// The line's session lists what it parked as its board does, item for item.
+    @Test func aSessionsParkedItemsOnTheLineAreItsBoardsParked() throws {
+        let line = try Board.read(Lines.parked[1])
+        let board = try #require(line.boards["sr-nwdgr4"]?.board)
+        let session = try #require(line.projects.flatMap(\.sessions).first { $0.id == "sr-nwdgr4" })
+
+        #expect(board.parked.count == 2)
+        #expect(session.parkedItems == board.parked)
+    }
+
     @Test func itsAsksComeOldestFirstEachWithWhatItWantsBackAndNoReplyBeforeOneIsSent() throws {
         let asks = try Self.read(Lines.board).asks
 

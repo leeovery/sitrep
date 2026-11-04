@@ -19,6 +19,8 @@ public struct SessionBoard: Decodable, Sendable, Equatable {
         public let isOpen: Bool
         public let waiting: Int
         public let parked: Int
+        /// When it started; nil from a CLI before its board said it.
+        public let created: Date?
         public let updatedAt: Date
     }
 

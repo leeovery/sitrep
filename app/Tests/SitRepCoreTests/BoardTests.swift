@@ -4,14 +4,10 @@ import SitRepLines
 import Testing
 
 struct BoardTests {
-    private static func at(_ milliseconds: Double) -> Date {
-        Date(timeIntervalSince1970: milliseconds / 1000)
-    }
-
     @Test func aLineGivesTheBoardAtItsTimeWithTheCLIsVersionAndItsHead() throws {
         let board = try Board.read(watched)
 
-        #expect(board.at == Self.at(1_792_445_574_706))
+        #expect(board.at == at(1_792_445_574_706))
         #expect(board.version == "0.1.0")
         #expect(board.head.needYou == 2)
         #expect(board.head.sessions == 3)
@@ -39,9 +35,9 @@ struct BoardTests {
         let stop = try Board.read(watched).rows[1]
 
         #expect(stop.lines.map(\.first) == [Board.Row.Words(lead: "Allow Bash", mono: "gh pr create", more: nil)])
-        #expect(stop.oldest.since == Self.at(1_792_445_500_000))
+        #expect(stop.oldest.since == at(1_792_445_500_000))
         #expect(stop.second == "Switchboard · Dashboard memory and snags")
-        #expect(stop.since == Self.at(1_792_445_500_000))
+        #expect(stop.since == at(1_792_445_500_000))
         #expect(stop.letters == "Sw")
         #expect(stop.project == "switchboard-7a75d7ba")
         #expect(stop.session == "sr-y4d0qj")
@@ -108,7 +104,7 @@ struct BoardTests {
 
         #expect(terrace.state == .needsYou)
         #expect(terrace.next == nil)
-        #expect(terrace.since == Self.at(1_791_991_983_206))
+        #expect(terrace.since == at(1_791_991_983_206))
         #expect(terrace.asks.map(\.id) == ["k1hs"])
         #expect(terrace.asks.first?.wants == .yes)
         #expect(terrace.asks.first?.yes == "Approve")
@@ -124,8 +120,36 @@ struct BoardTests {
         #expect(sessions[1].doing == Board.Session.Doing(
             kind: .permission,
             line: Board.Row.Words(lead: "Allow Bash", mono: "gh pr create", more: nil),
-            since: Self.at(1_792_445_500_000)
+            since: at(1_792_445_500_000)
         ))
+    }
+
+    /// The real CLI's line (`Lines.parked`): every session, followed or not, with when it started and what it parked,
+    /// oldest first.
+    @Test func eachSessionSaysWhenItStartedAndWhatItParked() throws {
+        let sessions = try Board.read(Lines.parked[0]).projects.flatMap(\.sessions)
+
+        #expect(sessions.map(\.id) == ["sr-ctnbd2", "sr-fbrs7k", "sr-nwdgr4"])
+        #expect(sessions.map(\.created) == [at(1_793_709_655_000), at(1_793_799_655_000), at(1_793_792_455_000)])
+        #expect(sessions.map(\.parked) == sessions.map(\.parkedItems.count))
+        #expect(sessions[2].parkedItems == [
+            SessionBoard.Parked(
+                id: "77k4",
+                title: "Handle multi-currency rows",
+                where: "After the first export ships",
+                ref: "docs/export.md",
+                at: at(1_793_803_255_257)
+            ),
+            SessionBoard.Parked(id: "3k0a", title: "Retry failed uploads", where: nil, ref: nil, at: at(1_793_803_255_326)),
+        ])
+    }
+
+    /// A CLI from before the feed said them printed neither: no start, and nothing parked listed, though counted.
+    @Test func outputFromBeforeTheFeedSaidThemReadsWithNoStartAndNoParkedItems() throws {
+        let sessions = try Board.read(Lines.watch[0]).projects.flatMap(\.sessions)
+
+        #expect(sessions.contains { $0.parked > 0 })
+        #expect(sessions.allSatisfy { $0.created == nil && $0.parkedItems.isEmpty })
     }
 
     @Test func theWindowsSayWhereTheyAreWhatTheyAreDoingAndWhetherTheyNeedAReload() throws {
@@ -139,7 +163,7 @@ struct BoardTests {
         #expect(windows.first?.state == nil)
         #expect(windows.last?.state == Board.Window.State(
             kind: .permission,
-            since: Self.at(1_792_445_500_000),
+            since: at(1_792_445_500_000),
             tool: .init(name: "Bash", subject: "gh pr create"),
             question: nil
         ))
@@ -198,10 +222,10 @@ struct BoardTests {
         #expect(board.rows.map(\.oldest.id) == ["turn:sr-k7bt2s", "turn:sr-macapp"])
         #expect(board.rows.map(\.oldest.kind) == [.onItsWork, .onItsWork])
         #expect(board.rows.map(\.oldest.first) == [
-            Board.Row.Words(lead: "Wakes", until: Self.at(1_792_670_195_432)),
+            Board.Row.Words(lead: "Wakes", until: at(1_792_670_195_432)),
             Board.Row.Words(lead: "Waiting on", subject: "3 agents"),
         ])
-        #expect(board.rows.map(\.since) == [Self.at(1_792_669_295_432), Self.at(1_792_669_295_432)])
+        #expect(board.rows.map(\.since) == [at(1_792_669_295_432), at(1_792_669_295_432)])
         #expect(sessions.map(\.state) == [.onItsWork, .onItsWork])
         #expect(sessions.map(\.doing.kind) == [.onItsWork, .onItsWork])
         #expect(sessions.map(\.doing.line) == board.rows.map(\.oldest.first))

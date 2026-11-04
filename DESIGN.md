@@ -2030,7 +2030,8 @@ truth. There is still no background service. None of it is built now. Lee:
                       "sessions": [ { "id": "sr-k3f9qa", "name": "Dashboard redesign",
                                       "summary": "...", "now": ["..."], "next": null,
                                       "isOpen": true, "waiting": 1, "snoozed": 1,
-                                      "parked": 1, "updatedAt": 1760000000000 } ] } ] }
+                                      "parked": 1, "created": 1759990000000,
+                                      "updatedAt": 1760000000000 } ] } ] }
     ```
 
     Each project's `sessions` were its `works`, their name from before a
@@ -2040,6 +2041,11 @@ truth. There is still no background service. None of it is built now. Lee:
     `snoozed` (23 October 2026) counts the asks Lee snoozed, which `waiting`
     leaves out (see "Snooze"); plain `list` says it among a session's facts,
     `(open, 1 waiting, 1 snoozed)`.
+
+    `created` (4 November 2026) is when the session started, as its
+    `session.json` says; `board --json`'s `session` and `watch`'s sessions
+    carry it too, for the SitRep window to say when it started. A field
+    added: `v` did not move.
 
     `list` runs no program. Each session said `onScreen` until 27 October
     2026, whether a jump could reach it (see "The jump", step 2), which only
@@ -2062,7 +2068,8 @@ truth. There is still no background service. None of it is built now. Lee:
     finished session (23 October 2026; see "Snooze"); a resolved one when
     it closed, by Lee's answer or Claude's resolve, and Claude's reason
     where Claude resolved it with one, Lee's answer having closed it first
-    or not. `session` carries `snoozed`, as `list`'s sessions do:
+    or not. `session` carries `snoozed`, and `created` (4 November 2026; `v`
+    did not move), as `list`'s sessions do:
 
     ```
     { "id": "k1", "wants": "yes", "yes": "Go", "title": "Give the go for stage 3",
@@ -2339,6 +2346,13 @@ truth. There is still no background service. None of it is built now. Lee:
       Carry it on in Claude.", since its latest line. So a session needing Lee
       for its asks alone, which has no row of its windows', still says what
       they do. A field added: `v` did not move.
+      `parkedItems` (4 November 2026) is what the session parked, oldest
+      first, in posting order, as `board --json`'s `parked`, each item as it
+      lists one (`id`, `title`, `where`, `ref`, `at`): on every session,
+      followed or not, where before only a followed session's board held
+      them. It is what the SitRep window's Parked list reads, every item on
+      the board. An item picked up or closed leaves it. A field added: `v`
+      did not move.
     - `windows`: every live window, the longest attached first, a finished
       session's among them, with its session's name and project, its
       `version`, and `needsReload` where it says none, or one behind the
@@ -4412,9 +4426,11 @@ asked for the sessions back, and approved the redraw as it stands.
     16MB among them); the "as of" is that instant, not the board's own time,
     since `watch` prints only on a change. A line that reads ends it. 16MB
     leaves room enough: 81 sessions made a line of 626KB, and the largest
-    board is about 90KB, growing with its Resolved. The limit is that high
-    because `watch` counts a board as printed once written, so a refused
-    line would lose its boards until they next changed.
+    board is about 90KB, growing with its Resolved. Every session's parked
+    items on the line (4 November 2026) took it from 39KB to 70KB over a
+    copy of Lee's board, 28 sessions holding 106 of them. The limit is that
+    high because `watch` counts a board as printed once written, so a
+    refused line would lose its boards until they next changed.
   - **The first board of a run after another** is a run's first line: its
     `new` is empty, as on any run's first line, though the board may have
     moved while `watch` was down. The SitRep window needs nothing of its

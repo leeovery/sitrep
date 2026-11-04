@@ -50,6 +50,8 @@ export type SessionSummary = {
    */
   asked: number
   parked: number
+  /** When it started. */
+  created: number
   updatedAt: number
 }
 
@@ -150,6 +152,7 @@ export const summarise = (session: Session): SessionSummary => ({
   asked:
     session.finished === undefined ? session.asks.filter(ask => ask.state === 'waiting').length : 0,
   parked: session.parked.length,
+  created: session.created,
   updatedAt: session.updatedAt,
 })
 

@@ -38,6 +38,7 @@ import {
 import {
   beat,
   CLI,
+  delivered,
   file,
   finish,
   META,
@@ -817,6 +818,72 @@ test('the feed: each project with its current sessions in the rows order, a fini
       ],
     ],
   ])
+})
+
+test('every session in the feed carries what it parked, oldest first, and when it started, whether or not it has a row', () => {
+  const read: ProjectRead[] = [
+    {
+      project: SWITCHBOARD,
+      sessions: [
+        sessionOf({
+          meta: { id: 'sr-aaaaaa', name: 'Working', created: T0 - 90 * MIN },
+          lines: [[T0 + MIN, park('p1', 'A tmux indicator')]],
+          presence: windowOn(W1, working(T0)),
+        }),
+        sessionOf({ meta: { id: 'sr-bbbbbb', name: 'Quiet', created: T0 - 30 * MIN } }),
+      ],
+    },
+    {
+      project: GOOSEMATES,
+      sessions: [
+        sessionOf({
+          meta: { id: 'sr-dddddd', name: 'Away' },
+          lines: [
+            [T0 + 2 * MIN, park('p1', 'Tidy the copy')],
+            [T0 + 5 * MIN, park('p2', 'Retry the export', { where: 'After the release' })],
+          ],
+        }),
+      ],
+    },
+  ]
+  const sessions = feedOf(read, NOW).projects.flatMap(project => project.sessions)
+
+  expect(
+    sessions.map(session => [
+      session.id,
+      session.created,
+      session.parkedItems.map(parked => [parked.id, parked.title, parked.where, parked.at]),
+    ]),
+  ).toEqual([
+    ['sr-aaaaaa', T0 - 90 * MIN, [['p1', 'A tmux indicator', undefined, T0 + MIN]]],
+    ['sr-bbbbbb', T0 - 30 * MIN, []],
+    [
+      'sr-dddddd',
+      T0,
+      [
+        ['p1', 'Tidy the copy', undefined, T0 + 2 * MIN],
+        ['p2', 'Retry the export', 'After the release', T0 + 5 * MIN],
+      ],
+    ],
+  ])
+})
+
+test("an item picked up or closed leaves the feed's parked items, and its count", () => {
+  const session = sessionOf({
+    lines: [
+      [T0, park('p1', 'A tmux indicator')],
+      [T0, park('p2', 'Retry the export')],
+      [T0, park('p3', 'Tidy the copy')],
+      [T0 + MIN, reply('r1', 'p1', 'pickup')],
+      [T0 + MIN, delivered('r1')],
+      [T0 + 2 * MIN, resolve('p2')],
+    ],
+  })
+  const [fed] = feedOf([{ project: SWITCHBOARD, sessions: [session] }], NOW).projects.flatMap(
+    project => project.sessions,
+  )
+
+  expect([fed?.parked, fed?.parkedItems.map(parked => parked.id)]).toEqual([1, ['p3']])
 })
 
 test('the feed lists every live window, the longest attached first, those behind the CLI needing a reload', () => {

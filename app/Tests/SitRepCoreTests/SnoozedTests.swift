@@ -7,10 +7,6 @@ import Testing
 /// apart from the rest, each ask's `snoozedUntil`, each session's and project's `snoozed`; and what a CLI from before
 /// Snooze printed, without them.
 struct SnoozedTests {
-    private static func at(_ milliseconds: Double) -> Date {
-        Date(timeIntervalSince1970: milliseconds / 1000)
-    }
-
     private static func line(_ place: Int) throws -> Board {
         try Board.read(Lines.snoozed[place])
     }
@@ -28,9 +24,9 @@ struct SnoozedTests {
         #expect(row.lines.map(\.key) == ["ask:sr-4g01a7:k1", "ask:sr-4g01a7:k2"])
         #expect(row.lines.map(\.ask) == ["k1", "k2"])
         #expect(row.lines.map(\.first.lead) == ["Review the plan", "Pick when stage 2 runs"])
-        #expect(row.lines.map(\.since) == [Self.at(1_792_740_927_000), Self.at(1_792_741_027_000)])
-        #expect(row.lines.map(\.wakesAt) == [Self.at(1_792_741_532_000), Self.at(1_792_745_127_000)])
-        #expect(row.wakesAt == Self.at(1_792_741_532_000))
+        #expect(row.lines.map(\.since) == [at(1_792_740_927_000), at(1_792_741_027_000)])
+        #expect(row.lines.map(\.wakesAt) == [at(1_792_741_532_000), at(1_792_745_127_000)])
+        #expect(row.wakesAt == at(1_792_741_532_000))
     }
 
     /// The session in Snoozed has its row in Needs you too, for the ask still waiting.
@@ -45,7 +41,7 @@ struct SnoozedTests {
     @Test func eachAskSaysWhenItWakesWhileItSleeps() throws {
         let asks = try #require(try Self.line(0).projects.first?.sessions.first?.asks)
 
-        #expect(asks.map(\.snoozedUntil) == [Self.at(1_792_741_532_000), Self.at(1_792_745_127_000), nil])
+        #expect(asks.map(\.snoozedUntil) == [at(1_792_741_532_000), at(1_792_745_127_000), nil])
         #expect(try carried(Lines.snoozedBoard, of: "sr-4g01a7").asks.map(\.snoozedUntil) == asks.map(\.snoozedUntil))
     }
 

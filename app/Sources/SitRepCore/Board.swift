@@ -262,8 +262,8 @@ public struct Board: Versioned, Sendable, Equatable {
         public var id: String { key }
     }
 
-    /// A session as `list --json` gives it, with its state, what it is doing, and its open asks: waiting, on Lee or
-    /// on a window to deliver Lee's reply, or replied, Claude's to act on.
+    /// A session as `list --json` gives it, with its state, what it is doing, its open asks (waiting, on Lee or on a
+    /// window to deliver Lee's reply, or replied, Claude's to act on) and what it parked.
     public struct Session: Decodable, Sendable, Equatable, Identifiable {
         public enum State: String, Decodable, Sendable {
             case needsYou, working, onItsWork, yourTurn, away, finished
@@ -296,6 +296,8 @@ public struct Board: Versioned, Sendable, Equatable {
         /// Its asks snoozed; none from a CLI before Snooze.
         @Added public var snoozed: Int
         public let parked: Int
+        /// When it started; nil from a CLI before the feed said it.
+        public let created: Date?
         public let updatedAt: Date
         public let state: State
         /// When its state began: its first row's time, else its latest line's.
@@ -303,6 +305,8 @@ public struct Board: Versioned, Sendable, Equatable {
         public let doing: Doing
         /// Oldest first.
         public let asks: [Ask]
+        /// What it parked, oldest first; none from a CLI before the feed carried them.
+        @Added public var parkedItems: [SessionBoard.Parked]
     }
 
     /// An ask as a session's board gives it.
@@ -414,23 +418,38 @@ public struct Board: Versioned, Sendable, Equatable {
     }
 }
 
-/// A count the CLI's JSON gained after its version was set, `v` unmoved: none in the output of a CLI from before it.
+/// A field the CLI's JSON gained after its version was set, `v` unmoved: none in the output of a CLI from before it.
 @propertyWrapper
-public struct Added: Decodable, Sendable, Equatable {
-    public var wrappedValue: Int
+public struct Added<Value: AddedValue>: Decodable, Equatable {
+    public var wrappedValue: Value
 
-    public init(wrappedValue: Int) {
+    public init(wrappedValue: Value) {
         self.wrappedValue = wrappedValue
     }
 
     public init(from decoder: any Decoder) throws {
-        wrappedValue = try decoder.singleValueContainer().decode(Int.self)
+        wrappedValue = try decoder.singleValueContainer().decode(Value.self)
     }
 }
 
+extension Added: Sendable where Value: Sendable {}
+
+/// What an added field reads as where the output is from a CLI before it.
+public protocol AddedValue: Decodable, Equatable {
+    static var absent: Self { get }
+}
+
+extension Int: AddedValue {
+    public static var absent: Int { 0 }
+}
+
+extension Array: AddedValue where Element: Decodable & Equatable {
+    public static var absent: [Element] { [] }
+}
+
 extension KeyedDecodingContainer {
-    /// An added count, or none where the output is from before it.
-    func decode(_ type: Added.Type, forKey key: Key) throws -> Added {
-        try decodeIfPresent(type, forKey: key) ?? Added(wrappedValue: 0)
+    /// An added field, or none where the output is from before it.
+    func decode<Value>(_ type: Added<Value>.Type, forKey key: Key) throws -> Added<Value> {
+        try decodeIfPresent(type, forKey: key) ?? Added(wrappedValue: .absent)
     }
 }

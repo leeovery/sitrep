@@ -129,6 +129,7 @@ test('list --json: the project the CLI runs in, and each project with its curren
             waiting: 1,
             snoozed: 0,
             parked: 1,
+            created: META.created,
             updatedAt: T0,
           },
           {
@@ -141,6 +142,7 @@ test('list --json: the project the CLI runs in, and each project with its curren
             waiting: 0,
             snoozed: 0,
             parked: 0,
+            created: LOBBY.created,
             updatedAt: T0,
           },
           {
@@ -153,6 +155,7 @@ test('list --json: the project the CLI runs in, and each project with its curren
             waiting: 1,
             snoozed: 0,
             parked: 0,
+            created: OLD_WAITING.created,
             updatedAt: OLD_WAITING.created,
           },
         ],
@@ -350,6 +353,7 @@ test('board --json: the session as list gives it, its open asks, what it parked,
       waiting: 2,
       snoozed: 0,
       parked: 1,
+      created: META.created,
       updatedAt: T0 + 4,
     },
     asks: [
