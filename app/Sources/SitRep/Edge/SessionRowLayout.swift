@@ -13,8 +13,8 @@ struct SessionRowLayout {
     let opener: CGRect
 
     static let radius = 14.0
-    /// A your-turn row's, board D's, and "N earlier"'s.
-    static let turnRadius = 10.0
+    /// A row on one line's, board D's, so the lifts of two meet, and "N earlier"'s.
+    static let lineRadius = 10.0
     /// Between a session's name and its "+2", board F's.
     static let countGap = 6.0
     /// Between a row on one line's words and its project.
@@ -24,10 +24,10 @@ struct SessionRowLayout {
     static let titleLine = 18.0
     private static let subLine = 16.0
 
-    /// The lift's corners of a row of this kind: a your-turn row's 10, board D's, which it keeps drawn whole; every
-    /// other's 14.
-    static func radius(of kind: Session.Kind) -> Double {
-        kind == .turn ? turnRadius : radius
+    /// The lift's corners of a row by its shape: on one line 10, board D's; drawn whole 14, as board I draws Your
+    /// turn's.
+    static func radius(oneLine: Bool) -> Double {
+        oneLine ? lineRadius : radius
     }
 
     /// A row whose time is this wide: the 36 lane, or a Snoozed row's wider wake, which the lane grows to fit.

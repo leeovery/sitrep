@@ -282,7 +282,7 @@ struct GlassSessionRow: View {
     var calendar = WakeTime.calendar
 
     var body: some View {
-        let at = layout, radius = SessionRowLayout.radius(of: session.kind)
+        let at = layout, radius = SessionRowLayout.radius(oneLine: oneLine)
         ZStack(alignment: .topLeading) {
             RoundedRectangle(cornerRadius: radius)
                 .fill(.primary.opacity(pressed ? 0.12 : lit ? 0.08 : 0))

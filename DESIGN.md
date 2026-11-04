@@ -2957,7 +2957,11 @@ that takes Lee to the window a session is in.
   volume, 0 on Lee's Mac, where SitRep's plays at the output volume. They
   are off by default once
   the notch exists, since the notch swells and lights for a new ask, and a
-  setting turns them on.
+  setting turns them on. Asks landing on one board post the oldest first,
+  so Notification Center, which stacks the last posted on top, shows the
+  newest there, as Needs you does (4 November 2026; core's order until
+  then, which with Needs you newest first would have stacked the oldest on
+  top).
   - **SitRep's notices helper posts them, never SitRep** (26 October
     2026), so a click on one never activates SitRep. macOS activates the
     app that posted a notification as Lee clicks its body, and with
@@ -3358,7 +3362,8 @@ below it one, its project in a lane at its right:
   regular so Needs you keeps the heavier title; under it "project ·
   session", 12 in the soft grey, cut short; how long it has waited, faint,
   in the 36 time lane on the first line. It lifts, presses, jumps and
-  washes as any row does, its lift radius 10. From 22 October 2026 until
+  washes as any row does, its lift radius 14, a row drawn whole's, as
+  board I draws it (10 on one line until then). From 22 October 2026 until
   then it was one line, 30 tall (board B's, in board D; Lee: "B's
   flattened, one-line turn"), what Claude left Lee 13 regular with its
   project in a lane at its right, the shape Working's row now takes;
@@ -3370,7 +3375,9 @@ below it one, its project in a lane at its right:
   its project in a lane at its right, 12 in the faint grey, on its
   baseline, its own width and never cut, 12 after the words at the least;
   how long the turn has run, in the 36 lane. The session's name is not on
-  the row. It is greyer than the rest: it needs nothing.
+  the row. It is greyer than the rest: it needs nothing. Its lift radius is
+  10, as every row on one line, Snoozed's and "N earlier" too, so two lifts
+  side by side meet, as board D's did (14 until 4 November 2026).
   Every arc turns in step (3 November 2026): on every surface, the card, the
   strip, the menu and the SitRep window, each turns from the one clock, the
   phase it starts at the clock's time within its period, so two arcs turning
@@ -4126,7 +4133,9 @@ stands).
   which it could only name. There is no Resolved. An ask there is one line,
   and opens in place into its card. A snoozed ask is among them, its mark the
   grey dot and its title soft, its card the session page's asleep one.
-- **It opens on** the oldest session that needs Lee; with none, on the one
+- **It opens on** the top of Needs you, the session with the newest line
+  waiting on Lee, as a new ask is where Lee goes (the oldest until 4
+  November 2026, when Needs you went newest first); with none, on the one
   picked last. There is one window: opening it again brings it forward,
   on the Space Lee is on: it moves to the active Space and comes forward
   there before SitRep activates, so the activation takes him to no other
@@ -4283,8 +4292,9 @@ stands).
 - **VoiceOver reads words, never symbols.**
   - a sidebar row is one element. A Needs you row reads what waits first:
     how many where there are several, "2 asks", then each line's words; then
-    its project and session, "away" where no window holds it, and the
-    oldest's age, as "2 asks, Paste the load test's output, Allow Bash gh
+    its project and session, "away" where no window holds it, and its
+    newest line's age, the time the row shows (the oldest's until 4
+    November 2026), as "2 asks, Paste the load test's output, Allow Bash gh
     pr create, Switchboard, Dashboard redesign, 3 hours" (22 October 2026);
     it reads its lines' words still, since board F, though the row shows
     its session's name in their place. Every row a window holds, in any
@@ -5879,9 +5889,8 @@ reaches a window only while that pane is on show).
       - **The rows**, each a native item: its title the row's first line,
         set as attributed text, its words in the menu's font and its subject
         in the system's mono, a question's "+2" after (since rows by session,
-        a row's oldest line, and "+N" for its other lines in its place, its
-        newest since 4 November 2026; since
-        board F, a Needs you row's session's name and its "+N", its project
+        a row's newest line, its oldest until 4 November 2026, and "+N" for
+        its other lines in its place; since board F, a Needs you row's session's name and its "+N", its project
         as its subtitle); core's second line as
         its subtitle; its time as its badge. A working row's words are in
         the secondary label colour, its arc fainter than the other marks;
@@ -6094,7 +6103,8 @@ reaches a window only while that pane is on show).
         - **Quiet projects** are those `watch` carries with nothing open: no
           window, no ask waiting and nothing parked, as core folds a project
           into All projects' line. `list --json` carries no others either.
-        - **It opens on** the first row needing Lee, `watch`'s oldest; with
+        - **It opens on** the first row needing Lee, `watch`'s newest (its
+          oldest until 4 November 2026); with
           none, on the session picked last, kept across launches; with none
           of those on the board, the first listed. A pick gone from the
           board gives way to that. Opening it again while it shows only

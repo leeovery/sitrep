@@ -44,7 +44,7 @@ struct CardSessionRowTests {
     }
 
     /// Its dot at 16 by 16; its session's name from 32, medium, none of its asks' words; its project at 32 by 25; its
-    /// time in the lane ending at 334; nothing under the first line but the project.
+    /// time in the lane ending at 334; nothing under the first line but the project; its lift's corners 14.
     @Test func aRowNeedingLeeIsItsNameOverItsProject() throws {
         let drawn = try Drawn(Self.card(Self.harness(1)).layer)
         let dot = try #require(drawn.drawnBox(in: CGRect(x: 4, y: 7, width: 22, height: 18), ground: Self.ground))
@@ -61,6 +61,7 @@ struct CardSessionRowTests {
         #expect(project.width <= projectWidth + 0.5 && project.width >= projectWidth - 3)
         #expect((332.5 ... 334.5).contains(age.maxX))
         #expect(drawn.drawnBox(in: CGRect(x: 4, y: 41, width: 340, height: 8), ground: Self.ground) == nil)
+        #expect(Self.card(Self.harness(1)).layer.cornerRadius == 14)
     }
 
     /// "+2" for two lines after the first: 13 medium in tabular figures, 6 after the name, on its baseline.
@@ -184,7 +185,7 @@ struct CardSessionRowTests {
         let name = CGRect(x: 32, y: 6, width: 100, height: 18)
         let soft = try needs.brightest(in: CGRect(x: 26, y: 25, width: 200, height: 16))
 
-        #expect(row.layer.bounds.height == 30)
+        #expect(row.layer.bounds.height == 30 && row.layer.cornerRadius == 10)
         #expect(abs(dot.width - 7) <= 1 && abs(dot.height - 7) <= 1 && abs(dot.midY - 15) <= 0.5)
         #expect(try drawn.brightest(in: dot).isAlike(drawn.brightest(in: project)))
         #expect(try drawn.brightest(in: project).lightness < soft.lightness - 0.3)

@@ -300,7 +300,7 @@ public struct Board: Versioned, Sendable, Equatable {
         public let created: Date?
         public let updatedAt: Date
         public let state: State
-        /// When its state began: its first row's time, else its latest line's.
+        /// When its state began: its row's oldest line's time, else its latest line's.
         public let since: Date
         public let doing: Doing
         /// Oldest first.

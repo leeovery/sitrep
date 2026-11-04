@@ -103,7 +103,7 @@ struct CardSectionsDrawnTests {
     private static let long = "What Claude left you is longer than the row could ever hold on its one line, so it is cut short"
 
     /// Two lines, 49 tall like a Needs you row; its ring 9 across, in white, in the mark lane on the first line, at 16
-    /// by 16, the Needs you dot's place.
+    /// by 16, the Needs you dot's place; its lift's corners 14, a row drawn whole's.
     @Test func aYourTurnRowIsTwoLines49TallWithItsRingOnTheFirst() throws {
         let (row, drawn) = try Self.turnRow(Self.turn("Licensing settled"))
         let ring = try #require(drawn.drawnBox(in: CGRect(x: 4, y: 5, width: 24, height: 22), ground: Self.ground))
@@ -112,7 +112,7 @@ struct CardSectionsDrawnTests {
         #expect(abs(ring.midX - 16) <= 0.5 && abs(ring.midY - 16) <= 0.5)
         #expect(abs(ring.width - 9) <= 0.5 && abs(ring.height - 9) <= 0.5)
         #expect(Self.isClose(Self.colour(drawn, in: ring), to: Self.rgb(0xF5F5F7)))
-        #expect(row.layer.cornerRadius == 10)
+        #expect(row.layer.cornerRadius == 14)
     }
 
     /// What Claude left Lee, from 32 on the first line, 14 regular, narrower than the medium a Needs you row's name of
@@ -183,7 +183,8 @@ struct CardSectionsDrawnTests {
         TextLine.width(TextLine.text(verb, EdgeStyle.lineVerb, EdgeStyle.ink, kern: EdgeStyle.tightKern(EdgeStyle.lineVerb)))
     }
 
-    /// One line, 30 tall, its arc 11 across in the mark lane on the row's middle, at 16 by 15; its lift's corners 14.
+    /// One line, 30 tall, its arc 11 across in the mark lane on the row's middle, at 16 by 15; its lift's corners 10,
+    /// a row on one line's, so two lifts meet.
     @Test func aWorkingRowIsOneLine30TallWithItsArc() throws {
         let (row, drawn) = try Self.lineRow(Self.working("Running ", code: "swift test"))
         let arc = try #require(drawn.drawnBox(in: CGRect(x: 4, y: 2, width: 24, height: 26), ground: Self.ground))
@@ -191,7 +192,7 @@ struct CardSectionsDrawnTests {
         #expect(row.layer.bounds.height == 30 && row.isOneLine)
         #expect(abs(arc.midX - 16) <= 0.5 && abs(arc.midY - 15) <= 0.5)
         #expect(abs(arc.width - 11) <= 1.5)
-        #expect(row.layer.cornerRadius == 14)
+        #expect(row.layer.cornerRadius == 10)
     }
 
     /// Its verb 13 medium in #B4B4BA, from 32; 6 after it what it waits on, 13 regular in #8E8E95.
@@ -408,6 +409,13 @@ struct CardSectionsDrawnTests {
 
         #expect(abs(ring.midX - 16) <= 0.5 && abs(ring.midY - 16) <= 0.5 && abs(ring.width - 9) <= 0.5)
         #expect((32 ... 33.5).contains(words.minX) && (32 ... 33.5).contains(second.minX))
+    }
+
+    /// A lift's corners by its row's shape, the glass's as the black's, both taking them from here: 10 on one line, so
+    /// two lifts side by side meet; 14 drawn whole.
+    @Test func aLiftsCornersFollowItsRowsShape() {
+        #expect(SessionRowLayout.radius(oneLine: true) == 10)
+        #expect(SessionRowLayout.radius(oneLine: false) == 14)
     }
 
     /// On glass, "N earlier" as the black's: its words from 32, its chevron right while folded.

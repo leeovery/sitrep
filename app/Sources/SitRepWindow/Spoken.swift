@@ -18,9 +18,9 @@ public enum Spoken {
     }
 
     /// A session's row under Needs you, one element: what waits on Lee first, how many where there are several, then
-    /// each line's words; then its project and its session, away where no window holds it, and how long the oldest
-    /// has waited, as "2 asks, Paste the load test's output, Allow Bash gh pr create, Switchboard, Dashboard redesign,
-    /// 3 hours".
+    /// each line's words; then its project and its session, away where no window holds it, and how long the newest
+    /// has waited, the time its row shows, as "2 asks, Paste the load test's output, Allow Bash gh pr create,
+    /// Switchboard, Dashboard redesign, 3 hours".
     public static func needsYou(_ row: Listed.Row, at now: Date) -> String {
         asks(row, at: now, then: age(row.since, at: now))
     }

@@ -32,7 +32,7 @@ struct GlassEarlier: View {
     var body: some View {
         let words = EarlierLayout.words(in: size)
         ZStack(alignment: .topLeading) {
-            RoundedRectangle(cornerRadius: SessionRowLayout.turnRadius).fill(.primary.opacity(lit ? 0.08 : 0))
+            RoundedRectangle(cornerRadius: SessionRowLayout.lineRadius).fill(.primary.opacity(lit ? 0.08 : 0))
             Circle().strokeBorder(.tertiary, lineWidth: 1.5).frame(width: 9, height: 9)
                 .position(EarlierLayout.mark(in: size))
             HStack(alignment: .firstTextBaseline, spacing: EarlierLayout.gap) {

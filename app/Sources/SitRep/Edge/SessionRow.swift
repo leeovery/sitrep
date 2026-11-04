@@ -37,7 +37,7 @@ final class SessionRow {
     private let project: NSAttributedString
 
     init(_ session: Session, size: CGSize, oneLine: Bool = false) {
-        let radius = SessionRowLayout.radius(of: session.kind)
+        let radius = SessionRowLayout.radius(oneLine: oneLine)
 
         self.session = session
         isOneLine = oneLine

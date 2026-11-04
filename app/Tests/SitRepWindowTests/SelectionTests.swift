@@ -47,7 +47,20 @@ struct SelectionTests {
         #expect(Self.ids(run).contains(.pick(.session("sr-rq7dgr"))))
     }
 
-    /// The window opening on the oldest session needing Lee, Needs you folded when it last closed.
+    /// Two sessions need Lee, each a window holds: the window opens on the top of Needs you, as core lists it, the one
+    /// with the newest line, Contoso's ask 5 minutes old, over Northwind's, whose newest is 20 minutes old though its
+    /// oldest, 90, is the oldest of all.
+    @Test func theWindowOpensOnTheTopOfNeedsYouTheNewest() {
+        let run = WindowRun(wall: { printedAt })
+
+        run.show(heard(Built.printed([
+            Built(id: "s1", project: "northwind", waiting: [90, 60, 20]), Built(id: "s2", project: "contoso", waiting: [5]),
+        ])), at: printedAt, reducesMotion: false)
+        run.open()
+        #expect(run.pick == .session("s2"))
+    }
+
+    /// The window opening on the top of Needs you, Needs you folded when it last closed.
     @Test func theWindowOpeningOnASessionUnfoldsItsSection() {
         var folds = Folds()
 

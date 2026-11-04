@@ -55,6 +55,11 @@ public enum Lines {
     /// notes, nothing parked. Then, after a follow line naming Ledger export, its board.
     public static let parked = printed("watch-parked.jsonl").split(separator: "\n").map(String.init)
 
+    /// `sitrep watch`'s first line at version 3, Needs you newest first, run on 4 November 2026 over a board of its own
+    /// seeded with its times: Northwind's Ledger export, away, a yes waiting since 09:00 (k1) and another since 12:00
+    /// (k2); Contoso's Onboarding flow, away, a yes waiting since 11:00.
+    public static let newest = printed("watch-newest.jsonl").trimmingCharacters(in: .newlines)
+
     /// `board --json` for Finish the Harness modernisation as `snoozed`'s first line has it.
     public static let snoozedBoard = printed("board-snoozed.json")
 

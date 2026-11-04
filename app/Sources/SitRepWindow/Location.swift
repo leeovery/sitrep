@@ -184,7 +184,7 @@ public enum Location: Hashable, Codable, Sendable {
 
         let row = listed.rows.first { $0.id == id && $0.section != .snoozed }
         guard let row, let place = Place.allCases.first(where: { $0.section == row.section }),
-              let oldest = row.lines.first
+              let oldest = row.lines.min(by: { $0.since < $1.since })
         else {
             return .location(.session(id, from: .project(project)))
         }

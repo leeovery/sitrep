@@ -221,7 +221,7 @@ struct NeedsYouRow: View {
         Away.dimming(row.isAway && !isSnoozed && !onPick)
     }
 
-    /// Its oldest line's age, or in Snoozed when its soonest ask wakes.
+    /// Its newest line's age, or in Snoozed when its soonest ask wakes.
     private var time: String {
         row.wakesAt.map { WakeTime.words($0, at: now, in: calendar) } ?? Words.age(row.since, at: now)
     }
