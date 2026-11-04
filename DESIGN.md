@@ -4644,7 +4644,10 @@ does; the boards first drew it on a band of black.
     leave it unseen by AppKit, which left Tab on a step gone (offscreen, 3
     November 2026). Brought forward while open, or keyed again after going
     behind, the window keeps focus Lee gave, while its control stays.
-    Continue's focus ring is a pill and back's a circle.
+    Left: ⌘-Tab away and back with focus on nothing still rings Skip setup
+    live, though the window is put back as first responder as it keys
+    (Lee's try, 4 November 2026); "good enough", and parked. Continue's
+    focus ring is a pill and back's a circle.
   - **The stage's menu bar item** is lit while the stage's board has an
     ask, as the real glyph lights for needs you, and on step 4 each chime
     lights it for as long as the notch swells, whatever the shape. So at
