@@ -77,6 +77,25 @@ struct PlacesTests {
         #expect(places.count(of: .parked) == 2)
     }
 
+    /// An away session whose only asks are asleep keeps its project current, as core does: not quiet, its count
+    /// shown, but the grey dot, as nothing waits on Lee now.
+    @Test func aProjectWhoseOnlyAsksAreAsleepIsNotQuiet() throws {
+        var asleep = Built(id: "a1", project: "contoso", isAway: true)
+
+        asleep.snoozed = [(age: 10, wakesIn: 60)]
+
+        let project = try #require(Places(Built.listed([asleep])).projects.first)
+
+        #expect(project.mark == .nothingWaiting)
+        #expect(!project.isQuiet)
+        #expect(project.count == 1)
+    }
+
+    /// Harness's k3 waits; k1 and k2 asleep count in no place.
+    @Test func needsYouCountsNoAsleepLine() {
+        #expect(Self.counts(Places(Listed(heard(.line(Lines.snoozed[0]))))) == [1, 0, 0, 0])
+    }
+
     /// The filter narrows the projects to those whose names hold every word, and leaves the counts the board's.
     @Test func theFilterNarrowsTheProjectsButNotTheCounts() {
         let places = Places(Self.listed, filter: Filter("SWITCH"))

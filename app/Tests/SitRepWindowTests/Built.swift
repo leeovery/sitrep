@@ -26,8 +26,9 @@ struct Built {
     /// Its line waiting on Lee at this place, by its key.
     func line(_ place: Int) -> String { "ask:\(id):k\(place)" }
 
-    /// Its ask asleep at this place, by its key.
-    func asleep(_ place: Int) -> String { "ask:\(id):z\(place)" }
+    /// Its ask asleep at this place, by its key: numbered after those waiting, as an ask keeps its key in Needs you
+    /// and in Snoozed, so one snoozed or woken keeps it.
+    func asleep(_ place: Int) -> String { "ask:\(id):k\(waiting.count + place)" }
 
     /// `watch`'s line over these sessions, its projects in the order they first come, its rows in core's: Needs you
     /// by its oldest line, those a window holds first; Working; Your turn, the newest first.
@@ -91,7 +92,7 @@ struct Built {
     private var asleepRow: [String: Any] {
         let lines = snoozed.indices.map { place in
             [
-                "key": asleep(place), "ask": "z\(place)", "first": Self.words("Asleep \(place) of \(id)"),
+                "key": asleep(place), "ask": "k\(waiting.count + place)", "first": Self.words("Asleep \(place) of \(id)"),
                 "since": Self.ms(snoozed[place].age), "wakesAt": Self.ms(-snoozed[place].wakesIn),
             ]
         }

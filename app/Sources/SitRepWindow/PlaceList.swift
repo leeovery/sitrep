@@ -4,7 +4,7 @@ import SitRepPanel
 /// What a click or an arrow key picks in the middle list: a line waiting on Lee, by its key; a snoozed ask under
 /// "N snoozed", by its key, the one it has in Needs you; a session's row in Working or Your turn; a parked item, by its
 /// session and its id.
-public enum ListPick: Hashable, Sendable {
+public enum ListPick: Hashable, Codable, Sendable {
     case line(String)
     case snoozed(String)
     case session(String)
@@ -30,6 +30,12 @@ public struct PlaceList: Equatable, Sendable {
         public var pick: ListPick {
             session.section == .snoozed ? .snoozed(line.id) : .line(line.id)
         }
+
+        /// The ask it is, by its id, none for a window's stop: all its menu snoozes or wakes, and VoiceOver speaks of,
+        /// never the other asks of its session's row.
+        public var asks: [String] {
+            line.ask.map { [$0] } ?? []
+        }
     }
 
     public enum Row: Equatable, Sendable, Identifiable {
@@ -51,11 +57,6 @@ public struct PlaceList: Equatable, Sendable {
             case let .line(line): line.session.id
             case let .session(row): row.id
             }
-        }
-
-        /// What picking it makes the place's selection.
-        public var selection: Selection {
-            Selection(pick: pick, session: session)
         }
 
         /// What the filter reads of it.
@@ -116,6 +117,9 @@ public struct PlaceList: Equatable, Sendable {
         public let count: Int
 
         public var text: String { "\(index) / \(count)" }
+
+        /// As VoiceOver says it: "2 of 5".
+        public var spoken: String { "\(index) of \(count)" }
     }
 
     public let place: Place
@@ -204,54 +208,34 @@ public struct PlaceList: Equatable, Sendable {
         return picks.firstIndex { $0 == pick }.map { Position(index: $0 + 1, count: picks.count) }
     }
 
-    /// Where ↓, or ↑, goes from the spot: the row after the pick, or before it; for a pick it no longer shows, from
-    /// where it stood, after the nearest of the rows above it that it still shows; with nothing picked, ↓ to the
+    /// The selection picking the row it lists for the pick makes, standing where the list shows it; none where it
+    /// lists no row for the pick, its fold's included.
+    public func selection(of pick: ListPick) -> Selection? {
+        let row = (rows + (fold?.rows ?? [])).first { $0.pick == pick }
+
+        return row.map { Selection(pick: pick, session: $0.session).standing(in: self) }
+    }
+
+    /// Where ↓, or ↑, goes from the selection: the row after its pick, or before it; for a pick it no longer shows,
+    /// from where it stood, after the nearest of the rows above it that it still shows; with nothing picked, ↓ to the
     /// first row and ↑ nowhere. None where no row lies that way.
-    public func step(from spot: ListSpot, down: Bool) -> ListPick? {
+    public func step(from selection: Selection?, down: Bool) -> ListPick? {
         let picks = picks
-        let at = picks.firstIndex { $0 == spot.pick }
-        let after = at.map { $0 + 1 } ?? spot.standing(among: picks)
+        let at = picks.firstIndex { $0 == selection?.pick }
+        let after = at.map { $0 + 1 } ?? selection?.standing(among: picks) ?? 0
         let to = down ? after : (at ?? after) - 1
 
         return picks.indices.contains(to) ? picks[to] : nil
     }
 }
 
-/// Where the list's pick stands, kept as the list changes, so a pick the list no longer shows, as an ask answered or
-/// a row a fold closed over, stands where it last showed: after the nearest of the rows then above it that the list
-/// still shows.
-public struct ListSpot: Equatable, Sendable {
-    public let pick: ListPick?
-    /// The rows above the pick as it last showed, the nearest last.
-    private var above: [ListPick] = []
-
-    /// The pick, standing where the list shows it.
-    public init(_ pick: ListPick? = nil, in list: PlaceList = PlaceList()) {
-        self.pick = pick
-        take(list)
-    }
-
-    /// The list as it now shows: where it shows the pick, the pick stands there.
-    public mutating func take(_ list: PlaceList) {
-        let picks = list.picks
-
-        if let pick, let at = picks.firstIndex(of: pick) {
-            above = Array(picks[..<at])
-        }
-    }
-
-    /// Where among these picks, which hold none of it, the pick stands: the place after the nearest of those above it.
-    fileprivate func standing(among picks: [ListPick]) -> Int {
-        above.last(where: picks.contains).flatMap(picks.firstIndex(of:)).map { $0 + 1 } ?? 0
-    }
-}
-
 private extension PlaceList.LineRow {
-    /// Needs you's order: a session a window holds before one none does, then the oldest first.
-    var first: (Int, Date) { (session.isAway ? 1 : 0, line.since) }
+    /// Needs you's order, as core's: a session a window holds before one none does, then the oldest first, then by
+    /// key.
+    var first: (Int, Date, String) { (session.isAway ? 1 : 0, line.since, line.id) }
 
-    /// Snoozed's: the soonest to wake first, then the oldest.
-    var soonest: (Date, Date) { (line.wakesAt ?? .distantFuture, line.since) }
+    /// Snoozed's, as core's: the soonest to wake first, then the oldest, then by key.
+    var soonest: (Date, Date, String) { (line.wakesAt ?? .distantFuture, line.since, line.id) }
 }
 
 private extension PlaceList.Row {

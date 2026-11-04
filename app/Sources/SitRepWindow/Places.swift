@@ -2,7 +2,7 @@ import SitRepPanel
 
 /// A place in the sidebar, above the projects: what the middle column lists. The window's own, apart from the card's
 /// sections (`BoardSection`), which the panel and the menu share.
-public enum Place: CaseIterable, Hashable, Sendable {
+public enum Place: String, CaseIterable, Codable, Hashable, Sendable {
     case needsYou, working, yourTurn, parked
 
     public var title: String {
@@ -47,7 +47,7 @@ public struct Places: Equatable, Sendable {
         public let mark: ProjectMark
         /// Its current sessions.
         public let sessions: Int
-        /// Nothing open in it, waiting or parked: its name soft, its count hidden.
+        /// Nothing open in it, waiting, asleep or parked: its name soft, its count hidden.
         public let isQuiet: Bool
 
         /// Its grey count: its current sessions, none where it is quiet.
@@ -64,7 +64,7 @@ public struct Places: Equatable, Sendable {
         projects = listed.projects.filter { filter.matches($0.name) }.map { project in
             Project(
                 id: project.id, name: project.name, mark: marks[project.id] ?? .nothingWaiting,
-                sessions: project.sessions, isQuiet: project.open == 0 && project.waiting == 0 && project.parked == 0
+                sessions: project.sessions, isQuiet: project.isQuiet
             )
         }
     }
@@ -83,4 +83,10 @@ public struct Places: Equatable, Sendable {
             marks[project] = row.isAway ? .awayAsk : .needs
         }
     }
+}
+
+private extension Listed.Project {
+    /// Nothing open in it, waiting, asleep or parked, as core folds a project (`isFolded`): an ask asleep keeps it
+    /// current, though nothing waits on Lee now.
+    var isQuiet: Bool { open == 0 && waiting == 0 && snoozed == 0 && parked == 0 }
 }

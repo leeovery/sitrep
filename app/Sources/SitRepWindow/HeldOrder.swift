@@ -24,9 +24,9 @@ public struct HeldOrder: Equatable, Sendable {
 
         if hold.isHeld {
             sections = core.sections.reduce(into: [:]) { held, section in
-                held[section.key] = HeldLists.merge(sections[section.key] ?? [], into: section.value, moving: moving)
+                held[section.key] = Hold.merge(sections[section.key] ?? [], into: section.value, moving: moving)
             }
-            projects = HeldLists.merge(projects, into: core.projects, moving: [])
+            projects = Hold.merge(projects, into: core.projects, moving: [])
         } else {
             (sections, projects) = core
         }

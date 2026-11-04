@@ -46,6 +46,8 @@ public struct Listed: Equatable, Sendable {
         public var open = 0
         /// Its asks waiting, on Lee or on a window to deliver Lee's reply.
         public var waiting = 0
+        /// Its asks snoozed.
+        public var snoozed = 0
         /// The items its sessions parked.
         public var parked = 0
 
@@ -140,6 +142,9 @@ public struct Listed: Equatable, Sendable {
     public var rowless: [String: String]
     /// Every session on the board, each by its project's key.
     public var homes: [String: String]
+    /// A board was heard, stale or not: without one, before `watch` prints its first line or with no `watch` to run,
+    /// the list says nothing of what is on the board, so nothing has left it.
+    public let hasBoard: Bool
 
     /// Before `watch` prints its first line.
     public init() {
@@ -153,12 +158,14 @@ public struct Listed: Equatable, Sendable {
         projects = []
         rowless = [:]
         homes = [:]
+        hasBoard = false
     }
 
     /// The board as last heard, its head as the panel's says it, stale or not.
     public init(_ last: LastBoard) {
         let board = last.board
 
+        hasBoard = board != nil
         head = PanelBoard(last).head
         rows = board.map(Self.rows) ?? []
         projects = board?.projects.map(Project.init) ?? []
@@ -238,7 +245,7 @@ extension Listed.Project {
     init(_ project: Board.Project) {
         self.init(
             id: project.key, name: project.name, sessions: project.sessions.count, open: project.open,
-            waiting: project.waiting, parked: project.parked
+            waiting: project.waiting, snoozed: project.snoozed, parked: project.parked
         )
     }
 }

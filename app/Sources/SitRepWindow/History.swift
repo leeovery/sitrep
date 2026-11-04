@@ -50,14 +50,36 @@ public struct History: Equatable, Sendable {
         self.location = location
     }
 
-    /// Where the window is, changed with no step to go back from: as the list picks another row, or as the board
-    /// leaves the window somewhere else (`Location.kept(on:)`). Where that is the step before, the step goes, so
-    /// Back never stays where it is.
+    /// Where the window is, changed with no step to go back from: as the list picks another row. Where that is the
+    /// step before, or the step after, that step goes, so neither Back nor Forward stays where it is.
     public mutating func replace(with location: Location) {
-        if back.last == location {
-            back.removeLast()
-        }
         self.location = location
+        back = Self.collapsed(back, toward: location)
+        forward = Self.collapsed(forward, toward: location)
+    }
+
+    /// The board changed: where the window is, and every step back and forward, as each stands on it
+    /// (`Location.kept(on:)`). A step that no longer stands goes, as does one that comes to be the step beside it or
+    /// where the window is. Where the window is no longer stands, it opens afresh, as it would on this board.
+    public mutating func keep(on listed: Listed) {
+        location = location.kept(on: listed) ?? Location.opening(on: listed, remembered: nil)
+        back = Self.collapsed(back.compactMap { $0.kept(on: listed) }, toward: location)
+        forward = Self.collapsed(forward.compactMap { $0.kept(on: listed) }, toward: location)
+    }
+
+    /// The steps of a stack, its nearest to where the window is last, with none the same as the one beside it, nor
+    /// at its end the same as where the window is.
+    private static func collapsed(_ steps: [Location], toward location: Location) -> [Location] {
+        var collapsed = steps.reduce(into: [Location]()) { kept, step in
+            if kept.last != step {
+                kept.append(step)
+            }
+        }
+
+        while collapsed.last == location {
+            collapsed.removeLast()
+        }
+        return collapsed
     }
 
     /// Back a step, where there is one.

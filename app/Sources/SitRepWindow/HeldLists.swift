@@ -1,57 +1,67 @@
 import Foundation
 
-/// The order the middle list shows its rows in, and the sidebar its projects: `watch`'s, but held while the pointer is
-/// over them and for a second after it leaves, as the strip holds its marks, so a change shows in place; and held for a
-/// second after each pick made in the list, so no row moves between two presses of an arrow key. Each place's list is
-/// held on its own, Needs you's by its lines, so a line leaving its place leaves the rest where they were; a line new
-/// to needing Lee moves in at once, to where `watch` has it, the rows below sliding. The projects are held alike.
+/// The order the middle list shows its rows in, and the sidebar its projects: `watch`'s, but each held while the
+/// pointer is over its column and for a second after it leaves, as the strip holds its marks, so a change shows in
+/// place; and held for a second after each pick made in it, so no row moves between two presses of an arrow key. The
+/// two columns are held apart, so the pointer over the projects never holds the list, nor the other way. Each place's
+/// list is held on its own, Needs you's by its lines, so a line leaving its place leaves the rest where they were. A
+/// line new on the board has a key new to the list, so it moves in at once to where `watch` has it, held or not, the
+/// rows below sliding.
 public struct HeldLists: Equatable, Sendable {
+    /// One of the two columns held: the middle list, or the sidebar's projects.
+    public enum Column: Sendable {
+        case list, projects
+    }
+
     private var lists: [Place: [ListPick]] = [:]
     private var projects: [String] = []
-    private var hold = Hold()
+    private var listHold = Hold()
+    private var projectsHold = Hold()
 
     public init() {}
 
-    /// When the lists take `watch`'s order, a second after the pointer left them or the last pick made in them.
-    public var resortsAt: Date? { hold.endsAt }
+    /// When a column takes `watch`'s order next, a second after the pointer left it or the last pick made in it.
+    public var resortsAt: Date? {
+        [listHold.endsAt, projectsHold.endsAt].compactMap { $0 }.min()
+    }
 
-    /// The board in `watch`'s order, taken: as it is, or while held into the order shown, the lines moving, by their
-    /// keys, put in at their places in `watch`'s, as anything new to a list is.
-    public mutating func take(_ listed: Listed, moving: Set<String>) {
+    /// The board in `watch`'s order, taken: as it is, or, in a column held, into the order it shows, anything new to
+    /// it put in at its place in `watch`'s.
+    public mutating func take(_ listed: Listed) {
         let core = Self.order(of: listed)
 
-        if hold.isHeld {
-            let moving = Set(moving.map(ListPick.line))
-
-            lists = core.lists.reduce(into: [:]) { held, list in
-                held[list.key] = Self.merge(lists[list.key] ?? [], into: list.value, moving: moving)
+        lists = listHold.isHeld
+            ? core.lists.reduce(into: [:]) { held, list in
+                held[list.key] = Hold.merge(lists[list.key] ?? [], into: list.value, moving: [])
             }
-            projects = Self.merge(projects, into: core.projects, moving: [])
-        } else {
-            (lists, projects) = core
-        }
+            : core.lists
+        projects = projectsHold.isHeld ? Hold.merge(projects, into: core.projects, moving: []) : core.projects
     }
 
-    /// The pointer came over the lists, or left them at this time.
-    public mutating func pointer(isIn: Bool, at time: Date) {
-        hold.pointer(isIn: isIn, at: time)
+    /// The pointer came over the column, or left it at this time.
+    public mutating func pointer(over column: Column, isIn: Bool, at time: Date) {
+        change(column) { $0.pointer(isIn: isIn, at: time) }
     }
 
-    /// A pick made in the list at this time, by a click or an arrow key: held until the second after it runs out, or,
-    /// with the pointer over the lists, for as long as the pointer holds them.
-    public mutating func picked(at time: Date) {
-        hold.picked(at: time)
+    /// A pick made in the column at this time, by a click or an arrow key: held until the second after it runs out,
+    /// or, with the pointer over it, for as long as the pointer holds it.
+    public mutating func picked(in column: Column, at time: Date) {
+        change(column) { $0.picked(at: time) }
     }
 
-    /// The second after the pointer left, or after the last pick, has run out by this time: the lists are no longer
-    /// held, and the next take gives `watch`'s order. Whether it ran out now.
+    /// The second after the pointer left a column, or after the last pick in it, has run out by this time: it is no
+    /// longer held, and the next take gives it `watch`'s order. Whether either ran out now.
     public mutating func settle(at time: Date) -> Bool {
-        hold.settle(at: time)
+        let list = listHold.settle(at: time)
+        let projects = projectsHold.settle(at: time)
+
+        return list || projects
     }
 
-    /// The pointer gone with the lists, as when the window closes under them, which tells no exit: held no more.
+    /// The pointer gone with the columns, as when the window closes under them, which tells no exit: held no more.
     public mutating func release() {
-        hold.release()
+        listHold.release()
+        projectsHold.release()
     }
 
     /// The place's list in the order held, its fold's rows too.
@@ -74,25 +84,18 @@ public struct HeldLists: Equatable, Sendable {
         return arranged
     }
 
+    private mutating func change(_ column: Column, _ change: (inout Hold) -> Void) {
+        switch column {
+        case .list: change(&listHold)
+        case .projects: change(&projectsHold)
+        }
+    }
+
     /// Each place's rows, its fold's among them, and the projects, in `watch`'s order.
     private static func order(of listed: Listed) -> (lists: [Place: [ListPick]], projects: [String]) {
         let lists = Place.allCases.map { place in (place, PlaceList(place, in: listed, isFoldOpen: true).picks) }
 
         return (Dictionary(uniqueKeysWithValues: lists), listed.projects.map(\.id))
-    }
-
-    /// The held order with what `watch` no longer has gone, and what is moving or new to it put where `watch` has
-    /// it: after the nearest of those `watch` has before it that the list already holds.
-    static func merge<Key: Hashable>(_ held: [Key], into core: [Key], moving: Set<Key>) -> [Key] {
-        let kept = Set(core)
-        var merged = held.filter { kept.contains($0) && !moving.contains($0) }
-
-        for (place, key) in core.enumerated() where !merged.contains(key) {
-            let after = core[..<place].last(where: merged.contains).flatMap(merged.firstIndex(of:))
-
-            merged.insert(key, at: after.map { $0 + 1 } ?? 0)
-        }
-        return merged
     }
 }
 

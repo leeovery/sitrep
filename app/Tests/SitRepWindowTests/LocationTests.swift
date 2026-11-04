@@ -115,36 +115,206 @@ struct LocationTests {
         #expect(Location.opening(on: quiet, remembered: .place(.working, picked: Self.macapp)) == .place(.working))
     }
 
+    /// Closed on Needs you with a line picked, everything answered since: Needs you, nothing picked, not an empty list
+    /// beside the line's page. Closed on Working with a session since on Lee's turn: Working, nothing picked. Still
+    /// working, it stays picked.
+    @Test func aFreshOpenDropsARememberedPickItsListNoLongerShows() {
+        let turned = Built(id: "w1", project: "northwind", state: .yourTurn)
+        let line = Location.place(.needsYou, picked: Selection(pick: .line(turned.line(0)), session: "w1"))
+        let working = Location.place(.working, picked: Selection(pick: .session("w1"), session: "w1"))
+
+        #expect(Location.opening(on: Built.listed([turned]), remembered: line) == .place(.needsYou))
+        #expect(Location.opening(on: Built.listed([turned]), remembered: working) == .place(.working))
+        #expect(Location.opening(on: Built.listed([Built(id: "w1", project: "northwind")]), remembered: working)
+            == working)
+    }
+
+    /// A cold open, no board heard yet: where it was left, as it was, nothing on the board to say otherwise.
+    @Test func aColdOpenWithNoBoardOpensWhereItWasLeft() {
+        let pushed = Location.session("sr-dash02", from: .project("switchboard"))
+
+        #expect(Location.opening(on: Listed(), remembered: pushed) == pushed)
+        #expect(Location.opening(on: Listed(unrun: "No sitrep"), remembered: nil) == .place(.needsYou))
+    }
+
+    // MARK: No board
+
+    /// `watch` dying on a project's page, or before its first line: nothing has left the board, so the window stays.
+    @Test func withNoBoardTheLocationStays() {
+        let locations: [Location] = [
+            .project("kit"), .session("sr-gs7kq2", from: .project("goosemates")),
+            .place(.needsYou, picked: Self.goose), .place(.parked, scope: .project("goosemates")),
+        ]
+
+        for location in locations {
+            #expect(location.kept(on: Listed(unrun: "sitrep watch stopped")) == location)
+            #expect(location.kept(on: Listed()) == location)
+        }
+    }
+
+    // MARK: Snoozed and woken
+
+    /// Contoso's ask, picked asleep under "N snoozed", is woken: picked as its line in Needs you, its key the same,
+    /// shown there whether the list is held or not.
+    @Test func aSnoozedAskPickedAndWokenIsPickedAsItsLine() throws {
+        let northwind = Built(id: "s1", project: "northwind", waiting: [30])
+        var asleep = Built(id: "s2", project: "contoso")
+
+        asleep.snoozed = [(age: 25, wakesIn: 5)]
+
+        var woken = asleep
+
+        woken.snoozed = []
+        woken.waiting = [25]
+
+        let before = Built.listed([northwind, asleep])
+        let after = Built.listed([northwind, woken])
+        let picked = try PlaceList(.needsYou, in: before, isFoldOpen: true).picked(.snoozed(asleep.asleep(0)))
+        let kept = try #require(Location.place(.needsYou, picked: picked).kept(on: after))
+
+        #expect(asleep.asleep(0) == woken.line(0))
+        #expect(kept == .place(.needsYou, picked: Selection(pick: .line(woken.line(0)), session: "s2")))
+        for isHeld in [false, true] {
+            var held = HeldLists()
+
+            held.take(before)
+            held.pointer(over: .list, isIn: isHeld, at: printedAt)
+            held.take(after)
+            #expect(held.arranged(PlaceList(.needsYou, in: after)).position(of: kept.picked?.pick)?.text == "2 / 2")
+        }
+    }
+
+    /// The mirror: the picked line snoozed stays picked as the line it was, gone from Needs you as an answered one
+    /// is, so ↓ goes on to the row after it, held or not.
+    @Test func aPickedLineSnoozedStaysPickedAsItWasAndTheArrowsGoOn() throws {
+        let northwind = Built(id: "s1", project: "northwind", waiting: [30, 20])
+        let contoso = Built(id: "s2", project: "contoso", waiting: [25])
+        var asleep = contoso
+
+        asleep.waiting = []
+        asleep.snoozed = [(age: 25, wakesIn: 60)]
+
+        let before = Built.listed([northwind, contoso])
+        let after = Built.listed([northwind, asleep])
+        let picked = try PlaceList(.needsYou, in: before).picked(.line(contoso.line(0)))
+        let kept = try #require(Location.place(.needsYou, picked: picked).kept(on: after))
+
+        #expect(kept.picked?.pick == .line(contoso.line(0)))
+        for isHeld in [false, true] {
+            var held = HeldLists()
+
+            held.take(before)
+            held.pointer(over: .list, isIn: isHeld, at: printedAt)
+            held.take(after)
+
+            let list = held.arranged(PlaceList(.needsYou, in: after))
+
+            #expect(list.position(of: kept.picked?.pick) == nil)
+            #expect(list.step(from: kept.picked, down: true) == .line(northwind.line(1)))
+        }
+    }
+
+    // MARK: The sidebar
+
+    /// A click on the place the window is on leaves it as it is, its pick kept, as Mail does; on Parked narrowed to a
+    /// project it clears the scope; on another place, or a project, it goes there.
+    @Test func aClickOnThePlaceTheWindowIsOnLeavesItAsItIs() {
+        let picked = Location.place(.needsYou, picked: Self.macapp)
+
+        #expect(picked.clicking(.place(.needsYou)) == nil)
+        #expect(Location.project("kit").clicking(.project("kit")) == nil)
+        #expect(Location.place(.parked, scope: .project("kit")).clicking(.place(.parked)) == .place(.parked))
+        #expect(picked.clicking(.place(.working)) == .place(.working))
+        #expect(Location.session("sr-k7t001", from: .project("kit")).clicking(.project("kit")) == .project("kit"))
+    }
+
+    /// A scope means something only on Parked: elsewhere it falls away.
+    @Test func aScopeOnAnotherPlaceFallsAway() {
+        #expect(Location.place(.working, scope: .project("kit")).kept(on: Self.listed) == .place(.working))
+    }
+
+    // MARK: Kept across launches
+
+    /// Saved and read back, as the last location is under its defaults key: where it is and what it picked, not
+    /// where the pick stood in a list long gone.
+    @Test func aLocationIsSavedAndReadBack() throws {
+        let dash = try PlaceList(.needsYou, in: Self.listed).picked(.line("ask:sr-dash02:k1"))
+        let parked = Selection(pick: .parked(session: "sr-macapp", id: "p1"), session: "sr-macapp")
+        let locations: [Location] = [
+            .place(.needsYou, picked: dash), .place(.parked, picked: parked, scope: .session("sr-macapp")),
+            .project("kit"), .session("sr-k7t001", from: .place(.parked)),
+        ]
+        let read = try JSONDecoder().decode([Location].self, from: JSONEncoder().encode(locations))
+        let gone = PlaceList(.needsYou, in: Listed(heard(answered("sr-dash02"))))
+
+        #expect(read == locations)
+        #expect(gone.step(from: dash, down: true) == .line("ask:sr-macapp:k1"))
+        #expect(gone.step(from: read[0].picked, down: true) == .line("ask:sr-macapp:k2"))
+    }
+
     // MARK: An open from outside
+
+    private static func landing(_ session: String, on listed: Listed = listed) -> Location? {
+        if case let .location(location) = Location.opening(session: session, on: listed) {
+            return location
+        }
+        return nil
+    }
 
     /// SitRep's session needs Lee: Needs you, its oldest line, k2, picked; Switchboard's dashboard its ask, older
     /// than its stop.
     @Test func anOpenOfASessionNeedingLeeLandsOnItsOldestLine() {
-        #expect(Location.opening(session: "sr-macapp", on: Self.listed) == .place(.needsYou, picked: Self.macapp))
-        #expect(Location.opening(session: "sr-dash02", on: Self.listed)
+        #expect(Self.landing("sr-macapp") == .place(.needsYou, picked: Self.macapp))
+        #expect(Self.landing("sr-dash02")
             == .place(.needsYou, picked: Selection(pick: .line("ask:sr-dash02:k1"), session: "sr-dash02")))
-        #expect(Location.opening(session: "sr-gs7kq2", on: Self.listed) == .place(.needsYou, picked: Self.goose))
+        #expect(Self.landing("sr-gs7kq2") == .place(.needsYou, picked: Self.goose))
+    }
+
+    /// Harness's session has k3 waiting and k1 and k2 asleep: its waiting line.
+    @Test func anOpenOfASessionWithLinesWaitingAndAsleepLandsOnItsWaitingLine() {
+        let snoozed = Listed(heard(.line(Lines.snoozed[0])))
+
+        #expect(Self.landing("sr-4g01a7", on: snoozed)
+            == .place(.needsYou, picked: Selection(pick: .line("ask:sr-4g01a7:k3"), session: "sr-4g01a7")))
     }
 
     @Test func anOpenOfAWorkingOrYourTurnSessionLandsOnItsRow() {
         let bySession = Listed(heard(.line(Lines.bySession[0])))
 
-        #expect(Location.opening(session: "sr-macapp", on: bySession)
+        #expect(Self.landing("sr-macapp", on: bySession)
             == .place(.working, picked: Selection(pick: .session("sr-macapp"), session: "sr-macapp")))
-        #expect(Location.opening(session: "sr-rq7dgr", on: Self.listed)
+        #expect(Self.landing("sr-rq7dgr")
             == .place(.yourTurn, picked: Selection(pick: .session("sr-rq7dgr"), session: "sr-rq7dgr")))
     }
 
+    /// A Your turn row past the fold period: its row picked, under "N earlier", which opens for it.
+    @Test func anOpenOfASessionUnderNEarlierLandsOnItsRowInTheFold() throws {
+        var listed = Built.listed([Built(id: "t1", project: "northwind", state: .yourTurn, turn: 120)])
+
+        listed.changeRows { $0.isEarlier = true }
+
+        let landing = try #require(Self.landing("t1", on: listed))
+
+        #expect(landing == .place(.yourTurn, picked: Selection(pick: .session("t1"), session: "t1")))
+        #expect(PlaceList(.yourTurn, in: listed).folds(landing.picked?.pick))
+    }
+
     /// Kit's away session has no row: its project's page, the session pushed over it. So too a session whose only
-    /// row is in Snoozed.
+    /// lines are asleep, as the plan settled.
     @Test func anOpenOfASessionWithNoRowPushesItOverItsProject() {
         var asleep = Built(id: "a1", project: "contoso", isAway: true)
 
         asleep.snoozed = [(age: 10, wakesIn: 60)]
 
-        #expect(Location.opening(session: "sr-k7t001", on: Self.listed) == .session("sr-k7t001", from: .project("kit")))
-        #expect(Location.opening(session: "a1", on: Built.listed([asleep])) == .session("a1", from: .project("contoso")))
-        #expect(Location.opening(session: "sr-gone", on: Self.listed) == nil)
+        #expect(Self.landing("sr-k7t001") == .session("sr-k7t001", from: .project("kit")))
+        #expect(Self.landing("a1", on: Built.listed([asleep])) == .session("a1", from: .project("contoso")))
+        #expect(Location.opening(session: "sr-gone", on: Self.listed) == .notOnTheBoard)
+    }
+
+    /// "Open in SitRep" before the first line, or with no `watch` to run: nothing says where it is yet.
+    @Test func anOpenFromOutsideWithNoBoardAwaitsOne() {
+        #expect(Location.opening(session: "sr-macapp", on: Listed()) == .awaitingBoard)
+        #expect(Location.opening(session: "sr-macapp", on: Listed(unrun: "No sitrep")) == .awaitingBoard)
     }
 
     // MARK: Lee's board
@@ -154,7 +324,7 @@ struct LocationTests {
     /// each of its sessions.
     @Test func onABoardTheSizeOfLeesEverySessionLandsByTheRule() {
         let listed = Built.listed(Built.leesSize)
-        let landings = Built.leesSize.compactMap { Location.opening(session: $0.id, on: listed) }
+        let landings = Built.leesSize.compactMap { Self.landing($0.id, on: listed) }
         let landed: [Int] = [Place.needsYou, .working, .yourTurn].map { place in
             landings.filter { $0.place == place }.count
         }
@@ -165,3 +335,4 @@ struct LocationTests {
         #expect(Location.project("p01").following(on: listed) == ["s01", "s02"])
     }
 }
+

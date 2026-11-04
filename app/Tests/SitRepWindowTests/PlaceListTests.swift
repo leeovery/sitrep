@@ -169,7 +169,7 @@ struct PlaceListTests {
     // MARK: ↑ and ↓
 
     private static func step(_ list: PlaceList, from pick: ListPick?, down: Bool) -> ListPick? {
-        list.step(from: ListSpot(pick, in: list), down: down)
+        list.step(from: pick.flatMap(list.selection(of:)), down: down)
     }
 
     @Test func anArrowGoesToTheRowAfterOrBeforeThePick() {
@@ -217,10 +217,10 @@ struct PlaceListTests {
 
     /// Section 2's rule: the picked ask answered, nothing is picked, and ↓ goes to the row after it, ↑ to the one
     /// before.
-    @Test func aPickThatLeftTheListStandsWhereItWas() {
+    @Test func aPickThatLeftTheListStandsWhereItWas() throws {
         let before = Self.needsYou(Self.northwind, Self.contoso)
         let picked = ListPick.line(Self.contoso.line(0))
-        let spot = ListSpot(picked, in: before)
+        let spot = try before.picked(picked)
         let after = Self.needsYou(Self.northwind, Self.answered(Self.contoso))
 
         #expect(before.picks == [.line(Self.northwind.line(0)), picked, .line(Self.northwind.line(1))])
@@ -230,14 +230,14 @@ struct PlaceListTests {
         #expect(after.step(from: spot, down: false) == .line(Self.northwind.line(0)))
     }
 
-    /// Taking each list as it shows keeps the spot up to date: a line come in just above the pick since it was made
-    /// is what ↑ goes to once the pick leaves.
-    @Test func aSpotTakesEachListAsItShows() {
+    /// Standing in each list as it shows keeps the selection up to date: a line come in just above the pick since it
+    /// was made is what ↑ goes to once the pick leaves.
+    @Test func aSelectionStandsWhereEachListShowsIt() throws {
         let fabrikam = Built(id: "s3", project: "fabrikam", waiting: [27])
         let picked = ListPick.line(Self.contoso.line(0))
-        var spot = ListSpot(picked, in: Self.needsYou(Self.northwind, Self.contoso))
+        var spot = try Self.needsYou(Self.northwind, Self.contoso).picked(picked)
 
-        spot.take(Self.needsYou(Self.northwind, Self.contoso, fabrikam))
+        spot = spot.standing(in: Self.needsYou(Self.northwind, Self.contoso, fabrikam))
 
         let after = Self.needsYou(Self.northwind, Self.answered(Self.contoso), fabrikam)
 
@@ -247,8 +247,8 @@ struct PlaceListTests {
     }
 
     /// With every row above it gone, it stands at the top: ↓ to the first row, ↑ nowhere.
-    @Test func aPickWhoseRowsAboveAllLeftStandsAtTheTop() {
-        let spot = ListSpot(.line(Self.northwind.line(1)), in: Self.needsYou(Self.northwind, Self.contoso))
+    @Test func aPickWhoseRowsAboveAllLeftStandsAtTheTop() throws {
+        let spot = try Self.needsYou(Self.northwind, Self.contoso).picked(.line(Self.northwind.line(1)))
         let answered = [Self.answered(Self.northwind), Self.answered(Self.contoso)]
         let fabrikam = Built(id: "s4", project: "fabrikam", waiting: [5])
         let empty = PlaceList(.needsYou, in: Built.listed(answered))
@@ -260,10 +260,10 @@ struct PlaceListTests {
     }
 
     /// A snoozed row picked, then its fold closed: the fold holds it, and it stands after the last line.
-    @Test func aPickAFoldClosedOverStandsAboveTheFold() {
+    @Test func aPickAFoldClosedOverStandsAboveTheFold() throws {
         let listed = Listed(heard(.line(Lines.snoozed[0])))
         let z2 = ListPick.snoozed("ask:sr-4g01a7:k2")
-        let spot = ListSpot(z2, in: PlaceList(.needsYou, in: listed, isFoldOpen: true))
+        let spot = try PlaceList(.needsYou, in: listed, isFoldOpen: true).picked(z2)
         let closed = PlaceList(.needsYou, in: listed)
 
         #expect(closed.folds(z2))
@@ -280,11 +280,11 @@ struct PlaceListTests {
         let list = PlaceList(.needsYou, in: Built.listed(Built.leesSize))
         let ages = list.rows.compactMap(\.line).map { ($0.session.isAway, $0.line.since) }
         var walked: [ListPick] = []
-        var spot = ListSpot(in: list)
+        var spot: Selection?
 
         while let next = list.step(from: spot, down: true) {
             walked.append(next)
-            spot = ListSpot(next, in: list)
+            spot = list.selection(of: next)
         }
 
         #expect(list.rows.count == 15)
@@ -295,6 +295,55 @@ struct PlaceListTests {
         #expect(list.position(of: walked.last)?.text == "15 / 15")
         #expect(PlaceList(.working, in: Built.listed(Built.leesSize)).rows.count == 6)
         #expect(PlaceList(.yourTurn, in: Built.listed(Built.leesSize)).rows.count == 6)
+    }
+
+    // MARK: More
+
+    /// Two lines as old as each other go by their keys, as core orders them.
+    @Test func linesAsOldAsEachOtherGoByTheirKeys() {
+        let one = Built(id: "s1", project: "northwind", waiting: [20])
+        let two = Built(id: "s2", project: "contoso", waiting: [20])
+
+        #expect(Self.needsYou(two, one).picks == [.line(one.line(0)), .line(two.line(0))])
+    }
+
+    /// A line's own ask, never its session's others, is all its menu snoozes; a window's stop has none.
+    @Test func aLineRowHasOnlyItsOwnAsk() throws {
+        #expect(try #require(Self.needsYou.row(Self.k3)?.line).asks == ["k3"])
+        #expect(try #require(Self.needsYou.row(Self.stop)?.line).asks.isEmpty)
+    }
+
+    @Test func aPositionHasAWrittenAndASpokenForm() throws {
+        let position = try #require(Self.needsYou.position(of: Self.dash))
+
+        #expect(position.text == "3 / 6")
+        #expect(position.spoken == "3 of 6")
+    }
+
+    /// Filtered, the position counts and the arrows step through only what the filter keeps.
+    @Test func aFilteredListsPositionAndStepsAreItsOwn() {
+        let filtered = PlaceList(.needsYou, in: Self.listed, filter: Filter("load test"))
+
+        #expect(filtered.position(of: Self.dash)?.text == "2 / 2")
+        #expect(Self.step(filtered, from: Self.k3, down: true) == Self.dash)
+        #expect(Self.step(filtered, from: Self.dash, down: true) == nil)
+        #expect(Self.step(filtered, from: nil, down: true) == Self.k3)
+    }
+
+    /// A pick under a closed fold still has its selection, for an open from outside, which opens the fold.
+    @Test func aPickUnderAClosedFoldHasItsSelection() {
+        let listed = Listed(heard(.line(Lines.snoozed[0])))
+        let z1 = ListPick.snoozed("ask:sr-4g01a7:k1")
+
+        #expect(PlaceList(.needsYou, in: listed).selection(of: z1) == Selection(pick: z1, session: "sr-4g01a7"))
+        #expect(PlaceList(.needsYou, in: listed).selection(of: .line("ask:sr-gone:k1")) == nil)
+    }
+}
+
+extension PlaceList {
+    /// The selection of a pick it lists, standing where it shows it.
+    func picked(_ pick: ListPick) throws -> Selection {
+        try #require(selection(of: pick))
     }
 }
 
