@@ -30,6 +30,12 @@
  * ending clears that subagent's, so one whose end the window never heard (a
  * reload while it waited) cannot hold it for ever, and one loop's turn
  * never clears another's stop.
+ *
+ * Its model's requests say whether the turn only waits on background work
+ * (`waitsOnWork`), which no state shows: a subagent's first request says
+ * its loop runs, until its turn ends; a request of the window's own loop
+ * answered asking for no tool leaves that loop done inside its turn, until
+ * a request of its own goes or asks for a tool, or the turn ends.
  */
 import { isCount, isFilled, isObject, isTime } from './entries'
 import { QUESTION_TOOL, questionShown, toolShown } from './subject'
@@ -75,6 +81,10 @@ export type Activity = {
   work?: Work
   /** The monitors heard started, as far as a Stop lists them still running. */
   watches: Watch[]
+  /** The subagents' loops heard running: each from its first request until its turn ends. */
+  loops: string[]
+  /** The window's own loop done inside its running turn: its latest request answered asked for no tool, and none has gone since. */
+  isDone?: true
 }
 
 /** A tool call as the engine raises it: its id, the tool, its arguments, and the subagent's loop it runs in, if any. */
@@ -84,7 +94,7 @@ export type ToolCall = { id: string; tool: string; input: unknown; agentId?: str
 export type PermissionRequest = { tool: string; input: unknown; agentId?: string }
 
 /** A window that has heard nothing yet. */
-export const QUIET: Activity = { tools: [], asked: [], stops: [], watches: [] }
+export const QUIET: Activity = { tools: [], asked: [], stops: [], watches: [], loops: [] }
 
 /** What of `activity` a subagent's loop left: its candidates and stops. The window's own loop has no `agentId`. */
 const others = (activity: Activity, agentId: string | undefined) => ({
@@ -98,6 +108,7 @@ export const turnStarted = (activity: Activity, at: number): Activity => ({
   tools: [],
   ...others(activity, undefined),
   watches: activity.watches,
+  loops: activity.loops,
 })
 
 /** The window's turn ending: as its start, the subagents' kept, and what its Stop left pending kept, should the Stop have come first. */
@@ -107,7 +118,48 @@ export const turnEnded = (activity: Activity, at: number): Activity => ({
   ...others(activity, undefined),
   ...(activity.work === undefined ? {} : { work: activity.work }),
   watches: activity.watches,
+  loops: activity.loops,
 })
+
+/** The window's own loop at work, not done: the activity itself where it was not. */
+const atWork = (activity: Activity): Activity => {
+  const { isDone, ...rest } = activity
+
+  return isDone === undefined ? activity : rest
+}
+
+/**
+ * A model request about to go, of the window's own loop, which is at work
+ * again, or of a subagent's, whose loop runs until its turn ends. The
+ * activity itself where nothing changes.
+ */
+export const stepStarted = (activity: Activity, agentId?: string): Activity => {
+  if (agentId === undefined) {
+    return atWork(activity)
+  }
+
+  return activity.loops.includes(agentId)
+    ? activity
+    : { ...activity, loops: [...activity.loops, agentId] }
+}
+
+/** A request of the window's own loop answered: asking for a tool, the loop is at work; for none, done inside its turn. The activity itself where nothing changes. */
+export const stepAnswered = (activity: Activity, isAsking: boolean): Activity => {
+  if (isAsking) {
+    return atWork(activity)
+  }
+
+  return activity.isDone === true ? activity : { ...activity, isDone: true }
+}
+
+/**
+ * Whether the main conversation's turn only waits on its background work:
+ * it runs, its own loop done, while a subagent's loop runs. Claude Code
+ * holds such a turn open until that work ends, and a prompt the mod
+ * submits goes in only then.
+ */
+export const waitsOnWork = (activity: Activity) =>
+  activity.turnAt !== undefined && activity.isDone === true && activity.loops.length > 0
 
 /**
  * The window's turn stopping, its Stop not blocked, at `at`: what it lists
@@ -128,10 +180,11 @@ export const turnStopped = (activity: Activity, pending: Pending, at: number): A
 /** Whether the main conversation is between turns, as the window heard it: no turn of its own running, whatever a subagent or its work does. A turn stopped on Lee still runs. */
 export const isBetweenTurns = (activity: Activity) => activity.turnAt === undefined
 
-/** A subagent's turn ending: its candidates and stops are cleared, whether or not their calls were heard to end. */
+/** A subagent's turn ending: its candidates and stops are cleared, whether or not their calls were heard to end, and its loop runs no more. */
 export const agentTurnEnded = (activity: Activity, agentId: string): Activity => ({
   ...activity,
   ...others(activity, agentId),
+  loops: activity.loops.filter(loop => loop !== agentId),
 })
 
 /** A JSON value with its objects' keys in order. */
@@ -397,6 +450,8 @@ export const parseActivity = (raw: unknown): Activity => {
     stops: listOf(raw.stops, parseStop),
     ...(work === undefined ? {} : { work }),
     watches: listOf(raw.watches, parseWatch),
+    loops: listOf(raw.loops, loop => (isFilled(loop) ? loop : undefined)),
+    ...(raw.isDone === true ? { isDone: true } : {}),
   }
 }
 

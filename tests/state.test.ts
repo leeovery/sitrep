@@ -15,6 +15,8 @@ import {
   questionShown,
   SHOWN_LENGTH,
   stateOf,
+  stepAnswered,
+  stepStarted,
   toolAsked,
   toolEnded,
   toolShown,
@@ -22,6 +24,7 @@ import {
   turnEnded,
   turnStarted,
   turnStopped,
+  waitsOnWork,
   wakeAt,
   watchOf,
   workOf,
@@ -390,8 +393,8 @@ test("the window's turn starting or ending clears its own tools, candidates and 
   }
 
   expect(busy.stops.map(stop => stop.call)).toEqual(['t2', 'q1'])
-  expect(ended).toEqual({ endedAt: T0 + 9_000, tools: [], ...theAgents, watches: [] })
-  expect(next).toEqual({ turnAt: T0 + 10_000, tools: [], ...theAgents, watches: [] })
+  expect(ended).toEqual({ endedAt: T0 + 9_000, tools: [], ...theAgents, watches: [], loops: [] })
+  expect(next).toEqual({ turnAt: T0 + 10_000, tools: [], ...theAgents, watches: [], loops: [] })
   expect(stateOf(next, T0)).toEqual({ ...PERMISSION, since: T0 + 2_000 })
 })
 
@@ -409,6 +412,47 @@ test("a subagent's turn ending clears what it left, though its calls were never 
   expect(ended.asked.map(asked => asked.call)).toEqual(['t3'])
   expect(ended.stops.map(stop => stop.call)).toEqual(['q1'])
   expect(ended.turnAt).toBe(T0)
+})
+
+test("Claude's turn only waits on its background work while it runs, its own loop's latest request asked for no tool, and a subagent's loop runs; no state shows it", () => {
+  const launched = during(
+    activity => stepAnswered(activity, true),
+    activity => stepStarted(activity, 'agent-1'),
+    activity => stepStarted(activity),
+  )
+  const waiting = stepAnswered(launched, false)
+
+  expect(waitsOnWork(launched), 'its own loop at work').toBe(false)
+  expect(waitsOnWork(waiting)).toBe(true)
+  expect(stateOf(waiting, T0), 'still working').toEqual({ is: 'working', since: T0 })
+  expect(waitsOnWork(stepAnswered(during(), false)), 'no subagent running').toBe(false)
+  expect(waitsOnWork(stepStarted(waiting)), 'a request of its own loop again').toBe(false)
+  expect(waitsOnWork(agentTurnEnded(waiting, 'agent-1')), "the subagent's turn ended").toBe(false)
+  expect(waitsOnWork(turnEnded(waiting, T0 + 9_000)), 'the turn ended').toBe(false)
+  expect(waitsOnWork(stepAnswered(stepStarted(QUIET, 'agent-1'), false)), 'no turn').toBe(false)
+})
+
+test("the window's own loop is done from a request answered asking for no tool until a request goes or is answered asking for one, or the turn ends; a request that changes nothing gives back what it was given", () => {
+  const busy = during()
+  const done = stepAnswered(busy, false)
+
+  expect(done.isDone).toBe(true)
+  expect(stepAnswered(busy, true), 'asking for a tool').toBe(busy)
+  expect(stepAnswered(done, false)).toBe(done)
+  expect(stepStarted(busy)).toBe(busy)
+  expect(stepStarted(done).isDone, 'its next request').toBeUndefined()
+  expect(stepAnswered(done, true).isDone, 'one answered asking for a tool').toBeUndefined()
+  expect(turnEnded(done, T0 + 9_000).isDone, 'the turn ended').toBeUndefined()
+  expect(turnStarted(done, T0 + 9_000).isDone, 'the next turn').toBeUndefined()
+})
+
+test("a subagent's loop runs from its first request until its own turn ends, across the window's turns; another's ending leaves it", () => {
+  const running = stepStarted(stepStarted(QUIET, 'agent-1'), 'agent-2')
+
+  expect(running.loops).toEqual(['agent-1', 'agent-2'])
+  expect(stepStarted(running, 'agent-1'), 'its next request').toBe(running)
+  expect(turnStarted(turnEnded(running, T0), T0 + 1_000).loops).toEqual(['agent-1', 'agent-2'])
+  expect(agentTurnEnded(running, 'agent-2').loops).toEqual(['agent-1'])
 })
 
 test('a heartbeat reads back with its state, through every beat; letting go drops it', () => {
@@ -489,8 +533,9 @@ test('what the window heard reads back from $.state as it was kept', () => {
     activity => toolStarted(activity, question('q1'), T0 + 3_000),
   )
   const ended = turnEnded(busy, T0 + 9_000)
+  const waiting = stepAnswered(stepStarted(busy, 'agent-1'), false)
 
-  for (const activity of [QUIET, busy, ended]) {
+  for (const activity of [QUIET, busy, ended, waiting]) {
     expect(parseActivity(JSON.parse(JSON.stringify(activity)))).toEqual(activity)
   }
 })
@@ -508,6 +553,7 @@ test("what an earlier load kept in another shape reads field by field: a field t
     asked: [],
     stops: [],
     watches: [],
+    loops: [],
   })
   expect(
     parseActivity({
@@ -550,6 +596,7 @@ test("what an earlier load kept in another shape reads field by field: a field t
       { call: 't5', at: T0, is: 'permission', tool: { name: 'Bash' }, agentId: 'agent-1' },
     ],
     watches: [],
+    loops: [],
   })
 
   const watch = { task: 'bm1', isPersistent: true }
@@ -561,6 +608,10 @@ test("what an earlier load kept in another shape reads field by field: a field t
       watches: [watch, { task: 'bm2' }, { task: '', isPersistent: false }, 'bm3'],
     }),
   ).toEqual({ ...QUIET, work: { shells: { count: 1, first: 'bun test' } }, watches: [watch] })
+  expect(parseActivity({ ...QUIET, loops: ['agent-1', '', 7, null], isDone: 'yes' })).toEqual({
+    ...QUIET,
+    loops: ['agent-1'],
+  })
 })
 
 test('a time heard before the clock first answered, which has none, reads as when the window attached', () => {
@@ -928,6 +979,7 @@ test('a call that started a monitor is heard as it ends; a Stop keeps the monito
     asked: [],
     stops: [],
     watches: [{ task: 'bm1', isPersistent: true }],
+    loops: [],
   })
   expect(turnStopped(started, {}, T0 + 9_000).watches).toEqual(started.watches)
   expect(turnStopped(started, { tasks: [] }, T0 + 9_000).watches).toEqual([])

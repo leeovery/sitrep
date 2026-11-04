@@ -370,6 +370,24 @@ export function world(engine: Engine, on: On, options: Options = {}) {
   on('session.end', ($, e) => ({ sessionId: e.sessionId }))
   on('turn.start', ($, e) => ({ turnId: e.turnId }))
   on('turn.complete', ($, e) => ({ text: e.answer }))
+
+  /** The tools the model asks for at its next request. */
+  let asking: readonly string[] = []
+
+  // The model: each request answered whole, asking for the tools a test gives.
+  on('turn.step', async function* ($, e) {
+    const toolUses = asking.map(name => ({ name, input: {} }))
+
+    return {
+      turnId: e.turnId,
+      index: e.index,
+      answer: toolUses.length > 0 ? '' : 'Done.',
+      toolUses,
+      stopReason: toolUses.length > 0 ? 'tool_use' : 'end_turn',
+      usage: null,
+    }
+  })
+
   on('classic.SessionStart', () => ({}))
   on('prompt.context', ($, e) => ({ blocks: e.blocks }))
   on('session.id', () => ({ value: conversation }))
@@ -706,6 +724,30 @@ export function world(engine: Engine, on: On, options: Options = {}) {
     await engine.turn.start({ text, turnId: `turn-${turns}` })
   }
 
+  /**
+   * A model request of the main conversation's turn, or of a subagent's
+   * given its id, sent and answered whole, asking for the tools named: with
+   * none, the loop has nothing more to do.
+   */
+  let requests = 0
+  const steps = async (how: { tools?: readonly string[]; agentId?: string } = {}) => {
+    asking = how.tools ?? []
+
+    const response = engine.turn.step({
+      turnId: `turn-${turns}`,
+      index: requests++,
+      model: 'claude-opus-5-5',
+      messageCount: 1,
+      ...(how.agentId === undefined ? {} : { agentId: how.agentId }),
+    })
+
+    for await (const _ of response) {
+      // Read to its end: its result settles only then.
+    }
+
+    return response.result
+  }
+
   /** The main conversation's turn ending, its answer given; or stopped by Lee; or a subagent's turn, given its id. */
   const turnEnds = (how: { isAborted?: boolean; agentId?: string } = {}) =>
     engine.turn.complete({
@@ -771,6 +813,7 @@ export function world(engine: Engine, on: On, options: Options = {}) {
     begin,
     become,
     turnStarts,
+    steps,
     turnEnds,
     opened,
     pane,

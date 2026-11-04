@@ -86,6 +86,13 @@ export const activityNow = async (host: Host) => {
 }
 
 /**
+ * What the window has heard as this load holds it, QUIET before it is
+ * loaded: for a drawing, which a read of `$.state` would subscribe to every
+ * change of it, each tool call's among them.
+ */
+export const activityKnown = () => known ?? QUIET
+
+/**
  * Whether the main conversation is between turns, as the window has heard
  * it the moment the check is made: loaded first, so the check waits on
  * nothing and can decide inside a `$.state` update.
@@ -99,13 +106,18 @@ export const betweenTurns = async (host: Host) => {
 /**
  * Changes what the window has heard, here at once, once it is loaded: what
  * it was, and what it is. The write to `$.state` follows the writes before
- * it, and is not waited on; one refused is logged.
+ * it, and is not waited on; one refused is logged. A change that gives back
+ * what it was given writes nothing.
  */
 export const changeActivity = async (host: Host, change: (activity: Activity) => Activity) => {
   await load(host)
 
   const before = known ?? QUIET
   const after = change(before)
+
+  if (after === before) {
+    return { before, after }
+  }
 
   known = after
   writes = writes

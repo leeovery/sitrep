@@ -25,6 +25,11 @@
  * The turn's Stop says what it left pending: unless a hook beneath blocked
  * it, which goes on with the turn, its lists replace what was pending, in
  * whichever order it and the turn's end come.
+ *
+ * Each model request is heard as it goes and, the window's own loop's, as
+ * it is answered: they say whether the turn only waits on background work,
+ * which no state shows but Ready to send says, so a change of it draws the
+ * board again.
  */
 import {
   agentTurnEnded,
@@ -32,12 +37,15 @@ import {
   permissionShown,
   QUESTION_TOOL,
   QUIET,
+  stepAnswered,
+  stepStarted,
   toolAsked,
   toolEnded,
   toolStarted,
   turnEnded,
   turnStarted,
   turnStopped,
+  waitsOnWork,
   type Activity,
   type PendingCron,
   type PendingTask,
@@ -170,7 +178,12 @@ const logStops = (host: Host, before: Activity, after: Activity, why: string) =>
   return begun
 }
 
-/** Records what the window heard, `why` it changed, and has the heartbeat say it, waiting on neither write: the stops it began. */
+/**
+ * Records what the window heard, `why` it changed, and has the heartbeat
+ * say it, waiting on neither write: the stops it began. Where whether the
+ * turn only waits on background work changes, the board is drawn again,
+ * since Ready to send says so. A change of nothing does none of it.
+ */
 const heard = async (
   host: Host,
   change: (activity: Activity) => Activity,
@@ -179,9 +192,17 @@ const heard = async (
   try {
     const { before, after } = await changeActivity(host, change)
 
+    if (after === before) {
+      return []
+    }
+
     void timeNow(host)
       .then(at => tell(host, at))
       .catch(logFailure(host, UNWRITTEN))
+
+    if (waitsOnWork(before) !== waitsOnWork(after)) {
+      host.ui.redraw()
+    }
 
     return logStops(host, before, after, why)
   } catch (error) {
@@ -205,9 +226,17 @@ export const heardTurnEnd = async (host: Host) => {
   return heard(host, activity => turnEnded(activity, at), 'the turn ended')
 }
 
-/** A subagent's turn ending: what it left waiting is done with. */
+/** A subagent's turn ending: what it left waiting is done with, and its loop runs no more. */
 export const heardAgentTurnEnd = (host: Host, agentId: string) =>
   heard(host, activity => agentTurnEnded(activity, agentId), "its subagent's turn ended")
+
+/** A model request about to go: the window's own loop is at work again; a subagent's loop runs. */
+export const heardStep = (host: Host, agentId: string | undefined) =>
+  heard(host, activity => stepStarted(activity, agentId), 'a request went')
+
+/** A request of the window's own loop answered: asking for a tool, the loop is at work; for none, done inside its turn. */
+export const heardAnswer = (host: Host, toolUses: readonly unknown[]) =>
+  heard(host, activity => stepAnswered(activity, toolUses.length > 0), 'a request was answered')
 
 /** The conversation ending, as at a /clear: the next starts with nothing heard, your turn since it attaches. */
 export const heardConversationEnd = (host: Host) =>

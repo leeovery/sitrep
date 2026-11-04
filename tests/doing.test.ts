@@ -630,6 +630,7 @@ test('after a reload mid-turn, the window says the state $.state kept, and goes 
       asked: [],
       stops: [],
       watches: [],
+      loops: [],
     },
   })
   await $.session.start(CONVERSATION)

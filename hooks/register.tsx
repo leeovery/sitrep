@@ -45,9 +45,11 @@ import {
 } from './deliver'
 import {
   heardAgentTurnEnd,
+  heardAnswer,
   heardCheck,
   heardConversationEnd,
   heardRequest,
+  heardStep,
   heardStop,
   heardTurnEnd,
   heardTurnStart,
@@ -316,6 +318,22 @@ export const register: Register = on => {
 
     return next(e)
   }).catch(($, e, next) => next(e))
+
+  // Every model request, the window's own loop's and its subagents', heard
+  // as it goes, and the window's own as it is answered, passed on as it came.
+  on('turn.step', async function* ($, e, next) {
+    const host = hostOf($)
+
+    await heardStep(host, e.agentId)
+
+    const response = yield* next(e)
+
+    if (e.agentId === undefined) {
+      await heardAnswer(host, response.toolUses)
+    }
+
+    return response
+  })
 
   // Every call, the window's own and its subagents', sitrep's among them,
   // heard as it starts and ends, and passed on as it came.

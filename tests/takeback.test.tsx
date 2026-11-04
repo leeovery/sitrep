@@ -3,16 +3,19 @@
  * main conversation's turn ends however it ends, and Lee's take-back of his
  * own send while it is held: one update of the claim decides between the
  * two, so a take-back and the turn's end racing never both win, and never
- * lose the message.
+ * lose the message. Held while Claude's turn only waits on its background
+ * work, which Claude Code holds open until that work ends, Ready to send
+ * says so.
  */
 import type { On, SessionEndReason } from 'claude-code'
-import { expect, test, tier } from 'claude-code/testing'
+import { expect, test, tier, type Mounted } from 'claude-code/testing'
 import { parseEntries, parsePresence, type SessionPaths } from '../core'
 import { QUIET_MS } from '../hooks/deliver'
 import { WATCH_MS } from '../hooks/window'
 import type { SitrepInFlight } from '../types'
+import { rowsOf } from './drawn'
 import { file, MIN, reply, SENDER, SLOW, W1 } from './support'
-import { CONVERSATION, postedId, world } from './world'
+import { ACROSS, CONVERSATION, postedId, world } from './world'
 
 tier('user')
 
@@ -26,10 +29,22 @@ const MESSAGE = 'From the board:\n- Review Sessions & Runway, round 1 → Approv
 
 const HELD = "⧗ Waiting for Claude's turn to end."
 
+const WAITS_ON_WORK =
+  '⧗ Claude is waiting on its background work: this goes in when that ends. Type your answer in the prompt to reach Claude now.'
+
 const TAKE_BACK = 'take-back'
+
+/** The cells across a held send's line has on a docked board: Ready to send's border and padding, each side, and its take-back and the gap before it taken. */
+const BESIDE_TAKE_BACK = ACROSS - 4 - '↺ take back'.length - 1
 
 /** A subagent's loop. */
 const AGENT = 'a1b2c3d4'
+
+/** The rows of what Ready to send says of the send on its way, none with none. */
+const sendingRows = async (ui: Pick<Mounted, 'find'>) => rowsOf(await ui.find({ key: 'sending' }))
+
+/** What Ready to send says of the send on its way, its rows joined. */
+const sendingSays = async (ui: Pick<Mounted, 'find'>) => (await sendingRows(ui)).join(' ')
 
 /** What the window's own file holds once the message is written down, by its source. */
 const WRITTEN: Record<Source, string[]> = {
@@ -104,6 +119,26 @@ const turnEnded = async (w: World, how?: Parameters<World['turnEnds']>[0]) => {
   await w.clock.settle()
 }
 
+/** Claude's turn started, a subagent sent off from it into the background and at work, and Claude done: its turn only waits on that work. */
+const waitsOnItsWork = async (w: World) => {
+  await w.turnStarts('Carry on.')
+  await w.steps({ tools: ['Agent'] })
+  await w.steps({ agentId: AGENT })
+  await w.steps()
+}
+
+/** How Claude's turn runs as the message is claimed, and what comes before Claude Code can end it: nothing, or its background work ending. */
+const TURNS = {
+  'at work': {
+    starts: (w: World) => w.turnStarts('Carry on.'),
+    beforeItEnds: async (_: World) => {},
+  },
+  'only waiting on its background work': {
+    starts: waitsOnItsWork,
+    beforeItEnds: (w: World) => turnEnded(w, { agentId: AGENT }),
+  },
+}
+
 /**
  * A door on the writes of the message in flight, set up before the test
  * first calls the engine: once `hold` picks one, the next write it picks
@@ -141,21 +176,26 @@ const writeDoor = (on: On) => {
 }
 
 for (const source of ['send', 'inbox'] as const) {
-  test(`${source}: claimed while Claude is mid-turn, the message is held, nothing submitted however long the turn runs; as it ends it goes in, written down once`, SLOW, async ($, on) => {
-    const w = world($, on)
-    const { paths, claim } = await replying[source](w)
+  for (const [running, turn] of Object.entries(TURNS)) {
+    test(`${source}: claimed while Claude's turn is ${running}, the message is held, nothing submitted however long the turn runs; as it ends it goes in, written down once`, SLOW, async ($, on) => {
+      const w = world($, on)
+      const { paths, claim } = await replying[source](w)
 
-    await w.turnStarts('Carry on.')
-    await claim()
-    await w.clock.advance(QUIET_MS + MIN)
-    expectHeld(w, source)
+      await turn.starts(w)
+      await claim()
+      await w.clock.advance(QUIET_MS + MIN)
+      expectHeld(w, source)
 
-    await turnEnded(w)
-    expectWrittenOnce(w, paths, source)
+      await turn.beforeItEnds(w)
+      expectHeld(w, source)
 
-    await w.clock.advance(QUIET_MS + 4 * WATCH_MS)
-    expectWrittenOnce(w, paths, source)
-  })
+      await turnEnded(w)
+      expectWrittenOnce(w, paths, source)
+
+      await w.clock.advance(QUIET_MS + 4 * WATCH_MS)
+      expectWrittenOnce(w, paths, source)
+    })
+  }
 
   test(`${source}: claimed between turns, the message goes in at once`, async ($, on) => {
     const w = world($, on)
@@ -329,6 +369,73 @@ test("send: while held, Ready to send says it waits for Claude's turn to end, wi
   expect(kindsIn(w, paths)).toEqual(['ask'])
 })
 
+test("send: held while Claude's turn only waits on its background work, Ready to send says so, wrapped beside its take-back; Claude at work again, it waits for the turn to end; done again, it says so again; that work ended, it waits for the turn to end, and goes as the turn ends, once", async ($, on) => {
+  const w = world($, on)
+  const { paths, ui, claim } = await replying.send(w)
+
+  await waitsOnItsWork(w)
+  await claim()
+
+  expectHeld(w, 'send')
+  expect(await sendingSays(ui)).toBe(WAITS_ON_WORK)
+  expect((await sendingRows(ui)).length, 'wrapped, not cut short').toBeGreaterThan(1)
+  expect(
+    (await sendingRows(ui)).filter(row => row.length > BESIDE_TAKE_BACK),
+    'each row fits beside the take-back',
+  ).toEqual([])
+  expect(await ui.find({ key: TAKE_BACK, text: '↺ take back' })).toBeDefined()
+
+  await w.steps({ tools: ['Read'] })
+  expect(await sendingSays(ui), 'a request of its own, as a delivery into the turn sets going').toBe(
+    HELD,
+  )
+
+  await w.steps()
+  expect(await sendingSays(ui)).toBe(WAITS_ON_WORK)
+
+  await turnEnded(w, { agentId: AGENT })
+  expect(await sendingSays(ui)).toBe(HELD)
+  expectHeld(w, 'send')
+
+  await turnEnded(w)
+  expectWrittenOnce(w, paths, 'send')
+})
+
+test("send: Claude at work through a subagent of its own call, or done with nothing in the background, as every turn's end is, waits for the turn to end", async ($, on) => {
+  const w = world($, on)
+  const { ui, claim } = await replying.send(w)
+
+  await w.turnStarts('Carry on.')
+  await w.steps()
+  await claim()
+  expect(await sendingSays(ui), 'nothing in the background').toBe(HELD)
+
+  await w.steps({ tools: ['Agent'] })
+  await w.steps({ agentId: AGENT })
+  expect(await sendingSays(ui), 'its own call runs the subagent').toBe(HELD)
+  expectHeld(w, 'send')
+})
+
+test("send: taken back while Claude's turn only waits on its background work, its replies are back in Ready to send, and nothing goes as the turn ends", async ($, on) => {
+  const w = world($, on)
+  const { paths, ui, claim } = await replying.send(w)
+  const queued = w.state.queue
+
+  await waitsOnItsWork(w)
+  await claim()
+  await ui.press({ key: TAKE_BACK })
+
+  expect(w.state.inFlight).toBeNull()
+  expect(w.state.queue).toEqual(queued)
+  expect(await sendingSays(ui)).toBe('')
+  expect(await ui.find({ key: 'send' }), 'sent again').toBeDefined()
+
+  await turnEnded(w, { agentId: AGENT })
+  await turnEnded(w)
+  expect(w.submitted).toEqual([])
+  expect(kindsIn(w, paths)).toEqual(['ask'])
+})
+
 test('send: taken back, it can be sent again, held again while Claude is mid-turn, and goes as the turn ends', async ($, on) => {
   const w = world($, on)
   const { paths, ui } = await replying.send(w)
@@ -366,58 +473,62 @@ test('send: once submitted it cannot be taken back: the control is gone, and Rea
   expectWrittenOnce(w, paths, 'send')
 })
 
-test("the turn's end landing before a take-back it raced: the take-back finds the send submitted and lets it be, and it is written down once", async ($, on) => {
-  const w = world($, on)
-  const takingBack = writeDoor(on)
-  const { paths, ui, claim } = await replying.send(w)
+for (const [running, turn] of Object.entries(TURNS)) {
+  test(`claimed while Claude's turn is ${running}, the turn's end landing before a take-back it raced: the take-back finds the send submitted and lets it be, and it is written down once`, async ($, on) => {
+    const w = world($, on)
+    const takingBack = writeDoor(on)
+    const { paths, ui, claim } = await replying.send(w)
 
-  await w.turnStarts('Carry on.')
-  await claim()
-  takingBack.hold(value => value === null)
+    await turn.starts(w)
+    await claim()
+    await turn.beforeItEnds(w)
+    takingBack.hold(value => value === null)
 
-  const pressed = ui.press({ key: TAKE_BACK })
+    const pressed = ui.press({ key: TAKE_BACK })
 
-  await takingBack.arrived
+    await takingBack.arrived
 
-  const turn = w.holdPrompts()
-  const ended = turnEnded(w)
+    const prompts = w.holdPrompts()
+    const ended = turnEnded(w)
 
-  await turn.arrived
-  takingBack.open()
-  await w.clock.settle()
-  expect(w.state.inFlight, 'still on its way').toMatchObject({ isHeld: false, isTaken: false })
+    await prompts.arrived
+    takingBack.open()
+    await w.clock.settle()
+    expect(w.state.inFlight, 'still on its way').toMatchObject({ isHeld: false, isTaken: false })
 
-  turn.end()
-  await Promise.all([pressed, ended])
-  await w.clock.settle()
-  expectWrittenOnce(w, paths, 'send')
-  expect(w.state.queue).toEqual([])
-})
+    prompts.end()
+    await Promise.all([pressed, ended])
+    await w.clock.settle()
+    expectWrittenOnce(w, paths, 'send')
+    expect(w.state.queue).toEqual([])
+  })
 
-test("a take-back landing before the turn's end it raced: the turn's end finds the send gone and submits nothing, its replies back in Ready to send", async ($, on) => {
-  const w = world($, on)
-  const going = writeDoor(on)
-  const { paths, ui, claim } = await replying.send(w)
-  const queued = w.state.queue
+  test(`claimed while Claude's turn is ${running}, a take-back landing before the turn's end it raced: the turn's end finds the send gone and submits nothing, its replies back in Ready to send`, async ($, on) => {
+    const w = world($, on)
+    const going = writeDoor(on)
+    const { paths, ui, claim } = await replying.send(w)
+    const queued = w.state.queue
 
-  await w.turnStarts('Carry on.')
-  await claim()
-  going.hold(value => value?.isHeld === false)
+    await turn.starts(w)
+    await claim()
+    await turn.beforeItEnds(w)
+    going.hold(value => value?.isHeld === false)
 
-  const ended = turnEnded(w)
+    const ended = turnEnded(w)
 
-  await going.arrived
-  await ui.press({ key: TAKE_BACK })
-  going.open()
-  await ended
-  await w.clock.advance(QUIET_MS + WATCH_MS)
+    await going.arrived
+    await ui.press({ key: TAKE_BACK })
+    going.open()
+    await ended
+    await w.clock.advance(QUIET_MS + WATCH_MS)
 
-  expect(w.submitted).toEqual([])
-  expect(w.state.inFlight).toBeNull()
-  expect(w.state.queue).toEqual(queued)
-  expect(kindsIn(w, paths)).toEqual(['ask'])
-  expect(w.state.board?.waiting).toBe(1)
-})
+    expect(w.submitted).toEqual([])
+    expect(w.state.inFlight).toBeNull()
+    expect(w.state.queue).toEqual(queued)
+    expect(kindsIn(w, paths)).toEqual(['ask'])
+    expect(w.state.board?.waiting).toBe(1)
+  })
+}
 
 test('a reload while Claude is mid-turn keeps holding the send, said in the heartbeat, and it goes as the turn ends', async ($, on) => {
   const w = world($, on)
@@ -575,17 +686,19 @@ test('a send submitted and not yet taken as the conversation ends for an exit is
   turn.end()
 })
 
-test('inbox: a held message offers no take-back, though the window holds it as it holds a send', async ($, on) => {
-  const w = world($, on)
-  const { ui, claim } = await replying.inbox(w)
+for (const [running, turn] of Object.entries(TURNS)) {
+  test(`inbox: a message held while Claude's turn is ${running} offers no take-back, nor any line, though the window holds it as it holds a send`, async ($, on) => {
+    const w = world($, on)
+    const { ui, claim } = await replying.inbox(w)
 
-  await w.turnStarts('Carry on.')
-  await claim()
+    await turn.starts(w)
+    await claim()
 
-  expectHeld(w, 'inbox')
-  expect(await ui.find({ key: TAKE_BACK })).toBeUndefined()
-  expect(await ui.find({ type: 'Text', text: HELD })).toBeUndefined()
-})
+    expectHeld(w, 'inbox')
+    expect(await ui.find({ key: TAKE_BACK })).toBeUndefined()
+    expect(await sendingSays(ui)).toBe('')
+  })
+}
 
 test('a held send is never let go as never taken: the 30 seconds count from its submit at the turn’s end, not its claim', async ($, on) => {
   const w = world($, on)
