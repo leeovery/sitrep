@@ -1,10 +1,13 @@
 import Foundation
 import os
 
-/// What `sitrep jump` came to: the window brought forward, or why not, in the CLI's words.
+/// What `sitrep jump` came to: the window brought forward; why not, in the CLI's words; no answer within its limit,
+/// as when the Mac is too busy to reach Ghostty; or stopped, as a later click's jump took its place.
 public enum JumpAnswer: Sendable, Equatable {
     case jumped
     case refused(String)
+    case unanswered
+    case stopped
 }
 
 /// What `sitrep answer`, `finish`, `snooze` or `wake` came to: written, or refused in the CLI's words, with nothing
@@ -41,19 +44,13 @@ public struct SitRepCLI: Sendable {
     /// `screen --json` reads the sessions a window holds and asks tmux and `ps`, each given 2s and asked at once: about
     /// 0.2s of CPU over Lee's board, and never hanging over them.
     static let screenLimit: TimeInterval = 10
-    /// Only a backstop for a CLI that hangs, well above any realistic jump
-    /// (cli/jump.ts, cli/ghostty.ts, cli/front.ts, cli/tmux.ts, cli/apps.ts):
-    /// one takes under a second as Ghostty answers, and one Ghostty does not
-    /// answer at all, as with the screen locked, is refused at its first
-    /// question, after 5s. No true ceiling: the 5s hold for each question to
-    /// Ghostty, an Apple Event, and a program sends several (a listing three
-    /// a try, a focus two, a find some 40), so a Ghostty answering every
-    /// question only just inside its 5s could keep a jump going past this,
-    /// and the app would then report that the jump did not answer. Each place
-    /// a jump tries adds at most 2s for tmux's select (made once a jump), 2s
-    /// for each lsappinfo look that an app is running, and 2s for its `open`:
-    /// a few places at most, far under this.
-    static let jumpLimit: TimeInterval = 180
+    /// How long a whole jump may take, Bun's start and the board's read among it (4 November 2026). One takes under a
+    /// second as Ghostty answers, and one Ghostty does not answer at all, as with the screen locked, is refused at its
+    /// first question, after 5s; each Ghostty program the CLI runs is killed at 8s, and each of tmux, `ps`, lsappinfo
+    /// and `open` at 2s (cli/jump.ts, cli/ghostty.ts, cli/front.ts, cli/tmux.ts, cli/apps.ts). Past this the Mac is
+    /// too busy for a jump to land while Lee still wants it. It was 180s, a backstop, until a jump under a load of 250
+    /// ran all of it, and every click behind it waited.
+    static let jumpLimit: TimeInterval = 15
 
     private static let logger = Logger(sitrep: "cli")
 
@@ -94,10 +91,15 @@ public struct SitRepCLI: Sendable {
         }
     }
 
+    /// Its task cancelled, the jump is killed, and every program it started with it.
     public func jump(to work: String) async -> JumpAnswer {
         switch await sitrep(["jump", "--session", work], limit: Self.jumpLimit) {
         case .success:
             .jumped
+        case .failure(.unrun(.timedOut)):
+            .unanswered
+        case .failure(.unrun(.stopped)):
+            .stopped
         case let .failure(unanswered):
             .refused(unanswered.complaint(of: "jump"))
         }

@@ -8,7 +8,7 @@
 import { constants, readdirSync, readFileSync, statSync } from 'node:fs'
 import { appendFile, mkdir, open } from 'node:fs/promises'
 import { endOf, type Signals } from '../ending'
-import type { Io, Listed, Ran, Waiting } from '../io'
+import { TimedOut, type Io, type Listed, type Ran, type Waiting } from '../io'
 import { main } from '../main'
 
 /** Errors a listing means "not there" by: the folder is missing, or is a file. */
@@ -104,8 +104,8 @@ const run = async (command: readonly string[], limitMs?: number): Promise<Ran> =
       child.exited,
     ])
 
-    if (isKilled) {
-      throw new Error(`${command[0]} did not end within ${limitMs}ms`)
+    if (isKilled && limitMs !== undefined) {
+      throw new TimedOut(command[0] ?? '', limitMs)
     }
 
     return { exitCode, stdout, stderr }

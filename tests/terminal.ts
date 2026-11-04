@@ -9,7 +9,7 @@
  */
 import { FRONT, GHOSTTY_BUNDLE } from '../cli/front'
 import { FIND_AND_FOCUS, FOCUS, LIST } from '../cli/ghostty'
-import type { Env, Io, Listed, Ran } from '../cli/io'
+import { TimedOut, type Env, type Io, type Listed, type Ran } from '../cli/io'
 import { main } from '../cli/main'
 import { PS } from '../cli/screen'
 import { CLIENTS, PANES } from '../cli/tmux'
@@ -181,6 +181,8 @@ type Options = {
   missing?: string[]
   /** Programs that never answer: a run with a limit is killed at it. */
   slow?: string[]
+  /** osascript's runs that never end, by their count from 1, as under heavy load: one with a limit is killed at it. */
+  stalls?: (run: number) => boolean
   /** How tmux answers a select: in these words, as it refuses one, or never, as a select that hangs; done, unless a test says otherwise. */
   select?: { said: string } | 'slow'
   /** Devices gone, a write to which fails as a closed pty's does. */
@@ -204,6 +206,10 @@ const NO_BUNDLE = '"CFBundleIdentifier"=[ NULL ] '
 const asnAt = (place: number) => `ASN:0x0-0x${(place + 1).toString(16)}:`
 
 const ASN = /^ASN:0x0-0x([0-9a-f]+):$/
+
+/** What a run that never ends comes to: killed at its limit, or, with none, a run that would hang the test. */
+const unended = (name: string, limitMs: number | undefined) =>
+  limitMs === undefined ? new Error(`${name} would hang this test`) : new TimedOut(name, limitMs)
 
 /** A promise that never settles: a wait cancelled, as the shell's. */
 const never = () => new Promise<void>(() => {})
@@ -274,7 +280,7 @@ function screen(options: Options) {
     const [session, window] = (words[2] ?? '').split(':')
 
     if (options.select === 'slow') {
-      throw new Error(`tmux did not end within ${limitMs}ms`)
+      throw unended('tmux', limitMs)
     }
 
     if (options.select !== undefined) {
@@ -434,8 +440,13 @@ function screen(options: Options) {
     }
   }
 
+  /** How many times osascript has run, this run included. */
+  const osascriptRuns = () => ran.filter(([name]) => name === 'osascript').length
+
+  const isStalled = () => options.stalls?.(osascriptRuns()) === true
+
   const osascript = (program: string | undefined, args: readonly string[]): Ran => {
-    const refusal = options.refused?.(ran.filter(([name]) => name === 'osascript').length)
+    const refusal = options.refused?.(osascriptRuns())
 
     if (refusal !== undefined) {
       return { exitCode: 1, stdout: '', stderr: `${refusal}\n` }
@@ -467,12 +478,8 @@ function screen(options: Options) {
       throw new Error(`Executable not found in $PATH: "${name}"`)
     }
 
-    if (options.slow?.includes(name)) {
-      throw new Error(
-        limitMs === undefined
-          ? `${name} would hang this test`
-          : `${name} did not end within ${limitMs}ms`,
-      )
+    if (options.slow?.includes(name) || (name === 'osascript' && isStalled())) {
+      throw unended(name, limitMs)
     }
 
     if (name === 'tmux') {

@@ -12,7 +12,7 @@
 import type { Random } from '../core'
 import type { Brought, Driver, FrontAtStart } from './driver'
 import { keepInFront } from './front'
-import type { Io } from './io'
+import { TimedOut, type Io, type Ran } from './io'
 import { readRemembered, remember, type Remembered } from './remembered'
 
 /** A Ghostty terminal: its id, and the working directory it reports, empty when it reports none. */
@@ -28,6 +28,18 @@ const UNLESS_RUNNING = 'if application "Ghostty" is not running then return ""'
  * AppleScript's own limit is two minutes.
  */
 export const ANSWER_SECONDS = 5
+
+/**
+ * How long a Ghostty program may run in all, from osascript's start to its
+ * end: long enough for one question to go unanswered, so a Ghostty that
+ * does not answer is told in its own words, with time over for osascript to
+ * start, find Ghostty and read its terms, which under heavy load is slow and
+ * which no `with timeout` covers. Until 4 November 2026 a program had no
+ * limit of its own, only each question in it, so its start, and the sum of
+ * a find's twenty tries or a listing's three questions each answered just
+ * in time, could hold a jump for minutes.
+ */
+export const PROGRAM_MS = 8_000
 
 /** A program's lines that ask Ghostty, within the time it may take to answer each. */
 const askGhostty = (...lines: string[]) => [
@@ -168,11 +180,31 @@ const LIST_TRIES = 3
 
 const NO_ANSWER = `Ghostty did not answer within ${ANSWER_SECONDS} seconds: most likely the screen is locked, or macOS is asking whether sitrep may control Ghostty.`
 
+const TOO_SLOW = `Ghostty did not answer within ${PROGRAM_MS / 1_000} seconds: most likely the Mac is too busy.`
+
 const UNSETTLED = "Ghostty's windows kept opening or closing as they were listed. Try again."
+
+/** A Ghostty program run within its limit: one killed at it is thrown in plain words, and any other failure to run as `otherwise` makes of it. */
+const runGhostty = <T>(
+  io: Io,
+  words: readonly string[],
+  otherwise: (error: unknown) => T,
+): Promise<Ran | T> =>
+  io.run(['osascript', '-e', ...words], PROGRAM_MS).catch((error: unknown) => {
+    if (error instanceof TimedOut) {
+      throw new Error(TOO_SLOW)
+    }
+
+    return otherwise(error)
+  })
+
+const rethrow = (error: unknown): never => {
+  throw error
+}
 
 /** What a Ghostty program prints. Ghostty not answering in time is thrown in plain words; any other failure, such as macOS refusing control of Ghostty, in osascript's. */
 const ghostty = async (io: Io, program: string, ...args: string[]) => {
-  const ran = await io.run(['osascript', '-e', program, ...args])
+  const ran = await runGhostty(io, [program, ...args], rethrow)
 
   if (ran.exitCode !== 0) {
     throw new Error(isTimedOut(ran.stderr) ? NO_ANSWER : `osascript: ${ran.stderr.trim()}`)
@@ -259,12 +291,12 @@ const knock = async (io: Io, device: string, before: readonly Terminal[]) => {
 
 /**
  * Focuses the terminal remembered for a device, by its id; whether it did.
- * Ghostty not answering in time is thrown in plain words, as for every
- * question to it; no terminal having the id, or any other failure, is a
- * miss, for a knock to settle.
+ * Ghostty not answering in time, or the program outliving its limit, is
+ * thrown in plain words, as for every question to it; no terminal having
+ * the id, or any other failure, is a miss, for a knock to settle.
  */
 const focusRemembered = async (io: Io, id: string) => {
-  const ran = await io.run(['osascript', '-e', FOCUS, id]).catch(() => undefined)
+  const ran = await runGhostty(io, [FOCUS, id], () => undefined)
 
   if (ran !== undefined && ran.exitCode !== 0 && isTimedOut(ran.stderr)) {
     throw new Error(NO_ANSWER)

@@ -80,5 +80,66 @@ struct RunTests {
 
     @Test func timingOutIsToldInWords() {
         #expect(RunError.timedOut(30).description == "did not answer within 30 seconds")
+        #expect(RunError.stopped.description == "was stopped")
+    }
+
+    /// Killed at its limit, its whole process group goes with it: nothing the CLI started, an osascript among it, is
+    /// left to bring a window forward late.
+    @Test func aProgramOutlivingItsLimitIsKilledWithEveryProgramItStarted() async throws {
+        let pidFile = Self.scratch()
+        let (ended, _) = await Self.timed(Self.sh("sleep 30 & echo $! > '\(pidFile.path)'; wait", limit: 0.5))
+
+        #expect(throws: RunError.timedOut(0.5)) { try ended.get() }
+        #expect(try await Self.isGone(Self.pid(in: pidFile)))
+    }
+
+    /// Its task cancelled, as a later click's jump stops this one, it is killed with every program it started, and
+    /// says it was stopped.
+    @Test func aRunWhoseTaskIsCancelledIsKilledWithEveryProgramItStarted() async throws {
+        let pidFile = Self.scratch()
+        let clock = ContinuousClock()
+        let run = Task { try await runProgram(Self.sh("sleep 30 & echo $! > '\(pidFile.path)'; wait", limit: 20)) }
+
+        for _ in 0 ..< 100 where (try? Self.pid(in: pidFile)) == nil {
+            try await Task.sleep(for: .milliseconds(50))
+        }
+
+        let stopped = clock.now
+
+        run.cancel()
+        await #expect(throws: RunError.stopped) { try await run.value }
+        #expect(clock.now - stopped < .seconds(3))
+        #expect(try await Self.isGone(Self.pid(in: pidFile)))
+    }
+
+    @Test func aRunWhoseTaskIsCancelledBeforeItStartsNeverStarts() async {
+        let touched = Self.scratch()
+        let run = Task {
+            withUnsafeCurrentTask { $0?.cancel() }
+            return try await runProgram(Self.sh("touch '\(touched.path)'"))
+        }
+
+        await #expect(throws: RunError.stopped) { try await run.value }
+        #expect(!FileManager.default.fileExists(atPath: touched.path))
+    }
+
+    /// A file of the test's own, not there yet.
+    private static func scratch() -> URL {
+        FileManager.default.temporaryDirectory.appending(path: "sitrep-run-\(UUID().uuidString)")
+    }
+
+    private static func pid(in file: URL) throws -> pid_t {
+        let text = String(decoding: try Data(contentsOf: file), as: UTF8.self)
+
+        return try #require(pid_t(text.trimmingCharacters(in: .whitespacesAndNewlines)))
+    }
+
+    /// Whether the process is gone, within a few seconds: killed, it is reaped by launchd, whose it became.
+    private static func isGone(_ pid: pid_t) async throws -> Bool {
+        for _ in 0 ..< 60 where kill(pid, 0) == 0 {
+            try await Task.sleep(for: .milliseconds(50))
+        }
+
+        return kill(pid, 0) != 0 && errno == ESRCH
     }
 }

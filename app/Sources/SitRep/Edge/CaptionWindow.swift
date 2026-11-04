@@ -1,9 +1,11 @@
 import AppKit
+import SitRepCore
 import SitRepPanel
 
 /// The caption a jump from a row leaves, at the top of the notch's screen, centred, under the menu bar: the
 /// prototypes' dark pill, shown when `JumpCaption` says and coming and going as its `look` has it, played by Core
-/// Animation in the render server. It takes no clicks, and never shows over a full-screen app.
+/// Animation in the render server. A jump from anywhere that runs on with no answer says so in it too (`heard`). It
+/// takes no clicks, never shows over a full-screen app, and VoiceOver announces each caption as it shows.
 @MainActor
 final class CaptionWindow {
     /// The visible frame of the notch's screen.
@@ -16,11 +18,17 @@ final class CaptionWindow {
                 pending = nil
                 pill.removeAllAnimations()
                 window.isShown = false
+                says = nil
+                holds = false
             }
         }
     }
 
     private var pending: JumpCaption?
+    /// What the pill says while it shows, nil while it shows nothing: internal only for the tests.
+    private(set) var says: String?
+    /// Whether what it says holds until the jump ends, as "Still jumping…" does.
+    private var holds = false
     private let pill = CALayer()
     /// Its window: internal only for the tests, which read which way the pill drifts in it.
     let window: EdgeWindow
@@ -49,6 +57,28 @@ final class CaptionWindow {
         showWhenDue(at: time)
     }
 
+    /// A jump's news, whichever surface asked for it, after that surface's own `answered`: "Still jumping…" once it
+    /// has run on with no answer, held until it ends; the limit's words once it gives up at its limit. Any other end
+    /// lets a held caption go, unless a row's "Jumped to…" has taken its place; a jump stopped by a later one leaves
+    /// what shows, as the later one runs on.
+    func heard(_ news: JumpNews) {
+        guard mayShow else {
+            return
+        }
+
+        switch news {
+        case .still:
+            show(JumpCaption.still, holding: true)
+        case .ended(.unanswered):
+            pending = nil
+            show(JumpCaption.tooBusy)
+        case .ended(.stopped):
+            break
+        case .ended(.jumped), .ended(.refused):
+            letGo()
+        }
+    }
+
     /// The jump answered: whether it jumped. A jump refused leaves no caption.
     func answered(jumped: Bool, at time: Double) {
         if jumped {
@@ -71,11 +101,13 @@ final class CaptionWindow {
         }
     }
 
-    /// The caption, this many ms from now.
-    private func show(_ caption: String, after delay: Double) {
+    /// The caption, this many ms from now, played whole, or held once in until the jump ends. One taking the place of a
+    /// caption showing plays from its hold, so the pill never blinks out between them.
+    private func show(_ caption: String, after delay: Double = 0, holding: Bool = false) {
         let text = TextLine.text(caption, Self.font, EdgeStyle.ink, kern: EdgeStyle.tightKern(Self.font))
         let size = CGSize(width: TextLine.width(text).rounded(.up) + 2 * Self.pad.x, height: Self.line + 2 * Self.pad.y)
         let room = Self.room, visible = over
+        let part = JumpCaption.part(holding: holding, inPlaceOfOne: says != nil)
 
         window.setFrame(CGRect(
             x: visible.midX - size.width / 2 - room, y: visible.maxY - Self.top - size.height - room,
@@ -91,14 +123,38 @@ final class CaptionWindow {
             ))
             rescale(pill, to: window.backingScaleFactor)
         }
+        says = caption
+        holds = holding
         window.isShown = true
-        play(after: delay / 1000)
+        play(part, after: delay / 1000)
+        NSAccessibility.post(
+            element: window, notification: .announcementRequested,
+            userInfo: [.announcement: caption, .priority: NSAccessibilityPriorityLevel.high.rawValue]
+        )
     }
 
-    /// The fade and the drift, sampled from `JumpCaption.look`; the window hides once it is over.
-    private func play(after delay: CFTimeInterval) {
-        let steps = Int(JumpCaption.length / Self.sampled)
-        let looks = (0 ... steps).map { JumpCaption.look(Double($0) * Self.sampled) }
+    /// A held caption goes, rising as it fades, as a caption ends.
+    private func letGo() {
+        guard holds else {
+            return
+        }
+
+        holds = false
+        play(JumpCaption.going, after: 0)
+    }
+
+    /// The fade and the drift over a part of the look, sampled from `JumpCaption.look`, the pill left as the part ends:
+    /// clear once a caption has gone, the window hidden then; whole while one holds. A part with no length, a caption
+    /// held from the hold of the one it takes the place of, plays nothing.
+    private func play(_ part: ClosedRange<Double>, after delay: CFTimeInterval) {
+        guard part.upperBound > part.lowerBound else {
+            return still { pill.opacity = Float(JumpCaption.look(part.lowerBound).alpha) }
+        }
+
+        let steps = max(1, Int((part.upperBound - part.lowerBound) / Self.sampled))
+        let looks = (0 ... steps).map {
+            JumpCaption.look(part.lowerBound + Double($0) * (part.upperBound - part.lowerBound) / Double(steps))
+        }
         let fade = CAKeyframeAnimation(keyPath: "opacity")
         let drift = CAKeyframeAnimation(keyPath: "transform.translation.y")
         let group = CAAnimationGroup()
@@ -106,9 +162,10 @@ final class CaptionWindow {
         fade.values = looks.map(\.alpha)
         drift.values = looks.map { Self.drift($0.lift) }
         group.animations = [fade, drift]
-        group.duration = JumpCaption.length / 1000
+        group.duration = (part.upperBound - part.lowerBound) / 1000
         group.beginTime = pill.convertTime(CACurrentMediaTime(), from: nil) + delay
         group.fillMode = .both
+        still { pill.opacity = Float(looks.last?.alpha ?? 0) }
         CATransaction.begin()
         CATransaction.setCompletionBlock { [weak self] in
             MainActor.assumeIsolated { self?.ended() }
@@ -118,8 +175,9 @@ final class CaptionWindow {
     }
 
     private func ended() {
-        if pill.animation(forKey: Self.key) == nil {
+        if pill.animation(forKey: Self.key) == nil, !holds {
             window.isShown = false
+            says = nil
         }
     }
 

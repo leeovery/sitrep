@@ -52,6 +52,21 @@ struct JumpCaptionTests {
         #expect(caption.showsIn(at: 1090 + 60_000) == nil)
     }
 
+    @Test func aJumpWithNoAnswerSaysItIsStillJumpingAndAtItsLimitThatTheMacIsTooBusy() {
+        #expect(JumpCaption.still == "Still jumping…")
+        #expect(JumpCaption.tooBusy == "Couldn't jump: the Mac is too busy to reach Ghostty.")
+    }
+
+    /// A caption plays whole, or held until its jump ends only coming in; in place of one showing, from its hold, so
+    /// the pill never blinks out; held there, it plays nothing. A held caption goes as a caption ends.
+    @Test func aCaptionPlaysThePartOfItsLookItsPlaceCallsFor() {
+        #expect(JumpCaption.part(holding: false, inPlaceOfOne: false) == 0 ... 1600)
+        #expect(JumpCaption.part(holding: true, inPlaceOfOne: false) == 0 ... 160)
+        #expect(JumpCaption.part(holding: false, inPlaceOfOne: true) == 160 ... 1600)
+        #expect(JumpCaption.part(holding: true, inPlaceOfOne: true) == 160 ... 160)
+        #expect(JumpCaption.going == 1350 ... 1600)
+    }
+
     @Test func itFadesInDroppingIntoPlaceHoldsAndRisesAsItFades() {
         #expect(JumpCaption.look(0) == (0, 4))
         #expect(JumpCaption.look(80).alpha == 1 - 0.125)

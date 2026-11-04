@@ -7,4 +7,10 @@ struct BannerTests {
 
         #expect(banner == Banner(title: "SitRep could not jump", subtitle: nil, body: "Fumi is not on screen: no Ghostty window shows it.", work: nil))
     }
+
+    @Test func aJumpGivenNoAnswerWithinItsLimitSaysTheMacIsTooBusy() {
+        #expect(Banner.tooBusy == Banner(
+            title: "SitRep could not jump", subtitle: nil, body: "The Mac is too busy to reach Ghostty.", work: nil
+        ))
+    }
 }

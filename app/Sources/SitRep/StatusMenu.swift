@@ -282,13 +282,6 @@ final class StatusMenu: NSObject, NSMenuDelegate {
     }
 }
 
-/// Asked as the menu opens, so the sessions' items show disabled while a jump runs, however long ago they were drawn.
-extension StatusMenu: NSMenuItemValidation {
-    func validateMenuItem(_ item: NSMenuItem) -> Bool {
-        item.action != #selector(jump(_:)) || !works.isJumping
-    }
-}
-
 extension EdgeSettings.Show {
     /// As the menu and Settings name it.
     var title: String {

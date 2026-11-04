@@ -8,7 +8,14 @@ import {
   LOOK_EVERY_MS,
   WATCH_MS,
 } from '../cli/front'
-import { ANSWER_SECONDS, FIND_AND_FOCUS, FOCUS, LIST, reportText } from '../cli/ghostty'
+import {
+  ANSWER_SECONDS,
+  FIND_AND_FOCUS,
+  FOCUS,
+  LIST,
+  PROGRAM_MS,
+  reportText,
+} from '../cli/ghostty'
 import { LOOK_MS } from '../cli/look'
 import { EXIT } from '../cli/main'
 import { REMEMBERED_FILE, rememberedText } from '../cli/remembered'
@@ -109,7 +116,7 @@ test("jump focuses the Ghostty window on the session's tmux session, prints noth
 const runsOf = (t: ReturnType<typeof terminal>, name: string) =>
   t.screen.ran.filter(([each]) => each === name)
 
-test('jump asks tmux only to list and ps for one snapshot, and lsappinfo which app is in front, each within the time limit; then Ghostty to list and to find', async () => {
+test('jump asks tmux only to list and ps for one snapshot, and lsappinfo which app is in front, each within the time limit; then Ghostty to list and to find, each program within its own', async () => {
   const t = oneWindow(IN_TMUX)
 
   await t.run('jump', ...SESSION)
@@ -127,7 +134,7 @@ test('jump asks tmux only to list and ps for one snapshot, and lsappinfo which a
   ).toEqual([LOOK_MS, LOOK_MS, LOOK_MS, LOOK_MS, LOOK_MS])
   expect(
     t.screen.limits.filter(each => each.name === 'osascript').map(each => each.limitMs),
-  ).toEqual([undefined, undefined])
+  ).toEqual([PROGRAM_MS, PROGRAM_MS])
 })
 
 test('jump outside tmux knocks on the window’s own device, asking tmux and ps nothing', async () => {
@@ -419,6 +426,25 @@ test('Ghostty not answering the find in time is refused in plain words, and the 
   expect(t.screen.directories()).toEqual(DIRECTORIES)
 })
 
+const TOO_SLOW = `sitrep: Ghostty did not answer within ${PROGRAM_MS / 1_000} seconds: most likely the Mac is too busy.\n`
+
+test('a listing that never ends, as osascript under heavy load, is killed at its limit and refused in plain words, before anything is written or focused', async () => {
+  const t = oneWindow(IN_TMUX, { tmux: SHOWN, ghostty: TERMINALS, stalls: () => true })
+
+  expect(await t.run('jump', ...SESSION)).toEqual({ exit: EXIT.refused, out: '', err: TOO_SLOW })
+  expect(runsOf(t, 'osascript')).toEqual([['osascript', '-e', LIST]])
+  expect(t.screen.written).toEqual([])
+  expect(t.screen.focused).toEqual([])
+})
+
+test('a find that never ends is killed at its limit and refused in plain words, and the terminal put back', async () => {
+  const t = oneWindow(IN_TMUX, { tmux: SHOWN, ghostty: TERMINALS, stalls: run => run === 2 })
+
+  expect(await t.run('jump', ...SESSION)).toEqual({ exit: EXIT.refused, out: '', err: TOO_SLOW })
+  expect(runsOf(t, 'osascript').map(words => words[2])).toEqual([LIST, FIND_AND_FOCUS, LIST])
+  expect(t.screen.directories()).toEqual(DIRECTORIES)
+})
+
 test('each Ghostty program asks Ghostty within the time limit, its running checked first', () => {
   for (const program of [LIST, FIND_AND_FOCUS, FOCUS]) {
     const lines = program.split('\n')
@@ -615,6 +641,21 @@ test('Ghostty not answering for a remembered terminal in time is refused in plai
   expect(runsOf(t, 'osascript')).toEqual([['osascript', '-e', FOCUS, 'SWITCHBOARD-TERMINAL']])
   expect(t.screen.written).toEqual([])
   expect(t.screen.focused).toEqual([])
+})
+
+test('a focus of a remembered terminal that never ends is killed at its limit and refused in plain words, with no knock after it', async () => {
+  const t = rememberedAs([rememberedText(WINDOW, 'SWITCHBOARD-TERMINAL')], {
+    tmux: SHOWN,
+    ghostty: TERMINALS,
+    stalls: () => true,
+  })
+
+  expect(await t.run('jump', ...SESSION)).toEqual({ exit: EXIT.refused, out: '', err: TOO_SLOW })
+  expect(runsOf(t, 'osascript')).toEqual([['osascript', '-e', FOCUS, 'SWITCHBOARD-TERMINAL']])
+  expect(t.screen.limits.filter(each => each.name === 'osascript')).toEqual([
+    { name: 'osascript', limitMs: PROGRAM_MS },
+  ])
+  expect(t.screen.written).toEqual([])
 })
 
 test('the last line for a device wins, and a torn or broken line never stops a jump', async () => {

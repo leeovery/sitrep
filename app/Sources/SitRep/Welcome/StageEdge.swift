@@ -623,7 +623,7 @@ final class StageNotch: StageShape {
             return
         }
 
-        _ = run.press(Self.moment(time, pointer, edge, settings), mayJump: true)
+        _ = run.press(Self.moment(time, pointer, edge, settings))
         draw(run, edge, settings)
     }
 

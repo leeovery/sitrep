@@ -17,6 +17,9 @@ public struct Banner: Equatable, Sendable {
         refused("SitRep could not jump", why)
     }
 
+    /// A jump that gave no answer within its limit: the caption's words, under the title that says it could not jump.
+    public static let tooBusy = unjumped("The Mac is too busy to reach Ghostty.")
+
     /// A snooze from a row's menu that the CLI refused, in its words, as the pane says it.
     public static func unsnoozed(_ why: String) -> Banner {
         refused("Not snoozed", why)

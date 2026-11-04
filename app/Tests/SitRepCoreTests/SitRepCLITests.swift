@@ -95,12 +95,13 @@ struct SitRepCLITests {
         #expect(await cli.finish("sr-gs7kq2") == .refused("sitrep finish could not start: no such file."))
     }
 
-    @Test func jumpRunsTheCLIOnTheWorkWithTimeForItsLongestJump() async {
+    /// The whole jump gives up after 15 seconds, Bun's start and the board's read among it (4 November 2026).
+    @Test func jumpRunsTheCLIOnTheWorkWithinFifteenSeconds() async {
         let (cli, programs) = Self.cli(Self.exited(0))
 
         #expect(await cli.jump(to: "sr-047c7y") == .jumped)
         #expect(programs.all.map(\.arguments) == [["jump", "--session", "sr-047c7y"]])
-        #expect(programs.all.map(\.limit) == [180])
+        #expect(programs.all.map(\.limit) == [15])
     }
 
     @Test(arguments: [
@@ -114,10 +115,16 @@ struct SitRepCLITests {
         #expect(await cli.jump(to: "sr-047c7y") == .refused(words))
     }
 
-    @Test func aJumpThatNeverEndsSaysSo() async {
+    @Test func aJumpThatOutlivesItsLimitIsUnanswered() async {
         let (cli, _) = Self.cli { program in throw RunError.timedOut(program.limit) }
 
-        #expect(await cli.jump(to: "sr-047c7y") == .refused("sitrep jump did not answer within 180 seconds."))
+        #expect(await cli.jump(to: "sr-047c7y") == .unanswered)
+    }
+
+    @Test func aJumpWhoseRunIsStoppedIsStopped() async {
+        let (cli, _) = Self.cli { _ in throw RunError.stopped }
+
+        #expect(await cli.jump(to: "sr-047c7y") == .stopped)
     }
 
     @Test func screenRunsScreenForJSONAndReadsIt() async throws {
