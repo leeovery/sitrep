@@ -23,12 +23,12 @@ struct WindowActions: Sendable {
     var openSession: @MainActor @Sendable (String) -> Void = { _ in }
     /// A session page's project, in its breadcrumb: the project's page.
     var openProject: @MainActor @Sendable (String) -> Void = { _ in }
-    /// A session's "later · N parked" or a project's "N parked": Parked, narrowed to it.
+    /// A session's "later N parked" or a project's "N parked": Parked, narrowed to it.
     var openParked: @MainActor @Sendable (ParkedScope) -> Void = { _ in }
     /// A parked item's "Back to its session": the session's page, pushed from Parked.
     var backToSession: @MainActor @Sendable (String) -> Void = { _ in }
     var press: @MainActor @Sendable (Card.Button, AskAddress) -> Void = { _, _ in }
-    /// An item of Status, Notes, Parked or Resolved opened in place, or closed again.
+    /// An item opened in place, or closed again (`Item`).
     var toggleItem: @MainActor @Sendable (Item) -> Void = { _ in }
     /// To the session's window: "Open in Ghostty ↗", and a stop's "Answer in Claude ↗".
     var jump: @MainActor @Sendable (JumpPress) -> Void = { _ in }
@@ -60,9 +60,9 @@ extension EnvironmentValues {
 }
 
 /// The page: beside the list, the session its row picked; filling the window, a project's page or a session's; or why
-/// there is none, on the panel's black, starting under the empty band beside the traffic lights. It draws what it is
-/// given, at the time given, so it renders the same on the screen and off it, as the columns beside it do. On screen,
-/// the pointer anywhere over it holds the page (`PagePointer`).
+/// there is none, on the panel's black, starting under the toolbar's band. It draws what it is given, at the time
+/// given, so it renders the same on the screen and off it, as the columns beside it do. On screen, the pointer
+/// anywhere over it holds the page (`PagePointer`).
 struct PageColumn: View {
     let page: Page
     let now: Date
@@ -88,7 +88,10 @@ struct PageColumn: View {
                 .font(WindowStyle.ui(14))
                 .foregroundStyle(WindowStyle.faint)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-        case let .detail(session), let .session(session):
+        case let .detail(session):
+            Scrolling { SessionPageView(page: session, now: now).padding(.horizontal, WindowStyle.detailInset) }
+                .id(Pick.session(session.id))
+        case let .session(session):
             Scrolling { SessionPageView(page: session, now: now).padding(.horizontal, WindowStyle.pageInset) }
                 .id(Pick.session(session.id))
         case let .project(project):

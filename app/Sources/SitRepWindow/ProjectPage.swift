@@ -1,6 +1,5 @@
 import Foundation
 import SitRepCore
-import SitRepPanel
 
 /// A project, filling the window (A3 revised): its title and its counts; its sessions, each with where it stands; the
 /// lines waiting on Lee across them; what each is doing now; its log, grouped by session; and how many items it parked.
@@ -125,11 +124,6 @@ extension Words {
         "\(count) waiting on you"
     }
 
-    /// A project's header, and its row at the foot of its page: the items its sessions parked.
-    public static func parkedCount(_ count: Int) -> String {
-        "\(count) parked"
-    }
-
     /// Where a session stands on its project's page: its asks waiting on Lee.
     public static func asksWaiting(_ count: Int) -> String {
         "\(Words.count(count, "ask")) waiting"
@@ -186,18 +180,11 @@ extension Spoken {
     public static func nowCard(_ session: ProjectPage.Session, at now: Date) -> String {
         let next = session.next.map { ["next \($0)"] } ?? []
 
-        return ([session.name] + session.now + next + ["updated \(ago(session.updated, at: now))"]).joined(separator: ", ")
+        return ([session.name] + session.now + next + [updated(session.updated, at: now)]).joined(separator: ", ")
     }
 
     /// A line of a session's group in Log, one element: its words and how long ago.
     public static func log(_ note: Note, at now: Date) -> String {
         "\(note.text), \(age(note.at, at: now))"
-    }
-
-    /// How long ago, in words: "just now", or "1 hour ago".
-    private static func ago(_ since: Date, at now: Date) -> String {
-        let age = age(since, at: now)
-
-        return Age(now.timeIntervalSince(since) * 1000) == .now ? age : "\(age) ago"
     }
 }

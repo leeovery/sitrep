@@ -227,13 +227,13 @@ public final class WindowRun {
     /// left, its folds closed but the one over the pick, with no step to go back to. Opened by "Open in SitRep" on a
     /// session, it opens onto where that lands instead, with no step back to a page Lee never saw.
     public func open(landing session: String? = nil) {
-        let page = location.page
+        let leaf = location.leaf
 
         isOpen = true
         looks.open()
         openFolds = []
         history = History(opening: listed, remembered: location)
-        turned(from: page)
+        turned(from: leaf)
         openTheFoldOverThePick()
         if let session {
             filter = Filter()
@@ -409,16 +409,16 @@ public final class WindowRun {
             return
         }
 
-        let page = history.location.page
+        let leaf = history.location.leaf
 
         change(&history)
         self.history = history
-        turned(from: page)
+        turned(from: leaf)
         keepTheList()
     }
 
-    private func turned(from page: Pick?) {
-        if location.page != page {
+    private func turned(from leaf: Leaf) {
+        if location.leaf != leaf {
             details.turnPage()
         }
         keepShown()
@@ -467,6 +467,11 @@ public final class WindowRun {
         looks.onScreen(of: session)
     }
 
+    /// The terminal app showing the session, as the last look at the screen says; none where none is known to.
+    public func appShowing(_ session: String) -> String? {
+        looks.app(of: session)
+    }
+
     /// The run of `sitrep screen` to make at this time, where the window shows and a look is due with none under way.
     public func looksAtScreen(at time: Date) -> ScreenLook? {
         looks.look(at: time)
@@ -487,13 +492,24 @@ public final class WindowRun {
     /// A card's button pressed at this time: a yes, an option or ignore waits its two seconds; one that needs Claude
     /// Code's prompt jumps instead. The session to jump to, for those. Snooze is its menu's, which `snoozing` hears.
     public func press(_ button: Card.Button, on ask: AskAddress, at time: Date) -> String? {
-        details.press(button, on: ask, at: time)
+        let carried = last.board?.session(ask.session)?.session.asks.first { $0.id == ask.ask }
+
+        return details.press(button, on: ask, carried: carried, at: time)
     }
 
     /// Escape: the answer pressed last on the page showing, still waiting, is taken back; one waiting on a page
     /// left goes as it would. Whether there was one.
     public func undo() -> Bool {
-        details.undo(on: shown) != nil
+        details.undo(where: undoes) != nil
+    }
+
+    /// Whether Escape reaches an answer on this ask: beside a place's list, only on the card leading, as the session's
+    /// other asks are rows of their own, not on screen; filling the window, on any ask of the sessions it shows.
+    private func undoes(_ ask: AskAddress) -> Bool {
+        guard location.place != nil else {
+            return shown.contains(ask.session)
+        }
+        return location.picked?.pick.lineKey == ask.key
     }
 
     /// The answers whose two seconds have run out by this time, for `sitrep answer`.
@@ -517,8 +533,7 @@ public final class WindowRun {
         }
     }
 
-    /// An item of Status, Notes, Parked or Resolved opened in place to the whole of it, or closed again. Another page
-    /// turned to closes them all.
+    /// An item opened in place to the whole of it, or closed again (`Item`). Another page turned to closes them all.
     public func toggle(_ item: Item) {
         details.toggle(item)
     }
@@ -586,7 +601,7 @@ public final class WindowRun {
     }
 
     /// A place's list as it shows, held, filtered and folded, with no washes.
-    private func arranged(_ place: Place) -> PlaceList {
+    func arranged(_ place: Place) -> PlaceList {
         held.arranged(PlaceList(place, in: listed, filter: filter, isFoldOpen: openFolds.contains(place)))
     }
 
@@ -627,8 +642,9 @@ public final class WindowRun {
         date.timeIntervalSince1970 * 1000
     }
 
-    /// The page at this time, its washes under way: beside a place's list, the session its pick shows, or with nothing
-    /// picked how the board stands; filling the window, a project's page or a session's.
+    /// The page at this time, its washes under way: beside a place's list, the session its pick shows, led by the
+    /// picked line's card, or with nothing picked how the board stands; filling the window, a project's page or a
+    /// session's.
     public func page(at time: Date) -> Page {
         details.prune(at: time)
         guard let board = last.board else {
@@ -640,12 +656,18 @@ public final class WindowRun {
             guard let id = picked?.session else {
                 return board.projects.isEmpty ? .nothingOpen : .empty(given.head.title)
             }
-            return board.session(id).map { .detail(sessionPage($0.session, of: $0.project, at: time)) } ?? .nothingOpen
+            return board.session(id).map { found in
+                .detail(sessionPage(found.session, of: found.project, on: board, as: .detail, leading: picked?.pick, at: time))
+            }
+                ?? .nothingOpen
         case let .project(key):
             return board.projects.first { $0.key == key }.map { .project(projectPage($0, at: time)) }
                 ?? .nothingOpen
         case let .session(id, _):
-            return board.session(id).map { .session(sessionPage($0.session, of: $0.project, at: time)) } ?? .nothingOpen
+            return board.session(id).map { found in
+                .session(sessionPage(found.session, of: found.project, on: board, as: .full, at: time))
+            }
+                ?? .nothingOpen
         }
     }
 

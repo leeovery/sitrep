@@ -126,13 +126,6 @@ struct SpokenTests {
         return listed
     }()
 
-    @Test func aCardIsLabelledByItsAsksTitleAfterItsSessionsNameInAProject() throws {
-        let card = try #require(opened().page(at: printedAt).session?.asks.first)
-
-        #expect(Spoken.card(card, session: nil) == card.title)
-        #expect(Spoken.card(card, session: "The Mac app") == "The Mac app: \(card.title)")
-    }
-
     @Test func aHeadingReadsItsNameAndTheWordsOnItsRight() {
         #expect(Spoken.heading("Asks", note: "3 waiting") == "Asks, 3 waiting")
         #expect(Spoken.heading("Status", note: nil) == "Status")

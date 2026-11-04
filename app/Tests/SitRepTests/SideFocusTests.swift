@@ -350,7 +350,7 @@ private struct Sides {
 
         page.sizingOptions = []
         split = SitRepWindow.split(sidebar: sidebar, list: listed, page: page)
-        window = SitRepWindow.window(split)
+        window = SitRepWindow.window(split, toolbar: NSToolbar())
         window.contentView?.layoutSubtreeIfNeeded()
         focus = SideFocus(window: window, sidebar: sidebar.view, list: listed.view, page: page.view)
         self.asked = asked

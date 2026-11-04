@@ -49,6 +49,11 @@ struct ScreenLooks {
         reading?.onScreen(of: session)
     }
 
+    /// The terminal app showing the session, as the last reading says: none with no reading, or none known.
+    func app(of session: String) -> String? {
+        reading?.app(of: session)
+    }
+
     /// When the next look is due; none while one runs, or while the window does not show.
     var nextLook: Date? {
         isLooking ? nil : due

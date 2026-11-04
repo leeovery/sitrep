@@ -15,7 +15,9 @@ struct SitRepWindowTests {
 
     /// It goes to the Space Lee is on only as SitRep brings it forward (`ForwardWindowTests`).
     @Test func itStaysOnItsOwnSpaceTillSitRepBringsItForward() {
-        #expect(!SitRepWindow.window(Self.split()).collectionBehavior.contains(.moveToActiveSpace))
+        let window = SitRepWindow.window(Self.split(), toolbar: NSToolbar())
+
+        #expect(!window.collectionBehavior.contains(.moveToActiveSpace))
     }
 
     @Test func theSidebarIsTheSystemsOwnTheListItsContentListAndThePageBesideThem() {
@@ -35,7 +37,7 @@ struct SitRepWindowTests {
     @Test(arguments: [(0, WindowStyle.boardWidth), (1, WindowStyle.listWidth)])
     func theSidebarAndTheListKeepTheDrawingsWidths(item: Int, width: CGFloat) throws {
         let split = Self.split()
-        let window = SitRepWindow.window(split)
+        let window = SitRepWindow.window(split, toolbar: NSToolbar())
 
         window.layoutIfNeeded()
 
@@ -50,7 +52,7 @@ struct SitRepWindowTests {
     /// A project's page and a session's fill the window, the list folded away; a place brings it back.
     @Test func theListFoldsAwayWhileThePageFillsTheWindow() throws {
         let split = Self.split()
-        let window = SitRepWindow.window(split)
+        let window = SitRepWindow.window(split, toolbar: NSToolbar())
         let list = split.splitViewItems[1]
         let page = try #require(split.splitViewItems.last).viewController.view
 
@@ -69,15 +71,15 @@ struct SitRepWindowTests {
     }
 
     /// The toolbar's titlebar is what macOS 26 sets the traffic lights inside the sidebar's glass by, which only the
-    /// screen shows.
-    @Test func itHasAnEmptyUnifiedToolbarOverItsFullSizeContent() throws {
-        let window = SitRepWindow.window(Self.split())
-        let toolbar = try #require(window.toolbar)
+    /// screen shows. Its title shows only as the toolbar shows it.
+    @Test func itHasAUnifiedToolbarOverItsFullSizeContent() throws {
+        let toolbar = NSToolbar()
+        let window = SitRepWindow.window(Self.split(), toolbar: toolbar)
 
-        #expect(toolbar.items.isEmpty)
-        #expect(!toolbar.allowsUserCustomization)
+        #expect(window.toolbar === toolbar)
         #expect(window.toolbarStyle == .unified)
         #expect(window.styleMask.contains(.fullSizeContentView))
+        #expect(window.titleVisibility == .hidden)
     }
 }
 

@@ -33,7 +33,7 @@ struct Details: Equatable, Sendable {
     /// What `sitrep snooze` or `wake` refused, by the ask, for its card to say until it is pressed again or another
     /// page is picked.
     private var unslept: [AskAddress: Card.Line] = [:]
-    /// The items of Status, Notes, Parked and Resolved opened in place.
+    /// The items opened in place (`Item`).
     private var openedItems: Set<Item> = []
 
     // MARK: Holding the page
@@ -171,20 +171,23 @@ struct Details: Equatable, Sendable {
     // MARK: Answering
 
     /// A card's button pressed at this time: a yes, an option or ignore waits its two seconds; one that needs Claude
-    /// Code's prompt jumps instead. The session to jump to, for those.
-    mutating func press(_ button: Card.Button, on ask: AskAddress, at time: Date) -> String? {
+    /// Code's prompt jumps instead. The session to jump to, for those. Answered as the board carries the ask, before
+    /// its session's own board has come, the page keeps the ask in place, so that board closing it leaves it closed
+    /// and faint while the page holds, as any ask answered there.
+    mutating func press(_ button: Card.Button, on ask: AskAddress, carried: Board.Ask?, at time: Date) -> String? {
         if case .inClaude = button {
             return ask.session
         }
         if let answer = button.answer {
             answers.press(answer, on: ask, at: time)
+            carried.map { frozen[ask.session]?.seed($0) }
         }
         return nil
     }
 
-    /// The answer pressed last on these sessions, still waiting, taken back, if there was one.
-    mutating func undo(on sessions: Set<String>) -> AskAddress? {
-        answers.undo(on: sessions)
+    /// The answer pressed last on the asks Escape reaches, still waiting, taken back, if there was one.
+    mutating func undo(where reaches: (AskAddress) -> Bool) -> AskAddress? {
+        answers.undo(where: reaches)
     }
 
     /// The answers whose two seconds have run out by this time.
@@ -209,7 +212,7 @@ struct Details: Equatable, Sendable {
 
     // MARK: Opening in place
 
-    /// An item of Status, Notes, Parked or Resolved opened in place to the whole of it, or closed again.
+    /// An item opened in place to the whole of it, or closed again.
     mutating func toggle(_ item: Item) {
         if openedItems.remove(item) == nil {
             openedItems.insert(item)
@@ -297,17 +300,21 @@ struct Details: Equatable, Sendable {
         let kept = frozen[session.id]
         let asks = kept?.asks ?? (boards[session.id]?.asks.reversed() ?? []).map { ($0, nil) }
         let washes = Wash.live(kept?.washed ?? [:], at: time)
-        let cards = asks.map { ask, closed in
-            let address = AskAddress(session: session.id, ask: ask.id)
-
-            return Card(
-                ask, of: session.id, doing: session.doing, pending: answers.pending[address], closed: closed,
-                washed: washes[ask.id], unslept: unslept[address]
-            )
-        }
+        let cards = asks.map { ask, closed in card(ask, of: session, closed: closed, washed: washes[ask.id]) }
         let asleep = cards.compactMap { card in card.snoozedUntil.map { (card, $0) } }
 
         return cards.filter { $0.snoozedUntil == nil } + asleep.sorted { $0.1 < $1.1 }.map(\.0)
+    }
+
+    /// An ask of the session as its card, with Lee's answer waiting or on its way, and what its card said of a
+    /// refusal; closed while the page holds, how, and new, washed from when it came.
+    func card(_ ask: Board.Ask, of session: Board.Session, closed: Card.Closed? = nil, washed: Date? = nil) -> Card {
+        let address = AskAddress(session: session.id, ask: ask.id)
+
+        return Card(
+            ask, of: session.id, doing: session.doing, pending: answers.pending[address], closed: closed,
+            washed: washed, unslept: unslept[address]
+        )
     }
 
     /// A session's resolved asks as last kept, those still keeping their place among its asks aside.

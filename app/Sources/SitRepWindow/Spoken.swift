@@ -118,18 +118,10 @@ public enum Spoken {
         }
     }
 
-    /// A card, the container of its buttons: its ask's title, after its session's name where it is a project's.
-    public static func card(_ card: Card, session: String?) -> String {
-        session.map { "\($0): \(card.title)" } ?? card.title
-    }
-
     /// A section's heading, and the few words on its right.
     public static func heading(_ name: String, note: String?, aside: String? = nil) -> String {
         ([name] + [note, aside].compactMap(\.self)).joined(separator: ", ")
     }
-
-    /// A card's head on a project's page, which closes it back to its line, its title said by the card.
-    public static let closeCard = "Close"
 
     /// A closed ask's tick.
     public static let closed = "closed"

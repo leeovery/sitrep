@@ -207,7 +207,7 @@ struct WindowRunTests {
         #expect(page.hasBoard)
         #expect(page.failure == nil)
         #expect(page.asks.map(\.id.ask) == ["vx3g", "ayh1"])
-        #expect(page.parked.map(\.title) == ["Measure the line on a copy of Lee's board"])
+        #expect(page.parked == 1)
         #expect(page.notes.map(\.text).contains("The watch hears what the window follows"))
     }
 

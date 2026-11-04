@@ -140,12 +140,12 @@ public final class StripRun: Framed {
         upToNow(moment)
     }
 
-    /// The press let go at the pointer, a drag with these settings: a click, while jumps may run, lands on the strip as
-    /// it is now, the mark or row it presses in the one it jumps to; a drag leaves the strip where it took it, or on
-    /// the other edge.
-    public func release(_ settings: EdgeSettings, mayJump: Bool, _ moment: Moment) -> Release? {
+    /// The press let go at the pointer, a drag with these settings: a click, whatever jump runs, as the latest click
+    /// wins, lands on the strip as it is now, the mark or row it presses in the one it jumps to; a drag leaves the
+    /// strip where it took it, or on the other edge.
+    public func release(_ settings: EdgeSettings, _ moment: Moment) -> Release? {
         upToNow(moment)
-        switch strip.release(at: moment.pointer ?? Self.offStage, clicks: mayJump) {
+        switch strip.release(at: moment.pointer ?? Self.offStage) {
         case .nothing:
             return nil
         case let .jump(session):

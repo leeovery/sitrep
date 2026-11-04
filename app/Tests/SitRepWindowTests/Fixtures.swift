@@ -250,3 +250,15 @@ extension Page {
         return nil
     }
 }
+
+extension SessionPage {
+    /// The lines of its log in What happened, the newest first.
+    var notes: [Note] {
+        happened.compactMap { entry in
+            if case let .line(note) = entry {
+                return note
+            }
+            return nil
+        }
+    }
+}

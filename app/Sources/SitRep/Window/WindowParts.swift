@@ -112,14 +112,14 @@ struct ShimmeringLead<Words: View>: View {
     }
 }
 
-/// A button as a pill: an option, outlined on a fill; one that leaves for Claude outlined; the white pill, the
-/// brightest thing in the window; quiet, soft grey text. One that `leaves` SitRep has ↗ after its words, soft. Each
-/// lifts under the pointer, and keeps the width of its words on one line. One that `wraps`, as a card's buttons laid
-/// out as rows, wraps its words from the left within the width it is given, never wider than they are, its corners
-/// still 13.
+/// A button as a pill, as A1 and A2 revised draw a card's: the white pill, the brightest thing in the window, an
+/// answer given here; one that leaves for Claude outlined; quiet, soft grey text. One that `leaves` SitRep has ↗ after
+/// its words, soft. Each lifts under the pointer, and keeps the width of its words on one line. One that `wraps`, as a
+/// card's buttons laid out as rows, wraps its words from the left within the width it is given, never wider than they
+/// are, its corners still 8.
 struct Pill: View {
     enum Look {
-        case white, option, outlined, quiet
+        case white, outlined, quiet
     }
 
     let words: String
@@ -131,10 +131,10 @@ struct Pill: View {
     var body: some View {
         Button(action: action) {
             label
-                .font(WindowStyle.ui(12, look == .option || look == .white ? .semibold : .medium))
+                .font(WindowStyle.ui(13, look == .white ? .semibold : .medium))
                 .multilineTextAlignment(.leading)
                 .fixedSize(horizontal: !wraps, vertical: true)
-                .padding(.vertical, look == .white || look == .quiet ? 6 : 5)
+                .padding(.vertical, look == .outlined ? 5 : 6)
                 .padding(.horizontal, padding)
         }
         .buttonStyle(PillStyle(look: look))
@@ -148,12 +148,12 @@ struct Pill: View {
         return Text("\(words) \(Text(Words.leaves).foregroundStyle(WindowStyle.soft))")
     }
 
-    static let radius: CGFloat = 13
+    static let radius: CGFloat = 8
 
     private var padding: CGFloat {
         switch look {
-        case .white: 13
-        case .option, .outlined: 12
+        case .white: 14
+        case .outlined: 12
         case .quiet: 8
         }
     }
@@ -173,7 +173,7 @@ private struct PillStyle: ButtonStyle {
             configuration.label
                 .foregroundStyle(look.ink(highlight))
                 .background(shape.fill(fill(highlight)))
-                .overlay(shape.strokeBorder(ring(highlight), lineWidth: look == .outlined || look == .option ? 1 : 0))
+                .overlay(shape.strokeBorder(ring(highlight), lineWidth: look == .outlined ? 1 : 0))
                 .contentShape(shape)
                 .opacity(isEnabled ? 1 : 0.45)
         }
@@ -183,27 +183,23 @@ private struct PillStyle: ButtonStyle {
         switch (look, highlight) {
         case (.white, .none): WindowStyle.text
         case (.white, _): WindowStyle.text.opacity(highlight == .picked ? 0.75 : 0.88)
-        case (.option, .none): WindowStyle.option
-        case (.option, _), (.outlined, .picked): WindowStyle.optionLift
+        case (.outlined, .picked): WindowStyle.optionLift
         case (.outlined, .hover): WindowStyle.option
         case (.outlined, .none), (.quiet, _): .clear
         }
     }
 
     private func ring(_ highlight: Highlight) -> Color {
-        switch look {
-        case .option: highlight == .none ? WindowStyle.optionRing : WindowStyle.ringLift
-        default: highlight == .none ? WindowStyle.ring : WindowStyle.ringLift
-        }
+        highlight == .none ? WindowStyle.ring : WindowStyle.ringLift
     }
 }
 
 extension Pill.Look {
-    /// A card's button's look, one per role: an answer given here, a yes or an option, on the option's fill; what
-    /// leaves for Claude outlined; Ignore quiet.
+    /// A card's button's look, one per role: an answer given here, a yes or an option, white, as A1 and A2 revised
+    /// draw it; what leaves for Claude outlined; Ignore quiet.
     init(_ button: Card.Button) {
         switch button {
-        case .yes, .option: self = .option
+        case .yes, .option: self = .white
         case .inClaude: self = .outlined
         case .ignore, .snooze: self = .quiet
         }
@@ -213,7 +209,7 @@ extension Pill.Look {
     func ink(_ highlight: Highlight) -> Color {
         switch self {
         case .white: WindowStyle.ink
-        case .option, .outlined: WindowStyle.text
+        case .outlined: WindowStyle.text
         case .quiet: highlight == .none ? WindowStyle.soft : WindowStyle.text
         }
     }
@@ -266,17 +262,6 @@ extension View {
     /// One element to VoiceOver, read as these words in place of what it draws.
     func spoken(_ words: String) -> some View {
         accessibilityElement(children: .ignore).accessibilityLabel(words)
-    }
-}
-
-extension Text {
-    /// These words after their session's name, where there is one: quieter, and in the words' own flow, so a line
-    /// that wraps comes back to the words' edge, never to a column of the name's.
-    func led(by session: String?) -> Text {
-        guard let session else {
-            return self
-        }
-        return Text("\(Text("\(session):").foregroundStyle(WindowStyle.soft)) \(self)")
     }
 }
 

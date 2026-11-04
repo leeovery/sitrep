@@ -42,6 +42,9 @@ final class WindowModel {
     /// change and not a moment after it; and whether a session opened from outside before any board has just landed,
     /// on the board come, which puts focus on the list.
     @ObservationIgnored var arrange: (_ isFullPage: Bool, _ landed: Bool) -> Void = { _, _ in }
+    /// Told the toolbar as the window stands, as each change is taken, so its items change with the list folding away
+    /// or showing.
+    @ObservationIgnored var showToolbar: (Toolbar) -> Void = { _ in }
     @ObservationIgnored private var landedLater = 0
     @ObservationIgnored private let run: WindowRun
     /// The calendar the window's wake times are worded on, its run's.
@@ -227,7 +230,7 @@ final class WindowModel {
         go(to: .session(session, from: run.location.root), by: .projectSession)
     }
 
-    /// Parked, narrowed to a session, from its "later · N parked", or a project, from its "N parked".
+    /// Parked, narrowed to a session, from its "later N parked", or a project, from its "N parked".
     private func openParked(_ scope: ParkedScope) {
         let way: History.Way = switch scope {
         case .session: .sessionParked
@@ -334,15 +337,13 @@ final class WindowModel {
         }
     }
 
-    /// To the session's window, as the notch's and the menu's jumps go: one at a time, none while one runs from
-    /// anywhere. Only the button pressed shows it, until it answers.
+    /// To the session's window, as the notch's and the menu's jumps go: one at a time, in place of any under way. Only
+    /// the button pressed shows it, until it answers.
     private func jump(_ press: JumpPress) {
-        guard jumping.press(press, isJumping: works.isJumping) else {
-            return
-        }
+        let pressed = jumping.press(press)
 
         works.jump(to: press.session) { [weak self] _ in
-            MainActor.assumeIsolated { self?.jumping.answered() }
+            MainActor.assumeIsolated { self?.jumping.answered(pressed) }
         }
     }
 
@@ -420,6 +421,7 @@ final class WindowModel {
             showsRows.toggle()
         }
         arrange(isFullPage, run.landedLater != landedLater)
+        showToolbar(run.toolbar)
         landedLater = run.landedLater
         keepWhereLeft()
         schedule(after: time)

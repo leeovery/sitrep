@@ -76,23 +76,12 @@ private struct Followed {
     private let listed: NSView
 
     init(remembered: Location? = nil) throws {
-        let defaults = try #require(UserDefaults(suiteName: "sitrep.ListFollowingTests.\(UUID().uuidString)"))
-        let plugin = Plugin()
-        let banners = Banners(pid: 1, send: { _ in }, helperApp: NoHelper())
-
-        if let remembered {
-            WhereLeft.save(remembered, in: defaults)
-        }
-        model = WindowModel(
-            plugin: plugin, works: Works(banners: banners, plugin: plugin),
-            snoozes: Snoozes(plugin: plugin, banners: banners), following: Following(), period: .hour,
-            defaults: defaults
-        )
+        model = try WindowModel.made(remembered: remembered)
 
         let columns = SitRepWindow.columns(over: model)
         let split = SitRepWindow.split(sidebar: columns.sidebar, list: columns.list, page: columns.page)
 
-        window = SitRepWindow.window(split)
+        window = SitRepWindow.window(split, toolbar: NSToolbar())
         window.contentView?.layoutSubtreeIfNeeded()
         focus = SideFocus(
             window: window, sidebar: columns.sidebar.view, list: columns.list.view, page: columns.page.view
@@ -118,13 +107,4 @@ private struct Followed {
     private func isFocused(in column: NSView) -> Bool {
         HostedSidebar.views(NSTableView.self, in: column).first.map { window.firstResponder === $0 } ?? false
     }
-}
-
-/// A helper app that never starts.
-private final class NoHelper: HelperStarting {
-    var watched: Int32? { nil }
-
-    func open() {}
-
-    func isRunning(_: Int32) -> Bool { false }
 }

@@ -10,6 +10,9 @@ tier('user')
 
 type World = ReturnType<typeof world>
 
+/** The id the engine gives the world's first turn. */
+const TURN = 'turn-1'
+
 /**
  * The window's state in `$.state` as the host keeps it, versioned, so a test
  * can write it as another load of the mod would: every write the mod tried,
@@ -68,7 +71,7 @@ test('each load stamps its heartbeat and the state it keeps with when it began',
   await w.clock.settle()
 
   expect(parsePresence(w.text(paths.heartbeat(W1)), W1)?.loadedAt).toBe(T0 + 60_000)
-  expect(store.kept()).toEqual({ turnAt: T0 + 60_000, ...QUIET, loadedAt: T0 + 60_000 })
+  expect(store.kept()).toEqual({ turnAt: T0 + 60_000, turnId: TURN, ...QUIET, loadedAt: T0 + 60_000 })
 })
 
 test("a load that finds a later load's stamp on its heartbeat writes neither it nor the state again, and says so once", async ($, on) => {
@@ -134,6 +137,6 @@ test("a write of the state that misses on an earlier load's writes over it, on t
   await w.clock.settle()
 
   expect(store.tried.slice(-2).map(each => each.ifVersion)).toEqual([version + 1, version + 2])
-  expect(store.kept()).toEqual({ ...QUIET, turnAt: T0, loadedAt: T0 })
+  expect(store.kept()).toEqual({ ...QUIET, turnAt: T0, turnId: TURN, loadedAt: T0 })
   expect(outrun(w)).toEqual([])
 })

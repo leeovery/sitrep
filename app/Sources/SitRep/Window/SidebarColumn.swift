@@ -181,7 +181,7 @@ private struct PlaceMark: View {
     }
 }
 
-/// A diamond, its points at the middles of its edges: Parked's mark.
+/// A diamond, its points at the middles of its edges: Parked's mark, Later's and a project's "N parked".
 struct Diamond: Shape {
     func path(in rect: CGRect) -> Path {
         Path { path in

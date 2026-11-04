@@ -196,7 +196,24 @@ struct SnoozedWindowTests {
             nil, Date(timeIntervalSince1970: 1_792_741_532), Date(timeIntervalSince1970: 1_792_745_127),
         ])
         #expect(page.asks.map(\.buttons) == [[.yes("Go"), .ignore, .snooze], [], []])
-        #expect((page.waiting, page.snoozed) == (1, 2))
+        #expect(page.waiting == 1)
+    }
+
+    /// An ask asleep picked under "N snoozed" leads the detail as its card asleep, with Wake now in its buttons' place.
+    @Test func anAskAsleepPickedLeadsTheDetailAsItsCardAsleep() throws {
+        let run = Self.opened()
+
+        run.toggleFold(of: .needsYou)
+        run.pickInList(Self.k1, at: Self.now)
+
+        let page = try #require(run.page(at: Self.now).session)
+        guard case let .ask(card) = page.lead else {
+            Issue.record("No card leads: \(String(describing: page.lead))")
+            return
+        }
+
+        #expect(card.id == AskAddress(session: Self.session, ask: "k1"))
+        #expect(card.snoozedUntil != nil && card.buttons.isEmpty)
     }
 
     /// k3, the one waiting, closes with nothing holding the page: it leaves, and those asleep stay as they were.
@@ -251,8 +268,6 @@ struct SnoozedWindowTests {
         #expect(Words.line(.notSnoozed("k1 is already closed.")) == (nil, "Not snoozed: k1 is already closed."))
         #expect(Words.line(.notWoken("k1 is not snoozed.")) == (nil, "Not woken: k1 is not snoozed."))
         #expect(Words.button(.snooze) == "Snooze")
-        #expect(Words.snoozed(0) == nil)
-        #expect(Words.snoozed(2) == "2 snoozed")
         #expect(Words.snoozedUntil("Sat 09:00") == "Snoozed until Sat 09:00")
         #expect(Spoken.heading("Asks", note: "1 waiting", aside: "2 snoozed") == "Asks, 1 waiting, 2 snoozed")
         #expect(Spoken.heading("Asks", note: nil, aside: "1 snoozed") == "Asks, 1 snoozed")

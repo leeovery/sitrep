@@ -9,7 +9,7 @@
  */
 import { FRONT, GHOSTTY_BUNDLE } from '../cli/front'
 import { FIND_AND_FOCUS, FOCUS, LIST } from '../cli/ghostty'
-import type { Env, Io, Listed, Ran } from '../cli/io'
+import { TimedOut, type Env, type Io, type Listed, type Ran } from '../cli/io'
 import { main } from '../cli/main'
 import { PS } from '../cli/screen'
 import { CLIENTS, PANES } from '../cli/tmux'
@@ -82,9 +82,16 @@ type HeldServer = {
 /**
  * A Ghostty terminal: its id, the device it is on, and the working directory
  * it reports. One `isLate` takes a report only once the next Ghostty program
- * has answered, as a terminal slower than the find would.
+ * has answered, as a terminal slower than the find would; one `lateBy` only
+ * once that many have, as one slower than the listing after it too would.
  */
-export type FakeTerminal = { id: string; device: string; directory: string; isLate?: boolean }
+export type FakeTerminal = {
+  id: string
+  device: string
+  directory: string
+  isLate?: boolean
+  lateBy?: number
+}
 
 /** The tmux server's socket a window runs under, unless a test says otherwise. */
 export const SOCKET = '/private/tmp/tmux-501/default'
@@ -181,6 +188,10 @@ type Options = {
   missing?: string[]
   /** Programs that never answer: a run with a limit is killed at it. */
   slow?: string[]
+  /** osascript's runs that never end, by their count from 1, as under heavy load: one with a limit is killed at it. */
+  stalls?: (run: number) => boolean
+  /** osascript's runs that hang until the run is told to end, by their count from 1: `hanging` once one has begun. */
+  hangs?: (run: number) => boolean
   /** How tmux answers a select: in these words, as it refuses one, or never, as a select that hangs; done, unless a test says otherwise. */
   select?: { said: string } | 'slow'
   /** Devices gone, a write to which fails as a closed pty's does. */
@@ -205,6 +216,10 @@ const asnAt = (place: number) => `ASN:0x0-0x${(place + 1).toString(16)}:`
 
 const ASN = /^ASN:0x0-0x([0-9a-f]+):$/
 
+/** What a run that never ends comes to: killed at its limit, or, with none, a run that would hang the test. */
+const unended = (name: string, limitMs: number | undefined) =>
+  limitMs === undefined ? new Error(`${name} would hang this test`) : new TimedOut(name, limitMs)
+
 /** A promise that never settles: a wait cancelled, as the shell's. */
 const never = () => new Promise<void>(() => {})
 
@@ -226,7 +241,8 @@ const latch = () => {
  */
 function screen(options: Options) {
   const terminals = options.ghostty?.map(each => ({ ...each }))
-  const late = new Map<FakeTerminal, string>()
+  /** The report each late terminal takes, and how many more Ghostty programs answer before it does. */
+  const late = new Map<FakeTerminal, { directory: string; programs: number }>()
   /** tmux's servers as they stand, a select changing which window a client shows. */
   const servers = new Map<string, HeldServer>(
     Object.entries(options.tmux ?? {}).map(([socket, server]) => [
@@ -257,16 +273,24 @@ function screen(options: Options) {
   const apps: string[] = []
   /** Programs whose runs wait, by name, until the test lets them answer. */
   const holds = new Map<string, { arrive: () => void; released: Promise<void> }>()
+  /** Open once an osascript run that hangs has begun. */
+  const hung = latch()
+  /** Writes that wait, by what they write, until the test lets them land. */
+  const writeHolds: { matches: (text: string) => boolean; arrive: () => void; released: Promise<void> }[] =
+    []
 
   const pidOf = (client: Required<FakeClient>) => 1000 + clients.indexOf(client)
 
-  /** Late terminals take the reports they were given. */
-  const settle = () => {
-    for (const [terminal, directory] of late) {
-      terminal.directory = directory
-    }
+  /** A Ghostty program answered: late terminals whose time has come take the reports they were given; with `all`, every one does. */
+  const settle = (all = false) => {
+    for (const [terminal, report] of late) {
+      report.programs -= 1
 
-    late.clear()
+      if (all || report.programs <= 0) {
+        terminal.directory = report.directory
+        late.delete(terminal)
+      }
+    }
   }
 
   /** Makes the window current in the session, for every client attached to it; refused for a session not holding it. */
@@ -274,7 +298,7 @@ function screen(options: Options) {
     const [session, window] = (words[2] ?? '').split(':')
 
     if (options.select === 'slow') {
-      throw new Error(`tmux did not end within ${limitMs}ms`)
+      throw unended('tmux', limitMs)
     }
 
     if (options.select !== undefined) {
@@ -434,8 +458,13 @@ function screen(options: Options) {
     }
   }
 
+  /** How many times osascript has run, this run included. */
+  const osascriptRuns = () => ran.filter(([name]) => name === 'osascript').length
+
+  const isStalled = () => options.stalls?.(osascriptRuns()) === true
+
   const osascript = (program: string | undefined, args: readonly string[]): Ran => {
-    const refusal = options.refused?.(ran.filter(([name]) => name === 'osascript').length)
+    const refusal = options.refused?.(osascriptRuns())
 
     if (refusal !== undefined) {
       return { exitCode: 1, stdout: '', stderr: `${refusal}\n` }
@@ -467,12 +496,13 @@ function screen(options: Options) {
       throw new Error(`Executable not found in $PATH: "${name}"`)
     }
 
-    if (options.slow?.includes(name)) {
-      throw new Error(
-        limitMs === undefined
-          ? `${name} would hang this test`
-          : `${name} did not end within ${limitMs}ms`,
-      )
+    if (options.slow?.includes(name) || (name === 'osascript' && isStalled())) {
+      throw unended(name, limitMs)
+    }
+
+    if (name === 'osascript' && options.hangs?.(osascriptRuns()) === true) {
+      hung.open()
+      await never()
     }
 
     if (name === 'tmux') {
@@ -518,20 +548,40 @@ function screen(options: Options) {
       throw new Error(`ENXIO: no such device or address, open '${device}'`)
     }
 
+    const held = writeHolds.find(each => each.matches(text))
+
+    if (held !== undefined) {
+      writeHolds.splice(writeHolds.indexOf(held), 1)
+      held.arrive()
+      await held.released
+    }
+
     written.push({ device, text })
 
     for (const terminal of (terminals ?? []).filter(each => each.device === device)) {
-      if (terminal.isLate === true) {
-        late.set(terminal, decodeURIComponent(path))
+      const programs = terminal.lateBy ?? (terminal.isLate === true ? 1 : 0)
+
+      if (programs > 0) {
+        late.set(terminal, { directory: decodeURIComponent(path), programs })
       } else {
         terminal.directory = decodeURIComponent(path)
       }
     }
   }
 
+  /** The next write whose text matches waits until `release()`, landing then; `arrived` once it has begun. */
+  const holdWrite = (matches: (text: string) => boolean) => {
+    const arrival = latch()
+    const release = latch()
+
+    writeHolds.push({ matches, arrive: arrival.open, released: release.opened })
+
+    return { arrived: arrival.opened, release: release.open }
+  }
+
   /** Each terminal's id and directory once every report has landed. */
   const directories = () => {
-    settle()
+    settle(true)
 
     return Object.fromEntries((terminals ?? []).map(each => [each.id, each.directory]))
   }
@@ -552,7 +602,18 @@ function screen(options: Options) {
     }
   }
 
-  return { run, writeTo, ran, limits, written, focused, directories, hold }
+  return {
+    run,
+    writeTo,
+    ran,
+    limits,
+    written,
+    focused,
+    directories,
+    hold,
+    holdWrite,
+    hanging: hung.opened,
+  }
 }
 
 export function terminal(options: Options = {}) {
@@ -572,6 +633,8 @@ export function terminal(options: Options = {}) {
   const closing = latch()
   /** How many listenings for the run's end are not yet stopped. */
   let listening = 0
+  /** What the run holds to undo should it be told to end (SIGTERM), as the shell holds it. */
+  const undos = new Set<() => Promise<void>>()
   /** Standard input: what was written to it that nothing has heard yet, as a pipe holds it, and what hears it now. */
   const stdin: { held: string[]; heard?: (text: string) => void } = { held: [] }
 
@@ -655,6 +718,15 @@ export function terminal(options: Options = {}) {
           listening -= isStopped ? 0 : 1
           isStopped = true
         },
+      }
+    },
+    atTerm: undo => {
+      const held = () => undo()
+
+      undos.add(held)
+
+      return () => {
+        undos.delete(held)
       }
     },
     manifest: MANIFEST,
@@ -770,6 +842,10 @@ export function terminal(options: Options = {}) {
     run,
     close: closing.open,
     listening: () => listening,
+    /** The run told to end (SIGTERM), as the app stopping a jump tells it: every undo it holds is done, as the shell does them before it exits. */
+    term: () => Promise.allSettled([...undos].map(undo => undo())),
+    /** How many undos the run holds now. */
+    held: () => undos.size,
     /** Writes to the run's standard input, as the app does: heard at once while it listens, else held until it does and `arrives` gives it. */
     send: (text: string) => {
       if (stdin.heard === undefined) {

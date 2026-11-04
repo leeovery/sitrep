@@ -1,10 +1,13 @@
 import Foundation
 import os
 
-/// What `sitrep jump` came to: the window brought forward, or why not, in the CLI's words.
+/// What `sitrep jump` came to: the window brought forward; why not, in the CLI's words; no answer in time, within
+/// SitRep's limit or an app's, as when the Mac is too busy; or stopped, as a later click's jump took its place.
 public enum JumpAnswer: Sendable, Equatable {
     case jumped
     case refused(String)
+    case unanswered
+    case stopped
 }
 
 /// What `sitrep answer`, `finish`, `snooze` or `wake` came to: written, or refused in the CLI's words, with nothing
@@ -41,19 +44,19 @@ public struct SitRepCLI: Sendable {
     /// `screen --json` reads the sessions a window holds and asks tmux and `ps`, each given 2s and asked at once: about
     /// 0.2s of CPU over Lee's board, and never hanging over them.
     static let screenLimit: TimeInterval = 10
-    /// Only a backstop for a CLI that hangs, well above any realistic jump
-    /// (cli/jump.ts, cli/ghostty.ts, cli/front.ts, cli/tmux.ts, cli/apps.ts):
-    /// one takes under a second as Ghostty answers, and one Ghostty does not
-    /// answer at all, as with the screen locked, is refused at its first
-    /// question, after 5s. No true ceiling: the 5s hold for each question to
-    /// Ghostty, an Apple Event, and a program sends several (a listing three
-    /// a try, a focus two, a find some 40), so a Ghostty answering every
-    /// question only just inside its 5s could keep a jump going past this,
-    /// and the app would then report that the jump did not answer. Each place
-    /// a jump tries adds at most 2s for tmux's select (made once a jump), 2s
-    /// for each lsappinfo look that an app is running, and 2s for its `open`:
-    /// a few places at most, far under this.
-    static let jumpLimit: TimeInterval = 180
+    /// How long a whole jump may take, Bun's start and the board's read among it (4 November 2026). One takes under a
+    /// second as Ghostty answers, and one Ghostty does not answer at all, as with the screen locked, is refused at its
+    /// first question, after 5s; each Ghostty program the CLI runs is killed at 8s, and each of tmux, `ps`, lsappinfo
+    /// and `open` at 2s (cli/jump.ts, cli/ghostty.ts, cli/front.ts, cli/tmux.ts, cli/apps.ts). Past this the Mac is
+    /// too busy for a jump to land while Lee still wants it. It was 180s, a backstop, until a jump under a load of 250
+    /// ran all of it, and every click behind it waited.
+    static let jumpLimit: TimeInterval = 15
+    /// How long a jump told to end has to put back its knock's marker, a write to a device, before it is killed. A CLI
+    /// holding the marker out exits once it is put back, and one holding nothing dies at the signal, so the grace costs
+    /// time only for a CLI stuck; under a load of 250, Bun can take longer than 300ms to run its listener and write.
+    static let jumpGrace: TimeInterval = 1
+    /// How the CLI says an app gave a jump no answer in time, as when the Mac is too busy (cli/main.ts).
+    static let unansweredStatus: Int32 = 3
 
     private static let logger = Logger(sitrep: "cli")
 
@@ -94,10 +97,22 @@ public struct SitRepCLI: Sendable {
         }
     }
 
+    /// At its limit, or its task cancelled, the jump is told to end, so it puts back its knock's marker, then killed,
+    /// with every program it started. One an app gave no answer in time ends unanswered, as at the limit.
     public func jump(to work: String) async -> JumpAnswer {
-        switch await sitrep(["jump", "--session", work], limit: Self.jumpLimit) {
+        let ended = await sitrep(
+            ["jump", "--session", work], limit: Self.jumpLimit, stopping: .gently(grace: Self.jumpGrace)
+        )
+
+        return switch ended {
         case .success:
             .jumped
+        case .failure(.unrun(.timedOut)):
+            .unanswered
+        case let .failure(.exited(ran)) where ran.status == Self.unansweredStatus:
+            .unanswered
+        case .failure(.unrun(.stopped)):
+            .stopped
         case let .failure(unanswered):
             .refused(unanswered.complaint(of: "jump"))
         }
@@ -142,9 +157,10 @@ public struct SitRepCLI: Sendable {
         }
     }
 
-    /// The CLI run on the words given; a run that exits other than 0 is a failure, as one that never ends is.
-    private func sitrep(_ words: [String], limit: TimeInterval) async -> Ended {
-        let program = await self.program(words, limit: limit)
+    /// The CLI run on the words given; a run that exits other than 0 is a failure, as one that never ends is. Ended
+    /// early, it goes with every program it started.
+    private func sitrep(_ words: [String], limit: TimeInterval, stopping: Stopping = .group) async -> Ended {
+        let program = await self.program(words, limit: limit, stopping: stopping)
         let clock = ContinuousClock()
         let started = clock.now
         let ended: Ended
@@ -167,10 +183,12 @@ public struct SitRepCLI: Sendable {
     }
 
     /// The CLI on the words given, with Lee's PATH as it stands now.
-    func program(_ words: [String], limit: TimeInterval) async -> Program {
+    func program(_ words: [String], limit: TimeInterval, stopping: Stopping = .group) async -> Program {
         let environment = environment.merging(["PATH": await path()]) { _, lees in lees }
 
-        return Program(executable: executable, arguments: words, environment: environment, limit: limit)
+        return Program(
+            executable: executable, arguments: words, environment: environment, limit: limit, stopping: stopping
+        )
     }
 }
 

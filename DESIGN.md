@@ -831,7 +831,13 @@ and cancel all were, `⧗ Waiting for Claude's turn to end.`, with
 their asks say `on its way`. Taking it back lets go of its claim: its
 replies are in the queue as they were before the send, each with its `✕`,
 `↺ undo` and `✎ edit` again, its asks wait on Lee again at once, and send
-sends them again. Once the window has submitted it, it is Claude Code's,
+sends them again. While Claude's turn only waits on its background work
+(4 November 2026; see Delivery), the line says so in that one's place,
+wrapped beside `↺ take back`, or over it where that takes fewer rows:
+`⧗ Claude is waiting on its background work: this goes in when that ends.
+Type your answer in the prompt to reach Claude now.`; in one row,
+`⧗ Waiting on Claude's background work.`, where the rows Ready to send has
+do not hold that. Once the window has submitted it, it is Claude Code's,
 and nothing takes it back out of Claude Code's queue: the line says
 `⧗ Sending.` and the take-back is gone. The inbox's message offers none:
 Lee sent its replies from elsewhere.
@@ -1000,6 +1006,80 @@ app (see "The menu bar").
     awaited there, started its own turn about 13 ms later; a hook awaiting
     its own submit never ends. So the window submits a held message from the
     hook and waits on none of it there.
+  - **While the turn only waits on its background work** (4 November
+    2026). Seen live twice that day: Lee answered an ask, and its window
+    held the reply under `⧗ Waiting for Claude's turn to end.` for as long
+    as an hour after Claude had finished replying, Claude Code's own line
+    reading `✳ Waiting for 2 background agents to finish`. Claude Code holds
+    a turn open while background agents its main loop sent off still run,
+    though that loop has finished: each agent's notification goes into the
+    turn, Claude answers it, and the turn waits again. So the window heard a
+    turn running all along, and held the message. Lee's own prompts got in
+    meanwhile: Claude Code delivers a prompt typed mid-turn into the turn.
+
+    What the engine allows, by its types: nothing of a plugin's goes into a
+    running turn as Lee's own message. `$.prompt.submit` is "a turn of its
+    own, once the session is idle", and `prompt.submit`'s `turnId` is
+    "Absent for a prompt submitted while the session was idle, and for a
+    plugin's own (`$.prompt.submit`), which runs once it is idle". What
+    goes into a running turn is the engine's own: a prompt typed over it, a
+    task's notification ("delivered into a running turn (`turnId` set)"),
+    and a peer's message ("A queued delivery (a peer session's message)
+    reaches the model inside a running turn"). A plugin sends the last only
+    by `$.session.send`, "framed at the receiver as a peer's", which Claude
+    reads as another session's message, not Lee's (refused above);
+    `$.session.append` keeps "a user-role row the person does not see as
+    typed", which Lee never sees and which wakes nothing; and
+    `prompt.attachment` rewrites only what the engine injects "on its own".
+    `$.turn.abort` would end the wait, but by cancelling Claude's turn on the
+    mod's own say: not taken. A submit while the turn waits would only wait
+    in Claude Code's queue for its end, beyond taking back, so the window
+    holds the message as ever, and the board says what is true.
+
+    The window hears it from its model's requests (`turn.step`), each as it
+    goes and, the main loop's, as it is answered. The turn only waits on its
+    background work while three things hold (core's `waitsOnWork`): it runs;
+    its main loop is done inside it, its latest request in the turn answered
+    asking for no tool; and a subagent's loop runs, heard from its first
+    request until its own `turn.complete` and named `running` or `waiting`
+    by the engine's list of the session's agents (`$.agent.list()`). A
+    subagent run by a call of the main loop's is real work: the main loop's
+    request asked for that call.
+    - The main loop is done only from an answer in the turn it runs: its
+      `turnId` the one the turn's `turn.start` gave. A request cut short
+      (its stream's signal aborted) is no answer, nor is one answering for
+      another turn, as a request cut short by Esc can once Lee's next turn
+      began. The next request clears it, so a request whose answer fails
+      leaves the main loop at work.
+    - The list is asked whenever a change would leave the three holding,
+      newly or over other loops, and each loop it does not name so drops
+      out: the engine's own forks (compaction, memory) "carry ids no list
+      names", and a subagent whose end went unheard is listed ended, or not
+      at all. A list that fails counts nothing. A load that finds the three
+      holding in what the load before kept asks the list before it goes on,
+      and draws the board again, which may have drawn before it loaded. A
+      Stop whose list (`background_tasks`) names tasks but no subagent ends
+      every loop.
+    - No state shows it, the heartbeat still saying working, and only a
+      change writes the window's state: a request that leaves what the
+      window heard as it was writes nothing, so no request and no tool call
+      writes `$.state` for it. The board reads it from the window's memory,
+      not `$.state`, whose every write would draw the board again; a change
+      of whether the three hold draws the board again itself.
+
+    Then Ready to send's line says `⧗ Claude is waiting on its background
+    work: this goes in when that ends. Type your answer in the prompt to
+    reach Claude now.`, wrapped beside its take-back, or across the box with
+    the take-back on a row under it where that takes fewer rows; where the
+    rows a docked board gives Ready to send do not hold that once the replies
+    that fit have theirs, it says `⧗ Waiting on Claude's background work.`
+    in one row. Claude at work again, as a notification sets it going, the
+    line says the turn's end again. Known limits: background work no
+    subagent runs (a shell), and a workflow's agents, which the list leaves
+    out, do not count, and the line says the turn's end; a subagent ended
+    unheard while the three hold counts until the next change asks the list.
+    Whatever acts on the three, beyond what the board says, should ask the
+    list again as it acts.
   - **Taken back.** While the window holds Lee's send, Ready to send offers
     to take it back (see "Ready to send"): its claim is let go, its replies
     stay in the queue as they were, the heartbeat says them no more, and
@@ -2091,12 +2171,17 @@ truth. There is still no background service. None of it is built now. Lee:
     - `--json`, `v` 1, the sessions by id, and `unanswered` naming what gave
       no answer, `tmux`, `ps`, or neither; plain `screen` says the same a line
       each (`sr-k3f9qa  Dashboard redesign: on screen`, `not on screen`, `not
-      known`), then what gave no answer.
+      known`), then what gave no answer. Each session on screen names the
+      app showing it, the first place a jump would bring forward, as
+      `"Ghostty"`: in tmux the app its client descends from, which
+      `$TERM_PROGRAM`, `tmux` there, cannot tell; `null` where it is not on
+      screen (4 November 2026, for the session page's meta line; added to
+      `v` 1, which a reader that ignores it reads as before).
 
       ```
       { "v": 1,
-        "sessions": [ { "id": "sr-k3f9qa", "is": "on" },
-                      { "id": "sr-bbbbbb", "is": "unknown" } ],
+        "sessions": [ { "id": "sr-k3f9qa", "is": "on", "app": "Ghostty" },
+                      { "id": "sr-bbbbbb", "is": "unknown", "app": null } ],
         "unanswered": ["tmux"] }
       ```
 
@@ -4058,24 +4143,124 @@ stands).
     "No sessions match “ledg”", the field's text in the quotes; and the
     field carries no "⌘F" hint, which the system's field does not draw.
   - **the page**, on the right: beside the list, the session of the row
-    picked, its page as a session's page shows it, or with nothing picked
-    how the board stands; filling the window, a project's page or a
-    session's pushed from a project. A session's page is the pane's session
-    view at window size. Its project's name is an eyebrow over its name,
-    about 15 points semibold in the secondary colour, smaller than a title
-    and more than a caption, and a press opens the project. It starts at
-    the top a project's title starts at, so going from a project into one
-    of its sessions keeps the project's name in place (Lee, 20 October
-    2026, of the name as a small button up by the toolbar: it "suddenly
-    gets really small and tucked up right close to the top… It almost sits
-    inside the header of the page"). Its name sits close under the eyebrow,
-    then its summary; what its window is doing now, the panel row's second
-    line; then Asks, Status, Notes, Parked and Resolved, in the pane's
-    order, the last four in two columns so a session fits without
-    scrolling.
-  - **the band under the toolbar**, beside the traffic lights, stays
-    empty on every page, a session's and a project's: nothing
-    of the page sits in it.
+    picked, its detail, or with nothing picked how the board stands;
+    filling the window, a project's page or a session's pushed from a
+    project. A session's page (4 November 2026, A1 and A2 revised) is one
+    column: what needs Lee, then Now, then What happened. Until then it
+    was the pane's session view at window size: its summary under its
+    name, then Asks under a heading counting those waiting and asleep, then
+    Status, Notes, Parked and Resolved in two columns, Resolved's latest
+    three until "show all N":
+    - **beside the list**, the detail, 36 in from its edges: under the band
+      a context row, "Northwind › Fix the login redirect", 13 medium, the
+      project in white at 65%, a press opening its page as a step Back
+      returns from, a chevron in white at 35%, then the session in white
+      at 85%; "Open in Ghostty ↗" trails it while a window holds the
+      session. Under it what its window is doing (below), then, in Needs
+      you, the picked line's card leading: an ask's card larger than a
+      page's, its title 18 semibold, its mark and age on its first line,
+      its `where` 13, 18 inside its edges;
+      an ask asleep under "N snoozed" its card asleep; a window's stop its
+      stop card at the same size, from the line picked, so of a session
+      two windows hold it is the stop of the window picked, gone with its
+      line. Its "Answer in Claude ↗" jumps to the session, as every jump
+      does, so of two windows stopped it brings forward the one a jump goes
+      to first, the latest stopped, which need not be the one picked:
+      `sitrep jump` takes a session, not a window. Before the board has
+      the ask the feed named, its card is made from the feed's asks, so it
+      leads at once, an answer waiting or a snooze refused on it as on any
+      card; answered before the session's own board comes, it holds closed
+      and faint as any card answered. The session's other lines
+      are rows of their own, so the detail shows the picked one alone. A
+      picked ask answered keeps leading, closed and faint, while the page
+      holds, then nothing leads, nothing taking its place. In Working or
+      Your turn the detail has no lead;
+    - **filling the window**, 40 in: its project's name an eyebrow over its
+      name, 15 semibold in the secondary colour, a press opening the
+      project. It starts at the top a project's title starts at, so going
+      from a project into one of its sessions keeps the project's name in
+      place (Lee, 20 October 2026, of the name as a small button up by the
+      toolbar: it "suddenly gets really small and tucked up right close to
+      the top… It almost sits inside the header of the page"). Its name,
+      28 bold, sits close under it, "Open in Ghostty ↗" on its row (see
+      "The jump"); under it the meta line, 12 in white at 35%: the app
+      showing its window, as the screen's reading names it (see "On
+      screen"), else its window's terminal by `$TERM_PROGRAM` where that
+      names an app sitrep knows (`ghostty` reads "Ghostty"), never `tmux`,
+      which names no app, nor an editor's terminal (`vscode`), so under
+      tmux with no reading it names none; "on screen" or "not on screen"
+      as the last look said, nothing where it gave no answer or there is
+      no reading; then when it started, from `watch`'s `created`,
+      "started today, 09:12", "yesterday", a weekday within the week,
+      else "3 Nov", "3 Nov 2025" in another year: as "Ghostty, on screen
+      · started today, 09:12", its first word capitalised where no app
+      leads, "On screen · started …". Of several windows, it is the window
+      a jump goes to first. Away, the away line takes its place, the away
+      mark or ring before it, "No window holds it. Carry it on in
+      Claude.". Then
+      what its window is doing, or a stop's card in its place; then every
+      ask's card, its title 15 semibold and its `where` 13 (14 and 12
+      until then), those waiting, the newest first, then those asleep, 10
+      apart. Newest first though A2 draws them oldest first: Lee chose
+      newest first for every Needs you list on 4 November 2026, after A2
+      was drawn (see "The notch and its panel");
+    - **what its window is doing** (kept, as Lee asked on 3 November that
+      a working session look the same on every surface, though A1 and A2
+      draw none), in the meta line's place beside the list and under it
+      filling the window: its mark, the turning arc and the shimmering
+      verb of a working session, what it acts on, and how long its turn
+      has run, as before. A window stopped shows its stop's card in this
+      place, unless a stop leads, which says it already; so beside the
+      list, an ask of a session whose window is stopped leads under the
+      stop's card. Away and filling the window, the meta line says it, so
+      there is none;
+    - **Now**, only while it has a line, a next or a parked item under
+      it, a heading 13 semibold in white at 85%, and on its right
+      "updated 1h ago", 12 in white at 35%, from its log's newest status
+      line, gone once that line is past the 8 newest its board carries;
+      under it, 14 in, a filled bullet per line of its status; "◦ next
+      …", a stroked ring, the word quieter; and "◇ later 2 parked ›"
+      while it parked any, which opens Parked narrowed to the session;
+      each line in a row of 28 beside the list, 26 filling the window;
+    - **What happened**, one thread, the newest first, 14 in: its log's
+      lines, notes and status lines alike, each on a dot; filling the
+      window, the asks its cards show too, "Asked Approve the schema
+      change", the word quieter, on a hollow mark, merged by their times,
+      an ask before a line as old, so an ask answered while the page
+      holds stays with its card. Beside the list the log alone, as the
+      session's asks are rows of their own. Each mark ringed in the
+      page's black on a line down them, white at 12%; its age in a lane
+      of 30; each line in a row of 28 beside the list, 26 filling the
+      window, its words and its age one element to VoiceOver; each opens
+      in place, an ask's as a line's, while it is cut short. A board
+      carries the 8 newest lines, so once the log holds 8, an ask older
+      than its oldest line is cut, as what happened between may be gone.
+      At its end "N resolved ›",
+      folded each time a page shows, opens in place to its resolved asks,
+      the newest closed first, each opening to how it closed. A session's
+      page beside the list and the same session's filling the window are
+      two pages: Back or Forward between them folds it again, closes what
+      was opened and lets refusals go, as any page turned to; another line
+      of the same session picked turns no page;
+  - **the toolbar** fills the band beside the traffic lights (4 November
+    2026, A1 to A3 revised; until then it stayed empty on every page,
+    nothing of the page in it). On a place: past the sidebar, **Back and
+    Forward**, one capsule of two chevrons, each side dimmed while it has
+    no step to go to; beside them the place's name, Needs you, Your turn,
+    Working or Parked, as the window's title, which macOS draws there and
+    keeps over the list by the list's divider, tracked; then trailing
+    over the page **the position**, "1 / 5", 13 in tabular figures in the
+    secondary colour, and **up and down**, a capsule of two chevrons, up
+    dimmed on the first row and down on the last. A page filling the
+    window, a project's or a session's pushed from it, has Back and
+    Forward alone, at its leading edge, no title shown and no position;
+    the window's title is still the page's, the project's name or the
+    session's, so Mission Control, App Exposé and VoiceOver name what the
+    window shows, as Finder names its folder's window. The items change
+    with the list folding away or showing, never a moment after it, each
+    item made afresh as it comes back. Where the toolbar is too narrow
+    for them, each side of a capsule is an item of its own in the
+    toolbar's overflow menu. Nothing of the page sits in the band.
 - **A session's row is the card's row at the window's size:** the same
   marks in the same lanes, the same words, and the panel row's time.
 - **On a session's page and a project's** (3 November 2026), a working
@@ -4187,11 +4372,18 @@ stands).
     away only as the window says, while a project's page or a session's
     fills it. That is why the window is not SwiftUI's
     `NavigationSplitView`: it pins neither;
-  - the window carries an empty toolbar, unified. Its taller titlebar is
-    what sets the traffic lights inside the glass, 11 points in from its
-    corner as Finder's; without one macOS puts them on the corner, a point
-    in. Their middle is 26 points down, in the middle of the empty band the
-    page starts under;
+  - the window carries a toolbar, unified, of macOS's own parts: Back and
+    Forward the toolbar's navigational item, AppKit's segmented pair
+    (`NSToolbarItemGroup`, momentary) of two chevrons as Finder's and
+    Safari's, as the Settings window's are; up and down another; the title
+    the window's own, shown only on a place;
+    the list's divider tracked by `NSTrackingSeparatorToolbarItem`, as the
+    sidebar's is by the system's. macOS 26 sets them on Liquid Glass by
+    itself, so SitRep draws no capsule of its own. Nothing to customise.
+    Its taller titlebar is what sets the traffic lights inside the glass,
+    11 points in from its corner as Finder's; without one macOS puts them
+    on the corner, a point in. Their middle is 26 points down, in the
+    middle of the band the page starts under;
   - macOS draws an app in the design of the SDK its binary records, so the
     glass shows only in a build that records macOS 26's, as `app/bundle`
     sets it. Offscreen, the window's parts can be read, the sidebar item
@@ -4263,7 +4455,8 @@ stands).
   - on the page, a line that opens, a project's session or line waiting,
     its "N parked", and a card's head show the panel's fills behind them;
   - every button shows a hover: the pills, the jump, the project's name
-    above a session, "show all".
+    above a session or in its breadcrumb, "later N parked", "N
+    resolved".
 - **Keyboard focus is the system's.** In either list the selection is the
   focus. The page's buttons take focus, each showing
   the system's own ring, shaped to it, a pill's ring a pill, only while the
@@ -4315,9 +4508,18 @@ stands).
     tomorrow, wakes Saturday 09:00"; a fold reads how many, and "N earlier"
     its projects, as "2 snoozed" or "8 earlier, Switchboard, Fumi", and
     folded says so. The Filter field reads as "Filter sessions";
-  - the page's title, the eyebrow and the section headings carry the
-    header trait, each heading read with the words on its right, as
-    "Asks, 3 waiting", or "Asks, 1 waiting, 2 snoozed";
+  - the toolbar's chevrons read "Back" and "Forward", "Previous" and
+    "Next", each its side's tooltip too; the position reads "3 of 5", once,
+    as its value, never "3 / 5" too, and with no row picked it is no
+    element at all; the window's title names the place, or the page
+    filling the window; a press on a side from VoiceOver or the keyboard
+    with no side selected goes nowhere;
+  - the page's title, the eyebrow, the breadcrumb's session and the
+    section headings carry the header trait, each heading read with the
+    words on its right, as "Now, updated 1 hour ago", or on a project's
+    page "Waiting on you, 3"; the meta line reads its parts as one,
+    "Ghostty, on screen, started today, 09:12"; an age in What happened in
+    whole words; "N resolved" says "collapsed" or "expanded" as its value;
   - a card is a container labelled by its ask's title, its buttons inside
     it. The title is said once, by the container;
   - on a project's page its counts read as words, "3 sessions, 3 waiting on
@@ -4333,15 +4535,16 @@ stands).
     bullets, which say what its heading says, are not read, nor the ↗ of
     "Open in Ghostty".
 - **Items that open.** A note, a parked item and a resolved ask open in
-  place on a press, and close on a second: the line whole, wrapping, and under it a note's detail, where a
-  parked item was parked from, or how an ask closed: Lee's answer as the
+  place on a press, and close on a second: the line whole, wrapping, and
+  under it a note's detail, where a parked item was parked from, or how an
+  ask closed: Lee's answer as the
   board words it, or Claude's resolve and its reason. A status line opens
   only while it is cut short. A line with nothing more to show is not a
   button, and takes no keyboard stop. Lee, 20 October 2026, of an opened
   item with a box behind it, its title in a narrow column hanging from its
   session's name and its detail under the bullet: "a bit shit". So every
-  line of Status, Notes, Parked and Resolved, opened or closed, keeps one
-  grid:
+  line of a session's Now, What happened and resolved asks, and of a
+  project's Notes and Parked, opened or closed, keeps one grid:
   - the marker in its lane, then the words, then the time on the first line;
   - a session's name is a quieter lead-in in the words' own flow, wrapping
     to their left edge, never a column of its own;
@@ -4358,12 +4561,15 @@ stands).
   - **one look per role, whatever the ask** (Paper's page "Answer buttons",
     board I1, Lee's pick of 26 October 2026, and live on the 27th: "I think
     they look fine."). An answer given here, **a
-    yes** in Claude's words or each of **a choice**'s options, is the option
-    pill: #1C1C1F in a #34343A ring, 12 semibold, 12 by 5 inside, corners of
-    13. What leaves for Claude, Comment in Claude and Answer in Claude, the
-    your-turn card's among them, is outlined, its ↗ in the soft grey. Lee,
-    of the white Answer in Claude beside grey options and a big white Go:
-    "I think we should be consistent there with our button approach";
+    yes** in Claude's words or each of **a choice**'s options, is the white
+    pill, 13 semibold, 14 by 6 inside, corners of 8, as A1 and A2 revised
+    draw a card's (4 November 2026; until then the option pill, #1C1C1F in
+    a #34343A ring, 12 semibold, corners of 13). What leaves for Claude,
+    Comment in Claude and Answer in Claude, the your-turn card's among
+    them, is outlined, 13 medium, its ↗ in the soft grey. The window's
+    cards alone: the panel's keep their own. Lee, of the white Answer in
+    Claude beside grey options and a big white Go: "I think we should be
+    consistent there with our button approach";
   - **the buttons sit on one line** as pills while they fit at their
     one-line widths, measured. Past that, as Claude's long options are, the
     answers stand one under another, 6 apart, left-aligned, each as wide as
@@ -4375,14 +4581,18 @@ stands).
     width: "I don't really like how the buttons in the middle are really
     long. I think it's unnecessary.";
   - **the answer waits 2 seconds**, a line draining under it, with Escape to
-    undo (borrowed from One, in Lee's dex). Then it goes into the session's
+    undo (borrowed from One, in Lee's dex): beside the list only the
+    answer on the card leading, as another of the session's, its line
+    picked since, shows nowhere; filling the window, any on its cards. Then it goes into the session's
     inbox, as the pane's replies to another session do (see "Delivery"), by
     `sitrep answer`. The card says "on its way", then "sent, and Claude has
     it", then moves to Resolved, as each ask's `reply` on the session's
     board says, as `watch` carries it (see "One engine, two front ends").
     The board never closes an ask on the press alone;
   - **a jump shows on the button pressed** alone, faint while it runs; the
-    other cards stay as they look, and take no second jump while one runs;
+    other cards stay as they look, and a press on one jumps in its place,
+    the latest click winning (see "The jump"); until 4 November 2026 they
+    took no second jump while one ran;
   - **a comment, a words ask and a permission prompt** need Claude Code's
     prompt, so their buttons read "Comment in Claude ↗" or "Answer in Claude
     ↗" and jump to the session's window. Proposed, and new: that jump also
@@ -4398,29 +4608,33 @@ stands).
     today, Tomorrow and Next week, each with its time on its right, as the
     card's. A choice snoozes that one ask. Refused, the card says so, "Not
     snoozed:" and the CLI's words, until it is pressed again.
-  - **Asks asleep** follow those waiting, the soonest to wake first, and the
-    heading says both, `1 waiting` in orange, then ` · 1 snoozed` in the faint
-    grey, only while any is. A card asleep is darker, #0C0C0D with a 1 inset
-    ring in white at 6%; its dot the faint grey and its title soft. Its
+  - **Asks asleep** follow those waiting, the soonest to wake first (until
+    4 November 2026 under a heading saying both, `1 waiting` in orange, then
+    ` · 1 snoozed` in the faint grey). A card asleep is darker, #0C0C0D
+    with a 1 inset ring in white at 6%; its dot the faint grey and its
+    title soft. Its
     second line, 22 in, says "Snoozed until Sat 09:00", 12 in the soft grey
     in tabular figures, then a Wake now pill, outlined in #2C2C31. It has no
     answers. Wake now wakes that one ask; refused, the card says "Not
     woken:" and the CLI's words.
 - **A permission prompt or a question** is the window's state, not an ask.
   It takes the state line's place, washed orange as the panel row that
-  brought it, and says the tool and what it would run.
+  brought it, and says the tool and what it would run. Picked as its line in
+  Needs you, it leads the detail beside the list in its place.
 - **The jump** is "Open in Ghostty ↗", shown only while a window holds the
   session, and only on a session's page. ↗ marks anything that leaves
-  SitRep. It sits on the row of the session's name, trailing, centred on
-  its first line, while the name wraps to no more lines beside it than
-  across the whole width, as measured; on a window too narrow for that, it
-  goes under the name, leading. Lee, 20 October 2026, of it above the
+  SitRep. It sits on the row of the session's name, or of the detail's
+  breadcrumb, trailing, centred on its first line, while the name wraps to
+  no more lines beside it than across the whole width, as measured; on a
+  window too narrow for that, it goes under the name, leading. It is
+  outlined, 28 tall, its corners 8, in a hairline of #3A3A40, filled only
+  under the pointer (A1 and A2 revised; until then a raised chip). Lee, 20 October 2026, of it above the
   name, by the toolbar: "Hierarchy-wise, that shouldn't be there… it's
   opening the session in Ghostty. Doesn't make sense to have it above,
   this is like basic UI principles."
 - **Away**, a session no window holds:
   - there is no jump, and the state line says "No window holds it. Carry it
-    on in Claude.";
+    on in Claude.", filling the window as its meta line;
   - its yes and choice asks can still be answered: the answer waits in its
     inbox and goes in when a window takes the session up again. A comment or
     words wait for that window;
@@ -4432,12 +4646,14 @@ stands).
   or unknown, where tmux or `ps` gave no answer for its windows. With no
   reading yet, after a run that failed, or for a session the reading does
   not list, as no window holds it, the window says nothing of it, which is
-  not unknown: an away session gets no mark at all. Only off is drawn: on a
-  project's page, "· not on screen" where its session stands, and a pip on
-  the corner of its mark, in its row, its lines and its card, white at 65%
-  in a ring of what is behind it 1.5 wide (the marks sheet's "Not on
-  screen", the corner pip). The pip on a Needs you row and "on screen" in a
-  session page's meta line come with the rest of the rebuild.
+  not unknown: an away session gets no mark at all. A session's page
+  filling the window says it in its meta line, "on screen" or "not on
+  screen", unknown saying nothing, after the app the reading names as
+  showing it. A project's page draws only off: "· not on screen" where its
+  session stands, and a pip on the corner of its mark, in its row, its
+  lines and its card, white at 65% in a ring of what is behind it 1.5 wide
+  (the marks sheet's "Not on screen", the corner pip). The pip on a Needs
+  you row comes with a later change.
   - It cannot ride `watch`: it changes with Lee's tmux and Ghostty, not
     with the board. So the window runs `screen` on its own cadence, only
     while it shows, macOS saying it is visible: at once as it opens, comes
@@ -4478,10 +4694,11 @@ stands).
   rules and their tests, wired in by the switch to three columns the same
   day (see "Three columns"): the sidebar's places and projects, the list
   beside the page and the page are drawn from it, and every way the window
-  moves goes through it. The toolbar's Back and Forward, its position and
-  its up and down, the session page's body, and Parked's list and its item
-  come with later changes (the project page's came with "A project"); ⌘[ and ⌘] with the
-  toolbar.
+  moves goes through it, the toolbar's Back and Forward, its position and
+  its up and down among it (see "Three columns"). Parked's list and its
+  item come with a later change. The session page's body came the same day
+  (see "the page", under "Three columns"), and the project page's (see "A
+  project").
   - **Four places, then the projects.** The sidebar holds the Filter field,
     then Needs you, Your turn, Working and Parked, then every project on the
     board, quiet ones too. Your turn sits above Working because it waits on
@@ -4520,10 +4737,13 @@ stands).
     session's name, its project's or its own words, so typing what an ask
     says finds that ask, not every line of its session; a Working or Your
     turn row by today's rule; a project by its name.
-  - **Position.** Beside the list, the picked row's place among the rows
-    shown, "3 / 6", which VoiceOver reads "3 of 6"; an open fold's rows
-    count, a closed one's don't, and with nothing shown picked there is no
-    position.
+  - **Position.** In the toolbar over the page, the picked row's place
+    among the rows shown, "3 / 6", which VoiceOver reads "3 of 6"; an open
+    fold's rows count, a closed one's don't, and with nothing shown picked
+    there is no position: the toolbar's words go, while up and down stay,
+    acting from where the pick stood. The toolbar's up and down step the
+    list exactly as ↑ and ↓ do, each pick replacing the step, and each is
+    dimmed where its arrow would go nowhere.
   - **↑ and ↓** step through the rows shown, a fold no row of its own. A
     pick the list no longer shows, an ask answered or a row a fold closed
     over, stands where it last showed, after the nearest row then above it
@@ -4589,17 +4809,20 @@ stands).
   - **A click in the sidebar** on the place or the project already showing
     changes nothing, its pick kept, as Mail does for the mailbox already
     open; on Parked narrowed to a project it clears the narrowing.
-  - **Back and Forward** (⌘[ and ⌘]): a sidebar click, a session opened
-    from a project's page, a breadcrumb link, a session's "later · N
-    parked", a project's "N parked", "Back to its session" and an open from
-    outside each make a step; another row picked within the list replaces
-    the step, so Back skips the rows Lee stepped through, to where he came
-    from. Going where the window already is makes no step. As the board
-    changes every step is kept as it stands, one that no longer stands goes,
-    and steps that come to be the same are one, so neither Back nor Forward
-    ever stays put or lands on a session gone. A step gone back or forward
-    to whose pick sits under a closed fold opens the fold, so the pick
-    shows. Not kept across launches.
+  - **Back and Forward**, the toolbar's, and ⌘[ and ⌘], keys of the app's
+    main menu, under Go, as Finder's are, which go only while the SitRep
+    window is key and only where the toolbar's side is not dimmed: a
+    sidebar click, a session opened from a project's page, a breadcrumb
+    link, a session's "later N parked", a project's "N parked", "Back to
+    its session" and an open from outside each make a step; another row
+    picked within the list, by a click, an arrow or the toolbar's up and
+    down, replaces the step, so Back skips the rows Lee stepped through, to
+    where he came from. Going where the window already is makes no step. As
+    the board changes every step is kept as it stands, one that no longer
+    stands goes, and steps that come to be the same are one, so neither
+    Back nor Forward ever stays put or lands on a session gone. A step gone
+    back or forward to whose pick sits under a closed fold opens the fold,
+    so the pick shows. Not kept across launches.
 
 ### The menu bar item
 
@@ -4996,7 +5219,9 @@ live changed, and how they group.
   side, Notifications' bell and Claude Code's terminal. The pane shown is
   the accent while the window is key and the system's grey when not. The
   toolbar holds back and forward in one capsule, which step through the
-  panes shown, and the pane's name beside it, 15 bold. A pane is sections:
+  panes shown, as ⌘[ and ⌘] do while it is key, the app's Go menu's, as
+  System Settings' do; and the pane's name beside it, 15 bold. A pane is
+  sections:
   each a header, 13 semibold in the label colour, 10 in from its card's
   edge and 10 over it, then its card; the sections 26 apart, in a column
   from 20 past the sidebar to 20 from the window's right, with no cap. A
@@ -5435,7 +5660,18 @@ shape allows them. A jump made in Swift, in the app, stays parked too.
    - The old directory is written back however the find ends, `$HOME` for a
      terminal that reported none, or another jump's marker. A terminal that
      took the marker after the find gave up is put back too, as far as
-     listing again can tell.
+     listing again can tell. Since 4 November 2026 `$HOME` goes straight to
+     the device, asking Ghostty nothing, for a find that fails; for one
+     that gave up where the listing after it finds no terminal on the
+     marker, or fails, as under load Ghostty can take the marker after the
+     listing, and the device keeps its writes in order; and for a jump
+     told to end from the moment its marker is written, once that write
+     lands, unless the put-back the jump chose is under way and lands. Only
+     that device's terminal takes it, and nothing a jump reads says the
+     directory that terminal reported. Only a jump killed outright, past
+     its grace, leaves the marker (below, "The latest click wins"). A
+     listing after a find that gave up, killed at its 8 seconds, ends the
+     jump unanswered once `$HOME` is put back.
    - The listing reads ids, directories, then ids again, and is read again
      (three tries at most) while terminals open or close under it, so no
      directory is paired with the wrong terminal.
@@ -5445,7 +5681,9 @@ shape allows them. A jump made in Swift, in the app, stays parked too.
      would launch it.
    - Each question to Ghostty, each Apple Event a program sends, waits at
      most 5 seconds: AppleScript's `with timeout` holds for each event, not
-     for the program around them. With the screen locked, Ghostty still answers a trivial question at once but nothing
+     for the program around them. Since 4 November 2026 each program is
+     killed at 8 seconds in all (below, "The latest click wins"). With the
+     screen locked, Ghostty still answers a trivial question at once but nothing
      about its terminals, and AppleScript's own limit is two minutes
      (found live, 13 October). The jump then refuses in plain words; the
      listing, or the focus of a remembered terminal, comes before any
@@ -5560,6 +5798,97 @@ shape allows them. A jump made in Swift, in the app, stays parked too.
    ended at 1.8 seconds, the window forward long before. With another app
    in front, the CLI stays up to a second more, watching, the window
    already forward.
+
+**The latest click wins** (4 November 2026). With the Mac's load near
+250 from parallel Swift builds, Lee could reach no Ghostty window by a jump
+for three minutes. SitRep's log: `sitrep jump --session sr-nq7651: did not
+answer within 180 seconds` (16:11:04). SitRep ran one jump at a time and
+took no click while one ran, so every click in those minutes waited behind
+the stuck one, and Lee saw the row spin for 450ms, then nothing. The CLI
+gave tmux and `ps` 2 seconds and each question to Ghostty 5, yet the run
+took 180, so some step ran unbounded. Lee's go, the same day: "Build it".
+- **A click while a jump runs stops it, and jumps in its place**, from any
+  surface: Lee clicked again, so he has changed his mind, or the first is
+  stuck. The new jump runs once the one it stopped has ended, so two never
+  knock at once. A click on the session the jump runs to, before it says
+  it is still jumping (below), joins it: a double-click, or a quick second
+  click, would otherwise kill it mid-knock and add a whole start of Bun,
+  and both clicks hear how it ends. Once it says it is still jumping, a
+  click on its session is Lee trying again, and starts it over; a click on
+  another session always wins at once. A jump a click stopped says
+  nothing: no banner, no caption. Until 4 November 2026 a click while a
+  jump ran started none: the menu's jump items were disabled, and the
+  card's, the strip's and the window's clicks refused.
+- **A jump is stopped gently, with everything it started.** At the limit,
+  or stopped by a click, the CLI's process group is told to end (SIGTERM):
+  the CLI, and osascript, tmux, `ps`, lsappinfo and `open`, which share its
+  group. The CLI, holding a knock's marker out, writes `$HOME` straight to
+  the device before it exits (step 3), and a second on the group is killed
+  (SIGKILL), whatever is left of it. A CLI holding a marker out exits as
+  soon as it is put back, and one holding none dies at the signal, so the
+  grace costs time only for a CLI stuck; under a load of 250, Bun can take
+  longer than the 300ms first built to run its listener and write the
+  device. The next jump waits for the stopped one to end: at most the
+  grace, and the half second SitRep gives a run's output to drain. `Process` makes each child the leader
+  of a group of its own, and Bun's children stay in it (both checked on
+  this Mac the same day); a group not the child's own, which would be
+  SitRep's, is never signalled. Chosen over the CLI ending its own children
+  on SIGTERM: a group signal needs nothing of the CLI, works while Bun is
+  still starting or stuck, and the SIGKILL after it nothing stuck can
+  ignore. Every other run of the CLI is killed with its group at once; a
+  login shell, asked for Lee's PATH, is killed alone, as before, so
+  whatever its startup files launched, an ssh-agent among it, is left be.
+  Only a CLI killed past its grace leaves a marker out. Killing osascript
+  recalls no Apple Event already sent: a starved Ghostty can still focus a
+  terminal late. And a program killed after Ghostty focused but before its
+  reply refuses a jump that landed, with no watch of the front after it;
+  accepted, as both need Ghostty answering only just too late.
+- **The whole jump gives up after 15 seconds**, Bun's start and the board's
+  read among it, where it was 180, a backstop. A jump takes under a second
+  as Ghostty answers, and one Ghostty does not answer is refused at its
+  first question, after 5 seconds; past 15, the Mac is too busy for a jump
+  to land while Lee still wants it. The 15 run from the CLI's start, so
+  they do not count the wait for a jump it stopped to end. The CLI's own
+  limits stand: 2 seconds
+  for each of tmux, `ps`, lsappinfo and `open`, and 5 for each question to
+  Ghostty. A listing and a find may each take up to their 8 seconds
+  (below), past the 15; the gentle stop puts the marker back all the same.
+- **The step that ran unbounded: each Ghostty program.** osascript ran with
+  no limit of its own, only each Apple Event in it waiting at most 5
+  seconds. Its own start, finding Ghostty and reading its terms, none of it
+  an event, fell outside every limit, and so did the sum of a program's
+  events: a find tries 20 times, a listing asks three questions a try and
+  is tried three times, each answered just inside 5 seconds by a Ghostty
+  starved of the CPU. Each program is now killed at 8 seconds in all: time
+  for one question to go unanswered, so a Ghostty not answering is still
+  told in its own words, and for osascript's start under load. One killed
+  ends the jump unanswered, exiting 3 with "Ghostty did not answer within 8
+  seconds: most likely the Mac is too busy.", the focus of a remembered
+  terminal included, with no knock after it, as for a question timing out;
+  SitRep tells exit 3 as it tells its own limit. Bun's start and the
+  board's read stay outside every step's limit, inside the 15 seconds.
+  Which step ran the 180 seconds is not known, the log saying only that the
+  CLI did not answer; osascript was the one program the jump ran without a
+  limit of its own.
+- **The caption says what is happening**, for a jump from anywhere, the
+  card, the strip, the menu, the SitRep window or a banner, in the
+  caption's look and place, on the edge's screen while the edge shows.
+  "Still jumping…" once a jump has run 2 seconds with no answer: it comes
+  in as a caption does, and holds until the jump ends; then a row's
+  "Jumped to SitRep's window" takes its place, or it goes as a caption
+  does. A jump given no answer in time, at SitRep's limit or a program's,
+  says "Couldn't jump: the Mac is too busy.", played as a caption is: the
+  15 seconds cover Bun, the board, tmux, `ps`, lsappinfo and `open`, and an
+  app with no driver involves no Ghostty, so the words name none. Each
+  caption comes in, or goes, from the pill's opacity as it is, so one
+  taking another's place, or an answer cutting a coming in short, never
+  jumps. A jump a later click stopped leaves the caption as it is, the
+  later one running on. Every failed jump is still told in a banner, the
+  too busy one saying "The Mac is too busy to jump." under "SitRep could
+  not jump", so the menu and the window, which have no caption of their
+  own, and an edge hidden or set to Nothing, still say it. VoiceOver
+  announces each caption as it shows; until 4 November 2026 it announced
+  none, the edge being drawn layers.
 
 Why tmux comes in at all: walking up the processes never reaches the window.
 Claude's chain is `launchd → tmux server → zsh → claude`, the window's is
@@ -5730,15 +6059,19 @@ reaches a window only while that pane is on show).
         leave doesn't close the panel: it rings, and the panel stays out
         for the jump. A click elsewhere still closes it at once, as it
         always does. Only an open or opening panel takes a click, as in the
-        prototypes, and none while a jump runs, from the panel, the menu or
-        a banner, as the menu's works are disabled then; a row folding away
+        prototypes; one while a jump runs, from anywhere, jumps in its
+        place, the latest click winning (see "The jump"), where until 4
+        November 2026 none was taken while a jump ran, from the panel, the
+        menu or a banner, the menu's works disabled then; a row folding away
         takes none either. Once the jump has jumped, "Jumped to SitRep's
         window" shows 90ms into the drain, or as the jump answers if that is
         later, and never once its moment has passed. The CLI's answer names
         no place, so the caption names the row's project. It sits at the
         top of the notch's screen, centred, 22 under the menu bar, where the
         prototypes put it 22 under their stage's top, with no blur behind
-        it. A jump refused leaves no caption, and its banner says why.
+        it. A jump refused leaves no caption, and its banner says why. A
+        jump from anywhere still running 2 seconds on, or given up at its
+        limit, says so in it (4 November 2026; see "The jump").
       - **Rows fold**, as the prototypes': while the panel is out, a new
         row unfolds over 260ms and fades in over 220, and a row gone folds
         away where it was, fading with its fold; under reduced motion a fold
@@ -5802,9 +6135,9 @@ reaches a window only while that pane is on show).
         turning working. The ring, its glow and the letters' colour ease over
         240 and the pressed fill over 110, each on its own, in black and in
         glass. The caption is the panel's, over the strip's screen, once the
-        spin is over. As the panel's, none is
-        taken while a jump runs, from
-        anywhere; an answer to an earlier click changes nothing; and the
+        spin is over. As the panel's, a click while a jump runs, from
+        anywhere, jumps in its place (none was taken until 4 November 2026);
+        an answer to an earlier click changes nothing; and the
         session jumped to is the one the strip pressed in. A click is a
         press and its mouse-up, as the prototype's is: a press on the strip,
         which may drag, or on an open tab, which only clicks. A mouse-up
@@ -6224,9 +6557,10 @@ reaches a window only while that pane is on show).
           the session coming back open lets lapse; Yes pressed, it shows
           finishing, Cancel with it, until `watch` takes the session off;
           refused, it says why there.
-        - **Jumps** go through the app's `Works`: none while one runs, from
-          the window, the notch or the menu, and the window's jumps wait
-          while one does.
+        - **Jumps** go through the app's `Works`, one at a time, from the
+          window, the notch or the menu, the latest click stopping the one
+          running (see "The jump"); until 4 November 2026 none while one
+          ran, and the window's jumps waited while one did.
         - **For now** it opens from "Open SitRep Window" in today's menu,
           which the menu bar item's phase rebuilds; the quiet projects' line
           is a line, opening nothing; Resolved's rows do not open to how
@@ -6361,7 +6695,9 @@ reaches a window only while that pane is on show).
    runs the CLI with Lee's; and its first jump asks macOS for leave to
    control Ghostty. It runs one jump at a time: two knocking on one
    terminal at once can leave it reporting `$HOME`, as the later one takes
-   the earlier one's marker for a directory it cannot know.
+   the earlier one's marker for a directory it cannot know. Since 4
+   November 2026 the latest click wins, stopping the one running (see "The
+   jump").
 
    The bare app was built on 14 October 2026, and proved live with Lee the
    same day:
@@ -6436,7 +6772,8 @@ reaches a window only while that pane is on show).
      question only just inside its 5 seconds could keep a jump going past
      180, and the app would then report that the jump did not answer. Raised
      from 120 when the jump began remembering terminals and watching the
-     front, 14 October 2026.
+     front, 14 October 2026, and cut to 15 on 4 November 2026, after a jump
+     ran all 180 (see "The jump").
    - **The main checkout's path stamped in.** `app/build` writes the folder
      of the repository's main checkout, the live plugin, into the app's
      Info.plist (`SitRepPlugin`), even when it builds in a worktree; the

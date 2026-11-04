@@ -16,9 +16,8 @@ enum WindowStyle {
     static let ink = Color(hex: 0x111113)
     /// An outlined pill's ring.
     static let ring = Color(hex: 0x2C2C31)
-    /// An option's fill and its ring.
+    /// An outlined pill's fill under the pointer, and the jump's.
     static let option = Color(hex: 0x1C1C1F)
-    static let optionRing = Color(hex: 0x34343A)
     /// A pill under the pointer: its fill and its ring lifted.
     static let optionLift = Color(hex: 0x26262A)
     static let ringLift = Color(hex: 0x45454C)
@@ -68,9 +67,9 @@ enum WindowStyle {
     /// The sidebar, and the list beside the page, as Paper's "Window redesign" draws them (A1 revised).
     static let boardWidth: CGFloat = 236
     static let listWidth: CGFloat = 300
-    static let pageInset: CGFloat = 44
-    /// The band under the window's toolbar, beside the traffic lights, which the toolbar sets 26 points down: empty on
-    /// the page, which starts under it.
+    static let pageInset: CGFloat = 40
+    /// The band of the window's toolbar, beside the traffic lights, which the toolbar sets 26 points down: nothing of
+    /// the page sits in it, the page starting under it.
     static let barHeight: CGFloat = 52
     /// The sidebar, as Paper's round 8 draws it (board C, "Option B, one list"). The accessory over the list: the
     /// Filter field, the system's at its large size, 28 tall, 9 under the titlebar's band and 10 over the list.

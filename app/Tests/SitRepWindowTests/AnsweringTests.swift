@@ -49,8 +49,11 @@ struct AnsweringTests {
         #expect(try Self.card(Self.choice, run).buttons.isEmpty)
     }
 
+    /// Filling the window, every ask's card shows, so Escape reaches every answer waiting on them.
     @Test func escapeTakesBackTheLatestAnswerStillWaiting() throws {
         let run = opened()
+
+        run.go(to: .session("sr-macapp", from: .project("sitrep")), by: .projectSession)
 
         _ = run.press(.yes("Approve"), on: Self.yes, at: printedAt)
         _ = run.press(.ignore, on: Self.choice, at: printedAt.addingTimeInterval(0.5))
@@ -60,6 +63,19 @@ struct AnsweringTests {
         #expect(run.undo())
         #expect(!run.undo())
         #expect(run.due(at: printedAt.addingTimeInterval(5)).isEmpty)
+    }
+
+    /// Beside the list only the card leading shows: Escape takes back an answer on it, but none on another ask of its
+    /// session, its line picked since, whose card no longer shows; that answer goes as it would.
+    @Test func besideTheListEscapeTakesBackOnlyTheLeadingCardsAnswer() throws {
+        let run = opened()
+
+        _ = run.press(.yes("Approve"), on: Self.yes, at: printedAt)
+        #expect(run.undo())
+        _ = run.press(.yes("Approve"), on: Self.yes, at: printedAt)
+        run.pickInList(.line("ask:sr-macapp:k2"), at: printedAt.addingTimeInterval(0.5))
+        #expect(!run.undo())
+        #expect(run.due(at: printedAt.addingTimeInterval(2)).map(\.ask) == [Self.yes])
     }
 
     @Test func escapeTakesNothingBackOnceTheAnswerHasGone() {

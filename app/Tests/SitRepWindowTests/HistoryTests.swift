@@ -45,7 +45,7 @@ struct HistoryTests {
         #expect(!history.canGoForward)
     }
 
-    /// A sidebar click, project → session, a breadcrumb link, "later · N parked", "N parked", "Back to its
+    /// A sidebar click, project → session, a breadcrumb link, "later N parked", "N parked", "Back to its
     /// session" and an open from outside each make a step Back returns from.
     @Test func everyWayOfGoingSomewherePushes() {
         #expect(History.Way.allCases == [

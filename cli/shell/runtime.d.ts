@@ -38,6 +38,8 @@ declare const process: {
   /** The id of the process that started this one, as it stands: launchd's, once that one has gone. */
   readonly ppid: number
   exitCode: number | undefined
+  /** Ends the run now, with this exit code. */
+  exit(code: number): never
   on(event: 'SIGTERM', listener: () => void): void
   off(event: 'SIGTERM', listener: () => void): void
   stdin: {

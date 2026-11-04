@@ -4,51 +4,47 @@ import SitRepLines
 @testable import SitRepWindow
 import Testing
 
-/// Which of the window's buttons shows a jump under way: only the one pressed, one jump at a time.
+/// Which of the window's buttons shows a jump under way: only the one pressed, the latest press winning.
 struct JumpingTests {
     private static let first = JumpPress.card(AskAddress(session: "sr-boot", ask: "k1"), .inClaude(.comment))
     private static let second = JumpPress.card(AskAddress(session: "sr-boot", ask: "k2"), .inClaude(.comment))
 
     @Test func onlyTheButtonPressedShowsTheJump() {
         var jumping = Jumping()
-        let jumped = jumping.press(Self.first, isJumping: false)
 
-        #expect(jumped)
+        _ = jumping.press(Self.first)
+
         #expect(jumping.pressed == Self.first)
         #expect(jumping.pressed != Self.second)
     }
 
-    @Test func aSecondPressWhileTheJumpRunsStartsNoneAndLeavesTheFirstShowing() {
+    @Test func aSecondPressWhileTheJumpRunsShowsInItsPlace() {
         var jumping = Jumping()
+        let first = jumping.press(Self.first)
+        let second = jumping.press(Self.second)
 
-        _ = jumping.press(Self.first, isJumping: false)
+        #expect(second != first)
+        #expect(jumping.pressed == Self.second)
+    }
 
-        let beforeItRuns = jumping.press(Self.second, isJumping: false)
-        let whileItRuns = jumping.press(Self.second, isJumping: true)
+    @Test func theFirstPresssAnswerLeavesTheSecondShowing() {
+        var jumping = Jumping()
+        let first = jumping.press(Self.first)
+        let second = jumping.press(Self.first)
 
-        #expect(!beforeItRuns)
-        #expect(!whileItRuns)
+        jumping.answered(first)
         #expect(jumping.pressed == Self.first)
-    }
 
-    @Test func aPressWhileAnotherSurfacesJumpRunsStartsNoneAndShowsNothing() {
-        var jumping = Jumping()
-        let jumped = jumping.press(.open("sr-boot"), isJumping: true)
-
-        #expect(!jumped)
+        jumping.answered(second)
         #expect(jumping.pressed == nil)
     }
 
-    @Test func theJumpAnsweredTheButtonShowsAsItDidAndTheNextPressJumps() {
+    @Test func theJumpAnsweredTheButtonShowsAsItDid() {
         var jumping = Jumping()
 
-        _ = jumping.press(Self.first, isJumping: false)
-        jumping.answered()
+        jumping.answered(jumping.press(Self.first))
+
         #expect(jumping.pressed == nil)
-
-        let next = jumping.press(.stop("sr-boot"), isJumping: false)
-
-        #expect(next)
     }
 
     @Test func eachPressJumpsToItsSession() {
@@ -74,7 +70,8 @@ struct QuietProjectTests {
     }
 }
 
-/// An item of Status, Notes, Parked or Resolved opens in place to the whole of it, and closes again.
+/// An item of a session's Now or What happened, its resolved asks, or a project's notes or parked items, opens in place
+/// to the whole of it, and closes again.
 struct OpenedItemsTests {
     @Test func aPressOpensAnItemAndASecondClosesIt() throws {
         let run = opened()
@@ -114,7 +111,7 @@ struct OpenedItemsTests {
     @Test func pickingAnotherPageClosesThemAll() throws {
         let run = opened()
 
-        run.toggle(.parked("p1"))
+        run.toggle(.note("sr-macapp:n2"))
         run.click(.project("sitrep"))
         run.goBack()
         #expect(try #require(run.page(at: printedAt).session).opened.isEmpty)
@@ -139,22 +136,12 @@ struct OpenedItemsTests {
 
     /// An item with more than its line is a button; one with nothing more is one only while its line is cut short,
     /// which only its layout knows.
-    @Test func aNoteWithDetailAParkedItemWithAPlaceAndEveryResolvedAskOpenToMore() throws {
-        let page = try #require(opened(boards: ["sr-macapp": Self.parkedWithAPlace]).page(at: printedAt).session)
-
-        #expect(page.notes.map(\.hasMore) == [true, false, true])
-        #expect(page.parked.map(\.hasMore) == [true])
-        #expect(page.resolved.map(\.hasMore) == [true, true])
-    }
-
-    @Test func aParkedItemWithNoPlaceOpensToNothingMore() throws {
+    @Test func aNoteWithDetailAndEveryResolvedAskOpenToMore() throws {
         let page = try #require(opened().page(at: printedAt).session)
 
-        #expect(page.parked.map(\.hasMore) == [false])
+        #expect(page.notes.map(\.hasMore) == [true, false, true])
+        #expect(page.resolved.map(\.hasMore) == [true, true])
     }
-
-    private static let parkedWithAPlace = Lines.board
-        .replacingOccurrences(of: #""title": "Try a shy notch",\#n      "where": null"#, with: #""title": "Try a shy notch",\#n      "where": "In DESIGN.md, under The notch""#)
 }
 
 /// A card's buttons as pills on one line while they fit at their one-line width, else its answers as rows.

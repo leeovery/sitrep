@@ -31,7 +31,7 @@ extension WindowRun {
             standing: ProjectPage.Standing(session.doing, asks: asks), since: session.since,
             now: session.now, next: session.next,
             updated: kept?.log.first { $0.kind == .status }?.at ?? session.updatedAt,
-            log: kept.map { Array(Note.notes($0.log, of: session, named: false).prefix(ProjectPage.logLines)) } ?? []
+            log: kept.map { Array(Note.notes($0.log, of: session).prefix(ProjectPage.logLines)) } ?? []
         )
     }
 

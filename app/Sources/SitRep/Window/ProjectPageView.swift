@@ -53,7 +53,7 @@ struct ProjectPageView: View {
 
     private var sessions: some View {
         VStack(alignment: .leading, spacing: 0) {
-            PageHeading(name: "Sessions")
+            ProjectHeading(name: "Sessions")
             ForEach(page.sessions) { session in
                 lineButton(spoken: Spoken.session(session, at: now)) { act.openSession(session.id) } label: {
                     ProjectSessionRow(session: session, now: now)
@@ -64,7 +64,7 @@ struct ProjectPageView: View {
 
     private var waiting: some View {
         VStack(alignment: .leading, spacing: 0) {
-            PageHeading(name: "Waiting on you", count: page.waitingCount)
+            ProjectHeading(name: "Waiting on you", count: page.waitingCount)
             ForEach(page.waiting) { line in
                 lineButton(spoken: Spoken.waiting(line, at: now)) { act.openSession(line.session) } label: {
                     WaitingRow(line: line, now: now)
@@ -76,7 +76,7 @@ struct ProjectPageView: View {
 
     private var nowCards: some View {
         VStack(alignment: .leading, spacing: 0) {
-            PageHeading(name: "Now", under: Self.gridHeadingGap)
+            ProjectHeading(name: "Now", under: Self.gridHeadingGap)
             PageGrid {
                 ForEach(page.sessions) { NowCard(session: $0, now: now) }
             }
@@ -85,7 +85,7 @@ struct ProjectPageView: View {
 
     private var log: some View {
         VStack(alignment: .leading, spacing: 0) {
-            PageHeading(name: "Log", under: Self.gridHeadingGap)
+            ProjectHeading(name: "Log", under: Self.gridHeadingGap)
             PageGrid {
                 ForEach(page.sessions) { LogGroup(session: $0, now: now) }
             }
@@ -338,7 +338,7 @@ private struct LogGroup: View {
 
 /// A heading of the page, 13 semibold, and Waiting on you's count in orange after it, the one count that needs Lee;
 /// to VoiceOver one heading, as "Waiting on you, 3".
-private struct PageHeading: View {
+private struct ProjectHeading: View {
     let name: String
     var count: Int?
     var under: CGFloat = 6
