@@ -17,7 +17,7 @@ struct WelcomeAskTests {
 
         made.at(.ask)
         _ = await made.settled()
-        made.window.windowDidBecomeKey(Notification(name: NSWindow.didBecomeKeyNotification))
+        made.window.windowDidBecomeKey(Notification(name: NSWindow.didBecomeKeyNotification, object: made.recorded))
         return made
     }
 
@@ -33,19 +33,19 @@ struct WelcomeAskTests {
         return time
     }
 
-    @Test func itPlaysItsOwnLoopWithThePanelRoomyAsStepOnes() async {
+    @Test func itPlaysItsOwnLoopWithThePanelRoomyAsStepOnes() async throws {
         let made = await Self.atAsk()
 
         #expect(made.welcome.step == .ask)
-        #expect(made.window.stage.play == .answer)
-        #expect(made.window.stage.scale == StageEdge.loopScale)
+        #expect(try made.stage.play == .answer)
+        #expect(try made.stage.scale == StageEdge.loopScale)
     }
 
     /// The panel pours on the ask's row, which the click presses in; the jump landing drains it, as the real one's
     /// does.
     @Test func theClickPressesTheRowAndThePanelDrainsAsTheJumpLands() async throws {
         let made = await Self.atAsk()
-        let stage = made.window.stage, loop = WelcomeLoop.ask
+        let stage = try made.stage, loop = WelcomeLoop.ask
         var time = Self.play(stage, from: Displays.now, until: try #require(loop.clicks) - 100)
 
         #expect(stage.isOut && stage.row != nil && !stage.isPressing)
@@ -59,7 +59,7 @@ struct WelcomeAskTests {
     /// the row would start a drag nothing lets go.
     @Test func withNoRowFoundTheClickPressesNothing() async throws {
         let made = await Self.atAsk()
-        let stage = made.window.stage, loop = WelcomeLoop.ask
+        let stage = try made.stage, loop = WelcomeLoop.ask
         var time = Self.play(stage, from: Displays.now, until: try #require(loop.clicks) - 40)
 
         made.preferences.edit { $0.show = .strip }
@@ -73,7 +73,7 @@ struct WelcomeAskTests {
     /// the session's window forward and the answer in it; the ask gone, so the light is out.
     @Test func theWordsAndTheDesktopFollowTheLoop() async throws {
         let made = await Self.atAsk()
-        let stage = made.window.stage, loop = WelcomeLoop.ask
+        let stage = try made.stage, loop = WelcomeLoop.ask
         let beats = try [loop.lands, loop.approach, #require(loop.clicks), #require(loop.answers), #require(loop.resolves)]
         var time = Displays.now, told: [WelcomeLoop.Scene] = []
 
@@ -91,7 +91,7 @@ struct WelcomeAskTests {
     /// Answered, the ask leaves the board: the light goes out, and nothing on the notch moves of itself.
     @Test func theAnswerTakesTheAskAwaySoTheLightGoesOut() async throws {
         let made = await Self.atAsk()
-        let stage = made.window.stage, loop = WelcomeLoop.ask
+        let stage = try made.stage, loop = WelcomeLoop.ask
         let time = Self.play(stage, from: Displays.now, until: loop.lands + 2_000)
 
         #expect(stage.lastPace == .light || stage.lastPace == .moving)
@@ -101,10 +101,10 @@ struct WelcomeAskTests {
 
     /// Nothing from step 2 reaches the real edge, the board, the CLI or macOS, and it plays no sound, however long it
     /// loops.
-    @Test func itSendsNothingAnywhereAndPlaysNothing() async {
+    @Test func itSendsNothingAnywhereAndPlaysNothing() async throws {
         let made = await Self.atAsk()
 
-        Self.play(made.window.stage, from: Displays.now, until: 2 * WelcomeLoop.ask.length)
+        try Self.play(made.stage, from: Displays.now, until: 2 * WelcomeLoop.ask.length)
         made.welcome.goOn()
         #expect(made.mac.played.isEmpty && made.mac.stops == 0)
         #expect(made.mac.jumps.isEmpty && made.mac.tests == 0 && made.mac.copies.isEmpty)

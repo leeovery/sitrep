@@ -235,7 +235,7 @@ struct WelcomeLeavesTests {
         let made = await Self.atPermissions()
 
         made.mac.holdsRead = true
-        made.window.windowDidBecomeKey(Notification(name: NSWindow.didBecomeKeyNotification))
+        made.window.windowDidBecomeKey(Notification(name: NSWindow.didBecomeKeyNotification, object: made.recorded))
         await Self.until { made.mac.isReading }
         made.mac.holdsRead = false
         await Self.press(.notifications, on: made)
@@ -250,7 +250,7 @@ struct WelcomeLeavesTests {
         let made = await Self.atPermissions()
 
         made.mac.holdsRead = true
-        made.window.windowDidBecomeKey(Notification(name: NSWindow.didBecomeKeyNotification))
+        made.window.windowDidBecomeKey(Notification(name: NSWindow.didBecomeKeyNotification, object: made.recorded))
         await Self.until { made.mac.isReading }
         made.mac.holdsRead = false
         made.mac.notices = .denied

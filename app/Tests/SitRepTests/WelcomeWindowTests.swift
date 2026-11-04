@@ -151,15 +151,33 @@ struct WelcomeWindowTests {
         }
     }
 
+    /// The welcome's windows, each a recorded one, made in turn as it opens; focusing, each gives focus to its first key
+    /// view as it orders in and as it keys, as AppKit does.
+    @MainActor
+    final class Frames {
+        var focusing = false
+        private(set) var made: [RecordedWindow] = []
+
+        func frame(_ content: NSViewController) -> RecordedWindow {
+            let window = RecordedWindow.made()
+
+            window.focusesAsItOrders = focusing
+            window.focusesAsItKeys = focusing
+            window.contentViewController = content
+            made.append(window)
+            return window
+        }
+    }
+
     /// The welcome, shown, its window's frame a recorded one, which never orders front, over defaults of its own unless
-    /// given some; focusing, it gives focus to its first key view as it orders front, as AppKit does.
+    /// given some.
     @MainActor
     struct Made {
         let mac = Mac()
         let preferences: Preferences
         let welcome: WelcomeModel
         let window: WelcomeWindow
-        let recorded = RecordedWindow.made()
+        let frames = Frames()
 
         init(
             welcomed: Bool = false, plugin: PluginStanding? = nil, login: LoginItem = LoginItem(.notRegistered),
@@ -167,7 +185,7 @@ struct WelcomeWindowTests {
         ) {
             let live = LiveBoard()
 
-            recorded.focusesAsItOrders = focusing
+            frames.focusing = focusing
             live.plugin = plugin
             mac.login = login
             preferences = Preferences(defaults)
@@ -175,17 +193,21 @@ struct WelcomeWindowTests {
                 preferences.welcomed = true
             }
             welcome = WelcomeModel(preferences: preferences, live: live, services: mac.services(), mac: mac.welcome())
-            let recorded = recorded
-            window = WelcomeWindow(welcome: welcome) { content in
-                recorded.contentViewController = content
-                return recorded
-            }
+            window = WelcomeWindow(welcome: welcome, frame: frames.frame)
             window.show()
+        }
+
+        /// The window showing, or last shown.
+        var recorded: RecordedWindow { frames.made.last! }
+
+        /// The stage of the window showing.
+        var stage: StageEdge {
+            get throws { try #require(window.stage) }
         }
 
         /// The window come forward, as AppKit tells its delegate, and what it read then read.
         func key() async {
-            window.windowDidBecomeKey(Notification(name: NSWindow.didBecomeKeyNotification))
+            window.windowDidBecomeKey(Notification(name: NSWindow.didBecomeKeyNotification, object: recorded))
             await welcome.reading?.value
         }
 
@@ -194,12 +216,6 @@ struct WelcomeWindowTests {
             while welcome.step != step {
                 welcome.goOn()
             }
-        }
-
-        /// The window closed once more, after it opened again: AppKit tells a window's delegate of its close only once
-        /// until it orders in again, which the recorded window never does, so this tells the delegate as AppKit would.
-        func closeAgain() {
-            window.windowWillClose(Notification(name: NSWindow.willCloseNotification, object: recorded))
         }
 
         /// What the window shows, laid out once SwiftUI has heard what changed, and what the layout told after it, the
@@ -235,15 +251,70 @@ struct WelcomeWindowTests {
         #expect(window.standardWindowButton(.zoomButton)?.isEnabled != true)
     }
 
-    /// Opened again, the same window comes forward on the Space Lee is on, as About SitRep does.
-    @Test func itIsOneWindowBroughtForwardEachTimeItOpens() {
+    /// Opened again while it shows, the same window comes forward on the Space Lee is on, as About SitRep does.
+    @Test func whileItShowsItIsOneWindowBroughtForward() {
         let made = Made()
 
         made.window.show()
+        #expect(made.frames.made.count == 1)
         #expect(made.recorded.steps == [
             .orderFront(movesToActiveSpace: true), .activate(movesToActiveSpace: true),
             .orderFront(movesToActiveSpace: true), .activate(movesToActiveSpace: true),
         ])
+    }
+
+    /// Each time it opens, a window of its own, its stage too, comes forward on the Space Lee is on, centred.
+    @Test func afterItClosedItOpensAsAWindowOfItsOwn() throws {
+        let made = Made()
+        let first = made.recorded, stage = try made.stage
+
+        first.setFrameOrigin(.zero)
+        first.close()
+        made.window.show()
+
+        #expect(made.frames.made.count == 2)
+        #expect(made.recorded !== first)
+        #expect(try made.stage !== stage)
+        #expect(made.recorded.delegate === made.window)
+        #expect(made.recorded.steps == [.orderFront(movesToActiveSpace: true), .activate(movesToActiveSpace: true)])
+        #expect(made.recorded.contentRect(forFrameRect: made.recorded.frame).size == WelcomeStyle.size)
+        #expect(made.recorded.frame.origin != .zero)
+    }
+
+    /// Closed, by Skip setup, its close button or SitRep quitting, the window, its content and its stage are let go.
+    @Test func closedTheWindowIsLetGo() async {
+        let closes: [@MainActor (WelcomeModel, WelcomeWindow, RecordedWindow?) -> Void] = [
+            { welcome, _, _ in welcome.skip() }, { _, _, window in window?.performClose(nil) },
+            { _, window, _ in window.closeIfOpen() },
+        ]
+
+        for (place, closing) in closes.enumerated() {
+            let mac = Mac()
+            let welcome = WelcomeModel(
+                preferences: Preferences(MemoryDefaults()), live: LiveBoard(), services: mac.services(), mac: mac.welcome()
+            )
+            weak var window: RecordedWindow?
+            weak var content: NSViewController?
+            weak var stage: StageEdge?
+            let shown = WelcomeWindow(welcome: welcome) { made in
+                let recorded = RecordedWindow.made()
+
+                recorded.contentViewController = made
+                (window, content) = (recorded, made)
+                return recorded
+            }
+
+            shown.show()
+            stage = shown.stage
+            window?.becomeKey()
+            #expect(window != nil && content != nil && stage != nil, "\(place)")
+            closing(welcome, shown, window)
+            for _ in 0 ..< 10 where window != nil || content != nil || stage != nil {
+                await Task.yield()
+            }
+            #expect(window == nil && content == nil && stage == nil, "\(place)")
+            #expect(!welcome.isVisiting && shown.stage == nil, "\(place)")
+        }
     }
 
     /// The menu's Show Welcome Window opens it at its first step, wherever it was left.
@@ -300,14 +371,14 @@ struct WelcomeWindowTests {
     // MARK: Your edge
 
     /// Each press sets the setting itself, so the stage and the real edge move at once.
-    @Test func aTileSetsTheRealSettingAndTheStageMoves() {
+    @Test func aTileSetsTheRealSettingAndTheStageMoves() throws {
         let made = Made()
 
         made.at(.edge)
         made.welcome.choose(.strip)
-        made.window.stage.step(at: Displays.now)
+        try made.stage.step(at: Displays.now)
         #expect(made.preferences.edge.show == .strip)
-        #expect(made.window.stage.surface is StripSurface)
+        #expect(try made.stage.surface is StripSurface)
     }
 
     @Test func aSegmentSetsTheRealSetting() async throws {
@@ -466,7 +537,7 @@ struct WelcomeWindowTests {
         made.welcome.setLogin(false)
         made.window.show()
         made.at(.sound)
-        made.closeAgain()
+        made.recorded.close()
         #expect(made.mac.registers == 1 && !made.welcome.login.isOn)
         #expect(!made.welcome.isVisiting)
     }
@@ -477,7 +548,7 @@ struct WelcomeWindowTests {
         let made = Made(welcomed: true)
 
         made.mac.login = LoginItem(.enabled)
-        made.window.windowDidBecomeKey(Notification(name: NSWindow.didBecomeKeyNotification))
+        made.window.windowDidBecomeKey(Notification(name: NSWindow.didBecomeKeyNotification, object: made.recorded))
         made.at(.sound)
         #expect(!made.welcome.announcesNotice)
         made.recorded.close()
@@ -533,7 +604,7 @@ struct WelcomeWindowTests {
         made.mac.login = LoginItem(.requiresApproval)
         made.at(.sound)
         made.mac.login = LoginItem(.enabled)
-        made.window.windowDidBecomeKey(Notification(name: NSWindow.didBecomeKeyNotification))
+        made.window.windowDidBecomeKey(Notification(name: NSWindow.didBecomeKeyNotification, object: made.recorded))
         #expect(made.welcome.login.isOn)
     }
 
@@ -595,7 +666,7 @@ struct WelcomeWindowTests {
     /// SitRep's own edge, never a picture: the notch's surface drawing it, or the strip's, as Lee chose.
     @Test func theStageHostsTheEdgesRealViews() async throws {
         let made = Made()
-        let stage = made.window.stage
+        let stage = try made.stage
         let view = await made.settled()
 
         #expect(stage.isDescendant(of: view))
@@ -606,9 +677,9 @@ struct WelcomeWindowTests {
     }
 
     @available(macOS 26, *)
-    @Test func theStagesEdgeTakesTheMaterialLeeChose() {
+    @Test func theStagesEdgeTakesTheMaterialLeeChose() throws {
         let made = Made()
-        let stage = made.window.stage
+        let stage = try made.stage
 
         made.preferences.edit { $0.material = .glass }
         stage.step(at: Displays.now)
@@ -619,9 +690,9 @@ struct WelcomeWindowTests {
     }
 
     /// The stage's screen: the notch's window against its left, or its right.
-    @Test func theStageFollowsTheEdgeLeeChose() {
+    @Test func theStageFollowsTheEdgeLeeChose() throws {
         let made = Made()
-        let stage = made.window.stage
+        let stage = try made.stage
         let screen = stage.edge.frame
 
         #expect(stage.surface.frame.minX == 0)
@@ -632,9 +703,9 @@ struct WelcomeWindowTests {
 
     /// Step 1's open panel at 0.7, so it sits on the stage as on a screen; the notch alone at its real size after it,
     /// its home where Paper's boards put it.
-    @Test func stepOnePlaysTheEdgeAtSevenTenthsAndTheRestAtItsRealSize() async {
+    @Test func stepOnePlaysTheEdgeAtSevenTenthsAndTheRestAtItsRealSize() async throws {
         let made = Made()
-        let stage = made.window.stage
+        let stage = try made.stage
         let size = WelcomeStyle.stage
 
         _ = await made.settled()
@@ -652,9 +723,9 @@ struct WelcomeWindowTests {
     }
 
     /// Each sound chosen, the stage's notch swells, as for an ask that lands: once settled, and again.
-    @Test func theStagesNotchSwellsWithEachSoundChosen() async {
+    @Test func theStagesNotchSwellsWithEachSoundChosen() async throws {
         let made = Made()
-        let stage = made.window.stage
+        let stage = try made.stage
         var clock = Displays.now
 
         made.at(.sound)
@@ -670,10 +741,10 @@ struct WelcomeWindowTests {
     }
 
     /// In front, frames run as things move, the light alone on its slow refresh; behind, none for the light alone;
-    /// closed, the link gone, made anew as the window next comes forward.
+    /// closed, the link gone for good, the next window's stage making one of its own as it comes forward.
     @Test func theStagesFramesStopWhileTheWindowIsBehind() async throws {
         let made = Made()
-        let stage = made.window.stage
+        let stage = try made.stage
 
         made.at(.edge)
         _ = await made.settled()
@@ -682,7 +753,7 @@ struct WelcomeWindowTests {
         #expect(stage.standing == .inFront && stage.isDrawing)
         Self.settle(stage, from: Displays.now)
         #expect(stage.isDrawing == (stage.lastPace == .light))
-        made.window.windowDidResignKey(Notification(name: NSWindow.didResignKeyNotification))
+        made.window.windowDidResignKey(Notification(name: NSWindow.didResignKeyNotification, object: made.recorded))
         #expect(stage.standing == .behind && !stage.isDrawing)
 
         let link = try #require(stage.link)
@@ -690,19 +761,23 @@ struct WelcomeWindowTests {
         made.recorded.close()
         #expect(stage.standing == .closed && stage.link == nil)
         made.window.show()
-        stage.play = .chime
+
+        let next = try made.stage
+
+        next.play = .chime
         Self.key(made)
-        stage.chime(1)
-        #expect(stage.isDrawing && stage.link !== link)
-        made.closeAgain()
-        #expect(stage.link == nil)
+        next.chime(1)
+        #expect(next.isDrawing && next.link !== link)
+        #expect(stage.standing == .closed && stage.link == nil)
+        made.recorded.close()
+        #expect(next.standing == .closed && next.link == nil)
     }
 
     /// Step 1 at rest sleeps, its next beat pending at the loop's next change, the ask landing; a beat re-arms it, and
     /// at that time in the loop, the ask lands and frames run.
     @Test func onStepOneTheStageSleepsUntilTheLoopsNextBeat() throws {
         let made = Made()
-        let stage = made.window.stage
+        let stage = try made.stage
 
         Self.settle(stage, from: Displays.now)
         Self.key(made)
@@ -726,7 +801,7 @@ struct WelcomeWindowTests {
     /// Closing stops the frames for good: the link invalidated and the pending beat with it.
     @Test func closingDropsTheLinkAndTheBeat() throws {
         let made = Made()
-        let stage = made.window.stage
+        let stage = try made.stage
 
         Self.settle(stage, from: Displays.now)
         Self.key(made)
@@ -745,14 +820,14 @@ struct WelcomeWindowTests {
     }
 
     /// A change Lee makes in Settings while the welcome is behind is drawn at once, the callout moving with the notch.
-    @Test func aSettingsChangeIsDrawnWhileTheWindowIsBehind() async {
+    @Test func aSettingsChangeIsDrawnWhileTheWindowIsBehind() async throws {
         let made = Made()
-        let stage = made.window.stage
+        let stage = try made.stage
 
         made.at(.ready)
         _ = await made.settled()
         Self.key(made)
-        made.window.windowDidResignKey(Notification(name: NSWindow.didResignKeyNotification))
+        made.window.windowDidResignKey(Notification(name: NSWindow.didResignKeyNotification, object: made.recorded))
         #expect(stage.callout.place?.isRight == false)
         made.preferences.edit { $0.edge = .right }
         _ = await made.settled()
@@ -761,13 +836,13 @@ struct WelcomeWindowTests {
     }
 
     /// One that sets the shape moving runs frames behind until it settles, then sleeps, the loop's clock held.
-    @Test func aChangeMadeBehindRunsFramesUntilItSettles() async {
+    @Test func aChangeMadeBehindRunsFramesUntilItSettles() async throws {
         let made = Made()
-        let stage = made.window.stage
+        let stage = try made.stage
 
         Self.settle(stage, from: Displays.now)
         Self.key(made)
-        made.window.windowDidResignKey(Notification(name: NSWindow.didResignKeyNotification))
+        made.window.windowDidResignKey(Notification(name: NSWindow.didResignKeyNotification, object: made.recorded))
 
         let loopTime = stage.loopTime
 
@@ -784,7 +859,7 @@ struct WelcomeWindowTests {
     /// between them.
     @Test func theLoopsPointerFindsTheRowAgainAfterAChange() throws {
         let made = Made()
-        let stage = made.window.stage
+        let stage = try made.stage
 
         Self.settle(stage, from: Displays.now)
         Self.key(made)
@@ -813,7 +888,7 @@ struct WelcomeWindowTests {
     /// callout points at it.
     @Test func theStagesStripCentresWhereTheCalloutPoints() async throws {
         let made = Made()
-        let stage = made.window.stage
+        let stage = try made.stage
 
         made.preferences.edit { $0.show = .strip; $0.along = 0.1 }
         made.at(.ready)
@@ -826,21 +901,21 @@ struct WelcomeWindowTests {
         #expect(abs(stage.resting.midY * stage.scale - place.middle) < 4)
     }
 
-    @Test func eachStepTellsTheStageWhatToPlay() async {
+    @Test func eachStepTellsTheStageWhatToPlay() async throws {
         let made = Made()
 
         _ = await made.settled()
-        #expect(made.window.stage.play == .loop)
+        #expect(try made.stage.play == .loop)
         made.at(.edge)
         _ = await made.settled()
-        #expect(made.window.stage.play == .lit)
+        #expect(try made.stage.play == .lit)
     }
 
     // MARK: Helpers
 
     /// The window come forward, as AppKit tells its delegate.
     private static func key(_ made: Made) {
-        made.window.windowDidBecomeKey(Notification(name: NSWindow.didBecomeKeyNotification))
+        made.window.windowDidBecomeKey(Notification(name: NSWindow.didBecomeKeyNotification, object: made.recorded))
     }
 
     /// The stage stepped a 60th at a time from this time, until nothing moves or ten seconds pass: when it stopped.

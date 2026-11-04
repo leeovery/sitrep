@@ -3,57 +3,106 @@ import AppKit
 import SitRepMenu
 import Testing
 
-/// Keyboard focus in the welcome window, made, never shown: on nothing as it opens, so nothing shows a ring and Return
-/// presses Continue; Tab and Shift-Tab stepping through the controls in reading order, the footer's last. Its buttons
-/// take focus only while the Mac's Keyboard navigation setting is on, so what needs them runs only then.
+/// Keyboard focus in the welcome window, made, never shown: on nothing as it opens, the window itself first responder,
+/// so nothing shows a ring and Return presses Continue; Tab and Shift-Tab stepping through the controls in reading
+/// order, the footer's last. Its buttons take focus only while the Mac's Keyboard navigation setting is on, so what
+/// needs them runs only then. SwiftUI's own focus, and Tab from the window itself, only a live run shows
+/// (`RecordedWindow`).
 @MainActor
 struct WelcomeFocusTests {
     typealias Made = WelcomeWindowTests.Made
 
-    /// Where AppKit, as the window orders in, gives focus to its first key view, Skip setup at the first step.
-    /// Laid out and keyed, focus stays there.
+    /// Where AppKit, as the window orders in and as it keys, gives focus to its first key view, Skip setup at the first
+    /// step: focus is on nothing all the same.
     @Test(.enabled { await keyboardNavigation() })
-    func itOpensWithFocusOnNothing() async throws {
+    func itOpensWithFocusOnNothing() async {
         let made = Made(focusing: true)
-        let content = try #require(made.recorded.contentView)
 
-        #expect(made.recorded.firstResponder === content)
+        #expect(made.recorded.firstResponder === made.recorded)
         _ = await made.settled()
         made.recorded.becomeKey()
-        #expect(made.recorded.firstResponder === content)
+        #expect(made.recorded.firstResponder === made.recorded)
+    }
+
+    /// Sent behind with focus on nothing and keyed again, as by ⌘-Tab, it is on nothing still, wherever AppKit puts it.
+    @Test(.enabled { await keyboardNavigation() })
+    func keyedAgainAfterGoingBehindOnNothingItStaysOnNothing() async {
+        let made = Made(focusing: true)
+
+        _ = await made.settled()
+        made.recorded.becomeKey()
+        made.recorded.resignKey()
+        made.recorded.becomeKey()
+        #expect(made.recorded.firstResponder === made.recorded)
+    }
+
+    /// Sent behind with a control focused and keyed again, focus stays on the control Lee gave it.
+    @Test(.enabled { await keyboardNavigation() })
+    func keyedAgainAfterGoingBehindOnAControlFocusStaysThere() async throws {
+        let made = Made(focusing: true)
+
+        _ = await made.settled()
+        made.recorded.becomeKey()
+        made.recorded.makeFirstResponder(made.recorded.contentView)
+        Self.tab(made)
+
+        let focused = try #require(Self.focused(made))
+
+        made.recorded.resignKey()
+        made.recorded.becomeKey()
+        #expect(made.recorded.firstResponder === focused)
     }
 
     /// With Keyboard navigation off, AppKit gives no view focus as the window orders in: it is on nothing all the same.
-    @Test func itOpensWithFocusOnTheContentWhateverKeyboardNavigationSays() {
+    @Test func itOpensWithFocusOnNothingWhateverKeyboardNavigationSays() {
         let made = Made()
 
-        #expect(made.recorded.firstResponder === made.recorded.contentView)
+        #expect(made.recorded.firstResponder === made.recorded)
     }
 
+    /// Lee's live path, Tab to Continue then the close button: the next visit, a window of its own, focuses nothing as
+    /// it opens and as it keys.
     @Test(.enabled { await keyboardNavigation() })
-    func itOpensAgainWithFocusOnNothing() async throws {
+    func tabbedToContinueAndClosedByItsButtonItOpensAgainWithFocusOnNothing() async throws {
         let made = Made(focusing: true)
+        let isOnContinue = { Self.frame(made).map { abs($0.maxX - 824) <= 0.5 } == true }
 
         _ = await made.settled()
-        Self.tab(made)
-        Self.tab(made)
-        made.recorded.close()
+        made.recorded.becomeKey()
+        made.recorded.makeFirstResponder(made.recorded.contentView)
+        for _ in 0 ..< 3 where !isOnContinue() {
+            Self.tab(made)
+        }
+        try #require(isOnContinue())
+
+        let first = made.recorded
+
+        first.performClose(nil)
         made.window.show()
-        #expect(made.recorded.firstResponder === made.recorded.contentView)
+        #expect(made.recorded !== first)
+        #expect(made.recorded.firstResponder === made.recorded)
+        _ = await made.settled()
+        made.recorded.becomeKey()
+        #expect(made.recorded.firstResponder === made.recorded)
     }
 
     /// Show Welcome Window while it shows brings it forward at its first step, a visit under way going on: focus stays
-    /// where Lee put it.
+    /// where Lee put it, as it comes forward and as it is keyed again.
     @Test(.enabled { await keyboardNavigation() })
     func shownAgainWhileOpenFocusStaysWhereItWas() async throws {
         let made = Made(focusing: true)
 
         _ = await made.settled()
+        made.recorded.becomeKey()
+        made.recorded.makeFirstResponder(made.recorded.contentView)
         Self.tab(made)
 
         let focused = try #require(Self.focused(made))
 
+        made.recorded.resignKey()
         made.window.show()
+        #expect(made.recorded.firstResponder === focused)
+        made.recorded.becomeKey()
         #expect(made.recorded.firstResponder === focused)
     }
 
@@ -124,8 +173,7 @@ struct WelcomeFocusTests {
         #expect(stops.suffix(3).allSatisfy { $0.maxY <= WelcomeStyle.footer })
     }
 
-    /// Focus on a tile, and the step it was on gone: focus goes to nothing, rather than staying on the window, and Tab
-    /// goes on from the next step's first control.
+    /// Focus on a tile, and the step it was on gone: AppKit leaves the window itself first responder, on nothing.
     @Test(.enabled { await keyboardNavigation() })
     func aStepGoneWithTheControlFocusedLeavesFocusOnNothing() async throws {
         let made = Made()
@@ -137,22 +185,22 @@ struct WelcomeFocusTests {
         try #require(Self.frame(made).map { $0.maxX < WelcomeStyle.column } == true)
         made.welcome.goOn()
         _ = await made.settled()
-        #expect(made.recorded.firstResponder === made.recorded.contentView)
-        Self.tab(made)
-        #expect(Self.frame(made).map { $0.maxX < WelcomeStyle.column } == true)
+        #expect(made.recorded.firstResponder === made.recorded)
     }
 
     @Test func returnPressesContinueWithFocusOnNothing() async throws {
         let made = Made()
 
         _ = await made.settled()
+        try #require(made.recorded.firstResponder === made.recorded)
         #expect(made.recorded.performKeyEquivalent(with: try #require(Self.key(36, typing: "\r", in: made))))
         #expect(made.welcome.step == .ask)
     }
 
     // MARK: Helpers
 
-    /// Where Tab stops from nothing, in turn, until it comes round again, each in the window's points.
+    /// Where Tab stops from the content, in turn, until it comes round again, each in the window's points: from the
+    /// content, as a window never keyed for real takes no Tab itself.
     private static func stops(_ made: Made) -> [CGRect] {
         var stops: [CGRect] = []
 

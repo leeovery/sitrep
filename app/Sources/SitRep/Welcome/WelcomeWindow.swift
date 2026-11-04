@@ -1,7 +1,7 @@
 import AppKit
 import SwiftUI
 
-/// The welcome window (DESIGN, "The welcome window"): one, made as it first opens, which the menu's Show Welcome
+/// The welcome window (DESIGN, "The welcome window"): made afresh each time it opens, which the menu's Show Welcome
 /// Window opens at its first step, bringing it forward again where it shows. It opens centred on the Space Lee is on,
 /// and otherwise stays on its own (`ForwardWindow`), as About SitRep does. 840 by 540, never resized, black, in the
 /// system's frame: its close button and ⌘W close it, however far Lee got, keeping what he set; it neither minimises
@@ -12,16 +12,11 @@ import SwiftUI
 final class WelcomeWindow: NSObject, NSWindowDelegate {
     private let welcome: WelcomeModel
     private let frame: @MainActor (NSViewController) -> ForwardWindow
-    private lazy var window = make()
-    private var focusWatch: NSKeyValueObservation?
-    /// Focus being put on nothing, which the watch on focus hears too.
-    private var isFocusingNothing = false
-    /// SitRep's edge on the stage: internal only for the tests, which read what it hosts.
-    private(set) lazy var stage = StageEdge(
-        size: WelcomeStyle.stage, menuBar: WelcomeStyle.stageMenuBar, preferences: welcome.preferences
-    )
+    /// The window while it shows, let go as it closes, so no focus a visit leaves, AppKit's or SwiftUI's, comes back
+    /// with the next.
+    private var shown: Shown?
 
-    /// `frame` makes the window round what it shows as it first opens: a seam, as a test never shows one.
+    /// `frame` makes the window round what it shows as it opens: a seam, as a test never shows one.
     init(
         welcome: WelcomeModel,
         frame: @escaping @MainActor (NSViewController) -> ForwardWindow = { ForwardWindow(contentViewController: $0) }
@@ -30,23 +25,25 @@ final class WelcomeWindow: NSObject, NSWindowDelegate {
         self.frame = frame
     }
 
-    /// At its first step, whenever it opens, with focus on nothing; a visit under way goes on.
-    func show() {
-        let opens = !window.isVisible
+    /// SitRep's edge on the stage of the window showing: internal only for the tests, which read what it hosts.
+    var stage: StageEdge? { shown?.stage }
 
+    /// At its first step, whenever it opens, with focus on nothing; a visit under way goes on, focus where it was while
+    /// the control holding it stays at the first step.
+    func show() {
         welcome.open()
-        window.comeForward()
-        if opens {
-            focusNothing(in: window)
+        guard let shown else {
+            open()
+            return
         }
+
+        shown.window.comeForward()
     }
 
     /// SitRep quitting, which tells a window nothing: one showing closes as its close button would close it, so what
     /// closing does is done.
     func closeIfOpen() {
-        if welcome.isVisiting {
-            window.close()
-        }
+        shown?.window.close()
     }
 
     /// Whether SitRep, starting, opens it by itself, as Show Welcome Window opens it: only on a Mac where none has ever
@@ -55,22 +52,64 @@ final class WelcomeWindow: NSObject, NSWindowDelegate {
         !preferences.welcomed
     }
 
+    /// Keyed, as it opened or as it went behind with focus on nothing, focus is put on nothing again, where AppKit,
+    /// keying a window, may have given it to a control. Focus Lee gave a control stays: no key moves it while the
+    /// window is behind.
     func windowDidBecomeKey(_ notification: Notification) {
+        guard let shown, Self.isFrom(shown, notification) else {
+            return
+        }
+
         welcome.readLogin()
         welcome.readLeaves()
-        stage.standing = .inFront
+        shown.stage.standing = .inFront
+        if shown.isOnNothing {
+            Self.focusNothing(in: shown.window)
+        }
     }
 
     func windowDidResignKey(_ notification: Notification) {
-        stage.standing = .behind
+        guard let shown, Self.isFrom(shown, notification) else {
+            return
+        }
+
+        self.shown?.isOnNothing = shown.window.firstResponder === shown.window
+        shown.stage.standing = .behind
     }
 
     func windowWillClose(_ notification: Notification) {
-        stage.stop()
+        guard let shown, Self.isFrom(shown, notification) else {
+            return
+        }
+
+        let window = shown.window
+
+        shown.stage.stop()
+        self.shown = nil
         welcome.close()
+        // Skip setup and Done close it from inside its hosting view's handling of the press, which goes on after the
+        // close: the window, and the view with it, kept until the next turn
+        DispatchQueue.main.async {
+            withExtendedLifetime(window) {}
+        }
     }
 
-    private func make() -> ForwardWindow {
+    private static func isFrom(_ shown: Shown, _ notification: Notification) -> Bool {
+        (notification.object as? NSWindow) === shown.window
+    }
+
+    private func open() {
+        let shown = make()
+
+        self.shown = shown
+        shown.window.comeForward()
+        Self.focusNothing(in: shown.window)
+    }
+
+    private func make() -> Shown {
+        let stage = StageEdge(
+            size: WelcomeStyle.stage, menuBar: WelcomeStyle.stageMenuBar, preferences: welcome.preferences
+        )
         let content = WelcomeHosting(rootView: WelcomeView(welcome: welcome, stage: stage))
 
         content.sizingOptions = []
@@ -79,28 +118,16 @@ final class WelcomeWindow: NSObject, NSWindowDelegate {
 
         window.delegate = self
         welcome.closeWindow = { [weak window] in window?.close() }
-        focusWatch = window.observe(\.firstResponder) { [weak self] window, _ in
-            MainActor.assumeIsolated {
-                if window.firstResponder === window {
-                    self?.focusNothing(in: window)
-                }
-            }
-        }
-        return window
+        return Shown(window: window, stage: stage)
     }
 
-    /// Keyboard focus on the window's content, which draws no ring, and from which Tab and Shift-Tab go to the first
-    /// and the last of its controls. AppKit, as the window orders in with the Mac's Keyboard navigation on, gives focus
-    /// to the first of its key views, Skip setup at the first step; and where the control holding focus goes with its
-    /// step, AppKit leaves the window itself first responder.
-    private func focusNothing(in window: NSWindow) {
-        guard !isFocusingNothing, let content = window.contentView else {
-            return
-        }
-
-        isFocusingNothing = true
-        window.makeFirstResponder(content)
-        isFocusingNothing = false
+    /// Keyboard focus on nothing: the window itself first responder, which draws no ring. AppKit, as the window orders
+    /// in with the Mac's Keyboard navigation on, gives focus to the first of its key views, Skip setup at the first step.
+    private static func focusNothing(in window: NSWindow) {
+        // the window, not its content: with the hosting view first responder, SwiftUI focused its first control, its
+        // ring drawn as the window keyed (4 November 2026); from the window, Tab still enters the controls and Return
+        // still presses Continue
+        window.makeFirstResponder(nil)
     }
 
     /// The window: titled, so it has the system's frame and close button, its content running under a clear title bar
@@ -119,6 +146,14 @@ final class WelcomeWindow: NSObject, NSWindowDelegate {
         window.center()
         return window
     }
+}
+
+/// A window showing, and its stage.
+private struct Shown {
+    let window: ForwardWindow
+    let stage: StageEdge
+    /// Focus on nothing as it opened, or as it last went behind.
+    var isOnNothing = true
 }
 
 /// The welcome's content, its window's key view loop worked out afresh after each layout, so Tab follows the step's
