@@ -29,13 +29,14 @@ export type Processes = ReadonlyMap<number, Process>
 /**
  * What tells where a window shows: tmux's servers, the terminal app of each
  * of their clients that is in one, by the client's process, and the programs
- * asked that gave no answer, so that showing nowhere may mean only not
- * knowing.
+ * asked that gave no answer, with the sockets tmux gave none for, so that
+ * showing nowhere may mean only not knowing.
  */
 export type Screen = {
   servers: Servers
   apps: ReadonlyMap<number, App>
   unanswered: readonly string[]
+  unansweredSockets: ReadonlySet<string>
 }
 
 /**
@@ -123,14 +124,18 @@ export const readScreen = async (io: Io, windows: readonly Where[]): Promise<Scr
   const isSnapshot = snapshot?.exitCode === 0
   const processes: Processes =
     hasClients && isSnapshot ? parseProcesses(snapshot.stdout) : new Map()
+  const unansweredSockets = new Set(
+    read.flatMap(([socket, each]) => (each.isAnswered ? [] : [socket])),
+  )
 
   return {
     servers,
     apps: clientApps(servers, processes),
     unanswered: [
-      ...(read.every(([, each]) => each.isAnswered) ? [] : ['tmux']),
+      ...(unansweredSockets.size === 0 ? [] : ['tmux']),
       ...(hasClients && !isSnapshot ? ['ps'] : []),
     ],
+    unansweredSockets,
   }
 }
 
@@ -182,6 +187,45 @@ export const placesShowing = (windows: readonly Where[], screen: Screen): Place[
   )
 }
 
+/**
+ * Whether a jump can reach windows: the places it can bring them forward
+ * at; none, nothing showing them; or none found, as programs asked of them
+ * gave no answer, which is never taken for none.
+ */
+export type Reach =
+  | { is: 'on screen'; places: Place[] }
+  | { is: 'off screen' }
+  | { is: 'unknown'; unanswered: readonly string[] }
+
+/**
+ * What gave no answer of the windows: tmux, for a socket one runs under;
+ * `ps`, where a server one runs under has clients, whose apps it tells. A
+ * window outside tmux asks neither.
+ */
+const unansweredOf = (windows: readonly Where[], screen: Screen) => {
+  const sockets = socketsOf(windows)
+  const isTmux = sockets.some(socket => screen.unansweredSockets.has(socket))
+  const hasClients = sockets.some(socket => (screen.servers.get(socket)?.clients.length ?? 0) > 0)
+
+  return [
+    ...(isTmux ? ['tmux'] : []),
+    ...(hasClients && screen.unanswered.includes('ps') ? ['ps'] : []),
+  ]
+}
+
+/** Whether a jump can reach the windows, as the screen tells it. */
+export const reachOf = (windows: readonly Where[], screen: Screen): Reach => {
+  const places = placesShowing(windows, screen)
+
+  if (places.length > 0) {
+    return { is: 'on screen', places }
+  }
+
+  const unanswered = unansweredOf(windows, screen)
+
+  return unanswered.length > 0 ? { is: 'unknown', unanswered } : { is: 'off screen' }
+}
+
 /** A window stopped on Lee: at a permission prompt or a question. */
 const needsLee = (presence: Presence) =>
   presence.state?.is === 'permission' || presence.state?.is === 'question'
@@ -225,3 +269,31 @@ export const windowsOf = (session: Session, now: number): Where[] =>
     .filter(each => isLive(each, now))
     .sort(byJump)
     .flatMap(each => (each.where === undefined ? [] : [each.where]))
+
+/** A session a live window holds, and whether a jump could reach it. */
+export type Shown = { session: Session; is: Reach['is'] }
+
+/** Which sessions a live window holds show on screen, and what gave no answer. */
+export type OnScreen = { shown: Shown[]; unanswered: readonly string[] }
+
+/**
+ * Whether a jump could reach each session a live window holds, as it stands
+ * at `now`: the screen read once for every such window, so each socket is
+ * asked once however many sessions run under it. A session no window holds
+ * is away, and left out.
+ */
+export const readOnScreen = async (
+  io: Io,
+  sessions: readonly Session[],
+  now: number,
+): Promise<OnScreen> => {
+  const held = sessions
+    .filter(session => session.isOpen)
+    .map(session => ({ session, windows: windowsOf(session, now) }))
+  const screen = await readScreen(io, held.flatMap(({ windows }) => windows))
+
+  return {
+    shown: held.map(({ session, windows }) => ({ session, is: reachOf(windows, screen).is })),
+    unanswered: screen.unanswered,
+  }
+}

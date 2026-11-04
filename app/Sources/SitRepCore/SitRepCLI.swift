@@ -14,6 +14,17 @@ public enum WriteAnswer: Sendable, Equatable {
     case refused(String)
 }
 
+/// What `sitrep screen` came to: which sessions show on screen, or why it could not say, in words.
+public enum ScreenAnswer: Sendable, Equatable {
+    case read(ScreenReading)
+    case failed(String)
+
+    /// The reading; none where the run failed.
+    public var reading: ScreenReading? {
+        if case let .read(reading) = self { reading } else { nil }
+    }
+}
+
 /// Lee's answer to an ask, as the button pressed says it: a yes or one of a choice's options, in the board's words;
 /// or Lee's ignore, which any ask takes.
 public enum Answer: Sendable, Hashable {
@@ -22,11 +33,14 @@ public enum Answer: Sendable, Hashable {
 }
 
 /// The plugin's CLI, `<plugin>/bin/sitrep`, run as a child with Lee's PATH.
-/// The app watches the board and jumps, and writes only what the board's own buttons do: Lee's answers, finishes,
-/// snoozes and wakes.
+/// The app watches the board, reads which sessions show on screen, and jumps, and writes only what the board's own
+/// buttons do: Lee's answers, finishes, snoozes and wakes.
 public struct SitRepCLI: Sendable {
     /// `answer`, `finish`, `snooze` and `wake` read and write one session's files, and run no program.
     static let sessionLimit: TimeInterval = 10
+    /// `screen --json` reads the board and asks tmux and `ps`, each given 2s and asked at once: under half a second
+    /// live, and never hanging over them.
+    static let screenLimit: TimeInterval = 10
     /// Only a backstop for a CLI that hangs, well above any realistic jump
     /// (cli/jump.ts, cli/ghostty.ts, cli/front.ts, cli/tmux.ts, cli/apps.ts):
     /// one takes under a second as Ghostty answers, and one Ghostty does not
@@ -59,6 +73,25 @@ public struct SitRepCLI: Sendable {
         self.path = path
         self.environment = environment
         self.run = run
+    }
+
+    /// Which sessions a live window holds show on a terminal of this Mac. Read-only: it asks tmux and `ps`, and moves
+    /// nothing.
+    public func screen() async -> ScreenAnswer {
+        switch await sitrep(["screen", "--json"], limit: Self.screenLimit) {
+        case let .failure(unanswered):
+            .failed(unanswered.complaint(of: "screen"))
+        case let .success(ran):
+            Self.reading(ran.stdout)
+        }
+    }
+
+    private static func reading(_ json: String) -> ScreenAnswer {
+        do {
+            return .read(try ScreenReading.read(json))
+        } catch {
+            return .failed("sitrep screen \(error).")
+        }
     }
 
     public func jump(to work: String) async -> JumpAnswer {

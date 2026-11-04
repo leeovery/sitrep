@@ -8,8 +8,8 @@ import SitRepWindow
 
 /// The SitRep window's run, as the views see it: what it lists and shows, kept current as the board, the clock and
 /// Lee's presses change it. It runs what the run asks for: the sessions it follows, and a look now, told to the app's
-/// one `watch`; and off the main thread an answer, a finish; a snooze or a wake, through the app's `Snoozes`; and a
-/// jump, through the app's `Works`, one at a time.
+/// one `watch`; and off the main thread an answer, a finish; a snooze or a wake, through the app's `Snoozes`; a jump,
+/// through the app's `Works`, one at a time; and `sitrep screen`, on its own cadence while the window shows.
 @MainActor
 @Observable
 final class WindowModel {
@@ -39,6 +39,8 @@ final class WindowModel {
     /// The folds as last saved, which are saved again as they change.
     @ObservationIgnored private var savedFolds: Folds
     @ObservationIgnored private var wake: Task<Void, Never>?
+    /// The wait for the next look at the screen.
+    @ObservationIgnored private var screenWake: Task<Void, Never>?
     @ObservationIgnored private var observers: [any NSObjectProtocol] = []
 
     private static let lastSessionKey = "windowLastSession"
@@ -125,21 +127,25 @@ final class WindowModel {
     func opened(on pick: Pick? = nil) {
         run.open(on: pick)
         refresh()
+        lookAtScreen()
     }
 
     func closed() {
         run.close()
         refresh()
+        lookAtScreen()
     }
 
     func minimised() {
         run.minimise()
         refresh()
+        lookAtScreen()
     }
 
     func restored() {
         run.restore()
         refresh()
+        lookAtScreen()
     }
 
     /// Escape: the answer pressed last, still waiting, is taken back. Whether there was one.
@@ -201,6 +207,13 @@ final class WindowModel {
     func window(isKey: Bool) {
         run.window(isKey: isKey, at: Date())
         refresh()
+        lookAtScreen()
+    }
+
+    /// macOS said whether the window is visible.
+    func window(isVisible: Bool) {
+        run.window(isVisible: isVisible)
+        lookAtScreen()
     }
 
     /// A heading clicked, or "N earlier": its fold, kept as Lee leaves it (`keepFolds`), unless the filter holds text.
@@ -277,6 +290,34 @@ final class WindowModel {
     }
 
     // MARK: Running what the run asks for
+
+    /// `sitrep screen`, where the run says a look is due, its answer told to the run, and drawn where it changed what
+    /// the window knows; then the next look waited for.
+    private func lookAtScreen() {
+        if run.looksAtScreen(at: Date()) {
+            Task {
+                let answer = await plugin.ask({ await $0.screen() }, unrun: ScreenAnswer.failed)
+
+                if run.looked(answer, at: Date()) {
+                    refresh()
+                }
+                lookAtScreen()
+            }
+        }
+        scheduleScreen()
+    }
+
+    private func scheduleScreen() {
+        screenWake?.cancel()
+        screenWake = run.nextScreenLook.map { next in
+            Task { [weak self] in
+                try? await Task.sleep(for: .seconds(max(0, next.timeIntervalSince(Date()))))
+                if !Task.isCancelled {
+                    self?.lookAtScreen()
+                }
+            }
+        }
+    }
 
     /// The answers whose two seconds ran out, each to `sitrep answer`.
     private func send() {

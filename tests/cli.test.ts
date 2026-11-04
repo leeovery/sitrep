@@ -602,7 +602,7 @@ test('help: every command in brief, how a session is named, and the exit codes',
   expect(out).toContain(
     '  sitrep answer <ask> (<answer> | --ignore)\n  sitrep snooze <ask>... --until <ms>\n  sitrep wake <ask>...\n  sitrep finish\n',
   )
-  expect(out).toContain('  sitrep list [--project <name>] [--json]\n')
+  expect(out).toContain('  sitrep list [--project <name>] [--json]\n  sitrep screen [--json]\n')
   expect(out).toContain('--session sr-xxxxxx, else $SITREP_SESSION')
   expect(out).toContain('2 no such session')
   expect((await t.run('help')).out).toBe(out)

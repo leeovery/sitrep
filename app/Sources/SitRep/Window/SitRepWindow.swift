@@ -71,6 +71,13 @@ final class SitRepWindow: NSObject, NSWindowDelegate {
         model.restored()
     }
 
+    /// Covered by other windows or on another Space, it reads nothing of the screen; uncovered, it reads it at once.
+    func windowDidChangeOcclusionState(_ notification: Notification) {
+        if let window = notification.object as? NSWindow {
+            model.window(isVisible: window.occlusionState.contains(.visible))
+        }
+    }
+
     private func make() -> ForwardWindow {
         let sidebar = Self.side(over: model) { [model] in
             BoardColumn(

@@ -65,6 +65,14 @@ public enum Lines {
     public static let dashboard = printed("board-dash02.json")
     public static let ledger = printed("board-ledger.json")
 
+    /// `sitrep screen --json` at version 1, run on 4 November 2026 in a tmux pane of this Mac over a board of its own,
+    /// Harbor's four sessions: Shown here, its window in that pane (sr-0nscrn); Pane gone, in a pane the server has not
+    /// (sr-n0pane); Server gone, under a socket no server runs on (sr-n0srvr); and Away, no window holding it
+    /// (sr-awayyy), so left out.
+    public static let screen = printed("screen.json")
+    /// The same, tmux off the CLI's PATH, so every session in tmux is unknown.
+    public static let screenUnanswered = printed("screen-unanswered.json")
+
     /// A line of `watch` that carried no board, carrying these sessions' boards, each as `board --json` printed it, or
     /// null, as a line carries them for the sessions the window follows.
     public static func carrying(_ boards: [String: String?], on line: String) -> String {

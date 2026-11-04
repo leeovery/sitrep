@@ -10,7 +10,7 @@ import type { Where } from '../core'
 import type { App, Bring, FrontAtStart } from './driver'
 import { frontmost } from './front'
 import type { Io } from './io'
-import { placesShowing, readScreen, type Place } from './screen'
+import { reachOf, readScreen, type Place } from './screen'
 import { select, selectWords, type Select, type Selected } from './tmux'
 
 /**
@@ -164,13 +164,7 @@ const bringFirst = async (
 export const jump = async (io: Io, windows: readonly Where[]): Promise<Jumped> => {
   const look = frontmost(io)
   const [screen, before] = await Promise.all([readScreen(io, windows), look()])
-  const places = placesShowing(windows, screen)
+  const reach = reachOf(windows, screen)
 
-  if (places.length === 0) {
-    return screen.unanswered.length > 0
-      ? { is: 'unknown', unanswered: screen.unanswered }
-      : OFF_SCREEN
-  }
-
-  return bringFirst(io, places, { look, before })
+  return reach.is === 'on screen' ? bringFirst(io, reach.places, { look, before }) : reach
 }

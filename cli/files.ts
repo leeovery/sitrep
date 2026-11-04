@@ -177,3 +177,7 @@ export const readProjects = async (
     project,
     sessions: sessions.map(summarise),
   }))
+
+/** Every session on the board, whole, as it stands at `now`. */
+export const readSessions = async (io: Io, root: string, now: number): Promise<Session[]> =>
+  (await readBoard(io, root, readAt(io, root, now))).flatMap(({ sessions }) => sessions)
