@@ -10,12 +10,15 @@ import SwiftUI
 /// pane's name the window's title beside them. What macOS says is read as a pane comes into sight while it is key
 /// (`SettingsModel.keys`).
 @MainActor
-final class SettingsWindow: NSObject, NSWindowDelegate, NSToolbarDelegate {
+final class SettingsWindow: NSObject, NSWindowDelegate, NSToolbarDelegate, NSMenuItemValidation {
     private let settings: SettingsModel
     private let frame: @MainActor (NSViewController) -> ForwardWindow
     private lazy var window = make()
-    /// Back and forward, in one capsule.
-    let steps = NSSegmentedControl.steps([("chevron.left", "Back"), ("chevron.right", "Forward")])
+    /// Back and forward, in one capsule, the toolbar's navigation; the toolbar never changes, so it is made once.
+    let steps = NSToolbarItemGroup.steps(
+        SettingsWindow.stepsItem, [("chevron.left", "Back"), ("chevron.right", "Forward")], label: "Back/Forward",
+        target: nil, action: #selector(SettingsWindow.step(_:))
+    )
 
     /// 820 by 620 to start, as Paper's boards are.
     nonisolated static let size = CGSize(width: 820, height: 620)
@@ -53,7 +56,6 @@ final class SettingsWindow: NSObject, NSWindowDelegate, NSToolbarDelegate {
 
         window.delegate = self
         steps.target = self
-        steps.action = #selector(step(_:))
         follow(in: window)
         return window
     }
@@ -69,15 +71,33 @@ final class SettingsWindow: NSObject, NSWindowDelegate, NSToolbarDelegate {
         }
 
         window.title = history.shown.title
-        steps.setEnabled(history.canGoBack, forSegment: Self.back)
-        steps.setEnabled(history.canGoForward, forSegment: Self.forward)
+        steps.enable([history.canGoBack, history.canGoForward])
     }
 
-    @objc private func step(_ control: NSSegmentedControl) {
-        if control.selectedSegment == Self.back {
-            settings.goBack()
-        } else {
-            settings.goForward()
+    @objc private func step(_ sender: Any?) {
+        switch NSToolbarItemGroup.side(of: sender) {
+        case 0: settings.goBack()
+        case 1: settings.goForward()
+        default: break
+        }
+    }
+
+    /// ⌘[, through the app's menu, while the window is key, as System Settings' goes back.
+    @objc func goBack(_ sender: Any?) {
+        settings.goBack()
+    }
+
+    /// ⌘].
+    @objc func goForward(_ sender: Any?) {
+        settings.goForward()
+    }
+
+    /// Back and Forward each only with a pane to step to, as the toolbar shows them.
+    func validateMenuItem(_ item: NSMenuItem) -> Bool {
+        switch item.action {
+        case #selector(goBack(_:)): settings.history.canGoBack
+        case #selector(goForward(_:)): settings.history.canGoForward
+        default: true
         }
     }
 
@@ -120,8 +140,6 @@ final class SettingsWindow: NSObject, NSWindowDelegate, NSToolbarDelegate {
     // MARK: The toolbar
 
     private static let stepsItem = NSToolbarItem.Identifier("SettingsSteps")
-    private static let back = 0
-    private static let forward = 1
 
     /// Back and forward past the sidebar, at the toolbar's lead, and nothing to customise, so a right-click on it offers
     /// no Customize Toolbar.
@@ -150,12 +168,7 @@ final class SettingsWindow: NSObject, NSWindowDelegate, NSToolbarDelegate {
             return nil
         }
 
-        let item = NSToolbarItem(itemIdentifier: identifier)
-
-        item.view = steps
-        item.label = "Back/Forward"
-        item.isNavigational = true
-        item.autovalidates = false
-        return item
+        steps.isNavigational = true
+        return steps
     }
 }

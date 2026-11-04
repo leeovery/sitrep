@@ -4164,9 +4164,14 @@ stands).
     secondary colour, and **up and down**, a capsule of two chevrons, up
     dimmed on the first row and down on the last. A page filling the
     window, a project's or a session's pushed from it, has Back and
-    Forward alone, at its leading edge, no title and no position; the
-    items change with the list folding away or showing, never a moment
-    after it. Nothing of the page sits in the band.
+    Forward alone, at its leading edge, no title shown and no position;
+    the window's title is still the page's, the project's name or the
+    session's, so Mission Control, App Exposé and VoiceOver name what the
+    window shows, as Finder names its folder's window. The items change
+    with the list folding away or showing, never a moment after it, each
+    item made afresh as it comes back. Where the toolbar is too narrow
+    for them, each side of a capsule is an item of its own in the
+    toolbar's overflow menu. Nothing of the page sits in the band.
 - **A session's row is the card's row at the window's size:** the same
   marks in the same lanes, the same words, and the panel row's time.
 - **On a session's page and a project's** (3 November 2026), a working
@@ -4227,9 +4232,10 @@ stands).
     fills it. That is why the window is not SwiftUI's
     `NavigationSplitView`: it pins neither;
   - the window carries a toolbar, unified, of macOS's own parts: Back and
-    Forward the toolbar's navigational item, a segmented control of two
-    chevrons as Finder's and Safari's, as the Settings window's are; up
-    and down another; the title the window's own, shown only on a place;
+    Forward the toolbar's navigational item, AppKit's segmented pair
+    (`NSToolbarItemGroup`, momentary) of two chevrons as Finder's and
+    Safari's, as the Settings window's are; up and down another; the title
+    the window's own, shown only on a place;
     the list's divider tracked by `NSTrackingSeparatorToolbarItem`, as the
     sidebar's is by the system's. macOS 26 sets them on Liquid Glass by
     itself, so SitRep draws no capsule of its own. Nothing to customise.
@@ -4361,8 +4367,11 @@ stands).
     its projects, as "2 snoozed" or "8 earlier, Switchboard, Fumi", and
     folded says so. The Filter field reads as "Filter sessions";
   - the toolbar's chevrons read "Back" and "Forward", "Previous" and
-    "Next", each its side's tooltip too; the position reads "3 of 5", and
-    nothing with no row picked; the place's name is the window's title;
+    "Next", each its side's tooltip too; the position reads "3 of 5", once,
+    as its value, never "3 / 5" too, and with no row picked it is no
+    element at all; the window's title names the place, or the page
+    filling the window; a press on a side from VoiceOver or the keyboard
+    with no side selected goes nowhere;
   - the page's title, the eyebrow and the section headings carry the
     header trait, each heading read with the words on its right, as
     "Asks, 3 waiting", or "Asks, 1 waiting, 2 snoozed";
@@ -5044,7 +5053,9 @@ live changed, and how they group.
   side, Notifications' bell and Claude Code's terminal. The pane shown is
   the accent while the window is key and the system's grey when not. The
   toolbar holds back and forward in one capsule, which step through the
-  panes shown, and the pane's name beside it, 15 bold. A pane is sections:
+  panes shown, as ⌘[ and ⌘] do while it is key, the app's Go menu's, as
+  System Settings' do; and the pane's name beside it, 15 bold. A pane is
+  sections:
   each a header, 13 semibold in the label colour, 10 in from its card's
   edge and 10 over it, then its card; the sections 26 apart, in a column
   from 20 past the sidebar to 20 from the window's right, with no cap. A

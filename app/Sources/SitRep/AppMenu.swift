@@ -2,8 +2,9 @@ import AppKit
 
 /// The app's main menu, which an accessory app never shows: it is there for its key equivalents, which AppKit sends
 /// along the responder chain from whichever SitRep window is key. The app's own Settings… to the app's delegate,
-/// which brings the Settings window forward; Edit's to the first responder; Go's to the SitRep window's own, which
-/// goes back and forward as its toolbar's Back and Forward do; Window's to the window. No About SitRep, which the menu
+/// which brings the Settings window forward; Edit's to the first responder; Go's to the key window's own, the SitRep
+/// window's or Settings', which goes back and forward as its toolbar's Back and Forward do (`SitRepWindow.goBack(_:)`,
+/// `SettingsWindow.goBack(_:)`); Window's to the window. No About SitRep, which the menu
 /// bar item's header opens, and no Quit: ⌘Q aimed at another app must not quit SitRep through its window, and Quit
 /// stays in the menu bar item's menu.
 enum AppMenu {

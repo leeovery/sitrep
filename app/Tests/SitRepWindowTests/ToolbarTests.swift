@@ -52,6 +52,17 @@ struct ToolbarTests {
         #expect(!run.toolbar.canGoBack)
     }
 
+    /// Closed and opened again, the window starts afresh: nowhere back nor forward.
+    @Test func reopenedThereIsNowhereBackNorForward() {
+        let run = Self.run()
+
+        run.click(.place(.yourTurn))
+        run.goBack()
+        run.close()
+        run.open()
+        #expect(!run.toolbar.canGoBack && !run.toolbar.canGoForward)
+    }
+
     /// Going somewhere new after Back lets go of what lay forward.
     @Test func goingSomewhereAfterBackLetsGoOfForward() {
         let run = Self.run()
@@ -66,9 +77,11 @@ struct ToolbarTests {
 
     /// Needs you, the Mac app's newest line picked, second of six: its title and where it stands, rows both ways.
     @Test func onAPlaceItHasThePlacesTitleAndWhereThePickStands() throws {
-        let listing = try #require(opened().toolbar.listing)
+        let toolbar = opened().toolbar
+        let listing = try #require(toolbar.listing)
 
-        #expect(listing.title == "Needs you")
+        #expect(toolbar.title == "Needs you")
+        #expect(toolbar.showsTitle)
         #expect(listing.position?.text == "2 / 6")
         #expect(listing.position?.spoken == "2 of 6")
         #expect(listing.canStepUp && listing.canStepDown)
@@ -113,18 +126,57 @@ struct ToolbarTests {
 
         let listing = try #require(run.toolbar.listing)
 
-        #expect(listing.title == "Your turn")
+        #expect(run.toolbar.title == "Your turn")
         #expect(listing.position == nil)
         #expect(!listing.canStepUp && listing.canStepDown)
     }
 
-    /// A project's page, and a session's pushed from it, fill the window: Back and Forward alone.
-    @Test func aPageFillingTheWindowHasBackAndForwardAlone() {
+    /// A pick under a fold closed over it: no position, as the list shows nothing picked; up and down act from where
+    /// the pick stood, under the line above it.
+    @Test func aFoldClosedOverThePickLeavesNoPositionAndTheStepsGoOnFromWhereItStood() throws {
+        let run = WindowRun(wall: { printedAt })
+        var asleep = Built(id: "s2", project: "contoso")
+
+        asleep.snoozed = [(age: 40, wakesIn: 60), (age: 50, wakesIn: 120)]
+        run.show(
+            heard(Built.printed([Built(id: "s1", project: "northwind", waiting: [30]), asleep])), at: printedAt,
+            reducesMotion: false
+        )
+        run.open()
+        run.toggleFold(of: .needsYou)
+        run.pickInList(.snoozed(asleep.asleep(0)), at: printedAt)
+        #expect(run.toolbar.listing?.position?.text == "2 / 3")
+        run.toggleFold(of: .needsYou)
+
+        let folded = try #require(run.toolbar.listing)
+
+        #expect(folded.position == nil)
+        #expect(folded.canStepUp && !folded.canStepDown)
+        run.step(down: false, at: printedAt)
+        #expect(run.location.picked?.pick == .line("ask:s1:k0"))
+        #expect(run.toolbar.listing?.position?.text == "1 / 1")
+    }
+
+    // MARK: A page filling the window
+
+    /// A project's page, and a session's pushed from it, fill the window: Back and Forward alone, the page's name the
+    /// window's title, not shown.
+    @Test func aPageFillingTheWindowHasBackAndForwardAloneTitledByThePage() {
         let run = Self.run()
 
         run.click(.project("switchboard"))
-        #expect(run.toolbar == Toolbar(canGoBack: true, canGoForward: false, listing: nil))
+        #expect(run.toolbar == Toolbar(title: "Switchboard", canGoBack: true, canGoForward: false, listing: nil))
+        #expect(!run.toolbar.showsTitle)
         run.go(to: .session("sr-rq7dgr", from: .project("switchboard")), by: .projectSession)
         #expect(run.toolbar.listing == nil)
+        #expect(run.toolbar.title == "Request ledger")
+    }
+
+    /// Before any board, a page left on is not on one: the window's own name.
+    @Test func aPageNotOnTheBoardIsTitledByTheWindowsName() {
+        let run = WindowRun(remembered: .project("kit"))
+
+        run.open()
+        #expect(run.toolbar.title == "SitRep")
     }
 }

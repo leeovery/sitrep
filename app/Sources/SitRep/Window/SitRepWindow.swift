@@ -106,13 +106,9 @@ final class SitRepWindow: NSObject, NSWindowDelegate, NSMenuItemValidation {
         model.actions.forward()
     }
 
-    /// Back and Forward each only with a step to go to, as the toolbar shows them.
+    /// Back and Forward each only with a step to go to, as the toolbar shows them (`WindowToolbar.validate(_:)`).
     func validateMenuItem(_ item: NSMenuItem) -> Bool {
-        switch item.action {
-        case #selector(goBack(_:)): toolbar?.shown.canGoBack ?? false
-        case #selector(goForward(_:)): toolbar?.shown.canGoForward ?? false
-        default: true
-        }
+        toolbar?.validate(item) ?? true
     }
 
     private func make() -> ForwardWindow {
