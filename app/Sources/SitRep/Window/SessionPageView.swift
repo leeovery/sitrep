@@ -66,7 +66,7 @@ struct SessionPageView: View {
                 .font(WindowStyle.ui(15, .semibold))
                 .accessibilityAddTraits(.isHeader)
             TitleRow {
-                PageTitle(words: page.name, size: 26)
+                PageTitle(words: page.name)
                 if page.jumps {
                     jump
                 }
@@ -100,7 +100,7 @@ struct SessionPageView: View {
     @ViewBuilder private var doing: some View {
         switch page.doingLine {
         case .line: DoingLine(page: page, now: now).padding(.bottom, 16)
-        case .stop: StopCard(stop: page.doing, session: page.id, now: now).padding(.bottom, 10)
+        case let .stop(stop): StopCard(stop: stop, session: page.id, now: now).padding(.bottom, 10)
         case .none: EmptyView()
         }
     }
@@ -108,8 +108,8 @@ struct SessionPageView: View {
     /// Beside the list, the picked line's card, larger; filling the window, every ask's.
     @ViewBuilder private var cards: some View {
         switch page.lead {
-        case let .ask(card): CardView(card: card, now: now, leads: true)
-        case .stop: StopCard(stop: page.doing, session: page.id, now: now, leads: true)
+        case let .ask(card): CardView(card: card, now: now, leads: true).id(card.id)
+        case let .stop(stop): StopCard(stop: stop, session: page.id, now: now, leads: true)
         case nil:
             if !page.cards.isEmpty {
                 VStack(alignment: .leading, spacing: 10) {
@@ -162,7 +162,7 @@ private struct DoingLine: View {
 /// that it is answered in Claude Code, and the jump there. Filling the window it stands in the state line's place;
 /// beside the list, as the line picked, it leads, larger, as an ask's card does.
 private struct StopCard: View {
-    let stop: Doing
+    let stop: SessionPage.Stop
     let session: String
     let now: Date
     var leads = false
@@ -269,4 +269,8 @@ extension WindowStyle {
     static let threadText = Color.white.opacity(Double(0xB3) / 255)
     static let threadMark = Color(hex: 0x8E8E95)
     static let threadRule = Color.white.opacity(Double(0x1F) / 255)
+    /// Now's marks: its lines' dot, next's ring, later's diamond in white at 45%.
+    static let nowMark = Color(hex: 0xA8A8AF)
+    static let nextMark = Color(hex: 0x6E6E76)
+    static let laterMark = Color.white.opacity(0.45)
 }

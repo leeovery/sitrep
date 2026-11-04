@@ -10,8 +10,8 @@ import Testing
 /// of Needs you and its session beside it, its ask's card leading, a permission prompt leading as the line picked, an
 /// away session and its finish, a project, a session pushed from it, a session's page with its meta line, and the
 /// moments of an answer and of a board changing under Lee; a session's long name, and the window as narrow as it goes;
-/// Your turn, Working, the asks asleep opened, filtered, and a filter that keeps nothing; and the sidebar as the window
-/// itself lays it out. Each draws whole at the window's size, or at its narrowest.
+/// Your turn, Working, the asks asleep opened and one leading, filtered, and a filter that keeps nothing; and the
+/// sidebar as the window itself lays it out. Each draws whole at the window's size, or at its narrowest.
 /// With `SITREP_WINDOW_STILLS` naming a folder, each is kept there as a PNG, to read beside the drawing; nothing opens
 /// on the screen.
 /// When the real `watch` printed its first line.
@@ -99,6 +99,7 @@ struct WindowStillsTests {
         case yourTurn = "f1-your-turn"
         case working = "f3-working"
         case snoozedOpen = "f5-snoozed-opened"
+        case asleepLeads = "f6-an-ask-asleep-leading"
         case filtered = "f2-filtered"
         case noMatch = "f4-no-match"
 
@@ -175,6 +176,10 @@ struct WindowStillsTests {
                 run.click(.place(.working))
             case .snoozedOpen:
                 run.toggleFold(of: .needsYou)
+            case .asleepLeads:
+                run.toggleFold(of: .needsYou)
+                run.pickInList(.snoozed("ask:sr-4g01a7:k1"), at: now)
+                Self.take(in: run, on: Lines.snoozed[0], boards: ["sr-4g01a7": Lines.snoozedBoard])
             case .filtered:
                 run.filter = Filter("switchboard")
             case .noMatch:
@@ -188,7 +193,7 @@ struct WindowStillsTests {
             switch still {
             case .longTitle, .longTitleNarrow: longName
             case .sessionPage: started
-            case .snoozedOpen: Lines.snoozed[0]
+            case .snoozedOpen, .asleepLeads: Lines.snoozed[0]
             default: Lines.watch[0]
             }
         }

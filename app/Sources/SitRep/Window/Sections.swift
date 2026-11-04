@@ -19,14 +19,14 @@ struct NowSection: View {
             Group {
                 ForEach(Array(page.status.now.enumerated()), id: \.offset) { offset, line in
                     Opening(item: .status(offset, line), opened: page.opened) { isOpen in
-                        SectionLine(bullet: "•", text: line, isOpen: isOpen)
+                        MarkedLine(mark: .now, text: line, textColour: WindowStyle.headingText, size: size, isOpen: isOpen)
                     }
                 }
                 if let next = page.status.next {
                     Opening(item: .next(next), opened: page.opened) { isOpen in
-                        SectionLine(
-                            bullet: "◦", bulletColour: WindowStyle.faint, word: Words.next, text: next,
-                            textColour: WindowStyle.soft, isOpen: isOpen
+                        MarkedLine(
+                            mark: .next, word: Words.next, text: next, textColour: WindowStyle.soft, size: size,
+                            isOpen: isOpen
                         )
                     }
                 }
@@ -38,13 +38,18 @@ struct NowSection: View {
         }
     }
 
+    /// Its lines as each mode draws them: a little taller beside the list (A1 revised) than filling the window (A2).
+    private var size: LineSize {
+        LineSize(line: 18, row: page.mode == .detail ? 28 : 26)
+    }
+
     /// "later · N parked ›", which opens Parked narrowed to the session.
     private var later: some View {
         Button { act.openParked(.session(page.id)) } label: {
             HStack(spacing: 8) {
-                SectionLine(
-                    bullet: "◇", bulletColour: WindowStyle.faint, word: Words.later, text: Words.parkedCount(page.parked),
-                    textColour: WindowStyle.soft
+                MarkedLine(
+                    mark: .later, word: Words.later, text: Words.parkedCount(page.parked), textColour: WindowStyle.soft,
+                    size: size
                 )
                 .fixedSize()
                 Chevron(isFolded: true).foregroundStyle(WindowStyle.faint)
@@ -58,10 +63,10 @@ struct NowSection: View {
     }
 }
 
-/// A session page's What happened: one thread, the newest first, its asks still open, "Asked …", on hollow marks, and
-/// its log's lines on dots, on one line down their marks; each line opens in place to the whole of it and its detail.
-/// At its end "N resolved", folded, opens in place to its resolved asks, the newest closed first, each opening to how it
-/// closed.
+/// A session page's What happened: one thread, the newest first, filling the window its asks, "Asked …", on hollow
+/// marks, and its log's lines on dots, on one line down their marks; each line opens in place to the whole of it and
+/// its detail. At its end "N resolved", folded, opens in place to its resolved asks, the newest closed first, each
+/// opening to how it closed.
 struct HappenedSection: View {
     let page: SessionPage
     let now: Date
@@ -70,6 +75,11 @@ struct HappenedSection: View {
 
     private var showsResolved: Bool {
         page.opened.contains(.resolvedFold)
+    }
+
+    /// Its lines as each mode draws them: a little taller beside the list (A1 revised) than filling the window (A2).
+    private var size: LineSize {
+        LineSize(line: 16, row: page.mode == .detail ? 28 : 26)
     }
 
     var body: some View {
@@ -100,10 +110,16 @@ struct HappenedSection: View {
     @ViewBuilder private func line(_ entry: SessionPage.Happened, along thread: OnThread) -> some View {
         switch entry {
         case let .asked(asked):
-            ThreadLine(mark: .asked, word: Words.asked, text: asked.title, at: asked.at, now: now, thread: thread)
+            MarkedLine(
+                mark: .asked, word: Words.asked, text: asked.title, textColour: WindowStyle.threadText, size: size,
+                at: asked.at, now: now, thread: thread
+            )
         case let .line(note):
             Opening(item: .note(note.id), opened: page.opened, hasMore: note.hasMore) { isOpen in
-                ThreadLine(mark: .line, text: note.text, at: note.at, now: now, thread: thread, isOpen: isOpen) {
+                MarkedLine(
+                    mark: .line, text: note.text, textColour: WindowStyle.threadText, size: size, at: note.at, now: now,
+                    thread: thread, isOpen: isOpen
+                ) {
                     ForEach(Array(note.detail.enumerated()), id: \.offset) { _, line in
                         Text(line)
                     }
@@ -137,42 +153,50 @@ struct HappenedSection: View {
     }
 }
 
+/// A marked line's first line's height, which its mark sits in the middle of, and its row's.
+private struct LineSize {
+    let line: CGFloat
+    let row: CGFloat
+}
+
 /// Where a line of What happened stands on the thread's line: the first's runs down from its mark, the last's up to it.
 private struct OnThread {
     let isFirst: Bool
     let isLast: Bool
 }
 
-/// A line of What happened: its mark on the thread's line, an ask still open's hollow, a log line's dot, each ringed in
-/// the page's black so the line breaks round it; a quieter word before an ask's title, "Asked"; its words; and its time
-/// in a lane of its own. Opened, its words wrap whole, and its detail sits close under them, as a section's line's.
-private struct ThreadLine<Detail: View>: View {
+/// A line of a session's Now or What happened, as A1 and A2 revised draw them: its mark in its lane, Now's dot, next's
+/// ring or later's diamond, or on the thread's line an ask's hollow ring or a log line's dot, each ringed in the page's
+/// black so the line breaks round it; a quieter word before its words, "next", "later" or "Asked"; its words; and on
+/// the thread its time in a lane of its own. Opened, its words wrap whole, and its detail sits close under them, as a
+/// section's line's. To VoiceOver its words and its time are one element.
+private struct MarkedLine<Detail: View>: View {
     enum Mark {
-        case asked, line
+        case now, next, later, asked, line
     }
 
     let mark: Mark
     var word: String?
     let text: String
-    let at: Date
-    let now: Date
-    let thread: OnThread
+    let textColour: Color
+    let size: LineSize
+    var at: Date?
+    var now = Date.distantPast
+    var thread: OnThread?
     var isOpen = false
     @ViewBuilder var detail: () -> Detail
 
-    /// The vertical padding round its first line, and the line's height: its mark sits on the line's middle.
-    private static var padding: CGFloat { 5 }
-    private static var lineHeight: CGFloat { 16 }
+    private var padding: CGFloat { (size.row - size.line) / 2 }
 
     var body: some View {
         HStack(alignment: .top, spacing: WindowStyle.wordsEdge - WindowStyle.lane.width) {
-            marked.frame(width: WindowStyle.lane.width, height: Self.lineHeight)
+            marked.frame(width: WindowStyle.lane.width, height: size.line)
             VStack(alignment: .leading, spacing: 3) {
-                Text(text).foregroundStyle(WindowStyle.threadText).after(word)
+                Text(text).foregroundStyle(textColour).after(word)
                     .font(WindowStyle.ui(13))
                     .lineLimit(isOpen ? nil : 1)
                     .fixedSize(horizontal: false, vertical: isOpen)
-                    .frame(minHeight: Self.lineHeight)
+                    .frame(minHeight: size.line)
                 if isOpen {
                     VStack(alignment: .leading, spacing: 2) { detail() }
                         .font(WindowStyle.ui(12))
@@ -181,23 +205,37 @@ private struct ThreadLine<Detail: View>: View {
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-            Text(Words.age(at, at: now))
-                .font(WindowStyle.ui(12).monospacedDigit())
-                .foregroundStyle(WindowStyle.dim)
-                .frame(width: WindowStyle.turnTimeLane, height: Self.lineHeight, alignment: .trailing)
-                .accessibilityLabel(Spoken.age(at, at: now))
+            if let at {
+                Text(Words.age(at, at: now))
+                    .font(WindowStyle.ui(12).monospacedDigit())
+                    .foregroundStyle(WindowStyle.dim)
+                    .frame(width: WindowStyle.turnTimeLane, height: size.line, alignment: .trailing)
+                    .accessibilityLabel(Spoken.age(at, at: now))
+            }
         }
-        .padding(.vertical, Self.padding)
+        .padding(.vertical, padding)
         .background(alignment: .leading) {
-            ThreadRule(from: thread.isFirst ? Self.padding + Self.lineHeight / 2 : nil, to: thread.isLast ? Self.padding + Self.lineHeight / 2 : nil)
+            if let thread {
+                ThreadRule(
+                    from: thread.isFirst ? padding + size.line / 2 : nil, to: thread.isLast ? padding + size.line / 2 : nil
+                )
                 .stroke(WindowStyle.threadRule, lineWidth: 1)
                 .frame(width: WindowStyle.lane.width)
+            }
         }
+        .accessibilityElement(children: .combine)
     }
 
     private var marked: some View {
         ZStack {
             switch mark {
+            case .now:
+                Circle().fill(WindowStyle.nowMark).frame(width: 5, height: 5)
+            case .next:
+                Circle().strokeBorder(WindowStyle.nextMark, lineWidth: 1.2).frame(width: 6, height: 6)
+            case .later:
+                Diamond().stroke(WindowStyle.laterMark, style: StrokeStyle(lineWidth: 1.4, lineJoin: .round))
+                    .frame(width: 8, height: 8)
             case .asked:
                 Circle().fill(WindowStyle.black).frame(width: 9, height: 9)
                 Circle().strokeBorder(WindowStyle.threadMark, lineWidth: 1.3).frame(width: 7, height: 7)
@@ -210,9 +248,28 @@ private struct ThreadLine<Detail: View>: View {
     }
 }
 
-extension ThreadLine where Detail == EmptyView {
-    init(mark: Mark, word: String? = nil, text: String, at: Date, now: Date, thread: OnThread) {
-        self.init(mark: mark, word: word, text: text, at: at, now: now, thread: thread) { EmptyView() }
+extension MarkedLine where Detail == EmptyView {
+    init(
+        mark: Mark, word: String? = nil, text: String, textColour: Color, size: LineSize, at: Date? = nil,
+        now: Date = .distantPast, thread: OnThread? = nil, isOpen: Bool = false
+    ) {
+        self.init(
+            mark: mark, word: word, text: text, textColour: textColour, size: size, at: at, now: now, thread: thread,
+            isOpen: isOpen
+        ) { EmptyView() }
+    }
+}
+
+/// Later's diamond, its corners on its frame's edges' middles.
+private struct Diamond: Shape {
+    func path(in rect: CGRect) -> Path {
+        Path { path in
+            path.addLines([
+                CGPoint(x: rect.midX, y: rect.minY), CGPoint(x: rect.maxX, y: rect.midY),
+                CGPoint(x: rect.midX, y: rect.maxY), CGPoint(x: rect.minX, y: rect.midY),
+            ])
+            path.closeSubpath()
+        }
     }
 }
 
@@ -368,16 +425,14 @@ private struct Opening<Line: View>: View {
     }
 }
 
-/// A line of a section, on the one grid every line of a session's Now and resolved asks and a project's Notes and
-/// Parked keeps, opened or closed: its bullet in a lane, then its words, then its time on the first line. Its session's
-/// name, where it is a project's, leads its words, quieter, in their own flow, so a line that wraps comes back to the
-/// words' edge; or a quieter word does, "next" or "later". Opened, its words wrap whole, and its detail sits close
-/// under them from the same edge, a size smaller, in the secondary colour.
+/// A line of a section, on the one grid every line of Status, Notes, Parked and Resolved keeps, opened or closed: its
+/// bullet in a lane, then its words, then its time on the first line. Its session's name, where it is a project's,
+/// leads its words, quieter, in their own flow, so a line that wraps comes back to the words' edge. Opened, its words
+/// wrap whole, and its detail sits close under them from the same edge, a size smaller, in the secondary colour.
 struct SectionLine<Detail: View>: View {
     let bullet: String
     var bulletColour = WindowStyle.soft
     var lead: String?
-    var word: String?
     let text: String
     var textColour = WindowStyle.text
     var time: String?
@@ -392,7 +447,7 @@ struct SectionLine<Detail: View>: View {
                 .frame(width: WindowStyle.lane.width)
                 .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 3) {
-                Text(text).foregroundStyle(textColour).led(by: lead).after(word)
+                Text(text).foregroundStyle(textColour).led(by: lead)
                     .font(WindowStyle.ui(13))
                     .lineLimit(isOpen ? nil : 1)
                     .fixedSize(horizontal: false, vertical: isOpen)
@@ -414,12 +469,12 @@ struct SectionLine<Detail: View>: View {
 
 extension SectionLine where Detail == EmptyView {
     init(
-        bullet: String, bulletColour: Color = WindowStyle.soft, lead: String? = nil, word: String? = nil, text: String,
+        bullet: String, bulletColour: Color = WindowStyle.soft, lead: String? = nil, text: String,
         textColour: Color = WindowStyle.text, time: String? = nil, isOpen: Bool = false
     ) {
         self.init(
-            bullet: bullet, bulletColour: bulletColour, lead: lead, word: word, text: text, textColour: textColour,
-            time: time, isOpen: isOpen
+            bullet: bullet, bulletColour: bulletColour, lead: lead, text: text, textColour: textColour, time: time,
+            isOpen: isOpen
         ) { EmptyView() }
     }
 }

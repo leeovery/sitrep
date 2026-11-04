@@ -2,25 +2,35 @@ import Foundation
 import SitRepCore
 
 extension Words {
-    /// A session's meta line, filling the window, under its name: its terminal and whether a window of it is on screen,
-    /// then when it started, as "Ghostty, on screen · started today, 09:12"; away, the away line alone. None with
-    /// nothing to say.
+    /// A session's meta line, filling the window, under its name: the terminal app its window is in and whether a
+    /// window of it is on screen, then when it started, as "Ghostty, on screen · started today, 09:12", its first word
+    /// a capital; away, the away line alone. None with nothing to say.
     public static func meta(_ meta: SessionPage.Meta, at now: Date, in calendar: Calendar) -> String? {
         let parts = metaParts(meta, at: now, in: calendar)
 
         return parts.isEmpty ? nil : parts.joined(separator: " · ")
     }
 
-    /// The meta line's parts: where its window is, and when it started; away, the away line alone.
+    /// The meta line's parts: where its window is, and when it started, the first a capital where it is one of these
+    /// words and not an app's name; away, the away line alone. Its app is the one the last look at the screen saw
+    /// showing it, else the one its `$TERM_PROGRAM` names, but never tmux, which says only that the app is unknown.
     static func metaParts(_ meta: SessionPage.Meta, at now: Date, in calendar: Calendar) -> [String] {
         if let away = meta.away {
             return [away]
         }
 
-        let window = [meta.terminal.map(terminal), meta.onScreen.flatMap(onScreen)].compactMap(\.self)
+        let app = meta.app ?? meta.terminal.flatMap { $0 == "tmux" ? nil : terminal($0) }
+        let window = [app, meta.onScreen.flatMap(onScreen)].compactMap(\.self)
         let started = meta.started.map { self.started($0, at: now, in: calendar) }
 
-        return [window.isEmpty ? nil : window.joined(separator: ", "), started].compactMap(\.self)
+        let parts = [window.isEmpty ? nil : window.joined(separator: ", "), started].compactMap(\.self)
+
+        return app == nil ? parts.enumerated().map { $0.offset == 0 ? capitalised($0.element) : $0.element } : parts
+    }
+
+    /// Words with their first letter a capital, as a line that starts "on screen" or "started" does.
+    private static func capitalised(_ words: String) -> String {
+        words.prefix(1).uppercased() + words.dropFirst()
     }
 
     /// Whether a window of the session is on screen, in words: nothing where the look gave no answer.
@@ -44,13 +54,15 @@ extension Words {
     ]
 
     /// When a session started, on the 24-hour clock in local time: "started today, 09:12", "started yesterday, 18:40";
-    /// within the week before, its weekday, "started Mon, 09:12"; further back, its date, "started 3 Nov, 09:12".
+    /// within the week before, its weekday, "started Mon, 09:12"; further back, its date, "started 3 Nov, 09:12", and
+    /// its year where that is not this one, "started 3 Nov 2025, 09:12".
     public static func started(_ started: Date, at now: Date, in calendar: Calendar) -> String {
         var calendar = calendar
 
         calendar.locale = Locale(identifier: "en_US_POSIX")
 
-        let parts = calendar.dateComponents([.weekday, .day, .month, .hour, .minute], from: started)
+        let parts = calendar.dateComponents([.weekday, .day, .month, .year, .hour, .minute], from: started)
+        let year = parts.year == calendar.component(.year, from: now) ? "" : " \(parts.year!)"
         let clock = String(format: "%02d:%02d", parts.hour!, parts.minute!)
         let days = calendar.dateComponents(
             [.day], from: calendar.startOfDay(for: started), to: calendar.startOfDay(for: now)
@@ -59,7 +71,7 @@ extension Words {
         case ...0: "today"
         case 1: "yesterday"
         case 2 ..< 7: calendar.shortWeekdaySymbols[parts.weekday! - 1]
-        default: "\(parts.day!) \(calendar.shortMonthSymbols[parts.month! - 1])"
+        default: "\(parts.day!) \(calendar.shortMonthSymbols[parts.month! - 1])\(year)"
         }
 
         return "started \(day), \(clock)"

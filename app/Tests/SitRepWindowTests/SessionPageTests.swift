@@ -45,9 +45,11 @@ struct SessionPageTests {
 
     private struct Unled: Error {}
 
-    /// The window's last look at the screen, as `sitrep screen` read this session.
-    private static func looked(_ run: WindowRun, at session: String, is state: OnScreen) throws {
-        let reading = #"{"v":1,"sessions":[{"id":"\#(session)","is":"\#(state.rawValue)"}],"unanswered":[]}"#
+    /// The window's last look at the screen, as `sitrep screen` read this session, in the app given, as the CLI says
+    /// it since it said one, or as one before said it, with none.
+    private static func looked(_ run: WindowRun, at session: String, is state: OnScreen, in app: String? = nil) throws {
+        let app = app.map { #","app":"\#($0)""# } ?? ""
+        let reading = #"{"v":1,"sessions":[{"id":"\#(session)","is":"\#(state.rawValue)"\#(app)}],"unanswered":[]}"#
 
         run.window(isVisible: true)
 
@@ -187,29 +189,73 @@ struct SessionPageTests {
         #expect(try Self.leading(run).needs == "the command's output")
     }
 
-    /// A window's stop picked leads as the stop's card, and the line for what its window is doing, which would say the
-    /// stop again, gives way to it.
-    @Test func aStopPickedLeadsWithTheStopInPlaceOfTheDoingLine() throws {
+    /// Dashboard redesign's window stopped on Lee, as its row's line and what it is doing both say it.
+    private static let dashStop = "stop:sr-dash02:w2:1792486361000"
+    private static let allowBash = SessionPage.Stop(
+        doing(.permission, "Allow Bash", mono: "gh pr create --draft --base main", since: minutes(before: 1))
+    )!
+
+    /// A window's stop picked leads as its line says it, and the line for what its window is doing, which would say
+    /// the stop again, gives way to it.
+    @Test func aStopPickedLeadsAsItsLineSaysItInPlaceOfTheDoingLine() throws {
         let run = opened()
 
-        run.pickInList(.line("stop:sr-dash02:w2:1792486361000"), at: printedAt)
+        run.pickInList(.line(Self.dashStop), at: printedAt)
 
         let page = try Self.page(run)
 
-        #expect(page.lead == .stop)
-        #expect(page.doing == doing(.permission, "Allow Bash", mono: "gh pr create --draft --base main", since: minutes(before: 1)))
+        #expect(page.lead == .stop(Self.allowBash))
         #expect(page.doingLine == SessionPage.DoingLine.none)
     }
 
-    /// An ask of a session its window has stopped on Lee leads with its card; the stop, a row of its own, stays the
-    /// line for what its window is doing.
-    @Test func anAskOfAStoppedSessionLeadsWithItsCardTheStopItsDoingLine() throws {
+    /// Lee answered the stop picked in its terminal and the window stopped again: the new stop is another line, so
+    /// the pick leads nothing, and the stop stands in the doing line's place as its card, its jump with it. Gone with
+    /// no stop after it, nothing leads.
+    @Test func aStopThatFollowsTheOnePickedStandsInTheDoingLinesPlace() throws {
+        let run = opened()
+        let restopped = Lines.watch[0].replacingOccurrences(of: Self.dashStop, with: "stop:sr-dash02:w2:1792486400000")
+
+        run.pickInList(.line(Self.dashStop), at: printedAt)
+        run.show(heard(.line(restopped)), at: printedAt, reducesMotion: false)
+
+        let page = try Self.page(run)
+
+        try #require(restopped != Lines.watch[0])
+        #expect(page.lead == nil)
+        #expect(page.doingLine == .stop(Self.allowBash))
+        run.show(heard(answered("sr-dash02")), at: printedAt, reducesMotion: false)
+        #expect(try Self.page(run).lead == nil)
+    }
+
+    /// An ask of a session its window has stopped on Lee leads with its card; the stop, a row of its own, stands in the
+    /// doing line's place as its card.
+    @Test func anAskOfAStoppedSessionLeadsWithItsCardTheStopInTheDoingLinesPlace() throws {
         let run = opened(boards: ["sr-dash02": Lines.dashboard])
 
         run.pickInList(.line("ask:sr-dash02:k1"), at: printedAt)
         take(["sr-dash02": Lines.dashboard], in: run)
         #expect(try Self.leading(run).id == AskAddress(session: "sr-dash02", ask: "k1"))
-        #expect(try Self.page(run).doingLine == .line)
+        #expect(try Self.page(run).doingLine == .stop(Self.allowBash))
+    }
+
+    /// Picked before the session's own board has come, its ask leads at once, as the board itself carries it, its
+    /// buttons ready.
+    @Test func beforeItsBoardComesThePickedAskLeadsAsTheBoardCarriesIt() throws {
+        let run = opened(boards: [:])
+        let card = try Self.leading(run)
+
+        #expect(!(try Self.page(run).hasBoard))
+        #expect(card.id == AskAddress(session: "sr-macapp", ask: "k1"))
+        #expect(card.buttons == [.yes("Approve"), .inClaude(.comment), .ignore, .snooze])
+    }
+
+    /// Two sessions each with an ask k1: the one picked is its own session's, never the other's.
+    @Test func theSameAskIdInAnotherSessionNeverLeads() throws {
+        let run = opened()
+
+        run.pickInList(.line("ask:sr-dash02:k1"), at: printedAt)
+        #expect(try Self.leading(run).id == AskAddress(session: "sr-dash02", ask: "k1"))
+        #expect(try Self.leading(run).title != (try Self.card("k1", opened())).title)
     }
 
     @Test(arguments: [(Place.yourTurn, Lines.watch[0]), (.working, Lines.onItsWork)])
@@ -234,7 +280,7 @@ struct SessionPageTests {
         let left = printedAt.addingTimeInterval(3)
 
         overThePage(run)
-        take(["sr-macapp": Lines.delivered], in: run)
+        take(["sr-macapp": Lines.delivered], in: run, on: line(2))
         #expect(try Self.leading(run).isClosed)
         run.pointer(overPage: false, from: pageRegion, at: left)
         run.settle(at: left.addingTimeInterval(1))
@@ -252,7 +298,7 @@ struct SessionPageTests {
     }
 
     @Test func fillingTheWindowAStopStandsInTheDoingLinesPlace() throws {
-        #expect(try Self.page(Self.full("sr-dash02", boards: [:])).doingLine == .stop)
+        #expect(try Self.page(Self.full("sr-dash02", boards: [:])).doingLine == .stop(Self.allowBash))
     }
 
     // MARK: The meta line
@@ -262,7 +308,7 @@ struct SessionPageTests {
         let start = minutes(before: 60)
         let meta = try Self.page(Self.full("sr-macapp", on: Self.started(start))).meta
 
-        #expect(meta == SessionPage.Meta(terminal: "ghostty", onScreen: nil, started: start, away: nil))
+        #expect(meta == SessionPage.Meta(terminal: "ghostty", app: nil, onScreen: nil, started: start, away: nil))
         #expect(Words.meta(meta, at: printedAt, in: Self.utc) == "Ghostty · started today, 07:53")
     }
 
@@ -287,6 +333,36 @@ struct SessionPageTests {
         #expect(Spoken.meta(meta, at: printedAt, in: Self.utc) == words)
     }
 
+    /// In tmux its window's `$TERM_PROGRAM` is tmux, which names no app: the app is the one the look saw showing it.
+    @Test func theMetaLineNamesTheAppTheLookSawShowingIt() throws {
+        let run = Self.full("sr-macapp", on: .line(Lines.watch[0].replacingOccurrences(of: #""terminal":"ghostty""#, with: #""terminal":"tmux""#)))
+
+        try Self.looked(run, at: "sr-macapp", is: .on, in: "Ghostty")
+
+        let meta = try Self.page(run).meta
+
+        #expect((meta.terminal, meta.app) == ("tmux", "Ghostty"))
+        #expect(Words.meta(meta, at: printedAt, in: Self.utc) == "Ghostty, on screen")
+    }
+
+    /// Two windows on one session, each stopped: the meta line names the one the picked line is of.
+    @Test func theMetaLineIsOfTheWindowThePickedLineIsOf() throws {
+        let line = edited(Lines.watch[0]) { board in
+            var windows = board["windows"] as! [[String: Any]]
+            var other = windows[1]
+
+            other["writer"] = "w9"
+            other["where"] = ["device": "/dev/ttys002", "terminal": "iTerm.app", "tmux": NSNull()]
+            other["attachedAt"] = (other["attachedAt"] as! Double) + 1000
+            windows.append(other)
+            board["windows"] = windows
+        }
+        let run = opened(on: .line(line))
+
+        run.pickInList(.line(Self.dashStop), at: printedAt)
+        #expect(try Self.page(run).meta.terminal == "ghostty")
+    }
+
     /// Away, the away line in its place, and no doing line under it to say it again.
     @Test func awayTheAwayLineIsTheMetaLine() throws {
         let page = try Self.page(Self.full("sr-gs7kq2", boards: ["sr-gs7kq2": Lines.away]))
@@ -297,11 +373,19 @@ struct SessionPageTests {
     }
 
     @Test func itsWords() {
-        let meta = SessionPage.Meta(terminal: "iTerm.app", onScreen: .on, started: minutes(before: 60 * 24 * 3), away: nil)
+        let started = minutes(before: 60 * 24 * 3)
+        let meta = SessionPage.Meta(terminal: "iTerm.app", app: nil, onScreen: .on, started: started, away: nil)
+        let words = { (meta: SessionPage.Meta) in Words.meta(meta, at: printedAt, in: Self.utc) }
 
-        #expect(Words.meta(meta, at: printedAt, in: Self.utc) == "iTerm2, on screen · started Sat, 08:53")
+        #expect(words(meta) == "iTerm2, on screen · started Sat, 08:53")
         #expect(Spoken.meta(meta, at: printedAt, in: Self.utc) == "iTerm2, on screen, started Sat, 08:53")
-        #expect(Words.meta(SessionPage.Meta(terminal: nil, onScreen: nil, started: nil, away: nil), at: printedAt, in: Self.utc) == nil)
+        #expect(words(SessionPage.Meta(terminal: nil, app: nil, onScreen: nil, started: nil, away: nil)) == nil)
+        #expect(words(SessionPage.Meta(terminal: nil, app: nil, onScreen: .on, started: started, away: nil))
+            == "On screen · started Sat, 08:53")
+        #expect(words(SessionPage.Meta(terminal: "tmux", app: nil, onScreen: .off, started: nil, away: nil))
+            == "Not on screen")
+        #expect(words(SessionPage.Meta(terminal: "tmux", app: nil, onScreen: nil, started: nil, away: nil)) == nil)
+        #expect(Words.started(minutes(before: 60 * 24 * 400), at: printedAt, in: Self.utc) == "started 15 Sep 2025, 08:53")
         #expect(Words.terminal("ghostty") == "Ghostty")
         #expect(Words.terminal("tmux") == "tmux")
         #expect(Words.started(minutes(before: 60 * 16), at: printedAt, in: Self.utc) == "started yesterday, 16:53")
@@ -408,9 +492,9 @@ struct SessionPageTests {
 
     // MARK: What happened
 
-    /// Its asks still open, "Asked …", among its log's lines, all by their times, the newest first.
+    /// Filling the window, its asks, "Asked …", among its log's lines, all by their times, the newest first.
     @Test func whatHappenedMergesItsOpenAsksWithItsLogTheNewestFirst() throws {
-        let page = try Self.page(opened())
+        let page = try Self.page(Self.full("sr-macapp"))
 
         #expect(page.happened.map(\.id) == [
             "asked:k1", "asked:k3", "asked:k2", "sr-macapp:n2", "sr-macapp:n1",
@@ -424,10 +508,33 @@ struct SessionPageTests {
         #expect(asked == SessionPage.Asked(id: AskAddress(session: "sr-macapp", ask: "k1"), title: "Look at round 3, the SitRep window, and approve it or comment", at: asked.at))
     }
 
+    /// Beside the list the session's asks are rows of their own, the picked one leading: none is in What happened.
+    @Test func besideTheListWhatHappenedIsItsLogAlone() throws {
+        #expect(try Self.page(opened()).happened.map(\.id) == [
+            "sr-macapp:n2", "sr-macapp:n1",
+            "sr-macapp:status@1792420421.0:w1:Status: now drawing round 3, the SitRep window, in Paper (and 1 more)",
+        ])
+    }
+
+    /// Its asks are the cards the page draws: an ask answered while the page holds keeps its entry, as its card keeps
+    /// its place, faint; once the page lets go, both go.
+    @Test func whileThePageHoldsAnAnsweredAsksEntryStaysAsItsCardDoes() throws {
+        let run = Self.full("sr-macapp")
+        let left = printedAt.addingTimeInterval(3)
+        let asked = { try Self.page(run).happened.map(\.id).filter { $0.hasPrefix("asked:") } }
+
+        overThePage(run)
+        take(["sr-macapp": Lines.delivered], in: run)
+        #expect(try asked() == ["asked:k1", "asked:k3", "asked:k2"])
+        run.pointer(overPage: false, from: pageRegion, at: left)
+        run.settle(at: left.addingTimeInterval(1))
+        #expect(try asked() == ["asked:k2"])
+    }
+
     @Test func anAskAsOldAsALineComesBeforeIt() {
         let at = minutes(before: 30)
         let line = Note(id: "n1", session: nil, text: "A note", detail: [], at: at)
-        let happened = SessionPage.happened([line], asks: [Self.ask("k1", at: at)], of: "s1")
+        let happened = SessionPage.happened([line], asks: [Self.ask("k1", at: at)])
 
         #expect(happened.map(\.id) == ["asked:k1", "n1"])
     }
@@ -440,7 +547,7 @@ struct SessionPageTests {
         let asks = [Self.ask("k1", at: minutes(before: 60)), Self.ask("k2", at: minutes(before: 5))]
         let lineIDs = (0 ..< lines).map { "l\($0)" }
 
-        #expect(SessionPage.happened(log, asks: asks, of: "s1").map(\.id)
+        #expect(SessionPage.happened(log, asks: asks).map(\.id)
             == ["asked:k2"] + lineIDs + (lines < SessionPage.logLines ? ["asked:k1"] : []))
     }
 
@@ -464,12 +571,7 @@ struct SessionPageTests {
         #expect(try !Self.page(run).opened.contains(.resolvedFold))
     }
 
-    private static func ask(_ id: String, at time: Date) -> Board.Ask {
-        let json = #"{"id":"\#(id)","wants":"yes","yes":null,"title":"Ask \#(id)","where":null,"options":[],"needs":null,"ref":null,"state":"waiting","at":\#((time.timeIntervalSince1970 * 1000).rounded()),"reply":null}"#
-
-        let decoder = JSONDecoder()
-
-        decoder.dateDecodingStrategy = .millisecondsSince1970
-        return try! decoder.decode(Board.Ask.self, from: Data(json.utf8))
+    private static func ask(_ id: String, at time: Date) -> SessionPage.Asked {
+        SessionPage.Asked(id: AskAddress(session: "s1", ask: id), title: "Ask \(id)", at: time)
     }
 }

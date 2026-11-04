@@ -77,6 +77,9 @@ struct CardView: View {
     /// Its title's size: as A2 revised draws a card, or larger leading the detail, as A1 revised draws it.
     private var titleSize: CGFloat { leads ? 18 : 15 }
 
+    /// Its title's first line's height, which its mark and its age sit in the middle of.
+    private var titleLine: CGFloat { leads ? 22 : 18 }
+
     /// Behind it: the raise; nothing once closed, in its ring; asleep, the darker card in its faint ring.
     private var fill: Color {
         card.isClosed ? .clear : isAsleep ? WindowStyle.asleep : WindowStyle.raise
@@ -86,19 +89,26 @@ struct CardView: View {
         isAsleep ? WindowStyle.asleepRing : WindowStyle.line
     }
 
+    /// Its mark, title and age, the mark and the age on the title's first line however many it wraps to.
     private var title: some View {
-        HStack(spacing: 10) {
-            if card.isClosed {
-                ClosedTick()
-            } else {
-                MarkView(mark: card.mark)
+        HStack(alignment: .top, spacing: 10) {
+            Group {
+                if card.isClosed {
+                    ClosedTick()
+                } else {
+                    MarkView(mark: card.mark)
+                }
             }
+            .frame(height: titleLine)
             titled(card.isClosed ? WindowStyle.faint : isAsleep ? WindowStyle.soft : WindowStyle.text)
                 .font(WindowStyle.ui(titleSize, .semibold))
                 .spacing(-0.01, of: titleSize)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .accessibilityHidden(true)
-            Text(Words.age(card.since, at: now)).font(WindowStyle.ui(12)).foregroundStyle(WindowStyle.faint)
+            Text(Words.age(card.since, at: now))
+                .font(WindowStyle.ui(12))
+                .foregroundStyle(WindowStyle.faint)
+                .frame(height: titleLine)
         }
     }
 
@@ -187,7 +197,7 @@ struct SnoozeButton: View {
                 SnoozeChevron().stroke(style: StrokeStyle(lineWidth: 1.25, lineCap: .round, lineJoin: .round))
                     .frame(width: 8, height: 5)
             }
-            .font(WindowStyle.ui(12, .medium))
+            .font(WindowStyle.ui(13, .medium))
             .padding(.vertical, 6)
             .padding(.horizontal, 8)
         }

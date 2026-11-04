@@ -16,9 +16,8 @@ enum WindowStyle {
     static let ink = Color(hex: 0x111113)
     /// An outlined pill's ring.
     static let ring = Color(hex: 0x2C2C31)
-    /// An option's fill and its ring.
+    /// An outlined pill's fill under the pointer, and the jump's.
     static let option = Color(hex: 0x1C1C1F)
-    static let optionRing = Color(hex: 0x34343A)
     /// A pill under the pointer: its fill and its ring lifted.
     static let optionLift = Color(hex: 0x26262A)
     static let ringLift = Color(hex: 0x45454C)

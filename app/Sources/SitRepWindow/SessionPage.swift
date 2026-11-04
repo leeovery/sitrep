@@ -12,27 +12,36 @@ public struct SessionPage: Equatable, Sendable {
     }
 
     /// What leads the detail: the card of the line picked in Needs you, an ask's, asleep or closed while the page holds
-    /// as it may be, or a window's stop.
+    /// as it may be, or a window's stop, as its line says it.
     public enum Lead: Equatable, Sendable {
         case ask(Card)
-        case stop
+        case stop(Stop)
+    }
+
+    /// A window stopped on Lee, a permission prompt or a question: the tool and what it would run, and since when.
+    public struct Stop: Equatable, Sendable {
+        public let kind: Doing.Kind
+        public let line: Board.Row.Words
+        public let since: Date
     }
 
     /// What stands under the page's head for what its window is doing.
-    public enum DoingLine: Sendable {
+    public enum DoingLine: Equatable, Sendable {
         /// The line, its mark beside it.
         case line
         /// A window's stop, as its card, washed orange, in the line's place.
-        case stop
+        case stop(Stop)
         /// Nothing: the meta line says it is away, or the stop leads the detail already.
         case none
     }
 
-    /// Filling the window, under its name: its terminal and whether a window of it is on screen, and when it started;
-    /// or, away, that no window holds it.
+    /// Filling the window, under its name: the terminal app its window is in and whether a window of it is on screen,
+    /// and when it started; or, away, that no window holds it.
     public struct Meta: Equatable, Sendable {
-        /// The terminal its window is in, as `$TERM_PROGRAM` names it: `ghostty`, `tmux`, `iTerm.app`.
+        /// The terminal its window is in, as its `$TERM_PROGRAM` names it: `ghostty`, `iTerm.app`; in tmux, `tmux`.
         public let terminal: String?
+        /// The terminal app showing it, as the last look at the screen said, which tells the app in tmux too.
+        public let app: String?
         /// Whether a jump could reach it, as the last look at the screen said; none with no reading of it.
         public let onScreen: OnScreen?
         public let started: Date?
@@ -108,13 +117,17 @@ public struct SessionPage: Equatable, Sendable {
         doing.isAway && waiting > 0 ? .awayAsk : doing.mark
     }
 
-    /// What stands under its head for what its window is doing: filling the window, a stop's card in the line's place,
-    /// and nothing while away, as its meta line says so; beside the list, the line, but nothing where the stop leads.
+    /// What stands under its head for what its window is doing: a stop's card in the line's place, wherever a window
+    /// is stopped, so a stop that follows the one picked still shows as one; filling the window, nothing while away, as
+    /// its meta line says so; beside the list, nothing where a stop leads already.
     public var doingLine: DoingLine {
-        switch mode {
-        case .full: doing.isStopped ? .stop : doing.isAway ? .none : .line
-        case .detail: lead == .stop ? .none : .line
+        if case .stop = lead {
+            return .none
         }
+        if let stop = Stop(doing) {
+            return .stop(stop)
+        }
+        return mode == .full && doing.isAway ? .none : .line
     }
 
     /// The cards the page draws: filling the window, every ask's; beside the list, none but the lead's, which leads.
@@ -127,14 +140,14 @@ extension SessionPage {
     /// How many of a session's latest log lines its board carries (core's `BRIEF_LOG_LINES`).
     static let logLines = 8
 
-    /// What happened, the newest first: the log's lines in its own order, and among them the asks still open, the
-    /// newest first, each before the first line older than it, so before a line as old. With the log as full as a
-    /// board carries it, the asks older than its oldest line are cut, as the lines between them are gone.
-    static func happened(_ log: [Note], asks: [Board.Ask], of session: String) -> [Happened] {
+    /// What happened, the newest first: the log's lines in its own order, and among them the asks given, the newest
+    /// first, each before the first line older than it, so before a line as old. With the log as full as a board
+    /// carries it, the asks older than its oldest line are cut, as the lines between them are gone; a log of exactly
+    /// that many lines cannot tell it is not cut, so cuts too.
+    static func happened(_ log: [Note], asks: [Asked]) -> [Happened] {
         let oldest = log.count >= logLines ? log.last?.at : nil
-        let newest = asks.filter { ask in oldest.map { ask.at >= $0 } ?? true }
-            .enumerated().sorted { ($1.element.at, $0.offset) < ($0.element.at, $1.offset) }.map(\.element)
-        var asked = ArraySlice(newest.map { Asked(id: AskAddress(session: session, ask: $0.id), title: $0.title, at: $0.at) })
+        let kept = asks.filter { ask in oldest.map { ask.at >= $0 } ?? true }
+        var asked = ArraySlice(kept.enumerated().sorted { ($1.element.at, $0.offset) < ($0.element.at, $1.offset) }.map(\.element))
         var happened: [Happened] = []
 
         for line in log {
@@ -148,10 +161,36 @@ extension SessionPage {
     }
 }
 
-extension Card {
+extension SessionPage.Asked {
+    /// A card's ask, as asked, open or closed while the page holds.
+    init(_ card: Card) {
+        self.init(id: card.id, title: card.title, at: card.since)
+    }
+}
+
+extension SessionPage.Stop {
+    /// What a session is doing, where it is a stop.
+    init?(_ doing: Doing) {
+        guard doing.isStopped else {
+            return nil
+        }
+        self.init(kind: doing.kind, line: doing.line, since: doing.since)
+    }
+
+    /// A stop's line of a session's row in Needs you.
+    init?(_ line: Board.Row.Line) {
+        switch line.kind {
+        case .permission: self.init(kind: .permission, line: line.first, since: line.since)
+        case .question: self.init(kind: .question, line: line.first, since: line.since)
+        case .ask, .yourTurn, .working, .onItsWork: return nil
+        }
+    }
+}
+
+extension AskAddress {
     /// Its line's key in core's rows, the same in Needs you and Snoozed (core/rows.ts's `askKey`).
     var key: String {
-        "ask:\(id.session):\(id.ask)"
+        "ask:\(session):\(ask)"
     }
 }
 

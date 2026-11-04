@@ -147,13 +147,18 @@ const byId = (shown: readonly Shown[]) =>
 
 /**
  * `screen --json`: each session a live window holds, by its id, saying
- * whether a jump could reach it, `on`, `off` or `unknown`; and what gave no
- * answer, by name.
+ * whether a jump could reach it, `on`, `off` or `unknown`, and the terminal
+ * app showing it, `Ghostty`, null where none is known to (added after `v` 1
+ * was set, `v` unmoved); and what gave no answer, by name.
  */
 export const screenJson = ({ shown, unanswered }: OnScreen) =>
   json({
     v: OUTPUT.screen,
-    sessions: byId(shown).map(({ session, is }) => ({ id: session.id, is: SCREEN_JSON[is] })),
+    sessions: byId(shown).map(({ session, is, app }) => ({
+      id: session.id,
+      is: SCREEN_JSON[is],
+      app: app ?? null,
+    })),
     unanswered,
   })
 

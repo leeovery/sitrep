@@ -2171,12 +2171,17 @@ truth. There is still no background service. None of it is built now. Lee:
     - `--json`, `v` 1, the sessions by id, and `unanswered` naming what gave
       no answer, `tmux`, `ps`, or neither; plain `screen` says the same a line
       each (`sr-k3f9qa  Dashboard redesign: on screen`, `not on screen`, `not
-      known`), then what gave no answer.
+      known`), then what gave no answer. Each session on screen names the
+      app showing it, the first place a jump would bring forward, as
+      `"Ghostty"`: in tmux the app its client descends from, which
+      `$TERM_PROGRAM`, `tmux` there, cannot tell; `null` where it is not on
+      screen (4 November 2026, for the session page's meta line; added to
+      `v` 1, which a reader that ignores it reads as before).
 
       ```
       { "v": 1,
-        "sessions": [ { "id": "sr-k3f9qa", "is": "on" },
-                      { "id": "sr-bbbbbb", "is": "unknown" } ],
+        "sessions": [ { "id": "sr-k3f9qa", "is": "on", "app": "Ghostty" },
+                      { "id": "sr-bbbbbb", "is": "unknown", "app": null } ],
         "unanswered": ["tmux"] }
       ```
 
@@ -4153,14 +4158,17 @@ stands).
       at 85%; "Open in Ghostty ↗" trails it while a window holds the
       session. Under it what its window is doing (below), then, in Needs
       you, the picked line's card leading: an ask's card larger than a
-      page's, its title 18 semibold, its `where` 13, 18 inside its edges;
+      page's, its title 18 semibold, its mark and age on its first line,
+      its `where` 13, 18 inside its edges;
       an ask asleep under "N snoozed" its card asleep; a window's stop its
-      stop card at the same size, the line for what its window is doing
-      giving way to it, as it would say the stop again. The session's
-      other lines are rows of their own, so the detail shows the picked
-      one alone. A picked ask answered keeps leading, closed and faint,
-      while the page holds, then nothing leads, nothing taking its place.
-      In Working or Your turn the detail has no lead;
+      stop card at the same size, from the line picked, so of a session
+      two windows hold it is the stop of the window picked, gone with its
+      line. Before the board has the ask the feed named, its card is made
+      from the feed's asks, so it leads at once. The session's other lines
+      are rows of their own, so the detail shows the picked one alone. A
+      picked ask answered keeps leading, closed and faint, while the page
+      holds, then nothing leads, nothing taking its place. In Working or
+      Your turn the detail has no lead;
     - **filling the window**, 40 in: its project's name an eyebrow over its
       name, 15 semibold in the secondary colour, a press opening the
       project. It starts at the top a project's title starts at, so going
@@ -4168,15 +4176,19 @@ stands).
       place (Lee, 20 October 2026, of the name as a small button up by the
       toolbar: it "suddenly gets really small and tucked up right close to
       the top… It almost sits inside the header of the page"). Its name,
-      26 bold, sits close under it, "Open in Ghostty ↗" on its row (see
-      "The jump"); under it the meta line, 12 in white at 35%: its
-      window's terminal, as the board's windows name it by
-      `$TERM_PROGRAM` (`ghostty` reads "Ghostty", `tmux` as named), "on
-      screen" or "not on screen" as the window's last look said, nothing
-      where it gave no answer or there is no reading (see "On screen");
-      then when it started, from `watch`'s `created`, "started today,
-      09:12", "yesterday", a weekday within the week, else "3 Nov": as
-      "Ghostty, on screen · started today, 09:12". Away, the away line
+      28 bold, sits close under it, "Open in Ghostty ↗" on its row (see
+      "The jump"); under it the meta line, 12 in white at 35%: the app
+      showing its window, as the screen's reading names it (see "On
+      screen"), else its window's terminal by `$TERM_PROGRAM` (`ghostty`
+      reads "Ghostty"), but never `tmux`, which names no app, so under
+      tmux with no reading it names none; "on screen" or "not on screen"
+      as the last look said, nothing where it gave no answer or there is
+      no reading; then when it started, from `watch`'s `created`,
+      "started today, 09:12", "yesterday", a weekday within the week,
+      else "3 Nov", "3 Nov 2025" in another year: as "Ghostty, on screen
+      · started today, 09:12", its first word capitalised where no app
+      leads, "On screen · started …". Its window is the one of the line
+      picked, else the one a jump goes to. Away, the away line
       takes its place, "No window holds it. Carry it on in Claude.". Then
       what its window is doing, or a stop's card in its place; then every
       ask's card, its title 15 semibold and its `where` 13 (14 and 12
@@ -4187,22 +4199,31 @@ stands).
       draw none), in the meta line's place beside the list and under it
       filling the window: its mark, the turning arc and the shimmering
       verb of a working session, what it acts on, and how long its turn
-      has run, as before. Away and filling the window, the meta line says
-      it, so there is none;
+      has run, as before. A window stopped shows its stop's card in this
+      place, unless a stop leads, which says it already; so beside the
+      list, an ask of a session whose window is stopped leads under the
+      stop's card. Away and filling the window, the meta line says it, so
+      there is none;
     - **Now**, a heading 13 semibold in white at 85%, and on its right
       "updated 1h ago", 12 in white at 35%, from its log's newest status
       line, gone once that line is past the 8 newest its board carries;
-      under it, 14 in, a bullet per line of its status; "◦ next …", the
-      word quieter; and "◇ later · 2 parked ›" while it parked any, which
-      opens Parked narrowed to the session;
+      under it, 14 in, a filled bullet per line of its status; "◦ next
+      …", a stroked ring, the word quieter; and "◇ later · 2 parked ›"
+      while it parked any, which opens Parked narrowed to the session;
+      each line in a row of 28 beside the list, 26 filling the window;
     - **What happened**, one thread, the newest first, 14 in: its log's
-      lines, notes and status lines alike, each on a dot, and its asks
-      still open, "Asked Approve the schema change", the word quieter, on
-      a hollow mark, merged by their times, an ask before a line as old;
-      each mark ringed in the page's black on a line down them, white at
-      12%; its age in a lane of 30. A board carries the 8 newest lines, so
-      while the log is that full, an ask older than its oldest line is
-      cut, as what happened between is gone. At its end "N resolved ›",
+      lines, notes and status lines alike, each on a dot; filling the
+      window, the asks its cards show too, "Asked Approve the schema
+      change", the word quieter, on a hollow mark, merged by their times,
+      an ask before a line as old, so an ask answered while the page
+      holds stays with its card. Beside the list the log alone, as the
+      session's asks are rows of their own. Each mark ringed in the
+      page's black on a line down them, white at 12%; its age in a lane
+      of 30; each line in a row of 28 beside the list, 26 filling the
+      window, its words and its age one element to VoiceOver. A board
+      carries the 8 newest lines, so once the log holds 8, an ask older
+      than its oldest line is cut, as what happened between may be gone.
+      At its end "N resolved ›",
       folded each time a page shows, opens in place to its resolved asks,
       the newest closed first, each opening to how it closed.
   - **the band under the toolbar**, beside the traffic lights, stays
@@ -4435,12 +4456,15 @@ stands).
   - **one look per role, whatever the ask** (Paper's page "Answer buttons",
     board I1, Lee's pick of 26 October 2026, and live on the 27th: "I think
     they look fine."). An answer given here, **a
-    yes** in Claude's words or each of **a choice**'s options, is the option
-    pill: #1C1C1F in a #34343A ring, 12 semibold, 12 by 5 inside, corners of
-    13. What leaves for Claude, Comment in Claude and Answer in Claude, the
-    your-turn card's among them, is outlined, its ↗ in the soft grey. Lee,
-    of the white Answer in Claude beside grey options and a big white Go:
-    "I think we should be consistent there with our button approach";
+    yes** in Claude's words or each of **a choice**'s options, is the white
+    pill, 13 semibold, 14 by 6 inside, corners of 8, as A1 and A2 revised
+    draw a card's (4 November 2026; until then the option pill, #1C1C1F in
+    a #34343A ring, 12 semibold, corners of 13). What leaves for Claude,
+    Comment in Claude and Answer in Claude, the your-turn card's among
+    them, is outlined, 13 medium, its ↗ in the soft grey. The window's
+    cards alone: the panel's keep their own. Lee, of the white Answer in
+    Claude beside grey options and a big white Go: "I think we should be
+    consistent there with our button approach";
   - **the buttons sit on one line** as pills while they fit at their
     one-line widths, measured. Past that, as Claude's long options are, the
     answers stand one under another, 6 apart, left-aligned, each as wide as
@@ -4517,7 +4541,8 @@ stands).
   not list, as no window holds it, the window says nothing of it, which is
   not unknown: an away session gets no mark at all. A session's page
   filling the window says it in its meta line, "on screen" or "not on
-  screen", unknown saying nothing; the pip on a Needs you row not on
+  screen", unknown saying nothing, after the app the reading names as
+  showing it; the pip on a Needs you row not on
   screen and "· not on screen" on a project's page come with later changes.
   - It cannot ride `watch`: it changes with Lee's tmux and Ghostty, not
     with the board. So the window runs `screen` on its own cadence, only

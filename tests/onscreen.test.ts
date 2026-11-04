@@ -79,7 +79,11 @@ const onScreens = (options: Parameters<typeof terminal>[0] = {}) => {
   return t
 }
 
-type Printed = { v: number; sessions: { id: string; is: string }[]; unanswered: string[] }
+type Printed = {
+  v: number
+  sessions: { id: string; is: string; app: string | null }[]
+  unanswered: string[]
+}
 
 const printed = (out: string) => JSON.parse(out) as Printed
 
@@ -94,15 +98,31 @@ test('screen --json says, by id, whether a jump could reach each session a windo
   expect(printed(out)).toEqual({
     v: 1,
     sessions: [
-      { id: LOBBY.id, is: 'off' },
-      { id: LEDGER.id, is: 'off' },
-      { id: GOOSE.id, is: 'on' },
-      { id: QUIETLY.id, is: 'on' },
-      { id: GONE.id, is: 'off' },
-      { id: UNSAID.id, is: 'off' },
-      { id: META.id, is: 'on' },
+      { id: LOBBY.id, is: 'off', app: null },
+      { id: LEDGER.id, is: 'off', app: null },
+      { id: GOOSE.id, is: 'on', app: 'Ghostty' },
+      { id: QUIETLY.id, is: 'on', app: 'Ghostty' },
+      { id: GONE.id, is: 'off', app: null },
+      { id: UNSAID.id, is: 'off', app: null },
+      { id: META.id, is: 'on', app: 'Ghostty' },
     ],
     unanswered: [],
+  })
+})
+
+test('screen --json names the terminal app showing each session on screen: in tmux the app its client is in, which $TERM_PROGRAM, tmux there, cannot tell; none where it is not on screen or not known', async () => {
+  const appOf = (out: string) =>
+    Object.fromEntries(printed(out).sessions.map(session => [session.id, session.app]))
+
+  expect(appOf((await onScreens().run('screen', '--json')).out)).toMatchObject({
+    [META.id]: 'Ghostty',
+    [GOOSE.id]: 'Ghostty',
+    [QUIETLY.id]: 'Ghostty',
+    [LOBBY.id]: null,
+  })
+  expect(appOf((await onScreens({ missing: ['tmux'] }).run('screen', '--json')).out)).toMatchObject({
+    [META.id]: null,
+    [QUIETLY.id]: 'Ghostty',
   })
 })
 

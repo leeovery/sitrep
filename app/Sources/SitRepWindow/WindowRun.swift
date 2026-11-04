@@ -467,6 +467,11 @@ public final class WindowRun {
         looks.onScreen(of: session)
     }
 
+    /// The terminal app showing the session, as the last look at the screen says; none where none is known to.
+    public func appShowing(_ session: String) -> String? {
+        looks.app(of: session)
+    }
+
     /// The run of `sitrep screen` to make at this time, where the window shows and a look is due with none under way.
     public func looksAtScreen(at time: Date) -> ScreenLook? {
         looks.look(at: time)
