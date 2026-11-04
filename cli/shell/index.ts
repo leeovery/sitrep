@@ -8,7 +8,7 @@
 import { constants, readdirSync, readFileSync, statSync } from 'node:fs'
 import { appendFile, mkdir, open } from 'node:fs/promises'
 import { endOf, type Signals } from '../ending'
-import type { Io, Listed, Ran, Waiting } from '../io'
+import { TimedOut, type Io, type Listed, type Ran, type Waiting } from '../io'
 import { main } from '../main'
 
 /** Errors a listing means "not there" by: the folder is missing, or is a file. */
@@ -104,8 +104,8 @@ const run = async (command: readonly string[], limitMs?: number): Promise<Ran> =
       child.exited,
     ])
 
-    if (isKilled) {
-      throw new Error(`${command[0]} did not end within ${limitMs}ms`)
+    if (isKilled && limitMs !== undefined) {
+      throw new TimedOut(command[0] ?? '', limitMs)
     }
 
     return { exitCode, stdout, stderr }
@@ -168,6 +168,37 @@ const signals: Signals = {
   },
 }
 
+/** What SIGTERM does before the run ends, while anything is held; listened for only then, so `watch`'s own end is as ever. */
+const undos = new Set<() => Promise<void>>()
+
+let isEnding = false
+
+/** Once, though SIGTERM comes again while the undos run. */
+const undoAndEnd = () => {
+  if (isEnding) {
+    return
+  }
+
+  isEnding = true
+  void Promise.allSettled([...undos].map(undo => undo())).then(() => process.exit(143))
+}
+
+export const atTerm = (undo: () => Promise<void>) => {
+  const held = () => undo()
+
+  if (undos.size === 0) {
+    process.on('SIGTERM', undoAndEnd)
+  }
+
+  undos.add(held)
+
+  return () => {
+    if (undos.delete(held) && undos.size === 0) {
+      process.off('SIGTERM', undoAndEnd)
+    }
+  }
+}
+
 const io: Io = {
   fs: {
     read: async path => readFileSync(path, 'utf8'),
@@ -185,6 +216,7 @@ const io: Io = {
   out: text => void process.stdout.write(text),
   err: text => void process.stderr.write(text),
   ending: () => endOf(signals, PARENT),
+  atTerm,
   manifest: MANIFEST,
   run,
   writeTo,

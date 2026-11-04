@@ -33,6 +33,12 @@ export const CLI = 'cli'
 /** A window on another session, sending replies into this one's inbox. */
 export const SENDER = 'f0e1d2c3-0000-4000-8000-0000000000ff'
 
+/** A subagent's loop. */
+export const AGENT = 'a1b2c3d4'
+
+/** A loop of the engine's own, a compaction's, which no list of the session's agents names. */
+export const FORK = 'compact-0001'
+
 export const META: SessionMeta = {
   id: 'sr-k3f9qa',
   name: 'Dashboard redesign',

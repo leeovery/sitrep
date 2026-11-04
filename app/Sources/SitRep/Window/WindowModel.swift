@@ -343,15 +343,13 @@ final class WindowModel {
         }
     }
 
-    /// To the session's window, as the notch's and the menu's jumps go: one at a time, none while one runs from
-    /// anywhere. Only the button pressed shows it, until it answers.
+    /// To the session's window, as the notch's and the menu's jumps go: one at a time, in place of any under way. Only
+    /// the button pressed shows it, until it answers.
     private func jump(_ press: JumpPress) {
-        guard jumping.press(press, isJumping: works.isJumping) else {
-            return
-        }
+        let pressed = jumping.press(press)
 
         works.jump(to: press.session) { [weak self] _ in
-            MainActor.assumeIsolated { self?.jumping.answered() }
+            MainActor.assumeIsolated { self?.jumping.answered(pressed) }
         }
     }
 

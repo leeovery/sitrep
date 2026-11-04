@@ -23,6 +23,13 @@ export type Env = { XDG_STATE_HOME?: string; HOME?: string; SITREP_SESSION?: str
 /** How a program ran: its exit code, whatever it was, and what it printed. */
 export type Ran = { exitCode: number; stdout: string; stderr: string }
 
+/** What `run` rejects with for a program given a limit that had not ended by then, and was killed. */
+export class TimedOut extends Error {
+  constructor(program: string, limitMs: number) {
+    super(`${program} did not end within ${limitMs}ms`)
+  }
+}
+
 /** A wait under way: it resolves once its time has passed, unless `cancel` lets it go first, its timer with it, never to resolve. */
 export type Waiting = Promise<void> & { cancel: () => void }
 
@@ -67,11 +74,19 @@ export type Io = {
    * and stops the listening however it ends (ending.ts).
    */
   ending: () => Ending
+  /**
+   * Holds `undo` while what it undoes is out, as a knock's marker is: told
+   * to end (SIGTERM) meanwhile, the run does every undo held, then ends,
+   * exiting 143. With nothing held, SIGTERM ends the run as ever. Gives
+   * what lets it go.
+   */
+  atTerm: (undo: () => Promise<void>) => () => void
   /** Where the plugin's manifest is, `.claude-plugin/plugin.json`, in the copy of the plugin the CLI runs from: it says the version the CLI runs. */
   manifest: string
   /**
    * Runs a program by its words, no shell between. Rejects when it cannot
-   * start, or, given `limitMs`, when it has not ended by then: it is killed.
+   * start, or, given `limitMs`, when it has not ended by then: it is
+   * killed, and the rejection is a `TimedOut`.
    */
   run: (command: readonly string[], limitMs?: number) => Promise<Ran>
   /** Writes the text to a terminal device, as a program running on it would print it; rejects when the device is gone, and never makes a file. */

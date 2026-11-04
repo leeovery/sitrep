@@ -62,7 +62,8 @@ struct SitRepWatchTests {
                 executable: URL(fileURLWithPath: "/Users/lee/Code/sitrep/bin/sitrep"),
                 arguments: ["watch"],
                 environment: ["HOME": "/Users/lee", "PATH": Self.path],
-                limit: .infinity
+                limit: .infinity,
+                stopping: .group
             ),
         ])
     }

@@ -117,16 +117,6 @@ struct StripCrossTests {
         #expect(lab.model.release(at: lab.pointer!) == .nothing)
     }
 
-    @Test func aReleaseWhileAJumpRunsIsNoClick() {
-        var lab = StripLab(pointer: CGPoint(x: 18, y: 243))
-        lab.wait(50)
-
-        lab.model.press(at: lab.pointer!)
-
-        #expect(lab.model.release(at: lab.pointer!, clicks: false) == .nothing)
-        #expect(lab.model.jumping == nil)
-    }
-
     /// Frames that slept never saw the pointer move meanwhile: their first is measured from nothing, not from where
     /// the pointer rested minutes before.
     @Test func framesWokenAfterASleepMeasureNoSpeedFromBeforeIt() {

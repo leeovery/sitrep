@@ -1,7 +1,17 @@
+import Foundation
+
 /// The caption a jump from a row leaves, as the prototypes show it: "Jumped to SitRep's window", 90ms after the panel
 /// begins to drain, once the jump has answered that it jumped. It fades in over 160ms as it drops 4 into place, holds,
 /// and from 1350 rises as it fades, gone by 1600. Times are the view's clock, ms.
+///
+/// A jump from anywhere that runs on with no answer says so in the same place and look (4 November 2026): `still`, held
+/// until it ends, and `tooBusy` once it gives up at its limit.
 public struct JumpCaption: Equatable, Sendable {
+    /// A jump with no answer yet, two seconds on: it fades in as a caption does, and holds until the jump ends.
+    public static let still = "Still jumping…"
+    /// A jump that gave no answer within its limit, played as a caption is.
+    public static let tooBusy = "Couldn't jump: the Mac is too busy."
+
     public let text: String
     private var drained: Double?
     private var jumped: Double?
@@ -49,6 +59,19 @@ public struct JumpCaption: Equatable, Sendable {
 
     /// How long it shows, ms.
     public static let length = fadesFrom + fadeOut
+
+    /// The part of its look a caption plays, ms, over a pill already this opaque: from the moment its coming in is that
+    /// opaque, so taking the place of a caption coming in, holding or going it never jumps, to its end, or, held until
+    /// its jump ends, to its hold.
+    public static func part(holding: Bool, from alpha: Double) -> ClosedRange<Double> {
+        fadeIn * (1 - pow(1 - clamp(alpha, 0, 1), 1.0 / 3)) ... (holding ? fadeIn : length)
+    }
+
+    /// The part of its look a held caption plays as it goes, from the opacity it has: it rises as it fades, as a
+    /// caption ends, from wherever its coming in had got to.
+    public static func going(from alpha: Double) -> ClosedRange<Double> {
+        fadesFrom + (1 - clamp(alpha, 0, 1)) * fadeOut ... length
+    }
 
     static let after = 90.0, fadeIn = 160.0, fadesFrom = 1350.0, fadeOut = 250.0
 }

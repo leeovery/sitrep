@@ -124,7 +124,7 @@ struct StripRunTests {
         run.show(Self.working(["w1", "w2", "w3", "w4", "w6", "w7", "w8", "w9"]), Self.at(run.time))
         let first = try Self.countRow(0, in: run)
         run.press(Self.at(run.time, first))
-        let released = run.release(EdgeSettings(), mayJump: true, Self.at(run.time, first))
+        let released = run.release(EdgeSettings(), Self.at(run.time, first))
 
         guard case let .jump(session, to: target, click: click) = released else {
             Issue.record("released \(String(describing: released))")
@@ -133,20 +133,11 @@ struct StripRunTests {
         #expect(session.id == "sr-w6" && target == "sr-w6" && click == 1)
     }
 
-    @Test func noClickJumpsWhileAJumpRunsAndNoneIsCounted() {
-        let run = Self.shown(["a", "b"]), mark = Self.on("a", in: run)
-
-        run.press(Self.at(run.time, mark))
-
-        #expect(run.release(EdgeSettings(), mayJump: false, Self.at(run.time, mark)) == nil)
-        #expect(!run.isLatest(1))
-    }
-
     @Test func onlyTheLatestClicksAnswerIsHeard() {
         let run = Self.shown(["a", "b"]), mark = Self.on("a", in: run)
 
         run.press(Self.at(run.time, mark))
-        _ = run.release(EdgeSettings(), mayJump: true, Self.at(run.time, mark))
+        _ = run.release(EdgeSettings(), Self.at(run.time, mark))
 
         #expect(run.isLatest(1))
         #expect(!run.isLatest(0) && !run.isLatest(2))
@@ -159,7 +150,7 @@ struct StripRunTests {
 
         run.press(Self.at(run.time, mark))
         let clicked = run.time
-        _ = run.release(EdgeSettings(), mayJump: true, Self.at(run.time, mark))
+        _ = run.release(EdgeSettings(), Self.at(run.time, mark))
 
         #expect(run.takeShown().jumpDrained == nil)
         Self.frames(run, for: 600, mark)
@@ -174,10 +165,10 @@ struct StripRunTests {
         let run = Self.shown(["a", "b"]), a = Self.on("a", in: run), b = Self.on("b", in: run)
 
         run.press(Self.at(run.time, a))
-        _ = run.release(EdgeSettings(), mayJump: true, Self.at(run.time, a))
+        _ = run.release(EdgeSettings(), Self.at(run.time, a))
         Self.frames(run, for: 600, a)
         run.press(Self.at(run.time, b))
-        let released = run.release(EdgeSettings(), mayJump: true, Self.at(run.time, b))
+        let released = run.release(EdgeSettings(), Self.at(run.time, b))
 
         guard case .jump(_, to: "sr-b", click: 2) = released else {
             Issue.record("released \(String(describing: released))")
@@ -205,7 +196,7 @@ struct StripRunTests {
         Self.frames(run, for: 500, nil)
         #expect(abs(run.strip.layout.top - (top - 100)) < 0.5)
 
-        let released = run.release(EdgeSettings(), mayJump: true, Self.at(run.time, there))
+        let released = run.release(EdgeSettings(), Self.at(run.time, there))
 
         guard case let .dropped(drop) = released else {
             Issue.record("released \(String(describing: released))")
@@ -225,7 +216,7 @@ struct StripRunTests {
         let across = CGPoint(x: 1000, y: 300)
 
         run.moved(Self.at(run.time + Self.frameMS, across))
-        let released = run.release(settings, mayJump: true, Self.at(run.time, across))
+        let released = run.release(settings, Self.at(run.time, across))
 
         guard case let .dropped(drop) = released else {
             Issue.record("released \(String(describing: released))")
@@ -246,7 +237,7 @@ struct StripRunTests {
 
         #expect(ended && !run.isDragging)
         #expect(abs(run.strip.layout.top - top) < 1e-9)
-        #expect(run.release(EdgeSettings(), mayJump: true, Self.at(run.time)) == nil)
+        #expect(run.release(EdgeSettings(), Self.at(run.time)) == nil)
     }
 
     /// A drag along the pointer's path and let go across, a frame a refresh, its moves as given each refresh: the
@@ -264,7 +255,7 @@ struct StripRunTests {
                 run.moved(at(t, CGPoint(x: mark.x + (t - start) * 1.2, y: mark.y - (t - start) * 0.3)))
             }
             if k == 40 {
-                _ = run.release(EdgeSettings(), mayJump: true, at(read))
+                _ = run.release(EdgeSettings(), at(read))
             }
             run.step(at(read + frameMS, nil))
             tops.append(run.strip.yt.x)
@@ -295,7 +286,7 @@ struct StripRunTests {
             case .place: run.place(EdgeSettings(), moment)
             case .press: run.press(moment)
             case .moved: run.moved(moment)
-            case .release: _ = run.release(EdgeSettings(), mayJump: true, moment)
+            case .release: _ = run.release(EdgeSettings(), moment)
             case .endDrag: _ = run.endDrag(moment)
             case .clickElsewhere: run.clickElsewhere(moment)
             case .jumpAnswered: run.jumpAnswered(moment)
@@ -381,7 +372,7 @@ struct StripRunTests {
         let across = CGPoint(x: 1000, y: 300)
 
         run.moved(Self.at(run.time + Self.frameMS, across))
-        _ = run.release(EdgeSettings(), mayJump: true, Self.at(run.time, across))
+        _ = run.release(EdgeSettings(), Self.at(run.time, across))
         _ = run.takeShown()
         Self.frames(run, for: 300, nil)
 
@@ -398,7 +389,7 @@ struct StripRunTests {
         let across = CGPoint(x: 1000, y: 300)
 
         run.moved(Self.at(run.time + Self.frameMS, across))
-        _ = run.release(EdgeSettings(), mayJump: true, Self.at(run.time, across))
+        _ = run.release(EdgeSettings(), Self.at(run.time, across))
         _ = run.takeShown()
         run.catchUp(Self.at(run.time + 600, isShown: false))
         run.step(Self.at(run.time + Self.frameMS))
