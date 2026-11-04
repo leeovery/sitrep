@@ -1986,6 +1986,7 @@ truth. There is still no background service. None of it is built now. Lee:
   sitrep finish
   sitrep board [--json]
   sitrep list [--project <name>] [--json]
+  sitrep screen [--json]
   sitrep jump
   sitrep watch
   ```
@@ -2051,7 +2052,58 @@ truth. There is still no background service. None of it is built now. Lee:
     2026, whether a jump could reach it (see "The jump", step 2), which only
     `--json` worked out, asking tmux twice per socket; the app's plain menu
     was its only reader, and it went with the menu. `v` stayed 1: no reader
-    is left to trip on the field's going.
+    is left to trip on the field's going. It came back on 4 November 2026 as
+    a command of its own, `screen` (below), for the SitRep window.
+  - `screen` (4 November 2026) says whether each session a window holds is
+    on screen: whether a jump could reach it, a terminal window of this Mac
+    showing it or tmux able to make one show it, exactly as the jump finds
+    it (see "The jump", step 2), by the same reading. It is the SitRep
+    window's, whose rows and pages say whether a session is on screen.
+    - Three states, never two: `on`, a place shows the session or a select
+      would make one; `off`, none does, every program asked of its windows
+      having answered; `unknown`, none found, as tmux gave no answer for a
+      socket one of its windows runs under, or `ps` none where that server
+      has clients, whose apps it tells. A jump that could not tell says so
+      rather than calling the session off screen, and so does `screen`:
+      unknown is never off. A window outside tmux asks neither, so is never
+      unknown; a live window saying not where it is is off, as no jump can
+      reach it.
+    - Only the sessions a live window holds are listed: one no window holds
+      is away, which the board says already. A finished session a window
+      still holds is listed with the rest. Each session's heartbeats are
+      read first, and only one with a live window is read past them and
+      folded, so a run costs what the open sessions do, not the board's
+      history.
+    - One reading for the run, over every listed session's windows: tmux
+      asked twice for each socket and `ps` once, beside it, each given 2
+      seconds, as for a jump, however many sessions run under them. Nothing
+      fails the run: what gives no answer makes its sessions unknown, and is
+      named. It selects, writes and focuses nothing. Over a copy of Lee's
+      board (4 November 2026: 107 sessions, 18 held) a run took 0.2 seconds
+      of CPU, against 0.27 while it folded every session, and 0.3 to 0.55
+      seconds' wall on a Mac at a load of 230; Bun's start is 0.02 of it.
+    - `--json`, `v` 1, the sessions by id, and `unanswered` naming what gave
+      no answer, `tmux`, `ps`, or neither; plain `screen` says the same a line
+      each (`sr-k3f9qa  Dashboard redesign: on screen`, `not on screen`, `not
+      known`), then what gave no answer.
+
+      ```
+      { "v": 1,
+        "sessions": [ { "id": "sr-k3f9qa", "is": "on" },
+                      { "id": "sr-bbbbbb", "is": "unknown" } ],
+        "unanswered": ["tmux"] }
+      ```
+
+    - A command of its own, not a field of `list` or of `watch`'s lines:
+      on screen changes with Lee's tmux and terminal windows, which write
+      nothing to the folder, so no change of the board would carry it, and
+      `watch`, which runs for the app's whole life, would ask tmux and `ps`
+      at every look, the window shut or not, for the one window that shows
+      it. `list` runs no program, and keeps so. The app
+      asks for it on its own cadence, only while its window shows (see "The
+      SitRep window", "On screen"). The reading stays in the CLI's
+      `screen.ts`, one place, which a jump reads too, so zmx, should Lee move
+      to it, comes in there behind the same states.
 
     `board --json` is
     `{ v, project: { key, name }, session, asks, parked, log, resolved }`:
@@ -4293,6 +4345,35 @@ stands).
     words wait for that window;
   - its foot has "✓ Finish this session", which asks first, in place, as the
     pane's does, then runs `sitrep finish`.
+- **On screen** (4 November 2026): whether a terminal window of this Mac
+  shows a session, or tmux can make one show it, which the window reads
+  from `sitrep screen --json` (see "One engine, two front ends"): on, off,
+  or unknown, where tmux or `ps` gave no answer for its windows. With no
+  reading yet, after a run that failed, or for a session the reading does
+  not list, as no window holds it, the window says nothing of it, which is
+  not unknown: an away session gets no mark at all. What draws it (a pip on
+  a Needs you row not on screen, "· not on screen" on a project's page, "on
+  screen" in a session page's meta line) comes with the window's rebuild;
+  until then the window reads it and draws nothing of it.
+  - It cannot ride `watch`: it changes with Lee's tmux and Ghostty, not
+    with the board. So the window runs `screen` on its own cadence, only
+    while it shows, macOS saying it is visible: at once as it opens, comes
+    back from the Dock, or comes out from under other windows or onto Lee's
+    Space; at once as it becomes key, where its reading is more than a
+    second old, so switching between SitRep and a terminal runs nothing new;
+    then 5 seconds after each run ends, so never two at once. Covered, on
+    another Space, minimised or closed, it runs none. Whether it is visible
+    is asked of macOS as it comes forward or back from the Dock, not
+    assumed: one that comes still covered, by a full-screen app or a locked
+    screen, may see no change to tell it.
+  - During a run, a look asked for at once (the window opening again, back
+    from the Dock, uncovered) is made as that run ends, one more at once; the
+    window becoming key during a run is answered by that run.
+  - The last reading stands while the window is minimised or covered, so
+    coming back shows it at once, and the run that starts then corrects it.
+    Closing lets it go, as the window opens afresh. A run begun before the
+    close is let go as it ends, though the window opened again meanwhile,
+    and the reopened window's run is made then, at once.
 - **One colour.** Orange is for needs you only: the dots, the counts,
   "2 waiting". Parked and resolved stay grey, not the pane's purple and
   green.
@@ -5135,7 +5216,8 @@ shape allows them. A jump made in Swift, in the app, stays parked too.
    stayed as they were before the select (19 October 2026), so a reader that
    took `true` to mean a jump could reach it read it as before. It went on
    27 October 2026, the plain menu its only reader (see "One engine, two
-   front ends").
+   front ends"), and came back on 4 November 2026 as `sitrep screen`, with
+   unknown beside on and off, for the SitRep window.
 
    **Selecting the pane's window** (19 October 2026). Where no client a jump
    can reach has the pane's tmux window current, the tmux layer makes it

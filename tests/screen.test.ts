@@ -14,6 +14,7 @@ import {
   clientApps,
   parseProcesses,
   placesShowing,
+  reachOf,
   socketsOf,
   windowsOf,
   type Place,
@@ -106,7 +107,12 @@ const screenOf = (
     [SOCKET, { panes: parsePanes(panes.map(each => each.join('\t')).join('\n')), clients }],
   ])
 
-  return { servers, apps: clientApps(servers, snapshot), unanswered: [] }
+  return {
+    servers,
+    apps: clientApps(servers, snapshot),
+    unanswered: [],
+    unansweredSockets: new Set(),
+  }
 }
 
 /**
@@ -375,6 +381,59 @@ test('a device showing two windows, two panes of one tmux window, is given once'
       ([device]) => device,
     ),
   ).toEqual(['/dev/ttys000', '/dev/ttys041'])
+})
+
+test('a jump reaches windows a place shows, the places with it; none where nothing shows them and every program asked of them answered', () => {
+  expect(reachOf([IN_TMUX], SCREEN)).toEqual({
+    is: 'on screen',
+    places: placesShowing([IN_TMUX], SCREEN),
+  })
+  expect(reachOf([IN_GHOSTTY], SCREEN).is).toBe('on screen')
+  expect(reachOf([{ ...IN_TMUX, tmux: { socket: SOCKET, pane: '%9' } }], SCREEN)).toEqual({
+    is: 'off screen',
+  })
+  expect(reachOf([], SCREEN)).toEqual({ is: 'off screen' })
+})
+
+test('where nothing shows the windows, tmux giving no answer for a socket one runs under makes it unknown, never off screen; for another socket only, off screen', () => {
+  const silent = (...sockets: string[]): Screen => ({
+    ...SCREEN,
+    servers: new Map([[SOCKET, undefined]]),
+    unanswered: ['tmux'],
+    unansweredSockets: new Set(sockets),
+  })
+
+  expect(reachOf([IN_TMUX], silent(SOCKET))).toEqual({ is: 'unknown', unanswered: ['tmux'] })
+  expect(reachOf([IN_TMUX], silent(OTHER_SOCKET))).toEqual({ is: 'off screen' })
+  expect(
+    reachOf([IN_TMUX], { ...silent(OTHER_SOCKET), servers: SCREEN.servers }).is,
+    'a place found stands, whatever else gave no answer',
+  ).toBe('on screen')
+})
+
+test("where nothing shows the windows, ps giving no answer makes them unknown where a server they run under has clients, whose apps it tells; off screen where it has none", () => {
+  const clients = [client('/dev/ttys000', 503, WINDOW)]
+  const unsnapped = screenOf([[PANE, WINDOW, SESSION]], clients, new Map())
+
+  expect(reachOf([IN_TMUX], { ...unsnapped, unanswered: ['ps'] })).toEqual({
+    is: 'unknown',
+    unanswered: ['ps'],
+  })
+  expect(
+    reachOf([IN_TMUX], { ...screenOf([[PANE, WINDOW, SESSION]], []), unanswered: ['ps'] }),
+  ).toEqual({ is: 'off screen' })
+})
+
+test('a window outside tmux is never unknown: neither tmux nor ps is asked of it', () => {
+  const silent: Screen = {
+    servers: new Map(),
+    apps: new Map(),
+    unanswered: ['tmux', 'ps'],
+    unansweredSockets: new Set([SOCKET]),
+  }
+
+  expect(reachOf([IN_GHOSTTY], silent).is).toBe('on screen')
+  expect(reachOf([{ ...IN_GHOSTTY, terminal: 'Unknown' }], silent)).toEqual({ is: 'off screen' })
 })
 
 test('the sockets the windows run under are each named once', () => {

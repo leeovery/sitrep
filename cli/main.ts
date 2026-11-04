@@ -24,14 +24,15 @@ import {
   commandNamed,
   type Command,
   type ProjectsCommand,
+  type ScreenCommand,
   type WindowCommand,
   type SessionCommand,
 } from './commands'
-import { findSession, readProjects, textAt, type Found } from './files'
+import { findSession, readHeldSessions, readProjects, textAt, type Found } from './files'
 import { commandHelp, HELP } from './help'
 import type { Env, Io } from './io'
 import { jump } from './jump'
-import { windowsOf } from './screen'
+import { readOnScreen, windowsOf } from './screen'
 import { watch } from './watch'
 
 /** How a run ends: done; a usage error, a refused input or a failure; or no such session. */
@@ -163,6 +164,13 @@ const onProjects = async (io: Io, command: ProjectsCommand, input: Fields) => {
   return told(io, command.act({ read, cwd: io.cwd, now }, input))
 }
 
+const onScreen = async (io: Io, command: ScreenCommand, input: Fields) => {
+  const now = io.now()
+  const sessions = await readHeldSessions(io, rootOf(io.env), now)
+
+  return told(io, command.act(await readOnScreen(io, sessions, now), input))
+}
+
 const onWindow = async (io: Io, command: WindowCommand, input: Fields) => {
   const now = io.now()
   const found = await namedSession(io, input, now)
@@ -189,6 +197,8 @@ const runCommand = async (io: Io, command: Command, words: readonly string[]) =>
       return onSession(io, command, input.value)
     case 'projects':
       return onProjects(io, command, input.value)
+    case 'screen':
+      return onScreen(io, command, input.value)
     case 'window':
       return onWindow(io, command, input.value)
     case 'feed':

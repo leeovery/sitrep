@@ -1,13 +1,13 @@
 /**
  * The CLI's commands: the words each takes, and what each makes of a
- * session, of the projects, or of a jump to a session's window; and the
- * board watched, which runs until it is told to end. A command on a session
- * hands back the lines it posts, and what to print: a post's item id, so a
- * script can keep it. Its lines are the CLI's own, a snooze's and a wake's
- * among them, but an answer's, which go into the session's inbox as the
- * CLI's letters, for the session's window to deliver as it delivers any
- * reply. Each is pure: what it needs of the screen is looked at, and the
- * jump made, before it acts.
+ * session, of the projects, of which sessions show on screen, or of a jump
+ * to a session's window; and the board watched, which runs until it is told
+ * to end. A command on a session hands back the lines it posts, and what to
+ * print: a post's item id, so a script can keep it. Its lines are the CLI's
+ * own, a snooze's and a wake's among them, but an answer's, which go into
+ * the session's inbox as the CLI's letters, for the session's window to
+ * deliver as it delivers any reply. Each is pure: what it needs of the
+ * screen is looked at, and the jump made, before it acts.
  */
 import {
   boardText,
@@ -30,7 +30,8 @@ import {
 } from '../core'
 import type { Arg, Fields, Flag, Grammar } from './args'
 import type { Jumped } from './jump'
-import { boardJson, listing, listJson, listText } from './output'
+import { boardJson, listing, listJson, listText, screenJson, screenText } from './output'
+import type { OnScreen } from './screen'
 
 /** A session, and the key of the project it is filed under. */
 export type Filed = { project: string; session: Session }
@@ -58,6 +59,12 @@ export type ProjectsCommand = About & {
   act: (projects: Projects, input: Fields) => Checked<string>
 }
 
+/** A command on the screen: which sessions a live window holds show there, in words. */
+export type ScreenCommand = About & {
+  on: 'screen'
+  act: (onScreen: OnScreen, input: Fields) => Checked<string>
+}
+
 /** A command on a session's window: what the jump to it came to, in words. */
 export type WindowCommand = About & {
   on: 'window'
@@ -67,7 +74,12 @@ export type WindowCommand = About & {
 /** The board watched, a line each time it changes, until the run is to end: the loop is `watch.ts`. */
 export type FeedCommand = About & { on: 'feed' }
 
-export type Command = SessionCommand | ProjectsCommand | WindowCommand | FeedCommand
+export type Command =
+  | SessionCommand
+  | ProjectsCommand
+  | ScreenCommand
+  | WindowCommand
+  | FeedCommand
 
 /** The flag naming the session, which every command on one takes. */
 export const SESSION_FLAG = 'session'
@@ -328,6 +340,18 @@ const list: ProjectsCommand = {
   },
 }
 
+const screen: ScreenCommand = {
+  name: 'screen',
+  about:
+    'Say whether each session a window holds is on screen, as a jump would find it: a terminal window on this Mac shows it, or tmux can make one show it; unknown where tmux or ps gave no answer. Asks them, and moves nothing: the SitRep app runs it while its window shows.',
+  grammar: { args: [], flags: { ...JSON_OUT } },
+  on: 'screen',
+  act: (onScreen, input) => ({
+    ok: true,
+    value: input.json === true ? screenJson(onScreen) : screenText(onScreen),
+  }),
+}
+
 /** Why tmux did not select a pane's window, in words: in tmux's, where it said any. */
 const whyUnselected = (said: string | undefined) => {
   if (said === undefined) {
@@ -385,6 +409,7 @@ export const COMMANDS: readonly Command[] = [
   finish,
   board,
   list,
+  screen,
   jump,
   watch,
 ]

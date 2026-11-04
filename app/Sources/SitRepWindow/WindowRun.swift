@@ -5,9 +5,9 @@ import SitRepPanel
 /// The SitRep window as the app runs it, with nothing of the screen in it: the board from `watch`'s lines in the
 /// order it shows, what Lee picked and what the window opens on, the sessions it follows for their detail, whose
 /// boards `watch`'s lines carry, the asks of the page shown kept in place, the answers waiting out their two seconds,
-/// what a snooze or a wake pressed on a card came to, and finishing an away session. Every input comes through here,
-/// at the time given; the views draw what it says, and the app runs what it asks for: the sessions to follow, a look
-/// now, an answer, a snooze, a finish, a jump.
+/// what a snooze or a wake pressed on a card came to, finishing an away session, and which sessions show on screen.
+/// Every input comes through here, at the time given; the views draw what it says, and the app runs what it asks for:
+/// the sessions to follow, a look now, an answer, a snooze, a finish, a jump, a look at the screen.
 public final class WindowRun {
     /// The board as `watch` last printed it.
     public private(set) var last = LastBoard()
@@ -56,6 +56,8 @@ public final class WindowRun {
     private var washed: [String: Date] = [:]
     /// The detail of the sessions the page shows, which the page builders read and keep.
     var details = Details()
+    /// Which sessions show on screen, read while the window shows.
+    private var looks = ScreenLooks()
 
     /// Opened on the session picked last, folded as Lee left it, a your-turn row folding into "N earlier" after the
     /// period given, against this wall clock, its days in the Gregorian calendar in the Mac's time zone, followed as it
@@ -126,6 +128,15 @@ public final class WindowRun {
     /// pointer resting on a window Lee is not using would hold its closed asks for as long as it rests.
     public func window(isKey: Bool, at time: Date) {
         details.window(isKey: isKey, at: time)
+        if isKey {
+            looks.key(at: time)
+        }
+    }
+
+    /// macOS said whether the window is visible: covered, or on another Space, it shows nothing, so it reads nothing of
+    /// the screen.
+    public func window(isVisible: Bool) {
+        looks.visible(isVisible)
     }
 
     /// What has run out by this time: the second after the pointer left the list, or after the last pick made in it,
@@ -174,6 +185,7 @@ public final class WindowRun {
     /// Lee, and with none, on the one picked last.
     public func open(on pick: Pick? = nil) {
         isOpen = true
+        looks.open()
         folds.isEarlierOpen = false
         if let pick {
             self.pick(pick)
@@ -182,22 +194,24 @@ public final class WindowRun {
         }
     }
 
-    /// The window closes: it follows nothing; the holds of the list and the page let go, as the pointer leaves with
-    /// it, a finish asked about lapses, and the filter clears, as what it holds is not kept, showing nothing picked
-    /// while it held text, as opening the window picks afresh.
+    /// The window closes: it follows nothing, and reads nothing of the screen, letting its reading go; the holds of the
+    /// list and the page let go, as the pointer leaves with it, a finish asked about lapses, and the filter clears, as
+    /// what it holds is not kept, showing nothing picked while it held text, as opening the window picks afresh.
     public func close() {
         isOpen = false
+        looks.close()
         isPickedWhileFiltering = false
         filter = Filter()
         letGoOfHolds()
         details.dropAskingToFinish()
     }
 
-    /// The window minimised: it shows no more, so it follows nothing, a run of picks waiting let go, as back from the
-    /// Dock it follows its page at once, and the holds of the list and the page let go, as the pointer leaves with it,
-    /// but it keeps its page.
+    /// The window minimised: it shows no more, so it follows nothing and reads nothing of the screen, a run of picks
+    /// waiting let go, as back from the Dock it follows its page at once, and the holds of the list and the page let
+    /// go, as the pointer leaves with it, but it keeps its page and its reading of the screen.
     public func minimise() {
         isOpen = false
+        looks.minimise()
         picks = PickFollows()
         letGoOfHolds()
     }
@@ -214,6 +228,7 @@ public final class WindowRun {
     /// from the board meanwhile.
     public func restore() {
         isOpen = true
+        looks.open()
         keepShownOrRepick()
     }
 
@@ -329,6 +344,30 @@ public final class WindowRun {
     /// it is followed again.
     public func follow() -> Set<String> {
         details.follow(following)
+    }
+
+    // MARK: On screen
+
+    /// Whether a jump could reach the session, as the last look at the screen says, unknown where tmux or `ps` gave no
+    /// answer for its windows; none before the first look, after one that failed, and for a session it did not list, as
+    /// no window holds it.
+    public func onScreen(of session: String) -> OnScreen? {
+        looks.onScreen(of: session)
+    }
+
+    /// The run of `sitrep screen` to make at this time, where the window shows and a look is due with none under way.
+    public func looksAtScreen(at time: Date) -> ScreenLook? {
+        looks.look(at: time)
+    }
+
+    /// What that run came to, heard at this time. Whether what the window knows of the screen changed.
+    public func looked(_ answer: ScreenAnswer, of look: ScreenLook, at time: Date) -> Bool {
+        looks.looked(answer, of: look, at: time)
+    }
+
+    /// When the next look at the screen is due; none while one runs, or while the window does not show.
+    public var nextScreenLook: Date? {
+        looks.nextLook
     }
 
     // MARK: Answering

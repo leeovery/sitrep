@@ -46,6 +46,7 @@ final class SitRepWindow: NSObject, NSWindowDelegate {
             model.pick(pick)
         }
         window.comeForward()
+        tellVisible(window)
         if isAfresh || pick != nil {
             focus?.focusList()
         }
@@ -69,6 +70,22 @@ final class SitRepWindow: NSObject, NSWindowDelegate {
 
     func windowDidDeminiaturize(_ notification: Notification) {
         model.restored()
+        if let window = notification.object as? NSWindow {
+            tellVisible(window)
+        }
+    }
+
+    /// Covered by other windows or on another Space, it reads nothing of the screen; uncovered, it reads it at once.
+    func windowDidChangeOcclusionState(_ notification: Notification) {
+        if let window = notification.object as? NSWindow {
+            tellVisible(window)
+        }
+    }
+
+    /// Whether macOS has the window visible, told to the model: as it changes, and as it comes forward or back from the
+    /// Dock, as it may come still covered, by a full-screen app or the screen locked, with no change to come.
+    private func tellVisible(_ window: NSWindow) {
+        model.window(isVisible: window.occlusionState.contains(.visible))
     }
 
     private func make() -> ForwardWindow {
