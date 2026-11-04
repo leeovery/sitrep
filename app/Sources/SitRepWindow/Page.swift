@@ -1,30 +1,36 @@
 import Foundation
 import SitRepCore
 
-/// What the right of the window shows: the session or the project Lee picked; else a line saying why there is none,
-/// as the head does before the board is read, or that no session is open at all.
+/// What the page shows: beside a place's list, the session of the row its list picked, the detail; filling the
+/// window, a project's page or a session's; else a line saying why there is none, as the head does before the board is
+/// read or with nothing picked, or that no session is open at all.
 public enum Page: Equatable, Sendable {
     case empty(String)
+    /// Beside a place's list: the session its picked row shows, kept as the row leaves the list.
+    case detail(SessionPage)
+    /// A session's page, filling the window, pushed from a place or a project.
     case session(SessionPage)
     case project(ProjectPage)
 
     static let nothingOpen = Page.empty("No session is open.")
 }
 
-/// What Lee picked to read on the right: a session or a project from the board's list. A session with asks snoozed
-/// has a row in Snoozed too, its own pick, which shows the session's page as its row beside it does.
+/// Which page shows, a session's or a project's, whichever way the window came to it: what turning to another lets
+/// go of the last one's asks kept in place, and what the page is drawn afresh by.
 public enum Pick: Hashable, Sendable {
     case session(String)
-    /// A session's row in Snoozed.
-    case snoozed(String)
     case project(String)
+}
 
-    /// What it shows on the right, whichever of a session's rows holds it: the session.
-    public var page: Pick {
-        if case let .snoozed(id) = self {
-            return .session(id)
+extension Location {
+    /// Which page shows here: the session of the row the list picked, kept as the row leaves the list; a project's;
+    /// a session's pushed. None for a place with nothing picked.
+    public var page: Pick? {
+        switch self {
+        case let .place(_, picked, _): picked.map { .session($0.session) }
+        case let .project(key): .project(key)
+        case let .session(id, _): .session(id)
         }
-        return self
     }
 }
 

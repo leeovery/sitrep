@@ -172,7 +172,7 @@ struct ClosedAsksTests {
 
         overThePage(run)
         Self.closing(run)
-        run.pick(.project("sitrep"))
+        run.click(.project("sitrep"))
         take(["sr-macapp": Lines.board], in: run)
         #expect(run.page(at: printedAt).project?.asks.map(\.card.isClosed) == [false, false, false])
         take(["sr-macapp": Lines.delivered], in: run, on: line(2))
@@ -183,7 +183,7 @@ struct ClosedAsksTests {
     @Test func aPickInTheListLeavesThePageUnheld() {
         let run = opened()
 
-        run.pickInList(.session("sr-macapp"), at: printedAt)
+        run.pickInList(macAppK1, at: printedAt)
         take(["sr-macapp": Lines.delivered], in: run)
         #expect(Self.asks(run) == ["k2"])
     }
@@ -223,7 +223,7 @@ struct ProjectClosedAsksTests {
 
     /// The project's page, its session's board come, then its next, having k1 sent and k3 ignored.
     private static func closing(_ run: WindowRun, overThePage isOver: Bool) {
-        run.pick(.project("sitrep"))
+        run.click(.project("sitrep"))
         take(["sr-macapp": Lines.board], in: run)
         if isOver {
             overThePage(run)

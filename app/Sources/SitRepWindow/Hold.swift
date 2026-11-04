@@ -2,7 +2,7 @@ import Foundation
 
 /// Held while the pointer is over what it holds and for a second after it leaves, as the strip holds its marks, so a
 /// change shows in place; and, after a pick made in it, for a second after the pick. The board's list holds its order
-/// so (`HeldOrder`), and a page its closed asks.
+/// so (`HeldLists`), and a page its closed asks.
 struct Hold: Equatable, Sendable {
     /// How long after the pointer leaves, or after the last pick, the hold lets go.
     static let settle: TimeInterval = 1

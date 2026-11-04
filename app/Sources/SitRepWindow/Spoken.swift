@@ -3,41 +3,28 @@ import SitRepPanel
 
 /// What VoiceOver reads of the window, in words, where its marks, counts and times would read as symbols.
 public enum Spoken {
-    /// A session's row in the sidebar, one element: under Needs you, as `needsYou(_:at:)` reads it; in Snoozed, as
-    /// `snoozed(_:at:in:)` does; in Working or Your turn, its line's words, its project, its session, its state and its
-    /// time, as "Drawing the ledger schema, Switchboard, Request ledger, your turn, 12 minutes".
-    public static func row(_ row: Listed.Row, at now: Date, in calendar: Calendar = WakeTime.calendar) -> String {
-        switch row.section {
-        case .needsYou: return needsYou(row, at: now)
-        case .snoozed: return snoozed(row, at: now, in: calendar)
-        case .working, .yourTurn: break
+    /// A row of the list beside the page, one element: a line, as `line(_:at:in:)` reads it; a session's row in Working
+    /// or Your turn, its line's words, its project, its session, its state and its time, as "Drawing the ledger schema,
+    /// Switchboard, Request ledger, your turn, 12 minutes".
+    public static func row(_ row: PlaceList.Row, at now: Date, in calendar: Calendar = WakeTime.calendar) -> String {
+        switch row {
+        case let .line(line):
+            return self.line(line, at: now, in: calendar)
+        case let .session(row):
+            return (row.lines.map { $0.words(at: now) } + [row.project, row.name, mark(row.mark), age(row.since, at: now)])
+                .joined(separator: ", ")
         }
-
-        return (row.lines.map { $0.words(at: now) } + [row.project, row.name, mark(row.mark), age(row.since, at: now)])
-            .joined(separator: ", ")
     }
 
-    /// A session's row under Needs you, one element: what waits on Lee first, how many where there are several, then
-    /// each line's words; then its project and its session, away where no window holds it, and how long the newest
-    /// has waited, the time its row shows, as "2 asks, Paste the load test's output, Allow Bash gh pr create,
-    /// Switchboard, Dashboard redesign, 3 hours".
-    public static func needsYou(_ row: Listed.Row, at now: Date) -> String {
-        asks(row, at: now, then: age(row.since, at: now))
-    }
+    /// A line waiting on Lee, one element: its words, its session's project and name, away where no window holds it,
+    /// and how long it has waited, as "Allow Bash gh pr create, Switchboard, Dashboard redesign, 3 minutes"; asleep
+    /// under "N snoozed", when it wakes in its time's place, as "Review the plan, Harness, Finish the Harness
+    /// modernisation, wakes Saturday 09:00".
+    public static func line(_ row: PlaceList.LineRow, at now: Date, in calendar: Calendar) -> String {
+        let away = row.session.isAway ? ["away"] : []
+        let time = row.line.wakesAt.map { wakes($0, at: now, in: calendar) } ?? age(row.line.since, at: now)
 
-    /// A session's row in Snoozed, one element, as a Needs you row reads, its time when it wakes: "2 asks, Review the
-    /// plan, Pick when stage 2 runs, Harness, Finish the Harness modernisation, wakes Saturday 09:00".
-    public static func snoozed(_ row: Listed.Row, at now: Date, in calendar: Calendar) -> String {
-        asks(row, at: now, then: row.wakesAt.map { wakes($0, at: now, in: calendar) })
-    }
-
-    /// A row of asks: how many where there are several, each line's words, its project and its session, away where no
-    /// window holds it, then its time.
-    private static func asks(_ row: Listed.Row, at now: Date, then time: String?) -> String {
-        let count = row.lines.count > 1 ? [Words.count(row.lines.count, "ask")] : []
-        let away = row.isAway ? ["away"] : []
-
-        return (count + row.lines.map { $0.words(at: now) } + [row.project, row.name] + away + [time].compactMap(\.self))
+        return ([row.line.words(at: now), row.session.project, row.session.name] + away + [time])
             .joined(separator: ", ")
     }
 
@@ -46,59 +33,66 @@ public enum Spoken {
         "wakes \(WakeTime.words(wakes, at: now, in: calendar, spoken: true))"
     }
 
-    /// The actions VoiceOver offers on a row whose lines hold asks, out of Snoozed, one per choice of its menu's
-    /// Snooze, each saying when it would wake, as "Snooze tomorrow, wakes Saturday 09:00"; none on a row of stops alone
-    /// or in Snoozed.
+    /// The actions VoiceOver offers on a line that is an ask waiting, one per choice of its menu's Snooze, each saying
+    /// when it would wake, as "Snooze tomorrow, wakes Saturday 09:00"; none on a window's stop, nor on an ask asleep.
     public static func snooze(
-        _ choice: SnoozeChoice, of row: Listed.Row, at now: Date, in calendar: Calendar
+        _ choice: SnoozeChoice, of row: PlaceList.LineRow, at now: Date, in calendar: Calendar
     ) -> String? {
-        guard row.section != .snoozed, !row.asks.isEmpty else {
+        guard !row.isAsleep, !row.asks.isEmpty else {
             return nil
         }
 
         return "Snooze \(choice.title.lowercased()), \(wakes(choice.wakes(after: now, in: calendar), at: now, in: calendar))"
     }
 
-    /// The action VoiceOver offers on a row in Snoozed, which wakes its asks now, as its menu's Wake now does.
-    public static func wake(_ row: Listed.Row) -> String? {
-        row.section == .snoozed ? Words.wakeNow : nil
+    /// The action VoiceOver offers on an ask asleep under "N snoozed", which wakes it now, as its menu's Wake now does.
+    public static func wake(_ row: PlaceList.LineRow) -> String? {
+        row.isAsleep ? Words.wakeNow : nil
     }
 
-    /// The action VoiceOver offers on a session's row in the sidebar, which jumps to its window as the row's button
-    /// under the pointer does, moving no pick: "Jump to the window" on a row a window holds; none on an away row.
-    public static func jump(_ row: Listed.Row) -> String? {
+    /// The action VoiceOver offers on a row of the list, which jumps to its session's window as the row's button under
+    /// the pointer does, moving no pick: "Jump to the window" on a row of a session a window holds; none on an away
+    /// one.
+    public static func jump(_ row: PlaceList.Row) -> String? {
         row.jumps ? Words.jumpToWindow : nil
     }
 
     /// The sidebar's Filter field.
     public static let filter = "Filter sessions"
 
-    /// A heading in the sidebar, which folds: its name and its count, as "Needs you, 4 waiting", "Your turn, 3
-    /// sessions" or "Projects, 6 projects"; and, folded, that it is.
-    public static func heading(_ heading: Sidebar.Heading) -> String {
-        let count = switch heading.fold {
-        case .section(.needsYou): Words.waiting(heading.count)
-        case .section(.snoozed): Words.count(heading.count, "ask")
-        case .section: Words.count(heading.count, "session")
-        case .projects, .earlier: Words.count(heading.count, "project")
+    /// A place in the sidebar: its name and its count, as "Needs you, 4 waiting", "Your turn, 3 sessions" or "Parked,
+    /// 12 items".
+    public static func place(_ place: Place, count: Int) -> String {
+        let counted = switch place {
+        case .needsYou: Words.waiting(count)
+        case .yourTurn, .working: Words.count(count, "session")
+        case .parked: Words.count(count, "item")
         }
 
-        return folded("\(heading.title), \(count)", heading.isFolded)
+        return "\(place.title), \(counted)"
     }
 
-    /// Your turn's "N earlier": how many, and their projects, as "8 earlier, Switchboard, Fumi"; and, folded, that it
-    /// is.
-    public static func earlier(_ earlier: Earlier) -> String {
-        folded(([earlier.title] + earlier.projects).joined(separator: ", "), !earlier.isOpen)
+    /// A project's row in the sidebar, which opens its page: its name, what its mark says where something waits on
+    /// Lee, and its sessions, but where it is quiet, as "Switchboard, project, needs you, 2 sessions" or "Kit,
+    /// project".
+    public static func project(_ project: Places.Project) -> String {
+        let waits: [String] = switch project.mark {
+        case .needs: [mark(.needs)]
+        case .awayAsk: [mark(.awayAsk)]
+        case .nothingWaiting: []
+        }
+        let sessions = project.count.map { [Words.count($0, "session")] } ?? []
+
+        return ([project.name, "project"] + waits + sessions).joined(separator: ", ")
     }
 
-    /// A project's row in the sidebar, which opens its page.
-    public static func project(_ project: Listed.Project) -> String {
-        "\(project.name), project"
-    }
+    /// The fold at a list's foot: how many, and for "N earlier" their projects, as "2 snoozed" or "8 earlier,
+    /// Switchboard, Fumi"; and, folded, that it is.
+    public static func fold(_ fold: PlaceList.Fold) -> String {
+        let projects = fold.kind == .earlier ? fold.earlier.projects : []
+        let words = ([fold.title] + projects).joined(separator: ", ")
 
-    private static func folded(_ words: String, _ isFolded: Bool) -> String {
-        isFolded ? "\(words), folded" : words
+        return fold.isOpen ? words : "\(words), folded"
     }
 
     /// What a session's mark means.

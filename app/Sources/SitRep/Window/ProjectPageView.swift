@@ -45,7 +45,7 @@ struct ProjectPageView: View {
         VStack(alignment: .leading, spacing: 0) {
             SectionHeading(name: "Sessions", note: "\(page.open) open").padding(.bottom, 8)
             ForEach(page.sessions) { session in
-                Button { act.pick(.session(session.id)) } label: {
+                Button { act.openSession(session.id) } label: {
                     ProjectSessionRow(session: session, now: now).padding(.horizontal, WindowStyle.reach)
                 }
                 .rowButton()

@@ -18,7 +18,7 @@ struct SessionPageView: View {
             Color.clear.frame(height: WindowStyle.barHeight)
             VStack(alignment: .leading, spacing: 6) {
                 VStack(alignment: .leading, spacing: 2) {
-                    Button(page.projectName) { act.pick(.project(page.projectKey)) }
+                    Button(page.projectName) { act.openProject(page.projectKey) }
                         .wordsButton()
                         .font(WindowStyle.ui(15, .semibold))
                         .accessibilityAddTraits(.isHeader)

@@ -6,105 +6,120 @@ import SitRepLines
 import SwiftUI
 import Testing
 
-/// The sidebar as the window lays it out, made, never shown: the real `BoardColumn` in the window's split, at Lee's
-/// 1260 × 1069 unless given another height, over a run of a board the real `watch` printed. Its frames are read as
-/// Paper's drawing gives them: x from the glass's left, y from the window's top.
+/// A column of the window as the window lays it out, made, never shown: the real `SidebarColumn`, or the real
+/// `ListColumn`, in the window's split, the other columns blank, at Lee's 1260 × 1069 unless given another height, over
+/// a run of a board the real `watch` printed. Its frames are read as Paper's drawing gives them: x from the column's
+/// left, y from the window's top.
 ///
-/// The list scrolls through macOS 26's soft scroll edge, which draws its rows where nothing offscreen
-/// reads them: the list's frames are AppKit's. So what the rows draw is read from the real list hosted alone
-/// (`listAlone`), under the accessory's 47 as in the column.
-/// (Touching the titlebar's band, the list would scroll through the toolbar's soft edge, which reads as blank too.)
+/// The sidebar's list scrolls through macOS 26's soft scroll edge, and the list beside the page under the toolbar's,
+/// each of which draws its rows where nothing offscreen reads them: the lists' frames are AppKit's, and what a row draws
+/// is read from the row drawn alone.
 @MainActor
 struct HostedSidebar {
+    /// Which of the window's columns is hosted.
+    enum Column {
+        case sidebar, list
+    }
+
     let window: NSWindow
     let view: NSView
-    /// The board's list.
+    /// The column's list.
     let board: NSTableView
     let field: NSSearchField?
-    private let host: NSHostingController<AnyView>
-    private let made: (Sidebar) -> AnyView
+    let split: NSSplitViewController
+    private let hosted: NSHostingController<AnyView>
+    private let dressed: (AnyView) -> AnyView
+    private let column: Column
 
-    /// `bottomSafeArea` gives the sidebar the bottom safe area a window on screen has, which an offscreen one does not;
-    /// `isKey` tells it its window is key, which one never shown never is; `listed`, a board shown in place of the
-    /// run's, as one the real `watch` never printed, folded as the run's; `reducesMotion`, SitRep's Reduce motion on.
+    /// `bottomSafeArea` gives the column the bottom safe area a window on screen has, which an offscreen one does not;
+    /// `isKey` tells it its window is key, which one never shown never is; `reducesMotion`, SitRep's Reduce motion on.
     init(
-        _ run: WindowRun, height: CGFloat = 1069, bottomSafeArea: CGFloat = 0, actions: WindowActions = WindowActions(),
-        listAlone: Bool = false, isKey: Bool = false, listed: Listed? = nil, reducesMotion: Bool = false
+        _ run: WindowRun, column: Column = .sidebar, height: CGFloat = 1069, bottomSafeArea: CGFloat = 0,
+        actions: WindowActions = WindowActions(), isKey: Bool = false, reducesMotion: Bool = false
     ) throws {
-        let now = run.last.board?.at ?? Self.printed
-        let made = { (shown: Sidebar) in
-            let side = listAlone
-                ? AnyView(VStack(spacing: 0) {
-                    Color.clear.frame(height: WindowStyle.accessory)
-                    BoardList(sidebar: shown, pick: run.pick, filter: run.filter, now: now)
-                })
-                : AnyView(BoardColumn(sidebar: shown, pick: run.pick, filter: run.filter, now: now))
-            let keyed = isKey ? AnyView(side.environment(\.controlActiveState, .key)) : side
+        let dressed = { (content: AnyView) in
+            let keyed = isKey ? AnyView(content.environment(\.controlActiveState, .key)) : content
 
             return AnyView(
                 keyed.environment(\.windowActions, actions).environment(\.reducesWindowMotion, reducesMotion)
                     .environment(\.colorScheme, .dark)
             )
         }
-        let sidebar = NSHostingController(
-            rootView: made(listed.map { Sidebar($0, folds: run.folds) } ?? run.sidebar(at: now))
-        )
+        let hosted = NSHostingController(rootView: dressed(Self.content(of: run, column, at: Self.now(of: run))))
+        let blank = { NSHostingController(rootView: Color.clear) as NSViewController }
 
-        sidebar.sizingOptions = []
-        window = SitRepWindow.window(SitRepWindow.split(sidebar: sidebar, page: NSHostingController(rootView: Color.clear)))
+        hosted.sizingOptions = []
+        split = column == .sidebar
+            ? SitRepWindow.split(sidebar: hosted, list: blank(), page: blank())
+            : SitRepWindow.split(sidebar: blank(), list: hosted, page: blank())
+        window = SitRepWindow.window(split)
         window.setContentSize(CGSize(width: 1260, height: height))
-        sidebar.view.additionalSafeAreaInsets = NSEdgeInsets(top: 0, left: 0, bottom: bottomSafeArea, right: 0)
+        hosted.view.additionalSafeAreaInsets = NSEdgeInsets(top: 0, left: 0, bottom: bottomSafeArea, right: 0)
         window.contentView?.layoutSubtreeIfNeeded()
-        view = sidebar.view
-        host = sidebar
-        self.made = made
+        view = hosted.view
+        self.hosted = hosted
+        self.dressed = dressed
+        self.column = column
 
         board = try #require(Self.views(NSTableView.self, in: view).first)
         field = Self.views(NSSearchField.self, in: view).first
     }
 
-    /// This board shown in place of what shows, on the same host, as a board changing under a window open on it,
-    /// folded as given.
-    func show(_ listed: Listed, folds: Folds = Folds()) {
-        host.rootView = made(Sidebar(listed, folds: folds))
+    /// The column drawn again over the run as it is at this time, as a board coming in draws it.
+    func show(_ run: WindowRun, at now: Date) {
+        hosted.rootView = dressed(Self.content(of: run, column, at: now))
         window.contentView?.layoutSubtreeIfNeeded()
     }
 
-    /// A rect of a view inside the sidebar, in the drawing's terms.
-    func frame(of inner: NSView, _ rect: CGRect? = nil) -> CGRect {
-        let inWindow = inner.convert(rect ?? inner.bounds, to: nil)
-        let glass = view.convert(view.bounds, to: nil)
-        let height = window.contentView?.frame.height ?? 0
-
-        return CGRect(x: inWindow.minX - glass.minX, y: height - inWindow.maxY, width: inWindow.width, height: inWindow.height)
+    private static func content(of run: WindowRun, _ column: Column, at now: Date) -> AnyView {
+        switch column {
+        case .sidebar: AnyView(SidebarColumn(places: run.places, root: run.location.root, filter: run.filter))
+        case .list: AnyView(list(of: run, at: now))
+        }
     }
 
-    /// The board's rows, in order.
+    /// The time of the board the run shows.
+    private static func now(of run: WindowRun) -> Date {
+        run.last.board?.at ?? printed
+    }
+
+    /// The run's list as its window draws it, at this time.
+    @ViewBuilder static func list(of run: WindowRun, at now: Date) -> some View {
+        if let list = run.list(at: now) {
+            ListColumn(list: list, picked: run.location.picked?.pick, head: run.head, filter: run.filter, now: now)
+        }
+    }
+
+    /// A rect of a view inside the column, in the drawing's terms.
+    func frame(of inner: NSView, _ rect: CGRect? = nil) -> CGRect {
+        let inWindow = inner.convert(rect ?? inner.bounds, to: nil)
+        let column = view.convert(view.bounds, to: nil)
+        let height = window.contentView?.frame.height ?? 0
+
+        return CGRect(x: inWindow.minX - column.minX, y: height - inWindow.maxY, width: inWindow.width, height: inWindow.height)
+    }
+
+    /// The list's rows, in order.
     var rows: [CGRect] {
         (0 ..< board.numberOfRows).map { frame(of: board, board.rect(ofRow: $0)) }
     }
 
-    /// The glass's bottom, from the window's top.
+    /// The column's bottom, from the window's top.
     var glassBottom: CGFloat {
         frame(of: view).maxY
     }
 
-    /// The sidebar as it draws itself, its points the glass's, so a y from the window's top is 8 more.
+    /// The column as it draws itself, its points the column's.
     func drawn() throws -> Drawn {
         try Drawn(view)
     }
 
-    /// How far down the window the glass starts, which the drawing's points are counted from.
-    var glassTop: CGFloat {
-        frame(of: view).minY
-    }
-
-    /// The first board `watch` printed, unless given another it printed, the window open on it, folded as given, its
-    /// wall clock at the moment the line was printed, unless given another.
-    static func opened(_ line: String = Lines.watch[0], folds: Folds = Folds(), wall: Date? = nil) -> WindowRun {
+    /// The first board `watch` printed, unless given another it printed, the window open on it, its wall clock at the
+    /// moment the line was printed, unless given another.
+    static func opened(_ line: String = Lines.watch[0], wall: Date? = nil) -> WindowRun {
         var last = LastBoard()
         let at = (try? Board.read(line).at) ?? printed
-        let run = WindowRun(folds: folds, wall: { wall ?? at })
+        let run = WindowRun(wall: { wall ?? at })
 
         last.begin()
         _ = last.hear(.line(line), at: at)
