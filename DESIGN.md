@@ -831,7 +831,13 @@ and cancel all were, `⧗ Waiting for Claude's turn to end.`, with
 their asks say `on its way`. Taking it back lets go of its claim: its
 replies are in the queue as they were before the send, each with its `✕`,
 `↺ undo` and `✎ edit` again, its asks wait on Lee again at once, and send
-sends them again. Once the window has submitted it, it is Claude Code's,
+sends them again. While Claude's turn only waits on its background work
+(4 November 2026; see Delivery), the line says so in that one's place,
+wrapped beside `↺ take back`, or over it where that takes fewer rows:
+`⧗ Claude is waiting on its background work: this goes in when that ends.
+Type your answer in the prompt to reach Claude now.`; in one row,
+`⧗ Waiting on Claude's background work.`, where the rows Ready to send has
+do not hold that. Once the window has submitted it, it is Claude Code's,
 and nothing takes it back out of Claude Code's queue: the line says
 `⧗ Sending.` and the take-back is gone. The inbox's message offers none:
 Lee sent its replies from elsewhere.
@@ -1000,6 +1006,80 @@ app (see "The menu bar").
     awaited there, started its own turn about 13 ms later; a hook awaiting
     its own submit never ends. So the window submits a held message from the
     hook and waits on none of it there.
+  - **While the turn only waits on its background work** (4 November
+    2026). Seen live twice that day: Lee answered an ask, and its window
+    held the reply under `⧗ Waiting for Claude's turn to end.` for as long
+    as an hour after Claude had finished replying, Claude Code's own line
+    reading `✳ Waiting for 2 background agents to finish`. Claude Code holds
+    a turn open while background agents its main loop sent off still run,
+    though that loop has finished: each agent's notification goes into the
+    turn, Claude answers it, and the turn waits again. So the window heard a
+    turn running all along, and held the message. Lee's own prompts got in
+    meanwhile: Claude Code delivers a prompt typed mid-turn into the turn.
+
+    What the engine allows, by its types: nothing of a plugin's goes into a
+    running turn as Lee's own message. `$.prompt.submit` is "a turn of its
+    own, once the session is idle", and `prompt.submit`'s `turnId` is
+    "Absent for a prompt submitted while the session was idle, and for a
+    plugin's own (`$.prompt.submit`), which runs once it is idle". What
+    goes into a running turn is the engine's own: a prompt typed over it, a
+    task's notification ("delivered into a running turn (`turnId` set)"),
+    and a peer's message ("A queued delivery (a peer session's message)
+    reaches the model inside a running turn"). A plugin sends the last only
+    by `$.session.send`, "framed at the receiver as a peer's", which Claude
+    reads as another session's message, not Lee's (refused above);
+    `$.session.append` keeps "a user-role row the person does not see as
+    typed", which Lee never sees and which wakes nothing; and
+    `prompt.attachment` rewrites only what the engine injects "on its own".
+    `$.turn.abort` would end the wait, but by cancelling Claude's turn on the
+    mod's own say: not taken. A submit while the turn waits would only wait
+    in Claude Code's queue for its end, beyond taking back, so the window
+    holds the message as ever, and the board says what is true.
+
+    The window hears it from its model's requests (`turn.step`), each as it
+    goes and, the main loop's, as it is answered. The turn only waits on its
+    background work while three things hold (core's `waitsOnWork`): it runs;
+    its main loop is done inside it, its latest request in the turn answered
+    asking for no tool; and a subagent's loop runs, heard from its first
+    request until its own `turn.complete` and named `running` or `waiting`
+    by the engine's list of the session's agents (`$.agent.list()`). A
+    subagent run by a call of the main loop's is real work: the main loop's
+    request asked for that call.
+    - The main loop is done only from an answer in the turn it runs: its
+      `turnId` the one the turn's `turn.start` gave. A request cut short
+      (its stream's signal aborted) is no answer, nor is one answering for
+      another turn, as a request cut short by Esc can once Lee's next turn
+      began. The next request clears it, so a request whose answer fails
+      leaves the main loop at work.
+    - The list is asked whenever a change would leave the three holding,
+      newly or over other loops, and each loop it does not name so drops
+      out: the engine's own forks (compaction, memory) "carry ids no list
+      names", and a subagent whose end went unheard is listed ended, or not
+      at all. A list that fails counts nothing. A load that finds the three
+      holding in what the load before kept asks the list before it goes on,
+      and draws the board again, which may have drawn before it loaded. A
+      Stop whose list (`background_tasks`) names tasks but no subagent ends
+      every loop.
+    - No state shows it, the heartbeat still saying working, and only a
+      change writes the window's state: a request that leaves what the
+      window heard as it was writes nothing, so no request and no tool call
+      writes `$.state` for it. The board reads it from the window's memory,
+      not `$.state`, whose every write would draw the board again; a change
+      of whether the three hold draws the board again itself.
+
+    Then Ready to send's line says `⧗ Claude is waiting on its background
+    work: this goes in when that ends. Type your answer in the prompt to
+    reach Claude now.`, wrapped beside its take-back, or across the box with
+    the take-back on a row under it where that takes fewer rows; where the
+    rows a docked board gives Ready to send do not hold that once the replies
+    that fit have theirs, it says `⧗ Waiting on Claude's background work.`
+    in one row. Claude at work again, as a notification sets it going, the
+    line says the turn's end again. Known limits: background work no
+    subagent runs (a shell), and a workflow's agents, which the list leaves
+    out, do not count, and the line says the turn's end; a subagent ended
+    unheard while the three hold counts until the next change asks the list.
+    Whatever acts on the three, beyond what the board says, should ask the
+    list again as it acts.
   - **Taken back.** While the window holds Lee's send, Ready to send offers
     to take it back (see "Ready to send"): its claim is let go, its replies
     stay in the queue as they were, the heartbeat says them no more, and

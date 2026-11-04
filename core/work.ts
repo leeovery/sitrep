@@ -56,6 +56,9 @@ const KIND_OF_TYPE: ReadonlyMap<string, TaskKind> = new Map([
   ['shell', 'shells'],
 ])
 
+/** Whether a task a Stop lists is a subagent. */
+export const isAgentTask = (task: PendingTask) => KIND_OF_TYPE.get(task.type) === 'agents'
+
 /** The type a Stop lists a monitor under, unless it watches a command. */
 const MONITOR_TYPE = 'monitor'
 
