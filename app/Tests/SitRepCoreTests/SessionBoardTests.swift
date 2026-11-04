@@ -24,6 +24,16 @@ struct SessionBoardTests {
         #expect(board.session.parked == 1)
     }
 
+    /// The real CLI's board of Ledger export (`Lines.parked`) says when the session started; one from before it said
+    /// that, none.
+    @Test func theSessionInBriefSaysWhenItStartedWhereTheCLISaysIt() throws {
+        let board = try #require(try Board.read(Lines.parked[1]).boards["sr-nwdgr4"]?.board)
+
+        #expect(board.session.created == Date(timeIntervalSince1970: 1_793_792_455))
+        #expect(board.parked.map(\.id) == ["77k4", "3k0a"])
+        #expect(try Self.read(Lines.board).session.created == nil)
+    }
+
     @Test func itsAsksComeOldestFirstEachWithWhatItWantsBackAndNoReplyBeforeOneIsSent() throws {
         let asks = try Self.read(Lines.board).asks
 

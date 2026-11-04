@@ -128,6 +128,34 @@ struct BoardTests {
         ))
     }
 
+    /// The real CLI's line (`Lines.parked`): every session, followed or not, with when it started and what it parked,
+    /// oldest first.
+    @Test func eachSessionSaysWhenItStartedAndWhatItParked() throws {
+        let sessions = try Board.read(Lines.parked[0]).projects.flatMap(\.sessions)
+
+        #expect(sessions.map(\.id) == ["sr-ctnbd2", "sr-fbrs7k", "sr-nwdgr4"])
+        #expect(sessions.map(\.created) == [Self.at(1_793_709_655_000), Self.at(1_793_799_655_000), Self.at(1_793_792_455_000)])
+        #expect(sessions.map(\.parked) == sessions.map(\.parkedItems.count))
+        #expect(sessions[2].parkedItems == [
+            SessionBoard.Parked(
+                id: "77k4",
+                title: "Handle multi-currency rows",
+                where: "After the first export ships",
+                ref: "docs/export.md",
+                at: Self.at(1_793_803_255_257)
+            ),
+            SessionBoard.Parked(id: "3k0a", title: "Retry failed uploads", where: nil, ref: nil, at: Self.at(1_793_803_255_326)),
+        ])
+    }
+
+    /// A CLI from before the feed said them printed neither: no start, and nothing parked listed, though counted.
+    @Test func outputFromBeforeTheFeedSaidThemReadsWithNoStartAndNoParkedItems() throws {
+        let sessions = try Board.read(Lines.watch[0]).projects.flatMap(\.sessions)
+
+        #expect(sessions.contains { $0.parked > 0 })
+        #expect(sessions.allSatisfy { $0.created == nil && $0.parkedItems.isEmpty })
+    }
+
     @Test func theWindowsSayWhereTheyAreWhatTheyAreDoingAndWhetherTheyNeedAReload() throws {
         let windows = try Board.read(watched).windows
 

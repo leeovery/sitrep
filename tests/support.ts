@@ -121,7 +121,11 @@ export const note = (id: string, text: string, detail?: string[]): Body => ({
   detail,
 })
 
-export const park = (id: string, title: string): Body => ({ type: 'park', id, title })
+export const park = (
+  id: string,
+  title: string,
+  extra: { where?: string; ref?: string } = {},
+): Body => ({ type: 'park', id, title, ...extra })
 
 export const reply = (
   id: string,

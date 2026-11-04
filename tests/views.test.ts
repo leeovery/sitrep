@@ -67,7 +67,7 @@ const project = (key: string, counts: Partial<ProjectSummary> = {}): ProjectSumm
 
 const keys = (projects: readonly ProjectSummary[]) => projects.map(each => each.key)
 
-test('a session in brief: what it is doing, whether a window has it, and what it holds for Lee', () => {
+test('a session in brief: what it is doing, whether a window has it, what it holds for Lee, and when it started', () => {
   const session = sessionOf('sr-aaaaaa', 'switchboard', {
     logs: {
       [W1]: file(
@@ -93,6 +93,7 @@ test('a session in brief: what it is doing, whether a window has it, and what it
     snoozed: 0,
     asked: 2,
     parked: 1,
+    created: T0,
     updatedAt: T0 + 4 * MIN,
   })
 })

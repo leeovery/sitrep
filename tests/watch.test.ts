@@ -22,6 +22,7 @@ import {
   META,
   MIN,
   note,
+  park,
   reply,
   SLOW,
   snooze,
@@ -311,6 +312,7 @@ test('the first line is the board as every surface shows it, with nothing new, n
               waiting: 1,
               snoozed: 0,
               parked: 0,
+              created: META.created,
               updatedAt: T0,
               state: 'needsYou',
               since: T0,
@@ -341,6 +343,7 @@ test('the first line is the board as every surface shows it, with nothing new, n
                   snoozedUntil: null,
                 },
               ],
+              parkedItems: [],
             },
           ],
         },
@@ -419,6 +422,52 @@ test("a window on its own work is a row of that kind after working, its line say
     ['onItsWork', 'onItsWork'],
   ])
   expect(line?.windows.map(window => window.state?.is)).toEqual(['onItsWork', 'onItsWork'])
+})
+
+test('every session on a line carries what it parked, as board --json lists it, and when it started, though no board is followed', async () => {
+  const { t } = held([[T0 + MIN, park('p1', 'A tmux indicator')]])
+
+  t.seed(
+    { ...LOBBY, created: T0 - HOUR },
+    {
+      lines: [
+        [
+          T0 + 2 * MIN,
+          park('p1', 'Retry the export', { where: 'After the release', ref: 'PR #82' }),
+        ],
+      ],
+    },
+  )
+
+  const [line] = (await watched(t, [])).lines
+  const printed = line as unknown as {
+    projects: { sessions: { id: string; created: number; parkedItems: unknown[] }[] }[]
+    boards: Record<string, unknown>
+  }
+
+  expect(printed.boards).toEqual({})
+  expect(
+    printed.projects[0]?.sessions.map(each => [each.id, each.created, each.parkedItems]),
+  ).toEqual([
+    [
+      META.id,
+      META.created,
+      [{ id: 'p1', title: 'A tmux indicator', where: null, ref: null, at: T0 + MIN }],
+    ],
+    [
+      LOBBY.id,
+      T0 - HOUR,
+      [
+        {
+          id: 'p1',
+          title: 'Retry the export',
+          where: 'After the release',
+          ref: 'PR #82',
+          at: T0 + 2 * MIN,
+        },
+      ],
+    ],
+  ])
 })
 
 test('a post is a line at the next look, its board carried; a new ask is new on that line alone', async () => {
