@@ -45,14 +45,13 @@ import {
 } from './deliver'
 import {
   heardAgentTurnEnd,
-  heardAnswer,
   heardCheck,
   heardConversationEnd,
   heardRequest,
-  heardStep,
   heardStop,
   heardTurnEnd,
   heardTurnStart,
+  isWindowTurn,
   throughCall,
 } from './doing'
 import { BAND_ROWS, drawBand } from './draw/band'
@@ -136,7 +135,6 @@ const hostOf = ($: EngineInterface): Host => ({
     },
     tty: () => $.process.run(['/bin/sh', '-c', TTY_WALK], { timeoutMs: TTY_WALK_MS }),
   },
-  agents: () => $.agent.list(),
   plugin: {
     manifest: () => $.fs.read(`${$.plugin.root}/${MANIFEST}`),
   },
@@ -295,11 +293,15 @@ export const register: Register = on => {
     return next({ ...e, blocks: [...e.blocks, { name: LISTING, text: listing }] })
   }).catch(($, e, next) => next(e))
 
+  // The main conversation's turn starting. A subagent's run raises one too,
+  // which starts no turn of the window's and carries no message of its own.
   on('turn.start', async ($, e, next) => {
-    const host = hostOf($)
+    if (isWindowTurn(e)) {
+      const host = hostOf($)
 
-    await heardTurnStart(host, e.turnId)
-    await heardTurn(host, e.text)
+      await heardTurnStart(host)
+      await heardTurn(host, e.text)
+    }
 
     return next(e)
   }).catch(($, e, next) => next(e))
@@ -319,21 +321,6 @@ export const register: Register = on => {
 
     return next(e)
   }).catch(($, e, next) => next(e))
-
-  // Every model request, the window's own loop's and its subagents', heard
-  // as it goes, and the window's own as it is answered, passed on as it came.
-  // One cut short is no answer: it may settle after the next turn began.
-  on('turn.step', async function* ($, e, next) {
-    const host = hostOf($)
-
-    await heardStep(host, e.agentId)
-
-    const response = yield* next(e)
-
-    if (e.agentId === undefined && !next.signal.aborted) {
-      await heardAnswer(host, e.turnId, response.toolUses.length > 0)
-    }
-  })
 
   // Every call, the window's own and its subagents', sitrep's among them,
   // heard as it starts and ends, and passed on as it came.

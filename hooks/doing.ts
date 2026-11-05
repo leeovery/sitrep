@@ -25,34 +25,27 @@
  * The turn's Stop says what it left pending: unless a hook beneath blocked
  * it, which goes on with the turn, its lists replace what was pending, in
  * whichever order it and the turn's end come.
- *
- * Each model request is heard too, for core's `waitsOnWork`, which no state
- * shows and Ready to send reads. Before a change leaves it holding, newly or
- * over other loops, the engine's list of agents is asked which loops run.
  */
+import type { TurnStartInput } from 'claude-code'
 import {
   agentTurnEnded,
   isObject,
-  loopsRunning,
   permissionShown,
   QUESTION_TOOL,
   QUIET,
-  stepAnswered,
-  stepStarted,
   toolAsked,
   toolEnded,
   toolStarted,
   turnEnded,
   turnStarted,
   turnStopped,
-  waitsOnWork,
   type Activity,
   type PendingCron,
   type PendingTask,
   type Stop,
   type ToolCall,
 } from '../core'
-import { activityNow, changeActivity, runningAgents } from './activity'
+import { changeActivity } from './activity'
 import { logFailure, type Host } from './host'
 import { restate } from './window'
 
@@ -179,28 +172,9 @@ const logStops = (host: Host, before: Activity, after: Activity, why: string) =>
 }
 
 /**
- * What keeps `change` to the loops the engine lists as running, where it
- * would leave the turn only waiting on background work, newly or over loops
- * it changed; else nothing.
- */
-const vouched = async (host: Host, change: (activity: Activity) => Activity) => {
-  const before = await activityNow(host)
-  const after = change(before)
-
-  if (!waitsOnWork(after) || (waitsOnWork(before) && after.loops === before.loops)) {
-    return change
-  }
-
-  const running = await runningAgents(host)
-
-  return (activity: Activity) => loopsRunning(change(activity), running)
-}
-
-/**
  * Records what the window heard, `why` it changed, and has the heartbeat
- * say it, waiting on neither write: the stops it began. Where whether the
- * turn only waits on background work changes, the board is drawn again,
- * since Ready to send says so. A change of nothing does none of it.
+ * say it, waiting on neither write: the stops it began. A change of nothing
+ * does none of it.
  */
 const heard = async (
   host: Host,
@@ -208,7 +182,7 @@ const heard = async (
   why: string,
 ): Promise<Stop[]> => {
   try {
-    const { before, after } = await changeActivity(host, await vouched(host, change))
+    const { before, after } = await changeActivity(host, change)
 
     if (after === before) {
       return []
@@ -218,10 +192,6 @@ const heard = async (
       .then(at => tell(host, at))
       .catch(logFailure(host, UNWRITTEN))
 
-    if (waitsOnWork(before) !== waitsOnWork(after)) {
-      host.ui.redraw()
-    }
-
     return logStops(host, before, after, why)
   } catch (error) {
     logFailure(host, "recording the window's state")(error)
@@ -230,11 +200,21 @@ const heard = async (
   }
 }
 
-/** The window's turn starting, by its id: a subagent's run raises none. */
-export const heardTurnStart = async (host: Host, turnId: string) => {
+/**
+ * A turn's start as Claude Code 2.1.318 raises it: for a subagent's run as
+ * well as the window's, the subagent's carrying its `agentId`, which the
+ * engine's types (written by 2.1.295) leave out.
+ */
+type TurnStart = TurnStartInput & { agentId?: string }
+
+/** Whether a turn's start is the window's own: its loop is the main one, which carries no `agentId`. */
+export const isWindowTurn = (start: TurnStart) => start.agentId === undefined
+
+/** The window's turn starting. */
+export const heardTurnStart = async (host: Host) => {
   const at = await timeNow(host)
 
-  return heard(host, activity => turnStarted(activity, at, turnId), 'the turn started')
+  return heard(host, activity => turnStarted(activity, at), 'the turn started')
 }
 
 /** The window's turn ending, answered, stopped by Lee or failed. */
@@ -244,17 +224,9 @@ export const heardTurnEnd = async (host: Host) => {
   return heard(host, activity => turnEnded(activity, at), 'the turn ended')
 }
 
-/** A subagent's turn ending: what it left waiting is done with, and its loop runs no more. */
+/** A subagent's turn ending: what it left waiting is done with. */
 export const heardAgentTurnEnd = (host: Host, agentId: string) =>
   heard(host, activity => agentTurnEnded(activity, agentId), "its subagent's turn ended")
-
-/** A model request about to go: the window's own loop is at work again; a subagent's loop runs. */
-export const heardStep = (host: Host, agentId: string | undefined) =>
-  heard(host, activity => stepStarted(activity, agentId), 'a request went')
-
-/** A request of the window's own loop answered in the turn `turnId` names, asking for a tool or not. */
-export const heardAnswer = (host: Host, turnId: string, isAsking: boolean) =>
-  heard(host, activity => stepAnswered(activity, turnId, isAsking), 'a request was answered')
 
 /** The conversation ending, as at a /clear: the next starts with nothing heard, your turn since it attaches. */
 export const heardConversationEnd = (host: Host) =>

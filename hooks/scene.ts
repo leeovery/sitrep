@@ -2,11 +2,10 @@
  * What the board and the band are drawn from, as plain data: the held
  * session, the sessions around it as last read, the window's own state, and
  * the time. Read inside a render hook, each read subscribes the drawing, so
- * a write draws it again; all but `waitsOnWork`, read from memory, which
- * subscribes nothing: its changes draw the board again themselves.
+ * a write draws it again.
  */
 import type { Timer } from 'claude-code'
-import { closingReply, isOpen, resolvedAsks, waitsOnWork, type Ask, type Session } from '../core'
+import { closingReply, isOpen, resolvedAsks, type Ask, type Session } from '../core'
 import type {
   SitrepAnswering,
   SitrepInFlight,
@@ -18,7 +17,6 @@ import type {
   SitrepScroll,
   SitrepSent,
 } from '../types'
-import { activityKnown } from './activity'
 import { sessionOf } from './board'
 import { logFailure, type Host } from './host'
 import { C, pulseOf } from './look'
@@ -47,8 +45,6 @@ export type Scene = {
   queue: readonly SitrepQueued[]
   /** The message on its way to Claude: a send of Lee's, its replies frozen in the queue, or the inbox's. */
   inFlight: SitrepInFlight | null
-  /** Whether Claude's turn only waits on its background work, as the window has heard it: a send it holds goes in once that ends. */
-  waitsOnWork: boolean
   sent: readonly SitrepSent[]
   pane: SitrepPane
   /** How far down the docked board's list stands, at the place it was moved at. */
@@ -110,7 +106,6 @@ export const sceneOf = async (host: Host): Promise<Scene | undefined> => {
     ),
     queue,
     inFlight,
-    waitsOnWork: waitsOnWork(activityKnown()),
     sent,
     pane,
     scroll,

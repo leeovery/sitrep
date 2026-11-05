@@ -380,6 +380,63 @@ test("a subagent's turns neither start nor end the window's, and its tools do no
   await Promise.all([inside.done, agent.done])
 })
 
+test("a subagent's run starting mid-turn starts no turn of the window's: its own tools, candidates and stops stand, and the turn's time", async ($, on) => {
+  const w = world($, on)
+  const { paths } = await w.begin()
+
+  await w.turnStarts('Review it.')
+  await w.clock.advance(1_000)
+
+  const agent = w.calls('Agent', REVIEW)
+  const tests = w.calls('Bash', BUN_TEST, { verdict: 'ask' })
+  const pr = w.calls('Bash', PR_CREATE, { verdict: 'ask', isShown: true })
+
+  await later(w)
+
+  const heard = w.state.activity
+
+  expect(
+    [heard?.tools.length, heard?.asked.length, heard?.stops.length],
+    'tools, a candidate and a stop of its own',
+  ).toEqual([3, 1, 1])
+
+  await w.clock.advance(1_000)
+  await w.agentRunStarts(AGENT)
+  await later(w)
+
+  expect(w.state.activity).toEqual(heard)
+  expect(stateIn(w, paths)).toEqual({
+    is: 'permission',
+    since: T0 + 1_000,
+    tool: { name: 'Bash', subject: 'gh pr create --fill' },
+  })
+
+  for (const call of [agent, tests, pr]) {
+    call.finish()
+    await call.done
+  }
+})
+
+test("a subagent's run starting and ending between the window's turns changes nothing the window heard: your turn still, since the turn ended", async ($, on) => {
+  const w = world($, on)
+  const { paths } = await w.begin()
+
+  await w.turnStarts('Carry on.')
+  await w.clock.advance(9_000)
+  await w.turnEnds()
+  await later(w)
+
+  const heard = { activity: w.state.activity, writes: w.writes.activity }
+
+  await w.clock.advance(60_000)
+  await w.agentRunStarts(AGENT)
+  await w.turnEnds({ agentId: AGENT })
+  await later(w)
+
+  expect({ activity: w.state.activity, writes: w.writes.activity }).toEqual(heard)
+  expect(stateIn(w, paths)).toEqual({ is: 'yourTurn', since: T0 + 9_000 })
+})
+
 test("a subagent's permission prompt and its question stop the window on Lee, and once answered it works on with the agent", async ($, on) => {
   const w = world($, on)
   const { paths } = await w.begin()
@@ -512,37 +569,6 @@ test('a change that comes back to what the heartbeat says writes nothing', async
   expect(beats(w, paths)).toBe(before)
 })
 
-test("model requests that leave what the window heard as it was, Claude's own at work and a subagent's after its first, write nothing and draw nothing again, at work or only waiting on that work", async ($, on) => {
-  const w = world($, on)
-  const heard = () => ({ writes: w.writes.activity, redraws: w.redraws() })
-
-  await w.begin()
-  w.lists(AGENT)
-  await w.turnStarts('Carry on.')
-  await w.steps({ tools: ['Agent'] })
-  await w.steps({ agentId: AGENT })
-  await w.clock.settle()
-
-  const atWork = heard()
-
-  await w.steps({ tools: ['Read'] })
-  await w.steps({ tools: ['Bash'] })
-  await w.steps({ agentId: AGENT })
-  await w.steps({ agentId: AGENT })
-  await w.clock.settle()
-  expect(heard(), 'at work').toEqual(atWork)
-
-  await w.steps()
-  await w.clock.settle()
-
-  const waiting = heard()
-
-  await w.steps({ agentId: AGENT })
-  await w.steps({ agentId: AGENT })
-  await w.clock.settle()
-  expect(heard(), 'only waiting on its background work').toEqual(waiting)
-})
-
 test('the beat says the state as it stands, every 30 seconds as before', async ($, on) => {
   const w = world($, on)
   const { paths } = await w.begin()
@@ -658,7 +684,6 @@ test('after a reload mid-turn, the window says the state $.state kept, and goes 
       asked: [],
       stops: [],
       watches: [],
-      loops: [],
     },
   })
   await $.session.start(CONVERSATION)
@@ -960,6 +985,30 @@ test("a Stop listing a background agent before the turn's end: working until the
   await w.clock.settle()
 
   expect(stateIn(w, paths)).toEqual(ON_ITS_WORK)
+})
+
+test("a background subagent woken after the window's turn, its run starting and ending, leaves the window on its own work, never working", async ($, on) => {
+  const w = world($, on)
+  const { paths } = await w.begin()
+
+  await w.turnStarts('Review it in the background.')
+  await w.clock.advance(9_000)
+  await w.stops({ background_tasks: [REVIEWING], session_crons: [] })
+  await w.turnEnds()
+  await later(w)
+
+  expect(stateIn(w, paths)).toEqual(ON_ITS_WORK)
+
+  await w.clock.advance(60_000)
+  await w.agentRunStarts(AGENT)
+  await later(w)
+
+  expect(stateIn(w, paths), 'its run started').toEqual(ON_ITS_WORK)
+
+  await w.turnEnds({ agentId: AGENT })
+  await later(w)
+
+  expect(stateIn(w, paths), 'its run ended').toEqual(ON_ITS_WORK)
 })
 
 test("a Stop after the turn's end turns your turn to on its own work, and the heartbeat says so", async ($, on) => {

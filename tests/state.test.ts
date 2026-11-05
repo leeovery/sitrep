@@ -7,7 +7,6 @@ import {
   heartbeat,
   jsonOf,
   leave,
-  loopsRunning,
   parseActivity,
   parsePresence,
   permissionShown,
@@ -16,8 +15,6 @@ import {
   questionShown,
   SHOWN_LENGTH,
   stateOf,
-  stepAnswered,
-  stepStarted,
   toolAsked,
   toolEnded,
   toolShown,
@@ -25,7 +22,6 @@ import {
   turnEnded,
   turnStarted,
   turnStopped,
-  waitsOnWork,
   wakeAt,
   watchOf,
   workOf,
@@ -394,12 +390,12 @@ test("the window's turn starting or ending clears its own tools, candidates and 
   }
 
   expect(busy.stops.map(stop => stop.call)).toEqual(['t2', 'q1'])
-  expect(ended).toEqual({ endedAt: T0 + 9_000, tools: [], ...theAgents, watches: [], loops: [] })
-  expect(next).toEqual({ turnAt: T0 + 10_000, tools: [], ...theAgents, watches: [], loops: [] })
+  expect(ended).toEqual({ endedAt: T0 + 9_000, tools: [], ...theAgents, watches: [] })
+  expect(next).toEqual({ turnAt: T0 + 10_000, tools: [], ...theAgents, watches: [] })
   expect(stateOf(next, T0)).toEqual({ ...PERMISSION, since: T0 + 2_000 })
 })
 
-test("a subagent's turn ending clears what it left, though its calls were never heard to end, and nothing of another loop's", () => {
+test("a subagent's turn ending clears what it left, though its calls were never heard to end, and nothing of another loop's; one that left nothing gives back what it was given", () => {
   const busy = during(
     activity => toolAsked(activity, bash('t1', 'gh pr create', 'agent-1')),
     activity =>
@@ -413,84 +409,7 @@ test("a subagent's turn ending clears what it left, though its calls were never 
   expect(ended.asked.map(asked => asked.call)).toEqual(['t3'])
   expect(ended.stops.map(stop => stop.call)).toEqual(['q1'])
   expect(ended.turnAt).toBe(T0)
-})
-
-/** The running turn's id. */
-const TURN = 'turn-1'
-
-/** A turn `TURN` running since T0, with the changes given applied in order. */
-const inTurn = (...changes: ((activity: Activity) => Activity)[]) =>
-  changes.reduce((activity, change) => change(activity), turnStarted(QUIET, T0, TURN))
-
-test("Claude's turn only waits on its background work while it runs, its own loop's latest request asked for no tool, and a subagent's loop runs; no state shows it", () => {
-  const launched = inTurn(
-    activity => stepAnswered(activity, TURN, true),
-    activity => stepStarted(activity, 'agent-1'),
-    activity => stepStarted(activity),
-  )
-  const waiting = stepAnswered(launched, TURN, false)
-
-  expect(waitsOnWork(launched), 'its own loop at work').toBe(false)
-  expect(waitsOnWork(waiting)).toBe(true)
-  expect(stateOf(waiting, T0), 'still working').toEqual({ is: 'working', since: T0 })
-  expect(waitsOnWork(stepAnswered(inTurn(), TURN, false)), 'no subagent running').toBe(false)
-  expect(waitsOnWork(stepStarted(waiting)), 'a request of its own loop again').toBe(false)
-  expect(waitsOnWork(agentTurnEnded(waiting, 'agent-1')), "the subagent's turn ended").toBe(false)
-  expect(waitsOnWork(turnEnded(waiting, T0 + 9_000)), 'the turn ended').toBe(false)
-})
-
-test("the window's own loop is done from a request of its turn answered asking for no tool until a request goes or is answered asking for one, or the turn ends; a request that changes nothing gives back what it was given", () => {
-  const busy = inTurn()
-  const done = stepAnswered(busy, TURN, false)
-
-  expect(busy.turnId).toBe(TURN)
-  expect(done.isDone).toBe(true)
-  expect(stepAnswered(busy, TURN, true), 'asking for a tool').toBe(busy)
-  expect(stepAnswered(done, TURN, false)).toBe(done)
-  expect(stepStarted(busy)).toBe(busy)
-  expect(stepStarted(done).isDone, 'its next request').toBeUndefined()
-  expect(stepAnswered(done, TURN, true).isDone, 'one answered asking for a tool').toBeUndefined()
-  expect(turnEnded(done, T0 + 9_000).isDone, 'the turn ended').toBeUndefined()
-  expect(turnEnded(done, T0 + 9_000).turnId, 'its id with it').toBeUndefined()
-  expect(turnStarted(done, T0 + 9_000, 'turn-2').isDone, 'the next turn').toBeUndefined()
-})
-
-test("a request answered for another turn than the one running changes nothing: one cut short by Esc, answering after Lee's next turn began, or one with no turn running", () => {
-  const next = turnStarted(turnEnded(inTurn(), T0 + 5_000), T0 + 6_000, 'turn-2')
-  const done = stepAnswered(next, 'turn-2', false)
-
-  expect(stepAnswered(next, TURN, false), 'the last turn’s answer, late').toBe(next)
-  expect(stepAnswered(done, TURN, true), 'nor one asking for a tool').toBe(done)
-  expect(stepAnswered(QUIET, TURN, false), 'no turn').toBe(QUIET)
-  expect(stepAnswered(turnStarted(QUIET, T0), TURN, false), 'a turn whose id was never heard').toEqual(
-    turnStarted(QUIET, T0),
-  )
-})
-
-test("a subagent's loop runs from its first request until its own turn ends, across the window's turns; another's ending leaves it", () => {
-  const running = stepStarted(stepStarted(QUIET, 'agent-1'), 'agent-2')
-
-  expect(running.loops).toEqual(['agent-1', 'agent-2'])
-  expect(stepStarted(running, 'agent-1'), 'its next request').toBe(running)
-  expect(turnStarted(turnEnded(running, T0), T0 + 1_000).loops).toEqual(['agent-1', 'agent-2'])
-  expect(agentTurnEnded(running, 'agent-2').loops).toEqual(['agent-1'])
-})
-
-test('of the loops heard, only those the engine lists as running stay; with all listed, the activity is itself', () => {
-  const running = stepStarted(stepStarted(QUIET, 'agent-1'), 'fork-1')
-
-  expect(loopsRunning(running, ['agent-1', 'agent-9']).loops).toEqual(['agent-1'])
-  expect(loopsRunning(running, []).loops).toEqual([])
-  expect(loopsRunning(running, ['fork-1', 'agent-1'])).toBe(running)
-})
-
-test("a main-loop Stop listing no subagent among its tasks ends every loop heard; one listing one, or no list at all, keeps them", () => {
-  const running = stepStarted(inTurn(), 'agent-1')
-
-  expect(turnStopped(running, { tasks: [TESTS] }, T0 + 9_000).loops).toEqual([])
-  expect(turnStopped(running, { tasks: [] }, T0 + 9_000).loops).toEqual([])
-  expect(turnStopped(running, { tasks: [REVIEW, TESTS] }, T0 + 9_000).loops).toEqual(['agent-1'])
-  expect(turnStopped(running, {}, T0 + 9_000).loops).toEqual(['agent-1'])
+  expect(agentTurnEnded(ended, 'agent-1')).toBe(ended)
 })
 
 test('a heartbeat reads back with its state, through every beat; letting go drops it', () => {
@@ -571,9 +490,8 @@ test('what the window heard reads back from $.state as it was kept', () => {
     activity => toolStarted(activity, question('q1'), T0 + 3_000),
   )
   const ended = turnEnded(busy, T0 + 9_000)
-  const waiting = stepAnswered(stepStarted(inTurn(), 'agent-1'), TURN, false)
 
-  for (const activity of [QUIET, busy, ended, waiting]) {
+  for (const activity of [QUIET, busy, ended]) {
     expect(parseActivity(JSON.parse(JSON.stringify(activity)))).toEqual(activity)
   }
 })
@@ -591,7 +509,6 @@ test("what an earlier load kept in another shape reads field by field: a field t
     asked: [],
     stops: [],
     watches: [],
-    loops: [],
   })
   expect(
     parseActivity({
@@ -634,7 +551,6 @@ test("what an earlier load kept in another shape reads field by field: a field t
       { call: 't5', at: T0, is: 'permission', tool: { name: 'Bash' }, agentId: 'agent-1' },
     ],
     watches: [],
-    loops: [],
   })
 
   const watch = { task: 'bm1', isPersistent: true }
@@ -646,9 +562,6 @@ test("what an earlier load kept in another shape reads field by field: a field t
       watches: [watch, { task: 'bm2' }, { task: '', isPersistent: false }, 'bm3'],
     }),
   ).toEqual({ ...QUIET, work: { shells: { count: 1, first: 'bun test' } }, watches: [watch] })
-  expect(
-    parseActivity({ ...QUIET, turnId: 7, loops: ['agent-1', '', 7, null], isDone: 'yes' }),
-  ).toEqual({ ...QUIET, loops: ['agent-1'] })
 })
 
 test('a time heard before the clock first answered, which has none, reads as when the window attached', () => {
@@ -1016,7 +929,6 @@ test('a call that started a monitor is heard as it ends; a Stop keeps the monito
     asked: [],
     stops: [],
     watches: [{ task: 'bm1', isPersistent: true }],
-    loops: [],
   })
   expect(turnStopped(started, {}, T0 + 9_000).watches).toEqual(started.watches)
   expect(turnStopped(started, { tasks: [] }, T0 + 9_000).watches).toEqual([])

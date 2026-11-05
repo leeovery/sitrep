@@ -417,7 +417,7 @@ export const conversationEnded = async (host: Host, isCleared: boolean) => {
 }
 
 /**
- * A turn starts: the window is no longer quiet, and a message submitted
+ * The window's turn starts: it is no longer quiet, and a message submitted
  * whose text it carries has gone in. After a `/reload-plugins` typed
  * mid-turn the last load's submit never resolves (settled live), and this
  * is all that hears it.

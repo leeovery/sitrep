@@ -5,7 +5,6 @@
  * folder.
  */
 import type {
-  AgentStatus,
   ClassicEventOf,
   ClassicResultOf,
   ElementTable,
@@ -15,6 +14,7 @@ import type {
   RenderElement,
   RenderPropsOf,
   RenderViewport,
+  TurnStartInput,
 } from 'claude-code'
 import { mock, type Engine, type Mounted } from 'claude-code/testing'
 import {
@@ -137,9 +137,6 @@ type File = { text: string; mtimeMs: number }
 
 /** The kinds of look the mod takes at a path. */
 type Look = 'read' | 'exists' | 'list'
-
-/** How the model answers a request: asking for the tools named, once `until` settles where given, or failing for `fails`. */
-type Plan = { tools: readonly string[]; until?: Promise<void>; fails?: string }
 
 const MISSING = (path: string) => ({ deny: `ENOENT: no such file or directory, ${path}` })
 
@@ -374,53 +371,6 @@ export function world(engine: Engine, on: On, options: Options = {}) {
   on('session.end', ($, e) => ({ sessionId: e.sessionId }))
   on('turn.start', ($, e) => ({ turnId: e.turnId }))
   on('turn.complete', ($, e) => ({ text: e.answer }))
-
-  /** How the model answers each request, by its index: the tools it asks for, what it waits on first, or why it fails instead. */
-  const plans = new Map<number, Plan>()
-
-  // The model: each request answered whole, as its plan has it.
-  on('turn.step', async function* ($, e) {
-    const plan = plans.get(e.index) ?? { tools: [] }
-
-    await plan.until
-
-    if (plan.fails !== undefined) {
-      throw new Error(plan.fails)
-    }
-
-    const toolUses = plan.tools.map(name => ({ name, input: {} }))
-
-    return {
-      turnId: e.turnId,
-      index: e.index,
-      answer: toolUses.length > 0 ? '' : 'Done.',
-      toolUses,
-      stopReason: toolUses.length > 0 ? 'tool_use' : 'end_turn',
-      usage: null,
-    }
-  })
-
-  /** The session's agents as the engine lists them: where each one's loop stands, by its id. */
-  const agents = new Map<string, AgentStatus>()
-
-  on('agent.list', () => ({
-    value: [...agents].map(([id, status]) => ({
-      id,
-      description: 'Review the diff',
-      type: 'general-purpose',
-      status,
-    })),
-  }))
-
-  /** The engine lists the agent from here on as standing so: given no status, as running; given null, not at all. */
-  const lists = (agentId: string, status: AgentStatus | null = 'running') => {
-    if (status === null) {
-      agents.delete(agentId)
-    } else {
-      agents.set(agentId, status)
-    }
-  }
-
   on('classic.SessionStart', () => ({}))
   on('prompt.context', ($, e) => ({ blocks: e.blocks }))
   on('session.id', () => ({ value: conversation }))
@@ -436,15 +386,6 @@ export function world(engine: Engine, on: On, options: Options = {}) {
     logs.push(e.text)
 
     return { value: undefined }
-  })
-
-  /** How many times the mod had the board and the band drawn again of itself, as a change no `$.state` write draws needs. */
-  let redraws = 0
-
-  on('ui.invalidate', ($, e, next) => {
-    redraws += e.event === 'ui.render' ? 1 : 0
-
-    return next(e)
   })
 
   on('state.set', ($, input, next) => {
@@ -766,31 +707,15 @@ export function world(engine: Engine, on: On, options: Options = {}) {
     await engine.turn.start({ text, turnId: `turn-${turns}` })
   }
 
-  /**
-   * A model request of the main conversation's turn as it stands, or of a
-   * subagent's given its id, sent and answered whole as `how` plans it:
-   * asking for the tools named, with none the loop having nothing more to
-   * do; once `until` settles, as an answer cut short comes late; or failing.
-   */
-  let requests = 0
-  const steps = async (how: Partial<Plan> & { agentId?: string } = {}) => {
-    const index = requests++
-
-    plans.set(index, { tools: how.tools ?? [], until: how.until, fails: how.fails })
-
-    const response = engine.turn.step({
-      turnId: `turn-${turns}`,
-      index,
-      model: 'claude-opus-5-5',
-      messageCount: 1,
-      ...(how.agentId === undefined ? {} : { agentId: how.agentId }),
-    })
-
-    for await (const _ of response) {
-      // Read to its end: its result settles only then.
+  /** A run of a subagent's loop starting, as Claude Code 2.1.318 raises one: a turn's start carrying the subagent's id. */
+  const agentRunStarts = async (agentId: string) => {
+    const start: TurnStartInput & { agentId: string } = {
+      text: 'Review the change on this branch.',
+      turnId: `${agentId}-run`,
+      agentId,
     }
 
-    return response.result
+    await engine.turn.start(start)
   }
 
   /** The main conversation's turn ending, its answer given; or stopped by Lee; or a subagent's turn, given its id. */
@@ -831,7 +756,6 @@ export function world(engine: Engine, on: On, options: Options = {}) {
     state,
     boards,
     writes,
-    redraws: () => redraws,
     logs,
     listed,
     unlisted,
@@ -859,8 +783,7 @@ export function world(engine: Engine, on: On, options: Options = {}) {
     begin,
     become,
     turnStarts,
-    steps,
-    lists,
+    agentRunStarts,
     turnEnds,
     opened,
     pane,
