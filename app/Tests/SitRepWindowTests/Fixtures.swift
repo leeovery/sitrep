@@ -188,12 +188,13 @@ func turned(_ ended: [String: Double]) -> Heard {
 
 /// A window open on the line given, `watch`'s first unless another, landed on the Mac app as "Open in SitRep" lands,
 /// on its newest line in Needs you, then hearing that line again carrying the boards given, as the next line carries
-/// those of the sessions it follows, its wall clock at the moment `watch` printed its first line unless given another.
+/// those of the sessions it follows, its wall clock at the moment `watch` printed its first line unless given another,
+/// and when Lee last looked at each session as given.
 func opened(
     on line: Heard = line(0), boards: [String: String?] = ["sr-macapp": Lines.board],
-    wall: @escaping () -> Date = { printedAt }
+    looked: LastLooked = LastLooked(), wall: @escaping () -> Date = { printedAt }
 ) -> WindowRun {
-    let run = WindowRun(wall: wall)
+    let run = WindowRun(looked: looked, wall: wall)
 
     run.show(heard(line), at: printedAt, reducesMotion: false)
     run.open()

@@ -148,7 +148,8 @@ extension Words {
     public static let noWindow = "No window holds it"
     public static let notOnScreen = "not on screen"
 
-    /// How long ago a session's status changed, on its card in Now: "1h ago", or "just now".
+    /// How long ago something was, as a card of a project's Now says its session's status changed and a thread says
+    /// Lee last looked: "1h ago", or "just now".
     public static func ago(_ since: Date, at now: Date) -> String {
         let age = age(since, at: now)
 

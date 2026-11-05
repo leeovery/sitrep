@@ -39,7 +39,8 @@ struct ScreenLooks {
     /// Due at once, whatever the time.
     private static let atOnce = Date.distantPast
 
-    private var isShowing: Bool {
+    /// The window is open, and macOS has it visible.
+    var isShowing: Bool {
         window == .open && isVisible
     }
 
@@ -65,8 +66,10 @@ struct ScreenLooks {
         due = Self.atOnce
     }
 
+    /// The window closes: it is visible again only once macOS says so, as it opens afresh.
     mutating func close() {
         window = .closed
+        isVisible = false
         generation += 1
         reading = nil
         lastLook = nil

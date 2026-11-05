@@ -48,8 +48,12 @@ public final class WindowRun {
     /// How many times a session opened from outside while no board had come has landed, on the board that came: the
     /// window puts focus on the list for each, as for any open from outside.
     public private(set) var landedLater = 0
-    /// The wall clock, against which a your-turn row passes the fold period; and the calendar the window's wake times
-    /// are worded in.
+    /// When Lee last looked at each session on the board: the time its page last stopped showing after he read it.
+    public private(set) var looked: LastLooked
+    /// The session whose page shows, as the window last changed, and since when its thread has.
+    private var reading: Reading?
+    /// The wall clock, against which a your-turn row passes the fold period and a session's page stops showing; and the
+    /// calendar the window's wake times are worded in.
     private let wall: () -> Date
     public let calendar: Calendar
     /// The board as `watch` gives it, before it is held.
@@ -63,12 +67,15 @@ public final class WindowRun {
     /// Which sessions show on screen, read while the window shows.
     private var looks = ScreenLooks()
 
-    /// Opened where it was left, as given, a your-turn row folding into "N earlier" against this wall clock, its wake
-    /// times worded in the Gregorian calendar in the Mac's time zone, followed as it changes (`WakeTime.calendar`).
+    /// Opened where it was left, and with when Lee last looked at each session, as given, a your-turn row folding into
+    /// "N earlier" against this wall clock, its wake times worded in the Gregorian calendar in the Mac's time zone,
+    /// followed as it changes (`WakeTime.calendar`).
     public init(
-        remembered: Location? = nil, wall: @escaping () -> Date = Date.init, calendar: Calendar = WakeTime.calendar
+        remembered: Location? = nil, looked: LastLooked = LastLooked(), wall: @escaping () -> Date = Date.init,
+        calendar: Calendar = WakeTime.calendar
     ) {
         self.remembered = remembered
+        self.looked = looked
         self.wall = wall
         self.calendar = calendar
     }
@@ -88,7 +95,8 @@ public final class WindowRun {
     /// moving in at once, washed unless motion is reduced. Where the window is stays wherever it still stands on it
     /// (`History.keep(on:arranged:)`), and a session opened from outside before any board lands. Then the sessions'
     /// boards the line carries are taken, each printed once, so only as the line comes, never again from the board
-    /// kept stale; and stale, every answer written is on its way.
+    /// kept stale; and stale, every answer written is on its way. The page's session's board come, its thread shows;
+    /// and when Lee last looked at a session is kept only while it is on the board.
     public func show(_ last: LastBoard, at time: Date, reducesMotion: Bool) {
         let fresh = last.stale == nil ? last.board : nil
         let isFirstBoard = !given.hasBoard
@@ -108,6 +116,11 @@ public final class WindowRun {
             }
         }
         keepOnItsWayUnwatched()
+        keepLooked()
+        // after every write, so a session this board dropped while its page showed is never kept
+        if given.hasBoard {
+            looked.keep(only: Set(given.homes.keys))
+        }
     }
 
     /// While the board is stale no board can come, so an answer written is on its way, as the write proved.
@@ -144,10 +157,11 @@ public final class WindowRun {
         }
     }
 
-    /// macOS said whether the window is visible: covered, or on another Space, it shows nothing, so it reads nothing of
-    /// the screen.
+    /// macOS said whether the window is visible: covered, hidden or on another Space, it shows nothing, so it reads
+    /// nothing of the screen, and a session's page showing stops showing.
     public func window(isVisible: Bool) {
         looks.visible(isVisible)
+        keepLooked()
     }
 
     /// What has run out by this time: the second after the pointer left a column, or after the last pick made in it,
@@ -238,12 +252,14 @@ public final class WindowRun {
         }
     }
 
-    /// The window closes: it follows nothing, and reads nothing of the screen, letting its reading go; where it is
-    /// becomes where it was left, its history let go; the holds of the columns and the page let go, as the pointer
-    /// leaves with it, a finish asked about lapses, and the filter clears, as what it holds is not kept.
+    /// The window closes: it follows nothing, and reads nothing of the screen, letting its reading go; a session's page
+    /// showing stops showing; where it is becomes where it was left, its history let go; the holds of the columns and
+    /// the page let go, as the pointer leaves with it, a finish asked about lapses, and the filter clears, as what it
+    /// holds is not kept.
     public func close() {
         isOpen = false
         looks.close()
+        keepLooked()
         remembered = location
         history = nil
         landing = nil
@@ -252,14 +268,21 @@ public final class WindowRun {
         details.dropAskingToFinish()
     }
 
-    /// The window minimised: it shows no more, so it follows nothing and reads nothing of the screen, a run of picks
-    /// waiting let go, as back from the Dock it follows its page at once, and the holds of the columns and the page let
-    /// go, as the pointer leaves with it, but it keeps where it is, its history and its reading of the screen.
+    /// The window minimised: it shows no more, so it follows nothing and reads nothing of the screen, a session's page
+    /// showing stops showing, a run of picks waiting let go, as back from the Dock it follows its page at once, and the
+    /// holds of the columns and the page let go, as the pointer leaves with it, but it keeps where it is, its history
+    /// and its reading of the screen.
     public func minimise() {
         isOpen = false
         looks.minimise()
+        keepLooked()
         picks = PickFollows()
         letGoOfHolds()
+    }
+
+    /// The app quits: a session's page showing stops showing.
+    public func quit() {
+        keepLooked(showing: nil)
     }
 
     /// The pointer gone with the window, which tells no exit: the columns' holds let go, and they take `watch`'s order;
@@ -276,6 +299,7 @@ public final class WindowRun {
         isOpen = true
         looks.open()
         keepShown()
+        keepLooked()
     }
 
     // MARK: Going somewhere
@@ -419,6 +443,47 @@ public final class WindowRun {
             details.turnPage()
         }
         keepShown()
+        keepLooked()
+    }
+
+    // MARK: Where Lee looked
+
+    /// The session whose page shows to Lee, beside a place's list or filling the window, alike, while the window shows;
+    /// none for a parked item's page, which is not its session's, a project's, or a place with nothing picked.
+    private var sessionShowing: String? {
+        guard looks.isShowing, case let .session(id)? = location.page else {
+            return nil
+        }
+        return id
+    }
+
+    /// What shows now, as the window changed (`keepLooked(showing:)`).
+    private func keepLooked() {
+        keepLooked(showing: sessionShowing)
+    }
+
+    /// The session whose page shows now, as given, by the wall clock: a session's page showing before and not now, Lee
+    /// looked at it now, where he read it (`Reading`); only then, so while it shows its look holds still. Its thread
+    /// shows once its board is kept, as it may be only after the page does.
+    private func keepLooked(showing now: String?) {
+        let time = wall()
+
+        if let reading, reading.session != now {
+            if reading.wasRead(stopping: time) {
+                looked.stopped(showing: reading.session, at: time)
+            }
+            self.reading = nil
+        }
+        guard let now else {
+            return
+        }
+
+        var shown = reading ?? Reading(session: now)
+
+        if details.board(of: now) != nil {
+            shown.threadShows(at: time)
+        }
+        reading = shown
     }
 
     /// The fold at the list's foot holding the pick, opened, so the pick shows: as a session opened from outside lands

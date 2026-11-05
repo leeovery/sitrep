@@ -55,6 +55,8 @@ final class WindowModel {
     @ObservationIgnored private let defaults: UserDefaults
     /// Where the window was left, as last saved, which is saved again as it changes.
     @ObservationIgnored private var left: Location?
+    /// When Lee last looked at each session, as last saved, which is saved again as it changes.
+    @ObservationIgnored private var looked: LastLooked
     @ObservationIgnored private var wake: Task<Void, Never>?
     /// The wait for the next look at the screen.
     @ObservationIgnored private var screenWake: Task<Void, Never>?
@@ -63,8 +65,10 @@ final class WindowModel {
     /// How often the ages are drawn again while nothing else changes.
     private static let tick: TimeInterval = 30
 
+    /// Its run's wall clock as given (`WindowRun.init`), the Mac's unless a test's.
     init(
-        plugin: Plugin, works: Works, snoozes: Snoozes, following: Following, defaults: UserDefaults = .standard
+        plugin: Plugin, works: Works, snoozes: Snoozes, following: Following, defaults: UserDefaults = .standard,
+        wall: @escaping () -> Date = Date.init
     ) {
         self.plugin = plugin
         self.works = works
@@ -73,7 +77,8 @@ final class WindowModel {
         self.defaults = defaults
         reducesMotion = Self.readReducesMotion(defaults)
         left = WhereLeft.read(defaults)
-        run = WindowRun(remembered: left)
+        looked = LastLooked.read(defaults)
+        run = WindowRun(remembered: left, looked: looked, wall: wall)
         actions = makeActions()
         listen()
     }
@@ -175,6 +180,12 @@ final class WindowModel {
         lookAtScreen()
     }
 
+    /// The app quits: when Lee looked at the session whose page shows is saved, as its page stops showing.
+    func quitting() {
+        run.quit()
+        keepLooked()
+    }
+
     /// "Open in SitRep" on a session, from the card or the menu.
     func land(_ session: String) {
         run.land(session)
@@ -267,9 +278,11 @@ final class WindowModel {
         lookAtScreen()
     }
 
-    /// macOS said whether the window is visible.
+    /// macOS said whether the window is visible: hidden or covered, the page showing stops showing, so it is drawn
+    /// again as Lee last looked at it.
     func window(isVisible: Bool) {
         run.window(isVisible: isVisible)
+        refresh()
         lookAtScreen()
     }
 
@@ -390,8 +403,8 @@ final class WindowModel {
         }
     }
 
-    /// What the views show, at this moment, and what the window follows; where it is, kept as where it was left; then
-    /// the next moment it changes by time alone is waited for.
+    /// What the views show, at this moment, and what the window follows; where it is, kept as where it was left, and
+    /// when Lee last looked at each session; then the next moment it changes by time alone is waited for.
     private func refresh() {
         let time = Date()
 
@@ -415,6 +428,7 @@ final class WindowModel {
         showToolbar(run.toolbar)
         landedLater = run.landedLater
         keepWhereLeft()
+        keepLooked()
         schedule(after: time)
     }
 
@@ -423,6 +437,14 @@ final class WindowModel {
         if location != left {
             left = location
             WhereLeft.save(location, in: defaults)
+        }
+    }
+
+    /// When Lee last looked at each session, saved as it changes.
+    private func keepLooked() {
+        if run.looked != looked {
+            looked = run.looked
+            looked.save(in: defaults)
         }
     }
 

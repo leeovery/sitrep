@@ -5,9 +5,12 @@ import SitRepWindow
 import Testing
 
 extension WindowModel {
-    /// A model over a plugin that runs nothing, its defaults a suite of their own, with where it was left as given.
-    static func made(remembered: Location? = nil) throws -> WindowModel {
-        let defaults = try #require(UserDefaults(suiteName: "sitrep.WindowModel.\(UUID().uuidString)"))
+    /// A model over a plugin that runs nothing, its defaults a suite of their own unless given, with where it was left
+    /// as given, its run's wall clock the Mac's unless given.
+    static func made(
+        remembered: Location? = nil, defaults given: UserDefaults? = nil, wall: @escaping () -> Date = Date.init
+    ) throws -> WindowModel {
+        let defaults = try given ?? #require(UserDefaults(suiteName: "sitrep.WindowModel.\(UUID().uuidString)"))
         let plugin = Plugin()
         let banners = Banners(pid: 1, send: { _ in }, helperApp: NoHelper())
 
@@ -16,7 +19,7 @@ extension WindowModel {
         }
         return WindowModel(
             plugin: plugin, works: Works(banners: banners, plugin: plugin),
-            snoozes: Snoozes(plugin: plugin, banners: banners), following: Following(), defaults: defaults
+            snoozes: Snoozes(plugin: plugin, banners: banners), following: Following(), defaults: defaults, wall: wall
         )
     }
 }

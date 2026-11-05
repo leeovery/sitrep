@@ -101,6 +101,8 @@ public struct SessionPage: Equatable, Sendable {
     public let parked: Int
     /// What happened, the newest first: its log's lines, as many as its board carries, and its asks still open.
     public let happened: [Happened]
+    /// Where among them Lee last looked, "You looked 2h ago", where entries stand on both sides of it.
+    public let looked: YouLooked?
     /// The newest closed first, those still keeping their place among its cards aside: "N resolved", folded at the end
     /// of What happened.
     public let resolved: [Resolved]

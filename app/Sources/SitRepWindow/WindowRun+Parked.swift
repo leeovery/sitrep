@@ -15,7 +15,8 @@ extension WindowRun {
 
         return .parked(ParkedPage(
             item: item, projectKey: found.project.key, projectName: found.project.name,
-            from: ParkedPage.From(found.session), since: since.lines, isSinceCut: since.isCut, hasBoard: kept != nil,
+            from: ParkedPage.From(found.session), since: since.lines, isSinceCut: since.isCut,
+            looked: YouLooked(looked[session], over: since.lines.map(\.at)), hasBoard: kept != nil,
             failure: details.failure(of: session) ?? (kept == nil ? unwatched : nil),
             opened: details.keepOpen(since.lines.map { .note($0.id) })
         ))

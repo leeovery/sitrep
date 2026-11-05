@@ -4420,6 +4420,20 @@ stands).
       in place, an ask's as a line's, while it is cut short. A board
       carries the 8 newest lines, so once the log holds 8, an ask older
       than its oldest line is cut, as what happened between may be gone.
+      Where Lee last looked at the session (5 November 2026, A2 revised;
+      when that is, under "Where Lee last looked" below), "You looked 2h
+      ago" divides the thread: a row of its own, as tall as the lines',
+      its words 11 medium in white at 35% from the words' edge, the
+      window's age words with "ago", "You looked just now" under a minute,
+      then a hairline in white at 8% running to the trailing edge, the
+      thread's line running on through it unbroken. It goes above the
+      newest entry from at or before the look, asks and notes alike, and
+      the entries under it are dimmer: their words in white at 45% (70%
+      above it), their ages at 30% (35%), their marks darker. It shows
+      only with entries on both sides of the look: with nothing newer
+      nothing came since, so there is no divider and nothing is dimmed;
+      with nothing from before, or never looked, there is none either.
+      Beside the list it divides the log alone, as that is the thread.
       At its end "N resolved ›",
       folded each time a page shows, opens in place to its resolved asks,
       the newest closed first, each opening to how it closed. A session's
@@ -4448,7 +4462,9 @@ stands).
       staying picked in the sidebar. Then **Since it was parked**, 28
       under, while there is any: the session's log lines written after the
       item was parked, the newest first, on What happened's thread, each
-      in a row of 26 and opening in place as there. Picking an item follows
+      in a row of 26 and opening in place as there, those from at or
+      before Lee last looked at the session dimmer, by What happened's
+      rule, but with no divider, as A4 draws none. Picking an item follows
       its session, so its board, and its log, comes. A board carries the 8
       newest lines, so where all 8 came after the item was parked, more may
       have come since than show, and a faint line under them says "Only its
@@ -4759,7 +4775,10 @@ stands).
     words on its right, as "Now, updated 1 hour ago", or on a project's
     page "Waiting on you, 3"; the meta line reads its parts as one,
     "Ghostty, on screen, started today, 09:12"; an age in What happened in
-    whole words; "N resolved" says "collapsed" or "expanded" as its value;
+    whole words; the divider where Lee last looked one element, in whole
+    words, "You looked 2 hours ago", and an entry under it, dimmer, read as
+    any other, with no words for the dimming; "N resolved" says
+    "collapsed" or "expanded" as its value;
   - a card is a container labelled by its ask's title, its buttons inside
     it. The title is said once, by the container;
   - on a project's page its counts read as words, "3 sessions, 3 waiting on
@@ -5037,6 +5056,34 @@ stands).
     page; or a session's page pushed from a place or a project, which stays
     picked in the sidebar. The page follows the picked row's session, every
     session of a project, or the session pushed.
+  - **Where Lee last looked** at each session (5 November 2026, built as
+    the last piece of the window's rebuild, as Lee chose on 4 November):
+    the time its page last stopped showing after he read it, which What
+    happened's "You
+    looked 2h ago" says. Its detail beside the list and its page filling
+    the window are both its page, so going between them, or picking
+    another line of the same session, writes nothing. Its page stops
+    showing as another shows, another session's, a project's, a parked
+    item's or a place with nothing picked, and as the window closes, is
+    minimised, or stops being visible to macOS, hidden, covered or on
+    another Space, and as the app quits; back from the Dock or uncovered,
+    it shows again and writes nothing until it stops once more. Not key,
+    the window still shows it. A parked item's page is not its session's:
+    it never counts as looking at the session. A page counts only where
+    Lee could read its thread: once its board is kept, which may come
+    after the page does, for a second at least, on the wall clock. A run
+    of ↓ or ↑ follows only its first session until it stops, so the
+    sessions it passes, their boards never carried, are not looked at,
+    nor is one passed in under a second on a board kept from before, nor a
+    page left before its board comes, however long it showed. Freshly
+    opened, the window shows nothing until macOS says it is visible, so
+    where it opens before landing elsewhere is not looked at either.
+    Written only as the page stops showing, the look holds still while
+    Lee reads, and entries
+    arriving meanwhile land above the divider. Kept across launches in the
+    app's defaults under "windowLooked", for the sessions on the board
+    only, each board heard dropping the rest; with no board heard, none is
+    dropped.
   - **As the board changes** the window stays where it is wherever that
     still stands. A picked line leaving Needs you keeps it there, the page
     on its session. A pick whose session left the board drops, the place
