@@ -133,13 +133,24 @@ let quiet: Timer | undefined
 let turns = 0
 
 /**
- * Whether the message this load last submitted is yet to be heard starting
- * its turn. Its submit can resolve, and write it down, a few milliseconds
- * before that turn's start is heard, so the window would seem between turns
- * meanwhile: no message goes after it until a turn starts, it is let go, or
- * its quiet passes, should that start never be heard.
+ * The message this load last submitted, by its text, while its turn is yet
+ * to be heard starting, and the quiet that stops the wait should that start
+ * never be heard. Its submit can resolve, and write it down, a few
+ * milliseconds before its turn's start is heard, so the window would seem
+ * between turns meanwhile: no message goes after it until its own turn
+ * starts, another's never counting, it is let go, or the quiet passes.
  */
-let isAwaitingTurn = false
+let awaiting: { text: string; quiet: Timer } | undefined
+
+const awaitTurn = (host: Host, text: string) => {
+  awaiting?.quiet.cancel()
+  awaiting = { text, quiet: host.clock.after(QUIET_MS, () => (awaiting = undefined)) }
+}
+
+const stopAwaiting = () => {
+  awaiting?.quiet.cancel()
+  awaiting = undefined
+}
 
 /** Whether a prompt is the board's own message: Lee's replies, from Ready to send or another session's inbox. */
 export const isBoardMessage = (origin: PromptOrigin) =>
@@ -238,7 +249,7 @@ const release = async (host: Host, delivery: SitrepInFlight, why: string) => {
   })
 
   if (isLet) {
-    isAwaitingTurn = false
+    stopAwaiting()
     AFTER[delivery.source].notTaken(host, why)
     await foldAgain(host)
   }
@@ -343,18 +354,13 @@ const submit = async (host: Host, delivery: SitrepInFlight) => {
   }
 }
 
-/**
- * Lets a message submitted go once `QUIET_MS` pass with no turn starting,
- * unless it was taken by then, and lets the next go after it; a quiet
- * counted before is done with.
- */
+/** Lets a message submitted go once `QUIET_MS` pass with no turn starting, unless it was taken by then; a quiet counted before is done with. */
 const quietFor = (host: Host, waiting: SitrepInFlight) => {
   const at = turns
 
   quiet?.cancel()
   quiet = host.clock.after(QUIET_MS, () => {
     if (turns === at) {
-      isAwaitingTurn = false
       void release(host, waiting, NEVER_WENT_IN).catch(logFailure(host, 'letting a message go'))
     }
   })
@@ -365,7 +371,7 @@ const quietFor = (host: Host, waiting: SitrepInFlight) => {
  * main conversation be between turns as the window has heard it, and not
  * while a turn runs, stopped on Lee or not. One behind a message submitted
  * and not yet ended stays held: it goes once that one has, and its turn has
- * been heard starting (`isAwaitingTurn`), at the next between turns. A
+ * been heard starting (`awaiting`), at the next between turns. A
  * single update ends the hold, so a take-back racing it lands first or
  * finds it gone, and its quiet counts from the submit. With nothing held
  * first, as the window knows its claims, it writes nothing. The submit is
@@ -380,7 +386,7 @@ const quietFor = (host: Host, waiting: SitrepInFlight) => {
 export const sendHeld = async (host: Host) => {
   const isBetween = await betweenTurns(host)
   const isGoing = (flights: readonly SitrepInFlight[]) =>
-    !isAwaitingTurn && flights[0]?.isHeld === true && isBetween()
+    awaiting === undefined && flights[0]?.isHeld === true && isBetween()
 
   if (!isGoing(await flightNow(host))) {
     return false
@@ -400,7 +406,7 @@ export const sendHeld = async (host: Host) => {
     return false
   }
 
-  isAwaitingTurn = true
+  awaitTurn(host, going.text)
   quietFor(host, going)
   void submit(host, going).catch(logFailure(host, 'submitting the message'))
 
@@ -535,7 +541,11 @@ export const conversationEnded = async (host: Host, isCleared: boolean) => {
  */
 export const heardTurn = async (host: Host, text: string) => {
   turns += 1
-  isAwaitingTurn = false
+
+  if (awaiting?.text === text) {
+    stopAwaiting()
+  }
+
   quiet?.cancel()
   await heard(host, current => current.text === text)
 }
@@ -561,7 +571,7 @@ export const writeTaken = async (host: Host) => {
 export const takeUpDelivery = async (host: Host) => {
   quiet?.cancel()
   quiet = undefined
-  isAwaitingTurn = false
+  stopAwaiting()
   await writeTaken(host)
   await carryOn(host)
 }

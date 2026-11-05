@@ -347,6 +347,8 @@ export type SitrepPane = {
   selected: string | null
   /** The session whose RESOLVED shows every closed ask, not only the latest; null for none. A pane an older load saved lacks it, and is read as none. */
   resolvedInFull: string | null
+  /** The held send Ready to send's one row for several shows, by the ids of the replies it carries, where the box has no row for each; null for the first of them. A pane an older load saved lacks it, and is read as none. */
+  heldShown: string | null
   /** Where Claude Code last seated the board on each surface, as the board drawn there said; kept across closes. A surface whose board never said is missing, as is the whole from a pane an older load saved. */
   placement: Partial<Record<string, SitrepPlacement>>
 }

@@ -51,6 +51,8 @@ export type Actions = {
   send: (isDock: boolean) => void
   /** Takes back a send the window holds for its turn, its replies back in Ready to send among those still to send; none once it has gone. */
   takeBack: (send: SitrepInFlight) => void
+  /** Has Ready to send's one row for several held sends show the one named, by the ids of the replies it carries. */
+  showHeld: (send: string) => void
   /** Takes the board somewhere in the tree, at its top there: elsewhere, or where it already is. */
   go: (place: SitrepPlace) => void
   /** Closes the board, by its own close where it sits inline. */
@@ -216,6 +218,8 @@ export const actionsOf = (host: Host): Actions => {
         }),
       ),
     takeBack: send => run('taking a send back', () => takeBack(host, send)),
+    showHeld: send =>
+      run('stepping to the next held send', () => changePane(host, () => ({ heldShown: send }))),
     go: place => run('going elsewhere on the board', () => go(host, place)),
     close: () => run('closing the board', () => closeBoard(host)),
     finish: at => run('finishing a session', () => finish(host, at)),

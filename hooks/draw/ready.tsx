@@ -31,7 +31,7 @@ import {
 } from '../../core'
 import type { SitrepInFlight, SitrepQueued } from '../../types'
 import { agoWords, C, counted, GLYPH, wrapped } from '../look'
-import { filedAt, itemKey, sessionLabel } from '../places'
+import { briefOf, filedAt, itemKey, sessionLabel } from '../places'
 import {
   answered,
   destinations,
@@ -85,6 +85,9 @@ const SEND = 'send'
 const CANCEL_ALL = 'cancel-all'
 const UNREADY = 'unready:'
 
+/** The key of the button stepping to the next held send the box has no row for. */
+export const STEP_HELD = 'step-held'
+
 /** What tells one send on its way from another in the box, as two claimed in one millisecond would not be told by their time: the ids of the replies it carries, fixed at its claim. */
 const sendKey = (send: SitrepInFlight) => send.replies.map(reply => reply.id).join(',')
 
@@ -119,14 +122,18 @@ type Listed = Queued | Sent
 /** A send of Lee's on its way, and the line saying where it stands, as the rows it takes: held for its turn, to be taken back, or submitted. */
 type Going = { send: SitrepInFlight; rows: readonly string[]; isHeld: boolean }
 
+/** Where the row standing for several held sends is: the one it shows, of how many, and the key of the one it steps to next. */
+type Step = { at: number; of: number; next: string }
+
 /**
  * A send of Lee's on its way, a group of its own: the replies it carries,
  * frozen, over its line. Brief, it is one row under the send ahead of it,
- * naming the first of them, where the box has no room for more. One to a
- * session the board has not read lists none of them, its line and its
- * take-back showing all the same.
+ * naming the first of them, where the box has no room for more; stepping,
+ * that row stands for the sends the box has no row for, showing one at a
+ * time. One to a session the board has not read lists none of them, its
+ * line and its take-back showing all the same.
  */
-type SendGroup = { going: Going; filed?: Filed; listed: Listed[]; isBrief: boolean }
+type SendGroup = { going: Going; filed?: Filed; listed: Listed[]; isBrief: boolean; step?: Step }
 
 /** One destination's replies still to send, and those sent into its inbox, with where they stand there. */
 type ToSendGroup = { going?: undefined; filed: Filed; listed: Listed[]; standing?: Delivery }
@@ -283,12 +290,41 @@ const filled = (groups: readonly Group[], room: number) => {
 }
 
 /**
- * The groups that fit in `room` rows: all of them; or else the first send's
- * heading and line, and so its take-back, then each send after it brief, as
- * many as fit, then what fits of the replies in order, a row kept for the
- * count of what was left off.
+ * The sends after the first, each a row of its own, in `rows` rows: all of
+ * them where they fit; else as many as fit but one, then one row standing
+ * for the rest, which shows the one `shown` names, or the first of them,
+ * and steps through them. That row shows however few rows there are, so
+ * each held send's take-back is always within reach.
  */
-const fitted = (groups: readonly Group[], room: number): Group[] => {
+const briefed = (later: readonly SendGroup[], rows: number, shown: string | null) => {
+  const brief = (send: SendGroup): SendGroup => ({ ...send, isBrief: true })
+
+  if (later.length <= Math.max(1, rows)) {
+    return later.map(brief)
+  }
+
+  const kept = Math.max(0, rows - 1)
+  const rest = later.slice(kept)
+  const at = Math.max(0, rest.findIndex(send => sendKey(send.going.send) === shown))
+  const stepping = rest.flatMap((send, i) => {
+    const next = rest[(i + 1) % rest.length]
+
+    return i === at && next !== undefined
+      ? [{ ...brief(send), step: { at, of: rest.length, next: sendKey(next.going.send) } }]
+      : []
+  })
+
+  return [...later.slice(0, kept).map(brief), ...stepping]
+}
+
+/**
+ * The groups that fit in `room` rows: all of them; or else the first send's
+ * heading and line, and so its take-back, then a row for each send after it
+ * (`briefed`), then what fits of the replies in order, a row kept for the
+ * count of what was left off. The sends' rows come before any reply, the
+ * first send's own among them.
+ */
+const fitted = (groups: readonly Group[], room: number, shown: string | null): Group[] => {
   if (groupRows(groups) <= room) {
     return [...groups]
   }
@@ -301,10 +337,12 @@ const fitted = (groups: readonly Group[], room: number): Group[] => {
   }
 
   const left = room - MORE_ROWS - GROUP_ROWS - first.going.rows.length
-  const briefs = later.slice(0, Math.max(0, left)).map(send => ({ ...send, isBrief: true }))
-  const [head = first, ...rest] = filled([first, ...toSend], left - briefs.length * BRIEF_ROWS)
+  const briefs = briefed(later, left, shown)
+  // A brief send's replies count as shown, not as left off: its row names
+  // them. Those of the sends a stepping row has yet to show count as left off.
+  const kept = filled([first, ...toSend], left - briefs.length * BRIEF_ROWS)
 
-  return [head, ...briefs, ...rest]
+  return [...kept.slice(0, 1), ...briefs, ...kept.slice(1)]
 }
 
 /**
@@ -325,7 +363,7 @@ export const readyOf = (scene: Scene, width: number, rows = Infinity): Ready | u
     toSend: countWaiting(groups.filter(group => !isSend(group))),
     more: 0,
   }
-  const kept = fitted(groups, rows - readyRows(frame))
+  const kept = fitted(groups, rows - readyRows(frame), scene.pane.heldShown)
 
   return { ...frame, groups: kept, more: listedIn(groups) - listedIn(kept) }
 }
@@ -421,8 +459,17 @@ const drawSentEntry = (d: Drawing, { item, sent }: Sent) => {
   )
 }
 
-/** The line saying where a send on its way stands, under its replies; held, its take-back beside it. */
-const drawGoing = (d: Drawing, { send, rows, isHeld }: Going) => {
+/** The button stepping a row standing for several held sends to the next of them. */
+const drawStep = (d: Drawing, { next }: Step) => {
+  const { Button } = d.els
+
+  return (
+    <Button key={STEP_HELD} plain dimColor label="› next" onPress={() => d.act.showHeld(next)} />
+  )
+}
+
+/** The line saying where a send on its way stands, under its replies; held, its take-back beside it, after the step to the next held send where the row stands for several. */
+const drawGoing = (d: Drawing, { send, rows, isHeld }: Going, step?: Step) => {
   const { Box, Text, Button } = d.els
   const lines = rows.map((row, i) => (
     <Text key={`going:${i}`} color={C.grey} italic wrap="truncate-end">
@@ -439,6 +486,7 @@ const drawGoing = (d: Drawing, { send, rows, isHeld }: Going) => {
       <Box flexGrow={1} flexShrink={1}>
         {lines}
       </Box>
+      {step !== undefined && drawStep(d, step)}
       <Button
         key={takeBackKey(send)}
         plain
@@ -457,34 +505,53 @@ const drawEntry = (d: Drawing, entry: Listed) =>
 const toWhere = (d: Drawing, filed: Filed) =>
   filed.session === d.scene.session ? 'to this session' : `to ${sessionLabel(d.scene, filed)}`
 
-/** The row a brief send takes for its heading, replies and line: the first reply it carries, and how many more. */
-const briefLine = ({ going, listed }: SendGroup) => {
-  const count = going.send.replies.length
-  const [first] = listed
-
-  if (first === undefined) {
-    return `⧗ Then: ${counted(count, 'reply', 'replies')}`
+/** Where a send goes: as `toWhere` says it; one to a session the board has not read, by its name in its project's briefs, where they hold it. */
+const sendWhere = (d: Drawing, { going, filed }: SendGroup) => {
+  if (filed !== undefined) {
+    return toWhere(d, filed)
   }
 
-  return count > 1 ? `⧗ Then: ${first.item.title} +${count - 1}` : `⧗ Then: ${first.item.title}`
+  const brief = briefOf(d.scene, going.send.session)
+
+  return brief === undefined ? 'to another session' : `to ${brief.name}`
+}
+
+/**
+ * The row a brief send takes for its heading, replies and line: where it
+ * goes, unless to this session, the first reply it carries and how many
+ * more; standing for several held sends, which of them it shows.
+ */
+const briefLine = (d: Drawing, group: SendGroup) => {
+  const { going, filed, listed, step } = group
+  const lead =
+    filed?.session === d.scene.session ? '⧗ Then:' : `⧗ Then, ${sendWhere(d, group)}:`
+  const count = going.send.replies.length
+  const [first] = listed
+  const carried =
+    first === undefined
+      ? counted(count, 'reply', 'replies')
+      : `${first.item.title}${count > 1 ? ` +${count - 1}` : ''}`
+  const of = step === undefined ? '' : ` · ${step.at + 1} of ${step.of}`
+
+  return `${lead} ${carried}${of}`
 }
 
 const drawSendGroup = (d: Drawing, group: SendGroup) => {
   const { Box } = d.els
-  const { going, filed, listed, isBrief } = group
+  const { going, listed, isBrief, step } = group
   const key = `going:${sendKey(going.send)}`
 
   if (isBrief) {
     return (
       <Box key={key} flexDirection="column">
-        {drawGoing(d, { ...going, rows: [briefLine(group)] })}
+        {drawGoing(d, { ...going, rows: [briefLine(d, group)] }, step)}
       </Box>
     )
   }
 
   return (
     <Box key={key} flexDirection="column" paddingTop={GAP_ROWS}>
-      {line(d, filed === undefined ? 'on its way' : `on its way ${toWhere(d, filed)}`, C.grey)}
+      {line(d, `on its way ${sendWhere(d, group)}`, C.grey)}
       {listed.map(each => drawEntry(d, each))}
       {drawGoing(d, going)}
     </Box>

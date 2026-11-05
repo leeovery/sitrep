@@ -811,11 +811,19 @@ content. Each of its lines keeps to one row, cut short, so its height
 follows from what it holds. Docked it takes under half the window: a queue
 too long for that lists what fits and ends `… 3 more`, still one box. The
 first send on its way keeps its heading, its line and its take-back however
-little room is left, its replies listed as far as they fit; each send after
-it, short of room, is one row under it, `⧗ Then: Review round 4 +2` with
-its own `↺ take back`, the replies it names counted as shown, as many as
-fit (5 November 2026). A send to a session the board has not read still
-shows, headed `on its way`, its line and take-back under it. Only
+little room is left; each send after it, short of room, is one row under
+it, `⧗ Then: Review round 4 +2` with its own `↺ take back`
+(`⧗ Then, to Request ledger: …` for one not to the session held), the
+replies it names counted as shown (5 November 2026). Those rows come
+before any reply, the first send's own among them. With no room for a row
+each, the last row stands for the sends left over, one at a time,
+`⧗ Then: Review round 4 · 1 of 3`, with `› next` stepping to the next of
+them and the take-back of the one it shows, so every held send's
+take-back is in reach; that row shows however little room is left, and
+the pane keeps which send it shows until it closes. A send to a session
+the board has not read still shows, headed `on its way to` that session
+as its project's briefs name it (`to another session` where they do not),
+its line and take-back under it. Only
 Lee moves the list: queuing a reply, sending, a new ask arriving and the
 pane drawing again leave it where Lee had it, and only a list that shrank
 under it stops it short at its new end. Each place starts at its top,
@@ -1074,15 +1082,17 @@ app (see "The menu bar").
     back. A submit's resolving and its turn's start come within a few
     milliseconds of each other, either first (live probes), so the first can
     be written down and ended while the window still seems between turns:
-    after a submit, nothing more is submitted until a turn's start is heard,
-    the message is let go, or its quiet (see "Never taken") passes with no
-    turn starting, should that start never be heard. A press of send or a
-    look in that gap submits nothing; the next goes as the first's turn
-    ends. A load knows nothing of a submit an earlier load made, and goes by
-    the turn the window's state says: a reload landing in those milliseconds
-    can still submit the next early, into Claude Code's queue, its own
-    prompt after the first's still, only past taking back. A load finding
-    several held carries the first on, and the rest in turn.
+    after a submit, nothing more is submitted until the start of that
+    message's own turn is heard, its text the message's, the message is let
+    go, or 30 seconds pass from the submit, should that start never be
+    heard. A turn another prompt starts meanwhile, as one Lee typed that
+    went in first, counts for nothing: its end submits nothing. A press of
+    send or a look in that gap submits nothing; the next goes as the first's
+    turn ends. A load knows nothing of a submit an earlier load made, and
+    goes by the turn the window's state says: a reload landing in those
+    milliseconds can still submit the next early, into Claude Code's queue,
+    its own prompt after the first's still, only past taking back. A load
+    finding several held carries the first on, and the rest in turn.
   - The conversation's end ends any turn of it, but only a `/clear` goes on in
     this process with a next conversation, so only a `/clear` submits held
     messages, into that conversation, the first at once and the rest in turn,
@@ -2051,9 +2061,11 @@ $XDG_STATE_HOME/sitrep/, else ~/.local/state/sitrep/
   answering it.
 - The pane's last view lives in the window's `$.state` only: where it looks,
   the item opened there, and, apart from that, the session whose RESOLVED
-  shows every closed ask, and where Claude Code last seated the pane on each
-  surface, kept when it closes (see "The band"); a pane an older load saved,
-  without either, reads as none. `$.store` is unused so far.
+  shows every closed ask, the held send Ready to send's one row for several
+  shows (`heldShown`, by the ids of the replies it carries; 5 November
+  2026), and where Claude Code last seated the pane on each surface, kept
+  when it closes (see "The band"); a pane an older load saved, without any
+  of these, reads as none. `$.store` is unused so far.
 
 ## One engine, two front ends
 

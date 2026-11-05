@@ -12,7 +12,16 @@ import { QUIET_MS } from '../hooks/deliver'
 import { WATCH_MS } from '../hooks/window'
 import { rowsOf } from './drawn'
 import { MIN, SLOW, W1 } from './support'
-import { CONVERSATION, DOCKED, INLINE, postedId, PROJECT, world, writeDoor } from './world'
+import {
+  CONVERSATION,
+  DASHBOARD,
+  DOCKED,
+  INLINE,
+  postedId,
+  PROJECT,
+  world,
+  writeDoor,
+} from './world'
 
 tier('user')
 
@@ -462,23 +471,45 @@ test('a yes given after an answer written in the prompt is held lands in a queue
   expect(repliedIn(w, paths)).toEqual([list, review])
 })
 
-test('a send held to a session the board has not read, the window holding another since, still shows on its way, its replies counted, with its line and its take-back', SLOW, async ($, on) => {
-  const w = world($, on)
-  const { ids, ui } = await asking(w)
-
-  await holding(w, ui, ids)
+/** Claude starts another session of the project in this window, the board reading it a look later: the window holds it from then on. */
+const startedElsewhere = async (w: World) => {
   await w.call('start', {
     name: 'Request ledger',
     summary: 'Request ledger, area by area',
     project: PROJECT.name,
   })
   await w.clock.advance(WATCH_MS)
+}
 
-  expect(await box(ui)).toEqual([...heading(1), '', 'on its way', HELD])
+test("a send held to a session the board has not read, the window holding another since, still shows on its way there, named as its project's briefs name it, its replies counted, with its line and its take-back", SLOW, async ($, on) => {
+  const w = world($, on)
+  const { ids, ui } = await asking(w)
+
+  await holding(w, ui, ids)
+  await startedElsewhere(w)
+
+  expect(await box(ui)).toEqual([...heading(1), '', `on its way to ${DASHBOARD.name}`, HELD])
 
   await ui.press({ key: w.takeBack() })
 
   expect(w.state.inFlight).toBeNull()
+})
+
+test('a send after the first, one row for room, names where it goes when that is not the session held', SLOW, async ($, on) => {
+  const w = world($, on)
+  const { ids, ui } = await asking(w, { ...DOCKED, scroll: { offset: 0, bodyRows: 16 } })
+
+  await twoHeld(w, ui, ids)
+  await startedElsewhere(w)
+
+  expect(await box(ui)).toEqual([
+    ...heading(2),
+    '',
+    `on its way to ${DASHBOARD.name}`,
+    HELD,
+    `⧗ Then, to ${DASHBOARD.name}: 1 reply ↺ take back`,
+  ])
+  expect(await ui.find({ key: w.takeBack(1) })).toBeDefined()
 })
 
 test('the first send refused with a second held behind it: both are let go together, one toast saying so, every reply back among those still to send in the order replied, and the second never submitted', SLOW, async ($, on) => {
@@ -619,6 +650,46 @@ test("a send behind one submitted waits for the turn that one starts: its submit
   await turnEnded(w)
   expect(w.submitted).toEqual([message(1), message(2), message(3)])
   expect(repliedIn(w, paths)).toEqual([first, second, third])
+})
+
+test("a turn another prompt starts while the next send waits on the turn of the one before opens nothing: the next goes only once that one's own turn has started and ended", SLOW, async ($, on) => {
+  const w = world($, on)
+  const { paths, ids, ui } = await asking(w)
+  const [first = '', second = ''] = ids
+
+  await twoHeld(w, ui, ids)
+  await turnEnded(w)
+  await w.turnStarts('Something Lee typed meanwhile.')
+  await turnEnded(w)
+  await w.clock.advance(4 * WATCH_MS)
+
+  expect(w.submitted, "none after another prompt's turn").toEqual([message(1)])
+  expect(flightsIn(w)).toEqual([{ items: [second], isHeld: true }])
+
+  await w.turnStarts(message(1))
+  await turnEnded(w)
+
+  expect(w.submitted).toEqual([message(1), message(2)])
+  expect(repliedIn(w, paths)).toEqual([first, second])
+})
+
+test("two sends held as Lee stops Claude's turn: the first goes as the stopped turn ends, the second once the turn the first started has ended", SLOW, async ($, on) => {
+  const w = world($, on)
+  const { paths, ids, ui } = await asking(w)
+  const [first = '', second = ''] = ids
+
+  await twoHeld(w, ui, ids)
+  await w.turnEnds({ isAborted: true })
+  await w.clock.settle()
+
+  expect(w.submitted).toEqual([message(1)])
+  expect(flightsIn(w)).toEqual([{ items: [second], isHeld: true }])
+
+  await w.turnStarts(message(1))
+  await turnEnded(w)
+
+  expect(w.submitted).toEqual([message(1), message(2)])
+  expect(repliedIn(w, paths)).toEqual([first, second])
 })
 
 test('should the turn a submitted send started never be heard, the send behind it goes at the first look once its quiet has passed, nothing let go', SLOW, async ($, on) => {

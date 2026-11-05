@@ -94,6 +94,7 @@ const pane = atom({ plugin: 'sitrep', key: 'pane' } as const, {
   place: null,
   selected: null,
   resolvedInFull: null,
+  heldShown: null,
   placement: {},
 })
 const scroll = atom({ plugin: 'sitrep', key: 'scroll' } as const, null)
