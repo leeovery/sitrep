@@ -711,14 +711,20 @@ test('should the turn a submitted send started never be heard, the send behind i
 /** Claude Code's refusal of every plugin's prompt once Lee has stopped Claude's turn, until he next types in the window (live, 2.1.318). */
 const STOPPED = 'the session was stopped and nobody has sent input since'
 
-/** The line under a send Claude Code refused as Lee stopped Claude's turn, wrapped beside its take-back. */
+/** The line under a send Claude Code refused as Lee stopped Claude's turn, wrapped beside its send now and take-back. */
 const AWAITS_INPUT = [
-  '⧗ Claude was interrupted: this goes in ↺ take back',
-  'after your next message.',
+  '⧗ Interrupted: goes after ↑ send now ↺ take back',
+  'your next message.',
 ]
 
 /** The rows a send waiting on Lee's next message draws in Ready to send: its heading, each round's reply frozen, and its line. */
 const awaiting = (...rounds: number[]) => [...held(...rounds).slice(0, -1), ...AWAITS_INPUT]
+
+/** The rows a send held behind one waiting on Lee's next message draws: its heading, each round's reply frozen, and its line. */
+const behindInput = (...rounds: number[]) => [
+  ...held(...rounds).slice(0, -1),
+  '⧗ Goes after your next message. ↺ take back',
+]
 
 /** Whether each message in flight waits on Lee's next message. */
 const awaitsInputIn = (w: World) => w.flights().map(each => each.awaitsInput === true)
@@ -801,7 +807,7 @@ test("a send sealed behind one waiting on Lee's next message stays behind it: th
     { items: [second], isHeld: true },
   ])
   expect(awaitsInputIn(w)).toEqual([true, false])
-  expect(await box(ui)).toEqual([...heading(2), ...awaiting(1), ...held(2)])
+  expect(await box(ui)).toEqual([...heading(2), ...awaiting(1), ...behindInput(2)])
 
   await leeTypes(w)
   await turnEnded(w)
@@ -909,7 +915,7 @@ test("taking back a send waiting on Lee's next message puts its replies back amo
   expect(notSent(w)).toEqual([])
 })
 
-test("a reload keeps a send waiting on Lee's next message, the session still stopped; a /clear ends the wait, and it goes into the next conversation at once", SLOW, async ($, on) => {
+test("a file-watch reload keeps a send waiting on Lee's next message, the session still stopped; a /clear ends the wait, and it goes into the next conversation at once", SLOW, async ($, on) => {
   const w = world($, on)
   const { paths, ids, ui } = await asking(w)
   const [first = ''] = ids
@@ -930,4 +936,141 @@ test("a reload keeps a send waiting on Lee's next message, the session still sto
   expect(w.submitted).toEqual([message(1), message(1)])
   expect(repliedIn(w, paths)).toEqual([first])
   expect(w.state.inFlight).toBeNull()
+})
+
+/** Lee types a slash command, as Claude Code raises it to the mod. */
+const typedCommand = ($: Engine, command: string) =>
+  $.command.run({
+    command,
+    args: '',
+    origin: { kind: 'composer' },
+    presentation: { isFullscreen: true, columns: 160 },
+  })
+
+test("a prompt Lee types that the answering mode takes ends the wait on his input, though no turn follows: the send waiting goes at the next look, and his answer's send after it", SLOW, async ($, on) => {
+  const w = world($, on)
+  const { paths, ids, ui } = await asking(w)
+  const [first = ''] = ids
+  const words = postedId(await w.call('ask', { wants: 'words', title: 'Name the release' }))
+
+  await holding(w, ui, ids)
+  await interrupted(w)
+  w.dropPrompts()
+
+  if ((await ui.find({ key: `answer:${w.item(words)}` })) === undefined) {
+    await ui.press({ key: `pick:${w.item(words)}` })
+  }
+
+  await ui.press({ key: `answer:${w.item(words)}` })
+  await $.prompt.submit({ text: 'Harbour', wait: false, origin: { kind: 'composer' } })
+  await w.clock.advance(WATCH_MS)
+
+  expect(w.submitted).toEqual([message(1), message(1)])
+  expect(repliedIn(w, paths)).toEqual([first])
+  expect(w.state.queue).toMatchObject([{ item: words }])
+
+  await ui.press({ key: 'send' })
+  await w.turnStarts(message(1))
+  await turnEnded(w)
+
+  expect(w.submitted.at(-1)).toBe('From the board:\n- Name the release → answer: “Harbour”')
+  expect(repliedIn(w, paths)).toEqual([first, words])
+})
+
+test("a slash command Lee types ends the wait on his input, though no turn follows: the send waiting goes at the next look", SLOW, async ($, on) => {
+  const w = world($, on)
+  const { paths, ids, ui } = await asking(w)
+  const [first = ''] = ids
+
+  await holding(w, ui, ids)
+  await interrupted(w)
+  w.dropPrompts()
+  await typedCommand($, 'sitrep')
+
+  expect(awaitsInputIn(w)).toEqual([false])
+
+  await w.clock.advance(WATCH_MS)
+
+  expect(w.submitted).toEqual([message(1), message(1)])
+  expect(repliedIn(w, paths)).toEqual([first])
+})
+
+test("a /reload-plugins Lee types ends the wait on his input: the load after it sends the send waiting at once", SLOW, async ($, on) => {
+  on('command.run', { command: 'reload-plugins' }, () => ({}))
+
+  const w = world($, on)
+  const { paths, ids, ui } = await asking(w)
+  const [first = ''] = ids
+
+  await holding(w, ui, ids)
+  await interrupted(w)
+  w.dropPrompts()
+  await typedCommand($, 'reload-plugins')
+  await $.session.start(CONVERSATION)
+  await w.clock.settle()
+
+  expect(w.submitted).toEqual([message(1), message(1)])
+  expect(repliedIn(w, paths)).toEqual([first])
+})
+
+test("send now submits a send waiting on Lee's next message from within his press: refused all the same it waits again, marked, no toast; taken, it goes in at once", SLOW, async ($, on) => {
+  const w = world($, on)
+  const { paths, ids, ui } = await asking(w)
+  const [first = ''] = ids
+
+  await holding(w, ui, ids)
+  await interrupted(w)
+  await ui.press({ key: 'send-now' })
+  await w.clock.settle()
+
+  expect(w.submitted).toEqual([message(1), message(1)])
+  expect(awaitsInputIn(w)).toEqual([true])
+  expect(notSent(w)).toEqual([])
+
+  w.dropPrompts()
+  await ui.press({ key: 'send-now' })
+  await w.clock.settle()
+
+  expect(w.submitted).toEqual([message(1), message(1), message(1)])
+  expect(repliedIn(w, paths)).toEqual([first])
+  expect(await ui.find({ key: 'send-now' })).toBeUndefined()
+})
+
+test("a send waiting on its own turn shows no send now; nor does one held behind a send waiting on Lee's next message", SLOW, async ($, on) => {
+  const w = world($, on)
+  const { ids, ui } = await asking(w)
+
+  await twoHeld(w, ui, ids)
+  expect(await ui.find({ key: 'send-now' })).toBeUndefined()
+
+  await interrupted(w)
+  expect(await box(ui)).toEqual([...heading(2), ...awaiting(1), ...behindInput(2)])
+  expect(await ui.findAll({ key: 'send-now' })).toHaveLength(1)
+})
+
+test("Lee's turn starting between a submit and Claude Code's refusal of it leaves the send held unmarked, to go as that turn ends", SLOW, async ($, on) => {
+  const w = world($, on)
+  const { paths, ids, ui } = await asking(w)
+  const [first = ''] = ids
+
+  await holding(w, ui, ids)
+  w.dropPrompts(STOPPED)
+
+  const turn = w.holdPrompts()
+
+  void w.turnEnds({ isAborted: true })
+  await turn.arrived
+  await w.turnStarts('Look at the failing test instead.')
+  turn.end()
+  await w.clock.settle()
+
+  expect(flightsIn(w)).toEqual([{ items: [first], isHeld: true }])
+  expect(awaitsInputIn(w)).toEqual([false])
+  expect(await box(ui)).toEqual([...heading(1), ...held(1)])
+
+  w.dropPrompts()
+  await turnEnded(w)
+
+  expect(w.submitted).toEqual([message(1), message(1)])
+  expect(repliedIn(w, paths)).toEqual([first])
 })

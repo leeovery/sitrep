@@ -16,12 +16,16 @@
  * writes down one Claude Code took whose writing failed, and sends the first
  * the window still holds between turns, as after an update at the turn's end
  * that failed, or once the message ahead of it ended. A look finding it held
- * while a turn runs writes nothing.
+ * while a turn runs writes nothing. The inbox's message held for Lee's input
+ * after a stop, which can wait long, is let go once this window no longer
+ * delivers for its session, its replies left in the inbox for the window
+ * that does.
  */
 import type { Timer } from 'claude-code'
 import { boardMessage, toDeliver, type Reply, type ReplyBody } from '../core'
+import type { SitrepInFlight } from '../types'
 import { sessionOf } from './board'
-import { deliver, sendHeld, writeTaken } from './deliver'
+import { deliver, letGoAwaiting, sendHeld, writeTaken } from './deliver'
 import { logFailure, type Host } from './host'
 import { WATCH_MS } from './window'
 
@@ -36,12 +40,37 @@ const lineOf = ({ id, item, verdict, option, note }: Reply): ReplyBody => ({
   note,
 })
 
+/** Whether this window still delivers the inbox of the session a message of the inbox's goes to. */
+const isDelivering = async (host: Host, message: SitrepInFlight) => {
+  const [held, board] = await Promise.all([host.state.attachment.read(), host.state.board.read()])
+
+  if (held === null || board === null) {
+    return false
+  }
+
+  const session = sessionOf(board)
+
+  return session.id === message.session && session.deliverer === held.writer
+}
+
+/** Carries the first message in flight on: written down once taken, else submitted as it can be, but for the inbox's held for Lee's input that this window no longer delivers, let go. */
+const carry = async (host: Host, first: SitrepInFlight) => {
+  if (!first.isHeld) {
+    return writeTaken(host)
+  }
+
+  const isStale =
+    first.source === 'inbox' && first.awaitsInput === true && !(await isDelivering(host, first))
+
+  return isStale ? letGoAwaiting(host, first) : sendHeld(host)
+}
+
 /** Submits the inbox replies waiting for the held session, when this window delivers them and no message is in flight; or carries on the first message in flight. */
 const receive = async (host: Host) => {
   const [first] = await host.state.inFlight.read()
 
   if (first !== undefined) {
-    await (first.isHeld ? sendHeld(host) : writeTaken(host))
+    await carry(host, first)
 
     return
   }

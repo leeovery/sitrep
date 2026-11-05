@@ -38,9 +38,11 @@ import { clipOf, heardRows, revealFocus, scrollList } from './clip'
 import {
   carryOn,
   conversationEnded,
+  heardInput,
   heardTurn,
   isBoardMessage,
   keptFlights,
+  sendNow,
   storedFlights,
   takeUpDelivery,
 } from './deliver'
@@ -57,6 +59,7 @@ import {
 } from './doing'
 import { BAND_ROWS, drawBand } from './draw/band'
 import { drawPane } from './draw/board'
+import { SEND_NOW } from './draw/ready'
 import { drawToolResult, drawToolRow, toolLine } from './draw/tool-row'
 import { logFailure, TOAST_MS, type Host } from './host'
 import { loadedNow } from './load'
@@ -377,6 +380,13 @@ export const register: Register = on => {
     }
 
     const host = hostOf($)
+
+    // Lee's input lifts Claude Code's refusal after a stop, before any hook
+    // hears it, whether or not it goes on to start a turn. Where none
+    // follows, the next look carries on what waited on it: a submit made
+    // inside this hook hangs on the prompt it hears (in the test kit).
+    await heardInput(host)
+
     // A prompt the answering mode takes goes no further, so it takes no board context either.
     const taken = await captured(host, e)
 
@@ -425,11 +435,29 @@ export const register: Register = on => {
     return next(e)
   }).catch(($, e, next) => next(e))
 
+  // A slash command Lee types lifts Claude Code's refusal after a stop, as a
+  // prompt does, though no turn follows it: the next look carries on what
+  // waited on his input, a submit from this hook being refused.
+  on('command.run', async ($, e, next) => {
+    if (!isBoardMessage(e.origin)) {
+      await heardInput(hostOf($))
+    }
+
+    return next(e)
+  }).catch(($, e, next) => next(e))
+
   on('command.run', { command: 'sitrep' }, async $ => {
     await openBoard(hostOf($))
 
     return {}
   }).catch(() => ({ text: 'The sitrep board could not open.' }))
+
+  // Inside Lee's press, where Claude Code takes the submit after a stop.
+  on('ui.press', { plugin: 'sitrep', element: [SEND_NOW] }, async ($, e) => {
+    await sendNow(hostOf($))
+
+    return { element: e.element }
+  }).catch(($, e, next) => next(e))
 
   on('ui.press', { plugin: 'sitrep', element: BAND_KEYS }, async ($, e) => {
     await pressBand(hostOf($), e.element)

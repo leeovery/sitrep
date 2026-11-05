@@ -145,6 +145,9 @@ let quiet: Timer | undefined
 /** How many turns have started since this load began: a quiet that saw one start never lets go. */
 let turns = 0
 
+/** How often Lee's input has been heard since this load began: a refusal of a submit made before the latest is stale. */
+let inputs = 0
+
 /**
  * The message this load last submitted, by its text, while its turn is yet
  * to be heard starting, and the quiet that stops the wait should that start
@@ -274,25 +277,28 @@ const release = async (host: Host, delivery: SitrepInFlight, why: string) => {
 
 /**
  * Holds again a message Claude Code refused because Lee stopped Claude's
- * turn, marked to wait on his input: neither it nor any send behind it is
- * let go, and nothing submits it until the window's next turn starts. What
- * its submit set up is undone: no quiet lets it go as never taken, and no
- * wait on its turn keeps the window from carrying on.
+ * turn: neither it nor any send behind it is let go. Marked to wait on his
+ * input, nothing submits it until that input is heard; where it was heard
+ * since the submit, the refusal predates it, and the message is held
+ * unmarked, to go at the next between turns. What its submit set up is
+ * undone: no quiet lets it go as never taken, and no wait on its turn keeps
+ * the window from carrying on.
  */
-const holdForInput = async (host: Host, delivery: SitrepInFlight) => {
-  let isMarked = false
+const holdForInput = async (host: Host, delivery: SitrepInFlight, awaitsInput: boolean) => {
+  let isHeldAgain = false
 
   await changeFlight(host, flights => {
     const at = flights.findIndex(each => isUnheard(each, delivery))
+    const again = { isHeld: true, ...(awaitsInput && { awaitsInput }) }
 
-    isMarked = at !== -1
+    isHeldAgain = at !== -1
 
-    return isMarked
-      ? flights.map((each, i) => (i === at ? { ...each, isHeld: true, awaitsInput: true } : each))
+    return isHeldAgain
+      ? flights.map((each, i) => (i === at ? { ...each, ...again } : each))
       : flights
   })
 
-  if (isMarked) {
+  if (isHeldAgain) {
     stopAwaiting()
     quiet?.cancel()
     quiet = undefined
@@ -300,13 +306,24 @@ const holdForInput = async (host: Host, delivery: SitrepInFlight) => {
   }
 }
 
-/** Clears the mark on every message waiting on Lee's input, as Claude Code takes input again; nothing written where none waits. */
-const inputTaken = async (host: Host) => {
+/** Clears the mark on every message waiting on Lee's input; nothing written where none waits. */
+const unmark = async (host: Host) => {
   if (!(await flightNow(host)).some(isAwaitingInput)) {
     return
   }
 
   await changeFlight(host, flights => flights.map(({ awaitsInput, ...each }) => each))
+}
+
+/**
+ * Lee's input heard in the window, which lifts Claude Code's refusal after a
+ * stop: a prompt or a slash command of his, a turn of the window's own
+ * starting, or a `/clear`. No message waits on his input any more; one
+ * refused again is marked again.
+ */
+export const heardInput = async (host: Host) => {
+  inputs += 1
+  await unmark(host)
 }
 
 /** The lines a taken message is written down as, in its session as it stands: none once they are there. */
@@ -403,12 +420,13 @@ const refusalOf = async (host: Host, text: string) => {
  * Claude's turn, else let go.
  */
 const submit = async (host: Host, delivery: SitrepInFlight) => {
+  const at = inputs
   const refusal = await refusalOf(host, delivery.text)
 
   if (refusal === undefined) {
     await heard(host, current => isClaim(current, delivery))
   } else if (isStoppedRefusal(refusal)) {
-    await holdForInput(host, delivery)
+    await holdForInput(host, delivery, inputs === at)
   } else {
     await release(host, delivery, refusal)
   }
@@ -475,6 +493,17 @@ export const sendHeld = async (host: Host) => {
   void submit(host, going).catch(logFailure(host, 'submitting the message'))
 
   return true
+}
+
+/**
+ * Sends the first message held for Lee's input now, as he presses its
+ * button: a submit made from within his press, which Claude Code takes after
+ * a stop, as it takes his typing. Refused all the same, it is marked again.
+ */
+export const sendNow = async (host: Host) => {
+  await unmark(host)
+
+  return sendHeld(host)
 }
 
 /**
@@ -579,6 +608,10 @@ const letGoHeld = async (host: Host, isIt: (current: SitrepInFlight) => boolean)
 export const takeBack = (host: Host, send: SitrepInFlight) =>
   letGoHeld(host, current => current.source === 'send' && isClaim(current, send))
 
+/** Lets go of a message held for Lee's input, as a take-back does: the inbox's, once this window no longer delivers it. Whether it let it go. */
+export const letGoAwaiting = (host: Host, delivery: SitrepInFlight) =>
+  letGoHeld(host, current => isAwaitingInput(current) && isClaim(current, delivery))
+
 /**
  * The conversation ending, which ends any turn of it. After a `/clear` the
  * process goes on with the next conversation, so the messages the window
@@ -593,7 +626,7 @@ export const takeBack = (host: Host, send: SitrepInFlight) =>
  */
 export const conversationEnded = async (host: Host, isCleared: boolean) => {
   if (isCleared) {
-    await inputTaken(host)
+    await heardInput(host)
   } else {
     await letGoHeld(host, () => true)
   }
@@ -603,9 +636,10 @@ export const conversationEnded = async (host: Host, isCleared: boolean) => {
 
 /**
  * The window's turn starts: it is no longer quiet, a message submitted
- * whose text it carries has gone in, and Claude Code takes input again, so
- * none waits on Lee's: the turn is his message, and as it ends the first
- * held goes. After a `/reload-plugins` typed mid-turn the last load's submit
+ * whose text it carries has gone in, and none waits on Lee's input, so as it
+ * ends the first held goes. Mostly the turn is his input; one that leaves
+ * the refusal standing, as a task's notification's, has the message marked
+ * again. After a `/reload-plugins` typed mid-turn the last load's submit
  * never resolves (settled live), and this is all that hears it.
  */
 export const heardTurn = async (host: Host, text: string) => {
@@ -617,7 +651,7 @@ export const heardTurn = async (host: Host, text: string) => {
 
   quiet?.cancel()
   await heard(host, current => current.text === text)
-  await inputTaken(host)
+  await heardInput(host)
 }
 
 /** Writes down the message in flight Claude Code has taken: a write that failed, or one a reload cut short. */

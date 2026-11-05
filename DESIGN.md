@@ -839,9 +839,9 @@ is claimed: the message to this session claimed, or, with none, the replies
 written into other sessions' inboxes. It never waits for Claude's turn to
 end, which can take minutes, nor for Claude Code to take the message. A
 send that Claude Code refuses still toasts and leaves its replies queued,
-and the pane, opened again, shows them, save one refused as Lee had stopped
-Claude's turn, which waits for his next message (see Delivery); a send that sent nothing leaves the
-pane open. A docked pane stays open.
+and the pane, opened again, shows them, save one refused as Lee had
+stopped Claude's turn, which waits for his next message (see Delivery); a
+send that sent nothing leaves the pane open. A docked pane stays open.
 
 **Taking a send back** (22 October 2026). While the window holds Lee's send
 for its turn (see Delivery), Ready to send says so under the replies it
@@ -856,10 +856,12 @@ Once the window has submitted it, it is Claude Code's, and nothing takes it
 back out of Claude Code's queue: the line says `⧗ Sending.` and the
 take-back is gone. One Claude Code refused as Lee had stopped Claude's turn
 is held again until his next message (see "Held for Lee's input", under
-Delivery), its line `⧗ Claude was interrupted: this goes in after your next
-message.`, wrapped beside its take-back. The inbox's message offers none: Lee sent its replies
-from elsewhere. Until 5 November 2026 the line stood where send and cancel
-all were, for the whole box.
+Delivery), its line `⧗ Interrupted: goes after your next message.`,
+wrapped beside `↑ send now` and its take-back; a send held behind it says
+`⧗ Goes after your next message.`, no turn of Claude's holding it. The
+inbox's message offers none: Lee sent its replies from elsewhere. Until 5
+November 2026 the line stood where send and cancel all were, for the
+whole box.
 
 **A send is sealed** (5 November 2026). Lee, that day: "If the queue is
 ready to send, but it's waiting for Claude to be ready to accept it, then
@@ -1248,15 +1250,42 @@ app (see "The menu bar").
   (`awaitsInput` on its claim), with no toast, its quiet and the wait on
   its turn undone, so nothing lets it go as never taken and nothing behind
   it goes early. Nothing submits it while it waits, and the sends behind it
-  stay behind it. The window's next turn of its own starting, never a
-  subagent's run, is Lee's message, and ends the wait on every claim; as
-  that turn ends the first goes, the rest in turn. Refused so again, it
-  waits again; refused otherwise, it is let go as any refusal is. Still
-  claimed, it is on its way, its asks needing Lee nowhere, and Lee can take
-  it back as any held send. A reload leaves it waiting, Claude Code's
-  refusal standing; a `/clear` ends the wait, Claude Code refusing only in
-  the conversation stopped, and it goes into the next conversation at once.
-  The inbox's message waits the same way, no look submitting it meanwhile.
+  stay behind it.
+  - **What ends the wait.** Claude Code lifts its refusal for any input
+    Lee types in the window that was not queued before the stop, a slash
+    command among them, as the input arrives, before any hook hears it; and
+    for a plugin's call made from within a press of Lee's after the stop.
+    So the window ends the wait on every claim as it hears Lee's input: a
+    prompt of his (any not the board's own) at its `prompt.submit` hook,
+    whether or not a turn follows, as one the answering mode takes; a slash
+    command he types at its `command.run` hook; a turn of the window's own
+    starting, never a subagent's run; or a `/clear`. A turn's end carries on
+    the first as ever, the rest in turn; where no turn follows, the next
+    look does: `command.run` holds the turn, so a submit from it is
+    refused, and one from `prompt.submit` hangs there on the prompt the
+    hook hears (in the test kit). Input that leaves the refusal standing,
+    as a turn a task's notification starts, costs only a submit refused
+    again, which marks it again. Input heard between a submit and its
+    refusal coming back leaves the message held unmarked, the refusal
+    predating it.
+  - **Send now.** The marked send's line offers `↑ send now`, answered by
+    the mod's `ui.press` hook inside Lee's press, whose submit Claude Code
+    takes after a stop: the hook's own `$` carries the press, which
+    vouches for it, where the pane's buttons, bound to the `$` the board
+    was drawn with, carry none (read from 2.1.318's code, not yet seen
+    live). Refused all the same, the send waits again.
+  - Still claimed, it is on its way, its asks needing Lee nowhere, and Lee
+    can take it back as any held send. A `/reload-plugins` he types ends
+    the wait, so the load after it sends at once; a file-watch reload,
+    typed by no one, leaves it waiting, the refusal standing. A `/clear`
+    ends it too, Claude Code refusing only in the conversation stopped, and
+    it goes into the next conversation at once.
+  - The inbox's message waits the same way, no look submitting it
+    meanwhile, and a send Lee presses behind it toasts that Claude was
+    interrupted and those replies go in first, after his next message. A
+    wait can be long, so a look lets the inbox's message go, silently, once
+    this window no longer delivers for its session, its replies left in the
+    inbox for the window that does.
 - **Those behind it, let go with it** (5 November 2026). A message refused
   or never taken lets go of every send held behind it in the same update of
   the claims, one toast saying so: their replies are all back among those

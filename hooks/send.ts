@@ -23,6 +23,10 @@ import { attached, refresh, serially } from './window'
 
 const BEHIND = `Not sent yet: replies from another session are going in first. ${STILL_THERE}`
 
+/** The same while those replies wait, Claude interrupted, for Lee's next message. */
+const BEHIND_INPUT =
+  `Not sent yet: Claude was interrupted, and replies from another session go in first, after your next message. ${STILL_THERE}`
+
 /** The held session as it stands, and the window's hold on it. */
 const heldNow = (host: Host) =>
   serially(async () => {
@@ -79,7 +83,7 @@ const sendHere = async (host: Host, claimed: () => Promise<void>): Promise<Here>
   )
 
   if (ahead?.source === 'inbox') {
-    host.ui.toast(BEHIND)
+    host.ui.toast(ahead.awaitsInput === true ? BEHIND_INPUT : BEHIND)
   }
 
   return ahead === undefined ? { is: 'claimed' } : { is: 'heldBack' }
