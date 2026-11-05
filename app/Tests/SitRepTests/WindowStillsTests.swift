@@ -10,7 +10,8 @@ import Testing
 /// of Needs you and its session beside it, its ask's card leading, a permission prompt leading as the line picked, an
 /// away session and its finish, a project, and one with a session of each kind, a session pushed from it, a session's page with its meta line, and the
 /// moments of an answer and of a board changing under Lee; a session's long name, and the window as narrow as it goes;
-/// Your turn, Working, the asks asleep opened and one leading, filtered, and a filter that keeps nothing; and the
+/// Your turn, Working, the asks asleep opened and one leading, filtered, and a filter that keeps nothing; Parked, an
+/// item picked beside it, at the window's size and at its narrowest; and the
 /// sidebar as the window itself lays it out. Each draws whole at the window's size, or at its narrowest.
 /// With `SITREP_WINDOW_STILLS` naming a folder, each is kept there as a PNG, to read beside the drawing; nothing opens
 /// on the screen.
@@ -103,11 +104,13 @@ struct WindowStillsTests {
         case asleepLeads = "f6-an-ask-asleep-leading"
         case filtered = "f2-filtered"
         case noMatch = "f4-no-match"
+        case parked = "g1-parked"
+        case parkedNarrow = "g2-parked-narrow"
 
         /// The window's width: as drawn, or as narrow as it goes.
         var width: CGFloat {
             switch self {
-            case .longTitleNarrow, .narrow, .projectNarrow, .busyProjectNarrow: WindowStyle.smallest.width
+            case .longTitleNarrow, .narrow, .projectNarrow, .busyProjectNarrow, .parkedNarrow: WindowStyle.smallest.width
             default: WindowStyle.size.width
             }
         }
@@ -182,16 +185,24 @@ struct WindowStillsTests {
                 run.filter = Filter("switchboard")
             case .noMatch:
                 run.filter = Filter("ledgr")
+            case .parked, .parkedNarrow:
+                Self.pick(
+                    .parked(session: "sr-nwdgr4", id: "77k4"), in: run, on: Lines.parked[0],
+                    boards: ["sr-nwdgr4": Self.ledgerSinceParked]
+                )
+                return (run, Self.parkedAt.addingTimeInterval(3 * 3600))
             }
             return (run, now)
         }
 
-        /// The line the state is drawn on: `watch`'s first, the Mac app's name long, or with asks asleep.
+        /// The line the state is drawn on: `watch`'s first, the Mac app's name long, or with asks asleep, or with
+        /// items parked.
         private static func line(of still: Still) -> String {
             switch still {
             case .longTitle, .longTitleNarrow: longName
             case .sessionPage: startedInTmux
             case .snoozedOpen, .asleepLeads: Lines.snoozed[0]
+            case .parked, .parkedNarrow: Lines.parked[0]
             case .busyProject, .busyProjectNarrow: busyLine
             default: Lines.watch[0]
             }
@@ -206,14 +217,18 @@ struct WindowStillsTests {
             return run
         }
 
-        /// Landed on a session, as Open in SitRep lands, or on a project's page, as its row in the sidebar opens it,
-        /// on the line given, `watch`'s first unless another, which then carries the boards it follows.
+        /// Landed on a session, as Open in SitRep lands, on a project's page, as its row in the sidebar opens it, or on a
+        /// parked item, picked in Parked's list, on the line given, `watch`'s first unless another, which then carries
+        /// the boards it follows.
         private static func pick(
             _ pick: Pick, in run: WindowRun, on line: String = Lines.watch[0], boards given: [String: String] = [:]
         ) {
             switch pick {
             case let .session(session): run.land(session)
             case let .project(project): run.click(.project(project))
+            case let .parked(session, id):
+                run.click(.place(.parked))
+                run.pickInList(.parked(session: session, id: id), at: printed)
             }
             take(in: run, on: line, boards: given)
         }
@@ -349,6 +364,30 @@ struct WindowStillsTests {
                 return row
             }
         }
+
+        /// When the last of the items was parked, three hours before its still is drawn.
+        private static let parkedAt = Date(timeIntervalSince1970: 1_793_803_255.47)
+
+        /// Ledger export's board as the real CLI printed it, its log two notes written since it parked its items, 52
+        /// minutes and 2 hours before the still, then its status line from before.
+        private static let ledgerSinceParked: String = {
+            let line = try! JSONSerialization.jsonObject(with: Data(Lines.parked[1].utf8)) as! [String: Any]
+            var board = (line["boards"] as! [String: Any])["sr-nwdgr4"] as! [String: Any]
+            let note = { (id: String, text: String, before: Double) -> [String: Any] in
+                let at = parkedAt.addingTimeInterval(3 * 3600 - before * 60)
+
+                return [
+                    "kind": "note", "id": id, "text": text, "detail": [String](), "ref": NSNull(), "by": "claude",
+                    "at": Int64((at.timeIntervalSince1970 * 1000).rounded()),
+                ]
+            }
+
+            board["log"] = [
+                note("n2", "Ledger columns mapped behind the export flag", 52),
+                note("n1", "Staging run: 1.2M rows in 4m 10s", 120),
+            ] + (board["log"] as! [[String: Any]])
+            return String(decoding: try! JSONSerialization.data(withJSONObject: board), as: UTF8.self)
+        }()
 
         /// The first board, Goosemates' ask new on it.
         private static let withNew = Lines.watch[0]

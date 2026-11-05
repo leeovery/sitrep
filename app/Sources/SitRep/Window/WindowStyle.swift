@@ -100,6 +100,10 @@ enum WindowStyle {
     static let twoLineTop: CGFloat = 4
     static let oneLineHeight: CGFloat = 28
     static let headingHeight: CGFloat = 24
+    /// Over a project's heading in Parked: 14 under the items above it, 4 under the list's top where it leads (A4
+    /// revised).
+    static let parkedHeadingGap: CGFloat = 14
+    static let firstParkedHeadingGap: CGFloat = 4
     /// "N earlier"'s chevron ends 2 inside the selection, 4 past a row's.
     static let headingTrailing: CGFloat = 2
     /// A row's mark, in its slot, the gap after it to the words, and a fold's chevron in its slot.

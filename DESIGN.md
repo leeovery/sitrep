@@ -4250,8 +4250,25 @@ stands).
       window drawn again then as for any change by time alone, nothing
       polling. The row picked, folding in so, opens the fold, as the clock
       is not Lee folding it over his pick;
-    - **Parked** lists nothing yet: its list and its items come with a
-      later change;
+    - **Parked** (5 November 2026, A4 revised) is a row per item every
+      session parked, grouped by project in `watch`'s order, the oldest
+      first within a project, those of its sessions taking turns by when
+      each was parked; a list that holds any number, as Lee's board parks
+      a hundred and more. Each project's **heading**, 11 semibold in white
+      at 55%, 24 tall, 14 under the items above it and 4 under the list's
+      top where it leads, has on its right how many of its items show, 11
+      semibold in tabular figures in white at 35%, in the age's lane; the
+      list never selects it. An **item's row** is Needs you's line's
+      shape, 54 tall, its words 10 from its top: the stroked diamond in
+      the 26 slot, in the secondary colour; its title 13 medium in white at
+      85%, cut short, and how long ago it was parked, its age; under them
+      its session's name in white at 55%. On the accent of the pick its
+      title goes white, the rest white at 80%. It is the item, not its
+      session: no button takes its age's place under the pointer, and a
+      right-click brings up no menu. Ids are unique only within a session
+      (core's four characters), so a row and its pick key on the session
+      and the id together. Narrowed to a project or a session (see
+      "Opened narrowed"), it lists theirs alone, under its one heading;
     - **a fold**, "N snoozed" or "N earlier", is a row of the list the list
       never selects: a click anywhere on it opens its rows in place under
       it, its chevron down, and a click again folds them, each at once; under
@@ -4290,7 +4307,9 @@ stands).
     or Your turn row while they appear in its name, its project's or its
     line's words, so "gh pr" finds the window a permission prompt for `gh
     pr create` waits on, "3 agents" the session on its own work waiting on
-    them; a project while its name holds every word. The places stay, their
+    them; a parked item while they appear in its title, its session's
+    name or its project's, not in its `where`, which its row does not
+    show; a project while its name holds every word. The places stay, their
     counts the whole board's. The words are lit wherever they appear, a
     step brighter than the rest: in the label colour on words the rest of
     which goes soft, and soft on fainter ones, so an away row still reads
@@ -4304,10 +4323,12 @@ stands).
     is not kept: closing the window clears it;
   - **decided for round 7** (21 October 2026, as the design pointed):
     a filter that keeps nothing in the list says so in one centred line,
-    "No sessions match “ledg”", the field's text in the quotes; and the
+    "No sessions match “ledg”", the field's text in the quotes, and on
+    Parked, whose rows are items, "Nothing parked matches “ledg”"; and the
     field carries no "⌘F" hint, which the system's field does not draw.
   - **the page**, on the right: beside the list, the session of the row
-    picked, its detail, or with nothing picked how the board stands;
+    picked, its detail, or on Parked the item picked (below), or with
+    nothing picked how the board stands;
     filling the window, a project's page or a session's pushed from a
     project. A session's page (4 November 2026, A1 and A2 revised) is one
     column: what needs Lee, then Now, then What happened. Until then it
@@ -4406,13 +4427,46 @@ stands).
       two pages: Back or Forward between them folds it again, closes what
       was opened and lets refusals go, as any page turned to; another line
       of the same session picked turns no page;
+    - **a parked item beside Parked's list** (5 November 2026, A4
+      revised), 36 in: under the band the breadcrumb, "Northwind › Ledger
+      export", the project a link to its page as on a session's detail;
+      18 under it the stroked diamond, white at 60%, and the item's title,
+      22 semibold, wrapping; 8 under them "Parked 3 hours ago", 13 in
+      white at 45%, from the item's `at`, in whole words; 18 under that its
+      `where` as its body, 14 in white at 75%, wrapping, and its `ref` 8
+      under it in mono 12, selectable; all 22 in, past the diamond's lane.
+      A4 drew "Parked 3 hours ago, as it wrote the reports_v2 migration":
+      nothing records what a session was writing as it parked, so Lee
+      dropped it (4 November 2026). Then **Parked from**, 28 under: a card
+      on the raise, its corners 12, a hairline inside its edge in white at
+      5%, 12 and 14 inside it: the session's mark, as a project's page
+      marks it; its name 13 semibold; under it its now line and its asks
+      waiting, "Mapping the ledger columns · 2 asks", 13 in white at 55%,
+      each left out at none, dimming as one while no window holds it; and
+      trailing, **Back to its session ›**, outlined as "Open in Ghostty",
+      which pushes the session's page, a step Back returns from, Parked
+      staying picked in the sidebar. Then **Since it was parked**, 28
+      under, while there is any: the session's log lines written after the
+      item was parked, the newest first, on What happened's thread, each
+      in a row of 26 and opening in place as there. Picking an item follows
+      its session, so its board, and its log, comes. A board carries the 8
+      newest lines, so where all 8 came after the item was parked, more may
+      have come since than show, and a faint line under them says "Only its
+      newest lines show." An item gone from the board, picked up or
+      dropped by its session while picked, leaves its pick standing, as an
+      answered ask does, and the page says "No longer parked.". An item's
+      page is a page of its own: another item picked, of the same session
+      or not, turns the page, as does going between it and its session's
+      detail, closing what was opened;
   - **the toolbar** fills the band beside the traffic lights (4 November
     2026, A1 to A3 revised; until then it stayed empty on every page,
     nothing of the page in it). On a place: past the sidebar, **Back and
     Forward**, one capsule of two chevrons, each side dimmed while it has
     no step to go to; beside them the place's name, Needs you, Your turn,
-    Working or Parked, as the window's title, which macOS draws there and
-    keeps over the list by the list's divider, tracked; then trailing
+    Working or Parked, Parked narrowed with the name of what it is
+    narrowed to, "Parked · Contoso" or "Parked · Ledger export", as the
+    window's title, which macOS draws there and keeps over the list by the
+    list's divider, tracked; then trailing
     over the page **the position**, "1 / 5", 13 in tabular figures in the
     secondary colour, and **up and down**, a capsule of two chevrons, up
     dimmed on the first row and down on the last. A page filling the
@@ -4683,7 +4737,17 @@ stands).
     each for that ask alone and saying when it would wake, as "Snooze
     tomorrow, wakes Saturday 09:00"; a fold reads how many, and "N earlier"
     its projects, as "2 snoozed" or "8 earlier, Switchboard, Fumi", and
-    folded says so. The Filter field reads as "Filter sessions";
+    folded says so. A parked item's row reads its title, its project, its
+    session and how long ago it was parked, as "Retry failed uploads,
+    Northwind, Ledger export, 3 hours", and offers no action; a project's
+    heading in Parked is a heading, its name and how many of its items
+    show, as "Northwind, 2 items". The Filter field reads as "Filter
+    sessions";
+  - a parked item's page: its title a heading, as the breadcrumb's
+    session is; Parked from's card one element, the session's name, what
+    its mark means, its now line and its asks, as "Ledger export, away,
+    Mapping the ledger columns, 2 asks", and Back to its session a button
+    after it; Since it was parked a heading, its lines as What happened's;
   - the toolbar's chevrons read "Back" and "Forward", "Previous" and
     "Next", each its side's tooltip too; the position reads "3 of 5", once,
     as its value, never "3 / 5" too, and with no row picked it is no
@@ -4711,20 +4775,25 @@ stands).
   - a mark reads its meaning, a closed ask's tick "closed"; a section's
     bullets, which say what its heading says, are not read, nor the ↗ of
     "Open in Ghostty".
-- **Items that open.** A note, a parked item and a resolved ask open in
-  place on a press, and close on a second: the line whole, wrapping, and
-  under it a note's detail, where a parked item was parked from, or how an
-  ask closed: Lee's answer as the
-  board words it, or Claude's resolve and its reason. A status line opens
-  only while it is cut short. A line with nothing more to show is not a
-  button, and takes no keyboard stop. Lee, 20 October 2026, of an opened
-  item with a box behind it, its title in a narrow column hanging from its
-  session's name and its detail under the bullet: "a bit shit". So every
-  line of a session's Now, What happened and resolved asks, and of a
-  project's Notes and Parked, opened or closed, keeps one grid:
+- **Items that open.** A line of a session's Now, a log line or an ask of
+  its What happened, a resolved ask, and a log line under a parked item's
+  Since it was parked open in place on a press, and close on a second: the
+  line whole, wrapping, and under it a note's detail, or how an ask
+  closed: Lee's answer as the board words it, or Claude's resolve and its
+  reason. A status line, a next and a log line with no detail open only
+  while cut short. A line with nothing more to show is not a button, and
+  takes no keyboard stop. Neither a session's page nor a project's lists
+  parked items: a session's "◇ later N parked ›" and a project's "◇ N
+  parked ›" open Parked narrowed to it (see "Opened narrowed"), where an
+  item is a page of its own beside the list; until 4 November 2026 a
+  page's Parked lines opened in place to where each was parked from.
+  Lee, 20 October 2026, of an opened item with a box behind it, its title
+  in a narrow column hanging from its session's name and its detail under
+  the bullet: "a bit shit". So every line that opens, opened or closed,
+  keeps one grid:
   - the marker in its lane, then the words, then the time on the first line;
-  - a session's name is a quieter lead-in in the words' own flow, wrapping
-    to their left edge, never a column of its own;
+  - a quieter word, "next", "later" or "Asked", leads in the words' own
+    flow, wrapping to their left edge, never a column of its own;
   - opened, the words wrap whole in their column, and the detail sits close
     under them from the same left edge, a size smaller, in the secondary
     colour. Nothing behind it, no fill and no ring; the hover fill shows
@@ -4874,10 +4943,10 @@ stands).
   day (see "Three columns"): the sidebar's places and projects, the list
   beside the page and the page are drawn from it, and every way the window
   moves goes through it, the toolbar's Back and Forward, its position and
-  its up and down among it (see "Three columns"). Parked's list and its
-  item come with a later change. The session page's body came the same day
-  (see "the page", under "Three columns"), and the project page's (see "A
-  project").
+  its up and down among it (see "Three columns"). The session page's body
+  came the same day (see "the page", under "Three columns"), and the
+  project page's (see "A project"); Parked's list and its item on 5
+  November 2026 (see "Parked", under "Three columns").
   - **Four places, then the projects.** The sidebar holds the Filter field,
     then Needs you, Your turn, Working and Parked, then every project on the
     board, quiet ones too. Your turn sits above Working because it waits on
@@ -4916,7 +4985,24 @@ stands).
   - **The filter** keeps a line while every word typed appears in its
     session's name, its project's or its own words, so typing what an ask
     says finds that ask, not every line of its session; a Working or Your
-    turn row by today's rule; a project by its name.
+    turn row by today's rule; a parked item by its title, its session's
+    name or its project's; a project by its name.
+  - **Parked** lists every item parked, by project in `watch`'s order, each
+    project's the oldest first, as parked where two are as old; each
+    project's items under its one heading. Its count is core's, every
+    item on the board. Held under the pointer, an item new to the board
+    goes in after the one `watch` has before it, which may be another
+    project's, so the held rows are kept together by project, the
+    projects in the order each first comes: each project has one heading,
+    and ↑ and ↓ step the rows as they show.
+  - **Opened narrowed.** A session's "later N parked ›" and a project's
+    "N parked ›" open Parked narrowed to it, a step Back returns from,
+    nothing picked, as any place opens: its items alone, the toolbar's
+    title "Parked · Contoso" or the session's name. ↑, ↓ and the position
+    are the narrowed list's. A click on Parked clears the narrowing, as
+    another step, so Back returns to it. The narrowing means nothing on
+    another place, and falls back to every item as its project or session
+    leaves the board.
   - **Position.** In the toolbar over the page, the picked row's place
     among the rows shown, "3 / 6", which VoiceOver reads "3 of 6"; an open
     fold's rows count, a closed one's don't, and with nothing shown picked
@@ -4964,10 +5050,12 @@ stands).
     as that stands on the board, a pick its list no longer lists dropped, as
     the list it stood in is gone (closed on a line since answered, it opens
     on Needs you, nothing picked, not on an empty list beside that line's
-    page); else Needs you, nothing picked. Until Parked lists its items, a
-    Parked pick is kept as it was. Opened before `watch`'s first line, it
-    opens where it was left, then, with the first board, as that board says,
-    unless Lee has gone somewhere meanwhile: a window opened on a project's
+    page); else Needs you, nothing picked. A Parked pick is kept while its
+    list, narrowed as the narrowing now stands, lists its item: every item
+    where the narrowed project or session has left the board. Opened
+    before `watch`'s first line, it opens where it was left, then, with the
+    first board, as that board says, unless Lee has gone somewhere
+    meanwhile: a window opened on a project's
     page a moment before the board comes still opens on what needs Lee.
     Where it was left is kept across launches, but not where its pick stood
     in a list. "Where it stood" holds only while the window is open.
@@ -4988,7 +5076,8 @@ stands).
     session's project's page only the one to the session's.
   - **A click in the sidebar** on the place or the project already showing
     changes nothing, its pick kept, as Mail does for the mailbox already
-    open; on Parked narrowed to a project it clears the narrowing.
+    open; on Parked narrowed to a project or a session it clears the
+    narrowing.
   - **Back and Forward**, the toolbar's, and ⌘[ and ⌘], keys of the app's
     main menu, under Go, as Finder's are, which go only while the SitRep
     window is key and only where the toolbar's side is not dimmed: a

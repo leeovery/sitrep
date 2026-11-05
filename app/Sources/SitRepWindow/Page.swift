@@ -1,36 +1,53 @@
 import Foundation
 import SitRepCore
 
-/// What the page shows: beside a place's list, the session of the row its list picked, the detail; filling the
-/// window, a project's page or a session's; else a line saying why there is none, as the head does before the board is
-/// read or with nothing picked, or that no session is open at all.
+/// What the page shows: beside a place's list, the session of the row its list picked, the detail, or on Parked the
+/// item picked; filling the window, a project's page or a session's; else a line saying why there is none, as the head
+/// does before the board is read or with nothing picked, or that no session is open at all.
 public enum Page: Equatable, Sendable {
     case empty(String)
     /// Beside a place's list: the session its picked row shows, kept as the row leaves the list.
     case detail(SessionPage)
+    /// Beside Parked's list: the item picked.
+    case parked(ParkedPage)
     /// A session's page, filling the window, pushed from a place or a project.
     case session(SessionPage)
     case project(ProjectPage)
 
     static let nothingOpen = Page.empty("No session is open.")
+    /// The item picked on Parked has left the board, picked up or dropped by its session.
+    static let noLongerParked = Page.empty("No longer parked.")
 }
 
-/// Which page shows, a session's or a project's, whichever way the window came to it: what the page is drawn afresh
-/// by, and with where it shows, what turning to another lets go of the last one's asks kept in place by (`Leaf`).
+/// Which page shows, a session's, a parked item's or a project's, whichever way the window came to it: what the page
+/// is drawn afresh by, and with where it shows, what turning to another lets go of the last one's asks kept in place
+/// and what it opened by (`Leaf`).
 public enum Pick: Hashable, Sendable {
     case session(String)
+    /// A parked item's page, a page of its own, apart from its session's and from its session's other items'.
+    case parked(session: String, id: String)
     case project(String)
 }
 
 extension Location {
-    /// Which page shows here: the session of the row the list picked, kept as the row leaves the list; a project's;
-    /// a session's pushed. None for a place with nothing picked.
+    /// Which page shows here: the session of the row the list picked, kept as the row leaves the list, or the parked
+    /// item it picked; a project's; a session's pushed. None for a place with nothing picked.
     public var page: Pick? {
         switch self {
-        case let .place(_, picked, _): picked.map { .session($0.session) }
+        case let .place(_, picked, _): picked.map(\.page)
         case let .project(key): .project(key)
         case let .session(id, _): .session(id)
         }
+    }
+}
+
+private extension Selection {
+    /// The page it shows: its parked item's, or its session's.
+    var page: Pick {
+        if case let .parked(session, id) = pick {
+            return .parked(session: session, id: id)
+        }
+        return .session(session)
     }
 }
 

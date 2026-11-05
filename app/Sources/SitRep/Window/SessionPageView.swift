@@ -42,16 +42,10 @@ struct SessionPageView: View {
         .padding(.bottom, 34)
     }
 
-    /// Beside the list: "Project › Session", the project's part a link to its page, and the jump trailing.
+    /// Beside the list: "Project › Session", and the jump trailing.
     private var breadcrumb: some View {
         TitleRow {
-            HStack(spacing: 7) {
-                Button(page.projectName) { act.openProject(page.projectKey) }
-                    .wordsButton(WindowStyle.crumb)
-                Chevron(isFolded: true).foregroundStyle(WindowStyle.dim)
-                Text(page.name).foregroundStyle(WindowStyle.headingText).accessibilityAddTraits(.isHeader)
-            }
-            .font(WindowStyle.ui(13, .medium))
+            Breadcrumb(projectKey: page.projectKey, projectName: page.projectName, session: page.name)
             if page.jumps {
                 jump
             }
@@ -127,6 +121,27 @@ struct SessionPageView: View {
                 }
             }
         }
+    }
+}
+
+/// "Project › Session" over the detail beside the list, as A1 and A4 revised draw it, 13 medium: the project in white
+/// at 65%, a press opening its page as a step Back returns from; a chevron in white at 35%; the session in white at
+/// 85%, a heading to VoiceOver.
+struct Breadcrumb: View {
+    let projectKey: String
+    let projectName: String
+    let session: String
+
+    @Environment(\.windowActions) private var act
+
+    var body: some View {
+        HStack(spacing: 7) {
+            Button(projectName) { act.openProject(projectKey) }
+                .wordsButton(WindowStyle.crumb)
+            Chevron(isFolded: true).foregroundStyle(WindowStyle.dim)
+            Text(session).foregroundStyle(WindowStyle.headingText).accessibilityAddTraits(.isHeader)
+        }
+        .font(WindowStyle.ui(13, .medium))
     }
 }
 

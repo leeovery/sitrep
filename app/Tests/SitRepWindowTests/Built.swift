@@ -16,7 +16,9 @@ struct Built {
     var waiting: [Double] = []
     /// Its asks asleep, each so many minutes old and waking so many minutes after the board was seeded.
     var snoozed: [(age: Double, wakesIn: Double)] = []
-    var parked = 0
+    /// Its items parked, each so many minutes old, in the order it parked them, `p1` first: ids each session has its
+    /// own of, as core's are unique only within a session.
+    var parked: [Double] = []
     /// How many minutes ago its turn began, or ended on Your turn.
     var turn: Double = 1
 
@@ -63,7 +65,7 @@ struct Built {
         [
             "key": key, "name": key.capitalized, "directory": NSNull(),
             "open": sessions.filter { !$0.isAway }.count, "waiting": sessions.map(\.waiting.count).reduce(0, +),
-            "snoozed": sessions.map(\.snoozed.count).reduce(0, +), "parked": sessions.map(\.parked).reduce(0, +),
+            "snoozed": sessions.map(\.snoozed.count).reduce(0, +), "parked": sessions.map(\.parked.count).reduce(0, +),
             "updatedAt": ms(0), "sessions": sessions.map(\.session),
         ]
     }
@@ -71,10 +73,20 @@ struct Built {
     private var session: [String: Any] {
         [
             "id": id, "name": name, "summary": "", "now": [], "next": NSNull(), "isOpen": !isAway,
-            "waiting": waiting.count, "snoozed": snoozed.count, "parked": parked, "updatedAt": Self.ms(0),
+            "waiting": waiting.count, "snoozed": snoozed.count, "parked": parked.count, "updatedAt": Self.ms(0),
             "state": isAway ? "away" : state.rawValue, "since": Self.ms(turn),
             "doing": ["is": isAway ? "away" : "working", "line": Self.words("Working"), "since": Self.ms(turn)],
-            "asks": [],
+            "asks": [], "parkedItems": parked.indices.map(parkedItem),
+        ]
+    }
+
+    /// Its item parked at this place, as Parked's list picks it, by its session and its id, `p1` first.
+    func parkedPick(_ place: Int) -> ListPick { .parked(session: id, id: "p\(place + 1)") }
+
+    private func parkedItem(_ place: Int) -> [String: Any] {
+        [
+            "id": "p\(place + 1)", "title": "Parked \(place + 1) of \(id)", "where": NSNull(), "ref": NSNull(),
+            "at": Self.ms(parked[place]),
         ]
     }
 
@@ -134,7 +146,7 @@ extension Built {
         let sessions = live.enumerated().map { place, project in
             var session = Built(id: String(format: "s%02d", place + 1), project: String(format: "p%02d", project))
 
-            session.parked = 5
+            session.parked = Self.fiveParked
             session.turn = Double(place + 1)
             switch place % 3 {
             case 0: session.waiting = (0 ... place / 3 % 3).map { Double(200 - place * 7 - $0 * 30) }
@@ -147,11 +159,29 @@ extension Built {
             var session = Built(id: "a\(project)", project: String(format: "p%02d", project), isAway: true)
 
             session.waiting = project <= 16 ? [Double(500 + project)] : []
-            session.parked = project == 17 ? 5 : 0
+            session.parked = project == 17 ? Self.fiveParked : []
             return session
         }
         let quiet = (19 ... 20).map { Built(id: "q\($0)", project: "p\($0)", isAway: true) }
 
         return sessions + away + quiet
     }()
+
+    /// Five items parked a day, then 6 hours, 3, 2 and 1 ago.
+    private static let fiveParked: [Double] = [1440, 360, 180, 120, 60]
+
+    /// A board as busy with parked items as Lee's real one grows: 120 items in 25 projects, each project two sessions
+    /// of three items, the first's parked 300, 200 and 100 minutes ago and the second's 50 minutes after each, so the
+    /// two's items take turns, oldest first; but the last ten projects one session each. The projects come in an order
+    /// of their own, p01, p08, p15 and so on, as `watch` orders them, not by their names.
+    static let parkedBoard: [Built] = (0 ..< 25).flatMap { place -> [Built] in
+        let project = String(format: "p%02d", place * 7 % 25 + 1)
+
+        return (0 ..< (place < 15 ? 2 : 1)).map { second in
+            var session = Built(id: "\(project)s\(second + 1)", project: project)
+
+            session.parked = [300, 200, 100].map { $0 - Double(second * 50) }
+            return session
+        }
+    }
 }

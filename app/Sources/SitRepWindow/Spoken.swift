@@ -5,7 +5,7 @@ import SitRepPanel
 public enum Spoken {
     /// A row of the list beside the page, one element: a line, as `line(_:at:in:)` reads it; a session's row in Working
     /// or Your turn, its line's words, its project, its session, its state and its time, as "Drawing the ledger schema,
-    /// Switchboard, Request ledger, your turn, 12 minutes".
+    /// Switchboard, Request ledger, your turn, 12 minutes"; a parked item, as `parked(_:at:)` reads it.
     public static func row(_ row: PlaceList.Row, at now: Date, in calendar: Calendar = WakeTime.calendar) -> String {
         switch row {
         case let .line(line):
@@ -13,6 +13,8 @@ public enum Spoken {
         case let .session(row):
             return (row.lines.map { $0.words(at: now) } + [row.project, row.name, mark(row.mark), age(row.since, at: now)])
                 .joined(separator: ", ")
+        case let .parked(item):
+            return parked(item, at: now)
         }
     }
 

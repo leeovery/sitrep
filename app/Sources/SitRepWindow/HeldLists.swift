@@ -64,23 +64,16 @@ public struct HeldLists: Equatable, Sendable {
         projectsHold.release()
     }
 
-    /// The place's list in the order held, its fold's rows too.
+    /// The place's list in the order held, its fold's rows too (`PlaceList.ordered(by:)`).
     public func arranged(_ list: PlaceList) -> PlaceList {
-        let order = lists[list.place] ?? []
-        var arranged = list
-
-        arranged.rows = list.rows.held(by: order, \.pick)
-        if let folded = list.fold?.rows {
-            arranged.fold?.rows = folded.held(by: order, \.pick)
-        }
-        return arranged
+        list.ordered(by: lists[list.place] ?? [])
     }
 
     /// The sidebar with its projects in the order held.
     public func arranged(_ places: Places) -> Places {
         var arranged = places
 
-        arranged.projects = places.projects.held(by: projects, \.id)
+        arranged.projects = Hold.order(places.projects, by: projects, \.id)
         return arranged
     }
 
@@ -96,15 +89,5 @@ public struct HeldLists: Equatable, Sendable {
         let lists = Place.allCases.map { place in (place, PlaceList(place, in: listed, isFoldOpen: true).picks) }
 
         return (Dictionary(uniqueKeysWithValues: lists), listed.projects.map(\.id))
-    }
-}
-
-private extension Array {
-    /// In the order given, by each element's key; any the order lacks after those it has, as they were.
-    func held<Key: Hashable>(by order: [Key], _ key: (Element) -> Key) -> [Element] {
-        let rank = Dictionary(order.enumerated().map { ($1, $0) }) { first, _ in first }
-        let ranked = enumerated().map { (rank: (rank[key($1)] ?? order.count, $0), element: $1) }
-
-        return ranked.sorted { $0.rank < $1.rank }.map(\.element)
     }
 }

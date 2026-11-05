@@ -1,5 +1,6 @@
 import AppKit
 @testable import SitRep
+@testable import SitRepCore
 import SitRepPanel
 @testable import SitRepWindow
 import SwiftUI
@@ -40,7 +41,7 @@ struct ListRowTests {
 
     private static func height(of row: PlaceList.Row) -> CGFloat {
         switch row {
-        case .line: WindowStyle.lineHeight
+        case .line, .parked: WindowStyle.lineHeight
         case let .session(session): session.section == .yourTurn ? WindowStyle.oneLineHeight : WindowStyle.twoLineHeight
         }
     }
@@ -171,6 +172,46 @@ struct ListRowTests {
         #expect(abs(stroke.redComponent - stroke.blueComponent) < 0.02)
         #expect((282.5 ... 284.5).contains(time.maxX))
         #expect(time.width > 50)
+    }
+
+    /// Northwind's item parked an hour ago from Ledger export.
+    nonisolated static let parked = PlaceList.Row.parked(Listed.Parked(
+        item: SessionBoard.Parked(
+            id: "77k4", title: "Handle multi-currency rows", where: nil, ref: nil, at: now.addingTimeInterval(-3600)
+        ),
+        session: "sr-nwdgr4", sessionName: "Ledger export", project: "northwind", projectName: "Northwind"
+    ))
+
+    /// A parked item is a line's shape (A4 revised): its diamond in the mark's slot, its title from 46, 10 down, its
+    /// session's name under it from 46 too; under the pointer no button, as it is the item and not its session, its
+    /// age staying.
+    @Test func aParkedItemIsItsTitleOverItsSessionWithNoJump() throws {
+        let drawn = try Self.drawn(Self.parked)
+        let hovered = try Self.drawn(Self.parked, hovered: true)
+        let mark = try #require(drawn.drawnBox(in: CGRect(x: 16, y: 10, width: 26, height: 16), ground: Self.ground))
+        let title = try #require(drawn.drawnBox(in: CGRect(x: 42, y: 8, width: 160, height: 20), ground: Self.ground))
+        let session = try #require(drawn.drawnBox(in: CGRect(x: 42, y: 28, width: 160, height: 16), ground: Self.ground))
+        let time = try #require(Self.brighter(than: 0.14, in: CGRect(x: 254, y: 8, width: 46, height: 20), of: hovered))
+
+        #expect(abs(mark.width - 9) <= 1 && abs(mark.midX - 29) <= 1)
+        #expect((46 ... 47.5).contains(title.minX) && title.minY >= 10 && title.maxY <= 26)
+        #expect((46 ... 47.5).contains(session.minX) && session.minY >= 28)
+        #expect(time.height < 14 && (282.5 ... 284.5).contains(time.maxX))
+    }
+
+    /// A project's heading over its items: its name from 16, 11 semibold, and its count at the age's end.
+    @Test func aParkedHeadingIsItsProjectsNameAndCount() throws {
+        let heading = ListLine(
+            item: .heading(PlaceList.Heading(project: "northwind", name: "Northwind", count: 2)), place: .parked,
+            picked: nil, filter: Filter(), now: Self.now, isFirst: true
+        )
+        .environment(\.isStill, true)
+        let drawn = try Drawn(heading, size: CGSize(width: Self.width, height: 28))
+        let name = try #require(drawn.drawnBox(in: CGRect(x: 12, y: 4, width: 120, height: 24), ground: Self.ground))
+        let count = try #require(drawn.drawnBox(in: CGRect(x: 254, y: 4, width: 46, height: 24), ground: Self.ground))
+
+        #expect((16 ... 17.5).contains(name.minX) && name.height <= 11)
+        #expect((282.5 ... 284.5).contains(count.maxX))
     }
 
     /// The button jumps to its session's window by itself, a press of its own, so the window's jump moves no pick.

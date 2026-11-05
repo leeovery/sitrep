@@ -163,7 +163,7 @@ struct SessionPageTests {
         #expect(page.jumps)
         #expect(page.finish == nil)
         #expect(page.asks.first?.buttons.contains(.inClaude(.comment)) == true)
-        #expect(run.list(at: printedAt)?.rows.first { $0.session == "sr-gs7kq2" }?.row.isAway == false)
+        #expect(run.list(at: printedAt)?.rows.first { $0.session == "sr-gs7kq2" }?.row?.isAway == false)
     }
 
     // MARK: The lead, beside the list

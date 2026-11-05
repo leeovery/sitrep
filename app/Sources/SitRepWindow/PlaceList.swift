@@ -15,10 +15,12 @@ public enum ListPick: Hashable, Codable, Sendable {
 /// A place's list, the middle column. Needs you is a row per line waiting on Lee, each ask and each window's stop, not
 /// per session: the newest first, those of sessions a window holds before those of sessions none does; then
 /// "N snoozed", its asks and turns asleep, the soonest to wake first. Your turn and Working are a row per session, in
-/// core's order, Your turn's past the fold period under "N earlier". A fold at the list's foot shows its rows only
-/// while it is open, and always while the filter holds text. The filter keeps a line while every word typed appears in
-/// its session's name, its project's or its own words; a session's row while every word appears in its name, its
-/// project's or its lines'.
+/// core's order, Your turn's past the fold period under "N earlier". Parked is a row per item, under a heading per
+/// project, the projects in `watch`'s order and each one's items the oldest first, narrowed to a project or a session
+/// where its scope says. A fold at the list's foot shows its rows only while it is open, and always while the filter
+/// holds text. The filter keeps a line while every word typed appears in its session's name, its project's or its own
+/// words; a session's row while every word appears in its name, its project's or its lines'; an item while every word
+/// appears in its title, its session's name or its project's.
 public struct PlaceList: Equatable, Sendable {
     /// A line of a session's row in Needs you, an ask or a window's stop; or in Snoozed, an ask asleep, or a turn,
     /// keyed `turn:<session>` apart from its session's asks' keys.
@@ -61,6 +63,7 @@ public struct PlaceList: Equatable, Sendable {
     public enum Row: Equatable, Sendable, Identifiable {
         case line(LineRow)
         case session(Listed.Row)
+        case parked(Listed.Parked)
 
         public var id: ListPick { pick }
 
@@ -68,19 +71,22 @@ public struct PlaceList: Equatable, Sendable {
             switch self {
             case let .line(line): line.pick
             case let .session(row): .session(row.session)
+            case let .parked(item): item.id
             }
         }
 
-        /// The session's row it is of, or is.
-        public var row: Listed.Row {
+        /// The session's row it is of, or is; none for a parked item, which is no session's row.
+        public var row: Listed.Row? {
             switch self {
             case let .line(line): line.session
             case let .session(row): row
+            case .parked: nil
             }
         }
 
         /// A window holds its session: its button under the pointer, and VoiceOver's "Jump to the window", jump there.
-        public var jumps: Bool { row.jumps }
+        /// A parked item's row, which shows the item and not its session, has none.
+        public var jumps: Bool { row?.jumps ?? false }
 
         /// A line under "N snoozed", which its menu wakes.
         public var isAsleep: Bool {
@@ -88,22 +94,30 @@ public struct PlaceList: Equatable, Sendable {
         }
 
         /// What its menu's Snooze puts off, or its Wake now brings back: a line's (`LineRow.snoozable`); a Your turn
-        /// row's turn, by the turn's end; none for a Working row.
+        /// row's turn, by the turn's end; none for a Working row nor a parked item.
         public var snoozable: Snoozable? {
             switch self {
             case let .line(line): line.snoozable
             case let .session(row): row.section == .yourTurn ? .turn(ended: row.since) : nil
+            case .parked: nil
             }
         }
 
-        /// The session it shows, which the page beside the list follows.
-        public var session: String { row.session }
+        /// The session it shows, or that parked it, which the page beside the list follows.
+        public var session: String {
+            switch self {
+            case let .line(line): line.session.session
+            case let .session(row): row.session
+            case let .parked(item): item.session
+            }
+        }
 
         /// What the filter reads of it.
         fileprivate var words: [String] {
             switch self {
             case let .line(line): [line.session.name, line.session.project, line.line.words]
             case let .session(row): [row.name, row.project] + row.lines.map(\.words)
+            case let .parked(item): [item.item.title, item.sessionName, item.projectName]
             }
         }
     }
@@ -128,25 +142,38 @@ public struct PlaceList: Equatable, Sendable {
 
         /// As the card's "N earlier" has it: its rows' projects.
         public var earlier: Earlier {
-            Earlier(projects: rows.map(\.row.project), isOpen: isOpen)
+            Earlier(projects: rows.compactMap(\.row?.project), isOpen: isOpen)
         }
+    }
+
+    /// The heading over a project's items in Parked, which the list never selects: its name, and how many of its
+    /// items the list shows.
+    public struct Heading: Equatable, Sendable {
+        /// Its project's key.
+        public let project: String
+        public let name: String
+        public let count: Int
     }
 
     /// The list as it shows, in order.
     public enum Item: Equatable, Sendable, Identifiable {
         case row(Row)
         case fold(Fold)
+        case heading(Heading)
 
         public var id: ID {
             switch self {
             case let .row(row): .pick(row.pick)
             case let .fold(fold): .fold(fold.kind)
+            case let .heading(heading): .heading(heading.project)
             }
         }
 
         public enum ID: Hashable, Sendable {
             case pick(ListPick)
             case fold(Fold.Kind)
+            /// A project's heading, by its key.
+            case heading(String)
         }
     }
 
@@ -172,9 +199,13 @@ public struct PlaceList: Equatable, Sendable {
         self.init(.needsYou, in: Listed())
     }
 
-    /// The place's list on the board given, narrowed by the filter, its fold open as given.
-    public init(_ place: Place, in listed: Listed, filter: Filter = Filter(), isFoldOpen: Bool = false) {
-        let given = Self.rows(of: place, in: listed)
+    /// The place's list on the board given, narrowed by the filter, its fold open as given; Parked's narrowed to its
+    /// scope too.
+    public init(
+        _ place: Place, in listed: Listed, filter: Filter = Filter(), isFoldOpen: Bool = false,
+        scope: ParkedScope = .all
+    ) {
+        let given = Self.rows(of: place, in: listed, scope: scope)
         let kept = { (rows: [Row]) in rows.filter { filter.matches($0.words) } }
 
         self.place = place
@@ -189,7 +220,7 @@ public struct PlaceList: Equatable, Sendable {
     private typealias Given = (rows: [Row], fold: (kind: Fold.Kind, rows: [Row])?)
 
     /// The place's rows on the board, in its order, and its fold's, with any.
-    private static func rows(of place: Place, in listed: Listed) -> Given {
+    private static func rows(of place: Place, in listed: Listed, scope: ParkedScope) -> Given {
         switch place {
         case .needsYou:
             let waiting = lines(of: listed.needsYou).sorted { $0.first < $1.first }
@@ -204,17 +235,84 @@ public struct PlaceList: Equatable, Sendable {
 
             return (current.map(Row.session), (.earlier, rows.filter(\.isEarlier).map(Row.session)))
         case .parked:
-            return ([], nil)
+            return (parked(in: listed, scope: scope).map(Row.parked), nil)
         }
+    }
+
+    /// The items in the scope, by project in `watch`'s order, each project's the oldest first, those as old as each
+    /// other as the board has them.
+    private static func parked(in listed: Listed, scope: ParkedScope) -> [Listed.Parked] {
+        let rank = Dictionary(listed.projects.enumerated().map { ($1.id, $0) }) { first, _ in first }
+        let order = { (item: (offset: Int, element: Listed.Parked)) in
+            (rank[item.element.project] ?? rank.count, item.element.item.at, item.offset)
+        }
+
+        return listed.parked.enumerated().filter { scope.holds($0.element) }.sorted { order($0) < order($1) }
+            .map(\.element)
     }
 
     private static func lines(of rows: [Listed.Row]) -> [LineRow] {
         rows.flatMap { row in row.lines.map { LineRow(session: row, line: $0) } }
     }
 
-    /// The list as it shows: its rows, then its fold, with its rows while it is open.
+    /// The list as it shows: its rows, then its fold, with its rows while it is open; Parked's under their projects'
+    /// headings.
     public var items: [Item] {
-        rows.map(Item.row) + (fold.map { [.fold($0)] + ($0.isOpen ? $0.rows.map(Item.row) : []) } ?? [])
+        guard place != .parked else {
+            return Self.headed(rows)
+        }
+        return rows.map(Item.row) + (fold.map { [.fold($0)] + ($0.isOpen ? $0.rows.map(Item.row) : []) } ?? [])
+    }
+
+    /// Parked's rows, each project's under its heading.
+    private static func headed(_ rows: [Row]) -> [Item] {
+        byProject(rows).flatMap { items in
+            [Item.heading(Heading(project: items[0].project, name: items[0].projectName, count: items.count))]
+                + items.map { Item.row(.parked($0)) }
+        }
+    }
+
+    /// Parked's items by project, the projects in the order each first comes, each one's items in their order. An
+    /// order held can part a project's items, as an item new to the board goes in after the one `watch` has before it
+    /// (`Hold.merge`), which may be another project's; so the rows are kept together so, and each project has one
+    /// heading.
+    private static func byProject(_ rows: [Row]) -> [[Listed.Parked]] {
+        var projects: [String] = []
+        var items: [String: [Listed.Parked]] = [:]
+
+        for case let .parked(item) in rows {
+            if items[item.project] == nil {
+                projects.append(item.project)
+            }
+            items[item.project, default: []].append(item)
+        }
+        return projects.compactMap { items[$0] }
+    }
+
+    /// The list with its rows, its fold's too, in this order, by their picks, any the order lacks after those it has,
+    /// as they were; Parked's then kept together by project (`byProject(_:)`), so the rows step as they show.
+    func ordered(by order: [ListPick]) -> PlaceList {
+        var ordered = self
+
+        ordered.rows = Hold.order(rows, by: order, \.pick)
+        ordered.fold?.rows = Hold.order(fold?.rows ?? [], by: order, \.pick)
+        if place == .parked {
+            ordered.rows = Self.byProject(ordered.rows).flatMap { $0.map(Row.parked) }
+        }
+        return ordered
+    }
+
+    /// The heading over the pick's row, where its row is the first under one: what the list scrolls into view with
+    /// it, so a project's first item never shows without its project.
+    public func heading(over pick: ListPick) -> Item.ID? {
+        let items = items
+
+        guard let at = items.firstIndex(where: { $0.id == .pick(pick) }), at > 0,
+              case let .heading(heading) = items[at - 1]
+        else {
+            return nil
+        }
+        return .heading(heading.project)
     }
 
     /// The rows it shows, which a click or an arrow key picks, in order.
@@ -299,4 +397,15 @@ private extension PlaceList.LineRow {
 
     /// Snoozed's, as core's: the soonest to wake first, then the oldest, then by key.
     var soonest: (Date, Date, String) { (line.wakesAt ?? .distantFuture, line.since, line.id) }
+}
+
+extension ParkedScope {
+    /// The item is in it: every item in all; a project's items in their project's; a session's in its session's.
+    func holds(_ item: Listed.Parked) -> Bool {
+        switch self {
+        case .all: true
+        case let .project(key): item.project == key
+        case let .session(id): item.session == id
+        }
+    }
 }

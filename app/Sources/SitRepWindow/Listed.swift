@@ -127,11 +127,27 @@ public struct Listed: Equatable, Sendable {
         }
     }
 
+    /// An item a session parked, which Parked lists, with its session's names and its project's.
+    public struct Parked: Equatable, Sendable, Identifiable {
+        public let item: SessionBoard.Parked
+        public let session: String
+        public let sessionName: String
+        /// Its project's key, and its name.
+        public let project: String
+        public let projectName: String
+
+        /// Its session's and its own: an item's id is unique only within its session (core/ids.ts).
+        public var id: ListPick { .parked(session: session, id: item.id) }
+    }
+
     public let head: Head
     /// Every row, by its section in the sections' order, each section's in core's order (`Listed.rows(_:)`).
     public var rows: [Row]
     /// Every project on the board, in `watch`'s order.
     public var projects: [Project]
+    /// Every item parked on the board, by project in `watch`'s order, then by session as its project orders them, each
+    /// session's in the order it parked them.
+    public let parked: [Parked]
     /// Every session on the board, each by its project's key.
     public var homes: [String: String]
     /// A board was heard, stale or not: without one, before `watch` prints its first line or with no `watch` to run,
@@ -148,6 +164,7 @@ public struct Listed: Equatable, Sendable {
         head = PanelBoard(unrun: why).head
         rows = []
         projects = []
+        parked = []
         homes = [:]
         hasBoard = false
     }
@@ -160,6 +177,7 @@ public struct Listed: Equatable, Sendable {
         head = PanelBoard(last).head
         rows = board.map(Self.rows) ?? []
         projects = board?.projects.map(Project.init) ?? []
+        parked = board.map(Self.parked) ?? []
         homes = board.map(Self.homes) ?? [:]
     }
 
@@ -185,6 +203,20 @@ extension Listed {
         let rows = board.rows.map(Row.init) + board.snoozed.map(Row.init)
 
         return BoardSection.allCases.flatMap { section in rows.filter { $0.section == section } }
+    }
+
+    /// Every item the board's sessions parked, in the board's order.
+    static func parked(_ board: Board) -> [Parked] {
+        board.projects.flatMap { project in
+            project.sessions.flatMap { session in
+                session.parkedItems.map { item in
+                    Parked(
+                        item: item, session: session.id, sessionName: session.name, project: project.key,
+                        projectName: project.name
+                    )
+                }
+            }
+        }
     }
 
     /// The board's sessions, by their projects' keys.

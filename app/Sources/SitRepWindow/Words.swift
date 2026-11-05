@@ -138,9 +138,12 @@ public enum Words {
     /// The Filter field's placeholder.
     public static let filter = "Filter"
 
-    /// The list's one line in its place where the filter keeps nothing, the field's text in the quotes.
-    public static func noMatch(_ filter: Filter) -> String {
-        "No sessions match “\(filter.text.trimmingCharacters(in: .whitespacesAndNewlines))”"
+    /// The list's one line in its place where the filter keeps nothing, the field's text in the quotes: on Parked,
+    /// whose rows are items, "Nothing parked matches “…”".
+    public static func noMatch(_ filter: Filter, on place: Place) -> String {
+        let typed = "“\(filter.text.trimmingCharacters(in: .whitespacesAndNewlines))”"
+
+        return place == .parked ? "Nothing parked matches \(typed)" : "No sessions match \(typed)"
     }
 
     /// A count of something, its noun made plural past one.

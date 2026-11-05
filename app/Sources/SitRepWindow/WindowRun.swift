@@ -193,7 +193,10 @@ public final class WindowRun {
 
         openFolds = openFolds.filter { PlaceList($0, in: listed).fold != nil }
         if let place = location.place {
-            history?.stand(in: arranged(place))
+            // arranged first: it reads where the window is, which the history's change below would hold exclusively
+            let list = arranged(place)
+
+            history?.stand(in: list)
         }
     }
 
@@ -204,6 +207,8 @@ public final class WindowRun {
         let listed = listed
         let before = location
 
+        // arranged narrows Parked by the scope before the change, which a scope dropped by the board may have been;
+        // move ends by standing the pick in the list as it now narrows (`keepTheList()`)
         move { $0.keep(on: listed, arranged: { self.arranged($0) }) }
         if location != before || isFirstBoard {
             openTheFoldOverThePick()
@@ -587,14 +592,19 @@ public final class WindowRun {
             return nil
         }
 
-        return held.arranged(
-            PlaceList(place, in: washing(listed, at: time), filter: filter, isFoldOpen: openFolds.contains(place))
-        )
+        return held.arranged(list(of: place, in: washing(listed, at: time)))
     }
 
-    /// A place's list as it shows, held, filtered and folded, with no washes.
+    /// A place's list as it shows, held, filtered, folded and narrowed, with no washes.
     func arranged(_ place: Place) -> PlaceList {
-        held.arranged(PlaceList(place, in: listed, filter: filter, isFoldOpen: openFolds.contains(place)))
+        held.arranged(list(of: place, in: listed))
+    }
+
+    /// A place's list on this board, filtered and folded, Parked's narrowed to its scope where the window is on it.
+    private func list(of place: Place, in listed: Listed) -> PlaceList {
+        let scope = location.place == place ? location.scope : .all
+
+        return PlaceList(place, in: listed, filter: filter, isFoldOpen: openFolds.contains(place), scope: scope)
     }
 
     /// The board with its washes under way at this time: each line new on the board, outside Snoozed, whose rows
@@ -639,8 +649,8 @@ public final class WindowRun {
     }
 
     /// The page at this time, its washes under way: beside a place's list, the session its pick shows, led by the
-    /// picked line's card, or with nothing picked how the board stands; filling the window, a project's page or a
-    /// session's.
+    /// picked line's card, or the parked item picked, or with nothing picked how the board stands; filling the window,
+    /// a project's page or a session's.
     public func page(at time: Date) -> Page {
         details.prune(at: time)
         guard let board = last.board else {
@@ -651,6 +661,9 @@ public final class WindowRun {
         case let .place(_, picked, _):
             guard let id = picked?.session else {
                 return board.projects.isEmpty ? .nothingOpen : .empty(given.head.title)
+            }
+            if case let .parked(_, item) = picked?.pick {
+                return parkedPage(item, of: id, on: board)
             }
             return board.session(id).map { found in
                 .detail(sessionPage(found.session, of: found.project, on: board, as: .detail, leading: picked?.pick, at: time))

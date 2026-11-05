@@ -21,7 +21,7 @@ public enum Place: String, CaseIterable, Codable, Hashable, Sendable {
     }
 
     /// Its count on the board: Needs you's its lines waiting on Lee, each ask and stop; Working's and Your turn's their
-    /// rows, "N earlier"'s among them; Parked's the items every session parked.
+    /// rows, "N earlier"'s among them; Parked's the items every session parked, as core counts them.
     func count(in listed: Listed) -> Int {
         switch self {
         case .needsYou: listed.needsYou.map(\.lines.count).reduce(0, +)

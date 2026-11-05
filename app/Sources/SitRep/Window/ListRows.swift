@@ -3,10 +3,10 @@ import enum SitRepPanel.WakeTime
 import SitRepWindow
 import SwiftUI
 
-/// What the list beside the page shows, item by item, as its kind draws it: a row, Needs you's line or a session's in
-/// Working or Your turn, with its menu, its words to VoiceOver and its actions; or the fold at the list's foot. Its
-/// words are in the system's label colours and board D's whites, and on the accent of its pick in board D's whites;
-/// its orange stays orange.
+/// What the list beside the page shows, item by item, as its kind draws it: a row, Needs you's line, a session's in
+/// Working or Your turn or a parked item, with its menu, its words to VoiceOver and its actions; the fold at the list's
+/// foot; or a project's heading over its items in Parked. Its words are in the system's label colours and board D's
+/// whites, and on the accent of its pick in board D's whites; its orange stays orange.
 struct ListLine: View {
     let item: PlaceList.Item
     let place: Place
@@ -14,6 +14,8 @@ struct ListLine: View {
     let picked: ListPick?
     let filter: Filter
     let now: Date
+    /// It leads the list: a heading there has no gap above it.
+    var isFirst = false
 
     @Environment(\.wakeCalendar) private var calendar
 
@@ -27,13 +29,16 @@ struct ListLine: View {
                 .listRow(row.pick, isPicked: row.pick == picked, washed: row.washed, now: now)
         case let .fold(fold):
             FoldRow(fold: fold, place: place).listRow(ListPick?.none, isPicked: false, now: now)
+        case let .heading(heading):
+            ParkedHeading(heading: heading, isFirst: isFirst)
         }
     }
 }
 
 /// A row as its place draws it, in the card's type: Needs you's line, its session over its words; Working's verb and
-/// what it acts on over its project and session; Your turn's words on one line with its project. Under the pointer, a
-/// row of a session a window holds gives its time's place to its button, which jumps there (`HoverJump`).
+/// what it acts on over its project and session; Your turn's words on one line with its project; a parked item's title
+/// over its session. Under the pointer, a row of a session a window holds gives its time's place to its button, which
+/// jumps there (`HoverJump`).
 struct ListRow: View {
     let row: PlaceList.Row
     let filter: Filter
@@ -46,6 +51,7 @@ struct ListRow: View {
             case let .session(session) where session.section == .working:
                 WorkingRow(row: session, filter: filter, now: now)
             case let .session(session): TurnRow(row: session, filter: filter, now: now)
+            case let .parked(item): ParkedRow(item: item, filter: filter, now: now)
             }
         }
         .modifier(HoverJump(session: row.session, jumps: row.jumps))
@@ -213,6 +219,90 @@ struct TurnRow: View {
     }
 
     private var onPick: Bool { prominence == .increased }
+}
+
+/// A parked item's row in Parked, as A4 revised draws it, in Needs you's line's shape: 54 tall, its words 10 from its
+/// top; the stroked diamond in its slot; its title, medium in white at 85%, cut short, and how long ago it was parked;
+/// under them its session's name in white at 55%. On the accent of the pick its title goes white, the rest white at 80%.
+/// It is the item, not its session: no button jumps from it, and it has no menu.
+struct ParkedRow: View {
+    let item: Listed.Parked
+    let filter: Filter
+    let now: Date
+
+    @Environment(\.backgroundProminence) private var prominence
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: WindowStyle.lineGap) {
+            HStack(alignment: .top, spacing: WindowStyle.slotGap) {
+                ParkedMark()
+                Name(item.item.title, litBy: filter, tone: .text, onPick: onPick)
+                    .font(WindowStyle.ui(WindowStyle.titleSize, .medium))
+                    .spacing(WindowStyle.titleTracking, of: WindowStyle.titleSize)
+                    .lineLimit(1)
+                    .frame(maxWidth: .infinity, minHeight: WindowStyle.titleLine, maxHeight: WindowStyle.titleLine, alignment: .leading)
+                RowTime(Words.age(item.item.at, at: now), washed: nil, onPick: onPick)
+                    .frame(height: WindowStyle.titleLine)
+            }
+            HStack(spacing: WindowStyle.slotGap) {
+                Color.clear.frame(width: WindowStyle.slot.width, height: WindowStyle.titleLine)
+                Name(item.sessionName, litBy: filter, tone: .soft, onPick: onPick)
+                    .font(WindowStyle.ui(WindowStyle.titleSize))
+                    .spacing(WindowStyle.titleTracking, of: WindowStyle.titleSize)
+                    .lineLimit(1)
+                    .frame(maxWidth: .infinity, minHeight: WindowStyle.titleLine, maxHeight: WindowStyle.titleLine, alignment: .leading)
+            }
+        }
+        .padding(.top, WindowStyle.lineTop)
+        .frame(height: WindowStyle.lineHeight, alignment: .top)
+    }
+
+    private var onPick: Bool { prominence == .increased }
+}
+
+/// A parked item's mark in its slot, the diamond stroked in the secondary colour; on the accent of its pick white, as
+/// its title, as A4 revised draws it.
+private struct ParkedMark: View {
+    @Environment(\.backgroundProminence) private var prominence
+
+    var body: some View {
+        Diamond()
+            .stroke(ink, style: StrokeStyle(lineWidth: 1.4, lineJoin: .round))
+            .frame(width: 7.5, height: 7.5)
+            .frame(width: WindowStyle.slot.width, height: WindowStyle.slot.height)
+            .accessibilityHidden(true)
+    }
+
+    private var ink: AnyShapeStyle {
+        prominence == .increased ? AnyShapeStyle(WindowStyle.picked(.text)) : AnyShapeStyle(.secondary)
+    }
+}
+
+/// A project's heading over its items in Parked, as A4 revised draws it: its name, 11 semibold in white at 55%, and
+/// how many of its items show, 11 semibold in tabular figures in white at 35%, in the age's lane; 24 tall, 14 under
+/// the project's items above it, 4 under the list's top where it leads. The list never selects it.
+private struct ParkedHeading: View {
+    let heading: PlaceList.Heading
+    let isFirst: Bool
+
+    var body: some View {
+        HStack(spacing: WindowStyle.slotGap) {
+            Text(heading.name)
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            Text("\(heading.count)")
+                .monospacedDigit()
+                .foregroundStyle(WindowStyle.dim)
+        }
+        .font(WindowStyle.ui(WindowStyle.smallSize, .semibold))
+        .frame(height: WindowStyle.headingHeight)
+        .padding(.top, isFirst ? WindowStyle.firstParkedHeadingGap : WindowStyle.parkedHeadingGap)
+        .spoken(Spoken.heading(heading))
+        .accessibilityAddTraits(.isHeader)
+        .selectionDisabled()
+        .listCell()
+    }
 }
 
 /// A row's second line, under its first, from its words' edge: its project and its session, 11 in white at 55%.
@@ -419,7 +509,8 @@ private struct SpokenActions: ViewModifier {
 /// A row's right-click, or Control-click: its menu (`RowMenu`), as the card's row's but for Open in SitRep, which the
 /// row is already: Jump to the window; on a line that is an ask, Snooze for that one ask, on a Your turn row Snooze and
 /// Until it moves for its turn, or asleep, Wake now; never its session's other asks, which have rows of their own. A
-/// still has none: the menu's area is an AppKit view, which a still draws as a placeholder.
+/// parked item, which is no session's row, has none. A still has none: the menu's area is an AppKit view, which a
+/// still draws as a placeholder.
 private struct RowContextMenu: ViewModifier {
     let row: PlaceList.Row
 
@@ -429,7 +520,7 @@ private struct RowContextMenu: ViewModifier {
 
     func body(content: Content) -> some View {
         content.overlay {
-            if !isStill {
+            if !isStill, row.row != nil {
                 menuArea
             }
         }

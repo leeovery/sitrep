@@ -23,7 +23,7 @@ struct WindowMotionTests {
 
     /// The working rows of the board, as Working lists them.
     private static func working(in run: WindowRun) -> Int {
-        run.list(at: HostedSidebar.printed)?.rows.filter { $0.row.mark == .working }.count ?? 0
+        run.list(at: HostedSidebar.printed)?.rows.filter { $0.row?.mark == .working }.count ?? 0
     }
 
     @Test func workingsRowsTurnAndShimmer() throws {

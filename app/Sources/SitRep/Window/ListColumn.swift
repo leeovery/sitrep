@@ -4,7 +4,7 @@ import SwiftUI
 
 /// The list beside the page, in the window's content list, 300 wide on the page's black, as A1 revised draws it: the
 /// place's rows (`PlaceList`), Needs you a row per line, then its fold. With nothing listed, one line says why: that the
-/// filter keeps nothing, or, on Needs you, how the board stands; Parked, whose items come later, says nothing.
+/// filter keeps nothing, or, on Needs you, how the board stands. Parked's items sit under their projects' headings.
 struct ListColumn: View {
     let list: PlaceList
     /// The row the list picked, which it shows picked while it lists it.
@@ -38,11 +38,11 @@ struct ListColumn: View {
 
     /// The one line in the list's place where it lists nothing.
     private var note: String? {
-        guard list.isEmpty, list.place != .parked else {
+        guard list.isEmpty else {
             return nil
         }
         if !filter.isEmpty {
-            return Words.noMatch(filter)
+            return Words.noMatch(filter, on: list.place)
         }
         return list.place == .needsYou ? head.title : nil
     }
@@ -52,7 +52,8 @@ struct ListColumn: View {
 /// system, and which never empties while a row of it is picked. A click picks a row as a step replacing the last; ↓
 /// and ↑, bare, step through the rows as the window's run says (`WindowRun.step(down:at:)`), from where the pick stood
 /// where the list no longer shows it, and nowhere past either end; with a modifier held they are the list's own. The
-/// row picked is scrolled into view whenever it or the order changes, only as far as it needs. The pointer over its
+/// row picked is scrolled into view whenever it or the order changes, only as far as it needs, with its project's
+/// heading where it is the first under one. The pointer over its
 /// column holds its order (`ListColumn`).
 private struct PlaceListView: View {
     let list: PlaceList
@@ -114,10 +115,16 @@ private struct PlaceListView: View {
         return .handled
     }
 
-    /// The row picked scrolled into view, only as far as it needs.
+    /// The row picked scrolled into view, only as far as it needs; a project's first item in Parked with its heading,
+    /// which, scrolled to after the row, shows above it, the row staying in view.
     private func reveal(in scroller: ScrollViewProxy) {
-        if let shown {
-            scroller.scrollTo(PlaceList.Item.ID.pick(shown))
+        guard let shown else {
+            return
+        }
+
+        scroller.scrollTo(PlaceList.Item.ID.pick(shown))
+        if let heading = list.heading(over: shown) {
+            scroller.scrollTo(heading)
         }
     }
 }
@@ -130,9 +137,13 @@ private struct PlaceListRows: View {
     let now: Date
 
     var body: some View {
-        ForEach(list.items) { item in
-            ListLine(item: item, place: list.place, picked: picked, filter: filter, now: now)
-                .id(item.id)
+        let items = list.items
+
+        ForEach(items) { item in
+            ListLine(
+                item: item, place: list.place, picked: picked, filter: filter, now: now, isFirst: item.id == items.first?.id
+            )
+            .id(item.id)
         }
     }
 }

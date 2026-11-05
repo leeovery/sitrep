@@ -60,10 +60,10 @@ extension EnvironmentValues {
     @Entry var wakeCalendar = WakeTime.calendar
 }
 
-/// The page: beside the list, the session its row picked; filling the window, a project's page or a session's; or why
-/// there is none, on the panel's black, starting under the toolbar's band. It draws what it is given, at the time
-/// given, so it renders the same on the screen and off it, as the columns beside it do. On screen, the pointer
-/// anywhere over it holds the page (`PagePointer`).
+/// The page: beside the list, the session its row picked, or the parked item; filling the window, a project's page or
+/// a session's; or why there is none, on the panel's black, starting under the toolbar's band. It draws what it is
+/// given, at the time given, so it renders the same on the screen and off it, as the columns beside it do. On screen,
+/// the pointer anywhere over it holds the page (`PagePointer`).
 struct PageColumn: View {
     let page: Page
     let now: Date
@@ -92,6 +92,9 @@ struct PageColumn: View {
         case let .detail(session):
             Scrolling { SessionPageView(page: session, now: now).padding(.horizontal, WindowStyle.detailInset) }
                 .id(Pick.session(session.id))
+        case let .parked(item):
+            Scrolling { ParkedPageView(page: item, now: now).padding(.horizontal, WindowStyle.detailInset) }
+                .id(item.pick)
         case let .session(session):
             Scrolling { SessionPageView(page: session, now: now).padding(.horizontal, WindowStyle.pageInset) }
                 .id(Pick.session(session.id))

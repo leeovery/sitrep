@@ -239,8 +239,15 @@ extension Page {
     var session: SessionPage? {
         switch self {
         case let .detail(page), let .session(page): page
-        case .empty, .project: nil
+        case .empty, .parked, .project: nil
         }
+    }
+
+    var parked: ParkedPage? {
+        if case let .parked(page) = self {
+            return page
+        }
+        return nil
     }
 
     var project: ProjectPage? {
