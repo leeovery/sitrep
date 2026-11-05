@@ -30,7 +30,7 @@ extension View {
         buttonStyle(WordsStyle(colour: colour, hover: hover)).contentShape(.focusEffect, RoundedRectangle(cornerRadius: 4))
     }
 
-    /// "Open in Ghostty ↗".
+    /// "Open in Ghostty ↗", and a parked item's "Back to its session ›", drawn alike.
     func jumpButton() -> some View {
         buttonStyle(JumpStyle()).contentShape(.focusEffect, RoundedRectangle(cornerRadius: JumpStyle.radius))
     }

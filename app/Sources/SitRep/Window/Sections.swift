@@ -117,16 +117,7 @@ struct HappenedSection: View {
                 )
             }
         case let .line(note):
-            Opening(item: .note(note.id), opened: page.opened, hasMore: note.hasMore) { isOpen in
-                MarkedLine(
-                    mark: .line, text: note.text, textColour: WindowStyle.threadText, size: size, at: note.at, now: now,
-                    thread: thread, isOpen: isOpen
-                ) {
-                    ForEach(Array(note.detail.enumerated()), id: \.offset) { _, line in
-                        Text(line)
-                    }
-                }
-            }
+            NoteLine(note: note, opened: page.opened, size: size, now: now, thread: thread)
         }
     }
 
@@ -151,6 +142,60 @@ struct HappenedSection: View {
         .padding(.horizontal, -WindowStyle.reach)
         .accessibilityLabel(Words.resolved(page.resolved.count))
         .accessibilityValue(showsResolved ? "expanded" : "collapsed")
+    }
+}
+
+/// A parked item's "Since it was parked" (A4 revised): its session's log lines written since, the newest first, on one
+/// line down their marks as What happened's, each in a row of 26, opening in place to the whole of it and its detail;
+/// under them, where its session's board carries no line from before it was parked, that only the newest show.
+struct SinceParkedSection: View {
+    let page: ParkedPage
+    let now: Date
+
+    private let size = LineSize(line: 16, row: 26)
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            PageHeading(name: Words.sinceParked)
+            VStack(alignment: .leading, spacing: 0) {
+                ForEach(Array(page.since.enumerated()), id: \.element.id) { offset, note in
+                    NoteLine(
+                        note: note, opened: page.opened, size: size, now: now,
+                        thread: OnThread(isFirst: offset == 0, isLast: offset == page.since.count - 1)
+                    )
+                }
+                if page.isSinceCut {
+                    Text(Words.sinceCut)
+                        .font(WindowStyle.ui(12))
+                        .foregroundStyle(WindowStyle.faint)
+                        .padding(.leading, WindowStyle.wordsEdge)
+                        .padding(.top, 4)
+                }
+            }
+            .padding(.leading, WindowStyle.sectionIndent)
+        }
+    }
+}
+
+/// A line of a session's log on a thread, on its dot, opening in place to the whole of it and its detail.
+private struct NoteLine: View {
+    let note: Note
+    let opened: Set<Item>
+    let size: LineSize
+    let now: Date
+    let thread: OnThread
+
+    var body: some View {
+        Opening(item: .note(note.id), opened: opened, hasMore: note.hasMore) { isOpen in
+            MarkedLine(
+                mark: .line, text: note.text, textColour: WindowStyle.threadText, size: size, at: note.at, now: now,
+                thread: thread, isOpen: isOpen
+            ) {
+                ForEach(Array(note.detail.enumerated()), id: \.offset) { _, line in
+                    Text(line)
+                }
+            }
+        }
     }
 }
 

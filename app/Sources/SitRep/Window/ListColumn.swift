@@ -4,7 +4,7 @@ import SwiftUI
 
 /// The list beside the page, in the window's content list, 300 wide on the page's black, as A1 revised draws it: the
 /// place's rows (`PlaceList`), Needs you a row per line, then its fold. With nothing listed, one line says why: that the
-/// filter keeps nothing, or, on Needs you, how the board stands; Parked, whose items come later, says nothing.
+/// filter keeps nothing, or, on Needs you, how the board stands. Parked's items sit under their projects' headings.
 struct ListColumn: View {
     let list: PlaceList
     /// The row the list picked, which it shows picked while it lists it.
@@ -38,11 +38,11 @@ struct ListColumn: View {
 
     /// The one line in the list's place where it lists nothing.
     private var note: String? {
-        guard list.isEmpty, list.place != .parked else {
+        guard list.isEmpty else {
             return nil
         }
         if !filter.isEmpty {
-            return Words.noMatch(filter)
+            return Words.noMatch(filter, on: list.place)
         }
         return list.place == .needsYou ? head.title : nil
     }
@@ -130,9 +130,13 @@ private struct PlaceListRows: View {
     let now: Date
 
     var body: some View {
-        ForEach(list.items) { item in
-            ListLine(item: item, place: list.place, picked: picked, filter: filter, now: now)
-                .id(item.id)
+        let items = list.items
+
+        ForEach(items) { item in
+            ListLine(
+                item: item, place: list.place, picked: picked, filter: filter, now: now, isFirst: item.id == items.first?.id
+            )
+            .id(item.id)
         }
     }
 }
